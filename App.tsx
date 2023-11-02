@@ -1,5 +1,5 @@
-import "./init";
-import React, { useState, useEffect } from "react";
+import './init';
+import React, { useState, useEffect } from 'react';
 import {
   ScrollView,
   Text,
@@ -8,51 +8,53 @@ import {
   ButtonProps,
   Alert,
   Modal,
-  RefreshControl,
-} from "react-native";
+  RefreshControl
+} from 'react-native';
 const MBButton = ({ ...props }: ButtonProps) => (
   <View style={{ marginBottom: 10 }}>
     <Button {...props} />
   </View>
 );
-import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 
-import VaultSettings from "./VaultSettings";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import QRCode from "react-native-qrcode-svg";
-import * as Clipboard from "expo-clipboard";
-import { Share } from "react-native";
-import memoize from "lodash.memoize";
+import VaultSettings from './VaultSettings';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import QRCode from 'react-native-qrcode-svg';
+import * as Clipboard from 'expo-clipboard';
+import { Share } from 'react-native';
+import memoize from 'lodash.memoize';
 
-import { networks } from "bitcoinjs-lib";
+import { networks } from 'bitcoinjs-lib';
 const network = networks.testnet;
 
-import { generateMnemonic, mnemonicToSeedSync } from "bip39";
-import * as secp256k1 from "@bitcoinerlab/secp256k1";
+import { generateMnemonic, mnemonicToSeedSync } from 'bip39';
+import * as secp256k1 from '@bitcoinerlab/secp256k1';
 import {
   scriptExpressions,
-  DescriptorsFactory,
-} from "@bitcoinerlab/descriptors";
+  DescriptorsFactory
+} from '@bitcoinerlab/descriptors';
 const { wpkhBIP32 } = scriptExpressions;
 
-import { EsploraExplorer } from "@bitcoinerlab/explorer";
-import { DiscoveryFactory, DiscoveryInstance } from "@bitcoinerlab/discovery";
+import { EsploraExplorer } from '@bitcoinerlab/explorer';
+import { DiscoveryFactory, DiscoveryInstance } from '@bitcoinerlab/discovery';
 
 const { Output, BIP32 } = DescriptorsFactory(secp256k1);
-const DEF_PANIC_ADDR = "tb1qm0k9mn48uqfs2w9gssvzmus4j8srrx5eje7wpf";
+const DEF_PANIC_ADDR = 'tb1qm0k9mn48uqfs2w9gssvzmus4j8srrx5eje7wpf';
 //FIX TODO Use number
 const DEF_LOCK_BLOCKS = String(6 * 24 * 7);
-import { createVault, Vault, esploraUrl, remainingBlocks } from "./vaults";
-import styles from "./styles";
+import { createVault, Vault, esploraUrl, remainingBlocks } from './vaults';
+import styles from './styles';
 
 type Vaults = Record<string, Vault>;
 
-const fromMnemonic = memoize((mnemonic) => {
-  if (!mnemonic) throw new Error("mnemonic not passed");
+const fromMnemonic = memoize(mnemonic => {
+  if (!mnemonic) throw new Error('mnemonic not passed');
   const masterNode = BIP32.fromSeed(mnemonicToSeedSync(mnemonic), network);
-  const descriptors = [0, 1].map((change) =>
-    wpkhBIP32({ masterNode, network, account: 0, index: "*", change }),
+  const descriptors = [0, 1].map(change =>
+    wpkhBIP32({ masterNode, network, account: 0, index: '*', change })
   );
+  if (!descriptors[0] || !descriptors[1])
+    throw new Error(`Error: descriptors not retrieved`);
   return { masterNode, external: descriptors[0], internal: descriptors[1] };
 });
 
@@ -70,15 +72,15 @@ export default function App() {
   const [checkingBalance, setCheckingBalance] = useState(false);
 
   const init = async () => {
-    const mnemonic = await AsyncStorage.getItem("mnemonic");
-    const defPanicAddr = await AsyncStorage.getItem("defPanicAddr");
-    const defLockBlocks = await AsyncStorage.getItem("defLockBlocks");
+    const mnemonic = await AsyncStorage.getItem('mnemonic');
+    const defPanicAddr = await AsyncStorage.getItem('defPanicAddr');
+    const defLockBlocks = await AsyncStorage.getItem('defLockBlocks');
     const url = esploraUrl(network);
     const explorer = new EsploraExplorer({ url });
     const { Discovery } = DiscoveryFactory(explorer, network);
     await explorer.connect();
     const discovery = new Discovery();
-    const vaults = JSON.parse((await AsyncStorage.getItem("vaults")) || "{}");
+    const vaults = JSON.parse((await AsyncStorage.getItem('vaults')) || '{}');
 
     setIsSettingsVisible(false);
     setIsVaultSetUp(false);
@@ -110,7 +112,7 @@ export default function App() {
 
   const handleCreateWallet = async () => {
     const mnemonic = generateMnemonic();
-    await AsyncStorage.setItem("mnemonic", mnemonic);
+    await AsyncStorage.setItem('mnemonic', mnemonic);
     setMnemonic(mnemonic);
   };
 
@@ -119,7 +121,7 @@ export default function App() {
       setCheckingBalance(true);
       const descriptors = [
         fromMnemonic(mnemonic).external,
-        fromMnemonic(mnemonic).internal,
+        fromMnemonic(mnemonic).internal
       ];
       if (!discovery) throw new Error(`discovery not instantiated yet!`);
       //if (delay) await new Promise((resolve) => setTimeout(resolve, delay));
@@ -134,7 +136,9 @@ export default function App() {
         for (const [vaultAddress, vault] of Object.entries(vaults)) {
           const remainingBlocksValue = await remainingBlocks(vault, network);
           if (vault.remainingBlocks !== remainingBlocksValue) {
-            newVaults[vaultAddress].remainingBlocks = remainingBlocksValue;
+            const vault = newVaults[vaultAddress];
+            if (!vault) throw new Error(`Error: invalid vault ${vaultAddress}`);
+            vault.remainingBlocks = remainingBlocksValue;
             newVault = true;
           }
         }
@@ -160,20 +164,20 @@ export default function App() {
       // If successful:
       const newVaults = { ...vaults };
       delete newVaults[vault.vaultAddress];
-      await AsyncStorage.setItem("vaults", JSON.stringify(newVaults));
+      await AsyncStorage.setItem('vaults', JSON.stringify(newVaults));
       setVaults(newVaults);
     } catch (error: unknown) {
       const message = (error as Error).message;
 
-      if (message && message.indexOf("non-BIP68-final") !== -1) {
+      if (message && message.indexOf('non-BIP68-final') !== -1) {
         const remainingBlocksValue = await remainingBlocks(vault, network);
         Alert.alert(
-          "Vault Status",
-          `The vault remains time-locked. Please wait for an additional ${remainingBlocksValue} blocks before you can proceed.`,
+          'Vault Status',
+          `The vault remains time-locked. Please wait for an additional ${remainingBlocksValue} blocks before you can proceed.`
         );
       } else {
         // Handle any other errors or show a general error alert:
-        Alert.alert("Error broadcasting the transaction.", message);
+        Alert.alert('Error broadcasting the transaction.', message);
       }
     }
   };
@@ -182,12 +186,12 @@ export default function App() {
     if (!discovery) throw new Error(`discovery not instantiated yet!`);
     await discovery.getExplorer().push(vault.panicTxHex);
     Alert.alert(
-      "Transaction Successful",
-      `Funds have been sent to the safe address: ${vault.panicAddr}.`,
+      'Transaction Successful',
+      `Funds have been sent to the safe address: ${vault.panicAddr}.`
     );
     const newVaults = { ...vaults };
     delete newVaults[vault.vaultAddress];
-    await AsyncStorage.setItem("vaults", JSON.stringify(newVaults));
+    await AsyncStorage.setItem('vaults', JSON.stringify(newVaults));
     setVaults(newVaults);
   };
 
@@ -198,10 +202,10 @@ export default function App() {
       ...vaults,
       [vault.vaultAddress]: {
         ...vault,
-        triggerTime: Math.floor(Date.now() / 1000),
-      },
+        triggerTime: Math.floor(Date.now() / 1000)
+      }
     };
-    await AsyncStorage.setItem("vaults", JSON.stringify(newVaults));
+    await AsyncStorage.setItem('vaults', JSON.stringify(newVaults));
     setVaults(newVaults);
   };
 
@@ -222,12 +226,12 @@ ${vault.panicTxHex}
 
 Handle with care. Confidentiality is key.
 `;
-    Share.share({ message: message, title: "Share via" });
+    Share.share({ message: message, title: 'Share via' });
   };
 
   const handleVaultFunds = async ({
     panicAddr,
-    lockBlocks,
+    lockBlocks
   }: {
     panicAddr: string;
     lockBlocks: number;
@@ -238,8 +242,10 @@ Handle with care. Confidentiality is key.
     const nextInternalAddress = new Output({
       descriptor: internal,
       index: discovery.getNextIndex({ descriptor: internal }),
-      network,
+      network
     }).getAddress();
+    if (balance === null) throw new Error(`Error: unset balance`);
+    if (utxos === null) throw new Error(`Error: unset utxos`);
     const vault = createVault({
       nextInternalAddress,
       panicAddr,
@@ -248,11 +254,11 @@ Handle with care. Confidentiality is key.
       utxos,
       balance,
       discovery,
-      network,
+      network
     });
     await discovery.getExplorer().push(vault.vaultTxHex);
     const newVaults = { ...vaults, [vault.vaultAddress]: vault };
-    await AsyncStorage.setItem("vaults", JSON.stringify(newVaults));
+    await AsyncStorage.setItem('vaults', JSON.stringify(newVaults));
     setVaults(newVaults);
   };
 
@@ -276,7 +282,7 @@ Handle with care. Confidentiality is key.
           {discovery && mnemonic && (
             <MBButton
               title={
-                checkingBalance ? "Refreshing Balance…" : "Refresh Balance"
+                checkingBalance ? 'Refreshing Balance…' : 'Refresh Balance'
               }
               onPress={handleCheckBalance}
               disabled={checkingBalance}
@@ -296,7 +302,7 @@ Handle with care. Confidentiality is key.
           )}
           {mnemonic && balance !== null && (
             <Text style={styles.hotBalance}>
-              Hot Balance: {balance} sats{checkingBalance && " ⏳"}
+              Hot Balance: {balance} sats{checkingBalance && ' ⏳'}
             </Text>
           )}
           {vaults && Object.keys(vaults).length > 0 && (
@@ -310,16 +316,16 @@ Handle with care. Confidentiality is key.
                         ? vault.triggerBalance
                         : vault.vaultBalance
                     } sats`}
-                    {checkingBalance && " ⏳"}
+                    {checkingBalance && ' ⏳'}
                   </Text>
                   {vault.triggerTime ? (
                     <Text>
-                      Triggered On:{" "}
+                      Triggered On:{' '}
                       {new Date(vault.triggerTime * 1000).toLocaleString()}
                     </Text>
                   ) : (
                     <Text>
-                      Locked On:{" "}
+                      Locked On:{' '}
                       {new Date(vault.vaultTime * 1000).toLocaleString()}
                     </Text>
                   )}
@@ -362,27 +368,28 @@ Handle with care. Confidentiality is key.
           )}
         </ScrollView>
         <Modal visible={!!receiveAddress} animationType="slide">
-          <View style={styles.modal}>
-            <QRCode value={receiveAddress || undefined} />
-            <Text
-              style={styles.addressText}
-              onPress={() => {
-                if (!receiveAddress) throw new Error(`Invalid receiveAddress`);
-                Clipboard.setStringAsync(receiveAddress);
-                Alert.alert("Address copied to clipboard");
-              }}
-            >
-              {receiveAddress} 📋
-            </Text>
-            <View style={styles.buttonClose}>
-              <Button
-                title="Close"
+          {receiveAddress && (
+            <View style={styles.modal}>
+              <QRCode value={receiveAddress} />
+              <Text
+                style={styles.addressText}
                 onPress={() => {
-                  setReceiveAddress(null);
+                  Clipboard.setStringAsync(receiveAddress);
+                  Alert.alert('Address copied to clipboard');
                 }}
-              />
+              >
+                {receiveAddress} 📋
+              </Text>
+              <View style={styles.buttonClose}>
+                <Button
+                  title="Close"
+                  onPress={() => {
+                    setReceiveAddress(null);
+                  }}
+                />
+              </View>
             </View>
-          </View>
+          )}
         </Modal>
         <Modal visible={isSettingsVisible} animationType="slide">
           <View style={styles.modal}>
@@ -396,7 +403,7 @@ Handle with care. Confidentiality is key.
               network={network}
               onNewValues={async ({
                 panicAddr,
-                lockBlocks,
+                lockBlocks
               }: {
                 panicAddr: string;
                 lockBlocks: number;
@@ -432,7 +439,7 @@ Handle with care. Confidentiality is key.
               network={network}
               onNewValues={async ({
                 panicAddr,
-                lockBlocks,
+                lockBlocks
               }: {
                 panicAddr: string;
                 lockBlocks: number;

@@ -2,6 +2,13 @@
   "name": "thunderden",
   "version": "1.0.0",
   "main": "node_modules/expo/AppEntry.js",
+  "prettier": "@bitcoinerlab/configs/prettierConfig.json",
+  "eslintConfig": {
+    "extends": "./node_modules/@bitcoinerlab/configs/eslintConfig"
+  },
+  "jest": {
+    "preset": "@bitcoinerlab/configs"
+  },
   "scripts": {
     "start": "expo start",
     "android": "expo start --android",
@@ -36,6 +43,7 @@
   },
   "devDependencies": {
     "@babel/core": "^7.20.0",
+    "@bitcoinerlab/configs": "github:bitcoinerlab/configs",
     "@types/lodash.memoize": "^4.1.8",
     "@types/react": "~18.2.14",
     "typescript": "^5.1.3"

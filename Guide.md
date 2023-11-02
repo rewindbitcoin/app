@@ -50,6 +50,20 @@ npx expo install expo-sharing
 npx expo install react-native-safe-area-context
 ```
 
+```bash
+npm install --save-dev bitcoinerlab/configs
+```
+Then add in package.json:
+```
+  "prettier": "@bitcoinerlab/configs/prettierConfig.json",
+  "eslintConfig": {
+    "extends": "./node_modules/@bitcoinerlab/configs/eslintConfig"
+  },
+  "jest": {
+    "preset": "@bitcoinerlab/configs"
+  },
+```
+TODO: This does not use the tsconfig.json yet
 
 ## Run on Expo
 
