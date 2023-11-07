@@ -48,6 +48,10 @@ npx expo install expo-clipboard
 npx expo install expo-sharing
 #deals with SafeAreaView (correct padding for devices with notch)
 npx expo install react-native-safe-area-context
+#Slider:
+npx expo install @react-native-community/slider
+#fonts (monospace)
+npx expo install expo-font @expo-google-fonts/roboto-mono
 ```
 
 ```bash

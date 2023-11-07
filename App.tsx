@@ -1,3 +1,12 @@
+//TODO: The Settings Window (mode default) is not scrollable
+//In any case, this window should not be aplicable anymore
+//TODO: createVault will throw if it's not possible to create a Vault. Maybe return empty?
+//TODO: Consider not doing the last unvaultTx. It automatically goes to hot
+//This leads to faster tx processing
+//TODO: Do not use a hardocded panic address but offer the possibility to create
+//one, then show the mnemonic and tell people we will be deleting it automatically
+//TODO: Create a Withdrawal Button (when hot > 0)
+
 import './init';
 import React, { useState, useEffect } from 'react';
 import {
@@ -23,8 +32,9 @@ import QRCode from 'react-native-qrcode-svg';
 import * as Clipboard from 'expo-clipboard';
 import { Share } from 'react-native';
 import memoize from 'lodash.memoize';
+import { getBTCUSD } from './btcRates';
 
-import { networks } from 'bitcoinjs-lib';
+import { Transaction, networks } from 'bitcoinjs-lib';
 const network = networks.testnet;
 
 import { generateMnemonic, mnemonicToSeedSync } from 'bip39';
@@ -39,6 +49,9 @@ import { EsploraExplorer } from '@bitcoinerlab/explorer';
 import { DiscoveryFactory, DiscoveryInstance } from '@bitcoinerlab/discovery';
 
 const { Output, BIP32 } = DescriptorsFactory(secp256k1);
+const FEE_RATE = 1;
+const SAMPLES = 10;
+const FEE_RATE_CEILING = 10; //const FEE_RATE_CEILING = 1000; //22-dec-2017 fee rates
 const DEF_PANIC_ADDR = 'tb1qm0k9mn48uqfs2w9gssvzmus4j8srrx5eje7wpf';
 //FIX TODO Use number
 const DEF_LOCK_BLOCKS = String(6 * 24 * 7);
@@ -70,6 +83,11 @@ export default function App() {
   const [balance, setBalance] = useState<number | null>(null);
   const [vaults, setVaults] = useState<Vaults>({});
   const [checkingBalance, setCheckingBalance] = useState(false);
+  const [feeEstimates, setFeeEstimates] = useState<Record<
+    string,
+    number
+  > | null>(null);
+  const [btcUsd, setBtcUsd] = useState<number | null>(null);
 
   const init = async () => {
     const mnemonic = await AsyncStorage.getItem('mnemonic');
@@ -93,6 +111,80 @@ export default function App() {
     setBalance(null);
     setVaults(vaults);
     setCheckingBalance(false);
+
+    try {
+      //TODO: feeEstimates must update every block or at least every 10 minutes?
+      const feeEstimates = await explorer.fetchFeeEstimates();
+      setFeeEstimates(feeEstimates);
+    } catch (err) {}
+
+    try {
+      const btcUsd = await getBTCUSD();
+      setBtcUsd(btcUsd);
+    } catch (err) {}
+  };
+
+  const formatFeeRate = (feeRate: number) => {
+    let strBtcUsd = `Waiting for BTC/USD rates...`;
+    let strTime = `Waiting for fee estimates...`;
+    const txSize = vaultTxSize(utxos);
+    const averageBlockTimeInMinutes = 10; // Average time for one block to be mined
+    if (btcUsd)
+      strBtcUsd = `Fee: $${((feeRate * txSize * btcUsd) / 100000000).toFixed(
+        2
+      )}.`;
+    if (feeEstimates && Object.keys(feeEstimates).length) {
+      // Convert the feeEstimates object keys to numbers and sort them
+      const sortedEstimates = Object.keys(feeEstimates)
+        .map(Number)
+        .sort((a, b) => feeEstimates[a]! - feeEstimates[b]!);
+
+      // Find the confirmation target with the closest higher fee rate than the given feeRate
+      const target = sortedEstimates.find(
+        estimate => feeEstimates[estimate]! >= feeRate
+      );
+
+      // If a matching target is found, return the corresponding message
+      if (target !== undefined) {
+        const timeInMinutes = target * averageBlockTimeInMinutes;
+        let timeEstimate = '';
+
+        if (timeInMinutes >= 60) {
+          const timeInHours = (timeInMinutes / 60).toFixed(1); // Keep one decimal place for hours
+          timeEstimate = `~${timeInHours} ${
+            timeInHours === '1.0' ? `hours` : `hour`
+          }`;
+        } else {
+          timeEstimate = `~${timeInMinutes} mins`;
+        }
+
+        strTime = `Confirmation: ${timeEstimate}.`;
+      } else {
+        // If the provided fee rate is lower than any estimate,
+        // it's not possible to estimate the time
+        strTime = `Will confirm quick.`;
+      }
+    }
+    return `${strBtcUsd} ${strTime}`;
+  };
+  const formatLockTime = (blocks: number): string => {
+    const averageBlockTimeInMinutes = 10;
+
+    const timeInMinutes = blocks * averageBlockTimeInMinutes;
+    let timeEstimate = '';
+
+    if (timeInMinutes < 60) {
+      timeEstimate = `~${timeInMinutes} minute${timeInMinutes > 1 ? 's' : ''}`;
+    } else if (timeInMinutes < 1440) {
+      // Less than a day
+      const timeInHours = (timeInMinutes / 60).toFixed(1);
+      timeEstimate = `~${timeInHours} hour${timeInHours === '1.0' ? '' : 's'}`;
+    } else {
+      const timeInDays = (timeInMinutes / 1440).toFixed(1);
+      timeEstimate = `~${timeInDays} day${timeInDays === '1.0' ? '' : 's'}`;
+    }
+
+    return `Estimated lock time: ${timeEstimate}`;
   };
 
   useEffect(() => {
@@ -116,6 +208,22 @@ export default function App() {
     setMnemonic(mnemonic);
   };
 
+  const vaultTxSize = memoize(_utxos => {
+    const vault = handleVaultFunds({
+      samples: 2,
+      feeRate: 1,
+      feeRateCeiling: 1,
+      panicAddr: DEF_PANIC_ADDR,
+      lockBlocks: 1
+    });
+    const triggerTx = Object.keys(vault.triggerMap)[0];
+    if (triggerTx === undefined)
+      throw new Error(`Vault cannot be created with current utxos`);
+    const vSize = Transaction.fromHex(triggerTx).virtualSize();
+    console.log('New _utxos!', vSize);
+    return vSize;
+  });
+
   const handleCheckBalance = async () => {
     if (!checkingBalance) {
       setCheckingBalance(true);
@@ -134,7 +242,7 @@ export default function App() {
         const newVaults = { ...vaults };
         let newVault = false;
         for (const [vaultAddress, vault] of Object.entries(vaults)) {
-          const remainingBlocksValue = await remainingBlocks(vault, network);
+          const remainingBlocksValue = await remainingBlocks(vault, discovery);
           if (vault.remainingBlocks !== remainingBlocksValue) {
             const vault = newVaults[vaultAddress];
             if (!vault) throw new Error(`Error: invalid vault ${vaultAddress}`);
@@ -157,8 +265,8 @@ export default function App() {
   };
 
   const handleUnvault = async (vault: Vault) => {
+    if (!discovery) throw new Error(`discovery not instantiated yet!`);
     try {
-      if (!discovery) throw new Error(`discovery not instantiated yet!`);
       await discovery.getExplorer().push(vault.unvaultTxHex);
 
       // If successful:
@@ -170,7 +278,7 @@ export default function App() {
       const message = (error as Error).message;
 
       if (message && message.indexOf('non-BIP68-final') !== -1) {
-        const remainingBlocksValue = await remainingBlocks(vault, network);
+        const remainingBlocksValue = await remainingBlocks(vault, discovery);
         Alert.alert(
           'Vault Status',
           `The vault remains time-locked. Please wait for an additional ${remainingBlocksValue} blocks before you can proceed.`
@@ -229,10 +337,18 @@ Handle with care. Confidentiality is key.
     Share.share({ message: message, title: 'Share via' });
   };
 
-  const handleVaultFunds = async ({
+  const handleVaultFunds = ({
+    samples,
+    feeRate,
+    feeRateCeiling,
     panicAddr,
     lockBlocks
   }: {
+    samples: number;
+    feeRate: number;
+    /** This is the largest fee rate for which at least one trigger and panic txs
+     * must be pre-computed*/
+    feeRateCeiling: number;
     panicAddr: string;
     lockBlocks: number;
   }) => {
@@ -246,20 +362,29 @@ Handle with care. Confidentiality is key.
     }).getAddress();
     if (balance === null) throw new Error(`Error: unset balance`);
     if (utxos === null) throw new Error(`Error: unset utxos`);
+    const utxosData = utxos.map(utxo => {
+      const [txId, strVout] = utxo.split(':');
+      const vout = Number(strVout);
+      if (!txId || isNaN(vout) || !Number.isInteger(vout) || vout < 0)
+        throw new Error(`Invalid utxo ${utxo}`);
+      const indexedDescriptor = discovery.getDescriptor({ utxo });
+      if (!indexedDescriptor) throw new Error(`Unmatched ${utxo}`);
+      const txHex = discovery.getTxHex({ txId });
+      return { indexedDescriptor, txHex, vout };
+    });
     const vault = createVault({
+      samples,
+      feeRate,
+      feeRateCeiling,
       nextInternalAddress,
       panicAddr,
       lockBlocks,
       masterNode,
-      utxos,
+      utxosData,
       balance,
-      discovery,
       network
     });
-    await discovery.getExplorer().push(vault.vaultTxHex);
-    const newVaults = { ...vaults, [vault.vaultAddress]: vault };
-    await AsyncStorage.setItem('vaults', JSON.stringify(newVaults));
-    setVaults(newVaults);
+    return vault;
   };
 
   return (
@@ -292,7 +417,7 @@ Handle with care. Confidentiality is key.
             <MBButton title="Create Wallet" onPress={handleCreateWallet} />
           )}
           {discovery && mnemonic && (
-            <MBButton title="Receive Bitcoin" onPress={handleReceiveBitcoin} />
+            <MBButton title="Deposit Bitcoin" onPress={handleReceiveBitcoin} />
           )}
           {utxos && (
             <MBButton
@@ -343,7 +468,7 @@ Handle with care. Confidentiality is key.
                     {vault.triggerTime ? (
                       <>
                         <Button
-                          title="Unvault"
+                          title="Consolidate"
                           onPress={() => handleUnvault(vault)}
                         />
                         <Button
@@ -353,7 +478,7 @@ Handle with care. Confidentiality is key.
                       </>
                     ) : (
                       <Button
-                        title="Trigger Unvault"
+                        title="Unvault"
                         onPress={() => handleTriggerUnvault(vault)}
                       />
                     )}
@@ -411,6 +536,8 @@ Handle with care. Confidentiality is key.
                 setDefPanicAddr(panicAddr);
                 setDefLockBlocks(String(lockBlocks));
               }}
+              formatFeeRate={formatFeeRate}
+              formatLockTime={formatLockTime}
             />
             <View style={styles.factoryReset}>
               <Button
@@ -438,16 +565,30 @@ Handle with care. Confidentiality is key.
               defLockBlocks={defLockBlocks}
               network={network}
               onNewValues={async ({
-                panicAddr,
+                panicAddr, //TODO: Dont return this one!
                 lockBlocks
               }: {
                 panicAddr: string;
                 lockBlocks: number;
               }) => {
                 setIsVaultSetUp(false);
-                await handleVaultFunds({ panicAddr, lockBlocks });
+                const vault = handleVaultFunds({
+                  samples: SAMPLES,
+                  feeRate: FEE_RATE, //TODO: This should be returned from Settings
+                  feeRateCeiling: FEE_RATE_CEILING,
+                  panicAddr,
+                  lockBlocks
+                });
+                const newVaults = { ...vaults, [vault.vaultAddress]: vault };
+                await AsyncStorage.setItem('vaults', JSON.stringify(newVaults));
+                if (!discovery)
+                  throw new Error(`discovery not instantiated yet!`);
+                await discovery.getExplorer().push(vault.vaultTxHex);
+                setVaults(newVaults);
               }}
               onCancel={() => setIsVaultSetUp(false)}
+              formatFeeRate={formatFeeRate}
+              formatLockTime={formatLockTime}
             />
           </View>
         </Modal>
