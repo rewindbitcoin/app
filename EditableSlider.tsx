@@ -24,6 +24,31 @@ interface EditableSliderProps {
   formatValue: (value: number) => string;
 }
 
+/**
+ * Similar to javascript toFixed. however, when the keyboardType is number-pad
+ * (no decimals) it then returns toFixed(0).
+ * It the keyboardType is in decimal mode then it returns toFixed(2) for
+ * 2 decimals. However, due to the roundings it does, we do some extra work
+ * to make sure the result is within bounds*/
+function toFixed({
+  value,
+  keyboardType,
+  minimumValue,
+  maximumValue
+}: {
+  value: number;
+  keyboardType: string;
+  minimumValue: number;
+  maximumValue: number;
+}) {
+  if (keyboardType === 'number-pad') return value.toFixed(0);
+  else {
+    while (Number(value.toFixed(2)) > maximumValue) value -= 0.01;
+    while (Number(value.toFixed(2)) < minimumValue) value += 0.01;
+    return value.toFixed(keyboardType === 'number-pad' ? 0 : 2);
+  }
+}
+
 const EditableSlider = ({
   initialValue,
   minimumValue = 1,
@@ -62,7 +87,7 @@ const EditableSlider = ({
     Number(strValue) >= minimumValue &&
     Number(strValue) <= maximumValue;
   const [strValue, setStrValue] = useState<string>(
-    initialValue.toFixed(keyboardType === 'number-pad' ? 0 : 2)
+    toFixed({ value: initialValue, keyboardType, minimumValue, maximumValue })
   );
   const [formattedValue, setFormattedValue] = useState<string>(initialMessage);
   return (
@@ -75,7 +100,9 @@ const EditableSlider = ({
             minimumValue={minimumValue}
             maximumValue={maximumValue}
             onValueChange={value => {
-              setStrValue(value.toFixed(keyboardType === 'number-pad' ? 0 : 2));
+              setStrValue(
+                toFixed({ value, keyboardType, minimumValue, maximumValue })
+              );
               setFormattedValue(formatValue(value));
               if (onValueChange) onValueChange(value);
             }}

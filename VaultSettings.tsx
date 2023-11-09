@@ -4,7 +4,6 @@ import type { Network } from 'bitcoinjs-lib';
 import {
   View,
   Text,
-  TextInput,
   Button,
   Alert,
   StyleSheet,
@@ -12,40 +11,43 @@ import {
   Keyboard
 } from 'react-native';
 
-import { validateAddress } from './vaults';
-
 import EditableSlider from './EditableSlider';
 
 export default function VaultSettings({
-  defPanicAddr,
-  defLockBlocks,
+  minFeeRate,
+  maxFeeRate,
+  minLockBlocks,
+  maxLockBlocks,
   onNewValues,
   onCancel = undefined,
-  network,
-  isWrapped = false,
   formatFeeRate,
   formatLockTime
 }: {
-  defPanicAddr: string;
-  defLockBlocks: string; //TODO FIX this to use number
+  minFeeRate: number;
+  maxFeeRate: number;
+  minLockBlocks?: number;
+  maxLockBlocks?: number;
   onNewValues: (values: {
-    panicAddr: string;
-    lockBlocks: number;
+    feeRate: number;
+    lockBlocks?: number;
   }) => Promise<void>;
   onCancel?: (event: GestureResponderEvent) => void;
   network: Network;
-  isWrapped?: boolean;
   formatFeeRate: (feeRate: number) => string;
-  formatLockTime: (lockBlocks: number) => string;
+  formatLockTime?: (lockBlocks: number) => string;
 }) {
-  const [panicAddr, setPanicAddr] = useState(defPanicAddr);
-  const [lockBlocks, setLockBlocks] = useState<number | null>(
-    Number(defLockBlocks)
-  ); //TODO FIX this to use number
-  const MIN_FEE_RATE = 1; //TODO: Pass this from parent
-  const MAX_FEE_RATE = 5000; //TODO: Pass this from parent
-  const MIN_LOCK_BLOCKS = 1; //TODO: Pass this from parent
-  const MAX_LOCK_BLOCKS = 30 * 24 * 6; //TODO: Pass this from parent
+  if (
+    (minLockBlocks === undefined ||
+      maxLockBlocks === undefined ||
+      formatLockTime === undefined) &&
+    (minLockBlocks !== undefined ||
+      maxLockBlocks !== undefined ||
+      formatLockTime !== undefined)
+  )
+    throw new Error(
+      'Pass minLockBlocks, maxLockBlocks, and formatLockTime all together or none. Pass them to retrieve a number of blocks for a locking tx'
+    );
+  const [lockBlocks, setLockBlocks] = useState<number | null>(null);
   const [feeRate, setFeeRate] = useState<number | null>(null);
 
   const handlePressOutside = () => Keyboard.dismiss();
@@ -55,16 +57,12 @@ export default function VaultSettings({
   };
 
   const handleOK = () => {
+    const validateLockBlocks = minLockBlocks !== undefined;
     Keyboard.dismiss();
     const errorMessages = [];
 
-    // Validation for Bitcoin address
-    if (!validateAddress(panicAddr, network)) {
-      errorMessages.push('The provided Bitcoin address is invalid.');
-    }
-
-    // Validation for lockBlocks
-    if (lockBlocks === null) {
+    // Validation for lockBlocks (if requested)
+    if (validateLockBlocks && lockBlocks === null) {
       errorMessages.push('Pick a valid Lock Time.');
     }
 
@@ -78,41 +76,40 @@ export default function VaultSettings({
       Alert.alert('Invalid Values', errorMessages.join('\n\n'));
       return;
     } else {
-      if (lockBlocks === null) throw new Error(`lockBlocks faulty validation`);
-      onNewValues({ panicAddr, lockBlocks });
+      if (validateLockBlocks) {
+        if (lockBlocks === null)
+          throw new Error(`lockBlocks faulty validation`);
+        if (feeRate === null) throw new Error(`feeRate faulty validation`);
+        onNewValues({ feeRate, lockBlocks });
+      } else {
+        if (feeRate === null) throw new Error(`feeRate faulty validation`);
+        onNewValues({ feeRate });
+      }
     }
   };
 
   const content = (
     <View style={styles.content}>
-      <View style={styles.settingGroup}>
-        <Text style={styles.label}>
-          Bitcoin address that will receive the funds in case of an emergency:
-        </Text>
-        <TextInput
-          value={panicAddr}
-          onChangeText={setPanicAddr}
-          style={styles.input}
-        />
-      </View>
-      <View style={styles.settingGroup}>
-        <Text style={styles.label}>
-          Number of blocks you will need to wait to access your funds after
-          unvaulting:
-        </Text>
-        <EditableSlider
-          minimumValue={MIN_LOCK_BLOCKS}
-          maximumValue={MAX_LOCK_BLOCKS}
-          step={1}
-          onValueChange={value => setLockBlocks(value)}
-          formatValue={value => formatLockTime(value)}
-        />
-      </View>
+      {minLockBlocks && maxLockBlocks && formatLockTime && (
+        <View style={styles.settingGroup}>
+          <Text style={styles.label}>
+            Number of blocks you will need to wait to access your funds when
+            unvaulting:
+          </Text>
+          <EditableSlider
+            minimumValue={minLockBlocks}
+            maximumValue={maxLockBlocks}
+            step={1}
+            onValueChange={value => setLockBlocks(value)}
+            formatValue={value => formatLockTime(value)}
+          />
+        </View>
+      )}
       <View style={styles.settingGroup}>
         <Text style={styles.label}>Fee Rate (sats/vbyte):</Text>
         <EditableSlider
-          minimumValue={MIN_FEE_RATE}
-          maximumValue={MAX_FEE_RATE}
+          minimumValue={minFeeRate}
+          maximumValue={maxFeeRate}
           onValueChange={value => setFeeRate(value)}
           formatValue={value => formatFeeRate(value)}
         />
@@ -124,14 +121,7 @@ export default function VaultSettings({
     </View>
   );
 
-  return isWrapped ? (
-    <TouchableWithoutFeedback onPress={handlePressOutside}>
-      <View style={styles.wrapper}>
-        <Text style={styles.title}>Defaults</Text>
-        {content}
-      </View>
-    </TouchableWithoutFeedback>
-  ) : (
+  return (
     <TouchableWithoutFeedback onPress={handlePressOutside}>
       {content}
     </TouchableWithoutFeedback>
@@ -140,7 +130,6 @@ export default function VaultSettings({
 
 const styles = StyleSheet.create({
   content: {
-    padding: 20,
     backgroundColor: 'white',
     borderRadius: 10,
     alignItems: 'center',
