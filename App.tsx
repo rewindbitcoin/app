@@ -8,11 +8,8 @@
 //
 //
 //
-//  TODO: Now -> Focus on the Panic, The Unvault should be optional (for when
-//  using fixed Panic Addresses - or for those which we don't have an xpub)
-//
-//
-//
+//TODO: Show a popup when detected a new hot balance (remainingBlocks = 0)
+//  -> Offer the possibilty of consalidating so that it cannot be panicked somewhere
 //
 //
 //TODO: Until the initial refresh (so that all descriptors have been fetched
@@ -58,6 +55,8 @@ import {
   Modal,
   RefreshControl
 } from 'react-native';
+import { produce } from 'immer';
+
 const MBButton = ({ ...props }: ButtonProps) => (
   <View style={{ marginBottom: 10 }}>
     <Button {...props} />
@@ -79,6 +78,7 @@ const network = networks.testnet;
 import { generateMnemonic, mnemonicToSeedSync } from 'bip39';
 import * as secp256k1 from '@bitcoinerlab/secp256k1';
 import {
+  keyExpressionBIP32,
   scriptExpressions,
   DescriptorsFactory
 } from '@bitcoinerlab/descriptors';
@@ -87,22 +87,16 @@ const { wpkhBIP32 } = scriptExpressions;
 import { EsploraExplorer } from '@bitcoinerlab/explorer';
 import { DiscoveryFactory, DiscoveryInstance } from '@bitcoinerlab/discovery';
 
-const { Output, BIP32 } = DescriptorsFactory(secp256k1);
+const { Output, BIP32, parseKeyExpression } = DescriptorsFactory(secp256k1);
 const GAP_LIMIT = 3;
 const MIN_FEE_RATE = 1;
 const DEFAULT_MAX_FEE_RATE = 5000;
 const MIN_LOCK_BLOCKS = 1; //TODO: Pass this from parent
 const MAX_LOCK_BLOCKS = 30 * 24 * 6; //TODO: Pass this from parent
 const SAMPLES = 10;
-const FEE_RATE_CEILING = 1000; //22-dec-2017 fee rates
-const DEFAULT_PANIC_ADDR = 'tb1qm0k9mn48uqfs2w9gssvzmus4j8srrx5eje7wpf';
-import {
-  createVault,
-  Vault,
-  esploraUrl,
-  remainingBlocks,
-  retrievePresignedSpendingTx
-} from './vaults';
+const FEE_RATE_CEILING = 10; //22-dec-2017 fee rates were 1000. TODO: Set this to 5000 which is 5x 22-dec-2017
+const DEFAULT_COLD_ADDR = 'tb1qm0k9mn48uqfs2w9gssvzmus4j8srrx5eje7wpf';
+import { createVault, Vault, esploraUrl, retrieveSpendingTx } from './vaults';
 import styles from './styles';
 
 type Vaults = Record<string, Vault>;
@@ -115,7 +109,17 @@ const fromMnemonic = memoize(mnemonic => {
   );
   if (!descriptors[0] || !descriptors[1])
     throw new Error(`Error: descriptors not retrieved`);
-  return { masterNode, external: descriptors[0], internal: descriptors[1] };
+  const unvaultKey = keyExpressionBIP32({
+    masterNode,
+    originPath: "/0'",
+    keyPath: '/0'
+  });
+  return {
+    masterNode,
+    external: descriptors[0],
+    internal: descriptors[1],
+    unvaultKey
+  };
 });
 
 const maxFeeRate = memoize((feeEstimates: null | Record<string, number>) => {
@@ -165,8 +169,35 @@ const findClosestTriggerFeeRate = (
   return closestRecord;
 };
 
+/**
+ * retrieve all the output descriptors whose lockTime has past already. They
+ * might have been spent or not; this is not important. Just return all of them
+ * */
+const spendableTriggerDescriptors = (vaults: Vaults): Array<string> => {
+  const descriptors = Object.values(vaults)
+    .filter(vault => vault.remainingBlocks === 0)
+    .map(vault => vault.triggerDescriptor);
+
+  // Check for duplicates
+  const descriptorSet = new Set(descriptors);
+  if (descriptorSet.size !== descriptors.length) {
+    throw new Error(
+      'triggerDescriptors should be unique; panicKey should be random'
+    );
+  }
+
+  return descriptors;
+};
+
+/**
+ * for each utxo, get its corresponding:
+ * - previous txHex and vout
+ * - output descriptor
+ * - index? if the descriptor retrieved in discovery was ranged
+ * - signersPubKeys? if there is a speciffic spending path that we must specify
+ */
 const utxosData = memoize(
-  (utxos: Array<string>, discovery: DiscoveryInstance) => {
+  (utxos: Array<string>, vaults: Vaults, discovery: DiscoveryInstance) => {
     return utxos.map(utxo => {
       const [txId, strVout] = utxo.split(':');
       const vout = Number(strVout);
@@ -174,8 +205,26 @@ const utxosData = memoize(
         throw new Error(`Invalid utxo ${utxo}`);
       const indexedDescriptor = discovery.getDescriptor({ utxo });
       if (!indexedDescriptor) throw new Error(`Unmatched ${utxo}`);
+      let signersPubKeys;
+      for (const vault of Object.values(vaults)) {
+        if (vault.triggerDescriptor === indexedDescriptor.descriptor) {
+          if (vault.remainingBlocks !== 0)
+            throw new Error('utxo is not spendable, should not be set');
+          const { pubkey: unvaultPubKey } = parseKeyExpression({
+            keyExpression: vault.unvaultKey,
+            network
+          });
+          if (!unvaultPubKey) throw new Error('Could not extract the pubKey');
+          signersPubKeys = [unvaultPubKey];
+        }
+      }
       const txHex = discovery.getTxHex({ txId });
-      return { indexedDescriptor, txHex, vout };
+      return {
+        ...indexedDescriptor,
+        ...(signersPubKeys !== undefined ? { signersPubKeys } : {}),
+        txHex,
+        vout
+      };
     });
   }
 );
@@ -190,24 +239,22 @@ const utxosData = memoize(
  * it is not possible to create a general vault with these utxos.
  */
 const vaultTxSize = memoize(
-  ({ mnemonic, panicAddress, utxos, balance, discovery }) => {
+  ({ mnemonic, coldAddress, utxos, vaults, balance, discovery }) => {
     if (!discovery) throw new Error(`discovery not instantiated yet!`);
     const masterNode = fromMnemonic(mnemonic).masterNode;
-    const descriptor = fromMnemonic(mnemonic).internal;
-    const index = discovery.getNextIndex({ descriptor });
-    const internalIndexedDescriptor = { descriptor, index };
+    const unvaultKey = fromMnemonic(mnemonic).unvaultKey;
     if (utxos === null || !utxos.length) throw new Error(`utxos unset`);
     if (balance === null || balance <= 0) throw new Error(`balance unset`);
     //Crete mockup vault:
     const vault = createVault({
+      unvaultKey,
       samples: 2,
       feeRate: 1,
       feeRateCeiling: 1,
-      internalIndexedDescriptor,
-      panicAddress,
+      coldAddress,
       lockBlocks: 1,
       masterNode,
-      utxosData: utxosData(utxos, discovery),
+      utxosData: utxosData(utxos, vaults, discovery),
       balance,
       network
     });
@@ -285,7 +332,7 @@ export default function App() {
   const [mnemonic, setMnemonic] = useState<string | null>(null);
   const [discovery, setDiscovery] = useState<DiscoveryInstance | null>(null);
   const [utxos, setUtxos] = useState<Array<string> | null>(null);
-  const [balance, setBalance] = useState<number | null>(null);
+  const [balance, setBalance] = useState<number | null>(null); //TODO: Do I need this one?
   const [vaults, setVaults] = useState<Vaults>({});
   const [checkingBalance, setCheckingBalance] = useState(false);
   const [feeEstimates, setFeeEstimates] = useState<Record<
@@ -339,7 +386,8 @@ export default function App() {
   };
 
   //TODO: Move this one outside this React component. pass params:
-  //mnemonic, utxos, balance, panicAddress, discovery
+  //TODO: This should also receive the utxos and cache nasde on the utxos.
+  //mnemonic, utxos, balance, coldAddress, discovery
   /**
    * Given a feeRate, it computes a mockup vault, and extracts and formats the
    * total fee and confirmation time.
@@ -350,8 +398,9 @@ export default function App() {
   const formatVaultFeeRate = (feeRate: number) => {
     const txSize = vaultTxSize({
       mnemonic,
-      panicAddress: DEFAULT_PANIC_ADDR,
+      coldAddress: DEFAULT_COLD_ADDR,
       utxos,
+      vaults,
       balance,
       discovery
     });
@@ -394,6 +443,9 @@ ${formattedFeeRate}`;
   useEffect(() => {
     if (utxos?.length && balance)
       try {
+        //TODO: Doing this will be a very bad idea when the VaultSettings chooses
+        //which are the utxos that will be spent (COINSELECT). This is pre-caching
+        //it ASSUMING ALL UTXOs which will be bad
         //Note that current utxos may have very little balance which make it
         //impossible to compute the vaultTxSizes. We will test formatVaultFeeRate(1)
         //again before opening VaultSettings just in case
@@ -410,92 +462,80 @@ ${formattedFeeRate}`;
   const handleCheckBalance = async () => {
     if (!checkingBalance) {
       setCheckingBalance(true);
-      const descriptors = [
-        fromMnemonic(mnemonic).external,
-        fromMnemonic(mnemonic).internal
-      ];
       if (!discovery) throw new Error(`discovery not instantiated yet!`);
       const blockHeight = await discovery.getExplorer().fetchBlockHeight();
       if (!blockHeight) throw new Error(`Could not bet tip block height`);
-      //if (delay) await new Promise((resolve) => setTimeout(resolve, delay));
-      await discovery.fetch({ descriptors, gapLimit: GAP_LIMIT });
-      const { utxos: newUtxos, balance: newBalance } =
-        discovery.getUtxosAndBalance({ descriptors });
-      if (utxos !== newUtxos) setUtxos(newUtxos.length ? newUtxos : null);
-      if (balance !== newBalance)
-        setBalance(newUtxos.length ? newBalance : null);
 
-      if (vaults) {
-        let newVaults = vaults;
-        for (const vault of Object.values(vaults)) {
-          let newVault = vault;
-          const triggerTxData = await retrievePresignedSpendingTx(
-            vault.vaultAddress,
-            Object.keys(vault.triggerMap),
-            vault.txMap,
-            discovery
-          );
-          if (!triggerTxData && vault.triggerTxHex) {
-            newVault = { ...newVault };
-            delete newVault.triggerTxHex;
-          }
+      //First update the vaults. Then the utxos
+      let newVaults = vaults; //Do not mutate vaults
+      for (const vault of Object.values(vaults)) {
+        const triggerTxData = await retrieveSpendingTx(
+          vault.vaultTxHex,
+          0,
+          discovery
+        );
+        const unlockingTxData = triggerTxData
+          ? await retrieveSpendingTx(triggerTxData.txHex, 0, discovery)
+          : undefined;
+
+        const newVault = produce(vault, draftVault => {
           if (triggerTxData) {
-            if (!triggerTxData.txHex)
-              throw new Error('Unavailable hex trigger data');
-            if (newVault.triggerTxHex !== triggerTxData.txHex) {
-              newVault = { ...newVault, triggerTxHex: triggerTxData.txHex };
-            }
-            const remainingBlocks =
-              vault.lockBlocks - (blockHeight - triggerTxData.blockHeight) - 1; //-1 for the next mined block
-            if (remainingBlocks !== newVault.remainingBlocks)
-              newVault = { ...newVault, remainingBlocks };
-            const unlockingTxs = vault.triggerMap[triggerTxData.txHex];
-            if (!unlockingTxs) throw new Error('Invalid triggerMap');
-            const unlockingTxData = await retrievePresignedSpendingTx(
-              vault.triggerAddress,
-              [...unlockingTxs.unvault, ...unlockingTxs.panic],
-              vault.txMap,
-              discovery
+            draftVault.triggerTxHex = triggerTxData.txHex;
+            draftVault.triggerTxBlockHeight = triggerTxData.blockHeight;
+            draftVault.remainingBlocks = Math.max(
+              0,
+              //-1 because this means a tx can be pushed already since the new
+              //block will be (blockHeight + 1)
+              draftVault.lockBlocks -
+                (blockHeight - triggerTxData.blockHeight) -
+                1
             );
-            if (unlockingTxData) {
-              if (!unlockingTxData.txHex)
-                throw new Error('Unavailable Hex data in unlockingTxData');
-              const isUnvault = unlockingTxs.unvault.some(
-                unvaultTxHex => unvaultTxHex === unlockingTxData.txHex
-              );
-              if (isUnvault) {
-                if (newVault.unvaultTxHex !== unlockingTxData.txHex)
-                  newVault = {
-                    ...newVault,
-                    unvaultTxHex: unlockingTxData.txHex
-                  };
-              } else {
-                if (newVault.panicTxHex !== unlockingTxData.txHex)
-                  newVault = {
-                    ...newVault,
-                    panicTxHex: unlockingTxData.txHex
-                  };
-              }
-            } else {
-              if (newVault.unvaultTxHex) {
-                newVault = { ...newVault };
-                delete newVault.unvaultTxHex;
-              }
-              if (newVault.panicTxHex) {
-                newVault = { ...newVault };
-                delete newVault.panicTxHex;
-              }
+          } else {
+            delete draftVault.triggerTxHex;
+            delete draftVault.triggerTxBlockHeight;
+            draftVault.remainingBlocks = draftVault.lockBlocks;
+          }
+          if (unlockingTxData) {
+            if (!triggerTxData)
+              throw new Error('unlocking impossible without trigger');
+            draftVault.unlockingTxHex = unlockingTxData.txHex;
+            draftVault.unlockingTxBlockHeight = unlockingTxData.blockHeight;
+
+            const panicTxs = vault.triggerMap[triggerTxData.txHex];
+            if (!panicTxs) throw new Error('Invalid triggerMap');
+            if (panicTxs.includes(unlockingTxData.txHex)) {
+              draftVault.panicTxHex = unlockingTxData.txHex;
+              draftVault.panicTxBlockHeight = unlockingTxData.blockHeight;
             }
+          } else {
+            delete draftVault.unlockingTxHex;
+            delete draftVault.unlockingTxBlockHeight;
+            delete draftVault.panicTxHex;
+            delete draftVault.panicTxBlockHeight;
           }
-          if (newVaults[newVault.vaultAddress] !== newVault) {
-            newVaults = { ...newVaults, [newVault.vaultAddress]: newVault };
-          }
-        }
-        if (newVaults !== vaults) {
-          await AsyncStorage.setItem('vaults', JSON.stringify(newVaults));
-          setVaults(newVaults);
+        });
+        if (newVaults[newVault.vaultAddress] !== newVault) {
+          newVaults = { ...newVaults, [newVault.vaultAddress]: newVault };
         }
       }
+      if (newVaults !== vaults) {
+        await AsyncStorage.setItem('vaults', JSON.stringify(newVaults));
+        setVaults(newVaults);
+      }
+
+      //Now update the utxos:
+      const descriptors = [
+        fromMnemonic(mnemonic).external,
+        fromMnemonic(mnemonic).internal,
+        ...spendableTriggerDescriptors(newVaults)
+      ];
+      await discovery.fetch({ descriptors, gapLimit: GAP_LIMIT });
+      const { utxos, balance } = discovery.getUtxosAndBalance({ descriptors });
+      //I can do this because getUtxosAndBalance uses immutability.
+      //Setting same utxo won't produce a re-render in React.
+      setUtxos(utxos.length ? utxos : null);
+      setBalance(utxos.length ? balance : null);
+
       setCheckingBalance(false);
     }
   };
@@ -509,36 +549,6 @@ ${formattedFeeRate}`;
   };
 
   //TODO: Must review this one too
-  const handleUnvault = async (vault: Vault) => {
-    if (!discovery) throw new Error(`discovery not instantiated yet!`);
-    try {
-      // If successful:
-      const newVaults = { ...vaults };
-      delete newVaults[vault.vaultAddress];
-      await AsyncStorage.setItem('vaults', JSON.stringify(newVaults));
-      //TODO: check this push result. This and all pushes in code
-      //TODO: Here make SURE that this has been safely stored
-      //TODO: Also make the user backp it up. Maybe even back up to thunderDen
-      if (!vault.unvaultTxHex) throw new Error('Cannot unvault');
-      await discovery.getExplorer().push(vault.unvaultTxHex);
-      setVaults(newVaults);
-    } catch (error: unknown) {
-      const message = (error as Error).message;
-
-      if (message && message.indexOf('non-BIP68-final') !== -1) {
-        const remainingBlocksValue = await remainingBlocks(vault, discovery);
-        Alert.alert(
-          'Vault Status',
-          `The vault remains time-locked. Please wait for an additional ${remainingBlocksValue} blocks before you can proceed.`
-        );
-      } else {
-        // Handle any other errors or show a general error alert:
-        Alert.alert('Error broadcasting the transaction.', message);
-      }
-    }
-  };
-
-  //TODO: Must review this one too
   const handlePanic = async (vault: Vault) => {
     if (!discovery) throw new Error(`discovery not instantiated yet!`);
     const newVaults = { ...vaults };
@@ -549,7 +559,7 @@ ${formattedFeeRate}`;
     await discovery.getExplorer().push(vault.panicTxHex);
     Alert.alert(
       'Transaction Successful',
-      `Funds have been sent to the safe address: ${vault.panicAddress}.`
+      `Funds have been sent to the safe address: ${vault.coldAddress}.`
     );
     setVaults(newVaults);
   };
@@ -611,20 +621,19 @@ Handle with care. Confidentiality is key.
 
     if (!discovery) throw new Error(`discovery not instantiated yet!`);
     const masterNode = fromMnemonic(mnemonic).masterNode;
-    const descriptor = fromMnemonic(mnemonic).internal;
-    const index = discovery.getNextIndex({ descriptor });
-    const internalIndexedDescriptor = { descriptor, index };
+    const unvaultKey = fromMnemonic(mnemonic).unvaultKey;
+    //HERE CREATE THE triggerDescriptor using the next
     if (utxos === null || !utxos.length) throw new Error(`utxos unset`);
     if (balance === null || balance <= 0) throw new Error(`balance unset`);
     const vault = createVault({
+      unvaultKey,
       samples: SAMPLES,
       feeRate,
       feeRateCeiling: FEE_RATE_CEILING,
-      internalIndexedDescriptor,
-      panicAddress: DEFAULT_PANIC_ADDR,
+      coldAddress: DEFAULT_COLD_ADDR,
       lockBlocks,
       masterNode,
-      utxosData: utxosData(utxos, discovery),
+      utxosData: utxosData(utxos, vaults, discovery),
       balance,
       network
     });
@@ -684,6 +693,11 @@ Handle with care. Confidentiality is key.
               title="Vault Hot Balance"
               onPress={() => {
                 try {
+                  //TODO: This should be different when using coinselect since
+                  //the VaultSettings module should be cheching this internally
+                  //based on the utxos chosen by the coinselect algo.
+                  //Not assuming ALL utxos are going to be chosen (as it happens
+                  //now)
                   //Make sure it is possible to create a mockup vault. That is
                   //a small vault in order to compute the txSize of the 1st tx.
                   //This is needed to compute the feeRate of the 1st tx.
@@ -708,77 +722,89 @@ Handle with care. Confidentiality is key.
           {vaults && Object.keys(vaults).length > 0 && (
             <View style={styles.vaults}>
               <Text style={styles.title}>Vaults</Text>
-              {
-                /*TODO - ordering not deterministic, sort my vaultPushTime
-                 *
-                 * TODO: Remove all thre ! below!!!!
-                 * Also do not use triggerPushTime or other push time to select!
-                 *
-                 * */ Object.entries(vaults).map(
-                  ([vaultAddress, vault], index) => (
+              {Object.entries(vaults)
+                //sort in with new vaults on top:
+                .sort(([, vaultA], [, vaultB]) => {
+                  if (!vaultA.vaultPushTime || !vaultB.vaultPushTime)
+                    throw new Error('Vault not pushed');
+                  return vaultB.vaultPushTime - vaultA.vaultPushTime;
+                })
+                .map(([vaultAddress, vault], index) => {
+                  const vaultTxData = vault.txMap[vault.vaultTxHex];
+                  if (!vaultTxData) throw new Error('Invalid txMap');
+                  let displayBalance = vault.balance - vaultTxData.fee;
+
+                  if (vault.unlockingTxHex) displayBalance = 0;
+                  else if (vault.triggerTxHex) {
+                    const triggerTxData = vault.txMap[vault.triggerTxHex];
+                    if (!triggerTxData) throw new Error('Invalid txMap');
+                    displayBalance =
+                      vault.balance - vaultTxData.fee - triggerTxData.fee;
+                  }
+                  if (vault.triggerTxHex && !vault.triggerPushTime)
+                    throw new Error('Trigger push time not registered');
+                  if (!vault.vaultPushTime)
+                    throw new Error('Vault push time not registered');
+                  return (
                     <View key={vaultAddress} style={styles.vaultContainer}>
                       <Text>
-                        {`Vault ${index + 1} · ${
-                          vault.triggerTxHex
-                            ? vault.balance -
-                              vault.txMap[vault.vaultTxHex]!.fee -
-                              vault.txMap[vault.triggerTxHex]!.fee
-                            : vault.balance - vault.txMap[vault.vaultTxHex]!.fee
-                        } sats`}
+                        {`Vault ${index + 1} · ${displayBalance} sats`}
                         {checkingBalance && ' ⏳'}
                       </Text>
-                      {vault.triggerTxHex ? (
+                      {vault.triggerPushTime ? (
                         <Text>
                           Triggered On:{' '}
                           {new Date(
-                            vault.triggerPushTime! * 1000
+                            vault.triggerPushTime * 1000
                           ).toLocaleString()}
                         </Text>
                       ) : (
                         <Text>
                           Locked On:{' '}
                           {new Date(
-                            vault.vaultPushTime! * 1000
+                            vault.vaultPushTime * 1000
                           ).toLocaleString()}
                         </Text>
                       )}
                       <Text>
-                        {vault.triggerTxHex
-                          ? vault.remainingBlocks <= 0
-                            ? `Ready to Unvault 🟢🔓`
-                            : `Unlocking In: ${vault.remainingBlocks} blocks 🔒⏱️`
-                          : `Time Lock Set: ${vault.lockBlocks} blocks 🔒`}
+                        {!vault.triggerTxHex
+                          ? `Time Lock Set: ${vault.lockBlocks} blocks 🔒`
+                          : vault.remainingBlocks !== 0
+                          ? `Unlocking In: ${vault.remainingBlocks} blocks 🔒⏱️`
+                          : vault.panicTxHex
+                          ? 'Funds were sent to Panic Address'
+                          : vault.unlockingTxHex
+                          ? 'Vault was spent as Hot'
+                          : `Vault can be spent as Hot (also be panicked)`}
                       </Text>
 
                       <View style={styles.buttonGroup}>
-                        {vault.triggerPushTime! ? (
+                        {vault.triggerTxHex && !vault.unlockingTxHex && (
                           <>
-                            <Button
-                              title="Unvault"
-                              onPress={() => handleUnvault(vault)}
-                            />
                             <Button
                               title="Panic!"
                               onPress={() => handlePanic(vault)}
                             />
                           </>
-                        ) : (
+                        )}
+                        {!vault.triggerTxHex && (
                           <Button
-                            title="Trigger Unvault"
+                            title="Unvault"
                             onPress={() => {
                               setVaultTriggerSetUp(vault);
                             }}
                           />
                         )}
-                        <Button
-                          title="Delegate"
-                          onPress={() => handleDelegate(vault)}
-                        />
+                        {!vault.unlockingTxHex && (
+                          <Button
+                            title="Delegate"
+                            onPress={() => handleDelegate(vault)}
+                          />
+                        )}
                       </View>
                     </View>
-                  )
-                )
-              }
+                  );
+                })}
             </View>
           )}
         </ScrollView>

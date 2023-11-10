@@ -1,7 +1,15 @@
-import { Network, Psbt, address, networks } from 'bitcoinjs-lib';
+import {
+  Network,
+  Psbt,
+  Transaction,
+  address,
+  crypto,
+  networks
+} from 'bitcoinjs-lib';
 import * as secp256k1 from '@bitcoinerlab/secp256k1';
 import * as descriptors from '@bitcoinerlab/descriptors';
-const { Output, ECPair } = descriptors.DescriptorsFactory(secp256k1);
+const { Output, ECPair, parseKeyExpression } =
+  descriptors.DescriptorsFactory(secp256k1);
 
 import { compilePolicy } from '@bitcoinerlab/miniscript';
 const { encode: olderEncode } = require('bip68');
@@ -10,7 +18,6 @@ import type { BIP32Interface } from 'bip32';
 
 import { feeRateSampling } from './fees';
 import type { DiscoveryInstance } from '@bitcoinerlab/discovery';
-import type { TxData } from '@bitcoinerlab/discovery/dist/types';
 
 export type Vault = {
   /** the initial balance */
@@ -18,27 +25,32 @@ export type Vault = {
 
   vaultAddress: string;
   triggerAddress: string;
-  panicAddress: string;
-  unvaultAddress: string;
+  coldAddress: string;
 
-  vaultTxHex: string;
-
-  /** Use it to mark last time it was pushed */
+  /** Use it to mark last time it was pushed - doesn't mean they succeeded */
   vaultPushTime?: number;
   triggerPushTime?: number;
-  panicPushTime?: number;
-  unvaultPushTime?: number;
+  panicPushTime?: number; //TODO: This must be set when I implement the push -
+  //TODO: however this can be confussing because panic might have been pushed
+  //by a 3rd party
+
+  vaultTxHex: string;
 
   /** These are candidate txs. Everytime balance are refetched they should be
    * re-checked */
   triggerTxHex?: string;
-  unvaultTxHex?: string;
-  panicTxHex?: string;
+  triggerTxBlockHeight?: number; //Do this one
+
+  unlockingTxHex?: string;
+  unlockingTxBlockHeight?: number;
+
+  panicTxHex?: string; //Maybe the samer as unlockingTxHex or not
+  panicTxBlockHeight?: number;
 
   feeRateCeiling: number;
   lockBlocks: number;
 
-  remainingBlocks: number; //TODO: do not use this one. This is just the last guessed value saved as cache. Can change.
+  remainingBlocks: number;
 
   txMap: TxMap;
   triggerMap: TriggerMap;
@@ -46,45 +58,46 @@ export type Vault = {
   /** Assuming a scenario of extreme fees (feeRateCeiling), what will be the
    * remaining balance after panicking */
   minPanicBalance: number;
+
+  /**
+   * the keyExpression for the unlocking using the unvaulting path
+   **/
+  unvaultKey: string; //This is an input in createVault
+  triggerDescriptor: string; //This is an outout since the panicKey is randoml generated here
 };
 type TxHex = string;
 type TxMap = Record<TxHex, { txId: string; fee: number; feeRate: number }>;
-// Define TxHex as a type alias for string, representing transaction hex strings.
-// Define a structure for holding different TxHex for "panic" and "unvault" situations.
-type UnlockingTxs = {
-  panic: Array<TxHex>;
-  unvault: Array<TxHex>;
-};
-// Define the main type for the vault, which maps a fee rate to the corresponding resulting transactions.
-type TriggerMap = Record<TxHex, UnlockingTxs>;
-
-type IndexedDescriptor = { descriptor: string; index?: number };
+/** maps a triggerTx with its corresponding Array of panicTxs */
+type TriggerMap = Record<TxHex, Array<TxHex>>;
 
 export function createVault({
+  unvaultKey,
   samples,
   feeRate,
   feeRateCeiling,
-  internalIndexedDescriptor,
-  panicAddress,
+  coldAddress,
   lockBlocks,
   masterNode,
   network,
   utxosData,
   balance
 }: {
-  /* How many txs to compute. Note that the final number of tx is samples^2*/
+  /** The unvault key expression that must be used to create triggerDescriptor */
+  unvaultKey: string;
+  /** How many txs to compute. Note that the final number of tx is samples^2*/
   samples: number;
   feeRate: number;
   /** This is the largest fee rate for which at least one trigger and panic txs
    * must be pre-computed*/
   feeRateCeiling: number;
-  internalIndexedDescriptor: IndexedDescriptor;
-  panicAddress: string;
+  coldAddress: string;
   lockBlocks: number;
   masterNode: BIP32Interface;
   network: Network;
   utxosData: Array<{
-    indexedDescriptor: IndexedDescriptor;
+    descriptor: string;
+    index?: number;
+    signersPubKeys?: Array<Buffer>;
     vout: number;
     txHex: string;
   }>;
@@ -102,12 +115,10 @@ export function createVault({
   const txMap: TxMap = {};
   const triggerMap: TriggerMap = {};
 
-  const panicOutput = new Output({
-    descriptor: `addr(${panicAddress})`,
+  const coldOutput = new Output({
+    descriptor: `addr(${coldAddress})`,
     network
   });
-  const internalOutput = new Output({ ...internalIndexedDescriptor, network });
-  const unvaultAddress = internalOutput.getAddress();
 
   ////////////////////////////////
   //Prepare the Vault Tx:
@@ -117,8 +128,13 @@ export function createVault({
   //Add the inputs to psbtVault:
   const vaultFinalizers = [];
   for (const utxoData of utxosData) {
-    const { indexedDescriptor, vout, txHex } = utxoData;
-    const output = new Output({ ...indexedDescriptor, network });
+    const { descriptor, index, signersPubKeys, vout, txHex } = utxoData;
+    const output = new Output({
+      descriptor,
+      ...(index !== undefined ? { index } : {}),
+      ...(signersPubKeys !== undefined ? { signersPubKeys } : {}),
+      network
+    });
     // Add the utxo as input of psbtVault:
     const inputFinalizer = output.updatePsbtAsInput({
       psbt: psbtVault,
@@ -167,8 +183,6 @@ export function createVault({
 
   const panicPair = ECPair.makeRandom();
   const panicPubKey = panicPair.publicKey;
-  const unvaultPair = ECPair.makeRandom();
-  const unvaultPubKey = unvaultPair.publicKey;
 
   //TODO: The Policy should not be here
   //Prepare the output...
@@ -179,23 +193,20 @@ export function createVault({
   if (!issane) throw new Error('Policy not sane');
 
   const triggerDescriptor = `wsh(${miniscript
-    .replace('@unvaultKey', unvaultPubKey.toString('hex'))
+    .replace('@unvaultKey', unvaultKey)
     .replace('@panicKey', panicPubKey.toString('hex'))})`;
 
-  const triggerOutput = new Output({
-    descriptor: triggerDescriptor,
-    network
-  });
+  const triggerOutput = new Output({ descriptor: triggerDescriptor, network });
   const triggerOutputPanicPath = new Output({
     descriptor: triggerDescriptor,
     network,
     signersPubKeys: [panicPubKey]
   });
-  const triggerOutputUnvaultPath = new Output({
-    descriptor: triggerDescriptor,
-    signersPubKeys: [unvaultPubKey],
+  const { pubkey: unvaultPubKey } = parseKeyExpression({
+    keyExpression: unvaultKey,
     network
   });
+  if (!unvaultPubKey) throw new Error('Cannot extract unvaultPubKey');
   const psbtTriggerBase = new Psbt({ network });
   const txVault = psbtVault.extractTransaction();
   const vaultTxHex = txVault.toHex();
@@ -247,10 +258,9 @@ export function createVault({
           feeRate: feeTrigger / vSizeTrigger,
           txId: txTrigger.getId()
         };
-        const resultingTxs = (triggerMap[triggerTxHex] = {
-          panic: [] as Array<TxHex>,
-          unvault: [] as Array<TxHex>
-        });
+        triggerMap[triggerTxHex] = [];
+        const panicTxs = triggerMap[triggerTxHex];
+        if (!panicTxs) throw new Error('Invalid assingment');
         const triggerBalance = vaultBalance - feeTrigger;
 
         //////////////////////
@@ -284,7 +294,7 @@ export function createVault({
             if (panicBalance < minPanicBalance) minPanicBalance = panicBalance;
             feePanicArray.push(feePanic);
             const psbtPanic = psbtPanicBase.clone();
-            panicOutput.updatePsbtAsOutput({
+            coldOutput.updatePsbtAsOutput({
               psbt: psbtPanic,
               value: triggerBalance - feePanic
             });
@@ -302,59 +312,7 @@ export function createVault({
                 feeRate: feePanic / vSizePanic,
                 txId: txPanic.getId()
               };
-              resultingTxs.panic.push(panicTxHex);
-            }
-          }
-        }
-
-        ////////////////////////
-        //Prepare the Unvault Tx
-        ////////////////////////
-
-        const psbtUnvaultBase = new Psbt({ network });
-        //Add the input to psbtUnvault:
-        const unvaultInputFinalizer =
-          triggerOutputUnvaultPath.updatePsbtAsInput({
-            psbt: psbtUnvaultBase,
-            txHex: triggerTxHex,
-            vout: 0
-          });
-        let vSizeUnvault;
-        const feeUnvaultArray: Array<number> = [];
-        for (const feeRateUnvault of [0, ...feeRates]) {
-          const feeUnvault = vSizeUnvault
-            ? Math.ceil((vSizeUnvault + 1) * feeRateUnvault)
-            : 0;
-          //Not enough funds to create at least 1 unvault tx with feeRate: ${maxSatsPerByte} sats/vbyte
-          if (feeUnvault > triggerBalance && feeRateUnvault === maxSatsPerByte)
-            return;
-          //Add the output to psbtUnvault:
-          if (
-            feeUnvault <= triggerBalance &&
-            // don't process twice same fee:
-            !feeUnvaultArray.some(fee => fee === feeUnvault)
-          ) {
-            feeUnvaultArray.push(feeUnvault);
-            const psbtUnvault = psbtUnvaultBase.clone();
-            internalOutput.updatePsbtAsOutput({
-              psbt: psbtUnvault,
-              value: triggerBalance - feeUnvault
-            });
-            //Sign
-            signECPair({ psbt: psbtUnvault, ecpair: unvaultPair });
-            //Finalize
-            unvaultInputFinalizer({ psbt: psbtUnvault, validate: !feeUnvault });
-            //Take the vsize for a tx with 0 fees.
-            const txUnvault = psbtUnvault.extractTransaction();
-            vSizeUnvault = txUnvault.virtualSize();
-            if (feeUnvault) {
-              const unvaultTxHex = txUnvault.toHex();
-              txMap[unvaultTxHex] = {
-                fee: feeUnvault,
-                feeRate: feeUnvault / vSizeUnvault,
-                txId: txUnvault.getId()
-              };
-              resultingTxs.unvault.push(unvaultTxHex);
+              panicTxs.push(panicTxHex);
             }
           }
         }
@@ -366,9 +324,9 @@ export function createVault({
   const triggerAddress = triggerOutput.getAddress();
 
   //Double check everything went smooth. This should never throw.
-  for (const unlockingTxs of Object.values(triggerMap))
-    if (unlockingTxs.panic.length === 0 || unlockingTxs.unvault.length === 0)
-      throw new Error(`Some spending paths have no solutions.`);
+  for (const panicTxs of Object.values(triggerMap))
+    if (panicTxs.length === 0)
+      throw new Error(`Panic spending path has no solutions.`);
 
   return {
     balance,
@@ -376,13 +334,14 @@ export function createVault({
     feeRateCeiling,
     vaultAddress,
     triggerAddress,
-    unvaultAddress,
     vaultTxHex,
-    panicAddress,
+    unvaultKey,
+    coldAddress,
     lockBlocks,
     remainingBlocks: lockBlocks,
     txMap,
-    triggerMap
+    triggerMap,
+    triggerDescriptor
   };
 }
 
@@ -397,22 +356,6 @@ export function esploraUrl(network: Network) {
   return url;
 }
 
-//TODO: probably this function is not being used - remove
-export async function remainingBlocks(
-  vault: Vault,
-  discovery: DiscoveryInstance
-) {
-  const descriptor = `addr(${vault.triggerAddress})`;
-  await discovery.fetch({ descriptor });
-  const history = discovery.getHistory({ descriptor });
-  if (!history[0]) return vault.lockBlocks;
-  const triggerBlockHeight = history[0].blockHeight;
-  if (!triggerBlockHeight) return vault.lockBlocks;
-  const blockHeight = await discovery.getExplorer().fetchBlockHeight();
-  if (!blockHeight) throw new Error(`Could not bet tip block height`);
-  else return vault.lockBlocks - (blockHeight - triggerBlockHeight) - 1; //-1 for the next mined block
-}
-
 export function validateAddress(addressValue: string, network: Network) {
   try {
     address.toOutputScript(addressValue, network);
@@ -422,84 +365,58 @@ export function validateAddress(addressValue: string, network: Network) {
   }
 }
 
-/**
- * This function identifies the transaction from a set of presigned spending transactions
- * that has spent funds from a specified address or is pending in the mempool to do so.
- *
- * Constraints:
- * - Only one transaction from the set is allowed to spend from the address. If multiple
- *   confirmed transactions are found to have spent from the address, an exception is thrown.
- * - Presigned transactions imply that only one should exist for spending from the address.
- *
- * Purpose:
- * The function serves as a safeguard against potential attacks where an adversary might
- * send funds to the vault's address with the intent to confuse the transaction management
- * system.
- *
- * @param address - The address from which funds may have been spent.
- * @param spendingTxs - An array of candidate presigned spending transaction identifiers.
- * @param txMap - A mapping of transaction hex strings to their respective transaction data.
- * @param discovery - An instance of the Discovery module used to fetch transaction history.
- * @returns A promise that resolves to either undefined (if no transaction is found) or
- *          to an object of TxData type containing transaction details such as hex string,
- *          block height, and irreversibility status. Reference: https://bitcoinerlab.com/modules/discovery/api/types/_Internal_.TxData.html
- *
- * @throws Error if multiple presigned transactions are confirmed to have spent from the address,
- *         if the transaction history cannot be fetched, or if the transaction data is invalid.
- */
-export async function retrievePresignedSpendingTx(
-  address: string,
-  /** the presigned spending txs candidates*/
-  presignedSpendingTxs: Array<string>,
-  txMap: TxMap,
-  discovery: DiscoveryInstance
-): Promise<undefined | TxData> {
-  const descriptor = `addr(${address})`;
-  await discovery.fetch({ descriptor });
-  const historyTxDataMap = discovery.getHistory({ descriptor });
-  const spendingTxDataMap = historyTxDataMap.filter(txData => {
-    if (!txData.txHex) throw new Error('Unavailabe hex for fetched history');
-    return presignedSpendingTxs.includes(txData.txHex);
-  });
-  /**
-   * Sorts transactions primarily by their blockHeight in ascending order to prioritize
-   * transactions with more confirmations towards the beginning of the array, indicating
-   * a higher probability of being confirmed and irreversible. For transactions with
-   * the same blockHeight, it sorts them by feeRate in descending order as a secondary
-   * criterion, under the assumption that higher feeRate transactions are more likely
-   * to be selected by miners and confirmed first.
-   */
-  const sortedSpendingTxDataMap = spendingTxDataMap.sort((a, b) => {
-    //Init variables:
-    const aBlockHeight = a.blockHeight;
-    const bBlockHeight = b.blockHeight;
-    if (!a.txHex || !b.txHex) throw new Error('Unavailable hex history data');
-    if (!txMap[b.txHex] || !txMap[a.txHex]) throw new Error('Invalid txMap');
-    const aRecord = txMap[a.txHex];
-    const bRecord = txMap[b.txHex];
-    if (!aRecord || !bRecord) throw new Error('Invalid txMap');
-    const aFeeRate = aRecord.feeRate;
-    const bFeeRate = bRecord.feeRate;
-    const aTxId = aRecord.txId;
-    const bTxId = bRecord.txId;
+const spendingTxCache = new Map();
 
-    //Perform filtering:
-    if (aBlockHeight === bBlockHeight) {
-      if (aBlockHeight !== 0) {
-        throw new Error(
-          `2 presigned txs spent from ${address} at blockHeight: ${aBlockHeight}, txIds: ${aTxId}, ${bTxId}`
-        );
-      } else {
-        //If tied and unconfirmed, sort in descending feeRate
-        return bFeeRate - aFeeRate;
-      }
-    } else if (aBlockHeight === 0) {
-      return 1; // a is unmined and should be de-prioritized
-    } else if (bBlockHeight === 0) {
-      return -1; // b is unmined and should be de-prioritized
-    } else {
-      return aBlockHeight - bBlockHeight; // Otherwise, sort by ascending blockHeight
-    }
-  });
-  return sortedSpendingTxDataMap[0];
+/**
+ * Returns the tx that spent a Tx Output (or it's in the mempool about to spend it).
+ * If it's in the mempool this is marked by setting blockHeight to zero.
+ * This function will return early if last result was irreversible */
+export async function retrieveSpendingTx(
+  txHex: string,
+  vout: number,
+  discovery: DiscoveryInstance
+): Promise<
+  { txHex: string; irreversible: boolean; blockHeight: number } | undefined
+> {
+  const cacheKey = `${txHex}:${vout}`;
+  const cachedResult = spendingTxCache.get(cacheKey);
+
+  // Check if cached result exists and is irreversible, then return it
+  if (cachedResult && cachedResult.irreversible) {
+    return cachedResult;
+  }
+
+  const tx = Transaction.fromHex(txHex);
+
+  const output = tx.outs[vout];
+  if (!output) throw new Error('Invalid out');
+  const scriptHash = Buffer.from(crypto.sha256(output.script))
+    .reverse()
+    .toString('hex');
+
+  //retrieve all txs that sent / received from this scriptHash
+  const history = await discovery.getExplorer().fetchTxHistory({ scriptHash });
+
+  for (let i = 0; i < history.length; i++) {
+    const txData = history[i];
+    if (!txData) throw new Error('Invalid history');
+    //const irreversible = txData.irreversible;
+    //console.log({ irreversible });
+    //Check if this specific tx was spending my output:
+    const historyTxHex = await discovery.getExplorer().fetchTx(txData.txId);
+    const txHistory = Transaction.fromHex(historyTxHex);
+    //For all the inputs in the tx see if one of them was spending from vout and txId
+    const found = txHistory.ins.some(input => {
+      const inputPrevtxId = Buffer.from(input.hash).reverse().toString('hex');
+      const inputPrevOutput = input.index;
+      return inputPrevtxId === tx.getId() && inputPrevOutput === vout;
+    });
+    if (found)
+      return {
+        txHex: historyTxHex,
+        irreversible: txData.irreversible,
+        blockHeight: txData.blockHeight
+      };
+  }
+  return;
 }
