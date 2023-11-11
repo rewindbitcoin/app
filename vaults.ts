@@ -6,6 +6,7 @@ import {
   crypto,
   networks
 } from 'bitcoinjs-lib';
+import memoize from 'lodash.memoize';
 import * as secp256k1 from '@bitcoinerlab/secp256k1';
 import * as descriptors from '@bitcoinerlab/descriptors';
 const { Output, ECPair, parseKeyExpression } =
@@ -65,10 +66,75 @@ export type Vault = {
   unvaultKey: string; //This is an input in createVault
   triggerDescriptor: string; //This is an outout since the panicKey is randoml generated here
 };
+export type Vaults = Record<string, Vault>;
 type TxHex = string;
 type TxMap = Record<TxHex, { txId: string; fee: number; feeRate: number }>;
 /** maps a triggerTx with its corresponding Array of panicTxs */
 type TriggerMap = Record<TxHex, Array<TxHex>>;
+
+export type UtxosData = Array<{
+  txHex: string;
+  vout: number;
+  signersPubKeys?: Buffer[];
+  descriptor: string;
+  index?: number;
+}>;
+
+/**
+ * For each utxo, get its corresponding:
+ * - previous txHex and vout
+ * - output descriptor
+ * - index? if the descriptor retrieved in discovery was ranged
+ * - signersPubKeys? if it can only be spent through a speciffic spending path
+ */
+export const utxosData = memoize(
+  (
+    utxos: Array<string>,
+    vaults: Vaults,
+    network: Network,
+    discovery: DiscoveryInstance
+  ): UtxosData => {
+    return utxos.map(utxo => {
+      const [txId, strVout] = utxo.split(':');
+      const vout = Number(strVout);
+      if (!txId || isNaN(vout) || !Number.isInteger(vout) || vout < 0)
+        throw new Error(`Invalid utxo ${utxo}`);
+      const indexedDescriptor = discovery.getDescriptor({ utxo });
+      if (!indexedDescriptor) throw new Error(`Unmatched ${utxo}`);
+      let signersPubKeys;
+      for (const vault of Object.values(vaults)) {
+        if (vault.triggerDescriptor === indexedDescriptor.descriptor) {
+          if (vault.remainingBlocks !== 0)
+            throw new Error('utxo is not spendable, should not be set');
+          const { pubkey: unvaultPubKey } = parseKeyExpression({
+            keyExpression: vault.unvaultKey,
+            network
+          });
+          if (!unvaultPubKey) throw new Error('Could not extract the pubKey');
+          signersPubKeys = [unvaultPubKey];
+        }
+      }
+      const txHex = discovery.getTxHex({ txId });
+      return {
+        ...indexedDescriptor,
+        ...(signersPubKeys !== undefined ? { signersPubKeys } : {}),
+        txHex,
+        vout
+      };
+    });
+  }
+);
+
+export const utxosDataBalance = memoize((utxosData: UtxosData): number => {
+  let balance = 0;
+  for (const utxoData of utxosData) {
+    const tx = Transaction.fromHex(utxoData.txHex);
+    const out = tx.outs[utxoData.vout];
+    if (!out) throw new Error('Invalid vout for utxo');
+    balance += out.value;
+  }
+  return balance;
+});
 
 export function createVault({
   unvaultKey,
@@ -79,8 +145,7 @@ export function createVault({
   lockBlocks,
   masterNode,
   network,
-  utxosData,
-  balance
+  utxosData
 }: {
   /** The unvault key expression that must be used to create triggerDescriptor */
   unvaultKey: string;
@@ -101,8 +166,8 @@ export function createVault({
     vout: number;
     txHex: string;
   }>;
-  balance: number;
 }): Vault | undefined {
+  const balance = utxosDataBalance(utxosData);
   let minPanicBalance = balance;
   const maxSatsPerByte = feeRateCeiling;
   const feeRates = feeRateSampling({ samples, maxSatsPerByte });
@@ -371,7 +436,7 @@ const spendingTxCache = new Map();
  * Returns the tx that spent a Tx Output (or it's in the mempool about to spend it).
  * If it's in the mempool this is marked by setting blockHeight to zero.
  * This function will return early if last result was irreversible */
-export async function retrieveSpendingTx(
+export async function fetchSpendingTx(
   txHex: string,
   vout: number,
   discovery: DiscoveryInstance

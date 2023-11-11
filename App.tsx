@@ -6,6 +6,11 @@
 //    -> Sort the candidate sopending txs by feeRate I guess?
 //    Or just randomly discard one. who cares, but don't produce an error!!!
 //
+//TODO: all the calls to discovery fetch and so on should be try-catched.
+//it there are network errors, then show and offer to retry.
+//TODO: also on explorer fetch stuff (there are a few)
+//
+//TODO: Put the Vault Component in a different File:
 //
 //
 //TODO: Show a popup when detected a new hot balance (remainingBlocks = 0)
@@ -87,19 +92,28 @@ const { wpkhBIP32 } = scriptExpressions;
 import { EsploraExplorer } from '@bitcoinerlab/explorer';
 import { DiscoveryFactory, DiscoveryInstance } from '@bitcoinerlab/discovery';
 
-const { Output, BIP32, parseKeyExpression } = DescriptorsFactory(secp256k1);
+const { Output, BIP32 } = DescriptorsFactory(secp256k1);
 const GAP_LIMIT = 3;
 const MIN_FEE_RATE = 1;
-const DEFAULT_MAX_FEE_RATE = 5000;
+const DEFAULT_MAX_FEE_RATE = 5 * 1000; //Not very important. Use this one while feeEstimates is not retrieved.
 const MIN_LOCK_BLOCKS = 1; //TODO: Pass this from parent
 const MAX_LOCK_BLOCKS = 30 * 24 * 6; //TODO: Pass this from parent
 const SAMPLES = 10;
-const FEE_RATE_CEILING = 10; //22-dec-2017 fee rates were 1000. TODO: Set this to 5000 which is 5x 22-dec-2017
+//This is the maxFeeRate that will be required to be pre-signed in panicTxs
+//It there is not enough balance, then it will fail
+const FEE_RATE_CEILING = 5 * 1000; //22-dec-2017 fee rates were 1000. TODO: Set this to 5000 which is 5x 22-dec-2017
 const DEFAULT_COLD_ADDR = 'tb1qm0k9mn48uqfs2w9gssvzmus4j8srrx5eje7wpf';
-import { createVault, Vault, esploraUrl, retrieveSpendingTx } from './vaults';
+import {
+  createVault,
+  Vault,
+  esploraUrl,
+  fetchSpendingTx,
+  Vaults,
+  utxosData,
+  utxosDataBalance,
+  UtxosData
+} from './vaults';
 import styles from './styles';
-
-type Vaults = Record<string, Vault>;
 
 const fromMnemonic = memoize(mnemonic => {
   if (!mnemonic) throw new Error('mnemonic not passed');
@@ -185,53 +199,14 @@ const spendableTriggerDescriptors = (vaults: Vaults): Array<string> => {
       'triggerDescriptors should be unique; panicKey should be random'
     );
   }
+  console.log('spendableTriggerDescriptors', descriptors);
 
   return descriptors;
 };
 
 /**
- * for each utxo, get its corresponding:
- * - previous txHex and vout
- * - output descriptor
- * - index? if the descriptor retrieved in discovery was ranged
- * - signersPubKeys? if there is a speciffic spending path that we must specify
- */
-const utxosData = memoize(
-  (utxos: Array<string>, vaults: Vaults, discovery: DiscoveryInstance) => {
-    return utxos.map(utxo => {
-      const [txId, strVout] = utxo.split(':');
-      const vout = Number(strVout);
-      if (!txId || isNaN(vout) || !Number.isInteger(vout) || vout < 0)
-        throw new Error(`Invalid utxo ${utxo}`);
-      const indexedDescriptor = discovery.getDescriptor({ utxo });
-      if (!indexedDescriptor) throw new Error(`Unmatched ${utxo}`);
-      let signersPubKeys;
-      for (const vault of Object.values(vaults)) {
-        if (vault.triggerDescriptor === indexedDescriptor.descriptor) {
-          if (vault.remainingBlocks !== 0)
-            throw new Error('utxo is not spendable, should not be set');
-          const { pubkey: unvaultPubKey } = parseKeyExpression({
-            keyExpression: vault.unvaultKey,
-            network
-          });
-          if (!unvaultPubKey) throw new Error('Could not extract the pubKey');
-          signersPubKeys = [unvaultPubKey];
-        }
-      }
-      const txHex = discovery.getTxHex({ txId });
-      return {
-        ...indexedDescriptor,
-        ...(signersPubKeys !== undefined ? { signersPubKeys } : {}),
-        txHex,
-        vout
-      };
-    });
-  }
-);
-
-/**
  * Computes the tx Size for the vault tx for a set of utxos
- * It returns the same result if {utxos} does not change.
+ * It returns the same result if utxos reference does not change.
  *
  * It will compute a very small vault with 2 samples per tx
  *
@@ -239,23 +214,18 @@ const utxosData = memoize(
  * it is not possible to create a general vault with these utxos.
  */
 const vaultTxSize = memoize(
-  ({ mnemonic, coldAddress, utxos, vaults, balance, discovery }) => {
-    if (!discovery) throw new Error(`discovery not instantiated yet!`);
+  ({ mnemonic, coldAddress, utxosData }) => {
     const masterNode = fromMnemonic(mnemonic).masterNode;
     const unvaultKey = fromMnemonic(mnemonic).unvaultKey;
-    if (utxos === null || !utxos.length) throw new Error(`utxos unset`);
-    if (balance === null || balance <= 0) throw new Error(`balance unset`);
-    //Crete mockup vault:
     const vault = createVault({
       unvaultKey,
       samples: 2,
       feeRate: 1,
-      feeRateCeiling: 1,
+      feeRateCeiling: FEE_RATE_CEILING,
       coldAddress,
       lockBlocks: 1,
       masterNode,
-      utxosData: utxosData(utxos, vaults, discovery),
-      balance,
+      utxosData,
       network
     });
     if (vault === undefined) return;
@@ -265,7 +235,34 @@ const vaultTxSize = memoize(
   ({ utxos }) => utxos
 );
 
-const formatFeeRate = ({
+/**
+ * Given a feeRate, it computes a mockup vault, and extracts and formats the
+ * total fee and confirmation time.
+ * A mockup vault is a very small vault of 2 samples. It is small so that it
+ * can be computed very quickly. Then, it is used to obtain the size of the
+ * vaultTx, for the current utxos.
+ */
+const formatVaultFeeRate = ({
+  feeRate,
+  mnemonic,
+  coldAddress,
+  utxosData,
+  btcUsd,
+  feeEstimates
+}: {
+  feeRate: number;
+  mnemonic: string;
+  coldAddress: string;
+  utxosData: UtxosData;
+  btcUsd: number | null;
+  feeEstimates: Record<string, number> | null;
+}) => {
+  const txSize = vaultTxSize({ mnemonic, coldAddress, utxosData });
+  if (txSize === undefined) throw new Error(`Could not create mockup vault`);
+  return coreFormatFeeRate({ feeRate, txSize, btcUsd, feeEstimates });
+};
+
+const coreFormatFeeRate = ({
   feeRate,
   txSize,
   btcUsd,
@@ -332,7 +329,6 @@ export default function App() {
   const [mnemonic, setMnemonic] = useState<string | null>(null);
   const [discovery, setDiscovery] = useState<DiscoveryInstance | null>(null);
   const [utxos, setUtxos] = useState<Array<string> | null>(null);
-  const [balance, setBalance] = useState<number | null>(null); //TODO: Do I need this one?
   const [vaults, setVaults] = useState<Vaults>({});
   const [checkingBalance, setCheckingBalance] = useState(false);
   const [feeEstimates, setFeeEstimates] = useState<Record<
@@ -357,7 +353,6 @@ export default function App() {
     setMnemonic(mnemonic || null);
     setDiscovery(discovery);
     setUtxos(null);
-    setBalance(null);
     setVaults(vaults);
     setCheckingBalance(false);
 
@@ -385,36 +380,13 @@ export default function App() {
     } catch (err) {}
   };
 
-  //TODO: Move this one outside this React component. pass params:
-  //TODO: This should also receive the utxos and cache nasde on the utxos.
-  //mnemonic, utxos, balance, coldAddress, discovery
-  /**
-   * Given a feeRate, it computes a mockup vault, and extracts and formats the
-   * total fee and confirmation time.
-   * A mockup vault is a very small vault of 2 samples. It is small so that it
-   * can be computed very quickly. Then, it is used to obtain the size of the
-   * vaultTx, for the current utxos.
-   */
-  const formatVaultFeeRate = (feeRate: number) => {
-    const txSize = vaultTxSize({
-      mnemonic,
-      coldAddress: DEFAULT_COLD_ADDR,
-      utxos,
-      vaults,
-      balance,
-      discovery
-    });
-    if (txSize === undefined) throw new Error(`Could not create mockup vault`);
-    return formatFeeRate({ feeRate, txSize, btcUsd, feeEstimates });
-  };
-
   const formatTriggerFeeRate = (feeRate: number, vault: Vault) => {
     if (!vaultTriggerSetup) throw new Error('Trigger Vault unavailable');
     const { feeRate: finalFeeRate } = findClosestTriggerFeeRate(feeRate, vault);
     const triggerTxHex = Object.keys(vault.triggerMap)[0];
     if (!triggerTxHex) throw new Error('Unavailable trigger txs');
     const txSize = Transaction.fromHex(triggerTxHex).virtualSize();
-    const formattedFeeRate = formatFeeRate({
+    const formattedFeeRate = coreFormatFeeRate({
       feeRate: finalFeeRate,
       txSize,
       btcUsd,
@@ -438,20 +410,6 @@ ${formattedFeeRate}`;
     if (discovery && !checkingBalance && mnemonic && !receiveAddress)
       handleCheckBalance();
   }, [receiveAddress]);
-  //Cache vaultTxSizes for current utxos so that subsequent calls to
-  //formatVaultFeeRate are quick. This is just for improving the UX:
-  useEffect(() => {
-    if (utxos?.length && balance)
-      try {
-        //TODO: Doing this will be a very bad idea when the VaultSettings chooses
-        //which are the utxos that will be spent (COINSELECT). This is pre-caching
-        //it ASSUMING ALL UTXOs which will be bad
-        //Note that current utxos may have very little balance which make it
-        //impossible to compute the vaultTxSizes. We will test formatVaultFeeRate(1)
-        //again before opening VaultSettings just in case
-        formatVaultFeeRate(1);
-      } catch (err) {}
-  }, [utxos, balance]);
 
   const handleCreateWallet = async () => {
     const mnemonic = generateMnemonic();
@@ -469,27 +427,44 @@ ${formattedFeeRate}`;
       //First update the vaults. Then the utxos
       let newVaults = vaults; //Do not mutate vaults
       for (const vault of Object.values(vaults)) {
-        const triggerTxData = await retrieveSpendingTx(
+        const triggerTxData = await fetchSpendingTx(
           vault.vaultTxHex,
           0,
           discovery
         );
         const unlockingTxData = triggerTxData
-          ? await retrieveSpendingTx(triggerTxData.txHex, 0, discovery)
+          ? await fetchSpendingTx(triggerTxData.txHex, 0, discovery)
           : undefined;
 
         const newVault = produce(vault, draftVault => {
           if (triggerTxData) {
             draftVault.triggerTxHex = triggerTxData.txHex;
             draftVault.triggerTxBlockHeight = triggerTxData.blockHeight;
-            draftVault.remainingBlocks = Math.max(
-              0,
-              //-1 because this means a tx can be pushed already since the new
-              //block will be (blockHeight + 1)
-              draftVault.lockBlocks -
-                (blockHeight - triggerTxData.blockHeight) -
-                1
-            );
+
+            //TODO: This logic is still not right. If trigger is in the
+            //mempool then we must wait (not do the -1)
+            const isTriggerInMempool = triggerTxData.blockHeight === 0;
+            if (isTriggerInMempool) {
+              draftVault.remainingBlocks = draftVault.lockBlocks;
+            } else {
+              const blocksSinceTrigger =
+                blockHeight - triggerTxData.blockHeight;
+              draftVault.remainingBlocks = Math.max(
+                0,
+                //-1 because this means a tx can be pushed already since the new
+                //block will be (blockHeight + 1)
+                draftVault.lockBlocks - blocksSinceTrigger - 1
+              );
+            }
+
+            // LOG  computed remainingBlocks {"blockHeight": 2537905, "lockBlocks": 1, "remainingBlocks": 0, "triggerHeight": 0}
+
+            console.log('computed remainingBlocks', {
+              lockBlocks: draftVault.lockBlocks,
+              blockHeight,
+              triggerHeight: triggerTxData.blockHeight,
+              remainingBlocks: draftVault.remainingBlocks
+            });
           } else {
             delete draftVault.triggerTxHex;
             delete draftVault.triggerTxBlockHeight;
@@ -530,11 +505,11 @@ ${formattedFeeRate}`;
         ...spendableTriggerDescriptors(newVaults)
       ];
       await discovery.fetch({ descriptors, gapLimit: GAP_LIMIT });
-      const { utxos, balance } = discovery.getUtxosAndBalance({ descriptors });
+      const { utxos } = discovery.getUtxosAndBalance({ descriptors });
+      //console.log('vaults', vaults);
       //I can do this because getUtxosAndBalance uses immutability.
       //Setting same utxo won't produce a re-render in React.
       setUtxos(utxos.length ? utxos : null);
-      setBalance(utxos.length ? balance : null);
 
       setCheckingBalance(false);
     }
@@ -610,12 +585,16 @@ Handle with care. Confidentiality is key.
   };
 
   const handleVault = async ({
+    utxosData,
     feeRate,
     lockBlocks
   }: {
+    utxosData?: UtxosData;
     feeRate: number;
     lockBlocks?: number;
   }) => {
+    if (utxosData === undefined)
+      throw new Error('VaultSettings could not coinselect some utxos');
     if (lockBlocks === undefined) throw new Error('lockBlocks not retrieved');
     setIsVaultSetUp(false);
 
@@ -624,7 +603,6 @@ Handle with care. Confidentiality is key.
     const unvaultKey = fromMnemonic(mnemonic).unvaultKey;
     //HERE CREATE THE triggerDescriptor using the next
     if (utxos === null || !utxos.length) throw new Error(`utxos unset`);
-    if (balance === null || balance <= 0) throw new Error(`balance unset`);
     const vault = createVault({
       unvaultKey,
       samples: SAMPLES,
@@ -633,8 +611,7 @@ Handle with care. Confidentiality is key.
       coldAddress: DEFAULT_COLD_ADDR,
       lockBlocks,
       masterNode,
-      utxosData: utxosData(utxos, vaults, discovery),
-      balance,
+      utxosData,
       network
     });
 
@@ -656,6 +633,15 @@ Handle with care. Confidentiality is key.
     }
   };
 
+  const hotUtxosData =
+    utxos === null || discovery === null
+      ? null
+      : utxosData(utxos, vaults, network, discovery);
+  const hotBalance =
+    hotUtxosData === null ? null : utxosDataBalance(hotUtxosData);
+
+  if (isVaultSetUp && hotUtxosData === null)
+    throw new Error('Cannot set up a vault without utxos');
   return (
     <SafeAreaProvider>
       <SafeAreaView style={styles.container}>
@@ -690,33 +676,13 @@ Handle with care. Confidentiality is key.
           )}
           {utxos && (
             <MBButton
-              title="Vault Hot Balance"
-              onPress={() => {
-                try {
-                  //TODO: This should be different when using coinselect since
-                  //the VaultSettings module should be cheching this internally
-                  //based on the utxos chosen by the coinselect algo.
-                  //Not assuming ALL utxos are going to be chosen (as it happens
-                  //now)
-                  //Make sure it is possible to create a mockup vault. That is
-                  //a small vault in order to compute the txSize of the 1st tx.
-                  //This is needed to compute the feeRate of the 1st tx.
-                  formatVaultFeeRate(1);
-                  setIsVaultSetUp(true);
-                } catch (err) {
-                  //TODO: here we know it is not possible to create a mockup
-                  //Vault. not enough balance even for this small vault.
-                  //just stop and warn the user.
-                  console.warn(
-                    'TODO: Implement this! Here we know it is not possible to create a mockup Vault. not enough balance even for this small vault. just stop and warn the user.'
-                  );
-                }
-              }}
+              title="Vault Balance"
+              onPress={() => setIsVaultSetUp(true)}
             />
           )}
-          {mnemonic && balance !== null && (
+          {hotBalance !== null && (
             <Text style={styles.hotBalance}>
-              Hot Balance: {balance} sats{checkingBalance && ' ⏳'}
+              Hot Balance: {hotBalance} sats{checkingBalance && ' ⏳'}
             </Text>
           )}
           {vaults && Object.keys(vaults).length > 0 && (
@@ -775,7 +741,7 @@ Handle with care. Confidentiality is key.
                           ? 'Funds were sent to Panic Address'
                           : vault.unlockingTxHex
                           ? 'Vault was spent as Hot'
-                          : `Vault can be spent as Hot (also be panicked)`}
+                          : `Vault can be spent as Hot (or Panic)`}
                       </Text>
 
                       <View style={styles.buttonGroup}>
@@ -855,22 +821,42 @@ Handle with care. Confidentiality is key.
             </View>
           </View>
         </Modal>
-        <Modal visible={isVaultSetUp} animationType="slide">
-          <View style={[styles.modal, { padding: 40 }]}>
-            <Text style={styles.title}>Vault Set Up</Text>
-            <VaultSettings
-              minFeeRate={MIN_FEE_RATE}
-              maxFeeRate={maxFeeRate(feeEstimates)}
-              minLockBlocks={MIN_LOCK_BLOCKS}
-              maxLockBlocks={MAX_LOCK_BLOCKS}
-              network={network}
-              onNewValues={handleVault}
-              onCancel={() => setIsVaultSetUp(false)}
-              formatFeeRate={formatVaultFeeRate}
-              formatLockTime={formatLockTime}
-            />
-          </View>
-        </Modal>
+        {hotUtxosData && (
+          <Modal visible={isVaultSetUp} animationType="slide">
+            <View style={[styles.modal, { padding: 40 }]}>
+              <Text style={styles.title}>Vault Set Up</Text>
+              <VaultSettings
+                minFeeRate={MIN_FEE_RATE}
+                maxFeeRate={maxFeeRate(feeEstimates)}
+                minLockBlocks={MIN_LOCK_BLOCKS}
+                maxLockBlocks={MAX_LOCK_BLOCKS}
+                utxosData={hotUtxosData}
+                onNewValues={handleVault}
+                onCancel={() => setIsVaultSetUp(false)}
+                formatFeeRate={({
+                  feeRate,
+                  utxosData
+                }: {
+                  feeRate: number;
+                  utxosData?: UtxosData;
+                }) => {
+                  if (!utxosData)
+                    throw new Error('Vault settings did not coinselect utxos');
+                  if (!mnemonic) throw new Error('mnemonic has been unset');
+                  return formatVaultFeeRate({
+                    feeRate,
+                    mnemonic,
+                    coldAddress: DEFAULT_COLD_ADDR,
+                    utxosData,
+                    btcUsd,
+                    feeEstimates
+                  });
+                }}
+                formatLockTime={formatLockTime}
+              />
+            </View>
+          </Modal>
+        )}
         <Modal visible={!!vaultTriggerSetup} animationType="slide">
           <View style={[styles.modal, { padding: 40 }]}>
             <Text style={styles.title}>Trigger Unvault</Text>
@@ -880,7 +866,6 @@ Handle with care. Confidentiality is key.
                 maxTriggerFeeRate(vaultTriggerSetup),
                 maxFeeRate(feeEstimates)
               )}
-              network={network}
               onNewValues={async ({ feeRate }: { feeRate: number }) => {
                 if (!vaultTriggerSetup) throw new Error('Vault unset');
                 await handleTriggerUnvault({
@@ -889,7 +874,7 @@ Handle with care. Confidentiality is key.
                 });
               }}
               onCancel={() => setVaultTriggerSetUp(null)}
-              formatFeeRate={(feeRate: number) => {
+              formatFeeRate={({ feeRate }: { feeRate: number }) => {
                 if (!vaultTriggerSetup)
                   throw new Error('Trigger Vault unavailable');
                 return formatTriggerFeeRate(feeRate, vaultTriggerSetup);
