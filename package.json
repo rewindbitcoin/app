@@ -17,7 +17,7 @@
   },
   "dependencies": {
     "@bitcoinerlab/descriptors": "^2.0.1",
-    "@bitcoinerlab/discovery": "^1.0.0",
+    "@bitcoinerlab/discovery": "^1.0.1",
     "@bitcoinerlab/explorer": "^0.1.0",
     "@bitcoinerlab/miniscript": "^1.4.0",
     "@bitcoinerlab/secp256k1": "^1.0.5",
