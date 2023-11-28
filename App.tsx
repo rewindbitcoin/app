@@ -69,13 +69,13 @@ const MBButton = ({ ...props }: ButtonProps) => (
 );
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 
-import VaultSettings from './VaultSettings';
+import VaultSettings from './src/components/views/VaultSettings';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import QRCode from 'react-native-qrcode-svg';
 import * as Clipboard from 'expo-clipboard';
 import { Share } from 'react-native';
 import memoize from 'lodash.memoize';
-import { getBTCUSD } from './btcRates';
+import { getBTCUSD } from './src/lib/btcRates';
 
 import { Transaction, networks } from 'bitcoinjs-lib';
 const network = networks.testnet;
@@ -95,13 +95,22 @@ import { DiscoveryFactory, DiscoveryInstance } from '@bitcoinerlab/discovery';
 const { Output, BIP32 } = DescriptorsFactory(secp256k1);
 const GAP_LIMIT = 3;
 const MIN_FEE_RATE = 1;
-const DEFAULT_MAX_FEE_RATE = 5 * 1000; //Not very important. Use this one while feeEstimates is not retrieved.
 const MIN_LOCK_BLOCKS = 1; //TODO: Pass this from parent
 const MAX_LOCK_BLOCKS = 30 * 24 * 6; //TODO: Pass this from parent
 const SAMPLES = 10;
+//
+//TODO: maxTriggerFeeRate, maxFeeRate, FEE_RATE_CEILING and DEFAULT_MAX_FEE_RATE
+//are super confussing. Note that the feeRateCeiling should be, in fact, the
+//Math.max(FEE_RATE_CEILING, maxFeeRate())
+//  -> Maybe it's even better to throw if fees go crazy. Even to more
+//  than FEE_RATE_CEILING. In that case it's safer to throw and not allow
+//  users to use ThunderDen because it was not desifned to that?
+//
+//
 //This is the maxFeeRate that will be required to be pre-signed in panicTxs
 //It there is not enough balance, then it will fail
 const FEE_RATE_CEILING = 5 * 1000; //22-dec-2017 fee rates were 1000. TODO: Set this to 5000 which is 5x 22-dec-2017
+const DEFAULT_MAX_FEE_RATE = FEE_RATE_CEILING; //Not very important. Use this one while feeEstimates is not retrieved. This is the maxFeeRate that we assume that feeEstimates will return
 const DEFAULT_COLD_ADDR = 'tb1qm0k9mn48uqfs2w9gssvzmus4j8srrx5eje7wpf';
 import {
   createVault,
@@ -112,8 +121,8 @@ import {
   utxosData,
   utxosDataBalance,
   UtxosData
-} from './vaults';
-import styles from './styles';
+} from './src/lib/vaults';
+import styles from './styles/styles';
 
 const fromMnemonic = memoize(mnemonic => {
   if (!mnemonic) throw new Error('mnemonic not passed');
@@ -154,9 +163,7 @@ const maxTriggerFeeRate = (vault: Vault | null) => {
         return txRecord.feeRate;
       })
     );
-  } else {
-    return DEFAULT_MAX_FEE_RATE;
-  }
+  } else return DEFAULT_MAX_FEE_RATE;
 };
 
 const findClosestTriggerFeeRate = (
@@ -509,6 +516,7 @@ ${formattedFeeRate}`;
       //console.log('vaults', vaults);
       //I can do this because getUtxosAndBalance uses immutability.
       //Setting same utxo won't produce a re-render in React.
+      console.log('UTXOS SET');
       setUtxos(utxos.length ? utxos : null);
 
       setCheckingBalance(false);
@@ -633,6 +641,8 @@ Handle with care. Confidentiality is key.
     }
   };
 
+  //TODO: this fails if I type stuff and save it and expo-reloads because then
+  //init is not called
   const hotUtxosData =
     utxos === null || discovery === null
       ? null

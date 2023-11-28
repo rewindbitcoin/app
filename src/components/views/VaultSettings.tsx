@@ -10,8 +10,8 @@ import {
   Keyboard
 } from 'react-native';
 
-import EditableSlider from './EditableSlider';
-import type { UtxosData } from './vaults';
+import EditableSlider from '../common/EditableSlider';
+import type { UtxosData } from '../../lib/vaults';
 
 export default function VaultSettings({
   minFeeRate,
@@ -62,6 +62,7 @@ export default function VaultSettings({
       'Pass minLockBlocks, maxLockBlocks, and formatLockTime all together or none. Pass them to retrieve a number of blocks for a locking tx'
     );
   const [lockBlocks, setLockBlocks] = useState<number | null>(null);
+  //const [amount, setAmount] = useState<number | null>(null);
   const [feeRate, setFeeRate] = useState<number | null>(null);
   const [coinselectedUtxosData, setCoinselectedUtxosData] =
     useState<UtxosData | null>(null);
@@ -148,6 +149,15 @@ export default function VaultSettings({
 
   const content = (
     <View style={styles.content}>
+      <View style={styles.settingGroup}>
+        <Text style={styles.label}>Amount:</Text>
+        <EditableSlider
+          minimumValue={0}
+          maximumValue={100}
+          step={1}
+          formatValue={value => `${value}`}
+        />
+      </View>
       {minLockBlocks && maxLockBlocks && formatLockTime && (
         <View style={styles.settingGroup}>
           <Text style={styles.label}>
@@ -170,6 +180,8 @@ export default function VaultSettings({
           maximumValue={maxFeeRate}
           onValueChange={value => setFeeRate(value)}
           formatValue={value =>
+            //TODO: maybe it's worth it to do a try catch here too and
+            //disable and show an error in that case
             formatFeeRate({
               feeRate: value,
               ...(coinselectedUtxosData

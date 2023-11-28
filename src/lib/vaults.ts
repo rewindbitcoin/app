@@ -8,9 +8,8 @@ import {
 } from 'bitcoinjs-lib';
 import memoize from 'lodash.memoize';
 import * as secp256k1 from '@bitcoinerlab/secp256k1';
-import * as descriptors from '@bitcoinerlab/descriptors';
-const { Output, ECPair, parseKeyExpression } =
-  descriptors.DescriptorsFactory(secp256k1);
+import { DescriptorsFactory, OutputInstance } from '@bitcoinerlab/descriptors';
+const { Output, ECPair, parseKeyExpression } = DescriptorsFactory(secp256k1);
 
 import { compilePolicy } from '@bitcoinerlab/miniscript';
 const { encode: olderEncode } = require('bip68');
@@ -75,9 +74,7 @@ type TriggerMap = Record<TxHex, Array<TxHex>>;
 export type UtxosData = Array<{
   txHex: string;
   vout: number;
-  signersPubKeys?: Buffer[];
-  descriptor: string;
-  index?: number;
+  output: OutputInstance;
 }>;
 
 /**
@@ -117,7 +114,11 @@ export const utxosData = memoize(
       const txHex = discovery.getTxHex({ txId });
       return {
         ...indexedDescriptor,
-        ...(signersPubKeys !== undefined ? { signersPubKeys } : {}),
+        output: new Output({
+          ...indexedDescriptor,
+          ...(signersPubKeys !== undefined ? { signersPubKeys } : {}),
+          network
+        }),
         txHex,
         vout
       };
@@ -159,18 +160,13 @@ export function createVault({
   lockBlocks: number;
   masterNode: BIP32Interface;
   network: Network;
-  utxosData: Array<{
-    descriptor: string;
-    index?: number;
-    signersPubKeys?: Array<Buffer>;
-    vout: number;
-    txHex: string;
-  }>;
+  utxosData: UtxosData;
 }): Vault | undefined {
   const balance = utxosDataBalance(utxosData);
   let minPanicBalance = balance;
   const maxSatsPerByte = feeRateCeiling;
   const feeRates = feeRateSampling({ samples, maxSatsPerByte });
+  console.log({ feeRates });
   if (
     feeRates.length !== samples ||
     maxSatsPerByte !== feeRateCeiling ||
@@ -193,13 +189,7 @@ export function createVault({
   //Add the inputs to psbtVault:
   const vaultFinalizers = [];
   for (const utxoData of utxosData) {
-    const { descriptor, index, signersPubKeys, vout, txHex } = utxoData;
-    const output = new Output({
-      descriptor,
-      ...(index !== undefined ? { index } : {}),
-      ...(signersPubKeys !== undefined ? { signersPubKeys } : {}),
-      network
-    });
+    const { output, vout, txHex } = utxoData;
     // Add the utxo as input of psbtVault:
     const inputFinalizer = output.updatePsbtAsInput({
       psbt: psbtVault,
