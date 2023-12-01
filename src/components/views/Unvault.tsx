@@ -1,3 +1,4 @@
+//share styles VaultSetUp / Unvault
 import React, { useState, useEffect } from 'react';
 import type { GestureResponderEvent } from 'react-native';
 import {
@@ -13,7 +14,7 @@ import {
 import EditableSlider from '../common/EditableSlider';
 import type { UtxosData } from '../../lib/vaults';
 
-export default function VaultSettings({
+export default function Unvault({
   minFeeRate,
   maxFeeRate,
   minLockBlocks,
@@ -44,7 +45,7 @@ export default function VaultSettings({
   utxosData?: UtxosData;
 
   onNewValues: (values: {
-    utxosData?: UtxosData;
+    selectedUtxosData?: UtxosData;
     feeRate: number;
     lockBlocks?: number;
   }) => Promise<void>;
@@ -64,44 +65,18 @@ export default function VaultSettings({
   const [lockBlocks, setLockBlocks] = useState<number | null>(null);
   //const [amount, setAmount] = useState<number | null>(null);
   const [feeRate, setFeeRate] = useState<number | null>(null);
-  const [coinselectedUtxosData, setCoinselectedUtxosData] =
-    useState<UtxosData | null>(null);
+  const [selectedUtxosData, setSelectedUtxosData] = useState<UtxosData | null>(
+    null
+  );
 
   //Since we are not using a coinselector yet, we assume that the coinselector
   //returned all the utxos (while this is not implemented):
   //For now, on mount set it to utxosData:
   useEffect(() => {
-    if (utxosData) setCoinselectedUtxosData(utxosData);
+    //TODO: make sure selectedUtxosData reference does not change if internal
+    //array does not change
+    if (utxosData) setSelectedUtxosData(utxosData);
   }, []);
-
-  useEffect(() => {
-    //This is done here for 2 reasons:
-    //
-    //1) As a caching mechanism. This call uses memoization and computes
-    //a mini-vault everytime the passed utxosData changes. It is better to
-    //pre-compute it here, rather than when the user starts using the
-    //Slider (which makes it a bit unresponsive)
-    //The feeRate is non-important for caching the mini-vault
-    //
-    //2) To detect if it is impossible to create a vault based on the
-    //imposed restrictions. The mini-vault uses the same restrictions as
-    //the full vault and can be used to detect if it cannot be created.
-    //Some of this restrictions are related to being able to have enough
-    //balance to apply FEE_RATE_CEILING
-    if (coinselectedUtxosData) {
-      try {
-        formatFeeRate({ feeRate: 1, utxosData: coinselectedUtxosData });
-        console.log('formatFeeRate');
-      } catch (err) {
-        //This should disable the "Ok" button and display an error message
-        //explaining that it is not possible to create a vault because
-        //there would not be enough funds to panic from it.
-        console.warn(
-          'TODO: Implement this! Here we know it is not possible to create a mockup mini-vault. Not enough balance even for this small vault. just stop and warn the user.'
-        );
-      }
-    }
-  }, [coinselectedUtxosData]);
 
   const handlePressOutside = () => Keyboard.dismiss();
   const handleCancel = (event: GestureResponderEvent) => {
@@ -127,7 +102,7 @@ export default function VaultSettings({
     }
 
     //Validation for utxos
-    if (validateUtxosData && coinselectedUtxosData === null) {
+    if (validateUtxosData && selectedUtxosData === null) {
       errorMessages.push('Pick a valid amount of Btc.');
     }
 
@@ -137,11 +112,11 @@ export default function VaultSettings({
       return;
     } else {
       if (feeRate === null) throw new Error(`feeRate faulty validation`);
-      if (utxosData && !coinselectedUtxosData)
+      if (utxosData && !selectedUtxosData)
         throw new Error('The coinselector algorithm failed');
       onNewValues({
         feeRate,
-        ...(coinselectedUtxosData ? { utxosData: coinselectedUtxosData } : {}),
+        ...(selectedUtxosData ? { selectedUtxosData } : {}),
         ...(lockBlocks !== null ? { lockBlocks } : {})
       });
     }
@@ -152,10 +127,11 @@ export default function VaultSettings({
       <View style={styles.settingGroup}>
         <Text style={styles.label}>Amount:</Text>
         <EditableSlider
+          value={0}
           minimumValue={0}
           maximumValue={100}
           step={1}
-          formatValue={value => `${value}`}
+          formatValue={value => `This is the amount: ${value}`}
         />
       </View>
       {minLockBlocks && maxLockBlocks && formatLockTime && (
@@ -165,6 +141,7 @@ export default function VaultSettings({
             unvaulting:
           </Text>
           <EditableSlider
+            value={lockBlocks === null ? minLockBlocks : lockBlocks}
             minimumValue={minLockBlocks}
             maximumValue={maxLockBlocks}
             step={1}
@@ -176,6 +153,7 @@ export default function VaultSettings({
       <View style={styles.settingGroup}>
         <Text style={styles.label}>Fee Rate (sats/vbyte):</Text>
         <EditableSlider
+          value={feeRate === null ? minFeeRate : feeRate}
           minimumValue={minFeeRate}
           maximumValue={maxFeeRate}
           onValueChange={value => setFeeRate(value)}
@@ -184,9 +162,7 @@ export default function VaultSettings({
             //disable and show an error in that case
             formatFeeRate({
               feeRate: value,
-              ...(coinselectedUtxosData
-                ? { utxosData: coinselectedUtxosData }
-                : {})
+              ...(selectedUtxosData ? { selectedUtxosData } : {})
             })
           }
         />

@@ -3,6 +3,7 @@
  *
  * @returns An array of numbers containing the sampled fee rates.
  */
+export type FeeEstimates = Record<string, number>;
 export function feeRateSampling(
   {
     minSatsPerByte = 1,
@@ -91,7 +92,7 @@ export function pickFeeEstimate(
   feeEstimates: Record<string, number>,
   /** The target time in seconds for the transaction to be mined. */
   targetTime: number
-) {
+): number {
   if (!Number.isSafeInteger(targetTime) || targetTime < 0)
     throw new Error('Invalid targetTime!');
 
@@ -103,6 +104,61 @@ export function pickFeeEstimate(
   if (typeof block === 'undefined') {
     throw new Error('Invalid targetTime!');
   }
+  const feeEstimate = feeEstimates[block];
+  if (feeEstimate === undefined) throw new Error('Error in pickFeeEstimate');
 
-  return feeEstimates[block];
+  return feeEstimate;
 }
+
+export const formatBlocks = (blocks: number): string => {
+  const averageBlockTimeInMinutes = 10;
+
+  const timeInMinutes = blocks * averageBlockTimeInMinutes;
+  let timeEstimate = '';
+
+  if (timeInMinutes < 60) {
+    timeEstimate = `~${timeInMinutes} min${timeInMinutes > 1 ? 's' : ''}`;
+  } else if (timeInMinutes < 1440) {
+    // Less than a day
+    const timeInHours = (timeInMinutes / 60).toFixed(1);
+    timeEstimate = `~${timeInHours} hour${timeInHours === '1.0' ? '' : 's'}`;
+  } else {
+    const timeInDays = (timeInMinutes / 1440).toFixed(1);
+    timeEstimate = `~${timeInDays} day${timeInDays === '1.0' ? '' : 's'}`;
+  }
+  return timeEstimate;
+};
+
+export const formatFeeRate = ({
+  feeRate,
+  txSize,
+  btcUsd,
+  feeEstimates
+}: {
+  feeRate: number;
+  txSize: number;
+  btcUsd: number | null;
+  feeEstimates: FeeEstimates | null;
+}) => {
+  let strBtcUsd = `Waiting for BTC/USD rates...`;
+  let strTime = `Waiting for fee estimates...`;
+  if (btcUsd !== null)
+    strBtcUsd = `Fee: $${((feeRate * txSize * btcUsd) / 1e8).toFixed(2)}`;
+  if (feeEstimates && Object.keys(feeEstimates).length) {
+    // Convert the feeEstimates object keys to numbers and sort them
+    const sortedEstimates = Object.keys(feeEstimates)
+      .map(Number)
+      .sort((a, b) => feeEstimates[a]! - feeEstimates[b]!);
+
+    //Find confirmation target with closest higher fee rate than given feeRate
+    const target = sortedEstimates.find(
+      estimate => feeEstimates[estimate]! >= feeRate
+    );
+
+    if (target !== undefined) strTime = `Confirms in ${formatBlocks(target)}`;
+    // If the provided fee rate is lower than any estimate,
+    // it's not possible to estimate the time
+    else strTime = `Express confirmation`;
+  }
+  return `${strBtcUsd} / ${strTime}`;
+};

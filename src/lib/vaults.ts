@@ -1,3 +1,4 @@
+//TODO: add service fee in the vault process, also add change
 import {
   Network,
   Psbt,
@@ -18,6 +19,7 @@ import type { BIP32Interface } from 'bip32';
 
 import { feeRateSampling } from './fees';
 import type { DiscoveryInstance } from '@bitcoinerlab/discovery';
+import { maxFunds, vsize } from '@bitcoinerlab/coinselect';
 
 export type Vault = {
   /** the initial balance */
@@ -84,7 +86,7 @@ export type UtxosData = Array<{
  * - index? if the descriptor retrieved in discovery was ranged
  * - signersPubKeys? if it can only be spent through a speciffic spending path
  */
-export const utxosData = memoize(
+export const getUtxosData = memoize(
   (
     utxos: Array<string>,
     vaults: Vaults,
@@ -126,6 +128,28 @@ export const utxosData = memoize(
   }
 );
 
+export const createTriggerDescriptor = ({
+  unvaultKey,
+  panicKey,
+  lockBlocks
+}: {
+  unvaultKey: string;
+  panicKey: string;
+  lockBlocks: number;
+}) => {
+  //TODO: Do not compile the POLICY. hardcode the miniscript
+  const POLICY = (older: number) =>
+    `or(pk(@panicKey),99@and(pk(@unvaultKey),older(${older})))`;
+  const older = olderEncode({ blocks: lockBlocks });
+  const { miniscript, issane } = compilePolicy(POLICY(older));
+  if (!issane) throw new Error('Policy not sane');
+
+  const triggerDescriptor = `wsh(${miniscript
+    .replace('@unvaultKey', unvaultKey)
+    .replace('@panicKey', panicKey)})`;
+  return triggerDescriptor;
+};
+
 export const utxosDataBalance = memoize((utxosData: UtxosData): number => {
   let balance = 0;
   for (const utxoData of utxosData) {
@@ -136,6 +160,91 @@ export const utxosDataBalance = memoize((utxosData: UtxosData): number => {
   }
   return balance;
 });
+
+/** When sending maxFunds, what is the target value?
+ * It returns a number or undefined if not possible to obtain a value
+ * */
+export const estimateMaxVaultAmount = ({
+  utxosData,
+  feeRate
+}: {
+  utxosData: UtxosData;
+  feeRate: number;
+}) => {
+  const coinselected = maxFunds({
+    utxos: utxosData.map(utxo => {
+      const out = Transaction.fromHex(utxo.txHex).outs[utxo.vout];
+      if (!out) throw new Error('Invalid utxo');
+      return { output: utxo.output, value: out.value };
+    }),
+    targets: [
+      // This will be the service fee output
+      {
+        output: new Output({
+          //Just a random pubkey here...
+          descriptor: `wpkh(038ffea936b2df76bf31220ebd56a34b30c6b86f40d3bd92664e2f5f98488dddfa)`
+        }),
+        //Set this to 1 sat. We need to create an output to make it count.
+        //Service fee will be discounted later
+        value: 1
+      }
+    ],
+    remainder: new Output({
+      //Just a random pubkey here...
+      descriptor: `wpkh(038ffea936b2df76bf31220ebd56a34b30c6b86f40d3bd92664e2f5f98488dddfa)`
+    }),
+    feeRate
+  });
+  if (!coinselected) return;
+  const value = coinselected.targets[coinselected.targets.length - 1]?.value;
+  if (value === undefined) return;
+  return value + 1; //Discount the service fee
+};
+
+/**
+ * Require that at least 2/3 (minRecoverableRatio) of funds must be recoverable.
+ * In other words, at most loose 1/3 of initial value in fees.
+ * It assumes a lockBlocks using the largest possible value (size)
+ */
+export const estimateMinVaultAmount = ({
+  utxosData,
+  lockBlocks,
+  feeRate,
+  feeRateCeiling,
+  minRecoverableRatio
+}: {
+  /** Here ideally pass the selectedUtxos data but it's good (and safe) approach
+   * to pass all the utxosData since this is used to compute an estimate of
+   * the vault ts size.
+   */
+  utxosData: UtxosData;
+  lockBlocks: number;
+  /** Fee rate used for the Vault*/
+  feeRate: number;
+  /** Max Fee rate for the presigned txs */
+  feeRateCeiling: number;
+  minRecoverableRatio: number;
+}) => {
+  if (
+    Number.isNaN(minRecoverableRatio) ||
+    minRecoverableRatio >= 1 ||
+    minRecoverableRatio <= 0
+  )
+    throw new Error(`Invalid minRecoverableRatio: ${minRecoverableRatio}`);
+  // initialValue - totalFees > minRecoverableRatio * initialValue
+  // initialValue - minRecoverableRatio * initialValue > totalFees
+  // initialValue * (1 - minRecoverableRatio) > totalFees
+  // initialValue > totalFees / (1 - minRecoverableRatio)
+  // If minRecoverableRatio =  2/3 => It can loose up to 1/3 of value in fees
+  const totalFees =
+    Math.ceil(feeRate * estimateVaultTxSize(utxosData)) +
+    Math.ceil(feeRateCeiling * estimateTriggerTxSize(lockBlocks));
+
+  return Math.ceil(totalFees / (1 - minRecoverableRatio));
+};
+
+//TODO return dustThrshold as min vault value / its more complex. At least
+//it must return something that when unvaulting it recovers a significant amount
 
 export function createVault({
   unvaultKey,
@@ -241,15 +350,12 @@ export function createVault({
 
   //TODO: The Policy should not be here
   //Prepare the output...
-  const POLICY = (older: number) =>
-    `or(pk(@panicKey),99@and(pk(@unvaultKey),older(${older})))`;
-  const older = olderEncode({ blocks: lockBlocks });
-  const { miniscript, issane } = compilePolicy(POLICY(older));
-  if (!issane) throw new Error('Policy not sane');
 
-  const triggerDescriptor = `wsh(${miniscript
-    .replace('@unvaultKey', unvaultKey)
-    .replace('@panicKey', panicPubKey.toString('hex'))})`;
+  const triggerDescriptor = createTriggerDescriptor({
+    unvaultKey,
+    panicKey: panicPubKey.toString('hex'),
+    lockBlocks
+  });
 
   const triggerOutput = new Output({ descriptor: triggerDescriptor, network });
   const triggerOutputPanicPath = new Output({
@@ -399,6 +505,55 @@ export function createVault({
     triggerDescriptor
   };
 }
+
+/**
+ * Important: assumes wpkh vault address.
+ * Assumes bitcoin network (not important for txSizes anyway
+ */
+export const estimateVaultTxSize = memoize((utxosData: UtxosData) => {
+  return vsize(
+    utxosData.map(utxoData => utxoData.output),
+    [
+      new Output({
+        //Just a random pubkey here for the target...
+        descriptor: `wpkh(038ffea936b2df76bf31220ebd56a34b30c6b86f40d3bd92664e2f5f98488dddfa)`
+      }),
+      new Output({
+        //Just a random pubkey here for the change...
+        descriptor: `wpkh(038ffea936b2df76bf31220ebd56a34b30c6b86f40d3bd92664e2f5f98488dddfa)`
+      }),
+      new Output({
+        //Just a random pubkey here for the service fee...
+        descriptor: `wpkh(038ffea936b2df76bf31220ebd56a34b30c6b86f40d3bd92664e2f5f98488dddfa)`
+      })
+    ]
+  );
+});
+/**
+ * Important: assumes wpkh vault address.
+ * tx size is in fact the largest possible
+ * Assumes bitcoin network (not important for txSizes anyway
+ */
+export const estimateTriggerTxSize = memoize((lockBlocks: number) =>
+  vsize(
+    [
+      new Output({
+        descriptor: `wpkh(038ffea936b2df76bf31220ebd56a34b30c6b86f40d3bd92664e2f5f98488dddfa)`
+      })
+    ],
+    [
+      new Output({
+        descriptor: createTriggerDescriptor({
+          unvaultKey:
+            '0330d54fd0dd420a6e5f8d3624f5f3482cae350f79d5f0753bf5beef9c2d91af3c',
+          panicKey:
+            '03e775fd51f0dfb8cd865d9ff1cca2a158cf651fe997fdc9fee9c1d3b5e995ea77',
+          lockBlocks
+        })
+      })
+    ]
+  )
+);
 
 export function esploraUrl(network: Network) {
   const url =

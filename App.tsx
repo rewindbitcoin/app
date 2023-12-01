@@ -6,6 +6,7 @@
 //    -> Sort the candidate sopending txs by feeRate I guess?
 //    Or just randomly discard one. who cares, but don't produce an error!!!
 //
+//TODO: the utxos should be pre-filtered with those which are spendable (timelock has gone)
 //TODO: all the calls to discovery fetch and so on should be try-catched.
 //it there are network errors, then show and offer to retry.
 //TODO: also on explorer fetch stuff (there are a few)
@@ -49,6 +50,8 @@
 //TODO: See the TODOs in Vault
 
 import './init';
+import { SettingsProvider } from './src/contexts/SettingsContext';
+
 import React, { useState, useEffect } from 'react';
 import {
   ScrollView,
@@ -69,15 +72,17 @@ const MBButton = ({ ...props }: ButtonProps) => (
 );
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 
-import VaultSettings from './src/components/views/VaultSettings';
+import VaultSetUp from './src/components/views/VaultSetUp';
+import Unvault from './src/components/views/Unvault';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import QRCode from 'react-native-qrcode-svg';
 import * as Clipboard from 'expo-clipboard';
 import { Share } from 'react-native';
 import memoize from 'lodash.memoize';
 import { getBTCUSD } from './src/lib/btcRates';
+import { formatFeeRate } from './src/lib/fees';
 
-import { Transaction, networks } from 'bitcoinjs-lib';
+import { networks } from 'bitcoinjs-lib';
 const network = networks.testnet;
 
 import { generateMnemonic, mnemonicToSeedSync } from 'bip39';
@@ -95,8 +100,6 @@ import { DiscoveryFactory, DiscoveryInstance } from '@bitcoinerlab/discovery';
 const { Output, BIP32 } = DescriptorsFactory(secp256k1);
 const GAP_LIMIT = 3;
 const MIN_FEE_RATE = 1;
-const MIN_LOCK_BLOCKS = 1; //TODO: Pass this from parent
-const MAX_LOCK_BLOCKS = 30 * 24 * 6; //TODO: Pass this from parent
 const SAMPLES = 10;
 //
 //TODO: maxTriggerFeeRate, maxFeeRate, FEE_RATE_CEILING and DEFAULT_MAX_FEE_RATE
@@ -118,9 +121,10 @@ import {
   esploraUrl,
   fetchSpendingTx,
   Vaults,
-  utxosData,
+  getUtxosData,
   utxosDataBalance,
-  UtxosData
+  UtxosData,
+  estimateTriggerTxSize
 } from './src/lib/vaults';
 import styles from './styles/styles';
 
@@ -143,15 +147,6 @@ const fromMnemonic = memoize(mnemonic => {
     internal: descriptors[1],
     unvaultKey
   };
-});
-
-const maxFeeRate = memoize((feeEstimates: null | Record<string, number>) => {
-  if (feeEstimates) {
-    const feeRate = Math.max(...Object.values(feeEstimates));
-    //Never return a value === 1 because 1 is also the minFeeRate and
-    //the EditableSlider won't be able to set a new value
-    return Math.max(feeRate * 1.2, 2);
-  } else return DEFAULT_MAX_FEE_RATE;
 });
 
 const maxTriggerFeeRate = (vault: Vault | null) => {
@@ -211,127 +206,35 @@ const spendableTriggerDescriptors = (vaults: Vaults): Array<string> => {
   return descriptors;
 };
 
-/**
- * Computes the tx Size for the vault tx for a set of utxos
- * It returns the same result if utxos reference does not change.
- *
- * It will compute a very small vault with 2 samples per tx
- *
- * If vaultTxSize does not return a value, then this means that
- * it is not possible to create a general vault with these utxos.
- */
-const vaultTxSize = memoize(
-  ({ mnemonic, coldAddress, utxosData }) => {
-    const masterNode = fromMnemonic(mnemonic).masterNode;
-    const unvaultKey = fromMnemonic(mnemonic).unvaultKey;
-    const vault = createVault({
-      unvaultKey,
-      samples: 2,
-      feeRate: 1,
-      feeRateCeiling: FEE_RATE_CEILING,
-      coldAddress,
-      lockBlocks: 1,
-      masterNode,
-      utxosData,
-      network
-    });
-    if (vault === undefined) return;
-    return Transaction.fromHex(vault.vaultTxHex).virtualSize();
-  },
-  // Custom resolver that uses the utxos object reference as the cache key
-  ({ utxos }) => utxos
-);
-
-/**
- * Given a feeRate, it computes a mockup vault, and extracts and formats the
- * total fee and confirmation time.
- * A mockup vault is a very small vault of 2 samples. It is small so that it
- * can be computed very quickly. Then, it is used to obtain the size of the
- * vaultTx, for the current utxos.
- */
-const formatVaultFeeRate = ({
+const formatTriggerFeeRate = ({
   feeRate,
-  mnemonic,
-  coldAddress,
-  utxosData,
   btcUsd,
-  feeEstimates
+  feeEstimates,
+  vault
 }: {
   feeRate: number;
-  mnemonic: string;
-  coldAddress: string;
-  utxosData: UtxosData;
   btcUsd: number | null;
   feeEstimates: Record<string, number> | null;
+  vault: Vault;
 }) => {
-  const txSize = vaultTxSize({ mnemonic, coldAddress, utxosData });
-  if (txSize === undefined) throw new Error(`Could not create mockup vault`);
-  return coreFormatFeeRate({ feeRate, txSize, btcUsd, feeEstimates });
-};
-
-const coreFormatFeeRate = ({
-  feeRate,
-  txSize,
-  btcUsd,
-  feeEstimates
-}: {
-  feeRate: number;
-  txSize: number;
-  btcUsd: number | null;
-  feeEstimates: Record<string, number> | null;
-}) => {
-  let strBtcUsd = `Waiting for BTC/USD rates...`;
-  let strTime = `Waiting for fee estimates...`;
-  if (btcUsd !== null)
-    strBtcUsd = `Fee: $${((feeRate * txSize * btcUsd) / 1e8).toFixed(2)}`;
-  if (feeEstimates && Object.keys(feeEstimates).length) {
-    // Convert the feeEstimates object keys to numbers and sort them
-    const sortedEstimates = Object.keys(feeEstimates)
-      .map(Number)
-      .sort((a, b) => feeEstimates[a]! - feeEstimates[b]!);
-
-    //Find confirmation target with closest higher fee rate than given feeRate
-    const target = sortedEstimates.find(
-      estimate => feeEstimates[estimate]! >= feeRate
-    );
-
-    if (target !== undefined) strTime = `Confirms in ${blocksToTime(target)}`;
-    // If the provided fee rate is lower than any estimate,
-    // it's not possible to estimate the time
-    else strTime = `Express confirmation`;
-  }
-  return `${strBtcUsd} / ${strTime}`;
-};
-
-const blocksToTime = (blocks: number): string => {
-  const averageBlockTimeInMinutes = 10;
-
-  const timeInMinutes = blocks * averageBlockTimeInMinutes;
-  let timeEstimate = '';
-
-  if (timeInMinutes < 60) {
-    timeEstimate = `~${timeInMinutes} min${timeInMinutes > 1 ? 's' : ''}`;
-  } else if (timeInMinutes < 1440) {
-    // Less than a day
-    const timeInHours = (timeInMinutes / 60).toFixed(1);
-    timeEstimate = `~${timeInHours} hour${timeInHours === '1.0' ? '' : 's'}`;
-  } else {
-    const timeInDays = (timeInMinutes / 1440).toFixed(1);
-    timeEstimate = `~${timeInDays} day${timeInDays === '1.0' ? '' : 's'}`;
-  }
-  return timeEstimate;
-};
-
-const formatLockTime = (blocks: number): string => {
-  return `Estimated lock time: ${blocksToTime(blocks)}`;
+  const { feeRate: finalFeeRate } = findClosestTriggerFeeRate(feeRate, vault);
+  const formattedFeeRate = formatFeeRate({
+    feeRate: finalFeeRate,
+    txSize: estimateTriggerTxSize(vault.lockBlocks),
+    btcUsd,
+    feeEstimates
+  });
+  return `Final Fee Rate: ${finalFeeRate.toFixed(2)} sats/vbyte
+${formattedFeeRate}`;
 };
 
 export default function App() {
   const [isSettingsVisible, setIsSettingsVisible] = useState(false);
   const [isVaultSetUp, setIsVaultSetUp] = useState(false);
-  const [vaultTriggerSetup, setVaultTriggerSetUp] = useState<Vault | null>(
-    null
-  );
+  //Set to a vault value to display the Modal that is called when the user
+  //is going to unvault a vault (indicated as unvault).
+  //Set it to null to hide the modal.
+  const [unvault, setUnvault] = useState<Vault | null>(null);
   const [receiveAddress, setReceiveAddress] = useState<string | null>(null);
   const [mnemonic, setMnemonic] = useState<string | null>(null);
   const [discovery, setDiscovery] = useState<DiscoveryInstance | null>(null);
@@ -355,7 +258,7 @@ export default function App() {
 
     setIsSettingsVisible(false);
     setIsVaultSetUp(false);
-    setVaultTriggerSetUp(null);
+    setUnvault(null);
     setReceiveAddress(null);
     setMnemonic(mnemonic || null);
     setDiscovery(discovery);
@@ -385,22 +288,6 @@ export default function App() {
       const btcUsd = await getBTCUSD();
       setBtcUsd(btcUsd);
     } catch (err) {}
-  };
-
-  const formatTriggerFeeRate = (feeRate: number, vault: Vault) => {
-    if (!vaultTriggerSetup) throw new Error('Trigger Vault unavailable');
-    const { feeRate: finalFeeRate } = findClosestTriggerFeeRate(feeRate, vault);
-    const triggerTxHex = Object.keys(vault.triggerMap)[0];
-    if (!triggerTxHex) throw new Error('Unavailable trigger txs');
-    const txSize = Transaction.fromHex(triggerTxHex).virtualSize();
-    const formattedFeeRate = coreFormatFeeRate({
-      feeRate: finalFeeRate,
-      txSize,
-      btcUsd,
-      feeEstimates
-    });
-    return `Final Fee Rate: ${finalFeeRate.toFixed(2)} sats/vbyte
-${formattedFeeRate}`;
   };
 
   useEffect(() => {
@@ -554,9 +441,9 @@ ${formattedFeeRate}`;
     feeRate: number;
     vault: Vault;
   }) => {
-    if (!vaultTriggerSetup) throw new Error('Vault not set');
+    if (!unvault) throw new Error('Vault not set');
     const { txHex } = findClosestTriggerFeeRate(feeRate, vault);
-    setVaultTriggerSetUp(null);
+    setUnvault(null);
 
     const newVaults = {
       ...vaults,
@@ -602,7 +489,7 @@ Handle with care. Confidentiality is key.
     lockBlocks?: number;
   }) => {
     if (utxosData === undefined)
-      throw new Error('VaultSettings could not coinselect some utxos');
+      throw new Error('VaultSetUp could not coinselect some utxos');
     if (lockBlocks === undefined) throw new Error('lockBlocks not retrieved');
     setIsVaultSetUp(false);
 
@@ -646,253 +533,240 @@ Handle with care. Confidentiality is key.
   const hotUtxosData =
     utxos === null || discovery === null
       ? null
-      : utxosData(utxos, vaults, network, discovery);
+      : getUtxosData(utxos, vaults, network, discovery);
   const hotBalance =
     hotUtxosData === null ? null : utxosDataBalance(hotUtxosData);
 
   if (isVaultSetUp && hotUtxosData === null)
     throw new Error('Cannot set up a vault without utxos');
   return (
-    <SafeAreaProvider>
-      <SafeAreaView style={styles.container}>
-        <View style={styles.settings}>
-          <Button title="Settings" onPress={() => setIsSettingsVisible(true)} />
-        </View>
-        <ScrollView
-          contentContainerStyle={styles.contentContainer}
-          refreshControl={
-            mnemonic ? (
-              <RefreshControl
-                refreshing={checkingBalance}
-                onRefresh={handleCheckBalance}
+    <SettingsProvider>
+      <SafeAreaProvider>
+        <SafeAreaView style={styles.container}>
+          <View style={styles.settings}>
+            <Button
+              title="Settings"
+              onPress={() => setIsSettingsVisible(true)}
+            />
+          </View>
+          <ScrollView
+            contentContainerStyle={styles.contentContainer}
+            refreshControl={
+              mnemonic ? (
+                <RefreshControl
+                  refreshing={checkingBalance}
+                  onRefresh={handleCheckBalance}
+                />
+              ) : undefined
+            }
+          >
+            {discovery && mnemonic && (
+              <MBButton
+                title={
+                  checkingBalance ? 'Refreshing Balance…' : 'Refresh Balance'
+                }
+                onPress={handleCheckBalance}
+                disabled={checkingBalance}
               />
-            ) : undefined
-          }
-        >
-          {discovery && mnemonic && (
-            <MBButton
-              title={
-                checkingBalance ? 'Refreshing Balance…' : 'Refresh Balance'
-              }
-              onPress={handleCheckBalance}
-              disabled={checkingBalance}
-            />
-          )}
-          {!mnemonic && (
-            <MBButton title="Create Wallet" onPress={handleCreateWallet} />
-          )}
-          {discovery && mnemonic && (
-            <MBButton title="Receive Bitcoin" onPress={handleReceiveBitcoin} />
-          )}
-          {utxos && (
-            <MBButton
-              title="Vault Balance"
-              onPress={() => setIsVaultSetUp(true)}
-            />
-          )}
-          {hotBalance !== null && (
-            <Text style={styles.hotBalance}>
-              Hot Balance: {hotBalance} sats{checkingBalance && ' ⏳'}
-            </Text>
-          )}
-          {vaults && Object.keys(vaults).length > 0 && (
-            <View style={styles.vaults}>
-              <Text style={styles.title}>Vaults</Text>
-              {Object.entries(vaults)
-                //sort in with new vaults on top:
-                .sort(([, vaultA], [, vaultB]) => {
-                  if (!vaultA.vaultPushTime || !vaultB.vaultPushTime)
-                    throw new Error('Vault not pushed');
-                  return vaultB.vaultPushTime - vaultA.vaultPushTime;
-                })
-                .map(([vaultAddress, vault], index) => {
-                  const vaultTxData = vault.txMap[vault.vaultTxHex];
-                  if (!vaultTxData) throw new Error('Invalid txMap');
-                  let displayBalance = vault.balance - vaultTxData.fee;
-
-                  if (vault.unlockingTxHex) displayBalance = 0;
-                  else if (vault.triggerTxHex) {
-                    const triggerTxData = vault.txMap[vault.triggerTxHex];
-                    if (!triggerTxData) throw new Error('Invalid txMap');
-                    displayBalance =
-                      vault.balance - vaultTxData.fee - triggerTxData.fee;
-                  }
-                  if (vault.triggerTxHex && !vault.triggerPushTime)
-                    throw new Error('Trigger push time not registered');
-                  if (!vault.vaultPushTime)
-                    throw new Error('Vault push time not registered');
-                  return (
-                    <View key={vaultAddress} style={styles.vaultContainer}>
-                      <Text>
-                        {`Vault ${index + 1} · ${displayBalance} sats`}
-                        {checkingBalance && ' ⏳'}
-                      </Text>
-                      {vault.triggerPushTime ? (
-                        <Text>
-                          Triggered On:{' '}
-                          {new Date(
-                            vault.triggerPushTime * 1000
-                          ).toLocaleString()}
-                        </Text>
-                      ) : (
-                        <Text>
-                          Locked On:{' '}
-                          {new Date(
-                            vault.vaultPushTime * 1000
-                          ).toLocaleString()}
-                        </Text>
-                      )}
-                      <Text>
-                        {!vault.triggerTxHex
-                          ? `Time Lock Set: ${vault.lockBlocks} blocks 🔒`
-                          : vault.remainingBlocks !== 0
-                          ? `Unlocking In: ${vault.remainingBlocks} blocks 🔒⏱️`
-                          : vault.panicTxHex
-                          ? 'Funds were sent to Panic Address'
-                          : vault.unlockingTxHex
-                          ? 'Vault was spent as Hot'
-                          : `Vault can be spent as Hot (or Panic)`}
-                      </Text>
-
-                      <View style={styles.buttonGroup}>
-                        {vault.triggerTxHex && !vault.unlockingTxHex && (
-                          <>
-                            <Button
-                              title="Panic!"
-                              onPress={() => handlePanic(vault)}
-                            />
-                          </>
-                        )}
-                        {!vault.triggerTxHex && (
-                          <Button
-                            title="Unvault"
-                            onPress={() => {
-                              setVaultTriggerSetUp(vault);
-                            }}
-                          />
-                        )}
-                        {!vault.unlockingTxHex && (
-                          <Button
-                            title="Delegate"
-                            onPress={() => handleDelegate(vault)}
-                          />
-                        )}
-                      </View>
-                    </View>
-                  );
-                })}
-            </View>
-          )}
-        </ScrollView>
-        <Modal visible={!!receiveAddress} animationType="slide">
-          {receiveAddress && (
-            <View style={styles.modal}>
-              <QRCode value={receiveAddress} />
-              <Text
-                style={styles.addressText}
-                onPress={() => {
-                  Clipboard.setStringAsync(receiveAddress);
-                  Alert.alert('Address copied to clipboard');
-                }}
-              >
-                {receiveAddress} 📋
+            )}
+            {!mnemonic && (
+              <MBButton title="Create Wallet" onPress={handleCreateWallet} />
+            )}
+            {discovery && mnemonic && (
+              <MBButton
+                title="Receive Bitcoin"
+                onPress={handleReceiveBitcoin}
+              />
+            )}
+            {utxos && (
+              <MBButton
+                title="Vault Balance"
+                onPress={() => setIsVaultSetUp(true)}
+              />
+            )}
+            {hotBalance !== null && (
+              <Text style={styles.hotBalance}>
+                Hot Balance: {hotBalance} sats{checkingBalance && ' ⏳'}
               </Text>
-              <View style={styles.buttonClose}>
-                <Button
-                  title="Close"
+            )}
+            {vaults && Object.keys(vaults).length > 0 && (
+              <View style={styles.vaults}>
+                <Text style={styles.title}>Vaults</Text>
+                {Object.entries(vaults)
+                  //sort in with new vaults on top:
+                  .sort(([, vaultA], [, vaultB]) => {
+                    if (!vaultA.vaultPushTime || !vaultB.vaultPushTime)
+                      throw new Error('Vault not pushed');
+                    return vaultB.vaultPushTime - vaultA.vaultPushTime;
+                  })
+                  .map(([vaultAddress, vault], index) => {
+                    const vaultTxData = vault.txMap[vault.vaultTxHex];
+                    if (!vaultTxData) throw new Error('Invalid txMap');
+                    let displayBalance = vault.balance - vaultTxData.fee;
+
+                    if (vault.unlockingTxHex) displayBalance = 0;
+                    else if (vault.triggerTxHex) {
+                      const triggerTxData = vault.txMap[vault.triggerTxHex];
+                      if (!triggerTxData) throw new Error('Invalid txMap');
+                      displayBalance =
+                        vault.balance - vaultTxData.fee - triggerTxData.fee;
+                    }
+                    if (vault.triggerTxHex && !vault.triggerPushTime)
+                      throw new Error('Trigger push time not registered');
+                    if (!vault.vaultPushTime)
+                      throw new Error('Vault push time not registered');
+                    return (
+                      <View key={vaultAddress} style={styles.vaultContainer}>
+                        <Text>
+                          {`Vault ${index + 1} · ${displayBalance} sats`}
+                          {checkingBalance && ' ⏳'}
+                        </Text>
+                        {vault.triggerPushTime ? (
+                          <Text>
+                            Triggered On:{' '}
+                            {new Date(
+                              vault.triggerPushTime * 1000
+                            ).toLocaleString()}
+                          </Text>
+                        ) : (
+                          <Text>
+                            Locked On:{' '}
+                            {new Date(
+                              vault.vaultPushTime * 1000
+                            ).toLocaleString()}
+                          </Text>
+                        )}
+                        <Text>
+                          {!vault.triggerTxHex
+                            ? `Time Lock Set: ${vault.lockBlocks} blocks 🔒`
+                            : vault.remainingBlocks !== 0
+                            ? `Unlocking In: ${vault.remainingBlocks} blocks 🔒⏱️`
+                            : vault.panicTxHex
+                            ? 'Funds were sent to Panic Address'
+                            : vault.unlockingTxHex
+                            ? 'Vault was spent as Hot'
+                            : `Vault can be spent as Hot (or Panic)`}
+                        </Text>
+
+                        <View style={styles.buttonGroup}>
+                          {vault.triggerTxHex && !vault.unlockingTxHex && (
+                            <>
+                              <Button
+                                title="Panic!"
+                                onPress={() => handlePanic(vault)}
+                              />
+                            </>
+                          )}
+                          {!vault.triggerTxHex && (
+                            <Button
+                              title="Unvault"
+                              onPress={() => {
+                                setUnvault(vault);
+                              }}
+                            />
+                          )}
+                          {!vault.unlockingTxHex && (
+                            <Button
+                              title="Delegate"
+                              onPress={() => handleDelegate(vault)}
+                            />
+                          )}
+                        </View>
+                      </View>
+                    );
+                  })}
+              </View>
+            )}
+          </ScrollView>
+          <Modal visible={!!receiveAddress} animationType="slide">
+            {receiveAddress && (
+              <View style={styles.modal}>
+                <QRCode value={receiveAddress} />
+                <Text
+                  style={styles.addressText}
                   onPress={() => {
-                    setReceiveAddress(null);
+                    Clipboard.setStringAsync(receiveAddress);
+                    Alert.alert('Address copied to clipboard');
+                  }}
+                >
+                  {receiveAddress} 📋
+                </Text>
+                <View style={styles.buttonClose}>
+                  <Button
+                    title="Close"
+                    onPress={() => {
+                      setReceiveAddress(null);
+                    }}
+                  />
+                </View>
+              </View>
+            )}
+          </Modal>
+          <Modal visible={isSettingsVisible} animationType="slide">
+            <View style={styles.modal}>
+              {mnemonic && (
+                <Text style={styles.mnemo}>MNEMOMIC ✍: {mnemonic}</Text>
+              )}
+              <View style={styles.factoryReset}>
+                <Button
+                  title="Factory Reset"
+                  onPress={async () => {
+                    await AsyncStorage.clear();
+                    if (discovery) await discovery.getExplorer().close();
+                    await init();
                   }}
                 />
               </View>
+              <View style={styles.buttonClose}>
+                <Button
+                  title="Close"
+                  onPress={() => setIsSettingsVisible(false)}
+                />
+              </View>
             </View>
+          </Modal>
+          {hotUtxosData && (
+            <Modal visible={isVaultSetUp} animationType="slide">
+              <View style={[styles.modal, { padding: 40 }]}>
+                <Text style={styles.title}>Vault Set Up</Text>
+                <VaultSetUp
+                  utxosData={hotUtxosData}
+                  feeEstimates={feeEstimates}
+                  btcUsd={btcUsd}
+                  onNewValues={handleVault}
+                  onCancel={() => setIsVaultSetUp(false)}
+                />
+              </View>
+            </Modal>
           )}
-        </Modal>
-        <Modal visible={isSettingsVisible} animationType="slide">
-          <View style={styles.modal}>
-            {mnemonic && (
-              <Text style={styles.mnemo}>MNEMOMIC ✍: {mnemonic}</Text>
-            )}
-            <View style={styles.factoryReset}>
-              <Button
-                title="Factory Reset"
-                onPress={async () => {
-                  await AsyncStorage.clear();
-                  if (discovery) await discovery.getExplorer().close();
-                  await init();
-                }}
-              />
-            </View>
-            <View style={styles.buttonClose}>
-              <Button
-                title="Close"
-                onPress={() => setIsSettingsVisible(false)}
-              />
-            </View>
-          </View>
-        </Modal>
-        {hotUtxosData && (
-          <Modal visible={isVaultSetUp} animationType="slide">
+          <Modal visible={!!unvault} animationType="slide">
             <View style={[styles.modal, { padding: 40 }]}>
-              <Text style={styles.title}>Vault Set Up</Text>
-              <VaultSettings
+              <Text style={styles.title}>Trigger Unvault</Text>
+              <Unvault
                 minFeeRate={MIN_FEE_RATE}
-                maxFeeRate={maxFeeRate(feeEstimates)}
-                minLockBlocks={MIN_LOCK_BLOCKS}
-                maxLockBlocks={MAX_LOCK_BLOCKS}
-                utxosData={hotUtxosData}
-                onNewValues={handleVault}
-                onCancel={() => setIsVaultSetUp(false)}
-                formatFeeRate={({
-                  feeRate,
-                  utxosData
-                }: {
-                  feeRate: number;
-                  utxosData?: UtxosData;
-                }) => {
-                  if (!utxosData)
-                    throw new Error('Vault settings did not coinselect utxos');
-                  if (!mnemonic) throw new Error('mnemonic has been unset');
-                  return formatVaultFeeRate({
+                maxFeeRate={maxTriggerFeeRate(unvault)}
+                onNewValues={async ({ feeRate }: { feeRate: number }) => {
+                  if (!unvault) throw new Error('Vault unset');
+                  await handleTriggerUnvault({
                     feeRate,
-                    mnemonic,
-                    coldAddress: DEFAULT_COLD_ADDR,
-                    utxosData,
-                    btcUsd,
-                    feeEstimates
+                    vault: unvault
                   });
                 }}
-                formatLockTime={formatLockTime}
+                onCancel={() => setUnvault(null)}
+                formatFeeRate={({ feeRate }: { feeRate: number }) => {
+                  if (!unvault) throw new Error('Trigger Vault unavailable');
+                  return formatTriggerFeeRate({
+                    feeRate,
+                    btcUsd,
+                    feeEstimates,
+                    vault: unvault
+                  });
+                }}
               />
             </View>
           </Modal>
-        )}
-        <Modal visible={!!vaultTriggerSetup} animationType="slide">
-          <View style={[styles.modal, { padding: 40 }]}>
-            <Text style={styles.title}>Trigger Unvault</Text>
-            <VaultSettings
-              minFeeRate={MIN_FEE_RATE}
-              maxFeeRate={Math.min(
-                maxTriggerFeeRate(vaultTriggerSetup),
-                maxFeeRate(feeEstimates)
-              )}
-              onNewValues={async ({ feeRate }: { feeRate: number }) => {
-                if (!vaultTriggerSetup) throw new Error('Vault unset');
-                await handleTriggerUnvault({
-                  feeRate,
-                  vault: vaultTriggerSetup
-                });
-              }}
-              onCancel={() => setVaultTriggerSetUp(null)}
-              formatFeeRate={({ feeRate }: { feeRate: number }) => {
-                if (!vaultTriggerSetup)
-                  throw new Error('Trigger Vault unavailable');
-                return formatTriggerFeeRate(feeRate, vaultTriggerSetup);
-              }}
-            />
-          </View>
-        </Modal>
-      </SafeAreaView>
-    </SafeAreaProvider>
+        </SafeAreaView>
+      </SafeAreaProvider>
+    </SettingsProvider>
   );
 }

@@ -1,4 +1,24 @@
-import React, { useState } from 'react';
+/**
+ * value can be null which means its undetermined (the user is editing the
+ * input box and entered an invalid value, for example)
+ * minimumValue and maximumValue are adapted so that they are within step
+ * strValue is just a draft and imprecise, which dpes not need to br within snap
+ *  - set strValue when the user uses the slider
+ *  - keep the strValue when the user interacts with textinput, even if strValue is invalid
+ *    - When invalid trigger onValueChange with incorrect value
+ *  - when strValue is a valud number within range, then trigger an onValueChange (with the correct snapped value)
+ *  stre
+ * if value is passed and it's not within step, onValueChange is returned with
+ * the corrected value
+ * It's a managed component. value is set from what the parent passes
+ * This component calls onValueChange with valid values or with null
+ * when the user makes an error.
+ * An internal strValue is kept, which may contain errors
+ * strValue may contain values which are different than value:
+ *  - They are wrong => value is null
+ *  - They don't fall into a valid step -> value is null
+ */
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -14,99 +34,124 @@ import {
 } from '@expo-google-fonts/roboto-mono';
 
 interface EditableSliderProps {
-  initialValue?: number;
-  minimumValue?: number;
-  maximumValue?: number;
+  value: number | null;
+  minimumValue: number;
+  maximumValue: number;
   step?: number;
-  initialMessage?: string;
   errorMessage?: string;
   onValueChange?: (value: number | null) => void;
   formatValue: (value: number) => string;
 }
 
-/**
- * Similar to javascript toFixed. however, when the keyboardType is number-pad
- * (no decimals) it then returns toFixed(0).
- * It the keyboardType is in decimal mode then it returns toFixed(2) for
- * 2 decimals. However, due to the roundings it does, we do some extra work
- * to make sure the result is within bounds*/
-function toFixed({
+function countDecimalDigits(number: number): number {
+  const numberAsString = number.toString();
+  // Check if the number has a fractional part
+  if (numberAsString.includes('.')) {
+    const fractionalPart = numberAsString.split('.')[1];
+    return fractionalPart!.length;
+  }
+  return 0; // No fractional part means 0 digits after the decimal point
+}
+
+function snap({
   value,
-  keyboardType,
   minimumValue,
-  maximumValue
+  maximumValue,
+  step
 }: {
   value: number;
-  keyboardType: string;
   minimumValue: number;
   maximumValue: number;
-}) {
-  if (keyboardType === 'number-pad') return value.toFixed(0);
-  else {
-    while (Number(value.toFixed(2)) > maximumValue) value -= 0.01;
-    while (Number(value.toFixed(2)) < minimumValue) value += 0.01;
-    return value.toFixed(keyboardType === 'number-pad' ? 0 : 2);
-  }
+  step: number;
+}): number {
+  const digits = countDecimalDigits(step);
+  minimumValue = Number(
+    (step * Math.ceil(minimumValue / step)).toFixed(digits)
+  );
+  maximumValue = Number(
+    (step * Math.floor(maximumValue / step)).toFixed(digits)
+  );
+  value = Number((step * Math.round(value / step)).toFixed(digits));
+  value = Math.min(value, maximumValue);
+  value = Math.max(value, minimumValue);
+  return value;
 }
 
 const EditableSlider = ({
-  initialValue,
-  minimumValue = 1,
-  maximumValue = 1,
-  step,
-  initialMessage = `Pick a value...`,
+  value,
+  minimumValue,
+  maximumValue,
+  step = 0.01,
   errorMessage,
   onValueChange,
-  formatValue
+  formatValue = value => `${value}`
 }: EditableSliderProps) => {
-  const keyboardType =
-    step !== undefined &&
-    Number.isInteger(step) &&
-    Number.isInteger(minimumValue) &&
-    Number.isInteger(maximumValue)
-      ? 'number-pad'
-      : 'numeric';
-  if (
-    initialValue !== undefined &&
-    (initialValue < minimumValue ||
-      initialValue > maximumValue ||
-      (keyboardType === 'number-pad' &&
-        step !== undefined &&
-        (initialValue - minimumValue) % step !== 0))
-  ) {
-    throw new Error(`Invalid initialValue`);
-  }
-  if (initialValue === undefined) initialValue = minimumValue;
   errorMessage =
     errorMessage ||
     `Pick a number between ${minimumValue} and ${maximumValue}.`;
+
+  if (value !== null) {
+    value = snap({ value, minimumValue, maximumValue, step });
+  }
+
+  const prevValue = useRef<number | null>();
+  useEffect(() => {
+    //Since I manipulate value (see above), notify adapted values to the parent:
+    if (value !== prevValue.current && onValueChange) onValueChange(value);
+    prevValue.current = value;
+  }, [value]);
+  useEffect(() => {
+    if (value !== null) {
+      setSliderManagedValue(value);
+      setStrValue(value.toString());
+    }
+  }, [minimumValue, maximumValue]);
+  const mountValue =
+    value === null
+      ? snap({ value: minimumValue, minimumValue, maximumValue, step })
+      : value;
+  const [strValue, setStrValue] = useState<string>(mountValue.toString());
+  const [sliderManagedValue, setSliderManagedValue] =
+    useState<number>(mountValue);
+
+  const keyboardType = step === 1 ? 'number-pad' : 'numeric';
   const [fontsLoaded] = useFonts({ RobotoMono_400Regular });
   const handlePressOutside = () => Keyboard.dismiss();
-  const strValidation = (strValue: string) =>
+
+  const strNumberInRange = (strValue: string | undefined) =>
     !isNaN(Number(strValue)) &&
     Number(strValue) >= minimumValue &&
     Number(strValue) <= maximumValue;
-  const [strValue, setStrValue] = useState<string>(
-    toFixed({ value: initialValue, keyboardType, minimumValue, maximumValue })
-  );
-  const [formattedValue, setFormattedValue] = useState<string>(initialMessage);
+
+  const onSliderValueChange = (value: number) => {
+    value = snap({ value, minimumValue, maximumValue, step });
+    setStrValue(value.toString());
+    if (value !== prevValue.current && onValueChange) onValueChange(value);
+  };
+  const onTextInputValueChange = (strValue: string) => {
+    setStrValue(strValue);
+    if (strNumberInRange(strValue)) {
+      const value = Number(strValue);
+      setSliderManagedValue(snap({ value, minimumValue, maximumValue, step }));
+      //setFormattedValue(formatValue(value));
+      if (value !== prevValue.current && onValueChange) onValueChange(value);
+    } else {
+      console.log('onTextInputValueChange NULL');
+      if (null !== prevValue.current && onValueChange) onValueChange(null);
+    }
+  };
+  const formattedValue = value === null ? errorMessage : formatValue(value);
+
   return (
     <TouchableWithoutFeedback onPress={handlePressOutside}>
       <View style={styles.container}>
         <View style={styles.control}>
           <Slider
-            {...(step !== undefined && { step: step })}
             style={styles.slider}
             minimumValue={minimumValue}
             maximumValue={maximumValue}
-            onValueChange={value => {
-              setStrValue(
-                toFixed({ value, keyboardType, minimumValue, maximumValue })
-              );
-              setFormattedValue(formatValue(value));
-              if (onValueChange) onValueChange(value);
-            }}
-            value={strValidation(strValue) ? Number(strValue) : initialValue}
+            onValueChange={onSliderValueChange}
+            value={sliderManagedValue}
             onSlidingStart={handlePressOutside}
           />
           <TextInput
@@ -116,24 +161,13 @@ const EditableSlider = ({
               fontsLoaded && { fontFamily: 'RobotoMono_400Regular' }
             ]}
             value={strValue}
-            onChangeText={strValue => {
-              setStrValue(strValue);
-              if (strValidation(strValue)) {
-                const value = Number(strValue);
-                setFormattedValue(formatValue(value));
-                if (onValueChange) onValueChange(value);
-              } else {
-                if (!errorMessage) throw new Error(`Set an errorMessage`);
-                setFormattedValue(errorMessage);
-                if (onValueChange) onValueChange(null);
-              }
-            }}
+            onChangeText={onTextInputValueChange}
           />
         </View>
         <Text
           style={[
             fontsLoaded ? { fontFamily: 'RobotoMono_400Regular' } : {},
-            !strValidation(strValue) ? { color: 'red' } : {}
+            !strNumberInRange(strValue) ? { color: 'red' } : {}
           ]}
         >
           {formattedValue}

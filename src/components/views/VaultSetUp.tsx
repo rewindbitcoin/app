@@ -1,0 +1,337 @@
+//In the fee rate validation in coinselect i have the 0.1 + 0.2 = 0.30000004 error
+//      `Final fee rate ${finalFeeRate} lower than required ${feeRate}`
+
+//  This is 4: Math.ceil((0.1+0.2)*10)
+//share styles VaultSetUp / Unvault
+import React, { useState, useEffect } from 'react';
+import type { GestureResponderEvent } from 'react-native';
+import {
+  View,
+  Text,
+  Button,
+  Alert,
+  StyleSheet,
+  TouchableWithoutFeedback,
+  Keyboard
+} from 'react-native';
+
+import { useSettings } from '../../contexts/SettingsContext';
+import EditableSlider from '../common/EditableSlider';
+import {
+  UtxosData,
+  utxosDataBalance,
+  estimateVaultTxSize,
+  estimateMaxVaultAmount,
+  estimateMinVaultAmount
+} from '../../lib/vaults';
+import {
+  FeeEstimates,
+  pickFeeEstimate,
+  formatFeeRate,
+  formatBlocks
+} from '../../lib/fees';
+
+/**
+ * Given a feeRate, it formats the fee.
+ */
+const formatVaultFeeRate = ({
+  feeRate,
+  feeEstimates,
+  btcUsd,
+  selectedUtxosData
+}: {
+  feeRate: number;
+  feeEstimates: FeeEstimates | null;
+  btcUsd: number | null;
+  selectedUtxosData: UtxosData | null;
+}) => {
+  if (!selectedUtxosData)
+    throw new Error('Vault settings did not coinselect utxos');
+  const txSize = estimateVaultTxSize(selectedUtxosData);
+  return formatFeeRate({ feeRate, txSize, btcUsd, feeEstimates });
+};
+
+const formatLockTime = (blocks: number): string => {
+  return `Estimated lock time: ${formatBlocks(blocks)}`;
+};
+
+export default function VaultSetUp({
+  utxosData,
+  feeEstimates,
+  btcUsd,
+  onNewValues,
+  onCancel = undefined
+}: {
+  utxosData: UtxosData;
+  feeEstimates: FeeEstimates | null;
+  btcUsd: number | null;
+  onNewValues: (values: {
+    selectedUtxosData: UtxosData;
+    feeRate: number;
+    lockBlocks?: number;
+  }) => Promise<void>;
+  onCancel?: (event: GestureResponderEvent) => void;
+}) {
+  const { settings, isLoading: isSettingsLoading } = useSettings();
+  const [lockBlocks, setLockBlocks] = useState<number | null>(
+    settings.INITIAL_LOCK_BLOCKS
+  );
+  //const feeRateStep = 0.01;
+  //const snapUpFeeRate = (feeRate: number) =>
+  //  feeRateStep * Math.ceil(feeRate / feeRateStep);
+
+  const [feeRate, setFeeRate] = useState<number | null>(
+    feeEstimates
+      ? pickFeeEstimate(feeEstimates, settings.INITIAL_CONFIRMATION_TIME)
+      : settings.MIN_FEE_RATE
+  );
+  const maxFeeRate = feeEstimates
+    ? Math.max(
+        // Max fee reported from electrum / esplora servers
+        ...Object.values(feeEstimates),
+        // Make sure maximumValue > minimumValue
+        settings.MIN_FEE_RATE * 1.01
+      )
+    : // when feeEstimates still not available, show default values
+      settings.PRESIGNED_FEE_RATE_CEILING;
+
+  // When the user sends max funds. It will depend on the feeRate the user picks
+  const maxVaultAmount = estimateMaxVaultAmount({
+    utxosData,
+    // while feeRate has not been set, estimate using the largest possible
+    // feeRate. We allow the maxVaultAmount to change depending on the fee
+    // rate selected by the uset
+    feeRate: feeRate !== null ? feeRate : maxFeeRate
+  });
+  const [amount, setAmount] = useState<number | null>(maxVaultAmount || null);
+  const [selectedUtxosData, setSelectedUtxosData] = useState<UtxosData | null>(
+    null
+  );
+
+  useEffect(() => {
+    if (!isSettingsLoading) {
+      // Perform actions that depend on the settings
+    }
+  }, [isSettingsLoading, settings]);
+
+  //Since we are not using a coinselector yet, we assume that the coinselector
+  //returned all the utxos (while this is not implemented):
+  //For now, on mount set it to utxosData:
+  useEffect(() => {
+    //TODO: make sure selectedUtxosData reference does not change if internal
+    //array does not change
+    if (utxosData) setSelectedUtxosData(utxosData);
+  }, []);
+
+  const handlePressOutside = () => Keyboard.dismiss();
+  const handleCancel = (event: GestureResponderEvent) => {
+    Keyboard.dismiss();
+    if (onCancel) onCancel(event);
+  };
+
+  const handleOK = () => {
+    Keyboard.dismiss();
+    const errorMessages = [];
+
+    // Validation for lockBlocks (if requested)
+    if (lockBlocks === null) {
+      errorMessages.push('Pick a valid Lock Time.');
+    }
+
+    //Validation for feeRate
+    if (feeRate === null) {
+      errorMessages.push(`Pick a valid Fee Rate.`);
+    }
+
+    //Validation for utxos
+    if (selectedUtxosData === null) {
+      errorMessages.push('Pick a valid amount of Btc.');
+    }
+
+    // If any errors, display them
+    if (errorMessages.length > 0) {
+      Alert.alert('Invalid Values', errorMessages.join('\n\n'));
+      return;
+    } else {
+      if (feeRate === null || selectedUtxosData === null || lockBlocks === null)
+        throw new Error(`Faulty validation`);
+      onNewValues({ feeRate, selectedUtxosData, lockBlocks });
+    }
+  };
+
+  //The most restrictive maxVaultAmount, that is the LOWEST value possible
+  //(if the user chooses the largest feeRate)
+  const lowestMaxVaultAmount =
+    estimateMaxVaultAmount({
+      utxosData,
+      feeRate: maxFeeRate
+    }) || 0;
+  //The most restrictive minVaultAmount, that is the LARGEST value possible
+  //(if the user chose the largest feeRate)
+  const largestMinVaultAmount = estimateMinVaultAmount({
+    utxosData,
+    // set it to worst case, so that largestMinVaultAmount does not change
+    // when user interacts setting lockBlocks
+    lockBlocks: 0xffff,
+    // Set it to worst case: express confirmation time so that
+    // largestMinVaultAmount in the Slider does not change when the user
+    // changes the feeRate
+    feeRate: maxFeeRate,
+    feeRateCeiling: settings.PRESIGNED_FEE_RATE_CEILING,
+    minRecoverableRatio: settings.MIN_RECOVERABLE_RATIO
+  });
+  // If user chooses the largest possible feeRate is it there a solution
+  // possible?
+  const missingFunds =
+    lowestMaxVaultAmount > largestMinVaultAmount
+      ? 0
+      : largestMinVaultAmount -
+        lowestMaxVaultAmount +
+        1 +
+        //The fee of a new pkh utxo:
+        Math.ceil(maxFeeRate * 148);
+
+  console.log({
+    feeRate,
+    maxFeeRate,
+    largestMinVaultAmount,
+    maxVaultAmount,
+    lowestMaxVaultAmount,
+    missingFunds
+  });
+
+  //TODO: better format of message when !enoughFunds
+  const content =
+    missingFunds > 0 ? (
+      <View>
+        <Text>
+          Not enough funds, ThunderDen requests vaulting at least{' '}
+          {largestMinVaultAmount} sats (after fees) so that it will be possible
+          to recover at least {Math.round(settings.MIN_RECOVERABLE_RATIO * 100)}
+          % of the vaulted value in case of an scenario of extreme high fees in
+          the future. You currently have {utxosDataBalance(utxosData)} sats.
+          However you can only vault {lowestMaxVaultAmount} at most (after
+          fees), assuming you pick express confirmation times. Please add an
+          additional {missingFunds} sats.
+        </Text>
+        <Button title="Cancel" onPress={handleCancel} />
+      </View>
+    ) : (
+      <View style={styles.content}>
+        {maxVaultAmount !== undefined &&
+          largestMinVaultAmount !== undefined &&
+          maxVaultAmount >= largestMinVaultAmount && (
+            <View style={styles.settingGroup}>
+              <Text style={styles.label}>Amount:</Text>
+              <EditableSlider
+                minimumValue={largestMinVaultAmount}
+                maximumValue={maxVaultAmount}
+                value={amount}
+                onValueChange={value => setAmount(value)}
+                step={1}
+                formatValue={value => `This is the amount: ${value}`}
+              />
+            </View>
+          )}
+        {settings.MIN_LOCK_BLOCKS &&
+          settings.MAX_LOCK_BLOCKS &&
+          formatLockTime && (
+            <View style={styles.settingGroup}>
+              <Text style={styles.label}>
+                Number of blocks you will need to wait to access your funds when
+                unvaulting:
+              </Text>
+              <EditableSlider
+                minimumValue={settings.MIN_LOCK_BLOCKS}
+                maximumValue={settings.MAX_LOCK_BLOCKS}
+                value={lockBlocks}
+                step={1}
+                onValueChange={value => setLockBlocks(value)}
+                formatValue={value => formatLockTime(value)}
+              />
+            </View>
+          )}
+        <View style={styles.settingGroup}>
+          <Text style={styles.label}>Fee Rate (sats/vbyte):</Text>
+          <EditableSlider
+            value={feeRate}
+            minimumValue={settings.MIN_FEE_RATE}
+            maximumValue={maxFeeRate}
+            onValueChange={value => setFeeRate(value)}
+            formatValue={value =>
+              //TODO: maybe it's worth it to do a try catch here too and
+              //disable and show an error in that case
+              formatVaultFeeRate({
+                feeRate: value,
+                feeEstimates,
+                btcUsd,
+
+                //TODO: CHECK BELOW:
+                //when coinselect is implemented, check that when
+                //coinselecing utxos, then the Fee: rendered initially changes
+                //(even if the feeRate is maintained)
+
+                // For format the fee in USD, assume initially all utxos will
+                // be selected (the user has not selected any coins initially)
+                selectedUtxosData: selectedUtxosData || utxosData
+              })
+            }
+          />
+        </View>
+        <View style={styles.buttonGroup}>
+          <Button title={onCancel ? 'OK' : 'Save'} onPress={handleOK} />
+          {onCancel && <Button title="Cancel" onPress={handleCancel} />}
+        </View>
+      </View>
+    );
+
+  return (
+    <TouchableWithoutFeedback onPress={handlePressOutside}>
+      {content}
+    </TouchableWithoutFeedback>
+  );
+}
+
+const styles = StyleSheet.create({
+  content: {
+    backgroundColor: 'white',
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '100%'
+  },
+  settingGroup: { marginBottom: 30 },
+  label: {
+    marginVertical: 10,
+    fontSize: 15,
+    alignSelf: 'stretch', //To ensure that textAlign works with short texts too
+    textAlign: 'left',
+    fontWeight: '500'
+  },
+  input: {
+    fontSize: 15,
+    padding: 10,
+    borderWidth: 1,
+    borderColor: 'gray',
+    borderRadius: 5
+  },
+  buttonGroup: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 20,
+    width: '40%'
+  },
+  wrapper: {
+    marginRight: 20,
+    marginLeft: 20,
+    padding: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#e0e0e0'
+  },
+  title: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: 15
+  }
+});
