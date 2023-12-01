@@ -89,6 +89,8 @@ export type UtxosData = Array<{
  * - output descriptor
  * - index? if the descriptor retrieved in discovery was ranged
  * - signersPubKeys? if it can only be spent through a speciffic spending path
+ *
+ *   It's fine using memoize and just check for chnages un udxos
  */
 export const getUtxosData = memoize(
   (
@@ -167,43 +169,97 @@ export const utxosDataBalance = memoize((utxosData: UtxosData): number => {
 
 /** When sending maxFunds, what is the recipient + service fee value?
  * It returns a number or undefined if not possible to obtain a value
- * */
+ */
+const estimateMaxVaultAmountFactory = memoize((utxosData: UtxosData) =>
+  memoize((feeRate: number) => {
+    const coinselected = maxFunds({
+      utxos: utxosData.map(utxo => {
+        const out = Transaction.fromHex(utxo.txHex).outs[utxo.vout];
+        if (!out) throw new Error('Invalid utxo');
+        return { output: utxo.output, value: out.value };
+      }),
+      targets: [
+        // This will be the service fee output
+        {
+          output: wpkhOutput,
+          //Set this to 1 sat. We need to create an output to make it count.
+          //Service fee will be added later
+          value: 1
+        }
+      ],
+      remainder: wpkhOutput,
+      feeRate
+    });
+    if (!coinselected) return;
+    const value = coinselected.targets[coinselected.targets.length - 1]?.value;
+    if (value === undefined) return;
+    return value + 1; //Discount the service fee
+  })
+);
 export const estimateMaxVaultAmount = ({
   utxosData,
   feeRate
 }: {
   utxosData: UtxosData;
   feeRate: number;
-}) => {
-  const coinselected = maxFunds({
-    utxos: utxosData.map(utxo => {
-      const out = Transaction.fromHex(utxo.txHex).outs[utxo.vout];
-      if (!out) throw new Error('Invalid utxo');
-      return { output: utxo.output, value: out.value };
-    }),
-    targets: [
-      // This will be the service fee output
-      {
-        output: wpkhOutput,
-        //Set this to 1 sat. We need to create an output to make it count.
-        //Service fee will be added later
-        value: 1
-      }
-    ],
-    remainder: wpkhOutput,
-    feeRate
-  });
-  if (!coinselected) return;
-  const value = coinselected.targets[coinselected.targets.length - 1]?.value;
-  if (value === undefined) return;
-  return value + 1; //Discount the service fee
-};
+}) => estimateMaxVaultAmountFactory(utxosData)(feeRate);
 
 /**
  * Require that at least 2/3 (minRecoverableRatio) of funds must be recoverable.
  * In other words, at most loose 1/3 of initial value in fees.
  * It assumes a lockBlocks using the largest possible value (size)
  */
+export const estimateMinVaultAmountFactory = memoize(
+  (
+    utxosData: /** Here ideally pass the selectedUtxos data but it's good (and safe) approach
+     * to pass all the utxosData since this is used to compute an estimate of
+     * the vault ts size.
+     */
+    UtxosData
+  ) =>
+    memoize(
+      ({
+        lockBlocks,
+        feeRate,
+        feeRateCeiling,
+        minRecoverableRatio
+      }: {
+        lockBlocks: number;
+        /** Fee rate used for the Vault*/
+        feeRate: number;
+        /** Max Fee rate for the presigned txs */
+        feeRateCeiling: number;
+        minRecoverableRatio: number;
+      }) => {
+        if (
+          Number.isNaN(minRecoverableRatio) ||
+          minRecoverableRatio >= 1 ||
+          minRecoverableRatio <= 0
+        )
+          throw new Error(
+            `Invalid minRecoverableRatio: ${minRecoverableRatio}`
+          );
+        // initialValue - totalFees > minRecoverableRatio * initialValue
+        // initialValue - minRecoverableRatio * initialValue > totalFees
+        // initialValue * (1 - minRecoverableRatio) > totalFees
+        // initialValue > totalFees / (1 - minRecoverableRatio)
+        // If minRecoverableRatio =  2/3 => It can loose up to 1/3 of value in fees
+        const totalFees =
+          Math.ceil(feeRate * estimateVaultTxSize(utxosData)) +
+          Math.ceil(feeRateCeiling * estimateTriggerTxSize(lockBlocks));
+
+        return Math.ceil(totalFees / (1 - minRecoverableRatio));
+      },
+      ({ lockBlocks, feeRate, feeRateCeiling, minRecoverableRatio }) =>
+        JSON.stringify({
+          lockBlocks,
+          feeRate,
+          feeRateCeiling,
+          minRecoverableRatio
+        })
+    )
+);
+
 export const estimateMinVaultAmount = ({
   utxosData,
   lockBlocks,
@@ -222,24 +278,13 @@ export const estimateMinVaultAmount = ({
   /** Max Fee rate for the presigned txs */
   feeRateCeiling: number;
   minRecoverableRatio: number;
-}) => {
-  if (
-    Number.isNaN(minRecoverableRatio) ||
-    minRecoverableRatio >= 1 ||
-    minRecoverableRatio <= 0
-  )
-    throw new Error(`Invalid minRecoverableRatio: ${minRecoverableRatio}`);
-  // initialValue - totalFees > minRecoverableRatio * initialValue
-  // initialValue - minRecoverableRatio * initialValue > totalFees
-  // initialValue * (1 - minRecoverableRatio) > totalFees
-  // initialValue > totalFees / (1 - minRecoverableRatio)
-  // If minRecoverableRatio =  2/3 => It can loose up to 1/3 of value in fees
-  const totalFees =
-    Math.ceil(feeRate * estimateVaultTxSize(utxosData)) +
-    Math.ceil(feeRateCeiling * estimateTriggerTxSize(lockBlocks));
-
-  return Math.ceil(totalFees / (1 - minRecoverableRatio));
-};
+}) =>
+  estimateMinVaultAmountFactory(utxosData)({
+    lockBlocks,
+    feeRate,
+    feeRateCeiling,
+    minRecoverableRatio
+  });
 
 //TODO return dustThrshold as min vault value / its more complex. At least
 //it must return something that when unvaulting it recovers a significant amount
