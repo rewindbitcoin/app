@@ -11,6 +11,10 @@ import memoize from 'lodash.memoize';
 import * as secp256k1 from '@bitcoinerlab/secp256k1';
 import { DescriptorsFactory, OutputInstance } from '@bitcoinerlab/descriptors';
 const { Output, ECPair, parseKeyExpression } = DescriptorsFactory(secp256k1);
+const wpkhOutput = new Output({
+  //Just a random pubkey here...
+  descriptor: `wpkh(038ffea936b2df76bf31220ebd56a34b30c6b86f40d3bd92664e2f5f98488dddfa)`
+});
 
 import { compilePolicy } from '@bitcoinerlab/miniscript';
 const { encode: olderEncode } = require('bip68');
@@ -161,7 +165,7 @@ export const utxosDataBalance = memoize((utxosData: UtxosData): number => {
   return balance;
 });
 
-/** When sending maxFunds, what is the target value?
+/** When sending maxFunds, what is the recipient + service fee value?
  * It returns a number or undefined if not possible to obtain a value
  * */
 export const estimateMaxVaultAmount = ({
@@ -180,19 +184,13 @@ export const estimateMaxVaultAmount = ({
     targets: [
       // This will be the service fee output
       {
-        output: new Output({
-          //Just a random pubkey here...
-          descriptor: `wpkh(038ffea936b2df76bf31220ebd56a34b30c6b86f40d3bd92664e2f5f98488dddfa)`
-        }),
+        output: wpkhOutput,
         //Set this to 1 sat. We need to create an output to make it count.
-        //Service fee will be discounted later
+        //Service fee will be added later
         value: 1
       }
     ],
-    remainder: new Output({
-      //Just a random pubkey here...
-      descriptor: `wpkh(038ffea936b2df76bf31220ebd56a34b30c6b86f40d3bd92664e2f5f98488dddfa)`
-    }),
+    remainder: wpkhOutput,
     feeRate
   });
   if (!coinselected) return;
@@ -514,18 +512,12 @@ export const estimateVaultTxSize = memoize((utxosData: UtxosData) => {
   return vsize(
     utxosData.map(utxoData => utxoData.output),
     [
-      new Output({
-        //Just a random pubkey here for the target...
-        descriptor: `wpkh(038ffea936b2df76bf31220ebd56a34b30c6b86f40d3bd92664e2f5f98488dddfa)`
-      }),
-      new Output({
-        //Just a random pubkey here for the change...
-        descriptor: `wpkh(038ffea936b2df76bf31220ebd56a34b30c6b86f40d3bd92664e2f5f98488dddfa)`
-      }),
-      new Output({
-        //Just a random pubkey here for the service fee...
-        descriptor: `wpkh(038ffea936b2df76bf31220ebd56a34b30c6b86f40d3bd92664e2f5f98488dddfa)`
-      })
+      //Just a random pubkey here for the target...
+      wpkhOutput,
+      //Just a random pubkey here for the change...
+      wpkhOutput,
+      //Just a random pubkey here for the service fee...
+      wpkhOutput
     ]
   );
 });
@@ -536,14 +528,11 @@ export const estimateVaultTxSize = memoize((utxosData: UtxosData) => {
  */
 export const estimateTriggerTxSize = memoize((lockBlocks: number) =>
   vsize(
-    [
-      new Output({
-        descriptor: `wpkh(038ffea936b2df76bf31220ebd56a34b30c6b86f40d3bd92664e2f5f98488dddfa)`
-      })
-    ],
+    [wpkhOutput],
     [
       new Output({
         descriptor: createTriggerDescriptor({
+          //Use random keys
           unvaultKey:
             '0330d54fd0dd420a6e5f8d3624f5f3482cae350f79d5f0753bf5beef9c2d91af3c',
           panicKey:
