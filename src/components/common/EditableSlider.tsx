@@ -63,7 +63,7 @@ function snap({
   minimumValue: number;
   maximumValue: number;
   step: number;
-}): number {
+}): string {
   const digits = countDecimalDigits(step);
   minimumValue = Number(
     (step * Math.ceil(minimumValue / step)).toFixed(digits)
@@ -74,7 +74,7 @@ function snap({
   value = Number((step * Math.round(value / step)).toFixed(digits));
   value = Math.min(value, maximumValue);
   value = Math.max(value, minimumValue);
-  return value;
+  return value.toFixed(digits);
 }
 
 const EditableSlider = ({
@@ -91,7 +91,7 @@ const EditableSlider = ({
     `Pick a number between ${minimumValue} and ${maximumValue}.`;
 
   if (value !== null) {
-    value = snap({ value, minimumValue, maximumValue, step });
+    value = Number(snap({ value, minimumValue, maximumValue, step }));
   }
 
   const prevValue = useRef<number | null>();
@@ -100,19 +100,24 @@ const EditableSlider = ({
     if (value !== prevValue.current && onValueChange) onValueChange(value);
     prevValue.current = value;
   }, [value]);
+  //If parent changes minimumValue, step or maximumValue, then value (which is a
+  //function of min, max, step) adapt slider and textinput
   useEffect(() => {
     if (value !== null) {
       setSliderManagedValue(value);
       setStrValue(value.toString());
     }
-  }, [minimumValue, maximumValue]);
-  const mountValue =
-    value === null
-      ? snap({ value: minimumValue, minimumValue, maximumValue, step })
-      : value;
-  const [strValue, setStrValue] = useState<string>(mountValue.toString());
-  const [sliderManagedValue, setSliderManagedValue] =
-    useState<number>(mountValue);
+  }, [minimumValue, maximumValue, step]);
+  const mountStrValue = snap({
+    value: value === null ? minimumValue : value,
+    minimumValue,
+    maximumValue,
+    step
+  });
+  const [strValue, setStrValue] = useState<string>(mountStrValue);
+  const [sliderManagedValue, setSliderManagedValue] = useState<number>(
+    Number(mountStrValue)
+  );
 
   const keyboardType = step === 1 ? 'number-pad' : 'numeric';
   const [fontsLoaded] = useFonts({ RobotoMono_400Regular });
@@ -124,15 +129,18 @@ const EditableSlider = ({
     Number(strValue) <= maximumValue;
 
   const onSliderValueChange = (value: number) => {
-    value = snap({ value, minimumValue, maximumValue, step });
-    setStrValue(value.toString());
+    const strValue = snap({ value, minimumValue, maximumValue, step });
+    value = Number(strValue);
+    setStrValue(strValue);
     if (value !== prevValue.current && onValueChange) onValueChange(value);
   };
   const onTextInputValueChange = (strValue: string) => {
     setStrValue(strValue);
     if (strNumberInRange(strValue)) {
       const value = Number(strValue);
-      setSliderManagedValue(snap({ value, minimumValue, maximumValue, step }));
+      setSliderManagedValue(
+        Number(snap({ value, minimumValue, maximumValue, step }))
+      );
       //setFormattedValue(formatValue(value));
       if (value !== prevValue.current && onValueChange) onValueChange(value);
     } else {
