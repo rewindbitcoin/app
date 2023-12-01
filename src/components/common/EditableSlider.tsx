@@ -90,22 +90,30 @@ const EditableSlider = ({
     errorMessage ||
     `Pick a number between ${minimumValue} and ${maximumValue}.`;
 
-  if (value !== null) {
-    value = Number(snap({ value, minimumValue, maximumValue, step }));
-  }
+  const snappedValue =
+    value === null
+      ? null
+      : Number(snap({ value, minimumValue, maximumValue, step }));
 
-  const prevValue = useRef<number | null>();
+  const prevSnappedValue = useRef<number | null>();
+  //Parent may be passing values out of range and not step-valid
+  //Instead of throwing, notify parent that the correct value is, in fact,
+  //snappedValue
   useEffect(() => {
-    //Since I manipulate value (see above), notify adapted values to the parent:
-    if (value !== prevValue.current && onValueChange) onValueChange(value);
-    prevValue.current = value;
-  }, [value]);
-  //If parent changes minimumValue, step or maximumValue, then value (which is a
-  //function of min, max, step) adapt slider and textinput
+    if (snappedValue !== prevSnappedValue.current && onValueChange)
+      onValueChange(snappedValue);
+    prevSnappedValue.current = snappedValue;
+  }, [snappedValue]);
+  //If parent changes minimumValue, step or maximumValue, then
+  //force update Slider and TextInput
+  //This is done because snappedValue might have been adjusted to be within the
+  //new range
+  //However, do not notify parent about this. Parent is already notified through
+  //the useEffect above and when the Slider or TextInput changes
   useEffect(() => {
-    if (value !== null) {
-      setSliderManagedValue(value);
-      setStrValue(value.toString());
+    if (snappedValue !== null) {
+      setSliderManagedValue(snappedValue);
+      setStrValue(snappedValue.toString());
     }
   }, [minimumValue, maximumValue, step]);
   const mountStrValue = snap({
@@ -132,7 +140,8 @@ const EditableSlider = ({
     const strValue = snap({ value, minimumValue, maximumValue, step });
     value = Number(strValue);
     setStrValue(strValue);
-    if (value !== prevValue.current && onValueChange) onValueChange(value);
+    if (value !== prevSnappedValue.current && onValueChange)
+      onValueChange(value);
   };
   const onTextInputValueChange = (strValue: string) => {
     setStrValue(strValue);
@@ -141,14 +150,15 @@ const EditableSlider = ({
       setSliderManagedValue(
         Number(snap({ value, minimumValue, maximumValue, step }))
       );
-      //setFormattedValue(formatValue(value));
-      if (value !== prevValue.current && onValueChange) onValueChange(value);
+      if (value !== prevSnappedValue.current && onValueChange)
+        onValueChange(value);
     } else {
-      console.log('onTextInputValueChange NULL');
-      if (null !== prevValue.current && onValueChange) onValueChange(null);
+      if (null !== prevSnappedValue.current && onValueChange)
+        onValueChange(null);
     }
   };
-  const formattedValue = value === null ? errorMessage : formatValue(value);
+  const formattedValue =
+    snappedValue === null ? errorMessage : formatValue(snappedValue);
 
   return (
     <TouchableWithoutFeedback onPress={handlePressOutside}>
