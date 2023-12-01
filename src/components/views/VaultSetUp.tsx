@@ -33,6 +33,7 @@ import {
 
 /**
  * Given a feeRate, it formats the fee.
+ * TODO: memoize this
  */
 const formatVaultFeeRate = ({
   feeRate,
@@ -148,6 +149,11 @@ export default function VaultSetUp({
       errorMessages.push('Pick a valid amount of Btc.');
     }
 
+    //Validation for amoung
+    if (amount === null) {
+      errorMessages.push('Pick a valid amount of Btc.');
+    }
+
     // If any errors, display them
     if (errorMessages.length > 0) {
       Alert.alert('Invalid Values', errorMessages.join('\n\n'));
@@ -191,15 +197,6 @@ export default function VaultSetUp({
         //The fee of a new pkh utxo:
         Math.ceil(maxFeeRate * 148);
 
-  console.log({
-    feeRate,
-    maxFeeRate,
-    largestMinVaultAmount,
-    maxVaultAmount,
-    lowestMaxVaultAmount,
-    missingFunds
-  });
-
   //TODO: better format of message when !enoughFunds
   const content =
     missingFunds > 0 ? (
@@ -227,7 +224,10 @@ export default function VaultSetUp({
                 minimumValue={largestMinVaultAmount}
                 maximumValue={maxVaultAmount}
                 value={amount}
-                onValueChange={value => setAmount(value)}
+                onValueChange={value => {
+                  //TODO: here coinselect and setSelectedUtxosData
+                  setAmount(value);
+                }}
                 step={1}
                 formatValue={value => `This is the amount: ${value}`}
               />

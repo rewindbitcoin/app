@@ -90,7 +90,11 @@ export type UtxosData = Array<{
  * - index? if the descriptor retrieved in discovery was ranged
  * - signersPubKeys? if it can only be spent through a speciffic spending path
  *
- *   It's fine using memoize and just check for chnages un udxos
+ * Important: Returns same reference for utxosData if utxos did not change
+ *
+ * Note that it's fine using memoize and just check for changes in utxos.
+ * The rest of params are just tooling to complete utxosData but won't change
+ * the result
  */
 export const getUtxosData = memoize(
   (
