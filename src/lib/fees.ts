@@ -1,3 +1,5 @@
+import { formatFiat, Currency } from './btcRates';
+
 /**
  * Returns an array of precomputed `feeRates` within a range.
  *
@@ -98,8 +100,7 @@ export function pickFeeEstimate(
 
   const block = Object.keys(feeEstimates)
     .map(block => Number(block))
-    .sort()
-    .reverse()
+    .sort((a, b) => b - a) // sort in descending order
     .find(block => block <= Math.max(targetTime / 600 + Number.EPSILON, 1));
   if (typeof block === 'undefined') {
     throw new Error('Invalid targetTime!');
@@ -133,19 +134,21 @@ export const formatFeeRate = ({
   feeRate,
   txSize,
   btcFiat,
+  currency,
   feeEstimates
 }: {
   feeRate: number;
   txSize: number;
   btcFiat: number | null;
+  currency: Currency;
   feeEstimates: FeeEstimates | null;
 }) => {
-  //TODO: Here dont use BTC/FIAT but also pass the currency to properly show message
-  let strBtcFiat = `Waiting for BTC/FIAT rates...`;
+  let strBtcFiat = `Waiting for BTC/${currency} rates...`;
   let strTime = `Waiting for fee estimates...`;
-  //TODO: Here below don't use $, but properly format it
-  if (btcFiat !== null)
-    strBtcFiat = `Fee: $${((feeRate * txSize * btcFiat) / 1e8).toFixed(2)}`;
+  if (btcFiat !== null) {
+    const amount = (feeRate * txSize * btcFiat) / 1e8;
+    strBtcFiat = `Fee: ${formatFiat({ amount, currency })}`;
+  }
   if (feeEstimates && Object.keys(feeEstimates).length) {
     // Convert the feeEstimates object keys to numbers and sort them
     const sortedEstimates = Object.keys(feeEstimates)
