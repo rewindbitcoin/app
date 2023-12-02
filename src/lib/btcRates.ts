@@ -1,4 +1,8 @@
+import memoize from 'lodash.memoize';
 export type Currency = 'USD' | 'EUR' | 'GBP';
+export type SubUnit = 'sat' | 'mbit' | 'bit';
+
+//TODO: Do not depend on external APIs
 export async function getBtcFiat(currency: Currency): Promise<number> {
   const url = `https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=${currency.toLowerCase()}`;
 
@@ -14,3 +18,82 @@ export async function getBtcFiat(currency: Currency): Promise<number> {
     throw error; // Rethrow the error for further handling if necessary
   }
 }
+
+const intlCurrencyFormatter = memoize(
+  (currency: string) =>
+    // Undefined will use the system's locale
+    new Intl.NumberFormat(undefined, {
+      style: 'currency',
+      currency
+    })
+);
+
+export const formatFiat = ({
+  amount,
+  currency
+}: {
+  amount: number;
+  currency: Currency;
+}) => {
+  let formatter;
+
+  switch (currency) {
+    case 'USD':
+      formatter = intlCurrencyFormatter('USD');
+      break;
+    case 'EUR':
+      formatter = intlCurrencyFormatter('EUR');
+      break;
+    case 'GBP':
+      formatter = intlCurrencyFormatter('GBP');
+      break;
+    default:
+      throw new Error(`Invalid currency ${currency}`);
+  }
+
+  return formatter.format(amount);
+};
+
+export const formatBtc = ({
+  amount, // Amount in satoshis
+  subUnit, // Preferred subunit for small amounts
+  btcFiat,
+  currency
+}: {
+  amount: number;
+  subUnit: SubUnit;
+  btcFiat?: number | null | undefined;
+  currency?: Currency | null | undefined;
+}) => {
+  const ONE_BTC_IN_SATS = 100000000;
+  const THRESHOLD_FOR_BTC = ONE_BTC_IN_SATS * 0.1; // 0.1 BTC
+
+  let formattedValue;
+
+  if (amount >= THRESHOLD_FOR_BTC) {
+    // Format in BTC for amounts 0.1 BTC and above
+    return `${(amount / ONE_BTC_IN_SATS).toLocaleString()} BTC`;
+  } else {
+    // Format in the preferred subunit for smaller amounts
+    switch (subUnit) {
+      case 'sat':
+        formattedValue = `${amount.toLocaleString()} sats`;
+        break;
+      case 'mbit':
+        // 1 mBTC = 100,000 satoshis
+        formattedValue = `${(amount / 100000).toLocaleString()} mBTC`;
+        break;
+      case 'bit':
+        // 1 bit = 100 satoshis
+        formattedValue = `${(amount / 100).toLocaleString()} bits`;
+        break;
+      default:
+        throw new Error(`Invalid subunit ${subUnit}`);
+    }
+  }
+  if (typeof btcFiat === 'number' && typeof currency === 'string') {
+    formattedValue +=
+      ' / ' + formatFiat({ amount: (amount * btcFiat) / 1e8, currency });
+  }
+  return formattedValue;
+};
