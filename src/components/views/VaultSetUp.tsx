@@ -35,6 +35,7 @@ import {
   formatFeeRate,
   formatBlocks
 } from '../../lib/fees';
+import { Currency, formatBtc } from '../../lib/btcRates';
 
 /**
  * Given a feeRate, it formats the fee.
@@ -44,17 +45,19 @@ const formatVaultFeeRate = ({
   feeRate,
   feeEstimates,
   btcFiat,
+  currency,
   selectedUtxosData
 }: {
   feeRate: number;
   feeEstimates: FeeEstimates | null;
   btcFiat: number | null;
+  currency: Currency;
   selectedUtxosData: UtxosData | null;
 }) => {
   if (!selectedUtxosData)
     throw new Error('Vault settings did not coinselect utxos');
   const txSize = estimateVaultTxSize(selectedUtxosData);
-  return formatFeeRate({ feeRate, txSize, btcFiat, feeEstimates });
+  return formatFeeRate({ feeRate, currency, txSize, btcFiat, feeEstimates });
 };
 
 const formatLockTime = (blocks: number): string => {
@@ -239,7 +242,14 @@ export default function VaultSetUp({
                   setAmount(value);
                 }}
                 step={1}
-                formatValue={value => `This is the amount: ${value}`}
+                formatValue={amount =>
+                  formatBtc({
+                    amount,
+                    subUnit: settings.SUB_UNIT,
+                    btcFiat,
+                    currency: settings.CURRENCY
+                  })
+                }
               />
             </View>
           )}
@@ -275,6 +285,7 @@ export default function VaultSetUp({
                 feeRate,
                 feeEstimates,
                 btcFiat,
+                currency: settings.CURRENCY,
                 selectedUtxosData
               });
             }}
