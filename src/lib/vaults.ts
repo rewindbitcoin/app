@@ -1,4 +1,5 @@
 //TODO: add service fee in the vault process, also add change
+//TODO: very imporant to only allow Vaulting funds with 1 confirmatin at least (make this a setting)
 import {
   Network,
   Psbt,
@@ -28,7 +29,6 @@ import {
   maxFunds,
   coinselect,
   vsize,
-  OutputWithValue,
   dustThreshold
 } from '@bitcoinerlab/coinselect';
 
