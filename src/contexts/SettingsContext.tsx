@@ -7,8 +7,7 @@ import React, {
 } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import type { Currency } from '../lib/btcRates';
-type SubUnit = 'sat' | 'mbit' | 'bit';
+import type { Currency, SubUnit } from '../lib/btcRates';
 
 interface Settings {
   GAP_LIMIT: number;
