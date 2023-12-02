@@ -153,7 +153,43 @@ const getOutputsWithValue = memoize((utxosData: UtxosData) =>
   })
 );
 
-//TODO: Is this inefficient? memoize?
+const selectUtxosDataFactory = memoize((utxosData: UtxosData) =>
+  memoize(
+    ({ amount, feeRate }: { amount: number; feeRate: number }) => {
+      const utxos = getOutputsWithValue(utxosData);
+      const coinselected = coinselect({
+        utxos,
+        targets: [
+          // This will be the main target
+          {
+            output: wpkhOutput,
+            //Set this to 1 sat. We need to create an output to make it count.
+            //Service fee will be added later
+            value: amount - wpkhDustThreshold
+          },
+          // This will be the service fee output
+          {
+            output: wpkhOutput,
+            //Set this to 1 sat. We need to create an output to make it count.
+            //Service fee will be added later
+            value: wpkhDustThreshold
+          }
+        ],
+        remainder: wpkhOutput,
+        feeRate
+      });
+      if (!coinselected) return;
+      if (coinselected.utxos.length === utxosData.length) return utxosData;
+      else
+        return coinselected.utxos.map(utxo => {
+          const utxoData = utxosData[utxos.indexOf(utxo)];
+          if (!utxoData) throw new Error('Invalid utxoData');
+          return utxoData;
+        });
+    },
+    ({ amount, feeRate }) => JSON.stringify({ amount, feeRate })
+  )
+);
 export const selectUtxosData = ({
   utxosData,
   amount,
@@ -162,38 +198,7 @@ export const selectUtxosData = ({
   utxosData: UtxosData;
   amount: number;
   feeRate: number;
-}): UtxosData | undefined => {
-  const utxos = getOutputsWithValue(utxosData);
-  const coinselected = coinselect({
-    utxos,
-    targets: [
-      // This will be the main target
-      {
-        output: wpkhOutput,
-        //Set this to 1 sat. We need to create an output to make it count.
-        //Service fee will be added later
-        value: amount - wpkhDustThreshold
-      },
-      // This will be the service fee output
-      {
-        output: wpkhOutput,
-        //Set this to 1 sat. We need to create an output to make it count.
-        //Service fee will be added later
-        value: wpkhDustThreshold
-      }
-    ],
-    remainder: wpkhOutput,
-    feeRate
-  });
-  if (!coinselected) return;
-  if (coinselected.utxos.length === utxosData.length) return utxosData;
-  else
-    return coinselected.utxos.map(utxo => {
-      const utxoData = utxosData[utxos.indexOf(utxo)];
-      if (!utxoData) throw new Error('Invalid utxoData');
-      return utxoData;
-    });
-};
+}) => selectUtxosDataFactory(utxosData)({ amount, feeRate });
 
 export const createTriggerDescriptor = ({
   unvaultKey,
@@ -217,8 +222,9 @@ export const createTriggerDescriptor = ({
   return triggerDescriptor;
 };
 
-export const utxosDataBalance = (utxosData: UtxosData): number =>
-  getOutputsWithValue(utxosData).reduce((a, { value }) => a + value, 0);
+export const utxosDataBalance = memoize((utxosData: UtxosData): number =>
+  getOutputsWithValue(utxosData).reduce((a, { value }) => a + value, 0)
+);
 
 /** When sending maxFunds, what is the recipient + service fee value?
  * It returns a number or undefined if not possible to obtain a value
