@@ -79,7 +79,7 @@ import QRCode from 'react-native-qrcode-svg';
 import * as Clipboard from 'expo-clipboard';
 import { Share } from 'react-native';
 import memoize from 'lodash.memoize';
-import { getBtcFiat } from './src/lib/btcRates';
+import { Currency, getBtcFiat, formatBtc } from './src/lib/btcRates';
 import { formatFeeRate } from './src/lib/fees';
 
 import { networks } from 'bitcoinjs-lib';
@@ -209,11 +209,13 @@ const spendableTriggerDescriptors = (vaults: Vaults): Array<string> => {
 const formatTriggerFeeRate = ({
   feeRate,
   btcFiat,
+  currency,
   feeEstimates,
   vault
 }: {
   feeRate: number;
   btcFiat: number | null;
+  currency: Currency;
   feeEstimates: Record<string, number> | null;
   vault: Vault;
 }) => {
@@ -221,6 +223,7 @@ const formatTriggerFeeRate = ({
   const formattedFeeRate = formatFeeRate({
     feeRate: finalFeeRate,
     txSize: estimateTriggerTxSize(vault.lockBlocks),
+    currency,
     btcFiat,
     feeEstimates
   });
@@ -580,7 +583,14 @@ Handle with care. Confidentiality is key.
           )}
           {hotBalance !== null && (
             <Text style={styles.hotBalance}>
-              Hot Balance: {hotBalance} sats{checkingBalance && ' ⏳'}
+              Hot Balance:{' '}
+              {formatBtc({
+                amount: hotBalance,
+                subUnit: settings.SUB_UNIT,
+                btcFiat,
+                currency: settings.CURRENCY
+              })}{' '}
+              {checkingBalance && ' ⏳'}
             </Text>
           )}
           {vaults && Object.keys(vaults).length > 0 && (
@@ -752,6 +762,7 @@ Handle with care. Confidentiality is key.
                 return formatTriggerFeeRate({
                   feeRate,
                   btcFiat,
+                  currency: settings.CURRENCY,
                   feeEstimates,
                   vault: unvault
                 });
