@@ -23,7 +23,13 @@ import type { BIP32Interface } from 'bip32';
 
 import { feeRateSampling } from './fees';
 import type { DiscoveryInstance } from '@bitcoinerlab/discovery';
-import { maxFunds, vsize } from '@bitcoinerlab/coinselect';
+import {
+  maxFunds,
+  coinselect,
+  vsize,
+  OutputWithValue,
+  dustThreshold
+} from '@bitcoinerlab/coinselect';
 
 export type Vault = {
   /** the initial balance */
@@ -138,6 +144,52 @@ export const getUtxosData = memoize(
   }
 );
 
+//TODO: This is very inefficient. All Transaction.fromHex should only be done
+//once
+export const selectUtxosData = ({
+  utxosData,
+  amount,
+  feeRate
+}: {
+  utxosData: UtxosData;
+  amount: number;
+  feeRate: number;
+}): UtxosData | undefined => {
+  const utxos: Array<OutputWithValue> = utxosData.map(utxo => {
+    const out = Transaction.fromHex(utxo.txHex).outs[utxo.vout];
+    if (!out) throw new Error('Invalid utxo');
+    return { output: utxo.output, value: out.value };
+  });
+  const dust = dustThreshold(wpkhOutput);
+  const coinselected = coinselect({
+    utxos,
+    targets: [
+      // This will be the main target
+      {
+        output: wpkhOutput,
+        //Set this to 1 sat. We need to create an output to make it count.
+        //Service fee will be added later
+        value: amount - dust
+      },
+      // This will be the service fee output
+      {
+        output: wpkhOutput,
+        //Set this to 1 sat. We need to create an output to make it count.
+        //Service fee will be added later
+        value: dust
+      }
+    ],
+    remainder: wpkhOutput,
+    feeRate
+  });
+  if (!coinselected) return;
+  return coinselected.utxos.map(utxo => {
+    const utxoData = utxosData[utxos.indexOf(utxo)];
+    if (!utxoData) throw new Error('Invalid utxoData');
+    return utxoData;
+  });
+};
+
 export const createTriggerDescriptor = ({
   unvaultKey,
   panicKey,
@@ -197,7 +249,7 @@ const estimateMaxVaultAmountFactory = memoize((utxosData: UtxosData) =>
     if (!coinselected) return;
     const value = coinselected.targets[coinselected.targets.length - 1]?.value;
     if (value === undefined) return;
-    return value + 1; //Discount the service fee
+    return value + 1; //Add the service fee back to the total
   })
 );
 export const estimateMaxVaultAmount = ({

@@ -132,18 +132,20 @@ export const formatBlocks = (blocks: number): string => {
 export const formatFeeRate = ({
   feeRate,
   txSize,
-  btcUsd,
+  btcFiat,
   feeEstimates
 }: {
   feeRate: number;
   txSize: number;
-  btcUsd: number | null;
+  btcFiat: number | null;
   feeEstimates: FeeEstimates | null;
 }) => {
-  let strBtcUsd = `Waiting for BTC/USD rates...`;
+  //TODO: Here dont use BTC/FIAT but also pass the currency to properly show message
+  let strBtcFiat = `Waiting for BTC/FIAT rates...`;
   let strTime = `Waiting for fee estimates...`;
-  if (btcUsd !== null)
-    strBtcUsd = `Fee: $${((feeRate * txSize * btcUsd) / 1e8).toFixed(2)}`;
+  //TODO: Here below don't use $, but properly format it
+  if (btcFiat !== null)
+    strBtcFiat = `Fee: $${((feeRate * txSize * btcFiat) / 1e8).toFixed(2)}`;
   if (feeEstimates && Object.keys(feeEstimates).length) {
     // Convert the feeEstimates object keys to numbers and sort them
     const sortedEstimates = Object.keys(feeEstimates)
@@ -160,5 +162,5 @@ export const formatFeeRate = ({
     // it's not possible to estimate the time
     else strTime = `Express confirmation`;
   }
-  return `${strBtcUsd} / ${strTime}`;
+  return `${strTime} / ${strBtcFiat}`;
 };

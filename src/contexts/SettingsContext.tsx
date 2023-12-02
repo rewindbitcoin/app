@@ -7,6 +7,9 @@ import React, {
 } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+import type { Currency } from '../lib/btcRates';
+type SubUnit = 'sat' | 'mbit' | 'bit';
+
 interface Settings {
   GAP_LIMIT: number;
   MIN_FEE_RATE: number;
@@ -17,12 +20,15 @@ interface Settings {
   PRESIGNED_FEE_RATE_CEILING: number;
   INITIAL_CONFIRMATION_TIME: number;
   MIN_RECOVERABLE_RATIO: number;
+  SUB_UNIT: SubUnit;
+  CURRENCY: Currency;
 }
 
 interface SettingsContextProps {
   settings: Settings;
   setSettings: (settings: Partial<Settings>) => void;
   isLoading: boolean;
+  isProviderMissing: boolean;
 }
 
 // Default values for the context
@@ -41,14 +47,17 @@ const defaultSettings: Settings = {
   INITIAL_CONFIRMATION_TIME: 2 * 60 * 60,
   //TODO: set it to 2/3 in the production case
   //MIN_RECOVERABLE_RATIO: '2/3' // express it in string so that it can be printed. Must be 0 > MIN_RECOVERABLE_RATIO > 1
-  MIN_RECOVERABLE_RATIO: 1 / 100
+  MIN_RECOVERABLE_RATIO: 1 / 100,
+  SUB_UNIT: 'sat',
+  CURRENCY: 'USD'
 };
 
 // Create the context
 const SettingsContext = createContext<SettingsContextProps>({
   settings: defaultSettings,
   setSettings: () => {},
-  isLoading: true
+  isLoading: true,
+  isProviderMissing: true
 });
 
 // Provider component
@@ -91,13 +100,20 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({
   }, []);
 
   return (
-    <SettingsContext.Provider value={{ settings, setSettings, isLoading }}>
+    <SettingsContext.Provider
+      value={{ settings, setSettings, isLoading, isProviderMissing: false }}
+    >
       {children}
     </SettingsContext.Provider>
   );
 };
 
-// Custom hook for using settings
-export const useSettings = () => useContext(SettingsContext);
+export const useSettings = () => {
+  const context = useContext(SettingsContext);
+  if (context.isProviderMissing) {
+    throw new Error('Wrap this component with SettingsProvider');
+  }
+  return context;
+};
 
 export default SettingsContext;

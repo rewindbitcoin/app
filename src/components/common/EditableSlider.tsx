@@ -127,6 +127,7 @@ const EditableSlider = ({
     Number(mountStrValue)
   );
 
+  //TODO: in android i dont get number-pad?
   const keyboardType = step === 1 ? 'number-pad' : 'numeric';
   const [fontsLoaded] = useFonts({ RobotoMono_400Regular });
   const handlePressOutside = () => Keyboard.dismiss();

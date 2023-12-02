@@ -1,5 +1,9 @@
 //In the fee rate validation in coinselect i have the 0.1 + 0.2 = 0.30000004 error
 //      `Final fee rate ${finalFeeRate} lower than required ${feeRate}`
+//TODO: Test performance with 100 UTXOs
+//TODO: Put the Fiat currency this in the Context: btcFiat - also the get currency
+//TODO: I need a proper formatBitcoin and formatFiat function
+//TODO: dec, 2, 7:09 i used to have 80k+ sats in hot, now less! Why!?!?!
 
 //  This is 4: Math.ceil((0.1+0.2)*10)
 //share styles VaultSetUp / Unvault
@@ -22,7 +26,8 @@ import {
   utxosDataBalance,
   estimateVaultTxSize,
   estimateMaxVaultAmount,
-  estimateMinVaultAmount
+  estimateMinVaultAmount,
+  selectUtxosData
 } from '../../lib/vaults';
 import {
   FeeEstimates,
@@ -38,34 +43,34 @@ import {
 const formatVaultFeeRate = ({
   feeRate,
   feeEstimates,
-  btcUsd,
+  btcFiat,
   selectedUtxosData
 }: {
   feeRate: number;
   feeEstimates: FeeEstimates | null;
-  btcUsd: number | null;
+  btcFiat: number | null;
   selectedUtxosData: UtxosData | null;
 }) => {
   if (!selectedUtxosData)
     throw new Error('Vault settings did not coinselect utxos');
   const txSize = estimateVaultTxSize(selectedUtxosData);
-  return formatFeeRate({ feeRate, txSize, btcUsd, feeEstimates });
+  return formatFeeRate({ feeRate, txSize, btcFiat, feeEstimates });
 };
 
 const formatLockTime = (blocks: number): string => {
-  return `Estimated lock time: ${formatBlocks(blocks)}`;
+  return `Spendable ${formatBlocks(blocks)} after Unvault`;
 };
 
 export default function VaultSetUp({
   utxosData,
   feeEstimates,
-  btcUsd,
+  btcFiat,
   onNewValues,
   onCancel = undefined
 }: {
   utxosData: UtxosData;
   feeEstimates: FeeEstimates | null;
-  btcUsd: number | null;
+  btcFiat: number | null;
   onNewValues: (values: {
     selectedUtxosData: UtxosData;
     feeRate: number;
@@ -105,9 +110,11 @@ export default function VaultSetUp({
     feeRate: feeRate !== null ? feeRate : maxFeeRate
   });
   const [amount, setAmount] = useState<number | null>(maxVaultAmount || null);
-  const [selectedUtxosData, setSelectedUtxosData] = useState<UtxosData | null>(
-    null
-  );
+  //TODO: setSelectedUtxosData and setSelectedUtxosData don't need to be in
+  //state. these can be derived from utxosData and amount
+  //  const [selectedUtxosData, setSelectedUtxosData] = useState<UtxosData | null>(
+  //    null
+  //  );
 
   useEffect(() => {
     if (!isSettingsLoading) {
@@ -115,14 +122,14 @@ export default function VaultSetUp({
     }
   }, [isSettingsLoading, settings]);
 
-  //Since we are not using a coinselector yet, we assume that the coinselector
-  //returned all the utxos (while this is not implemented):
-  //For now, on mount set it to utxosData:
-  useEffect(() => {
-    //TODO: make sure selectedUtxosData reference does not change if internal
-    //array does not change
-    if (utxosData) setSelectedUtxosData(utxosData);
-  }, []);
+  //  //Since we are not using a coinselector yet, we assume that the coinselector
+  //  //returned all the utxos (while this is not implemented):
+  //  //For now, on mount set it to utxosData:
+  //  useEffect(() => {
+  //    //TODO: make sure selectedUtxosData reference does not change if internal
+  //    //array does not change
+  //    if (utxosData) setSelectedUtxosData(utxosData);
+  //  }, []);
 
   const handlePressOutside = () => Keyboard.dismiss();
   const handleCancel = (event: GestureResponderEvent) => {
@@ -144,10 +151,10 @@ export default function VaultSetUp({
       errorMessages.push(`Pick a valid Fee Rate.`);
     }
 
-    //Validation for utxos
-    if (selectedUtxosData === null) {
-      errorMessages.push('Pick a valid amount of Btc.');
-    }
+    //    //Validation for utxos
+    //    if (selectedUtxosData === null) {
+    //      errorMessages.push('Pick a valid amount of Btc.');
+    //    }
 
     //Validation for amoung
     if (amount === null) {
@@ -159,8 +166,11 @@ export default function VaultSetUp({
       Alert.alert('Invalid Values', errorMessages.join('\n\n'));
       return;
     } else {
-      if (feeRate === null || selectedUtxosData === null || lockBlocks === null)
+      if (feeRate === null || amount === null || lockBlocks === null)
         throw new Error(`Faulty validation`);
+      const selectedUtxosData = selectUtxosData({ utxosData, amount, feeRate });
+      if (!selectedUtxosData)
+        throw new Error('Could not extract utxos from amount');
       onNewValues({ feeRate, selectedUtxosData, lockBlocks });
     }
   };
@@ -237,10 +247,7 @@ export default function VaultSetUp({
           settings.MAX_LOCK_BLOCKS &&
           formatLockTime && (
             <View style={styles.settingGroup}>
-              <Text style={styles.label}>
-                Number of blocks you will need to wait to access your funds when
-                unvaulting:
-              </Text>
+              <Text style={styles.label}>Security Lock Time (blocks):</Text>
               <EditableSlider
                 minimumValue={settings.MIN_LOCK_BLOCKS}
                 maximumValue={settings.MAX_LOCK_BLOCKS}
@@ -252,30 +259,25 @@ export default function VaultSetUp({
             </View>
           )}
         <View style={styles.settingGroup}>
-          <Text style={styles.label}>Fee Rate (sats/vbyte):</Text>
+          <Text style={styles.label}>Confirmation Speed (sat/vbyte):</Text>
           <EditableSlider
             value={feeRate}
             minimumValue={settings.MIN_FEE_RATE}
             maximumValue={maxFeeRate}
-            onValueChange={value => setFeeRate(value)}
-            formatValue={value =>
-              //TODO: maybe it's worth it to do a try catch here too and
-              //disable and show an error in that case
-              formatVaultFeeRate({
-                feeRate: value,
+            onValueChange={feeRate => setFeeRate(feeRate)}
+            formatValue={feeRate => {
+              const selectedUtxosData =
+                (feeRate !== null &&
+                  amount !== null &&
+                  selectUtxosData({ utxosData, feeRate, amount })) ||
+                utxosData;
+              return formatVaultFeeRate({
+                feeRate,
                 feeEstimates,
-                btcUsd,
-
-                //TODO: CHECK BELOW:
-                //when coinselect is implemented, check that when
-                //coinselecing utxos, then the Fee: rendered initially changes
-                //(even if the feeRate is maintained)
-
-                // For format the fee in USD, assume initially all utxos will
-                // be selected (the user has not selected any coins initially)
-                selectedUtxosData: selectedUtxosData || utxosData
-              })
-            }
+                btcFiat,
+                selectedUtxosData
+              });
+            }}
           />
         </View>
         <View style={styles.buttonGroup}>
