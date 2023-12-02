@@ -132,7 +132,7 @@ export default function VaultSetUp({
       errorMessages.push(`Pick a valid Fee Rate.`);
     }
 
-    //Validation for amoung
+    //Validation for amount
     if (amount === null) {
       errorMessages.push('Pick a valid amount of Btc.');
     }
@@ -210,9 +210,10 @@ export default function VaultSetUp({
                 minimumValue={largestMinVaultAmount}
                 maximumValue={maxVaultAmount}
                 value={amount}
-                onValueChange={value => setAmount(value)}
+                onValueChange={setAmount}
                 step={1}
                 formatValue={amount =>
+                  //TODO: memoize this
                   formatBtc({
                     amount,
                     subUnit: settings.SUB_UNIT,
@@ -233,7 +234,7 @@ export default function VaultSetUp({
                 maximumValue={settings.MAX_LOCK_BLOCKS}
                 value={lockBlocks}
                 step={1}
-                onValueChange={value => setLockBlocks(value)}
+                onValueChange={setLockBlocks}
                 formatValue={value => formatLockTime(value)}
               />
             </View>
@@ -244,8 +245,11 @@ export default function VaultSetUp({
             value={feeRate}
             minimumValue={settings.MIN_FEE_RATE}
             maximumValue={maxFeeRate}
-            onValueChange={feeRate => setFeeRate(feeRate)}
+            onValueChange={setFeeRate}
             formatValue={feeRate => {
+              //TODO: memoize this
+              //memoizing the formatVaultFeeRate will only work well
+              //if selectUtxosData reference does not change (it currently does)
               const selectedUtxosData =
                 (feeRate !== null &&
                   amount !== null &&
