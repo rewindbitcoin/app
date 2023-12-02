@@ -7,7 +7,7 @@
 
 //  This is 4: Math.ceil((0.1+0.2)*10)
 //share styles VaultSetUp / Unvault
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import type { GestureResponderEvent } from 'react-native';
 import {
   View,
@@ -52,10 +52,8 @@ const formatVaultFeeRate = ({
   feeEstimates: FeeEstimates | null;
   btcFiat: number | null;
   currency: Currency;
-  selectedUtxosData: UtxosData | null;
+  selectedUtxosData: UtxosData;
 }) => {
-  if (!selectedUtxosData)
-    throw new Error('Vault settings did not coinselect utxos');
   const txSize = estimateVaultTxSize(selectedUtxosData);
   return formatFeeRate({ feeRate, currency, txSize, btcFiat, feeEstimates });
 };
@@ -81,7 +79,7 @@ export default function VaultSetUp({
   }) => Promise<void>;
   onCancel?: (event: GestureResponderEvent) => void;
 }) {
-  const { settings, isLoading: isSettingsLoading } = useSettings();
+  const { settings } = useSettings();
   const [lockBlocks, setLockBlocks] = useState<number | null>(
     settings.INITIAL_LOCK_BLOCKS
   );
@@ -113,26 +111,6 @@ export default function VaultSetUp({
     feeRate: feeRate !== null ? feeRate : maxFeeRate
   });
   const [amount, setAmount] = useState<number | null>(maxVaultAmount || null);
-  //TODO: setSelectedUtxosData and setSelectedUtxosData don't need to be in
-  //state. these can be derived from utxosData and amount
-  //  const [selectedUtxosData, setSelectedUtxosData] = useState<UtxosData | null>(
-  //    null
-  //  );
-
-  useEffect(() => {
-    if (!isSettingsLoading) {
-      // Perform actions that depend on the settings
-    }
-  }, [isSettingsLoading, settings]);
-
-  //  //Since we are not using a coinselector yet, we assume that the coinselector
-  //  //returned all the utxos (while this is not implemented):
-  //  //For now, on mount set it to utxosData:
-  //  useEffect(() => {
-  //    //TODO: make sure selectedUtxosData reference does not change if internal
-  //    //array does not change
-  //    if (utxosData) setSelectedUtxosData(utxosData);
-  //  }, []);
 
   const handlePressOutside = () => Keyboard.dismiss();
   const handleCancel = (event: GestureResponderEvent) => {
@@ -153,11 +131,6 @@ export default function VaultSetUp({
     if (feeRate === null) {
       errorMessages.push(`Pick a valid Fee Rate.`);
     }
-
-    //    //Validation for utxos
-    //    if (selectedUtxosData === null) {
-    //      errorMessages.push('Pick a valid amount of Btc.');
-    //    }
 
     //Validation for amoung
     if (amount === null) {
