@@ -15,6 +15,7 @@ const wpkhOutput = new Output({
   //Just a random pubkey here...
   descriptor: `wpkh(038ffea936b2df76bf31220ebd56a34b30c6b86f40d3bd92664e2f5f98488dddfa)`
 });
+const wpkhDustThreshold = dustThreshold(wpkhOutput);
 
 import { compilePolicy } from '@bitcoinerlab/miniscript';
 const { encode: olderEncode } = require('bip68');
@@ -144,8 +145,15 @@ export const getUtxosData = memoize(
   }
 );
 
-//TODO: This is very inefficient. All Transaction.fromHex should only be done
-//once
+const getOutputsWithValue = memoize((utxosData: UtxosData) =>
+  utxosData.map(utxo => {
+    const out = Transaction.fromHex(utxo.txHex).outs[utxo.vout];
+    if (!out) throw new Error('Invalid utxo');
+    return { output: utxo.output, value: out.value };
+  })
+);
+
+//TODO: Is this inefficient? memoize?
 export const selectUtxosData = ({
   utxosData,
   amount,
@@ -155,12 +163,7 @@ export const selectUtxosData = ({
   amount: number;
   feeRate: number;
 }): UtxosData | undefined => {
-  const utxos: Array<OutputWithValue> = utxosData.map(utxo => {
-    const out = Transaction.fromHex(utxo.txHex).outs[utxo.vout];
-    if (!out) throw new Error('Invalid utxo');
-    return { output: utxo.output, value: out.value };
-  });
-  const dust = dustThreshold(wpkhOutput);
+  const utxos = getOutputsWithValue(utxosData);
   const coinselected = coinselect({
     utxos,
     targets: [
@@ -169,25 +172,27 @@ export const selectUtxosData = ({
         output: wpkhOutput,
         //Set this to 1 sat. We need to create an output to make it count.
         //Service fee will be added later
-        value: amount - dust
+        value: amount - wpkhDustThreshold
       },
       // This will be the service fee output
       {
         output: wpkhOutput,
         //Set this to 1 sat. We need to create an output to make it count.
         //Service fee will be added later
-        value: dust
+        value: wpkhDustThreshold
       }
     ],
     remainder: wpkhOutput,
     feeRate
   });
   if (!coinselected) return;
-  return coinselected.utxos.map(utxo => {
-    const utxoData = utxosData[utxos.indexOf(utxo)];
-    if (!utxoData) throw new Error('Invalid utxoData');
-    return utxoData;
-  });
+  if (coinselected.utxos.length === utxosData.length) return utxosData;
+  else
+    return coinselected.utxos.map(utxo => {
+      const utxoData = utxosData[utxos.indexOf(utxo)];
+      if (!utxoData) throw new Error('Invalid utxoData');
+      return utxoData;
+    });
 };
 
 export const createTriggerDescriptor = ({
@@ -212,16 +217,8 @@ export const createTriggerDescriptor = ({
   return triggerDescriptor;
 };
 
-export const utxosDataBalance = memoize((utxosData: UtxosData): number => {
-  let balance = 0;
-  for (const utxoData of utxosData) {
-    const tx = Transaction.fromHex(utxoData.txHex);
-    const out = tx.outs[utxoData.vout];
-    if (!out) throw new Error('Invalid vout for utxo');
-    balance += out.value;
-  }
-  return balance;
-});
+export const utxosDataBalance = (utxosData: UtxosData): number =>
+  getOutputsWithValue(utxosData).reduce((a, { value }) => a + value, 0);
 
 /** When sending maxFunds, what is the recipient + service fee value?
  * It returns a number or undefined if not possible to obtain a value
@@ -229,11 +226,7 @@ export const utxosDataBalance = memoize((utxosData: UtxosData): number => {
 const estimateMaxVaultAmountFactory = memoize((utxosData: UtxosData) =>
   memoize((feeRate: number) => {
     const coinselected = maxFunds({
-      utxos: utxosData.map(utxo => {
-        const out = Transaction.fromHex(utxo.txHex).outs[utxo.vout];
-        if (!out) throw new Error('Invalid utxo');
-        return { output: utxo.output, value: out.value };
-      }),
+      utxos: getOutputsWithValue(utxosData),
       targets: [
         // This will be the service fee output
         {

@@ -237,10 +237,7 @@ export default function VaultSetUp({
                 minimumValue={largestMinVaultAmount}
                 maximumValue={maxVaultAmount}
                 value={amount}
-                onValueChange={value => {
-                  //TODO: here coinselect and setSelectedUtxosData
-                  setAmount(value);
-                }}
+                onValueChange={value => setAmount(value)}
                 step={1}
                 formatValue={amount =>
                   formatBtc({
