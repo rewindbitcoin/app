@@ -50,8 +50,13 @@
 //TODO: See the TODOs in Vault
 
 import './init';
-import './src/i18n/i18n';
-import { SettingsProvider, useSettings } from './src/contexts/SettingsContext';
+import initI18n from './src/i18n/i18n';
+import {
+  SettingsProvider,
+  useSettings,
+  Locale,
+  Currency
+} from './src/contexts/SettingsContext';
 
 import React, { useState, useEffect } from 'react';
 import {
@@ -80,7 +85,7 @@ import QRCode from 'react-native-qrcode-svg';
 import * as Clipboard from 'expo-clipboard';
 import { Share } from 'react-native';
 import memoize from 'lodash.memoize';
-import { Currency, getBtcFiat, formatBtc } from './src/lib/btcRates';
+import { getBtcFiat, formatBtc } from './src/lib/btcRates';
 import { formatFeeRate } from './src/lib/fees';
 
 import { networks } from 'bitcoinjs-lib';
@@ -210,12 +215,14 @@ const spendableTriggerDescriptors = (vaults: Vaults): Array<string> => {
 const formatTriggerFeeRate = ({
   feeRate,
   btcFiat,
+  locale,
   currency,
   feeEstimates,
   vault
 }: {
   feeRate: number;
   btcFiat: number | null;
+  locale: Locale;
   currency: Currency;
   feeEstimates: Record<string, number> | null;
   vault: Vault;
@@ -224,6 +231,7 @@ const formatTriggerFeeRate = ({
   const formattedFeeRate = formatFeeRate({
     feeRate: finalFeeRate,
     txSize: estimateTriggerTxSize(vault.lockBlocks),
+    locale,
     currency,
     btcFiat,
     feeEstimates
@@ -251,6 +259,9 @@ function App() {
   > | null>(null);
   const [btcFiat, setBtcFiat] = useState<number | null>(null);
   const { settings } = useSettings();
+  useEffect(() => {
+    initI18n(settings.LOCALE);
+  }, [settings.LOCALE]);
 
   const init = async () => {
     const mnemonic = await AsyncStorage.getItem('mnemonic');
@@ -410,6 +421,7 @@ function App() {
       //Setting same utxo won't produce a re-render in React.
       console.log('UTXOS SET');
       setUtxos(utxos.length ? utxos : null);
+      console.log('UTXOS SET - OK');
 
       setCheckingBalance(false);
     }
@@ -589,6 +601,7 @@ Handle with care. Confidentiality is key.
                 amount: hotBalance,
                 subUnit: settings.SUB_UNIT,
                 btcFiat,
+                locale: settings.LOCALE,
                 currency: settings.CURRENCY
               })}{' '}
               {checkingBalance && ' ⏳'}
@@ -763,6 +776,7 @@ Handle with care. Confidentiality is key.
                 return formatTriggerFeeRate({
                   feeRate,
                   btcFiat,
+                  locale: settings.LOCALE,
                   currency: settings.CURRENCY,
                   feeEstimates,
                   vault: unvault

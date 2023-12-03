@@ -30,13 +30,15 @@ import {
   estimateMinVaultAmount,
   selectUtxosData
 } from '../../lib/vaults';
+
+import type { Locale, Currency } from '../../contexts/SettingsContext';
 import {
   FeeEstimates,
   pickFeeEstimate,
   formatFeeRate,
   formatBlocks
 } from '../../lib/fees';
-import { Currency, formatBtc } from '../../lib/btcRates';
+import { formatBtc } from '../../lib/btcRates';
 
 /**
  * Given a feeRate, it formats the fee.
@@ -46,17 +48,26 @@ const formatVaultFeeRate = ({
   feeRate,
   feeEstimates,
   btcFiat,
+  locale,
   currency,
   selectedUtxosData
 }: {
   feeRate: number;
   feeEstimates: FeeEstimates | null;
   btcFiat: number | null;
+  locale: Locale;
   currency: Currency;
   selectedUtxosData: UtxosData;
 }) => {
   const txSize = estimateVaultTxSize(selectedUtxosData);
-  return formatFeeRate({ feeRate, currency, txSize, btcFiat, feeEstimates });
+  return formatFeeRate({
+    feeRate,
+    locale,
+    currency,
+    txSize,
+    btcFiat,
+    feeEstimates
+  });
 };
 
 const formatLockTime = (blocks: number): string => {
@@ -208,7 +219,7 @@ export default function VaultSetUp({
           largestMinVaultAmount !== undefined &&
           maxVaultAmount >= largestMinVaultAmount && (
             <View style={styles.settingGroup}>
-              <Text style={styles.label}>{t('VaultSetUp.amountLabel')}</Text>
+              <Text style={styles.label}>{t('vaultSetup.amountLabel')}</Text>
               <EditableSlider
                 minimumValue={largestMinVaultAmount}
                 maximumValue={maxVaultAmount}
@@ -221,6 +232,7 @@ export default function VaultSetUp({
                     amount,
                     subUnit: settings.SUB_UNIT,
                     btcFiat,
+                    locale: settings.LOCALE,
                     currency: settings.CURRENCY
                   })
                 }
@@ -262,6 +274,7 @@ export default function VaultSetUp({
                 feeRate,
                 feeEstimates,
                 btcFiat,
+                locale: settings.LOCALE,
                 currency: settings.CURRENCY,
                 selectedUtxosData
               });

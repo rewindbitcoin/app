@@ -1,6 +1,5 @@
 import memoize from 'lodash.memoize';
-export type Currency = 'USD' | 'EUR' | 'GBP';
-export type SubUnit = 'sat' | 'mbit' | 'bit';
+import type { SubUnit, Currency, Locale } from '../contexts/SettingsContext';
 
 //TODO: Do not depend on external APIs
 export async function getBtcFiat(currency: Currency): Promise<number> {
@@ -20,32 +19,35 @@ export async function getBtcFiat(currency: Currency): Promise<number> {
 }
 
 const intlCurrencyFormatter = memoize(
-  (currency: string) =>
+  (locale: Locale, currency: string) =>
     // Undefined will use the system's locale
-    new Intl.NumberFormat(undefined, {
+    new Intl.NumberFormat(locale, {
       style: 'currency',
       currency
-    })
+    }),
+  (locale: string, currency: string) => JSON.stringify({ locale, currency })
 );
 
 export const formatFiat = ({
   amount,
+  locale,
   currency
 }: {
   amount: number;
+  locale: Locale;
   currency: Currency;
 }) => {
   let formatter;
 
   switch (currency) {
     case 'USD':
-      formatter = intlCurrencyFormatter('USD');
+      formatter = intlCurrencyFormatter(locale, 'USD');
       break;
     case 'EUR':
-      formatter = intlCurrencyFormatter('EUR');
+      formatter = intlCurrencyFormatter(locale, 'EUR');
       break;
     case 'GBP':
-      formatter = intlCurrencyFormatter('GBP');
+      formatter = intlCurrencyFormatter(locale, 'GBP');
       break;
     default:
       throw new Error(`Invalid currency ${currency}`);
@@ -58,11 +60,13 @@ export const formatBtc = ({
   amount, // Amount in satoshis
   subUnit, // Preferred subunit for small amounts
   btcFiat,
+  locale,
   currency
 }: {
   amount: number;
   subUnit: SubUnit;
   btcFiat?: number | null | undefined;
+  locale?: Locale | null | undefined;
   currency?: Currency | null | undefined;
 }) => {
   const ONE_BTC_IN_SATS = 100000000;
@@ -91,9 +95,14 @@ export const formatBtc = ({
         throw new Error(`Invalid subunit ${subUnit}`);
     }
   }
-  if (typeof btcFiat === 'number' && typeof currency === 'string') {
+  if (
+    typeof btcFiat === 'number' &&
+    typeof locale === 'string' &&
+    typeof currency === 'string'
+  ) {
     formattedValue +=
-      ' / ' + formatFiat({ amount: (amount * btcFiat) / 1e8, currency });
+      ' / ' +
+      formatFiat({ amount: (amount * btcFiat) / 1e8, locale, currency });
   }
   return formattedValue;
 };

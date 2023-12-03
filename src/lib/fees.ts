@@ -1,4 +1,5 @@
-import { formatFiat, Currency } from './btcRates';
+import { formatFiat } from './btcRates';
+import type { Locale, Currency } from '../contexts/SettingsContext';
 
 /**
  * Returns an array of precomputed `feeRates` within a range.
@@ -134,12 +135,14 @@ export const formatFeeRate = ({
   feeRate,
   txSize,
   btcFiat,
+  locale,
   currency,
   feeEstimates
 }: {
   feeRate: number;
   txSize: number;
   btcFiat: number | null;
+  locale: Locale;
   currency: Currency;
   feeEstimates: FeeEstimates | null;
 }) => {
@@ -147,7 +150,7 @@ export const formatFeeRate = ({
   let strTime = `Waiting for fee estimates...`;
   if (btcFiat !== null) {
     const amount = (feeRate * txSize * btcFiat) / 1e8;
-    strBtcFiat = `Fee: ${formatFiat({ amount, currency })}`;
+    strBtcFiat = `Fee: ${formatFiat({ amount, locale, currency })}`;
   }
   if (feeEstimates && Object.keys(feeEstimates).length) {
     // Convert the feeEstimates object keys to numbers and sort them

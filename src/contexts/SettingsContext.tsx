@@ -7,7 +7,9 @@ import React, {
 } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import type { Currency, SubUnit } from '../lib/btcRates';
+export type SubUnit = 'sat' | 'mbit' | 'bit';
+export type Currency = 'USD' | 'EUR' | 'GBP';
+export type Locale = 'en-US' | 'es-ES';
 
 interface Settings {
   GAP_LIMIT: number;
@@ -21,6 +23,7 @@ interface Settings {
   MIN_RECOVERABLE_RATIO: number;
   SUB_UNIT: SubUnit;
   CURRENCY: Currency;
+  LOCALE: Locale;
 }
 
 interface SettingsContextProps {
@@ -48,6 +51,7 @@ const defaultSettings: Settings = {
   //MIN_RECOVERABLE_RATIO: '2/3' // express it in string so that it can be printed. Must be 0 > MIN_RECOVERABLE_RATIO > 1
   MIN_RECOVERABLE_RATIO: 1 / 100,
   SUB_UNIT: 'sat',
+  LOCALE: 'en-US',
   CURRENCY: 'USD'
 };
 
