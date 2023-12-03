@@ -7,6 +7,7 @@
 
 //  This is 4: Math.ceil((0.1+0.2)*10)
 //share styles VaultSetUp / Unvault
+import { useTranslation } from 'react-i18next';
 import React, { useState } from 'react';
 import type { GestureResponderEvent } from 'react-native';
 import {
@@ -86,6 +87,7 @@ export default function VaultSetUp({
   //const feeRateStep = 0.01;
   //const snapUpFeeRate = (feeRate: number) =>
   //  feeRateStep * Math.ceil(feeRate / feeRateStep);
+  const { t } = useTranslation();
 
   const [feeRate, setFeeRate] = useState<number | null>(
     feeEstimates
@@ -188,14 +190,15 @@ export default function VaultSetUp({
     missingFunds > 0 ? (
       <View>
         <Text>
-          Not enough funds, ThunderDen requests vaulting at least{' '}
-          {largestMinVaultAmount} sats (after fees) so that it will be possible
-          to recover at least {Math.round(settings.MIN_RECOVERABLE_RATIO * 100)}
-          % of the vaulted value in case of an scenario of extreme high fees in
-          the future. You currently have {utxosDataBalance(utxosData)} sats.
-          However you can only vault {lowestMaxVaultAmount} at most (after
-          fees), assuming you pick express confirmation times. Please add an
-          additional {missingFunds} sats.
+          {t('vaultSetup.notEnoughFunds', {
+            largestMinVaultAmount,
+            minRecoverableRatioPercentage: Math.round(
+              settings.MIN_RECOVERABLE_RATIO * 100
+            ),
+            utxosDataBalance: utxosDataBalance(utxosData),
+            lowestMaxVaultAmount,
+            missingFunds
+          })}
         </Text>
         <Button title="Cancel" onPress={handleCancel} />
       </View>
@@ -205,7 +208,7 @@ export default function VaultSetUp({
           largestMinVaultAmount !== undefined &&
           maxVaultAmount >= largestMinVaultAmount && (
             <View style={styles.settingGroup}>
-              <Text style={styles.label}>Amount:</Text>
+              <Text style={styles.label}>{t('VaultSetUp.amountLabel')}</Text>
               <EditableSlider
                 minimumValue={largestMinVaultAmount}
                 maximumValue={maxVaultAmount}

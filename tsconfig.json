@@ -1,7 +1,11 @@
 {
   "compilerOptions": {
+    "resolveJsonModule": true,
     "jsx": "react-native",
   },
   "extends": "@bitcoinerlab/configs/tsconfig",
-  "include": ["*.ts", "*.tsx"]
+  "include": [
+    "*.ts",
+    "*.tsx"
+  ]
 }

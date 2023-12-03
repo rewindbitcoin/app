@@ -1,3 +1,9 @@
+// As of dec 2023, i18next assumes a fully-complient Intl implementation,
+// which is not 100% ready in react-native
+// So use this polyfill to avoid this error:
+//  ERROR  i18next::pluralResolver: Your environment seems not to be Intl API compatible, use an Intl.PluralRules polyfill. Will fallback to the compatibilityJSON v3 format handling.
+import 'intl-pluralrules';
+
 //shims for react-native
 import { Buffer } from 'buffer';
 global.Buffer = Buffer;

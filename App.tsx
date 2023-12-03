@@ -50,6 +50,7 @@
 //TODO: See the TODOs in Vault
 
 import './init';
+import './src/i18n/i18n';
 import { SettingsProvider, useSettings } from './src/contexts/SettingsContext';
 
 import React, { useState, useEffect } from 'react';
