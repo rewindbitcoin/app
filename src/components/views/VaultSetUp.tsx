@@ -1,16 +1,17 @@
-//TODO translate it all
+//TODO: When the user sends maxFunds on the slider to the right then i might not
+//be sending the full utxos, may I? Because max is computed using another algo
 //TODO: Dont adapt min/max in the EditableSlider. This may be super confussing for users. Better show the error message for out of margins.
 //Also, faster rendering?
 //In the fee rate validation in coinselect i have the 0.1 + 0.2 = 0.30000004 error
 //      `Final fee rate ${finalFeeRate} lower than required ${feeRate}`
 //TODO: Test performance with 100 UTXOs
-//TODO: Put the Fiat currency this in the Context: btcFiat - also the get currency
-//TODO: I need a proper formatBitcoin and formatFiat function
-//TODO: dec, 2, 7:09 i used to have 80k+ sats in hot, now less! Why!?!?!
-
-//  This is 4: Math.ceil((0.1+0.2)*10)
-//share styles VaultSetUp / Unvault
+//TODO: share styles VaultSetUp / Unvault
+//TODO: Translate fees.ts (pass t and use memoization factories)
+//TODO: maybe pass the formatLocTime to lockTime.ts?
 import { Trans, useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
+
+import memoize from 'lodash.memoize';
 import React, { useState } from 'react';
 import type { GestureResponderEvent } from 'react-native';
 import {
@@ -43,6 +44,16 @@ import {
 import { formatBtc } from '../../lib/btcRates';
 import globalStyles from '../../../styles/styles';
 
+const formatLockTimeFactory = memoize((t: TFunction) =>
+  memoize((blocks: number) =>
+    t('vaultSetup.securityLockTimeDescription', {
+      blocks: formatBlocks(blocks)
+    })
+  )
+);
+const formatLockTime = (blocks: number, t: TFunction) =>
+  formatLockTimeFactory(t)(blocks);
+
 /**
  * Given a feeRate, it formats the fee.
  * TODO: memoize this
@@ -71,10 +82,6 @@ const formatVaultFeeRate = ({
     btcFiat,
     feeEstimates
   });
-};
-
-const formatLockTime = (blocks: number): string => {
-  return `Spendable ${formatBlocks(blocks)} after Unvault`;
 };
 
 export default function VaultSetUp({
@@ -138,24 +145,24 @@ export default function VaultSetUp({
     Keyboard.dismiss();
     const errorMessages = [];
 
-    // Validation for lockBlocks (if requested)
+    // Validation for lockBlocks
     if (lockBlocks === null) {
-      errorMessages.push('Pick a valid Lock Time.');
+      errorMessages.push(t('vaultSetup.lockTimeError'));
     }
 
-    //Validation for feeRate
+    // Validation for feeRate
     if (feeRate === null) {
-      errorMessages.push(`Pick a valid Fee Rate.`);
+      errorMessages.push(t('vaultSetup.feeRateError'));
     }
 
-    //Validation for amount
+    // Validation for amount
     if (amount === null) {
-      errorMessages.push('Pick a valid amount of Btc.');
+      errorMessages.push(t('vaultSetup.amountError'));
     }
 
     // If any errors, display them
     if (errorMessages.length > 0) {
-      Alert.alert('Invalid Values', errorMessages.join('\n\n'));
+      Alert.alert(t('vaultSetup.invalidValues'), errorMessages.join('\n\n'));
       return;
     } else {
       if (feeRate === null || amount === null || lockBlocks === null)
@@ -226,8 +233,7 @@ export default function VaultSetUp({
                 <View style={styles.settingGroup}>
                   <Text>{children}</Text>
                 </View>
-              )),
-              br: <Text>{'\n'}</Text>
+              ))
             }}
           />
           <View style={styles.buttonGroup}>
@@ -248,7 +254,10 @@ export default function VaultSetUp({
                   minimumValue={largestMinVaultAmount}
                   maximumValue={maxVaultAmount}
                   value={amount}
-                  onValueChange={setAmount}
+                  onValueChange={amount => {
+                    console.log({ amount });
+                    setAmount(amount);
+                  }}
                   step={1}
                   formatValue={amount =>
                     //TODO: memoize this
@@ -267,19 +276,23 @@ export default function VaultSetUp({
             settings.MAX_LOCK_BLOCKS &&
             formatLockTime && (
               <View style={styles.settingGroup}>
-                <Text style={styles.label}>Security Lock Time (blocks):</Text>
+                <Text style={styles.label}>
+                  {t('vaultSetup.securityLockTimeLabel')}
+                </Text>
                 <EditableSlider
                   minimumValue={settings.MIN_LOCK_BLOCKS}
                   maximumValue={settings.MAX_LOCK_BLOCKS}
                   value={lockBlocks}
                   step={1}
                   onValueChange={setLockBlocks}
-                  formatValue={value => formatLockTime(value)}
+                  formatValue={value => formatLockTime(value, t)}
                 />
               </View>
             )}
           <View style={styles.settingGroup}>
-            <Text style={styles.label}>Confirmation Speed (sat/vbyte):</Text>
+            <Text style={styles.label}>
+              {t('vaultSetup.confirmationSpeedLabel')}
+            </Text>
             <EditableSlider
               value={feeRate}
               minimumValue={settings.MIN_FEE_RATE}
@@ -343,9 +356,9 @@ const styles = StyleSheet.create({
   },
   buttonGroup: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
+    justifyContent: 'space-evenly',
     alignItems: 'center',
     marginTop: 20,
-    width: '40%'
+    width: '60%'
   }
 });

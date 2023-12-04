@@ -112,6 +112,7 @@ export function pickFeeEstimate(
   return feeEstimate;
 }
 
+//TODO: translate this
 export const formatBlocks = (blocks: number): string => {
   const averageBlockTimeInMinutes = 10;
 
@@ -131,6 +132,7 @@ export const formatBlocks = (blocks: number): string => {
   return timeEstimate;
 };
 
+//TODO: translate this
 export const formatFeeRate = ({
   feeRate,
   txSize,
