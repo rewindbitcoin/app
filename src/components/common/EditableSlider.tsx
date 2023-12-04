@@ -1,4 +1,10 @@
+//TODO:  not EditableSlider may return wrong onChange values but this is better
+//  -> I might still return null... and set the sliderManagedValue to max
+//because it does not change the user values inadvertedly
 /**
+ * Even if step is used, minimumValue and maximumValue can be any other number
+ * not within step and this component will let the user pick the
+ * absolute min and max even if not within step
  * value can be null which means its undetermined (the user is editing the
  * input box and entered an invalid value, for example)
  * minimumValue and maximumValue are adapted so that they are within step
@@ -63,18 +69,41 @@ function snap({
   minimumValue: number;
   maximumValue: number;
   step: number;
+}): number {
+  const digits = countDecimalDigits(step);
+  const snappedValue = Number(
+    (step * Math.round(value / step)).toFixed(digits)
+  );
+
+  if (snappedValue > maximumValue && value <= maximumValue) return value;
+  if (snappedValue < minimumValue && value >= minimumValue) return value;
+  return snappedValue;
+}
+function snap2Str({
+  snappedValue,
+  step
+}: {
+  snappedValue: number;
+  step: number;
 }): string {
   const digits = countDecimalDigits(step);
-  minimumValue = Number(
-    (step * Math.ceil(minimumValue / step)).toFixed(digits)
+  return snappedValue.toFixed(digits);
+}
+
+function inRange({
+  snappedValue,
+  minimumValue,
+  maximumValue
+}: {
+  snappedValue: number | null;
+  minimumValue: number;
+  maximumValue: number;
+}) {
+  return (
+    snappedValue !== null &&
+    snappedValue >= minimumValue &&
+    snappedValue <= maximumValue
   );
-  maximumValue = Number(
-    (step * Math.floor(maximumValue / step)).toFixed(digits)
-  );
-  value = Number((step * Math.round(value / step)).toFixed(digits));
-  value = Math.min(value, maximumValue);
-  value = Math.max(value, minimumValue);
-  return value.toFixed(digits);
 }
 
 const EditableSlider = ({
@@ -90,20 +119,26 @@ const EditableSlider = ({
     errorMessage ||
     `Pick a number between ${minimumValue} and ${maximumValue}.`;
 
+  //TODO: snappedValue is f() - use f() because otherwise its confusing its
+  //derived data
   const snappedValue =
-    value === null
-      ? null
-      : Number(snap({ value, minimumValue, maximumValue, step }));
+    value === null ? null : snap({ value, minimumValue, maximumValue, step });
 
   const prevSnappedValue = useRef<number | null>();
-  //Parent may be passing values out of range and not step-valid
-  //Instead of throwing, notify parent that the correct value is, in fact,
-  //snappedValue
   useEffect(() => {
-    if (snappedValue !== prevSnappedValue.current && onValueChange)
-      onValueChange(snappedValue);
     prevSnappedValue.current = snappedValue;
   }, [snappedValue]);
+
+  //Parent may be passing values out of range and not step-valid
+  //Instead of throwing, notify null to the parent or the correct snapped value
+  useEffect(() => {
+    if (value !== snappedValue && onValueChange)
+      onValueChange(
+        inRange({ snappedValue, minimumValue, maximumValue })
+          ? snappedValue
+          : null
+      );
+  }, [value, minimumValue, maximumValue, step]);
   //If parent changes minimumValue, step or maximumValue, then
   //force update Slider and TextInput
   //This is done because snappedValue might have been adjusted to be within the
@@ -112,20 +147,22 @@ const EditableSlider = ({
   //the useEffect above and when the Slider or TextInput changes
   useEffect(() => {
     if (snappedValue !== null) {
-      setSliderManagedValue(snappedValue);
-      setStrValue(snappedValue.toString());
+      if (snappedValue > maximumValue) setSliderManagedValue(maximumValue);
+      else if (snappedValue < minimumValue) setSliderManagedValue(minimumValue);
+      else setSliderManagedValue(snappedValue);
+      setStrValue(snap2Str({ snappedValue, step }));
     }
   }, [minimumValue, maximumValue, step]);
-  const mountStrValue = snap({
+  const mountSnappedValue = snap({
     value: value === null ? minimumValue : value,
     minimumValue,
     maximumValue,
     step
   });
+  const mountStrValue = snap2Str({ snappedValue: mountSnappedValue, step });
   const [strValue, setStrValue] = useState<string>(mountStrValue);
-  const [sliderManagedValue, setSliderManagedValue] = useState<number>(
-    Number(mountStrValue)
-  );
+  const [sliderManagedValue, setSliderManagedValue] =
+    useState<number>(mountSnappedValue);
 
   //TODO: in android i dont get number-pad?
   const keyboardType = step === 1 ? 'number-pad' : 'numeric';
@@ -138,19 +175,17 @@ const EditableSlider = ({
     Number(strValue) <= maximumValue;
 
   const onSliderValueChange = (value: number) => {
-    const strValue = snap({ value, minimumValue, maximumValue, step });
-    value = Number(strValue);
+    const snappedValue = snap({ value, minimumValue, maximumValue, step });
+    const strValue = snap2Str({ snappedValue, step });
     setStrValue(strValue);
-    if (value !== prevSnappedValue.current && onValueChange)
-      onValueChange(value);
+    if (snappedValue !== prevSnappedValue.current && onValueChange)
+      onValueChange(snappedValue);
   };
   const onTextInputValueChange = (strValue: string) => {
     setStrValue(strValue);
     if (strNumberInRange(strValue)) {
       const value = Number(strValue);
-      setSliderManagedValue(
-        Number(snap({ value, minimumValue, maximumValue, step }))
-      );
+      setSliderManagedValue(snap({ value, minimumValue, maximumValue, step }));
       if (value !== prevSnappedValue.current && onValueChange)
         onValueChange(value);
     } else {
@@ -159,7 +194,10 @@ const EditableSlider = ({
     }
   };
   const formattedValue =
-    snappedValue === null ? errorMessage : formatValue(snappedValue);
+    snappedValue === null ||
+    !inRange({ snappedValue, minimumValue, maximumValue })
+      ? errorMessage
+      : formatValue(snappedValue);
 
   return (
     <TouchableWithoutFeedback onPress={handlePressOutside}>
@@ -186,7 +224,9 @@ const EditableSlider = ({
         <Text
           style={[
             fontsLoaded ? { fontFamily: 'RobotoMono_400Regular' } : {},
-            !strNumberInRange(strValue) ? { color: 'red' } : {}
+            !inRange({ snappedValue, minimumValue, maximumValue })
+              ? { color: 'red' }
+              : {}
           ]}
         >
           {formattedValue}
