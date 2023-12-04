@@ -1,3 +1,6 @@
+//TODO translate it all
+//TODO: Dont adapt min/max in the EditableSlider. This may be super confussing for users. Better show the error message for out of margins.
+//Also, faster rendering?
 //In the fee rate validation in coinselect i have the 0.1 + 0.2 = 0.30000004 error
 //      `Final fee rate ${finalFeeRate} lower than required ${feeRate}`
 //TODO: Test performance with 100 UTXOs
@@ -7,7 +10,7 @@
 
 //  This is 4: Math.ceil((0.1+0.2)*10)
 //share styles VaultSetUp / Unvault
-import { useTranslation } from 'react-i18next';
+import { Trans, useTranslation } from 'react-i18next';
 import React, { useState } from 'react';
 import type { GestureResponderEvent } from 'react-native';
 import {
@@ -24,7 +27,6 @@ import { useSettings } from '../../contexts/SettingsContext';
 import EditableSlider from '../common/EditableSlider';
 import {
   UtxosData,
-  utxosDataBalance,
   estimateVaultTxSize,
   estimateMaxVaultAmount,
   estimateMinVaultAmount,
@@ -39,6 +41,7 @@ import {
   formatBlocks
 } from '../../lib/fees';
 import { formatBtc } from '../../lib/btcRates';
+import globalStyles from '../../../styles/styles';
 
 /**
  * Given a feeRate, it formats the fee.
@@ -196,96 +199,123 @@ export default function VaultSetUp({
         //The fee of a new pkh utxo:
         Math.ceil(maxFeeRate * 148);
 
-  //TODO: better format of message when !enoughFunds
   const content =
     missingFunds > 0 ? (
-      <View>
-        <Text>
-          {t('vaultSetup.notEnoughFunds', {
-            largestMinVaultAmount,
-            minRecoverableRatioPercentage: Math.round(
-              settings.MIN_RECOVERABLE_RATIO * 100
-            ),
-            utxosDataBalance: utxosDataBalance(utxosData),
-            lowestMaxVaultAmount,
-            missingFunds
-          })}
+      <>
+        <Text style={globalStyles.title}>
+          {t('vaultSetup.notEnoughFundsTitle')}
         </Text>
-        <Button title="Cancel" onPress={handleCancel} />
-      </View>
-    ) : (
-      <View style={styles.content}>
-        {maxVaultAmount !== undefined &&
-          largestMinVaultAmount !== undefined &&
-          maxVaultAmount >= largestMinVaultAmount && (
-            <View style={styles.settingGroup}>
-              <Text style={styles.label}>{t('vaultSetup.amountLabel')}</Text>
-              <EditableSlider
-                minimumValue={largestMinVaultAmount}
-                maximumValue={maxVaultAmount}
-                value={amount}
-                onValueChange={setAmount}
-                step={1}
-                formatValue={amount =>
-                  //TODO: memoize this
-                  formatBtc({
-                    amount,
-                    subUnit: settings.SUB_UNIT,
-                    btcFiat,
-                    locale: settings.LOCALE,
-                    currency: settings.CURRENCY
-                  })
-                }
-              />
-            </View>
-          )}
-        {settings.MIN_LOCK_BLOCKS &&
-          settings.MAX_LOCK_BLOCKS &&
-          formatLockTime && (
-            <View style={styles.settingGroup}>
-              <Text style={styles.label}>Security Lock Time (blocks):</Text>
-              <EditableSlider
-                minimumValue={settings.MIN_LOCK_BLOCKS}
-                maximumValue={settings.MAX_LOCK_BLOCKS}
-                value={lockBlocks}
-                step={1}
-                onValueChange={setLockBlocks}
-                formatValue={value => formatLockTime(value)}
-              />
-            </View>
-          )}
-        <View style={styles.settingGroup}>
-          <Text style={styles.label}>Confirmation Speed (sat/vbyte):</Text>
-          <EditableSlider
-            value={feeRate}
-            minimumValue={settings.MIN_FEE_RATE}
-            maximumValue={maxFeeRate}
-            onValueChange={setFeeRate}
-            formatValue={feeRate => {
-              //TODO: memoize this
-              //memoizing the formatVaultFeeRate will only work well
-              //if selectUtxosData reference does not change (it currently does)
-              const selectedUtxosData =
-                (feeRate !== null &&
-                  amount !== null &&
-                  selectUtxosData({ utxosData, feeRate, amount })) ||
-                utxosData;
-              return formatVaultFeeRate({
-                feeRate,
-                feeEstimates,
+        <View style={styles.content}>
+          <Trans
+            i18nKey="vaultSetup.notEnoughFunds"
+            values={{
+              minRecoverableRatioPercentage: Math.round(
+                settings.MIN_RECOVERABLE_RATIO * 100
+              ),
+              missingFunds: formatBtc({
+                amount: missingFunds,
+                subUnit: settings.SUB_UNIT,
                 btcFiat,
                 locale: settings.LOCALE,
-                currency: settings.CURRENCY,
-                selectedUtxosData
-              });
+                currency: settings.CURRENCY
+              })
+            }}
+            components={{
+              strong: <Text style={{ fontWeight: 'bold' }} />,
+              group: React.createElement(({ children }) => (
+                <View style={styles.settingGroup}>
+                  <Text>{children}</Text>
+                </View>
+              )),
+              br: <Text>{'\n'}</Text>
             }}
           />
+          <View style={styles.buttonGroup}>
+            <Button title={t('cancelButton')} onPress={handleCancel} />
+          </View>
         </View>
-        <View style={styles.buttonGroup}>
-          <Button title={onCancel ? 'OK' : 'Save'} onPress={handleOK} />
-          {onCancel && <Button title="Cancel" onPress={handleCancel} />}
+      </>
+    ) : (
+      <>
+        <Text style={globalStyles.title}>{t('vaultSetup.title')}</Text>
+        <View style={styles.content}>
+          {maxVaultAmount !== undefined &&
+            largestMinVaultAmount !== undefined &&
+            maxVaultAmount >= largestMinVaultAmount && (
+              <View style={styles.settingGroup}>
+                <Text style={styles.label}>{t('vaultSetup.amountLabel')}</Text>
+                <EditableSlider
+                  minimumValue={largestMinVaultAmount}
+                  maximumValue={maxVaultAmount}
+                  value={amount}
+                  onValueChange={setAmount}
+                  step={1}
+                  formatValue={amount =>
+                    //TODO: memoize this
+                    formatBtc({
+                      amount,
+                      subUnit: settings.SUB_UNIT,
+                      btcFiat,
+                      locale: settings.LOCALE,
+                      currency: settings.CURRENCY
+                    })
+                  }
+                />
+              </View>
+            )}
+          {settings.MIN_LOCK_BLOCKS &&
+            settings.MAX_LOCK_BLOCKS &&
+            formatLockTime && (
+              <View style={styles.settingGroup}>
+                <Text style={styles.label}>Security Lock Time (blocks):</Text>
+                <EditableSlider
+                  minimumValue={settings.MIN_LOCK_BLOCKS}
+                  maximumValue={settings.MAX_LOCK_BLOCKS}
+                  value={lockBlocks}
+                  step={1}
+                  onValueChange={setLockBlocks}
+                  formatValue={value => formatLockTime(value)}
+                />
+              </View>
+            )}
+          <View style={styles.settingGroup}>
+            <Text style={styles.label}>Confirmation Speed (sat/vbyte):</Text>
+            <EditableSlider
+              value={feeRate}
+              minimumValue={settings.MIN_FEE_RATE}
+              maximumValue={maxFeeRate}
+              onValueChange={setFeeRate}
+              formatValue={feeRate => {
+                //TODO: memoize this
+                //memoizing the formatVaultFeeRate will only work well
+                //if selectUtxosData reference does not change (it currently does)
+                const selectedUtxosData =
+                  (feeRate !== null &&
+                    amount !== null &&
+                    selectUtxosData({ utxosData, feeRate, amount })) ||
+                  utxosData;
+                return formatVaultFeeRate({
+                  feeRate,
+                  feeEstimates,
+                  btcFiat,
+                  locale: settings.LOCALE,
+                  currency: settings.CURRENCY,
+                  selectedUtxosData
+                });
+              }}
+            />
+          </View>
+          <View style={styles.buttonGroup}>
+            <Button
+              title={onCancel ? t('okButton') : t('saveButton')}
+              onPress={handleOK}
+            />
+            {onCancel && (
+              <Button title={t('cancelButton')} onPress={handleCancel} />
+            )}
+          </View>
         </View>
-      </View>
+      </>
     );
 
   return (
@@ -311,30 +341,11 @@ const styles = StyleSheet.create({
     textAlign: 'left',
     fontWeight: '500'
   },
-  input: {
-    fontSize: 15,
-    padding: 10,
-    borderWidth: 1,
-    borderColor: 'gray',
-    borderRadius: 5
-  },
   buttonGroup: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'space-around',
+    alignItems: 'center',
     marginTop: 20,
     width: '40%'
-  },
-  wrapper: {
-    marginRight: 20,
-    marginLeft: 20,
-    padding: 10,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#e0e0e0'
-  },
-  title: {
-    fontSize: 18,
-    fontWeight: '600',
-    marginBottom: 15
   }
 });

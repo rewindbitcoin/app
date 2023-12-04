@@ -22,8 +22,9 @@ interface Settings {
   INITIAL_CONFIRMATION_TIME: number;
   MIN_RECOVERABLE_RATIO: number;
   SUB_UNIT: SubUnit;
-  CURRENCY: Currency;
   LOCALE: Locale;
+  CURRENCY: Currency;
+  BTC_FIAT_REFRESH_INTERVAL_MS: number;
 }
 
 interface SettingsContextProps {
@@ -52,7 +53,8 @@ const defaultSettings: Settings = {
   MIN_RECOVERABLE_RATIO: 1 / 100,
   SUB_UNIT: 'sat',
   LOCALE: 'en-US',
-  CURRENCY: 'USD'
+  CURRENCY: 'USD',
+  BTC_FIAT_REFRESH_INTERVAL_MS: 600000 //10 minutes
 };
 
 // Create the context

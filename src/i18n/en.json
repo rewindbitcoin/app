@@ -1,14 +1,16 @@
 {
   "vaultSetup": {
-    "notEnoughFunds": "Not enough funds, ThunderDen requests vaulting at least {{largestMinVaultAmount}} sats (after fees) so that it will be possible to recover at least {{minRecoverableRatioPercentage}}% of the vaulted value in case of an extreme high fee scenario in the future. You currently have {{utxosDataBalance}} sats. However, you can only vault {{lowestMaxVaultAmount}} at most (after fees), assuming you pick express confirmation times. Please add an additional {{missingFunds}} sats.",
+    "title": "Vault Set Up",
+    "notEnoughFundsTitle": "Vault Minimum Requirement",
+    "notEnoughFunds": "<group>To ensure you can unvault at least {{minRecoverableRatioPercentage}}% of your Bitcoin in the future, ThunderDen establishes a minimum vaulting amount.<br/>This assumes express transaction confirmations and the possibility of ultra-high network fees when unvaulting.</group><group><strong>Suggested Addition:</strong> Add about {{missingFunds}} to reach the vaulting minimum.<br/>Note that the exact vaultable amount might slightly differ due to changes in network fee conditions.</group>",
     "amountLabel": "Amount:",
     "securityLockTimeLabel": "Security Lock Time (blocks):",
     "securityLockTimeDescription": "Spendable {{blocks}} after Unvault",
     "confirmationSpeedLabel": "Confirmation Speed (sat/vbyte):",
-    "okButton": "OK",
-    "saveButton": "Save",
-    "cancelButton": "Cancel",
     "invalidValuesTitle": "Invalid Values",
     "invalidValuesMessage": "Invalid values provided. Please correct the following errors:\n\n{{errorMessages}}"
-  }
+  },
+  "okButton": "OK",
+  "saveButton": "Save",
+  "cancelButton": "Cancel"
 }

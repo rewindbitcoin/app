@@ -58,7 +58,7 @@ import {
   Currency
 } from './src/contexts/SettingsContext';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   ScrollView,
   Text,
@@ -263,6 +263,35 @@ function App() {
     initI18n(settings.LOCALE);
   }, [settings.LOCALE]);
 
+  const intervalRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const fetchBtcFiat = async () => {
+    try {
+      const btcFiat = await getBtcFiat(settings.CURRENCY);
+      setBtcFiat(btcFiat);
+    } catch (err) {
+      // TODO: Handle errors here
+      console.error(err);
+    }
+  };
+
+  const lastCurrencyRef = useRef(settings.CURRENCY);
+  useEffect(() => {
+    if (intervalRef.current) clearInterval(intervalRef.current);
+    if (lastCurrencyRef.current !== settings.CURRENCY) fetchBtcFiat();
+
+    lastCurrencyRef.current = settings.CURRENCY;
+    intervalRef.current = setInterval(
+      fetchBtcFiat,
+      settings.BTC_FIAT_REFRESH_INTERVAL_MS
+    );
+
+    // Clear interval on unmount or when settings.CURRENCY changes
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
+  }, [settings.CURRENCY, settings.BTC_FIAT_REFRESH_INTERVAL_MS]);
+
   const init = async () => {
     const mnemonic = await AsyncStorage.getItem('mnemonic');
     const url = esploraUrl(network);
@@ -299,11 +328,11 @@ function App() {
       setFeeEstimates(feeEstimates);
     } catch (err) {}
 
-    try {
-      //TODO: This must be refreshed every 10 minutes of what???
-      const btcFiat = await getBtcFiat(settings.CURRENCY);
-      setBtcFiat(btcFiat);
-    } catch (err) {}
+    // Fetch BTC to Fiat data on init
+    fetchBtcFiat();
+
+    // Init locales on init
+    initI18n(settings.LOCALE);
   };
 
   useEffect(() => {
@@ -746,7 +775,6 @@ Handle with care. Confidentiality is key.
         {hotUtxosData && (
           <Modal visible={isVaultSetUp} animationType="slide">
             <View style={[styles.modal, { padding: 40 }]}>
-              <Text style={styles.title}>Vault Set Up</Text>
               <VaultSetUp
                 utxosData={hotUtxosData}
                 feeEstimates={feeEstimates}
