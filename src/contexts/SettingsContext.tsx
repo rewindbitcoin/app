@@ -35,7 +35,7 @@ interface SettingsContextProps {
 }
 
 // Default values for the context
-const defaultSettings: Settings = {
+export const defaultSettings: Settings = {
   GAP_LIMIT: 3,
   MIN_FEE_RATE: 1,
   MIN_LOCK_BLOCKS: 1,

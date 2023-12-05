@@ -51,7 +51,9 @@
 
 import './init';
 import initI18n from './src/i18n/i18n';
+import { useTranslation } from 'react-i18next';
 import {
+  defaultSettings,
   SettingsProvider,
   useSettings,
   Locale,
@@ -102,6 +104,8 @@ const { wpkhBIP32 } = scriptExpressions;
 
 import { EsploraExplorer } from '@bitcoinerlab/explorer';
 import { DiscoveryFactory, DiscoveryInstance } from '@bitcoinerlab/discovery';
+// init to something. The useSettings for correct values
+initI18n(defaultSettings.LOCALE);
 
 const { Output, BIP32 } = DescriptorsFactory(secp256k1);
 const GAP_LIMIT = 3;
@@ -133,6 +137,7 @@ import {
   estimateTriggerTxSize
 } from './src/lib/vaults';
 import styles from './styles/styles';
+import type { TFunction } from 'i18next';
 
 const fromMnemonic = memoize(mnemonic => {
   if (!mnemonic) throw new Error('mnemonic not passed');
@@ -212,30 +217,36 @@ const spendableTriggerDescriptors = (vaults: Vaults): Array<string> => {
   return descriptors;
 };
 
-const formatTriggerFeeRate = ({
-  feeRate,
-  btcFiat,
-  locale,
-  currency,
-  feeEstimates,
-  vault
-}: {
-  feeRate: number;
-  btcFiat: number | null;
-  locale: Locale;
-  currency: Currency;
-  feeEstimates: Record<string, number> | null;
-  vault: Vault;
-}) => {
-  const { feeRate: finalFeeRate } = findClosestTriggerFeeRate(feeRate, vault);
-  const formattedFeeRate = formatFeeRate({
-    feeRate: finalFeeRate,
-    txSize: estimateTriggerTxSize(vault.lockBlocks),
+const formatTriggerFeeRate = (
+  {
+    feeRate,
+    btcFiat,
     locale,
     currency,
-    btcFiat,
-    feeEstimates
-  });
+    feeEstimates,
+    vault
+  }: {
+    feeRate: number;
+    btcFiat: number | null;
+    locale: Locale;
+    currency: Currency;
+    feeEstimates: Record<string, number> | null;
+    vault: Vault;
+  },
+  t: TFunction
+) => {
+  const { feeRate: finalFeeRate } = findClosestTriggerFeeRate(feeRate, vault);
+  const formattedFeeRate = formatFeeRate(
+    {
+      feeRate: finalFeeRate,
+      txSize: estimateTriggerTxSize(vault.lockBlocks),
+      locale,
+      currency,
+      btcFiat,
+      feeEstimates
+    },
+    t
+  );
   return `Final Fee Rate: ${finalFeeRate.toFixed(2)} sats/vbyte
 ${formattedFeeRate}`;
 };
@@ -263,6 +274,7 @@ function App() {
     initI18n(settings.LOCALE);
   }, [settings.LOCALE]);
 
+  const { t } = useTranslation();
   const intervalRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const fetchBtcFiat = async () => {
@@ -626,13 +638,16 @@ Handle with care. Confidentiality is key.
           {hotBalance !== null && (
             <Text style={styles.hotBalance}>
               Hot Balance:{' '}
-              {formatBtc({
-                amount: hotBalance,
-                subUnit: settings.SUB_UNIT,
-                btcFiat,
-                locale: settings.LOCALE,
-                currency: settings.CURRENCY
-              })}{' '}
+              {formatBtc(
+                {
+                  amount: hotBalance,
+                  subUnit: settings.SUB_UNIT,
+                  btcFiat,
+                  locale: settings.LOCALE,
+                  currency: settings.CURRENCY
+                },
+                t
+              )}{' '}
               {checkingBalance && ' ⏳'}
             </Text>
           )}
@@ -801,14 +816,17 @@ Handle with care. Confidentiality is key.
               onCancel={() => setUnvault(null)}
               formatFeeRate={({ feeRate }: { feeRate: number }) => {
                 if (!unvault) throw new Error('Trigger Vault unavailable');
-                return formatTriggerFeeRate({
-                  feeRate,
-                  btcFiat,
-                  locale: settings.LOCALE,
-                  currency: settings.CURRENCY,
-                  feeEstimates,
-                  vault: unvault
-                });
+                return formatTriggerFeeRate(
+                  {
+                    feeRate,
+                    btcFiat,
+                    locale: settings.LOCALE,
+                    currency: settings.CURRENCY,
+                    feeEstimates,
+                    vault: unvault
+                  },
+                  t
+                );
               }}
             />
           </View>

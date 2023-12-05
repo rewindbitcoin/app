@@ -1,6 +1,9 @@
 import { formatFiat } from './btcRates';
 import type { Locale, Currency } from '../contexts/SettingsContext';
 
+import type { TFunction } from 'i18next';
+import memoize from 'lodash.memoize';
+
 /**
  * Returns an array of precomputed `feeRates` within a range.
  *
@@ -59,7 +62,7 @@ export function feeRateSampling(
     const f = Math.pow(maxSatsPerByte / minSatsPerByte, 1 / --samples);
     while (--samples) {
       const prevResult = result[result.length - 1];
-      if (!prevResult) throw new Error(`Error: invalid result`);
+      if (!prevResult) throw new Error('Invalid result');
       result.push(prevResult * f);
     }
     result.push(maxSatsPerByte);
@@ -112,63 +115,102 @@ export function pickFeeEstimate(
   return feeEstimate;
 }
 
-//TODO: translate this
-export const formatBlocks = (blocks: number): string => {
-  const averageBlockTimeInMinutes = 10;
+const formatLockTimeFactory = memoize((t: TFunction) =>
+  memoize((blocks: number) =>
+    t('vaultSetup.securityLockTimeDescription', {
+      blocks: formatBlocks(blocks, t)
+    })
+  )
+);
+export const formatLockTime = (blocks: number, t: TFunction) =>
+  formatLockTimeFactory(t)(blocks);
 
-  const timeInMinutes = blocks * averageBlockTimeInMinutes;
-  let timeEstimate = '';
+const formatBlocksFactory = memoize((t: TFunction) =>
+  memoize((blocks: number) => {
+    const averageBlockTimeInMinutes = 10;
+    const timeInMinutes = blocks * averageBlockTimeInMinutes;
+    const rawTimeInHours = timeInMinutes / 60;
+    const rawTimeInDays = timeInMinutes / 1440;
 
-  if (timeInMinutes < 60) {
-    timeEstimate = `~${timeInMinutes} min${timeInMinutes > 1 ? 's' : ''}`;
-  } else if (timeInMinutes < 1440) {
-    // Less than a day
-    const timeInHours = (timeInMinutes / 60).toFixed(1);
-    timeEstimate = `~${timeInHours} hour${timeInHours === '1.0' ? '' : 's'}`;
-  } else {
-    const timeInDays = (timeInMinutes / 1440).toFixed(1);
-    timeEstimate = `~${timeInDays} day${timeInDays === '1.0' ? '' : 's'}`;
-  }
-  return timeEstimate;
-};
+    if (timeInMinutes < 60) {
+      return t('timeEstimate.minutes', {
+        count: timeInMinutes,
+        formattedCount: timeInMinutes.toFixed(1)
+      });
+    } else if (timeInMinutes < 1440) {
+      return t('timeEstimate.hours', {
+        count: rawTimeInHours,
+        formattedCount: rawTimeInHours.toFixed(1)
+      });
+    } else {
+      return t('timeEstimate.days', {
+        count: rawTimeInDays,
+        formattedCount: rawTimeInDays.toFixed(1)
+      });
+    }
+  })
+);
 
-//TODO: translate this
-export const formatFeeRate = ({
-  feeRate,
-  txSize,
-  btcFiat,
-  locale,
-  currency,
-  feeEstimates
-}: {
-  feeRate: number;
-  txSize: number;
-  btcFiat: number | null;
-  locale: Locale;
-  currency: Currency;
-  feeEstimates: FeeEstimates | null;
-}) => {
-  let strBtcFiat = `Waiting for BTC/${currency} rates...`;
-  let strTime = `Waiting for fee estimates...`;
-  if (btcFiat !== null) {
-    const amount = (feeRate * txSize * btcFiat) / 1e8;
-    strBtcFiat = `Fee: ${formatFiat({ amount, locale, currency })}`;
-  }
-  if (feeEstimates && Object.keys(feeEstimates).length) {
-    // Convert the feeEstimates object keys to numbers and sort them
-    const sortedEstimates = Object.keys(feeEstimates)
-      .map(Number)
-      .sort((a, b) => feeEstimates[a]! - feeEstimates[b]!);
+export const formatBlocks = (blocks: number, t: TFunction) =>
+  formatBlocksFactory(t)(blocks);
 
-    //Find confirmation target with closest higher fee rate than given feeRate
-    const target = sortedEstimates.find(
-      estimate => feeEstimates[estimate]! >= feeRate
-    );
+const formatFeeRateFactory = memoize((t: TFunction) =>
+  memoize(
+    ({
+      feeRate,
+      txSize,
+      btcFiat,
+      locale,
+      currency,
+      feeEstimates
+    }: {
+      feeRate: number;
+      txSize: number;
+      btcFiat: number | null;
+      locale: Locale;
+      currency: Currency;
+      feeEstimates: FeeEstimates | null;
+    }) => {
+      let strBtcFiat = t('feeRate.waitingForRates', { currency });
+      let strTime = t('feeRate.waitingForEstimates');
 
-    if (target !== undefined) strTime = `Confirms in ${formatBlocks(target)}`;
-    // If the provided fee rate is lower than any estimate,
-    // it's not possible to estimate the time
-    else strTime = `Express confirmation`;
-  }
-  return `${strTime} / ${strBtcFiat}`;
-};
+      if (btcFiat !== null) {
+        const amount = (feeRate * txSize * btcFiat) / 1e8;
+        strBtcFiat = t('feeRate.fee', {
+          amount: formatFiat({ amount, locale, currency })
+        });
+      }
+
+      if (feeEstimates && Object.keys(feeEstimates).length) {
+        const sortedEstimates = Object.keys(feeEstimates)
+          .map(Number)
+          .sort((a, b) => feeEstimates[a]! - feeEstimates[b]!);
+
+        const target = sortedEstimates.find(
+          estimate => feeEstimates[estimate]! >= feeRate
+        );
+
+        if (target !== undefined)
+          strTime = t('feeRate.confirmationTime', {
+            blocks: formatBlocks(target, t)
+          });
+        else strTime = t('feeRate.expressConfirmation');
+      }
+
+      return `${strTime} / ${strBtcFiat}`;
+    },
+    args => JSON.stringify(args)
+  )
+);
+
+export const formatFeeRate = (
+  feeRateArgs: {
+    feeRate: number;
+    txSize: number;
+    btcFiat: number | null;
+    locale: Locale;
+    currency: Currency;
+    feeEstimates: FeeEstimates | null;
+  },
+  t: TFunction
+) => formatFeeRateFactory(t)(feeRateArgs);

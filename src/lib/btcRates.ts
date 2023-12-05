@@ -1,4 +1,5 @@
 import memoize from 'lodash.memoize';
+import type { TFunction } from 'i18next';
 import type { SubUnit, Currency, Locale } from '../contexts/SettingsContext';
 
 //TODO: Do not depend on external APIs - or show a couple of options coingecko +
@@ -57,53 +58,73 @@ export const formatFiat = ({
   return formatter.format(amount);
 };
 
-export const formatBtc = ({
-  amount, // Amount in satoshis
-  subUnit, // Preferred subunit for small amounts
-  btcFiat,
-  locale,
-  currency
-}: {
-  amount: number;
-  subUnit: SubUnit;
-  btcFiat?: number | null | undefined;
-  locale?: Locale | null | undefined;
-  currency?: Currency | null | undefined;
-}) => {
-  const ONE_BTC_IN_SATS = 100000000;
-  const THRESHOLD_FOR_BTC = ONE_BTC_IN_SATS * 0.1; // 0.1 BTC
+const formatBtcFactory = memoize((t: TFunction) =>
+  memoize(
+    ({
+      amount,
+      subUnit,
+      btcFiat,
+      locale,
+      currency
+    }: {
+      amount: number;
+      subUnit: SubUnit;
+      btcFiat?: number | null | undefined;
+      locale: Locale;
+      currency: Currency;
+    }) => {
+      const ONE_BTC_IN_SATS = 100000000;
+      const THRESHOLD_FOR_BTC = ONE_BTC_IN_SATS * 0.1; // 0.1 BTC
 
-  let formattedValue;
+      let formattedValue;
 
-  if (amount >= THRESHOLD_FOR_BTC) {
-    // Format in BTC for amounts 0.1 BTC and above
-    return `${(amount / ONE_BTC_IN_SATS).toLocaleString()} BTC`;
-  } else {
-    // Format in the preferred subunit for smaller amounts
-    switch (subUnit) {
-      case 'sat':
-        formattedValue = `${amount.toLocaleString()} sats`;
-        break;
-      case 'mbit':
-        // 1 mBTC = 100,000 satoshis
-        formattedValue = `${(amount / 100000).toLocaleString()} mBTC`;
-        break;
-      case 'bit':
-        // 1 bit = 100 satoshis
-        formattedValue = `${(amount / 100).toLocaleString()} bits`;
-        break;
-      default:
-        throw new Error(`Invalid subunit ${subUnit}`);
-    }
-  }
-  if (
-    typeof btcFiat === 'number' &&
-    typeof locale === 'string' &&
-    typeof currency === 'string'
-  ) {
-    formattedValue +=
-      ' / ' +
-      formatFiat({ amount: (amount * btcFiat) / 1e8, locale, currency });
-  }
-  return formattedValue;
-};
+      if (amount >= THRESHOLD_FOR_BTC) {
+        formattedValue = t('btcFormat.btc', {
+          value: (amount / ONE_BTC_IN_SATS).toLocaleString(locale)
+        });
+      } else {
+        switch (subUnit) {
+          case 'sat':
+            formattedValue = t('btcFormat.sats', {
+              value: amount.toLocaleString(locale),
+              count: amount
+            });
+            break;
+          case 'mbit':
+            formattedValue = t('btcFormat.mbtc', {
+              value: (amount / 100000).toLocaleString(locale)
+            });
+            break;
+          case 'bit':
+            formattedValue = t('btcFormat.bits', {
+              value: (amount / 100).toLocaleString(locale),
+              count: amount
+            });
+            break;
+          default:
+            throw new Error(t('btcFormat.invalidSubunit', { subUnit }));
+        }
+      }
+
+      if (typeof btcFiat === 'number') {
+        formattedValue +=
+          ' / ' +
+          formatFiat({ amount: (amount * btcFiat) / 1e8, locale, currency });
+      }
+
+      return formattedValue;
+    },
+    args => JSON.stringify(args)
+  )
+);
+
+export const formatBtc = (
+  btcArgs: {
+    amount: number;
+    subUnit: SubUnit;
+    btcFiat?: number | null | undefined;
+    locale: Locale;
+    currency: Currency;
+  },
+  t: TFunction
+) => formatBtcFactory(t)(btcArgs);

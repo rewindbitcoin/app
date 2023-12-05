@@ -17,6 +17,29 @@
     "minValueError": "Minimum is {{maximumValue}}",
     "invalidValue": "Invalid Value"
   },
+  "timeEstimate": {
+    "minutes_one": "{{formattedCount}} min",
+    "minutes_other": "{{formattedCount}} mins",
+    "hours_one": "{{formattedCount}} hour",
+    "hours_other": "{{formattedCount}} hours",
+    "days_one": "{{formattedCount}} day",
+    "days_other": "{{formattedCount}} days"
+  },
+  "btcFormat": {
+    "btc": "{{value}} BTC",
+    "sats_one": "{{value}} sat",
+    "sats_other": "{{value}} sats",
+    "mbtc": "{{value}} mBTC",
+    "bits_one": "{{value}} bit",
+    "bits_other": "{{value}} bits"
+  },
+  "feeRate": {
+    "waitingForRates": "Waiting for BTC/{{currency}} rates...",
+    "waitingForEstimates": "Waiting for fee estimates...",
+    "fee": "Fee: {{amount}}",
+    "confirmationTime": "Confirms in {{blocks}}",
+    "expressConfirmation": "Express confirmation"
+  },
   "okButton": "OK",
   "saveButton": "Save",
   "cancelButton": "Cancel"

@@ -1,3 +1,4 @@
+//TODO: Format formatBtc too translate. maybe move all formatters to their own file?
 //TODO: When the user sends maxFunds on the slider to the right then i might not
 //be sending the full utxos, may I? Because I select amount based on maxFunds
 //but this is assuming 72 bytes signatures. This may not be the real maxFunds and
@@ -9,9 +10,6 @@
 //TODO: Translate fees.ts (pass t and use memoization factories)
 //TODO: maybe pass the formatLocTime to lockTime.ts?
 import { Trans, useTranslation } from 'react-i18next';
-import type { TFunction } from 'i18next';
-
-import memoize from 'lodash.memoize';
 import React, { useState } from 'react';
 import type { GestureResponderEvent } from 'react-native';
 import {
@@ -39,20 +37,11 @@ import {
   FeeEstimates,
   pickFeeEstimate,
   formatFeeRate,
-  formatBlocks
+  formatLockTime
 } from '../../lib/fees';
 import { formatBtc } from '../../lib/btcRates';
 import globalStyles from '../../../styles/styles';
-
-const formatLockTimeFactory = memoize((t: TFunction) =>
-  memoize((blocks: number) =>
-    t('vaultSetup.securityLockTimeDescription', {
-      blocks: formatBlocks(blocks)
-    })
-  )
-);
-const formatLockTime = (blocks: number, t: TFunction) =>
-  formatLockTimeFactory(t)(blocks);
+import type { TFunction } from 'i18next';
 
 const FEE_RATE_STEP = 0.01;
 
@@ -60,30 +49,36 @@ const FEE_RATE_STEP = 0.01;
  * Given a feeRate, it formats the fee.
  * TODO: memoize this
  */
-const formatVaultFeeRate = ({
-  feeRate,
-  feeEstimates,
-  btcFiat,
-  locale,
-  currency,
-  selectedUtxosData
-}: {
-  feeRate: number;
-  feeEstimates: FeeEstimates | null;
-  btcFiat: number | null;
-  locale: Locale;
-  currency: Currency;
-  selectedUtxosData: UtxosData;
-}) => {
-  const txSize = estimateVaultTxSize(selectedUtxosData);
-  return formatFeeRate({
+const formatVaultFeeRate = (
+  {
     feeRate,
+    feeEstimates,
+    btcFiat,
     locale,
     currency,
-    txSize,
-    btcFiat,
-    feeEstimates
-  });
+    selectedUtxosData
+  }: {
+    feeRate: number;
+    feeEstimates: FeeEstimates | null;
+    btcFiat: number | null;
+    locale: Locale;
+    currency: Currency;
+    selectedUtxosData: UtxosData;
+  },
+  t: TFunction
+) => {
+  const txSize = estimateVaultTxSize(selectedUtxosData);
+  return formatFeeRate(
+    {
+      feeRate,
+      locale,
+      currency,
+      txSize,
+      btcFiat,
+      feeEstimates
+    },
+    t
+  );
 };
 
 export default function VaultSetUp({
@@ -230,13 +225,16 @@ export default function VaultSetUp({
               minRecoverableRatioPercentage: Math.round(
                 settings.MIN_RECOVERABLE_RATIO * 100
               ),
-              missingFunds: formatBtc({
-                amount: missingFunds,
-                subUnit: settings.SUB_UNIT,
-                btcFiat,
-                locale: settings.LOCALE,
-                currency: settings.CURRENCY
-              })
+              missingFunds: formatBtc(
+                {
+                  amount: missingFunds,
+                  subUnit: settings.SUB_UNIT,
+                  btcFiat,
+                  locale: settings.LOCALE,
+                  currency: settings.CURRENCY
+                },
+                t
+              )
             }}
             components={{
               strong: <Text style={{ fontWeight: 'bold' }} />,
@@ -271,14 +269,16 @@ export default function VaultSetUp({
                   }}
                   step={1}
                   formatValue={amount =>
-                    //TODO: memoize this
-                    formatBtc({
-                      amount,
-                      subUnit: settings.SUB_UNIT,
-                      btcFiat,
-                      locale: settings.LOCALE,
-                      currency: settings.CURRENCY
-                    })
+                    formatBtc(
+                      {
+                        amount,
+                        subUnit: settings.SUB_UNIT,
+                        btcFiat,
+                        locale: settings.LOCALE,
+                        currency: settings.CURRENCY
+                      },
+                      t
+                    )
                   }
                 />
               </View>
@@ -319,14 +319,17 @@ export default function VaultSetUp({
                     amount !== null &&
                     selectUtxosData({ utxosData, feeRate, amount })) ||
                   utxosData;
-                return formatVaultFeeRate({
-                  feeRate,
-                  feeEstimates,
-                  btcFiat,
-                  locale: settings.LOCALE,
-                  currency: settings.CURRENCY,
-                  selectedUtxosData
-                });
+                return formatVaultFeeRate(
+                  {
+                    feeRate,
+                    feeEstimates,
+                    btcFiat,
+                    locale: settings.LOCALE,
+                    currency: settings.CURRENCY,
+                    selectedUtxosData
+                  },
+                  t
+                );
               }}
             />
           </View>
