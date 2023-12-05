@@ -1,14 +1,5 @@
-//TODO: Format formatBtc too translate. maybe move all formatters to their own file?
-//TODO: When the user sends maxFunds on the slider to the right then i might not
-//be sending the full utxos, may I? Because I select amount based on maxFunds
-//but this is assuming 72 bytes signatures. This may not be the real maxFunds and
-//I may skip a few sats
-//In the fee rate validation in coinselect i have the 0.1 + 0.2 = 0.30000004 error
-//      `Final fee rate ${finalFeeRate} lower than required ${feeRate}`
 //TODO: Test performance with 100 UTXOs
 //TODO: share styles VaultSetUp / Unvault
-//TODO: Translate fees.ts (pass t and use memoization factories)
-//TODO: maybe pass the formatLocTime to lockTime.ts?
 import { Trans, useTranslation } from 'react-i18next';
 import React, { useState } from 'react';
 import type { GestureResponderEvent } from 'react-native';
@@ -32,7 +23,6 @@ import {
   selectUtxosData
 } from '../../lib/vaults';
 
-import type { Locale, Currency } from '../../contexts/SettingsContext';
 import {
   FeeEstimates,
   pickFeeEstimate,
@@ -41,45 +31,8 @@ import {
 } from '../../lib/fees';
 import { formatBtc } from '../../lib/btcRates';
 import globalStyles from '../../../styles/styles';
-import type { TFunction } from 'i18next';
 
 const FEE_RATE_STEP = 0.01;
-
-/**
- * Given a feeRate, it formats the fee.
- * TODO: memoize this
- */
-const formatVaultFeeRate = (
-  {
-    feeRate,
-    feeEstimates,
-    btcFiat,
-    locale,
-    currency,
-    selectedUtxosData
-  }: {
-    feeRate: number;
-    feeEstimates: FeeEstimates | null;
-    btcFiat: number | null;
-    locale: Locale;
-    currency: Currency;
-    selectedUtxosData: UtxosData;
-  },
-  t: TFunction
-) => {
-  const txSize = estimateVaultTxSize(selectedUtxosData);
-  return formatFeeRate(
-    {
-      feeRate,
-      locale,
-      currency,
-      txSize,
-      btcFiat,
-      feeEstimates
-    },
-    t
-  );
-};
 
 export default function VaultSetUp({
   utxosData,
@@ -311,22 +264,20 @@ export default function VaultSetUp({
               step={FEE_RATE_STEP}
               onValueChange={setFeeRate}
               formatValue={feeRate => {
-                //TODO: memoize this
-                //memoizing the formatVaultFeeRate will only work well
-                //if selectUtxosData reference does not change (it currently does)
                 const selectedUtxosData =
                   (feeRate !== null &&
                     amount !== null &&
                     selectUtxosData({ utxosData, feeRate, amount })) ||
                   utxosData;
-                return formatVaultFeeRate(
+                const txSize = estimateVaultTxSize(selectedUtxosData);
+                return formatFeeRate(
                   {
                     feeRate,
-                    feeEstimates,
-                    btcFiat,
                     locale: settings.LOCALE,
                     currency: settings.CURRENCY,
-                    selectedUtxosData
+                    txSize,
+                    btcFiat,
+                    feeEstimates
                   },
                   t
                 );
