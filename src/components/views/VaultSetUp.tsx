@@ -1,7 +1,7 @@
 //TODO: When the user sends maxFunds on the slider to the right then i might not
-//be sending the full utxos, may I? Because max is computed using another algo
-//TODO: Dont adapt min/max in the EditableSlider. This may be super confussing for users. Better show the error message for out of margins.
-//Also, faster rendering?
+//be sending the full utxos, may I? Because I select amount based on maxFunds
+//but this is assuming 72 bytes signatures. This may not be the real maxFunds and
+//I may skip a few sats
 //In the fee rate validation in coinselect i have the 0.1 + 0.2 = 0.30000004 error
 //      `Final fee rate ${finalFeeRate} lower than required ${feeRate}`
 //TODO: Test performance with 100 UTXOs
@@ -25,7 +25,7 @@ import {
 } from 'react-native';
 
 import { useSettings } from '../../contexts/SettingsContext';
-import EditableSlider from '../common/EditableSlider';
+import EditableSlider, { snap } from '../common/EditableSlider';
 import {
   UtxosData,
   estimateVaultTxSize,
@@ -53,6 +53,8 @@ const formatLockTimeFactory = memoize((t: TFunction) =>
 );
 const formatLockTime = (blocks: number, t: TFunction) =>
   formatLockTimeFactory(t)(blocks);
+
+const FEE_RATE_STEP = 0.01;
 
 /**
  * Given a feeRate, it formats the fee.
@@ -101,6 +103,7 @@ export default function VaultSetUp({
   }) => Promise<void>;
   onCancel?: (event: GestureResponderEvent) => void;
 }) {
+  //console.log(feeEstimates);
   const { settings } = useSettings();
   const [lockBlocks, setLockBlocks] = useState<number | null>(
     settings.INITIAL_LOCK_BLOCKS
@@ -110,11 +113,6 @@ export default function VaultSetUp({
   //  feeRateStep * Math.ceil(feeRate / feeRateStep);
   const { t } = useTranslation();
 
-  const [feeRate, setFeeRate] = useState<number | null>(
-    feeEstimates
-      ? pickFeeEstimate(feeEstimates, settings.INITIAL_CONFIRMATION_TIME)
-      : settings.MIN_FEE_RATE
-  );
   const maxFeeRate = feeEstimates
     ? Math.max(
         // Max fee reported from electrum / esplora servers
@@ -124,6 +122,18 @@ export default function VaultSetUp({
       )
     : // when feeEstimates still not available, show default values
       settings.PRESIGNED_FEE_RATE_CEILING;
+  const [feeRate, setFeeRate] = useState<number | null>(
+    //pre-snap feeRate so that maxVaultAmount is not recomputed when
+    //EditableSlider returns a new snapped feeRate on mount
+    snap({
+      minimumValue: settings.MIN_FEE_RATE,
+      maximumValue: maxFeeRate,
+      step: FEE_RATE_STEP,
+      value: feeEstimates
+        ? pickFeeEstimate(feeEstimates, settings.INITIAL_CONFIRMATION_TIME)
+        : settings.MIN_FEE_RATE
+    })
+  );
 
   // When the user sends max funds. It will depend on the feeRate the user picks
   const maxVaultAmount = estimateMaxVaultAmount({
@@ -133,6 +143,7 @@ export default function VaultSetUp({
     // rate selected by the uset
     feeRate: feeRate !== null ? feeRate : maxFeeRate
   });
+  //console.log({ maxVaultAmount, feeRate, maxFeeRate, utxos: utxosData.length });
   const [amount, setAmount] = useState<number | null>(maxVaultAmount || null);
 
   const handlePressOutside = () => Keyboard.dismiss();
@@ -255,7 +266,7 @@ export default function VaultSetUp({
                   maximumValue={maxVaultAmount}
                   value={amount}
                   onValueChange={amount => {
-                    console.log({ amount });
+                    //console.log({ amount });
                     setAmount(amount);
                   }}
                   step={1}
@@ -297,6 +308,7 @@ export default function VaultSetUp({
               value={feeRate}
               minimumValue={settings.MIN_FEE_RATE}
               maximumValue={maxFeeRate}
+              step={FEE_RATE_STEP}
               onValueChange={setFeeRate}
               formatValue={feeRate => {
                 //TODO: memoize this

@@ -10,7 +10,12 @@
     "lockTimeError": "Pick a valid Lock Time.",
     "feeRateError": "Pick a valid Fee Rate.",
     "amountError": "Pick a valid amount of Btc.",
-    "invalidValues": "Invalid Values"
+    "invalidValues": "Invalid Values."
+  },
+  "editableSlider": {
+    "maxValueError": "Maximum is {{maximumValue}}",
+    "minValueError": "Minimum is {{maximumValue}}",
+    "invalidValue": "Invalid Value"
   },
   "okButton": "OK",
   "saveButton": "Save",

@@ -1,30 +1,49 @@
-//TODO:  not EditableSlider may return wrong onChange values but this is better
-//  -> I might still return null... and set the sliderManagedValue to max
-//because it does not change the user values inadvertedly
 /**
- * Even if step is used, minimumValue and maximumValue can be any other number
- * not within step and this component will let the user pick the
- * absolute min and max even if not within step
- * value can be null which means its undetermined (the user is editing the
- * input box and entered an invalid value, for example)
- * minimumValue and maximumValue are adapted so that they are within step
- * strValue is just a draft and imprecise, which dpes not need to br within snap
- *  - set strValue when the user uses the slider
- *  - keep the strValue when the user interacts with textinput, even if strValue is invalid
- *    - When invalid trigger onValueChange with incorrect value
- *  - when strValue is a valud number within range, then trigger an onValueChange (with the correct snapped value)
- *  stre
- * if value is passed and it's not within step, onValueChange is returned with
- * the corrected value
- * It's a managed component. value is set from what the parent passes
- * This component calls onValueChange with valid values or with null
- * when the user makes an error.
- * An internal strValue is kept, which may contain errors
- * strValue may contain values which are different than value:
- *  - They are wrong => value is null
- *  - They don't fall into a valid step -> value is null
+ * The `EditableSlider` combines a slider with a text input for precise value
+ * entry. It supports value snapping based on a specified step and handles
+ * `null` values, indicating an indeterminate state. Key behaviors and
+ * internal implementation details include:
+ *
+ * - Snapping Behavior: Values are snapped to the nearest increment defined
+ *   by the 'step' size. For example, if the step is 0.01 and a value of 0.213
+ *   is passed, it adjusts to 0.21 and immediatelly calls parent using
+ *   onValueChange with the newly stepped value. The default step size is 0.01.
+ *
+ * - Minimum and Maximum Values: The 'minimumValue' and 'maximumValue' can
+ *   be any number, allowing users to select these exact values regardless of
+ *   the step setting mentioned above.
+ *
+ * - Handling Null Values: When a `null` value is passed, indicating an
+ *   indeterminate state, the slider's position depends on the last valid value:
+ *     - Initially `null`, the slider defaults to 'minimumValue'.
+ *     - Last valid value greater than 'maximumValue' sets the slider to
+ *       'maximumValue'.
+ *     - Last valid value less than 'minimumValue' sets the slider to
+ *       'minimumValue'.
+ *     - The slider is always positioned within the min-max range, even when
+ *       the value is undetermined.
+ *     - Note that in indeterminate state the slider position does not
+ *       represent a value. However, the slider must still be set.
+ *
+ * - Emitting Null Values: The component may emit `null` via 'onValueChange'
+ *   in two scenarios:
+ *     - Invalid number entered in the TextInput.
+ *     - Changes in min, max, or step values result in an invalid current value.
+ *
+ * - Internal Implementation:
+ *     - 'strValue' represents the text input's value. It can be imprecise and
+ *       is not constrained by the snap range. Updated when the slider is used
+ *       or during TextInput interaction, even if invalid. May be updated when
+ *       min, max, or step values change. Triggers 'onValueChange' with the
+ *       correct snapped value if valid and within range.
+ *     - The component is controlled: 'value' is managed by the parent,
+ *       meaning the state for the value is also maintained by the parent.
+ *     - 'onValueChange' is called with valid values or `null` in case of
+ *       user input errors.
  */
+
 import React, { useState, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   View,
   Text,
@@ -59,123 +78,149 @@ function countDecimalDigits(number: number): number {
   return 0; // No fractional part means 0 digits after the decimal point
 }
 
-function snap({
+const DEFAULT_STEP = 0.01;
+
+export function snap({
   value,
   minimumValue,
   maximumValue,
-  step
+  step = DEFAULT_STEP
 }: {
-  value: number;
+  value: number | null;
   minimumValue: number;
   maximumValue: number;
-  step: number;
-}): number {
+  step?: number;
+}): number | null {
+  if (value === null) return null;
   const digits = countDecimalDigits(step);
   const snappedValue = Number(
     (step * Math.round(value / step)).toFixed(digits)
   );
 
   if (snappedValue > maximumValue && value <= maximumValue) return value;
-  if (snappedValue < minimumValue && value >= minimumValue) return value;
-  return snappedValue;
+  else if (snappedValue < minimumValue && value >= minimumValue) return value;
+  else if (snappedValue >= minimumValue && snappedValue <= maximumValue)
+    return snappedValue;
+  else return null;
 }
 function snap2Str({
   snappedValue,
-  step
+  step = DEFAULT_STEP
 }: {
   snappedValue: number;
-  step: number;
+  step?: number;
 }): string {
   const digits = countDecimalDigits(step);
   return snappedValue.toFixed(digits);
 }
 
 function inRange({
-  snappedValue,
+  value,
   minimumValue,
   maximumValue
 }: {
-  snappedValue: number | null;
+  value: number | null;
   minimumValue: number;
   maximumValue: number;
 }) {
-  return (
-    snappedValue !== null &&
-    snappedValue >= minimumValue &&
-    snappedValue <= maximumValue
-  );
+  return value !== null && value >= minimumValue && value <= maximumValue;
 }
 
 const EditableSlider = ({
   value,
   minimumValue,
   maximumValue,
-  step = 0.01,
+  step = DEFAULT_STEP,
   errorMessage,
   onValueChange,
   formatValue = value => `${value}`
 }: EditableSliderProps) => {
-  errorMessage =
-    errorMessage ||
-    `Pick a number between ${minimumValue} and ${maximumValue}.`;
+  const snappedValue = snap({ value, minimumValue, maximumValue, step });
 
-  //TODO: snappedValue is f() - use f() because otherwise its confusing its
-  //derived data
-  const snappedValue =
-    value === null ? null : snap({ value, minimumValue, maximumValue, step });
-
+  // Keep track of prevSnappedValue:
   const prevSnappedValue = useRef<number | null>();
   useEffect(() => {
     prevSnappedValue.current = snappedValue;
   }, [snappedValue]);
 
-  //Parent may be passing values out of range and not step-valid
-  //Instead of throwing, notify null to the parent or the correct snapped value
-  useEffect(() => {
-    if (value !== snappedValue && onValueChange)
-      onValueChange(
-        inRange({ snappedValue, minimumValue, maximumValue })
-          ? snappedValue
-          : null
-      );
-  }, [value, minimumValue, maximumValue, step]);
-  //If parent changes minimumValue, step or maximumValue, then
-  //force update Slider and TextInput
-  //This is done because snappedValue might have been adjusted to be within the
-  //new range
-  //However, do not notify parent about this. Parent is already notified through
-  //the useEffect above and when the Slider or TextInput changes
-  useEffect(() => {
-    if (snappedValue !== null) {
-      if (snappedValue > maximumValue) setSliderManagedValue(maximumValue);
-      else if (snappedValue < minimumValue) setSliderManagedValue(minimumValue);
-      else setSliderManagedValue(snappedValue);
-      setStrValue(snap2Str({ snappedValue, step }));
-    }
-  }, [minimumValue, maximumValue, step]);
-  const mountSnappedValue = snap({
-    value: value === null ? minimumValue : value,
-    minimumValue,
-    maximumValue,
-    step
-  });
-  const mountStrValue = snap2Str({ snappedValue: mountSnappedValue, step });
-  const [strValue, setStrValue] = useState<string>(mountStrValue);
-  const [sliderManagedValue, setSliderManagedValue] =
-    useState<number>(mountSnappedValue);
+  // lastValidSnappedValue will be updated onTextInputValueChange,
+  // onSliderValueChange or onEffect([min,max,step]), below:
+  const lastValidSnappedValue = useRef<number | null>(null);
 
-  //TODO: in android i dont get number-pad?
+  // Parent may change min, max or step. Previously good values
+  // may not be ok anymore or previously old values may be again
+  useEffect(() => {
+    const newSnappedValue =
+      snappedValue !== null
+        ? snappedValue
+        : inRange({
+            value: lastValidSnappedValue.current,
+            minimumValue,
+            maximumValue
+          })
+        ? lastValidSnappedValue.current
+        : null;
+    if (newSnappedValue !== null) {
+      lastValidSnappedValue.current = newSnappedValue;
+      //When min, max or step change, make sure the Slider is in correct
+      //position and TextInput shows the correct value again
+      if (newSnappedValue !== sliderManagedValue)
+        setSliderManagedValue(newSnappedValue);
+      const newStrValue = snap2Str({ snappedValue: newSnappedValue, step });
+      if (strValue !== newStrValue) setStrValue(newStrValue);
+    } else {
+      // Even if the component does not have a a correct value,
+      // the slider must be set to some position within min and max...
+      const newSliderManagedValue =
+        lastValidSnappedValue.current === null
+          ? minimumValue
+          : lastValidSnappedValue.current > maximumValue
+          ? maximumValue
+          : lastValidSnappedValue.current < minimumValue
+          ? minimumValue
+          : lastValidSnappedValue.current;
+      if (newSliderManagedValue !== sliderManagedValue)
+        setSliderManagedValue(newSliderManagedValue);
+    }
+    if (onValueChange && newSnappedValue !== value)
+      onValueChange(newSnappedValue);
+  }, [minimumValue, maximumValue, step]);
+
+  //Set initial InputText and Slider values.
+  const [sliderManagedValue, setSliderManagedValue] = useState<number>(
+    snappedValue === null ? minimumValue : snappedValue
+  );
+  const [strValue, setStrValue] = useState<string>(
+    snappedValue === null
+      ? snap2Str({ snappedValue: minimumValue, step })
+      : snap2Str({ snappedValue, step })
+  );
+
+  const { t } = useTranslation();
+  errorMessage =
+    errorMessage ||
+    (lastValidSnappedValue.current !== null &&
+      lastValidSnappedValue.current > maximumValue)
+      ? t('editableSlider.maxValueError', { maximumValue })
+      : lastValidSnappedValue.current !== null &&
+        lastValidSnappedValue.current < minimumValue
+      ? t('editableSlider.maxValueError', { maximumValue })
+      : t('editableSlider.invalidValue');
+
   const keyboardType = step === 1 ? 'number-pad' : 'numeric';
   const [fontsLoaded] = useFonts({ RobotoMono_400Regular });
   const handlePressOutside = () => Keyboard.dismiss();
 
-  const strNumberInRange = (strValue: string | undefined) =>
-    !isNaN(Number(strValue)) &&
-    Number(strValue) >= minimumValue &&
-    Number(strValue) <= maximumValue;
-
   const onSliderValueChange = (value: number) => {
+    //The react-native slider is buggy and may return slightly off values
+    if (value < minimumValue) value = minimumValue;
+    if (value > maximumValue) value = maximumValue;
     const snappedValue = snap({ value, minimumValue, maximumValue, step });
+    if (snappedValue === null)
+      throw new Error(
+        `Slider returned off-limits value: ${minimumValue} >= ${value} >= ${maximumValue}, step: ${step}, snappedValue: ${snappedValue}`
+      );
+    else lastValidSnappedValue.current = snappedValue;
     const strValue = snap2Str({ snappedValue, step });
     setStrValue(strValue);
     if (snappedValue !== prevSnappedValue.current && onValueChange)
@@ -183,21 +228,25 @@ const EditableSlider = ({
   };
   const onTextInputValueChange = (strValue: string) => {
     setStrValue(strValue);
-    if (strNumberInRange(strValue)) {
+    const isValidStrValue =
+      !isNaN(Number(strValue)) &&
+      Number(strValue) >= minimumValue &&
+      Number(strValue) <= maximumValue;
+    if (isValidStrValue) {
       const value = Number(strValue);
-      setSliderManagedValue(snap({ value, minimumValue, maximumValue, step }));
+      const snappedValue = snap({ value, minimumValue, maximumValue, step });
+      if (snappedValue === null) throw new Error('strNumberInRange not valid');
+      setSliderManagedValue(snappedValue);
       if (value !== prevSnappedValue.current && onValueChange)
         onValueChange(value);
+      lastValidSnappedValue.current = snappedValue;
     } else {
       if (null !== prevSnappedValue.current && onValueChange)
         onValueChange(null);
     }
   };
   const formattedValue =
-    snappedValue === null ||
-    !inRange({ snappedValue, minimumValue, maximumValue })
-      ? errorMessage
-      : formatValue(snappedValue);
+    snappedValue === null ? errorMessage : formatValue(snappedValue);
 
   return (
     <TouchableWithoutFeedback onPress={handlePressOutside}>
@@ -210,12 +259,14 @@ const EditableSlider = ({
             onValueChange={onSliderValueChange}
             value={sliderManagedValue}
             onSlidingStart={handlePressOutside}
+            {...(snappedValue === null ? { thumbTintColor: 'red' } : {})}
           />
           <TextInput
             keyboardType={keyboardType}
             style={[
               styles.input,
-              fontsLoaded && { fontFamily: 'RobotoMono_400Regular' }
+              fontsLoaded && { fontFamily: 'RobotoMono_400Regular' },
+              snappedValue === null && { color: 'red' }
             ]}
             value={strValue}
             onChangeText={onTextInputValueChange}
@@ -224,9 +275,7 @@ const EditableSlider = ({
         <Text
           style={[
             fontsLoaded ? { fontFamily: 'RobotoMono_400Regular' } : {},
-            !inRange({ snappedValue, minimumValue, maximumValue })
-              ? { color: 'red' }
-              : {}
+            snappedValue === null ? { color: 'red' } : {}
           ]}
         >
           {formattedValue}
