@@ -7,7 +7,7 @@ import React, {
 } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-export type SubUnit = 'sat' | 'mbit' | 'bit';
+export type SubUnit = 'btc' | 'sat' | 'mbit' | 'bit';
 export type Currency = 'USD' | 'EUR' | 'GBP';
 export type Locale = 'en-US' | 'es-ES';
 
@@ -51,7 +51,7 @@ export const defaultSettings: Settings = {
   //TODO: set it to 2/3 in the production case
   //MIN_RECOVERABLE_RATIO: '2/3' // express it in string so that it can be printed. Must be 0 > MIN_RECOVERABLE_RATIO > 1
   MIN_RECOVERABLE_RATIO: 1 / 100,
-  SUB_UNIT: 'sat',
+  SUB_UNIT: 'btc',
   LOCALE: 'en-US',
   CURRENCY: 'USD',
   BTC_FIAT_REFRESH_INTERVAL_MS: 600000 //10 minutes

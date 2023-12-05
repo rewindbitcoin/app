@@ -4,7 +4,7 @@
     "amountLabel": "Cantidad:",
     "securityLockTimeLabel": "Tiempo de Bloqueo de Seguridad (bloques):",
     "securityLockTimeDescription": "Disponible {{blocks}} después de Desbloquear",
-    "confirmationSpeedLabel": "Velocidad de Confirmación (sat/vbyte):",
+    "confirmationTimeLabel": "Timepo de Confirmación:",
     "okButton": "Aceptar",
     "saveButton": "Guardar",
     "cancelButton": "Cancelar",

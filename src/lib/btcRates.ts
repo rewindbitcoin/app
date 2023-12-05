@@ -98,7 +98,14 @@ const formatBtcFactory = memoize((t: TFunction) =>
           case 'bit':
             formattedValue = t('btcFormat.bits', {
               value: (amount / 100).toLocaleString(locale),
-              count: amount
+              count: amount / 100
+            });
+            break;
+          case 'btc':
+            formattedValue = t('btcFormat.btc', {
+              value: (amount / 100000000).toLocaleString(locale, {
+                minimumFractionDigits: 8
+              })
             });
             break;
           default:

@@ -537,14 +537,14 @@ Handle with care. Confidentiality is key.
     Share.share({ message: message, title: 'Share via' });
   };
 
-  const handleVault = async ({
+  const onNewVaultSetUpValues = async ({
     utxosData,
     feeRate,
     lockBlocks
   }: {
-    utxosData?: UtxosData;
+    utxosData: UtxosData;
     feeRate: number;
-    lockBlocks?: number;
+    lockBlocks: number;
   }) => {
     if (utxosData === undefined)
       throw new Error('VaultSetUp could not coinselect some utxos');
@@ -575,7 +575,8 @@ Handle with care. Confidentiality is key.
       await AsyncStorage.setItem('vaults', JSON.stringify(newVaults));
       if (!discovery) throw new Error(`discovery not instantiated yet!`);
       //TODO: check this push result. This and all pushes in code
-      await discovery.getExplorer().push(vault.vaultTxHex);
+      //TODO: commented this out during tests:
+      //await discovery.getExplorer().push(vault.vaultTxHex);
       setVaults(newVaults);
     } else {
       //TODO: It was impossible to create the Vault so that it creates
@@ -794,7 +795,7 @@ Handle with care. Confidentiality is key.
                 utxosData={hotUtxosData}
                 feeEstimates={feeEstimates}
                 btcFiat={btcFiat}
-                onNewValues={handleVault}
+                onNewValues={onNewVaultSetUpValues}
                 onCancel={() => setIsVaultSetUp(false)}
               />
             </View>

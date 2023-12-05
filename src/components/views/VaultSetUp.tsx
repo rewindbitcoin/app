@@ -45,9 +45,9 @@ export default function VaultSetUp({
   feeEstimates: FeeEstimates | null;
   btcFiat: number | null;
   onNewValues: (values: {
-    selectedUtxosData: UtxosData;
+    utxosData: UtxosData;
     feeRate: number;
-    lockBlocks?: number;
+    lockBlocks: number;
   }) => Promise<void>;
   onCancel?: (event: GestureResponderEvent) => void;
 }) {
@@ -129,7 +129,7 @@ export default function VaultSetUp({
       const selectedUtxosData = selectUtxosData({ utxosData, amount, feeRate });
       if (!selectedUtxosData)
         throw new Error('Could not extract utxos from amount');
-      onNewValues({ feeRate, selectedUtxosData, lockBlocks });
+      onNewValues({ feeRate, utxosData: selectedUtxosData, lockBlocks });
     }
   };
 
@@ -255,7 +255,7 @@ export default function VaultSetUp({
             )}
           <View style={styles.settingGroup}>
             <Text style={styles.label}>
-              {t('vaultSetup.confirmationSpeedLabel')}
+              {t('vaultSetup.confirmationTimeLabel')}
             </Text>
             <EditableSlider
               value={feeRate}
