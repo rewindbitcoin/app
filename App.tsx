@@ -1,3 +1,4 @@
+//TODO: install btcpayserver, use one api-key per user (associated to masterFingerprint or device id?) Or the hash of the masterFingerprint perhaps is better.
 //TODO: I believe the one below is ok, but double check
 //  check discovery.getUtxos. What happens if when computing the utxos i have
 //  competing txs in the mempool? getUtxos may be broken!!!
@@ -122,9 +123,14 @@ const SAMPLES = 10;
 //
 //This is the maxFeeRate that will be required to be pre-signed in panicTxs
 //It there is not enough balance, then it will fail
+//TODO: isnt tis in the settings context???
 const FEE_RATE_CEILING = 5 * 1000; //22-dec-2017 fee rates were 1000. TODO: Set this to 5000 which is 5x 22-dec-2017
+//TODO: isnt tis in the settings context???
 const DEFAULT_MAX_FEE_RATE = FEE_RATE_CEILING; //Not very important. Use this one while feeEstimates is not retrieved. This is the maxFeeRate that we assume that feeEstimates will return
+//TODO: Fix these 3 below:
 const DEFAULT_COLD_ADDR = 'tb1qm0k9mn48uqfs2w9gssvzmus4j8srrx5eje7wpf';
+const DEFAULT_CHANGE_ADDR = 'tb1qm0k9mn48uqfs2w9gssvzmus4j8srrx5eje7wpf';
+const DEFAULT_SERVICE_FEE_ADDR = 'tb1qm0k9mn48uqfs2w9gssvzmus4j8srrx5eje7wpf';
 import {
   createVault,
   Vault,
@@ -563,11 +569,14 @@ Handle with care. Confidentiality is key.
     //HERE CREATE THE triggerDescriptor using the next
     if (utxos === null || !utxos.length) throw new Error(`utxos unset`);
     const vault = createVault({
+      balance: amount,
       unvaultKey,
       samples: SAMPLES,
       feeRate,
       feeRateCeiling: FEE_RATE_CEILING,
       coldAddress: DEFAULT_COLD_ADDR,
+      changeAddress: DEFAULT_CHANGE_ADDR,
+      serviceFeeAddress: DEFAULT_SERVICE_FEE_ADDR,
       lockBlocks,
       masterNode,
       utxosData: selectedUxosData,

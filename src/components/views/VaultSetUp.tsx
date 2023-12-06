@@ -21,7 +21,7 @@ import {
   estimateVaultTxSize,
   estimateMaxVaultAmount,
   estimateMinVaultAmount,
-  selectUtxosData
+  selectVaultUtxosData
 } from '../../lib/vaults';
 
 import {
@@ -289,12 +289,12 @@ export default function VaultSetUp({
               step={FEE_RATE_STEP}
               onValueChange={setFeeRate}
               formatValue={feeRate => {
-                const selectedUtxosData =
+                const vaultUtxosData =
                   (feeRate !== null &&
                     amount !== null &&
-                    selectUtxosData({ utxosData, feeRate, amount })) ||
+                    selectVaultUtxosData({ utxosData, feeRate, amount })) ||
                   utxosData;
-                const txSize = estimateVaultTxSize(selectedUtxosData);
+                const txSize = estimateVaultTxSize(vaultUtxosData);
                 return formatFeeRate(
                   {
                     feeRate,

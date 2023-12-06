@@ -1,3 +1,26 @@
+//TODO: I'm not 100% convinced about selectVaultUtxosData since it assumes
+//change.
+//But the real problem may be with estimateVaultTxSize.
+//However, estimateMaxVaultAmount is correctly computed assuming no change.
+//So, what happens if the user selects maxVaultAmount? I guess selectVaultUtxosData
+//will work just fine.
+//
+//
+//However the estimateVaultTxSize is wrong. how is this one used?
+//
+//-> Solution selectVaultUtxosData should return the targets too. This
+//way i know if change was used or not. Then estimateVaultTxSize will also
+//pass those targets instead of inventing ones.
+//
+//Maybe even better selectVaultUtxosData should, in fact, return the size already!
+//It should return the whole pack of stuff in fact!!! And then I can get rid
+//of estimateVaultTxSize
+//  > In fact, this very same function is the one that then has to be used
+//  in createVault. So selectVaultUtxosData should also receive some
+//  targets already. Then use some "templateTargets" to be used as default
+//  when not passed, and those will be the ones used in the VaultSetUp
+//
+//
 //TODO: add service fee in the vault process, also add change
 //TODO: very imporant to only allow Vaulting funds with 1 confirmatin at least (make this a setting)
 import {
@@ -153,7 +176,7 @@ const getOutputsWithValue = memoize((utxosData: UtxosData) =>
   })
 );
 
-const selectUtxosDataFactory = memoize((utxosData: UtxosData) =>
+const selectVaultUtxosDataFactory = memoize((utxosData: UtxosData) =>
   memoize(
     ({ amount, feeRate }: { amount: number; feeRate: number }) => {
       const utxos = getOutputsWithValue(utxosData);
@@ -190,7 +213,8 @@ const selectUtxosDataFactory = memoize((utxosData: UtxosData) =>
     ({ amount, feeRate }) => JSON.stringify({ amount, feeRate })
   )
 );
-export const selectUtxosData = ({
+
+export const selectVaultUtxosData = ({
   utxosData,
   amount,
   feeRate
@@ -198,7 +222,7 @@ export const selectUtxosData = ({
   utxosData: UtxosData;
   amount: number;
   feeRate: number;
-}) => selectUtxosDataFactory(utxosData)({ amount, feeRate });
+}) => selectVaultUtxosDataFactory(utxosData)({ amount, feeRate });
 
 export const createTriggerDescriptor = ({
   unvaultKey,
@@ -345,16 +369,20 @@ export const estimateMinVaultAmount = ({
 //it must return something that when unvaulting it recovers a significant amount
 
 export function createVault({
+  balance,
   unvaultKey,
   samples,
   feeRate,
   feeRateCeiling,
   coldAddress,
+  changeAddress,
+  serviceFeeAddress,
   lockBlocks,
   masterNode,
   network,
   utxosData
 }: {
+  balance: number;
   /** The unvault key expression that must be used to create triggerDescriptor */
   unvaultKey: string;
   /** How many txs to compute. Note that the final number of tx is samples^2*/
@@ -364,12 +392,32 @@ export function createVault({
    * must be pre-computed*/
   feeRateCeiling: number;
   coldAddress: string;
+  changeAddress: string;
+  serviceFeeAddress: string;
   lockBlocks: number;
   masterNode: BIP32Interface;
   network: Network;
   utxosData: UtxosData;
 }): Vault | undefined {
-  const balance = utxosDataBalance(utxosData);
+  //TODO: read the comments above. selectVaultUtxosData will also accept
+  //the targets already. Change may be used or not. We will know if from
+  //selectVaultUtxosData
+  //TODO: preapare the targets to be passed to selectVaultUtxosData
+  const serviceFeeOutput = new Output({
+    descriptor: `addr(${serviceFeeAddress})`,
+    network
+  });
+  const remainderOutput = new Output({
+    descriptor: `addr(${changeAddress})`,
+    network
+  });
+  const vaultUtxosData = selectVaultUtxosData({
+    utxosData,
+    amount: balance,
+    feeRate
+  });
+  if (!vaultUtxosData) return;
+
   let minPanicBalance = balance;
   const maxSatsPerByte = feeRateCeiling;
   const feeRates = feeRateSampling({ samples, maxSatsPerByte });
@@ -395,7 +443,7 @@ export function createVault({
   const psbtVault = new Psbt({ network });
   //Add the inputs to psbtVault:
   const vaultFinalizers = [];
-  for (const utxoData of utxosData) {
+  for (const utxoData of vaultUtxosData) {
     const { output, vout, txHex } = utxoData;
     // Add the utxo as input of psbtVault:
     const inputFinalizer = output.updatePsbtAsInput({
@@ -416,7 +464,7 @@ export function createVault({
   //Proceed assuming zero fees:
   const psbtVaultZeroFee = psbtVault.clone();
   //Add the output to psbtVault assuming zero fees value = balance:
-  if (!utxosData.length || balance <= 0)
+  if (!vaultUtxosData.length || balance <= 0)
     throw new Error(`Invalid utxos or balance`);
   vaultOutput.updatePsbtAsOutput({ psbt: psbtVaultZeroFee, value: balance });
   //Sign
