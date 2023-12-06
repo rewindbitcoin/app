@@ -3,7 +3,7 @@
     "title": "Vault Set Up",
     "notEnoughFundsTitle": "Vault Minimum Requirement",
     "notEnoughFunds": "<group>To ensure you can unvault at least {{minRecoverableRatioPercentage}}% of your Bitcoin in the future, ThunderDen establishes a minimum vaulting amount.\nThis assumes express transaction confirmations and the possibility of ultra-high network fees when unvaulting.</group><group><strong>Suggested Addition:</strong> Add about {{missingFunds}} to reach the vaulting minimum.\nNote that the exact vaultable amount might slightly differ due to changes in network fee conditions.</group>",
-    "amountLabel": "Amount:",
+    "amountLabel": "Vault Amount:",
     "securityLockTimeLabel": "Safety Delay (Theft Protection):",
     "securityLockTimeDescription": "Accessible {{blocks}} after Unvaulting",
     "confirmationSpeedLabel": "Vault Creation Speed:",
