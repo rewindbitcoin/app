@@ -37,9 +37,11 @@
     "waitingForRates": "Waiting for BTC/{{currency}} rates...",
     "waitingForEstimates": "Waiting for fee estimates...",
     "fee": "Fee: {{amount}}",
-    "confirmationTime": "Confirms in {{blocks}}",
+    "confirmationTime": "Confirms in ~{{blocks}}",
+    "mayNotConfirm": "May never confirm",
     "expressConfirmation": "Express confirmation"
   },
+  "continueButton": "Continue",
   "okButton": "OK",
   "saveButton": "Save",
   "cancelButton": "Cancel"

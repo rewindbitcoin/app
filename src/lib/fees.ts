@@ -89,6 +89,9 @@ export function feeRateSampling(
  * target time is set to 19 minutes, the fee rate for the next block is returned
  * instead of the second block.
  *
+ * If the user enters a targetTime below 10 minutes this method returns the
+ * fee for 1 block confirmation, even if 10 > targetTime.
+ *
  * Assumes an average block time of 10 minutes.
  * This method assumes 10 minute blocks.
  * @returns The fee rate in sats per vbyte.
@@ -181,20 +184,48 @@ const formatFeeRateFactory = memoize((t: TFunction) =>
         });
       }
 
+      //Find the lowest target time which feeRate <= input feeRate
       if (feeEstimates && Object.keys(feeEstimates).length) {
-        const sortedEstimates = Object.keys(feeEstimates)
-          .map(Number)
-          .sort((a, b) => feeEstimates[a]! - feeEstimates[b]!);
+        let optimalRate: number | null = null;
+        let lowestTargetTime: string | null = null;
 
-        const target = sortedEstimates.find(
-          estimate => feeEstimates[estimate]! >= feeRate
-        );
+        // First, find the largest rate that is <= feeRate
+        for (const rate of Object.values(feeEstimates)) {
+          if (rate <= feeRate && (optimalRate === null || rate > optimalRate)) {
+            optimalRate = rate;
+          }
+        }
 
-        if (target !== undefined)
-          strTime = t('feeRate.confirmationTime', {
-            blocks: formatBlocks(target, t)
-          });
-        else strTime = t('feeRate.expressConfirmation');
+        // Then, find the lowest target time for this rate
+        if (optimalRate !== null) {
+          for (const [targetTime, rate] of Object.entries(feeEstimates)) {
+            if (rate === optimalRate) {
+              if (
+                lowestTargetTime === null ||
+                parseInt(targetTime) < parseInt(lowestTargetTime)
+              ) {
+                lowestTargetTime = targetTime;
+              }
+            }
+          }
+        }
+
+        if (optimalRate === null) {
+          strTime = t('feeRate.mayNotConfirm');
+        } else {
+          if (lowestTargetTime === null)
+            throw new Error('lowestTargetTime cannot be null');
+          const target = Number(lowestTargetTime);
+          if (target === 1) strTime = t('feeRate.expressConfirmation');
+          //Txs over 2 week in the mempool may be purged:
+          //https://bitcoin.stackexchange.com/a/46162/89665
+          else if (target >= 2 * 7 * 24 * 6)
+            strTime = t('feeRate.mayNotConfirm');
+          else
+            strTime = t('feeRate.confirmationTime', {
+              blocks: formatBlocks(target, t)
+            });
+        }
       }
 
       return `${strTime} / ${strBtcFiat}`;

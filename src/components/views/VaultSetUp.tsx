@@ -1,3 +1,4 @@
+//TODO: SHOW a warning if a user puts a very low fee-rate!
 //TODO: Test performance with 100 UTXOs
 //TODO: share styles VaultSetUp / Unvault
 import { Trans, useTranslation } from 'react-i18next';
@@ -45,12 +46,46 @@ export default function VaultSetUp({
   feeEstimates: FeeEstimates | null;
   btcFiat: number | null;
   onNewValues: (values: {
-    utxosData: UtxosData;
+    amount: number;
     feeRate: number;
     lockBlocks: number;
   }) => Promise<void>;
   onCancel?: (event: GestureResponderEvent) => void;
 }) {
+  //pre-snap feeEstimates so that maxVaultAmount is not recomputed when
+  //EditableSlider returns a new snapped feeRate on mount.
+  //This is because the Slider operates with snapped values and returns snapped
+  //values. So it's better if all the feeRates are snapped from start. This
+  //is the in-depth explanation:
+  //Note that initial maxVaultAmount is computed from a feeRate from pickFeeEstimate,
+  //which uses feeEstimates. But later on, maxVaultAmount is computed from
+  //feeRates that come from the Slider (which are snapped). If feeEstimates are
+  //not snapped, them the Slider will return
+  //an initial value corresponding to the snapped version of the input feeRate.
+  //This snapped value may be lower than initial feeRate, making the
+  //maxVaultAmount also lower than the initial one and making this component
+  //show a "Maximum amount should be below XXX" error when the component
+  //mounts, which is annoying.
+  //Also pre-snap the whole feeEstimate so that pickFeeEstimate uses
+  //snapped feeRates with snapped feeEstimates
+  if (feeEstimates !== null)
+    feeEstimates = Object.fromEntries(
+      Object.entries(feeEstimates).map(([targetTime, feeRate]) => {
+        const snappedValue = snap({
+          minimumValue: Number.MIN_VALUE,
+          maximumValue: Number.MAX_VALUE,
+          step: FEE_RATE_STEP,
+          value: feeRate
+        });
+
+        if (typeof snappedValue !== 'number') {
+          throw new Error('snap function did not return a number');
+        }
+
+        return [targetTime, snappedValue];
+      })
+    );
+
   //console.log(feeEstimates);
   const { settings } = useSettings();
   const [lockBlocks, setLockBlocks] = useState<number | null>(
@@ -71,16 +106,9 @@ export default function VaultSetUp({
     : // when feeEstimates still not available, show default values
       settings.PRESIGNED_FEE_RATE_CEILING;
   const [feeRate, setFeeRate] = useState<number | null>(
-    //pre-snap feeRate so that maxVaultAmount is not recomputed when
-    //EditableSlider returns a new snapped feeRate on mount
-    snap({
-      minimumValue: settings.MIN_FEE_RATE,
-      maximumValue: maxFeeRate,
-      step: FEE_RATE_STEP,
-      value: feeEstimates
-        ? pickFeeEstimate(feeEstimates, settings.INITIAL_CONFIRMATION_TIME)
-        : settings.MIN_FEE_RATE
-    })
+    feeEstimates
+      ? pickFeeEstimate(feeEstimates, settings.INITIAL_CONFIRMATION_TIME)
+      : settings.MIN_FEE_RATE
   );
 
   // When the user sends max funds. It will depend on the feeRate the user picks
@@ -126,10 +154,7 @@ export default function VaultSetUp({
     } else {
       if (feeRate === null || amount === null || lockBlocks === null)
         throw new Error(`Faulty validation`);
-      const selectedUtxosData = selectUtxosData({ utxosData, amount, feeRate });
-      if (!selectedUtxosData)
-        throw new Error('Could not extract utxos from amount');
-      onNewValues({ feeRate, utxosData: selectedUtxosData, lockBlocks });
+      onNewValues({ feeRate, amount, lockBlocks });
     }
   };
 
@@ -259,7 +284,9 @@ export default function VaultSetUp({
             </Text>
             <EditableSlider
               value={feeRate}
-              minimumValue={settings.MIN_FEE_RATE}
+              minimumValue={
+                settings.MIN_FEE_RATE /*TODO: this is wrong, should be the one for at least 72 hours, not purgable - or 14 days?*/
+              }
               maximumValue={maxFeeRate}
               step={FEE_RATE_STEP}
               onValueChange={setFeeRate}
@@ -286,7 +313,7 @@ export default function VaultSetUp({
           </View>
           <View style={styles.buttonGroup}>
             <Button
-              title={onCancel ? t('okButton') : t('saveButton')}
+              title={onCancel ? t('continueButton') : t('saveButton')}
               onPress={handleOK}
             />
             {onCancel && (
@@ -312,7 +339,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     width: '100%'
   },
-  settingGroup: { marginBottom: 30 },
+  settingGroup: { marginBottom: 30, width: '100%' },
   label: {
     marginVertical: 10,
     fontSize: 15,

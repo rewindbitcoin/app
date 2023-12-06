@@ -133,8 +133,8 @@ import {
   Vaults,
   getUtxosData,
   utxosDataBalance,
-  UtxosData,
-  estimateTriggerTxSize
+  estimateTriggerTxSize,
+  selectUtxosData
 } from './src/lib/vaults';
 import styles from './styles/styles';
 import type { TFunction } from 'i18next';
@@ -538,15 +538,21 @@ Handle with care. Confidentiality is key.
   };
 
   const onNewVaultSetUpValues = async ({
-    utxosData,
+    amount,
     feeRate,
     lockBlocks
   }: {
-    utxosData: UtxosData;
+    amount: number;
     feeRate: number;
     lockBlocks: number;
   }) => {
-    if (utxosData === undefined)
+    if (hotUtxosData === null) throw new Error('hot utxos data not available');
+    const selectedUxosData = selectUtxosData({
+      utxosData: hotUtxosData,
+      amount,
+      feeRate
+    });
+    if (selectedUxosData === undefined)
       throw new Error('VaultSetUp could not coinselect some utxos');
     if (lockBlocks === undefined) throw new Error('lockBlocks not retrieved');
     setIsVaultSetUp(false);
@@ -564,7 +570,7 @@ Handle with care. Confidentiality is key.
       coldAddress: DEFAULT_COLD_ADDR,
       lockBlocks,
       masterNode,
-      utxosData,
+      utxosData: selectedUxosData,
       network
     });
 
