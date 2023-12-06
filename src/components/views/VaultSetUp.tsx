@@ -1,4 +1,4 @@
-//TODO: SHOW a warning if a user puts a very low fee-rate!
+//TODO: SHOW a warning if a user puts a very low fee-rate! (>= 14 days)
 //TODO: Test performance with 100 UTXOs
 //TODO: share styles VaultSetUp / Unvault
 import { Trans, useTranslation } from 'react-i18next';
@@ -280,13 +280,11 @@ export default function VaultSetUp({
             )}
           <View style={styles.settingGroup}>
             <Text style={styles.label}>
-              {t('vaultSetup.confirmationTimeLabel')}
+              {t('vaultSetup.confirmationSpeedLabel')}
             </Text>
             <EditableSlider
               value={feeRate}
-              minimumValue={
-                settings.MIN_FEE_RATE /*TODO: this is wrong, should be the one for at least 72 hours, not purgable - or 14 days?*/
-              }
+              minimumValue={settings.MIN_FEE_RATE}
               maximumValue={maxFeeRate}
               step={FEE_RATE_STEP}
               onValueChange={setFeeRate}

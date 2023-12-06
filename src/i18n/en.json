@@ -6,7 +6,7 @@
     "amountLabel": "Amount:",
     "securityLockTimeLabel": "Security Lock Time:",
     "securityLockTimeDescription": "Spendable {{blocks}} after Unvault",
-    "confirmationTimeLabel": "Confirmation Time:",
+    "confirmationSpeedLabel": "Confirmation Speed:",
     "lockTimeError": "Pick a valid Lock Time.",
     "feeRateError": "Pick a valid Fee Rate.",
     "amountError": "Pick a valid amount of Btc.",
