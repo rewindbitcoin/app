@@ -140,7 +140,7 @@ import {
   getUtxosData,
   utxosDataBalance,
   estimateTriggerTxSize,
-  selectUtxosData
+  selectVaultUtxosData
 } from './src/lib/vaults';
 import styles from './styles/styles';
 import type { TFunction } from 'i18next';
@@ -553,12 +553,14 @@ Handle with care. Confidentiality is key.
     lockBlocks: number;
   }) => {
     if (hotUtxosData === null) throw new Error('hot utxos data not available');
-    const selectedUxosData = selectUtxosData({
+    //TODO: This is using changeOutput, vaultOutput and serviceOutput default
+    //params. I shouldnt i use the correct values!
+    const selected = selectVaultUtxosData({
       utxosData: hotUtxosData,
       amount,
       feeRate
     });
-    if (selectedUxosData === undefined)
+    if (selected === undefined)
       throw new Error('VaultSetUp could not coinselect some utxos');
     if (lockBlocks === undefined) throw new Error('lockBlocks not retrieved');
     setIsVaultSetUp(false);
@@ -579,7 +581,7 @@ Handle with care. Confidentiality is key.
       serviceFeeAddress: DEFAULT_SERVICE_FEE_ADDR,
       lockBlocks,
       masterNode,
-      utxosData: selectedUxosData,
+      utxosData: selected.vaultUtxosData,
       network
     });
 

@@ -35,11 +35,10 @@ import memoize from 'lodash.memoize';
 import * as secp256k1 from '@bitcoinerlab/secp256k1';
 import { DescriptorsFactory, OutputInstance } from '@bitcoinerlab/descriptors';
 const { Output, ECPair, parseKeyExpression } = DescriptorsFactory(secp256k1);
-const wpkhOutput = new Output({
-  //Just a random pubkey here...
-  descriptor: `wpkh(038ffea936b2df76bf31220ebd56a34b30c6b86f40d3bd92664e2f5f98488dddfa)`
-});
-const wpkhDustThreshold = dustThreshold(wpkhOutput);
+const DUMMY_PUBKEY =
+  '038ffea936b2df76bf31220ebd56a34b30c6b86f40d3bd92664e2f5f98488dddfa';
+const DUMMY_PUBKEY_2 =
+  '038ffea936b2df76bf31220ebd56a34b30c6b86f40d3bd92664e2f5f98488dddfa';
 
 import { compilePolicy } from '@bitcoinerlab/miniscript';
 const { encode: olderEncode } = require('bip68');
@@ -177,52 +176,88 @@ const getOutputsWithValue = memoize((utxosData: UtxosData) =>
 );
 
 const selectVaultUtxosDataFactory = memoize((utxosData: UtxosData) =>
-  memoize(
-    ({ amount, feeRate }: { amount: number; feeRate: number }) => {
-      const utxos = getOutputsWithValue(utxosData);
-      const coinselected = coinselect({
-        utxos,
-        targets: [
-          // This will be the main target
-          {
-            output: wpkhOutput,
-            //Set this to 1 sat. We need to create an output to make it count.
-            //Service fee will be added later
-            value: amount - wpkhDustThreshold
+  memoize((vaultOutput: OutputInstance) =>
+    memoize((serviceOutput: OutputInstance) =>
+      memoize((changeOutput: OutputInstance) =>
+        memoize(
+          ({ amount, feeRate }: { amount: number; feeRate: number }) => {
+            const utxos = getOutputsWithValue(utxosData);
+            const coinselected = coinselect({
+              utxos,
+              targets: [
+                // This will be the main target
+                {
+                  output: vaultOutput,
+                  //Set this to 1 sat. We need to create an output to make it count.
+                  //Service fee will be added later
+                  value: amount - dustThreshold(serviceOutput) //TODO FIX WRONG. here I must compute the serviveFee % and see if it's below dustThreshold. If <, then apply dustThreshold or dont apply anything at all?
+                },
+                // This will be the service fee output
+                {
+                  output: serviceOutput,
+                  //We need to create an output to make it count.
+                  //Real service fee will be added later
+                  value: dustThreshold(serviceOutput) //TODO: See FIX above
+                }
+              ],
+              remainder: changeOutput,
+              feeRate
+            });
+            if (!coinselected) return;
+            if (coinselected.utxos.length === utxosData.length) {
+              return {
+                vsize: coinselected.vsize,
+                fee: coinselected.fee,
+                targets: coinselected.targets,
+                vaultUtxosData: utxosData
+              };
+            } else {
+              return {
+                vsize: coinselected.vsize,
+                fee: coinselected.fee,
+                targets: coinselected.targets,
+                vaultUtxosData: coinselected.utxos.map(utxo => {
+                  const utxoData = utxosData[utxos.indexOf(utxo)];
+                  if (!utxoData) throw new Error('Invalid utxoData');
+                  return utxoData;
+                })
+              };
+            }
           },
-          // This will be the service fee output
-          {
-            output: wpkhOutput,
-            //Set this to 1 sat. We need to create an output to make it count.
-            //Service fee will be added later
-            value: wpkhDustThreshold
-          }
-        ],
-        remainder: wpkhOutput,
-        feeRate
-      });
-      if (!coinselected) return;
-      if (coinselected.utxos.length === utxosData.length) return utxosData;
-      else
-        return coinselected.utxos.map(utxo => {
-          const utxoData = utxosData[utxos.indexOf(utxo)];
-          if (!utxoData) throw new Error('Invalid utxoData');
-          return utxoData;
-        });
-    },
-    ({ amount, feeRate }) => JSON.stringify({ amount, feeRate })
+          ({ amount, feeRate }) => JSON.stringify({ amount, feeRate })
+        )
+      )
+    )
   )
 );
 
 export const selectVaultUtxosData = ({
   utxosData,
+  vaultOutput,
+  serviceOutput,
+  changeOutput,
   amount,
   feeRate
 }: {
   utxosData: UtxosData;
+  vaultOutput: OutputInstance;
+  serviceOutput: OutputInstance;
+  changeOutput: OutputInstance;
   amount: number;
   feeRate: number;
-}) => selectVaultUtxosDataFactory(utxosData)({ amount, feeRate });
+}) =>
+  selectVaultUtxosDataFactory(utxosData)(vaultOutput)(serviceOutput)(
+    changeOutput
+  )({
+    amount,
+    feeRate
+  });
+
+export const createVaultDescriptor = (pubKey: Buffer) =>
+  `wpkh(${pubKey.toString('hex')})`;
+export const createServiceDescriptor = (address: string) => `addr(${address})`;
+export const createChangeDescriptor = (pubKey: Buffer) =>
+  `wpkh(${pubKey.toString('hex')})`;
 
 export const createTriggerDescriptor = ({
   unvaultKey,
@@ -258,12 +293,13 @@ const estimateMaxVaultAmountFactory = memoize((utxosData: UtxosData) =>
     const coinselected = maxFunds({
       utxos: getOutputsWithValue(utxosData),
       targets: [
+        //TODO: This is wrong, it lacks the vaultOutput!
         // This will be the service fee output
         {
           output: wpkhOutput,
           //Set this to 1 sat. We need to create an output to make it count.
           //Service fee will be added later
-          value: 1
+          value: 1 //TODO: This is wrong because its below Dust
         }
       ],
       remainder: wpkhOutput,
@@ -284,7 +320,7 @@ export const estimateMaxVaultAmount = ({
 }) => estimateMaxVaultAmountFactory(utxosData)(feeRate);
 
 /**
- * Require that at least 2/3 (minRecoverableRatio) of funds must be recoverable.
+ * Require that at least minRecoverableRatio of funds must be recoverable.
  * In other words, at most loose 1/3 of initial value in fees.
  * It assumes a lockBlocks using the largest possible value (size)
  */
@@ -403,20 +439,29 @@ export function createVault({
   //the targets already. Change may be used or not. We will know if from
   //selectVaultUtxosData
   //TODO: preapare the targets to be passed to selectVaultUtxosData
-  const serviceFeeOutput = new Output({
+  const serviceOutput = new Output({
     descriptor: `addr(${serviceFeeAddress})`,
     network
   });
-  const remainderOutput = new Output({
+  const changeOutput = new Output({
     descriptor: `addr(${changeAddress})`,
     network
   });
-  const vaultUtxosData = selectVaultUtxosData({
+  const vaultPair = ECPair.makeRandom();
+  const vaultOutput = new Output({
+    descriptor: createVaultDescriptor(vaultPair.publicKey),
+    network
+  });
+  const selected = selectVaultUtxosData({
     utxosData,
     amount: balance,
+    vaultOutput,
+    serviceOutput,
+    changeOutput,
     feeRate
   });
-  if (!vaultUtxosData) return;
+  if (!selected) return;
+  const vaultUtxosData = selected.vaultUtxosData;
 
   let minPanicBalance = balance;
   const maxSatsPerByte = feeRateCeiling;
@@ -453,13 +498,6 @@ export function createVault({
     });
     vaultFinalizers.push(inputFinalizer);
   }
-
-  //Prepare the output:
-  const vaultPair = ECPair.makeRandom();
-  const vaultOutput = new Output({
-    descriptor: `wpkh(${vaultPair.publicKey.toString('hex')})`,
-    network
-  });
 
   //Proceed assuming zero fees:
   const psbtVaultZeroFee = psbtVault.clone();
@@ -653,7 +691,11 @@ export function createVault({
 }
 
 /**
+ *
+ * TODO: redo this one making use of selectVaultUtxosData???
  * Important: assumes wpkh vault address.
+ * It also assumes change.
+ *
  * Assumes bitcoin network (not important for txSizes anyway
  */
 export const estimateVaultTxSize = memoize((utxosData: UtxosData) => {
@@ -661,7 +703,7 @@ export const estimateVaultTxSize = memoize((utxosData: UtxosData) => {
     utxosData.map(utxoData => utxoData.output),
     [
       //Just a random pubkey here for the target...
-      wpkhOutput,
+      wpkhOutput, //TODO here use createVaultDescriptor()
       //Just a random pubkey here for the change...
       wpkhOutput,
       //Just a random pubkey here for the service fee...
@@ -670,21 +712,20 @@ export const estimateVaultTxSize = memoize((utxosData: UtxosData) => {
   );
 });
 /**
+ * TODO: Probably it should use a real tx...
  * Important: assumes wpkh vault address.
  * tx size is in fact the largest possible
  * Assumes bitcoin network (not important for txSizes anyway
  */
 export const estimateTriggerTxSize = memoize((lockBlocks: number) =>
   vsize(
-    [wpkhOutput],
+    [wpkhOutput], //TODO: Here use createVaultDescriptor
     [
       new Output({
         descriptor: createTriggerDescriptor({
-          //Use random keys
-          unvaultKey:
-            '0330d54fd0dd420a6e5f8d3624f5f3482cae350f79d5f0753bf5beef9c2d91af3c',
-          panicKey:
-            '03e775fd51f0dfb8cd865d9ff1cca2a158cf651fe997fdc9fee9c1d3b5e995ea77',
+          //Use dummy keys
+          unvaultKey: DUMMY_PUBKEY,
+          panicKey: DUMMY_PUBKEY_2,
           lockBlocks
         })
       })

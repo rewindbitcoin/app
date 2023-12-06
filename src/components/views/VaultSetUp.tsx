@@ -18,7 +18,6 @@ import { useSettings } from '../../contexts/SettingsContext';
 import EditableSlider, { snap } from '../common/EditableSlider';
 import {
   UtxosData,
-  estimateVaultTxSize,
   estimateMaxVaultAmount,
   estimateMinVaultAmount,
   selectVaultUtxosData
@@ -289,23 +288,31 @@ export default function VaultSetUp({
               step={FEE_RATE_STEP}
               onValueChange={setFeeRate}
               formatValue={feeRate => {
-                const vaultUtxosData =
-                  (feeRate !== null &&
-                    amount !== null &&
-                    selectVaultUtxosData({ utxosData, feeRate, amount })) ||
-                  utxosData;
-                const txSize = estimateVaultTxSize(vaultUtxosData);
-                return formatFeeRate(
-                  {
+                const selected =
+                  feeRate !== null &&
+                  amount !== null &&
+                  selectVaultUtxosData({ utxosData, feeRate, amount });
+                if (selected) {
+                  return formatFeeRate(
+                    {
+                      feeRate,
+                      locale: settings.LOCALE,
+                      currency: settings.CURRENCY,
+                      txSize: selected.vsize,
+                      btcFiat,
+                      feeEstimates
+                    },
+                    t
+                  );
+                } else {
+                  console.log({
                     feeRate,
-                    locale: settings.LOCALE,
-                    currency: settings.CURRENCY,
-                    txSize,
-                    btcFiat,
-                    feeEstimates
-                  },
-                  t
-                );
+                    amount,
+                    isUtxosData: utxosData !== null,
+                    selected
+                  });
+                  return 'TODO';
+                }
               }}
             />
           </View>
