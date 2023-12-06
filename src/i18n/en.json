@@ -4,9 +4,9 @@
     "notEnoughFundsTitle": "Vault Minimum Requirement",
     "notEnoughFunds": "<group>To ensure you can unvault at least {{minRecoverableRatioPercentage}}% of your Bitcoin in the future, ThunderDen establishes a minimum vaulting amount.\nThis assumes express transaction confirmations and the possibility of ultra-high network fees when unvaulting.</group><group><strong>Suggested Addition:</strong> Add about {{missingFunds}} to reach the vaulting minimum.\nNote that the exact vaultable amount might slightly differ due to changes in network fee conditions.</group>",
     "amountLabel": "Amount:",
-    "securityLockTimeLabel": "Security Lock Time:",
-    "securityLockTimeDescription": "Spendable {{blocks}} after Unvault",
-    "confirmationSpeedLabel": "Confirmation Speed:",
+    "securityLockTimeLabel": "Safety Delay (Theft Protection):",
+    "securityLockTimeDescription": "Accessible {{blocks}} after Unvaulting",
+    "confirmationSpeedLabel": "Vault Creation Speed:",
     "lockTimeError": "Pick a valid Lock Time.",
     "feeRateError": "Pick a valid Fee Rate.",
     "amountError": "Pick a valid amount of Btc.",
@@ -38,8 +38,8 @@
     "waitingForEstimates": "Waiting for fee estimates...",
     "fee": "Fee: {{amount}}",
     "confirmationTime": "Confirms in ~{{blocks}}",
-    "mayNotConfirm": "May never confirm",
-    "expressConfirmation": "Express confirmation"
+    "mayNotConfirm": "May Never Confirm",
+    "expressConfirmation": "Express Confirmation"
   },
   "continueButton": "Continue",
   "okButton": "OK",
