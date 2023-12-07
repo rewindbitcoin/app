@@ -13,6 +13,7 @@ export type Locale = 'en-US' | 'es-ES';
 
 interface Settings {
   GAP_LIMIT: number;
+  SERVICE_FEE_RATE: number;
   MIN_FEE_RATE: number;
   MIN_LOCK_BLOCKS: number;
   MAX_LOCK_BLOCKS: number;
@@ -37,6 +38,7 @@ interface SettingsContextProps {
 // Default values for the context
 export const defaultSettings: Settings = {
   GAP_LIMIT: 3,
+  SERVICE_FEE_RATE: 0.0004,
   MIN_FEE_RATE: 1,
   MIN_LOCK_BLOCKS: 1,
   MAX_LOCK_BLOCKS: 30 * 24 * 6,

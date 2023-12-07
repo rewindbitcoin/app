@@ -22,6 +22,11 @@ import {
   estimateMinVaultAmount,
   selectVaultUtxosData
 } from '../../lib/vaults';
+import {
+  DUMMY_VAULT_OUTPUT,
+  DUMMY_SERVICE_OUTPUT,
+  DUMMY_CHANGE_OUTPUT
+} from '../../lib/vaultDescriptors';
 
 import {
   FeeEstimates,
@@ -31,17 +36,20 @@ import {
 } from '../../lib/fees';
 import { formatBtc } from '../../lib/btcRates';
 import globalStyles from '../../../styles/styles';
+import type { Network } from 'bitcoinjs-lib';
 
 const FEE_RATE_STEP = 0.01;
 
 export default function VaultSetUp({
   utxosData,
+  network,
   feeEstimates,
   btcFiat,
   onNewValues,
   onCancel = undefined
 }: {
   utxosData: UtxosData;
+  network: Network;
   feeEstimates: FeeEstimates | null;
   btcFiat: number | null;
   onNewValues: (values: {
@@ -113,10 +121,13 @@ export default function VaultSetUp({
   // When the user sends max funds. It will depend on the feeRate the user picks
   const maxVaultAmount = estimateMaxVaultAmount({
     utxosData,
+    vaultOutput: DUMMY_VAULT_OUTPUT(network),
+    serviceOutput: DUMMY_SERVICE_OUTPUT(network),
     // while feeRate has not been set, estimate using the largest possible
     // feeRate. We allow the maxVaultAmount to change depending on the fee
     // rate selected by the uset
-    feeRate: feeRate !== null ? feeRate : maxFeeRate
+    feeRate: feeRate !== null ? feeRate : maxFeeRate,
+    serviceFeeRate: settings.SERVICE_FEE_RATE
   });
   //console.log({ maxVaultAmount, feeRate, maxFeeRate, utxos: utxosData.length });
   const [amount, setAmount] = useState<number | null>(maxVaultAmount || null);
@@ -162,19 +173,27 @@ export default function VaultSetUp({
   const lowestMaxVaultAmount =
     estimateMaxVaultAmount({
       utxosData,
-      feeRate: maxFeeRate
+      vaultOutput: DUMMY_VAULT_OUTPUT(network),
+      serviceOutput: DUMMY_SERVICE_OUTPUT(network),
+      feeRate: maxFeeRate,
+      serviceFeeRate: settings.SERVICE_FEE_RATE
     }) || 0;
   //The most restrictive minVaultAmount, that is the LARGEST value possible
   //(if the user chose the largest feeRate)
   const largestMinVaultAmount = estimateMinVaultAmount({
     utxosData,
+    vaultOutput: DUMMY_VAULT_OUTPUT(network),
+    serviceOutput: DUMMY_SERVICE_OUTPUT(network),
+    changeOutput: DUMMY_CHANGE_OUTPUT(network),
     // set it to worst case, so that largestMinVaultAmount does not change
     // when user interacts setting lockBlocks
+    //TODO: create a const variable for the below value
     lockBlocks: 0xffff,
     // Set it to worst case: express confirmation time so that
     // largestMinVaultAmount in the Slider does not change when the user
     // changes the feeRate
     feeRate: maxFeeRate,
+    serviceFeeRate: settings.SERVICE_FEE_RATE,
     feeRateCeiling: settings.PRESIGNED_FEE_RATE_CEILING,
     minRecoverableRatio: settings.MIN_RECOVERABLE_RATIO
   });
@@ -291,7 +310,15 @@ export default function VaultSetUp({
                 const selected =
                   feeRate !== null &&
                   amount !== null &&
-                  selectVaultUtxosData({ utxosData, feeRate, amount });
+                  selectVaultUtxosData({
+                    utxosData,
+                    vaultOutput: DUMMY_VAULT_OUTPUT(network),
+                    serviceOutput: DUMMY_SERVICE_OUTPUT(network),
+                    changeOutput: DUMMY_CHANGE_OUTPUT(network),
+                    feeRate,
+                    amount,
+                    serviceFeeRate: settings.SERVICE_FEE_RATE
+                  });
                 if (selected) {
                   return formatFeeRate(
                     {

@@ -1,28 +1,5 @@
-//TODO: I'm not 100% convinced about selectVaultUtxosData since it assumes
-//change.
-//But the real problem may be with estimateVaultTxSize.
-//However, estimateMaxVaultAmount is correctly computed assuming no change.
-//So, what happens if the user selects maxVaultAmount? I guess selectVaultUtxosData
-//will work just fine.
-//
-//
-//However the estimateVaultTxSize is wrong. how is this one used?
-//
-//-> Solution selectVaultUtxosData should return the targets too. This
-//way i know if change was used or not. Then estimateVaultTxSize will also
-//pass those targets instead of inventing ones.
-//
-//Maybe even better selectVaultUtxosData should, in fact, return the size already!
-//It should return the whole pack of stuff in fact!!! And then I can get rid
-//of estimateVaultTxSize
-//  > In fact, this very same function is the one that then has to be used
-//  in createVault. So selectVaultUtxosData should also receive some
-//  targets already. Then use some "templateTargets" to be used as default
-//  when not passed, and those will be the ones used in the VaultSetUp
-//
-//
-//TODO: add service fee in the vault process, also add change
-//TODO: very imporant to only allow Vaulting funds with 1 confirmatin at least (make this a setting)
+// TODO: very imporant to only allow Vaulting funds with 1 confirmatin at least (make this a setting)
+const MIN_VAULT_BIN_SEARCH_ITERS = 100;
 import {
   Network,
   Psbt,
@@ -33,16 +10,21 @@ import {
 } from 'bitcoinjs-lib';
 import memoize from 'lodash.memoize';
 import * as secp256k1 from '@bitcoinerlab/secp256k1';
-import { DescriptorsFactory, OutputInstance } from '@bitcoinerlab/descriptors';
+import {
+  signers,
+  DescriptorsFactory,
+  OutputInstance
+} from '@bitcoinerlab/descriptors';
 const { Output, ECPair, parseKeyExpression } = DescriptorsFactory(secp256k1);
-const DUMMY_PUBKEY =
-  '038ffea936b2df76bf31220ebd56a34b30c6b86f40d3bd92664e2f5f98488dddfa';
-const DUMMY_PUBKEY_2 =
-  '038ffea936b2df76bf31220ebd56a34b30c6b86f40d3bd92664e2f5f98488dddfa';
+import {
+  createVaultDescriptor,
+  createTriggerDescriptor,
+  createColdDescriptor,
+  createServiceDescriptor,
+  DUMMY_PUBKEY,
+  DUMMY_PUBKEY_2
+} from './vaultDescriptors';
 
-import { compilePolicy } from '@bitcoinerlab/miniscript';
-const { encode: olderEncode } = require('bip68');
-import { signBIP32, signECPair } from '@bitcoinerlab/descriptors/dist/signers';
 import type { BIP32Interface } from 'bip32';
 
 import { feeRateSampling } from './fees';
@@ -53,6 +35,8 @@ import {
   vsize,
   dustThreshold
 } from '@bitcoinerlab/coinselect';
+
+import { findLowestTrueBinarySearch } from './binarySearch';
 
 export type Vault = {
   /** the initial balance */
@@ -175,69 +159,41 @@ const getOutputsWithValue = memoize((utxosData: UtxosData) =>
   })
 );
 
-const selectVaultUtxosDataFactory = memoize((utxosData: UtxosData) =>
-  memoize((vaultOutput: OutputInstance) =>
-    memoize((serviceOutput: OutputInstance) =>
-      memoize((changeOutput: OutputInstance) =>
-        memoize(
-          ({ amount, feeRate }: { amount: number; feeRate: number }) => {
-            const utxos = getOutputsWithValue(utxosData);
-            const coinselected = coinselect({
-              utxos,
-              targets: [
-                // This will be the main target
-                {
-                  output: vaultOutput,
-                  //Set this to 1 sat. We need to create an output to make it count.
-                  //Service fee will be added later
-                  value: amount - dustThreshold(serviceOutput) //TODO FIX WRONG. here I must compute the serviveFee % and see if it's below dustThreshold. If <, then apply dustThreshold or dont apply anything at all?
-                },
-                // This will be the service fee output
-                {
-                  output: serviceOutput,
-                  //We need to create an output to make it count.
-                  //Real service fee will be added later
-                  value: dustThreshold(serviceOutput) //TODO: See FIX above
-                }
-              ],
-              remainder: changeOutput,
-              feeRate
-            });
-            if (!coinselected) return;
-            if (coinselected.utxos.length === utxosData.length) {
-              return {
-                vsize: coinselected.vsize,
-                fee: coinselected.fee,
-                targets: coinselected.targets,
-                vaultUtxosData: utxosData
-              };
-            } else {
-              return {
-                vsize: coinselected.vsize,
-                fee: coinselected.fee,
-                targets: coinselected.targets,
-                vaultUtxosData: coinselected.utxos.map(utxo => {
-                  const utxoData = utxosData[utxos.indexOf(utxo)];
-                  if (!utxoData) throw new Error('Invalid utxoData');
-                  return utxoData;
-                })
-              };
-            }
-          },
-          ({ amount, feeRate }) => JSON.stringify({ amount, feeRate })
-        )
-      )
-    )
-  )
-);
+/**
+ * serviceFee will be at least dust
+ * However if serviceFee makes the vaultedAmount to be < its own dust limit
+ * then return zero
+ */
+const getServiceFee = ({
+  amount,
+  vaultOutput,
+  serviceOutput,
+  serviceFeeRate
+}: {
+  amount: number;
+  vaultOutput: OutputInstance;
+  serviceOutput: OutputInstance;
+  serviceFeeRate: number;
+}) => {
+  const serviceFee = Math.max(
+    dustThreshold(serviceOutput),
+    Math.round(serviceFeeRate * amount)
+  );
+  if (amount - serviceFee <= dustThreshold(vaultOutput)) return 0;
+  else return serviceFee;
+};
 
+/**
+ * The vault coinselector
+ */
 export const selectVaultUtxosData = ({
   utxosData,
   vaultOutput,
   serviceOutput,
   changeOutput,
   amount,
-  feeRate
+  feeRate,
+  serviceFeeRate
 }: {
   utxosData: UtxosData;
   vaultOutput: OutputInstance;
@@ -245,174 +201,330 @@ export const selectVaultUtxosData = ({
   changeOutput: OutputInstance;
   amount: number;
   feeRate: number;
+  serviceFeeRate: number;
 }) =>
   selectVaultUtxosDataFactory(utxosData)(vaultOutput)(serviceOutput)(
     changeOutput
   )({
     amount,
-    feeRate
+    feeRate,
+    serviceFeeRate
   });
 
-export const createVaultDescriptor = (pubKey: Buffer) =>
-  `wpkh(${pubKey.toString('hex')})`;
-export const createServiceDescriptor = (address: string) => `addr(${address})`;
-export const createChangeDescriptor = (pubKey: Buffer) =>
-  `wpkh(${pubKey.toString('hex')})`;
-
-export const createTriggerDescriptor = ({
-  unvaultKey,
-  panicKey,
-  lockBlocks
-}: {
-  unvaultKey: string;
-  panicKey: string;
-  lockBlocks: number;
-}) => {
-  //TODO: Do not compile the POLICY. hardcode the miniscript
-  const POLICY = (older: number) =>
-    `or(pk(@panicKey),99@and(pk(@unvaultKey),older(${older})))`;
-  const older = olderEncode({ blocks: lockBlocks });
-  const { miniscript, issane } = compilePolicy(POLICY(older));
-  if (!issane) throw new Error('Policy not sane');
-
-  const triggerDescriptor = `wsh(${miniscript
-    .replace('@unvaultKey', unvaultKey)
-    .replace('@panicKey', panicKey)})`;
-  return triggerDescriptor;
-};
+const selectVaultUtxosDataFactory = memoize((utxosData: UtxosData) =>
+  memoize((vaultOutput: OutputInstance) =>
+    memoize((serviceOutput: OutputInstance) =>
+      memoize((changeOutput: OutputInstance) =>
+        memoize(
+          ({
+            amount,
+            feeRate,
+            serviceFeeRate
+          }: {
+            amount: number;
+            feeRate: number;
+            serviceFeeRate: number;
+          }) => {
+            const utxos = getOutputsWithValue(utxosData);
+            const serviceFee = getServiceFee({
+              amount,
+              vaultOutput,
+              serviceOutput,
+              serviceFeeRate
+            });
+            const coinselected = coinselect({
+              utxos,
+              targets: [
+                { output: vaultOutput, value: amount - serviceFee },
+                ...(serviceFee
+                  ? [{ output: serviceOutput, value: serviceFee }]
+                  : [])
+              ],
+              remainder: changeOutput,
+              feeRate
+            });
+            if (!coinselected) return;
+            const vaultUtxosData =
+              coinselected.utxos.length === utxosData.length
+                ? utxosData
+                : coinselected.utxos.map(utxo => {
+                    const utxoData = utxosData[utxos.indexOf(utxo)];
+                    if (!utxoData) throw new Error('Invalid utxoData');
+                    return utxoData;
+                  });
+            return {
+              vsize: coinselected.vsize,
+              fee: coinselected.fee,
+              targets: coinselected.targets,
+              vaultUtxosData
+            };
+          },
+          ({ amount, feeRate, serviceFeeRate }) =>
+            JSON.stringify({ amount, feeRate, serviceFeeRate })
+        )
+      )
+    )
+  )
+);
 
 export const utxosDataBalance = memoize((utxosData: UtxosData): number =>
   getOutputsWithValue(utxosData).reduce((a, { value }) => a + value, 0)
 );
 
-/** When sending maxFunds, what is the recipient + service fee value?
- * It returns a number or undefined if not possible to obtain a value
+/**
+ * Estimates the maximum vault amount when sending maxFunds.
+ * This amount accounts for the sume of both the vault and
+ * service fee, though in rare cases, the service fee might be zero if it
+ * would result in the main target value falling below the dust threshold.
+ *
+ * The function performs a series of calculations to determine if it's possible
+ * to include a service fee without violating the dust threshold constraints. If
+ * it's not feasible to include the service fee while respecting the dust
+ * threshold, the function proceeds under the assumption of no service fee.
+ *
+ * - First, it checks if it's possible to add a minimal service output (dust).
+ *   If not, it assumes no service fee.
+ * - Then, it calculates the correct service fee based on the total amount and
+ *   tries to include it.
+ * - If including the correct service fee is not possible, it proceeds without
+ *   the service fee.
+ * - Finally, it calculates the maximum vault amount based on the available UTXOs
+ *   and the determined fee conditions.
+ *
+ * The function returns the estimated amount or `undefined` if it's impossible
+ * to obtain a valid value.
+ *
  */
-const estimateMaxVaultAmountFactory = memoize((utxosData: UtxosData) =>
-  memoize((feeRate: number) => {
-    const coinselected = maxFunds({
-      utxos: getOutputsWithValue(utxosData),
-      targets: [
-        //TODO: This is wrong, it lacks the vaultOutput!
-        // This will be the service fee output
-        {
-          output: wpkhOutput,
-          //Set this to 1 sat. We need to create an output to make it count.
-          //Service fee will be added later
-          value: 1 //TODO: This is wrong because its below Dust
-        }
-      ],
-      remainder: wpkhOutput,
-      feeRate
-    });
-    if (!coinselected) return;
-    const value = coinselected.targets[coinselected.targets.length - 1]?.value;
-    if (value === undefined) return;
-    return value + 1; //Add the service fee back to the total
-  })
-);
 export const estimateMaxVaultAmount = ({
   utxosData,
-  feeRate
+  vaultOutput,
+  serviceOutput,
+  feeRate,
+  serviceFeeRate
 }: {
   utxosData: UtxosData;
+  vaultOutput: OutputInstance;
+  serviceOutput: OutputInstance;
   feeRate: number;
-}) => estimateMaxVaultAmountFactory(utxosData)(feeRate);
-
-/**
- * Require that at least minRecoverableRatio of funds must be recoverable.
- * In other words, at most loose 1/3 of initial value in fees.
- * It assumes a lockBlocks using the largest possible value (size)
- */
-export const estimateMinVaultAmountFactory = memoize(
-  (
-    utxosData: /** Here ideally pass the selectedUtxos data but it's good (and safe) approach
-     * to pass all the utxosData since this is used to compute an estimate of
-     * the vault ts size.
-     */
-    UtxosData
-  ) =>
-    memoize(
-      ({
-        lockBlocks,
-        feeRate,
-        feeRateCeiling,
-        minRecoverableRatio
-      }: {
-        lockBlocks: number;
-        /** Fee rate used for the Vault*/
-        feeRate: number;
-        /** Max Fee rate for the presigned txs */
-        feeRateCeiling: number;
-        minRecoverableRatio: number;
-      }) => {
-        if (
-          Number.isNaN(minRecoverableRatio) ||
-          minRecoverableRatio >= 1 ||
-          minRecoverableRatio <= 0
-        )
-          throw new Error(
-            `Invalid minRecoverableRatio: ${minRecoverableRatio}`
-          );
-        // initialValue - totalFees > minRecoverableRatio * initialValue
-        // initialValue - minRecoverableRatio * initialValue > totalFees
-        // initialValue * (1 - minRecoverableRatio) > totalFees
-        // initialValue > totalFees / (1 - minRecoverableRatio)
-        // If minRecoverableRatio =  2/3 => It can loose up to 1/3 of value in fees
-        const totalFees =
-          Math.ceil(feeRate * estimateVaultTxSize(utxosData)) +
-          Math.ceil(feeRateCeiling * estimateTriggerTxSize(lockBlocks));
-
-        return Math.ceil(totalFees / (1 - minRecoverableRatio));
-      },
-      ({ lockBlocks, feeRate, feeRateCeiling, minRecoverableRatio }) =>
-        JSON.stringify({
-          lockBlocks,
+  serviceFeeRate: number;
+}) =>
+  estimateMaxVaultAmountFactory(utxosData)(vaultOutput)(serviceOutput)({
+    feeRate,
+    serviceFeeRate
+  });
+const estimateMaxVaultAmountFactory = memoize((utxosData: UtxosData) =>
+  memoize((vaultOutput: OutputInstance) =>
+    memoize((serviceOutput: OutputInstance) =>
+      memoize(
+        ({
           feeRate,
-          feeRateCeiling,
-          minRecoverableRatio
-        })
+          serviceFeeRate
+        }: {
+          feeRate: number;
+          serviceFeeRate: number;
+        }) => {
+          // We cannot compute serviceFees yet because we don't know amounts but
+          // if serviceFeeRate, we will first assume there will a service output
+          let coinselected;
+          if (serviceFeeRate > 0) {
+            const dustServiceFee = dustThreshold(vaultOutput);
+            if (dustServiceFee === 0) throw new Error('Incorrect dust');
+            coinselected = maxFunds({
+              utxos: getOutputsWithValue(utxosData),
+              targets: [{ output: serviceOutput, value: dustServiceFee }],
+              remainder: vaultOutput,
+              feeRate
+            });
+          }
+          if (coinselected) {
+            // It looks like it was possible to add a servive output. We
+            // can now know the total amount and we can compute the correct
+            // serviceFee and the correct coinselect
+
+            //The total amount is correct, but targets have incorrect ratios
+            const amount = coinselected.targets.reduce(
+              (a, { value }) => a + value,
+              0
+            );
+            const serviceFee = getServiceFee({
+              amount,
+              vaultOutput,
+              serviceOutput,
+              serviceFeeRate
+            });
+            coinselected = maxFunds({
+              utxos: getOutputsWithValue(utxosData),
+              targets: serviceFee
+                ? [{ output: serviceOutput, value: serviceFee }]
+                : [],
+              remainder: vaultOutput,
+              feeRate
+            });
+          }
+          if (!coinselected) {
+            // At this point either it was impossible to add dust or it
+            // was impossible to add the correct final fee output, so we
+            // must assume no fee at all
+            coinselected = maxFunds({
+              utxos: getOutputsWithValue(utxosData),
+              targets: [],
+              remainder: vaultOutput,
+              feeRate
+            });
+          }
+          if (!coinselected) return;
+
+          return coinselected.targets.reduce((a, { value }) => a + value, 0);
+        },
+        ({ feeRate, serviceFeeRate }) =>
+          JSON.stringify({ feeRate, serviceFeeRate })
+      )
     )
+  )
 );
 
+/**
+ * Estimates the minimum vault amount to ensure at least `minRecoverableRatio` of
+ * funds are recoverable (in serviceFee + vaultAmount) , e.g., no more than 1/3
+ * of initial value lost in miner fees.
+ * This function might not find the absolute minimum but will return a safe
+ * estimation. It employs a brute force approach via binary search, starting from
+ * `maxVaultAmount` and testing lower values. The goal is to find the lowest
+ * vault amount where the vault's value is ≥ 2/3 of the original amount, where
+ * 2/3 is an illustrative ratio linked to `serviceFeeRate`.
+ *
+ * The function utilizes `findLowestTrueBinarySearch` with `MIN_VAULT_BIN_SEARCH_ITERS`
+ * as the maximum number of iterations for binary search optimization. The search
+ * relies on a test function that evaluates if UTXOs meet the recoverable ratio
+ * requirement. Ideally, this function should return a predictable pattern
+ * (false below a threshold, true above it). In practice, this approach mostly
+ * suffices, even if not optimally precise. The estimation errs on the side of
+ * caution, being slightly stricter than necessary, which is suitable for
+ * restricting user transactions when funds are below the required threshold.
+ *
+ * Returns `undefined` if no solution is found or if `maxVaultAmount` is undefined.
+ *
+ */
 export const estimateMinVaultAmount = ({
   utxosData,
+  vaultOutput,
+  serviceOutput,
+  changeOutput,
   lockBlocks,
   feeRate,
+  serviceFeeRate,
   feeRateCeiling,
   minRecoverableRatio
 }: {
-  /** Here ideally pass the selectedUtxos data but it's good (and safe) approach
-   * to pass all the utxosData since this is used to compute an estimate of
-   * the vault ts size.
-   */
   utxosData: UtxosData;
+  vaultOutput: OutputInstance;
+  serviceOutput: OutputInstance;
+  changeOutput: OutputInstance;
   lockBlocks: number;
   /** Fee rate used for the Vault*/
   feeRate: number;
+  serviceFeeRate: number;
   /** Max Fee rate for the presigned txs */
   feeRateCeiling: number;
   minRecoverableRatio: number;
 }) =>
-  estimateMinVaultAmountFactory(utxosData)({
+  estimateMinVaultAmountFactory(utxosData)(vaultOutput)(serviceOutput)(
+    changeOutput
+  )({
     lockBlocks,
     feeRate,
+    serviceFeeRate,
     feeRateCeiling,
     minRecoverableRatio
   });
+export const estimateMinVaultAmountFactory = memoize((utxosData: UtxosData) =>
+  memoize((vaultOutput: OutputInstance) =>
+    memoize((serviceOutput: OutputInstance) =>
+      memoize((changeOutput: OutputInstance) =>
+        memoize(
+          ({
+            lockBlocks,
+            feeRate,
+            serviceFeeRate,
+            feeRateCeiling,
+            minRecoverableRatio
+          }: {
+            lockBlocks: number;
+            feeRate: number;
+            serviceFeeRate: number;
+            feeRateCeiling: number;
+            minRecoverableRatio: number;
+          }) => {
+            const isRecoverable = (amount: number) => {
+              const selected = selectVaultUtxosData({
+                utxosData,
+                amount,
+                vaultOutput,
+                serviceOutput,
+                changeOutput,
+                feeRate,
+                serviceFeeRate
+              });
+              if (!selected) return false;
+              const totalFees =
+                selected.fee +
+                Math.ceil(feeRateCeiling * estimateTriggerTxSize(lockBlocks));
 
-//TODO return dustThrshold as min vault value / its more complex. At least
+              // initialValue - totalFees > minRecoverableRatio * initialValue
+              // initialValue - minRecoverableRatio * initialValue > totalFees
+              // initialValue * (1 - minRecoverableRatio) > totalFees
+              // initialValue > totalFees / (1 - minRecoverableRatio)
+              // If minRecoverableRatio =  2/3 => It can loose up to 1/3 of value in fees
+              return amount >= Math.ceil(totalFees / (1 - minRecoverableRatio));
+            };
+
+            const maxVaultAmount = estimateMaxVaultAmount({
+              vaultOutput,
+              serviceOutput,
+              utxosData,
+              feeRate,
+              serviceFeeRate
+            });
+            if (maxVaultAmount === undefined) return;
+            const { value } = findLowestTrueBinarySearch(
+              maxVaultAmount,
+              isRecoverable,
+              MIN_VAULT_BIN_SEARCH_ITERS
+            );
+            return value;
+          },
+          ({
+            lockBlocks,
+            feeRate,
+            serviceFeeRate,
+            feeRateCeiling,
+            minRecoverableRatio
+          }) =>
+            JSON.stringify({
+              lockBlocks,
+              feeRate,
+              serviceFeeRate,
+              feeRateCeiling,
+              minRecoverableRatio
+            })
+        )
+      )
+    )
+  )
+);
+
+//TODO return dustThreshold as min vault value / its more complex. At least
 //it must return something that when unvaulting it recovers a significant amount
-
 export function createVault({
   balance,
   unvaultKey,
   samples,
   feeRate,
+  serviceFeeRate,
   feeRateCeiling,
   coldAddress,
-  changeAddress,
-  serviceFeeAddress,
+  changeDescriptor,
+  serviceAddress,
   lockBlocks,
   masterNode,
   network,
@@ -424,12 +536,13 @@ export function createVault({
   /** How many txs to compute. Note that the final number of tx is samples^2*/
   samples: number;
   feeRate: number;
+  serviceFeeRate: number;
   /** This is the largest fee rate for which at least one trigger and panic txs
    * must be pre-computed*/
   feeRateCeiling: number;
   coldAddress: string;
-  changeAddress: string;
-  serviceFeeAddress: string;
+  changeDescriptor: string;
+  serviceAddress: string;
   lockBlocks: number;
   masterNode: BIP32Interface;
   network: Network;
@@ -440,16 +553,16 @@ export function createVault({
   //selectVaultUtxosData
   //TODO: preapare the targets to be passed to selectVaultUtxosData
   const serviceOutput = new Output({
-    descriptor: `addr(${serviceFeeAddress})`,
+    descriptor: createServiceDescriptor(serviceAddress),
     network
   });
   const changeOutput = new Output({
-    descriptor: `addr(${changeAddress})`,
+    descriptor: changeDescriptor,
     network
   });
   const vaultPair = ECPair.makeRandom();
   const vaultOutput = new Output({
-    descriptor: createVaultDescriptor(vaultPair.publicKey),
+    descriptor: createVaultDescriptor(vaultPair.publicKey.toString('hex')),
     network
   });
   const selected = selectVaultUtxosData({
@@ -458,7 +571,8 @@ export function createVault({
     vaultOutput,
     serviceOutput,
     changeOutput,
-    feeRate
+    feeRate,
+    serviceFeeRate
   });
   if (!selected) return;
   const vaultUtxosData = selected.vaultUtxosData;
@@ -477,7 +591,7 @@ export function createVault({
   const triggerMap: TriggerMap = {};
 
   const coldOutput = new Output({
-    descriptor: `addr(${coldAddress})`,
+    descriptor: createColdDescriptor(coldAddress),
     network
   });
 
@@ -506,7 +620,7 @@ export function createVault({
     throw new Error(`Invalid utxos or balance`);
   vaultOutput.updatePsbtAsOutput({ psbt: psbtVaultZeroFee, value: balance });
   //Sign
-  signBIP32({ psbt: psbtVaultZeroFee, masterNode });
+  signers.signBIP32({ psbt: psbtVaultZeroFee, masterNode });
   //Finalize
   vaultFinalizers.forEach(finalizer => finalizer({ psbt: psbtVaultZeroFee }));
   //Compute the correct output value for feeRate
@@ -521,7 +635,7 @@ export function createVault({
   //Add the output to psbtVault assuming feeRate:
   vaultOutput.updatePsbtAsOutput({ psbt: psbtVault, value: vaultBalance });
   //Sign
-  signBIP32({ psbt: psbtVault, masterNode });
+  signers.signBIP32({ psbt: psbtVault, masterNode });
   //Finalize
   vaultFinalizers.forEach(finalizer => finalizer({ psbt: psbtVault }));
 
@@ -532,9 +646,7 @@ export function createVault({
   const panicPair = ECPair.makeRandom();
   const panicPubKey = panicPair.publicKey;
 
-  //TODO: The Policy should not be here
   //Prepare the output...
-
   const triggerDescriptor = createTriggerDescriptor({
     unvaultKey,
     panicKey: panicPubKey.toString('hex'),
@@ -590,7 +702,7 @@ export function createVault({
         value: vaultBalance - feeTrigger
       });
       //Sign
-      signECPair({ psbt: psbtTrigger, ecpair: vaultPair });
+      signers.signECPair({ psbt: psbtTrigger, ecpair: vaultPair });
       //Finalize
       triggerInputFinalizer({ psbt: psbtTrigger, validate: !feeTrigger });
       //Take the vsize for a tx with 0 fees.
@@ -644,7 +756,7 @@ export function createVault({
               value: triggerBalance - feePanic
             });
             //Sign
-            signECPair({ psbt: psbtPanic, ecpair: panicPair });
+            signers.signECPair({ psbt: psbtPanic, ecpair: panicPair });
             //Finalize
             panicInputFinalizer({ psbt: psbtPanic, validate: !feePanic });
             //Take the vsize for a tx with 0 fees.
@@ -691,47 +803,23 @@ export function createVault({
 }
 
 /**
- *
- * TODO: redo this one making use of selectVaultUtxosData???
- * Important: assumes wpkh vault address.
- * It also assumes change.
- *
- * Assumes bitcoin network (not important for txSizes anyway
+ * For estimation purposes only, using dummy keys
  */
-export const estimateVaultTxSize = memoize((utxosData: UtxosData) => {
+export const estimateTriggerTxSize = memoize((lockBlocks: number) => {
+  // Assumes bitcoin network (not important for txSizes anyway)
   return vsize(
-    utxosData.map(utxoData => utxoData.output),
-    [
-      //Just a random pubkey here for the target...
-      wpkhOutput, //TODO here use createVaultDescriptor()
-      //Just a random pubkey here for the change...
-      wpkhOutput,
-      //Just a random pubkey here for the service fee...
-      wpkhOutput
-    ]
-  );
-});
-/**
- * TODO: Probably it should use a real tx...
- * Important: assumes wpkh vault address.
- * tx size is in fact the largest possible
- * Assumes bitcoin network (not important for txSizes anyway
- */
-export const estimateTriggerTxSize = memoize((lockBlocks: number) =>
-  vsize(
-    [wpkhOutput], //TODO: Here use createVaultDescriptor
+    [new Output({ descriptor: createVaultDescriptor(DUMMY_PUBKEY) })],
     [
       new Output({
         descriptor: createTriggerDescriptor({
-          //Use dummy keys
           unvaultKey: DUMMY_PUBKEY,
           panicKey: DUMMY_PUBKEY_2,
           lockBlocks
         })
       })
     ]
-  )
-);
+  );
+});
 
 export function esploraUrl(network: Network) {
   const url =

@@ -98,10 +98,8 @@ import { generateMnemonic, mnemonicToSeedSync } from 'bip39';
 import * as secp256k1 from '@bitcoinerlab/secp256k1';
 import {
   keyExpressionBIP32,
-  scriptExpressions,
   DescriptorsFactory
 } from '@bitcoinerlab/descriptors';
-const { wpkhBIP32 } = scriptExpressions;
 
 import { EsploraExplorer } from '@bitcoinerlab/explorer';
 import { DiscoveryFactory, DiscoveryInstance } from '@bitcoinerlab/discovery';
@@ -129,8 +127,7 @@ const FEE_RATE_CEILING = 5 * 1000; //22-dec-2017 fee rates were 1000. TODO: Set 
 const DEFAULT_MAX_FEE_RATE = FEE_RATE_CEILING; //Not very important. Use this one while feeEstimates is not retrieved. This is the maxFeeRate that we assume that feeEstimates will return
 //TODO: Fix these 3 below:
 const DEFAULT_COLD_ADDR = 'tb1qm0k9mn48uqfs2w9gssvzmus4j8srrx5eje7wpf';
-const DEFAULT_CHANGE_ADDR = 'tb1qm0k9mn48uqfs2w9gssvzmus4j8srrx5eje7wpf';
-const DEFAULT_SERVICE_FEE_ADDR = 'tb1qm0k9mn48uqfs2w9gssvzmus4j8srrx5eje7wpf';
+const DEFAULT_SERVICE_ADDR = 'tb1qm0k9mn48uqfs2w9gssvzmus4j8srrx5eje7wpf';
 import {
   createVault,
   Vault,
@@ -142,17 +139,19 @@ import {
   estimateTriggerTxSize,
   selectVaultUtxosData
 } from './src/lib/vaults';
+import {
+  createReceiveDescriptor,
+  createChangeDescriptor,
+  DUMMY_VAULT_OUTPUT,
+  DUMMY_SERVICE_OUTPUT,
+  DUMMY_CHANGE_OUTPUT
+} from './src/lib/vaultDescriptors';
 import styles from './styles/styles';
 import type { TFunction } from 'i18next';
 
 const fromMnemonic = memoize(mnemonic => {
   if (!mnemonic) throw new Error('mnemonic not passed');
   const masterNode = BIP32.fromSeed(mnemonicToSeedSync(mnemonic), network);
-  const descriptors = [0, 1].map(change =>
-    wpkhBIP32({ masterNode, network, account: 0, index: '*', change })
-  );
-  if (!descriptors[0] || !descriptors[1])
-    throw new Error(`Error: descriptors not retrieved`);
   const unvaultKey = keyExpressionBIP32({
     masterNode,
     originPath: "/0'",
@@ -160,8 +159,8 @@ const fromMnemonic = memoize(mnemonic => {
   });
   return {
     masterNode,
-    external: descriptors[0],
-    internal: descriptors[1],
+    receiveDescriptor: createReceiveDescriptor({ masterNode, network }),
+    changeDescriptor: createChangeDescriptor({ masterNode, network }),
     unvaultKey
   };
 });
@@ -457,8 +456,8 @@ function App() {
 
       //Now update the utxos:
       const descriptors = [
-        fromMnemonic(mnemonic).external,
-        fromMnemonic(mnemonic).internal,
+        fromMnemonic(mnemonic).receiveDescriptor,
+        fromMnemonic(mnemonic).changeDescriptor,
         ...spendableTriggerDescriptors(newVaults)
       ];
       await discovery.fetch({ descriptors, gapLimit: GAP_LIMIT });
@@ -475,10 +474,14 @@ function App() {
   };
 
   const handleReceiveBitcoin = async () => {
-    const external = fromMnemonic(mnemonic).external;
+    const receiveDescriptor = fromMnemonic(mnemonic).receiveDescriptor;
     if (!discovery) throw new Error(`discovery not instantiated yet!`);
-    const index = discovery.getNextIndex({ descriptor: external });
-    const output = new Output({ descriptor: external, index, network });
+    const index = discovery.getNextIndex({ descriptor: receiveDescriptor });
+    const output = new Output({
+      descriptor: receiveDescriptor,
+      index,
+      network
+    });
     setReceiveAddress(output.getAddress());
   };
 
@@ -557,8 +560,12 @@ Handle with care. Confidentiality is key.
     //params. I shouldnt i use the correct values!
     const selected = selectVaultUtxosData({
       utxosData: hotUtxosData,
+      vaultOutput: DUMMY_VAULT_OUTPUT(network),
+      serviceOutput: DUMMY_SERVICE_OUTPUT(network),
+      changeOutput: DUMMY_CHANGE_OUTPUT(network),
       amount,
-      feeRate
+      feeRate,
+      serviceFeeRate: settings.SERVICE_FEE_RATE
     });
     if (selected === undefined)
       throw new Error('VaultSetUp could not coinselect some utxos');
@@ -568,6 +575,15 @@ Handle with care. Confidentiality is key.
     if (!discovery) throw new Error(`discovery not instantiated yet!`);
     const masterNode = fromMnemonic(mnemonic).masterNode;
     const unvaultKey = fromMnemonic(mnemonic).unvaultKey;
+
+    const changeDescriptor = fromMnemonic(mnemonic).changeDescriptor.replaceAll(
+      '*',
+      discovery
+        .getNextIndex({
+          descriptor: fromMnemonic(mnemonic).changeDescriptor
+        })
+        .toString()
+    );
     //HERE CREATE THE triggerDescriptor using the next
     if (utxos === null || !utxos.length) throw new Error(`utxos unset`);
     const vault = createVault({
@@ -575,10 +591,11 @@ Handle with care. Confidentiality is key.
       unvaultKey,
       samples: SAMPLES,
       feeRate,
+      serviceFeeRate: settings.SERVICE_FEE_RATE,
       feeRateCeiling: FEE_RATE_CEILING,
       coldAddress: DEFAULT_COLD_ADDR,
-      changeAddress: DEFAULT_CHANGE_ADDR,
-      serviceFeeAddress: DEFAULT_SERVICE_FEE_ADDR,
+      changeDescriptor,
+      serviceAddress: DEFAULT_SERVICE_ADDR,
       lockBlocks,
       masterNode,
       utxosData: selected.vaultUtxosData,
@@ -809,6 +826,7 @@ Handle with care. Confidentiality is key.
           <Modal visible={isVaultSetUp} animationType="slide">
             <View style={[styles.modal, { padding: 40 }]}>
               <VaultSetUp
+                network={network}
                 utxosData={hotUtxosData}
                 feeEstimates={feeEstimates}
                 btcFiat={btcFiat}
