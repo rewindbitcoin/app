@@ -485,13 +485,15 @@ export const estimateMinVaultAmountFactory = memoize((utxosData: UtxosData) =>
               feeRate,
               serviceFeeRate
             });
-            if (maxVaultAmount === undefined) return;
-            const { value } = findLowestTrueBinarySearch(
-              maxVaultAmount,
-              isRecoverable,
-              MIN_VAULT_BIN_SEARCH_ITERS
-            );
-            return value;
+            if (maxVaultAmount === undefined) {
+            } else {
+              const { value } = findLowestTrueBinarySearch(
+                maxVaultAmount,
+                isRecoverable,
+                MIN_VAULT_BIN_SEARCH_ITERS
+              );
+              return value;
+            }
           },
           ({
             lockBlocks,
