@@ -22,7 +22,8 @@ import {
   createColdDescriptor,
   createServiceDescriptor,
   DUMMY_PUBKEY,
-  DUMMY_PUBKEY_2
+  DUMMY_PUBKEY_2,
+  DUMMY_PKH_OUTPUT
 } from './vaultDescriptors';
 
 import type { BIP32Interface } from 'bip32';
@@ -384,25 +385,28 @@ const estimateMaxVaultAmountFactory = memoize((utxosData: UtxosData) =>
 );
 
 /**
- * Estimates the minimum vault amount to ensure at least `minRecoverableRatio` of
- * funds are recoverable (in serviceFee + vaultAmount) , e.g., no more than 1/3
- * of initial value lost in miner fees.
- * This function might not find the absolute minimum but will return a safe
- * estimation. It employs a brute force approach via binary search, starting from
- * `maxVaultAmount` and testing lower values. The goal is to find the lowest
- * vault amount where the vault's value is ≥ 2/3 of the original amount, where
- * 2/3 is an illustrative ratio linked to `serviceFeeRate`.
  *
- * The function utilizes `findLowestTrueBinarySearch` with `MIN_VAULT_BIN_SEARCH_ITERS`
- * as the maximum number of iterations for binary search optimization. The search
- * relies on a test function that evaluates if UTXOs meet the recoverable ratio
- * requirement. Ideally, this function should return a predictable pattern
- * (false below a threshold, true above it). In practice, this approach mostly
- * suffices, even if not optimally precise. The estimation errs on the side of
- * caution, being slightly stricter than necessary, which is suitable for
- * restricting user transactions when funds are below the required threshold.
+ * Estimates the minimum vault amount needed to ensure at least `minRecoverableRatio`
+ * of funds are recoverable (including serviceFee + vaultAmount), e.g., limiting loss
+ * to no more than 1/3 of the initial value due to miner fees. This function might not
+ * always find the absolute minimum but provides a safe, conservative estimation.
  *
- * Returns `undefined` if no solution is found or if `maxVaultAmount` is undefined.
+ * Utilizing a binary search starting from `maxVaultAmount`, it tests for lower values
+ * to determine the smallest vault amount maintaining a recoverable value ≥ a specified
+ * ratio (e.g., 2/3 linked to `serviceFeeRate`). The function employs `findLowestTrueBinarySearch`
+ * with `MIN_VAULT_BIN_SEARCH_ITERS` for binary search optimization. Ideally, the test
+ * function used in the search should follow a predictable pattern (returning false below
+ * a certain threshold and true above it). In practice, while the test function may not
+ * perfectly align with this binary search expectation, it often suffices and yields
+ * mostly accurate results.
+ *
+ * If a solution isn't found with the current UTXOs or if `maxVaultAmount` is undefined,
+ * the function calculates an estimate assuming a new PKH UTXO will provide additional
+ * funds. This approach, though possibly not 100% optimal because funds may come
+ * from more than one UTXO, it is the best that can be estimated at this point
+ *
+ * The function returns the estimated minimum amount, derived either from the binary
+ * search or the computed value in cases where current UTXOs don't provide a solution.
  *
  */
 export const estimateMinVaultAmount = ({
@@ -485,13 +489,31 @@ export const estimateMinVaultAmountFactory = memoize((utxosData: UtxosData) =>
               feeRate,
               serviceFeeRate
             });
-            if (maxVaultAmount === undefined) {
+            if (
+              maxVaultAmount === undefined ||
+              !isRecoverable(maxVaultAmount)
+            ) {
+              // If the current utxos cannot provide a solution, then we must
+              // compute assuming that a new utxo (PKH) will send extra funds
+              const vaultTxSize = vsize(
+                [
+                  ...utxosData.map(utxoData => utxoData.output),
+                  DUMMY_PKH_OUTPUT
+                ],
+                [vaultOutput, changeOutput, serviceOutput]
+              );
+              const totalFees =
+                Math.ceil(feeRate * vaultTxSize) +
+                Math.ceil(feeRateCeiling * estimateTriggerTxSize(lockBlocks));
+
+              return Math.ceil(totalFees / (1 - minRecoverableRatio));
             } else {
               const { value } = findLowestTrueBinarySearch(
                 maxVaultAmount,
                 isRecoverable,
                 MIN_VAULT_BIN_SEARCH_ITERS
               );
+              if (value === undefined) return maxVaultAmount;
               return value;
             }
           },

@@ -54,6 +54,10 @@ export const DUMMY_CHANGE_OUTPUT = memoize(
     })
 );
 
+export const DUMMY_PKH_OUTPUT = new Output({
+  descriptor: `pkh(${DUMMY_PUBKEY})`
+});
+
 export const createServiceDescriptor = (address: string) => `addr(${address})`;
 
 export const createColdDescriptor = (address: string) => `addr(${address})`;
