@@ -1,4 +1,5 @@
 import memoize from 'lodash.memoize';
+import { mnemonicToSeedSync } from 'bip39';
 const { encode: olderEncode } = require('bip68');
 import { networks, type Network } from 'bitcoinjs-lib';
 import { scriptExpressions } from '@bitcoinerlab/descriptors';
@@ -9,7 +10,7 @@ import { DescriptorsFactory } from '@bitcoinerlab/descriptors';
 const { Output, BIP32 } = DescriptorsFactory(secp256k1);
 
 export const DUMMY_PUBKEY =
-  '038ffea936b2df76bf31220ebd56a34b30c6b86f40d3bd92664e2f5f98488dddfa';
+  '0330d54fd0dd420a6e5f8d3624f5f3482cae350f79d5f0753bf5beef9c2d91af3c';
 export const DUMMY_PUBKEY_2 =
   '038ffea936b2df76bf31220ebd56a34b30c6b86f40d3bd92664e2f5f98488dddfa';
 
@@ -40,16 +41,22 @@ export const DUMMY_SERVICE_OUTPUT = memoize(
     })
 );
 
-const DUMMY_MASTERNODE = BIP32.fromBase58(
-  'xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi'
+const DUMMY_MASTERNODE = memoize(network =>
+  BIP32.fromSeed(
+    mnemonicToSeedSync(
+      'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about'
+    ),
+    network
+  )
 );
 export const DUMMY_CHANGE_OUTPUT = memoize(
   (network: Network) =>
     new Output({
       descriptor: createChangeDescriptor({
-        masterNode: DUMMY_MASTERNODE,
+        masterNode: DUMMY_MASTERNODE(network),
         network
       }),
+      index: 0,
       network
     })
 );
