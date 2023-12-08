@@ -1,4 +1,6 @@
 // TODO: very imporant to only allow Vaulting funds with 1 confirmatin at least (make this a setting)
+// TODO: computing the estimateMinVaultAmount is super slow and makes loading
+// the VaultSetUp view slow and unresponsive
 const MIN_VAULT_BIN_SEARCH_ITERS = 100;
 import {
   Network,
@@ -187,7 +189,8 @@ const getServiceFee = ({
 /**
  * The vault coinselector
  */
-export const selectVaultUtxosData = ({
+
+const selectVaultUtxosData = ({
   utxosData,
   vaultOutput,
   serviceOutput,
@@ -203,70 +206,39 @@ export const selectVaultUtxosData = ({
   amount: number;
   feeRate: number;
   serviceFeeRate: number;
-}) =>
-  selectVaultUtxosDataFactory(utxosData)(vaultOutput)(serviceOutput)(
-    changeOutput
-  )({
+}) => {
+  const utxos = getOutputsWithValue(utxosData);
+  const serviceFee = getServiceFee({
     amount,
-    feeRate,
+    vaultOutput,
+    serviceOutput,
     serviceFeeRate
   });
-
-const selectVaultUtxosDataFactory = memoize((utxosData: UtxosData) =>
-  memoize((vaultOutput: OutputInstance) =>
-    memoize((serviceOutput: OutputInstance) =>
-      memoize((changeOutput: OutputInstance) =>
-        memoize(
-          ({
-            amount,
-            feeRate,
-            serviceFeeRate
-          }: {
-            amount: number;
-            feeRate: number;
-            serviceFeeRate: number;
-          }) => {
-            const utxos = getOutputsWithValue(utxosData);
-            const serviceFee = getServiceFee({
-              amount,
-              vaultOutput,
-              serviceOutput,
-              serviceFeeRate
-            });
-            const coinselected = coinselect({
-              utxos,
-              targets: [
-                { output: vaultOutput, value: amount - serviceFee },
-                ...(serviceFee
-                  ? [{ output: serviceOutput, value: serviceFee }]
-                  : [])
-              ],
-              remainder: changeOutput,
-              feeRate
-            });
-            if (!coinselected) return;
-            const vaultUtxosData =
-              coinselected.utxos.length === utxosData.length
-                ? utxosData
-                : coinselected.utxos.map(utxo => {
-                    const utxoData = utxosData[utxos.indexOf(utxo)];
-                    if (!utxoData) throw new Error('Invalid utxoData');
-                    return utxoData;
-                  });
-            return {
-              vsize: coinselected.vsize,
-              fee: coinselected.fee,
-              targets: coinselected.targets,
-              vaultUtxosData
-            };
-          },
-          ({ amount, feeRate, serviceFeeRate }) =>
-            JSON.stringify({ amount, feeRate, serviceFeeRate })
-        )
-      )
-    )
-  )
-);
+  const coinselected = coinselect({
+    utxos,
+    targets: [
+      { output: vaultOutput, value: amount - serviceFee },
+      ...(serviceFee ? [{ output: serviceOutput, value: serviceFee }] : [])
+    ],
+    remainder: changeOutput,
+    feeRate
+  });
+  if (!coinselected) return;
+  const vaultUtxosData =
+    coinselected.utxos.length === utxosData.length
+      ? utxosData
+      : coinselected.utxos.map(utxo => {
+          const utxoData = utxosData[utxos.indexOf(utxo)];
+          if (!utxoData) throw new Error('Invalid utxoData');
+          return utxoData;
+        });
+  return {
+    vsize: coinselected.vsize,
+    fee: coinselected.fee,
+    targets: coinselected.targets,
+    vaultUtxosData
+  };
+};
 
 export const utxosDataBalance = memoize((utxosData: UtxosData): number =>
   getOutputsWithValue(utxosData).reduce((a, { value }) => a + value, 0)
@@ -296,7 +268,7 @@ export const utxosDataBalance = memoize((utxosData: UtxosData): number =>
  * to obtain a valid value.
  *
  */
-export const estimateMaxVaultAmount = ({
+const estimateMaxVaultAmount = ({
   utxosData,
   vaultOutput,
   serviceOutput,
@@ -308,81 +280,55 @@ export const estimateMaxVaultAmount = ({
   serviceOutput: OutputInstance;
   feeRate: number;
   serviceFeeRate: number;
-}) =>
-  estimateMaxVaultAmountFactory(utxosData)(vaultOutput)(serviceOutput)({
-    feeRate,
-    serviceFeeRate
-  });
-const estimateMaxVaultAmountFactory = memoize((utxosData: UtxosData) =>
-  memoize((vaultOutput: OutputInstance) =>
-    memoize((serviceOutput: OutputInstance) =>
-      memoize(
-        ({
-          feeRate,
-          serviceFeeRate
-        }: {
-          feeRate: number;
-          serviceFeeRate: number;
-        }) => {
-          // We cannot compute serviceFees yet because we don't know amounts but
-          // if serviceFeeRate, we will first assume there will a service output
-          let coinselected;
-          if (serviceFeeRate > 0) {
-            const dustServiceFee = dustThreshold(vaultOutput);
-            if (dustServiceFee === 0) throw new Error('Incorrect dust');
-            coinselected = maxFunds({
-              utxos: getOutputsWithValue(utxosData),
-              targets: [{ output: serviceOutput, value: dustServiceFee }],
-              remainder: vaultOutput,
-              feeRate
-            });
-          }
-          if (coinselected) {
-            // It looks like it was possible to add a servive output. We
-            // can now know the total amount and we can compute the correct
-            // serviceFee and the correct coinselect
+}) => {
+  // We cannot compute serviceFees yet because we don't know amounts but
+  // if serviceFeeRate, we will first assume there will a service output
+  let coinselected;
+  if (serviceFeeRate > 0) {
+    const dustServiceFee = dustThreshold(vaultOutput);
+    if (dustServiceFee === 0) throw new Error('Incorrect dust');
+    coinselected = maxFunds({
+      utxos: getOutputsWithValue(utxosData),
+      targets: [{ output: serviceOutput, value: dustServiceFee }],
+      remainder: vaultOutput,
+      feeRate
+    });
+  }
+  if (coinselected) {
+    // It looks like it was possible to add a servive output. We
+    // can now know the total amount and we can compute the correct
+    // serviceFee and the correct coinselect
 
-            //The total amount is correct, but targets have incorrect ratios
-            const amount = coinselected.targets.reduce(
-              (a, { value }) => a + value,
-              0
-            );
-            const serviceFee = getServiceFee({
-              amount,
-              vaultOutput,
-              serviceOutput,
-              serviceFeeRate
-            });
-            coinselected = maxFunds({
-              utxos: getOutputsWithValue(utxosData),
-              targets: serviceFee
-                ? [{ output: serviceOutput, value: serviceFee }]
-                : [],
-              remainder: vaultOutput,
-              feeRate
-            });
-          }
-          if (!coinselected) {
-            // At this point either it was impossible to add dust or it
-            // was impossible to add the correct final fee output, so we
-            // must assume no fee at all
-            coinselected = maxFunds({
-              utxos: getOutputsWithValue(utxosData),
-              targets: [],
-              remainder: vaultOutput,
-              feeRate
-            });
-          }
-          if (!coinselected) return;
+    //The total amount is correct, but targets have incorrect ratios
+    const amount = coinselected.targets.reduce((a, { value }) => a + value, 0);
+    const serviceFee = getServiceFee({
+      amount,
+      vaultOutput,
+      serviceOutput,
+      serviceFeeRate
+    });
+    coinselected = maxFunds({
+      utxos: getOutputsWithValue(utxosData),
+      targets: serviceFee ? [{ output: serviceOutput, value: serviceFee }] : [],
+      remainder: vaultOutput,
+      feeRate
+    });
+  }
+  if (!coinselected) {
+    // At this point either it was impossible to add dust or it
+    // was impossible to add the correct final fee output, so we
+    // must assume no fee at all
+    coinselected = maxFunds({
+      utxos: getOutputsWithValue(utxosData),
+      targets: [],
+      remainder: vaultOutput,
+      feeRate
+    });
+  }
+  if (!coinselected) return;
 
-          return coinselected.targets.reduce((a, { value }) => a + value, 0);
-        },
-        ({ feeRate, serviceFeeRate }) =>
-          JSON.stringify({ feeRate, serviceFeeRate })
-      )
-    )
-  )
-);
+  return coinselected.targets.reduce((a, { value }) => a + value, 0);
+};
 
 /**
  *
@@ -409,7 +355,7 @@ const estimateMaxVaultAmountFactory = memoize((utxosData: UtxosData) =>
  * search or the computed value in cases where current UTXOs don't provide a solution.
  *
  */
-export const estimateMinVaultAmount = ({
+const estimateMinVaultAmount = ({
   utxosData,
   vaultOutput,
   serviceOutput,
@@ -431,111 +377,59 @@ export const estimateMinVaultAmount = ({
   /** Max Fee rate for the presigned txs */
   feeRateCeiling: number;
   minRecoverableRatio: number;
-}) =>
-  estimateMinVaultAmountFactory(utxosData)(vaultOutput)(serviceOutput)(
-    changeOutput
-  )({
-    lockBlocks,
+}) => {
+  const isRecoverable = (amount: number) => {
+    const selected = selectVaultUtxosDataMemo({
+      utxosData,
+      amount,
+      vaultOutput,
+      serviceOutput,
+      changeOutput,
+      feeRate,
+      serviceFeeRate
+    });
+    if (!selected) return false;
+    const totalFees =
+      selected.fee +
+      Math.ceil(feeRateCeiling * estimateTriggerTxSize(lockBlocks));
+
+    // initialValue - totalFees > minRecoverableRatio * initialValue
+    // initialValue - minRecoverableRatio * initialValue > totalFees
+    // initialValue * (1 - minRecoverableRatio) > totalFees
+    // initialValue > totalFees / (1 - minRecoverableRatio)
+    // If minRecoverableRatio =  2/3 => It can loose up to 1/3 of value in fees
+    return amount >= Math.ceil(totalFees / (1 - minRecoverableRatio));
+  };
+
+  const maxVaultAmount = estimateMaxVaultAmountMemo({
+    vaultOutput,
+    serviceOutput,
+    utxosData,
     feeRate,
-    serviceFeeRate,
-    feeRateCeiling,
-    minRecoverableRatio
+    serviceFeeRate
   });
-export const estimateMinVaultAmountFactory = memoize((utxosData: UtxosData) =>
-  memoize((vaultOutput: OutputInstance) =>
-    memoize((serviceOutput: OutputInstance) =>
-      memoize((changeOutput: OutputInstance) =>
-        memoize(
-          ({
-            lockBlocks,
-            feeRate,
-            serviceFeeRate,
-            feeRateCeiling,
-            minRecoverableRatio
-          }: {
-            lockBlocks: number;
-            feeRate: number;
-            serviceFeeRate: number;
-            feeRateCeiling: number;
-            minRecoverableRatio: number;
-          }) => {
-            const isRecoverable = (amount: number) => {
-              const selected = selectVaultUtxosData({
-                utxosData,
-                amount,
-                vaultOutput,
-                serviceOutput,
-                changeOutput,
-                feeRate,
-                serviceFeeRate
-              });
-              if (!selected) return false;
-              const totalFees =
-                selected.fee +
-                Math.ceil(feeRateCeiling * estimateTriggerTxSize(lockBlocks));
+  if (maxVaultAmount === undefined || !isRecoverable(maxVaultAmount)) {
+    // If the current utxos cannot provide a solution, then we must
+    // compute assuming that a new utxo (PKH) will send extra funds
+    const vaultTxSize = vsize(
+      [...utxosData.map(utxoData => utxoData.output), DUMMY_PKH_OUTPUT],
+      [vaultOutput, changeOutput, serviceOutput]
+    );
+    const totalFees =
+      Math.ceil(feeRate * vaultTxSize) +
+      Math.ceil(feeRateCeiling * estimateTriggerTxSize(lockBlocks));
 
-              // initialValue - totalFees > minRecoverableRatio * initialValue
-              // initialValue - minRecoverableRatio * initialValue > totalFees
-              // initialValue * (1 - minRecoverableRatio) > totalFees
-              // initialValue > totalFees / (1 - minRecoverableRatio)
-              // If minRecoverableRatio =  2/3 => It can loose up to 1/3 of value in fees
-              return amount >= Math.ceil(totalFees / (1 - minRecoverableRatio));
-            };
-
-            const maxVaultAmount = estimateMaxVaultAmount({
-              vaultOutput,
-              serviceOutput,
-              utxosData,
-              feeRate,
-              serviceFeeRate
-            });
-            if (
-              maxVaultAmount === undefined ||
-              !isRecoverable(maxVaultAmount)
-            ) {
-              // If the current utxos cannot provide a solution, then we must
-              // compute assuming that a new utxo (PKH) will send extra funds
-              const vaultTxSize = vsize(
-                [
-                  ...utxosData.map(utxoData => utxoData.output),
-                  DUMMY_PKH_OUTPUT
-                ],
-                [vaultOutput, changeOutput, serviceOutput]
-              );
-              const totalFees =
-                Math.ceil(feeRate * vaultTxSize) +
-                Math.ceil(feeRateCeiling * estimateTriggerTxSize(lockBlocks));
-
-              return Math.ceil(totalFees / (1 - minRecoverableRatio));
-            } else {
-              const { value } = findLowestTrueBinarySearch(
-                maxVaultAmount,
-                isRecoverable,
-                MIN_VAULT_BIN_SEARCH_ITERS
-              );
-              if (value === undefined) return maxVaultAmount;
-              return value;
-            }
-          },
-          ({
-            lockBlocks,
-            feeRate,
-            serviceFeeRate,
-            feeRateCeiling,
-            minRecoverableRatio
-          }) =>
-            JSON.stringify({
-              lockBlocks,
-              feeRate,
-              serviceFeeRate,
-              feeRateCeiling,
-              minRecoverableRatio
-            })
-        )
-      )
-    )
-  )
-);
+    return Math.ceil(totalFees / (1 - minRecoverableRatio));
+  } else {
+    const { value } = findLowestTrueBinarySearch(
+      maxVaultAmount,
+      isRecoverable,
+      MIN_VAULT_BIN_SEARCH_ITERS
+    );
+    if (value === undefined) return maxVaultAmount;
+    return value;
+  }
+};
 
 //TODO return dustThreshold as min vault value / its more complex. At least
 //it must return something that when unvaulting it recovers a significant amount
@@ -589,7 +483,7 @@ export function createVault({
     descriptor: createVaultDescriptor(vaultPair.publicKey.toString('hex')),
     network
   });
-  const selected = selectVaultUtxosData({
+  const selected = selectVaultUtxosDataMemo({
     utxosData,
     amount: balance,
     vaultOutput,
@@ -920,3 +814,196 @@ export async function fetchSpendingTx(
   }
   return;
 }
+
+//
+//
+//
+//
+//
+//
+// Memoization exports of complex *Factory methods
+//
+//
+//
+//
+//
+//
+
+const selectVaultUtxosDataFactory = memoize((utxosData: UtxosData) =>
+  memoize((vaultOutput: OutputInstance) =>
+    memoize((serviceOutput: OutputInstance) =>
+      memoize((changeOutput: OutputInstance) =>
+        memoize(
+          ({
+            amount,
+            feeRate,
+            serviceFeeRate
+          }: {
+            amount: number;
+            feeRate: number;
+            serviceFeeRate: number;
+          }) =>
+            selectVaultUtxosData({
+              utxosData,
+              vaultOutput,
+              serviceOutput,
+              changeOutput,
+              amount,
+              feeRate,
+              serviceFeeRate
+            }),
+          ({ amount, feeRate, serviceFeeRate }) =>
+            JSON.stringify({ amount, feeRate, serviceFeeRate })
+        )
+      )
+    )
+  )
+);
+const selectVaultUtxosDataMemo = ({
+  utxosData,
+  vaultOutput,
+  serviceOutput,
+  changeOutput,
+  amount,
+  feeRate,
+  serviceFeeRate
+}: {
+  utxosData: UtxosData;
+  vaultOutput: OutputInstance;
+  serviceOutput: OutputInstance;
+  changeOutput: OutputInstance;
+  amount: number;
+  feeRate: number;
+  serviceFeeRate: number;
+}) =>
+  selectVaultUtxosDataFactory(utxosData)(vaultOutput)(serviceOutput)(
+    changeOutput
+  )({
+    amount,
+    feeRate,
+    serviceFeeRate
+  });
+export { selectVaultUtxosDataMemo as selectVaultUtxosData };
+
+const estimateMaxVaultAmountFactory = memoize((utxosData: UtxosData) =>
+  memoize((vaultOutput: OutputInstance) =>
+    memoize((serviceOutput: OutputInstance) =>
+      memoize(
+        ({
+          feeRate,
+          serviceFeeRate
+        }: {
+          feeRate: number;
+          serviceFeeRate: number;
+        }) =>
+          estimateMaxVaultAmount({
+            utxosData,
+            vaultOutput,
+            serviceOutput,
+            feeRate,
+            serviceFeeRate
+          }),
+        ({ feeRate, serviceFeeRate }) =>
+          JSON.stringify({ feeRate, serviceFeeRate })
+      )
+    )
+  )
+);
+const estimateMaxVaultAmountMemo = ({
+  utxosData,
+  vaultOutput,
+  serviceOutput,
+  feeRate,
+  serviceFeeRate
+}: {
+  utxosData: UtxosData;
+  vaultOutput: OutputInstance;
+  serviceOutput: OutputInstance;
+  feeRate: number;
+  serviceFeeRate: number;
+}) =>
+  estimateMaxVaultAmountFactory(utxosData)(vaultOutput)(serviceOutput)({
+    feeRate,
+    serviceFeeRate
+  });
+export { estimateMaxVaultAmountMemo as estimateMaxVaultAmount };
+
+const estimateMinVaultAmountFactory = memoize((utxosData: UtxosData) =>
+  memoize((vaultOutput: OutputInstance) =>
+    memoize((serviceOutput: OutputInstance) =>
+      memoize((changeOutput: OutputInstance) =>
+        memoize(
+          ({
+            lockBlocks,
+            feeRate,
+            serviceFeeRate,
+            feeRateCeiling,
+            minRecoverableRatio
+          }: {
+            lockBlocks: number;
+            feeRate: number;
+            serviceFeeRate: number;
+            feeRateCeiling: number;
+            minRecoverableRatio: number;
+          }) =>
+            estimateMinVaultAmount({
+              utxosData,
+              vaultOutput,
+              serviceOutput,
+              changeOutput,
+              lockBlocks,
+              feeRate,
+              serviceFeeRate,
+              feeRateCeiling,
+              minRecoverableRatio
+            }),
+          ({
+            lockBlocks,
+            feeRate,
+            serviceFeeRate,
+            feeRateCeiling,
+            minRecoverableRatio
+          }) =>
+            JSON.stringify({
+              lockBlocks,
+              feeRate,
+              serviceFeeRate,
+              feeRateCeiling,
+              minRecoverableRatio
+            })
+        )
+      )
+    )
+  )
+);
+const estimateMinVaultAmountMemo = ({
+  utxosData,
+  vaultOutput,
+  serviceOutput,
+  changeOutput,
+  lockBlocks,
+  feeRate,
+  serviceFeeRate,
+  feeRateCeiling,
+  minRecoverableRatio
+}: {
+  utxosData: UtxosData;
+  vaultOutput: OutputInstance;
+  serviceOutput: OutputInstance;
+  changeOutput: OutputInstance;
+  lockBlocks: number;
+  feeRate: number;
+  serviceFeeRate: number;
+  feeRateCeiling: number;
+  minRecoverableRatio: number;
+}) =>
+  estimateMinVaultAmountFactory(utxosData)(vaultOutput)(serviceOutput)(
+    changeOutput
+  )({
+    lockBlocks,
+    feeRate,
+    serviceFeeRate,
+    feeRateCeiling,
+    minRecoverableRatio
+  });
+export { estimateMinVaultAmountMemo as estimateMinVaultAmount };

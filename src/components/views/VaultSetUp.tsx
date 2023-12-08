@@ -1,3 +1,8 @@
+//TODO: read TODOS
+//TODO: the new changes made this super slow: estimateMaxVaultAmount
+//  -> This is now slow? ?
+//TODO: when picking up the max it does not sum up fees + max = balance
+//  -> The reason may be that some UTXOS are not being picked for being too low?
 //TODO: SHOW a warning if a user puts a very low fee-rate! (>= 14 days)
 //TODO: Test performance with 100 UTXOs
 //TODO: share styles VaultSetUp / Unvault

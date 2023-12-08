@@ -111,22 +111,9 @@ const GAP_LIMIT = 3;
 const MIN_FEE_RATE = 1;
 const SAMPLES = 10;
 //
-//TODO: maxTriggerFeeRate, maxFeeRate, FEE_RATE_CEILING and DEFAULT_MAX_FEE_RATE
-//are super confussing. Note that the feeRateCeiling should be, in fact, the
-//Math.max(FEE_RATE_CEILING, maxFeeRate())
-//  -> Maybe it's even better to throw if fees go crazy. Even to more
-//  than FEE_RATE_CEILING. In that case it's safer to throw and not allow
-//  users to use ThunderDen because it was not desifned to that?
-//
-//
-//This is the maxFeeRate that will be required to be pre-signed in panicTxs
-//It there is not enough balance, then it will fail
-//TODO: isnt tis in the settings context???
-const FEE_RATE_CEILING = 5 * 1000; //22-dec-2017 fee rates were 1000. TODO: Set this to 5000 which is 5x 22-dec-2017
-//TODO: isnt tis in the settings context???
-const DEFAULT_MAX_FEE_RATE = FEE_RATE_CEILING; //Not very important. Use this one while feeEstimates is not retrieved. This is the maxFeeRate that we assume that feeEstimates will return
-//TODO: Fix these 3 below:
+//TODO: create a component that imports this one from the user (or creates it fot the user)
 const DEFAULT_COLD_ADDR = 'tb1qm0k9mn48uqfs2w9gssvzmus4j8srrx5eje7wpf';
+//TODO: get from btcpayserver
 const DEFAULT_SERVICE_ADDR = 'tb1qm0k9mn48uqfs2w9gssvzmus4j8srrx5eje7wpf';
 import {
   createVault,
@@ -136,15 +123,11 @@ import {
   Vaults,
   getUtxosData,
   utxosDataBalance,
-  estimateTriggerTxSize,
-  selectVaultUtxosData
+  estimateTriggerTxSize
 } from './src/lib/vaults';
 import {
   createReceiveDescriptor,
-  createChangeDescriptor,
-  DUMMY_VAULT_OUTPUT,
-  DUMMY_SERVICE_OUTPUT,
-  DUMMY_CHANGE_OUTPUT
+  createChangeDescriptor
 } from './src/lib/vaultDescriptors';
 import styles from './styles/styles';
 import type { TFunction } from 'i18next';
@@ -165,16 +148,14 @@ const fromMnemonic = memoize(mnemonic => {
   };
 });
 
-const maxTriggerFeeRate = (vault: Vault | null) => {
-  if (vault) {
-    return Math.max(
-      ...Object.keys(vault.triggerMap).map(triggerTx => {
-        const txRecord = vault.txMap[triggerTx];
-        if (!txRecord) throw new Error('Invalid txMap');
-        return txRecord.feeRate;
-      })
-    );
-  } else return DEFAULT_MAX_FEE_RATE;
+const maxTriggerFeeRate = (vault: Vault) => {
+  return Math.max(
+    ...Object.keys(vault.triggerMap).map(triggerTx => {
+      const txRecord = vault.txMap[triggerTx];
+      if (!txRecord) throw new Error('Invalid txMap');
+      return txRecord.feeRate;
+    })
+  );
 };
 
 const findClosestTriggerFeeRate = (
@@ -558,17 +539,6 @@ Handle with care. Confidentiality is key.
     if (hotUtxosData === null) throw new Error('hot utxos data not available');
     //TODO: This is using changeOutput, vaultOutput and serviceOutput default
     //params. I shouldnt i use the correct values!
-    const selected = selectVaultUtxosData({
-      utxosData: hotUtxosData,
-      vaultOutput: DUMMY_VAULT_OUTPUT(network),
-      serviceOutput: DUMMY_SERVICE_OUTPUT(network),
-      changeOutput: DUMMY_CHANGE_OUTPUT(network),
-      amount,
-      feeRate,
-      serviceFeeRate: settings.SERVICE_FEE_RATE
-    });
-    if (selected === undefined)
-      throw new Error('VaultSetUp could not coinselect some utxos');
     if (lockBlocks === undefined) throw new Error('lockBlocks not retrieved');
     setIsVaultSetUp(false);
 
@@ -592,13 +562,13 @@ Handle with care. Confidentiality is key.
       samples: SAMPLES,
       feeRate,
       serviceFeeRate: settings.SERVICE_FEE_RATE,
-      feeRateCeiling: FEE_RATE_CEILING,
+      feeRateCeiling: settings.PRESIGNED_FEE_RATE_CEILING,
       coldAddress: DEFAULT_COLD_ADDR,
       changeDescriptor,
       serviceAddress: DEFAULT_SERVICE_ADDR,
       lockBlocks,
       masterNode,
-      utxosData: selected.vaultUtxosData,
+      utxosData: hotUtxosData,
       network
     });
 
@@ -841,7 +811,11 @@ Handle with care. Confidentiality is key.
             <Text style={styles.title}>Trigger Unvault</Text>
             <Unvault
               minFeeRate={MIN_FEE_RATE}
-              maxFeeRate={maxTriggerFeeRate(unvault)}
+              maxFeeRate={
+                unvault === null
+                  ? settings.PRESIGNED_FEE_RATE_CEILING
+                  : maxTriggerFeeRate(unvault)
+              }
               onNewValues={async ({ feeRate }: { feeRate: number }) => {
                 if (!unvault) throw new Error('Vault unset');
                 await handleTriggerUnvault({
