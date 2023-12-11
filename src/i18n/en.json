@@ -10,7 +10,8 @@
     "lockTimeError": "Pick a valid Lock Time.",
     "feeRateError": "Pick a valid Fee Rate.",
     "amountError": "Pick a valid amount of Btc.",
-    "invalidValues": "Invalid Values."
+    "invalidValues": "Invalid Values.",
+    "reduceVaultAmount": "Fees for faster vault creation reduce max to {{amount}}"
   },
   "editableSlider": {
     "maxValueError": "Maximum is {{maximumValue}}",

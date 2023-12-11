@@ -125,6 +125,7 @@ import {
   utxosDataBalance,
   estimateTriggerTxSize
 } from './src/lib/vaults';
+import { estimateVaultSetUpRange } from './src/lib/vaultRange';
 import {
   createReceiveDescriptor,
   createChangeDescriptor
@@ -597,6 +598,33 @@ Handle with care. Confidentiality is key.
     utxos === null || discovery === null
       ? null
       : getUtxosData(utxos, vaults, network, discovery);
+
+  // This useEffect below is optional. It's only done only for better UX.
+  // The idea is to pre-caching data that will be needed in VaultSetUp.
+  // Obtaining min and max ranges are an intensive. However, obtained values are
+  // internally memoized.
+  // So, we pre-compute them here in case VaultSetUp is called.
+  // This allows
+  // super-fast rendering of the VaultSetUp Modal
+  useEffect(() => {
+    if (hotUtxosData && feeEstimates) {
+      estimateVaultSetUpRange({
+        utxosData: hotUtxosData,
+        feeEstimates,
+        serviceFeeRate: settings.SERVICE_FEE_RATE,
+        network,
+        feeRateCeiling: settings.PRESIGNED_FEE_RATE_CEILING,
+        minRecoverableRatio: settings.MIN_RECOVERABLE_RATIO
+      });
+    }
+  }, [
+    hotUtxosData,
+    JSON.stringify(feeEstimates),
+    settings.SERVICE_FEE_RATE,
+    settings.PRESIGNED_FEE_RATE_CEILING,
+    settings.MIN_RECOVERABLE_RATIO
+  ]);
+
   const hotBalance =
     hotUtxosData === null ? null : utxosDataBalance(hotUtxosData);
 

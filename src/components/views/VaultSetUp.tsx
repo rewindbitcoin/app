@@ -1,11 +1,15 @@
 //TODO: read TODOS
+//TODO: recompile and npm publish descriptors with the cache.
 //TODO: the new changes made this super slow: estimateMaxVaultAmount
 //  -> This is now slow? ?
+//    -> I believe the problem is in the getScriptSatisfaction
+//    Also, the "expand()"
 //TODO: when picking up the max it does not sum up fees + max = balance
 //  -> The reason may be that some UTXOS are not being picked for being too low?
 //TODO: SHOW a warning if a user puts a very low fee-rate! (>= 14 days)
 //TODO: Test performance with 100 UTXOs
 //TODO: share styles VaultSetUp / Unvault
+
 import { Trans, useTranslation } from 'react-i18next';
 import React, { useState } from 'react';
 import type { GestureResponderEvent } from 'react-native';
@@ -21,12 +25,7 @@ import {
 
 import { useSettings } from '../../contexts/SettingsContext';
 import EditableSlider, { snap } from '../common/EditableSlider';
-import {
-  UtxosData,
-  estimateMaxVaultAmount,
-  estimateMinVaultAmount,
-  selectVaultUtxosData
-} from '../../lib/vaults';
+import { UtxosData, selectVaultUtxosData } from '../../lib/vaults';
 import {
   DUMMY_VAULT_OUTPUT,
   DUMMY_SERVICE_OUTPUT,
@@ -42,6 +41,7 @@ import {
 import { formatBtc } from '../../lib/btcRates';
 import globalStyles from '../../../styles/styles';
 import type { Network } from 'bitcoinjs-lib';
+import { estimateVaultSetUpRange } from '../../lib/vaultRange';
 
 const FEE_RATE_STEP = 0.01;
 
@@ -98,43 +98,38 @@ export default function VaultSetUp({
       })
     );
 
-  //console.log(feeEstimates);
   const { settings } = useSettings();
   const [lockBlocks, setLockBlocks] = useState<number | null>(
     settings.INITIAL_LOCK_BLOCKS
   );
-  //const feeRateStep = 0.01;
-  //const snapUpFeeRate = (feeRate: number) =>
-  //  feeRateStep * Math.ceil(feeRate / feeRateStep);
   const { t } = useTranslation();
 
-  const maxFeeRate = feeEstimates
-    ? Math.max(
-        // Max fee reported from electrum / esplora servers
-        ...Object.values(feeEstimates),
-        // Make sure maximumValue > minimumValue
-        settings.MIN_FEE_RATE * 1.01
-      )
-    : // when feeEstimates still not available, show default values
-      settings.PRESIGNED_FEE_RATE_CEILING;
   const [feeRate, setFeeRate] = useState<number | null>(
     feeEstimates
       ? pickFeeEstimate(feeEstimates, settings.INITIAL_CONFIRMATION_TIME)
       : settings.MIN_FEE_RATE
   );
 
-  // When the user sends max funds. It will depend on the feeRate the user picks
-  const maxVaultAmount = estimateMaxVaultAmount({
+  const {
+    maxFeeRate,
+    // When the user sends max funds. It will depend on the feeRate the user picks
+    maxVaultAmount,
+    //The most restrictive maxVaultAmount, that is the LOWEST value possible
+    //(if the user chooses the largest feeRate)
+    lowestMaxVaultAmount,
+    //The most restrictive minVaultAmount, that is the LARGEST value possible
+    //(if the user chose the largest feeRate)
+    largestMinVaultAmount
+  } = estimateVaultSetUpRange({
     utxosData,
-    vaultOutput: DUMMY_VAULT_OUTPUT(network),
-    serviceOutput: DUMMY_SERVICE_OUTPUT(network),
-    // while feeRate has not been set, estimate using the largest possible
-    // feeRate. We allow the maxVaultAmount to change depending on the fee
-    // rate selected by the uset
-    feeRate: feeRate !== null ? feeRate : maxFeeRate,
-    serviceFeeRate: settings.SERVICE_FEE_RATE
+    feeEstimates,
+    network,
+    serviceFeeRate: settings.SERVICE_FEE_RATE,
+    feeRate,
+    feeRateCeiling: settings.PRESIGNED_FEE_RATE_CEILING,
+    minRecoverableRatio: settings.MIN_RECOVERABLE_RATIO
   });
-  //console.log({ maxVaultAmount, feeRate, maxFeeRate, utxos: utxosData.length });
+
   const [amount, setAmount] = useState<number | null>(maxVaultAmount || null);
 
   const handlePressOutside = () => Keyboard.dismiss();
@@ -173,45 +168,17 @@ export default function VaultSetUp({
     }
   };
 
-  //The most restrictive maxVaultAmount, that is the LOWEST value possible
-  //(if the user chooses the largest feeRate)
-  const lowestMaxVaultAmount =
-    estimateMaxVaultAmount({
-      utxosData,
-      vaultOutput: DUMMY_VAULT_OUTPUT(network),
-      serviceOutput: DUMMY_SERVICE_OUTPUT(network),
-      feeRate: maxFeeRate,
-      serviceFeeRate: settings.SERVICE_FEE_RATE
-    }) || 0;
-  //The most restrictive minVaultAmount, that is the LARGEST value possible
-  //(if the user chose the largest feeRate)
-  const largestMinVaultAmount = estimateMinVaultAmount({
-    utxosData,
-    vaultOutput: DUMMY_VAULT_OUTPUT(network),
-    serviceOutput: DUMMY_SERVICE_OUTPUT(network),
-    changeOutput: DUMMY_CHANGE_OUTPUT(network),
-    // set it to worst case, so that largestMinVaultAmount does not change
-    // when user interacts setting lockBlocks
-    //TODO: create a const variable for the below value
-    lockBlocks: 0xffff,
-    // Set it to worst case: express confirmation time so that
-    // largestMinVaultAmount in the Slider does not change when the user
-    // changes the feeRate
-    feeRate: maxFeeRate,
-    serviceFeeRate: settings.SERVICE_FEE_RATE,
-    feeRateCeiling: settings.PRESIGNED_FEE_RATE_CEILING,
-    minRecoverableRatio: settings.MIN_RECOVERABLE_RATIO
-  });
   // If user chooses the largest possible feeRate is it there a solution
   // possible?
-  const missingFunds =
+  //TODO: This below is wrong: the +1
+  const missingFunds = //TODO Math.abs substraction?
     lowestMaxVaultAmount > largestMinVaultAmount
       ? 0
       : largestMinVaultAmount -
         lowestMaxVaultAmount +
-        1 +
+        1 + // TODO why the 1? better instread use >= ?
         //The fee of a new pkh utxo:
-        Math.ceil(maxFeeRate * 148);
+        Math.ceil(maxFeeRate * 148); // TODO: sure? estimateMinVaultAmount already assumes pkh?
 
   const content =
     missingFunds > 0 ? (
@@ -261,6 +228,29 @@ export default function VaultSetUp({
               <View style={styles.settingGroup}>
                 <Text style={styles.label}>{t('vaultSetup.amountLabel')}</Text>
                 <EditableSlider
+                  formatError={({
+                    lastValidSnappedValue,
+                    strValue
+                  }: {
+                    lastValidSnappedValue: number;
+                    strValue: string;
+                  }) => {
+                    void strValue;
+                    if (lastValidSnappedValue > maxVaultAmount) {
+                      return t('vaultSetup.reduceVaultAmount', {
+                        amount: formatBtc(
+                          {
+                            amount: maxVaultAmount,
+                            subUnit: settings.SUB_UNIT,
+                            btcFiat,
+                            locale: settings.LOCALE,
+                            currency: settings.CURRENCY
+                          },
+                          t
+                        )
+                      });
+                    } else return;
+                  }}
                   minimumValue={largestMinVaultAmount}
                   maximumValue={maxVaultAmount}
                   value={amount}
@@ -324,6 +314,7 @@ export default function VaultSetUp({
                     amount,
                     serviceFeeRate: settings.SERVICE_FEE_RATE
                   });
+                //return 'formatFeeRate'; // OPTIMIZE
                 if (selected) {
                   return formatFeeRate(
                     {
@@ -337,13 +328,29 @@ export default function VaultSetUp({
                     t
                   );
                 } else {
-                  console.log({
-                    feeRate,
-                    amount,
-                    isUtxosData: utxosData !== null,
-                    selected
-                  });
-                  return 'TODO';
+                  const selected =
+                    feeRate !== null &&
+                    maxVaultAmount !== undefined &&
+                    selectVaultUtxosData({
+                      utxosData,
+                      vaultOutput: DUMMY_VAULT_OUTPUT(network),
+                      serviceOutput: DUMMY_SERVICE_OUTPUT(network),
+                      changeOutput: DUMMY_CHANGE_OUTPUT(network),
+                      feeRate,
+                      amount: maxVaultAmount,
+                      serviceFeeRate: settings.SERVICE_FEE_RATE
+                    });
+                  return formatFeeRate(
+                    {
+                      feeRate,
+                      locale: settings.LOCALE,
+                      currency: settings.CURRENCY,
+                      txSize: selected ? selected.vsize : null,
+                      btcFiat,
+                      feeEstimates
+                    },
+                    t
+                  );
                 }
               }}
             />

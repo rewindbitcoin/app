@@ -16,8 +16,8 @@
     "web": "expo start --web"
   },
   "dependencies": {
-    "@bitcoinerlab/coinselect": "^1.1.0",
-    "@bitcoinerlab/descriptors": "^2.0.1",
+    "@bitcoinerlab/coinselect": "^1.2.0",
+    "@bitcoinerlab/descriptors": "^2.1.0",
     "@bitcoinerlab/discovery": "^1.0.1",
     "@bitcoinerlab/explorer": "^0.1.0",
     "@bitcoinerlab/miniscript": "^1.4.0",

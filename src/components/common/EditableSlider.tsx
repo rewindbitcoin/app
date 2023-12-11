@@ -63,7 +63,13 @@ interface EditableSliderProps {
   minimumValue: number;
   maximumValue: number;
   step?: number;
-  errorMessage?: string;
+  formatError?: ({
+    lastValidSnappedValue,
+    strValue
+  }: {
+    lastValidSnappedValue: number;
+    strValue: string;
+  }) => string | undefined;
   onValueChange?: (value: number | null) => void;
   formatValue: (value: number) => string;
 }
@@ -131,7 +137,7 @@ const EditableSlider = ({
   minimumValue,
   maximumValue,
   step = DEFAULT_STEP,
-  errorMessage,
+  formatError,
   onValueChange,
   formatValue = value => `${value}`
 }: EditableSliderProps) => {
@@ -197,15 +203,6 @@ const EditableSlider = ({
   );
 
   const { t } = useTranslation();
-  errorMessage =
-    errorMessage ||
-    (lastValidSnappedValue.current !== null &&
-      lastValidSnappedValue.current > maximumValue)
-      ? t('editableSlider.maxValueError', { maximumValue })
-      : lastValidSnappedValue.current !== null &&
-        lastValidSnappedValue.current < minimumValue
-      ? t('editableSlider.maxValueError', { maximumValue })
-      : t('editableSlider.invalidValue');
 
   const keyboardType = step === 1 ? 'number-pad' : 'numeric';
   const [fontsLoaded] = useFonts({ RobotoMono_400Regular });
@@ -245,8 +242,26 @@ const EditableSlider = ({
         onValueChange(null);
     }
   };
-  const formattedValue =
-    snappedValue === null ? errorMessage : formatValue(snappedValue);
+  let formattedValue;
+  if (snappedValue === null) {
+    const last = lastValidSnappedValue.current;
+    if (last === null)
+      throw new Error(
+        'Cannot format error because there are not previous valid values'
+      );
+    // get formatError(). If formatError does not exist or returns undefined,
+    // then build standard error messages:
+    formattedValue =
+      formatError?.({
+        lastValidSnappedValue: last,
+        strValue
+      }) ||
+      (last !== null && last > maximumValue
+        ? t('editableSlider.maxValueError', { maximumValue })
+        : last !== null && last < minimumValue
+        ? t('editableSlider.maxValueError', { maximumValue })
+        : t('editableSlider.invalidValue'));
+  } else formattedValue = formatValue(snappedValue);
 
   return (
     <TouchableWithoutFeedback onPress={handlePressOutside}>

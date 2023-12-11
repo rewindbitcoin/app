@@ -47,6 +47,7 @@ export const defaultSettings: Settings = {
   SAMPLES: 10,
   //TODO: this should be 5 * 1000; I set it to 10 for testnet tests
   //PRESIGNED_FEE_RATE_CEILING: 5 * 1000, //22-dec-2017 fee rates were 1000. TODO: Set this to 5000 which is 5x 22-dec-2017
+  //https://twitter.com/KLoaec/status/1733880025017978914
   PRESIGNED_FEE_RATE_CEILING: 2,
   // 2 hours
   INITIAL_CONFIRMATION_TIME: 2 * 60 * 60,
