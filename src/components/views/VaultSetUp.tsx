@@ -1,13 +1,3 @@
-//TODO: read TODOS
-//TODO: recompile and npm publish descriptors with the cache.
-//TODO: the new changes made this super slow: estimateMaxVaultAmount
-//  -> This is now slow? ?
-//    -> I believe the problem is in the getScriptSatisfaction
-//    Also, the "expand()"
-//TODO: when picking up the max it does not sum up fees + max = balance
-//  -> The reason may be that some UTXOS are not being picked for being too low?
-//TODO: SHOW a warning if a user puts a very low fee-rate! (>= 14 days)
-//TODO: Test performance with 100 UTXOs
 //TODO: share styles VaultSetUp / Unvault
 
 import { Trans, useTranslation } from 'react-i18next';
@@ -112,7 +102,7 @@ export default function VaultSetUp({
 
   const {
     maxFeeRate,
-    // When the user sends max funds. It will depend on the feeRate the user picks
+    // maxVaultAmount depends on the feeRate:
     maxVaultAmount,
     //The most restrictive maxVaultAmount, that is the LOWEST value possible
     //(if the user chooses the largest feeRate)
@@ -168,17 +158,10 @@ export default function VaultSetUp({
     }
   };
 
-  // If user chooses the largest possible feeRate is it there a solution
-  // possible?
-  //TODO: This below is wrong: the +1
-  const missingFunds = //TODO Math.abs substraction?
-    lowestMaxVaultAmount > largestMinVaultAmount
-      ? 0
-      : largestMinVaultAmount -
-        lowestMaxVaultAmount +
-        1 + // TODO why the 1? better instread use >= ?
-        //The fee of a new pkh utxo:
-        Math.ceil(maxFeeRate * 148); // TODO: sure? estimateMinVaultAmount already assumes pkh?
+  const missingFunds = Math.max(
+    0,
+    largestMinVaultAmount - lowestMaxVaultAmount
+  );
 
   const content =
     missingFunds > 0 ? (
@@ -314,7 +297,6 @@ export default function VaultSetUp({
                     amount,
                     serviceFeeRate: settings.SERVICE_FEE_RATE
                   });
-                //return 'formatFeeRate'; // OPTIMIZE
                 if (selected) {
                   return formatFeeRate(
                     {

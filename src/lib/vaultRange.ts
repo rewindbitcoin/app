@@ -1,5 +1,5 @@
 import memoize from 'lodash.memoize';
-import { Network } from 'bitcoinjs-lib';
+import type { Network } from 'bitcoinjs-lib';
 import {
   DUMMY_VAULT_OUTPUT,
   DUMMY_SERVICE_OUTPUT,
@@ -16,7 +16,7 @@ import {
   selectVaultUtxosData,
   estimateTriggerTxSize
 } from './vaults';
-import { FeeEstimates } from './fees';
+import type { FeeEstimates } from './fees';
 // nLockTime which results into the largest possible serialized size:
 const LOCK_BLOCKS_MAS_SIZE = 0xffff;
 const MIN_VAULT_BIN_SEARCH_ITERS = 100;

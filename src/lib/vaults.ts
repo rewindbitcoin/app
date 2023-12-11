@@ -1,6 +1,4 @@
 // TODO: very imporant to only allow Vaulting funds with 1 confirmatin at least (make this a setting)
-// TODO: computing the estimateMinVaultAmount is super slow and makes loading
-// the VaultSetUp view slow and unresponsive
 import {
   Network,
   Psbt,
