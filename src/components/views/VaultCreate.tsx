@@ -1,6 +1,7 @@
+//TODO: get some style stuff for the color
 import React, { useEffect, useState, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { View, Button, StyleSheet } from 'react-native';
+import { View, Button, Text, StyleSheet } from 'react-native';
 import * as Progress from 'react-native-progress';
 import type { BIP32Interface } from 'bip32';
 import type { UtxosData } from '../../lib/vaults';
@@ -41,6 +42,9 @@ export default function VaultCreate({
     setProgress(progress);
     return keepProgress.current;
   };
+  const samples = settings.SAMPLES;
+  //const feeRateCeiling = settings.PRESIGNED_FEE_RATE_CEILING; //TODO :revert to this!
+  const feeRateCeiling = 10000;
   useEffect(() => {
     let isMounted = true;
     //Leave some time so that the progress is rendered
@@ -49,10 +53,10 @@ export default function VaultCreate({
       const vault = await createVault({
         balance: amount,
         unvaultKey,
-        samples: settings.SAMPLES,
+        samples,
         feeRate,
         serviceFeeRate: settings.SERVICE_FEE_RATE,
-        feeRateCeiling: settings.PRESIGNED_FEE_RATE_CEILING,
+        feeRateCeiling,
         coldAddress,
         changeDescriptor,
         serviceAddress,
@@ -79,6 +83,10 @@ export default function VaultCreate({
         progress={progress}
         style={styles.progressCircle}
       />
+      <Text>
+        Expected increase of fees will be{' '}
+        {((Math.pow(feeRateCeiling, 1 / samples) - 1) * 100) / 2}%
+      </Text>
       <Button
         title={t('cancelButton')}
         onPress={() => {
