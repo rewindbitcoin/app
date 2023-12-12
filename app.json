@@ -15,16 +15,26 @@
       "**/*"
     ],
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.landabaso.ThunderDen"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
-      }
+      },
+      "package": "com.landabaso.ThunderDen"
     },
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "./plugins/withIncreasedAndroidCursorWindowSize"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "83b28e9f-1d27-40ef-bac8-44da70b30f16"
+      }
     }
   }
 }
