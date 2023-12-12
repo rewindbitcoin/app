@@ -263,6 +263,9 @@ const EditableSlider = ({
         : t('editableSlider.invalidValue'));
   } else formattedValue = formatValue(snappedValue);
 
+  //TODO: thumbTintColor is only Android
+  //TODO: It's a pain in the ass to use it in a real Android device in Android.
+  //Maybe TouchableWithoutFeedback is interacting?
   return (
     <TouchableWithoutFeedback onPress={handlePressOutside}>
       <View style={styles.container}>
