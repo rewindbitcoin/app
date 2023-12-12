@@ -436,7 +436,7 @@ export async function createVault({
         await sleep(0);
       }
       //Take the vsize for a tx with 0 fees.
-      const txTrigger = psbtTrigger.extractTransaction();
+      const txTrigger = psbtTrigger.extractTransaction(true);
       vSizeTrigger = txTrigger.virtualSize();
       const triggerTxHex = txTrigger.toHex();
       if (feeTrigger) {
@@ -497,7 +497,7 @@ export async function createVault({
               await sleep(0);
             }
             //Take the vsize for a tx with 0 fees.
-            const txPanic = psbtPanic.extractTransaction();
+            const txPanic = psbtPanic.extractTransaction(true);
             vSizePanic = txPanic.virtualSize();
             if (feePanic) {
               const panicTxHex = txPanic.toHex();
