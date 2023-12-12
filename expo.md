@@ -64,6 +64,7 @@ Build locally for Android using (1st call will take a lot of time to complete,
 DON'T CTRL-C):
 ```bash
 npx eas build --platform android --local
+#this will compile a release version
 ```
 
 There are different "profiles":
@@ -73,20 +74,28 @@ npx eas build --profile development --platform android --local
 #To compile "locally" and using expo and not using a dev server (your App can
 #work without a computer in the same network):
 npx eas build --profile preview --platform android --local
-#The default is the "production" release:
-npx eas build --platform android --local
-```
-
-Now run as usual:
-```bash
-npx eas build --profile development --platform android --local
-#To install in the simulator
+#To install in the simulator manually
 adb install ThunderDen/build-1702360280369.apk
 npx expo start
 ```
 but now click on "s" ->
 › Press s │ switch to development build
 Then click on "a" to run it in the Android simulator us usual:
+
+
+## Building locally and developing on a simulator (normal operation)
+Normally, while developing, you would only run, which creates a development
+profile and automatically installs it on your simulator and creates andconnets
+to expo server on your computer:
+```bash
+npm run android
+```
+
+Alternativelly, you can do it manually:
+```bash
+npx eas build --profile development --platform android --local
+
+
 
 ## Devices
 

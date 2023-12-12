@@ -1,5 +1,6 @@
 //TODO: install btcpayserver, use one api-key per user (associated to masterFingerprint or device id?) Or the hash of the masterFingerprint perhaps is better.
 //TODO: everything i use AsyncStorage I should write to it, then read from it, make sure the read is ok and then proceed. If not, this means the vault cannot be pushed. Note Android fucks up big way
+//  -> Also change the way it's stored. dont have a huge key for vaults
 //and may write but then not allow to read:
 //https://github.com/react-native-async-storage/async-storage/issues/617
 //TODO: I believe the one below is ok, but double check
@@ -817,18 +818,17 @@ Handle with care. Confidentiality is key.
               onNewVaultCreated={async (vault: Vault | undefined) => {
                 if (vault) {
                   //TODO: I should index it based on vault.vaultTxHex
-                  vault.vaultPushTime = Math.floor(Date.now() / 1000);
-                  const newVaults = { ...vaults, [vault.vaultAddress]: vault };
-                  await AsyncStorage.setItem(
-                    'vaults',
-                    JSON.stringify(newVaults)
-                  );
-                  if (!discovery)
-                    throw new Error(`discovery not instantiated yet!`);
+                  //TODO for the moment do not store more stuff
                   //TODO: check this push result. This and all pushes in code
                   //TODO: commented this out during tests:
+                  //vault.vaultPushTime = Math.floor(Date.now() / 1000);
+                  //const newVaults = { ...vaults, [vault.vaultAddress]: vault };
                   //await discovery.getExplorer().push(vault.vaultTxHex);
-                  setVaults(newVaults);
+                  //await AsyncStorage.setItem(
+                  //  'vaults',
+                  //  JSON.stringify(newVaults)
+                  //);
+                  //setVaults(newVaults);
                 } else {
                   //TODO: It was impossible to create the Vault so that it creates
                   //a recoverable path. Warn the user.
@@ -838,10 +838,6 @@ Handle with care. Confidentiality is key.
                 }
                 setNewVaultSettings(false);
               }}
-            />
-            <MBButton
-              title={'Close Progress'}
-              onPress={() => setNewVaultSettings(false)}
             />
           </Modal>
         )}

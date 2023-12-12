@@ -44,7 +44,7 @@ export const defaultSettings: Settings = {
   MAX_LOCK_BLOCKS: 30 * 24 * 6,
   INITIAL_LOCK_BLOCKS: 7 * 24 * 6,
   //TODO: set it to larger values in production
-  SAMPLES: 10,
+  SAMPLES: 50,
   //TODO: this should be 5 * 1000; I set it to 10 for testnet tests
   //PRESIGNED_FEE_RATE_CEILING: 5 * 1000, //22-dec-2017 fee rates were 1000. TODO: Set this to 5000 which is 5x 22-dec-2017
   //https://twitter.com/KLoaec/status/1733880025017978914

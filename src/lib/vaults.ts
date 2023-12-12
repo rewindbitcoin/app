@@ -234,9 +234,10 @@ export const utxosDataBalance = memoize((utxosData: UtxosData): number =>
   getOutputsWithValue(utxosData).reduce((a, { value }) => a + value, 0)
 );
 
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 //TODO return dustThreshold as min vault value / its more complex. At least
 //it must return something that when unvaulting it recovers a significant amount
-export function createVault({
+export async function createVault({
   balance,
   unvaultKey,
   samples,
@@ -249,7 +250,8 @@ export function createVault({
   lockBlocks,
   masterNode,
   network,
-  utxosData
+  utxosData,
+  onProgress
 }: {
   balance: number;
   /** The unvault key expression that must be used to create triggerDescriptor */
@@ -268,7 +270,9 @@ export function createVault({
   masterNode: BIP32Interface;
   network: Network;
   utxosData: UtxosData;
-}): Vault | undefined {
+  onProgress: (progress: number) => boolean;
+}): Promise<Vault | undefined> {
+  let signaturesProcessed = 0;
   //TODO: read the comments above. selectVaultUtxosData will also accept
   //the targets already. Change may be used or not. We will know if from
   //selectVaultUtxosData
@@ -426,6 +430,11 @@ export function createVault({
       signers.signECPair({ psbt: psbtTrigger, ecpair: vaultPair });
       //Finalize
       triggerInputFinalizer({ psbt: psbtTrigger, validate: !feeTrigger });
+      if (signaturesProcessed++ % 10 === 0) {
+        if (onProgress(signaturesProcessed / (samples * samples)) === false)
+          return;
+        await sleep(0);
+      }
       //Take the vsize for a tx with 0 fees.
       const txTrigger = psbtTrigger.extractTransaction();
       vSizeTrigger = txTrigger.virtualSize();
@@ -480,6 +489,13 @@ export function createVault({
             signers.signECPair({ psbt: psbtPanic, ecpair: panicPair });
             //Finalize
             panicInputFinalizer({ psbt: psbtPanic, validate: !feePanic });
+            if (signaturesProcessed++ % 10 === 0) {
+              if (
+                onProgress(signaturesProcessed / (samples * samples)) === false
+              )
+                return;
+              await sleep(0);
+            }
             //Take the vsize for a tx with 0 fees.
             const txPanic = psbtPanic.extractTransaction();
             vSizePanic = txPanic.virtualSize();
@@ -497,6 +513,8 @@ export function createVault({
       }
     }
   }
+
+  console.log({ signaturesProcessed, feeRatesN: feeRates.length });
 
   const vaultAddress = vaultOutput.getAddress();
   const triggerAddress = triggerOutput.getAddress();
