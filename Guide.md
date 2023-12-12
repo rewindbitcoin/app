@@ -77,13 +77,7 @@ npx expo start -c
 
 
 
-## Install on device
-```bash
-#To register your devices
-eas device:create
-#To debug using expo and dev server using a device:
-eas build --profile development --platform ios
-#To build an image that can be installed on a device:
-eas build --profile preview --platform ios
-```
-Create init.ts and import it from App.tsx
+## Expo
+
+Read expo.md for more detailed instructions on how to build locally and
+depart from Expo Go for using Electrum client / apply fix to async-storage
