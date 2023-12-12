@@ -63,8 +63,14 @@ Now, (following this instructions https://docs.expo.dev/build-reference/local-bu
 Build locally for Android using (1st call will take a lot of time to complete,
 DON'T CTRL-C):
 ```bash
-npx eas build --platform android --local
 #this will compile a release version
+npx eas build --platform android --local
+#install it into a device
+adb devices
+#then, which generates an apk:
+npx eas build --profile preview --platform android --local
+#install it:
+adb -s 988674333331524734 install build-1702395889086.apk
 ```
 
 There are different "profiles":
