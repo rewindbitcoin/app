@@ -1,4 +1,7 @@
 //TODO: install btcpayserver, use one api-key per user (associated to masterFingerprint or device id?) Or the hash of the masterFingerprint perhaps is better.
+//TODO: everything i use AsyncStorage I should write to it, then read from it, make sure the read is ok and then proceed. If not, this means the vault cannot be pushed. Note Android fucks up big way
+//and may write but then not allow to read:
+//https://github.com/react-native-async-storage/async-storage/issues/617
 //TODO: I believe the one below is ok, but double check
 //  check discovery.getUtxos. What happens if when computing the utxos i have
 //  competing txs in the mempool? getUtxos may be broken!!!
@@ -82,6 +85,7 @@ const MBButton = ({ ...props }: ButtonProps) => (
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 
 import VaultSetUp from './src/components/views/VaultSetUp';
+import VaultCreate from './src/components/views/VaultCreate';
 import Unvault from './src/components/views/Unvault';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import QRCode from 'react-native-qrcode-svg';
@@ -109,14 +113,12 @@ initI18n(defaultSettings.LOCALE);
 const { Output, BIP32 } = DescriptorsFactory(secp256k1);
 const GAP_LIMIT = 3;
 const MIN_FEE_RATE = 1;
-const SAMPLES = 10;
 //
 //TODO: create a component that imports this one from the user (or creates it fot the user)
 const DEFAULT_COLD_ADDR = 'tb1qm0k9mn48uqfs2w9gssvzmus4j8srrx5eje7wpf';
 //TODO: get from btcpayserver
 const DEFAULT_SERVICE_ADDR = 'tb1qm0k9mn48uqfs2w9gssvzmus4j8srrx5eje7wpf';
 import {
-  createVault,
   Vault,
   esploraUrl,
   fetchSpendingTx,
@@ -239,6 +241,14 @@ ${formattedFeeRate}`;
 };
 
 function App() {
+  const [newVaultSettings, setNewVaultSettings] = useState<
+    | {
+        amount: number;
+        feeRate: number;
+        lockBlocks: number;
+      }
+    | false
+  >(false);
   const [isSettingsVisible, setIsSettingsVisible] = useState(false);
   const [isVaultSetUp, setIsVaultSetUp] = useState(false);
   //Set to a vault value to display the Modal that is called when the user
@@ -302,6 +312,7 @@ function App() {
 
     setIsSettingsVisible(false);
     setIsVaultSetUp(false);
+    setNewVaultSettings(false);
     setUnvault(null);
     setReceiveAddress(null);
     setMnemonic(mnemonic || null);
@@ -537,59 +548,8 @@ Handle with care. Confidentiality is key.
     feeRate: number;
     lockBlocks: number;
   }) => {
-    if (hotUtxosData === null) throw new Error('hot utxos data not available');
-    //TODO: This is using changeOutput, vaultOutput and serviceOutput default
-    //params. I shouldnt i use the correct values!
-    if (lockBlocks === undefined) throw new Error('lockBlocks not retrieved');
     setIsVaultSetUp(false);
-
-    if (!discovery) throw new Error(`discovery not instantiated yet!`);
-    const masterNode = fromMnemonic(mnemonic).masterNode;
-    const unvaultKey = fromMnemonic(mnemonic).unvaultKey;
-
-    const changeDescriptor = fromMnemonic(mnemonic).changeDescriptor.replaceAll(
-      '*',
-      discovery
-        .getNextIndex({
-          descriptor: fromMnemonic(mnemonic).changeDescriptor
-        })
-        .toString()
-    );
-    //HERE CREATE THE triggerDescriptor using the next
-    if (utxos === null || !utxos.length) throw new Error(`utxos unset`);
-    const vault = createVault({
-      balance: amount,
-      unvaultKey,
-      samples: SAMPLES,
-      feeRate,
-      serviceFeeRate: settings.SERVICE_FEE_RATE,
-      feeRateCeiling: settings.PRESIGNED_FEE_RATE_CEILING,
-      coldAddress: DEFAULT_COLD_ADDR,
-      changeDescriptor,
-      serviceAddress: DEFAULT_SERVICE_ADDR,
-      lockBlocks,
-      masterNode,
-      utxosData: hotUtxosData,
-      network
-    });
-
-    if (vault) {
-      //TODO: I should index it based on vault.vaultTxHex
-      vault.vaultPushTime = Math.floor(Date.now() / 1000);
-      const newVaults = { ...vaults, [vault.vaultAddress]: vault };
-      await AsyncStorage.setItem('vaults', JSON.stringify(newVaults));
-      if (!discovery) throw new Error(`discovery not instantiated yet!`);
-      //TODO: check this push result. This and all pushes in code
-      //TODO: commented this out during tests:
-      //await discovery.getExplorer().push(vault.vaultTxHex);
-      setVaults(newVaults);
-    } else {
-      //TODO: It was impossible to create the Vault so that it creates
-      //a recoverable path. Warn the user.
-      console.warn(
-        'TODO: Implement this! It was impossible to create the Vault so that it creates a recoverable path.'
-      );
-    }
+    setNewVaultSettings({ amount, feeRate, lockBlocks });
   };
 
   //TODO: this fails if I type stuff and save it and expo-reloads because then
@@ -832,6 +792,57 @@ Handle with care. Confidentiality is key.
                 onCancel={() => setIsVaultSetUp(false)}
               />
             </View>
+          </Modal>
+        )}
+        {hotUtxosData && newVaultSettings && discovery && (
+          <Modal>
+            <VaultCreate
+              masterNode={fromMnemonic(mnemonic).masterNode}
+              utxosData={hotUtxosData}
+              {...newVaultSettings}
+              coldAddress={DEFAULT_COLD_ADDR}
+              serviceAddress={DEFAULT_SERVICE_ADDR}
+              changeDescriptor={fromMnemonic(
+                mnemonic
+              ).changeDescriptor.replaceAll(
+                '*',
+                discovery
+                  .getNextIndex({
+                    descriptor: fromMnemonic(mnemonic).changeDescriptor
+                  })
+                  .toString()
+              )}
+              unvaultKey={fromMnemonic(mnemonic).unvaultKey}
+              network={network}
+              onNewVaultCreated={async (vault: Vault | undefined) => {
+                if (vault) {
+                  //TODO: I should index it based on vault.vaultTxHex
+                  vault.vaultPushTime = Math.floor(Date.now() / 1000);
+                  const newVaults = { ...vaults, [vault.vaultAddress]: vault };
+                  await AsyncStorage.setItem(
+                    'vaults',
+                    JSON.stringify(newVaults)
+                  );
+                  if (!discovery)
+                    throw new Error(`discovery not instantiated yet!`);
+                  //TODO: check this push result. This and all pushes in code
+                  //TODO: commented this out during tests:
+                  //await discovery.getExplorer().push(vault.vaultTxHex);
+                  setVaults(newVaults);
+                } else {
+                  //TODO: It was impossible to create the Vault so that it creates
+                  //a recoverable path. Warn the user.
+                  console.warn(
+                    'TODO: Implement this! It was impossible to create the Vault so that it creates a recoverable path.'
+                  );
+                }
+                setNewVaultSettings(false);
+              }}
+            />
+            <MBButton
+              title={'Close Progress'}
+              onPress={() => setNewVaultSettings(false)}
+            />
           </Modal>
         )}
         <Modal visible={!!unvault} animationType="slide">

@@ -11,7 +11,7 @@
     "feeRateError": "Pick a valid Fee Rate.",
     "amountError": "Pick a valid amount of Btc.",
     "invalidValues": "Invalid Values.",
-    "reduceVaultAmount": "Fees for faster vault creation reduce max to {{amount}}"
+    "reduceVaultAmount": "Faster vault creation fees reduce maximum to {{amount}}"
   },
   "editableSlider": {
     "maxValueError": "Maximum is {{maximumValue}}",
