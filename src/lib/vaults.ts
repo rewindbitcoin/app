@@ -31,6 +31,7 @@ import type { DiscoveryInstance } from '@bitcoinerlab/discovery';
 import { coinselect, vsize, dustThreshold } from '@bitcoinerlab/coinselect';
 
 export type Vault = {
+  //TODO: here add the network too
   /** the initial balance */
   balance: number;
 
