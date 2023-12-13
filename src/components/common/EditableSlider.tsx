@@ -48,6 +48,7 @@ import {
   View,
   Text,
   TextInput,
+  Platform,
   StyleSheet,
   TouchableWithoutFeedback,
   Keyboard
@@ -269,6 +270,15 @@ const EditableSlider = ({
   return (
     <TouchableWithoutFeedback onPress={handlePressOutside}>
       <View style={styles.container}>
+        <Text
+          style={[
+            fontsLoaded ? { fontFamily: 'RobotoMono_400Regular' } : {},
+            snappedValue === null ? { color: 'red' } : {},
+            styles.status
+          ]}
+        >
+          {formattedValue}
+        </Text>
         <View style={styles.control}>
           <Slider
             style={styles.slider}
@@ -290,14 +300,6 @@ const EditableSlider = ({
             onChangeText={onTextInputValueChange}
           />
         </View>
-        <Text
-          style={[
-            fontsLoaded ? { fontFamily: 'RobotoMono_400Regular' } : {},
-            snappedValue === null ? { color: 'red' } : {}
-          ]}
-        >
-          {formattedValue}
-        </Text>
       </View>
     </TouchableWithoutFeedback>
   );
@@ -311,15 +313,23 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     width: '100%'
   },
+  status: {
+    textAlign: 'left',
+    width: '100%'
+  },
   control: {
     flexDirection: 'row',
     alignItems: 'center',
     width: '100%',
-    marginBottom: 10
+    marginTop: 15
   },
   slider: {
     flex: 1,
+    //backgroundColor: 'blue', //Feedback for testing
+    padding: 15, //This is very important in android real device or the thumb is very difficult to be grabbed by the thumb finger since it is so thin.
     marginRight: 10
+    //marginLeft: Platform.select({ ios: 0, android: -20 }), //https://github.com/callstack/react-native-slider/issues/98
+    //marginRight: Platform.select({ ios: 10, android: 0 }) //https://github.com/callstack/react-native-slider/issues/98
   },
   input: {
     fontSize: 15,
