@@ -32,7 +32,14 @@ export default function VaultCreate({
   changeDescriptor: string;
   unvaultKey: string;
   network: Network;
-  onNewVaultCreated: (vault: Vault | undefined) => void;
+  onNewVaultCreated: (
+    vault:
+      | Vault
+      | 'COINSELECT_ERROR'
+      | 'NOT_ENOUGH_FUNDS'
+      | 'USER_CANCEL'
+      | 'UNKNOWN_ERROR'
+  ) => void;
 }) {
   const { t } = useTranslation();
   const keepProgress = useRef<boolean>(true);
