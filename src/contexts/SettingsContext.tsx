@@ -5,7 +5,7 @@ import React, {
   useContext,
   ReactNode
 } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { storage } from '../lib/mmkv';
 
 export type SubUnit = 'btc' | 'sat' | 'mbit' | 'bit';
 export type Currency = 'USD' | 'EUR' | 'GBP';
@@ -49,12 +49,12 @@ export const defaultSettings: Settings = {
   //PRESIGNED_FEE_RATE_CEILING: 5 * 1000, //22-dec-2017 fee rates were 1000. TODO: Set this to 5000 which is 5x 22-dec-2017
   //https://twitter.com/KLoaec/status/1733880025017978914
   //PRESIGNED_FEE_RATE_CEILING: 2,
-  PRESIGNED_FEE_RATE_CEILING: 10000,
+  PRESIGNED_FEE_RATE_CEILING: 1000, //TODO should be 10000
   // 2 hours
   INITIAL_CONFIRMATION_TIME: 2 * 60 * 60,
   //TODO: set it to 2/3 in the production case
   //MIN_RECOVERABLE_RATIO: '2/3' // express it in string so that it can be printed. Must be 0 > MIN_RECOVERABLE_RATIO > 1
-  MIN_RECOVERABLE_RATIO: 2 / 3,
+  MIN_RECOVERABLE_RATIO: 1 / 3, //TODO should be 2/3
   SUB_UNIT: 'btc',
   LOCALE: 'en-US',
   CURRENCY: 'USD',
@@ -76,7 +76,7 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({
   const [settings, setSettingsState] = useState<Settings>(defaultSettings);
   const [isLoading, setLoading] = useState(true); // State to track loading status
 
-  // Function to update settings and save to AsyncStorage
+  // Function to update settings and save to storage
   const setSettings = async (newSettings: Partial<Settings>) => {
     setSettingsState(currentSettings => {
       const updatedSettings = { ...currentSettings, ...newSettings };
@@ -86,7 +86,7 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({
         return currentSettings;
       }
 
-      AsyncStorage.setItem('settings', stringifiedUpdatedSettings);
+      storage.set('settings', stringifiedUpdatedSettings);
       return updatedSettings;
     });
   };
@@ -95,7 +95,7 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({
   useEffect(() => {
     const loadSettings = async () => {
       try {
-        const savedSettings = await AsyncStorage.getItem('settings');
+        const savedSettings = storage.getString('settings');
         if (savedSettings) {
           setSettingsState(JSON.parse(savedSettings));
         }

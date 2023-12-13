@@ -28,9 +28,6 @@
     "web": {
       "favicon": "./assets/favicon.png"
     },
-    "plugins": [
-      "./plugins/withIncreasedAndroidCursorWindowSize"
-    ],
     "extra": {
       "eas": {
         "projectId": "83b28e9f-1d27-40ef-bac8-44da70b30f16"

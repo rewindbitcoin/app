@@ -19,10 +19,6 @@ npm install buffer\
 ```
 
 ```bash
-npm install @react-native-async-storage/async-storage
-```
-
-```bash
 npm install bip39 bip68\
     bitcoinjs-lib \
     @bitcoinerlab/secp256k1 \
@@ -73,6 +69,11 @@ TODO: This does not use the tsconfig.json yet
 
 ```bash
 npx expo start -c
+```
+
+```bash
+npx expo install react-native-mmkv
+npx expo prebuild
 ```
 
 

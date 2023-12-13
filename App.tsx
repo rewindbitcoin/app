@@ -88,7 +88,14 @@ import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import VaultSetUp from './src/components/views/VaultSetUp';
 import VaultCreate from './src/components/views/VaultCreate';
 import Unvault from './src/components/views/Unvault';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+//TODO: There is a limitation of 6MB - independently of the Fix of 2MB I did on android:
+//Alternative!!! https://github.com/mrousavy/react-native-mmkv/
+//https://github.com/react-native-async-storage/async-storage/issues/750
+//https://react-native-async-storage.github.io/async-storage/docs/limits
+//https://github.com/react-native-async-storage/async-storage/discussions/781
+//https://jscrambler.com/blog/how-to-use-react-native-asyncstorage
+//https://react-native-async-storage.github.io/async-storage/
+import { storage } from './src/lib/mmkv';
 import QRCode from 'react-native-qrcode-svg';
 import * as Clipboard from 'expo-clipboard';
 import { Share } from 'react-native';
@@ -303,13 +310,13 @@ function App() {
   }, [settings.CURRENCY, settings.BTC_FIAT_REFRESH_INTERVAL_MS]);
 
   const init = async () => {
-    const mnemonic = await AsyncStorage.getItem('mnemonic');
+    const mnemonic = storage.getString('mnemonic');
     const url = esploraUrl(network);
     const explorer = new EsploraExplorer({ url });
     const { Discovery } = DiscoveryFactory(explorer, network);
     await explorer.connect();
     const discovery = new Discovery();
-    const vaults = JSON.parse((await AsyncStorage.getItem('vaults')) || '{}');
+    const vaults = JSON.parse(storage.getString('vaults') || '{}');
 
     setIsSettingsVisible(false);
     setIsVaultSetUp(false);
@@ -363,7 +370,7 @@ function App() {
 
   const handleCreateWallet = async () => {
     const mnemonic = generateMnemonic();
-    await AsyncStorage.setItem('mnemonic', mnemonic);
+    storage.set('mnemonic', mnemonic);
     setMnemonic(mnemonic);
   };
 
@@ -444,7 +451,7 @@ function App() {
         }
       }
       if (newVaults !== vaults) {
-        await AsyncStorage.setItem('vaults', JSON.stringify(newVaults));
+        storage.set('vaults', JSON.stringify(newVaults));
         setVaults(newVaults);
       }
 
@@ -484,7 +491,7 @@ function App() {
     if (!discovery) throw new Error(`discovery not instantiated yet!`);
     const newVaults = { ...vaults };
     delete newVaults[vault.vaultAddress];
-    await AsyncStorage.setItem('vaults', JSON.stringify(newVaults));
+    storage.set('vaults', JSON.stringify(newVaults));
     //TODO: check this push result. This and all pushes in code
     if (!vault.panicTxHex) throw new Error('Cannot panic');
     await discovery.getExplorer().push(vault.panicTxHex);
@@ -513,7 +520,7 @@ function App() {
         triggerPushTime: Math.floor(Date.now() / 1000)
       }
     };
-    await AsyncStorage.setItem('vaults', JSON.stringify(newVaults));
+    storage.set('vaults', JSON.stringify(newVaults));
     if (!discovery) throw new Error(`discovery not instantiated yet!`);
     //TODO: check this push result. This and all pushes in code
     await discovery.getExplorer().push(txHex);
@@ -588,6 +595,56 @@ Handle with care. Confidentiality is key.
 
   const hotBalance =
     hotUtxosData === null ? null : utxosDataBalance(hotUtxosData);
+
+  const onNewVaultCreated = async (
+    vault:
+      | Vault
+      | 'COINSELECT_ERROR'
+      | 'NOT_ENOUGH_FUNDS'
+      | 'USER_CANCEL'
+      | 'UNKNOWN_ERROR'
+  ) => {
+    if (vault === 'COINSELECT_ERROR') {
+      //TODO: translate this
+      Alert.alert(t('createVault.error.COINSELECT_ERROR'));
+    } else if (vault === 'NOT_ENOUGH_FUNDS') {
+      //TODO: translate this
+      Alert.alert(t('createVault.error.NOT_ENOUGH_FUNDS'));
+    } else if (vault === 'USER_CANCEL') {
+      //TODO: translate this
+      Alert.alert(t('createVault.error.USER_CANCEL'));
+    } else if (vault === 'UNKNOWN_ERROR') {
+      //TODO: translate this
+      Alert.alert(t('createVault.error.UNKNOWN_ERROR'));
+    } else {
+      //TODO: I should index it based on vault.vaultTxHex
+      //TODO for the moment do not store more stuff
+      //TODO: check this push result. This and all pushes in code
+      //TODO: commented this out during tests:
+      vault.vaultPushTime = Math.floor(Date.now() / 1000);
+      const newVaults = { ...vaults, [vault.vaultAddress]: vault };
+      //const compressedVaults = fromByteArray(
+      //  pako.deflate(JSON.stringify(newVaults))
+      //);
+      //console.log(
+      //  'ORIGINAL_LENGTH',
+      //  JSON.stringify(newVaults).length,
+      //  'NEW_LENGTH',
+      //  compressedVaults.length
+      //);
+
+      //const restoredNewVaults = JSON.parse(
+      //  pako.inflate(toByteArray(compressedVaults), { to: 'string' })
+      //);
+      //console.log(restoredNewVaults);
+
+      //await discovery.getExplorer().push(vault.vaultTxHex);
+
+      storage.set('vaults', JSON.stringify(newVaults));
+      setVaults(newVaults);
+    }
+    setNewVaultSettings(false);
+  };
 
   if (isVaultSetUp && hotUtxosData === null)
     throw new Error('Cannot set up a vault without utxos');
@@ -767,7 +824,7 @@ Handle with care. Confidentiality is key.
               <Button
                 title="Factory Reset"
                 onPress={async () => {
-                  await AsyncStorage.clear();
+                  storage.clearAll();
                   if (discovery) await discovery.getExplorer().close();
                   await init();
                 }}
@@ -815,29 +872,7 @@ Handle with care. Confidentiality is key.
               )}
               unvaultKey={fromMnemonic(mnemonic).unvaultKey}
               network={network}
-              onNewVaultCreated={async (vault: Vault | undefined) => {
-                if (vault) {
-                  //TODO: I should index it based on vault.vaultTxHex
-                  //TODO for the moment do not store more stuff
-                  //TODO: check this push result. This and all pushes in code
-                  //TODO: commented this out during tests:
-                  //vault.vaultPushTime = Math.floor(Date.now() / 1000);
-                  //const newVaults = { ...vaults, [vault.vaultAddress]: vault };
-                  //await discovery.getExplorer().push(vault.vaultTxHex);
-                  //await AsyncStorage.setItem(
-                  //  'vaults',
-                  //  JSON.stringify(newVaults)
-                  //);
-                  //setVaults(newVaults);
-                } else {
-                  //TODO: It was impossible to create the Vault so that it creates
-                  //a recoverable path. Warn the user.
-                  console.warn(
-                    'TODO: Implement this! It was impossible to create the Vault so that it creates a recoverable path.'
-                  );
-                }
-                setNewVaultSettings(false);
-              }}
+              onNewVaultCreated={onNewVaultCreated}
             />
           </Modal>
         )}

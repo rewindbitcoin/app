@@ -120,6 +120,15 @@ So I run:
 npx expo prebuild
 ```
 
+## mmkv
+
+mmkv storage uses a managed build (same as the one needed for electtrum)
+
+```bash
+npx expo install react-native-mmkv
+npx expo prebuild
+```
+
 ## Electrum native client
 
 read this too in cause of trouble:
