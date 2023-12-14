@@ -13,7 +13,9 @@ import {
   Keyboard
 } from 'react-native';
 
-import { useSettings } from '../../contexts/SettingsContext';
+import getStorageHook from '../../contexts/StorageContext';
+import { defaultSettings, Settings } from '../..//lib/settings';
+const { useStorage: useSettings } = getStorageHook<Settings>('settings');
 import EditableSlider, { snap } from '../common/EditableSlider';
 import { UtxosData, selectVaultUtxosData } from '../../lib/vaults';
 import {
@@ -88,16 +90,19 @@ export default function VaultSetUp({
       })
     );
 
-  const { settings } = useSettings();
+  const [settings] = useSettings();
   const [lockBlocks, setLockBlocks] = useState<number | null>(
-    settings.INITIAL_LOCK_BLOCKS
+    (settings || defaultSettings).INITIAL_LOCK_BLOCKS
   );
   const { t } = useTranslation();
 
   const [feeRate, setFeeRate] = useState<number | null>(
     feeEstimates
-      ? pickFeeEstimate(feeEstimates, settings.INITIAL_CONFIRMATION_TIME)
-      : settings.MIN_FEE_RATE
+      ? pickFeeEstimate(
+          feeEstimates,
+          (settings || defaultSettings).INITIAL_CONFIRMATION_TIME
+        )
+      : (settings || defaultSettings).MIN_FEE_RATE
   );
 
   const {
@@ -114,10 +119,10 @@ export default function VaultSetUp({
     utxosData,
     feeEstimates,
     network,
-    serviceFeeRate: settings.SERVICE_FEE_RATE,
+    serviceFeeRate: (settings || defaultSettings).SERVICE_FEE_RATE,
     feeRate,
-    feeRateCeiling: settings.PRESIGNED_FEE_RATE_CEILING,
-    minRecoverableRatio: settings.MIN_RECOVERABLE_RATIO
+    feeRateCeiling: (settings || defaultSettings).PRESIGNED_FEE_RATE_CEILING,
+    minRecoverableRatio: (settings || defaultSettings).MIN_RECOVERABLE_RATIO
   });
 
   const [amount, setAmount] = useState<number | null>(maxVaultAmount || null);
@@ -174,15 +179,15 @@ export default function VaultSetUp({
             i18nKey="vaultSetup.notEnoughFunds"
             values={{
               minRecoverableRatioPercentage: Math.round(
-                settings.MIN_RECOVERABLE_RATIO * 100
+                (settings || defaultSettings).MIN_RECOVERABLE_RATIO * 100
               ),
               missingFunds: formatBtc(
                 {
                   amount: missingFunds,
-                  subUnit: settings.SUB_UNIT,
+                  subUnit: (settings || defaultSettings).SUB_UNIT,
                   btcFiat,
-                  locale: settings.LOCALE,
-                  currency: settings.CURRENCY
+                  locale: (settings || defaultSettings).LOCALE,
+                  currency: (settings || defaultSettings).CURRENCY
                 },
                 t
               )
@@ -224,10 +229,10 @@ export default function VaultSetUp({
                         amount: formatBtc(
                           {
                             amount: maxVaultAmount,
-                            subUnit: settings.SUB_UNIT,
+                            subUnit: (settings || defaultSettings).SUB_UNIT,
                             btcFiat,
-                            locale: settings.LOCALE,
-                            currency: settings.CURRENCY
+                            locale: (settings || defaultSettings).LOCALE,
+                            currency: (settings || defaultSettings).CURRENCY
                           },
                           t
                         )
@@ -246,10 +251,10 @@ export default function VaultSetUp({
                     formatBtc(
                       {
                         amount,
-                        subUnit: settings.SUB_UNIT,
+                        subUnit: (settings || defaultSettings).SUB_UNIT,
                         btcFiat,
-                        locale: settings.LOCALE,
-                        currency: settings.CURRENCY
+                        locale: (settings || defaultSettings).LOCALE,
+                        currency: (settings || defaultSettings).CURRENCY
                       },
                       t
                     )
@@ -257,16 +262,16 @@ export default function VaultSetUp({
                 />
               </View>
             )}
-          {settings.MIN_LOCK_BLOCKS &&
-            settings.MAX_LOCK_BLOCKS &&
+          {(settings || defaultSettings).MIN_LOCK_BLOCKS &&
+            (settings || defaultSettings).MAX_LOCK_BLOCKS &&
             formatLockTime && (
               <View style={styles.settingGroup}>
                 <Text style={styles.label}>
                   {t('vaultSetup.securityLockTimeLabel')}
                 </Text>
                 <EditableSlider
-                  minimumValue={settings.MIN_LOCK_BLOCKS}
-                  maximumValue={settings.MAX_LOCK_BLOCKS}
+                  minimumValue={(settings || defaultSettings).MIN_LOCK_BLOCKS}
+                  maximumValue={(settings || defaultSettings).MAX_LOCK_BLOCKS}
                   value={lockBlocks}
                   step={1}
                   onValueChange={setLockBlocks}
@@ -280,7 +285,7 @@ export default function VaultSetUp({
             </Text>
             <EditableSlider
               value={feeRate}
-              minimumValue={settings.MIN_FEE_RATE}
+              minimumValue={(settings || defaultSettings).MIN_FEE_RATE}
               maximumValue={maxFeeRate}
               step={FEE_RATE_STEP}
               onValueChange={setFeeRate}
@@ -295,14 +300,15 @@ export default function VaultSetUp({
                     changeOutput: DUMMY_CHANGE_OUTPUT(network),
                     feeRate,
                     amount,
-                    serviceFeeRate: settings.SERVICE_FEE_RATE
+                    serviceFeeRate: (settings || defaultSettings)
+                      .SERVICE_FEE_RATE
                   });
                 if (selected) {
                   return formatFeeRate(
                     {
                       feeRate,
-                      locale: settings.LOCALE,
-                      currency: settings.CURRENCY,
+                      locale: (settings || defaultSettings).LOCALE,
+                      currency: (settings || defaultSettings).CURRENCY,
                       txSize: selected.vsize,
                       btcFiat,
                       feeEstimates
@@ -320,13 +326,14 @@ export default function VaultSetUp({
                       changeOutput: DUMMY_CHANGE_OUTPUT(network),
                       feeRate,
                       amount: maxVaultAmount,
-                      serviceFeeRate: settings.SERVICE_FEE_RATE
+                      serviceFeeRate: (settings || defaultSettings)
+                        .SERVICE_FEE_RATE
                     });
                   return formatFeeRate(
                     {
                       feeRate,
-                      locale: settings.LOCALE,
-                      currency: settings.CURRENCY,
+                      locale: (settings || defaultSettings).LOCALE,
+                      currency: (settings || defaultSettings).CURRENCY,
                       txSize: selected ? selected.vsize : null,
                       btcFiat,
                       feeEstimates

@@ -6,7 +6,9 @@ import * as Progress from 'react-native-progress';
 import type { BIP32Interface } from 'bip32';
 import type { UtxosData } from '../../lib/vaults';
 import type { Network } from 'bitcoinjs-lib';
-import { useSettings } from '../../contexts/SettingsContext';
+import getStorageHook from '../../contexts/StorageContext';
+import { defaultSettings, Settings } from '../..//lib/settings';
+const { useStorage: useSettings } = getStorageHook<Settings>('settings');
 import { createVault, Vault } from '../../lib/vaults';
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 export default function VaultCreate({
@@ -43,14 +45,15 @@ export default function VaultCreate({
 }) {
   const { t } = useTranslation();
   const keepProgress = useRef<boolean>(true);
-  const { settings } = useSettings();
+  const [settings] = useSettings();
   const [progress, setProgress] = useState<number>(0);
   const onProgress = (progress: number) => {
     setProgress(progress);
     return keepProgress.current;
   };
-  const samples = settings.SAMPLES;
-  const feeRateCeiling = settings.PRESIGNED_FEE_RATE_CEILING;
+  const samples = (settings || defaultSettings).SAMPLES;
+  const feeRateCeiling = (settings || defaultSettings)
+    .PRESIGNED_FEE_RATE_CEILING;
   useEffect(() => {
     let isMounted = true;
     //Leave some time so that the progress is rendered
@@ -61,7 +64,7 @@ export default function VaultCreate({
         unvaultKey,
         samples,
         feeRate,
-        serviceFeeRate: settings.SERVICE_FEE_RATE,
+        serviceFeeRate: (settings || defaultSettings).SERVICE_FEE_RATE,
         feeRateCeiling,
         coldAddress,
         changeDescriptor,

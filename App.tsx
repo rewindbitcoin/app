@@ -83,11 +83,10 @@ import initI18n from './src/i18n/i18n';
 import { useTranslation } from 'react-i18next';
 import {
   defaultSettings,
-  SettingsProvider,
-  useSettings,
+  Settings,
   Locale,
   Currency
-} from './src/contexts/SettingsContext';
+} from './src/lib/settings';
 
 import React, { useState, useEffect, useRef } from 'react';
 import {
@@ -101,6 +100,13 @@ import {
   RefreshControl
 } from 'react-native';
 import { produce } from 'immer';
+import getStorageHook from './src/contexts/StorageContext';
+const { useStorage: useSettings, StorageProvider: SettingsProvider } =
+  getStorageHook<Settings>('settings');
+const { useStorage: useMnemonic, StorageProvider: MnemonicProvider } =
+  getStorageHook<string>('mnemonic');
+const { useStorage: useVaults, StorageProvider: VaultsProvider } =
+  getStorageHook<Vaults>('vaults');
 
 const MBButton = ({ ...props }: ButtonProps) => (
   <View style={{ marginBottom: 10 }}>
@@ -119,7 +125,6 @@ import Unvault from './src/components/views/Unvault';
 //https://github.com/react-native-async-storage/async-storage/discussions/781
 //https://jscrambler.com/blog/how-to-use-react-native-asyncstorage
 //https://react-native-async-storage.github.io/async-storage/
-import { storage } from './src/lib/storage';
 import QRCode from 'react-native-qrcode-svg';
 import * as Clipboard from 'expo-clipboard';
 import { Share } from 'react-native';
@@ -288,27 +293,30 @@ function App() {
   //Set it to null to hide the modal.
   const [unvault, setUnvault] = useState<Vault | null>(null);
   const [receiveAddress, setReceiveAddress] = useState<string | null>(null);
-  const [mnemonic, setMnemonic] = useState<string | null>(null);
+  //'goat oak pull seek know resemble hurt pistol head first board better';
+  const [mnemonic, setMnemonic] = useMnemonic();
+
   const [discovery, setDiscovery] = useState<DiscoveryInstance | null>(null);
   const [utxos, setUtxos] = useState<Array<string> | null>(null);
-  const [vaults, setVaults] = useState<Vaults>({});
+  const [vaults, setVaults] = useVaults();
+
   const [checkingBalance, setCheckingBalance] = useState(false);
   const [feeEstimates, setFeeEstimates] = useState<Record<
     string,
     number
   > | null>(null);
   const [btcFiat, setBtcFiat] = useState<number | null>(null);
-  const { settings } = useSettings();
+  const [settings] = useSettings();
   useEffect(() => {
-    initI18n(settings.LOCALE);
-  }, [settings.LOCALE]);
+    initI18n((settings || defaultSettings).LOCALE);
+  }, [(settings || defaultSettings).LOCALE]);
 
   const { t } = useTranslation();
   const intervalRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const fetchBtcFiat = async () => {
     try {
-      const btcFiat = await getBtcFiat(settings.CURRENCY);
+      const btcFiat = await getBtcFiat((settings || defaultSettings).CURRENCY);
       setBtcFiat(btcFiat);
     } catch (err) {
       // TODO: Handle errors here
@@ -316,43 +324,43 @@ function App() {
     }
   };
 
-  const lastCurrencyRef = useRef(settings.CURRENCY);
+  const lastCurrencyRef = useRef((settings || defaultSettings).CURRENCY);
   useEffect(() => {
     if (intervalRef.current) clearInterval(intervalRef.current);
-    if (lastCurrencyRef.current !== settings.CURRENCY) fetchBtcFiat();
+    if (lastCurrencyRef.current !== (settings || defaultSettings).CURRENCY)
+      fetchBtcFiat();
 
-    lastCurrencyRef.current = settings.CURRENCY;
+    lastCurrencyRef.current = (settings || defaultSettings).CURRENCY;
     intervalRef.current = setInterval(
       fetchBtcFiat,
-      settings.BTC_FIAT_REFRESH_INTERVAL_MS
+      (settings || defaultSettings).BTC_FIAT_REFRESH_INTERVAL_MS
     );
 
-    // Clear interval on unmount or when settings.CURRENCY changes
+    // Clear interval on unmount or when (settings||defaultSettings).CURRENCY changes
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
-  }, [settings.CURRENCY, settings.BTC_FIAT_REFRESH_INTERVAL_MS]);
+  }, [
+    (settings || defaultSettings).CURRENCY,
+    (settings || defaultSettings).BTC_FIAT_REFRESH_INTERVAL_MS
+  ]);
 
   const init = async () => {
     //const mnemonic =
     //  'goat oak pull seek know resemble hurt pistol head first board better';
-    const mnemonic = storage.getString('mnemonic');
     const url = esploraUrl(network);
     const explorer = new EsploraExplorer({ url });
     const { Discovery } = DiscoveryFactory(explorer, network);
     await explorer.connect();
     const discovery = new Discovery();
-    const vaults = JSON.parse(storage.getString('vaults') || '{}');
 
     setIsSettingsVisible(false);
     setIsVaultSetUp(false);
     setNewVaultSettings(false);
     setUnvault(null);
     setReceiveAddress(null);
-    setMnemonic(mnemonic || null);
     setDiscovery(discovery);
     setUtxos(null);
-    setVaults(vaults);
     setCheckingBalance(false);
 
     try {
@@ -376,7 +384,7 @@ function App() {
     fetchBtcFiat();
 
     // Init locales on init
-    initI18n(settings.LOCALE);
+    initI18n((settings || defaultSettings).LOCALE);
   };
 
   useEffect(() => {
@@ -385,7 +393,9 @@ function App() {
   useEffect(() => {
     if (discovery && mnemonic) handleCheckBalance();
   }, [discovery, mnemonic]);
-  const sortedVaultKeys = Object.keys(vaults).sort().toString();
+  const sortedVaultKeys = Object.keys(vaults || {})
+    .sort()
+    .toString();
   useEffect(() => {
     if (discovery && !checkingBalance && mnemonic) handleCheckBalance();
   }, [sortedVaultKeys]);
@@ -396,7 +406,6 @@ function App() {
 
   const handleCreateWallet = async () => {
     const mnemonic = generateMnemonic();
-    storage.set('mnemonic', mnemonic);
     setMnemonic(mnemonic);
   };
 
@@ -409,8 +418,8 @@ function App() {
       if (!blockHeight) throw new Error(`Could not bet tip block height`);
 
       //First update the vaults. Then the utxos
-      let newVaults = vaults; //Do not mutate vaults
-      for (const vault of Object.values(vaults)) {
+      let newVaults = vaults || {}; //Do not mutate vaults
+      for (const vault of Object.values(vaults || {})) {
         console.log('\tVAULT fetchSpendingTx');
         const triggerTxData = await fetchSpendingTx(
           vault.vaultTxHex,
@@ -480,7 +489,6 @@ function App() {
         }
       }
       if (newVaults !== vaults) {
-        storage.set('vaults', JSON.stringify(newVaults));
         setVaults(newVaults);
       }
 
@@ -521,7 +529,7 @@ function App() {
     if (!discovery) throw new Error(`discovery not instantiated yet!`);
     const newVaults = { ...vaults };
     delete newVaults[vault.vaultAddress];
-    storage.set('vaults', JSON.stringify(newVaults));
+    setVaults(newVaults);
     //TODO: check this push result. This and all pushes in code
     if (!vault.panicTxHex) throw new Error('Cannot panic');
     await discovery.getExplorer().push(vault.panicTxHex);
@@ -529,7 +537,6 @@ function App() {
       'Transaction Successful',
       `Funds have been sent to the safe address: ${vault.coldAddress}.`
     );
-    setVaults(newVaults);
   };
 
   const handleTriggerUnvault = async ({
@@ -550,11 +557,10 @@ function App() {
         triggerPushTime: Math.floor(Date.now() / 1000)
       }
     };
-    storage.set('vaults', JSON.stringify(newVaults));
+    setVaults(newVaults);
     if (!discovery) throw new Error(`discovery not instantiated yet!`);
     //TODO: check this push result. This and all pushes in code
     await discovery.getExplorer().push(txHex);
-    setVaults(newVaults);
   };
 
   const handleDelegate = async (vault: Vault) => {
@@ -595,7 +601,7 @@ Handle with care. Confidentiality is key.
   const hotUtxosData =
     utxos === null || discovery === null
       ? null
-      : getUtxosData(utxos, vaults, network, discovery);
+      : getUtxosData(utxos, vaults || {}, network, discovery);
 
   // This useEffect below is optional. It's only done only for better UX.
   // The idea is to pre-caching data that will be needed in VaultSetUp.
@@ -609,18 +615,19 @@ Handle with care. Confidentiality is key.
       estimateVaultSetUpRange({
         utxosData: hotUtxosData,
         feeEstimates,
-        serviceFeeRate: settings.SERVICE_FEE_RATE,
+        serviceFeeRate: (settings || defaultSettings).SERVICE_FEE_RATE,
         network,
-        feeRateCeiling: settings.PRESIGNED_FEE_RATE_CEILING,
-        minRecoverableRatio: settings.MIN_RECOVERABLE_RATIO
+        feeRateCeiling: (settings || defaultSettings)
+          .PRESIGNED_FEE_RATE_CEILING,
+        minRecoverableRatio: (settings || defaultSettings).MIN_RECOVERABLE_RATIO
       });
     }
   }, [
     hotUtxosData,
     JSON.stringify(feeEstimates),
-    settings.SERVICE_FEE_RATE,
-    settings.PRESIGNED_FEE_RATE_CEILING,
-    settings.MIN_RECOVERABLE_RATIO
+    (settings || defaultSettings).SERVICE_FEE_RATE,
+    (settings || defaultSettings).PRESIGNED_FEE_RATE_CEILING,
+    (settings || defaultSettings).MIN_RECOVERABLE_RATIO
   ]);
 
   const hotBalance =
@@ -670,7 +677,6 @@ Handle with care. Confidentiality is key.
 
       //await discovery.getExplorer().push(vault.vaultTxHex);
 
-      storage.set('vaults', JSON.stringify(newVaults));
       setVaults(newVaults);
     }
     setNewVaultSettings(false);
@@ -722,10 +728,10 @@ Handle with care. Confidentiality is key.
               {formatBtc(
                 {
                   amount: hotBalance,
-                  subUnit: settings.SUB_UNIT,
+                  subUnit: (settings || defaultSettings).SUB_UNIT,
                   btcFiat,
-                  locale: settings.LOCALE,
-                  currency: settings.CURRENCY
+                  locale: (settings || defaultSettings).LOCALE,
+                  currency: (settings || defaultSettings).CURRENCY
                 },
                 t
               )}{' '}
@@ -857,7 +863,7 @@ Handle with care. Confidentiality is key.
               <Button
                 title="Factory Reset"
                 onPress={async () => {
-                  storage.clearAll();
+                  //TODO: See how to deal with this using the context... storage.clearAll();
                   if (discovery) await discovery.getExplorer().close();
                   await init();
                 }}
@@ -916,7 +922,7 @@ Handle with care. Confidentiality is key.
               minFeeRate={MIN_FEE_RATE}
               maxFeeRate={
                 unvault === null
-                  ? settings.PRESIGNED_FEE_RATE_CEILING
+                  ? (settings || defaultSettings).PRESIGNED_FEE_RATE_CEILING
                   : maxTriggerFeeRate(unvault)
               }
               onNewValues={async ({ feeRate }: { feeRate: number }) => {
@@ -933,8 +939,8 @@ Handle with care. Confidentiality is key.
                   {
                     feeRate,
                     btcFiat,
-                    locale: settings.LOCALE,
-                    currency: settings.CURRENCY,
+                    locale: (settings || defaultSettings).LOCALE,
+                    currency: (settings || defaultSettings).CURRENCY,
                     feeEstimates,
                     vault: unvault
                   },
@@ -951,6 +957,10 @@ Handle with care. Confidentiality is key.
 
 export default () => (
   <SettingsProvider>
-    <App />
+    <MnemonicProvider>
+      <VaultsProvider>
+        <App />
+      </VaultsProvider>
+    </MnemonicProvider>
   </SettingsProvider>
 );

@@ -1,126 +1,99 @@
+//TODO: here there is a problem when I set a value again that was
+//previously stored, then I might return another reference?
+import memoize from 'lodash.memoize';
 import React, {
-  createContext,
   useState,
   useEffect,
+  createContext,
   useContext,
+  useRef,
   ReactNode
 } from 'react';
 import { storage } from '../lib/storage';
 
-//Important: don't use objects or arrays since the reference would be checked
-//below in the implementation to trigger updates
-type StorageValueType = string | number | boolean;
-
-interface StorageValue {
-  value: StorageValueType;
-  setValue: (newValue: StorageValueType) => Promise<void>;
-}
-
-interface StorageContextType {
-  storage: { [key: string]: StorageValue };
-  setStorageValue: (key: string, newValue: StorageValueType) => Promise<void>;
-  isInitialized: boolean;
-  isProviderMissing: boolean;
-}
-
-const defaultContext: StorageContextType = {
-  storage: {},
-  setStorageValue: async () => {},
-  isInitialized: true,
-  isProviderMissing: true
+type StorageContextType<T> = {
+  value: T | undefined;
+  setValue: React.Dispatch<React.SetStateAction<T | undefined>>;
+  hasFetched: React.MutableRefObject<boolean>;
 };
 
-const StorageContext = createContext<StorageContextType>(defaultContext);
+const createStorageHook = <T,>(key: string): StorageHook<T> => {
+  const StorageContext = createContext<StorageContextType<T> | undefined>(
+    undefined
+  );
 
-export const StorageProvider: React.FC<{ children: ReactNode }> = ({
-  children
-}) => {
-  const [storageState, setStorageState] = useState<{
-    [key: string]: StorageValueType;
-  }>({});
-  const [isInitialized, setInitilized] = useState(true);
+  const StorageProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+    const [value, setValue] = useState<T | undefined>();
+    const hasFetched = useRef(false);
 
-  const setStorageValue = async (key: string, newValue: StorageValueType) => {
-    await storage.set(key, newValue);
-    setStorageState(prevState => ({ ...prevState, [key]: newValue }));
-  };
+    useEffect(() => {
+      const fetchValue = async () => {
+        const savedValue = await storage.getStringAsync(key);
 
-  useEffect(() => {
-    const loadValues = async () => {
-      // Load values for each key in storageState
-      try {
-        for (const key in storageState) {
-          const savedValue = await storage.getString(key);
-          if (savedValue) {
-            setStorageState(prevState => ({
-              ...prevState,
-              [key]: savedValue
-            }));
+        if (typeof savedValue === 'string') {
+          try {
+            // Try parsing as JSON
+            const parsedValue = JSON.parse(savedValue);
+            setValue(parsedValue as T);
+          } catch (error) {
+            // If parsing fails, set as string
+            setValue(savedValue as unknown as T);
           }
         }
-      } catch (error) {
-        console.error('Failed to load values:', error);
+        hasFetched.current = true;
+      };
+      fetchValue();
+    }, []);
+
+    return (
+      <StorageContext.Provider value={{ value, setValue, hasFetched }}>
+        {children}
+      </StorageContext.Provider>
+    );
+  };
+
+  const useStorage = (
+    callback?: (value: T | undefined) => void
+  ): [T | undefined, (newValue: T) => Promise<void>, boolean] => {
+    const context = useContext(StorageContext);
+    if (!context) {
+      throw new Error(
+        `useStorage must be used within a StorageProvider for key ${key}`
+      );
+    }
+
+    const { value, setValue, hasFetched } = context;
+
+    useEffect(() => {
+      if (hasFetched.current && callback) {
+        callback(value);
       }
-      setInitilized(false);
+    }, [value, callback]);
+
+    const setStorageValue = async (newValue: T) => {
+      await storage.setStringAsync(
+        key,
+        typeof newValue === 'string' ? newValue : JSON.stringify(newValue)
+      );
+      setValue(newValue);
     };
 
-    loadValues();
-  }, []);
-
-  const contextValue: StorageContextType = {
-    storage: Object.keys(storageState).reduce(
-      (acc, key) => ({
-        ...acc,
-        [key]: {
-          value: storageState[key],
-          setValue: (newValue: StorageValueType) =>
-            setStorageValue(key, newValue)
-        }
-      }),
-      {}
-    ),
-    setStorageValue,
-    isInitialized,
-    isProviderMissing: false
+    return [value, setStorageValue, hasFetched.current];
   };
 
-  return (
-    <StorageContext.Provider value={contextValue}>
-      {children}
-    </StorageContext.Provider>
-  );
+  return { StorageProvider, useStorage };
 };
 
-export const useStorage = (key: string, initialValue: StorageValueType) => {
-  const context = useContext(StorageContext);
-  if (context.isProviderMissing) {
-    throw new Error('Wrap this component with StorageProvider');
-  }
-
-  // Initialize state for the specific key
-  const [value, setValue] = useState(() => {
-    // If initialValue is provided, use it and consider the initial load as done.
-    if (initialValue !== undefined) {
-      context.setStorageValue(key, initialValue); // Set the initial value in storage
-      return initialValue;
-    }
-    return context.storage[key]?.value;
-  });
-
-  // Update local state when the specific key in the context changes
-  useEffect(() => {
-    if (context.storage[key]?.value !== value) {
-      setValue(context.storage[key].value);
-    }
-  }, [context.storage, key, value]);
-
-  // Function to update the value in context and local state
-  const setStorageValue = (newValue: StorageValueType) => {
-    context.setStorageValue(key, newValue);
-    setValue(newValue);
-  };
-
-  return [value, setStorageValue];
+// Memoize the creation of providers and hooks for each key
+type StorageHook<T> = {
+  StorageProvider: React.FC<{ children: React.ReactNode }>;
+  useStorage: (
+    callback?: (value: T | undefined) => void
+  ) => [T | undefined, (newValue: T) => Promise<void>, boolean];
 };
 
-export default StorageContext;
+export const getStorageHook = memoize(<T,>(key: string) => {
+  return createStorageHook<T>(key);
+});
+
+export default getStorageHook;

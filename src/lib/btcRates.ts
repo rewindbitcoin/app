@@ -1,6 +1,6 @@
 import memoize from 'lodash.memoize';
 import type { TFunction } from 'i18next';
-import type { SubUnit, Currency, Locale } from '../contexts/SettingsContext';
+import type { SubUnit, Currency, Locale } from './settings';
 
 //TODO: Do not depend on external APIs - or show a couple of options coingecko +
 //other APIs and allow users cahnge that on settings context

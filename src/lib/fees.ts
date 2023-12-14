@@ -1,5 +1,5 @@
 import { formatFiat } from './btcRates';
-import type { Locale, Currency } from '../contexts/SettingsContext';
+import type { Locale, Currency } from './settings';
 
 import type { TFunction } from 'i18next';
 import memoize from 'lodash.memoize';

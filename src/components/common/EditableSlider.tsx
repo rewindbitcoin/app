@@ -48,7 +48,6 @@ import {
   View,
   Text,
   TextInput,
-  Platform,
   StyleSheet,
   TouchableWithoutFeedback,
   Keyboard
