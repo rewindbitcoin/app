@@ -50,8 +50,7 @@ export default function VaultCreate({
     return keepProgress.current;
   };
   const samples = settings.SAMPLES;
-  //const feeRateCeiling = settings.PRESIGNED_FEE_RATE_CEILING; //TODO :revert to this!
-  const feeRateCeiling = 10000;
+  const feeRateCeiling = settings.PRESIGNED_FEE_RATE_CEILING;
   useEffect(() => {
     let isMounted = true;
     //Leave some time so that the progress is rendered
@@ -80,8 +79,6 @@ export default function VaultCreate({
       isMounted = false;
     };
   }, []);
-  //TODO Create a button cancel that will set some state that will be used
-  //by onProgresss to pass a Cancel
   return (
     <View style={styles.container}>
       <Progress.Circle

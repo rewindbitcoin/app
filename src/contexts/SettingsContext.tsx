@@ -5,7 +5,7 @@ import React, {
   useContext,
   ReactNode
 } from 'react';
-import { storage } from '../lib/mmkv';
+import { storage } from '../lib/storage';
 
 export type SubUnit = 'btc' | 'sat' | 'mbit' | 'bit';
 export type Currency = 'USD' | 'EUR' | 'GBP';
@@ -91,7 +91,7 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({
     });
   };
 
-  // Load settings from AsyncStorage on startup
+  // Load settings from storage on startup
   useEffect(() => {
     const loadSettings = async () => {
       try {

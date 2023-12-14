@@ -361,7 +361,10 @@ export async function createVault({
     //signature. Let's assume a slightly larger tx size (+1 vbyte).
     const feeVault = Math.ceil((vSizeVault + 1) * feeRate);
     //Not enough funds to create a vault tx with feeRate: ${feeRate} sats/vbyte
-    if (feeVault > balance) 'NOT_ENOUGH_FUNDS';
+    if (feeVault > balance) {
+      console.warn('feeVault > balance', { feeVault, balance });
+      return 'NOT_ENOUGH_FUNDS';
+    }
     const vaultBalance = balance - feeVault;
 
     //Add the output to psbtVault assuming feeRate:
@@ -423,8 +426,13 @@ export async function createVault({
         ? Math.ceil((vSizeTrigger + 1) * feeRateTrigger)
         : 0;
       //Not enough funds to create at least 1 trigger tx with feeRate: ${maxSatsPerByte} sats/vbyte`
-      if (feeTrigger > vaultBalance && feeRateTrigger === maxSatsPerByte)
+      if (feeTrigger > vaultBalance && feeRateTrigger === maxSatsPerByte) {
+        console.warn(
+          'feeTrigger > vaultBalance && feeRateTrigger === maxSatsPerByte',
+          { feeTrigger, vaultBalance, maxSatsPerByte }
+        );
         return 'NOT_ENOUGH_FUNDS';
+      }
       if (
         feeTrigger <= vaultBalance &&
         // don't process twice same fee:
@@ -480,8 +488,13 @@ export async function createVault({
               : 0;
 
             //Not enough funds to create at least 1 panic tx with feeRate: ${maxSatsPerByte} sats/vbyte
-            if (feePanic > triggerBalance && feeRatePanic === maxSatsPerByte)
+            if (feePanic > triggerBalance && feeRatePanic === maxSatsPerByte) {
+              console.warn(
+                'feePanic > triggerBalance && feeRatePanic === maxSatsPerByte',
+                { feePanic, triggerBalance, feeRatePanic, maxSatsPerByte }
+              );
               return 'NOT_ENOUGH_FUNDS';
+            }
             //Add the output to psbtPanic:
             if (
               feePanic <= triggerBalance &&

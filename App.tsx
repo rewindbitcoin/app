@@ -1,3 +1,27 @@
+// TODO dec, 14, 2023
+//  -> Investigage IndexedDB
+//  -> serialize discovery (addint an interfaceVersion: 1.0
+//  -> the constructor will optionally take the serialized discoveryData + version
+//  -> Here I will store it to storage
+//
+//  -> I will store:
+//    discoveryData
+//    mnemonic
+//    Vaults
+//    settings
+//
+//  -> State:
+//    do I need setUtxos / utxos? I only need discoveryData in storage
+//      -> Look for react "best practices" wrt localStorage and state
+//
+//  -> Here I won't setState(discovery). Doesn't make sense. If discovery
+//  is in storage, then use it, otherwise create an empty one.
+//
+//  -> Also I need a way to know how out-of-sync is discoveryData. If it's
+//  pretty bad, should I let the system createVault of an utxo that perhaps
+//  is not ours anymore? That should be ok I think... The component will
+//  re-mount with new data when it gets it.
+//
 //TODO: install btcpayserver, use one api-key per user (associated to masterFingerprint or device id?) Or the hash of the masterFingerprint perhaps is better.
 //TODO: everything i use AsyncStorage I should write to it, then read from it, make sure the read is ok and then proceed. If not, this means the vault cannot be pushed. Note Android fucks up big way
 //  -> Also change the way it's stored. dont have a huge key for vaults
@@ -95,7 +119,7 @@ import Unvault from './src/components/views/Unvault';
 //https://github.com/react-native-async-storage/async-storage/discussions/781
 //https://jscrambler.com/blog/how-to-use-react-native-asyncstorage
 //https://react-native-async-storage.github.io/async-storage/
-import { storage } from './src/lib/mmkv';
+import { storage } from './src/lib/storage';
 import QRCode from 'react-native-qrcode-svg';
 import * as Clipboard from 'expo-clipboard';
 import { Share } from 'react-native';
@@ -310,6 +334,8 @@ function App() {
   }, [settings.CURRENCY, settings.BTC_FIAT_REFRESH_INTERVAL_MS]);
 
   const init = async () => {
+    //const mnemonic =
+    //  'goat oak pull seek know resemble hurt pistol head first board better';
     const mnemonic = storage.getString('mnemonic');
     const url = esploraUrl(network);
     const explorer = new EsploraExplorer({ url });
@@ -377,6 +403,7 @@ function App() {
   const handleCheckBalance = async () => {
     if (!checkingBalance) {
       setCheckingBalance(true);
+      console.log('START UTXOS CHECK');
       if (!discovery) throw new Error(`discovery not instantiated yet!`);
       const blockHeight = await discovery.getExplorer().fetchBlockHeight();
       if (!blockHeight) throw new Error(`Could not bet tip block height`);
@@ -384,11 +411,13 @@ function App() {
       //First update the vaults. Then the utxos
       let newVaults = vaults; //Do not mutate vaults
       for (const vault of Object.values(vaults)) {
+        console.log('\tVAULT fetchSpendingTx');
         const triggerTxData = await fetchSpendingTx(
           vault.vaultTxHex,
           0,
           discovery
         );
+        console.log('\tVAULT fetchSpendingTx - OK');
         const unlockingTxData = triggerTxData
           ? await fetchSpendingTx(triggerTxData.txHex, 0, discovery)
           : undefined;
@@ -461,16 +490,17 @@ function App() {
         fromMnemonic(mnemonic).changeDescriptor,
         ...spendableTriggerDescriptors(newVaults)
       ];
+      console.log('FETCH DESCRIPTORS');
       await discovery.fetch({ descriptors, gapLimit: GAP_LIMIT });
+      console.log('FETCH DESCRIPTORS - OK');
       const { utxos } = discovery.getUtxosAndBalance({ descriptors });
       //console.log('vaults', vaults);
       //I can do this because getUtxosAndBalance uses immutability.
       //Setting same utxo won't produce a re-render in React.
-      console.log('UTXOS SET');
       setUtxos(utxos.length ? utxos : null);
-      console.log('UTXOS SET - OK');
 
       setCheckingBalance(false);
+      console.log('UTXOS SET');
     }
   };
 
@@ -798,7 +828,10 @@ Handle with care. Confidentiality is key.
               <Text
                 style={styles.addressText}
                 onPress={() => {
+                  //TODO: Add some padding in this text because it's very
+                  //difficult to get it clicked on android device:
                   Clipboard.setStringAsync(receiveAddress);
+                  //TODO: translate
                   Alert.alert('Address copied to clipboard');
                 }}
               >
