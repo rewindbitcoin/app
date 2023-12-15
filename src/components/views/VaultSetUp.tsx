@@ -93,22 +93,20 @@ export default function VaultSetUp({
       })
     );
 
-  const [settings] = useGlobalStateStorage<Settings>(
+  const [settingsState] = useGlobalStateStorage<Settings>(
     SETTINGS_GLOBAL_STORAGE,
     SERIALIZABLE
   );
+  const settings = settingsState || defaultSettings;
   const [lockBlocks, setLockBlocks] = useState<number | null>(
-    (settings || defaultSettings).INITIAL_LOCK_BLOCKS
+    settings.INITIAL_LOCK_BLOCKS
   );
   const { t } = useTranslation();
 
   const [feeRate, setFeeRate] = useState<number | null>(
     feeEstimates
-      ? pickFeeEstimate(
-          feeEstimates,
-          (settings || defaultSettings).INITIAL_CONFIRMATION_TIME
-        )
-      : (settings || defaultSettings).MIN_FEE_RATE
+      ? pickFeeEstimate(feeEstimates, settings.INITIAL_CONFIRMATION_TIME)
+      : settings.MIN_FEE_RATE
   );
 
   const {
@@ -125,10 +123,10 @@ export default function VaultSetUp({
     utxosData,
     feeEstimates,
     network,
-    serviceFeeRate: (settings || defaultSettings).SERVICE_FEE_RATE,
+    serviceFeeRate: settings.SERVICE_FEE_RATE,
     feeRate,
-    feeRateCeiling: (settings || defaultSettings).PRESIGNED_FEE_RATE_CEILING,
-    minRecoverableRatio: (settings || defaultSettings).MIN_RECOVERABLE_RATIO
+    feeRateCeiling: settings.PRESIGNED_FEE_RATE_CEILING,
+    minRecoverableRatio: settings.MIN_RECOVERABLE_RATIO
   });
 
   const [amount, setAmount] = useState<number | null>(maxVaultAmount || null);
@@ -185,15 +183,15 @@ export default function VaultSetUp({
             i18nKey="vaultSetup.notEnoughFunds"
             values={{
               minRecoverableRatioPercentage: Math.round(
-                (settings || defaultSettings).MIN_RECOVERABLE_RATIO * 100
+                settings.MIN_RECOVERABLE_RATIO * 100
               ),
               missingFunds: formatBtc(
                 {
                   amount: missingFunds,
-                  subUnit: (settings || defaultSettings).SUB_UNIT,
+                  subUnit: settings.SUB_UNIT,
                   btcFiat,
-                  locale: (settings || defaultSettings).LOCALE,
-                  currency: (settings || defaultSettings).CURRENCY
+                  locale: settings.LOCALE,
+                  currency: settings.CURRENCY
                 },
                 t
               )
@@ -235,10 +233,10 @@ export default function VaultSetUp({
                         amount: formatBtc(
                           {
                             amount: maxVaultAmount,
-                            subUnit: (settings || defaultSettings).SUB_UNIT,
+                            subUnit: settings.SUB_UNIT,
                             btcFiat,
-                            locale: (settings || defaultSettings).LOCALE,
-                            currency: (settings || defaultSettings).CURRENCY
+                            locale: settings.LOCALE,
+                            currency: settings.CURRENCY
                           },
                           t
                         )
@@ -257,10 +255,10 @@ export default function VaultSetUp({
                     formatBtc(
                       {
                         amount,
-                        subUnit: (settings || defaultSettings).SUB_UNIT,
+                        subUnit: settings.SUB_UNIT,
                         btcFiat,
-                        locale: (settings || defaultSettings).LOCALE,
-                        currency: (settings || defaultSettings).CURRENCY
+                        locale: settings.LOCALE,
+                        currency: settings.CURRENCY
                       },
                       t
                     )
@@ -268,16 +266,16 @@ export default function VaultSetUp({
                 />
               </View>
             )}
-          {(settings || defaultSettings).MIN_LOCK_BLOCKS &&
-            (settings || defaultSettings).MAX_LOCK_BLOCKS &&
+          {settings.MIN_LOCK_BLOCKS &&
+            settings.MAX_LOCK_BLOCKS &&
             formatLockTime && (
               <View style={styles.settingGroup}>
                 <Text style={styles.label}>
                   {t('vaultSetup.securityLockTimeLabel')}
                 </Text>
                 <EditableSlider
-                  minimumValue={(settings || defaultSettings).MIN_LOCK_BLOCKS}
-                  maximumValue={(settings || defaultSettings).MAX_LOCK_BLOCKS}
+                  minimumValue={settings.MIN_LOCK_BLOCKS}
+                  maximumValue={settings.MAX_LOCK_BLOCKS}
                   value={lockBlocks}
                   step={1}
                   onValueChange={setLockBlocks}
@@ -291,7 +289,7 @@ export default function VaultSetUp({
             </Text>
             <EditableSlider
               value={feeRate}
-              minimumValue={(settings || defaultSettings).MIN_FEE_RATE}
+              minimumValue={settings.MIN_FEE_RATE}
               maximumValue={maxFeeRate}
               step={FEE_RATE_STEP}
               onValueChange={setFeeRate}
@@ -306,15 +304,14 @@ export default function VaultSetUp({
                     changeOutput: DUMMY_CHANGE_OUTPUT(network),
                     feeRate,
                     amount,
-                    serviceFeeRate: (settings || defaultSettings)
-                      .SERVICE_FEE_RATE
+                    serviceFeeRate: settings.SERVICE_FEE_RATE
                   });
                 if (selected) {
                   return formatFeeRate(
                     {
                       feeRate,
-                      locale: (settings || defaultSettings).LOCALE,
-                      currency: (settings || defaultSettings).CURRENCY,
+                      locale: settings.LOCALE,
+                      currency: settings.CURRENCY,
                       txSize: selected.vsize,
                       btcFiat,
                       feeEstimates
@@ -332,14 +329,13 @@ export default function VaultSetUp({
                       changeOutput: DUMMY_CHANGE_OUTPUT(network),
                       feeRate,
                       amount: maxVaultAmount,
-                      serviceFeeRate: (settings || defaultSettings)
-                        .SERVICE_FEE_RATE
+                      serviceFeeRate: settings.SERVICE_FEE_RATE
                     });
                   return formatFeeRate(
                     {
                       feeRate,
-                      locale: (settings || defaultSettings).LOCALE,
-                      currency: (settings || defaultSettings).CURRENCY,
+                      locale: settings.LOCALE,
+                      currency: settings.CURRENCY,
                       txSize: selected ? selected.vsize : null,
                       btcFiat,
                       feeEstimates

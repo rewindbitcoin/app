@@ -48,18 +48,18 @@ export default function VaultCreate({
 }) {
   const { t } = useTranslation();
   const keepProgress = useRef<boolean>(true);
-  const [settings] = useGlobalStateStorage<Settings>(
+  const [settingsState] = useGlobalStateStorage<Settings>(
     SETTINGS_GLOBAL_STORAGE,
     SERIALIZABLE
   );
+  const settings = settingsState || defaultSettings;
   const [progress, setProgress] = useState<number>(0);
   const onProgress = (progress: number) => {
     setProgress(progress);
     return keepProgress.current;
   };
-  const samples = (settings || defaultSettings).SAMPLES;
-  const feeRateCeiling = (settings || defaultSettings)
-    .PRESIGNED_FEE_RATE_CEILING;
+  const samples = settings.SAMPLES;
+  const feeRateCeiling = settings.PRESIGNED_FEE_RATE_CEILING;
   useEffect(() => {
     let isMounted = true;
     //Leave some time so that the progress is rendered
@@ -70,7 +70,7 @@ export default function VaultCreate({
         unvaultKey,
         samples,
         feeRate,
-        serviceFeeRate: (settings || defaultSettings).SERVICE_FEE_RATE,
+        serviceFeeRate: settings.SERVICE_FEE_RATE,
         feeRateCeiling,
         coldAddress,
         changeDescriptor,

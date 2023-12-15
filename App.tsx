@@ -4,6 +4,11 @@
 //  -> the constructor will optionally take the serialized discoveryData + version
 //  -> Here I will store it to storage
 //
+//  TODO: on the web version: the Error for Faster vault creation does not show!!!
+//  TODO: on the web version: I cannot type on the input text to enter a value
+//  TODO: on the web version: I dont get a Copied to clipboard when clicking
+//  on the address to receive Bitcoin
+//
 //  -> I will store:
 //    discoveryData
 //    mnemonic
@@ -105,7 +110,12 @@ import {
   StorageProvider,
   useGlobalStateStorage
 } from './src/contexts/StorageContext';
-import { useLocalStateStorage, SERIALIZABLE, STRING } from './src/lib/storage';
+import {
+  clearAll,
+  useLocalStateStorage,
+  SERIALIZABLE,
+  STRING
+} from './src/lib/storage';
 const defaultVaults: Vaults = {};
 
 const MBButton = ({ ...props }: ButtonProps) => (
@@ -301,10 +311,11 @@ function App() {
 
   const [discovery, setDiscovery] = useState<DiscoveryInstance | null>(null);
   const [utxos, setUtxos] = useState<Array<string> | null>(null);
-  const [vaults, setVaults] = useLocalStateStorage<Vaults>(
+  const [vaultsState, setVaults] = useLocalStateStorage<Vaults>(
     'vaults',
     SERIALIZABLE
   );
+  const vaults = vaultsState || defaultVaults;
 
   const [checkingBalance, setCheckingBalance] = useState(false);
   const [feeEstimates, setFeeEstimates] = useState<Record<
@@ -312,20 +323,21 @@ function App() {
     number
   > | null>(null);
   const [btcFiat, setBtcFiat] = useState<number | null>(null);
-  const [settings] = useGlobalStateStorage<Settings>(
+  const [settingsState] = useGlobalStateStorage<Settings>(
     SETTINGS_GLOBAL_STORAGE,
     SERIALIZABLE
   );
+  const settings = settingsState || defaultSettings;
   useEffect(() => {
-    initI18n((settings || defaultSettings).LOCALE);
-  }, [(settings || defaultSettings).LOCALE]);
+    initI18n(settings.LOCALE);
+  }, [settings.LOCALE]);
 
   const { t } = useTranslation();
   const intervalRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const fetchBtcFiat = async () => {
     try {
-      const btcFiat = await getBtcFiat((settings || defaultSettings).CURRENCY);
+      const btcFiat = await getBtcFiat(settings.CURRENCY);
       setBtcFiat(btcFiat);
     } catch (err) {
       // TODO: Handle errors here
@@ -333,26 +345,22 @@ function App() {
     }
   };
 
-  const lastCurrencyRef = useRef((settings || defaultSettings).CURRENCY);
+  const lastCurrencyRef = useRef(settings.CURRENCY);
   useEffect(() => {
     if (intervalRef.current) clearInterval(intervalRef.current);
-    if (lastCurrencyRef.current !== (settings || defaultSettings).CURRENCY)
-      fetchBtcFiat();
+    if (lastCurrencyRef.current !== settings.CURRENCY) fetchBtcFiat();
 
-    lastCurrencyRef.current = (settings || defaultSettings).CURRENCY;
+    lastCurrencyRef.current = settings.CURRENCY;
     intervalRef.current = setInterval(
       fetchBtcFiat,
-      (settings || defaultSettings).BTC_FIAT_REFRESH_INTERVAL_MS
+      settings.BTC_FIAT_REFRESH_INTERVAL_MS
     );
 
-    // Clear interval on unmount or when (settings||defaultSettings).CURRENCY changes
+    // Clear interval on unmount or when (settings).CURRENCY changes
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
-  }, [
-    (settings || defaultSettings).CURRENCY,
-    (settings || defaultSettings).BTC_FIAT_REFRESH_INTERVAL_MS
-  ]);
+  }, [settings.CURRENCY, settings.BTC_FIAT_REFRESH_INTERVAL_MS]);
 
   const init = async () => {
     //const mnemonic =
@@ -393,18 +401,19 @@ function App() {
     fetchBtcFiat();
 
     // Init locales on init
-    initI18n((settings || defaultSettings).LOCALE);
+    initI18n(settings.LOCALE);
   };
 
   useEffect(() => {
     init();
+    //setMnemonic(
+    //  'goat oak pull seek know resemble hurt pistol head first board better'
+    //);
   }, []);
   useEffect(() => {
     if (discovery && mnemonic) handleCheckBalance();
   }, [discovery, mnemonic]);
-  const sortedVaultKeys = Object.keys(vaults || defaultVaults)
-    .sort()
-    .toString();
+  const sortedVaultKeys = Object.keys(vaults).sort().toString();
   useEffect(() => {
     if (discovery && !checkingBalance && mnemonic) handleCheckBalance();
   }, [sortedVaultKeys]);
@@ -427,8 +436,8 @@ function App() {
       if (!blockHeight) throw new Error(`Could not bet tip block height`);
 
       //First update the vaults. Then the utxos
-      let newVaults = vaults || defaultVaults; //Do not mutate vaults
-      for (const vault of Object.values(vaults || defaultVaults)) {
+      let newVaults = vaults; //Do not mutate vaults
+      for (const vault of Object.values(vaults)) {
         console.log('\tVAULT fetchSpendingTx');
         const triggerTxData = await fetchSpendingTx(
           vault.vaultTxHex,
@@ -610,7 +619,7 @@ Handle with care. Confidentiality is key.
   const hotUtxosData =
     utxos === null || discovery === null
       ? null
-      : getUtxosData(utxos, vaults || defaultVaults, network, discovery);
+      : getUtxosData(utxos, vaults, network, discovery);
 
   // This useEffect below is optional. It's only done only for better UX.
   // The idea is to pre-caching data that will be needed in VaultSetUp.
@@ -624,19 +633,18 @@ Handle with care. Confidentiality is key.
       estimateVaultSetUpRange({
         utxosData: hotUtxosData,
         feeEstimates,
-        serviceFeeRate: (settings || defaultSettings).SERVICE_FEE_RATE,
+        serviceFeeRate: settings.SERVICE_FEE_RATE,
         network,
-        feeRateCeiling: (settings || defaultSettings)
-          .PRESIGNED_FEE_RATE_CEILING,
-        minRecoverableRatio: (settings || defaultSettings).MIN_RECOVERABLE_RATIO
+        feeRateCeiling: settings.PRESIGNED_FEE_RATE_CEILING,
+        minRecoverableRatio: settings.MIN_RECOVERABLE_RATIO
       });
     }
   }, [
     hotUtxosData,
     JSON.stringify(feeEstimates),
-    (settings || defaultSettings).SERVICE_FEE_RATE,
-    (settings || defaultSettings).PRESIGNED_FEE_RATE_CEILING,
-    (settings || defaultSettings).MIN_RECOVERABLE_RATIO
+    settings.SERVICE_FEE_RATE,
+    settings.PRESIGNED_FEE_RATE_CEILING,
+    settings.MIN_RECOVERABLE_RATIO
   ]);
 
   const hotBalance =
@@ -737,10 +745,10 @@ Handle with care. Confidentiality is key.
               {formatBtc(
                 {
                   amount: hotBalance,
-                  subUnit: (settings || defaultSettings).SUB_UNIT,
+                  subUnit: settings.SUB_UNIT,
                   btcFiat,
-                  locale: (settings || defaultSettings).LOCALE,
-                  currency: (settings || defaultSettings).CURRENCY
+                  locale: settings.LOCALE,
+                  currency: settings.CURRENCY
                 },
                 t
               )}{' '}
@@ -872,7 +880,8 @@ Handle with care. Confidentiality is key.
               <Button
                 title="Factory Reset"
                 onPress={async () => {
-                  //TODO: See how to deal with this using the context... storage.clearAll();
+                  //TODO: thest this below
+                  await clearAll();
                   if (discovery) await discovery.getExplorer().close();
                   await init();
                 }}
@@ -931,7 +940,7 @@ Handle with care. Confidentiality is key.
               minFeeRate={MIN_FEE_RATE}
               maxFeeRate={
                 unvault === null
-                  ? (settings || defaultSettings).PRESIGNED_FEE_RATE_CEILING
+                  ? settings.PRESIGNED_FEE_RATE_CEILING
                   : maxTriggerFeeRate(unvault)
               }
               onNewValues={async ({ feeRate }: { feeRate: number }) => {
@@ -948,8 +957,8 @@ Handle with care. Confidentiality is key.
                   {
                     feeRate,
                     btcFiat,
-                    locale: (settings || defaultSettings).LOCALE,
-                    currency: (settings || defaultSettings).CURRENCY,
+                    locale: settings.LOCALE,
+                    currency: settings.CURRENCY,
                     feeEstimates,
                     vault: unvault
                   },

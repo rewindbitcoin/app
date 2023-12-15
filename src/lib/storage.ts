@@ -1,11 +1,14 @@
-//TODO: provide a clearAll in storage.ts and also in useGlobalStateStorage
-//TODO: provide idb-keyval layer compat: investigate null & undefined
 import { MMKV } from 'react-native-mmkv';
 const mmkvStorage = new MMKV();
 
 import { Platform } from 'react-native';
 
-import { get as webGet, set as webSet } from 'idb-keyval';
+import {
+  get as webGet,
+  set as webSet,
+  del as webDel,
+  clear as webClearAll
+} from 'idb-keyval';
 
 export const NUMBER = 'NUMBER';
 export const STRING = 'STRING';
@@ -23,6 +26,13 @@ type SerializationFormatMapping = {
 
 export type SerializationFormat = keyof SerializationFormatMapping;
 export const storage = {
+  deleteAsync:
+    Platform.OS === 'web'
+      ? webDel
+      : (key: string): Promise<void> =>
+          new Promise(resolve => {
+            resolve(mmkvStorage.delete.bind(mmkvStorage)(key));
+          }),
   setAsync:
     Platform.OS === 'web'
       ? webSet
@@ -72,6 +82,13 @@ export const storage = {
             resolve(result as SerializationFormatMapping[S]);
           })
 };
+export const clearAllAsync =
+  Platform.OS === 'web'
+    ? webClearAll
+    : (): Promise<void> =>
+        new Promise(resolve => {
+          resolve(mmkvStorage.clearAll.bind(mmkvStorage)());
+        });
 
 import { useEffect, useState } from 'react';
 
