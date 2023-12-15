@@ -107,6 +107,7 @@ const { useStorage: useMnemonic, StorageProvider: MnemonicProvider } =
   getStorageHook<string>('mnemonic');
 const { useStorage: useVaults, StorageProvider: VaultsProvider } =
   getStorageHook<Vaults>('vaults');
+const defaultVaults: Vaults = {};
 
 const MBButton = ({ ...props }: ButtonProps) => (
   <View style={{ marginBottom: 10 }}>
@@ -393,7 +394,7 @@ function App() {
   useEffect(() => {
     if (discovery && mnemonic) handleCheckBalance();
   }, [discovery, mnemonic]);
-  const sortedVaultKeys = Object.keys(vaults || {})
+  const sortedVaultKeys = Object.keys(vaults || defaultVaults)
     .sort()
     .toString();
   useEffect(() => {
@@ -418,8 +419,8 @@ function App() {
       if (!blockHeight) throw new Error(`Could not bet tip block height`);
 
       //First update the vaults. Then the utxos
-      let newVaults = vaults || {}; //Do not mutate vaults
-      for (const vault of Object.values(vaults || {})) {
+      let newVaults = vaults || defaultVaults; //Do not mutate vaults
+      for (const vault of Object.values(vaults || defaultVaults)) {
         console.log('\tVAULT fetchSpendingTx');
         const triggerTxData = await fetchSpendingTx(
           vault.vaultTxHex,
@@ -601,7 +602,7 @@ Handle with care. Confidentiality is key.
   const hotUtxosData =
     utxos === null || discovery === null
       ? null
-      : getUtxosData(utxos, vaults || {}, network, discovery);
+      : getUtxosData(utxos, vaults || defaultVaults, network, discovery);
 
   // This useEffect below is optional. It's only done only for better UX.
   // The idea is to pre-caching data that will be needed in VaultSetUp.
