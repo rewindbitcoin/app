@@ -1,8 +1,3 @@
-//TODO: provide clear in the useGlobalStateStorage and useLocalStateStorage
-//
-//TODO: provide a clearAll in storage.ts and also in useGlobalStateStorage
-//
-//TODO: provide idb-keyval layer compat: investigate null & undefined
 /**
  *
  * Intro:
@@ -64,8 +59,6 @@
  * This hook simplifies managing persistent state in your React application by
  * synchronizing state with a storage system, handled by the StorageProvider.
  *
- * IMPORTANT: NB
- *
  */
 
 import React, {
@@ -76,6 +69,8 @@ import React, {
   ReactNode
 } from 'react';
 import { storage, SerializationFormat } from '../lib/storage';
+
+export const SETTINGS_GLOBAL_STORAGE = 'SETTINGS_GLOBAL_STORAGE';
 
 type StorageState<T> = Record<string, T>;
 type ProviderValue<T> = {
@@ -94,8 +89,6 @@ const StorageProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     </StorageContext.Provider>
   );
 };
-
-export const SETTINGS_GLOBAL_STORAGE = 'SETTINGS_GLOBAL_STORAGE';
 
 const useGlobalStateStorage = <T,>(
   key: string,

@@ -1,11 +1,11 @@
-//TODO:
-//Use this for web: https://github.com/jakearchibald/idb-keyval
-//Use this for react-native: https://github.com/ammarahm-ed/react-native-mmkv-storage
-//  -> Using async (non-blocking) ?
-//Is the SettingsContext well implemented? When I use the hook useSettings
-//I believe this one is not re-rendered when the context changes, right?
+//TODO: provide a clearAll in storage.ts and also in useGlobalStateStorage
+//TODO: provide idb-keyval layer compat: investigate null & undefined
 import { MMKV } from 'react-native-mmkv';
-export const mmkvStorage = new MMKV();
+const mmkvStorage = new MMKV();
+
+import { Platform } from 'react-native';
+
+import { get as webGet, set as webSet } from 'idb-keyval';
 
 export const NUMBER = 'NUMBER';
 export const STRING = 'STRING';
@@ -16,50 +16,61 @@ export const UINT8ARRAY = 'UINT8ARRAY';
 type SerializationFormatMapping = {
   [NUMBER]: number | null | undefined;
   [STRING]: string | null | undefined;
-  [SERIALIZABLE]: string | null | undefined; // serializable objects are stored with JSON.stringify
+  [SERIALIZABLE]: string | null | undefined; // serializable with JSON.stringify
   [BOOLEAN]: boolean | null | undefined;
   [UINT8ARRAY]: Uint8Array | null | undefined;
 };
 
 export type SerializationFormat = keyof SerializationFormatMapping;
 export const storage = {
-  setAsync: (
-    key: string,
-    value: string | number | boolean | Uint8Array
-  ): Promise<void> =>
-    new Promise(resolve => {
-      resolve(mmkvStorage.set.bind(mmkvStorage)(key, value));
-    }),
-  getAsync: <S extends SerializationFormat>(
-    key: string,
-    serializationFormat: S
-  ): Promise<SerializationFormatMapping[S]> =>
-    new Promise(resolve => {
-      let result: string | number | boolean | Uint8Array | undefined;
+  setAsync:
+    Platform.OS === 'web'
+      ? webSet
+      : (
+          key: string,
+          value: string | number | boolean | Uint8Array
+        ): Promise<void> =>
+          new Promise(resolve => {
+            resolve(mmkvStorage.set.bind(mmkvStorage)(key, value));
+          }),
+  getAsync:
+    Platform.OS === 'web'
+      ? <S extends SerializationFormat>(
+          key: string,
+          _serializationFormat: S
+        ): Promise<SerializationFormatMapping[S]> => webGet(key)
+      : <S extends SerializationFormat>(
+          key: string,
+          serializationFormat: S
+        ): Promise<SerializationFormatMapping[S]> =>
+          new Promise(resolve => {
+            let result: string | number | boolean | Uint8Array | undefined;
 
-      switch (serializationFormat) {
-        case NUMBER:
-          result = mmkvStorage.getNumber(key);
-          break;
-        case STRING:
-          result = mmkvStorage.getString(key);
-          break;
-        case SERIALIZABLE: {
-          const stringValue = mmkvStorage.getString(key);
-          result =
-            stringValue !== undefined ? JSON.parse(stringValue) : stringValue;
-          break;
-        }
-        case BOOLEAN:
-          result = mmkvStorage.getBoolean(key);
-          break;
-        case UINT8ARRAY:
-          result = mmkvStorage.getBuffer(key);
-          break;
-      }
+            switch (serializationFormat) {
+              case NUMBER:
+                result = mmkvStorage.getNumber(key);
+                break;
+              case STRING:
+                result = mmkvStorage.getString(key);
+                break;
+              case SERIALIZABLE: {
+                const stringValue = mmkvStorage.getString(key);
+                result =
+                  stringValue !== undefined
+                    ? JSON.parse(stringValue)
+                    : stringValue;
+                break;
+              }
+              case BOOLEAN:
+                result = mmkvStorage.getBoolean(key);
+                break;
+              case UINT8ARRAY:
+                result = mmkvStorage.getBuffer(key);
+                break;
+            }
 
-      resolve(result as SerializationFormatMapping[S]);
-    })
+            resolve(result as SerializationFormatMapping[S]);
+          })
 };
 
 import { useEffect, useState } from 'react';
