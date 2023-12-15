@@ -111,7 +111,7 @@ import {
   useGlobalStateStorage
 } from './src/contexts/StorageContext';
 import {
-  clearAll,
+  clearAllAsync,
   useLocalStateStorage,
   SERIALIZABLE,
   STRING
@@ -881,7 +881,7 @@ Handle with care. Confidentiality is key.
                 title="Factory Reset"
                 onPress={async () => {
                   //TODO: thest this below
-                  await clearAll();
+                  await clearAllAsync();
                   if (discovery) await discovery.getExplorer().close();
                   await init();
                 }}
