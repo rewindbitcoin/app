@@ -1,4 +1,3 @@
-import memoize from 'lodash.memoize';
 import React, {
   useState,
   useEffect,
@@ -8,18 +7,17 @@ import React, {
 } from 'react';
 import { storage } from '../lib/storage';
 
-type StorageContextType<T> = {
+type FactoryType = <T>(key: string) => {
   value: T | undefined;
   setValue: React.Dispatch<React.SetStateAction<T | undefined>>;
   isStorageSynchd: boolean;
 };
+const StorageContext = createContext<FactoryType | null>(null);
 
-const createStorageHook = <T,>(key: string): StorageHook<T> => {
-  const StorageContext = createContext<StorageContextType<T> | undefined>(
-    undefined
-  );
-
-  const StorageProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+const StorageProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+  console.log('StorageProvider');
+  const factory = <T,>(key: string) => {
+    console.log(`Creating setters for key ${key}`);
     const [value, setValue] = useState<T | undefined>();
     const [isStorageSynchd, setIsStorageSynchd] = useState(false);
 
@@ -39,50 +37,35 @@ const createStorageHook = <T,>(key: string): StorageHook<T> => {
       };
       fetchValue();
     }, []);
+    return { value, setValue, isStorageSynchd };
+  };
+  return (
+    <StorageContext.Provider value={factory}>
+      {children}
+    </StorageContext.Provider>
+  );
+};
 
-    return (
-      <StorageContext.Provider value={{ value, setValue, isStorageSynchd }}>
-        {children}
-      </StorageContext.Provider>
+const useStorage = <T,>(
+  key: string
+): [T | undefined, (newValue: T) => Promise<void>, boolean] => {
+  const context = useContext(StorageContext);
+  if (context === null) {
+    throw new Error(`useStorage must be used within a StorageProvider`);
+  }
+
+  const factory = context;
+  const { value, setValue, isStorageSynchd } = factory<T>(key);
+
+  const setStorageValue = async (newValue: T) => {
+    await storage.setStringAsync(
+      key,
+      typeof newValue === 'string' ? newValue : JSON.stringify(newValue)
     );
+    setValue(newValue);
   };
 
-  const useStorage = (): [
-    T | undefined,
-    (newValue: T) => Promise<void>,
-    boolean
-  ] => {
-    const context = useContext(StorageContext);
-    if (!context) {
-      throw new Error(
-        `useStorage must be used within a StorageProvider for key ${key}`
-      );
-    }
-
-    const { value, setValue, isStorageSynchd } = context;
-
-    const setStorageValue = async (newValue: T) => {
-      await storage.setStringAsync(
-        key,
-        typeof newValue === 'string' ? newValue : JSON.stringify(newValue)
-      );
-      setValue(newValue);
-    };
-
-    return [value, setStorageValue, isStorageSynchd];
-  };
-
-  return { StorageProvider, useStorage };
+  return [value, setStorageValue, isStorageSynchd];
 };
 
-// Memoize the creation of providers and hooks for each key
-type StorageHook<T> = {
-  StorageProvider: React.FC<{ children: React.ReactNode }>;
-  useStorage: () => [T | undefined, (newValue: T) => Promise<void>, boolean];
-};
-
-export const getStorageHook = memoize(<T,>(key: string) => {
-  return createStorageHook<T>(key);
-});
-
-export default getStorageHook;
+export { StorageProvider, useStorage };

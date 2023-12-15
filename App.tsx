@@ -100,13 +100,7 @@ import {
   RefreshControl
 } from 'react-native';
 import { produce } from 'immer';
-import getStorageHook from './src/contexts/StorageContext';
-const { useStorage: useSettings, StorageProvider: SettingsProvider } =
-  getStorageHook<Settings>('settings');
-const { useStorage: useMnemonic, StorageProvider: MnemonicProvider } =
-  getStorageHook<string>('mnemonic');
-const { useStorage: useVaults, StorageProvider: VaultsProvider } =
-  getStorageHook<Vaults>('vaults');
+import { StorageProvider, useStorage } from './src/contexts/StorageContext';
 const defaultVaults: Vaults = {};
 
 const MBButton = ({ ...props }: ButtonProps) => (
@@ -295,11 +289,11 @@ function App() {
   const [unvault, setUnvault] = useState<Vault | null>(null);
   const [receiveAddress, setReceiveAddress] = useState<string | null>(null);
   //'goat oak pull seek know resemble hurt pistol head first board better';
-  const [mnemonic, setMnemonic] = useMnemonic();
+  const [mnemonic, setMnemonic] = useStorage<string>('mnemonic');
 
   const [discovery, setDiscovery] = useState<DiscoveryInstance | null>(null);
   const [utxos, setUtxos] = useState<Array<string> | null>(null);
-  const [vaults, setVaults] = useVaults();
+  const [vaults, setVaults] = useStorage<Vaults>('vaults');
 
   const [checkingBalance, setCheckingBalance] = useState(false);
   const [feeEstimates, setFeeEstimates] = useState<Record<
@@ -307,7 +301,7 @@ function App() {
     number
   > | null>(null);
   const [btcFiat, setBtcFiat] = useState<number | null>(null);
-  const [settings] = useSettings();
+  const [settings] = useStorage<Settings>('settings');
   useEffect(() => {
     initI18n((settings || defaultSettings).LOCALE);
   }, [(settings || defaultSettings).LOCALE]);
@@ -957,11 +951,7 @@ Handle with care. Confidentiality is key.
 }
 
 export default () => (
-  <SettingsProvider>
-    <MnemonicProvider>
-      <VaultsProvider>
-        <App />
-      </VaultsProvider>
-    </MnemonicProvider>
-  </SettingsProvider>
+  <StorageProvider>
+    <App />
+  </StorageProvider>
 );

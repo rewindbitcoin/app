@@ -13,9 +13,8 @@ import {
   Keyboard
 } from 'react-native';
 
-import getStorageHook from '../../contexts/StorageContext';
-import { defaultSettings, Settings } from '../..//lib/settings';
-const { useStorage: useSettings } = getStorageHook<Settings>('settings');
+import { defaultSettings, Settings } from '../../lib/settings';
+import { useStorage } from '../../contexts/StorageContext';
 import EditableSlider, { snap } from '../common/EditableSlider';
 import { UtxosData, selectVaultUtxosData } from '../../lib/vaults';
 import {
@@ -90,7 +89,7 @@ export default function VaultSetUp({
       })
     );
 
-  const [settings] = useSettings();
+  const [settings] = useStorage<Settings>('settings');
   const [lockBlocks, setLockBlocks] = useState<number | null>(
     (settings || defaultSettings).INITIAL_LOCK_BLOCKS
   );
