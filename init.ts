@@ -28,3 +28,10 @@ import 'react-native-url-polyfill/auto';
 //         console.error('Restarting for error:', error, isFatal);
 //         if (NativeModules['DevSettings']) NativeModules['DevSettings'].reload();
 //       });
+
+//Suppress warning messages from Slider component until they fix it.
+//This was showing up in the web version when moving the Slider:
+//import { LogBox } from 'react-native';
+//LogBox.ignoreLogs([
+//  'StyleSheet.compose(a, b) is deprecated; use array syntax, i.e., [a,b]'
+//]);

@@ -103,11 +103,10 @@ export default function VaultSetUp({
   );
   const { t } = useTranslation();
 
-  const [feeRate, setFeeRate] = useState<number | null>(
-    feeEstimates
-      ? pickFeeEstimate(feeEstimates, settings.INITIAL_CONFIRMATION_TIME)
-      : settings.MIN_FEE_RATE
-  );
+  const initialFeeRate = feeEstimates
+    ? pickFeeEstimate(feeEstimates, settings.INITIAL_CONFIRMATION_TIME)
+    : settings.MIN_FEE_RATE;
+  const [feeRate, setFeeRate] = useState<number | null>(initialFeeRate);
 
   const {
     maxFeeRate,
@@ -128,6 +127,7 @@ export default function VaultSetUp({
     feeRateCeiling: settings.PRESIGNED_FEE_RATE_CEILING,
     minRecoverableRatio: settings.MIN_RECOVERABLE_RATIO
   });
+  console.log({ initialFeeRate, feeRate, maxVaultAmount });
 
   const [amount, setAmount] = useState<number | null>(maxVaultAmount || null);
 

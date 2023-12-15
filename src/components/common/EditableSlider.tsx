@@ -50,6 +50,7 @@ import {
   TextInput,
   StyleSheet,
   TouchableWithoutFeedback,
+  Platform,
   Keyboard
 } from 'react-native';
 import Slider from '@react-native-community/slider';
@@ -206,7 +207,7 @@ const EditableSlider = ({
 
   const keyboardType = step === 1 ? 'number-pad' : 'numeric';
   const [fontsLoaded] = useFonts({ RobotoMono_400Regular });
-  const handlePressOutside = () => Keyboard.dismiss();
+  const handlePressOutside = () => Platform.OS !== 'web' && Keyboard.dismiss();
 
   const onSliderValueChange = (value: number) => {
     //The react-native slider is buggy and may return slightly off values
@@ -234,12 +235,12 @@ const EditableSlider = ({
       const snappedValue = snap({ value, minimumValue, maximumValue, step });
       if (snappedValue === null) throw new Error('strNumberInRange not valid');
       setSliderManagedValue(snappedValue);
-      if (value !== prevSnappedValue.current && onValueChange)
-        onValueChange(value);
+      //if (value !== prevSnappedValue.current && onValueChange)
+      //  onValueChange(value);
       lastValidSnappedValue.current = snappedValue;
     } else {
-      if (null !== prevSnappedValue.current && onValueChange)
-        onValueChange(null);
+      //if (null !== prevSnappedValue.current && onValueChange)
+      //  onValueChange(null);
     }
   };
   let formattedValue;
@@ -266,6 +267,7 @@ const EditableSlider = ({
   //TODO: thumbTintColor is only Android
   //TODO: It's a pain in the ass to use it in a real Android device in Android.
   //Maybe TouchableWithoutFeedback is interacting?
+  console.log({ strValue, snappedValue });
   return (
     <TouchableWithoutFeedback onPress={handlePressOutside}>
       <View style={styles.container}>
