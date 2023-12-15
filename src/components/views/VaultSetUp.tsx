@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 
 import { defaultSettings, Settings } from '../../lib/settings';
-import { useStorage } from '../../contexts/StorageContext';
+import { useGlobalStateStorage } from '../../contexts/StorageContext';
 import EditableSlider, { snap } from '../common/EditableSlider';
 import { UtxosData, selectVaultUtxosData } from '../../lib/vaults';
 import {
@@ -89,7 +89,7 @@ export default function VaultSetUp({
       })
     );
 
-  const [settings] = useStorage<Settings>('settings');
+  const [settings] = useGlobalStateStorage<Settings>('settings');
   const [lockBlocks, setLockBlocks] = useState<number | null>(
     (settings || defaultSettings).INITIAL_LOCK_BLOCKS
   );

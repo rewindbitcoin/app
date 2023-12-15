@@ -7,7 +7,7 @@ import type { BIP32Interface } from 'bip32';
 import type { UtxosData } from '../../lib/vaults';
 import type { Network } from 'bitcoinjs-lib';
 import { defaultSettings, Settings } from '../../lib/settings';
-import { useStorage } from '../../contexts/StorageContext';
+import { useGlobalStateStorage } from '../../contexts/StorageContext';
 import { createVault, Vault } from '../../lib/vaults';
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 export default function VaultCreate({
@@ -44,7 +44,7 @@ export default function VaultCreate({
 }) {
   const { t } = useTranslation();
   const keepProgress = useRef<boolean>(true);
-  const [settings] = useStorage<Settings>('settings');
+  const [settings] = useGlobalStateStorage<Settings>('settings');
   const [progress, setProgress] = useState<number>(0);
   const onProgress = (progress: number) => {
     setProgress(progress);

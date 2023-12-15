@@ -100,7 +100,12 @@ import {
   RefreshControl
 } from 'react-native';
 import { produce } from 'immer';
-import { StorageProvider, useStorage } from './src/contexts/StorageContext';
+import {
+  SETTINGS_GLOBAL_STORAGE,
+  StorageProvider,
+  useGlobalStateStorage
+} from './src/contexts/StorageContext';
+import { useLocalStateStorage } from './src/lib/storage';
 const defaultVaults: Vaults = {};
 
 const MBButton = ({ ...props }: ButtonProps) => (
@@ -289,11 +294,11 @@ function App() {
   const [unvault, setUnvault] = useState<Vault | null>(null);
   const [receiveAddress, setReceiveAddress] = useState<string | null>(null);
   //'goat oak pull seek know resemble hurt pistol head first board better';
-  const [mnemonic, setMnemonic] = useStorage<string>('mnemonic');
+  const [mnemonic, setMnemonic] = useLocalStateStorage<string>('mnemonic');
 
   const [discovery, setDiscovery] = useState<DiscoveryInstance | null>(null);
   const [utxos, setUtxos] = useState<Array<string> | null>(null);
-  const [vaults, setVaults] = useStorage<Vaults>('vaults');
+  const [vaults, setVaults] = useLocalStateStorage<Vaults>('vaults');
 
   const [checkingBalance, setCheckingBalance] = useState(false);
   const [feeEstimates, setFeeEstimates] = useState<Record<
@@ -301,7 +306,7 @@ function App() {
     number
   > | null>(null);
   const [btcFiat, setBtcFiat] = useState<number | null>(null);
-  const [settings] = useStorage<Settings>('settings');
+  const [settings] = useGlobalStateStorage<Settings>(SETTINGS_GLOBAL_STORAGE);
   useEffect(() => {
     initI18n((settings || defaultSettings).LOCALE);
   }, [(settings || defaultSettings).LOCALE]);
