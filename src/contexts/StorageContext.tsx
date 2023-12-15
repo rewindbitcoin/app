@@ -1,7 +1,8 @@
 //TODO: provide clear in the useGlobalStateStorage and useLocalStateStorage
-//TODO: provide a clearAll in storage.ts
 //
-//TODO: provide idb-keyval layer compat
+//TODO: provide a clearAll in storage.ts and also in useGlobalStateStorage
+//
+//TODO: provide idb-keyval layer compat: investigate null & undefined
 /**
  *
  * Intro:
@@ -19,13 +20,27 @@
  *
  * Usage:
  *
- * To use the `useGlobalStateStorage` hook, call it with a specific key and type. For example:
- * const [value, setValue, isSynchd] = useGlobal<Settings>('settings');
- * Here, 'Settings' is a TypeScript type or interface representing the structure
- * of the data you're working with.
+ * To use the `useGlobalStateStorage` hook, call it with a specific key, type and
+ * storage format.
  *
- * The 'key' argument ('settings' in this example) uniquely identifies the data
- * in the storage system. It is used to store and retrieve the value.
+ * Example:
+ * const [value, setValue, isSynchd] =
+ *    useGlobalStateStorage<DataType>('uniqueKey', serializationFormat);
+ *
+ * - 'DataType' is a TypeScript type or interface representing the structure
+ *   of the data you're working with. For example Settings or Vaults, ...
+ * - 'serializationFormat' is a parameter that defines the serialization method
+ *   for storing the data. It can be one of the following types:
+ *   'NUMBER', 'STRING', 'SERIALIZABLE', 'BOOLEAN', 'UINT8ARRAY'.
+ *    Use 'SERIALIZABLE' for data types like Array.isArray arrays and objects
+ *    that can be serialized using JSON.stringify. This format is versatile and
+ *    can handle various data types, but for efficiency, consider using the
+ *    specific types ('NUMBER', 'STRING', etc.) when applicable.
+ *    These specific types allow for more optimized storage compared
+ *    to the general 'SERIALIZABLE' type, which is suitable for complex data
+ *    structures but may be less efficient for simple data types.
+ *  - The 'uniqueKey' argument ('settings' for example) uniquely identifies the
+ *    data in the storage system. It is used to store and retrieve the value.
  *
  * The 'value' returned by the hook represents the data associated with the given
  * key in the storage. Initially, this value might be 'undefined' while the
@@ -60,7 +75,7 @@ import React, {
   useContext,
   ReactNode
 } from 'react';
-import { storage } from '../lib/storage';
+import { storage, SerializationFormat } from '../lib/storage';
 
 type StorageState<T> = Record<string, T>;
 type ProviderValue<T> = {
@@ -83,7 +98,8 @@ const StorageProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
 export const SETTINGS_GLOBAL_STORAGE = 'SETTINGS_GLOBAL_STORAGE';
 
 const useGlobalStateStorage = <T,>(
-  key: string
+  key: string,
+  serializationFormat: SerializationFormat
 ): [T | undefined, (newValue: T) => Promise<void>, boolean] => {
   const context = useContext(StorageContext);
   if (context === null) {
@@ -100,22 +116,10 @@ const useGlobalStateStorage = <T,>(
     if (!(key in storageState)) {
       //console.log(`fetching key ${key}`);
       const fetchValue = async () => {
-        const savedValue = await storage.getStringAsync(key);
-        let parsedValue: T | undefined;
-
-        if (typeof savedValue === 'string') {
-          try {
-            parsedValue = JSON.parse(savedValue);
-          } catch (error) {
-            parsedValue = savedValue as T;
-          }
-        } else
-          throw new Error(
-            `non-string types not contemplated in useStorage: ${savedValue}`
-          );
+        const savedValue = await storage.getAsync(key, serializationFormat);
         setStorageState(prevState => {
           //console.log(`setting value ${parsedValue} to state for ${key}`);
-          return { ...prevState, [key]: parsedValue };
+          return { ...prevState, [key]: savedValue };
         });
       };
       fetchValue();
@@ -123,7 +127,7 @@ const useGlobalStateStorage = <T,>(
   }, [storageState, key, storage]);
 
   const setStorageValue = async (newValue: T) => {
-    await storage.setStringAsync(
+    await storage.setAsync(
       key,
       typeof newValue === 'string' ? newValue : JSON.stringify(newValue)
     );

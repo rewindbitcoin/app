@@ -4,8 +4,63 @@
 //  -> Using async (non-blocking) ?
 //Is the SettingsContext well implemented? When I use the hook useSettings
 //I believe this one is not re-rendered when the context changes, right?
-import { MMKVLoader } from 'react-native-mmkv-storage';
-export const storage = new MMKVLoader().initialize();
+import { MMKV } from 'react-native-mmkv';
+export const mmkvStorage = new MMKV();
+
+export const NUMBER = 'NUMBER';
+export const STRING = 'STRING';
+export const SERIALIZABLE = 'SERIALIZABLE';
+export const BOOLEAN = 'BOOLEAN';
+export const UINT8ARRAY = 'UINT8ARRAY';
+
+type SerializationFormatMapping = {
+  [NUMBER]: number | null | undefined;
+  [STRING]: string | null | undefined;
+  [SERIALIZABLE]: string | null | undefined; // serializable objects are stored with JSON.stringify
+  [BOOLEAN]: boolean | null | undefined;
+  [UINT8ARRAY]: Uint8Array | null | undefined;
+};
+
+export type SerializationFormat = keyof SerializationFormatMapping;
+export const storage = {
+  setAsync: (
+    key: string,
+    value: string | number | boolean | Uint8Array
+  ): Promise<void> =>
+    new Promise(resolve => {
+      resolve(mmkvStorage.set.bind(mmkvStorage)(key, value));
+    }),
+  getAsync: <S extends SerializationFormat>(
+    key: string,
+    serializationFormat: S
+  ): Promise<SerializationFormatMapping[S]> =>
+    new Promise(resolve => {
+      let result: string | number | boolean | Uint8Array | undefined;
+
+      switch (serializationFormat) {
+        case NUMBER:
+          result = mmkvStorage.getNumber(key);
+          break;
+        case STRING:
+          result = mmkvStorage.getString(key);
+          break;
+        case SERIALIZABLE: {
+          const stringValue = mmkvStorage.getString(key);
+          result =
+            stringValue !== undefined ? JSON.parse(stringValue) : stringValue;
+          break;
+        }
+        case BOOLEAN:
+          result = mmkvStorage.getBoolean(key);
+          break;
+        case UINT8ARRAY:
+          result = mmkvStorage.getBuffer(key);
+          break;
+      }
+
+      resolve(result as SerializationFormatMapping[S]);
+    })
+};
 
 import { useEffect, useState } from 'react';
 
@@ -20,9 +75,20 @@ import { useEffect, useState } from 'react';
  * See long explanation at the end of this file.
  *
  * Example:
- * const [value, setValue, isSynchd] = useLocalStateStorage<DataType>('uniqueKey');
+ * const [value, setValue, isSynchd] =
+ *    useLocalStateStorage<DataType>('uniqueKey', serializationFormat);
  * - 'DataType' is a TypeScript type or interface representing your data structure.
  * - 'uniqueKey' is a unique identifier for your data in storage.
+ * - 'serializationFormat' is a parameter that defines the serialization method
+ *   for storing the data. It can be one of the following types:
+ *   'NUMBER', 'STRING', 'SERIALIZABLE', 'BOOLEAN', 'UINT8ARRAY'.
+ *    Use 'SERIALIZABLE' for data types like Array.isArray arrays and objects
+ *    that can be serialized using JSON.stringify. This format is versatile and
+ *    can handle various data types, but for efficiency, consider using the
+ *    specific types ('NUMBER', 'STRING', etc.) when applicable.
+ *    These specific types allow for more optimized storage compared
+ *    to the general 'SERIALIZABLE' type, which is suitable for complex data
+ *    structures but may be less efficient for simple data types.
  *
  * 'value': Represents the current state associated with 'uniqueKey'. It starts
  * as 'undefined' and is updated after fetching from storage. Changes to 'value'
@@ -44,34 +110,23 @@ import { useEffect, useState } from 'react';
  */
 
 export const useLocalStateStorage = <T>(
-  key: string
+  key: string,
+  serializationFormat: SerializationFormat
 ): [T | undefined, (newValue: T) => Promise<void>, boolean] => {
   const [value, setValue] = useState<T | undefined>();
   const [isSynchd, setIsSynchd] = useState(false);
 
   useEffect(() => {
     const fetchValue = async () => {
-      const savedValue = await storage.getStringAsync(key);
-      let parsedValue: T | undefined;
-
-      if (typeof savedValue === 'string') {
-        try {
-          parsedValue = JSON.parse(savedValue);
-        } catch (error) {
-          parsedValue = savedValue as T;
-        }
-      } else
-        throw new Error(
-          `non-string types not contemplated in useStorage: ${savedValue}`
-        );
-      setValue(parsedValue);
+      const savedValue = await storage.getAsync(key, serializationFormat);
+      setValue(savedValue as T | undefined);
       setIsSynchd(true);
     };
     fetchValue();
   }, [key]);
 
   const setNewValue = async (newValue: T) => {
-    await storage.setStringAsync(
+    await storage.setAsync(
       key,
       typeof newValue === 'string' ? newValue : JSON.stringify(newValue)
     );
