@@ -110,12 +110,8 @@ import {
   StorageProvider,
   useGlobalStateStorage
 } from './src/contexts/StorageContext';
-import {
-  clearAllAsync,
-  useLocalStateStorage,
-  SERIALIZABLE,
-  STRING
-} from './src/lib/storage';
+import { useLocalStateStorage } from './src/hooks/useLocalStateStorage';
+import { clearAllAsync, SERIALIZABLE, STRING } from './src/lib/storage';
 const defaultVaults: Vaults = {};
 
 const MBButton = ({ ...props }: ButtonProps) => (
@@ -128,13 +124,6 @@ import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import VaultSetUp from './src/components/views/VaultSetUp';
 import VaultCreate from './src/components/views/VaultCreate';
 import Unvault from './src/components/views/Unvault';
-//TODO: There is a limitation of 6MB - independently of the Fix of 2MB I did on android:
-//Alternative!!! https://github.com/mrousavy/react-native-mmkv/
-//https://github.com/react-native-async-storage/async-storage/issues/750
-//https://react-native-async-storage.github.io/async-storage/docs/limits
-//https://github.com/react-native-async-storage/async-storage/discussions/781
-//https://jscrambler.com/blog/how-to-use-react-native-asyncstorage
-//https://react-native-async-storage.github.io/async-storage/
 import QRCode from 'react-native-qrcode-svg';
 import * as Clipboard from 'expo-clipboard';
 import { Share } from 'react-native';

@@ -8,7 +8,7 @@
  * automatically receive the updated value, and the shared storage will be updated
  * accordingly. This behavior is distinct from that of `useLocalStateStorage` (refer
  * to that hook for more details). For a comprehensive explanation, see the documentation
- * in str/lib/storage.
+ * in str/hooks/useLocalStateStorage.ts.
  *
  * `useGlobalStateStorage` is ideal for global settings or states that need to be
  * consistently reflected across the entire application.
@@ -28,12 +28,7 @@
  *   for storing the data. It can be one of the following types:
  *   'NUMBER', 'STRING', 'SERIALIZABLE', 'BOOLEAN', 'UINT8ARRAY'.
  *    Use 'SERIALIZABLE' for data types like Array.isArray arrays and objects
- *    that can be serialized using JSON.stringify. This format is versatile and
- *    can handle various data types, but for efficiency, consider using the
- *    specific types ('NUMBER', 'STRING', etc.) when applicable.
- *    These specific types allow for more optimized storage compared
- *    to the general 'SERIALIZABLE' type, which is suitable for complex data
- *    structures but may be less efficient for simple data types.
+ *    that can be serialized using JSON.stringify.
  *    Note that serializationFormat is only used in iOS and Android (which use
  *    mmkv storage engine), while not used on web since it uses IndexedDB, which
  *    natively serializes all values using "structured serialisation".
@@ -72,7 +67,11 @@ import React, {
   useContext,
   ReactNode
 } from 'react';
-import { storage, SerializationFormat, assertValue } from '../lib/storage';
+import {
+  storage,
+  SerializationFormat,
+  assertSerializationFormat
+} from '../lib/storage';
 
 export const SETTINGS_GLOBAL_STORAGE = 'SETTINGS_GLOBAL_STORAGE';
 
@@ -117,7 +116,10 @@ const useGlobalStateStorage = <T,>(
   }, [key]);
 
   const setStorageValue = async (newValue: T) => {
-    await storage.setAsync(key, assertValue(newValue));
+    await storage.setAsync(
+      key,
+      assertSerializationFormat(newValue, serializationFormat)
+    );
     setStorageState(prevState => ({ ...prevState, [key]: newValue }));
   };
 
