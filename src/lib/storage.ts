@@ -25,6 +25,7 @@ type SerializationFormatMapping = {
   [BOOLEAN]: boolean | null | undefined;
   [UINT8ARRAY]: Uint8Array | null | undefined;
 };
+export type SerializationFormat = keyof SerializationFormatMapping;
 
 export const assertValue = (newValue: unknown) => {
   if (
@@ -45,7 +46,6 @@ export const assertValue = (newValue: unknown) => {
   return newValue;
 };
 
-export type SerializationFormat = keyof SerializationFormatMapping;
 export const storage = {
   deleteAsync:
     Platform.OS === 'web'
@@ -65,7 +65,9 @@ export const storage = {
             resolve(
               mmkvStorage.set.bind(mmkvStorage)(
                 key,
-                typeof value === 'object' ? JSON.stringify(value) : value
+                typeof value === 'object' && !(value instanceof Uint8Array)
+                  ? JSON.stringify(value)
+                  : value
               )
             );
           }),
