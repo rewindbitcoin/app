@@ -27,23 +27,47 @@ type SerializationFormatMapping = {
 };
 export type SerializationFormat = keyof SerializationFormatMapping;
 
-export const assertValue = (newValue: unknown) => {
-  if (
-    newValue === null ||
-    newValue === undefined ||
-    (typeof newValue !== 'string' &&
-      typeof newValue !== 'number' &&
-      typeof newValue !== 'boolean' &&
-      !(newValue instanceof Uint8Array) &&
-      // Assuming 'object' is JSON.stringify on mmkv and is serializeble through
-      // "structured serialisation" in IndexedDB
-      // A better assertion could be here... but we leave it to the user
-      // not to make this assertion part very slow
-      typeof newValue !== 'object')
-  ) {
-    throw new Error(`Unsupported type`);
+export const assertSerializationFormat = (
+  value: unknown,
+  serializationFormat: SerializationFormat
+) => {
+  if (value === null || value === undefined) {
+    throw new Error(`Value cannot be null or undefined`);
   }
-  return newValue;
+
+  switch (serializationFormat) {
+    case NUMBER:
+      if (typeof value !== 'number') {
+        throw new Error(`Expected a number, got ${typeof value}`);
+      }
+      break;
+    case STRING:
+      if (typeof value !== 'string') {
+        throw new Error(`Expected a string, got ${typeof value}`);
+      }
+      break;
+    case SERIALIZABLE:
+      if (typeof value !== 'object' || value instanceof Uint8Array) {
+        throw new Error(`Expected an object, got ${typeof value}`);
+      }
+      break;
+    case BOOLEAN:
+      if (typeof value !== 'boolean') {
+        throw new Error(`Expected a boolean, got ${typeof value}`);
+      }
+      break;
+    case UINT8ARRAY:
+      if (!(value instanceof Uint8Array)) {
+        throw new Error(`Expected a Uint8Array, got ${typeof value}`);
+      }
+      break;
+    default:
+      throw new Error(
+        `Unsupported serialization format: ${serializationFormat}`
+      );
+  }
+
+  return value;
 };
 
 export const storage = {
@@ -65,6 +89,10 @@ export const storage = {
             resolve(
               mmkvStorage.set.bind(mmkvStorage)(
                 key,
+                // Only stringify objects, and don't stringify Uint8Array since
+                // mmkv nicely handle this. However, note that
+                // typeof new Uint8Array() === 'object', so make sure only
+                // objects which are not Uint8Array are stringified:
                 typeof value === 'object' && !(value instanceof Uint8Array)
                   ? JSON.stringify(value)
                   : value
@@ -148,12 +176,7 @@ import { useEffect, useState } from 'react';
  *   for storing the data. It can be one of the following types:
  *   'NUMBER', 'STRING', 'SERIALIZABLE', 'BOOLEAN', 'UINT8ARRAY'.
  *    Use 'SERIALIZABLE' for data types like Array.isArray arrays and objects
- *    that can be serialized using JSON.stringify. This format is versatile and
- *    can handle various data types, but for efficiency, consider using the
- *    specific types ('NUMBER', 'STRING', etc.) when applicable.
- *    These specific types allow for more optimized storage compared
- *    to the general 'SERIALIZABLE' type, which is suitable for complex data
- *    structures but may be less efficient for simple data types.
+ *    that can be serialized using JSON.stringify.
  *    Note that serializationFormat is only used in iOS and Android (which use
  *    mmkv storage engine), while not used on web since it uses IndexedDB, which
  *    natively serializes all values using "structured serialisation".
@@ -199,7 +222,10 @@ export const useLocalStateStorage = <T>(
   }, [key]);
 
   const setNewValue = async (newValue: T) => {
-    await storage.setAsync(key, assertValue(newValue));
+    await storage.setAsync(
+      key,
+      assertSerializationFormat(newValue, serializationFormat)
+    );
     setValue(newValue);
   };
 
