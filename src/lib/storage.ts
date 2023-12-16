@@ -181,6 +181,10 @@ export const useLocalStateStorage = <T>(
   const [value, setValue] = useState<T | undefined>();
   const [isSynchd, setIsSynchd] = useState(false);
 
+  //We only need to retrieve the value from the storage intially for each key
+  //After having retrieved the initial value, then we will rely on
+  //value set by setValue to not spam the storage with more requests that we
+  //already know the result
   useEffect(() => {
     const fetchValue = async () => {
       const savedValue = await storage.getAsync(key, serializationFormat);

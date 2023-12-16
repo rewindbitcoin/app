@@ -103,7 +103,7 @@ const useGlobalStateStorage = <T,>(
 
   const { storageState, setStorageState } = context;
 
-  //We only need to retrieve the value from the storage intially
+  //We only need to retrieve the value from the storage intially for each key
   //We know key has not been retrieved yet if storageState[key] is not set.
   //After having retrieved the initial value, then we will rely on
   //storageState[key] to not spam the storage with more requests that we
