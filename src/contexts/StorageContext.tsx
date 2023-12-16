@@ -102,10 +102,6 @@ const useGlobalStateStorage = <T,>(
     throw new Error(`useStorage must be used within a StorageProvider`);
 
   const { storageState, setStorageState } = context;
-  const fetchValue = async () => {
-    const savedValue = await storage.getAsync(key, serializationFormat);
-    setStorageState(prevState => ({ ...prevState, [key]: savedValue }));
-  };
 
   //We only need to retrieve the value from the storage intially
   //We know key has not been retrieved yet if storageState[key] is not set.
@@ -113,8 +109,12 @@ const useGlobalStateStorage = <T,>(
   //storageState[key] to not spam the storage with more requests that we
   //already know the result
   useEffect(() => {
+    const fetchValue = async () => {
+      const savedValue = await storage.getAsync(key, serializationFormat);
+      setStorageState(prevState => ({ ...prevState, [key]: savedValue }));
+    };
     if (!(key in storageState)) fetchValue();
-  }, [storageState, key, storage]);
+  }, [key]);
 
   const setStorageValue = async (newValue: T) => {
     await storage.setAsync(key, assertValue(newValue));
