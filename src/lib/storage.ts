@@ -19,9 +19,28 @@ export const UINT8ARRAY = 'UINT8ARRAY';
 type SerializationFormatMapping = {
   [NUMBER]: number | null | undefined;
   [STRING]: string | null | undefined;
-  [SERIALIZABLE]: string | null | undefined; // serializable with JSON.stringify
+  [SERIALIZABLE]: object | null | undefined; // serializable with JSON.stringify
   [BOOLEAN]: boolean | null | undefined;
   [UINT8ARRAY]: Uint8Array | null | undefined;
+};
+
+export const assertValue = (newValue: unknown) => {
+  if (
+    newValue === null ||
+    newValue === undefined ||
+    (typeof newValue !== 'string' &&
+      typeof newValue !== 'number' &&
+      typeof newValue !== 'boolean' &&
+      !(newValue instanceof Uint8Array) &&
+      // Assuming 'object' is JSON.stringify on mmkv and is serializeble through
+      // "structured serialisation" in IndexedDB
+      // A better assertion could be here... but we leave it to the user
+      // not to make this assertion part very slow
+      typeof newValue !== 'object')
+  ) {
+    throw new Error(`Unsupported type`);
+  }
+  return newValue;
 };
 
 export type SerializationFormat = keyof SerializationFormatMapping;
@@ -38,10 +57,15 @@ export const storage = {
       ? webSet
       : (
           key: string,
-          value: string | number | boolean | Uint8Array
+          value: string | number | boolean | object | Uint8Array
         ): Promise<void> =>
           new Promise(resolve => {
-            resolve(mmkvStorage.set.bind(mmkvStorage)(key, value));
+            resolve(
+              mmkvStorage.set.bind(mmkvStorage)(
+                key,
+                typeof value === 'object' ? JSON.stringify(value) : value
+              )
+            );
           }),
   getAsync:
     Platform.OS === 'web'
@@ -54,7 +78,13 @@ export const storage = {
           serializationFormat: S
         ): Promise<SerializationFormatMapping[S]> =>
           new Promise(resolve => {
-            let result: string | number | boolean | Uint8Array | undefined;
+            let result:
+              | string
+              | number
+              | boolean
+              | object
+              | Uint8Array
+              | undefined;
 
             switch (serializationFormat) {
               case NUMBER:
@@ -68,7 +98,7 @@ export const storage = {
                 result =
                   stringValue !== undefined
                     ? JSON.parse(stringValue)
-                    : stringValue;
+                    : undefined;
                 break;
               }
               case BOOLEAN:
@@ -77,8 +107,11 @@ export const storage = {
               case UINT8ARRAY:
                 result = mmkvStorage.getBuffer(key);
                 break;
+              default:
+                throw new Error(
+                  `Invalid serializationFormat: ${serializationFormat}`
+                );
             }
-
             resolve(result as SerializationFormatMapping[S]);
           })
 };
@@ -117,6 +150,10 @@ import { useEffect, useState } from 'react';
  *    These specific types allow for more optimized storage compared
  *    to the general 'SERIALIZABLE' type, which is suitable for complex data
  *    structures but may be less efficient for simple data types.
+ *    Note that serializationFormat is only used in iOS and Android (which use
+ *    mmkv storage engine), while not used on web since it uses IndexedDB, which
+ *    natively serializes all values using "structured serialisation".
+ *    https://html.spec.whatwg.org/multipage/structured-data.html#structuredserializeinternal
  *
  * 'value': Represents the current state associated with 'uniqueKey'. It starts
  * as 'undefined' and is updated after fetching from storage. Changes to 'value'
@@ -154,10 +191,7 @@ export const useLocalStateStorage = <T>(
   }, [key]);
 
   const setNewValue = async (newValue: T) => {
-    await storage.setAsync(
-      key,
-      typeof newValue === 'string' ? newValue : JSON.stringify(newValue)
-    );
+    await storage.setAsync(key, assertValue(newValue));
     setValue(newValue);
   };
 

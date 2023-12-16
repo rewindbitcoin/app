@@ -34,6 +34,10 @@
  *    These specific types allow for more optimized storage compared
  *    to the general 'SERIALIZABLE' type, which is suitable for complex data
  *    structures but may be less efficient for simple data types.
+ *    Note that serializationFormat is only used in iOS and Android (which use
+ *    mmkv storage engine), while not used on web since it uses IndexedDB, which
+ *    natively serializes all values using "structured serialisation".
+ *    https://html.spec.whatwg.org/multipage/structured-data.html#structuredserializeinternal
  *  - The 'uniqueKey' argument ('settings' for example) uniquely identifies the
  *    data in the storage system. It is used to store and retrieve the value.
  *
@@ -68,7 +72,7 @@ import React, {
   useContext,
   ReactNode
 } from 'react';
-import { storage, SerializationFormat } from '../lib/storage';
+import { storage, SerializationFormat, assertValue } from '../lib/storage';
 
 export const SETTINGS_GLOBAL_STORAGE = 'SETTINGS_GLOBAL_STORAGE';
 
@@ -80,7 +84,6 @@ type ProviderValue<T> = {
 const StorageContext = createContext<ProviderValue<unknown> | null>(null);
 
 const StorageProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  //console.log('StorageProvider');
   const [storageState, setStorageState] = useState<StorageState<unknown>>({});
 
   return (
@@ -95,35 +98,26 @@ const useGlobalStateStorage = <T,>(
   serializationFormat: SerializationFormat
 ): [T | undefined, (newValue: T) => Promise<void>, boolean] => {
   const context = useContext(StorageContext);
-  if (context === null) {
+  if (context === null)
     throw new Error(`useStorage must be used within a StorageProvider`);
-  }
-  const { storageState, setStorageState } = context;
 
+  const { storageState, setStorageState } = context;
+  const fetchValue = async () => {
+    const savedValue = await storage.getAsync(key, serializationFormat);
+    setStorageState(prevState => ({ ...prevState, [key]: savedValue }));
+  };
+
+  //We only need to retrieve the value from the storage intially
+  //We know key has not been retrieved yet if storageState[key] is not set.
+  //After having retrieved the initial value, then we will rely on
+  //storageState[key] to not spam the storage with more requests that we
+  //already know the result
   useEffect(() => {
-    //We only need to retrieve the value from the storage intially
-    //We know key has not been retrieved yet if storageState[key] is not set.
-    //After having retrieved the initial value, then we will rely on
-    //storageState[key] to not spam the storage with more requests that we
-    //already know the result
-    if (!(key in storageState)) {
-      //console.log(`fetching key ${key}`);
-      const fetchValue = async () => {
-        const savedValue = await storage.getAsync(key, serializationFormat);
-        setStorageState(prevState => {
-          //console.log(`setting value ${parsedValue} to state for ${key}`);
-          return { ...prevState, [key]: savedValue };
-        });
-      };
-      fetchValue();
-    }
+    if (!(key in storageState)) fetchValue();
   }, [storageState, key, storage]);
 
   const setStorageValue = async (newValue: T) => {
-    await storage.setAsync(
-      key,
-      typeof newValue === 'string' ? newValue : JSON.stringify(newValue)
-    );
+    await storage.setAsync(key, assertValue(newValue));
     setStorageState(prevState => ({ ...prevState, [key]: newValue }));
   };
 
