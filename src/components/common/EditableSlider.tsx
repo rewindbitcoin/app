@@ -49,7 +49,7 @@ import {
   Text,
   TextInput,
   StyleSheet,
-  TouchableWithoutFeedback,
+  ScrollView,
   Keyboard
 } from 'react-native';
 import Slider from '@react-native-community/slider';
@@ -206,7 +206,6 @@ const EditableSlider = ({
 
   const keyboardType = step === 1 ? 'number-pad' : 'numeric';
   const [fontsLoaded] = useFonts({ RobotoMono_400Regular });
-  const handlePressOutside = () => Keyboard.dismiss();
 
   const onSliderValueChange = (value: number) => {
     //The react-native slider is buggy and may return slightly off values
@@ -265,8 +264,9 @@ const EditableSlider = ({
 
   //TODO: thumbTintColor is only Android
   console.log({ strValue, snappedValue });
+
   return (
-    <TouchableWithoutFeedback onPress={handlePressOutside}>
+    <ScrollView keyboardShouldPersistTaps="handled">
       <View style={styles.container}>
         <Text
           style={[
@@ -283,8 +283,8 @@ const EditableSlider = ({
             minimumValue={minimumValue}
             maximumValue={maximumValue}
             onValueChange={onSliderValueChange}
+            onSlidingStart={Keyboard.dismiss}
             value={sliderManagedValue}
-            onSlidingStart={handlePressOutside}
             {...(snappedValue === null ? { thumbTintColor: 'red' } : {})}
           />
           <TextInput
@@ -299,7 +299,7 @@ const EditableSlider = ({
           />
         </View>
       </View>
-    </TouchableWithoutFeedback>
+    </ScrollView>
   );
 };
 

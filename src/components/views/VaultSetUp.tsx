@@ -9,8 +9,7 @@ import {
   Button,
   Alert,
   StyleSheet,
-  TouchableWithoutFeedback,
-  Keyboard
+  ScrollView
 } from 'react-native';
 
 import { defaultSettings, Settings } from '../../lib/settings';
@@ -131,14 +130,11 @@ export default function VaultSetUp({
 
   const [amount, setAmount] = useState<number | null>(maxVaultAmount || null);
 
-  const handlePressOutside = () => Keyboard.dismiss();
   const handleCancel = (event: GestureResponderEvent) => {
-    Keyboard.dismiss();
     if (onCancel) onCancel(event);
   };
 
   const handleOK = () => {
-    Keyboard.dismiss();
     const errorMessages = [];
 
     // Validation for lockBlocks
@@ -360,13 +356,20 @@ export default function VaultSetUp({
     );
 
   return (
-    <TouchableWithoutFeedback onPress={handlePressOutside}>
+    <ScrollView
+      keyboardShouldPersistTaps="handled"
+      style={styles.wrapper}
+      contentContainerStyle={{ flexGrow: 1, justifyContent: 'center' }}
+    >
       {content}
-    </TouchableWithoutFeedback>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
+  wrapper: {
+    width: '100%'
+  },
   content: {
     backgroundColor: 'white',
     borderRadius: 10,

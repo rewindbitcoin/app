@@ -46,7 +46,7 @@ import {
  * re-renders in other components using the same key. It's useful for data
  * like form inputs or component-specific settings. For shared global state,
  * refer to `useGlobalStateStorage`. More information on the differences between
- * these hooks can be found in the documentation in str/lib/storage.
+ * these hooks can be found in the documentation in src/hooks/useLocalStateStorage.ts
  */
 
 export const useLocalStateStorage = <T>(

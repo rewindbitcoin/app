@@ -7,8 +7,7 @@ import {
   Button,
   Alert,
   StyleSheet,
-  TouchableWithoutFeedback,
-  Keyboard
+  ScrollView
 } from 'react-native';
 
 import EditableSlider from '../common/EditableSlider';
@@ -78,9 +77,7 @@ export default function Unvault({
     if (utxosData) setSelectedUtxosData(utxosData);
   }, []);
 
-  const handlePressOutside = () => Keyboard.dismiss();
   const handleCancel = (event: GestureResponderEvent) => {
-    Keyboard.dismiss();
     if (onCancel) onCancel(event);
   };
 
@@ -88,7 +85,6 @@ export default function Unvault({
     const validateUtxosData = utxosData !== undefined;
     const validateLockBlocks = minLockBlocks !== undefined;
 
-    Keyboard.dismiss();
     const errorMessages = [];
 
     // Validation for lockBlocks (if requested)
@@ -175,9 +171,12 @@ export default function Unvault({
   );
 
   return (
-    <TouchableWithoutFeedback onPress={handlePressOutside}>
+    <ScrollView
+      keyboardShouldPersistTaps="handled"
+      contentContainerStyle={{ flexGrow: 1, justifyContent: 'center' }}
+    >
       {content}
-    </TouchableWithoutFeedback>
+    </ScrollView>
   );
 }
 
