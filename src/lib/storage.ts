@@ -19,7 +19,9 @@ export const UINT8ARRAY = 'UINT8ARRAY';
 type SerializationFormatMapping = {
   [NUMBER]: number | null | undefined;
   [STRING]: string | null | undefined;
-  [SERIALIZABLE]: object | null | undefined; // serializable with JSON.stringify
+  // serializable with JSON.stringify in mmkv & with "structured serialisation"
+  // in IndexedDB for web:
+  [SERIALIZABLE]: object | null | undefined;
   [BOOLEAN]: boolean | null | undefined;
   [UINT8ARRAY]: Uint8Array | null | undefined;
 };
