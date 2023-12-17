@@ -1,4 +1,7 @@
 //TODO: share styles VaultSetUp / Unvault
+//
+//TODO: in web, when I click to Continue having wrong values
+//a pop-up is not displayed!!!
 
 import { Trans, useTranslation } from 'react-i18next';
 import React, { useState } from 'react';
@@ -243,7 +246,7 @@ export default function VaultSetUp({
                   maximumValue={maxVaultAmount}
                   value={amount}
                   onValueChange={amount => {
-                    //console.log({ amount });
+                    console.log('TRACE amount onValueChange', { amount });
                     setAmount(amount);
                   }}
                   step={1}

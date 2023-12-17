@@ -50,7 +50,8 @@ import {
   TextInput,
   StyleSheet,
   ScrollView,
-  Keyboard
+  Keyboard,
+  Platform
 } from 'react-native';
 import Slider from '@react-native-community/slider';
 import {
@@ -153,6 +154,10 @@ const EditableSlider = ({
   // onSliderValueChange or onEffect([min,max,step]), below:
   const lastValidSnappedValue = useRef<number | null>(null);
 
+  //Set initial InputText and Slider values.
+  const [sliderManagedValue, setSliderManagedValue] = useState<number>(
+    snappedValue === null ? minimumValue : snappedValue
+  );
   // Parent may change min, max or step. Previously good values
   // may not be ok anymore or previously old values may be again
   useEffect(() => {
@@ -188,14 +193,11 @@ const EditableSlider = ({
       if (newSliderManagedValue !== sliderManagedValue)
         setSliderManagedValue(newSliderManagedValue);
     }
-    if (onValueChange && newSnappedValue !== value)
+    if (onValueChange && newSnappedValue !== value) {
       onValueChange(newSnappedValue);
+    }
   }, [minimumValue, maximumValue, step]);
 
-  //Set initial InputText and Slider values.
-  const [sliderManagedValue, setSliderManagedValue] = useState<number>(
-    snappedValue === null ? minimumValue : snappedValue
-  );
   const [strValue, setStrValue] = useState<string>(
     snappedValue === null
       ? snap2Str({ snappedValue: minimumValue, step })
@@ -219,8 +221,9 @@ const EditableSlider = ({
     else lastValidSnappedValue.current = snappedValue;
     const strValue = snap2Str({ snappedValue, step });
     setStrValue(strValue);
-    if (snappedValue !== prevSnappedValue.current && onValueChange)
+    if (snappedValue !== prevSnappedValue.current && onValueChange) {
       onValueChange(snappedValue);
+    }
   };
   const onTextInputValueChange = (strValue: string) => {
     setStrValue(strValue);
@@ -263,7 +266,6 @@ const EditableSlider = ({
   } else formattedValue = formatValue(snappedValue);
 
   //TODO: thumbTintColor is only Android
-  console.log({ strValue, snappedValue });
 
   return (
     <ScrollView keyboardShouldPersistTaps="handled">
@@ -323,11 +325,11 @@ const styles = StyleSheet.create({
   },
   slider: {
     flex: 1,
-    //backgroundColor: 'blue', //Feedback for testing
-    padding: 15, //This is very important in android real device or the thumb is very difficult to be grabbed by the thumb finger since it is so thin.
+    //Applying padding is very important in android real device or the thumb is very
+    //difficult to be grabbed by the thumb finger since it is so thin.
+    //However, on web dont apply padding since it adds offset to the thumb button!
+    ...(Platform.OS !== 'web' ? { padding: 15 } : {}),
     marginRight: 10
-    //marginLeft: Platform.select({ ios: 0, android: -20 }), //https://github.com/callstack/react-native-slider/issues/98
-    //marginRight: Platform.select({ ios: 10, android: 0 }) //https://github.com/callstack/react-native-slider/issues/98
   },
   input: {
     fontSize: 15,
