@@ -12,7 +12,8 @@ import {
   Button,
   Alert,
   StyleSheet,
-  ScrollView
+  ScrollView,
+  Platform
 } from 'react-native';
 
 import { defaultSettings, Settings } from '../../lib/settings';
@@ -157,7 +158,15 @@ export default function VaultSetUp({
 
     // If any errors, display them
     if (errorMessages.length > 0) {
-      Alert.alert(t('vaultSetup.invalidValues'), errorMessages.join('\n\n'));
+      //TODO: dont use Alert.alert
+      Platform.OS === 'web'
+        ? window.alert(
+            `${t('vaultSetup.invalidValues')}\n\n${errorMessages.join('\n\n')}`
+          )
+        : Alert.alert(
+            t('vaultSetup.invalidValues'),
+            errorMessages.join('\n\n')
+          );
       return;
     } else {
       if (feeRate === null || amount === null || lockBlocks === null)

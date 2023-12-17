@@ -104,6 +104,7 @@ export default function Unvault({
 
     // If any errors, display them
     if (errorMessages.length > 0) {
+      //TODO: dont use Alert.alert.
       Alert.alert('Invalid Values', errorMessages.join('\n\n'));
       return;
     } else {

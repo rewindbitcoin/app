@@ -4,6 +4,10 @@
 //  -> the constructor will optionally take the serialized discoveryData + version
 //  -> Here I will store it to storage
 //
+//  TODO: Don't use modals but navigation...
+//    -> Note Modals on iOS may show an issue since there must be at most 1 modal
+//     -> See previous approach using Navigation: https://github.com/bitcoinerlab/FarVault/blob/main/src/app/App.js
+//
 //  TODO: on the web version: the Error for Faster vault creation does not show!!!
 //  TODO: on the web version: I cannot type on the input text to enter a value
 //  TODO: on the web version: I dont get a Copied to clipboard when clicking
@@ -540,6 +544,7 @@ function App() {
     //TODO: check this push result. This and all pushes in code
     if (!vault.panicTxHex) throw new Error('Cannot panic');
     await discovery.getExplorer().push(vault.panicTxHex);
+    //TODO: dont use Alert.alert. - TODO: translate
     Alert.alert(
       'Transaction Successful',
       `Funds have been sent to the safe address: ${vault.coldAddress}.`
@@ -649,15 +654,19 @@ Handle with care. Confidentiality is key.
   ) => {
     if (vault === 'COINSELECT_ERROR') {
       //TODO: translate this
+      //TODO: dont use Alert.alert.
       Alert.alert(t('createVault.error.COINSELECT_ERROR'));
     } else if (vault === 'NOT_ENOUGH_FUNDS') {
       //TODO: translate this
+      //TODO: dont use Alert.alert.
       Alert.alert(t('createVault.error.NOT_ENOUGH_FUNDS'));
     } else if (vault === 'USER_CANCEL') {
       //TODO: translate this
+      //TODO: dont use Alert.alert.
       Alert.alert(t('createVault.error.USER_CANCEL'));
     } else if (vault === 'UNKNOWN_ERROR') {
       //TODO: translate this
+      //TODO: dont use Alert.alert.
       Alert.alert(t('createVault.error.UNKNOWN_ERROR'));
     } else {
       //TODO: I should index it based on vault.vaultTxHex
@@ -844,6 +853,7 @@ Handle with care. Confidentiality is key.
                   //difficult to get it clicked on android device:
                   Clipboard.setStringAsync(receiveAddress);
                   //TODO: translate
+                  //TODO: dont use Alert.alert.
                   Alert.alert('Address copied to clipboard');
                 }}
               >
