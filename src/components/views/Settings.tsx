@@ -1,6 +1,6 @@
 import React from 'react';
 import type { Props } from '../../screens';
-import { View, Button, Text } from 'react-native';
+import { View, Button, Text, StyleSheet } from 'react-native';
 import { clearAllAsync, STRING } from '../../lib/storage';
 import { useLocalStateStorage } from '../../hooks/useLocalStateStorage';
 import styles from '../../../styles/styles';
@@ -23,8 +23,8 @@ export default ({ navigation }: Props) => {
         alignItems: 'center'
       }}
     >
-      <Text style={styles.mnemonic}>MNEMOMIC ✍: {mnemonic}</Text>
-      <View style={styles.factoryReset}>
+      <Text style={internalStyles.mnemonic}>MNEMOMIC ✍: {mnemonic}</Text>
+      <View style={internalStyles.factoryReset}>
         <Button
           title={t('factoryResetButton')}
           onPress={async () => {
@@ -39,3 +39,24 @@ export default ({ navigation }: Props) => {
     </View>
   );
 };
+
+const internalStyles = StyleSheet.create({
+  mnemonic: {
+    marginTop: 40,
+    marginBottom: 40,
+    marginRight: 20,
+    marginLeft: 20,
+    padding: 15,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#DADADA',
+    backgroundColor: '#F5F5F5',
+    textAlign: 'center',
+    fontSize: 16,
+    color: '#333'
+  },
+  factoryReset: { marginTop: 20, marginBottom: 40 },
+  wrapper: {
+    width: '100%'
+  }
+});

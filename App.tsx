@@ -1,7 +1,7 @@
 import './init';
 import React, { useEffect } from 'react';
 import { Platform, Button } from 'react-native';
-import { StackParamList, HOME, SETTINGS } from './src/screens';
+import { RootStackParamList, HOME, SETTINGS } from './src/screens';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createStackNavigator } from '@react-navigation/stack';
@@ -17,9 +17,9 @@ import {
 import { defaultSettings, Settings as SettingsType } from './src/lib/settings';
 import { useTranslation } from 'react-i18next';
 const isNativeStack = Platform.OS === 'ios' || Platform.OS === 'android';
-const Stack = isNativeStack
-  ? createNativeStackNavigator<StackParamList>()
-  : createStackNavigator<StackParamList>();
+const RootStack = isNativeStack
+  ? createNativeStackNavigator<RootStackParamList>()
+  : createStackNavigator<RootStackParamList>();
 import initI18n from './src/i18n/i18n';
 //Must be globally init to something... then, on settings load from context,
 //apply the correct one
@@ -37,28 +37,39 @@ const App = () => {
   }, [settings.LOCALE]);
   return (
     <NavigationContainer>
-      <Stack.Navigator
+      <RootStack.Navigator
         screenOptions={isNativeStack ? { animationEnabled: true } : {}}
       >
-        <Stack.Screen
-          name={HOME}
-          options={({ navigation }) => ({
-            title: t('app.thunderDenTitle'),
-            headerRight: () => (
-              <Button
-                onPress={() => navigation.navigate(SETTINGS)}
-                title={t('app.settingsButton')}
-              />
-            )
-          })}
-          component={Home}
-        />
-        <Stack.Screen
-          name={SETTINGS}
-          component={Settings}
-          options={{ title: t('app.settingsTitle') }}
-        />
-      </Stack.Navigator>
+        <RootStack.Group>
+          <RootStack.Screen
+            name={HOME}
+            options={({ navigation }) => ({
+              title: t('app.thunderDenTitle'),
+              headerRightContainerStyle: { marginRight: 10 },
+              headerRight: () => (
+                <Button
+                  onPress={() => navigation.navigate(SETTINGS)}
+                  title={t('app.settingsButton')}
+                />
+              )
+            })}
+            component={Home}
+          />
+        </RootStack.Group>
+        <RootStack.Group
+          screenOptions={
+            // This Group contain modals
+            // https://reactnavigation.org/docs/modal
+            { presentation: 'modal', animationEnabled: true }
+          }
+        >
+          <RootStack.Screen
+            name={SETTINGS}
+            component={Settings}
+            options={{ title: t('app.settingsTitle') }}
+          />
+        </RootStack.Group>
+      </RootStack.Navigator>
     </NavigationContainer>
   );
 };

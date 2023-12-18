@@ -1,19 +1,6 @@
 import { StyleSheet } from 'react-native';
 export default StyleSheet.create({
   container: { backgroundColor: '#fff', flex: 1 },
-  mnemonic: {
-    marginBottom: 40,
-    marginRight: 20,
-    marginLeft: 20,
-    padding: 15,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#DADADA',
-    backgroundColor: '#F5F5F5',
-    textAlign: 'center',
-    fontSize: 16,
-    color: '#333'
-  },
   contentContainer: { alignItems: 'center', paddingTop: 40 },
   hotBalance: {
     fontSize: 16,
@@ -22,6 +9,7 @@ export default StyleSheet.create({
     color: '#444' // Darker grey for emphasis
   },
   modal: {
+    //TODO: this one should not exist after I get rid of all modals and start using reactnagivation modals
     position: 'absolute',
     top: 0,
     left: 0,
@@ -34,7 +22,6 @@ export default StyleSheet.create({
   },
   buttonClose: { marginTop: 40 },
   addressText: { marginTop: 20 },
-  factoryReset: { marginTop: 20 },
   buttonGroup: {
     marginTop: 10,
     flexDirection: 'row',
