@@ -100,7 +100,6 @@ import {
   Locale,
   Currency
 } from '../../lib/settings';
-import initI18n from '../../i18n/i18n';
 
 import React, { useState, useEffect, useRef } from 'react';
 import {
@@ -119,7 +118,7 @@ import {
   useGlobalStateStorage
 } from '../../contexts/StorageContext';
 import { useLocalStateStorage } from '../../hooks/useLocalStateStorage';
-import { clearAllAsync, SERIALIZABLE, STRING } from '../../lib/storage';
+import { SERIALIZABLE, STRING } from '../../lib/storage';
 const defaultVaults: Vaults = {};
 
 const MBButton = ({ ...props }: ButtonProps) => (
@@ -292,7 +291,6 @@ function Home() {
       }
     | false
   >(false);
-  const [isSettingsVisible, setIsSettingsVisible] = useState(false);
   const [isVaultSetUp, setIsVaultSetUp] = useState(false);
   //Set to a vault value to display the Modal that is called when the user
   //is going to unvault a vault (indicated as unvault).
@@ -364,7 +362,6 @@ function Home() {
     await explorer.connect();
     const discovery = new Discovery();
 
-    setIsSettingsVisible(false);
     setIsVaultSetUp(false);
     setNewVaultSettings(false);
     setUnvault(null);
@@ -392,9 +389,6 @@ function Home() {
 
     // Fetch BTC to Fiat data on init
     fetchBtcFiat();
-
-    // Init locales on init
-    initI18n(settings.LOCALE);
   };
 
   useEffect(() => {
@@ -712,9 +706,6 @@ Handle with care. Confidentiality is key.
         paddingRight: insets.right
       }}
     >
-      <View style={styles.settings}>
-        <Button title="Settings" onPress={() => setIsSettingsVisible(true)} />
-      </View>
       <ScrollView
         contentContainerStyle={styles.contentContainer}
         refreshControl={
@@ -875,27 +866,6 @@ Handle with care. Confidentiality is key.
             </View>
           </View>
         )}
-      </Modal>
-      <Modal visible={isSettingsVisible} animationType="slide">
-        <View style={styles.modal}>
-          {mnemonic && (
-            <Text style={styles.mnemo}>MNEMOMIC ✍: {mnemonic}</Text>
-          )}
-          <View style={styles.factoryReset}>
-            <Button
-              title="Factory Reset"
-              onPress={async () => {
-                //TODO: thest this below
-                await clearAllAsync();
-                if (discovery) await discovery.getExplorer().close();
-                await init();
-              }}
-            />
-          </View>
-          <View style={styles.buttonClose}>
-            <Button title="Close" onPress={() => setIsSettingsVisible(false)} />
-          </View>
-        </View>
       </Modal>
       {hotUtxosData && (
         <Modal visible={isVaultSetUp} animationType="slide">

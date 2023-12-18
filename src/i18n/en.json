@@ -1,4 +1,9 @@
 {
+  "app": {
+    "thunderDenTitle": "Thunder Den",
+    "settingsButton": "Settings",
+    "settingsTitle": "Settings"
+  },
   "vaultSetup": {
     "title": "Vault Set Up",
     "notEnoughFundsTitle": "Vault Minimum Requirement",
@@ -45,5 +50,7 @@
   "continueButton": "Continue",
   "okButton": "OK",
   "saveButton": "Save",
-  "cancelButton": "Cancel"
+  "cancelButton": "Cancel",
+  "closeButton": "Close",
+  "factoryResetButton": "Factory Reset"
 }

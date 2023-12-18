@@ -1,13 +1,7 @@
 import { StyleSheet } from 'react-native';
 export default StyleSheet.create({
   container: { backgroundColor: '#fff', flex: 1 },
-  settings: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    paddingRight: 10,
-    paddingTop: 5
-  },
-  mnemo: {
+  mnemonic: {
     marginBottom: 40,
     marginRight: 20,
     marginLeft: 20,
