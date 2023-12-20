@@ -17,11 +17,12 @@ export interface Settings {
   LOCALE: Locale;
   CURRENCY: Currency;
   BTC_FIAT_REFRESH_INTERVAL_MS: number;
+  BTC_FEE_ESTIMATES_REFRESH_INTERVAL_MS: number;
 }
 
 // Default values for the context
 export const defaultSettings: Settings = {
-  GAP_LIMIT: 3,
+  GAP_LIMIT: 20,
   SERVICE_FEE_RATE: 0.0004,
   MIN_FEE_RATE: 1,
   MIN_LOCK_BLOCKS: 1,
@@ -42,5 +43,6 @@ export const defaultSettings: Settings = {
   SUB_UNIT: 'btc',
   LOCALE: 'en-US',
   CURRENCY: 'USD',
-  BTC_FIAT_REFRESH_INTERVAL_MS: 600000 //10 minutes
+  BTC_FIAT_REFRESH_INTERVAL_MS: 600000, //10 minutes
+  BTC_FEE_ESTIMATES_REFRESH_INTERVAL_MS: 600000 // 10 minutes
 };

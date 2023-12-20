@@ -1,3 +1,6 @@
+// TODO: Instead of alerts use this one which has no dependencies:
+// https://github.com/calintamas/react-native-toast-message
+// TODO: important uninstall lodash.clonedeep (i put it as a hack to use dist/ from discvoery)
 // TODO dec, 14, 2023
 //  -> Investigage IndexedDB
 //  -> serialize discovery (addint an interfaceVersion: 1.0
@@ -101,7 +104,7 @@ import {
   Currency
 } from '../../lib/settings';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   ScrollView,
   Text,
@@ -134,10 +137,10 @@ import QRCode from 'react-native-qrcode-svg';
 import * as Clipboard from 'expo-clipboard';
 import { Share } from 'react-native';
 import memoize from 'lodash.memoize';
-import { getBtcFiat, formatBtc } from '../../lib/btcRates';
+import { formatBtc } from '../../lib/btcRates';
 import { formatFeeRate } from '../../lib/fees';
 
-import { networks } from 'bitcoinjs-lib';
+import { networks, Network } from 'bitcoinjs-lib';
 const network = networks.testnet;
 
 import { generateMnemonic, mnemonicToSeedSync } from 'bip39';
@@ -152,8 +155,6 @@ import { DiscoveryFactory, DiscoveryInstance } from '@bitcoinerlab/discovery';
 // init to something. The useSettings for correct values
 
 const { Output, BIP32 } = DescriptorsFactory(secp256k1);
-const GAP_LIMIT = 3;
-const MIN_FEE_RATE = 1;
 //
 //TODO: create a component that imports this one from the user (or creates it fot the user)
 const DEFAULT_COLD_ADDR = 'tb1qm0k9mn48uqfs2w9gssvzmus4j8srrx5eje7wpf';
@@ -161,7 +162,6 @@ const DEFAULT_COLD_ADDR = 'tb1qm0k9mn48uqfs2w9gssvzmus4j8srrx5eje7wpf';
 const DEFAULT_SERVICE_ADDR = 'tb1qm0k9mn48uqfs2w9gssvzmus4j8srrx5eje7wpf';
 import {
   Vault,
-  esploraUrl,
   fetchSpendingTx,
   Vaults,
   getUtxosData,
@@ -282,7 +282,25 @@ const formatTriggerFeeRate = (
 ${formattedFeeRate}`;
 };
 
-function Home() {
+//TODO: this should not be here:
+function esploraUrl(network: Network) {
+  const url =
+    network === networks.testnet
+      ? 'https://blockstream.info/testnet/api/'
+      : network === networks.bitcoin
+      ? 'https://blockstream.info/api/'
+      : null;
+  if (!url) throw new Error(`Esplora API not available for this network`);
+  return url;
+}
+
+function Home({
+  btcFiat,
+  feeEstimates
+}: {
+  btcFiat: number | null;
+  feeEstimates: Record<string, number> | null;
+}) {
   const [newVaultSettings, setNewVaultSettings] = useState<
     | {
         amount: number;
@@ -312,11 +330,6 @@ function Home() {
   const vaults = vaultsState || defaultVaults;
 
   const [checkingBalance, setCheckingBalance] = useState(false);
-  const [feeEstimates, setFeeEstimates] = useState<Record<
-    string,
-    number
-  > | null>(null);
-  const [btcFiat, setBtcFiat] = useState<number | null>(null);
   const [settingsState] = useGlobalStateStorage<Settings>(
     SETTINGS_GLOBAL_STORAGE,
     SERIALIZABLE
@@ -324,34 +337,6 @@ function Home() {
   const settings = settingsState || defaultSettings;
 
   const { t } = useTranslation();
-  const intervalRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const fetchBtcFiat = async () => {
-    try {
-      const btcFiat = await getBtcFiat(settings.CURRENCY);
-      setBtcFiat(btcFiat);
-    } catch (err) {
-      // TODO: Handle errors here
-      console.error(err);
-    }
-  };
-
-  const lastCurrencyRef = useRef(settings.CURRENCY);
-  useEffect(() => {
-    if (intervalRef.current) clearInterval(intervalRef.current);
-    if (lastCurrencyRef.current !== settings.CURRENCY) fetchBtcFiat();
-
-    lastCurrencyRef.current = settings.CURRENCY;
-    intervalRef.current = setInterval(
-      fetchBtcFiat,
-      settings.BTC_FIAT_REFRESH_INTERVAL_MS
-    );
-
-    // Clear interval on unmount or when (settings).CURRENCY changes
-    return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-    };
-  }, [settings.CURRENCY, settings.BTC_FIAT_REFRESH_INTERVAL_MS]);
 
   const init = async () => {
     //const mnemonic =
@@ -369,26 +354,6 @@ function Home() {
     setDiscovery(discovery);
     setUtxos(null);
     setCheckingBalance(false);
-
-    try {
-      let feeEstimates;
-      //When working with the testnet network we will use mainnet feeEstimates
-      //for better UX checks
-      if (network === networks.testnet) {
-        const explorer = new EsploraExplorer({
-          url: 'https://blockstream.info/api'
-        });
-        await explorer.connect();
-        feeEstimates = await explorer.fetchFeeEstimates();
-        await explorer.close();
-      } else {
-        feeEstimates = await explorer.fetchFeeEstimates();
-      }
-      setFeeEstimates(feeEstimates);
-    } catch (err) {}
-
-    // Fetch BTC to Fiat data on init
-    fetchBtcFiat();
   };
 
   useEffect(() => {
@@ -503,8 +468,11 @@ function Home() {
         fromMnemonic(mnemonic).changeDescriptor,
         ...spendableTriggerDescriptors(newVaults)
       ];
-      console.log('FETCH DESCRIPTORS');
-      await discovery.fetch({ descriptors, gapLimit: GAP_LIMIT });
+      console.log('FETCH DESCRIPTORS', {
+        descriptors,
+        gapLimt: settings.GAP_LIMIT
+      });
+      await discovery.fetch({ descriptors, gapLimit: settings.GAP_LIMIT });
       console.log('FETCH DESCRIPTORS - OK');
       const { utxos } = discovery.getUtxosAndBalance({ descriptors });
       //console.log('vaults', vaults);
@@ -909,7 +877,7 @@ Handle with care. Confidentiality is key.
         <View style={[styles.modal, { padding: 40 }]}>
           <Text style={styles.title}>Trigger Unvault</Text>
           <Unvault
-            minFeeRate={MIN_FEE_RATE}
+            minFeeRate={settings.MIN_FEE_RATE}
             maxFeeRate={
               unvault === null
                 ? settings.PRESIGNED_FEE_RATE_CEILING

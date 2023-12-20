@@ -590,17 +590,6 @@ export const estimateTriggerTxSize = memoize((lockBlocks: number) => {
   );
 });
 
-export function esploraUrl(network: Network) {
-  const url =
-    network === networks.testnet
-      ? 'https://blockstream.info/testnet/api/'
-      : network === networks.bitcoin
-      ? 'https://blockstream.info/api/'
-      : null;
-  if (!url) throw new Error(`Esplora API not available for this network`);
-  return url;
-}
-
 export function validateAddress(addressValue: string, network: Network) {
   try {
     address.toOutputScript(addressValue, network);

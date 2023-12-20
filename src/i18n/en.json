@@ -2,7 +2,15 @@
   "app": {
     "thunderDenTitle": "Thunder Den",
     "settingsButton": "Settings",
-    "settingsTitle": "Settings"
+    "settingsTitle": "Settings",
+    "btcRatesError": {
+      "title": "BTC Rate Retrieval Failed",
+      "message": "The displayed amounts in {{currency}} may not be accurate."
+    },
+    "feeEstimatesError": {
+      "title": "Fee Estimate Retrieval Failed",
+      "message": "Displayed transaction target times and fee amounts may not be accurate."
+    }
   },
   "vaultSetup": {
     "title": "Vault Set Up",

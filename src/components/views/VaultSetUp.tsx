@@ -6,15 +6,8 @@
 import { Trans, useTranslation } from 'react-i18next';
 import React, { useState } from 'react';
 import type { GestureResponderEvent } from 'react-native';
-import {
-  View,
-  Text,
-  Button,
-  Alert,
-  StyleSheet,
-  ScrollView,
-  Platform
-} from 'react-native';
+import { View, Text, Button, StyleSheet, ScrollView } from 'react-native';
+import { Toast, CustomToast } from '../common/Toast';
 
 import { defaultSettings, Settings } from '../../lib/settings';
 import {
@@ -158,16 +151,13 @@ export default function VaultSetUp({
 
     // If any errors, display them
     if (errorMessages.length > 0) {
-      //TODO: dont use Alert.alert
-      Platform.OS === 'web'
-        ? window.alert(
-            `${t('vaultSetup.invalidValues')}\n\n${errorMessages.join('\n\n')}`
-          )
-        : Alert.alert(
-            t('vaultSetup.invalidValues'),
-            errorMessages.join('\n\n')
-          );
-      return;
+      console.log('Calling Toast');
+      Toast.show({
+        //autoHide: false,
+        type: 'error',
+        text1: t('vaultSetup.invalidValues'),
+        text2: errorMessages.join('\n\n')
+      });
     } else {
       if (feeRate === null || amount === null || lockBlocks === null)
         throw new Error(`Faulty validation`);
@@ -367,6 +357,9 @@ export default function VaultSetUp({
       </>
     );
 
+  //TODO: remove the Toast component below. This is only needed in Modal
+  //views. HOwever, this component should stop being part of a modal in new
+  //versions and the parent <Toast/> in App.tsx will be used instead aiutomaticallu
   return (
     <ScrollView
       keyboardShouldPersistTaps="handled"
@@ -374,6 +367,7 @@ export default function VaultSetUp({
       contentContainerStyle={{ flexGrow: 1, justifyContent: 'center' }}
     >
       {content}
+      <CustomToast />
     </ScrollView>
   );
 }
