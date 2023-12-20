@@ -18,6 +18,7 @@ export interface Settings {
   CURRENCY: Currency;
   BTC_FIAT_REFRESH_INTERVAL_MS: number;
   BTC_FEE_ESTIMATES_REFRESH_INTERVAL_MS: number;
+  USE_MAINNET_FEE_ESTIMATES_IN_TESTNET: boolean;
 }
 
 // Default values for the context
@@ -44,5 +45,6 @@ export const defaultSettings: Settings = {
   LOCALE: 'en-US',
   CURRENCY: 'USD',
   BTC_FIAT_REFRESH_INTERVAL_MS: 600000, //10 minutes
-  BTC_FEE_ESTIMATES_REFRESH_INTERVAL_MS: 600000 // 10 minutes
+  BTC_FEE_ESTIMATES_REFRESH_INTERVAL_MS: 600000, // 10 minutes
+  USE_MAINNET_FEE_ESTIMATES_IN_TESTNET: true
 };

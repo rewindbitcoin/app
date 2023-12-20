@@ -1,4 +1,5 @@
 // TODO: discovery is created here
+//  -> Also must implement useLocalStorage
 // -> all calls to discovery with side effects should be handled here
 // side effects mean that the call may return different values depending on
 // external factors. utxos may change, a tx status may change and so on.
@@ -83,8 +84,17 @@ const App = () => {
   }, [settings.CURRENCY]);
   const updateFeeEstimates = useCallback(async () => {
     if (discovery) {
+      let feeEstimates;
       try {
-        const feeEstimates = await discovery.getExplorer().fetchFeeEstimates();
+        if (settings.USE_MAINNET_FEE_ESTIMATES_IN_TESTNET) {
+          const url = esploraUrl(networks.bitcoin);
+          const explorer = new EsploraExplorer({ url });
+          await explorer.connect();
+          feeEstimates = await explorer.fetchFeeEstimates();
+          await explorer.close();
+        } else {
+          feeEstimates = await discovery.getExplorer().fetchFeeEstimates();
+        }
         setFeeEstimates(feeEstimates);
       } catch (err) {
         Toast.show({
@@ -95,12 +105,9 @@ const App = () => {
         });
       }
     }
-  }, [discovery]);
+  }, [discovery, network, settings.USE_MAINNET_FEE_ESTIMATES_IN_TESTNET]);
   const { t } = useTranslation();
 
-  ////
-  //Set discovery:
-  ////
   useEffect(() => {
     let isMounted = true;
     let isExplorerConnected = false;
