@@ -1,3 +1,10 @@
+//TODO: Test this encryption lib by Paul Millr and see how fast is it:
+//https://github.com/paulmillr/noble-ciphers?tab=readme-ov-file#speed
+//  -> Use this cypher:
+//    XChaCha20-Poly1305
+
+//TODO: Test this json.stringify function which is faster for typescript:
+//https://dev.to/samchon/i-made-10x-faster-jsonstringify-functions-even-type-safe-2eme
 import { MMKV } from 'react-native-mmkv';
 const mmkvStorage = new MMKV();
 

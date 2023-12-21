@@ -83,34 +83,6 @@ export default ({
   > | null>(null);
   const [discovery, setDiscovery] = useState<DiscoveryInstance | null>(null);
 
-  //TODO: Test this encryption lib by Paul Millr and see how fast is it:
-  //https://github.com/paulmillr/noble-ciphers?tab=readme-ov-file#speed
-  //  -> Use this cypher:
-  //    XChaCha20-Poly1305
-  //
-  //TODO: the discovery object should depend on the wallet, not on the network
-  //  -> This way I can encript the discoveryData on disk
-  //  -> The password must be kept on memory, never save on disk
-  //TODO: the vault must also have masterFingerprint associated
-  //A wallet will have (at least - as common interface): network, signer function, masterFingerprint
-  //  wallets: {
-  //  [walletId]: {
-  //    walletId: string;
-  //    walletName?: string; //TODO: set t¡he version in globalStorage
-  //    version: string;
-  //    networkId: NetworkId;
-  //    encrypted: boolean;
-  //    signers: Array<{signerName?: string; type:'BIP32' | 'LEDGER', mnemonic?: string; masterFingerprintHex: string; devicePathAuth?: string;}> //Will length 1 position for current version of ThunderDen
-  //  }
-  //  }
-  //
-  //  -> A BIP32 wallet will also have the mnenomic
-  //  -> With the masterFingerprint it is possible to get the vaults associated
-  //  with it from 'VAULTS' in storage
-  //const createWallet = useCallback(() => {
-  //  const signer = async (psbtVault: Psbt) =>
-  //    signers.signBIP32({ psbt: psbtVault, masterNode });
-  //}, [mnemomic]);
   // Sets discoveryData from storage if available or new:
   useEffect(() => {
     let isMounted = true;
