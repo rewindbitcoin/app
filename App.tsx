@@ -76,67 +76,67 @@ const App = () => {
   }, [settings, isSettingsSynchd]);
 
   return (
-    <NavigationContainer>
-      <RootStack.Navigator
-        screenOptions={isNativeStack ? { animationEnabled: true } : {}}
+    <RootStack.Navigator
+      screenOptions={isNativeStack ? { animationEnabled: true } : {}}
+    >
+      <RootStack.Screen
+        name={WALLETS}
+        options={({ navigation }) => ({
+          title: t('app.thunderDenTitle'),
+          headerRightContainerStyle: { marginRight: 10 },
+          headerRight: () => (
+            <Button
+              onPress={() => navigation.navigate(SETTINGS)}
+              title={t('app.settingsButton')}
+            />
+          )
+        })}
       >
-        <RootStack.Screen
-          name={WALLETS}
-          options={({ navigation }) => ({
-            title: t('app.thunderDenTitle'),
-            headerRightContainerStyle: { marginRight: 10 },
-            headerRight: () => (
-              <Button
-                onPress={() => navigation.navigate(SETTINGS)}
-                title={t('app.settingsButton')}
-              />
-            )
-          })}
-        >
-          {() => <Wallets onWallet={processWallet} />}
-        </RootStack.Screen>
+        {() => <Wallets onWallet={processWallet} />}
+      </RootStack.Screen>
 
-        <RootStack.Screen
-          name={WALLET_HOME}
-          options={({ navigation }) => ({
-            title: t('app.thunderDenTitle'),
-            headerRightContainerStyle: { marginRight: 10 },
-            headerRight: () => (
-              <Button
-                onPress={() => navigation.navigate(SETTINGS)}
-                title={t('app.settingsButton')}
-              />
-            )
-          })}
-        >
-          {() =>
-            walletId !== undefined && (
-              <WalletHome
-                walletId={walletId}
-                {...(newWalletSigners
-                  ? { newWalletSigners: newWalletSigners }
-                  : {})}
-              />
-            )
-          }
-        </RootStack.Screen>
+      <RootStack.Screen
+        name={WALLET_HOME}
+        options={({ navigation }) => ({
+          title: t('app.thunderDenTitle'),
+          headerRightContainerStyle: { marginRight: 10 },
+          headerRight: () => (
+            <Button
+              onPress={() => navigation.navigate(SETTINGS)}
+              title={t('app.settingsButton')}
+            />
+          )
+        })}
+      >
+        {() =>
+          walletId !== undefined && (
+            <WalletHome
+              walletId={walletId}
+              {...(newWalletSigners
+                ? { newWalletSigners: newWalletSigners }
+                : {})}
+            />
+          )
+        }
+      </RootStack.Screen>
 
-        <RootStack.Screen
-          name={SETTINGS}
-          component={Settings}
-          options={{ title: t('app.settingsTitle') }}
-        />
-      </RootStack.Navigator>
-      <CustomToast />
-    </NavigationContainer>
+      <RootStack.Screen
+        name={SETTINGS}
+        component={Settings}
+        options={{ title: t('app.settingsTitle') }}
+      />
+    </RootStack.Navigator>
   );
 };
 
 //Apply contexts:
 export default () => (
-  <SafeAreaProvider>
-    <StorageProvider>
-      <App />
-    </StorageProvider>
-  </SafeAreaProvider>
+  <NavigationContainer>
+    <SafeAreaProvider>
+      <StorageProvider>
+        <App />
+      </StorageProvider>
+    </SafeAreaProvider>
+    <CustomToast />
+  </NavigationContainer>
 );
