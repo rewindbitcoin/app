@@ -1,14 +1,15 @@
 import React from 'react';
-import type { Props } from '../../screens';
 import { View, Button, Text, StyleSheet } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import { clearAllAsync, STRING } from '../../lib/storage';
 import { useLocalStateStorage } from '../../hooks/useLocalStateStorage';
 import styles from '../../../styles/styles';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
-export default ({ navigation }: Props) => {
+export default () => {
   const [mnemonic] = useLocalStateStorage<string>('mnemonic', STRING);
   const insets = useSafeAreaInsets();
+  const navigation = useNavigation();
   const { t } = useTranslation();
   return (
     <View

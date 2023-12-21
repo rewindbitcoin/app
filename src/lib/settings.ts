@@ -19,6 +19,7 @@ export interface Settings {
   BTC_FIAT_REFRESH_INTERVAL_MS: number;
   BTC_FEE_ESTIMATES_REFRESH_INTERVAL_MS: number;
   USE_MAINNET_FEE_ESTIMATES_IN_TESTNET: boolean;
+  WALLETS_DATA_VERSION: string;
 }
 
 // Default values for the context
@@ -46,5 +47,6 @@ export const defaultSettings: Settings = {
   CURRENCY: 'USD',
   BTC_FIAT_REFRESH_INTERVAL_MS: 600000, //10 minutes
   BTC_FEE_ESTIMATES_REFRESH_INTERVAL_MS: 600000, // 10 minutes
-  USE_MAINNET_FEE_ESTIMATES_IN_TESTNET: true
+  USE_MAINNET_FEE_ESTIMATES_IN_TESTNET: true,
+  WALLETS_DATA_VERSION: '1.0.0' //This does not define the version of the App, but keeps track of the changes in the signature of the Wallet
 };

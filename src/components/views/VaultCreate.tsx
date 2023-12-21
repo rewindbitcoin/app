@@ -1,9 +1,9 @@
 //TODO: get some style stuff for the color
+import type { Psbt } from 'bitcoinjs-lib';
 import React, { useEffect, useState, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { View, Button, Text, StyleSheet } from 'react-native';
 import * as Progress from 'react-native-progress';
-import type { BIP32Interface } from 'bip32';
 import type { UtxosData } from '../../lib/vaults';
 import type { Network } from 'bitcoinjs-lib';
 import { defaultSettings, Settings } from '../../lib/settings';
@@ -15,7 +15,7 @@ import { SERIALIZABLE } from '../../lib/storage';
 import { createVault, Vault } from '../../lib/vaults';
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 export default function VaultCreate({
-  masterNode,
+  signer,
   utxosData,
   amount,
   feeRate,
@@ -25,9 +25,9 @@ export default function VaultCreate({
   changeDescriptor,
   unvaultKey,
   network,
-  onNewVaultCreated
+  onVaultCreated
 }: {
-  masterNode: BIP32Interface;
+  signer: (psbtVault: Psbt) => Promise<void>;
   utxosData: UtxosData;
   amount: number;
   feeRate: number;
@@ -37,7 +37,7 @@ export default function VaultCreate({
   changeDescriptor: string;
   unvaultKey: string;
   network: Network;
-  onNewVaultCreated: (
+  onVaultCreated: (
     vault:
       | Vault
       | 'COINSELECT_ERROR'
@@ -66,7 +66,7 @@ export default function VaultCreate({
     const createAndNotifyVault = async () => {
       await sleep(200);
       const vault = await createVault({
-        balance: amount,
+        amount,
         unvaultKey,
         samples,
         feeRate,
@@ -76,12 +76,12 @@ export default function VaultCreate({
         changeDescriptor,
         serviceAddress,
         lockBlocks,
-        masterNode,
+        signer,
         utxosData,
         network,
         onProgress
       });
-      if (isMounted) onNewVaultCreated(vault);
+      if (isMounted) onVaultCreated(vault);
     };
     createAndNotifyVault();
     return () => {

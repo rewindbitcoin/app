@@ -17,15 +17,11 @@ import {
   DUMMY_PUBKEY_2
 } from './vaultDescriptors';
 
-import type { BIP32Interface } from 'bip32';
-
 import { feeRateSampling } from './fees';
 import type { DiscoveryInstance } from '@bitcoinerlab/discovery';
 import { coinselect, vsize, dustThreshold } from '@bitcoinerlab/coinselect';
-import { NetworkId, getNetworkId } from './network';
 
 export type Vault = {
-  networkId: NetworkId;
   amount: number;
 
   vaultAddress: string;
@@ -230,14 +226,7 @@ export const utxosDataBalance = memoize((utxosData: UtxosData): number =>
 );
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
-//TODO return dustThreshold as min vault value / its more complex. At least
-//it must return something that when unvaulting it recovers a significant amount
-//
-//TODO: this function below should be generalized to use hardware signers
-//instead (in addition to) masterNode
-//
-//TODO: This function below is wrong setting fee and feeRate since we
-//know exaactluy the one after sining. no need to use estimations!!!
+
 export async function createVault({
   amount,
   unvaultKey,
@@ -249,7 +238,7 @@ export async function createVault({
   changeDescriptor,
   serviceAddress,
   lockBlocks,
-  masterNode,
+  signer,
   network,
   utxosData,
   onProgress
@@ -269,7 +258,7 @@ export async function createVault({
   changeDescriptor: string;
   serviceAddress: string;
   lockBlocks: number;
-  masterNode: BIP32Interface;
+  signer: (psbtVault: Psbt) => Promise<void>;
   network: Network;
   /** There are ALL the utxos (prior to coinselect them) */
   utxosData: UtxosData;
@@ -356,7 +345,7 @@ export async function createVault({
         value: selected.serviceFee
       });
     //Sign
-    signers.signBIP32({ psbt: psbtVault, masterNode });
+    await signer(psbtVault);
     //Finalize
     vaultFinalizers.forEach(finalizer => finalizer({ psbt: psbtVault }));
     const txVault = psbtVault.extractTransaction(true);
@@ -408,7 +397,7 @@ export async function createVault({
       const feeTrigger = feeRateTrigger * estimateTriggerTxSize(lockBlocks);
       const triggerBalance = vaultBalance - feeTrigger;
 
-      if (triggerBalance < dustThreshold(triggerOutput))
+      if (triggerBalance <= dustThreshold(triggerOutput))
         return 'NOT_ENOUGH_FUNDS';
 
       //Add the output to psbtTrigger:
@@ -458,9 +447,10 @@ export async function createVault({
           feeRatePanic * estimatePanicTxSize(lockBlocks, coldAddress);
         const panicBalance = triggerBalance - feePanic;
 
-        if (panicBalance < dustThreshold(coldOutput)) return 'NOT_ENOUGH_FUNDS';
-
+        if (panicBalance <= dustThreshold(coldOutput))
+          return 'NOT_ENOUGH_FUNDS';
         if (panicBalance < minPanicBalance) minPanicBalance = panicBalance;
+
         feePanicArray.push(feePanic);
         coldOutput.updatePsbtAsOutput({
           psbt: psbtPanic,
@@ -496,7 +486,6 @@ export async function createVault({
         throw new Error(`Panic spending path has no solutions.`);
 
     return {
-      networkId: getNetworkId(network),
       amount,
       minPanicBalance,
       feeRateCeiling,
@@ -568,15 +557,9 @@ export function validateAddress(addressValue: string, network: Network) {
  * retrieve all the output descriptors whose lockTime has past already. They
  * might have been spent or not; this is not important. Just return all of them
  * */
-export const spendableTriggerDescriptors = (
-  vaults: Vaults,
-  network: Network
-): Array<string> => {
+export const spendableTriggerDescriptors = (vaults: Vaults): Array<string> => {
   const descriptors = Object.values(vaults)
-    .filter(
-      vault =>
-        vault.remainingBlocks === 0 && vault.networkId === getNetworkId(network)
-    )
+    .filter(vault => vault.remainingBlocks === 0)
     .map(vault => vault.triggerDescriptor);
 
   // Check for duplicates

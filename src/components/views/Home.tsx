@@ -140,7 +140,7 @@ import memoize from 'lodash.memoize';
 import { formatBtc } from '../../lib/btcRates';
 import { formatFeeRate } from '../../lib/fees';
 
-import { networks, Network } from 'bitcoinjs-lib';
+import { networks, Psbt } from 'bitcoinjs-lib';
 const network = networks.testnet;
 
 import { generateMnemonic, mnemonicToSeedSync } from 'bip39';
@@ -150,8 +150,7 @@ import {
   DescriptorsFactory
 } from '@bitcoinerlab/descriptors';
 
-import { EsploraExplorer } from '@bitcoinerlab/explorer';
-import { DiscoveryFactory, DiscoveryInstance } from '@bitcoinerlab/discovery';
+import type { DiscoveryInstance } from '@bitcoinerlab/discovery';
 // init to something. The useSettings for correct values
 
 const { Output, BIP32 } = DescriptorsFactory(secp256k1);
@@ -166,7 +165,8 @@ import {
   Vaults,
   getUtxosData,
   utxosDataBalance,
-  estimateTriggerTxSize
+  estimateTriggerTxSize,
+  spendableTriggerDescriptors
 } from '../../lib/vaults';
 import { estimateVaultSetUpRange } from '../../lib/vaultRange';
 import {
@@ -227,27 +227,6 @@ const findClosestTriggerFeeRate = (
   return closestRecord;
 };
 
-/**
- * retrieve all the output descriptors whose lockTime has past already. They
- * might have been spent or not; this is not important. Just return all of them
- * */
-const spendableTriggerDescriptors = (vaults: Vaults): Array<string> => {
-  const descriptors = Object.values(vaults)
-    .filter(vault => vault.remainingBlocks === 0)
-    .map(vault => vault.triggerDescriptor);
-
-  // Check for duplicates
-  const descriptorSet = new Set(descriptors);
-  if (descriptorSet.size !== descriptors.length) {
-    throw new Error(
-      'triggerDescriptors should be unique; panicKey should be random'
-    );
-  }
-  console.log('spendableTriggerDescriptors', descriptors);
-
-  return descriptors;
-};
-
 const formatTriggerFeeRate = (
   {
     feeRate,
@@ -282,24 +261,25 @@ const formatTriggerFeeRate = (
 ${formattedFeeRate}`;
 };
 
-//TODO: this should not be here:
-function esploraUrl(network: Network) {
-  const url =
-    network === networks.testnet
-      ? 'https://blockstream.info/testnet/api/'
-      : network === networks.bitcoin
-      ? 'https://blockstream.info/api/'
-      : null;
-  if (!url) throw new Error(`Esplora API not available for this network`);
-  return url;
-}
-
 function Home({
   btcFiat,
-  feeEstimates
+  feeEstimates,
+  discovery,
+  signer,
+  onVaultCreated
 }: {
   btcFiat: number | null;
   feeEstimates: Record<string, number> | null;
+  discovery: DiscoveryInstance | null;
+  signer: ((psbtVault: Psbt) => Promise<void>) | undefined;
+  onVaultCreated: (
+    vault:
+      | Vault
+      | 'COINSELECT_ERROR'
+      | 'NOT_ENOUGH_FUNDS'
+      | 'USER_CANCEL'
+      | 'UNKNOWN_ERROR'
+  ) => void;
 }) {
   const [newVaultSettings, setNewVaultSettings] = useState<
     | {
@@ -321,12 +301,12 @@ function Home({
     STRING
   );
 
-  const [discovery, setDiscovery] = useState<DiscoveryInstance | null>(null);
   const [utxos, setUtxos] = useState<Array<string> | null>(null);
   const [vaultsState, setVaults] = useLocalStateStorage<Vaults>(
     'vaults',
     SERIALIZABLE
   );
+  //TODO: this below is crap. If no synched, then wait or do something else
   const vaults = vaultsState || defaultVaults;
 
   const [checkingBalance, setCheckingBalance] = useState(false);
@@ -341,17 +321,11 @@ function Home({
   const init = async () => {
     //const mnemonic =
     //  'goat oak pull seek know resemble hurt pistol head first board better';
-    const url = esploraUrl(network);
-    const explorer = new EsploraExplorer({ url });
-    const { Discovery } = DiscoveryFactory(explorer, network);
-    await explorer.connect();
-    const discovery = new Discovery();
 
     setIsVaultSetUp(false);
     setNewVaultSettings(false);
     setUnvault(null);
     setReceiveAddress(null);
-    setDiscovery(discovery);
     setUtxos(null);
     setCheckingBalance(false);
   };
@@ -557,7 +531,7 @@ Handle with care. Confidentiality is key.
     Share.share({ message: message, title: 'Share via' });
   };
 
-  const onNewVaultSetUpValues = async ({
+  const onVaultCreatedSetUpValues = async ({
     amount,
     feeRate,
     lockBlocks
@@ -605,59 +579,6 @@ Handle with care. Confidentiality is key.
 
   const hotBalance =
     hotUtxosData === null ? null : utxosDataBalance(hotUtxosData);
-
-  const onNewVaultCreated = async (
-    vault:
-      | Vault
-      | 'COINSELECT_ERROR'
-      | 'NOT_ENOUGH_FUNDS'
-      | 'USER_CANCEL'
-      | 'UNKNOWN_ERROR'
-  ) => {
-    if (vault === 'COINSELECT_ERROR') {
-      //TODO: translate this
-      //TODO: dont use Alert.alert.
-      Alert.alert(t('createVault.error.COINSELECT_ERROR'));
-    } else if (vault === 'NOT_ENOUGH_FUNDS') {
-      //TODO: translate this
-      //TODO: dont use Alert.alert.
-      Alert.alert(t('createVault.error.NOT_ENOUGH_FUNDS'));
-    } else if (vault === 'USER_CANCEL') {
-      //TODO: translate this
-      //TODO: dont use Alert.alert.
-      Alert.alert(t('createVault.error.USER_CANCEL'));
-    } else if (vault === 'UNKNOWN_ERROR') {
-      //TODO: translate this
-      //TODO: dont use Alert.alert.
-      Alert.alert(t('createVault.error.UNKNOWN_ERROR'));
-    } else {
-      //TODO: I should index it based on vault.vaultTxHex
-      //TODO for the moment do not store more stuff
-      //TODO: check this push result. This and all pushes in code
-      //TODO: commented this out during tests:
-      vault.vaultPushTime = Math.floor(Date.now() / 1000);
-      const newVaults = { ...vaults, [vault.vaultAddress]: vault };
-      //const compressedVaults = fromByteArray(
-      //  pako.deflate(JSON.stringify(newVaults))
-      //);
-      //console.log(
-      //  'ORIGINAL_LENGTH',
-      //  JSON.stringify(newVaults).length,
-      //  'NEW_LENGTH',
-      //  compressedVaults.length
-      //);
-
-      //const restoredNewVaults = JSON.parse(
-      //  pako.inflate(toByteArray(compressedVaults), { to: 'string' })
-      //);
-      //console.log(restoredNewVaults);
-
-      //await discovery.getExplorer().push(vault.vaultTxHex);
-
-      setVaults(newVaults);
-    }
-    setNewVaultSettings(false);
-  };
 
   if (isVaultSetUp && hotUtxosData === null)
     throw new Error('Cannot set up a vault without utxos');
@@ -733,14 +654,14 @@ Handle with care. Confidentiality is key.
               .map(([vaultAddress, vault], index) => {
                 const vaultTxData = vault.txMap[vault.vaultTxHex];
                 if (!vaultTxData) throw new Error('Invalid txMap');
-                let displayBalance = vault.balance - vaultTxData.fee;
+                let displayBalance = vault.amount - vaultTxData.fee;
 
                 if (vault.unlockingTxHex) displayBalance = 0;
                 else if (vault.triggerTxHex) {
                   const triggerTxData = vault.txMap[vault.triggerTxHex];
                   if (!triggerTxData) throw new Error('Invalid txMap');
                   displayBalance =
-                    vault.balance - vaultTxData.fee - triggerTxData.fee;
+                    vault.amount - vaultTxData.fee - triggerTxData.fee;
                 }
                 if (vault.triggerTxHex && !vault.triggerPushTime)
                   throw new Error('Trigger push time not registered');
@@ -843,16 +764,16 @@ Handle with care. Confidentiality is key.
               utxosData={hotUtxosData}
               feeEstimates={feeEstimates}
               btcFiat={btcFiat}
-              onNewValues={onNewVaultSetUpValues}
+              onNewValues={onVaultCreatedSetUpValues}
               onCancel={() => setIsVaultSetUp(false)}
             />
           </View>
         </Modal>
       )}
-      {hotUtxosData && newVaultSettings && discovery && (
+      {signer && hotUtxosData && newVaultSettings && discovery && (
         <Modal>
           <VaultCreate
-            masterNode={fromMnemonic(mnemonic).masterNode}
+            signer={signer}
             utxosData={hotUtxosData}
             {...newVaultSettings}
             coldAddress={DEFAULT_COLD_ADDR}
@@ -869,7 +790,10 @@ Handle with care. Confidentiality is key.
             )}
             unvaultKey={fromMnemonic(mnemonic).unvaultKey}
             network={network}
-            onNewVaultCreated={onNewVaultCreated}
+            onVaultCreated={args => {
+              onVaultCreated(args);
+              setNewVaultSettings(false);
+            }}
           />
         </Modal>
       )}
