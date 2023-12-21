@@ -1,12 +1,5 @@
 // TODO: very imporant to only allow Vaulting funds with 1 confirmatin at least (make this a setting)
-import {
-  Network,
-  Psbt,
-  Transaction,
-  address,
-  crypto,
-  networks
-} from 'bitcoinjs-lib';
+import { Network, Psbt, Transaction, address, crypto } from 'bitcoinjs-lib';
 import memoize from 'lodash.memoize';
 import * as secp256k1 from '@bitcoinerlab/secp256k1';
 import {
@@ -29,11 +22,11 @@ import type { BIP32Interface } from 'bip32';
 import { feeRateSampling } from './fees';
 import type { DiscoveryInstance } from '@bitcoinerlab/discovery';
 import { coinselect, vsize, dustThreshold } from '@bitcoinerlab/coinselect';
+import { NetworkId, getNetworkId } from './network';
 
 export type Vault = {
-  //TODO: here add the network too
-  /** the initial balance */
-  balance: number;
+  networkId: NetworkId;
+  amount: number;
 
   vaultAddress: string;
   triggerAddress: string;
@@ -193,6 +186,7 @@ const selectVaultUtxosData = ({
   vaultOutput: OutputInstance;
   serviceOutput: OutputInstance;
   changeOutput: OutputInstance;
+  /** amount includes serviceFee */
   amount: number;
   feeRate: number;
   serviceFeeRate: number;
@@ -225,6 +219,7 @@ const selectVaultUtxosData = ({
   return {
     vsize: coinselected.vsize,
     fee: coinselected.fee,
+    serviceFee,
     targets: coinselected.targets,
     vaultUtxosData
   };
@@ -237,8 +232,14 @@ export const utxosDataBalance = memoize((utxosData: UtxosData): number =>
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 //TODO return dustThreshold as min vault value / its more complex. At least
 //it must return something that when unvaulting it recovers a significant amount
+//
+//TODO: this function below should be generalized to use hardware signers
+//instead (in addition to) masterNode
+//
+//TODO: This function below is wrong setting fee and feeRate since we
+//know exaactluy the one after sining. no need to use estimations!!!
 export async function createVault({
-  balance,
+  amount,
   unvaultKey,
   samples,
   feeRate,
@@ -253,7 +254,8 @@ export async function createVault({
   utxosData,
   onProgress
 }: {
-  balance: number;
+  /** amount includes serviceFee */
+  amount: number;
   /** The unvault key expression that must be used to create triggerDescriptor */
   unvaultKey: string;
   /** How many txs to compute. Note that the final number of tx is samples^2*/
@@ -269,6 +271,7 @@ export async function createVault({
   lockBlocks: number;
   masterNode: BIP32Interface;
   network: Network;
+  /** There are ALL the utxos (prior to coinselect them) */
   utxosData: UtxosData;
   onProgress: (progress: number) => boolean;
 }): Promise<
@@ -280,10 +283,8 @@ export async function createVault({
 > {
   try {
     let signaturesProcessed = 0;
-    //TODO: read the comments above. selectVaultUtxosData will also accept
-    //the targets already. Change may be used or not. We will know if from
-    //selectVaultUtxosData
-    //TODO: preapare the targets to be passed to selectVaultUtxosData
+    let minPanicBalance = amount;
+
     const serviceOutput = new Output({
       descriptor: createServiceDescriptor(serviceAddress),
       network
@@ -297,9 +298,10 @@ export async function createVault({
       descriptor: createVaultDescriptor(vaultPair.publicKey.toString('hex')),
       network
     });
+    // Run the coinselector
     const selected = selectVaultUtxosDataMemo({
       utxosData,
-      amount: balance,
+      amount,
       vaultOutput,
       serviceOutput,
       changeOutput,
@@ -309,15 +311,11 @@ export async function createVault({
     if (!selected) return 'COINSELECT_ERROR';
     const vaultUtxosData = selected.vaultUtxosData;
 
-    let minPanicBalance = balance;
-    const maxSatsPerByte = feeRateCeiling;
-    const feeRates = feeRateSampling({ samples, maxSatsPerByte });
-    console.log({ feeRates });
-    if (
-      feeRates.length !== samples ||
-      maxSatsPerByte !== feeRateCeiling ||
-      maxSatsPerByte !== feeRates.slice(-1)[0]
-    )
+    const feeRates = feeRateSampling({
+      samples,
+      maxSatsPerByte: feeRateCeiling
+    });
+    if (feeRates.length !== samples || feeRates.slice(-1)[0] !== feeRateCeiling)
       throw new Error(`feeRate sampling failed`);
     const txMap: TxMap = {};
     const triggerMap: TriggerMap = {};
@@ -330,6 +328,11 @@ export async function createVault({
     ////////////////////////////////
     //Prepare the Vault Tx:
     ////////////////////////////////
+
+    const vaultBalance = amount - selected.serviceFee;
+    const vaultFee =
+      vaultBalance + selected.serviceFee - utxosDataBalance(vaultUtxosData);
+    if (vaultFee <= dustThreshold(vaultOutput)) return 'NOT_ENOUGH_FUNDS';
 
     const psbtVault = new Psbt({ network });
     //Add the inputs to psbtVault:
@@ -345,34 +348,24 @@ export async function createVault({
       vaultFinalizers.push(inputFinalizer);
     }
 
-    //Proceed assuming zero fees:
-    const psbtVaultZeroFee = psbtVault.clone();
-    //Add the output to psbtVault assuming zero fees value = balance:
-    if (!vaultUtxosData.length || balance <= 0)
-      throw new Error(`Invalid utxos or balance`);
-    vaultOutput.updatePsbtAsOutput({ psbt: psbtVaultZeroFee, value: balance });
-    //Sign
-    signers.signBIP32({ psbt: psbtVaultZeroFee, masterNode });
-    //Finalize
-    vaultFinalizers.forEach(finalizer => finalizer({ psbt: psbtVaultZeroFee }));
-    //Compute the correct output value for feeRate
-    const vSizeVault = psbtVaultZeroFee.extractTransaction(true).virtualSize();
-    //The vsize for a tx with different fees may slightly vary because of the
-    //signature. Let's assume a slightly larger tx size (+1 vbyte).
-    const feeVault = Math.ceil((vSizeVault + 1) * feeRate);
-    //Not enough funds to create a vault tx with feeRate: ${feeRate} sats/vbyte
-    if (feeVault > balance) {
-      console.warn('feeVault > balance', { feeVault, balance });
-      return 'NOT_ENOUGH_FUNDS';
-    }
-    const vaultBalance = balance - feeVault;
-
     //Add the output to psbtVault assuming feeRate:
     vaultOutput.updatePsbtAsOutput({ psbt: psbtVault, value: vaultBalance });
+    if (selected.serviceFee > 0)
+      serviceOutput.updatePsbtAsOutput({
+        psbt: psbtVault,
+        value: selected.serviceFee
+      });
     //Sign
     signers.signBIP32({ psbt: psbtVault, masterNode });
     //Finalize
     vaultFinalizers.forEach(finalizer => finalizer({ psbt: psbtVault }));
+    const txVault = psbtVault.extractTransaction(true);
+    const vaultTxHex = txVault.toHex();
+    txMap[vaultTxHex] = {
+      fee: vaultFee,
+      feeRate: vaultFee / txVault.virtualSize(),
+      txId: txVault.getId()
+    };
 
     ////////////////////////////////
     //Prepare the Trigger Unvault Tx
@@ -403,144 +396,96 @@ export async function createVault({
     });
     if (!unvaultPubKey) throw new Error('Cannot extract unvaultPubKey');
     const psbtTriggerBase = new Psbt({ network });
-    const txVault = psbtVault.extractTransaction(true);
-    const vaultTxHex = txVault.toHex();
-    txMap[vaultTxHex] = {
-      fee: feeVault,
-      feeRate: feeVault / vSizeVault,
-      txId: txVault.getId()
-    };
     //Add the input (vaultOutput) to psbtTrigger as input:
     const triggerInputFinalizer = vaultOutput.updatePsbtAsInput({
       psbt: psbtTriggerBase,
       txHex: vaultTxHex,
       vout: 0
     });
-    let vSizeTrigger;
     const feeTriggerArray: Array<number> = [];
-    // Get the vSize from a tx, assuming 0 fees:
-    for (const feeRateTrigger of [0, ...feeRates]) {
-      //The vsize for a tx with different fees may slightly vary because of the
-      //signature. Let's assume a slightly larger tx size (+1 vbyte).
-      const feeTrigger = vSizeTrigger
-        ? Math.ceil((vSizeTrigger + 1) * feeRateTrigger)
-        : 0;
-      //Not enough funds to create at least 1 trigger tx with feeRate: ${maxSatsPerByte} sats/vbyte`
-      if (feeTrigger > vaultBalance && feeRateTrigger === maxSatsPerByte) {
-        console.warn(
-          'feeTrigger > vaultBalance && feeRateTrigger === maxSatsPerByte',
-          { feeTrigger, vaultBalance, maxSatsPerByte }
-        );
+    for (const [feeRateIndex, feeRateTrigger] of feeRates.entries()) {
+      const psbtTrigger = psbtTriggerBase.clone();
+      const feeTrigger = feeRateTrigger * estimateTriggerTxSize(lockBlocks);
+      const triggerBalance = vaultBalance - feeTrigger;
+
+      if (triggerBalance < dustThreshold(triggerOutput))
         return 'NOT_ENOUGH_FUNDS';
+
+      //Add the output to psbtTrigger:
+      triggerOutput.updatePsbtAsOutput({
+        psbt: psbtTrigger,
+        value: triggerBalance
+      });
+      //Sign
+      signers.signECPair({ psbt: psbtTrigger, ecpair: vaultPair });
+      //Finalize (validate only 1st time - expensive calculation)
+      triggerInputFinalizer({
+        psbt: psbtTrigger,
+        validate: feeRateIndex === 0
+      });
+      if (signaturesProcessed++ % 10 === 0) {
+        if (onProgress(signaturesProcessed / (samples * samples)) === false)
+          return 'USER_CANCEL';
+        await sleep(0);
       }
-      if (
-        feeTrigger <= vaultBalance &&
-        // don't process twice same fee:
-        !feeTriggerArray.some(fee => fee === feeTrigger)
-      ) {
-        feeTriggerArray.push(feeTrigger);
-        //Add the output to psbtTrigger:
-        const psbtTrigger = psbtTriggerBase.clone();
-        triggerOutput.updatePsbtAsOutput({
-          psbt: psbtTrigger,
-          value: vaultBalance - feeTrigger
+      const txTrigger = psbtTrigger.extractTransaction(true);
+      feeTriggerArray.push(feeTrigger); //TODO: wrong
+      const triggerTxHex = txTrigger.toHex();
+      txMap[triggerTxHex] = {
+        fee: feeTrigger,
+        feeRate: feeTrigger / txTrigger.virtualSize(),
+        txId: txTrigger.getId()
+      };
+      triggerMap[triggerTxHex] = [];
+      const panicTxs = triggerMap[triggerTxHex];
+      if (!panicTxs) throw new Error('Invalid assingment');
+
+      //////////////////////
+      //Prepare the Panic Tx
+      //////////////////////
+
+      const psbtPanicBase = new Psbt({ network });
+      //Add the input to psbtPanicBase:
+      const panicInputFinalizer = triggerOutputPanicPath.updatePsbtAsInput({
+        psbt: psbtPanicBase,
+        txHex: triggerTxHex,
+        vout: 0
+      });
+      const feePanicArray: Array<number> = [];
+      for (const [feeRateIndex, feeRatePanic] of feeRates.entries()) {
+        const psbtPanic = psbtPanicBase.clone();
+        const feePanic =
+          feeRatePanic * estimatePanicTxSize(lockBlocks, coldAddress);
+        const panicBalance = triggerBalance - feePanic;
+
+        if (panicBalance < dustThreshold(coldOutput)) return 'NOT_ENOUGH_FUNDS';
+
+        if (panicBalance < minPanicBalance) minPanicBalance = panicBalance;
+        feePanicArray.push(feePanic);
+        coldOutput.updatePsbtAsOutput({
+          psbt: psbtPanic,
+          value: triggerBalance - feePanic
         });
         //Sign
-        signers.signECPair({ psbt: psbtTrigger, ecpair: vaultPair });
+        signers.signECPair({ psbt: psbtPanic, ecpair: panicPair });
         //Finalize
-        triggerInputFinalizer({ psbt: psbtTrigger, validate: !feeTrigger });
+        panicInputFinalizer({ psbt: psbtPanic, validate: feeRateIndex === 0 });
         if (signaturesProcessed++ % 10 === 0) {
           if (onProgress(signaturesProcessed / (samples * samples)) === false)
             return 'USER_CANCEL';
           await sleep(0);
         }
-        //Take the vsize for a tx with 0 fees.
-        const txTrigger = psbtTrigger.extractTransaction(true);
-        vSizeTrigger = txTrigger.virtualSize();
-        const triggerTxHex = txTrigger.toHex();
-        if (feeTrigger) {
-          txMap[triggerTxHex] = {
-            fee: feeTrigger,
-            feeRate: feeTrigger / vSizeTrigger,
-            txId: txTrigger.getId()
-          };
-          triggerMap[triggerTxHex] = [];
-          const panicTxs = triggerMap[triggerTxHex];
-          if (!panicTxs) throw new Error('Invalid assingment');
-          const triggerBalance = vaultBalance - feeTrigger;
-
-          //////////////////////
-          //Prepare the Panic Tx
-          //////////////////////
-
-          const psbtPanicBase = new Psbt({ network });
-          //Add the input to psbtPanicBase:
-          const panicInputFinalizer = triggerOutputPanicPath.updatePsbtAsInput({
-            psbt: psbtPanicBase,
-            txHex: triggerTxHex,
-            vout: 0
-          });
-          let vSizePanic;
-          const feePanicArray: Array<number> = [];
-          for (const feeRatePanic of [0, ...feeRates]) {
-            const feePanic = vSizePanic
-              ? Math.ceil((vSizePanic + 1) * feeRatePanic)
-              : 0;
-
-            //Not enough funds to create at least 1 panic tx with feeRate: ${maxSatsPerByte} sats/vbyte
-            if (feePanic > triggerBalance && feeRatePanic === maxSatsPerByte) {
-              console.warn(
-                'feePanic > triggerBalance && feeRatePanic === maxSatsPerByte',
-                { feePanic, triggerBalance, feeRatePanic, maxSatsPerByte }
-              );
-              return 'NOT_ENOUGH_FUNDS';
-            }
-            //Add the output to psbtPanic:
-            if (
-              feePanic <= triggerBalance &&
-              // don't process twice same fee:
-              !feePanicArray.some(fee => fee === feePanic)
-            ) {
-              const panicBalance = triggerBalance - feePanic;
-              if (panicBalance < minPanicBalance)
-                minPanicBalance = panicBalance;
-              feePanicArray.push(feePanic);
-              const psbtPanic = psbtPanicBase.clone();
-              coldOutput.updatePsbtAsOutput({
-                psbt: psbtPanic,
-                value: triggerBalance - feePanic
-              });
-              //Sign
-              signers.signECPair({ psbt: psbtPanic, ecpair: panicPair });
-              //Finalize
-              panicInputFinalizer({ psbt: psbtPanic, validate: !feePanic });
-              if (signaturesProcessed++ % 10 === 0) {
-                if (
-                  onProgress(signaturesProcessed / (samples * samples)) ===
-                  false
-                )
-                  return 'USER_CANCEL';
-                await sleep(0);
-              }
-              //Take the vsize for a tx with 0 fees.
-              const txPanic = psbtPanic.extractTransaction(true);
-              vSizePanic = txPanic.virtualSize();
-              if (feePanic) {
-                const panicTxHex = txPanic.toHex();
-                txMap[panicTxHex] = {
-                  fee: feePanic,
-                  feeRate: feePanic / vSizePanic,
-                  txId: txPanic.getId()
-                };
-                panicTxs.push(panicTxHex);
-              }
-            }
-          }
-        }
+        const txPanic = psbtPanic.extractTransaction(true);
+        const panicTxHex = txPanic.toHex();
+        txMap[panicTxHex] = {
+          fee: feePanic,
+          feeRate: feePanic / txPanic.virtualSize(),
+          txId: txPanic.getId()
+        };
+        panicTxs.push(panicTxHex);
       }
     }
-
-    console.log({ signaturesProcessed, feeRatesN: feeRates.length });
+    //console.log({ signaturesProcessed, feeRatesN: feeRates.length });
 
     const vaultAddress = vaultOutput.getAddress();
     const triggerAddress = triggerOutput.getAddress();
@@ -551,7 +496,8 @@ export async function createVault({
         throw new Error(`Panic spending path has no solutions.`);
 
     return {
-      balance,
+      networkId: getNetworkId(network),
+      amount,
       minPanicBalance,
       feeRateCeiling,
       vaultAddress,
@@ -589,6 +535,25 @@ export const estimateTriggerTxSize = memoize((lockBlocks: number) => {
     ]
   );
 });
+const estimatePanicTxSizeFactory = memoize((lockBlocks: number) =>
+  memoize((coldAddress: string) => {
+    // Assumes bitcoin network (not important for txSizes anyway)
+    return vsize(
+      [
+        new Output({
+          descriptor: createTriggerDescriptor({
+            unvaultKey: DUMMY_PUBKEY,
+            panicKey: DUMMY_PUBKEY_2,
+            lockBlocks
+          })
+        })
+      ],
+      [new Output({ descriptor: createColdDescriptor(coldAddress) })]
+    );
+  })
+);
+const estimatePanicTxSize = (lockBlocks: number, coldAddress: string) =>
+  estimatePanicTxSizeFactory(lockBlocks)(coldAddress);
 
 export function validateAddress(addressValue: string, network: Network) {
   try {
@@ -598,6 +563,33 @@ export function validateAddress(addressValue: string, network: Network) {
     return false;
   }
 }
+
+/**
+ * retrieve all the output descriptors whose lockTime has past already. They
+ * might have been spent or not; this is not important. Just return all of them
+ * */
+export const spendableTriggerDescriptors = (
+  vaults: Vaults,
+  network: Network
+): Array<string> => {
+  const descriptors = Object.values(vaults)
+    .filter(
+      vault =>
+        vault.remainingBlocks === 0 && vault.networkId === getNetworkId(network)
+    )
+    .map(vault => vault.triggerDescriptor);
+
+  // Check for duplicates
+  const descriptorSet = new Set(descriptors);
+  if (descriptorSet.size !== descriptors.length) {
+    throw new Error(
+      'triggerDescriptors should be unique; panicKey should be random'
+    );
+  }
+  console.log('spendableTriggerDescriptors', descriptors);
+
+  return descriptors;
+};
 
 const spendingTxCache = new Map();
 
