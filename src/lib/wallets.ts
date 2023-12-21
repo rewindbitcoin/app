@@ -29,10 +29,10 @@ To generate the random well-known key for thunder den, we used:
 //`SIGNERS/${walletId}`
 export type Signers = Array<{
   signerName?: string;
-  type: 'BIP32' | 'LEDGER';
-  // For BIP32
+  type: 'SOFTWARE' | 'LEDGER';
+  // For SOFTWARE
   mnemonic?: string;
-  // For HWW indentificatin purposes:
+  // For HWW indentification purposes:
   masterFingerprintHex?: string;
 }>;
 

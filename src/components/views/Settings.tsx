@@ -1,16 +1,14 @@
 import React from 'react';
 import { View, Button, Text, StyleSheet } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { clearAllAsync, STRING } from '../../lib/storage';
-import { useLocalStateStorage } from '../../hooks/useLocalStateStorage';
 import styles from '../../../styles/styles';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 export default () => {
-  const [mnemonic] = useLocalStateStorage<string>('mnemonic', STRING);
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
   const { t } = useTranslation();
+  const mnemonic = 'TODO'; //TODO - only for BIP32 wallets
   return (
     <View
       style={{
@@ -25,17 +23,6 @@ export default () => {
       }}
     >
       <Text style={internalStyles.mnemonic}>MNEMOMIC ✍: {mnemonic}</Text>
-      <View style={internalStyles.factoryReset}>
-        <Button
-          title={t('factoryResetButton')}
-          onPress={async () => {
-            await clearAllAsync();
-            //TODO: Home should be reset somehow now just by getting all cleared
-            //if (discovery) await discovery.getExplorer().close();
-            //await init();
-          }}
-        />
-      </View>
       <Button title={t('closeButton')} onPress={navigation.goBack} />
     </View>
   );
@@ -55,9 +42,5 @@ const internalStyles = StyleSheet.create({
     textAlign: 'center',
     fontSize: 16,
     color: '#333'
-  },
-  factoryReset: { marginTop: 20, marginBottom: 40 },
-  wrapper: {
-    width: '100%'
   }
 });

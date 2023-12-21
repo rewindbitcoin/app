@@ -35,7 +35,7 @@ export default ({
       });
       onWallet(walletId, [
         {
-          type: 'BIP32',
+          type: 'SOFTWARE',
           mnemonic:
             'goat oak pull seek know resemble hurt pistol head first board better'
         }
