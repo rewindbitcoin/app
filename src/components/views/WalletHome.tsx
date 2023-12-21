@@ -296,19 +296,15 @@ export default ({
     [discovery, isVaultsSynchd]
   );
 
-  const mnemonic = signers?.[0]?.mnemonic;
-  const signer = mnemonic
-    ? useCallback(
-        async (psbtVault: Psbt) => {
-          const masterNode = BIP32.fromSeed(
-            mnemonicToSeedSync(mnemonic),
-            network
-          );
-          descriptorsSigners.signBIP32({ psbt: psbtVault, masterNode });
-        },
-        [signers, isSignersSynchd]
-      )
-    : undefined;
+  const signer = useCallback(
+    async (psbtVault: Psbt) => {
+      const mnemonic = signers?.[0]?.mnemonic;
+      if (!mnemonic) throw new Error('Could not initialize the signer');
+      const masterNode = BIP32.fromSeed(mnemonicToSeedSync(mnemonic), network);
+      descriptorsSigners.signBIP32({ psbt: psbtVault, masterNode });
+    },
+    [signers, isSignersSynchd]
+  );
   return (
     <Home
       btcFiat={btcFiat}

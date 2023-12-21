@@ -271,7 +271,7 @@ function Home({
   btcFiat: number | null;
   feeEstimates: Record<string, number> | null;
   discovery: DiscoveryInstance | null;
-  signer: ((psbtVault: Psbt) => Promise<void>) | undefined;
+  signer: (psbtVault: Psbt) => Promise<void>;
   onVaultCreated: (
     vault:
       | Vault
@@ -770,7 +770,7 @@ Handle with care. Confidentiality is key.
           </View>
         </Modal>
       )}
-      {signer && hotUtxosData && newVaultSettings && discovery && (
+      {hotUtxosData && newVaultSettings && discovery && (
         <Modal>
           <VaultCreate
             signer={signer}

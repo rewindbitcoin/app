@@ -5,11 +5,7 @@ import { SERIALIZABLE } from '../../lib/storage';
 import { useLocalStateStorage } from '../../hooks/useLocalStateStorage';
 import { getNetworkId } from '../../lib/network';
 import { networks } from 'bitcoinjs-lib';
-import type { Settings } from '../../lib/settings';
-import {
-  SETTINGS_GLOBAL_STORAGE,
-  useGlobalStateStorage
-} from '../../contexts/StorageContext';
+import { defaultSettings } from '../../lib/settings';
 
 const walletId = 0;
 
@@ -26,17 +22,13 @@ export default ({
     `WALLETS`,
     SERIALIZABLE
   );
-  const [settings, , isSettingsSynchd] = useGlobalStateStorage<Settings>(
-    SETTINGS_GLOBAL_STORAGE,
-    SERIALIZABLE
-  );
   //TODO: Only do this ONCE while building the app and debuggin to init stuff
   useEffect(() => {
-    if (isSettingsSynchd && settings && isWalletsSynchd && !wallets?.[0]) {
+    if (isWalletsSynchd && !wallets?.[0]) {
       setWallets({
         [walletId]: {
           walletId,
-          version: settings.WALLETS_DATA_VERSION,
+          version: defaultSettings.WALLETS_DATA_VERSION,
           networkId: getNetworkId(networks.testnet),
           encryptionKeyInput: 'NONE'
         }
@@ -49,7 +41,7 @@ export default ({
         }
       ]);
     }
-  }, [settings, isSettingsSynchd, isWalletsSynchd, wallets]);
+  }, [isWalletsSynchd, wallets]);
   //TODO: This is a hacky way to assume only one wallet (this is ok for the
   //moment while having not developped the multi-wallet version)
   useEffect(() => {
