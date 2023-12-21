@@ -146,8 +146,8 @@ export const getOutputsWithValue = memoize((utxosData: UtxosData) =>
 );
 
 /**
- * serviceFee will be at least dust
- * However if serviceFee makes the vaultedAmount to be < its own dust limit
+ * serviceFee will be at least dust + 1
+ * However if serviceFee makes the vaultedAmount to be <= its own dust limit
  * then return zero
  */
 export const getServiceFee = ({
@@ -162,7 +162,7 @@ export const getServiceFee = ({
   serviceFeeRate: number;
 }) => {
   const serviceFee = Math.max(
-    dustThreshold(serviceOutput),
+    dustThreshold(serviceOutput) + 1,
     Math.round(serviceFeeRate * amount)
   );
   if (amount - serviceFee <= dustThreshold(vaultOutput)) return 0;
