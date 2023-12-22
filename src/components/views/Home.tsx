@@ -166,7 +166,8 @@ import {
   getUtxosData,
   utxosDataBalance,
   estimateTriggerTxSize,
-  spendableTriggerDescriptors
+  expiredTriggerDescriptors,
+  UtxosData
 } from '../../lib/vaults';
 import { estimateVaultSetUpRange } from '../../lib/vaultRange';
 import {
@@ -266,12 +267,15 @@ function Home({
   feeEstimates,
   discovery,
   signer,
-  onVaultCreated
+  utxosData,
+  onVaultCreated,
+  onRefreshRequested
 }: {
   btcFiat: number | null;
-  feeEstimates: Record<string, number> | null;
-  discovery: DiscoveryInstance | null;
+  feeEstimates: Record<string, number>;
+  discovery: DiscoveryInstance;
   signer: (psbtVault: Psbt) => Promise<void>;
+  utxosData: UtxosData;
   onVaultCreated: (
     vault:
       | Vault
@@ -280,6 +284,7 @@ function Home({
       | 'USER_CANCEL'
       | 'UNKNOWN_ERROR'
   ) => void;
+  onRefreshRequested: () => Promise<void>;
 }) {
   const [newVaultSettings, setNewVaultSettings] = useState<
     | {
@@ -310,11 +315,16 @@ function Home({
   const vaults = vaultsState || defaultVaults;
 
   const [checkingBalance, setCheckingBalance] = useState(false);
-  const [settingsState] = useGlobalStateStorage<Settings>(
+  const [savedSettings, , isSettingsSynchd] = useGlobalStateStorage<Settings>(
     SETTINGS_GLOBAL_STORAGE,
     SERIALIZABLE
   );
-  const settings = settingsState || defaultSettings;
+  if (!isSettingsSynchd)
+    throw new Error(
+      'This component should only be started after settings has been retrieved from storage'
+    );
+  // We know settings are the correct ones in this Component
+  const settings = savedSettings || defaultSettings;
 
   const { t } = useTranslation();
 
@@ -416,6 +426,11 @@ function Home({
             draftVault.unlockingTxBlockHeight = unlockingTxData.blockHeight;
 
             const panicTxs = vault.triggerMap[triggerTxData.txHex];
+            //TODO: The logic below is wrong. Imagine the vault was triggered
+            //in a panic operation through delegation. In that case
+            //Our vaults won't have initiated the trigger, and therefore
+            //the vault.triggerMap[triggerTxData.txHex] won't be set. We must
+            //try downloading it always.
             if (!panicTxs) throw new Error('Invalid triggerMap');
             if (panicTxs.includes(unlockingTxData.txHex)) {
               draftVault.panicTxHex = unlockingTxData.txHex;
@@ -440,7 +455,7 @@ function Home({
       const descriptors = [
         fromMnemonic(mnemonic).receiveDescriptor,
         fromMnemonic(mnemonic).changeDescriptor,
-        ...spendableTriggerDescriptors(newVaults)
+        ...expiredTriggerDescriptors(newVaults)
       ];
       console.log('FETCH DESCRIPTORS', {
         descriptors,

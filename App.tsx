@@ -20,7 +20,7 @@ import {
   WALLET_HOME,
   SETTINGS
 } from './src/screens';
-import type { Signers } from './src/lib/wallets';
+import type { Signers, Wallet as WalletType } from './src/lib/wallets';
 import { NavigationContainer, useNavigation } from '@react-navigation/native';
 import { CustomToast } from './src/components/common/Toast';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -42,6 +42,7 @@ const RootStack = isNativeStack
   ? createNativeStackNavigator<RootStackParamList>()
   : createStackNavigator<RootStackParamList>();
 import initI18n from './src/i18n/i18n';
+import { networkMapping } from './src/lib/network';
 //Init for 1st render. Then, on settings load from context & apply correct one
 initI18n(defaultSettings.LOCALE);
 
@@ -59,13 +60,13 @@ const App = () => {
 
   const { t } = useTranslation();
 
-  const [walletId, setWalletId] = useState<number>();
+  const [wallet, setWallet] = useState<WalletType>();
   const [newWalletSigners, setNewWalletSigners] = useState<Signers>();
   const navigation = useNavigation();
 
-  const processWallet = (walletId: number, newWalletSigners?: Signers) => {
+  const processWallet = (wallet: WalletType, newWalletSigners?: Signers) => {
     if (newWalletSigners) setNewWalletSigners(newWalletSigners);
-    setWalletId(walletId);
+    setWallet(wallet);
     if (navigation) navigation.navigate(WALLET_HOME);
     else throw new Error('navigation not set');
   };
@@ -108,16 +109,22 @@ const App = () => {
           )
         })}
       >
-        {() =>
-          walletId !== undefined && (
-            <WalletHome
-              walletId={walletId}
-              {...(newWalletSigners
-                ? { newWalletSigners: newWalletSigners }
-                : {})}
-            />
-          )
-        }
+        {() => {
+          if (wallet) {
+            const network = networkMapping[wallet.networkId];
+            if (!network)
+              throw new Error(`Invalid networkId ${wallet.networkId}`);
+            return (
+              <WalletHome
+                walletId={wallet.walletId}
+                network={network}
+                {...(newWalletSigners
+                  ? { newWalletSigners: newWalletSigners }
+                  : {})}
+              />
+            );
+          } else return null;
+        }}
       </RootStack.Screen>
 
       <RootStack.Screen

@@ -27,26 +27,29 @@ To generate the random well-known key for thunder den, we used:
 */
 
 //`SIGNERS/${walletId}`
-export type Signers = Array<{
+export const SOFTWARE = 'SOFTWARE' as const;
+export const LEDGER = 'LEDGER' as const;
+export type Signer = {
   signerName?: string;
-  type: 'SOFTWARE' | 'LEDGER';
+  type: typeof SOFTWARE | typeof LEDGER;
   // For SOFTWARE
   mnemonic?: string;
   // For HWW indentification purposes:
   masterFingerprintHex?: string;
-}>;
+};
+export type Signers = Array<Signer>;
 
-type Wallet = {
+export type Wallet = {
   walletId: number;
   walletName?: string;
   version: string;
   networkId: NetworkId;
   /**
-   * When using Ledger, a well-known path is used as the seed for
+   * When using BIP32_PUBKEY, a well-known path is used as the seed for
    * the pubKey, which is then used as the encryptionKey of your data.
    * When using USER, the user must remember the key.
    */
-  encryptionKeyInput: 'NONE' | 'USER' | 'LEDGER';
+  encryptionKeyInput: 'NONE' | 'USER' | 'BIP32_PUBKEY';
 };
 
 //`WALLETS`

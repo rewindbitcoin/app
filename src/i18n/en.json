@@ -1,5 +1,9 @@
 {
   "app": {
+     "networkError": {
+        "title": "Network Issue",
+        "text": "Oops! Something went wrong with the network. Error: {{message}}"
+    }
     "thunderDenTitle": "Thunder Den",
     "settingsButton": "Settings",
     "settingsTitle": "Settings",

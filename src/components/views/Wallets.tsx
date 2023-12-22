@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { View, Text } from 'react-native';
-import type { Wallets, Signers } from '../../lib/wallets';
+import type { Wallet, Wallets, Signers } from '../../lib/wallets';
 import { SERIALIZABLE } from '../../lib/storage';
 import { useLocalStateStorage } from '../../hooks/useLocalStateStorage';
 import { getNetworkId } from '../../lib/network';
@@ -13,7 +13,7 @@ export default ({
   onWallet
 }: {
   onWallet: (
-    walletId: number,
+    wallet: Wallet,
     /** pass back signers if this is a new wallet that must be created */
     newWalletSigners?: Signers
   ) => void;
@@ -25,15 +25,14 @@ export default ({
   //TODO: Only do this ONCE while building the app and debuggin to init stuff
   useEffect(() => {
     if (isWalletsSynchd && !wallets?.[0]) {
-      setWallets({
-        [walletId]: {
-          walletId,
-          version: defaultSettings.WALLETS_DATA_VERSION,
-          networkId: getNetworkId(networks.testnet),
-          encryptionKeyInput: 'NONE'
-        }
-      });
-      onWallet(walletId, [
+      const wallet: Wallet = {
+        walletId,
+        version: defaultSettings.WALLETS_DATA_VERSION,
+        networkId: getNetworkId(networks.testnet),
+        encryptionKeyInput: 'NONE'
+      };
+      setWallets({ [walletId]: wallet });
+      onWallet(wallet, [
         {
           type: 'SOFTWARE',
           mnemonic:
@@ -45,7 +44,8 @@ export default ({
   //TODO: This is a hacky way to assume only one wallet (this is ok for the
   //moment while having not developped the multi-wallet version)
   useEffect(() => {
-    if (isWalletsSynchd && wallets && wallets[0]) onWallet(0);
+    const wallet = wallets && wallets[0];
+    if (isWalletsSynchd && wallet) onWallet(wallet);
   }, [wallets, isWalletsSynchd]);
 
   return (

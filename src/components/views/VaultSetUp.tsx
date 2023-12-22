@@ -89,11 +89,17 @@ export default function VaultSetUp({
       })
     );
 
-  const [settingsState] = useGlobalStateStorage<Settings>(
+  const [savedSettings, , isSettingsSynchd] = useGlobalStateStorage<Settings>(
     SETTINGS_GLOBAL_STORAGE,
     SERIALIZABLE
   );
-  const settings = settingsState || defaultSettings;
+  if (!isSettingsSynchd)
+    throw new Error(
+      'This component should only be started after settings has been retrieved from storage'
+    );
+  // We know settings are the correct ones in this Component
+  const settings = savedSettings || defaultSettings;
+
   const [lockBlocks, setLockBlocks] = useState<number | null>(
     settings.INITIAL_LOCK_BLOCKS
   );

@@ -1,0 +1,4 @@
+TODO: Replace all memoize calls (specially Factories) with moize
+TODO: Wallets is automatically generating Wallet 0 if no wallets exist. Remove this before shipping.
+TODO: Wallets should have now the Create New Wallet functionality. Also the "Select Wallet".
+

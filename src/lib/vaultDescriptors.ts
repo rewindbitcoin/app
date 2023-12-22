@@ -1,13 +1,15 @@
 import memoize from 'lodash.memoize';
+import type { BIP32Interface } from 'bip32';
+import moize from 'moize';
 import { mnemonicToSeedSync } from 'bip39';
 const { encode: olderEncode } = require('bip68');
 import { networks, type Network } from 'bitcoinjs-lib';
 import { scriptExpressions } from '@bitcoinerlab/descriptors';
-import type { BIP32Interface } from 'bip32';
 import { compilePolicy } from '@bitcoinerlab/miniscript';
 import * as secp256k1 from '@bitcoinerlab/secp256k1';
 import { DescriptorsFactory } from '@bitcoinerlab/descriptors';
 const { Output, BIP32 } = DescriptorsFactory(secp256k1);
+import { Signer, SOFTWARE } from './wallets';
 
 export const DUMMY_PUBKEY =
   '0330d54fd0dd420a6e5f8d3624f5f3482cae350f79d5f0753bf5beef9c2d91af3c';
@@ -40,26 +42,17 @@ export const DUMMY_SERVICE_OUTPUT = memoize(
       network
     })
 );
-
-const DUMMY_MASTERNODE = memoize(network =>
-  BIP32.fromSeed(
-    mnemonicToSeedSync(
-      'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about'
-    ),
+export const DUMMY_CHANGE_OUTPUT = memoize((network: Network) => {
+  const masterNode = getMasterNode(
+    'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about',
     network
-  )
-);
-export const DUMMY_CHANGE_OUTPUT = memoize(
-  (network: Network) =>
-    new Output({
-      descriptor: createChangeDescriptor({
-        masterNode: DUMMY_MASTERNODE(network),
-        network
-      }),
-      index: 0,
-      network
-    })
-);
+  );
+  return new Output({
+    descriptor: createChangeDescriptorFromMasterNode(masterNode, network),
+    index: 0,
+    network
+  });
+});
 
 export const DUMMY_PKH_OUTPUT = new Output({
   descriptor: `pkh(${DUMMY_PUBKEY})`
@@ -69,28 +62,35 @@ export const createServiceDescriptor = (address: string) => `addr(${address})`;
 
 export const createColdDescriptor = (address: string) => `addr(${address})`;
 
-export const createReceiveDescriptor = ({
-  masterNode,
-  network
-}: {
-  masterNode: BIP32Interface;
-  network: Network;
-}) =>
-  scriptExpressions.wpkhBIP32({
-    masterNode,
-    network,
-    account: 0,
-    index: '*',
-    change: 0
-  });
+const getMasterNode = moize((mnemonic: string, network: Network) =>
+  BIP32.fromSeed(mnemonicToSeedSync(mnemonic), network)
+);
 
-export const createChangeDescriptor = ({
-  masterNode,
+/** Async because some signers will be async */
+export const createReceiveDescriptor = async ({
+  signer,
   network
 }: {
-  masterNode: BIP32Interface;
+  signer: Signer;
   network: Network;
-}) =>
+}) => {
+  if (signer.type === SOFTWARE) {
+    const mnemonic = signer.mnemonic;
+    if (!mnemonic) throw new Error(`mnemonic not provided for ${signer.type}`);
+    return scriptExpressions.wpkhBIP32({
+      masterNode: getMasterNode(mnemonic, network),
+      network,
+      account: 0,
+      index: '*',
+      change: 0
+    });
+  } else throw new Error(`Signer type ${signer.type} not supported`);
+};
+
+const createChangeDescriptorFromMasterNode = (
+  masterNode: BIP32Interface,
+  network: Network
+) =>
   scriptExpressions.wpkhBIP32({
     masterNode,
     network,
@@ -98,6 +98,24 @@ export const createChangeDescriptor = ({
     index: '*',
     change: 1
   });
+
+/** Async because some signers will be async */
+export const createChangeDescriptor = async ({
+  signer,
+  network
+}: {
+  signer: Signer;
+  network: Network;
+}) => {
+  if (signer.type === SOFTWARE) {
+    const mnemonic = signer.mnemonic;
+    if (!mnemonic) throw new Error(`mnemonic not provided for ${signer.type}`);
+    return createChangeDescriptorFromMasterNode(
+      getMasterNode(mnemonic, network),
+      network
+    );
+  } else throw new Error(`Signer type ${signer.type} not supported`);
+};
 
 export const createTriggerDescriptor = ({
   unvaultKey,

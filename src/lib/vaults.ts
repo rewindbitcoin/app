@@ -1,6 +1,7 @@
 // TODO: very imporant to only allow Vaulting funds with 1 confirmatin at least (make this a setting)
 import { Network, Psbt, Transaction, address, crypto } from 'bitcoinjs-lib';
 import memoize from 'lodash.memoize';
+
 import * as secp256k1 from '@bitcoinerlab/secp256k1';
 import {
   signers,
@@ -20,6 +21,7 @@ import {
 import { feeRateSampling } from './fees';
 import type { DiscoveryInstance } from '@bitcoinerlab/discovery';
 import { coinselect, vsize, dustThreshold } from '@bitcoinerlab/coinselect';
+import type { Explorer } from '@bitcoinerlab/explorer';
 
 export type Vault = {
   amount: number;
@@ -28,30 +30,10 @@ export type Vault = {
   triggerAddress: string;
   coldAddress: string;
 
-  /** Use it to mark last time it was pushed - doesn't mean they succeeded */
-  vaultPushTime?: number;
-  triggerPushTime?: number;
-  panicPushTime?: number; //TODO: This must be set when I implement the push -
-  //TODO: however this can be confussing because panic might have been pushed
-  //by a 3rd party
-
-  vaultTxHex: string;
-
-  /** These are candidate txs. Everytime balance are refetched they should be
-   * re-checked */
-  triggerTxHex?: string;
-  triggerTxBlockHeight?: number; //Do this one
-
-  unlockingTxHex?: string;
-  unlockingTxBlockHeight?: number;
-
-  panicTxHex?: string; //Maybe the samer as unlockingTxHex or not
-  panicTxBlockHeight?: number;
-
   feeRateCeiling: number;
   lockBlocks: number;
 
-  remainingBlocks: number;
+  vaultTxHex: string;
 
   txMap: TxMap;
   triggerMap: TriggerMap;
@@ -65,7 +47,40 @@ export type Vault = {
    **/
   unvaultKey: string; //This is an input in createVault
   triggerDescriptor: string; //This is an outout since the panicKey is randoml generated here
+
+  creationTime: number;
 };
+
+export type VaultStatus = {
+  triggerTxHex?: string;
+  triggerTxBlockHeight?: number;
+
+  panicTxHex?: string; //Maybe the samer as unlockingTxHex or not
+  panicTxBlockHeight?: number;
+
+  //If it was spent as hot:
+  spendAsHotTxHex?: string;
+  spendAsHotTxBlockHeight?: number;
+
+  /** Props below are just to keep internal track of users actions.
+   * They are kept so that the App knows the last action the user did WITHIN the
+   * app:
+   * - doesn't mean the action succeed. Perhaps a vault process did not have
+   *   enough fees to complete, for example.
+   * - also, those actions could have also be performed externally.
+   *   For example a delegated person could have pushed a panic process.
+   *
+   * So, not reliable. To be used ONLY for UX purposes: For example to prevent
+   * users to re-push txs in short periods of time.
+   */
+  vaultPushTime?: number;
+  triggerPushTime?: number;
+  panicPushTime?: number;
+  unvaultPushTime?: number;
+};
+
+export type VaultsStatuses = Record<string, VaultStatus>;
+
 export type Vaults = Record<string, Vault>;
 type TxHex = string;
 type TxMap = Record<TxHex, { txId: string; fee: number; feeRate: number }>;
@@ -103,13 +118,11 @@ export const getUtxosData = memoize(
       const vout = Number(strVout);
       if (!txId || isNaN(vout) || !Number.isInteger(vout) || vout < 0)
         throw new Error(`Invalid utxo ${utxo}`);
-      const indexedDescriptor = discovery.getDescriptor({ utxo });
-      if (!indexedDescriptor) throw new Error(`Unmatched ${utxo}`);
+      const descriptorAndIndex = discovery.getDescriptor({ utxo });
+      if (!descriptorAndIndex) throw new Error(`Unmatched ${utxo}`);
       let signersPubKeys;
       for (const vault of Object.values(vaults)) {
-        if (vault.triggerDescriptor === indexedDescriptor.descriptor) {
-          if (vault.remainingBlocks !== 0)
-            throw new Error('utxo is not spendable, should not be set');
+        if (vault.triggerDescriptor === descriptorAndIndex.descriptor) {
           const { pubkey: unvaultPubKey } = parseKeyExpression({
             keyExpression: vault.unvaultKey,
             network
@@ -120,9 +133,9 @@ export const getUtxosData = memoize(
       }
       const txHex = discovery.getTxHex({ txId });
       return {
-        ...indexedDescriptor,
+        ...descriptorAndIndex,
         output: new Output({
-          ...indexedDescriptor,
+          ...descriptorAndIndex,
           ...(signersPubKeys !== undefined ? { signersPubKeys } : {}),
           network
         }),
@@ -495,10 +508,10 @@ export async function createVault({
       unvaultKey,
       coldAddress,
       lockBlocks,
-      remainingBlocks: lockBlocks,
       txMap,
       triggerMap,
-      triggerDescriptor
+      triggerDescriptor,
+      creationTime: Math.floor(Date.now() / 1000)
     };
   } catch (error) {
     console.error(error);
@@ -554,13 +567,59 @@ export function validateAddress(addressValue: string, network: Network) {
 }
 
 /**
- * retrieve all the output descriptors whose lockTime has past already. They
- * might have been spent or not; this is not important. Just return all of them
- * */
-export const spendableTriggerDescriptors = (vaults: Vaults): Array<string> => {
-  const descriptors = Object.values(vaults)
-    .filter(vault => vault.remainingBlocks === 0)
-    .map(vault => vault.triggerDescriptor);
+ * How many blocks must be waited for spending from a triggerUnvault tx?
+ *
+ * returns 'NOT_PUSHED' if the trigger tx has not been pushed yet
+ * returns 'SPENT' if the trigger tx has already been spent.
+ *
+ * returns an integer lockBlocks >= remainingBlocks >= 0 with the number of
+ * blocks the user must wait before pushing a tx so that they won't get
+ * BIP68-non-final.
+ *
+ */
+export function getRemainingBlocks(
+  vault: Vault,
+  vaultStatus: VaultStatus,
+  blockhainTip: number
+): 'NOT_PUSHED' | 'SPENT' | number {
+  if (vaultStatus.triggerTxBlockHeight === undefined) return 'NOT_PUSHED';
+  if (vaultStatus.panicTxHex || vaultStatus.spendAsHotTxHex) return 'SPENT';
+  let remainingBlocks: number;
+  const isTriggerInMempool = vaultStatus.triggerTxBlockHeight === 0;
+  if (isTriggerInMempool) {
+    remainingBlocks = vault.lockBlocks;
+  } else {
+    const blocksSinceTrigger = blockhainTip - vaultStatus.triggerTxBlockHeight;
+    remainingBlocks = Math.max(
+      0,
+      //-1 because this means a tx can be pushed already since the new
+      //block will be (blockHeight + 1)
+      vault.lockBlocks - blocksSinceTrigger - 1
+    );
+  }
+  return remainingBlocks;
+}
+
+/**
+ * Retrieve all the trigger descriptors which are currently spendable.
+ * This means the current blockhainTip is over lockBlocks and it has not been
+ * spent.
+ */
+export const getSpendableTriggerDescriptors = (
+  vaults: Vaults,
+  vaultsStatuses: VaultsStatuses,
+  blockhainTip: number
+): Array<string> => {
+  const descriptors = Object.entries(vaults)
+    .filter(([vaultAddress, vault]) => {
+      const vaultStatus = vaultsStatuses[vaultAddress];
+      if (!vaultStatus)
+        throw new Error(
+          `vaultsStatuses is not synchd. It should have key ${vaultAddress}`
+        );
+      return getRemainingBlocks(vault, vaultStatus, blockhainTip) === 0;
+    })
+    .map(([, vault]) => vault.triggerDescriptor);
 
   // Check for duplicates
   const descriptorSet = new Set(descriptors);
@@ -569,13 +628,10 @@ export const spendableTriggerDescriptors = (vaults: Vaults): Array<string> => {
       'triggerDescriptors should be unique; panicKey should be random'
     );
   }
-  console.log('spendableTriggerDescriptors', descriptors);
-
   return descriptors;
 };
 
 const spendingTxCache = new Map();
-
 /**
  * Returns the tx that spent a Tx Output (or it's in the mempool about to spend it).
  * If it's in the mempool this is marked by setting blockHeight to zero.
@@ -583,7 +639,7 @@ const spendingTxCache = new Map();
 export async function fetchSpendingTx(
   txHex: string,
   vout: number,
-  discovery: DiscoveryInstance
+  explorer: Explorer
 ): Promise<
   { txHex: string; irreversible: boolean; blockHeight: number } | undefined
 > {
@@ -604,7 +660,7 @@ export async function fetchSpendingTx(
     .toString('hex');
 
   //retrieve all txs that sent / received from this scriptHash
-  const history = await discovery.getExplorer().fetchTxHistory({ scriptHash });
+  const history = await explorer.fetchTxHistory({ scriptHash });
 
   for (let i = 0; i < history.length; i++) {
     const txData = history[i];
@@ -612,7 +668,7 @@ export async function fetchSpendingTx(
     //const irreversible = txData.irreversible;
     //console.log({ irreversible });
     //Check if this specific tx was spending my output:
-    const historyTxHex = await discovery.getExplorer().fetchTx(txData.txId);
+    const historyTxHex = await explorer.fetchTx(txData.txId);
     const txHistory = Transaction.fromHex(historyTxHex);
     //For all the inputs in the tx see if one of them was spending from vout and txId
     const found = txHistory.ins.some(input => {
@@ -628,6 +684,62 @@ export async function fetchSpendingTx(
       };
   }
   return;
+}
+
+/**
+ * performs a fetchVaultStatus for all vaults in parallel
+ */
+export async function fetchVaultsStatuses(
+  vaults: Vaults,
+  explorer: Explorer
+): Promise<VaultsStatuses> {
+  const fetchPromises = Object.entries(vaults).map(
+    async ([vaultAddress, vault]) => {
+      const status = await fetchVaultStatus(vault, explorer);
+      return { [vaultAddress]: status };
+    }
+  );
+
+  const results = await Promise.all(fetchPromises);
+  return results.reduce((acc, current) => {
+    const vaultAddress = Object.keys(current)[0];
+    if (vaultAddress === undefined) throw new Error('vaultAddress undefined');
+    const vaultStatus = current[vaultAddress];
+    if (vaultStatus === undefined) throw new Error('vaultStatus undefined');
+    acc[vaultAddress] = vaultStatus;
+    return acc;
+  }, {});
+}
+
+async function fetchVaultStatus(vault: Vault, explorer: Explorer) {
+  const vaultStatus: VaultStatus = {};
+  const triggerTxData = await fetchSpendingTx(vault.vaultTxHex, 0, explorer);
+  if (triggerTxData) {
+    vaultStatus.triggerTxHex = triggerTxData.txHex;
+    vaultStatus.triggerTxBlockHeight = triggerTxData.blockHeight;
+    const unlockingTxData = await fetchSpendingTx(
+      triggerTxData.txHex,
+      0,
+      explorer
+    );
+    if (unlockingTxData) {
+      // Now let's see if this was a panic or spending as hot:
+      const panicTxs = vault.triggerMap[triggerTxData.txHex];
+      if (!panicTxs) throw new Error('Invalid triggerMap');
+      const panicTxHex = panicTxs.find(
+        txHex => txHex === unlockingTxData.txHex
+      );
+
+      if (panicTxHex) {
+        vaultStatus.panicTxHex = unlockingTxData.txHex;
+        vaultStatus.panicTxBlockHeight = unlockingTxData.blockHeight;
+      } else {
+        vaultStatus.spendAsHotTxHex = unlockingTxData.txHex;
+        vaultStatus.spendAsHotTxBlockHeight = unlockingTxData.blockHeight;
+      }
+    }
+  }
+  return vaultStatus;
 }
 
 const selectVaultUtxosDataFactory = memoize((utxosData: UtxosData) =>

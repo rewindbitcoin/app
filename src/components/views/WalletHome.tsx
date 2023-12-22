@@ -1,6 +1,20 @@
-import type { Vault, Vaults } from '../../lib/vaults';
+import {
+  fetchVaultsStatuses,
+  getSpendableTriggerDescriptors,
+  getUtxosData,
+  type Vault,
+  type Vaults,
+  type VaultsStatuses,
+  type UtxosData
+} from '../../lib/vaults';
+import { produce } from 'immer';
 import type { Signers } from '../../lib/wallets';
+import {
+  createReceiveDescriptor,
+  createChangeDescriptor
+} from '../../lib/vaultDescriptors';
 import React, { useEffect, useState, useCallback } from 'react';
+import { Text } from 'react-native';
 import { Toast } from '../../components/common/Toast';
 import Home from '../../components/views/Home';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -20,7 +34,6 @@ import { EsploraExplorer } from '@bitcoinerlab/explorer';
 import { signers as descriptorsSigners } from '@bitcoinerlab/descriptors';
 import { DiscoveryFactory, DiscoveryInstance } from '@bitcoinerlab/discovery';
 import { networks, Network, Psbt } from 'bitcoinjs-lib';
-const network = networks.testnet;
 import * as secp256k1 from '@bitcoinerlab/secp256k1';
 import { DescriptorsFactory } from '@bitcoinerlab/descriptors';
 const { BIP32 } = DescriptorsFactory(secp256k1);
@@ -41,9 +54,11 @@ function esploraUrl(network: Network) {
 }
 export default ({
   walletId,
+  network,
   newWalletSigners
 }: {
   walletId: number;
+  network: Network;
   newWalletSigners?: Signers;
 }) => {
   //TODO: setDiscoveryDataMap after any fetch in discovery
@@ -63,10 +78,15 @@ export default ({
     `VAULTS/${walletId}`,
     SERIALIZABLE
   );
-  const [signers, setSigners, isSignersSynchd] = useLocalStateStorage<Signers>(
+  const [signers, setSigners] = useLocalStateStorage<Signers>(
     `SIGNERS/${walletId}`,
     SERIALIZABLE
   );
+  const [vaultsStatuses, setVaultsStatuses, isVaultsStatusesSynchd] =
+    useLocalStateStorage<VaultsStatuses>(
+      `VAULTS_STATUSES/${walletId}`,
+      SERIALIZABLE
+    );
 
   useEffect(() => {
     if (newWalletSigners) setSigners(newWalletSigners);
@@ -82,6 +102,7 @@ export default ({
     number
   > | null>(null);
   const [discovery, setDiscovery] = useState<DiscoveryInstance | null>(null);
+  const [utxosData, setUtxosData] = useState<UtxosData>();
 
   // Sets discoveryData from storage if available or new:
   useEffect(() => {
@@ -208,11 +229,89 @@ export default ({
     return;
   }, [settings?.CURRENCY, settings?.BTC_FIAT_REFRESH_INTERVAL_MS]);
 
-  //const syncBlockchain = useCallback(async () => {
-  //  const { utxos } = discovery.getUtxosAndBalance({ descriptors });
-  //}, [discovery]);
+  const updateVaultsStatuses = useCallback(async () => {
+    let updatedVaultsStatuses: VaultsStatuses | undefined;
+    if (discovery) {
+      if (vaults) {
+        try {
+          const newVaultsStatuses = await fetchVaultsStatuses(
+            vaults,
+            discovery.getExplorer()
+          );
 
-  const processVault = useCallback(
+          updatedVaultsStatuses = produce(
+            vaultsStatuses,
+            (draftVaultsStatuses: VaultsStatuses) => {
+              // Iterate over the new statuses and update/add them to the draft
+              Object.entries(newVaultsStatuses).forEach(([key, status]) => {
+                if (draftVaultsStatuses[key]) {
+                  // Update existing status
+                  draftVaultsStatuses[key] = {
+                    ...draftVaultsStatuses[key],
+                    ...status
+                  };
+                } else {
+                  // Add new status
+                  draftVaultsStatuses[key] = status;
+                }
+              });
+            }
+          );
+          if (updatedVaultsStatuses) setVaultsStatuses(updatedVaultsStatuses);
+        } catch (error) {
+          const errorMessage =
+            error instanceof Error
+              ? error.message
+              : 'An unknown error occurred';
+
+          Toast.show({
+            type: 'error',
+            text1: t('networkError.title'),
+            text2: `${t('networkError.text', { message: errorMessage })}`
+          });
+        }
+      }
+    }
+    return updatedVaultsStatuses;
+  }, [discovery, vaults, vaultsStatuses]);
+
+  const syncBlockchain = useCallback(async () => {
+    const updatedVaultsStatuses = await updateVaultsStatuses();
+    if (discovery && vaults && updatedVaultsStatuses && signers && settings) {
+      try {
+        const signer = signers[0];
+        if (!signer)
+          throw new Error(
+            'Could not retrieve signer information for a certain vault'
+          );
+        const descriptors = [
+          await createReceiveDescriptor({ signer, network }),
+          await createChangeDescriptor({ signer, network }),
+          ...getSpendableTriggerDescriptors(
+            vaults,
+            updatedVaultsStatuses,
+            await discovery.getExplorer().fetchBlockHeight()
+          )
+        ];
+        await discovery.fetch({ descriptors, gapLimit: settings.GAP_LIMIT });
+        //If utxos don't change, then getUtxosAndBalance return the same reference
+        //even if descriptors reference is different
+        const { utxos } = discovery.getUtxosAndBalance({ descriptors });
+        const utxosData = getUtxosData(utxos, vaults, network, discovery);
+        setUtxosData(utxosData);
+      } catch (error) {
+        const errorMessage =
+          error instanceof Error ? error.message : 'An unknown error occurred';
+        Toast.show({
+          type: 'error',
+          text1: t('networkError.title'),
+          text2: `${t('networkError.text', { message: errorMessage })}`
+        });
+      }
+    }
+  }, [discovery, vaults, vaultsStatuses, network, signers, settings]);
+
+  const processCreatedVault = useCallback(
     async (
       vault:
         | Vault
@@ -221,11 +320,12 @@ export default ({
         | 'USER_CANCEL'
         | 'UNKNOWN_ERROR'
     ) => {
-      if (!isVaultsSynchd) throw new Error('Cannot use vaults without Storage');
+      if (!isVaultsSynchd || !isVaultsStatusesSynchd)
+        throw new Error('Cannot use vaults without Storage');
       if (vault === 'COINSELECT_ERROR') {
         //TODO: translate COINSELECT_ERROR
         //  -> COINSELECT_ERROR may also mean not NOT_ENOUGH_FUNDS among other
-        //  things
+        //  things?
         Toast.show({
           topOffset: insets.top,
           type: 'error',
@@ -253,19 +353,21 @@ export default ({
           text1: t('createVault.error.UNKNOWN_ERROR')
         });
       } else {
-        //TODO for the moment do not store more stuff
-        //TODO: check this push result. This and all pushes in code
-        //TODO: commented this out during tests:
-        vault.vaultPushTime = Math.floor(Date.now() / 1000);
         const newVaults = { ...vaults, [vault.vaultAddress]: vault };
 
-        //TODO: enable this after tests
-        //await discovery.getExplorer().push(vault.vaultTxHex);
+        await setVaults(newVaults);
 
-        setVaults(newVaults);
+        //TODO: enable this after tests. important to push after AWAIT setVaults
+        //if successful
+        //TODO: check this push result. This and all pushes in code
+        //await discovery.getExplorer().push(vault.vaultTxHex);
+        setVaultsStatuses({
+          ...vaultsStatuses,
+          [vault.vaultAddress]: { vaultPushTime: Math.floor(Date.now() / 1000) }
+        });
       }
     },
-    [discovery, isVaultsSynchd]
+    [discovery, isVaultsSynchd, vaults, isVaultsStatusesSynchd, vaultsStatuses]
   );
 
   const signer = useCallback(
@@ -275,15 +377,19 @@ export default ({
       const masterNode = BIP32.fromSeed(mnemonicToSeedSync(mnemonic), network);
       descriptorsSigners.signBIP32({ psbt: psbtVault, masterNode });
     },
-    [signers, isSignersSynchd]
+    [signers]
   );
-  return (
+  return discovery && feeEstimates && utxosData ? (
     <Home
       btcFiat={btcFiat}
       feeEstimates={feeEstimates}
-      discovery={discovery}
       signer={signer}
-      onVaultCreated={processVault}
+      utxosData={utxosData}
+      onVaultCreated={processCreatedVault}
+      onRefreshRequested={syncBlockchain}
     />
+  ) : (
+    //TODO: have a component for this
+    <Text>'Loading'</Text>
   );
 };

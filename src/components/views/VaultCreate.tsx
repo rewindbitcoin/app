@@ -48,11 +48,16 @@ export default function VaultCreate({
 }) {
   const { t } = useTranslation();
   const keepProgress = useRef<boolean>(true);
-  const [settingsState] = useGlobalStateStorage<Settings>(
+  const [savedSettings, , isSettingsSynchd] = useGlobalStateStorage<Settings>(
     SETTINGS_GLOBAL_STORAGE,
     SERIALIZABLE
   );
-  const settings = settingsState || defaultSettings;
+  if (!isSettingsSynchd)
+    throw new Error(
+      'This component should only be started after settings has been retrieved from storage'
+    );
+  // We know settings are the correct ones in this Component
+  const settings = savedSettings || defaultSettings;
   const [progress, setProgress] = useState<number>(0);
   const onProgress = (progress: number) => {
     setProgress(progress);
