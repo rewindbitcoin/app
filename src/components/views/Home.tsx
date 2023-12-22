@@ -265,7 +265,6 @@ ${formattedFeeRate}`;
 function Home({
   btcFiat,
   feeEstimates,
-  discovery,
   signer,
   utxosData,
   onVaultCreated,
@@ -273,7 +272,6 @@ function Home({
 }: {
   btcFiat: number | null;
   feeEstimates: Record<string, number>;
-  discovery: DiscoveryInstance;
   signer: (psbtVault: Psbt) => Promise<void>;
   utxosData: UtxosData;
   onVaultCreated: (

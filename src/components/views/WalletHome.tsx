@@ -28,7 +28,6 @@ import type { Settings } from '../../lib/settings';
 import { useTranslation } from 'react-i18next';
 
 import { getBtcFiat } from '../../lib/btcRates';
-import { NetworkId, getNetworkId } from '../../lib/network';
 
 import { EsploraExplorer } from '@bitcoinerlab/explorer';
 import { signers as descriptorsSigners } from '@bitcoinerlab/descriptors';
@@ -40,7 +39,6 @@ const { BIP32 } = DescriptorsFactory(secp256k1);
 import { mnemonicToSeedSync } from 'bip39';
 
 type DiscoveryDataExport = ReturnType<DiscoveryInstance['export']>;
-type DiscoveryDataMap = Record<NetworkId, DiscoveryDataExport>;
 
 function esploraUrl(network: Network) {
   const url =
@@ -61,19 +59,18 @@ export default ({
   network: Network;
   newWalletSigners?: Signers;
 }) => {
-  //TODO: setDiscoveryDataMap after any fetch in discovery
   const [settings] = useGlobalStateStorage<Settings>(
     SETTINGS_GLOBAL_STORAGE,
     SERIALIZABLE
   );
-  // Let's allow displaying some draft data quickly even if settings still not loaded:
-  //TODO: don't do this: Better pass real settings and wherever it makes sense
-  //use defaultSettings as default or wait to show otehrwise
-  const [discoveryDataMap, , isDiscoveryDataMapSynchd] =
-    useLocalStateStorage<DiscoveryDataMap>(
-      `DISCOVERY/${walletId}`,
-      SERIALIZABLE
-    );
+  const [
+    discoveryDataExport,
+    setDiscoveryDataExport,
+    isDiscoveryDataExportSynchd
+  ] = useLocalStateStorage<DiscoveryDataExport>(
+    `DISCOVERY/${walletId}`,
+    SERIALIZABLE
+  );
   const [vaults, setVaults, isVaultsSynchd] = useLocalStateStorage<Vaults>(
     `VAULTS/${walletId}`,
     SERIALIZABLE
@@ -113,8 +110,8 @@ export default ({
     const { Discovery } = DiscoveryFactory(explorer, network);
 
     (async function () {
-      if (isDiscoveryDataMapSynchd) {
-        const discoveryData = discoveryDataMap?.[getNetworkId(network)];
+      if (isDiscoveryDataExportSynchd) {
+        const discoveryData = discoveryDataExport;
         let discovery;
         if (discoveryData) {
           discovery = new Discovery({ imported: discoveryData });
@@ -136,7 +133,7 @@ export default ({
         })();
       }
     };
-  }, [network, discoveryDataMap, isDiscoveryDataMapSynchd]);
+  }, [network, discoveryDataExport, isDiscoveryDataExportSynchd]);
 
   // Sets feeEstimates
   useEffect(() => {
@@ -294,6 +291,7 @@ export default ({
           )
         ];
         await discovery.fetch({ descriptors, gapLimit: settings.GAP_LIMIT });
+        setDiscoveryDataExport(discovery.export());
         //If utxos don't change, then getUtxosAndBalance return the same reference
         //even if descriptors reference is different
         const { utxos } = discovery.getUtxosAndBalance({ descriptors });
@@ -302,6 +300,7 @@ export default ({
       } catch (error) {
         const errorMessage =
           error instanceof Error ? error.message : 'An unknown error occurred';
+
         Toast.show({
           type: 'error',
           text1: t('networkError.title'),
