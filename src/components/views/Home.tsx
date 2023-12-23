@@ -208,7 +208,7 @@ const formatTriggerFeeRate = (
     btcFiat: number | null;
     locale: Locale;
     currency: Currency;
-    feeEstimates: Record<string, number> | null;
+    feeEstimates: feeEstimates | null;
     vault: Vault;
   },
   t: TFunction

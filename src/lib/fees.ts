@@ -98,7 +98,7 @@ export function feeRateSampling(
  */
 export function pickFeeEstimate(
   /** A record of fee estimates per number of blocks. */
-  feeEstimates: Record<string, number>,
+  feeEstimates: FeeEstimates,
   /** The target time in seconds for the transaction to be mined. */
   targetTime: number
 ): number {

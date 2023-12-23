@@ -15,7 +15,8 @@ import type { Signers, Wallet as WalletType } from './src/lib/wallets';
 import { NavigationContainer, useNavigation } from '@react-navigation/native';
 import { CustomToast } from './src/components/common/Toast';
 import Wallets from './src/components/views/Wallets';
-import WalletHome from './src/components/views/WalletHome';
+import WalletScreen from './src/components/views/WalletScreen';
+import { withWalletProvider } from './src/contexts/WalletContext';
 import Settings from './src/components/views/Settings';
 import { StorageProvider } from './src/contexts/StorageContext';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -52,6 +53,12 @@ const App = () => {
     else throw new Error('navigation not set');
   };
 
+  const WalletScreenWithWalletProvider = withWalletProvider(
+    WalletScreen,
+    wallet,
+    newWalletSigners
+  );
+
   // init real Locale
   useEffect(() => {
     if (settings?.LOCALE) initI18n(settings.LOCALE);
@@ -79,6 +86,7 @@ const App = () => {
 
       <RootStack.Screen
         name={WALLET_HOME}
+        component={WalletScreenWithWalletProvider}
         options={({ navigation }) => ({
           title: t('app.thunderDenTitle'),
           headerRightContainerStyle: { marginRight: 10 },
@@ -89,20 +97,7 @@ const App = () => {
             />
           )
         })}
-      >
-        {() => {
-          if (wallet) {
-            return (
-              <WalletHome
-                wallet={wallet}
-                {...(newWalletSigners
-                  ? { newWalletSigners: newWalletSigners }
-                  : {})}
-              />
-            );
-          } else return null;
-        }}
-      </RootStack.Screen>
+      />
 
       <RootStack.Screen
         name={SETTINGS}

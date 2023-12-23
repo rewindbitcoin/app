@@ -6,30 +6,35 @@ import {
   type Vaults,
   type VaultsStatuses,
   type UtxosData
-} from '../../lib/vaults';
+} from '../lib/vaults';
 import { produce } from 'immer';
-import type { Signers } from '../../lib/wallets';
-import { networkMapping } from '../../lib/network';
+import type { Signers } from '../lib/wallets';
+import { networkMapping } from '../lib/network';
 import {
   createReceiveDescriptor,
   createChangeDescriptor
-} from '../../lib/vaultDescriptors';
-import React, { useEffect, useState, useCallback } from 'react';
-import { Text } from 'react-native';
-import type { Wallet } from '../../lib/wallets';
-import { Toast } from '../../components/common/Toast';
-import Home from '../../components/views/Home';
+} from '../lib/vaultDescriptors';
+import React, {
+  createContext,
+  type Context,
+  ReactNode,
+  useEffect,
+  useState,
+  useCallback
+} from 'react';
+import type { Wallet } from '../lib/wallets';
+import { Toast } from '../components/common/Toast';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { SERIALIZABLE } from '../../lib/storage';
+import { SERIALIZABLE } from '../lib/storage';
 import {
   SETTINGS_GLOBAL_STORAGE,
   useGlobalStateStorage
-} from '../../contexts/StorageContext';
-import { useLocalStateStorage } from '../../hooks/useLocalStateStorage';
-import { defaultSettings, type Settings } from '../../lib/settings';
+} from '../contexts/StorageContext';
+import { useLocalStateStorage } from '../hooks/useLocalStateStorage';
+import { defaultSettings, type Settings } from '../lib/settings';
 import { useTranslation } from 'react-i18next';
 
-import { fetchBtcFiat } from '../../lib/btcRates';
+import { fetchBtcFiat } from '../lib/btcRates';
 
 import { EsploraExplorer } from '@bitcoinerlab/explorer';
 import { signers as descriptorsSigners } from '@bitcoinerlab/descriptors';
@@ -39,8 +44,29 @@ import * as secp256k1 from '@bitcoinerlab/secp256k1';
 import { DescriptorsFactory } from '@bitcoinerlab/descriptors';
 const { BIP32 } = DescriptorsFactory(secp256k1);
 import { mnemonicToSeedSync } from 'bip39';
+import type { FeeEstimates } from '../lib/fees';
 
 type DiscoveryDataExport = ReturnType<DiscoveryInstance['export']>;
+
+export const WalletContext: Context<WalletContextType | null> =
+  createContext<WalletContextType | null>(null);
+
+export type WalletContextType = {
+  btcFiat: number | null;
+  feeEstimates: Record<string, number> | null;
+  signPsbt: (psbtVault: Psbt) => Promise<void>;
+  utxosData: UtxosData | undefined;
+  onVaultCreated: (
+    vault:
+      | Vault
+      | 'COINSELECT_ERROR'
+      | 'NOT_ENOUGH_FUNDS'
+      | 'USER_CANCEL'
+      | 'UNKNOWN_ERROR'
+  ) => Promise<void>;
+  onRefreshRequested: () => Promise<void>;
+  // ... any other properties you want to include
+};
 
 function esploraUrl(network: Network) {
   const url =
@@ -52,13 +78,17 @@ function esploraUrl(network: Network) {
   if (!url) throw new Error(`Esplora API not available for this network`);
   return url;
 }
-export default ({
+export const WalletProvider = ({
+  children,
   wallet,
   newWalletSigners
 }: {
-  wallet: Wallet;
+  children: ReactNode;
+  wallet?: Wallet;
   newWalletSigners?: Signers;
 }) => {
+  console.log('TODO: WALLET PROVIDER HERE I AM');
+  if (!wallet) throw new Error('WalletProvider called with an invalid wallet');
   const walletId = wallet.walletId;
   const network = networkMapping[wallet.networkId];
   if (!network) throw new Error(`Invalid networkId ${wallet.networkId}`);
@@ -120,7 +150,7 @@ export default ({
     (async function () {
       if (isDiscoveryDataExportSynchd) {
         const discoveryData = discoveryDataExport;
-        let discovery;
+        let discovery: DiscoveryInstance;
         if (discoveryData) {
           discovery = new Discovery({ imported: discoveryData });
         } else {
@@ -152,7 +182,7 @@ export default ({
     ) {
       const updateFeeEstimates = async () => {
         if (discovery) {
-          let feeEstimates;
+          let feeEstimates: FeeEstimates;
           try {
             if (settings.USE_MAINNET_FEE_ESTIMATES_IN_TESTNET) {
               const url = esploraUrl(networks.bitcoin);
@@ -399,17 +429,35 @@ export default ({
   //TODO: Must also provide getNextChangeDescriptor
   //TODO: Must also provide getUnvaultKey
   console.log('WALLET_INDEX');
-  return discovery && feeEstimates && utxosData ? (
-    <Home
-      btcFiat={btcFiat}
-      feeEstimates={feeEstimates}
-      signPsbt={signPsbt}
-      utxosData={utxosData}
-      onVaultCreated={processCreatedVault}
-      onRefreshRequested={syncBlockchain}
-    />
-  ) : (
-    //TODO: have a component for this
-    <Text>'Loading'</Text>
+  const contextValue = {
+    // Expose any state or functions that children components might need
+    btcFiat,
+    feeEstimates,
+    signPsbt,
+    utxosData,
+    onVaultCreated: processCreatedVault,
+    onRefreshRequested: syncBlockchain
+    // ... any other relevant state or functions
+  };
+
+  return (
+    <WalletContext.Provider value={contextValue}>
+      {children}
+    </WalletContext.Provider>
   );
 };
+
+export const withWalletProvider =
+  <P extends object>(
+    Component: React.ComponentType<P>,
+    wallet?: Wallet,
+    newWalletSigners?: Signers
+  ) =>
+  (props: P) => (
+    <WalletProvider
+      {...(wallet ? { wallet: wallet } : {})}
+      {...(newWalletSigners ? { newWalletSigners: newWalletSigners } : {})}
+    >
+      <Component {...props} />
+    </WalletProvider>
+  );
