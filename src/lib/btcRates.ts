@@ -4,7 +4,7 @@ import type { SubUnit, Currency, Locale } from './settings';
 
 //TODO: Do not depend on external APIs - or show a couple of options coingecko +
 //other APIs and allow users cahnge that on settings context
-export async function getBtcFiat(currency: Currency): Promise<number> {
+export async function fetchBtcFiat(currency: Currency): Promise<number> {
   const url = `https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=${currency.toLowerCase()}`;
 
   try {

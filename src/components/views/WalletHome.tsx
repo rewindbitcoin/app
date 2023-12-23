@@ -29,7 +29,7 @@ import { useLocalStateStorage } from '../../hooks/useLocalStateStorage';
 import { defaultSettings, type Settings } from '../../lib/settings';
 import { useTranslation } from 'react-i18next';
 
-import { getBtcFiat } from '../../lib/btcRates';
+import { fetchBtcFiat } from '../../lib/btcRates';
 
 import { EsploraExplorer } from '@bitcoinerlab/explorer';
 import { signers as descriptorsSigners } from '@bitcoinerlab/descriptors';
@@ -66,12 +66,10 @@ export default ({
     SETTINGS_GLOBAL_STORAGE,
     SERIALIZABLE
   );
-  if (!isSettingsSynchd)
-    throw new Error(
-      'This component should only be started after settings has been retrieved from storage'
-    );
-  // We know settings are the correct ones in this Component
-  const settings = savedSettings || defaultSettings;
+  // settings will be undefined if !isSettingsSynchd
+  const settings = isSettingsSynchd
+    ? savedSettings || defaultSettings
+    : undefined;
 
   const [
     discoveryDataExport,
@@ -168,7 +166,7 @@ export default ({
             if (isMounted) setFeeEstimates(feeEstimates);
           } catch (err) {
             Toast.show({
-              topOffset: insets.top,
+              topOffset: insets.top + 10,
               type: 'error',
               text1: t('app.feeEstimatesError.title'),
               text2: t('app.feeEstimatesError.message')
@@ -198,7 +196,7 @@ export default ({
     settings?.BTC_FEE_ESTIMATES_REFRESH_INTERVAL_MS
   ]);
 
-  //Sets btcRage
+  //Sets btcFiat
   useEffect(() => {
     let isMounted = true;
 
@@ -208,11 +206,11 @@ export default ({
     ) {
       const updateBtcFiat = async () => {
         try {
-          const btcFiat = await getBtcFiat(settings.CURRENCY);
+          const btcFiat = await fetchBtcFiat(settings.CURRENCY);
           if (isMounted) setBtcFiat(btcFiat);
         } catch (err) {
           Toast.show({
-            topOffset: insets.top,
+            topOffset: insets.top + 10,
             type: 'error',
             text1: t('app.btcRatesError.title'),
             text2: t('app.btcRatesError.message', {
@@ -272,6 +270,7 @@ export default ({
               : 'An unknown error occurred';
 
           Toast.show({
+            topOffset: insets.top + 10,
             type: 'error',
             text1: t('networkError.title'),
             text2: `${t('networkError.text', { message: errorMessage })}`
@@ -283,9 +282,17 @@ export default ({
   }, [discovery, vaults, vaultsStatuses]);
 
   const syncBlockchain = useCallback(async () => {
-    const updatedVaultsStatuses = await updateVaultsStatuses();
-    if (discovery && vaults && updatedVaultsStatuses && signers && settings) {
+    if (settings?.GAP_LIMIT === undefined)
+      throw new Error(
+        'Cannot sync the blockhain until having the correct user settings, with selected GAP_LIMIT'
+      );
+    if (discovery && vaults && signers) {
       try {
+        const updatedVaultsStatuses = await updateVaultsStatuses();
+        if (!updatedVaultsStatuses)
+          throw new Error(
+            'Unexpected updateVaultsStatuses result. Should have trhown.'
+          );
         const signer = signers[0];
         if (!signer)
           throw new Error(
@@ -315,16 +322,24 @@ export default ({
           error instanceof Error ? error.message : 'An unknown error occurred';
 
         Toast.show({
+          topOffset: insets.top + 10,
           type: 'error',
           text1: t('networkError.title'),
           text2: `${t('networkError.text', { message: errorMessage })}`
         });
       }
     }
-  }, [discovery, vaults, vaultsStatuses, network, signers, settings]);
+  }, [
+    discovery,
+    vaults,
+    vaultsStatuses,
+    network,
+    signers,
+    settings?.GAP_LIMIT
+  ]);
   useEffect(() => {
-    syncBlockchain();
-  }, [syncBlockchain]);
+    if (settings?.GAP_LIMIT !== undefined) syncBlockchain();
+  }, [syncBlockchain, settings?.GAP_LIMIT]);
 
   const processCreatedVault = useCallback(
     async (
@@ -338,32 +353,32 @@ export default ({
       if (!isVaultsSynchd || !isVaultsStatusesSynchd)
         throw new Error('Cannot use vaults without Storage');
       if (vault === 'COINSELECT_ERROR') {
-        //TODO: translate COINSELECT_ERROR
+        //TODO: translate COINSELECT_ERROR - text2?
         //  -> COINSELECT_ERROR may also mean not NOT_ENOUGH_FUNDS among other
         //  things?
         Toast.show({
-          topOffset: insets.top,
+          topOffset: insets.top + 10,
           type: 'error',
           text1: t('createVault.error.COINSELECT_ERROR')
         });
       } else if (vault === 'NOT_ENOUGH_FUNDS') {
-        //TODO: translate NOT_ENOUGH_FUNDS
+        //TODO: translate NOT_ENOUGH_FUNDS - text2?
         Toast.show({
-          topOffset: insets.top,
+          topOffset: insets.top + 10,
           type: 'error',
           text1: t('createVault.error.NOT_ENOUGH_FUNDS')
         });
       } else if (vault === 'USER_CANCEL') {
-        //TODO: translate USER_CANCEL
+        //TODO: translate USER_CANCEL - text2?
         Toast.show({
-          topOffset: insets.top,
+          topOffset: insets.top + 10,
           type: 'error',
           text1: t('createVault.error.USER_CANCEL')
         });
       } else if (vault === 'UNKNOWN_ERROR') {
-        //TODO: translate UNKNOWN_ERROR
+        //TODO: translate UNKNOWN_ERROR - text2?
         Toast.show({
-          topOffset: insets.top,
+          topOffset: insets.top + 10,
           type: 'error',
           text1: t('createVault.error.UNKNOWN_ERROR')
         });

@@ -3,6 +3,7 @@
 //TODO: in web, when I click to Continue having wrong values
 //a pop-up is not displayed!!!
 
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Trans, useTranslation } from 'react-i18next';
 import React, { useState } from 'react';
 import type { GestureResponderEvent } from 'react-native';
@@ -55,6 +56,7 @@ export default function VaultSetUp({
   }) => Promise<void>;
   onCancel?: (event: GestureResponderEvent) => void;
 }) {
+  const insets = useSafeAreaInsets();
   //pre-snap feeEstimates so that maxVaultAmount is not recomputed when
   //EditableSlider returns a new snapped feeRate on mount.
   //This is because the Slider operates with snapped values and returns snapped
@@ -157,9 +159,8 @@ export default function VaultSetUp({
 
     // If any errors, display them
     if (errorMessages.length > 0) {
-      console.log('Calling Toast');
       Toast.show({
-        //autoHide: false,
+        topOffset: insets.top + 10,
         type: 'error',
         text1: t('vaultSetup.invalidValues'),
         text2: errorMessages.join('\n\n')
