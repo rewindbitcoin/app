@@ -14,7 +14,7 @@ import {
 import type { Signers, Wallet as WalletType } from './src/lib/wallets';
 import { NavigationContainer, useNavigation } from '@react-navigation/native';
 import { CustomToast } from './src/components/common/Toast';
-import Wallets from './src/components/views/Wallets';
+import WalletsScreen from './src/components/views/WalletsScreen';
 import WalletScreen from './src/components/views/WalletScreen';
 import { withWalletProvider } from './src/contexts/WalletContext';
 import Settings from './src/components/views/Settings';
@@ -46,6 +46,13 @@ const App = () => {
   const [newWalletSigners, setNewWalletSigners] = useState<Signers>();
   const navigation = useNavigation();
 
+  const settingsButtonOnHeaderRight = () => (
+    <Button
+      onPress={() => navigation.navigate(SETTINGS)}
+      title={t('app.settingsButton')}
+    />
+  );
+
   const processWallet = (wallet: WalletType, newWalletSigners?: Signers) => {
     if (newWalletSigners) setNewWalletSigners(newWalletSigners);
     setWallet(wallet);
@@ -70,33 +77,23 @@ const App = () => {
     >
       <RootStack.Screen
         name={WALLETS}
-        options={({ navigation }) => ({
+        options={{
           title: t('app.thunderDenTitle'),
           headerRightContainerStyle: { marginRight: 10 },
-          headerRight: () => (
-            <Button
-              onPress={() => navigation.navigate(SETTINGS)}
-              title={t('app.settingsButton')}
-            />
-          )
-        })}
+          headerRight: settingsButtonOnHeaderRight
+        }}
       >
-        {() => <Wallets onWallet={processWallet} />}
+        {() => <WalletsScreen onWallet={processWallet} />}
       </RootStack.Screen>
 
       <RootStack.Screen
         name={WALLET_HOME}
         component={WalletScreenWithWalletProvider}
-        options={({ navigation }) => ({
+        options={{
           title: t('app.thunderDenTitle'),
           headerRightContainerStyle: { marginRight: 10 },
-          headerRight: () => (
-            <Button
-              onPress={() => navigation.navigate(SETTINGS)}
-              title={t('app.settingsButton')}
-            />
-          )
-        })}
+          headerRight: settingsButtonOnHeaderRight
+        }}
       />
 
       <RootStack.Screen

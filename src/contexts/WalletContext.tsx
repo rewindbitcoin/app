@@ -52,11 +52,16 @@ export const WalletContext: Context<WalletContextType | null> =
   createContext<WalletContextType | null>(null);
 
 export type WalletContextType = {
+  //TODO: Must also provide the serviceAddress
+  //TODO: Must also provide the coldAddress
+  //TODO: Must also provide the heirsAddress
+  //TODO: Must also provide getNextChangeDescriptor
+  //TODO: Must also provide getUnvaultKey
   btcFiat: number | null;
-  feeEstimates: Record<string, number> | null;
-  signPsbt: (psbtVault: Psbt) => Promise<void>;
+  feeEstimates: FeeEstimates | null;
   utxosData: UtxosData | undefined;
-  onVaultCreated: (
+  signPsbt: (psbtVault: Psbt) => Promise<void>;
+  processCreatedVault: (
     vault:
       | Vault
       | 'COINSELECT_ERROR'
@@ -64,7 +69,7 @@ export type WalletContextType = {
       | 'USER_CANCEL'
       | 'UNKNOWN_ERROR'
   ) => Promise<void>;
-  onRefreshRequested: () => Promise<void>;
+  syncBlockchain: () => Promise<void>;
   // ... any other properties you want to include
 };
 
@@ -264,53 +269,6 @@ export const WalletProvider = ({
     return;
   }, [settings?.CURRENCY, settings?.BTC_FIAT_REFRESH_INTERVAL_MS]);
 
-  const updateVaultsStatuses = useCallback(async () => {
-    let updatedVaultsStatuses: VaultsStatuses | undefined;
-    if (discovery) {
-      if (vaults) {
-        try {
-          const newVaultsStatuses = await fetchVaultsStatuses(
-            vaults,
-            discovery.getExplorer()
-          );
-
-          updatedVaultsStatuses = produce(
-            vaultsStatuses,
-            (draftVaultsStatuses: VaultsStatuses) => {
-              // Iterate over the new statuses and update/add them to the draft
-              Object.entries(newVaultsStatuses).forEach(([key, status]) => {
-                if (draftVaultsStatuses[key]) {
-                  // Update existing status
-                  draftVaultsStatuses[key] = {
-                    ...draftVaultsStatuses[key],
-                    ...status
-                  };
-                } else {
-                  // Add new status
-                  draftVaultsStatuses[key] = status;
-                }
-              });
-            }
-          );
-          if (updatedVaultsStatuses) setVaultsStatuses(updatedVaultsStatuses);
-        } catch (error) {
-          const errorMessage =
-            error instanceof Error
-              ? error.message
-              : 'An unknown error occurred';
-
-          Toast.show({
-            topOffset: insets.top + 10,
-            type: 'error',
-            text1: t('networkError.title'),
-            text2: `${t('networkError.text', { message: errorMessage })}`
-          });
-        }
-      }
-    }
-    return updatedVaultsStatuses;
-  }, [discovery, vaults, vaultsStatuses]);
-
   const syncBlockchain = useCallback(async () => {
     if (settings?.GAP_LIMIT === undefined)
       throw new Error(
@@ -320,14 +278,9 @@ export const WalletProvider = ({
       try {
         const updatedVaultsStatuses = await updateVaultsStatuses();
         if (!updatedVaultsStatuses)
-          throw new Error(
-            'Unexpected updateVaultsStatuses result. Should have trhown.'
-          );
+          throw new Error('updateVaultsStatuses should have thrown');
         const signer = signers[0];
-        if (!signer)
-          throw new Error(
-            'Could not retrieve signer information for a certain vault'
-          );
+        if (!signer) throw new Error('signer unavailable');
         const descriptors = [
           await createReceiveDescriptor({ signer, network }),
           await createChangeDescriptor({ signer, network }),
@@ -349,7 +302,9 @@ export const WalletProvider = ({
         setUtxosData(utxosData);
       } catch (error) {
         const errorMessage =
-          error instanceof Error ? error.message : 'An unknown error occurred';
+          error instanceof Error
+            ? error.message
+            : t('An unknown error occurred'); //TODO: translate
 
         Toast.show({
           topOffset: insets.top + 10,
@@ -359,6 +314,54 @@ export const WalletProvider = ({
         });
       }
     }
+
+    //Helper function used above:
+    async function updateVaultsStatuses() {
+      let updatedVaultsStatuses: VaultsStatuses | undefined;
+      if (discovery) {
+        if (vaults) {
+          try {
+            const newVaultsStatuses = await fetchVaultsStatuses(
+              vaults,
+              discovery.getExplorer()
+            );
+
+            updatedVaultsStatuses = produce(
+              vaultsStatuses,
+              (draftVaultsStatuses: VaultsStatuses) => {
+                // Iterate over the new statuses and update/add them to the draft
+                Object.entries(newVaultsStatuses).forEach(([key, status]) => {
+                  if (draftVaultsStatuses[key]) {
+                    // Update existing status
+                    draftVaultsStatuses[key] = {
+                      ...draftVaultsStatuses[key],
+                      ...status
+                    };
+                  } else {
+                    // Add new status
+                    draftVaultsStatuses[key] = status;
+                  }
+                });
+              }
+            );
+            if (updatedVaultsStatuses) setVaultsStatuses(updatedVaultsStatuses);
+          } catch (error) {
+            const errorMessage =
+              error instanceof Error
+                ? error.message
+                : 'An unknown error occurred';
+
+            Toast.show({
+              topOffset: insets.top + 10,
+              type: 'error',
+              text1: t('networkError.title'),
+              text2: `${t('networkError.text', { message: errorMessage })}`
+            });
+          }
+        }
+      }
+      return updatedVaultsStatuses;
+    }
   }, [
     discovery,
     vaults,
@@ -367,6 +370,7 @@ export const WalletProvider = ({
     signers,
     settings?.GAP_LIMIT
   ]);
+
   useEffect(() => {
     if (settings?.GAP_LIMIT !== undefined) syncBlockchain();
   }, [syncBlockchain, settings?.GAP_LIMIT]);
@@ -423,20 +427,14 @@ export const WalletProvider = ({
     [signers]
   );
 
-  //TODO: Must also provide the serviceAddress
-  //TODO: Must also provide the coldAddress
-  //TODO: Must also provide the heirsAddress
-  //TODO: Must also provide getNextChangeDescriptor
-  //TODO: Must also provide getUnvaultKey
-  console.log('WALLET_INDEX');
   const contextValue = {
     // Expose any state or functions that children components might need
     btcFiat,
     feeEstimates,
     signPsbt,
     utxosData,
-    onVaultCreated: processCreatedVault,
-    onRefreshRequested: syncBlockchain
+    processCreatedVault,
+    syncBlockchain
     // ... any other relevant state or functions
   };
 

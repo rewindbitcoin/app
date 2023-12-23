@@ -238,7 +238,7 @@ function Home({
   onRefreshRequested
 }: {
   btcFiat: number | null;
-  feeEstimates: Record<string, number>;
+  feeEstimates: feeEstimates;
   signPsbt: (psbtVault: Psbt) => Promise<void>;
   utxosData: UtxosData;
   onVaultCreated: (
