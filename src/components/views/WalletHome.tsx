@@ -352,36 +352,19 @@ export default ({
     ) => {
       if (!isVaultsSynchd || !isVaultsStatusesSynchd)
         throw new Error('Cannot use vaults without Storage');
-      if (vault === 'COINSELECT_ERROR') {
-        //TODO: translate COINSELECT_ERROR - text2?
-        //  -> COINSELECT_ERROR may also mean not NOT_ENOUGH_FUNDS among other
-        //  things?
-        Toast.show({
-          topOffset: insets.top + 10,
-          type: 'error',
-          text1: t('createVault.error.COINSELECT_ERROR')
-        });
-      } else if (vault === 'NOT_ENOUGH_FUNDS') {
-        //TODO: translate NOT_ENOUGH_FUNDS - text2?
-        Toast.show({
-          topOffset: insets.top + 10,
-          type: 'error',
-          text1: t('createVault.error.NOT_ENOUGH_FUNDS')
-        });
-      } else if (vault === 'USER_CANCEL') {
-        //TODO: translate USER_CANCEL - text2?
-        Toast.show({
-          topOffset: insets.top + 10,
-          type: 'error',
-          text1: t('createVault.error.USER_CANCEL')
-        });
-      } else if (vault === 'UNKNOWN_ERROR') {
-        //TODO: translate UNKNOWN_ERROR - text2?
-        Toast.show({
-          topOffset: insets.top + 10,
-          type: 'error',
-          text1: t('createVault.error.UNKNOWN_ERROR')
-        });
+
+      if (typeof vault === 'string') {
+        //TODO translate them
+        const errorMessages = {
+          COINSELECT_ERROR: t('createVault.error.COINSELECT_ERROR'),
+          NOT_ENOUGH_FUNDS: t('createVault.error.NOT_ENOUGH_FUNDS'),
+          USER_CANCEL: t('createVault.error.USER_CANCEL'),
+          UNKNOWN_ERROR: t('createVault.error.UNKNOWN_ERROR')
+        };
+        const text1 = t('createVault.error.title'); //TODO: translate this one
+        const text2 = errorMessages[vault];
+        if (!text2) throw new Error('Unhandled vault creation error');
+        Toast.show({ topOffset: insets.top + 10, type: 'error', text1, text2 });
       } else {
         const newVaults = { ...vaults, [vault.vaultAddress]: vault };
 
@@ -389,7 +372,7 @@ export default ({
 
         //TODO: enable this after tests. important to push after AWAIT setVaults
         //if successful
-        //TODO: check this push result. This and all pushes in code
+        //TODO: try-catch push result. This and all pushes in code.
         //await discovery.getExplorer().push(vault.vaultTxHex);
         setVaultsStatuses({
           ...vaultsStatuses,
