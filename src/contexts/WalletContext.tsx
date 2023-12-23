@@ -23,7 +23,7 @@ import React, {
   useCallback
 } from 'react';
 import type { Wallet } from '../lib/wallets';
-import { Toast } from '../components/common/Toast';
+import { Toast } from '../components/ui/Toast';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SERIALIZABLE } from '../lib/storage';
 import {

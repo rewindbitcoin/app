@@ -1,11 +1,11 @@
 import React, { useEffect } from 'react';
 import { View, Text } from 'react-native';
-import type { Wallet, Wallets, Signers } from '../../lib/wallets';
-import { SERIALIZABLE } from '../../lib/storage';
-import { useLocalStateStorage } from '../../hooks/useLocalStateStorage';
-import { getNetworkId } from '../../lib/network';
+import type { Wallet, Wallets, Signers } from '../lib/wallets';
+import { SERIALIZABLE } from '../lib/storage';
+import { useLocalStateStorage } from '../hooks/useLocalStateStorage';
+import { getNetworkId } from '../lib/network';
 import { networks } from 'bitcoinjs-lib';
-import { defaultSettings } from '../../lib/settings';
+import { defaultSettings } from '../lib/settings';
 
 const walletId = 0;
 

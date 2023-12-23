@@ -38,3 +38,5 @@ yarn-error.*
 *.aab
 android/
 ios/
+
+Home.tsx

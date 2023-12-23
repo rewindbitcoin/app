@@ -1,6 +1,6 @@
 import React, { useContext } from 'react';
 import { Text } from 'react-native';
-import { WalletContext, WalletContextType } from '../../contexts/WalletContext';
+import { WalletContext, WalletContextType } from '../contexts/WalletContext';
 
 const WalletScreen = () => {
   const context = useContext<WalletContextType | null>(WalletContext);

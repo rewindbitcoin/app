@@ -13,11 +13,11 @@ import {
 } from './src/screens';
 import type { Signers, Wallet as WalletType } from './src/lib/wallets';
 import { NavigationContainer, useNavigation } from '@react-navigation/native';
-import { CustomToast } from './src/components/common/Toast';
-import WalletsScreen from './src/components/views/WalletsScreen';
-import WalletScreen from './src/components/views/WalletScreen';
+import { CustomToast } from './src/components/ui/Toast';
+import WalletsScreen from './src/screens/WalletsScreen';
+import WalletScreen from './src/screens/WalletScreen';
 import { withWalletProvider } from './src/contexts/WalletContext';
-import Settings from './src/components/views/Settings';
+import Settings from './src/screens/SettingsScreen';
 import { StorageProvider } from './src/contexts/StorageContext';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { SERIALIZABLE } from './src/lib/storage';
