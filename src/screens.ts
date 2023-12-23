@@ -1,3 +1,6 @@
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { createStackNavigator } from '@react-navigation/stack';
+import { Platform } from 'react-native';
 //import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 //import type { StackScreenProps } from '@react-navigation/stack';
 export const HOME = 'HOME' as const; // Doing this, typeof HOME === 'HOME' and not 'string'
@@ -17,3 +20,8 @@ declare global {
     interface RootParamList extends RootStackParamList {}
   }
 }
+
+export const isNativeStack = Platform.OS === 'ios' || Platform.OS === 'android';
+export const RootStack = isNativeStack
+  ? createNativeStackNavigator<RootStackParamList>()
+  : createStackNavigator<RootStackParamList>();

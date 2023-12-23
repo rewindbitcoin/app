@@ -102,6 +102,10 @@ export type UtxosData = Array<{
  *
  * Important: Returns same reference for utxosData if utxos did not change
  *
+ * Important: discovery is used to retrieve info. It does not modify
+ * the discoveryData internal representation in any way, so there is no need
+ * to save to disk exported discoveryData after using this function.
+ *
  * Note that it's fine using memoize and just check for changes in utxos.
  * The rest of params are just tooling to complete utxosData but won't change
  * the result
@@ -251,7 +255,7 @@ export async function createVault({
   changeDescriptor,
   serviceAddress,
   lockBlocks,
-  signer,
+  signPsbt,
   network,
   utxosData,
   onProgress
@@ -271,7 +275,9 @@ export async function createVault({
   changeDescriptor: string;
   serviceAddress: string;
   lockBlocks: number;
-  signer: (psbtVault: Psbt) => Promise<void>;
+  /** A signer async function able to sign any of the utxos in utxosData,
+   * placed in a Psbt */
+  signPsbt: (psbtVault: Psbt) => Promise<void>;
   network: Network;
   /** There are ALL the utxos (prior to coinselect them) */
   utxosData: UtxosData;
@@ -358,7 +364,7 @@ export async function createVault({
         value: selected.serviceFee
       });
     //Sign
-    await signer(psbtVault);
+    await signPsbt(psbtVault);
     //Finalize
     vaultFinalizers.forEach(finalizer => finalizer({ psbt: psbtVault }));
     const txVault = psbtVault.extractTransaction(true);

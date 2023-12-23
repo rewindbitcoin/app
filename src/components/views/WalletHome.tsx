@@ -291,6 +291,9 @@ export default ({
           )
         ];
         await discovery.fetch({ descriptors, gapLimit: settings.GAP_LIMIT });
+        //Saves to disk. It's async, but it's ok not waiting since discovery
+        //data can be recreated any time (with a slower call) by fetching
+        //descriptors
         setDiscoveryDataExport(discovery.export());
         //If utxos don't change, then getUtxosAndBalance return the same reference
         //even if descriptors reference is different
@@ -309,6 +312,9 @@ export default ({
       }
     }
   }, [discovery, vaults, vaultsStatuses, network, signers, settings]);
+  useEffect(() => {
+    syncBlockchain();
+  }, [syncBlockchain]);
 
   const processCreatedVault = useCallback(
     async (
@@ -369,7 +375,7 @@ export default ({
     [discovery, isVaultsSynchd, vaults, isVaultsStatusesSynchd, vaultsStatuses]
   );
 
-  const signer = useCallback(
+  const signPsbt = useCallback(
     async (psbtVault: Psbt) => {
       const mnemonic = signers?.[0]?.mnemonic;
       if (!mnemonic) throw new Error('Could not initialize the signer');
@@ -378,11 +384,18 @@ export default ({
     },
     [signers]
   );
+
+  //TODO: Must also provide the serviceAddress
+  //TODO: Must also provide the coldAddress
+  //TODO: Must also provide the heirsAddress
+  //TODO: Must also provide getNextChangeDescriptor
+  //TODO: Must also provide getUnvaultKey
+  console.log('WALLET_INDEX');
   return discovery && feeEstimates && utxosData ? (
     <Home
       btcFiat={btcFiat}
       feeEstimates={feeEstimates}
-      signer={signer}
+      signPsbt={signPsbt}
       utxosData={utxosData}
       onVaultCreated={processCreatedVault}
       onRefreshRequested={syncBlockchain}

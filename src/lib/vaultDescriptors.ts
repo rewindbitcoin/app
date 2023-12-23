@@ -4,7 +4,10 @@ import moize from 'moize';
 import { mnemonicToSeedSync } from 'bip39';
 const { encode: olderEncode } = require('bip68');
 import { networks, type Network } from 'bitcoinjs-lib';
-import { scriptExpressions } from '@bitcoinerlab/descriptors';
+import {
+  scriptExpressions,
+  keyExpressionBIP32
+} from '@bitcoinerlab/descriptors';
 import { compilePolicy } from '@bitcoinerlab/miniscript';
 import * as secp256k1 from '@bitcoinerlab/secp256k1';
 import { DescriptorsFactory } from '@bitcoinerlab/descriptors';
@@ -25,8 +28,6 @@ export const DUMMY_SERVICE_ADDRESS = (network: Network) => {
     return 'tb1qm0k9mn48uqfs2w9gssvzmus4j8srrx5eje7wpf';
   else throw new Error('Network not supported');
 };
-
-export const createVaultDescriptor = (pubKey: string) => `wpkh(${pubKey})`;
 
 export const DUMMY_VAULT_OUTPUT = memoize(
   (network: Network) =>
@@ -57,6 +58,8 @@ export const DUMMY_CHANGE_OUTPUT = memoize((network: Network) => {
 export const DUMMY_PKH_OUTPUT = new Output({
   descriptor: `pkh(${DUMMY_PUBKEY})`
 });
+
+export const createVaultDescriptor = (pubKey: string) => `wpkh(${pubKey})`;
 
 export const createServiceDescriptor = (address: string) => `addr(${address})`;
 
@@ -114,6 +117,25 @@ export const createChangeDescriptor = async ({
       getMasterNode(mnemonic, network),
       network
     );
+  } else throw new Error(`Signer type ${signer.type} not supported`);
+};
+
+export const createUnvaultKey = async ({
+  signer,
+  network
+}: {
+  signer: Signer;
+  network: Network;
+}) => {
+  if (signer.type === SOFTWARE) {
+    const mnemonic = signer.mnemonic;
+    if (!mnemonic) throw new Error(`mnemonic not provided for ${signer.type}`);
+    const unvaultKey = keyExpressionBIP32({
+      masterNode: getMasterNode(mnemonic, network),
+      originPath: "/0'",
+      keyPath: '/0'
+    });
+    return unvaultKey;
   } else throw new Error(`Signer type ${signer.type} not supported`);
 };
 

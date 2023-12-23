@@ -115,14 +115,11 @@ import {
   Alert, //TODO: Dont use Alert
   RefreshControl
 } from 'react-native';
-import { produce } from 'immer';
 import {
   SETTINGS_GLOBAL_STORAGE,
   useGlobalStateStorage
 } from '../../contexts/StorageContext';
-import { useLocalStateStorage } from '../../hooks/useLocalStateStorage';
-import { SERIALIZABLE, STRING } from '../../lib/storage';
-const defaultVaults: Vaults = {};
+import { SERIALIZABLE } from '../../lib/storage';
 
 const MBButton = ({ ...props }: ButtonProps) => (
   <View style={{ marginBottom: 10 }}>
@@ -136,24 +133,17 @@ import Unvault from '../../components/views/Unvault';
 import QRCode from 'react-native-qrcode-svg';
 import * as Clipboard from 'expo-clipboard';
 import { Share } from 'react-native';
-import memoize from 'lodash.memoize';
 import { formatBtc } from '../../lib/btcRates';
 import { formatFeeRate } from '../../lib/fees';
 
 import { networks, Psbt } from 'bitcoinjs-lib';
 const network = networks.testnet;
 
-import { generateMnemonic, mnemonicToSeedSync } from 'bip39';
+import { generateMnemonic } from 'bip39';
 import * as secp256k1 from '@bitcoinerlab/secp256k1';
-import {
-  keyExpressionBIP32,
-  DescriptorsFactory
-} from '@bitcoinerlab/descriptors';
+import { DescriptorsFactory } from '@bitcoinerlab/descriptors';
 
-import type { DiscoveryInstance } from '@bitcoinerlab/discovery';
-// init to something. The useSettings for correct values
-
-const { Output, BIP32 } = DescriptorsFactory(secp256k1);
+const { Output } = DescriptorsFactory(secp256k1);
 //
 //TODO: create a component that imports this one from the user (or creates it fot the user)
 const DEFAULT_COLD_ADDR = 'tb1qm0k9mn48uqfs2w9gssvzmus4j8srrx5eje7wpf';
@@ -161,38 +151,15 @@ const DEFAULT_COLD_ADDR = 'tb1qm0k9mn48uqfs2w9gssvzmus4j8srrx5eje7wpf';
 const DEFAULT_SERVICE_ADDR = 'tb1qm0k9mn48uqfs2w9gssvzmus4j8srrx5eje7wpf';
 import {
   Vault,
-  fetchSpendingTx,
-  Vaults,
   getUtxosData,
   utxosDataBalance,
   estimateTriggerTxSize,
-  expiredTriggerDescriptors,
   UtxosData
 } from '../../lib/vaults';
 import { estimateVaultSetUpRange } from '../../lib/vaultRange';
-import {
-  createReceiveDescriptor,
-  createChangeDescriptor
-} from '../../lib/vaultDescriptors';
 import styles from '../../../styles/styles';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { TFunction } from 'i18next';
-
-const fromMnemonic = memoize(mnemonic => {
-  if (!mnemonic) throw new Error('mnemonic not passed');
-  const masterNode = BIP32.fromSeed(mnemonicToSeedSync(mnemonic), network);
-  const unvaultKey = keyExpressionBIP32({
-    masterNode,
-    originPath: "/0'",
-    keyPath: '/0'
-  });
-  return {
-    masterNode,
-    receiveDescriptor: createReceiveDescriptor({ masterNode, network }),
-    changeDescriptor: createChangeDescriptor({ masterNode, network }),
-    unvaultKey
-  };
-});
 
 const maxTriggerFeeRate = (vault: Vault) => {
   return Math.max(
@@ -265,14 +232,14 @@ ${formattedFeeRate}`;
 function Home({
   btcFiat,
   feeEstimates,
-  signer,
+  signPsbt,
   utxosData,
   onVaultCreated,
   onRefreshRequested
 }: {
   btcFiat: number | null;
   feeEstimates: Record<string, number>;
-  signer: (psbtVault: Psbt) => Promise<void>;
+  signPsbt: (psbtVault: Psbt) => Promise<void>;
   utxosData: UtxosData;
   onVaultCreated: (
     vault:
@@ -299,18 +266,6 @@ function Home({
   const [unvault, setUnvault] = useState<Vault | null>(null);
   const [receiveAddress, setReceiveAddress] = useState<string | null>(null);
   //'goat oak pull seek know resemble hurt pistol head first board better';
-  const [mnemonic, setMnemonic] = useLocalStateStorage<string>(
-    'mnemonic',
-    STRING
-  );
-
-  const [utxos, setUtxos] = useState<Array<string> | null>(null);
-  const [vaultsState, setVaults] = useLocalStateStorage<Vaults>(
-    'vaults',
-    SERIALIZABLE
-  );
-  //TODO: this below is crap. If no synched, then wait or do something else
-  const vaults = vaultsState || defaultVaults;
 
   const [checkingBalance, setCheckingBalance] = useState(false);
   const [savedSettings, , isSettingsSynchd] = useGlobalStateStorage<Settings>(
@@ -322,154 +277,14 @@ function Home({
       'This component should only be started after settings has been retrieved from storage'
     );
   // We know settings are the correct ones in this Component
+  //TODO: throw if !savedSettings  - see VaultCreate for referenfe
   const settings = savedSettings || defaultSettings;
 
   const { t } = useTranslation();
 
-  const init = async () => {
-    //const mnemonic =
-    //  'goat oak pull seek know resemble hurt pistol head first board better';
-
-    setIsVaultSetUp(false);
-    setNewVaultSettings(false);
-    setUnvault(null);
-    setReceiveAddress(null);
-    setUtxos(null);
-    setCheckingBalance(false);
-  };
-
-  useEffect(() => {
-    init();
-    //setMnemonic(
-    //  'goat oak pull seek know resemble hurt pistol head first board better'
-    //);
-  }, []);
-  useEffect(() => {
-    if (discovery && mnemonic) handleCheckBalance();
-  }, [discovery, mnemonic]);
-  const sortedVaultKeys = Object.keys(vaults).sort().toString();
-  useEffect(() => {
-    if (discovery && !checkingBalance && mnemonic) handleCheckBalance();
-  }, [sortedVaultKeys]);
-  useEffect(() => {
-    if (discovery && !checkingBalance && mnemonic && !receiveAddress)
-      handleCheckBalance();
-  }, [receiveAddress]);
-
   const handleCreateWallet = async () => {
     const mnemonic = generateMnemonic();
     setMnemonic(mnemonic);
-  };
-
-  const handleCheckBalance = async () => {
-    if (!checkingBalance) {
-      setCheckingBalance(true);
-      console.log('START UTXOS CHECK');
-      if (!discovery) throw new Error(`discovery not instantiated yet!`);
-      const blockHeight = await discovery.getExplorer().fetchBlockHeight();
-      if (!blockHeight) throw new Error(`Could not bet tip block height`);
-
-      //First update the vaults. Then the utxos
-      let newVaults = vaults; //Do not mutate vaults
-      for (const vault of Object.values(vaults)) {
-        console.log('\tVAULT fetchSpendingTx');
-        const triggerTxData = await fetchSpendingTx(
-          vault.vaultTxHex,
-          0,
-          discovery
-        );
-        console.log('\tVAULT fetchSpendingTx - OK');
-        const unlockingTxData = triggerTxData
-          ? await fetchSpendingTx(triggerTxData.txHex, 0, discovery)
-          : undefined;
-
-        const newVault = produce(vault, draftVault => {
-          if (triggerTxData) {
-            draftVault.triggerTxHex = triggerTxData.txHex;
-            draftVault.triggerTxBlockHeight = triggerTxData.blockHeight;
-
-            //TODO: This logic is still not right. If trigger is in the
-            //mempool then we must wait (not do the -1)
-            const isTriggerInMempool = triggerTxData.blockHeight === 0;
-            if (isTriggerInMempool) {
-              draftVault.remainingBlocks = draftVault.lockBlocks;
-            } else {
-              const blocksSinceTrigger =
-                blockHeight - triggerTxData.blockHeight;
-              draftVault.remainingBlocks = Math.max(
-                0,
-                //-1 because this means a tx can be pushed already since the new
-                //block will be (blockHeight + 1)
-                draftVault.lockBlocks - blocksSinceTrigger - 1
-              );
-            }
-
-            // LOG  computed remainingBlocks {"blockHeight": 2537905, "lockBlocks": 1, "remainingBlocks": 0, "triggerHeight": 0}
-
-            console.log('computed remainingBlocks', {
-              lockBlocks: draftVault.lockBlocks,
-              blockHeight,
-              triggerHeight: triggerTxData.blockHeight,
-              remainingBlocks: draftVault.remainingBlocks
-            });
-          } else {
-            delete draftVault.triggerTxHex;
-            delete draftVault.triggerTxBlockHeight;
-            draftVault.remainingBlocks = draftVault.lockBlocks;
-          }
-          if (unlockingTxData) {
-            if (!triggerTxData)
-              throw new Error('unlocking impossible without trigger');
-            draftVault.unlockingTxHex = unlockingTxData.txHex;
-            draftVault.unlockingTxBlockHeight = unlockingTxData.blockHeight;
-
-            const panicTxs = vault.triggerMap[triggerTxData.txHex];
-            //TODO: The logic below is wrong. Imagine the vault was triggered
-            //in a panic operation through delegation. In that case
-            //Our vaults won't have initiated the trigger, and therefore
-            //the vault.triggerMap[triggerTxData.txHex] won't be set. We must
-            //try downloading it always.
-            if (!panicTxs) throw new Error('Invalid triggerMap');
-            if (panicTxs.includes(unlockingTxData.txHex)) {
-              draftVault.panicTxHex = unlockingTxData.txHex;
-              draftVault.panicTxBlockHeight = unlockingTxData.blockHeight;
-            }
-          } else {
-            delete draftVault.unlockingTxHex;
-            delete draftVault.unlockingTxBlockHeight;
-            delete draftVault.panicTxHex;
-            delete draftVault.panicTxBlockHeight;
-          }
-        });
-        if (newVaults[newVault.vaultAddress] !== newVault) {
-          newVaults = { ...newVaults, [newVault.vaultAddress]: newVault };
-        }
-      }
-      if (newVaults !== vaults) {
-        setVaults(newVaults);
-      }
-
-      //Now update the utxos:
-      const descriptors = [
-        fromMnemonic(mnemonic).receiveDescriptor,
-        fromMnemonic(mnemonic).changeDescriptor,
-        ...expiredTriggerDescriptors(newVaults)
-      ];
-      console.log('FETCH DESCRIPTORS', {
-        descriptors,
-        gapLimt: settings.GAP_LIMIT
-      });
-      await discovery.fetch({ descriptors, gapLimit: settings.GAP_LIMIT });
-      console.log('FETCH DESCRIPTORS - OK');
-      const { utxos } = discovery.getUtxosAndBalance({ descriptors });
-      //console.log('vaults', vaults);
-      //I can do this because getUtxosAndBalance uses immutability.
-      //Setting same utxo won't produce a re-render in React.
-      setUtxos(utxos.length ? utxos : null);
-
-      setCheckingBalance(false);
-      console.log('UTXOS SET');
-    }
   };
 
   const handleReceiveBitcoin = async () => {
@@ -786,7 +601,7 @@ Handle with care. Confidentiality is key.
       {hotUtxosData && newVaultSettings && discovery && (
         <Modal>
           <VaultCreate
-            signer={signer}
+            signPsbt={signPsbt}
             utxosData={hotUtxosData}
             {...newVaultSettings}
             coldAddress={DEFAULT_COLD_ADDR}

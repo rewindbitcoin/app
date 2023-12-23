@@ -15,7 +15,7 @@ import { SERIALIZABLE } from '../../lib/storage';
 import { createVault, Vault } from '../../lib/vaults';
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 export default function VaultCreate({
-  signer,
+  signPsbt,
   utxosData,
   amount,
   feeRate,
@@ -27,7 +27,7 @@ export default function VaultCreate({
   network,
   onVaultCreated
 }: {
-  signer: (psbtVault: Psbt) => Promise<void>;
+  signPsbt: (psbtVault: Psbt) => Promise<void>;
   utxosData: UtxosData;
   amount: number;
   feeRate: number;
@@ -81,7 +81,7 @@ export default function VaultCreate({
         changeDescriptor,
         serviceAddress,
         lockBlocks,
-        signer,
+        signPsbt,
         utxosData,
         network,
         onProgress
