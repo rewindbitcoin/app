@@ -22,6 +22,7 @@ declare global {
 }
 
 export const isNativeStack = Platform.OS === 'ios' || Platform.OS === 'android';
-export const RootStack = isNativeStack
-  ? createNativeStackNavigator<RootStackParamList>()
-  : createStackNavigator<RootStackParamList>();
+export const createRootStack = () =>
+  isNativeStack
+    ? createNativeStackNavigator<RootStackParamList>()
+    : createStackNavigator<RootStackParamList>();

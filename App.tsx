@@ -27,7 +27,6 @@ import {
 import { defaultSettings, Settings as SettingsType } from './src/lib/settings';
 import { useTranslation } from 'react-i18next';
 import initI18n from './src/i18n/i18n';
-import { networkMapping } from './src/lib/network';
 //Init for 1st render. Then, on settings load from context & apply correct one
 initI18n(defaultSettings.LOCALE);
 
@@ -93,14 +92,9 @@ const App = () => {
       >
         {() => {
           if (wallet) {
-            const network = networkMapping[wallet.networkId];
-            if (!network)
-              throw new Error(`Invalid networkId ${wallet.networkId}`);
-            //TODO: it's cleaner passing the whole wallet:
             return (
               <WalletHome
-                walletId={wallet.walletId}
-                network={network}
+                wallet={wallet}
                 {...(newWalletSigners
                   ? { newWalletSigners: newWalletSigners }
                   : {})}

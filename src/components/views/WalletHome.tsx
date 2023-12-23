@@ -9,12 +9,14 @@ import {
 } from '../../lib/vaults';
 import { produce } from 'immer';
 import type { Signers } from '../../lib/wallets';
+import { networkMapping } from '../../lib/network';
 import {
   createReceiveDescriptor,
   createChangeDescriptor
 } from '../../lib/vaultDescriptors';
 import React, { useEffect, useState, useCallback } from 'react';
 import { Text } from 'react-native';
+import type { Wallet } from '../../lib/wallets';
 import { Toast } from '../../components/common/Toast';
 import Home from '../../components/views/Home';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -24,7 +26,7 @@ import {
   useGlobalStateStorage
 } from '../../contexts/StorageContext';
 import { useLocalStateStorage } from '../../hooks/useLocalStateStorage';
-import type { Settings } from '../../lib/settings';
+import { defaultSettings, type Settings } from '../../lib/settings';
 import { useTranslation } from 'react-i18next';
 
 import { getBtcFiat } from '../../lib/btcRates';
@@ -51,18 +53,26 @@ function esploraUrl(network: Network) {
   return url;
 }
 export default ({
-  walletId,
-  network,
+  wallet,
   newWalletSigners
 }: {
-  walletId: number;
-  network: Network;
+  wallet: Wallet;
   newWalletSigners?: Signers;
 }) => {
-  const [settings] = useGlobalStateStorage<Settings>(
+  const walletId = wallet.walletId;
+  const network = networkMapping[wallet.networkId];
+  if (!network) throw new Error(`Invalid networkId ${wallet.networkId}`);
+  const [savedSettings, , isSettingsSynchd] = useGlobalStateStorage<Settings>(
     SETTINGS_GLOBAL_STORAGE,
     SERIALIZABLE
   );
+  if (!isSettingsSynchd)
+    throw new Error(
+      'This component should only be started after settings has been retrieved from storage'
+    );
+  // We know settings are the correct ones in this Component
+  const settings = savedSettings || defaultSettings;
+
   const [
     discoveryDataExport,
     setDiscoveryDataExport,

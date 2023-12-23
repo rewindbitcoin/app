@@ -45,8 +45,8 @@ export default ({
   //moment while having not developped the multi-wallet version)
   useEffect(() => {
     const wallet = wallets && wallets[0];
-    if (isWalletsSynchd && wallet) onWallet(wallet);
-  }, [wallets, isWalletsSynchd]);
+    if (wallet) onWallet(wallet);
+  }, [wallets]);
 
   return (
     <View>
