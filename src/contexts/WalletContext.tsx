@@ -3,7 +3,6 @@ import {
   getSpendableTriggerDescriptors,
   getUtxosData,
   type Vault,
-  type VaultStatus,
   type Vaults,
   type VaultsStatuses,
   type UtxosData
@@ -20,8 +19,10 @@ import React, {
   ReactNode,
   useEffect,
   useState,
+  useRef,
   useCallback
 } from 'react';
+import { shallowEqual } from 'shallow-equal';
 import type { Wallet } from '../lib/wallets';
 import { Toast } from '../components/ui/Toast';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -69,7 +70,7 @@ export type WalletContextType = {
       | 'USER_CANCEL'
       | 'UNKNOWN_ERROR'
   ) => Promise<void>;
-  syncBlockchain: () => Promise<boolean>;
+  syncBlockchain: () => Promise<void>;
   syncingBlockchain: boolean;
   // ... any other properties you want to include
 };
@@ -287,39 +288,31 @@ export const WalletProvider = ({
   }, [settings?.CURRENCY, settings?.BTC_FIAT_REFRESH_INTERVAL_MS]);
 
   const [syncingBlockchain, setSyncingBlockchain] = useState(false);
-
-  // Resolves to true when if a new sync is started and is successful
-  // Resolves to false if a sync is alreado going on or if a new sync is started
-  // but fails
-  const syncBlockchain = useCallback(() => {
-    return new Promise<boolean>(resolve => {
-      setSyncingBlockchain(prevSyncingBlockchain => {
-        if (prevSyncingBlockchain) {
-          // If already syncing, resolve to false and do not proceed
-          resolve(false);
-        }
-        // Proceed with the async operation if not already syncing
-        syncBlockchainUnconditional()
-          .then(() => resolve(true)) // Resolve to true when successful
-          .catch(() => resolve(false)); // Resolve to false in case of error
-
-        //setSyncingBlockchain always sets syncingBlockchain to true
-        return true;
-      });
-    }).finally(() => {
-      // Reset syncing state after completion or error
-      setSyncingBlockchain(false);
-    });
-
-    async function syncBlockchainUnconditional() {
-      if (
-        settings?.GAP_LIMIT === undefined ||
-        !discovery ||
-        !vaults ||
-        !vaultsStatuses ||
-        !signers
-      )
-        throw new Error('syncBlockchain called with non-initialized inputs');
+  const syncBlockchainRunning = useRef(false);
+  /**
+   * Initiates the blockchain synchronization process. This function uses
+   * both a reference (`syncBlockchainRunning`) and state (`syncingBlockchain`).
+   * The state is updated for user feedback purposes, but due to the asynchronous
+   * nature of state updates, relying solely on `syncingBlockchain` for flow control
+   * could lead to multiple simultaneous initiations of the synchronization process.
+   * To prevent this, `syncBlockchainRunning` is used as a synchronous flag to
+   * ensure that only one synchronization process runs at a time. The function
+   * returns a promise to indicate completion, allowing callers to await the
+   * end of the synchronization process.
+   *
+   * @returns A promise indicating the completion of the synchronization process.
+   */
+  const syncBlockchain = useCallback(async () => {
+    if (
+      settings?.GAP_LIMIT !== undefined &&
+      discovery &&
+      vaults &&
+      vaultsStatuses &&
+      signers
+    ) {
+      if (syncBlockchainRunning.current === true) return;
+      syncBlockchainRunning.current = true;
+      setSyncingBlockchain(true);
       try {
         const updatedVaultsStatuses = await updateVaultsStatuses();
         if (!updatedVaultsStatuses)
@@ -358,8 +351,14 @@ export const WalletProvider = ({
           text2: `${t('networkError.text', { message: errorMessage })}`
         });
         console.error(errorMessage);
+      } finally {
+        syncBlockchainRunning.current = false;
+        setSyncingBlockchain(false);
       }
-    }
+    } else
+      console.warn(
+        'syncBlockchain not performing any action for being called with non-initialized inputs'
+      );
 
     //Helper function used above. It returns new
     async function updateVaultsStatuses() {
@@ -367,7 +366,7 @@ export const WalletProvider = ({
         throw new Error(
           'updateVaultsStatuses called with non-initialized inputs'
         );
-      let updatedVaultsStatuses: VaultsStatuses = vaultsStatuses;
+      let updatedVaultsStatuses = vaultsStatuses;
       try {
         const newVaultsStatuses = await fetchVaultsStatuses(
           vaults,
@@ -376,12 +375,7 @@ export const WalletProvider = ({
 
         Object.entries(newVaultsStatuses).forEach(([key, status]) => {
           const existingStatus = vaultsStatuses[key];
-          if (
-            !existingStatus ||
-            (Object.keys(status) as Array<keyof VaultStatus>).some(
-              statusKey => status[statusKey] !== existingStatus[statusKey]
-            )
-          ) {
+          if (!shallowEqual(existingStatus, status)) {
             // Mutate updatedVaultsStatuses because a change has been detected
             if (updatedVaultsStatuses === vaultsStatuses)
               updatedVaultsStatuses = { ...vaultsStatuses };
@@ -414,23 +408,8 @@ export const WalletProvider = ({
   ]);
 
   useEffect(() => {
-    if (
-      discovery &&
-      vaults &&
-      vaultsStatuses &&
-      network &&
-      signers &&
-      settings?.GAP_LIMIT !== undefined
-    )
-      syncBlockchain();
-  }, [
-    discovery,
-    vaults,
-    vaultsStatuses,
-    network,
-    signers,
-    settings?.GAP_LIMIT
-  ]);
+    syncBlockchain();
+  }, [syncBlockchain]);
 
   const processCreatedVault = useCallback(
     async (
