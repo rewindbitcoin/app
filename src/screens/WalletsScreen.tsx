@@ -48,6 +48,7 @@ export default ({
     if (wallet) onWallet(wallet);
   }, [wallets]);
 
+  //TODO: add the insets thing
   return (
     <View>
       <Text>Wallets</Text>

@@ -3,11 +3,11 @@ import {
   getSpendableTriggerDescriptors,
   getUtxosData,
   type Vault,
+  type VaultStatus,
   type Vaults,
   type VaultsStatuses,
   type UtxosData
 } from '../lib/vaults';
-import { produce } from 'immer';
 import type { Signers } from '../lib/wallets';
 import { networkMapping } from '../lib/network';
 import {
@@ -69,7 +69,8 @@ export type WalletContextType = {
       | 'USER_CANCEL'
       | 'UNKNOWN_ERROR'
   ) => Promise<void>;
-  syncBlockchain: () => Promise<void>;
+  syncBlockchain: () => Promise<boolean>;
+  syncingBlockchain: boolean;
   // ... any other properties you want to include
 };
 
@@ -83,6 +84,9 @@ function esploraUrl(network: Network) {
   if (!url) throw new Error(`Esplora API not available for this network`);
   return url;
 }
+
+const DEFAULT_VAULTS_STATUSES: VaultsStatuses = {};
+const DEFAULT_VAULTS: Vaults = {};
 export const WalletProvider = ({
   children,
   wallet,
@@ -97,6 +101,12 @@ export const WalletProvider = ({
   const walletId = wallet.walletId;
   const network = networkMapping[wallet.networkId];
   if (!network) throw new Error(`Invalid networkId ${wallet.networkId}`);
+
+  const [signers, setSigners] = useLocalStateStorage<Signers>(
+    `SIGNERS/${walletId}`,
+    SERIALIZABLE
+  );
+
   const [savedSettings, , isSettingsSynchd] = useGlobalStateStorage<Settings>(
     SETTINGS_GLOBAL_STORAGE,
     SERIALIZABLE
@@ -114,19 +124,23 @@ export const WalletProvider = ({
     `DISCOVERY/${walletId}`,
     SERIALIZABLE
   );
-  const [vaults, setVaults, isVaultsSynchd] = useLocalStateStorage<Vaults>(
+
+  const [savedVaults, setVaults, isVaultsSynchd] = useLocalStateStorage<Vaults>(
     `VAULTS/${walletId}`,
     SERIALIZABLE
   );
-  const [signers, setSigners] = useLocalStateStorage<Signers>(
-    `SIGNERS/${walletId}`,
-    SERIALIZABLE
-  );
-  const [vaultsStatuses, setVaultsStatuses, isVaultsStatusesSynchd] =
+  // vaults will be undefined if !isVaultsSynchd
+  const vaults = isVaultsSynchd ? savedVaults || DEFAULT_VAULTS : undefined;
+
+  const [savedVaultsStatuses, setVaultsStatuses, isVaultsStatusesSynchd] =
     useLocalStateStorage<VaultsStatuses>(
       `VAULTS_STATUSES/${walletId}`,
       SERIALIZABLE
     );
+  // vaultsStatuses will be undefined if !isVaultsStatusesSynchd
+  const vaultsStatuses = isVaultsStatusesSynchd
+    ? savedVaultsStatuses || DEFAULT_VAULTS_STATUSES
+    : undefined;
 
   useEffect(() => {
     if (newWalletSigners) setSigners(newWalletSigners);
@@ -144,38 +158,41 @@ export const WalletProvider = ({
   const [discovery, setDiscovery] = useState<DiscoveryInstance | null>(null);
   const [utxosData, setUtxosData] = useState<UtxosData>();
 
-  // Sets discoveryData from storage if available or new:
+  // Sets discovery from storage if available or new:
   useEffect(() => {
-    let isMounted = true;
-    let isExplorerConnected = false;
-    const url = esploraUrl(network);
-    const explorer = new EsploraExplorer({ url });
-    const { Discovery } = DiscoveryFactory(explorer, network);
+    if (!discovery) {
+      let isMounted = true;
+      let isExplorerConnected = false;
+      const url = esploraUrl(network);
+      const explorer = new EsploraExplorer({ url });
+      const { Discovery } = DiscoveryFactory(explorer, network);
 
-    (async function () {
-      if (isDiscoveryDataExportSynchd) {
-        const discoveryData = discoveryDataExport;
-        let discovery: DiscoveryInstance;
-        if (discoveryData) {
-          discovery = new Discovery({ imported: discoveryData });
-        } else {
-          discovery = new Discovery();
+      (async function () {
+        if (isDiscoveryDataExportSynchd) {
+          const discoveryData = discoveryDataExport;
+          let discovery: DiscoveryInstance;
+          if (discoveryData) {
+            discovery = new Discovery({ imported: discoveryData });
+          } else {
+            discovery = new Discovery();
+          }
+          await explorer.connect();
+          isExplorerConnected = true;
+          if (isMounted) setDiscovery(discovery);
         }
-        await explorer.connect();
-        isExplorerConnected = true;
-        if (isMounted) setDiscovery(discovery);
-      }
-    })();
+      })();
 
-    return () => {
-      isMounted = false;
-      if (isExplorerConnected) {
-        (async function () {
-          await explorer.close();
-          isExplorerConnected = false;
-        })();
-      }
-    };
+      return () => {
+        isMounted = false;
+        if (isExplorerConnected) {
+          (async function () {
+            await explorer.close();
+            isExplorerConnected = false;
+          })();
+        }
+      };
+    }
+    return;
   }, [network, discoveryDataExport, isDiscoveryDataExportSynchd]);
 
   // Sets feeEstimates
@@ -269,12 +286,40 @@ export const WalletProvider = ({
     return;
   }, [settings?.CURRENCY, settings?.BTC_FIAT_REFRESH_INTERVAL_MS]);
 
-  const syncBlockchain = useCallback(async () => {
-    if (settings?.GAP_LIMIT === undefined)
-      throw new Error(
-        'Cannot sync the blockhain until having the correct user settings, with selected GAP_LIMIT'
-      );
-    if (discovery && vaults && signers) {
+  const [syncingBlockchain, setSyncingBlockchain] = useState(false);
+
+  // Resolves to true when if a new sync is started and is successful
+  // Resolves to false if a sync is alreado going on or if a new sync is started
+  // but fails
+  const syncBlockchain = useCallback(() => {
+    return new Promise<boolean>(resolve => {
+      setSyncingBlockchain(prevSyncingBlockchain => {
+        if (prevSyncingBlockchain) {
+          // If already syncing, resolve to false and do not proceed
+          resolve(false);
+        }
+        // Proceed with the async operation if not already syncing
+        syncBlockchainUnconditional()
+          .then(() => resolve(true)) // Resolve to true when successful
+          .catch(() => resolve(false)); // Resolve to false in case of error
+
+        //setSyncingBlockchain always sets syncingBlockchain to true
+        return true;
+      });
+    }).finally(() => {
+      // Reset syncing state after completion or error
+      setSyncingBlockchain(false);
+    });
+
+    async function syncBlockchainUnconditional() {
+      if (
+        settings?.GAP_LIMIT === undefined ||
+        !discovery ||
+        !vaults ||
+        !vaultsStatuses ||
+        !signers
+      )
+        throw new Error('syncBlockchain called with non-initialized inputs');
       try {
         const updatedVaultsStatuses = await updateVaultsStatuses();
         if (!updatedVaultsStatuses)
@@ -312,53 +357,50 @@ export const WalletProvider = ({
           text1: t('networkError.title'),
           text2: `${t('networkError.text', { message: errorMessage })}`
         });
+        console.error(errorMessage);
       }
     }
 
-    //Helper function used above:
+    //Helper function used above. It returns new
     async function updateVaultsStatuses() {
-      let updatedVaultsStatuses: VaultsStatuses | undefined;
-      if (discovery) {
-        if (vaults) {
-          try {
-            const newVaultsStatuses = await fetchVaultsStatuses(
-              vaults,
-              discovery.getExplorer()
-            );
+      if (!discovery || !vaults || !vaultsStatuses)
+        throw new Error(
+          'updateVaultsStatuses called with non-initialized inputs'
+        );
+      let updatedVaultsStatuses: VaultsStatuses = vaultsStatuses;
+      try {
+        const newVaultsStatuses = await fetchVaultsStatuses(
+          vaults,
+          discovery.getExplorer()
+        );
 
-            updatedVaultsStatuses = produce(
-              vaultsStatuses,
-              (draftVaultsStatuses: VaultsStatuses) => {
-                // Iterate over the new statuses and update/add them to the draft
-                Object.entries(newVaultsStatuses).forEach(([key, status]) => {
-                  if (draftVaultsStatuses[key]) {
-                    // Update existing status
-                    draftVaultsStatuses[key] = {
-                      ...draftVaultsStatuses[key],
-                      ...status
-                    };
-                  } else {
-                    // Add new status
-                    draftVaultsStatuses[key] = status;
-                  }
-                });
-              }
-            );
-            if (updatedVaultsStatuses) setVaultsStatuses(updatedVaultsStatuses);
-          } catch (error) {
-            const errorMessage =
-              error instanceof Error
-                ? error.message
-                : 'An unknown error occurred';
+        Object.entries(newVaultsStatuses).forEach(([key, status]) => {
+          const existingStatus = vaultsStatuses[key];
+          if (
+            !existingStatus ||
+            (Object.keys(status) as Array<keyof VaultStatus>).some(
+              statusKey => status[statusKey] !== existingStatus[statusKey]
+            )
+          ) {
+            // Mutate updatedVaultsStatuses because a change has been detected
+            if (updatedVaultsStatuses === vaultsStatuses)
+              updatedVaultsStatuses = { ...vaultsStatuses };
 
-            Toast.show({
-              topOffset: insets.top + 10,
-              type: 'error',
-              text1: t('networkError.title'),
-              text2: `${t('networkError.text', { message: errorMessage })}`
-            });
+            updatedVaultsStatuses[key] = { ...existingStatus, ...status };
           }
-        }
+        });
+        if (vaultsStatuses !== updatedVaultsStatuses)
+          setVaultsStatuses(updatedVaultsStatuses);
+      } catch (error) {
+        const errorMessage =
+          error instanceof Error ? error.message : 'An unknown error occurred';
+
+        Toast.show({
+          topOffset: insets.top + 10,
+          type: 'error',
+          text1: t('networkError.title'),
+          text2: `${t('networkError.text', { message: errorMessage })}`
+        });
       }
       return updatedVaultsStatuses;
     }
@@ -372,8 +414,23 @@ export const WalletProvider = ({
   ]);
 
   useEffect(() => {
-    if (settings?.GAP_LIMIT !== undefined) syncBlockchain();
-  }, [syncBlockchain, settings?.GAP_LIMIT]);
+    if (
+      discovery &&
+      vaults &&
+      vaultsStatuses &&
+      network &&
+      signers &&
+      settings?.GAP_LIMIT !== undefined
+    )
+      syncBlockchain();
+  }, [
+    discovery,
+    vaults,
+    vaultsStatuses,
+    network,
+    signers,
+    settings?.GAP_LIMIT
+  ]);
 
   const processCreatedVault = useCallback(
     async (
@@ -386,6 +443,10 @@ export const WalletProvider = ({
     ) => {
       if (!isVaultsSynchd || !isVaultsStatusesSynchd)
         throw new Error('Cannot use vaults without Storage');
+      if (!vaults || !vaultsStatuses)
+        throw new Error(
+          'vaults and vaultsStatuses should be defined since they are synched'
+        );
 
       if (typeof vault === 'string') {
         //TODO translate them
@@ -400,14 +461,16 @@ export const WalletProvider = ({
         if (!text2) throw new Error('Unhandled vault creation error');
         Toast.show({ topOffset: insets.top + 10, type: 'error', text1, text2 });
       } else {
-        const newVaults = { ...vaults, [vault.vaultAddress]: vault };
-
-        await setVaults(newVaults);
+        // Create new vault
+        if (vaults[vault.vaultAddress])
+          throw new Error(`Vault for ${vaultsStatuses} already exists`);
+        await setVaults({ ...vaults, [vault.vaultAddress]: vault });
 
         //TODO: enable this after tests. important to push after AWAIT setVaults
         //if successful
         //TODO: try-catch push result. This and all pushes in code.
         //await discovery.getExplorer().push(vault.vaultTxHex);
+
         setVaultsStatuses({
           ...vaultsStatuses,
           [vault.vaultAddress]: { vaultPushTime: Math.floor(Date.now() / 1000) }
@@ -434,7 +497,8 @@ export const WalletProvider = ({
     signPsbt,
     utxosData,
     processCreatedVault,
-    syncBlockchain
+    syncBlockchain,
+    syncingBlockchain
     // ... any other relevant state or functions
   };
 

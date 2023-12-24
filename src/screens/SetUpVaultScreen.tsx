@@ -8,32 +8,32 @@ import { Trans, useTranslation } from 'react-i18next';
 import React, { useState } from 'react';
 import type { GestureResponderEvent } from 'react-native';
 import { View, Text, Button, StyleSheet, ScrollView } from 'react-native';
-import { Toast, CustomToast } from '../common/Toast';
+import { Toast, CustomToast } from '../components/ui/Toast';
 
-import { defaultSettings, Settings } from '../../lib/settings';
+import { defaultSettings, Settings } from '../lib/settings';
 import {
   SETTINGS_GLOBAL_STORAGE,
   useGlobalStateStorage
-} from '../../contexts/StorageContext';
-import { SERIALIZABLE } from '../../lib/storage';
-import EditableSlider, { snap } from '../common/EditableSlider';
-import { UtxosData, selectVaultUtxosData } from '../../lib/vaults';
+} from '../contexts/StorageContext';
+import { SERIALIZABLE } from '../lib/storage';
+import EditableSlider, { snap } from '../components/ui/EditableSlider';
+import { UtxosData, selectVaultUtxosData } from '../lib/vaults';
 import {
   DUMMY_VAULT_OUTPUT,
   DUMMY_SERVICE_OUTPUT,
   DUMMY_CHANGE_OUTPUT
-} from '../../lib/vaultDescriptors';
+} from '../lib/vaultDescriptors';
 
 import {
   FeeEstimates,
   pickFeeEstimate,
   formatFeeRate,
   formatLockTime
-} from '../../lib/fees';
-import { formatBtc } from '../../lib/btcRates';
-import globalStyles from '../../../styles/styles';
+} from '../lib/fees';
+import { formatBtc } from '../lib/btcRates';
+import globalStyles from '../../styles/styles';
 import type { Network } from 'bitcoinjs-lib';
-import { estimateVaultSetUpRange } from '../../lib/vaultRange';
+import { estimateVaultSetUpRange } from '../lib/vaultRange';
 
 const FEE_RATE_STEP = 0.01;
 
