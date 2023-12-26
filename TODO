@@ -1,3 +1,4 @@
+TODO: make it so that useSorage can pass initial object. Then its set as a useRef and after inital sync it stores the ref if did not exist yet? HOwever only set both isSycnd & new value state after it has been correctly stored in storage.
 TODO: separate app-speciffic transalations from common and refactor code
 TODO: separate app-speciffic styleds from common and refactor code
 TODO: Replace all memoize calls (specially Factories) with moize
