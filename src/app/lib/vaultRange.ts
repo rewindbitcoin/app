@@ -8,7 +8,7 @@ import {
 } from './vaultDescriptors';
 import type { OutputInstance } from '@bitcoinerlab/descriptors';
 import { maxFunds, vsize, dustThreshold } from '@bitcoinerlab/coinselect';
-import { findLowestTrueBinarySearch } from './binarySearch';
+import { findLowestTrueBinarySearch } from '../../common/lib/binarySearch';
 import {
   UtxosData,
   getOutputsWithValue,
