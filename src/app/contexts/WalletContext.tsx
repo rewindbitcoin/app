@@ -106,14 +106,11 @@ export const WalletProvider = ({
     SERIALIZABLE
   );
 
-  const [savedSettings, , isSettingsSynchd] = useGlobalStateStorage<Settings>(
+  const [settings] = useGlobalStateStorage<Settings>(
     SETTINGS_GLOBAL_STORAGE,
-    SERIALIZABLE
+    SERIALIZABLE,
+    defaultSettings
   );
-  // settings will be undefined if !isSettingsSynchd
-  const settings = isSettingsSynchd
-    ? savedSettings || defaultSettings
-    : undefined;
 
   const [
     discoveryDataExport,
@@ -124,22 +121,18 @@ export const WalletProvider = ({
     SERIALIZABLE
   );
 
-  const [savedVaults, setVaults, isVaultsSynchd] = useLocalStateStorage<Vaults>(
+  const [vaults, setVaults] = useLocalStateStorage<Vaults>(
     `VAULTS/${walletId}`,
-    SERIALIZABLE
+    SERIALIZABLE,
+    DEFAULT_VAULTS
   );
-  // vaults will be undefined if !isVaultsSynchd
-  const vaults = isVaultsSynchd ? savedVaults || DEFAULT_VAULTS : undefined;
 
-  const [savedVaultsStatuses, setVaultsStatuses, isVaultsStatusesSynchd] =
+  const [vaultsStatuses, setVaultsStatuses] =
     useLocalStateStorage<VaultsStatuses>(
       `VAULTS_STATUSES/${walletId}`,
-      SERIALIZABLE
+      SERIALIZABLE,
+      DEFAULT_VAULTS_STATUSES
     );
-  // vaultsStatuses will be undefined if !isVaultsStatusesSynchd
-  const vaultsStatuses = isVaultsStatusesSynchd
-    ? savedVaultsStatuses || DEFAULT_VAULTS_STATUSES
-    : undefined;
 
   useEffect(() => {
     if (newWalletSigners) setSigners(newWalletSigners);
@@ -418,7 +411,7 @@ export const WalletProvider = ({
         | 'USER_CANCEL'
         | 'UNKNOWN_ERROR'
     ) => {
-      if (!isVaultsSynchd || !isVaultsStatusesSynchd)
+      if (!vaults || !vaultsStatuses)
         throw new Error('Cannot use vaults without Storage');
       if (!vaults || !vaultsStatuses)
         throw new Error(
@@ -454,7 +447,7 @@ export const WalletProvider = ({
         });
       }
     },
-    [discovery, isVaultsSynchd, vaults, isVaultsStatusesSynchd, vaultsStatuses]
+    [discovery, vaults, vaultsStatuses]
   );
 
   const signPsbt = useCallback(

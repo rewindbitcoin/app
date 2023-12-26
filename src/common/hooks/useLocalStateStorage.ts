@@ -17,7 +17,7 @@ import {
  *
  * Example:
  * const [value, setValue, isSynchd] =
- *    useLocalStateStorage<DataType>('uniqueKey', serializationFormat);
+ *    useLocalStateStorage<DataType>('uniqueKey', serializationFormat, defaultValue);
  * - 'DataType' is a TypeScript type or interface representing your data structure.
  * - 'uniqueKey' is a unique identifier for your data in storage.
  * - 'serializationFormat' is a parameter that defines the serialization method
@@ -29,6 +29,8 @@ import {
  *    mmkv storage engine), while not used on web since it uses IndexedDB, which
  *    natively serializes all values using "structured serialisation".
  *    https://html.spec.whatwg.org/multipage/structured-data.html#structuredserializeinternal
+ * - `defaultValue` is an optional argument that will be used as initialValue
+ *    IF no value was retrieved from storage at the beginning.
  *
  * 'value': Represents the current state associated with 'uniqueKey'. It starts
  * as 'undefined' and is updated after fetching from storage. Changes to 'value'
@@ -51,7 +53,12 @@ import {
 
 export const useLocalStateStorage = <T>(
   key: string,
-  serializationFormat: SerializationFormat
+  serializationFormat: SerializationFormat,
+  /** defaultValue is used to set an initial value if the storage does not
+   * contain already a value. DO NOT confuse this parameter with an initial
+   * value.
+   */
+  defaultValue?: T
 ): [T | undefined, (newValue: T) => Promise<void>, boolean] => {
   const [value, setValue] = useState<T | undefined>();
   const [isSynchd, setIsSynchd] = useState(false);
@@ -63,13 +70,17 @@ export const useLocalStateStorage = <T>(
   useEffect(() => {
     const fetchValue = async () => {
       const savedValue = await storage.getAsync(key, serializationFormat);
-      setValue(savedValue as T | undefined);
+      if (savedValue) setValue(savedValue as T);
+      else if (defaultValue !== undefined) await setStorageValue(defaultValue);
+      else setValue(undefined);
+
       setIsSynchd(true);
     };
     fetchValue();
   }, [key]);
 
-  const setNewValue = async (newValue: T) => {
+  /** sets storage and sate value */
+  const setStorageValue = async (newValue: T) => {
     await storage.setAsync(
       key,
       assertSerializationFormat(newValue, serializationFormat)
@@ -77,7 +88,7 @@ export const useLocalStateStorage = <T>(
     setValue(newValue);
   };
 
-  return [value, setNewValue, isSynchd];
+  return [value, setStorageValue, isSynchd];
 };
 
 /**

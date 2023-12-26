@@ -20,10 +20,12 @@
  *
  * Example:
  * const [value, setValue, isSynchd] =
- *    useGlobalStateStorage<DataType>('uniqueKey', serializationFormat);
+ *    useGlobalStateStorage<DataType>('uniqueKey', serializationFormat, defaultValue?);
  *
  * - 'DataType' is a TypeScript type or interface representing the structure
  *   of the data you're working with. For example Settings or Vaults, ...
+ *  - The 'uniqueKey' argument ('settings' for example) uniquely identifies the
+ *    data in the storage system. It is used to store and retrieve the value.
  * - 'serializationFormat' is a parameter that defines the serialization method
  *   for storing the data. It can be one of the following types:
  *   'NUMBER', 'STRING', 'SERIALIZABLE', 'BOOLEAN', 'UINT8ARRAY'.
@@ -33,8 +35,8 @@
  *    mmkv storage engine), while not used on web since it uses IndexedDB, which
  *    natively serializes all values using "structured serialisation".
  *    https://html.spec.whatwg.org/multipage/structured-data.html#structuredserializeinternal
- *  - The 'uniqueKey' argument ('settings' for example) uniquely identifies the
- *    data in the storage system. It is used to store and retrieve the value.
+ *  - `defaultValue` is an optional argument that will be used as initialValue
+ *    IF no value was retrieved from storage at the beginning.
  *
  * The 'value' returned by the hook represents the data associated with the given
  * key in the storage. Initially, this value might be 'undefined' while the
@@ -75,16 +77,16 @@ import {
 
 type StorageState<T> = Record<string, T>;
 type ProviderValue<T> = {
-  storageState: StorageState<T>;
-  setStorageState: React.Dispatch<React.SetStateAction<StorageState<T>>>;
+  valueMap: StorageState<T>;
+  setValueMap: React.Dispatch<React.SetStateAction<StorageState<T>>>;
 };
 const StorageContext = createContext<ProviderValue<unknown> | null>(null);
 
 const StorageProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [storageState, setStorageState] = useState<StorageState<unknown>>({});
+  const [valueMap, setValueMap] = useState<StorageState<unknown>>({});
 
   return (
-    <StorageContext.Provider value={{ storageState, setStorageState }}>
+    <StorageContext.Provider value={{ valueMap, setValueMap }}>
       {children}
     </StorageContext.Provider>
   );
@@ -92,40 +94,60 @@ const StorageProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
 
 const useGlobalStateStorage = <T,>(
   key: string,
-  serializationFormat: SerializationFormat
+  serializationFormat: SerializationFormat,
+  /** defaultValue is used to set an initial value if the storage does not
+   * contain already a value. DO NOT confuse this parameter with an initial
+   * value.
+   */
+  defaultValue?: T
 ): [T | undefined, (newValue: T) => Promise<void>, boolean] => {
   const context = useContext(StorageContext);
   if (context === null)
     throw new Error(`useStorage must be used within a StorageProvider`);
 
-  const { storageState, setStorageState } = context;
+  const { valueMap, setValueMap } = context;
 
   //We only need to retrieve the value from the storage intially for each key
-  //We know key has not been retrieved yet if storageState[key] is not set.
+  //We know key has not been retrieved yet if valueMap[key] is not set.
+  //Note that valueMap[key] may be set to undefined which means it was retrieved
+  //already but nothing was found in storage and no defaultValue was used
   //After having retrieved the initial value, then we will rely on
-  //storageState[key] to not spam the storage with more requests that we
+  //valueMap[key] to not spam the storage with more requests that we
   //already know the result
   useEffect(() => {
     const fetchValue = async () => {
       const savedValue = await storage.getAsync(key, serializationFormat);
-      setStorageState(prevState => ({ ...prevState, [key]: savedValue }));
+      if (savedValue)
+        setValueMap(prevState =>
+          prevState[key] !== savedValue
+            ? { ...prevState, [key]: savedValue }
+            : prevState
+        );
+      else if (defaultValue !== undefined) await setStorageValue(defaultValue);
+      else
+        setValueMap(prevState =>
+          prevState[key] !== undefined
+            ? { ...prevState, [key]: undefined }
+            : prevState
+        );
     };
-    if (!(key in storageState)) fetchValue();
+    if (!(key in valueMap)) fetchValue();
   }, [key]);
 
+  /** sets storage and sate value */
   const setStorageValue = async (newValue: T) => {
     await storage.setAsync(
       key,
       assertSerializationFormat(newValue, serializationFormat)
     );
-    setStorageState(prevState => ({ ...prevState, [key]: newValue }));
+    setValueMap(prevState =>
+      prevState[key] !== newValue
+        ? { ...prevState, [key]: newValue }
+        : prevState
+    );
   };
 
-  return [
-    storageState[key] as T | undefined,
-    setStorageValue,
-    key in storageState
-  ];
+  return [valueMap[key] as T | undefined, setStorageValue, key in valueMap];
 };
 
 export { StorageProvider, useGlobalStateStorage };

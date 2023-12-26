@@ -4,15 +4,15 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { View, Button, Text, StyleSheet } from 'react-native';
 import * as Progress from 'react-native-progress';
-import type { UtxosData } from '../../lib/vaults';
+import { type UtxosData, createVault, type Vault } from '../lib/vaults';
 import type { Network } from 'bitcoinjs-lib';
-import { defaultSettings, Settings } from '../../lib/settings';
 import {
-  SETTINGS_GLOBAL_STORAGE,
-  useGlobalStateStorage
-} from '../../contexts/StorageContext';
-import { SERIALIZABLE } from '../../lib/storage';
-import { createVault, Vault } from '../../lib/vaults';
+  defaultSettings,
+  Settings,
+  SETTINGS_GLOBAL_STORAGE
+} from '../lib/settings';
+import { useGlobalStateStorage } from '../../common/contexts/StorageContext';
+import { SERIALIZABLE } from '../../common/lib/storage';
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 export default function VaultCreate({
   signPsbt,
@@ -48,16 +48,16 @@ export default function VaultCreate({
 }) {
   const { t } = useTranslation();
   const keepProgress = useRef<boolean>(true);
-  const [savedSettings, , isSettingsSynchd] = useGlobalStateStorage<Settings>(
+  const [settings] = useGlobalStateStorage<Settings>(
     SETTINGS_GLOBAL_STORAGE,
-    SERIALIZABLE
+    SERIALIZABLE,
+    defaultSettings
   );
-  if (!isSettingsSynchd)
+  if (!settings)
     throw new Error(
       'This component should only be started after settings has been retrieved from storage'
     );
   // We know settings are the correct ones in this Component
-  const settings = savedSettings || defaultSettings;
   const [progress, setProgress] = useState<number>(0);
   const onProgress = (progress: number) => {
     setProgress(progress);

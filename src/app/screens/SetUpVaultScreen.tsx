@@ -8,15 +8,15 @@ import { Trans, useTranslation } from 'react-i18next';
 import React, { useState } from 'react';
 import type { GestureResponderEvent } from 'react-native';
 import { View, Text, Button, StyleSheet, ScrollView } from 'react-native';
-import { Toast, CustomToast } from '../components/ui/Toast';
-
-import { defaultSettings, Settings } from '../lib/settings';
+import { Toast, CustomToast } from '../../common/components/Toast';
 import {
-  SETTINGS_GLOBAL_STORAGE,
-  useGlobalStateStorage
-} from '../contexts/StorageContext';
-import { SERIALIZABLE } from '../lib/storage';
-import EditableSlider, { snap } from '../components/ui/EditableSlider';
+  defaultSettings,
+  Settings,
+  SETTINGS_GLOBAL_STORAGE
+} from '../lib/settings';
+import { useGlobalStateStorage } from '../../common/contexts/StorageContext';
+import { SERIALIZABLE } from '../../common/lib/storage';
+import EditableSlider, { snap } from '../../common/components/EditableSlider';
 import { UtxosData, selectVaultUtxosData } from '../lib/vaults';
 import {
   DUMMY_VAULT_OUTPUT,
@@ -31,7 +31,7 @@ import {
   formatLockTime
 } from '../lib/fees';
 import { formatBtc } from '../lib/btcRates';
-import globalStyles from '../../styles/styles';
+import globalStyles from '../styles/styles';
 import type { Network } from 'bitcoinjs-lib';
 import { estimateVaultSetUpRange } from '../lib/vaultRange';
 
@@ -91,16 +91,15 @@ export default function VaultSetUp({
       })
     );
 
-  const [savedSettings, , isSettingsSynchd] = useGlobalStateStorage<Settings>(
+  const [settings] = useGlobalStateStorage<Settings>(
     SETTINGS_GLOBAL_STORAGE,
-    SERIALIZABLE
+    SERIALIZABLE,
+    defaultSettings
   );
-  if (!isSettingsSynchd)
+  if (!settings)
     throw new Error(
       'This component should only be started after settings has been retrieved from storage'
     );
-  // We know settings are the correct ones in this Component
-  const settings = savedSettings || defaultSettings;
 
   const [lockBlocks, setLockBlocks] = useState<number | null>(
     settings.INITIAL_LOCK_BLOCKS
