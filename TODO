@@ -1,4 +1,7 @@
 TODO: Replace all memoize calls (specially Factories) with moize
-TODO: Wallets is automatically generating Wallet 0 if no wallets exist. Remove this before shipping.
 TODO: Wallets should have now the Create New Wallet functionality. Also the "Select Wallet".
+TODO: Wallets is automatically generating Wallet 0 if no wallets exist. Remove this before shipping.
+TODO: extremelly important, before sharing this module make sure
+  this works properly: react-native-get-random-values
+  See: https://www.reddit.com/r/Bitcoin/comments/37oxow/the_security_issue_of_blockchaininfos_android/
 

@@ -3,7 +3,7 @@ import { ScrollView, RefreshControl, Button } from 'react-native';
 import { WalletContext, WalletContextType } from '../contexts/WalletContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
-import styles from '../../styles/styles';
+import styles from '../styles/styles';
 
 //TODO the WalletProvider must also pass it's own refreshing state
 const WalletScreen = () => {

@@ -1,6 +1,7 @@
 export type SubUnit = 'btc' | 'sat' | 'mbit' | 'bit';
 export type Currency = 'USD' | 'EUR' | 'GBP';
-export type Locale = 'en-US' | 'es-ES';
+import type { Locale } from '../../i18n/i18n';
+export const SETTINGS_GLOBAL_STORAGE = 'SETTINGS_GLOBAL_STORAGE';
 
 export interface Settings {
   GAP_LIMIT: number;

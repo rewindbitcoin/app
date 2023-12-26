@@ -73,8 +73,6 @@ import {
   assertSerializationFormat
 } from '../lib/storage';
 
-export const SETTINGS_GLOBAL_STORAGE = 'SETTINGS_GLOBAL_STORAGE';
-
 type StorageState<T> = Record<string, T>;
 type ProviderValue<T> = {
   storageState: StorageState<T>;

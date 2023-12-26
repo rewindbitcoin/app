@@ -10,22 +10,24 @@ import {
   WALLETS,
   WALLET_HOME,
   SETTINGS
-} from './src/screens';
-import type { Signers, Wallet as WalletType } from './src/lib/wallets';
+} from './src/app/screens';
+import type { Signers, Wallet as WalletType } from './src/app/lib/wallets';
 import { NavigationContainer, useNavigation } from '@react-navigation/native';
-import { CustomToast } from './src/components/ui/Toast';
-import WalletsScreen from './src/screens/WalletsScreen';
-import WalletScreen from './src/screens/WalletScreen';
-import { withWalletProvider } from './src/contexts/WalletContext';
-import Settings from './src/screens/SettingsScreen';
-import { StorageProvider } from './src/contexts/StorageContext';
+import { CustomToast } from './src/common/components/Toast';
+import WalletsScreen from './src/app/screens/WalletsScreen';
+import WalletScreen from './src/app/screens/WalletScreen';
+import { withWalletProvider } from './src/app/contexts/WalletContext';
+import Settings from './src/app/screens/SettingsScreen';
+import { StorageProvider } from './src/common/contexts/StorageContext';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { SERIALIZABLE } from './src/lib/storage';
+import { SERIALIZABLE } from './src/common/lib/storage';
+import { useGlobalStateStorage } from './src/common/contexts/StorageContext';
+import { SETTINGS_GLOBAL_STORAGE } from './src/app/lib/settings';
+
 import {
-  SETTINGS_GLOBAL_STORAGE,
-  useGlobalStateStorage
-} from './src/contexts/StorageContext';
-import { defaultSettings, Settings as SettingsType } from './src/lib/settings';
+  defaultSettings,
+  Settings as SettingsType
+} from './src/app/lib/settings';
 import { useTranslation } from 'react-i18next';
 import initI18n from './src/i18n/i18n';
 //Init for 1st render. Then, on settings load from context & apply correct one

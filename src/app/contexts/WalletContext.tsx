@@ -24,14 +24,12 @@ import React, {
 } from 'react';
 import { shallowEqual } from 'shallow-equal';
 import type { Wallet } from '../lib/wallets';
-import { Toast } from '../components/ui/Toast';
+import { Toast } from '../../common/components/Toast';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { SERIALIZABLE } from '../lib/storage';
-import {
-  SETTINGS_GLOBAL_STORAGE,
-  useGlobalStateStorage
-} from '../contexts/StorageContext';
-import { useLocalStateStorage } from '../hooks/useLocalStateStorage';
+import { SERIALIZABLE } from '../../common/lib/storage';
+import { useGlobalStateStorage } from '../../common/contexts/StorageContext';
+import { useLocalStateStorage } from '../../common/hooks/useLocalStateStorage';
+import { SETTINGS_GLOBAL_STORAGE } from '../lib/settings';
 import { defaultSettings, type Settings } from '../lib/settings';
 import { useTranslation } from 'react-i18next';
 
