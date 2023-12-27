@@ -60,6 +60,7 @@ export type WalletContextType = {
   feeEstimates: FeeEstimates | null;
   utxosData: UtxosData | undefined;
   signPsbt: (psbtVault: Psbt) => Promise<void>;
+  network: Network | undefined;
   processCreatedVault: (
     vault:
       | Vault
@@ -95,11 +96,11 @@ export const WalletProvider = ({
   wallet?: Wallet;
   newWalletSigners?: Signers;
 }) => {
-  console.log('TODO: WALLET PROVIDER HERE I AM');
-  if (!wallet) throw new Error('WalletProvider called with an invalid wallet');
-  const walletId = wallet.walletId;
-  const network = networkMapping[wallet.networkId];
-  if (!network) throw new Error(`Invalid networkId ${wallet.networkId}`);
+  //console.log('TODO: WALLET PROVIDER HERE I AM');
+  const walletId = wallet?.walletId;
+  const network = wallet && networkMapping[wallet.networkId];
+  if (wallet && !network)
+    throw new Error(`Invalid networkId ${wallet.networkId}`);
 
   const [signers, setSigners] = useLocalStateStorage<Signers>(
     `SIGNERS/${walletId}`,
@@ -152,7 +153,7 @@ export const WalletProvider = ({
 
   // Sets discovery from storage if available or new:
   useEffect(() => {
-    if (!discovery) {
+    if (!discovery && network) {
       let isMounted = true;
       let isExplorerConnected = false;
       const url = esploraUrl(network);
@@ -295,6 +296,7 @@ export const WalletProvider = ({
    */
   const syncBlockchain = useCallback(async () => {
     if (
+      network &&
       settings?.GAP_LIMIT !== undefined &&
       discovery &&
       vaults &&
@@ -319,6 +321,7 @@ export const WalletProvider = ({
             await discovery.getExplorer().fetchBlockHeight()
           )
         ];
+        console.log('WALLET PROVIDER', 'network expensive fetch function');
         await discovery.fetch({ descriptors, gapLimit: settings.GAP_LIMIT });
         //Saves to disk. It's async, but it's ok not waiting since discovery
         //data can be recreated any time (with a slower call) by fetching
@@ -465,6 +468,7 @@ export const WalletProvider = ({
     btcFiat,
     feeEstimates,
     signPsbt,
+    network,
     utxosData,
     processCreatedVault,
     syncBlockchain,
@@ -479,17 +483,17 @@ export const WalletProvider = ({
   );
 };
 
-export const withWalletProvider =
-  <P extends object>(
-    Component: React.ComponentType<P>,
-    wallet?: Wallet,
-    newWalletSigners?: Signers
-  ) =>
-  (props: P) => (
-    <WalletProvider
-      {...(wallet ? { wallet: wallet } : {})}
-      {...(newWalletSigners ? { newWalletSigners: newWalletSigners } : {})}
-    >
-      <Component {...props} />
-    </WalletProvider>
-  );
+//export const withWalletProvider =
+//  <P extends object>(
+//    Component: React.ComponentType<P>,
+//    wallet?: Wallet,
+//    newWalletSigners?: Signers
+//  ) =>
+//  (props: P) => (
+//    <WalletProvider
+//      {...(wallet ? { wallet: wallet } : {})}
+//      {...(newWalletSigners ? { newWalletSigners: newWalletSigners } : {})}
+//    >
+//      <Component {...props} />
+//    </WalletProvider>
+//  );

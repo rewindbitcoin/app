@@ -6,7 +6,7 @@ import { useTranslation } from 'react-i18next';
 import styles from '../styles/styles';
 
 //TODO the WalletProvider must also pass it's own refreshing state
-const WalletScreen = () => {
+const WalletHomeScreen = ({ onSetUpVault }: { onSetUpVault: () => void }) => {
   const insets = useSafeAreaInsets();
   const { t } = useTranslation();
   const context = useContext<WalletContextType | null>(WalletContext);
@@ -21,7 +21,6 @@ const WalletScreen = () => {
   // Use btcFiat, signPsbt, and any other data or functions provided by the context
   // ...
 
-  //TODO: translate Button refresh
   return (
     <ScrollView
       keyboardShouldPersistTaps="handled"
@@ -44,13 +43,21 @@ const WalletScreen = () => {
     >
       <Button
         title={
+          //TODO: translate
           syncingBlockchain ? t('Refreshing Balance…') : t('Refresh Balance')
         }
         onPress={syncBlockchain}
         disabled={syncingBlockchain}
       />
+      <Button
+        title={
+          //TODO: translate
+          t('Vault Balance')
+        }
+        onPress={onSetUpVault}
+      />
     </ScrollView>
   );
 };
 
-export default WalletScreen;
+export default WalletHomeScreen;

@@ -5,7 +5,7 @@
 
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Trans, useTranslation } from 'react-i18next';
-import React, { useState } from 'react';
+import React, { useContext, useState } from 'react';
 import type { GestureResponderEvent } from 'react-native';
 import { View, Text, Button, StyleSheet, ScrollView } from 'react-native';
 import { Toast, CustomToast } from '../../common/components/Toast';
@@ -17,45 +17,42 @@ import {
 import { useGlobalStateStorage } from '../../common/contexts/StorageContext';
 import { SERIALIZABLE } from '../../common/lib/storage';
 import EditableSlider, { snap } from '../../common/components/EditableSlider';
-import { UtxosData, selectVaultUtxosData } from '../lib/vaults';
+import { selectVaultUtxosData } from '../lib/vaults';
 import {
   DUMMY_VAULT_OUTPUT,
   DUMMY_SERVICE_OUTPUT,
   DUMMY_CHANGE_OUTPUT
 } from '../lib/vaultDescriptors';
 
-import {
-  FeeEstimates,
-  pickFeeEstimate,
-  formatFeeRate,
-  formatLockTime
-} from '../lib/fees';
+import { pickFeeEstimate, formatFeeRate, formatLockTime } from '../lib/fees';
+import { WalletContext, WalletContextType } from '../contexts/WalletContext';
 import { formatBtc } from '../lib/btcRates';
 import globalStyles from '../styles/styles';
-import type { Network } from 'bitcoinjs-lib';
 import { estimateVaultSetUpRange } from '../lib/vaultRange';
 
 const FEE_RATE_STEP = 0.01;
 
 export default function VaultSetUp({
-  utxosData,
-  network,
-  feeEstimates,
-  btcFiat,
   onNewValues,
   onCancel = undefined
 }: {
-  utxosData: UtxosData;
-  network: Network;
-  feeEstimates: FeeEstimates | null;
-  btcFiat: number | null;
   onNewValues: (values: {
     amount: number;
     feeRate: number;
     lockBlocks: number;
-  }) => Promise<void>;
+  }) => void;
   onCancel?: (event: GestureResponderEvent) => void;
 }) {
+  const context = useContext<WalletContextType | null>(WalletContext);
+
+  if (context === null) {
+    throw new Error('Context was not set');
+  }
+  const { utxosData, network, feeEstimates: originalFE, btcFiat } = context;
+  if (!utxosData)
+    throw new Error('SetUpVaultScreen cannot be called with unset utxos');
+  if (!network)
+    throw new Error('SetUpVaultScreen cannot be called with unset network');
   const insets = useSafeAreaInsets();
   //pre-snap feeEstimates so that maxVaultAmount is not recomputed when
   //EditableSlider returns a new snapped feeRate on mount.
@@ -73,9 +70,11 @@ export default function VaultSetUp({
   //mounts, which is annoying.
   //Also pre-snap the whole feeEstimate so that pickFeeEstimate uses
   //snapped feeRates with snapped feeEstimates
-  if (feeEstimates !== null)
-    feeEstimates = Object.fromEntries(
-      Object.entries(feeEstimates).map(([targetTime, feeRate]) => {
+
+  const snappedFeeEstimates =
+    originalFE &&
+    Object.fromEntries(
+      Object.entries(originalFE).map(([targetTime, feeRate]) => {
         const snappedValue = snap({
           minimumValue: Number.MIN_VALUE,
           maximumValue: Number.MAX_VALUE,
@@ -106,8 +105,8 @@ export default function VaultSetUp({
   );
   const { t } = useTranslation();
 
-  const initialFeeRate = feeEstimates
-    ? pickFeeEstimate(feeEstimates, settings.INITIAL_CONFIRMATION_TIME)
+  const initialFeeRate = snappedFeeEstimates
+    ? pickFeeEstimate(snappedFeeEstimates, settings.INITIAL_CONFIRMATION_TIME)
     : settings.MIN_FEE_RATE;
   const [feeRate, setFeeRate] = useState<number | null>(initialFeeRate);
 
@@ -123,7 +122,7 @@ export default function VaultSetUp({
     largestMinVaultAmount
   } = estimateVaultSetUpRange({
     utxosData,
-    feeEstimates,
+    feeEstimates: snappedFeeEstimates,
     network,
     serviceFeeRate: settings.SERVICE_FEE_RATE,
     feeRate,
@@ -318,7 +317,7 @@ export default function VaultSetUp({
                       currency: settings.CURRENCY,
                       txSize: selected.vsize,
                       btcFiat,
-                      feeEstimates
+                      feeEstimates: snappedFeeEstimates
                     },
                     t
                   );
@@ -342,7 +341,7 @@ export default function VaultSetUp({
                       currency: settings.CURRENCY,
                       txSize: selected ? selected.vsize : null,
                       btcFiat,
-                      feeEstimates
+                      feeEstimates: snappedFeeEstimates
                     },
                     t
                   );
@@ -383,8 +382,9 @@ const styles = StyleSheet.create({
     width: '100%'
   },
   content: {
+    padding: 40,
     backgroundColor: 'white',
-    borderRadius: 10,
+    //borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
     width: '100%'

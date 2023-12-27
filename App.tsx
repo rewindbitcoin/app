@@ -9,14 +9,16 @@ import {
   isNativeStack,
   WALLETS,
   WALLET_HOME,
-  SETTINGS
+  SETTINGS,
+  SETUP_VAULT
 } from './src/app/screens';
 import type { Signers, Wallet as WalletType } from './src/app/lib/wallets';
 import { NavigationContainer, useNavigation } from '@react-navigation/native';
 import { CustomToast } from './src/common/components/Toast';
 import WalletsScreen from './src/app/screens/WalletsScreen';
-import WalletScreen from './src/app/screens/WalletScreen';
-import { withWalletProvider } from './src/app/contexts/WalletContext';
+import WalletHomeScreen from './src/app/screens/WalletHomeScreen';
+import SetupVaultScreen from './src/app/screens/SetUpVaultScreen';
+import { WalletProvider } from './src/app/contexts/WalletContext';
 import Settings from './src/app/screens/SettingsScreen';
 import { StorageProvider } from './src/common/contexts/StorageContext';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -48,7 +50,7 @@ const App = () => {
   const [newWalletSigners, setNewWalletSigners] = useState<Signers>();
   const navigation = useNavigation();
 
-  const settingsButtonOnHeaderRight = () => (
+  const settingsButton = () => (
     <Button
       onPress={() => navigation.navigate(SETTINGS)}
       title={t('app.settingsButton')}
@@ -61,12 +63,10 @@ const App = () => {
     if (navigation) navigation.navigate(WALLET_HOME);
     else throw new Error('navigation not set');
   };
-
-  const WalletScreenWithWalletProvider = withWalletProvider(
-    WalletScreen,
-    wallet,
-    newWalletSigners
-  );
+  const processSetUpVault = () => {
+    if (navigation) navigation.navigate(SETUP_VAULT);
+    else throw new Error('navigation not set');
+  };
 
   // init real Locale
   useEffect(() => {
@@ -74,36 +74,63 @@ const App = () => {
   }, [settings?.LOCALE]);
 
   return (
-    <RootStack.Navigator
-      screenOptions={isNativeStack ? { animationEnabled: true } : {}}
+    <WalletProvider
+      {...(wallet ? { wallet: wallet } : {})}
+      {...(newWalletSigners ? { newWalletSigners: newWalletSigners } : {})}
     >
-      <RootStack.Screen
-        name={WALLETS}
-        options={{
-          title: t('app.thunderDenTitle'),
-          headerRightContainerStyle: { marginRight: 10 },
-          headerRight: settingsButtonOnHeaderRight
-        }}
+      <RootStack.Navigator
+        screenOptions={isNativeStack ? { animationEnabled: true } : {}}
       >
-        {() => <WalletsScreen onWallet={processWallet} />}
-      </RootStack.Screen>
+        <RootStack.Screen
+          name={WALLETS}
+          options={{
+            title: t('app.thunderDenTitle'),
+            headerRightContainerStyle: { marginRight: 10 },
+            headerRight: settingsButton
+          }}
+        >
+          {() => <WalletsScreen onWallet={processWallet} />}
+        </RootStack.Screen>
 
-      <RootStack.Screen
-        name={WALLET_HOME}
-        component={WalletScreenWithWalletProvider}
-        options={{
-          title: t('app.thunderDenTitle'),
-          headerRightContainerStyle: { marginRight: 10 },
-          headerRight: settingsButtonOnHeaderRight
-        }}
-      />
+        <RootStack.Screen
+          name={WALLET_HOME}
+          options={{
+            title: t('app.thunderDenTitle'),
+            headerRightContainerStyle: { marginRight: 10 },
+            headerRight: settingsButton
+          }}
+        >
+          {() => <WalletHomeScreen onSetUpVault={processSetUpVault} />}
+        </RootStack.Screen>
 
-      <RootStack.Screen
-        name={SETTINGS}
-        component={Settings}
-        options={{ title: t('app.settingsTitle') }}
-      />
-    </RootStack.Navigator>
+        <RootStack.Screen
+          name={SETUP_VAULT}
+          options={{
+            title: t('app.thunderDenTitle'),
+            headerRightContainerStyle: { marginRight: 10 },
+            headerRight: settingsButton
+          }}
+        >
+          {() => (
+            <SetupVaultScreen
+              onNewValues={({ amount, feeRate, lockBlocks }) =>
+                console.log('TRACE new vault setup', {
+                  amount,
+                  feeRate,
+                  lockBlocks
+                })
+              }
+            />
+          )}
+        </RootStack.Screen>
+
+        <RootStack.Screen
+          name={SETTINGS}
+          component={Settings}
+          options={{ title: t('app.settingsTitle') }}
+        />
+      </RootStack.Navigator>
+    </WalletProvider>
   );
 };
 

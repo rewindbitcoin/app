@@ -3,16 +3,16 @@ import { createStackNavigator } from '@react-navigation/stack';
 import { Platform } from 'react-native';
 //import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 //import type { StackScreenProps } from '@react-navigation/stack';
-export const HOME = 'HOME' as const; // Doing this, typeof HOME === 'HOME' and not 'string'
 export const SETTINGS = 'SETTINGS' as const;
 export const WALLETS = 'WALLETS' as const;
 export const WALLET_HOME = 'WALLET_HOME' as const;
+export const SETUP_VAULT = 'SETUP_VAULT' as const;
 // https://reactnavigation.org/docs/typescript/
 export type RootStackParamList = {
-  HOME: undefined;
   SETTINGS: undefined;
   WALLET_HOME: undefined;
   WALLETS: undefined;
+  SETUP_VAULT: undefined;
 };
 // https://reactnavigation.org/docs/typescript/#specifying-default-types-for-usenavigation-link-ref-etc
 declare global {
