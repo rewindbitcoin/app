@@ -10,9 +10,9 @@ import { defaultSettings } from '../lib/settings';
 const walletId = 0;
 
 export default ({
-  onWallet
+  onWalletSelectOrCreate
 }: {
-  onWallet: (
+  onWalletSelectOrCreate: (
     wallet: Wallet,
     /** pass back signers if this is a new wallet that must be created */
     newWalletSigners?: Signers
@@ -32,7 +32,7 @@ export default ({
         encryptionKeyInput: 'NONE'
       };
       setWallets({ [walletId]: wallet });
-      onWallet(wallet, [
+      onWalletSelectOrCreate(wallet, [
         {
           type: 'SOFTWARE',
           mnemonic:
@@ -45,7 +45,7 @@ export default ({
   //moment while having not developped the multi-wallet version)
   useEffect(() => {
     const wallet = wallets && wallets[0];
-    if (wallet) onWallet(wallet);
+    if (wallet) onWalletSelectOrCreate(wallet);
   }, [wallets]);
 
   //TODO: add the insets thing

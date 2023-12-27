@@ -54,8 +54,12 @@ export type WalletContextType = {
   //TODO: Must also provide the serviceAddress
   //TODO: Must also provide the coldAddress
   //TODO: Must also provide the heirsAddress
-  //TODO: Must also provide getNextChangeDescriptor
-  //TODO: Must also provide getUnvaultKey
+  //TODO: Must also provide changeDescriptor: getNextChangeDescriptor
+  //TODO: Must also provide unvaultKey: getUnvaultKey
+  serviceAddress: string | undefined;
+  coldAddress: string | undefined;
+  changeDescriptor: string | undefined;
+  unvaultKey: string | undefined;
   btcFiat: number | null;
   feeEstimates: FeeEstimates | null;
   utxosData: UtxosData | undefined;
@@ -465,6 +469,10 @@ export const WalletProvider = ({
 
   const contextValue = {
     // Expose any state or functions that children components might need
+    coldAddress: 'tb1qm0k9mn48uqfs2w9gssvzmus4j8srrx5eje7wpf', //TODO: Fix this
+    serviceAddress: 'tb1qm0k9mn48uqfs2w9gssvzmus4j8srrx5eje7wpf', //TODO: Fix this
+    changeDescriptor: 'TODO', //TODO: Fix this
+    unvaultKey: 'TODO', //TODO: Fix this
     btcFiat,
     feeEstimates,
     signPsbt,

@@ -17,7 +17,7 @@ import {
 import { useGlobalStateStorage } from '../../common/contexts/StorageContext';
 import { SERIALIZABLE } from '../../common/lib/storage';
 import EditableSlider, { snap } from '../../common/components/EditableSlider';
-import { selectVaultUtxosData } from '../lib/vaults';
+import { selectVaultUtxosData, type VaultSettings } from '../lib/vaults';
 import {
   DUMMY_VAULT_OUTPUT,
   DUMMY_SERVICE_OUTPUT,
@@ -33,14 +33,10 @@ import { estimateVaultSetUpRange } from '../lib/vaultRange';
 const FEE_RATE_STEP = 0.01;
 
 export default function VaultSetUp({
-  onNewValues,
+  onVaultSetUpComplete,
   onCancel = undefined
 }: {
-  onNewValues: (values: {
-    amount: number;
-    feeRate: number;
-    lockBlocks: number;
-  }) => void;
+  onVaultSetUpComplete: (VaultSettings: VaultSettings) => void;
   onCancel?: (event: GestureResponderEvent) => void;
 }) {
   const context = useContext<WalletContextType | null>(WalletContext);
@@ -166,7 +162,7 @@ export default function VaultSetUp({
     } else {
       if (feeRate === null || amount === null || lockBlocks === null)
         throw new Error(`Faulty validation`);
-      onNewValues({ feeRate, amount, lockBlocks });
+      onVaultSetUpComplete({ feeRate, amount, lockBlocks });
     }
   };
 

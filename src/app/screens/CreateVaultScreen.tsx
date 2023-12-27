@@ -1,11 +1,10 @@
 //TODO: get some style stuff for the color
-import type { Psbt } from 'bitcoinjs-lib';
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useContext, useEffect, useState, useRef } from 'react';
+import { WalletContext, WalletContextType } from '../contexts/WalletContext';
 import { useTranslation } from 'react-i18next';
 import { View, Button, Text, StyleSheet } from 'react-native';
 import * as Progress from 'react-native-progress';
-import { type UtxosData, createVault, type Vault } from '../lib/vaults';
-import type { Network } from 'bitcoinjs-lib';
+import { createVault, type Vault, type VaultSettings } from '../lib/vaults';
 import {
   defaultSettings,
   Settings,
@@ -15,28 +14,10 @@ import { useGlobalStateStorage } from '../../common/contexts/StorageContext';
 import { SERIALIZABLE } from '../../common/lib/storage';
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 export default function VaultCreate({
-  signPsbt,
-  utxosData,
-  amount,
-  feeRate,
-  lockBlocks,
-  coldAddress,
-  serviceAddress,
-  changeDescriptor,
-  unvaultKey,
-  network,
+  vaultSettings,
   onVaultCreated
 }: {
-  signPsbt: (psbtVault: Psbt) => Promise<void>;
-  utxosData: UtxosData;
-  amount: number;
-  feeRate: number;
-  lockBlocks: number;
-  coldAddress: string;
-  serviceAddress: string;
-  changeDescriptor: string;
-  unvaultKey: string;
-  network: Network;
+  vaultSettings: VaultSettings | undefined;
   onVaultCreated: (
     vault:
       | Vault
@@ -46,6 +27,32 @@ export default function VaultCreate({
       | 'UNKNOWN_ERROR'
   ) => void;
 }) {
+  //TODO Use a proper Cancellable Modal
+  const context = useContext<WalletContextType | null>(WalletContext);
+  if (context === null) throw new Error('Context was not set');
+
+  if (!vaultSettings) throw new Error('vaultSettings not set');
+  const { amount, feeRate, lockBlocks } = vaultSettings;
+
+  const {
+    utxosData,
+    network,
+    signPsbt,
+    coldAddress,
+    serviceAddress,
+    changeDescriptor,
+    unvaultKey
+  } = context;
+  if (
+    !utxosData ||
+    !network ||
+    !signPsbt ||
+    !coldAddress ||
+    !serviceAddress ||
+    !changeDescriptor ||
+    !unvaultKey
+  )
+    throw new Error('Missing data from context');
   const { t } = useTranslation();
   const keepProgress = useRef<boolean>(true);
   const [settings] = useGlobalStateStorage<Settings>(

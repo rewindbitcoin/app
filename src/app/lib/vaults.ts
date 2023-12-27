@@ -23,6 +23,12 @@ import type { DiscoveryInstance } from '@bitcoinerlab/discovery';
 import { coinselect, vsize, dustThreshold } from '@bitcoinerlab/coinselect';
 import type { Explorer } from '@bitcoinerlab/explorer';
 
+export type VaultSettings = {
+  amount: number;
+  feeRate: number;
+  lockBlocks: number;
+};
+
 export type Vault = {
   amount: number;
 
