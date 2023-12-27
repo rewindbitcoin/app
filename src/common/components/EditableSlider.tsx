@@ -51,7 +51,8 @@ import {
   StyleSheet,
   ScrollView,
   Keyboard,
-  Platform
+  Platform,
+  DimensionValue
 } from 'react-native';
 import Slider from '@react-native-community/slider';
 import {
@@ -265,6 +266,29 @@ const EditableSlider = ({
         : t('editableSlider.invalidValue'));
   } else formattedValue = formatValue(snappedValue);
 
+  // These useState and useEffect below arew necessary for adjusting the
+  // TextInput width on web platforms.
+  // React Native, when used with React Native for Web, does not automatically resize
+  // the TextInput to fit its content. This behavior differs from react native
+  // for iOs and Android.
+  // To address this, the width is dynamically calculated based on the text length
+  // and the additional space for padding and border, ensuring the TextInput
+  // appears consistent with typical web input behavior.
+  const [webTextInputWidth, setWebTextInputWidth] = useState<string | null>(
+    null
+  );
+  useEffect(() => {
+    if (Platform.OS === 'web') {
+      // Calculating dynamic padding and border values from the styles
+      const paddingAndBorder =
+        StyleSheet.flatten(styles.input).padding * 2 +
+        StyleSheet.flatten(styles.input).borderWidth * 2;
+      setWebTextInputWidth(
+        `calc(${strValue.length}ch + ${paddingAndBorder}px)`
+      );
+    }
+  }, [strValue]);
+
   //TODO: thumbTintColor is only Android
 
   return (
@@ -292,6 +316,9 @@ const EditableSlider = ({
           <TextInput
             keyboardType={keyboardType}
             style={[
+              webTextInputWidth !== null && {
+                width: webTextInputWidth as DimensionValue
+              },
               styles.input,
               fontsLoaded && { fontFamily: 'RobotoMono_400Regular' },
               snappedValue === null && { color: 'red' }
