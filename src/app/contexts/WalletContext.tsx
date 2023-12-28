@@ -11,7 +11,8 @@ import type { Signers } from '../lib/wallets';
 import { networkMapping } from '../lib/network';
 import {
   createReceiveDescriptor,
-  createChangeDescriptor
+  createChangeDescriptor,
+  createUnvaultKey
 } from '../lib/vaultDescriptors';
 import React, {
   createContext,
@@ -154,6 +155,8 @@ export const WalletProvider = ({
   > | null>(null);
   const [discovery, setDiscovery] = useState<DiscoveryInstance | null>(null);
   const [utxosData, setUtxosData] = useState<UtxosData>();
+  const [changeDescriptor, setChangeDescriptor] = useState<string>();
+  const [unvaultKey, setUnvaultKey] = useState<string>();
 
   // Sets discovery from storage if available or new:
   useEffect(() => {
@@ -316,9 +319,13 @@ export const WalletProvider = ({
           throw new Error('updateVaultsStatuses should have thrown');
         const signer = signers[0];
         if (!signer) throw new Error('signer unavailable');
+        const changeDescriptorRanged = await createChangeDescriptor({
+          signer,
+          network
+        });
         const descriptors = [
           await createReceiveDescriptor({ signer, network }),
-          await createChangeDescriptor({ signer, network }),
+          changeDescriptorRanged,
           ...getSpendableTriggerDescriptors(
             vaults,
             updatedVaultsStatuses,
@@ -327,6 +334,17 @@ export const WalletProvider = ({
         ];
         console.log('WALLET PROVIDER', 'network expensive fetch function');
         await discovery.fetch({ descriptors, gapLimit: settings.GAP_LIMIT });
+        setChangeDescriptor(
+          changeDescriptorRanged.replaceAll(
+            '*',
+            discovery
+              .getNextIndex({
+                descriptor: changeDescriptorRanged
+              })
+              .toString()
+          )
+        );
+        setUnvaultKey(await createUnvaultKey({ signer, network }));
         //Saves to disk. It's async, but it's ok not waiting since discovery
         //data can be recreated any time (with a slower call) by fetching
         //descriptors
@@ -471,8 +489,8 @@ export const WalletProvider = ({
     // Expose any state or functions that children components might need
     coldAddress: 'tb1qm0k9mn48uqfs2w9gssvzmus4j8srrx5eje7wpf', //TODO: Fix this
     serviceAddress: 'tb1qm0k9mn48uqfs2w9gssvzmus4j8srrx5eje7wpf', //TODO: Fix this
-    changeDescriptor: 'TODO', //TODO: Fix this
-    unvaultKey: 'TODO', //TODO: Fix this
+    changeDescriptor,
+    unvaultKey,
     btcFiat,
     feeEstimates,
     signPsbt,

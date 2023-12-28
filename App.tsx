@@ -141,6 +141,7 @@ const App = () => {
           }}
         >
           {() => (
+            //TODO: onVaultCreated may return an error!
             <CreateVaultScreen
               vaultSettings={vaultSettings}
               onVaultCreated={vault => console.log('onVault', vault)}
