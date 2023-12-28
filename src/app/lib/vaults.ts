@@ -1,6 +1,7 @@
 // TODO: very imporant to only allow Vaulting funds with 1 confirmatin at least (make this a setting)
 import { Network, Psbt, Transaction, address, crypto } from 'bitcoinjs-lib';
 import memoize from 'lodash.memoize';
+import moize from 'moize';
 
 import * as secp256k1 from '@bitcoinerlab/secp256k1';
 import {
@@ -344,8 +345,7 @@ export async function createVault({
     ////////////////////////////////
 
     const vaultBalance = amount - selected.serviceFee;
-    const vaultFee =
-      vaultBalance + selected.serviceFee - utxosDataBalance(vaultUtxosData);
+    const vaultFee = utxosDataBalance(vaultUtxosData) - amount;
     if (vaultFee <= dustThreshold(vaultOutput)) return 'NOT_ENOUGH_FUNDS';
 
     const psbtVault = new Psbt({ network });
@@ -419,7 +419,9 @@ export async function createVault({
     const feeTriggerArray: Array<number> = [];
     for (const [feeRateIndex, feeRateTrigger] of feeRates.entries()) {
       const psbtTrigger = psbtTriggerBase.clone();
-      const feeTrigger = feeRateTrigger * estimateTriggerTxSize(lockBlocks);
+      const feeTrigger = Math.ceil(
+        feeRateTrigger * estimateTriggerTxSize(lockBlocks)
+      );
       const triggerBalance = vaultBalance - feeTrigger;
 
       if (triggerBalance <= dustThreshold(triggerOutput))
@@ -468,8 +470,9 @@ export async function createVault({
       const feePanicArray: Array<number> = [];
       for (const [feeRateIndex, feeRatePanic] of feeRates.entries()) {
         const psbtPanic = psbtPanicBase.clone();
-        const feePanic =
-          feeRatePanic * estimatePanicTxSize(lockBlocks, coldAddress);
+        const feePanic = Math.ceil(
+          feeRatePanic * estimatePanicTxSize(lockBlocks, coldAddress, network)
+        );
         const panicBalance = triggerBalance - feePanic;
 
         if (panicBalance <= dustThreshold(coldOutput))
@@ -549,25 +552,41 @@ export const estimateTriggerTxSize = memoize((lockBlocks: number) => {
     ]
   );
 });
-const estimatePanicTxSizeFactory = memoize((lockBlocks: number) =>
-  memoize((coldAddress: string) => {
-    // Assumes bitcoin network (not important for txSizes anyway)
-    return vsize(
+//const estimatePanicTxSizeFactory = memoize((lockBlocks: number) =>
+//  memoize((coldAddress: string) => {
+//    // Assumes bitcoin network (not important for txSizes anyway)
+//    return vsize(
+//      [
+//        new Output({
+//          descriptor: createTriggerDescriptor({
+//            unvaultKey: DUMMY_PUBKEY,
+//            panicKey: DUMMY_PUBKEY_2,
+//            lockBlocks
+//          })
+//        })
+//      ],
+//      [new Output({ descriptor: createColdDescriptor(coldAddress) })]
+//    );
+//  })
+//);
+//const estimatePanicTxSize = (lockBlocks: number, coldAddress: string) =>
+//  estimatePanicTxSizeFactory(lockBlocks)(coldAddress);
+const estimatePanicTxSize = moize(
+  (lockBlocks: number, coldAddress: string, network: Network) =>
+    vsize(
       [
         new Output({
           descriptor: createTriggerDescriptor({
             unvaultKey: DUMMY_PUBKEY,
             panicKey: DUMMY_PUBKEY_2,
             lockBlocks
-          })
+          }),
+          network
         })
       ],
-      [new Output({ descriptor: createColdDescriptor(coldAddress) })]
-    );
-  })
+      [new Output({ descriptor: createColdDescriptor(coldAddress), network })]
+    )
 );
-const estimatePanicTxSize = (lockBlocks: number, coldAddress: string) =>
-  estimatePanicTxSizeFactory(lockBlocks)(coldAddress);
 
 export function validateAddress(addressValue: string, network: Network) {
   try {
