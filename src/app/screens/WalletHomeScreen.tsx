@@ -1,9 +1,7 @@
 import React, { useContext } from 'react';
 import { ScrollView, RefreshControl, Button } from 'react-native';
 import { WalletContext, WalletContextType } from '../contexts/WalletContext';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
-import styles from '../styles/styles';
 
 //TODO the WalletProvider must also pass it's own refreshing state
 const WalletHomeScreen = ({
@@ -11,7 +9,6 @@ const WalletHomeScreen = ({
 }: {
   onSetUpVaultInit: () => void;
 }) => {
-  const insets = useSafeAreaInsets();
   const { t } = useTranslation();
   const context = useContext<WalletContextType | null>(WalletContext);
 
@@ -28,16 +25,13 @@ const WalletHomeScreen = ({
   return (
     <ScrollView
       keyboardShouldPersistTaps="handled"
-      style={{
-        ...styles.container,
-        // Paddings to handle safe area
-        // https://reactnavigation.org/docs/handling-safe-area
-        paddingTop: insets.top,
-        paddingBottom: insets.bottom,
-        paddingLeft: insets.left,
-        paddingRight: insets.right
-      }}
-      contentContainerStyle={{ flexGrow: 1, justifyContent: 'center' }}
+      contentContainerStyle={
+        //This is the "inner" style
+        {
+          flexGrow: 1, //grow vertically to 100% and center child
+          justifyContent: 'center'
+        }
+      }
       refreshControl={
         <RefreshControl
           refreshing={syncingBlockchain}

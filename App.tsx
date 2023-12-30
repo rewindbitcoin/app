@@ -29,6 +29,15 @@ import { useGlobalStateStorage } from './src/common/contexts/StorageContext';
 import { SETTINGS_GLOBAL_STORAGE } from './src/app/lib/settings';
 import type { VaultSettings } from './src/app/lib/vaults';
 
+//import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+//const Tab = createBottomTabNavigator();
+//{wallet && (
+//  <Tab.Navigator>
+//    <Tab.Screen name="Home" component={Settings} />
+//    <Tab.Screen name="Settings" component={Settings} />
+//  </Tab.Navigator>
+//)}
+
 import {
   defaultSettings,
   Settings as SettingsType
@@ -122,7 +131,7 @@ const App = () => {
         <RootStack.Screen
           name={SETUP_VAULT}
           options={{
-            title: t('app.thunderDenTitle'),
+            title: t('vaultSetup.title'),
             headerRightContainerStyle: { marginRight: 10 },
             headerRight: settingsButton
           }}
@@ -136,15 +145,13 @@ const App = () => {
           name={CREATE_VAULT}
           options={{
             title: t('app.thunderDenTitle'),
-            headerRightContainerStyle: { marginRight: 10 },
-            headerRight: settingsButton
+            presentation: 'modal'
           }}
         >
           {() => (
-            //TODO: onVaultCreated may return an error!
             <CreateVaultScreen
               vaultSettings={vaultSettings}
-              onVaultCreated={vault => console.log('onVault', vault)}
+              onVaultCreated={_result => navigation.navigate(WALLET_HOME)}
             />
           )}
         </RootStack.Screen>

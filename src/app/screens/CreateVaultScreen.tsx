@@ -4,7 +4,7 @@ import { WalletContext, WalletContextType } from '../contexts/WalletContext';
 import { useTranslation } from 'react-i18next';
 import { View, Button, Text, StyleSheet } from 'react-native';
 import * as Progress from 'react-native-progress';
-import { createVault, type Vault, type VaultSettings } from '../lib/vaults';
+import { createVault, type VaultSettings } from '../lib/vaults';
 import {
   defaultSettings,
   Settings,
@@ -18,14 +18,7 @@ export default function VaultCreate({
   onVaultCreated
 }: {
   vaultSettings: VaultSettings | undefined;
-  onVaultCreated: (
-    vault:
-      | Vault
-      | 'COINSELECT_ERROR'
-      | 'NOT_ENOUGH_FUNDS'
-      | 'USER_CANCEL'
-      | 'UNKNOWN_ERROR'
-  ) => void;
+  onVaultCreated: (result: boolean) => void;
 }) {
   //TODO Use a proper Cancellable Modal
   const context = useContext<WalletContextType | null>(WalletContext);
@@ -41,7 +34,8 @@ export default function VaultCreate({
     coldAddress,
     serviceAddress,
     changeDescriptor,
-    unvaultKey
+    unvaultKey,
+    processCreatedVault
   } = context;
   if (
     !utxosData ||
@@ -50,7 +44,8 @@ export default function VaultCreate({
     !coldAddress ||
     !serviceAddress ||
     !changeDescriptor ||
-    !unvaultKey
+    !unvaultKey ||
+    !processCreatedVault
   )
     throw new Error('Missing data from context');
   const { t } = useTranslation();
@@ -93,7 +88,11 @@ export default function VaultCreate({
         network,
         onProgress
       });
-      if (isMounted) onVaultCreated(vault);
+      if (isMounted) {
+        const result = await processCreatedVault(vault);
+        //TODO: ask for confirmation, then:
+        onVaultCreated(result);
+      }
     };
     createAndNotifyVault();
     return () => {

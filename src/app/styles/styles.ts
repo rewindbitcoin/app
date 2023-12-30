@@ -1,7 +1,7 @@
 import { StyleSheet } from 'react-native';
 export default StyleSheet.create({
-  container: { backgroundColor: '#fff', flex: 1 },
-  contentContainer: { alignItems: 'center', paddingTop: 40 },
+  //container: { backgroundColor: '#fff', flex: 1 },
+  //contentContainer: { alignItems: 'center', paddingTop: 40 },
   hotBalance: {
     fontSize: 16,
     fontWeight: '500', // Semi-bold

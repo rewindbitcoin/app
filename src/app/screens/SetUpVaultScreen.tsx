@@ -172,6 +172,7 @@ export default function VaultSetUp({
   );
 
   const content =
+    //TODO: test missingFunds
     missingFunds > 0 ? (
       <>
         <Text style={globalStyles.title}>
@@ -210,152 +211,149 @@ export default function VaultSetUp({
         </View>
       </>
     ) : (
-      <>
-        <Text style={globalStyles.title}>{t('vaultSetup.title')}</Text>
-        <View style={styles.content}>
-          {maxVaultAmount !== undefined &&
-            largestMinVaultAmount !== undefined &&
-            maxVaultAmount >= largestMinVaultAmount && (
-              <View style={styles.settingGroup}>
-                <Text style={styles.label}>{t('vaultSetup.amountLabel')}</Text>
-                <EditableSlider
-                  formatError={({
-                    lastValidSnappedValue,
-                    strValue
-                  }: {
-                    lastValidSnappedValue: number;
-                    strValue: string;
-                  }) => {
-                    void strValue;
-                    if (lastValidSnappedValue > maxVaultAmount) {
-                      return t('vaultSetup.reduceVaultAmount', {
-                        amount: formatBtc(
-                          {
-                            amount: maxVaultAmount,
-                            subUnit: settings.SUB_UNIT,
-                            btcFiat,
-                            locale: settings.LOCALE,
-                            currency: settings.CURRENCY
-                          },
-                          t
-                        )
-                      });
-                    } else return;
-                  }}
-                  minimumValue={largestMinVaultAmount}
-                  maximumValue={maxVaultAmount}
-                  value={amount}
-                  onValueChange={amount => {
-                    console.log('TRACE amount onValueChange', { amount });
-                    setAmount(amount);
-                  }}
-                  step={1}
-                  formatValue={amount =>
-                    formatBtc(
-                      {
-                        amount,
-                        subUnit: settings.SUB_UNIT,
-                        btcFiat,
-                        locale: settings.LOCALE,
-                        currency: settings.CURRENCY
-                      },
-                      t
-                    )
-                  }
-                />
-              </View>
-            )}
-          {settings.MIN_LOCK_BLOCKS &&
-            settings.MAX_LOCK_BLOCKS &&
-            formatLockTime && (
-              <View style={styles.settingGroup}>
-                <Text style={styles.label}>
-                  {t('vaultSetup.securityLockTimeLabel')}
-                </Text>
-                <EditableSlider
-                  minimumValue={settings.MIN_LOCK_BLOCKS}
-                  maximumValue={settings.MAX_LOCK_BLOCKS}
-                  value={lockBlocks}
-                  step={1}
-                  onValueChange={setLockBlocks}
-                  formatValue={value => formatLockTime(value, t)}
-                />
-              </View>
-            )}
-          <View style={styles.settingGroup}>
-            <Text style={styles.label}>
-              {t('vaultSetup.confirmationSpeedLabel')}
-            </Text>
-            <EditableSlider
-              value={feeRate}
-              minimumValue={settings.MIN_FEE_RATE}
-              maximumValue={maxFeeRate}
-              step={FEE_RATE_STEP}
-              onValueChange={setFeeRate}
-              formatValue={feeRate => {
+      <View style={styles.content}>
+        {maxVaultAmount !== undefined &&
+          largestMinVaultAmount !== undefined &&
+          maxVaultAmount >= largestMinVaultAmount && (
+            <View style={styles.settingGroup}>
+              <Text style={styles.label}>{t('vaultSetup.amountLabel')}</Text>
+              <EditableSlider
+                formatError={({
+                  lastValidSnappedValue,
+                  strValue
+                }: {
+                  lastValidSnappedValue: number;
+                  strValue: string;
+                }) => {
+                  void strValue;
+                  if (lastValidSnappedValue > maxVaultAmount) {
+                    return t('vaultSetup.reduceVaultAmount', {
+                      amount: formatBtc(
+                        {
+                          amount: maxVaultAmount,
+                          subUnit: settings.SUB_UNIT,
+                          btcFiat,
+                          locale: settings.LOCALE,
+                          currency: settings.CURRENCY
+                        },
+                        t
+                      )
+                    });
+                  } else return;
+                }}
+                minimumValue={largestMinVaultAmount}
+                maximumValue={maxVaultAmount}
+                value={amount}
+                onValueChange={amount => {
+                  console.log('TRACE amount onValueChange', { amount });
+                  setAmount(amount);
+                }}
+                step={1}
+                formatValue={amount =>
+                  formatBtc(
+                    {
+                      amount,
+                      subUnit: settings.SUB_UNIT,
+                      btcFiat,
+                      locale: settings.LOCALE,
+                      currency: settings.CURRENCY
+                    },
+                    t
+                  )
+                }
+              />
+            </View>
+          )}
+        {settings.MIN_LOCK_BLOCKS &&
+          settings.MAX_LOCK_BLOCKS &&
+          formatLockTime && (
+            <View style={styles.settingGroup}>
+              <Text style={styles.label}>
+                {t('vaultSetup.securityLockTimeLabel')}
+              </Text>
+              <EditableSlider
+                minimumValue={settings.MIN_LOCK_BLOCKS}
+                maximumValue={settings.MAX_LOCK_BLOCKS}
+                value={lockBlocks}
+                step={1}
+                onValueChange={setLockBlocks}
+                formatValue={value => formatLockTime(value, t)}
+              />
+            </View>
+          )}
+        <View style={styles.settingGroup}>
+          <Text style={styles.label}>
+            {t('vaultSetup.confirmationSpeedLabel')}
+          </Text>
+          <EditableSlider
+            value={feeRate}
+            minimumValue={settings.MIN_FEE_RATE}
+            maximumValue={maxFeeRate}
+            step={FEE_RATE_STEP}
+            onValueChange={setFeeRate}
+            formatValue={feeRate => {
+              const selected =
+                feeRate !== null &&
+                amount !== null &&
+                selectVaultUtxosData({
+                  utxosData,
+                  vaultOutput: DUMMY_VAULT_OUTPUT(network),
+                  serviceOutput: DUMMY_SERVICE_OUTPUT(network),
+                  changeOutput: DUMMY_CHANGE_OUTPUT(network),
+                  feeRate,
+                  amount,
+                  serviceFeeRate: settings.SERVICE_FEE_RATE
+                });
+              if (selected) {
+                return formatFeeRate(
+                  {
+                    feeRate,
+                    locale: settings.LOCALE,
+                    currency: settings.CURRENCY,
+                    txSize: selected.vsize,
+                    btcFiat,
+                    feeEstimates: snappedFeeEstimates
+                  },
+                  t
+                );
+              } else {
                 const selected =
                   feeRate !== null &&
-                  amount !== null &&
+                  maxVaultAmount !== undefined &&
                   selectVaultUtxosData({
                     utxosData,
                     vaultOutput: DUMMY_VAULT_OUTPUT(network),
                     serviceOutput: DUMMY_SERVICE_OUTPUT(network),
                     changeOutput: DUMMY_CHANGE_OUTPUT(network),
                     feeRate,
-                    amount,
+                    amount: maxVaultAmount,
                     serviceFeeRate: settings.SERVICE_FEE_RATE
                   });
-                if (selected) {
-                  return formatFeeRate(
-                    {
-                      feeRate,
-                      locale: settings.LOCALE,
-                      currency: settings.CURRENCY,
-                      txSize: selected.vsize,
-                      btcFiat,
-                      feeEstimates: snappedFeeEstimates
-                    },
-                    t
-                  );
-                } else {
-                  const selected =
-                    feeRate !== null &&
-                    maxVaultAmount !== undefined &&
-                    selectVaultUtxosData({
-                      utxosData,
-                      vaultOutput: DUMMY_VAULT_OUTPUT(network),
-                      serviceOutput: DUMMY_SERVICE_OUTPUT(network),
-                      changeOutput: DUMMY_CHANGE_OUTPUT(network),
-                      feeRate,
-                      amount: maxVaultAmount,
-                      serviceFeeRate: settings.SERVICE_FEE_RATE
-                    });
-                  return formatFeeRate(
-                    {
-                      feeRate,
-                      locale: settings.LOCALE,
-                      currency: settings.CURRENCY,
-                      txSize: selected ? selected.vsize : null,
-                      btcFiat,
-                      feeEstimates: snappedFeeEstimates
-                    },
-                    t
-                  );
-                }
-              }}
-            />
-          </View>
-          <View style={styles.buttonGroup}>
-            <Button
-              title={onCancel ? t('continueButton') : t('saveButton')}
-              onPress={handleOK}
-            />
-            {onCancel && (
-              <Button title={t('cancelButton')} onPress={handleCancel} />
-            )}
-          </View>
+                return formatFeeRate(
+                  {
+                    feeRate,
+                    locale: settings.LOCALE,
+                    currency: settings.CURRENCY,
+                    txSize: selected ? selected.vsize : null,
+                    btcFiat,
+                    feeEstimates: snappedFeeEstimates
+                  },
+                  t
+                );
+              }
+            }}
+          />
         </View>
-      </>
+        <View style={styles.buttonGroup}>
+          <Button
+            title={onCancel ? t('continueButton') : t('saveButton')}
+            onPress={handleOK}
+          />
+          {onCancel && (
+            <Button title={t('cancelButton')} onPress={handleCancel} />
+          )}
+        </View>
+      </View>
     );
 
   //TODO: remove the Toast component below. This is only needed in Modal

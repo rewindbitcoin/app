@@ -1,11 +1,12 @@
 import React, { useEffect } from 'react';
-import { View, Text } from 'react-native';
+import { ScrollView, Text } from 'react-native';
 import type { Wallet, Wallets, Signers } from '../lib/wallets';
 import { SERIALIZABLE } from '../../common/lib/storage';
 import { useLocalStateStorage } from '../../common/hooks/useLocalStateStorage';
 import { getNetworkId } from '../lib/network';
 import { networks } from 'bitcoinjs-lib';
 import { defaultSettings } from '../lib/settings';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const walletId = 0;
 
@@ -48,10 +49,24 @@ export default ({
     if (wallet) onWalletSelectOrCreate(wallet);
   }, [wallets]);
 
-  //TODO: add the insets thing
+  const insets = useSafeAreaInsets();
+
   return (
-    <View>
+    <ScrollView
+      keyboardShouldPersistTaps="handled"
+      style={
+        //This is the outer style
+        { paddingBottom: insets.bottom }
+      }
+      contentContainerStyle={
+        //This is the "inner" style
+        {
+          flexGrow: 1, //grow vertically to 100% and center child
+          justifyContent: 'center'
+        }
+      }
+    >
       <Text>Wallets</Text>
-    </View>
+    </ScrollView>
   );
 };

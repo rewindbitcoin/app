@@ -23,7 +23,7 @@ import React, {
   useRef,
   useCallback
 } from 'react';
-import { shallowEqual } from 'shallow-equal';
+import { shallowEqualObjects, shallowEqualArrays } from 'shallow-equal';
 import type { Wallet } from '../lib/wallets';
 import { Toast } from '../../common/components/Toast';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -73,7 +73,7 @@ export type WalletContextType = {
       | 'NOT_ENOUGH_FUNDS'
       | 'USER_CANCEL'
       | 'UNKNOWN_ERROR'
-  ) => Promise<void>;
+  ) => Promise<boolean>;
   syncBlockchain: () => Promise<void>;
   syncingBlockchain: boolean;
   // ... any other properties you want to include
@@ -101,9 +101,10 @@ export const WalletProvider = ({
   wallet?: Wallet;
   newWalletSigners?: Signers;
 }) => {
+  if (!wallet) return children;
   //console.log('TODO: WALLET PROVIDER HERE I AM');
-  const walletId = wallet?.walletId;
-  const network = wallet && networkMapping[wallet.networkId];
+  const walletId = wallet.walletId;
+  const network = networkMapping[wallet.networkId];
   if (wallet && !network)
     throw new Error(`Invalid networkId ${wallet.networkId}`);
 
@@ -302,12 +303,23 @@ export const WalletProvider = ({
    * @returns A promise indicating the completion of the synchronization process.
    */
   const syncBlockchain = useCallback(async () => {
+    console.log('syncBlockchain', {
+      vaults,
+      vaultsStatuses,
+      syncing: syncBlockchainRunning.current
+    });
     if (
       network &&
       settings?.GAP_LIMIT !== undefined &&
       discovery &&
       vaults &&
       vaultsStatuses &&
+      //When a new vault is created, vaults and vaultsStatuses are not
+      //atomically set in state at the same time.
+      //Wait until both are set before proceeding. This is important because
+      //updateVaultsStatuses upddate status based on vaults so they must be
+      //synched
+      shallowEqualArrays(Object.keys(vaults), Object.keys(vaultsStatuses)) &&
       signers
     ) {
       if (syncBlockchainRunning.current === true) return;
@@ -372,7 +384,7 @@ export const WalletProvider = ({
         setSyncingBlockchain(false);
       }
     } else
-      console.warn(
+      console.log(
         'syncBlockchain not performing any action for being called with non-initialized inputs'
       );
 
@@ -391,7 +403,7 @@ export const WalletProvider = ({
 
         Object.entries(newVaultsStatuses).forEach(([key, status]) => {
           const existingStatus = vaultsStatuses[key];
-          if (!shallowEqual(existingStatus, status)) {
+          if (!shallowEqualObjects(existingStatus, status)) {
             // Mutate updatedVaultsStatuses because a change has been detected
             if (updatedVaultsStatuses === vaultsStatuses)
               updatedVaultsStatuses = { ...vaultsStatuses };
@@ -435,7 +447,7 @@ export const WalletProvider = ({
         | 'NOT_ENOUGH_FUNDS'
         | 'USER_CANCEL'
         | 'UNKNOWN_ERROR'
-    ) => {
+    ): Promise<boolean> => {
       if (!vaults || !vaultsStatuses)
         throw new Error('Cannot use vaults without Storage');
       if (!vaults || !vaultsStatuses)
@@ -455,21 +467,32 @@ export const WalletProvider = ({
         const text2 = errorMessages[vault];
         if (!text2) throw new Error('Unhandled vault creation error');
         Toast.show({ topOffset: insets.top + 10, type: 'error', text1, text2 });
+        return false;
       } else {
         // Create new vault
         if (vaults[vault.vaultAddress])
-          throw new Error(`Vault for ${vaultsStatuses} already exists`);
+          throw new Error(`Vault for ${vault.vaultAddress} already exists`);
         await setVaults({ ...vaults, [vault.vaultAddress]: vault });
+
+        console.log('Setting setVaultsStatuses', {
+          ...vaultsStatuses,
+          [vault.vaultAddress]: { vaultPushTime: Math.floor(Date.now() / 1000) }
+        });
+        if (vaultsStatuses[vault.vaultAddress])
+          throw new Error(
+            `VaultStatus for ${vault.vaultAddress} already exists`
+          );
+        await setVaultsStatuses({
+          ...vaultsStatuses,
+          [vault.vaultAddress]: { vaultPushTime: Math.floor(Date.now() / 1000) }
+        });
 
         //TODO: enable this after tests. important to push after AWAIT setVaults
         //if successful
         //TODO: try-catch push result. This and all pushes in code.
         //await discovery.getExplorer().push(vault.vaultTxHex);
 
-        setVaultsStatuses({
-          ...vaultsStatuses,
-          [vault.vaultAddress]: { vaultPushTime: Math.floor(Date.now() / 1000) }
-        });
+        return true;
       }
     },
     [discovery, vaults, vaultsStatuses]
@@ -508,18 +531,3 @@ export const WalletProvider = ({
     </WalletContext.Provider>
   );
 };
-
-//export const withWalletProvider =
-//  <P extends object>(
-//    Component: React.ComponentType<P>,
-//    wallet?: Wallet,
-//    newWalletSigners?: Signers
-//  ) =>
-//  (props: P) => (
-//    <WalletProvider
-//      {...(wallet ? { wallet: wallet } : {})}
-//      {...(newWalletSigners ? { newWalletSigners: newWalletSigners } : {})}
-//    >
-//      <Component {...props} />
-//    </WalletProvider>
-//  );
