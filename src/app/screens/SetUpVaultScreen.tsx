@@ -362,8 +362,10 @@ export default function VaultSetUp({
   return (
     <ScrollView
       keyboardShouldPersistTaps="handled"
-      style={styles.wrapper}
-      contentContainerStyle={{ flexGrow: 1, justifyContent: 'center' }}
+      contentContainerStyle={{
+        flexGrow: 1, //grow vertically to 100% and center child
+        justifyContent: 'center'
+      }}
     >
       {content}
       <CustomToast />

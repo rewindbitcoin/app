@@ -2,7 +2,7 @@
 import React, { useContext, useEffect, useState, useRef } from 'react';
 import { WalletContext, WalletContextType } from '../contexts/WalletContext';
 import { useTranslation } from 'react-i18next';
-import { View, Button, Text, StyleSheet } from 'react-native';
+import { ScrollView, Button, Text, StyleSheet } from 'react-native';
 import * as Progress from 'react-native-progress';
 import { createVault, type VaultSettings } from '../lib/vaults';
 import {
@@ -100,7 +100,15 @@ export default function VaultCreate({
     };
   }, []);
   return (
-    <View style={styles.container}>
+    <ScrollView
+      keyboardShouldPersistTaps="handled"
+      contentContainerStyle={{
+        flexGrow: 1, //grow vertically to 100% and center child
+        justifyContent: 'center',
+
+        alignItems: 'center'
+      }}
+    >
       <Progress.Circle
         size={300}
         showsText={true}
@@ -117,17 +125,11 @@ export default function VaultCreate({
           keepProgress.current = false;
         }}
       />
-    </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20
-  },
   progressCircle: {
     marginBottom: 100
   }

@@ -25,13 +25,10 @@ const WalletHomeScreen = ({
   return (
     <ScrollView
       keyboardShouldPersistTaps="handled"
-      contentContainerStyle={
-        //This is the "inner" style
-        {
-          flexGrow: 1, //grow vertically to 100% and center child
-          justifyContent: 'center'
-        }
-      }
+      contentContainerStyle={{
+        flexGrow: 1, //grow vertically to 100% and center child
+        justifyContent: 'center'
+      }}
       refreshControl={
         <RefreshControl
           refreshing={syncingBlockchain}

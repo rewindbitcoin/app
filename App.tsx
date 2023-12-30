@@ -11,12 +11,14 @@ import {
   WALLET_HOME,
   SETTINGS,
   SETUP_VAULT,
-  CREATE_VAULT
+  CREATE_VAULT,
+  IMPORT_WALLET
 } from './src/app/screens';
 import type { Signers, Wallet as WalletType } from './src/app/lib/wallets';
 import { NavigationContainer, useNavigation } from '@react-navigation/native';
 import { CustomToast } from './src/common/components/Toast';
 import WalletsScreen from './src/app/screens/WalletsScreen';
+import ImportWalletScreen from './src/app/screens/ImportWalletScreen';
 import WalletHomeScreen from './src/app/screens/WalletHomeScreen';
 import SetUpVaultScreen from './src/app/screens/SetUpVaultScreen';
 import CreateVaultScreen from './src/app/screens/CreateVaultScreen';
@@ -116,6 +118,14 @@ const App = () => {
             />
           )}
         </RootStack.Screen>
+        <RootStack.Screen
+          name={IMPORT_WALLET}
+          options={{
+            title: t('app.thunderDenTitle'),
+            presentation: 'modal'
+          }}
+          component={ImportWalletScreen}
+        />
 
         <RootStack.Screen
           name={WALLET_HOME}

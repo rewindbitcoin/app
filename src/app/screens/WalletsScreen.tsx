@@ -1,12 +1,14 @@
-import React, { useEffect } from 'react';
-import { ScrollView, Text } from 'react-native';
+import React from 'react';
+import { ScrollView, Text, View, Button } from 'react-native';
 import type { Wallet, Wallets, Signers } from '../lib/wallets';
 import { SERIALIZABLE } from '../../common/lib/storage';
 import { useLocalStateStorage } from '../../common/hooks/useLocalStateStorage';
 import { getNetworkId } from '../lib/network';
 import { networks } from 'bitcoinjs-lib';
 import { defaultSettings } from '../lib/settings';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTranslation } from 'react-i18next';
+import { useNavigation } from '@react-navigation/native';
+import { IMPORT_WALLET } from '../screens';
 
 const walletId = 0;
 
@@ -19,12 +21,15 @@ export default ({
     newWalletSigners?: Signers
   ) => void;
 }) => {
+  const navigation = useNavigation();
+  const { t } = useTranslation();
   const [wallets, setWallets, isWalletsSynchd] = useLocalStateStorage<Wallets>(
     `WALLETS`,
     SERIALIZABLE
   );
-  //TODO: Only do this ONCE while building the app and debuggin to init stuff
-  useEffect(() => {
+
+  const handleNewWallet = () => {
+    console.log('handleNewWallet', 'TODO');
     if (isWalletsSynchd && !wallets?.[0]) {
       const wallet: Wallet = {
         walletId,
@@ -41,23 +46,13 @@ export default ({
         }
       ]);
     }
-  }, [isWalletsSynchd, wallets]);
-  //TODO: This is a hacky way to assume only one wallet (this is ok for the
-  //moment while having not developped the multi-wallet version)
-  useEffect(() => {
-    const wallet = wallets && wallets[0];
-    if (wallet) onWalletSelectOrCreate(wallet);
-  }, [wallets]);
+  };
+  const handleImportWallet = () => navigation.navigate(IMPORT_WALLET);
 
-  const insets = useSafeAreaInsets();
-
+  //TODO: do the translation of all the t() below:
   return (
     <ScrollView
       keyboardShouldPersistTaps="handled"
-      style={
-        //This is the outer style
-        { paddingBottom: insets.bottom }
-      }
       contentContainerStyle={
         //This is the "inner" style
         {
@@ -66,7 +61,19 @@ export default ({
         }
       }
     >
-      <Text>Wallets</Text>
+      {wallets &&
+        Object.entries(wallets).map(([walletId, wallet]) => (
+          <View>
+            <Text key={walletId} onPress={() => onWalletSelectOrCreate(wallet)}>
+              {walletId}
+            </Text>
+          </View>
+        ))}
+      <Button title={t('wallets.newWalletButton')} onPress={handleNewWallet} />
+      <Button
+        title={t('wallets.importWalletButton')}
+        onPress={handleImportWallet}
+      />
     </ScrollView>
   );
 };
