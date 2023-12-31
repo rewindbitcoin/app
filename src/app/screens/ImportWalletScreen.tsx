@@ -30,13 +30,15 @@ const isPartialWordValid = memoize((partialWord: string) => {
   );
 });
 
+const numberColor = 'blue';
+
 export default () => {
   const inputRef = React.useRef<TextInput>(null);
   const [fontsLoaded] = useFonts({ RobotoMono_400Regular });
 
   const [wordList, setWordList] = useState<string[]>([]);
   const isValidMnemonic = validateMnemonic(wordList.join(' '));
-  const [text, setText] = React.useState('');
+  const [text, setText] = React.useState(SPACE);
   const addWord = (text: string) => {
     const newWordList = [...wordList, text];
     setWordList(newWordList);
@@ -118,42 +120,75 @@ export default () => {
             ]}
           >
             {({ pressed }) => (
-              <Text
-                numberOfLines={1}
-                style={[
-                  styles.text,
-                  pressed ? styles.textPressed : {},
-                  fontsLoaded ? { fontFamily: 'RobotoMono_400Regular' } : {}
-                ]}
+              <View
+                style={{
+                  flexDirection: 'row'
+                }}
               >
-                {
-                  `${index + 1 < 10 ? '\u00A0' : ''}${index + 1} ${word}`
-                  //\u00A0 is a space character, needed for Web platform to show it
-                }
-              </Text>
+                <Text
+                  numberOfLines={1}
+                  style={[
+                    styles.text,
+                    { paddingLeft: 5, color: numberColor },
+                    pressed ? styles.textPressed : {},
+                    fontsLoaded ? { fontFamily: 'RobotoMono_400Regular' } : {}
+                  ]}
+                >
+                  {
+                    `${index + 1 < 10 ? '\u00A0' : ''}${index + 1}\u00A0`
+                    //\u00A0 is a space character, needed for Web platform to show it
+                  }
+                </Text>
+                <Text
+                  numberOfLines={1}
+                  style={[
+                    styles.text,
+                    { paddingRight: 10 },
+                    pressed ? styles.textPressed : {},
+                    fontsLoaded ? { fontFamily: 'RobotoMono_400Regular' } : {}
+                  ]}
+                >
+                  {` ${word}`}
+                </Text>
+              </View>
             )}
           </Pressable>
         ))}
 
-        <TextInput
-          autoFocus
-          keyboardType="visible-password"
-          blurOnSubmit={false}
-          value={text}
-          style={styles.input}
-          ref={inputRef}
-          spellCheck={false}
-          maxLength={MAX_LENGTH + 1}
-          placeholder={text === '' ? 'Enter recovery words' : undefined}
-          autoComplete={'off'}
-          autoCorrect={false}
-          autoCapitalize="none"
-          onChangeText={handleChangeText}
-          onKeyPress={onKeyPress}
-          onEndEditing={onEndEditing}
-          onSubmitEditing={onSubmitEditing}
-          onBlur={onBlur}
-        />
+        <View style={styles.indexAndInput}>
+          <Text
+            style={[
+              styles.text,
+              { paddingLeft: 5, paddingRight: 5, color: numberColor },
+              fontsLoaded ? { fontFamily: 'RobotoMono_400Regular' } : {}
+            ]}
+          >
+            {`${wordList.length + 1 < 10 ? '\u00A0' : ''}${
+              wordList.length + 1
+            }`}
+          </Text>
+          <TextInput
+            autoFocus
+            keyboardType="visible-password"
+            blurOnSubmit={false}
+            value={text}
+            style={[
+              styles.input
+              //fontsLoaded ? { fontFamily: 'RobotoMono_400Regular' } : {}
+            ]}
+            ref={inputRef}
+            spellCheck={false}
+            maxLength={MAX_LENGTH + 1}
+            autoComplete={'off'}
+            autoCorrect={false}
+            autoCapitalize="none"
+            onChangeText={handleChangeText}
+            onKeyPress={onKeyPress}
+            onEndEditing={onEndEditing}
+            onSubmitEditing={onSubmitEditing}
+            onBlur={onBlur}
+          />
+        </View>
       </View>
       {!isPartialWordValid(text) && <Text>Invalid word</Text>}
       {isPartialWordValid(text) &&
@@ -187,6 +222,10 @@ const styles = StyleSheet.create({
     padding: 0,
     borderWidth: 0
   },
+  indexAndInput: {
+    flexDirection: 'row', // Aligns children horizontally
+    width: '33%'
+  },
   input: {
     fontSize: 14,
     ...Platform.select({
@@ -198,21 +237,17 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     paddingVertical: 5,
     height: 33,
-    paddingLeft: 1, //show blinking cursor
+    //paddingLeft: 1, //show blinking cursor
     borderWidth: 1,
     borderColor: 'gray', // Set the border color
-    minWidth: 80,
+    minWidth: 65
     //flex: 1
-    width: '33%'
   },
   text: {
     fontSize: 14,
     lineHeight: 20,
     paddingVertical: 6,
-    height: 33,
-    paddingLeft: 5,
-    paddingRight: 10,
-    overflow: 'hidden'
+    height: 33
   },
   textContainer: {
     // Additional styling for Pressable container
