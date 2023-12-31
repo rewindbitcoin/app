@@ -63,8 +63,8 @@ export default ({
     >
       {wallets &&
         Object.entries(wallets).map(([walletId, wallet]) => (
-          <View>
-            <Text key={walletId} onPress={() => onWalletSelectOrCreate(wallet)}>
+          <View key={walletId}>
+            <Text onPress={() => onWalletSelectOrCreate(wallet)}>
               {walletId}
             </Text>
           </View>
