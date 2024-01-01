@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   StyleSheet,
   ScrollView,
@@ -20,7 +20,7 @@ import { wordlists, validateMnemonic as validateMnemonicOriginal } from 'bip39';
 const englishWordList = wordlists['english'];
 if (!englishWordList) throw new Error('Cannot load english wordlists');
 const MAX_LENGTH = 8; //English wordlist max length = 8
-const SPACE = ' ';
+const SPACE = '\u200B';
 const validateMnemonic = memoize(validateMnemonicOriginal);
 const cleanWord = (word: string) => word.replace(/[^a-z]/gi, '');
 const isPartialWordValid = memoize((partialWord: string) => {
@@ -51,6 +51,7 @@ export default () => {
       console.log('TODO');
     }
   };
+  useEffect(() => inputRef.current?.focus(), []);
   /** analizes the text on TextInput, and adds a new word (returning true) or
    * returns false */
   const processText = () => {
@@ -87,15 +88,16 @@ export default () => {
     }
   };
   const onEndEditing = () => processText();
-  const onBlur = () => {
-    processText();
-    inputRef.current?.focus();
-  };
+  //const onBlur = () => {
+  //  processText();
+  //  inputRef.current?.focus();
+  //};
   const onSubmitEditing = () => processText();
 
   return (
     <ScrollView
       keyboardShouldPersistTaps="handled"
+      automaticallyAdjustKeyboardInsets={true}
       contentContainerStyle={{
         flexGrow: 1, //grow vertically to 100% and center child
         justifyContent: 'center',
@@ -129,13 +131,16 @@ export default () => {
                   numberOfLines={1}
                   style={[
                     styles.text,
-                    { paddingLeft: 5, color: numberColor },
+                    {
+                      color: numberColor,
+                      paddingRight: 5
+                    },
                     pressed ? styles.textPressed : {},
                     fontsLoaded ? { fontFamily: 'RobotoMono_400Regular' } : {}
                   ]}
                 >
                   {
-                    `${index + 1 < 10 ? '\u00A0' : ''}${index + 1}\u00A0`
+                    `${index + 1 < 10 ? '\u00A0' : ''}${index + 1}`
                     //\u00A0 is a space character, needed for Web platform to show it
                   }
                 </Text>
@@ -143,12 +148,15 @@ export default () => {
                   numberOfLines={1}
                   style={[
                     styles.text,
-                    { paddingRight: 10 },
+                    {
+                      paddingRight: 10,
+                      paddingLeft: 5
+                    },
                     pressed ? styles.textPressed : {},
                     fontsLoaded ? { fontFamily: 'RobotoMono_400Regular' } : {}
                   ]}
                 >
-                  {` ${word}`}
+                  {`${word}`}
                 </Text>
               </View>
             )}
@@ -159,7 +167,7 @@ export default () => {
           <Text
             style={[
               styles.text,
-              { paddingLeft: 5, paddingRight: 5, color: numberColor },
+              { paddingRight: 5, color: numberColor },
               fontsLoaded ? { fontFamily: 'RobotoMono_400Regular' } : {}
             ]}
           >
@@ -173,8 +181,8 @@ export default () => {
             blurOnSubmit={false}
             value={text}
             style={[
-              styles.input
-              //fontsLoaded ? { fontFamily: 'RobotoMono_400Regular' } : {}
+              styles.input,
+              fontsLoaded ? { fontFamily: 'RobotoMono_400Regular' } : {}
             ]}
             ref={inputRef}
             spellCheck={false}
@@ -186,7 +194,6 @@ export default () => {
             onKeyPress={onKeyPress}
             onEndEditing={onEndEditing}
             onSubmitEditing={onSubmitEditing}
-            onBlur={onBlur}
           />
         </View>
       </View>
@@ -224,30 +231,26 @@ const styles = StyleSheet.create({
   },
   indexAndInput: {
     flexDirection: 'row', // Aligns children horizontally
+    fontSize: 14,
     width: '33%'
   },
   input: {
-    fontSize: 14,
     ...Platform.select({
       //clean style for web browsers
       web: {
         outlineStyle: 'none'
       }
     }),
-    lineHeight: 20,
-    paddingVertical: 5,
-    height: 33,
-    //paddingLeft: 1, //show blinking cursor
-    borderWidth: 1,
-    borderColor: 'gray', // Set the border color
-    minWidth: 65
-    //flex: 1
+    borderWidth: 0,
+    paddingLeft: 5,
+    backgroundColor: 'lightgray', // Set the border color
+    width: 70
   },
   text: {
-    fontSize: 14,
-    lineHeight: 20,
-    paddingVertical: 6,
-    height: 33
+    //backgroundColor: 'yellow',
+    //lineHeight: 20,
+    //height: 20 + 10 + 2,
+    paddingVertical: 10 //5 + 1 (TextInput border)
   },
   textContainer: {
     // Additional styling for Pressable container

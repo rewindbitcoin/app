@@ -25,6 +25,7 @@ const WalletHomeScreen = ({
   return (
     <ScrollView
       keyboardShouldPersistTaps="handled"
+      automaticallyAdjustKeyboardInsets={true}
       contentContainerStyle={{
         flexGrow: 1, //grow vertically to 100% and center child
         justifyContent: 'center'
