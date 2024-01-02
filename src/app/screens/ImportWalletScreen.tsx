@@ -30,7 +30,7 @@ const isPartialWordValid = memoize((partialWord: string) => {
   );
 });
 
-const numberColor = 'blue';
+const numberColor = '#2685BF';
 
 export default () => {
   const inputRef = React.useRef<TextInput>(null);
@@ -167,7 +167,10 @@ export default () => {
           <Text
             style={[
               styles.text,
-              { paddingRight: 5, color: numberColor },
+              {
+                paddingRight: 5,
+                color: numberColor
+              },
               fontsLoaded ? { fontFamily: 'RobotoMono_400Regular' } : {}
             ]}
           >
@@ -182,6 +185,7 @@ export default () => {
             value={text}
             style={[
               styles.input,
+              isPartialWordValid(text) ? {} : { backgroundColor: '#FFCCCC' },
               fontsLoaded ? { fontFamily: 'RobotoMono_400Regular' } : {}
             ]}
             ref={inputRef}
@@ -197,7 +201,6 @@ export default () => {
           />
         </View>
       </View>
-      {!isPartialWordValid(text) && <Text>Invalid word</Text>}
       {isPartialWordValid(text) &&
         !isValidMnemonic &&
         wordList.length === 12 && (
