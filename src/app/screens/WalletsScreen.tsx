@@ -9,7 +9,6 @@ import { defaultSettings } from '../lib/settings';
 import { useTranslation } from 'react-i18next';
 import { useNavigation } from '@react-navigation/native';
 import { IMPORT_WALLET } from '../screens';
-import AnimatedGradient from '../../common/components/AnimatedGradient';
 
 const walletId = 0;
 
@@ -50,8 +49,6 @@ export default ({
   };
   const handleImportWallet = () => navigation.navigate(IMPORT_WALLET);
 
-  // locations={[0.4, 0.6]}
-
   //TODO: do the translation of all the t() below:
   return (
     <ScrollView
@@ -61,28 +58,25 @@ export default ({
         //This is the "inner" style
         {
           flexGrow: 1, //grow vertically to 100% and center child
-          justifyContent: 'center'
+          justifyContent: 'center',
+          backgroundColor: 'transparent'
         }
       }
+      style={{ backgroundColor: 'transparent' }}
     >
-      <AnimatedGradient>
-        {wallets &&
-          Object.entries(wallets).map(([walletId, wallet]) => (
-            <View key={walletId}>
-              <Text onPress={() => onWalletSelectOrCreate(wallet)}>
-                {walletId}
-              </Text>
-            </View>
-          ))}
-        <Button
-          title={t('wallets.newWalletButton')}
-          onPress={handleNewWallet}
-        />
-        <Button
-          title={t('wallets.importWalletButton')}
-          onPress={handleImportWallet}
-        />
-      </AnimatedGradient>
+      {wallets &&
+        Object.entries(wallets).map(([walletId, wallet]) => (
+          <View key={walletId}>
+            <Text onPress={() => onWalletSelectOrCreate(wallet)}>
+              {walletId}
+            </Text>
+          </View>
+        ))}
+      <Button title={t('wallets.newWalletButton')} onPress={handleNewWallet} />
+      <Button
+        title={t('wallets.importWalletButton')}
+        onPress={handleImportWallet}
+      />
     </ScrollView>
   );
 };

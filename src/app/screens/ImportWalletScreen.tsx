@@ -15,6 +15,7 @@ import {
   useFonts,
   RobotoMono_400Regular
 } from '@expo-google-fonts/roboto-mono';
+import { useTheme } from '@react-navigation/native';
 import memoize from 'lodash.memoize';
 import { wordlists, validateMnemonic as validateMnemonicOriginal } from 'bip39';
 const englishWordList = wordlists['english'];
@@ -30,9 +31,10 @@ const isPartialWordValid = memoize((partialWord: string) => {
   );
 });
 
-const numberColor = '#2685BF';
-
 export default () => {
+  const { colors } = useTheme();
+  const numberColor = colors.primary;
+
   const inputRef = React.useRef<TextInput>(null);
   const [fontsLoaded] = useFonts({ RobotoMono_400Regular });
 
@@ -205,6 +207,7 @@ export default () => {
         !isValidMnemonic &&
         wordList.length === 12 && (
           <Text>
+            {'TODO translate'}
             This 12-word sequence is invalid. Continue entering the rest of the
             words if you have a 24-word mnemonic, or correct any errors if you
             use 12 words.
@@ -213,10 +216,15 @@ export default () => {
       {isPartialWordValid(text) &&
         !isValidMnemonic &&
         wordList.length === 24 && (
-          <Text>This word sequence is invalid. Correct any errors.</Text>
+          <Text>
+            This word sequence is invalid. Correct any errors. TODO: translate
+          </Text>
         )}
       {isValidMnemonic && (
-        <Button title="Continue" onPress={() => console.log('TODO')} />
+        <Button
+          title="Continue"
+          onPress={() => console.log('TODO action and TODO translate title')}
+        />
       )}
     </ScrollView>
   );
