@@ -21,7 +21,7 @@ import { wordlists, validateMnemonic as validateMnemonicOriginal } from 'bip39';
 const englishWordList = wordlists['english'];
 if (!englishWordList) throw new Error('Cannot load english wordlists');
 const MAX_LENGTH = 8; //English wordlist max length = 8
-const SPACE = '\u200B';
+const ZERO_WIDTH_SPACE = '\u200B';
 const validateMnemonic = memoize(validateMnemonicOriginal);
 const cleanWord = (word: string) => word.replace(/[^a-z]/gi, '');
 const isPartialWordValid = memoize((partialWord: string) => {
@@ -40,15 +40,15 @@ export default () => {
 
   const [wordList, setWordList] = useState<string[]>([]);
   const isValidMnemonic = validateMnemonic(wordList.join(' '));
-  const [text, setText] = React.useState(SPACE);
+  const [text, setText] = React.useState(ZERO_WIDTH_SPACE);
   const addWord = (text: string) => {
     const newWordList = [...wordList, text];
     setWordList(newWordList);
-    setText(SPACE);
+    setText(ZERO_WIDTH_SPACE);
     //inputRef && inputRef.current && inputRef.current.focus();
     //We also defer the focus because on Web, a "Tab" keypress automatically
     //removes the focus after render.
-    setTimeout(() => inputRef.current?.focus(), 0);
+    //setTimeout(() => inputRef.current?.focus(), 0);
     if (validateMnemonic(newWordList.join(' ')) === true) {
       console.log('TODO');
     }
@@ -56,7 +56,7 @@ export default () => {
   useEffect(() => inputRef.current?.focus(), []);
   /** analizes the text on TextInput, and adds a new word (returning true) or
    * returns false */
-  const processText = () => {
+  const processText = (text: string) => {
     const clean = cleanWord(text);
     const wordCandidates =
       clean.length > 1 //With 2 letters you can find a word. F.ex.: yard
@@ -71,35 +71,33 @@ export default () => {
     return false;
   };
   const handleChangeText = (newText: string) => {
-    console.log('handleChangeText', { newText });
     if (newText.length === 0) {
       //newText.length is zero -> deleted
       setWordList(wordList.slice(0, -1));
-      setText(SPACE);
-    } else if (newText === SPACE) {
-      setText(SPACE);
+      setText(ZERO_WIDTH_SPACE);
+    } else if (newText === ZERO_WIDTH_SPACE) {
+      setText(ZERO_WIDTH_SPACE);
     } else {
-      if (!processText()) setText(SPACE + cleanWord(newText));
+      if (!processText(newText)) setText(ZERO_WIDTH_SPACE + cleanWord(newText));
     }
   };
   const onKeyPress = (
     event: NativeSyntheticEvent<TextInputKeyPressEventData>
   ) => {
     if (event.nativeEvent.key === 'Enter') {
-      processText();
+      processText(text);
     }
   };
-  const onEndEditing = () => processText();
+  const onEndEditing = () => processText(text);
   //const onBlur = () => {
   //  processText();
   //  inputRef.current?.focus();
   //};
-  const onSubmitEditing = () => processText();
+  const onSubmitEditing = () => processText(text);
 
   return (
     <ScrollView
       keyboardShouldPersistTaps="handled"
-      automaticallyAdjustKeyboardInsets={true}
       contentContainerStyle={{
         flexGrow: 1, //grow vertically to 100% and center child
         justifyContent: 'center',
@@ -113,8 +111,8 @@ export default () => {
             key={index}
             onPress={() => {
               setWordList(wordList.slice(0, index));
-              setText(SPACE);
-              inputRef.current?.focus();
+              setText(ZERO_WIDTH_SPACE);
+              //inputRef.current?.focus();
             }}
             style={({ pressed }) => [
               {

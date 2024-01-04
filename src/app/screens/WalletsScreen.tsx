@@ -53,7 +53,6 @@ export default ({
   return (
     <ScrollView
       keyboardShouldPersistTaps="handled"
-      automaticallyAdjustKeyboardInsets={true}
       contentContainerStyle={
         //This is the "inner" style
         {

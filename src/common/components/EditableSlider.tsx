@@ -292,7 +292,7 @@ const EditableSlider = ({
   //TODO: thumbTintColor is only Android
 
   return (
-    <ScrollView keyboardShouldPersistTaps="handled">
+    <View>
       <View style={styles.container}>
         <Text
           style={[
@@ -328,7 +328,7 @@ const EditableSlider = ({
           />
         </View>
       </View>
-    </ScrollView>
+    </View>
   );
 };
 

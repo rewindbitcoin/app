@@ -103,7 +103,12 @@ const App = () => {
       {...(newWalletSigners ? { newWalletSigners: newWalletSigners } : {})}
     >
       <RootStack.Navigator
-        screenOptions={isNativeStack ? { animationEnabled: true } : {}}
+        screenOptions={{
+          //Disable goBack with gesture to prevent this bug:
+          //https://github.com/douglasjunior/react-native-keyboard-manager/issues/89
+          gestureEnabled: false,
+          ...(isNativeStack ? { animationEnabled: true } : {})
+        }}
       >
         <RootStack.Screen
           name={WALLETS}

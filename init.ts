@@ -9,6 +9,13 @@ import { Buffer } from 'buffer';
 global.Buffer = Buffer;
 import 'react-native-get-random-values';
 import 'react-native-url-polyfill/auto';
+
+import { Platform } from 'react-native';
+if (Platform.OS === 'ios') {
+  const KeyboardManager = require('react-native-keyboard-manager');
+  KeyboardManager.setEnable(true);
+  KeyboardManager.setToolbarPreviousNextButtonEnable(true);
+}
 //import './electrumSupport'
 
 //       import { NativeModules } from 'react-native';
