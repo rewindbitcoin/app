@@ -59,6 +59,12 @@
     "mayNotConfirm": "May Never Confirm",
     "expressConfirmation": "Express Confirmation"
   },
+  "bip39": {
+    "importWalletButton": "Import Wallet",
+    "invalidTitle": "Mnemonic Phrase Validation",
+    "invalid12Words": "The 12-word phrase you entered does not form a valid sequence. If you have a 24-word mnemonic, please continue entering the remaining words. If you are using a 12-word phrase, correct any errors.",
+    "invalid24Words": "The 24-word sequence you entered is not valid. Please double-check your words for any errors."
+  },
   "continueButton": "Continue",
   "okButton": "OK",
   "saveButton": "Save",

@@ -3,7 +3,7 @@
 
 import './init';
 import React, { useEffect, useState } from 'react';
-import { Button } from 'react-native';
+import { Button, Platform } from 'react-native';
 import {
   createRootStack,
   isNativeStack,
@@ -106,7 +106,7 @@ const App = () => {
         screenOptions={{
           //Disable goBack with gesture to prevent this bug:
           //https://github.com/douglasjunior/react-native-keyboard-manager/issues/89
-          gestureEnabled: false,
+          ...(Platform.OS === 'ios' ? { gestureEnabled: false } : {}),
           ...(isNativeStack ? { animationEnabled: true } : {})
         }}
       >
@@ -189,7 +189,7 @@ export default () => (
       <StorageProvider>
         <App />
       </StorageProvider>
+      <CustomToast />
     </SafeAreaProvider>
-    <CustomToast />
   </NavigationContainer>
 );

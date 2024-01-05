@@ -166,12 +166,12 @@ const EditableSlider = ({
       snappedValue !== null
         ? snappedValue
         : inRange({
-            value: lastValidSnappedValue.current,
-            minimumValue,
-            maximumValue
-          })
-        ? lastValidSnappedValue.current
-        : null;
+              value: lastValidSnappedValue.current,
+              minimumValue,
+              maximumValue
+            })
+          ? lastValidSnappedValue.current
+          : null;
     if (newSnappedValue !== null) {
       lastValidSnappedValue.current = newSnappedValue;
       //When min, max or step change, make sure the Slider is in correct
@@ -187,10 +187,10 @@ const EditableSlider = ({
         lastValidSnappedValue.current === null
           ? minimumValue
           : lastValidSnappedValue.current > maximumValue
-          ? maximumValue
-          : lastValidSnappedValue.current < minimumValue
-          ? minimumValue
-          : lastValidSnappedValue.current;
+            ? maximumValue
+            : lastValidSnappedValue.current < minimumValue
+              ? minimumValue
+              : lastValidSnappedValue.current;
       if (newSliderManagedValue !== sliderManagedValue)
         setSliderManagedValue(newSliderManagedValue);
     }
@@ -262,8 +262,8 @@ const EditableSlider = ({
       (last !== null && last > maximumValue
         ? t('editableSlider.maxValueError', { maximumValue })
         : last !== null && last < minimumValue
-        ? t('editableSlider.maxValueError', { maximumValue })
-        : t('editableSlider.invalidValue'));
+          ? t('editableSlider.maxValueError', { maximumValue })
+          : t('editableSlider.invalidValue'));
   } else formattedValue = formatValue(snappedValue);
 
   // These useState and useEffect below arew necessary for adjusting the
@@ -292,41 +292,39 @@ const EditableSlider = ({
   //TODO: thumbTintColor is only Android
 
   return (
-    <View>
-      <View style={styles.container}>
-        <Text
+    <View style={styles.container}>
+      <Text
+        style={[
+          fontsLoaded ? { fontFamily: 'RobotoMono_400Regular' } : {},
+          snappedValue === null ? { color: 'red' } : {},
+          styles.status
+        ]}
+      >
+        {formattedValue}
+      </Text>
+      <View style={styles.control}>
+        <Slider
+          style={styles.slider}
+          minimumValue={minimumValue}
+          maximumValue={maximumValue}
+          onValueChange={onSliderValueChange}
+          onSlidingStart={Keyboard.dismiss}
+          value={sliderManagedValue}
+          {...(snappedValue === null ? { thumbTintColor: 'red' } : {})}
+        />
+        <TextInput
+          keyboardType={keyboardType}
           style={[
-            fontsLoaded ? { fontFamily: 'RobotoMono_400Regular' } : {},
-            snappedValue === null ? { color: 'red' } : {},
-            styles.status
+            webTextInputWidth !== null && {
+              width: webTextInputWidth as DimensionValue
+            },
+            styles.input,
+            fontsLoaded && { fontFamily: 'RobotoMono_400Regular' },
+            snappedValue === null && { color: 'red' }
           ]}
-        >
-          {formattedValue}
-        </Text>
-        <View style={styles.control}>
-          <Slider
-            style={styles.slider}
-            minimumValue={minimumValue}
-            maximumValue={maximumValue}
-            onValueChange={onSliderValueChange}
-            onSlidingStart={Keyboard.dismiss}
-            value={sliderManagedValue}
-            {...(snappedValue === null ? { thumbTintColor: 'red' } : {})}
-          />
-          <TextInput
-            keyboardType={keyboardType}
-            style={[
-              webTextInputWidth !== null && {
-                width: webTextInputWidth as DimensionValue
-              },
-              styles.input,
-              fontsLoaded && { fontFamily: 'RobotoMono_400Regular' },
-              snappedValue === null && { color: 'red' }
-            ]}
-            value={strValue}
-            onChangeText={onTextInputValueChange}
-          />
-        </View>
+          value={strValue}
+          onChangeText={onTextInputValueChange}
+        />
       </View>
     </View>
   );

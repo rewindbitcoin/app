@@ -11,8 +11,8 @@ import 'react-native-get-random-values';
 import 'react-native-url-polyfill/auto';
 
 import { Platform } from 'react-native';
+import KeyboardManager from 'react-native-keyboard-manager';
 if (Platform.OS === 'ios') {
-  const KeyboardManager = require('react-native-keyboard-manager');
   KeyboardManager.setEnable(true);
   KeyboardManager.setToolbarPreviousNextButtonEnable(true);
 }

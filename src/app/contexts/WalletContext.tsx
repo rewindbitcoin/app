@@ -26,7 +26,6 @@ import React, {
 import { shallowEqualObjects, shallowEqualArrays } from 'shallow-equal';
 import type { Wallet } from '../lib/wallets';
 import { Toast } from '../../common/components/Toast';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SERIALIZABLE } from '../../common/lib/storage';
 import { useGlobalStateStorage } from '../../common/contexts/StorageContext';
 import { useLocalStateStorage } from '../../common/hooks/useLocalStateStorage';
@@ -84,8 +83,8 @@ function esploraUrl(network: Network) {
     network === networks.testnet
       ? 'https://blockstream.info/testnet/api/'
       : network === networks.bitcoin
-      ? 'https://blockstream.info/api/'
-      : null;
+        ? 'https://blockstream.info/api/'
+        : null;
   if (!url) throw new Error(`Esplora API not available for this network`);
   return url;
 }
@@ -145,7 +144,6 @@ export const WalletProvider = ({
     if (newWalletSigners) setSigners(newWalletSigners);
   }, [newWalletSigners]);
 
-  const insets = useSafeAreaInsets();
   const { t } = useTranslation();
 
   // Local State: btcFiat, feeEstimates & discovery
@@ -219,7 +217,6 @@ export const WalletProvider = ({
             if (isMounted) setFeeEstimates(feeEstimates);
           } catch (err) {
             Toast.show({
-              topOffset: insets.top + 10,
               type: 'error',
               text1: t('app.feeEstimatesError.title'),
               text2: t('app.feeEstimatesError.message')
@@ -263,7 +260,6 @@ export const WalletProvider = ({
           if (isMounted) setBtcFiat(btcFiat);
         } catch (err) {
           Toast.show({
-            topOffset: insets.top + 10,
             type: 'error',
             text1: t('app.btcRatesError.title'),
             text2: t('app.btcRatesError.message', {
@@ -373,7 +369,6 @@ export const WalletProvider = ({
             : t('An unknown error occurred'); //TODO: translate
 
         Toast.show({
-          topOffset: insets.top + 10,
           type: 'error',
           text1: t('networkError.title'),
           text2: `${t('networkError.text', { message: errorMessage })}`
@@ -418,7 +413,6 @@ export const WalletProvider = ({
           error instanceof Error ? error.message : 'An unknown error occurred';
 
         Toast.show({
-          topOffset: insets.top + 10,
           type: 'error',
           text1: t('networkError.title'),
           text2: `${t('networkError.text', { message: errorMessage })}`
@@ -466,7 +460,7 @@ export const WalletProvider = ({
         const text1 = t('createVault.error.title'); //TODO: translate this one
         const text2 = errorMessages[vault];
         if (!text2) throw new Error('Unhandled vault creation error');
-        Toast.show({ topOffset: insets.top + 10, type: 'error', text1, text2 });
+        Toast.show({ type: 'error', text1, text2 });
         return false;
       } else {
         // Create new vault

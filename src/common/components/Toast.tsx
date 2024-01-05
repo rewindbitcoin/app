@@ -1,3 +1,4 @@
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import React from 'react';
 import Toast, { BaseToast, InfoToast } from 'react-native-toast-message';
 import type { ViewStyle, StyleProp } from 'react-native';
@@ -39,11 +40,14 @@ const createToastComponent =
 
 const toastConfig = {
   success: createToastComponent(BaseToast),
-  error: createToastComponent(BaseToast, { borderLeftColor: '#FE6301' }),
+  error: createToastComponent(BaseToast, { borderLeftColor: 'red' }),
   info: createToastComponent(InfoToast, { borderLeftColor: '#FE6301' })
 };
 
-export const CustomToast = (props: React.ComponentProps<typeof Toast>) => (
-  <Toast {...props} config={toastConfig} />
-);
+//Set in in App.tsx and in every modal where Toasts need to be shown:
+//https://github.com/calintamas/react-native-toast-message/blob/main/docs/modal-usage.md
+export const CustomToast = (props: React.ComponentProps<typeof Toast>) => {
+  const insets = useSafeAreaInsets();
+  return <Toast {...props} config={toastConfig} topOffset={insets.top + 10} />;
+};
 export { Toast };
