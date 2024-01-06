@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import {
   StyleSheet,
   TextInput,
@@ -17,6 +17,8 @@ import { Toast } from '../../common/components/Toast';
 import { useTheme } from '@react-navigation/native';
 import memoize from 'lodash.memoize';
 import { wordlists } from 'bip39';
+import SegmentedControl from '@react-native-segmented-control/segmented-control';
+
 const englishWordList = wordlists['english'];
 if (!englishWordList) throw new Error('Cannot load english wordlists');
 const MAX_LENGTH = 8; //English wordlist max length = 8
@@ -35,43 +37,42 @@ const validateMnemonic = memoize(validateMnemonicOriginal);
 
 import { useTranslation } from 'react-i18next';
 
-export default function WordListComponent({
-  wordList,
-  onWordList
+export default function Bip39({
+  words,
+  onWords,
+  wordsLength,
+  onWordsLength
 }: {
-  wordList: string[];
-  onWordList: (wordList: string[]) => void;
+  words: string[];
+  onWords: (words: string[]) => void;
+  wordsLength: 12 | 24;
+  onWordsLength: (wordsLength: 12 | 24) => void;
 }) {
   const { t } = useTranslation();
   const { colors } = useTheme();
   const numberColor = colors.primary;
 
-  const inputRef = React.useRef<TextInput>(null);
+  const inputRef = useRef<TextInput>(null);
   const [fontsLoaded] = useFonts({ RobotoMono_400Regular });
 
-  const [text, setText] = React.useState(ZERO_WIDTH_SPACE);
+  const [text, setText] = useState(ZERO_WIDTH_SPACE);
 
   useEffect(() => inputRef.current?.focus(), []);
 
-  useEffect(() => {
-    console.log({
-      wordList,
-      validation: validateMnemonic(wordList.join(' ')),
-      length: wordList.length
-    });
-    if (wordList.length !== 12 && wordList.length < 24) Toast.hide();
-    if (!validateMnemonic(wordList.join(' ')) && wordList.length === 12) {
-      console.log('Toast show');
-      Toast.show({
-        autoHide: false,
-        type: 'info',
-        text1: t('bip39.invalidTitle'),
-        text2: t('bip39.invalid12Words')
-      });
-    }
-  }, [wordList]);
+  //const prevWordsTypeRef = useRef<12 | 24>(12);
 
-  //Rapid input in textinput may batch several setState in onWordList
+  useEffect(() => {
+    if (words.length < wordsLength) Toast.hide();
+    inputRef.current?.focus();
+    //prevWordsTypeRef.current = wordsLength;
+    //if (words.length === wordsLength && !validateMnemonic(words.join(' '))) {
+    //  onWords(words.slice(0, wordsLength - 1));
+    //  const lastWord = words[words.length - 1];
+    //  if (lastWord) handleChangeText(lastWord);
+    //}
+  }, [words, wordsLength]);
+
+  //Rapid input in textinput may batch several setState in onWords
   //Try to detect if already set
   const alreadyHandled = (clean: string) => {
     const prevClean = clean.slice(0, -1);
@@ -80,8 +81,7 @@ export default function WordListComponent({
       prevClean.length > 1 //With 2 letters you can find a word. F.ex.: yard
         ? englishWordList.filter(word => word.startsWith(prevClean))
         : [];
-    console.log({ prevClean, length: wordCandidates.length });
-    if (wordList.length < 24 && wordCandidates.length === 1) return true;
+    if (words.length < wordsLength && wordCandidates.length === 1) return true;
     else return false;
   };
 
@@ -94,20 +94,23 @@ export default function WordListComponent({
       clean.length > 1 //With 2 letters you can find a word. F.ex.: yard
         ? englishWordList.filter(word => word.startsWith(clean))
         : [];
-    if (wordList.length < 24 && wordCandidates.length === 1) {
+    if (words.length < wordsLength && wordCandidates.length === 1) {
       const clean = wordCandidates[0];
       if (clean === undefined) throw new Error('Array error');
-      const newWordList = [...wordList, clean];
-      if (newWordList.length < 24 || validateMnemonic(newWordList.join(' '))) {
+      const newWordList = [...words, clean];
+      if (
+        newWordList.length < wordsLength ||
+        validateMnemonic(newWordList.join(' '))
+      ) {
         setText(ZERO_WIDTH_SPACE);
-        if (!alreadyHandled(cleanWord(text))) onWordList(newWordList);
+        if (!alreadyHandled(cleanWord(text))) onWords(newWordList);
         return true;
       } else {
         Toast.show({
           autoHide: false,
           type: 'error',
           text1: t('bip39.invalidTitle'),
-          text2: t('bip39.invalid24Words')
+          text2: t('bip39.invalidWords')
         });
         return false;
       }
@@ -120,7 +123,7 @@ export default function WordListComponent({
     if (newText.length === 0) {
       //newText.length is zero -> deleted
       setText(ZERO_WIDTH_SPACE);
-      onWordList(wordList.slice(0, -1));
+      onWords(words.slice(0, -1));
     } else if (newText === ZERO_WIDTH_SPACE) {
       setText(ZERO_WIDTH_SPACE);
     } else {
@@ -135,20 +138,37 @@ export default function WordListComponent({
     }
   };
   const onEndEditing = () => processText(text);
-  //const onBlur = () => {
-  //  processText();
-  //  inputRef.current?.focus();
-  //};
   const onSubmitEditing = () => processText(text);
+
+  const promptForMoreWords =
+    !(words.length === wordsLength) || !validateMnemonic(words.join(' '));
 
   return (
     <>
-      <View style={styles.view}>
-        {wordList.map((word, index) => (
+      <View style={styles.mnemonicLength}>
+        <Text style={styles.mnemonicTypeText}>
+          {t('bip39.selectWordsLength')}
+        </Text>
+        <SegmentedControl
+          values={['12', '24']}
+          selectedIndex={wordsLength === 12 ? 0 : 1}
+          onChange={event => {
+            const index = event.nativeEvent.selectedSegmentIndex;
+            onWordsLength(index === 0 ? 12 : 24);
+          }}
+        />
+      </View>
+      {promptForMoreWords && (
+        <Text style={styles.enterMnemonicText}>
+          {t('bip39.enterMnemonicText', { wordNumber: words.length + 1 })}
+        </Text>
+      )}
+      <View style={styles.words}>
+        {words.map((word, index) => (
           <Pressable
             key={index}
             onPress={() => {
-              onWordList(wordList.slice(0, index));
+              onWords(words.slice(0, index));
               setText(ZERO_WIDTH_SPACE);
               //inputRef.current?.focus();
             }}
@@ -201,49 +221,52 @@ export default function WordListComponent({
           </Pressable>
         ))}
 
-        <View style={styles.indexAndInput}>
-          <Text
-            style={[
-              styles.text,
-              {
-                paddingRight: 5,
-                color: numberColor
-              },
-              fontsLoaded ? { fontFamily: 'RobotoMono_400Regular' } : {}
-            ]}
-          >
-            {`${wordList.length + 1 < 10 ? '\u00A0' : ''}${
-              wordList.length + 1
-            }`}
-          </Text>
-          <TextInput
-            autoFocus
-            keyboardType="visible-password"
-            blurOnSubmit={false}
-            value={text}
-            style={[
-              styles.input,
-              isPartialWordValid(text) ? {} : { backgroundColor: '#FFCCCC' },
-              fontsLoaded ? { fontFamily: 'RobotoMono_400Regular' } : {}
-            ]}
-            ref={inputRef}
-            spellCheck={false}
-            maxLength={MAX_LENGTH + 1}
-            autoComplete={'off'}
-            autoCorrect={false}
-            autoCapitalize="none"
-            onChangeText={handleChangeText}
-            onKeyPress={onKeyPress}
-            onEndEditing={onEndEditing}
-            onSubmitEditing={onSubmitEditing}
-          />
-        </View>
+        {promptForMoreWords && (
+          <View style={styles.indexAndInput}>
+            <Text
+              style={[
+                styles.text,
+                {
+                  paddingRight: 5,
+                  color: numberColor
+                },
+                fontsLoaded ? { fontFamily: 'RobotoMono_400Regular' } : {}
+              ]}
+            >
+              {`${words.length + 1 < 10 ? '\u00A0' : ''}${words.length + 1}`}
+            </Text>
+            <TextInput
+              autoFocus
+              keyboardType="visible-password"
+              blurOnSubmit={false}
+              value={text}
+              style={[
+                styles.input,
+                isPartialWordValid(text) ? {} : { backgroundColor: '#FFCCCC' },
+                fontsLoaded ? { fontFamily: 'RobotoMono_400Regular' } : {}
+              ]}
+              ref={inputRef}
+              spellCheck={false}
+              maxLength={MAX_LENGTH + 1}
+              autoComplete={'off'}
+              autoCorrect={false}
+              autoCapitalize="none"
+              onChangeText={handleChangeText}
+              onKeyPress={onKeyPress}
+              onEndEditing={onEndEditing}
+              onSubmitEditing={onSubmitEditing}
+            />
+          </View>
+        )}
       </View>
     </>
   );
 }
 const styles = StyleSheet.create({
-  view: {
+  mnemonicLength: { marginBottom: 40 },
+  mnemonicTypeText: { marginBottom: 10 },
+  enterMnemonicText: { marginBottom: 10 },
+  words: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     alignItems: 'flex-start',

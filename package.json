@@ -26,6 +26,7 @@
     "@expo-google-fonts/roboto-mono": "^0.2.3",
     "@expo/webpack-config": "^19.0.0",
     "@react-native-community/slider": "^4.5.0",
+    "@react-native-segmented-control/segmented-control": "^2.5.0",
     "@react-navigation/native": "^6.1.9",
     "@react-navigation/native-stack": "^6.9.17",
     "@react-navigation/stack": "^6.3.20",
