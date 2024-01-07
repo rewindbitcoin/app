@@ -3,7 +3,7 @@
 
 import './init';
 import React, { useEffect, useState } from 'react';
-import { Button, Platform } from 'react-native';
+import { Button, Platform, View } from 'react-native';
 import {
   createRootStack,
   isNativeStack,
@@ -25,7 +25,7 @@ import CreateVaultScreen from './src/app/screens/CreateVaultScreen';
 import { WalletProvider } from './src/app/contexts/WalletContext';
 import Settings from './src/app/screens/SettingsScreen';
 import { StorageProvider } from './src/common/contexts/StorageContext';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { SERIALIZABLE } from './src/common/lib/storage';
 import { useGlobalStateStorage } from './src/common/contexts/StorageContext';
 import { SETTINGS_GLOBAL_STORAGE } from './src/app/lib/settings';
@@ -49,6 +49,17 @@ import { useTranslation } from 'react-i18next';
 import initI18n from './src/i18n/i18n';
 //Init for 1st render. Then, on settings load from context & apply correct one
 initI18n(defaultSettings.LOCALE);
+
+function withModalToast<T extends React.ComponentProps<React.ComponentType>>(
+  Component: React.ComponentType<T>
+) {
+  return (props: T) => (
+    <>
+      <Component {...props} />
+      <CustomToast />
+    </>
+  );
+}
 
 const RootStack = createRootStack();
 
@@ -127,10 +138,10 @@ const App = () => {
         <RootStack.Screen
           name={IMPORT_WALLET}
           options={{
-            title: t('app.thunderDenTitle'),
+            title: t('app.importWalletTitle'),
             presentation: 'modal'
           }}
-          component={ImportWalletScreen}
+          component={withModalToast(ImportWalletScreen)}
         />
 
         <RootStack.Screen

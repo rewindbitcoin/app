@@ -246,6 +246,14 @@ export const WalletProvider = ({
     settings?.BTC_FEE_ESTIMATES_REFRESH_INTERVAL_MS
   ]);
 
+  useEffect(() => {
+    Toast.show({
+      type: 'error',
+      text1: 'title',
+      text2: 'Vamos que nos vamos'
+    });
+  });
+
   //Sets btcFiat
   useEffect(() => {
     let isMounted = true;

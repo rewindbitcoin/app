@@ -14,7 +14,7 @@ import {
   RobotoMono_400Regular
 } from '@expo-google-fonts/roboto-mono';
 import { Toast } from '../../common/components/Toast';
-import { useTheme } from '@react-navigation/native';
+import { useTheme, Theme } from '@react-navigation/native';
 import memoize from 'lodash.memoize';
 import { wordlists } from 'bip39';
 import SegmentedControl from '@react-native-segmented-control/segmented-control';
@@ -49,11 +49,9 @@ export default function Bip39({
   onWordsLength: (wordsLength: 12 | 24) => void;
 }) {
   const { t } = useTranslation();
-  const { colors } = useTheme();
-  const numberColor = colors.primary;
+  const styles = getStyles(useTheme(), useFonts({ RobotoMono_400Regular }));
 
   const inputRef = useRef<TextInput>(null);
-  const [fontsLoaded] = useFonts({ RobotoMono_400Regular });
 
   const [text, setText] = useState(ZERO_WIDTH_SPACE);
 
@@ -146,11 +144,9 @@ export default function Bip39({
   return (
     <>
       <View style={styles.mnemonicLength}>
-        <Text style={styles.mnemonicTypeText}>
-          {t('bip39.selectWordsLength')}
-        </Text>
         <SegmentedControl
-          values={['12', '24']}
+          style={styles.segmented}
+          values={[t('bip39.segmented12'), t('bip39.segmented24')]}
           selectedIndex={wordsLength === 12 ? 0 : 1}
           onChange={event => {
             const index = event.nativeEvent.selectedSegmentIndex;
@@ -173,10 +169,8 @@ export default function Bip39({
               //inputRef.current?.focus();
             }}
             style={({ pressed }) => [
-              {
-                backgroundColor: pressed ? 'lightgray' : 'transparent'
-              },
-              styles.textContainer
+              styles.textContainer,
+              pressed && styles.textContainerPressed
             ]}
           >
             {({ pressed }) => (
@@ -185,18 +179,7 @@ export default function Bip39({
                   flexDirection: 'row'
                 }}
               >
-                <Text
-                  numberOfLines={1}
-                  style={[
-                    styles.text,
-                    {
-                      color: numberColor,
-                      paddingRight: 5
-                    },
-                    pressed ? styles.textPressed : {},
-                    fontsLoaded ? { fontFamily: 'RobotoMono_400Regular' } : {}
-                  ]}
-                >
+                <Text numberOfLines={1} style={styles.number}>
                   {
                     `${index + 1 < 10 ? '\u00A0' : ''}${index + 1}`
                     //\u00A0 is a space character, needed for Web platform to show it
@@ -204,15 +187,7 @@ export default function Bip39({
                 </Text>
                 <Text
                   numberOfLines={1}
-                  style={[
-                    styles.text,
-                    {
-                      paddingRight: 10,
-                      paddingLeft: 5
-                    },
-                    pressed ? styles.textPressed : {},
-                    fontsLoaded ? { fontFamily: 'RobotoMono_400Regular' } : {}
-                  ]}
+                  style={[styles.text, pressed && styles.textPressed]}
                 >
                   {`${word}`}
                 </Text>
@@ -223,16 +198,7 @@ export default function Bip39({
 
         {promptForMoreWords && (
           <View style={styles.indexAndInput}>
-            <Text
-              style={[
-                styles.text,
-                {
-                  paddingRight: 5,
-                  color: numberColor
-                },
-                fontsLoaded ? { fontFamily: 'RobotoMono_400Regular' } : {}
-              ]}
-            >
+            <Text style={[styles.number]}>
               {`${words.length + 1 < 10 ? '\u00A0' : ''}${words.length + 1}`}
             </Text>
             <TextInput
@@ -240,11 +206,7 @@ export default function Bip39({
               keyboardType="visible-password"
               blurOnSubmit={false}
               value={text}
-              style={[
-                styles.input,
-                isPartialWordValid(text) ? {} : { backgroundColor: '#FFCCCC' },
-                fontsLoaded ? { fontFamily: 'RobotoMono_400Regular' } : {}
-              ]}
+              style={[styles.input, !isPartialWordValid(text) && styles.error]}
               ref={inputRef}
               spellCheck={false}
               maxLength={MAX_LENGTH + 1}
@@ -262,52 +224,79 @@ export default function Bip39({
     </>
   );
 }
-const styles = StyleSheet.create({
-  mnemonicLength: { marginBottom: 40 },
-  mnemonicTypeText: { marginBottom: 10 },
-  enterMnemonicText: { marginBottom: 10 },
-  words: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    alignItems: 'flex-start',
-    width: 330,
-    margin: 0,
-    padding: 0,
-    borderWidth: 0
-  },
-  indexAndInput: {
-    flexDirection: 'row', // Aligns children horizontally
-    fontSize: 14,
-    width: '33%'
-  },
-  input: {
-    ...Platform.select({
-      //clean style for web browsers
-      web: {
-        outlineStyle: 'none'
-      }
-    }),
-    borderWidth: 0,
-    paddingLeft: 5,
-    backgroundColor: 'lightgray', // Set the border color
-    width: 70
-  },
-  text: {
-    //backgroundColor: 'yellow',
-    //lineHeight: 20,
-    //height: 20 + 10 + 2,
-    paddingVertical: 10 //5 + 1 (TextInput border)
-  },
-  textContainer: {
-    // Additional styling for Pressable container
-    //padding: 5,
-    //margin: 2,
-    //borderRadius: 4,
-    width: '33%'
-  },
-  textPressed: {
-    // Style for text when Pressable is pressed
-    color: 'darkblue'
-    //textDecorationLine: 'underline'
-  }
-});
+const getStyles = (theme: Theme, fonts: ReturnType<typeof useFonts>) => {
+  const [fontsLoaded] = fonts;
+  return StyleSheet.create({
+    segmented: {
+      height: 50,
+      //SegmentedControl for iOS has a bug setting backgroundColor.
+      //#eeeeed will set #dfdfdf. Found by experimenting with a Color Picker tool
+      //https://github.com/react-native-segmented-control/segmented-control/issues/127
+      backgroundColor: Platform.select({ ios: '#eeeeed', default: '#dfdfdf' })
+    },
+    mnemonicLength: { marginBottom: 30, width: 330 },
+    mnemonicTypeText: { marginBottom: 10 },
+    enterMnemonicText: {
+      marginBottom: 20,
+      textAlign: 'left',
+      width: 330,
+      fontWeight: 'bold',
+      fontSize: 16
+    },
+    words: {
+      borderRadius: 5,
+      backgroundColor: '#dfdfdf',
+      paddingVertical: 10,
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      alignItems: 'flex-start',
+      width: 330,
+      margin: 0,
+      paddingHorizontal: 10,
+      borderWidth: 0
+    },
+    indexAndInput: {
+      flexDirection: 'row', // Aligns children horizontally
+      fontSize: 14,
+      width: '33%'
+    },
+    input: {
+      ...Platform.select({
+        //clean style for web browsers
+        web: {
+          outlineStyle: 'none'
+        }
+      }),
+      borderWidth: 0,
+      paddingLeft: 5,
+      borderRadius: 5,
+      backgroundColor: theme.colors.background,
+      width: 70,
+      ...(fontsLoaded ? { fontFamily: 'RobotoMono_400Regular' } : {})
+    },
+    error: {
+      color: theme.colors.notification
+    },
+    text: {
+      paddingVertical: 10,
+      paddingRight: 10,
+      paddingLeft: 5,
+      ...(fontsLoaded ? { fontFamily: 'RobotoMono_400Regular' } : {})
+    },
+    number: {
+      paddingVertical: 10,
+      color: theme.colors.primary,
+      paddingRight: 5,
+      ...(fontsLoaded ? { fontFamily: 'RobotoMono_400Regular' } : {})
+    },
+    textContainer: {
+      width: '33%'
+    },
+    textContainerPressed: {
+      backgroundColor: '#ccc'
+    },
+    textPressed: {
+      //color: 'darkblue'
+    }
+  });
+};

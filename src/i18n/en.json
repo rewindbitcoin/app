@@ -4,6 +4,7 @@
       "title": "Network Issue",
       "text": "Oops! Something went wrong with the network. Error: {{message}}"
     },
+    "importWalletTitle": "Wallet Recovery",
     "thunderDenTitle": "Thunder Den",
     "settingsButton": "Settings",
     "settingsTitle": "Settings",
@@ -60,8 +61,12 @@
     "expressConfirmation": "Express Confirmation"
   },
   "bip39": {
+    "importWalletText": "Restore Access to Your Wallet",
+    "importWalletSubText": "Begin the secure recovery of your wallet by entering the series of words you received during initial setup. These words are vital for regaining access and should always be kept private.",
+    "segmented12": "12 Words",
+    "segmented24": "24 Words",
     "selectWordsLength": "Number of words:",
-    "enterMnemonicText": "Enter your word number {{wordNumber}}:",
+    "enterMnemonicText": "Word #{{wordNumber}}:",
     "importWalletButton": "Import Wallet",
     "invalidTitle": "Mnemonic Phrase Validation",
     "invalidWords": "The word sequence you entered is not valid. Please double-check your words for any errors."

@@ -3,7 +3,6 @@ import { ScrollView, Button, View, Text } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useNavigation } from '@react-navigation/native';
 import Bip39 from '../components/Bip39';
-import { CustomToast } from '../../common/components/Toast';
 
 import memoize from 'lodash.memoize';
 import { validateMnemonic as validateMnemonicOriginal } from 'bip39';
@@ -25,6 +24,19 @@ export default () => {
         alignItems: 'center'
       }}
     >
+      <Text
+        style={{
+          fontWeight: 'bold',
+          fontSize: 24,
+          marginBottom: 20,
+          textAlign: 'center'
+        }}
+      >
+        {t('bip39.importWalletText')}
+      </Text>
+      <Text style={{ width: 330, marginBottom: 20 }}>
+        {t('bip39.importWalletSubText')}
+      </Text>
       <Bip39
         words={words}
         onWords={(words: string[]) => setWords(words)}
@@ -50,7 +62,6 @@ export default () => {
       <View style={{ marginTop: 50 }}>
         <Button title={t('cancelButton')} onPress={navigation.goBack} />
       </View>
-      <CustomToast />
     </ScrollView>
   );
 };
