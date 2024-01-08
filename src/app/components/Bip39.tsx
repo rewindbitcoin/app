@@ -13,7 +13,7 @@ import {
   useFonts,
   RobotoMono_400Regular
 } from '@expo-google-fonts/roboto-mono';
-import { Toast, update, show } from '../../common/components/Toast';
+import { useToast } from '../../common/components/Toast';
 import { useTheme, Theme } from '@react-navigation/native';
 import memoize from 'lodash.memoize';
 import { wordlists } from 'bip39';
@@ -42,13 +42,11 @@ const wordCandidates = (clean: string) => {
 };
 
 export default function Bip39({
-  toastRef,
   words,
   onWords,
   wordsLength,
   onWordsLength
 }: {
-  toastRef: React.RefObject<Toast>;
   words: string[];
   onWords: (words: string[]) => void;
   wordsLength: 12 | 24;
@@ -63,6 +61,7 @@ export default function Bip39({
 
   useEffect(() => inputRef.current?.focus(), []);
 
+  const toast = useToast();
   const toastId = useRef<string>();
 
   //const prevWordsTypeRef = useRef<12 | 24>(12);
@@ -89,23 +88,20 @@ export default function Bip39({
   };
 
   const showError = () => {
-    if (
-      toastId.current !== undefined &&
-      toastRef.current?.isOpen(toastId.current)
-    )
-      update(toastRef, toastId.current, t('bip39.invalidErrorMessage'), {
-        type: 'error'
+    if (toastId.current !== undefined && toast.isOpen(toastId.current))
+      toast.update(toastId.current, t('bip39.invalidErrorMessage'), {
+        type: 'danger'
       });
     else {
-      toastId.current = show(toastRef, t('bip39.invalidErrorMessage'), {
-        type: 'error'
+      toastId.current = toast.show(t('bip39.invalidErrorMessage'), {
+        type: 'danger'
       });
     }
   };
   const hideError = () =>
     toastId.current !== undefined &&
-    toastRef.current?.isOpen(toastId.current) &&
-    toastRef.current?.hide(toastId.current);
+    toast.isOpen(toastId.current) &&
+    toast.hide(toastId.current);
 
   /** analizes the text on TextInput, and adds a new word (returning true) or
    * returns false */

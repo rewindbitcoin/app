@@ -2,7 +2,7 @@
 // this works properly: react-native-get-random-values
 
 import './init';
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Button, Platform } from 'react-native';
 import {
   createRootStack,
@@ -16,7 +16,7 @@ import {
 } from './src/app/screens';
 import type { Signers, Wallet as WalletType } from './src/app/lib/wallets';
 import { NavigationContainer, useNavigation } from '@react-navigation/native';
-import { Toast, show } from './src/common/components/Toast';
+import { ToastProvider } from './src/common/components/Toast';
 import WalletsScreen from './src/app/screens/WalletsScreen';
 import ImportWalletScreen from './src/app/screens/ImportWalletScreen';
 import WalletHomeScreen from './src/app/screens/WalletHomeScreen';
@@ -51,20 +51,9 @@ import initI18n from './src/i18n/i18n';
 //Init for 1st render. Then, on settings load from context & apply correct one
 initI18n(defaultSettings.LOCALE);
 
-//function withModalToast<T extends React.ComponentProps<React.ComponentType>>(
-//  Component: React.ComponentType<T>
-//) {
-//  return (props: T) => (
-//    <ToastProvider>
-//      <Component {...props} />
-//    </ToastProvider>
-//  );
-//}
-
 const RootStack = createRootStack();
 
 const App = () => {
-  const rootToastRef = useRef<Toast>(null);
   // Get settings from disk. It will be used for setting the correct LOCALE.
   const [settings] = useGlobalStateStorage<SettingsType>(
     SETTINGS_GLOBAL_STORAGE,
@@ -78,19 +67,19 @@ const App = () => {
   const [newWalletSigners, setNewWalletSigners] = useState<Signers>();
   const navigation = useNavigation();
 
-  useEffect(() => {
-    show(rootToastRef, 'vamos que nos vamos', {
-      placement: 'top',
-      type: 'error'
-    });
-  }, [wallet]);
-
   const settingsButton = () => (
     <Button
       onPress={() => navigation.navigate(SETTINGS)}
       title={t('app.settingsButton')}
     />
   );
+  //const toast = useToast();
+  //useEffect(() => {
+  //  toast.show?.('Test 123 foo bar', {
+  //    placement: 'top',
+  //    type: 'warning'
+  //  });
+  //}, [wallet]);
 
   const handleWalletSelectOrCreate = (
     wallet: WalletType,
@@ -118,7 +107,6 @@ const App = () => {
 
   return (
     <WalletProvider
-      toastRef={rootToastRef}
       {...(wallet ? { wallet: wallet } : {})}
       {...(newWalletSigners ? { newWalletSigners: newWalletSigners } : {})}
     >
@@ -153,12 +141,10 @@ const App = () => {
         >
           {() => {
             //Modals need their own Toast component
-            const modalToastRef = useRef<Toast>(null);
             return (
-              <>
-                <ImportWalletScreen toastRef={modalToastRef} />
-                <Toast ref={modalToastRef} />
-              </>
+              <ToastProvider>
+                <ImportWalletScreen />
+              </ToastProvider>
             );
           }}
         </RootStack.Screen>
@@ -185,7 +171,6 @@ const App = () => {
           {() => {
             return (
               <SetUpVaultScreen
-                toastRef={rootToastRef}
                 onVaultSetUpComplete={handleSetUpVaultComplete}
               />
             );
@@ -217,12 +202,6 @@ const App = () => {
           options={{ title: t('app.settingsTitle') }}
         />
       </RootStack.Navigator>
-      <Toast
-        ref={
-          //All Screens except Modals share one Toast component
-          rootToastRef
-        }
-      />
     </WalletProvider>
   );
 };
@@ -232,7 +211,9 @@ export default () => (
   <NavigationContainer>
     <SafeAreaProvider>
       <StorageProvider>
-        <App />
+        <ToastProvider>
+          <App />
+        </ToastProvider>
       </StorageProvider>
     </SafeAreaProvider>
   </NavigationContainer>

@@ -25,7 +25,7 @@ import React, {
 } from 'react';
 import { shallowEqualObjects, shallowEqualArrays } from 'shallow-equal';
 import type { Wallet } from '../lib/wallets';
-import { Toast, show } from '../../common/components/Toast';
+import { useToast } from '../../common/components/Toast';
 import { SERIALIZABLE } from '../../common/lib/storage';
 import { useGlobalStateStorage } from '../../common/contexts/StorageContext';
 import { useLocalStateStorage } from '../../common/hooks/useLocalStateStorage';
@@ -94,16 +94,11 @@ const DEFAULT_VAULTS: Vaults = {};
 export const WalletProvider = ({
   children,
   wallet,
-  newWalletSigners,
-  //This is the rootToastRef (the one for the main screen, not the one for modals)
-  //If a modal component needs to make use of syncBlockchain (which may trigger
-  //Toast.show, then syncBlockchain should be adapted to pass the modal's toastRef
-  toastRef
+  newWalletSigners
 }: {
   children: ReactNode;
   wallet?: Wallet;
   newWalletSigners?: Signers;
-  toastRef: React.RefObject<Toast>;
 }) => {
   if (!wallet) return children;
   //console.log('TODO: WALLET PROVIDER HERE I AM');
@@ -150,6 +145,8 @@ export const WalletProvider = ({
   }, [newWalletSigners]);
 
   const { t } = useTranslation();
+
+  const toast = useToast();
 
   // Local State: btcFiat, feeEstimates & discovery
   const [btcFiat, setBtcFiat] = useState<number | null>(null);
@@ -221,8 +218,8 @@ export const WalletProvider = ({
             }
             if (isMounted) setFeeEstimates(feeEstimates);
           } catch (err) {
-            show(toastRef, t('app.feeEstimatesError'), {
-              type: 'error'
+            toast.show(t('app.feeEstimatesError'), {
+              type: 'warning'
             });
           }
         }
@@ -262,11 +259,9 @@ export const WalletProvider = ({
           const btcFiat = await fetchBtcFiat(settings.CURRENCY);
           if (isMounted) setBtcFiat(btcFiat);
         } catch (err) {
-          show(
-            toastRef,
-            t('app.btcRatesError', { currency: settings.CURRENCY }),
-            { type: 'error' }
-          );
+          toast.show(t('app.btcRatesError', { currency: settings.CURRENCY }), {
+            type: 'warning'
+          });
         }
       };
 
@@ -369,8 +364,8 @@ export const WalletProvider = ({
             ? error.message
             : t('An unknown error occurred'); //TODO: translate
 
-        show(toastRef, t('networkError', { message: errorMessage }), {
-          type: 'error'
+        toast.show(t('networkError', { message: errorMessage }), {
+          type: 'warning'
         });
         console.error(errorMessage);
       } finally {
@@ -411,8 +406,8 @@ export const WalletProvider = ({
         const errorMessage =
           error instanceof Error ? error.message : 'An unknown error occurred';
 
-        show(toastRef, t('networkError', { message: errorMessage }), {
-          type: 'error'
+        toast.show(t('networkError', { message: errorMessage }), {
+          type: 'warning'
         });
       }
       return updatedVaultsStatuses;
@@ -456,7 +451,7 @@ export const WalletProvider = ({
         };
         const errorMessage = errorMessages[vault];
         if (!errorMessage) throw new Error('Unhandled vault creation error');
-        show(toastRef, errorMessage, { type: 'error' });
+        toast.show(errorMessage, { type: 'danger' });
         return false;
       } else {
         // Create new vault

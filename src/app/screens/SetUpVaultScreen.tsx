@@ -7,7 +7,7 @@ import { Trans, useTranslation } from 'react-i18next';
 import React, { useContext, useState } from 'react';
 import type { GestureResponderEvent } from 'react-native';
 import { View, Text, Button, StyleSheet, ScrollView } from 'react-native';
-import { Toast, show } from '../../common/components/Toast';
+import { useToast } from '../../common/components/Toast';
 import {
   defaultSettings,
   Settings,
@@ -33,14 +33,13 @@ const FEE_RATE_STEP = 0.01;
 
 export default function VaultSetUp({
   onVaultSetUpComplete,
-  onCancel = undefined,
-  toastRef
+  onCancel = undefined
 }: {
   onVaultSetUpComplete: (VaultSettings: VaultSettings) => void;
   onCancel?: (event: GestureResponderEvent) => void;
-  toastRef: React.RefObject<Toast>;
 }) {
   const context = useContext<WalletContextType | null>(WalletContext);
+  const toast = useToast();
 
   if (context === null) {
     throw new Error('Context was not set');
@@ -153,12 +152,11 @@ export default function VaultSetUp({
 
     // If any errors, display them
     if (errorMessages.length > 0) {
-      show(
-        toastRef,
+      toast.show(
         (errorMessages.length > 1
           ? t('vaultSetup.invalidValues') + '\n\n'
           : '') + errorMessages.join('\n'),
-        { type: 'error' }
+        { type: 'danger' }
       );
     } else {
       if (feeRate === null || amount === null || lockBlocks === null)
