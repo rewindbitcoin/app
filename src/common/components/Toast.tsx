@@ -1,51 +1,66 @@
-import React from 'react';
-import Toast, { BaseToast, InfoToast } from 'react-native-toast-message';
-import type { ViewStyle, StyleProp } from 'react-native';
+//import React from 'react';
 
-/*
-  1. Create the config
-  Some other props that can be passed to BaseToast or ErrorToast...:
-  
-      style={{ borderLeftColor: 'pink' }}
-      contentContainerStyle={{ paddingHorizontal: 15 }}
-*/
-
-const createToastComponent =
-  (
-    ToastComponent: React.ComponentType<React.ComponentProps<typeof BaseToast>>,
-    uniqueStyle: StyleProp<ViewStyle> = {}
-  ) =>
-  (props: React.ComponentProps<typeof BaseToast>) => {
-    if (typeof uniqueStyle !== 'object')
-      throw new Error('uniqueStyle must be object');
-    return (
-      <ToastComponent
-        {...props}
-        text1Style={{ fontSize: 16 }}
-        text2Style={{ fontSize: 14, paddingTop: 5 }}
-        text2NumberOfLines={5}
-        style={[
-          props.style,
-          {
-            height: null,
-            maxHeight: 200,
-            paddingVertical: 10,
-            ...uniqueStyle
-          }
-        ]}
-      />
-    );
-  };
-
-const toastConfig = {
-  success: createToastComponent(BaseToast),
-  error: createToastComponent(BaseToast, { borderLeftColor: 'red' }),
-  info: createToastComponent(InfoToast, { borderLeftColor: '#FE6301' })
-};
-
-//Set in in App.tsx and in every modal where Toasts need to be shown:
-//https://github.com/calintamas/react-native-toast-message/blob/main/docs/modal-usage.md
-export const CustomToast = (props: React.ComponentProps<typeof Toast>) => {
-  return <Toast {...props} config={toastConfig} />;
-};
+import Toast, { ToastOptions } from 'react-native-toast-notifications';
 export { Toast };
+
+const show = (
+  toastRef: React.RefObject<Toast>,
+  message: string | JSX.Element,
+  toastOptions?: ToastOptions
+) => {
+  return toastRef.current?.show(message, { placement: 'top', ...toastOptions });
+};
+export { show };
+
+const update = (
+  toastRef: React.RefObject<Toast>,
+  id: string,
+  message: string | JSX.Element,
+  toastOptions?: ToastOptions
+) => {
+  toastRef.current?.update(id, message, { placement: 'top', ...toastOptions });
+};
+export { update };
+/*
+    swipeEnabled={true}
+    successColor="green"
+    dangerColor="red"
+    warningColor="orange"
+    normalColor="gray"
+*/
+//const ToastProvider: React.FC<{ children: ReactNode }> = ({ children }) => (
+//  <ToastProviderOriginal placement="top">{children}</ToastProviderOriginal>
+//);
+
+//import React, { ReactNode, ForwardRefRenderFunction } from 'react';
+//import Toast, { useToast, Toast } from 'react-native-toast-notifications';
+//
+//interface ToastProviderProps {
+//  children: ReactNode;
+//}
+//
+//const ToastProvider: ForwardRefRenderFunction<unknown, ToastProviderProps> = (
+//  { children },
+//  ref
+//) => (
+//  <>
+//    {' '}
+//    {children} <Toast ref={ref} />
+//  </>
+//);
+//
+//export { ToastProvider, Toast, useToast };
+//
+
+//export function withToast<T extends React.ComponentProps<React.ComponentType>>(
+//  Component: React.ComponentType<T>
+//) {
+//  const toastRef = useRef<Toast>(null);
+//
+//  return (props: T) => (
+//    <>
+//      <Component {...props} toastRef />
+//      <Toast ref={toastRef} />
+//    </>
+//  );
+//}

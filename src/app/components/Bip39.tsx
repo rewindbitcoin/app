@@ -13,7 +13,7 @@ import {
   useFonts,
   RobotoMono_400Regular
 } from '@expo-google-fonts/roboto-mono';
-import { Toast } from '../../common/components/Toast';
+import { Toast, update, show } from '../../common/components/Toast';
 import { useTheme, Theme } from '@react-navigation/native';
 import memoize from 'lodash.memoize';
 import { wordlists } from 'bip39';
@@ -37,12 +37,18 @@ const validateMnemonic = memoize(validateMnemonicOriginal);
 
 import { useTranslation } from 'react-i18next';
 
+const wordCandidates = (clean: string) => {
+  return englishWordList.filter(word => word.startsWith(clean));
+};
+
 export default function Bip39({
+  toastRef,
   words,
   onWords,
   wordsLength,
   onWordsLength
 }: {
+  toastRef: React.RefObject<Toast>;
   words: string[];
   onWords: (words: string[]) => void;
   wordsLength: 12 | 24;
@@ -57,10 +63,12 @@ export default function Bip39({
 
   useEffect(() => inputRef.current?.focus(), []);
 
+  const toastId = useRef<string>();
+
   //const prevWordsTypeRef = useRef<12 | 24>(12);
 
   useEffect(() => {
-    if (words.length < wordsLength) Toast.hide();
+    if (words.length < wordsLength) hideError();
     inputRef.current?.focus();
     //prevWordsTypeRef.current = wordsLength;
     //if (words.length === wordsLength && !validateMnemonic(words.join(' '))) {
@@ -75,25 +83,39 @@ export default function Bip39({
   const alreadyHandled = (clean: string) => {
     const prevClean = clean.slice(0, -1);
     if (!englishWordList) throw new Error('Cannot load english wordlists');
-    const wordCandidates =
-      prevClean.length > 1 //With 2 letters you can find a word. F.ex.: yard
-        ? englishWordList.filter(word => word.startsWith(prevClean))
-        : [];
-    if (words.length < wordsLength && wordCandidates.length === 1) return true;
+    if (words.length < wordsLength && wordCandidates(prevClean).length === 1)
+      return true;
     else return false;
   };
+
+  const showError = () => {
+    if (
+      toastId.current !== undefined &&
+      toastRef.current?.isOpen(toastId.current)
+    )
+      update(toastRef, toastId.current, t('bip39.invalidErrorMessage'), {
+        type: 'error'
+      });
+    else {
+      toastId.current = show(toastRef, t('bip39.invalidErrorMessage'), {
+        type: 'error'
+      });
+    }
+  };
+  const hideError = () =>
+    toastId.current !== undefined &&
+    toastRef.current?.isOpen(toastId.current) &&
+    toastRef.current?.hide(toastId.current);
 
   /** analizes the text on TextInput, and adds a new word (returning true) or
    * returns false */
   const processText = (text: string) => {
     const clean = cleanWord(text);
     if (!englishWordList) throw new Error('Cannot load english wordlists');
-    const wordCandidates =
-      clean.length > 1 //With 2 letters you can find a word. F.ex.: yard
-        ? englishWordList.filter(word => word.startsWith(clean))
-        : [];
-    if (words.length < wordsLength && wordCandidates.length === 1) {
-      const clean = wordCandidates[0];
+    const wc = wordCandidates(clean);
+    if (wc.length > 1) hideError();
+    if (words.length < wordsLength && wc.length === 1) {
+      const clean = wc[0];
       if (clean === undefined) throw new Error('Array error');
       const newWordList = [...words, clean];
       if (
@@ -104,16 +126,10 @@ export default function Bip39({
         if (!alreadyHandled(cleanWord(text))) onWords(newWordList);
         return true;
       } else {
-        Toast.show({
-          autoHide: false,
-          type: 'error',
-          text1: t('bip39.invalidTitle'),
-          text2: t('bip39.invalidWords')
-        });
+        showError();
         return false;
       }
     } else {
-      Toast.hide();
       return false;
     }
   };

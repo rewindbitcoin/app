@@ -7,7 +7,7 @@ import { Trans, useTranslation } from 'react-i18next';
 import React, { useContext, useState } from 'react';
 import type { GestureResponderEvent } from 'react-native';
 import { View, Text, Button, StyleSheet, ScrollView } from 'react-native';
-import { Toast, CustomToast } from '../../common/components/Toast';
+import { Toast, show } from '../../common/components/Toast';
 import {
   defaultSettings,
   Settings,
@@ -33,10 +33,12 @@ const FEE_RATE_STEP = 0.01;
 
 export default function VaultSetUp({
   onVaultSetUpComplete,
-  onCancel = undefined
+  onCancel = undefined,
+  toastRef
 }: {
   onVaultSetUpComplete: (VaultSettings: VaultSettings) => void;
   onCancel?: (event: GestureResponderEvent) => void;
+  toastRef: React.RefObject<Toast>;
 }) {
   const context = useContext<WalletContextType | null>(WalletContext);
 
@@ -151,11 +153,13 @@ export default function VaultSetUp({
 
     // If any errors, display them
     if (errorMessages.length > 0) {
-      Toast.show({
-        type: 'error',
-        text1: t('vaultSetup.invalidValues'),
-        text2: errorMessages.join('\n\n')
-      });
+      show(
+        toastRef,
+        (errorMessages.length > 1
+          ? t('vaultSetup.invalidValues') + '\n\n'
+          : '') + errorMessages.join('\n'),
+        { type: 'error' }
+      );
     } else {
       if (feeRate === null || amount === null || lockBlocks === null)
         throw new Error(`Faulty validation`);
@@ -365,7 +369,6 @@ export default function VaultSetUp({
       }}
     >
       {content}
-      <CustomToast />
     </ScrollView>
   );
 }

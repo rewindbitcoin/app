@@ -25,7 +25,7 @@ import React, {
 } from 'react';
 import { shallowEqualObjects, shallowEqualArrays } from 'shallow-equal';
 import type { Wallet } from '../lib/wallets';
-import { Toast } from '../../common/components/Toast';
+import { Toast, show } from '../../common/components/Toast';
 import { SERIALIZABLE } from '../../common/lib/storage';
 import { useGlobalStateStorage } from '../../common/contexts/StorageContext';
 import { useLocalStateStorage } from '../../common/hooks/useLocalStateStorage';
@@ -94,11 +94,16 @@ const DEFAULT_VAULTS: Vaults = {};
 export const WalletProvider = ({
   children,
   wallet,
-  newWalletSigners
+  newWalletSigners,
+  //This is the rootToastRef (the one for the main screen, not the one for modals)
+  //If a modal component needs to make use of syncBlockchain (which may trigger
+  //Toast.show, then syncBlockchain should be adapted to pass the modal's toastRef
+  toastRef
 }: {
   children: ReactNode;
   wallet?: Wallet;
   newWalletSigners?: Signers;
+  toastRef: React.RefObject<Toast>;
 }) => {
   if (!wallet) return children;
   //console.log('TODO: WALLET PROVIDER HERE I AM');
@@ -216,10 +221,8 @@ export const WalletProvider = ({
             }
             if (isMounted) setFeeEstimates(feeEstimates);
           } catch (err) {
-            Toast.show({
-              type: 'error',
-              text1: t('app.feeEstimatesError.title'),
-              text2: t('app.feeEstimatesError.message')
+            show(toastRef, t('app.feeEstimatesError'), {
+              type: 'error'
             });
           }
         }
@@ -246,14 +249,6 @@ export const WalletProvider = ({
     settings?.BTC_FEE_ESTIMATES_REFRESH_INTERVAL_MS
   ]);
 
-  useEffect(() => {
-    Toast.show({
-      type: 'error',
-      text1: 'title',
-      text2: 'Vamos que nos vamos'
-    });
-  });
-
   //Sets btcFiat
   useEffect(() => {
     let isMounted = true;
@@ -267,13 +262,11 @@ export const WalletProvider = ({
           const btcFiat = await fetchBtcFiat(settings.CURRENCY);
           if (isMounted) setBtcFiat(btcFiat);
         } catch (err) {
-          Toast.show({
-            type: 'error',
-            text1: t('app.btcRatesError.title'),
-            text2: t('app.btcRatesError.message', {
-              currency: settings.CURRENCY
-            })
-          });
+          show(
+            toastRef,
+            t('app.btcRatesError', { currency: settings.CURRENCY }),
+            { type: 'error' }
+          );
         }
       };
 
@@ -376,10 +369,8 @@ export const WalletProvider = ({
             ? error.message
             : t('An unknown error occurred'); //TODO: translate
 
-        Toast.show({
-          type: 'error',
-          text1: t('networkError.title'),
-          text2: `${t('networkError.text', { message: errorMessage })}`
+        show(toastRef, t('networkError', { message: errorMessage }), {
+          type: 'error'
         });
         console.error(errorMessage);
       } finally {
@@ -420,10 +411,8 @@ export const WalletProvider = ({
         const errorMessage =
           error instanceof Error ? error.message : 'An unknown error occurred';
 
-        Toast.show({
-          type: 'error',
-          text1: t('networkError.title'),
-          text2: `${t('networkError.text', { message: errorMessage })}`
+        show(toastRef, t('networkError', { message: errorMessage }), {
+          type: 'error'
         });
       }
       return updatedVaultsStatuses;
@@ -465,10 +454,9 @@ export const WalletProvider = ({
           USER_CANCEL: t('createVault.error.USER_CANCEL'),
           UNKNOWN_ERROR: t('createVault.error.UNKNOWN_ERROR')
         };
-        const text1 = t('createVault.error.title'); //TODO: translate this one
-        const text2 = errorMessages[vault];
-        if (!text2) throw new Error('Unhandled vault creation error');
-        Toast.show({ type: 'error', text1, text2 });
+        const errorMessage = errorMessages[vault];
+        if (!errorMessage) throw new Error('Unhandled vault creation error');
+        show(toastRef, errorMessage, { type: 'error' });
         return false;
       } else {
         // Create new vault

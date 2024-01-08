@@ -2,13 +2,14 @@ import React, { useState } from 'react';
 import { ScrollView, Button, View, Text } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useNavigation } from '@react-navigation/native';
+import type { Toast } from '../../common/components/Toast';
 import Bip39 from '../components/Bip39';
 
 import memoize from 'lodash.memoize';
 import { validateMnemonic as validateMnemonicOriginal } from 'bip39';
 const validateMnemonic = memoize(validateMnemonicOriginal);
 
-export default () => {
+export default ({ toastRef }: { toastRef: React.RefObject<Toast> }) => {
   const navigation = useNavigation();
   const { t } = useTranslation();
   const [words, setWords] = useState<string[]>([]);
@@ -38,6 +39,7 @@ export default () => {
         {t('bip39.importWalletSubText')}
       </Text>
       <Bip39
+        toastRef={toastRef}
         words={words}
         onWords={(words: string[]) => setWords(words)}
         wordsLength={wordsLength}

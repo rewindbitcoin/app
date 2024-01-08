@@ -49,7 +49,6 @@ import {
   Text,
   TextInput,
   StyleSheet,
-  ScrollView,
   Keyboard,
   Platform,
   DimensionValue

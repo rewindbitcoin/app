@@ -1,21 +1,12 @@
 {
   "app": {
-    "networkError": {
-      "title": "Network Issue",
-      "text": "Oops! Something went wrong with the network. Error: {{message}}"
-    },
+    "networkError": "Oops! There was a network issue: {{message}}. Please check your connection and try again.",
     "importWalletTitle": "Wallet Recovery",
     "thunderDenTitle": "Thunder Den",
     "settingsButton": "Settings",
     "settingsTitle": "Settings",
-    "btcRatesError": {
-      "title": "BTC Rate Retrieval Failed",
-      "message": "The displayed amounts in {{currency}} may not be accurate."
-    },
-    "feeEstimatesError": {
-      "title": "Fee Estimate Retrieval Failed",
-      "message": "Displayed transaction target times and fee amounts may not be accurate."
-    }
+    "btcRatesError": "Unable to retrieve current BTC rates. The displayed amounts in {{currency}} may not be accurate.",
+    "feeEstimatesError": "Unable to retrieve accurate fee estimates. Displayed transaction target times and fee amounts may be incorrect."
   },
   "vaultSetup": {
     "title": "Vault Set Up",
@@ -62,14 +53,13 @@
   },
   "bip39": {
     "importWalletText": "Restore Access to Your Wallet",
-    "importWalletSubText": "Begin the secure recovery of your wallet by entering the series of words you received during initial setup. These words are vital for regaining access and should always be kept private.",
+    "importWalletSubText": "Recover your wallet by entering the series of words you received during initial setup.",
     "segmented12": "12 Words",
     "segmented24": "24 Words",
     "selectWordsLength": "Number of words:",
     "enterMnemonicText": "Word #{{wordNumber}}:",
     "importWalletButton": "Import Wallet",
-    "invalidTitle": "Mnemonic Phrase Validation",
-    "invalidWords": "The word sequence you entered is not valid. Please double-check your words for any errors."
+    "invalidErrorMessage": "The word sequence you entered is not valid. Please double-check your words for any errors."
   },
   "continueButton": "Continue",
   "okButton": "OK",
