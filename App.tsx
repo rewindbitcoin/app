@@ -3,7 +3,8 @@
 
 import './init';
 import React, { useEffect, useState } from 'react';
-import { Button, Platform } from 'react-native';
+import { Button } from 'react-native';
+
 import {
   createRootStack,
   isNativeStack,
@@ -67,6 +68,15 @@ const App = () => {
   const [newWalletSigners, setNewWalletSigners] = useState<Signers>();
   const navigation = useNavigation();
 
+  //React.useEffect(() => {
+  //  const unsubscribe = navigation.addListener('blur', _e => {
+  //    console.log('blur');
+  //    Keyboard.dismiss();
+  //  });
+
+  //  return unsubscribe;
+  //}, [navigation]);
+
   const settingsButton = () => (
     <Button
       onPress={() => navigation.navigate(SETTINGS)}
@@ -105,11 +115,7 @@ const App = () => {
     if (settings?.LOCALE) initI18n(settings.LOCALE);
   }, [settings?.LOCALE]);
 
-  return (
-    <WalletProvider
-      {...(wallet ? { wallet: wallet } : {})}
-      {...(newWalletSigners ? { newWalletSigners: newWalletSigners } : {})}
-    >
+  /*
       <RootStack.Navigator
         screenOptions={{
           //Disable goBack with gesture to prevent this bug:
@@ -117,6 +123,15 @@ const App = () => {
           ...(Platform.OS === 'ios' ? { gestureEnabled: false } : {}),
           ...(isNativeStack ? { animationEnabled: true } : {})
         }}
+      >
+  */
+  return (
+    <WalletProvider
+      {...(wallet ? { wallet: wallet } : {})}
+      {...(newWalletSigners ? { newWalletSigners: newWalletSigners } : {})}
+    >
+      <RootStack.Navigator
+        screenOptions={isNativeStack ? { animationEnabled: true } : {}}
       >
         <RootStack.Screen
           name={WALLETS}
