@@ -15,6 +15,7 @@ web-build/
 *.p12
 *.key
 *.mobileprovision
+*.ipa
 
 # Metro
 .metro-health-check*
@@ -40,3 +41,5 @@ android/
 ios/
 
 Home.tsx
+
+deprecated/
