@@ -19,11 +19,28 @@ Still, it is possible to use expo tools without ejecting completelly.
 For that, builds must be done locally, though.
 
 For Macos, install android and xcode among other.
-It's specially important to install Ruby using this manager (similar to nvm for node):
-https://rvm.io/rvm/install
-Then install fastlane gem:
-fastlane (depends on ruby) -> This tool is used to quick deploy on android/ios
-    -> More info:https://docs.fastlane.tools/
+*   It's specially important to install Ruby using this manager (similar to nvm for node):
+    https://rvm.io/rvm/install
+    Then install fastlane gem:
+    fastlane (depends on ruby) -> This tool is used to quick deploy on android/ios
+        -> More info:https://docs.fastlane.tools/
+*   TLDR:
+    sudo port install rbenv ruby-build
+    rbenv install -l
+        #pick a version avilable:
+    #add this at the end of the .zshrc or (.bashrc)
+    export PATH="$HOME/.rbenv/shims:$PATH"
+    eval "$(rbenv init -)"
+    #restart a terminal
+
+    rbenv install 3.3.0
+    rbenv global 3.3.0
+        #to activate it
+    which gem
+        #make sure its the one installed above
+    gem install fastlane
+
+
 
 The rest of things to install are listed at the end of this doc:
 https://docs.expo.dev/build-reference/local-builds/
@@ -103,13 +120,32 @@ npx eas build --profile development --platform android --local
 
 
 
-## Devices
+### iOS on real device
+npx eas credentials
+    #prepares the real device (connected with USB) so that you'll be able to install Apps
+    #if need to know the UUID of the iphone: Connect with USB, got to XCODE->window->devices
+# This now creates a provisionin profile that you must install in the iphone (real device)
+npx eas device:create
+# This builds and installs a "production" version into the iphone USB connected:
+npx eas build --platform ios --local --profile preview
+    #the --profile preview let's you use "distribution: internal" from the eas.json,
+    #the --local compiles it using this machine (not using EXPO servers)
+    #which means installation using usb to certain registewred devices
 
-To register your devices:
-```bash
-eas device:create
-```
+    #If get this error:
+        #Error: Distribution certificate with fingerprint 816325B1ED940A13EE42D71A229D1F914925961F hasn't been imported successfully
+        #then, install this certificate:
+            https://www.apple.com/certificateauthority/AppleWWDRCAG3.cer
+        #More info: https://github.com/expo/eas-cli/issues/1331
 
+#You can also run this:
+npx expo run:ios -d
+#which will  let you choose the device to run and install
+#If you get this error: CommandError: No code signing certificates are available to use.
+#open ios/ThunderDen.xcodeproj
+# -> Signing and capabilities -> Add ACcount - More info: https://github.com/expo/fyi/blob/main/setup-xcode-signing.md
+
+Install the ipa file using XCode->Window->Devices and Simulators and drag the ipa file to the "Installed Apps" of the device
 
 ## AsyncStorage fix
 
