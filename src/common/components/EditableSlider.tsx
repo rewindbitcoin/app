@@ -49,7 +49,6 @@ import {
   Text,
   TextInput,
   StyleSheet,
-  Keyboard,
   Platform,
   DimensionValue
 } from 'react-native';
@@ -307,7 +306,6 @@ const EditableSlider = ({
           minimumValue={minimumValue}
           maximumValue={maximumValue}
           onValueChange={onSliderValueChange}
-          onSlidingStart={Keyboard.dismiss}
           value={sliderManagedValue}
           {...(snappedValue === null ? { thumbTintColor: 'red' } : {})}
         />
