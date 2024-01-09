@@ -1,5 +1,6 @@
 import React from 'react';
-import { ScrollView, Text, View, Button } from 'react-native';
+import { Text, View, Button } from 'react-native';
+import { KeyboardAwareScrollView } from '../../common/components/KeyboardAwareScrollView';
 import type { Wallet, Wallets, Signers } from '../lib/wallets';
 import { SERIALIZABLE } from '../../common/lib/storage';
 import { useLocalStateStorage } from '../../common/hooks/useLocalStateStorage';
@@ -51,7 +52,7 @@ export default ({
 
   //TODO: do the translation of all the t() below:
   return (
-    <ScrollView
+    <KeyboardAwareScrollView
       keyboardShouldPersistTaps="handled"
       contentContainerStyle={
         //This is the "inner" style
@@ -76,6 +77,6 @@ export default ({
         title={t('wallets.importWalletButton')}
         onPress={handleImportWallet}
       />
-    </ScrollView>
+    </KeyboardAwareScrollView>
   );
 };

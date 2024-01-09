@@ -1,5 +1,6 @@
 import React from 'react';
-import { ScrollView, Button, Text, StyleSheet } from 'react-native';
+import { Button, Text, StyleSheet } from 'react-native';
+import { KeyboardAwareScrollView } from '../../common/components/KeyboardAwareScrollView';
 import { useNavigation } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
 export default () => {
@@ -7,7 +8,7 @@ export default () => {
   const { t } = useTranslation();
   const mnemonic = 'TODO'; //TODO - only for BIP32 wallets
   return (
-    <ScrollView
+    <KeyboardAwareScrollView
       keyboardShouldPersistTaps="handled"
       contentContainerStyle={{
         flexGrow: 1, //grow vertically to 100% and center child
@@ -16,7 +17,7 @@ export default () => {
     >
       <Text style={internalStyles.mnemonic}>MNEMOMIC ✍: {mnemonic}</Text>
       <Button title={t('closeButton')} onPress={navigation.goBack} />
-    </ScrollView>
+    </KeyboardAwareScrollView>
   );
 };
 

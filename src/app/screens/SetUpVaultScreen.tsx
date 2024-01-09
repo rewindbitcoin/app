@@ -6,7 +6,8 @@
 import { Trans, useTranslation } from 'react-i18next';
 import React, { useContext, useState } from 'react';
 import type { GestureResponderEvent } from 'react-native';
-import { View, Text, Button, StyleSheet, ScrollView } from 'react-native';
+import { KeyboardAwareScrollView } from '../../common/components/KeyboardAwareScrollView';
+import { View, Text, Button, StyleSheet } from 'react-native';
 import { useToast } from '../../common/components/Toast';
 import {
   defaultSettings,
@@ -358,16 +359,20 @@ export default function VaultSetUp({
   //TODO: remove the Toast component below. This is only needed in Modal
   //views. HOwever, this component should stop being part of a modal in new
   //versions and the parent <Toast/> in App.tsx will be used instead aiutomaticallu
+  //keyboardOpeningTime -> https://github.com/APSL/react-native-keyboard-aware-scroll-view/issues/571#issuecomment-1724564527
   return (
-    <ScrollView
+    <KeyboardAwareScrollView
       keyboardShouldPersistTaps="handled"
       contentContainerStyle={{
-        flexGrow: 1, //grow vertically to 100% and center child
-        justifyContent: 'center'
+        //paddingTop: 100
+        //paddingTop: 120
+        paddingTop: 300
+        //flexGrow: 1, //grow vertically to 100% and center child
+        //justifyContent: 'center'
       }}
     >
       {content}
-    </ScrollView>
+    </KeyboardAwareScrollView>
   );
 }
 

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { ScrollView, Button, View, Text } from 'react-native';
+import { Button, View, Text } from 'react-native';
+import { KeyboardAwareScrollView } from '../../common/components/KeyboardAwareScrollView';
 import { useTranslation } from 'react-i18next';
 import { useNavigation } from '@react-navigation/native';
 import Bip39 from '../components/Bip39';
@@ -15,12 +16,15 @@ export default () => {
   const [wordsLength, setWordsLength] = useState<12 | 24>(12);
 
   return (
-    <ScrollView
+    <KeyboardAwareScrollView
       keyboardShouldPersistTaps="handled"
       contentContainerStyle={{
-        flexGrow: 1, //grow vertically to 100% and center child
-        justifyContent: 'center',
-
+        backgroundColor: 'red',
+        //flexGrow: 1, //grow vertically to 100% and center child
+        //justifyContent: 'center',
+        //paddingTop: 500
+        paddingTop: 300,
+        //marginTop: 300,
         alignItems: 'center'
       }}
     >
@@ -62,6 +66,6 @@ export default () => {
       <View style={{ marginTop: 50 }}>
         <Button title={t('cancelButton')} onPress={navigation.goBack} />
       </View>
-    </ScrollView>
+    </KeyboardAwareScrollView>
   );
 };

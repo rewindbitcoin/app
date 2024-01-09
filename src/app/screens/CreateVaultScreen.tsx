@@ -2,7 +2,8 @@
 import React, { useContext, useEffect, useState, useRef } from 'react';
 import { WalletContext, WalletContextType } from '../contexts/WalletContext';
 import { useTranslation } from 'react-i18next';
-import { ScrollView, Button, Text, StyleSheet } from 'react-native';
+import { Button, Text, StyleSheet } from 'react-native';
+import { KeyboardAwareScrollView } from '../../common/components/KeyboardAwareScrollView';
 import * as Progress from 'react-native-progress';
 import { createVault, type VaultSettings } from '../lib/vaults';
 import {
@@ -100,7 +101,7 @@ export default function VaultCreate({
     };
   }, []);
   return (
-    <ScrollView
+    <KeyboardAwareScrollView
       keyboardShouldPersistTaps="handled"
       contentContainerStyle={{
         flexGrow: 1, //grow vertically to 100% and center child
@@ -125,7 +126,7 @@ export default function VaultCreate({
           keepProgress.current = false;
         }}
       />
-    </ScrollView>
+    </KeyboardAwareScrollView>
   );
 }
 

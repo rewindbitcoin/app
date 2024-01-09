@@ -214,7 +214,7 @@ export default function Bip39({
               {`${words.length + 1 < 10 ? '\u00A0' : ''}${words.length + 1}`}
             </Text>
             <TextInput
-              autoFocus
+              autoFocus={true}
               keyboardType="visible-password"
               blurOnSubmit={false}
               value={text}

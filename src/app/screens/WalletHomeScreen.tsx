@@ -1,5 +1,6 @@
 import React, { useContext } from 'react';
-import { ScrollView, RefreshControl, Button } from 'react-native';
+import { RefreshControl, Button } from 'react-native';
+import { KeyboardAwareScrollView } from '../../common/components/KeyboardAwareScrollView';
 import { WalletContext, WalletContextType } from '../contexts/WalletContext';
 import { useTranslation } from 'react-i18next';
 
@@ -23,7 +24,7 @@ const WalletHomeScreen = ({
   // ...
 
   return (
-    <ScrollView
+    <KeyboardAwareScrollView
       keyboardShouldPersistTaps="handled"
       contentContainerStyle={{
         flexGrow: 1, //grow vertically to 100% and center child
@@ -51,7 +52,7 @@ const WalletHomeScreen = ({
         }
         onPress={onSetUpVaultInit}
       />
-    </ScrollView>
+    </KeyboardAwareScrollView>
   );
 };
 

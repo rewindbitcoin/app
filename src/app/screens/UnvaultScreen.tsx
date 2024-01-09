@@ -1,14 +1,8 @@
 //share styles VaultSetUp / Unvault
 import React, { useState, useEffect } from 'react';
 import type { GestureResponderEvent } from 'react-native';
-import {
-  View,
-  Text,
-  Button,
-  Alert,
-  StyleSheet,
-  ScrollView
-} from 'react-native';
+import { View, Text, Button, Alert, StyleSheet } from 'react-native';
+import { KeyboardAwareScrollView } from '../../common/components/KeyboardAwareScrollView';
 
 import EditableSlider from '../common/EditableSlider';
 import type { UtxosData } from '../../lib/vaults';
@@ -172,12 +166,12 @@ export default function Unvault({
   );
 
   return (
-    <ScrollView
+    <KeyboardAwareScrollView
       keyboardShouldPersistTaps="handled"
       contentContainerStyle={{ flexGrow: 1, justifyContent: 'center' }}
     >
       {content}
-    </ScrollView>
+    </KeyboardAwareScrollView>
   );
 }
 
