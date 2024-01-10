@@ -138,7 +138,7 @@ npx eas build --platform ios --local --profile preview
             https://www.apple.com/certificateauthority/AppleWWDRCAG3.cer
         #More info: https://github.com/expo/eas-cli/issues/1331
 
-#You can also run this:
+#If you want to run Expo on the real device (so you can reload after a few Js changes) you can run this:
 npx expo run:ios -d
 #which will  let you choose the device to run and install
 #If you get this error: CommandError: No code signing certificates are available to use.
