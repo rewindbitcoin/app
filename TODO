@@ -1,5 +1,9 @@
-TODO:  remove the project and patch for react-native-keyboard-aware-scroll-view
-       if finally chosen
+TODO: When moving the slider then focus to the end of the textinput
+TODO: Redo Bip39
+TODO: In the slider set MAX when going to the MAX
+TODO: In the Bip39 disable typing in the textinput after adding a word for a few milliseconds.
+OTOD: In the Bip39 going back and forth from 12 to 24 words breacks the textinput. Maybe simply clear the word being entered.
+
 
 TODO: make it so that useSorage can pass initial object. Then its set as a useRef and after inital sync it stores the ref if did not exist yet? HOwever only set both isSycnd & new value state after it has been correctly stored in storage.
 TODO: separate app-speciffic transalations from common and refactor code

@@ -1,14 +1,5 @@
-import React, { useRef, useState, useEffect } from 'react';
-import {
-  StyleSheet,
-  TextInput,
-  View,
-  Text,
-  NativeSyntheticEvent,
-  TextInputKeyPressEventData,
-  Pressable,
-  Platform
-} from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { StyleSheet, TextInput, View, Text, Platform } from 'react-native';
 import {
   useFonts,
   RobotoMono_400Regular
@@ -22,18 +13,19 @@ import SegmentedControl from '@react-native-segmented-control/segmented-control'
 const englishWordList = wordlists['english'];
 if (!englishWordList) throw new Error('Cannot load english wordlists');
 const MAX_LENGTH = 8; //English wordlist max length = 8
-const ZERO_WIDTH_SPACE = '\u200B';
-const cleanWord = (word: string) => word.replace(/[^a-z]/gi, '');
 const isPartialWordValid = memoize((partialWord: string) => {
-  const clean = cleanWord(partialWord);
-  return (
-    clean.length === 0 ||
-    englishWordList.some((word: string) => word.startsWith(clean))
-  );
+  return englishWordList.some((word: string) => word.startsWith(partialWord));
+});
+const isWordValid = memoize((candidateWord: string) => {
+  return englishWordList.some((word: string) => word === candidateWord);
 });
 
 import { validateMnemonic as validateMnemonicOriginal } from 'bip39';
-const validateMnemonic = memoize(validateMnemonicOriginal);
+export const validateMnemonic = memoize(
+  (text: string) =>
+    //no spaces at beginning, end or more than 1 consecutive space
+    !/^\s|\s$|\s{2,}/.test(text) && validateMnemonicOriginal(text)
+);
 
 import { useTranslation } from 'react-i18next';
 
@@ -43,51 +35,25 @@ const wordCandidates = (clean: string) => {
 
 export default function Bip39({
   words,
-  onWords,
-  wordsLength,
-  onWordsLength
+  onWords
 }: {
   words: string[];
   onWords: (words: string[]) => void;
-  wordsLength: 12 | 24;
-  onWordsLength: (wordsLength: 12 | 24) => void;
 }) {
+  const inputRef = useRef<TextInput>(null);
   const { t } = useTranslation();
   const styles = getStyles(useTheme(), useFonts({ RobotoMono_400Regular }));
 
-  const inputRef = useRef<TextInput>(null);
-
-  const [text, setText] = useState(ZERO_WIDTH_SPACE);
-
-  useEffect(() => inputRef.current?.focus(), []);
+  const [activeWordIndex, setActiveWordIndex] = useState(0);
 
   const toast = useToast();
   const toastId = useRef<string>();
 
-  //const prevWordsTypeRef = useRef<12 | 24>(12);
-
-  useEffect(() => {
-    if (words.length < wordsLength) hideError();
-    inputRef.current?.focus();
-    //prevWordsTypeRef.current = wordsLength;
-    //if (words.length === wordsLength && !validateMnemonic(words.join(' '))) {
-    //  onWords(words.slice(0, wordsLength - 1));
-    //  const lastWord = words[words.length - 1];
-    //  if (lastWord) handleChangeText(lastWord);
-    //}
-  }, [words, wordsLength]);
-
-  //Rapid input in textinput may batch several setState in onWords
-  //Try to detect if already set
-  const alreadyHandled = (clean: string) => {
-    const prevClean = clean.slice(0, -1);
-    if (!englishWordList) throw new Error('Cannot load english wordlists');
-    if (words.length < wordsLength && wordCandidates(prevClean).length === 1)
-      return true;
-    else return false;
-  };
-
   const showError = () => {
+    console.log('showError', {
+      toastId: toastId.current,
+      isOpen: toastId.current !== undefined && toast.isOpen(toastId.current)
+    });
     if (toastId.current !== undefined && toast.isOpen(toastId.current))
       toast.update(toastId.current, t('bip39.invalidErrorMessage'), {
         type: 'danger'
@@ -103,55 +69,60 @@ export default function Bip39({
     toast.isOpen(toastId.current) &&
     toast.hide(toastId.current);
 
-  /** analizes the text on TextInput, and adds a new word (returning true) or
-   * returns false */
-  const processText = (text: string) => {
-    const clean = cleanWord(text);
-    if (!englishWordList) throw new Error('Cannot load english wordlists');
-    const wc = wordCandidates(clean);
-    if (wc.length > 1) hideError();
-    if (words.length < wordsLength && wc.length === 1) {
-      const clean = wc[0];
-      if (clean === undefined) throw new Error('Array error');
-      const newWordList = [...words, clean];
-      if (
-        newWordList.length < wordsLength ||
-        validateMnemonic(newWordList.join(' '))
-      ) {
-        setText(ZERO_WIDTH_SPACE);
-        if (!alreadyHandled(cleanWord(text))) onWords(newWordList);
-        return true;
-      } else {
-        showError();
-        return false;
-      }
+  const handleChangeText = (text: string) => {
+    const prevWord = words[activeWordIndex];
+    if (prevWord === undefined)
+      throw new Error(
+        `Invalid activeWordIndex: ${activeWordIndex} : ${JSON.stringify(words)}`
+      );
+    if (prevWord.length > text.length) {
+      //Delete text:
+      onWords(
+        words.map((word, index) => (index === activeWordIndex ? text : word))
+      );
     } else {
-      return false;
-    }
-  };
-  const handleChangeText = (newText: string) => {
-    if (newText.length === 0) {
-      //newText.length is zero -> deleted
-      setText(ZERO_WIDTH_SPACE);
-      onWords(words.slice(0, -1));
-    } else if (newText === ZERO_WIDTH_SPACE) {
-      setText(ZERO_WIDTH_SPACE);
-    } else {
-      if (!processText(newText)) setText(ZERO_WIDTH_SPACE + cleanWord(newText));
-    }
-  };
-  const onKeyPress = (
-    event: NativeSyntheticEvent<TextInputKeyPressEventData>
-  ) => {
-    if (event.nativeEvent.key === 'Enter') {
-      processText(text);
-    }
-  };
-  const onEndEditing = () => processText(text);
-  const onSubmitEditing = () => processText(text);
+      //Add text:
+      const isLastWord = !words.some(
+        (word: string, index: number) =>
+          index !== activeWordIndex && !isWordValid(word)
+      );
 
-  const promptForMoreWords =
-    !(words.length === wordsLength) || !validateMnemonic(words.join(' '));
+      const wc = wordCandidates(text);
+      if (wc.length > 1) hideError();
+      if (wc.length === 1) {
+        const guessedWord = wc[0];
+        if (guessedWord === undefined) throw new Error('Array error');
+        const candidateWords = words.map((word, index) =>
+          index === activeWordIndex ? guessedWord : word
+        );
+        if (!isLastWord || validateMnemonic(candidateWords.join(' '))) {
+          onWords(candidateWords);
+          if (!isLastWord) {
+            setActiveWordIndex(
+              candidateWords.findIndex(word => !isWordValid(word))
+            );
+          }
+        } else {
+          showError();
+          //Incorrect word
+          onWords(
+            words.map((word, index) =>
+              index === activeWordIndex ? text : word
+            )
+          );
+        }
+      } else {
+        //More than 1 word candidate
+        onWords(
+          words.map((word, index) => (index === activeWordIndex ? text : word))
+        );
+      }
+    }
+  };
+
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, [activeWordIndex]);
 
   return (
     <>
@@ -159,79 +130,47 @@ export default function Bip39({
         <SegmentedControl
           style={styles.segmented}
           values={[t('bip39.segmented12'), t('bip39.segmented24')]}
-          selectedIndex={wordsLength === 12 ? 0 : 1}
+          selectedIndex={words.length === 12 ? 0 : 1}
           onChange={event => {
-            const index = event.nativeEvent.selectedSegmentIndex;
-            onWordsLength(index === 0 ? 12 : 24);
+            const newWords = [...words];
+            const N = event.nativeEvent.selectedSegmentIndex === 0 ? 12 : 24;
+            if (newWords.length > N) onWords(newWords.slice(0, N));
+            else {
+              while (newWords.length < N) newWords.push('');
+              onWords(newWords);
+            }
           }}
         />
       </View>
-      {promptForMoreWords && (
-        <Text style={styles.enterMnemonicText}>
-          {t('bip39.enterMnemonicText', { wordNumber: words.length + 1 })}
-        </Text>
-      )}
       <View style={styles.words}>
         {words.map((word, index) => (
-          <Pressable
-            key={index}
-            onPress={() => {
-              onWords(words.slice(0, index));
-              setText(ZERO_WIDTH_SPACE);
-              //inputRef.current?.focus();
-            }}
-            style={({ pressed }) => [
-              styles.textContainer,
-              pressed && styles.textContainerPressed
-            ]}
-          >
-            {({ pressed }) => (
-              <View
-                style={{
-                  flexDirection: 'row'
-                }}
-              >
-                <Text numberOfLines={1} style={styles.number}>
-                  {
-                    `${index + 1 < 10 ? '\u00A0' : ''}${index + 1}`
-                    //\u00A0 is a space character, needed for Web platform to show it
-                  }
-                </Text>
-                <Text
-                  numberOfLines={1}
-                  style={[styles.text, pressed && styles.textPressed]}
-                >
-                  {`${word}`}
-                </Text>
-              </View>
-            )}
-          </Pressable>
-        ))}
-
-        {promptForMoreWords && (
-          <View style={styles.indexAndInput}>
+          <View key={index} style={styles.indexAndInput}>
             <Text style={[styles.number]}>
-              {`${words.length + 1 < 10 ? '\u00A0' : ''}${words.length + 1}`}
+              {`${index + 1 < 10 ? '\u00A0' : ''}${index + 1}`}
             </Text>
             <TextInput
-              autoFocus={true}
+              {...(activeWordIndex === index ? { ref: inputRef } : {})}
               keyboardType="visible-password"
               blurOnSubmit={false}
-              value={text}
-              style={[styles.input, !isPartialWordValid(text) && styles.error]}
-              ref={inputRef}
+              value={word}
+              style={[
+                styles.input,
+                ((index === activeWordIndex && !isPartialWordValid(word)) ||
+                  (index !== activeWordIndex && !isWordValid(word))) &&
+                  styles.error
+              ]}
               spellCheck={false}
               maxLength={MAX_LENGTH + 1}
               autoComplete={'off'}
               autoCorrect={false}
               autoCapitalize="none"
               onChangeText={handleChangeText}
-              onKeyPress={onKeyPress}
-              onEndEditing={onEndEditing}
-              onSubmitEditing={onSubmitEditing}
+              onFocus={() => {
+                setActiveWordIndex(index);
+              }}
             />
           </View>
-        )}
+        ))}
       </View>
     </>
   );
@@ -247,18 +186,10 @@ const getStyles = (theme: Theme, fonts: ReturnType<typeof useFonts>) => {
       backgroundColor: Platform.select({ ios: '#eeeeed', default: '#dfdfdf' })
     },
     mnemonicLength: { marginBottom: 30, width: 330 },
-    mnemonicTypeText: { marginBottom: 10 },
-    enterMnemonicText: {
-      marginBottom: 20,
-      textAlign: 'left',
-      width: 330,
-      fontWeight: 'bold',
-      fontSize: 16
-    },
     words: {
       borderRadius: 5,
       backgroundColor: '#dfdfdf',
-      paddingVertical: 10,
+      paddingTop: 10,
       flexDirection: 'row',
       flexWrap: 'wrap',
       alignItems: 'flex-start',
@@ -270,6 +201,7 @@ const getStyles = (theme: Theme, fonts: ReturnType<typeof useFonts>) => {
     indexAndInput: {
       flexDirection: 'row', // Aligns children horizontally
       fontSize: 14,
+      marginBottom: 10,
       width: '33%'
     },
     input: {
@@ -289,26 +221,11 @@ const getStyles = (theme: Theme, fonts: ReturnType<typeof useFonts>) => {
     error: {
       color: theme.colors.notification
     },
-    text: {
-      paddingVertical: 10,
-      paddingRight: 10,
-      paddingLeft: 5,
-      ...(fontsLoaded ? { fontFamily: 'RobotoMono_400Regular' } : {})
-    },
     number: {
       paddingVertical: 10,
       color: theme.colors.primary,
       paddingRight: 5,
       ...(fontsLoaded ? { fontFamily: 'RobotoMono_400Regular' } : {})
-    },
-    textContainer: {
-      width: '33%'
-    },
-    textContainerPressed: {
-      backgroundColor: '#ccc'
-    },
-    textPressed: {
-      //color: 'darkblue'
     }
   });
 };

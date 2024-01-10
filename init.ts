@@ -10,6 +10,12 @@ global.Buffer = Buffer;
 import 'react-native-get-random-values';
 import 'react-native-url-polyfill/auto';
 
+//
+//
+//
+//
+//
+//
 //import { Platform } from 'react-native';
 //import KeyboardManager from 'react-native-keyboard-manager';
 //if (Platform.OS === 'ios') {
@@ -17,6 +23,13 @@ import 'react-native-url-polyfill/auto';
 //  //KeyboardManager.setEnableAutoToolbar(false); //Disables Toolbar ("done" button)
 //  KeyboardManager.setToolbarPreviousNextButtonEnable(true); //This one will not show if toolbar disabled
 //}
+//
+//
+//
+//
+//
+//
+
 //import './electrumSupport'
 
 //       import { NativeModules } from 'react-native';

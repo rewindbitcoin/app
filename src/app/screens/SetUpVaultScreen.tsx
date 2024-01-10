@@ -366,9 +366,9 @@ export default function VaultSetUp({
       contentContainerStyle={{
         //paddingTop: 100
         //paddingTop: 120
-        paddingTop: 300
-        //flexGrow: 1, //grow vertically to 100% and center child
-        //justifyContent: 'center'
+        //paddingTop: 500
+        flexGrow: 1, //grow vertically to 100% and center child
+        justifyContent: 'center'
       }}
     >
       {content}
