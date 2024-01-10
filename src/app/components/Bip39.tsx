@@ -50,10 +50,6 @@ export default function Bip39({
   const toastId = useRef<string>();
 
   const showError = () => {
-    console.log('showError', {
-      toastId: toastId.current,
-      isOpen: toastId.current !== undefined && toast.isOpen(toastId.current)
-    });
     if (toastId.current !== undefined && toast.isOpen(toastId.current))
       toast.update(toastId.current, t('bip39.invalidErrorMessage'), {
         type: 'danger'

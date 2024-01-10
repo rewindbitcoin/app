@@ -87,6 +87,7 @@ const App = () => {
   //useEffect(() => {
   //  toast.show?.('Test 123 foo bar', {
   //    placement: 'top',
+  //    duration: 0,
   //    type: 'warning'
   //  });
   //}, [wallet]);
