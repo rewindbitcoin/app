@@ -30,6 +30,7 @@ To generate the random well-known key for thunder den, we used:
 export const SOFTWARE = 'SOFTWARE' as const;
 export const LEDGER = 'LEDGER' as const;
 export type Signer = {
+  signerId: number;
   signerName?: string;
   type: typeof SOFTWARE | typeof LEDGER;
   // For SOFTWARE
@@ -37,7 +38,7 @@ export type Signer = {
   // For HWW indentification purposes:
   masterFingerprintHex?: string;
 };
-export type Signers = Array<Signer>;
+export type Signers = { [signerId: number]: Signer };
 
 export type Wallet = {
   walletId: number;
@@ -45,11 +46,29 @@ export type Wallet = {
   version: string;
   networkId: NetworkId;
   /**
-   * When using BIP32_PUBKEY, a well-known path is used as the seed for
-   * the pubKey, which is then used as the encryptionKey of your data.
-   * When using USER, the user must remember the key.
+   * Signers are small string text which may contain the mnemonic (when using
+   * software wallets, and therefore it is important to treat them specially)
+   * how are signers encrypted?
+   * 'NONE' using the normal storage, for debuggin/development purposes
+   * 'PASSWORD' the user provides a password
+   * 'SYSTEM', using Expo SecureStore (iOS & Android)
    */
-  encryptionKeyInput: 'NONE' | 'USER' | 'BIP32_PUBKEY';
+
+  signersEncryption: 'SYSTEM' | 'PASSWORD' | 'NONE';
+  /**
+   * This is the encryption used for the rest of data (not signers).
+   * This data may be Vaults for example, and therefore, the SecureEnclave of
+   * the System is not usable (they are restricted fo 2KB).
+   * Anyway this data is not so sensible.
+   *
+   * When using SIGNER_0_BIP32_DERIVED_PUBKEY, a well-known derivation path is
+   * used as the seed for the pubKey, which is then used as the encryptionKey of
+   * your data. The xprv of signer[0] is used combined with the well-known
+   * derivation path.
+   *
+   * We keep 'NONE' just for debugging/development purposes
+   */
+  encryption: 'NONE' | 'SIGNER_0_BIP32_DERIVED_PUBKEY';
 };
 
 //`WALLETS`

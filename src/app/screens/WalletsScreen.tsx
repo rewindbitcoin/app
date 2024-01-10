@@ -14,13 +14,10 @@ import { IMPORT_WALLET } from '../screens';
 const walletId = 0;
 
 export default ({
-  onWalletSelectOrCreate
+  onWallet
 }: {
-  onWalletSelectOrCreate: (
-    wallet: Wallet,
-    /** pass back signers if this is a new wallet that must be created */
-    newWalletSigners?: Signers
-  ) => void;
+  /** pass back signers if this is a new wallet that must be created */
+  onWallet: (wallet: Wallet, newWalletSigners?: Signers) => void;
 }) => {
   const navigation = useNavigation();
   const { t } = useTranslation();
@@ -36,16 +33,19 @@ export default ({
         walletId,
         version: defaultSettings.WALLETS_DATA_VERSION,
         networkId: getNetworkId(networks.testnet),
-        encryptionKeyInput: 'NONE'
+        signersEncryption: 'NONE',
+        encryption: 'NONE'
       };
       setWallets({ [walletId]: wallet });
-      onWalletSelectOrCreate(wallet, [
-        {
+      const signerId = 0;
+      onWallet(wallet, {
+        [signerId]: {
+          signerId: signerId,
           type: 'SOFTWARE',
           mnemonic:
             'goat oak pull seek know resemble hurt pistol head first board better'
         }
-      ]);
+      });
     }
   };
   const handleImportWallet = () => navigation.navigate(IMPORT_WALLET);
@@ -67,9 +67,7 @@ export default ({
       {wallets &&
         Object.entries(wallets).map(([walletId, wallet]) => (
           <View key={walletId}>
-            <Text onPress={() => onWalletSelectOrCreate(wallet)}>
-              {walletId}
-            </Text>
+            <Text onPress={() => onWallet(wallet)}>{walletId}</Text>
           </View>
         ))}
       <Button title={t('wallets.newWalletButton')} onPress={handleNewWallet} />

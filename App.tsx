@@ -15,7 +15,7 @@ import {
   CREATE_VAULT,
   IMPORT_WALLET
 } from './src/app/screens';
-import type { Signers, Wallet as WalletType } from './src/app/lib/wallets';
+import type { Signers, Wallet } from './src/app/lib/wallets';
 import { NavigationContainer, useNavigation } from '@react-navigation/native';
 import { ToastProvider } from './src/common/components/Toast';
 import WalletsScreen from './src/app/screens/WalletsScreen';
@@ -31,17 +31,6 @@ import { SERIALIZABLE } from './src/common/lib/storage';
 import { useGlobalStateStorage } from './src/common/contexts/StorageContext';
 import { SETTINGS_GLOBAL_STORAGE } from './src/app/lib/settings';
 import type { VaultSettings } from './src/app/lib/vaults';
-
-//import AnimatedGradient from './src/common/components/AnimatedGradient';
-
-//import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-//const Tab = createBottomTabNavigator();
-//{wallet && (
-//  <Tab.Navigator>
-//    <Tab.Screen name="Home" component={Settings} />
-//    <Tab.Screen name="Settings" component={Settings} />
-//  </Tab.Navigator>
-//)}
 
 import {
   defaultSettings,
@@ -63,19 +52,10 @@ const App = () => {
 
   const { t } = useTranslation();
 
-  const [wallet, setWallet] = useState<WalletType>();
+  const [wallet, setWallet] = useState<Wallet>();
   const [vaultSettings, setVaultSettings] = useState<VaultSettings>();
   const [newWalletSigners, setNewWalletSigners] = useState<Signers>();
   const navigation = useNavigation();
-
-  //React.useEffect(() => {
-  //  const unsubscribe = navigation.addListener('blur', _e => {
-  //    console.log('blur');
-  //    Keyboard.dismiss();
-  //  });
-
-  //  return unsubscribe;
-  //}, [navigation]);
 
   const settingsButton = () => (
     <Button
@@ -83,19 +63,8 @@ const App = () => {
       title={t('app.settingsButton')}
     />
   );
-  //const toast = useToast();
-  //useEffect(() => {
-  //  toast.show?.('Test 123 foo bar', {
-  //    placement: 'top',
-  //    duration: 0,
-  //    type: 'warning'
-  //  });
-  //}, [wallet]);
 
-  const handleWalletSelectOrCreate = (
-    wallet: WalletType,
-    newWalletSigners?: Signers
-  ) => {
+  const handleWallet = (wallet: Wallet, newWalletSigners?: Signers) => {
     if (newWalletSigners) setNewWalletSigners(newWalletSigners);
     setWallet(wallet);
     if (navigation) navigation.navigate(WALLET_HOME);
@@ -116,16 +85,6 @@ const App = () => {
     if (settings?.LOCALE) initI18n(settings.LOCALE);
   }, [settings?.LOCALE]);
 
-  /*
-      <RootStack.Navigator
-        screenOptions={{
-          //Disable goBack with gesture to prevent this bug:
-          //https://github.com/douglasjunior/react-native-keyboard-manager/issues/89
-          ...(Platform.OS === 'ios' ? { gestureEnabled: false } : {}),
-          ...(isNativeStack ? { animationEnabled: true } : {})
-        }}
-      >
-  */
   return (
     <WalletProvider
       {...(wallet ? { wallet: wallet } : {})}
@@ -142,11 +101,7 @@ const App = () => {
             headerRight: settingsButton
           }}
         >
-          {() => (
-            <WalletsScreen
-              onWalletSelectOrCreate={handleWalletSelectOrCreate}
-            />
-          )}
+          {() => <WalletsScreen onWallet={handleWallet} />}
         </RootStack.Screen>
         <RootStack.Screen
           name={IMPORT_WALLET}

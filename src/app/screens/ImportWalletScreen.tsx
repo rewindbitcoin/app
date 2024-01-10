@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Button, View, Text } from 'react-native';
 import { KeyboardAwareScrollView } from '../../common/components/KeyboardAwareScrollView';
 import { useTranslation } from 'react-i18next';
@@ -8,31 +8,27 @@ import Bip39, { validateMnemonic } from '../components/Bip39';
 export default () => {
   const navigation = useNavigation();
   const { t } = useTranslation();
-  const [words, setWords] = useState<string[]>([
-    '',
-    '',
-    '',
-    '',
-    '',
-    '',
-    '',
-    '',
-    '',
-    '',
-    '',
-    ''
-  ]);
+  const [words, setWords] = useState<string[]>(Array(12).fill(''));
+  const stringifiedWords = words.join(' ');
+
+  useEffect(() => {
+    if (validateMnemonic(stringifiedWords)) {
+      console.log('VALID MNEMONIC');
+      //onWallet(wallet, [
+      //  {
+      //    type: 'SOFTWARE',
+      //    mnemonic: stringifiedWords
+      //  }
+      //]);
+    }
+  }, [stringifiedWords]);
 
   return (
     <KeyboardAwareScrollView
       keyboardShouldPersistTaps="handled"
       contentContainerStyle={{
-        //backgroundColor: 'red',
-        flexGrow: 1, //grow vertically to 100% and center child
+        flexGrow: 1,
         justifyContent: 'center',
-        //paddingTop: 500
-        //paddingTop: 400,
-        //marginTop: 300,
         alignItems: 'center'
       }}
     >
@@ -50,7 +46,6 @@ export default () => {
         {t('bip39.importWalletSubText')}
       </Text>
       <Bip39 words={words} onWords={(words: string[]) => setWords(words)} />
-      {validateMnemonic(words.join(' ')) && <Text>NOW TRIGGER</Text>}
       <View style={{ marginTop: 50 }}>
         <Button title={t('cancelButton')} onPress={navigation.goBack} />
       </View>
