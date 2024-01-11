@@ -41,6 +41,7 @@ export type Signer = {
 export type Signers = { [signerId: number]: Signer };
 
 export type Wallet = {
+  creationEpoch: number;
   walletId: number;
   walletName?: string;
   version: string;

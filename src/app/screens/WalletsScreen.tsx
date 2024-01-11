@@ -31,6 +31,7 @@ export default ({
     if (isWalletsSynchd && !wallets?.[0]) {
       const wallet: Wallet = {
         walletId,
+        creationEpoch: Math.floor(Date.now() / 1000),
         version: defaultSettings.WALLETS_DATA_VERSION,
         networkId: getNetworkId(networks.testnet),
         signersEncryption: 'NONE',
