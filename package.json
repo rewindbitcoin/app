@@ -25,6 +25,7 @@
     "@bitcoinerlab/secp256k1": "^1.0.5",
     "@expo-google-fonts/roboto-mono": "^0.2.3",
     "@expo/webpack-config": "^19.0.0",
+    "@noble/ciphers": "^0.4.1",
     "@react-native-community/slider": "^4.5.0",
     "@react-native-segmented-control/segmented-control": "^2.5.0",
     "@react-navigation/native": "^6.1.9",

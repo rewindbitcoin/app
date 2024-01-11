@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import {
   storage,
+  Engine,
   SerializationFormat,
   assertSerializationFormat
 } from '../lib/storage';
@@ -58,7 +59,9 @@ export const useLocalStateStorage = <T>(
    * contain already a value. DO NOT confuse this parameter with an initial
    * value.
    */
-  defaultValue?: T
+  defaultValue?: T,
+  engine: Engine = 'AUTO',
+  cipherKey: Uint8Array | undefined = undefined
 ): [T | undefined, (newValue: T) => Promise<void>, boolean] => {
   const [value, setValue] = useState<T | undefined>();
   const [isSynchd, setIsSynchd] = useState(false);
