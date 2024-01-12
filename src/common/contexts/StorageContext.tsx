@@ -70,11 +70,13 @@ import React, {
   ReactNode
 } from 'react';
 import {
-  storage,
+  getAsync,
+  setAsync,
   SerializationFormat,
   Engine,
   assertSerializationFormat
 } from '../lib/storage';
+import { Platform } from 'react-native';
 
 type StorageState<T> = Record<string, T>;
 type ProviderValue<T> = {
@@ -94,6 +96,9 @@ const StorageProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
 };
 
 const useGlobalStateStorage = <T,>(
+  /**
+   * Keys must and contain only alphanumeric characters, ".", "-", and "_"
+   */
   key: string,
   serializationFormat: SerializationFormat,
   /** defaultValue is used to set an initial value if the storage does not
@@ -101,8 +106,9 @@ const useGlobalStateStorage = <T,>(
    * value.
    */
   defaultValue?: T,
-  engine: Engine = 'AUTO',
-  cipherKey: Uint8Array | undefined = undefined
+  engine: Engine = Platform.OS === 'web' ? 'IDB' : 'MMKV',
+  cipherKey: Uint8Array | undefined = undefined,
+  authenticationPrompt: string | undefined = undefined
 ): [T | undefined, (newValue: T) => Promise<void>, boolean] => {
   const context = useContext(StorageContext);
   if (context === null)
@@ -119,7 +125,13 @@ const useGlobalStateStorage = <T,>(
   //already know the result
   useEffect(() => {
     const fetchValue = async () => {
-      const savedValue = await storage.getAsync(key, serializationFormat);
+      const savedValue = await getAsync(
+        key,
+        serializationFormat,
+        engine,
+        cipherKey,
+        authenticationPrompt
+      );
       if (savedValue)
         setValueMap(prevState =>
           prevState[key] !== savedValue
@@ -139,9 +151,12 @@ const useGlobalStateStorage = <T,>(
 
   /** sets storage and sate value */
   const setStorageValue = async (newValue: T) => {
-    await storage.setAsync(
+    await setAsync(
       key,
-      assertSerializationFormat(newValue, serializationFormat)
+      assertSerializationFormat(newValue, serializationFormat),
+      engine,
+      cipherKey,
+      authenticationPrompt
     );
     setValueMap(prevState =>
       prevState[key] !== newValue

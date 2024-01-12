@@ -7,7 +7,7 @@ import {
   type VaultsStatuses,
   type UtxosData
 } from '../lib/vaults';
-import type { Signers } from '../lib/wallets';
+import type { AccountNames, Signers } from '../lib/wallets';
 import { networkMapping } from '../lib/network';
 import {
   createReceiveDescriptor,
@@ -44,6 +44,9 @@ import { DescriptorsFactory } from '@bitcoinerlab/descriptors';
 const { BIP32 } = DescriptorsFactory(secp256k1);
 import { mnemonicToSeedSync } from 'bip39';
 import type { FeeEstimates } from '../lib/fees';
+import { randomBytes } from '@noble/ciphers/webcrypto/utils';
+const cipherKey = randomBytes(32);
+import { Platform } from 'react-native';
 
 type DiscoveryDataExport = ReturnType<DiscoveryInstance['export']>;
 
@@ -90,6 +93,7 @@ function esploraUrl(network: Network) {
 }
 
 const DEFAULT_VAULTS_STATUSES: VaultsStatuses = {};
+const DEFAULT_ACCOUNT_NAMES: AccountNames = {};
 const DEFAULT_VAULTS: Vaults = {};
 export const WalletProvider = ({
   children,
@@ -101,15 +105,25 @@ export const WalletProvider = ({
   newWalletSigners?: Signers;
 }) => {
   if (!wallet) return children;
+  const { t } = useTranslation();
   //console.log('TODO: WALLET PROVIDER HERE I AM');
   const walletId = wallet.walletId;
   const network = networkMapping[wallet.networkId];
   if (wallet && !network)
     throw new Error(`Invalid networkId ${wallet.networkId}`);
 
+  //TODO: This is wrong. Must use:
+  //  - if wallet is set, then see if signersEncryption was set,
+  //  then request the cipherKey to the user
+  //  - also see if signersStorageEngine is 'SECURESTORE' or not.
+  //  - also, for new wallets, the code must see if LocalAuthentication.hasHardwareAsync
   const [signers, setSigners] = useLocalStateStorage<Signers>(
-    `SIGNERS/${walletId}`,
-    SERIALIZABLE
+    `SIGNERS_${walletId}`,
+    SERIALIZABLE,
+    undefined,
+    Platform.OS === 'web' ? 'IDB' : 'SECURESTORE',
+    undefined,
+    t('app.secureStorageAuthenticationPrompt')
   );
 
   const [settings] = useGlobalStateStorage<Settings>(
@@ -123,28 +137,49 @@ export const WalletProvider = ({
     setDiscoveryDataExport,
     isDiscoveryDataExportSynchd
   ] = useLocalStateStorage<DiscoveryDataExport>(
-    `DISCOVERY/${walletId}`,
+    `DISCOVERY_${walletId}`,
     SERIALIZABLE
   );
 
   const [vaults, setVaults] = useLocalStateStorage<Vaults>(
-    `VAULTS/${walletId}`,
+    `VAULTS_${walletId}`,
     SERIALIZABLE,
     DEFAULT_VAULTS
   );
 
+  const [fooBar, , isFooBarSynchd] = useLocalStateStorage<{
+    foo: string;
+    bar: string;
+  }>(
+    `FOO_BAR`,
+    SERIALIZABLE,
+    { foo: 'Foooo', bar: 'Barrr' },
+    Platform.OS === 'web' ? 'IDB' : 'MMKV',
+    cipherKey,
+    'Authenticate to access secure data' //TODO: translate
+  );
+  useEffect(() => {
+    if (isFooBarSynchd) {
+      console.log({ fooBar });
+    }
+  }, [fooBar, isFooBarSynchd]);
+
   const [vaultsStatuses, setVaultsStatuses] =
     useLocalStateStorage<VaultsStatuses>(
-      `VAULTS_STATUSES/${walletId}`,
+      `VAULTS_STATUSES_${walletId}`,
       SERIALIZABLE,
       DEFAULT_VAULTS_STATUSES
     );
 
+  const [accountNames] = useLocalStateStorage<AccountNames>(
+    `ACCOUNT_NAMES_${walletId}`,
+    SERIALIZABLE,
+    DEFAULT_ACCOUNT_NAMES
+  );
+
   useEffect(() => {
     if (newWalletSigners) setSigners(newWalletSigners);
   }, [newWalletSigners]);
-
-  const { t } = useTranslation();
 
   const toast = useToast();
 
@@ -306,12 +341,14 @@ export const WalletProvider = ({
       discovery &&
       vaults &&
       vaultsStatuses &&
-      //When a new vault is created, vaults and vaultsStatuses are not
+      accountNames &&
+      //When a new vault is created, vaults, vaultsStatuses and accountNames are not
       //atomically set in state at the same time.
       //Wait until both are set before proceeding. This is important because
       //updateVaultsStatuses upddate status based on vaults so they must be
       //synched
       shallowEqualArrays(Object.keys(vaults), Object.keys(vaultsStatuses)) &&
+      shallowEqualArrays(Object.keys(vaults), Object.keys(accountNames)) &&
       signers
     ) {
       if (syncBlockchainRunning.current === true) return;

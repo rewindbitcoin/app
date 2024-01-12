@@ -13,6 +13,13 @@
     },
     "assetBundlePatterns": ["**/*"],
     "ios": {
+      "config": {
+        "usesNonExemptEncryption": false
+      },
+      "infoPlist": {
+        "CFBundleAllowMixedLocalizations": true,
+        "NSFaceIDUsageDescription": "ThunderDen uses Face ID for enhanced security. This feature helps protect your Bitcoin wallet by ensuring that only you can access the sensitive data, like mnemonics, stored securely in the app. Your Face ID data is never accessed directly by the app and is only used to verify your identity."
+      },
       "supportsTablet": true,
       "bundleIdentifier": "com.landabaso.ThunderDen"
     },
@@ -31,6 +38,9 @@
       "eas": {
         "projectId": "83b28e9f-1d27-40ef-bac8-44da70b30f16"
       }
+    },
+    "locales": {
+      "es": "./i18n/app.es.json"
     }
   }
 }

@@ -1,3 +1,7 @@
+//TODO: Note that an import may be also needed when the signers data has been
+//removed since it may have been stored in SecureStore which can be deleted
+//at times. For example when restoring from a backup or when changing the fingerprints
+//or faceId of the device
 import React, { useEffect, useState } from 'react';
 import { Button, View, Text } from 'react-native';
 import { KeyboardAwareScrollView } from '../../common/components/KeyboardAwareScrollView';

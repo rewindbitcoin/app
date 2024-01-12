@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
+import { Platform } from 'react-native';
 import {
-  storage,
+  getAsync,
+  setAsync,
   Engine,
   SerializationFormat,
   assertSerializationFormat
@@ -53,6 +55,9 @@ import {
  */
 
 export const useLocalStateStorage = <T>(
+  /**
+   * Keys must and contain only alphanumeric characters, ".", "-", and "_"
+   */
   key: string,
   serializationFormat: SerializationFormat,
   /** defaultValue is used to set an initial value if the storage does not
@@ -60,8 +65,9 @@ export const useLocalStateStorage = <T>(
    * value.
    */
   defaultValue?: T,
-  engine: Engine = 'AUTO',
-  cipherKey: Uint8Array | undefined = undefined
+  engine: Engine = Platform.OS === 'web' ? 'IDB' : 'MMKV',
+  cipherKey: Uint8Array | undefined = undefined,
+  authenticationPrompt: string | undefined = undefined
 ): [T | undefined, (newValue: T) => Promise<void>, boolean] => {
   const [value, setValue] = useState<T | undefined>();
   const [isSynchd, setIsSynchd] = useState(false);
@@ -72,7 +78,13 @@ export const useLocalStateStorage = <T>(
   //already know the result
   useEffect(() => {
     const fetchValue = async () => {
-      const savedValue = await storage.getAsync(key, serializationFormat);
+      const savedValue = await getAsync(
+        key,
+        serializationFormat,
+        engine,
+        cipherKey,
+        authenticationPrompt
+      );
       if (savedValue) setValue(savedValue as T);
       else if (defaultValue !== undefined) await setStorageValue(defaultValue);
       else setValue(undefined);
@@ -84,9 +96,12 @@ export const useLocalStateStorage = <T>(
 
   /** sets storage and sate value */
   const setStorageValue = async (newValue: T) => {
-    await storage.setAsync(
+    await setAsync(
       key,
-      assertSerializationFormat(newValue, serializationFormat)
+      assertSerializationFormat(newValue, serializationFormat),
+      engine,
+      cipherKey,
+      authenticationPrompt
     );
     setValue(newValue);
   };

@@ -10,25 +10,9 @@ global.Buffer = Buffer;
 import 'react-native-get-random-values';
 import 'react-native-url-polyfill/auto';
 
-//
-//
-//
-//
-//
-//
-//import { Platform } from 'react-native';
-//import KeyboardManager from 'react-native-keyboard-manager';
-//if (Platform.OS === 'ios') {
-//  KeyboardManager.setEnable(true);
-//  //KeyboardManager.setEnableAutoToolbar(false); //Disables Toolbar ("done" button)
-//  KeyboardManager.setToolbarPreviousNextButtonEnable(true); //This one will not show if toolbar disabled
-//}
-//
-//
-//
-//
-//
-//
+//polyfill for react 'Hermes' TextEncoder
+//This is needed in storage.ts for import { utf8ToBytes, bytesToUtf8 } from '@noble/ciphers/utils';
+import 'fast-text-encoding';
 
 //import './electrumSupport'
 

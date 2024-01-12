@@ -28,20 +28,22 @@ export default ({
 
   const handleNewWallet = () => {
     console.log('handleNewWallet', 'TODO');
+    const masterFingerprint = 'TODO';
     if (isWalletsSynchd && !wallets?.[0]) {
       const wallet: Wallet = {
-        walletId,
         creationEpoch: Math.floor(Date.now() / 1000),
+        walletId,
         version: defaultSettings.WALLETS_DATA_VERSION,
         networkId: getNetworkId(networks.testnet),
         signersEncryption: 'NONE',
+        signersStorageEngine: 'SECURESTORE',
         encryption: 'NONE'
       };
       setWallets({ [walletId]: wallet });
-      const signerId = 0;
+      const signerId = 0; //ThunderDen v1.0 has Only 1 signer anyway
       onWallet(wallet, {
         [signerId]: {
-          signerId: signerId,
+          masterFingerprint,
           type: 'SOFTWARE',
           mnemonic:
             'goat oak pull seek know resemble hurt pistol head first board better'

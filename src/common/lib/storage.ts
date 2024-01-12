@@ -1,33 +1,109 @@
-//TODO: Test this encryption lib by Paul Millr and see how fast is it:
-//https://github.com/paulmillr/noble-ciphers?tab=readme-ov-file#speed
-//  -> Use this cypher:
-//    XChaCha20-Poly1305
-
 //TODO: Test this json.stringify function which is faster for typescript:
+//  -> In addition, it supports Uint8Array
 //https://dev.to/samchon/i-made-10x-faster-jsonstringify-functions-even-type-safe-2eme
+
+/**
+ * IMPORTANT, when using SECURESTORE, id requireAuthentication = true, the data
+ * is tied to the current biometric methods. So if the user adds a new
+ * fingerprint or changes the faceId, then the data won't be recoverable:
+ * From https://docs.expo.dev/versions/v50.0.0/sdk/securestore
+ *    Keys are invalidated by the system when biometrics change, such as adding a new fingerprint or changing the face profile used for face recognition. After a key has been invalidated, it becomes impossible to read its value. This only applies to values stored with requireAuthentication set to true.
+ *
+ * For the moment it is set as requireAuthentication false. This needs to be
+ * properly tested and we must offer the user a way to re-enter the seed in that
+ * case (reassociating it with the wallet). For the moment avoid this.
+ *
+ * requireAuthentication false is as safe as requireAuthentication true if the
+ * device is locked. It can also survive FaceId or TouhcId changes:
+ * Read more:
+ * https://github.com/expo/expo/issues/22312
+ */
+
 import { MMKV } from 'react-native-mmkv';
 const mmkvStorage = new MMKV();
+import memoize from 'lodash.memoize';
 
 import { Platform } from 'react-native';
 
+import { get as idbGet, set as idbSet, del as idbDel } from 'idb-keyval';
+
+//Note this package has been patch-packaged:
+//After patch-pachate you need to npx expo prebuild
+//https://github.com/expo/expo/issues/17804
+import { hasHardwareAsync, isEnrolledAsync } from 'expo-local-authentication';
+
 import {
-  get as idbGet,
-  set as idbSet,
-  del as idbDel,
-  clear as idbClearAll
-} from 'idb-keyval';
+  AFTER_FIRST_UNLOCK,
+  getItemAsync as secureStoreOriginalGetItemAsync,
+  setItemAsync as secureStoreOriginalSetItemAsync,
+  deleteItemAsync as secureStoreDeleteItemAsync,
+  SecureStoreOptions,
+  deleteItemAsync,
+  isAvailableAsync
+} from 'expo-secure-store';
+
+export const canUseSecureStorage = async () => {
+  return (
+    Platform.OS !== 'web' &&
+    (await isAvailableAsync()) &&
+    (await hasHardwareAsync()) &&
+    (await isEnrolledAsync())
+  );
+};
+
+//github.com/expo/expo/issues/23426
+const secureStoreGetItemAsync = async (
+  key: string,
+  options: SecureStoreOptions
+) => {
+  if (!(await canUseSecureStorage()))
+    throw new Error('Device does not support secure storage');
+  for (let attempts = 0; attempts < 5; attempts++) {
+    try {
+      const value = await secureStoreOriginalGetItemAsync(key, options);
+      return value;
+    } catch (error) {
+      console.warn(error);
+    }
+  }
+  await deleteItemAsync(key);
+  return await secureStoreOriginalGetItemAsync(key, options);
+};
+const secureStoreSetItemAsync = async (
+  key: string,
+  value: string,
+  options: SecureStoreOptions
+) => {
+  if (!(await canUseSecureStorage()))
+    throw new Error('Device does not support secure storage');
+  for (let attempts = 0; attempts < 5; attempts++) {
+    try {
+      return await secureStoreOriginalSetItemAsync(key, value, options);
+    } catch (error) {
+      console.warn(error);
+    }
+  }
+  await deleteItemAsync(key);
+  return await secureStoreOriginalSetItemAsync(key, value, options);
+};
+
+const secureStoreOptions = {
+  requireAuthentication: true,
+  keychainAccessible: AFTER_FIRST_UNLOCK
+};
 
 import { xchacha20poly1305 } from '@noble/ciphers/chacha';
-//import { managedNonce } from '@noble/ciphers/webcrypto'; <- Future versions will switch to this
+import { utf8ToBytes, bytesToUtf8 } from '@noble/ciphers/utils';
 import { managedNonce } from '@noble/ciphers/webcrypto/utils';
-import { hexToBytes, utf8ToBytes } from '@noble/ciphers/utils';
-//const key = hexToBytes(
-//  'fa686bfdffd3758f6377abbc23bf3d9bdc1a0dda4a6e7f8dbdd579fa1ff6d7e1'
-//);
-//const chacha = managedNonce(xchacha20poly1305)(key); // manages nonces for you
-//const data = utf8ToBytes('hello, noble');
-//const ciphertext = chacha.encrypt(data);
-//const data_ = chacha.decrypt(ciphertext);
+
+// Memoized function to get the ChaCha encoder instance
+const getManagedChacha = memoize(
+  (key: Uint8Array) => {
+    const chacha = managedNonce(xchacha20poly1305)(key);
+    return chacha;
+  },
+  (key: Uint8Array) => [...key].join(',')
+);
 
 export const NUMBER = 'NUMBER';
 export const STRING = 'STRING';
@@ -89,179 +165,135 @@ export const assertSerializationFormat = (
   return value;
 };
 
-export type Engine = 'AUTO' | 'IDB' | 'MMKV' | 'SECURESTORE';
+export type Engine = 'IDB' | 'MMKV' | 'SECURESTORE';
 
-const getActualEngine = (engine: Engine) => {
-  if (Platform.OS === 'web' && engine === 'SECURESTORE')
-    throw new Error('Web does not support SECURESTORE');
-  if (engine === 'AUTO') {
-    if (Platform.OS === 'web') {
-      return 'IDB';
-    } else {
-      return 'MMKV';
-    }
-  }
-  return engine;
+function secureStoreGetOptions(authenticationPrompt: string | undefined) {
+  if (secureStoreOptions.requireAuthentication) {
+    if (authenticationPrompt === undefined)
+      throw new Error(
+        'SecureStore requires an authenticationPrompt when using requireAuthentication'
+      );
+    return { ...secureStoreOptions, authenticationPrompt };
+  } else return secureStoreOptions;
+}
+
+export const deleteAsync = async (
+  key: string,
+  engine: Engine,
+  authenticationPrompt: string | undefined = undefined
+): Promise<void> => {
+  if (engine === 'IDB') {
+    return await idbDel(key);
+  } else if (engine === 'SECURESTORE') {
+    return await secureStoreDeleteItemAsync(
+      key,
+      secureStoreGetOptions(authenticationPrompt)
+    );
+  } else if (engine === 'MMKV') {
+    return new Promise(resolve => {
+      resolve(mmkvStorage.delete.bind(mmkvStorage)(key));
+    });
+  } else throw new Error(`Unknown engine ${engine}`);
 };
-
-export const storage2 = {
-  deleteAsync: (key: string, engine: Engine = 'AUTO'): Promise<void> => {
-    if (getActualEngine(engine) === 'IDB') {
-      return idbDel(key);
+export const setAsync = async (
+  key: string,
+  value: string | number | boolean | object | Uint8Array,
+  engine: Engine,
+  cipherKey: Uint8Array | undefined = undefined,
+  authenticationPrompt: string | undefined = undefined
+): Promise<void> => {
+  if (cipherKey) {
+    if (value instanceof Uint8Array)
+      throw new Error(
+        `Uint8Array is not compatible with cipher (uses JSON.stringify)`
+      );
+    const chacha = getManagedChacha(cipherKey);
+    value = bytesToUtf8(chacha.encrypt(utf8ToBytes(JSON.stringify(value))));
+  }
+  if (engine === 'IDB') {
+    await idbSet(key, value);
+  } else if (engine === 'SECURESTORE') {
+    if (value instanceof Uint8Array)
+      throw new Error(
+        `Engine ${engine} does not support native Uint8Array - using JSON.stringify`
+      );
+    await secureStoreSetItemAsync(
+      key,
+      JSON.stringify(value),
+      secureStoreGetOptions(authenticationPrompt)
+    );
+  } else if (engine === 'MMKV') {
+    mmkvStorage.set.bind(mmkvStorage)(
+      key,
+      // Only stringify objects, and don't stringify Uint8Array since
+      // mmkv nicely handle this. However, note that
+      // typeof new Uint8Array() === 'object', so make sure only
+      // objects which are not Uint8Array are stringified:
+      typeof value === 'object' && !(value instanceof Uint8Array)
+        ? JSON.stringify(value)
+        : value
+    );
+  } else throw new Error(`Unknown engine ${engine}`);
+};
+export const getAsync = async <S extends SerializationFormat>(
+  key: string,
+  serializationFormat: S,
+  engine: Engine,
+  cipherKey: Uint8Array | undefined = undefined,
+  authenticationPrompt: string | undefined = undefined
+): Promise<SerializationFormatMapping[S]> => {
+  let result;
+  if (engine === 'IDB') {
+    result = await idbGet(key);
+  } else if (engine === 'SECURESTORE') {
+    const stringValue = await secureStoreGetItemAsync(
+      key,
+      secureStoreGetOptions(authenticationPrompt)
+    );
+    result = stringValue !== null ? JSON.parse(stringValue) : undefined;
+  } else if (engine === 'MMKV') {
+    if (cipherKey) {
+      result = mmkvStorage.getString(key);
     } else {
-      return new Promise(resolve => {
-        resolve(mmkvStorage.delete.bind(mmkvStorage)(key));
-      });
-    }
-  },
-  setAsync: (
-    key: string,
-    value: string | number | boolean | object | Uint8Array,
-    engine: Engine = 'AUTO',
-    cipherKey: Uint8Array | undefined = undefined
-  ): Promise<void> => {
-    if (getActualEngine(engine) === 'IDB') {
-      return idbSet(key, value);
-    } else {
-      return new Promise(resolve => {
-        resolve(
-          mmkvStorage.set.bind(mmkvStorage)(
-            key,
-            // Only stringify objects, and don't stringify Uint8Array since
-            // mmkv nicely handle this. However, note that
-            // typeof new Uint8Array() === 'object', so make sure only
-            // objects which are not Uint8Array are stringified:
-            typeof value === 'object' && !(value instanceof Uint8Array)
-              ? JSON.stringify(value)
-              : value
-          )
-        );
-      });
-    }
-  },
-  getAsync: <S extends SerializationFormat>(
-    key: string,
-    serializationFormat: S,
-    engine: Engine = 'AUTO',
-    cipherKey: Uint8Array | undefined = undefined
-  ): Promise<SerializationFormatMapping[S]> => {
-    if (getActualEngine(engine) === 'IDB') {
-      return idbGet(key);
-    } else {
-      return new Promise(resolve => {
-        let result: string | number | boolean | object | Uint8Array | undefined;
-
-        switch (serializationFormat) {
-          case NUMBER:
-            result = mmkvStorage.getNumber(key);
-            break;
-          case STRING:
-            result = mmkvStorage.getString(key);
-            break;
-          case SERIALIZABLE: {
-            const stringValue = mmkvStorage.getString(key);
-            result =
-              stringValue !== undefined ? JSON.parse(stringValue) : undefined;
-            break;
-          }
-          case BOOLEAN:
-            result = mmkvStorage.getBoolean(key);
-            break;
-          case UINT8ARRAY:
-            result = mmkvStorage.getBuffer(key);
-            break;
-          default:
-            throw new Error(
-              `Invalid serializationFormat: ${serializationFormat}`
-            );
+      switch (serializationFormat) {
+        case NUMBER:
+          result = mmkvStorage.getNumber(key);
+          break;
+        case STRING:
+          result = mmkvStorage.getString(key);
+          break;
+        case SERIALIZABLE: {
+          const stringValue = mmkvStorage.getString(key);
+          result =
+            stringValue !== undefined ? JSON.parse(stringValue) : undefined;
+          break;
         }
-        resolve(result as SerializationFormatMapping[S]);
-      });
+        case BOOLEAN:
+          result = mmkvStorage.getBoolean(key);
+          break;
+        case UINT8ARRAY:
+          result = mmkvStorage.getBuffer(key);
+          break;
+        default:
+          throw new Error(
+            `Invalid serializationFormat: ${serializationFormat}`
+          );
+      }
+    }
+  } else throw new Error(`Unknown engine ${engine}`);
+  if (cipherKey) {
+    if (serializationFormat === UINT8ARRAY)
+      throw new Error(
+        `Uint8Array is not compatible with cipher (should have been encoded with JSON.stringify, which cannot manage Uint8Array)`
+      );
+    if (result === undefined) {
+      return result;
+    } else if (typeof result !== 'string') {
+      throw new Error('Impossible to decode non-string encoded value');
+    } else {
+      const chacha = getManagedChacha(cipherKey);
+      result = JSON.parse(bytesToUtf8(chacha.decrypt(utf8ToBytes(result))));
     }
   }
+  return result;
 };
-
-export const storage = {
-  deleteAsync:
-    Platform.OS === 'web'
-      ? idbDel
-      : (key: string): Promise<void> =>
-          new Promise(resolve => {
-            resolve(mmkvStorage.delete.bind(mmkvStorage)(key));
-          }),
-  setAsync:
-    Platform.OS === 'web'
-      ? idbSet
-      : (
-          key: string,
-          value: string | number | boolean | object | Uint8Array
-        ): Promise<void> =>
-          new Promise(resolve => {
-            resolve(
-              mmkvStorage.set.bind(mmkvStorage)(
-                key,
-                // Only stringify objects, and don't stringify Uint8Array since
-                // mmkv nicely handle this. However, note that
-                // typeof new Uint8Array() === 'object', so make sure only
-                // objects which are not Uint8Array are stringified:
-                typeof value === 'object' && !(value instanceof Uint8Array)
-                  ? JSON.stringify(value)
-                  : value
-              )
-            );
-          }),
-  getAsync:
-    Platform.OS === 'web'
-      ? <S extends SerializationFormat>(
-          key: string,
-          _serializationFormat: S
-        ): Promise<SerializationFormatMapping[S]> => idbGet(key)
-      : <S extends SerializationFormat>(
-          key: string,
-          serializationFormat: S
-        ): Promise<SerializationFormatMapping[S]> =>
-          new Promise(resolve => {
-            let result:
-              | string
-              | number
-              | boolean
-              | object
-              | Uint8Array
-              | undefined;
-
-            switch (serializationFormat) {
-              case NUMBER:
-                result = mmkvStorage.getNumber(key);
-                break;
-              case STRING:
-                result = mmkvStorage.getString(key);
-                break;
-              case SERIALIZABLE: {
-                const stringValue = mmkvStorage.getString(key);
-                result =
-                  stringValue !== undefined
-                    ? JSON.parse(stringValue)
-                    : undefined;
-                break;
-              }
-              case BOOLEAN:
-                result = mmkvStorage.getBoolean(key);
-                break;
-              case UINT8ARRAY:
-                result = mmkvStorage.getBuffer(key);
-                break;
-              default:
-                throw new Error(
-                  `Invalid serializationFormat: ${serializationFormat}`
-                );
-            }
-            resolve(result as SerializationFormatMapping[S]);
-          })
-};
-export const clearAllAsync =
-  Platform.OS === 'web'
-    ? idbClearAll
-    : (): Promise<void> =>
-        new Promise(resolve => {
-          resolve(mmkvStorage.clearAll.bind(mmkvStorage)());
-        });

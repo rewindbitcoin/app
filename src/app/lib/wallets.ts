@@ -1,4 +1,5 @@
 import type { NetworkId } from './network';
+import type { Engine as StorageEngine } from '../../common/lib/storage';
 /*
 TODO:
 To generate the random well-known key for thunder den, we used:
@@ -26,19 +27,26 @@ To generate the random well-known key for thunder den, we used:
   part5 : 1464383631
 */
 
-//`SIGNERS/${walletId}`
+//`SIGNERS_${walletId}`
 export const SOFTWARE = 'SOFTWARE' as const;
 export const LEDGER = 'LEDGER' as const;
 export type Signer = {
-  signerId: number;
+  masterFingerprint: string; // Needs to be set because for HWW we dont have the mnemonic
   signerName?: string;
   type: typeof SOFTWARE | typeof LEDGER;
   // For SOFTWARE
   mnemonic?: string;
-  // For HWW indentification purposes:
-  masterFingerprintHex?: string;
 };
-export type Signers = { [signerId: number]: Signer };
+
+//descriptor is an external-ranged descriptor. It is used (optionally) to save
+//the name of each account
+export type AccountNames = { [descriptor: string]: string };
+
+//This interface is used to save all the signers associated with a Wallet.
+//Signers are stored with this key: `SIGNERS_${walletId}`
+export type Signers = {
+  [masterFingerprint: string]: Signer;
+};
 
 export type Wallet = {
   creationEpoch: number;
@@ -48,28 +56,29 @@ export type Wallet = {
   networkId: NetworkId;
   /**
    * Signers are small string text which may contain the mnemonic (when using
-   * software wallets, and therefore it is important to treat them specially)
-   * how are signers encrypted?
-   * 'NONE' using the normal storage, for debuggin/development purposes
-   * 'PASSWORD' the user provides a password
-   * 'SYSTEM', using Expo SecureStore (iOS & Android)
+   * software wallets, and therefore it is important to treat them specially).
+   * If the SECURESTORE storage engine cannot be used, signersEncryption should
+   * be 'PASSWORD'
    */
 
-  signersEncryption: 'SYSTEM' | 'PASSWORD' | 'NONE';
+  signersEncryption: 'PASSWORD' | 'NONE';
+  signersStorageEngine: StorageEngine;
   /**
    * This is the encryption used for the rest of data (not signers).
    * This data may be Vaults for example, and therefore, the SecureEnclave of
    * the System is not usable (they are restricted fo 2KB).
    * Anyway this data is not so sensible.
    *
-   * When using SIGNER_0_BIP32_DERIVED_PUBKEY, a well-known derivation path is
+   * When using BIP32_DERIVED_PUBKEY, a well-known derivation path is
    * used as the seed for the pubKey, which is then used as the encryptionKey of
    * your data. The xprv of signer[0] is used combined with the well-known
    * derivation path.
    *
    * We keep 'NONE' just for debugging/development purposes
    */
-  encryption: 'NONE' | 'SIGNER_0_BIP32_DERIVED_PUBKEY';
+  encryption: 'NONE' | 'BIP32_DERIVED_PUBKEY';
+  //The storageEngine for the rest of data will be the same used to
+  //this data (<Wallets>), so no need to save it
 };
 
 //`WALLETS`

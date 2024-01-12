@@ -6,7 +6,8 @@
     "settingsButton": "Settings",
     "settingsTitle": "Settings",
     "btcRatesError": "Unable to retrieve current BTC rates. The displayed amounts in {{currency}} may not be accurate.",
-    "feeEstimatesError": "Unable to retrieve accurate fee estimates. Displayed transaction target times and fee amounts may be incorrect."
+    "feeEstimatesError": "Unable to retrieve accurate fee estimates. Displayed transaction target times and fee amounts may be incorrect.",
+    "secureStorageAuthenticationPrompt": "Please authenticate to access your wallet's sensitive data."
   },
   "vaultSetup": {
     "title": "Vault Set Up",
