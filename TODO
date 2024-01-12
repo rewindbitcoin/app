@@ -1,7 +1,6 @@
 TODO: Document new APIs for storage
-TODO: make use od canUseSecureStorage
-TODO: investigate why in iOS requireAuthentication = true does not request auth
-TODO: requireAuthentication for SecureStorage:
+TODO: when using SECURESTORAGE data can be removed any time! Thus, we need to provide
+ways to recover from this.
   I need need to implement what to do if the user changes his biometrics.
   Note that in that case, then data stored securely cannot be accessed anymore.
   I will need a way to provide a way to detect that this data is missing (the SIGNERS for that wallet) and provide a way to

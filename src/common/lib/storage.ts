@@ -42,7 +42,7 @@ import {
   isAvailableAsync
 } from 'expo-secure-store';
 
-export const canUseSecureStorage = async () => {
+export const canUseSecureStorageAsync = async () => {
   return (
     Platform.OS !== 'web' &&
     (await isAvailableAsync()) &&
@@ -56,7 +56,7 @@ const secureStoreGetItemAsync = async (
   key: string,
   options: SecureStoreOptions
 ) => {
-  if (!(await canUseSecureStorage()))
+  if (!(await canUseSecureStorageAsync()))
     throw new Error('Device does not support secure storage');
   for (let attempts = 0; attempts < 5; attempts++) {
     try {
@@ -74,7 +74,7 @@ const secureStoreSetItemAsync = async (
   value: string,
   options: SecureStoreOptions
 ) => {
-  if (!(await canUseSecureStorage()))
+  if (!(await canUseSecureStorageAsync()))
     throw new Error('Device does not support secure storage');
   for (let attempts = 0; attempts < 5; attempts++) {
     try {

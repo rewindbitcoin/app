@@ -28,6 +28,7 @@ import type { Wallet } from '../lib/wallets';
 import { useToast } from '../../common/components/Toast';
 import { SERIALIZABLE } from '../../common/lib/storage';
 import { useGlobalStateStorage } from '../../common/contexts/StorageContext';
+import { useSecureStorageAvailability } from '../../common/contexts/SecureStorageAvailabilityContext';
 import { useLocalStateStorage } from '../../common/hooks/useLocalStateStorage';
 import { SETTINGS_GLOBAL_STORAGE } from '../lib/settings';
 import { defaultSettings, type Settings } from '../lib/settings';
@@ -105,6 +106,15 @@ export const WalletProvider = ({
   newWalletSigners?: Signers;
 }) => {
   if (!wallet) return children;
+  const canUseSecureStorage = useSecureStorageAvailability();
+  if (useSecureStorageAvailability === undefined)
+    //This should never happen. If we have a wallet already it's because the App
+    //either read it already from somewhere or created it. And wallets can only be created
+    //if the SecureStorageAvaiability exists because it is needed for setting
+    //signersStorageEngine
+    throw new Error(
+      'WalletContext cannot be used until useSecureStorageAvailability has been resolved'
+    );
   const { t } = useTranslation();
   //console.log('TODO: WALLET PROVIDER HERE I AM');
   const walletId = wallet.walletId;
@@ -117,11 +127,19 @@ export const WalletProvider = ({
   //  then request the cipherKey to the user
   //  - also see if signersStorageEngine is 'SECURESTORE' or not.
   //  - also, for new wallets, the code must see if LocalAuthentication.hasHardwareAsync
+  if (
+    (wallet.signersStorageEngine === 'MMKV' && Platform.OS === 'web') ||
+    (wallet.signersStorageEngine === 'IDB' && Platform.OS !== 'web') ||
+    (wallet.signersStorageEngine === 'SECURESTORE' &&
+      canUseSecureStorage === false)
+  ) {
+    console.error('TODO');
+  }
   const [signers, setSigners] = useLocalStateStorage<Signers>(
     `SIGNERS_${walletId}`,
     SERIALIZABLE,
     undefined,
-    Platform.OS === 'web' ? 'IDB' : 'SECURESTORE',
+    wallet.signersStorageEngine,
     undefined,
     t('app.secureStorageAuthenticationPrompt')
   );
