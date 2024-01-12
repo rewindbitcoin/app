@@ -12,7 +12,8 @@ export default () => {
       keyboardShouldPersistTaps="handled"
       contentContainerStyle={{
         flexGrow: 1, //grow vertically to 100% and center child
-        justifyContent: 'center'
+        justifyContent: 'center',
+        alignItems: 'center'
       }}
     >
       <Text style={internalStyles.mnemonic}>MNEMOMIC ✍: {mnemonic}</Text>

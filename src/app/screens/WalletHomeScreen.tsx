@@ -28,7 +28,8 @@ const WalletHomeScreen = ({
       keyboardShouldPersistTaps="handled"
       contentContainerStyle={{
         flexGrow: 1, //grow vertically to 100% and center child
-        justifyContent: 'center'
+        justifyContent: 'center',
+        alignItems: 'center'
       }}
       refreshControl={
         <RefreshControl

@@ -168,7 +168,11 @@ export default function Unvault({
   return (
     <KeyboardAwareScrollView
       keyboardShouldPersistTaps="handled"
-      contentContainerStyle={{ flexGrow: 1, justifyContent: 'center' }}
+      contentContainerStyle={{
+        flexGrow: 1,
+        justifyContent: 'center',
+        alignItems: 'center'
+      }}
     >
       {content}
     </KeyboardAwareScrollView>

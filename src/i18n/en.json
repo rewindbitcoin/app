@@ -9,6 +9,9 @@
     "feeEstimatesError": "Unable to retrieve accurate fee estimates. Displayed transaction target times and fee amounts may be incorrect.",
     "secureStorageAuthenticationPrompt": "Please authenticate to access your wallet's sensitive data."
   },
+  "wallets": {
+    "importWalletButton": "Import Wallet"
+  },
   "vaultSetup": {
     "title": "Vault Set Up",
     "notEnoughFundsTitle": "Vault Minimum Requirement",

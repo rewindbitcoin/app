@@ -5,6 +5,7 @@ import './init';
 import React, { useEffect, useState } from 'react';
 import { Button } from 'react-native';
 import { SecureStorageAvailabilityProvider } from './src/common/contexts/SecureStorageAvailabilityContext';
+import { PaperProvider } from 'react-native-paper';
 
 import {
   createRootStack,
@@ -140,13 +141,9 @@ const App = () => {
             headerRight: settingsButton
           }}
         >
-          {() => {
-            return (
-              <SetUpVaultScreen
-                onVaultSetUpComplete={handleSetUpVaultComplete}
-              />
-            );
-          }}
+          {() => (
+            <SetUpVaultScreen onVaultSetUpComplete={handleSetUpVaultComplete} />
+          )}
         </RootStack.Screen>
 
         <RootStack.Screen
@@ -183,11 +180,13 @@ export default () => (
   <NavigationContainer>
     <SafeAreaProvider>
       <StorageProvider>
-        <ToastProvider>
-          <SecureStorageAvailabilityProvider>
-            <App />
-          </SecureStorageAvailabilityProvider>
-        </ToastProvider>
+        <SecureStorageAvailabilityProvider>
+          <PaperProvider>
+            <ToastProvider>
+              <App />
+            </ToastProvider>
+          </PaperProvider>
+        </SecureStorageAvailabilityProvider>
       </StorageProvider>
     </SafeAreaProvider>
   </NavigationContainer>

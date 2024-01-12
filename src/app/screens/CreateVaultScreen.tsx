@@ -106,7 +106,6 @@ export default function VaultCreate({
       contentContainerStyle={{
         flexGrow: 1, //grow vertically to 100% and center child
         justifyContent: 'center',
-
         alignItems: 'center'
       }}
     >

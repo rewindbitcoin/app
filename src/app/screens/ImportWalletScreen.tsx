@@ -3,7 +3,8 @@
 //at times. For example when restoring from a backup or when changing the fingerprints
 //or faceId of the device
 import React, { useEffect, useState } from 'react';
-import { Button, View, Text, ActivityIndicator } from 'react-native';
+import { Button, Text, ActivityIndicator } from 'react-native-paper';
+import { View } from 'react-native';
 import { KeyboardAwareScrollView } from '../../common/components/KeyboardAwareScrollView';
 import { useTranslation } from 'react-i18next';
 import { useNavigation } from '@react-navigation/native';
@@ -57,7 +58,7 @@ export default () => {
           </Text>
           <Bip39 words={words} onWords={(words: string[]) => setWords(words)} />
           <View style={{ marginTop: 50 }}>
-            <Button title={t('cancelButton')} onPress={navigation.goBack} />
+            <Button onPress={navigation.goBack}>{t('cancelButton')}</Button>
           </View>
         </>
       )}

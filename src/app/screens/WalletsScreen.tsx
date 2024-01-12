@@ -1,5 +1,6 @@
 import React from 'react';
-import { Text, View, Button } from 'react-native';
+import { View, Platform } from 'react-native';
+import { Text, Button } from 'react-native-paper';
 import { KeyboardAwareScrollView } from '../../common/components/KeyboardAwareScrollView';
 import type { Wallet, Wallets, Signers } from '../lib/wallets';
 import { SERIALIZABLE } from '../../common/lib/storage';
@@ -26,8 +27,14 @@ export default ({
     SERIALIZABLE
   );
 
-  const handleNewWallet = () => {
-    console.log('handleNewWallet', 'TODO');
+  //TODO: here i need to make sure the signersStorageEngine read or created
+  //matches this system specs
+  //if it does not, then create a new signersStorageEngine and ask the user
+  //to provide new signers
+  //I will have: ImportWalletScreen, NewWalletScreen, RecoverSignersWalletScreen
+
+  const handleNewTestingWallet = () => {
+    console.log('handleNewTestingWallet', 'TODO');
     const masterFingerprint = 'TODO';
     if (isWalletsSynchd && !wallets?.[0]) {
       const wallet: Wallet = {
@@ -36,7 +43,7 @@ export default ({
         version: defaultSettings.WALLETS_DATA_VERSION,
         networkId: getNetworkId(networks.testnet),
         signersEncryption: 'NONE',
-        signersStorageEngine: 'SECURESTORE',
+        signersStorageEngine: Platform.OS === 'web' ? 'IDB' : 'SECURESTORE',
         encryption: 'NONE'
       };
       setWallets({ [walletId]: wallet });
@@ -57,27 +64,32 @@ export default ({
   return (
     <KeyboardAwareScrollView
       keyboardShouldPersistTaps="handled"
-      contentContainerStyle={
-        //This is the "inner" style
-        {
-          flexGrow: 1, //grow vertically to 100% and center child
-          justifyContent: 'center',
-          backgroundColor: 'transparent'
-        }
-      }
-      style={{ backgroundColor: 'transparent' }}
+      contentContainerStyle={{
+        //grow vertically to 100% and center child
+        flexGrow: 1,
+        justifyContent: 'center',
+        alignItems: 'center'
+      }}
     >
       {wallets &&
         Object.entries(wallets).map(([walletId, wallet]) => (
-          <View key={walletId}>
-            <Text onPress={() => onWallet(wallet)}>{walletId}</Text>
+          <View
+            style={{ borderWidth: 1, margin: 20, padding: 20 }}
+            key={walletId}
+          >
+            <Text onPress={() => onWallet(wallet)}>
+              {JSON.stringify(wallet, null, 2)}
+            </Text>
           </View>
         ))}
-      <Button title={t('wallets.newWalletButton')} onPress={handleNewWallet} />
-      <Button
-        title={t('wallets.importWalletButton')}
-        onPress={handleImportWallet}
-      />
+      {isWalletsSynchd && !wallets?.[0] && (
+        <Button mode="contained" onPress={handleNewTestingWallet}>
+          {'Create Test Wallet'}
+        </Button>
+      )}
+      <Button mode="contained" onPress={handleImportWallet}>
+        {t('wallets.importWalletButton')}
+      </Button>
     </KeyboardAwareScrollView>
   );
 };

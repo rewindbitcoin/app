@@ -1,4 +1,6 @@
-TODO: Document new APIs for storage
+TODO: Document the new APIs for storage
+TODO: when the Wallets are presented so that you can pick one, if they are password
+protected, then provide a Button "Forgot password"
 TODO: when using SECURESTORAGE data can be removed any time! Thus, we need to provide
 ways to recover from this.
   I need need to implement what to do if the user changes his biometrics.

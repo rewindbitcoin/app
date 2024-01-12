@@ -364,11 +364,9 @@ export default function VaultSetUp({
     <KeyboardAwareScrollView
       keyboardShouldPersistTaps="handled"
       contentContainerStyle={{
-        //paddingTop: 100
-        //paddingTop: 120
-        //paddingTop: 500
-        flexGrow: 1, //grow vertically to 100% and center child
-        justifyContent: 'center'
+        flexGrow: 1,
+        justifyContent: 'center',
+        alignItems: 'center'
       }}
     >
       {content}
@@ -377,9 +375,6 @@ export default function VaultSetUp({
 }
 
 const styles = StyleSheet.create({
-  wrapper: {
-    width: '100%'
-  },
   content: {
     padding: 40,
     backgroundColor: 'white',

@@ -107,7 +107,7 @@ export const WalletProvider = ({
 }) => {
   if (!wallet) return children;
   const canUseSecureStorage = useSecureStorageAvailability();
-  if (useSecureStorageAvailability === undefined)
+  if (canUseSecureStorage === undefined)
     //This should never happen. If we have a wallet already it's because the App
     //either read it already from somewhere or created it. And wallets can only be created
     //if the SecureStorageAvaiability exists because it is needed for setting
@@ -118,28 +118,25 @@ export const WalletProvider = ({
   const { t } = useTranslation();
   //console.log('TODO: WALLET PROVIDER HERE I AM');
   const walletId = wallet.walletId;
+  const signersStorageEngine = wallet.signersStorageEngine;
   const network = networkMapping[wallet.networkId];
   if (wallet && !network)
     throw new Error(`Invalid networkId ${wallet.networkId}`);
 
-  //TODO: This is wrong. Must use:
-  //  - if wallet is set, then see if signersEncryption was set,
-  //  then request the cipherKey to the user
-  //  - also see if signersStorageEngine is 'SECURESTORE' or not.
-  //  - also, for new wallets, the code must see if LocalAuthentication.hasHardwareAsync
   if (
-    (wallet.signersStorageEngine === 'MMKV' && Platform.OS === 'web') ||
-    (wallet.signersStorageEngine === 'IDB' && Platform.OS !== 'web') ||
-    (wallet.signersStorageEngine === 'SECURESTORE' &&
-      canUseSecureStorage === false)
+    (signersStorageEngine === 'MMKV' && Platform.OS === 'web') ||
+    (signersStorageEngine === 'IDB' && Platform.OS !== 'web') ||
+    (signersStorageEngine === 'SECURESTORE' && canUseSecureStorage === false)
   ) {
-    console.error('TODO');
+    throw new Error(
+      `signersStorageEngine ${signersStorageEngine} does not match this system specs: ${Platform.OS}, canUseSecureStorage=${canUseSecureStorage}`
+    );
   }
   const [signers, setSigners] = useLocalStateStorage<Signers>(
     `SIGNERS_${walletId}`,
     SERIALIZABLE,
     undefined,
-    wallet.signersStorageEngine,
+    signersStorageEngine,
     undefined,
     t('app.secureStorageAuthenticationPrompt')
   );
