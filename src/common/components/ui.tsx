@@ -10,6 +10,8 @@ interface TextProps extends RN.TextProps {
 // Define styles for each variant
 const textStyles = RN.StyleSheet.create({
   headlineSmall: {
+    fontWeight: '600',
+    fontSize: 18
     /* styles for headlineSmall */
   },
   headlineLarge: {
@@ -59,7 +61,11 @@ const Button: React.FC<ButtonProps> = ({
         ]}
         {...props}
       >
-        {children}
+        {typeof children === 'string' ? (
+          <RN.Text>{children}</RN.Text>
+        ) : (
+          children
+        )}
       </RN.Pressable>
     );
   } else throw new Error('native mode should receive text');
@@ -67,12 +73,10 @@ const Button: React.FC<ButtonProps> = ({
 
 const buttonStyles = RN.StyleSheet.create({
   button: {
-    // Define your button styles here
     padding: 10,
     borderRadius: 5
   },
   text: {
-    // Define your text styles here
     color: 'white',
     textAlign: 'center'
   }
@@ -92,7 +96,7 @@ const buttonModeStyles = RN.StyleSheet.create({
     elevation: 4
   },
   'contained-tonal': {
-    backgroundColor: 'lightblue' // Or any other color for tonal variation
+    backgroundColor: 'lightblue'
   }
 });
 
