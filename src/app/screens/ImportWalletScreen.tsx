@@ -34,8 +34,9 @@ export default () => {
     <KeyboardAwareScrollView
       keyboardShouldPersistTaps="handled"
       contentContainerStyle={{
-        flexGrow: 1,
-        justifyContent: 'center',
+        //flexGrow: 1,
+        //justifyContent: 'center',
+        paddingTop: 20,
         alignItems: 'center'
       }}
     >

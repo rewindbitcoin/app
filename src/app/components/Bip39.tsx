@@ -121,50 +121,26 @@ export default function Bip39({
     inputRef.current?.focus();
   }, [activeWordIndex]);
 
-  //<SegmentedButtons
-  //  value={String(words.length)}
-  //  buttons={[
-  //    {
-  //      value: '12',
-  //      label: t('bip39.segmented12')
-  //    },
-  //    {
-  //      value: '24',
-  //      label: t('bip39.segmented24')
-  //    }
-  //  ]}
-  //  onValueChange={value => {
-  //    const N = Number(value);
-  //    const newWords = [...words];
-  //    if (newWords.length > N) onWords(newWords.slice(0, N));
-  //    else {
-  //      while (newWords.length < N) newWords.push('');
-  //      onWords(newWords);
-  //    }
-  //  }}
-  ///>
-
+  //Animated.View layout={Layout.springify()}
   return (
     <>
-      <View style={styles.mnemonicLength}>
-        <SegmentedControl
-          style={styles.segmented}
-          values={[t('bip39.segmented12'), t('bip39.segmented24')]}
-          selectedIndex={words.length === 12 ? 0 : 1}
-          onChange={event => {
-            const newWords = [...words];
-            const N = event.nativeEvent.selectedSegmentIndex === 0 ? 12 : 24;
-            if (newWords.length > N) onWords(newWords.slice(0, N));
-            else {
-              while (newWords.length < N) newWords.push('');
-              onWords(newWords);
-            }
-          }}
-        />
-      </View>
-      <View style={styles.words}>
+      <SegmentedControl
+        style={styles.segmented}
+        values={[t('bip39.segmented12'), t('bip39.segmented24')]}
+        selectedIndex={words.length === 12 ? 0 : 1}
+        onChange={event => {
+          const newWords = [...words];
+          const N = event.nativeEvent.selectedSegmentIndex === 0 ? 12 : 24;
+          if (newWords.length > N) onWords(newWords.slice(0, N));
+          else {
+            while (newWords.length < N) newWords.push('');
+            onWords(newWords);
+          }
+        }}
+      />
+      <View style={{ ...styles.words }}>
         {words.map((word, index) => (
-          <View key={index} style={styles.indexAndInput}>
+          <View key={index} style={{ ...styles.indexAndInput }}>
             <Text style={[styles.number]}>
               {`${index + 1 < 10 ? '\u00A0' : ''}${index + 1}`}
             </Text>
@@ -200,12 +176,12 @@ const getStyles = (theme: Theme, fonts: ReturnType<typeof useFonts>) => {
   return StyleSheet.create({
     segmented: {
       height: 50,
+      marginBottom: 30,
       //SegmentedControl for iOS has a bug setting backgroundColor.
       //#eeeeed will set #dfdfdf. Found by experimenting with a Color Picker tool
       //https://github.com/react-native-segmented-control/segmented-control/issues/127
       backgroundColor: Platform.select({ ios: '#eeeeed', default: '#dfdfdf' })
     },
-    mnemonicLength: { marginBottom: 30 },
     words: {
       borderRadius: 5,
       backgroundColor: '#dfdfdf',
