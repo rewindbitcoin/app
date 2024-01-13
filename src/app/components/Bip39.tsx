@@ -184,7 +184,7 @@ export default function Bip39({
 const getStyles = (theme: Theme, fonts: ReturnType<typeof useFonts>) => {
   const [fontsLoaded] = fonts;
   return StyleSheet.create({
-    mnemonicLength: { marginBottom: 30, width: 330 },
+    mnemonicLength: { marginBottom: 30 },
     words: {
       borderRadius: 5,
       backgroundColor: '#dfdfdf',
@@ -192,7 +192,6 @@ const getStyles = (theme: Theme, fonts: ReturnType<typeof useFonts>) => {
       flexDirection: 'row',
       flexWrap: 'wrap',
       alignItems: 'flex-start',
-      width: 330,
       margin: 0,
       paddingHorizontal: 10,
       borderWidth: 0

@@ -42,25 +42,16 @@ export default () => {
       {canUseSecureStorage === undefined ? (
         <ActivityIndicator />
       ) : (
-        <>
-          <Text
-            style={{
-              fontWeight: 'bold',
-              fontSize: 24,
-              marginBottom: 20,
-              textAlign: 'center'
-            }}
-          >
-            {t('bip39.importWalletText')}
-          </Text>
-          <Text style={{ width: 330, marginBottom: 20 }}>
+        <View style={{ width: 330 }}>
+          <Text variant="headlineSmall">{t('bip39.importWalletText')}</Text>
+          <Text style={{ marginVertical: 20 }}>
             {t('bip39.importWalletSubText')}
           </Text>
           <Bip39 words={words} onWords={(words: string[]) => setWords(words)} />
           <View style={{ marginTop: 50 }}>
             <Button onPress={navigation.goBack}>{t('cancelButton')}</Button>
           </View>
-        </>
+        </View>
       )}
     </KeyboardAwareScrollView>
   );
