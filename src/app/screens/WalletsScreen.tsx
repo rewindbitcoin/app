@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Platform } from 'react-native';
-import { Text, Button } from 'react-native-paper';
+import { Text, Button } from '../../common/components/ui';
 import { KeyboardAwareScrollView } from '../../common/components/KeyboardAwareScrollView';
 import type { Wallet, Wallets, Signers } from '../lib/wallets';
 import { SERIALIZABLE } from '../../common/lib/storage';
@@ -87,7 +87,7 @@ export default ({
           {'Create Test Wallet'}
         </Button>
       )}
-      <Button mode="contained" onPress={handleImportWallet}>
+      <Button mode="native" onPress={handleImportWallet}>
         {t('wallets.importWalletButton')}
       </Button>
     </KeyboardAwareScrollView>

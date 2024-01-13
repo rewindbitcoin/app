@@ -5,7 +5,6 @@ import './init';
 import React, { useEffect, useState } from 'react';
 import { Button } from 'react-native';
 import { SecureStorageAvailabilityProvider } from './src/common/contexts/SecureStorageAvailabilityContext';
-import { PaperProvider } from 'react-native-paper';
 
 import {
   createRootStack,
@@ -181,11 +180,9 @@ export default () => (
     <SafeAreaProvider>
       <StorageProvider>
         <SecureStorageAvailabilityProvider>
-          <PaperProvider>
-            <ToastProvider>
-              <App />
-            </ToastProvider>
-          </PaperProvider>
+          <ToastProvider>
+            <App />
+          </ToastProvider>
         </SecureStorageAvailabilityProvider>
       </StorageProvider>
     </SafeAreaProvider>

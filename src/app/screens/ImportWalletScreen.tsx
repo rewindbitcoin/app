@@ -3,8 +3,8 @@
 //at times. For example when restoring from a backup or when changing the fingerprints
 //or faceId of the device
 import React, { useEffect, useState } from 'react';
-import { Button, Text, ActivityIndicator } from 'react-native-paper';
 import { View } from 'react-native';
+import { Button, Text, ActivityIndicator } from '../../common/components/ui';
 import { KeyboardAwareScrollView } from '../../common/components/KeyboardAwareScrollView';
 import { useTranslation } from 'react-i18next';
 import { useNavigation } from '@react-navigation/native';
