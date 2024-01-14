@@ -93,7 +93,8 @@ const secureStoreOptions = {
 };
 
 import { xchacha20poly1305 } from '@noble/ciphers/chacha';
-import { utf8ToBytes, bytesToUtf8 } from '@noble/ciphers/utils';
+import { base64 } from '@scure/base';
+
 import { managedNonce } from '@noble/ciphers/webcrypto/utils';
 
 // Memoized function to get the ChaCha encoder instance
@@ -208,7 +209,7 @@ export const setAsync = async (
         `Uint8Array is not compatible with cipher (uses JSON.stringify)`
       );
     const chacha = getManagedChacha(cipherKey);
-    value = bytesToUtf8(chacha.encrypt(utf8ToBytes(JSON.stringify(value))));
+    value = base64.encode(chacha.encrypt(base64.decode(JSON.stringify(value))));
   }
   if (engine === 'IDB') {
     await idbSet(key, value);
@@ -217,9 +218,14 @@ export const setAsync = async (
       throw new Error(
         `Engine ${engine} does not support native Uint8Array - using JSON.stringify`
       );
+    const secureStoreValue = JSON.stringify(value);
+    if (secureStoreValue.length > 2048)
+      throw new Error(
+        `Reached Secure Store Limit: ${secureStoreValue.length} > 2048.`
+      );
     await secureStoreSetItemAsync(
       key,
-      JSON.stringify(value),
+      secureStoreValue,
       secureStoreGetOptions(authenticationPrompt)
     );
   } else if (engine === 'MMKV') {
@@ -292,7 +298,7 @@ export const getAsync = async <S extends SerializationFormat>(
       throw new Error('Impossible to decode non-string encoded value');
     } else {
       const chacha = getManagedChacha(cipherKey);
-      result = JSON.parse(bytesToUtf8(chacha.decrypt(utf8ToBytes(result))));
+      result = JSON.parse(base64.encode(chacha.decrypt(base64.decode(result))));
     }
   }
   return result;

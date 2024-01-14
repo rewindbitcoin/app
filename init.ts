@@ -12,7 +12,7 @@ import 'react-native-url-polyfill/auto';
 
 //polyfill for react 'Hermes' TextEncoder
 //This is needed in storage.ts for import { utf8ToBytes, bytesToUtf8 } from '@noble/ciphers/utils';
-import 'fast-text-encoding';
+//import 'fast-text-encoding';
 
 //import './electrumSupport'
 
