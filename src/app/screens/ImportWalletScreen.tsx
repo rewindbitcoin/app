@@ -9,6 +9,7 @@ import { KeyboardAwareScrollView } from '../../common/components/KeyboardAwareSc
 import { useTranslation } from 'react-i18next';
 import { useNavigation } from '@react-navigation/native';
 import Bip39, { validateMnemonic } from '../components/Bip39';
+import WalletAdvancedSettings from '../components/WalletAdvancedSettings';
 import { useSecureStorageAvailability } from '../../common/contexts/SecureStorageAvailabilityContext';
 
 export default () => {
@@ -49,6 +50,7 @@ export default () => {
             {t('bip39.importWalletSubText')}
           </Text>
           <Bip39 words={words} onWords={(words: string[]) => setWords(words)} />
+          <WalletAdvancedSettings />
           <View style={{ marginTop: 50 }}>
             <Button onPress={navigation.goBack}>{t('cancelButton')}</Button>
           </View>
