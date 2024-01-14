@@ -93,8 +93,7 @@ const secureStoreOptions = {
 };
 
 import { xchacha20poly1305 } from '@noble/ciphers/chacha';
-import { base64 } from '@scure/base';
-
+import { utf8ToBytes, bytesToUtf8 } from '@noble/ciphers/utils';
 import { managedNonce } from '@noble/ciphers/webcrypto/utils';
 
 // Memoized function to get the ChaCha encoder instance
@@ -209,7 +208,7 @@ export const setAsync = async (
         `Uint8Array is not compatible with cipher (uses JSON.stringify)`
       );
     const chacha = getManagedChacha(cipherKey);
-    value = base64.encode(chacha.encrypt(base64.decode(JSON.stringify(value))));
+    value = bytesToUtf8(chacha.encrypt(utf8ToBytes(JSON.stringify(value))));
   }
   if (engine === 'IDB') {
     await idbSet(key, value);
@@ -298,7 +297,7 @@ export const getAsync = async <S extends SerializationFormat>(
       throw new Error('Impossible to decode non-string encoded value');
     } else {
       const chacha = getManagedChacha(cipherKey);
-      result = JSON.parse(base64.encode(chacha.decrypt(base64.decode(result))));
+      result = JSON.parse(bytesToUtf8(chacha.decrypt(utf8ToBytes(result))));
     }
   }
   return result;
