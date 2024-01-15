@@ -14,6 +14,11 @@ import 'react-native-url-polyfill/auto';
 //This is needed in storage.ts for import { utf8ToBytes, bytesToUtf8 } from '@noble/ciphers/utils';
 import 'fast-text-encoding';
 
+//If planning to use React Animated:
+//import { NativeModules } from 'react-native';
+//const { UIManager } = NativeModules;
+//UIManager.setLayoutAnimationEnabledExperimental?.(true);
+
 //import './electrumSupport'
 
 //       import { NativeModules } from 'react-native';
