@@ -8,6 +8,7 @@ export const theme = {
   colors: {
     ...DefaultTheme.colors,
     listsSecondary: 'gray',
+    white: 'white',
     listsSeparator: '#D0D0D0'
   }
 };
@@ -57,7 +58,7 @@ export const Text: React.FC<TextProps> = ({ variant, style, ...props }) => {
 };
 
 interface ButtonProps extends RN.PressableProps {
-  mode?: 'native' | 'contained' | 'outlined' | 'elevated' | 'contained-tonal';
+  mode?: 'native' | 'text' | 'contained' | 'outlined' | 'elevated';
   onPress: (event: RN.GestureResponderEvent) => void;
   disabled?: boolean;
 }
@@ -76,9 +77,9 @@ const Button: React.FC<ButtonProps> = ({
         style={({ pressed }) => [
           {
             ...buttonStyles.button,
-            ...buttonModeStyles[mode],
+            ...buttonStylesPerMode[mode],
             ...(pressed && mode !== 'outlined'
-              ? { backgroundColor: 'darkblue' }
+              ? { backgroundColor: theme.colors.primary }
               : {}),
             style
           }
@@ -98,29 +99,29 @@ const Button: React.FC<ButtonProps> = ({
 const buttonStyles = RN.StyleSheet.create({
   button: {
     padding: 10,
-    borderRadius: 5
-  },
-  text: {
-    color: 'white',
-    textAlign: 'center'
+    borderRadius: 5,
+    color: theme.colors.primary
   }
 });
 
-const buttonModeStyles = RN.StyleSheet.create({
+const buttonStylesPerMode = RN.StyleSheet.create({
+  text: {
+    backgroundColor: 'transparent',
+    color: theme.colors.primary
+  },
   contained: {
-    backgroundColor: 'blue'
+    backgroundColor: theme.colors.primary,
+    color: theme.colors.white
   },
   outlined: {
     borderWidth: 1,
-    borderColor: 'blue',
+    borderColor: theme.colors.primary,
     backgroundColor: 'transparent'
   },
   elevated: {
-    backgroundColor: 'blue',
+    backgroundColor: theme.colors.primary,
+    color: theme.colors.white,
     elevation: 4
-  },
-  'contained-tonal': {
-    backgroundColor: 'lightblue'
   }
 });
 

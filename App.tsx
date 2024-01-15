@@ -3,7 +3,6 @@
 
 import './init';
 import React, { useEffect, useState } from 'react';
-import { Button } from 'react-native';
 import { SecureStorageAvailabilityProvider } from './src/common/contexts/SecureStorageAvailabilityContext';
 
 import {
@@ -32,8 +31,7 @@ import { SERIALIZABLE } from './src/common/lib/storage';
 import { useGlobalStateStorage } from './src/common/contexts/StorageContext';
 import { SETTINGS_GLOBAL_STORAGE } from './src/app/lib/settings';
 import type { VaultSettings } from './src/app/lib/vaults';
-import { theme } from './src/common/components/ui';
-console.log({ theme });
+import { theme, Button } from './src/common/components/ui';
 
 import {
   defaultSettings,
@@ -61,10 +59,14 @@ const App = () => {
   const navigation = useNavigation();
 
   const settingsButton = () => (
-    <Button
-      onPress={() => navigation.navigate(SETTINGS)}
-      title={t('app.settingsButton')}
-    />
+    <Button onPress={() => navigation.navigate(SETTINGS)}>
+      {t('app.settingsButton')}
+    </Button>
+  );
+  const closeModalButton = () => (
+    <Button mode="text" onPress={() => navigation.goBack()}>
+      {t('closeButton')}
+    </Button>
   );
 
   const handleWallet = (wallet: Wallet, newWalletSigners?: Signers) => {
@@ -110,7 +112,8 @@ const App = () => {
           name={IMPORT_WALLET}
           options={{
             title: t('app.importWalletTitle'),
-            presentation: 'modal'
+            presentation: 'modal',
+            headerRight: closeModalButton
           }}
         >
           {() => {
