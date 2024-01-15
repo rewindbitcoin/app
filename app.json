@@ -40,7 +40,7 @@
       }
     },
     "locales": {
-      "es": "./i18n/app.es.json"
+      "es": "./src/i18n/app.es.json"
     }
   }
 }
