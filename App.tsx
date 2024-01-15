@@ -175,9 +175,11 @@ const App = () => {
 };
 
 //Apply contexts:
+//If GestureHandlerRootView needed, place it just below SafeAreaProvider:
+// <GestureHandlerRootView style={{ flex: 1 }}> </GestureHandlerRootView>
 export default () => (
-  <NavigationContainer>
-    <SafeAreaProvider>
+  <SafeAreaProvider>
+    <NavigationContainer>
       <StorageProvider>
         <SecureStorageAvailabilityProvider>
           <ToastProvider>
@@ -185,6 +187,6 @@ export default () => (
           </ToastProvider>
         </SecureStorageAvailabilityProvider>
       </StorageProvider>
-    </SafeAreaProvider>
-  </NavigationContainer>
+    </NavigationContainer>
+  </SafeAreaProvider>
 );
