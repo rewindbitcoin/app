@@ -1,6 +1,6 @@
 import React from 'react';
 import * as RN from 'react-native';
-export { ActivityIndicator } from 'react-native';
+export { Switch, ActivityIndicator } from 'react-native';
 
 // Extend the TextProps with the variant
 interface TextProps extends RN.TextProps {
