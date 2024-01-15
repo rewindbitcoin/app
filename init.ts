@@ -15,9 +15,9 @@ import 'react-native-url-polyfill/auto';
 import 'fast-text-encoding';
 
 //If planning to use React Animated:
-//import { NativeModules } from 'react-native';
-//const { UIManager } = NativeModules;
-//UIManager.setLayoutAnimationEnabledExperimental?.(true);
+import { NativeModules } from 'react-native';
+const { UIManager } = NativeModules;
+UIManager.setLayoutAnimationEnabledExperimental?.(true);
 
 //import './electrumSupport'
 

@@ -1,5 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { StyleSheet, TextInput, View, Text, Platform } from 'react-native';
+
+import { LayoutAnimation } from 'react-native';
 import {
   useFonts,
   RobotoMono_400Regular
@@ -117,11 +119,12 @@ export default function Bip39({
     }
   };
 
+  const isMounted = useRef<boolean>(false);
   useEffect(() => {
-    inputRef.current?.focus();
+    if (isMounted.current) inputRef.current?.focus();
+    isMounted.current = true;
   }, [activeWordIndex]);
 
-  //Animated.View layout={Layout.springify()}
   return (
     <>
       <SegmentedControl
@@ -136,6 +139,7 @@ export default function Bip39({
             while (newWords.length < N) newWords.push('');
             onWords(newWords);
           }
+          LayoutAnimation.spring();
         }}
       />
       <View style={{ ...styles.words }}>
@@ -176,13 +180,14 @@ const getStyles = (theme: Theme, fonts: ReturnType<typeof useFonts>) => {
   return StyleSheet.create({
     segmented: {
       height: 50,
-      marginBottom: 30,
+      marginBottom: 20,
       //SegmentedControl for iOS has a bug setting backgroundColor.
       //#eeeeed will set #dfdfdf. Found by experimenting with a Color Picker tool
       //https://github.com/react-native-segmented-control/segmented-control/issues/127
       backgroundColor: Platform.select({ ios: '#eeeeed', default: '#dfdfdf' })
     },
     words: {
+      overflow: 'hidden',
       borderRadius: 5,
       backgroundColor: '#dfdfdf',
       paddingTop: 10,

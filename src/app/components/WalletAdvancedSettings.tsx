@@ -1,19 +1,110 @@
-import React from 'react';
+import React, { useState } from 'react';
 
-import { Text, Switch } from 'react-native';
+import { View, StyleSheet, Pressable, ViewStyle } from 'react-native';
+import { Switch, Text, theme, HorLineSep } from '../../common/components/ui';
+import { LayoutAnimation } from 'react-native';
+import AntDesign from '@expo/vector-icons/AntDesign';
+import { useToast } from '../../common/components/Toast';
 
-export default () => {
+export default ({ style }: { style: ViewStyle }) => {
+  const [advanced, setAdvanced] = useState<boolean>(false);
+  const toast = useToast();
   return (
-    <>
-      <Text>Enable Biometric Encryption for Mnemonic</Text>
-      <Switch />
-      <Text>Protect Mnemonic with a Password</Text>
-      <Switch />
-      <Text>Encrypt App Data from Mnemonic</Text>
-      <Switch />
-    </>
+    <View style={{ ...style, ...styles.container }}>
+      <Pressable
+        onPress={() => {
+          setAdvanced(!advanced);
+          //LayoutAnimation.spring();
+          LayoutAnimation.configureNext({
+            duration: 150,
+            update: {
+              type: LayoutAnimation.Types.linear,
+              property: LayoutAnimation.Properties.opacity
+            }
+          });
+        }}
+      >
+        <View style={[styles.header]}>
+          <Text>Advanced Options</Text>
+          <AntDesign
+            color={
+              advanced ? theme.colors.primary : theme.colors.listsSecondary
+            }
+            name={advanced ? 'close' : 'right'}
+          />
+        </View>
+      </Pressable>
+      <View style={{ overflow: 'hidden' }}>
+        {advanced && (
+          <>
+            <View style={{ ...styles.row, marginTop: 15 }}>
+              <View style={styles.textContainer}>
+                <Pressable
+                  onPress={() => {
+                    toast.show(
+                      "This option enables biometric encryption to secure your mnemonic. It uses your device's biometric features like fingerprint or (strong) face recognition. Please note, if your biometric data changes (like adding a new fingerprint), the system will invalidate the encryption key, making the mnemonic unreadable. In such cases, you'll need to re-enter the mnemonic. This measure ensures that only you can access your wallet.",
+                      {
+                        duration: 0
+                      }
+                    );
+                  }}
+                >
+                  <AntDesign name="infocirlce" style={styles.icon} />
+                </Pressable>
+                <Text>Biometric Protection</Text>
+              </View>
+              <Switch />
+            </View>
+            <HorLineSep style={styles.lineSeparator} />
+            <View style={styles.row}>
+              <View style={styles.textContainer}>
+                <AntDesign name="infocirlce" style={styles.icon} />
+                <Text>Set Password</Text>
+              </View>
+              <Switch />
+            </View>
+            <HorLineSep style={styles.lineSeparator} />
+            <View style={styles.row}>
+              <View style={styles.textContainer}>
+                <AntDesign name="infocirlce" style={styles.icon} />
+                <Text>Encrypt App Data</Text>
+              </View>
+              <Switch />
+            </View>
+          </>
+        )}
+      </View>
+    </View>
   );
 };
+
+const styles = StyleSheet.create({
+  container: {
+    backgroundColor: 'white',
+    padding: 10,
+    borderRadius: 5
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center'
+  },
+  row: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center'
+  },
+  textContainer: {
+    flexDirection: 'row',
+    alignItems: 'center'
+  },
+  icon: {
+    marginRight: 10,
+    fontSize: 16,
+    color: theme.colors.primary
+  },
+  lineSeparator: { marginLeft: 26 }
+});
 
 /*
  *

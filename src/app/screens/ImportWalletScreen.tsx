@@ -50,7 +50,7 @@ export default () => {
             {t('bip39.importWalletSubText')}
           </Text>
           <Bip39 words={words} onWords={(words: string[]) => setWords(words)} />
-          <WalletAdvancedSettings />
+          <WalletAdvancedSettings style={{ marginTop: 20 }} />
           <View style={{ marginTop: 50 }}>
             <Button onPress={navigation.goBack}>{t('cancelButton')}</Button>
           </View>

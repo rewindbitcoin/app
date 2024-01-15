@@ -1,11 +1,35 @@
 import React from 'react';
 import * as RN from 'react-native';
 export { Switch, ActivityIndicator } from 'react-native';
+import { DefaultTheme } from '@react-navigation/native';
+
+export const theme = {
+  ...DefaultTheme,
+  colors: {
+    ...DefaultTheme.colors,
+    listsSecondary: 'gray',
+    listsSeparator: '#D0D0D0'
+  }
+};
 
 // Extend the TextProps with the variant
 interface TextProps extends RN.TextProps {
   variant?: 'headlineSmall' | 'headlineLarge' | 'body' | 'caption';
 }
+
+export const HorLineSep = ({ style }: { style?: RN.ViewStyle }) => (
+  <RN.View
+    style={[
+      style,
+      {
+        height: 1,
+        width: '100%',
+        marginVertical: 10,
+        backgroundColor: theme.colors.listsSeparator
+      }
+    ]}
+  />
+);
 
 // Define styles for each variant
 const textStyles = RN.StyleSheet.create({

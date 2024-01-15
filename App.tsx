@@ -32,6 +32,8 @@ import { SERIALIZABLE } from './src/common/lib/storage';
 import { useGlobalStateStorage } from './src/common/contexts/StorageContext';
 import { SETTINGS_GLOBAL_STORAGE } from './src/app/lib/settings';
 import type { VaultSettings } from './src/app/lib/vaults';
+import { theme } from './src/common/components/ui';
+console.log({ theme });
 
 import {
   defaultSettings,
@@ -179,7 +181,7 @@ const App = () => {
 // <GestureHandlerRootView style={{ flex: 1 }}> </GestureHandlerRootView>
 export default () => (
   <SafeAreaProvider>
-    <NavigationContainer>
+    <NavigationContainer theme={theme}>
       <StorageProvider>
         <SecureStorageAvailabilityProvider>
           <ToastProvider>
