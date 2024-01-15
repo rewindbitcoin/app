@@ -1,0 +1,49 @@
+diff --git a/node_modules/react-native-toast-notifications/src/toast.tsx b/node_modules/react-native-toast-notifications/src/toast.tsx
+index bbabca6..a9cf9ce 100644
+--- a/node_modules/react-native-toast-notifications/src/toast.tsx
++++ b/node_modules/react-native-toast-notifications/src/toast.tsx
+@@ -225,9 +225,9 @@ const Toast: FC<ToastProps> = (props) => {
+         });
+       },
+       onPanResponderRelease: (_, gestureState) => {
+-        if (gestureState.dx > 50) {
++        if (gestureState.dx > 25) {
+           panReleaseToRight(gestureState);
+-        } else if (gestureState.dx < -50) {
++        } else if (gestureState.dx < -25) {
+           panReleaseToLeft(gestureState);
+         } else {
+           Animated.spring(getPanResponderAnim(), {
+@@ -236,6 +236,32 @@ const Toast: FC<ToastProps> = (props) => {
+           }).start();
+         }
+       },
++      // This fix addresses an issue specific to iOS when using Modals.
++      // If the Toast component is displayed within an iOS Modal and the user
++      // initiates a swipe gesture to dismiss the Toast, there's a potential for
++      // gesture conflicts. When a swipe right/left gesture is started within
++      // the Toast, followed by a swipe up/down gesture in the
++      // Modal, the Modal itself captures the gesture, interrupting the Toast's
++      // gesture handling.
++      // This results in the Toast's PanResponder receiving a termination
++      // request.
++      // The fix below ensures that when such a termination request occurs,
++      // the Toast smoothly returns to its original position or completes,
++      // thus maintaining a consistent and expected user experience.
++      // If not handled, the Toast remains in an indeterminate position since
++      // onPanResponderRelease is never received.
++      onPanResponderTerminate: (_, gestureState) => {
++        if (gestureState.dx > 25) {
++          panReleaseToRight(gestureState);
++        } else if (gestureState.dx < -25) {
++          panReleaseToLeft(gestureState);
++        } else {
++          Animated.spring(getPanResponderAnim(), {
++            toValue: { x: 0, y: 0 },
++            useNativeDriver: Platform.OS !== "web",
++          }).start();
++        }
++      }
+     });
+     return panResponderRef.current;
+   };

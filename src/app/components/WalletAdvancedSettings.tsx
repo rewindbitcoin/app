@@ -1,14 +1,41 @@
 import React, { useState } from 'react';
 
-import { View, StyleSheet, Pressable, ViewStyle } from 'react-native';
-import { Switch, Text, theme, HorLineSep } from '../../common/components/ui';
+import {
+  View,
+  StyleSheet,
+  Pressable,
+  ViewStyle,
+  Platform,
+  Dimensions
+} from 'react-native';
+import {
+  Switch,
+  Text,
+  Button,
+  theme,
+  HorLineSep
+} from '../../common/components/ui';
 import { LayoutAnimation } from 'react-native';
 import AntDesign from '@expo/vector-icons/AntDesign';
-import { useToast } from '../../common/components/Toast';
+//import { useToast } from '../../common/components/Toast';
+import Modal from 'react-native-modal';
+import { ScrollView } from 'react-native-gesture-handler';
+
+/*
+ *
+ *
+        {...(Platform.OS === 'android'
+          ? {
+              //https://github.com/Sunhat/react-native-extra-dimensions-android/issues/71#issuecomment-1633566862
+              deviceHeight: Dimensions.get('window').height + 50
+            }
+          : {})}
+          */
 
 export default ({ style }: { style: ViewStyle }) => {
   const [advanced, setAdvanced] = useState<boolean>(false);
-  const toast = useToast();
+  const [help, showHelp] = useState<string>();
+  //const toast = useToast();
   return (
     <View style={{ ...style, ...styles.container }}>
       <Pressable
@@ -41,12 +68,22 @@ export default ({ style }: { style: ViewStyle }) => {
               <View style={styles.textContainer}>
                 <Pressable
                   onPress={() => {
-                    toast.show(
-                      "This option enables biometric encryption to secure your mnemonic. It uses your device's biometric features like fingerprint or (strong) face recognition. Please note, if your biometric data changes (like adding a new fingerprint), the system will invalidate the encryption key, making the mnemonic unreadable. In such cases, you'll need to re-enter the mnemonic. This measure ensures that only you can access your wallet.",
-                      {
-                        duration: 0
-                      }
+                    showHelp(
+                      "This option enables biometric encryption to secure your mnemonic. It uses your device's biometric features like fingerprint or (strong) face recognition. Please note, if your biometric data changes (like adding a new fingerprint), the system will invalidate the encryption key, making the mnemonic unreadable. In such cases, you'll need to re-enter the mnemonic. This measure ensures that only you can access your wallet."
                     );
+                    //toast.show(
+                    //  "This option enables biometric encryption to secure your mnemonic. It uses your device's biometric features like fingerprint or (strong) face recognition. Please note, if your biometric data changes (like adding a new fingerprint), the system will invalidate the encryption key, making the mnemonic unreadable. In such cases, you'll need to re-enter the mnemonic. This measure ensures that only you can access your wallet.",
+                    //  {
+                    //    placement: Platform.select({
+                    //      web: 'center',
+                    //      default: 'bottom'
+                    //    }),
+                    //    data: { title: 'help' },
+                    //    swipeEnabled: false,
+                    //    type: 'help',
+                    //    duration: 0
+                    //  }
+                    //);
                   }}
                 >
                   <AntDesign name="infocirlce" style={styles.icon} />
@@ -74,6 +111,66 @@ export default ({ style }: { style: ViewStyle }) => {
           </>
         )}
       </View>
+      <Modal
+        isVisible={!!help}
+        avoidKeyboard={true}
+        animationInTiming={150}
+        animationOutTiming={150}
+        backdropTransitionInTiming={150}
+        backdropOpacity={0.3}
+        backdropTransitionOutTiming={150}
+        useNativeDriver={
+          Platform.select({ web: false, default: true })
+          // Either native driver or swipe
+          //https://github.com/react-native-modal/react-native-modal/issues/692
+          // swipeDirection="down"
+          // onSwipeComplete={() => showHelp(undefined)}
+        }
+        onBackdropPress={() => showHelp(undefined)}
+        useNativeDriverForBackdrop={Platform.select({
+          web: false,
+          default: true
+        })}
+        animationIn={Platform.select({ web: 'fadeIn', default: 'slideInUp' })}
+        animationOut={Platform.select({
+          web: 'fadeOut',
+          default: 'slideOutDown'
+        })}
+        style={{
+          ...(Platform.OS !== 'web' ? { justifyContent: 'flex-end' } : {}),
+          margin: 0,
+          backgroundColor: 'red'
+        }}
+      >
+        <View
+          style={{
+            maxHeight: 200,
+            padding: 20,
+            //flex: 0.5, //50% height
+            borderRadius: 5,
+            margin: 30,
+            maxWidth: 400,
+            alignSelf: 'center',
+            backgroundColor: 'white',
+            justifyContent: 'space-around',
+            alignItems: 'center',
+
+            // Shadow for iOs and Web:
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.25,
+            shadowRadius: 3.84,
+
+            // Elevation for Android
+            elevation: 5
+          }}
+        >
+          <ScrollView>
+            <Text>{help}</Text>
+          </ScrollView>
+          <Button onPress={() => showHelp(undefined)}>Close</Button>
+        </View>
+      </Modal>
     </View>
   );
 };

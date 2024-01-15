@@ -4,6 +4,7 @@
 import './init';
 import React, { useEffect, useState } from 'react';
 import { SecureStorageAvailabilityProvider } from './src/common/contexts/SecureStorageAvailabilityContext';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import {
   createRootStack,
@@ -184,14 +185,16 @@ const App = () => {
 // <GestureHandlerRootView style={{ flex: 1 }}> </GestureHandlerRootView>
 export default () => (
   <SafeAreaProvider>
-    <NavigationContainer theme={theme}>
-      <StorageProvider>
-        <SecureStorageAvailabilityProvider>
-          <ToastProvider>
-            <App />
-          </ToastProvider>
-        </SecureStorageAvailabilityProvider>
-      </StorageProvider>
-    </NavigationContainer>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <NavigationContainer theme={theme}>
+        <StorageProvider>
+          <SecureStorageAvailabilityProvider>
+            <ToastProvider>
+              <App />
+            </ToastProvider>
+          </SecureStorageAvailabilityProvider>
+        </StorageProvider>
+      </NavigationContainer>
+    </GestureHandlerRootView>
   </SafeAreaProvider>
 );
