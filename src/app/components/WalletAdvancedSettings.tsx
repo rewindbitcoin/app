@@ -13,7 +13,9 @@ import AntDesign from '@expo/vector-icons/AntDesign';
 
 export default ({ style }: { style: ViewStyle }) => {
   const [advanced, setAdvanced] = useState<boolean>(false);
-  const [help, showHelp] = useState<string>();
+  const [biometricalHelp, showBiometricalHelp] = useState<boolean>(false);
+  const [passwordHelp, showPasswordHelp] = useState<boolean>(false);
+  const [dataEncryptionHelp, showDataEncryptionHelp] = useState<boolean>(false);
   return (
     <View style={{ ...style, ...styles.container }}>
       <Pressable
@@ -46,9 +48,7 @@ export default ({ style }: { style: ViewStyle }) => {
               <View style={styles.textContainer}>
                 <Pressable
                   onPress={() => {
-                    showHelp(
-                      "This option enables biometric encryption to secure your mnemonic. It uses your device's biometric features like fingerprint or (strong) face recognition. Please note, if your biometric data changes (like adding a new fingerprint), the system will invalidate the encryption key, making the mnemonic unreadable. In such cases, you'll need to re-enter the mnemonic. This measure ensures that only you can access your wallet."
-                    );
+                    showBiometricalHelp(true);
                   }}
                 >
                   <AntDesign name="infocirlce" style={styles.icon} />
@@ -60,7 +60,13 @@ export default ({ style }: { style: ViewStyle }) => {
             <HorLineSep style={styles.lineSeparator} />
             <View style={styles.row}>
               <View style={styles.textContainer}>
-                <AntDesign name="infocirlce" style={styles.icon} />
+                <Pressable
+                  onPress={() => {
+                    showPasswordHelp(true);
+                  }}
+                >
+                  <AntDesign name="infocirlce" style={styles.icon} />
+                </Pressable>
                 <Text>Set Password</Text>
               </View>
               <Switch />
@@ -68,7 +74,13 @@ export default ({ style }: { style: ViewStyle }) => {
             <HorLineSep style={styles.lineSeparator} />
             <View style={styles.row}>
               <View style={styles.textContainer}>
-                <AntDesign name="infocirlce" style={styles.icon} />
+                <Pressable
+                  onPress={() => {
+                    showDataEncryptionHelp(true);
+                  }}
+                >
+                  <AntDesign name="infocirlce" style={styles.icon} />
+                </Pressable>
                 <Text>Encrypt App Data</Text>
               </View>
               <Switch />
@@ -87,11 +99,64 @@ export default ({ style }: { style: ViewStyle }) => {
         )}
       </View>
       <Modal
-        title={'Hola Grab'}
-        isVisible={!!help}
-        onClose={() => showHelp(undefined)}
+        title={'Biometric Encryption'}
+        icon={{ family: 'Ionicons', name: 'finger-print' }}
+        isVisible={biometricalHelp}
+        onClose={() => showBiometricalHelp(false)}
+        closeButtonText="Understood"
       >
-        <Text>{help}</Text>
+        <Text>
+          This option enables biometric encryption to secure your mnemonic. It
+          uses your device's biometric features like fingerprint or (strong)
+          face recognition. Please note, if your biometric data changes (like
+          adding a new fingerprint), the system will invalidate the encryption
+          key, making the mnemonic unreadable. In such cases, you'll need to
+          re-enter the mnemonic. This measure ensures that only you can access
+          your wallet.
+        </Text>
+      </Modal>
+      <Modal
+        title={'Password Protection'}
+        icon={{
+          family: 'MaterialCommunityIcons',
+          name: 'form-textbox-password'
+        }}
+        isVisible={passwordHelp}
+        onClose={() => showPasswordHelp(false)}
+        closeButtonText="Understood"
+      >
+        <Text>
+          With this feature, you can add a password to your mnemonic. Every time
+          you access this wallet, you'll need to enter this password. This
+          feature uses the XChaCha20-Poly1305 cipher, known for its robust
+          protection. This extra step is particularly useful if you're not using
+          biometric encryption, or if you want an additional security layer. If
+          you're already using biometric encryption, this additional step might
+          not be necessary.
+        </Text>
+      </Modal>
+      <Modal
+        title={'Encrypt App Data'}
+        icon={{
+          family: 'FontAwesome5',
+          name: 'database'
+        }}
+        isVisible={dataEncryptionHelp}
+        onClose={() => showDataEncryptionHelp(false)}
+        closeButtonText="Understood"
+      >
+        <Text>
+          This option secures your non-mnemonic app data, like vaults and UTXOs,
+          using the XChaCha20-Poly1305 encryption algorithm with a special key.
+          This key is created in a secure and deterministic way from your
+          mnemonic. While leaking this app data won't compromise your funds, it
+          could potentially expose your transaction patterns and addresses,
+          affecting your anonymity. Bad actors could initiate operations like
+          unvaulting or sending funds to a panic address. Encrypting this data
+          ensures that even if it is accessed by unauthorized parties, they
+          cannot read or misuse it. It's a recommended step for protecting your
+          transactional privacy and preventing unwanted operations.
+        </Text>
       </Modal>
     </View>
   );
@@ -124,16 +189,3 @@ const styles = StyleSheet.create({
   },
   lineSeparator: { marginLeft: 26 }
 });
-
-/*
- *
- * This option enables biometric encryption to secure your mnemonic. It uses your device's biometric features like fingerprint or (strong) face recognition. Please note, if your biometric data changes (like adding a new fingerprint), the system will invalidate
-the encryption key, making the mnemonic unreadable. In such cases, you'll need to re-enter the mnemonic. This measure ensures that only you can access your wallet.
- */
-/*
- * With this feature, you can add a password to your mnemonic. Every time you access this wallet, you'll need to enter this password. This feature uses the XChaCha20-Poly1305 cipher, known for its robust protection. This extra step is particularly useful if you're not using biometric encryption, or if you want an additional security layer. If you're already using biometric encryption, this additional step might not be necessary.
- */
-/*
- * This option secures your non-mnemonic app data, like vaults and UTXOs, using the XChaCha20-Poly1305 encryption algorithm with a special key. This key is created in a secure and deterministic way from your mnemonic. While leaking this app data won't compromise your funds, it could potentially expose your transaction patterns and addresses, affecting your anonymity. Bad actors could initiate operations like unvaulting or sending funds to a panic address. Encrypting this data ensures that even if it is accessed by unauthorized parties, they cannot read or misuse it.
- * It's a recommended step for protecting your transactional privacy and preventing unwanted operations.
- */

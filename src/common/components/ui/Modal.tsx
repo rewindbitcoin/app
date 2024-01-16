@@ -1,11 +1,16 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { View, Platform } from 'react-native';
 import RNModal from 'react-native-modal';
 import { Button } from './Button';
+import { theme } from './theme';
 import { Text } from './Text';
+import * as Icons from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
+
 import {
   GestureHandlerRootView,
   PanGestureHandler,
+  //Important to use this one or android won't be able to Scroll content:
   ScrollView
 } from 'react-native-gesture-handler';
 import Animated, {
@@ -21,19 +26,33 @@ import { getRealWindowHeight } from 'react-native-extra-dimensions-android';
 interface ModalProps {
   title: string;
   isVisible: boolean;
-  onClose: () => void;
+  icon?: { family: string; name: string };
+  closeButtonText?: string;
+  onClose?: () => void;
   children: React.ReactNode;
 }
 
+const DELTA = 100;
+const ANIMATION_TIME = 300;
+const OPACITY = 0.3;
+
 const Modal: React.FC<ModalProps> = ({
   isVisible,
+  icon,
+  closeButtonText,
   onClose,
   title,
   children
 }) => {
   const translateY = useSharedValue(0);
+  const [buttonHeight, setButtonHeight] = useState<number>(0);
 
   const onCloseTriggered = useRef<boolean>(false);
+
+  const Icon =
+    icon && icon.family && Icons[icon.family as keyof typeof Icons]
+      ? Icons[icon.family as keyof typeof Icons]
+      : null;
 
   const gestureHandler = useAnimatedGestureHandler({
     onStart: (_, ctx: { startY: number }) => {
@@ -45,21 +64,15 @@ const Modal: React.FC<ModalProps> = ({
       else translateY.value = 0;
     },
     onEnd: _ => {
-      if (translateY.value > 100 && onClose) {
+      if (translateY.value > DELTA && onClose) {
         runOnJS(onClose)();
+        //translateY.value = withSpring(-200, { duration: ANIMATION_TIME });
       } else {
-        translateY.value = withSpring(0, {
-          //damping: 30, // Higher for less bounce
-          //stiffness: 300 // Higher for faster animation
-        });
+        translateY.value = withSpring(0);
       }
     },
     onCancel: _ => {
-      if (!onCloseTriggered.current)
-        translateY.value = withSpring(0, {
-          //damping: 30, // Higher for less bounce
-          //stiffness: 300 // Higher for faster animation
-        });
+      if (!onCloseTriggered.current) translateY.value = withSpring(0);
     }
   });
 
@@ -74,16 +87,23 @@ const Modal: React.FC<ModalProps> = ({
   });
   const handleClose = () => {
     onCloseTriggered.current = true;
-    onClose();
-    //window.setTimeout(() => {
-    //  translateY.value = 0;
-    //}, 300);
+    if (onClose) onClose();
   };
+  const isMountedRef = useRef<boolean>(false);
   useEffect(() => {
+    isMountedRef.current = true;
     if (isVisible) {
       onCloseTriggered.current = false;
       translateY.value = 0;
+    } else {
+      window.setTimeout(() => {
+        //Make sure it's set to zero.
+        if (isMountedRef.current && !isVisible) translateY.value = 0;
+      }, 1.5 * ANIMATION_TIME);
     }
+    return () => {
+      isMountedRef.current = false;
+    };
   }, [isVisible]);
   return (
     <RNModal
@@ -93,11 +113,11 @@ const Modal: React.FC<ModalProps> = ({
       statusBarTranslucent
       isVisible={isVisible}
       avoidKeyboard={true}
-      animationInTiming={150}
-      animationOutTiming={150}
-      backdropTransitionInTiming={150}
-      backdropOpacity={0.3}
-      backdropTransitionOutTiming={150}
+      animationInTiming={ANIMATION_TIME}
+      animationOutTiming={ANIMATION_TIME}
+      backdropTransitionInTiming={ANIMATION_TIME}
+      backdropTransitionOutTiming={ANIMATION_TIME}
+      backdropOpacity={OPACITY}
       hideModalContentWhileAnimating
       useNativeDriver={
         Platform.select({ web: false, default: true })
@@ -130,14 +150,15 @@ const Modal: React.FC<ModalProps> = ({
           <Animated.View style={animatedStyle}>
             <View
               style={{
-                maxHeight: 200,
-                padding: 20,
+                height: 400,
                 //flex: 0.5, //50% height
-                borderRadius: 5,
-                margin: 30,
-                maxWidth: 400,
+                borderRadius: 10,
+                overflow: 'hidden',
+                marginBottom: 20,
+                maxWidth: 600,
+                width: '90%',
                 alignSelf: 'center',
-                backgroundColor: 'white',
+                backgroundColor: theme.colors.white,
                 justifyContent: 'space-around',
                 alignItems: 'center',
 
@@ -151,9 +172,92 @@ const Modal: React.FC<ModalProps> = ({
                 elevation: 5
               }}
             >
-              <Text>{title}</Text>
-              <ScrollView>{children}</ScrollView>
-              <Button onPress={handleClose}>Close</Button>
+              <View
+                style={{
+                  alignSelf: 'stretch',
+                  height: 150,
+                  backgroundColor: theme.colors.primary
+                }}
+              >
+                {Icon && icon ? (
+                  <Icon
+                    style={{
+                      color: theme.colors.white,
+                      opacity: 0.1,
+                      fontSize: 120,
+                      paddingLeft: 30,
+                      paddingTop: 15
+                    }}
+                    name={icon.name}
+                  />
+                ) : null}
+                <Text
+                  style={{
+                    color: theme.colors.white,
+                    opacity: 0.9,
+                    position: 'absolute',
+                    top: '60%',
+                    left: 30,
+                    fontSize: 22,
+                    fontWeight: 'bold'
+                  }}
+                >
+                  {title}
+                </Text>
+                {
+                  //A bar as a hint to the user this is draggable
+                  //Don't show on web
+                  Platform.select({
+                    web: null,
+                    default: (
+                      <View
+                        style={{
+                          alignSelf: 'center',
+                          opacity: 0.3,
+                          position: 'absolute',
+                          borderWidth: 2,
+                          borderColor: theme.colors.white,
+                          borderRadius: 2,
+                          top: 10,
+                          width: 80
+                        }}
+                      />
+                    )
+                  })
+                }
+              </View>
+
+              <ScrollView
+                contentContainerStyle={{
+                  flexGrow: 1,
+                  paddingHorizontal: 20,
+                  justifyContent: 'center'
+                }}
+              >
+                {children}
+              </ScrollView>
+              <LinearGradient
+                colors={['rgba(255, 255, 255, 0)', 'rgba(255, 255, 255, 1)']}
+                style={{
+                  position: 'absolute',
+                  left: 0,
+                  right: 0,
+                  bottom: buttonHeight,
+                  height: 30
+                }}
+              />
+              {onClose ? (
+                <View
+                  style={{ paddingVertical: 20 }}
+                  onLayout={event => {
+                    setButtonHeight(event.nativeEvent.layout.height);
+                  }}
+                >
+                  <Button onPress={handleClose}>
+                    {closeButtonText || 'Understood'}
+                  </Button>
+                </View>
+              ) : null}
             </View>
           </Animated.View>
         </PanGestureHandler>
