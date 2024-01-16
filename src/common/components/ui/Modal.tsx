@@ -37,27 +37,28 @@ const Modal: React.FC<ModalProps> = ({
 
   const gestureHandler = useAnimatedGestureHandler({
     onStart: (_, ctx: { startY: number }) => {
-      console.log('onStart');
       ctx.startY = translateY.value;
     },
     onActive: (event, ctx) => {
-      translateY.value = ctx.startY + event.translationY;
-      if (translateY.value > 50 && onClose) {
-        runOnJS(onClose)();
-      }
+      const translation = ctx.startY + event.translationY;
+      if (translation >= 0) translateY.value = translation;
+      else translateY.value = 0;
     },
     onEnd: _ => {
-      if (!onCloseTriggered.current)
+      if (translateY.value > 100 && onClose) {
+        runOnJS(onClose)();
+      } else {
         translateY.value = withSpring(0, {
-          damping: 30, // Higher for less bounce
-          stiffness: 500 // Higher for faster animation
+          //damping: 30, // Higher for less bounce
+          //stiffness: 300 // Higher for faster animation
         });
+      }
     },
     onCancel: _ => {
       if (!onCloseTriggered.current)
         translateY.value = withSpring(0, {
-          damping: 30, // Higher for less bounce
-          stiffness: 500 // Higher for faster animation
+          //damping: 30, // Higher for less bounce
+          //stiffness: 300 // Higher for faster animation
         });
     }
   });
@@ -74,15 +75,14 @@ const Modal: React.FC<ModalProps> = ({
   const handleClose = () => {
     onCloseTriggered.current = true;
     onClose();
-    window.setTimeout(() => {
-      translateY.value = 0;
-    }, 300);
+    //window.setTimeout(() => {
+    //  translateY.value = 0;
+    //}, 300);
   };
   useEffect(() => {
     if (isVisible) {
       onCloseTriggered.current = false;
       translateY.value = 0;
-      console.log('setting translate to 0');
     }
   }, [isVisible]);
   return (
