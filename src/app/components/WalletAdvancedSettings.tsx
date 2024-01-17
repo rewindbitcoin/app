@@ -8,10 +8,12 @@ import {
   theme,
   HorLineSep
 } from '../../common/components/ui';
+import { useTranslation } from 'react-i18next';
 import { LayoutAnimation } from 'react-native';
 import AntDesign from '@expo/vector-icons/AntDesign';
 
 export default ({ style }: { style: ViewStyle }) => {
+  const { t } = useTranslation();
   const [advanced, setAdvanced] = useState<boolean>(false);
   const [biometricalHelp, showBiometricalHelp] = useState<boolean>(false);
   const [passwordHelp, showPasswordHelp] = useState<boolean>(false);
@@ -105,15 +107,7 @@ export default ({ style }: { style: ViewStyle }) => {
         onClose={() => showBiometricalHelp(false)}
         closeButtonText="Understood"
       >
-        <Text>
-          This option enables biometric encryption to secure your mnemonic. It
-          uses your device's biometric features like fingerprint or (strong)
-          face recognition. Please note, if your biometric data changes (like
-          adding a new fingerprint), the system will invalidate the encryption
-          key, making the mnemonic unreadable. In such cases, you'll need to
-          re-enter the mnemonic. This measure ensures that only you can access
-          your wallet.
-        </Text>
+        <Text>{t('help.biometric')}</Text>
       </Modal>
       <Modal
         title={'Password Protection'}
