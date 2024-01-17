@@ -6,6 +6,7 @@ import { theme } from './theme';
 import { Text } from './Text';
 import * as Icons from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { rgba } from 'polished';
 
 import {
   GestureHandlerRootView,
@@ -54,26 +55,29 @@ const Modal: React.FC<ModalProps> = ({
       ? Icons[icon.family as keyof typeof Icons]
       : null;
 
-  const gestureHandler = useAnimatedGestureHandler({
-    onStart: (_, ctx: { startY: number }) => {
-      ctx.startY = translateY.value;
-    },
-    onActive: (event, ctx) => {
-      const translation = ctx.startY + event.translationY;
-      if (translation >= 0) translateY.value = translation;
-      else translateY.value = 0;
-    },
-    onEnd: _ => {
-      if (translateY.value > DELTA && onClose) {
-        runOnJS(onClose)();
-        //translateY.value = withSpring(-200, { duration: ANIMATION_TIME });
-      } else {
-        translateY.value = withSpring(0);
+  const gestureHandler = Platform.select({
+    web: () => {}, //nop
+    default: useAnimatedGestureHandler({
+      onStart: (_, ctx: { startY: number }) => {
+        ctx.startY = translateY.value;
+      },
+      onActive: (event, ctx) => {
+        const translation = ctx.startY + event.translationY;
+        if (translation >= 0) translateY.value = translation;
+        else translateY.value = translation / 3;
+      },
+      onEnd: _ => {
+        if (translateY.value > DELTA && onClose) {
+          runOnJS(onClose)();
+          //translateY.value = withSpring(-200, { duration: ANIMATION_TIME });
+        } else {
+          translateY.value = withSpring(0);
+        }
+      },
+      onCancel: _ => {
+        if (!onCloseTriggered.current) translateY.value = withSpring(0);
       }
-    },
-    onCancel: _ => {
-      if (!onCloseTriggered.current) translateY.value = withSpring(0);
-    }
+    })
   });
 
   const animatedStyle = useAnimatedStyle(() => {
@@ -105,6 +109,7 @@ const Modal: React.FC<ModalProps> = ({
       isMountedRef.current = false;
     };
   }, [isVisible]);
+
   return (
     <RNModal
       {...(Platform.OS === 'android'
@@ -230,14 +235,14 @@ const Modal: React.FC<ModalProps> = ({
               <ScrollView
                 contentContainerStyle={{
                   flexGrow: 1,
-                  paddingHorizontal: 20,
+                  padding: 20,
                   justifyContent: 'center'
                 }}
               >
                 {children}
               </ScrollView>
               <LinearGradient
-                colors={['rgba(255, 255, 255, 0)', 'rgba(255, 255, 255, 1)']}
+                colors={[rgba(theme.colors.white, 0), theme.colors.white]}
                 style={{
                   position: 'absolute',
                   left: 0,
