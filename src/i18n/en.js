@@ -1,74 +1,93 @@
-{
-  "app": {
-    "networkError": "Oops! There was a network issue: {{message}}. Please check your connection and try again.",
-    "importWalletTitle": "Wallet Recovery",
-    "thunderDenTitle": "Thunder Den",
-    "settingsButton": "Settings",
-    "settingsTitle": "Settings",
-    "btcRatesError": "Unable to retrieve current BTC rates. The displayed amounts in {{currency}} may not be accurate.",
-    "feeEstimatesError": "Unable to retrieve accurate fee estimates. Displayed transaction target times and fee amounts may be incorrect.",
-    "secureStorageAuthenticationPrompt": "Please authenticate to access your wallet's sensitive data."
+//Treat this as a golrified json with comments & multi-line using string literals
+export default {
+  app: {
+    networkError:
+      'Oops! There was a network issue: {{message}}. Please check your connection and try again.',
+    importWalletTitle: 'Wallet Recovery',
+    thunderDenTitle: 'Thunder Den',
+    settingsButton: 'Settings',
+    settingsTitle: 'Settings',
+    btcRatesError:
+      'Unable to retrieve current BTC rates. The displayed amounts in {{currency}} may not be accurate.',
+    feeEstimatesError:
+      'Unable to retrieve accurate fee estimates. Displayed transaction target times and fee amounts may be incorrect.',
+    secureStorageAuthenticationPrompt:
+      "Please authenticate to access your wallet's sensitive data."
   },
-  "wallets": {
-    "importWalletButton": "Import Wallet"
+  wallets: {
+    importWalletButton: 'Import Wallet'
   },
-  "vaultSetup": {
-    "title": "Vault Set Up",
-    "notEnoughFundsTitle": "Vault Minimum Requirement",
-    "notEnoughFunds": "<group>To ensure you can unvault at least {{minRecoverableRatioPercentage}}% of your Bitcoin in the future, ThunderDen establishes a minimum vaulting amount.\nThis assumes express transaction confirmations and the possibility of ultra-high network fees when unvaulting.</group><group><strong>Suggested Addition:</strong> Add about {{missingFunds}} to reach the vaulting minimum.\nNote that the exact vaultable amount might slightly differ due to changes in network fee conditions.</group>",
-    "amountLabel": "Vault Amount",
-    "securityLockTimeLabel": "Safety Delay (Theft Protection)",
-    "securityLockTimeDescription": "Accessible {{blocks}} after Unvaulting",
-    "confirmationSpeedLabel": "Vault Creation Speed",
-    "lockTimeError": "Pick a valid Lock Time.",
-    "feeRateError": "Pick a valid Fee Rate.",
-    "amountError": "Pick a valid amount of Btc.",
-    "invalidValues": "Invalid Values.",
-    "reduceVaultAmount": "Faster vault creation fees reduce maximum to {{amount}}"
+  help: {
+    biometric: `This option enables biometric encryption to secure your\
+ mnemonic. It uses your device's biometric features like fingerprint or\
+ (strong) face recognition.
+
+Please note, if your biometric data changes (like\
+ adding a new fingerprint), the system will invalidate the encryption\
+ key, making the mnemonic unreadable. In such cases, you'll need to\
+ re-enter the mnemonic. This measure ensures that only you can access\
+ your wallet.`
   },
-  "editableSlider": {
-    "maxValueError": "Maximum is {{maximumValue}}",
-    "minValueError": "Minimum is {{maximumValue}}",
-    "invalidValue": "Invalid Value"
+  vaultSetup: {
+    title: 'Vault Set Up',
+    notEnoughFundsTitle: 'Vault Minimum Requirement',
+    notEnoughFunds:
+      '<group>To ensure you can unvault at least {{minRecoverableRatioPercentage}}% of your Bitcoin in the future, ThunderDen establishes a minimum vaulting amount.\nThis assumes express transaction confirmations and the possibility of ultra-high network fees when unvaulting.</group><group><strong>Suggested Addition:</strong> Add about {{missingFunds}} to reach the vaulting minimum.\nNote that the exact vaultable amount might slightly differ due to changes in network fee conditions.</group>',
+    amountLabel: 'Vault Amount',
+    securityLockTimeLabel: 'Safety Delay (Theft Protection)',
+    securityLockTimeDescription: 'Accessible {{blocks}} after Unvaulting',
+    confirmationSpeedLabel: 'Vault Creation Speed',
+    lockTimeError: 'Pick a valid Lock Time.',
+    feeRateError: 'Pick a valid Fee Rate.',
+    amountError: 'Pick a valid amount of Btc.',
+    invalidValues: 'Invalid Values.',
+    reduceVaultAmount: 'Faster vault creation fees reduce maximum to {{amount}}'
   },
-  "timeEstimate": {
-    "minutes_one": "{{formattedCount}} min",
-    "minutes_other": "{{formattedCount}} mins",
-    "hours_one": "{{formattedCount}} hour",
-    "hours_other": "{{formattedCount}} hours",
-    "days_one": "{{formattedCount}} day",
-    "days_other": "{{formattedCount}} days"
+  editableSlider: {
+    maxValueError: 'Maximum is {{maximumValue}}',
+    minValueError: 'Minimum is {{maximumValue}}',
+    invalidValue: 'Invalid Value'
   },
-  "btcFormat": {
-    "btc": "{{value}} BTC",
-    "sats_one": "{{value}} sat",
-    "sats_other": "{{value}} sats",
-    "mbtc": "{{value}} mBTC",
-    "bits_one": "{{value}} bit",
-    "bits_other": "{{value}} bits"
+  timeEstimate: {
+    minutes_one: '{{formattedCount}} min',
+    minutes_other: '{{formattedCount}} mins',
+    hours_one: '{{formattedCount}} hour',
+    hours_other: '{{formattedCount}} hours',
+    days_one: '{{formattedCount}} day',
+    days_other: '{{formattedCount}} days'
   },
-  "feeRate": {
-    "waitingForRates": "Waiting for BTC/{{currency}} rates...",
-    "waitingForEstimates": "Waiting for fee estimates...",
-    "fee": "Fee: {{amount}}",
-    "confirmationTime": "Confirms in ~{{blocks}}",
-    "mayNotConfirm": "May Never Confirm",
-    "expressConfirmation": "Express Confirmation"
+  btcFormat: {
+    btc: '{{value}} BTC',
+    sats_one: '{{value}} sat',
+    sats_other: '{{value}} sats',
+    mbtc: '{{value}} mBTC',
+    bits_one: '{{value}} bit',
+    bits_other: '{{value}} bits'
   },
-  "bip39": {
-    "importWalletText": "Restore Access to Your Wallet",
-    "importWalletSubText": "Recover your wallet by entering the series of words you received during initial setup.",
-    "segmented12": "12 Words",
-    "segmented24": "24 Words",
-    "selectWordsLength": "Number of words:",
-    "enterMnemonicText": "Word #{{wordNumber}}:",
-    "importWalletButton": "Import Wallet",
-    "invalidErrorMessage": "The word sequence you entered is not valid. Please double-check your words for any errors."
+  feeRate: {
+    waitingForRates: 'Waiting for BTC/{{currency}} rates...',
+    waitingForEstimates: 'Waiting for fee estimates...',
+    fee: 'Fee: {{amount}}',
+    confirmationTime: 'Confirms in ~{{blocks}}',
+    mayNotConfirm: 'May Never Confirm',
+    expressConfirmation: 'Express Confirmation'
   },
-  "continueButton": "Continue",
-  "okButton": "OK",
-  "saveButton": "Save",
-  "cancelButton": "Cancel",
-  "closeButton": "Close",
-  "factoryResetButton": "Factory Reset"
-}
+  bip39: {
+    importWalletText: 'Restore Access to Your Wallet',
+    importWalletSubText:
+      'Recover your wallet by entering the series of words you received during initial setup.',
+    segmented12: '12 Words',
+    segmented24: '24 Words',
+    selectWordsLength: 'Number of words:',
+    enterMnemonicText: 'Word #{{wordNumber}}:',
+    importWalletButton: 'Import Wallet',
+    invalidErrorMessage:
+      'The word sequence you entered is not valid. Please double-check your words for any errors.'
+  },
+  continueButton: 'Continue',
+  okButton: 'OK',
+  saveButton: 'Save',
+  cancelButton: 'Cancel',
+  closeButton: 'Close',
+  factoryResetButton: 'Factory Reset'
+};

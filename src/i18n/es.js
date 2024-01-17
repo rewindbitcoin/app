@@ -1,14 +1,17 @@
-{
-  "vaultSetup": {
-    "notEnoughFunds": "Fondos insuficientes, ThunderDen requiere encapsular al menos {{largestMinVaultAmount}} sats (después de comisiones) para poder recuperar al menos el {{minRecoverableRatioPercentage}}% del valor encapsulado en caso de un escenario futuro de comisiones extremadamente altas. Actualmente tienes {{utxosDataBalance}} sats. Sin embargo, solo puedes encapsular un máximo de {{lowestMaxVaultAmount}} sats (después de comisiones), asumiendo que eliges tiempos de confirmación express. Por favor, añade {{missingFunds}} sats adicionales.",
-    "amountLabel": "Cantidad:",
-    "securityLockTimeLabel": "Tiempo de Bloqueo de Seguridad (bloques):",
-    "securityLockTimeDescription": "Disponible {{blocks}} después de Desbloquear",
-    "confirmationSpeedLabel": "Tiempo de Confirmación:",
-    "okButton": "Aceptar",
-    "saveButton": "Guardar",
-    "cancelButton": "Cancelar",
-    "invalidValuesTitle": "Valores Inválidos",
-    "invalidValuesMessage": "Se han proporcionado valores inválidos. Por favor, corrige los siguientes errores:\n\n{{errorMessages}}"
+//Treat this as a golrified json with comments & multi-line using string literals
+export default {
+  vaultSetup: {
+    notEnoughFunds:
+      'Fondos insuficientes, ThunderDen requiere encapsular al menos {{largestMinVaultAmount}} sats (después de comisiones) para poder recuperar al menos el {{minRecoverableRatioPercentage}}% del valor encapsulado en caso de un escenario futuro de comisiones extremadamente altas. Actualmente tienes {{utxosDataBalance}} sats. Sin embargo, solo puedes encapsular un máximo de {{lowestMaxVaultAmount}} sats (después de comisiones), asumiendo que eliges tiempos de confirmación express. Por favor, añade {{missingFunds}} sats adicionales.',
+    amountLabel: 'Cantidad:',
+    securityLockTimeLabel: 'Tiempo de Bloqueo de Seguridad (bloques):',
+    securityLockTimeDescription: 'Disponible {{blocks}} después de Desbloquear',
+    confirmationSpeedLabel: 'Tiempo de Confirmación:',
+    okButton: 'Aceptar',
+    saveButton: 'Guardar',
+    cancelButton: 'Cancelar',
+    invalidValuesTitle: 'Valores Inválidos',
+    invalidValuesMessage:
+      'Se han proporcionado valores inválidos. Por favor, corrige los siguientes errores:\n\n{{errorMessages}}'
   }
-}
+};
