@@ -17,6 +17,13 @@ export default {
   wallets: {
     importWalletButton: 'Import Wallet'
   },
+  wallet: {
+    requestPasswordTitle: 'Create a new Password',
+    requestPasswordText: `Please set a new password (8-32 characters).
+
+If you ever lose or forget your password, you can still recover your wallet\
+ using your mnemonic phrase.`
+  },
   help: {
     biometric: `This option enables biometric encryption to secure your\
  mnemonic. It uses your device's biometric features like fingerprint or\
@@ -86,6 +93,7 @@ Please note, if your biometric data changes (like\
   },
   continueButton: 'Continue',
   okButton: 'OK',
+  confirmButton: 'Confirm',
   saveButton: 'Save',
   cancelButton: 'Cancel',
   closeButton: 'Close',

@@ -1,6 +1,6 @@
 import React from 'react';
 import * as RN from 'react-native';
-export { Switch, ActivityIndicator } from 'react-native';
+export { Switch, ActivityIndicator, TextInput } from 'react-native';
 import { theme } from './ui/theme';
 export { theme };
 export { Button } from './ui/Button';

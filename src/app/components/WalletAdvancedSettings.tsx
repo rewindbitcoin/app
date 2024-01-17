@@ -8,12 +8,15 @@ import {
   theme,
   HorLineSep
 } from '../../common/components/ui';
+import Password from './Password';
 import { useTranslation } from 'react-i18next';
 import { LayoutAnimation } from 'react-native';
 import AntDesign from '@expo/vector-icons/AntDesign';
 
 export default ({ style }: { style: ViewStyle }) => {
   const { t } = useTranslation();
+  const [passwordRequest, setPasswordRequest] = useState<boolean>(false);
+  const [password, setPassword] = useState<string>();
   const [advanced, setAdvanced] = useState<boolean>(false);
   const [biometricalHelp, showBiometricalHelp] = useState<boolean>(false);
   const [passwordHelp, showPasswordHelp] = useState<boolean>(false);
@@ -69,9 +72,27 @@ export default ({ style }: { style: ViewStyle }) => {
                 >
                   <AntDesign name="infocirlce" style={styles.icon} />
                 </Pressable>
-                <Text>Set Password</Text>
+                <Text>Use Password</Text>
               </View>
-              <Switch />
+              <Switch
+                value={password !== undefined}
+                onValueChange={value => {
+                  value ? setPasswordRequest(value) : setPassword(undefined);
+                }}
+              />
+              <Modal
+                title={t('wallet.requestPasswordTitle')}
+                closeButtonText={t('cancelButton')}
+                icon={{ family: 'AntDesign', name: 'form' }}
+                isVisible={passwordRequest}
+                onClose={() => setPasswordRequest(false)}
+              >
+                <Password
+                  onPassword={password => {
+                    password !== undefined && setPassword(password);
+                  }}
+                />
+              </Modal>
             </View>
             <HorLineSep style={styles.lineSeparator} />
             <View style={styles.row}>

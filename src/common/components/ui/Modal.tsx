@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Platform } from 'react-native';
+import { View, Platform, KeyboardAvoidingView } from 'react-native';
 import RNModal from 'react-native-modal';
 import { Button } from './Button';
 import { theme } from './theme';
@@ -117,7 +117,6 @@ const Modal: React.FC<ModalProps> = ({
         : {})}
       statusBarTranslucent
       isVisible={isVisible}
-      avoidKeyboard={true}
       animationInTiming={ANIMATION_TIME}
       animationOutTiming={ANIMATION_TIME}
       backdropTransitionInTiming={ANIMATION_TIME}
@@ -150,123 +149,125 @@ const Modal: React.FC<ModalProps> = ({
         //backgroundColor: 'red'
       }}
     >
-      <GestureHandlerRootView>
-        <PanGestureHandler onGestureEvent={gestureHandler}>
-          <Animated.View style={animatedStyle}>
-            <View
-              style={{
-                height: 400,
-                //flex: 0.5, //50% height
-                borderRadius: 10,
-                overflow: 'hidden',
-                marginBottom: 20,
-                maxWidth: 600,
-                width: '90%',
-                alignSelf: 'center',
-                backgroundColor: theme.colors.white,
-                justifyContent: 'space-around',
-                alignItems: 'center',
-
-                // Shadow for iOs and Web:
-                shadowColor: '#000',
-                shadowOffset: { width: 0, height: 2 },
-                shadowOpacity: 0.25,
-                shadowRadius: 3.84,
-
-                // Elevation for Android
-                elevation: 5
-              }}
-            >
+      <KeyboardAvoidingView behavior="padding">
+        <GestureHandlerRootView>
+          <PanGestureHandler onGestureEvent={gestureHandler}>
+            <Animated.View style={animatedStyle}>
               <View
                 style={{
-                  alignSelf: 'stretch',
-                  height: 150,
-                  backgroundColor: theme.colors.primary
+                  height: 450,
+                  //flex: 0.5, //50% height
+                  borderRadius: 10,
+                  overflow: 'hidden',
+                  marginBottom: 20,
+                  maxWidth: 600,
+                  width: '90%',
+                  alignSelf: 'center',
+                  backgroundColor: theme.colors.white,
+                  justifyContent: 'space-around',
+                  alignItems: 'center',
+
+                  // Shadow for iOs and Web:
+                  shadowColor: '#000',
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: 0.25,
+                  shadowRadius: 3.84,
+
+                  // Elevation for Android
+                  elevation: 5
                 }}
               >
-                {Icon && icon ? (
-                  <Icon
+                <View
+                  style={{
+                    alignSelf: 'stretch',
+                    height: 150,
+                    backgroundColor: theme.colors.primary
+                  }}
+                >
+                  {Icon && icon ? (
+                    <Icon
+                      style={{
+                        color: theme.colors.white,
+                        opacity: 0.1,
+                        fontSize: 120,
+                        paddingLeft: 30,
+                        paddingTop: 15
+                      }}
+                      name={icon.name}
+                    />
+                  ) : null}
+                  <Text
                     style={{
                       color: theme.colors.white,
-                      opacity: 0.1,
-                      fontSize: 120,
-                      paddingLeft: 30,
-                      paddingTop: 15
+                      opacity: 0.9,
+                      position: 'absolute',
+                      top: '60%',
+                      left: 30,
+                      fontSize: 22,
+                      fontWeight: 'bold'
                     }}
-                    name={icon.name}
-                  />
-                ) : null}
-                <Text
-                  style={{
-                    color: theme.colors.white,
-                    opacity: 0.9,
-                    position: 'absolute',
-                    top: '60%',
-                    left: 30,
-                    fontSize: 22,
-                    fontWeight: 'bold'
-                  }}
-                >
-                  {title}
-                </Text>
-                {
-                  //A bar as a hint to the user this is draggable
-                  //Don't show on web
-                  Platform.select({
-                    web: null,
-                    default: (
-                      <View
-                        style={{
-                          alignSelf: 'center',
-                          opacity: 0.3,
-                          position: 'absolute',
-                          borderWidth: 2,
-                          borderColor: theme.colors.white,
-                          borderRadius: 2,
-                          top: 10,
-                          width: 80
-                        }}
-                      />
-                    )
-                  })
-                }
-              </View>
-
-              <ScrollView
-                contentContainerStyle={{
-                  flexGrow: 1,
-                  padding: 20,
-                  justifyContent: 'center'
-                }}
-              >
-                {children}
-              </ScrollView>
-              <LinearGradient
-                colors={[rgba(theme.colors.white, 0), theme.colors.white]}
-                style={{
-                  position: 'absolute',
-                  left: 0,
-                  right: 0,
-                  bottom: buttonHeight,
-                  height: 30
-                }}
-              />
-              {onClose ? (
-                <View
-                  style={{ paddingVertical: 20 }}
-                  onLayout={event => {
-                    setButtonHeight(event.nativeEvent.layout.height);
-                  }}
-                >
-                  <Button onPress={handleClose}>
-                    {closeButtonText || 'Understood'}
-                  </Button>
+                  >
+                    {title}
+                  </Text>
+                  {
+                    //A bar as a hint to the user this is draggable
+                    //Don't show on web
+                    Platform.select({
+                      web: null,
+                      default: (
+                        <View
+                          style={{
+                            alignSelf: 'center',
+                            opacity: 0.3,
+                            position: 'absolute',
+                            borderWidth: 2,
+                            borderColor: theme.colors.white,
+                            borderRadius: 2,
+                            top: 10,
+                            width: 80
+                          }}
+                        />
+                      )
+                    })
+                  }
                 </View>
-              ) : null}
-            </View>
-          </Animated.View>
-        </PanGestureHandler>
-      </GestureHandlerRootView>
+
+                <ScrollView
+                  contentContainerStyle={{
+                    flexGrow: 1,
+                    padding: 20,
+                    justifyContent: 'center'
+                  }}
+                >
+                  {children}
+                </ScrollView>
+                <LinearGradient
+                  colors={[rgba(theme.colors.white, 0), theme.colors.white]}
+                  style={{
+                    position: 'absolute',
+                    left: 0,
+                    right: 0,
+                    bottom: buttonHeight,
+                    height: 20
+                  }}
+                />
+                {onClose ? (
+                  <View
+                    style={{ paddingVertical: 20 }}
+                    onLayout={event => {
+                      setButtonHeight(event.nativeEvent.layout.height);
+                    }}
+                  >
+                    <Button onPress={handleClose}>
+                      {closeButtonText || 'Understood'}
+                    </Button>
+                  </View>
+                ) : null}
+              </View>
+            </Animated.View>
+          </PanGestureHandler>
+        </GestureHandlerRootView>
+      </KeyboardAvoidingView>
     </RNModal>
   );
 };
