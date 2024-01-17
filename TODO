@@ -1,4 +1,7 @@
 TODO: Document the new APIs for storage
+TODO: I'll need a way to download from server / user storage backuped Vaults.
+Note that these backuped vaults may be need to be merged (not replaced) with the
+user current ones.
 TODO: when the Wallets are presented so that you can pick one, if they are password
 protected, then provide a Button "Forgot password"
 TODO: when using SECURESTORAGE data can be removed any time! Thus, we need to provide
