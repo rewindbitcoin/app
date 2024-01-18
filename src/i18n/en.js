@@ -22,7 +22,11 @@ export default {
     requestPasswordText: `Please set a new password (8-32 characters).
 
 If you ever lose or forget your password, you can still recover your wallet\
- using your mnemonic phrase.`
+ using your mnemonic phrase.`,
+    advancedOptionsTitle: 'Advanced Options',
+    usePasswordTitle: 'Use Password',
+    biomatricEncryptionTitle: 'Biometric Encryption',
+    encryptAppDataTitle: 'Encrypt App Data'
   },
   help: {
     biometric: `This option enables biometric encryption to secure your\
@@ -33,7 +37,13 @@ Please note, if your biometric data changes (like\
  adding a new fingerprint), the system will invalidate the encryption\
  key, making the mnemonic unreadable. In such cases, you'll need to\
  re-enter the mnemonic. This measure ensures that only you can access\
- your wallet.`
+ your wallet.`,
+    password: `With this feature, you can add a password to your mnemonic.\
+ Every time you access this wallet, you'll need to enter this password.
+
+This extra step is particularly useful if you're not using biometric\
+ encryption, or if you want an additional security layer. If you're already\
+ using biometric encryption, this additional step might not be necessary.`
   },
   vaultSetup: {
     title: 'Vault Set Up',
@@ -97,5 +107,6 @@ Please note, if your biometric data changes (like\
   saveButton: 'Save',
   cancelButton: 'Cancel',
   closeButton: 'Close',
+  understoodButton: 'Undestood',
   factoryResetButton: 'Factory Reset'
 };

@@ -48,6 +48,8 @@ const Modal: React.FC<ModalProps> = ({
   const theme = useTheme();
   const translateY = useSharedValue(0);
   const [buttonHeight, setButtonHeight] = useState<number>(0);
+  const [childrenHeight, setChildrenHeight] = useState<number>(0);
+  const headerHeight = 150;
 
   const onCloseTriggered = useRef<boolean>(false);
 
@@ -156,7 +158,10 @@ const Modal: React.FC<ModalProps> = ({
             <Animated.View style={animatedStyle}>
               <View
                 style={{
-                  height: 450,
+                  height: Math.min(
+                    450,
+                    childrenHeight + buttonHeight + headerHeight
+                  ),
                   //flex: 0.5, //50% height
                   borderRadius: 10,
                   overflow: 'hidden',
@@ -181,7 +186,7 @@ const Modal: React.FC<ModalProps> = ({
                 <View
                   style={{
                     alignSelf: 'stretch',
-                    height: 150,
+                    height: headerHeight,
                     backgroundColor: theme.colors.primary
                   }}
                 >
@@ -234,6 +239,10 @@ const Modal: React.FC<ModalProps> = ({
                 </View>
 
                 <ScrollView
+                  onContentSizeChange={(_w, height) =>
+                    setChildrenHeight(height)
+                  }
+                  keyboardShouldPersistTaps="handled"
                   contentContainerStyle={{
                     flexGrow: 1,
                     padding: 20,

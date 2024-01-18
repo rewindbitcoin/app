@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { StyleSheet, TextInput, View, Text, Platform } from 'react-native';
+import { StyleSheet, View, Platform } from 'react-native';
 
 import { LayoutAnimation } from 'react-native';
 import {
@@ -7,7 +7,7 @@ import {
   RobotoMono_400Regular
 } from '@expo-google-fonts/roboto-mono';
 import { useToast } from '../../common/components/Toast';
-import { useTheme, Theme } from '@react-navigation/native';
+import { useTheme, Theme, Text, TextInput } from '../../common/components/ui';
 import SegmentedControl from '../../common/components/SegmentedControl';
 
 import memoize from 'lodash.memoize';
@@ -143,19 +143,12 @@ export default function Bip39({
               while (newWords.length < N) newWords.push('');
               onWords(newWords);
             }
-            LayoutAnimation.spring();
+            //LayoutAnimation.spring();
+            LayoutAnimation.configureNext({
+              ...LayoutAnimation.Presets.linear,
+              duration: 150
+            });
           }
-
-          //event => {
-          //  const newWords = [...words];
-          //  const N = event.nativeEvent.selectedSegmentIndex === 0 ? 12 : 24;
-          //  if (newWords.length > N) onWords(newWords.slice(0, N));
-          //  else {
-          //    while (newWords.length < N) newWords.push('');
-          //    onWords(newWords);
-          //  }
-          //  LayoutAnimation.spring();
-          //}
         }
       />
       <View style={{ ...styles.words }}>
@@ -194,30 +187,24 @@ export default function Bip39({
 const getStyles = (theme: Theme, fonts: ReturnType<typeof useFonts>) => {
   const [fontsLoaded] = fonts;
   return StyleSheet.create({
-    segmented: {
-      height: 40,
-      marginBottom: 20,
-      //SegmentedControl for iOS has a bug setting backgroundColor.
-      //#eeeeed will set #dfdfdf. Found by experimenting with a Color Picker tool
-      //https://github.com/react-native-segmented-control/segmented-control/issues/127
-      backgroundColor: '#dfdfdf'
-    },
+    segmented: { height: 45, marginBottom: 20 },
     words: {
       overflow: 'hidden',
       borderRadius: 5,
-      backgroundColor: '#dfdfdf',
+      backgroundColor: theme.colors.darkerBackground,
       paddingTop: 10,
       flexDirection: 'row',
       flexWrap: 'wrap',
       alignItems: 'flex-start',
       margin: 0,
-      paddingHorizontal: 10,
-      borderWidth: 0
+      borderWidth: 0,
+      paddingRight: 10
     },
     indexAndInput: {
       flexDirection: 'row', // Aligns children horizontally
       fontSize: 14,
       marginBottom: 10,
+      paddingLeft: 10,
       width: '33%'
     },
     input: {
@@ -230,8 +217,8 @@ const getStyles = (theme: Theme, fonts: ReturnType<typeof useFonts>) => {
       borderWidth: 0,
       paddingLeft: 5,
       borderRadius: 5,
-      backgroundColor: theme.colors.background,
-      width: 70,
+      backgroundColor: theme.colors.white,
+      flex: 1,
       ...(fontsLoaded ? { fontFamily: 'RobotoMono_400Regular' } : {})
     },
     error: {
@@ -239,8 +226,8 @@ const getStyles = (theme: Theme, fonts: ReturnType<typeof useFonts>) => {
     },
     number: {
       paddingVertical: 10,
-      color: theme.colors.primary,
-      paddingRight: 5,
+      //color: theme.colors.primary,
+      paddingRight: 7,
       ...(fontsLoaded ? { fontFamily: 'RobotoMono_400Regular' } : {})
     }
   });

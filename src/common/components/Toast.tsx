@@ -43,7 +43,7 @@ const ToastProvider: React.FC<{ children: React.ReactNode }> = ({
 
         // Shadow for iOs and Web:
         shadowColor: '#000',
-        shadowOffset: { width: 50, height: 50 },
+        shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.25,
         shadowRadius: 3.84,
 

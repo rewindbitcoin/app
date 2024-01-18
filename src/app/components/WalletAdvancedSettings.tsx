@@ -3,10 +3,10 @@ import React, { useState } from 'react';
 import { View, StyleSheet, Pressable, ViewStyle } from 'react-native';
 import {
   Modal,
-  Switch,
   Text,
   HorLineSep,
   Theme,
+  Switch,
   useTheme
 } from '../../common/components/ui';
 import Password from './Password';
@@ -24,8 +24,9 @@ export default ({ style }: { style: ViewStyle }) => {
   const [dataEncryptionHelp, showDataEncryptionHelp] = useState<boolean>(false);
   const theme: Theme = useTheme();
   const styles = getStyles(theme);
+  const [value, setValue] = useState<boolean>(false);
   return (
-    <View style={{ ...style, ...styles.container }}>
+    <View style={style}>
       <Pressable
         onPress={() => {
           setAdvanced(!advanced);
@@ -39,48 +40,68 @@ export default ({ style }: { style: ViewStyle }) => {
           });
         }}
       >
-        <View style={[styles.header]}>
-          <Text>Advanced Options</Text>
+        <View style={[styles.header, advanced ? styles.title : styles.card]}>
+          <Text style={advanced ? styles.titleText : {}}>
+            {advanced
+              ? t('wallet.advancedOptionsTitle').toUpperCase()
+              : t('wallet.advancedOptionsTitle')}
+          </Text>
           <AntDesign
-            color={
-              advanced ? theme.colors.primary : theme.colors.listsSecondary
-            }
+            style={{
+              ...styles.titleText,
+              color: advanced
+                ? theme.colors.primary
+                : theme.colors.cardSecondary
+            }}
             name={advanced ? 'close' : 'right'}
           />
         </View>
       </Pressable>
-      <View style={{ overflow: 'hidden' }}>
+      <View style={advanced ? { ...styles.card } : {}}>
         {advanced && (
           <>
-            <View style={{ ...styles.row, marginTop: 15 }}>
+            <View style={{ ...styles.row }}>
               <View style={styles.textContainer}>
+                <Text>{t('wallet.biomatricEncryptionTitle')}</Text>
                 <Pressable
                   onPress={() => {
                     showBiometricalHelp(true);
                   }}
                 >
-                  <AntDesign name="infocirlce" style={styles.icon} />
+                  <AntDesign name="infocirlceo" style={styles.icon} />
                 </Pressable>
-                <Text>Biometric Protection</Text>
               </View>
-              <Switch />
+              <Switch value={value} onValueChange={value => setValue(value)} />
             </View>
             <HorLineSep style={styles.lineSeparator} />
             <View style={styles.row}>
               <View style={styles.textContainer}>
+                <Text>{t('wallet.usePasswordTitle')}</Text>
                 <Pressable
                   onPress={() => {
                     showPasswordHelp(true);
                   }}
                 >
-                  <AntDesign name="infocirlce" style={styles.icon} />
+                  <AntDesign name="infocirlceo" style={styles.icon} />
                 </Pressable>
-                <Text>Use Password</Text>
               </View>
               <Switch
-                value={password !== undefined}
+                value={password !== undefined || passwordRequest}
                 onValueChange={value => {
-                  value ? setPasswordRequest(value) : setPassword(undefined);
+                  setPassword(undefined); //Reset the password
+                  if (value)
+                    //requestAnimationFrame: We allow the Switch element to
+                    //transition from false to true.
+                    //This is useful in android to prevent
+                    //a glitch showing "greenish" default color in the switches
+                    //for a fraction of a second. Don't show the modal in this
+                    //same execution context because React Native will not call
+                    //the inner Switch with the new color props we set in the
+                    //internal Switch
+                    //Also this helps with the autoFocus in the TextInput of
+                    //the password. It was sometimes not poping the keyboard
+                    //automatically before requestAnimationFrame
+                    requestAnimationFrame(() => setPasswordRequest(true));
                 }}
               />
               <Modal
@@ -92,7 +113,10 @@ export default ({ style }: { style: ViewStyle }) => {
               >
                 <Password
                   onPassword={password => {
-                    password !== undefined && setPassword(password);
+                    if (password !== undefined) {
+                      console.log({ setPassword: password });
+                      setPassword(password);
+                    }
                   }}
                 />
               </Modal>
@@ -105,16 +129,16 @@ export default ({ style }: { style: ViewStyle }) => {
                     showDataEncryptionHelp(true);
                   }}
                 >
-                  <AntDesign name="infocirlce" style={styles.icon} />
+                  <AntDesign name="infocirlceo" style={styles.icon} />
                 </Pressable>
-                <Text>Encrypt App Data</Text>
+                <Text>{t('wallet.encryptAppDataTitle')}</Text>
               </View>
               <Switch />
             </View>
             <HorLineSep style={styles.lineSeparator} />
             <View style={styles.row}>
               <View style={styles.textContainer}>
-                <AntDesign name="infocirlce" style={styles.icon} />
+                <AntDesign name="infocirlceo" style={styles.icon} />
                 <Text>Network</Text>
               </View>
               <View>
@@ -125,11 +149,11 @@ export default ({ style }: { style: ViewStyle }) => {
         )}
       </View>
       <Modal
-        title={'Biometric Encryption'}
+        title={t('wallet.biomatricEncryptionTitle')}
         icon={{ family: 'Ionicons', name: 'finger-print' }}
         isVisible={biometricalHelp}
         onClose={() => showBiometricalHelp(false)}
-        closeButtonText="Understood"
+        closeButtonText={t('understoodButton')}
       >
         <Text>{t('help.biometric')}</Text>
       </Modal>
@@ -141,27 +165,19 @@ export default ({ style }: { style: ViewStyle }) => {
         }}
         isVisible={passwordHelp}
         onClose={() => showPasswordHelp(false)}
-        closeButtonText="Understood"
+        closeButtonText={t('understoodButton')}
       >
-        <Text>
-          With this feature, you can add a password to your mnemonic. Every time
-          you access this wallet, you'll need to enter this password. This
-          feature uses the XChaCha20-Poly1305 cipher, known for its robust
-          protection. This extra step is particularly useful if you're not using
-          biometric encryption, or if you want an additional security layer. If
-          you're already using biometric encryption, this additional step might
-          not be necessary.
-        </Text>
+        <Text>{t('help.password')}</Text>
       </Modal>
       <Modal
-        title={'Encrypt App Data'}
+        title={t('wallet.encryptAppDataTitle')}
         icon={{
           family: 'FontAwesome5',
           name: 'database'
         }}
         isVisible={dataEncryptionHelp}
         onClose={() => showDataEncryptionHelp(false)}
-        closeButtonText="Understood"
+        closeButtonText={t('understoodButton')}
       >
         <Text>
           This option secures your non-mnemonic app data, like vaults and UTXOs,
@@ -182,15 +198,27 @@ export default ({ style }: { style: ViewStyle }) => {
 
 const getStyles = (theme: Theme) => {
   const styles = StyleSheet.create({
-    container: {
-      backgroundColor: 'white',
+    card: {
+      overflow: 'hidden',
+      borderRadius: 5,
       padding: 10,
-      borderRadius: 5
+      backgroundColor: theme.colors.card
     },
     header: {
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center'
+    },
+    title: {
+      overflow: 'hidden',
+      justifyContent: 'flex-start',
+      padding: 10
+    },
+    titleText: {
+      color: theme.colors.cardSecondary,
+      marginLeft: 10,
+      fontSize: 12,
+      paddingVertical: 2
     },
     row: {
       flexDirection: 'row',
@@ -198,15 +226,16 @@ const getStyles = (theme: Theme) => {
       alignItems: 'center'
     },
     textContainer: {
+      marginLeft: 20,
       flexDirection: 'row',
       alignItems: 'center'
     },
     icon: {
-      marginRight: 10,
+      marginLeft: 10,
       fontSize: 16,
       color: theme.colors.primary
     },
-    lineSeparator: { marginLeft: 26 }
+    lineSeparator: { marginLeft: 20 }
   });
   return styles;
 };

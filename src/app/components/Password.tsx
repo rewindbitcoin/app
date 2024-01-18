@@ -1,6 +1,6 @@
 import { validatePassword } from '../lib/validators';
 import { rgba } from 'polished';
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 
 import { Platform, View } from 'react-native';
 import { Text, TextInput, Button } from '../../common/components/ui';
@@ -15,6 +15,19 @@ export default ({
   const { t } = useTranslation();
   const [password, setPassword] = useState<string>();
   const theme = useTheme();
+
+  //https://github.com/necolas/react-native-web/issues/1645#issuecomment-958339838
+  const input = useRef<TextInput>(null);
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (input.current) {
+        input.current.focus();
+      }
+    }, 100);
+
+    // Cleanup function
+    return () => clearTimeout(timer);
+  }, []);
   return (
     <>
       <Text style={{ marginBottom: 20 }}>
@@ -25,8 +38,7 @@ export default ({
       >
         <TextInput
           enablesReturnKeyAutomatically
-          autoFocus
-          inputMode="text"
+          ref={input}
           keyboardType={Platform.select({
             android: 'visible-password',
             default: 'default'

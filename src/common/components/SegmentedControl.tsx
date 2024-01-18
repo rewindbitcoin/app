@@ -1,3 +1,4 @@
+// Forked from: https://github.com/Karthik-B-06/react-native-segmented-control
 import React, { useEffect, useState } from 'react';
 import {
   Pressable,
@@ -12,6 +13,7 @@ import Animated, {
   useSharedValue,
   withSpring
 } from 'react-native-reanimated';
+import { useTheme, Theme } from './ui';
 
 interface SegmentedControlProps {
   /**
@@ -104,6 +106,7 @@ const SegmentedControl: React.FC<SegmentedControlProps> = ({
   inactiveBadgeStyle,
   badgeTextStyle
 }: SegmentedControlProps) => {
+  const theme = useTheme();
   const [width, setWidth] = useState<number>(0);
   //const width = widthPercentageToDP('100%') - containerMargin * 2;
   const translateValue = width / segments.length;
@@ -135,7 +138,8 @@ const SegmentedControl: React.FC<SegmentedControlProps> = ({
     fontSize: 15,
     fontWeight: '600',
     textAlign: 'center',
-    color: '#111827',
+    color: theme.colors.text, //'#111827',
+    //color: theme.colors.white,
     ...activeTextStyle
   };
 
@@ -166,18 +170,18 @@ const SegmentedControl: React.FC<SegmentedControlProps> = ({
     fontSize: 11,
     fontWeight: '500',
     textAlign: 'center',
-    color: '#FFFFFF',
+    color: theme.colors.white,
     ...badgeTextStyle
   };
 
   return (
     <Animated.View
-      style={[styles.defaultSegmentedControlWrapper, style]}
+      style={[getStyles(theme).defaultSegmentedControlWrapper, style]}
       onLayout={e => setWidth(e.nativeEvent.layout.width)}
     >
       <Animated.View
         style={[
-          styles.movingSegmentStyle,
+          getStyles(theme).movingSegmentStyle,
           defaultShadowStyle,
           tileStyle,
           StyleSheet.absoluteFill,
@@ -192,9 +196,9 @@ const SegmentedControl: React.FC<SegmentedControlProps> = ({
           <Pressable
             onPress={() => memoizedTabPressCallback(index)}
             key={index}
-            style={[styles.touchableContainer, pressableWrapper]}
+            style={[getStyles(theme).touchableContainer, pressableWrapper]}
           >
-            <View style={styles.textWrapper}>
+            <View style={getStyles(theme).textWrapper}>
               <Text
                 style={[
                   currentIndex === index
@@ -207,7 +211,7 @@ const SegmentedControl: React.FC<SegmentedControlProps> = ({
               {badgeValues[index] && (
                 <View
                   style={[
-                    styles.defaultBadgeContainerStyle,
+                    getStyles(theme).defaultBadgeContainerStyle,
                     currentIndex === index
                       ? finalisedActiveBadgeStyle
                       : finalisedInActiveBadgeStyle
@@ -226,41 +230,42 @@ const SegmentedControl: React.FC<SegmentedControlProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
-  defaultSegmentedControlWrapper: {
-    position: 'relative',
-    display: 'flex',
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderRadius: 8,
-    backgroundColor: '#f3f4f6'
-  },
-  touchableContainer: {
-    flex: 1,
-    elevation: 9,
-    paddingVertical: 12
-  },
-  textWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center'
-  },
-  movingSegmentStyle: {
-    top: 0,
-    marginVertical: 2,
-    marginHorizontal: 2,
-    borderRadius: 6,
-    backgroundColor: '#FFFFFF'
-  },
-  // Badge Styles
-  defaultBadgeContainerStyle: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    height: 16,
-    width: 16,
-    borderRadius: 9999,
-    alignContent: 'flex-end'
-  }
-});
+const getStyles = (theme: Theme) =>
+  StyleSheet.create({
+    defaultSegmentedControlWrapper: {
+      position: 'relative',
+      display: 'flex',
+      flexDirection: 'row',
+      alignItems: 'center',
+      borderRadius: 8,
+      backgroundColor: theme.colors.darkerBackground
+    },
+    touchableContainer: {
+      flex: 1,
+      elevation: 9,
+      paddingVertical: 12
+    },
+    textWrapper: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center'
+    },
+    movingSegmentStyle: {
+      top: 0,
+      marginVertical: 2,
+      marginHorizontal: 2,
+      borderRadius: 6,
+      backgroundColor: theme.colors.white //'#e9e9e9'
+    },
+    // Badge Styles
+    defaultBadgeContainerStyle: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      height: 16,
+      width: 16,
+      borderRadius: 9999,
+      alignContent: 'flex-end'
+    }
+  });
 
 export default SegmentedControl;

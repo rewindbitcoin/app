@@ -44,7 +44,7 @@ export default () => {
       {canUseSecureStorage === undefined ? (
         <ActivityIndicator />
       ) : (
-        <View style={{ width: 330 }}>
+        <View style={{ maxWidth: 500, marginHorizontal: 20 }}>
           <Text variant="headlineSmall">{t('bip39.importWalletText')}</Text>
           <Text style={{ marginVertical: 20 }}>
             {t('bip39.importWalletSubText')}
