@@ -5,8 +5,9 @@ import {
   Modal,
   Switch,
   Text,
-  theme,
-  HorLineSep
+  HorLineSep,
+  Theme,
+  useTheme
 } from '../../common/components/ui';
 import Password from './Password';
 import { useTranslation } from 'react-i18next';
@@ -21,6 +22,8 @@ export default ({ style }: { style: ViewStyle }) => {
   const [biometricalHelp, showBiometricalHelp] = useState<boolean>(false);
   const [passwordHelp, showPasswordHelp] = useState<boolean>(false);
   const [dataEncryptionHelp, showDataEncryptionHelp] = useState<boolean>(false);
+  const theme: Theme = useTheme();
+  const styles = getStyles(theme);
   return (
     <View style={{ ...style, ...styles.container }}>
       <Pressable
@@ -177,30 +180,33 @@ export default ({ style }: { style: ViewStyle }) => {
   );
 };
 
-const styles = StyleSheet.create({
-  container: {
-    backgroundColor: 'white',
-    padding: 10,
-    borderRadius: 5
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center'
-  },
-  row: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center'
-  },
-  textContainer: {
-    flexDirection: 'row',
-    alignItems: 'center'
-  },
-  icon: {
-    marginRight: 10,
-    fontSize: 16,
-    color: theme.colors.primary
-  },
-  lineSeparator: { marginLeft: 26 }
-});
+const getStyles = (theme: Theme) => {
+  const styles = StyleSheet.create({
+    container: {
+      backgroundColor: 'white',
+      padding: 10,
+      borderRadius: 5
+    },
+    header: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center'
+    },
+    row: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center'
+    },
+    textContainer: {
+      flexDirection: 'row',
+      alignItems: 'center'
+    },
+    icon: {
+      marginRight: 10,
+      fontSize: 16,
+      color: theme.colors.primary
+    },
+    lineSeparator: { marginLeft: 26 }
+  });
+  return styles;
+};

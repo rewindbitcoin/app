@@ -3,7 +3,8 @@ import { rgba } from 'polished';
 import React, { useState } from 'react';
 
 import { Platform, View } from 'react-native';
-import { Text, theme, TextInput, Button } from '../../common/components/ui';
+import { Text, TextInput, Button } from '../../common/components/ui';
+import { useTheme } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
 
 export default ({
@@ -13,6 +14,7 @@ export default ({
 }) => {
   const { t } = useTranslation();
   const [password, setPassword] = useState<string>();
+  const theme = useTheme();
   return (
     <>
       <Text style={{ marginBottom: 20 }}>

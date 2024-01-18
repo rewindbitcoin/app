@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { View, Platform, KeyboardAvoidingView } from 'react-native';
 import RNModal from 'react-native-modal';
 import { Button } from './Button';
-import { theme } from './theme';
+import { useTheme } from './theme';
 import { Text } from './Text';
 import * as Icons from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -45,6 +45,7 @@ const Modal: React.FC<ModalProps> = ({
   title,
   children
 }) => {
+  const theme = useTheme();
   const translateY = useSharedValue(0);
   const [buttonHeight, setButtonHeight] = useState<number>(0);
 

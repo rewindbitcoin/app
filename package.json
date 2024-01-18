@@ -28,7 +28,6 @@
     "@expo/webpack-config": "^19.0.0",
     "@noble/ciphers": "^0.4.1",
     "@react-native-community/slider": "^4.5.0",
-    "@react-native-segmented-control/segmented-control": "^2.5.0",
     "@react-navigation/native": "^6.1.9",
     "@react-navigation/native-stack": "^6.9.17",
     "@react-navigation/stack": "^6.3.20",
@@ -81,6 +80,7 @@
     "@bitcoinerlab/configs": "github:bitcoinerlab/configs",
     "@types/lodash.memoize": "^4.1.8",
     "@types/react": "~18.2.14",
+    "@types/react-native-extra-dimensions-android": "^1.2.3",
     "patch-package": "^8.0.0",
     "typescript": "^5.1.3"
   },

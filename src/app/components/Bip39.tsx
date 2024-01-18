@@ -8,7 +8,7 @@ import {
 } from '@expo-google-fonts/roboto-mono';
 import { useToast } from '../../common/components/Toast';
 import { useTheme, Theme } from '@react-navigation/native';
-import SegmentedControl from '@react-native-segmented-control/segmented-control';
+import SegmentedControl from '../../common/components/SegmentedControl';
 
 import memoize from 'lodash.memoize';
 import { wordlists } from 'bip39';
@@ -125,22 +125,38 @@ export default function Bip39({
     isMounted.current = true;
   }, [activeWordIndex]);
 
+  // style={styles.segmented}
+  //values={[t('bip39.segmented12'), t('bip39.segmented24')]}
+  //selectedIndex={words.length === 12 ? 0 : 1}
   return (
     <>
       <SegmentedControl
         style={styles.segmented}
-        values={[t('bip39.segmented12'), t('bip39.segmented24')]}
-        selectedIndex={words.length === 12 ? 0 : 1}
-        onChange={event => {
-          const newWords = [...words];
-          const N = event.nativeEvent.selectedSegmentIndex === 0 ? 12 : 24;
-          if (newWords.length > N) onWords(newWords.slice(0, N));
-          else {
-            while (newWords.length < N) newWords.push('');
-            onWords(newWords);
+        segments={[t('bip39.segmented12'), t('bip39.segmented24')]}
+        currentIndex={words.length === 12 ? 0 : 1}
+        onChange={
+          index => {
+            const newWords = [...words];
+            const N = index === 0 ? 12 : 24;
+            if (newWords.length > N) onWords(newWords.slice(0, N));
+            else {
+              while (newWords.length < N) newWords.push('');
+              onWords(newWords);
+            }
+            LayoutAnimation.spring();
           }
-          LayoutAnimation.spring();
-        }}
+
+          //event => {
+          //  const newWords = [...words];
+          //  const N = event.nativeEvent.selectedSegmentIndex === 0 ? 12 : 24;
+          //  if (newWords.length > N) onWords(newWords.slice(0, N));
+          //  else {
+          //    while (newWords.length < N) newWords.push('');
+          //    onWords(newWords);
+          //  }
+          //  LayoutAnimation.spring();
+          //}
+        }
       />
       <View style={{ ...styles.words }}>
         {words.map((word, index) => (
@@ -179,12 +195,12 @@ const getStyles = (theme: Theme, fonts: ReturnType<typeof useFonts>) => {
   const [fontsLoaded] = fonts;
   return StyleSheet.create({
     segmented: {
-      height: 50,
+      height: 40,
       marginBottom: 20,
       //SegmentedControl for iOS has a bug setting backgroundColor.
       //#eeeeed will set #dfdfdf. Found by experimenting with a Color Picker tool
       //https://github.com/react-native-segmented-control/segmented-control/issues/127
-      backgroundColor: Platform.select({ ios: '#eeeeed', default: '#dfdfdf' })
+      backgroundColor: '#dfdfdf'
     },
     words: {
       overflow: 'hidden',
