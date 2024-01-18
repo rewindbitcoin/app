@@ -47,6 +47,7 @@ const Modal: React.FC<ModalProps> = ({
 }) => {
   const theme = useTheme();
   const translateY = useSharedValue(0);
+  const scrollViewPadding = 20;
   const [buttonHeight, setButtonHeight] = useState<number>(0);
 
   const [childrenHeight, setChildrenHeight] = useState<number>(200);
@@ -239,26 +240,22 @@ const Modal: React.FC<ModalProps> = ({
                 </View>
 
                 <ScrollView
-                  {...(Platform.OS === 'web'
-                    ? //Cannot be used on Web!!!
-                      //https://github.com/necolas/react-native-web/issues/1502
-                      //So we assume that childrenHeight is 200 (default value)
-                      //and the user will see margins if content is shorter or
-                      //will need to scroll if larger
-                      {}
-                    : {
-                        onContentSizeChange: (_w, height) => {
-                          setChildrenHeight(height);
-                        }
-                      })}
                   keyboardShouldPersistTaps="handled"
                   contentContainerStyle={{
                     flexGrow: 1,
-                    padding: 20,
+                    padding: scrollViewPadding,
                     justifyContent: 'center'
                   }}
                 >
-                  {children}
+                  <View
+                    onLayout={event => {
+                      const height = event.nativeEvent.layout.height;
+                      console.log('View onLayout', height);
+                      setChildrenHeight(height + scrollViewPadding * 2);
+                    }}
+                  >
+                    {children}
+                  </View>
                 </ScrollView>
                 <LinearGradient
                   colors={[rgba(theme.colors.white, 0), theme.colors.white]}
