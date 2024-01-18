@@ -1,75 +1,73 @@
 import React from 'react';
 import * as RN from 'react-native';
 import { useTheme, Theme } from './theme';
+import { rgba } from 'polished';
 interface ButtonProps extends RN.PressableProps {
-  mode?: 'native' | 'text' | 'contained' | 'outlined' | 'elevated';
+  mode?: 'native' | 'text' | 'contained' | 'outlined';
   onPress: (event: RN.GestureResponderEvent) => void;
   disabled?: boolean;
 }
 
 const Button: React.FC<ButtonProps> = ({
   mode = 'native',
-  style,
   children,
   ...props
 }) => {
   const theme = useTheme();
   if (mode === 'native' && typeof children === 'string') {
-    return <RN.Button title={children} {...props} />;
+    return <RN.Button color={theme.primary} title={children} {...props} />;
   } else if (mode !== 'native') {
     return (
       <RN.Pressable
-        style={({ pressed }) => [
-          {
-            ...getStypes(theme).buttonContainer,
-            ...getModeStyles(theme)[mode],
-            ...(pressed && mode !== 'outlined'
-              ? { backgroundColor: theme.colors.primary }
-              : {}),
-            style
-          }
-        ]}
+        style={({ pressed }) => {
+          return getStyles(theme, pressed).container[mode];
+        }}
         {...props}
       >
-        {typeof children === 'string' ? (
-          <RN.Text>{children}</RN.Text>
-        ) : (
-          children
-        )}
+        {({ pressed }) =>
+          typeof children === 'string' ? (
+            <RN.Text style={getStyles(theme, pressed).actionText[mode]}>
+              {children}
+            </RN.Text>
+          ) : React.isValidElement(children) ? (
+            children
+          ) : null
+        }
       </RN.Pressable>
     );
   } else throw new Error('native mode should receive text');
 };
 
-const getStypes = (theme: Theme) =>
-  RN.StyleSheet.create({
-    buttonContainer: {
-      padding: 10,
-      borderRadius: 5,
-      color: theme.colors.primary
-    }
-  });
-
-const getModeStyles = (theme: Theme) =>
-  RN.StyleSheet.create({
-    text: {
-      backgroundColor: 'transparent',
-      color: theme.colors.primary
-    },
-    contained: {
-      backgroundColor: theme.colors.primary,
-      color: theme.colors.white
-    },
-    outlined: {
-      borderWidth: 1,
-      borderColor: theme.colors.primary,
-      backgroundColor: 'transparent'
-    },
-    elevated: {
-      backgroundColor: theme.colors.primary,
-      color: theme.colors.white,
-      elevation: 4
-    }
-  });
+const getStyles = (theme: Theme, pressed: boolean) => {
+  return {
+    actionText: RN.StyleSheet.create({
+      text: {
+        color: rgba(theme.colors.primary, pressed ? 0.2 : 1)
+      },
+      contained: {
+        color: theme.colors.white
+      },
+      outlined: {}
+    }),
+    container: RN.StyleSheet.create({
+      text: {
+        //    backgroundColor: 'transparent' no need for this
+      },
+      contained: {
+        backgroundColor: theme.colors.primary,
+        padding: 10,
+        borderRadius: 5,
+        color: theme.colors.primary
+      },
+      outlined: {
+        borderWidth: 1,
+        borderColor: theme.colors.primary,
+        backgroundColor: 'transparent',
+        padding: 10,
+        borderRadius: 5
+      }
+    })
+  };
+};
 
 export { Button };

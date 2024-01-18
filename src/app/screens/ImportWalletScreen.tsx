@@ -7,13 +7,11 @@ import { View } from 'react-native';
 import { Button, Text, ActivityIndicator } from '../../common/components/ui';
 import { KeyboardAwareScrollView } from '../../common/components/KeyboardAwareScrollView';
 import { useTranslation } from 'react-i18next';
-import { useNavigation } from '@react-navigation/native';
 import Bip39, { validateMnemonic } from '../components/Bip39';
 import WalletAdvancedSettings from '../components/WalletAdvancedSettings';
 import { useSecureStorageAvailability } from '../../common/contexts/SecureStorageAvailabilityContext';
 
 export default () => {
-  const navigation = useNavigation();
   const { t } = useTranslation();
   const canUseSecureStorage = useSecureStorageAvailability();
   const [words, setWords] = useState<string[]>(Array(12).fill(''));
@@ -51,8 +49,13 @@ export default () => {
           </Text>
           <Bip39 words={words} onWords={(words: string[]) => setWords(words)} />
           <WalletAdvancedSettings style={{ marginTop: 20 }} />
-          <View style={{ marginTop: 50 }}>
-            <Button onPress={navigation.goBack}>{t('cancelButton')}</Button>
+          <View style={{ marginVertical: 20 }}>
+            <Button
+              disabled={!validateMnemonic(stringifiedWords)}
+              onPress={() => console.log('Import')}
+            >
+              {t('wallet.importButton')}
+            </Button>
           </View>
         </View>
       )}

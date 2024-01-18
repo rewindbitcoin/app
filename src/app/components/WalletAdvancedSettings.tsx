@@ -30,7 +30,6 @@ export default ({ style }: { style: ViewStyle }) => {
       <Pressable
         onPress={() => {
           setAdvanced(!advanced);
-          //LayoutAnimation.spring();
           LayoutAnimation.configureNext({
             duration: 150,
             update: {

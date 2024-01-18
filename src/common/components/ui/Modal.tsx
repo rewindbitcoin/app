@@ -48,7 +48,8 @@ const Modal: React.FC<ModalProps> = ({
   const theme = useTheme();
   const translateY = useSharedValue(0);
   const [buttonHeight, setButtonHeight] = useState<number>(0);
-  const [childrenHeight, setChildrenHeight] = useState<number>(0);
+
+  const [childrenHeight, setChildrenHeight] = useState<number>(200);
   const headerHeight = 150;
 
   const onCloseTriggered = useRef<boolean>(false);
@@ -162,7 +163,6 @@ const Modal: React.FC<ModalProps> = ({
                     450,
                     childrenHeight + buttonHeight + headerHeight
                   ),
-                  //flex: 0.5, //50% height
                   borderRadius: 10,
                   overflow: 'hidden',
                   marginBottom: 20,
@@ -239,9 +239,18 @@ const Modal: React.FC<ModalProps> = ({
                 </View>
 
                 <ScrollView
-                  onContentSizeChange={(_w, height) =>
-                    setChildrenHeight(height)
-                  }
+                  {...(Platform.OS === 'web'
+                    ? //Cannot be used on Web!!!
+                      //https://github.com/necolas/react-native-web/issues/1502
+                      //So we assume that childrenHeight is 200 (default value)
+                      //and the user will see margins if content is shorter or
+                      //will need to scroll if larger
+                      {}
+                    : {
+                        onContentSizeChange: (_w, height) => {
+                          setChildrenHeight(height);
+                        }
+                      })}
                   keyboardShouldPersistTaps="handled"
                   contentContainerStyle={{
                     flexGrow: 1,

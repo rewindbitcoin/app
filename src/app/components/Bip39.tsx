@@ -134,22 +134,20 @@ export default function Bip39({
         style={styles.segmented}
         segments={[t('bip39.segmented12'), t('bip39.segmented24')]}
         currentIndex={words.length === 12 ? 0 : 1}
-        onChange={
-          index => {
-            const newWords = [...words];
-            const N = index === 0 ? 12 : 24;
-            if (newWords.length > N) onWords(newWords.slice(0, N));
-            else {
-              while (newWords.length < N) newWords.push('');
-              onWords(newWords);
-            }
-            //LayoutAnimation.spring();
-            LayoutAnimation.configureNext({
-              ...LayoutAnimation.Presets.linear,
-              duration: 150
-            });
+        onChange={index => {
+          const newWords = [...words];
+          const N = index === 0 ? 12 : 24;
+          if (newWords.length > N) onWords(newWords.slice(0, N));
+          else {
+            while (newWords.length < N) newWords.push('');
+            onWords(newWords);
           }
-        }
+          //LayoutAnimation.spring();
+          LayoutAnimation.configureNext({
+            ...LayoutAnimation.Presets.linear,
+            duration: 150
+          });
+        }}
       />
       <View style={{ ...styles.words }}>
         {words.map((word, index) => (
@@ -194,6 +192,7 @@ const getStyles = (theme: Theme, fonts: ReturnType<typeof useFonts>) => {
       backgroundColor: theme.colors.darkerBackground,
       paddingTop: 10,
       flexDirection: 'row',
+      width: '100%', //needed for web
       flexWrap: 'wrap',
       alignItems: 'flex-start',
       margin: 0,
@@ -211,7 +210,8 @@ const getStyles = (theme: Theme, fonts: ReturnType<typeof useFonts>) => {
       ...Platform.select({
         //clean style for web browsers
         web: {
-          outlineStyle: 'none'
+          outlineStyle: 'none',
+          width: '100%'
         }
       }),
       borderWidth: 0,

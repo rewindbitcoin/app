@@ -26,7 +26,8 @@ If you ever lose or forget your password, you can still recover your wallet\
     advancedOptionsTitle: 'Advanced Options',
     usePasswordTitle: 'Use Password',
     biomatricEncryptionTitle: 'Biometric Encryption',
-    encryptAppDataTitle: 'Encrypt App Data'
+    encryptAppDataTitle: 'Encrypt App Data',
+    importButton: 'Import'
   },
   help: {
     biometric: `This option enables biometric encryption to secure your\
@@ -38,12 +39,13 @@ Please note, if your biometric data changes (like\
  key, making the mnemonic unreadable. In such cases, you'll need to\
  re-enter the mnemonic. This measure ensures that only you can access\
  your wallet.`,
-    password: `With this feature, you can add a password to your mnemonic.\
- Every time you access this wallet, you'll need to enter this password.
+    password: `Setting a password encrypts your mnemonic, providing a secure\
+ layer of protection for your wallet. Each time you access the wallet, you will\
+ need to enter this password to decrypt the mnemonic.
 
-This extra step is particularly useful if you're not using biometric\
- encryption, or if you want an additional security layer. If you're already\
- using biometric encryption, this additional step might not be necessary.`
+If you have biometric encryption enabled, a password may not be necessary as\
+ biometrics already offer robust security. However, opting for a password in\
+ addition to biometrics is available if you seek an even higher level of security.`
   },
   vaultSetup: {
     title: 'Vault Set Up',

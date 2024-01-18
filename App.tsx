@@ -64,9 +64,9 @@ const App = () => {
       {t('app.settingsButton')}
     </Button>
   );
-  const closeModalButton = () => (
+  const cancelModalButton = () => (
     <Button mode="text" onPress={() => navigation.goBack()}>
-      {t('closeButton')}
+      {t('cancelButton')}
     </Button>
   );
 
@@ -114,7 +114,7 @@ const App = () => {
           options={{
             title: t('app.importWalletTitle'),
             presentation: 'modal',
-            headerRight: closeModalButton
+            headerRight: cancelModalButton
           }}
         >
           {() => {
