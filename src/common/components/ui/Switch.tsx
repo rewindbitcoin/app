@@ -7,15 +7,21 @@ const ThemedSwitch: React.FC<SwitchProps> = ({ value, ...props }) => {
   const theme = useTheme();
 
   const trackColor = Platform.select({
-    android: { false: undefined, true: rgba(theme.colors.primary, 0.3) },
-    default: { false: undefined, true: theme.colors.primary }
+    default: { false: undefined, true: rgba(theme.colors.primary, 0.3) },
+    ios: { false: undefined, true: theme.colors.primary }
   });
   const thumbColor = Platform.select({
-    android: theme.colors.primary,
-    default: undefined
+    default: theme.colors.primary,
+    ios: undefined
+  });
+  //https://github.com/necolas/react-native-web/issues/1848#issuecomment-962250467
+  const activeThumbColor = Platform.select({
+    web: theme.colors.primary
   });
 
-  const valueProps = value ? { value, trackColor, thumbColor } : {};
+  const valueProps = value
+    ? { value, trackColor, thumbColor, activeThumbColor }
+    : {};
   return <RNSwitch {...props} {...valueProps} />;
 };
 
