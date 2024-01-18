@@ -91,6 +91,7 @@ const App = () => {
     if (settings?.LOCALE) initI18n(settings.LOCALE);
   }, [settings?.LOCALE]);
 
+  const headerRightContainerStyle = { marginRight: 16 };
   return (
     <WalletProvider
       {...(wallet ? { wallet: wallet } : {})}
@@ -103,7 +104,7 @@ const App = () => {
           name={WALLETS}
           options={{
             title: t('app.thunderDenTitle'),
-            headerRightContainerStyle: { marginRight: 10 },
+            headerRightContainerStyle,
             headerRight: settingsButton
           }}
         >
@@ -114,6 +115,7 @@ const App = () => {
           options={{
             title: t('app.importWalletTitle'),
             presentation: 'modal',
+            headerRightContainerStyle,
             headerRight: cancelModalButton
           }}
         >
@@ -131,7 +133,7 @@ const App = () => {
           name={WALLET_HOME}
           options={{
             title: t('app.thunderDenTitle'),
-            headerRightContainerStyle: { marginRight: 10 },
+            headerRightContainerStyle,
             headerRight: settingsButton
           }}
         >
@@ -142,7 +144,7 @@ const App = () => {
           name={SETUP_VAULT}
           options={{
             title: t('vaultSetup.title'),
-            headerRightContainerStyle: { marginRight: 10 },
+            headerRightContainerStyle,
             headerRight: settingsButton
           }}
         >
