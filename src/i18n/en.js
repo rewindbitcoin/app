@@ -5,6 +5,8 @@ export default {
       'Oops! There was a network issue: {{message}}. Please check your connection and try again.',
     importWalletTitle: 'Wallet Recovery',
     thunderDenTitle: 'Thunder Den',
+    createVaultTitle: 'Creating Vault',
+
     walletTitle: 'Wallet',
     settingsButton: 'Settings',
     settingsTitle: 'Settings',
@@ -50,7 +52,11 @@ If you have biometric encryption enabled, a password may not be necessary as\
   },
   vaultSetup: {
     title: 'Vault Set Up',
+    subTitle: 'Secure Your Bitcoin',
+    intro:
+      'Customize your Vault. Select the amount to secure and your preferred protection timelock.',
     notEnoughFundsTitle: 'Vault Minimum Requirement',
+    introMoreHelp: 'Learn More About Vaults',
     notEnoughFunds:
       '<group>To ensure you can unvault at least {{minRecoverableRatioPercentage}}% of your Bitcoin in the future, ThunderDen establishes a minimum vaulting amount.\nThis assumes express transaction confirmations and the possibility of ultra-high network fees when unvaulting.</group><group><strong>Suggested Addition:</strong> Add about {{missingFunds}} to reach the vaulting minimum.\nNote that the exact vaultable amount might slightly differ due to changes in network fee conditions.</group>',
     amountLabel: 'Vault Amount',
@@ -62,6 +68,14 @@ If you have biometric encryption enabled, a password may not be necessary as\
     amountError: 'Pick a valid amount of Btc.',
     invalidValues: 'Invalid Values.',
     reduceVaultAmount: 'Faster vault creation fees reduce maximum to {{amount}}'
+  },
+  createVault: {
+    subTitle: 'Finalizing Your Vault',
+    intro: `We're now generating tailored transactions to minimize future fees.\
+ It may take around 30 secs, slightly longer on older devices.\
+
+
+ Next, you'll get to review and confirm everything.`
   },
   editableSlider: {
     maxValueError: 'Maximum is {{maximumValue}}',

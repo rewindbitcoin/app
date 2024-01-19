@@ -2,9 +2,10 @@
 import React, { useContext, useEffect, useState, useRef } from 'react';
 import { WalletContext, WalletContextType } from '../contexts/WalletContext';
 import { useTranslation } from 'react-i18next';
-import { Button, Text, StyleSheet } from 'react-native';
+import { View, StyleSheet } from 'react-native';
 import { KeyboardAwareScrollView } from '../../common/components/KeyboardAwareScrollView';
 import * as Progress from 'react-native-progress';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { createVault, type VaultSettings } from '../lib/vaults';
 import {
   defaultSettings,
@@ -13,6 +14,7 @@ import {
 } from '../lib/settings';
 import { useGlobalStateStorage } from '../../common/contexts/StorageContext';
 import { SERIALIZABLE } from '../../common/lib/storage';
+import { Button, Text } from '../../common/components/ui';
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 export default function VaultCreate({
   vaultSettings,
@@ -21,6 +23,7 @@ export default function VaultCreate({
   vaultSettings: VaultSettings | undefined;
   onVaultCreated: (result: boolean) => void;
 }) {
+  const insets = useSafeAreaInsets();
   //TODO Use a proper Cancellable Modal
   const context = useContext<WalletContextType | null>(WalletContext);
   if (context === null) throw new Error('Context was not set');
@@ -105,32 +108,48 @@ export default function VaultCreate({
       keyboardShouldPersistTaps="handled"
       contentContainerStyle={{
         flexGrow: 1, //grow vertically to 100% and center child
-        justifyContent: 'center',
+        justifyContent: 'space-between',
+        paddingTop: 20,
+        paddingBottom: 20 + insets.bottom,
+        maxWidth: 500,
+        marginHorizontal: 20,
         alignItems: 'center'
       }}
     >
-      <Progress.Circle
-        size={300}
-        showsText={true}
-        progress={progress}
-        style={styles.progressCircle}
-      />
-      <Text>
-        Expected increase of fees will be{' '}
-        {((Math.pow(feeRateCeiling, 1 / samples) - 1) * 100) / 2}%
+      <Text variant="headlineSmall" style={{ alignSelf: 'flex-start' }}>
+        {t('createVault.subTitle')}
       </Text>
+      <Text style={{ marginVertical: 20, alignSelf: 'flex-start' }}>
+        {t('createVault.intro')}
+      </Text>
+      <View
+        style={{ flexGrow: 1, justifyContent: 'center', alignItems: 'center' }}
+      >
+        <Progress.Circle
+          size={300}
+          showsText={true}
+          progress={progress}
+          style={styles.progressCircle}
+        />
+      </View>
       <Button
-        title={t('cancelButton')}
         onPress={() => {
           keepProgress.current = false;
         }}
-      />
+      >
+        {t('cancelButton')}
+      </Button>
     </KeyboardAwareScrollView>
   );
 }
 
+//<Text>
+//  Expected increase of fees will be{' '}
+//  {((Math.pow(feeRateCeiling, 1 / samples) - 1) * 100) / 2}%
+//</Text>
+
 const styles = StyleSheet.create({
   progressCircle: {
-    marginBottom: 100
+    //marginBottom: 100
   }
 });

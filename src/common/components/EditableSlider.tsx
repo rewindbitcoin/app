@@ -301,8 +301,8 @@ const EditableSlider = ({
       <Text
         style={[
           fontsLoaded ? { fontFamily: 'RobotoMono_400Regular' } : {},
-          snappedValue === null ? { color: 'red' } : {},
-          styles.status
+          styles.status,
+          snappedValue === null ? { color: theme.colors.red } : {}
         ]}
       >
         {formattedValue}
@@ -325,7 +325,7 @@ const EditableSlider = ({
             },
             styles.input,
             fontsLoaded && { fontFamily: 'RobotoMono_400Regular' },
-            snappedValue === null && { color: 'red' }
+            snappedValue === null && { color: theme.colors.red }
           ]}
           value={strValue}
           onChangeText={onTextInputValueChange}

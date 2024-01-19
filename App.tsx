@@ -152,7 +152,7 @@ const App = () => {
         <RootStack.Screen
           name={CREATE_VAULT}
           options={{
-            title: t('app.thunderDenTitle'),
+            title: t('app.createVaultTitle'),
             presentation: 'modal'
           }}
         >

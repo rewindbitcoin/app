@@ -11,6 +11,7 @@ import { KeyboardAwareScrollView } from '../../common/components/KeyboardAwareSc
 import { View, StyleSheet } from 'react-native';
 import { Text, Button, useTheme, Theme } from '../../common/components/ui';
 import { useToast } from '../../common/components/Toast';
+import { EdgeInsets, useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   defaultSettings,
   Settings,
@@ -39,10 +40,11 @@ export default function VaultSetUp({
 }: {
   onVaultSetUpComplete: (VaultSettings: VaultSettings) => void;
 }) {
+  const insets = useSafeAreaInsets();
   const context = useContext<WalletContextType | null>(WalletContext);
   const toast = useToast();
   const navigation = useNavigation();
-  const styles = getStyles(useTheme());
+  const styles = getStyles(useTheme(), insets);
 
   if (context === null) {
     throw new Error('Context was not set');
@@ -210,6 +212,11 @@ export default function VaultSetUp({
       </>
     ) : (
       <View style={styles.content}>
+        <Text variant="headlineSmall">{t('vaultSetup.subTitle')}</Text>
+        <Text style={{ marginVertical: 20 }}>{t('vaultSetup.intro')}</Text>
+        <Button style={{ marginBottom: 20 }} mode="text">
+          {t('vaultSetup.introMoreHelp')}
+        </Button>
         {maxVaultAmount !== undefined &&
           largestMinVaultAmount !== undefined &&
           maxVaultAmount >= largestMinVaultAmount && (
@@ -381,7 +388,7 @@ export default function VaultSetUp({
   );
 }
 
-const getStyles = (theme: Theme) =>
+const getStyles = (theme: Theme, insets: EdgeInsets) =>
   StyleSheet.create({
     content: {
       maxWidth: 500,
@@ -389,9 +396,10 @@ const getStyles = (theme: Theme) =>
       //backgroundColor: 'white',
       //borderRadius: 10,
       //alignItems: 'left',
-      marginHorizontal: 20
+      marginHorizontal: 20,
       //justifyContent: 'left',
       //width: '100%'
+      marginBottom: 20 + insets.bottom
     },
     settingGroup: { marginBottom: 30, width: '100%' },
     card: {

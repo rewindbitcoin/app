@@ -15,7 +15,9 @@ const Button: React.FC<ButtonProps> = ({
 }) => {
   const theme = useTheme();
   if (mode === 'native' && typeof children === 'string') {
-    return <RN.Button color={theme.primary} title={children} {...props} />;
+    return (
+      <RN.Button color={theme.colors.primary} title={children} {...props} />
+    );
   } else if (mode !== 'native') {
     return (
       <RN.Pressable
