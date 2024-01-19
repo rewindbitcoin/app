@@ -5,6 +5,7 @@ export default {
       'Oops! There was a network issue: {{message}}. Please check your connection and try again.',
     importWalletTitle: 'Wallet Recovery',
     thunderDenTitle: 'Thunder Den',
+    walletTitle: 'Wallet',
     settingsButton: 'Settings',
     settingsTitle: 'Settings',
     btcRatesError:
@@ -53,7 +54,7 @@ If you have biometric encryption enabled, a password may not be necessary as\
     notEnoughFunds:
       '<group>To ensure you can unvault at least {{minRecoverableRatioPercentage}}% of your Bitcoin in the future, ThunderDen establishes a minimum vaulting amount.\nThis assumes express transaction confirmations and the possibility of ultra-high network fees when unvaulting.</group><group><strong>Suggested Addition:</strong> Add about {{missingFunds}} to reach the vaulting minimum.\nNote that the exact vaultable amount might slightly differ due to changes in network fee conditions.</group>',
     amountLabel: 'Vault Amount',
-    securityLockTimeLabel: 'Safety Delay (Theft Protection)',
+    securityLockTimeLabel: 'Theft Protection Time Lock',
     securityLockTimeDescription: 'Accessible {{blocks}} after Unvaulting',
     confirmationSpeedLabel: 'Vault Creation Speed',
     lockTimeError: 'Pick a valid Lock Time.',
