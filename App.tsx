@@ -132,7 +132,7 @@ const App = () => {
         <RootStack.Screen
           name={WALLET_HOME}
           options={{
-            title: t('app.thunderDenTitle'),
+            title: t('app.walletTitle'),
             headerRightContainerStyle,
             headerRight: settingsButton
           }}
@@ -142,11 +142,7 @@ const App = () => {
 
         <RootStack.Screen
           name={SETUP_VAULT}
-          options={{
-            title: t('vaultSetup.title'),
-            headerRightContainerStyle,
-            headerRight: settingsButton
-          }}
+          options={{ title: t('vaultSetup.title') }}
         >
           {() => (
             <SetUpVaultScreen onVaultSetUpComplete={handleSetUpVaultComplete} />

@@ -40,14 +40,16 @@ export default ({ style }: { style: ViewStyle }) => {
         }}
       >
         <View style={[styles.header, advanced ? styles.title : styles.card]}>
-          <Text style={advanced ? styles.titleText : {}}>
-            {advanced
-              ? t('wallet.advancedOptionsTitle').toUpperCase()
-              : t('wallet.advancedOptionsTitle')}
+          <Text
+            {...(advanced
+              ? { variant: 'cardTitle', style: styles.cardTitle }
+              : {})}
+          >
+            {t('wallet.advancedOptionsTitle')}
           </Text>
           <AntDesign
             style={{
-              ...styles.titleText,
+              ...styles.cardTitle,
               color: advanced
                 ? theme.colors.primary
                 : theme.colors.cardSecondary
@@ -213,10 +215,8 @@ const getStyles = (theme: Theme) => {
       justifyContent: 'flex-start',
       padding: 10
     },
-    titleText: {
-      color: theme.colors.cardSecondary,
+    cardTitle: {
       marginLeft: 10,
-      fontSize: 12,
       paddingVertical: 2
     },
     row: {

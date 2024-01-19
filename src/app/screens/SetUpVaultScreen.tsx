@@ -4,10 +4,12 @@
 //a pop-up is not displayed!!!
 
 import { Trans, useTranslation } from 'react-i18next';
+import AntDesign from '@expo/vector-icons/AntDesign';
 import React, { useContext, useState } from 'react';
-import type { GestureResponderEvent } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import { KeyboardAwareScrollView } from '../../common/components/KeyboardAwareScrollView';
-import { View, Text, Button, StyleSheet } from 'react-native';
+import { View, StyleSheet } from 'react-native';
+import { Text, Button, useTheme, Theme } from '../../common/components/ui';
 import { useToast } from '../../common/components/Toast';
 import {
   defaultSettings,
@@ -33,14 +35,14 @@ import { estimateVaultSetUpRange } from '../lib/vaultRange';
 const FEE_RATE_STEP = 0.01;
 
 export default function VaultSetUp({
-  onVaultSetUpComplete,
-  onCancel = undefined
+  onVaultSetUpComplete
 }: {
   onVaultSetUpComplete: (VaultSettings: VaultSettings) => void;
-  onCancel?: (event: GestureResponderEvent) => void;
 }) {
   const context = useContext<WalletContextType | null>(WalletContext);
   const toast = useToast();
+  const navigation = useNavigation();
+  const styles = getStyles(useTheme());
 
   if (context === null) {
     throw new Error('Context was not set');
@@ -129,10 +131,6 @@ export default function VaultSetUp({
 
   const [amount, setAmount] = useState<number | null>(maxVaultAmount || null);
 
-  const handleCancel = (event: GestureResponderEvent) => {
-    if (onCancel) onCancel(event);
-  };
-
   const handleOK = () => {
     const errorMessages = [];
 
@@ -206,7 +204,7 @@ export default function VaultSetUp({
             }}
           />
           <View style={styles.buttonGroup}>
-            <Button title={t('cancelButton')} onPress={handleCancel} />
+            <Button onPress={navigation.goBack}>{t('cancelButton')}</Button>
           </View>
         </View>
       </>
@@ -216,142 +214,150 @@ export default function VaultSetUp({
           largestMinVaultAmount !== undefined &&
           maxVaultAmount >= largestMinVaultAmount && (
             <View style={styles.settingGroup}>
-              <Text style={styles.label}>{t('vaultSetup.amountLabel')}</Text>
-              <EditableSlider
-                formatError={({
-                  lastValidSnappedValue,
-                  strValue
-                }: {
-                  lastValidSnappedValue: number;
-                  strValue: string;
-                }) => {
-                  void strValue;
-                  if (lastValidSnappedValue > maxVaultAmount) {
-                    return t('vaultSetup.reduceVaultAmount', {
-                      amount: formatBtc(
-                        {
-                          amount: maxVaultAmount,
-                          subUnit: settings.SUB_UNIT,
-                          btcFiat,
-                          locale: settings.LOCALE,
-                          currency: settings.CURRENCY
-                        },
-                        t
-                      )
-                    });
-                  } else return;
-                }}
-                minimumValue={largestMinVaultAmount}
-                maximumValue={maxVaultAmount}
-                value={amount}
-                onValueChange={amount => {
-                  console.log('TRACE amount onValueChange', { amount });
-                  setAmount(amount);
-                }}
-                step={1}
-                formatValue={amount =>
-                  formatBtc(
-                    {
-                      amount,
-                      subUnit: settings.SUB_UNIT,
-                      btcFiat,
-                      locale: settings.LOCALE,
-                      currency: settings.CURRENCY
-                    },
-                    t
-                  )
-                }
-              />
+              <Text variant="cardTitle" style={styles.cardTitle}>
+                {t('vaultSetup.amountLabel')}
+              </Text>
+              <View style={styles.card}>
+                <EditableSlider
+                  formatError={({
+                    lastValidSnappedValue,
+                    strValue
+                  }: {
+                    lastValidSnappedValue: number;
+                    strValue: string;
+                  }) => {
+                    void strValue;
+                    if (lastValidSnappedValue > maxVaultAmount) {
+                      return t('vaultSetup.reduceVaultAmount', {
+                        amount: formatBtc(
+                          {
+                            amount: maxVaultAmount,
+                            subUnit: settings.SUB_UNIT,
+                            btcFiat,
+                            locale: settings.LOCALE,
+                            currency: settings.CURRENCY
+                          },
+                          t
+                        )
+                      });
+                    } else return;
+                  }}
+                  minimumValue={largestMinVaultAmount}
+                  maximumValue={maxVaultAmount}
+                  value={amount}
+                  onValueChange={amount => {
+                    setAmount(amount);
+                  }}
+                  step={1}
+                  formatValue={amount =>
+                    formatBtc(
+                      {
+                        amount,
+                        subUnit: settings.SUB_UNIT,
+                        btcFiat,
+                        locale: settings.LOCALE,
+                        currency: settings.CURRENCY
+                      },
+                      t
+                    )
+                  }
+                />
+              </View>
             </View>
           )}
         {settings.MIN_LOCK_BLOCKS &&
           settings.MAX_LOCK_BLOCKS &&
           formatLockTime && (
             <View style={styles.settingGroup}>
-              <Text style={styles.label}>
-                {t('vaultSetup.securityLockTimeLabel')}
-              </Text>
-              <EditableSlider
-                minimumValue={settings.MIN_LOCK_BLOCKS}
-                maximumValue={settings.MAX_LOCK_BLOCKS}
-                value={lockBlocks}
-                step={1}
-                onValueChange={setLockBlocks}
-                formatValue={value => formatLockTime(value, t)}
-              />
+              <View style={styles.cardTitleWithIcon}>
+                <Text variant="cardTitle" style={styles.cardTitle}>
+                  {t('vaultSetup.securityLockTimeLabel')}
+                </Text>
+                <AntDesign name="infocirlceo" style={styles.helpIcon} />
+              </View>
+              <View style={styles.card}>
+                <EditableSlider
+                  minimumValue={settings.MIN_LOCK_BLOCKS}
+                  maximumValue={settings.MAX_LOCK_BLOCKS}
+                  value={lockBlocks}
+                  step={1}
+                  onValueChange={setLockBlocks}
+                  formatValue={value => formatLockTime(value, t)}
+                />
+              </View>
             </View>
           )}
         <View style={styles.settingGroup}>
-          <Text style={styles.label}>
-            {t('vaultSetup.confirmationSpeedLabel')}
-          </Text>
-          <EditableSlider
-            value={feeRate}
-            minimumValue={settings.MIN_FEE_RATE}
-            maximumValue={maxFeeRate}
-            step={FEE_RATE_STEP}
-            onValueChange={setFeeRate}
-            formatValue={feeRate => {
-              const selected =
-                feeRate !== null &&
-                amount !== null &&
-                selectVaultUtxosData({
-                  utxosData,
-                  vaultOutput: DUMMY_VAULT_OUTPUT(network),
-                  serviceOutput: DUMMY_SERVICE_OUTPUT(network),
-                  changeOutput: DUMMY_CHANGE_OUTPUT(network),
-                  feeRate,
-                  amount,
-                  serviceFeeRate: settings.SERVICE_FEE_RATE
-                });
-              if (selected) {
-                return formatFeeRate(
-                  {
-                    feeRate,
-                    locale: settings.LOCALE,
-                    currency: settings.CURRENCY,
-                    txSize: selected.vsize,
-                    btcFiat,
-                    feeEstimates: snappedFeeEstimates
-                  },
-                  t
-                );
-              } else {
+          <View style={styles.cardTitleWithIcon}>
+            <Text variant="cardTitle" style={styles.cardTitle}>
+              {t('vaultSetup.confirmationSpeedLabel')}
+            </Text>
+            <AntDesign name="infocirlceo" style={styles.helpIcon} />
+          </View>
+          <View style={styles.card}>
+            <EditableSlider
+              value={feeRate}
+              minimumValue={settings.MIN_FEE_RATE}
+              maximumValue={maxFeeRate}
+              step={FEE_RATE_STEP}
+              onValueChange={setFeeRate}
+              formatValue={feeRate => {
                 const selected =
                   feeRate !== null &&
-                  maxVaultAmount !== undefined &&
+                  amount !== null &&
                   selectVaultUtxosData({
                     utxosData,
                     vaultOutput: DUMMY_VAULT_OUTPUT(network),
                     serviceOutput: DUMMY_SERVICE_OUTPUT(network),
                     changeOutput: DUMMY_CHANGE_OUTPUT(network),
                     feeRate,
-                    amount: maxVaultAmount,
+                    amount,
                     serviceFeeRate: settings.SERVICE_FEE_RATE
                   });
-                return formatFeeRate(
-                  {
-                    feeRate,
-                    locale: settings.LOCALE,
-                    currency: settings.CURRENCY,
-                    txSize: selected ? selected.vsize : null,
-                    btcFiat,
-                    feeEstimates: snappedFeeEstimates
-                  },
-                  t
-                );
-              }
-            }}
-          />
+                if (selected) {
+                  return formatFeeRate(
+                    {
+                      feeRate,
+                      locale: settings.LOCALE,
+                      currency: settings.CURRENCY,
+                      txSize: selected.vsize,
+                      btcFiat,
+                      feeEstimates: snappedFeeEstimates
+                    },
+                    t
+                  );
+                } else {
+                  const selected =
+                    feeRate !== null &&
+                    maxVaultAmount !== undefined &&
+                    selectVaultUtxosData({
+                      utxosData,
+                      vaultOutput: DUMMY_VAULT_OUTPUT(network),
+                      serviceOutput: DUMMY_SERVICE_OUTPUT(network),
+                      changeOutput: DUMMY_CHANGE_OUTPUT(network),
+                      feeRate,
+                      amount: maxVaultAmount,
+                      serviceFeeRate: settings.SERVICE_FEE_RATE
+                    });
+                  return formatFeeRate(
+                    {
+                      feeRate,
+                      locale: settings.LOCALE,
+                      currency: settings.CURRENCY,
+                      txSize: selected ? selected.vsize : null,
+                      btcFiat,
+                      feeEstimates: snappedFeeEstimates
+                    },
+                    t
+                  );
+                }
+              }}
+            />
+          </View>
         </View>
         <View style={styles.buttonGroup}>
-          <Button
-            title={onCancel ? t('continueButton') : t('saveButton')}
-            onPress={handleOK}
-          />
-          {onCancel && (
-            <Button title={t('cancelButton')} onPress={handleCancel} />
-          )}
+          <Button onPress={navigation.goBack}>{t('cancelButton')}</Button>
+          <Button onPress={handleOK}>{t('continueButton')}</Button>
         </View>
       </View>
     );
@@ -364,9 +370,10 @@ export default function VaultSetUp({
     <KeyboardAwareScrollView
       keyboardShouldPersistTaps="handled"
       contentContainerStyle={{
-        flexGrow: 1,
-        justifyContent: 'center',
-        alignItems: 'center'
+        paddingTop: 20
+        //flexGrow: 1,
+        //justifyContent: 'center',
+        //alignItems: 'center'
       }}
     >
       {content}
@@ -374,28 +381,46 @@ export default function VaultSetUp({
   );
 }
 
-const styles = StyleSheet.create({
-  content: {
-    padding: 40,
-    backgroundColor: 'white',
-    //borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: '100%'
-  },
-  settingGroup: { marginBottom: 30, width: '100%' },
-  label: {
-    marginVertical: 10,
-    fontSize: 15,
-    alignSelf: 'stretch', //To ensure that textAlign works with short texts too
-    textAlign: 'left',
-    fontWeight: '500'
-  },
-  buttonGroup: {
-    flexDirection: 'row',
-    justifyContent: 'space-evenly',
-    alignItems: 'center',
-    marginTop: 20,
-    width: '60%'
-  }
-});
+const getStyles = (theme: Theme) =>
+  StyleSheet.create({
+    content: {
+      maxWidth: 500,
+      //padding: 40,
+      //backgroundColor: 'white',
+      //borderRadius: 10,
+      //alignItems: 'left',
+      marginHorizontal: 20
+      //justifyContent: 'left',
+      //width: '100%'
+    },
+    settingGroup: { marginBottom: 30, width: '100%' },
+    card: {
+      backgroundColor: theme.colors.card,
+      borderRadius: 5,
+      borderWidth: 0,
+      padding: 10
+    },
+    cardTitle: {
+      marginVertical: 10,
+      marginLeft: 10,
+      alignSelf: 'stretch', //To ensure that textAlign works with short texts too
+      textAlign: 'left'
+    },
+    helpIcon: {
+      marginLeft: 10,
+      fontSize: 16,
+      color: theme.colors.primary
+    },
+    cardTitleWithIcon: {
+      alignItems: 'center',
+      flexDirection: 'row'
+    },
+    buttonGroup: {
+      alignSelf: 'center',
+      flexDirection: 'row',
+      justifyContent: 'space-evenly',
+      alignItems: 'center',
+      marginTop: 20,
+      width: '60%'
+    }
+  });
