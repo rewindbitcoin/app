@@ -57,6 +57,7 @@ import {
   useFonts,
   RobotoMono_400Regular
 } from '@expo-google-fonts/roboto-mono';
+import { useTheme, Theme } from './ui/theme';
 
 interface EditableSliderProps {
   value: number | null;
@@ -141,6 +142,8 @@ const EditableSlider = ({
   onValueChange,
   formatValue = value => `${value}`
 }: EditableSliderProps) => {
+  const theme = useTheme();
+  const styles = getStyles(theme);
   const snappedValue = snap({ value, minimumValue, maximumValue, step });
 
   // Keep track of prevSnappedValue:
@@ -278,16 +281,20 @@ const EditableSlider = ({
   useEffect(() => {
     if (Platform.OS === 'web') {
       // Calculating dynamic padding and border values from the styles
-      const paddingAndBorder =
-        StyleSheet.flatten(styles.input).padding * 2 +
-        StyleSheet.flatten(styles.input).borderWidth * 2;
+      const paddingAndBorder = StyleSheet.flatten(styles.input).padding * 2; /*+
+        StyleSheet.flatten(styles.input).borderWidth * 2*/
       setWebTextInputWidth(
         `calc(${strValue.length}ch + ${paddingAndBorder}px)`
       );
     }
   }, [strValue]);
 
-  //TODO: thumbTintColor is only Android
+  const thumbTintColor =
+    snappedValue === null
+      ? { thumbTintColor: theme.colors.red }
+      : Platform.OS === 'ios'
+        ? {}
+        : { thumbTintColor: theme.colors.primary };
 
   return (
     <View style={styles.container}>
@@ -303,11 +310,12 @@ const EditableSlider = ({
       <View style={styles.control}>
         <Slider
           style={styles.slider}
+          minimumTrackTintColor={theme.colors.primary}
           minimumValue={minimumValue}
           maximumValue={maximumValue}
           onValueChange={onSliderValueChange}
+          {...thumbTintColor}
           value={sliderManagedValue}
-          {...(snappedValue === null ? { thumbTintColor: 'red' } : {})}
         />
         <TextInput
           keyboardType={keyboardType}
@@ -329,35 +337,48 @@ const EditableSlider = ({
 
 export default EditableSlider;
 
-const styles = StyleSheet.create({
-  container: {
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    width: '100%'
-  },
-  status: {
-    textAlign: 'left',
-    width: '100%'
-  },
-  control: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    width: '100%',
-    marginTop: 15
-  },
-  slider: {
-    flex: 1,
-    //Applying padding is very important in android real device or the thumb is very
-    //difficult to be grabbed by the thumb finger since it is so thin.
-    //However, on web dont apply padding since it adds offset to the thumb button!
-    ...(Platform.OS !== 'web' ? { padding: 15 } : {}),
-    marginRight: 10
-  },
-  input: {
-    fontSize: 15,
-    padding: 10,
-    borderWidth: 1,
-    borderColor: 'gray',
-    borderRadius: 5
-  }
-});
+const getStyles = (theme: Theme) =>
+  StyleSheet.create({
+    container: {
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      width: '100%'
+    },
+    status: {
+      textAlign: 'left',
+      paddingLeft: 10,
+      fontSize: 13,
+      color: theme.colors.cardSecondary,
+      width: '100%'
+    },
+    control: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      width: '100%',
+      marginTop: 15
+    },
+    slider: {
+      flex: 1,
+      //Applying padding is very important in android real device or the thumb is very
+      //difficult to be grabbed by the thumb finger since it is so thin.
+      //However, on web dont apply padding since it adds offset to the thumb button!
+      ...(Platform.OS !== 'web' ? { padding: 15 } : {}),
+      marginRight: 10
+    },
+    input: {
+      fontSize: 15,
+      padding: 0,
+      paddingVertical: 5,
+
+      //color: theme.colors.primary
+
+      borderBottomWidth: 1,
+      borderBottomColor: theme.colors.primary
+      //borderBottomColor: theme.colors.listsSeparator
+
+      //backgroundColor: theme.colors.background,
+      //borderWidth: 1,
+      //borderColor: 'gray',
+      //borderRadius: 5
+    }
+  });

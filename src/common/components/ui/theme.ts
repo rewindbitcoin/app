@@ -4,10 +4,11 @@ import { DefaultTheme } from '@react-navigation/native';
 const theme = {
   ...DefaultTheme,
   colors: {
-    cardSecondary: '#777', //for titles and icons
+    cardSecondary: '#555', //for titles and icons
     darkerBackground: '#e5e5e5',
     ...DefaultTheme.colors,
     white: 'white',
+    red: 'red',
     listsSeparator: '#D0D0D0'
   }
 };
