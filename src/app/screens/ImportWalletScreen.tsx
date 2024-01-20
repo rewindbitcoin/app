@@ -10,9 +10,11 @@ import { useTranslation } from 'react-i18next';
 import Bip39, { validateMnemonic } from '../components/Bip39';
 import WalletAdvancedSettings from '../components/WalletAdvancedSettings';
 import { useSecureStorageAvailability } from '../../common/contexts/SecureStorageAvailabilityContext';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default () => {
   const { t } = useTranslation();
+  const insets = useSafeAreaInsets();
   const canUseSecureStorage = useSecureStorageAvailability();
   const [words, setWords] = useState<string[]>(Array(12).fill(''));
   const stringifiedWords = words.join(' ');
@@ -36,6 +38,7 @@ export default () => {
         //flexGrow: 1,
         //justifyContent: 'center',
         paddingTop: 20,
+        paddingBottom: 20 + insets.bottom,
         alignItems: 'center'
       }}
     >
