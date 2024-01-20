@@ -35,7 +35,7 @@ If you ever lose or forget your password, you can still recover your wallet\
   help: {
     biometric: `This option enables biometric encryption to secure your\
  mnemonic. It uses your device's biometric features like fingerprint or\
- (strong) face recognition.
+ face recognition.
 
 Please note, if your biometric data changes (like\
  adding a new fingerprint), the system will invalidate the encryption\

@@ -187,7 +187,7 @@ export default ({ style }: { style: ViewStyle }) => {
           mnemonic. While leaking this app data won't compromise your funds, it
           could potentially expose your transaction patterns and addresses,
           affecting your anonymity. Bad actors could initiate operations like
-          unvaulting or sending funds to a panic address. Encrypting this data
+          unvaulting or sending funds to your panic address. Encrypting this data
           ensures that even if it is accessed by unauthorized parties, they
           cannot read or misuse it. It's a recommended step for protecting your
           transactional privacy and preventing unwanted operations.
