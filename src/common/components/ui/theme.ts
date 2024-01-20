@@ -6,6 +6,7 @@ const theme = {
   colors: {
     cardSecondary: '#555', //for titles and icons
     darkerBackground: '#e5e5e5',
+    darkerOverDarkerBackground: '#d5d5d5',
     ...DefaultTheme.colors,
     white: 'white',
     red: 'red',

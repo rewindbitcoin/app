@@ -129,63 +129,64 @@ export default function Bip39({
   //values={[t('bip39.segmented12'), t('bip39.segmented24')]}
   //selectedIndex={words.length === 12 ? 0 : 1}
   return (
-    <>
-      <SegmentedControl
-        style={styles.segmented}
-        segments={[t('bip39.segmented12'), t('bip39.segmented24')]}
-        currentIndex={words.length === 12 ? 0 : 1}
-        onChange={index => {
-          const newWords = [...words];
-          const N = index === 0 ? 12 : 24;
-          if (newWords.length > N) onWords(newWords.slice(0, N));
-          else {
-            while (newWords.length < N) newWords.push('');
-            onWords(newWords);
-          }
-          //LayoutAnimation.spring();
-          LayoutAnimation.configureNext({
-            ...LayoutAnimation.Presets.linear,
-            duration: 150
-          });
-        }}
-      />
-      <View style={{ ...styles.words }}>
-        {words.map((word, index) => (
-          <View key={index} style={{ ...styles.indexAndInput }}>
-            <Text style={[styles.number]}>
-              {`${index + 1 < 10 ? '\u00A0' : ''}${index + 1}`}
-            </Text>
-            <TextInput
-              {...(activeWordIndex === index ? { ref: inputRef } : {})}
-              keyboardType="visible-password"
-              blurOnSubmit={false}
-              value={word}
-              style={[
-                styles.input,
-                ((index === activeWordIndex && !isPartialWordValid(word)) ||
-                  (index !== activeWordIndex && !isWordValid(word))) &&
-                  styles.error
-              ]}
-              spellCheck={false}
-              maxLength={MAX_LENGTH + 1}
-              autoComplete={'off'}
-              autoCorrect={false}
-              autoCapitalize="none"
-              onChangeText={handleChangeText}
-              onFocus={() => {
-                setActiveWordIndex(index);
-              }}
-            />
-          </View>
-        ))}
+    <View style={{ ...styles.words }}>
+      <View style={styles.segmentedWrapper}>
+        <SegmentedControl
+          style={styles.segmented}
+          activeTextStyle={styles.segmentedTexts}
+          inactiveTextStyle={styles.segmentedTexts}
+          segments={[t('bip39.segmented12'), t('bip39.segmented24')]}
+          currentIndex={words.length === 12 ? 0 : 1}
+          onChange={index => {
+            const newWords = [...words];
+            const N = index === 0 ? 12 : 24;
+            if (newWords.length > N) onWords(newWords.slice(0, N));
+            else {
+              while (newWords.length < N) newWords.push('');
+              onWords(newWords);
+            }
+            //LayoutAnimation.spring();
+            LayoutAnimation.configureNext({
+              ...LayoutAnimation.Presets.linear,
+              duration: 150
+            });
+          }}
+        />
       </View>
-    </>
+      {words.map((word, index) => (
+        <View key={index} style={{ ...styles.indexAndInput }}>
+          <Text style={[styles.number]}>
+            {`${index + 1 < 10 ? '\u00A0' : ''}${index + 1}`}
+          </Text>
+          <TextInput
+            {...(activeWordIndex === index ? { ref: inputRef } : {})}
+            keyboardType="visible-password"
+            blurOnSubmit={false}
+            value={word}
+            style={[
+              styles.input,
+              ((index === activeWordIndex && !isPartialWordValid(word)) ||
+                (index !== activeWordIndex && !isWordValid(word))) &&
+                styles.error
+            ]}
+            spellCheck={false}
+            maxLength={MAX_LENGTH + 1}
+            autoComplete={'off'}
+            autoCorrect={false}
+            autoCapitalize="none"
+            onChangeText={handleChangeText}
+            onFocus={() => {
+              setActiveWordIndex(index);
+            }}
+          />
+        </View>
+      ))}
+    </View>
   );
 }
 const getStyles = (theme: Theme, fonts: ReturnType<typeof useFonts>) => {
   const [fontsLoaded] = fonts;
   return StyleSheet.create({
-    segmented: { height: 45, marginBottom: 20 },
     words: {
       overflow: 'hidden',
       borderRadius: 5,
@@ -198,6 +199,20 @@ const getStyles = (theme: Theme, fonts: ReturnType<typeof useFonts>) => {
       margin: 0,
       borderWidth: 0,
       paddingRight: 10
+    },
+    segmentedWrapper: {
+      marginBottom: 10,
+      alignItems: 'center',
+      width: '100%'
+    },
+    segmented: {
+      marginLeft: 10,
+      width: 200,
+      height: 30,
+      backgroundColor: theme.colors.darkerOverDarkerBackground
+    },
+    segmentedTexts: {
+      fontSize: 12
     },
     indexAndInput: {
       flexDirection: 'row', // Aligns children horizontally

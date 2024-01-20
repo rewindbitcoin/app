@@ -192,6 +192,10 @@ const SegmentedControl: React.FC<SegmentedControlProps> = ({
         ]}
       />
       {segments.map((segment, index) => {
+        const textStyle =
+          currentIndex === index
+            ? finalisedActiveTextStyle
+            : finalisedInActiveTextStyle;
         return (
           <Pressable
             onPress={() => memoizedTabPressCallback(index)}
@@ -199,15 +203,7 @@ const SegmentedControl: React.FC<SegmentedControlProps> = ({
             style={[getStyles(theme).touchableContainer, pressableWrapper]}
           >
             <View style={getStyles(theme).textWrapper}>
-              <Text
-                style={[
-                  currentIndex === index
-                    ? finalisedActiveTextStyle
-                    : finalisedInActiveTextStyle
-                ]}
-              >
-                {segment}
-              </Text>
+              <Text style={textStyle}>{segment}</Text>
               {badgeValues[index] && (
                 <View
                   style={[
@@ -243,9 +239,11 @@ const getStyles = (theme: Theme) =>
     touchableContainer: {
       flex: 1,
       elevation: 9,
-      paddingVertical: 12
+      height: '100%'
+      //paddingVertical: 12
     },
     textWrapper: {
+      flex: 1,
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center'
