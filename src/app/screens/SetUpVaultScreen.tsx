@@ -226,6 +226,8 @@ export default function VaultSetUp({
               </Text>
               <View style={styles.card}>
                 <EditableSlider
+                  currencyInput
+                  locale={settings.LOCALE}
                   formatError={({
                     lastValidSnappedValue,
                     strValue

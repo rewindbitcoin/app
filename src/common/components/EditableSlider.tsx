@@ -44,6 +44,8 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
+import type { Locale } from '../../i18n/i18n';
+import CurrencyInput from 'react-native-currency-input';
 import {
   View,
   Text,
@@ -60,6 +62,8 @@ import {
 import { useTheme, Theme } from './ui/theme';
 
 interface EditableSliderProps {
+  currencyInput?: boolean;
+  locale?: Locale;
   value: number | null;
   minimumValue: number;
   maximumValue: number;
@@ -133,11 +137,24 @@ function inRange({
   return value !== null && value >= minimumValue && value <= maximumValue;
 }
 
+function getLocaleSeparators(locale: Locale) {
+  const defaults = { delimiter: ',', separator: '.' };
+  const formattedNumber = new Intl.NumberFormat(locale).format(1234.56);
+  if (formattedNumber.length !== 7) return defaults;
+
+  const delimiter = formattedNumber[formattedNumber.length - 7];
+  const separator = formattedNumber[formattedNumber.length - 3];
+  if (delimiter === undefined || separator === undefined) return defaults;
+  return { delimiter, separator };
+}
+
 const EditableSlider = ({
   value,
   minimumValue,
   maximumValue,
   step = DEFAULT_STEP,
+  currencyInput = false,
+  locale,
   formatError,
   onValueChange,
   formatValue = value => `${value}`
@@ -296,6 +313,19 @@ const EditableSlider = ({
         ? {}
         : { thumbTintColor: theme.colors.primary };
 
+  let precision = 0;
+  if (currencyInput) {
+    if (!locale) throw new Error('Locale must be provided for currencyInput');
+    precision = countDecimalDigits(step);
+    if (step > Math.pow(10, -precision)) {
+      throw new Error(
+        //F.ex.: 0.03 step is precision 2 but the TextInput will allow entering
+        //0.01 which is not valid in the EditableSlider
+        `Invalid step value: ${step} for a CurrencyInput.`
+      );
+    }
+  }
+
   return (
     <View style={styles.container}>
       <Text
@@ -317,19 +347,40 @@ const EditableSlider = ({
           {...thumbTintColor}
           value={sliderManagedValue}
         />
-        <TextInput
-          keyboardType={keyboardType}
-          style={[
-            webTextInputWidth !== null && {
-              width: webTextInputWidth as DimensionValue
-            },
-            styles.input,
-            fontsLoaded && { fontFamily: 'RobotoMono_400Regular' },
-            snappedValue === null && { color: theme.colors.red }
-          ]}
-          value={strValue}
-          onChangeText={onTextInputValueChange}
-        />
+        {currencyInput && locale ? (
+          <CurrencyInput
+            keyboardType={keyboardType}
+            {...getLocaleSeparators(locale)}
+            style={[
+              webTextInputWidth !== null && {
+                width: webTextInputWidth as DimensionValue
+              },
+              styles.input,
+              fontsLoaded && { fontFamily: 'RobotoMono_400Regular' },
+              snappedValue === null && { color: theme.colors.red }
+            ]}
+            precision={precision}
+            value={Number(strValue)}
+            onChangeValue={value => {
+              if (value === null) value = 0;
+              if (value !== undefined) onTextInputValueChange(value.toString());
+            }}
+          />
+        ) : (
+          <TextInput
+            keyboardType={keyboardType}
+            style={[
+              webTextInputWidth !== null && {
+                width: webTextInputWidth as DimensionValue
+              },
+              styles.input,
+              fontsLoaded && { fontFamily: 'RobotoMono_400Regular' },
+              snappedValue === null && { color: theme.colors.red }
+            ]}
+            value={strValue}
+            onChangeText={onTextInputValueChange}
+          />
+        )}
       </View>
     </View>
   );
