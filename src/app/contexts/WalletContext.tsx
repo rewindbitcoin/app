@@ -45,8 +45,8 @@ import { DescriptorsFactory } from '@bitcoinerlab/descriptors';
 const { BIP32 } = DescriptorsFactory(secp256k1);
 import { mnemonicToSeedSync } from 'bip39';
 import type { FeeEstimates } from '../lib/fees';
-import { randomBytes } from '@noble/ciphers/webcrypto/utils';
-const cipherKey = randomBytes(32);
+//import { randomBytes } from '@noble/ciphers/webcrypto/utils';
+//const cipherKey = randomBytes(32);
 import { Platform } from 'react-native';
 
 type DiscoveryDataExport = ReturnType<DiscoveryInstance['export']>;
@@ -162,22 +162,22 @@ export const WalletProvider = ({
     DEFAULT_VAULTS
   );
 
-  const [fooBar, , isFooBarSynchd] = useLocalStateStorage<{
-    foo: string;
-    bar: string;
-  }>(
-    `FOO_BAR`,
-    SERIALIZABLE,
-    { foo: 'Foooo', bar: 'Barrr' },
-    Platform.OS === 'web' ? 'IDB' : 'MMKV',
-    cipherKey,
-    'Authenticate to access secure data' //TODO: translate
-  );
-  useEffect(() => {
-    if (isFooBarSynchd) {
-      console.log({ fooBar });
-    }
-  }, [fooBar, isFooBarSynchd]);
+  //const [fooBar, , isFooBarSynchd] = useLocalStateStorage<{
+  //  foo: string;
+  //  bar: string;
+  //}>(
+  //  `FOO_BAR`,
+  //  SERIALIZABLE,
+  //  { foo: 'Foooo', bar: 'Barrr' },
+  //  Platform.OS === 'web' ? 'IDB' : 'MMKV',
+  //  cipherKey,
+  //  'Authenticate to access secure data' //TODO: translate
+  //);
+  //useEffect(() => {
+  //  if (isFooBarSynchd) {
+  //    console.log({ fooBar });
+  //  }
+  //}, [fooBar, isFooBarSynchd]);
 
   const [vaultsStatuses, setVaultsStatuses] =
     useLocalStateStorage<VaultsStatuses>(
