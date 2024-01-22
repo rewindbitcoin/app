@@ -29,7 +29,7 @@ export const defaultSettings: Settings = {
   SERVICE_FEE_RATE: 0.0004,
   MIN_FEE_RATE: 1,
   MIN_LOCK_BLOCKS: 1,
-  MAX_LOCK_BLOCKS: 30 * 24 * 6,
+  MAX_LOCK_BLOCKS: 3 * 30 * 24 * 6,
   INITIAL_LOCK_BLOCKS: 7 * 24 * 6,
   //TODO: set it to larger values in production
   SAMPLES: 60, //This corresponds to (PRESIGNED_FEE_RATE_CEILING ^ (1/SAMPLES) - 1) * 100 / 2 = 8% expected increase in fees wrt to ideal case, which is perfectly fine
