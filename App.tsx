@@ -3,6 +3,7 @@
 
 import './init';
 import React, { useEffect, useState } from 'react';
+import { Platform } from 'react-native';
 import { SecureStorageAvailabilityProvider } from './src/common/contexts/SecureStorageAvailabilityContext';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
@@ -142,7 +143,22 @@ const App = () => {
 
         <RootStack.Screen
           name={SETUP_VAULT}
-          options={{ title: t('vaultSetup.title') }}
+          options={{
+            title: t('vaultSetup.title'),
+
+            //headerShadowVisible:false //TO disable the border line of the header
+
+            //TODO: For iOS way coloer but work to be done yet
+            //https://github.com/react-navigation/react-navigation/issues/11550
+            //https://github.com/software-mansion/react-native-screens/discussions/1229#discussioncomment-1927333
+            //headerTitle: t('vaultSetup.title'),
+            headerLargeTitle: true,
+            headerTransparent: Platform.OS === 'ios',
+            headerBlurEffect: 'regular'
+            //headerLargeStyle: {
+            //  backgroundColor: PlatformColor('systemGroupedBackgroundColor') // Color of your background
+            //}
+          }}
         >
           {() => (
             <SetUpVaultScreen onVaultSetUpComplete={handleSetUpVaultComplete} />
