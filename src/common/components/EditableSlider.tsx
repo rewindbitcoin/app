@@ -63,7 +63,7 @@ import { useTheme, Theme } from './ui/theme';
 
 interface EditableSliderProps {
   currencyInput?: boolean;
-  locale?: Locale;
+  locale: Locale;
   value: number | null;
   minimumValue: number;
   maximumValue: number;
@@ -116,13 +116,15 @@ export function snap({
 }
 function snap2Str({
   snappedValue,
+  locale,
   step = DEFAULT_STEP
 }: {
   snappedValue: number;
-  step?: number;
+  locale: Locale;
+  step: number;
 }): string {
   const digits = countDecimalDigits(step);
-  return snappedValue.toFixed(digits);
+  return numberToFixed(snappedValue, digits, locale);
 }
 
 function inRange({
@@ -139,14 +141,115 @@ function inRange({
 
 function getLocaleSeparators(locale: Locale) {
   const defaults = { delimiter: ',', separator: '.' };
-  const formattedNumber = new Intl.NumberFormat(locale).format(1234.56);
-  if (formattedNumber.length !== 7) return defaults;
+  const formattedNumber = new Intl.NumberFormat(locale).format(12345.6);
+  if (formattedNumber.length !== 8)
+    throw new Error(`Unknow locale ${locale}: 1234.56 -> ${formattedNumber}`);
 
-  const delimiter = formattedNumber[formattedNumber.length - 7];
-  const separator = formattedNumber[formattedNumber.length - 3];
+  const delimiter = formattedNumber[formattedNumber.length - 6];
+  const separator = formattedNumber[formattedNumber.length - 2];
+  //if (
+  //  (delimiter !== '.' && delimiter !== ',') ||
+  //  (separator !== '.' && separator !== ',')
+  //)
+  //  throw new Error(`Unknow separator ${locale}`);
   if (delimiter === undefined || separator === undefined) return defaults;
   return { delimiter, separator };
 }
+const numberToFixed = (value: number, precision: number, locale: Locale) => {
+  return new Intl.NumberFormat(locale, {
+    minimumFractionDigits: precision
+  }).format(value);
+};
+//const strToNumber = (str: string, locale: Locale): number => {
+//  const { delimiter, separator } = getLocaleSeparators(locale);
+//
+//  const groupRegex = new RegExp(`\\${delimiter}`, 'g');
+//  const decimalRegex = new RegExp(`\\${separator}`);
+//
+//  // Parse the string
+//  try {
+//    const normalizedString = str
+//      .trim()
+//      .replace(groupRegex, '')
+//      .replace(decimalRegex, '.');
+//
+//    const parsedNumber = Number(normalizedString);
+//    if (isNaN(parsedNumber)) return NaN;
+//    return parsedNumber;
+//  } catch (error) {
+//    return NaN;
+//  }
+//};
+
+const localizedStrToNumber = (str: string, locale: Locale): number => {
+  const { delimiter, separator } = getLocaleSeparators(locale);
+  //console.log({ str, delimiter, separator });
+
+  // Mapping locale-specific numerals to Western Arabic numerals
+  const numerals = [
+    ...new Intl.NumberFormat(locale, { useGrouping: false }).format(9876543210)
+  ].reverse();
+  const index = new Map(numerals.map((d, i) => [d, i.toString()]));
+  const numeralRegex = new RegExp(`[${numerals.join('')}]`, 'g');
+
+  try {
+    let normalizedStr = str.trim();
+    //console.log({ normalizedStr });
+
+    // Replace locale-specific numerals with Western Arabic numerals
+    normalizedStr = normalizedStr.replace(
+      numeralRegex,
+      d => index.get(d) || ''
+    );
+    //console.log({ replNormalizedStr: normalizedStr });
+
+    // Check for multiple decimal separators or if separator precedes a delimiter
+    if (
+      (normalizedStr.match(new RegExp(`\\${separator}`, 'g')) || []).length >
+        1 ||
+      (normalizedStr.includes(delimiter) &&
+        normalizedStr.includes(separator) &&
+        normalizedStr.lastIndexOf(delimiter) > normalizedStr.indexOf(separator))
+    ) {
+      return NaN;
+    }
+
+    // Check for invalid leading zeros before the first delimiter:
+    // 0123 is ok, but 0,123 or 01,234 not ok (maybe confusing)
+    if (normalizedStr.includes(delimiter)) {
+      const parts = normalizedStr.split(delimiter);
+      const firstPart = parts.length > 0 ? parts[0] : null;
+      if (firstPart && firstPart.startsWith('0') && firstPart.length > 1) {
+        return NaN;
+      }
+    }
+
+    // Split the string into integer and fractional parts
+    const [integerPart] = normalizedStr.split(separator);
+    //console.log({ integerPart });
+    if (integerPart === undefined) return NaN;
+
+    // Check for invalid placements of delimiters
+    const reversedIntegerPart = integerPart.split('').reverse().join('');
+    for (let i = 0; i < reversedIntegerPart.length; i++) {
+      if (i % 4 !== 3 && reversedIntegerPart[i] === delimiter) {
+        return NaN;
+      }
+    }
+
+    // Replace decimal separator with dot and remove delimiters
+    normalizedStr = normalizedStr
+      .replace(new RegExp(`\\${separator}`), '.')
+      .replace(new RegExp(`\\${delimiter}`, 'g'), '');
+    //console.log({ finalNormalizedStr: normalizedStr });
+
+    const parsedNumber = Number(normalizedStr);
+    //console.log({ parsedNumber });
+    return isNaN(parsedNumber) ? NaN : parsedNumber;
+  } catch (error) {
+    return NaN;
+  }
+};
 
 const EditableSlider = ({
   value,
@@ -196,7 +299,11 @@ const EditableSlider = ({
       //position and TextInput shows the correct value again
       if (newSnappedValue !== sliderManagedValue)
         setSliderManagedValue(newSnappedValue);
-      const newStrValue = snap2Str({ snappedValue: newSnappedValue, step });
+      const newStrValue = snap2Str({
+        snappedValue: newSnappedValue,
+        locale,
+        step
+      });
       if (strValue !== newStrValue) setStrValue(newStrValue);
     } else {
       // Even if the component does not have a a correct value,
@@ -219,12 +326,13 @@ const EditableSlider = ({
 
   const [strValue, setStrValue] = useState<string>(
     snappedValue === null
-      ? snap2Str({ snappedValue: minimumValue, step })
-      : snap2Str({ snappedValue, step })
+      ? snap2Str({ snappedValue: minimumValue, locale, step })
+      : snap2Str({ snappedValue, locale, step })
   );
 
   const { t } = useTranslation();
 
+  //https://lefkowitz.me/visual-guide-to-react-native-textinput-keyboardtype-options/
   const keyboardType = step === 1 ? 'number-pad' : 'numeric';
   const [fontsLoaded] = useFonts({ RobotoMono_400Regular });
 
@@ -238,20 +346,21 @@ const EditableSlider = ({
         `Slider returned off-limits value: ${minimumValue} >= ${value} >= ${maximumValue}, step: ${step}, snappedValue: ${snappedValue}`
       );
     else lastValidSnappedValue.current = snappedValue;
-    const strValue = snap2Str({ snappedValue, step });
+    const strValue = snap2Str({ snappedValue, locale, step });
     setStrValue(strValue);
     if (snappedValue !== prevSnappedValue.current && onValueChange) {
       onValueChange(snappedValue);
     }
   };
+
   const onTextInputValueChange = (strValue: string) => {
     setStrValue(strValue);
     const isValidStrValue =
-      !isNaN(Number(strValue)) &&
-      Number(strValue) >= minimumValue &&
-      Number(strValue) <= maximumValue;
+      !isNaN(localizedStrToNumber(strValue, locale)) &&
+      localizedStrToNumber(strValue, locale) >= minimumValue &&
+      localizedStrToNumber(strValue, locale) <= maximumValue;
     if (isValidStrValue) {
-      const value = Number(strValue);
+      const value = localizedStrToNumber(strValue, locale);
       const snappedValue = snap({ value, minimumValue, maximumValue, step });
       if (snappedValue === null) throw new Error('strNumberInRange not valid');
       setSliderManagedValue(snappedValue);
@@ -315,7 +424,6 @@ const EditableSlider = ({
 
   let precision = 0;
   if (currencyInput) {
-    if (!locale) throw new Error('Locale must be provided for currencyInput');
     precision = countDecimalDigits(step);
     if (step > Math.pow(10, -precision)) {
       throw new Error(
@@ -347,7 +455,7 @@ const EditableSlider = ({
           {...thumbTintColor}
           value={sliderManagedValue}
         />
-        {currencyInput && locale ? (
+        {currencyInput ? (
           <CurrencyInput
             keyboardType={keyboardType}
             {...getLocaleSeparators(locale)}
@@ -360,10 +468,11 @@ const EditableSlider = ({
               snappedValue === null && { color: theme.colors.red }
             ]}
             precision={precision}
-            value={Number(strValue)}
+            value={localizedStrToNumber(strValue, locale)}
             onChangeValue={value => {
               if (value === null) value = 0;
-              if (value !== undefined) onTextInputValueChange(value.toString());
+              if (value !== undefined)
+                onTextInputValueChange(numberToFixed(value, precision, locale));
             }}
           />
         ) : (

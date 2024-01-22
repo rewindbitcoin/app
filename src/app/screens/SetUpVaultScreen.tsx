@@ -2,6 +2,11 @@
 //
 //TODO: in web, when I click to Continue having wrong values
 //a pop-up is not displayed!!!
+//TODO: when entering currency, the error message should should the min and
+//max values if the value < min, then show the min, and viceversa
+//TODO: when entering currency, allow USD, or BTC
+//  TODO: When entering currency use the subunit (but do not adapt for large
+//  quantities)
 
 import { Trans, useTranslation } from 'react-i18next';
 import AntDesign from '@expo/vector-icons/AntDesign';
@@ -44,7 +49,8 @@ export default function VaultSetUp({
   const context = useContext<WalletContextType | null>(WalletContext);
   const toast = useToast();
   const navigation = useNavigation();
-  const styles = getStyles(useTheme(), insets);
+  const theme = useTheme();
+  const styles = getStyles(theme, insets);
 
   if (context === null) {
     throw new Error('Context was not set');
@@ -100,6 +106,7 @@ export default function VaultSetUp({
       'This component should only be started after settings has been retrieved from storage'
     );
 
+  const [lockTimeMode, setLockTimeMode] = useState<'days' | 'blocks'>('days');
   const [lockBlocks, setLockBlocks] = useState<number | null>(
     settings.INITIAL_LOCK_BLOCKS
   );
@@ -171,6 +178,18 @@ export default function VaultSetUp({
     largestMinVaultAmount - lowestMaxVaultAmount
   );
 
+  const fromBlocks = (blocks: number, mode: 'days' | 'blocks') => {
+    if (mode === 'blocks') return blocks;
+    const minDays = Math.ceil(settings.MIN_LOCK_BLOCKS / (6 * 24));
+    const maxDays = Math.floor(settings.MAX_LOCK_BLOCKS / (6 * 24));
+    const days = Math.round(blocks / (6 * 24));
+    return Math.min(maxDays, Math.max(minDays, days));
+  };
+  const toBlocks = (value: number, fromMode: 'days' | 'blocks') => {
+    if (fromMode === 'blocks') return value;
+    return value * 6 * 24;
+  };
+
   const content =
     //TODO: test missingFunds
     missingFunds > 0 ? (
@@ -221,9 +240,18 @@ export default function VaultSetUp({
           largestMinVaultAmount !== undefined &&
           maxVaultAmount >= largestMinVaultAmount && (
             <View style={styles.settingGroup}>
-              <Text variant="cardTitle" style={styles.cardTitle}>
-                {t('vaultSetup.amountLabel')}
-              </Text>
+              <View style={styles.cardHeader}>
+                <Text variant="cardTitle" style={styles.cardTitle}>
+                  {t('vaultSetup.amountLabel')}
+                </Text>
+                <View style={styles.cardModeRotator}>
+                  <Text
+                    style={{ fontSize: 12, color: theme.colors.cardSecondary }}
+                  >
+                    sats
+                  </Text>
+                </View>
+              </View>
               <View style={styles.card}>
                 <EditableSlider
                   currencyInput
@@ -278,33 +306,83 @@ export default function VaultSetUp({
           settings.MAX_LOCK_BLOCKS &&
           formatLockTime && (
             <View style={styles.settingGroup}>
-              <View style={styles.cardTitleWithIcon}>
+              <View style={styles.cardHeader}>
                 <Text variant="cardTitle" style={styles.cardTitle}>
                   {t('vaultSetup.securityLockTimeLabel')}
                 </Text>
                 <AntDesign name="infocirlceo" style={styles.helpIcon} />
+                <View style={styles.cardModeRotator}>
+                  <Button
+                    mode="text"
+                    fontSize={12}
+                    onPress={() => {
+                      setLockBlocks(
+                        lockBlocks === null
+                          ? null
+                          : toBlocks(
+                              fromBlocks(lockBlocks, lockTimeMode),
+                              lockTimeMode
+                            )
+                      );
+                      setLockTimeMode(
+                        lockTimeMode === 'days' ? 'blocks' : 'days'
+                      );
+                    }}
+                  >
+                    {`${
+                      lockTimeMode === 'days'
+                        ? t('vaultSetup.days')
+                        : t('vaultSetup.blocks')
+                    } ⇅`}
+                  </Button>
+                </View>
               </View>
               <View style={styles.card}>
                 <EditableSlider
-                  minimumValue={settings.MIN_LOCK_BLOCKS}
-                  maximumValue={settings.MAX_LOCK_BLOCKS}
-                  value={lockBlocks}
+                  currencyInput
+                  locale={settings.LOCALE}
+                  minimumValue={fromBlocks(
+                    settings.MIN_LOCK_BLOCKS,
+                    lockTimeMode
+                  )}
+                  maximumValue={fromBlocks(
+                    settings.MAX_LOCK_BLOCKS,
+                    lockTimeMode
+                  )}
+                  value={
+                    lockBlocks === null
+                      ? null
+                      : fromBlocks(lockBlocks, lockTimeMode)
+                  }
                   step={1}
-                  onValueChange={setLockBlocks}
-                  formatValue={value => formatLockTime(value, t)}
+                  onValueChange={value =>
+                    setLockBlocks(
+                      value === null ? null : toBlocks(value, lockTimeMode)
+                    )
+                  }
+                  formatValue={value =>
+                    formatLockTime(toBlocks(value, lockTimeMode), t)
+                  }
                 />
               </View>
             </View>
           )}
         <View style={styles.settingGroup}>
-          <View style={styles.cardTitleWithIcon}>
+          <View style={styles.cardHeader}>
             <Text variant="cardTitle" style={styles.cardTitle}>
               {t('vaultSetup.confirmationSpeedLabel')}
             </Text>
             <AntDesign name="infocirlceo" style={styles.helpIcon} />
+            <View style={styles.cardModeRotator}>
+              <Text style={{ fontSize: 12, color: theme.colors.cardSecondary }}>
+                {t('vaultSetup.feeRate')}
+              </Text>
+            </View>
           </View>
           <View style={styles.card}>
             <EditableSlider
+              currencyInput
+              locale={settings.LOCALE}
               value={feeRate}
               minimumValue={settings.MIN_FEE_RATE}
               maximumValue={maxFeeRate}
@@ -377,6 +455,7 @@ export default function VaultSetUp({
   //keyboardOpeningTime -> https://github.com/APSL/react-native-keyboard-aware-scroll-view/issues/571#issuecomment-1724564527
   return (
     <KeyboardAwareScrollView
+      contentInsetAdjustmentBehavior="automatic"
       keyboardShouldPersistTaps="handled"
       contentContainerStyle={{
         paddingTop: 20
@@ -410,6 +489,11 @@ const getStyles = (theme: Theme, insets: EdgeInsets) =>
       borderWidth: 0,
       padding: 10
     },
+    cardHeader: {
+      alignItems: 'center', // Align items vertically in the center
+      flex: 1,
+      flexDirection: 'row'
+    },
     cardTitle: {
       marginVertical: 10,
       marginLeft: 10,
@@ -421,9 +505,12 @@ const getStyles = (theme: Theme, insets: EdgeInsets) =>
       fontSize: 16,
       color: theme.colors.primary
     },
-    cardTitleWithIcon: {
-      alignItems: 'center',
-      flexDirection: 'row'
+    cardModeRotator: {
+      flex: 1,
+      marginRight: 10,
+      flexDirection: 'row',
+      //flex: 1,
+      justifyContent: 'flex-end'
     },
     buttonGroup: {
       alignSelf: 'center',

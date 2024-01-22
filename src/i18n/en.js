@@ -67,7 +67,11 @@ If you have biometric encryption enabled, a password may not be necessary as\
     feeRateError: 'Pick a valid Fee Rate.',
     amountError: 'Pick a valid amount of Btc.',
     invalidValues: 'Invalid Values.',
-    reduceVaultAmount: 'Faster vault creation fees reduce maximum to {{amount}}'
+    reduceVaultAmount:
+      'Faster vault creation fees reduce maximum to {{amount}}',
+    days: 'days',
+    blocks: 'blocks',
+    feeRate: 'sats/vB'
   },
   createVault: {
     subTitle: 'Finalizing Your Vault',

@@ -4,12 +4,15 @@ import { useTheme, Theme } from './theme';
 import { rgba } from 'polished';
 interface ButtonProps extends RN.PressableProps {
   mode?: 'native' | 'text' | 'contained' | 'outlined';
+  /** used then the children passed is a string */
+  fontSize?: number;
   onPress: (event: RN.GestureResponderEvent) => void;
   disabled?: boolean;
 }
 
 const Button: React.FC<ButtonProps> = ({
   mode = 'native',
+  fontSize,
   children,
   ...props
 }) => {
@@ -28,7 +31,12 @@ const Button: React.FC<ButtonProps> = ({
       >
         {({ pressed }) =>
           typeof children === 'string' ? (
-            <RN.Text style={getStyles(theme, pressed).actionText[mode]}>
+            <RN.Text
+              style={[
+                fontSize ? { fontSize } : {},
+                getStyles(theme, pressed).actionText[mode]
+              ]}
+            >
               {children}
             </RN.Text>
           ) : React.isValidElement(children) ? (
