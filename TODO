@@ -1,4 +1,12 @@
+TODO: There is an issue. If the user selects locale es-ES but uses 
+en-US in the system, then the keyboard for the numbers (the fee rate) will not
+let use "," (commas) as decimal separator.
+  SOLUTION: Do not let the user pick a locale and use the system one
+
 TODO: Document the new APIs for storage
+TODO: Add a default:       contentInsetAdjustmentBehavior="automatic"
+      -> But on Android this wont work. Perhaps better use useHeaderHeight:
+      https://reactnavigation.org/docs/7.x/native-stack-navigator/#headertransparent
 TODO: I'll need a way to download from server / user storage backuped Vaults.
 Note that these backuped vaults may be need to be merged (not replaced) with the
 user current ones.
