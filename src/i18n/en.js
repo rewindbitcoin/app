@@ -71,7 +71,8 @@ If you have biometric encryption enabled, a password may not be necessary as\
       'Faster vault creation fees reduce maximum to {{amount}}',
     days: 'days',
     blocks: 'blocks',
-    feeRate: 'sats/vB'
+    feeRate: 'sats/vB',
+    vaultAllFundsShortBadge: 'All Funds'
   },
   createVault: {
     subTitle: 'Finalizing Your Vault',
