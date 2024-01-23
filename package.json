@@ -4,7 +4,7 @@
   "main": "node_modules/expo/AppEntry.js",
   "prettier": "@bitcoinerlab/configs/prettierConfig.json",
   "eslintConfig": {
-    "extends": "./node_modules/@bitcoinerlab/configs/eslintConfig"
+    "extends": "./.eslintrc.js"
   },
   "jest": {
     "preset": "@bitcoinerlab/configs"
@@ -80,6 +80,8 @@
     "@types/lodash.memoize": "^4.1.8",
     "@types/react": "~18.2.14",
     "@types/react-native-extra-dimensions-android": "^1.2.3",
+    "eslint-plugin-react": "^7.33.2",
+    "eslint-plugin-react-hooks": "^4.6.0",
     "patch-package": "^8.0.0",
     "typescript": "^5.1.3"
   },
