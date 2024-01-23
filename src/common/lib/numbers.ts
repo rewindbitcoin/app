@@ -128,7 +128,13 @@ const localizedStrToNumber = (str: string, locale: Locale): number => {
   }
 };
 
-function localizeNumericString(strValue: string, locale: Locale) {
+/**
+ * localizes unfinished strings while being typed in TexInput
+ * For example: 0. will be valid and not formatted to 0
+ * or 1,000.034000 will be ok too since the user may be entering zeros
+ * to finally enter a non-zero later
+ */
+function localizeInputNumericString(strValue: string, locale: Locale) {
   if (strValue === '') return strValue;
   const { delimiter, separator } = getLocaleSeparators(locale);
   const number = localizedStrToNumber(
@@ -138,8 +144,24 @@ function localizeNumericString(strValue: string, locale: Locale) {
   );
   if (!Number.isNaN(number)) {
     let localizedStr = numberToLocalizedString(number, locale);
-    if (strValue[strValue.length - 1] === separator)
+
+    //If its a number finished by "."
+    if (strValue[strValue.length - 1] === separator) {
       localizedStr = localizedStr + separator;
+    }
+    //If its a decimal number
+    else if (strValue.indexOf(separator) !== -1) {
+      const zero = new Intl.NumberFormat(locale).format(0);
+      //If the decimal number ends with trailing zeros, leave them
+      //  case a: x.0000 -> add back the zeros
+      //  base b: x.y000 -> add back the separator and the zeros
+      const matchTrailingZeros = strValue.match(
+        new RegExp(`${separator}?${zero}+$`)
+      );
+      if (matchTrailingZeros) {
+        localizedStr += matchTrailingZeros[0];
+      }
+    }
     return localizedStr;
   } else return strValue;
 }
@@ -198,7 +220,7 @@ export {
   numberToFixed,
   unlocalizedKeyboardFix,
   numberToLocalizedString,
-  localizeNumericString,
+  localizeInputNumericString,
   localizedStrToNumber,
   getLocaleSeparators,
   countDecimalDigits
