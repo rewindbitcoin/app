@@ -1,10 +1,10 @@
 diff --git a/node_modules/expo-local-authentication/android/.gradle/8.3/checksums/checksums.lock b/node_modules/expo-local-authentication/android/.gradle/8.3/checksums/checksums.lock
 new file mode 100644
-index 0000000..014ad8b
+index 0000000..e496d85
 Binary files /dev/null and b/node_modules/expo-local-authentication/android/.gradle/8.3/checksums/checksums.lock differ
 diff --git a/node_modules/expo-local-authentication/android/.gradle/8.3/dependencies-accessors/dependencies-accessors.lock b/node_modules/expo-local-authentication/android/.gradle/8.3/dependencies-accessors/dependencies-accessors.lock
 new file mode 100644
-index 0000000..5aefa82
+index 0000000..79e2c49
 Binary files /dev/null and b/node_modules/expo-local-authentication/android/.gradle/8.3/dependencies-accessors/dependencies-accessors.lock differ
 diff --git a/node_modules/expo-local-authentication/android/.gradle/8.3/dependencies-accessors/gc.properties b/node_modules/expo-local-authentication/android/.gradle/8.3/dependencies-accessors/gc.properties
 new file mode 100644
@@ -15,19 +15,31 @@ index 0000000..f76dd23
 Binary files /dev/null and b/node_modules/expo-local-authentication/android/.gradle/8.3/fileChanges/last-build.bin differ
 diff --git a/node_modules/expo-local-authentication/android/.gradle/8.3/fileHashes/fileHashes.lock b/node_modules/expo-local-authentication/android/.gradle/8.3/fileHashes/fileHashes.lock
 new file mode 100644
-index 0000000..e97760a
+index 0000000..50b0d6a
 Binary files /dev/null and b/node_modules/expo-local-authentication/android/.gradle/8.3/fileHashes/fileHashes.lock differ
 diff --git a/node_modules/expo-local-authentication/android/.gradle/8.3/gc.properties b/node_modules/expo-local-authentication/android/.gradle/8.3/gc.properties
 new file mode 100644
 index 0000000..e69de29
+diff --git a/node_modules/expo-local-authentication/android/.gradle/buildOutputCleanup/buildOutputCleanup.lock b/node_modules/expo-local-authentication/android/.gradle/buildOutputCleanup/buildOutputCleanup.lock
+new file mode 100644
+index 0000000..77ed6fd
+Binary files /dev/null and b/node_modules/expo-local-authentication/android/.gradle/buildOutputCleanup/buildOutputCleanup.lock differ
+diff --git a/node_modules/expo-local-authentication/android/.gradle/buildOutputCleanup/cache.properties b/node_modules/expo-local-authentication/android/.gradle/buildOutputCleanup/cache.properties
+new file mode 100644
+index 0000000..f359c31
+--- /dev/null
++++ b/node_modules/expo-local-authentication/android/.gradle/buildOutputCleanup/cache.properties
+@@ -0,0 +1,2 @@
++#Tue Jan 23 19:27:26 CET 2024
++gradle.version=8.3
 diff --git a/node_modules/expo-local-authentication/android/.gradle/vcs-1/gc.properties b/node_modules/expo-local-authentication/android/.gradle/vcs-1/gc.properties
 new file mode 100644
 index 0000000..e69de29
 diff --git a/node_modules/expo-local-authentication/android/src/main/java/expo/modules/localauthentication/LocalAuthenticationModule.kt b/node_modules/expo-local-authentication/android/src/main/java/expo/modules/localauthentication/LocalAuthenticationModule.kt
-index 6390b58..082edad 100644
+index 996ee2e..366f996 100644
 --- a/node_modules/expo-local-authentication/android/src/main/java/expo/modules/localauthentication/LocalAuthenticationModule.kt
 +++ b/node_modules/expo-local-authentication/android/src/main/java/expo/modules/localauthentication/LocalAuthenticationModule.kt
-@@ -240,7 +240,7 @@ class LocalAuthenticationModule : Module() {
+@@ -236,7 +236,7 @@ class LocalAuthenticationModule : Module() {
          setNegativeButtonText(cancelLabel)
        } else {
          setAllowedAuthenticators(
@@ -36,7 +48,7 @@ index 6390b58..082edad 100644
              or BiometricManager.Authenticators.DEVICE_CREDENTIAL
          )
        }
-@@ -350,7 +350,7 @@ class LocalAuthenticationModule : Module() {
+@@ -334,7 +334,7 @@ class LocalAuthenticationModule : Module() {
    }
  
    private fun canAuthenticateUsingWeakBiometrics(): Int =
