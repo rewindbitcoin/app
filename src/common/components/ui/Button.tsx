@@ -6,7 +6,7 @@ interface ButtonProps extends RN.PressableProps {
   mode?: 'native' | 'text' | 'contained' | 'outlined';
   /** used then the children passed is a string */
   fontSize?: number;
-  onPress: (event: RN.GestureResponderEvent) => void;
+  onPress?: (event: RN.GestureResponderEvent) => void;
   disabled?: boolean;
 }
 
