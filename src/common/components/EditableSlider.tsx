@@ -42,7 +42,7 @@
  *       user input errors.
  */
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Locale } from '../../i18n/i18n';
 
@@ -62,9 +62,11 @@ import {
 import { useTheme, Theme } from './ui/theme';
 import {
   numberToLocalizedFixed,
+  numberToFixed,
   localizedStrToNumber,
   countDecimalDigits,
-  formatInputNumericString
+  localizeNumericString,
+  unlocalizedKeyboardFix
 } from '../../common/lib/numbers';
 
 interface EditableSliderProps {
@@ -72,6 +74,7 @@ interface EditableSliderProps {
   value: number | null;
   minimumValue: number;
   maxLabel?: string;
+  localizeNumbers?: boolean;
   maximumValue: number;
   step?: number;
   formatError?: ({
@@ -113,14 +116,18 @@ export function snap({
 function snap2Str({
   snappedValue,
   locale,
+  localizeNumbers,
   step = DEFAULT_STEP
 }: {
   snappedValue: number;
   locale: Locale;
+  localizeNumbers: boolean;
   step: number;
 }): string {
   const digits = countDecimalDigits(step);
-  return numberToLocalizedFixed(snappedValue, digits, locale);
+  return localizeNumbers
+    ? numberToLocalizedFixed(snappedValue, digits, locale)
+    : numberToFixed(snappedValue, digits, locale);
 }
 
 function inRange({
@@ -140,6 +147,7 @@ const EditableSlider = ({
   minimumValue,
   maximumValue,
   maxLabel,
+  localizeNumbers = true,
   step = DEFAULT_STEP,
   locale,
   formatError,
@@ -164,6 +172,12 @@ const EditableSlider = ({
   const [sliderManagedValue, setSliderManagedValue] = useState<number>(
     snappedValue === null ? minimumValue : snappedValue
   );
+
+  const [strValue, setStrValue] = useState<string>(
+    snappedValue === null
+      ? snap2Str({ snappedValue: minimumValue, locale, localizeNumbers, step })
+      : snap2Str({ snappedValue, locale, localizeNumbers, step })
+  );
   // Parent may change min, max or step. Previously good values
   // may not be ok anymore or previously old values may be again
   useEffect(() => {
@@ -186,6 +200,7 @@ const EditableSlider = ({
       const newStrValue = snap2Str({
         snappedValue: newSnappedValue,
         locale,
+        localizeNumbers,
         step
       });
       if (strValue !== newStrValue) setStrValue(newStrValue);
@@ -206,13 +221,21 @@ const EditableSlider = ({
     if (onValueChange && newSnappedValue !== value) {
       onValueChange(newSnappedValue);
     }
-  }, [minimumValue, maximumValue, step]);
+  }, [
+    //Parent may change these:
+    minimumValue,
+    maximumValue,
+    step,
 
-  const [strValue, setStrValue] = useState<string>(
-    snappedValue === null
-      ? snap2Str({ snappedValue: minimumValue, locale, step })
-      : snap2Str({ snappedValue, locale, step })
-  );
+    //Other stuff needed:
+    locale,
+    onValueChange,
+    sliderManagedValue,
+    snappedValue,
+    strValue,
+    value,
+    localizeNumbers
+  ]);
 
   const { t } = useTranslation();
 
@@ -220,45 +243,73 @@ const EditableSlider = ({
   const keyboardType = step === 1 ? 'number-pad' : 'numeric';
   const [fontsLoaded] = useFonts({ RobotoMono_400Regular });
 
-  const onSliderValueChange = (value: number) => {
-    //The react-native slider is buggy and may return slightly off values
-    if (value < minimumValue) value = minimumValue;
-    if (value > maximumValue) value = maximumValue;
-    const snappedValue = snap({ value, minimumValue, maximumValue, step });
-    if (snappedValue === null)
-      throw new Error(
-        `Slider returned off-limits value: ${minimumValue} >= ${value} >= ${maximumValue}, step: ${step}, snappedValue: ${snappedValue}`
-      );
-    else lastValidSnappedValue.current = snappedValue;
-    const strValue = snap2Str({ snappedValue, locale, step });
-    setStrValue(strValue);
-    if (snappedValue !== prevSnappedValue.current && onValueChange) {
-      onValueChange(snappedValue);
-    }
-  };
+  const onSliderValueChange = useCallback(
+    (value: number) => {
+      //The react-native slider is buggy and may return slightly off values
+      if (value < minimumValue) value = minimumValue;
+      if (value > maximumValue) value = maximumValue;
+      const snappedValue = snap({ value, minimumValue, maximumValue, step });
+      if (snappedValue === null)
+        throw new Error(
+          `Slider returned off-limits value: ${minimumValue} >= ${value} >= ${maximumValue}, step: ${step}, snappedValue: ${snappedValue}`
+        );
+      else lastValidSnappedValue.current = snappedValue;
+      const strValue = snap2Str({
+        snappedValue,
+        locale,
+        localizeNumbers,
+        step
+      });
+      setStrValue(strValue);
+      if (snappedValue !== prevSnappedValue.current && onValueChange) {
+        onValueChange(snappedValue);
+      }
+    },
+    [minimumValue, maximumValue, step, locale, localizeNumbers, onValueChange]
+  );
 
   //TODO: When using Bitcoin, then its not valid to pass more than 8 decimals
   //TODO: print "Invalid Number"
-  const onTextInputValueChange = (strValue: string) => {
-    strValue = formatInputNumericString(strValue, locale);
-    setStrValue(strValue);
-    const isValidStrValue =
-      !isNaN(localizedStrToNumber(strValue, locale)) &&
-      localizedStrToNumber(strValue, locale) >= minimumValue &&
-      localizedStrToNumber(strValue, locale) <= maximumValue;
-    if (isValidStrValue) {
-      const value = localizedStrToNumber(strValue, locale);
-      const snappedValue = snap({ value, minimumValue, maximumValue, step });
-      if (snappedValue === null) throw new Error('strNumberInRange not valid');
-      setSliderManagedValue(snappedValue);
-      if (value !== prevSnappedValue.current && onValueChange)
-        onValueChange(value);
-      lastValidSnappedValue.current = snappedValue;
-    } else {
-      if (null !== prevSnappedValue.current && onValueChange)
-        onValueChange(null);
-    }
-  };
+  const onTextInputValueChange = useCallback(
+    (newStrValue: string) => {
+      if (
+        keyboardType === 'numeric' &&
+        (Platform.OS === 'ios' || Platform.OS === 'android')
+      )
+        newStrValue = unlocalizedKeyboardFix(newStrValue, strValue, locale);
+      if (localizeNumbers)
+        newStrValue = localizeNumericString(newStrValue, locale);
+      setStrValue(newStrValue);
+      const isValidStrValue =
+        !isNaN(localizedStrToNumber(newStrValue, locale)) &&
+        localizedStrToNumber(newStrValue, locale) >= minimumValue &&
+        localizedStrToNumber(newStrValue, locale) <= maximumValue;
+      if (isValidStrValue) {
+        const value = localizedStrToNumber(newStrValue, locale);
+        const snappedValue = snap({ value, minimumValue, maximumValue, step });
+        if (snappedValue === null)
+          throw new Error('strNumberInRange not valid');
+        setSliderManagedValue(snappedValue);
+        if (value !== prevSnappedValue.current && onValueChange)
+          onValueChange(value);
+        lastValidSnappedValue.current = snappedValue;
+      } else {
+        if (null !== prevSnappedValue.current && onValueChange)
+          onValueChange(null);
+      }
+    },
+    [
+      keyboardType,
+      strValue,
+      minimumValue,
+      maximumValue,
+      step,
+      locale,
+      localizeNumbers,
+      onValueChange
+    ]
+  );
+
   let formattedValue;
   if (snappedValue === null) {
     const last = lastValidSnappedValue.current;
@@ -300,7 +351,7 @@ const EditableSlider = ({
         `calc(${strValue.length}ch + ${paddingAndBorder}px)`
       );
     }
-  }, [strValue]);
+  }, [strValue, styles.input]);
 
   const thumbTintColor =
     snappedValue === null
@@ -344,7 +395,7 @@ const EditableSlider = ({
           onChangeText={onTextInputValueChange}
         />
         {maxLabel && value === maximumValue ? (
-          <View style={{ position: 'absolute', top: -5, right: 2 }}>
+          <View style={{ position: 'absolute', top: -7, right: 2 }}>
             <Text style={{ fontSize: 10, color: theme.colors.cardSecondary }}>
               {maxLabel}
             </Text>
@@ -355,7 +406,7 @@ const EditableSlider = ({
   );
 };
 
-export default EditableSlider;
+export default React.memo(EditableSlider);
 
 const getStyles = (theme: Theme) =>
   StyleSheet.create({
@@ -388,6 +439,8 @@ const getStyles = (theme: Theme) =>
     input: {
       fontSize: 15,
       padding: 0,
+      borderWidth: 0,
+      ...Platform.select({ web: { outlineWidth: 0 }, default: {} }),
       paddingVertical: 5,
       borderBottomWidth: 1,
       borderBottomColor: theme.colors.primary

@@ -10,7 +10,7 @@
 
 import { Trans, useTranslation } from 'react-i18next';
 import AntDesign from '@expo/vector-icons/AntDesign';
-import React, { useContext, useState } from 'react';
+import React, { useCallback, useMemo, useContext, useState } from 'react';
 import { useNavigation } from '@react-navigation/native';
 import { KeyboardAwareScrollView } from '../../common/components/KeyboardAwareScrollView';
 import { View, StyleSheet } from 'react-native';
@@ -18,6 +18,7 @@ import { Text, Button, useTheme, Theme } from '../../common/components/ui';
 import { useToast } from '../../common/components/Toast';
 import { EdgeInsets, useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
+  SubUnit,
   defaultSettings,
   Settings,
   SETTINGS_GLOBAL_STORAGE
@@ -39,6 +40,88 @@ import globalStyles from '../styles/styles';
 import { estimateVaultSetUpRange } from '../lib/vaultRange';
 
 const FEE_RATE_STEP = 0.01;
+const FIAT_DECIMALS = 2;
+
+const fromBlocks = (
+  blocks: number,
+  min: number,
+  max: number,
+  mode: 'days' | 'blocks'
+) => {
+  if (mode === 'blocks') return blocks;
+  const minDays = Math.ceil(min / (6 * 24));
+  const maxDays = Math.floor(max / (6 * 24));
+  const days = Math.round(blocks / (6 * 24));
+  return Math.min(maxDays, Math.max(minDays, days));
+};
+const toBlocks = (value: number, fromMode: 'days' | 'blocks') => {
+  if (fromMode === 'blocks') return value;
+  return value * 6 * 24;
+};
+
+const fromSats = (
+  amount: number,
+  min: number,
+  max: number,
+  mode: 'Fiat' | SubUnit,
+  btcFiat: number | null
+) => {
+  if (mode === 'sat') return amount;
+  else if (mode === 'Fiat') {
+    if (btcFiat === null)
+      throw new Error(`Currency mode not valud if rates not available`);
+    const fiatMin =
+      Math.ceil((min * btcFiat * Math.pow(10, FIAT_DECIMALS)) / 1e8) /
+      Math.pow(10, FIAT_DECIMALS);
+    const fiatMax =
+      Math.floor((max * btcFiat * Math.pow(10, FIAT_DECIMALS)) / 1e8) /
+      Math.pow(10, FIAT_DECIMALS);
+    const fiatAmount =
+      Math.round((amount * btcFiat * Math.pow(10, FIAT_DECIMALS)) / 1e8) /
+      Math.pow(10, FIAT_DECIMALS);
+    if (amount >= min && amount <= max)
+      return Math.min(fiatMax, Math.max(fiatMin, fiatAmount));
+    else return fiatAmount;
+  } else if (mode === 'btc') {
+    return amount / 1e8;
+  } else if (mode === 'mbit') {
+    return amount / 1e5;
+  } else if (mode === 'bit') {
+    return amount / 1e2;
+  } else throw new Error(`Unsupported mode: ${mode} computing fromSats`);
+};
+const toSats = (
+  value: number,
+  mode: 'Fiat' | SubUnit,
+  btcFiat: number | null
+) => {
+  if (mode === 'sat') {
+    return value;
+  } else if (mode === 'Fiat') {
+    if (btcFiat === null)
+      throw new Error(`Currency mode not valud if rates not available`);
+    return Math.round((1e8 * value) / btcFiat);
+  } else if (mode === 'btc') {
+    return Math.round(value * 1e8);
+  } else if (mode === 'mbit') {
+    return Math.round(value * 1e5);
+  } else if (mode === 'bit') {
+    return Math.round(value * 1e2);
+  } else throw new Error(`Unsupported mode: ${mode} computing toSats`);
+};
+const getAmountModeStep = (amountMode: 'Fiat' | SubUnit) => {
+  if (amountMode === 'Fiat') {
+    return 1 / Math.pow(10, FIAT_DECIMALS);
+  } else if (amountMode === 'btc') {
+    return 1e-8;
+  } else if (amountMode === 'mbit') {
+    return 1e-5;
+  } else if (amountMode === 'sat') {
+    return 1;
+  } else if (amountMode === 'bit') {
+    return 1e-2;
+  } else throw new Error(`Unsupported mode: ${amountMode} computing step`);
+};
 
 export default function VaultSetUp({
   onVaultSetUpComplete
@@ -77,9 +160,10 @@ export default function VaultSetUp({
   //Also pre-snap the whole feeEstimate so that pickFeeEstimate uses
   //snapped feeRates with snapped feeEstimates
 
-  const snappedFeeEstimates =
-    originalFE &&
-    Object.fromEntries(
+  const snappedFeeEstimates = useMemo(() => {
+    if (!originalFE) return null;
+
+    return Object.fromEntries(
       Object.entries(originalFE).map(([targetTime, feeRate]) => {
         const snappedValue = snap({
           minimumValue: Number.MIN_VALUE,
@@ -95,6 +179,7 @@ export default function VaultSetUp({
         return [targetTime, snappedValue];
       })
     );
+  }, [originalFE]);
 
   const [settings] = useGlobalStateStorage<Settings>(
     SETTINGS_GLOBAL_STORAGE,
@@ -106,6 +191,11 @@ export default function VaultSetUp({
       'This component should only be started after settings has been retrieved from storage'
     );
 
+  //amountMode 'USD' (currency) can only be used if btcRates is not null since
+  //we will need it to convert from / to
+  const [amountMode, setAmountMode] = useState<SubUnit | 'Fiat'>(
+    btcFiat !== null ? 'Fiat' : settings.SUB_UNIT
+  );
   const [lockTimeMode, setLockTimeMode] = useState<'days' | 'blocks'>('days');
   const [lockBlocks, setLockBlocks] = useState<number | null>(
     settings.INITIAL_LOCK_BLOCKS
@@ -136,9 +226,12 @@ export default function VaultSetUp({
     feeRateCeiling: settings.PRESIGNED_FEE_RATE_CEILING,
     minRecoverableRatio: settings.MIN_RECOVERABLE_RATIO
   });
-  console.log({ initialFeeRate, feeRate, maxVaultAmount });
+  //console.log({ initialFeeRate, feeRate, maxVaultAmount });
 
   const [amount, setAmount] = useState<number | null>(maxVaultAmount || null);
+  const [isMaxFunds, setIsMaxFunds] = useState<boolean>(
+    amount === maxVaultAmount
+  );
 
   const handleOK = () => {
     const errorMessages = [];
@@ -178,17 +271,173 @@ export default function VaultSetUp({
     largestMinVaultAmount - lowestMaxVaultAmount
   );
 
-  const fromBlocks = (blocks: number, mode: 'days' | 'blocks') => {
-    if (mode === 'blocks') return blocks;
-    const minDays = Math.ceil(settings.MIN_LOCK_BLOCKS / (6 * 24));
-    const maxDays = Math.floor(settings.MAX_LOCK_BLOCKS / (6 * 24));
-    const days = Math.round(blocks / (6 * 24));
-    return Math.min(maxDays, Math.max(minDays, days));
-  };
-  const toBlocks = (value: number, fromMode: 'days' | 'blocks') => {
-    if (fromMode === 'blocks') return value;
-    return value * 6 * 24;
-  };
+  const onLockBlocksValueChange = useCallback(
+    (value: number | null) =>
+      setLockBlocks(value === null ? null : toBlocks(value, lockTimeMode)),
+    [lockTimeMode]
+  );
+  const formatLockBlocksValue = useCallback(
+    (value: number) => formatLockTime(toBlocks(value, lockTimeMode), t),
+    [lockTimeMode, t]
+  );
+
+  const onAmountValueChange = useCallback(
+    (amount: number | null) => {
+      if (maxVaultAmount === undefined)
+        throw new Error(`onAmountValueChange needs a valid maxVaultAmount`);
+      const newIsMaxFunds =
+        amount ===
+        fromSats(
+          maxVaultAmount,
+          largestMinVaultAmount,
+          maxVaultAmount,
+          amountMode,
+          btcFiat
+        );
+      setIsMaxFunds(newIsMaxFunds);
+      setAmount(
+        amount === null
+          ? null
+          : newIsMaxFunds
+            ? maxVaultAmount
+            : toSats(amount, amountMode, btcFiat)
+      );
+    },
+    [maxVaultAmount, largestMinVaultAmount, amountMode, btcFiat]
+  );
+
+  const onFeeRateValueChange = useCallback(setFeeRate, [setFeeRate]);
+  const formatFeeRateValue = useCallback(
+    (feeRate: number) => {
+      const selected =
+        feeRate !== null &&
+        amount !== null &&
+        selectVaultUtxosData({
+          utxosData,
+          vaultOutput: DUMMY_VAULT_OUTPUT(network),
+          serviceOutput: DUMMY_SERVICE_OUTPUT(network),
+          changeOutput: DUMMY_CHANGE_OUTPUT(network),
+          feeRate,
+          amount,
+          serviceFeeRate: settings.SERVICE_FEE_RATE
+        });
+      if (selected) {
+        return formatFeeRate(
+          {
+            feeRate,
+            locale: settings.LOCALE,
+            currency: settings.CURRENCY,
+            txSize: selected.vsize,
+            btcFiat,
+            feeEstimates: snappedFeeEstimates
+          },
+          t
+        );
+      } else {
+        const selected =
+          feeRate !== null &&
+          maxVaultAmount !== undefined &&
+          selectVaultUtxosData({
+            utxosData,
+            vaultOutput: DUMMY_VAULT_OUTPUT(network),
+            serviceOutput: DUMMY_SERVICE_OUTPUT(network),
+            changeOutput: DUMMY_CHANGE_OUTPUT(network),
+            feeRate,
+            amount: maxVaultAmount,
+            serviceFeeRate: settings.SERVICE_FEE_RATE
+          });
+        return formatFeeRate(
+          {
+            feeRate,
+            locale: settings.LOCALE,
+            currency: settings.CURRENCY,
+            txSize: selected ? selected.vsize : null,
+            btcFiat,
+            feeEstimates: snappedFeeEstimates
+          },
+          t
+        );
+      }
+    },
+    [
+      amount,
+      t,
+      utxosData,
+      network,
+      maxVaultAmount,
+      settings.SERVICE_FEE_RATE,
+      settings.LOCALE,
+      settings.CURRENCY,
+      btcFiat,
+      snappedFeeEstimates
+    ]
+  );
+
+  const formatAmountValue = useCallback(
+    (amount: number) => {
+      if (maxVaultAmount === undefined)
+        throw new Error(`formatAmountValue needs a valid maxVaultAmount`);
+      return formatBtc(
+        {
+          amount: isMaxFunds
+            ? maxVaultAmount
+            : toSats(amount, amountMode, btcFiat),
+          subUnit: settings.SUB_UNIT,
+          btcFiat,
+          locale: settings.LOCALE,
+          currency: settings.CURRENCY
+        },
+        t
+      );
+    },
+    [
+      isMaxFunds,
+      t,
+      maxVaultAmount,
+      amountMode,
+      btcFiat,
+      settings.SUB_UNIT,
+      settings.LOCALE,
+      settings.CURRENCY
+    ]
+  );
+
+  const formatAmountError = useCallback(
+    ({
+      lastValidSnappedValue,
+      strValue
+    }: {
+      lastValidSnappedValue: number;
+      strValue: string;
+    }) => {
+      void strValue;
+      if (maxVaultAmount === undefined)
+        throw new Error(`formatAmountValue needs a valid maxVaultAmount`);
+      if (toSats(lastValidSnappedValue, amountMode, btcFiat) > maxVaultAmount) {
+        return t('vaultSetup.reduceVaultAmount', {
+          amount: formatBtc(
+            {
+              amount: maxVaultAmount,
+              subUnit: settings.SUB_UNIT,
+              btcFiat,
+              locale: settings.LOCALE,
+              currency: settings.CURRENCY
+            },
+            t
+          )
+        });
+      } else return;
+    },
+    [
+      maxVaultAmount,
+      t,
+      amountMode,
+      btcFiat,
+      settings.SUB_UNIT,
+      settings.LOCALE,
+      settings.CURRENCY
+    ]
+  );
 
   const content =
     //TODO: test missingFunds
@@ -245,128 +494,139 @@ export default function VaultSetUp({
                   {t('vaultSetup.amountLabel')}
                 </Text>
                 <View style={styles.cardModeRotator}>
-                  <Text
-                    style={{ fontSize: 12, color: theme.colors.cardSecondary }}
-                  >
-                    sats
-                  </Text>
-                </View>
-              </View>
-              <View style={styles.card}>
-                <EditableSlider
-                  currencyInput
-                  locale={settings.LOCALE}
-                  formatError={({
-                    lastValidSnappedValue,
-                    strValue
-                  }: {
-                    lastValidSnappedValue: number;
-                    strValue: string;
-                  }) => {
-                    void strValue;
-                    if (lastValidSnappedValue > maxVaultAmount) {
-                      return t('vaultSetup.reduceVaultAmount', {
-                        amount: formatBtc(
-                          {
-                            amount: maxVaultAmount,
-                            subUnit: settings.SUB_UNIT,
-                            btcFiat,
-                            locale: settings.LOCALE,
-                            currency: settings.CURRENCY
-                          },
-                          t
-                        )
-                      });
-                    } else return;
-                  }}
-                  minimumValue={largestMinVaultAmount}
-                  maximumValue={maxVaultAmount}
-                  value={amount}
-                  onValueChange={amount => {
-                    setAmount(amount);
-                  }}
-                  step={1}
-                  formatValue={amount =>
-                    formatBtc(
-                      {
-                        amount,
-                        subUnit: settings.SUB_UNIT,
-                        btcFiat,
-                        locale: settings.LOCALE,
-                        currency: settings.CURRENCY
-                      },
-                      t
-                    )
-                  }
-                />
-              </View>
-            </View>
-          )}
-        {settings.MIN_LOCK_BLOCKS &&
-          settings.MAX_LOCK_BLOCKS &&
-          formatLockTime && (
-            <View style={styles.settingGroup}>
-              <View style={styles.cardHeader}>
-                <Text variant="cardTitle" style={styles.cardTitle}>
-                  {t('vaultSetup.securityLockTimeLabel')}
-                </Text>
-                <AntDesign name="infocirlceo" style={styles.helpIcon} />
-                <View style={styles.cardModeRotator}>
                   <Button
                     mode="text"
                     fontSize={12}
                     onPress={() => {
-                      setLockBlocks(
-                        lockBlocks === null
-                          ? null
-                          : toBlocks(
-                              fromBlocks(lockBlocks, lockTimeMode),
-                              lockTimeMode
-                            )
-                      );
-                      setLockTimeMode(
-                        lockTimeMode === 'days' ? 'blocks' : 'days'
+                      const modes: Array<'Fiat' | SubUnit> = [
+                        settings.SUB_UNIT
+                      ];
+                      if (settings.SUB_UNIT !== 'btc') modes.push('btc');
+                      if (btcFiat !== null) modes.push('Fiat');
+                      setAmountMode(
+                        modes[(modes.indexOf(amountMode) + 1) % modes.length]!
                       );
                     }}
                   >
-                    {`${
-                      lockTimeMode === 'days'
-                        ? t('vaultSetup.days')
-                        : t('vaultSetup.blocks')
-                    } ⇅`}
+                    {`${amountMode} ⇅`}
                   </Button>
                 </View>
               </View>
               <View style={styles.card}>
                 <EditableSlider
-                  currencyInput
+                  maxLabel={t(
+                    'vaultSetup.vaultAllFundsShortBadge'
+                  ).toUpperCase()}
                   locale={settings.LOCALE}
-                  minimumValue={fromBlocks(
-                    settings.MIN_LOCK_BLOCKS,
-                    lockTimeMode
+                  formatError={formatAmountError}
+                  minimumValue={fromSats(
+                    largestMinVaultAmount,
+                    largestMinVaultAmount,
+                    maxVaultAmount,
+                    amountMode,
+                    btcFiat
                   )}
-                  maximumValue={fromBlocks(
-                    settings.MAX_LOCK_BLOCKS,
-                    lockTimeMode
+                  maximumValue={fromSats(
+                    maxVaultAmount,
+                    largestMinVaultAmount,
+                    maxVaultAmount,
+                    amountMode,
+                    btcFiat
                   )}
                   value={
-                    lockBlocks === null
+                    amount === null
                       ? null
-                      : fromBlocks(lockBlocks, lockTimeMode)
+                      : fromSats(
+                          isMaxFunds ? maxVaultAmount : amount,
+                          largestMinVaultAmount,
+                          maxVaultAmount,
+                          amountMode,
+                          btcFiat
+                        )
                   }
-                  step={1}
-                  onValueChange={value =>
-                    setLockBlocks(
-                      value === null ? null : toBlocks(value, lockTimeMode)
-                    )
-                  }
-                  formatValue={value =>
-                    formatLockTime(toBlocks(value, lockTimeMode), t)
-                  }
+                  onValueChange={onAmountValueChange}
+                  step={getAmountModeStep(amountMode)}
+                  formatValue={formatAmountValue}
                 />
               </View>
             </View>
           )}
+        {settings.MIN_LOCK_BLOCKS && settings.MAX_LOCK_BLOCKS && (
+          <View style={styles.settingGroup}>
+            <View style={styles.cardHeader}>
+              <Text variant="cardTitle" style={styles.cardTitle}>
+                {t('vaultSetup.securityLockTimeLabel')}
+              </Text>
+              <AntDesign name="infocirlceo" style={styles.helpIcon} />
+              <View style={styles.cardModeRotator}>
+                <Button
+                  mode="text"
+                  fontSize={12}
+                  onPress={() => {
+                    if (lockTimeMode === 'blocks') {
+                      //If I had 1 block selected, then round it it to the
+                      //selected number of days: 144 blocks, for example for
+                      //1 block
+                      setLockBlocks(
+                        lockBlocks === null
+                          ? null
+                          : toBlocks(
+                              fromBlocks(
+                                lockBlocks,
+                                settings.MIN_LOCK_BLOCKS,
+                                settings.MAX_LOCK_BLOCKS,
+                                lockTimeMode
+                              ),
+                              lockTimeMode
+                            )
+                      );
+                    }
+                    setLockTimeMode(
+                      lockTimeMode === 'days' ? 'blocks' : 'days'
+                    );
+                  }}
+                >
+                  {`${
+                    lockTimeMode === 'days'
+                      ? t('vaultSetup.days')
+                      : t('vaultSetup.blocks')
+                  } ⇅`}
+                </Button>
+              </View>
+            </View>
+            <View style={styles.card}>
+              <EditableSlider
+                locale={settings.LOCALE}
+                minimumValue={fromBlocks(
+                  settings.MIN_LOCK_BLOCKS,
+                  settings.MIN_LOCK_BLOCKS,
+                  settings.MAX_LOCK_BLOCKS,
+                  lockTimeMode
+                )}
+                maximumValue={fromBlocks(
+                  settings.MAX_LOCK_BLOCKS,
+                  settings.MIN_LOCK_BLOCKS,
+                  settings.MAX_LOCK_BLOCKS,
+                  lockTimeMode
+                )}
+                value={
+                  lockBlocks === null
+                    ? null
+                    : fromBlocks(
+                        lockBlocks,
+
+                        settings.MIN_LOCK_BLOCKS,
+                        settings.MAX_LOCK_BLOCKS,
+                        lockTimeMode
+                      )
+                }
+                step={1}
+                onValueChange={onLockBlocksValueChange}
+                formatValue={formatLockBlocksValue}
+              />
+            </View>
+          </View>
+        )}
         <View style={styles.settingGroup}>
           <View style={styles.cardHeader}>
             <Text variant="cardTitle" style={styles.cardTitle}>
@@ -381,64 +641,13 @@ export default function VaultSetUp({
           </View>
           <View style={styles.card}>
             <EditableSlider
-              currencyInput
               locale={settings.LOCALE}
               value={feeRate}
               minimumValue={settings.MIN_FEE_RATE}
               maximumValue={maxFeeRate}
               step={FEE_RATE_STEP}
-              onValueChange={setFeeRate}
-              formatValue={feeRate => {
-                const selected =
-                  feeRate !== null &&
-                  amount !== null &&
-                  selectVaultUtxosData({
-                    utxosData,
-                    vaultOutput: DUMMY_VAULT_OUTPUT(network),
-                    serviceOutput: DUMMY_SERVICE_OUTPUT(network),
-                    changeOutput: DUMMY_CHANGE_OUTPUT(network),
-                    feeRate,
-                    amount,
-                    serviceFeeRate: settings.SERVICE_FEE_RATE
-                  });
-                if (selected) {
-                  return formatFeeRate(
-                    {
-                      feeRate,
-                      locale: settings.LOCALE,
-                      currency: settings.CURRENCY,
-                      txSize: selected.vsize,
-                      btcFiat,
-                      feeEstimates: snappedFeeEstimates
-                    },
-                    t
-                  );
-                } else {
-                  const selected =
-                    feeRate !== null &&
-                    maxVaultAmount !== undefined &&
-                    selectVaultUtxosData({
-                      utxosData,
-                      vaultOutput: DUMMY_VAULT_OUTPUT(network),
-                      serviceOutput: DUMMY_SERVICE_OUTPUT(network),
-                      changeOutput: DUMMY_CHANGE_OUTPUT(network),
-                      feeRate,
-                      amount: maxVaultAmount,
-                      serviceFeeRate: settings.SERVICE_FEE_RATE
-                    });
-                  return formatFeeRate(
-                    {
-                      feeRate,
-                      locale: settings.LOCALE,
-                      currency: settings.CURRENCY,
-                      txSize: selected ? selected.vsize : null,
-                      btcFiat,
-                      feeEstimates: snappedFeeEstimates
-                    },
-                    t
-                  );
-                }
-              }}
+              onValueChange={onFeeRateValueChange}
+              formatValue={formatFeeRateValue}
             />
           </View>
         </View>
@@ -458,6 +667,7 @@ export default function VaultSetUp({
       contentInsetAdjustmentBehavior="automatic"
       keyboardShouldPersistTaps="handled"
       contentContainerStyle={{
+        alignItems: 'center',
         paddingTop: 20
         //flexGrow: 1,
         //justifyContent: 'center',
@@ -484,6 +694,8 @@ const getStyles = (theme: Theme, insets: EdgeInsets) =>
     },
     settingGroup: { marginBottom: 30, width: '100%' },
     card: {
+      flexDirection: 'row',
+      alignItems: 'center',
       backgroundColor: theme.colors.card,
       borderRadius: 5,
       borderWidth: 0,

@@ -1,6 +1,7 @@
+import memoize from 'lodash.memoize';
 import type { Locale } from '../../i18n/i18n';
 //https://stackoverflow.com/a/9539746
-function countDecimalDigits(number: number): number {
+const countDecimalDigits = memoize((number: number): number => {
   // Make sure it is a number and use the builtin number -> string.
   const s = '' + +number;
   // Pull out the fraction and the exponent.
@@ -19,9 +20,9 @@ function countDecimalDigits(number: number): number {
     (match[1] == '0' ? 0 : (match[1] || '').length) - // fraction length
       (match[2] ? parseInt(match[2]) : 0)
   ); // exponent
-}
+});
 
-function getLocaleSeparators(locale: Locale) {
+const getLocaleSeparators = memoize((locale: Locale) => {
   const defaults = { delimiter: ',', separator: '.' };
   const formattedNumber = new Intl.NumberFormat(locale).format(12345.6);
   if (formattedNumber.length !== 8)
@@ -36,7 +37,7 @@ function getLocaleSeparators(locale: Locale) {
   //  throw new Error(`Unknow separator ${locale}`);
   if (delimiter === undefined || separator === undefined) return defaults;
   return { delimiter, separator };
-}
+});
 const numberToLocalizedFixed = (
   value: number,
   precision: number,
@@ -46,6 +47,10 @@ const numberToLocalizedFixed = (
     minimumFractionDigits: precision,
     maximumFractionDigits: precision
   }).format(value);
+};
+const numberToFixed = (value: number, precision: number, locale: Locale) => {
+  const { separator } = getLocaleSeparators(locale);
+  return value.toFixed(precision).replace('.', separator);
 };
 const numberToLocalizedString = (value: number, locale: Locale) => {
   return new Intl.NumberFormat(locale, { maximumFractionDigits: 12 }).format(
@@ -123,7 +128,8 @@ const localizedStrToNumber = (str: string, locale: Locale): number => {
   }
 };
 
-function formatInputNumericString(strValue: string, locale: Locale) {
+function localizeNumericString(strValue: string, locale: Locale) {
+  if (strValue === '') return strValue;
   const { delimiter, separator } = getLocaleSeparators(locale);
   const number = localizedStrToNumber(
     //remove delimiters
@@ -138,10 +144,61 @@ function formatInputNumericString(strValue: string, locale: Locale) {
   } else return strValue;
 }
 
+const findSingleDifferenceIndex = (newStr: string, oldStr: string) => {
+  if (newStr.length !== oldStr.length + 1) return -1;
+
+  let diffIndex = -1;
+  for (let i = 0; i < newStr.length; i++) {
+    if (newStr[i] !== oldStr[i - (diffIndex >= 0 ? 1 : 0)]) {
+      if (diffIndex >= 0) return -1; // More than one difference found
+      diffIndex = i;
+    }
+  }
+  return diffIndex;
+};
+
+/** In iOS, numeric keyboards show only the decimal separator character.
+ * When the user localization preferences in iOS are, fex., es-ES then the
+ * decimal separator is a ".". However, the user may have chosen within the
+ * app another locale. For example "en-US". So, the user cannot input
+ * decimal separator for the app locale.
+ * This function checks if the last character entered (newStr wrt oldStr) is
+ * either a ".,'" and replaces it with the locale decimal separator.
+ *
+ * https://lefkowitz.me/visual-guide-to-react-native-textinput-keyboardtype-options/
+ */
+const unlocalizedKeyboardFix = (
+  newStr: string,
+  oldStr: string,
+  locale: Locale
+) => {
+  const diffIndex = findSingleDifferenceIndex(newStr, oldStr);
+
+  if (diffIndex >= 0) {
+    const { separator } = getLocaleSeparators(locale);
+    if (
+      newStr[diffIndex] === '.' ||
+      newStr[diffIndex] === ',' ||
+      newStr[diffIndex] === "'"
+    ) {
+      // Create a new string with the locale correct separator
+      return (
+        newStr.substring(0, diffIndex) +
+        separator +
+        newStr.substring(diffIndex + 1)
+      );
+    }
+  }
+
+  return newStr;
+};
+
 export {
   numberToLocalizedFixed,
+  numberToFixed,
+  unlocalizedKeyboardFix,
   numberToLocalizedString,
-  formatInputNumericString,
+  localizeNumericString,
   localizedStrToNumber,
   getLocaleSeparators,
   countDecimalDigits
