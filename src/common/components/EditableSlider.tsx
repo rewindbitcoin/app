@@ -65,8 +65,9 @@ import {
   numberToFixed,
   localizedStrToNumber,
   countDecimalDigits,
-  localizeNumericString,
-  unlocalizedKeyboardFix
+  localizeInputNumericString,
+  unlocalizedKeyboardFix,
+  countDelimitersToTheLeft
 } from '../../common/lib/numbers';
 
 interface EditableSliderProps {
@@ -157,6 +158,10 @@ const EditableSlider = ({
   const theme = useTheme();
   const styles = getStyles(theme);
   const snappedValue = snap({ value, minimumValue, maximumValue, step });
+  const [selection, setSelection] = useState({
+    start: 0,
+    end: 0
+  });
 
   // Keep track of prevSnappedValue:
   const prevSnappedValue = useRef<number | null>();
@@ -181,6 +186,7 @@ const EditableSlider = ({
   // Parent may change min, max or step. Previously good values
   // may not be ok anymore or previously old values may be again
   useEffect(() => {
+    const snappedValue = snap({ value, minimumValue, maximumValue, step });
     const newSnappedValue =
       snappedValue !== null
         ? snappedValue
@@ -195,15 +201,14 @@ const EditableSlider = ({
       lastValidSnappedValue.current = newSnappedValue;
       //When min, max or step change, make sure the Slider is in correct
       //position and TextInput shows the correct value again
-      if (newSnappedValue !== sliderManagedValue)
-        setSliderManagedValue(newSnappedValue);
+      setSliderManagedValue(newSnappedValue);
       const newStrValue = snap2Str({
         snappedValue: newSnappedValue,
         locale,
         localizeNumbers,
         step
       });
-      if (strValue !== newStrValue) setStrValue(newStrValue);
+      setStrValue(newStrValue);
     } else {
       // Even if the component does not have a a correct value,
       // the slider must be set to some position within min and max...
@@ -215,8 +220,7 @@ const EditableSlider = ({
             : lastValidSnappedValue.current < minimumValue
               ? minimumValue
               : lastValidSnappedValue.current;
-      if (newSliderManagedValue !== sliderManagedValue)
-        setSliderManagedValue(newSliderManagedValue);
+      setSliderManagedValue(newSliderManagedValue);
     }
     if (onValueChange && newSnappedValue !== value) {
       onValueChange(newSnappedValue);
@@ -227,14 +231,12 @@ const EditableSlider = ({
     maximumValue,
     step,
 
-    //Other stuff needed:
     locale,
-    onValueChange,
-    sliderManagedValue,
-    snappedValue,
-    strValue,
-    value,
-    localizeNumbers
+    localizeNumbers,
+    onValueChange
+
+    //This breaks this hook. DONT ADD IT:
+    //value,
   ]);
 
   const { t } = useTranslation();
@@ -271,34 +273,85 @@ const EditableSlider = ({
   //TODO: When using Bitcoin, then its not valid to pass more than 8 decimals
   //TODO: print "Invalid Number"
   const onTextInputValueChange = useCallback(
-    (newStrValue: string) => {
+    (newStrTextInputValue: string) => {
+      const cursor = selection.start;
+      let newStrValue = newStrTextInputValue;
       if (
         keyboardType === 'numeric' &&
         (Platform.OS === 'ios' || Platform.OS === 'android')
       )
         newStrValue = unlocalizedKeyboardFix(newStrValue, strValue, locale);
       if (localizeNumbers)
-        newStrValue = localizeNumericString(newStrValue, locale);
-      setStrValue(newStrValue);
-      const isValidStrValue =
-        !isNaN(localizedStrToNumber(newStrValue, locale)) &&
-        localizedStrToNumber(newStrValue, locale) >= minimumValue &&
-        localizedStrToNumber(newStrValue, locale) <= maximumValue;
-      if (isValidStrValue) {
-        const value = localizedStrToNumber(newStrValue, locale);
-        const snappedValue = snap({ value, minimumValue, maximumValue, step });
-        if (snappedValue === null)
-          throw new Error('strNumberInRange not valid');
-        setSliderManagedValue(snappedValue);
-        if (value !== prevSnappedValue.current && onValueChange)
-          onValueChange(value);
-        lastValidSnappedValue.current = snappedValue;
+        newStrValue = localizeInputNumericString(newStrValue, locale);
+      //The resulting newStrValue will be exactly the same we had before
+      //but TextInput reports one character missing. This is because the user
+      //deleted a delimiter. And our localizeInputNumericString put it back
+      //again. What we do in this case is move the cursor to the left:
+      const isBackSpaceOnSeparator =
+        newStrValue === strValue &&
+        newStrTextInputValue.length === strValue.length - 1;
+      if (isBackSpaceOnSeparator) {
+        setSelection({ start: cursor - 1, end: cursor - 1 });
       } else {
-        if (null !== prevSnappedValue.current && onValueChange)
-          onValueChange(null);
+        //We added a char:
+        if (newStrValue.length > strValue.length) {
+          const newDelimiters = countDelimitersToTheLeft(
+            newStrValue,
+            cursor,
+            locale
+          );
+          const oldDelimiters = countDelimitersToTheLeft(
+            strValue,
+            cursor,
+            locale
+          );
+          const diff = newDelimiters - oldDelimiters;
+          setSelection({ start: cursor + 1 + diff, end: cursor + 1 + diff });
+          //We deleted a char:
+        } else if (newStrValue.length < strValue.length) {
+          const newDelimiters = countDelimitersToTheLeft(
+            newStrValue,
+            cursor - 1,
+            locale
+          );
+          const oldDelimiters = countDelimitersToTheLeft(
+            strValue,
+            cursor - 1,
+            locale
+          );
+          const diff = newDelimiters - oldDelimiters;
+          setSelection({
+            start: selection.start - 1 - diff,
+            end: selection.start - 1 - diff
+          });
+        }
+        setStrValue(newStrValue);
+        const isValidStrValue =
+          !isNaN(localizedStrToNumber(newStrValue, locale)) &&
+          localizedStrToNumber(newStrValue, locale) >= minimumValue &&
+          localizedStrToNumber(newStrValue, locale) <= maximumValue;
+        if (isValidStrValue) {
+          const value = localizedStrToNumber(newStrValue, locale);
+          const snappedValue = snap({
+            value,
+            minimumValue,
+            maximumValue,
+            step
+          });
+          if (snappedValue === null)
+            throw new Error('strNumberInRange not valid');
+          setSliderManagedValue(snappedValue);
+          if (value !== prevSnappedValue.current && onValueChange)
+            onValueChange(value);
+          lastValidSnappedValue.current = snappedValue;
+        } else {
+          if (null !== prevSnappedValue.current && onValueChange)
+            onValueChange(null);
+        }
       }
     },
     [
+      selection.start,
       keyboardType,
       strValue,
       minimumValue,
@@ -360,6 +413,7 @@ const EditableSlider = ({
         ? {}
         : { thumbTintColor: theme.colors.primary };
 
+  console.log('render', selection, strValue);
   return (
     <View style={styles.container}>
       <Text
@@ -382,6 +436,7 @@ const EditableSlider = ({
           value={sliderManagedValue}
         />
         <TextInput
+          selection={selection}
           keyboardType={keyboardType}
           style={[
             webTextInputWidth !== null && {
@@ -393,6 +448,10 @@ const EditableSlider = ({
           ]}
           value={strValue}
           onChangeText={onTextInputValueChange}
+          onSelectionChange={({ nativeEvent: { selection } }) => {
+            console.log('onSelectionChange', { selection });
+            setSelection(selection);
+          }}
         />
         {maxLabel && value === maximumValue ? (
           <View style={{ position: 'absolute', top: -7, right: 2 }}>

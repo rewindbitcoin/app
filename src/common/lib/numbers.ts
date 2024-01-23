@@ -53,7 +53,7 @@ const numberToFixed = (value: number, precision: number, locale: Locale) => {
   return value.toFixed(precision).replace('.', separator);
 };
 const numberToLocalizedString = (value: number, locale: Locale) => {
-  return new Intl.NumberFormat(locale, { maximumFractionDigits: 12 }).format(
+  return new Intl.NumberFormat(locale, { maximumFractionDigits: 20 }).format(
     value
   );
 };
@@ -166,13 +166,13 @@ function localizeInputNumericString(strValue: string, locale: Locale) {
   } else return strValue;
 }
 
-const findSingleDifferenceIndex = (newStr: string, oldStr: string) => {
+const findSingleAdditionDifferenceIndex = (newStr: string, oldStr: string) => {
   if (newStr.length !== oldStr.length + 1) return -1;
 
   let diffIndex = -1;
   for (let i = 0; i < newStr.length; i++) {
-    if (newStr[i] !== oldStr[i - (diffIndex >= 0 ? 1 : 0)]) {
-      if (diffIndex >= 0) return -1; // More than one difference found
+    if (newStr[i] !== oldStr[diffIndex === -1 ? i : i - 1]) {
+      if (diffIndex !== -1) return -1; // More than one difference found
       diffIndex = i;
     }
   }
@@ -194,7 +194,7 @@ const unlocalizedKeyboardFix = (
   oldStr: string,
   locale: Locale
 ) => {
-  const diffIndex = findSingleDifferenceIndex(newStr, oldStr);
+  const diffIndex = findSingleAdditionDifferenceIndex(newStr, oldStr);
 
   if (diffIndex >= 0) {
     const { separator } = getLocaleSeparators(locale);
@@ -215,6 +215,41 @@ const unlocalizedKeyboardFix = (
   return newStr;
 };
 
+//const findNewIndex = (newStr: string, oldStr: string, locale: Locale) => {
+//  const { delimiter } = getLocaleSeparators(locale);
+//  let newIndex = 0;
+//  let oldIndex = 0;
+//  while (newIndex < newStr.length) {
+//    while (newStr[newIndex] === delimiter && newIndex < newStr.length) {
+//      newIndex++;
+//    }
+//    while (oldStr[oldIndex] === delimiter && oldIndex < oldStr.length) {
+//      oldIndex++;
+//    }
+//    if (newStr[newIndex] !== oldStr[oldIndex]) return newIndex;
+//    else {
+//      newIndex++;
+//      oldIndex++;
+//    }
+//  }
+//  return -1;
+//};
+
+const countDelimitersToTheLeft = (
+  str: string,
+  index: number,
+  locale: Locale
+) => {
+  const { delimiter } = getLocaleSeparators(locale);
+  let count = 0;
+  for (let i = 0; i < index && i < str.length; i++) {
+    if (str[i] === delimiter) {
+      count++;
+    }
+  }
+  return count;
+};
+
 export {
   numberToLocalizedFixed,
   numberToFixed,
@@ -223,5 +258,6 @@ export {
   localizeInputNumericString,
   localizedStrToNumber,
   getLocaleSeparators,
-  countDecimalDigits
+  countDecimalDigits,
+  countDelimitersToTheLeft
 };
