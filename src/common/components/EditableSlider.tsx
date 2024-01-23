@@ -45,7 +45,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Locale } from '../../i18n/i18n';
-import CurrencyInput from 'react-native-currency-input';
+
 import {
   View,
   Text,
@@ -60,12 +60,18 @@ import {
   RobotoMono_400Regular
 } from '@expo-google-fonts/roboto-mono';
 import { useTheme, Theme } from './ui/theme';
+import {
+  numberToLocalizedFixed,
+  localizedStrToNumber,
+  countDecimalDigits,
+  formatInputNumericString
+} from '../../common/lib/numbers';
 
 interface EditableSliderProps {
-  currencyInput?: boolean;
   locale: Locale;
   value: number | null;
   minimumValue: number;
+  maxLabel?: string;
   maximumValue: number;
   step?: number;
   formatError?: ({
@@ -77,16 +83,6 @@ interface EditableSliderProps {
   }) => string | undefined;
   onValueChange?: (value: number | null) => void;
   formatValue: (value: number) => string;
-}
-
-function countDecimalDigits(number: number): number {
-  const numberAsString = number.toString();
-  // Check if the number has a fractional part
-  if (numberAsString.includes('.')) {
-    const fractionalPart = numberAsString.split('.')[1];
-    return fractionalPart!.length;
-  }
-  return 0; // No fractional part means 0 digits after the decimal point
 }
 
 const DEFAULT_STEP = 0.01;
@@ -124,7 +120,7 @@ function snap2Str({
   step: number;
 }): string {
   const digits = countDecimalDigits(step);
-  return numberToFixed(snappedValue, digits, locale);
+  return numberToLocalizedFixed(snappedValue, digits, locale);
 }
 
 function inRange({
@@ -139,124 +135,12 @@ function inRange({
   return value !== null && value >= minimumValue && value <= maximumValue;
 }
 
-function getLocaleSeparators(locale: Locale) {
-  const defaults = { delimiter: ',', separator: '.' };
-  const formattedNumber = new Intl.NumberFormat(locale).format(12345.6);
-  if (formattedNumber.length !== 8)
-    throw new Error(`Unknow locale ${locale}: 1234.56 -> ${formattedNumber}`);
-
-  const delimiter = formattedNumber[formattedNumber.length - 6];
-  const separator = formattedNumber[formattedNumber.length - 2];
-  //if (
-  //  (delimiter !== '.' && delimiter !== ',') ||
-  //  (separator !== '.' && separator !== ',')
-  //)
-  //  throw new Error(`Unknow separator ${locale}`);
-  if (delimiter === undefined || separator === undefined) return defaults;
-  return { delimiter, separator };
-}
-const numberToFixed = (value: number, precision: number, locale: Locale) => {
-  return new Intl.NumberFormat(locale, {
-    minimumFractionDigits: precision
-  }).format(value);
-};
-//const strToNumber = (str: string, locale: Locale): number => {
-//  const { delimiter, separator } = getLocaleSeparators(locale);
-//
-//  const groupRegex = new RegExp(`\\${delimiter}`, 'g');
-//  const decimalRegex = new RegExp(`\\${separator}`);
-//
-//  // Parse the string
-//  try {
-//    const normalizedString = str
-//      .trim()
-//      .replace(groupRegex, '')
-//      .replace(decimalRegex, '.');
-//
-//    const parsedNumber = Number(normalizedString);
-//    if (isNaN(parsedNumber)) return NaN;
-//    return parsedNumber;
-//  } catch (error) {
-//    return NaN;
-//  }
-//};
-
-const localizedStrToNumber = (str: string, locale: Locale): number => {
-  const { delimiter, separator } = getLocaleSeparators(locale);
-  //console.log({ str, delimiter, separator });
-
-  // Mapping locale-specific numerals to Western Arabic numerals
-  const numerals = [
-    ...new Intl.NumberFormat(locale, { useGrouping: false }).format(9876543210)
-  ].reverse();
-  const index = new Map(numerals.map((d, i) => [d, i.toString()]));
-  const numeralRegex = new RegExp(`[${numerals.join('')}]`, 'g');
-
-  try {
-    let normalizedStr = str.trim();
-    //console.log({ normalizedStr });
-
-    // Replace locale-specific numerals with Western Arabic numerals
-    normalizedStr = normalizedStr.replace(
-      numeralRegex,
-      d => index.get(d) || ''
-    );
-    //console.log({ replNormalizedStr: normalizedStr });
-
-    // Check for multiple decimal separators or if separator precedes a delimiter
-    if (
-      (normalizedStr.match(new RegExp(`\\${separator}`, 'g')) || []).length >
-        1 ||
-      (normalizedStr.includes(delimiter) &&
-        normalizedStr.includes(separator) &&
-        normalizedStr.lastIndexOf(delimiter) > normalizedStr.indexOf(separator))
-    ) {
-      return NaN;
-    }
-
-    // Check for invalid leading zeros before the first delimiter:
-    // 0123 is ok, but 0,123 or 01,234 not ok (maybe confusing)
-    if (normalizedStr.includes(delimiter)) {
-      const parts = normalizedStr.split(delimiter);
-      const firstPart = parts.length > 0 ? parts[0] : null;
-      if (firstPart && firstPart.startsWith('0') && firstPart.length > 1) {
-        return NaN;
-      }
-    }
-
-    // Split the string into integer and fractional parts
-    const [integerPart] = normalizedStr.split(separator);
-    //console.log({ integerPart });
-    if (integerPart === undefined) return NaN;
-
-    // Check for invalid placements of delimiters
-    const reversedIntegerPart = integerPart.split('').reverse().join('');
-    for (let i = 0; i < reversedIntegerPart.length; i++) {
-      if (i % 4 !== 3 && reversedIntegerPart[i] === delimiter) {
-        return NaN;
-      }
-    }
-
-    // Replace decimal separator with dot and remove delimiters
-    normalizedStr = normalizedStr
-      .replace(new RegExp(`\\${separator}`), '.')
-      .replace(new RegExp(`\\${delimiter}`, 'g'), '');
-    //console.log({ finalNormalizedStr: normalizedStr });
-
-    const parsedNumber = Number(normalizedStr);
-    //console.log({ parsedNumber });
-    return isNaN(parsedNumber) ? NaN : parsedNumber;
-  } catch (error) {
-    return NaN;
-  }
-};
-
 const EditableSlider = ({
   value,
   minimumValue,
   maximumValue,
+  maxLabel,
   step = DEFAULT_STEP,
-  currencyInput = false,
   locale,
   formatError,
   onValueChange,
@@ -353,7 +237,10 @@ const EditableSlider = ({
     }
   };
 
+  //TODO: When using Bitcoin, then its not valid to pass more than 8 decimals
+  //TODO: print "Invalid Number"
   const onTextInputValueChange = (strValue: string) => {
+    strValue = formatInputNumericString(strValue, locale);
     setStrValue(strValue);
     const isValidStrValue =
       !isNaN(localizedStrToNumber(strValue, locale)) &&
@@ -422,18 +309,6 @@ const EditableSlider = ({
         ? {}
         : { thumbTintColor: theme.colors.primary };
 
-  let precision = 0;
-  if (currencyInput) {
-    precision = countDecimalDigits(step);
-    if (step > Math.pow(10, -precision)) {
-      throw new Error(
-        //F.ex.: 0.03 step is precision 2 but the TextInput will allow entering
-        //0.01 which is not valid in the EditableSlider
-        `Invalid step value: ${step} for a CurrencyInput.`
-      );
-    }
-  }
-
   return (
     <View style={styles.container}>
       <Text
@@ -455,41 +330,26 @@ const EditableSlider = ({
           {...thumbTintColor}
           value={sliderManagedValue}
         />
-        {currencyInput ? (
-          <CurrencyInput
-            keyboardType={keyboardType}
-            {...getLocaleSeparators(locale)}
-            style={[
-              webTextInputWidth !== null && {
-                width: webTextInputWidth as DimensionValue
-              },
-              styles.input,
-              fontsLoaded && { fontFamily: 'RobotoMono_400Regular' },
-              snappedValue === null && { color: theme.colors.red }
-            ]}
-            precision={precision}
-            value={localizedStrToNumber(strValue, locale)}
-            onChangeValue={value => {
-              if (value === null) value = 0;
-              if (value !== undefined)
-                onTextInputValueChange(numberToFixed(value, precision, locale));
-            }}
-          />
-        ) : (
-          <TextInput
-            keyboardType={keyboardType}
-            style={[
-              webTextInputWidth !== null && {
-                width: webTextInputWidth as DimensionValue
-              },
-              styles.input,
-              fontsLoaded && { fontFamily: 'RobotoMono_400Regular' },
-              snappedValue === null && { color: theme.colors.red }
-            ]}
-            value={strValue}
-            onChangeText={onTextInputValueChange}
-          />
-        )}
+        <TextInput
+          keyboardType={keyboardType}
+          style={[
+            webTextInputWidth !== null && {
+              width: webTextInputWidth as DimensionValue
+            },
+            styles.input,
+            fontsLoaded && { fontFamily: 'RobotoMono_400Regular' },
+            snappedValue === null && { color: theme.colors.red }
+          ]}
+          value={strValue}
+          onChangeText={onTextInputValueChange}
+        />
+        {maxLabel && value === maximumValue ? (
+          <View style={{ position: 'absolute', top: -5, right: 2 }}>
+            <Text style={{ fontSize: 10, color: theme.colors.cardSecondary }}>
+              {maxLabel}
+            </Text>
+          </View>
+        ) : null}
       </View>
     </View>
   );
@@ -529,16 +389,7 @@ const getStyles = (theme: Theme) =>
       fontSize: 15,
       padding: 0,
       paddingVertical: 5,
-
-      //color: theme.colors.primary
-
       borderBottomWidth: 1,
       borderBottomColor: theme.colors.primary
-      //borderBottomColor: theme.colors.listsSeparator
-
-      //backgroundColor: theme.colors.background,
-      //borderWidth: 1,
-      //borderColor: 'gray',
-      //borderRadius: 5
     }
   });

@@ -1,0 +1,148 @@
+import type { Locale } from '../../i18n/i18n';
+//https://stackoverflow.com/a/9539746
+function countDecimalDigits(number: number): number {
+  // Make sure it is a number and use the builtin number -> string.
+  const s = '' + +number;
+  // Pull out the fraction and the exponent.
+  const match = /(?:\.(\d+))?(?:[eE]([+-]?\d+))?$/.exec(s);
+  // NaN or Infinity or integer.
+  // We arbitrarily decide that Infinity is integral.
+  if (!match) {
+    return 0;
+  }
+  // Count the number of digits in the fraction and subtract the
+  // exponent to simulate moving the decimal point left by exponent places.
+  // 1.234e+2 has 1 fraction digit and '234'.length -  2 == 1
+  // 1.234e-2 has 5 fraction digit and '234'.length - -2 == 5
+  return Math.max(
+    0, // lower limit.
+    (match[1] == '0' ? 0 : (match[1] || '').length) - // fraction length
+      (match[2] ? parseInt(match[2]) : 0)
+  ); // exponent
+}
+
+function getLocaleSeparators(locale: Locale) {
+  const defaults = { delimiter: ',', separator: '.' };
+  const formattedNumber = new Intl.NumberFormat(locale).format(12345.6);
+  if (formattedNumber.length !== 8)
+    throw new Error(`Unknow locale ${locale}: 1234.56 -> ${formattedNumber}`);
+
+  const delimiter = formattedNumber[formattedNumber.length - 6];
+  const separator = formattedNumber[formattedNumber.length - 2];
+  //if (
+  //  (delimiter !== '.' && delimiter !== ',') ||
+  //  (separator !== '.' && separator !== ',')
+  //)
+  //  throw new Error(`Unknow separator ${locale}`);
+  if (delimiter === undefined || separator === undefined) return defaults;
+  return { delimiter, separator };
+}
+const numberToLocalizedFixed = (
+  value: number,
+  precision: number,
+  locale: Locale
+) => {
+  return new Intl.NumberFormat(locale, {
+    minimumFractionDigits: precision,
+    maximumFractionDigits: precision
+  }).format(value);
+};
+const numberToLocalizedString = (value: number, locale: Locale) => {
+  return new Intl.NumberFormat(locale, { maximumFractionDigits: 12 }).format(
+    value
+  );
+};
+
+const localizedStrToNumber = (str: string, locale: Locale): number => {
+  const { delimiter, separator } = getLocaleSeparators(locale);
+  //console.log({ str, delimiter, separator });
+
+  // Mapping locale-specific numerals to Western Arabic numerals
+  const numerals = [
+    ...new Intl.NumberFormat(locale, { useGrouping: false }).format(9876543210)
+  ].reverse();
+  const index = new Map(numerals.map((d, i) => [d, i.toString()]));
+  const numeralRegex = new RegExp(`[${numerals.join('')}]`, 'g');
+
+  try {
+    let normalizedStr = str.trim();
+    //console.log({ normalizedStr });
+
+    // Replace locale-specific numerals with Western Arabic numerals
+    normalizedStr = normalizedStr.replace(
+      numeralRegex,
+      d => index.get(d) || ''
+    );
+    //console.log({ replNormalizedStr: normalizedStr });
+
+    // Check for multiple decimal separators or if separator precedes a delimiter
+    if (
+      (normalizedStr.match(new RegExp(`\\${separator}`, 'g')) || []).length >
+        1 ||
+      (normalizedStr.includes(delimiter) &&
+        normalizedStr.includes(separator) &&
+        normalizedStr.lastIndexOf(delimiter) > normalizedStr.indexOf(separator))
+    ) {
+      return NaN;
+    }
+
+    // Check for invalid leading zeros before the first delimiter:
+    // 0123 is ok, but 0,123 or 01,234 not ok (maybe confusing)
+    if (normalizedStr.includes(delimiter)) {
+      const parts = normalizedStr.split(delimiter);
+      const firstPart = parts.length > 0 ? parts[0] : null;
+      if (firstPart && firstPart.startsWith('0') && firstPart.length > 1) {
+        return NaN;
+      }
+    }
+
+    // Split the string into integer and fractional parts
+    const [integerPart] = normalizedStr.split(separator);
+    //console.log({ integerPart });
+    if (integerPart === undefined) return NaN;
+
+    // Check for invalid placements of delimiters
+    const reversedIntegerPart = integerPart.split('').reverse().join('');
+    for (let i = 0; i < reversedIntegerPart.length; i++) {
+      if (i % 4 !== 3 && reversedIntegerPart[i] === delimiter) {
+        return NaN;
+      }
+    }
+
+    // Replace decimal separator with dot and remove delimiters
+    normalizedStr = normalizedStr
+      .replace(new RegExp(`\\${separator}`), '.')
+      .replace(new RegExp(`\\${delimiter}`, 'g'), '');
+    //console.log({ finalNormalizedStr: normalizedStr });
+
+    const parsedNumber = Number(normalizedStr);
+    //console.log({ parsedNumber });
+    return isNaN(parsedNumber) ? NaN : parsedNumber;
+  } catch (error) {
+    return NaN;
+  }
+};
+
+function formatInputNumericString(strValue: string, locale: Locale) {
+  const { delimiter, separator } = getLocaleSeparators(locale);
+  const number = localizedStrToNumber(
+    //remove delimiters
+    strValue.replace(new RegExp(`\\${delimiter}`, 'g'), ''),
+    locale
+  );
+  if (!Number.isNaN(number)) {
+    let localizedStr = numberToLocalizedString(number, locale);
+    if (strValue[strValue.length - 1] === separator)
+      localizedStr = localizedStr + separator;
+    return localizedStr;
+  } else return strValue;
+}
+
+export {
+  numberToLocalizedFixed,
+  numberToLocalizedString,
+  formatInputNumericString,
+  localizedStrToNumber,
+  getLocaleSeparators,
+  countDecimalDigits
+};
