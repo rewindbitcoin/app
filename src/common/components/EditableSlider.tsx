@@ -42,18 +42,12 @@
  *       user input errors.
  */
 
+const INPUT_MAX_LENGTH = 18;
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Locale } from '../../i18n/i18n';
 
-import {
-  View,
-  Text,
-  TextInput,
-  StyleSheet,
-  Platform,
-  DimensionValue
-} from 'react-native';
+import { View, Text, TextInput, StyleSheet, Platform } from 'react-native';
 import Slider from '@react-native-community/slider';
 import {
   useFonts,
@@ -67,7 +61,7 @@ import {
   countDecimalDigits,
   localizeInputNumericString,
   unlocalizedKeyboardFix,
-  countDelimitersToTheLeft
+  getNewCursor
 } from '../../common/lib/numbers';
 
 interface EditableSliderProps {
@@ -158,10 +152,10 @@ const EditableSlider = ({
   const theme = useTheme();
   const styles = getStyles(theme);
   const snappedValue = snap({ value, minimumValue, maximumValue, step });
-  const [selection, setSelection] = useState({
-    start: 0,
-    end: 0
-  });
+  const [selection, setSelection] = useState<{
+    start: number;
+    end: number;
+  } | null>(null);
 
   // Keep track of prevSnappedValue:
   const prevSnappedValue = useRef<number | null>();
@@ -263,6 +257,7 @@ const EditableSlider = ({
         step
       });
       setStrValue(strValue);
+      setSelection({ start: strValue.length, end: strValue.length });
       if (snappedValue !== prevSnappedValue.current && onValueChange) {
         onValueChange(snappedValue);
       }
@@ -270,12 +265,36 @@ const EditableSlider = ({
     [minimumValue, maximumValue, step, locale, localizeNumbers, onValueChange]
   );
 
+  const lastProgramaticalSetSelectionEpochRef = useRef<number>(0);
+
   //TODO: When using Bitcoin, then its not valid to pass more than 8 decimals
   //TODO: print "Invalid Number"
+  //
+  //IMPORTANT:
+  //onTextInputValueChange is called before selection (setSelection) has been
+  //set: https://github.com/facebook/react-native/pull/35603
+  //In this component which will be the next cursor position using setSelection
+  //Then we discard all onSelectionChange which ara called as a reaction for
+  //changing text (if the are called within a few milliseconds after we have
+  //setSelection here). Cursor position is 100% controlled in onTextInputValueChange.
+  //This prevents missbehaviour in iOS. We still allow the user selecting
+  //text when onSelectionChange is called not as a reaction of changing text.
   const onTextInputValueChange = useCallback(
     (newStrTextInputValue: string) => {
-      const cursor = selection.start;
+      //Cursor position for strValue (old input text value):
+      //We will set the next cursor position for the returned newStrValue
+      const cursor = selection ? selection.end : strValue.length;
       let newStrValue = newStrTextInputValue;
+      if (newStrTextInputValue.length > INPUT_MAX_LENGTH) {
+        //Don't do anything. Dont' change cursor, don't add text
+        //We have a limit of 20 chars for localized number operations
+        ///(see number.ts) and being at 18 means that adding a number can
+        //also add a decimal separator so that would be 2 letters. Just
+        //don't allow more than that
+        //setSelection({ start: cursor, end: cursor });
+        //lastProgramaticalSetSelectionEpochRef.current = new Date().getTime();
+        return;
+      }
       if (
         keyboardType === 'numeric' &&
         (Platform.OS === 'ios' || Platform.OS === 'android')
@@ -283,75 +302,53 @@ const EditableSlider = ({
         newStrValue = unlocalizedKeyboardFix(newStrValue, strValue, locale);
       if (localizeNumbers)
         newStrValue = localizeInputNumericString(newStrValue, locale);
-      //The resulting newStrValue will be exactly the same we had before
-      //but TextInput reports one character missing. This is because the user
-      //deleted a delimiter. And our localizeInputNumericString put it back
-      //again. What we do in this case is move the cursor to the left:
-      const isBackSpaceOnSeparator =
-        newStrValue === strValue &&
-        newStrTextInputValue.length === strValue.length - 1;
-      if (isBackSpaceOnSeparator) {
-        setSelection({ start: cursor - 1, end: cursor - 1 });
-      } else {
-        //We added a char:
-        if (newStrValue.length > strValue.length) {
-          const newDelimiters = countDelimitersToTheLeft(
-            newStrValue,
-            cursor,
-            locale
-          );
-          const oldDelimiters = countDelimitersToTheLeft(
-            strValue,
-            cursor,
-            locale
-          );
-          const diff = newDelimiters - oldDelimiters;
-          setSelection({ start: cursor + 1 + diff, end: cursor + 1 + diff });
-          //We deleted a char:
-        } else if (newStrValue.length < strValue.length) {
-          const newDelimiters = countDelimitersToTheLeft(
-            newStrValue,
-            cursor - 1,
-            locale
-          );
-          const oldDelimiters = countDelimitersToTheLeft(
-            strValue,
-            cursor - 1,
-            locale
-          );
-          const diff = newDelimiters - oldDelimiters;
-          setSelection({
-            start: selection.start - 1 - diff,
-            end: selection.start - 1 - diff
-          });
-        }
-        setStrValue(newStrValue);
-        const isValidStrValue =
-          !isNaN(localizedStrToNumber(newStrValue, locale)) &&
-          localizedStrToNumber(newStrValue, locale) >= minimumValue &&
-          localizedStrToNumber(newStrValue, locale) <= maximumValue;
-        if (isValidStrValue) {
-          const value = localizedStrToNumber(newStrValue, locale);
-          const snappedValue = snap({
-            value,
-            minimumValue,
-            maximumValue,
-            step
-          });
-          if (snappedValue === null)
-            throw new Error('strNumberInRange not valid');
-          setSliderManagedValue(snappedValue);
-          if (value !== prevSnappedValue.current && onValueChange)
-            onValueChange(value);
-          lastValidSnappedValue.current = snappedValue;
+
+      //console.log('onTextInputValueChange', {
+      //  newStrTextInputValue,
+      //  strValue,
+      //  cursor,
+      //  newStrValue
+      //});
+      if (!Number.isNaN(localizedStrToNumber(newStrValue, locale))) {
+        const isBackSpaceOnDelimiter =
+          newStrValue === strValue &&
+          newStrTextInputValue.length === strValue.length - 1;
+        const newCursor = getNewCursor(newStrValue, strValue, cursor, locale);
+        if (isBackSpaceOnDelimiter) {
+          setSelection({ start: cursor - 1, end: cursor - 1 });
+          lastProgramaticalSetSelectionEpochRef.current = new Date().getTime();
         } else {
-          if (null !== prevSnappedValue.current && onValueChange)
-            onValueChange(null);
+          setSelection({ start: newCursor, end: newCursor });
+          lastProgramaticalSetSelectionEpochRef.current = new Date().getTime();
         }
+      }
+
+      setStrValue(newStrValue);
+      const isValidStrValue =
+        !Number.isNaN(localizedStrToNumber(newStrValue, locale)) &&
+        localizedStrToNumber(newStrValue, locale) >= minimumValue &&
+        localizedStrToNumber(newStrValue, locale) <= maximumValue;
+      if (isValidStrValue) {
+        const value = localizedStrToNumber(newStrValue, locale);
+        const snappedValue = snap({
+          value,
+          minimumValue,
+          maximumValue,
+          step
+        });
+        if (snappedValue === null)
+          throw new Error('strNumberInRange not valid');
+        setSliderManagedValue(snappedValue);
+        if (value !== prevSnappedValue.current && onValueChange)
+          onValueChange(value);
+        lastValidSnappedValue.current = snappedValue;
+      } else {
+        if (null !== prevSnappedValue.current && onValueChange)
+          onValueChange(null);
       }
     },
     [
-      selection.start,
+      selection?.end,
       keyboardType,
       strValue,
       minimumValue,
@@ -384,27 +381,7 @@ const EditableSlider = ({
           : t('editableSlider.invalidValue'));
   } else formattedValue = formatValue(snappedValue);
 
-  // These useState and useEffect below arew necessary for adjusting the
-  // TextInput width on web platforms.
-  // React Native, when used with React Native for Web, does not automatically resize
-  // the TextInput to fit its content. This behavior differs from react native
-  // for iOs and Android.
-  // To address this, the width is dynamically calculated based on the text length
-  // and the additional space for padding and border, ensuring the TextInput
-  // appears consistent with typical web input behavior.
-  const [webTextInputWidth, setWebTextInputWidth] = useState<string | null>(
-    null
-  );
-  useEffect(() => {
-    if (Platform.OS === 'web') {
-      // Calculating dynamic padding and border values from the styles
-      const paddingAndBorder = StyleSheet.flatten(styles.input).padding * 2; /*+
-        StyleSheet.flatten(styles.input).borderWidth * 2*/
-      setWebTextInputWidth(
-        `calc(${strValue.length}ch + ${paddingAndBorder}px)`
-      );
-    }
-  }, [strValue, styles.input]);
+  const [maxLengthWidth, setMaxLengthWidth] = useState<number | null>(null);
 
   const thumbTintColor =
     snappedValue === null
@@ -413,7 +390,7 @@ const EditableSlider = ({
         ? {}
         : { thumbTintColor: theme.colors.primary };
 
-  console.log('render', selection, strValue);
+  //console.log('render', selection, strValue);
   return (
     <View style={styles.container}>
       <Text
@@ -435,12 +412,39 @@ const EditableSlider = ({
           {...thumbTintColor}
           value={sliderManagedValue}
         />
+        <Text
+          onLayout={({ nativeEvent }) => {
+            //This <Text> Component is a fake component which will be not visible
+            //It is used to compute the width of the font (for INPUT_MAX_LENGTH
+            //zeros)
+            //Since we use a fixed-width font-family (Roboto) then we can
+            //compute the TextInput width later
+            if (fontsLoaded) {
+              const { width } = nativeEvent.layout;
+              setMaxLengthWidth(width);
+            }
+          }}
+          style={[
+            {
+              fontSize: styles.input.fontSize,
+              position: 'absolute',
+              opacity: 0,
+              zIndex: -1000
+            },
+            fontsLoaded && { fontFamily: 'RobotoMono_400Regular' }
+          ]}
+        >
+          {'0'.repeat(INPUT_MAX_LENGTH)}
+        </Text>
         <TextInput
-          selection={selection}
+          maxLength={INPUT_MAX_LENGTH}
+          {...(selection ? { selection } : {})}
           keyboardType={keyboardType}
           style={[
-            webTextInputWidth !== null && {
-              width: webTextInputWidth as DimensionValue
+            maxLengthWidth !== null && {
+              width:
+                (maxLengthWidth * Math.max(1, strValue.length)) /
+                INPUT_MAX_LENGTH
             },
             styles.input,
             fontsLoaded && { fontFamily: 'RobotoMono_400Regular' },
@@ -448,9 +452,14 @@ const EditableSlider = ({
           ]}
           value={strValue}
           onChangeText={onTextInputValueChange}
-          onSelectionChange={({ nativeEvent: { selection } }) => {
-            console.log('onSelectionChange', { selection });
-            setSelection(selection);
+          onSelectionChange={({ nativeEvent }) => {
+            const currentEpoch = new Date().getTime();
+            if (
+              currentEpoch - lastProgramaticalSetSelectionEpochRef.current >
+              100
+            ) {
+              setSelection(nativeEvent.selection);
+            }
           }}
         />
         {maxLabel && value === maximumValue ? (

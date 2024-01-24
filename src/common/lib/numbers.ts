@@ -132,33 +132,36 @@ const localizedStrToNumber = (str: string, locale: Locale): number => {
  * localizes unfinished strings while being typed in TexInput
  * For example: 0. will be valid and not formatted to 0
  * or 1,000.034000 will be ok too since the user may be entering zeros
- * to finally enter a non-zero later
+ * to finally enter a non-zero later.
+ * It strValue cannot be parsed as a number it simply returns the strValue
  */
 function localizeInputNumericString(strValue: string, locale: Locale) {
   if (strValue === '') return strValue;
   const { delimiter, separator } = getLocaleSeparators(locale);
-  const number = localizedStrToNumber(
-    //remove delimiters
-    strValue.replace(new RegExp(`\\${delimiter}`, 'g'), ''),
-    locale
-  );
+
+  //remove delimiters
+  const cleanStrValue = strValue.replace(new RegExp(`\\${delimiter}`, 'g'), '');
+  const number = localizedStrToNumber(cleanStrValue, locale);
   if (!Number.isNaN(number)) {
     let localizedStr = numberToLocalizedString(number, locale);
 
     //If its a number finished by "."
-    if (strValue[strValue.length - 1] === separator) {
+    if (cleanStrValue[cleanStrValue.length - 1] === separator) {
       localizedStr = localizedStr + separator;
     }
     //If its a decimal number
-    else if (strValue.indexOf(separator) !== -1) {
+    else if (cleanStrValue.indexOf(separator) !== -1) {
       const zero = new Intl.NumberFormat(locale).format(0);
       //If the decimal number ends with trailing zeros, leave them
-      //  case a: x.0000 -> add back the zeros
-      //  base b: x.y000 -> add back the separator and the zeros
-      const matchTrailingZeros = strValue.match(
-        new RegExp(`${separator}?${zero}+$`)
+      //  case a: x.0000 -> add back the separator and the zeros
+      //  base b: x.y000 -> add back ONLY the zeros
+      const matchTrailingSeparatorAndZeros = cleanStrValue.match(
+        new RegExp(`\\${separator}${zero}+$`)
       );
-      if (matchTrailingZeros) {
+      const matchTrailingZeros = cleanStrValue.match(new RegExp(`${zero}+$`));
+      if (matchTrailingSeparatorAndZeros) {
+        localizedStr += matchTrailingSeparatorAndZeros[0];
+      } else if (matchTrailingZeros) {
         localizedStr += matchTrailingZeros[0];
       }
     }
@@ -215,39 +218,59 @@ const unlocalizedKeyboardFix = (
   return newStr;
 };
 
-//const findNewIndex = (newStr: string, oldStr: string, locale: Locale) => {
-//  const { delimiter } = getLocaleSeparators(locale);
-//  let newIndex = 0;
-//  let oldIndex = 0;
-//  while (newIndex < newStr.length) {
-//    while (newStr[newIndex] === delimiter && newIndex < newStr.length) {
-//      newIndex++;
-//    }
-//    while (oldStr[oldIndex] === delimiter && oldIndex < oldStr.length) {
-//      oldIndex++;
-//    }
-//    if (newStr[newIndex] !== oldStr[oldIndex]) return newIndex;
-//    else {
-//      newIndex++;
-//      oldIndex++;
-//    }
-//  }
-//  return -1;
-//};
-
-const countDelimitersToTheLeft = (
-  str: string,
-  index: number,
+const getNewCursor = (
+  newStr: string,
+  oldStr: string,
+  oldCursor: number,
   locale: Locale
-) => {
-  const { delimiter } = getLocaleSeparators(locale);
-  let count = 0;
-  for (let i = 0; i < index && i < str.length; i++) {
-    if (str[i] === delimiter) {
-      count++;
+): number => {
+  // Count the number of numeric characters to the right of oldCursor in oldStr
+  let numbersToTheRight = 0;
+  for (let i = oldCursor; i < oldStr.length; i++) {
+    if (/\d/.test(oldStr[i]!)) {
+      numbersToTheRight++;
     }
   }
-  return count;
+
+  // Find the new cursor position in newStr
+  let newCursor = newStr.length;
+  for (let i = newStr.length - 1; i >= 0; i--) {
+    if (/\d/.test(newStr[i]!)) {
+      if (--numbersToTheRight === 0) {
+        newCursor = i;
+        break;
+      }
+    }
+  }
+
+  //This is this case: 102,020 and the first 1 is deleted:
+  if (numbersToTheRight > 0) newCursor = 0;
+
+  const { delimiter, separator } = getLocaleSeparators(locale);
+
+  //If I used to have a delimiter on the right of the cursor, keep having it
+  //This keeps the cursor after the "1" when deleing the "2" in: 12,345
+  if (oldStr[oldCursor] === delimiter) {
+    if (newCursor > 0 && newStr[newCursor - 1] === delimiter) newCursor--;
+  }
+
+  //If the string just growed and i have a delimiter to the left the move the
+  //cursor to the left. If I have 12,345 and i place a 9 before the 3, then the
+  //cursor will be put after the new 9
+  else if (
+    newStr.length > oldStr.length &&
+    newCursor > 0 &&
+    newStr[newCursor - 1] === delimiter
+  )
+    newCursor--;
+
+  //If I used to have a decimal separator on the right of the cursor, keep having it
+  //This keeps the cursor right after the "0" in 10.78 when adding a 3 after the "0"
+  if (oldStr[oldCursor] === separator) {
+    if (newCursor > 0 && newStr[newCursor - 1] === separator) newCursor--;
+  }
+
+  return newCursor;
 };
 
 export {
@@ -258,6 +281,6 @@ export {
   localizeInputNumericString,
   localizedStrToNumber,
   getLocaleSeparators,
-  countDecimalDigits,
-  countDelimitersToTheLeft
+  getNewCursor,
+  countDecimalDigits
 };
