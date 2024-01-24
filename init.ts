@@ -4,6 +4,13 @@
 //  ERROR  i18next::pluralResolver: Your environment seems not to be Intl API compatible, use an Intl.PluralRules polyfill. Will fallback to the compatibilityJSON v3 format handling.
 import 'intl-pluralrules';
 
+import { Platform } from 'react-native';
+console.log('React Native version: ', Platform?.constants?.reactNativeVersion);
+console.log(
+  'Hermes enabled: ',
+  !!(global as { HermesInternal?: typeof HermesInternal }).HermesInternal
+);
+
 //shims for react-native
 import { Buffer } from 'buffer';
 global.Buffer = Buffer;

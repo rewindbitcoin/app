@@ -1,6 +1,7 @@
 {
   "expo": {
     "name": "ThunderDen",
+    "jsEngine": "hermes",
     "slug": "ThunderDen",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -11,9 +12,7 @@
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
-    "assetBundlePatterns": [
-      "**/*"
-    ],
+    "assetBundlePatterns": ["**/*"],
     "ios": {
       "config": {
         "usesNonExemptEncryption": false
@@ -44,9 +43,6 @@
     "locales": {
       "es": "./src/i18n/app.es.json"
     },
-    "plugins": [
-      "expo-font",
-      "expo-secure-store"
-    ]
+    "plugins": ["expo-font", "expo-secure-store"]
   }
 }
