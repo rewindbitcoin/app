@@ -1,3 +1,6 @@
+//TODO: When using Bitcoin, then its not valid to pass more than 8 decimals
+//TODO: print "Invalid Number"
+//
 //TODO: share styles VaultSetUp / Unvault
 //
 //TODO: in web, when I click to Continue having wrong values
@@ -35,93 +38,17 @@ import {
 
 import { pickFeeEstimate, formatFeeRate, formatLockTime } from '../lib/fees';
 import { WalletContext, WalletContextType } from '../contexts/WalletContext';
-import { formatBtc } from '../lib/btcRates';
+import {
+  formatBtc,
+  fromSats,
+  toSats,
+  getAmountModeStep
+} from '../lib/btcRates';
+import { fromBlocks, toBlocks } from '../lib/timeUtils';
 import globalStyles from '../styles/styles';
 import { estimateVaultSetUpRange } from '../lib/vaultRange';
 
 const FEE_RATE_STEP = 0.01;
-const FIAT_DECIMALS = 2;
-
-const fromBlocks = (
-  blocks: number,
-  min: number,
-  max: number,
-  mode: 'days' | 'blocks'
-) => {
-  if (mode === 'blocks') return blocks;
-  const minDays = Math.ceil(min / (6 * 24));
-  const maxDays = Math.floor(max / (6 * 24));
-  const days = Math.round(blocks / (6 * 24));
-  return Math.min(maxDays, Math.max(minDays, days));
-};
-const toBlocks = (value: number, fromMode: 'days' | 'blocks') => {
-  if (fromMode === 'blocks') return value;
-  return value * 6 * 24;
-};
-
-const fromSats = (
-  amount: number,
-  min: number,
-  max: number,
-  mode: 'Fiat' | SubUnit,
-  btcFiat: number | null
-) => {
-  if (mode === 'sat') return amount;
-  else if (mode === 'Fiat') {
-    if (btcFiat === null)
-      throw new Error(`Currency mode not valud if rates not available`);
-    const fiatMin =
-      Math.ceil((min * btcFiat * Math.pow(10, FIAT_DECIMALS)) / 1e8) /
-      Math.pow(10, FIAT_DECIMALS);
-    const fiatMax =
-      Math.floor((max * btcFiat * Math.pow(10, FIAT_DECIMALS)) / 1e8) /
-      Math.pow(10, FIAT_DECIMALS);
-    const fiatAmount =
-      Math.round((amount * btcFiat * Math.pow(10, FIAT_DECIMALS)) / 1e8) /
-      Math.pow(10, FIAT_DECIMALS);
-    if (amount >= min && amount <= max)
-      return Math.min(fiatMax, Math.max(fiatMin, fiatAmount));
-    else return fiatAmount;
-  } else if (mode === 'btc') {
-    return amount / 1e8;
-  } else if (mode === 'mbit') {
-    return amount / 1e5;
-  } else if (mode === 'bit') {
-    return amount / 1e2;
-  } else throw new Error(`Unsupported mode: ${mode} computing fromSats`);
-};
-const toSats = (
-  value: number,
-  mode: 'Fiat' | SubUnit,
-  btcFiat: number | null
-) => {
-  if (mode === 'sat') {
-    return value;
-  } else if (mode === 'Fiat') {
-    if (btcFiat === null)
-      throw new Error(`Currency mode not valud if rates not available`);
-    return Math.round((1e8 * value) / btcFiat);
-  } else if (mode === 'btc') {
-    return Math.round(value * 1e8);
-  } else if (mode === 'mbit') {
-    return Math.round(value * 1e5);
-  } else if (mode === 'bit') {
-    return Math.round(value * 1e2);
-  } else throw new Error(`Unsupported mode: ${mode} computing toSats`);
-};
-const getAmountModeStep = (amountMode: 'Fiat' | SubUnit) => {
-  if (amountMode === 'Fiat') {
-    return 1 / Math.pow(10, FIAT_DECIMALS);
-  } else if (amountMode === 'btc') {
-    return 1e-8;
-  } else if (amountMode === 'mbit') {
-    return 1e-5;
-  } else if (amountMode === 'sat') {
-    return 1;
-  } else if (amountMode === 'bit') {
-    return 1e-2;
-  } else throw new Error(`Unsupported mode: ${amountMode} computing step`);
-};
 
 export default function VaultSetUp({
   onVaultSetUpComplete
@@ -405,12 +332,12 @@ export default function VaultSetUp({
   const formatAmountError = useCallback(
     ({
       lastValidSnappedValue,
-      strValue
+      numericInputValue
     }: {
       lastValidSnappedValue: number;
-      strValue: string;
+      numericInputValue: string;
     }) => {
-      void strValue;
+      void numericInputValue;
       if (maxVaultAmount === undefined)
         throw new Error(`formatAmountValue needs a valid maxVaultAmount`);
       if (toSats(lastValidSnappedValue, amountMode, btcFiat) > maxVaultAmount) {
@@ -450,9 +377,6 @@ export default function VaultSetUp({
           <Trans
             i18nKey="vaultSetup.notEnoughFunds"
             values={{
-              minRecoverableRatioPercentage: Math.round(
-                settings.MIN_RECOVERABLE_RATIO * 100
-              ),
               missingFunds: formatBtc(
                 {
                   amount: missingFunds,
@@ -508,7 +432,7 @@ export default function VaultSetUp({
                       );
                     }}
                   >
-                    {`${amountMode} ⇅`}
+                    {`${amountMode === 'Fiat' ? settings.CURRENCY : amountMode} ⇅`}
                   </Button>
                 </View>
               </View>

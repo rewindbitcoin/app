@@ -136,3 +136,68 @@ export const formatBtc = (
   },
   t: TFunction
 ) => formatBtcFactory(t)(btcArgs);
+
+const FIAT_DECIMALS = 2;
+export const fromSats = (
+  amount: number,
+  min: number,
+  max: number,
+  mode: 'Fiat' | SubUnit,
+  btcFiat: number | null
+) => {
+  if (mode === 'sat') return amount;
+  else if (mode === 'Fiat') {
+    if (btcFiat === null)
+      throw new Error(`Currency mode not valud if rates not available`);
+    const fiatMin =
+      Math.ceil((min * btcFiat * Math.pow(10, FIAT_DECIMALS)) / 1e8) /
+      Math.pow(10, FIAT_DECIMALS);
+    const fiatMax =
+      Math.floor((max * btcFiat * Math.pow(10, FIAT_DECIMALS)) / 1e8) /
+      Math.pow(10, FIAT_DECIMALS);
+    const fiatAmount =
+      Math.round((amount * btcFiat * Math.pow(10, FIAT_DECIMALS)) / 1e8) /
+      Math.pow(10, FIAT_DECIMALS);
+    if (amount >= min && amount <= max)
+      return Math.min(fiatMax, Math.max(fiatMin, fiatAmount));
+    else return fiatAmount;
+  } else if (mode === 'btc') {
+    return amount / 1e8;
+  } else if (mode === 'mbit') {
+    return amount / 1e5;
+  } else if (mode === 'bit') {
+    return amount / 1e2;
+  } else throw new Error(`Unsupported mode: ${mode} computing fromSats`);
+};
+export const toSats = (
+  value: number,
+  mode: 'Fiat' | SubUnit,
+  btcFiat: number | null
+) => {
+  if (mode === 'sat') {
+    return value;
+  } else if (mode === 'Fiat') {
+    if (btcFiat === null)
+      throw new Error(`Currency mode not valud if rates not available`);
+    return Math.round((1e8 * value) / btcFiat);
+  } else if (mode === 'btc') {
+    return Math.round(value * 1e8);
+  } else if (mode === 'mbit') {
+    return Math.round(value * 1e5);
+  } else if (mode === 'bit') {
+    return Math.round(value * 1e2);
+  } else throw new Error(`Unsupported mode: ${mode} computing toSats`);
+};
+export const getAmountModeStep = (amountMode: 'Fiat' | SubUnit) => {
+  if (amountMode === 'Fiat') {
+    return 1 / Math.pow(10, FIAT_DECIMALS);
+  } else if (amountMode === 'btc') {
+    return 1e-8;
+  } else if (amountMode === 'mbit') {
+    return 1e-5;
+  } else if (amountMode === 'sat') {
+    return 1;
+  } else if (amountMode === 'bit') {
+    return 1e-2;
+  } else throw new Error(`Unsupported mode: ${amountMode} computing step`);
+};

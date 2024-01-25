@@ -42,7 +42,7 @@ export const defaultSettings: Settings = {
   INITIAL_CONFIRMATION_TIME: 2 * 60 * 60,
   //TODO: set it to 2/3 in the production case
   //MIN_RECOVERABLE_RATIO: '2/3' // express it in string so that it can be printed. Must be 0 > MIN_RECOVERABLE_RATIO > 1
-  MIN_RECOVERABLE_RATIO: 1 / 3, //TODO should be 2/3
+  MIN_RECOVERABLE_RATIO: 1 / 10, //TODO should be 2/3
   SUB_UNIT: 'btc',
   LOCALE: 'en-US',
   CURRENCY: 'USD',

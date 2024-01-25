@@ -38,7 +38,10 @@ const getLocaleSeparators = memoize((locale: Locale) => {
   if (delimiter === undefined || separator === undefined) return defaults;
   return { delimiter, separator };
 });
-const numberToLocalizedFixed = (
+/**
+ * convert a number 10000.02 to fancy: 10,000.02
+ */
+const numberToFormattedFixed = (
   value: number,
   precision: number,
   locale: Locale
@@ -58,6 +61,9 @@ const numberToLocalizedString = (value: number, locale: Locale) => {
   );
 };
 
+/** parses a localized string and returns a number or NaN if it
+ * cannot be parsed
+ */
 const localizedStrToNumber = (str: string, locale: Locale): number => {
   const { delimiter, separator } = getLocaleSeparators(locale);
   //console.log({ str, delimiter, separator });
@@ -129,7 +135,7 @@ const localizedStrToNumber = (str: string, locale: Locale): number => {
 };
 
 /**
- * localizes unfinished strings while being typed in TexInput
+ * Localizes unfinished strings while being typed in TexInput
  * For example: 0. will be valid and not formatted to 0
  * or 1,000.034000 will be ok too since the user may be entering zeros
  * to finally enter a non-zero later.
@@ -218,6 +224,29 @@ const unlocalizedKeyboardFix = (
   return newStr;
 };
 
+/** given a new localized string, find out what should be the cursor
+ * position based on the previous cursor position and old string.
+ * Here it is assumed that the newStr is received after typying in the
+ * keyboard a new charactar  (or after deleting one)
+ *
+ * The main idea is that if there were N numeric characters to the right
+ * of the character, then, after keyboard manipulation, the new cursor should
+ * still have N numeric characters to the right on the new string.
+ *
+ * For example:
+ * 123|0.213
+ * I add a 4 after the cursor ( | ) ->
+ * 1234|0.213
+ * I still have 4 numeric character to the right
+ *
+ * 123|0.213
+ * I delete the 3
+ * 12|0.213
+ * I still have 4 numeric characater to the right
+ *
+ * There are some special cases commented in the code:
+ *
+ */
 const getNewCursor = (
   newStr: string,
   oldStr: string,
@@ -243,20 +272,23 @@ const getNewCursor = (
     }
   }
 
-  //This is this case: 102,020 and the first 1 is deleted:
+  //Special case:
+  //This is this case: 1|02,020 and the first 1 is deleted:
   if (numbersToTheRight > 0) newCursor = 0;
 
   const { delimiter, separator } = getLocaleSeparators(locale);
 
+  //Special case:
   //If I used to have a delimiter on the right of the cursor, keep having it
-  //This keeps the cursor after the "1" when deleing the "2" in: 12,345
+  //This keeps the cursor after the "1" when deleing the "2" in: 12|,345
   if (oldStr[oldCursor] === delimiter) {
     if (newCursor > 0 && newStr[newCursor - 1] === delimiter) newCursor--;
   }
 
+  //Special case:
   //If the string just growed and i have a delimiter to the left the move the
-  //cursor to the left. If I have 12,345 and i place a 9 before the 3, then the
-  //cursor will be put after the new 9
+  //cursor to the left. If I have 12,|345 and i place a 9 before the 3, then the
+  //cursor will be put after the new 9 -> 129|,345 instead of after it 129,|345
   else if (
     newStr.length > oldStr.length &&
     newCursor > 0 &&
@@ -264,8 +296,10 @@ const getNewCursor = (
   )
     newCursor--;
 
+  //Special case:
   //If I used to have a decimal separator on the right of the cursor, keep having it
-  //This keeps the cursor right after the "0" in 10.78 when adding a 3 after the "0"
+  //This keeps the cursor right after the "0" in 10|.78 when adding a 3 after the "0"
+  //103|.78 instead of 103.|78
   if (oldStr[oldCursor] === separator) {
     if (newCursor > 0 && newStr[newCursor - 1] === separator) newCursor--;
   }
@@ -274,7 +308,7 @@ const getNewCursor = (
 };
 
 export {
-  numberToLocalizedFixed,
+  numberToFormattedFixed,
   numberToFixed,
   unlocalizedKeyboardFix,
   numberToLocalizedString,
