@@ -1,9 +1,10 @@
 const INPUT_MAX_LENGTH = 18;
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import type { Locale } from '../../i18n/i18n';
-
+import AntDesign from '@expo/vector-icons/AntDesign';
 import {
   Text,
+  View,
   TextInput,
   StyleSheet,
   Platform,
@@ -12,6 +13,7 @@ import {
   TextInputSelectionChangeEventData,
   LayoutChangeEvent
 } from 'react-native';
+import { useTheme } from './ui';
 import {
   useFonts,
   RobotoMono_400Regular
@@ -42,6 +44,8 @@ const NumericInput = ({
 }: NumericInputProps) => {
   if (maxLength > INPUT_MAX_LENGTH)
     throw new Error(`This component admits ${INPUT_MAX_LENGTH} length at most`);
+
+  const theme = useTheme();
   const styles = getStyles();
   const [selection, setSelection] = useState<{
     start: number;
@@ -64,9 +68,6 @@ const NumericInput = ({
 
   const lastProgramaticalSetSelectionEpochRef = useRef<number>(0);
 
-  //TODO: When using Bitcoin, then its not valid to pass more than 8 decimals
-  //TODO: print "Invalid Number"
-  //
   //IMPORTANT:
   //onChangeText is called before selection (setSelection) has been
   //set: https://github.com/facebook/react-native/pull/35603
@@ -150,6 +151,7 @@ const NumericInput = ({
       nativeEvent
     }: NativeSyntheticEvent<TextInputSelectionChangeEventData>) => {
       const currentEpoch = new Date().getTime();
+      //100 milliseconds
       if (currentEpoch - lastProgramaticalSetSelectionEpochRef.current > 100) {
         setSelection(nativeEvent.selection);
       }
@@ -172,11 +174,20 @@ const NumericInput = ({
     [fontsLoaded]
   );
 
+  const [showClearButton, setShowClearButton] = useState<boolean>(false);
+
+  const onFocus = useCallback(() => {
+    setShowClearButton(true);
+  }, []);
+  const onBlur = useCallback(() => {
+    setShowClearButton(false);
+  }, []);
+
   const [maxLengthWidth, setMaxLengthWidth] = useState<number | null>(null);
 
   //console.log('render', selection, strValue);
   return (
-    <>
+    <View style={{ flexDirection: 'row' }}>
       <Text
         onLayout={onTextLayout}
         style={[
@@ -205,11 +216,32 @@ const NumericInput = ({
           style,
           styles.input
         ]}
+        onFocus={onFocus}
+        onBlur={onBlur}
         value={strValue}
         onChangeText={onChangeText}
         onSelectionChange={onSelectionChange}
       />
-    </>
+      {showClearButton && Platform.OS !== 'web' ? (
+        //this does not work well on web but is not required either since
+        //keyboard on web is way better anyway
+        <AntDesign
+          onPress={() => {
+            onChangeText('');
+          }}
+          style={{
+            color: theme.colors.listsSeparator,
+            fontSize: style?.fontSize,
+            alignSelf: 'center',
+            marginRight: -10,
+            paddingVertical: 10,
+            paddingRight: 5,
+            marginLeft: 10
+          }}
+          name="closecircle"
+        />
+      ) : null}
+    </View>
   );
 };
 
