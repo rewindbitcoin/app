@@ -31,7 +31,7 @@
  *     - Changes in min, max, or step values result in an invalid current value.
  *
  * - Internal Implementation:
- *     - 'strValue' represents the text input's value. It can be imprecise and
+ *     - 'numericInputControlledValue' represents the text input's value. It can be imprecise and
  *       is not constrained by the snap range. Updated when the slider is used
  *       or during TextInput interaction, even if invalid. May be updated when
  *       min, max, or step values change. Triggers 'onValueChange' with the
@@ -71,12 +71,12 @@ interface EditableSliderProps {
   step?: number;
   formatError?: ({
     lastValidSnappedValue,
-    strValue
+    numericInputControlledValue
   }: {
     lastValidSnappedValue: number;
-    strValue: string;
+    numericInputControlledValue: string;
   }) => string | undefined;
-  onValueChange?: (value: number | null) => void;
+  onValueChange: (value: number | null) => void;
   formatValue: (value: number) => string;
 }
 
@@ -162,28 +162,47 @@ const EditableSlider = ({
   const theme = useTheme();
   const styles = getStyles(theme);
 
+  //const handleValueChange = useCallback((snappedValue: number | null) => {
+  //  if (onValueChange && snappedValue !== value) {
+  //    onValueChange(newSnappedValue);
+  //  }
+  //}, []);
+
   const snappedValue = snap({ value, minimumValue, maximumValue, step });
 
-  // Keep track of prevSnappedValue:
-  const prevSnappedValue = useRef<number | null>();
+  // Keep track of lastSnappedValueRef:
+  const lastSnappedValueRef = useRef<number | null>();
   useEffect(() => {
-    prevSnappedValue.current = snappedValue;
+    lastSnappedValueRef.current = snappedValue;
   }, [snappedValue]);
 
-  // lastValidSnappedValue will be updated onNumberInputChangeValue,
+  // lastValidSnappedValueRef will be updated onNumberInputChangeValue,
   // onSliderValueChange or onEffect([min,max,step]), below:
-  const lastValidSnappedValue = useRef<number | null>(null);
+  const lastValidSnappedValueRef = useRef<number | null>(null);
 
-  //Set initial InputText and Slider values.
-  const [sliderManagedValue, setSliderManagedValue] = useState<number>(
-    snappedValue === null ? minimumValue : snappedValue
-  );
+  //Set initial NumberInput and Slider values.
 
-  const [strValue, setStrValue] = useState<string>(
-    snappedValue === null
-      ? snap2Str({ snappedValue: minimumValue, locale, numberFormatting, step })
-      : snap2Str({ snappedValue, locale, numberFormatting, step })
-  );
+  //Slider is NOT a controlled component. State resides in Slider.
+  //We only pass initial values here. Changing this value does not
+  //trigger any event in the Slider
+  const [sliderUncontrolledValue, setSliderUncontrolledValue] =
+    useState<number>(
+      //NumericInput is a controlled compo
+      snappedValue === null ? minimumValue : snappedValue
+    );
+  //NumericInput is a controlled component. State resides in EditableSlider
+  const [numericInputControlledValue, setNumericInputControlledValue] =
+    useState<string>(
+      snappedValue === null
+        ? snap2Str({
+            snappedValue: minimumValue,
+            locale,
+            numberFormatting,
+            step
+          })
+        : snap2Str({ snappedValue, locale, numberFormatting, step })
+    );
+
   // Parent may change min, max or step. Previously good values
   // may not be ok anymore or previously old values may be again
   useEffect(() => {
@@ -192,42 +211,43 @@ const EditableSlider = ({
       snappedValue !== null
         ? snappedValue
         : isInRange({
-              value: lastValidSnappedValue.current,
+              value: lastValidSnappedValueRef.current,
               minimumValue,
               maximumValue
             })
-          ? lastValidSnappedValue.current
+          ? lastValidSnappedValueRef.current
           : null;
     if (newSnappedValue !== null) {
-      lastValidSnappedValue.current = newSnappedValue;
+      lastValidSnappedValueRef.current = newSnappedValue;
       //When min, max or step change, make sure the Slider is in correct
       //position and TextInput shows the correct value again
-      setSliderManagedValue(newSnappedValue);
+      setSliderUncontrolledValue(newSnappedValue);
       const newStrValue = snap2Str({
         snappedValue: newSnappedValue,
         locale,
         numberFormatting,
         step
       });
-      setStrValue(newStrValue);
+      setNumericInputControlledValue(newStrValue);
     } else {
       // Even if the component does not have a a correct value,
       // the slider must be set to some position within min and max...
-      const newSliderManagedValue =
-        lastValidSnappedValue.current === null
+      const newSliderValue =
+        lastValidSnappedValueRef.current === null
           ? minimumValue
-          : lastValidSnappedValue.current > maximumValue
+          : lastValidSnappedValueRef.current > maximumValue
             ? maximumValue
-            : lastValidSnappedValue.current < minimumValue
+            : lastValidSnappedValueRef.current < minimumValue
               ? minimumValue
-              : lastValidSnappedValue.current;
-      setSliderManagedValue(newSliderManagedValue);
+              : lastValidSnappedValueRef.current;
+      setSliderUncontrolledValue(newSliderValue);
     }
     if (onValueChange && newSnappedValue !== value) {
       onValueChange(newSnappedValue);
     }
   }, [
-    //This breaks this hook. DONT ADD IT:
+    //value will break this hook behaviour. DONT ADD IT:
+    //It breaks TextInput mode enter. Since incorrect values will not be picked
     //value,
 
     //Parent may change these:
@@ -255,33 +275,21 @@ const EditableSlider = ({
         throw new Error(
           `Slider returned off-limits value: ${minimumValue} >= ${value} >= ${maximumValue}, step: ${step}, snappedValue: ${snappedValue}`
         );
-      else lastValidSnappedValue.current = snappedValue;
-      const strValue = snap2Str({
+      else lastValidSnappedValueRef.current = snappedValue;
+      const numericInputControlledValue = snap2Str({
         snappedValue,
         locale,
         numberFormatting,
         step
       });
-      setStrValue(strValue);
-      if (snappedValue !== prevSnappedValue.current && onValueChange) {
+      setNumericInputControlledValue(numericInputControlledValue);
+      if (snappedValue !== lastSnappedValueRef.current && onValueChange) {
         onValueChange(snappedValue);
       }
     },
     [minimumValue, maximumValue, step, locale, numberFormatting, onValueChange]
   );
 
-  //TODO: When using Bitcoin, then its not valid to pass more than 8 decimals
-  //TODO: print "Invalid Number"
-  //
-  //IMPORTANT:
-  //onNumberInputChangeValue is called before selection (setSelection) has been
-  //set: https://github.com/facebook/react-native/pull/35603
-  //In this component which will be the next cursor position using setSelection
-  //Then we discard all onSelectionChange which ara called as a reaction for
-  //changing text (if the are called within a few milliseconds after we have
-  //setSelection here). Cursor position is 100% controlled in onNumberInputChangeValue.
-  //This prevents missbehaviour in iOS. We still allow the user selecting
-  //text when onSelectionChange is called not as a reaction of changing text.
   const onNumberInputChangeValue = useCallback(
     (value: number | null) => {
       const isValidValue =
@@ -298,12 +306,12 @@ const EditableSlider = ({
         });
         if (snappedValue === null)
           throw new Error('strNumberInRange not valid');
-        setSliderManagedValue(snappedValue);
-        if (value !== prevSnappedValue.current && onValueChange)
+        setSliderUncontrolledValue(snappedValue);
+        if (value !== lastSnappedValueRef.current && onValueChange)
           onValueChange(value);
-        lastValidSnappedValue.current = snappedValue;
+        lastValidSnappedValueRef.current = snappedValue;
       } else {
-        if (null !== prevSnappedValue.current && onValueChange)
+        if (null !== lastSnappedValueRef.current && onValueChange)
           onValueChange(null);
       }
     },
@@ -312,7 +320,7 @@ const EditableSlider = ({
 
   let statusText: string;
   if (snappedValue === null) {
-    const last = lastValidSnappedValue.current;
+    const last = lastValidSnappedValueRef.current;
     if (last === null)
       throw new Error(
         'Cannot format error because there are not previous valid values'
@@ -322,7 +330,7 @@ const EditableSlider = ({
     statusText =
       formatError?.({
         lastValidSnappedValue: last,
-        strValue
+        numericInputControlledValue
       }) ||
       (last !== null && last > maximumValue
         ? t('editableSlider.maxValueError', { maximumValue })
@@ -338,7 +346,7 @@ const EditableSlider = ({
         ? {}
         : { thumbTintColor: theme.colors.primary };
 
-  //console.log('render', selection, strValue);
+  //console.log('render', selection, numericInputControlledValue);
   return (
     <View style={styles.container}>
       <Text
@@ -358,7 +366,7 @@ const EditableSlider = ({
           maximumValue={maximumValue}
           onValueChange={onSliderValueChange}
           {...thumbTintColor}
-          value={sliderManagedValue}
+          value={sliderUncontrolledValue}
         />
         <NumberInput
           locale={locale}
@@ -367,7 +375,7 @@ const EditableSlider = ({
             ...styles.input,
             ...(snappedValue === null ? { color: theme.colors.red } : {})
           }}
-          value={strValue}
+          value={numericInputControlledValue}
           onChangeValue={onNumberInputChangeValue}
         />
         {maxLabel && value === maximumValue ? (
