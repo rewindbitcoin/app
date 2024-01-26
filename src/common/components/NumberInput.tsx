@@ -1,5 +1,5 @@
 const INPUT_MAX_LENGTH = 18;
-import React, { useState, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import type { Locale } from '../../i18n/i18n';
 import AntDesign from '@expo/vector-icons/AntDesign';
 import {
@@ -14,10 +14,8 @@ import {
   LayoutChangeEvent
 } from 'react-native';
 import { useTheme } from './ui';
-import {
-  useFonts,
-  RobotoMono_400Regular
-} from '@expo-google-fonts/roboto-mono';
+import { useFonts } from 'expo-font';
+import { RobotoMono_400Regular } from '@expo-google-fonts/roboto-mono';
 import {
   localizedStrToNumber,
   localizeInputNumericString,
@@ -28,15 +26,22 @@ import {
 interface NumericInputProps {
   maxLength?: number;
   locale: Locale;
-  value: string;
+  strValue: string;
   numberFormatting?: boolean;
   style?: TextStyle;
-  onChangeValue: (value: number | null) => void;
+  onChangeValue: (value: string) => void;
 }
+
+//The number we will use to initialize NumberInput width. Better to use the
+//last one (if it was available) even if it is for a different style than zero.
+//In fact, in most of the cases lastMaxLengthWidthGlobal will be the same (if no
+//styles are passed) and we will avoid nasty flicker when re-rendering it as
+//a new component.
+let lastMaxLengthWidthGlobal: null | number = null;
 
 const NumericInput = ({
   maxLength = INPUT_MAX_LENGTH,
-  value,
+  strValue,
   numberFormatting = true,
   locale,
   style,
@@ -47,20 +52,11 @@ const NumericInput = ({
 
   const theme = useTheme();
   const styles = getStyles();
+
   const [selection, setSelection] = useState<{
     start: number;
     end: number;
-  } | null>(null);
-
-  const prevValue = useRef<string>(value);
-  useEffect(() => {
-    if (prevValue.current !== value) {
-      setStrValue(value);
-    }
-    prevValue.current = value;
-  }, [value]);
-
-  const [strValue, setStrValue] = useState<string>(value);
+  }>({ start: strValue.length, end: strValue.length });
 
   //https://lefkowitz.me/visual-guide-to-react-native-textinput-keyboardtype-options/
   const keyboardType = 'numeric';
@@ -114,6 +110,7 @@ const NumericInput = ({
             newStrValue === strValue &&
             newStrTextInputValue.length === strValue.length - 1;
           const newCursor = getNewCursor(newStrValue, strValue, cursor, locale);
+          //console.log('onChangeText', { newCursor });
           if (isBackSpaceOnDelimiter) {
             setSelection({ start: cursor - 1, end: cursor - 1 });
             lastProgramaticalSetSelectionEpochRef.current =
@@ -125,16 +122,17 @@ const NumericInput = ({
           }
         }
       }
-      setStrValue(newStrValue);
-      const isValidStrValue = !Number.isNaN(
-        localizedStrToNumber(newStrValue, locale)
-      );
-      if (isValidStrValue) {
-        const value = localizedStrToNumber(newStrValue, locale);
-        onChangeValue(value);
-      } else {
-        onChangeValue(null);
-      }
+      onChangeValue(newStrValue);
+      //setStrValue(newStrValue);
+      //const isValidStrValue = !Number.isNaN(
+      //  localizedStrToNumber(newStrValue, locale)
+      //);
+      //if (isValidStrValue) {
+      //  const value = localizedStrToNumber(newStrValue, locale);
+      //  onChangeValue(value);
+      //} else {
+      //  onChangeValue(null);
+      //}
     },
     [
       selection?.end,
@@ -168,6 +166,7 @@ const NumericInput = ({
     (event: LayoutChangeEvent) => {
       if (fontsLoaded) {
         const { width } = event.nativeEvent.layout;
+        lastMaxLengthWidthGlobal = width;
         setMaxLengthWidth(width);
       }
     },
@@ -178,12 +177,15 @@ const NumericInput = ({
 
   const onFocus = useCallback(() => {
     setShowClearButton(true);
-  }, []);
+    setSelection({ start: strValue.length, end: strValue.length });
+  }, [strValue]);
   const onBlur = useCallback(() => {
     setShowClearButton(false);
   }, []);
 
-  const [maxLengthWidth, setMaxLengthWidth] = useState<number | null>(null);
+  const [maxLengthWidth, setMaxLengthWidth] = useState<number | null>(
+    lastMaxLengthWidthGlobal
+  );
 
   //console.log('render', selection, strValue);
   return (

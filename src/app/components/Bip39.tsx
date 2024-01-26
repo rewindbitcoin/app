@@ -2,10 +2,8 @@ import React, { useEffect, useRef, useState } from 'react';
 import { StyleSheet, View, Platform } from 'react-native';
 
 import { LayoutAnimation } from 'react-native';
-import {
-  useFonts,
-  RobotoMono_400Regular
-} from '@expo-google-fonts/roboto-mono';
+import { useFonts } from 'expo-font';
+import { RobotoMono_400Regular } from '@expo-google-fonts/roboto-mono';
 import { useToast } from '../../common/components/Toast';
 import { useTheme, Theme, Text, TextInput } from '../../common/components/ui';
 import SegmentedControl from '../../common/components/SegmentedControl';

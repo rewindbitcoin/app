@@ -11,6 +11,7 @@
 //  TODO: When entering currency use the subunit (but do not adapt for large
 //  quantities)
 
+import AmountInput from '../components/AmountInput';
 import { Trans, useTranslation } from 'react-i18next';
 import AntDesign from '@expo/vector-icons/AntDesign';
 import React, { useCallback, useMemo, useContext, useState } from 'react';
@@ -21,14 +22,15 @@ import { Text, Button, useTheme, Theme } from '../../common/components/ui';
 import { useToast } from '../../common/components/Toast';
 import { EdgeInsets, useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
-  SubUnit,
   defaultSettings,
   Settings,
   SETTINGS_GLOBAL_STORAGE
 } from '../lib/settings';
 import { useGlobalStateStorage } from '../../common/contexts/StorageContext';
 import { SERIALIZABLE } from '../../common/lib/storage';
-import EditableSlider, { snap } from '../../common/components/EditableSlider';
+import EditableSlider, {
+  snapWithinRange
+} from '../../common/components/EditableSlider';
 import { selectVaultUtxosData, type VaultSettings } from '../lib/vaults';
 import {
   DUMMY_VAULT_OUTPUT,
@@ -38,12 +40,7 @@ import {
 
 import { pickFeeEstimate, formatFeeRate, formatLockTime } from '../lib/fees';
 import { WalletContext, WalletContextType } from '../contexts/WalletContext';
-import {
-  formatBtc,
-  fromSats,
-  toSats,
-  getAmountModeStep
-} from '../lib/btcRates';
+import { formatBtc } from '../lib/btcRates';
 import { fromBlocks, toBlocks } from '../lib/timeUtils';
 import globalStyles from '../styles/styles';
 import { estimateVaultSetUpRange } from '../lib/vaultRange';
@@ -92,18 +89,18 @@ export default function VaultSetUp({
 
     return Object.fromEntries(
       Object.entries(originalFE).map(([targetTime, feeRate]) => {
-        const snappedValue = snap({
+        const snappedWithinRange = snapWithinRange({
           minimumValue: Number.MIN_VALUE,
           maximumValue: Number.MAX_VALUE,
           step: FEE_RATE_STEP,
           value: feeRate
         });
 
-        if (typeof snappedValue !== 'number') {
+        if (typeof snappedWithinRange !== 'number') {
           throw new Error('snap function did not return a number');
         }
 
-        return [targetTime, snappedValue];
+        return [targetTime, snappedWithinRange];
       })
     );
   }, [originalFE]);
@@ -118,11 +115,6 @@ export default function VaultSetUp({
       'This component should only be started after settings has been retrieved from storage'
     );
 
-  //amountMode 'USD' (currency) can only be used if btcRates is not null since
-  //we will need it to convert from / to
-  const [amountMode, setAmountMode] = useState<SubUnit | 'Fiat'>(
-    btcFiat !== null ? 'Fiat' : settings.SUB_UNIT
-  );
   const [lockTimeMode, setLockTimeMode] = useState<'days' | 'blocks'>('days');
   const [lockBlocks, setLockBlocks] = useState<number | null>(
     settings.INITIAL_LOCK_BLOCKS
@@ -155,10 +147,7 @@ export default function VaultSetUp({
   });
   //console.log({ initialFeeRate, feeRate, maxVaultAmount });
 
-  const [amount, setAmount] = useState<number | null>(maxVaultAmount || null);
-  const [isMaxFunds, setIsMaxFunds] = useState<boolean>(
-    amount === maxVaultAmount
-  );
+  //const [amount, setAmount] = useState<number | null>(maxVaultAmount || null);
 
   const handleOK = () => {
     const errorMessages = [];
@@ -208,30 +197,15 @@ export default function VaultSetUp({
     [lockTimeMode, t]
   );
 
-  const onAmountValueChange = useCallback(
-    (amount: number | null) => {
-      if (maxVaultAmount === undefined)
-        throw new Error(`onAmountValueChange needs a valid maxVaultAmount`);
-      const newIsMaxFunds =
-        amount ===
-        fromSats(
-          maxVaultAmount,
-          largestMinVaultAmount,
-          maxVaultAmount,
-          amountMode,
-          btcFiat
-        );
-      setIsMaxFunds(newIsMaxFunds);
-      setAmount(
-        amount === null
-          ? null
-          : newIsMaxFunds
-            ? maxVaultAmount
-            : toSats(amount, amountMode, btcFiat)
-      );
-    },
-    [maxVaultAmount, largestMinVaultAmount, amountMode, btcFiat]
-  );
+  const [amount, setAmount] = useState<number | null>(maxVaultAmount || null);
+  const onAmountChange = useCallback((amount: number | null) => {
+    console.log(`SetUpVaultScreen gets ${amount}`);
+    //if (maxVaultAmount === undefined)
+    //  throw new Error(`onAmountChange needs a valid maxVaultAmount`);
+    //console.log({ amount, maxVaultAmount });
+    //setIsMaxFunds(amount === maxVaultAmount);
+    setAmount(amount);
+  }, []);
 
   const onFeeRateValueChange = useCallback(setFeeRate, [setFeeRate]);
   const formatFeeRateValue = useCallback(
@@ -300,47 +274,11 @@ export default function VaultSetUp({
     ]
   );
 
-  const formatAmountValue = useCallback(
-    (amount: number) => {
-      if (maxVaultAmount === undefined)
-        throw new Error(`formatAmountValue needs a valid maxVaultAmount`);
-      return formatBtc(
-        {
-          amount: isMaxFunds
-            ? maxVaultAmount
-            : toSats(amount, amountMode, btcFiat),
-          subUnit: settings.SUB_UNIT,
-          btcFiat,
-          locale: settings.LOCALE,
-          currency: settings.CURRENCY
-        },
-        t
-      );
-    },
-    [
-      isMaxFunds,
-      t,
-      maxVaultAmount,
-      amountMode,
-      btcFiat,
-      settings.SUB_UNIT,
-      settings.LOCALE,
-      settings.CURRENCY
-    ]
-  );
-
   const formatAmountError = useCallback(
-    ({
-      lastValidSnappedValue,
-      numericInputValue
-    }: {
-      lastValidSnappedValue: number;
-      numericInputValue: string;
-    }) => {
-      void numericInputValue;
+    (invalidAmount: number) => {
       if (maxVaultAmount === undefined)
         throw new Error(`formatAmountValue needs a valid maxVaultAmount`);
-      if (toSats(lastValidSnappedValue, amountMode, btcFiat) > maxVaultAmount) {
+      if (invalidAmount > maxVaultAmount) {
         return t('vaultSetup.reduceVaultAmount', {
           amount: formatBtc(
             {
@@ -358,7 +296,6 @@ export default function VaultSetUp({
     [
       maxVaultAmount,
       t,
-      amountMode,
       btcFiat,
       settings.SUB_UNIT,
       settings.LOCALE,
@@ -412,69 +349,16 @@ export default function VaultSetUp({
         {maxVaultAmount !== undefined &&
           largestMinVaultAmount !== undefined &&
           maxVaultAmount >= largestMinVaultAmount && (
-            <View style={styles.settingGroup}>
-              <View style={styles.cardHeader}>
-                <Text variant="cardTitle" style={styles.cardTitle}>
-                  {t('vaultSetup.amountLabel')}
-                </Text>
-                <View style={styles.cardModeRotator}>
-                  <Button
-                    mode="text"
-                    fontSize={12}
-                    onPress={() => {
-                      const modes: Array<'Fiat' | SubUnit> = [
-                        settings.SUB_UNIT
-                      ];
-                      if (settings.SUB_UNIT !== 'btc') modes.push('btc');
-                      if (btcFiat !== null) modes.push('Fiat');
-                      setAmountMode(
-                        modes[(modes.indexOf(amountMode) + 1) % modes.length]!
-                      );
-                    }}
-                  >
-                    {`${amountMode === 'Fiat' ? settings.CURRENCY : amountMode} ⇅`}
-                  </Button>
-                </View>
-              </View>
-              <View style={styles.card}>
-                <EditableSlider
-                  maxLabel={t(
-                    'vaultSetup.vaultAllFundsShortBadge'
-                  ).toUpperCase()}
-                  locale={settings.LOCALE}
-                  formatError={formatAmountError}
-                  minimumValue={fromSats(
-                    largestMinVaultAmount,
-                    largestMinVaultAmount,
-                    maxVaultAmount,
-                    amountMode,
-                    btcFiat
-                  )}
-                  maximumValue={fromSats(
-                    maxVaultAmount,
-                    largestMinVaultAmount,
-                    maxVaultAmount,
-                    amountMode,
-                    btcFiat
-                  )}
-                  value={
-                    amount === null
-                      ? null
-                      : fromSats(
-                          isMaxFunds ? maxVaultAmount : amount,
-                          largestMinVaultAmount,
-                          maxVaultAmount,
-                          amountMode,
-                          btcFiat
-                        )
-                  }
-                  onValueChange={onAmountValueChange}
-                  step={getAmountModeStep(amountMode)}
-                  formatValue={formatAmountValue}
-                />
-              </View>
-            </View>
+            <AmountInput
+              label={t('vaultSetup.amountLabel')}
+              initialValue={maxVaultAmount}
+              min={largestMinVaultAmount}
+              max={maxVaultAmount}
+              onValueChange={onAmountChange}
+              formatError={formatAmountError}
+            />
           )}
+
         {settings.MIN_LOCK_BLOCKS && settings.MAX_LOCK_BLOCKS && (
           <View style={styles.settingGroup}>
             <View style={styles.cardHeader}>
@@ -533,7 +417,7 @@ export default function VaultSetUp({
                   settings.MAX_LOCK_BLOCKS,
                   lockTimeMode
                 )}
-                value={
+                initialValue={
                   lockBlocks === null
                     ? null
                     : fromBlocks(
@@ -566,7 +450,7 @@ export default function VaultSetUp({
           <View style={styles.card}>
             <EditableSlider
               locale={settings.LOCALE}
-              value={feeRate}
+              initialValue={feeRate}
               minimumValue={settings.MIN_FEE_RATE}
               maximumValue={maxFeeRate}
               step={FEE_RATE_STEP}
