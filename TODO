@@ -1,3 +1,30 @@
+Immediate things to fix:
+
+  Mas Padding a los USD , days
+  
+  Test web + android
+  
+  Si pongo directamente un valor mayor del posible en el Input de Vault Amount entonce TAMBUEN me sale el error de demasiadas Fees, lo cual es un lio!
+    -> Lo he desactivado por el momento por ese motivo
+  
+  Esto lo tengo que tratar más arriba. Si los valores no son posible entonces mostrar por pantalla que no es posible directamente. antes de mostrar el cuadro de sliders.
+          {maxVaultAmount !== undefined &&
+            largestMinVaultAmount !== undefined &&
+            maxVaultAmount >= largestMinVaultAmount && (
+  
+  En el mode rotator de USD , etc. mejor mostrar un Modal que me deje elegir entre todo lo que hay
+  
+  Simplificar y mucho los stles de SetUpVaultScreen cuando haya acabado
+  
+  
+  Mover el ALL FIUNDS arriba y las unidades abajo
+  Las bolitas del slider no son azules ahora
+  Al hacer slide en el Slider (si tengo keyb abierto) poner el cursor a la derecha del todo
+  Si me sale un error
+  May never confirm en NARANJA - Si se elige mostrar warning Modal
+
+
+-----
 TODO: There is an issue. If the user selects locale es-ES but uses 
 en-US in the system, then the keyboard for the numbers (the fee rate) will not
 let use "," (commas) as decimal separator.
