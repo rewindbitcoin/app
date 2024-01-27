@@ -274,34 +274,34 @@ export default function VaultSetUp({
     ]
   );
 
-  const formatAmountError = useCallback(
-    (invalidAmount: number) => {
-      if (maxVaultAmount === undefined)
-        throw new Error(`formatAmountValue needs a valid maxVaultAmount`);
-      if (invalidAmount > maxVaultAmount) {
-        return t('vaultSetup.reduceVaultAmount', {
-          amount: formatBtc(
-            {
-              amount: maxVaultAmount,
-              subUnit: settings.SUB_UNIT,
-              btcFiat,
-              locale: settings.LOCALE,
-              currency: settings.CURRENCY
-            },
-            t
-          )
-        });
-      } else return;
-    },
-    [
-      maxVaultAmount,
-      t,
-      btcFiat,
-      settings.SUB_UNIT,
-      settings.LOCALE,
-      settings.CURRENCY
-    ]
-  );
+  //const formatAmountError = useCallback(
+  //  (invalidAmount: number) => {
+  //    if (maxVaultAmount === undefined)
+  //      throw new Error(`formatAmountValue needs a valid maxVaultAmount`);
+  //    if (invalidAmount > maxVaultAmount) {
+  //      return t('vaultSetup.reduceVaultAmount', {
+  //        amount: formatBtc(
+  //          {
+  //            amount: maxVaultAmount,
+  //            subUnit: settings.SUB_UNIT,
+  //            btcFiat,
+  //            locale: settings.LOCALE,
+  //            currency: settings.CURRENCY
+  //          },
+  //          t
+  //        )
+  //      });
+  //    } else return;
+  //  },
+  //  [
+  //    maxVaultAmount,
+  //    t,
+  //    btcFiat,
+  //    settings.SUB_UNIT,
+  //    settings.LOCALE,
+  //    settings.CURRENCY
+  //  ]
+  //);
 
   const content =
     //TODO: test missingFunds
@@ -355,7 +355,6 @@ export default function VaultSetUp({
               min={largestMinVaultAmount}
               max={maxVaultAmount}
               onValueChange={onAmountChange}
-              formatError={formatAmountError}
             />
           )}
 
