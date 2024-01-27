@@ -25,7 +25,7 @@ import React, {
 } from 'react';
 import { shallowEqualObjects, shallowEqualArrays } from 'shallow-equal';
 import type { Wallet } from '../lib/wallets';
-import { useToast } from '../../common/components/Toast';
+import { useToast } from '../../common/ui';
 import { SERIALIZABLE } from '../../common/lib/storage';
 import { useGlobalStateStorage } from '../../common/contexts/StorageContext';
 import { useSecureStorageAvailability } from '../../common/contexts/SecureStorageAvailabilityContext';
@@ -276,12 +276,9 @@ export const WalletProvider = ({
       };
       updateFeeEstimates();
 
-      const interval = setInterval(
-        () => {
-          updateFeeEstimates();
-        },
-        settings?.BTC_FEE_ESTIMATES_REFRESH_INTERVAL_MS
-      );
+      const interval = setInterval(() => {
+        updateFeeEstimates();
+      }, settings?.BTC_FEE_ESTIMATES_REFRESH_INTERVAL_MS);
 
       return () => {
         isMounted = false;
@@ -542,7 +539,7 @@ export const WalletProvider = ({
       const masterNode = BIP32.fromSeed(mnemonicToSeedSync(mnemonic), network);
       descriptorsSigners.signBIP32({ psbt: psbtVault, masterNode });
     },
-    [signers]
+    [signers, network]
   );
 
   const contextValue = {

@@ -3,7 +3,7 @@ import { rgba } from 'polished';
 import React, { useState, useRef, useEffect } from 'react';
 
 import { Platform, View } from 'react-native';
-import { Text, TextInput, Button } from '../../common/components/ui';
+import { Text, TextInput, Button } from '../../common/ui';
 import { useTheme } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
 

@@ -1,6 +1,6 @@
 import React from 'react';
 import * as RN from 'react-native';
-import { useTheme, Theme } from './theme';
+import { useTheme, Theme } from '../theme';
 // Extend the TextProps with the variant
 interface TextProps extends RN.TextProps {
   variant?:

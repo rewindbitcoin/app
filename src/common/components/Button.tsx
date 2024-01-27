@@ -1,6 +1,6 @@
 import React from 'react';
 import * as RN from 'react-native';
-import { useTheme, Theme } from './theme';
+import { useTheme, Theme } from '../theme';
 import { rgba } from 'polished';
 interface ButtonProps extends RN.PressableProps {
   mode?: 'native' | 'text' | 'contained' | 'outlined';

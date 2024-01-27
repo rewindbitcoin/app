@@ -4,9 +4,14 @@ import { StyleSheet, View, Platform } from 'react-native';
 import { LayoutAnimation } from 'react-native';
 import { useFonts } from 'expo-font';
 import { RobotoMono_400Regular } from '@expo-google-fonts/roboto-mono';
-import { useToast } from '../../common/components/Toast';
-import { useTheme, Theme, Text, TextInput } from '../../common/components/ui';
-import SegmentedControl from '../../common/components/SegmentedControl';
+import {
+  useTheme,
+  Theme,
+  Text,
+  TextInput,
+  SegmentedControl,
+  useToast
+} from '../../common/ui';
 
 import memoize from 'lodash.memoize';
 import { wordlists } from 'bip39';

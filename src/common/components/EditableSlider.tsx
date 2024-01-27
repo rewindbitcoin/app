@@ -39,11 +39,12 @@ import NumberInput from './NumberInput';
 import Slider from '@react-native-community/slider';
 import { useFonts } from 'expo-font';
 import { RobotoMono_400Regular } from '@expo-google-fonts/roboto-mono';
-import { useTheme, Theme } from './ui/theme';
+import { useTheme, Theme } from '../theme';
 import {
   localizedStrToNumber,
   numberToFormattedFixed,
   numberToFixed,
+  snapWithinRange,
   countDecimalDigits
 } from '../../common/lib/numbers';
 
@@ -61,35 +62,6 @@ interface EditableSliderProps {
 }
 
 const DEFAULT_STEP = 0.01;
-
-/** This function returns a number which correspondes to the snap of value into step.
- * The function will return minimumValue or maximumValue if the snapped
- * value is not within the range. It will return null if the snapped value
- * and the value are not within range
- */
-export function snapWithinRange({
-  value,
-  minimumValue,
-  maximumValue,
-  step = DEFAULT_STEP
-}: {
-  value: number | null;
-  minimumValue: number;
-  maximumValue: number;
-  step?: number;
-}): number | null {
-  if (value === null) return null;
-  const digits = countDecimalDigits(step);
-  const snappedValue = Number(
-    (step * Math.round(value / step)).toFixed(digits)
-  );
-
-  if (snappedValue > maximumValue && value <= maximumValue) return value;
-  else if (snappedValue < minimumValue && value >= minimumValue) return value;
-  else if (snappedValue >= minimumValue && snappedValue <= maximumValue)
-    return snappedValue;
-  else return null;
-}
 
 /**
  * Given a value number we return the string.

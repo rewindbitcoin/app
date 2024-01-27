@@ -1,7 +1,6 @@
 import React from 'react';
 import { View, Platform } from 'react-native';
-import { Text, Button } from '../../common/components/ui';
-import { KeyboardAwareScrollView } from '../../common/components/KeyboardAwareScrollView';
+import { Text, Button, KeyboardAwareScrollView } from '../../common/ui';
 import type { Wallet, Wallets, Signers } from '../lib/wallets';
 import { SERIALIZABLE } from '../../common/lib/storage';
 import { useLocalStateStorage } from '../../common/hooks/useLocalStateStorage';

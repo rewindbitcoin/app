@@ -4,8 +4,12 @@
 //or faceId of the device
 import React, { useEffect, useState } from 'react';
 import { View } from 'react-native';
-import { Button, Text, ActivityIndicator } from '../../common/components/ui';
-import { KeyboardAwareScrollView } from '../../common/components/KeyboardAwareScrollView';
+import {
+  Button,
+  Text,
+  ActivityIndicator,
+  KeyboardAwareScrollView
+} from '../../common/ui';
 import { useTranslation } from 'react-i18next';
 import Bip39, { validateMnemonic } from '../components/Bip39';
 import WalletAdvancedSettings from '../components/WalletAdvancedSettings';

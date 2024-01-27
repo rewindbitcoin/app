@@ -1,6 +1,6 @@
 //This component must work both for SendBitcoin and SetUpVault
 import React, { useState, useCallback, useContext, useRef } from 'react';
-import CardEditableSlider from './CardEditableSlider';
+import { CardEditableSlider } from '../../common/ui';
 import { useTranslation } from 'react-i18next';
 import { useGlobalStateStorage } from '../../common/contexts/StorageContext';
 import { SERIALIZABLE } from '../../common/lib/storage';
@@ -17,7 +17,7 @@ import {
   toSats,
   getAmountModeStep
 } from '../lib/btcRates';
-import { Modal, Text } from '../../common/components/ui';
+import { Modal, Text } from '../../common/ui';
 
 export default function AmountInput({
   initialValue,
@@ -139,6 +139,7 @@ export default function AmountInput({
   return (
     <>
       <CardEditableSlider
+        locale={settings.LOCALE}
         label={label}
         key={`${mode}-${min}-${max}`}
         maxLabel={t('amount.maxLabel').toUpperCase()}

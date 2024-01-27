@@ -307,6 +307,35 @@ const getNewCursor = (
   return newCursor;
 };
 
+/** This function returns a number which correspondes to the snap of value into step.
+ * The function will return minimumValue or maximumValue if the snapped
+ * value is not within the range. It will return null if the snapped value
+ * and the value are not within range
+ */
+function snapWithinRange({
+  value,
+  minimumValue,
+  maximumValue,
+  step
+}: {
+  value: number | null;
+  minimumValue: number;
+  maximumValue: number;
+  step: number;
+}): number | null {
+  if (value === null) return null;
+  const digits = countDecimalDigits(step);
+  const snappedValue = Number(
+    (step * Math.round(value / step)).toFixed(digits)
+  );
+
+  if (snappedValue > maximumValue && value <= maximumValue) return value;
+  else if (snappedValue < minimumValue && value >= minimumValue) return value;
+  else if (snappedValue >= minimumValue && snappedValue <= maximumValue)
+    return snappedValue;
+  else return null;
+}
+
 export {
   numberToFormattedFixed,
   numberToFixed,
@@ -316,5 +345,6 @@ export {
   localizedStrToNumber,
   getLocaleSeparators,
   getNewCursor,
-  countDecimalDigits
+  countDecimalDigits,
+  snapWithinRange
 };

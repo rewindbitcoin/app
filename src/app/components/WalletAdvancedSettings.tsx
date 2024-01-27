@@ -8,7 +8,7 @@ import {
   Theme,
   Switch,
   useTheme
-} from '../../common/components/ui';
+} from '../../common/ui';
 import Password from './Password';
 import { useTranslation } from 'react-i18next';
 import { LayoutAnimation } from 'react-native';

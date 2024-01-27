@@ -13,7 +13,7 @@ import {
   TextInputSelectionChangeEventData,
   LayoutChangeEvent
 } from 'react-native';
-import { useTheme } from './ui';
+import { useTheme } from '../theme';
 import { useFonts } from 'expo-font';
 import { RobotoMono_400Regular } from '@expo-google-fonts/roboto-mono';
 import {

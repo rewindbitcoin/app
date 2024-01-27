@@ -2,10 +2,9 @@
 import React, { useState, useEffect } from 'react';
 import type { GestureResponderEvent } from 'react-native';
 import { View, Text, Button, Alert, StyleSheet } from 'react-native';
-import { KeyboardAwareScrollView } from '../../common/components/KeyboardAwareScrollView';
+import { KeyboardAwareScrollView, EditableSlider } from '../../common/ui';
 
-import EditableSlider from '../common/EditableSlider';
-import type { UtxosData } from '../../lib/vaults';
+import type { UtxosData } from '../lib/vaults';
 
 export default function Unvault({
   minFeeRate,

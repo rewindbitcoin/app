@@ -16,10 +16,16 @@ import { Trans, useTranslation } from 'react-i18next';
 import AntDesign from '@expo/vector-icons/AntDesign';
 import React, { useCallback, useMemo, useContext, useState } from 'react';
 import { useNavigation } from '@react-navigation/native';
-import { KeyboardAwareScrollView } from '../../common/components/KeyboardAwareScrollView';
 import { View, StyleSheet } from 'react-native';
-import { Text, Button, useTheme, Theme } from '../../common/components/ui';
-import { useToast } from '../../common/components/Toast';
+import {
+  Text,
+  Button,
+  useTheme,
+  Theme,
+  KeyboardAwareScrollView,
+  EditableSlider,
+  useToast
+} from '../../common/ui';
 import { EdgeInsets, useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   defaultSettings,
@@ -28,9 +34,7 @@ import {
 } from '../lib/settings';
 import { useGlobalStateStorage } from '../../common/contexts/StorageContext';
 import { SERIALIZABLE } from '../../common/lib/storage';
-import EditableSlider, {
-  snapWithinRange
-} from '../../common/components/EditableSlider';
+import { snapWithinRange } from '../../common/lib/numbers';
 import { selectVaultUtxosData, type VaultSettings } from '../lib/vaults';
 import {
   DUMMY_VAULT_OUTPUT,

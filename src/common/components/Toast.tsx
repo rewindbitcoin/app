@@ -6,7 +6,8 @@ import Toast, {
   useToast,
   ToastProvider as ToastProviderOriginal
 } from 'react-native-toast-notifications';
-import { Text, Button } from './ui';
+import { Text } from './Text';
+import { Button } from './Button';
 import type { ToastProps } from 'react-native-toast-notifications/lib/typescript/toast';
 
 const defaultPlacement = 'top';

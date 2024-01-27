@@ -1,6 +1,6 @@
 import React from 'react';
 import { Button, Text, StyleSheet } from 'react-native';
-import { KeyboardAwareScrollView } from '../../common/components/KeyboardAwareScrollView';
+import { KeyboardAwareScrollView } from '../../common/ui';
 import { useNavigation } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
 export default () => {

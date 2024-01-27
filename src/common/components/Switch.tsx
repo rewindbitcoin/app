@@ -1,5 +1,5 @@
 import React from 'react';
-import { useTheme } from './theme';
+import { useTheme } from '../theme';
 import { rgba } from 'polished';
 import { Switch as RNSwitch, SwitchProps, Platform } from 'react-native';
 

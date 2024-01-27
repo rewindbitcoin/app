@@ -3,7 +3,6 @@ import React, { useContext, useEffect, useState, useRef } from 'react';
 import { WalletContext, WalletContextType } from '../contexts/WalletContext';
 import { useTranslation } from 'react-i18next';
 import { View, StyleSheet } from 'react-native';
-import { KeyboardAwareScrollView } from '../../common/components/KeyboardAwareScrollView';
 import * as Progress from 'react-native-progress';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { createVault, type VaultSettings } from '../lib/vaults';
@@ -14,7 +13,7 @@ import {
 } from '../lib/settings';
 import { useGlobalStateStorage } from '../../common/contexts/StorageContext';
 import { SERIALIZABLE } from '../../common/lib/storage';
-import { Button, Text } from '../../common/components/ui';
+import { Button, Text, KeyboardAwareScrollView } from '../../common/ui';
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 export default function VaultCreate({
   vaultSettings,

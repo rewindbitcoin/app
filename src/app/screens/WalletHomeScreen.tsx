@@ -1,6 +1,6 @@
 import React, { useContext } from 'react';
 import { RefreshControl, Button } from 'react-native';
-import { KeyboardAwareScrollView } from '../../common/components/KeyboardAwareScrollView';
+import { KeyboardAwareScrollView } from '../../common/ui';
 import { WalletContext, WalletContextType } from '../contexts/WalletContext';
 import { useTranslation } from 'react-i18next';
 

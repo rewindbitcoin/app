@@ -33,7 +33,7 @@ import { SERIALIZABLE } from './src/common/lib/storage';
 import { useGlobalStateStorage } from './src/common/contexts/StorageContext';
 import { SETTINGS_GLOBAL_STORAGE } from './src/app/lib/settings';
 import type { VaultSettings } from './src/app/lib/vaults';
-import { useTheme, Button } from './src/common/components/ui';
+import { useTheme, Button } from './src/common/ui';
 
 import {
   defaultSettings,

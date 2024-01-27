@@ -1,15 +1,11 @@
 //This is a HOC of EditableSlider formatted for Data Input
 import React from 'react';
 import { View, StyleSheet, GestureResponderEvent } from 'react-native';
-import { Text, Button, useTheme, Theme } from '../../common/components/ui';
-import EditableSlider from '../../common/components/EditableSlider';
-import {
-  defaultSettings,
-  Settings,
-  SETTINGS_GLOBAL_STORAGE
-} from '../lib/settings';
-import { SERIALIZABLE } from '../../common/lib/storage';
-import { useGlobalStateStorage } from '../../common/contexts/StorageContext';
+import { useTheme, Theme } from '../theme';
+import { Text } from './Text';
+import { Button } from './Button';
+import EditableSlider from './EditableSlider';
+import type { Locale } from '../../i18n/i18n';
 
 export default function CardEditableSlider({
   initialValue,
@@ -22,7 +18,8 @@ export default function CardEditableSlider({
   step,
   formatError,
   onValueChange,
-  formatValue = value => `${value}`
+  formatValue = value => `${value}`,
+  locale
 }: {
   initialValue: number;
   minimumValue: number;
@@ -35,18 +32,10 @@ export default function CardEditableSlider({
   formatError?: (invalidValue: number) => string | undefined;
   onValueChange: (value: number | null) => void;
   formatValue: (value: number) => string;
+  locale: Locale;
 }) {
   const theme = useTheme();
   const styles = getStyles(theme);
-  const [settings] = useGlobalStateStorage<Settings>(
-    SETTINGS_GLOBAL_STORAGE,
-    SERIALIZABLE,
-    defaultSettings
-  );
-  if (!settings)
-    throw new Error(
-      'This component should only be started after settings has been retrieved from storage'
-    );
   return (
     <>
       <View style={styles.cardHeader}>
@@ -68,7 +57,7 @@ export default function CardEditableSlider({
       <View style={styles.card}>
         <EditableSlider
           {...(maxLabel ? { maxLabel: maxLabel.toUpperCase() } : {})}
-          locale={settings.LOCALE}
+          locale={locale}
           {...(formatError ? { formatError } : {})}
           minimumValue={minimumValue}
           maximumValue={maximumValue}

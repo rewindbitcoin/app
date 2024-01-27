@@ -13,7 +13,7 @@ import Animated, {
   useSharedValue,
   withSpring
 } from 'react-native-reanimated';
-import { useTheme, Theme } from './ui';
+import { useTheme, Theme } from '../theme';
 
 interface SegmentedControlProps {
   /**
