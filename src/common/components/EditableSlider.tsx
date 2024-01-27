@@ -184,8 +184,6 @@ const EditableSlider = ({
     [minimumValue, maximumValue, step, onValueChange, locale]
   );
 
-  //Set initial NumberInput and Slider values.
-
   //Slider is NOT a controlled component. State resides in Slider.
   //We only pass initial values here. Changing this value does not
   //trigger any event in the Slider
