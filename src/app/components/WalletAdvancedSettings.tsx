@@ -14,7 +14,11 @@ import { useTranslation } from 'react-i18next';
 import { LayoutAnimation } from 'react-native';
 import AntDesign from '@expo/vector-icons/AntDesign';
 
-export default ({ style }: { style: ViewStyle }) => {
+export default function WalletAdvancedSettings({
+  style
+}: {
+  style: ViewStyle;
+}) {
   const { t } = useTranslation();
   const [passwordRequest, setPasswordRequest] = useState<boolean>(false);
   const [password, setPassword] = useState<string>();
@@ -195,7 +199,7 @@ export default ({ style }: { style: ViewStyle }) => {
       </Modal>
     </View>
   );
-};
+}
 
 const getStyles = (theme: Theme) => {
   const styles = StyleSheet.create({
