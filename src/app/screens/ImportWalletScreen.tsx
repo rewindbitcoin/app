@@ -12,7 +12,7 @@ import WalletAdvancedSettings from '../components/WalletAdvancedSettings';
 import { useSecureStorageAvailability } from '../../common/contexts/SecureStorageAvailabilityContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-export default () => {
+export default function ImportWalletScreen() {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const canUseSecureStorage = useSecureStorageAvailability();
@@ -64,4 +64,4 @@ export default () => {
       )}
     </KeyboardAwareScrollView>
   );
-};
+}
