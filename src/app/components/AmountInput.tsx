@@ -17,6 +17,7 @@ import {
   toSats,
   getAmountModeStep
 } from '../lib/btcRates';
+import { Modal, Text } from '../../common/components/ui';
 
 export default function AmountInput({
   initialValue,
@@ -51,18 +52,20 @@ export default function AmountInput({
   );
 
   const [isMaxFunds, setIsMaxFunds] = useState<boolean>(initialValue === max);
+  const [showUnitsModal, setShowUnitsModal] = useState<boolean>(false);
 
-  //const [initialModeValue, setInitialModeValue] = useState<number | null>(
-  //  fromSats(initialValue, min, max, mode, btcFiat)
-  //);
   const modeMin = fromSats(min, min, max, mode, btcFiat);
   const modeMax = fromSats(max, min, max, mode, btcFiat);
+  //We will change the key in CardEditableSlider creating new components
+  //when min, max or mode change. When this happens we will initialize the
+  //components with the last know correct amount. So keep track of it:
   const nextInitialValueRef = useRef<number>(initialValue);
   const initialModeValue = isMaxFunds
     ? modeMax
     : fromSats(nextInitialValueRef.current, min, max, mode, btcFiat);
 
   const onUnitPress = useCallback(() => {
+    setShowUnitsModal(true);
     const modes: Array<'Fiat' | SubUnit> = [settings.SUB_UNIT];
     if (settings.SUB_UNIT !== 'btc') modes.push('btc');
     if (btcFiat !== null) modes.push('Fiat');
@@ -117,7 +120,6 @@ export default function AmountInput({
       else if (newModeValue === modeMax) newValue = max;
       else newValue = toSats(newModeValue, mode, btcFiat);
       setIsMaxFunds(newValue === max);
-      //setInitialModeValue(newValue === max ? modeMax : newModeValue);
       if (newValue !== null) nextInitialValueRef.current = newValue;
       onValueChange(newValue);
     },
@@ -134,28 +136,31 @@ export default function AmountInput({
     ]
   );
 
-  console.log(`AmountInput render`, {
-    isMaxFunds,
-    modeMin,
-    modeMax,
-    initialModeValue,
-    nextInitialValueRef: nextInitialValueRef.current,
-    mode
-  });
   return (
-    <CardEditableSlider
-      label={label}
-      key={`${mode}-${min}-${max}`}
-      maxLabel={t('amount.maxLabel').toUpperCase()}
-      minimumValue={modeMin}
-      maximumValue={modeMax}
-      initialValue={initialModeValue}
-      onValueChange={onModeValueChange}
-      step={getAmountModeStep(mode)}
-      formatValue={formatValue}
-      {...(formatError ? { formatError: formatModeError } : {})}
-      unit={mode === 'Fiat' ? settings.CURRENCY : mode}
-      onUnitPress={onUnitPress}
-    />
+    <>
+      <CardEditableSlider
+        label={label}
+        key={`${mode}-${min}-${max}`}
+        maxLabel={t('amount.maxLabel').toUpperCase()}
+        minimumValue={modeMin}
+        maximumValue={modeMax}
+        initialValue={initialModeValue}
+        onValueChange={onModeValueChange}
+        step={getAmountModeStep(mode)}
+        formatValue={formatValue}
+        {...(formatError ? { formatError: formatModeError } : {})}
+        unit={mode === 'Fiat' ? settings.CURRENCY : mode}
+        onUnitPress={onUnitPress}
+      />
+      <Modal
+        title={t('amount.preferredUnitTitle')}
+        closeButtonText={t('cancelButton')}
+        icon={{ family: 'FontAwesome5', name: 'coins' }}
+        isVisible={showUnitsModal}
+        onClose={() => setShowUnitsModal(false)}
+      >
+        <Text>modes TODO</Text>
+      </Modal>
+    </>
   );
 }
