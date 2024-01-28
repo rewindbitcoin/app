@@ -32,9 +32,7 @@
       "softwareKeyboardLayoutMode": "pan",
       "package": "com.landabaso.ThunderDen"
     },
-    "web": {
-      "favicon": "./assets/favicon.png"
-    },
+    "web": { "bundler": "metro", "favicon": "./assets/favicon.png" },
     "extra": {
       "eas": {
         "projectId": "83b28e9f-1d27-40ef-bac8-44da70b30f16"

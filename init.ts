@@ -1,3 +1,7 @@
+//I made some tests, and this does not get included in production, so
+//it's safe to include it. This is needed for web Fast-Refresh when editting
+//code (see immediate changes on the web)
+import '@expo/metro-runtime';
 // As of dec 2023, i18next assumes a fully-complient Intl implementation,
 // which is not 100% ready in react-native
 // So use this polyfill to avoid this error:
