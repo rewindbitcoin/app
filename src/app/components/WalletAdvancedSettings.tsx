@@ -1,14 +1,7 @@
 import React, { useState } from 'react';
 
 import { View, StyleSheet, Pressable, ViewStyle } from 'react-native';
-import {
-  Modal,
-  Text,
-  HorLineSep,
-  Theme,
-  Switch,
-  useTheme
-} from '../../common/ui';
+import { Modal, Text, Divider, Theme, Switch, useTheme } from '../../common/ui';
 import Password from './Password';
 import { useTranslation } from 'react-i18next';
 import { LayoutAnimation } from 'react-native';
@@ -78,7 +71,7 @@ export default function WalletAdvancedSettings({
               </View>
               <Switch value={value} onValueChange={value => setValue(value)} />
             </View>
-            <HorLineSep style={styles.lineSeparator} />
+            <Divider style={styles.lineSeparator} />
             <View style={styles.row}>
               <View style={styles.textContainer}>
                 <Text>{t('wallet.usePasswordTitle')}</Text>
@@ -126,7 +119,7 @@ export default function WalletAdvancedSettings({
                 />
               </Modal>
             </View>
-            <HorLineSep style={styles.lineSeparator} />
+            <Divider style={styles.lineSeparator} />
             <View style={styles.row}>
               <View style={styles.textContainer}>
                 <Pressable
@@ -140,7 +133,7 @@ export default function WalletAdvancedSettings({
               </View>
               <Switch />
             </View>
-            <HorLineSep style={styles.lineSeparator} />
+            <Divider style={styles.lineSeparator} />
             <View style={styles.row}>
               <View style={styles.textContainer}>
                 <AntDesign name="infocirlceo" style={styles.icon} />
@@ -225,6 +218,7 @@ const getStyles = (theme: Theme) => {
     },
     row: {
       flexDirection: 'row',
+      paddingVertical: 10,
       justifyContent: 'space-between',
       alignItems: 'center'
     },

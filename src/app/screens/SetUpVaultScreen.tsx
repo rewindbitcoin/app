@@ -12,6 +12,7 @@
 //  quantities)
 
 import AmountInput from '../components/AmountInput';
+import TimeLockInput from '../components/TimeLockInput';
 import { Trans, useTranslation } from 'react-i18next';
 import AntDesign from '@expo/vector-icons/AntDesign';
 import React, { useCallback, useMemo, useContext, useState } from 'react';
@@ -42,10 +43,9 @@ import {
   DUMMY_CHANGE_OUTPUT
 } from '../lib/vaultDescriptors';
 
-import { pickFeeEstimate, formatFeeRate, formatLockTime } from '../lib/fees';
+import { pickFeeEstimate, formatFeeRate } from '../lib/fees';
 import { WalletContext, WalletContextType } from '../contexts/WalletContext';
 import { formatBtc } from '../lib/btcRates';
-import { fromBlocks, toBlocks } from '../lib/timeUtils';
 import globalStyles from '../styles/styles';
 import { estimateVaultSetUpRange } from '../lib/vaultRange';
 
@@ -119,7 +119,6 @@ export default function VaultSetUp({
       'This component should only be started after settings has been retrieved from storage'
     );
 
-  const [lockTimeMode, setLockTimeMode] = useState<'days' | 'blocks'>('days');
   const [lockBlocks, setLockBlocks] = useState<number | null>(
     settings.INITIAL_LOCK_BLOCKS
   );
@@ -191,14 +190,9 @@ export default function VaultSetUp({
     largestMinVaultAmount - lowestMaxVaultAmount
   );
 
-  const onLockBlocksValueChange = useCallback(
-    (value: number | null) =>
-      setLockBlocks(value === null ? null : toBlocks(value, lockTimeMode)),
-    [lockTimeMode]
-  );
-  const formatLockBlocksValue = useCallback(
-    (value: number) => formatLockTime(toBlocks(value, lockTimeMode), t),
-    [lockTimeMode, t]
+  const onLockBlocksChange = useCallback(
+    (value: number | null) => setLockBlocks(value),
+    []
   );
 
   const [amount, setAmount] = useState<number | null>(maxVaultAmount || null);
@@ -350,6 +344,7 @@ export default function VaultSetUp({
         <Button style={{ marginBottom: 20 }} mode="text">
           {t('vaultSetup.introMoreHelp')}
         </Button>
+
         {maxVaultAmount !== undefined &&
           largestMinVaultAmount !== undefined &&
           maxVaultAmount >= largestMinVaultAmount && (
@@ -362,82 +357,15 @@ export default function VaultSetUp({
             />
           )}
 
-        {settings.MIN_LOCK_BLOCKS && settings.MAX_LOCK_BLOCKS && (
-          <View style={styles.settingGroup}>
-            <View style={styles.cardHeader}>
-              <Text variant="cardTitle" style={styles.cardTitle}>
-                {t('vaultSetup.securityLockTimeLabel')}
-              </Text>
-              <AntDesign name="infocirlceo" style={styles.helpIcon} />
-              <View style={styles.cardModeRotator}>
-                <Button
-                  mode="text"
-                  fontSize={12}
-                  onPress={() => {
-                    if (lockTimeMode === 'blocks') {
-                      //If I had 1 block selected, then round it it to the
-                      //selected number of days: 144 blocks, for example for
-                      //1 block
-                      setLockBlocks(
-                        lockBlocks === null
-                          ? null
-                          : toBlocks(
-                              fromBlocks(
-                                lockBlocks,
-                                settings.MIN_LOCK_BLOCKS,
-                                settings.MAX_LOCK_BLOCKS,
-                                lockTimeMode
-                              ),
-                              lockTimeMode
-                            )
-                      );
-                    }
-                    setLockTimeMode(
-                      lockTimeMode === 'days' ? 'blocks' : 'days'
-                    );
-                  }}
-                >
-                  {`${
-                    lockTimeMode === 'days'
-                      ? t('vaultSetup.days')
-                      : t('vaultSetup.blocks')
-                  } ⇅`}
-                </Button>
-              </View>
-            </View>
-            <View style={styles.card}>
-              <EditableSlider
-                locale={settings.LOCALE}
-                minimumValue={fromBlocks(
-                  settings.MIN_LOCK_BLOCKS,
-                  settings.MIN_LOCK_BLOCKS,
-                  settings.MAX_LOCK_BLOCKS,
-                  lockTimeMode
-                )}
-                maximumValue={fromBlocks(
-                  settings.MAX_LOCK_BLOCKS,
-                  settings.MIN_LOCK_BLOCKS,
-                  settings.MAX_LOCK_BLOCKS,
-                  lockTimeMode
-                )}
-                initialValue={
-                  lockBlocks === null
-                    ? null
-                    : fromBlocks(
-                        lockBlocks,
-
-                        settings.MIN_LOCK_BLOCKS,
-                        settings.MAX_LOCK_BLOCKS,
-                        lockTimeMode
-                      )
-                }
-                step={1}
-                onValueChange={onLockBlocksValueChange}
-                formatValue={formatLockBlocksValue}
-              />
-            </View>
-          </View>
-        )}
+        {
+          <TimeLockInput
+            label={t('vaultSetup.securityLockTimeLabel')}
+            initialValue={lockBlocks}
+            min={settings.MIN_LOCK_BLOCKS}
+            max={settings.MAX_LOCK_BLOCKS}
+            onValueChange={onLockBlocksChange}
+          />
+        }
         <View style={styles.settingGroup}>
           <View style={styles.cardHeader}>
             <Text variant="cardTitle" style={styles.cardTitle}>

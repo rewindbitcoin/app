@@ -241,6 +241,7 @@ const Modal: React.FC<ModalProps> = ({
 
                 <ScrollView
                   keyboardShouldPersistTaps="handled"
+                  style={{ alignSelf: 'stretch' }}
                   contentContainerStyle={{
                     flexGrow: 1,
                     padding: scrollViewPadding,
@@ -250,7 +251,6 @@ const Modal: React.FC<ModalProps> = ({
                   <View
                     onLayout={event => {
                       const height = event.nativeEvent.layout.height;
-                      console.log('View onLayout', height);
                       setChildrenHeight(height + scrollViewPadding * 2);
                     }}
                   >

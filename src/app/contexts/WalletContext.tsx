@@ -423,7 +423,15 @@ export const WalletProvider = ({
       }
     } else
       console.log(
-        'syncBlockchain not performing any action for being called with non-initialized inputs'
+        'syncBlockchain not performing any action for being called with non-initialized inputs',
+        {
+          network,
+          settings,
+          discovery,
+          vaults,
+          vaultsStatuses,
+          accountNames
+        }
       );
 
     //Helper function used above. It returns new

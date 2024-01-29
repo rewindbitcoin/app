@@ -36,26 +36,29 @@ export default function CardEditableSlider({
 }) {
   const theme = useTheme();
   const styles = getStyles(theme);
+  const Unit = (
+    <View style={styles.cardModeRotator}>
+      {onUnitPress ? (
+        <Button mode="text" fontSize={12} onPress={onUnitPress}>
+          {`${unit} ⇅`}
+        </Button>
+      ) : (
+        <Text style={{ fontSize: 12, color: theme.colors.cardSecondary }}>
+          {unit}
+        </Text>
+      )}
+    </View>
+  );
   return (
     <>
       <View style={styles.cardHeader}>
         <Text variant="cardTitle" style={styles.cardTitle}>
           {label}
         </Text>
-        <View style={styles.cardModeRotator}>
-          {onUnitPress ? (
-            <Button mode="text" fontSize={12} onPress={onUnitPress}>
-              {`${unit} ⇅`}
-            </Button>
-          ) : (
-            <Text style={{ fontSize: 12, color: theme.colors.cardSecondary }}>
-              {unit}
-            </Text>
-          )}
-        </View>
       </View>
       <View style={styles.card}>
         <EditableSlider
+          unit={Unit}
           {...(maxLabel ? { maxLabel: maxLabel.toUpperCase() } : {})}
           locale={locale}
           {...(formatError ? { formatError } : {})}
@@ -98,10 +101,6 @@ const getStyles = (theme: Theme) =>
       color: theme.colors.primary
     },
     cardModeRotator: {
-      flex: 1,
-      marginRight: 10,
-      flexDirection: 'row',
-      //flex: 1,
-      justifyContent: 'flex-end'
+      paddingVertical: 5 //So that it's easily clickable
     }
   });

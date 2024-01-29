@@ -30,7 +30,7 @@
  */
 
 const INPUT_MAX_LENGTH = 18;
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Locale } from '../../i18n/i18n';
 
@@ -47,19 +47,6 @@ import {
   snapWithinRange,
   countDecimalDigits
 } from '../../common/lib/numbers';
-
-interface EditableSliderProps {
-  locale: Locale;
-  initialValue: number;
-  minimumValue: number;
-  maxLabel?: string;
-  numberFormatting?: boolean;
-  maximumValue: number;
-  step?: number;
-  formatError?: (invalidValue: number) => string | undefined;
-  onValueChange: (value: number | null) => void;
-  formatValue: (value: number) => string;
-}
 
 const DEFAULT_STEP = 0.01;
 
@@ -90,13 +77,26 @@ const EditableSlider = ({
   minimumValue,
   maximumValue,
   maxLabel,
+  unit,
   numberFormatting = true,
   step = DEFAULT_STEP,
   locale,
   formatError,
   onValueChange,
   formatValue = value => `${value}`
-}: EditableSliderProps) => {
+}: {
+  locale: Locale;
+  initialValue: number;
+  minimumValue: number;
+  maxLabel?: string;
+  unit?: string | ReactNode;
+  numberFormatting?: boolean;
+  maximumValue: number;
+  step?: number;
+  formatError?: (invalidValue: number) => string | undefined;
+  onValueChange: (value: number | null) => void;
+  formatValue: (value: number) => string;
+}) => {
   const theme = useTheme();
   const styles = getStyles(theme);
 
@@ -203,15 +203,22 @@ const EditableSlider = ({
 
   return (
     <View style={styles.container}>
-      <Text
-        style={[
-          fontsLoaded ? { fontFamily: 'RobotoMono_400Regular' } : {},
-          styles.status,
-          isValidValue ? {} : { color: theme.colors.red }
-        ]}
-      >
-        {statusText}
-      </Text>
+      <View style={styles.statusAndUnit}>
+        <Text
+          style={[
+            fontsLoaded ? { fontFamily: 'RobotoMono_400Regular' } : {},
+            styles.status,
+            isValidValue ? {} : { color: theme.colors.red }
+          ]}
+        >
+          {statusText}
+        </Text>
+        {typeof unit === 'string' ? (
+          <Text style={styles.unit}>{unit}</Text>
+        ) : (
+          unit
+        )}
+      </View>
       <View style={styles.control}>
         <Slider
           style={styles.slider}
@@ -232,13 +239,11 @@ const EditableSlider = ({
           strValue={numericInputControlledValue}
           onChangeValue={onNumberInputChangeValue}
         />
-        {maxLabel && value === maximumValue ? (
-          <View style={{ position: 'absolute', top: -7, right: 2 }}>
-            <Text style={{ fontSize: 10, color: theme.colors.cardSecondary }}>
-              {maxLabel}
-            </Text>
+        {maxLabel && value === maximumValue && (
+          <View style={styles.maxLabelContainer}>
+            <Text style={styles.maxLabel}>{maxLabel}</Text>
           </View>
-        ) : null}
+        )}
       </View>
     </View>
   );
@@ -253,17 +258,27 @@ const getStyles = (theme: Theme) =>
       justifyContent: 'space-between',
       width: '100%'
     },
+    statusAndUnit: {
+      width: '100%',
+      flexDirection: 'row',
+      alignItems: 'center', //vertically
+      justifyContent: 'space-between'
+    },
+    unit: {
+      fontSize: 10,
+      color: theme.colors.cardSecondary
+    },
     status: {
       textAlign: 'left',
       paddingLeft: 10,
       fontSize: 13,
-      color: theme.colors.cardSecondary,
-      width: '100%'
+      color: theme.colors.cardSecondary
     },
     control: {
       flexDirection: 'row',
       alignItems: 'center',
       width: '100%',
+      //backgroundColor: 'yellow',
       marginTop: 15
     },
     slider: {
@@ -273,6 +288,18 @@ const getStyles = (theme: Theme) =>
       //However, on web dont apply padding since it adds offset to the thumb button!
       ...(Platform.OS !== 'web' ? { padding: 15 } : {}),
       marginRight: 10
+    },
+    maxLabelContainer: {
+      position: 'absolute',
+      //left: 10,
+      //top: 0
+      right: 0,
+      top: -5
+    },
+    maxLabel: {
+      fontSize: 10,
+      //fontStyle: 'italic',
+      color: theme.colors.cardSecondary
     },
     input: {
       fontSize: 15,

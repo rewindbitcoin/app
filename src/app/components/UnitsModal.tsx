@@ -1,0 +1,73 @@
+import React, { useCallback } from 'react';
+import { View } from 'react-native';
+import { Modal, VerticalChoice, Text, useTheme } from '../../common/ui';
+import type { Locale } from '../../i18n/i18n';
+import { useTranslation } from 'react-i18next';
+import { subUnits, SubUnit } from '../lib/settings';
+import { fromSats } from '../lib/btcRates';
+import { numberToLocalizedString } from '../../common/lib/numbers';
+
+const modes = ['Fiat', ...subUnits] as Array<SubUnit | 'Fiat'>;
+export default function UnitsModal({
+  isVisible,
+  unit,
+  currency,
+  btcFiat,
+  locale,
+  onSelect,
+  onClose
+}: {
+  isVisible: boolean;
+  unit?: SubUnit | 'Fiat';
+  currency: string;
+  btcFiat: number | null;
+  locale: Locale;
+  onSelect: (unit: SubUnit | 'Fiat') => void;
+  onClose?: () => void;
+}) {
+  const { t } = useTranslation();
+  const theme = useTheme();
+  const choices = modes.map(mode => {
+    const modeAmount = fromSats(1e8, 0, Number.MAX_SAFE_INTEGER, mode, btcFiat);
+    const presentedUnit = mode === 'Fiat' ? currency : mode;
+    //return presentedUnit;
+    return (
+      <View
+        key={mode}
+        style={{
+          flexDirection: 'row',
+          justifyContent: 'space-between',
+          flex: 1
+        }}
+      >
+        <Text>{presentedUnit}</Text>
+        <Text style={{ color: theme.colors.cardSecondary }}>
+          {numberToLocalizedString(modeAmount, locale)} {presentedUnit}
+          {' = 1 btc'}
+        </Text>
+      </View>
+    );
+  });
+  const handleSelect = useCallback(
+    (index: number) => {
+      if (index === 0) onSelect('Fiat');
+      else onSelect(subUnits[index - 1]!);
+    },
+    [onSelect]
+  );
+  return (
+    <Modal
+      title={t('units.preferredUnitTitle')}
+      closeButtonText={t('cancelButton')}
+      icon={{ family: 'FontAwesome5', name: 'coins' }}
+      isVisible={isVisible}
+      {...(onClose ? { onClose } : {})}
+    >
+      <VerticalChoice
+        {...(unit === undefined ? {} : { index: modes.indexOf(unit) })}
+        choices={choices}
+        onSelect={handleSelect}
+      />
+    </Modal>
+  );
+}

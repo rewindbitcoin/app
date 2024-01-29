@@ -148,7 +148,7 @@ export const fromSats = (
   if (mode === 'sat') return amount;
   else if (mode === 'Fiat') {
     if (btcFiat === null)
-      throw new Error(`Currency mode not valud if rates not available`);
+      throw new Error(`Currency mode not valid if rates not available`);
     const fiatMin =
       Math.ceil((min * btcFiat * Math.pow(10, FIAT_DECIMALS)) / 1e8) /
       Math.pow(10, FIAT_DECIMALS);

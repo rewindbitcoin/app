@@ -17,7 +17,7 @@ import {
   toSats,
   getAmountModeStep
 } from '../lib/btcRates';
-import { Modal, Text } from '../../common/ui';
+import UnitsModal from './UnitsModal';
 
 export default function AmountInput({
   initialValue,
@@ -66,11 +66,12 @@ export default function AmountInput({
 
   const onUnitPress = useCallback(() => {
     setShowUnitsModal(true);
-    const modes: Array<'Fiat' | SubUnit> = [settings.SUB_UNIT];
-    if (settings.SUB_UNIT !== 'btc') modes.push('btc');
-    if (btcFiat !== null) modes.push('Fiat');
-    setMode(modes[(modes.indexOf(mode) + 1) % modes.length]!);
-  }, [btcFiat, mode, settings.SUB_UNIT]);
+  }, []);
+
+  const onUnitSelect = useCallback((unit: SubUnit | 'Fiat') => {
+    setShowUnitsModal(false);
+    setMode(unit);
+  }, []);
 
   const formatValue = useCallback(
     (value: number) => {
@@ -153,15 +154,15 @@ export default function AmountInput({
         unit={mode === 'Fiat' ? settings.CURRENCY : mode}
         onUnitPress={onUnitPress}
       />
-      <Modal
-        title={t('amount.preferredUnitTitle')}
-        closeButtonText={t('cancelButton')}
-        icon={{ family: 'FontAwesome5', name: 'coins' }}
+      <UnitsModal
         isVisible={showUnitsModal}
+        unit={mode}
+        locale={settings.LOCALE}
+        currency={settings.CURRENCY}
+        btcFiat={btcFiat}
+        onSelect={onUnitSelect}
         onClose={() => setShowUnitsModal(false)}
-      >
-        <Text>modes TODO</Text>
-      </Modal>
+      />
     </>
   );
 }

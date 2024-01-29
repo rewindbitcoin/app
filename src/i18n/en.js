@@ -124,7 +124,9 @@ If you have biometric encryption enabled, a password may not be necessary as\
       'The word sequence you entered is not valid. Please double-check your words for any errors.'
   },
   amount: {
-    maxLabel: 'All Funds',
+    maxLabel: 'All Funds'
+  },
+  units: {
     preferredUnitTitle: 'Preferred Unit'
   },
   continueButton: 'Continue',
