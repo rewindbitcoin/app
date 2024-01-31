@@ -12,7 +12,7 @@ import {
 import { fromBlocks, toBlocks } from '../lib/timeUtils';
 import { formatLockTime } from '../lib/fees';
 
-export default function TimeLockInput({
+export default function BlocksInput({
   initialValue,
   min,
   max,
@@ -39,31 +39,28 @@ export default function TimeLockInput({
     );
   const [mode, setMode] = useState<'days' | 'blocks'>('days');
 
-  const [isMaxFunds, setIsMaxFunds] = useState<boolean>(initialValue === max);
-
   const modeMin = fromBlocks(min, min, max, mode);
   const modeMax = fromBlocks(max, min, max, mode);
   //We will change the key in CardEditableSlider creating new components
   //when min, max or mode change. When this happens we will initialize the
   //components with the last know correct amount. So keep track of it:
   const nextInitialValueRef = useRef<number>(initialValue);
-  const initialModeValue = isMaxFunds
-    ? modeMax
-    : fromBlocks(nextInitialValueRef.current, min, max, mode);
-
+  const modeInitialValue = fromBlocks(
+    nextInitialValueRef.current,
+    min,
+    max,
+    mode
+  );
   const onUnitPress = useCallback(() => {
     setMode(mode === 'days' ? 'blocks' : 'days');
   }, [mode]);
 
   const formatValue = useCallback(
-    (value: number) => {
-      if (max === undefined) throw new Error(`formatValue needs a valid max`);
-      return formatLockTime(toBlocks(value, mode), t);
-    },
-    [t, max, mode]
+    (value: number) => formatLockTime(toBlocks(value, mode), t),
+    [t, mode]
   );
 
-  const formatModeError = useCallback(
+  const modeFormatError = useCallback(
     (modeInvalidAmount: number) => {
       if (formatError) {
         return formatError(toBlocks(modeInvalidAmount, mode));
@@ -81,24 +78,13 @@ export default function TimeLockInput({
       //to the one passed as value - see below: fromBlocks(value, min, max, mode, btcFiat)
       //Then pass the original value, not the toBlocks(fromBlocks(value)) which
       //would loose precision in the btcRate
-      else if (newModeValue === initialModeValue) newValue = initialValue;
       else if (newModeValue === modeMin) newValue = min;
       else if (newModeValue === modeMax) newValue = max;
       else newValue = toBlocks(newModeValue, mode);
-      setIsMaxFunds(newValue === max);
       if (newValue !== null) nextInitialValueRef.current = newValue;
       onValueChange(newValue);
     },
-    [
-      initialValue,
-      min,
-      max,
-      initialModeValue,
-      modeMin,
-      modeMax,
-      mode,
-      onValueChange
-    ]
+    [min, max, modeMin, modeMax, mode, onValueChange]
   );
 
   return (
@@ -108,11 +94,11 @@ export default function TimeLockInput({
       key={`${mode}-${min}-${max}`}
       minimumValue={modeMin}
       maximumValue={modeMax}
-      initialValue={initialModeValue}
+      initialValue={modeInitialValue}
       onValueChange={onModeValueChange}
       step={1}
       formatValue={formatValue}
-      {...(formatError ? { formatError: formatModeError } : {})}
+      {...(formatError ? { formatError: modeFormatError } : {})}
       unit={mode}
       onUnitPress={onUnitPress}
     />

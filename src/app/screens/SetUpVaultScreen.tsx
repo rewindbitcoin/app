@@ -12,7 +12,7 @@
 //  quantities)
 
 import AmountInput from '../components/AmountInput';
-import TimeLockInput from '../components/TimeLockInput';
+import BlocksInput from '../components/BlocksInput';
 import { Trans, useTranslation } from 'react-i18next';
 import AntDesign from '@expo/vector-icons/AntDesign';
 import React, { useCallback, useMemo, useContext, useState } from 'react';
@@ -358,9 +358,9 @@ export default function VaultSetUp({
           )}
 
         {
-          <TimeLockInput
+          <BlocksInput
             label={t('vaultSetup.securityLockTimeLabel')}
-            initialValue={lockBlocks}
+            initialValue={settings.INITIAL_LOCK_BLOCKS}
             min={settings.MIN_LOCK_BLOCKS}
             max={settings.MAX_LOCK_BLOCKS}
             onValueChange={onLockBlocksChange}

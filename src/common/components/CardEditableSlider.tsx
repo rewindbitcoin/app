@@ -1,11 +1,16 @@
 //This is a HOC of EditableSlider formatted for Data Input
 import React from 'react';
-import { View, StyleSheet, GestureResponderEvent } from 'react-native';
+import {
+  View,
+  StyleSheet,
+  GestureResponderEvent,
+  Pressable
+} from 'react-native';
 import { useTheme, Theme } from '../theme';
 import { Text } from './Text';
-import { Button } from './Button';
 import EditableSlider from './EditableSlider';
 import type { Locale } from '../../i18n/i18n';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 
 export default function CardEditableSlider({
   initialValue,
@@ -37,11 +42,17 @@ export default function CardEditableSlider({
   const theme = useTheme();
   const styles = getStyles(theme);
   const Unit = (
-    <View style={styles.cardModeRotator}>
+    <View>
       {onUnitPress ? (
-        <Button mode="text" fontSize={12} onPress={onUnitPress}>
-          {`${unit} ⇅`}
-        </Button>
+        <Pressable onPress={onUnitPress}>
+          <View style={styles.cardModeContainer}>
+            <Text style={styles.cardModeAction}>{unit}</Text>
+            <MaterialCommunityIcons
+              name="menu-swap-outline"
+              style={styles.cardModeAction}
+            />
+          </View>
+        </Pressable>
       ) : (
         <Text style={{ fontSize: 12, color: theme.colors.cardSecondary }}>
           {unit}
@@ -84,6 +95,13 @@ const getStyles = (theme: Theme) =>
       borderWidth: 0,
       padding: 10
     },
+    cardModeContainer: { flexDirection: 'row', alignItems: 'center' },
+    cardModeAction: {
+      color: theme.colors.primary,
+      fontSize: 12,
+      paddingVertical: 5,
+      marginVertical: -5
+    },
     cardHeader: {
       alignItems: 'center', // Align items vertically in the center
       flex: 1,
@@ -99,8 +117,5 @@ const getStyles = (theme: Theme) =>
       marginLeft: 10,
       fontSize: 16,
       color: theme.colors.primary
-    },
-    cardModeRotator: {
-      paddingVertical: 5 //So that it's easily clickable
     }
   });

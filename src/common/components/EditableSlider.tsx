@@ -259,19 +259,19 @@ const getStyles = (theme: Theme) =>
       width: '100%'
     },
     statusAndUnit: {
-      width: '100%',
       flexDirection: 'row',
       alignItems: 'center', //vertically
       justifyContent: 'space-between'
     },
-    unit: {
-      fontSize: 10,
-      color: theme.colors.cardSecondary
-    },
     status: {
       textAlign: 'left',
+      flex: 1,
       paddingLeft: 10,
       fontSize: 13,
+      color: theme.colors.cardSecondary
+    },
+    unit: {
+      fontSize: 10,
       color: theme.colors.cardSecondary
     },
     control: {

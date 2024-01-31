@@ -60,7 +60,7 @@ export default function AmountInput({
   //when min, max or mode change. When this happens we will initialize the
   //components with the last know correct amount. So keep track of it:
   const nextInitialValueRef = useRef<number>(initialValue);
-  const initialModeValue = isMaxFunds
+  const modeInitialValue = isMaxFunds
     ? modeMax
     : fromSats(nextInitialValueRef.current, min, max, mode, btcFiat);
 
@@ -98,7 +98,7 @@ export default function AmountInput({
     ]
   );
 
-  const formatModeError = useCallback(
+  const modeFormatError = useCallback(
     (modeInvalidAmount: number) => {
       if (formatError) {
         return formatError(toSats(modeInvalidAmount, mode, btcFiat));
@@ -116,7 +116,6 @@ export default function AmountInput({
       //to the one passed as value - see below: fromSats(value, min, max, mode, btcFiat)
       //Then pass the original value, not the toSats(fromSats(value)) which
       //would loose precision in the btcRate
-      else if (newModeValue === initialModeValue) newValue = initialValue;
       else if (newModeValue === modeMin) newValue = min;
       else if (newModeValue === modeMax) newValue = max;
       else newValue = toSats(newModeValue, mode, btcFiat);
@@ -124,17 +123,7 @@ export default function AmountInput({
       if (newValue !== null) nextInitialValueRef.current = newValue;
       onValueChange(newValue);
     },
-    [
-      initialValue,
-      min,
-      max,
-      initialModeValue,
-      modeMin,
-      modeMax,
-      mode,
-      btcFiat,
-      onValueChange
-    ]
+    [min, max, modeMin, modeMax, mode, btcFiat, onValueChange]
   );
 
   return (
@@ -146,11 +135,11 @@ export default function AmountInput({
         maxLabel={t('amount.maxLabel').toUpperCase()}
         minimumValue={modeMin}
         maximumValue={modeMax}
-        initialValue={initialModeValue}
+        initialValue={modeInitialValue}
         onValueChange={onModeValueChange}
         step={getAmountModeStep(mode)}
         formatValue={formatValue}
-        {...(formatError ? { formatError: formatModeError } : {})}
+        {...(formatError ? { formatError: modeFormatError } : {})}
         unit={mode === 'Fiat' ? settings.CURRENCY : mode}
         onUnitPress={onUnitPress}
       />
