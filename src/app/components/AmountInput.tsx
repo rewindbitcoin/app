@@ -25,7 +25,7 @@ import {
 } from '../lib/btcRates';
 import UnitsModal from './UnitsModal';
 
-export default function AmountInput({
+function AmountInput({
   initialValue,
   min,
   max,
@@ -147,3 +147,5 @@ export default function AmountInput({
     </>
   );
 }
+
+export default React.memo(AmountInput);

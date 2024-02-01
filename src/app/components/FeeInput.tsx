@@ -15,7 +15,7 @@ import { snapWithinRange } from '../../common/lib/numbers';
 import { formatFeeRate } from '../lib/fees';
 import { useTranslation } from 'react-i18next';
 
-export default function FeeInput({
+function FeeInput({
   label,
   initialValue,
   txSize,
@@ -26,6 +26,7 @@ export default function FeeInput({
   txSize: number | null;
   onValueChange: (value: number | null) => void;
 }) {
+
   const context = useContext<WalletContextType | null>(WalletContext);
   if (context === null) throw new Error('Context was not set');
   const { feeEstimates, btcFiat: btcFiatOriginal } = context;
@@ -108,7 +109,7 @@ export default function FeeInput({
     (newSnappedValue: number | null) => {
       let newValue: number | null;
       if (newSnappedValue === null) newValue = null;
-      //Don't loose precission if we know oroginal values:
+      //Don't loose precission if we know original values:
       else if (newSnappedValue === snappedMin) newValue = min;
       else if (newSnappedValue === snappedMax) newValue = max;
       else newValue = newSnappedValue;
@@ -133,3 +134,5 @@ export default function FeeInput({
     />
   );
 }
+
+export default React.memo(FeeInput);

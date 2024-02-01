@@ -1,5 +1,5 @@
 const INPUT_MAX_LENGTH = 18;
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef, useMemo } from 'react';
 import type { Locale } from '../../i18n/i18n';
 import AntDesign from '@expo/vector-icons/AntDesign';
 import {
@@ -51,7 +51,7 @@ const NumericInput = ({
     throw new Error(`This component admits ${INPUT_MAX_LENGTH} length at most`);
 
   const theme = useTheme();
-  const styles = getStyles();
+  const styles = useMemo(() => getStyles(), []);
 
   const [selection, setSelection] = useState<{
     start: number;

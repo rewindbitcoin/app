@@ -12,7 +12,7 @@ import {
 import { fromBlocks, toBlocks, getBlocksModeStep } from '../lib/timeUtils';
 import { formatLockTime } from '../lib/fees';
 
-export default function BlocksInput({
+function BlocksInput({
   initialValue,
   min,
   max,
@@ -43,7 +43,6 @@ export default function BlocksInput({
     () => ({ [modeMin]: min, [modeMax]: max }),
     [modeMin, modeMax, min, max]
   );
-  console.log({ knownBlocksValueMap });
   //We will change the key in CardEditableSlider creating new components
   //when min, max or mode change. When this happens we will initialize the
   //components with the last know correct amount. So keep track of it:
@@ -86,3 +85,5 @@ export default function BlocksInput({
     />
   );
 }
+
+export default React.memo(BlocksInput);

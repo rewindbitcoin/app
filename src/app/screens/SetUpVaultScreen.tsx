@@ -1,8 +1,9 @@
+import AddressInput from '../components/AddressInput';
 import AmountInput from '../components/AmountInput';
 import BlocksInput from '../components/BlocksInput';
 import FeeInput from '../components/FeeInput';
 import { Trans, useTranslation } from 'react-i18next';
-import React, { useCallback, useContext, useState } from 'react';
+import React, { useCallback, useContext, useState, useMemo } from 'react';
 import { useNavigation } from '@react-navigation/native';
 import { View, StyleSheet } from 'react-native';
 import {
@@ -41,7 +42,7 @@ export default function VaultSetUp({
   const theme = useTheme();
   const context = useContext<WalletContextType | null>(WalletContext);
   const navigation = useNavigation();
-  const styles = getStyles(insets, theme);
+  const styles = useMemo(() => getStyles(insets, theme), [insets, theme]);
 
   if (context === null) {
     throw new Error('Context was not set');
@@ -208,6 +209,8 @@ export default function VaultSetUp({
               max={settings.MAX_LOCK_BLOCKS}
               onValueChange={setLockBlocks}
             />
+            <View style={styles.cardSeparator} />
+            <AddressInput />
             <View style={styles.cardSeparator} />
             <FeeInput
               initialValue={initialFeeRate}

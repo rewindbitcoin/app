@@ -33,7 +33,7 @@
  */
 
 const INPUT_MAX_LENGTH = 18;
-import React, { useState, useCallback, ReactNode } from 'react';
+import React, { useState, useCallback, ReactNode, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Locale } from '../../i18n/i18n';
 
@@ -101,7 +101,7 @@ const EditableSlider = ({
   formatValue: (value: number) => string;
 }) => {
   const theme = useTheme();
-  const styles = getStyles(theme);
+  const styles = useMemo(() => getStyles(theme), [theme]);
 
   const { t } = useTranslation();
 
@@ -264,7 +264,8 @@ const getStyles = (theme: Theme) =>
     statusAndUnit: {
       flexDirection: 'row',
       alignItems: 'center', //vertically
-      justifyContent: 'space-between'
+      justifyContent: 'space-between',
+      width: '100%'
     },
     status: {
       textAlign: 'left',

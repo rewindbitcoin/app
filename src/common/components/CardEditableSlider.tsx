@@ -1,5 +1,5 @@
 //This is a HOC of EditableSlider formatted for Data Input
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   View,
   StyleSheet,
@@ -12,7 +12,7 @@ import EditableSlider from './EditableSlider';
 import type { Locale } from '../../i18n/i18n';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 
-export default function CardEditableSlider({
+function CardEditableSlider({
   initialValue,
   minimumValue,
   maximumValue,
@@ -40,7 +40,7 @@ export default function CardEditableSlider({
   locale: Locale;
 }) {
   const theme = useTheme();
-  const styles = getStyles(theme);
+  const styles = useMemo(() => getStyles(theme), [theme]);
   const Unit = (
     <View style={styles.unitContainer}>
       {onUnitPress ? (
@@ -83,8 +83,10 @@ export default function CardEditableSlider({
   );
 }
 
-const getStyles = (theme: Theme) =>
-  StyleSheet.create({
+export default React.memo(CardEditableSlider);
+
+const getStyles = (theme: Theme) => {
+  return StyleSheet.create({
     card: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -115,3 +117,4 @@ const getStyles = (theme: Theme) =>
       color: theme.colors.primary
     }
   });
+};
