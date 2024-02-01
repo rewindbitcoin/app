@@ -1,5 +1,5 @@
 //This component must work both for SendBitcoin and SetUpVault
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef, useMemo } from 'react';
 import { CardEditableSlider } from '../../common/ui';
 import { useTranslation } from 'react-i18next';
 import { useGlobalStateStorage } from '../../common/contexts/StorageContext';
@@ -9,7 +9,7 @@ import {
   Settings,
   SETTINGS_GLOBAL_STORAGE
 } from '../lib/settings';
-import { fromBlocks, toBlocks } from '../lib/timeUtils';
+import { fromBlocks, toBlocks, getBlocksModeStep } from '../lib/timeUtils';
 import { formatLockTime } from '../lib/fees';
 
 export default function BlocksInput({
@@ -17,15 +17,13 @@ export default function BlocksInput({
   min,
   max,
   label,
-  onValueChange,
-  formatError
+  onValueChange
 }: {
   initialValue: number;
   min: number;
   max: number;
   label: string;
   onValueChange: (value: number | null) => void;
-  formatError?: (invalidValue: number) => string | undefined;
 }) {
   const { t } = useTranslation();
   const [settings] = useGlobalStateStorage<Settings>(
@@ -39,52 +37,37 @@ export default function BlocksInput({
     );
   const [mode, setMode] = useState<'days' | 'blocks'>('days');
 
-  const modeMin = fromBlocks(min, min, max, mode);
-  const modeMax = fromBlocks(max, min, max, mode);
+  const modeMin = fromBlocks(min, mode);
+  const modeMax = fromBlocks(max, mode);
+  const knownBlocksValueMap = useMemo(
+    () => ({ [modeMin]: min, [modeMax]: max }),
+    [modeMin, modeMax, min, max]
+  );
+  console.log({ knownBlocksValueMap });
   //We will change the key in CardEditableSlider creating new components
   //when min, max or mode change. When this happens we will initialize the
   //components with the last know correct amount. So keep track of it:
   const nextInitialValueRef = useRef<number>(initialValue);
-  const modeInitialValue = fromBlocks(
-    nextInitialValueRef.current,
-    min,
-    max,
-    mode
-  );
+  const modeInitialValue = fromBlocks(nextInitialValueRef.current, mode);
   const onUnitPress = useCallback(() => {
     setMode(mode === 'days' ? 'blocks' : 'days');
   }, [mode]);
 
   const formatValue = useCallback(
-    (value: number) => formatLockTime(toBlocks(value, mode), t),
-    [t, mode]
-  );
-
-  const modeFormatError = useCallback(
-    (modeInvalidAmount: number) => {
-      if (formatError) {
-        return formatError(toBlocks(modeInvalidAmount, mode));
-      }
-      return;
-    },
-    [formatError, mode]
+    (modeValue: number) =>
+      formatLockTime(toBlocks(modeValue, mode, knownBlocksValueMap), t),
+    [t, knownBlocksValueMap, mode]
   );
 
   const onModeValueChange = useCallback(
     (newModeValue: number | null) => {
       let newValue: number | null;
       if (newModeValue === null) newValue = null;
-      //If the received value newModeValue from CardEditableSlider is equal
-      //to the one passed as value - see below: fromBlocks(value, min, max, mode, btcFiat)
-      //Then pass the original value, not the toBlocks(fromBlocks(value)) which
-      //would loose precision in the btcRate
-      else if (newModeValue === modeMin) newValue = min;
-      else if (newModeValue === modeMax) newValue = max;
-      else newValue = toBlocks(newModeValue, mode);
+      else newValue = toBlocks(newModeValue, mode, knownBlocksValueMap);
       if (newValue !== null) nextInitialValueRef.current = newValue;
       onValueChange(newValue);
     },
-    [min, max, modeMin, modeMax, mode, onValueChange]
+    [knownBlocksValueMap, mode, onValueChange]
   );
 
   return (
@@ -96,9 +79,8 @@ export default function BlocksInput({
       maximumValue={modeMax}
       initialValue={modeInitialValue}
       onValueChange={onModeValueChange}
-      step={1}
+      step={getBlocksModeStep(mode)}
       formatValue={formatValue}
-      {...(formatError ? { formatError: modeFormatError } : {})}
       unit={mode}
       onUnitPress={onUnitPress}
     />

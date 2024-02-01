@@ -28,7 +28,7 @@ export default function UnitsModal({
   const { t } = useTranslation();
   const theme = useTheme();
   const choices = modes.map(mode => {
-    const modeAmount = fromSats(1e8, 0, Number.MAX_SAFE_INTEGER, mode, btcFiat);
+    const modeAmount = fromSats(1e8, mode, btcFiat);
     const presentedUnit = mode === 'Fiat' ? currency : mode;
     //return presentedUnit;
     return (

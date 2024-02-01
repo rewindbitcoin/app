@@ -7,6 +7,10 @@
  * - Snapping Behavior: Values are snapped to the nearest increment defined
  *   by the 'step' size. For example, if the step is 0.01 and a value of 0.213
  *   is passed, it adjusts to 0.21.
+ *   This component may call onValueChange with a value not snapped if the user
+ *   enters a valid number (but not spanned) in the TextInput (within range)
+ *   This component snaps the initialValue but does not trigger an onChangeValue
+ *   even if the initial snapped value is different than the initial value.
  *
  * - Minimum and Maximum Values: The 'minimumValue' and 'maximumValue' can
  *   be any number, allowing users to select these exact values regardless of
@@ -23,8 +27,7 @@
  *     - 'numericInputControlledValue' represents the text input's value. It can be imprecise and
  *       is not constrained by range. Updated when the slider is used
  *       or during TextInput interaction, even if invalid.
- *       Triggers 'onValueChange' with the
- *       correct snapped value if valid and within range.
+ *       Triggers 'onValueChange' with the value if within range.
  *     - 'onValueChange' is called with valid values or `null` in case of
  *       user input errors in the NumericInput text box.
  */
@@ -59,7 +62,7 @@ function toFixed({
   value,
   locale,
   numberFormatting,
-  step = DEFAULT_STEP
+  step
 }: {
   value: number;
   locale: Locale;
@@ -266,7 +269,7 @@ const getStyles = (theme: Theme) =>
     status: {
       textAlign: 'left',
       flex: 1,
-      paddingLeft: 10,
+      paddingLeft: 5,
       fontSize: 13,
       color: theme.colors.cardSecondary
     },

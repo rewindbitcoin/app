@@ -61,7 +61,7 @@ If you have biometric encryption enabled, a password may not be necessary as\
       '<group>ThunderDen establishes a minimum vaulting amount.\nThis assumes express transaction confirmations and the possibility of ultra-high network fees when unvaulting.</group><group><strong>Suggested Addition:</strong> Add about {{missingFunds}} to reach the vaulting minimum.\nNote that the exact vaultable amount might slightly differ due to changes in network fee conditions.</group>',
     amountLabel: 'Vault Amount',
     securityLockTimeLabel: 'Theft Protection Time Lock',
-    securityLockTimeDescription: 'Accessible {{blocks}} after Unvaulting',
+    securityLockTimeDescription: 'Available {{blocks}} after Unvault',
     confirmationSpeedLabel: 'Vault Creation Speed',
     lockTimeError: 'Pick a valid Lock Time.',
     feeRateError: 'Pick a valid Fee Rate.',

@@ -65,6 +65,7 @@ const numberToLocalizedString = (value: number, locale: Locale) => {
  * cannot be parsed
  */
 const localizedStrToNumber = (str: string, locale: Locale): number => {
+  if (str === '') return NaN;
   const { delimiter, separator } = getLocaleSeparators(locale);
   //console.log({ str, delimiter, separator });
 

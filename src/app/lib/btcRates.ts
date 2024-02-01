@@ -140,8 +140,6 @@ export const formatBtc = (
 const FIAT_DECIMALS = 2;
 export const fromSats = (
   amount: number,
-  min: number,
-  max: number,
   mode: 'Fiat' | SubUnit,
   btcFiat: number | null
 ) => {
@@ -149,18 +147,10 @@ export const fromSats = (
   else if (mode === 'Fiat') {
     if (btcFiat === null)
       throw new Error(`Currency mode not valid if rates not available`);
-    const fiatMin =
-      Math.ceil((min * btcFiat * Math.pow(10, FIAT_DECIMALS)) / 1e8) /
-      Math.pow(10, FIAT_DECIMALS);
-    const fiatMax =
-      Math.floor((max * btcFiat * Math.pow(10, FIAT_DECIMALS)) / 1e8) /
-      Math.pow(10, FIAT_DECIMALS);
     const fiatAmount =
       Math.round((amount * btcFiat * Math.pow(10, FIAT_DECIMALS)) / 1e8) /
       Math.pow(10, FIAT_DECIMALS);
-    if (amount >= min && amount <= max)
-      return Math.min(fiatMax, Math.max(fiatMin, fiatAmount));
-    else return fiatAmount;
+    return fiatAmount;
   } else if (mode === 'btc') {
     return amount / 1e8;
   } else if (mode === 'mbit') {
@@ -172,21 +162,30 @@ export const fromSats = (
 export const toSats = (
   value: number,
   mode: 'Fiat' | SubUnit,
-  btcFiat: number | null
+  btcFiat: number | null,
+  /** pass known values, when available so that precission
+   * is not loosed*/
+  knownSatsValueMap: {
+    [value: number]: number;
+  }
 ) => {
   if (mode === 'sat') {
     return value;
-  } else if (mode === 'Fiat') {
-    if (btcFiat === null)
-      throw new Error(`Currency mode not valud if rates not available`);
-    return Math.round((1e8 * value) / btcFiat);
-  } else if (mode === 'btc') {
-    return Math.round(value * 1e8);
-  } else if (mode === 'mbit') {
-    return Math.round(value * 1e5);
-  } else if (mode === 'bit') {
-    return Math.round(value * 1e2);
-  } else throw new Error(`Unsupported mode: ${mode} computing toSats`);
+  } else {
+    const knownSatsValue = knownSatsValueMap[value];
+    if (knownSatsValue !== undefined) return knownSatsValue;
+    else if (mode === 'Fiat') {
+      if (btcFiat === null)
+        throw new Error(`Currency mode not valud if rates not available`);
+      return Math.round((1e8 * value) / btcFiat);
+    } else if (mode === 'btc') {
+      return Math.round(value * 1e8);
+    } else if (mode === 'mbit') {
+      return Math.round(value * 1e5);
+    } else if (mode === 'bit') {
+      return Math.round(value * 1e2);
+    } else throw new Error(`Unsupported mode: ${mode} computing toSats`);
+  }
 };
 export const getAmountModeStep = (amountMode: 'Fiat' | SubUnit) => {
   if (amountMode === 'Fiat') {

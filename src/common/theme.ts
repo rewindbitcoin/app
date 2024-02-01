@@ -11,7 +11,8 @@ const theme = {
     white: 'white',
     red: 'red',
     listsSeparator: '#D0D0D0'
-  }
+  },
+  screenMargin: 16
 };
 export type Theme = typeof theme;
 //This is not a hook but may be converted into one in the future (if we want

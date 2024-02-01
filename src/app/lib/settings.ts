@@ -1,4 +1,4 @@
-export const subUnits = ['btc', 'bit', 'sat'] as const; //I decided to not include mbit
+export const subUnits = ['btc', 'bit', 'sat', 'mbit'] as const;
 export type SubUnit = (typeof subUnits)[number];
 export type Currency = 'USD' | 'EUR' | 'GBP';
 import type { Locale } from '../../i18n/i18n';

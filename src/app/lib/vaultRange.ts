@@ -16,7 +16,6 @@ import {
   selectVaultUtxosData,
   estimateTriggerTxSize
 } from './vaults';
-import type { FeeEstimates } from './fees';
 // nLockTime which results into the largest possible serialized size:
 const LOCK_BLOCKS_MAS_SIZE = 0xffff;
 const MIN_VAULT_BIN_SEARCH_ITERS = 100;
@@ -118,7 +117,7 @@ const estimateMaxVaultAmount = ({
  *
  * Estimates the minimum vault amount needed to ensure at least `minRecoverableRatio`
  * of funds are recoverable (including serviceFee + vaultAmount), e.g., limiting loss
- * to no more than 1/3 of the initial value due to miner fees. This function might not
+ * to no more than 1/3 (minRecoverableRatio) of the initial value due to miner fees. This function might not
  * always find the absolute minimum but provides a safe, conservative estimation.
  *
  * Utilizing a binary search starting from `maxVaultAmount`, it tests for lower values
@@ -161,7 +160,7 @@ const estimateMinVaultAmount = ({
   /** Max Fee rate for the presigned txs */
   feeRateCeiling: number;
   minRecoverableRatio: number;
-}) => {
+}): number => {
   const isRecoverable = (amount: number) => {
     const selected = selectVaultUtxosData({
       utxosData,
@@ -217,7 +216,7 @@ const estimateMinVaultAmount = ({
 
 export const estimateVaultSetUpRange = ({
   utxosData,
-  feeEstimates,
+  maxFeeRate,
   serviceFeeRate,
   feeRate = null,
   feeRateCeiling,
@@ -225,17 +224,13 @@ export const estimateVaultSetUpRange = ({
   network
 }: {
   utxosData: UtxosData;
-  feeEstimates: FeeEstimates | null;
+  maxFeeRate: number;
   network: Network;
   feeRate?: number | null;
   serviceFeeRate: number;
   feeRateCeiling: number;
   minRecoverableRatio: number;
 }) => {
-  const maxFeeRate = feeEstimates
-    ? Math.max(...Object.values(feeEstimates))
-    : // when feeEstimates still not available, show default values
-      feeRateCeiling;
   const lowestMaxVaultAmount =
     estimateMaxVaultAmountMemo({
       utxosData,
@@ -271,8 +266,7 @@ export const estimateVaultSetUpRange = ({
   return {
     lowestMaxVaultAmount,
     largestMinVaultAmount,
-    maxVaultAmount,
-    maxFeeRate
+    maxVaultAmount
   };
 };
 

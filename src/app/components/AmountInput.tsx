@@ -1,5 +1,11 @@
 //This component must work both for SendBitcoin and SetUpVault
-import React, { useState, useCallback, useContext, useRef } from 'react';
+import React, {
+  useState,
+  useCallback,
+  useContext,
+  useRef,
+  useMemo
+} from 'react';
 import { CardEditableSlider } from '../../common/ui';
 import { useTranslation } from 'react-i18next';
 import { useGlobalStateStorage } from '../../common/contexts/StorageContext';
@@ -23,16 +29,18 @@ export default function AmountInput({
   initialValue,
   min,
   max,
+  isMaxAmount,
   label,
-  onValueChange,
-  formatError
+  onUserSelectedAmountChange
 }: {
   initialValue: number;
   min: number;
   max: number;
+  /** flag indicating wheter to initialize CardEditableSlider with the last
+   * valid value or with max*/
+  isMaxAmount: boolean;
   label: string;
-  onValueChange: (value: number | null) => void;
-  formatError?: (invalidValue: number) => string | undefined;
+  onUserSelectedAmountChange: (value: number | null) => void;
 }) {
   const { t } = useTranslation();
   const context = useContext<WalletContextType | null>(WalletContext);
@@ -51,18 +59,21 @@ export default function AmountInput({
     btcFiat !== null ? 'Fiat' : settings.SUB_UNIT
   );
 
-  const [isMaxFunds, setIsMaxFunds] = useState<boolean>(initialValue === max);
   const [showUnitsModal, setShowUnitsModal] = useState<boolean>(false);
 
-  const modeMin = fromSats(min, min, max, mode, btcFiat);
-  const modeMax = fromSats(max, min, max, mode, btcFiat);
+  const modeMin = fromSats(min, mode, btcFiat);
+  const modeMax = fromSats(max, mode, btcFiat);
+  const knownSatsValueMap = useMemo(
+    () => ({ [modeMin]: min, [modeMax]: max }),
+    [modeMin, modeMax, min, max]
+  );
   //We will change the key in CardEditableSlider creating new components
   //when min, max or mode change. When this happens we will initialize the
   //components with the last know correct amount. So keep track of it:
-  const nextInitialValueRef = useRef<number>(initialValue);
-  const modeInitialValue = isMaxFunds
+  const nextInitialValueRef = useRef<number>(isMaxAmount ? max : initialValue);
+  const modeInitialValue = isMaxAmount
     ? modeMax
-    : fromSats(nextInitialValueRef.current, min, max, mode, btcFiat);
+    : fromSats(nextInitialValueRef.current, mode, btcFiat);
 
   const onUnitPress = useCallback(() => {
     setShowUnitsModal(true);
@@ -74,11 +85,10 @@ export default function AmountInput({
   }, []);
 
   const formatValue = useCallback(
-    (value: number) => {
-      if (max === undefined) throw new Error(`formatValue needs a valid max`);
+    (modeValue: number) => {
       return formatBtc(
         {
-          amount: toSats(value, mode, btcFiat),
+          amount: toSats(modeValue, mode, btcFiat, knownSatsValueMap),
           subUnit: settings.SUB_UNIT,
           btcFiat,
           locale: settings.LOCALE,
@@ -89,7 +99,7 @@ export default function AmountInput({
     },
     [
       t,
-      max,
+      knownSatsValueMap,
       mode,
       btcFiat,
       settings.SUB_UNIT,
@@ -98,32 +108,15 @@ export default function AmountInput({
     ]
   );
 
-  const modeFormatError = useCallback(
-    (modeInvalidAmount: number) => {
-      if (formatError) {
-        return formatError(toSats(modeInvalidAmount, mode, btcFiat));
-      }
-      return;
-    },
-    [btcFiat, formatError, mode]
-  );
-
   const onModeValueChange = useCallback(
     (newModeValue: number | null) => {
       let newValue: number | null;
       if (newModeValue === null) newValue = null;
-      //If the received value newModeValue from CardEditableSlider is equal
-      //to the one passed as value - see below: fromSats(value, min, max, mode, btcFiat)
-      //Then pass the original value, not the toSats(fromSats(value)) which
-      //would loose precision in the btcRate
-      else if (newModeValue === modeMin) newValue = min;
-      else if (newModeValue === modeMax) newValue = max;
-      else newValue = toSats(newModeValue, mode, btcFiat);
-      setIsMaxFunds(newValue === max);
+      else newValue = toSats(newModeValue, mode, btcFiat, knownSatsValueMap);
       if (newValue !== null) nextInitialValueRef.current = newValue;
-      onValueChange(newValue);
+      onUserSelectedAmountChange(newValue);
     },
-    [min, max, modeMin, modeMax, mode, btcFiat, onValueChange]
+    [knownSatsValueMap, mode, btcFiat, onUserSelectedAmountChange]
   );
 
   return (
@@ -139,7 +132,6 @@ export default function AmountInput({
         onValueChange={onModeValueChange}
         step={getAmountModeStep(mode)}
         formatValue={formatValue}
-        {...(formatError ? { formatError: modeFormatError } : {})}
         unit={mode === 'Fiat' ? settings.CURRENCY : mode}
         onUnitPress={onUnitPress}
       />

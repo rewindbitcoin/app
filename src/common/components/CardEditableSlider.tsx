@@ -42,7 +42,7 @@ export default function CardEditableSlider({
   const theme = useTheme();
   const styles = getStyles(theme);
   const Unit = (
-    <View>
+    <View style={styles.unitContainer}>
       {onUnitPress ? (
         <Pressable onPress={onUnitPress}>
           <View style={styles.cardModeContainer}>
@@ -54,9 +54,7 @@ export default function CardEditableSlider({
           </View>
         </Pressable>
       ) : (
-        <Text style={{ fontSize: 12, color: theme.colors.cardSecondary }}>
-          {unit}
-        </Text>
+        <Text style={styles.unitText}>{unit}</Text>
       )}
     </View>
   );
@@ -102,17 +100,15 @@ const getStyles = (theme: Theme) =>
       paddingVertical: 5,
       marginVertical: -5
     },
-    cardHeader: {
-      alignItems: 'center', // Align items vertically in the center
-      flex: 1,
-      flexDirection: 'row'
-    },
+    cardHeader: { marginBottom: theme.screenMargin / 2 },
     cardTitle: {
-      marginVertical: 10,
+      //marginVertical: 10,
       marginLeft: 10,
       alignSelf: 'stretch', //To ensure that textAlign works with short texts too
       textAlign: 'left'
     },
+    unitContainer: { marginLeft: 10 },
+    unitText: { fontSize: 12, color: theme.colors.text },
     helpIcon: {
       marginLeft: 10,
       fontSize: 16,
