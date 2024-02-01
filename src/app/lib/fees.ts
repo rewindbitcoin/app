@@ -234,7 +234,7 @@ const formatFeeRateFactory = memoize((t: TFunction) =>
         }
       }
 
-      return strBtcFiat === null ? strTime : `${strTime}. ${strBtcFiat}`;
+      return strBtcFiat === null ? strTime : `${strTime} / ${strBtcFiat}`;
     },
     args => JSON.stringify(args)
   )
