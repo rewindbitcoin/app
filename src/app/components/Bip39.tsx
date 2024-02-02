@@ -41,10 +41,12 @@ const wordCandidates = (clean: string) => {
 
 export default function Bip39({
   words,
-  onWords
+  onWords,
+  readonly = false
 }: {
   words: string[];
-  onWords: (words: string[]) => void;
+  onWords?: (words: string[]) => void;
+  readonly?: boolean;
 }) {
   const inputRef = useRef<TextInput>(null);
   const { t } = useTranslation();
@@ -71,53 +73,62 @@ export default function Bip39({
     toast.isOpen(toastId.current) &&
     toast.hide(toastId.current);
 
-  const handleChangeText = (text: string) => {
-    const prevWord = words[activeWordIndex];
-    if (prevWord === undefined)
-      throw new Error(
-        `Invalid activeWordIndex: ${activeWordIndex} : ${JSON.stringify(words)}`
-      );
-    if (prevWord.length > text.length) {
-      //Delete text:
-      onWords(
-        words.map((word, index) => (index === activeWordIndex ? text : word))
-      );
-    } else {
-      //Add text:
-      const isLastWord = !words.some(
-        (word: string, index: number) =>
-          index !== activeWordIndex && !isWordValid(word)
-      );
+  if (readonly === false && onWords === undefined)
+    throw new Error('onWords required if readonly=false');
 
-      const wc = wordCandidates(text);
-      if (wc.length > 1) hideError();
-      if (wc.length === 1) {
-        const guessedWord = wc[0];
-        if (guessedWord === undefined) throw new Error('Array error');
-        const candidateWords = words.map((word, index) =>
-          index === activeWordIndex ? guessedWord : word
+  const handleChangeText = (text: string) => {
+    if (readonly === false && onWords) {
+      if (onWords === undefined)
+        throw new Error('onWords required if readonly=false');
+      const prevWord = words[activeWordIndex];
+      if (prevWord === undefined)
+        throw new Error(
+          `Invalid activeWordIndex: ${activeWordIndex} : ${JSON.stringify(words)}`
         );
-        if (!isLastWord || validateMnemonic(candidateWords.join(' '))) {
-          onWords(candidateWords);
-          if (!isLastWord) {
-            setActiveWordIndex(
-              candidateWords.findIndex(word => !isWordValid(word))
+      if (prevWord.length > text.length) {
+        //Delete text:
+        onWords(
+          words.map((word, index) => (index === activeWordIndex ? text : word))
+        );
+      } else {
+        //Add text:
+        const isLastWord = !words.some(
+          (word: string, index: number) =>
+            index !== activeWordIndex && !isWordValid(word)
+        );
+
+        const wc = wordCandidates(text);
+        if (wc.length > 1) hideError();
+        if (wc.length === 1) {
+          const guessedWord = wc[0];
+          if (guessedWord === undefined) throw new Error('Array error');
+          const candidateWords = words.map((word, index) =>
+            index === activeWordIndex ? guessedWord : word
+          );
+          if (!isLastWord || validateMnemonic(candidateWords.join(' '))) {
+            onWords(candidateWords);
+            if (!isLastWord) {
+              setActiveWordIndex(
+                candidateWords.findIndex(word => !isWordValid(word))
+              );
+            }
+          } else {
+            showError();
+            //Incorrect word
+            onWords(
+              words.map((word, index) =>
+                index === activeWordIndex ? text : word
+              )
             );
           }
         } else {
-          showError();
-          //Incorrect word
+          //More than 1 word candidate
           onWords(
             words.map((word, index) =>
               index === activeWordIndex ? text : word
             )
           );
         }
-      } else {
-        //More than 1 word candidate
-        onWords(
-          words.map((word, index) => (index === activeWordIndex ? text : word))
-        );
       }
     }
   };
@@ -128,40 +139,40 @@ export default function Bip39({
     isMounted.current = true;
   }, [activeWordIndex]);
 
-  // style={styles.segmented}
-  //values={[t('bip39.segmented12'), t('bip39.segmented24')]}
-  //selectedIndex={words.length === 12 ? 0 : 1}
   return (
     <View style={{ ...styles.words }}>
-      <View style={styles.segmentedWrapper}>
-        <SegmentedControl
-          style={styles.segmented}
-          activeTextStyle={styles.segmentedTexts}
-          inactiveTextStyle={styles.segmentedTexts}
-          segments={[t('bip39.segmented12'), t('bip39.segmented24')]}
-          currentIndex={words.length === 12 ? 0 : 1}
-          onChange={index => {
-            const newWords = [...words];
-            const N = index === 0 ? 12 : 24;
-            if (newWords.length > N) onWords(newWords.slice(0, N));
-            else {
-              while (newWords.length < N) newWords.push('');
-              onWords(newWords);
-            }
-            //LayoutAnimation.spring();
-            LayoutAnimation.configureNext({
-              ...LayoutAnimation.Presets.linear,
-              duration: 150
-            });
-          }}
-        />
-      </View>
+      {readonly === false && onWords && (
+        <View style={styles.segmentedWrapper}>
+          <SegmentedControl
+            style={styles.segmented}
+            activeTextStyle={styles.segmentedTexts}
+            inactiveTextStyle={styles.segmentedTexts}
+            segments={[t('bip39.segmented12'), t('bip39.segmented24')]}
+            currentIndex={words.length === 12 ? 0 : 1}
+            onChange={index => {
+              const newWords = [...words];
+              const N = index === 0 ? 12 : 24;
+              if (newWords.length > N) onWords(newWords.slice(0, N));
+              else {
+                while (newWords.length < N) newWords.push('');
+                onWords(newWords);
+              }
+              //LayoutAnimation.spring();
+              LayoutAnimation.configureNext({
+                ...LayoutAnimation.Presets.linear,
+                duration: 150
+              });
+            }}
+          />
+        </View>
+      )}
       {words.map((word, index) => (
         <View key={index} style={{ ...styles.indexAndInput }}>
           <Text style={[styles.number]}>
             {`${index + 1 < 10 ? '\u00A0' : ''}${index + 1}`}
           </Text>
           <TextInput
+            readOnly={readonly}
             {...(activeWordIndex === index ? { ref: inputRef } : {})}
             keyboardType="visible-password"
             blurOnSubmit={false}

@@ -1,7 +1,15 @@
 import React, { useState } from 'react';
 
 import { View, StyleSheet, Pressable, ViewStyle } from 'react-native';
-import { Modal, Text, Divider, Theme, Switch, useTheme } from '../../common/ui';
+import {
+  Modal,
+  Text,
+  Divider,
+  InfoButton,
+  Theme,
+  Switch,
+  useTheme
+} from '../../common/ui';
 import Password from './Password';
 import { useTranslation } from 'react-i18next';
 import { LayoutAnimation } from 'react-native';
@@ -66,7 +74,7 @@ export default function WalletAdvancedSettings({
                     showBiometricalHelp(true);
                   }}
                 >
-                  <AntDesign name="infocirlceo" style={styles.icon} />
+                  <InfoButton style={{ paddingLeft: 10 }} />
                 </Pressable>
               </View>
               <Switch value={value} onValueChange={value => setValue(value)} />
@@ -80,7 +88,7 @@ export default function WalletAdvancedSettings({
                     showPasswordHelp(true);
                   }}
                 >
-                  <AntDesign name="infocirlceo" style={styles.icon} />
+                  <InfoButton style={{ paddingLeft: 10 }} />
                 </Pressable>
               </View>
               <Switch
@@ -127,7 +135,7 @@ export default function WalletAdvancedSettings({
                     showDataEncryptionHelp(true);
                   }}
                 >
-                  <AntDesign name="infocirlceo" style={styles.icon} />
+                  <InfoButton style={{ paddingRight: 10 }} />
                 </Pressable>
                 <Text>{t('wallet.encryptAppDataTitle')}</Text>
               </View>
@@ -136,7 +144,7 @@ export default function WalletAdvancedSettings({
             <Divider style={styles.lineSeparator} />
             <View style={styles.row}>
               <View style={styles.textContainer}>
-                <AntDesign name="infocirlceo" style={styles.icon} />
+                <InfoButton style={{ paddingRight: 10 }} />
                 <Text>Network</Text>
               </View>
               <View>
@@ -226,11 +234,6 @@ const getStyles = (theme: Theme) => {
       marginLeft: 20,
       flexDirection: 'row',
       alignItems: 'center'
-    },
-    icon: {
-      marginLeft: 10,
-      fontSize: 16,
-      color: theme.colors.primary
     },
     lineSeparator: { marginLeft: 20 }
   });

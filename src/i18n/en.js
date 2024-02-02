@@ -129,6 +129,12 @@ If you have biometric encryption enabled, a password may not be necessary as\
   units: {
     preferredUnitTitle: 'Preferred Unit'
   },
+  addressInput: {
+    createNew: 'Create',
+    scan: 'Scan',
+    label: 'Emergency Address',
+    textInputPlaceholder: 'Enter or Create an Address'
+  },
   continueButton: 'Continue',
   okButton: 'OK',
   confirmButton: 'Confirm',
