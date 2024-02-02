@@ -1,17 +1,21 @@
 //This is a HOC of EditableSlider formatted for Data Input
 import React, { useMemo } from 'react';
-import {
-  View,
-  StyleSheet,
-  GestureResponderEvent,
-  Pressable
-} from 'react-native';
+import { View, StyleSheet } from 'react-native';
 import { useTheme, Theme } from '../theme';
 import { Text } from './Text';
 import EditableSlider from './EditableSlider';
 import type { Locale } from '../../i18n/i18n';
-import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
+import IconButton from './IconButton';
 
+//<Pressable onPress={onUnitPress}>
+//  <View style={styles.cardModeContainer}>
+//    <Text style={styles.cardModeAction}>{unit}</Text>
+//    <MaterialCommunityIcons
+//      name="menu-swap-outline"
+//      style={styles.cardModeAction}
+//    />
+//  </View>
+//</Pressable>
 function CardEditableSlider({
   initialValue,
   minimumValue,
@@ -31,7 +35,7 @@ function CardEditableSlider({
   maximumValue: number;
   label: string;
   unit: string;
-  onUnitPress?: (event: GestureResponderEvent) => void;
+  onUnitPress?: () => void;
   maxLabel?: string;
   step: number;
   formatError?: (invalidValue: number) => string | undefined;
@@ -44,15 +48,14 @@ function CardEditableSlider({
   const Unit = (
     <View style={styles.unitContainer}>
       {onUnitPress ? (
-        <Pressable onPress={onUnitPress}>
-          <View style={styles.cardModeContainer}>
-            <Text style={styles.cardModeAction}>{unit}</Text>
-            <MaterialCommunityIcons
-              name="menu-swap-outline"
-              style={styles.cardModeAction}
-            />
-          </View>
-        </Pressable>
+        <IconButton
+          size={12}
+          mode="icon-left"
+          iconFamily="MaterialCommunityIcons"
+          iconName="menu-swap-outline"
+          text={unit}
+          onPress={onUnitPress}
+        />
       ) : (
         <Text style={styles.unitText}>{unit}</Text>
       )}
