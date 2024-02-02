@@ -18,3 +18,5 @@ import Divider from './components/Divider';
 export { Divider };
 import VerticalChoice from './components/VerticalChoice';
 export { VerticalChoice };
+import PlainIconButton from './components/PlainIconButton';
+export { PlainIconButton };

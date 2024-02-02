@@ -27,7 +27,7 @@ import { getRealWindowHeight } from 'react-native-extra-dimensions-android';
 interface ModalProps {
   title: string;
   isVisible: boolean;
-  icon?: { family: string; name: string };
+  icon?: { family: keyof typeof Icons; name: string };
   closeButtonText?: string;
   onClose?: () => void;
   children: React.ReactNode;
@@ -56,9 +56,7 @@ const Modal: React.FC<ModalProps> = ({
   const onCloseTriggered = useRef<boolean>(false);
 
   const Icon =
-    icon && icon.family && Icons[icon.family as keyof typeof Icons]
-      ? Icons[icon.family as keyof typeof Icons]
-      : null;
+    icon && icon.family && Icons[icon.family] ? Icons[icon.family] : null;
 
   const gestureHandler = Platform.select({
     web: () => {}, //nop
