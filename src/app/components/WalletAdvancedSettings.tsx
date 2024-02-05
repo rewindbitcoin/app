@@ -69,13 +69,10 @@ export default function WalletAdvancedSettings({
             <View style={{ ...styles.row }}>
               <View style={styles.textContainer}>
                 <Text>{t('wallet.biomatricEncryptionTitle')}</Text>
-                <Pressable
-                  onPress={() => {
-                    showBiometricalHelp(true);
-                  }}
-                >
-                  <InfoButton style={{ paddingLeft: 10 }} />
-                </Pressable>
+                <InfoButton
+                  style={{ paddingLeft: 10 }}
+                  onPress={() => showBiometricalHelp(true)}
+                />
               </View>
               <Switch value={value} onValueChange={value => setValue(value)} />
             </View>
@@ -83,13 +80,10 @@ export default function WalletAdvancedSettings({
             <View style={styles.row}>
               <View style={styles.textContainer}>
                 <Text>{t('wallet.usePasswordTitle')}</Text>
-                <Pressable
-                  onPress={() => {
-                    showPasswordHelp(true);
-                  }}
-                >
-                  <InfoButton style={{ paddingLeft: 10 }} />
-                </Pressable>
+                <InfoButton
+                  style={{ paddingLeft: 10 }}
+                  onPress={() => showPasswordHelp(true)}
+                />
               </View>
               <Switch
                 value={password !== undefined || passwordRequest}
@@ -130,13 +124,10 @@ export default function WalletAdvancedSettings({
             <Divider style={styles.lineSeparator} />
             <View style={styles.row}>
               <View style={styles.textContainer}>
-                <Pressable
-                  onPress={() => {
-                    showDataEncryptionHelp(true);
-                  }}
-                >
-                  <InfoButton style={{ paddingRight: 10 }} />
-                </Pressable>
+                <InfoButton
+                  style={{ paddingRight: 10 }}
+                  onPress={() => showDataEncryptionHelp(true)}
+                />
                 <Text>{t('wallet.encryptAppDataTitle')}</Text>
               </View>
               <Switch />
