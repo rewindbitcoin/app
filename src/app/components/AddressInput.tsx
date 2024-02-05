@@ -41,14 +41,14 @@ function AddressInput() {
     <View>
       <View style={styles.cardHeader}>
         <Text variant="cardTitle" style={styles.cardTitle}>
-          {t('addressInput.label')}
+          {t('addressInput.coldAddress.label')}
         </Text>
         <InfoButton style={{ paddingLeft: 10 }} />
       </View>
       <View style={styles.inputWrapper}>
         <TextInput
           enablesReturnKeyAutomatically
-          placeholder={t('addressInput.textInputPlaceholder')}
+          placeholder={t('addressInput.coldAddress.textInputPlaceholder')}
           autoComplete="off"
           spellCheck={false}
           autoCorrect={false}
@@ -66,7 +66,7 @@ function AddressInput() {
         />
         <IconButton
           style={styles.button}
-          text={t('addressInput.createNew')}
+          text={t('addressInput.coldAddress.createNewButton')}
           onPress={handleNewAddress}
           iconFamily="MaterialCommunityIcons"
           iconName="wallet-plus-outline"
@@ -74,9 +74,14 @@ function AddressInput() {
       </View>
       <Modal
         isVisible={showNewAddress}
-        title="Hello"
+        title={t('addressInput.coldAddress.createNewModalTitle')}
+        icon={{
+          family: 'Ionicons',
+          name: 'wallet'
+        }}
         onClose={handleCloseNewAddress}
       >
+        <Text>{t('addressInput.coldAddress.createNewModalText')}</Text>
         <Bip39 readonly onWords={onWords} words={words} />
       </Modal>
     </View>

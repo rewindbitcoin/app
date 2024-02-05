@@ -130,10 +130,17 @@ If you have biometric encryption enabled, a password may not be necessary as\
     preferredUnitTitle: 'Preferred Unit'
   },
   addressInput: {
-    createNew: 'Create',
-    scan: 'Scan',
-    label: 'Emergency Address',
-    textInputPlaceholder: 'Enter or Create an Address'
+    coldAddress: {
+      label: 'Emergency Address',
+      createNewButton: 'Create',
+      createNewModalTitle: 'Create new Address',
+      textInputPlaceholder: 'Enter or Create an Address'
+    },
+    recipientAddress: {
+      label: 'Recipient Address',
+      textInputPlaceholder: "Enter recipient's address"
+    },
+    scan: 'Scan'
   },
   continueButton: 'Continue',
   okButton: 'OK',

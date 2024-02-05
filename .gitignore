@@ -4,6 +4,7 @@
 node_modules/
 ai/
 promos/
+trials/
 
 # Expo
 .expo/
