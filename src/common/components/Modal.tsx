@@ -111,7 +111,7 @@ const Modal: React.FC<ModalProps> = ({
     return () => {
       isMountedRef.current = false;
     };
-  }, [isVisible]);
+  }, [isVisible, translateY]);
 
   return (
     <RNModal
