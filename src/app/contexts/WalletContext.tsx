@@ -1,3 +1,8 @@
+const THUNDERDEN_CIPHER_KEY_PATH = `m/88551025'/1821456116'/904787242'/1855666376'/1464383631'`;
+const THUNDERDEN_CIPHER_KEY_MESSAGE = 'Unlock ThunderDen Encryption Key';
+import { crypto, payments } from 'bitcoinjs-lib';
+import { signMessage } from '../../common/lib/signmessage';
+
 import {
   fetchVaultsStatuses,
   getSpendableTriggerDescriptors,
@@ -77,6 +82,8 @@ export type WalletContextType = {
       | 'USER_CANCEL'
       | 'UNKNOWN_ERROR'
   ) => Promise<boolean>;
+  getSerializedVaults: () => string;
+  getCipherKey: () => Promise<{ cipherKey: Buffer; cipherAddress: string }>;
   syncBlockchain: () => Promise<void>;
   syncingBlockchain: boolean;
   // ... any other properties you want to include
@@ -328,6 +335,39 @@ export const WalletProvider = ({
 
   const [syncingBlockchain, setSyncingBlockchain] = useState(false);
   const syncBlockchainRunning = useRef(false);
+  const getSerializedVaults = useCallback(
+    () => JSON.stringify(vaults, null, 2),
+    [vaults]
+  );
+  const getCipherKey = useCallback(async () => {
+    const mnemonic = signers?.[0]?.mnemonic;
+    if (!mnemonic) throw new Error('Could not initialize the signer');
+    const masterNode = BIP32.fromSeed(mnemonicToSeedSync(mnemonic), network);
+    const childNode = masterNode.derivePath(THUNDERDEN_CIPHER_KEY_PATH);
+    if (!childNode.privateKey)
+      throw new Error('Could not generatel a privateKey');
+
+    const signature = signMessage(
+      THUNDERDEN_CIPHER_KEY_MESSAGE,
+      childNode.privateKey,
+      true // assumes compressed
+    );
+    const cipherKey = crypto.sha256(signature);
+    const { address } = payments.p2pkh({
+      pubkey: childNode.publicKey,
+      network
+    });
+
+    //https://crypto.stackexchange.com/questions/109174/are-rsa-signatures-distinguishable-from-random-data
+    //https://github.com/bitcoinjs/bitcoinjs-message/blob/master/index.js
+    //https://github.com/LedgerHQ/app-bitcoin-new/blob/34ba07a209d69ba10e9cb84dcf7b0bdd7818deca/bitcoin_client_js/src/lib/appClient.ts#L368
+    //
+    //https://crypto.stackexchange.com/questions/101860/using-a-signature-as-key-material
+    //https://crypto.stackexchange.com/questions/108743/are-curve-secp256k1-ecdsa-signatures-distinguishable-from-random-data
+    //https://medium.com/@simonwarta/signature-determinism-for-blockchain-developers-dbd84865a93e
+
+    return { cipherAddress: address, cipherKey };
+  }, [signers, network]);
   /**
    * Initiates the blockchain synchronization process. This function uses
    * both a reference (`syncBlockchainRunning`) and state (`syncingBlockchain`).
@@ -563,6 +603,8 @@ export const WalletProvider = ({
     utxosData,
     processCreatedVault,
     syncBlockchain,
+    getSerializedVaults,
+    getCipherKey,
     syncingBlockchain
     // ... any other relevant state or functions
   };

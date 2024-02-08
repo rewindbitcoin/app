@@ -21,7 +21,6 @@
 
 import { MMKV } from 'react-native-mmkv';
 const mmkvStorage = new MMKV();
-import memoize from 'lodash.memoize';
 
 import { Platform } from 'react-native';
 
@@ -31,6 +30,9 @@ import { get as idbGet, set as idbSet, del as idbDel } from 'idb-keyval';
 //After patch-pachate you need to npx expo prebuild
 //https://github.com/expo/expo/issues/17804
 import { hasHardwareAsync, isEnrolledAsync } from 'expo-local-authentication';
+
+import { utf8ToBytes, bytesToUtf8 } from '@noble/ciphers/utils';
+import { getManagedChacha } from './cipher';
 
 import {
   AFTER_FIRST_UNLOCK,
@@ -91,19 +93,6 @@ const secureStoreOptions = {
   requireAuthentication: true,
   keychainAccessible: AFTER_FIRST_UNLOCK
 };
-
-import { xchacha20poly1305 } from '@noble/ciphers/chacha';
-import { utf8ToBytes, bytesToUtf8 } from '@noble/ciphers/utils';
-import { managedNonce } from '@noble/ciphers/webcrypto/utils';
-
-// Memoized function to get the ChaCha encoder instance
-const getManagedChacha = memoize(
-  (key: Uint8Array) => {
-    const chacha = managedNonce(xchacha20poly1305)(key);
-    return chacha;
-  },
-  (key: Uint8Array) => [...key].join(',')
-);
 
 export const NUMBER = 'NUMBER';
 export const STRING = 'STRING';

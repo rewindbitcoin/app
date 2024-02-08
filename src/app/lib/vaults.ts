@@ -523,10 +523,10 @@ export async function createVault({
       unvaultKey,
       coldAddress,
       lockBlocks,
-      txMap,
-      triggerMap,
       triggerDescriptor,
-      creationTime: Math.floor(Date.now() / 1000)
+      creationTime: Math.floor(Date.now() / 1000),
+      triggerMap,
+      txMap
     };
   } catch (error) {
     console.error(error);
