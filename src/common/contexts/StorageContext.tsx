@@ -64,6 +64,7 @@
 
 import React, {
   useState,
+  useCallback,
   useEffect,
   createContext,
   useContext,
@@ -116,6 +117,32 @@ const useGlobalStateStorage = <T,>(
 
   const { valueMap, setValueMap } = context;
 
+  /** sets storage and sate value */
+  const setStorageValue = useCallback(
+    async (newValue: T) => {
+      await setAsync(
+        key,
+        assertSerializationFormat(newValue, serializationFormat),
+        engine,
+        cipherKey,
+        authenticationPrompt
+      );
+      setValueMap(prevState =>
+        prevState[key] !== newValue
+          ? { ...prevState, [key]: newValue }
+          : prevState
+      );
+    },
+    [
+      key,
+      setValueMap,
+      serializationFormat,
+      engine,
+      cipherKey,
+      authenticationPrompt
+    ]
+  );
+
   //We only need to retrieve the value from the storage intially for each key
   //We know key has not been retrieved yet if valueMap[key] is not set.
   //Note that valueMap[key] may be set to undefined which means it was retrieved
@@ -147,23 +174,17 @@ const useGlobalStateStorage = <T,>(
         );
     };
     if (!(key in valueMap)) fetchValue();
-  }, [key]);
-
-  /** sets storage and sate value */
-  const setStorageValue = async (newValue: T) => {
-    await setAsync(
-      key,
-      assertSerializationFormat(newValue, serializationFormat),
-      engine,
-      cipherKey,
-      authenticationPrompt
-    );
-    setValueMap(prevState =>
-      prevState[key] !== newValue
-        ? { ...prevState, [key]: newValue }
-        : prevState
-    );
-  };
+  }, [
+    key,
+    authenticationPrompt,
+    cipherKey,
+    defaultValue,
+    engine,
+    serializationFormat,
+    setStorageValue,
+    setValueMap,
+    valueMap
+  ]);
 
   return [valueMap[key] as T | undefined, setStorageValue, key in valueMap];
 };

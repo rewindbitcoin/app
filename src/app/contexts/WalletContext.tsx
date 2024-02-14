@@ -402,7 +402,7 @@ const WalletProviderWithWallet = ({
       //updateVaultsStatuses upddate status based on vaults so they must be
       //synched
       shallowEqualArrays(Object.keys(vaults), Object.keys(vaultsStatuses)) &&
-      shallowEqualArrays(Object.keys(vaults), Object.keys(accountNames)) &&
+      //shallowEqualArrays(Object.keys(vaults), Object.keys(accountNames)) &&
       signers
     ) {
       if (syncBlockchainRunning.current === true) return;
@@ -466,14 +466,18 @@ const WalletProviderWithWallet = ({
     } else
       console.log(
         'syncBlockchain not performing any action for being called with non-initialized inputs',
-        {
-          network,
-          GAP_LIMIT: settings?.GAP_LIMIT,
-          discovery,
-          vaults,
-          vaultsStatuses,
-          accountNames
-        }
+        JSON.stringify(
+          {
+            network,
+            GAP_LIMIT: settings?.GAP_LIMIT,
+            //discovery,
+            vaultsKeys: vaults && Object.keys(vaults),
+            vaultsStatusesKeys: vaultsStatuses && Object.keys(vaultsStatuses),
+            accountNames
+          },
+          null,
+          2
+        )
       );
 
     //Helper function used above. It returns new
@@ -492,6 +496,7 @@ const WalletProviderWithWallet = ({
         Object.entries(newVaultsStatuses).forEach(([key, status]) => {
           const existingStatus = vaultsStatuses[key];
           if (!shallowEqualObjects(existingStatus, status)) {
+            console.log({ existingStatus, status, key });
             // Mutate updatedVaultsStatuses because a change has been detected
             if (updatedVaultsStatuses === vaultsStatuses)
               updatedVaultsStatuses = { ...vaultsStatuses };
@@ -499,8 +504,10 @@ const WalletProviderWithWallet = ({
             updatedVaultsStatuses[key] = { ...existingStatus, ...status };
           }
         });
-        if (vaultsStatuses !== updatedVaultsStatuses)
+        if (vaultsStatuses !== updatedVaultsStatuses) {
+          console.log('TRACE', 'setVaultsStatuses', { updatedVaultsStatuses });
           setVaultsStatuses(updatedVaultsStatuses);
+        }
       } catch (error) {
         const errorMessage =
           error instanceof Error ? error.message : 'An unknown error occurred';

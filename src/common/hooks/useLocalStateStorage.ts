@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { Platform } from 'react-native';
 import {
   getAsync,
@@ -72,6 +72,21 @@ export const useLocalStateStorage = <T>(
   const [value, setValue] = useState<T | undefined>();
   const [isSynchd, setIsSynchd] = useState(false);
 
+  /** sets storage and sate value */
+  const setStorageValue = useCallback(
+    async (newValue: T) => {
+      await setAsync(
+        key,
+        assertSerializationFormat(newValue, serializationFormat),
+        engine,
+        cipherKey,
+        authenticationPrompt
+      );
+      setValue(newValue);
+    },
+    [key, serializationFormat, engine, cipherKey, authenticationPrompt]
+  );
+
   //We only need to retrieve the value from the storage intially for each key
   //After having retrieved the initial value, then we will rely on
   //value set by setValue to not spam the storage with more requests that we
@@ -92,19 +107,15 @@ export const useLocalStateStorage = <T>(
       setIsSynchd(true);
     };
     fetchValue();
-  }, [key]);
-
-  /** sets storage and sate value */
-  const setStorageValue = async (newValue: T) => {
-    await setAsync(
-      key,
-      assertSerializationFormat(newValue, serializationFormat),
-      engine,
-      cipherKey,
-      authenticationPrompt
-    );
-    setValue(newValue);
-  };
+  }, [
+    key,
+    authenticationPrompt,
+    cipherKey,
+    engine,
+    defaultValue,
+    serializationFormat,
+    setStorageValue
+  ]);
 
   return [value, setStorageValue, isSynchd];
 };

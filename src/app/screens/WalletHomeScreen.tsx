@@ -170,6 +170,7 @@ const WalletHomeScreen = ({
           }
         );
         await shareAsync(filePath);
+        console.log(`Deleting ${filePath}`);
         await deleteAsync(filePath);
       }
     }
