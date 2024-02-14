@@ -31,7 +31,7 @@ import { get as idbGet, set as idbSet, del as idbDel } from 'idb-keyval';
 //https://github.com/expo/expo/issues/17804
 import { hasHardwareAsync, isEnrolledAsync } from 'expo-local-authentication';
 
-import { utf8ToBytes, bytesToUtf8 } from '@noble/ciphers/utils';
+import { to_string, from_string } from 'react-native-libsodium';
 import { getManagedChacha } from './cipher';
 
 import {
@@ -197,7 +197,7 @@ export const setAsync = async (
         `Uint8Array is not compatible with cipher (uses JSON.stringify)`
       );
     const chacha = getManagedChacha(cipherKey);
-    value = bytesToUtf8(chacha.encrypt(utf8ToBytes(JSON.stringify(value))));
+    value = to_string(chacha.encrypt(JSON.stringify(value)));
   }
   if (engine === 'IDB') {
     await idbSet(key, value);
@@ -286,7 +286,7 @@ export const getAsync = async <S extends SerializationFormat>(
       throw new Error('Impossible to decode non-string encoded value');
     } else {
       const chacha = getManagedChacha(cipherKey);
-      result = JSON.parse(bytesToUtf8(chacha.decrypt(utf8ToBytes(result))));
+      result = JSON.parse(to_string(chacha.decrypt(from_string(result))));
     }
   }
   return result;

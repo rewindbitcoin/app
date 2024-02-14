@@ -10,9 +10,22 @@ import {
   EncodingType
 } from 'expo-file-system';
 import { shareAsync } from 'expo-sharing';
-import { gzipSync } from 'fflate';
-import { utf8ToBytes } from '@noble/ciphers/utils';
-import { getManagedChacha } from '../../common/lib/cipher';
+//import { gzipSync, strFromU8 } from 'fflate';
+
+const THUNDER_DEN_CIPHER_ADDITIONAL_DATA = 'Thunder Den Vault Backup';
+
+//This works:
+import sodium from 'react-native-libsodium';
+//plugins need: ["react-native-libsodium", {}],
+
+//Alternative: https://sodium-friends.github.io/docs/docs/getstarted
+//const sodium = require('sodium-native');
+
+//https://doc.libsodium.org/secret-key_cryptography/aead/chacha20-poly1305/xchacha20-poly1305_construction
+//
+//https://github.com/ammarahm-ed/react-native-gzip
+//and gzip Async for web
+//https://github.com/hayr-hotoca/react-native-chacha20-poly1305
 
 //TODO the WalletProvider must also pass it's own refreshing state
 const WalletHomeScreen = ({
@@ -39,21 +52,91 @@ const WalletHomeScreen = ({
     async function requestVault() {
       const strVaults = getSerializedVaults();
       const { cipherAddress, cipherKey } = await getCipherKey();
-      const chacha = getManagedChacha(cipherKey);
+      //const chacha = getManagedChacha(cipherKey);
       console.log({ cipherAddress, cipherKey });
-      const cipheredVaults = chacha.encrypt(utf8ToBytes(strVaults));
-      const compressedVaults = gzipSync(cipheredVaults);
-      const fileName = `vaults-${Date.now()}.json.gz`;
 
+      //TODO: get rid of noble ciphers if libsodium works - UNINSTALL
+      //Uses /dev/urandom in iOS and Android:
+      //https://libsodium.gitbook.io/doc/generating_random_data
+      //https://stackoverflow.com/a/13055641
+      const cipherStartTime = Date.now();
+
+      const nonce = sodium.randombytes_buf(
+        sodium.crypto_aead_xchacha20poly1305_ietf_NPUBBYTES
+      );
+      //const nonce = Buffer.alloc(
+      //  sodium.crypto_aead_xchacha20poly1305_ietf_NPUBBYTES
+      //);
+      //sodium.randombytes_buf(nonce);
+
+      if (
+        cipherKey.length !== sodium.crypto_aead_xchacha20poly1305_ietf_KEYBYTES
+      )
+        throw new Error(
+          `cipherKey length is ${cipherKey.length} != ${sodium.crypto_aead_xchacha20poly1305_ietf_KEYBYTES}`
+        );
+
+      const rawCipheredVaults =
+        sodium.crypto_aead_xchacha20poly1305_ietf_encrypt(
+          strVaults,
+          THUNDER_DEN_CIPHER_ADDITIONAL_DATA, //additional data that can be verified (this is not encoded)
+          null, //secret nonce
+          nonce, //public nonce
+          cipherKey,
+          'uint8array' //Result type
+        );
+
+      //const message = Buffer.from(strVaults);
+      //const rawCipheredVaults = Buffer.alloc(
+      //  message.length + sodium.crypto_aead_xchacha20poly1305_ietf_ABYTES
+      //);
+
+      //sodium.crypto_aead_xchacha20poly1305_ietf_encrypt(
+      //  rawCipheredVaults,
+      //  message,
+      //  Buffer.from(THUNDER_DEN_CIPHER_ADDITIONAL_DATA), //additional data that can be verified (this is not encoded)
+      //  null, //secret nonce
+      //  nonce, //public nonce
+      //  cipherKey
+      //);
+      // Prepend the nonce to the rawCipheredVaults
+      const cipheredVaults = new Uint8Array(
+        nonce.length + rawCipheredVaults.length
+      );
+      cipheredVaults.set(nonce, 0);
+      cipheredVaults.set(rawCipheredVaults, nonce.length);
+      //https://github.com/serenity-kit/react-native-libsodium/blob/main/example/src/tests/crypto_aead_xchacha20poly1305_ietf_decrypt_test.ts
+
+      //const cipheredVaults = chacha.encrypt(utf8ToBytes(strVaults));
+      console.log('Cipher Time:', Date.now() - cipherStartTime, 'ms');
+
+      //let compressedVaults;
+      //const gzipStartTime = Date.now();
+      //if (Platform.OS === 'android' || Platform.OS === 'ios') {
+      //  compressedVaults = gzipSync(cipheredVaults); //This works
+      //} else {
+      //  compressedVaults = gzipSync(cipheredVaults);
+      //}
+      //console.log('Gzip Time:', Date.now() - gzipStartTime, 'ms');
+
+      const fileName = `vaults-${Date.now()}.json.xch20`;
+
+      console.log(`Sending ${cipheredVaults.byteLength / 1024 / 1024} MB`);
       try {
-        const response = await fetch('http://localhost:3000', {
-          method: 'POST',
-          body: compressedVaults,
-          headers: {
-            'Content-Type': 'application/octet-stream',
-            'X-Data-ThunderDenID-V0': cipherAddress
+        const response = await fetch(
+          Platform.select({
+            android: 'http://10.0.2.2:3000',
+            default: 'http://localhost:3000'
+          }),
+          {
+            method: 'POST',
+            body: cipheredVaults,
+            headers: {
+              'Content-Type': 'application/octet-stream',
+              'X-Data-ThunderDenID-V0': cipherAddress
+            }
           }
-        });
+        );
 
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
@@ -66,7 +149,7 @@ const WalletHomeScreen = ({
       }
 
       if (Platform.OS === 'web') {
-        const blob = new Blob([compressedVaults], {
+        const blob = new Blob([cipheredVaults], {
           type: 'application/octet-stream'
         });
         const url = URL.createObjectURL(blob);
@@ -81,7 +164,7 @@ const WalletHomeScreen = ({
         const filePath = `${documentDirectory}${fileName}`;
         await writeAsStringAsync(
           filePath,
-          Buffer.from(compressedVaults).toString('base64'),
+          Buffer.from(cipheredVaults).toString('base64'),
           {
             encoding: EncodingType.Base64
           }

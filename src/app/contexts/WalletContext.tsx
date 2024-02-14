@@ -1,7 +1,9 @@
 const THUNDERDEN_CIPHER_KEY_PATH = `m/88551025'/1821456116'/904787242'/1855666376'/1464383631'`;
 const THUNDERDEN_CIPHER_KEY_MESSAGE = 'Unlock ThunderDen Encryption Key';
 import { crypto, payments } from 'bitcoinjs-lib';
-import { signMessage } from '../../common/lib/signmessage';
+import { MessageFactory } from 'bitcoinjs-message';
+import * as secp256k1 from '@bitcoinerlab/secp256k1';
+const MessageAPI = MessageFactory(secp256k1);
 
 import {
   fetchVaultsStatuses,
@@ -45,7 +47,6 @@ import { EsploraExplorer } from '@bitcoinerlab/explorer';
 import { signers as descriptorsSigners } from '@bitcoinerlab/descriptors';
 import { DiscoveryFactory, DiscoveryInstance } from '@bitcoinerlab/discovery';
 import { networks, Network, Psbt } from 'bitcoinjs-lib';
-import * as secp256k1 from '@bitcoinerlab/secp256k1';
 import { DescriptorsFactory } from '@bitcoinerlab/descriptors';
 const { BIP32 } = DescriptorsFactory(secp256k1);
 import { mnemonicToSeedSync } from 'bip39';
@@ -103,16 +104,15 @@ function esploraUrl(network: Network) {
 const DEFAULT_VAULTS_STATUSES: VaultsStatuses = {};
 const DEFAULT_ACCOUNT_NAMES: AccountNames = {};
 const DEFAULT_VAULTS: Vaults = {};
-export const WalletProvider = ({
+const WalletProviderWithWallet = ({
   children,
   wallet,
   newWalletSigners
 }: {
   children: ReactNode;
-  wallet?: Wallet;
+  wallet: Wallet;
   newWalletSigners?: Signers;
 }) => {
-  if (!wallet) return children;
   const canUseSecureStorage = useSecureStorageAvailability();
   if (canUseSecureStorage === undefined)
     //This should never happen. If we have a wallet already it's because the App
@@ -123,7 +123,6 @@ export const WalletProvider = ({
       'WalletContext cannot be used until useSecureStorageAvailability has been resolved'
     );
   const { t } = useTranslation();
-  //console.log('TODO: WALLET PROVIDER HERE I AM');
   const walletId = wallet.walletId;
   const signersStorageEngine = wallet.signersStorageEngine;
   const network = networkMapping[wallet.networkId];
@@ -136,7 +135,7 @@ export const WalletProvider = ({
     (signersStorageEngine === 'SECURESTORE' && canUseSecureStorage === false)
   ) {
     throw new Error(
-      `signersStorageEngine ${signersStorageEngine} does not match this system specs: ${Platform.OS}, canUseSecureStorage=${canUseSecureStorage}`
+      `signersStorageEngine ${signersStorageEngine} does not match this system specs: ${Platform.OS}, canUseSecureStorage=${canUseSecureStorage}. Have you not enabled Biometric id in your system?`
     );
   }
   const [signers, setSigners] = useLocalStateStorage<Signers>(
@@ -201,7 +200,7 @@ export const WalletProvider = ({
 
   useEffect(() => {
     if (newWalletSigners) setSigners(newWalletSigners);
-  }, [newWalletSigners]);
+  }, [newWalletSigners, setSigners]);
 
   const toast = useToast();
 
@@ -251,7 +250,7 @@ export const WalletProvider = ({
       };
     }
     return;
-  }, [network, discoveryDataExport, isDiscoveryDataExportSynchd]);
+  }, [network, discoveryDataExport, isDiscoveryDataExportSynchd, discovery]);
 
   // Sets feeEstimates
   useEffect(() => {
@@ -294,6 +293,8 @@ export const WalletProvider = ({
     }
     return;
   }, [
+    t,
+    toast,
     discovery,
     network,
     settings?.USE_MAINNET_FEE_ESTIMATES_IN_TESTNET,
@@ -331,7 +332,7 @@ export const WalletProvider = ({
       };
     }
     return;
-  }, [settings?.CURRENCY, settings?.BTC_FIAT_REFRESH_INTERVAL_MS]);
+  }, [t, toast, settings?.CURRENCY, settings?.BTC_FIAT_REFRESH_INTERVAL_MS]);
 
   const [syncingBlockchain, setSyncingBlockchain] = useState(false);
   const syncBlockchainRunning = useRef(false);
@@ -347,7 +348,7 @@ export const WalletProvider = ({
     if (!childNode.privateKey)
       throw new Error('Could not generatel a privateKey');
 
-    const signature = signMessage(
+    const signature = MessageAPI.sign(
       THUNDERDEN_CIPHER_KEY_MESSAGE,
       childNode.privateKey,
       true // assumes compressed
@@ -357,6 +358,7 @@ export const WalletProvider = ({
       pubkey: childNode.publicKey,
       network
     });
+    if (!address) throw new Error('Could not create cipherAddress');
 
     //https://crypto.stackexchange.com/questions/109174/are-rsa-signatures-distinguishable-from-random-data
     //https://github.com/bitcoinjs/bitcoinjs-message/blob/master/index.js
@@ -466,7 +468,7 @@ export const WalletProvider = ({
         'syncBlockchain not performing any action for being called with non-initialized inputs',
         {
           network,
-          settings,
+          GAP_LIMIT: settings?.GAP_LIMIT,
           discovery,
           vaults,
           vaultsStatuses,
@@ -510,6 +512,11 @@ export const WalletProvider = ({
       return updatedVaultsStatuses;
     }
   }, [
+    accountNames,
+    setDiscoveryDataExport,
+    setVaultsStatuses,
+    t,
+    toast,
     discovery,
     vaults,
     vaultsStatuses,
@@ -577,7 +584,7 @@ export const WalletProvider = ({
         return true;
       }
     },
-    [discovery, vaults, vaultsStatuses]
+    [setVaults, setVaultsStatuses, t, toast, vaults, vaultsStatuses]
   );
 
   const signPsbt = useCallback(
@@ -614,4 +621,25 @@ export const WalletProvider = ({
       {children}
     </WalletContext.Provider>
   );
+};
+
+export const WalletProvider = ({
+  children,
+  wallet,
+  newWalletSigners
+}: {
+  children: ReactNode;
+  wallet?: Wallet;
+  newWalletSigners?: Signers;
+}) => {
+  if (!wallet) return children;
+  else
+    return (
+      <WalletProviderWithWallet
+        wallet={wallet}
+        {...(newWalletSigners ? { newWalletSigners: newWalletSigners } : {})}
+      >
+        {children}
+      </WalletProviderWithWallet>
+    );
 };

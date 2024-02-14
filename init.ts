@@ -16,8 +16,8 @@ console.log(
 );
 
 //shims for react-native
-import { Buffer } from 'buffer';
-global.Buffer = Buffer;
+if (typeof Buffer === 'undefined') global.Buffer = require('buffer').Buffer;
+
 import 'react-native-get-random-values';
 import 'react-native-url-polyfill/auto';
 
@@ -29,6 +29,23 @@ import 'fast-text-encoding';
 import { NativeModules } from 'react-native';
 const { UIManager } = NativeModules;
 UIManager.setLayoutAnimationEnabledExperimental?.(true);
+
+//if (typeof __dirname === 'undefined') global.__dirname = '/';
+//if (typeof __filename === 'undefined') global.__filename = '';
+//if (typeof process === 'undefined') {
+//  global.process = require('process');
+//} else {
+//  const bProcess = require('process');
+//  for (const p in bProcess) {
+//    if (!(p in process)) {
+//      process[p] = bProcess[p];
+//    }
+//  }
+//}
+//process.browser = false;
+//process.execPath = '/';
+
+//global.process.version = "";
 
 //import './electrumSupport'
 
