@@ -84,7 +84,7 @@ export type WalletContextType = {
       | 'UNKNOWN_ERROR'
   ) => Promise<boolean>;
   getSerializedVaults: () => string;
-  getCipherKey: () => Promise<{ cipherKey: Buffer; cipherAddress: string }>;
+  getCipherKey: () => Promise<{ cipherKey: Buffer; cipherId: string }>;
   syncBlockchain: () => Promise<void>;
   syncingBlockchain: boolean;
   // ... any other properties you want to include
@@ -358,7 +358,7 @@ const WalletProviderWithWallet = ({
       pubkey: childNode.publicKey,
       network
     });
-    if (!address) throw new Error('Could not create cipherAddress');
+    if (!address) throw new Error('Could not create cipherId');
 
     //https://crypto.stackexchange.com/questions/109174/are-rsa-signatures-distinguishable-from-random-data
     //https://github.com/bitcoinjs/bitcoinjs-message/blob/master/index.js
@@ -368,7 +368,7 @@ const WalletProviderWithWallet = ({
     //https://crypto.stackexchange.com/questions/108743/are-curve-secp256k1-ecdsa-signatures-distinguishable-from-random-data
     //https://medium.com/@simonwarta/signature-determinism-for-blockchain-developers-dbd84865a93e
 
-    return { cipherAddress: address, cipherKey };
+    return { cipherId: address, cipherKey };
   }, [signers, network]);
   /**
    * Initiates the blockchain synchronization process. This function uses
