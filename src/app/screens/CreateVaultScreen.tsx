@@ -28,28 +28,18 @@ export default function VaultCreate({
   if (context === null) throw new Error('Context was not set');
 
   if (!vaultSettings) throw new Error('vaultSettings not set');
-  const { amount, feeRate, lockBlocks } = vaultSettings;
+  const { amount, feeRate, lockBlocks, coldAddress } = vaultSettings;
 
   const {
     utxosData,
     network,
     signPsbt,
-    coldAddress,
-    serviceAddress,
-    changeDescriptor,
-    unvaultKey,
+    getServiceAddress,
+    getChangeDescriptor,
+    getUnvaultKey,
     processCreatedVault
   } = context;
-  if (
-    !utxosData ||
-    !network ||
-    !signPsbt ||
-    !coldAddress ||
-    !serviceAddress ||
-    !changeDescriptor ||
-    !unvaultKey ||
-    !processCreatedVault
-  )
+  if (!utxosData || !network || !signPsbt || !processCreatedVault)
     throw new Error('Missing data from context');
   const { t } = useTranslation();
   const keepProgress = useRef<boolean>(true);
@@ -75,6 +65,13 @@ export default function VaultCreate({
     //Leave some time so that the progress is rendered
     const createAndNotifyVault = async () => {
       await sleep(200);
+
+      const unvaultKey = await getUnvaultKey();
+      const serviceAddress = await getServiceAddress(); //TODO: show error if network error
+      const changeDescriptor = await getChangeDescriptor();
+
+      console.log('TRACE', { unvaultKey, serviceAddress, changeDescriptor });
+
       const vault = await createVault({
         amount,
         unvaultKey,
@@ -91,6 +88,10 @@ export default function VaultCreate({
         network,
         onProgress
       });
+
+      //TODO: now this must do the backup on the server using holepunch!
+      //It must pass the serviceAddress as an authorization (and for anti-spam)
+      //The server must check in the mempool?
       if (isMounted) {
         const result = await processCreatedVault(vault);
         //TODO: ask for confirmation, then:

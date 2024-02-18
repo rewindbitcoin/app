@@ -26,6 +26,7 @@ import type { Explorer } from '@bitcoinerlab/explorer';
 
 export type VaultSettings = {
   amount: number;
+  coldAddress: string;
   feeRate: number;
   lockBlocks: number;
 };

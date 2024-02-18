@@ -15,7 +15,7 @@ import {
   type UtxosData
 } from '../lib/vaults';
 import type { AccountNames, Signers } from '../lib/wallets';
-import { networkMapping } from '../lib/network';
+import { getNetworkId, networkMapping } from '../lib/network';
 import {
   createReceiveDescriptor,
   createChangeDescriptor,
@@ -61,15 +61,9 @@ export const WalletContext: Context<WalletContextType | null> =
   createContext<WalletContextType | null>(null);
 
 export type WalletContextType = {
-  //TODO: Must also provide the serviceAddress
-  //TODO: Must also provide the coldAddress
-  //TODO: Must also provide the heirsAddress
-  //TODO: Must also provide changeDescriptor: getNextChangeDescriptor
-  //TODO: Must also provide unvaultKey: getUnvaultKey
-  serviceAddress: string | undefined;
-  coldAddress: string | undefined;
-  changeDescriptor: string | undefined;
-  unvaultKey: string | undefined;
+  getChangeDescriptor: () => Promise<string>;
+  getServiceAddress: () => Promise<string>;
+  getUnvaultKey: () => Promise<string>;
   btcFiat: number | null;
   feeEstimates: FeeEstimates | null;
   utxosData: UtxosData | undefined;
@@ -212,8 +206,6 @@ const WalletProviderWithWallet = ({
   > | null>(null);
   const [discovery, setDiscovery] = useState<DiscoveryInstance | null>(null);
   const [utxosData, setUtxosData] = useState<UtxosData>();
-  const [changeDescriptor, setChangeDescriptor] = useState<string>();
-  const [unvaultKey, setUnvaultKey] = useState<string>();
 
   // Sets discovery from storage if available or new:
   useEffect(() => {
@@ -370,6 +362,66 @@ const WalletProviderWithWallet = ({
 
     return { cipherId: address, cipherKey };
   }, [signers, network]);
+
+  const getChangeDescriptor = useCallback(async () => {
+    if (!signers) throw new Error('Signers not ready');
+    if (!discovery) throw new Error('Discovery not ready');
+    const signer = signers[0];
+    if (!signer) throw new Error('signer unavailable');
+    const changeDescriptorRanged = await createChangeDescriptor({
+      signer,
+      network
+    });
+    return changeDescriptorRanged.replaceAll(
+      '*',
+      discovery
+        .getNextIndex({
+          descriptor: changeDescriptorRanged
+        })
+        .toString()
+    );
+  }, [discovery, network, signers]);
+  const getUnvaultKey = useCallback(async () => {
+    if (!signers) throw new Error('Signers not ready');
+    const signer = signers[0];
+    if (!signer) throw new Error('signer unavailable');
+    return await createUnvaultKey({ signer, network });
+  }, [network, signers]);
+
+  const getServiceAddress = useCallback(async () => {
+    if (!settings?.SERVICE_ADDRESS_URL_TEMPLATE) {
+      throw new Error(
+        'System not ready: SERVICE_ADDRESS_URL_TEMPLATE is not defined.'
+      );
+    }
+
+    const networkId = getNetworkId(network).toLowerCase();
+    const serviceUrl = settings.SERVICE_ADDRESS_URL_TEMPLATE.replace(
+      '<network>',
+      networkId
+    );
+
+    try {
+      const response = await fetch(serviceUrl);
+      if (!response.ok) {
+        throw new Error(
+          `Failed to fetch service address: ${response.statusText}`
+        );
+      }
+
+      const data = await response.json();
+      if (!data.address) {
+        throw new Error('Invalid response: address field is missing.');
+      }
+
+      return data.address;
+    } catch (error) {
+      // Handle errors (e.g., network issues, invalid JSON, etc.)
+      console.error('Error fetching service address:', error);
+      throw error; // Re-throw the error if you want to handle it outside or show a message to the user
+    }
+  }, [network, settings?.SERVICE_ADDRESS_URL_TEMPLATE]);
+
   /**
    * Initiates the blockchain synchronization process. This function uses
    * both a reference (`syncBlockchainRunning`) and state (`syncingBlockchain`).
@@ -429,17 +481,6 @@ const WalletProviderWithWallet = ({
         ];
         console.log('WALLET PROVIDER', 'network expensive fetch function');
         await discovery.fetch({ descriptors, gapLimit: settings.GAP_LIMIT });
-        setChangeDescriptor(
-          changeDescriptorRanged.replaceAll(
-            '*',
-            discovery
-              .getNextIndex({
-                descriptor: changeDescriptorRanged
-              })
-              .toString()
-          )
-        );
-        setUnvaultKey(await createUnvaultKey({ signer, network }));
         //Saves to disk. It's async, but it's ok not waiting since discovery
         //data can be recreated any time (with a slower call) by fetching
         //descriptors
@@ -605,11 +646,9 @@ const WalletProviderWithWallet = ({
   );
 
   const contextValue = {
-    // Expose any state or functions that children components might need
-    coldAddress: 'tb1qm0k9mn48uqfs2w9gssvzmus4j8srrx5eje7wpf', //TODO: Fix this
-    serviceAddress: 'tb1qm0k9mn48uqfs2w9gssvzmus4j8srrx5eje7wpf', //TODO: Fix this
-    changeDescriptor,
-    unvaultKey,
+    getUnvaultKey,
+    getChangeDescriptor,
+    getServiceAddress,
     btcFiat,
     feeEstimates,
     signPsbt,

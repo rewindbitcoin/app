@@ -87,6 +87,7 @@ const WalletHomeScreen = ({
           headers: {
             'Content-Type': 'application/octet-stream',
             'X-Data-ThunderDen-BackupId': cipherId
+            //TODO: Here I also need to pass the invoiceId
           }
         });
 

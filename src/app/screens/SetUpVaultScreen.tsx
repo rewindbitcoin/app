@@ -36,7 +36,7 @@ import { estimateVaultSetUpRange } from '../lib/vaultRange';
 export default function VaultSetUp({
   onVaultSetUpComplete
 }: {
-  onVaultSetUpComplete: (VaultSettings: VaultSettings) => void;
+  onVaultSetUpComplete: (vaultSettings: VaultSettings) => void;
 }) {
   const insets = useSafeAreaInsets();
   const theme = useTheme();
@@ -129,9 +129,10 @@ export default function VaultSetUp({
   );
 
   const handleOK = useCallback(() => {
+    const coldAddress = 'tb1qm0k9mn48uqfs2w9gssvzmus4j8srrx5eje7wpf'; //TODO Grab from <AddressInput>
     if (feeRate === null || amount === null || lockBlocks === null)
       throw new Error('Cannot process Vault');
-    onVaultSetUpComplete({ feeRate, amount, lockBlocks });
+    onVaultSetUpComplete({ coldAddress, feeRate, amount, lockBlocks });
   }, [feeRate, amount, lockBlocks, onVaultSetUpComplete]);
 
   const txSize =
@@ -210,7 +211,7 @@ export default function VaultSetUp({
               onValueChange={setLockBlocks}
             />
             <View style={styles.cardSeparator} />
-            <AddressInput />
+            <AddressInput /*TODO: grab coldAddress - hardcoded right now*/ />
             <View style={styles.cardSeparator} />
             <FeeInput
               initialValue={initialFeeRate}
