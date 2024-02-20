@@ -14,6 +14,7 @@ import {
 import { useGlobalStateStorage } from '../../common/contexts/StorageContext';
 import { SERIALIZABLE } from '../../common/lib/storage';
 import { Button, Text, KeyboardAwareScrollView } from '../../common/ui';
+import { p2pBackupVault } from '../lib/backup';
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 export default function VaultCreate({
   vaultSettings,
@@ -33,13 +34,13 @@ export default function VaultCreate({
   const {
     utxosData,
     network,
-    signPsbt,
     getServiceAddress,
     getChangeDescriptor,
     getUnvaultKey,
+    signer,
     processCreatedVault
   } = context;
-  if (!utxosData || !network || !signPsbt || !processCreatedVault)
+  if (!utxosData || !network || !signer || !processCreatedVault)
     throw new Error('Missing data from context');
   const { t } = useTranslation();
   const keepProgress = useRef<boolean>(true);
@@ -83,19 +84,36 @@ export default function VaultCreate({
         changeDescriptor,
         serviceAddress,
         lockBlocks,
-        signPsbt,
+        signer,
         utxosData,
         network,
+        vaultCheckUrlTemplate: settings.VAULT_CHECK_URL_TEMPLATE,
         onProgress
       });
 
-      //TODO: now this must do the backup on the server using holepunch!
-      //It must pass the serviceAddress as an authorization (and for anti-spam)
-      //The server must check in the mempool?
-      if (isMounted) {
-        const result = await processCreatedVault(vault);
-        //TODO: ask for confirmation, then:
-        onVaultCreated(result);
+      if (typeof vault === 'object') {
+        //TODO: here now also show the progress, also it fhis fails then do
+        //not proceed
+        //TODO: Also there is a processCreatedVault that does stuff. integrate
+        //both
+        const backupResult = await p2pBackupVault(
+          vault,
+          signer,
+          settings.VAULT_SUBMIT_URL_TEMPLATE,
+          settings.VAULT_GET_URL_TEMPLATE,
+          network
+        );
+        if (!backupResult)
+          throw new Error("Could not backup the vault, won't proceed");
+
+        //TODO: now this must do the backup on the server using holepunch!
+        //It must pass the serviceAddress as an authorization (and for anti-spam)
+        //The server must check in the mempool?
+        if (isMounted) {
+          const result = await processCreatedVault(vault);
+          //TODO: ask for confirmation, then:
+          onVaultCreated(result);
+        }
       }
     };
     createAndNotifyVault();

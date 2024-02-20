@@ -65,7 +65,7 @@ export const createServiceDescriptor = (address: string) => `addr(${address})`;
 
 export const createColdDescriptor = (address: string) => `addr(${address})`;
 
-const getMasterNode = moize((mnemonic: string, network: Network) =>
+export const getMasterNode = moize((mnemonic: string, network: Network) =>
   BIP32.fromSeed(mnemonicToSeedSync(mnemonic), network)
 );
 

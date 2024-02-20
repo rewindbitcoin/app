@@ -1,10 +1,3 @@
-const THUNDERDEN_CIPHER_KEY_PATH = `m/88551025'/1821456116'/904787242'/1855666376'/1464383631'`;
-const THUNDERDEN_CIPHER_KEY_MESSAGE = 'Unlock ThunderDen Encryption Key';
-import { crypto, payments } from 'bitcoinjs-lib';
-import { MessageFactory } from 'bitcoinjs-message';
-import * as secp256k1 from '@bitcoinerlab/secp256k1';
-const MessageAPI = MessageFactory(secp256k1);
-
 import {
   fetchVaultsStatuses,
   getSpendableTriggerDescriptors,
@@ -14,7 +7,7 @@ import {
   type VaultsStatuses,
   type UtxosData
 } from '../lib/vaults';
-import type { AccountNames, Signers } from '../lib/wallets';
+import type { AccountNames, Signer, Signers } from '../lib/wallets';
 import { getNetworkId, networkMapping } from '../lib/network';
 import {
   createReceiveDescriptor,
@@ -44,15 +37,9 @@ import { useTranslation } from 'react-i18next';
 import { fetchBtcFiat } from '../lib/btcRates';
 
 import { EsploraExplorer } from '@bitcoinerlab/explorer';
-import { signers as descriptorsSigners } from '@bitcoinerlab/descriptors';
 import { DiscoveryFactory, DiscoveryInstance } from '@bitcoinerlab/discovery';
-import { networks, Network, Psbt } from 'bitcoinjs-lib';
-import { DescriptorsFactory } from '@bitcoinerlab/descriptors';
-const { BIP32 } = DescriptorsFactory(secp256k1);
-import { mnemonicToSeedSync } from 'bip39';
+import { networks, Network } from 'bitcoinjs-lib';
 import type { FeeEstimates } from '../lib/fees';
-//import { randomBytes } from '@noble/ciphers/webcrypto/utils';
-//const cipherKey = randomBytes(32);
 import { Platform } from 'react-native';
 
 type DiscoveryDataExport = ReturnType<DiscoveryInstance['export']>;
@@ -67,7 +54,7 @@ export type WalletContextType = {
   btcFiat: number | null;
   feeEstimates: FeeEstimates | null;
   utxosData: UtxosData | undefined;
-  signPsbt: (psbtVault: Psbt) => Promise<void>;
+  signer: Signer | undefined;
   network: Network | undefined;
   processCreatedVault: (
     vault:
@@ -78,7 +65,6 @@ export type WalletContextType = {
       | 'UNKNOWN_ERROR'
   ) => Promise<boolean>;
   getSerializedVaults: () => string;
-  getCipherKey: () => Promise<{ cipherKey: Buffer; cipherId: string }>;
   syncBlockchain: () => Promise<void>;
   syncingBlockchain: boolean;
   // ... any other properties you want to include
@@ -332,36 +318,6 @@ const WalletProviderWithWallet = ({
     () => JSON.stringify(vaults, null, 2),
     [vaults]
   );
-  const getCipherKey = useCallback(async () => {
-    const mnemonic = signers?.[0]?.mnemonic;
-    if (!mnemonic) throw new Error('Could not initialize the signer');
-    const masterNode = BIP32.fromSeed(mnemonicToSeedSync(mnemonic), network);
-    const childNode = masterNode.derivePath(THUNDERDEN_CIPHER_KEY_PATH);
-    if (!childNode.privateKey)
-      throw new Error('Could not generatel a privateKey');
-
-    const signature = MessageAPI.sign(
-      THUNDERDEN_CIPHER_KEY_MESSAGE,
-      childNode.privateKey,
-      true // assumes compressed
-    );
-    const cipherKey = crypto.sha256(signature);
-    const { address } = payments.p2pkh({
-      pubkey: childNode.publicKey,
-      network
-    });
-    if (!address) throw new Error('Could not create cipherId');
-
-    //https://crypto.stackexchange.com/questions/109174/are-rsa-signatures-distinguishable-from-random-data
-    //https://github.com/bitcoinjs/bitcoinjs-message/blob/master/index.js
-    //https://github.com/LedgerHQ/app-bitcoin-new/blob/34ba07a209d69ba10e9cb84dcf7b0bdd7818deca/bitcoin_client_js/src/lib/appClient.ts#L368
-    //
-    //https://crypto.stackexchange.com/questions/101860/using-a-signature-as-key-material
-    //https://crypto.stackexchange.com/questions/108743/are-curve-secp256k1-ecdsa-signatures-distinguishable-from-random-data
-    //https://medium.com/@simonwarta/signature-determinism-for-blockchain-developers-dbd84865a93e
-
-    return { cipherId: address, cipherKey };
-  }, [signers, network]);
 
   const getChangeDescriptor = useCallback(async () => {
     if (!signers) throw new Error('Signers not ready');
@@ -607,21 +563,19 @@ const WalletProviderWithWallet = ({
         return false;
       } else {
         // Create new vault
-        if (vaults[vault.vaultAddress])
-          throw new Error(`Vault for ${vault.vaultAddress} already exists`);
-        await setVaults({ ...vaults, [vault.vaultAddress]: vault });
+        if (vaults[vault.vaultId])
+          throw new Error(`Vault for ${vault.vaultId} already exists`);
+        await setVaults({ ...vaults, [vault.vaultId]: vault });
 
         console.log('Setting setVaultsStatuses', {
           ...vaultsStatuses,
-          [vault.vaultAddress]: { vaultPushTime: Math.floor(Date.now() / 1000) }
+          [vault.vaultId]: { vaultPushTime: Math.floor(Date.now() / 1000) }
         });
-        if (vaultsStatuses[vault.vaultAddress])
-          throw new Error(
-            `VaultStatus for ${vault.vaultAddress} already exists`
-          );
+        if (vaultsStatuses[vault.vaultId])
+          throw new Error(`VaultStatus for ${vault.vaultId} already exists`);
         await setVaultsStatuses({
           ...vaultsStatuses,
-          [vault.vaultAddress]: { vaultPushTime: Math.floor(Date.now() / 1000) }
+          [vault.vaultId]: { vaultPushTime: Math.floor(Date.now() / 1000) }
         });
 
         //TODO: enable this after tests. important to push after AWAIT setVaults
@@ -635,29 +589,18 @@ const WalletProviderWithWallet = ({
     [setVaults, setVaultsStatuses, t, toast, vaults, vaultsStatuses]
   );
 
-  const signPsbt = useCallback(
-    async (psbtVault: Psbt) => {
-      const mnemonic = signers?.[0]?.mnemonic;
-      if (!mnemonic) throw new Error('Could not initialize the signer');
-      const masterNode = BIP32.fromSeed(mnemonicToSeedSync(mnemonic), network);
-      descriptorsSigners.signBIP32({ psbt: psbtVault, masterNode });
-    },
-    [signers, network]
-  );
-
   const contextValue = {
     getUnvaultKey,
     getChangeDescriptor,
     getServiceAddress,
     btcFiat,
     feeEstimates,
-    signPsbt,
+    signer: signers?.[0],
     network,
     utxosData,
     processCreatedVault,
     syncBlockchain,
     getSerializedVaults,
-    getCipherKey,
     syncingBlockchain
     // ... any other relevant state or functions
   };

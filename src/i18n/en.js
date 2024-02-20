@@ -134,6 +134,7 @@ If you have biometric encryption enabled, a password may not be necessary as\
       label: 'Emergency Address',
       createNewButton: 'Create',
       createNewModalTitle: 'Create new Address',
+      createNewModalText: '',
       textInputPlaceholder: 'Enter or Create an Address'
     },
     recipientAddress: {

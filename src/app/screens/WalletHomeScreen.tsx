@@ -11,18 +11,6 @@ import {
 } from 'expo-file-system';
 import { shareAsync } from 'expo-sharing';
 import { compressData } from '../../common/lib/compress';
-import { getManagedChacha } from '../../common/lib/cipher';
-import { gunzipSync, strFromU8 } from 'fflate';
-
-const submitServer = Platform.select({
-  android: 'http://10.0.2.2:3000',
-  default: 'http://localhost:3000'
-});
-
-const verifyServer = Platform.select({
-  android: 'http://10.0.2.2:4000',
-  default: 'http://localhost:4000'
-});
 
 //TODO the WalletProvider must also pass it's own refreshing state
 const WalletHomeScreen = ({
@@ -36,92 +24,27 @@ const WalletHomeScreen = ({
   if (context === null) {
     throw new Error('Context was not set');
   }
-  const {
-    getSerializedVaults,
-    getCipherKey,
-    btcFiat,
-    signPsbt,
-    syncBlockchain,
-    syncingBlockchain
-  } = context;
+  const { getSerializedVaults, btcFiat, syncBlockchain, syncingBlockchain } =
+    context;
 
-  const onRequestVaultsBackup = useCallback(() => {
-    async function requestVault() {
-      const strVaults = getSerializedVaults();
-      const { cipherId, cipherKey } = await getCipherKey();
-
-      console.log({ cipherId, cipherKey: cipherKey.toString('hex') });
-
-      const gzipStartTime = Date.now();
+  const onRequestVaultBackup = useCallback(() => {
+    async function requestVault(): Promise<boolean> {
+      const strVault = getSerializedVaults();
 
       const compressedVaults = compressData(
-        strVaults,
+        strVault,
         256 * 1024, //chunks of 256 KB
         (progress: number) => {
           console.log({ progress });
           return false; //true if user wants to cancel
         }
       );
-      if (!compressedVaults) throw new Error('Impossible to compress vaults');
-      console.log(
-        `compressedVaults size ${compressedVaults.length / 1024 / 1024} MB`
-      );
-      console.log(`strVaults size ${strVaults.length / 1024 / 1024} MB`);
-
-      console.log('Gzip Time:', Date.now() - gzipStartTime, 'ms');
-
-      const chacha = getManagedChacha(cipherKey);
-
-      const cipheredCompressedVaults = chacha.encrypt(compressedVaults);
-      console.log(
-        `cipheredCompressedVaults size ${cipheredCompressedVaults.length / 1024 / 1024} MB`
-      );
-
-      console.log(
-        `Sending ${cipheredCompressedVaults.byteLength / 1024 / 1024} MB`
-      );
-      try {
-        const response = await fetch(submitServer, {
-          method: 'POST',
-          body: cipheredCompressedVaults,
-          headers: {
-            'Content-Type': 'application/octet-stream',
-            'X-Data-ThunderDen-BackupId': cipherId
-            //TODO: Here I also need to pass the invoiceId
-          }
-        });
-
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        console.log('Vaults data posted successfully');
-
-        console.log(`Verifying backup on: ${verifyServer}/data/${cipherId}`);
-        const verify = await fetch(`${verifyServer}/data/${cipherId}`);
-        if (!verify.ok)
-          throw new Error(
-            `HTTP error! cannot verify backup status: ${verify.status}`
-          );
-        const verifyCompressedVaults = chacha.decrypt(
-          new Uint8Array(await verify.arrayBuffer())
-        );
-        console.log(
-          `verifyCompressedVaults size ${verifyCompressedVaults.length / 1024 / 1024} MB`
-        );
-        const verifyVaults = gunzipSync(verifyCompressedVaults);
-        console.log(
-          `verifyVaults size ${verifyVaults.length / 1024 / 1024} MB`
-        );
-        console.log(
-          `verifyVaults === strVaults: ${strFromU8(verifyVaults) === strVaults}`
-        );
-      } catch (error) {
-        console.error('Error posting vaults data:', error);
-        return; // Stop execution if POST fails
+      if (!compressedVaults) {
+        return false;
+        //TODO: toast throw new Error('Impossible to compress vaults');
       }
 
-      const fileName = `${cipherId}.json.gz`;
+      const fileName = `vaults.json.gz`;
       if (Platform.OS === 'web') {
         const blob = new Blob([compressedVaults], {
           type: 'application/octet-stream'
@@ -144,16 +67,16 @@ const WalletHomeScreen = ({
           }
         );
         await shareAsync(filePath);
-        console.log(`Deleting ${filePath}`);
         await deleteAsync(filePath);
       }
+      return true;
     }
     requestVault();
-  }, [getSerializedVaults, getCipherKey]);
+  }, [getSerializedVaults]);
 
-  console.log({ btcFiat, signPsbt, syncingBlockchain });
+  console.log({ btcFiat, syncingBlockchain });
 
-  // Use btcFiat, signPsbt, and any other data or functions provided by the context
+  // Use btcFiat, and any other data or functions provided by the context
   // ...
 
   return (
@@ -191,7 +114,7 @@ const WalletHomeScreen = ({
           //TODO: translate
           t('Backup Vaults')
         }
-        onPress={onRequestVaultsBackup}
+        onPress={onRequestVaultBackup}
       />
     </KeyboardAwareScrollView>
   );

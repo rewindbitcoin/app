@@ -1,6 +1,7 @@
 // TODO: very imporant to only allow Vaulting funds with 1 confirmatin at least (make this a setting)
 import { Network, Psbt, Transaction, address, crypto } from 'bitcoinjs-lib';
 import memoize from 'lodash.memoize';
+import type { Signer } from './wallets';
 import moize from 'moize';
 
 import * as secp256k1 from '@bitcoinerlab/secp256k1';
@@ -11,6 +12,7 @@ import {
 } from '@bitcoinerlab/descriptors';
 const { Output, ECPair, parseKeyExpression } = DescriptorsFactory(secp256k1);
 import {
+  getMasterNode,
   createVaultDescriptor,
   createTriggerDescriptor,
   createColdDescriptor,
@@ -18,6 +20,7 @@ import {
   DUMMY_PUBKEY,
   DUMMY_PUBKEY_2
 } from './vaultDescriptors';
+import { getNextVaultId } from './backup';
 
 import { feeRateSampling } from './fees';
 import type { DiscoveryInstance } from '@bitcoinerlab/discovery';
@@ -32,6 +35,11 @@ export type VaultSettings = {
 };
 
 export type Vault = {
+  /** vaultId and vaultPath universally identify this vault.
+   * Theuy are be obtained from the next available pubKey
+   * for path on the online P2P network. See getNextVaultId */
+  vaultId: string;
+  vaultPath: string;
   amount: number;
 
   vaultAddress: string;
@@ -252,6 +260,13 @@ export const utxosDataBalance = memoize((utxosData: UtxosData): number =>
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
+const signPsbt = async (signer: Signer, network: Network, psbtVault: Psbt) => {
+  const mnemonic = signer?.mnemonic;
+  if (!mnemonic) throw new Error('Could not initialize the signer');
+  const masterNode = getMasterNode(mnemonic, network);
+  signers.signBIP32({ psbt: psbtVault, masterNode });
+};
+
 export async function createVault({
   amount,
   unvaultKey,
@@ -263,9 +278,10 @@ export async function createVault({
   changeDescriptor,
   serviceAddress,
   lockBlocks,
-  signPsbt,
+  signer,
   network,
   utxosData,
+  vaultCheckUrlTemplate,
   onProgress
 }: {
   /** amount includes serviceFee */
@@ -285,10 +301,11 @@ export async function createVault({
   lockBlocks: number;
   /** A signer async function able to sign any of the utxos in utxosData,
    * placed in a Psbt */
-  signPsbt: (psbtVault: Psbt) => Promise<void>;
+  signer: Signer;
   network: Network;
   /** There are ALL the utxos (prior to coinselect them) */
   utxosData: UtxosData;
+  vaultCheckUrlTemplate: string;
   onProgress: (progress: number) => boolean;
 }): Promise<
   | Vault
@@ -371,7 +388,7 @@ export async function createVault({
         value: selected.serviceFee
       });
     //Sign
-    await signPsbt(psbtVault);
+    await signPsbt(signer, network, psbtVault);
     //Finalize
     vaultFinalizers.forEach(finalizer => finalizer({ psbt: psbtVault }));
     const txVault = psbtVault.extractTransaction(true);
@@ -514,7 +531,15 @@ export async function createVault({
       if (panicTxs.length === 0)
         throw new Error(`Panic spending path has no solutions.`);
 
+    const { vaultId, vaultPath } = await getNextVaultId(
+      signer,
+      network,
+      vaultCheckUrlTemplate
+    );
+
     return {
+      vaultId,
+      vaultPath,
       amount,
       minPanicBalance,
       feeRateCeiling,

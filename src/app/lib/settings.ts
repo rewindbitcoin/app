@@ -23,6 +23,9 @@ export interface Settings {
   USE_MAINNET_FEE_ESTIMATES_IN_TESTNET: boolean;
   WALLETS_DATA_VERSION: string;
   SERVICE_ADDRESS_URL_TEMPLATE: string;
+  VAULT_SUBMIT_URL_TEMPLATE: string;
+  VAULT_CHECK_URL_TEMPLATE: string;
+  VAULT_GET_URL_TEMPLATE: string;
 }
 
 // Default values for the context
@@ -53,5 +56,9 @@ export const defaultSettings: Settings = {
   USE_MAINNET_FEE_ESTIMATES_IN_TESTNET: true,
   WALLETS_DATA_VERSION: '1.0.0', //This does not define the version of the App, but keeps track of the changes in the signature of the Wallet
   SERVICE_ADDRESS_URL_TEMPLATE:
-    'https://api.thunderden.com/service-address/<network>/get'
+    'https://api.thunderden.com/service-address/<network>/get',
+  VAULT_SUBMIT_URL_TEMPLATE: 'https://api.thunderden.com/vaults/<vaultId>',
+  VAULT_CHECK_URL_TEMPLATE: 'https://api.thunderden.com/vaults/<vaultId>/check',
+  VAULT_GET_URL_TEMPLATE:
+    'https://api-proxy.thunderden.com/vaults/<vaultId>/get'
 };
