@@ -7,7 +7,7 @@ import {
   type VaultsStatuses,
   type UtxosData
 } from '../lib/vaults';
-import type { AccountNames, Signer, Signers } from '../lib/wallets';
+import type { AccountNames, Signers } from '../lib/wallets';
 import { getNetworkId, networkMapping } from '../lib/network';
 import {
   createReceiveDescriptor,
@@ -54,7 +54,8 @@ export type WalletContextType = {
   btcFiat: number | null;
   feeEstimates: FeeEstimates | null;
   utxosData: UtxosData | undefined;
-  signer: Signer | undefined;
+  signers: Signers | undefined;
+  vaults: Vaults | undefined;
   network: Network | undefined;
   processCreatedVault: (
     vault:
@@ -64,7 +65,6 @@ export type WalletContextType = {
       | 'USER_CANCEL'
       | 'UNKNOWN_ERROR'
   ) => Promise<boolean>;
-  getSerializedVaults: () => string;
   syncBlockchain: () => Promise<void>;
   syncingBlockchain: boolean;
   // ... any other properties you want to include
@@ -314,10 +314,6 @@ const WalletProviderWithWallet = ({
 
   const [syncingBlockchain, setSyncingBlockchain] = useState(false);
   const syncBlockchainRunning = useRef(false);
-  const getSerializedVaults = useCallback(
-    () => JSON.stringify(vaults, null, 2),
-    [vaults]
-  );
 
   const getChangeDescriptor = useCallback(async () => {
     if (!signers) throw new Error('Signers not ready');
@@ -595,12 +591,12 @@ const WalletProviderWithWallet = ({
     getServiceAddress,
     btcFiat,
     feeEstimates,
-    signer: signers?.[0],
+    signers,
+    vaults,
     network,
     utxosData,
     processCreatedVault,
     syncBlockchain,
-    getSerializedVaults,
     syncingBlockchain
     // ... any other relevant state or functions
   };

@@ -1,5 +1,11 @@
 //TODO: get some style stuff for the color
-import React, { useContext, useEffect, useState, useRef } from 'react';
+import React, {
+  useContext,
+  useEffect,
+  useState,
+  useRef,
+  useCallback
+} from 'react';
 import { WalletContext, WalletContextType } from '../contexts/WalletContext';
 import { useTranslation } from 'react-i18next';
 import { View, StyleSheet } from 'react-native';
@@ -18,10 +24,10 @@ import { p2pBackupVault } from '../lib/backup';
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 export default function VaultCreate({
   vaultSettings,
-  onVaultCreated
+  onVaultPushed
 }: {
   vaultSettings: VaultSettings | undefined;
-  onVaultCreated: (result: boolean) => void;
+  onVaultPushed: (result: boolean) => void;
 }) {
   const insets = useSafeAreaInsets();
   //TODO Use a proper Cancellable Modal
@@ -37,10 +43,10 @@ export default function VaultCreate({
     getServiceAddress,
     getChangeDescriptor,
     getUnvaultKey,
-    signer,
+    signers,
     processCreatedVault
   } = context;
-  if (!utxosData || !network || !signer || !processCreatedVault)
+  if (!utxosData || !network || !signers || !processCreatedVault)
     throw new Error('Missing data from context');
   const { t } = useTranslation();
   const keepProgress = useRef<boolean>(true);
@@ -55,10 +61,10 @@ export default function VaultCreate({
     );
   // We know settings are the correct ones in this Component
   const [progress, setProgress] = useState<number>(0);
-  const onProgress = (progress: number) => {
+  const onProgress = useCallback((progress: number) => {
     setProgress(progress);
     return keepProgress.current;
-  };
+  }, []);
   const samples = settings.SAMPLES;
   const feeRateCeiling = settings.PRESIGNED_FEE_RATE_CEILING;
   useEffect(() => {
@@ -72,6 +78,8 @@ export default function VaultCreate({
       const changeDescriptor = await getChangeDescriptor();
 
       console.log('TRACE', { unvaultKey, serviceAddress, changeDescriptor });
+      const signer = signers[0];
+      if (!signer) throw new Error('signer unavailable');
 
       const vault = await createVault({
         amount,
@@ -110,9 +118,11 @@ export default function VaultCreate({
         //It must pass the serviceAddress as an authorization (and for anti-spam)
         //The server must check in the mempool?
         if (isMounted) {
+          //This updates Vaults And VaultsStatuses local
+          //storage
           const result = await processCreatedVault(vault);
           //TODO: ask for confirmation, then:
-          onVaultCreated(result);
+          onVaultPushed(result);
         }
       }
     };

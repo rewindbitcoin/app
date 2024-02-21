@@ -2,7 +2,7 @@
 // this works properly: react-native-get-random-values
 
 import './init';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Platform } from 'react-native';
 import { SecureStorageAvailabilityProvider } from './src/common/contexts/SecureStorageAvailabilityContext';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -46,7 +46,7 @@ initI18n(defaultSettings.LOCALE);
 
 const RootStack = createRootStack();
 
-const App = () => {
+const Main = () => {
   // Get settings from disk. It will be used for setting the correct LOCALE.
   const [settings] = useGlobalStateStorage<SettingsType>(
     SETTINGS_GLOBAL_STORAGE,
@@ -71,21 +71,31 @@ const App = () => {
     </Button>
   );
 
-  const handleWallet = (wallet: Wallet, newWalletSigners?: Signers) => {
-    if (newWalletSigners) setNewWalletSigners(newWalletSigners);
-    setWallet(wallet);
-    if (navigation) navigation.navigate(WALLET_HOME);
-    else throw new Error('navigation not set');
-  };
-  const handleSetUpVaultInit = () => {
+  const handleWallet = useCallback(
+    (wallet: Wallet, newWalletSigners?: Signers) => {
+      if (newWalletSigners) setNewWalletSigners(newWalletSigners);
+      setWallet(wallet);
+      if (navigation) navigation.navigate(WALLET_HOME);
+      else throw new Error('navigation not set');
+    },
+    [navigation]
+  );
+  const handleSetUpVaultInit = useCallback(() => {
     if (navigation) navigation.navigate(SETUP_VAULT);
     else throw new Error('navigation not set');
-  };
-  const handleSetUpVaultComplete = (vaultSettings: VaultSettings) => {
-    setVaultSettings(vaultSettings);
-    if (navigation) navigation.navigate(CREATE_VAULT);
-    else throw new Error('navigation not set');
-  };
+  }, [navigation]);
+  const handleSetUpVaultComplete = useCallback(
+    (vaultSettings: VaultSettings) => {
+      setVaultSettings(vaultSettings);
+      if (navigation) navigation.navigate(CREATE_VAULT);
+      else throw new Error('navigation not set');
+    },
+    [navigation]
+  );
+  const handleVaultPushed = useCallback(
+    (_result: boolean) => navigation.navigate(WALLET_HOME),
+    [navigation]
+  );
 
   // init real Locale
   useEffect(() => {
@@ -93,6 +103,7 @@ const App = () => {
   }, [settings?.LOCALE]);
 
   const headerRightContainerStyle = { marginRight: 16 };
+
   return (
     <WalletProvider
       {...(wallet ? { wallet: wallet } : {})}
@@ -177,7 +188,7 @@ const App = () => {
               <>
                 <CreateVaultScreen
                   vaultSettings={vaultSettings}
-                  onVaultCreated={_result => navigation.navigate(WALLET_HOME)}
+                  onVaultPushed={handleVaultPushed}
                 />
               </>
             );
@@ -197,18 +208,20 @@ const App = () => {
 //Apply contexts:
 //If GestureHandlerRootView needed, place it just below SafeAreaProvider:
 // <GestureHandlerRootView style={{ flex: 1 }}> </GestureHandlerRootView>
-export default () => (
-  <SafeAreaProvider>
-    <GestureHandlerRootView style={{ flex: 1 }}>
-      <NavigationContainer theme={useTheme()}>
-        <StorageProvider>
-          <SecureStorageAvailabilityProvider>
-            <ToastProvider>
-              <App />
-            </ToastProvider>
-          </SecureStorageAvailabilityProvider>
-        </StorageProvider>
-      </NavigationContainer>
-    </GestureHandlerRootView>
-  </SafeAreaProvider>
-);
+export default function App() {
+  return (
+    <SafeAreaProvider>
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <NavigationContainer theme={useTheme()}>
+          <StorageProvider>
+            <SecureStorageAvailabilityProvider>
+              <ToastProvider>
+                <Main />
+              </ToastProvider>
+            </SecureStorageAvailabilityProvider>
+          </StorageProvider>
+        </NavigationContainer>
+      </GestureHandlerRootView>
+    </SafeAreaProvider>
+  );
+}

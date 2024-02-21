@@ -1,5 +1,14 @@
+import { Platform } from 'react-native';
+import {
+  documentDirectory,
+  writeAsStringAsync,
+  deleteAsync,
+  EncodingType
+} from 'expo-file-system';
+import { shareAsync } from 'expo-sharing';
 const MAX_VAULT_CHECKS = 1000;
 const THUNDER_DEN_PURPOSE = 1073; // = [..."thunderden"].reduce((sum, char) => sum + char.charCodeAt(0), 0);
+import { getNetworkId } from './network';
 const THUNDERDEN_VAULT_PATH = `m/${THUNDER_DEN_PURPOSE}'/<network>'/0'/<index>`;
 const THUNDERDEN_SIGNING_MESSAGE = 'ThunderDen Encryption';
 
@@ -11,7 +20,7 @@ import * as secp256k1 from '@bitcoinerlab/secp256k1';
 const MessageAPI = MessageFactory(secp256k1);
 
 import { compressData } from '../../common/lib/compress';
-import type { Vault } from './vaults';
+import type { Vault, Vaults } from './vaults';
 import { getManagedChacha } from '../../common/lib/cipher';
 
 import { gunzipSync, strFromU8 } from 'fflate';
@@ -33,10 +42,13 @@ export const getNextVaultId = async (
     const vaultNode = masterNode.derivePath(vaultPath);
     if (!vaultNode.publicKey) throw new Error('Could not generate a vaultId');
     const vaultId = vaultNode.publicKey.toString('hex');
+    const networkId = getNetworkId(network).toLowerCase();
 
     try {
       const response = await fetch(
-        vaultCheckUrlTemplate.replace('<vaultId>', vaultId)
+        vaultCheckUrlTemplate
+          .replace('<vaultId>', vaultId)
+          .replace('<network>', networkId)
       );
 
       // Parse the response body as JSON
@@ -92,10 +104,11 @@ export const p2pBackupVault = async (
   vaultGetUrlTemplate: string,
   network: Network
 ) => {
-  const cipherId = vault.vaultId;
+  const vaultId = vault.vaultId;
+  const commitment = vault.vaultTxHex;
   const cipherKey = await getCipherKey(vault.vaultPath, signer, network);
 
-  const strVault = JSON.stringify(vault);
+  const strVault = JSON.stringify(vault, null, 2);
   const compressedVault = compressData(
     strVault,
     256 * 1024, //chunks of 256 KB
@@ -112,13 +125,17 @@ export const p2pBackupVault = async (
   const chacha = getManagedChacha(cipherKey);
   const cipheredCompressedVault = chacha.encrypt(compressedVault);
 
-  const submitUrl = vaultSubmitUrlTemplate.replace('<vaultId>', cipherId);
+  const networkId = getNetworkId(network).toLowerCase();
+  const submitUrl = vaultSubmitUrlTemplate
+    .replace('<vaultId>', vaultId)
+    .replace('<network>', networkId);
   try {
     const response = await fetch(submitUrl, {
       method: 'PUT',
       body: cipheredCompressedVault,
       headers: {
-        'Content-Type': 'application/octet-stream'
+        'Content-Type': 'application/octet-stream',
+        'X-Vault-Commitment': commitment
       }
     });
 
@@ -127,7 +144,9 @@ export const p2pBackupVault = async (
       return false;
     }
 
-    const getUrl = vaultGetUrlTemplate.replace('<vaultId>', cipherId);
+    const getUrl = vaultGetUrlTemplate
+      .replace('<vaultId>', vaultId)
+      .replace('<network>', networkId);
 
     const maxAttempts = 10;
 
@@ -153,6 +172,50 @@ export const p2pBackupVault = async (
     }
   } catch (error) {
     return false;
+  }
+  return true;
+};
+
+export const shareVaults = async (vaults: Vaults): Promise<boolean> => {
+  const strVaults = JSON.stringify(vaults, null, 2);
+
+  const compressedVaults = compressData(
+    strVaults,
+    256 * 1024, //chunks of 256 KB
+    (progress: number) => {
+      console.log({ progress });
+      return false; //true if user wants to cancel
+    }
+  );
+  if (!compressedVaults) {
+    return false;
+    //TODO: toast throw new Error('Impossible to compress vaults');
+  }
+
+  const fileName = `vaults.json.gz`;
+  if (Platform.OS === 'web') {
+    const blob = new Blob([compressedVaults], {
+      type: 'application/octet-stream'
+    });
+    const url = URL.createObjectURL(blob);
+    const downloadLink = document.createElement('a');
+    downloadLink.href = url;
+    downloadLink.download = fileName;
+    document.body.appendChild(downloadLink);
+    downloadLink.click();
+    document.body.removeChild(downloadLink);
+    URL.revokeObjectURL(url);
+  } else {
+    const filePath = `${documentDirectory}${fileName}`;
+    await writeAsStringAsync(
+      filePath,
+      Buffer.from(compressedVaults).toString('base64'),
+      {
+        encoding: EncodingType.Base64
+      }
+    );
+    await shareAsync(filePath);
+    await deleteAsync(filePath);
   }
   return true;
 };
