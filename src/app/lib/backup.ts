@@ -39,12 +39,20 @@ export const getNextVaultId = async (
         vaultCheckUrlTemplate.replace('<vaultId>', vaultId)
       );
 
-      if (response.status === 200) {
+      // Parse the response body as JSON
+      const responseBody = await response.json();
+
+      if (response.status === 200 && responseBody.exists === true) {
+        // The resource exists, continue searching for an available ID
         continue;
-      } else if (response.status === 400) {
+      } else if (response.status === 404 && responseBody.exists === false) {
+        // The resource does not exist, and the response is unambiguous
         return { vaultId, vaultPath };
       } else {
-        throw new Error(`Unexpected response status: ${response.status}`);
+        // For all other cases, including ambiguous 404 responses, throw an error
+        throw new Error(
+          `Unexpected response: ${response.status} ${responseBody.message || ''}`
+        );
       }
     } catch (error) {
       const errorMessage =
