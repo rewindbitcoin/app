@@ -44,27 +44,37 @@ export const getNextVaultId = async (
     const vaultId = vaultNode.publicKey.toString('hex');
     const networkId = getNetworkId(network).toLowerCase();
 
+    const vaultCheckUrl = vaultCheckUrlTemplate
+      .replace('<vaultId>', vaultId)
+      .replace('<network>', networkId);
+
     try {
-      const response = await fetch(
-        vaultCheckUrlTemplate
-          .replace('<vaultId>', vaultId)
-          .replace('<network>', networkId)
-      );
+      const response = await fetch(vaultCheckUrl);
+      const responseBody = await response.json(); // Always try to parse JSON
 
-      // Parse the response body as JSON
-      const responseBody = await response.json();
-
-      if (response.status === 200 && responseBody.exists === true) {
-        // The resource exists, continue searching for an available ID
-        continue;
-      } else if (response.status === 404 && responseBody.exists === false) {
-        // The resource does not exist, and the response is unambiguous
-        return { vaultId, vaultPath };
+      if (response.ok) {
+        if (responseBody.exists) {
+          continue;
+        } else {
+          throw new Error(`Unexpected non-existing vaultId with status 200}`);
+        }
       } else {
-        // For all other cases, including ambiguous 404 responses, throw an error
-        throw new Error(
-          `Unexpected response: ${response.status} ${responseBody.message || ''}`
-        );
+        // Handle non-2xx status codes
+        switch (response.status) {
+          case 404:
+            // Resource does not exist, but the request was valid
+            if ('exists' in responseBody && responseBody.exists === false) {
+              return { vaultId, vaultPath };
+            } else throw new Error(`Server not found: ${vaultCheckUrl}`);
+          case 409:
+            // Key already exists, updates or deletions are not allowed
+            throw new Error(responseBody.message);
+          default:
+            // Other errors
+            throw new Error(
+              `Unexpected response: ${response.status} ${responseBody.message || ''}`
+            );
+        }
       }
     } catch (error) {
       const errorMessage =
