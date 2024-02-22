@@ -20,7 +20,7 @@ import {
   DUMMY_PUBKEY,
   DUMMY_PUBKEY_2
 } from './vaultDescriptors';
-import { getNextVaultId } from './backup';
+import { fetchP2PVaultIds } from './backup';
 
 import { feeRateSampling } from './fees';
 import type { DiscoveryInstance } from '@bitcoinerlab/discovery';
@@ -37,7 +37,7 @@ export type VaultSettings = {
 export type Vault = {
   /** vaultId and vaultPath universally identify this vault.
    * Theuy are be obtained from the next available pubKey
-   * for path on the online P2P network. See getNextVaultId */
+   * for path on the online P2P network. See fetchP2PVaultIds */
   vaultId: string;
   vaultPath: string;
   amount: number;
@@ -531,11 +531,8 @@ export async function createVault({
       if (panicTxs.length === 0)
         throw new Error(`Panic spending path has no solutions.`);
 
-    const { vaultId, vaultPath } = await getNextVaultId(
-      signer,
-      network,
-      vaultCheckUrlTemplate
-    );
+    const { nextVaultId: vaultId, nextVaultPath: vaultPath } =
+      await fetchP2PVaultIds({ signer, network, vaultCheckUrlTemplate });
 
     return {
       vaultId,

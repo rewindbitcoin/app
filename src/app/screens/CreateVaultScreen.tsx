@@ -95,7 +95,7 @@ export default function VaultCreate({
         signer,
         utxosData,
         network,
-        vaultCheckUrlTemplate: settings.VAULT_CHECK_URL_TEMPLATE,
+        vaultCheckUrlTemplate: settings.CHECK_VAULT_URL_TEMPLATE,
         onProgress
       });
 
@@ -104,13 +104,13 @@ export default function VaultCreate({
         //not proceed
         //TODO: Also there is a processCreatedVault that does stuff. integrate
         //both
-        const backupResult = await p2pBackupVault(
+        const backupResult = await p2pBackupVault({
           vault,
           signer,
-          settings.VAULT_SUBMIT_URL_TEMPLATE,
-          settings.VAULT_GET_URL_TEMPLATE,
+          pushVaultUrlTemplate: settings.PUSH_VAULT_URL_TEMPLATE,
+          fetchVaultUrlTemplate: settings.GET_VAULT_URL_TEMPLATE,
           network
-        );
+        });
         if (!backupResult)
           throw new Error("Could not backup the vault, won't proceed");
 

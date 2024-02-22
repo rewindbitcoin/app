@@ -41,6 +41,7 @@ import { DiscoveryFactory, DiscoveryInstance } from '@bitcoinerlab/discovery';
 import { networks, Network } from 'bitcoinjs-lib';
 import type { FeeEstimates } from '../lib/fees';
 import { Platform } from 'react-native';
+import { fetchP2PVaultIds, fetchP2PVault } from '../lib/backup';
 
 type DiscoveryDataExport = ReturnType<DiscoveryInstance['export']>;
 
@@ -314,6 +315,7 @@ const WalletProviderWithWallet = ({
 
   const [syncingBlockchain, setSyncingBlockchain] = useState(false);
   const syncBlockchainRunning = useRef(false);
+  const syncVaultsRunning = useRef(false);
 
   const getChangeDescriptor = useCallback(async () => {
     if (!signers) throw new Error('Signers not ready');
@@ -341,14 +343,14 @@ const WalletProviderWithWallet = ({
   }, [network, signers]);
 
   const getServiceAddress = useCallback(async () => {
-    if (!settings?.SERVICE_ADDRESS_URL_TEMPLATE) {
+    if (!settings?.GET_SERVICE_ADDRESS_URL_TEMPLATE) {
       throw new Error(
-        'System not ready: SERVICE_ADDRESS_URL_TEMPLATE is not defined.'
+        'System not ready: GET_SERVICE_ADDRESS_URL_TEMPLATE is not defined.'
       );
     }
 
     const networkId = getNetworkId(network).toLowerCase();
-    const serviceUrl = settings.SERVICE_ADDRESS_URL_TEMPLATE.replace(
+    const serviceUrl = settings.GET_SERVICE_ADDRESS_URL_TEMPLATE.replace(
       '<network>',
       networkId
     );
@@ -372,7 +374,62 @@ const WalletProviderWithWallet = ({
       console.error('Error fetching service address:', error);
       throw error; // Re-throw the error if you want to handle it outside or show a message to the user
     }
-  }, [network, settings?.SERVICE_ADDRESS_URL_TEMPLATE]);
+  }, [network, settings?.GET_SERVICE_ADDRESS_URL_TEMPLATE]);
+
+  /**
+   * Syncs vaults from the P2P network
+   */
+  const syncVaults = useCallback(async () => {
+    const signer = signers?.[0];
+    if (
+      signer &&
+      vaults &&
+      vaultsStatuses &&
+      settings?.CHECK_VAULT_URL_TEMPLATE &&
+      settings?.GET_VAULT_URL_TEMPLATE &&
+      shallowEqualArrays(Object.keys(vaults), Object.keys(vaultsStatuses))
+    ) {
+      if (syncVaultsRunning.current === false) {
+        syncVaultsRunning.current = true;
+
+        const { existingVaults } = await fetchP2PVaultIds({
+          signer,
+          network,
+          vaultCheckUrlTemplate: settings?.CHECK_VAULT_URL_TEMPLATE
+        });
+        const newVaults: Vaults = {};
+        const newVaultsStatuses: VaultsStatuses = {};
+        for (const { vaultId, vaultPath } of existingVaults) {
+          const { vault } = await fetchP2PVault({
+            vaultId,
+            vaultPath,
+            signer,
+            fetchVaultUrlTemplate: settings.GET_VAULT_URL_TEMPLATE,
+            network
+          });
+          if (!vaults[vault.vaultId]) {
+            newVaults[vault.vaultId] = vault;
+            newVaultsStatuses[vault.vaultId] = {};
+          }
+        }
+        await Promise.all([
+          setVaults({ ...vaults, ...newVaults }),
+          setVaultsStatuses({ ...vaultsStatuses, ...newVaultsStatuses })
+        ]);
+
+        syncVaultsRunning.current = false;
+      }
+    }
+  }, [
+    network,
+    setVaults,
+    setVaultsStatuses,
+    signers,
+    vaults,
+    vaultsStatuses,
+    settings?.CHECK_VAULT_URL_TEMPLATE,
+    settings?.GET_VAULT_URL_TEMPLATE
+  ]);
 
   /**
    * Initiates the blockchain synchronization process. This function uses
@@ -413,6 +470,7 @@ const WalletProviderWithWallet = ({
       syncBlockchainRunning.current = true;
       setSyncingBlockchain(true);
       try {
+        await syncVaults();
         const updatedVaultsStatuses = await updateVaultsStatuses();
         if (!updatedVaultsStatuses)
           throw new Error('updateVaultsStatuses should have thrown');
@@ -512,6 +570,7 @@ const WalletProviderWithWallet = ({
       return updatedVaultsStatuses;
     }
   }, [
+    syncVaults,
     accountNames,
     setDiscoveryDataExport,
     setVaultsStatuses,

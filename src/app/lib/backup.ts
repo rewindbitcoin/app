@@ -25,14 +25,24 @@ import { getManagedChacha } from '../../common/lib/cipher';
 
 import { gunzipSync, strFromU8 } from 'fflate';
 
-export const getNextVaultId = async (
-  signer: Signer,
-  network: Network,
-  vaultCheckUrlTemplate: string
-): Promise<{ vaultId: string; vaultPath: string }> => {
+export const fetchP2PVaultIds = async ({
+  signer,
+  network,
+  vaultCheckUrlTemplate
+}: {
+  signer: Signer;
+  network: Network;
+  vaultCheckUrlTemplate: string;
+}): Promise<{
+  nextVaultId: string;
+  nextVaultPath: string;
+  existingVaults: Array<{ vaultId: string; vaultPath: string }>;
+}> => {
   const mnemonic = signer.mnemonic;
   if (!mnemonic) throw new Error('This type of signer is not supported');
   const masterNode = getMasterNode(mnemonic, network);
+  const existingVaults = [];
+
   for (let index = 0; index < MAX_VAULT_CHECKS; index++) {
     const vaultPath = THUNDERDEN_VAULT_PATH.replace(
       '<network>',
@@ -54,7 +64,7 @@ export const getNextVaultId = async (
 
       if (response.ok) {
         if (responseBody.exists) {
-          continue;
+          existingVaults.push({ vaultId, vaultPath });
         } else {
           throw new Error(`Unexpected non-existing vaultId with status 200}`);
         }
@@ -64,7 +74,11 @@ export const getNextVaultId = async (
           case 404:
             // Resource does not exist, but the request was valid
             if ('exists' in responseBody && responseBody.exists === false) {
-              return { vaultId, vaultPath };
+              return {
+                nextVaultId: vaultId,
+                nextVaultPath: vaultPath,
+                existingVaults
+              };
             } else throw new Error(`Server not found: ${vaultCheckUrl}`);
           case 409:
             // Key already exists, updates or deletions are not allowed
@@ -85,11 +99,16 @@ export const getNextVaultId = async (
   throw new Error(`Reached MAX_VAULT_CHECKS`);
 };
 
-const getCipherKey = async (
-  vaultPath: string,
-  signer: Signer,
-  network: Network
-) => {
+// Important to be async so that this will also work when using Hardware Wallets
+const getCipherKey = async ({
+  vaultPath,
+  signer,
+  network
+}: {
+  vaultPath: string;
+  signer: Signer;
+  network: Network;
+}) => {
   const mnemonic = signer.mnemonic;
   if (!mnemonic) throw new Error('Could not initialize the signer');
   const masterNode = getMasterNode(mnemonic, network);
@@ -107,16 +126,77 @@ const getCipherKey = async (
   return cipherKey;
 };
 
-export const p2pBackupVault = async (
-  vault: Vault,
-  signer: Signer,
-  vaultSubmitUrlTemplate: string,
-  vaultGetUrlTemplate: string,
-  network: Network
-) => {
+export const fetchP2PVault = async ({
+  vaultId,
+  vaultPath,
+  signer,
+  fetchVaultUrlTemplate,
+  network
+}: {
+  vaultId: string;
+  vaultPath: string;
+  signer: Signer;
+  fetchVaultUrlTemplate: string;
+  network: Network;
+}): Promise<{ strVault: string; vault: Vault }> => {
+  const networkId = getNetworkId(network).toLowerCase();
+  const fetchVaultUrl = fetchVaultUrlTemplate
+    .replace('<vaultId>', vaultId)
+    .replace('<network>', networkId);
+  const cipherKey = await getCipherKey({ vaultPath, signer, network });
+  const chacha = getManagedChacha(cipherKey);
+
+  const maxAttempts = 10;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      const compressedEncryptedVault = await fetch(fetchVaultUrl);
+      if (compressedEncryptedVault.ok) {
+        const compressedVault = chacha.decrypt(
+          new Uint8Array(await compressedEncryptedVault.arrayBuffer())
+        );
+        const vault = gunzipSync(compressedVault);
+        const strVault = strFromU8(vault);
+        return { strVault, vault: JSON.parse(strVault) };
+      } else {
+        throw new Error(
+          `Fetch returned a non-ok status: ${compressedEncryptedVault.status}`
+        );
+      }
+    } catch (error) {
+      if (attempt === maxAttempts) {
+        throw new Error(
+          `Failed to fetch vault after ${maxAttempts} attempts: ${error instanceof Error ? error.message : 'Unknown error'}`
+        );
+      }
+      console.error(
+        `Attempt ${attempt} failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    }
+  }
+  throw new Error(
+    `Unable to fetch vault with ID ${vaultId} after ${maxAttempts} attempts.`
+  );
+};
+
+export const p2pBackupVault = async ({
+  vault,
+  signer,
+  pushVaultUrlTemplate,
+  fetchVaultUrlTemplate,
+  network
+}: {
+  vault: Vault;
+  signer: Signer;
+  pushVaultUrlTemplate: string;
+  fetchVaultUrlTemplate: string;
+  network: Network;
+}) => {
   const vaultId = vault.vaultId;
+  const vaultPath = vault.vaultPath;
   const commitment = vault.vaultTxHex;
-  const cipherKey = await getCipherKey(vault.vaultPath, signer, network);
+  const cipherKey = await getCipherKey({ vaultPath, signer, network });
 
   const strVault = JSON.stringify(vault, null, 2);
   const compressedVault = compressData(
@@ -128,19 +208,18 @@ export const p2pBackupVault = async (
     }
   );
   if (!compressedVault) {
-    return false;
-    //TODO: toast throw new Error('Impossible to compress vaults');
+    throw new Error('Could not compress the Vault');
   }
 
   const chacha = getManagedChacha(cipherKey);
   const cipheredCompressedVault = chacha.encrypt(compressedVault);
 
   const networkId = getNetworkId(network).toLowerCase();
-  const submitUrl = vaultSubmitUrlTemplate
+  const pushVaultUrl = pushVaultUrlTemplate
     .replace('<vaultId>', vaultId)
     .replace('<network>', networkId);
   try {
-    const response = await fetch(submitUrl, {
+    const response = await fetch(pushVaultUrl, {
       method: 'PUT',
       body: cipheredCompressedVault,
       headers: {
@@ -148,42 +227,22 @@ export const p2pBackupVault = async (
         'X-Vault-Commitment': commitment
       }
     });
-
     if (!response.ok) {
-      //TODO toast throw new Error(`HTTP error! status: ${response.status}`);
-      return false;
+      throw new Error('Network problems pushing the vault to the network');
     }
-
-    const getUrl = vaultGetUrlTemplate
-      .replace('<vaultId>', vaultId)
-      .replace('<network>', networkId);
-
-    const maxAttempts = 10;
-
-    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-      try {
-        const compressedEncriptedVault = await fetch(getUrl);
-        if (compressedEncriptedVault.ok) {
-          const compressedVault = chacha.decrypt(
-            new Uint8Array(await compressedEncriptedVault.arrayBuffer())
-          );
-          const vault = gunzipSync(compressedVault);
-          if (strFromU8(vault) === strVault) return true;
-          else return false; //TODO: toast
-        }
-      } catch (error) {}
-
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      if (attempt === maxAttempts) {
-        return false;
-        //TODO: toast
-      }
-    }
-  } catch (error) {
-    return false;
+  } catch (err) {
+    throw new Error('Network problems pushing the vault to the network');
   }
-  return true;
+
+  const { strVault: strP2PVault } = await fetchP2PVault({
+    vaultId,
+    vaultPath,
+    signer,
+    fetchVaultUrlTemplate,
+    network
+  });
+  if (strP2PVault === strVault) return true;
+  else throw new Error('Inconsistencies detected while verifying backup');
 };
 
 export const shareVaults = async (vaults: Vaults): Promise<boolean> => {

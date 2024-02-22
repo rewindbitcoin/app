@@ -22,10 +22,10 @@ export interface Settings {
   BTC_FEE_ESTIMATES_REFRESH_INTERVAL_MS: number;
   USE_MAINNET_FEE_ESTIMATES_IN_TESTNET: boolean;
   WALLETS_DATA_VERSION: string;
-  SERVICE_ADDRESS_URL_TEMPLATE: string;
-  VAULT_SUBMIT_URL_TEMPLATE: string;
-  VAULT_CHECK_URL_TEMPLATE: string;
-  VAULT_GET_URL_TEMPLATE: string;
+  GET_SERVICE_ADDRESS_URL_TEMPLATE: string;
+  PUSH_VAULT_URL_TEMPLATE: string;
+  CHECK_VAULT_URL_TEMPLATE: string;
+  GET_VAULT_URL_TEMPLATE: string;
 }
 
 // Default values for the context
@@ -55,12 +55,12 @@ export const defaultSettings: Settings = {
   BTC_FEE_ESTIMATES_REFRESH_INTERVAL_MS: 600000, // 10 minutes
   USE_MAINNET_FEE_ESTIMATES_IN_TESTNET: true,
   WALLETS_DATA_VERSION: '1.0.0', //This does not define the version of the App, but keeps track of the changes in the signature of the Wallet
-  SERVICE_ADDRESS_URL_TEMPLATE:
+  GET_SERVICE_ADDRESS_URL_TEMPLATE:
     'https://api.thunderden.com/service-address/<network>/get',
-  VAULT_SUBMIT_URL_TEMPLATE:
+  PUSH_VAULT_URL_TEMPLATE:
     'https://api.thunderden.com/vaults/<network>/<vaultId>',
-  VAULT_CHECK_URL_TEMPLATE:
+  CHECK_VAULT_URL_TEMPLATE:
     'https://api.thunderden.com/vaults/<network>/<vaultId>/check',
-  VAULT_GET_URL_TEMPLATE:
+  GET_VAULT_URL_TEMPLATE:
     'https://api-proxy.thunderden.com/vaults/<network>/<vaultId>/get'
 };

@@ -1,5 +1,5 @@
 import React, { useCallback, useContext } from 'react';
-import { RefreshControl, Button } from 'react-native';
+import { RefreshControl, Button, View, Text } from 'react-native';
 import { KeyboardAwareScrollView } from '../../common/ui';
 import { WalletContext, WalletContextType } from '../contexts/WalletContext';
 import { useTranslation } from 'react-i18next';
@@ -44,6 +44,16 @@ const WalletHomeScreen = ({
         />
       }
     >
+      {vaults && (
+        <>
+          <Text>vaults:</Text>
+          {Object.values(vaults).map(vault => (
+            <View key={vault.vaultId}>
+              <Text>{vault.vaultId}</Text>
+            </View>
+          ))}
+        </>
+      )}
       <Button
         title={
           //TODO: translate
