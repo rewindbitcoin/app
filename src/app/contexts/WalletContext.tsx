@@ -84,6 +84,31 @@ function esploraUrl(network: Network) {
   return url;
 }
 
+const getDescriptors = async (
+  vaults: Vaults,
+  vaultsStatuses: VaultsStatuses,
+  signers: Signers,
+  network: Network,
+  discovery: DiscoveryInstance
+) => {
+  const signer = signers[0];
+  if (!signer) throw new Error('signer unavailable');
+  const changeDescriptorRanged = await createChangeDescriptor({
+    signer,
+    network
+  });
+  const descriptors = [
+    await createReceiveDescriptor({ signer, network }),
+    changeDescriptorRanged,
+    ...getSpendableTriggerDescriptors(
+      vaults,
+      vaultsStatuses,
+      await discovery.getExplorer().fetchBlockHeight()
+    )
+  ];
+  return descriptors;
+};
+
 const DEFAULT_VAULTS_STATUSES: VaultsStatuses = {};
 const DEFAULT_ACCOUNT_NAMES: AccountNames = {};
 const DEFAULT_VAULTS: Vaults = {};
@@ -215,6 +240,32 @@ const WalletProviderWithWallet = ({
     }
     return;
   }, [network, discoveryDataExport, isDiscoveryDataExportSynchd, discovery]);
+
+  //Tries to initialize utxosData ASAP (only if not set)
+  useEffect(() => {
+    const setInitialUtxosData = async () => {
+      if (
+        !utxosData &&
+        vaults &&
+        vaultsStatuses &&
+        signers &&
+        network &&
+        discovery
+      ) {
+        const descriptors = await getDescriptors(
+          vaults,
+          vaultsStatuses,
+          signers,
+          network,
+          discovery
+        );
+        const { utxos } = discovery.getUtxosAndBalance({ descriptors });
+        const utxosData = getUtxosData(utxos, vaults, network, discovery);
+        setUtxosData(utxosData);
+      }
+    };
+    setInitialUtxosData();
+  }, [discovery, network, signers, utxosData, vaults, vaultsStatuses]);
 
   // Sets feeEstimates
   useEffect(() => {
@@ -452,14 +503,15 @@ const WalletProviderWithWallet = ({
 
         let updatedVaultsStatuses = vaultsStatuses; //initially they are the same
         Object.entries(freshVaultsStatuses).forEach(([key, freshStatus]) => {
-          const status = vaultsStatuses[key];
+          const currentStatus = vaultsStatuses[key];
 
-          //keep: vaultPushTime, triggerPushTime, panicPushTime and
-          //unvaultPushTime, which are not retrieved from the network
-          //See docs for fetchVaultsStatuses (it does not grab all the props in
-          //VaultStatuses)
-          const newStatusCandidate = { ...status, ...freshStatus };
-          if (!shallowEqualObjects(status, newStatusCandidate)) {
+          //Reason for: { ...currentStatus, ...freshStatus }
+          //Done to keep: vaultPushTime, triggerPushTime, panicPushTime and
+          //unvaultPushTime from currentStatus (if existing). Note those are not
+          //retrieved from the network with fetchVaultsStatuses
+          //See docs for fetchVaultsStatuses
+          const newStatusCandidate = { ...currentStatus, ...freshStatus };
+          if (!shallowEqualObjects(currentStatus, newStatusCandidate)) {
             // Mutate updatedVaultsStatuses because a change has been detected
             updatedVaultsStatuses = { ...vaultsStatuses };
             updatedVaultsStatuses[key] = newStatusCandidate;
@@ -478,21 +530,13 @@ const WalletProviderWithWallet = ({
             }
           });
 
-        const signer = signers[0];
-        if (!signer) throw new Error('signer unavailable');
-        const changeDescriptorRanged = await createChangeDescriptor({
-          signer,
-          network
-        });
-        const descriptors = [
-          await createReceiveDescriptor({ signer, network }),
-          changeDescriptorRanged,
-          ...getSpendableTriggerDescriptors(
-            updatedVaults,
-            updatedVaultsStatuses,
-            await discovery.getExplorer().fetchBlockHeight()
-          )
-        ];
+        const descriptors = await getDescriptors(
+          updatedVaults,
+          updatedVaultsStatuses,
+          signers,
+          network,
+          discovery
+        );
         await discovery.fetch({ descriptors, gapLimit: settings.GAP_LIMIT });
         //If utxos don't change, then getUtxosAndBalance return the same reference
         //even if descriptors reference is different
@@ -529,8 +573,6 @@ const WalletProviderWithWallet = ({
         syncBlockchainRunning.current = false;
         setSyncingBlockchain(false);
       }
-    } else {
-      //syncBlockchain not performing any action for being called with non-initialized inputs
     }
   }, [
     fetchP2PVaults,
