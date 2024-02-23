@@ -1,3 +1,5 @@
+//TODO: impportant FIX when the rates are not downloaded the SetupVaultsScreen
+//crashes
 import {
   fetchVaultsStatuses,
   getSpendableTriggerDescriptors,
@@ -360,7 +362,7 @@ const WalletProviderWithWallet = ({
   }, [network, settings?.GET_SERVICE_ADDRESS_URL_TEMPLATE]);
 
   /**
-   * Syncs vaults from the P2P network
+   * Gets vaults from the P2P network
    */
   const fetchP2PVaults = useCallback(async () => {
     const signer = signers?.[0];
@@ -439,9 +441,6 @@ const WalletProviderWithWallet = ({
       syncBlockchainRunning.current = true;
       setSyncingBlockchain(true);
 
-      console.log(
-        `syncing blockchain ${Object.values(vaults).length} ${Object.values(vaultsStatuses).length}`
-      );
       try {
         const p2pVaults = await fetchP2PVaults();
         const explorer = discovery.getExplorer();
@@ -532,24 +531,6 @@ const WalletProviderWithWallet = ({
       }
     } else {
       //syncBlockchain not performing any action for being called with non-initialized inputs
-      console.warn(
-        'syncBlockchain not ready',
-        JSON.stringify(
-          {
-            network: !!network,
-            GAP_LIMIT: !!settings?.GAP_LIMIT,
-            discovery: !!discovery,
-            vaultsLength: vaults ? Object.values(vaults).length : 'undefined',
-            vaultsStatusesLength: vaultsStatuses
-              ? Object.values(vaultsStatuses).length
-              : 'undefined',
-            signers: !!signers,
-            accountNames
-          },
-          null,
-          2
-        )
-      );
     }
   }, [
     fetchP2PVaults,
