@@ -17,14 +17,12 @@ const WalletHomeScreen = ({
   if (context === null) {
     throw new Error('Context was not set');
   }
-  const { vaults, btcFiat, syncBlockchain, syncingBlockchain } = context;
+  const { vaults, syncBlockchain, syncingBlockchain } = context;
 
   const onRequestVaultsBackup = useCallback(() => {
     if (!vaults) throw new Error('vaults not ready');
-    return shareVaults(vaults);
+    return shareVaults({ vaults });
   }, [vaults]);
-
-  console.log({ btcFiat, syncingBlockchain });
 
   // Use btcFiat, and any other data or functions provided by the context
   // ...

@@ -4,14 +4,15 @@ import React, {
   useEffect,
   useState,
   useRef,
+  useMemo,
   useCallback
 } from 'react';
 import { WalletContext, WalletContextType } from '../contexts/WalletContext';
 import { useTranslation } from 'react-i18next';
 import { View, StyleSheet } from 'react-native';
 import * as Progress from 'react-native-progress';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { createVault, type VaultSettings } from '../lib/vaults';
+import { EdgeInsets, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { createVault, type VaultSettings, type Vault } from '../lib/vaults';
 import {
   defaultSettings,
   Settings,
@@ -19,9 +20,17 @@ import {
 } from '../lib/settings';
 import { useGlobalStateStorage } from '../../common/contexts/StorageContext';
 import { SERIALIZABLE } from '../../common/lib/storage';
-import { Button, Text, KeyboardAwareScrollView } from '../../common/ui';
+import {
+  Button,
+  Text,
+  KeyboardAwareScrollView,
+  Theme,
+  useTheme
+} from '../../common/ui';
 import { p2pBackupVault } from '../lib/backup';
+
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
 export default function VaultCreate({
   vaultSettings,
   onVaultPushed
@@ -30,6 +39,8 @@ export default function VaultCreate({
   onVaultPushed: (result: boolean) => void;
 }) {
   const insets = useSafeAreaInsets();
+  const theme = useTheme();
+  const styles = useMemo(() => getStyles(insets, theme), [insets, theme]);
   //TODO Use a proper Cancellable Modal
   const context = useContext<WalletContextType | null>(WalletContext);
   if (context === null) throw new Error('Context was not set');
@@ -61,13 +72,19 @@ export default function VaultCreate({
     );
   // We know settings are the correct ones in this Component
   const [progress, setProgress] = useState<number>(0);
+  const [vault, setVault] = useState<Vault>();
   const onProgress = useCallback((progress: number) => {
     setProgress(progress);
     return keepProgress.current;
   }, []);
   const samples = settings.SAMPLES;
   const feeRateCeiling = settings.PRESIGNED_FEE_RATE_CEILING;
+
+  const isVaultCreated = useRef<boolean>(false);
   useEffect(() => {
+    if (isVaultCreated.current === true) return;
+    else isVaultCreated.current = true;
+
     let isMounted = true;
     //Leave some time so that the progress is rendered
     const createAndNotifyVault = async () => {
@@ -77,7 +94,11 @@ export default function VaultCreate({
       const serviceAddress = await getServiceAddress(); //TODO: show error if network error
       const changeDescriptor = await getChangeDescriptor();
 
-      console.log('TRACE', { unvaultKey, serviceAddress, changeDescriptor });
+      console.log('TRACE createVault', {
+        unvaultKey,
+        serviceAddress,
+        changeDescriptor
+      });
       const signer = signers[0];
       if (!signer) throw new Error('signer unavailable');
 
@@ -100,6 +121,7 @@ export default function VaultCreate({
       });
 
       if (typeof vault === 'object') {
+        setVault(vault);
         //TODO: here now also show the progress, also it fhis fails then do
         //not proceed
         //TODO: Also there is a processCreatedVault that does stuff. integrate
@@ -109,6 +131,7 @@ export default function VaultCreate({
           signer,
           pushVaultUrlTemplate: settings.PUSH_VAULT_URL_TEMPLATE,
           fetchVaultUrlTemplate: settings.GET_VAULT_URL_TEMPLATE,
+          onProgress,
           network
         });
         if (!backupResult)
@@ -130,54 +153,88 @@ export default function VaultCreate({
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [
+    amount,
+    coldAddress,
+    feeRate,
+    feeRateCeiling,
+    getChangeDescriptor,
+    getServiceAddress,
+    getUnvaultKey,
+    lockBlocks,
+    network,
+    onProgress,
+    onVaultPushed,
+    processCreatedVault,
+    samples,
+    settings.CHECK_VAULT_URL_TEMPLATE,
+    settings.GET_VAULT_URL_TEMPLATE,
+    settings.PUSH_VAULT_URL_TEMPLATE,
+    settings.SERVICE_FEE_RATE,
+    signers,
+    utxosData
+  ]);
+
   return (
     <KeyboardAwareScrollView
+      contentInsetAdjustmentBehavior="automatic"
       keyboardShouldPersistTaps="handled"
-      contentContainerStyle={{
-        flexGrow: 1, //grow vertically to 100% and center child
-        justifyContent: 'space-between',
-        paddingTop: 20,
-        paddingBottom: 20 + insets.bottom,
-        maxWidth: 500,
-        marginHorizontal: 20,
-        alignItems: 'center'
-      }}
+      contentContainerStyle={styles.contentContainer}
     >
-      <Text variant="headlineSmall" style={{ alignSelf: 'flex-start' }}>
-        {t('createVault.subTitle')}
-      </Text>
-      <Text style={{ marginVertical: 20, alignSelf: 'flex-start' }}>
-        {t('createVault.intro')}
-      </Text>
-      <View
-        style={{ flexGrow: 1, justifyContent: 'center', alignItems: 'center' }}
-      >
-        <Progress.Circle
-          size={300}
-          showsText={true}
-          progress={progress}
-          style={styles.progressCircle}
-        />
+      <View style={styles.content}>
+        {vault ? (
+          <>
+            <Button
+              onPress={() => {
+                keepProgress.current = false;
+              }}
+            >
+              {t('confirmButton')}
+            </Button>
+          </>
+        ) : (
+          <>
+            <Text variant="headlineSmall" style={{ alignSelf: 'flex-start' }}>
+              {t('createVault.subTitle')}
+            </Text>
+            <Text style={{ marginVertical: 20, alignSelf: 'flex-start' }}>
+              {t('createVault.intro')}
+            </Text>
+            <View
+              style={{
+                flexGrow: 1,
+                justifyContent: 'center',
+                alignItems: 'center'
+              }}
+            >
+              <Progress.Circle
+                size={300}
+                showsText={true}
+                progress={progress}
+                style={styles.progressCircle}
+              />
+            </View>
+            <Button
+              onPress={() => {
+                keepProgress.current = false;
+              }}
+            >
+              {t('cancelButton')}
+            </Button>
+          </>
+        )}
       </View>
-      <Button
-        onPress={() => {
-          keepProgress.current = false;
-        }}
-      >
-        {t('cancelButton')}
-      </Button>
     </KeyboardAwareScrollView>
   );
 }
 
-//<Text>
-//  Expected increase of fees will be{' '}
-//  {((Math.pow(feeRateCeiling, 1 / samples) - 1) * 100) / 2}%
-//</Text>
-
-const styles = StyleSheet.create({
-  progressCircle: {
-    //marginBottom: 100
-  }
-});
+const getStyles = (insets: EdgeInsets, theme: Theme) =>
+  StyleSheet.create({
+    contentContainer: { alignItems: 'center', paddingTop: 20 },
+    content: {
+      maxWidth: 500,
+      marginHorizontal: theme.screenMargin,
+      marginBottom: theme.screenMargin + insets.bottom
+    },
+    progressCircle: {}
+  });

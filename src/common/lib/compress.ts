@@ -1,10 +1,15 @@
 import { Gzip, strToU8 } from 'fflate';
 
-export const compressData = (
-  data: Uint8Array | string,
-  chunkSize: number,
-  progressCallback: (progress: number) => boolean // Updated to expect a boolean return value
-) => {
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+export const compressData = async ({
+  data,
+  chunkSize,
+  onProgress
+}: {
+  data: Uint8Array | string;
+  chunkSize: number;
+  onProgress?: (progress: number) => boolean;
+}) => {
   let totalProcessedLength = 0; // Total length of data processed so far
 
   const compressedChunks: Uint8Array[] = []; // Array to collect compressedChunks
@@ -16,8 +21,7 @@ export const compressData = (
     }
   );
 
-  let interrupted = false;
-  for (let i = 0; !interrupted && i * chunkSize < data.length; i++) {
+  for (let i = 0; i * chunkSize < data.length; i++) {
     const start = i * chunkSize;
     const end = Math.min((i + 1) * chunkSize, data.length);
     let chunk;
@@ -35,17 +39,11 @@ export const compressData = (
     totalProcessedLength += chunk.length;
     // Calculate and report progress for each chunk except the last
     const progress = totalProcessedLength / data.length;
-    interrupted = progressCallback(progress); // Use the return value to control interruption
-
-    if (interrupted) {
-      break; // Exit the loop if the process was interrupted during the last callback
-    }
+    if (onProgress && onProgress(progress) === false) {
+      return;
+    } else await sleep(0);
   }
-
-  if (!interrupted) {
-    // If the process was not interrupted, concatenate all chunks
-    return concatenateChunks(compressedChunks);
-  } else return;
+  return concatenateChunks(compressedChunks);
 };
 
 function concatenateChunks(chunks: Uint8Array[]): Uint8Array {
@@ -60,15 +58,3 @@ function concatenateChunks(chunks: Uint8Array[]): Uint8Array {
 
   return result;
 }
-
-//// Example usage
-//const data = new Uint8Array(/* your data here */);
-//const chunkSize = Math.ceil(data.length / 100); // Adjust chunk size as needed
-//compressData(data, chunkSize, (progress, interrupt) => {
-//  console.log(`Compression progress: ${progress * 100}%`);
-//  // Example condition to interrupt the compression
-//  if (progress > 0.5) {
-//    // Interrupt compression when 50% is reached
-//    interrupt(); // Call the interrupt function to stop the compression
-//  }
-//});

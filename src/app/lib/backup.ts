@@ -185,12 +185,14 @@ export const p2pBackupVault = async ({
   signer,
   pushVaultUrlTemplate,
   fetchVaultUrlTemplate,
+  onProgress,
   network
 }: {
   vault: Vault;
   signer: Signer;
   pushVaultUrlTemplate: string;
   fetchVaultUrlTemplate: string;
+  onProgress?: (progress: number) => boolean;
   network: Network;
 }) => {
   const vaultId = vault.vaultId;
@@ -199,14 +201,11 @@ export const p2pBackupVault = async ({
   const cipherKey = await getCipherKey({ vaultPath, signer, network });
 
   const strVault = JSON.stringify(vault, null, 2);
-  const compressedVault = compressData(
-    strVault,
-    256 * 1024, //chunks of 256 KB
-    (progress: number) => {
-      console.log({ progress });
-      return false; //true if user wants to cancel
-    }
-  );
+  const compressedVault = await compressData({
+    data: strVault,
+    chunkSize: 256 * 1024, //chunks of 256 KB
+    ...(onProgress ? { onProgress } : {})
+  });
   if (!compressedVault) {
     throw new Error('Could not compress the Vault');
   }
@@ -245,17 +244,20 @@ export const p2pBackupVault = async ({
   else throw new Error('Inconsistencies detected while verifying backup');
 };
 
-export const shareVaults = async (vaults: Vaults): Promise<boolean> => {
+export const shareVaults = async ({
+  vaults,
+  onProgress
+}: {
+  vaults: Vaults;
+  onProgress?: (progress: number) => boolean;
+}): Promise<boolean> => {
   const strVaults = JSON.stringify(vaults, null, 2);
 
-  const compressedVaults = compressData(
-    strVaults,
-    256 * 1024, //chunks of 256 KB
-    (progress: number) => {
-      console.log({ progress });
-      return false; //true if user wants to cancel
-    }
-  );
+  const compressedVaults = await compressData({
+    data: strVaults,
+    chunkSize: 256 * 1024, //chunks of 256 KB
+    ...(onProgress ? { onProgress } : {})
+  });
   if (!compressedVaults) {
     return false;
     //TODO: toast throw new Error('Impossible to compress vaults');

@@ -149,23 +149,6 @@ const WalletProviderWithWallet = ({
     DEFAULT_VAULTS
   );
 
-  //const [fooBar, , isFooBarSynchd] = useLocalStateStorage<{
-  //  foo: string;
-  //  bar: string;
-  //}>(
-  //  `FOO_BAR`,
-  //  SERIALIZABLE,
-  //  { foo: 'Foooo', bar: 'Barrr' },
-  //  Platform.OS === 'web' ? 'IDB' : 'MMKV',
-  //  cipherKey,
-  //  'Authenticate to access secure data' //TODO: translate
-  //);
-  //useEffect(() => {
-  //  if (isFooBarSynchd) {
-  //    console.log({ fooBar });
-  //  }
-  //}, [fooBar, isFooBarSynchd]);
-
   const [vaultsStatuses, setVaultsStatuses] =
     useLocalStateStorage<VaultsStatuses>(
       `VAULTS_STATUSES_${walletId}`,
@@ -315,7 +298,7 @@ const WalletProviderWithWallet = ({
 
   const [syncingBlockchain, setSyncingBlockchain] = useState(false);
   const syncBlockchainRunning = useRef(false);
-  const syncVaultsRunning = useRef(false);
+  const fetchP2PVaultsRunning = useRef(false);
 
   const getChangeDescriptor = useCallback(async () => {
     if (!signers) throw new Error('Signers not ready');
@@ -379,7 +362,7 @@ const WalletProviderWithWallet = ({
   /**
    * Syncs vaults from the P2P network
    */
-  const syncVaults = useCallback(async () => {
+  const fetchP2PVaults = useCallback(async () => {
     const signer = signers?.[0];
     if (
       signer &&
@@ -389,17 +372,16 @@ const WalletProviderWithWallet = ({
       settings?.GET_VAULT_URL_TEMPLATE &&
       shallowEqualArrays(Object.keys(vaults), Object.keys(vaultsStatuses))
     ) {
-      if (syncVaultsRunning.current === false) {
-        syncVaultsRunning.current = true;
+      if (fetchP2PVaultsRunning.current === false) {
+        fetchP2PVaultsRunning.current = true;
 
-        const { existingVaults } = await fetchP2PVaultIds({
+        const { existingVaults: existingP2PVaults } = await fetchP2PVaultIds({
           signer,
           network,
           vaultCheckUrlTemplate: settings?.CHECK_VAULT_URL_TEMPLATE
         });
-        const newVaults: Vaults = {};
-        const newVaultsStatuses: VaultsStatuses = {};
-        for (const { vaultId, vaultPath } of existingVaults) {
+        const vaults: Vaults = {};
+        for (const { vaultId, vaultPath } of existingP2PVaults) {
           const { vault } = await fetchP2PVault({
             vaultId,
             vaultPath,
@@ -407,23 +389,15 @@ const WalletProviderWithWallet = ({
             fetchVaultUrlTemplate: settings.GET_VAULT_URL_TEMPLATE,
             network
           });
-          if (!vaults[vault.vaultId]) {
-            newVaults[vault.vaultId] = vault;
-            newVaultsStatuses[vault.vaultId] = {};
-          }
+          vaults[vault.vaultId] = vault;
         }
-        await Promise.all([
-          setVaults({ ...vaults, ...newVaults }),
-          setVaultsStatuses({ ...vaultsStatuses, ...newVaultsStatuses })
-        ]);
-
-        syncVaultsRunning.current = false;
+        fetchP2PVaultsRunning.current = false;
+        return vaults;
       }
     }
+    return;
   }, [
     network,
-    setVaults,
-    setVaultsStatuses,
     signers,
     vaults,
     vaultsStatuses,
@@ -445,11 +419,6 @@ const WalletProviderWithWallet = ({
    * @returns A promise indicating the completion of the synchronization process.
    */
   const syncBlockchain = useCallback(async () => {
-    console.log('syncBlockchain', {
-      vaults,
-      vaultsStatuses,
-      syncing: syncBlockchainRunning.current
-    });
     if (
       network &&
       settings?.GAP_LIMIT !== undefined &&
@@ -469,11 +438,47 @@ const WalletProviderWithWallet = ({
       if (syncBlockchainRunning.current === true) return;
       syncBlockchainRunning.current = true;
       setSyncingBlockchain(true);
+
+      console.log(
+        `syncing blockchain ${Object.values(vaults).length} ${Object.values(vaultsStatuses).length}`
+      );
       try {
-        await syncVaults();
-        const updatedVaultsStatuses = await updateVaultsStatuses();
-        if (!updatedVaultsStatuses)
-          throw new Error('updateVaultsStatuses should have thrown');
+        const p2pVaults = await fetchP2PVaults();
+        const explorer = discovery.getExplorer();
+        const freshVaultsStatuses = await fetchVaultsStatuses(vaults, explorer);
+        if (p2pVaults)
+          Object.keys(p2pVaults).forEach(key => {
+            if (!freshVaultsStatuses[key]) freshVaultsStatuses[key] = {};
+          });
+
+        let updatedVaultsStatuses = vaultsStatuses; //initially they are the same
+        Object.entries(freshVaultsStatuses).forEach(([key, freshStatus]) => {
+          const status = vaultsStatuses[key];
+
+          //keep: vaultPushTime, triggerPushTime, panicPushTime and
+          //unvaultPushTime, which are not retrieved from the network
+          //See docs for fetchVaultsStatuses (it does not grab all the props in
+          //VaultStatuses)
+          const newStatusCandidate = { ...status, ...freshStatus };
+          if (!shallowEqualObjects(status, newStatusCandidate)) {
+            // Mutate updatedVaultsStatuses because a change has been detected
+            updatedVaultsStatuses = { ...vaultsStatuses };
+            updatedVaultsStatuses[key] = newStatusCandidate;
+          }
+        });
+
+        let updatedVaults = vaults; //initially they are the same
+        p2pVaults &&
+          Object.keys(p2pVaults).forEach(key => {
+            const newVault = p2pVaults[key];
+            const vault = vaults[key];
+            if (newVault && !vault) {
+              // Mutate updatedVaults because a new one has been detected
+              updatedVaults = { ...vaults };
+              updatedVaults[key] = newVault;
+            }
+          });
+
         const signer = signers[0];
         if (!signer) throw new Error('signer unavailable');
         const changeDescriptorRanged = await createChangeDescriptor({
@@ -484,22 +489,33 @@ const WalletProviderWithWallet = ({
           await createReceiveDescriptor({ signer, network }),
           changeDescriptorRanged,
           ...getSpendableTriggerDescriptors(
-            vaults,
+            updatedVaults,
             updatedVaultsStatuses,
             await discovery.getExplorer().fetchBlockHeight()
           )
         ];
-        console.log('WALLET PROVIDER', 'network expensive fetch function');
         await discovery.fetch({ descriptors, gapLimit: settings.GAP_LIMIT });
+        //If utxos don't change, then getUtxosAndBalance return the same reference
+        //even if descriptors reference is different
+        const { utxos } = discovery.getUtxosAndBalance({ descriptors });
+        const utxosData = getUtxosData(
+          utxos,
+          updatedVaults,
+          network,
+          discovery
+        );
+
+        //Save data:
+
         //Saves to disk. It's async, but it's ok not waiting since discovery
         //data can be recreated any time (with a slower call) by fetching
         //descriptors
         setDiscoveryDataExport(discovery.export());
-        //If utxos don't change, then getUtxosAndBalance return the same reference
-        //even if descriptors reference is different
-        const { utxos } = discovery.getUtxosAndBalance({ descriptors });
-        const utxosData = getUtxosData(utxos, vaults, network, discovery);
         setUtxosData(utxosData);
+        //Update them in state only if they changed (we muteted them)
+        if (vaults !== updatedVaults) setVaults(updatedVaults);
+        if (vaultsStatuses !== updatedVaultsStatuses)
+          setVaultsStatuses(updatedVaultsStatuses);
       } catch (error) {
         const errorMessage =
           error instanceof Error
@@ -514,69 +530,36 @@ const WalletProviderWithWallet = ({
         syncBlockchainRunning.current = false;
         setSyncingBlockchain(false);
       }
-    } else
-      console.log(
-        'syncBlockchain not performing any action for being called with non-initialized inputs',
+    } else {
+      //syncBlockchain not performing any action for being called with non-initialized inputs
+      console.warn(
+        'syncBlockchain not ready',
         JSON.stringify(
           {
-            network,
-            GAP_LIMIT: settings?.GAP_LIMIT,
-            //discovery,
-            vaultsKeys: vaults && Object.keys(vaults),
-            vaultsStatusesKeys: vaultsStatuses && Object.keys(vaultsStatuses),
+            network: !!network,
+            GAP_LIMIT: !!settings?.GAP_LIMIT,
+            discovery: !!discovery,
+            vaultsLength: vaults ? Object.values(vaults).length : 'undefined',
+            vaultsStatusesLength: vaultsStatuses
+              ? Object.values(vaultsStatuses).length
+              : 'undefined',
+            signers: !!signers,
             accountNames
           },
           null,
           2
         )
       );
-
-    //Helper function used above. It returns new
-    async function updateVaultsStatuses() {
-      if (!discovery || !vaults || !vaultsStatuses)
-        throw new Error(
-          'updateVaultsStatuses called with non-initialized inputs'
-        );
-      let updatedVaultsStatuses = vaultsStatuses;
-      try {
-        const newVaultsStatuses = await fetchVaultsStatuses(
-          vaults,
-          discovery.getExplorer()
-        );
-
-        Object.entries(newVaultsStatuses).forEach(([key, status]) => {
-          const existingStatus = vaultsStatuses[key];
-          if (!shallowEqualObjects(existingStatus, status)) {
-            console.log({ existingStatus, status, key });
-            // Mutate updatedVaultsStatuses because a change has been detected
-            if (updatedVaultsStatuses === vaultsStatuses)
-              updatedVaultsStatuses = { ...vaultsStatuses };
-
-            updatedVaultsStatuses[key] = { ...existingStatus, ...status };
-          }
-        });
-        if (vaultsStatuses !== updatedVaultsStatuses) {
-          console.log('TRACE', 'setVaultsStatuses', { updatedVaultsStatuses });
-          setVaultsStatuses(updatedVaultsStatuses);
-        }
-      } catch (error) {
-        const errorMessage =
-          error instanceof Error ? error.message : 'An unknown error occurred';
-
-        toast.show(t('networkError', { message: errorMessage }), {
-          type: 'warning'
-        });
-      }
-      return updatedVaultsStatuses;
     }
   }, [
-    syncVaults,
+    fetchP2PVaults,
     accountNames,
     setDiscoveryDataExport,
-    setVaultsStatuses,
     t,
     toast,
     discovery,
+    setVaults,
+    setVaultsStatuses,
     vaults,
     vaultsStatuses,
     network,
@@ -620,18 +603,15 @@ const WalletProviderWithWallet = ({
         // Create new vault
         if (vaults[vault.vaultId])
           throw new Error(`Vault for ${vault.vaultId} already exists`);
-        await setVaults({ ...vaults, [vault.vaultId]: vault });
-
-        console.log('Setting setVaultsStatuses', {
-          ...vaultsStatuses,
-          [vault.vaultId]: { vaultPushTime: Math.floor(Date.now() / 1000) }
-        });
         if (vaultsStatuses[vault.vaultId])
           throw new Error(`VaultStatus for ${vault.vaultId} already exists`);
-        await setVaultsStatuses({
-          ...vaultsStatuses,
-          [vault.vaultId]: { vaultPushTime: Math.floor(Date.now() / 1000) }
-        });
+        await Promise.all([
+          setVaults({ ...vaults, [vault.vaultId]: vault }),
+          setVaultsStatuses({
+            ...vaultsStatuses,
+            [vault.vaultId]: { vaultPushTime: Math.floor(Date.now() / 1000) }
+          })
+        ]);
 
         //TODO: enable this after tests. important to push after AWAIT setVaults
         //if successful

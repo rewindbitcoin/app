@@ -742,6 +742,9 @@ export async function fetchSpendingTx(
 
 /**
  * performs a fetchVaultStatus for all vaults in parallel
+ * Note that vaultsStatuses fetched are only partial since
+ * vaultPushTime, triggerPushTime, panicPushTime and unvaultPushTime cannot be
+ * retrieved from the network.
  */
 export async function fetchVaultsStatuses(
   vaults: Vaults,
@@ -765,6 +768,11 @@ export async function fetchVaultsStatuses(
   }, {});
 }
 
+/**
+ * Note that vaultsStatuses fetched are only partial since
+ * vaultPushTime, triggerPushTime, panicPushTime and unvaultPushTime cannot be
+ * retrieved from the network.
+ */
 async function fetchVaultStatus(vault: Vault, explorer: Explorer) {
   const vaultStatus: VaultStatus = {};
   const triggerTxData = await fetchSpendingTx(vault.vaultTxHex, 0, explorer);
