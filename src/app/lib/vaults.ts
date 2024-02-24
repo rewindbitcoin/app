@@ -665,11 +665,11 @@ export const getSpendableTriggerDescriptors = (
   blockhainTip: number
 ): Array<string> => {
   const descriptors = Object.entries(vaults)
-    .filter(([vaultAddress, vault]) => {
-      const vaultStatus = vaultsStatuses[vaultAddress];
+    .filter(([vaultId, vault]) => {
+      const vaultStatus = vaultsStatuses[vaultId];
       if (!vaultStatus)
         throw new Error(
-          `vaultsStatuses is not synchd. It should have key ${vaultAddress}`
+          `vaultsStatuses is not synchd. It should have key ${vaultId}`
         );
       return getRemainingBlocks(vault, vaultStatus, blockhainTip) === 0;
     })
@@ -750,12 +750,10 @@ export async function fetchVaultsStatuses(
   vaults: Vaults,
   explorer: Explorer
 ): Promise<VaultsStatuses> {
-  const fetchPromises = Object.entries(vaults).map(
-    async ([vaultAddress, vault]) => {
-      const status = await fetchVaultStatus(vault, explorer);
-      return { [vaultAddress]: status };
-    }
-  );
+  const fetchPromises = Object.entries(vaults).map(async ([vaultId, vault]) => {
+    const status = await fetchVaultStatus(vault, explorer);
+    return { [vaultId]: status };
+  });
 
   const results = await Promise.all(fetchPromises);
   return results.reduce((acc, current) => {

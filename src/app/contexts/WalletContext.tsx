@@ -1,5 +1,7 @@
 //TODO: impportant FIX when the rates are not downloaded the SetupVaultsScreen
 //crashes
+//Same for unset utxosData. Simply disable that button / route or show
+//some warning Asking users to go back for not having rates / utxos yet
 import {
   fetchVaultsStatuses,
   getSpendableTriggerDescriptors,
