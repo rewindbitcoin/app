@@ -415,36 +415,36 @@ const WalletProviderWithWallet = ({
   }, [network, settings?.GET_SERVICE_ADDRESS_URL_TEMPLATE]);
 
   /**
-   * Gets vaults from the P2P network
+   * Gets vaults from the P2P network. Does not fetch it if already in memory.
    */
   const fetchP2PVaults = useCallback(async () => {
     const signer = signers?.[0];
     if (
       signer &&
-      vaults &&
-      vaultsStatuses &&
       settings?.CHECK_VAULT_URL_TEMPLATE &&
-      settings?.GET_VAULT_URL_TEMPLATE &&
-      shallowEqualArrays(Object.keys(vaults), Object.keys(vaultsStatuses))
+      settings?.GET_VAULT_URL_TEMPLATE
     ) {
       if (fetchP2PVaultsRunning.current === false) {
         fetchP2PVaultsRunning.current = true;
 
-        const { existingVaults: existingP2PVaults } = await fetchP2PVaultIds({
+        const { existingVaults: p2pVaultIds } = await fetchP2PVaultIds({
           signer,
           network,
           vaultCheckUrlTemplate: settings?.CHECK_VAULT_URL_TEMPLATE
         });
-        const vaults: Vaults = {};
-        for (const { vaultId, vaultPath } of existingP2PVaults) {
-          const { vault } = await fetchP2PVault({
-            vaultId,
-            vaultPath,
-            signer,
-            fetchVaultUrlTemplate: settings.GET_VAULT_URL_TEMPLATE,
-            network
-          });
-          vaults[vault.vaultId] = vault;
+        const p2pVaults: Vaults = {};
+        for (const { vaultId, vaultPath } of p2pVaultIds) {
+          let vault = vaults?.[vaultId];
+          if (!vault) {
+            ({ vault } = await fetchP2PVault({
+              vaultId,
+              vaultPath,
+              signer,
+              fetchVaultUrlTemplate: settings.GET_VAULT_URL_TEMPLATE,
+              network
+            }));
+          }
+          p2pVaults[vault.vaultId] = vault;
         }
         fetchP2PVaultsRunning.current = false;
         return vaults;
@@ -455,7 +455,6 @@ const WalletProviderWithWallet = ({
     network,
     signers,
     vaults,
-    vaultsStatuses,
     settings?.CHECK_VAULT_URL_TEMPLATE,
     settings?.GET_VAULT_URL_TEMPLATE
   ]);
@@ -495,43 +494,39 @@ const WalletProviderWithWallet = ({
       setSyncingBlockchain(true);
 
       try {
+        //First get updatedVaults & updatedVaultsStatuses:
         const p2pVaults = await fetchP2PVaults();
-        const explorer = discovery.getExplorer();
-        const freshVaultsStatuses = await fetchVaultsStatuses(vaults, explorer);
-        if (p2pVaults)
-          Object.keys(p2pVaults).forEach(key => {
-            if (!freshVaultsStatuses[key]) freshVaultsStatuses[key] = {};
+        let updatedVaults = vaults; //initially they are the same
+        p2pVaults &&
+          Object.entries(p2pVaults).forEach(([key, p2pVault]) => {
+            const currentVault = vaults[key];
+            //A vault cannot mutate. It either exists or not, but once created
+            //it will never change:
+            if (p2pVault && !currentVault) {
+              // Mutate updatedVaults because a new one has been detected
+              updatedVaults = { ...updatedVaults };
+              updatedVaults[key] = p2pVault;
+            }
           });
+
+        const freshVaultsStatuses = await fetchVaultsStatuses(
+          updatedVaults,
+          vaultsStatuses,
+          discovery.getExplorer()
+        );
 
         let updatedVaultsStatuses = vaultsStatuses; //initially they are the same
         Object.entries(freshVaultsStatuses).forEach(([key, freshStatus]) => {
           const currentStatus = vaultsStatuses[key];
-
-          //Reason for: { ...currentStatus, ...freshStatus }
-          //Done to keep: vaultPushTime, triggerPushTime, panicPushTime and
-          //unvaultPushTime from currentStatus (if existing). Note those are not
-          //retrieved from the network with fetchVaultsStatuses
-          //See docs for fetchVaultsStatuses
-          const newStatusCandidate = { ...currentStatus, ...freshStatus };
-          if (!shallowEqualObjects(currentStatus, newStatusCandidate)) {
+          //A vaultStatus can change in the future since it depends on user actions
+          if (!shallowEqualObjects(currentStatus, freshStatus)) {
             // Mutate updatedVaultsStatuses because a change has been detected
-            updatedVaultsStatuses = { ...vaultsStatuses };
-            updatedVaultsStatuses[key] = newStatusCandidate;
+            updatedVaultsStatuses = { ...updatedVaultsStatuses };
+            updatedVaultsStatuses[key] = freshStatus;
           }
         });
 
-        let updatedVaults = vaults; //initially they are the same
-        p2pVaults &&
-          Object.keys(p2pVaults).forEach(key => {
-            const newVault = p2pVaults[key];
-            const vault = vaults[key];
-            if (newVault && !vault) {
-              // Mutate updatedVaults because a new one has been detected
-              updatedVaults = { ...vaults };
-              updatedVaults[key] = newVault;
-            }
-          });
-
+        //Now get utxosData
         const descriptors = await getDescriptors(
           updatedVaults,
           updatedVaultsStatuses,
@@ -550,11 +545,8 @@ const WalletProviderWithWallet = ({
           discovery
         );
 
-        //Save data:
-
-        //Saves to disk. It's async, but it's ok not waiting since discovery
-        //data can be recreated any time (with a slower call) by fetching
-        //descriptors
+        //Save to disk. Saving is async, but it's ok not awaiting since all this
+        //data can be re-created any time by calling again syncBlockchain
         setDiscoveryDataExport(discovery.export());
         setUtxosData(utxosData);
         //Update them in state only if they changed (we muteted them)

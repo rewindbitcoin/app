@@ -741,42 +741,22 @@ export async function fetchSpendingTx(
 }
 
 /**
- * performs a fetchVaultStatus for all vaults in parallel
  * Note that vaultsStatuses fetched are only partial since
  * vaultPushTime, triggerPushTime, panicPushTime and unvaultPushTime cannot be
  * retrieved from the network.
  */
-export async function fetchVaultsStatuses(
-  vaults: Vaults,
+async function fetchVaultStatus(
+  vault: Vault,
+  currvaultStatus: VaultStatus | undefined,
   explorer: Explorer
-): Promise<VaultsStatuses> {
-  const fetchPromises = Object.entries(vaults).map(async ([vaultId, vault]) => {
-    const status = await fetchVaultStatus(vault, explorer);
-    return { [vaultId]: status };
-  });
-
-  const results = await Promise.all(fetchPromises);
-  return results.reduce((acc, current) => {
-    const vaultAddress = Object.keys(current)[0];
-    if (vaultAddress === undefined) throw new Error('vaultAddress undefined');
-    const vaultStatus = current[vaultAddress];
-    if (vaultStatus === undefined) throw new Error('vaultStatus undefined');
-    acc[vaultAddress] = vaultStatus;
-    return acc;
-  }, {});
-}
-
-/**
- * Note that vaultsStatuses fetched are only partial since
- * vaultPushTime, triggerPushTime, panicPushTime and unvaultPushTime cannot be
- * retrieved from the network.
- */
-async function fetchVaultStatus(vault: Vault, explorer: Explorer) {
-  const vaultStatus: VaultStatus = {};
+) {
+  const newVaultStatus: VaultStatus = currvaultStatus
+    ? { ...currvaultStatus }
+    : {};
   const triggerTxData = await fetchSpendingTx(vault.vaultTxHex, 0, explorer);
   if (triggerTxData) {
-    vaultStatus.triggerTxHex = triggerTxData.txHex;
-    vaultStatus.triggerTxBlockHeight = triggerTxData.blockHeight;
+    newVaultStatus.triggerTxHex = triggerTxData.txHex;
+    newVaultStatus.triggerTxBlockHeight = triggerTxData.blockHeight;
     const unlockingTxData = await fetchSpendingTx(
       triggerTxData.txHex,
       0,
@@ -791,15 +771,47 @@ async function fetchVaultStatus(vault: Vault, explorer: Explorer) {
       );
 
       if (panicTxHex) {
-        vaultStatus.panicTxHex = unlockingTxData.txHex;
-        vaultStatus.panicTxBlockHeight = unlockingTxData.blockHeight;
+        newVaultStatus.panicTxHex = unlockingTxData.txHex;
+        newVaultStatus.panicTxBlockHeight = unlockingTxData.blockHeight;
       } else {
-        vaultStatus.spendAsHotTxHex = unlockingTxData.txHex;
-        vaultStatus.spendAsHotTxBlockHeight = unlockingTxData.blockHeight;
+        newVaultStatus.spendAsHotTxHex = unlockingTxData.txHex;
+        newVaultStatus.spendAsHotTxBlockHeight = unlockingTxData.blockHeight;
       }
     }
   }
-  return vaultStatus;
+  return newVaultStatus;
+}
+
+/**
+ * performs a fetchVaultStatus for all vaults in parallel
+ * Note that vaultsStatuses fetched are only partial since
+ * vaultPushTime, triggerPushTime, panicPushTime and unvaultPushTime cannot be
+ * retrieved from the network. We add them back using currvaultStatus if they
+ * exist.
+ */
+export async function fetchVaultsStatuses(
+  vaults: Vaults,
+  currVaultStatuses: VaultsStatuses,
+  explorer: Explorer
+): Promise<VaultsStatuses> {
+  const fetchPromises = Object.entries(vaults).map(async ([vaultId, vault]) => {
+    const status = await fetchVaultStatus(
+      vault,
+      currVaultStatuses[vaultId],
+      explorer
+    );
+    return { [vaultId]: status };
+  });
+
+  const results = await Promise.all(fetchPromises);
+  return results.reduce((acc, current) => {
+    const vaultAddress = Object.keys(current)[0];
+    if (vaultAddress === undefined) throw new Error('vaultAddress undefined');
+    const vaultStatus = current[vaultAddress];
+    if (vaultStatus === undefined) throw new Error('vaultStatus undefined');
+    acc[vaultAddress] = vaultStatus;
+    return acc;
+  }, {});
 }
 
 const selectVaultUtxosDataFactory = memoize((utxosData: UtxosData) =>
