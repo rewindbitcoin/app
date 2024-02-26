@@ -58,8 +58,6 @@ export const fetchP2PVaultIds = async ({
       .replace(':vaultId', vaultId)
       .replace(':network?/', networkId === 'bitcoin' ? '' : `${networkId}/`);
 
-    console.log({ vaultCheckUrl });
-
     try {
       const response = await fetch(vaultCheckUrl);
       const responseBody = await response.json(); // Always try to parse JSON
