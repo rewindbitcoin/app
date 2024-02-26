@@ -56,11 +56,11 @@ export const defaultSettings: Settings = {
   USE_MAINNET_FEE_ESTIMATES_IN_TESTNET: true,
   WALLETS_DATA_VERSION: '1.0.0', //This does not define the version of the App, but keeps track of the changes in the signature of the Wallet
   GET_SERVICE_ADDRESS_URL_TEMPLATE:
-    'https://api.thunderden.com/service-address/<network>/get',
+    'https://api.thunderden.com/:network?/service-address/get',
   PUSH_VAULT_URL_TEMPLATE:
-    'https://api.thunderden.com/vaults/<network>/<vaultId>',
+    'https://api.thunderden.com/:network?/vaults/:vaultId',
   CHECK_VAULT_URL_TEMPLATE:
-    'https://api.thunderden.com/vaults/<network>/<vaultId>/check',
+    'https://api.thunderden.com/:network?/vaults/:vaultId/check',
   GET_VAULT_URL_TEMPLATE:
-    'https://api-proxy.thunderden.com/vaults/<network>/<vaultId>/get'
+    'https://api-proxy.thunderden.com/:network?/vaults/:vaultId/get'
 };

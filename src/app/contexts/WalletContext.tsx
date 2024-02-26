@@ -389,8 +389,8 @@ const WalletProviderWithWallet = ({
 
     const networkId = getNetworkId(network).toLowerCase();
     const serviceUrl = settings.GET_SERVICE_ADDRESS_URL_TEMPLATE.replace(
-      '<network>',
-      networkId
+      ':network?/',
+      networkId === 'bitcoin' ? '' : `${networkId}/`
     );
 
     try {

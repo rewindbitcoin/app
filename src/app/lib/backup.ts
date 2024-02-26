@@ -55,8 +55,10 @@ export const fetchP2PVaultIds = async ({
     const networkId = getNetworkId(network).toLowerCase();
 
     const vaultCheckUrl = vaultCheckUrlTemplate
-      .replace('<vaultId>', vaultId)
-      .replace('<network>', networkId);
+      .replace(':vaultId', vaultId)
+      .replace(':network?/', networkId === 'bitcoin' ? '' : `${networkId}/`);
+
+    console.log({ vaultCheckUrl });
 
     try {
       const response = await fetch(vaultCheckUrl);
@@ -141,8 +143,8 @@ export const fetchP2PVault = async ({
 }): Promise<{ strVault: string; vault: Vault }> => {
   const networkId = getNetworkId(network).toLowerCase();
   const fetchVaultUrl = fetchVaultUrlTemplate
-    .replace('<vaultId>', vaultId)
-    .replace('<network>', networkId);
+    .replace(':vaultId', vaultId)
+    .replace(':network?/', networkId === 'bitcoin' ? '' : `${networkId}/`);
   const cipherKey = await getCipherKey({ vaultPath, signer, network });
   const chacha = getManagedChacha(cipherKey);
 
@@ -215,8 +217,8 @@ export const p2pBackupVault = async ({
 
   const networkId = getNetworkId(network).toLowerCase();
   const pushVaultUrl = pushVaultUrlTemplate
-    .replace('<vaultId>', vaultId)
-    .replace('<network>', networkId);
+    .replace(':vaultId', vaultId)
+    .replace(':network?/', networkId === 'bitcoin' ? '' : `${networkId}/`);
   try {
     const response = await fetch(pushVaultUrl, {
       method: 'PUT',
