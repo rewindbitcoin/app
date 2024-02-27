@@ -20,7 +20,6 @@ import {
   DUMMY_PUBKEY,
   DUMMY_PUBKEY_2
 } from './vaultDescriptors';
-import { fetchP2PVaultIds } from './backup';
 
 import { feeRateSampling } from './fees';
 import type { DiscoveryInstance } from '@bitcoinerlab/discovery';
@@ -281,7 +280,8 @@ export async function createVault({
   signer,
   network,
   utxosData,
-  vaultCheckUrlTemplate,
+  nextVaultId,
+  nextVaultPath,
   onProgress
 }: {
   /** amount includes serviceFee */
@@ -305,7 +305,8 @@ export async function createVault({
   network: Network;
   /** There are ALL the utxos (prior to coinselect them) */
   utxosData: UtxosData;
-  vaultCheckUrlTemplate: string;
+  nextVaultId: string;
+  nextVaultPath: string;
   onProgress: (progress: number) => boolean;
 }): Promise<
   | Vault
@@ -531,12 +532,9 @@ export async function createVault({
       if (panicTxs.length === 0)
         throw new Error(`Panic spending path has no solutions.`);
 
-    const { nextVaultId: vaultId, nextVaultPath: vaultPath } =
-      await fetchP2PVaultIds({ signer, network, vaultCheckUrlTemplate });
-
     return {
-      vaultId,
-      vaultPath,
+      vaultId: nextVaultId,
+      vaultPath: nextVaultPath,
       amount,
       minPanicBalance,
       feeRateCeiling,

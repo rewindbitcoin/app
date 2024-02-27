@@ -430,6 +430,7 @@ const WalletProviderWithWallet = ({
         const { existingVaults: p2pVaultIds } = await fetchP2PVaultIds({
           signer,
           network,
+          vaults,
           vaultCheckUrlTemplate: settings?.CHECK_VAULT_URL_TEMPLATE
         });
         const p2pVaults: Vaults = {};

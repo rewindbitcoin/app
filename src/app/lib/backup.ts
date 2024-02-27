@@ -28,10 +28,12 @@ import { gunzipSync, strFromU8 } from 'fflate';
 export const fetchP2PVaultIds = async ({
   signer,
   network,
+  vaults,
   vaultCheckUrlTemplate
 }: {
   signer: Signer;
   network: Network;
+  vaults: Vaults | undefined;
   vaultCheckUrlTemplate: string;
 }): Promise<{
   nextVaultId: string;
@@ -52,48 +54,53 @@ export const fetchP2PVaultIds = async ({
     const vaultNode = masterNode.derivePath(vaultPath);
     if (!vaultNode.publicKey) throw new Error('Could not generate a vaultId');
     const vaultId = vaultNode.publicKey.toString('hex');
-    const networkId = getNetworkId(network).toLowerCase();
+    const vault = vaults?.[vaultId];
+    if (vault) {
+      existingVaults.push({ vaultId, vaultPath });
+    } else {
+      const networkId = getNetworkId(network).toLowerCase();
 
-    const vaultCheckUrl = vaultCheckUrlTemplate
-      .replace(':vaultId', vaultId)
-      .replace(':network?/', networkId === 'bitcoin' ? '' : `${networkId}/`);
+      const vaultCheckUrl = vaultCheckUrlTemplate
+        .replace(':vaultId', vaultId)
+        .replace(':network?/', networkId === 'bitcoin' ? '' : `${networkId}/`);
 
-    try {
-      const response = await fetch(vaultCheckUrl);
-      const responseBody = await response.json(); // Always try to parse JSON
+      try {
+        const response = await fetch(vaultCheckUrl);
+        const responseBody = await response.json(); // Always try to parse JSON
 
-      if (response.ok) {
-        if (responseBody.exists) {
-          existingVaults.push({ vaultId, vaultPath });
+        if (response.ok) {
+          if (responseBody.exists) {
+            existingVaults.push({ vaultId, vaultPath });
+          } else {
+            throw new Error(`Unexpected non-existing vaultId with status 200}`);
+          }
         } else {
-          throw new Error(`Unexpected non-existing vaultId with status 200}`);
+          // Handle non-2xx status codes
+          switch (response.status) {
+            case 404:
+              // Resource does not exist, but the request was valid
+              if ('exists' in responseBody && responseBody.exists === false) {
+                return {
+                  nextVaultId: vaultId,
+                  nextVaultPath: vaultPath,
+                  existingVaults
+                };
+              } else throw new Error(`Server not found: ${vaultCheckUrl}`);
+            case 409:
+              // Key already exists, updates or deletions are not allowed
+              throw new Error(responseBody.message);
+            default:
+              // Other errors
+              throw new Error(
+                `Unexpected response: ${response.status} ${responseBody.message || ''}`
+              );
+          }
         }
-      } else {
-        // Handle non-2xx status codes
-        switch (response.status) {
-          case 404:
-            // Resource does not exist, but the request was valid
-            if ('exists' in responseBody && responseBody.exists === false) {
-              return {
-                nextVaultId: vaultId,
-                nextVaultPath: vaultPath,
-                existingVaults
-              };
-            } else throw new Error(`Server not found: ${vaultCheckUrl}`);
-          case 409:
-            // Key already exists, updates or deletions are not allowed
-            throw new Error(responseBody.message);
-          default:
-            // Other errors
-            throw new Error(
-              `Unexpected response: ${response.status} ${responseBody.message || ''}`
-            );
-        }
+      } catch (error) {
+        const errorMessage =
+          error instanceof Error ? error.message : 'An unknown error occurred';
+        throw new Error(`Error checking vault ID: ${errorMessage}`);
       }
-    } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : 'An unknown error occurred';
-      throw new Error(`Error checking vault ID: ${errorMessage}`);
     }
   }
   throw new Error(`Reached MAX_VAULT_CHECKS`);

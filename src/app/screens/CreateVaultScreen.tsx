@@ -27,7 +27,7 @@ import {
   Theme,
   useTheme
 } from '../../common/ui';
-import { p2pBackupVault } from '../lib/backup';
+import { p2pBackupVault, fetchP2PVaultIds } from '../lib/backup';
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -55,7 +55,8 @@ export default function VaultCreate({
     getChangeDescriptor,
     getUnvaultKey,
     signers,
-    processCreatedVault
+    processCreatedVault,
+    vaults
   } = context;
   if (!utxosData || !network || !signers || !processCreatedVault)
     throw new Error('Missing data from context');
@@ -102,6 +103,12 @@ export default function VaultCreate({
       const signer = signers[0];
       if (!signer) throw new Error('signer unavailable');
 
+      const { nextVaultId, nextVaultPath } = await fetchP2PVaultIds({
+        signer,
+        network,
+        vaults,
+        vaultCheckUrlTemplate: settings.CHECK_VAULT_URL_TEMPLATE
+      });
       const vault = await createVault({
         amount,
         unvaultKey,
@@ -116,7 +123,8 @@ export default function VaultCreate({
         signer,
         utxosData,
         network,
-        vaultCheckUrlTemplate: settings.CHECK_VAULT_URL_TEMPLATE,
+        nextVaultId,
+        nextVaultPath,
         onProgress
       });
 
@@ -172,6 +180,7 @@ export default function VaultCreate({
     settings.PUSH_VAULT_URL_TEMPLATE,
     settings.SERVICE_FEE_RATE,
     signers,
+    vaults,
     utxosData
   ]);
 
