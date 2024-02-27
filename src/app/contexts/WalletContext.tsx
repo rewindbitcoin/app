@@ -447,7 +447,7 @@ const WalletProviderWithWallet = ({
           p2pVaults[vault.vaultId] = vault;
         }
         fetchP2PVaultsRunning.current = false;
-        return vaults;
+        return p2pVaults;
       }
     }
     return;
