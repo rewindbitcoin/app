@@ -48,6 +48,7 @@ const WalletHomeScreen = ({
           {Object.values(vaults).map(vault => (
             <View key={vault.vaultId}>
               <Text>{vault.vaultId}</Text>
+              <Text>Delegate</Text>
             </View>
           ))}
         </>
