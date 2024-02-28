@@ -261,9 +261,14 @@ const WalletProviderWithWallet = ({
           network,
           discovery
         );
-        const { utxos } = discovery.getUtxosAndBalance({ descriptors });
-        const utxosData = getUtxosData(utxos, vaults, network, discovery);
-        setUtxosData(utxosData);
+        //Make sure they are fetched already:
+        if (
+          descriptors.every(descriptor => discovery.whenFetched({ descriptor }))
+        ) {
+          const { utxos } = discovery.getUtxosAndBalance({ descriptors });
+          const utxosData = getUtxosData(utxos, vaults, network, discovery);
+          setUtxosData(utxosData);
+        }
       }
     };
     setInitialUtxosData();

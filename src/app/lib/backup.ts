@@ -99,7 +99,9 @@ export const fetchP2PVaultIds = async ({
       } catch (error) {
         const errorMessage =
           error instanceof Error ? error.message : 'An unknown error occurred';
-        throw new Error(`Error checking vault ID: ${errorMessage}`);
+        throw new Error(
+          `Error checking vault ID on ${vaultCheckUrl}: ${errorMessage}`
+        );
       }
     }
   }
