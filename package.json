@@ -14,7 +14,8 @@
     "android": "expo run:android",
     "ios": "expo run:ios",
     "web": "expo start --web",
-    "postinstall": "patch-package"
+    "postinstall": "patch-package",
+    "checkTranslations": "i18next -c src/i18n/i18next.config.ts && npx ts-node src/i18n/checkTranslations.ts"
   },
   "dependencies": {
     "@babel/plugin-proposal-export-namespace-from": "^7.18.9",
@@ -85,6 +86,7 @@
     "@types/react-native-extra-dimensions-android": "^1.2.3",
     "eslint-plugin-react": "^7.33.2",
     "eslint-plugin-react-hooks": "^4.6.0",
+    "i18next-parser": "^8.13.0",
     "patch-package": "^8.0.0",
     "typescript": "^5.1.3"
   },

@@ -46,3 +46,5 @@ ios/
 Home.tsx
 
 deprecated/
+
+src/i18n/*.keys.json
