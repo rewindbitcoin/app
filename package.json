@@ -15,7 +15,7 @@
     "ios": "expo run:ios",
     "web": "expo start --web",
     "postinstall": "patch-package",
-    "checkTranslations": "i18next -c src/i18n/i18next.config.ts && npx ts-node src/i18n/checkTranslations.ts"
+    "i18n": "i18next -c src/i18n/i18next.config.ts && npx ts-node src/i18n/checkTranslations.ts"
   },
   "dependencies": {
     "@babel/plugin-proposal-export-namespace-from": "^7.18.9",
