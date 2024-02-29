@@ -20,7 +20,7 @@ import * as secp256k1 from '@bitcoinerlab/secp256k1';
 const MessageAPI = MessageFactory(secp256k1);
 
 import { compressData } from '../../common/lib/compress';
-import type { Vault, Vaults } from './vaults';
+import type { Vault, Vaults, TxHex, Recovery, RecoveryTxMap } from './vaults';
 import { getManagedChacha } from '../../common/lib/cipher';
 
 import { gunzipSync, strFromU8 } from 'fflate';
@@ -253,6 +253,77 @@ export const p2pBackupVault = async ({
   else throw new Error('Inconsistencies detected while verifying backup');
 };
 
+export const delegateVault = async ({
+  readme,
+  vault,
+  onProgress
+}: {
+  readme: Array<string>;
+  vault: Vault;
+  onProgress?: (progress: number) => boolean;
+}): Promise<boolean> => {
+  const recoveryTxMap: RecoveryTxMap = {};
+  Object.entries(vault.triggerMap).forEach(([triggerTxHex, recoveryTxHexs]) => {
+    const triggerTxId = vault.txMap[triggerTxHex]?.txId;
+    if (!triggerTxId)
+      throw new Error(`Trigger transaction ${triggerTxId} not found in txMap.`);
+    recoveryTxMap[triggerTxId] = recoveryTxHexs.map((recoveryTxHex: TxHex) => {
+      const recoveryTxData = vault.txMap[recoveryTxHex];
+      if (!recoveryTxData)
+        throw new Error(`recoveryTxData not found for ${recoveryTxHex}`);
+      return {
+        txHex: recoveryTxHex,
+        fee: recoveryTxData.fee,
+        feeRate: recoveryTxData.feeRate
+      };
+    });
+  });
+  const recovery: Recovery = {
+    readme,
+    networkId: vault.networkId,
+    recoveryTxMap
+  };
+
+  const strRecovery = JSON.stringify(recovery, null, 2);
+
+  const compressedRecovery = await compressData({
+    data: strRecovery,
+    chunkSize: 256 * 1024, //chunks of 256 KB
+    ...(onProgress ? { onProgress } : {})
+  });
+  if (!compressedRecovery) {
+    return false;
+    //TODO: toast throw new Error('Impossible to compress recovery');
+  }
+
+  const fileName = `thunderden_recovery.json.gz`;
+  if (Platform.OS === 'web') {
+    const blob = new Blob([compressedRecovery], {
+      type: 'application/octet-stream'
+    });
+    const url = URL.createObjectURL(blob);
+    const downloadLink = document.createElement('a');
+    downloadLink.href = url;
+    downloadLink.download = fileName;
+    document.body.appendChild(downloadLink);
+    downloadLink.click();
+    document.body.removeChild(downloadLink);
+    URL.revokeObjectURL(url);
+  } else {
+    const filePath = `${documentDirectory}${fileName}`;
+    await writeAsStringAsync(
+      filePath,
+      Buffer.from(compressedRecovery).toString('base64'),
+      {
+        encoding: EncodingType.Base64
+      }
+    );
+    await shareAsync(filePath);
+    await deleteAsync(filePath);
+  }
+  return true;
+};
+
 export const shareVaults = async ({
   vaults,
   onProgress
@@ -272,7 +343,7 @@ export const shareVaults = async ({
     //TODO: toast throw new Error('Impossible to compress vaults');
   }
 
-  const fileName = `vaults.json.gz`;
+  const fileName = `thunderden_vaults.json.gz`;
   if (Platform.OS === 'web') {
     const blob = new Blob([compressedVaults], {
       type: 'application/octet-stream'

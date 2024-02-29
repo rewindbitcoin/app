@@ -25,6 +25,10 @@ import { feeRateSampling } from './fees';
 import type { DiscoveryInstance } from '@bitcoinerlab/discovery';
 import { coinselect, vsize, dustThreshold } from '@bitcoinerlab/coinselect';
 import type { Explorer } from '@bitcoinerlab/explorer';
+import { getNetworkId, type NetworkId } from './network';
+
+export type TxHex = string;
+export type TxId = string;
 
 export type VaultSettings = {
   amount: number;
@@ -52,6 +56,8 @@ export type Vault = {
 
   txMap: TxMap;
   triggerMap: TriggerMap;
+
+  networkId: NetworkId;
 
   /** Assuming a scenario of extreme fees (feeRateCeiling), what will be the
    * remaining balance after panicking */
@@ -94,11 +100,20 @@ export type VaultStatus = {
   unvaultPushTime?: number;
 };
 
+export type RecoveryTxMap = Record<
+  TxId, //The triggerTxId
+  Array<{ txHex: TxHex; fee: number; feeRate: number }>
+>;
+export type Recovery = {
+  readme: Array<string>;
+  networkId: NetworkId;
+  recoveryTxMap: RecoveryTxMap;
+};
+
 export type VaultsStatuses = Record<string, VaultStatus>;
 
 export type Vaults = Record<string, Vault>;
-type TxHex = string;
-type TxMap = Record<TxHex, { txId: string; fee: number; feeRate: number }>;
+type TxMap = Record<TxHex, { txId: TxId; fee: number; feeRate: number }>;
 /** maps a triggerTx with its corresponding Array of panicTxs */
 type TriggerMap = Record<TxHex, Array<TxHex>>;
 
@@ -533,6 +548,7 @@ export async function createVault({
         throw new Error(`Panic spending path has no solutions.`);
 
     return {
+      networkId: getNetworkId(network),
       vaultId: nextVaultId,
       vaultPath: nextVaultPath,
       amount,

@@ -3,7 +3,7 @@ import { RefreshControl, Button, View, Text } from 'react-native';
 import { KeyboardAwareScrollView } from '../../common/ui';
 import { WalletContext, WalletContextType } from '../contexts/WalletContext';
 import { useTranslation } from 'react-i18next';
-import { shareVaults } from '../lib/backup';
+import { delegateVault, shareVaults } from '../lib/backup';
 import moize from 'moize';
 
 //TODO the WalletProvider must also pass it's own refreshing state
@@ -27,7 +27,13 @@ const WalletHomeScreen = ({
 
   const createDelegateVaultHandler = moize((vaultId: string) => {
     return () => {
-      console.log(`Delegating vault ${vaultId}`);
+      if (!vaults) throw new Error(`vaults not yet defined`);
+      const vault = vaults[vaultId];
+      if (!vault) throw new Error(`Vault ${vaultId} not found in vaults`);
+      const readmeText = t('walletHome.delegateReadme');
+      const readme = readmeText.split('\n');
+
+      delegateVault({ readme, vault });
     };
   });
 
