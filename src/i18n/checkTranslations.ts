@@ -28,8 +28,9 @@ const collectKeys = (obj: LocaleData, prefix = ''): string[] => {
 };
 
 // Function to load JSON files and compare keys
-const compareKeys = async () => {
-  for (const locale of locales) {
+const compareKeys = async (specificLocale?: string) => {
+  const localesToCheck = specificLocale ? [specificLocale] : locales;
+  for (const locale of localesToCheck) {
     const filePath = path.join(__dirname, `${locale}.keys.json`);
     try {
       const fileContents = fs.readFileSync(filePath, 'utf8');
@@ -47,11 +48,11 @@ const compareKeys = async () => {
         key => !definedKeys.includes(key)
       );
 
-      if (missingKeys.length > 0) {
-        console.log(`Needs translation for ${locale}:`, missingKeys);
-      }
       if (undefinedKeys.length > 0) {
-        console.log(`Translation not used for ${locale}:`, undefinedKeys);
+        console.log(`Needs translation for ${locale}:`, undefinedKeys);
+      }
+      if (missingKeys.length > 0) {
+        console.log(`Translation not used for ${locale}:`, missingKeys);
       }
     } catch (error) {
       console.error(`Error reading or parsing ${filePath}:`, error);
@@ -59,4 +60,12 @@ const compareKeys = async () => {
   }
 };
 
-compareKeys();
+// Get locale from command-line arguments
+const specificLocale = process.argv[2];
+
+// Call compareKeys with the specificLocale if it's provided and part of the known locales
+if (specificLocale && locales.includes(specificLocale)) {
+  compareKeys(specificLocale);
+} else {
+  compareKeys();
+}

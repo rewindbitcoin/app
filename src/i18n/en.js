@@ -32,6 +32,42 @@ If you ever lose or forget your password, you can still recover your wallet\
     encryptAppDataTitle: 'Encrypt App Data',
     importButton: 'Import'
   },
+  walletHome: {
+    delegateReadme: `For immediate action, open this file at:
+https://recovery.thunderden.com
+
+Introduction:
+You have been given this file because you are trusted to assist in
+the event of unauthorized vault access, aiming to protect the owner’s
+Bitcoin funds from theft or extortion. Use it wisely and verify the
+threat before proceeding.
+
+Recovery Steps:
+If unauthorized transactions are threatening the assets, this document
+allows you to cancel those transactions, ensuring the security of the funds.
+
+VERIFY OWNER’S RISK STATUS BEFORE ACTING.
+
+Usage Instructions:
+1. Automated Recovery:
+   For a simplified process, visit https://recovery.thunderden.com.
+
+2. Manual Recovery:
+   This file contains a recovery transaction map. Each index in this map
+   corresponds to a transaction ID that might have initiated the
+   unauthorized vault release. Your task is to identify which transaction ID
+   started the unvaulting process.
+   Associated with each transaction ID, you will find an array of possible
+   transactions that can cancel this unvaulting, effectively reversing the
+   unauthorized access.
+   - To manually cancel an unauthorized release, locate the initiating
+     transaction ID, then select and push one of the provided cancellation
+     transactions using a blockchain explorer with an appropriate fee rate
+     for the current network conditions.
+   - Remember, all these steps can be handled automatically by using the
+     online tool at https://recovery.thunderden.com, which simplifies
+     the identification and cancellation process`
+  },
   help: {
     biometric: `This option enables biometric encryption to secure your\
  mnemonic. It uses your device's biometric features like fingerprint or\
