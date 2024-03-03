@@ -11,5 +11,5 @@ export default {
   },
   locales,
   output: 'src/i18n/$LOCALE.keys.json',
-  input: 'src/**/*.{ts,tsx}'
+  input: '../**/*.{ts,tsx}'
 };

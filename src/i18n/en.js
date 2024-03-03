@@ -34,7 +34,7 @@ If you ever lose or forget your password, you can still recover your wallet\
   },
   walletHome: {
     delegateReadme: `For immediate action, open this file at:
-https://recovery.thunderden.com
+https://rescue.thunderden.com
 
 Introduction:
 You have been given this file because you are trusted to assist in
@@ -50,7 +50,7 @@ VERIFY OWNER’S RISK STATUS BEFORE ACTING.
 
 Usage Instructions:
 1. Automated Recovery:
-   For a simplified process, visit https://recovery.thunderden.com.
+   For a simplified process, visit https://rescue.thunderden.com.
 
 2. Manual Recovery:
    This file contains a recovery transaction map. Each index in this map
@@ -65,7 +65,7 @@ Usage Instructions:
      transactions using a blockchain explorer with an appropriate fee rate
      for the current network conditions.
    - Remember, all these steps can be handled automatically by using the
-     online tool at https://recovery.thunderden.com, which simplifies
+     online tool at https://rescue.thunderden.com, which simplifies
      the identification and cancellation process`
   },
   help: {
