@@ -10,6 +10,8 @@ export default {
     tsx: ['JsxLexer']
   },
   locales,
+  //relative to process.cwd()
   output: 'src/i18n/$LOCALE.keys.json',
+  //relative to this file
   input: '../**/*.{ts,tsx}'
 };

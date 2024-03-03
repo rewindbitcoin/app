@@ -1,23 +1,23 @@
-import fs from 'fs';
-import path from 'path';
+import fs from "fs";
+import path from "path";
 
-import { locales } from './i18next.config';
+import { locales } from "./i18next.config";
 
 type LocaleData = {
   [key: string]: string | LocaleData;
 };
 
 const importLocaleData = async (locale: string) => {
-  const module = await import(`${__dirname}/${locale}.js`);
+  const module = await import(`./${locale}.js`);
   return module.default;
 };
 
 // Helper function to recursively collect keys from an object (including nested keys)
-const collectKeys = (obj: LocaleData, prefix = ''): string[] => {
+const collectKeys = (obj: LocaleData, prefix = ""): string[] => {
   return Object.keys(obj).reduce((res, key) => {
     const value = obj[key];
     const fullPath = `${prefix}${key}`;
-    if (typeof value === 'object' && value !== null) {
+    if (typeof value === "object" && value !== null) {
       // TypeScript needs assurance that value is not an array or null
       res = res.concat(collectKeys(value as LocaleData, `${fullPath}.`));
     } else {
@@ -31,9 +31,9 @@ const collectKeys = (obj: LocaleData, prefix = ''): string[] => {
 const compareKeys = async (specificLocale?: string) => {
   const localesToCheck = specificLocale ? [specificLocale] : locales;
   for (const locale of localesToCheck) {
-    const filePath = path.join(__dirname, `${locale}.keys.json`);
+    const filePath = path.join("src", "i18n", `${locale}.keys.json`);
     try {
-      const fileContents = fs.readFileSync(filePath, 'utf8');
+      const fileContents = fs.readFileSync(filePath, "utf8");
       const data = JSON.parse(fileContents);
 
       // Collect keys from the loaded JSON file
@@ -43,9 +43,11 @@ const compareKeys = async (specificLocale?: string) => {
       const definedKeys = collectKeys(localeData);
 
       // Find missing and undefined keys
-      const missingKeys = definedKeys.filter(key => !loadedKeys.includes(key));
+      const missingKeys = definedKeys.filter(
+        (key) => !loadedKeys.includes(key),
+      );
       const undefinedKeys = loadedKeys.filter(
-        key => !definedKeys.includes(key)
+        (key) => !definedKeys.includes(key),
       );
 
       if (undefinedKeys.length > 0) {
