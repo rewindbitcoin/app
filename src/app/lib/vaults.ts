@@ -100,14 +100,15 @@ export type VaultStatus = {
   unvaultPushTime?: number;
 };
 
-export type RecoveryTxMap = Record<
+export type RescueTxMap = Record<
   TxId, //The triggerTxId
   Array<{ txHex: TxHex; fee: number; feeRate: number }>
 >;
-export type Recovery = {
+export type Rescue = {
+  version: 'thunderden_rescue_V0';
   readme: Array<string>;
   networkId: NetworkId;
-  recoveryTxMap: RecoveryTxMap;
+  rescueTxMap: RescueTxMap;
 };
 
 export type VaultsStatuses = Record<string, VaultStatus>;

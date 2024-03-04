@@ -20,7 +20,7 @@ import * as secp256k1 from '@bitcoinerlab/secp256k1';
 const MessageAPI = MessageFactory(secp256k1);
 
 import { compressData } from '../../common/lib/compress';
-import type { Vault, Vaults, TxHex, Recovery, RecoveryTxMap } from './vaults';
+import type { Vault, Vaults, TxHex, Rescue, RescueTxMap } from './vaults';
 import { getManagedChacha } from '../../common/lib/cipher';
 
 import { gunzipSync, strFromU8 } from 'fflate';
@@ -262,43 +262,44 @@ export const delegateVault = async ({
   vault: Vault;
   onProgress?: (progress: number) => boolean;
 }): Promise<boolean> => {
-  const recoveryTxMap: RecoveryTxMap = {};
-  Object.entries(vault.triggerMap).forEach(([triggerTxHex, recoveryTxHexs]) => {
+  const rescueTxMap: RescueTxMap = {};
+  Object.entries(vault.triggerMap).forEach(([triggerTxHex, rescueTxHexs]) => {
     const triggerTxId = vault.txMap[triggerTxHex]?.txId;
     if (!triggerTxId)
       throw new Error(`Trigger transaction ${triggerTxId} not found in txMap.`);
-    recoveryTxMap[triggerTxId] = recoveryTxHexs.map((recoveryTxHex: TxHex) => {
-      const recoveryTxData = vault.txMap[recoveryTxHex];
-      if (!recoveryTxData)
-        throw new Error(`recoveryTxData not found for ${recoveryTxHex}`);
+    rescueTxMap[triggerTxId] = rescueTxHexs.map((rescueTxHex: TxHex) => {
+      const rescueTxData = vault.txMap[rescueTxHex];
+      if (!rescueTxData)
+        throw new Error(`rescueTxData not found for ${rescueTxHex}`);
       return {
-        txHex: recoveryTxHex,
-        fee: recoveryTxData.fee,
-        feeRate: recoveryTxData.feeRate
+        txHex: rescueTxHex,
+        fee: rescueTxData.fee,
+        feeRate: rescueTxData.feeRate
       };
     });
   });
-  const recovery: Recovery = {
+  const rescue: Rescue = {
+    version: 'thunderden_rescue_V0',
     readme,
     networkId: vault.networkId,
-    recoveryTxMap
+    rescueTxMap
   };
 
-  const strRecovery = JSON.stringify(recovery, null, 2);
+  const strRescue = JSON.stringify(rescue, null, 2);
 
-  const compressedRecovery = await compressData({
-    data: strRecovery,
+  const compressedRescue = await compressData({
+    data: strRescue,
     chunkSize: 256 * 1024, //chunks of 256 KB
     ...(onProgress ? { onProgress } : {})
   });
-  if (!compressedRecovery) {
+  if (!compressedRescue) {
     return false;
-    //TODO: toast throw new Error('Impossible to compress recovery');
+    //TODO: toast throw new Error('Impossible to compress rescue');
   }
 
-  const fileName = `thunderden_recovery.json.gz`;
+  const fileName = `thunderden_rescue.json.gz`;
   if (Platform.OS === 'web') {
-    const blob = new Blob([compressedRecovery], {
+    const blob = new Blob([compressedRescue], {
       type: 'application/octet-stream'
     });
     const url = URL.createObjectURL(blob);
@@ -313,7 +314,7 @@ export const delegateVault = async ({
     const filePath = `${documentDirectory}${fileName}`;
     await writeAsStringAsync(
       filePath,
-      Buffer.from(compressedRecovery).toString('base64'),
+      Buffer.from(compressedRescue).toString('base64'),
       {
         encoding: EncodingType.Base64
       }
