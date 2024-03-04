@@ -47,4 +47,4 @@ Home.tsx
 
 deprecated/
 
-src/i18n/*.keys.json
+src/i18n/*.keys*.json
