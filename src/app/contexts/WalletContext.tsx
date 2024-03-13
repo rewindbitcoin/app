@@ -54,7 +54,7 @@ export const WalletContext: Context<WalletContextType | null> =
 
 export type WalletContextType = {
   getChangeDescriptor: () => Promise<string>;
-  getServiceAddress: () => Promise<string>;
+  fetchServiceAddress: () => Promise<string>;
   getUnvaultKey: () => Promise<string>;
   btcFiat: number | null;
   feeEstimates: FeeEstimates | null;
@@ -72,25 +72,9 @@ export type WalletContextType = {
   ) => Promise<boolean>;
   syncBlockchain: () => Promise<void>;
   syncingBlockchain: boolean;
-  // ... any other properties you want to include
+  vaultsAPI: string | undefined;
+  vaultsSecondaryAPI: string | undefined;
 };
-
-//TODO: These must be set as settings, and should be configurable by
-//the user (specially regtest one)
-function esploraUrl(networkId: NetworkId) {
-  const url =
-    networkId === 'TESTNET'
-      ? 'https://blockstream.info/testnet/api/'
-      : networkId === 'BITCOIN'
-        ? 'https://blockstream.info/api/'
-        : networkId === 'STORM'
-          ? 'https://storm.thunderden.com/api/'
-          : networkId === 'REGTEST'
-            ? 'http://localhost:31002/'
-            : null;
-  if (!url) throw new Error(`Esplora API not available for this network`);
-  return url;
-}
 
 const getDescriptors = async (
   vaults: Vaults,
@@ -197,6 +181,40 @@ const WalletProviderWithWallet = ({
     DEFAULT_ACCOUNT_NAMES
   );
 
+  let esploraAPI: string | undefined;
+  let serviceAddressAPI: string | undefined;
+  let vaultsAPI: string | undefined;
+  let vaultsSecondaryAPI: string | undefined;
+
+  switch (networkId) {
+    case 'BITCOIN':
+      esploraAPI = settings?.MAINNET_ESPLORA_API;
+      serviceAddressAPI = settings?.MAINNET_SERVICE_ADDRESS_API;
+      vaultsAPI = settings?.MAINNET_VAULTS_API;
+      vaultsSecondaryAPI = settings?.MAINNET_VAULTS_SECONDARY_API;
+      break;
+    case 'TESTNET':
+      esploraAPI = settings?.TESTNET_ESPLORA_API;
+      serviceAddressAPI = settings?.TESTNET_SERVICE_ADDRESS_API;
+      vaultsAPI = settings?.TESTNET_VAULTS_API;
+      vaultsSecondaryAPI = settings?.TESTNET_VAULTS_SECONDARY_API;
+      break;
+    case 'STORM':
+      esploraAPI = settings?.STORM_ESPLORA_API;
+      serviceAddressAPI = settings?.STORM_SERVICE_ADDRESS_API;
+      vaultsAPI = settings?.STORM_VAULTS_API;
+      vaultsSecondaryAPI = settings?.STORM_VAULTS_SECONDARY_API;
+      break;
+    case 'REGTEST':
+      esploraAPI = settings?.REGTEST_ESPLORA_API;
+      serviceAddressAPI = settings?.REGTEST_SERVICE_ADDRESS_API;
+      vaultsAPI = settings?.REGTEST_VAULTS_API;
+      vaultsSecondaryAPI = settings?.REGTEST_VAULTS_SECONDARY_API;
+      break;
+    default:
+      throw new Error(`networkId ${networkId} not supported.`);
+  }
+
   useEffect(() => {
     if (newWalletSigners) setSigners(newWalletSigners);
   }, [newWalletSigners, setSigners]);
@@ -214,12 +232,11 @@ const WalletProviderWithWallet = ({
 
   // Sets discovery from storage if available or new:
   useEffect(() => {
-    if (!discovery && networkId) {
+    if (!discovery && networkId && esploraAPI) {
       const network = networkMapping[networkId];
       let isMounted = true;
       let isExplorerConnected = false;
-      const url = esploraUrl(networkId);
-      const explorer = new EsploraExplorer({ url });
+      const explorer = new EsploraExplorer({ url: esploraAPI });
       const { Discovery } = DiscoveryFactory(explorer, network);
 
       (async function () {
@@ -248,7 +265,13 @@ const WalletProviderWithWallet = ({
       };
     }
     return;
-  }, [networkId, discoveryDataExport, isDiscoveryDataExportSynchd, discovery]);
+  }, [
+    networkId,
+    esploraAPI,
+    discoveryDataExport,
+    isDiscoveryDataExportSynchd,
+    discovery
+  ]);
 
   //Tries to initialize utxosData ASAP (only if not set)
   useEffect(() => {
@@ -284,23 +307,12 @@ const WalletProviderWithWallet = ({
   // Sets feeEstimates
   useEffect(() => {
     let isMounted = true;
-    if (
-      settings?.USE_MAINNET_FEE_ESTIMATES_IN_TESTNET !== undefined &&
-      settings?.BTC_FEE_ESTIMATES_REFRESH_INTERVAL_MS !== undefined
-    ) {
+    if (settings?.BTC_FEE_ESTIMATES_REFRESH_INTERVAL_MS !== undefined) {
       const updateFeeEstimates = async () => {
         if (discovery) {
           let feeEstimates: FeeEstimates;
           try {
-            if (settings.USE_MAINNET_FEE_ESTIMATES_IN_TESTNET) {
-              const url = esploraUrl(networkId);
-              const explorer = new EsploraExplorer({ url });
-              await explorer.connect();
-              feeEstimates = await explorer.fetchFeeEstimates();
-              await explorer.close();
-            } else {
-              feeEstimates = await discovery.getExplorer().fetchFeeEstimates();
-            }
+            feeEstimates = await discovery.getExplorer().fetchFeeEstimates();
             if (isMounted) setFeeEstimates(feeEstimates);
           } catch (err) {
             toast.show(t('app.feeEstimatesError'), {
@@ -326,7 +338,6 @@ const WalletProviderWithWallet = ({
     toast,
     discovery,
     networkId,
-    settings?.USE_MAINNET_FEE_ESTIMATES_IN_TESTNET,
     settings?.BTC_FEE_ESTIMATES_REFRESH_INTERVAL_MS
   ]);
 
@@ -392,21 +403,13 @@ const WalletProviderWithWallet = ({
     return await createUnvaultKey({ signer, network });
   }, [network, signers]);
 
-  const getServiceAddress = useCallback(async () => {
-    if (!settings?.GET_SERVICE_ADDRESS_URL_TEMPLATE) {
-      throw new Error(
-        'System not ready: GET_SERVICE_ADDRESS_URL_TEMPLATE is not defined.'
-      );
+  const fetchServiceAddress = useCallback(async () => {
+    if (!serviceAddressAPI) {
+      throw new Error('System not ready to fetch the service address.');
     }
 
-    const networkPath = networkId.toLowerCase();
-    const serviceUrl = settings.GET_SERVICE_ADDRESS_URL_TEMPLATE.replace(
-      ':network?/',
-      networkPath === 'bitcoin' ? '' : `${networkPath}/`
-    );
-
     try {
-      const response = await fetch(serviceUrl);
+      const response = await fetch(serviceAddressAPI);
       if (!response.ok) {
         throw new Error(
           `Failed to fetch service address: ${response.statusText}`
@@ -424,18 +427,14 @@ const WalletProviderWithWallet = ({
       console.error('Error fetching service address:', error);
       throw error; // Re-throw the error if you want to handle it outside or show a message to the user
     }
-  }, [networkId, settings?.GET_SERVICE_ADDRESS_URL_TEMPLATE]);
+  }, [serviceAddressAPI]);
 
   /**
    * Gets vaults from the P2P network. Does not fetch it if already in memory.
    */
   const fetchP2PVaults = useCallback(async () => {
     const signer = signers?.[0];
-    if (
-      signer &&
-      settings?.CHECK_VAULT_URL_TEMPLATE &&
-      settings?.GET_VAULT_URL_TEMPLATE
-    ) {
+    if (signer && vaultsAPI && vaultsSecondaryAPI) {
       if (fetchP2PVaultsRunning.current === false) {
         fetchP2PVaultsRunning.current = true;
 
@@ -443,7 +442,7 @@ const WalletProviderWithWallet = ({
           signer,
           networkId,
           vaults,
-          vaultCheckUrlTemplate: settings?.CHECK_VAULT_URL_TEMPLATE
+          vaultsAPI
         });
         const p2pVaults: Vaults = {};
         for (const { vaultId, vaultPath } of p2pVaultIds) {
@@ -453,7 +452,7 @@ const WalletProviderWithWallet = ({
               vaultId,
               vaultPath,
               signer,
-              fetchVaultUrlTemplate: settings.GET_VAULT_URL_TEMPLATE,
+              vaultsAPI: vaultsSecondaryAPI,
               networkId
             }));
           }
@@ -464,13 +463,7 @@ const WalletProviderWithWallet = ({
       }
     }
     return;
-  }, [
-    networkId,
-    signers,
-    vaults,
-    settings?.CHECK_VAULT_URL_TEMPLATE,
-    settings?.GET_VAULT_URL_TEMPLATE
-  ]);
+  }, [networkId, signers, vaults, vaultsAPI, vaultsSecondaryAPI]);
 
   /**
    * Initiates the blockchain synchronization process. This function uses
@@ -657,17 +650,18 @@ const WalletProviderWithWallet = ({
   const contextValue = {
     getUnvaultKey,
     getChangeDescriptor,
-    getServiceAddress,
+    fetchServiceAddress,
     btcFiat,
     feeEstimates,
     signers,
     vaults,
-    networkId: wallet.networkId,
+    networkId,
     utxosData,
     processCreatedVault,
     syncBlockchain,
-    syncingBlockchain
-    // ... any other relevant state or functions
+    syncingBlockchain,
+    vaultsAPI,
+    vaultsSecondaryAPI
   };
 
   return (

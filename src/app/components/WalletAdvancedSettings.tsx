@@ -177,6 +177,7 @@ export default function WalletAdvancedSettings({
         closeButtonText={t('understoodButton')}
       >
         <Text>
+          {/*TODO: translate*/}
           This option secures your non-mnemonic app data, like vaults and UTXOs,
           using the XChaCha20-Poly1305 encryption algorithm with a special key.
           This key is created in a secure and deterministic way from your

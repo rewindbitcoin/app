@@ -51,14 +51,23 @@ export default function VaultCreate({
   const {
     utxosData,
     networkId,
-    getServiceAddress,
+    fetchServiceAddress,
     getChangeDescriptor,
     getUnvaultKey,
     signers,
     processCreatedVault,
-    vaults
+    vaults,
+    vaultsAPI,
+    vaultsSecondaryAPI
   } = context;
-  if (!utxosData || !networkId || !signers || !processCreatedVault)
+  if (
+    !utxosData ||
+    !networkId ||
+    !signers ||
+    !processCreatedVault ||
+    !vaultsAPI ||
+    !vaultsSecondaryAPI
+  )
     throw new Error('Missing data from context');
   const { t } = useTranslation();
   const keepProgress = useRef<boolean>(true);
@@ -92,7 +101,7 @@ export default function VaultCreate({
       await sleep(200);
 
       const unvaultKey = await getUnvaultKey();
-      const serviceAddress = await getServiceAddress(); //TODO: show error if network error
+      const serviceAddress = await fetchServiceAddress(); //TODO: show error if network error
       const changeDescriptor = await getChangeDescriptor();
 
       console.log('TRACE createVault', {
@@ -107,7 +116,7 @@ export default function VaultCreate({
         signer,
         networkId,
         vaults,
-        vaultCheckUrlTemplate: settings.CHECK_VAULT_URL_TEMPLATE
+        vaultsAPI
       });
       const vault = await createVault({
         amount,
@@ -137,8 +146,8 @@ export default function VaultCreate({
         const backupResult = await p2pBackupVault({
           vault,
           signer,
-          pushVaultUrlTemplate: settings.PUSH_VAULT_URL_TEMPLATE,
-          fetchVaultUrlTemplate: settings.GET_VAULT_URL_TEMPLATE,
+          vaultsAPI,
+          vaultsSecondaryAPI,
           onProgress,
           networkId
         });
@@ -167,7 +176,7 @@ export default function VaultCreate({
     feeRate,
     feeRateCeiling,
     getChangeDescriptor,
-    getServiceAddress,
+    fetchServiceAddress,
     getUnvaultKey,
     lockBlocks,
     networkId,
@@ -175,9 +184,8 @@ export default function VaultCreate({
     onVaultPushed,
     processCreatedVault,
     samples,
-    settings.CHECK_VAULT_URL_TEMPLATE,
-    settings.GET_VAULT_URL_TEMPLATE,
-    settings.PUSH_VAULT_URL_TEMPLATE,
+    vaultsAPI,
+    vaultsSecondaryAPI,
     settings.SERVICE_FEE_RATE,
     signers,
     vaults,

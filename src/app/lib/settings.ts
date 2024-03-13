@@ -20,12 +20,27 @@ export interface Settings {
   CURRENCY: Currency;
   BTC_FIAT_REFRESH_INTERVAL_MS: number;
   BTC_FEE_ESTIMATES_REFRESH_INTERVAL_MS: number;
-  USE_MAINNET_FEE_ESTIMATES_IN_TESTNET: boolean;
   WALLETS_DATA_VERSION: string;
-  GET_SERVICE_ADDRESS_URL_TEMPLATE: string;
-  PUSH_VAULT_URL_TEMPLATE: string;
-  CHECK_VAULT_URL_TEMPLATE: string;
-  GET_VAULT_URL_TEMPLATE: string;
+
+  MAINNET_SERVICE_ADDRESS_API: string;
+  TESTNET_SERVICE_ADDRESS_API: string;
+  STORM_SERVICE_ADDRESS_API: string;
+  REGTEST_SERVICE_ADDRESS_API: string;
+
+  MAINNET_VAULTS_API: string;
+  TESTNET_VAULTS_API: string;
+  STORM_VAULTS_API: string;
+  REGTEST_VAULTS_API: string;
+
+  MAINNET_VAULTS_SECONDARY_API: string;
+  TESTNET_VAULTS_SECONDARY_API: string;
+  STORM_VAULTS_SECONDARY_API: string;
+  REGTEST_VAULTS_SECONDARY_API: string;
+
+  MAINNET_ESPLORA_API: string;
+  TESTNET_ESPLORA_API: string;
+  STORM_ESPLORA_API: string;
+  REGTEST_ESPLORA_API: string;
 }
 
 // Default values for the context
@@ -53,14 +68,38 @@ export const defaultSettings: Settings = {
   CURRENCY: 'USD',
   BTC_FIAT_REFRESH_INTERVAL_MS: 600000, //10 minutes
   BTC_FEE_ESTIMATES_REFRESH_INTERVAL_MS: 600000, // 10 minutes
-  USE_MAINNET_FEE_ESTIMATES_IN_TESTNET: true,
   WALLETS_DATA_VERSION: '1.0.0', //This does not define the version of the App, but keeps track of the changes in the signature of the Wallet
-  GET_SERVICE_ADDRESS_URL_TEMPLATE:
-    'https://api.thunderden.com/:network?/service-address/get',
-  PUSH_VAULT_URL_TEMPLATE:
-    'https://api.thunderden.com/:network?/vaults/:vaultId',
-  CHECK_VAULT_URL_TEMPLATE:
-    'https://api.thunderden.com/:network?/vaults/:vaultId/check',
-  GET_VAULT_URL_TEMPLATE:
-    'https://api-proxy.thunderden.com/:network?/vaults/:vaultId/get'
+
+  //IMPORTANT - these variables below must correspond to those in services.env
+  //They must be kept manually synchronized
+  MAINNET_SERVICE_ADDRESS_API: 'http://api.thunderden.com/service-address',
+  TESTNET_SERVICE_ADDRESS_API:
+    'http://api.thunderden.com/testnet/service-address',
+  STORM_SERVICE_ADDRESS_API: 'https://api.thunderden.com/storm/service-address',
+  REGTEST_SERVICE_ADDRESS_API: 'http://localhost:3323',
+
+  MAINNET_VAULTS_API: 'http://api.thunderden.com/vaults',
+  TESTNET_VAULTS_API: 'http://api.thunderden.com/testnet/vaults',
+  STORM_VAULTS_API: 'http://api.thunderden.com/storm/vaults',
+  REGTEST_VAULTS_API: 'http://localhost:3124',
+
+  MAINNET_VAULTS_SECONDARY_API: 'http://api-proxy.thunderden.com/vaults',
+  TESTNET_VAULTS_SECONDARY_API:
+    'http://api-proxy.thunderden.com/testnet/vaults',
+  STORM_VAULTS_SECONDARY_API: 'http://api-proxy.thunderden.com/storm/vaults',
+  REGTEST_VAULTS_SECONDARY_API: 'http://localhost:3325',
+
+  MAINNET_ESPLORA_API: 'https://blockstream.info/api',
+  TESTNET_ESPLORA_API: 'https://blockstream.info/testnet/api',
+  STORM_ESPLORA_API: 'https://storm.thunderden.com/api',
+  REGTEST_ESPLORA_API: 'http://localhost:31002'
+
+  //GET_SERVICE_ADDRESS_URL_TEMPLATE:
+  //  'https://api.thunderden.com/:network?/service-address/get',
+  //PUSH_VAULT_URL_TEMPLATE:
+  //  'https://api.thunderden.com/:network?/vaults/:vaultId',
+  //CHECK_VAULT_URL_TEMPLATE:
+  //  'https://api.thunderden.com/:network?/vaults/:vaultId/check',
+  //GET_VAULT_URL_TEMPLATE:
+  //  'https://api-proxy.thunderden.com/:network?/vaults/:vaultId/get'
 };

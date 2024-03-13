@@ -1,6 +1,7 @@
 import { locales } from './i18next.config';
 export { locales };
 import type { Locale } from './i18next.config';
+export { Locale };
 import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
 

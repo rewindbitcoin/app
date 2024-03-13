@@ -32,6 +32,7 @@ import { pickFeeEstimate } from '../lib/fees';
 import { WalletContext, WalletContextType } from '../contexts/WalletContext';
 import { formatBtc } from '../lib/btcRates';
 import { estimateVaultSetUpRange } from '../lib/vaultRange';
+import { networkMapping } from '../lib/network';
 
 export default function VaultSetUp({
   onVaultSetUpComplete
@@ -47,15 +48,16 @@ export default function VaultSetUp({
   if (context === null) {
     throw new Error('Context was not set');
   }
-  const { utxosData, network, feeEstimates, btcFiat } = context;
+  const { utxosData, networkId, feeEstimates, btcFiat } = context;
   if (!utxosData)
     throw new Error('SetUpVaultScreen cannot be called with unset utxos');
-  if (!network)
-    throw new Error('SetUpVaultScreen cannot be called with unset network');
+  if (!networkId)
+    throw new Error('SetUpVaultScreen cannot be called with unset networkId');
   if (!feeEstimates)
     throw new Error(
       'SetUpVaultScreen cannot be called with unset feeEstimates'
     );
+  const network = networkMapping[networkId];
 
   const [settings] = useGlobalStateStorage<Settings>(
     SETTINGS_GLOBAL_STORAGE,
