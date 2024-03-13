@@ -50,7 +50,7 @@ export default function VaultCreate({
 
   const {
     utxosData,
-    network,
+    networkId,
     getServiceAddress,
     getChangeDescriptor,
     getUnvaultKey,
@@ -58,7 +58,7 @@ export default function VaultCreate({
     processCreatedVault,
     vaults
   } = context;
-  if (!utxosData || !network || !signers || !processCreatedVault)
+  if (!utxosData || !networkId || !signers || !processCreatedVault)
     throw new Error('Missing data from context');
   const { t } = useTranslation();
   const keepProgress = useRef<boolean>(true);
@@ -105,7 +105,7 @@ export default function VaultCreate({
 
       const { nextVaultId, nextVaultPath } = await fetchP2PVaultIds({
         signer,
-        network,
+        networkId,
         vaults,
         vaultCheckUrlTemplate: settings.CHECK_VAULT_URL_TEMPLATE
       });
@@ -122,7 +122,7 @@ export default function VaultCreate({
         lockBlocks,
         signer,
         utxosData,
-        network,
+        networkId,
         nextVaultId,
         nextVaultPath,
         onProgress
@@ -140,7 +140,7 @@ export default function VaultCreate({
           pushVaultUrlTemplate: settings.PUSH_VAULT_URL_TEMPLATE,
           fetchVaultUrlTemplate: settings.GET_VAULT_URL_TEMPLATE,
           onProgress,
-          network
+          networkId
         });
         if (!backupResult)
           throw new Error("Could not backup the vault, won't proceed");
@@ -170,7 +170,7 @@ export default function VaultCreate({
     getServiceAddress,
     getUnvaultKey,
     lockBlocks,
-    network,
+    networkId,
     onProgress,
     onVaultPushed,
     processCreatedVault,

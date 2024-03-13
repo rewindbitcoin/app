@@ -12,7 +12,7 @@ import {
   type UtxosData
 } from '../lib/vaults';
 import type { AccountNames, Signers } from '../lib/wallets';
-import { getNetworkId, networkMapping } from '../lib/network';
+import { networkMapping, NetworkId } from '../lib/network';
 import {
   createReceiveDescriptor,
   createChangeDescriptor,
@@ -42,7 +42,7 @@ import { fetchBtcFiat } from '../lib/btcRates';
 
 import { EsploraExplorer } from '@bitcoinerlab/explorer';
 import { DiscoveryFactory, DiscoveryInstance } from '@bitcoinerlab/discovery';
-import { networks, Network } from 'bitcoinjs-lib';
+import type { Network } from 'bitcoinjs-lib';
 import type { FeeEstimates } from '../lib/fees';
 import { Platform } from 'react-native';
 import { fetchP2PVaultIds, fetchP2PVault } from '../lib/backup';
@@ -61,7 +61,7 @@ export type WalletContextType = {
   utxosData: UtxosData | undefined;
   signers: Signers | undefined;
   vaults: Vaults | undefined;
-  network: Network | undefined;
+  networkId: NetworkId | undefined;
   processCreatedVault: (
     vault:
       | Vault
@@ -75,13 +75,19 @@ export type WalletContextType = {
   // ... any other properties you want to include
 };
 
-function esploraUrl(network: Network) {
+//TODO: These must be set as settings, and should be configurable by
+//the user (specially regtest one)
+function esploraUrl(networkId: NetworkId) {
   const url =
-    network === networks.testnet
+    networkId === 'TESTNET'
       ? 'https://blockstream.info/testnet/api/'
-      : network === networks.bitcoin
+      : networkId === 'BITCOIN'
         ? 'https://blockstream.info/api/'
-        : null;
+        : networkId === 'STORM'
+          ? 'https://storm.thunderden.com/api/'
+          : networkId === 'REGTEST'
+            ? 'http://localhost:31002/'
+            : null;
   if (!url) throw new Error(`Esplora API not available for this network`);
   return url;
 }
@@ -134,10 +140,10 @@ const WalletProviderWithWallet = ({
     );
   const { t } = useTranslation();
   const walletId = wallet.walletId;
+  const networkId = wallet.networkId;
   const signersStorageEngine = wallet.signersStorageEngine;
-  const network = networkMapping[wallet.networkId];
-  if (wallet && !network)
-    throw new Error(`Invalid networkId ${wallet.networkId}`);
+  const network = networkMapping[networkId];
+  if (wallet && !network) throw new Error(`Invalid networkId ${networkId}`);
 
   if (
     (signersStorageEngine === 'MMKV' && Platform.OS === 'web') ||
@@ -208,10 +214,11 @@ const WalletProviderWithWallet = ({
 
   // Sets discovery from storage if available or new:
   useEffect(() => {
-    if (!discovery && network) {
+    if (!discovery && networkId) {
+      const network = networkMapping[networkId];
       let isMounted = true;
       let isExplorerConnected = false;
-      const url = esploraUrl(network);
+      const url = esploraUrl(networkId);
       const explorer = new EsploraExplorer({ url });
       const { Discovery } = DiscoveryFactory(explorer, network);
 
@@ -241,7 +248,7 @@ const WalletProviderWithWallet = ({
       };
     }
     return;
-  }, [network, discoveryDataExport, isDiscoveryDataExportSynchd, discovery]);
+  }, [networkId, discoveryDataExport, isDiscoveryDataExportSynchd, discovery]);
 
   //Tries to initialize utxosData ASAP (only if not set)
   useEffect(() => {
@@ -286,7 +293,7 @@ const WalletProviderWithWallet = ({
           let feeEstimates: FeeEstimates;
           try {
             if (settings.USE_MAINNET_FEE_ESTIMATES_IN_TESTNET) {
-              const url = esploraUrl(networks.bitcoin);
+              const url = esploraUrl(networkId);
               const explorer = new EsploraExplorer({ url });
               await explorer.connect();
               feeEstimates = await explorer.fetchFeeEstimates();
@@ -318,7 +325,7 @@ const WalletProviderWithWallet = ({
     t,
     toast,
     discovery,
-    network,
+    networkId,
     settings?.USE_MAINNET_FEE_ESTIMATES_IN_TESTNET,
     settings?.BTC_FEE_ESTIMATES_REFRESH_INTERVAL_MS
   ]);
@@ -392,10 +399,10 @@ const WalletProviderWithWallet = ({
       );
     }
 
-    const networkId = getNetworkId(network).toLowerCase();
+    const networkPath = networkId.toLowerCase();
     const serviceUrl = settings.GET_SERVICE_ADDRESS_URL_TEMPLATE.replace(
       ':network?/',
-      networkId === 'bitcoin' ? '' : `${networkId}/`
+      networkPath === 'bitcoin' ? '' : `${networkPath}/`
     );
 
     try {
@@ -417,7 +424,7 @@ const WalletProviderWithWallet = ({
       console.error('Error fetching service address:', error);
       throw error; // Re-throw the error if you want to handle it outside or show a message to the user
     }
-  }, [network, settings?.GET_SERVICE_ADDRESS_URL_TEMPLATE]);
+  }, [networkId, settings?.GET_SERVICE_ADDRESS_URL_TEMPLATE]);
 
   /**
    * Gets vaults from the P2P network. Does not fetch it if already in memory.
@@ -434,7 +441,7 @@ const WalletProviderWithWallet = ({
 
         const { existingVaults: p2pVaultIds } = await fetchP2PVaultIds({
           signer,
-          network,
+          networkId,
           vaults,
           vaultCheckUrlTemplate: settings?.CHECK_VAULT_URL_TEMPLATE
         });
@@ -447,7 +454,7 @@ const WalletProviderWithWallet = ({
               vaultPath,
               signer,
               fetchVaultUrlTemplate: settings.GET_VAULT_URL_TEMPLATE,
-              network
+              networkId
             }));
           }
           p2pVaults[vault.vaultId] = vault;
@@ -458,7 +465,7 @@ const WalletProviderWithWallet = ({
     }
     return;
   }, [
-    network,
+    networkId,
     signers,
     vaults,
     settings?.CHECK_VAULT_URL_TEMPLATE,
@@ -655,7 +662,7 @@ const WalletProviderWithWallet = ({
     feeEstimates,
     signers,
     vaults,
-    network,
+    networkId: wallet.networkId,
     utxosData,
     processCreatedVault,
     syncBlockchain,

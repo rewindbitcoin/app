@@ -4,8 +4,6 @@ import { Text, Button, KeyboardAwareScrollView } from '../../common/ui';
 import type { Wallet, Wallets, Signers } from '../lib/wallets';
 import { SERIALIZABLE } from '../../common/lib/storage';
 import { useLocalStateStorage } from '../../common/hooks/useLocalStateStorage';
-import { getNetworkId } from '../lib/network';
-import { networks } from 'bitcoinjs-lib';
 import { defaultSettings } from '../lib/settings';
 import { useTranslation } from 'react-i18next';
 import { useNavigation } from '@react-navigation/native';
@@ -40,7 +38,7 @@ export default ({
         creationEpoch: Math.floor(Date.now() / 1000),
         walletId,
         version: defaultSettings.WALLETS_DATA_VERSION,
-        networkId: getNetworkId(networks.testnet),
+        networkId: 'TESTNET',
         signersEncryption: 'NONE',
         signersStorageEngine: Platform.OS === 'web' ? 'IDB' : 'SECURESTORE',
         encryption: 'NONE'

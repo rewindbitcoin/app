@@ -25,7 +25,7 @@ import { feeRateSampling } from './fees';
 import type { DiscoveryInstance } from '@bitcoinerlab/discovery';
 import { coinselect, vsize, dustThreshold } from '@bitcoinerlab/coinselect';
 import type { Explorer } from '@bitcoinerlab/explorer';
-import { getNetworkId, type NetworkId } from './network';
+import { type NetworkId, networkMapping } from './network';
 
 export type TxHex = string;
 export type TxId = string;
@@ -294,7 +294,7 @@ export async function createVault({
   serviceAddress,
   lockBlocks,
   signer,
-  network,
+  networkId,
   utxosData,
   nextVaultId,
   nextVaultPath,
@@ -318,7 +318,7 @@ export async function createVault({
   /** A signer async function able to sign any of the utxos in utxosData,
    * placed in a Psbt */
   signer: Signer;
-  network: Network;
+  networkId: NetworkId;
   /** There are ALL the utxos (prior to coinselect them) */
   utxosData: UtxosData;
   nextVaultId: string;
@@ -334,6 +334,8 @@ export async function createVault({
   try {
     let signaturesProcessed = 0;
     let minPanicBalance = amount;
+
+    const network = networkMapping[networkId];
 
     const serviceOutput = new Output({
       descriptor: createServiceDescriptor(serviceAddress),
@@ -549,7 +551,7 @@ export async function createVault({
         throw new Error(`Panic spending path has no solutions.`);
 
     return {
-      networkId: getNetworkId(network),
+      networkId,
       vaultId: nextVaultId,
       vaultPath: nextVaultPath,
       amount,

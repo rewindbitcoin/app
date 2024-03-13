@@ -8,7 +8,6 @@ import {
 import { shareAsync } from 'expo-sharing';
 const MAX_VAULT_CHECKS = 1000;
 const THUNDER_DEN_PURPOSE = 1073; // = [..."thunderden"].reduce((sum, char) => sum + char.charCodeAt(0), 0);
-import { getNetworkId } from './network';
 const THUNDERDEN_VAULT_PATH = `m/${THUNDER_DEN_PURPOSE}'/<network>'/0'/<index>`;
 const THUNDERDEN_SIGNING_MESSAGE = 'ThunderDen Encryption';
 
@@ -24,15 +23,16 @@ import type { Vault, Vaults, TxHex, Rescue, RescueTxMap } from './vaults';
 import { getManagedChacha } from '../../common/lib/cipher';
 
 import { gunzipSync, strFromU8 } from 'fflate';
+import { type NetworkId, networkMapping } from './network';
 
 export const fetchP2PVaultIds = async ({
   signer,
-  network,
+  networkId,
   vaults,
   vaultCheckUrlTemplate
 }: {
   signer: Signer;
-  network: Network;
+  networkId: NetworkId;
   vaults: Vaults | undefined;
   vaultCheckUrlTemplate: string;
 }): Promise<{
@@ -42,6 +42,7 @@ export const fetchP2PVaultIds = async ({
 }> => {
   const mnemonic = signer.mnemonic;
   if (!mnemonic) throw new Error('This type of signer is not supported');
+  const network = networkMapping[networkId];
   const masterNode = getMasterNode(mnemonic, network);
   const existingVaults = [];
 
@@ -58,11 +59,14 @@ export const fetchP2PVaultIds = async ({
     if (vault) {
       existingVaults.push({ vaultId, vaultPath });
     } else {
-      const networkId = getNetworkId(network).toLowerCase();
+      const networkPath = networkId.toLowerCase();
 
       const vaultCheckUrl = vaultCheckUrlTemplate
         .replace(':vaultId', vaultId)
-        .replace(':network?/', networkId === 'bitcoin' ? '' : `${networkId}/`);
+        .replace(
+          ':network?/',
+          networkPath === 'bitcoin' ? '' : `${networkPath}/`
+        );
 
       try {
         const response = await fetch(vaultCheckUrl);
@@ -140,18 +144,19 @@ export const fetchP2PVault = async ({
   vaultPath,
   signer,
   fetchVaultUrlTemplate,
-  network
+  networkId
 }: {
   vaultId: string;
   vaultPath: string;
   signer: Signer;
   fetchVaultUrlTemplate: string;
-  network: Network;
+  networkId: NetworkId;
 }): Promise<{ strVault: string; vault: Vault }> => {
-  const networkId = getNetworkId(network).toLowerCase();
+  const network = networkMapping[networkId];
+  const networkPath = networkId.toLowerCase();
   const fetchVaultUrl = fetchVaultUrlTemplate
     .replace(':vaultId', vaultId)
-    .replace(':network?/', networkId === 'bitcoin' ? '' : `${networkId}/`);
+    .replace(':network?/', networkPath === 'bitcoin' ? '' : `${networkPath}/`);
   const cipherKey = await getCipherKey({ vaultPath, signer, network });
   const chacha = getManagedChacha(cipherKey);
 
@@ -195,15 +200,16 @@ export const p2pBackupVault = async ({
   pushVaultUrlTemplate,
   fetchVaultUrlTemplate,
   onProgress,
-  network
+  networkId
 }: {
   vault: Vault;
   signer: Signer;
   pushVaultUrlTemplate: string;
   fetchVaultUrlTemplate: string;
   onProgress?: (progress: number) => boolean;
-  network: Network;
+  networkId: NetworkId;
 }) => {
+  const network = networkMapping[networkId];
   const vaultId = vault.vaultId;
   const vaultPath = vault.vaultPath;
   const commitment = vault.vaultTxHex;
@@ -222,10 +228,10 @@ export const p2pBackupVault = async ({
   const chacha = getManagedChacha(cipherKey);
   const cipheredCompressedVault = chacha.encrypt(compressedVault);
 
-  const networkId = getNetworkId(network).toLowerCase();
+  const networkPath = networkId.toLowerCase();
   const pushVaultUrl = pushVaultUrlTemplate
     .replace(':vaultId', vaultId)
-    .replace(':network?/', networkId === 'bitcoin' ? '' : `${networkId}/`);
+    .replace(':network?/', networkPath === 'bitcoin' ? '' : `${networkPath}/`);
   try {
     const response = await fetch(pushVaultUrl, {
       method: 'PUT',
@@ -247,7 +253,7 @@ export const p2pBackupVault = async ({
     vaultPath,
     signer,
     fetchVaultUrlTemplate,
-    network
+    networkId
   });
   if (strP2PVault === strVault) return true;
   else throw new Error('Inconsistencies detected while verifying backup');
