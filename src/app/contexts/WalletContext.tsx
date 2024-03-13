@@ -452,7 +452,7 @@ const WalletProviderWithWallet = ({
               vaultId,
               vaultPath,
               signer,
-              vaultsAPI: vaultsSecondaryAPI,
+              vaultsAPI,
               networkId
             }));
           }
