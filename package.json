@@ -15,7 +15,7 @@
     "ios": "expo run:ios",
     "web": "expo start --web",
     "postinstall": "patch-package",
-    "i18n": "i18next -c src/i18n/i18next.config.ts && npx tsx src/i18n/checkTranslations.ts en"
+    "i18n": "i18n-thunderden src"
   },
   "dependencies": {
     "@babel/plugin-proposal-export-namespace-from": "^7.18.9",
@@ -81,6 +81,7 @@
     "@babel/core": "^7.20.0",
     "@bitcoinerlab/configs": "github:bitcoinerlab/configs",
     "@expo/metro-runtime": "~3.1.1",
+    "@thunderdenlab/i18n": "github:thunderdenlab/i18n",
     "@types/lodash.memoize": "^4.1.8",
     "@types/react": "~18.2.14",
     "@types/react-native-extra-dimensions-android": "^1.2.3",

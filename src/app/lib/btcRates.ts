@@ -1,7 +1,7 @@
 import memoize from 'lodash.memoize';
 import type { TFunction } from 'i18next';
 import type { SubUnit, Currency } from './settings';
-import type { Locale } from '../../i18n/i18n';
+import type { Locale } from '../../i18n-locales/init';
 
 //TODO: Do not depend on external APIs - or show a couple of options coingecko +
 //other APIs and allow users cahnge that on settings context

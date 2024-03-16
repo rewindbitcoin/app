@@ -40,7 +40,7 @@ import {
   Settings as SettingsType
 } from './src/app/lib/settings';
 import { useTranslation } from 'react-i18next';
-import initI18n from './src/i18n/i18n';
+import { initI18n } from './src/i18n-locales/init';
 //Init for 1st render. Then, on settings load from context & apply correct one
 initI18n(defaultSettings.LOCALE);
 

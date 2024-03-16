@@ -1,5 +1,5 @@
 import memoize from 'lodash.memoize';
-import type { Locale } from '../../i18n/i18n';
+import type { Locale } from '../../i18n-locales/init';
 //https://stackoverflow.com/a/9539746
 const countDecimalDigits = memoize((number: number): number => {
   // Make sure it is a number and use the builtin number -> string.

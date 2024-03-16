@@ -1,6 +1,6 @@
 const INPUT_MAX_LENGTH = 18;
 import React, { useState, useCallback, useRef, useMemo } from 'react';
-import type { Locale } from '../../i18n/i18n';
+import type { Locale } from '../../i18n-locales/init';
 import AntDesign from '@expo/vector-icons/AntDesign';
 import {
   Text,

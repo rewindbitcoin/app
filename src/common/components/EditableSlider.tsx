@@ -35,7 +35,7 @@
 const INPUT_MAX_LENGTH = 18;
 import React, { useState, useCallback, ReactNode, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { Locale } from '../../i18n/i18n';
+import type { Locale } from '../../i18n-locales/init';
 
 import { View, Text, StyleSheet, Platform } from 'react-native';
 import NumberInput from './NumberInput';

@@ -1,6 +1,6 @@
 import { formatFiat } from './btcRates';
 import type { Currency } from './settings';
-import type { Locale } from '../../i18n/i18n';
+import type { Locale } from '../../i18n-locales/init';
 
 import type { TFunction } from 'i18next';
 import memoize from 'lodash.memoize';

@@ -1,7 +1,7 @@
 import React, { useCallback } from 'react';
 import { View } from 'react-native';
 import { Modal, VerticalChoice, Text, useTheme } from '../../common/ui';
-import type { Locale } from '../../i18n/i18n';
+import type { Locale } from '../../i18n-locales/init';
 import { useTranslation } from 'react-i18next';
 import { subUnits, SubUnit } from '../lib/settings';
 import { fromSats } from '../lib/btcRates';

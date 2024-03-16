@@ -4,7 +4,7 @@ import { View, StyleSheet } from 'react-native';
 import { useTheme, Theme } from '../theme';
 import { Text } from './Text';
 import EditableSlider from './EditableSlider';
-import type { Locale } from '../../i18n/i18n';
+import type { Locale } from '../../i18n-locales/init';
 import IconButton from './IconButton';
 
 //<Pressable onPress={onUnitPress}>

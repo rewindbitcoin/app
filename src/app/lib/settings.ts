@@ -1,7 +1,7 @@
 export const subUnits = ['btc', 'bit', 'sat', 'mbit'] as const;
 export type SubUnit = (typeof subUnits)[number];
 export type Currency = 'USD' | 'EUR' | 'GBP';
-import type { Locale } from '../../i18n/i18n';
+import type { Locale } from '../../i18n-locales/init';
 export const SETTINGS_GLOBAL_STORAGE = 'SETTINGS_GLOBAL_STORAGE';
 
 export interface Settings {
