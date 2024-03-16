@@ -409,7 +409,7 @@ const WalletProviderWithWallet = ({
     }
 
     try {
-      const response = await fetch(serviceAddressAPI);
+      const response = await fetch(`${serviceAddressAPI}/get`);
       if (!response.ok) {
         throw new Error(
           `Failed to fetch service address: ${response.statusText}`
