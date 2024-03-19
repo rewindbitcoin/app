@@ -13,6 +13,7 @@ import {
 } from '../lib/vaults';
 import type { AccountNames, Signers } from '../lib/wallets';
 import { networkMapping, NetworkId } from '../lib/network';
+import { networks } from 'bitcoinjs-lib';
 import {
   createReceiveDescriptor,
   createChangeDescriptor,
@@ -312,7 +313,16 @@ const WalletProviderWithWallet = ({
         if (discovery) {
           let feeEstimates: FeeEstimates;
           try {
-            feeEstimates = await discovery.getExplorer().fetchFeeEstimates();
+            if (network === networks.regtest) {
+              const explorer = new EsploraExplorer({
+                url: settings.MAINNET_ESPLORA_API
+              });
+              await explorer.connect();
+              feeEstimates = await explorer.fetchFeeEstimates();
+              await explorer.close();
+            } else {
+              feeEstimates = await discovery.getExplorer().fetchFeeEstimates();
+            }
             if (isMounted) setFeeEstimates(feeEstimates);
           } catch (err) {
             toast.show(t('app.feeEstimatesError'), {
@@ -337,7 +347,8 @@ const WalletProviderWithWallet = ({
     t,
     toast,
     discovery,
-    networkId,
+    network,
+    settings?.MAINNET_ESPLORA_API,
     settings?.BTC_FEE_ESTIMATES_REFRESH_INTERVAL_MS
   ]);
 

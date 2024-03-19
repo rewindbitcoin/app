@@ -26,7 +26,6 @@ function FeeInput({
   txSize: number | null;
   onValueChange: (value: number | null) => void;
 }) {
-
   const context = useContext<WalletContextType | null>(WalletContext);
   if (context === null) throw new Error('Context was not set');
   const { feeEstimates, btcFiat: btcFiatOriginal } = context;
@@ -100,10 +99,14 @@ function FeeInput({
   if (snappedInitialValue === null)
     throw new Error('snappedInitialValue should be defined');
 
-  const snappedMin = Math.min(...Object.values(snappedFeeEstimates));
-  const snappedMax = Math.max(...Object.values(snappedFeeEstimates));
-  const min = Math.min(...Object.values(feeEstimates));
-  const max = Math.max(...Object.values(feeEstimates));
+  //const snappedMin = Math.min(...Object.values(snappedFeeEstimates));
+  //const snappedMax = Math.max(...Object.values(snappedFeeEstimates));
+  //const min = Math.min(...Object.values(feeEstimates));
+  //const max = Math.max(...Object.values(feeEstimates));
+  const snappedMin = 1;
+  const snappedMax = 2 * Math.max(...Object.values(snappedFeeEstimates));
+  const min = 1;
+  const max = 2 * Math.max(...Object.values(feeEstimates));
 
   const onSnappedValueChange = useCallback(
     (newSnappedValue: number | null) => {
