@@ -72,21 +72,21 @@ export const defaultSettings: Settings = {
 
   //IMPORTANT - these variables below must correspond to those in services.env
   //They must be kept manually synchronized
-  MAINNET_SERVICE_ADDRESS_API: 'http://api.thunderden.com/service-address',
+  MAINNET_SERVICE_ADDRESS_API: 'https://api.thunderden.com/service-address',
   TESTNET_SERVICE_ADDRESS_API:
-    'http://api.thunderden.com/testnet/service-address',
+    'https://api.thunderden.com/testnet/service-address',
   STORM_SERVICE_ADDRESS_API: 'https://api.thunderden.com/storm/service-address',
   REGTEST_SERVICE_ADDRESS_API: 'http://localhost:3323',
 
-  MAINNET_VAULTS_API: 'http://api.thunderden.com/vaults',
-  TESTNET_VAULTS_API: 'http://api.thunderden.com/testnet/vaults',
-  STORM_VAULTS_API: 'http://api.thunderden.com/storm/vaults',
+  MAINNET_VAULTS_API: 'https://api.thunderden.com/vaults',
+  TESTNET_VAULTS_API: 'https://api.thunderden.com/testnet/vaults',
+  STORM_VAULTS_API: 'https://api.thunderden.com/storm/vaults',
   REGTEST_VAULTS_API: 'http://localhost:3124',
 
-  MAINNET_VAULTS_SECONDARY_API: 'http://api-proxy.thunderden.com/vaults',
+  MAINNET_VAULTS_SECONDARY_API: 'https://api-proxy.thunderden.com/vaults',
   TESTNET_VAULTS_SECONDARY_API:
-    'http://api-proxy.thunderden.com/testnet/vaults',
-  STORM_VAULTS_SECONDARY_API: 'http://api-proxy.thunderden.com/storm/vaults',
+    'https://api-proxy.thunderden.com/testnet/vaults',
+  STORM_VAULTS_SECONDARY_API: 'https://api-proxy.thunderden.com/storm/vaults',
   REGTEST_VAULTS_SECONDARY_API: 'http://localhost:3325',
 
   MAINNET_ESPLORA_API: 'https://blockstream.info/api',

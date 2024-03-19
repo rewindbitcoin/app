@@ -104,11 +104,6 @@ export default function VaultCreate({
       const serviceAddress = await fetchServiceAddress(); //TODO: show error if network error
       const changeDescriptor = await getChangeDescriptor();
 
-      console.log('TRACE createVault', {
-        unvaultKey,
-        serviceAddress,
-        changeDescriptor
-      });
       const signer = signers[0];
       if (!signer) throw new Error('signer unavailable');
 
@@ -164,6 +159,8 @@ export default function VaultCreate({
           //TODO: ask for confirmation, then:
           onVaultPushed(result);
         }
+      } else {
+        //TODO: Else must Toast the Error! - Also must close the modal ?!?!?
       }
     };
     createAndNotifyVault();

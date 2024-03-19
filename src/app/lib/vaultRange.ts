@@ -57,6 +57,7 @@ const estimateMaxVaultAmount = ({
   feeRate: number;
   serviceFeeRate: number;
 }) => {
+  console.log('TRACE estimateMaxVaultAmount', { serviceFeeRate, feeRate });
   // We cannot compute serviceFees yet because we don't know amounts but
   // if serviceFeeRate, we will first assume there will a service output
   let coinselected:
@@ -75,6 +76,10 @@ const estimateMaxVaultAmount = ({
       targets: [{ output: serviceOutput, value: dustServiceFee }],
       remainder: vaultOutput,
       feeRate
+    });
+    console.log('TRACE estimateMaxVaultAmount', {
+      dustServiceFee,
+      coinselected
     });
   }
   if (coinselected) {
@@ -95,6 +100,11 @@ const estimateMaxVaultAmount = ({
       targets: serviceFee ? [{ output: serviceOutput, value: serviceFee }] : [],
       remainder: vaultOutput,
       feeRate
+    });
+    console.log('TRACE estimateMaxVaultAmount', {
+      amount,
+      serviceFee,
+      finalCoinselected: coinselected
     });
   }
   if (!coinselected) {
