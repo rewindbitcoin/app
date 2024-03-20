@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Platform } from 'react-native';
+import { View, Platform, Pressable } from 'react-native';
 import { Text, Button, KeyboardAwareScrollView } from '../../common/ui';
 import type { Wallet, Wallets, Signers } from '../lib/wallets';
 import { SERIALIZABLE } from '../../common/lib/storage';
@@ -8,6 +8,15 @@ import { defaultSettings } from '../lib/settings';
 import { useTranslation } from 'react-i18next';
 import { useNavigation } from '@react-navigation/native';
 import { IMPORT_WALLET } from '../screens';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Svg, Path } from 'react-native-svg';
+import { cssInterop } from 'nativewind';
+cssInterop(Svg, {
+  className: {
+    target: 'style',
+    nativeStyleToProp: { width: true, height: true }
+  }
+});
 
 const walletId = 0;
 
@@ -17,6 +26,7 @@ const WalletsScreen = ({
   /** pass back signers if this is a new wallet that must be created */
   onWallet: (wallet: Wallet, newWalletSigners?: Signers) => void;
 }) => {
+  const insets = useSafeAreaInsets();
   const navigation = useNavigation();
   const { t } = useTranslation();
   const [wallets, setWallets, isWalletsSynchd] = useLocalStateStorage<Wallets>(
@@ -59,35 +69,60 @@ const WalletsScreen = ({
 
   //TODO: do the translation of all the t() below:
   return (
-    <KeyboardAwareScrollView
-      keyboardShouldPersistTaps="handled"
-      contentContainerStyle={{
-        //grow vertically to 100% and center child
-        flexGrow: 1,
-        justifyContent: 'center',
-        alignItems: 'center'
-      }}
-    >
-      {wallets &&
-        Object.entries(wallets).map(([walletId, wallet]) => (
-          <View
-            style={{ borderWidth: 1, margin: 20, padding: 20 }}
-            key={walletId}
-          >
-            <Text onPress={() => onWallet(wallet)}>
-              {JSON.stringify(wallet, null, 2)}
-            </Text>
-          </View>
-        ))}
-      {isWalletsSynchd && !wallets?.[0] && (
-        <Button mode="contained" onPress={handleNewTestingWallet}>
-          {'Create Test Wallet'}
+    <>
+      <Pressable
+        style={{ marginBottom: insets.bottom }}
+        className={`bottom-8 right-8 z-10 p-4 bg-white rounded-2xl hover:bg-slate-300 active:bg-slate-500 fixed native:absolute shadow flex-row gap-1 items-center`}
+      >
+        <Svg
+          className="fill-none stroke-blue-500 stroke-2 w-5 h-5"
+          viewBox="0 0 24 24"
+        >
+          <Path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M12 9v6m3-3H9m12 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"
+          />
+        </Svg>
+        <Text className="text-center text-blue-500 font-semibold">
+          {t('wallets.addNew')}
+        </Text>
+      </Pressable>
+      <KeyboardAwareScrollView
+        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={{
+          //grow vertically to 100% and center child
+          flexGrow: 1,
+          justifyContent: 'center',
+          alignItems: 'center'
+        }}
+      >
+        <View className="gap-4">
+          {wallets &&
+            [0].map(id =>
+              Object.entries(wallets).map(([walletId, wallet]) => (
+                <Pressable
+                  className={`max-w-96 p-4 rounded-lg bg-white active:bg-yellow-300 hover:bg-yellow-100`}
+                  onPress={() => onWallet(wallet)}
+                  key={walletId + id}
+                >
+                  <Text className="text-left text-blue-500">
+                    {JSON.stringify(wallet, null, 2)}
+                  </Text>
+                </Pressable>
+              ))
+            )}
+        </View>
+        {isWalletsSynchd && !wallets?.[0] && (
+          <Button mode="contained" onPress={handleNewTestingWallet}>
+            {'Create Test Wallet'}
+          </Button>
+        )}
+        <Button mode="native" onPress={handleImportWallet}>
+          {t('wallets.importWalletButton')}
         </Button>
-      )}
-      <Button mode="native" onPress={handleImportWallet}>
-        {t('wallets.importWalletButton')}
-      </Button>
-    </KeyboardAwareScrollView>
+      </KeyboardAwareScrollView>
+    </>
   );
 };
 export default WalletsScreen;

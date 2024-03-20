@@ -1,6 +1,7 @@
 // TODO: extremelly important, before sharing this module make sure
 // this works properly: react-native-get-random-values
 
+import './global.css';
 import './init';
 import React, { useCallback, useEffect, useState } from 'react';
 import { Platform } from 'react-native';

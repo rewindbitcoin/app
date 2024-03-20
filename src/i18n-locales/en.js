@@ -18,6 +18,7 @@ export default {
       "Please authenticate to access your wallet's sensitive data."
   },
   wallets: {
+    addNew: 'Add New',
     importWalletButton: 'Import Wallet'
   },
   wallet: {

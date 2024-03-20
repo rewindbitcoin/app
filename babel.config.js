@@ -1,7 +1,10 @@
 module.exports = function (api) {
   api.cache(true);
   return {
-    presets: ['babel-preset-expo'],
+    presets: [
+      ['babel-preset-expo', { jsxImportSource: 'nativewind' }],
+      'nativewind/babel'
+    ],
     //plugins below needed for react-native-reanimated:
     //should go with:
     // npx expo install @babel/plugin-proposal-export-namespace-from react-native-reanimated
