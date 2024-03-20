@@ -11,7 +11,7 @@ import { IMPORT_WALLET } from '../screens';
 
 const walletId = 0;
 
-export default ({
+const WalletsScreen = ({
   onWallet
 }: {
   /** pass back signers if this is a new wallet that must be created */
@@ -90,3 +90,4 @@ export default ({
     </KeyboardAwareScrollView>
   );
 };
+export default WalletsScreen;
