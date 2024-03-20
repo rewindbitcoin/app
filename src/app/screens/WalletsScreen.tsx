@@ -10,6 +10,7 @@ import { useNavigation } from '@react-navigation/native';
 import { IMPORT_WALLET } from '../screens';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Svg, Path } from 'react-native-svg';
+import BitcoinLogo from '../../../assets/Bitcoin.svg';
 import { cssInterop } from 'nativewind';
 cssInterop(Svg, {
   className: {
@@ -17,6 +18,25 @@ cssInterop(Svg, {
     nativeStyleToProp: { width: true, height: true }
   }
 });
+cssInterop(BitcoinLogo, {
+  className: {
+    target: 'style',
+    nativeStyleToProp: { width: true, height: true }
+  }
+});
+
+const walletBackgroundColors = [
+  'bg-blue-500',
+  'bg-orange-500',
+  'bg-green-500',
+  'bg-indigo-500',
+  'bg-yellow-500',
+  'bg-purple-500',
+  'bg-pink-500',
+  'bg-cyan-500',
+  'bg-red-500',
+  'bg-teal-500'
+];
 
 const walletId = 0;
 
@@ -71,20 +91,17 @@ const WalletsScreen = ({
   return (
     <>
       <Pressable
+        onPress={handleImportWallet}
         style={{ marginBottom: insets.bottom }}
-        className={`bottom-8 right-8 z-10 p-4 bg-white rounded-2xl hover:bg-slate-300 active:bg-slate-500 fixed native:absolute shadow flex-row gap-1 items-center`}
+        className={`bottom-8 right-8 z-10 p-4 bg-primary rounded-2xl hover:opacity-90 active:scale-95 active:opacity-90 fixed native:absolute shadow flex-row gap-1 items-center`}
       >
         <Svg
-          className="fill-none stroke-blue-500 stroke-2 w-5 h-5"
+          className="fill-none stroke-white stroke-2 w-5 h-5"
           viewBox="0 0 24 24"
         >
-          <Path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            d="M12 9v6m3-3H9m12 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"
-          />
+          <Path d="M12 9v6m3-3H9m12 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
         </Svg>
-        <Text className="text-center text-blue-500 font-semibold">
+        <Text className="text-center text-white font-semibold">
           {t('wallets.addNew')}
         </Text>
       </Pressable>
@@ -99,28 +116,27 @@ const WalletsScreen = ({
       >
         <View className="gap-4">
           {wallets &&
-            [0].map(id =>
-              Object.entries(wallets).map(([walletId, wallet]) => (
-                <Pressable
-                  className={`max-w-96 p-4 rounded-lg bg-white active:bg-yellow-300 hover:bg-yellow-100`}
-                  onPress={() => onWallet(wallet)}
-                  key={walletId + id}
-                >
-                  <Text className="text-left text-blue-500">
-                    {JSON.stringify(wallet, null, 2)}
-                  </Text>
-                </Pressable>
-              ))
-            )}
+            Object.entries(wallets).map(([walletId, wallet], index) => (
+              <Pressable
+                className={`gap-4 max-w-96 p-4 rounded-lg active:opacity-90 hover:opacity-90 active:scale-95 overflow-hidden ${walletBackgroundColors[index % walletBackgroundColors.length]}`}
+                onPress={() => onWallet(wallet)}
+                key={walletId}
+              >
+                <BitcoinLogo className="h-96 w-96 absolute opacity-30" />
+                <Text className="font-semibold text-white">
+                  {'Main Wallet'}
+                </Text>
+                <Text className="text-left text-white">
+                  {JSON.stringify(wallet, null, 2)}
+                </Text>
+              </Pressable>
+            ))}
         </View>
         {isWalletsSynchd && !wallets?.[0] && (
           <Button mode="contained" onPress={handleNewTestingWallet}>
             {'Create Test Wallet'}
           </Button>
         )}
-        <Button mode="native" onPress={handleImportWallet}>
-          {t('wallets.importWalletButton')}
-        </Button>
       </KeyboardAwareScrollView>
     </>
   );
