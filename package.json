@@ -26,6 +26,7 @@
     "@bitcoinerlab/miniscript": "^1.4.0",
     "@bitcoinerlab/secp256k1": "^1.1.0",
     "@expo-google-fonts/roboto-mono": "^0.2.3",
+    "@expo-google-fonts/ubuntu": "^0.2.3",
     "@expo/webpack-config": "~19.0.1",
     "@react-native-community/slider": "^4.5.0",
     "@react-navigation/native": "^6.1.9",

@@ -11,6 +11,12 @@ import { IMPORT_WALLET } from '../screens';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Svg, Path } from 'react-native-svg';
 import BitcoinLogo from '../../../assets/Bitcoin.svg';
+import RegtestLogo from '../../../assets/Regtest.svg';
+import TestnetLogo from '../../../assets/Testnet.svg';
+//import Prefectures from '../../../assets/Prefectures.ttf';
+import { Ubuntu_700Bold } from '@expo-google-fonts/ubuntu';
+import { useFonts } from 'expo-font';
+//const [fontsLoaded] = useFonts({ Prefectures });
 import { cssInterop } from 'nativewind';
 cssInterop(Svg, {
   className: {
@@ -24,19 +30,54 @@ cssInterop(BitcoinLogo, {
     nativeStyleToProp: { width: true, height: true }
   }
 });
+cssInterop(RegtestLogo, {
+  className: {
+    target: 'style',
+    nativeStyleToProp: { width: true, height: true }
+  }
+});
+cssInterop(TestnetLogo, {
+  className: {
+    target: 'style',
+    nativeStyleToProp: { width: true, height: true }
+  }
+});
+import { FontAwesome5 } from '@expo/vector-icons';
+cssInterop(FontAwesome5, {
+  className: {
+    target: 'style',
+    nativeStyleToProp: { width: true, height: true, fontSize: true }
+  }
+});
 
-const walletBackgroundColors = [
+const walletBgs = [
+  //gradients are so cool, but not supported natively:
+  //bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500
   'bg-blue-500',
+  'bg-yellow-500',
+  'bg-indigo-500',
   'bg-orange-500',
   'bg-green-500',
-  'bg-indigo-500',
-  'bg-yellow-500',
   'bg-purple-500',
   'bg-pink-500',
   'bg-cyan-500',
   'bg-red-500',
   'bg-teal-500'
 ];
+const walletCls = [
+  'text-blue-500',
+  'text-yellow-500',
+  'text-indigo-500',
+  'text-orange-500',
+  'text-green-500',
+  'text-purple-500',
+  'text-pink-500',
+  'text-cyan-500',
+  'text-red-500',
+  'text-teal-500'
+];
+const walletBg = (index: number) => walletBgs[index % walletBgs.length];
+const walletCl = (index: number) => walletCls[index % walletCls.length];
 
 const walletId = 0;
 
@@ -46,6 +87,10 @@ const WalletsScreen = ({
   /** pass back signers if this is a new wallet that must be created */
   onWallet: (wallet: Wallet, newWalletSigners?: Signers) => void;
 }) => {
+  const [ubuntuLoaded] = useFonts({ Ubuntu700Bold: Ubuntu_700Bold });
+  //const [fontsLoaded] = useFonts({
+  //  Prefectures: require('../../../assets/Prefectures.ttf')
+  //});
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
   const { t } = useTranslation();
@@ -118,17 +163,63 @@ const WalletsScreen = ({
           {wallets &&
             Object.entries(wallets).map(([walletId, wallet], index) => (
               <Pressable
-                className={`gap-4 max-w-96 p-4 rounded-lg active:opacity-90 hover:opacity-90 active:scale-95 overflow-hidden ${walletBackgroundColors[index % walletBackgroundColors.length]}`}
+                className={`w-96 min-h-56 gap-4 p-4 rounded-3xl active:opacity-90 hover:opacity-90 active:scale-95 overflow-hidden ${walletBg(index)}`}
                 onPress={() => onWallet(wallet)}
                 key={walletId}
               >
-                <BitcoinLogo className="h-96 w-96 absolute opacity-30" />
-                <Text className="font-semibold text-white">
-                  {'Main Wallet'}
-                </Text>
-                <Text className="text-left text-white">
-                  {JSON.stringify(wallet, null, 2)}
-                </Text>
+                <View className="z-10 flex flex-row justify-between">
+                  <Text
+                    className={`${ubuntuLoaded ? "font-['Ubuntu700Bold']" : ''} uppercase text-base text-white`}
+                  >
+                    {t('wallets.mainWallet')}
+                  </Text>
+                  {wallet.networkId !== 'BITCOIN' && (
+                    <View className={`p-2 flex-none rounded-xl bg-white/70`}>
+                      <Text
+                        className={`text-center text-white right-0 font-bold text-xs leading-4 ${walletCl(index)}`}
+                      >
+                        {t('wallets.testWallet')}
+                      </Text>
+                      <Text
+                        className={`text-center text-white right-0 font-bold text-xs leading-4 ${walletCl(index)}`}
+                      >
+                        {t('wallets.noRealValue')}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+                <View className="z-10 absolute bottom-4 left-4">
+                  <Text className="flex-initial text-xs font-bold text-white">
+                    {t('wallets.createdOn')}
+                  </Text>
+                  <Text className="flex-initial text-xs font-bold text-white">
+                    {new Intl.DateTimeFormat(
+                      undefined /*use system's locale */,
+                      {
+                        year: 'numeric',
+                        month: 'long',
+                        day: '2-digit'
+                      }
+                    ).format(new Date(wallet.creationEpoch * 1000))}
+                  </Text>
+                </View>
+                <View className="z-10 absolute bottom-4 right-4 flex flex-row items-center gap-2">
+                  <Text className="flex-initial uppercase text-xs font-bold text-white">
+                    {wallet.networkId}
+                  </Text>
+                  {wallet.networkId === 'BITCOIN' ? (
+                    <BitcoinLogo className="flex-initial w-8 h-8" />
+                  ) : wallet.networkId === 'TESTNET' ? (
+                    <TestnetLogo className="flex-initial w-8 h-8" />
+                  ) : (
+                    <RegtestLogo className="flex-initial w-8 h-8" />
+                  )}
+                </View>
+                <FontAwesome5
+                  name="bitcoin"
+                  size={256}
+                  className="z-0 text-white opacity-10 absolute -bottom-24 -right-12"
+                />
               </Pressable>
             ))}
         </View>

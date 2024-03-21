@@ -116,7 +116,7 @@ const Main = () => {
         <RootStack.Screen
           name={WALLETS}
           options={{
-            title: t('app.thunderDenTitle'),
+            title: t('app.mainTitle'),
             headerRightContainerStyle,
             headerRight: settingsButton
           }}

@@ -5,6 +5,7 @@ export default {
       'Oops! There was a network issue: {{message}}. Please check your connection and try again.',
     importWalletTitle: 'Wallet Recovery',
     thunderDenTitle: 'Thunder Den',
+    mainTitle: 'Wallets',
     createVaultTitle: 'Creating Vault',
 
     walletTitle: 'Wallet',
@@ -19,7 +20,12 @@ export default {
   },
   wallets: {
     addNew: 'Add New',
-    importWalletButton: 'Import Wallet'
+    importWalletButton: 'Import Wallet',
+    mainWallet: 'Main Wallet',
+    testWallet: 'Test Wallet',
+    noRealValue: 'No Real Value',
+    //As in Created on January 19, 2010
+    createdOn: 'Created on'
   },
   wallet: {
     requestPasswordTitle: 'Create a new Password',
