@@ -7,7 +7,7 @@ import { useLocalStateStorage } from '../../common/hooks/useLocalStateStorage';
 import { defaultSettings } from '../lib/settings';
 import { useTranslation } from 'react-i18next';
 import { useNavigation } from '@react-navigation/native';
-import { IMPORT_WALLET } from '../screens';
+import { NEW_WALLET } from '../screens';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Svg, Path } from 'react-native-svg';
 import BitcoinLogo from '../../../assets/Bitcoin.svg';
@@ -46,7 +46,7 @@ import { FontAwesome5 } from '@expo/vector-icons';
 cssInterop(FontAwesome5, {
   className: {
     target: 'style',
-    nativeStyleToProp: { width: true, height: true, fontSize: true }
+    nativeStyleToProp: { width: true, height: true }
   }
 });
 
@@ -103,7 +103,7 @@ const WalletsScreen = ({
   //matches this system specs
   //if it does not, then create a new signersStorageEngine and ask the user
   //to provide new signers
-  //I will have: ImportWalletScreen, NewWalletScreen, RecoverSignersWalletScreen
+  //I will have: NewWalletScreen, RecoverSignersWalletScreen
 
   const handleNewTestingWallet = () => {
     console.log('handleNewTestingWallet', 'TODO');
@@ -130,15 +130,15 @@ const WalletsScreen = ({
       });
     }
   };
-  const handleImportWallet = () => navigation.navigate(IMPORT_WALLET);
+  const handleNewWallet = () => navigation.navigate(NEW_WALLET);
 
   //TODO: do the translation of all the t() below:
   return (
     <>
       <Pressable
-        onPress={handleImportWallet}
+        onPress={handleNewWallet}
         style={{ marginBottom: insets.bottom }}
-        className={`bottom-8 right-8 z-10 p-4 bg-primary rounded-2xl hover:opacity-90 active:scale-95 active:opacity-90 fixed native:absolute shadow flex-row gap-1 items-center`}
+        className={`bottom-8 right-8 z-10 p-4 bg-primary rounded-full hover:opacity-90 active:scale-95 active:opacity-90 fixed native:absolute shadow flex-row gap-1 items-center`}
       >
         <Svg
           className="fill-none stroke-white stroke-2 w-5 h-5"
@@ -159,11 +159,11 @@ const WalletsScreen = ({
           alignItems: 'center'
         }}
       >
-        <View className="gap-4">
+        <View className="gap-4 max-w-full pr-2 pl-2">
           {wallets &&
             Object.entries(wallets).map(([walletId, wallet], index) => (
               <Pressable
-                className={`w-96 min-h-56 gap-4 p-4 rounded-3xl active:opacity-90 hover:opacity-90 active:scale-95 overflow-hidden ${walletBg(index)}`}
+                className={`max-w-full w-96 min-h-56 gap-4 p-4 rounded-3xl active:opacity-90 hover:opacity-90 active:scale-95 overflow-hidden ${walletBg(index)}`}
                 onPress={() => onWallet(wallet)}
                 key={walletId}
               >
@@ -171,7 +171,9 @@ const WalletsScreen = ({
                   <Text
                     className={`${ubuntuLoaded ? "font-['Ubuntu700Bold']" : ''} uppercase text-base text-white`}
                   >
-                    {t('wallets.mainWallet')}
+                    {Object.entries(wallets).length > 1
+                      ? t('wallets.walletId', { id: index + 1 })
+                      : t('wallets.mainWallet')}
                   </Text>
                   {wallet.networkId !== 'BITCOIN' && (
                     <View className={`p-2 flex-none rounded-xl bg-white/70`}>

@@ -247,6 +247,7 @@ const getStyles = (insets: EdgeInsets, theme: Theme) =>
     contentContainer: { alignItems: 'center', paddingTop: 20 },
     content: {
       maxWidth: 500,
+      width: '100%',
       marginHorizontal: theme.screenMargin,
       marginBottom: theme.screenMargin + insets.bottom
     },

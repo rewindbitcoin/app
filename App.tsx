@@ -16,13 +16,13 @@ import {
   SETTINGS,
   SETUP_VAULT,
   CREATE_VAULT,
-  IMPORT_WALLET
+  NEW_WALLET
 } from './src/app/screens';
 import type { Signers, Wallet } from './src/app/lib/wallets';
 import { NavigationContainer, useNavigation } from '@react-navigation/native';
 import { ToastProvider } from './src/common/components/Toast';
 import WalletsScreen from './src/app/screens/WalletsScreen';
-import ImportWalletScreen from './src/app/screens/ImportWalletScreen';
+import NewWalletScreen from './src/app/screens/NewWalletScreen';
 import WalletHomeScreen from './src/app/screens/WalletHomeScreen';
 import SetUpVaultScreen from './src/app/screens/SetUpVaultScreen';
 import CreateVaultScreen from './src/app/screens/CreateVaultScreen';
@@ -124,9 +124,9 @@ const Main = () => {
           {() => <WalletsScreen onWallet={handleWallet} />}
         </RootStack.Screen>
         <RootStack.Screen
-          name={IMPORT_WALLET}
+          name={NEW_WALLET}
           options={{
-            title: t('app.importWalletTitle'),
+            title: t('app.newWalletTitle'),
             presentation: 'modal',
             headerRightContainerStyle,
             headerRight: cancelModalButton
@@ -136,7 +136,7 @@ const Main = () => {
             //Modals need their own Toast component
             return (
               <ToastProvider>
-                <ImportWalletScreen />
+                <NewWalletScreen />
               </ToastProvider>
             );
           }}
@@ -144,13 +144,14 @@ const Main = () => {
 
         <RootStack.Screen
           name={WALLET_HOME}
-          options={{
-            title: t('app.walletTitle'),
-            headerRightContainerStyle,
-            headerRight: settingsButton
-          }}
+          options={{ title: t('app.walletTitle') }}
         >
-          {() => <WalletHomeScreen onSetUpVaultInit={handleSetUpVaultInit} />}
+          {props => (
+            <WalletHomeScreen
+              {...props}
+              onSetUpVaultInit={handleSetUpVaultInit}
+            />
+          )}
         </RootStack.Screen>
 
         <RootStack.Screen

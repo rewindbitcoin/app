@@ -6,8 +6,14 @@ module.exports = {
   theme: {
     extend: {
       colors: {
+        backgroundDefault: '#f2f2f2',
         // Create a custom color that uses a CSS custom value
-        primary: 'rgb(var(--color-primary) / <alpha-value>)'
+        primary: 'rgb(var(--color-primary) / <alpha-value>)',
+        notification: 'rgb(255, 59, 48)'
+      },
+      screens: {
+        //https://devhints.io/resolutions
+        mobmed: '360px'
       }
     }
   },

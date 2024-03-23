@@ -21,7 +21,7 @@ function AddressInput() {
   const handleNewAddress = useCallback(() => setShowNewAddress(true), []);
   const handleCloseNewAddress = useCallback(() => setShowNewAddress(false), []);
   const [words, setWords] = useState<string[]>([
-    'abandon',
+    'december',
     'abandon',
     'abandon',
     'abandon',

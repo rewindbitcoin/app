@@ -240,6 +240,7 @@ const getStyles = (insets: EdgeInsets, theme: Theme) =>
   StyleSheet.create({
     contentContainer: { alignItems: 'center', paddingTop: 20 },
     content: {
+      width: '100%',
       maxWidth: 500,
       marginHorizontal: theme.screenMargin,
       marginBottom: theme.screenMargin + insets.bottom

@@ -3,7 +3,10 @@ import { StyleSheet, View, Platform } from 'react-native';
 
 import { LayoutAnimation } from 'react-native';
 import { useFonts } from 'expo-font';
-import { RobotoMono_400Regular } from '@expo-google-fonts/roboto-mono';
+import {
+  RobotoMono_400Regular,
+  RobotoMono_500Medium
+} from '@expo-google-fonts/roboto-mono';
 import {
   useTheme,
   Theme,
@@ -50,7 +53,11 @@ export default function Bip39({
 }) {
   const inputRef = useRef<TextInput>(null);
   const { t } = useTranslation();
-  const styles = getStyles(useTheme(), useFonts({ RobotoMono_400Regular }));
+  useFonts({
+    'RobotoMono-400Regular': RobotoMono_400Regular,
+    'RobotoMono-500Medium': RobotoMono_500Medium
+  });
+  const styles = getStyles(useTheme());
 
   const [activeWordIndex, setActiveWordIndex] = useState(0);
 
@@ -140,9 +147,9 @@ export default function Bip39({
   }, [activeWordIndex]);
 
   return (
-    <View style={{ ...styles.words }}>
+    <View className="rounded-xl bg-backgroundDefault flex-row flex-wrap pt-2 pr-2 w-full android:border android:border-gray-300 shadow mobmed:pt-3 mobmed:pr-3">
       {readonly === false && onWords && (
-        <View style={styles.segmentedWrapper}>
+        <View className="pb-4 items-center w-full">
           <SegmentedControl
             style={styles.segmented}
             activeTextStyle={styles.segmentedTexts}
@@ -167,8 +174,11 @@ export default function Bip39({
         </View>
       )}
       {words.map((word, index) => (
-        <View key={index} style={{ ...styles.indexAndInput }}>
-          <Text style={[styles.number]}>
+        <View
+          key={index}
+          className="flex-row w-1/3 pl-1 pb-2 mobmed:pl-2 mobmed:pb-3"
+        >
+          <Text className="text-xs/10 mobmed:text-sm/10 pr-1 font-['RobotoMono-500Medium'] color-slate-500">
             {`${index + 1 < 10 ? '\u00A0' : ''}${index + 1}`}
           </Text>
           <TextInput
@@ -177,12 +187,12 @@ export default function Bip39({
             keyboardType="visible-password"
             blurOnSubmit={false}
             value={word}
-            style={[
-              styles.input,
-              ((index === activeWordIndex && !isPartialWordValid(word)) ||
-                (index !== activeWordIndex && !isWordValid(word))) &&
-                styles.error
-            ]}
+            className={`ios:pb-1 text-xs mobmed:text-sm rounded pl-2 ${readonly ? 'bg-slate-200' : 'bg-white'} flex-1 web:w-full outline-none font-['RobotoMono-400Regular'] ${
+              (index === activeWordIndex && !isPartialWordValid(word)) ||
+              (index !== activeWordIndex && !isWordValid(word))
+                ? 'text-notification'
+                : 'text-black'
+            }`}
             spellCheck={false}
             maxLength={MAX_LENGTH + 1}
             autoComplete={'off'}
@@ -198,27 +208,8 @@ export default function Bip39({
     </View>
   );
 }
-const getStyles = (theme: Theme, fonts: ReturnType<typeof useFonts>) => {
-  const [fontsLoaded] = fonts;
+const getStyles = (theme: Theme) => {
   return StyleSheet.create({
-    words: {
-      overflow: 'hidden',
-      borderRadius: 5,
-      backgroundColor: theme.colors.darkerBackground,
-      paddingTop: 10,
-      flexDirection: 'row',
-      width: '100%', //needed for web
-      flexWrap: 'wrap',
-      alignItems: 'flex-start',
-      margin: 0,
-      borderWidth: 0,
-      paddingRight: 10
-    },
-    segmentedWrapper: {
-      marginBottom: 10,
-      alignItems: 'center',
-      width: '100%'
-    },
     segmented: {
       marginLeft: 10,
       width: 200,
@@ -227,37 +218,6 @@ const getStyles = (theme: Theme, fonts: ReturnType<typeof useFonts>) => {
     },
     segmentedTexts: {
       fontSize: 12
-    },
-    indexAndInput: {
-      flexDirection: 'row', // Aligns children horizontally
-      fontSize: 14,
-      marginBottom: 10,
-      paddingLeft: 10,
-      width: '33%'
-    },
-    input: {
-      ...Platform.select({
-        //clean style for web browsers
-        web: {
-          outlineStyle: 'none',
-          width: '100%'
-        }
-      }),
-      borderWidth: 0,
-      paddingLeft: 5,
-      borderRadius: 5,
-      backgroundColor: theme.colors.white,
-      flex: 1,
-      ...(fontsLoaded ? { fontFamily: 'RobotoMono_400Regular' } : {})
-    },
-    error: {
-      color: theme.colors.notification
-    },
-    number: {
-      paddingVertical: 10,
-      //color: theme.colors.primary,
-      paddingRight: 7,
-      ...(fontsLoaded ? { fontFamily: 'RobotoMono_400Regular' } : {})
     }
   });
 };

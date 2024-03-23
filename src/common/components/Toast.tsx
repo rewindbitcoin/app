@@ -21,7 +21,7 @@ const ToastProvider: React.FC<{ children: React.ReactNode }> = ({
     //useHeaderHeight will throw when this ToastProvider is rendered on the root
     //of the App. This is because it's not within a screen (with header).
     //
-    //However, this provider is also used with Modals (for example ImportWalletScreen).
+    //However, this provider is also used with Modals (for example NewWalletScreen).
     //When the provider is set within a modal, then we retrieve the header:
     headerHeight = useHeaderHeight();
   } catch (err) {}
@@ -29,7 +29,7 @@ const ToastProvider: React.FC<{ children: React.ReactNode }> = ({
   const helpRenderer = (toast: ToastProps) => (
     <View
       style={{
-        maxWidth: 330,
+        maxWidth: 320,
         paddingHorizontal: 15,
         paddingVertical: 10,
         backgroundColor: '#fff',

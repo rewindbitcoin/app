@@ -47,7 +47,7 @@ const Modal: React.FC<ModalProps> = ({
 }) => {
   const theme = useTheme();
   const translateY = useSharedValue(0);
-  const scrollViewPadding = 20;
+  const scrollViewPaddingVertical = 20;
   const [buttonHeight, setButtonHeight] = useState<number>(0);
 
   const [childrenHeight, setChildrenHeight] = useState<number>(200);
@@ -242,14 +242,15 @@ const Modal: React.FC<ModalProps> = ({
                   style={{ alignSelf: 'stretch' }}
                   contentContainerStyle={{
                     flexGrow: 1,
-                    padding: scrollViewPadding,
+                    paddingVertical: scrollViewPaddingVertical,
+                    paddingHorizontal: 8,
                     justifyContent: 'center'
                   }}
                 >
                   <View
                     onLayout={event => {
                       const height = event.nativeEvent.layout.height;
-                      setChildrenHeight(height + scrollViewPadding * 2);
+                      setChildrenHeight(height + scrollViewPaddingVertical * 2);
                     }}
                   >
                     {children}

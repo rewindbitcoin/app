@@ -3,7 +3,7 @@ export default {
   app: {
     networkError:
       'Oops! There was a network issue: {{message}}. Please check your connection and try again.',
-    importWalletTitle: 'Wallet Recovery',
+    newWalletTitle: 'New Wallet',
     thunderDenTitle: 'Thunder Den',
     mainTitle: 'Wallets',
     createVaultTitle: 'Creating Vault',
@@ -25,7 +25,8 @@ export default {
     testWallet: 'Test Wallet',
     noRealValue: 'No Real Value',
     //As in Created on January 19, 2010
-    createdOn: 'Created on'
+    createdOn: 'Created on',
+    walletId: 'Wallet {{id}}'
   },
   wallet: {
     requestPasswordTitle: 'Create a new Password',
@@ -155,9 +156,14 @@ If you have biometric encryption enabled, a password may not be necessary as\
     expressConfirmation: 'Express Confirmation'
   },
   bip39: {
-    importWalletText: 'Restore Access to Your Wallet',
+    chooseImport: 'Want to import instead?',
+    chooseNew: 'Need to create a new wallet?',
+    importWalletText: 'Restore Your Wallet',
     importWalletSubText:
-      'Recover your wallet by entering the series of words you received during initial setup.',
+      'Enter the recovery phrase you saved when you first set up your wallet. This restores access to your existing wallet and its funds.',
+    createWalletText: 'Your New Wallet Awaits',
+    createWalletSubText:
+      "Below is your wallet's recovery phrase. It's crucial for accessing your wallet if you switch or loose devices. Write it down and keep it somewhere safe.",
     segmented12: '12 Words',
     segmented24: '24 Words',
     selectWordsLength: 'Number of words:',
