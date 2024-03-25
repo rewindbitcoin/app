@@ -2,8 +2,8 @@
 //removed since it may have been stored in SecureStore which can be deleted
 //at times. For example when restoring from a backup or when changing the fingerprints
 //or faceId of the device
-import React, { useCallback, useEffect, useState } from 'react';
-import { View, Text, Pressable } from 'react-native';
+import React, { useCallback, useState } from 'react';
+import { View, Text, Pressable, Keyboard } from 'react-native';
 import {
   Button,
   ActivityIndicator,
@@ -25,19 +25,12 @@ export default function NewWalletScreen() {
   const [isConfirmBip39, setIsConfirmBip39] = useState<boolean>(false);
   //const [words, setWords] = useState<string[]>(Array(12).fill(''));
   const [words, setWords] = useState<string[]>(generateMnemonic().split(' '));
-  const stringifiedWords = words.join(' ');
+  const validMnemonic = validateMnemonic(words.join(' '));
 
-  useEffect(() => {
-    if (validateMnemonic(stringifiedWords)) {
-      console.log('VALID MNEMONIC');
-      //onWallet(wallet, [
-      //  {
-      //    type: 'SOFTWARE',
-      //    mnemonic: stringifiedWords
-      //  }
-      //]);
-    }
-  }, [stringifiedWords]);
+  const onWords = useCallback((words: string[]) => {
+    if (validateMnemonic(words.join(' '))) Keyboard.dismiss();
+    setWords(words);
+  }, []);
 
   const switchNewImport = useCallback(() => {
     setWords(isImport ? generateMnemonic().split(' ') : Array(12).fill(''));
@@ -80,7 +73,7 @@ export default function NewWalletScreen() {
             )}
           </Text>
           <Pressable
-            className="hover:opacity-40 active:opacity-40"
+            className="hover:opacity-40 active:opacity-40 self-start"
             onPress={switchNewImport}
           >
             <Text className="pb-2 text-primary">
@@ -89,15 +82,13 @@ export default function NewWalletScreen() {
           </Pressable>
           <Bip39
             readonly={!isImport}
+            hideWords={isConfirmBip39}
             words={words}
-            onWords={(words: string[]) => setWords(words)}
+            onWords={onWords}
           />
           <WalletAdvancedSettings style={{ marginTop: 20 }} />
           <View style={{ marginVertical: 20 }}>
-            <Button
-              disabled={!validateMnemonic(stringifiedWords)}
-              onPress={confirmBip39}
-            >
+            <Button disabled={!validMnemonic} onPress={confirmBip39}>
               {t('wallet.importButton')}
             </Button>
           </View>

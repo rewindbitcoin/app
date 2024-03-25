@@ -175,7 +175,8 @@ If you have biometric encryption enabled, a password may not be necessary as\
     //This will be rendered as subTitle in a Modal. In iphone 4 and small devices this should not go
     //over 3 lines of text:
     confirmText:
-      "Re-enter the recovery phrase to ensure it's correct. This confirms your wallet can be recovered."
+      "Re-enter the recovery phrase to ensure it's correct. This confirms your wallet can be recovered.",
+    testingWalletsCanSkip: 'Test wallets can skip this step.'
   },
   amount: {
     maxLabel: 'All Funds'
@@ -199,6 +200,8 @@ If you have biometric encryption enabled, a password may not be necessary as\
   },
   continueButton: 'Continue',
   okButton: 'OK',
+  verifyButton: 'Verify',
+  skipButton: 'Skip',
   confirmButton: 'Confirm',
   saveButton: 'Save',
   cancelButton: 'Cancel',

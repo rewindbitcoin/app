@@ -46,12 +46,14 @@ export default function Bip39({
   words,
   onWords,
   disableLengthChange = false,
-  readonly = false
+  readonly = false,
+  hideWords = false
 }: {
   words: string[];
   onWords?: (words: string[]) => void;
   disableLengthChange?: boolean;
   readonly?: boolean;
+  hideWords?: boolean;
 }) {
   const inputRef = useRef<TextInput>(null);
   const { t } = useTranslation();
@@ -184,9 +186,9 @@ export default function Bip39({
             {`${index + 1 < 10 ? '\u00A0' : ''}${index + 1}`}
           </Text>
           <TextInput
+            secureTextEntry={hideWords}
             readOnly={readonly}
             {...(activeWordIndex === index ? { ref: inputRef } : {})}
-            keyboardType="visible-password"
             blurOnSubmit={false}
             value={word}
             className={`ios:pb-1 text-xs mobmed:text-sm rounded pl-2 ${readonly ? 'bg-slate-200' : 'bg-white'} flex-1 web:w-full outline-none font-['RobotoMono-400Regular'] ${

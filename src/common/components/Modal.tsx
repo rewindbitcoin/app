@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Platform, KeyboardAvoidingView } from 'react-native';
+import { View, Platform, KeyboardAvoidingView, Dimensions } from 'react-native';
 import RNModal from 'react-native-modal';
 import { Button } from './Button';
 import { useTheme } from '../theme';
@@ -29,7 +29,7 @@ interface ModalProps {
   subTitle?: string;
   isVisible: boolean;
   icon?: { family: keyof typeof Icons; name: string };
-  hideCloseButton?: boolean;
+  customButtons?: React.ReactNode;
   closeButtonText?: string;
   onClose?: () => void;
   children: React.ReactNode;
@@ -44,7 +44,7 @@ const Modal: React.FC<ModalProps> = ({
   icon,
   closeButtonText,
   onClose,
-  hideCloseButton = false,
+  customButtons = null,
   title,
   subTitle,
   children
@@ -163,12 +163,14 @@ const Modal: React.FC<ModalProps> = ({
               <View
                 style={{
                   height: Math.min(
-                    450,
+                    600,
                     childrenHeight + buttonHeight + headerHeight
                   ),
                   borderRadius: 20,
                   overflow: 'hidden',
                   marginBottom: 20,
+                  marginTop: 20,
+                  maxHeight: Dimensions.get('window').height - 40,
                   maxWidth: 600,
                   width: '95%',
                   alignSelf: 'center',
@@ -225,6 +227,7 @@ const Modal: React.FC<ModalProps> = ({
                         opacity: 0.8,
                         position: 'absolute',
                         top: '60%',
+                        width: '100%',
                         left: 0,
                         paddingLeft: 30,
                         paddingRight: 30,
@@ -286,9 +289,9 @@ const Modal: React.FC<ModalProps> = ({
                     height: 20
                   }}
                 />
-                {onClose && !hideCloseButton ? (
+                {onClose && !customButtons ? (
                   <View
-                    style={{ paddingVertical: 20 }}
+                    style={{ paddingBottom: 20 }}
                     onLayout={event => {
                       setButtonHeight(event.nativeEvent.layout.height);
                     }}
@@ -298,6 +301,15 @@ const Modal: React.FC<ModalProps> = ({
                     </Button>
                   </View>
                 ) : null}
+                {customButtons && (
+                  <View
+                    onLayout={event => {
+                      setButtonHeight(event.nativeEvent.layout.height);
+                    }}
+                  >
+                    {customButtons}
+                  </View>
+                )}
               </View>
             </Animated.View>
           </PanGestureHandler>
