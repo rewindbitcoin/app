@@ -176,17 +176,19 @@ const WalletsScreen = ({
                       : t('wallets.mainWallet')}
                   </Text>
                   {wallet.networkId !== 'BITCOIN' && (
-                    <View className={`p-2 flex-none rounded-xl bg-white/70`}>
-                      <Text
-                        className={`text-center text-white right-0 font-bold text-xs leading-4 ${walletCl(index)}`}
-                      >
-                        {t('wallets.testWallet')}
-                      </Text>
-                      <Text
-                        className={`text-center text-white right-0 font-bold text-xs leading-4 ${walletCl(index)}`}
-                      >
-                        {t('wallets.noRealValue')}
-                      </Text>
+                    <View className={`flex-none rounded-xl ${walletBg(index)}`}>
+                      <View className={`p-2 rounded-xl bg-white/30`}>
+                        <Text
+                          className={`text-center text-white right-0 font-bold text-xs leading-4 ${walletCl(index)}`}
+                        >
+                          {t('wallets.testWallet')}
+                        </Text>
+                        <Text
+                          className={`text-center text-white right-0 font-bold text-xs leading-4 ${walletCl(index)}`}
+                        >
+                          {t('wallets.noRealValue')}
+                        </Text>
+                      </View>
                     </View>
                   )}
                 </View>

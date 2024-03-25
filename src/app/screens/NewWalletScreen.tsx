@@ -11,6 +11,7 @@ import {
 } from '../../common/ui';
 import { useTranslation } from 'react-i18next';
 import Bip39, { validateMnemonic } from '../components/Bip39';
+import ConfirmBip39 from '../components/ConfirmBip39';
 import WalletAdvancedSettings from '../components/WalletAdvancedSettings';
 import { useSecureStorageAvailability } from '../../common/contexts/SecureStorageAvailabilityContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -21,6 +22,7 @@ export default function NewWalletScreen() {
   const insets = useSafeAreaInsets();
   const canUseSecureStorage = useSecureStorageAvailability();
   const [isImport, setIsImport] = useState<boolean>(false);
+  const [isConfirmBip39, setIsConfirmBip39] = useState<boolean>(false);
   //const [words, setWords] = useState<string[]>(Array(12).fill(''));
   const [words, setWords] = useState<string[]>(generateMnemonic().split(' '));
   const stringifiedWords = words.join(' ');
@@ -41,6 +43,16 @@ export default function NewWalletScreen() {
     setWords(isImport ? generateMnemonic().split(' ') : Array(12).fill(''));
     setIsImport(!isImport);
   }, [isImport]);
+
+  const confirmBip39 = useCallback(() => {
+    setIsConfirmBip39(true);
+  }, []);
+  const onBip39Confirmed = useCallback(() => {
+    setIsConfirmBip39(false);
+  }, []);
+  const onBip39Cancel = useCallback(() => {
+    setIsConfirmBip39(false);
+  }, []);
 
   return (
     <KeyboardAwareScrollView
@@ -84,12 +96,19 @@ export default function NewWalletScreen() {
           <View style={{ marginVertical: 20 }}>
             <Button
               disabled={!validateMnemonic(stringifiedWords)}
-              onPress={() => console.log('Import')}
+              onPress={confirmBip39}
             >
               {t('wallet.importButton')}
             </Button>
           </View>
         </View>
+      )}
+      {isConfirmBip39 && (
+        <ConfirmBip39
+          words={words}
+          onConfirmed={onBip39Confirmed}
+          onCancel={onBip39Cancel}
+        />
       )}
     </KeyboardAwareScrollView>
   );

@@ -170,7 +170,12 @@ If you have biometric encryption enabled, a password may not be necessary as\
     enterMnemonicText: 'Word #{{wordNumber}}:',
     importWalletButton: 'Import Wallet',
     invalidErrorMessage:
-      'The word sequence you entered is not valid. Please double-check your words for any errors.'
+      'The word sequence you entered is not valid. Please double-check your words for any errors.',
+    confirmTitle: 'Phrase Verification',
+    //This will be rendered as subTitle in a Modal. In iphone 4 and small devices this should not go
+    //over 3 lines of text:
+    confirmText:
+      "Re-enter the recovery phrase to ensure it's correct. This confirms your wallet can be recovered."
   },
   amount: {
     maxLabel: 'All Funds'

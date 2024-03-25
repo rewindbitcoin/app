@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { StyleSheet, View, Platform } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import { LayoutAnimation } from 'react-native';
 import { useFonts } from 'expo-font';
@@ -45,10 +45,12 @@ const wordCandidates = (clean: string) => {
 export default function Bip39({
   words,
   onWords,
+  disableLengthChange = false,
   readonly = false
 }: {
   words: string[];
   onWords?: (words: string[]) => void;
+  disableLengthChange?: boolean;
   readonly?: boolean;
 }) {
   const inputRef = useRef<TextInput>(null);
@@ -148,7 +150,7 @@ export default function Bip39({
 
   return (
     <View className="rounded-xl bg-backgroundDefault flex-row flex-wrap pt-2 pr-2 w-full android:border android:border-gray-300 shadow mobmed:pt-3 mobmed:pr-3">
-      {readonly === false && onWords && (
+      {readonly === false && disableLengthChange === false && onWords && (
         <View className="pb-4 items-center w-full">
           <SegmentedControl
             style={styles.segmented}

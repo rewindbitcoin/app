@@ -26,8 +26,10 @@ import { getRealWindowHeight } from 'react-native-extra-dimensions-android';
 
 interface ModalProps {
   title: string;
+  subTitle?: string;
   isVisible: boolean;
   icon?: { family: keyof typeof Icons; name: string };
+  hideCloseButton?: boolean;
   closeButtonText?: string;
   onClose?: () => void;
   children: React.ReactNode;
@@ -42,7 +44,9 @@ const Modal: React.FC<ModalProps> = ({
   icon,
   closeButtonText,
   onClose,
+  hideCloseButton = false,
   title,
+  subTitle,
   children
 }) => {
   const theme = useTheme();
@@ -162,11 +166,11 @@ const Modal: React.FC<ModalProps> = ({
                     450,
                     childrenHeight + buttonHeight + headerHeight
                   ),
-                  borderRadius: 10,
+                  borderRadius: 20,
                   overflow: 'hidden',
                   marginBottom: 20,
                   maxWidth: 600,
-                  width: '90%',
+                  width: '95%',
                   alignSelf: 'center',
                   backgroundColor: theme.colors.white,
                   justifyContent: 'space-around',
@@ -193,7 +197,7 @@ const Modal: React.FC<ModalProps> = ({
                     <Icon
                       style={{
                         color: theme.colors.white,
-                        opacity: 0.1,
+                        opacity: subTitle ? 0.05 : 0.1,
                         fontSize: 120,
                         paddingLeft: 30,
                         paddingTop: 15
@@ -206,7 +210,7 @@ const Modal: React.FC<ModalProps> = ({
                       color: theme.colors.white,
                       opacity: 0.9,
                       position: 'absolute',
-                      top: '60%',
+                      top: subTitle ? '30%' : '60%',
                       left: 30,
                       fontSize: 22,
                       fontWeight: 'bold'
@@ -214,6 +218,22 @@ const Modal: React.FC<ModalProps> = ({
                   >
                     {title}
                   </Text>
+                  {subTitle && (
+                    <Text
+                      style={{
+                        color: theme.colors.white,
+                        opacity: 0.8,
+                        position: 'absolute',
+                        top: '60%',
+                        left: 0,
+                        paddingLeft: 30,
+                        paddingRight: 30,
+                        fontSize: 14
+                      }}
+                    >
+                      {subTitle}
+                    </Text>
+                  )}
                   {
                     //A bar as a hint to the user this is draggable
                     //Don't show on web
@@ -266,7 +286,7 @@ const Modal: React.FC<ModalProps> = ({
                     height: 20
                   }}
                 />
-                {onClose ? (
+                {onClose && !hideCloseButton ? (
                   <View
                     style={{ paddingVertical: 20 }}
                     onLayout={event => {
