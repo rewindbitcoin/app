@@ -1,83 +1,56 @@
 import React from 'react';
 import * as RN from 'react-native';
-import { useTheme, Theme } from '../theme';
-import { rgba } from 'polished';
+import { useTheme } from '../theme';
+
 interface ButtonProps extends RN.PressableProps {
-  mode?: 'native' | 'text' | 'contained' | 'outlined';
-  /** used then the children passed is a string */
-  fontSize?: number;
+  mode?: 'default' | 'native' | 'text';
   onPress?: (event: RN.GestureResponderEvent) => void;
   disabled?: boolean;
 }
 
 const Button: React.FC<ButtonProps> = ({
-  mode = 'native',
-  fontSize,
+  mode = 'default',
   children,
   ...props
 }) => {
   const theme = useTheme();
+  if (mode === 'native' && typeof children !== 'string')
+    throw new Error('native mode should receive text');
   if (mode === 'native' && typeof children === 'string') {
     return (
       <RN.Button color={theme.colors.primary} title={children} {...props} />
     );
-  } else if (mode !== 'native') {
+  } else if (mode === 'text') {
     return (
       <RN.Pressable
-        style={({ pressed }) => {
-          return getStyles(theme, pressed).container[mode];
-        }}
+        className="min-w-20 items-center py-3 px-5 hover:opacity-90 active:opacity-90 active:scale-95"
         {...props}
       >
-        {({ pressed }) =>
-          typeof children === 'string' ? (
-            <RN.Text
-              style={[
-                fontSize ? { fontSize } : {},
-                getStyles(theme, pressed).actionText[mode]
-              ]}
-            >
-              {children}
-            </RN.Text>
-          ) : React.isValidElement(children) ? (
-            children
-          ) : null
-        }
+        {typeof children === 'string' ? (
+          <RN.Text className="text-sm font-semibold text-primary">
+            {children}
+          </RN.Text>
+        ) : React.isValidElement(children) ? (
+          children
+        ) : null}
       </RN.Pressable>
     );
-  } else throw new Error('native mode should receive text');
-};
-
-const getStyles = (theme: Theme, pressed: boolean) => {
-  return {
-    actionText: RN.StyleSheet.create({
-      text: {
-        color: rgba(theme.colors.primary, pressed ? 0.2 : 1)
-      },
-      contained: {
-        color: theme.colors.white
-      },
-      outlined: {}
-    }),
-    container: RN.StyleSheet.create({
-      text: {
-        //    backgroundColor: 'transparent' no need for this
-      },
-      contained: {
-        backgroundColor: theme.colors.primary,
-        padding: 10,
-        borderRadius: 5,
-        color: theme.colors.primary
-      },
-      outlined: {
-        borderWidth: 1,
-        borderColor: theme.colors.primary,
-        backgroundColor: 'transparent',
-        padding: 10,
-        borderRadius: 5
-      }
-    })
-  };
+  } else if (mode === 'default') {
+    return (
+      <RN.Pressable
+        className="min-w-20 items-center py-3 px-5 rounded-lg bg-primary hover:opacity-90 active:opacity-90 active:scale-95"
+        {...props}
+      >
+        {typeof children === 'string' ? (
+          <RN.Text className="text-sm font-semibold text-white">
+            {children}
+          </RN.Text>
+        ) : React.isValidElement(children) ? (
+          children
+        ) : null}
+      </RN.Pressable>
+    );
+  } else throw new Error(`Unsupported button mode ${mode}`);
 };
 
 export { Button };
