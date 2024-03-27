@@ -10,6 +10,7 @@ const MAX_VAULT_CHECKS = 1000;
 const THUNDER_DEN_PURPOSE = 1073; // = [..."thunderden"].reduce((sum, char) => sum + char.charCodeAt(0), 0);
 const THUNDERDEN_VAULT_PATH = `m/${THUNDER_DEN_PURPOSE}'/<network>'/0'/<index>`;
 const THUNDERDEN_SIGNING_MESSAGE = 'ThunderDen Encryption';
+const THUNDERDEN_DATA_PATH = `m/${THUNDER_DEN_PURPOSE}'/<network>'/1'/0`;
 
 import { crypto, Network, networks } from 'bitcoinjs-lib';
 import type { Signer } from './wallets';
@@ -103,6 +104,20 @@ export const fetchP2PVaultIds = async ({
     }
   }
   throw new Error(`Reached MAX_VAULT_CHECKS`);
+};
+
+export const getEncryptedDataCipherKey = async ({
+  signer,
+  network
+}: {
+  signer: Signer;
+  network: Network;
+}) => {
+  return await getCipherKey({
+    vaultPath: THUNDERDEN_DATA_PATH,
+    signer,
+    network
+  });
 };
 
 // Important to be async so that this will also work when using Hardware Wallets

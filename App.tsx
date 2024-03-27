@@ -62,7 +62,7 @@ const Main = () => {
   const navigation = useNavigation();
 
   const settingsButton = () => (
-    <Button onPress={() => navigation.navigate(SETTINGS)}>
+    <Button mode="text" onPress={() => navigation.navigate(SETTINGS)}>
       {t('app.settingsButton')}
     </Button>
   );

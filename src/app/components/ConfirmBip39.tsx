@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useCallback } from 'react';
 import { Pressable, View } from 'react-native';
 import { Modal, Text } from '../../common/ui';
 import Bip39 from './Bip39';
@@ -22,20 +22,26 @@ const ConfirmBip39: React.FC<ConfirmBip39Props> = ({
   const [isVisible, setIsVisible] = useState(true);
   const [userWords, setUserWords] = useState<Array<string>>(
     Array(correctWords.length).fill('')
-  ); // Initialize based on the length of correctWords
+  );
 
-  useEffect(() => {
-    // Perform the verification check whenever userWords changes
-    if (JSON.stringify(userWords) === JSON.stringify(correctWords)) {
-      onConfirmed(); // Invoke the callback when verification is successful
-      setIsVisible(false); // Close the modal
-    }
-  }, [userWords, correctWords, onConfirmed]);
+  const handleCancel = useCallback(() => {
+    onCancel();
+    setIsVisible(false);
+  }, [onCancel]);
 
-  const handleCancel = () => {
-    onCancel(); // Invoke the cancel callback
-    setIsVisible(false); // Close the modal
-  };
+  const onWords = useCallback(
+    (words: string[]) => {
+      if (JSON.stringify(words) === JSON.stringify(correctWords)) {
+        setIsVisible(false);
+        onConfirmed();
+      }
+      setUserWords(words);
+    },
+    [correctWords, onConfirmed]
+  );
+
+  const canSkip =
+    network && (network === networks.testnet || network === networks.regtest);
 
   return (
     <Modal
@@ -55,24 +61,28 @@ const ConfirmBip39: React.FC<ConfirmBip39Props> = ({
                 {t('cancelButton')}
               </Text>
             </Pressable>
-            <Pressable className="min-w-20 items-center py-3 px-5 rounded-lg bg-primary hover:opacity-90 active:opacity-90 active:scale-95">
-              <Text className="text-sm font-semibold text-white">
-                {t('skipButton')}
-              </Text>
-            </Pressable>
+            {canSkip && (
+              <Pressable
+                className="min-w-20 items-center py-3 px-5 rounded-lg bg-primary hover:opacity-90 active:opacity-90 active:scale-95"
+                onPress={onConfirmed}
+              >
+                <Text className="text-sm font-semibold text-white">
+                  {t('skipButton')}
+                </Text>
+              </Pressable>
+            )}
             <Pressable className="min-w-20 items-center py-3 px-5 rounded-lg bg-primary opacity-50">
               <Text className="text-sm font-semibold text-white">
                 {t('verifyButton')}
               </Text>
             </Pressable>
           </View>
-          {network &&
-          (network === networks.testnet || network === networks.regtest) ? (
-            <View className="h-4" />
-          ) : (
+          {canSkip ? (
             <Text className="text-sm self-center text-slate-500 mt-2 mb-2">
               {t('bip39.testingWalletsCanSkip')}
             </Text>
+          ) : (
+            <View className="h-4" />
           )}
         </>
       }
@@ -80,7 +90,7 @@ const ConfirmBip39: React.FC<ConfirmBip39Props> = ({
       <Bip39
         disableLengthChange
         words={userWords}
-        onWords={setUserWords}
+        onWords={onWords}
         readonly={false}
       />
     </Modal>

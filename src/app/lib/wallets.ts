@@ -69,14 +69,12 @@ export type Wallet = {
    * the System is not usable (they are restricted fo 2KB).
    * Anyway this data is not so sensible.
    *
-   * When using BIP32_DERIVED_PUBKEY, a well-known derivation path is
-   * used as the seed for the pubKey, which is then used as the encryptionKey of
-   * your data. The xprv of signer[0] is used combined with the well-known
+   * When using SEED_DERIVED, getCipherKey is used. A signature in a a well-known
    * derivation path.
    *
    * We keep 'NONE' just for debugging/development purposes
    */
-  encryption: 'NONE' | 'BIP32_DERIVED_PUBKEY';
+  encryption: 'NONE' | 'SEED_DERIVED';
   //The storageEngine for the rest of data will be the same used to
   //this data (<Wallets>), so no need to save it
 };

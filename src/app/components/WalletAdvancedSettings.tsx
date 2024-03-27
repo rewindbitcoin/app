@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 
-import { View, StyleSheet, Pressable, ViewStyle } from 'react-native';
+import { View, StyleSheet, Pressable, Platform } from 'react-native';
 import {
   Modal,
   Text,
@@ -10,15 +10,28 @@ import {
   Switch,
   useTheme
 } from '../../common/ui';
+import type { Engine as StorageEngine } from '../../common/lib/storage';
 import Password from './Password';
 import { useTranslation } from 'react-i18next';
 import { LayoutAnimation } from 'react-native';
 import AntDesign from '@expo/vector-icons/AntDesign';
+import type { NetworkId } from '../lib/network';
+
+export type AdvancedSettings = {
+  signersStorageEngine: StorageEngine;
+  signersPassword?: string | undefined;
+  encryption: 'NONE' | 'SEED_DERIVED';
+  networkId: NetworkId;
+};
 
 export default function WalletAdvancedSettings({
-  style
+  canUseSecureStorage,
+  advancedSettings,
+  onAdvancedSettings
 }: {
-  style: ViewStyle;
+  canUseSecureStorage: boolean;
+  advancedSettings: AdvancedSettings;
+  onAdvancedSettings: (advancedSettings: AdvancedSettings) => void;
 }) {
   const { t } = useTranslation();
   const [passwordRequest, setPasswordRequest] = useState<boolean>(false);
@@ -29,9 +42,8 @@ export default function WalletAdvancedSettings({
   const [dataEncryptionHelp, showDataEncryptionHelp] = useState<boolean>(false);
   const theme: Theme = useTheme();
   const styles = getStyles(theme);
-  const [value, setValue] = useState<boolean>(false);
   return (
-    <View style={style}>
+    <>
       <Pressable
         onPress={() => {
           setAdvanced(!advanced);
@@ -66,17 +78,35 @@ export default function WalletAdvancedSettings({
       <View style={advanced ? { ...styles.card } : {}}>
         {advanced && (
           <>
-            <View style={{ ...styles.row }}>
-              <View style={styles.textContainer}>
-                <Text>{t('wallet.biomatricEncryptionTitle')}</Text>
-                <InfoButton
-                  style={{ paddingLeft: 10 }}
-                  onPress={() => showBiometricalHelp(true)}
-                />
-              </View>
-              <Switch value={value} onValueChange={value => setValue(value)} />
-            </View>
-            <Divider style={styles.lineSeparator} />
+            {canUseSecureStorage && (
+              <>
+                <View style={{ ...styles.row }}>
+                  <View style={styles.textContainer}>
+                    <Text>{t('wallet.biomatricEncryptionTitle')}</Text>
+                    <InfoButton
+                      style={{ paddingLeft: 10 }}
+                      onPress={() => showBiometricalHelp(true)}
+                    />
+                  </View>
+                  <Switch
+                    value={
+                      advancedSettings.signersStorageEngine === 'SECURESTORE'
+                    }
+                    onValueChange={value =>
+                      onAdvancedSettings({
+                        ...advancedSettings,
+                        signersStorageEngine: value
+                          ? 'SECURESTORE'
+                          : Platform.OS === 'web'
+                            ? 'IDB'
+                            : 'MMKV'
+                      })
+                    }
+                  />
+                </View>
+                <Divider style={styles.lineSeparator} />
+              </>
+            )}
             <View style={styles.row}>
               <View style={styles.textContainer}>
                 <Text>{t('wallet.usePasswordTitle')}</Text>
@@ -178,7 +208,7 @@ export default function WalletAdvancedSettings({
       >
         <Text>
           {/*TODO: translate*/}
-          This option secures your non-mnemonic app data, like vaults and UTXOs,
+          {`This option secures your non-mnemonic app data, like vaults and UTXOs,
           using the XChaCha20-Poly1305 encryption algorithm with a special key.
           This key is created in a secure and deterministic way from your
           mnemonic. While leaking this app data won't compromise your funds, it
@@ -187,10 +217,10 @@ export default function WalletAdvancedSettings({
           unvaulting or sending funds to your panic address. Encrypting this
           data ensures that even if it is accessed by unauthorized parties, they
           cannot read or misuse it. It's a recommended step for protecting your
-          transactional privacy and preventing unwanted operations.
+          transactional privacy and preventing unwanted operations.`}
         </Text>
       </Modal>
-    </View>
+    </>
   );
 }
 

@@ -10,6 +10,7 @@ import { useNavigation } from '@react-navigation/native';
 import { NEW_WALLET } from '../screens';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Svg, Path } from 'react-native-svg';
+import BitcoinSign from '../../../assets/BitcoinSign.svg';
 import BitcoinLogo from '../../../assets/Bitcoin.svg';
 import RegtestLogo from '../../../assets/Regtest.svg';
 import TestnetLogo from '../../../assets/Testnet.svg';
@@ -24,6 +25,12 @@ cssInterop(Svg, {
     nativeStyleToProp: { width: true, height: true }
   }
 });
+//cssInterop(BitcoinSign, {
+//  className: {
+//    target: 'style',
+//    nativeStyleToProp: { width: true, height: true }
+//  }
+//});
 cssInterop(BitcoinLogo, {
   className: {
     target: 'style',
@@ -177,14 +184,14 @@ const WalletsScreen = ({
                   </Text>
                   {wallet.networkId !== 'BITCOIN' && (
                     <View className={`flex-none rounded-xl ${walletBg(index)}`}>
-                      <View className={`p-2 rounded-xl bg-white/30`}>
+                      <View className={`p-2 rounded-xl bg-white/70`}>
                         <Text
-                          className={`text-center text-white right-0 font-bold text-xs leading-4 ${walletCl(index)}`}
+                          className={`font-semibold text-xs text-center text-primary right-0 leading-4 ${walletCl(index)}`}
                         >
                           {t('wallets.testWallet')}
                         </Text>
                         <Text
-                          className={`text-center text-white right-0 font-bold text-xs leading-4 ${walletCl(index)}`}
+                          className={`font-semibold text-xs text-center text-primary right-0 leading-4 ${walletCl(index)}`}
                         >
                           {t('wallets.noRealValue')}
                         </Text>
@@ -193,10 +200,10 @@ const WalletsScreen = ({
                   )}
                 </View>
                 <View className="z-10 absolute bottom-4 left-4">
-                  <Text className="flex-initial text-xs font-bold text-white">
+                  <Text className="flex-initial text-xs font-semibold text-white">
                     {t('wallets.createdOn')}
                   </Text>
-                  <Text className="flex-initial text-xs font-bold text-white">
+                  <Text className="flex-initial text-xs font-semibold text-white">
                     {new Intl.DateTimeFormat(
                       undefined /*use system's locale */,
                       {
@@ -219,11 +226,17 @@ const WalletsScreen = ({
                     <RegtestLogo className="flex-initial w-8 h-8" />
                   )}
                 </View>
-                <FontAwesome5
+                {/*<FontAwesome5
                   name="bitcoin"
                   size={256}
                   className="z-0 text-white opacity-10 absolute -bottom-24 -right-12"
-                />
+                />*/}
+                {
+                  <BitcoinSign
+                    opacity={0.1}
+                    className="w-60 z-0 fill-white absolute -bottom-46"
+                  />
+                }
               </Pressable>
             ))}
         </View>
