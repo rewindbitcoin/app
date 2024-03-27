@@ -9,6 +9,7 @@ interface ButtonProps extends RN.PressableProps {
 }
 
 const Button: React.FC<ButtonProps> = ({
+  disabled = false,
   mode = 'default',
   children,
   ...props
@@ -23,7 +24,8 @@ const Button: React.FC<ButtonProps> = ({
   } else if (mode === 'text') {
     return (
       <RN.Pressable
-        className="min-w-20 items-center py-3 px-5 hover:opacity-90 active:opacity-90 active:scale-95"
+        key={String(disabled)}
+        className={`min-w-20 items-center py-3 px-5 ${disabled ? 'pointer-events-none opacity-50' : 'hover:opacity-90 active:opacity-90 active:scale-95'}`}
         {...props}
       >
         {typeof children === 'string' ? (
@@ -38,7 +40,8 @@ const Button: React.FC<ButtonProps> = ({
   } else if (mode === 'default') {
     return (
       <RN.Pressable
-        className="min-w-20 items-center py-3 px-5 rounded-lg bg-primary hover:opacity-90 active:opacity-90 active:scale-95"
+        key={String(disabled)}
+        className={`min-w-20 items-center py-3 px-5 rounded-lg bg-primary ${disabled ? 'pointer-events-none opacity-50' : 'hover:opacity-90 active:opacity-90 active:scale-95'}`}
         {...props}
       >
         {typeof children === 'string' ? (

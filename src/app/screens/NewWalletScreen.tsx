@@ -82,9 +82,9 @@ export default function NewWalletScreen() {
         <ActivityIndicator />
       ) : (
         <View className="max-w-lg p-4 gap-4">
-          <Text className="text-xl font-semibold">
+          {/*<Text className="text-xl font-semibold">
             {t(isImport ? 'bip39.importWalletText' : 'bip39.createWalletText')}
-          </Text>
+          </Text>*/}
           <Text>
             {t(
               isImport

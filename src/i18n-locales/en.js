@@ -30,14 +30,16 @@ export default {
   },
   wallet: {
     requestPasswordTitle: 'Create a new Password',
+    setNewPasswordButton: 'Set Password',
     requestPasswordText: `Please set a new password (8-32 characters).
 
 If you ever lose or forget your password, you can still recover your wallet\
- using your mnemonic phrase.`,
+ using your mnemonic recovery phrase.`,
     advancedOptionsTitle: 'Advanced Options',
     usePasswordTitle: 'Use Password',
     biometricEncryptionTitle: 'Biometric Encryption',
     encryptAppDataTitle: 'Encrypt App Data',
+    networkTitle: 'Network',
     importButton: 'Import'
   },
   walletHome: {
@@ -78,21 +80,28 @@ Usage Instructions:
   },
   help: {
     biometric: `This option enables biometric encryption to secure your\
- mnemonic. It uses your device's biometric features like fingerprint or\
+ mnemonic recovery phrase. It uses your device's biometric features like fingerprint or\
  face recognition.
 
 Please note, if your biometric data changes (like\
  adding a new fingerprint), the system will invalidate the encryption\
- key, making the mnemonic unreadable. In such cases, you'll need to\
+ key, making the mnemonic recovery phrase unreadable. In such cases, you'll need to\
  re-enter the mnemonic. This measure ensures that only you can access\
  your wallet.`,
-    password: `Setting a password encrypts your mnemonic, providing a secure\
+    password: `Setting a password encrypts your mnemonic recovery phrase, providing a secure\
  layer of protection for your wallet. Each time you access the wallet, you will\
- need to enter this password to decrypt the mnemonic.
-
-If you have biometric encryption enabled, a password may not be necessary as\
+ need to enter this password to decrypt the mnemonic.`,
+    passwordWithBiometric: `If you have biometric encryption enabled, a password may not be necessary as\
  biometrics already offer robust security. However, opting for a password in\
- addition to biometrics is available if you seek an even higher level of security.`
+ addition to biometrics is available if you seek an even higher level of security.`,
+    encryptAppData: `This option encrypts your non-mnemonic data, like vaults and transaction details,\
+ shielding your transaction patterns and addresses from potential exposure, preserving your anonymity.
+
+While leaking this data wouldn't compromise your funds, encrypting it\
+ ensures that even if it is accessed by unauthorized parties, they\
+ cannot read it.
+
+The encryption uses the XChaCha20-Poly1305 algorithm, with a key that’s securely derived from your mnemonic.`
   },
   vaultSetup: {
     title: 'Vault Set Up',
@@ -160,10 +169,10 @@ If you have biometric encryption enabled, a password may not be necessary as\
     chooseNew: 'Need to create a new wallet?',
     importWalletText: 'Restore Your Wallet',
     importWalletSubText:
-      'Enter the recovery phrase you saved when you first set up your wallet. This restores access to your existing wallet and its funds.',
+      'Enter the mnemonic recovery phrase you saved when you first set up your wallet. This restores access to your existing wallet and its funds.',
     createWalletText: 'Your New Wallet Awaits',
     createWalletSubText:
-      "Below is your wallet's recovery phrase. It's crucial for accessing your wallet if you switch or loose devices. Write it down and keep it somewhere safe.",
+      "Below is your wallet's mnemonic recovery phrase. It's crucial for accessing your wallet if you switch or loose devices. Write it down and keep it somewhere safe.",
     segmented12: '12 Words',
     segmented24: '24 Words',
     selectWordsLength: 'Number of words:',
@@ -175,7 +184,7 @@ If you have biometric encryption enabled, a password may not be necessary as\
     //This will be rendered as subTitle in a Modal. In iphone 4 and small devices this should not go
     //over 3 lines of text:
     confirmText:
-      "Re-enter the recovery phrase to ensure it's correct. This confirms your wallet can be recovered.",
+      "Re-enter the mnemonic recovery phrase to ensure it's correct. This confirms your wallet can be recovered.",
     testingWalletsCanSkip: 'Test wallets can skip this step.'
   },
   amount: {

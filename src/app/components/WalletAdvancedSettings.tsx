@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useCallback, useState } from 'react';
 
 import { View, StyleSheet, Pressable, Platform } from 'react-native';
 import {
@@ -35,13 +35,58 @@ export default function WalletAdvancedSettings({
 }) {
   const { t } = useTranslation();
   const [passwordRequest, setPasswordRequest] = useState<boolean>(false);
-  const [password, setPassword] = useState<string>();
   const [advanced, setAdvanced] = useState<boolean>(false);
   const [biometricalHelp, showBiometricalHelp] = useState<boolean>(false);
   const [passwordHelp, showPasswordHelp] = useState<boolean>(false);
   const [dataEncryptionHelp, showDataEncryptionHelp] = useState<boolean>(false);
   const theme: Theme = useTheme();
   const styles = getStyles(theme);
+
+  const onPasswordSwitch = useCallback(
+    (value: boolean) => {
+      if (value)
+        //requestAnimationFrame: We allow the Switch element to
+        //transition from false to true.
+        //This is useful in android to prevent
+        //a glitch showing "greenish" default color in the switches
+        //for a fraction of a second. Don't show the modal in this
+        //same execution context because React Native will not call
+        //the inner Switch with the new color props we set in the
+        //internal Switch
+        //Also this helps with the autoFocus in the TextInput of
+        //the password. It was sometimes not poping the keyboard
+        //automatically before requestAnimationFrame
+        requestAnimationFrame(() => setPasswordRequest(true));
+      else {
+        if (advancedSettings.signersPassword)
+          onAdvancedSettings({
+            ...advancedSettings,
+            signersPassword: undefined
+          });
+      }
+    },
+    [advancedSettings, onAdvancedSettings]
+  );
+  const onPasswordClose = useCallback(() => setPasswordRequest(false), []);
+  const onPassword = useCallback(
+    (password: string | undefined) => {
+      onAdvancedSettings({
+        ...advancedSettings,
+        signersPassword: password
+      });
+    },
+    [advancedSettings, onAdvancedSettings]
+  );
+
+  const onEncryptSwitch = useCallback(
+    (value: boolean) => {
+      if (value && advancedSettings.encryption === 'NONE')
+        onAdvancedSettings({ ...advancedSettings, encryption: 'SEED_DERIVED' });
+      if (!value && advancedSettings.encryption === 'SEED_DERIVED')
+        onAdvancedSettings({ ...advancedSettings, encryption: 'NONE' });
+    },
+    [advancedSettings, onAdvancedSettings]
+  );
   return (
     <>
       <Pressable
@@ -84,7 +129,7 @@ export default function WalletAdvancedSettings({
                   <View style={styles.textContainer}>
                     <Text>{t('wallet.biometricEncryptionTitle')}</Text>
                     <InfoButton
-                      style={{ paddingLeft: 10 }}
+                      style={{ paddingLeft: 8 }}
                       onPress={() => showBiometricalHelp(true)}
                     />
                   </View>
@@ -111,61 +156,40 @@ export default function WalletAdvancedSettings({
               <View style={styles.textContainer}>
                 <Text>{t('wallet.usePasswordTitle')}</Text>
                 <InfoButton
-                  style={{ paddingLeft: 10 }}
+                  style={{ paddingLeft: 8 }}
                   onPress={() => showPasswordHelp(true)}
                 />
               </View>
               <Switch
-                value={password !== undefined || passwordRequest}
-                onValueChange={value => {
-                  setPassword(undefined); //Reset the password
-                  if (value)
-                    //requestAnimationFrame: We allow the Switch element to
-                    //transition from false to true.
-                    //This is useful in android to prevent
-                    //a glitch showing "greenish" default color in the switches
-                    //for a fraction of a second. Don't show the modal in this
-                    //same execution context because React Native will not call
-                    //the inner Switch with the new color props we set in the
-                    //internal Switch
-                    //Also this helps with the autoFocus in the TextInput of
-                    //the password. It was sometimes not poping the keyboard
-                    //automatically before requestAnimationFrame
-                    requestAnimationFrame(() => setPasswordRequest(true));
-                }}
+                value={!!advancedSettings.signersPassword || passwordRequest}
+                onValueChange={onPasswordSwitch}
               />
-              <Modal
-                title={t('wallet.requestPasswordTitle')}
-                closeButtonText={t('cancelButton')}
-                icon={{ family: 'AntDesign', name: 'form' }}
+              <Password
+                password={advancedSettings.signersPassword}
                 isVisible={passwordRequest}
-                onClose={() => setPasswordRequest(false)}
-              >
-                <Password
-                  onPassword={password => {
-                    if (password !== undefined) {
-                      setPassword(password);
-                    }
-                  }}
-                />
-              </Modal>
+                onPassword={onPassword}
+                onClose={onPasswordClose}
+              />
             </View>
             <Divider style={styles.lineSeparator} />
             <View style={styles.row}>
               <View style={styles.textContainer}>
+                <Text>{t('wallet.encryptAppDataTitle')}</Text>
                 <InfoButton
-                  style={{ paddingRight: 10 }}
+                  style={{ paddingLeft: 8 }}
                   onPress={() => showDataEncryptionHelp(true)}
                 />
-                <Text>{t('wallet.encryptAppDataTitle')}</Text>
               </View>
-              <Switch />
+              <Switch
+                value={advancedSettings.encryption === 'SEED_DERIVED'}
+                onValueChange={onEncryptSwitch}
+              />
             </View>
             <Divider style={styles.lineSeparator} />
             <View style={styles.row}>
               <View style={styles.textContainer}>
-                <InfoButton style={{ paddingRight: 10 }} />
-                <Text>Network</Text>
+                <Text>{t('wallet.networkTitle')}</Text>
+                <InfoButton style={{ paddingLeft: 8 }} />
               </View>
               <View>
                 <Text>Bitcoin</Text>
@@ -194,30 +218,23 @@ export default function WalletAdvancedSettings({
         closeButtonText={t('understoodButton')}
       >
         <Text className="pl-2 pr-2">{t('help.password')}</Text>
+        {canUseSecureStorage && (
+          <Text className="pt-4 pl-2 pr-2">
+            {t('help.passwordWithBiometric')}
+          </Text>
+        )}
       </Modal>
       <Modal
         title={t('wallet.encryptAppDataTitle')}
         icon={{
-          family: 'FontAwesome5',
-          name: 'database'
+          family: 'Ionicons',
+          name: 'document-lock'
         }}
         isVisible={dataEncryptionHelp}
         onClose={() => showDataEncryptionHelp(false)}
         closeButtonText={t('understoodButton')}
       >
-        <Text className="pl-2 pr-2">
-          {/*TODO: translate*/}
-          {`This option secures your non-mnemonic app data, like vaults and UTXOs,
-          using the XChaCha20-Poly1305 encryption algorithm with a special key.
-          This key is created in a secure and deterministic way from your
-          mnemonic. While leaking this app data won't compromise your funds, it
-          could potentially expose your transaction patterns and addresses,
-          affecting your anonymity. Bad actors could initiate operations like
-          unvaulting or sending funds to your panic address. Encrypting this
-          data ensures that even if it is accessed by unauthorized parties, they
-          cannot read or misuse it. It's a recommended step for protecting your
-          transactional privacy and preventing unwanted operations.`}
-        </Text>
+        <Text className="pl-2 pr-2">{t('help.encryptAppData')}</Text>
       </Modal>
     </>
   );

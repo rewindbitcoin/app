@@ -92,6 +92,7 @@ const ConfirmBip39: React.FC<ConfirmBip39Props> = ({
         words={userWords}
         onWords={onWords}
         readonly={false}
+        autoFocus
       />
     </Modal>
   );
