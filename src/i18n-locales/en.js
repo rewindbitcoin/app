@@ -36,7 +36,7 @@ If you ever lose or forget your password, you can still recover your wallet\
  using your mnemonic phrase.`,
     advancedOptionsTitle: 'Advanced Options',
     usePasswordTitle: 'Use Password',
-    biomatricEncryptionTitle: 'Biometric Encryption',
+    biometricEncryptionTitle: 'Biometric Encryption',
     encryptAppDataTitle: 'Encrypt App Data',
     importButton: 'Import'
   },

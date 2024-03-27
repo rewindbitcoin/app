@@ -45,7 +45,7 @@ const ConfirmBip39: React.FC<ConfirmBip39Props> = ({
 
   return (
     <Modal
-      icon={{ family: 'MaterialIcons', name: 'format-list-numbered' }}
+      icon={{ family: 'MaterialIcons', name: 'playlist-add-check-circle' }}
       isVisible={isVisible}
       title={t('bip39.confirmTitle')}
       subTitle={t('bip39.confirmText')}

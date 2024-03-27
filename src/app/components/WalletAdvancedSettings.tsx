@@ -82,7 +82,7 @@ export default function WalletAdvancedSettings({
               <>
                 <View style={{ ...styles.row }}>
                   <View style={styles.textContainer}>
-                    <Text>{t('wallet.biomatricEncryptionTitle')}</Text>
+                    <Text>{t('wallet.biometricEncryptionTitle')}</Text>
                     <InfoButton
                       style={{ paddingLeft: 10 }}
                       onPress={() => showBiometricalHelp(true)}
@@ -144,7 +144,6 @@ export default function WalletAdvancedSettings({
                 <Password
                   onPassword={password => {
                     if (password !== undefined) {
-                      console.log({ setPassword: password });
                       setPassword(password);
                     }
                   }}
@@ -176,13 +175,13 @@ export default function WalletAdvancedSettings({
         )}
       </View>
       <Modal
-        title={t('wallet.biomatricEncryptionTitle')}
+        title={t('wallet.biometricEncryptionTitle')}
         icon={{ family: 'Ionicons', name: 'finger-print' }}
         isVisible={biometricalHelp}
         onClose={() => showBiometricalHelp(false)}
         closeButtonText={t('understoodButton')}
       >
-        <Text>{t('help.biometric')}</Text>
+        <Text className="pl-2 pr-2">{t('help.biometric')}</Text>
       </Modal>
       <Modal
         title={'Password Protection'}
@@ -194,7 +193,7 @@ export default function WalletAdvancedSettings({
         onClose={() => showPasswordHelp(false)}
         closeButtonText={t('understoodButton')}
       >
-        <Text>{t('help.password')}</Text>
+        <Text className="pl-2 pr-2">{t('help.password')}</Text>
       </Modal>
       <Modal
         title={t('wallet.encryptAppDataTitle')}
@@ -206,7 +205,7 @@ export default function WalletAdvancedSettings({
         onClose={() => showDataEncryptionHelp(false)}
         closeButtonText={t('understoodButton')}
       >
-        <Text>
+        <Text className="pl-2 pr-2">
           {/*TODO: translate*/}
           {`This option secures your non-mnemonic app data, like vaults and UTXOs,
           using the XChaCha20-Poly1305 encryption algorithm with a special key.
