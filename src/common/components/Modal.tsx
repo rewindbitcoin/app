@@ -6,7 +6,9 @@ import { useTheme } from '../theme';
 import { Text } from './Text';
 import * as Icons from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Ubuntu_500Medium, Ubuntu_700Bold } from '@expo-google-fonts/ubuntu';
 import { rgba } from 'polished';
+import { useFonts } from 'expo-font';
 
 import {
   GestureHandlerRootView,
@@ -49,6 +51,10 @@ const Modal: React.FC<ModalProps> = ({
   subTitle,
   children
 }) => {
+  const [ubuntuLoaded] = useFonts({
+    Ubuntu700Bold: Ubuntu_700Bold,
+    Ubuntu500Medium: Ubuntu_500Medium
+  });
   const theme = useTheme();
   const translateY = useSharedValue(0);
   const scrollViewPaddingVertical = 20;
@@ -199,7 +205,7 @@ const Modal: React.FC<ModalProps> = ({
                     <Icon
                       style={{
                         color: theme.colors.white,
-                        opacity: subTitle ? 0.05 : 0.1,
+                        opacity: 0.1,
                         fontSize: 120,
                         paddingLeft: 30,
                         paddingTop: 15
@@ -208,31 +214,13 @@ const Modal: React.FC<ModalProps> = ({
                     />
                   ) : null}
                   <Text
-                    style={{
-                      color: theme.colors.white,
-                      opacity: 0.9,
-                      position: 'absolute',
-                      top: subTitle ? '30%' : '60%',
-                      left: 30,
-                      fontSize: 22,
-                      fontWeight: 'bold'
-                    }}
+                    className={`${ubuntuLoaded ? "font-['Ubuntu700Bold']" : ''} uppercase opacity-90 absolute ${subTitle ? 'top-[30%]' : 'top-[60%]'} left-8 pr-8 text-2xl text-white`}
                   >
                     {title}
                   </Text>
                   {subTitle && (
                     <Text
-                      style={{
-                        color: theme.colors.white,
-                        opacity: 0.8,
-                        position: 'absolute',
-                        top: '60%',
-                        width: '100%',
-                        left: 0,
-                        paddingLeft: 30,
-                        paddingRight: 30,
-                        fontSize: 14
-                      }}
+                      className={`${ubuntuLoaded ? "font-['Ubuntu500Medium']" : ''} opacity-85 absolute top-[60%] w-full left-0 px-8 text-white`}
                     >
                       {subTitle}
                     </Text>
