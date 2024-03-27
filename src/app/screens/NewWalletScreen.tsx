@@ -3,7 +3,7 @@
 //at times. For example when restoring from a backup or when changing the fingerprints
 //or faceId of the device
 import React, { useCallback, useState } from 'react';
-import { View, Text, Pressable, Keyboard } from 'react-native';
+import { View, Text, Pressable, Keyboard, Platform } from 'react-native';
 import {
   Button,
   ActivityIndicator,
@@ -12,7 +12,9 @@ import {
 import { useTranslation } from 'react-i18next';
 import Bip39, { validateMnemonic } from '../components/Bip39';
 import ConfirmBip39 from '../components/ConfirmBip39';
-import WalletAdvancedSettings from '../components/WalletAdvancedSettings';
+import WalletAdvancedSettings, {
+  type AdvancedSettings
+} from '../components/WalletAdvancedSettings';
 import { useSecureStorageAvailability } from '../../common/contexts/SecureStorageAvailabilityContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { generateMnemonic } from 'bip39';
@@ -21,11 +23,29 @@ export default function NewWalletScreen() {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const canUseSecureStorage = useSecureStorageAvailability();
+  if (canUseSecureStorage === undefined)
+    throw new Error('Could not retrieve Secure Storage availability');
   const [isImport, setIsImport] = useState<boolean>(false);
   const [isConfirmBip39, setIsConfirmBip39] = useState<boolean>(false);
   //const [words, setWords] = useState<string[]>(Array(12).fill(''));
   const [words, setWords] = useState<string[]>(generateMnemonic().split(' '));
   const validMnemonic = validateMnemonic(words.join(' '));
+  const [advancedSettings, setAdvancedSettings] = useState<AdvancedSettings>({
+    signersStorageEngine: canUseSecureStorage
+      ? 'SECURESTORE'
+      : Platform.OS === 'web'
+        ? 'IDB'
+        : 'MMKV',
+    signersPassword: undefined,
+    encryption: 'SEED_DERIVED',
+    networkId: 'STORM'
+  });
+
+  const onAdvancedSettings = useCallback(
+    (advancedSettings: AdvancedSettings) =>
+      setAdvancedSettings(advancedSettings),
+    []
+  );
 
   const onWords = useCallback((words: string[]) => {
     if (validateMnemonic(words.join(' '))) Keyboard.dismiss();
@@ -37,7 +57,7 @@ export default function NewWalletScreen() {
     setIsImport(!isImport);
   }, [isImport]);
 
-  const confirmBip39 = useCallback(() => {
+  const onBip39ConfirmationIsRequested = useCallback(() => {
     setIsConfirmBip39(true);
   }, []);
   const onBip39Confirmed = useCallback(() => {
@@ -86,9 +106,18 @@ export default function NewWalletScreen() {
             words={words}
             onWords={onWords}
           />
-          <WalletAdvancedSettings style={{ marginTop: 20 }} />
-          <View style={{ marginVertical: 20 }}>
-            <Button disabled={!validMnemonic} onPress={confirmBip39}>
+          <View className="mt-4">
+            <WalletAdvancedSettings
+              canUseSecureStorage={canUseSecureStorage}
+              advancedSettings={advancedSettings}
+              onAdvancedSettings={onAdvancedSettings}
+            />
+          </View>
+          <View className="mt-4 mb-4">
+            <Button
+              disabled={!validMnemonic}
+              onPress={onBip39ConfirmationIsRequested}
+            >
               {t('wallet.importButton')}
             </Button>
           </View>
