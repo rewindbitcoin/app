@@ -49,13 +49,13 @@ cssInterop(TestnetLogo, {
     nativeStyleToProp: { width: true, height: true }
   }
 });
-import { FontAwesome5 } from '@expo/vector-icons';
-cssInterop(FontAwesome5, {
-  className: {
-    target: 'style',
-    nativeStyleToProp: { width: true, height: true }
-  }
-});
+//import { FontAwesome5 } from '@expo/vector-icons';
+//cssInterop(FontAwesome5, {
+//  className: {
+//    target: 'style',
+//    nativeStyleToProp: { width: true, height: true }
+//  }
+//});
 
 const walletBgs = [
   //gradients are so cool, but not supported natively:

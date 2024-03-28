@@ -112,7 +112,7 @@ const getStyles = (theme: Theme) => {
       alignSelf: 'stretch', //To ensure that textAlign works with short texts too
       textAlign: 'left'
     },
-    unitContainer: { marginLeft: 10 },
+    unitContainer: { marginLeft: 8 },
     unitText: { fontSize: 12, color: theme.colors.text },
     helpIcon: {
       marginLeft: 10,

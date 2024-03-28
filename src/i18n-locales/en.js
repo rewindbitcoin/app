@@ -79,6 +79,13 @@ Usage Instructions:
      the identification and cancellation process`
   },
   help: {
+    bitcoinNetworkBrief:
+      'The standard Bitcoin network. Currently not recommended for use due to the app being in early testing phases.',
+    testnetNetworkBrief:
+      'A public network for Bitcoin testing. Ideal for risk-free experimentation. Obtaining Testnet tokens can be challenging.',
+    regtestNetworkBrief: 'Specifically for developer use.',
+    stormNetworkBrief:
+      "Ideal for testing without risk. Maintained by ThunderDen, which provides initial tokens when setting up your wallet. You can request as many additional tokens as needed to familiarize yourself with the wallet's functionality.",
     biometric: `This option enables biometric encryption to secure your\
  mnemonic recovery phrase. It uses your device's biometric features like fingerprint or\
  face recognition.

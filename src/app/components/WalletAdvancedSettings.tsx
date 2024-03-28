@@ -16,6 +16,8 @@ import { useTranslation } from 'react-i18next';
 import { LayoutAnimation } from 'react-native';
 import AntDesign from '@expo/vector-icons/AntDesign';
 import type { NetworkId } from '../lib/network';
+import NetworksModal from './NetworksModal';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 export type AdvancedSettings = {
   signersStorageEngine: StorageEngine;
@@ -35,6 +37,7 @@ export default function WalletAdvancedSettings({
 }) {
   const { t } = useTranslation();
   const [passwordRequest, setPasswordRequest] = useState<boolean>(false);
+  const [networkRequest, setNetworkRequest] = useState<boolean>(false);
   const [advanced, setAdvanced] = useState<boolean>(false);
   const [biometricalHelp, showBiometricalHelp] = useState<boolean>(false);
   const [passwordHelp, showPasswordHelp] = useState<boolean>(false);
@@ -77,6 +80,22 @@ export default function WalletAdvancedSettings({
     },
     [advancedSettings, onAdvancedSettings]
   );
+
+  const onNetworkRequest = useCallback(() => {
+    setNetworkRequest(true);
+  }, []);
+  const onNetworkSelect = useCallback(
+    (networkId: NetworkId) => {
+      if (advancedSettings.networkId !== networkId)
+        onAdvancedSettings({
+          ...advancedSettings,
+          networkId
+        });
+      setNetworkRequest(false);
+    },
+    [advancedSettings, onAdvancedSettings]
+  );
+  const onNetworkClose = useCallback(() => setNetworkRequest(false), []);
 
   const onEncryptSwitch = useCallback(
     (value: boolean) => {
@@ -191,9 +210,19 @@ export default function WalletAdvancedSettings({
                 <Text>{t('wallet.networkTitle')}</Text>
                 <InfoButton style={{ paddingLeft: 8 }} />
               </View>
-              <View>
-                <Text>Bitcoin</Text>
-              </View>
+              <Pressable
+                onPress={onNetworkRequest}
+                className="flex-row -my-2 py-2 items-center active:scale-95 active:opacity-90 hover:opacity-90"
+              >
+                <MaterialCommunityIcons
+                  name="menu-swap-outline"
+                  size={14}
+                  className="text-primary"
+                />
+                <Text className="pl-1 text-primary capitalize">
+                  {advancedSettings.networkId}
+                </Text>
+              </Pressable>
             </View>
           </>
         )}
@@ -236,6 +265,12 @@ export default function WalletAdvancedSettings({
       >
         <Text className="pl-2 pr-2">{t('help.encryptAppData')}</Text>
       </Modal>
+      <NetworksModal
+        isVisible={networkRequest}
+        networkId={advancedSettings.networkId}
+        onSelect={onNetworkSelect}
+        onClose={onNetworkClose}
+      />
     </>
   );
 }
@@ -270,6 +305,7 @@ const getStyles = (theme: Theme) => {
     },
     textContainer: {
       marginLeft: 20,
+      minHeight: 24,
       flexDirection: 'row',
       alignItems: 'center'
     },
