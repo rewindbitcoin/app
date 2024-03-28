@@ -241,7 +241,7 @@ const WalletsScreen = ({
             ))}
         </View>
         {isWalletsSynchd && !wallets?.[0] && (
-          <Button mode="contained" onPress={handleNewTestingWallet}>
+          <Button onPress={handleNewTestingWallet}>
             {'Create Test Wallet'}
           </Button>
         )}
