@@ -1,8 +1,14 @@
 import React, { useCallback } from 'react';
-import { type NetworkId, networkMapping } from '../../app/lib/network';
+import type { NetworkId } from '../../app/lib/network';
 import { View } from 'react-native';
 import { Modal, VerticalChoice, Text } from '../../common/ui';
 import { useTranslation } from 'react-i18next';
+const networkIds = [
+  'STORM',
+  'TESTNET',
+  'BITCOIN',
+  'REGTEST'
+] as Array<NetworkId>;
 
 export default function NetworksModal({
   isVisible,
@@ -16,7 +22,6 @@ export default function NetworksModal({
   onClose?: () => void;
 }) {
   const { t } = useTranslation();
-  const networkIds = Object.keys(networkMapping) as Array<NetworkId>;
   const choices = networkIds.map((id: NetworkId) => {
     return (
       <View
@@ -27,16 +32,16 @@ export default function NetworksModal({
           flex: 1
         }}
       >
-        <Text className="capitalize">{id}</Text>
-        <Text className="text-slate-500 max-w-[70%] text-justify">
+        <Text className="capitalize w-20">{id.toLowerCase()}</Text>
+        <Text className="text-slate-500 flex-1">
           {id === 'BITCOIN'
-            ? t('help.bitcoinNetworkBrief')
+            ? t('network.help.bitcoinNetworkBrief')
             : id === 'STORM'
-              ? t('help.stormNetworkBrief')
+              ? t('network.help.stormNetworkBrief')
               : id === 'TESTNET'
-                ? t('help.testnetNetworkBrief')
+                ? t('network.help.testnetNetworkBrief')
                 : id === 'REGTEST'
-                  ? t('help.regtestNetworkBrief')
+                  ? t('network.help.regtestNetworkBrief')
                   : id}
         </Text>
       </View>
@@ -46,13 +51,14 @@ export default function NetworksModal({
     (index: number) => {
       onSelect(networkIds[index] as NetworkId);
     },
-    [onSelect, networkIds]
+    [onSelect]
   );
   return (
     <Modal
-      title={t('units.preferredUnitTitle')}
+      title={t('network.testOrRealTitle')}
+      subTitle={t('network.testOrRealSubTitle')}
       closeButtonText={t('cancelButton')}
-      icon={{ family: 'FontAwesome5', name: 'coins' }}
+      icon={{ family: 'FontAwesome5', name: 'bitcoin' }}
       isVisible={isVisible}
       {...(onClose ? { onClose } : {})}
     >

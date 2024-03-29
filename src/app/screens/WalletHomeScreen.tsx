@@ -11,13 +11,13 @@ import { cssInterop } from 'nativewind';
 cssInterop(Ionicons, {
   className: {
     target: 'style',
-    nativeStyleToProp: { width: true, height: true }
+    nativeStyleToProp: { color: true, fontSize: 'size' }
   }
 });
 cssInterop(SimpleLineIcons, {
   className: {
     target: 'style',
-    nativeStyleToProp: { width: true, height: true }
+    nativeStyleToProp: { color: true, fontSize: 'size' }
   }
 });
 import Spin from '../../common/components/Spin';
@@ -33,12 +33,12 @@ const navOptions = {
       <Pressable
         className={`animate-spin hover:opacity-90 active:scale-95 active:opacity-90`}
       >
-        <SimpleLineIcons name="refresh" size={20} className="text-primary" />
+        <SimpleLineIcons name="refresh" className="text-primary text-xl" />
       </Pressable>
       <Pressable
         className={`hover:opacity-90 active:scale-95 active:opacity-90`}
       >
-        <Ionicons name="settings-outline" size={24} className="text-primary" />
+        <Ionicons name="settings-outline" className="text-primary text-2xl" />
       </Pressable>
     </View>
   ),

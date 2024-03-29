@@ -214,13 +214,13 @@ const Modal: React.FC<ModalProps> = ({
                     />
                   ) : null}
                   <Text
-                    className={`${ubuntuLoaded ? "font-['Ubuntu700Bold']" : ''} uppercase opacity-90 absolute ${subTitle ? 'top-[30%]' : 'top-[60%]'} left-8 pr-8 text-2xl text-white`}
+                    className={`${ubuntuLoaded ? "font-['Ubuntu700Bold']" : ''} uppercase opacity-90 absolute ${subTitle ? 'top-[30%]' : 'top-[60%]'} px-4 text-xl mobmed:text-2xl mobmed:px-8 text-white`}
                   >
                     {title}
                   </Text>
                   {subTitle && (
                     <Text
-                      className={`${ubuntuLoaded ? "font-['Ubuntu500Medium']" : ''} opacity-85 absolute top-[60%] w-full left-0 px-8 text-white`}
+                      className={`${ubuntuLoaded ? "font-['Ubuntu500Medium']" : ''} opacity-85 absolute top-[60%] w-full left-0 px-4 mobmed:px-8 text-white`}
                     >
                       {subTitle}
                     </Text>

@@ -18,8 +18,15 @@ import AntDesign from '@expo/vector-icons/AntDesign';
 import type { NetworkId } from '../lib/network';
 import NetworksModal from './NetworksModal';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { cssInterop } from 'nativewind';
+cssInterop(MaterialCommunityIcons, {
+  className: {
+    target: 'style',
+    nativeStyleToProp: { color: true, fontSize: 'size' }
+  }
+});
 
-export type AdvancedSettings = {
+export type AvancedSettings = {
   signersStorageEngine: StorageEngine;
   signersPassword?: string | undefined;
   encryption: 'NONE' | 'SEED_DERIVED';
@@ -42,6 +49,7 @@ export default function WalletAdvancedSettings({
   const [biometricalHelp, showBiometricalHelp] = useState<boolean>(false);
   const [passwordHelp, showPasswordHelp] = useState<boolean>(false);
   const [dataEncryptionHelp, showDataEncryptionHelp] = useState<boolean>(false);
+  const [networktHelp, showNetworkHelp] = useState<boolean>(false);
   const theme: Theme = useTheme();
   const styles = getStyles(theme);
 
@@ -106,6 +114,9 @@ export default function WalletAdvancedSettings({
     },
     [advancedSettings, onAdvancedSettings]
   );
+  const capitalizedNetworkId =
+    advancedSettings.networkId.charAt(0).toUpperCase() +
+    advancedSettings.networkId.slice(1).toLowerCase();
   return (
     <>
       <Pressable
@@ -207,22 +218,32 @@ export default function WalletAdvancedSettings({
             <Divider style={styles.lineSeparator} />
             <View style={styles.row}>
               <View style={styles.textContainer}>
-                <Text>{t('wallet.networkTitle')}</Text>
-                <InfoButton style={{ paddingLeft: 8 }} />
+                <Text>{t('network.testOrRealTitle')}</Text>
+                <InfoButton
+                  style={{ paddingLeft: 8 }}
+                  onPress={() => showNetworkHelp(true)}
+                />
               </View>
               <Pressable
                 onPress={onNetworkRequest}
-                className="flex-row -my-2 py-2 items-center active:scale-95 active:opacity-90 hover:opacity-90"
+                className="max-w-20 mobmed:max-w-full flex-row -my-2 py-2 items-center active:scale-95 active:opacity-90 hover:opacity-90"
               >
                 <MaterialCommunityIcons
                   name="menu-swap-outline"
-                  size={14}
-                  className="text-primary"
+                  className="text-primary text-sm mobmed:pr-1"
                 />
-                <Text className="pl-1 text-primary capitalize">
-                  {advancedSettings.networkId}
+                <Text className="text-primary text-center">
+                  {t('network.testOn', {
+                    networkId: capitalizedNetworkId
+                  })}
                 </Text>
               </Pressable>
+              <NetworksModal
+                isVisible={networkRequest}
+                networkId={advancedSettings.networkId}
+                onSelect={onNetworkSelect}
+                onClose={onNetworkClose}
+              />
             </View>
           </>
         )}
@@ -265,12 +286,18 @@ export default function WalletAdvancedSettings({
       >
         <Text className="pl-2 pr-2">{t('help.encryptAppData')}</Text>
       </Modal>
-      <NetworksModal
-        isVisible={networkRequest}
-        networkId={advancedSettings.networkId}
-        onSelect={onNetworkSelect}
-        onClose={onNetworkClose}
-      />
+      <Modal
+        title={t('network.testOrRealTitle')}
+        icon={{
+          family: 'FontAwesome5',
+          name: 'bitcoin'
+        }}
+        isVisible={networktHelp}
+        onClose={() => showNetworkHelp(false)}
+        closeButtonText={t('understoodButton')}
+      >
+        <Text className="pl-2 pr-2">{t('help.network')}</Text>
+      </Modal>
     </>
   );
 }

@@ -78,14 +78,22 @@ Usage Instructions:
      online tool at https://rescue.thunderden.com, which simplifies
      the identification and cancellation process`
   },
+  network: {
+    testOn: 'Test on {{networkId}}',
+    testOrRealTitle: 'Test or Real Bitcoin',
+    testOrRealSubTitle:
+      'Select your network: experiment safely on test networks or proceed with real Bitcoin.',
+    help: {
+      stormNetworkBrief:
+        "Test risk-free on ThunderDen's own test network, mirroring real Bitcoin. Receive tokens at setup and more on request.",
+      testnetNetworkBrief:
+        'A public network for Bitcoin testing. Obtaining Testnet tokens can be challenging.',
+      bitcoinNetworkBrief:
+        'The real Bitcoin network. Not recommended for use while this App is in early phases.',
+      regtestNetworkBrief: 'Specifically for developer use.'
+    }
+  },
   help: {
-    bitcoinNetworkBrief:
-      'The standard Bitcoin network. Currently not recommended for use due to the app being in early testing phases.',
-    testnetNetworkBrief:
-      'A public network for Bitcoin testing. Ideal for risk-free experimentation. Obtaining Testnet tokens can be challenging.',
-    regtestNetworkBrief: 'Specifically for developer use.',
-    stormNetworkBrief:
-      "Ideal for testing without risk. Maintained by ThunderDen, which provides initial tokens when setting up your wallet. You can request as many additional tokens as needed to familiarize yourself with the wallet's functionality.",
     biometric: `This option enables biometric encryption to secure your\
  mnemonic recovery phrase. It uses your device's biometric features like fingerprint or\
  face recognition.
@@ -96,8 +104,10 @@ Please note, if your biometric data changes (like\
  re-enter the mnemonic. This measure ensures that only you can access\
  your wallet.`,
     password: `Setting a password encrypts your mnemonic recovery phrase, providing a secure\
- layer of protection for your wallet. Each time you access the wallet, you will\
- need to enter this password to decrypt the mnemonic.`,
+ layer of protection for your wallet.
+
+Each time you access the wallet, you will\
+ need to enter this password to decrypt the mnemonic phrase.`,
     passwordWithBiometric: `If you have biometric encryption enabled, a password may not be necessary as\
  biometrics already offer robust security. However, opting for a password in\
  addition to biometrics is available if you seek an even higher level of security.`,
@@ -105,10 +115,15 @@ Please note, if your biometric data changes (like\
  shielding your transaction patterns and addresses from potential exposure, preserving your anonymity.
 
 While leaking this data wouldn't compromise your funds, encrypting it\
- ensures that even if it is accessed by unauthorized parties, they\
- cannot read it.
+ ensures that even if it is accessed by unauthorized parties, they won't be able\
+ to discern how you use your wallet, such as your spending habits or whom you transact with.
 
-The encryption uses the XChaCha20-Poly1305 algorithm, with a key that’s securely derived from your mnemonic.`
+The encryption uses the XChaCha20-Poly1305 algorithm, with a key that’s securely derived from your mnemonic.`,
+    network: `Our app provides a choice between testing environments and the real Bitcoin network.
+
+The currently recommended option is Storm, ThunderDen's own test network. Storm mirrors Bitcoin's real functionality and allows you to explore Send/Receive and Vaulting operations safely, offering free tokens for practice.
+
+While the app is in early development, we advise against using real Bitcoin for any significant transactions.`
   },
   vaultSetup: {
     title: 'Vault Set Up',
@@ -179,7 +194,7 @@ The encryption uses the XChaCha20-Poly1305 algorithm, with a key that’s secure
       'Enter the mnemonic recovery phrase you saved when you first set up your wallet. This restores access to your existing wallet and its funds.',
     createWalletText: 'Your New Wallet Awaits',
     createWalletSubText:
-      "Below is your wallet's mnemonic recovery phrase. It's crucial for accessing your wallet if you switch or loose devices. Write it down and keep it somewhere safe.",
+      "Below is your wallet's recovery phrase. Think of it as your password to the Bitcoin network. It's crucial for accessing your wallet if you switch devices or loose/damage your current one. Write it down and keep it somewhere safe.",
     segmented12: '12 Words',
     segmented24: '24 Words',
     selectWordsLength: 'Number of words:',
