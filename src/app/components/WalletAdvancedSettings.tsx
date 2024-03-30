@@ -18,6 +18,12 @@ import AntDesign from '@expo/vector-icons/AntDesign';
 import type { NetworkId } from '../lib/network';
 import NetworksModal from './NetworksModal';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+export type AdvancedSettings = {
+  signersStorageEngine: StorageEngine;
+  signersPassword?: string | undefined;
+  encryption: 'NONE' | 'SEED_DERIVED';
+  networkId: NetworkId;
+};
 import { cssInterop } from 'nativewind';
 cssInterop(MaterialCommunityIcons, {
   className: {
@@ -233,9 +239,11 @@ export default function WalletAdvancedSettings({
                   className="text-primary text-sm mobmed:pr-1"
                 />
                 <Text className="text-primary text-center">
-                  {t('network.testOn', {
-                    networkId: capitalizedNetworkId
-                  })}
+                  {advancedSettings.networkId === 'BITCOIN'
+                    ? t('network.realBitcoin')
+                    : t('network.testOn', {
+                        networkId: capitalizedNetworkId
+                      })}
                 </Text>
               </Pressable>
               <NetworksModal
