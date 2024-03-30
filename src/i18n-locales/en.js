@@ -80,6 +80,7 @@ Usage Instructions:
   },
   network: {
     testOn: 'Test on {{networkId}}',
+    realBitcoin: 'Use real Bitcoin',
     testOrRealTitle: 'Test or Real Bitcoin',
     testOrRealSubTitle:
       'Select your network: experiment safely on test networks or proceed with real Bitcoin.',
@@ -94,9 +95,9 @@ Usage Instructions:
     }
   },
   help: {
-    biometric: `This option enables biometric encryption to secure your\
- mnemonic recovery phrase. It uses your device's biometric features like fingerprint or\
- face recognition.
+    biometric: `Utilizes biometric features,\
+ like fingerprint or facial recognition, to encrypt and securely store your\
+ recovery phrase in this device. This ensures it is accessible only by you.
 
 Please note, if your biometric data changes (like\
  adding a new fingerprint), the system will invalidate the encryption\
@@ -108,9 +109,8 @@ Please note, if your biometric data changes (like\
 
 Each time you access the wallet, you will\
  need to enter this password to decrypt the mnemonic phrase.`,
-    passwordWithBiometric: `If you have biometric encryption enabled, a password may not be necessary as\
- biometrics already offer robust security. However, opting for a password in\
- addition to biometrics is available if you seek an even higher level of security.`,
+    passwordWithBiometric: `If you have biometric encryption enabled, a password\
+ may not be necessary as biometrics already offer robust security.`,
     encryptAppData: `This option encrypts your non-mnemonic data, like vaults and transaction details,\
  shielding your transaction patterns and addresses from potential exposure, preserving your anonymity.
 
@@ -118,7 +118,8 @@ While leaking this data wouldn't compromise your funds, encrypting it\
  ensures that even if it is accessed by unauthorized parties, they won't be able\
  to discern how you use your wallet, such as your spending habits or whom you transact with.
 
-The encryption uses the XChaCha20-Poly1305 algorithm, with a key that’s securely derived from your mnemonic.`,
+The encryption uses the XChaCha20-Poly1305 algorithm, with a key that’s securely\
+ derived from your mnemonic recovery phrase.`,
     network: `Our app provides a choice between testing environments and the real Bitcoin network.
 
 The currently recommended option is Storm, ThunderDen's own test network. Storm mirrors Bitcoin's real functionality and allows you to explore Send/Receive and Vaulting operations safely, offering free tokens for practice.
@@ -205,9 +206,10 @@ While the app is in early development, we advise against using real Bitcoin for 
     confirmTitle: 'Phrase Verification',
     //This will be rendered as subTitle in a Modal. In iphone 4 and small devices this should not go
     //over 3 lines of text:
-    confirmText:
-      "Re-enter the mnemonic recovery phrase to ensure it's correct. This confirms your wallet can be recovered.",
-    testingWalletsCanSkip: 'Test wallets can skip this step.'
+    //    confirmText: `Enter the recovery phrase for verification.\
+    // This confirms you've noted it correctly and your wallet can be recovered.`,
+    confirmText: `Re-enter your recovery phrase to verify you've recorded it accurately, ensuring wallet recoverability.`,
+    testingWalletsCanSkip: 'Non-real Bitcoin wallets can skip this step.'
   },
   amount: {
     maxLabel: 'All Funds'
