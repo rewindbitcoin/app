@@ -40,7 +40,9 @@ If you ever lose or forget your password, you can still recover your wallet\
     biometricEncryptionTitle: 'Biometric Encryption',
     encryptAppDataTitle: 'Encrypt App Data',
     networkTitle: 'Network',
-    importButton: 'Import'
+    importButton: 'Import',
+    testingWalletInfo: 'This wallet will not use real Bitcoin.',
+    realWalletWarning: 'This is a real wallet'
   },
   walletHome: {
     delegateReadme: `For immediate action, open this file at:
@@ -240,5 +242,6 @@ While the app is in early development, we advise against using real Bitcoin for 
   cancelButton: 'Cancel',
   closeButton: 'Close',
   understoodButton: 'Undestood',
-  factoryResetButton: 'Factory Reset'
+  factoryResetButton: 'Factory Reset',
+  learnMore: 'Learn More'
 };

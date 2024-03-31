@@ -16,6 +16,14 @@ import WalletAdvancedSettings, {
   type AdvancedSettings
 } from '../components/WalletAdvancedSettings';
 import { useSecureStorageAvailability } from '../../common/contexts/SecureStorageAvailabilityContext';
+//import { AntDesign } from '@expo/vector-icons';
+//import { cssInterop } from 'nativewind';
+//cssInterop(AntDesign, {
+//  className: {
+//    target: 'style',
+//    nativeStyleToProp: { color: true, fontSize: 'size' }
+//  }
+//});
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { generateMnemonic } from 'bip39';
 
@@ -113,7 +121,29 @@ export default function NewWalletScreen() {
               onAdvancedSettings={onAdvancedSettings}
             />
           </View>
-          <View className="mt-4 mb-4">
+          <View className="bg-primary/10 rounded-full p-4 mt-4 flex-row justify-center">
+            <Text className="text-primary-dark text-sm">
+              {advancedSettings.networkId === 'BITCOIN'
+                ? t('wallet.realWalletWarning')
+                : t('wallet.testingWalletInfo')}
+            </Text>
+            <Pressable className="active:opacity-60 hover:opacity-60">
+              <Text className="text-primary-dark text-sm font-semibold pl-1">
+                {t('learnMore') + ' ➔'}
+              </Text>
+            </Pressable>
+          </View>
+          {/*<View className="bg-backgroundDefault shadow rounded-xl flex-row p-4 justify-center">
+            <Text className="text-slate-600 text-xs font-semibold">
+              {advancedSettings.networkId === 'BITCOIN'
+                ? t('wallet.realWalletWarning')
+                : t('wallet.testingWalletInfo')}
+            </Text>
+            <Text className="text-primary text-xs font-semibold flex-row">
+              {' ' + t('learnMore')}
+            </Text>
+          </View>*/}
+          <View className="mb-4">
             <Button
               disabled={!validMnemonic}
               onPress={onBip39ConfirmationIsRequested}

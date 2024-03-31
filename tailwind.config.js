@@ -9,6 +9,7 @@ module.exports = {
         backgroundDefault: '#f2f2f2',
         // Create a custom color that uses a CSS custom value
         primary: 'rgb(var(--color-primary) / <alpha-value>)',
+        'primary-dark': 'rgb(var(--color-primary-dark) / 1)',
         notification: 'rgb(255, 59, 48)'
       },
       screens: {
@@ -19,6 +20,12 @@ module.exports = {
   },
   plugins: [
     // Set a default value on the `:root` element
-    ({ addBase }) => addBase({ ':root': { '--color-primary': '0 122 255' } })
+    ({ addBase }) =>
+      addBase({
+        ':root': {
+          '--color-primary': '0 122 255',
+          '--color-primary-dark': '0 61 127'
+        }
+      })
   ]
 };
