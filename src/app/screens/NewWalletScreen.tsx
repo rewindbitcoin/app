@@ -7,7 +7,8 @@ import { View, Text, Pressable, Keyboard, Platform } from 'react-native';
 import {
   Button,
   ActivityIndicator,
-  KeyboardAwareScrollView
+  KeyboardAwareScrollView,
+  Modal
 } from '../../common/ui';
 import { useTranslation } from 'react-i18next';
 import Bip39, { validateMnemonic } from '../components/Bip39';
@@ -75,65 +76,55 @@ export default function NewWalletScreen() {
     setIsConfirmBip39(false);
   }, []);
 
+  const [networktHelp, showNetworkHelp] = useState<boolean>(false);
   return (
-    <KeyboardAwareScrollView
-      keyboardShouldPersistTaps="handled"
-      contentContainerStyle={{
-        //flexGrow: 1,
-        //justifyContent: 'center',
-        paddingTop: 20,
-        paddingBottom: 20 + insets.bottom,
-        alignItems: 'center'
-      }}
-    >
-      {canUseSecureStorage === undefined ? (
-        <ActivityIndicator />
-      ) : (
-        <View className="max-w-lg p-4 gap-4">
-          {/*<Text className="text-xl font-semibold">
+    <>
+      <KeyboardAwareScrollView
+        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={{
+          //flexGrow: 1,
+          //justifyContent: 'center',
+          paddingTop: 20,
+          paddingBottom: 20 + insets.bottom,
+          alignItems: 'center'
+        }}
+      >
+        {canUseSecureStorage === undefined ? (
+          <ActivityIndicator />
+        ) : (
+          <View className="max-w-lg p-4 gap-4">
+            {/*<Text className="text-xl font-semibold">
             {t(isImport ? 'bip39.importWalletText' : 'bip39.createWalletText')}
           </Text>*/}
-          <Text className="text-base web:text-sm web:sm:text-base">
-            {t(
-              isImport
-                ? 'bip39.importWalletSubText'
-                : 'bip39.createWalletSubText'
-            )}
-          </Text>
-          <Pressable
-            className="hover:opacity-40 active:opacity-40 self-start"
-            onPress={switchNewImport}
-          >
-            <Text className="pb-2 text-primary text-base web:text-sm web:sm:text-base">
-              {isImport ? t('bip39.chooseNew') : t('bip39.chooseImport')}
+            <Text className="text-base web:text-sm web:sm:text-base">
+              {t(
+                isImport
+                  ? 'bip39.importWalletSubText'
+                  : 'bip39.createWalletSubText'
+              )}
             </Text>
-          </Pressable>
-          <Bip39
-            readonly={!isImport}
-            hideWords={isConfirmBip39}
-            words={words}
-            onWords={onWords}
-          />
-          <View className="mt-4">
-            <WalletAdvancedSettings
-              canUseSecureStorage={canUseSecureStorage}
-              advancedSettings={advancedSettings}
-              onAdvancedSettings={onAdvancedSettings}
-            />
-          </View>
-          <View className="bg-primary/10 rounded-full p-4 mt-4 flex-row justify-center">
-            <Text className="text-primary-dark text-sm web:text-xs web:sm:text-sm">
-              {advancedSettings.networkId === 'BITCOIN'
-                ? t('wallet.realWalletWarning')
-                : t('wallet.testingWalletInfo')}
-            </Text>
-            <Pressable className="active:opacity-60 hover:opacity-60">
-              <Text className="text-primary-dark text-sm font-semibold pl-1 web:text-xs web:sm:text-sm">
-                {t('learnMore') + ' ➔'}
+            <Pressable
+              className="hover:opacity-40 active:opacity-40 self-start"
+              onPress={switchNewImport}
+            >
+              <Text className="pb-2 text-primary text-base web:text-sm web:sm:text-base">
+                {isImport ? t('bip39.chooseNew') : t('bip39.chooseImport')}
               </Text>
             </Pressable>
-          </View>
-          {/*<View className="bg-backgroundDefault shadow rounded-xl flex-row p-4 justify-center">
+            <Bip39
+              readonly={!isImport}
+              hideWords={isConfirmBip39}
+              words={words}
+              onWords={onWords}
+            />
+            <View className="mt-4">
+              <WalletAdvancedSettings
+                canUseSecureStorage={canUseSecureStorage}
+                advancedSettings={advancedSettings}
+                onAdvancedSettings={onAdvancedSettings}
+              />
+            </View>
+            {/*<View className="bg-backgroundDefault shadow rounded-xl flex-row p-4 justify-center">
             <Text className="text-slate-600 text-xs font-semibold">
               {advancedSettings.networkId === 'BITCOIN'
                 ? t('wallet.realWalletWarning')
@@ -143,23 +134,61 @@ export default function NewWalletScreen() {
               {' ' + t('learnMore')}
             </Text>
           </View>*/}
-          <View className="mb-4">
-            <Button
-              disabled={!validMnemonic}
-              onPress={onBip39ConfirmationIsRequested}
-            >
-              {t('wallet.importButton')}
-            </Button>
+            <View className="mb-4 mt-4">
+              <Button
+                disabled={!validMnemonic}
+                onPress={onBip39ConfirmationIsRequested}
+              >
+                {advancedSettings.networkId === 'BITCOIN' && isImport
+                  ? t('wallet.importRealBtcButton')
+                  : advancedSettings.networkId !== 'BITCOIN' && isImport
+                    ? t('wallet.importNonRealBtcButton')
+                    : advancedSettings.networkId === 'BITCOIN' && !isImport
+                      ? t('wallet.createRealBtcButton')
+                      : t('wallet.createNonRealBtcButton')}
+              </Button>
+              <View className="flex-row flex-wrap justify-center mt-4">
+                <Text
+                  className={`text-sm web:text-xs web:sm:text-sm text-slate-600`}
+                >
+                  {advancedSettings.networkId === 'BITCOIN'
+                    ? t('wallet.realWalletWarning')
+                    : t('wallet.testingWalletInfo')}
+                </Text>
+                <Pressable
+                  className="active:opacity-60 hover:opacity-60"
+                  onPress={() => showNetworkHelp(true)}
+                >
+                  <Text
+                    className={`text-sm pl-1 web:text-xs web:sm:text-sm text-primary`}
+                  >
+                    {t('learnMore')}
+                  </Text>
+                </Pressable>
+              </View>
+            </View>
           </View>
-        </View>
-      )}
-      {isConfirmBip39 && (
-        <ConfirmBip39
-          words={words}
-          onConfirmed={onBip39Confirmed}
-          onCancel={onBip39Cancel}
-        />
-      )}
-    </KeyboardAwareScrollView>
+        )}
+        {isConfirmBip39 && (
+          <ConfirmBip39
+            words={words}
+            onConfirmed={onBip39Confirmed}
+            onCancel={onBip39Cancel}
+          />
+        )}
+      </KeyboardAwareScrollView>
+      <Modal
+        title={t('network.testOrRealTitle')}
+        icon={{
+          family: 'FontAwesome5',
+          name: 'bitcoin'
+        }}
+        isVisible={networktHelp}
+        onClose={() => showNetworkHelp(false)}
+        closeButtonText={t('understoodButton')}
+      >
+        <Text className="pl-2 pr-2">{t('help.network')}</Text>
+      </Modal>
+    </>
   );
 }

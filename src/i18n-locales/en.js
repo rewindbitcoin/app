@@ -41,8 +41,12 @@ If you ever lose or forget your password, you can still recover your wallet\
     encryptAppDataTitle: 'Encrypt App Data',
     networkTitle: 'Network',
     importButton: 'Import',
+    createNonRealBtcButton: 'Create Test Wallet',
+    createRealBtcButton: 'Create Wallet',
+    importNonRealBtcButton: 'Import Test Wallet',
+    importRealBtcButton: 'Import Wallet',
     testingWalletInfo: 'This wallet will not use real Bitcoin.',
-    realWalletWarning: 'This is a real wallet'
+    realWalletWarning: 'Real Bitcoin wallets currently discouraged.'
   },
   walletHome: {
     delegateReadme: `For immediate action, open this file at:
@@ -122,7 +126,7 @@ While leaking this data wouldn't compromise your funds, encrypting it\
 
 The encryption uses the XChaCha20-Poly1305 algorithm, with a key that’s securely\
  derived from your mnemonic recovery phrase.`,
-    network: `Our app provides a choice between testing environments and the real Bitcoin network.
+    network: `Our app provides a choice between testing environments and the real Bitcoin network via Advanced Settings.
 
 The currently recommended option is Storm, ThunderDen's own test network. Storm mirrors Bitcoin's real functionality and allows you to explore Send/Receive and Vaulting operations safely, offering free tokens for practice.
 
@@ -243,5 +247,5 @@ While the app is in early development, we advise against using real Bitcoin for 
   closeButton: 'Close',
   understoodButton: 'Undestood',
   factoryResetButton: 'Factory Reset',
-  learnMore: 'Learn More'
+  learnMore: 'Learn More.'
 };

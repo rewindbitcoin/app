@@ -1,3 +1,5 @@
+In Android sometines the Bip39 card does not show the numbers!!!
+
 Have a variable adviceNotRealBitcion = true/false
 
 Password should be default on when !biometrics
