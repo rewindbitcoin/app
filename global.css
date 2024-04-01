@@ -1,3 +1,16 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* this will only affect the web platform since metro is using inlineRem (which
+* is faster in mobile devices.
+* See: https://www.nativewind.dev/v4/tailwind/typography/font-size#rem-scaling
+*
+* On web, we use default 16px. Howeer note that React Native For web will default
+* all <Text> to 14px. Thus, this to make it consistent it is important to go
+* through all the <Text> instances in the project and set text-base
+* explicitelly.
+*/
+:root {
+  font-size: 16px;
+}

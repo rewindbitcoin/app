@@ -93,7 +93,7 @@ export default function NewWalletScreen() {
           {/*<Text className="text-xl font-semibold">
             {t(isImport ? 'bip39.importWalletText' : 'bip39.createWalletText')}
           </Text>*/}
-          <Text>
+          <Text className="text-base web:text-sm web:sm:text-base">
             {t(
               isImport
                 ? 'bip39.importWalletSubText'
@@ -104,7 +104,7 @@ export default function NewWalletScreen() {
             className="hover:opacity-40 active:opacity-40 self-start"
             onPress={switchNewImport}
           >
-            <Text className="pb-2 text-primary">
+            <Text className="pb-2 text-primary text-base web:text-sm web:sm:text-base">
               {isImport ? t('bip39.chooseNew') : t('bip39.chooseImport')}
             </Text>
           </Pressable>
@@ -122,13 +122,13 @@ export default function NewWalletScreen() {
             />
           </View>
           <View className="bg-primary/10 rounded-full p-4 mt-4 flex-row justify-center">
-            <Text className="text-primary-dark text-sm">
+            <Text className="text-primary-dark text-sm web:text-xs web:sm:text-sm">
               {advancedSettings.networkId === 'BITCOIN'
                 ? t('wallet.realWalletWarning')
                 : t('wallet.testingWalletInfo')}
             </Text>
             <Pressable className="active:opacity-60 hover:opacity-60">
-              <Text className="text-primary-dark text-sm font-semibold pl-1">
+              <Text className="text-primary-dark text-sm font-semibold pl-1 web:text-xs web:sm:text-sm">
                 {t('learnMore') + ' ➔'}
               </Text>
             </Pressable>
