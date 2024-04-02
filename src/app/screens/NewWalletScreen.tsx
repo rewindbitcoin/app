@@ -3,6 +3,7 @@
 //at times. For example when restoring from a backup or when changing the fingerprints
 //or faceId of the device
 import React, { useCallback, useState } from 'react';
+import type { Wallet, Signers } from '../lib/wallets';
 import { View, Text, Pressable, Keyboard, Platform } from 'react-native';
 import {
   Button,
@@ -27,8 +28,20 @@ import { useSecureStorageAvailability } from '../../common/contexts/SecureStorag
 //});
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { generateMnemonic } from 'bip39';
+import { networkMapping } from '../lib/network';
+import type { RouteProp } from '@react-navigation/native';
+import type { RootStackParamList } from '../screens';
 
-export default function NewWalletScreen() {
+export default function NewWalletScreen({
+  route,
+  onWallet
+}: {
+  route: RouteProp<RootStackParamList>;
+  onWallet: (wallet: Wallet, newWalletSigners?: Signers) => void;
+}) {
+  const walletId = route.params?.walletId;
+  if (walletId === undefined)
+    throw new Error(`Wallets should have been loaded`);
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const canUseSecureStorage = useSecureStorageAvailability();
@@ -69,11 +82,28 @@ export default function NewWalletScreen() {
   const onBip39ConfirmationIsRequested = useCallback(() => {
     setIsConfirmBip39(true);
   }, []);
-  const onBip39Confirmed = useCallback(() => {
-    setIsConfirmBip39(false);
-  }, []);
   const onBip39Cancel = useCallback(() => {
     setIsConfirmBip39(false);
+  }, []);
+  const onCreateNew = useCallback(() => {
+    const wallet: Wallet = {
+      creationEpoch: Math.floor(Date.now() / 1000),
+      walletId,
+      version: defaultSettings.WALLETS_DATA_VERSION,
+      networkId: 'TESTNET',
+      signersEncryption: 'NONE',
+      signersStorageEngine: Platform.OS === 'web' ? 'IDB' : 'SECURESTORE',
+      encryption: 'NONE'
+    };
+    const signerId = 0; //ThunderDen v1.0 has Only 1 signer anyway
+    onWallet(wallet, {
+      [signerId]: {
+        masterFingerprint,
+        type: 'SOFTWARE',
+        mnemonic:
+          'goat oak pull seek know resemble hurt pistol head first board better'
+      }
+    });
   }, []);
 
   const [networktHelp, showNetworkHelp] = useState<boolean>(false);
@@ -93,9 +123,6 @@ export default function NewWalletScreen() {
           <ActivityIndicator />
         ) : (
           <View className="max-w-lg p-4 gap-4">
-            {/*<Text className="text-xl font-semibold">
-            {t(isImport ? 'bip39.importWalletText' : 'bip39.createWalletText')}
-          </Text>*/}
             <Text className="text-base web:text-sm web:sm:text-base">
               {t(
                 isImport
@@ -137,7 +164,9 @@ export default function NewWalletScreen() {
             <View className="mb-4 mt-4">
               <Button
                 disabled={!validMnemonic}
-                onPress={onBip39ConfirmationIsRequested}
+                onPress={
+                  isImport ? onBip39ConfirmationIsRequested : onCreateNew
+                }
               >
                 {advancedSettings.networkId === 'BITCOIN' && isImport
                   ? t('wallet.importRealBtcButton')
@@ -171,8 +200,9 @@ export default function NewWalletScreen() {
         )}
         {isConfirmBip39 && (
           <ConfirmBip39
+            network={networkMapping[advancedSettings.networkId]}
             words={words}
-            onConfirmed={onBip39Confirmed}
+            onConfirmed={onCreateNew}
             onCancel={onBip39Cancel}
           />
         )}

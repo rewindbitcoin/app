@@ -113,7 +113,7 @@ export const getEncryptedDataCipherKey = async ({
   signer: Signer;
   network: Network;
 }) => {
-  return await getCipherKey({
+  return await getSeedDerivedCipherKey({
     vaultPath: THUNDERDEN_DATA_PATH,
     signer,
     network
@@ -121,7 +121,7 @@ export const getEncryptedDataCipherKey = async ({
 };
 
 // Important to be async so that this will also work when using Hardware Wallets
-const getCipherKey = async ({
+const getSeedDerivedCipherKey = async ({
   vaultPath,
   signer,
   network
@@ -162,7 +162,11 @@ export const fetchP2PVault = async ({
 }): Promise<{ strVault: string; vault: Vault }> => {
   const network = networkMapping[networkId];
   const vaultGetUrl = `${vaultsAPI}/${vaultId}/get`;
-  const cipherKey = await getCipherKey({ vaultPath, signer, network });
+  const cipherKey = await getSeedDerivedCipherKey({
+    vaultPath,
+    signer,
+    network
+  });
   const chacha = getManagedChacha(cipherKey);
 
   const maxAttempts = 10;
@@ -218,7 +222,11 @@ export const p2pBackupVault = async ({
   const vaultId = vault.vaultId;
   const vaultPath = vault.vaultPath;
   const commitment = vault.vaultTxHex;
-  const cipherKey = await getCipherKey({ vaultPath, signer, network });
+  const cipherKey = await getSeedDerivedCipherKey({
+    vaultPath,
+    signer,
+    network
+  });
 
   const strVault = JSON.stringify(vault, null, 2);
   const compressedVault = await compressData({

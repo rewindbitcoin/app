@@ -57,6 +57,7 @@ const Main = () => {
   const { t } = useTranslation();
 
   const [wallet, setWallet] = useState<Wallet>();
+  const [signersCipherKey, setSignersCipherKey] = useState<Uint8Array>();
   const [vaultSettings, setVaultSettings] = useState<VaultSettings>();
   const [newWalletSigners, setNewWalletSigners] = useState<Signers>();
   const navigation = useNavigation();
@@ -73,9 +74,14 @@ const Main = () => {
   );
 
   const handleWallet = useCallback(
-    (wallet: Wallet, newWalletSigners?: Signers) => {
+    (
+      wallet: Wallet,
+      newWalletSigners?: Signers,
+      signersCipherKey?: Uint8Array
+    ) => {
       if (newWalletSigners) setNewWalletSigners(newWalletSigners);
       setWallet(wallet);
+      if (signersCipherKey) setSignersCipherKey(signersCipherKey);
       if (navigation) navigation.navigate(WALLET_HOME);
       else throw new Error('navigation not set');
     },
@@ -107,8 +113,9 @@ const Main = () => {
 
   return (
     <WalletProvider
-      {...(wallet ? { wallet: wallet } : {})}
-      {...(newWalletSigners ? { newWalletSigners: newWalletSigners } : {})}
+      {...(wallet ? { wallet } : {})}
+      {...(signersCipherKey ? { signersCipherKey } : {})}
+      {...(newWalletSigners ? { newWalletSigners } : {})}
     >
       <RootStack.Navigator
         screenOptions={isNativeStack ? { animationEnabled: true } : {}}
@@ -132,11 +139,11 @@ const Main = () => {
             headerRight: cancelModalButton
           }}
         >
-          {() => {
+          {props => {
             //Modals need their own Toast component
             return (
               <ToastProvider>
-                <NewWalletScreen />
+                <NewWalletScreen onWallet={handleWallet} {...props} />
               </ToastProvider>
             );
           }}

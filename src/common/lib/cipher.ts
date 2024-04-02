@@ -1,6 +1,11 @@
 const THUNDER_DEN_CIPHER_ADDITIONAL_DATA = 'Thunder Den';
 
 import sodium from 'react-native-libsodium';
+import { crypto } from 'bitcoinjs-lib';
+
+//This better give it an async signature in case it needs to be async in the future
+export const getPasswordDerivedCipherKey = async (password: string) =>
+  crypto.sha256(Buffer.from(password));
 
 export const getManagedChacha = (key: Uint8Array) => {
   return {

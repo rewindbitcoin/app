@@ -69,7 +69,7 @@ export type Wallet = {
    * the System is not usable (they are restricted fo 2KB).
    * Anyway this data is not so sensible.
    *
-   * When using SEED_DERIVED, getCipherKey is used. A signature in a a well-known
+   * When using SEED_DERIVED, getSeedDerivedCipherKey is used. A signature in a a well-known
    * derivation path.
    *
    * We keep 'NONE' just for debugging/development purposes

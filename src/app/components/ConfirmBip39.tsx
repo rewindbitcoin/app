@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from 'react';
-import { Pressable, View } from 'react-native';
-import { Modal, Text } from '../../common/ui';
+import { View } from 'react-native';
+import { Modal, Text, Button } from '../../common/ui';
 import Bip39 from './Bip39';
 import { useTranslation } from 'react-i18next';
 import { networks, type Network } from 'bitcoinjs-lib';
@@ -53,32 +53,14 @@ const ConfirmBip39: React.FC<ConfirmBip39Props> = ({
       customButtons={
         <>
           <View className="items-center gap-6 flex-row justify-center">
-            <Pressable
-              className="min-w-20 items-center py-3 px-5 rounded-lg bg-primary hover:opacity-90 active:opacity-90 active:scale-95"
-              onPress={handleCancel}
-            >
-              <Text className="text-sm font-semibold text-white">
-                {t('cancelButton')}
-              </Text>
-            </Pressable>
+            <Button onPress={handleCancel}>{t('cancelButton')}</Button>
             {canSkip && (
-              <Pressable
-                className="min-w-20 items-center py-3 px-5 rounded-lg bg-primary hover:opacity-90 active:opacity-90 active:scale-95"
-                onPress={onConfirmed}
-              >
-                <Text className="text-sm font-semibold text-white">
-                  {t('skipButton')}
-                </Text>
-              </Pressable>
+              <Button onPress={onConfirmed}>{t('skipButton')}</Button>
             )}
-            <Pressable className="min-w-20 items-center py-3 px-5 rounded-lg bg-primary opacity-50">
-              <Text className="text-sm font-semibold text-white">
-                {t('verifyButton')}
-              </Text>
-            </Pressable>
+            <Button disabled>{t('verifyButton')}</Button>
           </View>
           {canSkip ? (
-            <Text className="text-sm self-center text-slate-500 mt-2 mb-2">
+            <Text className="text-sm web:text-xs self-center text-slate-600 mt-2 mb-2">
               {t('bip39.testingWalletsCanSkip')}
             </Text>
           ) : (

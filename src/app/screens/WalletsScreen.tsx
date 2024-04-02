@@ -92,7 +92,15 @@ const WalletsScreen = ({
   onWallet
 }: {
   /** pass back signers if this is a new wallet that must be created */
-  onWallet: (wallet: Wallet, newWalletSigners?: Signers) => void;
+  onWallet: ({
+    wallet,
+    newWalletSigners,
+    signersCipherKey
+  }: {
+    wallet: Wallet;
+    newWalletSigners?: Signers;
+    signersCipherKey?: Uint8Array;
+  }) => void;
 }) => {
   const [ubuntuLoaded] = useFonts({ Ubuntu700Bold: Ubuntu_700Bold });
   //const [fontsLoaded] = useFonts({
@@ -127,17 +135,25 @@ const WalletsScreen = ({
       };
       setWallets({ [walletId]: wallet });
       const signerId = 0; //ThunderDen v1.0 has Only 1 signer anyway
-      onWallet(wallet, {
-        [signerId]: {
-          masterFingerprint,
-          type: 'SOFTWARE',
-          mnemonic:
-            'goat oak pull seek know resemble hurt pistol head first board better'
+      onWallet({
+        wallet,
+        newWalletSigners: {
+          [signerId]: {
+            masterFingerprint,
+            type: 'SOFTWARE',
+            mnemonic:
+              'goat oak pull seek know resemble hurt pistol head first board better'
+          }
         }
       });
     }
   };
-  const handleNewWallet = () => navigation.navigate(NEW_WALLET);
+  const handleNewWallet = () => {
+    if (!wallets) throw new Error('Wallets not yet defined');
+    navigation.navigate(NEW_WALLET, {
+      walletId: Object.keys(wallets).length
+    });
+  };
 
   //TODO: do the translation of all the t() below:
   return (
@@ -171,7 +187,7 @@ const WalletsScreen = ({
             Object.entries(wallets).map(([walletId, wallet], index) => (
               <Pressable
                 className={`max-w-full w-96 min-h-56 gap-4 p-4 rounded-3xl active:opacity-90 hover:opacity-90 active:scale-95 overflow-hidden ${walletBg(index)}`}
-                onPress={() => onWallet(wallet)}
+                onPress={() => onWallet({ wallet })}
                 key={walletId}
               >
                 <View className="z-10 flex flex-row justify-between">

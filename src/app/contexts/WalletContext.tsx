@@ -108,10 +108,18 @@ const DEFAULT_VAULTS: Vaults = {};
 const WalletProviderWithWallet = ({
   children,
   wallet,
+  signersCipherKey,
   newWalletSigners
 }: {
   children: ReactNode;
   wallet: Wallet;
+  /**
+   * pass it when using password
+   */
+  signersCipherKey?: Uint8Array;
+  /**
+   * Only passed for new wallets
+   */
   newWalletSigners?: Signers;
 }) => {
   const canUseSecureStorage = useSecureStorageAvailability();
@@ -144,7 +152,7 @@ const WalletProviderWithWallet = ({
     SERIALIZABLE,
     undefined,
     signersStorageEngine,
-    undefined,
+    signersCipherKey,
     t('app.secureStorageAuthenticationPrompt')
   );
 
@@ -685,20 +693,24 @@ const WalletProviderWithWallet = ({
 export const WalletProvider = ({
   children,
   wallet,
+  signersCipherKey,
   newWalletSigners
 }: {
   children: ReactNode;
   wallet?: Wallet;
+  signersCipherKey?: Uint8Array | undefined;
   newWalletSigners?: Signers;
 }) => {
   if (!wallet) return children;
-  else
+  else {
     return (
       <WalletProviderWithWallet
         wallet={wallet}
-        {...(newWalletSigners ? { newWalletSigners: newWalletSigners } : {})}
+        {...(signersCipherKey ? { signersCipherKey } : {})}
+        {...(newWalletSigners ? { newWalletSigners } : {})}
       >
         {children}
       </WalletProviderWithWallet>
     );
+  }
 };

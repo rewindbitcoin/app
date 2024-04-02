@@ -16,7 +16,7 @@ export type RootStackParamList = {
   WALLETS: undefined;
   SETUP_VAULT: undefined;
   CREATE_VAULT: undefined;
-  NEW_WALLET: undefined;
+  NEW_WALLET: { walletId: number };
 };
 export type ScreenProps =
   | NativeStackScreenProps<RootStackParamList>
