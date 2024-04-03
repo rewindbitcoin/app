@@ -31,7 +31,7 @@ import { get as idbGet, set as idbSet, del as idbDel } from 'idb-keyval';
 //https://github.com/expo/expo/issues/17804
 import { hasHardwareAsync, isEnrolledAsync } from 'expo-local-authentication';
 
-import { to_string } from 'react-native-libsodium';
+//import { to_string } from 'react-native-libsodium';
 import { strToU8, strFromU8 } from 'fflate';
 import { getManagedChacha } from './cipher';
 
@@ -198,8 +198,18 @@ export const setAsync = async (
         `Uint8Array is not compatible with cipher (uses JSON.stringify)`
       );
     const chacha = getManagedChacha(cipherKey);
-    const cipherMessage = chacha.encrypt(JSON.stringify(value));
-    value = strFromU8(cipherMessage);
+    const originalMessage = value;
+    const cipherMessage = chacha.encrypt(
+      strToU8(JSON.stringify(originalMessage))
+    );
+    value = strFromU8(cipherMessage, true);
+    //console.log('ENCRYPT', {
+    //  key,
+    //  cipherMessage,
+    //  strCipherMessage: value,
+    //  originalMessage,
+    //  strCipherMessageLength: value.length
+    //});
   }
   if (engine === 'IDB') {
     await idbSet(key, value);
@@ -288,7 +298,14 @@ export const getAsync = async <S extends SerializationFormat>(
       throw new Error('Impossible to decode non-string encoded value');
     } else {
       const chacha = getManagedChacha(cipherKey);
-      result = JSON.parse(to_string(chacha.decrypt(strToU8(result))));
+      const cipherMessage = strToU8(result, true);
+      //console.log('DECRYPT', {
+      //  key,
+      //  cipherMessage,
+      //  strCipherMessage: result,
+      //  strCipherMessageLength: result.length
+      //});
+      result = JSON.parse(strFromU8(chacha.decrypt(cipherMessage)));
     }
   }
   return result;

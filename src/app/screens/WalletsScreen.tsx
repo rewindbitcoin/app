@@ -105,13 +105,35 @@ const WalletsScreen = ({
   const { t } = useTranslation();
   const [wallets] = useGlobalStateStorage<Wallets>(`WALLETS`, SERIALIZABLE, {});
   const [password, setPassword] = useState<string | undefined>();
-  const [passwordRequestWalletId, setPasswordRequestWalletId] = useState<
-    number | undefined
-  >();
-  const [onPasswordClose, setOnPasswordClose] = useState<() => void>();
+  const [passwordRequestWalletId, setPasswordRequestWalletId] =
+    useState<number>();
   const onPassword = useCallback((password: string | undefined) => {
     setPassword(password);
   }, []);
+  const onPasswordClose = useCallback(() => {
+    if (
+      wallets &&
+      password !== undefined &&
+      passwordRequestWalletId !== undefined
+    ) {
+      const cb = async () => {
+        const signersCipherKey = await getPasswordDerivedCipherKey(password);
+        const wallet = wallets[passwordRequestWalletId];
+        if (!wallet)
+          throw new Error(`Wallet ${passwordRequestWalletId} does not exist`);
+        setPasswordRequestWalletId(undefined);
+        setPassword(undefined);
+        onWallet({
+          wallet,
+          signersCipherKey
+        });
+      };
+      cb();
+    } else {
+      setPasswordRequestWalletId(undefined);
+      setPassword(undefined);
+    }
+  }, [password, wallets, passwordRequestWalletId, onWallet]);
   const handleWalletMap = useMemo(() => {
     if (!wallets) return {};
     else {
@@ -121,27 +143,15 @@ const WalletsScreen = ({
         const wallet = wallets[walletId];
         if (!wallet) throw new Error(`Unset wallet for ${walletId}`);
         map[walletId] = () => {
-          console.log(`Wallet ${wallet.walletId} picked`);
+          console.log(`handleWallet ${walletId}`, { wallet });
           if (wallet.signersEncryption === 'PASSWORD') {
-            console.log(`Wallet ${wallet.walletId} has password`);
             setPasswordRequestWalletId(walletId);
-            //setOnPasswordClose(() => {
-            //  if (password !== undefined) {
-            //    console.log('onPassword has been called');
-            //    const cb = async () => {
-            //      const signersCipherKey =
-            //        await getPasswordDerivedCipherKey(password);
-            //      onWallet({ wallet, signersCipherKey });
-            //    };
-            //    cb();
-            //  }
-            //});
           } else onWallet({ wallet });
         };
       });
       return map;
     }
-  }, [wallets, onWallet, password]);
+  }, [wallets, onWallet]);
 
   const handleNewWallet = () => {
     if (!wallets) throw new Error('wallets not yet defined');
@@ -251,14 +261,12 @@ const WalletsScreen = ({
             ))}
         </View>
       </KeyboardAwareScrollView>
-      {onPasswordClose && (
-        <Password
-          password={password}
-          isVisible={onPasswordClose !== undefined}
-          onPassword={onPassword}
-          onClose={onPasswordClose}
-        />
-      )}
+      <Password
+        password={password}
+        isVisible={passwordRequestWalletId !== undefined}
+        onPassword={onPassword}
+        onClose={onPasswordClose}
+      />
     </>
   );
 };

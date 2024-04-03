@@ -147,6 +147,11 @@ const WalletProviderWithWallet = ({
       `signersStorageEngine ${signersStorageEngine} does not match this system specs: ${Platform.OS}, canUseSecureStorage=${canUseSecureStorage}. Have you not enabled Biometric id in your system?`
     );
   }
+  console.log('WalletProviderContext', {
+    walletId,
+    signersStorageEngine,
+    signersCipherKey
+  });
   const [signers, setSigners] = useLocalStateStorage<Signers>(
     `SIGNERS_${walletId}`,
     SERIALIZABLE,
@@ -231,7 +236,7 @@ const WalletProviderWithWallet = ({
 
   useEffect(() => {
     if (newWalletSigners && isWalletsSynchd) {
-      if (!wallets) throw new Error('wallets shoulkd be defined after synched');
+      if (!wallets) throw new Error('wallets should be defined after synched');
       setSigners(newWalletSigners);
       if (!shallowEqualObjects(wallet, wallets[walletId]))
         setWallets({ ...wallets, [walletId]: wallet });
