@@ -74,11 +74,15 @@ const Main = () => {
   );
 
   const handleWallet = useCallback(
-    (
-      wallet: Wallet,
-      newWalletSigners?: Signers,
-      signersCipherKey?: Uint8Array
-    ) => {
+    ({
+      wallet,
+      newWalletSigners,
+      signersCipherKey
+    }: {
+      wallet: Wallet;
+      newWalletSigners?: Signers;
+      signersCipherKey?: Uint8Array;
+    }) => {
       if (newWalletSigners) setNewWalletSigners(newWalletSigners);
       setWallet(wallet);
       if (signersCipherKey) setSignersCipherKey(signersCipherKey);

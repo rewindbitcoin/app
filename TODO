@@ -1,3 +1,4 @@
+
 In Android sometines the Bip39 card does not show the numbers!!!
 
 Implement/Test the passwords thinkg
@@ -8,6 +9,12 @@ Password should be default on when !biometrics
 
 BTC rates from thunderden (no coingecko)
 dont use policy compiler
+
+Cloudflare captcha:
+https://dev.to/ryabinin/protect-your-react-native-application-using-cloudflare-turnstile-4l4l
+
+Testnet testing wallet with funds: (deprecated/testingWallet.ts)
+              'goat oak pull seek know resemble hurt pistol head first board better'
 
 
 

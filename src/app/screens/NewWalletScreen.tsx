@@ -3,6 +3,7 @@
 //at times. For example when restoring from a backup or when changing the fingerprints
 //or faceId of the device
 import React, { useCallback, useState } from 'react';
+import { defaultSettings } from '../lib/settings';
 import type { Wallet, Signers } from '../lib/wallets';
 import { View, Text, Pressable, Keyboard, Platform } from 'react-native';
 import {
@@ -31,13 +32,23 @@ import { generateMnemonic } from 'bip39';
 import { networkMapping } from '../lib/network';
 import type { RouteProp } from '@react-navigation/native';
 import type { RootStackParamList } from '../screens';
+import { getPasswordDerivedCipherKey } from '../../common/lib/cipher';
+import { getMasterNode } from '../lib/vaultDescriptors';
 
 export default function NewWalletScreen({
   route,
   onWallet
 }: {
   route: RouteProp<RootStackParamList>;
-  onWallet: (wallet: Wallet, newWalletSigners?: Signers) => void;
+  onWallet: ({
+    wallet,
+    newWalletSigners,
+    signersCipherKey
+  }: {
+    wallet: Wallet;
+    newWalletSigners?: Signers;
+    signersCipherKey?: Uint8Array;
+  }) => void;
 }) {
   const walletId = route.params?.walletId;
   if (walletId === undefined)
@@ -85,26 +96,44 @@ export default function NewWalletScreen({
   const onBip39Cancel = useCallback(() => {
     setIsConfirmBip39(false);
   }, []);
-  const onCreateNew = useCallback(() => {
+  const onCreateNew = useCallback(async () => {
     const wallet: Wallet = {
       creationEpoch: Math.floor(Date.now() / 1000),
       walletId,
       version: defaultSettings.WALLETS_DATA_VERSION,
-      networkId: 'TESTNET',
-      signersEncryption: 'NONE',
-      signersStorageEngine: Platform.OS === 'web' ? 'IDB' : 'SECURESTORE',
-      encryption: 'NONE'
+      networkId: advancedSettings.networkId,
+      signersEncryption: advancedSettings.signersPassword ? 'PASSWORD' : 'NONE',
+      signersStorageEngine: advancedSettings.signersStorageEngine,
+      encryption: advancedSettings.encryption
     };
     const signerId = 0; //ThunderDen v1.0 has Only 1 signer anyway
-    onWallet(wallet, {
-      [signerId]: {
-        masterFingerprint,
-        type: 'SOFTWARE',
-        mnemonic:
-          'goat oak pull seek know resemble hurt pistol head first board better'
+    const network = networkMapping[advancedSettings.networkId];
+    const mnemonic = words.join(' ');
+    const masterNode = getMasterNode(mnemonic, network);
+    const masterFingerprint = masterNode.fingerprint.toString('hex');
+    const signersCipherKey = advancedSettings.signersPassword
+      ? await getPasswordDerivedCipherKey(advancedSettings.signersPassword)
+      : undefined;
+    onWallet({
+      wallet,
+      ...(signersCipherKey ? { signersCipherKey } : {}),
+      newWalletSigners: {
+        [signerId]: {
+          masterFingerprint,
+          type: 'SOFTWARE',
+          mnemonic
+        }
       }
     });
-  }, []);
+  }, [
+    words,
+    advancedSettings.encryption,
+    advancedSettings.signersPassword,
+    advancedSettings.signersStorageEngine,
+    advancedSettings.networkId,
+    onWallet,
+    walletId
+  ]);
 
   const [networktHelp, showNetworkHelp] = useState<boolean>(false);
   return (
@@ -123,7 +152,7 @@ export default function NewWalletScreen({
           <ActivityIndicator />
         ) : (
           <View className="max-w-lg p-4 gap-4">
-            <Text className="text-base web:text-sm web:sm:text-base">
+            <Text className="native:text-base web:text-sm web:sm:text-base">
               {t(
                 isImport
                   ? 'bip39.importWalletSubText'
@@ -134,7 +163,7 @@ export default function NewWalletScreen({
               className="hover:opacity-40 active:opacity-40 self-start"
               onPress={switchNewImport}
             >
-              <Text className="pb-2 text-primary text-base web:text-sm web:sm:text-base">
+              <Text className="pb-2 text-primary native:text-base web:text-sm web:sm:text-base">
                 {isImport ? t('bip39.chooseNew') : t('bip39.chooseImport')}
               </Text>
             </Pressable>
@@ -178,7 +207,7 @@ export default function NewWalletScreen({
               </Button>
               <View className="flex-row flex-wrap justify-center mt-4">
                 <Text
-                  className={`text-sm web:text-xs web:sm:text-sm text-slate-600`}
+                  className={`native:text-sm web:text-xs web:sm:text-sm text-slate-600`}
                 >
                   {advancedSettings.networkId === 'BITCOIN'
                     ? t('wallet.realWalletWarning')
@@ -189,7 +218,7 @@ export default function NewWalletScreen({
                   onPress={() => showNetworkHelp(true)}
                 >
                   <Text
-                    className={`text-sm pl-1 web:text-xs web:sm:text-sm text-primary`}
+                    className={`native:text-sm pl-1 web:text-xs web:sm:text-sm text-primary`}
                   >
                     {t('learnMore')}
                   </Text>

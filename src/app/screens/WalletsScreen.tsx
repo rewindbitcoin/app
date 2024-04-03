@@ -1,10 +1,10 @@
-import React from 'react';
-import { View, Platform, Pressable } from 'react-native';
-import { Text, Button, KeyboardAwareScrollView } from '../../common/ui';
-import type { Wallet, Wallets, Signers } from '../lib/wallets';
+import React, { useCallback, useMemo, useState } from 'react';
+import Password from '../components/Password';
+import { View, Pressable } from 'react-native';
+import { Text, KeyboardAwareScrollView } from '../../common/ui';
+import type { Wallet, Wallets } from '../lib/wallets';
 import { SERIALIZABLE } from '../../common/lib/storage';
-import { useLocalStateStorage } from '../../common/hooks/useLocalStateStorage';
-import { defaultSettings } from '../lib/settings';
+import { useGlobalStateStorage } from '../../common/contexts/StorageContext';
 import { useTranslation } from 'react-i18next';
 import { useNavigation } from '@react-navigation/native';
 import { NEW_WALLET } from '../screens';
@@ -19,6 +19,7 @@ import { Ubuntu_700Bold } from '@expo-google-fonts/ubuntu';
 import { useFonts } from 'expo-font';
 //const [fontsLoaded] = useFonts({ Prefectures });
 import { cssInterop } from 'nativewind';
+import { getPasswordDerivedCipherKey } from '../../common/lib/cipher';
 cssInterop(Svg, {
   className: {
     target: 'style',
@@ -86,76 +87,69 @@ const walletCls = [
 const walletBg = (index: number) => walletBgs[index % walletBgs.length];
 const walletCl = (index: number) => walletCls[index % walletCls.length];
 
-const walletId = 0;
-
 const WalletsScreen = ({
   onWallet
 }: {
   /** pass back signers if this is a new wallet that must be created */
   onWallet: ({
     wallet,
-    newWalletSigners,
     signersCipherKey
   }: {
     wallet: Wallet;
-    newWalletSigners?: Signers;
     signersCipherKey?: Uint8Array;
   }) => void;
 }) => {
   const [ubuntuLoaded] = useFonts({ Ubuntu700Bold: Ubuntu_700Bold });
-  //const [fontsLoaded] = useFonts({
-  //  Prefectures: require('../../../assets/Prefectures.ttf')
-  //});
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
   const { t } = useTranslation();
-  const [wallets, setWallets, isWalletsSynchd] = useLocalStateStorage<Wallets>(
-    `WALLETS`,
-    SERIALIZABLE
-  );
-
-  //TODO: here i need to make sure the signersStorageEngine read or created
-  //matches this system specs
-  //if it does not, then create a new signersStorageEngine and ask the user
-  //to provide new signers
-  //I will have: NewWalletScreen, RecoverSignersWalletScreen
-
-  const handleNewTestingWallet = () => {
-    console.log('handleNewTestingWallet', 'TODO');
-    const masterFingerprint = 'TODO';
-    if (isWalletsSynchd && !wallets?.[0]) {
-      const wallet: Wallet = {
-        creationEpoch: Math.floor(Date.now() / 1000),
-        walletId,
-        version: defaultSettings.WALLETS_DATA_VERSION,
-        networkId: 'TESTNET',
-        signersEncryption: 'NONE',
-        signersStorageEngine: Platform.OS === 'web' ? 'IDB' : 'SECURESTORE',
-        encryption: 'NONE'
-      };
-      setWallets({ [walletId]: wallet });
-      const signerId = 0; //ThunderDen v1.0 has Only 1 signer anyway
-      onWallet({
-        wallet,
-        newWalletSigners: {
-          [signerId]: {
-            masterFingerprint,
-            type: 'SOFTWARE',
-            mnemonic:
-              'goat oak pull seek know resemble hurt pistol head first board better'
-          }
-        }
+  const [wallets] = useGlobalStateStorage<Wallets>(`WALLETS`, SERIALIZABLE, {});
+  const [password, setPassword] = useState<string | undefined>();
+  const [passwordRequestWalletId, setPasswordRequestWalletId] = useState<
+    number | undefined
+  >();
+  const [onPasswordClose, setOnPasswordClose] = useState<() => void>();
+  const onPassword = useCallback((password: string | undefined) => {
+    setPassword(password);
+  }, []);
+  const handleWalletMap = useMemo(() => {
+    if (!wallets) return {};
+    else {
+      const map: { [walletId: number]: () => void } = {};
+      Object.keys(wallets).map(walletIdStr => {
+        const walletId = Number(walletIdStr);
+        const wallet = wallets[walletId];
+        if (!wallet) throw new Error(`Unset wallet for ${walletId}`);
+        map[walletId] = () => {
+          console.log(`Wallet ${wallet.walletId} picked`);
+          if (wallet.signersEncryption === 'PASSWORD') {
+            console.log(`Wallet ${wallet.walletId} has password`);
+            setPasswordRequestWalletId(walletId);
+            //setOnPasswordClose(() => {
+            //  if (password !== undefined) {
+            //    console.log('onPassword has been called');
+            //    const cb = async () => {
+            //      const signersCipherKey =
+            //        await getPasswordDerivedCipherKey(password);
+            //      onWallet({ wallet, signersCipherKey });
+            //    };
+            //    cb();
+            //  }
+            //});
+          } else onWallet({ wallet });
+        };
       });
+      return map;
     }
-  };
+  }, [wallets, onWallet, password]);
+
   const handleNewWallet = () => {
-    if (!wallets) throw new Error('Wallets not yet defined');
+    if (!wallets) throw new Error('wallets not yet defined');
     navigation.navigate(NEW_WALLET, {
       walletId: Object.keys(wallets).length
     });
   };
 
-  //TODO: do the translation of all the t() below:
   return (
     <>
       <Pressable
@@ -187,7 +181,7 @@ const WalletsScreen = ({
             Object.entries(wallets).map(([walletId, wallet], index) => (
               <Pressable
                 className={`max-w-full w-96 min-h-56 gap-4 p-4 rounded-3xl active:opacity-90 hover:opacity-90 active:scale-95 overflow-hidden ${walletBg(index)}`}
-                onPress={() => onWallet({ wallet })}
+                onPress={handleWalletMap[wallet.walletId]}
                 key={walletId}
               >
                 <View className="z-10 flex flex-row justify-between">
@@ -256,12 +250,15 @@ const WalletsScreen = ({
               </Pressable>
             ))}
         </View>
-        {isWalletsSynchd && !wallets?.[0] && (
-          <Button onPress={handleNewTestingWallet}>
-            {'Create Test Wallet'}
-          </Button>
-        )}
       </KeyboardAwareScrollView>
+      {onPasswordClose && (
+        <Password
+          password={password}
+          isVisible={onPasswordClose !== undefined}
+          onPassword={onPassword}
+          onClose={onPasswordClose}
+        />
+      )}
     </>
   );
 };

@@ -11,7 +11,7 @@ import {
   type VaultsStatuses,
   type UtxosData
 } from '../lib/vaults';
-import type { AccountNames, Signers } from '../lib/wallets';
+import type { AccountNames, Signers, Wallets } from '../lib/wallets';
 import { networkMapping, NetworkId } from '../lib/network';
 import { networks } from 'bitcoinjs-lib';
 import {
@@ -118,7 +118,7 @@ const WalletProviderWithWallet = ({
    */
   signersCipherKey?: Uint8Array;
   /**
-   * Only passed for new wallets
+   * Only passed for creating new wallets
    */
   newWalletSigners?: Signers;
 }) => {
@@ -160,6 +160,11 @@ const WalletProviderWithWallet = ({
     SETTINGS_GLOBAL_STORAGE,
     SERIALIZABLE,
     defaultSettings
+  );
+  const [wallets, setWallets, isWalletsSynchd] = useGlobalStateStorage<Wallets>(
+    `WALLETS`,
+    SERIALIZABLE,
+    {}
   );
 
   const [
@@ -225,8 +230,21 @@ const WalletProviderWithWallet = ({
   }
 
   useEffect(() => {
-    if (newWalletSigners) setSigners(newWalletSigners);
-  }, [newWalletSigners, setSigners]);
+    if (newWalletSigners && isWalletsSynchd) {
+      if (!wallets) throw new Error('wallets shoulkd be defined after synched');
+      setSigners(newWalletSigners);
+      if (!shallowEqualObjects(wallet, wallets[walletId]))
+        setWallets({ ...wallets, [walletId]: wallet });
+    }
+  }, [
+    newWalletSigners,
+    setSigners,
+    setWallets,
+    walletId,
+    wallets,
+    wallet,
+    isWalletsSynchd
+  ]);
 
   const toast = useToast();
 
