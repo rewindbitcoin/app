@@ -39,7 +39,7 @@ If you ever lose or forget your password, you can still recover your wallet\
     requestPasswordButton: `Enter Password`,
     requestPasswordText: `Please enter the wallet's password to continue.
 
-If you've forgotten the password for your wallet, you can create a new wallet using your mnemonic recovery phrase to regain access.`,
+If you've forgotten the password for your wallet, you can create a new wallet using your recovery phrase to regain access.`,
     advancedOptionsTitle: 'Advanced Options',
     usePasswordTitle: 'Use Password',
     biometricEncryptionTitle: 'Biometric Encryption',

@@ -251,7 +251,7 @@ const Modal: React.FC<ModalProps> = ({
                     />
                   ) : null}
                   <Text
-                    className={`${ubuntuLoaded ? "font-['Ubuntu700Bold']" : ''} uppercase opacity-90 absolute ${subTitle ? 'top-[30%]' : 'top-[60%]'} px-4 text-xl mobmed:text-2xl mobmed:px-8 text-white`}
+                    className={`${ubuntuLoaded ? "font-['Ubuntu700Bold']" : ''} uppercase opacity-90 absolute ${subTitle ? 'top-[30%]' : 'top-[60%]'} pl-4 text-xl mobmed:text-2xl mobmed:px-8 text-white overflow-hidden whitespace-nowrap overflow-ellipsis w-full`}
                   >
                     {title}
                   </Text>

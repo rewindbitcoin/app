@@ -2,10 +2,11 @@
 //removed since it may have been stored in SecureStore which can be deleted
 //at times. For example when restoring from a backup or when changing the fingerprints
 //or faceId of the device
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import { defaultSettings } from '../lib/settings';
 import type { Wallet, Signers } from '../lib/wallets';
 import { View, Text, Pressable, Keyboard, Platform } from 'react-native';
+import type { Engine as StorageEngine } from '../../common/lib/storage';
 import {
   Button,
   ActivityIndicator,
@@ -29,11 +30,12 @@ import { useSecureStorageAvailability } from '../../common/contexts/SecureStorag
 //});
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { generateMnemonic } from 'bip39';
-import { networkMapping } from '../lib/network';
+import { NetworkId, networkMapping } from '../lib/network';
 import { useNavigation, type RouteProp } from '@react-navigation/native';
 import type { RootStackParamList } from '../screens';
 import { getPasswordDerivedCipherKey } from '../../common/lib/cipher';
 import { getMasterNode } from '../lib/vaultDescriptors';
+import Password from '../components/Password';
 
 export default function NewWalletScreen({
   route,
@@ -97,46 +99,98 @@ export default function NewWalletScreen({
   const onBip39Cancel = useCallback(() => {
     setIsConfirmBip39(false);
   }, []);
-  const onCreateNew = useCallback(async () => {
-    const wallet: Wallet = {
-      creationEpoch: Math.floor(Date.now() / 1000),
-      walletId,
-      version: defaultSettings.WALLETS_DATA_VERSION,
-      networkId: advancedSettings.networkId,
-      signersEncryption: advancedSettings.signersPassword ? 'PASSWORD' : 'NONE',
-      signersStorageEngine: advancedSettings.signersStorageEngine,
-      encryption: advancedSettings.encryption
-    };
-    const signerId = 0; //ThunderDen v1.0 has Only 1 signer anyway
-    const network = networkMapping[advancedSettings.networkId];
-    const mnemonic = words.join(' ');
-    const masterNode = getMasterNode(mnemonic, network);
-    const masterFingerprint = masterNode.fingerprint.toString('hex');
-    const signersCipherKey = advancedSettings.signersPassword
-      ? await getPasswordDerivedCipherKey(advancedSettings.signersPassword)
-      : undefined;
-    navigation.goBack();
-    onWallet({
-      wallet,
-      ...(signersCipherKey ? { signersCipherKey } : {}),
-      newWalletSigners: {
-        [signerId]: {
-          masterFingerprint,
-          type: 'SOFTWARE',
-          mnemonic
-        }
+  const hasAskedNonSecureSignersToSetPassword = useRef<boolean>(false);
+  const createNewWallet = useCallback(
+    async (
+      words: string[],
+      encryption: 'NONE' | 'SEED_DERIVED',
+      signersPassword: string | undefined,
+      signersStorageEngine: StorageEngine,
+      networkId: NetworkId
+    ) => {
+      if (
+        signersStorageEngine !== 'SECURESTORE' &&
+        !signersPassword &&
+        hasAskedNonSecureSignersToSetPassword.current === false
+      ) {
+        hasAskedNonSecureSignersToSetPassword.current = true;
+        setAskNonSecureSignersPassword(true);
+      } else {
+        const wallet: Wallet = {
+          creationEpoch: Math.floor(Date.now() / 1000),
+          walletId,
+          version: defaultSettings.WALLETS_DATA_VERSION,
+          networkId,
+          signersEncryption: signersPassword ? 'PASSWORD' : 'NONE',
+          signersStorageEngine,
+          encryption
+        };
+        const signerId = 0; //ThunderDen v1.0 has Only 1 signer anyway
+        const network = networkMapping[networkId];
+        const mnemonic = words.join(' ');
+        const masterNode = getMasterNode(mnemonic, network);
+        const masterFingerprint = masterNode.fingerprint.toString('hex');
+        const signersCipherKey = signersPassword
+          ? await getPasswordDerivedCipherKey(signersPassword)
+          : undefined;
+        navigation.goBack();
+        onWallet({
+          wallet,
+          ...(signersCipherKey ? { signersCipherKey } : {}),
+          newWalletSigners: {
+            [signerId]: {
+              masterFingerprint,
+              type: 'SOFTWARE',
+              mnemonic
+            }
+          }
+        });
       }
-    });
+    },
+    [navigation, onWallet, walletId]
+  );
+
+  const onCreateNew = useCallback(async () => {
+    createNewWallet(
+      words,
+      advancedSettings.encryption,
+      advancedSettings.signersPassword,
+      advancedSettings.signersStorageEngine,
+      advancedSettings.networkId
+    );
   }, [
-    navigation,
+    createNewWallet,
     words,
     advancedSettings.encryption,
     advancedSettings.signersPassword,
     advancedSettings.signersStorageEngine,
-    advancedSettings.networkId,
-    onWallet,
-    walletId
+    advancedSettings.networkId
   ]);
+
+  const [askNonSecureSignersPassword, setAskNonSecureSignersPassword] =
+    useState<boolean>(false);
+  const onNonSecureSignerPasswordCancel = useCallback(() => {
+    setAskNonSecureSignersPassword(false);
+  }, []);
+  const onNonSecureSignerPassword = useCallback(
+    (password: string) => {
+      setAskNonSecureSignersPassword(false);
+      createNewWallet(
+        words,
+        advancedSettings.encryption,
+        password,
+        advancedSettings.signersStorageEngine,
+        advancedSettings.networkId
+      );
+    },
+    [
+      createNewWallet,
+      words,
+      advancedSettings.encryption,
+      advancedSettings.signersStorageEngine,
+      advancedSettings.networkId
+    ]
+  );
 
   const [networktHelp, showNetworkHelp] = useState<boolean>(false);
   return (
@@ -183,16 +237,6 @@ export default function NewWalletScreen({
                 onAdvancedSettings={onAdvancedSettings}
               />
             </View>
-            {/*<View className="bg-backgroundDefault shadow rounded-xl flex-row p-4 justify-center">
-            <Text className="text-slate-600 text-xs font-semibold">
-              {advancedSettings.networkId === 'BITCOIN'
-                ? t('wallet.realWalletWarning')
-                : t('wallet.testingWalletInfo')}
-            </Text>
-            <Text className="text-primary text-xs font-semibold flex-row">
-              {' ' + t('learnMore')}
-            </Text>
-          </View>*/}
             <View className="mb-4 mt-4">
               <Button
                 disabled={!validMnemonic}
@@ -251,6 +295,12 @@ export default function NewWalletScreen({
       >
         <Text className="pl-2 pr-2">{t('help.network')}</Text>
       </Modal>
+      <Password
+        mode="SET"
+        isVisible={askNonSecureSignersPassword}
+        onPassword={onNonSecureSignerPassword}
+        onCancel={onNonSecureSignerPasswordCancel}
+      />
     </>
   );
 }
