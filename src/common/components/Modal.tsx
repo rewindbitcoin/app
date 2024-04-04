@@ -198,7 +198,8 @@ const Modal: React.FC<ModalProps> = ({
         //backgroundColor: 'red'
       }}
     >
-      <KeyboardAvoidingView behavior="padding">
+      <KeyboardAvoidingView behavior="position">
+        {/*behavior="padding" makes it randomly flicker on android(1px up & down) when the keyboard is dismissed*/}
         <GestureHandlerRootView>
           <PanGestureHandler onGestureEvent={gestureHandler}>
             <Animated.View style={animatedStyle}>

@@ -126,7 +126,7 @@ While leaking this data wouldn't compromise your funds, encrypting it\
 
 The encryption uses the XChaCha20-Poly1305 algorithm, with a key that’s securely\
  derived from your mnemonic recovery phrase.`,
-    network: `Our app provides a choice between testing environments and the real Bitcoin network (via Advanced Settings).
+    network: `ThunderDen provides a choice between testing environments and the real Bitcoin network (via Advanced Settings).
 
 The currently recommended option is Storm, ThunderDen's own test network. Storm mirrors Bitcoin's real functionality and allows you to explore Send/Receive and Vaulting operations safely, offering free tokens for practice.
 
