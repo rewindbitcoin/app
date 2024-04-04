@@ -1,5 +1,10 @@
 <Password>
 
+  -> Keep the password in internal state
+  -> onPassword is called with password when set password
+  -> onCancel is returned when the user closes the modal without action
+
+
   No permitir Enter keys en Password menudo follon, no se ve bien, además Enter debería cerrar el Modal
   
   En web aunque el user no haya seleccionado setPasword, saldrá el popup igualmente de password. Pero tendra un boton de "Skip"

@@ -84,9 +84,10 @@ export default function WalletAdvancedSettings({
     },
     [advancedSettings, onAdvancedSettings]
   );
-  const onPasswordClose = useCallback(() => setPasswordRequest(false), []);
+  const onPasswordCancel = useCallback(() => setPasswordRequest(false), []);
   const onPassword = useCallback(
-    (password: string | undefined) => {
+    (password: string) => {
+      setPasswordRequest(false);
       onAdvancedSettings({
         ...advancedSettings,
         signersPassword: password
@@ -201,10 +202,9 @@ export default function WalletAdvancedSettings({
                 onValueChange={onPasswordSwitch}
               />
               <Password
-                password={advancedSettings.signersPassword}
                 isVisible={passwordRequest}
                 onPassword={onPassword}
-                onClose={onPasswordClose}
+                onCancel={onPasswordCancel}
               />
             </View>
             <Divider style={styles.lineSeparator} />

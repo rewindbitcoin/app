@@ -104,36 +104,31 @@ const WalletsScreen = ({
   const navigation = useNavigation();
   const { t } = useTranslation();
   const [wallets] = useGlobalStateStorage<Wallets>(`WALLETS`, SERIALIZABLE, {});
-  const [password, setPassword] = useState<string | undefined>();
   const [passwordRequestWalletId, setPasswordRequestWalletId] =
     useState<number>();
-  const onPassword = useCallback((password: string | undefined) => {
-    setPassword(password);
+  const onPasswordCancel = useCallback(() => {
+    setPasswordRequestWalletId(undefined);
   }, []);
-  const onPasswordClose = useCallback(() => {
-    if (
-      wallets &&
-      password !== undefined &&
-      passwordRequestWalletId !== undefined
-    ) {
+  const onPassword = useCallback(
+    (password: string) => {
       const cb = async () => {
+        if (!wallets) throw new Error('wallets not set');
+        if (passwordRequestWalletId === undefined)
+          throw new Error('passwordRequestWalletId not set');
         const signersCipherKey = await getPasswordDerivedCipherKey(password);
         const wallet = wallets[passwordRequestWalletId];
         if (!wallet)
           throw new Error(`Wallet ${passwordRequestWalletId} does not exist`);
         setPasswordRequestWalletId(undefined);
-        setPassword(undefined);
         onWallet({
           wallet,
           signersCipherKey
         });
       };
       cb();
-    } else {
-      setPasswordRequestWalletId(undefined);
-      setPassword(undefined);
-    }
-  }, [password, wallets, passwordRequestWalletId, onWallet]);
+    },
+    [wallets, passwordRequestWalletId, onWallet]
+  );
   const handleWalletMap = useMemo(() => {
     if (!wallets) return {};
     else {
@@ -262,10 +257,9 @@ const WalletsScreen = ({
         </View>
       </KeyboardAwareScrollView>
       <Password
-        password={password}
         isVisible={passwordRequestWalletId !== undefined}
         onPassword={onPassword}
-        onClose={onPasswordClose}
+        onCancel={onPasswordCancel}
       />
     </>
   );

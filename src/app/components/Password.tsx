@@ -1,5 +1,5 @@
 import { validatePassword } from '../lib/validators';
-import React, { useRef, useEffect, useCallback } from 'react';
+import React, { useRef, useEffect, useCallback, useState } from 'react';
 
 import { Platform, View } from 'react-native';
 import { Modal, Text, TextInput, Button } from '../../common/ui';
@@ -7,20 +7,27 @@ import { useTranslation } from 'react-i18next';
 
 const Password = ({
   isVisible,
-  password,
   onPassword,
-  onClose
+  onCancel
 }: {
   isVisible: boolean;
-  password: string | undefined;
-  onPassword: (password: string | undefined) => void;
-  onClose: () => void;
+  onPassword: (password: string) => void;
+  onCancel: () => void;
 }) => {
+  const [password, setPassword] = useState<string>();
   const { t } = useTranslation();
   const handleCancel = useCallback(() => {
-    onPassword(undefined);
-    onClose();
-  }, [onPassword, onClose]);
+    setPassword(undefined);
+    onCancel();
+  }, [onCancel]);
+  const handlePassword = useCallback(() => {
+    setPassword(undefined);
+    if (!password) throw new Error(`Password should have been set`);
+    onPassword(password);
+  }, [onPassword, password]);
+  const onChangePassword = useCallback((password: string) => {
+    setPassword(password);
+  }, []);
 
   //https://github.com/necolas/react-native-web/issues/1645#issuecomment-958339838
   const input = useRef<TextInput>(null);
@@ -45,7 +52,7 @@ const Password = ({
           <Button onPress={handleCancel}>{t('cancelButton')}</Button>
           <Button
             disabled={password === undefined || !validatePassword(password)}
-            onPress={onClose}
+            onPress={handlePassword}
           >
             {t('wallet.setNewPasswordButton')}
           </Button>
@@ -68,7 +75,7 @@ const Password = ({
           autoCapitalize="none"
           maxLength={32}
           {...(Platform.OS === 'ios' ? { textContentType: 'newPassword' } : {})}
-          onChangeText={onPassword}
+          onChangeText={onChangePassword}
           className="outline-none flex-1 web:w-full rounded bg-slate-200 py-2 px-4"
         />
       </View>
