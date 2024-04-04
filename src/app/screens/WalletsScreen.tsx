@@ -257,6 +257,7 @@ const WalletsScreen = ({
         </View>
       </KeyboardAwareScrollView>
       <Password
+        mode="REQUEST"
         isVisible={passwordRequestWalletId !== undefined}
         onPassword={onPassword}
         onCancel={onPasswordCancel}

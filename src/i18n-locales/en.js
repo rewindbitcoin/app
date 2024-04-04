@@ -29,12 +29,17 @@ export default {
     walletId: 'Wallet {{id}}'
   },
   wallet: {
-    requestPasswordTitle: 'Create a new Password',
+    requestNewPasswordTitle: 'Create a new Password',
     setNewPasswordButton: 'Set Password',
-    requestPasswordText: `Please set a new password (8-32 characters).
+    requestNewPasswordText: `Please set a new password (8-32 characters).
 
 If you ever lose or forget your password, you can still recover your wallet\
  using your mnemonic recovery phrase.`,
+    requestPasswordTitle: `Enter Wallet's Password`,
+    requestPasswordButton: `Enter Password`,
+    requestPasswordText: `Please enter the wallet's password to continue.
+
+If you've forgotten the password for your wallet, you can create a new wallet using your mnemonic recovery phrase to regain access.`,
     advancedOptionsTitle: 'Advanced Options',
     usePasswordTitle: 'Use Password',
     biometricEncryptionTitle: 'Biometric Encryption',

@@ -6,10 +6,12 @@ import { Modal, Text, TextInput, Button } from '../../common/ui';
 import { useTranslation } from 'react-i18next';
 
 const Password = ({
+  mode,
   isVisible,
   onPassword,
   onCancel
 }: {
+  mode: 'REQUEST' | 'SET';
   isVisible: boolean;
   onPassword: (password: string) => void;
   onCancel: () => void;
@@ -42,7 +44,11 @@ const Password = ({
   }, [isVisible]);
   return (
     <Modal
-      title={t('wallet.requestPasswordTitle')}
+      title={
+        mode === 'SET'
+          ? t('wallet.requestNewPasswordTitle')
+          : t('wallet.requestPasswordTitle')
+      }
       closeButtonText={t('cancelButton')}
       icon={{ family: 'AntDesign', name: 'form' }}
       isVisible={isVisible}
@@ -54,16 +60,23 @@ const Password = ({
             disabled={password === undefined || !validatePassword(password)}
             onPress={handlePassword}
           >
-            {t('wallet.setNewPasswordButton')}
+            {mode === 'SET'
+              ? t('wallet.setNewPasswordButton')
+              : t('wallet.requestPasswordButton')}
           </Button>
         </View>
       }
     >
       <View className="px-2">
-        <Text className="pb-6">{t('wallet.requestPasswordText')}</Text>
+        <Text className="pb-6">
+          {mode === 'SET'
+            ? t('wallet.requestNewPasswordText')
+            : t('wallet.requestPasswordText')}
+        </Text>
         <TextInput
           value={password}
           enablesReturnKeyAutomatically
+          onSubmitEditing={handlePassword}
           ref={input}
           keyboardType={Platform.select({
             android: 'visible-password',
