@@ -1,6 +1,17 @@
+<Password>
 
-In Android the Password modal blinks
-  -> See if th4 <Connfirmation> also blinks? (has textinput too)
+  No permitir Enter keys en Password menudo follon, no se ve bien, además Enter debería cerrar el Modal
+  
+  En web aunque el user no haya seleccionado setPasword, saldrá el popup igualmente de password. Pero tendra un boton de "Skip"
+    -> por tanto <Password> debe tener un modo "skipable"
+  El Password para el caso de introducir password debe de tener un modo "NEW_PASSWORD" "ENTER_PASSWORD"
+  In Android the Password modal blinks
+    -> See if th4 <Connfirmation> also blinks? (has textinput too)
+  
+
+Los collores de los textos "Test Wallet No Real _BValue" tienen backgroudna aleatorio??
+
+
 
 In Android sometines the Bip39 card does not show the numbers!!!
 
