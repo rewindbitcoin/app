@@ -232,20 +232,17 @@ const WalletProviderWithWallet = ({
 
   useEffect(() => {
     if (newWalletSigners && isWalletsSynchd) {
-      if (!wallets) throw new Error('wallets should be defined after synched');
       setSigners(newWalletSigners);
+    }
+  }, [setSigners, newWalletSigners, isWalletsSynchd]);
+
+  useEffect(() => {
+    if (isWalletsSynchd) {
+      if (!wallets) throw new Error('wallets should be defined after synched');
       if (!shallowEqualObjects(wallet, wallets[walletId]))
         setWallets({ ...wallets, [walletId]: wallet });
     }
-  }, [
-    newWalletSigners,
-    setSigners,
-    setWallets,
-    walletId,
-    wallets,
-    wallet,
-    isWalletsSynchd
-  ]);
+  }, [setWallets, walletId, wallets, wallet, isWalletsSynchd]);
 
   const toast = useToast();
 

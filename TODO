@@ -1,4 +1,7 @@
 
+In Android the Password modal blinks
+  -> See if th4 <Connfirmation> also blinks? (has textinput too)
+
 In Android sometines the Bip39 card does not show the numbers!!!
 
 Implement/Test the passwords thinkg

@@ -153,24 +153,6 @@ const Main = () => {
         >
           {() => <WalletsScreen onWallet={handleWallet} />}
         </RootStack.Screen>
-        <RootStack.Screen
-          name={NEW_WALLET}
-          options={{
-            title: t('app.newWalletTitle'),
-            presentation: 'modal',
-            headerRightContainerStyle,
-            headerRight: cancelModalButton
-          }}
-        >
-          {props => {
-            //Modals need their own Toast component
-            return (
-              <ToastProvider>
-                <NewWalletScreen onWallet={handleWallet} {...props} />
-              </ToastProvider>
-            );
-          }}
-        </RootStack.Screen>
 
         <RootStack.Screen
           name={WALLET_HOME}
@@ -209,6 +191,31 @@ const Main = () => {
         </RootStack.Screen>
 
         <RootStack.Screen
+          name={SETTINGS}
+          component={Settings}
+          options={{ title: t('app.settingsTitle') }}
+        />
+
+        <RootStack.Screen
+          name={NEW_WALLET}
+          options={{
+            title: t('app.newWalletTitle'),
+            presentation: 'modal',
+            headerRightContainerStyle,
+            headerRight: cancelModalButton
+          }}
+        >
+          {props => {
+            //Modals need their own Toast component
+            return (
+              <ToastProvider>
+                <NewWalletScreen onWallet={handleWallet} {...props} />
+              </ToastProvider>
+            );
+          }}
+        </RootStack.Screen>
+
+        <RootStack.Screen
           name={CREATE_VAULT}
           options={{
             title: t('app.createVaultTitle'),
@@ -226,12 +233,6 @@ const Main = () => {
             );
           }}
         </RootStack.Screen>
-
-        <RootStack.Screen
-          name={SETTINGS}
-          component={Settings}
-          options={{ title: t('app.settingsTitle') }}
-        />
       </RootStack.Navigator>
     </WalletProvider>
   );

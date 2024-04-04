@@ -30,7 +30,7 @@ import { useSecureStorageAvailability } from '../../common/contexts/SecureStorag
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { generateMnemonic } from 'bip39';
 import { networkMapping } from '../lib/network';
-import type { RouteProp } from '@react-navigation/native';
+import { useNavigation, type RouteProp } from '@react-navigation/native';
 import type { RootStackParamList } from '../screens';
 import { getPasswordDerivedCipherKey } from '../../common/lib/cipher';
 import { getMasterNode } from '../lib/vaultDescriptors';
@@ -50,6 +50,7 @@ export default function NewWalletScreen({
     signersCipherKey?: Uint8Array;
   }) => void;
 }) {
+  const navigation = useNavigation();
   const walletId = route.params?.walletId;
   if (walletId === undefined)
     throw new Error(`Wallets should have been loaded`);
@@ -114,6 +115,7 @@ export default function NewWalletScreen({
     const signersCipherKey = advancedSettings.signersPassword
       ? await getPasswordDerivedCipherKey(advancedSettings.signersPassword)
       : undefined;
+    navigation.goBack();
     onWallet({
       wallet,
       ...(signersCipherKey ? { signersCipherKey } : {}),
@@ -126,6 +128,7 @@ export default function NewWalletScreen({
       }
     });
   }, [
+    navigation,
     words,
     advancedSettings.encryption,
     advancedSettings.signersPassword,
@@ -194,7 +197,7 @@ export default function NewWalletScreen({
               <Button
                 disabled={!validMnemonic}
                 onPress={
-                  isImport ? onBip39ConfirmationIsRequested : onCreateNew
+                  isImport ? onCreateNew : onBip39ConfirmationIsRequested
                 }
               >
                 {advancedSettings.networkId === 'BITCOIN' && isImport

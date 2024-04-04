@@ -153,12 +153,12 @@ const WalletsScreen = ({
     }
   }, [wallets, onWallet]);
 
-  const handleNewWallet = () => {
+  const handleNewWallet = useCallback(() => {
     if (!wallets) throw new Error('wallets not yet defined');
     navigation.navigate(NEW_WALLET, {
       walletId: Object.keys(wallets).length
     });
-  };
+  }, [navigation, wallets]);
 
   return (
     <>

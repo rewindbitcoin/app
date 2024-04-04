@@ -113,11 +113,18 @@ export const useLocalStateStorage = <T>(
 
       const decryptError = false;
 
-      if (
-        storageStatus.isSynchd !== true ||
-        storageStatus.decryptError !== decryptError
-      )
-        setStorageStatus({ isSynchd: true, decryptError });
+      setStorageStatus(prevState => {
+        // Check if the update is necessary based on the current state
+        if (
+          prevState.isSynchd !== true ||
+          prevState.decryptError !== decryptError
+        ) {
+          return { isSynchd: true, decryptError };
+        }
+
+        // Return the previous state if no update is necessary to avoid unnecessary re-render
+        return prevState;
+      });
     };
     fetchValue();
   }, [
@@ -127,8 +134,6 @@ export const useLocalStateStorage = <T>(
     engine,
     defaultValue,
     serializationFormat,
-    storageStatus.isSynchd,
-    storageStatus.decryptError,
     setStorageValue
   ]);
 
