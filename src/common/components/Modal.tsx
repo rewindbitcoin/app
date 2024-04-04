@@ -1,5 +1,11 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { View, Platform, KeyboardAvoidingView, Dimensions } from 'react-native';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import {
+  View,
+  Platform,
+  KeyboardAvoidingView,
+  Dimensions,
+  LayoutChangeEvent
+} from 'react-native';
 import RNModal from 'react-native-modal';
 import { Button } from './Button';
 import { useTheme } from '../theme';
@@ -122,6 +128,36 @@ const Modal: React.FC<ModalProps> = ({
       isMountedRef.current = false;
     };
   }, [isVisible, translateY]);
+
+  const onParentLayout = useCallback(
+    (event: LayoutChangeEvent) => {
+      const newHeight =
+        event.nativeEvent.layout.height + scrollViewPaddingVertical * 2;
+      setChildrenHeight(prevHeight => {
+        // Only update if the difference is more than 1 (in Android there may be
+        // slight imprecission while rendering which would trigger infinite updates)
+        if (Math.abs(prevHeight - newHeight) > 1) {
+          return newHeight;
+        }
+        // Return previous state to avoid unnecessary re-render
+        return prevHeight;
+      });
+    },
+    [scrollViewPaddingVertical]
+  );
+
+  const onButtonLayout = useCallback((event: LayoutChangeEvent) => {
+    const newHeight = event.nativeEvent.layout.height;
+    setButtonHeight(prevHeight => {
+      // Only update if the difference is more than 1 (in Android there may be
+      // slight imprecission while rendering which would trigger infinite updates)
+      if (Math.abs(prevHeight - newHeight) > 1) {
+        return newHeight;
+      }
+      // Return previous state to avoid unnecessary re-render
+      return prevHeight;
+    });
+  }, []);
 
   return (
     <RNModal
@@ -258,14 +294,7 @@ const Modal: React.FC<ModalProps> = ({
                     justifyContent: 'center'
                   }}
                 >
-                  <View
-                    onLayout={event => {
-                      const height = event.nativeEvent.layout.height;
-                      setChildrenHeight(height + scrollViewPaddingVertical * 2);
-                    }}
-                  >
-                    {children}
-                  </View>
+                  <View onLayout={onParentLayout}>{children}</View>
                 </ScrollView>
                 <LinearGradient
                   colors={[rgba(theme.colors.white, 0), theme.colors.white]}
@@ -278,25 +307,14 @@ const Modal: React.FC<ModalProps> = ({
                   }}
                 />
                 {onClose && !customButtons ? (
-                  <View
-                    style={{ paddingBottom: 20 }}
-                    onLayout={event => {
-                      setButtonHeight(event.nativeEvent.layout.height);
-                    }}
-                  >
+                  <View style={{ paddingBottom: 20 }} onLayout={onButtonLayout}>
                     <Button onPress={handleClose}>
                       {closeButtonText || 'Understood'}
                     </Button>
                   </View>
                 ) : null}
                 {customButtons && (
-                  <View
-                    onLayout={event => {
-                      setButtonHeight(event.nativeEvent.layout.height);
-                    }}
-                  >
-                    {customButtons}
-                  </View>
+                  <View onLayout={onButtonLayout}>{customButtons}</View>
                 )}
               </View>
             </Animated.View>
