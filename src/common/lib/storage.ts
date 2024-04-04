@@ -1,9 +1,11 @@
 //TODO: Test this json.stringify function which is faster for typescript:
 //  -> In addition, it supports Uint8Array
-//https://dev.to/samchon/i-made-10x-faster-jsonstringify-functions-even-type-safe-2eme
+//    https://dev.to/samchon/i-made-10x-faster-jsonstringify-functions-even-type-safe-2eme
+//  -> In fact it even supports directy encoding objects into binary objects
+//    https://typia.io/docs/protobuf/encode/
 
 /**
- * IMPORTANT, when using SECURESTORE, id requireAuthentication = true, the data
+ * IMPORTANT, when using SECURESTORE, if requireAuthentication = true, the data
  * is tied to the current biometric methods. So if the user adds a new
  * fingerprint or changes the faceId, then the data won't be recoverable:
  * From https://docs.expo.dev/versions/v50.0.0/sdk/securestore
@@ -17,6 +19,9 @@
  * device is locked. It can also survive FaceId or TouhcId changes:
  * Read more:
  * https://github.com/expo/expo/issues/22312
+ *
+ * getAsync returns undefined if the key is not found
+ * setAsync cannot be used to set "undefined" or "null" values.
  */
 
 import { MMKV } from 'react-native-mmkv';
@@ -102,13 +107,13 @@ export const BOOLEAN = 'BOOLEAN';
 export const UINT8ARRAY = 'UINT8ARRAY';
 
 type SerializationFormatMapping = {
-  [NUMBER]: number | null | undefined;
-  [STRING]: string | null | undefined;
+  [NUMBER]: number | undefined;
+  [STRING]: string | undefined;
   // serializable with JSON.stringify in mmkv & with "structured serialisation"
   // in IndexedDB for web:
-  [SERIALIZABLE]: object | null | undefined;
-  [BOOLEAN]: boolean | null | undefined;
-  [UINT8ARRAY]: Uint8Array | null | undefined;
+  [SERIALIZABLE]: object | undefined;
+  [BOOLEAN]: boolean | undefined;
+  [UINT8ARRAY]: Uint8Array | undefined;
 };
 export type SerializationFormat = keyof SerializationFormatMapping;
 
@@ -117,6 +122,8 @@ export const assertSerializationFormat = (
   serializationFormat: SerializationFormat
 ) => {
   if (value === null || value === undefined) {
+    //SecureStorage rerturns null when the key does not exist. Other storages
+    //return undefined. So we don't allow any of those 2 values.
     throw new Error(`Value cannot be null or undefined`);
   }
 
@@ -156,6 +163,8 @@ export const assertSerializationFormat = (
 };
 
 export type Engine = 'IDB' | 'MMKV' | 'SECURESTORE';
+
+export type StorageStatus = { isSynchd: boolean; decryptError: boolean };
 
 function secureStoreGetOptions(authenticationPrompt: string | undefined) {
   if (secureStoreOptions.requireAuthentication) {
@@ -215,10 +224,19 @@ export const setAsync = async (
     await idbSet(key, value);
   } else if (engine === 'SECURESTORE') {
     if (value instanceof Uint8Array)
+      //TODO: This in fact should check that Uint8Array is not used anywhere within value (if an object)
       throw new Error(
-        `Engine ${engine} does not support native Uint8Array - using JSON.stringify`
+        `Engine ${engine} does not support native Uint8Array since it uses JSON.stringify`
       );
     const secureStoreValue = JSON.stringify(value);
+    console.log('SECURE STORE setAsync', {
+      cipher: !!cipherKey,
+      key,
+      value,
+      secureStoreValue,
+      typeValue: typeof value,
+      typeSecureStoreValue: typeof secureStoreValue
+    });
     if (secureStoreValue.length > 2048)
       throw new Error(
         `Reached Secure Store Limit: ${secureStoreValue.length} > 2048.`
@@ -257,6 +275,14 @@ export const getAsync = async <S extends SerializationFormat>(
       secureStoreGetOptions(authenticationPrompt)
     );
     result = stringValue !== null ? JSON.parse(stringValue) : undefined;
+    console.log('SECURE STORE getAsync', {
+      key,
+      cipher: !!cipherKey,
+      stringValue,
+      result,
+      typeStringValue: typeof stringValue,
+      typeResult: typeof result
+    });
   } else if (engine === 'MMKV') {
     if (cipherKey) {
       result = mmkvStorage.getString(key);
@@ -295,7 +321,10 @@ export const getAsync = async <S extends SerializationFormat>(
     if (result === undefined) {
       return result;
     } else if (typeof result !== 'string') {
-      throw new Error('Impossible to decode non-string encoded value');
+      console.error(result);
+      throw new Error(
+        `Impossible to decode non-string encoded value: ${typeof result} is not a string`
+      );
     } else {
       const chacha = getManagedChacha(cipherKey);
       const cipherMessage = strToU8(result, true);

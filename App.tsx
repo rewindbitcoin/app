@@ -83,11 +83,22 @@ const Main = () => {
       newWalletSigners?: Signers;
       signersCipherKey?: Uint8Array;
     }) => {
+      console.log('handleWallet', {
+        wallet,
+        newWalletSigners,
+        signersCipherKey
+      });
+      console.log('setNewWalletSigners');
       if (newWalletSigners) setNewWalletSigners(newWalletSigners);
       else setNewWalletSigners(undefined);
+      console.log('done setNewWalletSigners');
+      console.log('setWallet');
       setWallet(wallet);
+      console.log('done setWallet');
+      console.log('setSignersCipherKey');
       if (signersCipherKey) setSignersCipherKey(signersCipherKey);
       else setSignersCipherKey(undefined);
+      console.log('done setSignersCipherKey');
       if (navigation) navigation.navigate(WALLET_HOME);
       else throw new Error('navigation not set');
     },

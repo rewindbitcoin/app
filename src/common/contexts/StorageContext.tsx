@@ -19,7 +19,7 @@
  * storage format.
  *
  * Example:
- * const [value, setValue, isSynchd] =
+ * const [value, setValue, storageStatus] =
  *    useGlobalStateStorage<DataType>('uniqueKey', serializationFormat, defaultValue?);
  *
  * - 'DataType' is a TypeScript type or interface representing the structure
@@ -40,7 +40,7 @@
  *
  * The 'value' returned by the hook represents the data associated with the given
  * key in the storage. Initially, this value might be 'undefined' while the
- * storage is being synchronized. Once 'isSynchd' is true, 'value' reflects the
+ * storage is being synchronized. Once 'storageStatus.isSynchd' is true, 'value' reflects the
  * data from the storage or remains 'undefined' if the key has never been set.
  *
  * 'setValue' is an asynchronous function to update the storage with a new value
@@ -50,12 +50,15 @@
  * await setValue(newValue); // Ensuring the new value is stored
  * // Proceed with deleting temporary values, now that we know the backup completed successfuly
  *
- * 'isSynchd' is a boolean flag indicating whether the initial retrieval of the
+ * 'storageStatus.isSynchd' is a boolean flag indicating whether the initial retrieval of the
  * data from storage has completed. It helps in differentiating between a 'value'
  * that is 'undefined' because it's yet to be fetched and a 'value' that is
  * 'undefined' because it has never been set in storage. To determine if a value
  * has never been set, use:
- * const hasNeverBeenSetInStorage = isSynchd && value === undefined;
+ * const hasNeverBeenSetInStorage = storageStatus.isSynchd && value === undefined;
+ *
+ * 'storageStatus.decryptError is a boolean that indicates whether the cipherKey (if used)
+ * could not decrypt the message.
  *
  * This hook simplifies managing persistent state in your React application by
  * synchronizing state with a storage system, handled by the StorageProvider.
@@ -75,7 +78,8 @@ import {
   setAsync,
   SerializationFormat,
   Engine,
-  assertSerializationFormat
+  assertSerializationFormat,
+  StorageStatus
 } from '../lib/storage';
 import { Platform } from 'react-native';
 
@@ -110,7 +114,7 @@ const useGlobalStateStorage = <T,>(
   engine: Engine = Platform.OS === 'web' ? 'IDB' : 'MMKV',
   cipherKey: Uint8Array | undefined = undefined,
   authenticationPrompt: string | undefined = undefined
-): [T | undefined, (newValue: T) => Promise<void>, boolean] => {
+): [T | undefined, (newValue: T) => Promise<void>, StorageStatus] => {
   const context = useContext(StorageContext);
   if (context === null)
     throw new Error(`useStorage must be used within a StorageProvider`);
@@ -186,7 +190,13 @@ const useGlobalStateStorage = <T,>(
     valueMap
   ]);
 
-  return [valueMap[key] as T | undefined, setStorageValue, key in valueMap];
+  const decryptError = false;
+
+  return [
+    valueMap[key] as T | undefined,
+    setStorageValue,
+    { isSynchd: key in valueMap, decryptError }
+  ];
 };
 
 export { StorageProvider, useGlobalStateStorage };

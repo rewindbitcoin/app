@@ -147,11 +147,11 @@ const WalletProviderWithWallet = ({
       `signersStorageEngine ${signersStorageEngine} does not match this system specs: ${Platform.OS}, canUseSecureStorage=${canUseSecureStorage}. Have you not enabled Biometric id in your system?`
     );
   }
-  console.log('WalletProviderContext', {
-    walletId,
-    signersStorageEngine,
-    signersCipherKey
-  });
+  //console.log('WalletProviderContext', {
+  //  walletId,
+  //  signersStorageEngine,
+  //  signersCipherKey
+  //});
   const [signers, setSigners] = useLocalStateStorage<Signers>(
     `SIGNERS_${walletId}`,
     SERIALIZABLE,
@@ -166,20 +166,16 @@ const WalletProviderWithWallet = ({
     SERIALIZABLE,
     defaultSettings
   );
-  const [wallets, setWallets, isWalletsSynchd] = useGlobalStateStorage<Wallets>(
-    `WALLETS`,
-    SERIALIZABLE,
-    {}
-  );
+  const [wallets, setWallets, walletsStorageStatus] =
+    useGlobalStateStorage<Wallets>(`WALLETS`, SERIALIZABLE, {});
+  const isWalletsSynchd = walletsStorageStatus.isSynchd;
 
-  const [
-    discoveryDataExport,
-    setDiscoveryDataExport,
-    isDiscoveryDataExportSynchd
-  ] = useLocalStateStorage<DiscoveryDataExport>(
-    `DISCOVERY_${walletId}`,
-    SERIALIZABLE
-  );
+  const [discoveryDataExport, setDiscoveryDataExport, discoveryStorageStatus] =
+    useLocalStateStorage<DiscoveryDataExport>(
+      `DISCOVERY_${walletId}`,
+      SERIALIZABLE
+    );
+  const isDiscoveryDataExportSynchd = discoveryStorageStatus.isSynchd;
 
   const [vaults, setVaults] = useLocalStateStorage<Vaults>(
     `VAULTS_${walletId}`,
@@ -713,7 +709,7 @@ const WalletProviderWithWallet = ({
   );
 };
 
-export const WalletProvider = ({
+const WalletProviderRaw = ({
   children,
   wallet,
   signersCipherKey,
@@ -724,6 +720,11 @@ export const WalletProvider = ({
   signersCipherKey?: Uint8Array | undefined;
   newWalletSigners?: Signers;
 }) => {
+  console.log('WalletProviderRaw', {
+    wallet,
+    signersCipherKey,
+    newWalletSigners
+  });
   if (!wallet) return children;
   else {
     return (
@@ -737,3 +738,5 @@ export const WalletProvider = ({
     );
   }
 };
+
+export const WalletProvider = React.memo(WalletProviderRaw);

@@ -5,7 +5,8 @@ import {
   setAsync,
   Engine,
   SerializationFormat,
-  assertSerializationFormat
+  assertSerializationFormat,
+  StorageStatus
 } from '../lib/storage';
 
 /**
@@ -43,9 +44,12 @@ import {
  * local state of the component. Use it when you need to store new data and
  * ensure it's saved before proceeding with other actions.
  *
- * 'isSynchd': A boolean indicating if the data has been fetched from storage.
+ * 'storageStatus: {isSynchd: boolean; decryptError: boolean}':
+ * isSynchd is a boolean indicating if the data has been fetched from storage.
  * Useful for determining if 'value' is 'undefined' because it's yet to be
  * fetched or because it was never set in storage.
+ * 'storageStatus.decryptError is a boolean that indicates whether the cipherKey (if used)
+ * could not decrypt the message.
  *
  * Note: Unlike `useGlobalStateStorage`, `useLocalStateStorage` does not cause
  * re-renders in other components using the same key. It's useful for data
@@ -68,9 +72,12 @@ export const useLocalStateStorage = <T>(
   engine: Engine = Platform.OS === 'web' ? 'IDB' : 'MMKV',
   cipherKey: Uint8Array | undefined = undefined,
   authenticationPrompt: string | undefined = undefined
-): [T | undefined, (newValue: T) => Promise<void>, boolean] => {
+): [T | undefined, (newValue: T) => Promise<void>, StorageStatus] => {
   const [value, setValue] = useState<T | undefined>();
-  const [isSynchd, setIsSynchd] = useState(false);
+  const [storageStatus, setStorageStatus] = useState<StorageStatus>({
+    isSynchd: false,
+    decryptError: false
+  });
 
   /** sets storage and sate value */
   const setStorageValue = useCallback(
@@ -104,7 +111,13 @@ export const useLocalStateStorage = <T>(
       else if (defaultValue !== undefined) await setStorageValue(defaultValue);
       else setValue(undefined);
 
-      setIsSynchd(true);
+      const decryptError = false;
+
+      if (
+        storageStatus.isSynchd !== true ||
+        storageStatus.decryptError !== decryptError
+      )
+        setStorageStatus({ isSynchd: true, decryptError });
     };
     fetchValue();
   }, [
@@ -114,10 +127,12 @@ export const useLocalStateStorage = <T>(
     engine,
     defaultValue,
     serializationFormat,
+    storageStatus.isSynchd,
+    storageStatus.decryptError,
     setStorageValue
   ]);
 
-  return [value, setStorageValue, isSynchd];
+  return [value, setStorageValue, storageStatus];
 };
 
 /**
