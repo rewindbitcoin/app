@@ -56,10 +56,23 @@ const Main = () => {
 
   const { t } = useTranslation();
 
-  const [wallet, setWallet] = useState<Wallet>();
-  const [signersCipherKey, setSignersCipherKey] = useState<Uint8Array>();
   const [vaultSettings, setVaultSettings] = useState<VaultSettings>();
-  const [newWalletSigners, setNewWalletSigners] = useState<Signers>();
+
+  //const [wallet, setWallet] = useState<Wallet>();
+  //const [signersCipherKey, setSignersCipherKey] = useState<Uint8Array>();
+  //const [newWalletSigners, setNewWalletSigners] = useState<Signers>();
+
+  //Have them in single state since batching doeds not work in react-native in old architecture
+  const [walletProviderProps, setWalletProviderProps] = useState<{
+    wallet: Wallet | undefined;
+    signersCipherKey: Uint8Array | undefined;
+    newWalletSigners: Signers | undefined;
+  }>({
+    wallet: undefined,
+    signersCipherKey: undefined,
+    newWalletSigners: undefined
+  });
+
   const navigation = useNavigation();
 
   const settingsButton = () => (
@@ -88,17 +101,10 @@ const Main = () => {
         newWalletSigners,
         signersCipherKey
       });
-      console.log('setNewWalletSigners');
-      if (newWalletSigners) setNewWalletSigners(newWalletSigners);
-      else setNewWalletSigners(undefined);
-      console.log('done setNewWalletSigners');
-      console.log('setWallet');
-      setWallet(wallet);
-      console.log('done setWallet');
-      console.log('setSignersCipherKey');
-      if (signersCipherKey) setSignersCipherKey(signersCipherKey);
-      else setSignersCipherKey(undefined);
-      console.log('done setSignersCipherKey');
+      //setNewWalletSigners(newWalletSigners);
+      //setWallet(wallet);
+      //setSignersCipherKey(signersCipherKey);
+      setWalletProviderProps({ newWalletSigners, wallet, signersCipherKey });
       if (navigation) navigation.navigate(WALLET_HOME);
       else throw new Error('navigation not set');
     },
@@ -127,7 +133,7 @@ const Main = () => {
   }, [settings?.LOCALE]);
 
   const headerRightContainerStyle = { marginRight: 16 };
-
+  const { wallet, signersCipherKey, newWalletSigners } = walletProviderProps;
   return (
     <WalletProvider
       {...(wallet ? { wallet } : {})}
