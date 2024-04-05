@@ -29,17 +29,16 @@ export default {
     walletId: 'Wallet {{id}}'
   },
   wallet: {
-    optionalSetPasswordTitle: `Enhance Your Wallet's Security`,
+    optionalSetPasswordTitle: `Enhance Wallet Security`,
     focedSetPasswordTitle: 'Create a new Password',
     forcedSetPasswordText: `Please set a new password (8-32 characters).
 
 If you ever lose or forget your password, you can still recover your wallet\
  using your mnemonic recovery phrase.`,
-    optionalSetPasswordText: `Your environment does not support biometric encryption,\
- such as fingerprint or face recognition. To enhance the security of your wallet, we recommend setting a password.
-
-This is optional, but it will help protect your assets in case your device is lost or compromised.\
- You can choose to skip this step, but remember, securing your wallet is crucial for your peace of mind and asset safety.`,
+    optionalSetPasswordText: `We suggest setting a password to boost your wallet's security.\
+ Though optional, a password safeguards your assets,\
+ especially on platforms where biometric encryption cannot be used, in case your\
+ device is lost or compromised.`,
     skipOptionalSetPasswordButton: 'Continue Without Password',
     setPasswordButton: 'Set Password',
 

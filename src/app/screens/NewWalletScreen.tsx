@@ -194,6 +194,7 @@ export default function NewWalletScreen({
   const [askNonSecureSignersPassword, setAskNonSecureSignersPassword] =
     useState<boolean>(false);
   const onNonSecureSignerPasswordCancel = useCallback(() => {
+    hasAskedNonSecureSignersToSetPassword.current = false;
     setAskNonSecureSignersPassword(false);
   }, []);
   const onNonSecureSignerContinueWithoutPassword = useCallback(() => {
