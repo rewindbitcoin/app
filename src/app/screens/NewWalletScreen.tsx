@@ -20,14 +20,6 @@ import WalletAdvancedSettings, {
   type AdvancedSettings
 } from '../components/WalletAdvancedSettings';
 import { useSecureStorageAvailability } from '../../common/contexts/SecureStorageAvailabilityContext';
-//import { AntDesign } from '@expo/vector-icons';
-//import { cssInterop } from 'nativewind';
-//cssInterop(AntDesign, {
-//  className: {
-//    target: 'style',
-//    nativeStyleToProp: { color: true, fontSize: 'size' }
-//  }
-//});
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { generateMnemonic } from 'bip39';
 import { NetworkId, networkMapping } from '../lib/network';
@@ -93,14 +85,10 @@ export default function NewWalletScreen({
     setIsImport(!isImport);
   }, [isImport]);
 
-  const onBip39ConfirmationIsRequested = useCallback(() => {
-    setIsConfirmBip39(true);
-  }, []);
-  const onBip39Cancel = useCallback(() => {
-    setIsConfirmBip39(false);
-  }, []);
-  const hasAskedNonSecureSignersToSetPassword = useRef<boolean>(false);
-  const createNewWallet = useCallback(
+  /**
+   * import or create a new wallet
+   */
+  const addWallet = useCallback(
     async (
       words: string[],
       encryption: 'NONE' | 'SEED_DERIVED',
@@ -108,58 +96,94 @@ export default function NewWalletScreen({
       signersStorageEngine: StorageEngine,
       networkId: NetworkId
     ) => {
-      if (
-        signersStorageEngine !== 'SECURESTORE' &&
-        !signersPassword &&
-        hasAskedNonSecureSignersToSetPassword.current === false
-      ) {
-        hasAskedNonSecureSignersToSetPassword.current = true;
-        setAskNonSecureSignersPassword(true);
-      } else {
-        const wallet: Wallet = {
-          creationEpoch: Math.floor(Date.now() / 1000),
-          walletId,
-          version: defaultSettings.WALLETS_DATA_VERSION,
-          networkId,
-          signersEncryption: signersPassword ? 'PASSWORD' : 'NONE',
-          signersStorageEngine,
-          encryption
-        };
-        const signerId = 0; //ThunderDen v1.0 has Only 1 signer anyway
-        const network = networkMapping[networkId];
-        const mnemonic = words.join(' ');
-        const masterNode = getMasterNode(mnemonic, network);
-        const masterFingerprint = masterNode.fingerprint.toString('hex');
-        const signersCipherKey = signersPassword
-          ? await getPasswordDerivedCipherKey(signersPassword)
-          : undefined;
-        navigation.goBack();
-        onWallet({
-          wallet,
-          ...(signersCipherKey ? { signersCipherKey } : {}),
-          newWalletSigners: {
-            [signerId]: {
-              masterFingerprint,
-              type: 'SOFTWARE',
-              mnemonic
-            }
+      const wallet: Wallet = {
+        creationEpoch: Math.floor(Date.now() / 1000),
+        walletId,
+        version: defaultSettings.WALLETS_DATA_VERSION,
+        networkId,
+        signersEncryption: signersPassword ? 'PASSWORD' : 'NONE',
+        signersStorageEngine,
+        encryption
+      };
+      const signerId = 0; //ThunderDen v1.0 has Only 1 signer anyway
+      const network = networkMapping[networkId];
+      const mnemonic = words.join(' ');
+      const masterNode = getMasterNode(mnemonic, network);
+      const masterFingerprint = masterNode.fingerprint.toString('hex');
+      const signersCipherKey = signersPassword
+        ? await getPasswordDerivedCipherKey(signersPassword)
+        : undefined;
+      navigation.goBack();
+      onWallet({
+        wallet,
+        ...(signersCipherKey ? { signersCipherKey } : {}),
+        newWalletSigners: {
+          [signerId]: {
+            masterFingerprint,
+            type: 'SOFTWARE',
+            mnemonic
           }
-        });
-      }
+        }
+      });
     },
     [navigation, onWallet, walletId]
   );
 
+  const hasAskedNonSecureSignersToSetPassword = useRef<boolean>(false);
   const onCreateNew = useCallback(async () => {
-    createNewWallet(
-      words,
-      advancedSettings.encryption,
-      advancedSettings.signersPassword,
-      advancedSettings.signersStorageEngine,
-      advancedSettings.networkId
-    );
+    if (
+      !canUseSecureStorage &&
+      !advancedSettings.signersPassword &&
+      hasAskedNonSecureSignersToSetPassword.current === false
+    ) {
+      hasAskedNonSecureSignersToSetPassword.current = true;
+      setAskNonSecureSignersPassword(true);
+    } else {
+      addWallet(
+        words,
+        advancedSettings.encryption,
+        advancedSettings.signersPassword,
+        advancedSettings.signersStorageEngine,
+        advancedSettings.networkId
+      );
+    }
   }, [
-    createNewWallet,
+    canUseSecureStorage,
+    addWallet,
+    words,
+    advancedSettings.encryption,
+    advancedSettings.signersPassword,
+    advancedSettings.signersStorageEngine,
+    advancedSettings.networkId
+  ]);
+
+  const onBip39ConfirmationIsRequested = useCallback(() => {
+    setIsConfirmBip39(true);
+  }, []);
+  const onBip39Cancel = useCallback(() => {
+    setIsConfirmBip39(false);
+  }, []);
+  const onBip39Confirmed = useCallback(() => {
+    setIsConfirmBip39(false);
+    if (
+      !canUseSecureStorage &&
+      !advancedSettings.signersPassword &&
+      hasAskedNonSecureSignersToSetPassword.current === false
+    ) {
+      hasAskedNonSecureSignersToSetPassword.current = true;
+      setAskNonSecureSignersPassword(true);
+    } else {
+      addWallet(
+        words,
+        advancedSettings.encryption,
+        advancedSettings.signersPassword,
+        advancedSettings.signersStorageEngine,
+        advancedSettings.networkId
+      );
+    }
+  }, [
+    canUseSecureStorage,
+    addWallet,
     words,
     advancedSettings.encryption,
     advancedSettings.signersPassword,
@@ -172,10 +196,27 @@ export default function NewWalletScreen({
   const onNonSecureSignerPasswordCancel = useCallback(() => {
     setAskNonSecureSignersPassword(false);
   }, []);
+  const onNonSecureSignerContinueWithoutPassword = useCallback(() => {
+    setAskNonSecureSignersPassword(false);
+    addWallet(
+      words,
+      advancedSettings.encryption,
+      undefined,
+      advancedSettings.signersStorageEngine,
+      advancedSettings.networkId
+    );
+  }, [
+    addWallet,
+    words,
+    advancedSettings.encryption,
+    advancedSettings.signersStorageEngine,
+    advancedSettings.networkId
+  ]);
+
   const onNonSecureSignerPassword = useCallback(
     (password: string) => {
       setAskNonSecureSignersPassword(false);
-      createNewWallet(
+      addWallet(
         words,
         advancedSettings.encryption,
         password,
@@ -184,7 +225,7 @@ export default function NewWalletScreen({
       );
     },
     [
-      createNewWallet,
+      addWallet,
       words,
       advancedSettings.encryption,
       advancedSettings.signersStorageEngine,
@@ -278,7 +319,7 @@ export default function NewWalletScreen({
           <ConfirmBip39
             network={networkMapping[advancedSettings.networkId]}
             words={words}
-            onConfirmed={onCreateNew}
+            onConfirmed={onBip39Confirmed}
             onCancel={onBip39Cancel}
           />
         )}
@@ -296,9 +337,10 @@ export default function NewWalletScreen({
         <Text className="pl-2 pr-2">{t('help.network')}</Text>
       </Modal>
       <Password
-        mode="SET"
+        mode="OPTIONAL_SET"
         isVisible={askNonSecureSignersPassword}
         onPassword={onNonSecureSignerPassword}
+        onContinueWithoutPassword={onNonSecureSignerContinueWithoutPassword}
         onCancel={onNonSecureSignerPasswordCancel}
       />
     </>

@@ -1,5 +1,8 @@
 <Password>
 
+I'm on NewWalletScreen.tsx which has some bug doing the navigation.goBack()
+when requesting a password if the user did not use secure storage for the signers
+
 
 Enter Wallets password no cabe iphne 4 web
 text-wrap-> no wrap

@@ -9,12 +9,14 @@ const Password = ({
   mode,
   isVisible,
   onPassword,
-  onCancel
+  onCancel,
+  onContinueWithoutPassword
 }: {
-  mode: 'REQUEST' | 'SET';
+  mode: 'REQUEST' | 'FORCED_SET' | 'OPTIONAL_SET';
   isVisible: boolean;
   onPassword: (password: string) => void;
   onCancel: () => void;
+  onContinueWithoutPassword?: () => void;
 }) => {
   const [password, setPassword] = useState<string>();
   const { t } = useTranslation();
@@ -22,6 +24,14 @@ const Password = ({
     setPassword(undefined);
     onCancel();
   }, [onCancel]);
+  const handleContinueWithoutPassword = useCallback(() => {
+    setPassword(undefined);
+    if (!onContinueWithoutPassword)
+      throw new Error(
+        'onContinueWithoutPassword must be set for FORCED_SET mode'
+      );
+    onContinueWithoutPassword();
+  }, [onContinueWithoutPassword]);
   const handlePassword = useCallback(() => {
     setPassword(undefined);
     if (!password) throw new Error(`Password should have been set`);
@@ -45,9 +55,11 @@ const Password = ({
   return (
     <Modal
       title={
-        mode === 'SET'
-          ? t('wallet.requestNewPasswordTitle')
-          : t('wallet.requestPasswordTitle')
+        mode === 'FORCED_SET'
+          ? t('wallet.focedSetPasswordTitle')
+          : mode === 'OPTIONAL_SET'
+            ? t('wallet.optionalSetPasswordTitle')
+            : t('wallet.requestPasswordTitle')
       }
       closeButtonText={t('cancelButton')}
       icon={{ family: 'AntDesign', name: 'form' }}
@@ -56,12 +68,17 @@ const Password = ({
       customButtons={
         <View className="items-center pb-4 gap-6 flex-row justify-center">
           <Button onPress={handleCancel}>{t('cancelButton')}</Button>
+          {mode === 'OPTIONAL_SET' && (
+            <Button onPress={handleContinueWithoutPassword}>
+              {t('wallet.skipOptionalSetPasswordButton')}
+            </Button>
+          )}
           <Button
             disabled={password === undefined || !validatePassword(password)}
             onPress={handlePassword}
           >
-            {mode === 'SET'
-              ? t('wallet.setNewPasswordButton')
+            {mode === 'FORCED_SET' || mode === 'OPTIONAL_SET'
+              ? t('wallet.setPasswordButton')
               : t('wallet.requestPasswordButton')}
           </Button>
         </View>
@@ -69,9 +86,11 @@ const Password = ({
     >
       <View className="px-2">
         <Text className="pb-6">
-          {mode === 'SET'
-            ? t('wallet.requestNewPasswordText')
-            : t('wallet.requestPasswordText')}
+          {mode === 'FORCED_SET'
+            ? t('wallet.forcedSetPasswordText')
+            : mode === 'OPTIONAL_SET'
+              ? t('wallet.optionalSetPasswordText')
+              : t('wallet.requestPasswordText')}
         </Text>
         <TextInput
           value={password}

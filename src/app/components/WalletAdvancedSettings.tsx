@@ -202,7 +202,7 @@ export default function WalletAdvancedSettings({
                 onValueChange={onPasswordSwitch}
               />
               <Password
-                mode="SET"
+                mode="FORCED_SET"
                 isVisible={passwordRequest}
                 onPassword={onPassword}
                 onCancel={onPasswordCancel}
