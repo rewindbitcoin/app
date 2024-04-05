@@ -29,7 +29,7 @@ const Button: React.FC<ButtonProps> = ({
         {...props}
       >
         {typeof children === 'string' ? (
-          <RN.Text className="text-base text-primary web:text-sm web:sm:text-base">
+          <RN.Text className="text-center text-base text-primary web:text-sm web:sm:text-base">
             {children}
           </RN.Text>
         ) : React.isValidElement(children) ? (
@@ -45,7 +45,7 @@ const Button: React.FC<ButtonProps> = ({
         {...props}
       >
         {typeof children === 'string' ? (
-          <RN.Text className="text-sm font-semibold text-white web:text-xs web:sm:text-sm">
+          <RN.Text className="text-center text-sm font-semibold text-white web:text-xs web:sm:text-sm">
             {children}
           </RN.Text>
         ) : React.isValidElement(children) ? (

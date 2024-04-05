@@ -66,12 +66,13 @@ const Password = ({
       isVisible={isVisible}
       onClose={handleCancel}
       customButtons={
-        /*<View className="items-center pb-4 gap-6 flex-row justify-center">
-          <Button onPress={handleCancel}>{t('cancelButton')}</Button>
-          {mode === 'OPTIONAL_SET' && (
-            <button onpress={handlecontinuewithoutpassword}>
-              {t('wallet.skipoptionalsetpasswordbutton')}
-            </button>
+        <View className="items-center pb-4 gap-2 mobmed:gap-6 flex-row justify-center">
+          {mode === 'OPTIONAL_SET' ? (
+            <Button onPress={handleContinueWithoutPassword}>
+              {t('wallet.skipOptionalSetPasswordButton')}
+            </Button>
+          ) : (
+            <Button onPress={handleCancel}>{t('cancelButton')}</Button>
           )}
           <Button
             disabled={password === undefined || !validatePassword(password)}
@@ -81,26 +82,6 @@ const Password = ({
               ? t('wallet.setPasswordButton')
               : t('wallet.requestPasswordButton')}
           </Button>
-        </View>*/
-        <View className="items-center pb-4 justify-center">
-          <View className="flex-row justify-center gap-4 pb-2">
-            <Button onPress={handleCancel}>{t('cancelButton')}</Button>
-            <Button
-              disabled={password === undefined || !validatePassword(password)}
-              onPress={handlePassword}
-            >
-              {mode === 'FORCED_SET' || mode === 'OPTIONAL_SET'
-                ? t('wallet.setPasswordButton')
-                : t('wallet.requestPasswordButton')}
-            </Button>
-          </View>
-          {mode === 'OPTIONAL_SET' && (
-            <View className="w-full flex justify-center">
-              <Button mode="text" onPress={handleContinueWithoutPassword}>
-                {t('wallet.skipOptionalSetPasswordButton')}
-              </Button>
-            </View>
-          )}
         </View>
       }
     >

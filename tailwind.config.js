@@ -14,7 +14,8 @@ module.exports = {
       },
       screens: {
         //https://devhints.io/resolutions
-        mobmed: '360px'
+        mobmed: '360px',
+        moblg: '412px'
       }
     }
   },

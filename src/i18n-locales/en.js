@@ -29,20 +29,22 @@ export default {
     walletId: 'Wallet {{id}}'
   },
   wallet: {
-    optionalSetPasswordTitle: `Enhance Wallet Security`,
-    focedSetPasswordTitle: 'Create a new Password',
+    optionalSetPasswordTitle: `Protect Wallet`,
+    focedSetPasswordTitle: 'Set New Password',
     forcedSetPasswordText: `Please set a new password (8-32 characters).
 
 If you ever lose or forget your password, you can still recover your wallet\
  using your mnemonic recovery phrase.`,
-    optionalSetPasswordText: `We suggest setting a password to boost your wallet's security.\
- Though optional, a password safeguards your assets,\
- especially on platforms where biometric encryption cannot be used, in case your\
- device is lost or compromised.`,
-    skipOptionalSetPasswordButton: 'Continue Without Password',
+    optionalSetPasswordText: `We suggest setting a password to boost your wallet's security.
+
+Though optional, a password safeguards your assets,\
+ especially on platforms where biometric encryption cannot be used`,
+    //Important: skipOptionalSetPasswordButton + setPasswordButton should not use
+    //more than ~30 chars combined
+    skipOptionalSetPasswordButton: `Don't Use Password`,
     setPasswordButton: 'Set Password',
 
-    requestPasswordTitle: `Enter Wallet's Password`,
+    requestPasswordTitle: `Enter Password`,
     requestPasswordButton: `Enter Password`,
     requestPasswordText: `Please enter the wallet's password to continue.
 

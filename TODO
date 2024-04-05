@@ -1,15 +1,5 @@
 <Password>
 
-I'm on NewWalletScreen.tsx which has some bug doing the navigation.goBack()
-when requesting a password if the user did not use secure storage for the signers
-
-
-Enter Wallets password no cabe iphne 4 web
-text-wrap-> no wrap
-  En web aunque el user no haya seleccionado setPasword, saldrá el popup igualmente de password. Pero tendra un boton de "Don't use Passord"
-    -> por tanto <Password> debe tener un modo "skipable"
-  El Password para el caso de introducir password debe de tener un modo "NEW_PASSWORD" "ENTER_PASSWORD"
-  
 
 Los collores de los textos "Test Wallet No Real _BValue" tienen backgroudna aleatorio??
 
