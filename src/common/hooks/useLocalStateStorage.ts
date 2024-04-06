@@ -23,7 +23,8 @@ import {
  * const [value, setValue, isSynchd] =
  *    useLocalStateStorage<DataType>('uniqueKey', serializationFormat, defaultValue);
  * - 'DataType' is a TypeScript type or interface representing your data structure.
- * - 'uniqueKey' is a unique identifier for your data in storage.
+ * - 'uniqueKey' is a unique identifier for your data in storage. If undefined is
+ *   passed, then this hook behaves as a noop
  * - 'serializationFormat' is a parameter that defines the serialization method
  *   for storing the data. It can be one of the following types:
  *   'NUMBER', 'STRING', 'SERIALIZABLE', 'BOOLEAN', 'UINT8ARRAY'.
@@ -43,6 +44,8 @@ import {
  * 'setValue': An async function to update the value in storage and in the
  * local state of the component. Use it when you need to store new data and
  * ensure it's saved before proceeding with other actions.
+ * Similarly to useState, setValue assumes immutability. If you set an object that
+ * has been mutated it won't be set. You need to pass a new object.
  *
  * 'storageStatus: {isSynchd: boolean; decryptError: boolean}':
  * isSynchd is a boolean indicating if the data has been fetched from storage.
@@ -58,11 +61,12 @@ import {
  * these hooks can be found in the documentation in src/hooks/useLocalStateStorage.ts
  */
 
+type StorageState<T> = Record<string, T>;
 export const useLocalStateStorage = <T>(
   /**
    * Keys must and contain only alphanumeric characters, ".", "-", and "_"
    */
-  key: string,
+  key: string | undefined,
   serializationFormat: SerializationFormat,
   /** defaultValue is used to set an initial value if the storage does not
    * contain already a value. DO NOT confuse this parameter with an initial
@@ -73,23 +77,27 @@ export const useLocalStateStorage = <T>(
   cipherKey: Uint8Array | undefined = undefined,
   authenticationPrompt: string | undefined = undefined
 ): [T | undefined, (newValue: T) => Promise<void>, StorageStatus] => {
-  const [value, setValue] = useState<T | undefined>();
-  const [storageStatus, setStorageStatus] = useState<StorageStatus>({
-    isSynchd: false,
-    decryptError: false
-  });
+  const [valueMap, setValueMap] = useState<StorageState<unknown>>({});
 
   /** sets storage and sate value */
   const setStorageValue = useCallback(
     async (newValue: T) => {
-      await setAsync(
-        key,
-        assertSerializationFormat(newValue, serializationFormat),
-        engine,
-        cipherKey,
-        authenticationPrompt
-      );
-      setValue(newValue);
+      if (key !== undefined) {
+        await setAsync(
+          key,
+          assertSerializationFormat(newValue, serializationFormat),
+          engine,
+          cipherKey,
+          authenticationPrompt
+        );
+
+        //useState assumes immutability: https://react.dev/reference/react/useState
+        setValueMap(prevState =>
+          prevState[key] !== newValue
+            ? { ...prevState, [key]: newValue }
+            : prevState
+        );
+      }
     },
     [key, serializationFormat, engine, cipherKey, authenticationPrompt]
   );
@@ -99,34 +107,34 @@ export const useLocalStateStorage = <T>(
   //value set by setValue to not spam the storage with more requests that we
   //already know the result
   useEffect(() => {
-    const fetchValue = async () => {
-      const savedValue = await getAsync(
-        key,
-        serializationFormat,
-        engine,
-        cipherKey,
-        authenticationPrompt
-      );
-      if (savedValue) setValue(savedValue as T);
-      else if (defaultValue !== undefined) await setStorageValue(defaultValue);
-      else setValue(undefined);
-
-      const decryptError = false;
-
-      setStorageStatus(prevState => {
-        // Check if the update is necessary based on the current state
-        if (
-          prevState.isSynchd !== true ||
-          prevState.decryptError !== decryptError
-        ) {
-          return { isSynchd: true, decryptError };
-        }
-
-        // Return the previous state if no update is necessary to avoid unnecessary re-render
-        return prevState;
-      });
-    };
-    fetchValue();
+    if (key !== undefined) {
+      const fetchValue = async () => {
+        const savedValue = await getAsync(
+          key,
+          serializationFormat,
+          engine,
+          cipherKey,
+          authenticationPrompt
+        );
+        if (savedValue)
+          //useState assumes immutability: https://react.dev/reference/react/useState
+          setValueMap(prevState =>
+            prevState[key] !== savedValue
+              ? { ...prevState, [key]: savedValue }
+              : prevState
+          );
+        else if (defaultValue !== undefined)
+          await setStorageValue(defaultValue);
+        //useState assumes immutability: https://react.dev/reference/react/useState
+        else
+          setValueMap(prevState =>
+            prevState[key] !== undefined
+              ? { ...prevState, [key]: undefined }
+              : prevState
+          );
+      };
+      fetchValue();
+    }
   }, [
     key,
     authenticationPrompt,
@@ -137,7 +145,20 @@ export const useLocalStateStorage = <T>(
     setStorageValue
   ]);
 
-  return [value, setStorageValue, storageStatus];
+  const decryptError = false;
+
+  if (key === undefined)
+    return [
+      undefined,
+      setStorageValue,
+      { isSynchd: false, decryptError: false }
+    ];
+  else
+    return [
+      valueMap[key] as T | undefined,
+      setStorageValue,
+      { isSynchd: key in valueMap, decryptError }
+    ];
 };
 
 /**

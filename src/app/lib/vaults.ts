@@ -39,7 +39,7 @@ export type VaultSettings = {
 
 export type Vault = {
   /** vaultId and vaultPath universally identify this vault.
-   * Theuy are be obtained from the next available pubKey
+   * They are be obtained from the next available pubKey
    * for path on the online P2P network. See fetchP2PVaultIds */
   vaultId: string;
   vaultPath: string;

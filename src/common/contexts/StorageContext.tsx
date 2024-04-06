@@ -26,6 +26,7 @@
  *   of the data you're working with. For example Settings or Vaults, ...
  *  - The 'uniqueKey' argument ('settings' for example) uniquely identifies the
  *    data in the storage system. It is used to store and retrieve the value.
+ *    If undefined is passed, then this hook behaves as a noop.
  * - 'serializationFormat' is a parameter that defines the serialization method
  *   for storing the data. It can be one of the following types:
  *   'NUMBER', 'STRING', 'SERIALIZABLE', 'BOOLEAN', 'UINT8ARRAY'.
@@ -48,7 +49,8 @@
  * with further operations. For instance, you might await 'setValue' in a backup
  * task to confirm successful storage before deleting a temporary value:
  * await setValue(newValue); // Ensuring the new value is stored
- * // Proceed with deleting temporary values, now that we know the backup completed successfuly
+ * Similarly to useState, setValue assumes immutability. If you set an object that
+ * has been mutated it won't be set. You need to pass a new object.
  *
  * 'storageStatus.isSynchd' is a boolean flag indicating whether the initial retrieval of the
  * data from storage has completed. It helps in differentiating between a 'value'
@@ -104,7 +106,7 @@ const useGlobalStateStorage = <T,>(
   /**
    * Keys must and contain only alphanumeric characters, ".", "-", and "_"
    */
-  key: string,
+  key: string | undefined,
   serializationFormat: SerializationFormat,
   /** defaultValue is used to set an initial value if the storage does not
    * contain already a value. DO NOT confuse this parameter with an initial
@@ -124,18 +126,21 @@ const useGlobalStateStorage = <T,>(
   /** sets storage and sate value */
   const setStorageValue = useCallback(
     async (newValue: T) => {
-      await setAsync(
-        key,
-        assertSerializationFormat(newValue, serializationFormat),
-        engine,
-        cipherKey,
-        authenticationPrompt
-      );
-      setValueMap(prevState =>
-        prevState[key] !== newValue
-          ? { ...prevState, [key]: newValue }
-          : prevState
-      );
+      if (key !== undefined) {
+        await setAsync(
+          key,
+          assertSerializationFormat(newValue, serializationFormat),
+          engine,
+          cipherKey,
+          authenticationPrompt
+        );
+        //useState assumes immutability: https://react.dev/reference/react/useState
+        setValueMap(prevState =>
+          prevState[key] !== newValue
+            ? { ...prevState, [key]: newValue }
+            : prevState
+        );
+      }
     },
     [
       key,
@@ -155,29 +160,34 @@ const useGlobalStateStorage = <T,>(
   //valueMap[key] to not spam the storage with more requests that we
   //already know the result
   useEffect(() => {
-    const fetchValue = async () => {
-      const savedValue = await getAsync(
-        key,
-        serializationFormat,
-        engine,
-        cipherKey,
-        authenticationPrompt
-      );
-      if (savedValue)
-        setValueMap(prevState =>
-          prevState[key] !== savedValue
-            ? { ...prevState, [key]: savedValue }
-            : prevState
+    if (key !== undefined) {
+      const fetchValue = async () => {
+        const savedValue = await getAsync(
+          key,
+          serializationFormat,
+          engine,
+          cipherKey,
+          authenticationPrompt
         );
-      else if (defaultValue !== undefined) await setStorageValue(defaultValue);
-      else
-        setValueMap(prevState =>
-          prevState[key] !== undefined
-            ? { ...prevState, [key]: undefined }
-            : prevState
-        );
-    };
-    if (!(key in valueMap)) fetchValue();
+        if (savedValue)
+          //useState assumes immutability: https://react.dev/reference/react/useState
+          setValueMap(prevState =>
+            prevState[key] !== savedValue
+              ? { ...prevState, [key]: savedValue }
+              : prevState
+          );
+        else if (defaultValue !== undefined)
+          await setStorageValue(defaultValue);
+        //useState assumes immutability: https://react.dev/reference/react/useState
+        else
+          setValueMap(prevState =>
+            prevState[key] !== undefined
+              ? { ...prevState, [key]: undefined }
+              : prevState
+          );
+      };
+      if (!(key in valueMap)) fetchValue();
+    }
   }, [
     key,
     authenticationPrompt,
@@ -192,11 +202,18 @@ const useGlobalStateStorage = <T,>(
 
   const decryptError = false;
 
-  return [
-    valueMap[key] as T | undefined,
-    setStorageValue,
-    { isSynchd: key in valueMap, decryptError }
-  ];
+  if (key === undefined)
+    return [
+      undefined,
+      setStorageValue,
+      { isSynchd: false, decryptError: false }
+    ];
+  else
+    return [
+      valueMap[key] as T | undefined,
+      setStorageValue,
+      { isSynchd: key in valueMap, decryptError }
+    ];
 };
 
 export { StorageProvider, useGlobalStateStorage };

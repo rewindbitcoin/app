@@ -44,6 +44,7 @@ export default function NewWalletScreen({
     signersCipherKey?: Uint8Array;
   }) => void;
 }) {
+  // ??? const route = useRoute()
   const navigation = useNavigation();
   const walletId = route.params?.walletId;
   if (walletId === undefined)

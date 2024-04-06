@@ -48,6 +48,9 @@ initI18n(defaultSettings.LOCALE);
 const RootStack = createRootStack();
 
 const Main = () => {
+  useEffect(() => {
+    console.log('Main mounted');
+  }, []);
   // Get settings from disk. It will be used for setting the correct LOCALE.
   const [settings] = useGlobalStateStorage<SettingsType>(
     SETTINGS_GLOBAL_STORAGE,
@@ -75,15 +78,21 @@ const Main = () => {
 
   const navigation = useNavigation();
 
-  const settingsButton = () => (
-    <Button mode="text" onPress={() => navigation.navigate(SETTINGS)}>
-      {t('app.settingsButton')}
-    </Button>
+  const settingsButton = useCallback(
+    () => (
+      <Button mode="text" onPress={() => navigation.navigate(SETTINGS)}>
+        {t('app.settingsButton')}
+      </Button>
+    ),
+    [navigation, t]
   );
-  const cancelModalButton = () => (
-    <Button mode="text" onPress={() => navigation.goBack()}>
-      {t('cancelButton')}
-    </Button>
+  const cancelModalButton = useCallback(
+    () => (
+      <Button mode="text" onPress={() => navigation.goBack()}>
+        {t('cancelButton')}
+      </Button>
+    ),
+    [navigation, t]
   );
 
   const handleWallet = useCallback(
@@ -105,8 +114,12 @@ const Main = () => {
       //setWallet(wallet);
       //setSignersCipherKey(signersCipherKey);
       setWalletProviderProps({ newWalletSigners, wallet, signersCipherKey });
-      if (navigation) navigation.navigate(WALLET_HOME);
-      else throw new Error('navigation not set');
+      console.log(`Navigating to WALLET_HOME`);
+      if (navigation) {
+        //TODO: switch the below back:
+        navigation.navigate(WALLET_HOME);
+        //setTimeout(() => navigation.navigate(WALLET_HOME), 0);
+      } else throw new Error('navigation not set');
     },
     [navigation]
   );
@@ -134,6 +147,14 @@ const Main = () => {
 
   const headerRightContainerStyle = { marginRight: 16 };
   const { wallet, signersCipherKey, newWalletSigners } = walletProviderProps;
+
+  const WalletsWithWallet = useCallback(() => {
+    return <WalletsScreen onWallet={handleWallet} />;
+  }, [handleWallet]);
+  const WalletHomeWithSetUpVaultInit = useCallback(
+    () => <WalletHomeScreen onSetUpVaultInit={handleSetUpVaultInit} />,
+    [handleSetUpVaultInit]
+  );
   return (
     <WalletProvider
       {...(wallet ? { wallet } : {})}
@@ -150,21 +171,14 @@ const Main = () => {
             headerRightContainerStyle,
             headerRight: settingsButton
           }}
-        >
-          {() => <WalletsScreen onWallet={handleWallet} />}
-        </RootStack.Screen>
+          component={WalletsWithWallet}
+        />
 
         <RootStack.Screen
           name={WALLET_HOME}
           options={{ title: t('app.walletTitle') }}
-        >
-          {props => (
-            <WalletHomeScreen
-              {...props}
-              onSetUpVaultInit={handleSetUpVaultInit}
-            />
-          )}
-        </RootStack.Screen>
+          component={WalletHomeWithSetUpVaultInit}
+        />
 
         <RootStack.Screen
           name={SETUP_VAULT}
@@ -238,6 +252,8 @@ const Main = () => {
   );
 };
 
+const MainMemo = React.memo(Main);
+
 //Apply contexts:
 //If GestureHandlerRootView needed, place it just below SafeAreaProvider:
 // <GestureHandlerRootView style={{ flex: 1 }}> </GestureHandlerRootView>
@@ -249,7 +265,7 @@ export default function App() {
           <StorageProvider>
             <SecureStorageAvailabilityProvider>
               <ToastProvider>
-                <Main />
+                <MainMemo />
               </ToastProvider>
             </SecureStorageAvailabilityProvider>
           </StorageProvider>

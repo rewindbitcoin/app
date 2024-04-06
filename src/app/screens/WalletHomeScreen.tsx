@@ -5,7 +5,6 @@ import { WalletContext, WalletContextType } from '../contexts/WalletContext';
 import { useTranslation } from 'react-i18next';
 import { delegateVault, shareVaults } from '../lib/backup';
 import moize from 'moize';
-import type { ScreenProps } from '../screens';
 import { SimpleLineIcons, Ionicons } from '@expo/vector-icons';
 import { cssInterop } from 'nativewind';
 cssInterop(Ionicons, {
@@ -21,9 +20,9 @@ cssInterop(SimpleLineIcons, {
   }
 });
 import Spin from '../../common/components/Spin';
+import { useNavigation } from '@react-navigation/native';
 
 type Props = {
-  navigation: ScreenProps;
   onSetUpVaultInit: () => void;
 };
 
@@ -46,19 +45,14 @@ const navOptions = {
 };
 
 //TODO the WalletProvider must also pass it's own refreshing state
-const WalletHomeScreen: React.FC<Props> = ({
-  navigation,
-  onSetUpVaultInit
-}) => {
+const WalletHomeScreen: React.FC<Props> = ({ onSetUpVaultInit }) => {
+  console.log('Wallet Home here');
+  const navigation = useNavigation();
   const { t } = useTranslation();
   const context = useContext<WalletContextType | null>(WalletContext);
   useEffect(() => {
     if (!('setOptions' in navigation))
       throw new Error('This navigation does not implement setOptions');
-    // https://reactnavigation.org/docs/header-buttons/
-    // @ts-expect-error Temporarily bypass TypeScript error for navigation.setOptions.
-    // This is due to a limitation in the union type ScreenProps, which doesn't
-    // explicitly guarantee the existence of setOptions on the navigation prop in all cases (native and stack navigators).
     navigation.setOptions(navOptions);
   }, [navigation]);
 
@@ -136,4 +130,4 @@ const WalletHomeScreen: React.FC<Props> = ({
   );
 };
 
-export default WalletHomeScreen;
+export default React.memo(WalletHomeScreen);

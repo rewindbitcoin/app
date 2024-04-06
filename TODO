@@ -1,8 +1,23 @@
-<Password>
+In WalletContext I need to keep track of all the storage synchd status
+and render a Loading... when not all of them are synched.
+This will also let me get the derived cipher key from the signers so that i can
+access the encrypted data
+
+In App.tsx I can create versions of all components in Routes using useCallback
+
+The getSeedDerivedCipherKey, i'm not sure its a great idea to have one different
+cipher key per path, because when dealing with HWW this will force lots of
+HWW clicks
+  -> In fact it's just fine to have a unique vaultId but the cipherKey is
+  the same for all the vaults for the same signer
+
+The BTC rate is called too much. I beliueve everytime i set a wallet i create new queries
+  -> In any way i should not rely on coingecko
 
 Test-
   Wroing password
   User desenrolls FaceId (changes FaceId - does not work biometric anymore for different id)
+
 
 Los collores de los textos "Test Wallet No Real _BValue" tienen backgroudna aleatorio??
 

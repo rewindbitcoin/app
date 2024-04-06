@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import Password from '../components/Password';
 import { View, Pressable } from 'react-native';
 import { Text, KeyboardAwareScrollView } from '../../common/ui';
@@ -26,12 +26,6 @@ cssInterop(Svg, {
     nativeStyleToProp: { width: true, height: true }
   }
 });
-//cssInterop(BitcoinSign, {
-//  className: {
-//    target: 'style',
-//    nativeStyleToProp: { width: true, height: true }
-//  }
-//});
 cssInterop(BitcoinLogo, {
   className: {
     target: 'style',
@@ -50,13 +44,6 @@ cssInterop(TestnetLogo, {
     nativeStyleToProp: { width: true, height: true }
   }
 });
-//import { FontAwesome5 } from '@expo/vector-icons';
-//cssInterop(FontAwesome5, {
-//  className: {
-//    target: 'style',
-//    nativeStyleToProp: { width: true, height: true }
-//  }
-//});
 
 const walletBgs = [
   //gradients are so cool, but not supported natively:
@@ -99,6 +86,10 @@ const WalletsScreen = ({
     signersCipherKey?: Uint8Array;
   }) => void;
 }) => {
+  useEffect(() => {
+    console.log('Wallets Screen mounted');
+  }, []);
+  //console.log('Wallets again here');
   const [ubuntuLoaded] = useFonts({ Ubuntu700Bold: Ubuntu_700Bold });
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
@@ -265,4 +256,4 @@ const WalletsScreen = ({
     </>
   );
 };
-export default WalletsScreen;
+export default React.memo(WalletsScreen);

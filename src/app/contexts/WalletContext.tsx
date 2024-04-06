@@ -105,14 +105,14 @@ const getDescriptors = async (
 const DEFAULT_VAULTS_STATUSES: VaultsStatuses = {};
 const DEFAULT_ACCOUNT_NAMES: AccountNames = {};
 const DEFAULT_VAULTS: Vaults = {};
-const WalletProviderWithWallet = ({
+const WalletProviderRaw = ({
   children,
   wallet,
   signersCipherKey,
   newWalletSigners
 }: {
   children: ReactNode;
-  wallet: Wallet;
+  wallet?: Wallet;
   /**
    * pass it when using password
    */
@@ -122,6 +122,9 @@ const WalletProviderWithWallet = ({
    */
   newWalletSigners?: Signers;
 }) => {
+  useEffect(() => {
+    console.log('WalletProvider mounted');
+  }, []);
   const canUseSecureStorage = useSecureStorageAvailability();
   if (canUseSecureStorage === undefined)
     //This should never happen. If we have a wallet already it's because the App
@@ -132,10 +135,10 @@ const WalletProviderWithWallet = ({
       'WalletContext cannot be used until useSecureStorageAvailability has been resolved'
     );
   const { t } = useTranslation();
-  const walletId = wallet.walletId;
-  const networkId = wallet.networkId;
-  const signersStorageEngine = wallet.signersStorageEngine;
-  const network = networkMapping[networkId];
+  const walletId = wallet?.walletId;
+  const networkId = wallet?.networkId;
+  const signersStorageEngine = wallet?.signersStorageEngine;
+  const network = networkId && networkMapping[networkId];
   if (wallet && !network) throw new Error(`Invalid networkId ${networkId}`);
 
   if (
@@ -153,13 +156,14 @@ const WalletProviderWithWallet = ({
   //  signersCipherKey
   //});
   const [signers, setSigners] = useLocalStateStorage<Signers>(
-    `SIGNERS_${walletId}`,
+    walletId !== undefined ? `SIGNERS_${walletId}` : undefined,
     SERIALIZABLE,
     undefined,
     signersStorageEngine,
     signersCipherKey,
     t('app.secureStorageAuthenticationPrompt')
   );
+  console.log('WalletContext', { walletId, signers });
 
   const [settings] = useGlobalStateStorage<Settings>(
     SETTINGS_GLOBAL_STORAGE,
@@ -172,26 +176,26 @@ const WalletProviderWithWallet = ({
 
   const [discoveryDataExport, setDiscoveryDataExport, discoveryStorageStatus] =
     useLocalStateStorage<DiscoveryDataExport>(
-      `DISCOVERY_${walletId}`,
+      walletId !== undefined ? `DISCOVERY_${walletId}` : undefined,
       SERIALIZABLE
     );
   const isDiscoveryDataExportSynchd = discoveryStorageStatus.isSynchd;
 
   const [vaults, setVaults] = useLocalStateStorage<Vaults>(
-    `VAULTS_${walletId}`,
+    walletId !== undefined ? `VAULTS_${walletId}` : undefined,
     SERIALIZABLE,
     DEFAULT_VAULTS
   );
 
   const [vaultsStatuses, setVaultsStatuses] =
     useLocalStateStorage<VaultsStatuses>(
-      `VAULTS_STATUSES_${walletId}`,
+      walletId !== undefined ? `VAULTS_STATUSES_${walletId}` : undefined,
       SERIALIZABLE,
       DEFAULT_VAULTS_STATUSES
     );
 
   const [accountNames] = useLocalStateStorage<AccountNames>(
-    `ACCOUNT_NAMES_${walletId}`,
+    walletId !== undefined ? `ACCOUNT_NAMES_${walletId}` : undefined,
     SERIALIZABLE,
     DEFAULT_ACCOUNT_NAMES
   );
@@ -201,34 +205,35 @@ const WalletProviderWithWallet = ({
   let vaultsAPI: string | undefined;
   let vaultsSecondaryAPI: string | undefined;
 
-  switch (networkId) {
-    case 'BITCOIN':
-      esploraAPI = settings?.MAINNET_ESPLORA_API;
-      serviceAddressAPI = settings?.MAINNET_SERVICE_ADDRESS_API;
-      vaultsAPI = settings?.MAINNET_VAULTS_API;
-      vaultsSecondaryAPI = settings?.MAINNET_VAULTS_SECONDARY_API;
-      break;
-    case 'TESTNET':
-      esploraAPI = settings?.TESTNET_ESPLORA_API;
-      serviceAddressAPI = settings?.TESTNET_SERVICE_ADDRESS_API;
-      vaultsAPI = settings?.TESTNET_VAULTS_API;
-      vaultsSecondaryAPI = settings?.TESTNET_VAULTS_SECONDARY_API;
-      break;
-    case 'STORM':
-      esploraAPI = settings?.STORM_ESPLORA_API;
-      serviceAddressAPI = settings?.STORM_SERVICE_ADDRESS_API;
-      vaultsAPI = settings?.STORM_VAULTS_API;
-      vaultsSecondaryAPI = settings?.STORM_VAULTS_SECONDARY_API;
-      break;
-    case 'REGTEST':
-      esploraAPI = settings?.REGTEST_ESPLORA_API;
-      serviceAddressAPI = settings?.REGTEST_SERVICE_ADDRESS_API;
-      vaultsAPI = settings?.REGTEST_VAULTS_API;
-      vaultsSecondaryAPI = settings?.REGTEST_VAULTS_SECONDARY_API;
-      break;
-    default:
-      throw new Error(`networkId ${networkId} not supported.`);
-  }
+  if (networkId)
+    switch (networkId) {
+      case 'BITCOIN':
+        esploraAPI = settings?.MAINNET_ESPLORA_API;
+        serviceAddressAPI = settings?.MAINNET_SERVICE_ADDRESS_API;
+        vaultsAPI = settings?.MAINNET_VAULTS_API;
+        vaultsSecondaryAPI = settings?.MAINNET_VAULTS_SECONDARY_API;
+        break;
+      case 'TESTNET':
+        esploraAPI = settings?.TESTNET_ESPLORA_API;
+        serviceAddressAPI = settings?.TESTNET_SERVICE_ADDRESS_API;
+        vaultsAPI = settings?.TESTNET_VAULTS_API;
+        vaultsSecondaryAPI = settings?.TESTNET_VAULTS_SECONDARY_API;
+        break;
+      case 'STORM':
+        esploraAPI = settings?.STORM_ESPLORA_API;
+        serviceAddressAPI = settings?.STORM_SERVICE_ADDRESS_API;
+        vaultsAPI = settings?.STORM_VAULTS_API;
+        vaultsSecondaryAPI = settings?.STORM_VAULTS_SECONDARY_API;
+        break;
+      case 'REGTEST':
+        esploraAPI = settings?.REGTEST_ESPLORA_API;
+        serviceAddressAPI = settings?.REGTEST_SERVICE_ADDRESS_API;
+        vaultsAPI = settings?.REGTEST_VAULTS_API;
+        vaultsSecondaryAPI = settings?.REGTEST_VAULTS_SECONDARY_API;
+        break;
+      default:
+        throw new Error(`networkId ${networkId} not supported.`);
+    }
 
   useEffect(() => {
     if (newWalletSigners && isWalletsSynchd) {
@@ -237,7 +242,7 @@ const WalletProviderWithWallet = ({
   }, [setSigners, newWalletSigners, isWalletsSynchd]);
 
   useEffect(() => {
-    if (isWalletsSynchd) {
+    if (isWalletsSynchd && wallet && walletId !== undefined) {
       if (!wallets) throw new Error('wallets should be defined after synched');
       if (!shallowEqualObjects(wallet, wallets[walletId]))
         setWallets({ ...wallets, [walletId]: wallet });
@@ -414,6 +419,7 @@ const WalletProviderWithWallet = ({
   const fetchP2PVaultsRunning = useRef(false);
 
   const getChangeDescriptor = useCallback(async () => {
+    if (!network) throw new Error('Network not ready');
     if (!signers) throw new Error('Signers not ready');
     if (!discovery) throw new Error('Discovery not ready');
     const signer = signers[0];
@@ -432,6 +438,7 @@ const WalletProviderWithWallet = ({
     );
   }, [discovery, network, signers]);
   const getUnvaultKey = useCallback(async () => {
+    if (!network) throw new Error('Network not ready');
     if (!signers) throw new Error('Signers not ready');
     const signer = signers[0];
     if (!signer) throw new Error('signer unavailable');
@@ -468,6 +475,7 @@ const WalletProviderWithWallet = ({
    * Gets vaults from the P2P network. Does not fetch it if already in memory.
    */
   const fetchP2PVaults = useCallback(async () => {
+    if (!networkId) throw new Error('NetworkId not ready');
     const signer = signers?.[0];
     if (signer && vaultsAPI && vaultsSecondaryAPI) {
       if (fetchP2PVaultsRunning.current === false) {
@@ -682,22 +690,24 @@ const WalletProviderWithWallet = ({
     [setVaults, setVaultsStatuses, t, toast, vaults, vaultsStatuses]
   );
 
-  const contextValue = {
-    getUnvaultKey,
-    getChangeDescriptor,
-    fetchServiceAddress,
-    btcFiat,
-    feeEstimates,
-    signers,
-    vaults,
-    networkId,
-    utxosData,
-    processCreatedVault,
-    syncBlockchain,
-    syncingBlockchain,
-    vaultsAPI,
-    vaultsSecondaryAPI
-  };
+  const contextValue = wallet
+    ? {
+        getUnvaultKey,
+        getChangeDescriptor,
+        fetchServiceAddress,
+        btcFiat,
+        feeEstimates,
+        signers,
+        vaults,
+        networkId,
+        utxosData,
+        processCreatedVault,
+        syncBlockchain,
+        syncingBlockchain,
+        vaultsAPI,
+        vaultsSecondaryAPI
+      }
+    : null;
 
   return (
     <WalletContext.Provider value={contextValue}>
@@ -705,35 +715,4 @@ const WalletProviderWithWallet = ({
     </WalletContext.Provider>
   );
 };
-
-const WalletProviderRaw = ({
-  children,
-  wallet,
-  signersCipherKey,
-  newWalletSigners
-}: {
-  children: ReactNode;
-  wallet?: Wallet;
-  signersCipherKey?: Uint8Array | undefined;
-  newWalletSigners?: Signers;
-}) => {
-  console.log('WalletProviderRaw', {
-    wallet,
-    signersCipherKey,
-    newWalletSigners
-  });
-  if (!wallet) return children;
-  else {
-    return (
-      <WalletProviderWithWallet
-        wallet={wallet}
-        {...(signersCipherKey ? { signersCipherKey } : {})}
-        {...(newWalletSigners ? { newWalletSigners } : {})}
-      >
-        {children}
-      </WalletProviderWithWallet>
-    );
-  }
-};
-
 export const WalletProvider = React.memo(WalletProviderRaw);
