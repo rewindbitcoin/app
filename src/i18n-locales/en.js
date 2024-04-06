@@ -38,7 +38,7 @@ If you ever lose or forget your password, you can still recover your wallet\
     optionalSetPasswordText: `We suggest setting a password to boost your wallet's security.
 
 Though optional, a password safeguards your assets,\
- especially on platforms where biometric encryption cannot be used`,
+ especially on platforms where biometric encryption cannot be used.`,
     //Important: skipOptionalSetPasswordButton + setPasswordButton should not use
     //more than ~30 chars combined
     skipOptionalSetPasswordButton: `Don't Use Password`,
