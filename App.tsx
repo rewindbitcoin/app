@@ -123,22 +123,6 @@ const Main = () => {
     },
     [navigation]
   );
-  const handleSetUpVaultInit = useCallback(() => {
-    if (navigation) navigation.navigate(SETUP_VAULT);
-    else throw new Error('navigation not set');
-  }, [navigation]);
-  const handleSetUpVaultComplete = useCallback(
-    (vaultSettings: VaultSettings) => {
-      setVaultSettings(vaultSettings);
-      if (navigation) navigation.navigate(CREATE_VAULT);
-      else throw new Error('navigation not set');
-    },
-    [navigation]
-  );
-  const handleVaultPushed = useCallback(
-    (_result: boolean) => navigation.navigate(WALLET_HOME),
-    [navigation]
-  );
 
   // init real Locale
   useEffect(() => {
@@ -148,12 +132,49 @@ const Main = () => {
   const headerRightContainerStyle = { marginRight: 16 };
   const { wallet, signersCipherKey, newWalletSigners } = walletProviderProps;
 
-  const WalletsWithWallet = useCallback(() => {
+  const WalletsScreenWithAddWallet = useCallback(() => {
     return <WalletsScreen onWallet={handleWallet} />;
   }, [handleWallet]);
   const WalletHomeWithSetUpVaultInit = useCallback(
-    () => <WalletHomeScreen onSetUpVaultInit={handleSetUpVaultInit} />,
-    [handleSetUpVaultInit]
+    () => (
+      <WalletHomeScreen
+        onSetUpVaultInit={() => {
+          if (navigation) navigation.navigate(SETUP_VAULT);
+          else throw new Error('navigation not set');
+        }}
+      />
+    ),
+    [navigation]
+  );
+  const SetUpVaultScreenWithOnComplete = useCallback(() => {
+    return (
+      <SetUpVaultScreen
+        onVaultSetUpComplete={(vaultSettings: VaultSettings) => {
+          setVaultSettings(vaultSettings);
+          if (navigation) navigation.navigate(CREATE_VAULT);
+          else throw new Error('navigation not set');
+        }}
+      />
+    );
+  }, [navigation]);
+  const NewWalletScreenWithAddWalletAndToast = useCallback(
+    () => (
+      <ToastProvider>
+        <NewWalletScreen onWallet={handleWallet} />
+      </ToastProvider>
+    ),
+    [handleWallet]
+  );
+  const CreateVaultScreenWithSettingsOnPushedAndToast = useCallback(
+    () => (
+      <ToastProvider>
+        <CreateVaultScreen
+          vaultSettings={vaultSettings}
+          onVaultPushed={() => navigation.navigate(WALLET_HOME)}
+        />
+      </ToastProvider>
+    ),
+    [navigation, vaultSettings]
   );
   return (
     <WalletProvider
@@ -171,7 +192,7 @@ const Main = () => {
             headerRightContainerStyle,
             headerRight: settingsButton
           }}
-          component={WalletsWithWallet}
+          component={WalletsScreenWithAddWallet}
         />
 
         <RootStack.Screen
@@ -198,11 +219,8 @@ const Main = () => {
             //  backgroundColor: PlatformColor('systemGroupedBackgroundColor') // Color of your background
             //}
           }}
-        >
-          {() => (
-            <SetUpVaultScreen onVaultSetUpComplete={handleSetUpVaultComplete} />
-          )}
-        </RootStack.Screen>
+          component={SetUpVaultScreenWithOnComplete}
+        />
 
         <RootStack.Screen
           name={SETTINGS}
@@ -214,39 +232,21 @@ const Main = () => {
           name={NEW_WALLET}
           options={{
             title: t('app.newWalletTitle'),
-            presentation: 'modal',
             headerRightContainerStyle,
-            headerRight: cancelModalButton
+            headerRight: cancelModalButton,
+            presentation: 'modal' //Modals need their own Toast component
           }}
-        >
-          {props => {
-            //Modals need their own Toast component
-            return (
-              <ToastProvider>
-                <NewWalletScreen onWallet={handleWallet} {...props} />
-              </ToastProvider>
-            );
-          }}
-        </RootStack.Screen>
+          component={NewWalletScreenWithAddWalletAndToast}
+        />
 
         <RootStack.Screen
           name={CREATE_VAULT}
           options={{
             title: t('app.createVaultTitle'),
-            presentation: 'modal'
+            presentation: 'modal' //Modals need their own Toast component
           }}
-        >
-          {() => {
-            return (
-              <>
-                <CreateVaultScreen
-                  vaultSettings={vaultSettings}
-                  onVaultPushed={handleVaultPushed}
-                />
-              </>
-            );
-          }}
-        </RootStack.Screen>
+          component={CreateVaultScreenWithSettingsOnPushedAndToast}
+        />
       </RootStack.Navigator>
     </WalletProvider>
   );

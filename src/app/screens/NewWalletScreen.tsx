@@ -23,17 +23,19 @@ import { useSecureStorageAvailability } from '../../common/contexts/SecureStorag
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { generateMnemonic } from 'bip39';
 import { NetworkId, networkMapping } from '../lib/network';
-import { useNavigation, type RouteProp } from '@react-navigation/native';
-import type { RootStackParamList } from '../screens';
+import {
+  useNavigation,
+  type RouteProp,
+  useRoute
+} from '@react-navigation/native';
 import { getPasswordDerivedCipherKey } from '../../common/lib/cipher';
 import { getMasterNode } from '../lib/vaultDescriptors';
 import Password from '../components/Password';
+import type { RootStackParamList } from '../screens';
 
 export default function NewWalletScreen({
-  route,
   onWallet
 }: {
-  route: RouteProp<RootStackParamList>;
   onWallet: ({
     wallet,
     newWalletSigners,
@@ -44,7 +46,7 @@ export default function NewWalletScreen({
     signersCipherKey?: Uint8Array;
   }) => void;
 }) {
-  // ??? const route = useRoute()
+  const route = useRoute<RouteProp<RootStackParamList, 'NEW_WALLET'>>();
   const navigation = useNavigation();
   const walletId = route.params?.walletId;
   if (walletId === undefined)
