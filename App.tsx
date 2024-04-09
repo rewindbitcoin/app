@@ -48,9 +48,6 @@ initI18n(defaultSettings.LOCALE);
 const RootStack = createRootStack();
 
 const Main = () => {
-  useEffect(() => {
-    console.log('Main mounted');
-  }, []);
   // Get settings from disk. It will be used for setting the correct LOCALE.
   const [settings] = useGlobalStateStorage<SettingsType>(
     SETTINGS_GLOBAL_STORAGE,
@@ -58,12 +55,7 @@ const Main = () => {
   );
 
   const { t } = useTranslation();
-
   const [vaultSettings, setVaultSettings] = useState<VaultSettings>();
-
-  //const [wallet, setWallet] = useState<Wallet>();
-  //const [signersCipherKey, setSignersCipherKey] = useState<Uint8Array>();
-  //const [newWalletSigners, setNewWalletSigners] = useState<Signers>();
 
   //Have them in single state since batching doeds not work in react-native in old architecture
   const [walletProviderProps, setWalletProviderProps] = useState<{
@@ -110,16 +102,9 @@ const Main = () => {
         newWalletSigners,
         signersCipherKey
       });
-      //setNewWalletSigners(newWalletSigners);
-      //setWallet(wallet);
-      //setSignersCipherKey(signersCipherKey);
       setWalletProviderProps({ newWalletSigners, wallet, signersCipherKey });
-      console.log(`Navigating to WALLET_HOME`);
-      if (navigation) {
-        //TODO: switch the below back:
-        navigation.navigate(WALLET_HOME);
-        //setTimeout(() => navigation.navigate(WALLET_HOME), 0);
-      } else throw new Error('navigation not set');
+      if (navigation) navigation.navigate(WALLET_HOME);
+      else throw new Error('navigation not set');
     },
     [navigation]
   );
@@ -132,7 +117,7 @@ const Main = () => {
   const headerRightContainerStyle = { marginRight: 16 };
   const { wallet, signersCipherKey, newWalletSigners } = walletProviderProps;
 
-  const WalletsScreenWithAddWallet = useCallback(() => {
+  const WalletsScreenWalletCallback = useCallback(() => {
     return <WalletsScreen onWallet={handleWallet} />;
   }, [handleWallet]);
   const WalletHomeWithSetUpVaultInit = useCallback(
@@ -157,7 +142,7 @@ const Main = () => {
       />
     );
   }, [navigation]);
-  const NewWalletScreenWithAddWalletAndToast = useCallback(
+  const NewWalletScreenWithWalletCallbackAndToast = useCallback(
     () => (
       <ToastProvider>
         <NewWalletScreen onWallet={handleWallet} />
@@ -192,7 +177,7 @@ const Main = () => {
             headerRightContainerStyle,
             headerRight: settingsButton
           }}
-          component={WalletsScreenWithAddWallet}
+          component={WalletsScreenWalletCallback}
         />
 
         <RootStack.Screen
@@ -208,7 +193,7 @@ const Main = () => {
 
             //headerShadowVisible:false //TO disable the border line of the header
 
-            //TODO: For iOS way coloer but work to be done yet
+            //TODO: For iOS way cooler but work to be done yet
             //https://github.com/react-navigation/react-navigation/issues/11550
             //https://github.com/software-mansion/react-native-screens/discussions/1229#discussioncomment-1927333
             //headerTitle: t('vaultSetup.title'),
@@ -236,7 +221,7 @@ const Main = () => {
             headerRight: cancelModalButton,
             presentation: 'modal' //Modals need their own Toast component
           }}
-          component={NewWalletScreenWithAddWalletAndToast}
+          component={NewWalletScreenWithWalletCallbackAndToast}
         />
 
         <RootStack.Screen

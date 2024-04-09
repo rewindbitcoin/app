@@ -275,14 +275,14 @@ export const getAsync = async <S extends SerializationFormat>(
       secureStoreGetOptions(authenticationPrompt)
     );
     result = stringValue !== null ? JSON.parse(stringValue) : undefined;
-    console.log('SECURE STORE getAsync', {
-      key,
-      cipher: !!cipherKey,
-      stringValue,
-      result,
-      typeStringValue: typeof stringValue,
-      typeResult: typeof result
-    });
+    //console.log('SECURE STORE getAsync', {
+    //  key,
+    //  cipher: !!cipherKey,
+    //  stringValue,
+    //  result,
+    //  typeStringValue: typeof stringValue,
+    //  typeResult: typeof result
+    //});
   } else if (engine === 'MMKV') {
     if (cipherKey) {
       result = mmkvStorage.getString(key);

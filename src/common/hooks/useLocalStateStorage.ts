@@ -8,6 +8,7 @@ import {
   assertSerializationFormat,
   StorageStatus
 } from '../lib/storage';
+import { isDecryptError } from '../lib/cipher';
 
 /**
  * Usage of `useLocalStateStorage`:
@@ -78,6 +79,9 @@ export const useLocalStateStorage = <T>(
   authenticationPrompt: string | undefined = undefined
 ): [T | undefined, (newValue: T) => Promise<void>, StorageStatus] => {
   const [valueMap, setValueMap] = useState<StorageState<unknown>>({});
+  const [decryptErrorMap, setDecryptErrorMap] = useState<
+    Record<string, boolean>
+  >({});
 
   /** sets storage and sate value */
   const setStorageValue = useCallback(
@@ -109,43 +113,58 @@ export const useLocalStateStorage = <T>(
   useEffect(() => {
     if (key !== undefined) {
       const fetchValue = async () => {
-        const savedValue = await getAsync(
-          key,
-          serializationFormat,
-          engine,
-          cipherKey,
-          authenticationPrompt
-        );
-        if (savedValue)
+        try {
+          setDecryptErrorMap(prevState =>
+            prevState[key] !== false
+              ? { ...prevState, [key]: false }
+              : prevState
+          );
+
+          const savedValue = await getAsync(
+            key,
+            serializationFormat,
+            engine,
+            cipherKey,
+            authenticationPrompt
+          );
+          if (savedValue)
+            //useState assumes immutability: https://react.dev/reference/react/useState
+            setValueMap(prevState =>
+              prevState[key] !== savedValue
+                ? { ...prevState, [key]: savedValue }
+                : prevState
+            );
+          else if (defaultValue !== undefined)
+            await setStorageValue(defaultValue);
           //useState assumes immutability: https://react.dev/reference/react/useState
-          setValueMap(prevState =>
-            prevState[key] !== savedValue
-              ? { ...prevState, [key]: savedValue }
-              : prevState
-          );
-        else if (defaultValue !== undefined)
-          await setStorageValue(defaultValue);
-        //useState assumes immutability: https://react.dev/reference/react/useState
-        else
-          setValueMap(prevState =>
-            prevState[key] !== undefined
-              ? { ...prevState, [key]: undefined }
-              : prevState
-          );
+          else
+            setValueMap(prevState =>
+              prevState[key] !== undefined
+                ? { ...prevState, [key]: undefined }
+                : prevState
+            );
+        } catch (err: unknown) {
+          if (isDecryptError(err))
+            setDecryptErrorMap(prevState =>
+              prevState[key] !== true
+                ? { ...prevState, [key]: true }
+                : prevState
+            );
+          else throw err;
+        }
       };
-      fetchValue();
+      if (!(key in valueMap)) fetchValue();
     }
   }, [
     key,
     authenticationPrompt,
     cipherKey,
-    engine,
     defaultValue,
+    engine,
     serializationFormat,
-    setStorageValue
+    setStorageValue,
+    valueMap
   ]);
-
-  const decryptError = false;
 
   if (key === undefined)
     return [
@@ -153,12 +172,18 @@ export const useLocalStateStorage = <T>(
       setStorageValue,
       { isSynchd: false, decryptError: false }
     ];
-  else
+  else {
+    if (key in valueMap && decryptErrorMap[key] === undefined)
+      throw new Error(`decryptErrorMap not set for ${key}`);
+    const decryptError = !!decryptErrorMap[key];
+    //valueMap is not set when decrypt error, but we know it's synchd anyway
+    const isSynchd = key in valueMap || decryptError;
     return [
       valueMap[key] as T | undefined,
       setStorageValue,
-      { isSynchd: key in valueMap, decryptError }
+      { isSynchd, decryptError }
     ];
+  }
 };
 
 /**

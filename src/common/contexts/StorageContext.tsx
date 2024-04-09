@@ -84,19 +84,29 @@ import {
   StorageStatus
 } from '../lib/storage';
 import { Platform } from 'react-native';
+import { isDecryptError } from '../lib/cipher';
 
 type StorageState<T> = Record<string, T>;
 type ProviderValue<T> = {
   valueMap: StorageState<T>;
   setValueMap: React.Dispatch<React.SetStateAction<StorageState<T>>>;
+  decryptErrorMap: Record<string, boolean>;
+  setDecryptErrorMap: React.Dispatch<
+    React.SetStateAction<Record<string, boolean>>
+  >;
 };
 const StorageContext = createContext<ProviderValue<unknown> | null>(null);
 
 const StorageProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [valueMap, setValueMap] = useState<StorageState<unknown>>({});
+  const [decryptErrorMap, setDecryptErrorMap] = useState<
+    Record<string, boolean>
+  >({});
 
   return (
-    <StorageContext.Provider value={{ valueMap, setValueMap }}>
+    <StorageContext.Provider
+      value={{ valueMap, setValueMap, decryptErrorMap, setDecryptErrorMap }}
+    >
       {children}
     </StorageContext.Provider>
   );
@@ -121,7 +131,8 @@ const useGlobalStateStorage = <T,>(
   if (context === null)
     throw new Error(`useStorage must be used within a StorageProvider`);
 
-  const { valueMap, setValueMap } = context;
+  const { valueMap, setValueMap, decryptErrorMap, setDecryptErrorMap } =
+    context;
 
   /** sets storage and sate value */
   const setStorageValue = useCallback(
@@ -162,29 +173,44 @@ const useGlobalStateStorage = <T,>(
   useEffect(() => {
     if (key !== undefined) {
       const fetchValue = async () => {
-        const savedValue = await getAsync(
-          key,
-          serializationFormat,
-          engine,
-          cipherKey,
-          authenticationPrompt
-        );
-        if (savedValue)
+        try {
+          setDecryptErrorMap(prevState =>
+            prevState[key] !== false
+              ? { ...prevState, [key]: false }
+              : prevState
+          );
+          const savedValue = await getAsync(
+            key,
+            serializationFormat,
+            engine,
+            cipherKey,
+            authenticationPrompt
+          );
+          if (savedValue)
+            //useState assumes immutability: https://react.dev/reference/react/useState
+            setValueMap(prevState =>
+              prevState[key] !== savedValue
+                ? { ...prevState, [key]: savedValue }
+                : prevState
+            );
+          else if (defaultValue !== undefined)
+            await setStorageValue(defaultValue);
           //useState assumes immutability: https://react.dev/reference/react/useState
-          setValueMap(prevState =>
-            prevState[key] !== savedValue
-              ? { ...prevState, [key]: savedValue }
-              : prevState
-          );
-        else if (defaultValue !== undefined)
-          await setStorageValue(defaultValue);
-        //useState assumes immutability: https://react.dev/reference/react/useState
-        else
-          setValueMap(prevState =>
-            prevState[key] !== undefined
-              ? { ...prevState, [key]: undefined }
-              : prevState
-          );
+          else
+            setValueMap(prevState =>
+              prevState[key] !== undefined
+                ? { ...prevState, [key]: undefined }
+                : prevState
+            );
+        } catch (err: unknown) {
+          if (isDecryptError(err))
+            setDecryptErrorMap(prevState =>
+              prevState[key] !== true
+                ? { ...prevState, [key]: true }
+                : prevState
+            );
+          else throw err;
+        }
       };
       if (!(key in valueMap)) fetchValue();
     }
@@ -197,10 +223,9 @@ const useGlobalStateStorage = <T,>(
     serializationFormat,
     setStorageValue,
     setValueMap,
-    valueMap
+    valueMap,
+    setDecryptErrorMap
   ]);
-
-  const decryptError = false;
 
   if (key === undefined)
     return [
@@ -208,12 +233,18 @@ const useGlobalStateStorage = <T,>(
       setStorageValue,
       { isSynchd: false, decryptError: false }
     ];
-  else
+  else {
+    if (key in valueMap && decryptErrorMap[key] === undefined)
+      throw new Error(`decryptErrorMap not set for ${key}`);
+    const decryptError = !!decryptErrorMap[key];
+    //valueMap is not set when decrypt error, but we know it's synchd anyway
+    const isSynchd = key in valueMap || decryptError;
     return [
       valueMap[key] as T | undefined,
       setStorageValue,
-      { isSynchd: key in valueMap, decryptError }
+      { isSynchd, decryptError }
     ];
+  }
 };
 
 export { StorageProvider, useGlobalStateStorage };
