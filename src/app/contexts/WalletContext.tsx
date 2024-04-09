@@ -91,7 +91,7 @@ export type WalletContextType = {
     wallet: Wallet;
     newSigners?: Signers;
     signersCipherKey?: Uint8Array;
-  }) => void;
+  }) => Promise<void>;
 };
 
 const getDescriptors = async (

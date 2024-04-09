@@ -228,6 +228,8 @@ export const setAsync = async (
       throw new Error(
         `Reached Secure Store Limit: ${secureStoreValue.length} > 2048.`
       );
+    if (authenticationPrompt === undefined)
+      throw new Error('SECURESTORE requires an authenticationPrompt');
     await secureStoreSetItemAsync(
       key,
       secureStoreValue,
@@ -257,6 +259,8 @@ export const getAsync = async <S extends SerializationFormat>(
   if (engine === 'IDB') {
     result = await idbGet(key);
   } else if (engine === 'SECURESTORE') {
+    if (authenticationPrompt === undefined)
+      throw new Error('SECURESTORE requires an authenticationPrompt');
     const stringValue = await secureStoreGetItemAsync(
       key,
       secureStoreGetOptions(authenticationPrompt)
