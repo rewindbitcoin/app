@@ -176,14 +176,14 @@ const WalletProviderRaw = ({
     SERIALIZABLE,
     defaultSettings
   );
-  const [wallets, setWallets, walletsStorageStatus] =
+  const [wallets, setWallets, , , walletsStorageStatus] =
     useLocalStateStorage<Wallets>(`WALLETS`, SERIALIZABLE, {});
   const isWalletsSynchd = walletsStorageStatus.isSynchd;
 
   const initSigners =
     walletId !== undefined &&
     (wallet?.signersEncryption !== 'PASSWORD' || signersCipherKey);
-  const [signers, , signersStorageStatus] = useLocalStateStorage<Signers>(
+  const [signers, , , , signersStorageStatus] = useLocalStateStorage<Signers>(
     initSigners ? `SIGNERS_${walletId}` : undefined,
     SERIALIZABLE,
     newSigners,
@@ -192,11 +192,16 @@ const WalletProviderRaw = ({
     t('app.secureStorageAuthenticationPrompt')
   );
 
-  const [discoveryDataExport, setDiscoveryDataExport, discoveryStorageStatus] =
-    useLocalStateStorage<DiscoveryDataExport>(
-      walletId !== undefined ? `DISCOVERY_${walletId}` : undefined,
-      SERIALIZABLE
-    );
+  const [
+    discoveryDataExport,
+    setDiscoveryDataExport,
+    ,
+    ,
+    discoveryStorageStatus
+  ] = useLocalStateStorage<DiscoveryDataExport>(
+    walletId !== undefined ? `DISCOVERY_${walletId}` : undefined,
+    SERIALIZABLE
+  );
   const isDiscoveryDataExportSynchd = discoveryStorageStatus.isSynchd;
 
   const [vaults, setVaults] = useLocalStateStorage<Vaults>(

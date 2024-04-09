@@ -19,7 +19,7 @@
  * storage format.
  *
  * Example:
- * const [value, setValue, storageStatus] =
+ * const [value, setValue, deleteValue, clearCache, storageStatus: {decryptError, isSynchd}] =
  *    useGlobalStateStorage<DataType>('uniqueKey', serializationFormat, defaultValue?);
  *
  * - 'DataType' is a TypeScript type or interface representing the structure
@@ -52,6 +52,9 @@
  * Similarly to useState, setValue assumes immutability. If you set an object that
  * has been mutated it won't be set. You need to pass a new object.
  *
+ * deleteValue deletes the value from storage
+ * clearCache forces the next call to read from storage (will not use memory)
+ *
  * 'storageStatus.isSynchd' is a boolean flag indicating whether the initial retrieval of the
  * data from storage has completed. It helps in differentiating between a 'value'
  * that is 'undefined' because it's yet to be fetched and a 'value' that is
@@ -78,6 +81,7 @@ import React, {
 import {
   getAsync,
   setAsync,
+  deleteAsync,
   SerializationFormat,
   Engine,
   assertSerializationFormat,
@@ -126,7 +130,13 @@ const useGlobalStateStorage = <T,>(
   engine: Engine = Platform.OS === 'web' ? 'IDB' : 'MMKV',
   cipherKey: Uint8Array | undefined = undefined,
   authenticationPrompt: string | undefined = undefined
-): [T | undefined, (newValue: T) => Promise<void>, StorageStatus] => {
+): [
+  T | undefined,
+  (newValue: T) => Promise<void>,
+  () => Promise<void>,
+  () => void,
+  StorageStatus
+] => {
   const context = useContext(StorageContext);
   if (context === null)
     throw new Error(`useStorage must be used within a StorageProvider`);
@@ -227,10 +237,38 @@ const useGlobalStateStorage = <T,>(
     setDecryptErrorMap
   ]);
 
+  const deleteValue = useCallback(async () => {
+    if (key) await deleteAsync(key, engine, authenticationPrompt);
+  }, [key, engine, authenticationPrompt]);
+
+  const clearCache = useCallback(() => {
+    if (key) {
+      setValueMap(prevState => {
+        if (key in prevState) {
+          const { [key]: omitted, ...newState } = prevState;
+          void omitted;
+          return newState;
+        }
+        return prevState;
+      });
+
+      setDecryptErrorMap(prevState => {
+        if (key in prevState) {
+          const { [key]: omitted, ...newState } = prevState;
+          void omitted;
+          return newState;
+        }
+        return prevState;
+      });
+    }
+  }, [key, setValueMap, setDecryptErrorMap]);
+
   if (key === undefined)
     return [
       undefined,
       setStorageValue,
+      deleteValue,
+      clearCache,
       { isSynchd: false, decryptError: false }
     ];
   else {
@@ -242,6 +280,8 @@ const useGlobalStateStorage = <T,>(
     return [
       valueMap[key] as T | undefined,
       setStorageValue,
+      deleteValue,
+      clearCache,
       { isSynchd, decryptError }
     ];
   }

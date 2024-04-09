@@ -3,6 +3,7 @@ import { Platform } from 'react-native';
 import {
   getAsync,
   setAsync,
+  deleteAsync,
   Engine,
   SerializationFormat,
   assertSerializationFormat,
@@ -21,7 +22,7 @@ import { isDecryptError } from '../lib/cipher';
  * See long explanation at the end of this file.
  *
  * Example:
- * const [value, setValue, isSynchd] =
+ * const [value, setValue, deleteValue, clearCache, storageStatus: {decryptError, isSynchd}] =
  *    useLocalStateStorage<DataType>('uniqueKey', serializationFormat, defaultValue);
  * - 'DataType' is a TypeScript type or interface representing your data structure.
  * - 'uniqueKey' is a unique identifier for your data in storage. If undefined is
@@ -47,6 +48,9 @@ import { isDecryptError } from '../lib/cipher';
  * ensure it's saved before proceeding with other actions.
  * Similarly to useState, setValue assumes immutability. If you set an object that
  * has been mutated it won't be set. You need to pass a new object.
+ *
+ * deleteValue deletes the value from storage
+ * clearCache forces the next call to read from storage (will not use memory)
  *
  * 'storageStatus: {isSynchd: boolean; decryptError: boolean}':
  * isSynchd is a boolean indicating if the data has been fetched from storage.
@@ -77,7 +81,13 @@ export const useLocalStateStorage = <T>(
   engine: Engine = Platform.OS === 'web' ? 'IDB' : 'MMKV',
   cipherKey: Uint8Array | undefined = undefined,
   authenticationPrompt: string | undefined = undefined
-): [T | undefined, (newValue: T) => Promise<void>, StorageStatus] => {
+): [
+  T | undefined,
+  (newValue: T) => Promise<void>,
+  () => Promise<void>,
+  () => void,
+  StorageStatus
+] => {
   const [valueMap, setValueMap] = useState<StorageState<unknown>>({});
   const [decryptErrorMap, setDecryptErrorMap] = useState<
     Record<string, boolean>
@@ -166,10 +176,38 @@ export const useLocalStateStorage = <T>(
     valueMap
   ]);
 
+  const deleteValue = useCallback(async () => {
+    if (key) await deleteAsync(key, engine, authenticationPrompt);
+  }, [key, engine, authenticationPrompt]);
+
+  const clearCache = useCallback(() => {
+    if (key) {
+      setValueMap(prevState => {
+        if (key in prevState) {
+          const { [key]: omitted, ...newState } = prevState;
+          void omitted;
+          return newState;
+        }
+        return prevState;
+      });
+
+      setDecryptErrorMap(prevState => {
+        if (key in prevState) {
+          const { [key]: omitted, ...newState } = prevState;
+          void omitted;
+          return newState;
+        }
+        return prevState;
+      });
+    }
+  }, [key, setValueMap, setDecryptErrorMap]);
+
   if (key === undefined)
     return [
       undefined,
       setStorageValue,
+      deleteValue,
+      clearCache,
       { isSynchd: false, decryptError: false }
     ];
   else {
@@ -181,6 +219,8 @@ export const useLocalStateStorage = <T>(
     return [
       valueMap[key] as T | undefined,
       setStorageValue,
+      deleteValue,
+      clearCache,
       { isSynchd, decryptError }
     ];
   }
