@@ -1,13 +1,9 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import Password from '../components/Password';
+import React, { useCallback, useContext, useMemo } from 'react';
 import { View, Pressable } from 'react-native';
 import { Text, KeyboardAwareScrollView } from '../../common/ui';
-import type { Wallet, Wallets } from '../lib/wallets';
-import { SERIALIZABLE } from '../../common/lib/storage';
-import { useGlobalStateStorage } from '../../common/contexts/StorageContext';
 import { useTranslation } from 'react-i18next';
 import { useNavigation } from '@react-navigation/native';
-import { NEW_WALLET } from '../screens';
+import { NEW_WALLET, WALLET_HOME } from '../screens';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Svg, Path } from 'react-native-svg';
 import BitcoinSign from '../../../assets/BitcoinSign.svg';
@@ -19,7 +15,10 @@ import { Ubuntu_700Bold } from '@expo-google-fonts/ubuntu';
 import { useFonts } from 'expo-font';
 //const [fontsLoaded] = useFonts({ Prefectures });
 import { cssInterop } from 'nativewind';
-import { getPasswordDerivedCipherKey } from '../../common/lib/cipher';
+import {
+  WalletContext,
+  type WalletContextType
+} from '../contexts/WalletContext';
 cssInterop(Svg, {
   className: {
     target: 'style',
@@ -74,51 +73,15 @@ const walletCls = [
 const walletBg = (index: number) => walletBgs[index % walletBgs.length];
 const walletCl = (index: number) => walletCls[index % walletCls.length];
 
-const WalletsScreen = ({
-  onWallet
-}: {
-  onWallet: ({
-    wallet,
-    signersCipherKey
-  }: {
-    wallet: Wallet;
-    signersCipherKey?: Uint8Array;
-  }) => void;
-}) => {
-  useEffect(() => {
-    console.log('Wallets Screen mounted');
-  }, []);
-  //console.log('Wallets again here');
+const WalletsScreen = () => {
+  const context = useContext<WalletContextType | null>(WalletContext);
+  if (context === null) throw new Error('Context was not set');
+  const { onWallet, wallets } = context;
+  if (!onWallet) throw new Error(`onWallet not set yet`);
   const [ubuntuLoaded] = useFonts({ Ubuntu700Bold: Ubuntu_700Bold });
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
   const { t } = useTranslation();
-  const [wallets] = useGlobalStateStorage<Wallets>(`WALLETS`, SERIALIZABLE, {});
-  const [passwordRequestWalletId, setPasswordRequestWalletId] =
-    useState<number>();
-  const onPasswordCancel = useCallback(() => {
-    setPasswordRequestWalletId(undefined);
-  }, []);
-  const onPassword = useCallback(
-    (password: string) => {
-      const cb = async () => {
-        if (!wallets) throw new Error('wallets not set');
-        if (passwordRequestWalletId === undefined)
-          throw new Error('passwordRequestWalletId not set');
-        const signersCipherKey = await getPasswordDerivedCipherKey(password);
-        const wallet = wallets[passwordRequestWalletId];
-        if (!wallet)
-          throw new Error(`Wallet ${passwordRequestWalletId} does not exist`);
-        setPasswordRequestWalletId(undefined);
-        onWallet({
-          wallet,
-          signersCipherKey
-        });
-      };
-      cb();
-    },
-    [wallets, passwordRequestWalletId, onWallet]
-  );
   const handleWalletMap = useMemo(() => {
     if (!wallets) return {};
     else {
@@ -128,15 +91,20 @@ const WalletsScreen = ({
         const wallet = wallets[walletId];
         if (!wallet) throw new Error(`Unset wallet for ${walletId}`);
         map[walletId] = () => {
-          console.log(`handleWallet ${walletId}`, { wallet });
-          if (wallet.signersEncryption === 'PASSWORD') {
-            setPasswordRequestWalletId(walletId);
-          } else onWallet({ wallet });
+          console.log('onWallet', wallet);
+          onWallet({ wallet });
+          navigation.navigate(WALLET_HOME);
+          //if (wallet.signersEncryption === 'PASSWORD') {
+          //  setPasswordRequestWalletId(walletId);
+          //} else {
+          //  onWallet({ wallet });
+          //  navigation.navigate(WALLET_HOME);
+          //}
         };
       });
       return map;
     }
-  }, [wallets, onWallet]);
+  }, [wallets, onWallet, navigation]);
 
   const handleNewWallet = useCallback(() => {
     if (!wallets) throw new Error('wallets not yet defined');
@@ -246,12 +214,6 @@ const WalletsScreen = ({
             ))}
         </View>
       </KeyboardAwareScrollView>
-      <Password
-        mode="REQUEST"
-        isVisible={passwordRequestWalletId !== undefined}
-        onPassword={onPassword}
-        onCancel={onPasswordCancel}
-      />
     </>
   );
 };

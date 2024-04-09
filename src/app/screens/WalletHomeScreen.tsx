@@ -1,4 +1,5 @@
 import React, { useCallback, useContext, useEffect } from 'react';
+import Password from '../components/Password';
 import { RefreshControl, Button, View, Text, Pressable } from 'react-native';
 import { KeyboardAwareScrollView } from '../../common/ui';
 import { WalletContext, WalletContextType } from '../contexts/WalletContext';
@@ -21,6 +22,7 @@ cssInterop(SimpleLineIcons, {
 });
 import Spin from '../../common/components/Spin';
 import { useNavigation } from '@react-navigation/native';
+import { getPasswordDerivedCipherKey } from '../../common/lib/cipher';
 
 type Props = {
   onSetUpVaultInit: () => void;
@@ -49,17 +51,24 @@ const WalletHomeScreen: React.FC<Props> = ({ onSetUpVaultInit }) => {
   console.log('Wallet Home here');
   const navigation = useNavigation();
   const { t } = useTranslation();
-  const context = useContext<WalletContextType | null>(WalletContext);
   useEffect(() => {
     if (!('setOptions' in navigation))
       throw new Error('This navigation does not implement setOptions');
     navigation.setOptions(navOptions);
   }, [navigation]);
 
-  if (context === null) {
-    throw new Error('Context was not set');
-  }
-  const { vaults, syncBlockchain, syncingBlockchain } = context;
+  const context = useContext<WalletContextType | null>(WalletContext);
+  if (context === null) throw new Error('Context was not set');
+
+  const {
+    vaults,
+    syncBlockchain,
+    syncingBlockchain,
+    wallet,
+    requiresAuth,
+    onWallet
+  } = context;
+  if (!wallet) throw new Error(`wallet not set yet`);
 
   const onRequestVaultsBackup = useCallback(() => {
     if (!vaults) throw new Error('vaults not ready');
@@ -81,52 +90,82 @@ const WalletHomeScreen: React.FC<Props> = ({ onSetUpVaultInit }) => {
   // Use btcFiat, and any other data or functions provided by the context
   // ...
 
+  const onPasswordCancel = useCallback(() => {
+    navigation.goBack();
+  }, [navigation]);
+  const onPassword = useCallback(
+    (password: string) => {
+      const cb = async () => {
+        const signersCipherKey = await getPasswordDerivedCipherKey(password);
+        onWallet({
+          wallet,
+          signersCipherKey
+        });
+      };
+      cb();
+    },
+    [wallet, onWallet]
+  );
   return (
-    <KeyboardAwareScrollView
-      keyboardShouldPersistTaps="handled"
-      contentContainerStyle={{
-        flexGrow: 1, //grow vertically to 100% and center child
-        justifyContent: 'center',
-        alignItems: 'center'
-      }}
-      refreshControl={
-        <RefreshControl
-          refreshing={syncingBlockchain}
-          onRefresh={syncBlockchain}
-        />
-      }
-    >
-      {vaults && (
-        <>
-          <Text>vaults:</Text>
-          {Object.values(vaults).map(vault => (
-            <View key={vault.vaultId} className="items-center">
-              <Text>{vault.vaultId}</Text>
-              <Button
-                title={t('walletHome.delegate')}
-                onPress={createDelegateVaultHandler(vault.vaultId)}
-              />
-              <Pressable className="flex-row items-center p-4 shadow rounded-xl bg-primary hover:opacity-90 active:opacity-90 active:scale-95">
-                <Spin />
-                <Text className="font-semibold text-white">Processing...</Text>
-              </Pressable>
-            </View>
-          ))}
-        </>
-      )}
-      <Button
-        title={
-          syncingBlockchain ? t('Refreshing Balance…') : t('Refresh Balance')
+    <>
+      <KeyboardAwareScrollView
+        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={{
+          flexGrow: 1, //grow vertically to 100% and center child
+          justifyContent: 'center',
+          alignItems: 'center'
+        }}
+        refreshControl={
+          <RefreshControl
+            refreshing={syncingBlockchain}
+            onRefresh={syncBlockchain}
+          />
         }
-        onPress={syncBlockchain}
-        disabled={syncingBlockchain}
+      >
+        <Text>{`Wallet ${JSON.stringify(wallet, null, 2)}`}</Text>
+        {vaults && (
+          <>
+            <Text>vaults:</Text>
+            {Object.values(vaults).map(vault => (
+              <View key={vault.vaultId} className="items-center">
+                <Text>{vault.vaultId}</Text>
+                <Button
+                  title={t('walletHome.delegate')}
+                  onPress={createDelegateVaultHandler(vault.vaultId)}
+                />
+                <Pressable className="flex-row items-center p-4 shadow rounded-xl bg-primary hover:opacity-90 active:opacity-90 active:scale-95">
+                  <Spin />
+                  <Text className="font-semibold text-white">
+                    Processing...
+                  </Text>
+                </Pressable>
+              </View>
+            ))}
+          </>
+        )}
+        <Button
+          title={
+            syncingBlockchain ? t('Refreshing Balance…') : t('Refresh Balance')
+          }
+          onPress={syncBlockchain}
+          disabled={syncingBlockchain}
+        />
+        <Button
+          title={t('walletHome.vaultBalance')}
+          onPress={onSetUpVaultInit}
+        />
+        <Button
+          title={t('walletHome.backupVaults')}
+          onPress={onRequestVaultsBackup}
+        />
+      </KeyboardAwareScrollView>
+      <Password
+        mode="REQUEST"
+        isVisible={requiresAuth}
+        onPassword={onPassword}
+        onCancel={onPasswordCancel}
       />
-      <Button title={t('walletHome.vaultBalance')} onPress={onSetUpVaultInit} />
-      <Button
-        title={t('walletHome.backupVaults')}
-        onPress={onRequestVaultsBackup}
-      />
-    </KeyboardAwareScrollView>
+    </>
   );
 };
 

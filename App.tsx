@@ -18,7 +18,6 @@ import {
   CREATE_VAULT,
   NEW_WALLET
 } from './src/app/screens';
-import type { Signers, Wallet } from './src/app/lib/wallets';
 import { NavigationContainer, useNavigation } from '@react-navigation/native';
 import { ToastProvider } from './src/common/components/Toast';
 import WalletsScreen from './src/app/screens/WalletsScreen';
@@ -57,17 +56,6 @@ const Main = () => {
   const { t } = useTranslation();
   const [vaultSettings, setVaultSettings] = useState<VaultSettings>();
 
-  //Have them in single state since batching doeds not work in react-native in old architecture
-  const [walletProviderProps, setWalletProviderProps] = useState<{
-    wallet: Wallet | undefined;
-    signersCipherKey: Uint8Array | undefined;
-    newWalletSigners: Signers | undefined;
-  }>({
-    wallet: undefined,
-    signersCipherKey: undefined,
-    newWalletSigners: undefined
-  });
-
   const navigation = useNavigation();
 
   const settingsButton = useCallback(
@@ -87,39 +75,13 @@ const Main = () => {
     [navigation, t]
   );
 
-  const handleWallet = useCallback(
-    ({
-      wallet,
-      newWalletSigners,
-      signersCipherKey
-    }: {
-      wallet: Wallet;
-      newWalletSigners?: Signers;
-      signersCipherKey?: Uint8Array;
-    }) => {
-      console.log('handleWallet', {
-        wallet,
-        newWalletSigners,
-        signersCipherKey
-      });
-      setWalletProviderProps({ newWalletSigners, wallet, signersCipherKey });
-      if (navigation) navigation.navigate(WALLET_HOME);
-      else throw new Error('navigation not set');
-    },
-    [navigation]
-  );
-
   // init real Locale
   useEffect(() => {
     if (settings?.LOCALE) initI18n(settings.LOCALE);
   }, [settings?.LOCALE]);
 
   const headerRightContainerStyle = { marginRight: 16 };
-  const { wallet, signersCipherKey, newWalletSigners } = walletProviderProps;
 
-  const WalletsScreenWalletCallback = useCallback(() => {
-    return <WalletsScreen onWallet={handleWallet} />;
-  }, [handleWallet]);
   const WalletHomeWithSetUpVaultInit = useCallback(
     () => (
       <WalletHomeScreen
@@ -142,13 +104,13 @@ const Main = () => {
       />
     );
   }, [navigation]);
-  const NewWalletScreenWithWalletCallbackAndToast = useCallback(
+  const NewWalletScreenWithToast = useCallback(
     () => (
       <ToastProvider>
-        <NewWalletScreen onWallet={handleWallet} />
+        <NewWalletScreen />
       </ToastProvider>
     ),
-    [handleWallet]
+    []
   );
   const CreateVaultScreenWithSettingsOnPushedAndToast = useCallback(
     () => (
@@ -162,11 +124,7 @@ const Main = () => {
     [navigation, vaultSettings]
   );
   return (
-    <WalletProvider
-      {...(wallet ? { wallet } : {})}
-      {...(signersCipherKey ? { signersCipherKey } : {})}
-      {...(newWalletSigners ? { newWalletSigners } : {})}
-    >
+    <WalletProvider>
       <RootStack.Navigator
         screenOptions={isNativeStack ? { animationEnabled: true } : {}}
       >
@@ -177,7 +135,7 @@ const Main = () => {
             headerRightContainerStyle,
             headerRight: settingsButton
           }}
-          component={WalletsScreenWalletCallback}
+          component={WalletsScreen}
         />
 
         <RootStack.Screen
@@ -221,7 +179,7 @@ const Main = () => {
             headerRight: cancelModalButton,
             presentation: 'modal' //Modals need their own Toast component
           }}
-          component={NewWalletScreenWithWalletCallbackAndToast}
+          component={NewWalletScreenWithToast}
         />
 
         <RootStack.Screen

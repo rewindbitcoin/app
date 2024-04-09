@@ -45,7 +45,7 @@ import { EsploraExplorer } from '@bitcoinerlab/explorer';
 import { DiscoveryFactory, DiscoveryInstance } from '@bitcoinerlab/discovery';
 import type { Network } from 'bitcoinjs-lib';
 import type { FeeEstimates } from '../lib/fees';
-import { Platform } from 'react-native';
+import { Platform, unstable_batchedUpdates } from 'react-native';
 import { fetchP2PVaultIds, fetchP2PVault } from '../lib/backup';
 
 type DiscoveryDataExport = ReturnType<DiscoveryInstance['export']>;
@@ -75,6 +75,18 @@ export type WalletContextType = {
   syncingBlockchain: boolean;
   vaultsAPI: string | undefined;
   vaultsSecondaryAPI: string | undefined;
+  wallets: Wallets | undefined;
+  wallet: Wallet | undefined;
+  requiresAuth: boolean;
+  onWallet: ({
+    wallet,
+    newSigners,
+    signersCipherKey
+  }: {
+    wallet: Wallet;
+    newSigners?: Signers;
+    signersCipherKey?: Uint8Array;
+  }) => void;
 };
 
 const getDescriptors = async (
@@ -106,25 +118,14 @@ const DEFAULT_VAULTS_STATUSES: VaultsStatuses = {};
 const DEFAULT_ACCOUNT_NAMES: AccountNames = {};
 const DEFAULT_VAULTS: Vaults = {};
 const WalletProviderRaw = ({
-  children,
-  wallet,
-  signersCipherKey,
-  newWalletSigners
+  children
 }: {
   children: ReactNode;
-  wallet?: Wallet;
-  /**
-   * pass it when using password
-   */
-  signersCipherKey?: Uint8Array;
-  /**
-   * Only passed for creating new wallets
-   */
   newWalletSigners?: Signers;
 }) => {
-  useEffect(() => {
-    console.log('WalletProvider mounted');
-  }, []);
+  const [wallet, setWallet] = useState<Wallet>();
+  const [signersCipherKey, setSignersCipherKey] = useState<Uint8Array>();
+  const [newSigners, setNewSigners] = useState<Signers>();
   const canUseSecureStorage = useSecureStorageAvailability();
   if (canUseSecureStorage === undefined)
     //This should never happen. If we have a wallet already it's because the App
@@ -150,20 +151,25 @@ const WalletProviderRaw = ({
       `signersStorageEngine ${signersStorageEngine} does not match this system specs: ${Platform.OS}, canUseSecureStorage=${canUseSecureStorage}. Have you not enabled Biometric id in your system?`
     );
   }
-  //console.log('WalletProviderContext', {
-  //  walletId,
-  //  signersStorageEngine,
-  //  signersCipherKey
-  //});
-  const [signers, setSigners] = useLocalStateStorage<Signers>(
-    walletId !== undefined ? `SIGNERS_${walletId}` : undefined,
-    SERIALIZABLE,
-    undefined,
-    signersStorageEngine,
-    signersCipherKey,
-    t('app.secureStorageAuthenticationPrompt')
+  const onWallet = useCallback(
+    ({
+      wallet,
+      newSigners,
+      signersCipherKey
+    }: {
+      wallet: Wallet;
+      newSigners?: Signers;
+      signersCipherKey?: Uint8Array;
+    }) => {
+      //React 18 NOT on the new Architecture behaves as React 17:
+      unstable_batchedUpdates(() => {
+        setWallet(wallet);
+        setSignersCipherKey(signersCipherKey);
+        setNewSigners(newSigners);
+      });
+    },
+    []
   );
-  console.log('WalletContext', { walletId, signers });
 
   const [settings] = useGlobalStateStorage<Settings>(
     SETTINGS_GLOBAL_STORAGE,
@@ -171,8 +177,20 @@ const WalletProviderRaw = ({
     defaultSettings
   );
   const [wallets, setWallets, walletsStorageStatus] =
-    useGlobalStateStorage<Wallets>(`WALLETS`, SERIALIZABLE, {});
+    useLocalStateStorage<Wallets>(`WALLETS`, SERIALIZABLE, {});
   const isWalletsSynchd = walletsStorageStatus.isSynchd;
+
+  const initSigners =
+    walletId !== undefined &&
+    (wallet?.signersEncryption !== 'PASSWORD' || signersCipherKey);
+  const [signers, , signersStorageStatus] = useLocalStateStorage<Signers>(
+    initSigners ? `SIGNERS_${walletId}` : undefined,
+    SERIALIZABLE,
+    newSigners,
+    signersStorageEngine,
+    signersCipherKey,
+    t('app.secureStorageAuthenticationPrompt')
+  );
 
   const [discoveryDataExport, setDiscoveryDataExport, discoveryStorageStatus] =
     useLocalStateStorage<DiscoveryDataExport>(
@@ -199,6 +217,8 @@ const WalletProviderRaw = ({
     SERIALIZABLE,
     DEFAULT_ACCOUNT_NAMES
   );
+
+  console.log('WalletContext', { walletId, signers, signersStorageStatus });
 
   let esploraAPI: string | undefined;
   let serviceAddressAPI: string | undefined;
@@ -234,12 +254,6 @@ const WalletProviderRaw = ({
       default:
         throw new Error(`networkId ${networkId} not supported.`);
     }
-
-  useEffect(() => {
-    if (newWalletSigners && isWalletsSynchd) {
-      setSigners(newWalletSigners);
-    }
-  }, [setSigners, newWalletSigners, isWalletsSynchd]);
 
   useEffect(() => {
     if (isWalletsSynchd && wallet && walletId !== undefined) {
@@ -690,25 +704,28 @@ const WalletProviderRaw = ({
     [setVaults, setVaultsStatuses, t, toast, vaults, vaultsStatuses]
   );
 
-  const contextValue = wallet
-    ? {
-        getUnvaultKey,
-        getChangeDescriptor,
-        fetchServiceAddress,
-        btcFiat,
-        feeEstimates,
-        signers,
-        vaults,
-        networkId,
-        utxosData,
-        processCreatedVault,
-        syncBlockchain,
-        syncingBlockchain,
-        vaultsAPI,
-        vaultsSecondaryAPI
-      }
-    : null;
-
+  const contextValue = {
+    getUnvaultKey,
+    getChangeDescriptor,
+    fetchServiceAddress,
+    btcFiat,
+    feeEstimates,
+    signers,
+    vaults,
+    networkId,
+    utxosData,
+    processCreatedVault,
+    syncBlockchain,
+    syncingBlockchain,
+    vaultsAPI,
+    vaultsSecondaryAPI,
+    wallets,
+    wallet,
+    requiresAuth:
+      (wallet?.signersEncryption === 'PASSWORD' && !signersCipherKey) ||
+      signersStorageStatus.decryptError === true,
+    onWallet
+  };
   return (
     <WalletContext.Provider value={contextValue}>
       {children}

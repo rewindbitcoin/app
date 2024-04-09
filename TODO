@@ -1,3 +1,6 @@
+A logout that unsets the keys in storage will be needed for each storaege system
+  The second Password request will just let the user pass because it just takes it from storage state
+
 In WalletContext I need to keep track of all the storage synchd status
 and render a Loading... when not all of them are synched.
 This will also let me get the derived cipher key from the signers so that i can

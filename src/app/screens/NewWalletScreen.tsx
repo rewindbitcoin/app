@@ -2,9 +2,9 @@
 //removed since it may have been stored in SecureStore which can be deleted
 //at times. For example when restoring from a backup or when changing the fingerprints
 //or faceId of the device
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useContext, useRef, useState } from 'react';
 import { defaultSettings } from '../lib/settings';
-import type { Wallet, Signers } from '../lib/wallets';
+import type { Wallet } from '../lib/wallets';
 import { View, Text, Pressable, Keyboard, Platform } from 'react-native';
 import type { Engine as StorageEngine } from '../../common/lib/storage';
 import {
@@ -31,21 +31,17 @@ import {
 import { getPasswordDerivedCipherKey } from '../../common/lib/cipher';
 import { getMasterNode } from '../lib/vaultDescriptors';
 import Password from '../components/Password';
-import type { RootStackParamList } from '../screens';
+import { WALLET_HOME, type RootStackParamList } from '../screens';
+import {
+  WalletContext,
+  type WalletContextType
+} from '../contexts/WalletContext';
 
-export default function NewWalletScreen({
-  onWallet
-}: {
-  onWallet: ({
-    wallet,
-    newWalletSigners,
-    signersCipherKey
-  }: {
-    wallet: Wallet;
-    newWalletSigners?: Signers;
-    signersCipherKey?: Uint8Array;
-  }) => void;
-}) {
+export default function NewWalletScreen() {
+  const context = useContext<WalletContextType | null>(WalletContext);
+  const onWallet = context?.onWallet;
+  if (!onWallet) throw new Error(`onWallet not set yet`);
+
   const route = useRoute<RouteProp<RootStackParamList, 'NEW_WALLET'>>();
   const navigation = useNavigation();
   const walletId = route.params?.walletId;
@@ -116,11 +112,10 @@ export default function NewWalletScreen({
       const signersCipherKey = signersPassword
         ? await getPasswordDerivedCipherKey(signersPassword)
         : undefined;
-      navigation.goBack();
       onWallet({
         wallet,
         ...(signersCipherKey ? { signersCipherKey } : {}),
-        newWalletSigners: {
+        newSigners: {
           [signerId]: {
             masterFingerprint,
             type: 'SOFTWARE',
@@ -128,6 +123,8 @@ export default function NewWalletScreen({
           }
         }
       });
+      navigation.goBack();
+      navigation.navigate(WALLET_HOME);
     },
     [navigation, onWallet, walletId]
   );

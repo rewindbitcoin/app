@@ -212,13 +212,6 @@ export const setAsync = async (
       strToU8(JSON.stringify(originalMessage))
     );
     value = strFromU8(cipherMessage, true);
-    //console.log('ENCRYPT', {
-    //  key,
-    //  cipherMessage,
-    //  strCipherMessage: value,
-    //  originalMessage,
-    //  strCipherMessageLength: value.length
-    //});
   }
   if (engine === 'IDB') {
     await idbSet(key, value);
@@ -229,14 +222,6 @@ export const setAsync = async (
         `Engine ${engine} does not support native Uint8Array since it uses JSON.stringify`
       );
     const secureStoreValue = JSON.stringify(value);
-    console.log('SECURE STORE setAsync', {
-      cipher: !!cipherKey,
-      key,
-      value,
-      secureStoreValue,
-      typeValue: typeof value,
-      typeSecureStoreValue: typeof secureStoreValue
-    });
     if (secureStoreValue.length > 2048)
       throw new Error(
         `Reached Secure Store Limit: ${secureStoreValue.length} > 2048.`
@@ -275,14 +260,6 @@ export const getAsync = async <S extends SerializationFormat>(
       secureStoreGetOptions(authenticationPrompt)
     );
     result = stringValue !== null ? JSON.parse(stringValue) : undefined;
-    //console.log('SECURE STORE getAsync', {
-    //  key,
-    //  cipher: !!cipherKey,
-    //  stringValue,
-    //  result,
-    //  typeStringValue: typeof stringValue,
-    //  typeResult: typeof result
-    //});
   } else if (engine === 'MMKV') {
     if (cipherKey) {
       result = mmkvStorage.getString(key);
@@ -328,12 +305,6 @@ export const getAsync = async <S extends SerializationFormat>(
     } else {
       const chacha = getManagedChacha(cipherKey);
       const cipherMessage = strToU8(result, true);
-      //console.log('DECRYPT', {
-      //  key,
-      //  cipherMessage,
-      //  strCipherMessage: result,
-      //  strCipherMessageLength: result.length
-      //});
       result = JSON.parse(strFromU8(chacha.decrypt(cipherMessage)));
     }
   }
