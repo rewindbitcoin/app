@@ -77,7 +77,6 @@ const walletCl = (index: number) => walletCls[index % walletCls.length];
 const WalletsScreen = ({
   onWallet
 }: {
-  /** pass back signers if this is a new wallet that must be created */
   onWallet: ({
     wallet,
     signersCipherKey
