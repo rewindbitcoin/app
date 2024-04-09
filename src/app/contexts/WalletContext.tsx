@@ -78,6 +78,7 @@ export type WalletContextType = {
   wallets: Wallets | undefined;
   wallet: Wallet | undefined;
   requiresAuth: boolean;
+  logOut: () => void;
   onWallet: ({
     wallet,
     newSigners,
@@ -151,25 +152,6 @@ const WalletProviderRaw = ({
       `signersStorageEngine ${signersStorageEngine} does not match this system specs: ${Platform.OS}, canUseSecureStorage=${canUseSecureStorage}. Have you not enabled Biometric id in your system?`
     );
   }
-  const onWallet = useCallback(
-    ({
-      wallet,
-      newSigners,
-      signersCipherKey
-    }: {
-      wallet: Wallet;
-      newSigners?: Signers;
-      signersCipherKey?: Uint8Array;
-    }) => {
-      //React 18 NOT on the new Architecture behaves as React 17:
-      unstable_batchedUpdates(() => {
-        setWallet(wallet);
-        setSignersCipherKey(signersCipherKey);
-        setNewSigners(newSigners);
-      });
-    },
-    []
-  );
 
   const [settings] = useGlobalStateStorage<Settings>(
     SETTINGS_GLOBAL_STORAGE,
@@ -183,14 +165,15 @@ const WalletProviderRaw = ({
   const initSigners =
     walletId !== undefined &&
     (wallet?.signersEncryption !== 'PASSWORD' || signersCipherKey);
-  const [signers, , , , signersStorageStatus] = useLocalStateStorage<Signers>(
-    initSigners ? `SIGNERS_${walletId}` : undefined,
-    SERIALIZABLE,
-    newSigners,
-    signersStorageEngine,
-    signersCipherKey,
-    t('app.secureStorageAuthenticationPrompt')
-  );
+  const [signers, , , clearSignersCache, signersStorageStatus] =
+    useLocalStateStorage<Signers>(
+      initSigners ? `SIGNERS_${walletId}` : undefined,
+      SERIALIZABLE,
+      newSigners,
+      signersStorageEngine,
+      signersCipherKey,
+      t('app.secureStorageAuthenticationPrompt')
+    );
 
   const [
     discoveryDataExport,
@@ -224,6 +207,31 @@ const WalletProviderRaw = ({
   );
 
   console.log('WalletContext', { walletId, signers, signersStorageStatus });
+
+  const logOut = useCallback(() => {
+    clearSignersCache();
+  }, [clearSignersCache]);
+
+  const onWallet = useCallback(
+    ({
+      wallet: walletDst,
+      newSigners,
+      signersCipherKey
+    }: {
+      wallet: Wallet;
+      newSigners?: Signers;
+      signersCipherKey?: Uint8Array;
+    }) => {
+      logOut(); //Log out from previous wallet (if needed)
+      //React 18 NOT on the new Architecture behaves as React 17:
+      unstable_batchedUpdates(() => {
+        setWallet(walletDst);
+        setSignersCipherKey(signersCipherKey);
+        setNewSigners(newSigners);
+      });
+    },
+    [logOut]
+  );
 
   let esploraAPI: string | undefined;
   let serviceAddressAPI: string | undefined;
@@ -729,6 +737,7 @@ const WalletProviderRaw = ({
     requiresAuth:
       (wallet?.signersEncryption === 'PASSWORD' && !signersCipherKey) ||
       signersStorageStatus.decryptError === true,
+    logOut,
     onWallet
   };
   return (

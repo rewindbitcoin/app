@@ -48,7 +48,6 @@ const navOptions = {
 
 //TODO the WalletProvider must also pass it's own refreshing state
 const WalletHomeScreen: React.FC<Props> = ({ onSetUpVaultInit }) => {
-  console.log('Wallet Home here');
   const navigation = useNavigation();
   const { t } = useTranslation();
   useEffect(() => {
