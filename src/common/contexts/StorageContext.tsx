@@ -237,10 +237,6 @@ const useGlobalStateStorage = <T,>(
     setDecryptErrorMap
   ]);
 
-  const deleteValue = useCallback(async () => {
-    if (key) await deleteAsync(key, engine, authenticationPrompt);
-  }, [key, engine, authenticationPrompt]);
-
   const clearCache = useCallback(() => {
     if (key) {
       setValueMap(prevState => {
@@ -262,6 +258,13 @@ const useGlobalStateStorage = <T,>(
       });
     }
   }, [key, setValueMap, setDecryptErrorMap]);
+
+  const deleteValue = useCallback(async () => {
+    if (key) {
+      await deleteAsync(key, engine, authenticationPrompt);
+      clearCache();
+    }
+  }, [key, engine, authenticationPrompt, clearCache]);
 
   if (key === undefined)
     return [

@@ -178,12 +178,14 @@ function secureStoreGetOptions(authenticationPrompt: string | undefined) {
 
 export const deleteAsync = async (
   key: string,
-  engine: Engine,
+  engine: Engine = Platform.OS === 'web' ? 'IDB' : 'MMKV',
   authenticationPrompt: string | undefined = undefined
 ): Promise<void> => {
   if (engine === 'IDB') {
     return await idbDel(key);
   } else if (engine === 'SECURESTORE') {
+    if (authenticationPrompt === undefined)
+      throw new Error('SECURESTORE requires an authenticationPrompt');
     return await secureStoreDeleteItemAsync(
       key,
       secureStoreGetOptions(authenticationPrompt)
@@ -197,7 +199,7 @@ export const deleteAsync = async (
 export const setAsync = async (
   key: string,
   value: string | number | boolean | object | Uint8Array,
-  engine: Engine,
+  engine: Engine = Platform.OS === 'web' ? 'IDB' : 'MMKV',
   cipherKey: Uint8Array | undefined = undefined,
   authenticationPrompt: string | undefined = undefined
 ): Promise<void> => {
@@ -247,7 +249,7 @@ export const setAsync = async (
 export const getAsync = async <S extends SerializationFormat>(
   key: string,
   serializationFormat: S,
-  engine: Engine,
+  engine: Engine = Platform.OS === 'web' ? 'IDB' : 'MMKV',
   cipherKey: Uint8Array | undefined = undefined,
   authenticationPrompt: string | undefined = undefined
 ): Promise<SerializationFormatMapping[S]> => {

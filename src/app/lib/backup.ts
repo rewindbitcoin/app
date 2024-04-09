@@ -106,7 +106,7 @@ export const fetchP2PVaultIds = async ({
   throw new Error(`Reached MAX_VAULT_CHECKS`);
 };
 
-export const getEncryptedDataCipherKey = async ({
+export const getDataCipherKey = async ({
   signer,
   network
 }: {
@@ -114,7 +114,10 @@ export const getEncryptedDataCipherKey = async ({
   network: Network;
 }) => {
   return await getSeedDerivedCipherKey({
-    vaultPath: THUNDERDEN_DATA_PATH,
+    vaultPath: THUNDERDEN_DATA_PATH.replace(
+      '<network>',
+      network === networks.bitcoin ? '0' : '1'
+    ),
     signer,
     network
   });

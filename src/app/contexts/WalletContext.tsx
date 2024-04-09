@@ -31,7 +31,7 @@ import React, {
 import { shallowEqualObjects, shallowEqualArrays } from 'shallow-equal';
 import type { Wallet } from '../lib/wallets';
 import { useToast } from '../../common/ui';
-import { SERIALIZABLE } from '../../common/lib/storage';
+import { SERIALIZABLE, deleteAsync } from '../../common/lib/storage';
 import { useGlobalStateStorage } from '../../common/contexts/StorageContext';
 import { useSecureStorageAvailability } from '../../common/contexts/SecureStorageAvailabilityContext';
 import { useLocalStateStorage } from '../../common/hooks/useLocalStateStorage';
@@ -46,7 +46,11 @@ import { DiscoveryFactory, DiscoveryInstance } from '@bitcoinerlab/discovery';
 import type { Network } from 'bitcoinjs-lib';
 import type { FeeEstimates } from '../lib/fees';
 import { Platform, unstable_batchedUpdates } from 'react-native';
-import { fetchP2PVaultIds, fetchP2PVault } from '../lib/backup';
+import {
+  fetchP2PVaultIds,
+  fetchP2PVault,
+  getDataCipherKey
+} from '../lib/backup';
 
 type DiscoveryDataExport = ReturnType<DiscoveryInstance['export']>;
 
@@ -126,6 +130,7 @@ const WalletProviderRaw = ({
 }) => {
   const [wallet, setWallet] = useState<Wallet>();
   const [signersCipherKey, setSignersCipherKey] = useState<Uint8Array>();
+  const [dataCipherKey, setDataCipherKey] = useState<Uint8Array>();
   const [newSigners, setNewSigners] = useState<Signers>();
   const canUseSecureStorage = useSecureStorageAvailability();
   if (canUseSecureStorage === undefined)
@@ -165,6 +170,10 @@ const WalletProviderRaw = ({
   const initSigners =
     walletId !== undefined &&
     (wallet?.signersEncryption !== 'PASSWORD' || signersCipherKey);
+  const initData =
+    walletId !== undefined &&
+    (wallet?.encryption !== 'SEED_DERIVED' || dataCipherKey);
+
   const [signers, , , clearSignersCache, signersStorageStatus] =
     useLocalStateStorage<Signers>(
       initSigners ? `SIGNERS_${walletId}` : undefined,
@@ -174,6 +183,7 @@ const WalletProviderRaw = ({
       signersCipherKey,
       t('app.secureStorageAuthenticationPrompt')
     );
+  console.log('WalletContext', { walletId, initSigners, initData, signers });
 
   const [
     discoveryDataExport,
@@ -182,56 +192,99 @@ const WalletProviderRaw = ({
     ,
     discoveryStorageStatus
   ] = useLocalStateStorage<DiscoveryDataExport>(
-    walletId !== undefined ? `DISCOVERY_${walletId}` : undefined,
-    SERIALIZABLE
+    initData ? `DISCOVERY_${walletId}` : undefined,
+    SERIALIZABLE,
+    undefined,
+    undefined,
+    dataCipherKey
   );
   const isDiscoveryDataExportSynchd = discoveryStorageStatus.isSynchd;
 
   const [vaults, setVaults] = useLocalStateStorage<Vaults>(
-    walletId !== undefined ? `VAULTS_${walletId}` : undefined,
+    initData ? `VAULTS_${walletId}` : undefined,
     SERIALIZABLE,
-    DEFAULT_VAULTS
+    DEFAULT_VAULTS,
+    undefined,
+    dataCipherKey
   );
 
   const [vaultsStatuses, setVaultsStatuses] =
     useLocalStateStorage<VaultsStatuses>(
-      walletId !== undefined ? `VAULTS_STATUSES_${walletId}` : undefined,
+      initData ? `VAULTS_STATUSES_${walletId}` : undefined,
       SERIALIZABLE,
-      DEFAULT_VAULTS_STATUSES
+      DEFAULT_VAULTS_STATUSES,
+      undefined,
+      dataCipherKey
     );
 
   const [accountNames] = useLocalStateStorage<AccountNames>(
-    walletId !== undefined ? `ACCOUNT_NAMES_${walletId}` : undefined,
+    initData ? `ACCOUNT_NAMES_${walletId}` : undefined,
     SERIALIZABLE,
-    DEFAULT_ACCOUNT_NAMES
+    DEFAULT_ACCOUNT_NAMES,
+    undefined,
+    dataCipherKey
   );
-
-  console.log('WalletContext', { walletId, signers, signersStorageStatus });
 
   const logOut = useCallback(() => {
     clearSignersCache();
   }, [clearSignersCache]);
 
   const onWallet = useCallback(
-    ({
+    async ({
       wallet: walletDst,
       newSigners,
       signersCipherKey
     }: {
       wallet: Wallet;
+      /**
+       * set it when creating new wallets
+       */
       newSigners?: Signers;
       signersCipherKey?: Uint8Array;
     }) => {
+      if (newSigners) {
+        //Make sure we don't have values from previous app installs?
+        const walletId = walletDst.walletId;
+        const authenticationPrompt = t('app.secureStorageAuthenticationPrompt');
+        await deleteAsync(
+          `SIGNERS_${walletId}`,
+          walletDst.signersStorageEngine,
+          authenticationPrompt
+        );
+        await deleteAsync(`DISCOVERY_${walletId}`);
+        await deleteAsync(`VAULTS_${walletId}`);
+        await deleteAsync(`VAULTS_STATUSES_${walletId}`);
+        await deleteAsync(`ACCOUNT_NAMES_${walletId}`);
+      }
       logOut(); //Log out from previous wallet (if needed)
       //React 18 NOT on the new Architecture behaves as React 17:
       unstable_batchedUpdates(() => {
+        console.log('onWallet', { walletDst, signersCipherKey, newSigners });
         setWallet(walletDst);
         setSignersCipherKey(signersCipherKey);
         setNewSigners(newSigners);
+        // reset it - will be set as an effect below if needed
+        setDataCipherKey(undefined);
       });
     },
-    [logOut]
+    [logOut, t]
   );
+
+  useEffect(() => {
+    if (signers && network && wallet.encryption === 'SEED_DERIVED') {
+      const signer = signers[0];
+      console.log('init dataCipherKey', { signer });
+      if (!signer) throw new Error('signer unavailable');
+      const fetchDataCipherKey = async () => {
+        const dataCipherKey = await getDataCipherKey({
+          signer,
+          network
+        });
+        setDataCipherKey(dataCipherKey);
+      };
+      fetchDataCipherKey();
+    }
+  }, [signers, network, wallet?.encryption]);
 
   let esploraAPI: string | undefined;
   let serviceAddressAPI: string | undefined;

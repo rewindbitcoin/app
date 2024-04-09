@@ -112,7 +112,7 @@ export default function NewWalletScreen() {
       const signersCipherKey = signersPassword
         ? await getPasswordDerivedCipherKey(signersPassword)
         : undefined;
-      onWallet({
+      await onWallet({
         wallet,
         ...(signersCipherKey ? { signersCipherKey } : {}),
         newSigners: {

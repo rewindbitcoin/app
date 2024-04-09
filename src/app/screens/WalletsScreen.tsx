@@ -10,10 +10,8 @@ import BitcoinSign from '../../../assets/BitcoinSign.svg';
 import BitcoinLogo from '../../../assets/Bitcoin.svg';
 import RegtestLogo from '../../../assets/Regtest.svg';
 import TestnetLogo from '../../../assets/Testnet.svg';
-//import Prefectures from '../../../assets/Prefectures.ttf';
 import { Ubuntu_700Bold } from '@expo-google-fonts/ubuntu';
 import { useFonts } from 'expo-font';
-//const [fontsLoaded] = useFonts({ Prefectures });
 import { cssInterop } from 'nativewind';
 import {
   WalletContext,
@@ -91,15 +89,8 @@ const WalletsScreen = () => {
         const wallet = wallets[walletId];
         if (!wallet) throw new Error(`Unset wallet for ${walletId}`);
         map[walletId] = () => {
-          console.log('onWallet', wallet);
           onWallet({ wallet });
           navigation.navigate(WALLET_HOME);
-          //if (wallet.signersEncryption === 'PASSWORD') {
-          //  setPasswordRequestWalletId(walletId);
-          //} else {
-          //  onWallet({ wallet });
-          //  navigation.navigate(WALLET_HOME);
-          //}
         };
       });
       return map;
@@ -199,17 +190,10 @@ const WalletsScreen = () => {
                     <RegtestLogo className="flex-initial w-8 h-8" />
                   )}
                 </View>
-                {/*<FontAwesome5
-                  name="bitcoin"
-                  size={256}
-                  className="z-0 text-white opacity-10 absolute -bottom-24 -right-12"
-                />*/}
-                {
-                  <BitcoinSign
-                    opacity={0.1}
-                    className="w-60 z-0 fill-white absolute -bottom-46"
-                  />
-                }
+                <BitcoinSign
+                  opacity={0.1}
+                  className="w-60 z-0 fill-white absolute -bottom-46"
+                />
               </Pressable>
             ))}
         </View>

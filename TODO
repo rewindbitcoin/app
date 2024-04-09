@@ -1,5 +1,4 @@
-A logout that unsets the keys in storage will be needed for each storaege system
-  The second Password request will just let the user pass because it just takes it from storage state
+The Password when is re-prompted should show a "Bad Password" or something
 
 In WalletContext I need to keep track of all the storage synchd status
 and render a Loading... when not all of them are synched.

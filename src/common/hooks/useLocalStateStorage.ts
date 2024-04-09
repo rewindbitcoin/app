@@ -176,10 +176,6 @@ export const useLocalStateStorage = <T>(
     valueMap
   ]);
 
-  const deleteValue = useCallback(async () => {
-    if (key) await deleteAsync(key, engine, authenticationPrompt);
-  }, [key, engine, authenticationPrompt]);
-
   const clearCache = useCallback(() => {
     if (key) {
       setValueMap(prevState => {
@@ -201,6 +197,13 @@ export const useLocalStateStorage = <T>(
       });
     }
   }, [key, setValueMap, setDecryptErrorMap]);
+
+  const deleteValue = useCallback(async () => {
+    if (key) {
+      await deleteAsync(key, engine, authenticationPrompt);
+      clearCache();
+    }
+  }, [key, engine, authenticationPrompt, clearCache]);
 
   if (key === undefined)
     return [
