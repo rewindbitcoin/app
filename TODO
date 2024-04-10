@@ -3,6 +3,9 @@ Test password + secure store
 test idb + password
 tst idb + derived seed (encrypt app data)
 
+Android on a clean install does not show the numbers on Bip39!
+at least when clicking on Need to oimport
+
 
 TextEncoder:
   https://github.com/facebook/hermes/commit/3863a36a53005dd1e6d39ea0d4ef5573bafde910

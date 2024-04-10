@@ -48,7 +48,6 @@
     "expo-sharing": "~11.10.0",
     "expo-splash-screen": "~0.26.4",
     "expo-status-bar": "~1.11.1",
-    "fast-text-encoding": "^1.0.6",
     "fflate": "^0.8.2",
     "i18next": "^23.7.7",
     "idb-keyval": "^6.2.1",

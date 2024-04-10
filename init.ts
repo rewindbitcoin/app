@@ -25,7 +25,11 @@ import 'react-native-url-polyfill/auto';
 //This is needed in storage.ts for import { utf8ToBytes, bytesToUtf8 } from '@noble/ciphers/utils';
 //Also for fflate strFromU8, strToU8
 //Non native text encoder is slow as hell. React Native 74 will implement it
-import 'fast-text-encoding';
+//Better not set it, then strToU8 and strFromU8 use some other implementation
+//automatically which does not require TextEncoder. Internal implementation
+//is faster than  fast-text-encoding
+//import 'fast-text-encoding';
+console.log('TextEncoder', typeof TextEncoder);
 
 //If planning to use React Animated:
 import { NativeModules } from 'react-native';

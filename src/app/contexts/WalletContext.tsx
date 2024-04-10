@@ -200,9 +200,6 @@ const WalletProviderRaw = ({
   if (discoveryStorageStatus.decryptError)
     throw new Error(`DISCOVERY_${walletId} could not be decrypted`);
   const isDiscoveryDataExportSynchd = discoveryStorageStatus.isSynchd;
-  console.log(
-    `useLocalStateStorage DISCOVERY, id: ${initData ? `DISCOVERY_${walletId}` : undefined}, dataInDisc: ${!!discoveryDataExport}, isDiscoveryDataExportSynchd:${isDiscoveryDataExportSynchd}`
-  );
 
   const [vaults, setVaults, , clearVaultsCache, vaultsStorageStatus] =
     useLocalStateStorage<Vaults>(
@@ -308,7 +305,6 @@ const WalletProviderRaw = ({
       const signer = signers[0];
       if (!signer) throw new Error('signer unavailable');
       const fetchDataCipherKey = async () => {
-        console.log(`getting cipher key for ${signer.mnemonic}`);
         const dataCipherKey = await getDataCipherKey({
           signer,
           network
@@ -385,10 +381,6 @@ const WalletProviderRaw = ({
       (async function () {
         const discoveryData = discoveryDataExport;
         let discovery: DiscoveryInstance;
-        console.log(
-          'Setting discoveryData with imported data: ',
-          !!discoveryData
-        );
         if (discoveryData) {
           discovery = new Discovery({ imported: discoveryData });
         } else {
@@ -653,7 +645,6 @@ const WalletProviderRaw = ({
       //shallowEqualArrays(Object.keys(vaults), Object.keys(accountNames)) &&
       signers
     ) {
-      console.log('YES syncBlockchain');
       if (syncBlockchainRunning.current === true) return;
       syncBlockchainRunning.current = true;
       setSyncingBlockchain(true);
@@ -737,17 +728,6 @@ const WalletProviderRaw = ({
         syncBlockchainRunning.current = false;
         setSyncingBlockchain(false);
       }
-    } else {
-      console.log(
-        'NOT syncBlockchain',
-        !!network,
-        settings?.GAP_LIMIT !== undefined,
-        !!discovery,
-        !!vaults,
-        !!vaultsStatuses,
-        !!accountNames,
-        !!signers
-      );
     }
   }, [
     fetchP2PVaults,
