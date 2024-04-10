@@ -4,6 +4,15 @@ test idb + password
 tst idb + derived seed (encrypt app data)
 
 
+TextEncoder:
+  https://github.com/facebook/hermes/commit/3863a36a53005dd1e6d39ea0d4ef5573bafde910
+  belongs to tag:
+  https://github.com/facebook/hermes/releases/tag/hermes-2024-03-26-RNvmain-86d391d00be80aeccc8b29f62a254ecf6bc8a9ae
+  PR accepted:
+  https://github.com/facebook/react-native/pull/43098
+  https://github.com/facebook/react-native/commit/e6995583d3fa20d36afba11303a95e37ddd2122f
+
+
 El predictive text the New Wallet s un follon!!
   -> Si sogo escribiendo me escrib ern el seiguioente cuadro!
 

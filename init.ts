@@ -23,6 +23,8 @@ import 'react-native-url-polyfill/auto';
 
 //polyfill for react 'Hermes' TextEncoder
 //This is needed in storage.ts for import { utf8ToBytes, bytesToUtf8 } from '@noble/ciphers/utils';
+//Also for fflate strFromU8, strToU8
+//Non native text encoder is slow as hell. React Native 74 will implement it
 import 'fast-text-encoding';
 
 //If planning to use React Animated:

@@ -326,8 +326,15 @@ export const getAsync = async <S extends SerializationFormat>(
         `About to decrypt ${key} / encrypted buffer length ${result.length} bytes / ${engine}`
       );
       const start = performance.now(); // Start timing
-      result = JSON.parse(strFromU8(chacha.decrypt(result)));
+      const decryptedResult = chacha.decrypt(result);
+      const decryptTime = performance.now();
+      console.log(`decrypt time: ${(decryptTime - start) / 1000} seconds`);
+      const strResult = strFromU8(decryptedResult);
+      const strTime = performance.now();
+      console.log(`U8 -> str time: ${(strTime - decryptTime) / 1000} seconds`);
+      result = JSON.parse(strResult);
       const end = performance.now(); // End timing
+      console.log(`JSON.parse time: ${(end - strTime) / 1000} seconds`);
       console.log(`Success: ${(end - start) / 1000} seconds`);
     }
   }
