@@ -192,7 +192,7 @@ export const deleteAsync = async (
     );
   } else if (engine === 'MMKV') {
     return new Promise(resolve => {
-      resolve(mmkvStorage.delete.bind(mmkvStorage)(key));
+      resolve(mmkvStorage.delete(key));
     });
   } else throw new Error(`Unknown engine ${engine}`);
 };
@@ -203,6 +203,7 @@ export const setAsync = async (
   cipherKey: Uint8Array | undefined = undefined,
   authenticationPrompt: string | undefined = undefined
 ): Promise<void> => {
+  let cipherMessage: Uint8Array | undefined = undefined;
   if (cipherKey) {
     if (value instanceof Uint8Array)
       throw new Error(
@@ -210,20 +211,26 @@ export const setAsync = async (
       );
     const chacha = getManagedChacha(cipherKey);
     const originalMessage = value;
-    const cipherMessage = chacha.encrypt(
-      strToU8(JSON.stringify(originalMessage))
+    console.log(`About to encrypt ${key} in ${engine}`);
+    const start = performance.now(); // Start timing
+    const strOriginalMessage = JSON.stringify(originalMessage);
+    const uint8OriginalMessage = strToU8(strOriginalMessage);
+    cipherMessage = chacha.encrypt(uint8OriginalMessage);
+    const end = performance.now(); // End timing
+    console.log(
+      `Data preparation success: encrypted buffer length: ${cipherMessage.length} chars / ${(end - start) / 1000} seconds`
     );
-    value = strFromU8(cipherMessage, true);
   }
   if (engine === 'IDB') {
-    await idbSet(key, value);
+    await idbSet(key, cipherMessage || value);
   } else if (engine === 'SECURESTORE') {
-    if (value instanceof Uint8Array)
-      //TODO: This in fact should check that Uint8Array is not used anywhere within value (if an object)
+    if (!cipherMessage && value instanceof Uint8Array)
       throw new Error(
         `Engine ${engine} does not support native Uint8Array since it uses JSON.stringify`
       );
-    const secureStoreValue = JSON.stringify(value);
+    const secureStoreValue =
+      (cipherMessage && strFromU8(cipherMessage, true)) ||
+      JSON.stringify(value);
     if (secureStoreValue.length > 2048)
       throw new Error(
         `Reached Secure Store Limit: ${secureStoreValue.length} > 2048.`
@@ -236,16 +243,16 @@ export const setAsync = async (
       secureStoreGetOptions(authenticationPrompt)
     );
   } else if (engine === 'MMKV') {
-    mmkvStorage.set.bind(mmkvStorage)(
-      key,
-      // Only stringify objects, and don't stringify Uint8Array since
-      // mmkv nicely handle this. However, note that
-      // typeof new Uint8Array() === 'object', so make sure only
-      // objects which are not Uint8Array are stringified:
-      typeof value === 'object' && !(value instanceof Uint8Array)
+    // Only stringify objects, and don't stringify Uint8Array since
+    // mmkv nicely handle this. However, note that
+    // typeof new Uint8Array() === 'object', so make sure only
+    // objects which are not Uint8Array are stringified:
+    const mmkvValue =
+      cipherMessage ||
+      (typeof value === 'object' && !(value instanceof Uint8Array)
         ? JSON.stringify(value)
-        : value
-    );
+        : value);
+    mmkvStorage.set(key, mmkvValue);
   } else throw new Error(`Unknown engine ${engine}`);
 };
 export const getAsync = async <S extends SerializationFormat>(
@@ -265,10 +272,15 @@ export const getAsync = async <S extends SerializationFormat>(
       key,
       secureStoreGetOptions(authenticationPrompt)
     );
-    result = stringValue !== null ? JSON.parse(stringValue) : undefined;
+    result =
+      stringValue === null
+        ? undefined
+        : cipherKey
+          ? strToU8(stringValue, true)
+          : JSON.parse(stringValue);
   } else if (engine === 'MMKV') {
     if (cipherKey) {
-      result = mmkvStorage.getString(key);
+      result = mmkvStorage.getBuffer(key);
     } else {
       switch (serializationFormat) {
         case NUMBER:
@@ -303,15 +315,20 @@ export const getAsync = async <S extends SerializationFormat>(
       );
     if (result === undefined) {
       return result;
-    } else if (typeof result !== 'string') {
+    } else if (!(result instanceof Uint8Array)) {
       console.error(result);
       throw new Error(
-        `Impossible to decode non-string encoded value: ${typeof result} is not a string`
+        `Impossible to decode non-binary encoded value: ${typeof result}`
       );
     } else {
       const chacha = getManagedChacha(cipherKey);
-      const cipherMessage = strToU8(result, true);
-      result = JSON.parse(strFromU8(chacha.decrypt(cipherMessage)));
+      console.log(
+        `About to decrypt ${key} / encrypted buffer length ${result.length} bytes / ${engine}`
+      );
+      const start = performance.now(); // Start timing
+      result = JSON.parse(strFromU8(chacha.decrypt(result)));
+      const end = performance.now(); // End timing
+      console.log(`Success: ${(end - start) / 1000} seconds`);
     }
   }
   return result;

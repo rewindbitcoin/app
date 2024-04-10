@@ -38,16 +38,15 @@ export default function VaultCreate({
   vaultSettings: VaultSettings | undefined;
   onVaultPushed: (result: boolean) => void;
 }) {
+  if (!vaultSettings) throw new Error('vaultSettings not set');
+  const { amount, feeRate, lockBlocks, coldAddress } = vaultSettings;
+
   const insets = useSafeAreaInsets();
   const theme = useTheme();
   const styles = useMemo(() => getStyles(insets, theme), [insets, theme]);
   //TODO Use a proper Cancellable Modal
   const context = useContext<WalletContextType | null>(WalletContext);
   if (context === null) throw new Error('Context was not set');
-
-  if (!vaultSettings) throw new Error('vaultSettings not set');
-  const { amount, feeRate, lockBlocks, coldAddress } = vaultSettings;
-
   const {
     utxosData,
     networkId,
@@ -60,6 +59,7 @@ export default function VaultCreate({
     vaultsAPI,
     vaultsSecondaryAPI
   } = context;
+
   if (
     !utxosData ||
     !networkId ||

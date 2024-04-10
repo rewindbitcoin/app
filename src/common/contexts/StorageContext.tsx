@@ -147,6 +147,10 @@ const useGlobalStateStorage = <T,>(
   /** sets storage and sate value */
   const setStorageValue = useCallback(
     async (newValue: T) => {
+      if (newValue === undefined)
+        throw new Error(
+          'Cannot set undefined value, since undefined is used to mark empty keys'
+        );
       if (key !== undefined) {
         await setAsync(
           key,
@@ -196,7 +200,7 @@ const useGlobalStateStorage = <T,>(
             cipherKey,
             authenticationPrompt
           );
-          if (savedValue)
+          if (savedValue !== undefined)
             //useState assumes immutability: https://react.dev/reference/react/useState
             setValueMap(prevState =>
               prevState[key] !== savedValue
@@ -208,7 +212,11 @@ const useGlobalStateStorage = <T,>(
           //useState assumes immutability: https://react.dev/reference/react/useState
           else
             setValueMap(prevState =>
-              prevState[key] !== undefined
+              prevState[key] !== undefined ||
+              !(
+                //isSynchd can also be marked with state[key] = undefined
+                (key in prevState)
+              )
                 ? { ...prevState, [key]: undefined }
                 : prevState
             );

@@ -96,6 +96,10 @@ export const useLocalStateStorage = <T>(
   /** sets storage and sate value */
   const setStorageValue = useCallback(
     async (newValue: T) => {
+      if (newValue === undefined)
+        throw new Error(
+          'Cannot set undefined value, since undefined is used to mark empty keys'
+        );
       if (key !== undefined) {
         await setAsync(
           key,
@@ -137,7 +141,7 @@ export const useLocalStateStorage = <T>(
             cipherKey,
             authenticationPrompt
           );
-          if (savedValue)
+          if (savedValue !== undefined)
             //useState assumes immutability: https://react.dev/reference/react/useState
             setValueMap(prevState =>
               prevState[key] !== savedValue
@@ -149,11 +153,16 @@ export const useLocalStateStorage = <T>(
           //useState assumes immutability: https://react.dev/reference/react/useState
           else
             setValueMap(prevState =>
-              prevState[key] !== undefined
+              prevState[key] !== undefined ||
+              !(
+                //isSynchd can also be marked with state[key] = undefined
+                (key in prevState)
+              )
                 ? { ...prevState, [key]: undefined }
                 : prevState
             );
         } catch (err: unknown) {
+          console.warn(err);
           if (isDecryptError(err))
             setDecryptErrorMap(prevState =>
               prevState[key] !== true

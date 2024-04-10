@@ -1,4 +1,17 @@
+
+Test password + secure store
+test idb + password
+tst idb + derived seed (encrypt app data)
+
+
+El predictive text the New Wallet s un follon!!
+  -> Si sogo escribiendo me escrib ern el seiguioente cuadro!
+
+Si sigo tecleando despuesd e haver rellenado bien el Buip39 entonces automaticamente me crea la Wallet y no puedo elegir advanced
+
 The Password when is re-prompted should show a "Bad Password" or something
+
+No me refrescha wallet 3 (goat oak)
 
 In WalletContext I need to keep track of all the storage synchd status
 and render a Loading... when not all of them are synched.

@@ -183,13 +183,12 @@ const WalletProviderRaw = ({
       signersCipherKey,
       t('app.secureStorageAuthenticationPrompt')
     );
-  console.log('WalletContext', { walletId, initSigners, initData, signers });
 
   const [
     discoveryDataExport,
     setDiscoveryDataExport,
     ,
-    ,
+    clearDiscoveryCache,
     discoveryStorageStatus
   ] = useLocalStateStorage<DiscoveryDataExport>(
     initData ? `DISCOVERY_${walletId}` : undefined,
@@ -198,36 +197,71 @@ const WalletProviderRaw = ({
     undefined,
     dataCipherKey
   );
+  if (discoveryStorageStatus.decryptError)
+    throw new Error(`DISCOVERY_${walletId} could not be decrypted`);
   const isDiscoveryDataExportSynchd = discoveryStorageStatus.isSynchd;
-
-  const [vaults, setVaults] = useLocalStateStorage<Vaults>(
-    initData ? `VAULTS_${walletId}` : undefined,
-    SERIALIZABLE,
-    DEFAULT_VAULTS,
-    undefined,
-    dataCipherKey
+  console.log(
+    `useLocalStateStorage DISCOVERY, id: ${initData ? `DISCOVERY_${walletId}` : undefined}, dataInDisc: ${!!discoveryDataExport}, isDiscoveryDataExportSynchd:${isDiscoveryDataExportSynchd}`
   );
 
-  const [vaultsStatuses, setVaultsStatuses] =
-    useLocalStateStorage<VaultsStatuses>(
-      initData ? `VAULTS_STATUSES_${walletId}` : undefined,
+  const [vaults, setVaults, , clearVaultsCache, vaultsStorageStatus] =
+    useLocalStateStorage<Vaults>(
+      initData ? `VAULTS_${walletId}` : undefined,
       SERIALIZABLE,
-      DEFAULT_VAULTS_STATUSES,
+      DEFAULT_VAULTS,
       undefined,
       dataCipherKey
     );
+  if (vaultsStorageStatus.decryptError)
+    throw new Error(`VAULTS_${walletId} could not be decrypted`);
 
-  const [accountNames] = useLocalStateStorage<AccountNames>(
-    initData ? `ACCOUNT_NAMES_${walletId}` : undefined,
+  const [
+    vaultsStatuses,
+    setVaultsStatuses,
+    ,
+    clearVaultsStatusesCache,
+    vaultsStatusesStorageStatus
+  ] = useLocalStateStorage<VaultsStatuses>(
+    initData ? `VAULTS_STATUSES_${walletId}` : undefined,
     SERIALIZABLE,
-    DEFAULT_ACCOUNT_NAMES,
+    DEFAULT_VAULTS_STATUSES,
     undefined,
     dataCipherKey
   );
+  if (vaultsStatusesStorageStatus.decryptError)
+    throw new Error(`VAULTS_STATUSES_${walletId} could not be decrypted`);
+
+  const [accountNames, , , clearAccountNamesCache, accountNamesStorageStatus] =
+    useLocalStateStorage<AccountNames>(
+      initData ? `ACCOUNT_NAMES_${walletId}` : undefined,
+      SERIALIZABLE,
+      DEFAULT_ACCOUNT_NAMES,
+      undefined,
+      dataCipherKey
+    );
+  if (accountNamesStorageStatus.decryptError)
+    throw new Error(`ACCOUNT_NAMES_{walletId} could not be decrypted`);
 
   const logOut = useCallback(() => {
+    // Clear cache, so that data must be read from disk again for the walletId.
+    // This forces cipherKeys to be evaluated again to decrypt from disk
+    // In other words, passwords must be set again
     clearSignersCache();
-  }, [clearSignersCache]);
+    clearVaultsCache();
+    clearVaultsStatusesCache();
+    clearDiscoveryCache();
+    clearAccountNamesCache();
+    unstable_batchedUpdates(() => {
+      setDiscovery(null);
+      setUtxosData(undefined);
+    });
+  }, [
+    clearSignersCache,
+    clearVaultsCache,
+    clearVaultsStatusesCache,
+    clearDiscoveryCache,
+    clearAccountNamesCache
+  ]);
 
   const onWallet = useCallback(
     async ({
@@ -259,7 +293,6 @@ const WalletProviderRaw = ({
       logOut(); //Log out from previous wallet (if needed)
       //React 18 NOT on the new Architecture behaves as React 17:
       unstable_batchedUpdates(() => {
-        console.log('onWallet', { walletDst, signersCipherKey, newSigners });
         setWallet(walletDst);
         setSignersCipherKey(signersCipherKey);
         setNewSigners(newSigners);
@@ -273,9 +306,9 @@ const WalletProviderRaw = ({
   useEffect(() => {
     if (signers && network && wallet.encryption === 'SEED_DERIVED') {
       const signer = signers[0];
-      console.log('init dataCipherKey', { signer });
       if (!signer) throw new Error('signer unavailable');
       const fetchDataCipherKey = async () => {
+        console.log(`getting cipher key for ${signer.mnemonic}`);
         const dataCipherKey = await getDataCipherKey({
           signer,
           network
@@ -337,12 +370,12 @@ const WalletProviderRaw = ({
     string,
     number
   > | null>(null);
-  const [discovery, setDiscovery] = useState<DiscoveryInstance | null>(null);
+  const [discovery, setDiscovery] = useState<DiscoveryInstance | null>(null); //TODO: useRef?
   const [utxosData, setUtxosData] = useState<UtxosData>();
 
-  // Sets discovery from storage if available or new:
   useEffect(() => {
-    if (!discovery && networkId && esploraAPI) {
+    //Done only once (!discovery) per walletId
+    if (!discovery && networkId && esploraAPI && isDiscoveryDataExportSynchd) {
       const network = networkMapping[networkId];
       let isMounted = true;
       let isExplorerConnected = false;
@@ -350,18 +383,20 @@ const WalletProviderRaw = ({
       const { Discovery } = DiscoveryFactory(explorer, network);
 
       (async function () {
-        if (isDiscoveryDataExportSynchd) {
-          const discoveryData = discoveryDataExport;
-          let discovery: DiscoveryInstance;
-          if (discoveryData) {
-            discovery = new Discovery({ imported: discoveryData });
-          } else {
-            discovery = new Discovery();
-          }
-          await explorer.connect();
-          isExplorerConnected = true;
-          if (isMounted) setDiscovery(discovery);
+        const discoveryData = discoveryDataExport;
+        let discovery: DiscoveryInstance;
+        console.log(
+          'Setting discoveryData with imported data: ',
+          !!discoveryData
+        );
+        if (discoveryData) {
+          discovery = new Discovery({ imported: discoveryData });
+        } else {
+          discovery = new Discovery();
         }
+        await explorer.connect();
+        isExplorerConnected = true;
+        if (isMounted) setDiscovery(discovery);
       })();
 
       return () => {
@@ -618,6 +653,7 @@ const WalletProviderRaw = ({
       //shallowEqualArrays(Object.keys(vaults), Object.keys(accountNames)) &&
       signers
     ) {
+      console.log('YES syncBlockchain');
       if (syncBlockchainRunning.current === true) return;
       syncBlockchainRunning.current = true;
       setSyncingBlockchain(true);
@@ -676,7 +712,12 @@ const WalletProviderRaw = ({
 
         //Save to disk. Saving is async, but it's ok not awaiting since all this
         //data can be re-created any time by calling again syncBlockchain
-        setDiscoveryDataExport(discovery.export());
+
+        const start = performance.now(); // Start timing
+        const exportedData = discovery.export();
+        const end = performance.now(); // Start timing
+        console.log(`Discovery export took:  ${(end - start) / 1000} seconds`);
+        setDiscoveryDataExport(exportedData);
         setUtxosData(utxosData);
         //Update them in state only if they changed (we muteted them)
         if (vaults !== updatedVaults) setVaults(updatedVaults);
@@ -696,6 +737,17 @@ const WalletProviderRaw = ({
         syncBlockchainRunning.current = false;
         setSyncingBlockchain(false);
       }
+    } else {
+      console.log(
+        'NOT syncBlockchain',
+        !!network,
+        settings?.GAP_LIMIT !== undefined,
+        !!discovery,
+        !!vaults,
+        !!vaultsStatuses,
+        !!accountNames,
+        !!signers
+      );
     }
   }, [
     fetchP2PVaults,
