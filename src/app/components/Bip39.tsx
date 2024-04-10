@@ -148,10 +148,11 @@ export default function Bip39({
 
   //const isMounted = useRef<boolean>(false);
   useEffect(() => {
-    if (!readonly && autoFocus) inputRef.current?.focus();
-    //if (isMounted.current) inputRef.current?.focus();
-    //isMounted.current = true;
+    if (!readonly) inputRef.current?.focus();
   }, [activeWordIndex, readonly]);
+  useEffect(() => {
+    if (!readonly && autoFocus) inputRef.current?.focus();
+  }, [readonly, autoFocus]);
 
   return (
     <View className="rounded-xl bg-backgroundDefault flex-row flex-wrap pt-2 pr-2 w-full android:border android:border-gray-300 shadow mobmed:pt-3 mobmed:pr-3">
