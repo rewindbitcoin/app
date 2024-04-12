@@ -1,6 +1,13 @@
 import React, { useCallback, useContext, useEffect } from 'react';
 import Password from '../components/Password';
-import { RefreshControl, Button, View, Text, Pressable } from 'react-native';
+import {
+  RefreshControl,
+  Button,
+  View,
+  Text,
+  Pressable,
+  ActivityIndicator
+} from 'react-native';
 import { KeyboardAwareScrollView } from '../../common/ui';
 import { WalletContext, WalletContextType } from '../contexts/WalletContext';
 import { useTranslation } from 'react-i18next';
@@ -64,10 +71,14 @@ const WalletHomeScreen: React.FC<Props> = ({ onSetUpVaultInit }) => {
     syncBlockchain,
     syncingBlockchain,
     wallet,
+    walletError,
     requiresAuth,
     onWallet
   } = context;
-  if (!wallet) throw new Error(`wallet not set yet`);
+
+  useEffect(() => {
+    if (walletError === 'USER_CANCEL') navigation.goBack();
+  }, [walletError, navigation]);
 
   const onRequestVaultsBackup = useCallback(() => {
     if (!vaults) throw new Error('vaults not ready');
@@ -94,6 +105,7 @@ const WalletHomeScreen: React.FC<Props> = ({ onSetUpVaultInit }) => {
   }, [navigation]);
   const onPassword = useCallback(
     (password: string) => {
+      if (!wallet) throw new Error(`wallet not set yet`);
       const cb = async () => {
         const signersCipherKey = await getPasswordDerivedCipherKey(password);
         onWallet({
@@ -105,7 +117,9 @@ const WalletHomeScreen: React.FC<Props> = ({ onSetUpVaultInit }) => {
     },
     [wallet, onWallet]
   );
-  return (
+  return !wallet ? (
+    <ActivityIndicator />
+  ) : (
     <>
       <KeyboardAwareScrollView
         keyboardShouldPersistTaps="handled"

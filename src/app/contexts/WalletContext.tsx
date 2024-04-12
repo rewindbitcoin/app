@@ -31,7 +31,11 @@ import React, {
 import { shallowEqualObjects, shallowEqualArrays } from 'shallow-equal';
 import type { Wallet } from '../lib/wallets';
 import { useToast } from '../../common/ui';
-import { SERIALIZABLE, deleteAsync } from '../../common/lib/storage';
+import {
+  SERIALIZABLE,
+  StorageErrorCodes,
+  deleteAsync
+} from '../../common/lib/storage';
 import { useGlobalStateStorage } from '../../common/contexts/StorageContext';
 import { useSecureStorageAvailability } from '../../common/contexts/SecureStorageAvailabilityContext';
 import { useLocalStateStorage } from '../../common/hooks/useLocalStateStorage';
@@ -63,6 +67,21 @@ import {
 
 type DiscoveryDataExport = ReturnType<DiscoveryInstance['export']>;
 
+type WalletError =
+  /** When the user clicks on "Cancel" during authentication in wallet creation
+   * or opening wallet */
+  | 'USER_CANCEL'
+  /** this is the case of old Samsung Devices which do not let storing
+   * data even if the system reports that they suppor it. We only find our
+   * runtime
+   * https://stackoverflow.com/questions/36043912/error-after-fingerprint-touched-on-samsung-phones-android-security-keystoreexce
+   */
+  | 'BIOMETRICS_UNCAPABLE'
+  /** some read write delete operation failed */
+  | 'STORAGE_ERROR'
+  | 'ENCRYPTION_ERROR'
+  | false;
+
 export const WalletContext: Context<WalletContextType | null> =
   createContext<WalletContextType | null>(null);
 
@@ -90,6 +109,7 @@ export type WalletContextType = {
   vaultsSecondaryAPI: string | undefined;
   wallets: Wallets | undefined;
   wallet: Wallet | undefined;
+  walletError: WalletError;
   /** Whether the wallet needs to ask for a password and set it to retrieve
    * the signers */
   requiresAuth: boolean;
@@ -140,6 +160,7 @@ const WalletProviderRaw = ({
   newWalletSigners?: Signers;
 }) => {
   const [wallet, setWallet] = useState<Wallet>();
+  const [walletError, setWalletError] = useState<WalletError>(false);
   const [signersCipherKey, setSignersCipherKey] = useState<Uint8Array>();
   const [dataCipherKey, setDataCipherKey] = useState<Uint8Array>();
   const [newSigners, setNewSigners] = useState<Signers>();
@@ -169,21 +190,22 @@ const WalletProviderRaw = ({
     );
   }
 
-  const [settings] = useGlobalStateStorage<Settings>(
-    SETTINGS_GLOBAL_STORAGE,
-    SERIALIZABLE,
-    defaultSettings
-  );
+  const [settings, , , , settingsStorageStatus] =
+    useGlobalStateStorage<Settings>(
+      SETTINGS_GLOBAL_STORAGE,
+      SERIALIZABLE,
+      defaultSettings
+    );
   const [wallets, setWallets, , , walletsStorageStatus] =
-    useLocalStateStorage<Wallets>(`xWALLETS`, SERIALIZABLE, {});
+    useLocalStateStorage<Wallets>(`WALLETS`, SERIALIZABLE, {});
+  //console.log(
+  //  `This is the received wallets ${JSON.stringify(wallets, null, 2)}`
+  //);
   const isWalletsSynchd = walletsStorageStatus.isSynchd;
 
   const initSigners =
     walletId !== undefined &&
     (wallet?.signersEncryption !== 'PASSWORD' || signersCipherKey);
-  const initData =
-    walletId !== undefined &&
-    (wallet?.encryption !== 'SEED_DERIVED' || dataCipherKey);
 
   const [signers, , , clearSignersCache, signersStorageStatus] =
     useLocalStateStorage<Signers>(
@@ -194,10 +216,11 @@ const WalletProviderRaw = ({
       signersCipherKey,
       t('app.secureStorageAuthenticationPrompt')
     );
-  if (signersStorageStatus.errorCode)
-    throw new Error(
-      `SIGNERS_${walletId} error: ${signersStorageStatus.errorCode}`
-    );
+
+  const initData =
+    walletId !== undefined &&
+    signersStorageStatus.errorCode === false &&
+    (wallet?.encryption !== 'SEED_DERIVED' || dataCipherKey);
 
   const [
     discoveryDataExport,
@@ -212,10 +235,6 @@ const WalletProviderRaw = ({
     undefined,
     dataCipherKey
   );
-  if (discoveryStorageStatus.errorCode)
-    throw new Error(
-      `DISCOVERY_${walletId} error: ${discoveryStorageStatus.errorCode}`
-    );
   const isDiscoveryDataExportSynchd = discoveryStorageStatus.isSynchd;
 
   const [vaults, setVaults, , clearVaultsCache, vaultsStorageStatus] =
@@ -225,10 +244,6 @@ const WalletProviderRaw = ({
       DEFAULT_VAULTS,
       undefined,
       dataCipherKey
-    );
-  if (vaultsStorageStatus.errorCode)
-    throw new Error(
-      `VAULTS_${walletId} error: ${vaultsStorageStatus.errorCode}`
     );
 
   const [
@@ -244,10 +259,6 @@ const WalletProviderRaw = ({
     undefined,
     dataCipherKey
   );
-  if (vaultsStatusesStorageStatus.errorCode)
-    throw new Error(
-      `VAULTS_STATUSES_${walletId} error: ${vaultsStatusesStorageStatus.errorCode}`
-    );
 
   const [accountNames, , , clearAccountNamesCache, accountNamesStorageStatus] =
     useLocalStateStorage<AccountNames>(
@@ -257,23 +268,101 @@ const WalletProviderRaw = ({
       undefined,
       dataCipherKey
     );
-  if (accountNamesStorageStatus.errorCode)
-    throw new Error(
-      `ACCOUNT_NAMES_${walletId} error: ${accountNamesStorageStatus.errorCode}`
-    );
+
+  useEffect(() => {
+    const isEncryptionError = (errorCode: StorageErrorCodes) =>
+      errorCode === 'DecryptError' || errorCode === 'EncryptError';
+    const isStorageError = (
+      errorCode: StorageErrorCodes,
+      isNewWallet: boolean
+    ) =>
+      errorCode === 'ReadError' ||
+      errorCode === 'WriteError' ||
+      errorCode === 'DeleteError' ||
+      (!isNewWallet &&
+        (errorCode === 'BiometricsReadError' ||
+          errorCode === 'BiometricsWriteError'));
+    unstable_batchedUpdates(() => {
+      if (
+        //signersStorageStatus DecryptError is not handled as an ENCRYPTION_ERROR.
+        //This error will probably arise when the user makes an error while
+        //typing the password and is handled in requiresAuth
+        signersStorageStatus.errorCode === 'EncryptError' ||
+        isEncryptionError(settingsStorageStatus.errorCode) ||
+        isEncryptionError(walletsStorageStatus.errorCode) ||
+        isEncryptionError(discoveryStorageStatus.errorCode) ||
+        isEncryptionError(signersStorageStatus.errorCode) ||
+        isEncryptionError(vaultsStorageStatus.errorCode) ||
+        isEncryptionError(vaultsStatusesStorageStatus.errorCode) ||
+        isEncryptionError(accountNamesStorageStatus.errorCode)
+      ) {
+        setWalletError('ENCRYPTION_ERROR');
+      } else if (
+        //newSigners is defined when creating a new wallet
+        newSigners &&
+        (signersStorageStatus.errorCode === 'BiometricsWriteError' ||
+          signersStorageStatus.errorCode === 'BiometricsReadError')
+      )
+        setWalletError('BIOMETRICS_UNCAPABLE');
+      else if (
+        signersStorageStatus.errorCode === 'BiometricsReadUserCancel' ||
+        signersStorageStatus.errorCode === 'BiometricsWriteUserCancel'
+      ) {
+        console.log(
+          `Detected Bio User Cancel newSigners: ${!!newSigners}, wallet: ${JSON.stringify(wallet, null, 2)}}`
+        );
+        if (newSigners && wallet) {
+          //A new wallet was being created but the user cancelled it!
+          const newWallets = { ...wallets };
+          delete newWallets[wallet.walletId];
+          console.log(
+            `Deleting ${wallet.walletId} and setting ${JSON.stringify(newWallets, null, 2)}}`
+          );
+          setWallets(newWallets);
+          setWallet(undefined);
+        }
+        setWalletError('USER_CANCEL');
+      } else if (
+        isStorageError(settingsStorageStatus.errorCode, !!newSigners) ||
+        isStorageError(walletsStorageStatus.errorCode, !!newSigners) ||
+        isStorageError(discoveryStorageStatus.errorCode, !!newSigners) ||
+        isStorageError(signersStorageStatus.errorCode, !!newSigners) ||
+        isStorageError(vaultsStorageStatus.errorCode, !!newSigners) ||
+        isStorageError(vaultsStatusesStorageStatus.errorCode, !!newSigners) ||
+        isStorageError(accountNamesStorageStatus.errorCode, !!newSigners)
+      ) {
+        setWalletError('STORAGE_ERROR');
+      } else setWalletError(false);
+    });
+  }, [
+    newSigners,
+
+    setWallets,
+    wallet,
+    wallets,
+
+    settingsStorageStatus.errorCode,
+    walletsStorageStatus.errorCode,
+    discoveryStorageStatus.errorCode,
+    signersStorageStatus.errorCode,
+    vaultsStorageStatus.errorCode,
+    vaultsStatusesStorageStatus.errorCode,
+    accountNamesStorageStatus.errorCode
+  ]);
 
   const logOut = useCallback(() => {
-    // Clear cache, so that data must be read from disk again for the walletId.
-    // This forces cipherKeys to be evaluated again to decrypt from disk
-    // In other words, passwords must be set again
-    clearSignersCache();
-    clearVaultsCache();
-    clearVaultsStatusesCache();
-    clearDiscoveryCache();
-    clearAccountNamesCache();
     unstable_batchedUpdates(() => {
+      // Clear cache, so that data must be read from disk again for the walletId.
+      // This forces cipherKeys to be evaluated again to decrypt from disk
+      // In other words, passwords must be set again
+      clearSignersCache();
+      clearVaultsCache();
+      clearVaultsStatusesCache();
+      clearDiscoveryCache();
+      clearAccountNamesCache();
       setDiscovery(null);
       setUtxosData(undefined);
+      setWallet(undefined);
     });
   }, [
     clearSignersCache,
@@ -374,10 +463,15 @@ const WalletProviderRaw = ({
     }
 
   useEffect(() => {
+    console.log(`This should set the wallet ${walletId}`);
     if (isWalletsSynchd && wallet && walletId !== undefined) {
       if (!wallets) throw new Error('wallets should be defined after synched');
-      if (!shallowEqualObjects(wallet, wallets[walletId]))
+      if (!shallowEqualObjects(wallet, wallets[walletId])) {
+        console.log(
+          `Setting new wallet: ${JSON.stringify({ ...wallets, [walletId]: wallet }, null, 2)}`
+        );
         setWallets({ ...wallets, [walletId]: wallet });
+      }
     }
   }, [setWallets, walletId, wallets, wallet, isWalletsSynchd]);
 
@@ -842,6 +936,7 @@ const WalletProviderRaw = ({
     vaultsSecondaryAPI,
     wallets,
     wallet,
+    walletError,
     requiresAuth:
       (wallet?.signersEncryption === 'PASSWORD' && !signersCipherKey) ||
       (typeof signersStorageStatus.errorCode !== 'boolean' &&

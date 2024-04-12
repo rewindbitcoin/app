@@ -1,37 +1,18 @@
-Si no me va la auth, entonces tratarlo como si el usuario hubiese cancelado la auth
+Fallo: cuando intento crear y cancelar 2 wallets seguidas
+
+Fallo2: Tambien me falla cuando le doy a visitar una wallet, hago userCancel (se va atras)
+entonces vuelvo a visitar la wallet y ahora no me pide el password!?!?!?!
+
+Test: Si no me va la auth, entonces tratarlo como si el usuario hubiese cancelado la auth
   -> Sugerir password?
-  -> Quitar los 5 retries. Mierdaca de la buena.
   -> isBiometricWriteError? Borrar la wallet y llamar un onWallet de nuevo desactivando biometrics y activando password en Advanced Settings.
 
 
-Add BIOMETRICS_READ_USER_CANCELLED, BIOMETRICS_WRITE_USER_CANCELLED
-Add UNKNWON_READ, UNKOWN_WRITE
-
-BIOMETRICS_READ_ERROR that is !BIOMETRICS_READ_USER_CANCELLED
-explain that this error is because the user maybe added some new Biometrics and a new wallet
-must be crated since keys may have been invaldiated
-
-  Biometrics could not be used in your Device. This happens on some Samsung (and other) devices using old Android versions. Please, report your device and OS to ThunderDen. The wallet won't be created. We recommend creating it again disabling Biometrics and using a Password (use Advanced Settings when creating a Wallet).
-
-  Re-try / Use Password / Continue without Password (not recommended).
-
-  It looks like you either cancelled Biometrics authentication, your Biometric info changed in this device or your device does not properly support it. Either case, we recommend setting a Password. Proceed? Retry?
-    -> Ojo, esto es diferente si es creando wallet o si es leyendo wallet.
-    Status: isDecryptError, isBiometricReadError, isBiometricWriteError
-  -> Si el Biometrics no va bien entonces borrar la wallet y otros storages.
-  -> Error detection en los otros storages.
-
+  Biometrics cannot not be used in your Device. This happens on some Samsung (and other) devices using old Android versions. Please, report your device and OS to ThunderDen. The wallet won't be created using Biometrics. We recommend creating it again disabling Biometrics and using a Password (use Advanced Settings when creating a Wallet).
 
 Test password + secure store
 test idb + password
 tst idb + derived seed (encrypt app data)
-
-
-Si el fingerprint no se pilla bien, falla y punto. No me da mas opcion (en manual).
-https://github.com/expo/expo/issues/23426
-→ Caused by: Could not Authenticate the user: Authentication is already in progress]
- WARN  [Error: Call to function 'ExpoSecureStore.setValueWithKeyAsync' has been rejected.
-→ Caused by: Could not encrypt the value for key 'SIGNERS_3' under keychain 'key_v1'. Caused by: unknown]
 
 Bip39:
   predictive text is a nigthmare in real device (android)
