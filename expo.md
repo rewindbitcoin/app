@@ -81,25 +81,27 @@ Build locally for Android using (1st call will take a lot of time to complete,
 DON'T CTRL-C):
 ```bash
 #this will compile a release version
-npx eas build --platform android --local
+npx eas build --platform android --local #optinally with --clear-cache
 #install it into a device
 adb devices
 #then, which generates an apk:
-npx eas build --profile preview --platform android --local
+npx eas build --profile preview --platform android --local #optinally with --clear-cache
 #install it:
 adb -s 988674333331524734 install build-1702395889086.apk
 ```
 
 There are different "profiles":
 ```bash
-#To compile "locally" and using expo and dev server:
-npx eas build --profile development --platform android --local
+#To compile "locally" and using expo and dev server (this creates the image that is installed on simulators):
+npx eas build --profile development --platform android --local #optinally with --clear-cache
 #To compile "locally" and using expo and not using a dev server (your App can
 #work without a computer in the same network):
-npx eas build --profile preview --platform android --local
+npx eas build --profile preview --platform android --local #optinally with --clear-cache
 #To install in the simulator manually
 adb install ThunderDen/build-1702360280369.apk
-npx expo start
+npx expo start -c --dev-client #-c clears caches and -dev-client uses the Non-Expo client
+#Or, even this other command which lets you chooose device
+npx expo run:android -d
 ```
 but now click on "s" ->
 › Press s │ switch to development build
@@ -116,7 +118,7 @@ npm run android
 
 Alternativelly, you can do it manually:
 ```bash
-npx eas build --profile development --platform android --local
+npx eas build --profile development --platform android --local #optinally with --clear-cache
 
 
 
@@ -127,7 +129,7 @@ npx eas credentials
 # This now creates a provisionin profile that you must install in the iphone (real device)
 npx eas device:create
 # This builds and installs a "production" version into the iphone USB connected:
-npx eas build --platform ios --local --profile preview
+npx eas build --platform ios --local --profile preview #optinally with --clear-cache
     #the --profile preview let's you use "distribution: internal" from the eas.json,
     #the --local compiles it using this machine (not using EXPO servers)
     #which means installation using usb to certain registewred devices

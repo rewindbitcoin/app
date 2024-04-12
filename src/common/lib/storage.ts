@@ -16,27 +16,156 @@
  * case (reassociating it with the wallet). For the moment avoid this.
  *
  * requireAuthentication false is as safe as requireAuthentication true if the
- * device is locked. It can also survive FaceId or TouhcId changes:
+ * device is locked. It can also survive FaceId or TouchId changes:
  * Read more:
  * https://github.com/expo/expo/issues/22312
  *
  * getAsync returns undefined if the key is not found
  * setAsync cannot be used to set "undefined" or "null" values.
+ *
+ * Some other related error: https://github.com/expo/expo/issues/23426
  */
+
+const SECURESTORE_ATTEMPTS = 2;
+
+const MATCH_USER_CANCEL = 'User cancel';
+export type StorageErrorCodes = keyof typeof StorageErrors | false;
+export const StorageErrors = {
+  /** Thrown when reading from securestore using biometrics
+   * (and it's not the user cancelling it)*/
+  BiometricsReadError: 'Biometrics Read Error: Key could not be read.',
+  /** Thrown when writing to securestore using biometrics
+   * (and it's not the user cancelling it)*/
+  BiometricsWriteError: 'Biometrics Write Error: Key could not be written.',
+  /** Thrown when user cancels reading from securestore using biometrics*/
+  BiometricsReadUserCancel: 'Biometrics Read Error: User Cancelled.',
+  /** Thrown when user cancels writing to securestore using biometrics*/
+  BiometricsWriteUserCancel: 'Biometrics Write Error: User Cancelled.',
+  /** Thrown when reading from non-securestore*/
+  ReadError: 'Read Error: Key could not be read.',
+  /** Thrown when writing to non-securestore*/
+  WriteError: 'Write Error: Key could not be written.',
+  /** Thrown when deleting a key in any store*/
+  DeleteError: 'Delete Error: Key could not be deleted.',
+  DecryptError: 'Decrypt Failed.',
+  EncryptError: 'Encrypt Failed.',
+  UnknownError: 'Unknown Error.'
+};
+export function getStorageErrorCode(error: unknown): StorageErrorCodes {
+  if (error instanceof Error && typeof error.message === 'string') {
+    for (const [key, value] of Object.entries(StorageErrors))
+      if (value === error.message) return key as StorageErrorCodes;
+  }
+  return 'UnknownError';
+}
+
+export type StorageStatus = {
+  isSynchd: boolean;
+  errorCode: StorageErrorCodes;
+};
 
 import { MMKV } from 'react-native-mmkv';
 const mmkvStorage = new MMKV();
 
-import { Platform } from 'react-native';
+const mmkvSet = (
+  key: string,
+  value: string | number | boolean | Uint8Array
+) => {
+  try {
+    mmkvStorage.set(key, value);
+  } catch (err) {
+    console.warn(err);
+    throw new Error(StorageErrors.ReadError);
+  }
+};
+const mmkvDel = (key: string) => {
+  try {
+    mmkvStorage.delete(key);
+  } catch (err) {
+    console.warn(err);
+    throw new Error(StorageErrors.DeleteError);
+  }
+};
+const mmkvGetNumber = (key: string) => {
+  try {
+    return mmkvStorage.getNumber(key);
+  } catch (err) {
+    console.warn(err);
+  }
+  throw new Error(StorageErrors.ReadError);
+};
+const mmkvGetString = (key: string) => {
+  try {
+    return mmkvStorage.getString(key);
+  } catch (err) {
+    console.warn(err);
+  }
+  throw new Error(StorageErrors.ReadError);
+};
+const mmkvGetBoolean = (key: string) => {
+  try {
+    return mmkvStorage.getBoolean(key);
+  } catch (err) {
+    console.warn(err);
+  }
+  throw new Error(StorageErrors.ReadError);
+};
+const mmkvGetBuffer = (key: string) => {
+  try {
+    return mmkvStorage.getBuffer(key);
+  } catch (err) {
+    console.warn(err);
+  }
+  throw new Error(StorageErrors.ReadError);
+};
 
-import { get as idbGet, set as idbSet, del as idbDel } from 'idb-keyval';
+import {
+  get as idbOriginalGet,
+  set as idbOriginalSet,
+  del as idbOriginalDel
+} from 'idb-keyval';
+const idbGet = async (key: string) => {
+  try {
+    return idbOriginalGet(key);
+  } catch (err) {
+    console.warn(err);
+  }
+  throw new Error(StorageErrors.ReadError);
+};
+const idbSet = async (
+  key: string,
+  value: string | number | boolean | object | Uint8Array
+) => {
+  try {
+    return idbOriginalSet(key, value);
+  } catch (err) {
+    console.warn(err);
+    throw new Error(StorageErrors.WriteError);
+  }
+};
+const idbDel = async (key: string) => {
+  try {
+    return idbOriginalDel(key);
+  } catch (err) {
+    console.warn(err);
+    throw new Error(StorageErrors.DeleteError);
+  }
+};
+
+import { Platform } from 'react-native';
 
 //Note this package has been patch-packaged:
 //After patch-pachate you need to npx expo prebuild
 //https://github.com/expo/expo/issues/17804
+//Eventually the new API of loca.authentication will support BIOMETRIC_STRONG
+//It has been pull requested as of apr 11 2024, but not published in a stable
+//release yet:
+//https://github.com/expo/expo/blob/main/packages/expo-local-authentication/CHANGELOG.md
+//NOTE2: New versions of expo-secure-store will provide
+//canUseBiometricAuthentication so I believe expo--local-authentication will no
+//longer needed (or at least the patch)
 import { hasHardwareAsync, isEnrolledAsync } from 'expo-local-authentication';
 
-//import { to_string } from 'react-native-libsodium';
 import { strToU8, strFromU8 } from 'fflate';
 import { getManagedChacha } from './cipher';
 
@@ -44,19 +173,38 @@ import {
   AFTER_FIRST_UNLOCK,
   getItemAsync as secureStoreOriginalGetItemAsync,
   setItemAsync as secureStoreOriginalSetItemAsync,
-  deleteItemAsync as secureStoreDeleteItemAsync,
-  SecureStoreOptions,
-  deleteItemAsync,
+  deleteItemAsync as secureStoreOriginalDeleteItemAsync,
+  type SecureStoreOptions,
   isAvailableAsync
+  //canUseBiometricAuthentication
 } from 'expo-secure-store';
 
 export const canUseSecureStorageAsync = async () => {
   return (
     Platform.OS !== 'web' &&
+    //canUseBiometricAuthentication() &&
     (await isAvailableAsync()) &&
     (await hasHardwareAsync()) &&
     (await isEnrolledAsync())
   );
+};
+
+/** these are the messages thrown by 3rd party libs that we'll match and re-throw
+ * using the Error messsages above
+ */
+function errorMatches(err: unknown, msg: string) {
+  if (
+    err instanceof Error &&
+    typeof err.message === 'string' &&
+    err.message.includes(msg)
+  )
+    return true;
+  else return false;
+}
+
+const secureStoreOptions: SecureStoreOptions = {
+  requireAuthentication: true,
+  keychainAccessible: AFTER_FIRST_UNLOCK //This only applies to iOS
 };
 
 //github.com/expo/expo/issues/23426
@@ -64,40 +212,64 @@ const secureStoreGetItemAsync = async (
   key: string,
   options: SecureStoreOptions
 ) => {
+  console.log('secureStoreGetItemAsync', key);
   if (!(await canUseSecureStorageAsync()))
     throw new Error('Device does not support secure storage');
-  for (let attempts = 0; attempts < 5; attempts++) {
+  for (let attempts = 0; attempts < SECURESTORE_ATTEMPTS; attempts++) {
     try {
-      const value = await secureStoreOriginalGetItemAsync(key, options);
-      return value;
+      if (attempts > 0) {
+        console.warn(
+          `Secure Store failed reading ${key}. #Attempts: so far: ${attempts}. Attempting again.`
+        );
+        await new Promise(resolve => setTimeout(resolve, 1000)); //sleep 1 second
+      }
+      return await secureStoreOriginalGetItemAsync(key, options);
     } catch (error) {
       console.warn(error);
+      if (errorMatches(error, MATCH_USER_CANCEL))
+        throw new Error(StorageErrors.BiometricsReadUserCancel);
     }
   }
-  await deleteItemAsync(key);
-  return await secureStoreOriginalGetItemAsync(key, options);
+  throw new Error(StorageErrors.BiometricsReadError);
 };
 const secureStoreSetItemAsync = async (
   key: string,
   value: string,
   options: SecureStoreOptions
 ) => {
+  console.log('secureStoreSetItemAsync', key, value);
+  // assert this programming error (this should never happen)
   if (!(await canUseSecureStorageAsync()))
     throw new Error('Device does not support secure storage');
-  for (let attempts = 0; attempts < 5; attempts++) {
+  for (let attempts = 0; attempts < SECURESTORE_ATTEMPTS; attempts++) {
     try {
+      if (attempts > 0) {
+        console.warn(
+          `Secure Store failed setting ${key}. #Attempts so far: ${attempts}. Deleting key and attempting again.`
+        );
+        await new Promise(resolve => setTimeout(resolve, 1000)); //sleep 1 second
+        await secureStoreDeleteItemAsync(key, options);
+      }
       return await secureStoreOriginalSetItemAsync(key, value, options);
     } catch (error) {
       console.warn(error);
+      if (errorMatches(error, MATCH_USER_CANCEL))
+        throw new Error(StorageErrors.BiometricsWriteUserCancel);
     }
   }
-  await deleteItemAsync(key);
-  return await secureStoreOriginalSetItemAsync(key, value, options);
+  throw new Error(StorageErrors.BiometricsWriteError);
 };
-
-const secureStoreOptions = {
-  requireAuthentication: true,
-  keychainAccessible: AFTER_FIRST_UNLOCK
+const secureStoreDeleteItemAsync = async (
+  key: string,
+  options: SecureStoreOptions
+) => {
+  console.log('secureStoreDeleteItemAsynce', key);
+  try {
+    return secureStoreOriginalDeleteItemAsync(key, options);
+  } catch (err) {
+    console.warn(err);
+  }
+  throw new Error(StorageErrors.DeleteError);
 };
 
 export const NUMBER = 'NUMBER';
@@ -164,8 +336,6 @@ export const assertSerializationFormat = (
 
 export type Engine = 'IDB' | 'MMKV' | 'SECURESTORE';
 
-export type StorageStatus = { isSynchd: boolean; decryptError: boolean };
-
 function secureStoreGetOptions(authenticationPrompt: string | undefined) {
   if (secureStoreOptions.requireAuthentication) {
     if (authenticationPrompt === undefined)
@@ -191,9 +361,7 @@ export const deleteAsync = async (
       secureStoreGetOptions(authenticationPrompt)
     );
   } else if (engine === 'MMKV') {
-    return new Promise(resolve => {
-      resolve(mmkvStorage.delete(key));
-    });
+    return mmkvDel(key);
   } else throw new Error(`Unknown engine ${engine}`);
 };
 export const setAsync = async (
@@ -215,7 +383,12 @@ export const setAsync = async (
     const start = performance.now(); // Start timing
     const strOriginalMessage = JSON.stringify(originalMessage);
     const uint8OriginalMessage = strToU8(strOriginalMessage);
-    cipherMessage = chacha.encrypt(uint8OriginalMessage);
+    try {
+      cipherMessage = chacha.encrypt(uint8OriginalMessage);
+    } catch (err: unknown) {
+      console.warn(err);
+      throw new Error(StorageErrors.EncryptError);
+    }
     const end = performance.now(); // End timing
     console.log(
       `Data preparation success: encrypted buffer length: ${cipherMessage.length} chars / ${(end - start) / 1000} seconds`
@@ -252,7 +425,7 @@ export const setAsync = async (
       (typeof value === 'object' && !(value instanceof Uint8Array)
         ? JSON.stringify(value)
         : value);
-    mmkvStorage.set(key, mmkvValue);
+    mmkvSet(key, mmkvValue);
   } else throw new Error(`Unknown engine ${engine}`);
 };
 export const getAsync = async <S extends SerializationFormat>(
@@ -280,26 +453,26 @@ export const getAsync = async <S extends SerializationFormat>(
           : JSON.parse(stringValue);
   } else if (engine === 'MMKV') {
     if (cipherKey) {
-      result = mmkvStorage.getBuffer(key);
+      result = mmkvGetBuffer(key);
     } else {
       switch (serializationFormat) {
         case NUMBER:
-          result = mmkvStorage.getNumber(key);
+          result = mmkvGetNumber(key);
           break;
         case STRING:
-          result = mmkvStorage.getString(key);
+          result = mmkvGetString(key);
           break;
         case SERIALIZABLE: {
-          const stringValue = mmkvStorage.getString(key);
+          const stringValue = mmkvGetString(key);
           result =
             stringValue !== undefined ? JSON.parse(stringValue) : undefined;
           break;
         }
         case BOOLEAN:
-          result = mmkvStorage.getBoolean(key);
+          result = mmkvGetBoolean(key);
           break;
         case UINT8ARRAY:
-          result = mmkvStorage.getBuffer(key);
+          result = mmkvGetBuffer(key);
           break;
         default:
           throw new Error(
@@ -326,7 +499,13 @@ export const getAsync = async <S extends SerializationFormat>(
         `About to decrypt ${key} / encrypted buffer length ${result.length} bytes / ${engine}`
       );
       const start = performance.now(); // Start timing
-      const decryptedResult = chacha.decrypt(result);
+      let decryptedResult: Uint8Array;
+      try {
+        decryptedResult = chacha.decrypt(result);
+      } catch (err: unknown) {
+        console.warn(err);
+        throw new Error(StorageErrors.DecryptError);
+      }
       const decryptTime = performance.now();
       console.log(`decrypt time: ${(decryptTime - start) / 1000} seconds`);
       const strResult = strFromU8(decryptedResult);

@@ -1,10 +1,10 @@
 diff --git a/node_modules/expo-local-authentication/android/.gradle/8.3/checksums/checksums.lock b/node_modules/expo-local-authentication/android/.gradle/8.3/checksums/checksums.lock
 new file mode 100644
-index 0000000..e496d85
+index 0000000..84affee
 Binary files /dev/null and b/node_modules/expo-local-authentication/android/.gradle/8.3/checksums/checksums.lock differ
 diff --git a/node_modules/expo-local-authentication/android/.gradle/8.3/dependencies-accessors/dependencies-accessors.lock b/node_modules/expo-local-authentication/android/.gradle/8.3/dependencies-accessors/dependencies-accessors.lock
 new file mode 100644
-index 0000000..79e2c49
+index 0000000..ba9741b
 Binary files /dev/null and b/node_modules/expo-local-authentication/android/.gradle/8.3/dependencies-accessors/dependencies-accessors.lock differ
 diff --git a/node_modules/expo-local-authentication/android/.gradle/8.3/dependencies-accessors/gc.properties b/node_modules/expo-local-authentication/android/.gradle/8.3/dependencies-accessors/gc.properties
 new file mode 100644
@@ -15,26 +15,711 @@ index 0000000..f76dd23
 Binary files /dev/null and b/node_modules/expo-local-authentication/android/.gradle/8.3/fileChanges/last-build.bin differ
 diff --git a/node_modules/expo-local-authentication/android/.gradle/8.3/fileHashes/fileHashes.lock b/node_modules/expo-local-authentication/android/.gradle/8.3/fileHashes/fileHashes.lock
 new file mode 100644
-index 0000000..50b0d6a
+index 0000000..87177df
 Binary files /dev/null and b/node_modules/expo-local-authentication/android/.gradle/8.3/fileHashes/fileHashes.lock differ
 diff --git a/node_modules/expo-local-authentication/android/.gradle/8.3/gc.properties b/node_modules/expo-local-authentication/android/.gradle/8.3/gc.properties
 new file mode 100644
 index 0000000..e69de29
 diff --git a/node_modules/expo-local-authentication/android/.gradle/buildOutputCleanup/buildOutputCleanup.lock b/node_modules/expo-local-authentication/android/.gradle/buildOutputCleanup/buildOutputCleanup.lock
 new file mode 100644
-index 0000000..77ed6fd
+index 0000000..4560a7f
 Binary files /dev/null and b/node_modules/expo-local-authentication/android/.gradle/buildOutputCleanup/buildOutputCleanup.lock differ
 diff --git a/node_modules/expo-local-authentication/android/.gradle/buildOutputCleanup/cache.properties b/node_modules/expo-local-authentication/android/.gradle/buildOutputCleanup/cache.properties
 new file mode 100644
-index 0000000..f359c31
+index 0000000..d98e328
 --- /dev/null
 +++ b/node_modules/expo-local-authentication/android/.gradle/buildOutputCleanup/cache.properties
 @@ -0,0 +1,2 @@
-+#Tue Jan 23 19:27:26 CET 2024
++#Thu Apr 11 09:16:06 CEST 2024
 +gradle.version=8.3
 diff --git a/node_modules/expo-local-authentication/android/.gradle/vcs-1/gc.properties b/node_modules/expo-local-authentication/android/.gradle/vcs-1/gc.properties
 new file mode 100644
 index 0000000..e69de29
+diff --git a/node_modules/expo-local-authentication/android/build/.transforms/03336bf7a0c317dfd2252d5ea4d0e1b9/results.bin b/node_modules/expo-local-authentication/android/build/.transforms/03336bf7a0c317dfd2252d5ea4d0e1b9/results.bin
+new file mode 100644
+index 0000000..61a58fa
+--- /dev/null
++++ b/node_modules/expo-local-authentication/android/build/.transforms/03336bf7a0c317dfd2252d5ea4d0e1b9/results.bin
+@@ -0,0 +1 @@
++i/classes_dex
+diff --git a/node_modules/expo-local-authentication/android/build/.transforms/04b6cb4ab621452576d4f10e5e0c380e/results.bin b/node_modules/expo-local-authentication/android/build/.transforms/04b6cb4ab621452576d4f10e5e0c380e/results.bin
+new file mode 100644
+index 0000000..0d259dd
+--- /dev/null
++++ b/node_modules/expo-local-authentication/android/build/.transforms/04b6cb4ab621452576d4f10e5e0c380e/results.bin
+@@ -0,0 +1 @@
++o/classes
+diff --git a/node_modules/expo-local-authentication/android/build/.transforms/04b6cb4ab621452576d4f10e5e0c380e/transformed/classes/classes_dex/classes.dex b/node_modules/expo-local-authentication/android/build/.transforms/04b6cb4ab621452576d4f10e5e0c380e/transformed/classes/classes_dex/classes.dex
+new file mode 100644
+index 0000000..996efd4
+Binary files /dev/null and b/node_modules/expo-local-authentication/android/build/.transforms/04b6cb4ab621452576d4f10e5e0c380e/transformed/classes/classes_dex/classes.dex differ
+diff --git a/node_modules/expo-local-authentication/android/build/.transforms/1a310b0f9b12429a9183f1d5cacb80c2/results.bin b/node_modules/expo-local-authentication/android/build/.transforms/1a310b0f9b12429a9183f1d5cacb80c2/results.bin
+new file mode 100644
+index 0000000..0d259dd
+--- /dev/null
++++ b/node_modules/expo-local-authentication/android/build/.transforms/1a310b0f9b12429a9183f1d5cacb80c2/results.bin
+@@ -0,0 +1 @@
++o/classes
+diff --git a/node_modules/expo-local-authentication/android/build/.transforms/1a310b0f9b12429a9183f1d5cacb80c2/transformed/classes/classes_dex/classes.dex b/node_modules/expo-local-authentication/android/build/.transforms/1a310b0f9b12429a9183f1d5cacb80c2/transformed/classes/classes_dex/classes.dex
+new file mode 100644
+index 0000000..996efd4
+Binary files /dev/null and b/node_modules/expo-local-authentication/android/build/.transforms/1a310b0f9b12429a9183f1d5cacb80c2/transformed/classes/classes_dex/classes.dex differ
+diff --git a/node_modules/expo-local-authentication/android/build/.transforms/52ce04e93e13a5699172f2d3f9fdce4b/results.bin b/node_modules/expo-local-authentication/android/build/.transforms/52ce04e93e13a5699172f2d3f9fdce4b/results.bin
+new file mode 100644
+index 0000000..e3f0ff0
+--- /dev/null
++++ b/node_modules/expo-local-authentication/android/build/.transforms/52ce04e93e13a5699172f2d3f9fdce4b/results.bin
+@@ -0,0 +1 @@
++i/classes_global-synthetics
+diff --git a/node_modules/expo-local-authentication/android/build/.transforms/6f1684217eb9fcc00bd5fcc18cba1897/results.bin b/node_modules/expo-local-authentication/android/build/.transforms/6f1684217eb9fcc00bd5fcc18cba1897/results.bin
+new file mode 100644
+index 0000000..e3f0ff0
+--- /dev/null
++++ b/node_modules/expo-local-authentication/android/build/.transforms/6f1684217eb9fcc00bd5fcc18cba1897/results.bin
+@@ -0,0 +1 @@
++i/classes_global-synthetics
+diff --git a/node_modules/expo-local-authentication/android/build/.transforms/c0ba01fdfc2120adef6e48316b4d6c17/results.bin b/node_modules/expo-local-authentication/android/build/.transforms/c0ba01fdfc2120adef6e48316b4d6c17/results.bin
+new file mode 100644
+index 0000000..61a58fa
+--- /dev/null
++++ b/node_modules/expo-local-authentication/android/build/.transforms/c0ba01fdfc2120adef6e48316b4d6c17/results.bin
+@@ -0,0 +1 @@
++i/classes_dex
+diff --git a/node_modules/expo-local-authentication/android/build/generated/source/buildConfig/debug/expo/modules/localauthentication/BuildConfig.java b/node_modules/expo-local-authentication/android/build/generated/source/buildConfig/debug/expo/modules/localauthentication/BuildConfig.java
+new file mode 100644
+index 0000000..843ceee
+--- /dev/null
++++ b/node_modules/expo-local-authentication/android/build/generated/source/buildConfig/debug/expo/modules/localauthentication/BuildConfig.java
+@@ -0,0 +1,10 @@
++/**
++ * Automatically generated file. DO NOT MODIFY
++ */
++package expo.modules.localauthentication;
++
++public final class BuildConfig {
++  public static final boolean DEBUG = Boolean.parseBoolean("true");
++  public static final String LIBRARY_PACKAGE_NAME = "expo.modules.localauthentication";
++  public static final String BUILD_TYPE = "debug";
++}
+diff --git a/node_modules/expo-local-authentication/android/build/intermediates/aapt_friendly_merged_manifests/debug/aapt/AndroidManifest.xml b/node_modules/expo-local-authentication/android/build/intermediates/aapt_friendly_merged_manifests/debug/aapt/AndroidManifest.xml
+new file mode 100644
+index 0000000..678d582
+--- /dev/null
++++ b/node_modules/expo-local-authentication/android/build/intermediates/aapt_friendly_merged_manifests/debug/aapt/AndroidManifest.xml
+@@ -0,0 +1,10 @@
++<?xml version="1.0" encoding="utf-8"?>
++<manifest xmlns:android="http://schemas.android.com/apk/res/android"
++    package="expo.modules.localauthentication" >
++
++    <uses-sdk android:minSdkVersion="23" />
++
++    <uses-permission android:name="android.permission.USE_FINGERPRINT" />
++    <uses-permission android:name="android.permission.USE_BIOMETRIC" />
++
++</manifest>
+\ No newline at end of file
+diff --git a/node_modules/expo-local-authentication/android/build/intermediates/aapt_friendly_merged_manifests/debug/aapt/output-metadata.json b/node_modules/expo-local-authentication/android/build/intermediates/aapt_friendly_merged_manifests/debug/aapt/output-metadata.json
+new file mode 100644
+index 0000000..e3e999b
+--- /dev/null
++++ b/node_modules/expo-local-authentication/android/build/intermediates/aapt_friendly_merged_manifests/debug/aapt/output-metadata.json
+@@ -0,0 +1,18 @@
++{
++  "version": 3,
++  "artifactType": {
++    "type": "AAPT_FRIENDLY_MERGED_MANIFESTS",
++    "kind": "Directory"
++  },
++  "applicationId": "expo.modules.localauthentication",
++  "variantName": "debug",
++  "elements": [
++    {
++      "type": "SINGLE",
++      "filters": [],
++      "attributes": [],
++      "outputFile": "AndroidManifest.xml"
++    }
++  ],
++  "elementType": "File"
++}
+\ No newline at end of file
+diff --git a/node_modules/expo-local-authentication/android/build/intermediates/aar_metadata/debug/aar-metadata.properties b/node_modules/expo-local-authentication/android/build/intermediates/aar_metadata/debug/aar-metadata.properties
+new file mode 100644
+index 0000000..776557e
+--- /dev/null
++++ b/node_modules/expo-local-authentication/android/build/intermediates/aar_metadata/debug/aar-metadata.properties
+@@ -0,0 +1,5 @@
++aarFormatVersion=1.0
++aarMetadataVersion=1.0
++minCompileSdk=1
++minCompileSdkExtension=0
++minAndroidGradlePluginVersion=1.0.0
+diff --git a/node_modules/expo-local-authentication/android/build/intermediates/annotation_processor_list/debug/annotationProcessors.json b/node_modules/expo-local-authentication/android/build/intermediates/annotation_processor_list/debug/annotationProcessors.json
+new file mode 100644
+index 0000000..9e26dfe
+--- /dev/null
++++ b/node_modules/expo-local-authentication/android/build/intermediates/annotation_processor_list/debug/annotationProcessors.json
+@@ -0,0 +1 @@
++{}
+\ No newline at end of file
+diff --git a/node_modules/expo-local-authentication/android/build/intermediates/compile_library_classes_jar/debug/classes.jar b/node_modules/expo-local-authentication/android/build/intermediates/compile_library_classes_jar/debug/classes.jar
+new file mode 100644
+index 0000000..804b78c
+Binary files /dev/null and b/node_modules/expo-local-authentication/android/build/intermediates/compile_library_classes_jar/debug/classes.jar differ
+diff --git a/node_modules/expo-local-authentication/android/build/intermediates/compile_r_class_jar/debug/R.jar b/node_modules/expo-local-authentication/android/build/intermediates/compile_r_class_jar/debug/R.jar
+new file mode 100644
+index 0000000..3803546
+Binary files /dev/null and b/node_modules/expo-local-authentication/android/build/intermediates/compile_r_class_jar/debug/R.jar differ
+diff --git a/node_modules/expo-local-authentication/android/build/intermediates/compile_symbol_list/debug/R.txt b/node_modules/expo-local-authentication/android/build/intermediates/compile_symbol_list/debug/R.txt
+new file mode 100644
+index 0000000..e69de29
+diff --git a/node_modules/expo-local-authentication/android/build/intermediates/incremental/debug/packageDebugResources/compile-file-map.properties b/node_modules/expo-local-authentication/android/build/intermediates/incremental/debug/packageDebugResources/compile-file-map.properties
+new file mode 100644
+index 0000000..0ff2b90
+--- /dev/null
++++ b/node_modules/expo-local-authentication/android/build/intermediates/incremental/debug/packageDebugResources/compile-file-map.properties
+@@ -0,0 +1 @@
++#Thu Apr 04 11:58:31 CEST 2024
+diff --git a/node_modules/expo-local-authentication/android/build/intermediates/incremental/debug/packageDebugResources/merger.xml b/node_modules/expo-local-authentication/android/build/intermediates/incremental/debug/packageDebugResources/merger.xml
+new file mode 100644
+index 0000000..fa654ae
+--- /dev/null
++++ b/node_modules/expo-local-authentication/android/build/intermediates/incremental/debug/packageDebugResources/merger.xml
+@@ -0,0 +1,2 @@
++<?xml version="1.0" encoding="utf-8"?>
++<merger version="3"><dataSet aapt-namespace="http://schemas.android.com/apk/res-auto" config="main$Generated" generated="true" ignore_pattern="!.svn:!.git:!.ds_store:!*.scc:.*:&lt;dir>_*:!CVS:!thumbs.db:!picasa.ini:!*~"><source path="/Users/landabaso/bitcoinerlab/ThunderDen/node_modules/expo-local-authentication/android/src/main/res"/></dataSet><dataSet aapt-namespace="http://schemas.android.com/apk/res-auto" config="main" generated-set="main$Generated" ignore_pattern="!.svn:!.git:!.ds_store:!*.scc:.*:&lt;dir>_*:!CVS:!thumbs.db:!picasa.ini:!*~"><source path="/Users/landabaso/bitcoinerlab/ThunderDen/node_modules/expo-local-authentication/android/src/main/res"/></dataSet><dataSet aapt-namespace="http://schemas.android.com/apk/res-auto" config="debug$Generated" generated="true" ignore_pattern="!.svn:!.git:!.ds_store:!*.scc:.*:&lt;dir>_*:!CVS:!thumbs.db:!picasa.ini:!*~"><source path="/Users/landabaso/bitcoinerlab/ThunderDen/node_modules/expo-local-authentication/android/src/debug/res"/></dataSet><dataSet aapt-namespace="http://schemas.android.com/apk/res-auto" config="debug" generated-set="debug$Generated" ignore_pattern="!.svn:!.git:!.ds_store:!*.scc:.*:&lt;dir>_*:!CVS:!thumbs.db:!picasa.ini:!*~"><source path="/Users/landabaso/bitcoinerlab/ThunderDen/node_modules/expo-local-authentication/android/src/debug/res"/></dataSet><dataSet aapt-namespace="http://schemas.android.com/apk/res-auto" config="generated$Generated" generated="true" ignore_pattern="!.svn:!.git:!.ds_store:!*.scc:.*:&lt;dir>_*:!CVS:!thumbs.db:!picasa.ini:!*~"><source path="/Users/landabaso/bitcoinerlab/ThunderDen/node_modules/expo-local-authentication/android/build/generated/res/resValues/debug"/></dataSet><dataSet aapt-namespace="http://schemas.android.com/apk/res-auto" config="generated" generated-set="generated$Generated" ignore_pattern="!.svn:!.git:!.ds_store:!*.scc:.*:&lt;dir>_*:!CVS:!thumbs.db:!picasa.ini:!*~"><source path="/Users/landabaso/bitcoinerlab/ThunderDen/node_modules/expo-local-authentication/android/build/generated/res/resValues/debug"/></dataSet><mergedItems/></merger>
+\ No newline at end of file
+diff --git a/node_modules/expo-local-authentication/android/build/intermediates/java_res/debug/out/META-INF/expo-local-authentication_debug.kotlin_module b/node_modules/expo-local-authentication/android/build/intermediates/java_res/debug/out/META-INF/expo-local-authentication_debug.kotlin_module
+new file mode 100644
+index 0000000..16d3b1e
+Binary files /dev/null and b/node_modules/expo-local-authentication/android/build/intermediates/java_res/debug/out/META-INF/expo-local-authentication_debug.kotlin_module differ
+diff --git a/node_modules/expo-local-authentication/android/build/intermediates/javac/debug/classes/expo/modules/localauthentication/BuildConfig.class b/node_modules/expo-local-authentication/android/build/intermediates/javac/debug/classes/expo/modules/localauthentication/BuildConfig.class
+new file mode 100644
+index 0000000..58c7c3f
+Binary files /dev/null and b/node_modules/expo-local-authentication/android/build/intermediates/javac/debug/classes/expo/modules/localauthentication/BuildConfig.class differ
+diff --git a/node_modules/expo-local-authentication/android/build/intermediates/local_only_symbol_list/debug/R-def.txt b/node_modules/expo-local-authentication/android/build/intermediates/local_only_symbol_list/debug/R-def.txt
+new file mode 100644
+index 0000000..78ac5b8
+--- /dev/null
++++ b/node_modules/expo-local-authentication/android/build/intermediates/local_only_symbol_list/debug/R-def.txt
+@@ -0,0 +1,2 @@
++R_DEF: Internal format may change without notice
++local
+diff --git a/node_modules/expo-local-authentication/android/build/intermediates/manifest_merge_blame_file/debug/manifest-merger-blame-debug-report.txt b/node_modules/expo-local-authentication/android/build/intermediates/manifest_merge_blame_file/debug/manifest-merger-blame-debug-report.txt
+new file mode 100644
+index 0000000..68c1b31
+--- /dev/null
++++ b/node_modules/expo-local-authentication/android/build/intermediates/manifest_merge_blame_file/debug/manifest-merger-blame-debug-report.txt
+@@ -0,0 +1,14 @@
++1<?xml version="1.0" encoding="utf-8"?>
++2<manifest xmlns:android="http://schemas.android.com/apk/res/android"
++3    package="expo.modules.localauthentication" >
++4
++5    <uses-sdk android:minSdkVersion="23" />
++6
++7    <uses-permission android:name="android.permission.USE_FINGERPRINT" />
++7-->/Users/landabaso/bitcoinerlab/ThunderDen/node_modules/expo-local-authentication/android/src/main/AndroidManifest.xml:2:5-74
++7-->/Users/landabaso/bitcoinerlab/ThunderDen/node_modules/expo-local-authentication/android/src/main/AndroidManifest.xml:2:22-71
++8    <uses-permission android:name="android.permission.USE_BIOMETRIC" />
++8-->/Users/landabaso/bitcoinerlab/ThunderDen/node_modules/expo-local-authentication/android/src/main/AndroidManifest.xml:3:5-72
++8-->/Users/landabaso/bitcoinerlab/ThunderDen/node_modules/expo-local-authentication/android/src/main/AndroidManifest.xml:3:22-69
++9
++10</manifest>
+diff --git a/node_modules/expo-local-authentication/android/build/intermediates/merged_manifest/debug/AndroidManifest.xml b/node_modules/expo-local-authentication/android/build/intermediates/merged_manifest/debug/AndroidManifest.xml
+new file mode 100644
+index 0000000..678d582
+--- /dev/null
++++ b/node_modules/expo-local-authentication/android/build/intermediates/merged_manifest/debug/AndroidManifest.xml
+@@ -0,0 +1,10 @@
++<?xml version="1.0" encoding="utf-8"?>
++<manifest xmlns:android="http://schemas.android.com/apk/res/android"
++    package="expo.modules.localauthentication" >
++
++    <uses-sdk android:minSdkVersion="23" />
++
++    <uses-permission android:name="android.permission.USE_FINGERPRINT" />
++    <uses-permission android:name="android.permission.USE_BIOMETRIC" />
++
++</manifest>
+\ No newline at end of file
+diff --git a/node_modules/expo-local-authentication/android/build/intermediates/navigation_json/debug/navigation.json b/node_modules/expo-local-authentication/android/build/intermediates/navigation_json/debug/navigation.json
+new file mode 100644
+index 0000000..0637a08
+--- /dev/null
++++ b/node_modules/expo-local-authentication/android/build/intermediates/navigation_json/debug/navigation.json
+@@ -0,0 +1 @@
++[]
+\ No newline at end of file
+diff --git a/node_modules/expo-local-authentication/android/build/intermediates/runtime_library_classes_jar/debug/classes.jar b/node_modules/expo-local-authentication/android/build/intermediates/runtime_library_classes_jar/debug/classes.jar
+new file mode 100644
+index 0000000..4a9c67d
+Binary files /dev/null and b/node_modules/expo-local-authentication/android/build/intermediates/runtime_library_classes_jar/debug/classes.jar differ
+diff --git a/node_modules/expo-local-authentication/android/build/intermediates/symbol_list_with_package_name/debug/package-aware-r.txt b/node_modules/expo-local-authentication/android/build/intermediates/symbol_list_with_package_name/debug/package-aware-r.txt
+new file mode 100644
+index 0000000..eb103ee
+--- /dev/null
++++ b/node_modules/expo-local-authentication/android/build/intermediates/symbol_list_with_package_name/debug/package-aware-r.txt
+@@ -0,0 +1 @@
++expo.modules.localauthentication
+diff --git a/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/inputs/source-to-output.tab b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/inputs/source-to-output.tab
+new file mode 100644
+index 0000000..bdf584a
+Binary files /dev/null and b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/inputs/source-to-output.tab differ
+diff --git a/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/inputs/source-to-output.tab.keystream b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/inputs/source-to-output.tab.keystream
+new file mode 100644
+index 0000000..ef7bf89
+Binary files /dev/null and b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/inputs/source-to-output.tab.keystream differ
+diff --git a/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/inputs/source-to-output.tab.keystream.len b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/inputs/source-to-output.tab.keystream.len
+new file mode 100644
+index 0000000..10d6e6e
+Binary files /dev/null and b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/inputs/source-to-output.tab.keystream.len differ
+diff --git a/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/inputs/source-to-output.tab.len b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/inputs/source-to-output.tab.len
+new file mode 100644
+index 0000000..2a17e6e
+Binary files /dev/null and b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/inputs/source-to-output.tab.len differ
+diff --git a/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/inputs/source-to-output.tab.values.at b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/inputs/source-to-output.tab.values.at
+new file mode 100644
+index 0000000..786af79
+Binary files /dev/null and b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/inputs/source-to-output.tab.values.at differ
+diff --git a/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/inputs/source-to-output.tab_i b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/inputs/source-to-output.tab_i
+new file mode 100644
+index 0000000..ef24c7d
+Binary files /dev/null and b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/inputs/source-to-output.tab_i differ
+diff --git a/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/inputs/source-to-output.tab_i.len b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/inputs/source-to-output.tab_i.len
+new file mode 100644
+index 0000000..131e265
+Binary files /dev/null and b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/inputs/source-to-output.tab_i.len differ
+diff --git a/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/class-attributes.tab b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/class-attributes.tab
+new file mode 100644
+index 0000000..63c2410
+Binary files /dev/null and b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/class-attributes.tab differ
+diff --git a/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/class-attributes.tab.keystream b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/class-attributes.tab.keystream
+new file mode 100644
+index 0000000..0b99280
+Binary files /dev/null and b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/class-attributes.tab.keystream differ
+diff --git a/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/class-attributes.tab.keystream.len b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/class-attributes.tab.keystream.len
+new file mode 100644
+index 0000000..bcd95fb
+Binary files /dev/null and b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/class-attributes.tab.keystream.len differ
+diff --git a/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/class-attributes.tab.len b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/class-attributes.tab.len
+new file mode 100644
+index 0000000..01bdaa1
+Binary files /dev/null and b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/class-attributes.tab.len differ
+diff --git a/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/class-attributes.tab.values.at b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/class-attributes.tab.values.at
+new file mode 100644
+index 0000000..fc0e221
+Binary files /dev/null and b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/class-attributes.tab.values.at differ
+diff --git a/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/class-attributes.tab_i b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/class-attributes.tab_i
+new file mode 100644
+index 0000000..476c513
+Binary files /dev/null and b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/class-attributes.tab_i differ
+diff --git a/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/class-attributes.tab_i.len b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/class-attributes.tab_i.len
+new file mode 100644
+index 0000000..131e265
+Binary files /dev/null and b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/class-attributes.tab_i.len differ
+diff --git a/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/class-fq-name-to-source.tab b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/class-fq-name-to-source.tab
+new file mode 100644
+index 0000000..c206e4a
+Binary files /dev/null and b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/class-fq-name-to-source.tab differ
+diff --git a/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/class-fq-name-to-source.tab.keystream b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/class-fq-name-to-source.tab.keystream
+new file mode 100644
+index 0000000..0b99280
+Binary files /dev/null and b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/class-fq-name-to-source.tab.keystream differ
+diff --git a/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/class-fq-name-to-source.tab.keystream.len b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/class-fq-name-to-source.tab.keystream.len
+new file mode 100644
+index 0000000..bcd95fb
+Binary files /dev/null and b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/class-fq-name-to-source.tab.keystream.len differ
+diff --git a/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/class-fq-name-to-source.tab.len b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/class-fq-name-to-source.tab.len
+new file mode 100644
+index 0000000..01bdaa1
+Binary files /dev/null and b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/class-fq-name-to-source.tab.len differ
+diff --git a/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/class-fq-name-to-source.tab.values.at b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/class-fq-name-to-source.tab.values.at
+new file mode 100644
+index 0000000..e7bcda7
+Binary files /dev/null and b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/class-fq-name-to-source.tab.values.at differ
+diff --git a/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/class-fq-name-to-source.tab_i b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/class-fq-name-to-source.tab_i
+new file mode 100644
+index 0000000..476c513
+Binary files /dev/null and b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/class-fq-name-to-source.tab_i differ
+diff --git a/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/class-fq-name-to-source.tab_i.len b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/class-fq-name-to-source.tab_i.len
+new file mode 100644
+index 0000000..131e265
+Binary files /dev/null and b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/class-fq-name-to-source.tab_i.len differ
+diff --git a/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/internal-name-to-source.tab b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/internal-name-to-source.tab
+new file mode 100644
+index 0000000..8973e6c
+Binary files /dev/null and b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/internal-name-to-source.tab differ
+diff --git a/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/internal-name-to-source.tab.keystream b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/internal-name-to-source.tab.keystream
+new file mode 100644
+index 0000000..abd79ad
+Binary files /dev/null and b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/internal-name-to-source.tab.keystream differ
+diff --git a/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/internal-name-to-source.tab.keystream.len b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/internal-name-to-source.tab.keystream.len
+new file mode 100644
+index 0000000..b9c1060
+Binary files /dev/null and b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/internal-name-to-source.tab.keystream.len differ
+diff --git a/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/internal-name-to-source.tab.len b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/internal-name-to-source.tab.len
+new file mode 100644
+index 0000000..14f7c06
+Binary files /dev/null and b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/internal-name-to-source.tab.len differ
+diff --git a/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/internal-name-to-source.tab.values.at b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/internal-name-to-source.tab.values.at
+new file mode 100644
+index 0000000..6cd2931
+Binary files /dev/null and b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/internal-name-to-source.tab.values.at differ
+diff --git a/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/internal-name-to-source.tab_i b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/internal-name-to-source.tab_i
+new file mode 100644
+index 0000000..43a8629
+Binary files /dev/null and b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/internal-name-to-source.tab_i differ
+diff --git a/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/internal-name-to-source.tab_i.len b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/internal-name-to-source.tab_i.len
+new file mode 100644
+index 0000000..131e265
+Binary files /dev/null and b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/internal-name-to-source.tab_i.len differ
+diff --git a/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/package-parts.tab b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/package-parts.tab
+new file mode 100644
+index 0000000..bdf584a
+Binary files /dev/null and b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/package-parts.tab differ
+diff --git a/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/package-parts.tab.keystream b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/package-parts.tab.keystream
+new file mode 100644
+index 0000000..1f46582
+Binary files /dev/null and b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/package-parts.tab.keystream differ
+diff --git a/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/package-parts.tab.keystream.len b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/package-parts.tab.keystream.len
+new file mode 100644
+index 0000000..e4e5cbd
+Binary files /dev/null and b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/package-parts.tab.keystream.len differ
+diff --git a/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/package-parts.tab.len b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/package-parts.tab.len
+new file mode 100644
+index 0000000..2a17e6e
+Binary files /dev/null and b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/package-parts.tab.len differ
+diff --git a/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/package-parts.tab.values.at b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/package-parts.tab.values.at
+new file mode 100644
+index 0000000..46d6744
+Binary files /dev/null and b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/package-parts.tab.values.at differ
+diff --git a/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/package-parts.tab_i b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/package-parts.tab_i
+new file mode 100644
+index 0000000..62191ef
+Binary files /dev/null and b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/package-parts.tab_i differ
+diff --git a/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/package-parts.tab_i.len b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/package-parts.tab_i.len
+new file mode 100644
+index 0000000..131e265
+Binary files /dev/null and b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/package-parts.tab_i.len differ
+diff --git a/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/proto.tab b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/proto.tab
+new file mode 100644
+index 0000000..9b93fc3
+Binary files /dev/null and b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/proto.tab differ
+diff --git a/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/proto.tab.keystream b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/proto.tab.keystream
+new file mode 100644
+index 0000000..dc51832
+Binary files /dev/null and b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/proto.tab.keystream differ
+diff --git a/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/proto.tab.keystream.len b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/proto.tab.keystream.len
+new file mode 100644
+index 0000000..31d8b36
+Binary files /dev/null and b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/proto.tab.keystream.len differ
+diff --git a/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/proto.tab.len b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/proto.tab.len
+new file mode 100644
+index 0000000..93a595b
+Binary files /dev/null and b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/proto.tab.len differ
+diff --git a/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/proto.tab.values.at b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/proto.tab.values.at
+new file mode 100644
+index 0000000..4768452
+Binary files /dev/null and b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/proto.tab.values.at differ
+diff --git a/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/proto.tab_i b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/proto.tab_i
+new file mode 100644
+index 0000000..d2e0ed0
+Binary files /dev/null and b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/proto.tab_i differ
+diff --git a/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/proto.tab_i.len b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/proto.tab_i.len
+new file mode 100644
+index 0000000..131e265
+Binary files /dev/null and b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/proto.tab_i.len differ
+diff --git a/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/source-to-classes.tab b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/source-to-classes.tab
+new file mode 100644
+index 0000000..bdf584a
+Binary files /dev/null and b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/source-to-classes.tab differ
+diff --git a/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/source-to-classes.tab.keystream b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/source-to-classes.tab.keystream
+new file mode 100644
+index 0000000..ef7bf89
+Binary files /dev/null and b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/source-to-classes.tab.keystream differ
+diff --git a/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/source-to-classes.tab.keystream.len b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/source-to-classes.tab.keystream.len
+new file mode 100644
+index 0000000..10d6e6e
+Binary files /dev/null and b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/source-to-classes.tab.keystream.len differ
+diff --git a/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/source-to-classes.tab.len b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/source-to-classes.tab.len
+new file mode 100644
+index 0000000..2a17e6e
+Binary files /dev/null and b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/source-to-classes.tab.len differ
+diff --git a/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/source-to-classes.tab.values.at b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/source-to-classes.tab.values.at
+new file mode 100644
+index 0000000..f53ac21
+Binary files /dev/null and b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/source-to-classes.tab.values.at differ
+diff --git a/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/source-to-classes.tab_i b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/source-to-classes.tab_i
+new file mode 100644
+index 0000000..ef24c7d
+Binary files /dev/null and b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/source-to-classes.tab_i differ
+diff --git a/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/source-to-classes.tab_i.len b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/source-to-classes.tab_i.len
+new file mode 100644
+index 0000000..131e265
+Binary files /dev/null and b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/source-to-classes.tab_i.len differ
+diff --git a/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/subtypes.tab b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/subtypes.tab
+new file mode 100644
+index 0000000..1e11d35
+Binary files /dev/null and b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/subtypes.tab differ
+diff --git a/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/subtypes.tab.keystream b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/subtypes.tab.keystream
+new file mode 100644
+index 0000000..7262ef0
+Binary files /dev/null and b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/subtypes.tab.keystream differ
+diff --git a/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/subtypes.tab.keystream.len b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/subtypes.tab.keystream.len
+new file mode 100644
+index 0000000..b9d571f
+Binary files /dev/null and b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/subtypes.tab.keystream.len differ
+diff --git a/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/subtypes.tab.len b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/subtypes.tab.len
+new file mode 100644
+index 0000000..01bdaa1
+Binary files /dev/null and b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/subtypes.tab.len differ
+diff --git a/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/subtypes.tab.values.at b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/subtypes.tab.values.at
+new file mode 100644
+index 0000000..f7772d6
+Binary files /dev/null and b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/subtypes.tab.values.at differ
+diff --git a/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/subtypes.tab_i b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/subtypes.tab_i
+new file mode 100644
+index 0000000..e71fada
+Binary files /dev/null and b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/subtypes.tab_i differ
+diff --git a/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/subtypes.tab_i.len b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/subtypes.tab_i.len
+new file mode 100644
+index 0000000..131e265
+Binary files /dev/null and b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/subtypes.tab_i.len differ
+diff --git a/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/supertypes.tab b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/supertypes.tab
+new file mode 100644
+index 0000000..f11d676
+Binary files /dev/null and b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/supertypes.tab differ
+diff --git a/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/supertypes.tab.keystream b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/supertypes.tab.keystream
+new file mode 100644
+index 0000000..0b99280
+Binary files /dev/null and b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/supertypes.tab.keystream differ
+diff --git a/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/supertypes.tab.keystream.len b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/supertypes.tab.keystream.len
+new file mode 100644
+index 0000000..bcd95fb
+Binary files /dev/null and b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/supertypes.tab.keystream.len differ
+diff --git a/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/supertypes.tab.len b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/supertypes.tab.len
+new file mode 100644
+index 0000000..01bdaa1
+Binary files /dev/null and b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/supertypes.tab.len differ
+diff --git a/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/supertypes.tab.values.at b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/supertypes.tab.values.at
+new file mode 100644
+index 0000000..1416f69
+Binary files /dev/null and b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/supertypes.tab.values.at differ
+diff --git a/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/supertypes.tab_i b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/supertypes.tab_i
+new file mode 100644
+index 0000000..476c513
+Binary files /dev/null and b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/supertypes.tab_i differ
+diff --git a/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/supertypes.tab_i.len b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/supertypes.tab_i.len
+new file mode 100644
+index 0000000..131e265
+Binary files /dev/null and b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/supertypes.tab_i.len differ
+diff --git a/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/lookups/counters.tab b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/lookups/counters.tab
+new file mode 100644
+index 0000000..166c057
+--- /dev/null
++++ b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/lookups/counters.tab
+@@ -0,0 +1,2 @@
++1
++0
+\ No newline at end of file
+diff --git a/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/lookups/file-to-id.tab b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/lookups/file-to-id.tab
+new file mode 100644
+index 0000000..bdf584a
+Binary files /dev/null and b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/lookups/file-to-id.tab differ
+diff --git a/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/lookups/file-to-id.tab.keystream b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/lookups/file-to-id.tab.keystream
+new file mode 100644
+index 0000000..ef7bf89
+Binary files /dev/null and b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/lookups/file-to-id.tab.keystream differ
+diff --git a/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/lookups/file-to-id.tab.keystream.len b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/lookups/file-to-id.tab.keystream.len
+new file mode 100644
+index 0000000..10d6e6e
+Binary files /dev/null and b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/lookups/file-to-id.tab.keystream.len differ
+diff --git a/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/lookups/file-to-id.tab.len b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/lookups/file-to-id.tab.len
+new file mode 100644
+index 0000000..2a17e6e
+Binary files /dev/null and b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/lookups/file-to-id.tab.len differ
+diff --git a/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/lookups/file-to-id.tab.values.at b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/lookups/file-to-id.tab.values.at
+new file mode 100644
+index 0000000..5875372
+Binary files /dev/null and b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/lookups/file-to-id.tab.values.at differ
+diff --git a/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/lookups/file-to-id.tab_i b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/lookups/file-to-id.tab_i
+new file mode 100644
+index 0000000..a143b9b
+Binary files /dev/null and b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/lookups/file-to-id.tab_i differ
+diff --git a/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/lookups/file-to-id.tab_i.len b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/lookups/file-to-id.tab_i.len
+new file mode 100644
+index 0000000..131e265
+Binary files /dev/null and b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/lookups/file-to-id.tab_i.len differ
+diff --git a/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/lookups/id-to-file.tab b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/lookups/id-to-file.tab
+new file mode 100644
+index 0000000..8aad32b
+Binary files /dev/null and b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/lookups/id-to-file.tab differ
+diff --git a/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/lookups/id-to-file.tab.keystream b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/lookups/id-to-file.tab.keystream
+new file mode 100644
+index 0000000..08e7df1
+Binary files /dev/null and b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/lookups/id-to-file.tab.keystream differ
+diff --git a/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/lookups/id-to-file.tab.keystream.len b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/lookups/id-to-file.tab.keystream.len
+new file mode 100644
+index 0000000..b7da01d
+Binary files /dev/null and b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/lookups/id-to-file.tab.keystream.len differ
+diff --git a/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/lookups/id-to-file.tab.len b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/lookups/id-to-file.tab.len
+new file mode 100644
+index 0000000..2a17e6e
+Binary files /dev/null and b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/lookups/id-to-file.tab.len differ
+diff --git a/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/lookups/id-to-file.tab.values.at b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/lookups/id-to-file.tab.values.at
+new file mode 100644
+index 0000000..109f0e9
+Binary files /dev/null and b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/lookups/id-to-file.tab.values.at differ
+diff --git a/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/lookups/lookups.tab b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/lookups/lookups.tab
+new file mode 100644
+index 0000000..eabd667
+Binary files /dev/null and b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/lookups/lookups.tab differ
+diff --git a/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/lookups/lookups.tab.keystream b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/lookups/lookups.tab.keystream
+new file mode 100644
+index 0000000..25616af
+Binary files /dev/null and b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/lookups/lookups.tab.keystream differ
+diff --git a/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/lookups/lookups.tab.keystream.len b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/lookups/lookups.tab.keystream.len
+new file mode 100644
+index 0000000..463255c
+Binary files /dev/null and b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/lookups/lookups.tab.keystream.len differ
+diff --git a/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/lookups/lookups.tab.len b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/lookups/lookups.tab.len
+new file mode 100644
+index 0000000..675c84a
+Binary files /dev/null and b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/lookups/lookups.tab.len differ
+diff --git a/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/lookups/lookups.tab.values.at b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/lookups/lookups.tab.values.at
+new file mode 100644
+index 0000000..4b26de5
+Binary files /dev/null and b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/lookups/lookups.tab.values.at differ
+diff --git a/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/lookups/lookups.tab_i b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/lookups/lookups.tab_i
+new file mode 100644
+index 0000000..b574cef
+Binary files /dev/null and b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/lookups/lookups.tab_i differ
+diff --git a/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/lookups/lookups.tab_i.len b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/lookups/lookups.tab_i.len
+new file mode 100644
+index 0000000..131e265
+Binary files /dev/null and b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/lookups/lookups.tab_i.len differ
+diff --git a/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/last-build.bin b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/last-build.bin
+new file mode 100644
+index 0000000..c2f8091
+Binary files /dev/null and b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/cacheable/last-build.bin differ
+diff --git a/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/local-state/build-history.bin b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/local-state/build-history.bin
+new file mode 100644
+index 0000000..a58bbaf
+Binary files /dev/null and b/node_modules/expo-local-authentication/android/build/kotlin/compileDebugKotlin/local-state/build-history.bin differ
+diff --git a/node_modules/expo-local-authentication/android/build/outputs/logs/manifest-merger-debug-report.txt b/node_modules/expo-local-authentication/android/build/outputs/logs/manifest-merger-debug-report.txt
+new file mode 100644
+index 0000000..8a4fcd6
+--- /dev/null
++++ b/node_modules/expo-local-authentication/android/build/outputs/logs/manifest-merger-debug-report.txt
+@@ -0,0 +1,24 @@
++-- Merging decision tree log ---
++manifest
++ADDED from /Users/landabaso/bitcoinerlab/ThunderDen/node_modules/expo-local-authentication/android/src/main/AndroidManifest.xml:1:1-4:12
++INJECTED from /Users/landabaso/bitcoinerlab/ThunderDen/node_modules/expo-local-authentication/android/src/main/AndroidManifest.xml:1:1-4:12
++	package
++		INJECTED from /Users/landabaso/bitcoinerlab/ThunderDen/node_modules/expo-local-authentication/android/src/main/AndroidManifest.xml
++	xmlns:android
++		ADDED from /Users/landabaso/bitcoinerlab/ThunderDen/node_modules/expo-local-authentication/android/src/main/AndroidManifest.xml:1:11-69
++uses-permission#android.permission.USE_FINGERPRINT
++ADDED from /Users/landabaso/bitcoinerlab/ThunderDen/node_modules/expo-local-authentication/android/src/main/AndroidManifest.xml:2:5-74
++	android:name
++		ADDED from /Users/landabaso/bitcoinerlab/ThunderDen/node_modules/expo-local-authentication/android/src/main/AndroidManifest.xml:2:22-71
++uses-permission#android.permission.USE_BIOMETRIC
++ADDED from /Users/landabaso/bitcoinerlab/ThunderDen/node_modules/expo-local-authentication/android/src/main/AndroidManifest.xml:3:5-72
++	android:name
++		ADDED from /Users/landabaso/bitcoinerlab/ThunderDen/node_modules/expo-local-authentication/android/src/main/AndroidManifest.xml:3:22-69
++uses-sdk
++INJECTED from /Users/landabaso/bitcoinerlab/ThunderDen/node_modules/expo-local-authentication/android/src/main/AndroidManifest.xml reason: use-sdk injection requested
++INJECTED from /Users/landabaso/bitcoinerlab/ThunderDen/node_modules/expo-local-authentication/android/src/main/AndroidManifest.xml
++INJECTED from /Users/landabaso/bitcoinerlab/ThunderDen/node_modules/expo-local-authentication/android/src/main/AndroidManifest.xml
++	android:targetSdkVersion
++		INJECTED from /Users/landabaso/bitcoinerlab/ThunderDen/node_modules/expo-local-authentication/android/src/main/AndroidManifest.xml
++	android:minSdkVersion
++		INJECTED from /Users/landabaso/bitcoinerlab/ThunderDen/node_modules/expo-local-authentication/android/src/main/AndroidManifest.xml
+diff --git a/node_modules/expo-local-authentication/android/build/tmp/compileDebugJavaWithJavac/previous-compilation-data.bin b/node_modules/expo-local-authentication/android/build/tmp/compileDebugJavaWithJavac/previous-compilation-data.bin
+new file mode 100644
+index 0000000..f05d59f
+Binary files /dev/null and b/node_modules/expo-local-authentication/android/build/tmp/compileDebugJavaWithJavac/previous-compilation-data.bin differ
+diff --git a/node_modules/expo-local-authentication/android/build/tmp/kotlin-classes/debug/META-INF/expo-local-authentication_debug.kotlin_module b/node_modules/expo-local-authentication/android/build/tmp/kotlin-classes/debug/META-INF/expo-local-authentication_debug.kotlin_module
+new file mode 100644
+index 0000000..16d3b1e
+Binary files /dev/null and b/node_modules/expo-local-authentication/android/build/tmp/kotlin-classes/debug/META-INF/expo-local-authentication_debug.kotlin_module differ
+diff --git a/node_modules/expo-local-authentication/android/build/tmp/kotlin-classes/debug/expo/modules/localauthentication/AuthOptions.class b/node_modules/expo-local-authentication/android/build/tmp/kotlin-classes/debug/expo/modules/localauthentication/AuthOptions.class
+new file mode 100644
+index 0000000..f77f145
+Binary files /dev/null and b/node_modules/expo-local-authentication/android/build/tmp/kotlin-classes/debug/expo/modules/localauthentication/AuthOptions.class differ
+diff --git a/node_modules/expo-local-authentication/android/build/tmp/kotlin-classes/debug/expo/modules/localauthentication/LocalAuthenticationModule$authenticationCallback$1.class b/node_modules/expo-local-authentication/android/build/tmp/kotlin-classes/debug/expo/modules/localauthentication/LocalAuthenticationModule$authenticationCallback$1.class
+new file mode 100644
+index 0000000..1928440
+Binary files /dev/null and b/node_modules/expo-local-authentication/android/build/tmp/kotlin-classes/debug/expo/modules/localauthentication/LocalAuthenticationModule$authenticationCallback$1.class differ
+diff --git a/node_modules/expo-local-authentication/android/build/tmp/kotlin-classes/debug/expo/modules/localauthentication/LocalAuthenticationModule$biometricManager$2.class b/node_modules/expo-local-authentication/android/build/tmp/kotlin-classes/debug/expo/modules/localauthentication/LocalAuthenticationModule$biometricManager$2.class
+new file mode 100644
+index 0000000..14d2bc3
+Binary files /dev/null and b/node_modules/expo-local-authentication/android/build/tmp/kotlin-classes/debug/expo/modules/localauthentication/LocalAuthenticationModule$biometricManager$2.class differ
+diff --git a/node_modules/expo-local-authentication/android/build/tmp/kotlin-classes/debug/expo/modules/localauthentication/LocalAuthenticationModule$definition$1$5$1.class b/node_modules/expo-local-authentication/android/build/tmp/kotlin-classes/debug/expo/modules/localauthentication/LocalAuthenticationModule$definition$1$5$1.class
+new file mode 100644
+index 0000000..cc19fd5
+Binary files /dev/null and b/node_modules/expo-local-authentication/android/build/tmp/kotlin-classes/debug/expo/modules/localauthentication/LocalAuthenticationModule$definition$1$5$1.class differ
+diff --git a/node_modules/expo-local-authentication/android/build/tmp/kotlin-classes/debug/expo/modules/localauthentication/LocalAuthenticationModule$definition$lambda$8$$inlined$AsyncFunction$1.class b/node_modules/expo-local-authentication/android/build/tmp/kotlin-classes/debug/expo/modules/localauthentication/LocalAuthenticationModule$definition$lambda$8$$inlined$AsyncFunction$1.class
+new file mode 100644
+index 0000000..f413941
+Binary files /dev/null and b/node_modules/expo-local-authentication/android/build/tmp/kotlin-classes/debug/expo/modules/localauthentication/LocalAuthenticationModule$definition$lambda$8$$inlined$AsyncFunction$1.class differ
+diff --git a/node_modules/expo-local-authentication/android/build/tmp/kotlin-classes/debug/expo/modules/localauthentication/LocalAuthenticationModule$definition$lambda$8$$inlined$AsyncFunction$2.class b/node_modules/expo-local-authentication/android/build/tmp/kotlin-classes/debug/expo/modules/localauthentication/LocalAuthenticationModule$definition$lambda$8$$inlined$AsyncFunction$2.class
+new file mode 100644
+index 0000000..ca6b2a0
+Binary files /dev/null and b/node_modules/expo-local-authentication/android/build/tmp/kotlin-classes/debug/expo/modules/localauthentication/LocalAuthenticationModule$definition$lambda$8$$inlined$AsyncFunction$2.class differ
+diff --git a/node_modules/expo-local-authentication/android/build/tmp/kotlin-classes/debug/expo/modules/localauthentication/LocalAuthenticationModule$definition$lambda$8$$inlined$AsyncFunction$3.class b/node_modules/expo-local-authentication/android/build/tmp/kotlin-classes/debug/expo/modules/localauthentication/LocalAuthenticationModule$definition$lambda$8$$inlined$AsyncFunction$3.class
+new file mode 100644
+index 0000000..61fcd92
+Binary files /dev/null and b/node_modules/expo-local-authentication/android/build/tmp/kotlin-classes/debug/expo/modules/localauthentication/LocalAuthenticationModule$definition$lambda$8$$inlined$AsyncFunction$3.class differ
+diff --git a/node_modules/expo-local-authentication/android/build/tmp/kotlin-classes/debug/expo/modules/localauthentication/LocalAuthenticationModule$definition$lambda$8$$inlined$AsyncFunction$4.class b/node_modules/expo-local-authentication/android/build/tmp/kotlin-classes/debug/expo/modules/localauthentication/LocalAuthenticationModule$definition$lambda$8$$inlined$AsyncFunction$4.class
+new file mode 100644
+index 0000000..2861ab9
+Binary files /dev/null and b/node_modules/expo-local-authentication/android/build/tmp/kotlin-classes/debug/expo/modules/localauthentication/LocalAuthenticationModule$definition$lambda$8$$inlined$AsyncFunction$4.class differ
+diff --git a/node_modules/expo-local-authentication/android/build/tmp/kotlin-classes/debug/expo/modules/localauthentication/LocalAuthenticationModule$definition$lambda$8$$inlined$AsyncFunction$5.class b/node_modules/expo-local-authentication/android/build/tmp/kotlin-classes/debug/expo/modules/localauthentication/LocalAuthenticationModule$definition$lambda$8$$inlined$AsyncFunction$5.class
+new file mode 100644
+index 0000000..2511c94
+Binary files /dev/null and b/node_modules/expo-local-authentication/android/build/tmp/kotlin-classes/debug/expo/modules/localauthentication/LocalAuthenticationModule$definition$lambda$8$$inlined$AsyncFunction$5.class differ
+diff --git a/node_modules/expo-local-authentication/android/build/tmp/kotlin-classes/debug/expo/modules/localauthentication/LocalAuthenticationModule$definition$lambda$8$$inlined$AsyncFunction$6.class b/node_modules/expo-local-authentication/android/build/tmp/kotlin-classes/debug/expo/modules/localauthentication/LocalAuthenticationModule$definition$lambda$8$$inlined$AsyncFunction$6.class
+new file mode 100644
+index 0000000..e93ef98
+Binary files /dev/null and b/node_modules/expo-local-authentication/android/build/tmp/kotlin-classes/debug/expo/modules/localauthentication/LocalAuthenticationModule$definition$lambda$8$$inlined$AsyncFunction$6.class differ
+diff --git a/node_modules/expo-local-authentication/android/build/tmp/kotlin-classes/debug/expo/modules/localauthentication/LocalAuthenticationModule$definition$lambda$8$$inlined$AsyncFunctionWithoutArgs$1.class b/node_modules/expo-local-authentication/android/build/tmp/kotlin-classes/debug/expo/modules/localauthentication/LocalAuthenticationModule$definition$lambda$8$$inlined$AsyncFunctionWithoutArgs$1.class
+new file mode 100644
+index 0000000..5be171d
+Binary files /dev/null and b/node_modules/expo-local-authentication/android/build/tmp/kotlin-classes/debug/expo/modules/localauthentication/LocalAuthenticationModule$definition$lambda$8$$inlined$AsyncFunctionWithoutArgs$1.class differ
+diff --git a/node_modules/expo-local-authentication/android/build/tmp/kotlin-classes/debug/expo/modules/localauthentication/LocalAuthenticationModule$definition$lambda$8$$inlined$AsyncFunctionWithoutArgs$2.class b/node_modules/expo-local-authentication/android/build/tmp/kotlin-classes/debug/expo/modules/localauthentication/LocalAuthenticationModule$definition$lambda$8$$inlined$AsyncFunctionWithoutArgs$2.class
+new file mode 100644
+index 0000000..f998632
+Binary files /dev/null and b/node_modules/expo-local-authentication/android/build/tmp/kotlin-classes/debug/expo/modules/localauthentication/LocalAuthenticationModule$definition$lambda$8$$inlined$AsyncFunctionWithoutArgs$2.class differ
+diff --git a/node_modules/expo-local-authentication/android/build/tmp/kotlin-classes/debug/expo/modules/localauthentication/LocalAuthenticationModule$definition$lambda$8$$inlined$AsyncFunctionWithoutArgs$3.class b/node_modules/expo-local-authentication/android/build/tmp/kotlin-classes/debug/expo/modules/localauthentication/LocalAuthenticationModule$definition$lambda$8$$inlined$AsyncFunctionWithoutArgs$3.class
+new file mode 100644
+index 0000000..a2c67c0
+Binary files /dev/null and b/node_modules/expo-local-authentication/android/build/tmp/kotlin-classes/debug/expo/modules/localauthentication/LocalAuthenticationModule$definition$lambda$8$$inlined$AsyncFunctionWithoutArgs$3.class differ
+diff --git a/node_modules/expo-local-authentication/android/build/tmp/kotlin-classes/debug/expo/modules/localauthentication/LocalAuthenticationModule$definition$lambda$8$$inlined$AsyncFunctionWithoutArgs$4.class b/node_modules/expo-local-authentication/android/build/tmp/kotlin-classes/debug/expo/modules/localauthentication/LocalAuthenticationModule$definition$lambda$8$$inlined$AsyncFunctionWithoutArgs$4.class
+new file mode 100644
+index 0000000..0b32bd0
+Binary files /dev/null and b/node_modules/expo-local-authentication/android/build/tmp/kotlin-classes/debug/expo/modules/localauthentication/LocalAuthenticationModule$definition$lambda$8$$inlined$AsyncFunctionWithoutArgs$4.class differ
+diff --git a/node_modules/expo-local-authentication/android/build/tmp/kotlin-classes/debug/expo/modules/localauthentication/LocalAuthenticationModule$definition$lambda$8$$inlined$OnActivityResult$1.class b/node_modules/expo-local-authentication/android/build/tmp/kotlin-classes/debug/expo/modules/localauthentication/LocalAuthenticationModule$definition$lambda$8$$inlined$OnActivityResult$1.class
+new file mode 100644
+index 0000000..7e447a4
+Binary files /dev/null and b/node_modules/expo-local-authentication/android/build/tmp/kotlin-classes/debug/expo/modules/localauthentication/LocalAuthenticationModule$definition$lambda$8$$inlined$OnActivityResult$1.class differ
+diff --git a/node_modules/expo-local-authentication/android/build/tmp/kotlin-classes/debug/expo/modules/localauthentication/LocalAuthenticationModule$packageManager$2.class b/node_modules/expo-local-authentication/android/build/tmp/kotlin-classes/debug/expo/modules/localauthentication/LocalAuthenticationModule$packageManager$2.class
+new file mode 100644
+index 0000000..7072904
+Binary files /dev/null and b/node_modules/expo-local-authentication/android/build/tmp/kotlin-classes/debug/expo/modules/localauthentication/LocalAuthenticationModule$packageManager$2.class differ
+diff --git a/node_modules/expo-local-authentication/android/build/tmp/kotlin-classes/debug/expo/modules/localauthentication/LocalAuthenticationModule$promptDeviceCredentialsFallback$1.class b/node_modules/expo-local-authentication/android/build/tmp/kotlin-classes/debug/expo/modules/localauthentication/LocalAuthenticationModule$promptDeviceCredentialsFallback$1.class
+new file mode 100644
+index 0000000..21ba15c
+Binary files /dev/null and b/node_modules/expo-local-authentication/android/build/tmp/kotlin-classes/debug/expo/modules/localauthentication/LocalAuthenticationModule$promptDeviceCredentialsFallback$1.class differ
+diff --git a/node_modules/expo-local-authentication/android/build/tmp/kotlin-classes/debug/expo/modules/localauthentication/LocalAuthenticationModule.class b/node_modules/expo-local-authentication/android/build/tmp/kotlin-classes/debug/expo/modules/localauthentication/LocalAuthenticationModule.class
+new file mode 100644
+index 0000000..874411e
+Binary files /dev/null and b/node_modules/expo-local-authentication/android/build/tmp/kotlin-classes/debug/expo/modules/localauthentication/LocalAuthenticationModule.class differ
+diff --git a/node_modules/expo-local-authentication/android/build/tmp/kotlin-classes/debug/expo/modules/localauthentication/LocalAuthenticationModuleKt.class b/node_modules/expo-local-authentication/android/build/tmp/kotlin-classes/debug/expo/modules/localauthentication/LocalAuthenticationModuleKt.class
+new file mode 100644
+index 0000000..72a75a7
+Binary files /dev/null and b/node_modules/expo-local-authentication/android/build/tmp/kotlin-classes/debug/expo/modules/localauthentication/LocalAuthenticationModuleKt.class differ
 diff --git a/node_modules/expo-local-authentication/android/src/main/java/expo/modules/localauthentication/LocalAuthenticationModule.kt b/node_modules/expo-local-authentication/android/src/main/java/expo/modules/localauthentication/LocalAuthenticationModule.kt
 index 996ee2e..366f996 100644
 --- a/node_modules/expo-local-authentication/android/src/main/java/expo/modules/localauthentication/LocalAuthenticationModule.kt

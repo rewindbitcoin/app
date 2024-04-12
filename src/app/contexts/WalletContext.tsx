@@ -45,7 +45,16 @@ import { EsploraExplorer } from '@bitcoinerlab/explorer';
 import { DiscoveryFactory, DiscoveryInstance } from '@bitcoinerlab/discovery';
 import type { Network } from 'bitcoinjs-lib';
 import type { FeeEstimates } from '../lib/fees';
-import { Platform, unstable_batchedUpdates } from 'react-native';
+import {
+  Platform,
+  unstable_batchedUpdates as RN_unstable_batchedUpdates
+} from 'react-native';
+const unstable_batchedUpdates = Platform.select({
+  web: (cb: () => void) => {
+    cb();
+  },
+  default: RN_unstable_batchedUpdates
+});
 import {
   fetchP2PVaultIds,
   fetchP2PVault,
@@ -81,6 +90,8 @@ export type WalletContextType = {
   vaultsSecondaryAPI: string | undefined;
   wallets: Wallets | undefined;
   wallet: Wallet | undefined;
+  /** Whether the wallet needs to ask for a password and set it to retrieve
+   * the signers */
   requiresAuth: boolean;
   logOut: () => void;
   onWallet: ({
@@ -164,7 +175,7 @@ const WalletProviderRaw = ({
     defaultSettings
   );
   const [wallets, setWallets, , , walletsStorageStatus] =
-    useLocalStateStorage<Wallets>(`WALLETS`, SERIALIZABLE, {});
+    useLocalStateStorage<Wallets>(`xWALLETS`, SERIALIZABLE, {});
   const isWalletsSynchd = walletsStorageStatus.isSynchd;
 
   const initSigners =
@@ -183,6 +194,10 @@ const WalletProviderRaw = ({
       signersCipherKey,
       t('app.secureStorageAuthenticationPrompt')
     );
+  if (signersStorageStatus.errorCode)
+    throw new Error(
+      `SIGNERS_${walletId} error: ${signersStorageStatus.errorCode}`
+    );
 
   const [
     discoveryDataExport,
@@ -197,8 +212,10 @@ const WalletProviderRaw = ({
     undefined,
     dataCipherKey
   );
-  if (discoveryStorageStatus.decryptError)
-    throw new Error(`DISCOVERY_${walletId} could not be decrypted`);
+  if (discoveryStorageStatus.errorCode)
+    throw new Error(
+      `DISCOVERY_${walletId} error: ${discoveryStorageStatus.errorCode}`
+    );
   const isDiscoveryDataExportSynchd = discoveryStorageStatus.isSynchd;
 
   const [vaults, setVaults, , clearVaultsCache, vaultsStorageStatus] =
@@ -209,8 +226,10 @@ const WalletProviderRaw = ({
       undefined,
       dataCipherKey
     );
-  if (vaultsStorageStatus.decryptError)
-    throw new Error(`VAULTS_${walletId} could not be decrypted`);
+  if (vaultsStorageStatus.errorCode)
+    throw new Error(
+      `VAULTS_${walletId} error: ${vaultsStorageStatus.errorCode}`
+    );
 
   const [
     vaultsStatuses,
@@ -225,8 +244,10 @@ const WalletProviderRaw = ({
     undefined,
     dataCipherKey
   );
-  if (vaultsStatusesStorageStatus.decryptError)
-    throw new Error(`VAULTS_STATUSES_${walletId} could not be decrypted`);
+  if (vaultsStatusesStorageStatus.errorCode)
+    throw new Error(
+      `VAULTS_STATUSES_${walletId} error: ${vaultsStatusesStorageStatus.errorCode}`
+    );
 
   const [accountNames, , , clearAccountNamesCache, accountNamesStorageStatus] =
     useLocalStateStorage<AccountNames>(
@@ -236,8 +257,10 @@ const WalletProviderRaw = ({
       undefined,
       dataCipherKey
     );
-  if (accountNamesStorageStatus.decryptError)
-    throw new Error(`ACCOUNT_NAMES_{walletId} could not be decrypted`);
+  if (accountNamesStorageStatus.errorCode)
+    throw new Error(
+      `ACCOUNT_NAMES_${walletId} error: ${accountNamesStorageStatus.errorCode}`
+    );
 
   const logOut = useCallback(() => {
     // Clear cache, so that data must be read from disk again for the walletId.
@@ -287,9 +310,9 @@ const WalletProviderRaw = ({
         await deleteAsync(`VAULTS_STATUSES_${walletId}`);
         await deleteAsync(`ACCOUNT_NAMES_${walletId}`);
       }
-      logOut(); //Log out from previous wallet (if needed)
       //React 18 NOT on the new Architecture behaves as React 17:
       unstable_batchedUpdates(() => {
+        logOut(); //Log out from previous wallet (if needed)
         setWallet(walletDst);
         setSignersCipherKey(signersCipherKey);
         setNewSigners(newSigners);
@@ -821,7 +844,8 @@ const WalletProviderRaw = ({
     wallet,
     requiresAuth:
       (wallet?.signersEncryption === 'PASSWORD' && !signersCipherKey) ||
-      signersStorageStatus.decryptError === true,
+      (typeof signersStorageStatus.errorCode !== 'boolean' &&
+        signersStorageStatus.errorCode === 'DecryptError'),
     logOut,
     onWallet
   };

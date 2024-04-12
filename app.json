@@ -42,11 +42,12 @@
       }
     },
     "locales": {
-      "es": "./src/i18n/app.es.json"
+      "es": "./src/i18n-locales/app.es.json"
     },
     "plugins": [
       ["react-native-libsodium", {}],
       "expo-font",
+      "expo-local-authentication",
       "expo-secure-store"
     ]
   }

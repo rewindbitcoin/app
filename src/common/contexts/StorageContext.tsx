@@ -19,7 +19,7 @@
  * storage format.
  *
  * Example:
- * const [value, setValue, deleteValue, clearCache, storageStatus: {decryptError, isSynchd}] =
+ * const [value, setValue, deleteValue, clearCache, storageStatus: {errorCode, isSynchd}] =
  *    useGlobalStateStorage<DataType>('uniqueKey', serializationFormat, defaultValue?);
  *
  * - 'DataType' is a TypeScript type or interface representing the structure
@@ -62,8 +62,9 @@
  * has never been set, use:
  * const hasNeverBeenSetInStorage = storageStatus.isSynchd && value === undefined;
  *
- * 'storageStatus.decryptError is a boolean that indicates whether the cipherKey (if used)
- * could not decrypt the message.
+ * 'storageStatus.errorCode indicates whether the cipherKey (if used) could not
+ * decrypt the message or if there were errors while using biometrics
+ * (user cancelled or device problems)
  *
  * This hook simplifies managing persistent state in your React application by
  * synchronizing state with a storage system, handled by the StorageProvider.
@@ -85,31 +86,32 @@ import {
   SerializationFormat,
   Engine,
   assertSerializationFormat,
-  StorageStatus
+  StorageStatus,
+  StorageErrorCodes,
+  getStorageErrorCode
 } from '../lib/storage';
 import { Platform } from 'react-native';
-import { isDecryptError } from '../lib/cipher';
 
 type StorageState<T> = Record<string, T>;
 type ProviderValue<T> = {
   valueMap: StorageState<T>;
   setValueMap: React.Dispatch<React.SetStateAction<StorageState<T>>>;
-  decryptErrorMap: Record<string, boolean>;
-  setDecryptErrorMap: React.Dispatch<
-    React.SetStateAction<Record<string, boolean>>
+  errorCodeMap: Record<string, StorageErrorCodes>;
+  setErrorCodeMap: React.Dispatch<
+    React.SetStateAction<Record<string, StorageErrorCodes>>
   >;
 };
 const StorageContext = createContext<ProviderValue<unknown> | null>(null);
 
 const StorageProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [valueMap, setValueMap] = useState<StorageState<unknown>>({});
-  const [decryptErrorMap, setDecryptErrorMap] = useState<
-    Record<string, boolean>
+  const [errorCodeMap, setErrorCodeMap] = useState<
+    Record<string, StorageErrorCodes>
   >({});
 
   return (
     <StorageContext.Provider
-      value={{ valueMap, setValueMap, decryptErrorMap, setDecryptErrorMap }}
+      value={{ valueMap, setValueMap, errorCodeMap, setErrorCodeMap }}
     >
       {children}
     </StorageContext.Provider>
@@ -141,8 +143,7 @@ const useGlobalStateStorage = <T,>(
   if (context === null)
     throw new Error(`useStorage must be used within a StorageProvider`);
 
-  const { valueMap, setValueMap, decryptErrorMap, setDecryptErrorMap } =
-    context;
+  const { valueMap, setValueMap, errorCodeMap, setErrorCodeMap } = context;
 
   /** sets storage and sate value */
   const setStorageValue = useCallback(
@@ -188,7 +189,7 @@ const useGlobalStateStorage = <T,>(
     if (key !== undefined) {
       const fetchValue = async () => {
         try {
-          setDecryptErrorMap(prevState =>
+          setErrorCodeMap(prevState =>
             prevState[key] !== false
               ? { ...prevState, [key]: false }
               : prevState
@@ -221,13 +222,13 @@ const useGlobalStateStorage = <T,>(
                 : prevState
             );
         } catch (err: unknown) {
-          if (isDecryptError(err))
-            setDecryptErrorMap(prevState =>
-              prevState[key] !== true
-                ? { ...prevState, [key]: true }
-                : prevState
-            );
-          else throw err;
+          console.warn(err);
+          const errorCode = getStorageErrorCode(err);
+          setErrorCodeMap(prevState =>
+            prevState[key] !== errorCode
+              ? { ...prevState, [key]: errorCode }
+              : prevState
+          );
         }
       };
       if (!(key in valueMap)) fetchValue();
@@ -242,7 +243,7 @@ const useGlobalStateStorage = <T,>(
     setStorageValue,
     setValueMap,
     valueMap,
-    setDecryptErrorMap
+    setErrorCodeMap
   ]);
 
   const clearCache = useCallback(() => {
@@ -256,7 +257,7 @@ const useGlobalStateStorage = <T,>(
         return prevState;
       });
 
-      setDecryptErrorMap(prevState => {
+      setErrorCodeMap(prevState => {
         if (key in prevState) {
           const { [key]: omitted, ...newState } = prevState;
           void omitted;
@@ -265,7 +266,7 @@ const useGlobalStateStorage = <T,>(
         return prevState;
       });
     }
-  }, [key, setValueMap, setDecryptErrorMap]);
+  }, [key, setValueMap, setErrorCodeMap]);
 
   const deleteValue = useCallback(async () => {
     if (key) {
@@ -280,20 +281,20 @@ const useGlobalStateStorage = <T,>(
       setStorageValue,
       deleteValue,
       clearCache,
-      { isSynchd: false, decryptError: false }
+      { isSynchd: false, errorCode: false }
     ];
   else {
-    if (key in valueMap && decryptErrorMap[key] === undefined)
-      throw new Error(`decryptErrorMap not set for ${key}`);
-    const decryptError = !!decryptErrorMap[key];
+    if (key in valueMap && !(key in errorCodeMap))
+      throw new Error(`errorCodeMap not set for ${key}`);
     //valueMap is not set when decrypt error, but we know it's synchd anyway
-    const isSynchd = key in valueMap || decryptError;
+    const isSynchd = key in valueMap || key in errorCodeMap;
+    const errorCode = errorCodeMap[key] || false;
     return [
       valueMap[key] as T | undefined,
       setStorageValue,
       deleteValue,
       clearCache,
-      { isSynchd, decryptError }
+      { isSynchd, errorCode }
     ];
   }
 };

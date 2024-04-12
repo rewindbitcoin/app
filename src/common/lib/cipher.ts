@@ -7,27 +7,6 @@ import { crypto } from 'bitcoinjs-lib';
 export const getPasswordDerivedCipherKey = async (password: string) =>
   crypto.sha256(Buffer.from(password));
 
-/**
- * Checks if the provided error is a decryption error.
- * @param {unknown} err - The error to check.
- * @returns {boolean} True if the error is a decryption error, false otherwise.
- */
-export function isDecryptError(err: unknown): boolean {
-  // Type guard to check if the error is an instance of Error and has a message
-  function isErrorWithMessage(error: unknown): error is Error {
-    return error instanceof Error && typeof error.message === 'string';
-  }
-
-  // Check for the specific decryption error message
-  if (
-    isErrorWithMessage(err) &&
-    err.message.includes('crypto_aead_xchacha20poly1305_ietf_decrypt failed')
-  ) {
-    return true;
-  }
-  return false;
-}
-
 export const getManagedChacha = (key: Uint8Array) => {
   return {
     encrypt: (message: string | Uint8Array) => {

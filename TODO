@@ -1,10 +1,51 @@
+Si no me va la auth, entonces tratarlo como si el usuario hubiese cancelado la auth
+  -> Sugerir password?
+  -> Quitar los 5 retries. Mierdaca de la buena.
+  -> isBiometricWriteError? Borrar la wallet y llamar un onWallet de nuevo desactivando biometrics y activando password en Advanced Settings.
+
+
+Add BIOMETRICS_READ_USER_CANCELLED, BIOMETRICS_WRITE_USER_CANCELLED
+Add UNKNWON_READ, UNKOWN_WRITE
+
+BIOMETRICS_READ_ERROR that is !BIOMETRICS_READ_USER_CANCELLED
+explain that this error is because the user maybe added some new Biometrics and a new wallet
+must be crated since keys may have been invaldiated
+
+  Biometrics could not be used in your Device. This happens on some Samsung (and other) devices using old Android versions. Please, report your device and OS to ThunderDen. The wallet won't be created. We recommend creating it again disabling Biometrics and using a Password (use Advanced Settings when creating a Wallet).
+
+  Re-try / Use Password / Continue without Password (not recommended).
+
+  It looks like you either cancelled Biometrics authentication, your Biometric info changed in this device or your device does not properly support it. Either case, we recommend setting a Password. Proceed? Retry?
+    -> Ojo, esto es diferente si es creando wallet o si es leyendo wallet.
+    Status: isDecryptError, isBiometricReadError, isBiometricWriteError
+  -> Si el Biometrics no va bien entonces borrar la wallet y otros storages.
+  -> Error detection en los otros storages.
+
 
 Test password + secure store
 test idb + password
 tst idb + derived seed (encrypt app data)
 
+
+Si el fingerprint no se pilla bien, falla y punto. No me da mas opcion (en manual).
+https://github.com/expo/expo/issues/23426
+→ Caused by: Could not Authenticate the user: Authentication is already in progress]
+ WARN  [Error: Call to function 'ExpoSecureStore.setValueWithKeyAsync' has been rejected.
+→ Caused by: Could not encrypt the value for key 'SIGNERS_3' under keychain 'key_v1'. Caused by: unknown]
+
+Bip39:
+  predictive text is a nigthmare in real device (android)
+    -> Sí que debe de pasar al siguioente cuadro pero no auto-completar
+  Me siguen sin aparecer bien los numeros de BIp39 en Andrdoid cuando arranca la app
+  Es muy dificil hacer click en en texinput (se tiene q apuntar demasiado bien)
+  Los cuadros de texto de abajo quedan tapados por el keyboard
+
 Android on a clean install does not show the numbers on Bip39!
 at least when clicking on Need to oimport
+
+TODO: probably i need a strFromU8 and a strToU8 which are not-blocking
+  -> Or in a logical manner, do vaults one at a time. Have
+  compressedVaults or something
 
 
 TextEncoder:
@@ -15,13 +56,10 @@ TextEncoder:
   https://github.com/facebook/react-native/pull/43098
   https://github.com/facebook/react-native/commit/e6995583d3fa20d36afba11303a95e37ddd2122f
 
-
-El predictive text the New Wallet s un follon!!
-  -> Si sogo escribiendo me escrib ern el seiguioente cuadro!
-
 Si sigo tecleando despuesd e haver rellenado bien el Buip39 entonces automaticamente me crea la Wallet y no puedo elegir advanced
 
 The Password when is re-prompted should show a "Bad Password" or something
+  -> Además debe de borrarme el texto antiguo? wuizas no
 
 No me refrescha wallet 3 (goat oak)
 

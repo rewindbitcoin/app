@@ -7,9 +7,10 @@ import {
   Engine,
   SerializationFormat,
   assertSerializationFormat,
-  StorageStatus
+  StorageStatus,
+  StorageErrorCodes,
+  getStorageErrorCode
 } from '../lib/storage';
-import { isDecryptError } from '../lib/cipher';
 
 /**
  * Usage of `useLocalStateStorage`:
@@ -22,7 +23,7 @@ import { isDecryptError } from '../lib/cipher';
  * See long explanation at the end of this file.
  *
  * Example:
- * const [value, setValue, deleteValue, clearCache, storageStatus: {decryptError, isSynchd}] =
+ * const [value, setValue, deleteValue, clearCache, storageStatus: {errorCode, isSynchd}] =
  *    useLocalStateStorage<DataType>('uniqueKey', serializationFormat, defaultValue);
  * - 'DataType' is a TypeScript type or interface representing your data structure.
  * - 'uniqueKey' is a unique identifier for your data in storage. If undefined is
@@ -52,12 +53,13 @@ import { isDecryptError } from '../lib/cipher';
  * deleteValue deletes the value from storage
  * clearCache forces the next call to read from storage (will not use memory)
  *
- * 'storageStatus: {isSynchd: boolean; decryptError: boolean}':
+ * 'storageStatus: {isSynchd: boolean; errorCode: StorageErrorCodes}':
  * isSynchd is a boolean indicating if the data has been fetched from storage.
  * Useful for determining if 'value' is 'undefined' because it's yet to be
  * fetched or because it was never set in storage.
- * 'storageStatus.decryptError is a boolean that indicates whether the cipherKey (if used)
- * could not decrypt the message.
+ * 'storageStatus.errorCode indicates whether the cipherKey (if used) could not
+ * decrypt the message or if there were errors while using biometrics
+ * (user cancelled or device problems)
  *
  * Note: Unlike `useGlobalStateStorage`, `useLocalStateStorage` does not cause
  * re-renders in other components using the same key. It's useful for data
@@ -89,8 +91,8 @@ export const useLocalStateStorage = <T>(
   StorageStatus
 ] => {
   const [valueMap, setValueMap] = useState<StorageState<unknown>>({});
-  const [decryptErrorMap, setDecryptErrorMap] = useState<
-    Record<string, boolean>
+  const [errorCodeMap, setErrorCodeMap] = useState<
+    Record<string, StorageErrorCodes>
   >({});
 
   /** sets storage and sate value */
@@ -128,7 +130,7 @@ export const useLocalStateStorage = <T>(
     if (key !== undefined) {
       const fetchValue = async () => {
         try {
-          setDecryptErrorMap(prevState =>
+          setErrorCodeMap(prevState =>
             prevState[key] !== false
               ? { ...prevState, [key]: false }
               : prevState
@@ -163,13 +165,12 @@ export const useLocalStateStorage = <T>(
             );
         } catch (err: unknown) {
           console.warn(err);
-          if (isDecryptError(err))
-            setDecryptErrorMap(prevState =>
-              prevState[key] !== true
-                ? { ...prevState, [key]: true }
-                : prevState
-            );
-          else throw err;
+          const errorCode = getStorageErrorCode(err);
+          setErrorCodeMap(prevState =>
+            prevState[key] !== errorCode
+              ? { ...prevState, [key]: errorCode }
+              : prevState
+          );
         }
       };
       if (!(key in valueMap)) fetchValue();
@@ -196,7 +197,7 @@ export const useLocalStateStorage = <T>(
         return prevState;
       });
 
-      setDecryptErrorMap(prevState => {
+      setErrorCodeMap(prevState => {
         if (key in prevState) {
           const { [key]: omitted, ...newState } = prevState;
           void omitted;
@@ -205,7 +206,7 @@ export const useLocalStateStorage = <T>(
         return prevState;
       });
     }
-  }, [key, setValueMap, setDecryptErrorMap]);
+  }, [key, setValueMap, setErrorCodeMap]);
 
   const deleteValue = useCallback(async () => {
     if (key) {
@@ -220,20 +221,20 @@ export const useLocalStateStorage = <T>(
       setStorageValue,
       deleteValue,
       clearCache,
-      { isSynchd: false, decryptError: false }
+      { isSynchd: false, errorCode: false }
     ];
   else {
-    if (key in valueMap && decryptErrorMap[key] === undefined)
-      throw new Error(`decryptErrorMap not set for ${key}`);
-    const decryptError = !!decryptErrorMap[key];
+    if (key in valueMap && !(key in errorCodeMap))
+      throw new Error(`errorCodeMap not set for ${key}`);
     //valueMap is not set when decrypt error, but we know it's synchd anyway
-    const isSynchd = key in valueMap || decryptError;
+    const isSynchd = key in valueMap || key in errorCodeMap;
+    const errorCode = errorCodeMap[key] || false;
     return [
       valueMap[key] as T | undefined,
       setStorageValue,
       deleteValue,
       clearCache,
-      { isSynchd, decryptError }
+      { isSynchd, errorCode }
     ];
   }
 };
