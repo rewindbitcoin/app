@@ -31,11 +31,7 @@ import React, {
 import { shallowEqualObjects, shallowEqualArrays } from 'shallow-equal';
 import type { Wallet } from '../lib/wallets';
 import { useToast } from '../../common/ui';
-import {
-  SERIALIZABLE,
-  StorageErrorCodes,
-  deleteAsync
-} from '../../common/lib/storage';
+import { SERIALIZABLE, deleteAsync } from '../../common/lib/storage';
 import { useGlobalStateStorage } from '../../common/contexts/StorageContext';
 import { useSecureStorageAvailability } from '../../common/contexts/SecureStorageAvailabilityContext';
 import { useLocalStateStorage } from '../../common/hooks/useLocalStateStorage';
@@ -67,20 +63,7 @@ import {
 
 type DiscoveryDataExport = ReturnType<DiscoveryInstance['export']>;
 
-type WalletError =
-  /** When the user clicks on "Cancel" during authentication in wallet creation
-   * or opening wallet */
-  | 'USER_CANCEL'
-  /** this is the case of old Samsung Devices which do not let storing
-   * data even if the system reports that they suppor it. We only find our
-   * runtime
-   * https://stackoverflow.com/questions/36043912/error-after-fingerprint-touched-on-samsung-phones-android-security-keystoreexce
-   */
-  | 'BIOMETRICS_UNCAPABLE'
-  /** some read write delete operation failed */
-  | 'STORAGE_ERROR'
-  | 'ENCRYPTION_ERROR'
-  | false;
+import { type WalletError, getWalletError } from '../lib/errors';
 
 export const WalletContext: Context<WalletContextType | null> =
   createContext<WalletContextType | null>(null);
@@ -270,70 +253,17 @@ const WalletProviderRaw = ({
     );
 
   useEffect(() => {
-    const isEncryptionError = (errorCode: StorageErrorCodes) =>
-      errorCode === 'DecryptError' || errorCode === 'EncryptError';
-    const isStorageError = (
-      errorCode: StorageErrorCodes,
-      isNewWallet: boolean
-    ) =>
-      errorCode === 'ReadError' ||
-      errorCode === 'WriteError' ||
-      errorCode === 'DeleteError' ||
-      (!isNewWallet &&
-        (errorCode === 'BiometricsReadError' ||
-          errorCode === 'BiometricsWriteError'));
-    unstable_batchedUpdates(() => {
-      if (
-        //signersStorageStatus DecryptError is not handled as an ENCRYPTION_ERROR.
-        //This error will probably arise when the user makes an error while
-        //typing the password and is handled in requiresAuth
-        signersStorageStatus.errorCode === 'EncryptError' ||
-        isEncryptionError(settingsStorageStatus.errorCode) ||
-        isEncryptionError(walletsStorageStatus.errorCode) ||
-        isEncryptionError(discoveryStorageStatus.errorCode) ||
-        isEncryptionError(signersStorageStatus.errorCode) ||
-        isEncryptionError(vaultsStorageStatus.errorCode) ||
-        isEncryptionError(vaultsStatusesStorageStatus.errorCode) ||
-        isEncryptionError(accountNamesStorageStatus.errorCode)
-      ) {
-        setWalletError('ENCRYPTION_ERROR');
-      } else if (
-        //newSigners is defined when creating a new wallet
-        newSigners &&
-        (signersStorageStatus.errorCode === 'BiometricsWriteError' ||
-          signersStorageStatus.errorCode === 'BiometricsReadError')
-      )
-        setWalletError('BIOMETRICS_UNCAPABLE');
-      else if (
-        signersStorageStatus.errorCode === 'BiometricsReadUserCancel' ||
-        signersStorageStatus.errorCode === 'BiometricsWriteUserCancel'
-      ) {
-        console.log(
-          `Detected Bio User Cancel newSigners: ${!!newSigners}, wallet: ${JSON.stringify(wallet, null, 2)}}`
-        );
-        if (newSigners && wallet) {
-          //A new wallet was being created but the user cancelled it!
-          const newWallets = { ...wallets };
-          delete newWallets[wallet.walletId];
-          console.log(
-            `Deleting ${wallet.walletId} and setting ${JSON.stringify(newWallets, null, 2)}}`
-          );
-          setWallets(newWallets);
-          setWallet(undefined);
-        }
-        setWalletError('USER_CANCEL');
-      } else if (
-        isStorageError(settingsStorageStatus.errorCode, !!newSigners) ||
-        isStorageError(walletsStorageStatus.errorCode, !!newSigners) ||
-        isStorageError(discoveryStorageStatus.errorCode, !!newSigners) ||
-        isStorageError(signersStorageStatus.errorCode, !!newSigners) ||
-        isStorageError(vaultsStorageStatus.errorCode, !!newSigners) ||
-        isStorageError(vaultsStatusesStorageStatus.errorCode, !!newSigners) ||
-        isStorageError(accountNamesStorageStatus.errorCode, !!newSigners)
-      ) {
-        setWalletError('STORAGE_ERROR');
-      } else setWalletError(false);
+    const walletError = getWalletError({
+      isNewWallet: !!newSigners,
+      settingsErrorCode: settingsStorageStatus.errorCode,
+      signersErrorCode: walletsStorageStatus.errorCode,
+      walletsErrorCode: discoveryStorageStatus.errorCode,
+      discoveryErrorCode: signersStorageStatus.errorCode,
+      vaultsErrorCode: vaultsStorageStatus.errorCode,
+      vaultsStatusesErrorCode: vaultsStatusesStorageStatus.errorCode,
+      accountNamesErrorCode: accountNamesStorageStatus.errorCode
     });
+    setWalletError(walletError);
   }, [
     newSigners,
 

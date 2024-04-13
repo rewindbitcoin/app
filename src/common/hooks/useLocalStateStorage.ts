@@ -8,7 +8,7 @@ import {
   SerializationFormat,
   assertSerializationFormat,
   StorageStatus,
-  StorageErrorCodes,
+  StorageErrorCode,
   getStorageErrorCode
 } from '../lib/storage';
 
@@ -53,7 +53,7 @@ import {
  * deleteValue deletes the value from storage
  * clearCache forces the next call to read from storage (will not use memory)
  *
- * 'storageStatus: {isSynchd: boolean; errorCode: StorageErrorCodes}':
+ * 'storageStatus: {isSynchd: boolean; errorCode: StorageErrorCode}':
  * isSynchd is a boolean indicating if the data has been fetched from storage.
  * Useful for determining if 'value' is 'undefined' because it's yet to be
  * fetched or because it was never set in storage.
@@ -92,7 +92,7 @@ export const useLocalStateStorage = <T>(
 ] => {
   const [valueMap, setValueMap] = useState<StorageState<unknown>>({});
   const [errorCodeMap, setErrorCodeMap] = useState<
-    Record<string, StorageErrorCodes>
+    Record<string, StorageErrorCode>
   >({});
 
   /** sets storage and sate value */

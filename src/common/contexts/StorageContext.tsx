@@ -87,7 +87,7 @@ import {
   Engine,
   assertSerializationFormat,
   StorageStatus,
-  StorageErrorCodes,
+  StorageErrorCode,
   getStorageErrorCode
 } from '../lib/storage';
 import { Platform } from 'react-native';
@@ -96,9 +96,9 @@ type StorageState<T> = Record<string, T>;
 type ProviderValue<T> = {
   valueMap: StorageState<T>;
   setValueMap: React.Dispatch<React.SetStateAction<StorageState<T>>>;
-  errorCodeMap: Record<string, StorageErrorCodes>;
+  errorCodeMap: Record<string, StorageErrorCode>;
   setErrorCodeMap: React.Dispatch<
-    React.SetStateAction<Record<string, StorageErrorCodes>>
+    React.SetStateAction<Record<string, StorageErrorCode>>
   >;
 };
 const StorageContext = createContext<ProviderValue<unknown> | null>(null);
@@ -106,7 +106,7 @@ const StorageContext = createContext<ProviderValue<unknown> | null>(null);
 const StorageProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [valueMap, setValueMap] = useState<StorageState<unknown>>({});
   const [errorCodeMap, setErrorCodeMap] = useState<
-    Record<string, StorageErrorCodes>
+    Record<string, StorageErrorCode>
   >({});
 
   return (

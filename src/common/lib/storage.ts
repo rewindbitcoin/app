@@ -29,7 +29,7 @@
 const SECURESTORE_ATTEMPTS = 2;
 
 const MATCH_USER_CANCEL = 'User cancel';
-export type StorageErrorCodes = keyof typeof StorageErrors | false;
+export type StorageErrorCode = keyof typeof StorageErrors | false;
 export const StorageErrors = {
   /** Thrown when reading from securestore using biometrics
    * (and it's not the user cancelling it)*/
@@ -51,17 +51,17 @@ export const StorageErrors = {
   EncryptError: 'Encrypt Failed.',
   UnknownError: 'Unknown Error.'
 };
-export function getStorageErrorCode(error: unknown): StorageErrorCodes {
+export function getStorageErrorCode(error: unknown): StorageErrorCode {
   if (error instanceof Error && typeof error.message === 'string') {
     for (const [key, value] of Object.entries(StorageErrors))
-      if (value === error.message) return key as StorageErrorCodes;
+      if (value === error.message) return key as StorageErrorCode;
   }
   return 'UnknownError';
 }
 
 export type StorageStatus = {
   isSynchd: boolean;
-  errorCode: StorageErrorCodes;
+  errorCode: StorageErrorCode;
 };
 
 import { MMKV } from 'react-native-mmkv';
