@@ -60,7 +60,30 @@ If you've forgotten the password for your wallet, you can create a new wallet us
     importNonRealBtcButton: 'Import Test Wallet',
     importRealBtcButton: 'Import Wallet',
     testingWalletInfo: 'This wallet will not use real Bitcoin.',
-    realWalletWarning: 'Real Bitcoin wallets currently discouraged.'
+    realWalletWarning: 'Real Bitcoin wallets currently discouraged.',
+    errors: {
+      biometricsUncapableTitle: 'Wallet Setup Issue',
+      biometricsUncapable: `The biometric implementation on your device has\
+ issues, which are particularly common in Samsung models but can also occur in\
+ other brands. To help us improve, please report your device model to ThunderDen\
+ Support.
+
+Since biometrics cannot be used, the wallet creation process needs to be adjusted.\
+ We recommend recreating your wallet using a password instead. To do this,\
+ please disable biometrics and select a password under Advanced Options when\
+ setting up your wallet.`,
+      storageTitle: 'Storage Access Error',
+      storage: `There was an error reading from or writing to your device's\
+ storage. This issue may be due to corrupt data, insufficient storage space,\
+ or other storage-related problems. Please note that all your wallet data is\
+ securely backed up in an encrypted format on ThunderDen's P2P network.
+
+To resolve this issue, please try accessing your wallet again. If the problem\
+ persists, you can safely recreate your wallet using your mnemonic recovery\
+ phrase. This will restore all your data securely from the backups.
+
+If you need further assistance, please contact ThunderDen Support.`
+    }
   },
   walletHome: {
     delegateReadme: `For immediate action, open this file at:
@@ -140,7 +163,7 @@ While leaking this data wouldn't compromise your funds, encrypting it\
 
 The encryption uses the XChaCha20-Poly1305 algorithm, with a key that’s securely\
  derived from your mnemonic recovery phrase.`,
-    network: `ThunderDen provides a choice between testing environments and the real Bitcoin network (via Advanced Settings).
+    network: `ThunderDen provides a choice between testing environments and the real Bitcoin network (via Advanced Options).
 
 The currently recommended option is Storm, ThunderDen's own test network. Storm mirrors Bitcoin's real functionality and allows you to explore Send/Receive and Vaulting operations safely, offering free tokens for practice.
 

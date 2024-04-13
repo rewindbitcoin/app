@@ -8,7 +8,7 @@ import {
   Pressable,
   ActivityIndicator
 } from 'react-native';
-import { KeyboardAwareScrollView } from '../../common/ui';
+import { KeyboardAwareScrollView, Modal } from '../../common/ui';
 import { WalletContext, WalletContextType } from '../contexts/WalletContext';
 import { useTranslation } from 'react-i18next';
 import { delegateVault, shareVaults } from '../lib/backup';
@@ -117,7 +117,7 @@ const WalletHomeScreen: React.FC<Props> = ({ onSetUpVaultInit }) => {
     },
     [wallet, onWallet]
   );
-  return !wallet ? (
+  return !wallet /*TODO: prepare nicer ActivityIndicator*/ ? (
     <ActivityIndicator />
   ) : (
     <>
@@ -178,6 +178,24 @@ const WalletHomeScreen: React.FC<Props> = ({ onSetUpVaultInit }) => {
         onPassword={onPassword}
         onCancel={onPasswordCancel}
       />
+      <Modal
+        isVisible={walletError && walletError !== 'USER_CANCEL'}
+        title={
+          walletError === 'BIOMETRICS_UNCAPABLE'
+            ? t('wallet.errors.biometricsUncapableTitle')
+            : t('wallet.errors.storageTitle')
+        }
+        icon={{ family: 'MaterialIcons', name: 'error' }}
+        onClose={() => navigation.goBack()}
+      >
+        <View className="px-2">
+          <Text>
+            {walletError === 'BIOMETRICS_UNCAPABLE'
+              ? t('wallet.errors.biometricsUncapable')
+              : t('wallet.errors.storage')}
+          </Text>
+        </View>
+      </Modal>
     </>
   );
 };
