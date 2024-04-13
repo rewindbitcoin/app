@@ -95,7 +95,7 @@ export type WalletContextType = {
   walletError: WalletError;
   /** Whether the wallet needs to ask for a password and set it to retrieve
    * the signers */
-  requiresAuth: boolean;
+  requiresPassword: boolean;
   logOut: () => void;
   onWallet: ({
     wallet,
@@ -181,10 +181,6 @@ const WalletProviderRaw = ({
     );
   const [wallets, setWallets, , , walletsStorageStatus] =
     useLocalStateStorage<Wallets>(`WALLETS`, SERIALIZABLE, {});
-  //console.log(
-  //  `This is the received wallets ${JSON.stringify(wallets, null, 2)}`
-  //);
-  const isWalletsSynchd = walletsStorageStatus.isSynchd;
 
   const initSigners =
     walletId !== undefined &&
@@ -252,13 +248,30 @@ const WalletProviderRaw = ({
       dataCipherKey
     );
 
+  /** When all wallet realted data is synchronized and without any errors.
+   * Use this variable to add the wallet into the wallets storage
+   */
+  const isReady =
+    walletsStorageStatus.isSynchd &&
+    discoveryStorageStatus.isSynchd &&
+    signersStorageStatus.isSynchd &&
+    vaultsStorageStatus.isSynchd &&
+    vaultsStatusesStorageStatus.isSynchd &&
+    accountNamesStorageStatus.isSynchd &&
+    walletsStorageStatus.errorCode === false &&
+    discoveryStorageStatus.errorCode === false &&
+    signersStorageStatus.errorCode === false &&
+    vaultsStorageStatus.errorCode === false &&
+    vaultsStatusesStorageStatus.errorCode === false &&
+    accountNamesStorageStatus.errorCode === false;
+
   useEffect(() => {
     const walletError = getWalletError({
       isNewWallet: !!newSigners,
       settingsErrorCode: settingsStorageStatus.errorCode,
-      signersErrorCode: walletsStorageStatus.errorCode,
-      walletsErrorCode: discoveryStorageStatus.errorCode,
-      discoveryErrorCode: signersStorageStatus.errorCode,
+      signersErrorCode: signersStorageStatus.errorCode,
+      walletsErrorCode: walletsStorageStatus.errorCode,
+      discoveryErrorCode: discoveryStorageStatus.errorCode,
       vaultsErrorCode: vaultsStorageStatus.errorCode,
       vaultsStatusesErrorCode: vaultsStatusesStorageStatus.errorCode,
       accountNamesErrorCode: accountNamesStorageStatus.errorCode
@@ -266,10 +279,6 @@ const WalletProviderRaw = ({
     setWalletError(walletError);
   }, [
     newSigners,
-
-    setWallets,
-    wallet,
-    wallets,
 
     settingsStorageStatus.errorCode,
     walletsStorageStatus.errorCode,
@@ -316,7 +325,7 @@ const WalletProviderRaw = ({
       signersCipherKey?: Uint8Array;
     }) => {
       if (newSigners) {
-        //Make sure we don't have values from previous app installs?
+        //Make sure we don't have values from previous app installs using the same id?
         const walletId = walletDst.walletId;
         const authenticationPrompt = t('app.secureStorageAuthenticationPrompt');
         await deleteAsync(
@@ -393,17 +402,13 @@ const WalletProviderRaw = ({
     }
 
   useEffect(() => {
-    console.log(`This should set the wallet ${walletId}`);
-    if (isWalletsSynchd && wallet && walletId !== undefined) {
-      if (!wallets) throw new Error('wallets should be defined after synched');
-      if (!shallowEqualObjects(wallet, wallets[walletId])) {
-        console.log(
-          `Setting new wallet: ${JSON.stringify({ ...wallets, [walletId]: wallet }, null, 2)}`
-        );
-        setWallets({ ...wallets, [walletId]: wallet });
-      }
+    if (isReady) {
+      if (!wallet) throw new Error('wallet should be set when ready');
+      if (!wallets) throw new Error('wallets should be set when ready');
+      if (!shallowEqualObjects(wallet, wallets[wallet.walletId]))
+        setWallets({ ...wallets, [wallet.walletId]: wallet });
     }
-  }, [setWallets, walletId, wallets, wallet, isWalletsSynchd]);
+  }, [setWallets, wallets, wallet, isReady]);
 
   const toast = useToast();
 
@@ -867,7 +872,7 @@ const WalletProviderRaw = ({
     wallets,
     wallet,
     walletError,
-    requiresAuth:
+    requiresPassword:
       (wallet?.signersEncryption === 'PASSWORD' && !signersCipherKey) ||
       (typeof signersStorageStatus.errorCode !== 'boolean' &&
         signersStorageStatus.errorCode === 'DecryptError'),

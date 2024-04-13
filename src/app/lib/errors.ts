@@ -12,18 +12,7 @@ export type WalletError =
   /** some read write delete operation failed (or any other uknown error that
    * may arise in storage - see function isStorageError )*/
   | 'STORAGE_ERROR'
-  | 'ENCRYPTION_ERROR'
   | false;
-
-const isEncryptionError = (errorCode: StorageErrorCode) =>
-  errorCode === 'DecryptError' || errorCode === 'EncryptError';
-const isStorageError = (errorCode: StorageErrorCode) =>
-  errorCode === 'UnknownError' ||
-  errorCode === 'ReadError' ||
-  errorCode === 'WriteError' ||
-  errorCode === 'DeleteError' ||
-  errorCode === 'BiometricsReadError' ||
-  errorCode === 'BiometricsWriteError';
 
 /** Merges all possible storage errors into simpler meaningul errors to be
  * displayed to the user
@@ -47,22 +36,15 @@ export const getWalletError = ({
   vaultsStatusesErrorCode: StorageErrorCode;
   accountNamesErrorCode: StorageErrorCode;
 }): WalletError => {
+  //Don't pass it further down as a Wallet Error. This is probably a user
+  //typing in the wrong password. We overwrite it as a non-error internally in
+  //this function.
+  if (signersErrorCode === 'DecryptError') signersErrorCode = false;
+  //When setting up a new wallet we treat biometrics error specially. This is
+  //the first time the App checks if Biometrics properly work. An error here
+  //means that the device is an old Samsung device probably that reported that
+  //has biometrics but then failed. See note above in 'BIOMETRICS_UNCAPABLE'
   if (
-    //signersStorageStatus DecryptError is not handled as an ENCRYPTION_ERROR.
-    //This error will probably arise when the user makes an error while
-    //typing the password and is handled in requiresAuth
-    signersErrorCode === 'EncryptError' ||
-    isEncryptionError(settingsErrorCode) ||
-    isEncryptionError(walletsErrorCode) ||
-    isEncryptionError(discoveryErrorCode) ||
-    isEncryptionError(signersErrorCode) ||
-    isEncryptionError(vaultsErrorCode) ||
-    isEncryptionError(vaultsStatusesErrorCode) ||
-    isEncryptionError(accountNamesErrorCode)
-  ) {
-    return 'ENCRYPTION_ERROR';
-  } else if (
-    //newSigners is defined when creating a new wallet
     isNewWallet &&
     (signersErrorCode === 'BiometricsWriteError' ||
       signersErrorCode === 'BiometricsReadError')
@@ -74,13 +56,13 @@ export const getWalletError = ({
   ) {
     return 'USER_CANCEL';
   } else if (
-    isStorageError(settingsErrorCode) ||
-    isStorageError(walletsErrorCode) ||
-    isStorageError(discoveryErrorCode) ||
-    isStorageError(signersErrorCode) ||
-    isStorageError(vaultsErrorCode) ||
-    isStorageError(vaultsStatusesErrorCode) ||
-    isStorageError(accountNamesErrorCode)
+    settingsErrorCode ||
+    walletsErrorCode ||
+    discoveryErrorCode ||
+    signersErrorCode ||
+    vaultsErrorCode ||
+    vaultsStatusesErrorCode ||
+    accountNamesErrorCode
   ) {
     return 'STORAGE_ERROR';
   } else return false;

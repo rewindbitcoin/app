@@ -72,7 +72,7 @@ const WalletHomeScreen: React.FC<Props> = ({ onSetUpVaultInit }) => {
     syncingBlockchain,
     wallet,
     walletError,
-    requiresAuth,
+    requiresPassword,
     onWallet
   } = context;
 
@@ -174,7 +174,7 @@ const WalletHomeScreen: React.FC<Props> = ({ onSetUpVaultInit }) => {
       </KeyboardAwareScrollView>
       <Password
         mode="REQUEST"
-        isVisible={requiresAuth}
+        isVisible={requiresPassword}
         onPassword={onPassword}
         onCancel={onPasswordCancel}
       />
