@@ -1,14 +1,10 @@
-Fallo: cuando intento crear y cancelar 2 wallets seguidas
-
-Fallo2: Tambien me falla cuando le doy a visitar una wallet, hago userCancel (se va atras)
+FALLO: falla cuando le doy a visitar una wallet, hago userCancel (se va atras)
 entonces vuelvo a visitar la wallet y ahora no me pide el password!?!?!?!
 
-Test: Si no me va la auth, entonces tratarlo como si el usuario hubiese cancelado la auth
-  -> Sugerir password?
-  -> isBiometricWriteError? Borrar la wallet y llamar un onWallet de nuevo desactivando biometrics y activando password en Advanced Settings.
+El link a "This wallet will not use real Bitcoin" es muy dificil de clicar!!!
 
-
-  Biometrics cannot not be used in your Device. This happens on some Samsung (and other) devices using old Android versions. Please, report your device and OS to ThunderDen. The wallet won't be created using Biometrics. We recommend creating it again disabling Biometrics and using a Password (use Advanced Settings when creating a Wallet).
+Cuando le doy a "skip" en phrase veriifcation tarda un huevo en pasar a siguiente pantalla....
+cuando en la wallet doy a goBak tambien tarda años
 
 Test password + secure store
 test idb + password
