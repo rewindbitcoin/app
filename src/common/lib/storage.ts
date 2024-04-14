@@ -166,8 +166,9 @@ import { Platform } from 'react-native';
 //longer needed (or at least the patch)
 import { hasHardwareAsync, isEnrolledAsync } from 'expo-local-authentication';
 
-import { strToU8, strFromU8 } from 'fflate';
+//import { strToU8, strFromU8 } from 'fflate';
 import { getManagedChacha } from './cipher';
+import { TextEncoder, TextDecoder } from './textencoder';
 
 import {
   AFTER_FIRST_UNLOCK,
@@ -382,7 +383,8 @@ export const setAsync = async (
     console.log(`About to encrypt ${key} in ${engine}`);
     const start = performance.now(); // Start timing
     const strOriginalMessage = JSON.stringify(originalMessage);
-    const uint8OriginalMessage = strToU8(strOriginalMessage);
+    //const uint8OriginalMessage = strToU8(strOriginalMessage);
+    const uint8OriginalMessage = new TextEncoder().encode(strOriginalMessage);
     try {
       cipherMessage = chacha.encrypt(uint8OriginalMessage);
     } catch (err: unknown) {
@@ -402,7 +404,9 @@ export const setAsync = async (
         `Engine ${engine} does not support native Uint8Array since it uses JSON.stringify`
       );
     const secureStoreValue =
-      (cipherMessage && strFromU8(cipherMessage, true)) ||
+      //(cipherMessage && strFromU8(cipherMessage, true)) ||
+      (cipherMessage &&
+        new TextDecoder().decode(cipherMessage, { stream: false })) ||
       JSON.stringify(value);
     if (secureStoreValue.length > 2048)
       throw new Error(
@@ -449,7 +453,8 @@ export const getAsync = async <S extends SerializationFormat>(
       stringValue === null
         ? undefined
         : cipherKey
-          ? strToU8(stringValue, true)
+          ? //? strToU8(stringValue, true)
+            new TextEncoder().encode(stringValue)
           : JSON.parse(stringValue);
   } else if (engine === 'MMKV') {
     if (cipherKey) {
@@ -508,7 +513,10 @@ export const getAsync = async <S extends SerializationFormat>(
       }
       const decryptTime = performance.now();
       console.log(`decrypt time: ${(decryptTime - start) / 1000} seconds`);
-      const strResult = strFromU8(decryptedResult);
+      //const strResult = strFromU8(decryptedResult);
+      const strResult = new TextDecoder().decode(decryptedResult, {
+        stream: false
+      });
       const strTime = performance.now();
       console.log(`U8 -> str time: ${(strTime - decryptTime) / 1000} seconds`);
       result = JSON.parse(strResult);

@@ -1,4 +1,5 @@
-import { Gzip, strToU8 } from 'fflate';
+import { Gzip } from 'fflate';
+import { TextEncoder } from './textencoder';
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 export const compressData = async ({
@@ -28,7 +29,8 @@ export const compressData = async ({
     if (typeof data === 'string') {
       // If data is a string, slice the string chunk and convert to Uint8Array
       const stringChunk = data.substring(start, end);
-      chunk = strToU8(stringChunk);
+      //chunk = strToU8(stringChunk);
+      chunk = new TextEncoder().encode(stringChunk);
     } else {
       // If data is already a Uint8Array, just slice the chunk
       chunk = data.subarray(start, end);

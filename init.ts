@@ -1,3 +1,8 @@
+//import rnfe from 'react-native-fast-encoder';
+//const uint = new rnfe().encode('This is a test');
+//const str = new rnfe().decode(uint, { stream: false });
+//console.log({ str, uint });
+
 //I made some tests, and this does not get included in production, so
 //it's safe to include it. This is needed for web Fast-Refresh when editting
 //code (see immediate changes on the web)
@@ -29,7 +34,10 @@ import 'react-native-url-polyfill/auto';
 //automatically which does not require TextEncoder. Internal implementation
 //is faster than  fast-text-encoding
 //import 'fast-text-encoding';
-console.log('TextEncoder', typeof TextEncoder);
+
+//import rnfe from 'react-native-fast-encoder';
+//const uint = new rnfe().encode('This is a test');
+//const str = new rnfe().decode(uint, { stream: false });
 
 //If planning to use React Animated:
 import { NativeModules } from 'react-native';

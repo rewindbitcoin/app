@@ -23,7 +23,8 @@ import { compressData } from '../../common/lib/compress';
 import type { Vault, Vaults, TxHex, Rescue, RescueTxMap } from './vaults';
 import { getManagedChacha } from '../../common/lib/cipher';
 
-import { gunzipSync, strFromU8 } from 'fflate';
+import { gunzipSync } from 'fflate';
+import { TextDecoder } from '../../common/lib/textencoder';
 import { type NetworkId, networkMapping } from './network';
 
 export const fetchP2PVaultIds = async ({
@@ -182,7 +183,8 @@ export const fetchP2PVault = async ({
           new Uint8Array(await compressedEncryptedVault.arrayBuffer())
         );
         const vault = gunzipSync(compressedVault);
-        const strVault = strFromU8(vault);
+        //const strVault = strFromU8(vault);
+        const strVault = new TextDecoder().decode(vault, { stream: false });
         return { strVault, vault: JSON.parse(strVault) };
       } else {
         throw new Error(
