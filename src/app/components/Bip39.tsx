@@ -59,7 +59,7 @@ export default function Bip39({
 }) {
   const inputRef = useRef<TextInput>(null);
   const { t } = useTranslation();
-  useFonts({
+  const [fontsLoaded] = useFonts({
     'RobotoMono-400Regular': RobotoMono_400Regular,
     'RobotoMono-500Medium': RobotoMono_500Medium
   });
@@ -186,7 +186,9 @@ export default function Bip39({
           key={index}
           className="flex-row w-1/3 pl-1 pb-2 mobmed:pl-2 mobmed:pb-3"
         >
-          <Text className="text-xs/10 mobmed:text-sm/10 pr-1 font-['RobotoMono-500Medium'] color-slate-500">
+          <Text
+            className={`text-xs/10 mobmed:text-sm/10 pr-1 color-slate-500 ${fontsLoaded ? "font-['RobotoMono-500Medium']" : ''}`}
+          >
             {`${index + 1 < 10 ? '\u00A0' : ''}${index + 1}`}
           </Text>
           <TextInput
@@ -195,7 +197,7 @@ export default function Bip39({
             {...(activeWordIndex === index ? { ref: inputRef } : {})}
             blurOnSubmit={false}
             value={word}
-            className={`ios:pb-1 text-xs mobmed:text-sm rounded pl-2 ${readonly ? 'bg-slate-200' : 'bg-white'} flex-1 web:w-full outline-none font-['RobotoMono-400Regular'] ${
+            className={`ios:pb-1 text-xs mobmed:text-sm rounded pl-2 ${readonly ? 'bg-slate-200' : 'bg-white'} flex-1 web:w-full outline-none ${fontsLoaded ? "font-['RobotoMono-400Regular']" : ''} ${
               (index === activeWordIndex && !isPartialWordValid(word)) ||
               (index !== activeWordIndex && !isWordValid(word))
                 ? 'text-notification'

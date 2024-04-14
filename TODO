@@ -1,6 +1,10 @@
 FALLO: falla cuando le doy a visitar una wallet, hago userCancel (se va atras)
 entonces vuelvo a visitar la wallet y ahora no me pide el password!?!?!?!
 
+Cuando le doy a "Want to import instead?" entonces no me hace auto focus en Android
+
+El Bip39 no hacer aut-completar
+
 El link a "This wallet will not use real Bitcoin" es muy dificil de clicar!!!
 
 Cuando le doy a "skip" en phrase veriifcation tarda un huevo en pasar a siguiente pantalla....
@@ -13,7 +17,6 @@ tst idb + derived seed (encrypt app data)
 Bip39:
   predictive text is a nigthmare in real device (android)
     -> Sí que debe de pasar al siguioente cuadro pero no auto-completar
-  Me siguen sin aparecer bien los numeros de BIp39 en Andrdoid cuando arranca la app
   Es muy dificil hacer click en en texinput (se tiene q apuntar demasiado bien)
   Los cuadros de texto de abajo quedan tapados por el keyboard
 
