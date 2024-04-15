@@ -1,12 +1,6 @@
 FALLO: falla cuando le doy a visitar una wallet, hago userCancel (se va atras)
 entonces vuelvo a visitar la wallet y ahora no me pide el password!?!?!?!
 
-Cuando le doy a "Want to import instead?" entonces no me hace auto focus en Android
-
-El Bip39 no hacer aut-completar
-
-El link a "This wallet will not use real Bitcoin" es muy dificil de clicar!!!
-
 Cuando le doy a "skip" en phrase veriifcation tarda un huevo en pasar a siguiente pantalla....
 cuando en la wallet doy a goBak tambien tarda años
 
@@ -16,30 +10,6 @@ tst idb + derived seed (encrypt app data)
 
 Test como se ve la App con dark mode activado !!!
   https://stackoverflow.com/questions/57175226/how-to-disable-night-mode-in-my-application-even-if-night-mode-is-enable-in-andr/64339016#64339016
-
-Bip39:
-  predictive text is a nigthmare in real device (android)
-    -> Sí que debe de pasar al siguioente cuadro pero no auto-completar
-  Es muy dificil hacer click en en texinput (se tiene q apuntar demasiado bien)
-  Los cuadros de texto de abajo quedan tapados por el keyboard
-
-Android on a clean install does not show the numbers on Bip39!
-at least when clicking on Need to oimport
-
-TODO: probably i need a strFromU8 and a strToU8 which are not-blocking
-  -> Or in a logical manner, do vaults one at a time. Have
-  compressedVaults or something
-
-
-TextEncoder:
-  https://github.com/facebook/hermes/commit/3863a36a53005dd1e6d39ea0d4ef5573bafde910
-  belongs to tag:
-  https://github.com/facebook/hermes/releases/tag/hermes-2024-03-26-RNvmain-86d391d00be80aeccc8b29f62a254ecf6bc8a9ae
-  PR accepted:
-  https://github.com/facebook/react-native/pull/43098
-  https://github.com/facebook/react-native/commit/e6995583d3fa20d36afba11303a95e37ddd2122f
-
-Si sigo tecleando despuesd e haver rellenado bien el Buip39 entonces automaticamente me crea la Wallet y no puedo elegir advanced
 
 The Password when is re-prompted should show a "Bad Password" or something
   -> Además debe de borrarme el texto antiguo? wuizas no

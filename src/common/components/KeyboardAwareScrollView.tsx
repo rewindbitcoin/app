@@ -1,7 +1,12 @@
 //export { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 //export { ScrollView as KeyboardAwareScrollView } from 'react-native';
 
+//This will only affect iOS:
 export { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
+//For Android:
+//IMPORTANT: set "softwareKeyboardLayoutMode":  to "resize" in app.json
+//this is so that Android does not "pan" the whole screen and the Toast is still
+//visible on Top. Otherwise the whole thing is panned including the Toast out of the vuew
 
 //import React, {
 //  useCallback,
