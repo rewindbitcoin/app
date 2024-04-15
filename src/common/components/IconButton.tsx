@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback } from 'react';
-import { StyleSheet, Pressable, ViewStyle } from 'react-native';
+import { StyleSheet, Pressable } from 'react-native';
 import { rgba } from 'polished';
 import * as Icons from '@expo/vector-icons';
 import { useTheme, Theme } from '../theme';
@@ -11,7 +11,6 @@ function IconButton({
   iconName,
   iconFamily,
   onPress,
-  style,
   size = 14
 }: {
   mode?: 'icon-right' | 'icon-left' | 'no-text';
@@ -19,7 +18,6 @@ function IconButton({
   iconName: string;
   iconFamily: keyof typeof Icons;
   onPress?: () => void;
-  style?: ViewStyle;
   size?: number;
 }) {
   const theme = useTheme();
@@ -33,7 +31,8 @@ function IconButton({
   const onPressOut = useCallback(() => setPressed(false), []);
   return (
     <Pressable
-      style={[styles.actionButton, style]}
+      className="flex-row items-center"
+      hitSlop={10}
       onPressIn={onPressIn}
       onPressOut={onPressOut}
       onPress={onPress}
@@ -61,10 +60,6 @@ const getIconButtonStyles = (
   mode: 'icon-right' | 'icon-left' | 'no-text'
 ) =>
   StyleSheet.create({
-    actionButton: {
-      flexDirection: 'row',
-      alignItems: 'center'
-    },
     actionIcon: {
       paddingRight: mode === 'icon-left' ? (4 * size) / 16 : 0,
       paddingLeft: mode === 'icon-right' ? (4 * size) / 16 : 0,

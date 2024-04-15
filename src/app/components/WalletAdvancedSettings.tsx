@@ -164,11 +164,10 @@ export default function WalletAdvancedSettings({
               <>
                 <View style={{ ...styles.row }}>
                   <View style={styles.textContainer}>
-                    <Text>{t('wallet.biometricEncryptionTitle')}</Text>
-                    <InfoButton
-                      style={{ padding: 20, margin: -20 }}
-                      onPress={() => showBiometricalHelp(true)}
-                    />
+                    <Text className="pr-2">
+                      {t('wallet.biometricEncryptionTitle')}
+                    </Text>
+                    <InfoButton onPress={() => showBiometricalHelp(true)} />
                   </View>
                   <Switch
                     value={
@@ -191,11 +190,8 @@ export default function WalletAdvancedSettings({
             )}
             <View style={styles.row}>
               <View style={styles.textContainer}>
-                <Text>{t('wallet.usePasswordTitle')}</Text>
-                <InfoButton
-                  style={{ paddingLeft: 8 }}
-                  onPress={() => showPasswordHelp(true)}
-                />
+                <Text className="pr-2">{t('wallet.usePasswordTitle')}</Text>
+                <InfoButton onPress={() => showPasswordHelp(true)} />
               </View>
               <Switch
                 value={!!advancedSettings.signersPassword || passwordRequest}
@@ -211,11 +207,8 @@ export default function WalletAdvancedSettings({
             <Divider style={styles.lineSeparator} />
             <View style={styles.row}>
               <View style={styles.textContainer}>
-                <Text>{t('wallet.encryptAppDataTitle')}</Text>
-                <InfoButton
-                  style={{ paddingLeft: 8 }}
-                  onPress={() => showDataEncryptionHelp(true)}
-                />
+                <Text className="pr-2">{t('wallet.encryptAppDataTitle')}</Text>
+                <InfoButton onPress={() => showDataEncryptionHelp(true)} />
               </View>
               <Switch
                 value={advancedSettings.encryption === 'SEED_DERIVED'}
@@ -225,15 +218,13 @@ export default function WalletAdvancedSettings({
             <Divider style={styles.lineSeparator} />
             <View style={styles.row}>
               <View style={styles.textContainer}>
-                <Text>{t('network.testOrRealTitle')}</Text>
-                <InfoButton
-                  style={{ paddingLeft: 8 }}
-                  onPress={() => showNetworkHelp(true)}
-                />
+                <Text className="pr-2">{t('network.testOrRealTitle')}</Text>
+                <InfoButton onPress={() => showNetworkHelp(true)} />
               </View>
               <Pressable
                 onPress={onNetworkRequest}
-                className="max-w-20 mobmed:max-w-full flex-row -my-2 py-2 items-center active:scale-95 active:opacity-90 hover:opacity-90"
+                hitSlop={{ top: 10, bottom: 10, right: 10 }}
+                className="max-w-20 mobmed:max-w-full flex-row items-center active:scale-95 active:opacity-90 hover:opacity-90"
               >
                 <MaterialCommunityIcons
                   name="menu-swap-outline"

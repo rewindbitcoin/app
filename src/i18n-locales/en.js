@@ -5,7 +5,7 @@ export default {
       'Oops! There was a network issue: {{message}}. Please check your connection and try again.',
     newWalletTitle: 'New Wallet',
     thunderDenTitle: 'Thunder Den',
-    mainTitle: 'ThunderDen Wallets',
+    mainTitle: 'Wallets',
     createVaultTitle: 'Creating Vault',
 
     walletTitle: 'Wallet',

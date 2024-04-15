@@ -255,7 +255,7 @@ export default function NewWalletScreen() {
       <ActivityIndicator size={'large'} color={theme.colors.primary} />
     </View>
   ) : creatingWallet ? (
-    <View className="flex-1 justify-center">
+    <View className="flex-1 justify-center px-4">
       <ActivityIndicator size={'large'} color={theme.colors.primary} />
       <Text className="mt-10 text-center text-xl">
         {t('wallet.creatingWallet')}
@@ -282,7 +282,8 @@ export default function NewWalletScreen() {
             )}
           </Text>
           <Pressable
-            className="hover:opacity-40 active:opacity-40 self-start p-2 -m-2"
+            hitSlop={10}
+            className="hover:opacity-40 active:opacity-40 self-start"
             onPress={switchNewImport}
           >
             <Text className="pb-2 text-primary native:text-base web:text-sm web:sm:text-base">
@@ -321,14 +322,15 @@ export default function NewWalletScreen() {
               >
                 {advancedSettings.networkId === 'BITCOIN'
                   ? t('wallet.realWalletWarning')
-                  : t('wallet.testingWalletInfo')}
+                  : t('wallet.testingWalletInfo')}{' '}
               </Text>
               <Pressable
                 className="active:opacity-60 hover:opacity-60"
+                hitSlop={10}
                 onPress={() => showNetworkHelp(true)}
               >
                 <Text
-                  className={`native:text-sm pl-1 web:text-xs web:sm:text-sm text-primary`}
+                  className={`native:text-sm web:text-xs web:sm:text-sm text-primary`}
                 >
                   {t('learnMore')}
                 </Text>

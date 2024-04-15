@@ -205,6 +205,7 @@ const SegmentedControl: React.FC<SegmentedControlProps> = ({
           <Pressable
             onPress={memoizedTabPressCallback(index)}
             key={index}
+            hitSlop={20}
             style={[styles.touchableContainer, pressableWrapper]}
           >
             <View style={styles.textWrapper}>
@@ -244,12 +245,10 @@ const getStyles = (theme: Theme) =>
     touchableContainer: {
       flex: 1,
       elevation: 9,
-      padding: 20, //Add padding 20 and compensate with margin -20 below, this is so that i get larger clickable area (useful in small devices)
       height: '100%'
       //paddingVertical: 12
     },
     textWrapper: {
-      margin: -20, //See comment above about padding: 20
       flex: 1,
       flexDirection: 'row',
       alignItems: 'center',

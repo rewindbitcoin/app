@@ -40,10 +40,10 @@ function AddressInput() {
   return (
     <View>
       <View style={styles.cardHeader}>
-        <Text variant="cardTitle" style={styles.cardTitle}>
+        <Text variant="cardTitle" className="px-2 text-left">
           {t('addressInput.coldAddress.label')}
         </Text>
-        <InfoButton style={{ paddingLeft: 10 }} />
+        <InfoButton />
       </View>
       <View style={styles.inputWrapper}>
         <TextInput
@@ -58,19 +58,21 @@ function AddressInput() {
           value={address}
           style={styles.input}
         />
-        <IconButton
-          style={styles.button}
-          text={t('addressInput.scan')}
-          iconFamily="MaterialCommunityIcons"
-          iconName="qrcode-scan"
-        />
-        <IconButton
-          style={styles.button}
-          text={t('addressInput.coldAddress.createNewButton')}
-          onPress={handleNewAddress}
-          iconFamily="MaterialCommunityIcons"
-          iconName="wallet-plus-outline"
-        />
+        <View className="py-1 ml-4">
+          <IconButton
+            text={t('addressInput.scan')}
+            iconFamily="MaterialCommunityIcons"
+            iconName="qrcode-scan"
+          />
+        </View>
+        <View className="py-1 ml-4">
+          <IconButton
+            text={t('addressInput.coldAddress.createNewButton')}
+            onPress={handleNewAddress}
+            iconFamily="MaterialCommunityIcons"
+            iconName="wallet-plus-outline"
+          />
+        </View>
       </View>
       <Modal
         isVisible={showNewAddress}
@@ -94,11 +96,6 @@ const getStyles = (theme: Theme) =>
       marginBottom: theme.screenMargin / 2,
       flexDirection: 'row',
       alignItems: 'center'
-    },
-    button: { marginLeft: 16, paddingVertical: 4 },
-    cardTitle: {
-      marginLeft: 10,
-      textAlign: 'left'
     },
     inputWrapper: {
       paddingVertical: 4,
