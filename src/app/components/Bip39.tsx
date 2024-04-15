@@ -1,5 +1,16 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import {
+  StyleSheet,
+  View,
+  Platform,
+  unstable_batchedUpdates as RN_unstable_batchedUpdates
+} from 'react-native';
+const unstable_batchedUpdates = Platform.select({
+  web: (cb: () => void) => {
+    cb();
+  },
+  default: RN_unstable_batchedUpdates
+});
 
 import { LayoutAnimation } from 'react-native';
 import { useFonts } from 'expo-font';
@@ -98,18 +109,34 @@ export default function Bip39({
         throw new Error(
           `Invalid activeWordIndex: ${activeWordIndex} : ${JSON.stringify(words)}`
         );
+      const newWords = words.map((word, index) =>
+        index === activeWordIndex ? text : word
+      );
       if (prevWord.length > text.length) {
         //Delete text:
-        onWords(
-          words.map((word, index) => (index === activeWordIndex ? text : word))
-        );
+        onWords(newWords);
+        hideError();
       } else {
-        //Add text:
         const isLastWord = !words.some(
           (word: string, index: number) =>
             index !== activeWordIndex && !isWordValid(word)
         );
+        const nextIndex = newWords.findIndex(word => !isWordValid(word));
+        if (
+          isLastWord &&
+          isWordValid(text) &&
+          !validateMnemonic(newWords.join(' '))
+        )
+          showError();
+        else hideError();
 
+        //Add text and update index:
+        unstable_batchedUpdates(() => {
+          onWords(newWords);
+          if (nextIndex !== -1) setActiveWordIndex(nextIndex);
+        });
+
+        /*
         const wc = wordCandidates(text);
         if (wc.length > 1) hideError();
         if (wc.length === 1) {
@@ -142,17 +169,18 @@ export default function Bip39({
             )
           );
         }
+        */
       }
     }
   };
 
-  //const isMounted = useRef<boolean>(false);
-  useEffect(() => {
-    if (!readonly) inputRef.current?.focus();
-  }, [activeWordIndex, readonly]);
   useEffect(() => {
     if (!readonly && autoFocus) inputRef.current?.focus();
   }, [readonly, autoFocus]);
+  const hasUserInteracted = useRef<boolean>(false);
+  useEffect(() => {
+    if (!readonly && hasUserInteracted.current) inputRef.current?.focus();
+  }, [activeWordIndex, readonly]);
 
   return (
     <View className="rounded-xl bg-backgroundDefault flex-row flex-wrap pt-2 pr-2 w-full android:border android:border-gray-300 shadow mobmed:pt-3 mobmed:pr-3">
@@ -210,6 +238,7 @@ export default function Bip39({
             autoCapitalize="none"
             onChangeText={handleChangeText}
             onFocus={() => {
+              hasUserInteracted.current = true;
               setActiveWordIndex(index);
             }}
           />
