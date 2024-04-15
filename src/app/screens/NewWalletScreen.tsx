@@ -11,7 +11,8 @@ import {
   Button,
   ActivityIndicator,
   KeyboardAwareScrollView,
-  Modal
+  Modal,
+  useTheme
 } from '../../common/ui';
 import { useTranslation } from 'react-i18next';
 import Bip39, { validateMnemonic } from '../components/Bip39';
@@ -42,6 +43,8 @@ export default function NewWalletScreen() {
   const context = useContext<WalletContextType | null>(WalletContext);
   const onWallet = context?.onWallet;
   if (!onWallet) throw new Error(`onWallet not set yet`);
+
+  const theme = useTheme();
 
   const route = useRoute<RouteProp<RootStackParamList, 'NEW_WALLET'>>();
   const navigation = useNavigation();
@@ -90,6 +93,7 @@ export default function NewWalletScreen() {
     setIsImport(!isImport);
   }, [isImport]);
 
+  const [creatingWallet, setCreatingWallet] = useState<boolean>(false);
   /**
    * import or create a new wallet
    */
@@ -101,6 +105,11 @@ export default function NewWalletScreen() {
       signersStorageEngine: StorageEngine,
       networkId: NetworkId
     ) => {
+      setCreatingWallet(true);
+      //This await Promise below is important so that the state is set above
+      //immediatelly without waiting for all the awaits below. For some reason
+      //this is needed
+      await new Promise(resolve => setTimeout(resolve, 0));
       const wallet: Wallet = {
         creationEpoch: Math.floor(Date.now() / 1000),
         walletId,
@@ -129,14 +138,14 @@ export default function NewWalletScreen() {
           }
         }
       });
-      navigation.goBack();
+      if (navigation.canGoBack()) navigation.goBack();
       navigation.navigate(WALLET_HOME);
     },
     [navigation, onWallet, walletId]
   );
 
   const hasAskedNonSecureSignersToSetPassword = useRef<boolean>(false);
-  const onCreateNew = useCallback(async () => {
+  const onImport = useCallback(async () => {
     if (
       !canUseSecureStorage &&
       !advancedSettings.signersPassword &&
@@ -241,7 +250,18 @@ export default function NewWalletScreen() {
   );
 
   const [networktHelp, showNetworkHelp] = useState<boolean>(false);
-  return (
+  return canUseSecureStorage === undefined ? (
+    <View className="flex-1 justify-center">
+      <ActivityIndicator size={'large'} color={theme.colors.primary} />
+    </View>
+  ) : creatingWallet ? (
+    <View className="flex-1 justify-center">
+      <ActivityIndicator size={'large'} color={theme.colors.primary} />
+      <Text className="mt-10 text-center text-xl">
+        {t('wallet.creatingWallet')}
+      </Text>
+    </View>
+  ) : (
     <>
       <KeyboardAwareScrollView
         keyboardShouldPersistTaps="handled"
@@ -253,75 +273,69 @@ export default function NewWalletScreen() {
           alignItems: 'center'
         }}
       >
-        {canUseSecureStorage === undefined ? (
-          <ActivityIndicator />
-        ) : (
-          <View className="max-w-lg p-4 gap-4">
-            <Text className="native:text-base web:text-sm web:sm:text-base">
-              {t(
-                isImport
-                  ? 'bip39.importWalletSubText'
-                  : 'bip39.createWalletSubText'
-              )}
+        <View className="max-w-lg p-4 gap-4">
+          <Text className="native:text-base web:text-sm web:sm:text-base">
+            {t(
+              isImport
+                ? 'bip39.importWalletSubText'
+                : 'bip39.createWalletSubText'
+            )}
+          </Text>
+          <Pressable
+            className="hover:opacity-40 active:opacity-40 self-start p-2 -m-2"
+            onPress={switchNewImport}
+          >
+            <Text className="pb-2 text-primary native:text-base web:text-sm web:sm:text-base">
+              {isImport ? t('bip39.chooseNew') : t('bip39.chooseImport')}
             </Text>
-            <Pressable
-              className="hover:opacity-40 active:opacity-40 self-start p-2 -m-2"
-              onPress={switchNewImport}
-            >
-              <Text className="pb-2 text-primary native:text-base web:text-sm web:sm:text-base">
-                {isImport ? t('bip39.chooseNew') : t('bip39.chooseImport')}
-              </Text>
-            </Pressable>
-            <Bip39
-              readonly={!isImport}
-              hideWords={isConfirmBip39}
-              words={words}
-              onWords={onWords}
+          </Pressable>
+          <Bip39
+            readonly={!isImport}
+            hideWords={isConfirmBip39}
+            words={words}
+            onWords={onWords}
+          />
+          <View className="mt-4">
+            <WalletAdvancedSettings
+              canUseSecureStorage={canUseSecureStorage}
+              advancedSettings={advancedSettings}
+              onAdvancedSettings={onAdvancedSettings}
             />
-            <View className="mt-4">
-              <WalletAdvancedSettings
-                canUseSecureStorage={canUseSecureStorage}
-                advancedSettings={advancedSettings}
-                onAdvancedSettings={onAdvancedSettings}
-              />
-            </View>
-            <View className="mb-4 mt-4">
-              <Button
-                disabled={!validMnemonic}
-                onPress={
-                  isImport ? onCreateNew : onBip39ConfirmationIsRequested
-                }
+          </View>
+          <View className="mb-4 mt-4">
+            <Button
+              disabled={!validMnemonic}
+              onPress={isImport ? onImport : onBip39ConfirmationIsRequested}
+            >
+              {advancedSettings.networkId === 'BITCOIN' && isImport
+                ? t('wallet.importRealBtcButton')
+                : advancedSettings.networkId !== 'BITCOIN' && isImport
+                  ? t('wallet.importNonRealBtcButton')
+                  : advancedSettings.networkId === 'BITCOIN' && !isImport
+                    ? t('wallet.createRealBtcButton')
+                    : t('wallet.createNonRealBtcButton')}
+            </Button>
+            <View className="flex-row flex-wrap justify-center mt-4">
+              <Text
+                className={`native:text-sm web:text-xs web:sm:text-sm text-slate-600`}
               >
-                {advancedSettings.networkId === 'BITCOIN' && isImport
-                  ? t('wallet.importRealBtcButton')
-                  : advancedSettings.networkId !== 'BITCOIN' && isImport
-                    ? t('wallet.importNonRealBtcButton')
-                    : advancedSettings.networkId === 'BITCOIN' && !isImport
-                      ? t('wallet.createRealBtcButton')
-                      : t('wallet.createNonRealBtcButton')}
-              </Button>
-              <View className="flex-row flex-wrap justify-center mt-4">
+                {advancedSettings.networkId === 'BITCOIN'
+                  ? t('wallet.realWalletWarning')
+                  : t('wallet.testingWalletInfo')}
+              </Text>
+              <Pressable
+                className="active:opacity-60 hover:opacity-60"
+                onPress={() => showNetworkHelp(true)}
+              >
                 <Text
-                  className={`native:text-sm web:text-xs web:sm:text-sm text-slate-600`}
+                  className={`native:text-sm pl-1 web:text-xs web:sm:text-sm text-primary`}
                 >
-                  {advancedSettings.networkId === 'BITCOIN'
-                    ? t('wallet.realWalletWarning')
-                    : t('wallet.testingWalletInfo')}
+                  {t('learnMore')}
                 </Text>
-                <Pressable
-                  className="active:opacity-60 hover:opacity-60"
-                  onPress={() => showNetworkHelp(true)}
-                >
-                  <Text
-                    className={`native:text-sm pl-1 web:text-xs web:sm:text-sm text-primary`}
-                  >
-                    {t('learnMore')}
-                  </Text>
-                </Pressable>
-              </View>
+              </Pressable>
             </View>
           </View>
-        )}
+        </View>
         {isConfirmBip39 && (
           <ConfirmBip39
             network={networkMapping[advancedSettings.networkId]}

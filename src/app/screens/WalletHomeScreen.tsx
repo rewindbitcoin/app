@@ -8,7 +8,7 @@ import {
   Pressable,
   ActivityIndicator
 } from 'react-native';
-import { KeyboardAwareScrollView, Modal } from '../../common/ui';
+import { KeyboardAwareScrollView, Modal, useTheme } from '../../common/ui';
 import { WalletContext, WalletContextType } from '../contexts/WalletContext';
 import { useTranslation } from 'react-i18next';
 import { delegateVault, shareVaults } from '../lib/backup';
@@ -77,7 +77,8 @@ const WalletHomeScreen: React.FC<Props> = ({ onSetUpVaultInit }) => {
   } = context;
 
   useEffect(() => {
-    if (walletError === 'USER_CANCEL') navigation.goBack();
+    if (walletError === 'USER_CANCEL')
+      if (navigation.canGoBack()) navigation.goBack();
   }, [walletError, navigation]);
 
   const onRequestVaultsBackup = useCallback(() => {
@@ -101,7 +102,7 @@ const WalletHomeScreen: React.FC<Props> = ({ onSetUpVaultInit }) => {
   // ...
 
   const onPasswordCancel = useCallback(() => {
-    navigation.goBack();
+    if (navigation.canGoBack()) navigation.goBack();
   }, [navigation]);
   const onPassword = useCallback(
     (password: string) => {
@@ -117,8 +118,14 @@ const WalletHomeScreen: React.FC<Props> = ({ onSetUpVaultInit }) => {
     },
     [wallet, onWallet]
   );
+  const onCloseErrorModal = useCallback(() => {
+    if (navigation.canGoBack()) navigation.goBack();
+  }, [navigation]);
+  const theme = useTheme();
   return !wallet /*TODO: prepare nicer ActivityIndicator*/ ? (
-    <ActivityIndicator />
+    <View className="flex-1 justify-center">
+      <ActivityIndicator size={'large'} color={theme.colors.primary} />
+    </View>
   ) : (
     <>
       <KeyboardAwareScrollView
@@ -186,7 +193,7 @@ const WalletHomeScreen: React.FC<Props> = ({ onSetUpVaultInit }) => {
             : t('wallet.errors.storageTitle')
         }
         icon={{ family: 'MaterialIcons', name: 'error' }}
-        onClose={() => navigation.goBack()}
+        onClose={onCloseErrorModal}
       >
         <View className="px-2">
           <Text>

@@ -5,7 +5,7 @@ export default {
       'Oops! There was a network issue: {{message}}. Please check your connection and try again.',
     newWalletTitle: 'New Wallet',
     thunderDenTitle: 'Thunder Den',
-    mainTitle: 'Wallets',
+    mainTitle: 'ThunderDen Wallets',
     createVaultTitle: 'Creating Vault',
 
     walletTitle: 'Wallet',
@@ -61,6 +61,9 @@ If you've forgotten the password for your wallet, you can create a new wallet us
     importRealBtcButton: 'Import Wallet',
     testingWalletInfo: 'This wallet will not use real Bitcoin.',
     realWalletWarning: 'Real Bitcoin wallets currently discouraged.',
+    creatingWallet: `⚡Building your ThunderDen Wallet...
+
+Zapping bytes and lining up the bits. Hang tight!`,
     errors: {
       biometricsUncapableTitle: 'Wallet Setup Issue',
       biometricsUncapable: `The biometric implementation on your device has\

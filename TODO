@@ -1,8 +1,11 @@
+CrateNewWallet:
+IconButtons unclickable
+This wallet will not use real.... unclickable
+
 FALLO: falla cuando le doy a visitar una wallet, hago userCancel (se va atras)
 entonces vuelvo a visitar la wallet y ahora no me pide el password!?!?!?!
 
-Cuando le doy a "skip" en phrase veriifcation tarda un huevo en pasar a siguiente pantalla....
-cuando en la wallet doy a goBak tambien tarda años
+cuando en la wallet doy a goBack tarda años
 
 Test password + secure store
 test idb + password

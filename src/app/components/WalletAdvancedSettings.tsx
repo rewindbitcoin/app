@@ -166,7 +166,7 @@ export default function WalletAdvancedSettings({
                   <View style={styles.textContainer}>
                     <Text>{t('wallet.biometricEncryptionTitle')}</Text>
                     <InfoButton
-                      style={{ paddingLeft: 8 }}
+                      style={{ padding: 20, margin: -20 }}
                       onPress={() => showBiometricalHelp(true)}
                     />
                   </View>

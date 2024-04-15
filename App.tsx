@@ -66,13 +66,16 @@ const Main = () => {
     ),
     [navigation, t]
   );
+  const onGoBack = useCallback(() => {
+    if (navigation.canGoBack()) navigation.goBack();
+  }, [navigation]);
   const cancelModalButton = useCallback(
     () => (
-      <Button mode="text" onPress={() => navigation.goBack()}>
+      <Button mode="text" onPress={onGoBack}>
         {t('cancelButton')}
       </Button>
     ),
-    [navigation, t]
+    [t, onGoBack]
   );
 
   // init real Locale
