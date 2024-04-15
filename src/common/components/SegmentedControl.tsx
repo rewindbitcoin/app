@@ -1,5 +1,5 @@
 // Forked from: https://github.com/Karthik-B-06/react-native-segmented-control
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Pressable,
   StyleSheet,
@@ -114,19 +114,23 @@ const SegmentedControl: React.FC<SegmentedControlProps> = ({
 
   // useCallBack with an empty array as input, which will call inner lambda only once and memoize the reference for future calls
   const memoizedTabPressCallback = React.useCallback(
-    (index: number) => {
-      onChange(index);
+    (index: number) => () => {
+      if (index !== currentIndex) onChange(index);
     },
-    [onChange]
+    [onChange, currentIndex]
   );
+  const prevIndex = useRef<number>(currentIndex);
   useEffect(() => {
-    // If phone is set to RTL, make sure the animation does the correct transition.
-    const transitionMultiplier = isRTL ? -1 : 1;
-    tabTranslateValue.value = withSpring(
-      currentIndex * (translateValue * transitionMultiplier),
-      DEFAULT_SPRING_CONFIG
-    );
-  }, [currentIndex]);
+    if (prevIndex.current !== currentIndex) {
+      prevIndex.current = currentIndex;
+      // If phone is set to RTL, make sure the animation does the correct transition.
+      const transitionMultiplier = isRTL ? -1 : 1;
+      tabTranslateValue.value = withSpring(
+        currentIndex * (translateValue * transitionMultiplier),
+        DEFAULT_SPRING_CONFIG
+      );
+    }
+  }, [currentIndex, isRTL, tabTranslateValue, translateValue]);
 
   const tabTranslateAnimatedStyles = useAnimatedStyle(() => {
     return {
@@ -174,14 +178,15 @@ const SegmentedControl: React.FC<SegmentedControlProps> = ({
     ...badgeTextStyle
   };
 
+  const styles = useMemo(() => getStyles(theme), [theme]);
   return (
     <Animated.View
-      style={[getStyles(theme).defaultSegmentedControlWrapper, style]}
+      style={[styles.defaultSegmentedControlWrapper, style]}
       onLayout={e => setWidth(e.nativeEvent.layout.width)}
     >
       <Animated.View
         style={[
-          getStyles(theme).movingSegmentStyle,
+          styles.movingSegmentStyle,
           defaultShadowStyle,
           tileStyle,
           StyleSheet.absoluteFill,
@@ -198,16 +203,16 @@ const SegmentedControl: React.FC<SegmentedControlProps> = ({
             : finalisedInActiveTextStyle;
         return (
           <Pressable
-            onPress={() => memoizedTabPressCallback(index)}
+            onPress={memoizedTabPressCallback(index)}
             key={index}
-            style={[getStyles(theme).touchableContainer, pressableWrapper]}
+            style={[styles.touchableContainer, pressableWrapper]}
           >
-            <View style={getStyles(theme).textWrapper}>
+            <View style={styles.textWrapper}>
               <Text style={textStyle}>{segment}</Text>
               {badgeValues[index] && (
                 <View
                   style={[
-                    getStyles(theme).defaultBadgeContainerStyle,
+                    styles.defaultBadgeContainerStyle,
                     currentIndex === index
                       ? finalisedActiveBadgeStyle
                       : finalisedInActiveBadgeStyle
@@ -239,10 +244,12 @@ const getStyles = (theme: Theme) =>
     touchableContainer: {
       flex: 1,
       elevation: 9,
+      padding: 20, //Add padding 20 and compensate with margin -20 below, this is so that i get larger clickable area (useful in small devices)
       height: '100%'
       //paddingVertical: 12
     },
     textWrapper: {
+      margin: -20, //See comment above about padding: 20
       flex: 1,
       flexDirection: 'row',
       alignItems: 'center',

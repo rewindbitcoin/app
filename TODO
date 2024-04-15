@@ -14,6 +14,9 @@ Test password + secure store
 test idb + password
 tst idb + derived seed (encrypt app data)
 
+Test como se ve la App con dark mode activado !!!
+  https://stackoverflow.com/questions/57175226/how-to-disable-night-mode-in-my-application-even-if-night-mode-is-enable-in-andr/64339016#64339016
+
 Bip39:
   predictive text is a nigthmare in real device (android)
     -> Sí que debe de pasar al siguioente cuadro pero no auto-completar

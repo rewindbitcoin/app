@@ -36,6 +36,7 @@ import {
   WalletContext,
   type WalletContextType
 } from '../contexts/WalletContext';
+import { shallowEqualArrays } from 'shallow-equal';
 
 export default function NewWalletScreen() {
   const context = useContext<WalletContextType | null>(WalletContext);
@@ -77,6 +78,11 @@ export default function NewWalletScreen() {
   const onWords = useCallback((words: string[]) => {
     if (validateMnemonic(words.join(' '))) Keyboard.dismiss();
     setWords(words);
+
+    setWords(currentWords => {
+      if (!shallowEqualArrays(currentWords, words)) return words;
+      else return currentWords;
+    });
   }, []);
 
   const switchNewImport = useCallback(() => {
@@ -259,7 +265,7 @@ export default function NewWalletScreen() {
               )}
             </Text>
             <Pressable
-              className="hover:opacity-40 active:opacity-40 self-start"
+              className="hover:opacity-40 active:opacity-40 self-start p-2 -m-2"
               onPress={switchNewImport}
             >
               <Text className="pb-2 text-primary native:text-base web:text-sm web:sm:text-base">

@@ -33,7 +33,7 @@ export default {
     focedSetPasswordTitle: 'Set New Password',
     forcedSetPasswordText: `Please set a new password (8-32 characters).
 
-If you ever lose or forget your password, you can still recover your wallet\
+If you ever forget your password, you can recover your wallet\
  using your mnemonic recovery phrase.`,
     optionalSetPasswordText: `We suggest setting a password to boost your wallet's security.
 
