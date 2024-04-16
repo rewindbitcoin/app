@@ -74,7 +74,11 @@ const ConfirmBip39: React.FC<ConfirmBip39Props> = ({
         words={userWords}
         onWords={onWords}
         readonly={false}
-        autoFocus
+        autoFocus={
+          //turn it off, so that the user gets the change to read the subtitle -
+          //not hidden by the keyboard
+          false
+        }
       />
     </Modal>
   );
