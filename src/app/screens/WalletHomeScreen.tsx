@@ -1,4 +1,4 @@
-import React, { useCallback, useContext, useEffect } from 'react';
+import React, { useCallback, useContext, useEffect, useMemo } from 'react';
 import Password from '../components/Password';
 import {
   RefreshControl,
@@ -33,33 +33,10 @@ type Props = {
   onSetUpVaultInit: () => void;
 };
 
-const navOptions = {
-  headerRight: () => (
-    <View className="flex-row justify-between gap-5 items-center">
-      <Pressable
-        className={`animate-spin hover:opacity-90 active:scale-95 active:opacity-90`}
-      >
-        <SimpleLineIcons name="refresh" className="text-primary text-xl" />
-      </Pressable>
-      <Pressable
-        className={`hover:opacity-90 active:scale-95 active:opacity-90`}
-      >
-        <Ionicons name="settings-outline" className="text-primary text-2xl" />
-      </Pressable>
-    </View>
-  ),
-  headerRightContainerStyle: { marginRight: 16 }
-};
-
 //TODO the WalletProvider must also pass it's own refreshing state
 const WalletHomeScreen: React.FC<Props> = ({ onSetUpVaultInit }) => {
   const navigation = useNavigation();
   const { t } = useTranslation();
-  useEffect(() => {
-    if (!('setOptions' in navigation))
-      throw new Error('This navigation does not implement setOptions');
-    navigation.setOptions(navOptions);
-  }, [navigation]);
 
   const context = useContext<WalletContextType | null>(WalletContext);
   if (context === null) throw new Error('Context was not set');
@@ -73,6 +50,39 @@ const WalletHomeScreen: React.FC<Props> = ({ onSetUpVaultInit }) => {
     requiresPassword,
     onWallet
   } = context;
+
+  const navOptions = useMemo(
+    () => ({
+      title: wallet
+        ? wallet.walletName ||
+          t('wallets.walletId', { id: wallet.walletId + 1 })
+        : t('app.walletTitle'),
+      headerRight: () => (
+        <View className="flex-row justify-between gap-5 items-center">
+          <Pressable
+            className={`animate-spin hover:opacity-90 active:scale-95 active:opacity-90`}
+          >
+            <SimpleLineIcons name="refresh" className="text-primary text-xl" />
+          </Pressable>
+          <Pressable
+            className={`hover:opacity-90 active:scale-95 active:opacity-90`}
+          >
+            <Ionicons
+              name="settings-outline"
+              className="text-primary text-2xl"
+            />
+          </Pressable>
+        </View>
+      ),
+      headerRightContainerStyle: { marginRight: 16 }
+    }),
+    [t, wallet]
+  );
+  useEffect(() => {
+    if (!('setOptions' in navigation))
+      throw new Error('This navigation does not implement setOptions');
+    navigation.setOptions(navOptions);
+  }, [navigation, navOptions]);
 
   useEffect(() => {
     if (walletError === 'USER_CANCEL')
