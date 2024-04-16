@@ -32,9 +32,7 @@ import { shallowEqualObjects, shallowEqualArrays } from 'shallow-equal';
 import type { Wallet } from '../lib/wallets';
 import { useToast } from '../../common/ui';
 import { SERIALIZABLE, deleteAsync } from '../../common/lib/storage';
-import { useGlobalStateStorage } from '../../common/contexts/StorageContext';
 import { useSecureStorageAvailability } from '../../common/contexts/SecureStorageAvailabilityContext';
-import { useLocalStateStorage } from '../../common/hooks/useLocalStateStorage';
 import { SETTINGS_GLOBAL_STORAGE } from '../lib/settings';
 import { defaultSettings, type Settings } from '../lib/settings';
 import { useTranslation } from 'react-i18next';
@@ -64,6 +62,7 @@ import {
 type DiscoveryDataExport = ReturnType<DiscoveryInstance['export']>;
 
 import { type WalletError, getWalletError } from '../lib/errors';
+import { useStorage } from '../../common/hooks/useStorage';
 
 export const WalletContext: Context<WalletContextType | null> =
   createContext<WalletContextType | null>(null);
@@ -173,21 +172,27 @@ const WalletProviderRaw = ({
     );
   }
 
-  const [settings, , , , settingsStorageStatus] =
-    useGlobalStateStorage<Settings>(
-      SETTINGS_GLOBAL_STORAGE,
-      SERIALIZABLE,
-      defaultSettings
-    );
-  const [wallets, setWallets, , , walletsStorageStatus] =
-    useLocalStateStorage<Wallets>(`WALLETS`, SERIALIZABLE, {});
+  const [settings, , , , settingsStorageStatus] = useStorage<Settings>(
+    SETTINGS_GLOBAL_STORAGE,
+    SERIALIZABLE,
+    defaultSettings,
+    undefined,
+    undefined,
+    undefined,
+    'GLOBAL'
+  );
+  const [wallets, setWallets, , , walletsStorageStatus] = useStorage<Wallets>(
+    `WALLETS`,
+    SERIALIZABLE,
+    {}
+  );
 
   const initSigners =
     walletId !== undefined &&
     (wallet?.signersEncryption !== 'PASSWORD' || signersCipherKey);
 
   const [signers, , , clearSignersCache, signersStorageStatus] =
-    useLocalStateStorage<Signers>(
+    useStorage<Signers>(
       initSigners ? `SIGNERS_${walletId}` : undefined,
       SERIALIZABLE,
       newSigners,
@@ -207,7 +212,7 @@ const WalletProviderRaw = ({
     ,
     clearDiscoveryCache,
     discoveryStorageStatus
-  ] = useLocalStateStorage<DiscoveryDataExport>(
+  ] = useStorage<DiscoveryDataExport>(
     initData ? `DISCOVERY_${walletId}` : undefined,
     SERIALIZABLE,
     undefined,
@@ -217,7 +222,7 @@ const WalletProviderRaw = ({
   const isDiscoveryDataExportSynchd = discoveryStorageStatus.isSynchd;
 
   const [vaults, setVaults, , clearVaultsCache, vaultsStorageStatus] =
-    useLocalStateStorage<Vaults>(
+    useStorage<Vaults>(
       initData ? `VAULTS_${walletId}` : undefined,
       SERIALIZABLE,
       DEFAULT_VAULTS,
@@ -231,7 +236,7 @@ const WalletProviderRaw = ({
     ,
     clearVaultsStatusesCache,
     vaultsStatusesStorageStatus
-  ] = useLocalStateStorage<VaultsStatuses>(
+  ] = useStorage<VaultsStatuses>(
     initData ? `VAULTS_STATUSES_${walletId}` : undefined,
     SERIALIZABLE,
     DEFAULT_VAULTS_STATUSES,
@@ -240,7 +245,7 @@ const WalletProviderRaw = ({
   );
 
   const [accountNames, , , clearAccountNamesCache, accountNamesStorageStatus] =
-    useLocalStateStorage<AccountNames>(
+    useStorage<AccountNames>(
       initData ? `ACCOUNT_NAMES_${walletId}` : undefined,
       SERIALIZABLE,
       DEFAULT_ACCOUNT_NAMES,
@@ -324,6 +329,7 @@ const WalletProviderRaw = ({
       newSigners?: Signers;
       signersCipherKey?: Uint8Array;
     }) => {
+      console.log({ wallet, newSigners, signersCipherKey });
       if (newSigners) {
         //Make sure we don't have values from previous app installs using the same id?
         const walletId = walletDst.walletId;
@@ -340,6 +346,7 @@ const WalletProviderRaw = ({
       }
       //React 18 NOT on the new Architecture behaves as React 17:
       unstable_batchedUpdates(() => {
+        console.log('Logging out (force read from disk)');
         logOut(); //Log out from previous wallet (if needed)
         setWallet(walletDst);
         setSignersCipherKey(signersCipherKey);
@@ -348,7 +355,7 @@ const WalletProviderRaw = ({
         setDataCipherKey(undefined);
       });
     },
-    [logOut, t]
+    [logOut, wallet, t]
   );
 
   useEffect(() => {
@@ -879,6 +886,7 @@ const WalletProviderRaw = ({
     logOut,
     onWallet
   };
+  console.log('WalletContext Render');
   return (
     <WalletContext.Provider value={contextValue}>
       {children}

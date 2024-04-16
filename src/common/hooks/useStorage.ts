@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useContext } from 'react';
 import { Platform } from 'react-native';
 import {
   getAsync,
@@ -13,18 +13,18 @@ import {
 } from '../lib/storage';
 
 /**
- * Usage of `useLocalStateStorage`:
+ * Usage of `useStorage`:
  *
- * This hook is designed for managing local storage state within a specific component,
- * independent of other components. It differs from `useGlobalStateStorage`
- * in that it does not share state across the application. Each invocation
- * of `useLocalStateStorage` maintains its own state, making it ideal for
- * component-specific data that does not need global synchronization.
+ * When passing, "LOCAL", this hook is designed for managing local storage state
+ * within a specific component, independent of other components. It differs from
+ * passing "GLOBAL" in that it does not share state across the application.
+ * Each invocation of `useStorage` with LOCAL maintains its own state, making it
+ * ideal for component-specific data that does not need global synchronization.
  * See long explanation at the end of this file.
  *
  * Example:
  * const [value, setValue, deleteValue, clearCache, storageStatus: {errorCode, isSynchd}] =
- *    useLocalStateStorage<DataType>('uniqueKey', serializationFormat, defaultValue);
+ *    useStorage<DataType>('uniqueKey', serializationFormat, defaultValue);
  * - 'DataType' is a TypeScript type or interface representing your data structure.
  * - 'uniqueKey' is a unique identifier for your data in storage. If undefined is
  *   passed, then this hook behaves as a noop
@@ -61,15 +61,14 @@ import {
  * decrypt the message or if there were errors while using biometrics
  * (user cancelled or device problems)
  *
- * Note: Unlike `useGlobalStateStorage`, `useLocalStateStorage` does not cause
- * re-renders in other components using the same key. It's useful for data
- * like form inputs or component-specific settings. For shared global state,
- * refer to `useGlobalStateStorage`. More information on the differences between
- * these hooks can be found in the documentation in src/hooks/useLocalStateStorage.ts
+ * Note: using "LOCAL" does not cause re-renders in other components using the
+ * same key. It's useful for data like form inputs or component-specific
+ * settings. For shared global state, pass "GLOBAL".
  */
 
+import { GlobalStorageContext } from '../contexts/GlobalStorageContext';
 type StorageState<T> = Record<string, T>;
-export const useLocalStateStorage = <T>(
+export const useStorage = <T>(
   /**
    * Keys must and contain only alphanumeric characters, ".", "-", and "_"
    */
@@ -79,10 +78,11 @@ export const useLocalStateStorage = <T>(
    * contain already a value. DO NOT confuse this parameter with an initial
    * value.
    */
-  defaultValue?: T,
-  engine: Engine = Platform.OS === 'web' ? 'IDB' : 'MMKV',
+  defaultValue: T | undefined = undefined,
+  engine: Engine | undefined = undefined,
   cipherKey: Uint8Array | undefined = undefined,
-  authenticationPrompt: string | undefined = undefined
+  authenticationPrompt: string | undefined = undefined,
+  type: 'GLOBAL' | 'LOCAL' = 'LOCAL'
 ): [
   T | undefined,
   (newValue: T) => Promise<void>,
@@ -90,10 +90,26 @@ export const useLocalStateStorage = <T>(
   () => void,
   StorageStatus
 ] => {
-  const [valueMap, setValueMap] = useState<StorageState<unknown>>({});
-  const [errorCodeMap, setErrorCodeMap] = useState<
+  if (engine === undefined) engine = Platform.OS === 'web' ? 'IDB' : 'MMKV';
+  const context = useContext(GlobalStorageContext);
+  if (context === null && type === 'GLOBAL')
+    throw new Error(
+      `useStorage type GLOBAL must be used within a StorageProvider`
+    );
+  const [localValueMap, setLocalValueMap] = useState<StorageState<unknown>>({});
+  const [localErrorCodeMap, setLocalErrorCodeMap] = useState<
     Record<string, StorageErrorCode>
   >({});
+  const valueMap =
+    type === 'GLOBAL' && context ? context.valueMap : localValueMap;
+  const setValueMap =
+    type === 'GLOBAL' && context ? context.setValueMap : setLocalValueMap;
+  const errorCodeMap =
+    type === 'GLOBAL' && context ? context.errorCodeMap : localErrorCodeMap;
+  const setErrorCodeMap =
+    type === 'GLOBAL' && context
+      ? context.setErrorCodeMap
+      : setLocalErrorCodeMap;
 
   /** sets storage and sate value */
   const setStorageValue = useCallback(
@@ -119,7 +135,14 @@ export const useLocalStateStorage = <T>(
         );
       }
     },
-    [key, serializationFormat, engine, cipherKey, authenticationPrompt]
+    [
+      key,
+      setValueMap,
+      serializationFormat,
+      engine,
+      cipherKey,
+      authenticationPrompt
+    ]
   );
 
   //We only need to retrieve the value from the storage intially for each key
@@ -183,27 +206,37 @@ export const useLocalStateStorage = <T>(
     engine,
     serializationFormat,
     setStorageValue,
-    valueMap
+    setValueMap,
+    valueMap,
+    setErrorCodeMap
   ]);
 
+  /**
+   * Call it to force a read from disk (not using valueMap or errorCodeMap)
+   */
   const clearCache = useCallback(() => {
     if (key) {
       setValueMap(prevState => {
-        if (key in prevState) {
-          const { [key]: omitted, ...newState } = prevState;
-          void omitted;
-          return newState;
-        }
-        return prevState;
+        //if (key in prevState) { - Note: It's very important to set a New State
+        //                          in any circumstance. Since clearCache is called
+        //                          so that a new read from disk is tried. Thus,
+        //                          if we would conditionally update state if
+        //                          the key was set then, calling clearCache would
+        //                          have no effect with 2 consecutive calls to clearCache.
+        const { [key]: omitted, ...newState } = prevState;
+        void omitted;
+        return newState;
+        //}
+        //return prevState;
       });
 
       setErrorCodeMap(prevState => {
-        if (key in prevState) {
-          const { [key]: omitted, ...newState } = prevState;
-          void omitted;
-          return newState;
-        }
-        return prevState;
+        //if (key in prevState) {
+        const { [key]: omitted, ...newState } = prevState;
+        void omitted;
+        return newState;
+        //}
+        //return prevState;
       });
     }
   }, [key, setValueMap, setErrorCodeMap]);
@@ -240,40 +273,41 @@ export const useLocalStateStorage = <T>(
 };
 
 /**
- * Differences and Recommendations for useGlobalStateStorage vs useLocalStateStorage:
+ * Differences and Recommendations for "LOCAL" vs "GLOBAL":
  *
  * Similarities:
  * - Both synchronize state with persistent storage.
- * - Same interface: [value, setValue, isSynchd].
+ * - Same interface.
  * - Handle fetching and updating data in storage.
  * - Asynchronous setValue function.
  *
  * Differences:
  * - State Scope:
- *   - useGlobalStateStorage: Manages global state across components.
- *   - useLocalStateStorage: Manages state specific to each component.
+ *   - GLOBAL: Manages global state across components.
+ *   - LOCAL: Manages state specific to each component.
  * - Re-rendering Behavior:
- *   - useGlobalStateStorage: Can cause more re-renders across components.
- *   - useLocalStateStorage: Restricts re-renders to the owning component.
+ *   - GLOBAL: Can cause more re-renders across components.
+ *   - LOCAL: Restricts re-renders to the owning component.
  * - Use Cases:
- *   - useGlobalStateStorage: Ideal for global data like settings.
- *   - useLocalStateStorage: Suitable for component-specific data.
+ *   - GLOBAL: Ideal for global data like settings.
+ *   - LOCAL: Suitable for component-specific data.
  *
  * Choosing Between Hooks:
- * - Use useGlobalStateStorage for:
+ * - Use GLOBAL for:
  *   - Shared state like app settings. Example: If one module updates a setting,
- *     it immediately propagates to all modules using useGlobalStateStorage.
+ *     it immediately propagates to all modules using useStorage(... "GLOBAL").
  *   - Global data that changes infrequently to minimize re-renders.
- * - Use useLocalStateStorage for:
+ * - Use LOCAL for:
  *   - State specific to a component or domain that doesn't affect others.
  *   - Example: Vault speciffic information. This avoids unnecessary re-renders
  *     in other parts of the app.
- *   - Note: Other components using useLocalStateStorage with the same key
- *     won't be notified of changes. This is important to take into account.
+ *   - Note: Other components using useStorage(key, ....,. "LOCAL") with the
+ *     same key won't be notified of changes. This is important to take into
+ *     account.
  *
  * Consequences:
- * - useGlobalStateStorage with frequently changing data can cause performance issues.
- * - useLocalStateStorage for global data might lead to inconsistencies.
+ * - GLOBAL: with frequently changing data can cause performance issues.
+ * - LOCAL useLocalStateStorage for global data might lead to inconsistencies.
  *
  * Summary:
  * Choose based on data scope, re-rendering impact, and whether components need to

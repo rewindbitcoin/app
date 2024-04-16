@@ -18,7 +18,6 @@ import {
   Settings,
   SETTINGS_GLOBAL_STORAGE
 } from '../lib/settings';
-import { useGlobalStateStorage } from '../../common/contexts/StorageContext';
 import { SERIALIZABLE } from '../../common/lib/storage';
 import {
   Button,
@@ -28,6 +27,7 @@ import {
   useTheme
 } from '../../common/ui';
 import { p2pBackupVault, fetchP2PVaultIds } from '../lib/backup';
+import { useStorage } from '../../common/hooks/useStorage';
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -71,10 +71,14 @@ export default function VaultCreate({
     throw new Error('Missing data from context');
   const { t } = useTranslation();
   const keepProgress = useRef<boolean>(true);
-  const [settings] = useGlobalStateStorage<Settings>(
+  const [settings] = useStorage<Settings>(
     SETTINGS_GLOBAL_STORAGE,
     SERIALIZABLE,
-    defaultSettings
+    defaultSettings,
+    undefined,
+    undefined,
+    undefined,
+    'GLOBAL'
   );
   if (!settings)
     throw new Error(

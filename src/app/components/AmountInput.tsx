@@ -8,7 +8,6 @@ import React, {
 } from 'react';
 import { CardEditableSlider } from '../../common/ui';
 import { useTranslation } from 'react-i18next';
-import { useGlobalStateStorage } from '../../common/contexts/StorageContext';
 import { SERIALIZABLE } from '../../common/lib/storage';
 import { WalletContext, WalletContextType } from '../contexts/WalletContext';
 import {
@@ -24,6 +23,7 @@ import {
   getAmountModeStep
 } from '../lib/btcRates';
 import UnitsModal from './UnitsModal';
+import { useStorage } from '../../common/hooks/useStorage';
 
 function AmountInput({
   initialValue,
@@ -46,10 +46,14 @@ function AmountInput({
   const context = useContext<WalletContextType | null>(WalletContext);
   if (context === null) throw new Error('Context was not set');
   const { btcFiat } = context;
-  const [settings] = useGlobalStateStorage<Settings>(
+  const [settings] = useStorage<Settings>(
     SETTINGS_GLOBAL_STORAGE,
     SERIALIZABLE,
-    defaultSettings
+    defaultSettings,
+    undefined,
+    undefined,
+    undefined,
+    'GLOBAL'
   );
   if (!settings)
     throw new Error(

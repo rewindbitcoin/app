@@ -19,7 +19,6 @@ import {
   Settings,
   SETTINGS_GLOBAL_STORAGE
 } from '../lib/settings';
-import { useGlobalStateStorage } from '../../common/contexts/StorageContext';
 import { SERIALIZABLE } from '../../common/lib/storage';
 import { selectVaultUtxosData, type VaultSettings } from '../lib/vaults';
 import {
@@ -33,6 +32,7 @@ import { WalletContext, WalletContextType } from '../contexts/WalletContext';
 import { formatBtc } from '../lib/btcRates';
 import { estimateVaultSetUpRange } from '../lib/vaultRange';
 import { networkMapping } from '../lib/network';
+import { useStorage } from '../../common/hooks/useStorage';
 
 export default function VaultSetUp({
   onVaultSetUpComplete
@@ -59,10 +59,14 @@ export default function VaultSetUp({
     );
   const network = networkMapping[networkId];
 
-  const [settings] = useGlobalStateStorage<Settings>(
+  const [settings] = useStorage<Settings>(
     SETTINGS_GLOBAL_STORAGE,
     SERIALIZABLE,
-    defaultSettings
+    defaultSettings,
+    undefined,
+    undefined,
+    undefined,
+    'GLOBAL'
   );
   if (!settings)
     throw new Error(

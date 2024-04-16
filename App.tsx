@@ -27,10 +27,10 @@ import SetUpVaultScreen from './src/app/screens/SetUpVaultScreen';
 import CreateVaultScreen from './src/app/screens/CreateVaultScreen';
 import { WalletProvider } from './src/app/contexts/WalletContext';
 import Settings from './src/app/screens/SettingsScreen';
-import { StorageProvider } from './src/common/contexts/StorageContext';
+import { GlobalStorageProvider } from './src/common/contexts/GlobalStorageContext';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { SERIALIZABLE } from './src/common/lib/storage';
-import { useGlobalStateStorage } from './src/common/contexts/StorageContext';
+import { useStorage } from './src/common/hooks/useStorage';
 import { SETTINGS_GLOBAL_STORAGE } from './src/app/lib/settings';
 import type { VaultSettings } from './src/app/lib/vaults';
 import { useTheme, Button } from './src/common/ui';
@@ -48,9 +48,14 @@ const RootStack = createRootStack();
 
 const Main = () => {
   // Get settings from disk. It will be used for setting the correct LOCALE.
-  const [settings] = useGlobalStateStorage<SettingsType>(
+  const [settings] = useStorage<SettingsType>(
     SETTINGS_GLOBAL_STORAGE,
-    SERIALIZABLE
+    SERIALIZABLE,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    'GLOBAL'
   );
 
   const { t } = useTranslation();
@@ -208,13 +213,13 @@ export default function App() {
     <SafeAreaProvider>
       <GestureHandlerRootView style={{ flex: 1 }}>
         <NavigationContainer theme={useTheme()}>
-          <StorageProvider>
+          <GlobalStorageProvider>
             <SecureStorageAvailabilityProvider>
               <ToastProvider>
                 <MainMemo />
               </ToastProvider>
             </SecureStorageAvailabilityProvider>
-          </StorageProvider>
+          </GlobalStorageProvider>
         </NavigationContainer>
       </GestureHandlerRootView>
     </SafeAreaProvider>

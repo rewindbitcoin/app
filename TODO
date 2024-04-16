@@ -1,9 +1,7 @@
-CrateNewWallet:
-IconButtons unclickable
-This wallet will not use real.... unclickable
-
 FALLO: falla cuando le doy a visitar una wallet, hago userCancel (se va atras)
 entonces vuelvo a visitar la wallet y ahora no me pide el password!?!?!?!
+
+Wallets deberia tener padding vertical
 
 cuando en la wallet doy a goBack tarda años
 

@@ -2,7 +2,6 @@
 import React, { useState, useCallback, useRef, useMemo } from 'react';
 import { CardEditableSlider } from '../../common/ui';
 import { useTranslation } from 'react-i18next';
-import { useGlobalStateStorage } from '../../common/contexts/StorageContext';
 import { SERIALIZABLE } from '../../common/lib/storage';
 import {
   defaultSettings,
@@ -11,6 +10,7 @@ import {
 } from '../lib/settings';
 import { fromBlocks, toBlocks, getBlocksModeStep } from '../lib/timeUtils';
 import { formatLockTime } from '../lib/fees';
+import { useStorage } from '../../common/hooks/useStorage';
 
 function BlocksInput({
   initialValue,
@@ -26,10 +26,14 @@ function BlocksInput({
   onValueChange: (value: number | null) => void;
 }) {
   const { t } = useTranslation();
-  const [settings] = useGlobalStateStorage<Settings>(
+  const [settings] = useStorage<Settings>(
     SETTINGS_GLOBAL_STORAGE,
     SERIALIZABLE,
-    defaultSettings
+    defaultSettings,
+    undefined,
+    undefined,
+    undefined,
+    'GLOBAL'
   );
   if (!settings)
     throw new Error(
