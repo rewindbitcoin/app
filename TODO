@@ -1,8 +1,3 @@
-FALLO: falla cuando le doy a visitar una wallet, hago userCancel (se va atras)
-entonces vuelvo a visitar la wallet y ahora no me pide el password!?!?!?!
-
-Wallets deberia tener padding vertical
-
 cuando en la wallet doy a goBack tarda años
 
 Test password + secure store
@@ -39,17 +34,6 @@ Test-
 
 
 Los collores de los textos "Test Wallet No Real _BValue" tienen backgroudna aleatorio??
-
-
-
-
-In Android sometines the Bip39 card does not show the numbers!!!
-
-Implement/Test the passwords thinkg
-
-Have a variable adviceNotRealBitcion = true/false
-
-Password should be default on when !biometrics
 
 BTC rates from thunderden (no coingecko)
 dont use policy compiler

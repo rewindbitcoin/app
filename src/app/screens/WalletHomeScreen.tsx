@@ -15,21 +15,19 @@ import { delegateVault, shareVaults } from '../lib/backup';
 import moize from 'moize';
 import { SimpleLineIcons, Ionicons } from '@expo/vector-icons';
 import { cssInterop } from 'nativewind';
-cssInterop(Ionicons, {
-  className: {
-    target: 'style',
-    nativeStyleToProp: { color: true, fontSize: 'size' }
-  }
-});
-cssInterop(SimpleLineIcons, {
-  className: {
-    target: 'style',
-    nativeStyleToProp: { color: true, fontSize: 'size' }
-  }
-});
+for (const IconClass of [SimpleLineIcons, Ionicons]) {
+  cssInterop(IconClass, {
+    className: {
+      target: 'style',
+      nativeStyleToProp: { color: true, fontSize: 'size' }
+    }
+  });
+}
 import Spin from '../../common/components/Spin';
 import { useNavigation } from '@react-navigation/native';
 import { getPasswordDerivedCipherKey } from '../../common/lib/cipher';
+
+import WalletButtons from '../components/WalletButtons';
 
 type Props = {
   onSetUpVaultInit: () => void;
@@ -121,6 +119,11 @@ const WalletHomeScreen: React.FC<Props> = ({ onSetUpVaultInit }) => {
   const onCloseErrorModal = useCallback(() => {
     if (navigation.canGoBack()) navigation.goBack();
   }, [navigation]);
+
+  const handleReceive = useCallback(() => {}, []);
+  const handleSend = useCallback(() => {}, []);
+  const handleFreeze = useCallback(() => {}, []);
+
   const theme = useTheme();
   return !wallet /*TODO: prepare nicer ActivityIndicator*/ ? (
     <View className="flex-1 justify-center">
@@ -128,6 +131,11 @@ const WalletHomeScreen: React.FC<Props> = ({ onSetUpVaultInit }) => {
     </View>
   ) : (
     <>
+      <WalletButtons
+        handleReceive={handleReceive}
+        handleSend={handleSend}
+        handleFreeze={handleFreeze}
+      />
       <KeyboardAwareScrollView
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={{

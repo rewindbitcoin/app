@@ -307,6 +307,7 @@ const WalletProviderRaw = ({
       setDiscovery(null);
       setUtxosData(undefined);
       setWallet(undefined);
+      setWalletError(false);
     });
   }, [
     clearSignersCache,

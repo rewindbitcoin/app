@@ -130,7 +130,7 @@ const WalletsScreen = () => {
           alignItems: 'center'
         }}
       >
-        <View className="gap-4 max-w-full pr-2 pl-2">
+        <View className="gap-4 max-w-full p-2">
           {wallets &&
             Object.entries(wallets).map(([walletId, wallet], index) => (
               <Pressable

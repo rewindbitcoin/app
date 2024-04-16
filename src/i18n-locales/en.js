@@ -29,6 +29,9 @@ export default {
     walletId: 'Wallet {{id}}'
   },
   wallet: {
+    receive: 'Receive',
+    send: 'Send',
+    freeze: 'Freeze',
     optionalSetPasswordTitle: `Protect Wallet`,
     focedSetPasswordTitle: 'Set New Password',
     forcedSetPasswordText: `Please set a new password (8-32 characters).
