@@ -32,7 +32,7 @@ import {
 import { getPasswordDerivedCipherKey } from '../../common/lib/cipher';
 import { getMasterNode } from '../lib/vaultDescriptors';
 import Password from '../components/Password';
-import { WALLET_HOME, type RootStackParamList } from '../screens';
+import type { RootStackParamList, NavigationPropsByScreenId } from '../screens';
 import {
   WalletContext,
   type WalletContextType
@@ -47,7 +47,7 @@ export default function NewWalletScreen() {
   const theme = useTheme();
 
   const route = useRoute<RouteProp<RootStackParamList, 'NEW_WALLET'>>();
-  const navigation = useNavigation();
+  const navigation = useNavigation<NavigationPropsByScreenId['NEW_WALLET']>();
   const walletId = route.params?.walletId;
   if (walletId === undefined)
     throw new Error(`Wallets should have been loaded`);
@@ -138,8 +138,9 @@ export default function NewWalletScreen() {
           }
         }
       });
-      if (navigation.canGoBack()) navigation.goBack();
-      navigation.navigate(WALLET_HOME);
+      //if (navigation.canGoBack()) navigation.goBack();
+      //navigation.navigate(WALLET_HOME, { walletId });
+      navigation.replace('WALLET_HOME', { walletId });
     },
     [navigation, onWallet, walletId]
   );

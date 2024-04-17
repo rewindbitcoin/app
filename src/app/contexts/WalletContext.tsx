@@ -347,7 +347,6 @@ const WalletProviderRaw = ({
       }
       //React 18 NOT on the new Architecture behaves as React 17:
       unstable_batchedUpdates(() => {
-        console.log('Logging out (force read from disk)');
         logOut(); //Log out from previous wallet (if needed)
         setWallet(walletDst);
         setSignersCipherKey(signersCipherKey);

@@ -1,8 +1,12 @@
+import type {
+  CompositeNavigationProp,
+  NavigationProp
+} from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createStackNavigator } from '@react-navigation/stack';
 import { Platform } from 'react-native';
-import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import type { StackScreenProps } from '@react-navigation/stack';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import type { StackNavigationProp } from '@react-navigation/stack';
 export const SETTINGS = 'SETTINGS' as const;
 export const WALLETS = 'WALLETS' as const;
 export const WALLET_HOME = 'WALLET_HOME' as const;
@@ -12,15 +16,12 @@ export const NEW_WALLET = 'NEW_WALLET' as const;
 // https://reactnavigation.org/docs/typescript/
 export type RootStackParamList = {
   SETTINGS: undefined;
-  WALLET_HOME: undefined;
+  WALLET_HOME: { walletId: number };
   WALLETS: undefined;
   SETUP_VAULT: undefined;
   CREATE_VAULT: undefined;
   NEW_WALLET: { walletId: number };
 };
-export type ScreenProps =
-  | NativeStackScreenProps<RootStackParamList>
-  | StackScreenProps<RootStackParamList>;
 
 // https://reactnavigation.org/docs/typescript/#specifying-default-types-for-usenavigation-link-ref-etc
 declare global {
@@ -29,8 +30,31 @@ declare global {
   }
 }
 
-export const isNativeStack = Platform.OS === 'ios' || Platform.OS === 'android';
+export const isNativeStack = Platform.OS !== 'web';
 export const createRootStack = () =>
   isNativeStack
     ? createNativeStackNavigator<RootStackParamList>()
     : createStackNavigator<RootStackParamList>();
+
+type UniversalNavigationProps<T extends keyof RootStackParamList> =
+  | NativeStackNavigationProp<RootStackParamList, T>
+  | StackNavigationProp<RootStackParamList, T>;
+
+export type NavigationPropsByScreenId = {
+  [K in keyof RootStackParamList]: CompositeNavigationProp<
+    UniversalNavigationProps<K>,
+    NavigationProp<RootStackParamList>
+  >;
+};
+
+//How correcly type useNavigation<>():
+
+//1)
+//export type NewWalletNavigationProps = CompositeNavigationProp<
+//  UniversalNavigationProps<'NEW_WALLET'>,
+//  NavigationProp<RootStackParamList>
+//>;
+//const navigation = useNavigation<NewWalletNavigationProps>();
+
+//or 2)
+//const navigation = useNavigation<NavigationPropsByScreenId['NEW_WALLET']>();

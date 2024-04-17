@@ -125,7 +125,9 @@ const Main = () => {
       <ToastProvider>
         <CreateVaultScreen
           vaultSettings={vaultSettings}
-          onVaultPushed={() => navigation.navigate(WALLET_HOME)}
+          onVaultPushed={() => {
+            if (navigation.canGoBack()) navigation.goBack();
+          }}
         />
       </ToastProvider>
     ),

@@ -90,7 +90,7 @@ const WalletsScreen = () => {
         if (!wallet) throw new Error(`Unset wallet for ${walletId}`);
         map[walletId] = () => {
           onWallet({ wallet });
-          navigation.navigate(WALLET_HOME);
+          navigation.navigate(WALLET_HOME, { walletId });
         };
       });
       return map;

@@ -24,10 +24,15 @@ for (const IconClass of [SimpleLineIcons, Ionicons]) {
   });
 }
 import Spin from '../../common/components/Spin';
-import { useNavigation } from '@react-navigation/native';
+import {
+  useNavigation,
+  type RouteProp,
+  useRoute
+} from '@react-navigation/native';
 import { getPasswordDerivedCipherKey } from '../../common/lib/cipher';
 
 import WalletButtons from '../components/WalletButtons';
+import type { RootStackParamList, NavigationPropsByScreenId } from '../screens';
 
 type Props = {
   onSetUpVaultInit: () => void;
@@ -35,7 +40,9 @@ type Props = {
 
 //TODO the WalletProvider must also pass it's own refreshing state
 const WalletHomeScreen: React.FC<Props> = ({ onSetUpVaultInit }) => {
-  const navigation = useNavigation();
+  const navigation = useNavigation<NavigationPropsByScreenId['WALLET_HOME']>();
+  const route = useRoute<RouteProp<RootStackParamList, 'WALLET_HOME'>>();
+  const walletId = route.params.walletId;
   const { t } = useTranslation();
 
   const context = useContext<WalletContextType | null>(WalletContext);
@@ -50,6 +57,10 @@ const WalletHomeScreen: React.FC<Props> = ({ onSetUpVaultInit }) => {
     requiresPassword,
     onWallet
   } = context;
+  if (wallet && walletId !== wallet.walletId)
+    throw new Error(
+      `Navigated to walletId ${walletId} which does not correspond to the one in the context ${wallet?.walletId}`
+    );
 
   const navOptions = useMemo(
     () => ({
@@ -78,11 +89,7 @@ const WalletHomeScreen: React.FC<Props> = ({ onSetUpVaultInit }) => {
     }),
     [t, wallet]
   );
-  useEffect(() => {
-    if (!('setOptions' in navigation))
-      throw new Error('This navigation does not implement setOptions');
-    navigation.setOptions(navOptions);
-  }, [navigation, navOptions]);
+  useEffect(() => navigation.setOptions(navOptions), [navigation, navOptions]);
 
   useEffect(() => {
     if (walletError === 'USER_CANCEL')

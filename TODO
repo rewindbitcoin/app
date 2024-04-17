@@ -1,3 +1,14 @@
+I just got an erroCodeMap not set for...
+ ERROR  Error: errorCodeMap not set for DISCOVERY_0
+
+ WalletsScreen should have the walletId on the route !
+ This avoids a set of stupid problems
+  Then we can also have wallet-2/settings
+    -> Which can include name, and delete if not logged-in yet.
+
+ En iOS cuando se abre el Modal, los modals nativos
+ se desplazan (al menos en IPhone SE)
+
 cuando en la wallet doy a goBack tarda años
 
 Test password + secure store
@@ -12,7 +23,7 @@ The Password when is re-prompted should show a "Bad Password" or something
 
 No me refrescha wallet 3 (goat oak)
 
-In WalletContext I need to keep track of all the storage synchd status
+I WalletContext I need to keep track of all the storage synchd status
 and render a Loading... when not all of them are synched.
 This will also let me get the derived cipher key from the signers so that i can
 access the encrypted data
