@@ -1,5 +1,8 @@
 cuando en la wallet doy a goBack tarda años
 
+cssInterop no funciona bien en Web!!! los fontSize pasa de ellos
+  -> Ademas advancd options, el icono de swap entre real y test no esta bien alineado verticalmente
+
 Test password + secure store
 test idb + password
 tst idb + derived seed (encrypt app data)

@@ -107,17 +107,6 @@ const Main = () => {
 
   const headerRightContainerStyle = { marginRight: 16 };
 
-  const WalletHomeWithSetUpVaultInit = useCallback(
-    () => (
-      <WalletHomeScreen
-        onSetUpVaultInit={() => {
-          if (navigation) navigation.navigate(SETUP_VAULT);
-          else throw new Error('navigation not set');
-        }}
-      />
-    ),
-    [navigation]
-  );
   const SetUpVaultScreenWithOnComplete = useCallback(() => {
     return (
       <SetUpVaultScreen
@@ -168,10 +157,12 @@ const Main = () => {
         <RootStack.Screen
           name={WALLET_HOME}
           options={{
-            title:
-              '' /* set with setOptions - removed from here to avoid quick change t('app.walletTitle')*/
+            title: ''
+            // set with setOptions in WalletHomeScreen - removed default value
+            // t('app.walletTitle') from here to avoid unpleasant quick text rewrite
+            // t('app.walletTitle')
           }}
-          component={WalletHomeWithSetUpVaultInit}
+          component={WalletHomeScreen}
         />
 
         <RootStack.Screen

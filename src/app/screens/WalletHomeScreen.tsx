@@ -1,28 +1,15 @@
 import React, { useCallback, useContext, useEffect, useMemo } from 'react';
 import Password from '../components/Password';
-import {
-  RefreshControl,
-  Button,
-  View,
-  Text,
-  Pressable,
-  ActivityIndicator
-} from 'react-native';
+import { Button, View, Text, Pressable, ActivityIndicator } from 'react-native';
+// @ts-expect-error: No types available for this module
+import { RefreshControl } from 'react-native-web-refresh-control';
+
 import { KeyboardAwareScrollView, Modal, useTheme } from '../../common/ui';
 import { WalletContext, WalletContextType } from '../contexts/WalletContext';
 import { useTranslation } from 'react-i18next';
 import { delegateVault, shareVaults } from '../lib/backup';
 import moize from 'moize';
-import { SimpleLineIcons, Ionicons } from '@expo/vector-icons';
-import { cssInterop } from 'nativewind';
-for (const IconClass of [SimpleLineIcons, Ionicons]) {
-  cssInterop(IconClass, {
-    className: {
-      target: 'style',
-      nativeStyleToProp: { color: true, fontSize: 'size' }
-    }
-  });
-}
+import { Ionicons } from '@expo/vector-icons';
 import Spin from '../../common/components/Spin';
 import {
   useNavigation,
@@ -33,13 +20,10 @@ import { getPasswordDerivedCipherKey } from '../../common/lib/cipher';
 
 import WalletButtons from '../components/WalletButtons';
 import type { RootStackParamList, NavigationPropsByScreenId } from '../screens';
-
-type Props = {
-  onSetUpVaultInit: () => void;
-};
+import { lighten } from 'polished';
 
 //TODO the WalletProvider must also pass it's own refreshing state
-const WalletHomeScreen: React.FC<Props> = ({ onSetUpVaultInit }) => {
+const WalletHomeScreen = () => {
   const navigation = useNavigation<NavigationPropsByScreenId['WALLET_HOME']>();
   const route = useRoute<RouteProp<RootStackParamList, 'WALLET_HOME'>>();
   const walletId = route.params.walletId;
@@ -70,29 +54,34 @@ const WalletHomeScreen: React.FC<Props> = ({ onSetUpVaultInit }) => {
         ? t('wallets.mainWallet')
         : t('wallets.walletId', { id: wallet?.walletId + 1 });
 
+  const theme = useTheme();
   const navOptions = useMemo(
     () => ({
       title,
       headerRight: () => (
         <View className="flex-row justify-between gap-5 items-center">
           <Pressable
-            className={`animate-spin hover:opacity-90 active:scale-95 active:opacity-90`}
+            onPress={syncingBlockchain ? null : syncBlockchain}
+            className={`hover:opacity-90 active:scale-95 active:opacity-90 ${
+              syncingBlockchain ? 'opacity-20 cursor-default' : 'opacity-100'
+            }`}
           >
-            <SimpleLineIcons name="refresh" className="text-primary text-xl" />
+            <Ionicons name="refresh" size={20} color={theme.colors.primary} />
           </Pressable>
           <Pressable
             className={`hover:opacity-90 active:scale-95 active:opacity-90`}
           >
             <Ionicons
               name="settings-outline"
-              className="text-primary text-2xl"
+              size={20}
+              color={theme.colors.primary}
             />
           </Pressable>
         </View>
       ),
       headerRightContainerStyle: { marginRight: 16 }
     }),
-    [title]
+    [theme.colors.primary, title, syncBlockchain, syncingBlockchain]
   );
   useEffect(() => navigation.setOptions(navOptions), [navigation, navOptions]);
 
@@ -144,9 +133,11 @@ const WalletHomeScreen: React.FC<Props> = ({ onSetUpVaultInit }) => {
 
   const handleReceive = useCallback(() => {}, []);
   const handleSend = useCallback(() => {}, []);
-  const handleFreeze = useCallback(() => {}, []);
+  const handleFreeze = useCallback(
+    () => navigation.navigate('SETUP_VAULT'),
+    [navigation]
+  );
 
-  const theme = useTheme();
   return !wallet /*TODO: prepare nicer ActivityIndicator*/ ? (
     <View className="flex-1 justify-center">
       <ActivityIndicator size={'large'} color={theme.colors.primary} />
@@ -167,6 +158,8 @@ const WalletHomeScreen: React.FC<Props> = ({ onSetUpVaultInit }) => {
         }}
         refreshControl={
           <RefreshControl
+            tintColor={lighten(0.25, theme.colors.primary)}
+            colors={[theme.colors.primary]}
             refreshing={syncingBlockchain}
             onRefresh={syncBlockchain}
           />
@@ -193,17 +186,6 @@ const WalletHomeScreen: React.FC<Props> = ({ onSetUpVaultInit }) => {
             ))}
           </>
         )}
-        <Button
-          title={
-            syncingBlockchain ? t('Refreshing Balance…') : t('Refresh Balance')
-          }
-          onPress={syncBlockchain}
-          disabled={syncingBlockchain}
-        />
-        <Button
-          title={t('walletHome.vaultBalance')}
-          onPress={onSetUpVaultInit}
-        />
         <Button
           title={t('walletHome.backupVaults')}
           onPress={onRequestVaultsBackup}
