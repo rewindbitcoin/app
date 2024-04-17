@@ -34,6 +34,7 @@ import { useStorage } from './src/common/hooks/useStorage';
 import { SETTINGS_GLOBAL_STORAGE } from './src/app/lib/settings';
 import type { VaultSettings } from './src/app/lib/vaults';
 import { useTheme, Button } from './src/common/ui';
+import { deviceName } from 'expo-device';
 
 import {
   defaultSettings,
@@ -45,6 +46,31 @@ import { initI18n } from './src/i18n-locales/init';
 initI18n(defaultSettings.LOCALE);
 
 const RootStack = createRootStack();
+
+const iOsWithPhysicalButton =
+  deviceName &&
+  Platform.OS === 'ios' &&
+  [
+    'iPhone',
+    'iPhone 3G',
+    'iPhone 3GS',
+    'iPhone 4',
+    'iPhone 4S',
+    'iPhone 5',
+    'iPhone 5c',
+    'iPhone 5s',
+    'iPhone 6',
+    'iPhone 6 Plus',
+    'iPhone 6s',
+    'iPhone 6s Plus',
+    'iPhone SE',
+    'iPhone 7',
+    'iPhone 7 Plus',
+    'iPhone 8',
+    'iPhone 8 Plus',
+    'iPhone SE (2nd generation)',
+    'iPhone SE (3rd generation)'
+  ].includes(deviceName);
 
 const Main = () => {
   // Get settings from disk. It will be used for setting the correct LOCALE.
@@ -187,18 +213,50 @@ const Main = () => {
             title: t('app.newWalletTitle'),
             headerRightContainerStyle,
             headerRight: cancelModalButton,
-            presentation: 'modal' //Modals need their own Toast component
+            // Conditional presentation mode based on device model
+            // This adjustment is necessary due to a specific issue observed on
+            // iOS devices with physical home buttons.
+            // When a nested modal is closed on such devices, the entire screen
+            // that encalsulated the previous modal shifts a bit, disrupting the
+            // user experience.
+            // The following patch adjusts the modal presentation style to
+            // 'fullScreenModal' for devices with physical buttons
+            // to mitigate this issue.
+            // - Issue related to screen shifting on close:
+            // https://github.com/react-navigation/react-navigation/issues/11664
+            // - Related discussion: https://github.com/react-navigation/react-navigation/issues/11875
+            // How to Reproduce the Issue:
+            // 1. Close and Restart the App on iOS device with physical button:
+            // 2. Navigate to New Wallet:
+            // 3. Access Advanced Options:
+            // 4. Open any Modal (Click on the information (i) icon)
+            // 5. Close the Modal
+            // 6. After closing the modal the screen shifts or jumps.
+            // Note: Further testing on physical devices (not just simulators)
+            // is pending to confirm if the issue persists there as well.
+            presentation: (iOsWithPhysicalButton
+              ? 'fullScreenModal'
+              : 'modal') as 'modal' //web (non-native) stack does not support fullScreenModal. However we only set it on ohysical devices which we are sure are using the native stack
           }}
-          component={NewWalletScreenWithToast}
+          component={
+            //Modals need their own Toast component
+            NewWalletScreenWithToast
+          }
         />
 
         <RootStack.Screen
           name={CREATE_VAULT}
           options={{
             title: t('app.createVaultTitle'),
-            presentation: 'modal' //Modals need their own Toast component
+            // See comment above on Conditional presentation mode based on device model
+            presentation: (iOsWithPhysicalButton
+              ? 'fullScreenModal'
+              : 'modal') as 'modal'
           }}
-          component={CreateVaultScreenWithSettingsOnPushedAndToast}
+          component={
+            //Modals need their own Toast component
+            CreateVaultScreenWithSettingsOnPushedAndToast
+          }
         />
       </RootStack.Navigator>
     </WalletProvider>
