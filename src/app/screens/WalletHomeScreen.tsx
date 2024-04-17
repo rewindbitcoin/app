@@ -53,6 +53,7 @@ const WalletHomeScreen: React.FC<Props> = ({ onSetUpVaultInit }) => {
     syncBlockchain,
     syncingBlockchain,
     wallet,
+    wallets,
     walletError,
     requiresPassword,
     onWallet
@@ -62,12 +63,16 @@ const WalletHomeScreen: React.FC<Props> = ({ onSetUpVaultInit }) => {
       `Navigated to walletId ${walletId} which does not correspond to the one in the context ${wallet?.walletId}`
     );
 
+  const title =
+    !wallet || !wallets
+      ? t('app.walletTitle')
+      : Object.entries(wallets).length
+        ? t('wallets.mainWallet')
+        : t('wallets.walletId', { id: wallet?.walletId + 1 });
+
   const navOptions = useMemo(
     () => ({
-      title: wallet
-        ? wallet.walletName ||
-          t('wallets.walletId', { id: wallet.walletId + 1 })
-        : t('app.walletTitle'),
+      title,
       headerRight: () => (
         <View className="flex-row justify-between gap-5 items-center">
           <Pressable
@@ -87,7 +92,7 @@ const WalletHomeScreen: React.FC<Props> = ({ onSetUpVaultInit }) => {
       ),
       headerRightContainerStyle: { marginRight: 16 }
     }),
-    [t, wallet]
+    [title]
   );
   useEffect(() => navigation.setOptions(navOptions), [navigation, navOptions]);
 

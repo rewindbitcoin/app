@@ -167,7 +167,10 @@ const Main = () => {
 
         <RootStack.Screen
           name={WALLET_HOME}
-          options={{ title: t('app.walletTitle') }}
+          options={{
+            title:
+              '' /* set with setOptions - removed from here to avoid quick change t('app.walletTitle')*/
+          }}
           component={WalletHomeWithSetUpVaultInit}
         />
 
