@@ -1,5 +1,8 @@
 import { useEffect, useState, useCallback, useContext } from 'react';
-import { Platform } from 'react-native';
+import {
+  Platform,
+  unstable_batchedUpdates as RN_unstable_batchedUpdates
+} from 'react-native';
 import {
   getAsync,
   setAsync,
@@ -11,6 +14,12 @@ import {
   StorageErrorCode,
   getStorageErrorCode
 } from '../lib/storage';
+const unstable_batchedUpdates = Platform.select({
+  web: (cb: () => void) => {
+    cb();
+  },
+  default: RN_unstable_batchedUpdates
+});
 
 /**
  * Usage of `useStorage`:
@@ -127,17 +136,25 @@ export const useStorage = <T>(
           authenticationPrompt
         );
 
-        //useState assumes immutability: https://react.dev/reference/react/useState
-        setValueMap(prevState =>
-          prevState[key] !== newValue
-            ? { ...prevState, [key]: newValue }
-            : prevState
-        );
+        unstable_batchedUpdates(() => {
+          //useState assumes immutability: https://react.dev/reference/react/useState
+          setValueMap(prevState =>
+            prevState[key] !== newValue
+              ? { ...prevState, [key]: newValue }
+              : prevState
+          );
+          setErrorCodeMap(prevState =>
+            prevState[key] !== false
+              ? { ...prevState, [key]: false }
+              : prevState
+          );
+        });
       }
     },
     [
       key,
       setValueMap,
+      setErrorCodeMap,
       serializationFormat,
       engine,
       cipherKey,
@@ -153,12 +170,6 @@ export const useStorage = <T>(
     if (key !== undefined) {
       const fetchValue = async () => {
         try {
-          setErrorCodeMap(prevState =>
-            prevState[key] !== false
-              ? { ...prevState, [key]: false }
-              : prevState
-          );
-
           const savedValue = await getAsync(
             key,
             serializationFormat,
@@ -166,26 +177,45 @@ export const useStorage = <T>(
             cipherKey,
             authenticationPrompt
           );
-          if (savedValue !== undefined)
-            //useState assumes immutability: https://react.dev/reference/react/useState
-            setValueMap(prevState =>
-              prevState[key] !== savedValue
-                ? { ...prevState, [key]: savedValue }
-                : prevState
-            );
-          else if (defaultValue !== undefined)
+          if (savedValue !== undefined) {
+            // There was a previous stored value
+
+            unstable_batchedUpdates(() => {
+              //useState assumes immutability: https://react.dev/reference/react/useState
+              setValueMap(prevState =>
+                prevState[key] !== savedValue
+                  ? { ...prevState, [key]: savedValue }
+                  : prevState
+              );
+              setErrorCodeMap(prevState =>
+                prevState[key] !== false
+                  ? { ...prevState, [key]: false }
+                  : prevState
+              );
+            });
+          } else if (defaultValue !== undefined)
             await setStorageValue(defaultValue);
-          //useState assumes immutability: https://react.dev/reference/react/useState
-          else
-            setValueMap(prevState =>
-              prevState[key] !== undefined ||
-              !(
-                //isSynchd can also be marked with state[key] = undefined
-                (key in prevState)
-              )
-                ? { ...prevState, [key]: undefined }
-                : prevState
-            );
+          else {
+            // There was no previous stored value value and no defaultValue was passed:
+
+            unstable_batchedUpdates(() => {
+              //useState assumes immutability: https://react.dev/reference/react/useState
+              setValueMap(prevState =>
+                prevState[key] !== undefined ||
+                !(
+                  //isSynchd can also be marked with state[key] = undefined
+                  (key in prevState)
+                )
+                  ? { ...prevState, [key]: undefined }
+                  : prevState
+              );
+              setErrorCodeMap(prevState =>
+                prevState[key] !== false
+                  ? { ...prevState, [key]: false }
+                  : prevState
+              );
+            });
+          }
         } catch (err: unknown) {
           console.warn(err);
           const errorCode = getStorageErrorCode(err);
@@ -215,30 +245,32 @@ export const useStorage = <T>(
    * Call it to force a read from disk (not using valueMap or errorCodeMap)
    */
   const clearCache = useCallback(() => {
-    if (key) {
-      setValueMap(prevState => {
-        //if (key in prevState) { - Note: It's very important to set a New State
-        //                          in any circumstance. Since clearCache is called
-        //                          so that a new read from disk is tried. Thus,
-        //                          if we would conditionally update state if
-        //                          the key was set then, calling clearCache would
-        //                          have no effect with 2 consecutive calls to clearCache.
-        const { [key]: omitted, ...newState } = prevState;
-        void omitted;
-        return newState;
-        //}
-        //return prevState;
-      });
+    unstable_batchedUpdates(() => {
+      if (key) {
+        setValueMap(prevState => {
+          //if (key in prevState) { - Note: It's very important to set a New State
+          //                          in any circumstance. Since clearCache is called
+          //                          so that a new read from disk is tried. Thus,
+          //                          if we would conditionally update state if
+          //                          the key was set then, calling clearCache would
+          //                          have no effect with 2 consecutive calls to clearCache.
+          const { [key]: omitted, ...newState } = prevState;
+          void omitted;
+          return newState;
+          //}
+          //return prevState;
+        });
 
-      setErrorCodeMap(prevState => {
-        //if (key in prevState) {
-        const { [key]: omitted, ...newState } = prevState;
-        void omitted;
-        return newState;
-        //}
-        //return prevState;
-      });
-    }
+        setErrorCodeMap(prevState => {
+          //if (key in prevState) {
+          const { [key]: omitted, ...newState } = prevState;
+          void omitted;
+          return newState;
+          //}
+          //return prevState;
+        });
+      }
+    });
   }, [key, setValueMap, setErrorCodeMap]);
 
   const deleteValue = useCallback(async () => {
