@@ -1,18 +1,3 @@
-I just got an erroCodeMap not set for...
- ERROR  Error: errorCodeMap not set for DISCOVERY_0
-
- WalletsScreen should have the walletId on the route !
- This avoids a set of stupid problems
-  Then we can also have wallet-2/settings
-    -> Which can include name, and delete if not logged-in yet.
-
- En iOS con botones físicos, cuando se cierra un nested Modal, se desplaza la pantalla
-  -> Como reproducir:
-    -> Cerrar la app, abrir la app ir a new wallet -> Advanced settings y dar al icono de (i) para que aparezca un Modal -> Cerrar el modal -> Salta
-  -> Creo que tiene relacion con: https://github.com/react-navigation/react-navigation/issues/11664
-      -> Relacionado: https://github.com/react-navigation/react-navigation/issues/11875
-    -> Falta por Probar si también ocurre en dispositivo fisico (no simulador)
-
 cuando en la wallet doy a goBack tarda años
 
 Test password + secure store

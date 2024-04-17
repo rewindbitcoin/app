@@ -32,7 +32,6 @@ import { shallowEqualObjects, shallowEqualArrays } from 'shallow-equal';
 import type { Wallet } from '../lib/wallets';
 import { useToast } from '../../common/ui';
 import { SERIALIZABLE, deleteAsync } from '../../common/lib/storage';
-import { useSecureStorageAvailability } from '../../common/contexts/SecureStorageAvailabilityContext';
 import { SETTINGS_GLOBAL_STORAGE } from '../lib/settings';
 import { defaultSettings, type Settings } from '../lib/settings';
 import { useTranslation } from 'react-i18next';
@@ -63,6 +62,7 @@ type DiscoveryDataExport = ReturnType<DiscoveryInstance['export']>;
 
 import { type WalletError, getWalletError } from '../lib/errors';
 import { useStorage } from '../../common/hooks/useStorage';
+import { useSecureStorageInfo } from '../../common/contexts/SecureStorageInfoContext';
 
 export const WalletContext: Context<WalletContextType | null> =
   createContext<WalletContextType | null>(null);
@@ -146,15 +146,7 @@ const WalletProviderRaw = ({
   const [signersCipherKey, setSignersCipherKey] = useState<Uint8Array>();
   const [dataCipherKey, setDataCipherKey] = useState<Uint8Array>();
   const [newSigners, setNewSigners] = useState<Signers>();
-  const canUseSecureStorage = useSecureStorageAvailability();
-  if (canUseSecureStorage === undefined)
-    //This should never happen. If we have a wallet already it's because the App
-    //either read it already from somewhere or created it. And wallets can only be created
-    //if the SecureStorageAvaiability exists because it is needed for setting
-    //signersStorageEngine
-    throw new Error(
-      'WalletContext cannot be used until useSecureStorageAvailability has been resolved'
-    );
+  const secureStorageInfo = useSecureStorageInfo();
   const { t } = useTranslation();
   const walletId = wallet?.walletId;
   const networkId = wallet?.networkId;
@@ -165,10 +157,12 @@ const WalletProviderRaw = ({
   if (
     (signersStorageEngine === 'MMKV' && Platform.OS === 'web') ||
     (signersStorageEngine === 'IDB' && Platform.OS !== 'web') ||
-    (signersStorageEngine === 'SECURESTORE' && canUseSecureStorage === false)
+    (signersStorageEngine === 'SECURESTORE' &&
+      secureStorageInfo &&
+      secureStorageInfo.canUseSecureStorage === false)
   ) {
     throw new Error(
-      `signersStorageEngine ${signersStorageEngine} does not match this system specs: ${Platform.OS}, canUseSecureStorage=${canUseSecureStorage}. Have you not enabled Biometric id in your system?`
+      `signersStorageEngine ${signersStorageEngine} does not match this system specs: ${Platform.OS}, canUseSecureStorage=${secureStorageInfo && secureStorageInfo.canUseSecureStorage}. Have you not enabled Biometric id in your system?`
     );
   }
 

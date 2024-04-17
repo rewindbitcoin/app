@@ -5,7 +5,10 @@ import './global.css';
 import './init';
 import React, { useCallback, useEffect, useState } from 'react';
 import { Platform } from 'react-native';
-import { SecureStorageAvailabilityProvider } from './src/common/contexts/SecureStorageAvailabilityContext';
+import {
+  SecureStorageInfoProvider,
+  useSecureStorageInfo
+} from './src/common/contexts/SecureStorageInfoContext';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import {
@@ -34,7 +37,6 @@ import { useStorage } from './src/common/hooks/useStorage';
 import { SETTINGS_GLOBAL_STORAGE } from './src/app/lib/settings';
 import type { VaultSettings } from './src/app/lib/vaults';
 import { useTheme, Button } from './src/common/ui';
-import { deviceName } from 'expo-device';
 
 import {
   defaultSettings,
@@ -42,35 +44,11 @@ import {
 } from './src/app/lib/settings';
 import { useTranslation } from 'react-i18next';
 import { initI18n } from './src/i18n-locales/init';
+import { AuthenticationType } from 'expo-local-authentication';
 //Init for 1st render. Then, on settings load from context & apply correct one
 initI18n(defaultSettings.LOCALE);
 
 const RootStack = createRootStack();
-
-const iOsWithPhysicalButton =
-  deviceName &&
-  Platform.OS === 'ios' &&
-  [
-    'iPhone',
-    'iPhone 3G',
-    'iPhone 3GS',
-    'iPhone 4',
-    'iPhone 4S',
-    'iPhone 5',
-    'iPhone 5c',
-    'iPhone 5s',
-    'iPhone 6',
-    'iPhone 6 Plus',
-    'iPhone 6s',
-    'iPhone 6s Plus',
-    'iPhone SE',
-    'iPhone 7',
-    'iPhone 7 Plus',
-    'iPhone 8',
-    'iPhone 8 Plus',
-    'iPhone SE (2nd generation)',
-    'iPhone SE (3rd generation)'
-  ].includes(deviceName);
 
 const Main = () => {
   // Get settings from disk. It will be used for setting the correct LOCALE.
@@ -83,6 +61,19 @@ const Main = () => {
     undefined,
     'GLOBAL'
   );
+
+  const secureStorageInfo = useSecureStorageInfo();
+  //ios devices which do not have FACIAL_RECOGNITION are assumed to be the
+  //ones with physical button. Also, initially iOsWithPhysicalButton will be
+  //undefined since secureStorageInfo is async
+  const iOsWithPhysicalButton: undefined | boolean =
+    Platform.OS !== 'ios'
+      ? false
+      : secureStorageInfo
+        ? !secureStorageInfo.authenticationTypes.includes(
+            AuthenticationType.FACIAL_RECOGNITION
+          )
+        : undefined;
 
   const { t } = useTranslation();
   const [vaultSettings, setVaultSettings] = useState<VaultSettings>();
@@ -234,9 +225,7 @@ const Main = () => {
             // 6. After closing the modal the screen shifts or jumps.
             // Note: Further testing on physical devices (not just simulators)
             // is pending to confirm if the issue persists there as well.
-            presentation: (iOsWithPhysicalButton
-              ? 'fullScreenModal'
-              : 'modal') as 'modal' //web (non-native) stack does not support fullScreenModal. However we only set it on ohysical devices which we are sure are using the native stack
+            presentation: iOsWithPhysicalButton === true ? 'card' : 'modal'
           }}
           component={
             //Modals need their own Toast component
@@ -249,9 +238,7 @@ const Main = () => {
           options={{
             title: t('app.createVaultTitle'),
             // See comment above on Conditional presentation mode based on device model
-            presentation: (iOsWithPhysicalButton
-              ? 'fullScreenModal'
-              : 'modal') as 'modal'
+            presentation: iOsWithPhysicalButton === true ? 'card' : 'modal'
           }}
           component={
             //Modals need their own Toast component
@@ -274,11 +261,11 @@ export default function App() {
       <GestureHandlerRootView style={{ flex: 1 }}>
         <NavigationContainer theme={useTheme()}>
           <GlobalStorageProvider>
-            <SecureStorageAvailabilityProvider>
+            <SecureStorageInfoProvider>
               <ToastProvider>
                 <MainMemo />
               </ToastProvider>
-            </SecureStorageAvailabilityProvider>
+            </SecureStorageInfoProvider>
           </GlobalStorageProvider>
         </NavigationContainer>
       </GestureHandlerRootView>

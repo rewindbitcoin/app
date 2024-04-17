@@ -164,7 +164,11 @@ import { Platform } from 'react-native';
 //NOTE2: New versions of expo-secure-store will provide
 //canUseBiometricAuthentication so I believe expo--local-authentication will no
 //longer needed (or at least the patch)
-import { hasHardwareAsync, isEnrolledAsync } from 'expo-local-authentication';
+import {
+  hasHardwareAsync,
+  isEnrolledAsync,
+  supportedAuthenticationTypesAsync
+} from 'expo-local-authentication';
 
 //import { strToU8, strFromU8 } from 'fflate';
 import { getManagedChacha } from './cipher';
@@ -180,15 +184,19 @@ import {
   //canUseBiometricAuthentication
 } from 'expo-secure-store';
 
-export const canUseSecureStorageAsync = async () => {
-  return (
+export const getSecureStorageInfoAsync = async () => {
+  const canUseSecureStorage =
     Platform.OS !== 'web' &&
     //canUseBiometricAuthentication() &&
     (await isAvailableAsync()) &&
     (await hasHardwareAsync()) &&
-    (await isEnrolledAsync())
-  );
+    (await isEnrolledAsync());
+  const authenticationTypes = await supportedAuthenticationTypesAsync();
+  return { canUseSecureStorage, authenticationTypes };
 };
+
+const canUseSecureStorageAsync = async () =>
+  (await getSecureStorageInfoAsync()).canUseSecureStorage;
 
 /** these are the messages thrown by 3rd party libs that we'll match and re-throw
  * using the Error messsages above

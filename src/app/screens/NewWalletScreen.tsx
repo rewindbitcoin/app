@@ -20,7 +20,7 @@ import ConfirmBip39 from '../components/ConfirmBip39';
 import WalletAdvancedSettings, {
   type AdvancedSettings
 } from '../components/WalletAdvancedSettings';
-import { useSecureStorageAvailability } from '../../common/contexts/SecureStorageAvailabilityContext';
+import { useSecureStorageInfo } from '../../common/contexts/SecureStorageInfoContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { generateMnemonic } from 'bip39';
 import { NetworkId, networkMapping } from '../lib/network';
@@ -53,9 +53,10 @@ export default function NewWalletScreen() {
     throw new Error(`Wallets should have been loaded`);
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
-  const canUseSecureStorage = useSecureStorageAvailability();
-  if (canUseSecureStorage === undefined)
+  const secureStorageInfo = useSecureStorageInfo();
+  if (!secureStorageInfo)
     throw new Error('Could not retrieve Secure Storage availability');
+  const { canUseSecureStorage } = secureStorageInfo;
   const [isImport, setIsImport] = useState<boolean>(false);
   const [isConfirmBip39, setIsConfirmBip39] = useState<boolean>(false);
   //const [words, setWords] = useState<string[]>(Array(12).fill(''));
