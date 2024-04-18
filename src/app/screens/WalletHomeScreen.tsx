@@ -34,6 +34,7 @@ const WalletHomeScreen = () => {
 
   const {
     vaults,
+    utxosData,
     syncBlockchain,
     syncingBlockchain,
     wallet,
@@ -50,13 +51,15 @@ const WalletHomeScreen = () => {
   const title =
     !wallet || !wallets
       ? t('app.walletTitle')
-      : Object.entries(wallets).length
+      : Object.entries(wallets).length === 1 //FIX, TODO: this is a bad heuristic, note that you might have a utxo below the dust limit and thus, you cannot send, also the fees may not be enough for sending. Same for vaults. In vaults i had some logic that told you that you need more money. Then using length 1 is ok, but then similar logic must be implemented in send.
         ? t('wallets.mainWallet')
         : t('wallets.walletId', { id: wallet?.walletId + 1 });
 
   const theme = useTheme();
   const navOptions = useMemo(
     () => ({
+      // In ios the title is rendered with some delay,
+      // so better make it appear with a nice fade in touch
       title,
       headerRight: () => (
         <View className="flex-row justify-between gap-5 items-center">
@@ -146,8 +149,8 @@ const WalletHomeScreen = () => {
     <>
       <WalletButtons
         handleReceive={handleReceive}
-        handleSend={handleSend}
-        handleFreeze={handleFreeze}
+        handleSend={utxosData?.length ? handleSend : undefined}
+        handleFreeze={utxosData?.length ? handleFreeze : undefined}
       />
       <KeyboardAwareScrollView
         keyboardShouldPersistTaps="handled"
