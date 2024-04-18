@@ -23,6 +23,41 @@ import {
   getNewCursor
 } from '../../common/lib/numbers';
 
+const ClearButton = React.memo(
+  ({
+    onChangeText,
+    showClearButton,
+    fontSize,
+    listSeparatorColor
+  }: {
+    onChangeText: (text: string) => void;
+    showClearButton: boolean;
+    fontSize?: number | undefined;
+    listSeparatorColor: string;
+  }) => {
+    if (!showClearButton || Platform.OS === 'web') {
+      return null;
+    }
+
+    return (
+      <AntDesign
+        onPress={() => onChangeText('')}
+        style={{
+          color: listSeparatorColor,
+          fontSize: fontSize,
+          alignSelf: 'center',
+          marginRight: -10,
+          paddingVertical: 10,
+          paddingRight: 5,
+          marginLeft: 10
+        }}
+        name="closecircle"
+      />
+    );
+  }
+);
+ClearButton.displayName = 'ClearButton';
+
 interface NumericInputProps {
   maxLength?: number;
   locale: Locale;
@@ -187,62 +222,54 @@ const NumericInput = ({
     lastMaxLengthWidthGlobal
   );
 
+  const hiddenTextStyle = useMemo(() => {
+    return [
+      {
+        position: 'absolute' as const,
+        opacity: 0,
+        zIndex: -1000
+      },
+      fontsLoaded && { fontFamily: 'RobotoMono_400Regular' },
+      style,
+      styles.input
+    ];
+  }, [style, styles.input, fontsLoaded]);
+
+  const textStyle = useMemo(() => {
+    return [
+      maxLengthWidth !== null && {
+        width:
+          (maxLengthWidth * Math.max(1, strValue.length)) / INPUT_MAX_LENGTH
+      },
+      fontsLoaded && { fontFamily: 'RobotoMono_400Regular' },
+      style,
+      styles.input
+    ];
+  }, [fontsLoaded, maxLengthWidth, strValue.length, style, styles.input]);
+
   //console.log('render', selection, strValue);
   return (
-    <View style={{ flexDirection: 'row' }}>
-      <Text
-        onLayout={onTextLayout}
-        style={[
-          {
-            position: 'absolute',
-            opacity: 0,
-            zIndex: -1000
-          },
-          fontsLoaded && { fontFamily: 'RobotoMono_400Regular' },
-          style,
-          styles.input
-        ]}
-      >
+    <View className="flex-row">
+      <Text onLayout={onTextLayout} style={hiddenTextStyle}>
         {'0'.repeat(INPUT_MAX_LENGTH)}
       </Text>
       <TextInput
         maxLength={INPUT_MAX_LENGTH}
         {...(selection ? { selection } : {})}
         keyboardType={keyboardType}
-        style={[
-          maxLengthWidth !== null && {
-            width:
-              (maxLengthWidth * Math.max(1, strValue.length)) / INPUT_MAX_LENGTH
-          },
-          fontsLoaded && { fontFamily: 'RobotoMono_400Regular' },
-          style,
-          styles.input
-        ]}
+        style={textStyle}
         onFocus={onFocus}
         onBlur={onBlur}
         value={strValue}
         onChangeText={onChangeText}
         onSelectionChange={onSelectionChange}
       />
-      {showClearButton && Platform.OS !== 'web' ? (
-        //this does not work well on web but is not required either since
-        //keyboard on web is way better anyway
-        <AntDesign
-          onPress={() => {
-            onChangeText('');
-          }}
-          style={{
-            color: theme.colors.listsSeparator,
-            fontSize: style?.fontSize,
-            alignSelf: 'center',
-            marginRight: -10,
-            paddingVertical: 10,
-            paddingRight: 5,
-            marginLeft: 10
-          }}
-          name="closecircle"
-        />
-      ) : null}
+      <ClearButton
+        onChangeText={onChangeText}
+        showClearButton={showClearButton}
+        fontSize={style?.fontSize}
+        listSeparatorColor={theme.colors.listsSeparator}
+      />
     </View>
   );
 };

@@ -198,24 +198,32 @@ const EditableSlider = ({
     }
   }
 
-  const thumbTintColor = isValidValue
-    ? Platform.OS === 'ios'
-      ? {}
-      : { thumbTintColor: theme.colors.primary }
-    : { thumbTintColor: theme.colors.red };
+  const thumbTintColor = useMemo(() => {
+    return isValidValue
+      ? Platform.OS === 'ios'
+        ? {}
+        : { thumbTintColor: theme.colors.primary }
+      : { thumbTintColor: theme.colors.red };
+  }, [isValidValue, theme.colors.primary, theme.colors.red]);
+
+  const numberInputStyle = useMemo(() => {
+    return {
+      ...styles.input,
+      ...(isValidValue ? {} : { color: theme.colors.red })
+    };
+  }, [isValidValue, styles.input, theme.colors.red]);
+  const statusStyle = useMemo(() => {
+    return [
+      fontsLoaded ? { fontFamily: 'RobotoMono_400Regular' } : {},
+      styles.status,
+      isValidValue ? {} : { color: theme.colors.red }
+    ];
+  }, [fontsLoaded, isValidValue, styles.status, theme.colors.red]);
 
   return (
     <View style={styles.container}>
       <View style={styles.statusAndUnit}>
-        <Text
-          style={[
-            fontsLoaded ? { fontFamily: 'RobotoMono_400Regular' } : {},
-            styles.status,
-            isValidValue ? {} : { color: theme.colors.red }
-          ]}
-        >
-          {statusText}
-        </Text>
+        <Text style={statusStyle}>{statusText}</Text>
         {typeof unit === 'string' ? (
           <Text style={styles.unit}>{unit}</Text>
         ) : (
@@ -235,10 +243,7 @@ const EditableSlider = ({
         <NumberInput
           locale={locale}
           maxLength={INPUT_MAX_LENGTH}
-          style={{
-            ...styles.input,
-            ...(isValidValue ? {} : { color: theme.colors.red })
-          }}
+          style={numberInputStyle}
           strValue={numericInputControlledValue}
           onChangeValue={onNumberInputChangeValue}
         />
