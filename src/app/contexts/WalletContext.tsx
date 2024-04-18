@@ -146,9 +146,22 @@ const WalletProviderRaw = ({
   const [signersCipherKey, setSignersCipherKey] = useState<Uint8Array>();
   const [dataCipherKey, setDataCipherKey] = useState<Uint8Array>();
   const [newSigners, setNewSigners] = useState<Signers>();
+  // Local State: btcFiat, feeEstimates & discovery
+  const [btcFiat, setBtcFiat] = useState<number | null>(null);
+  const [feeEstimates, setFeeEstimates] = useState<Record<
+    string,
+    number
+  > | null>(null);
+  const [discovery, setDiscovery] = useState<DiscoveryInstance | null>(null); //TODO: useRef?
+  const [utxosData, setUtxosData] = useState<UtxosData>(); //TODO: useRef?
+  const [syncingBlockchain, setSyncingBlockchain] = useState(false);
+  const syncBlockchainRunning = useRef(false);
+  const fetchP2PVaultsRunning = useRef(false);
+
   const secureStorageInfo = useSecureStorageInfo();
   const { t } = useTranslation();
   const walletId = wallet?.walletId;
+
   const networkId = wallet?.networkId;
   const signersStorageEngine = wallet?.signersStorageEngine;
   const network = networkId && networkMapping[networkId];
@@ -265,6 +278,7 @@ const WalletProviderRaw = ({
     accountNamesStorageStatus.errorCode === false;
 
   useEffect(() => {
+    let isCancelled = false;
     const walletError = getWalletError({
       isNewWallet: !!newSigners,
       settingsErrorCode: settingsStorageStatus.errorCode,
@@ -275,7 +289,10 @@ const WalletProviderRaw = ({
       vaultsStatusesErrorCode: vaultsStatusesStorageStatus.errorCode,
       accountNamesErrorCode: accountNamesStorageStatus.errorCode
     });
-    setWalletError(walletError);
+    if (!isCancelled) setWalletError(walletError);
+    return () => {
+      isCancelled = true;
+    };
   }, [
     newSigners,
 
@@ -285,7 +302,9 @@ const WalletProviderRaw = ({
     signersStorageStatus.errorCode,
     vaultsStorageStatus.errorCode,
     vaultsStatusesStorageStatus.errorCode,
-    accountNamesStorageStatus.errorCode
+    accountNamesStorageStatus.errorCode,
+
+    wallet?.walletId //IMPORTANT to deal with isCancelled
   ]);
 
   const logOut = useCallback(() => {
@@ -412,15 +431,6 @@ const WalletProviderRaw = ({
   }, [setWallets, wallets, wallet, isReady]);
 
   const toast = useToast();
-
-  // Local State: btcFiat, feeEstimates & discovery
-  const [btcFiat, setBtcFiat] = useState<number | null>(null);
-  const [feeEstimates, setFeeEstimates] = useState<Record<
-    string,
-    number
-  > | null>(null);
-  const [discovery, setDiscovery] = useState<DiscoveryInstance | null>(null); //TODO: useRef?
-  const [utxosData, setUtxosData] = useState<UtxosData>();
 
   useEffect(() => {
     //Done only once (!discovery) per walletId
@@ -573,10 +583,6 @@ const WalletProviderRaw = ({
     }
     return;
   }, [t, toast, settings?.CURRENCY, settings?.BTC_FIAT_REFRESH_INTERVAL_MS]);
-
-  const [syncingBlockchain, setSyncingBlockchain] = useState(false);
-  const syncBlockchainRunning = useRef(false);
-  const fetchP2PVaultsRunning = useRef(false);
 
   const getChangeDescriptor = useCallback(async () => {
     if (!network) throw new Error('Network not ready');

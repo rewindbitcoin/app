@@ -247,7 +247,6 @@ const NumericInput = ({
     ];
   }, [fontsLoaded, maxLengthWidth, strValue.length, style, styles.input]);
 
-  //console.log('render', selection, strValue);
   return (
     <View className="flex-row">
       <Text onLayout={onTextLayout} style={hiddenTextStyle}>
