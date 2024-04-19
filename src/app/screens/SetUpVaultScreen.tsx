@@ -14,12 +14,6 @@ import {
   Theme
 } from '../../common/ui';
 import { EdgeInsets, useSafeAreaInsets } from 'react-native-safe-area-context';
-import {
-  defaultSettings,
-  Settings,
-  SETTINGS_GLOBAL_STORAGE
-} from '../lib/settings';
-import { SERIALIZABLE } from '../../common/lib/storage';
 import { selectVaultUtxosData, type VaultSettings } from '../lib/vaults';
 import {
   DUMMY_VAULT_OUTPUT,
@@ -32,7 +26,7 @@ import { WalletContext, WalletContextType } from '../contexts/WalletContext';
 import { formatBtc } from '../lib/btcRates';
 import { estimateVaultSetUpRange } from '../lib/vaultRange';
 import { networkMapping } from '../lib/network';
-import { useStorage } from '../../common/hooks/useStorage';
+import { useSettings } from '../hooks/useSettings';
 
 export default function VaultSetUp({
   onVaultSetUpComplete
@@ -59,15 +53,7 @@ export default function VaultSetUp({
     );
   const network = networkMapping[networkId];
 
-  const [settings] = useStorage<Settings>(
-    SETTINGS_GLOBAL_STORAGE,
-    SERIALIZABLE,
-    defaultSettings,
-    undefined,
-    undefined,
-    undefined,
-    'GLOBAL'
-  );
+  const { settings } = useSettings();
   if (!settings)
     throw new Error(
       'This component should only be started after settings has been retrieved from storage'

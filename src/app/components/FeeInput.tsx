@@ -3,17 +3,11 @@ const FEE_RATE_STEP = 0.01;
 //This component must work both for SendBitcoin and SetUpVault
 import React, { useContext, useCallback, useRef, useMemo } from 'react';
 import { CardEditableSlider } from '../../common/ui';
-import { SERIALIZABLE } from '../../common/lib/storage';
-import {
-  defaultSettings,
-  Settings,
-  SETTINGS_GLOBAL_STORAGE
-} from '../lib/settings';
 import { WalletContext, WalletContextType } from '../contexts/WalletContext';
 import { snapWithinRange } from '../../common/lib/numbers';
 import { formatFeeRate } from '../lib/fees';
 import { useTranslation } from 'react-i18next';
-import { useStorage } from '../../common/hooks/useStorage';
+import { useSettings } from '../hooks/useSettings';
 
 function FeeInput({
   label,
@@ -32,15 +26,7 @@ function FeeInput({
   if (!feeEstimates)
     throw new Error('FeeInput cannot be called with unset feeEstimates');
   const btcFiat = btcFiatOriginal === undefined ? null : btcFiatOriginal;
-  const [settings] = useStorage<Settings>(
-    SETTINGS_GLOBAL_STORAGE,
-    SERIALIZABLE,
-    defaultSettings,
-    undefined,
-    undefined,
-    undefined,
-    'GLOBAL'
-  );
+  const { settings } = useSettings();
   if (!settings)
     throw new Error(
       'This component should only be started after settings has been retrieved from storage'

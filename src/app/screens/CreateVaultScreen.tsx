@@ -13,12 +13,7 @@ import { View, StyleSheet } from 'react-native';
 import * as Progress from 'react-native-progress';
 import { EdgeInsets, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { createVault, type VaultSettings, type Vault } from '../lib/vaults';
-import {
-  defaultSettings,
-  Settings,
-  SETTINGS_GLOBAL_STORAGE
-} from '../lib/settings';
-import { SERIALIZABLE } from '../../common/lib/storage';
+import { useSettings } from '../hooks/useSettings';
 import {
   Button,
   Text,
@@ -27,7 +22,6 @@ import {
   useTheme
 } from '../../common/ui';
 import { p2pBackupVault, fetchP2PVaultIds } from '../lib/backup';
-import { useStorage } from '../../common/hooks/useStorage';
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -71,15 +65,7 @@ export default function VaultCreate({
     throw new Error('Missing data from context');
   const { t } = useTranslation();
   const keepProgress = useRef<boolean>(true);
-  const [settings] = useStorage<Settings>(
-    SETTINGS_GLOBAL_STORAGE,
-    SERIALIZABLE,
-    defaultSettings,
-    undefined,
-    undefined,
-    undefined,
-    'GLOBAL'
-  );
+  const { settings } = useSettings();
   if (!settings)
     throw new Error(
       'This component should only be started after settings has been retrieved from storage'

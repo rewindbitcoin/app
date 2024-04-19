@@ -2,15 +2,9 @@
 import React, { useState, useCallback, useRef, useMemo } from 'react';
 import { CardEditableSlider } from '../../common/ui';
 import { useTranslation } from 'react-i18next';
-import { SERIALIZABLE } from '../../common/lib/storage';
-import {
-  defaultSettings,
-  Settings,
-  SETTINGS_GLOBAL_STORAGE
-} from '../lib/settings';
 import { fromBlocks, toBlocks, getBlocksModeStep } from '../lib/timeUtils';
 import { formatLockTime } from '../lib/fees';
-import { useStorage } from '../../common/hooks/useStorage';
+import { useSettings } from '../hooks/useSettings';
 
 function BlocksInput({
   initialValue,
@@ -26,15 +20,7 @@ function BlocksInput({
   onValueChange: (value: number | null) => void;
 }) {
   const { t } = useTranslation();
-  const [settings] = useStorage<Settings>(
-    SETTINGS_GLOBAL_STORAGE,
-    SERIALIZABLE,
-    defaultSettings,
-    undefined,
-    undefined,
-    undefined,
-    'GLOBAL'
-  );
+  const { settings } = useSettings();
   if (!settings)
     throw new Error(
       'This component should only be started after settings has been retrieved from storage'

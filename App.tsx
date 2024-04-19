@@ -32,19 +32,14 @@ import { WalletProvider } from './src/app/contexts/WalletContext';
 import Settings from './src/app/screens/SettingsScreen';
 import { GlobalStorageProvider } from './src/common/contexts/GlobalStorageContext';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { SERIALIZABLE } from './src/common/lib/storage';
-import { useStorage } from './src/common/hooks/useStorage';
-import { SETTINGS_GLOBAL_STORAGE } from './src/app/lib/settings';
 import type { VaultSettings } from './src/app/lib/vaults';
 import { useTheme, Button } from './src/common/ui';
 
-import {
-  defaultSettings,
-  Settings as SettingsType
-} from './src/app/lib/settings';
+import { defaultSettings } from './src/app/lib/settings';
 import { useTranslation } from 'react-i18next';
 import { initI18n } from './src/i18n-locales/init';
 import { AuthenticationType } from 'expo-local-authentication';
+import { useSettings } from './src/app/hooks/useSettings';
 //Init for 1st render. Then, on settings load from context & apply correct one
 initI18n(defaultSettings.LOCALE);
 
@@ -52,15 +47,7 @@ const RootStack = createRootStack();
 
 const Main = () => {
   // Get settings from disk. It will be used for setting the correct LOCALE.
-  const [settings] = useStorage<SettingsType>(
-    SETTINGS_GLOBAL_STORAGE,
-    SERIALIZABLE,
-    undefined,
-    undefined,
-    undefined,
-    undefined,
-    'GLOBAL'
-  );
+  const { settings } = useSettings();
 
   const secureStorageInfo = useSecureStorageInfo();
   //ios devices which do not have FACIAL_RECOGNITION are assumed to be the

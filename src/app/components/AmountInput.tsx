@@ -8,14 +8,8 @@ import React, {
 } from 'react';
 import { CardEditableSlider } from '../../common/ui';
 import { useTranslation } from 'react-i18next';
-import { SERIALIZABLE } from '../../common/lib/storage';
 import { WalletContext, WalletContextType } from '../contexts/WalletContext';
-import {
-  SubUnit,
-  defaultSettings,
-  Settings,
-  SETTINGS_GLOBAL_STORAGE
-} from '../lib/settings';
+import type { SubUnit } from '../lib/settings';
 import {
   formatBtc,
   fromSats,
@@ -23,7 +17,7 @@ import {
   getAmountModeStep
 } from '../lib/btcRates';
 import UnitsModal from './UnitsModal';
-import { useStorage } from '../../common/hooks/useStorage';
+import { useSettings } from '../hooks/useSettings';
 
 function AmountInput({
   initialValue,
@@ -46,15 +40,7 @@ function AmountInput({
   const context = useContext<WalletContextType | null>(WalletContext);
   if (context === null) throw new Error('Context was not set');
   const { btcFiat } = context;
-  const [settings] = useStorage<Settings>(
-    SETTINGS_GLOBAL_STORAGE,
-    SERIALIZABLE,
-    defaultSettings,
-    undefined,
-    undefined,
-    undefined,
-    'GLOBAL'
-  );
+  const { settings } = useSettings();
   if (!settings)
     throw new Error(
       'This component should only be started after settings has been retrieved from storage'

@@ -12,8 +12,8 @@ import {
   type UtxosData
 } from '../lib/vaults';
 import type { AccountNames, Signers, Wallets } from '../lib/wallets';
+import { getAPIs } from '../lib/walletDerivedData';
 import { networkMapping, NetworkId } from '../lib/network';
-import { networks } from 'bitcoinjs-lib';
 import {
   createReceiveDescriptor,
   createChangeDescriptor,
@@ -32,8 +32,6 @@ import { shallowEqualObjects, shallowEqualArrays } from 'shallow-equal';
 import type { Wallet } from '../lib/wallets';
 import { useToast } from '../../common/ui';
 import { SERIALIZABLE, deleteAsync } from '../../common/lib/storage';
-import { SETTINGS_GLOBAL_STORAGE } from '../lib/settings';
-import { defaultSettings, type Settings } from '../lib/settings';
 import { useTranslation } from 'react-i18next';
 
 import { fetchBtcFiat } from '../lib/btcRates';
@@ -63,6 +61,8 @@ type DiscoveryDataExport = ReturnType<DiscoveryInstance['export']>;
 import { type WalletError, getWalletError } from '../lib/errors';
 import { useStorage } from '../../common/hooks/useStorage';
 import { useSecureStorageInfo } from '../../common/contexts/SecureStorageInfoContext';
+import { useSettings } from '../hooks/useSettings';
+import { useFeeEstimates } from '../hooks/useFeeEstimates';
 
 export const WalletContext: Context<WalletContextType | null> =
   createContext<WalletContextType | null>(null);
@@ -72,7 +72,7 @@ export type WalletContextType = {
   fetchServiceAddress: () => Promise<string>;
   getUnvaultKey: () => Promise<string>;
   btcFiat: number | null;
-  feeEstimates: FeeEstimates | null;
+  feeEstimates: FeeEstimates | undefined;
   utxosData: UtxosData | undefined;
   signers: Signers | undefined;
   vaults: Vaults | undefined;
@@ -142,18 +142,13 @@ const WalletProviderRaw = ({
   newWalletSigners?: Signers;
 }) => {
   const [wallet, setWallet] = useState<Wallet>();
-  const [walletError, setWalletError] = useState<WalletError>(false);
   const [signersCipherKey, setSignersCipherKey] = useState<Uint8Array>();
   const [dataCipherKey, setDataCipherKey] = useState<Uint8Array>();
   const [newSigners, setNewSigners] = useState<Signers>();
   // Local State: btcFiat, feeEstimates & discovery
   const [btcFiat, setBtcFiat] = useState<number | null>(null);
-  const [feeEstimates, setFeeEstimates] = useState<Record<
-    string,
-    number
-  > | null>(null);
   const [discovery, setDiscovery] = useState<DiscoveryInstance | null>(null); //TODO: useRef?
-  const [utxosData, setUtxosData] = useState<UtxosData>(); //TODO: useRef?
+  const [utxosData, setUtxosData] = useState<UtxosData>(); //TODO: useRef?, NO. esto sí debe ser state porque implica re-renders
   const [syncingBlockchain, setSyncingBlockchain] = useState(false);
   const syncBlockchainRunning = useRef(false);
   const fetchP2PVaultsRunning = useRef(false);
@@ -179,15 +174,12 @@ const WalletProviderRaw = ({
     );
   }
 
-  const [settings, , , , settingsStorageStatus] = useStorage<Settings>(
-    SETTINGS_GLOBAL_STORAGE,
-    SERIALIZABLE,
-    defaultSettings,
-    undefined,
-    undefined,
-    undefined,
-    'GLOBAL'
-  );
+  const { feeEstimates, setNetworkId: setFeeEstimatesNetworkId } =
+    useFeeEstimates(wallet?.networkId);
+
+  const { settings, settingsStorageStatus } = useSettings();
+  const { esploraAPI, serviceAddressAPI, vaultsAPI, vaultsSecondaryAPI } =
+    getAPIs(networkId, settings);
   const [wallets, setWallets, , , walletsStorageStatus] = useStorage<Wallets>(
     `WALLETS`,
     SERIALIZABLE,
@@ -260,7 +252,7 @@ const WalletProviderRaw = ({
       dataCipherKey
     );
 
-  /** When all wallet realted data is synchronized and without any errors.
+  /** When all wallet realated data is synchronized and without any errors.
    * Use this variable to add the wallet into the wallets storage
    */
   const isReady =
@@ -277,35 +269,16 @@ const WalletProviderRaw = ({
     vaultsStatusesStorageStatus.errorCode === false &&
     accountNamesStorageStatus.errorCode === false;
 
-  useEffect(() => {
-    let isCancelled = false;
-    const walletError = getWalletError({
-      isNewWallet: !!newSigners,
-      settingsErrorCode: settingsStorageStatus.errorCode,
-      signersErrorCode: signersStorageStatus.errorCode,
-      walletsErrorCode: walletsStorageStatus.errorCode,
-      discoveryErrorCode: discoveryStorageStatus.errorCode,
-      vaultsErrorCode: vaultsStorageStatus.errorCode,
-      vaultsStatusesErrorCode: vaultsStatusesStorageStatus.errorCode,
-      accountNamesErrorCode: accountNamesStorageStatus.errorCode
-    });
-    if (!isCancelled) setWalletError(walletError);
-    return () => {
-      isCancelled = true;
-    };
-  }, [
-    newSigners,
-
-    settingsStorageStatus.errorCode,
-    walletsStorageStatus.errorCode,
-    discoveryStorageStatus.errorCode,
-    signersStorageStatus.errorCode,
-    vaultsStorageStatus.errorCode,
-    vaultsStatusesStorageStatus.errorCode,
-    accountNamesStorageStatus.errorCode,
-
-    wallet?.walletId //IMPORTANT to deal with isCancelled
-  ]);
+  const walletError = getWalletError({
+    isNewWallet: !!newSigners,
+    settingsErrorCode: settingsStorageStatus.errorCode,
+    signersErrorCode: signersStorageStatus.errorCode,
+    walletsErrorCode: walletsStorageStatus.errorCode,
+    discoveryErrorCode: discoveryStorageStatus.errorCode,
+    vaultsErrorCode: vaultsStorageStatus.errorCode,
+    vaultsStatusesErrorCode: vaultsStatusesStorageStatus.errorCode,
+    accountNamesErrorCode: accountNamesStorageStatus.errorCode
+  });
 
   const logOut = useCallback(() => {
     unstable_batchedUpdates(() => {
@@ -320,7 +293,6 @@ const WalletProviderRaw = ({
       setDiscovery(null);
       setUtxosData(undefined);
       setWallet(undefined);
-      setWalletError(false);
     });
   }, [
     clearSignersCache,
@@ -343,6 +315,7 @@ const WalletProviderRaw = ({
       newSigners?: Signers;
       signersCipherKey?: Uint8Array;
     }) => {
+      setFeeEstimatesNetworkId(walletDst.networkId);
       console.log({ wallet, newSigners, signersCipherKey });
       if (newSigners) {
         //Make sure we don't have values from previous app installs using the same id?
@@ -368,7 +341,7 @@ const WalletProviderRaw = ({
         setDataCipherKey(undefined);
       });
     },
-    [logOut, wallet, t]
+    [logOut, wallet, t, setFeeEstimatesNetworkId]
   );
 
   useEffect(() => {
@@ -385,41 +358,6 @@ const WalletProviderRaw = ({
       fetchDataCipherKey();
     }
   }, [signers, network, wallet?.encryption]);
-
-  let esploraAPI: string | undefined;
-  let serviceAddressAPI: string | undefined;
-  let vaultsAPI: string | undefined;
-  let vaultsSecondaryAPI: string | undefined;
-
-  if (networkId)
-    switch (networkId) {
-      case 'BITCOIN':
-        esploraAPI = settings?.MAINNET_ESPLORA_API;
-        serviceAddressAPI = settings?.MAINNET_SERVICE_ADDRESS_API;
-        vaultsAPI = settings?.MAINNET_VAULTS_API;
-        vaultsSecondaryAPI = settings?.MAINNET_VAULTS_SECONDARY_API;
-        break;
-      case 'TESTNET':
-        esploraAPI = settings?.TESTNET_ESPLORA_API;
-        serviceAddressAPI = settings?.TESTNET_SERVICE_ADDRESS_API;
-        vaultsAPI = settings?.TESTNET_VAULTS_API;
-        vaultsSecondaryAPI = settings?.TESTNET_VAULTS_SECONDARY_API;
-        break;
-      case 'STORM':
-        esploraAPI = settings?.STORM_ESPLORA_API;
-        serviceAddressAPI = settings?.STORM_SERVICE_ADDRESS_API;
-        vaultsAPI = settings?.STORM_VAULTS_API;
-        vaultsSecondaryAPI = settings?.STORM_VAULTS_SECONDARY_API;
-        break;
-      case 'REGTEST':
-        esploraAPI = settings?.REGTEST_ESPLORA_API;
-        serviceAddressAPI = settings?.REGTEST_SERVICE_ADDRESS_API;
-        vaultsAPI = settings?.REGTEST_VAULTS_API;
-        vaultsSecondaryAPI = settings?.REGTEST_VAULTS_SECONDARY_API;
-        break;
-      default:
-        throw new Error(`networkId ${networkId} not supported.`);
-    }
 
   useEffect(() => {
     if (isReady) {
@@ -503,53 +441,6 @@ const WalletProviderRaw = ({
     };
     setInitialUtxosData();
   }, [discovery, network, signers, utxosData, vaults, vaultsStatuses]);
-
-  // Sets feeEstimates
-  useEffect(() => {
-    let isMounted = true;
-    if (settings?.BTC_FEE_ESTIMATES_REFRESH_INTERVAL_MS !== undefined) {
-      const updateFeeEstimates = async () => {
-        if (discovery) {
-          let feeEstimates: FeeEstimates;
-          try {
-            if (network === networks.regtest) {
-              const explorer = new EsploraExplorer({
-                url: settings.MAINNET_ESPLORA_API
-              });
-              await explorer.connect();
-              feeEstimates = await explorer.fetchFeeEstimates();
-              await explorer.close();
-            } else {
-              feeEstimates = await discovery.getExplorer().fetchFeeEstimates();
-            }
-            if (isMounted) setFeeEstimates(feeEstimates);
-          } catch (err) {
-            toast.show(t('app.feeEstimatesError'), {
-              type: 'warning'
-            });
-          }
-        }
-      };
-      updateFeeEstimates();
-
-      const interval = setInterval(() => {
-        updateFeeEstimates();
-      }, settings?.BTC_FEE_ESTIMATES_REFRESH_INTERVAL_MS);
-
-      return () => {
-        isMounted = false;
-        clearInterval(interval);
-      };
-    }
-    return;
-  }, [
-    t,
-    toast,
-    discovery,
-    network,
-    settings?.MAINNET_ESPLORA_API,
-    settings?.BTC_FEE_ESTIMATES_REFRESH_INTERVAL_MS
-  ]);
 
   //Sets btcFiat
   useEffect(() => {

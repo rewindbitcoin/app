@@ -3,9 +3,13 @@ cuando en la wallet doy a goBack tarda años
 OJO! A veces en carteras vaciuas me han salido los 3 botones. Eso es que utxosData
 se cohge de otras carteras lo cual es increiblemente peligroso!!
 
+En useStorage, si paso GLOBAL comprobar que el contexto está instalado.
+
 
 -> En realidad solo los useState pueden estar desincronizados
-    -> walletError, signersCiperKey, dataCipherKey, newSigners, discovery, utxosData, syncingBlockchain
+    -> walletError (y eso tampoco), signersCiperKey, dataCipherKey, newSigners (puede ser ref), discovery (noooo), utxosData, syncingBlockchain
+    -> discovery debe de ser state porque se tiene que esperar a que se conecte y además luego
+    hay que desconectarlo
 
     -> Lo cual me hace pensar que si uso deriver data solamente, entonces el logOut no sea
     necesario?
