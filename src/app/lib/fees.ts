@@ -174,7 +174,7 @@ const formatFeeRateFactory = memoize((t: TFunction) =>
        * Pass the txSize if you also want to compute the fees
        */
       txSize: number | null;
-      btcFiat: number | null;
+      btcFiat: number | null | undefined;
       locale: Locale;
       currency: Currency;
       feeEstimates: FeeEstimates | null;
@@ -183,7 +183,7 @@ const formatFeeRateFactory = memoize((t: TFunction) =>
         txSize === null ? null : t('feeRate.waitingForRates', { currency });
       let strTime = t('feeRate.waitingForEstimates');
 
-      if (btcFiat !== null && txSize !== null) {
+      if (typeof btcFiat === 'number' && txSize !== null) {
         const amount = (feeRate * txSize * btcFiat) / 1e8;
         strBtcFiat = t('feeRate.fee', {
           amount: formatFiat({ amount, locale, currency })
@@ -244,7 +244,7 @@ export const formatFeeRate = (
   feeRateArgs: {
     feeRate: number;
     txSize: number | null;
-    btcFiat: number | null;
+    btcFiat: number | null | undefined;
     locale: Locale;
     currency: Currency;
     feeEstimates: FeeEstimates | null;

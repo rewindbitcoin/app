@@ -46,7 +46,7 @@ function AmountInput({
       'This component should only be started after settings has been retrieved from storage'
     );
   const [mode, setMode] = useState<SubUnit | 'Fiat'>(
-    btcFiat !== null ? 'Fiat' : settings.SUB_UNIT
+    typeof btcFiat !== 'number' ? 'Fiat' : settings.SUB_UNIT
   );
 
   const [showUnitsModal, setShowUnitsModal] = useState<boolean>(false);

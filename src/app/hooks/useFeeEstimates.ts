@@ -50,31 +50,27 @@ export const useFeeEstimates = (initialNetworkId: NetworkId | undefined) => {
         const feeEstimates = explorer
           ? await explorer.fetchFeeEstimates()
           : undefined;
-        return {
-          feeEstimates,
-          fetchedNetworkId: networkId
-        };
+        return feeEstimates;
       } catch (err: unknown) {
         toast.show(t('app.feeEstimatesError'), {
           type: 'warning'
         });
-        return {
-          feeEstimates: undefined,
-          fetchedNetworkId: networkId
-        };
+        return undefined;
       }
     },
     [settings, toast, t]
   );
 
+  //This creates an interval that will be called every x seconds and will
+  //update whatever is set on networkId.current
   useEffect(() => {
     const interval =
-      typeof settings?.BTC_FEE_ESTIMATES_REFRESH_INTERVAL_MS === 'number' &&
+      settings?.BTC_FEE_ESTIMATES_REFRESH_INTERVAL_MS !== undefined &&
       networkId.current !== undefined
         ? setInterval(async () => {
             if (networkId.current) {
-              const { feeEstimates, fetchedNetworkId } =
-                await fetchFeeEstimates(networkId.current);
+              const fetchedNetworkId = networkId.current;
+              const feeEstimates = await fetchFeeEstimates(fetchedNetworkId);
               feeEstimatesByNetworkId[fetchedNetworkId] = feeEstimates;
               if (networkId.current === fetchedNetworkId)
                 setFeeEstimates(feeEstimates);
@@ -82,9 +78,15 @@ export const useFeeEstimates = (initialNetworkId: NetworkId | undefined) => {
           }, settings?.BTC_FEE_ESTIMATES_REFRESH_INTERVAL_MS)
         : undefined;
     return () => {
-      for (const explorer of Object.values(explorers))
-        if (explorer) explorer.close();
+      for (const key of Object.keys(explorers) as Array<NetworkId>) {
+        const explorer = explorers[key];
+        if (explorer) {
+          explorer.close();
+          explorers[key] = undefined;
+        }
+      }
       if (interval !== undefined) clearInterval(interval);
+      networkId.current = undefined; //Avoid pending setFeeEstimates if unmounted
     };
   }, [settings?.BTC_FEE_ESTIMATES_REFRESH_INTERVAL_MS, fetchFeeEstimates]);
 
@@ -92,10 +94,10 @@ export const useFeeEstimates = (initialNetworkId: NetworkId | undefined) => {
     async (newNetworkId: NetworkId) => {
       networkId.current = newNetworkId;
       setFeeEstimates(feeEstimatesByNetworkId[newNetworkId]);
-      const { feeEstimates, fetchedNetworkId } =
-        await fetchFeeEstimates(newNetworkId);
-      feeEstimatesByNetworkId[fetchedNetworkId] = feeEstimates;
-      if (networkId.current === fetchedNetworkId) setFeeEstimates(feeEstimates);
+      const feeEstimates = await fetchFeeEstimates(newNetworkId);
+      feeEstimatesByNetworkId[newNetworkId] = feeEstimates;
+      //networkId.current may be undefined now if unmounted:
+      if (networkId.current === newNetworkId) setFeeEstimates(feeEstimates);
     },
     [fetchFeeEstimates]
   );

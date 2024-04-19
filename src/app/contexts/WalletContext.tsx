@@ -34,8 +34,6 @@ import { useToast } from '../../common/ui';
 import { SERIALIZABLE, deleteAsync } from '../../common/lib/storage';
 import { useTranslation } from 'react-i18next';
 
-import { fetchBtcFiat } from '../lib/btcRates';
-
 import type { DiscoveryInstance } from '@bitcoinerlab/discovery';
 import type { Network } from 'bitcoinjs-lib';
 import type { FeeEstimates } from '../lib/fees';
@@ -62,6 +60,7 @@ import { useStorage } from '../../common/hooks/useStorage';
 import { useSecureStorageInfo } from '../../common/contexts/SecureStorageInfoContext';
 import { useSettings } from '../hooks/useSettings';
 import { useFeeEstimates } from '../hooks/useFeeEstimates';
+import { useBtcFiat } from '../hooks/useBtcFiat';
 
 export const WalletContext: Context<WalletContextType | null> =
   createContext<WalletContextType | null>(null);
@@ -70,7 +69,7 @@ export type WalletContextType = {
   getChangeDescriptor: () => Promise<string>;
   fetchServiceAddress: () => Promise<string>;
   getUnvaultKey: () => Promise<string>;
-  btcFiat: number | null;
+  btcFiat: number | undefined;
   feeEstimates: FeeEstimates | undefined;
   utxosData: UtxosData | undefined;
   signers: Signers | undefined;
@@ -147,13 +146,14 @@ const WalletProviderRaw = ({
   const [signersCipherKey, setSignersCipherKey] = useState<Uint8Array>(); //asynchronously computed from the users password
   const [dataCipherKey, setDataCipherKey] = useState<Uint8Array>(); //asynchronously computed from the signers
 
-  // Local State: btcFiat, feeEstimates & discovery
-  const [btcFiat, setBtcFiat] = useState<number | null>(null);
   const [utxosData, setUtxosData] = useState<UtxosData>(); //TODO: useRef?, NO. esto sí debe ser state porque implica re-renders
   const [syncingBlockchain, setSyncingBlockchain] = useState(false);
+
   const syncBlockchainRunning = useRef(false);
   const fetchP2PVaultsRunning = useRef(false);
   const isDiscoveryConnected = useRef(false);
+
+  const btcFiat = useBtcFiat();
 
   const secureStorageInfo = useSecureStorageInfo();
   const { t } = useTranslation();
@@ -221,7 +221,7 @@ const WalletProviderRaw = ({
     undefined,
     dataCipherKey
   );
-  //getDisconnectedDiscovery uses memoization
+  //getDisconnectedDiscovery uses memoization for all keys except discoveryDataExport
   const discovery = getDisconnectedDiscovery(
     walletId,
     esploraAPI,
@@ -426,39 +426,6 @@ const WalletProviderRaw = ({
     vaults,
     vaultsStatuses
   ]);
-
-  //Sets btcFiat
-  useEffect(() => {
-    let isMounted = true;
-
-    if (
-      (settings?.CURRENCY !== undefined,
-      settings?.BTC_FIAT_REFRESH_INTERVAL_MS !== undefined)
-    ) {
-      const updateBtcFiat = async () => {
-        try {
-          const btcFiat = await fetchBtcFiat(settings.CURRENCY);
-          if (isMounted) setBtcFiat(btcFiat);
-        } catch (err) {
-          toast.show(t('app.btcRatesError', { currency: settings.CURRENCY }), {
-            type: 'warning'
-          });
-        }
-      };
-
-      updateBtcFiat();
-
-      const interval = setInterval(() => {
-        updateBtcFiat();
-      }, settings.BTC_FIAT_REFRESH_INTERVAL_MS);
-
-      return () => {
-        isMounted = false;
-        clearInterval(interval);
-      };
-    }
-    return;
-  }, [t, toast, settings?.CURRENCY, settings?.BTC_FIAT_REFRESH_INTERVAL_MS]);
 
   const getChangeDescriptor = useCallback(async () => {
     if (!network) throw new Error('Network not ready');

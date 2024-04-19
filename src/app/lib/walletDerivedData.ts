@@ -6,14 +6,16 @@ import { NetworkId, networkMapping } from './network';
 import { Vaults, getUtxosData as extractUtxosData } from '../lib/vaults';
 import type { Descriptor } from '@bitcoinerlab/discovery/dist/types';
 import type { Settings } from './settings';
+import memoize from 'lodash.memoize';
 
-/** note that this is not yet connected and also needs to disconnect when
- * not being used anymore
+/**
+ * This does not memoize based on discoveryDataExport since we only care
+ * about this one initially (and then it will change constantly)
  */
-export const getDisconnectedDiscovery = moize(
+export const getDisconnectedDiscovery = memoize(
   (
     walletId: number | undefined,
-    esploraAPI: string | undefined, //TODO: this in fact derives from networkId ????
+    esploraAPI: string | undefined,
     networkId: NetworkId | undefined,
     discoveryDataExport: DiscoveryDataExport | undefined,
     isDiscoveryDataExportSynchd: boolean
@@ -34,10 +36,18 @@ export const getDisconnectedDiscovery = moize(
     } else {
       discovery = new Discovery();
     }
+    console.log('Computing new discovery', {
+      walletId,
+      esploraAPI,
+      networkId,
+      discoveryDataExport,
+      isDiscoveryDataExportSynchd
+    });
     return discovery;
-  }
+  },
+  (walletId, esploraAPI, networkId, isDiscoveryDataExportSynchd) =>
+    `${walletId}-${esploraAPI}-${networkId}-${isDiscoveryDataExportSynchd}`
 );
-
 export const getAPIs = moize(
   (networkId: NetworkId | undefined, settings: Settings | undefined) => {
     let esploraAPI: string | undefined;

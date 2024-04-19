@@ -141,11 +141,11 @@ const FIAT_DECIMALS = 2;
 export const fromSats = (
   amount: number,
   mode: 'Fiat' | SubUnit,
-  btcFiat: number | null
+  btcFiat: number | null | undefined
 ) => {
   if (mode === 'sat') return amount;
   else if (mode === 'Fiat') {
-    if (btcFiat === null)
+    if (typeof btcFiat !== 'number')
       throw new Error(`Currency mode not valid if rates not available`);
     const fiatAmount =
       Math.round((amount * btcFiat * Math.pow(10, FIAT_DECIMALS)) / 1e8) /
@@ -162,7 +162,7 @@ export const fromSats = (
 export const toSats = (
   value: number,
   mode: 'Fiat' | SubUnit,
-  btcFiat: number | null,
+  btcFiat: number | null | undefined,
   /** pass known values, when available so that precission
    * is not loosed*/
   knownSatsValueMap: {
@@ -175,7 +175,7 @@ export const toSats = (
     const knownSatsValue = knownSatsValueMap[value];
     if (knownSatsValue !== undefined) return knownSatsValue;
     else if (mode === 'Fiat') {
-      if (btcFiat === null)
+      if (typeof btcFiat !== 'number')
         throw new Error(`Currency mode not valud if rates not available`);
       return Math.round((1e8 * value) / btcFiat);
     } else if (mode === 'btc') {
