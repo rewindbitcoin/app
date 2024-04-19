@@ -1,74 +1,16 @@
 cuando en la wallet doy a goBack tarda años
 
+Mejor poner un botón explícito de logOff
+
+Si no hago el logOut, entonces comprobar que pasa si introduzco mal el
+password al hacer login en estos dos casos;
+  1) reintento
+  2) voy atras al faller y vuelvo a entrar
+
 OJO! A veces en carteras vaciuas me han salido los 3 botones. Eso es que utxosData
 se cohge de otras carteras lo cual es increiblemente peligroso!!
 
 En useStorage, si paso GLOBAL comprobar que el contexto está instalado.
-
-
--> En realidad solo los useState pueden estar desincronizados
-    -> walletError (y eso tampoco), signersCiperKey, dataCipherKey, newSigners (puede ser ref), discovery (noooo), utxosData, syncingBlockchain
-    -> discovery debe de ser state porque se tiene que esperar a que se conecte y además luego
-    hay que desconectarlo
-
-    -> Lo cual me hace pensar que si uso deriver data solamente, entonces el logOut no sea
-    necesario?
-      -> Básicamente lo que busco con el logOut es que el password y las derivedKeys se re-prompteen.
-      Pero es lo unico
-
-
-  // Local State: btcFiat, feeEstimates & discovery
-  const [btcFiat, setBtcFiat] = useState<number | null>(null);
-  const [feeEstimates, setFeeEstimates] = useState<Record<
-    string,
-    number
-  > | null>(null);
-  const [discovery, setDiscovery] = useState<DiscoveryInstance | null>(null); //TODO: useRef?
-  const [utxosData, setUtxosData] = useState<UtxosData>();
-  -> Deberían ser datos derivados?
-  -> El setUtxosData, ... el syncBlockchain, ... cualquier set tiene que verificar
-  a q walletId hacía referencia y no hacer el setUtxosData, setDiscoveryDataExport y cualquier
-  set de un useSorage que se ha hecho de forma asíncrona
-  -> Los useRef tambien hay q resetearlos en el logOut, useRef tambien tienen cleanUp functions
-  -> Los sets no deberían de producirse dentro de los useCallback ?
-    -> dentro de cada useCallback inicializar un walletId, luego ver donde tento
-    awaits, luego, despues de cada await verificar si wallet.id === initialWalletId
-    El problema que aun queda es que los setUtxosData que vienen de useStorage sonb asincronos
-    TENGO QUE TENER UNA VARIABLE QUE SEA writing que no me permita hacer un cambio 
-    de onWallet si wriring === true
-    quizá useStorage pueda devolver "writing":  true/false
-
-    MAS FACIL pasar a  useStorage key 'string' o getKey() => string
-    la ventaja de getCurrentKey es que se comprueba siempre!!!
-    La primera key se guardará dentro del useSorage y luego se irá llamando
-    a getCurrentKey y se hará throw si casca
-      -> Recordar que const getSignersKey = useCallback(()=>`SIGNERS_${walletId}`, [walletId])
-
-    opcionalmente (, .... getCurrentKey)
-    donde getCurrentKey devuelve la actual
-
-    -> Añadir opcionalmente una key para que se verifique y throw si error en setStorageValue(value, key),
-      deleteValue(key),
-      clearCache(key),
-      { isSynchd, errorCode, 
-      //add:
-      isSynchdFunc(key), errorCodeFunc(key)}
-
-      O el logOut tiene qiue esperar a quje no se esté escribiendo nada?
-        -> En cualquier caso el logOut debe de tener en cuenta lo de arriba
-
-        O esto:
-          const safeClearSignersCache = (() => {
-    const creationWalletId = walletId;
-    return () => {
-      if (walletId !== creationWalletId)
-        throw new Error(
-          `Unsafe clearSignersCache: was crated with ${creationWalletId}, was tring to clear ${walletId}`
-        );
-      return clearSignersCache();
-    };
-  })();
-
 
 
 The padding bottom for Wallets and WalletHome should be larger thatn the
@@ -89,6 +31,7 @@ tst idb + derived seed (encrypt app data)
 Test como se ve la App con dark mode activado !!!
   https://stackoverflow.com/questions/57175226/how-to-disable-night-mode-in-my-application-even-if-night-mode-is-enable-in-andr/64339016#64339016
 
+IMPORTANT!!!
 The Password when is re-prompted should show a "Bad Password" or something
   -> Además debe de borrarme el texto antiguo? wuizas no
 
