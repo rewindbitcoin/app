@@ -1,9 +1,42 @@
 import moize from 'moize';
-import type { DiscoveryInstance } from '@bitcoinerlab/discovery';
+export type DiscoveryDataExport = ReturnType<DiscoveryInstance['export']>;
+import { EsploraExplorer } from '@bitcoinerlab/explorer';
+import { DiscoveryFactory, DiscoveryInstance } from '@bitcoinerlab/discovery';
 import { NetworkId, networkMapping } from './network';
 import { Vaults, getUtxosData as extractUtxosData } from '../lib/vaults';
 import type { Descriptor } from '@bitcoinerlab/discovery/dist/types';
 import type { Settings } from './settings';
+
+/** note that this is not yet connected and also needs to disconnect when
+ * not being used anymore
+ */
+export const getDisconnectedDiscovery = moize(
+  (
+    walletId: number | undefined,
+    esploraAPI: string | undefined, //TODO: this in fact derives from networkId ????
+    networkId: NetworkId | undefined,
+    discoveryDataExport: DiscoveryDataExport | undefined,
+    isDiscoveryDataExportSynchd: boolean
+  ) => {
+    if (
+      !isDiscoveryDataExportSynchd ||
+      !esploraAPI ||
+      walletId === undefined ||
+      !networkId
+    )
+      return undefined;
+    const explorer = new EsploraExplorer({ url: esploraAPI });
+    const network = networkId && networkMapping[networkId];
+    const { Discovery } = DiscoveryFactory(explorer, network);
+    let discovery: DiscoveryInstance;
+    if (discoveryDataExport) {
+      discovery = new Discovery({ imported: discoveryDataExport });
+    } else {
+      discovery = new Discovery();
+    }
+    return discovery;
+  }
+);
 
 export const getAPIs = moize(
   (networkId: NetworkId | undefined, settings: Settings | undefined) => {

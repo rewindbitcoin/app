@@ -12,7 +12,7 @@ import {
   type UtxosData
 } from '../lib/vaults';
 import type { AccountNames, Signers, Wallets } from '../lib/wallets';
-import { getAPIs } from '../lib/walletDerivedData';
+import { getAPIs, getDisconnectedDiscovery } from '../lib/walletDerivedData';
 import { networkMapping, NetworkId } from '../lib/network';
 import {
   createReceiveDescriptor,
@@ -36,8 +36,7 @@ import { useTranslation } from 'react-i18next';
 
 import { fetchBtcFiat } from '../lib/btcRates';
 
-import { EsploraExplorer } from '@bitcoinerlab/explorer';
-import { DiscoveryFactory, DiscoveryInstance } from '@bitcoinerlab/discovery';
+import type { DiscoveryInstance } from '@bitcoinerlab/discovery';
 import type { Network } from 'bitcoinjs-lib';
 import type { FeeEstimates } from '../lib/fees';
 import {
@@ -141,17 +140,20 @@ const WalletProviderRaw = ({
   children: ReactNode;
   newWalletSigners?: Signers;
 }) => {
+  //All state are async info we got from the user or the network
   const [wallet, setWallet] = useState<Wallet>();
-  const [signersCipherKey, setSignersCipherKey] = useState<Uint8Array>();
-  const [dataCipherKey, setDataCipherKey] = useState<Uint8Array>();
   const [newSigners, setNewSigners] = useState<Signers>();
+
+  const [signersCipherKey, setSignersCipherKey] = useState<Uint8Array>(); //asynchronously computed from the users password
+  const [dataCipherKey, setDataCipherKey] = useState<Uint8Array>(); //asynchronously computed from the signers
+
   // Local State: btcFiat, feeEstimates & discovery
   const [btcFiat, setBtcFiat] = useState<number | null>(null);
-  const [discovery, setDiscovery] = useState<DiscoveryInstance | null>(null); //TODO: useRef?
   const [utxosData, setUtxosData] = useState<UtxosData>(); //TODO: useRef?, NO. esto sí debe ser state porque implica re-renders
   const [syncingBlockchain, setSyncingBlockchain] = useState(false);
   const syncBlockchainRunning = useRef(false);
   const fetchP2PVaultsRunning = useRef(false);
+  const isDiscoveryConnected = useRef(false);
 
   const secureStorageInfo = useSecureStorageInfo();
   const { t } = useTranslation();
@@ -178,6 +180,7 @@ const WalletProviderRaw = ({
     useFeeEstimates(wallet?.networkId);
 
   const { settings, settingsStorageStatus } = useSettings();
+
   const { esploraAPI, serviceAddressAPI, vaultsAPI, vaultsSecondaryAPI } =
     getAPIs(networkId, settings);
   const [wallets, setWallets, , , walletsStorageStatus] = useStorage<Wallets>(
@@ -218,7 +221,20 @@ const WalletProviderRaw = ({
     undefined,
     dataCipherKey
   );
-  const isDiscoveryDataExportSynchd = discoveryStorageStatus.isSynchd;
+  //getDisconnectedDiscovery uses memoization
+  const discovery = getDisconnectedDiscovery(
+    walletId,
+    esploraAPI,
+    networkId,
+    discoveryDataExport,
+    discoveryStorageStatus.isSynchd
+  );
+  const getConnectedDiscovery = useCallback(async () => {
+    if (!discovery) return discovery;
+    if (!isDiscoveryConnected.current) await discovery.getExplorer().connect();
+    isDiscoveryConnected.current = true;
+    return discovery;
+  }, [discovery]);
 
   const [vaults, setVaults, , clearVaultsCache, vaultsStorageStatus] =
     useStorage<Vaults>(
@@ -281,6 +297,8 @@ const WalletProviderRaw = ({
   });
 
   const logOut = useCallback(() => {
+    if (isDiscoveryConnected.current) discovery?.getExplorer().close();
+    isDiscoveryConnected.current = false;
     unstable_batchedUpdates(() => {
       // Clear cache, so that data must be read from disk again for the walletId.
       // This forces cipherKeys to be evaluated again to decrypt from disk
@@ -290,11 +308,11 @@ const WalletProviderRaw = ({
       clearVaultsStatusesCache();
       clearDiscoveryCache();
       clearAccountNamesCache();
-      setDiscovery(null);
       setUtxosData(undefined);
       setWallet(undefined);
     });
   }, [
+    discovery,
     clearSignersCache,
     clearVaultsCache,
     clearVaultsStatusesCache,
@@ -370,50 +388,10 @@ const WalletProviderRaw = ({
 
   const toast = useToast();
 
-  useEffect(() => {
-    //Done only once (!discovery) per walletId
-    if (!discovery && networkId && esploraAPI && isDiscoveryDataExportSynchd) {
-      const network = networkMapping[networkId];
-      let isMounted = true;
-      let isExplorerConnected = false;
-      const explorer = new EsploraExplorer({ url: esploraAPI });
-      const { Discovery } = DiscoveryFactory(explorer, network);
-
-      (async function () {
-        const discoveryData = discoveryDataExport;
-        let discovery: DiscoveryInstance;
-        if (discoveryData) {
-          discovery = new Discovery({ imported: discoveryData });
-        } else {
-          discovery = new Discovery();
-        }
-        await explorer.connect();
-        isExplorerConnected = true;
-        if (isMounted) setDiscovery(discovery);
-      })();
-
-      return () => {
-        isMounted = false;
-        if (isExplorerConnected) {
-          (async function () {
-            await explorer.close();
-            isExplorerConnected = false;
-          })();
-        }
-      };
-    }
-    return;
-  }, [
-    networkId,
-    esploraAPI,
-    discoveryDataExport,
-    isDiscoveryDataExportSynchd,
-    discovery
-  ]);
-
   //Tries to initialize utxosData ASAP (only if not set)
   useEffect(() => {
     const setInitialUtxosData = async () => {
+      const discovery = await getConnectedDiscovery();
       if (
         !utxosData &&
         vaults &&
@@ -440,7 +418,14 @@ const WalletProviderRaw = ({
       }
     };
     setInitialUtxosData();
-  }, [discovery, network, signers, utxosData, vaults, vaultsStatuses]);
+  }, [
+    getConnectedDiscovery,
+    network,
+    signers,
+    utxosData,
+    vaults,
+    vaultsStatuses
+  ]);
 
   //Sets btcFiat
   useEffect(() => {
@@ -478,6 +463,7 @@ const WalletProviderRaw = ({
   const getChangeDescriptor = useCallback(async () => {
     if (!network) throw new Error('Network not ready');
     if (!signers) throw new Error('Signers not ready');
+    const discovery = await getConnectedDiscovery();
     if (!discovery) throw new Error('Discovery not ready');
     const signer = signers[0];
     if (!signer) throw new Error('signer unavailable');
@@ -493,7 +479,7 @@ const WalletProviderRaw = ({
         })
         .toString()
     );
-  }, [discovery, network, signers]);
+  }, [getConnectedDiscovery, network, signers]);
   const getUnvaultKey = useCallback(async () => {
     if (!network) throw new Error('Network not ready');
     if (!signers) throw new Error('Signers not ready');
@@ -579,6 +565,7 @@ const WalletProviderRaw = ({
    * @returns A promise indicating the completion of the synchronization process.
    */
   const syncBlockchain = useCallback(async () => {
+    const discovery = await getConnectedDiscovery();
     if (
       network &&
       settings?.GAP_LIMIT !== undefined &&
@@ -685,7 +672,7 @@ const WalletProviderRaw = ({
     setDiscoveryDataExport,
     t,
     toast,
-    discovery,
+    getConnectedDiscovery,
     setVaults,
     setVaultsStatuses,
     vaults,
