@@ -285,6 +285,15 @@ const WalletProviderRaw = ({
     vaultsStatusesStorageStatus.errorCode === false &&
     accountNamesStorageStatus.errorCode === false;
 
+  useEffect(() => {
+    if (isReady) {
+      if (!wallet) throw new Error('wallet should be set when ready');
+      if (!wallets) throw new Error('wallets should be set when ready');
+      if (!shallowEqualObjects(wallet, wallets[wallet.walletId]))
+        setWallets({ ...wallets, [wallet.walletId]: wallet });
+    }
+  }, [setWallets, wallets, wallet, isReady]);
+
   const walletError = getWalletError({
     isNewWallet: !!newSigners,
     settingsErrorCode: settingsStorageStatus.errorCode,
@@ -339,15 +348,17 @@ const WalletProviderRaw = ({
         //Make sure we don't have values from previous app installs using the same id?
         const walletId = walletDst.walletId;
         const authenticationPrompt = t('app.secureStorageAuthenticationPrompt');
-        await deleteAsync(
-          `SIGNERS_${walletId}`,
-          walletDst.signersStorageEngine,
-          authenticationPrompt
-        );
-        await deleteAsync(`DISCOVERY_${walletId}`);
-        await deleteAsync(`VAULTS_${walletId}`);
-        await deleteAsync(`VAULTS_STATUSES_${walletId}`);
-        await deleteAsync(`ACCOUNT_NAMES_${walletId}`);
+        await Promise.all([
+          deleteAsync(
+            `SIGNERS_${walletId}`,
+            walletDst.signersStorageEngine,
+            authenticationPrompt
+          ),
+          deleteAsync(`DISCOVERY_${walletId}`),
+          deleteAsync(`VAULTS_${walletId}`),
+          deleteAsync(`VAULTS_STATUSES_${walletId}`),
+          deleteAsync(`ACCOUNT_NAMES_${walletId}`)
+        ]);
       }
       //React 18 NOT on the new Architecture behaves as React 17:
       unstable_batchedUpdates(() => {
@@ -376,15 +387,6 @@ const WalletProviderRaw = ({
       fetchDataCipherKey();
     }
   }, [signers, network, wallet?.encryption]);
-
-  useEffect(() => {
-    if (isReady) {
-      if (!wallet) throw new Error('wallet should be set when ready');
-      if (!wallets) throw new Error('wallets should be set when ready');
-      if (!shallowEqualObjects(wallet, wallets[wallet.walletId]))
-        setWallets({ ...wallets, [wallet.walletId]: wallet });
-    }
-  }, [setWallets, wallets, wallet, isReady]);
 
   const toast = useToast();
 
@@ -608,10 +610,7 @@ const WalletProviderRaw = ({
         //Save to disk. Saving is async, but it's ok not awaiting since all this
         //data can be re-created any time by calling again syncBlockchain
 
-        const start = performance.now(); // Start timing
         const exportedData = discovery.export();
-        const end = performance.now(); // Start timing
-        console.log(`Discovery export took:  ${(end - start) / 1000} seconds`);
         setDiscoveryDataExport(exportedData);
         setUtxosData(utxosData);
         //Update them in state only if they changed (we muteted them)

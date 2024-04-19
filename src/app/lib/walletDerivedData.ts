@@ -36,13 +36,6 @@ export const getDisconnectedDiscovery = memoize(
     } else {
       discovery = new Discovery();
     }
-    console.log('Computing new discovery', {
-      walletId,
-      esploraAPI,
-      networkId,
-      discoveryDataExport,
-      isDiscoveryDataExportSynchd
-    });
     return discovery;
   },
   (walletId, esploraAPI, networkId, isDiscoveryDataExportSynchd) =>
