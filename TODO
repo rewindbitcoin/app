@@ -1,11 +1,35 @@
 cuando en la wallet doy a goBack tarda años
 
+Botonera sale mal, se puede reprpducir haciendo camvios rapidos Wallet 2-Wallet 3 en iphpne
+
 Mejor poner un botón explícito de logOff
 
-Si no hago el logOut, entonces comprobar que pasa si introduzco mal el
-password al hacer login en estos dos casos;
-  1) reintento
-  2) voy atras al faller y vuelvo a entrar
+los useRef son una mierda. se pueden quitar?
+-> De hecho esta logica está mal ya que los useRef pueden evitar una descarga
+que debería ser correcta para otro contexto:
+  por ejemploi: wallet1 -> wallet2 -> wallet1
+    si en el primer wallet1 ajun no había acabado de pillar los vaults o de sincronizar
+    entonces cuando haga el ultimo wallet1 no se inciará
+  Aplica a syncBlockchain tambien
+
+  Además para que el useRef de p2pVaults si esta dentro del syncBlockchain!
+    De hecho fetchP2PVaults debería ser un moize fuera de aquí con una cache
+    de 20 o así para unas cuantas wallets...
+
+quizá sería mas logico tener un discovery state en lugar de la mierda q tengo ahora
+
+fetchServiceAddress no deberia estar en context no me jodas. Eso es 
+
+
+setWallet no deberíua ser ahora setWalletId?
+  Y usar wallets[walletId] si acaso?
+
+Crear un hook useWallet y usar un setWallet en lugar de onWallet?
+
+
+Tengo 2 logicas para setUtxosData (una para ir rapido, pero es mierder)
+
+
 
 OJO! A veces en carteras vaciuas me han salido los 3 botones. Eso es que utxosData
 se cohge de otras carteras lo cual es increiblemente peligroso!!

@@ -107,6 +107,44 @@ export const fetchP2PVaultIds = async ({
   throw new Error(`Reached MAX_VAULT_CHECKS`);
 };
 
+export async function fetchP2PVaults({
+  signer,
+  networkId,
+  vaultsAPI,
+  vaults
+}: {
+  signer: Signer;
+  networkId: NetworkId;
+  vaultsAPI: string;
+  vaults: Vaults;
+}): Promise<Vaults> {
+  const { existingVaults: p2pVaultIds } = await fetchP2PVaultIds({
+    signer,
+    networkId,
+    vaults,
+    vaultsAPI
+  });
+
+  const p2pVaults: Vaults = {};
+  for (const { vaultId, vaultPath } of p2pVaultIds) {
+    const vault = vaults[vaultId];
+    if (!vault) {
+      const fetchedVault = await fetchP2PVault({
+        vaultId,
+        vaultPath,
+        signer,
+        vaultsAPI,
+        networkId
+      });
+      p2pVaults[vaultId] = fetchedVault.vault;
+    } else {
+      p2pVaults[vaultId] = vault;
+    }
+  }
+
+  return p2pVaults;
+}
+
 export const getDataCipherKey = async ({
   signer,
   network

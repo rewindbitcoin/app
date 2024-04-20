@@ -41,6 +41,42 @@ export const getDisconnectedDiscovery = memoize(
   (walletId, esploraAPI, networkId, isDiscoveryDataExportSynchd) =>
     `${walletId}-${esploraAPI}-${networkId}-${isDiscoveryDataExportSynchd}`
 );
+
+/**
+ * Attempts to establish a connection using a DiscoveryInstance's explorer.
+ * This function is designed to safely ensure that the explorer is connected
+ * without throwing errors related to already established connections.
+ *
+ * If the `connect` method throws an error stating that the client is already
+ * connected, this error is silently ignored to allow the application to proceed
+ * as if the connection were successfully established. This is useful in scenarios
+ * where multiple parts of an application may attempt to connect simultaneously
+ * without coordination.
+ *
+ * Other types of errors, such as network issues or configuration problems, are
+ * considered critical and are re-thrown to be handled by the calling function.
+ */
+export const ensureConnected = async (
+  discovery: DiscoveryInstance
+): Promise<DiscoveryInstance> => {
+  try {
+    // Attempt to connect the explorer
+    await discovery.getExplorer().connect();
+    return discovery;
+  } catch (error: unknown) {
+    if (
+      error instanceof Error &&
+      error.message === 'Client already connected.'
+    ) {
+      // Ignore the error if the client is already connected
+      return discovery;
+    } else {
+      // Re-throw all other errors
+      throw error;
+    }
+  }
+};
+
 export const getAPIs = moize(
   (networkId: NetworkId | undefined, settings: Settings | undefined) => {
     let esploraAPI: string | undefined;

@@ -1,7 +1,7 @@
 // TODO: very imporant to only allow Vaulting funds with 1 confirmatin at least (make this a setting)
 import { Network, Psbt, Transaction, address, crypto } from 'bitcoinjs-lib';
 import memoize from 'lodash.memoize';
-import type { Signer } from './wallets';
+import type { Signer, Signers } from './wallets';
 import moize from 'moize';
 
 import * as secp256k1 from '@bitcoinerlab/secp256k1';
@@ -18,7 +18,9 @@ import {
   createColdDescriptor,
   createServiceDescriptor,
   DUMMY_PUBKEY,
-  DUMMY_PUBKEY_2
+  DUMMY_PUBKEY_2,
+  createChangeDescriptor,
+  createReceiveDescriptor
 } from './vaultDescriptors';
 
 import { feeRateSampling } from './fees';
@@ -873,3 +875,28 @@ const selectVaultUtxosDataMemo = ({
     serviceFeeRate
   });
 export { selectVaultUtxosDataMemo as selectVaultUtxosData };
+
+export const fetchDescriptors = async (
+  vaults: Vaults,
+  vaultsStatuses: VaultsStatuses,
+  signers: Signers,
+  network: Network,
+  discovery: DiscoveryInstance
+) => {
+  const signer = signers[0];
+  if (!signer) throw new Error('signer unavailable');
+  const changeDescriptorRanged = await createChangeDescriptor({
+    signer,
+    network
+  });
+  const descriptors = [
+    await createReceiveDescriptor({ signer, network }),
+    changeDescriptorRanged,
+    ...getSpendableTriggerDescriptors(
+      vaults,
+      vaultsStatuses,
+      await discovery.getExplorer().fetchBlockHeight()
+    )
+  ];
+  return descriptors;
+};
