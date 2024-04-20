@@ -28,7 +28,6 @@ import React, {
   ReactNode,
   useEffect,
   useState,
-  useRef,
   useCallback
 } from 'react';
 import { shallowEqualObjects, shallowEqualArrays } from 'shallow-equal';
@@ -82,7 +81,7 @@ export type WalletContextType = {
       | 'USER_CANCEL'
       | 'UNKNOWN_ERROR'
   ) => Promise<boolean>;
-  syncBlockchain: () => Promise<void>;
+  syncBlockchain: () => void;
   syncingBlockchain: boolean;
   vaultsAPI: string | undefined;
   vaultsSecondaryAPI: string | undefined;
@@ -128,8 +127,6 @@ const WalletProviderRaw = ({
   const [utxosData, setUtxosData, clearUtxosData] = useWalletState<UtxosData>();
   const [syncingBlockchain, setSyncingBlockchain, clearSyncihgBlockchain] =
     useWalletState<boolean>();
-
-  const syncBlockchainRunning = useRef<Record<number, boolean>>({});
 
   const btcFiat = useBtcFiat();
 
@@ -184,14 +181,6 @@ const WalletProviderRaw = ({
     walletId !== undefined &&
     signersStorageStatus.errorCode === false &&
     (wallet?.encryption !== 'SEED_DERIVED' || dataCipherKey[walletId]);
-  console.log({
-    initData,
-    walletId,
-    errorCode: signersStorageStatus.errorCode,
-    encryption: wallet?.encryption,
-    dataCipherKey:
-      walletId === undefined ? 'index undefined' : dataCipherKey[walletId]
-  });
 
   const [
     discoveryDataExport,
@@ -286,8 +275,6 @@ const WalletProviderRaw = ({
         ?.getExplorer()
         .close()
         .catch(() => {}); //Swallow any errors.
-      //Clear refs:
-      syncBlockchainRunning.current[walletId] = false;
       unstable_batchedUpdates(() => {
         // Clear cache, so that data must be read from disk again for the walletId.
         // This forces cipherKeys to be evaluated again to decrypt from disk
@@ -507,19 +494,9 @@ const WalletProviderRaw = ({
   }, [serviceAddressAPI]);
 
   /**
-   * Initiates the blockchain synchronization process. This function uses
-   * both a reference (`syncBlockchainRunning`) and state (`syncingBlockchain`).
-   * The state is updated for user feedback purposes, but due to the asynchronous
-   * nature of state updates, relying solely on `syncingBlockchain` for flow control
-   * could lead to multiple simultaneous initiations of the synchronization process.
-   * To prevent this, `syncBlockchainRunning` is used as a synchronous flag to
-   * ensure that only one synchronization process runs at a time. The function
-   * returns a promise to indicate completion, allowing callers to await the
-   * end of the synchronization process.
-   *
-   * @returns A promise indicating the completion of the synchronization process.
+   * Initiates the blockchain synchronization process.
    */
-  const syncBlockchain = useCallback(async () => {
+  const sync = useCallback(async () => {
     if (walletId !== undefined) {
       const discovery =
         initialDiscovery && (await ensureConnected(initialDiscovery));
@@ -542,9 +519,6 @@ const WalletProviderRaw = ({
         vaultsAPI
       ) {
         const network = networkId && networkMapping[networkId];
-        if (syncBlockchainRunning.current[walletId] === true) return;
-        syncBlockchainRunning.current[walletId] = true;
-        setSyncingBlockchain(walletId, true);
 
         try {
           //First get updatedVaults & updatedVaultsStatuses:
@@ -592,7 +566,10 @@ const WalletProviderRaw = ({
             network,
             discovery
           );
-          await discovery.fetch({ descriptors, gapLimit: settings.GAP_LIMIT });
+          await discovery.fetch({
+            descriptors,
+            gapLimit: settings.GAP_LIMIT
+          });
           //If utxos don't change, then getUtxosAndBalance return the same reference
           //even if descriptors reference is different
           const { utxos } = discovery.getUtxosAndBalance({ descriptors });
@@ -624,7 +601,7 @@ const WalletProviderRaw = ({
           });
           console.error(errorMessage);
         } finally {
-          syncBlockchainRunning.current[walletId] = false;
+          console.log(`setSyncingBlockchain ${walletId} false`);
           setSyncingBlockchain(walletId, false);
         }
       }
@@ -647,10 +624,22 @@ const WalletProviderRaw = ({
     vaultsAPI,
     settings?.GAP_LIMIT
   ]);
-
+  //When syncingBlockchain is set then trigger sync() which does all the
+  //syncing task, sync() will set back syncingBlockchain[walletId] back to false
+  //syncingBlockchain is set to true either by the user calling to
+  //syncingBlockchain or automatically in a useEffect when walletId changes
   useEffect(() => {
-    syncBlockchain();
-  }, [syncBlockchain]);
+    if (walletId !== undefined && syncingBlockchain[walletId]) sync();
+  }, [syncingBlockchain, walletId, sync]);
+  //This function is passed in the context so that users can sync
+  const syncBlockchain = useCallback(() => {
+    if (walletId !== undefined) setSyncingBlockchain(walletId, true);
+  }, [walletId, setSyncingBlockchain]);
+  //Automatically set syncingBlockchain to true on new walletId: auto sync
+  //on new wallet
+  useEffect(() => {
+    if (walletId !== undefined) setSyncingBlockchain(walletId, true);
+  }, [walletId, setSyncingBlockchain]);
 
   const processCreatedVault = useCallback(
     async (
