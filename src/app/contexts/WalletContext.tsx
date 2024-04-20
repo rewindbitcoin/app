@@ -9,7 +9,7 @@ import {
   type Vaults,
   type VaultsStatuses,
   type UtxosData,
-  fetchDescriptors
+  getDescriptors
 } from '../lib/vaults';
 import type { AccountNames, Signers, Wallets } from '../lib/wallets';
 import {
@@ -112,8 +112,6 @@ const WalletProviderRaw = ({
   children: ReactNode;
   newWalletSigners?: Signers;
 }) => {
-  //All state are async info we got from the user or the network
-  //TODO: convert to setWalletId
   const [wallet, setWallet] = useState<Wallet>();
   const walletId = wallet?.walletId;
   const [newSigners, setNewSigners, clearNewSigners] =
@@ -316,8 +314,7 @@ const WalletProviderRaw = ({
     }: {
       wallet: Wallet;
       /**
-       * This is the mnemonic
-       * set it when creating new wallets
+       * This is the mnemonic, it's set only when creating new wallets
        */
       newSigners?: Signers;
       /**
@@ -345,7 +342,7 @@ const WalletProviderRaw = ({
       }
       //React 18 NOT on the new Architecture behaves as React 17:
       unstable_batchedUpdates(() => {
-        //logOut(); //Log out from previous wallet (if needed)
+        //logOut(); //Log out from previous wallet
         setWallet(walletDst);
         if (walletId !== undefined) {
           setSignersCipherKey(walletId, signersCipherKey);
@@ -359,7 +356,6 @@ const WalletProviderRaw = ({
       setFeeEstimatesNetworkId,
       walletId,
       setNewSigners,
-      //setDataCipherKey,
       setSignersCipherKey
     ]
   );
@@ -386,44 +382,40 @@ const WalletProviderRaw = ({
 
   const toast = useToast();
 
-  //Tries to initialize utxosData ASAP (only if not set)
-  const utxosDataForWalletId =
-    walletId === undefined ? undefined : utxosData[walletId];
+  //Tries to initialize utxosData from the discovery object we got from disk
+  //ASAP (only if not set)
   useEffect(() => {
     const setInitialUtxosData = async () => {
-      if (walletId !== undefined) {
-        const discovery =
-          initialDiscovery && (await ensureConnected(initialDiscovery));
-        if (
-          !utxosDataForWalletId &&
-          vaults &&
-          vaultsStatuses &&
-          signers &&
-          network &&
+      const discovery =
+        initialDiscovery && (await ensureConnected(initialDiscovery));
+      if (
+        walletId !== undefined &&
+        !utxosData[walletId] &&
+        vaults &&
+        vaultsStatuses &&
+        signers &&
+        network &&
+        discovery
+      ) {
+        const descriptors = await getDescriptors(
+          vaults,
+          vaultsStatuses,
+          signers,
+          network,
           discovery
+        );
+        //Make sure they are fetched already:
+        if (
+          descriptors.every(descriptor => discovery.whenFetched({ descriptor }))
         ) {
-          const descriptors = await fetchDescriptors(
+          const { utxos } = discovery.getUtxosAndBalance({ descriptors });
+          const walletUtxosData = getUtxosData(
+            utxos,
             vaults,
-            vaultsStatuses,
-            signers,
             network,
             discovery
           );
-          //Make sure they are fetched already:
-          if (
-            descriptors.every(descriptor =>
-              discovery.whenFetched({ descriptor })
-            )
-          ) {
-            const { utxos } = discovery.getUtxosAndBalance({ descriptors });
-            const walletUtxosData = getUtxosData(
-              utxos,
-              vaults,
-              network,
-              discovery
-            );
-            setUtxosData(walletId, walletUtxosData);
-          }
+          setUtxosData(walletId, walletUtxosData);
         }
       }
     };
@@ -431,10 +423,10 @@ const WalletProviderRaw = ({
   }, [
     setUtxosData,
     walletId,
+    utxosData,
     initialDiscovery,
     network,
     signers,
-    utxosDataForWalletId,
     vaults,
     vaultsStatuses
   ]);
@@ -459,6 +451,7 @@ const WalletProviderRaw = ({
         .toString()
     );
   }, [initialDiscovery, network, signers]);
+
   const getUnvaultKey = useCallback(async () => {
     if (!network) throw new Error('Network not ready');
     if (!signers) throw new Error('Signers not ready');
@@ -559,7 +552,7 @@ const WalletProviderRaw = ({
           });
 
           //Now get utxosData
-          const descriptors = await fetchDescriptors(
+          const descriptors = await getDescriptors(
             updatedVaults,
             updatedVaultsStatuses,
             signers,
@@ -601,7 +594,6 @@ const WalletProviderRaw = ({
           });
           console.error(errorMessage);
         } finally {
-          console.log(`setSyncingBlockchain ${walletId} false`);
           setSyncingBlockchain(walletId, false);
         }
       }
@@ -733,7 +725,6 @@ const WalletProviderRaw = ({
     logOut,
     onWallet
   };
-  console.log('WalletContext Render');
   return (
     <WalletContext.Provider value={contextValue}>
       {children}

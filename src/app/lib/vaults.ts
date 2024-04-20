@@ -876,7 +876,7 @@ const selectVaultUtxosDataMemo = ({
   });
 export { selectVaultUtxosDataMemo as selectVaultUtxosData };
 
-export const fetchDescriptors = async (
+export const getDescriptors = async (
   vaults: Vaults,
   vaultsStatuses: VaultsStatuses,
   signers: Signers,
