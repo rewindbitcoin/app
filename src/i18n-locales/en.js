@@ -91,7 +91,8 @@ To resolve this issue, please try accessing your wallet again. If the problem\
 If you need further assistance, please contact ThunderDen Support.`
     },
     vault: {
-      delegateButton: 'Delegate'
+      delegateButton: 'Delegate',
+      triggerDefreezeButton: 'Init Defreeze'
     }
   },
   walletHome: {

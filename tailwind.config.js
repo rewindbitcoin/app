@@ -8,8 +8,10 @@ module.exports = {
       colors: {
         backgroundDefault: '#f2f2f2',
         // Create a custom color that uses a CSS custom value
-        primary: 'rgb(var(--color-primary) / <alpha-value>)',
-        'primary-dark': 'rgb(var(--color-primary-dark) / 1)',
+        primary: 'rgb(var(--color-primary))',
+        'primary-dark': 'rgb(var(--color-primary-dark))',
+        'primary-light': 'rgb(var(--color-primary-light))',
+        'primary-light-hover': 'rgb(var(--color-primary-light-hover))',
         notification: 'rgb(255, 59, 48)'
       },
       screens: {
@@ -25,7 +27,9 @@ module.exports = {
       addBase({
         ':root': {
           '--color-primary': '0 122 255',
-          '--color-primary-dark': '0 61 127'
+          '--color-primary-dark': '0 61 127',
+          '--color-primary-light': '217 230 242',
+          '--color-primary-light-hover': '195 207 218'
         }
       })
   ]

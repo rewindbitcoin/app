@@ -237,6 +237,8 @@ const WalletHomeScreen = () => {
     () => ({
       //flexGrow: 1, //grow vertically to 100% and center child
       //justifyContent: 'center',
+      paddingTop: 16,
+      paddingBottom: 120,
       alignItems: 'center'
     }),
     []
@@ -253,13 +255,15 @@ const WalletHomeScreen = () => {
       //the layout was not ready and strange flickers may occur. Note that
       //the syncingBlockchain is true initially on many ocassions and the
       //transition was not being shown
-      isMounted && (
+      isMounted ? (
         <RefreshControl
           tintColor={lighten(0.25, theme.colors.primary)}
           colors={refreshColors}
           refreshing={syncingBlockchain}
           onRefresh={syncBlockchain}
         />
+      ) : (
+        <></>
       ),
     [
       isMounted,
@@ -276,15 +280,20 @@ const WalletHomeScreen = () => {
     </View>
   ) : (
     <>
-      <Animated.View style={headerAnimatedStyle} className="bg-red-100">
+      <Animated.View style={headerAnimatedStyle} className="overflow-hidden">
         <View onLayout={onHeaderLayout}>
           <View>
-            <Text className="h-52">My stuff</Text>
+            <Text>{`Wallet ${JSON.stringify(wallet, null, 2)}`}</Text>
           </View>
         </View>
       </Animated.View>
-      <View className="z-10">
-        <Text className="h-10">My nav</Text>
+      <View className="flex-row gap-6 px-6 border-b border-b-slate-300">
+        <View className="py-4 border-b-primary border-b-2">
+          <Text className="font-bold text-primary-dark">Vaults</Text>
+        </View>
+        <View className="py-4 border-b-transparent border-b-2">
+          <Text className="font-bold text-slate-500">Transactions</Text>
+        </View>
       </View>
 
       {
@@ -301,13 +310,12 @@ const WalletHomeScreen = () => {
       }
       <KeyboardAwareAnimatedScrollView
         keyboardShouldPersistTaps="handled"
-        contentContainerStyle={contentContainerStyle}
         refreshControl={refreshControl}
+        contentContainerStyle={contentContainerStyle}
         onScroll={scrollHandler}
         onContentSizeChange={handleContentSizeChange}
         onLayout={handleContainerLayout}
       >
-        <Text>{`Wallet ${JSON.stringify(wallet, null, 2)}`}</Text>
         {vaults && <Vaults vaults={vaults} />}
         <Button
           title={t('walletHome.backupVaults')}

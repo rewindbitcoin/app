@@ -3,14 +3,14 @@ import * as RN from 'react-native';
 import { useTheme } from '../theme';
 
 interface ButtonProps extends RN.PressableProps {
-  mode?: 'default' | 'native' | 'text';
+  mode?: 'primary' | 'native' | 'secondary' | 'text';
   onPress?: ((event: RN.GestureResponderEvent) => void) | undefined;
   disabled?: boolean;
 }
 
 const Button: React.FC<ButtonProps> = ({
   disabled = false,
-  mode = 'default',
+  mode = 'primary',
   children,
   ...props
 }) => {
@@ -29,7 +29,7 @@ const Button: React.FC<ButtonProps> = ({
         {...props}
       >
         {typeof children === 'string' ? (
-          <RN.Text className="text-center native:text-base text-primary web:text-sm web:sm:text-base">
+          <RN.Text className="text-center native:text-base text-primary web:text-sm web:sm:text-base select-none">
             {children}
           </RN.Text>
         ) : React.isValidElement(children) ? (
@@ -37,7 +37,7 @@ const Button: React.FC<ButtonProps> = ({
         ) : null}
       </RN.Pressable>
     );
-  } else if (mode === 'default') {
+  } else if (mode === 'primary') {
     return (
       <RN.Pressable
         key={String(disabled)}
@@ -45,7 +45,23 @@ const Button: React.FC<ButtonProps> = ({
         {...props}
       >
         {typeof children === 'string' ? (
-          <RN.Text className="text-center native:text-sm font-semibold text-white web:text-xs web:sm:text-sm">
+          <RN.Text className="text-center native:text-sm font-semibold text-white web:text-xs web:sm:text-sm select-none">
+            {children}
+          </RN.Text>
+        ) : React.isValidElement(children) ? (
+          children
+        ) : null}
+      </RN.Pressable>
+    );
+  } else if (mode === 'secondary') {
+    return (
+      <RN.Pressable
+        key={String(disabled)}
+        className={`min-w-20 items-center py-3 px-5 rounded-lg bg-primary-light ${disabled ? 'pointer-events-none opacity-50' : 'hover:bg-primary-light-hover active:bg-primary-light-hover active:scale-95'}`}
+        {...props}
+      >
+        {typeof children === 'string' ? (
+          <RN.Text className="text-center native:text-sm font-semibold text-primary-dark web:text-xs web:sm:text-sm select-none">
             {children}
           </RN.Text>
         ) : React.isValidElement(children) ? (

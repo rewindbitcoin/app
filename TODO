@@ -1,12 +1,11 @@
 cuando en la wallet doy a goBack tarda años
 
+Cuanto tengo muchas wallets entonces el boton de Add New molesta
+Pero no puedo poner un paddingTop grande porque si tengo pocas wallets me queda descompensado
+
 he puesto cardStyle: flex:1 para web, para que los headers no desaparezcan en scroll
 el problema es que entonces la barra de navegador no se hace collapsible. Entonces pensar
 que hacer...
-
-
-en ios el nuevo collapsible header en el menu me permite hacer scroll hacia arriba
-haciendo flickers raros (en wallets donde no hay suficiente height)
 
 
 En reactnativeweb me pide el password cada vez q vuelvo a la wallet.
