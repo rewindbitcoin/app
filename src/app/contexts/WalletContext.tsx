@@ -345,7 +345,7 @@ const WalletProviderRaw = ({
         //logOut(); //Log out from previous wallet
         setWallet(walletDst);
         if (walletId !== undefined) {
-          setSignersCipherKey(walletId, signersCipherKey);
+          if (signersCipherKey) setSignersCipherKey(walletId, signersCipherKey);
           setNewSigners(walletId, newSigners);
         }
       });

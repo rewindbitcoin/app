@@ -7,11 +7,7 @@ he puesto cardStyle: flex:1 para web, para que los headers no desaparezcan en sc
 el problema es que entonces la barra de navegador no se hace collapsible. Entonces pensar
 que hacer...
 
-
-En reactnativeweb me pide el password cada vez q vuelvo a la wallet.
-se hace el logOut o que pasa???
-  -> Creo que se pide aunque no hace falta
-
+En Web la botonera Receive+Send+Freeze no queda bien centrada con los Vaults
 
 En web el collapsible header no se vuelve a hacer grande
 

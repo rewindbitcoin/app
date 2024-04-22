@@ -126,6 +126,7 @@ const WalletsScreen = () => {
         contentContainerStyle={{
           //grow vertically to 100% and center child
           flexGrow: 1,
+          justifyContent: 'center',
 
           //paddingBottom: 60,
           alignItems: 'center'
