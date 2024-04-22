@@ -3,7 +3,7 @@
 
 import './global.css';
 import './init';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState, useMemo } from 'react';
 import { Platform } from 'react-native';
 import {
   SecureStorageInfoProvider,
@@ -19,7 +19,8 @@ import {
   SETTINGS,
   SETUP_VAULT,
   CREATE_VAULT,
-  NEW_WALLET
+  NEW_WALLET,
+  UniversalNavigationOptions
 } from './src/app/screens';
 import { NavigationContainer, useNavigation } from '@react-navigation/native';
 import { ToastProvider } from './src/common/components/Toast';
@@ -94,6 +95,9 @@ const Main = () => {
 
   const headerRightContainerStyle = { marginRight: 16 };
 
+  //TODO: These screens below re-render too oftern, i'm passing new objects {{}}
+  //to all of them, the useCallback does notthing if also passing {{}}
+
   const SetUpVaultScreenWithOnComplete = useCallback(() => {
     return (
       <SetUpVaultScreen
@@ -126,11 +130,14 @@ const Main = () => {
     ),
     [navigation, vaultSettings]
   );
+  const screenOptions = useMemo<UniversalNavigationOptions>(
+    () =>
+      isNativeStack ? { animationEnabled: true } : { cardStyle: { flex: 1 } },
+    []
+  );
   return (
     <WalletProvider>
-      <RootStack.Navigator
-        screenOptions={isNativeStack ? { animationEnabled: true } : {}}
-      >
+      <RootStack.Navigator screenOptions={screenOptions}>
         <RootStack.Screen
           name={WALLETS}
           options={{

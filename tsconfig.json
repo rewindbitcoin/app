@@ -6,6 +6,7 @@
   "extends": "@bitcoinerlab/configs/tsconfig",
   "include": [
     "*.ts",
-    "*.tsx"
+    "*.tsx",
+    "./types/**/*.d.ts"
   ]
 }

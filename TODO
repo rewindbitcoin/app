@@ -1,5 +1,24 @@
 cuando en la wallet doy a goBack tarda años
 
+he puesto cardStyle: flex:1 para web, para que los headers no desaparezcan en scroll
+el problema es que entonces la barra de navegador no se hace collapsible. Entonces pensar
+que hacer...
+
+
+en ios el nuevo collapsible header en el menu me permite hacer scroll hacia arriba
+haciendo flickers raros (en wallets donde no hay suficiente height)
+
+
+En reactnativeweb me pide el password cada vez q vuelvo a la wallet.
+se hace el logOut o que pasa???
+  -> Creo que se pide aunque no hace falta
+
+
+En web el collapsible header no se vuelve a hacer grande
+
+En ReactNativeWeb puedo clicar los botons (por ejemplo) de goBack mientras tengo el Modal
+abierto. Ojo!
+
 Lots of more error handling to be on WalletContext
 
 Botonera sale mal, se puede reprpducir haciendo camvios rapidos Wallet 2-Wallet 3 en iphpne

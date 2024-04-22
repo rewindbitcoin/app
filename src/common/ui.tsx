@@ -9,7 +9,10 @@ export { Text } from './components/Text';
 export * from './components/Toast';
 export { Modal } from './components/Modal';
 export { Switch } from './components/Switch';
-export { KeyboardAwareScrollView } from './components/KeyboardAwareScrollView';
+export {
+  KeyboardAwareScrollView,
+  KeyboardAwareAnimatedScrollView
+} from './components/KeyboardAwareScrollView';
 import NumberInput from './components/NumberInput';
 export { NumberInput };
 import SegmentedControl from './components/SegmentedControl';

@@ -2,7 +2,27 @@
 //export { ScrollView as KeyboardAwareScrollView } from 'react-native';
 
 //This will only affect iOS:
-export { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
+
+import { KeyboardAwareScrollView as RNKASV } from 'react-native-keyboard-aware-scroll-view';
+import { Platform, ScrollView } from 'react-native';
+const KeyboardAwareScrollView = Platform.OS === 'ios' ? RNKASV : ScrollView;
+export { KeyboardAwareScrollView };
+
+import Animated from 'react-native-reanimated';
+
+/*
+import { listenToKeyboardEvents } from 'react-native-keyboard-aware-scroll-view';
+const KeyboardAwareAnimatedScrollView = listenToKeyboardEvents({})(
+  Animated.ScrollView
+);
+*/
+const KeyboardAwareAnimatedScrollView =
+  Platform.OS === 'ios'
+    ? Animated.createAnimatedComponent(KeyboardAwareScrollView)
+    : Animated.ScrollView;
+
+export { KeyboardAwareAnimatedScrollView };
+
 //For Android:
 //IMPORTANT: set "softwareKeyboardLayoutMode":  to "resize" in app.json
 //this is so that Android does not "pan" the whole screen and the Toast is still

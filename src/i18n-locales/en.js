@@ -89,6 +89,9 @@ To resolve this issue, please try accessing your wallet again. If the problem\
  phrase. This will restore all your data securely from the backups.
 
 If you need further assistance, please contact ThunderDen Support.`
+    },
+    vault: {
+      delegateButton: 'Delegate'
     }
   },
   walletHome: {

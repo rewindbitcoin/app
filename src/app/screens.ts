@@ -2,11 +2,17 @@ import type {
   CompositeNavigationProp,
   NavigationProp
 } from '@react-navigation/native';
-import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { createStackNavigator } from '@react-navigation/stack';
+import {
+  createNativeStackNavigator,
+  NativeStackNavigationProp,
+  NativeStackNavigationOptions
+} from '@react-navigation/native-stack';
+import {
+  createStackNavigator,
+  StackNavigationProp,
+  StackNavigationOptions
+} from '@react-navigation/stack';
 import { Platform } from 'react-native';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import type { StackNavigationProp } from '@react-navigation/stack';
 export const SETTINGS = 'SETTINGS' as const;
 export const WALLETS = 'WALLETS' as const;
 export const WALLET_HOME = 'WALLET_HOME' as const;
@@ -46,6 +52,9 @@ export type NavigationPropsByScreenId = {
     NavigationProp<RootStackParamList>
   >;
 };
+
+export type UniversalNavigationOptions = NativeStackNavigationOptions &
+  StackNavigationOptions;
 
 //How correcly type useNavigation<>():
 

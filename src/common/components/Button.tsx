@@ -4,7 +4,7 @@ import { useTheme } from '../theme';
 
 interface ButtonProps extends RN.PressableProps {
   mode?: 'default' | 'native' | 'text';
-  onPress?: (event: RN.GestureResponderEvent) => void;
+  onPress?: ((event: RN.GestureResponderEvent) => void) | undefined;
   disabled?: boolean;
 }
 

@@ -32,11 +32,13 @@ import Animated, {
 
 import { getRealWindowHeight } from 'react-native-extra-dimensions-android';
 
+export type IconType = { family: keyof typeof Icons; name: string };
+
 interface ModalProps {
   title: string;
   subTitle?: string;
   isVisible: boolean;
-  icon?: { family: keyof typeof Icons; name: string };
+  icon?: IconType;
   customButtons?: React.ReactNode;
   closeButtonText?: string;
   onClose?: () => void;
@@ -136,6 +138,8 @@ const Modal: React.FC<ModalProps> = ({
       setChildrenHeight(prevHeight => {
         // Only update if the difference is more than 1 (in Android there may be
         // slight imprecission while rendering which would trigger infinite updates)
+        // This might be the problem in Android:
+        // https://github.com/facebook/react-native/issues/21801
         if (Math.abs(prevHeight - newHeight) > 1) {
           return newHeight;
         }

@@ -1,16 +1,30 @@
-import React, { useCallback, useContext, useEffect, useMemo } from 'react';
+import React, {
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState
+} from 'react';
 import Password from '../components/Password';
-import { Button, View, Text, Pressable, ActivityIndicator } from 'react-native';
-// @ts-expect-error: No types available for this module
+import {
+  Button,
+  View,
+  Text,
+  Pressable,
+  ActivityIndicator,
+  LayoutChangeEvent,
+  ViewStyle
+} from 'react-native';
 import { RefreshControl } from 'react-native-web-refresh-control';
 
-import { KeyboardAwareScrollView, Modal, useTheme } from '../../common/ui';
+import {
+  KeyboardAwareAnimatedScrollView,
+  Modal,
+  useTheme
+} from '../../common/ui';
 import { WalletContext, WalletContextType } from '../contexts/WalletContext';
 import { useTranslation } from 'react-i18next';
-import { delegateVault, shareVaults } from '../lib/backup';
-import moize from 'moize';
 import { Ionicons } from '@expo/vector-icons';
-import Spin from '../../common/components/Spin';
 import {
   useNavigation,
   type RouteProp,
@@ -19,8 +33,19 @@ import {
 import { getPasswordDerivedCipherKey } from '../../common/lib/cipher';
 
 import WalletButtons from '../components/WalletButtons';
+import Vaults from '../components/Vaults';
 import type { RootStackParamList, NavigationPropsByScreenId } from '../screens';
 import { lighten } from 'polished';
+import { shareVaults } from '../lib/backup';
+
+import Animated, {
+  Extrapolation,
+  interpolate,
+  useAnimatedScrollHandler,
+  useAnimatedStyle,
+  useSharedValue
+} from 'react-native-reanimated';
+import type { IconType } from '../../common/components/Modal';
 
 //TODO the WalletProvider must also pass it's own refreshing state
 const WalletHomeScreen = () => {
@@ -98,18 +123,6 @@ const WalletHomeScreen = () => {
     return shareVaults({ vaults });
   }, [vaults]);
 
-  const createDelegateVaultHandler = moize((vaultId: string) => {
-    return () => {
-      if (!vaults) throw new Error(`vaults not yet defined`);
-      const vault = vaults[vaultId];
-      if (!vault) throw new Error(`Vault ${vaultId} not found in vaults`);
-      const readmeText = t('walletHome.delegateReadme');
-      const readme = readmeText.split('\n');
-
-      delegateVault({ readme, vault });
-    };
-  });
-
   // Use btcFiat, and any other data or functions provided by the context
   // ...
 
@@ -141,59 +154,166 @@ const WalletHomeScreen = () => {
     [navigation]
   );
 
+  const [isMounted, setIsMounted] = useState<boolean>(false);
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  const contentHeight = useSharedValue<number>(0);
+  const containerHeight = useSharedValue<number>(0);
+  const scrollY = useSharedValue(0);
+  const headerMinHeight = 0;
+  const [headerMaxHeight, setHeaderMaxHeight] = useState<number>();
+
+  const scrollHandler = useAnimatedScrollHandler({
+    onScroll: event => {
+      scrollY.value = event.contentOffset.y;
+    }
+  });
+
+  const headerAnimatedStyle = useAnimatedStyle(() => {
+    const isScrollable = contentHeight.value > containerHeight.value;
+    if (
+      headerMaxHeight === undefined ||
+      headerMinHeight === undefined ||
+      !isScrollable
+    )
+      return {};
+    //Android will flicker when collapsing the header by slowly scrolling down
+    //it's a bug open since 5 years ago:
+    //https://github.com/facebook/react-native/issues/21801
+    //the way to "hide" the problem is to overcome the decimal computation
+    //in the interpolation by multiplying the input rante to some value > 30%,
+    //the flicker may still slightly be there but not very noticeable
+    const height = interpolate(
+      scrollY.value,
+      [0, 1.3 * (headerMaxHeight - headerMinHeight)],
+      [headerMaxHeight, headerMinHeight],
+      Extrapolation.CLAMP
+    );
+
+    // Start fading out only when the scroll is 2/3 of the way to full collapse
+    const fadeStart = ((headerMaxHeight - headerMinHeight) * 2) / 3;
+    const fadeEnd = headerMaxHeight - headerMinHeight;
+    const opacity = interpolate(
+      scrollY.value,
+      [fadeStart, fadeEnd],
+      [1, 0],
+      Extrapolation.CLAMP
+    );
+    return {
+      height,
+      opacity
+    };
+  });
+
+  const onHeaderLayout = useCallback((event: LayoutChangeEvent) => {
+    const layoutHeight = event.nativeEvent.layout.height;
+    setHeaderMaxHeight(prevHeight =>
+      prevHeight === undefined ? layoutHeight : prevHeight
+    );
+  }, []);
+  const handleContentSizeChange = useCallback(
+    (width: number, height: number) => {
+      void width;
+      contentHeight.value = height;
+    },
+    [contentHeight]
+  );
+  const handleContainerLayout = useCallback(
+    (event: LayoutChangeEvent) => {
+      const { height } = event.nativeEvent.layout;
+      containerHeight.value = height;
+    },
+    [containerHeight]
+  );
+
+  const refreshColors = useMemo(
+    () => [theme.colors.primary],
+    [theme.colors.primary]
+  );
+
+  const contentContainerStyle = useMemo<ViewStyle>(
+    () => ({
+      //flexGrow: 1, //grow vertically to 100% and center child
+      //justifyContent: 'center',
+      alignItems: 'center'
+    }),
+    []
+  );
+
+  const userCancelIcon = useMemo<IconType>(
+    () => ({ family: 'MaterialIcons', name: 'error' }),
+    []
+  );
+
+  const refreshControl = useMemo(
+    () =>
+      //isMounted prevents a renredering error in iOS where some times
+      //the layout was not ready and strange flickers may occur. Note that
+      //the syncingBlockchain is true initially on many ocassions and the
+      //transition was not being shown
+      isMounted && (
+        <RefreshControl
+          tintColor={lighten(0.25, theme.colors.primary)}
+          colors={refreshColors}
+          refreshing={syncingBlockchain}
+          onRefresh={syncBlockchain}
+        />
+      ),
+    [
+      isMounted,
+      refreshColors,
+      syncBlockchain,
+      syncingBlockchain,
+      theme.colors.primary
+    ]
+  );
+
   return !wallet /*TODO: prepare nicer ActivityIndicator*/ ? (
     <View className="flex-1 justify-center">
       <ActivityIndicator size={'large'} color={theme.colors.primary} />
     </View>
   ) : (
     <>
-      <WalletButtons
-        handleReceive={handleReceive}
-        handleSend={utxosData?.length ? handleSend : undefined}
-        handleFreeze={utxosData?.length ? handleFreeze : undefined}
-      />
-      <KeyboardAwareScrollView
-        keyboardShouldPersistTaps="handled"
-        contentContainerStyle={{
-          flexGrow: 1, //grow vertically to 100% and center child
-          justifyContent: 'center',
-          alignItems: 'center'
-        }}
-        refreshControl={
-          <RefreshControl
-            tintColor={lighten(0.25, theme.colors.primary)}
-            colors={[theme.colors.primary]}
-            refreshing={syncingBlockchain}
-            onRefresh={syncBlockchain}
+      <Animated.View style={headerAnimatedStyle} className="bg-red-100">
+        <View onLayout={onHeaderLayout}>
+          <View>
+            <Text className="h-52">My stuff</Text>
+          </View>
+        </View>
+      </Animated.View>
+      <View className="z-10">
+        <Text className="h-10">My nav</Text>
+      </View>
+
+      {
+        //isMounted prevents a renredering error in iOS where some times
+        //the absolute-positioned buttons were not showing in the correct
+        //position. For some reason isMounted takes quite a bit to be true...
+        isMounted && (
+          <WalletButtons
+            handleReceive={handleReceive}
+            handleSend={utxosData?.length ? handleSend : undefined}
+            handleFreeze={utxosData?.length ? handleFreeze : undefined}
           />
-        }
+        )
+      }
+      <KeyboardAwareAnimatedScrollView
+        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={contentContainerStyle}
+        refreshControl={refreshControl}
+        onScroll={scrollHandler}
+        onContentSizeChange={handleContentSizeChange}
+        onLayout={handleContainerLayout}
       >
         <Text>{`Wallet ${JSON.stringify(wallet, null, 2)}`}</Text>
-        {vaults && (
-          <>
-            <Text>vaults:</Text>
-            {Object.values(vaults).map(vault => (
-              <View key={vault.vaultId} className="items-center">
-                <Text>{vault.vaultId}</Text>
-                <Button
-                  title={t('walletHome.delegate')}
-                  onPress={createDelegateVaultHandler(vault.vaultId)}
-                />
-                <Pressable className="flex-row items-center p-4 shadow rounded-xl bg-primary hover:opacity-90 active:opacity-90 active:scale-95">
-                  <Spin />
-                  <Text className="font-semibold text-white">
-                    Processing...
-                  </Text>
-                </Pressable>
-              </View>
-            ))}
-          </>
-        )}
+        {vaults && <Vaults vaults={vaults} />}
         <Button
           title={t('walletHome.backupVaults')}
           onPress={onRequestVaultsBackup}
         />
-      </KeyboardAwareScrollView>
+      </KeyboardAwareAnimatedScrollView>
       <Password
         mode="REQUEST"
         isVisible={requiresPassword}
@@ -207,7 +327,7 @@ const WalletHomeScreen = () => {
             ? t('wallet.errors.biometricsUncapableTitle')
             : t('wallet.errors.storageTitle')
         }
-        icon={{ family: 'MaterialIcons', name: 'error' }}
+        icon={userCancelIcon}
         onClose={onCloseErrorModal}
       >
         <View className="px-2">
