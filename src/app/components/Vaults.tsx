@@ -1,9 +1,8 @@
 import React, { useMemo } from 'react';
-import { View, Text, Pressable } from 'react-native';
+import { View, Text } from 'react-native';
 import type { Vault, Vaults as VaultsType } from '../lib/vaults';
 import { useTranslation } from 'react-i18next';
 import { delegateVault } from '../lib/backup';
-import Spin from '../../common/components/Spin';
 import { Button } from '../../common/ui';
 
 const Vaults = ({ vaults }: { vaults: VaultsType }) => {
@@ -26,20 +25,27 @@ const Vaults = ({ vaults }: { vaults: VaultsType }) => {
   }, [t, vaults]);
 
   return (
-    <View className="gap-4">
+    <View className="gap-4 items-center max-w-2xl p-4">
       {Object.values(vaults).map(vault => (
         <View
           key={vault.vaultId}
-          className="max-w-[90%] items-center rounded-3xl bg-white p-2 gap-2"
+          className="items-center rounded-3xl bg-white p-4 gap-4"
         >
           <Text>{vault.vaultId}</Text>
-          <Button mode="text" onPress={handleDelegateVaultMap[vault.vaultId]}>
-            {t('wallet.vault.delegateButton')}
-          </Button>
-          <Button mode="text" onPress={handleDelegateVaultMap[vault.vaultId]}>
-            {t('wallet.vault.triggerDefreezeButton')}
-          </Button>
-          <Button mode="secondary">Delegate</Button>
+          <View className="w-full flex-row justify-between">
+            <Button
+              mode="secondary"
+              onPress={handleDelegateVaultMap[vault.vaultId]}
+            >
+              {t('wallet.vault.triggerDefreezeButton')}
+            </Button>
+            <Button
+              mode="secondary"
+              onPress={handleDelegateVaultMap[vault.vaultId]}
+            >
+              Delegate
+            </Button>
+          </View>
           {/*<Pressable className="flex-row items-center p-4 shadow rounded-xl bg-primary hover:opacity-90 active:opacity-90 active:scale-95">
             <Spin />
             <Text className="font-semibold text-white">Processing...</Text>
