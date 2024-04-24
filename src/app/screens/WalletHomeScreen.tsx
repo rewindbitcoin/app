@@ -47,7 +47,6 @@ import Animated, {
 } from 'react-native-reanimated';
 import type { IconType } from '../../common/components/Modal';
 
-//TODO the WalletProvider must also pass it's own refreshing state
 const WalletHomeScreen = () => {
   const navigation = useNavigation<NavigationPropsByScreenId['WALLET_HOME']>();
   const route = useRoute<RouteProp<RootStackParamList, 'WALLET_HOME'>>();
@@ -76,7 +75,7 @@ const WalletHomeScreen = () => {
   const title =
     !wallet || !wallets
       ? t('app.walletTitle')
-      : Object.entries(wallets).length === 1 //FIX, TODO: this is a bad heuristic, note that you might have a utxo below the dust limit and thus, you cannot send, also the fees may not be enough for sending. Same for vaults. In vaults i had some logic that told you that you need more money. Then using length 1 is ok, but then similar logic must be implemented in send.
+      : Object.entries(wallets).length === 1
         ? t('wallets.mainWallet')
         : t('wallets.walletId', { id: wallet?.walletId + 1 });
 
@@ -304,7 +303,10 @@ const WalletHomeScreen = () => {
           <WalletButtons
             handleReceive={handleReceive}
             handleSend={utxosData?.length ? handleSend : undefined}
-            handleFreeze={utxosData?.length ? handleFreeze : undefined}
+            handleFreeze={
+              //FIX, TODO: this is a bad heuristic, note that you might have a utxo below the dust limit and thus, you cannot send, also the fees may not be enough for sending. Same for vaults. In vaults i had some logic that told you that you need more money. Then using length 1 is ok, but then similar logic must be implemented in send.
+              utxosData?.length ? handleFreeze : undefined
+            }
           />
         )
       }

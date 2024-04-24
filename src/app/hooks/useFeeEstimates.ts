@@ -34,6 +34,7 @@ export const useFeeEstimates = (initialNetworkId: NetworkId | undefined) => {
       let explorer = explorers[networkId];
       const { esploraAPI } = getAPIs(networkId, settings);
       try {
+        // create the explorer if not yet created:
         if (!explorer && esploraAPI && settings?.MAINNET_ESPLORA_API) {
           const network = networkMapping[networkId];
           //Use mainnet feeRates for regtest-type networks
@@ -45,6 +46,7 @@ export const useFeeEstimates = (initialNetworkId: NetworkId | undefined) => {
             explorer = new EsploraExplorer({ url: esploraAPI });
           }
           await explorer.connect();
+
           explorers[networkId] = explorer;
         }
         const feeEstimates = explorer
@@ -65,15 +67,15 @@ export const useFeeEstimates = (initialNetworkId: NetworkId | undefined) => {
   //update whatever is set on networkId.current
   useEffect(() => {
     const interval =
-      settings?.BTC_FEE_ESTIMATES_REFRESH_INTERVAL_MS !== undefined &&
-      networkId.current !== undefined
+      settings?.BTC_FEE_ESTIMATES_REFRESH_INTERVAL_MS !== undefined
         ? setInterval(async () => {
             if (networkId.current) {
               const fetchedNetworkId = networkId.current;
               const feeEstimates = await fetchFeeEstimates(fetchedNetworkId);
               feeEstimatesByNetworkId[fetchedNetworkId] = feeEstimates;
-              if (networkId.current === fetchedNetworkId)
+              if (networkId.current === fetchedNetworkId) {
                 setFeeEstimates(feeEstimates);
+              }
             }
           }, settings?.BTC_FEE_ESTIMATES_REFRESH_INTERVAL_MS)
         : undefined;
@@ -97,7 +99,9 @@ export const useFeeEstimates = (initialNetworkId: NetworkId | undefined) => {
       const feeEstimates = await fetchFeeEstimates(newNetworkId);
       feeEstimatesByNetworkId[newNetworkId] = feeEstimates;
       //networkId.current may be undefined now if unmounted:
-      if (networkId.current === newNetworkId) setFeeEstimates(feeEstimates);
+      if (networkId.current === newNetworkId) {
+        setFeeEstimates(feeEstimates);
+      }
     },
     [fetchFeeEstimates]
   );

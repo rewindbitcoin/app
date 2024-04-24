@@ -1,11 +1,34 @@
 cuando en la wallet doy a goBack tarda años
 
+En WalletHome el P2R se debe de hacer en el panel global, porque si intento
+hacer P2R desde el preview de la wallet no funcionará
+
+Android Wallet 3 (walletId:2) does not load
+  -> Biometric + Signers Encryption none
+    -> Does not request touchId
+
+Android, a la que cancelo el Biometric en una wallet, luego no puedo entrar ya nunca
+mas en esa wallet, me da como que siempre fue cancelado porque los errores supongo 
+que no se resetean. Supongo que segun el tipo de error habria que hacer logOut
+
+Las fees ahora me estan dando Express Confirmation con fees bajas y luego 
+para fees altas 50 minutos !?!?!?!
+  -> Wallet 7 Android
+  -> Es posible que useFeeEstimates esté mal!!!
+    -> Además creo que me está dando los de mainnet para testnet ?!!??!
+      -> Lo que está mal es el estimador de esplora:
+        -> Hacer un corrector de fees a lo mas restrictivo. La fee para un tiempo de bloque N no puede ser menor que la fee para otro tiempo de bloque M, donde M > N
+        
+1 : 74.073 2 : 74.073 3 : 55.37199999999999 4 : 47 5 : 47 6 : 55.37 7 : 55.37 8 : 47 9 : 47 10 : 47 11 : 47 12 : 47 13 : 47 14 : 47 15 : 47 16 : 47 17 : 47 18 : 47 19 : 47 20 : 47 21 : 47 22 : 47 23 : 47 24 : 47 25 : 47 144 : 3.2620000000000005 504 : 3.2620000000000005 1008 : 3.2620000000000005
+
 Cuanto tengo muchas wallets entonces el boton de Add New molesta
 Pero no puedo poner un paddingTop grande porque si tengo pocas wallets me queda descompensado
 
 he puesto cardStyle: flex:1 para web, para que los headers no desaparezcan en scroll
 el problema es que entonces la barra de navegador no se hace collapsible. Entonces pensar
 que hacer...
+
+Usar V$ o V€ cuando represente != mainnet
 
 En Web la botonera Receive+Send+Freeze no queda bien centrada con los Vaults
 
