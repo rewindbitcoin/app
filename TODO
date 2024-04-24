@@ -1,7 +1,8 @@
 cuando en la wallet doy a goBack tarda años
 
-En WalletHome el P2R se debe de hacer en el panel global, porque si intento
-hacer P2R desde el preview de la wallet no funcionará
+En Safari (o webkit o lo que sea que se llame) deberé desactivar los bounces de algun modo
+En Safari no se guardan las nuevas Wallets una vez creadas
+  -> De hecho me pasa igual 
 
 Android Wallet 3 (walletId:2) does not load
   -> Biometric + Signers Encryption none

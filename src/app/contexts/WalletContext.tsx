@@ -251,13 +251,24 @@ const WalletProviderRaw = ({
     vaultsStatusesStorageStatus.errorCode === false &&
     accountNamesStorageStatus.errorCode === false;
 
+  console.log({
+    isReady,
+    walletsStorageStatus,
+    discoveryStorageStatus,
+    signersStorageStatus,
+    vaultsStorageStatus,
+    vaultsStatusesStorageStatus,
+    accountNamesStorageStatus
+  });
   useEffect(() => {
     if (isReady) {
       if (!wallet) throw new Error('wallet should be set when ready');
       if (walletId === undefined) throw new Error('walletd undefined');
       if (!wallets) throw new Error('wallets should be set when ready');
-      if (!shallowEqualObjects(wallet, wallets[walletId]))
+      if (!shallowEqualObjects(wallet, wallets[walletId])) {
+        console.log('Setting wallets', { ...wallets, [walletId]: wallet });
         setWallets({ ...wallets, [walletId]: wallet });
+      }
     }
   }, [setWallets, wallets, wallet, isReady, walletId]);
 

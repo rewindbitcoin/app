@@ -132,7 +132,14 @@ const Main = () => {
   );
   const screenOptions = useMemo<UniversalNavigationOptions>(
     () =>
-      isNativeStack ? { animationEnabled: true } : { cardStyle: { flex: 1 } },
+      isNativeStack
+        ? { animationEnabled: true }
+        : {
+            //So that the header is always displayed -
+            //however the browser address bar is always displayed
+            //https://reactnavigation.org/docs/stack-navigator/#cardstyle
+            cardStyle: { flex: 1 }
+          },
     []
   );
   return (

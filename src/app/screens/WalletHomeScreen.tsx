@@ -6,7 +6,16 @@ import React, {
   useState
 } from 'react';
 import Password from '../components/Password';
-import { Button, View, Text, Pressable, ActivityIndicator } from 'react-native';
+import {
+  Button,
+  View,
+  Text,
+  Pressable,
+  ActivityIndicator,
+  Platform,
+  NativeSyntheticEvent,
+  NativeScrollEvent
+} from 'react-native';
 import { RefreshControl } from 'react-native-web-refresh-control';
 
 import {
@@ -16,7 +25,7 @@ import {
 } from '../../common/ui';
 import { WalletContext, WalletContextType } from '../contexts/WalletContext';
 import { useTranslation } from 'react-i18next';
-import { Ionicons } from '@expo/vector-icons';
+import { AntDesign, Ionicons } from '@expo/vector-icons';
 import {
   useNavigation,
   type RouteProp,
@@ -31,6 +40,13 @@ import { lighten } from 'polished';
 import { shareVaults } from '../lib/backup';
 
 import type { IconType } from '../../common/components/Modal';
+
+//Using chrome dev tools, refresh the screen, after choosing a mobile size to activate it:
+const hasTouch =
+  Platform.OS === 'web'
+    ? 'ontouchstart' in window || navigator.maxTouchPoints > 0
+    : true; // Assume touch is available for iOS and Android
+console.log({ hasTouch });
 
 const WalletHomeScreen = () => {
   const navigation = useNavigation<NavigationPropsByScreenId['WALLET_HOME']>();
@@ -73,12 +89,17 @@ const WalletHomeScreen = () => {
       headerRight: () => (
         <View className="flex-row justify-between gap-5 items-center">
           <Pressable
-            onPress={syncingBlockchain ? null : syncBlockchain}
-            className={`hover:opacity-90 active:scale-95 active:opacity-90 ${
+            onPress={syncingBlockchain ? undefined : syncBlockchain}
+            className={`${!syncingBlockchain ? 'hover:opacity-90' : ''} active:scale-95 active:opacity-90 ${
               syncingBlockchain ? 'opacity-20 cursor-default' : 'opacity-100'
             }`}
           >
-            <Ionicons name="refresh" size={20} color={theme.colors.primary} />
+            <AntDesign
+              name={!hasTouch && syncingBlockchain ? 'loading1' : 'reload1'}
+              size={17}
+              color={theme.colors.primary}
+              className={!hasTouch && syncingBlockchain ? 'animate-spin' : ''}
+            />
           </Pressable>
           <Pressable
             className={`hover:opacity-90 active:scale-95 active:opacity-90`}
@@ -142,6 +163,11 @@ const WalletHomeScreen = () => {
   useEffect(() => {
     setIsMounted(true);
   }, []);
+  const [isAtTop, setIsAtTop] = useState<boolean>(true);
+  const onScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const isAtTopNow = event.nativeEvent.contentOffset.y === 0;
+    setIsAtTop(isAtTopNow);
+  };
 
   const refreshColors = useMemo(
     () => [theme.colors.primary],
@@ -177,6 +203,7 @@ const WalletHomeScreen = () => {
       theme.colors.primary
     ]
   );
+  const stickyHeaderIndices = useMemo(() => [1], []);
 
   return !wallet /*TODO: prepare nicer ActivityIndicator*/ ? (
     <View className="flex-1 justify-center">
@@ -199,21 +226,41 @@ const WalletHomeScreen = () => {
           />
         )
       }
-
       <KeyboardAwareAnimatedScrollView
         keyboardShouldPersistTaps="handled"
-        refreshControl={refreshControl}
-        stickyHeaderIndices={[1]}
+        refreshControl={hasTouch ? refreshControl : undefined}
+        stickyHeaderIndices={stickyHeaderIndices}
+        onScroll={onScroll}
+        contentContainerClassName={
+          //The translate-y-0 (and relate) is a fix for the web-version of refreshControl. On the web
+          //implementation of the refreshControl, when the control is refreshing
+          //the KeyboardAwareAnimatedScrollView cointainer gets applied a transform:translateY.
+          //This is ususally fine except when using a stickyHeader
+          //since an empty space will appear above the sticky header. In other words,
+          //the sticky header which should always be on top will show with some offset while
+          //refreshing.
+          //This trick basically removes any transform from the KeyboardAwareAnimatedScrollView
+          //except when the scroll is at the top
+          //
+          //The -z-10 is related to this issue:
+          //https://stackoverflow.com/questions/40366080/2-different-background-colours-for-scrollview-bounce
+          //In summary, I have some white headers but the bounce area will show in gray (transparent)
+          //This looks weird. So an abslute positioned View is set with some white background
+          //See the last elemenbt in the ScrollView
+          //Then, the -z-10 is set so that the refresh indicator appears above the
+          //white position-absolute View (see TAGiusfdnisdunf). Othwewise
+          //the bounce area when pulling to refresh was looking gray or white but the loading indicator was not appearing
+          //See TAGiusfdnisdunf below
+          //
+          `${Platform.OS === 'ios' || Platform.OS === 'web' ? '-z-10' : ''}
+           ${Platform.OS !== 'web' ? '' : isAtTop ? '' : 'ease-out duration-300 !transform !translate-y-0'}`
+        }
       >
         <View className="bg-white">
-          <View>
-            <View>
-              <Text>{`Wallet ${JSON.stringify(wallet, null, 2)}`}</Text>
-            </View>
-          </View>
+          <Text>{`Wallet ${JSON.stringify(wallet, null, 2)}`}</Text>
         </View>
 
-        <View className="flex-row gap-6 px-6 border-b border-b-slate-300 bg-white">
+        <View className="bg-white flex-row gap-6 px-6 border-b border-b-slate-300">
           <View className="py-4 border-b-primary border-b-2">
             <Text className="font-bold text-primary-dark">Vaults</Text>
           </View>
@@ -222,7 +269,7 @@ const WalletHomeScreen = () => {
           </View>
         </View>
 
-        <View className="pt-4 pb-32 items-center">
+        <View className="overflow-hidden pt-4 pb-32 items-center">
           {vaults && <Vaults vaults={vaults} />}
           <Button
             title={t('walletHome.backupVaults')}
@@ -253,6 +300,14 @@ const WalletHomeScreen = () => {
             </Text>
           </View>
         </Modal>
+        {
+          //See TAGiusfdnisdunf above
+          //https://stackoverflow.com/questions/40366080/2-different-background-colours-for-scrollview-bounce
+          //A negative zindex will be needed in the ScrollView so that the refresh control shows above this View
+          (Platform.OS === 'ios' || Platform.OS === 'web') && (
+            <View className="absolute bg-white native:h-[1000] native:-top-[1000] web:h-[1000px] web:-top-[1000px] left-0 right-0" />
+          )
+        }
       </KeyboardAwareAnimatedScrollView>
     </>
   );
