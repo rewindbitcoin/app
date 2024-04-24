@@ -251,22 +251,12 @@ const WalletProviderRaw = ({
     vaultsStatusesStorageStatus.errorCode === false &&
     accountNamesStorageStatus.errorCode === false;
 
-  console.log({
-    isReady,
-    walletsStorageStatus,
-    discoveryStorageStatus,
-    signersStorageStatus,
-    vaultsStorageStatus,
-    vaultsStatusesStorageStatus,
-    accountNamesStorageStatus
-  });
   useEffect(() => {
     if (isReady) {
       if (!wallet) throw new Error('wallet should be set when ready');
       if (walletId === undefined) throw new Error('walletd undefined');
       if (!wallets) throw new Error('wallets should be set when ready');
       if (!shallowEqualObjects(wallet, wallets[walletId])) {
-        console.log('Setting wallets', { ...wallets, [walletId]: wallet });
         setWallets({ ...wallets, [walletId]: wallet });
       }
     }
@@ -335,9 +325,9 @@ const WalletProviderRaw = ({
       signersCipherKey?: Uint8Array;
     }) => {
       setFeeEstimatesNetworkId(walletDst.networkId);
+      const walletId = walletDst.walletId;
       if (newSigners) {
         //Make sure we don't have values from previous app installs using the same id?
-        const walletId = walletDst.walletId;
         const authenticationPrompt = t('app.secureStorageAuthenticationPrompt');
         await Promise.all([
           deleteAsync(
@@ -365,7 +355,6 @@ const WalletProviderRaw = ({
       //logOut,
       t,
       setFeeEstimatesNetworkId,
-      walletId,
       setNewSigners,
       setSignersCipherKey
     ]

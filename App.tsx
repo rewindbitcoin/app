@@ -93,6 +93,20 @@ const Main = () => {
     if (settings?.LOCALE) initI18n(settings.LOCALE);
   }, [settings?.LOCALE]);
 
+  //disable elastic effect
+  //https://stackoverflow.com/a/75120095/1660381
+  useEffect(() => {
+    if (Platform.OS === 'web') {
+      const style = document.createElement('style');
+      style.textContent = `html { overscroll-behavior: none; }`;
+      document.head.appendChild(style);
+      return () => {
+        document.head.removeChild(style);
+      };
+    }
+    return () => {};
+  }, []);
+
   const headerRightContainerStyle = { marginRight: 16 };
 
   //TODO: These screens below re-render too oftern, i'm passing new objects {{}}
