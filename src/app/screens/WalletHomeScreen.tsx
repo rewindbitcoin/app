@@ -6,15 +6,7 @@ import React, {
   useState
 } from 'react';
 import Password from '../components/Password';
-import {
-  Button,
-  View,
-  Text,
-  Pressable,
-  ActivityIndicator,
-  LayoutChangeEvent,
-  ViewStyle
-} from 'react-native';
+import { Button, View, Text, Pressable, ActivityIndicator } from 'react-native';
 import { RefreshControl } from 'react-native-web-refresh-control';
 
 import {
@@ -38,13 +30,6 @@ import type { RootStackParamList, NavigationPropsByScreenId } from '../screens';
 import { lighten } from 'polished';
 import { shareVaults } from '../lib/backup';
 
-import Animated, {
-  Extrapolation,
-  interpolate,
-  useAnimatedScrollHandler,
-  useAnimatedStyle,
-  useSharedValue
-} from 'react-native-reanimated';
 import type { IconType } from '../../common/components/Modal';
 
 const WalletHomeScreen = () => {
@@ -158,89 +143,9 @@ const WalletHomeScreen = () => {
     setIsMounted(true);
   }, []);
 
-  const contentHeight = useSharedValue<number>(0);
-  const containerHeight = useSharedValue<number>(0);
-  const scrollY = useSharedValue(0);
-  const headerMinHeight = 0;
-  const [headerMaxHeight, setHeaderMaxHeight] = useState<number>();
-
-  const scrollHandler = useAnimatedScrollHandler({
-    onScroll: event => {
-      scrollY.value = event.contentOffset.y;
-    }
-  });
-
-  const headerAnimatedStyle = useAnimatedStyle(() => {
-    const isScrollable = contentHeight.value > containerHeight.value;
-    if (
-      headerMaxHeight === undefined ||
-      headerMinHeight === undefined ||
-      !isScrollable
-    )
-      return {};
-    //Android will flicker when collapsing the header by slowly scrolling down
-    //it's a bug open since 5 years ago:
-    //https://github.com/facebook/react-native/issues/21801
-    //the way to "hide" the problem is to overcome the decimal computation
-    //in the interpolation by multiplying the input rante to some value > 30%,
-    //the flicker may still slightly be there but not very noticeable
-    const height = interpolate(
-      scrollY.value,
-      [0, 1.3 * (headerMaxHeight - headerMinHeight)],
-      [headerMaxHeight, headerMinHeight],
-      Extrapolation.CLAMP
-    );
-
-    // Start fading out only when the scroll is 2/3 of the way to full collapse
-    const fadeStart = ((headerMaxHeight - headerMinHeight) * 2) / 3;
-    const fadeEnd = headerMaxHeight - headerMinHeight;
-    const opacity = interpolate(
-      scrollY.value,
-      [fadeStart, fadeEnd],
-      [1, 0],
-      Extrapolation.CLAMP
-    );
-    return {
-      height,
-      opacity
-    };
-  });
-
-  const onHeaderLayout = useCallback((event: LayoutChangeEvent) => {
-    const layoutHeight = event.nativeEvent.layout.height;
-    setHeaderMaxHeight(prevHeight =>
-      prevHeight === undefined ? layoutHeight : prevHeight
-    );
-  }, []);
-  const handleContentSizeChange = useCallback(
-    (width: number, height: number) => {
-      void width;
-      contentHeight.value = height;
-    },
-    [contentHeight]
-  );
-  const handleContainerLayout = useCallback(
-    (event: LayoutChangeEvent) => {
-      const { height } = event.nativeEvent.layout;
-      containerHeight.value = height;
-    },
-    [containerHeight]
-  );
-
   const refreshColors = useMemo(
     () => [theme.colors.primary],
     [theme.colors.primary]
-  );
-
-  const contentContainerStyle = useMemo<ViewStyle>(
-    () => ({
-      //flexGrow: 1, //grow vertically to 100% and center child
-      //justifyContent: 'center',
-      paddingTop: 16,
-      paddingBottom: 120,
-      alignItems: 'center'
-    }),
-    []
   );
 
   const userCancelIcon = useMemo<IconType>(
@@ -279,22 +184,6 @@ const WalletHomeScreen = () => {
     </View>
   ) : (
     <>
-      <Animated.View style={headerAnimatedStyle} className="overflow-hidden">
-        <View onLayout={onHeaderLayout}>
-          <View>
-            <Text>{`Wallet ${JSON.stringify(wallet, null, 2)}`}</Text>
-          </View>
-        </View>
-      </Animated.View>
-      <View className="flex-row gap-6 px-6 border-b border-b-slate-300">
-        <View className="py-4 border-b-primary border-b-2">
-          <Text className="font-bold text-primary-dark">Vaults</Text>
-        </View>
-        <View className="py-4 border-b-transparent border-b-2">
-          <Text className="font-bold text-slate-500">Transactions</Text>
-        </View>
-      </View>
-
       {
         //isMounted prevents a renredering error in iOS where some times
         //the absolute-positioned buttons were not showing in the correct
@@ -310,44 +199,61 @@ const WalletHomeScreen = () => {
           />
         )
       }
+
       <KeyboardAwareAnimatedScrollView
         keyboardShouldPersistTaps="handled"
         refreshControl={refreshControl}
-        contentContainerStyle={contentContainerStyle}
-        onScroll={scrollHandler}
-        onContentSizeChange={handleContentSizeChange}
-        onLayout={handleContainerLayout}
+        stickyHeaderIndices={[1]}
       >
-        {vaults && <Vaults vaults={vaults} />}
-        <Button
-          title={t('walletHome.backupVaults')}
-          onPress={onRequestVaultsBackup}
-        />
-      </KeyboardAwareAnimatedScrollView>
-      <Password
-        mode="REQUEST"
-        isVisible={requiresPassword}
-        onPassword={onPassword}
-        onCancel={onPasswordCancel}
-      />
-      <Modal
-        isVisible={walletError && walletError !== 'USER_CANCEL'}
-        title={
-          walletError === 'BIOMETRICS_UNCAPABLE'
-            ? t('wallet.errors.biometricsUncapableTitle')
-            : t('wallet.errors.storageTitle')
-        }
-        icon={userCancelIcon}
-        onClose={onCloseErrorModal}
-      >
-        <View className="px-2">
-          <Text>
-            {walletError === 'BIOMETRICS_UNCAPABLE'
-              ? t('wallet.errors.biometricsUncapable')
-              : t('wallet.errors.storage')}
-          </Text>
+        <View className="bg-white">
+          <View>
+            <View>
+              <Text>{`Wallet ${JSON.stringify(wallet, null, 2)}`}</Text>
+            </View>
+          </View>
         </View>
-      </Modal>
+
+        <View className="flex-row gap-6 px-6 border-b border-b-slate-300 bg-white">
+          <View className="py-4 border-b-primary border-b-2">
+            <Text className="font-bold text-primary-dark">Vaults</Text>
+          </View>
+          <View className="py-4 border-b-transparent border-b-2">
+            <Text className="font-bold text-slate-500">Transactions</Text>
+          </View>
+        </View>
+
+        <View className="pt-4 pb-32 items-center">
+          {vaults && <Vaults vaults={vaults} />}
+          <Button
+            title={t('walletHome.backupVaults')}
+            onPress={onRequestVaultsBackup}
+          />
+        </View>
+        <Password
+          mode="REQUEST"
+          isVisible={requiresPassword}
+          onPassword={onPassword}
+          onCancel={onPasswordCancel}
+        />
+        <Modal
+          isVisible={walletError && walletError !== 'USER_CANCEL'}
+          title={
+            walletError === 'BIOMETRICS_UNCAPABLE'
+              ? t('wallet.errors.biometricsUncapableTitle')
+              : t('wallet.errors.storageTitle')
+          }
+          icon={userCancelIcon}
+          onClose={onCloseErrorModal}
+        >
+          <View className="px-2">
+            <Text>
+              {walletError === 'BIOMETRICS_UNCAPABLE'
+                ? t('wallet.errors.biometricsUncapable')
+                : t('wallet.errors.storage')}
+            </Text>
+          </View>
+        </Modal>
+      </KeyboardAwareAnimatedScrollView>
     </>
   );
 };
