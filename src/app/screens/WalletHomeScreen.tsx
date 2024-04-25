@@ -12,9 +12,7 @@ import {
   Text,
   Pressable,
   ActivityIndicator,
-  Platform,
-  NativeSyntheticEvent,
-  NativeScrollEvent
+  Platform
 } from 'react-native';
 import { RefreshControl } from 'react-native-web-refresh-control';
 
@@ -163,11 +161,6 @@ const WalletHomeScreen = () => {
   useEffect(() => {
     setIsMounted(true);
   }, []);
-  const [isAtTop, setIsAtTop] = useState<boolean>(true);
-  const onScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-    const isAtTopNow = event.nativeEvent.contentOffset.y === 0;
-    setIsAtTop(isAtTopNow);
-  };
 
   const refreshColors = useMemo(
     () => [theme.colors.primary],
@@ -230,18 +223,7 @@ const WalletHomeScreen = () => {
         keyboardShouldPersistTaps="handled"
         refreshControl={hasTouch ? refreshControl : undefined}
         stickyHeaderIndices={stickyHeaderIndices}
-        onScroll={onScroll}
         contentContainerClassName={
-          //The translate-y-0 (and relate) is a fix for the web-version of refreshControl. On the web
-          //implementation of the refreshControl, when the control is refreshing
-          //the KeyboardAwareAnimatedScrollView cointainer gets applied a transform:translateY.
-          //This is ususally fine except when using a stickyHeader
-          //since an empty space will appear above the sticky header. In other words,
-          //the sticky header which should always be on top will show with some offset while
-          //refreshing.
-          //This trick basically removes any transform from the KeyboardAwareAnimatedScrollView
-          //except when the scroll is at the top
-          //
           //The -z-10 is related to this issue:
           //https://stackoverflow.com/questions/40366080/2-different-background-colours-for-scrollview-bounce
           //In summary, I have some white headers but the bounce area will show in gray (transparent)
@@ -252,8 +234,7 @@ const WalletHomeScreen = () => {
           //the bounce area when pulling to refresh was looking gray or white but the loading indicator was not appearing
           //See TAGiusfdnisdunf below
           //
-          `${Platform.OS === 'ios' || Platform.OS === 'web' ? '-z-10' : ''}
-           ${Platform.OS !== 'web' ? '' : isAtTop ? '' : 'ease-out duration-300 !transform !translate-y-0'}`
+          `${Platform.OS === 'ios' || Platform.OS === 'web' ? '-z-10' : ''}`
         }
       >
         <View className="bg-white">

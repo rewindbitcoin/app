@@ -1,0 +1,145 @@
+diff --git a/node_modules/react-native-web-refresh-control/src/RefreshControl.web.js b/node_modules/react-native-web-refresh-control/src/RefreshControl.web.js
+index b2351e6..d3ac56e 100644
+--- a/node_modules/react-native-web-refresh-control/src/RefreshControl.web.js
++++ b/node_modules/react-native-web-refresh-control/src/RefreshControl.web.js
+@@ -1,4 +1,4 @@
+-import React, { useRef, useEffect, useCallback, useMemo } from 'react'
++import React, { useRef, useEffect, useCallback, useMemo, useState } from 'react'
+ import { View, Text, PanResponder, Animated, ActivityIndicator, findNodeHandle } from 'react-native'
+ import PropTypes from 'prop-types'
+ 
+@@ -32,6 +32,12 @@ export default function RefreshControl({
+   onRefresh,
+   enabled,
+ }) {
++  const [isAtTop, setIsAtTop] = useState(true)
++  const onScroll = (event) => {
++    const isAtTop = event.target.scrollTop === 0
++    setIsAtTop(isAtTop)
++  }
++
+   const onRefreshRef = useRef(onRefresh)
+   useEffect(() => {
+     onRefreshRef.current = onRefresh
+@@ -41,6 +47,11 @@ export default function RefreshControl({
+     enabledRef.current = enabled
+   }, [enabled])
+ 
++  const refreshingRef = useRef(refreshing)
++  useEffect(() => {
++    refreshingRef.current = refreshing
++  }, [refreshing])
++
+   const containerRef = useRef()
+   const pullPosReachedState = useRef(0)
+   const pullPosReachedAnimated = useRef(new Animated.Value(0))
+@@ -62,32 +73,35 @@ export default function RefreshControl({
+     if (pullPosReachedState.current && onRefreshRef.current) {
+       onRefreshRef.current()
+     }
+-    if (!pullPosReachedState.current) {
+-      Animated.timing(pullDownSwipeMargin.current, {
+-        toValue: 0,
+-        duration: 350,
+-        useNativeDriver: false,
+-      }).start()
+-    }
++    //if (!pullPosReachedState.current) {
++    Animated.timing(pullDownSwipeMargin.current, {
++      toValue: pullPosReachedState.current ? 50 : 0,
++      duration: 350,
++      useNativeDriver: false,
++    }).start()
++    //}
+   }, [])
+ 
+   const panResponder = useRef(
+     PanResponder.create({
+       onStartShouldSetPanResponder: () => false,
+       onStartShouldSetPanResponderCapture: () => false,
+-      onMoveShouldSetPanResponder: (_,gestureState) => {
++      onMoveShouldSetPanResponder: (_, gestureState) => {
+         if (!containerRef.current) return false
+         const containerDOM = findNodeHandle(containerRef.current)
+         if (!containerDOM) return false
+-        return containerDOM.children[0].scrollTop === 0
+-        && (Math.abs(gestureState.dy) > Math.abs(gestureState.dx) * 2 && Math.abs(gestureState.vy) > Math.abs(gestureState.vx) * 2.5)
++        return (
++          containerDOM.children[0].scrollTop === 0 &&
++          Math.abs(gestureState.dy) > Math.abs(gestureState.dx) * 2 &&
++          Math.abs(gestureState.vy) > Math.abs(gestureState.vx) * 2.5
++        )
+       },
+       onMoveShouldSetPanResponderCapture: () => false,
+       onPanResponderMove: (_, gestureState) => {
+         if (enabledRef.current !== undefined && !enabledRef.current) return
+ 
+         const adjustedDy = gestureState.dy <= 0 ? 0 : (gestureState.dy * 150) / (gestureState.dy + 120) // Diminishing returns function
+-        pullDownSwipeMargin.current.setValue(adjustedDy)
++        pullDownSwipeMargin.current.setValue(adjustedDy + (refreshingRef.current ? 50 : 0))
+         const newValue = adjustedDy > 45 ? 1 : 0
+         if (newValue !== pullPosReachedState.current) {
+           pullPosReachedState.current = newValue
+@@ -104,10 +118,21 @@ export default function RefreshControl({
+     })
+   )
+ 
+-  const refreshIndicatorColor = useMemo(() => (tintColor ? tintColor : colors && colors.length ? colors[0] : null), [
+-    colors,
+-    tintColor,
+-  ])
++  useEffect(() => {
++    const container = findNodeHandle(containerRef.current)
++    if (container) {
++      container.children[0].addEventListener('scroll', onScroll)
++
++      return () => {
++        container.children[0].removeEventListener('scroll', onScroll)
++      }
++    }
++  }, [onScroll])
++
++  const refreshIndicatorColor = useMemo(
++    () => (tintColor ? tintColor : colors && colors.length ? colors[0] : null),
++    [colors, tintColor]
++  )
+   const pullDownIconStyle = useMemo(
+     () => ({
+       width: 22,
+@@ -129,25 +154,27 @@ export default function RefreshControl({
+     () => [style, { overflowY: 'hidden', overflow: 'hidden', paddingTop: progressViewOffset }],
+     [progressViewOffset, style]
+   )
+-  const indicatorTransformStyle = useMemo(
+-    () => ({
++  const indicatorTransformStyle = useMemo(() => {
++    return {
+       alignSelf: 'center',
+       marginTop: -40,
+       height: 40,
+-      transform: [{ translateY: pullDownSwipeMargin.current }],
+-    }),
+-    []
+-  )
++      transform: [{ translateY: !isAtTop ? 0 : refreshing ? 50 : pullDownSwipeMargin.current }],
++    }
++  }, [isAtTop, refreshing])
+ 
+   // This is messing with react-native-web's internal implementation
+   // Will probably break if anything changes on their end
+   const AnimatedContentContainer = useMemo(
+-    () => withAnimated(childProps => <children.props.children.type {...childProps} />),
++    () => withAnimated((childProps) => <children.props.children.type {...childProps} />),
+     []
+   )
+   const newContentContainerStyle = useMemo(
+-    () => [children.props.children.props.style, { transform: [{ translateY: pullDownSwipeMargin.current }] }],
+-    [children.props.children.props.style]
++    () => [
++      children.props.children.props.style,
++      { transform: [{ translateY: !isAtTop ? 0 : refreshing ? 50 : pullDownSwipeMargin.current }] },
++    ],
++    [children.props.children.props.style, isAtTop]
+   )
+   const newChildren = React.cloneElement(
+     children,
