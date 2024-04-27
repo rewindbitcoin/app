@@ -32,6 +32,7 @@ import {
 import { getPasswordDerivedCipherKey } from '../../common/lib/cipher';
 
 import WalletButtons from '../components/WalletButtons';
+import WalletHeader from '../components/WalletHeader';
 import Vaults from '../components/Vaults';
 import type { RootStackParamList, NavigationPropsByScreenId } from '../screens';
 import { lighten } from 'polished';
@@ -44,7 +45,6 @@ const hasTouch =
   Platform.OS === 'web'
     ? 'ontouchstart' in window || navigator.maxTouchPoints > 0
     : true; // Assume touch is available for iOS and Android
-console.log({ hasTouch });
 
 const WalletHomeScreen = () => {
   const navigation = useNavigation<NavigationPropsByScreenId['WALLET_HOME']>();
@@ -64,6 +64,7 @@ const WalletHomeScreen = () => {
     wallets,
     walletError,
     requiresPassword,
+    btcFiat,
     onWallet
   } = context;
   if (wallet && walletId !== wallet.walletId)
@@ -237,9 +238,7 @@ const WalletHomeScreen = () => {
           `${Platform.OS === 'ios' || Platform.OS === 'web' ? '-z-10' : ''}`
         }
       >
-        <View className="bg-white">
-          <Text>{`Wallet ${JSON.stringify(wallet, null, 2)}`}</Text>
-        </View>
+        <WalletHeader utxosData={utxosData} wallet={wallet} btcFiat={btcFiat} />
 
         <View className="bg-white flex-row gap-6 px-6 border-b border-b-slate-300">
           <View className="py-4 border-b-primary border-b-2">

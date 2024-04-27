@@ -165,18 +165,18 @@ export const toSats = (
   btcFiat: number | null | undefined,
   /** pass known values, when available so that precission
    * is not loosed*/
-  knownSatsValueMap: {
+  knownSatsValueMap?: {
     [value: number]: number;
   }
 ) => {
   if (mode === 'sat') {
     return value;
   } else {
-    const knownSatsValue = knownSatsValueMap[value];
+    const knownSatsValue = knownSatsValueMap?.[value];
     if (knownSatsValue !== undefined) return knownSatsValue;
     else if (mode === 'Fiat') {
       if (typeof btcFiat !== 'number')
-        throw new Error(`Currency mode not valud if rates not available`);
+        throw new Error(`Currency mode not valid if rates not available`);
       return Math.round((1e8 * value) / btcFiat);
     } else if (mode === 'btc') {
       return Math.round(value * 1e8);
