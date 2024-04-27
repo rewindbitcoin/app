@@ -1,5 +1,9 @@
 cuando en la wallet doy a goBack tarda años
 
+ALL FUNDS (en verde)
+
+Si no tengo height enough para scroll , entonceds al querer recojer el isRefreshing, hace un flickr
+
 Android Wallet 3 (walletId:2) does not load
   -> Biometric + Signers Encryption none
     -> Does not request touchId
