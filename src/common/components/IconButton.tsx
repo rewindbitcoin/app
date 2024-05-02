@@ -11,7 +11,8 @@ function IconButton({
   iconName,
   iconFamily,
   onPress,
-  size = 14
+  size = 14,
+  separationRatio = 1 / 4
 }: {
   mode?: 'icon-right' | 'icon-left' | 'no-text';
   text?: string;
@@ -19,12 +20,13 @@ function IconButton({
   iconFamily: keyof typeof Icons;
   onPress?: () => void;
   size?: number;
+  separationRatio?: number;
 }) {
   const theme = useTheme();
   const [pressed, setPressed] = useState<boolean>(false);
   const styles = useMemo(
-    () => getIconButtonStyles(theme, pressed, size, mode),
-    [theme, pressed, size, mode]
+    () => getIconButtonStyles(theme, pressed, size, separationRatio, mode),
+    [theme, pressed, size, separationRatio, mode]
   );
   const Icon = Icons[iconFamily];
   const onPressIn = useCallback(() => setPressed(true), []);
@@ -57,12 +59,13 @@ const getIconButtonStyles = (
   theme: Theme,
   pressed: boolean,
   size: number,
+  separationRatio: number,
   mode: 'icon-right' | 'icon-left' | 'no-text'
 ) =>
   StyleSheet.create({
     actionIcon: {
-      paddingRight: mode === 'icon-left' ? (4 * size) / 16 : 0,
-      paddingLeft: mode === 'icon-right' ? (4 * size) / 16 : 0,
+      paddingRight: mode === 'icon-left' ? size * separationRatio : 0,
+      paddingLeft: mode === 'icon-right' ? size * separationRatio : 0,
       fontSize: size,
       color: rgba(theme.colors.primary, pressed ? 0.2 : 1)
     },

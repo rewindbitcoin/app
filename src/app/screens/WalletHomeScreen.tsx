@@ -57,6 +57,7 @@ const WalletHomeScreen = () => {
 
   const {
     vaults,
+    vaultsStatuses,
     utxosData,
     syncBlockchain,
     syncingBlockchain,
@@ -238,7 +239,13 @@ const WalletHomeScreen = () => {
           `${Platform.OS === 'ios' || Platform.OS === 'web' ? '-z-10' : ''}`
         }
       >
-        <WalletHeader utxosData={utxosData} wallet={wallet} btcFiat={btcFiat} />
+        <WalletHeader
+          utxosData={utxosData}
+          vaults={vaults}
+          vaultsStatuses={vaultsStatuses}
+          wallet={wallet}
+          btcFiat={btcFiat}
+        />
 
         <View className="bg-white flex-row gap-6 px-6 border-b border-b-slate-300">
           <View className="py-4 border-b-primary border-b-2">

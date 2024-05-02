@@ -630,20 +630,21 @@ export function validateAddress(addressValue: string, network: Network) {
  * How many blocks must be waited for spending from a triggerUnvault tx?
  *
  * returns 'NOT_PUSHED' if the trigger tx has not been pushed yet
- * returns 'SPENT' if the trigger tx has already been spent.
+ * returns 'SPENT_AS_HOT'/'SPENT_AS_PANIC' if the trigger tx has already been spent.
  *
  * returns an integer lockBlocks >= remainingBlocks >= 0 with the number of
  * blocks the user must wait before pushing a tx so that they won't get
  * BIP68-non-final.
  *
  */
-export function getRemainingBlocks(
+function getRemainingBlocks(
   vault: Vault,
   vaultStatus: VaultStatus,
   blockhainTip: number
-): 'NOT_PUSHED' | 'SPENT' | number {
+): 'NOT_PUSHED' | 'SPENT_AS_PANIC' | 'SPENT_AS_HOT' | number {
   if (vaultStatus.triggerTxBlockHeight === undefined) return 'NOT_PUSHED';
-  if (vaultStatus.panicTxHex || vaultStatus.spendAsHotTxHex) return 'SPENT';
+  if (vaultStatus.panicTxHex) return 'SPENT_AS_PANIC';
+  if (vaultStatus.spendAsHotTxHex) return 'SPENT_AS_HOT';
   let remainingBlocks: number;
   const isTriggerInMempool = vaultStatus.triggerTxBlockHeight === 0;
   if (isTriggerInMempool) {
@@ -660,12 +661,49 @@ export function getRemainingBlocks(
   return remainingBlocks;
 }
 
+const getVaultBalance = (vault: Vault, vaultStatus: VaultStatus) => {
+  const triggerTxHex = vaultStatus.triggerTxHex;
+  if (triggerTxHex === undefined) return { frozen: vault.amount, hot: 0 };
+  if (vaultStatus.panicTxHex || vaultStatus.spendAsHotTxHex)
+    return { frozen: 0, hot: 0 };
+  const triggerFee = vault.txMap[triggerTxHex]?.fee;
+  if (triggerFee === undefined)
+    throw new Error('Trigger tx fee should have been set');
+  return {
+    hot: 0,
+    frozen: vault.amount - triggerFee
+  };
+};
+
+export const getVaultsBalance = (
+  vaults: Vaults,
+  vaultsStatuses: VaultsStatuses
+) => {
+  let totalFrozen = 0;
+  let totalHot = 0;
+  Object.entries(vaults).map(([vaultId, vault]) => {
+    const vaultStatus = vaultsStatuses[vaultId];
+    if (!vaultStatus)
+      throw new Error(
+        `vaultsStatuses is not synchd. It should have key ${vaultId}`
+      );
+    const { hot, frozen } = getVaultBalance(vault, vaultStatus);
+    totalFrozen += frozen;
+    totalHot += hot;
+  });
+  return { hot: totalHot, frozen: totalFrozen };
+};
+
 /**
- * Retrieve all the trigger descriptors which are currently spendable.
- * This means the current blockhainTip is over lockBlocks and it has not been
- * spent.
+ * Retrieve all the trigger descriptors which are currently:
+ *  -hot: they are currently spendable.
+ *    This means the current blockhainTip is over lockBlocks and it has not been
+ *    spent.
+ *  -spent
+ *  -notTriggered
+ *  -defreezing
  */
-export const getSpendableTriggerDescriptors = (
+const getHotTriggerDescriptors = (
   vaults: Vaults,
   vaultsStatuses: VaultsStatuses,
   blockhainTip: number
@@ -876,6 +914,10 @@ const selectVaultUtxosDataMemo = ({
   });
 export { selectVaultUtxosDataMemo as selectVaultUtxosData };
 
+/**
+ * returns all the descriptors which can be spent right now (hot)
+ * This includes: spendable vaults, change and external
+ */
 export const getDescriptors = async (
   vaults: Vaults,
   vaultsStatuses: VaultsStatuses,
@@ -892,7 +934,7 @@ export const getDescriptors = async (
   const descriptors = [
     await createReceiveDescriptor({ signer, network }),
     changeDescriptorRanged,
-    ...getSpendableTriggerDescriptors(
+    ...getHotTriggerDescriptors(
       vaults,
       vaultsStatuses,
       await discovery.getExplorer().fetchBlockHeight()

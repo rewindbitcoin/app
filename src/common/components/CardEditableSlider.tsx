@@ -50,6 +50,7 @@ function CardEditableSlider({
       {onUnitPress ? (
         <IconButton
           size={12}
+          separationRatio={0}
           mode="icon-left"
           iconFamily="MaterialCommunityIcons"
           iconName="menu-swap-outline"

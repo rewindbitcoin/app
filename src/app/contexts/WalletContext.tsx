@@ -72,6 +72,7 @@ export type WalletContextType = {
   utxosData: UtxosData | undefined;
   signers: Signers | undefined;
   vaults: Vaults | undefined;
+  vaultsStatuses: VaultsStatuses | undefined;
   networkId: NetworkId | undefined;
   processCreatedVault: (
     vault:
@@ -695,6 +696,7 @@ const WalletProviderRaw = ({
     feeEstimates,
     signers,
     vaults,
+    vaultsStatuses,
     networkId,
     utxosData: walletId !== undefined ? utxosData[walletId] : undefined,
     processCreatedVault,

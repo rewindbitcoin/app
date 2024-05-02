@@ -25,7 +25,8 @@ const Button: React.FC<ButtonProps> = ({
     return (
       <RN.Pressable
         key={String(disabled)}
-        className={`min-w-20 items-center py-3 px-5 ${disabled ? 'pointer-events-none opacity-50' : 'hover:opacity-90 active:opacity-90 active:scale-95'}`}
+        hitSlop={10}
+        className={`min-w-20 items-center ${disabled ? 'pointer-events-none opacity-50' : 'hover:opacity-90 active:opacity-90 active:scale-95'}`}
         {...props}
       >
         {typeof children === 'string' ? (
