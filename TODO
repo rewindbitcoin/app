@@ -1,8 +1,17 @@
 cuando en la wallet doy a goBack tarda años
 
+When I vault a certain amount, do i want to make it so that this is the vaultedAmount
+before fees or after fees (service and miner)?
+  -> Now, the way it works is your vaulted amount will be: Amount - seviceFee and you will
+  have spent minerFees
+
+This is bad (at least in presentation). The user probably wants to vault 1BTC and will
+end up vaulting less than 1 BTC. This is bad user experience.
+  -> Then, after triggering they will have even less, but we don't care about this, right?
+
 ALL FUNDS (en verde)
 
-Android Wallet 3 (walletId:2) does not load
+Android Wallet 3 (walletId:2) does not load : Maybe fixed in commit c880356d86db8e15bb748ce374ededfe1a4af0ee
   -> Biometric + Signers Encryption none
     -> Does not request touchId
 

@@ -1,4 +1,5 @@
 import React from 'react';
+import FreezeIcon from './FreezeIcon';
 import { View, Text, Pressable } from 'react-native';
 import { Svg, Path } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -30,16 +31,7 @@ const Button = ({
         ) : type === 'SEND' ? (
           <Path d="M6 12 3.269 3.125A59.769 59.769 0 0 1 21.485 12 59.768 59.768 0 0 1 3.27 20.875L5.999 12Zm0 0h7.5" />
         ) : (
-          <>
-            <Path stroke="none" d="M0 0h24v24H0z" fill="none" />
-            <Path d="M14 21v-5.5l4.5 2.5" />
-            <Path d="M10 21v-5.5l-4.5 2.5" />
-            <Path d="M3.5 14.5l4.5 -2.5l-4.5 -2.5" />
-            <Path d="M20.5 9.5l-4.5 2.5l4.5 2.5" />
-            <Path d="M10 3v5.5l-4.5 -2.5" />
-            <Path d="M14 3v5.5l4.5 -2.5" />
-            <Path d="M12 11l1 1l-1 1l-1 -1z" />
-          </>
+          <FreezeIcon />
         )}
       </Svg>
       <Text

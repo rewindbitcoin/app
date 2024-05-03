@@ -83,7 +83,7 @@ const estimateMaxVaultAmount = ({
     });
   }
   if (coinselected) {
-    // It looks like it was possible to add a servive output. We
+    // It looks like it was possible to add a service output. We
     // can now know the total amount and we can compute the correct
     // serviceFee and the correct coinselect
 

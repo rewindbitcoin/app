@@ -33,6 +33,9 @@ export type TxHex = string;
 export type TxId = string;
 
 export type VaultSettings = {
+  /** amount + minerFees = total user spendings = value extracted from user utxos
+   * vaultedAmount = amount - serviceFee
+   */
   amount: number;
   coldAddress: string;
   feeRate: number;
@@ -232,7 +235,9 @@ const selectVaultUtxosData = ({
   vaultOutput: OutputInstance;
   serviceOutput: OutputInstance;
   changeOutput: OutputInstance;
-  /** amount includes serviceFee */
+  /** vaultedAmount = amount - serviceFee
+   * The user spends amount `+ minerFees and vaults vaultedAmount
+   */
   amount: number;
   feeRate: number;
   serviceFeeRate: number;
@@ -661,38 +666,40 @@ function getRemainingBlocks(
   return remainingBlocks;
 }
 
-const getVaultBalance = (vault: Vault, vaultStatus: VaultStatus) => {
+const getVaultVaultedBalance = (vault: Vault, vaultStatus: VaultStatus) => {
+  if (vaultStatus.panicTxHex || vaultStatus.spendAsHotTxHex) return 0;
+
+  const vaultTx = Transaction.fromHex(vault.vaultTxHex);
+  const vaultOutput = vaultTx.outs[0];
+  if (!vaultOutput) throw new Error('Invalid out');
+
   const triggerTxHex = vaultStatus.triggerTxHex;
-  if (triggerTxHex === undefined) return { frozen: vault.amount, hot: 0 };
-  if (vaultStatus.panicTxHex || vaultStatus.spendAsHotTxHex)
-    return { frozen: 0, hot: 0 };
+  //Not triggered yet:
+  if (triggerTxHex === undefined) return vaultOutput.value;
+
+  //Unvaulting triggered:
   const triggerFee = vault.txMap[triggerTxHex]?.fee;
   if (triggerFee === undefined)
     throw new Error('Trigger tx fee should have been set');
-  return {
-    hot: 0,
-    frozen: vault.amount - triggerFee
-  };
+
+  return vaultOutput.value - triggerFee;
 };
 
-export const getVaultsBalance = (
-  vaults: Vaults,
-  vaultsStatuses: VaultsStatuses
-) => {
-  let totalFrozen = 0;
-  let totalHot = 0;
-  Object.entries(vaults).map(([vaultId, vault]) => {
-    const vaultStatus = vaultsStatuses[vaultId];
-    if (!vaultStatus)
-      throw new Error(
-        `vaultsStatuses is not synchd. It should have key ${vaultId}`
-      );
-    const { hot, frozen } = getVaultBalance(vault, vaultStatus);
-    totalFrozen += frozen;
-    totalHot += hot;
-  });
-  return { hot: totalHot, frozen: totalFrozen };
-};
+export const getVaultsVaultedBalance = moize(
+  (vaults: Vaults, vaultsStatuses: VaultsStatuses) => {
+    let totalVaulted = 0;
+    Object.entries(vaults).map(([vaultId, vault]) => {
+      const vaultStatus = vaultsStatuses[vaultId];
+      if (!vaultStatus)
+        throw new Error(
+          `vaultsStatuses is not synchd. It should have key ${vaultId}`
+        );
+      const vaulted = getVaultVaultedBalance(vault, vaultStatus);
+      totalVaulted += vaulted;
+    });
+    return totalVaulted;
+  }
+);
 
 /**
  * Retrieve all the trigger descriptors which are currently:

@@ -136,7 +136,7 @@ const localizedStrToNumber = (str: string, locale: Locale): number => {
 };
 
 /**
- * Localizes unfinished strings while being typed in TexInput
+ * Localizes unfinished strings while being typed in TextInput
  * For example: 0. will be valid and not formatted to 0
  * or 1,000.034000 will be ok too since the user may be entering zeros
  * to finally enter a non-zero later.

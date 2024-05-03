@@ -9,6 +9,7 @@ function IconButton({
   mode = 'icon-left',
   text,
   iconName,
+  color,
   iconFamily,
   onPress,
   size = 14,
@@ -16,6 +17,7 @@ function IconButton({
 }: {
   mode?: 'icon-right' | 'icon-left' | 'no-text';
   text?: string;
+  color?: string;
   iconName: string;
   iconFamily: keyof typeof Icons;
   onPress?: () => void;
@@ -25,8 +27,9 @@ function IconButton({
   const theme = useTheme();
   const [pressed, setPressed] = useState<boolean>(false);
   const styles = useMemo(
-    () => getIconButtonStyles(theme, pressed, size, separationRatio, mode),
-    [theme, pressed, size, separationRatio, mode]
+    () =>
+      getIconButtonStyles(theme, color, pressed, size, separationRatio, mode),
+    [theme, color, pressed, size, separationRatio, mode]
   );
   const Icon = Icons[iconFamily];
   const onPressIn = useCallback(() => setPressed(true), []);
@@ -57,6 +60,7 @@ function IconButton({
 }
 const getIconButtonStyles = (
   theme: Theme,
+  color: string | undefined,
   pressed: boolean,
   size: number,
   separationRatio: number,
@@ -67,11 +71,11 @@ const getIconButtonStyles = (
       paddingRight: mode === 'icon-left' ? size * separationRatio : 0,
       paddingLeft: mode === 'icon-right' ? size * separationRatio : 0,
       fontSize: size,
-      color: rgba(theme.colors.primary, pressed ? 0.2 : 1)
+      color: rgba(color || theme.colors.primary, pressed ? 0.2 : 1)
     },
     actionText: {
       fontSize: size,
-      color: rgba(theme.colors.primary, pressed ? 0.2 : 1)
+      color: rgba(color || theme.colors.primary, pressed ? 0.2 : 1)
     }
   });
 
