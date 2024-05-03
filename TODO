@@ -1,5 +1,8 @@
 cuando en la wallet doy a goBack tarda años
 
+Wallet HEader should show the loading indicaton on the amounts not on the whole panelb
+  -> This means it shoudl already show there are hoyt + cold balances (even if they dont exist) and also show the test network warning
+
 When I vault a certain amount, do i want to make it so that this is the vaultedAmount
 before fees or after fees (service and miner)?
   -> Now, the way it works is your vaulted amount will be: Amount - seviceFee and you will
