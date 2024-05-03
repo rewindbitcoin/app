@@ -25,8 +25,9 @@ export const getDisconnectedDiscovery = memoize(
       !esploraAPI ||
       walletId === undefined ||
       !networkId
-    )
+    ) {
       return undefined;
+    }
     const explorer = new EsploraExplorer({ url: esploraAPI });
     const network = networkId && networkMapping[networkId];
     const { Discovery } = DiscoveryFactory(explorer, network);
@@ -38,8 +39,13 @@ export const getDisconnectedDiscovery = memoize(
     }
     return discovery;
   },
-  (walletId, esploraAPI, networkId, isDiscoveryDataExportSynchd) =>
-    `${walletId}-${esploraAPI}-${networkId}-${isDiscoveryDataExportSynchd}`
+  (
+    walletId,
+    esploraAPI,
+    networkId,
+    _discoveryDataExport,
+    isDiscoveryDataExportSynchd
+  ) => `${walletId}-${esploraAPI}-${networkId}-${isDiscoveryDataExportSynchd}`
 );
 
 /**
