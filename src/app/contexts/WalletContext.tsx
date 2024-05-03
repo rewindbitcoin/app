@@ -491,114 +491,112 @@ const WalletProviderRaw = ({
    * Initiates the blockchain synchronization process.
    */
   const sync = useCallback(async () => {
-    if (walletId !== undefined) {
-      const discovery =
-        initialDiscovery && (await ensureConnected(initialDiscovery));
-      const signer = signers?.[0];
-      if (
-        networkId &&
-        settings?.GAP_LIMIT !== undefined &&
-        discovery &&
-        vaults &&
-        vaultsStatuses &&
-        accountNames &&
-        //When a new vault is created, vaults, vaultsStatuses and accountNames are not
-        //atomically set in state at the same time.
-        //Wait until both are set before proceeding. This is important because
-        //updateVaultsStatuses upddate status based on vaults so they must be
-        //synched
-        shallowEqualArrays(Object.keys(vaults), Object.keys(vaultsStatuses)) &&
-        //shallowEqualArrays(Object.keys(vaults), Object.keys(accountNames)) &&
-        signer &&
-        vaultsAPI
-      ) {
-        const network = networkId && networkMapping[networkId];
+    if (walletId === undefined) throw new Error('Cannot sync an unset wallet');
+    const discovery =
+      initialDiscovery && (await ensureConnected(initialDiscovery));
+    const signer = signers?.[0];
+    if (
+      networkId &&
+      settings?.GAP_LIMIT !== undefined &&
+      discovery &&
+      vaults &&
+      vaultsStatuses &&
+      accountNames &&
+      //When a new vault is created, vaults, vaultsStatuses and accountNames are not
+      //atomically set in state at the same time.
+      //Wait until both are set before proceeding. This is important because
+      //updateVaultsStatuses upddate status based on vaults so they must be
+      //synched
+      shallowEqualArrays(Object.keys(vaults), Object.keys(vaultsStatuses)) &&
+      //shallowEqualArrays(Object.keys(vaults), Object.keys(accountNames)) &&
+      signer &&
+      vaultsAPI
+    ) {
+      const network = networkId && networkMapping[networkId];
 
-        try {
-          //First get updatedVaults & updatedVaultsStatuses:
-          const p2pVaults = await fetchP2PVaults({
-            signer,
-            networkId,
-            vaultsAPI,
-            vaults
-          });
-          let updatedVaults = vaults; //initially they are the same
-          p2pVaults &&
-            Object.entries(p2pVaults).forEach(([key, p2pVault]) => {
-              const currentVault = vaults[key];
-              //A vault cannot mutate. It either exists or not, but once created
-              //it will never change:
-              if (p2pVault && !currentVault) {
-                // Mutate updatedVaults because a new one has been detected
-                updatedVaults = { ...updatedVaults };
-                updatedVaults[key] = p2pVault;
-              }
-            });
-
-          const freshVaultsStatuses = await fetchVaultsStatuses(
-            updatedVaults,
-            vaultsStatuses,
-            discovery.getExplorer()
-          );
-
-          let updatedVaultsStatuses = vaultsStatuses; //initially they are the same
-          Object.entries(freshVaultsStatuses).forEach(([key, freshStatus]) => {
-            const currentStatus = vaultsStatuses[key];
-            //A vaultStatus can change in the future since it depends on user actions
-            if (!shallowEqualObjects(currentStatus, freshStatus)) {
-              // Mutate updatedVaultsStatuses because a change has been detected
-              updatedVaultsStatuses = { ...updatedVaultsStatuses };
-              updatedVaultsStatuses[key] = freshStatus;
+      try {
+        //First get updatedVaults & updatedVaultsStatuses:
+        const p2pVaults = await fetchP2PVaults({
+          signer,
+          networkId,
+          vaultsAPI,
+          vaults
+        });
+        let updatedVaults = vaults; //initially they are the same
+        p2pVaults &&
+          Object.entries(p2pVaults).forEach(([key, p2pVault]) => {
+            const currentVault = vaults[key];
+            //A vault cannot mutate. It either exists or not, but once created
+            //it will never change:
+            if (p2pVault && !currentVault) {
+              // Mutate updatedVaults because a new one has been detected
+              updatedVaults = { ...updatedVaults };
+              updatedVaults[key] = p2pVault;
             }
           });
 
-          //Now get utxosData
-          const descriptors = await getDescriptors(
-            updatedVaults,
-            updatedVaultsStatuses,
-            signers,
-            network,
-            discovery
-          );
-          await discovery.fetch({
-            descriptors,
-            gapLimit: settings.GAP_LIMIT
-          });
-          //If utxos don't change, then getUtxosAndBalance return the same reference
-          //even if descriptors reference is different
-          const { utxos } = discovery.getUtxosAndBalance({ descriptors });
-          const walletUtxosData = getUtxosData(
-            utxos,
-            updatedVaults,
-            network,
-            discovery
-          );
+        const freshVaultsStatuses = await fetchVaultsStatuses(
+          updatedVaults,
+          vaultsStatuses,
+          discovery.getExplorer()
+        );
 
-          //Save to disk. Saving is async, but it's ok not awaiting since all this
-          //data can be re-created any time by calling again syncBlockchain
-          const exportedData = discovery.export();
-          setDiscoveryDataExport(exportedData);
+        let updatedVaultsStatuses = vaultsStatuses; //initially they are the same
+        Object.entries(freshVaultsStatuses).forEach(([key, freshStatus]) => {
+          const currentStatus = vaultsStatuses[key];
+          //A vaultStatus can change in the future since it depends on user actions
+          if (!shallowEqualObjects(currentStatus, freshStatus)) {
+            // Mutate updatedVaultsStatuses because a change has been detected
+            updatedVaultsStatuses = { ...updatedVaultsStatuses };
+            updatedVaultsStatuses[key] = freshStatus;
+          }
+        });
 
-          setUtxosData(walletId, walletUtxosData);
-          //Update them in state only if they changed (we muteted them)
-          if (vaults !== updatedVaults) setVaults(updatedVaults);
-          if (vaultsStatuses !== updatedVaultsStatuses)
-            setVaultsStatuses(updatedVaultsStatuses);
-        } catch (error) {
-          const errorMessage =
-            error instanceof Error
-              ? error.message
-              : t('An unknown error occurred'); //TODO: translate
+        //Now get utxosData
+        const descriptors = await getDescriptors(
+          updatedVaults,
+          updatedVaultsStatuses,
+          signers,
+          network,
+          discovery
+        );
+        await discovery.fetch({
+          descriptors,
+          gapLimit: settings.GAP_LIMIT
+        });
+        //If utxos don't change, then getUtxosAndBalance return the same reference
+        //even if descriptors reference is different
+        const { utxos } = discovery.getUtxosAndBalance({ descriptors });
+        const walletUtxosData = getUtxosData(
+          utxos,
+          updatedVaults,
+          network,
+          discovery
+        );
 
-          toast.show(t('networkError', { message: errorMessage }), {
-            type: 'warning'
-          });
-          console.error(errorMessage);
-        } finally {
-          setSyncingBlockchain(walletId, false);
-        }
+        //Save to disk. Saving is async, but it's ok not awaiting since all this
+        //data can be re-created any time by calling again syncBlockchain
+        const exportedData = discovery.export();
+        setDiscoveryDataExport(exportedData);
+
+        setUtxosData(walletId, walletUtxosData);
+        //Update them in state only if they changed (we muteted them)
+        if (vaults !== updatedVaults) setVaults(updatedVaults);
+        if (vaultsStatuses !== updatedVaultsStatuses)
+          setVaultsStatuses(updatedVaultsStatuses);
+      } catch (error) {
+        const errorMessage =
+          error instanceof Error
+            ? error.message
+            : t('An unknown error occurred'); //TODO: translate
+
+        toast.show(t('networkError', { message: errorMessage }), {
+          type: 'warning'
+        });
+        console.error(errorMessage);
       }
     }
+    setSyncingBlockchain(walletId, false);
   }, [
     setUtxosData,
     setSyncingBlockchain,
@@ -631,8 +629,8 @@ const WalletProviderRaw = ({
   //Automatically set syncingBlockchain to true on new walletId: auto sync
   //on new wallet
   useEffect(() => {
-    if (walletId !== undefined) setSyncingBlockchain(walletId, true);
-  }, [walletId, setSyncingBlockchain]);
+    if (walletId !== undefined && isReady) setSyncingBlockchain(walletId, true);
+  }, [walletId, setSyncingBlockchain, isReady]);
 
   const processCreatedVault = useCallback(
     async (
