@@ -52,7 +52,8 @@ import { fetchP2PVaults, getDataCipherKey } from '../lib/backup';
 
 type DiscoveryDataExport = ReturnType<DiscoveryInstance['export']>;
 
-import { WalletError, getWalletError } from '../lib/errors';
+import { WalletError, getWalletError, isCorrupted } from '../lib/errors';
+
 import { useStorage } from '../../common/hooks/useStorage';
 import { useSecureStorageInfo } from '../../common/contexts/SecureStorageInfoContext';
 import { useSettings } from '../hooks/useSettings';
@@ -162,6 +163,8 @@ const WalletProviderRaw = ({
     {}
   );
 
+  console.log(JSON.stringify(wallets, null, 2));
+
   const initSigners =
     walletId !== undefined &&
     (wallet?.signersEncryption !== 'PASSWORD' || signersCipherKey[walletId]);
@@ -235,6 +238,18 @@ const WalletProviderRaw = ({
       walletId !== undefined ? dataCipherKey[walletId] : undefined
     );
 
+  const corrupted = isCorrupted({
+    wallet,
+    signers,
+    isSignersSynchd: signersStorageStatus.isSynchd,
+    vaults,
+    isVaultsSynchd: vaultsStorageStatus.isSynchd,
+    vaultsStatuses,
+    isVaultsStatusesSynchd: vaultsStatusesStorageStatus.isSynchd,
+    accountNames,
+    isAccountNamesSynchd: accountNamesStorageStatus.isSynchd
+  });
+
   /** When all wallet realated data is synchronized and without any errors.
    * Use this variable to add the wallet into the wallets storage
    */
@@ -250,7 +265,8 @@ const WalletProviderRaw = ({
     signersStorageStatus.errorCode === false &&
     vaultsStorageStatus.errorCode === false &&
     vaultsStatusesStorageStatus.errorCode === false &&
-    accountNamesStorageStatus.errorCode === false;
+    accountNamesStorageStatus.errorCode === false &&
+    !corrupted;
 
   useEffect(() => {
     if (isReady) {
@@ -714,7 +730,8 @@ const WalletProviderRaw = ({
       discoveryErrorCode: discoveryStorageStatus.errorCode,
       vaultsErrorCode: vaultsStorageStatus.errorCode,
       vaultsStatusesErrorCode: vaultsStatusesStorageStatus.errorCode,
-      accountNamesErrorCode: accountNamesStorageStatus.errorCode
+      accountNamesErrorCode: accountNamesStorageStatus.errorCode,
+      corrupted
     }),
     requiresPassword:
       (walletId !== undefined &&

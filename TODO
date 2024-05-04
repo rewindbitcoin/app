@@ -1,7 +1,10 @@
 cuando en la wallet doy a goBack tarda años
 
-Wallet HEader should show the loading indicaton on the amounts not on the whole panelb
-  -> This means it shoudl already show there are hoyt + cold balances (even if they dont exist) and also show the test network warning
+Wallet 3 falla en android
+  -> Es una wallet tipo securestore pero no me pide el dedo
+    -> Quizá es porque cancelé el dedo en primer lugar con anterioridad y no lo vuelve a pedir?
+
+Wallet 5 falla en android
 
 When I vault a certain amount, do i want to make it so that this is the vaultedAmount
 before fees or after fees (service and miner)?

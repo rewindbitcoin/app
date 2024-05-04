@@ -221,7 +221,6 @@ const secureStoreGetItemAsync = async (
   key: string,
   options: SecureStoreOptions
 ) => {
-  console.log('secureStoreGetItemAsync', key);
   if (!(await canUseSecureStorageAsync()))
     throw new Error('Device does not support secure storage');
   for (let attempts = 0; attempts < SECURESTORE_ATTEMPTS; attempts++) {
@@ -246,7 +245,6 @@ const secureStoreSetItemAsync = async (
   value: string,
   options: SecureStoreOptions
 ) => {
-  console.log('secureStoreSetItemAsync', key, value);
   // assert this programming error (this should never happen)
   if (!(await canUseSecureStorageAsync()))
     throw new Error('Device does not support secure storage');
@@ -272,7 +270,6 @@ const secureStoreDeleteItemAsync = async (
   key: string,
   options: SecureStoreOptions
 ) => {
-  console.log('secureStoreDeleteItemAsynce', key);
   try {
     return secureStoreOriginalDeleteItemAsync(key, options);
   } catch (err) {
@@ -388,8 +385,6 @@ export const setAsync = async (
       );
     const chacha = getManagedChacha(cipherKey);
     const originalMessage = value;
-    console.log(`About to encrypt ${key} in ${engine}`);
-    const start = performance.now(); // Start timing
     const strOriginalMessage = JSON.stringify(originalMessage);
     //const uint8OriginalMessage = strToU8(strOriginalMessage);
     const uint8OriginalMessage = new TextEncoder().encode(strOriginalMessage);
@@ -399,10 +394,6 @@ export const setAsync = async (
       console.warn(err);
       throw new Error(StorageErrors.EncryptError);
     }
-    const end = performance.now(); // End timing
-    console.log(
-      `Data preparation success: encrypted buffer length: ${cipherMessage.length} chars / ${(end - start) / 1000} seconds`
-    );
   }
   if (engine === 'IDB') {
     await idbSet(key, cipherMessage || value);
@@ -508,10 +499,6 @@ export const getAsync = async <S extends SerializationFormat>(
       );
     } else {
       const chacha = getManagedChacha(cipherKey);
-      console.log(
-        `About to decrypt ${key} / encrypted buffer length ${result.length} bytes / ${engine}`
-      );
-      const start = performance.now(); // Start timing
       let decryptedResult: Uint8Array;
       try {
         decryptedResult = chacha.decrypt(result);
@@ -519,18 +506,11 @@ export const getAsync = async <S extends SerializationFormat>(
         console.warn(err);
         throw new Error(StorageErrors.DecryptError);
       }
-      const decryptTime = performance.now();
-      console.log(`decrypt time: ${(decryptTime - start) / 1000} seconds`);
       //const strResult = strFromU8(decryptedResult);
       const strResult = new TextDecoder().decode(decryptedResult, {
         stream: false
       });
-      const strTime = performance.now();
-      console.log(`U8 -> str time: ${(strTime - decryptTime) / 1000} seconds`);
       result = JSON.parse(strResult);
-      const end = performance.now(); // End timing
-      console.log(`JSON.parse time: ${(end - strTime) / 1000} seconds`);
-      console.log(`Success: ${(end - start) / 1000} seconds`);
     }
   }
   return result;
