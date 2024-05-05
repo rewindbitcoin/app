@@ -21,10 +21,6 @@ Android Wallet 3 (walletId:2) does not load : Maybe fixed in commit c880356d86db
   -> Biometric + Signers Encryption none
     -> Does not request touchId
 
-Android, a la que cancelo el Biometric en una wallet, luego no puedo entrar ya nunca
-mas en esa wallet, me da como que siempre fue cancelado porque los errores supongo 
-que no se resetean. Supongo que segun el tipo de error habria que hacer logOut
-
 Las fees ahora me estan dando Express Confirmation con fees bajas y luego 
 para fees altas 50 minutos !?!?!?!
   -> Wallet 7 Android

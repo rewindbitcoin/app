@@ -66,7 +66,8 @@ const WalletHomeScreen = () => {
     walletError,
     requiresPassword,
     btcFiat,
-    onWallet
+    onWallet,
+    logOut
   } = context;
   if (wallet && walletId !== wallet.walletId)
     throw new Error(
@@ -118,10 +119,14 @@ const WalletHomeScreen = () => {
   );
   useEffect(() => navigation.setOptions(navOptions), [navigation, navOptions]);
 
+  const logOutAndGoBack = useCallback(() => {
+    logOut();
+    if (navigation.canGoBack()) navigation.goBack();
+  }, [navigation, logOut]);
+
   useEffect(() => {
-    if (walletError === 'USER_CANCEL')
-      if (navigation.canGoBack()) navigation.goBack();
-  }, [walletError, navigation]);
+    if (walletError === 'USER_CANCEL') logOutAndGoBack();
+  }, [walletError, logOutAndGoBack]);
 
   const onRequestVaultsBackup = useCallback(() => {
     if (!vaults) throw new Error('vaults not ready');
@@ -132,8 +137,8 @@ const WalletHomeScreen = () => {
   // ...
 
   const onPasswordCancel = useCallback(() => {
-    if (navigation.canGoBack()) navigation.goBack();
-  }, [navigation]);
+    logOutAndGoBack();
+  }, [logOutAndGoBack]);
   const onPassword = useCallback(
     (password: string) => {
       if (!wallet) throw new Error(`wallet not set yet`);
@@ -149,8 +154,8 @@ const WalletHomeScreen = () => {
     [wallet, onWallet]
   );
   const onCloseErrorModal = useCallback(() => {
-    if (navigation.canGoBack()) navigation.goBack();
-  }, [navigation]);
+    logOutAndGoBack();
+  }, [logOutAndGoBack]);
 
   const handleReceive = useCallback(() => {}, []);
   const handleSend = useCallback(() => {}, []);
