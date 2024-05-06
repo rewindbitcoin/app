@@ -9,7 +9,8 @@ import {
   type Vaults,
   type VaultsStatuses,
   type UtxosData,
-  getDescriptors
+  getDescriptors,
+  faucetFirstReceive
 } from '../lib/vaults';
 import type { AccountNames, Signers, Wallets } from '../lib/wallets';
 import {
@@ -155,15 +156,18 @@ const WalletProviderRaw = ({
 
   const { settings, settingsStorageStatus } = useSettings();
 
-  const { esploraAPI, serviceAddressAPI, vaultsAPI, vaultsSecondaryAPI } =
-    getAPIs(networkId, settings);
+  const {
+    esploraAPI,
+    serviceAddressAPI,
+    vaultsAPI,
+    vaultsSecondaryAPI,
+    faucetAPI
+  } = getAPIs(networkId, settings);
   const [wallets, setWallets, , , walletsStorageStatus] = useStorage<Wallets>(
     `WALLETS`,
     SERIALIZABLE,
     {}
   );
-
-  console.log(JSON.stringify(wallets, null, 2));
 
   const initSigners =
     walletId !== undefined &&
@@ -647,6 +651,44 @@ const WalletProviderRaw = ({
   useEffect(() => {
     if (walletId !== undefined && isReady) setSyncingBlockchain(walletId, true);
   }, [walletId, setSyncingBlockchain, isReady]);
+  //Faucet first external address on new wallets first.
+  useEffect(() => {
+    if (
+      signers &&
+      network &&
+      faucetAPI &&
+      walletId !== undefined &&
+      isReady &&
+      newSigners[walletId]
+    ) {
+      (async () => {
+        try {
+          const { txId } = await faucetFirstReceive(
+            signers,
+            network,
+            faucetAPI
+          );
+          console.log('faucet ok', { txId });
+          //wait a few secs so that esplora catches up...
+          await new Promise(resolve => setTimeout(resolve, 10000));
+          syncBlockchain();
+        } catch (error: unknown) {
+          //TODO: Toast these errors:
+          if (error instanceof Error && typeof error.message === 'string')
+            console.warn('Faucet operation failed:', error.message);
+          else console.warn('Faucet operation failed:', 'Unknown Error');
+        }
+      })();
+    }
+  }, [
+    walletId,
+    syncBlockchain,
+    isReady,
+    signers,
+    newSigners,
+    network,
+    faucetAPI
+  ]);
 
   const processCreatedVault = useCallback(
     async (

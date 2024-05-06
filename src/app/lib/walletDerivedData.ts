@@ -89,6 +89,7 @@ export const getAPIs = moize(
     let serviceAddressAPI: string | undefined;
     let vaultsAPI: string | undefined;
     let vaultsSecondaryAPI: string | undefined;
+    let faucetAPI: string | undefined;
     if (networkId && settings)
       switch (networkId) {
         case 'BITCOIN':
@@ -108,17 +109,20 @@ export const getAPIs = moize(
           serviceAddressAPI = settings.STORM_SERVICE_ADDRESS_API;
           vaultsAPI = settings.STORM_VAULTS_API;
           vaultsSecondaryAPI = settings.STORM_VAULTS_SECONDARY_API;
+          faucetAPI = settings.STORM_FAUCET_API;
           break;
         case 'REGTEST':
           esploraAPI = settings.REGTEST_ESPLORA_API;
           serviceAddressAPI = settings.REGTEST_SERVICE_ADDRESS_API;
           vaultsAPI = settings.REGTEST_VAULTS_API;
           vaultsSecondaryAPI = settings.REGTEST_VAULTS_SECONDARY_API;
+          faucetAPI = settings.REGTEST_FAUCET_API;
           break;
         default:
           throw new Error(`networkId ${networkId} not supported.`);
       }
     return {
+      faucetAPI,
       esploraAPI,
       serviceAddressAPI,
       vaultsAPI,

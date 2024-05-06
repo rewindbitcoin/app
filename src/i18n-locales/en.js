@@ -190,7 +190,7 @@ While the app is in early development, we advise against using real Bitcoin for 
       '<group>ThunderDen establishes a minimum vaulting amount.\nThis assumes express transaction confirmations and the possibility of ultra-high network fees when unvaulting.</group><group><strong>Suggested Addition:</strong> Add about {{missingFunds}} to reach the vaulting minimum.\nNote that the exact vaultable amount might slightly differ due to changes in network fee conditions.</group>',
     amountLabel: 'Vault Amount',
     securityLockTimeLabel: 'Theft Protection Time Lock',
-    securityLockTimeDescription: 'Available {{blocks}} after Unvault',
+    securityLockTimeDescription: 'Available {{blocks}} after defreeze',
     confirmationSpeedLabel: 'Vault Creation Speed',
     lockTimeError: 'Pick a valid Lock Time.',
     feeRateError: 'Pick a valid Fee Rate.',

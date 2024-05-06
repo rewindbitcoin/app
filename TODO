@@ -1,5 +1,15 @@
 cuando en la wallet doy a goBack tarda años
 
+On changing units, then make it permanent
+
+
+ok, so i made this REGTEST_FAUCET_API and STORM_FAUCET_API
+-> BETTER simply do this on ALL new wallets (newSigners) on regtest or storm and that's it.
+  ->Then context, when sync must also Toast "new tx received when a new tx is got..."???
+
+
+
+
 Wallet 3 falla en android
   -> Es una wallet tipo securestore pero no me pide el dedo
     -> Quizá es porque cancelé el dedo en primer lugar con anterioridad y no lo vuelve a pedir?

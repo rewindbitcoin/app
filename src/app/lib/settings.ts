@@ -1,6 +1,6 @@
 export const subUnits = ['btc', 'bit', 'sat', 'mbit'] as const;
 export type SubUnit = (typeof subUnits)[number];
-export type Currency = 'USD' | 'EUR' | 'GBP';
+export type Currency = 'USD' | 'EUR' | 'GBP'; //Keep in sync with thunderDenServices/btcRates
 import type { Locale } from '../../i18n-locales/init';
 export const SETTINGS_GLOBAL_STORAGE = 'SETTINGS_GLOBAL_STORAGE';
 
@@ -32,6 +32,8 @@ export interface Settings {
   STORM_VAULTS_API: string;
   REGTEST_VAULTS_API: string;
 
+  BTC_RATES_API: string;
+
   MAINNET_VAULTS_SECONDARY_API: string;
   TESTNET_VAULTS_SECONDARY_API: string;
   STORM_VAULTS_SECONDARY_API: string;
@@ -41,6 +43,9 @@ export interface Settings {
   TESTNET_ESPLORA_API: string;
   STORM_ESPLORA_API: string;
   REGTEST_ESPLORA_API: string;
+
+  STORM_FAUCET_API: string;
+  REGTEST_FAUCET_API: string;
 }
 
 // Default values for the context
@@ -83,6 +88,8 @@ export const defaultSettings: Settings = {
   STORM_VAULTS_API: 'https://api.thunderden.com/storm/vaults',
   REGTEST_VAULTS_API: 'http://localhost:3124',
 
+  BTC_RATES_API: 'https://api.thunderden.com/btc-rates',
+
   MAINNET_VAULTS_SECONDARY_API: 'https://api-proxy.thunderden.com/vaults',
   TESTNET_VAULTS_SECONDARY_API:
     'https://api-proxy.thunderden.com/testnet/vaults',
@@ -92,7 +99,10 @@ export const defaultSettings: Settings = {
   MAINNET_ESPLORA_API: 'https://blockstream.info/api',
   TESTNET_ESPLORA_API: 'https://blockstream.info/testnet/api',
   STORM_ESPLORA_API: 'https://storm.thunderden.com/api',
-  REGTEST_ESPLORA_API: 'http://localhost:31002'
+  REGTEST_ESPLORA_API: 'http://localhost:31002',
+
+  STORM_FAUCET_API: 'https://storm.thunderden.com/faucet',
+  REGTEST_FAUCET_API: 'http://localhost:4123/faucet'
 
   //GET_SERVICE_ADDRESS_URL_TEMPLATE:
   //  'https://api.thunderden.com/:network?/service-address/get',

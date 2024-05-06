@@ -248,7 +248,6 @@ const WalletHomeScreen = () => {
           utxosData={utxosData}
           vaults={vaults}
           vaultsStatuses={vaultsStatuses}
-          wallet={wallet}
           btcFiat={btcFiat}
         />
 

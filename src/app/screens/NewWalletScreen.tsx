@@ -4,7 +4,7 @@
 //or faceId of the device
 import React, { useCallback, useContext, useRef, useState } from 'react';
 import { defaultSettings } from '../lib/settings';
-import type { Wallet } from '../lib/wallets';
+import type { Wallet, Signer } from '../lib/wallets';
 import { View, Text, Pressable, Keyboard, Platform } from 'react-native';
 import type { Engine as StorageEngine } from '../../common/lib/storage';
 import {
@@ -128,15 +128,16 @@ export default function NewWalletScreen() {
       const signersCipherKey = signersPassword
         ? await getPasswordDerivedCipherKey(signersPassword)
         : undefined;
+      const signer: Signer = {
+        masterFingerprint,
+        type: 'SOFTWARE',
+        mnemonic
+      };
       await onWallet({
         wallet,
         ...(signersCipherKey ? { signersCipherKey } : {}),
         newSigners: {
-          [signerId]: {
-            masterFingerprint,
-            type: 'SOFTWARE',
-            mnemonic
-          }
+          [signerId]: signer
         }
       });
       //if (navigation.canGoBack()) navigation.goBack();
@@ -156,7 +157,7 @@ export default function NewWalletScreen() {
       hasAskedNonSecureSignersToSetPassword.current = true;
       setAskNonSecureSignersPassword(true);
     } else {
-      addWallet(
+      await addWallet(
         words,
         advancedSettings.encryption,
         advancedSettings.signersPassword,
@@ -180,7 +181,7 @@ export default function NewWalletScreen() {
   const onBip39Cancel = useCallback(() => {
     setIsConfirmBip39(false);
   }, []);
-  const onBip39Confirmed = useCallback(() => {
+  const onBip39Confirmed = useCallback(async () => {
     setIsConfirmBip39(false);
     if (
       !canUseSecureStorage &&
@@ -190,7 +191,7 @@ export default function NewWalletScreen() {
       hasAskedNonSecureSignersToSetPassword.current = true;
       setAskNonSecureSignersPassword(true);
     } else {
-      addWallet(
+      await addWallet(
         words,
         advancedSettings.encryption,
         advancedSettings.signersPassword,
@@ -214,9 +215,9 @@ export default function NewWalletScreen() {
     hasAskedNonSecureSignersToSetPassword.current = false;
     setAskNonSecureSignersPassword(false);
   }, []);
-  const onNonSecureSignerContinueWithoutPassword = useCallback(() => {
+  const onNonSecureSignerContinueWithoutPassword = useCallback(async () => {
     setAskNonSecureSignersPassword(false);
-    addWallet(
+    await addWallet(
       words,
       advancedSettings.encryption,
       undefined,
@@ -232,9 +233,9 @@ export default function NewWalletScreen() {
   ]);
 
   const onNonSecureSignerPassword = useCallback(
-    (password: string) => {
+    async (password: string) => {
       setAskNonSecureSignersPassword(false);
-      addWallet(
+      await addWallet(
         words,
         advancedSettings.encryption,
         password,

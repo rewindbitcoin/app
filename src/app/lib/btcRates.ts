@@ -1,24 +1,44 @@
 import memoize from 'lodash.memoize';
 import type { TFunction } from 'i18next';
-import type { SubUnit, Currency } from './settings';
+import { type SubUnit, type Currency, defaultSettings } from './settings';
 import type { Locale } from '../../i18n-locales/init';
 
-//TODO: Do not depend on external APIs - or show a couple of options coingecko +
-//other APIs and allow users cahnge that on settings context
-export async function fetchBtcFiat(currency: Currency): Promise<number> {
-  const url = `https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=${currency.toLowerCase()}`;
+export async function fetchBtcFiat(
+  currency: Currency,
+  api: 'COINGECKO' | 'THUNDERDEN' = 'THUNDERDEN'
+): Promise<number> {
+  if (api === 'COINGECKO') {
+    const url = `https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=${currency.toLowerCase()}`;
 
-  try {
-    const response = await fetch(url);
-    if (!response.ok) {
-      throw new Error(`Error: ${response.status}`);
+    try {
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error(`Error: ${response.status}`);
+      }
+      const data = await response.json();
+      return data.bitcoin.usd;
+    } catch (error) {
+      console.error(`Failed to fetch BTC/${currency} rate:`, error);
+      throw error; // Rethrow the error for further handling if necessary
     }
-    const data = await response.json();
-    return data.bitcoin.usd;
-  } catch (error) {
-    console.error(`Failed to fetch BTC/${currency} rate:`, error);
-    throw error; // Rethrow the error for further handling if necessary
-  }
+  } else if (api === 'THUNDERDEN') {
+    const apiUrl = `${defaultSettings.BTC_RATES_API}/get?currency=${currency.toLowerCase()}`;
+
+    try {
+      const response = await fetch(apiUrl);
+      if (!response.ok) {
+        throw new Error(`Error: ${response.status}`);
+      }
+      const data = await response.json();
+      return data.rate;
+    } catch (error) {
+      console.error(
+        `Failed to fetch BTC/${currency} rate from ThunderDen:`,
+        error
+      );
+      throw error; // Rethrow the error for further handling if necessary
+    }
+  } else throw new Error(`Invalid API`);
 }
 
 const intlCurrencyFormatter = memoize(
