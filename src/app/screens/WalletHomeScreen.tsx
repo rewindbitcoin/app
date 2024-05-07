@@ -1,5 +1,6 @@
 import React, {
   useCallback,
+  useRef,
   useContext,
   useEffect,
   useMemo,
@@ -19,7 +20,8 @@ import { RefreshControl } from 'react-native-web-refresh-control';
 import {
   KeyboardAwareAnimatedScrollView,
   Modal,
-  useTheme
+  useTheme,
+  useToast
 } from '../../common/ui';
 import { WalletContext, WalletContextType } from '../contexts/WalletContext';
 import { useTranslation } from 'react-i18next';
@@ -39,6 +41,10 @@ import { lighten } from 'polished';
 import { shareVaults } from '../lib/backup';
 
 import type { IconType } from '../../common/components/Modal';
+import { getAPIs } from '../lib/walletDerivedData';
+import { useSettings } from '../hooks/useSettings';
+import { faucetFirstReceive } from '../lib/faucet';
+import { networkMapping } from '../lib/network';
 
 //Using chrome dev tools, refresh the screen, after choosing a mobile size to activate it:
 const hasTouch =
@@ -51,6 +57,10 @@ const WalletHomeScreen = () => {
   const route = useRoute<RouteProp<RootStackParamList, 'WALLET_HOME'>>();
   const walletId = route.params.walletId;
   const { t } = useTranslation();
+
+  const { settings } = useSettings();
+
+  const toast = useToast();
 
   const context = useContext<WalletContextType | null>(WalletContext);
   if (context === null) throw new Error('Context was not set');
@@ -67,12 +77,21 @@ const WalletHomeScreen = () => {
     requiresPassword,
     btcFiat,
     onWallet,
-    logOut
+    logOut,
+    isFirstLogin,
+    signers
   } = context;
   if (wallet && walletId !== wallet.walletId)
     throw new Error(
       `Navigated to walletId ${walletId} which does not correspond to the one in the context ${wallet?.walletId}`
     );
+
+  const faucetRequested = useRef<boolean>(false);
+  const faucetDetected = useRef<boolean>(false);
+  if (utxosData?.length) faucetDetected.current = true;
+
+  const faucetPending = !faucetDetected.current && faucetRequested.current;
+  const syncingOrFaucetPending = syncingBlockchain || faucetPending;
 
   const title =
     !wallet || !wallets
@@ -90,16 +109,22 @@ const WalletHomeScreen = () => {
       headerRight: () => (
         <View className="flex-row justify-between gap-5 items-center">
           <Pressable
-            onPress={syncingBlockchain ? undefined : syncBlockchain}
-            className={`${!syncingBlockchain ? 'hover:opacity-90' : ''} active:scale-95 active:opacity-90 ${
-              syncingBlockchain ? 'opacity-20 cursor-default' : 'opacity-100'
+            onPress={syncingOrFaucetPending ? undefined : syncBlockchain}
+            className={`${!syncingOrFaucetPending ? 'hover:opacity-90' : ''} active:scale-95 active:opacity-90 ${
+              syncingOrFaucetPending
+                ? 'opacity-20 cursor-default'
+                : 'opacity-100'
             }`}
           >
             <AntDesign
-              name={!hasTouch && syncingBlockchain ? 'loading1' : 'reload1'}
+              name={
+                !hasTouch && syncingOrFaucetPending ? 'loading1' : 'reload1'
+              }
               size={17}
               color={theme.colors.primary}
-              className={!hasTouch && syncingBlockchain ? 'animate-spin' : ''}
+              className={
+                !hasTouch && syncingOrFaucetPending ? 'animate-spin' : ''
+              }
             />
           </Pressable>
           <Pressable
@@ -115,9 +140,40 @@ const WalletHomeScreen = () => {
       ),
       headerRightContainerStyle: { marginRight: 16 }
     }),
-    [theme.colors.primary, title, syncBlockchain, syncingBlockchain]
+    [theme.colors.primary, title, syncBlockchain, syncingOrFaucetPending]
   );
   useEffect(() => navigation.setOptions(navOptions), [navigation, navOptions]);
+  useEffect(() => {
+    if (wallet && faucetRequested.current === false) {
+      const { faucetAPI } = getAPIs(wallet.networkId, settings);
+      const network = wallet.networkId && networkMapping[wallet.networkId];
+      if (faucetAPI && signers && isFirstLogin && settings) {
+        (async () => {
+          try {
+            await faucetFirstReceive(signers, network, faucetAPI, 'es-ES');
+            toast.show(
+              'TODO We are sending you a few coins to try this out. Hold on.',
+              { type: 'success' }
+            );
+            faucetRequested.current = true;
+            //wait a few secs until esplora catches up...
+            while (faucetDetected.current === false) {
+              syncBlockchain();
+              await new Promise(resolve => setTimeout(resolve, 2000));
+            }
+          } catch (error: unknown) {
+            //TODO: Toast these errors:
+            if (error instanceof Error && typeof error.message === 'string')
+              toast.show(error.message, { type: 'warning' });
+            else
+              toast.show('TODO: tranlsate Faucet did not work', {
+                type: 'warning'
+              });
+          }
+        })();
+      }
+    }
+  }, [toast, wallet, isFirstLogin, settings, signers, syncBlockchain]);
 
   const logOutAndGoBack = useCallback(() => {
     logOut();
@@ -189,7 +245,7 @@ const WalletHomeScreen = () => {
         <RefreshControl
           tintColor={lighten(0.25, theme.colors.primary)}
           colors={refreshColors}
-          refreshing={syncingBlockchain}
+          refreshing={syncingOrFaucetPending}
           onRefresh={syncBlockchain}
         />
       ) : (
@@ -199,7 +255,7 @@ const WalletHomeScreen = () => {
       isMounted,
       refreshColors,
       syncBlockchain,
-      syncingBlockchain,
+      syncingOrFaucetPending,
       theme.colors.primary
     ]
   );
@@ -249,6 +305,7 @@ const WalletHomeScreen = () => {
           vaults={vaults}
           vaultsStatuses={vaultsStatuses}
           btcFiat={btcFiat}
+          faucetPending={faucetPending}
         />
 
         <View className="bg-white flex-row gap-6 px-6 border-b border-b-slate-300">

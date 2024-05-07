@@ -4,8 +4,20 @@ On changing units, then make it permanent
 
 
 ok, so i made this REGTEST_FAUCET_API and STORM_FAUCET_API
+
+-> So create a new context var call, isFirstLogInIn
+  -> Then do the fetchFaucet in the isFirstLogInIn as part of the WalletHome
+  and provide correct messages... this wallet will receive 0.1 BTC in approx 10 seconds
+  so that you can try
+
+-> Use Skeletton for the prices
+  -> Also the freeze amount do not show while syncingOrFaucetPending
+
+fact, since i need to express if this is firstOpen
 -> BETTER simply do this on ALL new wallets (newSigners) on regtest or storm and that's it.
   ->Then context, when sync must also Toast "new tx received when a new tx is got..."???
+  -> PROBLEM!!! Needs to wait 10 seconds which makes it confussing so i need
+  to show some message on the Header
 
 
 

@@ -2,9 +2,9 @@
 //DO NOT EDIT it. Usage: npx i18n-thunderden [src] #to re-generate it.
 //More info: @thunderdenlab/i18n README.md
 
-export const locales = [en, es];
-export type Locale = "en-US" | "es-ES";
-import { use } from "i18next";
+export const locales = ['en', 'es'];
+export type Locale = "en-US" | "es-ES" | "es" | "en";
+import i18n, { i18n as I18nInstance } from "i18next";
 import { initReactI18next } from "react-i18next";
 
 import en from "./en";
@@ -15,14 +15,25 @@ const resources = {
   es: { translation: es }
 };
 
-export async function initI18n(locale: Locale) {
-  use(initReactI18next).init({
-    resources,
-    lng: locale,
-    fallbackLng: "en", // Default locale
+i18n.use(initReactI18next).init({
+  resources,
+  fallbackLng: "en", // Default language
 
-    interpolation: {
-      escapeValue: false,
-    },
-  });
+  interpolation: {
+    escapeValue: false,
+  },
+});
+
+export const i18nInstances: Record<Locale, I18nInstance> = locales.reduce(
+  (acc, locale) => {
+    acc[locale as Locale] = i18n.cloneInstance({ lng: locale }); // Asserting locale as Locale
+    return acc;
+  },
+  {} as Record<Locale, I18nInstance>
+);
+
+export async function initI18n(locale: Locale) {
+  await i18n.changeLanguage(locale);
 }
+
+export { i18n };

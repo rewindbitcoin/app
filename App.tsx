@@ -37,8 +37,8 @@ import type { VaultSettings } from './src/app/lib/vaults';
 import { useTheme, Button } from './src/common/ui';
 
 import { defaultSettings } from './src/app/lib/settings';
-import { useTranslation } from 'react-i18next';
-import { initI18n } from './src/i18n-locales/init';
+import { I18nextProvider, useTranslation } from 'react-i18next';
+import { i18n, initI18n } from './src/i18n-locales/init';
 import { AuthenticationType } from 'expo-local-authentication';
 import { useSettings } from './src/app/hooks/useSettings';
 //Init for 1st render. Then, on settings load from context & apply correct one
@@ -272,7 +272,9 @@ export default function App() {
           <GlobalStorageProvider>
             <SecureStorageInfoProvider>
               <ToastProvider>
-                <MainMemo />
+                <I18nextProvider i18n={i18n}>
+                  <MainMemo />
+                </I18nextProvider>
               </ToastProvider>
             </SecureStorageInfoProvider>
           </GlobalStorageProvider>

@@ -9,8 +9,7 @@ import {
   type Vaults,
   type VaultsStatuses,
   type UtxosData,
-  getDescriptors,
-  faucetFirstReceive
+  getDescriptors
 } from '../lib/vaults';
 import type { AccountNames, Signers, Wallets } from '../lib/wallets';
 import {
@@ -53,7 +52,7 @@ import { fetchP2PVaults, getDataCipherKey } from '../lib/backup';
 
 type DiscoveryDataExport = ReturnType<DiscoveryInstance['export']>;
 
-import { WalletError, getWalletError, isCorrupted } from '../lib/errors';
+import { WalletError, getWalletError, getIsCorrupted } from '../lib/errors';
 
 import { useStorage } from '../../common/hooks/useStorage';
 import { useSecureStorageInfo } from '../../common/contexts/SecureStorageInfoContext';
@@ -104,6 +103,7 @@ export type WalletContextType = {
     newSigners?: Signers;
     signersCipherKey?: Uint8Array;
   }) => Promise<void>;
+  isFirstLogin: boolean;
 };
 
 const DEFAULT_VAULTS_STATUSES: VaultsStatuses = {};
@@ -156,13 +156,8 @@ const WalletProviderRaw = ({
 
   const { settings, settingsStorageStatus } = useSettings();
 
-  const {
-    esploraAPI,
-    serviceAddressAPI,
-    vaultsAPI,
-    vaultsSecondaryAPI,
-    faucetAPI
-  } = getAPIs(networkId, settings);
+  const { esploraAPI, serviceAddressAPI, vaultsAPI, vaultsSecondaryAPI } =
+    getAPIs(networkId, settings);
   const [wallets, setWallets, , , walletsStorageStatus] = useStorage<Wallets>(
     `WALLETS`,
     SERIALIZABLE,
@@ -242,7 +237,7 @@ const WalletProviderRaw = ({
       walletId !== undefined ? dataCipherKey[walletId] : undefined
     );
 
-  const corrupted = isCorrupted({
+  const isCorrupted = getIsCorrupted({
     wallet,
     signers,
     isSignersSynchd: signersStorageStatus.isSynchd,
@@ -270,7 +265,10 @@ const WalletProviderRaw = ({
     vaultsStorageStatus.errorCode === false &&
     vaultsStatusesStorageStatus.errorCode === false &&
     accountNamesStorageStatus.errorCode === false &&
-    !corrupted;
+    !isCorrupted;
+
+  const isFirstLogin =
+    isReady && walletId !== undefined && !!newSigners[walletId];
 
   useEffect(() => {
     if (isReady) {
@@ -651,44 +649,6 @@ const WalletProviderRaw = ({
   useEffect(() => {
     if (walletId !== undefined && isReady) setSyncingBlockchain(walletId, true);
   }, [walletId, setSyncingBlockchain, isReady]);
-  //Faucet first external address on new wallets first.
-  useEffect(() => {
-    if (
-      signers &&
-      network &&
-      faucetAPI &&
-      walletId !== undefined &&
-      isReady &&
-      newSigners[walletId]
-    ) {
-      (async () => {
-        try {
-          const { txId } = await faucetFirstReceive(
-            signers,
-            network,
-            faucetAPI
-          );
-          console.log('faucet ok', { txId });
-          //wait a few secs so that esplora catches up...
-          await new Promise(resolve => setTimeout(resolve, 10000));
-          syncBlockchain();
-        } catch (error: unknown) {
-          //TODO: Toast these errors:
-          if (error instanceof Error && typeof error.message === 'string')
-            console.warn('Faucet operation failed:', error.message);
-          else console.warn('Faucet operation failed:', 'Unknown Error');
-        }
-      })();
-    }
-  }, [
-    walletId,
-    syncBlockchain,
-    isReady,
-    signers,
-    newSigners,
-    network,
-    faucetAPI
-  ]);
 
   const processCreatedVault = useCallback(
     async (
@@ -773,7 +733,7 @@ const WalletProviderRaw = ({
       vaultsErrorCode: vaultsStorageStatus.errorCode,
       vaultsStatusesErrorCode: vaultsStatusesStorageStatus.errorCode,
       accountNamesErrorCode: accountNamesStorageStatus.errorCode,
-      corrupted
+      isCorrupted
     }),
     requiresPassword:
       (walletId !== undefined &&
@@ -782,7 +742,8 @@ const WalletProviderRaw = ({
       (typeof signersStorageStatus.errorCode !== 'boolean' &&
         signersStorageStatus.errorCode === 'DecryptError'),
     logOut,
-    onWallet
+    onWallet,
+    isFirstLogin
   };
   return (
     <WalletContext.Provider value={contextValue}>

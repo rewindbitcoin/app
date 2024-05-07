@@ -30,7 +30,7 @@ export const getWalletError = ({
   vaultsErrorCode,
   vaultsStatusesErrorCode,
   accountNamesErrorCode,
-  corrupted
+  isCorrupted
 }: {
   isNewWallet: boolean;
   settingsErrorCode: StorageErrorCode;
@@ -40,7 +40,7 @@ export const getWalletError = ({
   vaultsErrorCode: StorageErrorCode;
   vaultsStatusesErrorCode: StorageErrorCode;
   accountNamesErrorCode: StorageErrorCode;
-  corrupted: boolean;
+  isCorrupted: boolean;
 }): WalletError => {
   //Don't pass it further down as a Wallet Error. This is probably a user
   //typing in the wrong password. We overwrite it as a non-error internally in
@@ -71,14 +71,14 @@ export const getWalletError = ({
     accountNamesErrorCode
   ) {
     return 'STORAGE_ERROR';
-  } else if (corrupted) return 'CORRUPTED';
+  } else if (isCorrupted) return 'CORRUPTED';
   else return false;
 };
 
 /** Very rudimentary wallet integrity check. A much better implementation
  * should make sure the structure of each arg corresponds to the defined type
  */
-export const isCorrupted = ({
+export const getIsCorrupted = ({
   wallet,
   signers,
   isSignersSynchd,

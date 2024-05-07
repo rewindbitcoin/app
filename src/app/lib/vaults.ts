@@ -1,12 +1,5 @@
 // TODO: very imporant to only allow Vaulting funds with 1 confirmatin at least (make this a setting)
-import {
-  Network,
-  Psbt,
-  Transaction,
-  address,
-  crypto,
-  networks
-} from 'bitcoinjs-lib';
+import { Network, Psbt, Transaction, address, crypto } from 'bitcoinjs-lib';
 import memoize from 'lodash.memoize';
 import type { Signer, Signers } from './wallets';
 import moize from 'moize';
@@ -955,46 +948,4 @@ export const getDescriptors = async (
     )
   ];
   return descriptors;
-};
-
-export const faucetFirstReceive = async (
-  signers: Signers,
-  network: Network,
-  faucetAPI: string
-) => {
-  const signer = signers?.[0];
-  if (!signer) throw new Error('signer unavailable');
-  if (network !== networks.regtest)
-    throw new Error('Cannot faucet non-regtest networks');
-  const firstReceiveAddr = new Output({
-    descriptor: await createReceiveDescriptor({ signer, network }),
-    network,
-    index: 0
-  }).getAddress();
-  console.log({
-    firstReceiveAddr,
-    body: new URLSearchParams({ address: firstReceiveAddr })
-  });
-  const response = await fetch(faucetAPI, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: `address=${encodeURIComponent(firstReceiveAddr)}`
-  });
-
-  // Check if the request was successful
-  if (!response.ok) {
-    const errorResponse = await response.json();
-    throw new Error(
-      `Failed to faucet address: ${errorResponse.error || 'Unknown error'}`
-    );
-  }
-
-  // Parse the JSON body of the response
-  const result = await response.json();
-  if (!result.ok) throw new Error(`Faucet failed: ${result.error}`);
-
-  return {
-    txId: result.txId,
-    info: result.info // May contain 'CACHED' or other additional information
-  };
 };
