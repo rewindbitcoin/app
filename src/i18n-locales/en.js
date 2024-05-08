@@ -64,7 +64,7 @@ If you've forgotten the password for your wallet, you can create a new wallet us
     importRealBtcButton: 'Import Wallet',
     testingWalletInfo: 'This wallet will not use real Bitcoin.',
     realWalletWarning: 'Real Bitcoin wallets currently discouraged.',
-    creatingWallet: `⚡Building your ThunderDen Wallet...
+    creatingWallet: `⚡ Building your ThunderDen Wallet...
 
 Zapping bytes and lining up the bits. Hang tight!`,
     errors: {
@@ -96,6 +96,18 @@ If you need further assistance, please contact ThunderDen Support.`
     }
   },
   walletHome: {
+    faucetStartMsg: "Hang tight! We're sending you some coins to get started.",
+    faucetDetectedMsg:
+      'Hooray! Your test coins have arrived. Why not try freezing them to see how it works?',
+    faucetUnkownErrorMsg:
+      "Oops! There was a glitch sending your coins. Tap 'Receive' to try getting your test coins again.",
+    header: {
+      hotSubTitle: 'Available balance: Ready for immediate use',
+      frozenSubTitle: 'Frozen balance: Safeguarded in vaults',
+      testWalletWarning:
+        'Test Wallet: Prices displayed as real Bitcoin for realism but hold no real value. ',
+      regtestWalletPlusWarning: 'Fees mimic real ones for realism, too.'
+    },
     delegateReadme: `For immediate action, open this file at:
 https://rescue.thunderden.com
 

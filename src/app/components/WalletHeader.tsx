@@ -16,6 +16,8 @@ import { formatFiat, fromSats } from '../lib/btcRates';
 import FreezeIcon from './FreezeIcon';
 import { numberToLocalizedString } from '../../common/lib/numbers';
 import type { Locale } from '../../i18n-locales/init';
+import { useTranslation } from 'react-i18next';
+import type { NetworkId } from '../lib/network';
 
 const Balance = ({
   type,
@@ -28,6 +30,7 @@ const Balance = ({
   iconText: string;
   onUnitPress: () => void;
 }) => {
+  const { t } = useTranslation();
   return (
     <View>
       <View className="flex-row items-center justify-start">
@@ -61,8 +64,8 @@ const Balance = ({
       </View>
       <Text className="text-sm text-slate-600">
         {type === 'HOT'
-          ? 'Current hot balance ready to be spent'
-          : ' Frozen balance protected in vaults '}
+          ? t('walletHome.header.hotSubTitle')
+          : t('walletHome.header.frozenSubTitle')}
       </Text>
     </View>
   );
@@ -87,18 +90,21 @@ const formatBalance = ({
 };
 
 const WalletHeader = ({
+  networkId,
   utxosData,
   vaults,
   vaultsStatuses,
   btcFiat,
   faucetPending
 }: {
+  networkId: NetworkId;
   utxosData: UtxosData | undefined;
   vaults: Vaults | undefined;
   vaultsStatuses: VaultsStatuses | undefined;
   btcFiat: number | undefined;
   faucetPending: boolean;
 }) => {
+  const { t } = useTranslation();
   const [showUnitsModal, setShowUnitsModal] = useState<boolean>(false);
   const { settings } = useSettings();
   if (!settings)
@@ -154,11 +160,14 @@ const WalletHeader = ({
           onUnitPress={onUnitPress}
         />
       </View>
-      <Text className="pt-5 p-4 color-orange-600 text-sm">
-        This is a Test Wallet. Prices are shown in USD for realism but hold no
-        real value. Fees assume real bitcoin network fees too (but this only on
-        regtest nets)
-      </Text>
+      {networkId !== 'BITCOIN' && (
+        <Text className="pt-5 p-4 color-orange-600 text-sm">
+          {t('walletHome.header.testWalletWarning')}
+          {networkId === 'STORM' || networkId === 'REGTEST'
+            ? ' ' + t('walletHome.header.regtestWalletPlusWarning')
+            : ''}
+        </Text>
+      )}
       <UnitsModal
         isVisible={showUnitsModal}
         unit={mode}

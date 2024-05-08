@@ -88,6 +88,7 @@ const WalletHomeScreen = () => {
 
   const faucetRequested = useRef<boolean>(false);
   const faucetDetected = useRef<boolean>(false);
+  const faucetNotified = useRef<boolean>(false);
   if (utxosData?.length) faucetDetected.current = true;
 
   const faucetPending = !faucetDetected.current && faucetRequested.current;
@@ -150,11 +151,8 @@ const WalletHomeScreen = () => {
       if (faucetAPI && signers && isFirstLogin && settings) {
         (async () => {
           try {
+            toast.show(t('walletHome.faucetStartMsg'), { type: 'success' });
             await faucetFirstReceive(signers, network, faucetAPI, 'es-ES');
-            toast.show(
-              'TODO We are sending you a few coins to try this out. Hold on.',
-              { type: 'success' }
-            );
             faucetRequested.current = true;
             //wait a few secs until esplora catches up...
             while (faucetDetected.current === false) {
@@ -162,18 +160,23 @@ const WalletHomeScreen = () => {
               await new Promise(resolve => setTimeout(resolve, 2000));
             }
           } catch (error: unknown) {
-            //TODO: Toast these errors:
             if (error instanceof Error && typeof error.message === 'string')
               toast.show(error.message, { type: 'warning' });
             else
-              toast.show('TODO: tranlsate Faucet did not work', {
+              toast.show(t('walletHome.faucetUnkownErrorMsg'), {
                 type: 'warning'
               });
           }
         })();
       }
     }
-  }, [toast, wallet, isFirstLogin, settings, signers, syncBlockchain]);
+  }, [toast, wallet, isFirstLogin, settings, signers, syncBlockchain, t]);
+  useEffect(() => {
+    if (faucetNotified.current === false && utxosData?.length && isFirstLogin) {
+      faucetNotified.current = true;
+      toast.show(t('walletHome.faucetDetectedMsg'), { type: 'success' });
+    }
+  }, [utxosData?.length, toast, isFirstLogin, t]);
 
   const logOutAndGoBack = useCallback(() => {
     logOut();
@@ -301,6 +304,7 @@ const WalletHomeScreen = () => {
         }
       >
         <WalletHeader
+          networkId={wallet.networkId}
           utxosData={utxosData}
           vaults={vaults}
           vaultsStatuses={vaultsStatuses}
