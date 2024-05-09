@@ -18,10 +18,11 @@ import {
 import { RefreshControl } from 'react-native-web-refresh-control';
 
 import {
-  KeyboardAwareAnimatedScrollView,
+  KeyboardAwareScrollView,
   Modal,
   useTheme,
-  useToast
+  useToast,
+  TabBar
 } from '../../common/ui';
 import { WalletContext, WalletContextType } from '../contexts/WalletContext';
 import { useTranslation } from 'react-i18next';
@@ -64,6 +65,9 @@ const WalletHomeScreen = () => {
 
   const context = useContext<WalletContextType | null>(WalletContext);
   if (context === null) throw new Error('Context was not set');
+
+  const tabs = ['Vaults', 'Transactions']; //TODO: translate
+  const [activeTab, setActiveTab] = useState<number>(0);
 
   const {
     vaults,
@@ -264,6 +268,25 @@ const WalletHomeScreen = () => {
   );
   const stickyHeaderIndices = useMemo(() => [1], []);
 
+  const lastScrollPosition = useRef<number>(0);
+  const scrollViewRef = useRef(null);
+  const handleScroll = event => {
+    lastScrollPosition.current = event.nativeEvent.contentOffset.y;
+  };
+  const headerHeightRef = useRef(0);
+
+  const handleHeader = event => {
+    const { height } = event.nativeEvent.layout;
+    headerHeightRef.current = height;
+  };
+
+  const scrollToTop = () => {
+    scrollViewRef.current.scrollTo({
+      y: Math.min(lastScrollPosition.current, headerHeightRef.current),
+      animated: false
+    });
+  };
+
   return !wallet /*TODO: prepare nicer ActivityIndicator*/ ? (
     <View className="flex-1 justify-center">
       <ActivityIndicator size={'large'} color={theme.colors.primary} />
@@ -285,10 +308,20 @@ const WalletHomeScreen = () => {
           />
         )
       }
-      <KeyboardAwareAnimatedScrollView
+      <KeyboardAwareScrollView
         keyboardShouldPersistTaps="handled"
         refreshControl={hasTouch ? refreshControl : undefined}
         stickyHeaderIndices={stickyHeaderIndices}
+        ref={Platform.OS === 'ios' ? null : scrollViewRef}
+        innerRef={
+          Platform.OS === 'ios'
+            ? ref => {
+                scrollViewRef.current = ref;
+              }
+            : null
+        }
+        onScroll={handleScroll}
+        scrollEventThrottle={16}
         contentContainerClassName={
           //The -z-10 is related to this issue:
           //https://stackoverflow.com/questions/40366080/2-different-background-colours-for-scrollview-bounce
@@ -303,31 +336,43 @@ const WalletHomeScreen = () => {
           `${Platform.OS === 'ios' || Platform.OS === 'web' ? '-z-10' : ''}`
         }
       >
-        <WalletHeader
-          networkId={wallet.networkId}
-          utxosData={utxosData}
-          vaults={vaults}
-          vaultsStatuses={vaultsStatuses}
-          btcFiat={btcFiat}
-          faucetPending={faucetPending}
-        />
-
-        <View className="bg-white flex-row gap-6 px-6 border-b border-b-slate-300">
-          <View className="py-4 border-b-primary border-b-2">
-            <Text className="font-bold text-primary-dark">Vaults</Text>
-          </View>
-          <View className="py-4 border-b-transparent border-b-2">
-            <Text className="font-bold text-slate-500">Transactions</Text>
-          </View>
-        </View>
-
-        <View className="overflow-hidden pt-4 pb-32 items-center">
-          {vaults && <Vaults vaults={vaults} />}
-          <Button
-            title={t('walletHome.backupVaults')}
-            onPress={onRequestVaultsBackup}
+        <View onLayout={handleHeader}>
+          <WalletHeader
+            networkId={wallet.networkId}
+            utxosData={utxosData}
+            vaults={vaults}
+            vaultsStatuses={vaultsStatuses}
+            btcFiat={btcFiat}
+            faucetPending={faucetPending}
           />
         </View>
+
+        <TabBar tabs={tabs} activeTab={activeTab} onActiveTab={setActiveTab} />
+
+        {activeTab === 0 && (
+          <View className="transition-opacity duration-500 ease-in-out overflow-hidden pt-4 pb-32 items-center bg-red-400">
+            {vaults && <Vaults vaults={vaults} />}
+            <Button
+              title={t('walletHome.backupVaults')}
+              onPress={onRequestVaultsBackup}
+            />
+            {Array.from({ length: 50 }, (_, index) => (
+              <View key={index}>
+                <Text>Text {index}</Text>
+              </View>
+            ))}
+          </View>
+        )}
+        {activeTab === 1 && (
+          <View className="transition-opacity duration-500 ease-in-out overflow-hidden pt-4 pb-32 items-center bg-blue-400">
+            {Array.from({ length: 100 }, (_, index) => (
+              <View key={index}>
+                <Text>Text {index}</Text>
+              </View>
+            ))}
+          </View>
+        )}
+
         <Password
           mode="REQUEST"
           isVisible={requiresPassword}
@@ -360,7 +405,7 @@ const WalletHomeScreen = () => {
             <View className="absolute bg-white native:h-[1000] native:-top-[1000] web:h-[1000px] web:-top-[1000px] left-0 right-0" />
           )
         }
-      </KeyboardAwareAnimatedScrollView>
+      </KeyboardAwareScrollView>
     </>
   );
 };

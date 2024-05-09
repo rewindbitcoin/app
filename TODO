@@ -1,8 +1,29 @@
+Cuando meto mal el password muestro el mensahe de error de Storage Access Error (no el de password)
+
 cuando en la wallet doy a goBack tarda años
 
 On changing units, then make it permanent
 
-Implement the confeti stugg of show some popup with hurrayyy now you can test.
+https://www.youtube.com/watch?v=JPV25k80sfw
+https://reactnavigation.org/docs/tab-view/
+  -> Imporatnt READ and apply the TIPs:
+  https://reactnavigation.org/docs/tab-view/#avoid-unnecessary-re-renders
+
+Another implementation:
+https://stormotion.io/blog/how-to-create-collapsing-tab-header-using-react-native/
+  https://github.com/Stormotion-Mobile/react-native-collapsing-tab-header
+
+Another implementation
+https://medium.com/@linjunghsuan/implementing-a-collapsible-header-with-react-native-tab-view-24f15a685e07
+  https://github.com/JungHsuan/react-native-collapsible-tabview
+
+Another implementation
+https://www.coinbase.com/blog/coinbases-animated-tabbar-in-react-native?source=linkShare-3089be4219ff-1621699865
+  https://github.com/coinbase/CBTabViewExample
+  
+
+  https://github.com/PedroBern/react-native-collapsible-tab-view/issues/209
+  https://github.com/PedroBern/react-native-collapsible-tab-view/blob/main/example/src/AndroidSharedPullToRefresh.tsx
 
 ok, so i made this REGTEST_FAUCET_API and STORM_FAUCET_API
 

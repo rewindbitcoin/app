@@ -27,6 +27,7 @@ import { ToastProvider } from './src/common/components/Toast';
 import WalletsScreen from './src/app/screens/WalletsScreen';
 import NewWalletScreen from './src/app/screens/NewWalletScreen';
 import WalletHomeScreen from './src/app/screens/WalletHomeScreen';
+import P2R from './src/app/screens/P2R';
 import SetUpVaultScreen from './src/app/screens/SetUpVaultScreen';
 import CreateVaultScreen from './src/app/screens/CreateVaultScreen';
 import { WalletProvider } from './src/app/contexts/WalletContext';

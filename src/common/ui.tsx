@@ -25,3 +25,5 @@ import IconButton from './components/IconButton';
 export { IconButton };
 import InfoButton from './components/InfoButton';
 export { InfoButton };
+import TabBar from './components/TabBar';
+export { TabBar };
