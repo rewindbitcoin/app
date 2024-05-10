@@ -69,7 +69,7 @@ const TabBar = ({
   );
 
   return (
-    <View className="bg-white flex-row px-6 border-b border-b-slate-300">
+    <View>
       <View className="flex-1 flex-row relative">
         {tabs.map((tab, index) => (
           <Pressable

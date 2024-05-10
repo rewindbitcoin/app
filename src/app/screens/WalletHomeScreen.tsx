@@ -13,7 +13,10 @@ import {
   Text,
   Pressable,
   ActivityIndicator,
-  Platform
+  Platform,
+  NativeSyntheticEvent,
+  NativeScrollEvent,
+  LayoutChangeEvent
 } from 'react-native';
 import { RefreshControl } from 'react-native-web-refresh-control';
 
@@ -46,6 +49,7 @@ import { getAPIs } from '../lib/walletDerivedData';
 import { useSettings } from '../hooks/useSettings';
 import { faucetFirstReceive } from '../lib/faucet';
 import { networkMapping } from '../lib/network';
+import type { ScrollView } from 'react-native-gesture-handler';
 
 //Using chrome dev tools, refresh the screen, after choosing a mobile size to activate it:
 const hasTouch =
@@ -269,23 +273,29 @@ const WalletHomeScreen = () => {
   const stickyHeaderIndices = useMemo(() => [1], []);
 
   const lastScrollPosition = useRef<number>(0);
-  const scrollViewRef = useRef(null);
-  const handleScroll = event => {
+  const scrollViewRef = useRef<ScrollView>(null);
+  const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
     lastScrollPosition.current = event.nativeEvent.contentOffset.y;
   };
   const headerHeightRef = useRef(0);
 
-  const handleHeader = event => {
+  const handleHeader = (event: LayoutChangeEvent) => {
     const { height } = event.nativeEvent.layout;
     headerHeightRef.current = height;
   };
 
   const scrollToTop = () => {
-    scrollViewRef.current.scrollTo({
-      y: Math.min(lastScrollPosition.current, headerHeightRef.current),
-      animated: false
-    });
+    if (scrollViewRef.current)
+      scrollViewRef.current.scrollTo({
+        y: Math.min(lastScrollPosition.current, headerHeightRef.current),
+        animated: false
+      });
   };
+
+  const onActiveTab = useCallback((index: number) => {
+    scrollToTop();
+    setActiveTab(index);
+  }, []);
 
   return !wallet /*TODO: prepare nicer ActivityIndicator*/ ? (
     <View className="flex-1 justify-center">
@@ -309,17 +319,10 @@ const WalletHomeScreen = () => {
         )
       }
       <KeyboardAwareScrollView
+        ref={scrollViewRef}
         keyboardShouldPersistTaps="handled"
         refreshControl={hasTouch ? refreshControl : undefined}
         stickyHeaderIndices={stickyHeaderIndices}
-        ref={Platform.OS === 'ios' ? null : scrollViewRef}
-        innerRef={
-          Platform.OS === 'ios'
-            ? ref => {
-                scrollViewRef.current = ref;
-              }
-            : null
-        }
         onScroll={handleScroll}
         scrollEventThrottle={16}
         contentContainerClassName={
@@ -347,24 +350,21 @@ const WalletHomeScreen = () => {
           />
         </View>
 
-        <TabBar tabs={tabs} activeTab={activeTab} onActiveTab={setActiveTab} />
+        <View className="bg-white border-b border-b-slate-300 px-6">
+          <TabBar tabs={tabs} activeTab={activeTab} onActiveTab={onActiveTab} />
+        </View>
 
         {activeTab === 0 && (
-          <View className="transition-opacity duration-500 ease-in-out overflow-hidden pt-4 pb-32 items-center bg-red-400">
+          <>
             {vaults && <Vaults vaults={vaults} />}
             <Button
               title={t('walletHome.backupVaults')}
               onPress={onRequestVaultsBackup}
             />
-            {Array.from({ length: 50 }, (_, index) => (
-              <View key={index}>
-                <Text>Text {index}</Text>
-              </View>
-            ))}
-          </View>
+          </>
         )}
         {activeTab === 1 && (
-          <View className="transition-opacity duration-500 ease-in-out overflow-hidden pt-4 pb-32 items-center bg-blue-400">
+          <View className="p-4">
             {Array.from({ length: 100 }, (_, index) => (
               <View key={index}>
                 <Text>Text {index}</Text>
