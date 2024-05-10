@@ -71,7 +71,7 @@ const WalletHomeScreen = () => {
   if (context === null) throw new Error('Context was not set');
 
   const tabs = ['Vaults', 'Transactions']; //TODO: translate
-  const [activeTab, setActiveTab] = useState<number>(0);
+  const [activeTabIndex, setActiveTabIndex] = useState<number>(0);
 
   const {
     vaults,
@@ -293,8 +293,9 @@ const WalletHomeScreen = () => {
   };
 
   const onActiveTab = useCallback((index: number) => {
+    console.log({ onActiveTab });
     scrollToTop();
-    setActiveTab(index);
+    setActiveTabIndex(index);
   }, []);
 
   return !wallet /*TODO: prepare nicer ActivityIndicator*/ ? (
@@ -351,10 +352,14 @@ const WalletHomeScreen = () => {
         </View>
 
         <View className="bg-white border-b border-b-slate-300 px-6">
-          <TabBar tabs={tabs} activeTab={activeTab} onActiveTab={onActiveTab} />
+          <TabBar
+            tabs={tabs}
+            activeTabIndex={activeTabIndex}
+            onActiveTab={onActiveTab}
+          />
         </View>
 
-        {activeTab === 0 && (
+        {activeTabIndex === 0 && (
           <>
             {vaults && <Vaults vaults={vaults} />}
             <Button
@@ -363,7 +368,7 @@ const WalletHomeScreen = () => {
             />
           </>
         )}
-        {activeTab === 1 && (
+        {activeTabIndex === 1 && (
           <View className="p-4">
             {Array.from({ length: 100 }, (_, index) => (
               <View key={index}>

@@ -10,12 +10,12 @@ import { useTheme } from '../theme';
 
 const TabBar = ({
   tabs,
-  activeTab,
+  activeTabIndex,
   onActiveTab
 }: {
   tabs: Array<string>;
-  activeTab: number;
-  onActiveTab: (activeTab: number) => void;
+  activeTabIndex: number;
+  onActiveTab: (activeTabIndex: number) => void;
 }) => {
   const theme = useTheme();
   const measurements = useRef<
@@ -25,22 +25,10 @@ const TabBar = ({
     }>
   >([]);
   const underlineTranslateX = useRef(new Animated.Value(0)).current;
-  const underlineScaleX = useRef(new Animated.Value(1)).current;
+  const underlineScaleX = useRef(new Animated.Value(0)).current;
 
   const isInit = useRef<boolean>(false);
-  const handleLayout = (index: number) => (event: LayoutChangeEvent) => {
-    let { width, x } = event.nativeEvent.layout;
-    width -= 2 * 3 * 4; //compoensate for the padding: px-3
-    x += 3 * 4; //compoensate for the padding: px-3
-    measurements.current[index] = { width, x };
-    if (!isInit.current && index === activeTab) {
-      const initialTab = tabs[activeTab];
-      if (initialTab === undefined) throw new Error('Invalid initial tab');
-
-      updateActiveTab(initialTab);
-      isInit.current = true;
-    }
-  };
+  console.log({ isInit: isInit.current });
 
   const updateActiveTab = useCallback(
     (tab: string) => {
@@ -62,10 +50,26 @@ const TabBar = ({
             useNativeDriver: true
           })
         ]).start();
-        onActiveTab(newIndex);
+        if (tab !== tabs[newIndex]) onActiveTab(newIndex);
       }
     },
     [tabs, underlineScaleX, underlineTranslateX, onActiveTab]
+  );
+  const handleLayout = useCallback(
+    (index: number) => (event: LayoutChangeEvent) => {
+      let { width, x } = event.nativeEvent.layout;
+      width -= 2 * 3 * 4; //compoensate for the padding: px-3
+      x += 3 * 4; //compoensate for the padding: px-3
+      measurements.current[index] = { width, x };
+      if (!isInit.current && index === activeTabIndex) {
+        const initialTab = tabs[activeTabIndex];
+        if (initialTab === undefined) throw new Error('Invalid initial tab');
+
+        updateActiveTab(initialTab);
+        isInit.current = true;
+      }
+    },
+    [activeTabIndex, tabs, updateActiveTab]
   );
 
   return (
@@ -79,7 +83,7 @@ const TabBar = ({
             className={`px-3 py-4 active:bg-primary-light hover:bg-primary-light`}
           >
             <Text
-              className={`font-bold ${activeTab === index ? 'text-primary-dark' : 'text-slate-500'}`}
+              className={`font-bold ${activeTabIndex === index ? 'text-primary-dark' : 'text-slate-500'}`}
             >
               {tab}
             </Text>
