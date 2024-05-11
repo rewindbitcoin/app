@@ -9,7 +9,8 @@ import {
   type Vaults,
   type VaultsStatuses,
   type UtxosData,
-  getDescriptors
+  getDescriptors,
+  areVaultsSynched
 } from '../lib/vaults';
 import type { AccountNames, Signers, Wallets } from '../lib/wallets';
 import {
@@ -30,7 +31,7 @@ import React, {
   useState,
   useCallback
 } from 'react';
-import { shallowEqualObjects, shallowEqualArrays } from 'shallow-equal';
+import { shallowEqualObjects } from 'shallow-equal';
 import type { Wallet } from '../lib/wallets';
 import { useToast } from '../../common/ui';
 import { SERIALIZABLE, deleteAsync } from '../../common/lib/storage';
@@ -525,7 +526,7 @@ const WalletProviderRaw = ({
       //Wait until both are set before proceeding. This is important because
       //updateVaultsStatuses upddate status based on vaults so they must be
       //synched
-      shallowEqualArrays(Object.keys(vaults), Object.keys(vaultsStatuses)) &&
+      areVaultsSynched(vaults, vaultsStatuses) &&
       //shallowEqualArrays(Object.keys(vaults), Object.keys(accountNames)) &&
       signer &&
       vaultsAPI
@@ -593,15 +594,21 @@ const WalletProviderRaw = ({
         );
 
         //Save to disk. Saving is async, but it's ok not awaiting since all this
-        //data can be re-created any time by calling again syncBlockchain
+        //data can be re-created any time by calling again syncBlockchain.
         const exportedData = discovery.export();
-        setDiscoveryDataExport(exportedData);
 
-        setUtxosData(walletId, walletUtxosData);
+        //IMPORTANT - Note that values below are not sync immediatelly
+        //even if we used unstable_batchedUpdates that would not work since
+        //there are awaits within the setStorageValue. When using context
+        //it's important to make use of syncBlockchain var if planning to use
+        //vaults & vaultsStatuses for example (or any combination of state)
+
+        setDiscoveryDataExport(exportedData);
         //Update them in state only if they changed (we muteted them)
         if (vaults !== updatedVaults) setVaults(updatedVaults);
         if (vaultsStatuses !== updatedVaultsStatuses)
           setVaultsStatuses(updatedVaultsStatuses);
+        setUtxosData(walletId, walletUtxosData);
       } catch (error) {
         const errorMessage =
           error instanceof Error
@@ -614,6 +621,7 @@ const WalletProviderRaw = ({
         console.error(errorMessage);
       }
     }
+
     setSyncingBlockchain(walletId, false);
   }, [
     setUtxosData,

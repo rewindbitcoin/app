@@ -6,7 +6,8 @@ import {
   type UtxosData,
   VaultsStatuses,
   Vaults,
-  getVaultsVaultedBalance
+  getVaultsVaultedBalance,
+  areVaultsSynched
 } from '../lib/vaults';
 import UnitsModal from './UnitsModal';
 import type { Currency, SubUnit } from '../lib/settings';
@@ -122,6 +123,10 @@ const WalletHeader = ({
     setMode(unit);
   }, []);
   const balance = utxosData ? utxosDataBalance(utxosData) : undefined;
+  const frozenBalance =
+    vaults && vaultsStatuses && areVaultsSynched(vaults, vaultsStatuses)
+      ? getVaultsVaultedBalance(vaults, vaultsStatuses)
+      : undefined;
   return (
     <View className="bg-white p-4 flex-col">
       <View className="pl-5 gap-4">
@@ -143,18 +148,14 @@ const WalletHeader = ({
         <Balance
           type="FROZEN"
           formattedBalance={
-            vaults &&
-            vaultsStatuses &&
-            formatBalance({
-              mode: mode,
-              balance: fromSats(
-                getVaultsVaultedBalance(vaults, vaultsStatuses),
-                mode,
-                btcFiat
-              ),
-              locale: settings.LOCALE,
-              currency: settings.CURRENCY
-            })
+            frozenBalance === undefined
+              ? undefined
+              : formatBalance({
+                  mode: mode,
+                  balance: fromSats(frozenBalance, mode, btcFiat),
+                  locale: settings.LOCALE,
+                  currency: settings.CURRENCY
+                })
           }
           iconText={mode === 'Fiat' ? settings.CURRENCY : mode}
           onUnitPress={onUnitPress}

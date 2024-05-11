@@ -97,7 +97,8 @@ const WalletHomeScreen = () => {
   const faucetRequested = useRef<boolean>(false);
   const faucetDetected = useRef<boolean>(false);
   const faucetNotified = useRef<boolean>(false);
-  if (utxosData?.length) faucetDetected.current = true;
+  if (utxosData?.length) faucetDetected.current = true; //TODO - FIXME -! WHAT!!! this is only
+  //when the faucet is requested!!!
 
   const faucetPending = !faucetDetected.current && faucetRequested.current;
   const syncingOrFaucetPending = syncingBlockchain || faucetPending;
@@ -293,7 +294,6 @@ const WalletHomeScreen = () => {
   };
 
   const onActiveTab = useCallback((index: number) => {
-    console.log({ onActiveTab });
     scrollToTop();
     setActiveTabIndex(index);
   }, []);

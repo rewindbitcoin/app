@@ -28,7 +28,6 @@ const TabBar = ({
   const underlineScaleX = useRef(new Animated.Value(0)).current;
 
   const isInit = useRef<boolean>(false);
-  console.log({ isInit: isInit.current });
 
   const updateActiveTab = useCallback(
     (tab: string) => {
@@ -50,10 +49,10 @@ const TabBar = ({
             useNativeDriver: true
           })
         ]).start();
-        if (tab !== tabs[newIndex]) onActiveTab(newIndex);
+        if (activeTabIndex !== newIndex) onActiveTab(newIndex);
       }
     },
-    [tabs, underlineScaleX, underlineTranslateX, onActiveTab]
+    [tabs, underlineScaleX, underlineTranslateX, onActiveTab, activeTabIndex]
   );
   const handleLayout = useCallback(
     (index: number) => (event: LayoutChangeEvent) => {

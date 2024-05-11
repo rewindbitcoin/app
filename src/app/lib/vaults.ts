@@ -22,6 +22,7 @@ import {
   createChangeDescriptor,
   createReceiveDescriptor
 } from './vaultDescriptors';
+import { shallowEqualArrays } from 'shallow-equal';
 
 import { feeRateSampling } from './fees';
 import type { DiscoveryInstance } from '@bitcoinerlab/discovery';
@@ -683,6 +684,20 @@ const getVaultVaultedBalance = (vault: Vault, vaultStatus: VaultStatus) => {
     throw new Error('Trigger tx fee should have been set');
 
   return vaultOutput.value - triggerFee;
+};
+
+/**
+ * When a new vault is created, vaults, vaultsStatuses and accountNames are not
+ * atomically set in state at the same time.
+ * Wait until both are set before proceeding. This is important because
+ * updateVaultsStatuses upddate status based on vaults so they must be
+ * synched
+ */
+export const areVaultsSynched = (
+  vaults: Vaults,
+  vaultsStatuses: VaultsStatuses
+) => {
+  return shallowEqualArrays(Object.keys(vaults), Object.keys(vaultsStatuses));
 };
 
 export const getVaultsVaultedBalance = moize(
