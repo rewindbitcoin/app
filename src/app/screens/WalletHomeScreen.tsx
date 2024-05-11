@@ -94,13 +94,12 @@ const WalletHomeScreen = () => {
       `Navigated to walletId ${walletId} which does not correspond to the one in the context ${wallet?.walletId}`
     );
 
-  const faucetRequested = useRef<boolean>(false);
-  const faucetDetected = useRef<boolean>(false);
-  const faucetNotified = useRef<boolean>(false);
-  if (utxosData?.length) faucetDetected.current = true; //TODO - FIXME -! WHAT!!! this is only
-  //when the faucet is requested!!!
+  const faucetRequestedRef = useRef<boolean>(false);
+  //When the user is notified about having detected some faucet funds:
+  const faucetNotifiedRef = useRef<boolean>(false);
 
-  const faucetPending = !faucetDetected.current && faucetRequested.current;
+  const faucetDetected = faucetRequestedRef.current && utxosData?.length;
+  const faucetPending = faucetRequestedRef.current && !utxosData?.length;
   const syncingOrFaucetPending = syncingBlockchain || faucetPending;
 
   const title =
@@ -154,7 +153,7 @@ const WalletHomeScreen = () => {
   );
   useEffect(() => navigation.setOptions(navOptions), [navigation, navOptions]);
   useEffect(() => {
-    if (wallet && faucetRequested.current === false) {
+    if (wallet && faucetRequestedRef.current === false) {
       const { faucetAPI } = getAPIs(wallet.networkId, settings);
       const network = wallet.networkId && networkMapping[wallet.networkId];
       if (faucetAPI && signers && isFirstLogin && settings) {
@@ -162,9 +161,9 @@ const WalletHomeScreen = () => {
           try {
             toast.show(t('walletHome.faucetStartMsg'), { type: 'success' });
             await faucetFirstReceive(signers, network, faucetAPI, 'es-ES');
-            faucetRequested.current = true;
+            faucetRequestedRef.current = true;
             //wait a few secs until esplora catches up...
-            while (faucetDetected.current === false) {
+            while (faucetDetected === false) {
               syncBlockchain();
               await new Promise(resolve => setTimeout(resolve, 2000));
             }
@@ -179,13 +178,22 @@ const WalletHomeScreen = () => {
         })();
       }
     }
-  }, [toast, wallet, isFirstLogin, settings, signers, syncBlockchain, t]);
+  }, [
+    faucetDetected,
+    toast,
+    wallet,
+    isFirstLogin,
+    settings,
+    signers,
+    syncBlockchain,
+    t
+  ]);
   useEffect(() => {
-    if (faucetNotified.current === false && utxosData?.length && isFirstLogin) {
-      faucetNotified.current = true;
+    if (faucetNotifiedRef.current === false && faucetDetected) {
+      faucetNotifiedRef.current = true;
       toast.show(t('walletHome.faucetDetectedMsg'), { type: 'success' });
     }
-  }, [utxosData?.length, toast, isFirstLogin, t]);
+  }, [utxosData?.length, toast, faucetDetected, t]);
 
   const logOutAndGoBack = useCallback(() => {
     logOut();
