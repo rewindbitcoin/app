@@ -242,6 +242,7 @@ const WalletProviderRaw = ({
     wallet,
     signers,
     isSignersSynchd: signersStorageStatus.isSynchd,
+    signersErrorCode: signersStorageStatus.errorCode,
     vaults,
     isVaultsSynchd: vaultsStorageStatus.isSynchd,
     vaultsStatuses,

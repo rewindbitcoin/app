@@ -82,6 +82,7 @@ export const getIsCorrupted = ({
   wallet,
   signers,
   isSignersSynchd,
+  signersErrorCode,
   vaults,
   isVaultsSynchd,
   vaultsStatuses,
@@ -92,6 +93,7 @@ export const getIsCorrupted = ({
   wallet: Wallet | undefined;
   signers: Signers | undefined;
   isSignersSynchd: boolean;
+  signersErrorCode: StorageErrorCode;
   vaults: Vaults | undefined;
   isVaultsSynchd: boolean;
   vaultsStatuses: VaultsStatuses | undefined;
@@ -101,7 +103,9 @@ export const getIsCorrupted = ({
 }): boolean => {
   return (
     !wallet ||
-    (!signers && isSignersSynchd) ||
+    //If we dont' have signers because of DecryptError, this is probably a user
+    //typing in the wrong password. So quite probably this is not corrupted.
+    (!signers && isSignersSynchd && signersErrorCode !== 'DecryptError') ||
     (!vaults && isVaultsSynchd) ||
     (!vaultsStatuses && isVaultsStatusesSynchd) ||
     (!accountNames && isAccountNamesSynchd)
