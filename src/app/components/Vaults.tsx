@@ -1,11 +1,74 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { View, Text } from 'react-native';
-import type { Vault, Vaults as VaultsType } from '../lib/vaults';
+import type {
+  Vault,
+  VaultStatus,
+  VaultsStatuses,
+  Vaults as VaultsType
+} from '../lib/vaults';
+import { fetchBlockTimestamp } from '../lib/blockchain';
 import { useTranslation } from 'react-i18next';
 import { delegateVault } from '../lib/backup';
 import { Button } from '../../common/ui';
 
-const Vaults = ({ vaults }: { vaults: VaultsType }) => {
+const Vault = ({
+  esploraAPI,
+  vault,
+  vaultStatus
+}: {
+  esploraAPI: string;
+  vault: Vault;
+  vaultStatus: VaultStatus;
+}) => {
+  const [blockDate, setBlockDate] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchTimestamp = async () => {
+      if (vaultStatus?.triggerTxBlockHeight) {
+        try {
+          const timestamp = await fetchBlockTimestamp(
+            esploraAPI,
+            vaultStatus.triggerTxBlockHeight
+          );
+          const date = new Date(timestamp * 1000).toLocaleString(); // Convert to human-readable date
+          setBlockDate(date);
+        } catch (error) {
+          throw new Error('Error fetching block timestamp.');
+        }
+      }
+    };
+
+    fetchTimestamp();
+  }, [vaultStatus, esploraAPI]);
+  return (
+    <>
+      <Text>{vault.vaultId}</Text>
+      <Text
+        className={
+          vaultStatus.triggerTxBlockHeight && blockDate === null
+            ? 'animate-pulse bg-slate-200 rounded'
+            : 'bg-transparent'
+        }
+      >
+        {!vaultStatus.triggerTxBlockHeight
+          ? 'TODO Your vault is waiting to be confirmed...'
+          : blockDate === null
+            ? '      '
+            : `TODO Funds frozen on ${blockDate}`}
+      </Text>
+    </>
+  );
+};
+
+const Vaults = ({
+  esploraAPI,
+  vaults,
+  vaultsStatuses
+}: {
+  esploraAPI: string;
+  vaults: VaultsType;
+  vaultsStatuses: VaultsStatuses;
+}) => {
   const { t } = useTranslation();
   const handleDelegateVaultMap = useMemo(() => {
     const map: { [vaultId: string]: () => void } = {};
@@ -25,24 +88,23 @@ const Vaults = ({ vaults }: { vaults: VaultsType }) => {
   }, [t, vaults]);
 
   return (
-    <View className="gap-4 items-center max-w-2xl p-4">
-      {Object.values(vaults).map(vault => (
+    <View className="gap-4 max-w-2xl self-center">
+      {Object.keys(vaults).map(vaultId => (
         <View
-          key={vault.vaultId}
+          key={vaultId}
           className="items-center rounded-3xl bg-white p-4 gap-4"
         >
-          <Text>{vault.vaultId}</Text>
+          <Vault
+            esploraAPI={esploraAPI}
+            vault={vaults[vaultId]}
+            vaultStatus={vaultsStatuses[vaultId]}
+          />
+          <Text className="break-words">{vaultId}</Text>
           <View className="w-full flex-row justify-between">
-            <Button
-              mode="secondary"
-              onPress={handleDelegateVaultMap[vault.vaultId]}
-            >
+            <Button mode="secondary" onPress={handleDelegateVaultMap[vaultId]}>
               {t('wallet.vault.triggerDefreezeButton')}
             </Button>
-            <Button
-              mode="secondary"
-              onPress={handleDelegateVaultMap[vault.vaultId]}
-            >
+            <Button mode="secondary" onPress={handleDelegateVaultMap[vaultId]}>
               Delegate
             </Button>
           </View>

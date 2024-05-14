@@ -152,38 +152,49 @@ const WalletHomeScreen = () => {
     [theme.colors.primary, title, syncBlockchain, syncingOrFaucetPending]
   );
   useEffect(() => navigation.setOptions(navOptions), [navigation, navOptions]);
+
+  const { faucetAPI, esploraAPI } = getAPIs(wallet?.networkId, settings);
   useEffect(() => {
-    if (wallet && faucetRequestedRef.current === false) {
-      const { faucetAPI } = getAPIs(wallet.networkId, settings);
+    console.log({
+      networkId: wallet?.networkId,
+      faucetAPI,
+      faucetRequested: faucetRequestedRef.current,
+      isFirstLogin
+    });
+    if (
+      wallet &&
+      faucetAPI &&
+      faucetRequestedRef.current === false &&
+      signers &&
+      isFirstLogin
+    ) {
       const network = wallet.networkId && networkMapping[wallet.networkId];
-      if (faucetAPI && signers && isFirstLogin && settings) {
-        (async () => {
-          try {
-            toast.show(t('walletHome.faucetStartMsg'), { type: 'success' });
-            await faucetFirstReceive(signers, network, faucetAPI, 'es-ES');
-            faucetRequestedRef.current = true;
-            //wait a few secs until esplora catches up...
-            while (faucetDetected === false) {
-              syncBlockchain();
-              await new Promise(resolve => setTimeout(resolve, 2000));
-            }
-          } catch (error: unknown) {
-            if (error instanceof Error && typeof error.message === 'string')
-              toast.show(error.message, { type: 'warning' });
-            else
-              toast.show(t('walletHome.faucetUnkownErrorMsg'), {
-                type: 'warning'
-              });
+      (async () => {
+        try {
+          toast.show(t('walletHome.faucetStartMsg'), { type: 'success' });
+          await faucetFirstReceive(signers, network, faucetAPI, 'es-ES');
+          //wait a few secs until esplora catches up...
+          while (faucetDetected === false) {
+            syncBlockchain();
+            await new Promise(resolve => setTimeout(resolve, 2000));
           }
-        })();
-      }
+        } catch (error: unknown) {
+          if (error instanceof Error && typeof error.message === 'string')
+            toast.show(error.message, { type: 'warning' });
+          else
+            toast.show(t('walletHome.faucetUnkownErrorMsg'), {
+              type: 'warning'
+            });
+        }
+      })();
+      faucetRequestedRef.current = true;
     }
   }, [
+    faucetAPI,
     faucetDetected,
     toast,
     wallet,
     isFirstLogin,
-    settings,
     signers,
     syncBlockchain,
     t
@@ -345,7 +356,7 @@ const WalletHomeScreen = () => {
           //the bounce area when pulling to refresh was looking gray or white but the loading indicator was not appearing
           //See TAGiusfdnisdunf below
           //
-          `${Platform.OS === 'ios' || Platform.OS === 'web' ? '-z-10' : ''}`
+          `mb-20 ${Platform.OS === 'ios' || Platform.OS === 'web' ? '-z-10' : ''}`
         }
       >
         <View onLayout={handleHeader}>
@@ -368,16 +379,22 @@ const WalletHomeScreen = () => {
         </View>
 
         {activeTabIndex === 0 && (
-          <>
-            {vaults && <Vaults vaults={vaults} />}
+          <View className="p-4">
+            {vaults && vaultsStatuses && esploraAPI && (
+              <Vaults
+                vaults={vaults}
+                vaultsStatuses={vaultsStatuses}
+                esploraAPI={esploraAPI}
+              />
+            )}
             <Button
               title={t('walletHome.backupVaults')}
               onPress={onRequestVaultsBackup}
             />
-          </>
+          </View>
         )}
         {activeTabIndex === 1 && (
-          <View className="p-4">
+          <View className="self-center">
             {Array.from({ length: 100 }, (_, index) => (
               <View key={index}>
                 <Text>Text {index}</Text>

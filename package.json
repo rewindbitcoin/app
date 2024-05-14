@@ -39,6 +39,7 @@
     "buffer": "^6.0.3",
     "events": "^3.3.0",
     "expo": "^50.0.4",
+    "expo-camera": "^15.0.8",
     "expo-clipboard": "~5.0.1",
     "expo-file-system": "~16.0.6",
     "expo-font": "~11.10.2",

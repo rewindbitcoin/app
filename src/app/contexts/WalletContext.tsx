@@ -704,13 +704,22 @@ const WalletProviderRaw = ({
         //TODO: enable this after tests. important to push after AWAIT setVaults
         //if successful
         //TODO: try-catch push result. This and all pushes in code.
-        //const discovery = await getConnectedDiscovery();
-        //await discovery.getExplorer().push(vault.vaultTxHex);
+        if (!initialDiscovery) throw new Error('Discovery not ready');
+        const discovery = await ensureConnected(initialDiscovery);
+        await discovery.getExplorer().push(vault.vaultTxHex);
 
         return true;
       }
     },
-    [setVaults, setVaultsStatuses, t, toast, vaults, vaultsStatuses]
+    [
+      setVaults,
+      setVaultsStatuses,
+      t,
+      toast,
+      vaults,
+      vaultsStatuses,
+      initialDiscovery
+    ]
   );
 
   const contextValue = {

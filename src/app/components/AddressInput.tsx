@@ -1,5 +1,8 @@
-import React, { useState, useMemo, useCallback } from 'react';
-import { Platform, View, StyleSheet } from 'react-native';
+//This works on web: https://snack.expo.dev/@bycedric/expo-issue-15442
+import { CameraView, useCameraPermissions } from 'expo-camera';
+import { Camera } from 'expo-camera/legacy';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
+import { Platform, View, StyleSheet, ActivityIndicator } from 'react-native';
 import {
   TextInput,
   Text,
@@ -7,18 +10,26 @@ import {
   Theme,
   IconButton,
   InfoButton,
-  Modal
+  Modal,
+  Button
 } from '../../common/ui';
 import { useTranslation } from 'react-i18next';
 import Bip39 from './Bip39';
+import { TouchableOpacity } from 'react-native-gesture-handler';
 
 function AddressInput() {
   const [address, setAddress] = useState<string>('');
+  const [scanQR, setScanQR] = useState<boolean>(false);
+  const [camFacing, setCamFacing] = useState<'back' | 'front'>('back');
+  const [camPermission, requestCamPermission] = useCameraPermissions();
+  const [hasMultipleCameras, setHasMultipleCameras] = useState<boolean>(false);
+
   const { t } = useTranslation();
   const theme = useTheme();
   const styles = useMemo(() => getStyles(theme), [theme]);
   const [showNewAddress, setShowNewAddress] = useState<boolean>(false);
   const handleNewAddress = useCallback(() => setShowNewAddress(true), []);
+  const handleScanQR = useCallback(() => setScanQR(true), []);
   const handleCloseNewAddress = useCallback(() => setShowNewAddress(false), []);
   const [words, setWords] = useState<string[]>([
     'december',
@@ -37,6 +48,28 @@ function AddressInput() {
   const onWords = useCallback((words: Array<string>) => {
     setWords(words);
   }, []);
+
+  const handleBarCodeScanned = useCallback(({ data }: { data: string }) => {
+    console.log('handleBarCodeScanned', { data });
+    setScanQR(false);
+    setAddress(data);
+  }, []);
+
+  const toggleCameraFacing = useCallback(() => {
+    setCamFacing(current => (current === 'back' ? 'front' : 'back'));
+  }, []);
+
+  useEffect(() => {
+    const checkCameras = async () => {
+      const devices = await Camera.getAvailableCameraTypesAsync();
+      console.log({ devices });
+      setHasMultipleCameras(devices.length > 1);
+    };
+    checkCameras();
+  }, []);
+
+  console.log(camPermission);
+
   return (
     <View>
       <View style={styles.cardHeader}>
@@ -61,6 +94,7 @@ function AddressInput() {
         <View className="py-1 ml-4">
           <IconButton
             text={t('addressInput.scan')}
+            onPress={handleScanQR}
             iconFamily="MaterialCommunityIcons"
             iconName="qrcode-scan"
           />
@@ -86,6 +120,36 @@ function AddressInput() {
         <Text>{t('addressInput.coldAddress.createNewModalText')}</Text>
         <Bip39 readonly onWords={onWords} words={words} />
       </Modal>
+      {scanQR &&
+        (!camPermission ? (
+          <ActivityIndicator />
+        ) : !camPermission.granted ? (
+          <View>
+            <Text>TODO We need your permission to show the camera</Text>
+            <Button onPress={requestCamPermission}>
+              TODO: Grant Permission
+            </Button>
+          </View>
+        ) : (
+          <View className="h-96">
+            <CameraView
+              facing={camFacing}
+              barcodeScannerSettings={{
+                barcodeTypes: ['qr']
+              }}
+              onBarcodeScanned={handleBarCodeScanned}
+              className="flex-1 w-full h-96"
+            >
+              {hasMultipleCameras && (
+                <View className="bg-white p-2 rounded-md">
+                  <TouchableOpacity onPress={toggleCameraFacing}>
+                    <Text>{t('camera.flip')}</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+            </CameraView>
+          </View>
+        ))}
     </View>
   );
 }

@@ -48,7 +48,13 @@
       ["react-native-libsodium", {}],
       "expo-font",
       "expo-local-authentication",
-      "expo-secure-store"
+      "expo-secure-store",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "ThunderDen needs access to your camera to scan QR codes for Bitcoin addresses"
+        }
+      ]
     ]
   }
 }

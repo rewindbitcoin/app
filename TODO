@@ -3,6 +3,10 @@ seek know resemble
 hurt pistol head
 first board better
 
+New Wallets on storm are not receiving funs now
+
+WalletHeader should say if its Testnet, Storm or Regtest (when its test wallet)
+
 En iOS no se me esta metiendo initial STORM btcs (en las pruebas no tengo enrolled y no acepto usar passowrd)
   quiza es q tenga los viejos settings sin faucetAPI????
 
