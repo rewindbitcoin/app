@@ -1,13 +1,11 @@
 //This works on web: https://snack.expo.dev/@bycedric/expo-issue-15442
-import { CameraView, useCameraPermissions } from 'expo-camera';
+import { BarcodeType, CameraView, useCameraPermissions } from 'expo-camera';
 import { Camera } from 'expo-camera/legacy';
-import React, { useState, useMemo, useCallback, useEffect } from 'react';
-import { Platform, View, StyleSheet, ActivityIndicator } from 'react-native';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
+import { Platform, View, ActivityIndicator } from 'react-native';
 import {
   TextInput,
   Text,
-  useTheme,
-  Theme,
   IconButton,
   InfoButton,
   Modal,
@@ -16,20 +14,31 @@ import {
 import { useTranslation } from 'react-i18next';
 import Bip39 from './Bip39';
 import { TouchableOpacity } from 'react-native-gesture-handler';
+import { isAvailableAsync } from 'expo-secure-store';
 
 function AddressInput() {
   const [address, setAddress] = useState<string>('');
   const [scanQR, setScanQR] = useState<boolean>(false);
-  const [camFacing, setCamFacing] = useState<'back' | 'front'>('back');
+  const [camFacing, setCamFacing] = useState<'back' | 'front' | null>(null);
   const [camPermission, requestCamPermission] = useCameraPermissions();
-  const [hasMultipleCameras, setHasMultipleCameras] = useState<boolean>(false);
+  const [camTypes, setCamTypes] = useState<Array<'back' | 'front'> | null>(
+    null
+  );
+
+  //https://github.com/expo/expo/issues/28069#issuecomment-2088224873
+  const [camPermissionGrantedDelay, setCamPermissionGrantedDelay] =
+    useState(false);
+
+  useEffect(() => {
+    if (camPermission?.granted)
+      setTimeout(() => setCamPermissionGrantedDelay(true), 2000);
+  }, [camPermission?.granted]);
 
   const { t } = useTranslation();
-  const theme = useTheme();
-  const styles = useMemo(() => getStyles(theme), [theme]);
   const [showNewAddress, setShowNewAddress] = useState<boolean>(false);
   const handleNewAddress = useCallback(() => setShowNewAddress(true), []);
   const handleScanQR = useCallback(() => setScanQR(true), []);
+  const handleCloseScanQR = useCallback(() => setScanQR(false), []);
   const handleCloseNewAddress = useCallback(() => setShowNewAddress(false), []);
   const [words, setWords] = useState<string[]>([
     'december',
@@ -49,11 +58,28 @@ function AddressInput() {
     setWords(words);
   }, []);
 
-  const handleBarCodeScanned = useCallback(({ data }: { data: string }) => {
-    console.log('handleBarCodeScanned', { data });
+  const onChangeText = useCallback(
+    (address: string) => setAddress(address),
+    []
+  );
+
+  const onBarcodeScanned = useCallback(({ data }: { data: string }) => {
     setScanQR(false);
     setAddress(data);
   }, []);
+  const onBarCodeScanned = useCallback(
+    ({
+      nativeEvent
+    }: {
+      nativeEvent: {
+        data: string;
+      };
+    }) => {
+      setAddress(nativeEvent.data);
+      setScanQR(false);
+    },
+    []
+  );
 
   const toggleCameraFacing = useCallback(() => {
     setCamFacing(current => (current === 'back' ? 'front' : 'back'));
@@ -61,24 +87,57 @@ function AddressInput() {
 
   useEffect(() => {
     const checkCameras = async () => {
-      const devices = await Camera.getAvailableCameraTypesAsync();
-      console.log({ devices });
-      setHasMultipleCameras(devices.length > 1);
+      if (Platform.OS !== 'web' || (await isAvailableAsync())) {
+        const camTypes =
+          Platform.OS === 'web'
+            ? await Camera.getAvailableCameraTypesAsync()
+            : (['back', 'front'] as Array<'back' | 'front'>);
+
+        if (camTypes.length) {
+          setCamTypes(camTypes);
+          const camFacing = camTypes.length === 1 ? camTypes[0]! : 'back';
+          setCamFacing(camFacing);
+        }
+      }
     };
     checkCameras();
   }, []);
 
-  console.log(camPermission);
+  const cameraViewProps = useMemo(() => {
+    if (!camFacing) return {};
+    else
+      return Platform.select({
+        native: {
+          mute: true,
+          videoQuality: '1080p',
+          facing: camFacing,
+          onBarcodeScanned: onBarcodeScanned,
+          barcodeScannerSettings: {
+            barcodeTypes: ['qr' as BarcodeType]
+          }
+        },
+        web: {
+          mute: true,
+          videoQuality: '1080p',
+          type: camFacing,
+          onBarCodeScanned: onBarCodeScanned,
+          barCodeScannerSettings: {
+            barCodeTypes: ['qr'],
+            interval: 500
+          }
+        }
+      });
+  }, [camFacing, onBarcodeScanned, onBarCodeScanned]);
 
   return (
     <View>
-      <View style={styles.cardHeader}>
+      <View className="pb-2 flex-row items-center">
         <Text variant="cardTitle" className="px-2 text-left">
           {t('addressInput.coldAddress.label')}
         </Text>
         <InfoButton />
       </View>
-      <View style={styles.inputWrapper}>
+      <View className="py-1 px-2 pl-4 items-center bg-white flex-row rounded-md">
         <TextInput
           enablesReturnKeyAutomatically
           placeholder={t('addressInput.coldAddress.textInputPlaceholder')}
@@ -87,18 +146,20 @@ function AddressInput() {
           autoCorrect={false}
           autoCapitalize="none"
           maxLength={100}
-          onChangeText={address => setAddress(address)}
+          onChangeText={onChangeText}
           value={address}
-          style={styles.input}
+          className="flex-1 web:outline-none border-none p-2 pl-0 border-md"
         />
-        <View className="py-1 ml-4">
-          <IconButton
-            text={t('addressInput.scan')}
-            onPress={handleScanQR}
-            iconFamily="MaterialCommunityIcons"
-            iconName="qrcode-scan"
-          />
-        </View>
+        {camFacing && (
+          <View className="py-1 ml-4">
+            <IconButton
+              text={t('addressInput.scan')}
+              onPress={handleScanQR}
+              iconFamily="MaterialCommunityIcons"
+              iconName="qrcode-scan"
+            />
+          </View>
+        )}
         <View className="py-1 ml-4">
           <IconButton
             text={t('addressInput.coldAddress.createNewButton')}
@@ -120,8 +181,17 @@ function AddressInput() {
         <Text>{t('addressInput.coldAddress.createNewModalText')}</Text>
         <Bip39 readonly onWords={onWords} words={words} />
       </Modal>
-      {scanQR &&
-        (!camPermission ? (
+      <Modal
+        title="TODO Scan QR"
+        isVisible={scanQR}
+        icon={{
+          family: 'MaterialCommunityIcons',
+          name: 'qrcode-scan'
+        }}
+        onClose={handleCloseScanQR}
+        closeButtonText="TODO close button"
+      >
+        {!camPermission || !camTypes ? (
           <ActivityIndicator />
         ) : !camPermission.granted ? (
           <View>
@@ -130,17 +200,12 @@ function AddressInput() {
               TODO: Grant Permission
             </Button>
           </View>
+        ) : !camPermissionGrantedDelay ? (
+          <ActivityIndicator />
         ) : (
-          <View className="h-96">
-            <CameraView
-              facing={camFacing}
-              barcodeScannerSettings={{
-                barcodeTypes: ['qr']
-              }}
-              onBarcodeScanned={handleBarCodeScanned}
-              className="flex-1 w-full h-96"
-            >
-              {hasMultipleCameras && (
+          <View className="h-40 w-72 self-center">
+            <CameraView {...cameraViewProps}>
+              {camTypes !== null && camTypes.length > 1 && (
                 <View className="bg-white p-2 rounded-md">
                   <TouchableOpacity onPress={toggleCameraFacing}>
                     <Text>{t('camera.flip')}</Text>
@@ -149,39 +214,10 @@ function AddressInput() {
               )}
             </CameraView>
           </View>
-        ))}
+        )}
+      </Modal>
     </View>
   );
 }
 
-const getStyles = (theme: Theme) =>
-  StyleSheet.create({
-    cardHeader: {
-      marginBottom: theme.screenMargin / 2,
-      flexDirection: 'row',
-      alignItems: 'center'
-    },
-    inputWrapper: {
-      paddingVertical: 4,
-      borderRadius: 5,
-      flexDirection: 'row',
-      paddingHorizontal: 8,
-      paddingLeft: 16,
-      alignItems: 'center',
-      backgroundColor: theme.colors.card
-    },
-    input: {
-      flex: 1,
-      ...Platform.select({
-        //clean style for web browsers
-        web: {
-          outlineStyle: 'none'
-        }
-      }),
-      borderWidth: 0,
-      padding: 8,
-      paddingLeft: 0,
-      borderRadius: 5
-    }
-  });
 export default React.memo(AddressInput);

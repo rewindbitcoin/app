@@ -19,7 +19,8 @@
       },
       "infoPlist": {
         "CFBundleAllowMixedLocalizations": true,
-        "NSFaceIDUsageDescription": "ThunderDen uses Face ID for enhanced security. This feature helps protect your Bitcoin wallet by ensuring that only you can access the sensitive data, like mnemonics, stored securely in the app. Your Face ID data is never accessed directly by the app and is only used to verify your identity."
+        "NSFaceIDUsageDescription": "ThunderDen uses Face ID for enhanced security. This feature helps protect your Bitcoin wallet by ensuring that only you can access the sensitive data, like mnemonics, stored securely in the app. Your Face ID data is never accessed directly by the app and is only used to verify your identity.",
+        "NSCameraUsageDescription": "ThunderDen needs access to your camera to scan QR codes for Bitcoin addresses"
       },
       "supportsTablet": true,
       "bundleIdentifier": "com.landabaso.ThunderDen"
@@ -49,12 +50,7 @@
       "expo-font",
       "expo-local-authentication",
       "expo-secure-store",
-      [
-        "expo-camera",
-        {
-          "cameraPermission": "ThunderDen needs access to your camera to scan QR codes for Bitcoin addresses"
-        }
-      ]
+      "expo-camera"
     ]
   }
 }

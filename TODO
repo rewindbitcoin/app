@@ -3,6 +3,18 @@ seek know resemble
 hurt pistol head
 first board better
 
+In iOS getting this error crash on new app install trying to access the camera;
+https://github.com/expo/expo/issues/28069
+  -> Must uninstall the app to test
+
+
+iOS, after allowing the app to access the camera then it crashes
+  -> However i cannot use Camera.getAvailableCameraTypesAsync ???
+
+CustomButtons for the QR modal because of the toggleCameraFacing
+
+Properly format the We need your permission to shoe ht camewera
+
 New Wallets on storm are not receiving funs now
 
 WalletHeader should say if its Testnet, Storm or Regtest (when its test wallet)
