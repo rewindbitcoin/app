@@ -194,6 +194,8 @@ While the app is in early development, we advise against using real Bitcoin for 
   vaultSetup: {
     title: 'Vault Set Up',
     subTitle: 'Secure Your Bitcoin',
+    fillInAll: 'Please fill in all the fields above to continue.',
+    coldAddressMissing: 'Please fill in the emergency address to continue.',
     intro:
       'Customize your Vault. Select the amount to secure and your preferred protection timelock.',
     notEnoughFundsTitle: 'Vault Minimum Requirement',
@@ -201,9 +203,9 @@ While the app is in early development, we advise against using real Bitcoin for 
     notEnoughFunds:
       '<group>ThunderDen establishes a minimum vaulting amount.\nThis assumes express transaction confirmations and the possibility of ultra-high network fees when unvaulting.</group><group><strong>Suggested Addition:</strong> Add about {{missingFunds}} to reach the vaulting minimum.\nNote that the exact vaultable amount might slightly differ due to changes in network fee conditions.</group>',
     amountLabel: 'Vault Amount',
-    securityLockTimeLabel: 'Theft Protection Time Lock',
+    securityLockTimeLabel: 'Theft-Protection Time-Lock',
     securityLockTimeDescription: 'Available {{blocks}} after defreeze',
-    confirmationSpeedLabel: 'Vault Creation Speed',
+    confirmationSpeedLabel: 'Vault Confirmation Speed',
     lockTimeError: 'Pick a valid Lock Time.',
     feeRateError: 'Pick a valid Fee Rate.',
     amountError: 'Pick a valid amount of Btc.',
@@ -283,18 +285,27 @@ While the app is in early development, we advise against using real Bitcoin for 
     preferredUnitTitle: 'Preferred Unit'
   },
   addressInput: {
+    invalidAddress: 'Invalid {{network}} address',
+
+    textInputPlaceholderWithCreate: 'Enter or Create an Address',
+    textInputPlaceholder: 'Enter an Address',
+    createNewButton: 'Create',
     coldAddress: {
       label: 'Emergency Address',
-      createNewButton: 'Create',
-      createNewModalTitle: 'Create new Address',
-      createNewModalText: '',
-      textInputPlaceholder: 'Enter or Create an Address'
+      createNewModalTitle: 'Create new Address'
     },
     recipientAddress: {
       label: 'Recipient Address',
       textInputPlaceholder: "Enter recipient's address"
     },
-    scan: 'Scan'
+    scan: 'Scan',
+    scanQRModalTitle: 'Scan Bitcoin QR Code',
+    flipCam: 'Flip Camera',
+    requestPermissionRationale:
+      'We need your permission to access the camera. The camera is used to scan QR codes containing Bitcoin addresses.',
+    triggerNativeRequestPermissionButton: 'Grant Camera Access',
+    scanQRCall2Action:
+      'Align the QR code within the frame to scan the Bitcoin address.'
   },
   continueButton: 'Continue',
   okButton: 'OK',

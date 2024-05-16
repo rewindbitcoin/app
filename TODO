@@ -3,24 +3,35 @@ seek know resemble
 hurt pistol head
 first board better
 
-In iOS getting this error crash on new app install trying to access the camera;
-https://github.com/expo/expo/issues/28069
-  -> Must uninstall the app to test
+Android expo-camera does not work!
+
+Test cam on Android and on iOS/Android real devices
+
+The new Create NEw addess modal shows a wrong button with the Gradient (problem)
+on the second time it's open (show->hide->show)
+
+Make use of headerMini in all Bip39 stuff...
 
 
-iOS, after allowing the app to access the camera then it crashes
-  -> However i cannot use Camera.getAvailableCameraTypesAsync ???
 
-CustomButtons for the QR modal because of the toggleCameraFacing
+Finosh the Create in AddressInput
+  -> Add a flag to indicet if Create is allowed (not used in SendBitcoin)
+    -> In case of SendBitcoin, replace the "Create" with "Paste"?
 
-Properly format the We need your permission to shoe ht camewera
+On web when pulling the Slider the whole screen moves
 
-New Wallets on storm are not receiving funs now
+
+Missing helper texts in Vault SetUp...
+  -> Learn more about Vaults
+  -> Emergency Address
+  -> Theft Protection Timelock?  (may be the same heklp as Learm More about vaults)
+
+The days chooset in Vault SetUp should show a popup. Also, when choosing "blocks" render blocks in status...
+
+En iOS (al menos) me sale auto -refesco infinito cuando creao una wallet desde
+scatch (desde la nada, nueva app)
 
 WalletHeader should say if its Testnet, Storm or Regtest (when its test wallet)
-
-En iOS no se me esta metiendo initial STORM btcs (en las pruebas no tengo enrolled y no acepto usar passowrd)
-  quiza es q tenga los viejos settings sin faucetAPI????
 
 cuando en la wallet doy a goBack tarda años
 

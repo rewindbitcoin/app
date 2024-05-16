@@ -1,5 +1,7 @@
-export { ActivityIndicator, TextInput } from 'react-native';
+export { TextInput } from 'react-native';
 export * from './theme';
+import ActivityIndicator from './components/ActivityIndicator';
+export { ActivityIndicator };
 import EditableSlider from './components/EditableSlider';
 export { EditableSlider };
 import CardEditableSlider from './components/CardEditableSlider';

@@ -5,6 +5,9 @@ module.exports = {
   presets: [require('nativewind/preset')],
   theme: {
     extend: {
+      letterSpacing: {
+        tightest: '-0.15em'
+      },
       colors: {
         backgroundDefault: '#f2f2f2',
         // Create a custom color that uses a CSS custom value

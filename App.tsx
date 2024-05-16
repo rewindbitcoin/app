@@ -27,7 +27,6 @@ import { ToastProvider } from './src/common/components/Toast';
 import WalletsScreen from './src/app/screens/WalletsScreen';
 import NewWalletScreen from './src/app/screens/NewWalletScreen';
 import WalletHomeScreen from './src/app/screens/WalletHomeScreen';
-import P2R from './src/app/screens/P2R';
 import SetUpVaultScreen from './src/app/screens/SetUpVaultScreen';
 import CreateVaultScreen from './src/app/screens/CreateVaultScreen';
 import { WalletProvider } from './src/app/contexts/WalletContext';
@@ -192,9 +191,9 @@ const Main = () => {
             //https://github.com/react-navigation/react-navigation/issues/11550
             //https://github.com/software-mansion/react-native-screens/discussions/1229#discussioncomment-1927333
             //headerTitle: t('vaultSetup.title'),
-            headerLargeTitle: true,
-            headerTransparent: Platform.OS === 'ios',
-            headerBlurEffect: 'regular'
+            //headerLargeTitle: true,
+            //headerTransparent: Platform.OS === 'ios',
+            //headerBlurEffect: 'regular'
             //headerLargeStyle: {
             //  backgroundColor: PlatformColor('systemGroupedBackgroundColor') // Color of your background
             //}

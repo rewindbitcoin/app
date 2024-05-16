@@ -1,72 +1,123 @@
-//This works on web: https://snack.expo.dev/@bycedric/expo-issue-15442
 import { BarcodeType, CameraView, useCameraPermissions } from 'expo-camera';
 import { Camera } from 'expo-camera/legacy';
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
-import { Platform, View, ActivityIndicator } from 'react-native';
+import {
+  Platform,
+  View,
+  AppState,
+  unstable_batchedUpdates as RN_unstable_batchedUpdates
+} from 'react-native';
+const unstable_batchedUpdates = Platform.select({
+  web: (cb: () => void) => {
+    cb();
+  },
+  default: RN_unstable_batchedUpdates
+});
 import {
   TextInput,
   Text,
   IconButton,
   InfoButton,
+  ActivityIndicator,
   Modal,
   Button
 } from '../../common/ui';
 import { useTranslation } from 'react-i18next';
-import Bip39 from './Bip39';
-import { TouchableOpacity } from 'react-native-gesture-handler';
-import { isAvailableAsync } from 'expo-secure-store';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { validateAddress } from '../lib/vaults';
+import { networkMapping, type NetworkId } from '../lib/network';
+import { useFonts } from 'expo-font';
+import { RobotoMono_400Regular } from '@expo-google-fonts/roboto-mono';
+import CreateColdAddress from './CreateColdAddress';
 
-function AddressInput() {
+function AddressInput({
+  onValueChange,
+  networkId,
+  allowCreate = false
+}: {
+  onValueChange: (value: string | null) => void;
+  networkId: NetworkId;
+  allowCreate: boolean;
+}) {
+  const capitalizedNetworkId =
+    networkId.charAt(0).toUpperCase() + networkId.slice(1).toLowerCase();
+  const network = networkMapping[networkId];
   const [address, setAddress] = useState<string>('');
   const [scanQR, setScanQR] = useState<boolean>(false);
+  const [camAvailable, setCamAvailable] = useState<boolean>(false);
   const [camFacing, setCamFacing] = useState<'back' | 'front' | null>(null);
   const [camPermission, requestCamPermission] = useCameraPermissions();
   const [camTypes, setCamTypes] = useState<Array<'back' | 'front'> | null>(
     null
   );
 
-  //https://github.com/expo/expo/issues/28069#issuecomment-2088224873
+  //https://github.com/expo/expo/issues/28069#issuecomment-2112876966
   const [camPermissionGrantedDelay, setCamPermissionGrantedDelay] =
     useState(false);
 
+  const [robotoLoaded] = useFonts({
+    RobotoMono400Regular: RobotoMono_400Regular
+  });
+
   useEffect(() => {
-    if (camPermission?.granted)
-      setTimeout(() => setCamPermissionGrantedDelay(true), 2000);
-  }, [camPermission?.granted]);
+    const checkCameras = async () => {
+      if (Platform.OS !== 'web' || (await CameraView.isAvailableAsync())) {
+        setCamAvailable(true);
+      }
+    };
+    checkCameras();
+  }, []);
+  useEffect(() => {
+    const prepareCameras = async () => {
+      const camTypes =
+        Platform.OS === 'web'
+          ? await Camera.getAvailableCameraTypesAsync()
+          : (['back', 'front'] as Array<'back' | 'front'>);
+
+      if (camTypes.length) {
+        unstable_batchedUpdates(() => {
+          setCamTypes(camTypes);
+          const camFacing = camTypes.length === 1 ? camTypes[0]! : 'back';
+          setCamFacing(camFacing);
+        });
+        //https://github.com/expo/expo/issues/28069#issuecomment-2112876966
+        setTimeout(() => setCamPermissionGrantedDelay(true), 2000);
+      }
+    };
+    if (camAvailable && camPermission?.granted) prepareCameras();
+  }, [camAvailable, camPermission?.granted]);
 
   const { t } = useTranslation();
   const [showNewAddress, setShowNewAddress] = useState<boolean>(false);
   const handleNewAddress = useCallback(() => setShowNewAddress(true), []);
   const handleScanQR = useCallback(() => setScanQR(true), []);
   const handleCloseScanQR = useCallback(() => setScanQR(false), []);
-  const handleCloseNewAddress = useCallback(() => setShowNewAddress(false), []);
-  const [words, setWords] = useState<string[]>([
-    'december',
-    'abandon',
-    'abandon',
-    'abandon',
-    'abandon',
-    'abandon',
-    'abandon',
-    'abandon',
-    'abandon',
-    'abandon',
-    'abandon',
-    'about'
-  ]);
-  const onWords = useCallback((words: Array<string>) => {
-    setWords(words);
-  }, []);
 
-  const onChangeText = useCallback(
-    (address: string) => setAddress(address),
-    []
+  //Close the camera when the app looses focus (prevents crashes in iOS)
+  //https://github.com/expo/expo/pull/28911#issuecomment-2114706008
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', nextAppState => {
+      if (nextAppState.match(/inactive|background/)) handleCloseScanQR();
+    });
+    return () => subscription.remove();
+  }, [handleCloseScanQR]);
+  const handleCloseNewAddress = useCallback(() => setShowNewAddress(false), []);
+
+  const onAddress = useCallback(
+    (address: string) => {
+      setAddress(address);
+      onValueChange(validateAddress(address, network) ? address : null);
+    },
+    [onValueChange, network]
   );
 
-  const onBarcodeScanned = useCallback(({ data }: { data: string }) => {
-    setScanQR(false);
-    setAddress(data);
-  }, []);
+  const onBarcodeScanned = useCallback(
+    ({ data }: { data: string }) => {
+      setScanQR(false);
+      onAddress(data);
+    },
+    [onAddress]
+  );
   const onBarCodeScanned = useCallback(
     ({
       nativeEvent
@@ -75,34 +126,17 @@ function AddressInput() {
         data: string;
       };
     }) => {
-      setAddress(nativeEvent.data);
       setScanQR(false);
+      onAddress(nativeEvent.data);
     },
-    []
+    [onAddress]
   );
 
   const toggleCameraFacing = useCallback(() => {
     setCamFacing(current => (current === 'back' ? 'front' : 'back'));
   }, []);
 
-  useEffect(() => {
-    const checkCameras = async () => {
-      if (Platform.OS !== 'web' || (await isAvailableAsync())) {
-        const camTypes =
-          Platform.OS === 'web'
-            ? await Camera.getAvailableCameraTypesAsync()
-            : (['back', 'front'] as Array<'back' | 'front'>);
-
-        if (camTypes.length) {
-          setCamTypes(camTypes);
-          const camFacing = camTypes.length === 1 ? camTypes[0]! : 'back';
-          setCamFacing(camFacing);
-        }
-      }
-    };
-    checkCameras();
-  }, []);
-
+  //https://github.com/expo/expo/issues/27934#issuecomment-2111797240
   const cameraViewProps = useMemo(() => {
     if (!camFacing) return {};
     else
@@ -133,86 +167,113 @@ function AddressInput() {
     <View>
       <View className="pb-2 flex-row items-center">
         <Text variant="cardTitle" className="px-2 text-left">
-          {t('addressInput.coldAddress.label')}
+          {t('addressInput.coldAddress.label', {
+            network: capitalizedNetworkId
+          })}
         </Text>
         <InfoButton />
       </View>
-      <View className="py-1 px-2 pl-4 items-center bg-white flex-row rounded-md">
-        <TextInput
-          enablesReturnKeyAutomatically
-          placeholder={t('addressInput.coldAddress.textInputPlaceholder')}
-          autoComplete="off"
-          spellCheck={false}
-          autoCorrect={false}
-          autoCapitalize="none"
-          maxLength={100}
-          onChangeText={onChangeText}
-          value={address}
-          className="flex-1 web:outline-none border-none p-2 pl-0 border-md"
-        />
-        {camFacing && (
-          <View className="py-1 ml-4">
-            <IconButton
-              text={t('addressInput.scan')}
-              onPress={handleScanQR}
-              iconFamily="MaterialCommunityIcons"
-              iconName="qrcode-scan"
-            />
-          </View>
-        )}
-        <View className="py-1 ml-4">
-          <IconButton
-            text={t('addressInput.coldAddress.createNewButton')}
-            onPress={handleNewAddress}
-            iconFamily="MaterialCommunityIcons"
-            iconName="wallet-plus-outline"
+      <View className="py-1 px-2 pl-4 bg-white rounded-md">
+        <View className="flex-row items-center">
+          <TextInput
+            enablesReturnKeyAutomatically
+            placeholder={
+              allowCreate
+                ? t('addressInput.textInputPlaceholderWithCreate')
+                : t('addressInput.textInputPlaceholder')
+            }
+            placeholderTextColor="#A9A9A9"
+            autoComplete="off"
+            spellCheck={false}
+            autoCorrect={false}
+            autoCapitalize="none"
+            maxLength={100}
+            onChangeText={onAddress}
+            value={address}
+            className={`native:text-base web:text-xs web:mobmed:text-sm web:sm:text-base flex-1 overflow-hidden web:outline-none border-none p-2 pl-0 border-md ${robotoLoaded ? "font-['RobotoMono400Regular'] tracking-tightest mobmed:tracking-tighter moblg:tracking-normal" : ''}`}
           />
+          {camAvailable && (
+            <View className="py-1">
+              <IconButton
+                text={t('addressInput.scan')}
+                onPress={handleScanQR}
+                iconFamily="MaterialCommunityIcons"
+                iconName="qrcode-scan"
+              />
+            </View>
+          )}
+          {allowCreate && (
+            <View className={`py-1 ${camAvailable ? 'ml-3' : ''}`}>
+              <IconButton
+                text={t('addressInput.createNewButton')}
+                onPress={handleNewAddress}
+                iconFamily="MaterialCommunityIcons"
+                iconName="wallet-plus-outline"
+              />
+            </View>
+          )}
         </View>
+        {address !== '' && !validateAddress(address, network) && (
+          <Text
+            className={`${robotoLoaded ? "font-['RobotoMono400Regular']" : ''}`}
+            style={{ fontSize: 13, color: 'red' }}
+          >
+            {t('addressInput.invalidAddress', {
+              network: capitalizedNetworkId
+            })}
+          </Text>
+        )}
       </View>
-      <Modal
+      <CreateColdAddress
+        networkId={networkId}
         isVisible={showNewAddress}
-        title={t('addressInput.coldAddress.createNewModalTitle')}
-        icon={{
-          family: 'Ionicons',
-          name: 'wallet'
-        }}
+        onAddress={onAddress}
         onClose={handleCloseNewAddress}
-      >
-        <Text>{t('addressInput.coldAddress.createNewModalText')}</Text>
-        <Bip39 readonly onWords={onWords} words={words} />
-      </Modal>
+      />
       <Modal
-        title="TODO Scan QR"
+        title={t('addressInput.scanQRModalTitle')}
         isVisible={scanQR}
         icon={{
           family: 'MaterialCommunityIcons',
           name: 'qrcode-scan'
         }}
         onClose={handleCloseScanQR}
-        closeButtonText="TODO close button"
+        customButtons={
+          <View className="items-center gap-6 flex-row justify-center mb-4">
+            {camTypes !== null && camTypes.length > 1 && (
+              <Button onPress={toggleCameraFacing}>
+                <View className="flex-row items-center">
+                  <MaterialCommunityIcons
+                    name="camera-flip-outline"
+                    className="text-white text-xl -my-4 pr-2"
+                  />
+                  <Text className="text-center native:text-sm font-semibold text-white web:text-xs web:sm:text-sm select-none">
+                    {t('addressInput.flipCam')}
+                  </Text>
+                </View>
+              </Button>
+            )}
+            <Button onPress={handleCloseScanQR}>{t('cancelButton')}</Button>
+          </View>
+        }
       >
-        {!camPermission || !camTypes ? (
-          <ActivityIndicator />
-        ) : !camPermission.granted ? (
-          <View>
-            <Text>TODO We need your permission to show the camera</Text>
+        {!camPermission?.granted ? (
+          <View className="gap-4 p-8">
+            <Text>{t('addressInput.requestPermissionRationale')}</Text>
             <Button onPress={requestCamPermission}>
-              TODO: Grant Permission
+              {t('addressInput.triggerNativeRequestPermissionButton')}
             </Button>
           </View>
         ) : !camPermissionGrantedDelay ? (
-          <ActivityIndicator />
+          <View className="p-12">
+            <ActivityIndicator />
+          </View>
         ) : (
-          <View className="h-40 w-72 self-center">
-            <CameraView {...cameraViewProps}>
-              {camTypes !== null && camTypes.length > 1 && (
-                <View className="bg-white p-2 rounded-md">
-                  <TouchableOpacity onPress={toggleCameraFacing}>
-                    <Text>{t('camera.flip')}</Text>
-                  </TouchableOpacity>
-                </View>
-              )}
-            </CameraView>
+          <View className="gap-4 px-2 items-center">
+            <Text>{t('addressInput.scanQRCall2Action')}</Text>
+            <View className="h-40 w-72 self-center">
+              <CameraView {...cameraViewProps} />
+            </View>
           </View>
         )}
       </Modal>

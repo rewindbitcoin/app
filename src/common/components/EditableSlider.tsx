@@ -308,7 +308,8 @@ const getStyles = (theme: Theme) =>
     maxLabel: {
       fontSize: 10,
       //fontStyle: 'italic',
-      color: theme.colors.cardSecondary
+      //color: theme.colors.cardSecondary
+      color: 'green'
     },
     input: {
       fontSize: 15,

@@ -62,6 +62,7 @@ export default function VaultSetUp({
   const [lockBlocks, setLockBlocks] = useState<number | null>(
     settings.INITIAL_LOCK_BLOCKS
   );
+  const [coldAddress, setColdAddress] = useState<string | null>(null);
   const { t } = useTranslation();
 
   const initialFeeRate = pickFeeEstimate(
@@ -121,11 +122,15 @@ export default function VaultSetUp({
   );
 
   const handleOK = useCallback(() => {
-    const coldAddress = 'tb1qm0k9mn48uqfs2w9gssvzmus4j8srrx5eje7wpf'; //TODO Grab from <AddressInput>
-    if (feeRate === null || amount === null || lockBlocks === null)
+    if (
+      feeRate === null ||
+      amount === null ||
+      lockBlocks === null ||
+      coldAddress === null
+    )
       throw new Error('Cannot process Vault');
     onVaultSetUpComplete({ coldAddress, feeRate, amount, lockBlocks });
-  }, [feeRate, amount, lockBlocks, onVaultSetUpComplete]);
+  }, [feeRate, amount, lockBlocks, onVaultSetUpComplete, coldAddress]);
 
   const txSize =
     amount === null || feeRate === null
@@ -140,6 +145,12 @@ export default function VaultSetUp({
           serviceFeeRate: settings.SERVICE_FEE_RATE
         })?.vsize || null;
 
+  const allFieldsValid =
+    amount !== null &&
+    lockBlocks !== null &&
+    feeRate !== null &&
+    coldAddress !== null;
+
   return (
     <KeyboardAwareScrollView
       contentInsetAdjustmentBehavior="automatic"
@@ -147,11 +158,6 @@ export default function VaultSetUp({
       contentContainerStyle={styles.contentContainer}
     >
       <View style={styles.content}>
-        <Text variant="headlineSmall">
-          {isValidVaultRange
-            ? t('vaultSetup.subTitle')
-            : t('vaultSetup.notEnoughFundsTitle')}
-        </Text>
         <View style={styles.intro}>
           {isValidVaultRange ? (
             <Text>{t('vaultSetup.intro')}</Text>
@@ -180,7 +186,7 @@ export default function VaultSetUp({
               }}
             />
           )}
-          <View style={styles.introMoreHelpButton}>
+          <View className="self-start" style={styles.introMoreHelpButton}>
             <Button mode="text">{t('vaultSetup.introMoreHelp')}</Button>
           </View>
         </View>
@@ -203,7 +209,11 @@ export default function VaultSetUp({
               onValueChange={setLockBlocks}
             />
             <View style={styles.cardSeparator} />
-            <AddressInput /*TODO: grab coldAddress - hardcoded right now*/ />
+            <AddressInput
+              allowCreate
+              networkId={networkId}
+              onValueChange={setColdAddress}
+            />
             <View style={styles.cardSeparator} />
             <FeeInput
               initialValue={initialFeeRate}
@@ -215,12 +225,21 @@ export default function VaultSetUp({
         )}
         <View style={styles.buttonGroup}>
           <Button onPress={navigation.goBack}>{t('cancelButton')}</Button>
-          {amount !== null && lockBlocks !== null && feeRate !== null && (
+          {
             <View style={styles.buttonSpacing}>
-              <Button onPress={handleOK}>{t('continueButton')}</Button>
+              <Button disabled={!allFieldsValid} onPress={handleOK}>
+                {t('continueButton')}
+              </Button>
             </View>
-          )}
+          }
         </View>
+        {!allFieldsValid && (
+          <Text className="text-center text-slate-500 native:text-sm web:text-xs pt-2">
+            {coldAddress
+              ? t('vaultSetup.fillInAll')
+              : t('vaultSetup.coldAddressMissing')}
+          </Text>
+        )}
       </View>
     </KeyboardAwareScrollView>
   );
@@ -228,7 +247,11 @@ export default function VaultSetUp({
 
 const getStyles = (insets: EdgeInsets, theme: Theme) =>
   StyleSheet.create({
-    contentContainer: { alignItems: 'center', paddingTop: 20 },
+    contentContainer: {
+      alignItems: 'center',
+      paddingTop: 20,
+      paddingHorizontal: 8
+    },
     content: {
       width: '100%',
       maxWidth: 500,
@@ -237,7 +260,6 @@ const getStyles = (insets: EdgeInsets, theme: Theme) =>
     },
     cardSeparator: { marginBottom: 2 * theme.screenMargin },
     intro: {
-      marginTop: theme.screenMargin,
       marginBottom: 2 * theme.screenMargin
     },
     introMoreHelpButton: { marginTop: theme.screenMargin },

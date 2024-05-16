@@ -41,6 +41,7 @@ interface ModalProps {
   icon?: IconType;
   customButtons?: React.ReactNode;
   closeButtonText?: string;
+  headerMini?: boolean;
   onClose?: () => void;
   children: React.ReactNode;
 }
@@ -52,6 +53,7 @@ const OPACITY = 0.3;
 const Modal: React.FC<ModalProps> = ({
   isVisible,
   icon,
+  headerMini = false,
   closeButtonText,
   onClose,
   customButtons = null,
@@ -59,6 +61,8 @@ const Modal: React.FC<ModalProps> = ({
   subTitle,
   children
 }) => {
+  if (subTitle && headerMini)
+    throw new Error('subTitle and headerMini are not compatible');
   const [ubuntuLoaded] = useFonts({
     Ubuntu700Bold: Ubuntu_700Bold,
     Ubuntu500Medium: Ubuntu_500Medium
@@ -69,7 +73,7 @@ const Modal: React.FC<ModalProps> = ({
   const [buttonHeight, setButtonHeight] = useState<number>(0);
 
   const [childrenHeight, setChildrenHeight] = useState<number>(200);
-  const headerHeight = 150;
+  const headerHeight = headerMini ? 60 : 150;
 
   const onCloseTriggered = useRef<boolean>(false);
 
@@ -244,18 +248,15 @@ const Modal: React.FC<ModalProps> = ({
                 >
                   {Icon && icon ? (
                     <Icon
+                      className={`text-white opacity-10 ${headerMini ? 'pt-2 pl-2' : 'pl-7 pt-4'}`}
                       style={{
-                        color: theme.colors.white,
-                        opacity: 0.1,
-                        fontSize: 120,
-                        paddingLeft: 30,
-                        paddingTop: 15
+                        fontSize: headerMini ? 45 : 120 //font-size not working on nativewind
                       }}
                       name={icon.name}
                     />
                   ) : null}
                   <Text
-                    className={`${ubuntuLoaded ? "font-['Ubuntu700Bold']" : ''} uppercase opacity-90 absolute ${subTitle ? 'top-[30%]' : 'top-[60%]'} pl-4 text-xl mobmed:text-2xl mobmed:px-8 text-white overflow-hidden whitespace-nowrap overflow-ellipsis w-full`}
+                    className={`${ubuntuLoaded ? "font-['Ubuntu700Bold']" : ''} uppercase opacity-90 absolute ${subTitle || headerMini ? 'top-[30%]' : 'top-[60%]'} pl-4 ${headerMini ? 'text-lg mobmed:text-xl pl-16' : 'text-xl mobmed:text-2xl mobmed:px-8'} text-white overflow-hidden whitespace-nowrap overflow-ellipsis w-full`}
                   >
                     {title}
                   </Text>
