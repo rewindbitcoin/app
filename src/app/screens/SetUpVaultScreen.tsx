@@ -234,7 +234,7 @@ export default function VaultSetUp({
           }
         </View>
         {!allFieldsValid && (
-          <Text className="text-center text-slate-500 native:text-sm web:text-xs pt-2">
+          <Text className="text-center text-amber-600 native:text-sm web:text-xs pt-2">
             {coldAddress
               ? t('vaultSetup.fillInAll')
               : t('vaultSetup.coldAddressMissing')}

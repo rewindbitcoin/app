@@ -190,7 +190,7 @@ function AddressInput({
             maxLength={100}
             onChangeText={onAddress}
             value={address}
-            className={`native:text-base web:text-xs web:mobmed:text-sm web:sm:text-base flex-1 overflow-hidden web:outline-none border-none p-2 pl-0 border-md ${robotoLoaded ? "font-['RobotoMono400Regular'] tracking-tightest mobmed:tracking-tighter moblg:tracking-normal" : ''}`}
+            className={`native:text-base web:text-xs web:mobmed:text-sm web:sm:text-base flex-1 overflow-hidden web:outline-none border-none p-2 pl-0 border-md ${address === '' && robotoLoaded ? ' tracking-tightest mobmed:tracking-tighter moblg:tracking-normal' : 'tracking-normal'} ${robotoLoaded ? "font-['RobotoMono400Regular']" : ''}`}
           />
           {camAvailable && (
             <View className="py-1">
