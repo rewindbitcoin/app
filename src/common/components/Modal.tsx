@@ -248,15 +248,18 @@ const Modal: React.FC<ModalProps> = ({
                 >
                   {Icon && icon ? (
                     <Icon
-                      className={`text-white opacity-10 ${headerMini ? 'pt-2 pl-2' : 'pl-7 pt-4'}`}
                       style={{
-                        fontSize: headerMini ? 45 : 120 //font-size not working on nativewind
+                        color: theme.colors.white,
+                        opacity: 0.1,
+                        fontSize: headerMini ? 45 : 120,
+                        paddingLeft: headerMini ? 8 : 30,
+                        paddingTop: headerMini ? 8 : 15
                       }}
                       name={icon.name}
                     />
                   ) : null}
                   <Text
-                    className={`${ubuntuLoaded ? "font-['Ubuntu700Bold']" : ''} uppercase opacity-90 absolute ${subTitle || headerMini ? 'top-[30%]' : 'top-[60%]'} pl-4 ${headerMini ? 'text-lg mobmed:text-xl pl-16' : 'text-xl mobmed:text-2xl mobmed:px-8'} text-white overflow-hidden whitespace-nowrap overflow-ellipsis w-full`}
+                    className={`${ubuntuLoaded ? "font-['Ubuntu700Bold']" : ''} uppercase opacity-90 absolute ${headerMini ? 'top-[40%]' : subTitle ? 'top-[30%]' : 'top-[60%]'} pl-4 ${headerMini ? 'text-lg mobmed:text-xl ml-16' : 'text-xl mobmed:text-2xl mobmed:px-8'} text-white overflow-hidden whitespace-nowrap overflow-ellipsis w-full`}
                   >
                     {title}
                   </Text>

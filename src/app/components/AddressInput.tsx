@@ -107,6 +107,7 @@ function AddressInput({
     (address: string) => {
       setAddress(address);
       onValueChange(validateAddress(address, network) ? address : null);
+      setShowNewAddress(false);
     },
     [onValueChange, network]
   );
@@ -203,7 +204,7 @@ function AddressInput({
             </View>
           )}
           {allowCreate && (
-            <View className={`py-1 ${camAvailable ? 'ml-3' : ''}`}>
+            <View className={`py-1 ${camAvailable ? 'pl-3' : ''}`}>
               <IconButton
                 text={t('addressInput.createNewButton')}
                 onPress={handleNewAddress}

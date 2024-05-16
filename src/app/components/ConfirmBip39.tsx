@@ -1,7 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import { View } from 'react-native';
 import { Modal, Text, Button } from '../../common/ui';
-import Bip39 from './Bip39';
+import Bip39, { validateMnemonic } from './Bip39';
 import { useTranslation } from 'react-i18next';
 import { networks, type Network } from 'bitcoinjs-lib';
 
@@ -20,6 +20,7 @@ const ConfirmBip39: React.FC<ConfirmBip39Props> = ({
 }) => {
   const { t } = useTranslation();
   const [isVisible, setIsVisible] = useState(true);
+  const [validWordsThatDontMatch, setValidWordsThatDontMatch] = useState(false);
   const [userWords, setUserWords] = useState<Array<string>>(
     Array(correctWords.length).fill('')
   );
@@ -34,6 +35,9 @@ const ConfirmBip39: React.FC<ConfirmBip39Props> = ({
       if (JSON.stringify(words) === JSON.stringify(correctWords)) {
         setIsVisible(false);
         onConfirmed();
+      } else if (validateMnemonic(words.join(' '))) {
+        //words do not match but are valid!?!?!
+        setValidWordsThatDontMatch(true);
       }
       setUserWords(words);
     },
@@ -48,7 +52,7 @@ const ConfirmBip39: React.FC<ConfirmBip39Props> = ({
       icon={{ family: 'MaterialIcons', name: 'playlist-add-check-circle' }}
       isVisible={isVisible}
       title={t('bip39.confirmTitle')}
-      subTitle={t('bip39.confirmText')}
+      headerMini
       onClose={handleCancel}
       customButtons={
         <>
@@ -69,6 +73,9 @@ const ConfirmBip39: React.FC<ConfirmBip39Props> = ({
         </>
       }
     >
+      <Text className="px-2 pb-4 native:text-sm web:text-xs text-slate-600">
+        {t('bip39.confirmText')}
+      </Text>
       <Bip39
         disableLengthChange
         words={userWords}
@@ -80,6 +87,11 @@ const ConfirmBip39: React.FC<ConfirmBip39Props> = ({
           false
         }
       />
+      {validWordsThatDontMatch && (
+        <Text className="text-center text-amber-600 native:text-sm web:text-xs pt-2">
+          {t('bip39.validWordsThatDontMatch')}
+        </Text>
+      )}
     </Modal>
   );
 };

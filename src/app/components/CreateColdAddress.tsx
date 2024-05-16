@@ -20,7 +20,8 @@ const CreateColdAddress = ({
 }) => {
   const { t } = useTranslation();
   const network = networkMapping[networkId];
-  const [isConfirmBip39, setIsConfirmBip39] = useState<boolean>(false);
+  const [isBip39ConfirmationRequested, setIsBip39ConfirmationRequested] =
+    useState<boolean>(false);
   const [words, setWords] = useState<string[]>(generateMnemonic().split(' '));
 
   const [step, setStep] = useState<'intro' | 'bip39'>('intro');
@@ -29,57 +30,61 @@ const CreateColdAddress = ({
   }, []);
 
   useEffect(() => {
-    if (!isVisible) setStep('intro');
+    if (!isVisible) {
+      setStep('intro');
+      setIsBip39ConfirmationRequested(false);
+    }
   }, [isVisible]);
 
   const onBip39ConfirmationIsRequested = useCallback(() => {
-    setIsConfirmBip39(true);
+    setIsBip39ConfirmationRequested(true);
   }, []);
   const onBip39Cancel = useCallback(() => {
-    setIsConfirmBip39(false);
-  }, []);
-
+    onClose();
+  }, [onClose]);
   const onBip39Confirmed = useCallback(async () => {
-    setIsConfirmBip39(false);
-  }, []);
+    onAddress('TODO: COMPUTE ONE from WORDS');
+  }, [onAddress]);
   console.log({ step });
   return (
-    <>
-      <Modal
-        headerMini={true}
-        isVisible={isVisible}
-        title={t('addressInput.coldAddress.createNewModalTitle')}
-        icon={{
-          family: 'Ionicons',
-          name: 'wallet'
-        }}
-        {...(step !== 'intro' ? { onClose } : {})}
-      >
-        {step === 'intro' ? (
-          <View>
-            <Text>TODO: Intro</Text>
-            <Button onPress={() => setStep('bip39')}>
-              {t('continueButton')}
-            </Button>
-          </View>
-        ) : (
-          <Bip39
-            readonly
-            hideWords={isConfirmBip39}
-            onWords={onWords}
+    isVisible && (
+      <>
+        {isBip39ConfirmationRequested ? (
+          <ConfirmBip39
+            network={network}
             words={words}
+            onConfirmed={onBip39Confirmed}
+            onCancel={onBip39Cancel}
           />
+        ) : (
+          <Modal
+            headerMini={true}
+            isVisible={true}
+            title={t('addressInput.coldAddress.createNewModalTitle')}
+            icon={{
+              family: 'Ionicons',
+              name: 'wallet'
+            }}
+          >
+            {step === 'intro' ? (
+              <View>
+                <Text>TODO: Intro</Text>
+                <Button onPress={() => setStep('bip39')}>
+                  {t('continueButton')}
+                </Button>
+              </View>
+            ) : (
+              <View>
+                <Bip39 readonly onWords={onWords} words={words} />
+                <Button onPress={onBip39ConfirmationIsRequested}>
+                  {t('continueButton')}
+                </Button>
+              </View>
+            )}
+          </Modal>
         )}
-      </Modal>
-      {isConfirmBip39 && (
-        <ConfirmBip39
-          network={network}
-          words={words}
-          onConfirmed={onBip39Confirmed}
-          onCancel={onBip39Cancel}
-        />
-      )}
-    </>
+      </>
+    )
   );
 };
 

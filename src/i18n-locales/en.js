@@ -255,6 +255,7 @@ While the app is in early development, we advise against using real Bitcoin for 
     expressConfirmation: 'Express Confirmation'
   },
   bip39: {
+    validWordsThatDontMatch: 'The entered recovery phrase does not match.',
     chooseImport: 'Want to import instead?',
     chooseNew: 'Need to create a new wallet?',
     importWalletText: 'Restore Your Wallet',
@@ -275,7 +276,7 @@ While the app is in early development, we advise against using real Bitcoin for 
     //over 3 lines of text:
     //    confirmText: `Enter the recovery phrase for verification.\
     // This confirms you've noted it correctly and your wallet can be recovered.`,
-    confirmText: `Re-enter your recovery phrase to verify you've recorded it accurately, ensuring wallet recoverability.`,
+    confirmText: `Re-enter the recovery phrase to verify you've recorded it accurately, ensuring wallet recoverability.`,
     testingWalletsCanSkip: 'Non-real Bitcoin wallets can skip this step.'
   },
   amount: {
