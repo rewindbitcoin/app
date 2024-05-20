@@ -202,11 +202,13 @@ While the app is in early development, we advise against using real Bitcoin for 
     notEnoughFundsTitle: 'Vault Minimum Requirement',
     introMoreHelp: 'Learn More About Vaults',
     helpTitle: 'Learn About Vaults',
-    helpText: `If someone gains access to your wallet's recovery phrase during extortion or theft, they could potentially access your funds. ThunderDen provides a solution through vaults, which use time-locks and emergency addresses to protect your Bitcoin.
+    helpText: `In the event of extortion or theft, if someone gains access to your wallet's recovery phrase, they could potentially access your funds. ThunderDen provides a solution by freezing funds into Vaults.
 
-When an attack occurs, you have a few days to react. The Theft-Protection Time-Lock delays any transaction for a set period, such as 7 days. This delay gives you or a delegate time to cancel unauthorized transactions.
+Vaults are time-locked, meaning that when an attack occurs, you have a few days to react. This is called the Theft-Protection Time-Lock. It gives you (or a delegate you designate) time to cancel unauthorized transactions.
 
-During this time-lock, you can move your funds to an emergency Bitcoin address.`,
+During this time-lock, you can move your funds to a special Bitcoin address, known as the Emergency Address. This address is protected by a recovery phrase that is different from your regular one and must be stored in an ultra-secure location.
+
+You'll find contextual help icons next to each input field with more speciffic explanations.`,
     notEnoughFunds:
       '<group>ThunderDen establishes a minimum vaulting amount.\nThis assumes express transaction confirmations and the possibility of ultra-high network fees when unvaulting.</group><group><strong>Suggested Addition:</strong> Add about {{missingFunds}} to reach the vaulting minimum.\nNote that the exact vaultable amount might slightly differ due to changes in network fee conditions.</group>',
     amountLabel: 'Vault Amount',
