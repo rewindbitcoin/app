@@ -1,6 +1,7 @@
 //This component must work both for SendBitcoin and SetUpVault
 import React, { useState, useCallback, useRef, useMemo } from 'react';
-import { CardEditableSlider } from '../../common/ui';
+import { Text } from 'react-native';
+import { CardEditableSlider, InfoButton, Modal } from '../../common/ui';
 import { useTranslation } from 'react-i18next';
 import { fromBlocks, toBlocks, getBlocksModeStep } from '../lib/timeUtils';
 import { formatLockTime } from '../lib/fees';
@@ -26,6 +27,9 @@ function BlocksInput({
       'This component should only be started after settings has been retrieved from storage'
     );
   const [mode, setMode] = useState<'days' | 'blocks'>('days');
+  const [coldAddressHelp, setColdAddressHelp] = useState<boolean>(false);
+  const showColdAddressHelp = useCallback(() => setColdAddressHelp(true), []);
+  const hideColdAddressHelp = useCallback(() => setColdAddressHelp(false), []);
 
   const modeMin = fromBlocks(min, mode);
   const modeMax = fromBlocks(max, mode);
@@ -59,20 +63,39 @@ function BlocksInput({
     [knownBlocksValueMap, mode, onValueChange]
   );
 
+  const headerIcon = useMemo(
+    () => <InfoButton onPress={showColdAddressHelp} />,
+    [showColdAddressHelp]
+  );
+
   return (
-    <CardEditableSlider
-      locale={settings.LOCALE}
-      label={label}
-      key={`${mode}-${min}-${max}`}
-      minimumValue={modeMin}
-      maximumValue={modeMax}
-      initialValue={modeInitialValue}
-      onValueChange={onModeValueChange}
-      step={getBlocksModeStep(mode)}
-      formatValue={formatValue}
-      unit={mode}
-      onUnitPress={onUnitPress}
-    />
+    <>
+      <CardEditableSlider
+        locale={settings.LOCALE}
+        label={label}
+        headerIcon={headerIcon}
+        key={`${mode}-${min}-${max}`}
+        minimumValue={modeMin}
+        maximumValue={modeMax}
+        initialValue={modeInitialValue}
+        onValueChange={onModeValueChange}
+        step={getBlocksModeStep(mode)}
+        formatValue={formatValue}
+        unit={mode}
+        onUnitPress={onUnitPress}
+      />
+      <Modal
+        title={t('blocksInput.coldAddress.helpTitle')}
+        icon={{ family: 'FontAwesome6', name: 'shield-halved' }}
+        isVisible={coldAddressHelp}
+        onClose={hideColdAddressHelp}
+        closeButtonText={t('understoodButton')}
+      >
+        <Text className="pl-2 pr-2 text-slate-600">
+          {t('blocksInput.coldAddress.helpText')}
+        </Text>
+      </Modal>
+    </>
   );
 }
 

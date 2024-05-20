@@ -1,11 +1,12 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import { Modal, Button } from '../../common/ui';
+import { Modal, Button, useToast } from '../../common/ui';
 import { useTranslation } from 'react-i18next';
 import Bip39 from './Bip39';
 import ConfirmBip39 from '../components/ConfirmBip39';
 import { networkMapping, type NetworkId } from '../lib/network';
 import { generateMnemonic } from 'bip39';
 import { View, Text } from 'react-native';
+import { createColdAddress } from '../lib/vaultDescriptors';
 
 const CreateColdAddress = ({
   networkId,
@@ -19,6 +20,7 @@ const CreateColdAddress = ({
   onClose: () => void;
 }) => {
   const { t } = useTranslation();
+  const toast = useToast();
   const network = networkMapping[networkId];
   const [isBip39ConfirmationRequested, setIsBip39ConfirmationRequested] =
     useState<boolean>(false);
@@ -43,9 +45,12 @@ const CreateColdAddress = ({
     onClose();
   }, [onClose]);
   const onBip39Confirmed = useCallback(async () => {
-    onAddress('TODO: COMPUTE ONE from WORDS');
-  }, [onAddress]);
-  console.log({ step });
+    const coldAddress = await createColdAddress(words.join(' '), network);
+    onAddress(coldAddress);
+    toast.show(t('addressInput.coldAddress.newColdAddressSuccessfullyCrated'), {
+      type: 'success'
+    });
+  }, [onAddress, network, words, toast, t]);
   return (
     isVisible && (
       <>
@@ -65,20 +70,40 @@ const CreateColdAddress = ({
               family: 'Ionicons',
               name: 'wallet'
             }}
+            onClose={onClose}
+            customButtons={
+              step === 'intro' ? (
+                <View className="items-center gap-6 flex-row justify-center pb-4">
+                  <Button onPress={onClose}>{t('cancelButton')}</Button>
+                  <Button onPress={() => setStep('bip39')}>
+                    {t('continueButton')}
+                  </Button>
+                </View>
+              ) : step === 'bip39' ? (
+                <View className="items-center gap-6 flex-row justify-center pb-4">
+                  <Button onPress={onClose}>{t('cancelButton')}</Button>
+                  <Button onPress={onBip39ConfirmationIsRequested}>
+                    {t('addressInput.coldAddress.confirmBip39ProposalButton')}
+                  </Button>
+                </View>
+              ) : undefined
+            }
           >
             {step === 'intro' ? (
               <View>
-                <Text>TODO: Intro</Text>
-                <Button onPress={() => setStep('bip39')}>
-                  {t('continueButton')}
-                </Button>
+                <Text className="text-slate-600 pb-2">
+                  {t('addressInput.coldAddress.intro')}
+                </Text>
               </View>
             ) : (
               <View>
+                <Text className="native:text-sm web:text-xs text-slate-600 pb-4">
+                  {t('addressInput.coldAddress.bip39Proposal')}
+                </Text>
                 <Bip39 readonly onWords={onWords} words={words} />
-                <Button onPress={onBip39ConfirmationIsRequested}>
-                  {t('continueButton')}
-                </Button>
+                <Text className="native:text-sm web:text-xs text-slate-600 pt-4">
+                  {t('addressInput.coldAddress.bip39ProposalPart2')}
+                </Text>
               </View>
             )}
           </Modal>

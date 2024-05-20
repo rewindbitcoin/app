@@ -33,11 +33,11 @@ import CreateColdAddress from './CreateColdAddress';
 function AddressInput({
   onValueChange,
   networkId,
-  allowCreate = false
+  type = 'external'
 }: {
   onValueChange: (value: string | null) => void;
   networkId: NetworkId;
-  allowCreate: boolean;
+  type: 'external' | 'emergency';
 }) {
   const capitalizedNetworkId =
     networkId.charAt(0).toUpperCase() + networkId.slice(1).toLowerCase();
@@ -50,6 +50,9 @@ function AddressInput({
   const [camTypes, setCamTypes] = useState<Array<'back' | 'front'> | null>(
     null
   );
+  const [coldAddressHelp, setColdAddressHelp] = useState<boolean>(false);
+  const showColdAddressHelp = useCallback(() => setColdAddressHelp(true), []);
+  const hideColdAddressHelp = useCallback(() => setColdAddressHelp(false), []);
 
   //https://github.com/expo/expo/issues/28069#issuecomment-2112876966
   const [camPermissionGrantedDelay, setCamPermissionGrantedDelay] =
@@ -172,14 +175,14 @@ function AddressInput({
             network: capitalizedNetworkId
           })}
         </Text>
-        <InfoButton />
+        {type === 'emergency' && <InfoButton onPress={showColdAddressHelp} />}
       </View>
       <View className="py-1 px-2 pl-4 bg-white rounded-md">
         <View className="flex-row items-center">
           <TextInput
             enablesReturnKeyAutomatically
             placeholder={
-              allowCreate
+              type === 'emergency'
                 ? t('addressInput.textInputPlaceholderWithCreate')
                 : t('addressInput.textInputPlaceholder')
             }
@@ -203,7 +206,7 @@ function AddressInput({
               />
             </View>
           )}
-          {allowCreate && (
+          {type === 'emergency' && (
             <View className={`py-1 ${camAvailable ? 'pl-3' : ''}`}>
               <IconButton
                 text={t('addressInput.createNewButton')}
@@ -260,7 +263,9 @@ function AddressInput({
       >
         {!camPermission?.granted ? (
           <View className="gap-4 p-8">
-            <Text>{t('addressInput.requestPermissionRationale')}</Text>
+            <Text className="text-slate-600">
+              {t('addressInput.requestPermissionRationale')}
+            </Text>
             <Button onPress={requestCamPermission}>
               {t('addressInput.triggerNativeRequestPermissionButton')}
             </Button>
@@ -277,6 +282,17 @@ function AddressInput({
             </View>
           </View>
         )}
+      </Modal>
+      <Modal
+        title={t('addressInput.coldAddress.helpTitle')}
+        icon={{ family: 'FontAwesome6', name: 'shield-halved' }}
+        isVisible={coldAddressHelp}
+        onClose={hideColdAddressHelp}
+        closeButtonText={t('understoodButton')}
+      >
+        <Text className="pl-2 pr-2 text-slate-600">
+          {t('addressInput.coldAddress.helpText')}
+        </Text>
       </Modal>
     </View>
   );

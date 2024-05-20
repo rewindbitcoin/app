@@ -55,6 +55,7 @@ If you've forgotten the password for your wallet, you can create a new wallet us
     advancedOptionsTitle: 'Advanced Options',
     usePasswordTitle: 'Use Password',
     biometricEncryptionTitle: 'Biometric Encryption',
+    passwordProtectionTitle: 'Password Protection',
     encryptAppDataTitle: 'Encrypt App Data',
     networkTitle: 'Network',
     importButton: 'Import',
@@ -200,6 +201,12 @@ While the app is in early development, we advise against using real Bitcoin for 
       'Customize your Vault. Select the amount to secure and your preferred protection timelock.',
     notEnoughFundsTitle: 'Vault Minimum Requirement',
     introMoreHelp: 'Learn More About Vaults',
+    helpTitle: 'Learn About Vaults',
+    helpText: `If someone gains access to your wallet's recovery phrase during extortion or theft, they could potentially access your funds. ThunderDen provides a solution through vaults, which use time-locks and emergency addresses to protect your Bitcoin.
+
+When an attack occurs, you have a few days to react. The Theft-Protection Time-Lock delays any transaction for a set period, such as 7 days. This delay gives you or a delegate time to cancel unauthorized transactions.
+
+During this time-lock, you can move your funds to an emergency Bitcoin address.`,
     notEnoughFunds:
       '<group>ThunderDen establishes a minimum vaulting amount.\nThis assumes express transaction confirmations and the possibility of ultra-high network fees when unvaulting.</group><group><strong>Suggested Addition:</strong> Add about {{missingFunds}} to reach the vaulting minimum.\nNote that the exact vaultable amount might slightly differ due to changes in network fee conditions.</group>',
     amountLabel: 'Vault Amount',
@@ -277,13 +284,23 @@ While the app is in early development, we advise against using real Bitcoin for 
     //    confirmText: `Enter the recovery phrase for verification.\
     // This confirms you've noted it correctly and your wallet can be recovered.`,
     confirmText: `Re-enter the recovery phrase to verify you've recorded it accurately, ensuring wallet recoverability.`,
-    testingWalletsCanSkip: 'Non-real Bitcoin wallets can skip this step.'
+    testingWalletsCanSkip: 'Test wallets can skip this tedious step.'
   },
   amount: {
     maxLabel: 'All Funds'
   },
   units: {
     preferredUnitTitle: 'Preferred Unit'
+  },
+  blocksInput: {
+    coldAddress: {
+      helpTitle: 'Time-Lock Protection',
+      helpText: `Imagine a scenario where someone gains unauthorized access to your wallet and tries to move your funds. The Theft-Protection Time-Lock is designed to protect you in such situations.
+
+When you set a time-lock, you specify a period during which any attempt to move your funds will be delayed. This delay gives you (or anyone you delegate) the necessary time to cancel unauthorized transactions, preventing theft.
+
+For example, if you set the time-lock to 7 days, any attempt to move your funds will be held for 7 days. During this period, not even you can access the funds, but you can cancel any transaction that is not authorized by you.`
+    }
   },
   addressInput: {
     invalidAddress: 'Invalid {{network}} address',
@@ -293,7 +310,27 @@ While the app is in early development, we advise against using real Bitcoin for 
     createNewButton: 'Create',
     coldAddress: {
       label: 'Emergency Address',
-      createNewModalTitle: 'Create new Address'
+      createNewModalTitle: 'Emergency Address',
+      intro: `Welcome to the Emergency Address creation wizard.
+
+This process will set up a Bitcoin address where your funds can be safely sent in case of an emergency, such as extortion or theft.
+
+This address will be generated with a new recovery phrase. Think of it as the password for the address. Store this phrase in a place that is very difficult to access, even for you. Keep it separate from your regular wallet's recovery phrase.
+
+This address will be your ultimate safety net.`,
+      bip39Proposal: `Below is your emergency recovery phrase. This is your key to accessing your funds in an emergency.`,
+      bip39ProposalPart2: `This phrase won't be retrievable later on since it's not stored in the app. It's crucial to save it now.`,
+      confirmBip39ProposalButton: 'I have written it down',
+      newColdAddressSuccessfullyCrated:
+        'Your new emergency address has been successfully created.',
+      helpTitle: 'Emergency Address',
+      helpText: `If someone gains access to your wallet's recovery phrase during extortion or theft, they could potentially access your funds.
+
+ThunderDen gives you a few days to undo any theft attempt after the attack has occurred. During this time-lock, you can move your funds to an emergency Bitcoin address. This address should be protected by a recovery phrase that is different from your regular one.
+
+Store this emergency recovery phrase in an extremely safe location that is not easily accessible, even for you. Examples include a safebox deposit abroad, buried in a secret remote location, or held by a trusted third-party custodian.
+
+You can either use the 'Create' wizard to generate a new emergency address or use an existing address you already own.`
     },
     recipientAddress: {
       label: 'Recipient Address',

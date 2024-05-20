@@ -11,7 +11,8 @@ import {
   Button,
   KeyboardAwareScrollView,
   useTheme,
-  Theme
+  Theme,
+  Modal
 } from '../../common/ui';
 import { EdgeInsets, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { selectVaultUtxosData, type VaultSettings } from '../lib/vaults';
@@ -38,6 +39,9 @@ export default function VaultSetUp({
   const context = useContext<WalletContextType | null>(WalletContext);
   const navigation = useNavigation();
   const styles = useMemo(() => getStyles(insets, theme), [insets, theme]);
+  const [vaultsHelp, setVaultsHelp] = useState<boolean>(false);
+  const showVaultsHelp = useCallback(() => setVaultsHelp(true), []);
+  const hideVaultsHelp = useCallback(() => setVaultsHelp(false), []);
 
   if (context === null) {
     throw new Error('Context was not set');
@@ -187,7 +191,9 @@ export default function VaultSetUp({
             />
           )}
           <View className="self-start" style={styles.introMoreHelpButton}>
-            <Button mode="text">{t('vaultSetup.introMoreHelp')}</Button>
+            <Button mode="text" onPress={showVaultsHelp}>
+              {t('vaultSetup.introMoreHelp')}
+            </Button>
           </View>
         </View>
         {isValidVaultRange && (
@@ -210,7 +216,7 @@ export default function VaultSetUp({
             />
             <View style={styles.cardSeparator} />
             <AddressInput
-              allowCreate
+              type="emergency"
               networkId={networkId}
               onValueChange={setColdAddress}
             />
@@ -241,6 +247,17 @@ export default function VaultSetUp({
           </Text>
         )}
       </View>
+      <Modal
+        title={t('vaultSetup.helpTitle')}
+        icon={{ family: 'FontAwesome6', name: 'shield-halved' }}
+        isVisible={vaultsHelp}
+        onClose={hideVaultsHelp}
+        closeButtonText={t('understoodButton')}
+      >
+        <Text className="pl-2 pr-2 text-slate-600">
+          {t('vaultSetup.helpText')}
+        </Text>
+      </Modal>
     </KeyboardAwareScrollView>
   );
 }

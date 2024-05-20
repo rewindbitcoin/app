@@ -65,6 +65,20 @@ export const createServiceDescriptor = (address: string) => `addr(${address})`;
 
 export const createColdDescriptor = (address: string) => `addr(${address})`;
 
+/** Async because in the future i may have some signing server that will
+ * guarantee randomness...*/
+export const createColdAddress = async (mnemonic: string, network: Network) => {
+  const masterNode = getMasterNode(mnemonic, network);
+  const descriptor = scriptExpressions.wpkhBIP32({
+    masterNode,
+    network,
+    account: 0,
+    index: 0,
+    change: 1
+  });
+  return new Output({ descriptor, network }).getAddress();
+};
+
 export const getMasterNode = moize((mnemonic: string, network: Network) =>
   BIP32.fromSeed(mnemonicToSeedSync(mnemonic), network)
 );

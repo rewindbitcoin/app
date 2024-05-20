@@ -258,7 +258,7 @@ export default function WalletAdvancedSettings({
         <Text className="pl-2 pr-2">{t('help.biometric')}</Text>
       </Modal>
       <Modal
-        title={'Password Protection'}
+        title={t('wallet.passwordProtectionTitle')}
         icon={{
           family: 'MaterialCommunityIcons',
           name: 'form-textbox-password'

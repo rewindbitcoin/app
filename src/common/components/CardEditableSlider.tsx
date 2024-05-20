@@ -21,6 +21,7 @@ function CardEditableSlider({
   minimumValue,
   maximumValue,
   label,
+  headerIcon,
   unit,
   onUnitPress,
   maxLabel,
@@ -34,6 +35,7 @@ function CardEditableSlider({
   minimumValue: number;
   maximumValue: number;
   label: string;
+  headerIcon: React.ReactNode;
   unit: string;
   onUnitPress?: () => void;
   maxLabel?: string;
@@ -64,10 +66,11 @@ function CardEditableSlider({
   );
   return (
     <>
-      <View style={styles.cardHeader}>
-        <Text variant="cardTitle" style={styles.cardTitle}>
+      <View className="pb-2 flex-row items-center">
+        <Text variant="cardTitle" className="px-2 text-left">
           {label}
         </Text>
+        {headerIcon}
       </View>
       <View style={styles.card}>
         <EditableSlider
@@ -106,19 +109,7 @@ const getStyles = (theme: Theme) => {
       paddingVertical: 5,
       marginVertical: -5
     },
-    cardHeader: { marginBottom: theme.screenMargin / 2 },
-    cardTitle: {
-      //marginVertical: 10,
-      marginLeft: 10,
-      alignSelf: 'stretch', //To ensure that textAlign works with short texts too
-      textAlign: 'left'
-    },
     unitContainer: { marginLeft: 8 },
-    unitText: { fontSize: 12, color: theme.colors.text },
-    helpIcon: {
-      marginLeft: 10,
-      fontSize: 16,
-      color: theme.colors.primary
-    }
+    unitText: { fontSize: 12, color: theme.colors.text }
   });
 };
