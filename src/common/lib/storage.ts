@@ -154,16 +154,6 @@ const idbDel = async (key: string) => {
 
 import { Platform } from 'react-native';
 
-//Note this package has been patch-packaged:
-//After patch-pachate you need to npx expo prebuild
-//https://github.com/expo/expo/issues/17804
-//Eventually the new API of loca.authentication will support BIOMETRIC_STRONG
-//It has been pull requested as of apr 11 2024, but not published in a stable
-//release yet:
-//https://github.com/expo/expo/blob/main/packages/expo-local-authentication/CHANGELOG.md
-//NOTE2: New versions of expo-secure-store will provide
-//canUseBiometricAuthentication so I believe expo--local-authentication will no
-//longer needed (or at least the patch)
 import {
   hasHardwareAsync,
   isEnrolledAsync,
@@ -180,14 +170,14 @@ import {
   setItemAsync as secureStoreOriginalSetItemAsync,
   deleteItemAsync as secureStoreOriginalDeleteItemAsync,
   type SecureStoreOptions,
-  isAvailableAsync
-  //canUseBiometricAuthentication
+  isAvailableAsync,
+  canUseBiometricAuthentication
 } from 'expo-secure-store';
 
 export const getSecureStorageInfoAsync = async () => {
   const canUseSecureStorage =
     Platform.OS !== 'web' &&
-    //canUseBiometricAuthentication() &&
+    canUseBiometricAuthentication() &&
     (await isAvailableAsync()) &&
     (await hasHardwareAsync()) &&
     (await isEnrolledAsync());

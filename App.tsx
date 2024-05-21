@@ -183,7 +183,7 @@ const Main = () => {
         <RootStack.Screen
           name={SETUP_VAULT}
           options={{
-            title: t('vaultSetup.title'),
+            title: t('vaultSetup.title')
 
             //headerShadowVisible:false //TO disable the border line of the header
 

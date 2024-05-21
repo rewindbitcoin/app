@@ -84,6 +84,7 @@ const Modal: React.FC<ModalProps> = ({
     web: () => {}, //nop
     default: useAnimatedGestureHandler({
       onStart: (_, ctx: { startY: number }) => {
+        console.log('onStart');
         ctx.startY = translateY.value;
       },
       onActive: (event, ctx) => {
@@ -207,8 +208,9 @@ const Modal: React.FC<ModalProps> = ({
       }}
     >
       <KeyboardAvoidingView behavior="position">
-        {/*behavior="padding" makes it randomly flicker on android(1px up & down) when the keyboard is dismissed*/}
-        <GestureHandlerRootView>
+        <GestureHandlerRootView style={{ flex: 1 }}>
+          {/*behavior="padding" makes it randomly flicker on android(1px up & down) when the keyboard is dismissed*/}
+
           <PanGestureHandler onGestureEvent={gestureHandler}>
             <Animated.View style={animatedStyle}>
               <View

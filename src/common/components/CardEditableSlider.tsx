@@ -35,7 +35,7 @@ function CardEditableSlider({
   minimumValue: number;
   maximumValue: number;
   label: string;
-  headerIcon: React.ReactNode;
+  headerIcon?: React.ReactNode;
   unit: string;
   onUnitPress?: () => void;
   maxLabel?: string;
