@@ -204,11 +204,11 @@ While the app is in early development, we advise against using real Bitcoin for 
     helpTitle: 'Learn About Vaults',
     helpText: `In the event of extortion or theft, if someone gains access to your wallet's recovery phrase, they could potentially access your funds. ThunderDen provides a solution by freezing funds into Vaults.
 
-Vaults are time-locked, meaning that when an attack occurs, you have a few days to react. This is called the Theft-Protection Time-Lock. It gives you (or a delegate you designate) time to cancel unauthorized transactions.
+Vaults are time-locked, meaning that when an attack occurs, you have a few days to react. This period allows you to cancel unauthorized transactions from the attackers. You can also delegate this cancellation to a trusted person.
 
-During this time-lock, you can move your funds to a special Bitcoin address, known as the Emergency Address. This address is protected by a recovery phrase that is different from your regular one and must be stored in an ultra-secure location.
+Here's how it works: during the time-lock, your funds can only be moved to a special Bitcoin address known as the Emergency Address. This address is protected by an Emergency Recovery Phrase, which acts like a password and is different from your regular one. This emergency phrase must be stored in an ultra-secure location beforehand.
 
-You'll find contextual help icons next to each input field with more speciffic explanations.`,
+You'll find contextual help icons next to each input field during the Vault Set Up with more speciffic explanations.`,
     notEnoughFunds:
       '<group>ThunderDen establishes a minimum vaulting amount.\nThis assumes express transaction confirmations and the possibility of ultra-high network fees when unvaulting.</group><group><strong>Suggested Addition:</strong> Add about {{missingFunds}} to reach the vaulting minimum.\nNote that the exact vaultable amount might slightly differ due to changes in network fee conditions.</group>',
     amountLabel: 'Vault Amount',
@@ -301,7 +301,7 @@ You'll find contextual help icons next to each input field with more speciffic e
 
 When you set a time-lock, you specify a period during which any attempt to move your funds will be delayed. This delay gives you (or anyone you delegate) the necessary time to cancel unauthorized transactions, preventing theft.
 
-For example, if you set the time-lock to 7 days, any attempt to move your funds will be held for 7 days. During this period, not even you can access the funds, but you can cancel any transaction that is not authorized by you.`
+For example, if you set the time-lock to 7 days, any attempt to move your funds will be held for 7 days. During this period, not even you can access the funds, but you can cancel any transaction that is not authorized by you. If there is no attack and everything is normal, you will gain access to your funds as usual after the 7-day period.`
     }
   },
   addressInput: {
@@ -326,11 +326,9 @@ This address will be your ultimate safety net.`,
       newColdAddressSuccessfullyCrated:
         'Your new emergency address has been successfully created.',
       helpTitle: 'Emergency Address',
-      helpText: `If someone gains access to your wallet's recovery phrase during extortion or theft, they could potentially access your funds.
+      helpText: `ThunderDen gives you a few days to undo any theft attempt after an attack has occurred. During this time-lock, you can move your funds to an Emergency Bitcoin address. This address should be protected by a recovery phrase that is different from your regular one.
 
-ThunderDen gives you a few days to undo any theft attempt after the attack has occurred. During this time-lock, you can move your funds to an emergency Bitcoin address. This address should be protected by a recovery phrase that is different from your regular one.
-
-Store this emergency recovery phrase in an extremely safe location that is not easily accessible, even for you. Examples include a safebox deposit abroad, buried in a secret remote location, or held by a trusted third-party custodian.
+Store this emergency recovery phrase in an extremely safe location that is not easily accessible, even for you. This is to ensure that, in case of extortion, you cannot be forced to reveal it to attackers. Examples include a safebox deposit abroad, buried in a secret remote location, or held by a trusted third-party custodian.
 
 You can either use the 'Create' wizard to generate a new emergency address or use an existing address you already own.`
     },
