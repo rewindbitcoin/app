@@ -100,7 +100,8 @@ function AddressInput({
   //https://github.com/expo/expo/pull/28911#issuecomment-2114706008
   useEffect(() => {
     const subscription = AppState.addEventListener('change', nextAppState => {
-      if (nextAppState.match(/inactive|background/)) handleCloseScanQR();
+      if (nextAppState.match(/inactive|background/) && Platform.OS === 'ios')
+        handleCloseScanQR();
     });
     return () => subscription.remove();
   }, [handleCloseScanQR]);
