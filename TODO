@@ -3,6 +3,21 @@ seek know resemble
 hurt pistol head
 first board better
 
+Me ha salido esto en iOS:
+ ERROR  RangeError: Property storage exceeds 196607 properties
+
+ After syncing after creating a vaulkt the syncing spinning does not stop. The 
+ reason is this:
+  const syncingOrFaucetPending: boolean = syncingBlockchain || faucetPending;
+  faucetPending is true again beucase length goes to zero?
+  utxosData.length should not be the indication but some other history, which
+  i will need anyway for transactions
+
+After Vaulting it doeds not proceed to main page. Also it should auto-sync after vaulting
+Also the Header should reflect some (unconfifmed) status.
+
+Make it fast going to all screens. whats going on after craeting a vault for example or after creating an Emergency Address and then vaulting...
+
 important that CrateColdAddress the height does not change (in web, or it will be not properly
 centered=??
 
@@ -23,8 +38,6 @@ Finosh the Create in AddressInput
   -> Add a flag to indicet if Create is allowed (not used in SendBitcoin)
     -> In case of SendBitcoin, replace the "Create" with "Paste"?
 
-On web when pulling the Slider the whole screen moves
-
 
 Missing helper texts in Vault SetUp...
   -> Learn more about Vaults
@@ -32,9 +45,6 @@ Missing helper texts in Vault SetUp...
   -> Theft Protection Timelock?  (may be the same heklp as Learm More about vaults)
 
 The days chooset in Vault SetUp should show a popup. Also, when choosing "blocks" render blocks in status...
-
-En iOS (al menos) me sale auto -refesco infinito cuando creao una wallet desde
-scatch (desde la nada, nueva app)
 
 WalletHeader should say if its Testnet, Storm or Regtest (when its test wallet)
 

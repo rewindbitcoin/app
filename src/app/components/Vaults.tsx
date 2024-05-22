@@ -9,7 +9,7 @@ import type {
 import { fetchBlockTimestamp } from '../lib/blockchain';
 import { useTranslation } from 'react-i18next';
 import { delegateVault } from '../lib/backup';
-import { Button } from '../../common/ui';
+import { ActivityIndicator, Button } from '../../common/ui';
 
 const Vault = ({
   esploraAPI,
@@ -24,7 +24,7 @@ const Vault = ({
 
   useEffect(() => {
     const fetchTimestamp = async () => {
-      if (vaultStatus?.triggerTxBlockHeight) {
+      if (vaultStatus.triggerTxBlockHeight) {
         try {
           const timestamp = await fetchBlockTimestamp(
             esploraAPI,
@@ -89,31 +89,46 @@ const Vaults = ({
 
   return (
     <View className="gap-4 max-w-2xl self-center">
-      {Object.keys(vaults).map(vaultId => (
-        <View
-          key={vaultId}
-          className="items-center rounded-3xl bg-white p-4 gap-4"
-        >
-          <Vault
-            esploraAPI={esploraAPI}
-            vault={vaults[vaultId]}
-            vaultStatus={vaultsStatuses[vaultId]}
-          />
-          <Text className="break-words">{vaultId}</Text>
-          <View className="w-full flex-row justify-between">
-            <Button mode="secondary" onPress={handleDelegateVaultMap[vaultId]}>
-              {t('wallet.vault.triggerDefreezeButton')}
-            </Button>
-            <Button mode="secondary" onPress={handleDelegateVaultMap[vaultId]}>
-              Delegate
-            </Button>
-          </View>
-          {/*<Pressable className="flex-row items-center p-4 shadow rounded-xl bg-primary hover:opacity-90 active:opacity-90 active:scale-95">
+      {Object.values(vaults).map(vault => {
+        const vaultStatus = vaultsStatuses[vault.vaultId];
+        return (
+          <View
+            key={vault.vaultId}
+            className="items-center rounded-3xl bg-white p-4 gap-4"
+          >
+            {!vaultStatus ? (
+              // processCreatedVault sets first vaults and then vaultsStatuses
+              // (not atomic, so wait)
+              <ActivityIndicator size={'large'} />
+            ) : (
+              <Vault
+                esploraAPI={esploraAPI}
+                vault={vault}
+                vaultStatus={vaultStatus}
+              />
+            )}
+            <Text className="break-words">{vault.vaultId}</Text>
+            <View className="w-full flex-row justify-between">
+              <Button
+                mode="secondary"
+                onPress={handleDelegateVaultMap[vault.vaultId]}
+              >
+                {t('wallet.vault.triggerDefreezeButton')}
+              </Button>
+              <Button
+                mode="secondary"
+                onPress={handleDelegateVaultMap[vault.vaultId]}
+              >
+                Delegate
+              </Button>
+            </View>
+            {/*<Pressable className="flex-row items-center p-4 shadow rounded-xl bg-primary hover:opacity-90 active:opacity-90 active:scale-95">
             <Spin />
             <Text className="font-semibold text-white">Processing...</Text>
           </Pressable>*/}
-        </View>
-      ))}
+          </View>
+        );
+      })}
     </View>
   );
 };

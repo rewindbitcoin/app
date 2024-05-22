@@ -127,7 +127,7 @@ const WalletProviderRaw = ({
     useWalletState<Uint8Array>();
 
   const [utxosData, setUtxosData, clearUtxosData] = useWalletState<UtxosData>();
-  const [syncingBlockchain, setSyncingBlockchain, clearSyncihgBlockchain] =
+  const [syncingBlockchain, setSyncingBlockchain, clearSynchingBlockchain] =
     useWalletState<boolean>();
 
   const btcFiat = useBtcFiat();
@@ -306,7 +306,7 @@ const WalletProviderRaw = ({
         clearAccountNamesCache();
         //Clear other state:
         clearUtxosData(walletId);
-        clearSyncihgBlockchain(walletId);
+        clearSynchingBlockchain(walletId);
         clearNewSigners(walletId);
         clearSignersCipherKey(walletId);
         clearDataCipherKey(walletId);
@@ -322,7 +322,7 @@ const WalletProviderRaw = ({
     clearDiscoveryCache,
     clearAccountNamesCache,
     clearUtxosData,
-    clearSyncihgBlockchain,
+    clearSynchingBlockchain,
     clearNewSigners,
     clearSignersCipherKey,
     clearDataCipherKey
@@ -605,7 +605,7 @@ const WalletProviderRaw = ({
         //vaults & vaultsStatuses for example (or any combination of state)
 
         setDiscoveryDataExport(exportedData);
-        //Update them in state only if they changed (we muteted them)
+        //Update them in state only if they changed (we mutated them)
         if (vaults !== updatedVaults) setVaults(updatedVaults);
         if (vaultsStatuses !== updatedVaultsStatuses)
           setVaultsStatuses(updatedVaultsStatuses);
@@ -688,11 +688,17 @@ const WalletProviderRaw = ({
         toast.show(errorMessage, { type: 'danger' });
         return false;
       } else {
+        if (!initialDiscovery) throw new Error('Discovery not ready');
+        const discovery = await ensureConnected(initialDiscovery);
+
         // Create new vault
         if (vaults[vault.vaultId])
           throw new Error(`Vault for ${vault.vaultId} already exists`);
         if (vaultsStatuses[vault.vaultId])
           throw new Error(`VaultStatus for ${vault.vaultId} already exists`);
+        //Note here they are not atomically set, so when using vaults one
+        //must make sure they are synched somehow - See Vaults.tsx for an 
+        //example what to do
         await Promise.all([
           setVaults({ ...vaults, [vault.vaultId]: vault }),
           setVaultsStatuses({
@@ -700,12 +706,9 @@ const WalletProviderRaw = ({
             [vault.vaultId]: { vaultPushTime: Math.floor(Date.now() / 1000) }
           })
         ]);
-
         //TODO: enable this after tests. important to push after AWAIT setVaults
         //if successful
         //TODO: try-catch push result. This and all pushes in code.
-        if (!initialDiscovery) throw new Error('Discovery not ready');
-        const discovery = await ensureConnected(initialDiscovery);
         await discovery.getExplorer().push(vault.vaultTxHex);
 
         return true;

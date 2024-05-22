@@ -215,6 +215,7 @@ export const fetchP2PVault = async ({
 
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
+      console.log({ vaultGetUrl });
       const compressedEncryptedVault = await fetch(vaultGetUrl);
       if (compressedEncryptedVault.ok) {
         const compressedVault = chacha.decrypt(

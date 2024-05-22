@@ -97,10 +97,15 @@ const WalletHomeScreen = () => {
   const faucetRequestedRef = useRef<boolean>(false);
   //When the user is notified about having detected some faucet funds:
   const faucetNotifiedRef = useRef<boolean>(false);
+  const faucetDetectedRef = useRef<boolean>(false);
+  useEffect(() => {
+    faucetDetectedRef.current =
+      faucetRequestedRef.current && !!utxosData?.length;
+  }, [utxosData]);
 
-  const faucetDetected = faucetRequestedRef.current && utxosData?.length;
-  const faucetPending = faucetRequestedRef.current && !utxosData?.length;
-  const syncingOrFaucetPending = syncingBlockchain || faucetPending;
+  const faucetPending: boolean =
+    faucetRequestedRef.current && !utxosData?.length;
+  const syncingOrFaucetPending: boolean = syncingBlockchain || faucetPending;
 
   const title =
     !wallet || !wallets
@@ -155,12 +160,6 @@ const WalletHomeScreen = () => {
 
   const { faucetAPI, esploraAPI } = getAPIs(wallet?.networkId, settings);
   useEffect(() => {
-    console.log({
-      networkId: wallet?.networkId,
-      faucetAPI,
-      faucetRequested: faucetRequestedRef.current,
-      isFirstLogin
-    });
     if (
       wallet &&
       faucetAPI &&
@@ -174,7 +173,7 @@ const WalletHomeScreen = () => {
           toast.show(t('walletHome.faucetStartMsg'), { type: 'success' });
           await faucetFirstReceive(signers, network, faucetAPI, 'es-ES');
           //wait a few secs until esplora catches up...
-          while (faucetDetected === false) {
+          while (faucetDetectedRef.current === false) {
             syncBlockchain();
             await new Promise(resolve => setTimeout(resolve, 2000));
           }
@@ -189,22 +188,13 @@ const WalletHomeScreen = () => {
       })();
       faucetRequestedRef.current = true;
     }
-  }, [
-    faucetAPI,
-    faucetDetected,
-    toast,
-    wallet,
-    isFirstLogin,
-    signers,
-    syncBlockchain,
-    t
-  ]);
+  }, [faucetAPI, toast, wallet, isFirstLogin, signers, syncBlockchain, t]);
   useEffect(() => {
-    if (faucetNotifiedRef.current === false && faucetDetected) {
+    if (faucetNotifiedRef.current === false && faucetDetectedRef.current) {
       faucetNotifiedRef.current = true;
       toast.show(t('walletHome.faucetDetectedMsg'), { type: 'success' });
     }
-  }, [utxosData?.length, toast, faucetDetected, t]);
+  }, [utxosData?.length, toast, t]);
 
   const logOutAndGoBack = useCallback(() => {
     logOut();
