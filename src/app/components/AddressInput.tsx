@@ -100,11 +100,15 @@ function AddressInput({
   //https://github.com/expo/expo/pull/28911#issuecomment-2114706008
   useEffect(() => {
     const subscription = AppState.addEventListener('change', nextAppState => {
-      if (nextAppState.match(/inactive|background/) && Platform.OS === 'ios')
+      if (
+        nextAppState.match(/inactive|background/) &&
+        //If not granted yet, then no need to close (this is when we show the grant permission pop-up, not the camera):
+        camPermission?.granted === true
+      )
         handleCloseScanQR();
     });
     return () => subscription.remove();
-  }, [handleCloseScanQR]);
+  }, [handleCloseScanQR, camPermission?.granted]);
   const handleCloseNewAddress = useCallback(() => setShowNewAddress(false), []);
 
   const onAddress = useCallback(
