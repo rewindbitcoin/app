@@ -11,8 +11,7 @@ import {
   Button,
   ActivityIndicator,
   KeyboardAwareScrollView,
-  Modal,
-  useTheme
+  Modal
 } from '../../common/ui';
 import { useTranslation } from 'react-i18next';
 import Bip39, { validateMnemonic } from '../components/Bip39';
@@ -43,8 +42,6 @@ export default function NewWalletScreen() {
   const context = useContext<WalletContextType | null>(WalletContext);
   const onWallet = context?.onWallet;
   if (!onWallet) throw new Error(`onWallet not set yet`);
-
-  const theme = useTheme();
 
   const route = useRoute<RouteProp<RootStackParamList, 'NEW_WALLET'>>();
   const navigation = useNavigation<NavigationPropsByScreenId['NEW_WALLET']>();
@@ -255,11 +252,11 @@ export default function NewWalletScreen() {
   const [networktHelp, showNetworkHelp] = useState<boolean>(false);
   return canUseSecureStorage === undefined ? (
     <View className="flex-1 justify-center">
-      <ActivityIndicator size={'large'} color={theme.colors.primary} />
+      <ActivityIndicator size={'large'} />
     </View>
   ) : creatingWallet ? (
     <View className="flex-1 justify-center px-4">
-      <ActivityIndicator size={'large'} color={theme.colors.primary} />
+      <ActivityIndicator size={'large'} />
       <Text className="mt-10 text-center text-xl">
         {t('wallet.creatingWallet')}
       </Text>
@@ -277,7 +274,7 @@ export default function NewWalletScreen() {
         }}
       >
         <View className="max-w-lg p-4 gap-4">
-          <Text className="native:text-base web:text-sm web:sm:text-base">
+          <Text className="native:text-base web:text-sm web:sm:text-base text-slate-600">
             {t(
               isImport
                 ? 'bip39.importWalletSubText'
