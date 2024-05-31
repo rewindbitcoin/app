@@ -1,5 +1,6 @@
 import type { NetworkId } from './network';
 import type { Engine as StorageEngine } from '../../common/lib/storage';
+import type { Account } from '@bitcoinerlab/discovery';
 /*
 TODO:
 To generate the random well-known key for thunder den, we used:
@@ -38,9 +39,17 @@ export type Signer = {
   mnemonic?: string;
 };
 
-//descriptor is an external-ranged descriptor. It is used (optionally) to save
-//the name of each account
-export type AccountNames = { [descriptor: string]: string };
+/**
+ * These will keep the list of the non-vault descriptors used in a wallet.
+ * F.ex.: Legacy, Nested, Native or all of them.
+ * Note that only the external descriptor is saved (per convention an external
+ * descriptor represents an Account).
+ * discard when this account should not be part tof this wallet
+ */
+
+export type Accounts = {
+  [account: Account]: { discard: boolean; name?: string };
+};
 
 //This interface is used to save all the signers associated with a Wallet.
 //Signers are stored with this key: `SIGNERS_${walletId}`
@@ -75,6 +84,7 @@ export type Wallet = {
    * We keep 'NONE' just for debugging/development purposes
    */
   encryption: 'NONE' | 'SEED_DERIVED';
+
   //The storageEngine for the rest of data will be the same used to
   //this data (<Wallets>), so no need to save it
 };

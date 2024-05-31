@@ -1,6 +1,6 @@
 import type { StorageErrorCode } from '../../common/lib/storage';
 import type { Vaults, VaultsStatuses } from './vaults';
-import type { AccountNames, Signers, Wallet } from './wallets';
+import type { Accounts, Signers, Wallet } from './wallets';
 export type WalletError =
   /** When the user clicks on "Cancel" during authentication in wallet creation
    * or opening wallet */
@@ -29,7 +29,7 @@ export const getWalletError = ({
   discoveryErrorCode,
   vaultsErrorCode,
   vaultsStatusesErrorCode,
-  accountNamesErrorCode,
+  accountsErrorCode,
   isCorrupted
 }: {
   isNewWallet: boolean;
@@ -39,7 +39,7 @@ export const getWalletError = ({
   discoveryErrorCode: StorageErrorCode;
   vaultsErrorCode: StorageErrorCode;
   vaultsStatusesErrorCode: StorageErrorCode;
-  accountNamesErrorCode: StorageErrorCode;
+  accountsErrorCode: StorageErrorCode;
   isCorrupted: boolean;
 }): WalletError => {
   //Don't pass it further down as a Wallet Error. This is probably a user
@@ -68,7 +68,7 @@ export const getWalletError = ({
     signersErrorCode ||
     vaultsErrorCode ||
     vaultsStatusesErrorCode ||
-    accountNamesErrorCode
+    accountsErrorCode
   ) {
     return 'STORAGE_ERROR';
   } else if (isCorrupted) return 'CORRUPTED';
@@ -87,8 +87,8 @@ export const getIsCorrupted = ({
   isVaultsSynchd,
   vaultsStatuses,
   isVaultsStatusesSynchd,
-  accountNames,
-  isAccountNamesSynchd
+  accounts,
+  isAccountsSynchd
 }: {
   wallet: Wallet | undefined;
   signers: Signers | undefined;
@@ -98,8 +98,8 @@ export const getIsCorrupted = ({
   isVaultsSynchd: boolean;
   vaultsStatuses: VaultsStatuses | undefined;
   isVaultsStatusesSynchd: boolean; // Corrected the name to match other naming conventions
-  accountNames: AccountNames | undefined;
-  isAccountNamesSynchd: boolean;
+  accounts: Accounts | undefined;
+  isAccountsSynchd: boolean;
 }): boolean => {
   return (
     !wallet ||
@@ -108,6 +108,6 @@ export const getIsCorrupted = ({
     (!signers && isSignersSynchd && signersErrorCode !== 'DecryptError') ||
     (!vaults && isVaultsSynchd) ||
     (!vaultsStatuses && isVaultsStatusesSynchd) ||
-    (!accountNames && isAccountNamesSynchd)
+    (!accounts && isAccountsSynchd)
   );
 };

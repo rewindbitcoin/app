@@ -9,10 +9,10 @@ import {
   type Vaults,
   type VaultsStatuses,
   type UtxosData,
-  getDescriptors,
+  getHotDescriptors,
   areVaultsSynched
 } from '../lib/vaults';
-import type { AccountNames, Signers, Wallets } from '../lib/wallets';
+import type { Accounts, Signers, Wallets } from '../lib/wallets';
 import {
   ensureConnected,
   getAPIs,
@@ -20,8 +20,11 @@ import {
 } from '../lib/walletDerivedData';
 import { networkMapping, NetworkId } from '../lib/network';
 import {
-  createChangeDescriptor,
-  createUnvaultKey
+  createDefaultChangeDescriptor,
+  createUnvaultKey,
+  getDefaultAccount,
+  getDefaultDescriptors,
+  getMasterNode
 } from '../lib/vaultDescriptors';
 import React, {
   createContext,
@@ -98,17 +101,19 @@ export type WalletContextType = {
   onWallet: ({
     wallet,
     newSigners,
+    isImport,
     signersCipherKey
   }: {
     wallet: Wallet;
     newSigners?: Signers;
+    isImport?: boolean;
     signersCipherKey?: Uint8Array;
   }) => Promise<void>;
   isFirstLogin: boolean;
 };
 
 const DEFAULT_VAULTS_STATUSES: VaultsStatuses = {};
-const DEFAULT_ACCOUNT_NAMES: AccountNames = {};
+const DEFAULT_ACCOUNTS: Accounts = {};
 const DEFAULT_VAULTS: Vaults = {};
 const WalletProviderRaw = ({
   children
@@ -156,6 +161,7 @@ const WalletProviderRaw = ({
     useFeeEstimates(wallet?.networkId);
 
   const { settings, settingsStorageStatus } = useSettings();
+  const gapLimit = settings?.GAP_LIMIT;
 
   const { esploraAPI, serviceAddressAPI, vaultsAPI, vaultsSecondaryAPI } =
     getAPIs(networkId, settings);
@@ -229,11 +235,11 @@ const WalletProviderRaw = ({
     walletId !== undefined ? dataCipherKey[walletId] : undefined
   );
 
-  const [accountNames, , , clearAccountNamesCache, accountNamesStorageStatus] =
-    useStorage<AccountNames>(
-      initData ? `ACCOUNT_NAMES_${walletId}` : undefined,
+  const [accounts, setAccounts, , clearAccountsCache, accountsStorageStatus] =
+    useStorage<Accounts>(
+      initData ? `ACCOUNTS_${walletId}` : undefined,
       SERIALIZABLE,
-      DEFAULT_ACCOUNT_NAMES,
+      DEFAULT_ACCOUNTS,
       undefined,
       walletId !== undefined ? dataCipherKey[walletId] : undefined
     );
@@ -247,8 +253,8 @@ const WalletProviderRaw = ({
     isVaultsSynchd: vaultsStorageStatus.isSynchd,
     vaultsStatuses,
     isVaultsStatusesSynchd: vaultsStatusesStorageStatus.isSynchd,
-    accountNames,
-    isAccountNamesSynchd: accountNamesStorageStatus.isSynchd
+    accounts,
+    isAccountsSynchd: accountsStorageStatus.isSynchd
   });
 
   /** When all wallet realated data is synchronized and without any errors.
@@ -260,13 +266,13 @@ const WalletProviderRaw = ({
     signersStorageStatus.isSynchd &&
     vaultsStorageStatus.isSynchd &&
     vaultsStatusesStorageStatus.isSynchd &&
-    accountNamesStorageStatus.isSynchd &&
+    accountsStorageStatus.isSynchd &&
     walletsStorageStatus.errorCode === false &&
     discoveryStorageStatus.errorCode === false &&
     signersStorageStatus.errorCode === false &&
     vaultsStorageStatus.errorCode === false &&
     vaultsStatusesStorageStatus.errorCode === false &&
-    accountNamesStorageStatus.errorCode === false &&
+    accountsStorageStatus.errorCode === false &&
     !isCorrupted;
 
   const isFirstLogin =
@@ -303,7 +309,7 @@ const WalletProviderRaw = ({
         clearVaultsCache();
         clearVaultsStatusesCache();
         clearDiscoveryCache();
-        clearAccountNamesCache();
+        clearAccountsCache();
         //Clear other state:
         clearUtxosData(walletId);
         clearSynchingBlockchain(walletId);
@@ -320,7 +326,7 @@ const WalletProviderRaw = ({
     clearVaultsCache,
     clearVaultsStatusesCache,
     clearDiscoveryCache,
-    clearAccountNamesCache,
+    clearAccountsCache,
     clearUtxosData,
     clearSynchingBlockchain,
     clearNewSigners,
@@ -359,7 +365,7 @@ const WalletProviderRaw = ({
           deleteAsync(`DISCOVERY_${walletId}`),
           deleteAsync(`VAULTS_${walletId}`),
           deleteAsync(`VAULTS_STATUSES_${walletId}`),
-          deleteAsync(`ACCOUNT_NAMES_${walletId}`)
+          deleteAsync(`ACCOUNTS_${walletId}`)
         ]);
       }
       //React 18 NOT on the new Architecture behaves as React 17:
@@ -405,6 +411,7 @@ const WalletProviderRaw = ({
 
   //Tries to initialize utxosData from the discovery object we got from disk
   //ASAP (only if not set)
+  //TODO: Here also set history TAGiuenfsdkjfn
   useEffect(() => {
     const setInitialUtxosData = async () => {
       const discovery =
@@ -414,16 +421,15 @@ const WalletProviderRaw = ({
         !utxosData[walletId] &&
         vaults &&
         vaultsStatuses &&
-        signers &&
+        accounts &&
         network &&
         discovery
       ) {
-        const descriptors = await getDescriptors(
+        const descriptors = await getHotDescriptors(
           vaults,
           vaultsStatuses,
-          signers,
-          network,
-          discovery
+          discovery,
+          accounts
         );
         //Make sure they are fetched already:
         if (
@@ -447,7 +453,7 @@ const WalletProviderRaw = ({
     utxosData,
     initialDiscovery,
     network,
-    signers,
+    accounts,
     vaults,
     vaultsStatuses
   ]);
@@ -459,7 +465,7 @@ const WalletProviderRaw = ({
     const discovery = await ensureConnected(initialDiscovery);
     const signer = signers[0];
     if (!signer) throw new Error('signer unavailable');
-    const changeDescriptorRanged = await createChangeDescriptor({
+    const changeDescriptorRanged = await createDefaultChangeDescriptor({
       signer,
       network
     });
@@ -517,18 +523,17 @@ const WalletProviderRaw = ({
     const signer = signers?.[0];
     if (
       networkId &&
-      settings?.GAP_LIMIT !== undefined &&
+      gapLimit !== undefined &&
       discovery &&
       vaults &&
       vaultsStatuses &&
-      accountNames &&
-      //When a new vault is created, vaults, vaultsStatuses and accountNames are not
+      accounts &&
+      //When a new vault is created, vaults, vaultsStatuses and accounts are not
       //atomically set in state at the same time.
       //Wait until both are set before proceeding. This is important because
       //updateVaultsStatuses upddate status based on vaults so they must be
       //synched
       areVaultsSynched(vaults, vaultsStatuses) &&
-      //shallowEqualArrays(Object.keys(vaults), Object.keys(accountNames)) &&
       signer &&
       vaultsAPI
     ) {
@@ -573,17 +578,40 @@ const WalletProviderRaw = ({
         });
 
         //Now get utxosData
-        const descriptors = await getDescriptors(
+        const descriptors = await getHotDescriptors(
           updatedVaults,
           updatedVaultsStatuses,
-          signers,
-          network,
-          discovery
+          discovery,
+          accounts
         );
-        await discovery.fetch({
-          descriptors,
-          gapLimit: settings.GAP_LIMIT
-        });
+        if (descriptors.length)
+          await discovery.fetch({ descriptors, gapLimit });
+        else {
+          if (Object.keys(accounts).length)
+            throw new Error("Accounts shouldn't be set with unset descriptors");
+          const newAccounts: Accounts = {};
+          if (signer.type !== 'SOFTWARE') {
+            console.warn('Non Software Wallets use default accounts for now');
+            const defaultAccount = await getDefaultAccount(signers, network);
+            const descriptors = await getDefaultDescriptors(signers, network);
+            newAccounts[defaultAccount] = { discard: false };
+            discovery.fetch({ descriptors, gapLimit });
+          } else {
+            if (!signer.mnemonic)
+              throw new Error('mnemonic not set for soft wallet');
+            const masterNode = getMasterNode(signer.mnemonic, network);
+            await discovery.fetchStandardAccounts({ masterNode, gapLimit });
+            const usedAccounts = discovery.getUsedAccounts();
+            if (usedAccounts.length)
+              for (const usedAccount of usedAccounts)
+                newAccounts[usedAccount] = { discard: false };
+            else {
+              const defaultAccount = await getDefaultAccount(signers, network);
+              newAccounts[defaultAccount] = { discard: false };
+            }
+            setAccounts(newAccounts);
+          }
+        }
         //If utxos don't change, then getUtxosAndBalance return the same reference
         //even if descriptors reference is different
         const { utxos } = discovery.getUtxosAndBalance({ descriptors });
@@ -610,6 +638,7 @@ const WalletProviderRaw = ({
         if (vaultsStatuses !== updatedVaultsStatuses)
           setVaultsStatuses(updatedVaultsStatuses);
         setUtxosData(walletId, walletUtxosData);
+        console.log(discovery.getHistory({ descriptors }, true));
       } catch (error) {
         const errorMessage =
           error instanceof Error
@@ -625,10 +654,11 @@ const WalletProviderRaw = ({
 
     setSyncingBlockchain(walletId, false);
   }, [
+    setAccounts,
     setUtxosData,
     setSyncingBlockchain,
     walletId,
-    accountNames,
+    accounts,
     setDiscoveryDataExport,
     t,
     toast,
@@ -640,7 +670,7 @@ const WalletProviderRaw = ({
     networkId,
     signers,
     vaultsAPI,
-    settings?.GAP_LIMIT
+    gapLimit
   ]);
   //When syncingBlockchain is set then trigger sync() which does all the
   //syncing task, sync() will set back syncingBlockchain[walletId] back to false
@@ -697,7 +727,7 @@ const WalletProviderRaw = ({
         if (vaultsStatuses[vault.vaultId])
           throw new Error(`VaultStatus for ${vault.vaultId} already exists`);
         //Note here they are not atomically set, so when using vaults one
-        //must make sure they are synched somehow - See Vaults.tsx for an 
+        //must make sure they are synched somehow - See Vaults.tsx for an
         //example what to do
         await Promise.all([
           setVaults({ ...vaults, [vault.vaultId]: vault }),
@@ -753,7 +783,7 @@ const WalletProviderRaw = ({
       discoveryErrorCode: discoveryStorageStatus.errorCode,
       vaultsErrorCode: vaultsStorageStatus.errorCode,
       vaultsStatusesErrorCode: vaultsStatusesStorageStatus.errorCode,
-      accountNamesErrorCode: accountNamesStorageStatus.errorCode,
+      accountsErrorCode: accountsStorageStatus.errorCode,
       isCorrupted
     }),
     requiresPassword:

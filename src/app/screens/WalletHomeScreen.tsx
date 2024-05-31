@@ -99,10 +99,12 @@ const WalletHomeScreen = () => {
   const faucetNotifiedRef = useRef<boolean>(false);
   const faucetDetectedRef = useRef<boolean>(false);
   useEffect(() => {
+    //TODO: using here utxosData.length is bad because i might have spent the utxo and then its again length = 0
     faucetDetectedRef.current =
       faucetRequestedRef.current && !!utxosData?.length;
   }, [utxosData]);
 
+  //TODO: using here utxosData.length is bad because i might have spent the utxo and then its again length = 0
   const faucetPending: boolean =
     faucetRequestedRef.current && !utxosData?.length;
   const syncingOrFaucetPending: boolean = syncingBlockchain || faucetPending;

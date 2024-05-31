@@ -1,7 +1,7 @@
 // TODO: very imporant to only allow Vaulting funds with 1 confirmatin at least (make this a setting)
 import { Network, Psbt, Transaction, address, crypto } from 'bitcoinjs-lib';
 import memoize from 'lodash.memoize';
-import type { Signer, Signers } from './wallets';
+import type { Accounts, Signer } from './wallets';
 import moize from 'moize';
 
 import * as secp256k1 from '@bitcoinerlab/secp256k1';
@@ -18,9 +18,7 @@ import {
   createColdDescriptor,
   createServiceDescriptor,
   DUMMY_PUBKEY,
-  DUMMY_PUBKEY_2,
-  createChangeDescriptor,
-  createReceiveDescriptor
+  DUMMY_PUBKEY_2
 } from './vaultDescriptors';
 import { shallowEqualArrays } from 'shallow-equal';
 
@@ -687,7 +685,7 @@ const getVaultVaultedBalance = (vault: Vault, vaultStatus: VaultStatus) => {
 };
 
 /**
- * When a new vault is created, vaults, vaultsStatuses and accountNames are not
+ * When a new vault is created, vaults, vaultsStatuses are not
  * atomically set in state at the same time.
  * Wait until both are set before proceeding. This is important because
  * updateVaultsStatuses upddate status based on vaults so they must be
@@ -936,31 +934,66 @@ const selectVaultUtxosDataMemo = ({
   });
 export { selectVaultUtxosDataMemo as selectVaultUtxosData };
 
+//TODO: delete this when complete refactor
+///**
+// * returns all the descriptors which can be spent right now (hot)
+// * This includes: spendable vaults, change and external
+// */
+//export const getDescriptors = async (
+//  vaults: Vaults,
+//  vaultsStatuses: VaultsStatuses,
+//  signers: Signers,
+//  network: Network,
+//  discovery: DiscoveryInstance
+//) => {
+//  const signer = signers[0];
+//  if (!signer) throw new Error('signer unavailable');
+//  const changeDescriptorRanged = await createDefaultChangeDescriptor({
+//    signer,
+//    network
+//  });
+//  const receiveDescriptorRanged = await createDefaultReceiveDescriptor({
+//    signer,
+//    network
+//  });
+//  const descriptors = [
+//    receiveDescriptorRanged,
+//    changeDescriptorRanged,
+//    ...getHotTriggerDescriptors(
+//      vaults,
+//      vaultsStatuses,
+//      await discovery.getExplorer().fetchBlockHeight()
+//    )
+//  ];
+//  return descriptors;
+//};
+
 /**
  * returns all the descriptors which can be spent right now (hot)
  * This includes: spendable vaults, change and external
  */
-export const getDescriptors = async (
+export const getHotDescriptors = async (
   vaults: Vaults,
   vaultsStatuses: VaultsStatuses,
-  signers: Signers,
-  network: Network,
-  discovery: DiscoveryInstance
+  discovery: DiscoveryInstance,
+  accounts: Accounts
 ) => {
-  const signer = signers[0];
-  if (!signer) throw new Error('signer unavailable');
-  const changeDescriptorRanged = await createChangeDescriptor({
-    signer,
-    network
-  });
-  const descriptors = [
-    await createReceiveDescriptor({ signer, network }),
-    changeDescriptorRanged,
-    ...getHotTriggerDescriptors(
-      vaults,
-      vaultsStatuses,
-      await discovery.getExplorer().fetchBlockHeight()
-    )
-  ];
+  if (!areVaultsSynched(vaults, vaultsStatuses))
+    throw new Error('vaults and statuses not synched');
+  if (Object.keys(vaults).length && !Object.keys(accounts))
+    throw new Error('vaults set for non-existing accounts');
+  const descriptors: Array<string> = [];
+  for (const account of Object.keys(accounts))
+    descriptors.push(...discovery.getAccountDescriptors({ account }));
+  if (descriptors.length)
+    //No need to do extra computations. If there are no
+    //accounts, then there are no vaults
+    descriptors.push(
+      ...getHotTriggerDescriptors(
+        vaults,
+        vaultsStatuses,
+        await discovery.getExplorer().fetchBlockHeight()
+      )
+    );
   return descriptors;
 };

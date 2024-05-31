@@ -12,7 +12,8 @@ import { compilePolicy } from '@bitcoinerlab/miniscript';
 import * as secp256k1 from '@bitcoinerlab/secp256k1';
 import { DescriptorsFactory } from '@bitcoinerlab/descriptors';
 const { Output, BIP32 } = DescriptorsFactory(secp256k1);
-import { Signer, SOFTWARE } from './wallets';
+import { Signer, Signers, SOFTWARE } from './wallets';
+import type { Account } from '@bitcoinerlab/discovery';
 
 export const DUMMY_PUBKEY =
   '0330d54fd0dd420a6e5f8d3624f5f3482cae350f79d5f0753bf5beef9c2d91af3c';
@@ -49,7 +50,10 @@ export const DUMMY_CHANGE_OUTPUT = memoize((network: Network) => {
     network
   );
   return new Output({
-    descriptor: createChangeDescriptorFromMasterNode(masterNode, network),
+    descriptor: createDefaultChangeDescriptorFromMasterNode(
+      masterNode,
+      network
+    ),
     index: 0,
     network
   });
@@ -84,7 +88,7 @@ export const getMasterNode = moize((mnemonic: string, network: Network) =>
 );
 
 /** Async because some signers will be async */
-export const createReceiveDescriptor = async ({
+export const createDefaultReceiveDescriptor = async ({
   signer,
   network
 }: {
@@ -104,7 +108,7 @@ export const createReceiveDescriptor = async ({
   } else throw new Error(`Signer type ${signer.type} not supported`);
 };
 
-const createChangeDescriptorFromMasterNode = (
+const createDefaultChangeDescriptorFromMasterNode = (
   masterNode: BIP32Interface,
   network: Network
 ) =>
@@ -117,7 +121,7 @@ const createChangeDescriptorFromMasterNode = (
   });
 
 /** Async because some signers will be async */
-export const createChangeDescriptor = async ({
+export const createDefaultChangeDescriptor = async ({
   signer,
   network
 }: {
@@ -127,7 +131,7 @@ export const createChangeDescriptor = async ({
   if (signer.type === SOFTWARE) {
     const mnemonic = signer.mnemonic;
     if (!mnemonic) throw new Error(`mnemonic not provided for ${signer.type}`);
-    return createChangeDescriptorFromMasterNode(
+    return createDefaultChangeDescriptorFromMasterNode(
       getMasterNode(mnemonic, network),
       network
     );
@@ -173,4 +177,30 @@ export const createTriggerDescriptor = ({
     .replace('@unvaultKey', unvaultKey)
     .replace('@panicKey', panicKey)})`;
   return triggerDescriptor;
+};
+
+export const getDefaultDescriptors = async (
+  signers: Signers,
+  network: Network
+) => {
+  const signer = signers[0];
+  if (!signer) throw new Error('signer unavailable');
+  const changeDescriptorRanged = await createDefaultChangeDescriptor({
+    signer,
+    network
+  });
+  const receiveDescriptorRanged = await createDefaultReceiveDescriptor({
+    signer,
+    network
+  });
+  return [receiveDescriptorRanged, changeDescriptorRanged];
+};
+export const getDefaultAccount = async (signers: Signers, network: Network) => {
+  const signer = signers[0];
+  if (!signer) throw new Error('signer unavailable');
+  const receiveDescriptorRanged = await createDefaultReceiveDescriptor({
+    signer,
+    network
+  });
+  return receiveDescriptorRanged as Account;
 };

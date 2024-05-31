@@ -3,6 +3,41 @@ seek know resemble
 hurt pistol head
 first board better
 
+abandon abandon .... en iOS se cuelga sin fallo ni error
+	-> Es porque getHistoryAttributions es mega lentísimo
+
+Joder, si importo abandon abandon, entonces solo me usa la cuenta cero de segwit.
+	-> Esto está mal, cuando se haga import entonces tendré que tener todas o dejar
+elegir a la persona cual usar...
+
+
+Refactor getDescriptors. Don't overuse getDefaultDescriptors (should be used
+only ones on creation), use getDescriptors instead
+
+Documentar bien AccountNames (cambier nombre a Accounts) 
+    -> Para signer.type !== "SOFTWARE" AccountNames será por defecto siempre Segwit #0 ya que fetchStandardAccounts no está implementado. Docuemntar esto en Accounts - Dejar esto documentado como un TODO.
+    -> ELSE:
+    -> Si AccountNames esta vacío, se hace un fetchStandardAccounts. Se meten en AccountNames.
+      -> Si standardAccountSearch no encuentra nada, se mete directamente en Accounts la account de Segwit
+    -> Se pondran todas ellas en Accounts con discard = false. Luego el user lo podrá desactivar.
+
+  -> TODO: getReceiveDescriptr/Change buscará en las AccountNames y dará la mas moderna y nueva
+  -> Si standardAccountSearch es falso, se mete directamente en Accounts la account de Segwit
+  -> TAmbién: TAGsdfdsf
+
+Tener en Storage esto también:
+  -Tags (per tx, también se puede usar para tagear "Vaulted")
+  -Accounts
+Tener un estado en Context para:
+  -History, BTW: Set the history too  ASAP (TAGiuenfsdkjfn)
+
+Problema con getHistory ya q las txs no confirmadas me salen las primeras (como si fiuesen
+las mas viejas) ya que blockHeight es cero. Cuando las ordene será un follón
+
+
+Publicar update the explorer y actualizar este
+Publucar update the discovery y actualizar este
+
 Me ha salido esto en iOS:
  ERROR  RangeError: Property storage exceeds 196607 properties
 
