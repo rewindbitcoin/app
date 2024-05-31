@@ -210,7 +210,7 @@ export const getDefaultAccount = async (signers: Signers, network: Network) => {
  *
  * This function evaluates the descriptors to find the main account based on the
  * purpose and the largest account number, prioritizing:
- * - 'wpkh($0)' (BIP84) > 'sh(wpkh($0))' (BIP49) > 'pkh($0)' (BIP44).
+ * - 'wpkh(@0)' (BIP84) > 'sh(wpkh(@0))' (BIP49) > 'pkh(@0)' (BIP44).
  * - Largest account number within the same purpose category.
  */
 
@@ -230,21 +230,22 @@ export const getMainAccount = moize(
       if (expansionMapValues) {
         const { keyPath, originPath } = expansionMapValues;
         const originPathElements = originPath?.split('/');
-        const [purposeH, coinTypeH, accountNumberH] = originPathElements || [];
+        const [, purposeH, coinTypeH, accountNumberH] =
+          originPathElements || [];
         const purpose = purposeH === undefined ? -1 : parseInt(purposeH);
         const accountNumber =
           accountNumberH === undefined ? -1 : parseInt(accountNumberH);
 
         if (
-          originPathElements?.length === 3 &&
+          originPathElements?.length === 4 && // 4 is right, 1st el is empty
           keyPath === '/0/*' &&
           accountNumberH === `${accountNumber}'` &&
           purposeH === `${purpose}'` &&
           [44, 49, 84].includes(purpose) &&
           coinTypeH === (network === networks.bitcoin ? "0'" : "1'") &&
-          ((purpose === 44 && expandedExpression === 'pkh($0)') ||
-            (purpose === 49 && expandedExpression === 'sh(wpkh($0))') ||
-            (purpose === 84 && expandedExpression === 'wpkh($0)'))
+          ((purpose === 44 && expandedExpression === 'pkh(@0)') ||
+            (purpose === 49 && expandedExpression === 'sh(wpkh(@0))') ||
+            (purpose === 84 && expandedExpression === 'wpkh(@0)'))
         ) {
           mainCandidates.push({ descriptor, purpose, accountNumber });
         }

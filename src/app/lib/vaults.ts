@@ -934,40 +934,6 @@ const selectVaultUtxosDataMemo = ({
   });
 export { selectVaultUtxosDataMemo as selectVaultUtxosData };
 
-//TODO: delete this when complete refactor
-///**
-// * returns all the descriptors which can be spent right now (hot)
-// * This includes: spendable vaults, change and external
-// */
-//export const getDescriptors = async (
-//  vaults: Vaults,
-//  vaultsStatuses: VaultsStatuses,
-//  signers: Signers,
-//  network: Network,
-//  discovery: DiscoveryInstance
-//) => {
-//  const signer = signers[0];
-//  if (!signer) throw new Error('signer unavailable');
-//  const changeDescriptorRanged = await createDefaultChangeDescriptor({
-//    signer,
-//    network
-//  });
-//  const receiveDescriptorRanged = await createDefaultReceiveDescriptor({
-//    signer,
-//    network
-//  });
-//  const descriptors = [
-//    receiveDescriptorRanged,
-//    changeDescriptorRanged,
-//    ...getHotTriggerDescriptors(
-//      vaults,
-//      vaultsStatuses,
-//      await discovery.getExplorer().fetchBlockHeight()
-//    )
-//  ];
-//  return descriptors;
-//};
-
 /**
  * returns all the descriptors which can be spent right now (hot)
  * This includes: spendable vaults, change and external

@@ -10,16 +10,13 @@ Joder, si importo abandon abandon, entonces solo me usa la cuenta cero de segwit
 	-> Esto está mal, cuando se haga import entonces tendré que tener todas o dejar
 elegir a la persona cual usar...
 
+A ver tengo un lio. Si estoy en Una wallet e importo por ejemplo abandon abandon
+en testnet, eso me puede llevar minutps, pero puedo salir de esa wallet y crar una nueva
+entonces que va a pasaer cuando vuelva... en que wallet se meterá todo eso. Supongo q en la correcta no?
 
-Refactor getDescriptors. Don't overuse getDefaultDescriptors (should be used
-only ones on creation), use getDescriptors instead
-
-OJO!!! Tendo DUMMY que asumen segwit. Que pas si uso pkh, donde va el cambio?
-DUMMY_CHANGE_OUTPUT 
-
-
-Seguramente me falten cambiar mas getDescriptors / getDefaultDescriptors, ... getHot...
 Documentar bien AccountNames (cambier nombre a Accounts) 
+  -> Me da error cound not get the main account, el codigo esta mal
+  -> No se me están metiendo las accounts (quiza porque hace un throw del error)
     -> Para signer.type !== "SOFTWARE" AccountNames será por defecto siempre Segwit #0 ya que fetchStandardAccounts no está implementado. Docuemntar esto en Accounts - Dejar esto documentado como un TODO.
     -> ELSE:
     -> Si AccountNames esta vacío, se hace un fetchStandardAccounts. Se meten en AccountNames.

@@ -581,7 +581,7 @@ const WalletProviderRaw = ({
             throw new Error("Accounts shouldn't be set with unset descriptors");
           const newAccounts: Accounts = {};
           if (signer.type !== 'SOFTWARE') {
-            console.warn('Non Software Wallets use default accounts for now');
+            console.warn('Non-Software Wallets use default accounts for now');
             const defaultAccount = await getDefaultAccount(signers, network);
             const descriptors = await getDefaultDescriptors(signers, network);
             newAccounts[defaultAccount] = { discard: false };
@@ -599,6 +599,12 @@ const WalletProviderRaw = ({
               const defaultAccount = await getDefaultAccount(signers, network);
               newAccounts[defaultAccount] = { discard: false };
             }
+            console.log({ usedAccounts });
+            console.log({ newAccounts });
+            console.log({ mainAccount: getMainAccount(newAccounts, network) });
+            console.log({
+              defaultAccount: await getDefaultAccount(signers, network)
+            });
             setAccounts(newAccounts);
           }
         }
