@@ -14,6 +14,11 @@ elegir a la persona cual usar...
 Refactor getDescriptors. Don't overuse getDefaultDescriptors (should be used
 only ones on creation), use getDescriptors instead
 
+OJO!!! Tendo DUMMY que asumen segwit. Que pas si uso pkh, donde va el cambio?
+DUMMY_CHANGE_OUTPUT 
+
+
+Seguramente me falten cambiar mas getDescriptors / getDefaultDescriptors, ... getHot...
 Documentar bien AccountNames (cambier nombre a Accounts) 
     -> Para signer.type !== "SOFTWARE" AccountNames será por defecto siempre Segwit #0 ya que fetchStandardAccounts no está implementado. Docuemntar esto en Accounts - Dejar esto documentado como un TODO.
     -> ELSE:
@@ -30,6 +35,7 @@ Tener en Storage esto también:
   -Accounts
 Tener un estado en Context para:
   -History, BTW: Set the history too  ASAP (TAGiuenfsdkjfn)
+    -> Both in initial case and in the sync
 
 Problema con getHistory ya q las txs no confirmadas me salen las primeras (como si fiuesen
 las mas viejas) ya que blockHeight es cero. Cuando las ordene será un follón

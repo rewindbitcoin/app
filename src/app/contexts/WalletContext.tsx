@@ -20,10 +20,10 @@ import {
 } from '../lib/walletDerivedData';
 import { networkMapping, NetworkId } from '../lib/network';
 import {
-  createDefaultChangeDescriptor,
   createUnvaultKey,
   getDefaultAccount,
   getDefaultDescriptors,
+  getMainAccount,
   getMasterNode
 } from '../lib/vaultDescriptors';
 import React, {
@@ -76,6 +76,7 @@ export type WalletContextType = {
   feeEstimates: FeeEstimates | undefined;
   utxosData: UtxosData | undefined;
   signers: Signers | undefined;
+  accounts: Accounts | undefined;
   vaults: Vaults | undefined;
   vaultsStatuses: VaultsStatuses | undefined;
   networkId: NetworkId | undefined;
@@ -443,6 +444,8 @@ const WalletProviderRaw = ({
             discovery
           );
           setUtxosData(walletId, walletUtxosData);
+          //TAGiuenfsdkjfn set history
+          console.log(discovery.getHistory({ descriptors }, true));
         }
       }
     };
@@ -460,24 +463,11 @@ const WalletProviderRaw = ({
 
   const getChangeDescriptor = useCallback(async () => {
     if (!network) throw new Error('Network not ready');
-    if (!signers) throw new Error('Signers not ready');
-    if (!initialDiscovery) throw new Error('Discovery not ready');
-    const discovery = await ensureConnected(initialDiscovery);
-    const signer = signers[0];
-    if (!signer) throw new Error('signer unavailable');
-    const changeDescriptorRanged = await createDefaultChangeDescriptor({
-      signer,
-      network
-    });
-    return changeDescriptorRanged.replaceAll(
-      '*',
-      discovery
-        .getNextIndex({
-          descriptor: changeDescriptorRanged
-        })
-        .toString()
-    );
-  }, [initialDiscovery, network, signers]);
+    if (!accounts) throw new Error('Accounts not ready');
+    if (!Object.keys(accounts).length) throw new Error('Accounts not set');
+    const account = getMainAccount(accounts, network);
+    return account.replace(/\/0\/\*/g, '/1/*');
+  }, [network, accounts]);
 
   const getUnvaultKey = useCallback(async () => {
     if (!network) throw new Error('Network not ready');
@@ -638,6 +628,7 @@ const WalletProviderRaw = ({
         if (vaultsStatuses !== updatedVaultsStatuses)
           setVaultsStatuses(updatedVaultsStatuses);
         setUtxosData(walletId, walletUtxosData);
+        //TAGiuenfsdkjfn set history
         console.log(discovery.getHistory({ descriptors }, true));
       } catch (error) {
         const errorMessage =
@@ -762,6 +753,7 @@ const WalletProviderRaw = ({
     btcFiat,
     feeEstimates,
     signers,
+    accounts,
     vaults,
     vaultsStatuses,
     networkId,

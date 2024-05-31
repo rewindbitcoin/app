@@ -4,7 +4,8 @@ import {
   DUMMY_VAULT_OUTPUT,
   DUMMY_SERVICE_OUTPUT,
   DUMMY_CHANGE_OUTPUT,
-  DUMMY_PKH_OUTPUT
+  DUMMY_PKH_OUTPUT,
+  getMainAccount
 } from './vaultDescriptors';
 import type { OutputInstance } from '@bitcoinerlab/descriptors';
 import { maxFunds, vsize, dustThreshold } from '@bitcoinerlab/coinselect';
@@ -16,6 +17,7 @@ import {
   selectVaultUtxosData,
   estimateTriggerTxSize
 } from './vaults';
+import type { Accounts } from './wallets';
 // nLockTime which results into the largest possible serialized size:
 const LOCK_BLOCKS_MAS_SIZE = 0xffff;
 const MIN_VAULT_BIN_SEARCH_ITERS = 100;
@@ -225,6 +227,7 @@ const estimateMinVaultAmount = ({
 };
 
 export const estimateVaultSetUpRange = ({
+  accounts,
   utxosData,
   maxFeeRate,
   serviceFeeRate,
@@ -233,6 +236,7 @@ export const estimateVaultSetUpRange = ({
   minRecoverableRatio,
   network
 }: {
+  accounts: Accounts;
   utxosData: UtxosData;
   maxFeeRate: number;
   network: Network;
@@ -253,7 +257,10 @@ export const estimateVaultSetUpRange = ({
     utxosData,
     vaultOutput: DUMMY_VAULT_OUTPUT(network),
     serviceOutput: DUMMY_SERVICE_OUTPUT(network),
-    changeOutput: DUMMY_CHANGE_OUTPUT(network),
+    changeOutput: DUMMY_CHANGE_OUTPUT(
+      getMainAccount(accounts, network),
+      network
+    ),
     lockBlocks: LOCK_BLOCKS_MAS_SIZE,
     // Set it to worst case: express confirmation time so that
     // largestMinVaultAmount in the Slider does not change when the user

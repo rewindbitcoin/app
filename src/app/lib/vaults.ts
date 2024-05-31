@@ -984,7 +984,8 @@ export const getHotDescriptors = async (
     throw new Error('vaults set for non-existing accounts');
   const descriptors: Array<string> = [];
   for (const account of Object.keys(accounts))
-    descriptors.push(...discovery.getAccountDescriptors({ account }));
+    descriptors.push(account, account.replace(/\/0\/\*/g, '/1/*'));
+
   if (descriptors.length)
     //No need to do extra computations. If there are no
     //accounts, then there are no vaults

@@ -87,7 +87,7 @@ const WalletHomeScreen = () => {
     onWallet,
     logOut,
     isFirstLogin,
-    signers
+    accounts
   } = context;
   if (wallet && walletId !== wallet.walletId)
     throw new Error(
@@ -166,14 +166,14 @@ const WalletHomeScreen = () => {
       wallet &&
       faucetAPI &&
       faucetRequestedRef.current === false &&
-      signers &&
+      accounts &&
       isFirstLogin
     ) {
       const network = wallet.networkId && networkMapping[wallet.networkId];
       (async () => {
         try {
           toast.show(t('walletHome.faucetStartMsg'), { type: 'success' });
-          await faucetFirstReceive(signers, network, faucetAPI, 'es-ES');
+          await faucetFirstReceive(accounts, network, faucetAPI, 'es-ES');
           //wait a few secs until esplora catches up...
           while (faucetDetectedRef.current === false) {
             syncBlockchain();
@@ -190,7 +190,7 @@ const WalletHomeScreen = () => {
       })();
       faucetRequestedRef.current = true;
     }
-  }, [faucetAPI, toast, wallet, isFirstLogin, signers, syncBlockchain, t]);
+  }, [faucetAPI, toast, wallet, isFirstLogin, accounts, syncBlockchain, t]);
   useEffect(() => {
     if (faucetNotifiedRef.current === false && faucetDetectedRef.current) {
       faucetNotifiedRef.current = true;

@@ -19,7 +19,8 @@ import { selectVaultUtxosData, type VaultSettings } from '../lib/vaults';
 import {
   DUMMY_VAULT_OUTPUT,
   DUMMY_SERVICE_OUTPUT,
-  DUMMY_CHANGE_OUTPUT
+  DUMMY_CHANGE_OUTPUT,
+  getMainAccount
 } from '../lib/vaultDescriptors';
 
 import { pickFeeEstimate } from '../lib/fees';
@@ -46,9 +47,11 @@ export default function VaultSetUp({
   if (context === null) {
     throw new Error('Context was not set');
   }
-  const { utxosData, networkId, feeEstimates, btcFiat } = context;
+  const { utxosData, networkId, feeEstimates, btcFiat, accounts } = context;
   if (!utxosData)
     throw new Error('SetUpVaultScreen cannot be called with unset utxos');
+  if (!accounts)
+    throw new Error('SetUpVaultScreen cannot be called with unset accounts');
   if (!networkId)
     throw new Error('SetUpVaultScreen cannot be called with unset networkId');
   if (!feeEstimates)
@@ -92,6 +95,7 @@ export default function VaultSetUp({
     lowestMaxVaultAmount: number;
     largestMinVaultAmount: number;
   } = estimateVaultSetUpRange({
+    accounts,
     utxosData,
     maxFeeRate,
     network,
@@ -143,7 +147,10 @@ export default function VaultSetUp({
           utxosData,
           vaultOutput: DUMMY_VAULT_OUTPUT(network),
           serviceOutput: DUMMY_SERVICE_OUTPUT(network),
-          changeOutput: DUMMY_CHANGE_OUTPUT(network),
+          changeOutput: DUMMY_CHANGE_OUTPUT(
+            getMainAccount(accounts, network),
+            network
+          ),
           feeRate,
           amount,
           serviceFeeRate: settings.SERVICE_FEE_RATE

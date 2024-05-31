@@ -11,8 +11,8 @@ import {
 import { compilePolicy } from '@bitcoinerlab/miniscript';
 import * as secp256k1 from '@bitcoinerlab/secp256k1';
 import { DescriptorsFactory } from '@bitcoinerlab/descriptors';
-const { Output, BIP32 } = DescriptorsFactory(secp256k1);
-import { Signer, Signers, SOFTWARE } from './wallets';
+const { Output, BIP32, expand } = DescriptorsFactory(secp256k1);
+import { Accounts, Signer, Signers, SOFTWARE } from './wallets';
 import type { Account } from '@bitcoinerlab/discovery';
 
 export const DUMMY_PUBKEY =
@@ -44,20 +44,15 @@ export const DUMMY_SERVICE_OUTPUT = memoize(
       network
     })
 );
-export const DUMMY_CHANGE_OUTPUT = memoize((network: Network) => {
-  const masterNode = getMasterNode(
-    'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about',
-    network
-  );
-  return new Output({
-    descriptor: createDefaultChangeDescriptorFromMasterNode(
-      masterNode,
+export const DUMMY_CHANGE_OUTPUT = memoize(
+  (descriptor: string, network: Network) => {
+    return new Output({
+      descriptor,
+      index: 0,
       network
-    ),
-    index: 0,
-    network
-  });
-});
+    });
+  }
+);
 
 export const DUMMY_PKH_OUTPUT = new Output({
   descriptor: `pkh(${DUMMY_PUBKEY})`
@@ -88,7 +83,7 @@ export const getMasterNode = moize((mnemonic: string, network: Network) =>
 );
 
 /** Async because some signers will be async */
-export const createDefaultReceiveDescriptor = async ({
+const createDefaultReceiveDescriptor = async ({
   signer,
   network
 }: {
@@ -121,7 +116,7 @@ const createDefaultChangeDescriptorFromMasterNode = (
   });
 
 /** Async because some signers will be async */
-export const createDefaultChangeDescriptor = async ({
+const createDefaultChangeDescriptor = async ({
   signer,
   network
 }: {
@@ -204,3 +199,75 @@ export const getDefaultAccount = async (signers: Signers, network: Network) => {
   });
   return receiveDescriptorRanged as Account;
 };
+
+/**
+ * Retrieves the main Bitcoin account from a list of account descriptors.
+ *
+ * @param accounts - The list of Bitcoin account descriptors.
+ * @param network - The network configuration (mainnet or testnet).
+ * @returns The descriptor of the main account.
+ * @throws Will throw an error if no main account is found.
+ *
+ * This function evaluates the descriptors to find the main account based on the
+ * purpose and the largest account number, prioritizing:
+ * - 'wpkh($0)' (BIP84) > 'sh(wpkh($0))' (BIP49) > 'pkh($0)' (BIP44).
+ * - Largest account number within the same purpose category.
+ */
+
+export const getMainAccount = moize(
+  (accounts: Accounts, network: Network): string => {
+    const mainCandidates: {
+      descriptor: string;
+      purpose: number;
+      accountNumber: number;
+    }[] = [];
+
+    Object.keys(accounts).forEach(descriptor => {
+      const expansion = expand({ descriptor, network });
+      const expandedExpression = expansion.expandedExpression;
+      const expansionMapValues = Object.values(expansion.expansionMap || {})[0];
+
+      if (expansionMapValues) {
+        const { keyPath, originPath } = expansionMapValues;
+        const originPathElements = originPath?.split('/');
+        const [purposeH, coinTypeH, accountNumberH] = originPathElements || [];
+        const purpose = purposeH === undefined ? -1 : parseInt(purposeH);
+        const accountNumber =
+          accountNumberH === undefined ? -1 : parseInt(accountNumberH);
+
+        if (
+          originPathElements?.length === 3 &&
+          keyPath === '/0/*' &&
+          accountNumberH === `${accountNumber}'` &&
+          purposeH === `${purpose}'` &&
+          [44, 49, 84].includes(purpose) &&
+          coinTypeH === (network === networks.bitcoin ? "0'" : "1'") &&
+          ((purpose === 44 && expandedExpression === 'pkh($0)') ||
+            (purpose === 49 && expandedExpression === 'sh(wpkh($0))') ||
+            (purpose === 84 && expandedExpression === 'wpkh($0)'))
+        ) {
+          mainCandidates.push({ descriptor, purpose, accountNumber });
+        }
+      }
+    });
+
+    if (mainCandidates.length === 0)
+      throw new Error('Could not get the main account');
+
+    const purposeOrder: { [key: number]: number } = { 84: 0, 49: 1, 44: 2 };
+    // Sort by purpose preference and then by account number
+    mainCandidates.sort((a, b) => {
+      // wpkh > sh(wpkh) > pkh
+      const purposeAOrder = purposeOrder[a.purpose];
+      const purposeBOrder = purposeOrder[b.purpose];
+      if (purposeAOrder === undefined || purposeBOrder === undefined)
+        throw new Error('purposeOrder did not take all possible cases');
+      const purposeComparison = purposeAOrder - purposeBOrder;
+      if (purposeComparison !== 0) return purposeComparison;
+      //Second ordering criteria is accountNumber: larger account number is preferred
+      return b.accountNumber - a.accountNumber;
+    });
+
+    return mainCandidates[0]!.descriptor;
+  }
+);

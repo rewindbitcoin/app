@@ -1,7 +1,7 @@
 //See docs in "useStorage.ts"
 
 import React, { useState, createContext, ReactNode } from 'react';
-import { StorageErrorCode } from '../lib/storage';
+import type { StorageErrorCode } from '../lib/storage';
 
 type StorageState<T> = Record<string, T>;
 type ProviderValue<T> = {
