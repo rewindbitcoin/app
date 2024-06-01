@@ -20,18 +20,18 @@ const Vault = ({
   vault: Vault;
   vaultStatus: VaultStatus;
 }) => {
-  const [blockDate, setBlockDate] = useState<string | null>(null);
+  const [vaultBlockDate, setVaultBlockDate] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchTimestamp = async () => {
-      if (vaultStatus.triggerTxBlockHeight) {
+      if (vaultStatus.vaultTxBlockHeight) {
         try {
           const timestamp = await fetchBlockTimestamp(
             esploraAPI,
-            vaultStatus.triggerTxBlockHeight
+            vaultStatus.vaultTxBlockHeight
           );
           const date = new Date(timestamp * 1000).toLocaleString(); // Convert to human-readable date
-          setBlockDate(date);
+          setVaultBlockDate(date);
         } catch (error) {
           throw new Error('Error fetching block timestamp.');
         }
@@ -45,16 +45,16 @@ const Vault = ({
       <Text>{vault.vaultId}</Text>
       <Text
         className={
-          vaultStatus.triggerTxBlockHeight && blockDate === null
+          vaultStatus.vaultTxBlockHeight && vaultBlockDate === null
             ? 'animate-pulse bg-slate-200 rounded'
             : 'bg-transparent'
         }
       >
-        {!vaultStatus.triggerTxBlockHeight
+        {!vaultStatus.vaultTxBlockHeight
           ? 'TODO Your vault is waiting to be confirmed...'
-          : blockDate === null
+          : vaultBlockDate === null
             ? '      '
-            : `TODO Funds frozen on ${blockDate}`}
+            : `TODO Funds frozen on ${vaultBlockDate}`}
       </Text>
     </>
   );

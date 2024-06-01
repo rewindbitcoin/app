@@ -43,6 +43,15 @@ export type VaultSettings = {
 
 export type Vault = {
   /** vaultId and vaultPath universally identify this vault.
+   *
+   *  const vaultPath = THUNDERDEN_VAULT_PATH.replace(
+   *    '<network>',
+   *    network === networks.bitcoin ? '0' : '1'
+   *  ).replace('<index>', index.toString());
+   *  //index is a sequence, increased as new vaults are created
+   *  const vaultNode = masterNode.derivePath(vaultPath);
+   *  const vaultId = vaultNode.publicKey.toString('hex');
+   *
    * They are be obtained from the next available pubKey
    * for path on the online P2P network. See fetchP2PVaultIds */
   vaultId: string;
@@ -77,6 +86,8 @@ export type Vault = {
 };
 
 export type VaultStatus = {
+  vaultTxBlockHeight?: number;
+
   triggerTxHex?: string;
   triggerTxBlockHeight?: number;
 
@@ -822,12 +833,35 @@ export async function fetchSpendingTx(
       const inputPrevOutput = input.index;
       return inputPrevtxId === tx.getId() && inputPrevOutput === vout;
     });
-    if (found)
-      return {
+    if (found) {
+      const spendingTx = {
         txHex: historyTxHex,
         irreversible: txData.irreversible,
         blockHeight: txData.blockHeight
       };
+      spendingTxCache.set(cacheKey, spendingTx);
+      return spendingTx;
+    }
+  }
+  return;
+}
+
+const vaultTxCache = new Map();
+async function fetchVaultTx(
+  vaultAddress: string,
+  vaultTxHex: string,
+  explorer: Explorer
+): Promise<{ irreversible: boolean; blockHeight: number } | undefined> {
+  const cachedResult = vaultTxCache.get(vaultAddress);
+  // Check if cached result exists and is irreversible, then return it
+  if (cachedResult && cachedResult.irreversible) return cachedResult;
+  const vaultTxId = Transaction.fromHex(vaultTxHex).getId();
+  const history = await explorer.fetchTxHistory({ address: vaultAddress });
+
+  const vaultTx = history.find(txCandidate => txCandidate.txId === vaultTxId);
+  if (vaultTx) {
+    vaultTxCache.set(vaultAddress, vaultTx);
+    return vaultTx;
   }
   return;
 }
@@ -845,6 +879,13 @@ async function fetchVaultStatus(
   const newVaultStatus: VaultStatus = currvaultStatus
     ? { ...currvaultStatus }
     : {};
+  const vaultTxData = await fetchVaultTx(
+    vault.vaultAddress,
+    vault.vaultTxHex,
+    explorer
+  );
+  if (vaultTxData) newVaultStatus.vaultTxBlockHeight = vaultTxData.blockHeight;
+
   const triggerTxData = await fetchSpendingTx(vault.vaultTxHex, 0, explorer);
   if (triggerTxData) {
     newVaultStatus.triggerTxHex = triggerTxData.txHex;

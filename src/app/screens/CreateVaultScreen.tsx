@@ -92,7 +92,7 @@ export default function VaultCreate({
 
       const unvaultKey = await getUnvaultKey();
       const serviceAddress = await fetchServiceAddress(); //TODO: show error if network error
-      const changeDescriptor = getChangeDescriptor();
+      const changeDescriptor = await getChangeDescriptor();
 
       const signer = signers[0];
       if (!signer) throw new Error('signer unavailable');

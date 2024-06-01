@@ -100,14 +100,13 @@ const WalletHomeScreen = () => {
   const faucetNotifiedRef = useRef<boolean>(false);
   const faucetDetectedRef = useRef<boolean>(false);
   useEffect(() => {
-    //TODO: using here utxosData.length is bad because i might have spent the utxo and then its again length = 0
     faucetDetectedRef.current =
-      faucetRequestedRef.current && !!utxosData?.length;
-  }, [utxosData]);
+      faucetRequestedRef.current && !!historyData?.length;
+  }, [historyData]);
 
   //TODO: using here utxosData.length is bad because i might have spent the utxo and then its again length = 0
   const faucetPending: boolean =
-    faucetRequestedRef.current && !utxosData?.length;
+    faucetRequestedRef.current && !historyData?.length;
   const syncingOrFaucetPending: boolean = syncingBlockchain || faucetPending;
 
   const title =
@@ -168,6 +167,7 @@ const WalletHomeScreen = () => {
       faucetAPI &&
       faucetRequestedRef.current === false &&
       accounts &&
+      Object.keys(accounts).length &&
       isFirstLogin
     ) {
       const network = wallet.networkId && networkMapping[wallet.networkId];
@@ -388,7 +388,7 @@ const WalletHomeScreen = () => {
         )}
         {activeTabIndex === 1 && (
           <View className="self-center">
-            {historyData &&
+            {historyData && historyData.length ? (
               [...historyData].reverse().map(history => {
                 return (
                   <View key={history.txId} className="flex-col p-4">
@@ -398,7 +398,10 @@ const WalletHomeScreen = () => {
                     <Text>{history.netReceived}</Text>
                   </View>
                 );
-              })}
+              })
+            ) : (
+              <Text>TODO retrieving txs...</Text>
+            )}
           </View>
         )}
 

@@ -3,8 +3,12 @@ seek know resemble
 hurt pistol head
 first board better
 
-abandon abandon .... en iOS se cuelga sin fallo ni error
-	-> Es porque getHistoryAttributions es mega lentísimo
+En iOS no me sale el "Hooray..." despues del faucet
+
+Swap el orden de Create <-> Create en Vault SetUp
+
+Lo de MAX_VAULT_CHECKS es cutre no???
+
 
 Joder, si importo abandon abandon, entonces solo me usa la cuenta cero de segwit.
 	-> Esto está mal, cuando se haga import entonces tendré que tener todas o dejar

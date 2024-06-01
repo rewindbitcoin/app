@@ -71,7 +71,7 @@ export const WalletContext: Context<WalletContextType | null> =
   createContext<WalletContextType | null>(null);
 
 export type WalletContextType = {
-  getChangeDescriptor: () => string;
+  getChangeDescriptor: () => Promise<string>;
   fetchServiceAddress: () => Promise<string>;
   getUnvaultKey: () => Promise<string>;
   btcFiat: number | undefined;
@@ -474,13 +474,23 @@ const WalletProviderRaw = ({
     vaultsStatuses
   ]);
 
-  const getChangeDescriptor = useCallback(() => {
+  const getChangeDescriptor = useCallback(async () => {
     if (!network) throw new Error('Network not ready');
     if (!accounts) throw new Error('Accounts not ready');
     if (!Object.keys(accounts).length) throw new Error('Accounts not set');
+    if (!initialDiscovery) throw new Error('Discovery not ready');
+    const discovery = await ensureConnected(initialDiscovery);
     const account = getMainAccount(accounts, network);
-    return account.replace(/\/0\/\*/g, '/1/*');
-  }, [network, accounts]);
+    const changeDescriptorRanged = account.replace(/\/0\/\*/g, '/1/*');
+    return changeDescriptorRanged.replaceAll(
+      '*',
+      discovery
+        .getNextIndex({
+          descriptor: changeDescriptorRanged
+        })
+        .toString()
+    );
+  }, [network, accounts, initialDiscovery]);
 
   const getUnvaultKey = useCallback(async () => {
     if (!network) throw new Error('Network not ready');
@@ -613,12 +623,6 @@ const WalletProviderRaw = ({
               const defaultAccount = await getDefaultAccount(signers, network);
               newAccounts[defaultAccount] = { discard: false };
             }
-            console.log({ usedAccounts });
-            console.log({ newAccounts });
-            console.log({ mainAccount: getMainAccount(newAccounts, network) });
-            console.log({
-              defaultAccount: await getDefaultAccount(signers, network)
-            });
             setAccounts(newAccounts);
           }
         }
