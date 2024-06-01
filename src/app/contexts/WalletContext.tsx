@@ -10,7 +10,9 @@ import {
   type VaultsStatuses,
   type UtxosData,
   getHotDescriptors,
-  areVaultsSynched
+  areVaultsSynched,
+  HistoryData,
+  getHistoryData
 } from '../lib/vaults';
 import type { Accounts, Signers, Wallets } from '../lib/wallets';
 import {
@@ -40,7 +42,7 @@ import { useToast } from '../../common/ui';
 import { SERIALIZABLE, deleteAsync } from '../../common/lib/storage';
 import { useTranslation } from 'react-i18next';
 
-import type { DiscoveryInstance } from '@bitcoinerlab/discovery';
+import type { DiscoveryInstance, TxAttribution } from '@bitcoinerlab/discovery';
 import type { FeeEstimates } from '../lib/fees';
 import {
   Platform,
@@ -69,12 +71,13 @@ export const WalletContext: Context<WalletContextType | null> =
   createContext<WalletContextType | null>(null);
 
 export type WalletContextType = {
-  getChangeDescriptor: () => Promise<string>;
+  getChangeDescriptor: () => string;
   fetchServiceAddress: () => Promise<string>;
   getUnvaultKey: () => Promise<string>;
   btcFiat: number | undefined;
   feeEstimates: FeeEstimates | undefined;
   utxosData: UtxosData | undefined;
+  historyData: HistoryData | undefined;
   signers: Signers | undefined;
   accounts: Accounts | undefined;
   vaults: Vaults | undefined;
@@ -133,6 +136,8 @@ const WalletProviderRaw = ({
     useWalletState<Uint8Array>();
 
   const [utxosData, setUtxosData, clearUtxosData] = useWalletState<UtxosData>();
+  const [historyData, setHistoryData, clearHistoryData] =
+    useWalletState<HistoryData>();
   const [syncingBlockchain, setSyncingBlockchain, clearSynchingBlockchain] =
     useWalletState<boolean>();
 
@@ -313,6 +318,7 @@ const WalletProviderRaw = ({
         clearAccountsCache();
         //Clear other state:
         clearUtxosData(walletId);
+        clearHistoryData(walletId);
         clearSynchingBlockchain(walletId);
         clearNewSigners(walletId);
         clearSignersCipherKey(walletId);
@@ -329,6 +335,7 @@ const WalletProviderRaw = ({
     clearDiscoveryCache,
     clearAccountsCache,
     clearUtxosData,
+    clearHistoryData,
     clearSynchingBlockchain,
     clearNewSigners,
     clearSignersCipherKey,
@@ -426,11 +433,12 @@ const WalletProviderRaw = ({
         network &&
         discovery
       ) {
-        const descriptors = await getHotDescriptors(
+        const blockchainTip = await discovery.getExplorer().fetchBlockHeight();
+        const descriptors = getHotDescriptors(
           vaults,
           vaultsStatuses,
-          discovery,
-          accounts
+          accounts,
+          blockchainTip
         );
         //Make sure they are fetched already:
         if (
@@ -444,14 +452,19 @@ const WalletProviderRaw = ({
             discovery
           );
           setUtxosData(walletId, walletUtxosData);
-          //TAGiuenfsdkjfn set history
-          console.log(discovery.getHistory({ descriptors }, true));
+          const history = discovery.getHistory(
+            { descriptors },
+            true
+          ) as Array<TxAttribution>;
+          const walletHistoryData = getHistoryData(history, discovery);
+          setHistoryData(walletId, walletHistoryData);
         }
       }
     };
     setInitialUtxosData();
   }, [
     setUtxosData,
+    setHistoryData,
     walletId,
     utxosData,
     initialDiscovery,
@@ -461,7 +474,7 @@ const WalletProviderRaw = ({
     vaultsStatuses
   ]);
 
-  const getChangeDescriptor = useCallback(async () => {
+  const getChangeDescriptor = useCallback(() => {
     if (!network) throw new Error('Network not ready');
     if (!accounts) throw new Error('Accounts not ready');
     if (!Object.keys(accounts).length) throw new Error('Accounts not set');
@@ -528,6 +541,7 @@ const WalletProviderRaw = ({
       vaultsAPI
     ) {
       const network = networkId && networkMapping[networkId];
+      const blockchainTip = await discovery.getExplorer().fetchBlockHeight();
 
       try {
         //First get updatedVaults & updatedVaultsStatuses:
@@ -568,11 +582,11 @@ const WalletProviderRaw = ({
         });
 
         //Now get utxosData
-        const descriptors = await getHotDescriptors(
+        const descriptors = getHotDescriptors(
           updatedVaults,
           updatedVaultsStatuses,
-          discovery,
-          accounts
+          accounts,
+          blockchainTip
         );
         if (descriptors.length)
           await discovery.fetch({ descriptors, gapLimit });
@@ -617,6 +631,11 @@ const WalletProviderRaw = ({
           network,
           discovery
         );
+        const history = discovery.getHistory(
+          { descriptors },
+          true
+        ) as Array<TxAttribution>;
+        const walletHistoryData = getHistoryData(history, discovery);
 
         //Save to disk. Saving is async, but it's ok not awaiting since all this
         //data can be re-created any time by calling again syncBlockchain.
@@ -634,8 +653,7 @@ const WalletProviderRaw = ({
         if (vaultsStatuses !== updatedVaultsStatuses)
           setVaultsStatuses(updatedVaultsStatuses);
         setUtxosData(walletId, walletUtxosData);
-        //TAGiuenfsdkjfn set history
-        console.log(discovery.getHistory({ descriptors }, true));
+        setHistoryData(walletId, walletHistoryData);
       } catch (error) {
         const errorMessage =
           error instanceof Error
@@ -653,6 +671,7 @@ const WalletProviderRaw = ({
   }, [
     setAccounts,
     setUtxosData,
+    setHistoryData,
     setSyncingBlockchain,
     walletId,
     accounts,
@@ -764,6 +783,7 @@ const WalletProviderRaw = ({
     vaultsStatuses,
     networkId,
     utxosData: walletId !== undefined ? utxosData[walletId] : undefined,
+    historyData: walletId !== undefined ? historyData[walletId] : undefined,
     processCreatedVault,
     syncBlockchain,
     syncingBlockchain: !!(

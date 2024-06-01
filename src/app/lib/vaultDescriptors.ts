@@ -45,9 +45,9 @@ export const DUMMY_SERVICE_OUTPUT = memoize(
     })
 );
 export const DUMMY_CHANGE_OUTPUT = memoize(
-  (descriptor: string, network: Network) => {
+  (account: string, network: Network) => {
     return new Output({
-      descriptor,
+      descriptor: account.replace(/\/0\/\*/g, '/1/*'),
       index: 0,
       network
     });

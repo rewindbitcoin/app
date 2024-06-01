@@ -23,7 +23,7 @@ import {
 import { shallowEqualArrays } from 'shallow-equal';
 
 import { feeRateSampling } from './fees';
-import type { DiscoveryInstance } from '@bitcoinerlab/discovery';
+import type { DiscoveryInstance, TxAttribution } from '@bitcoinerlab/discovery';
 import { coinselect, vsize, dustThreshold } from '@bitcoinerlab/coinselect';
 import type { Explorer } from '@bitcoinerlab/explorer';
 import { type NetworkId, networkMapping } from './network';
@@ -123,10 +123,16 @@ type TxMap = Record<TxHex, { txId: TxId; fee: number; feeRate: number }>;
 type TriggerMap = Record<TxHex, Array<TxHex>>;
 
 export type UtxosData = Array<{
+  tx: Transaction;
   txHex: string;
   vout: number;
   output: OutputInstance;
 }>;
+export type HistoryData = Array<
+  TxAttribution & {
+    tx: Transaction;
+  }
+>;
 
 /**
  * For each utxo, get its corresponding:
@@ -171,6 +177,8 @@ export const getUtxosData = memoize(
         }
       }
       const txHex = discovery.getTxHex({ txId });
+      // It's free getting the tx from discovery (memoized). Pass it down:
+      const tx = discovery.getTransaction({ txId });
       return {
         ...descriptorAndIndex,
         output: new Output({
@@ -178,6 +186,7 @@ export const getUtxosData = memoize(
           ...(signersPubKeys !== undefined ? { signersPubKeys } : {}),
           network
         }),
+        tx,
         txHex,
         vout
       };
@@ -185,9 +194,28 @@ export const getUtxosData = memoize(
   }
 );
 
+/**
+ * Returns an array of TxAttribution including also the Transaction.
+ * Note that it's fine using memoize and just check for changes in history.
+ * The rest of params are just tooling to complete utxosData but won't change
+ * the result
+ */
+export const getHistoryData = memoize(
+  (
+    history: Array<TxAttribution>,
+    discovery: DiscoveryInstance
+  ): HistoryData => {
+    return history.map(txAttribution => ({
+      ...txAttribution,
+      // It's free getting the tx from discovery (memoized). Pass it down:
+      tx: discovery.getTransaction({ txId: txAttribution.txId })
+    }));
+  }
+);
+
 export const getOutputsWithValue = memoize((utxosData: UtxosData) =>
   utxosData.map(utxo => {
-    const out = Transaction.fromHex(utxo.txHex).outs[utxo.vout];
+    const out = utxo.tx.outs[utxo.vout];
     if (!out) throw new Error('Invalid utxo');
     return { output: utxo.output, value: out.value };
   })
@@ -938,11 +966,11 @@ export { selectVaultUtxosDataMemo as selectVaultUtxosData };
  * returns all the descriptors which can be spent right now (hot)
  * This includes: spendable vaults, change and external
  */
-export const getHotDescriptors = async (
+export const getHotDescriptors = (
   vaults: Vaults,
   vaultsStatuses: VaultsStatuses,
-  discovery: DiscoveryInstance,
-  accounts: Accounts
+  accounts: Accounts,
+  blockhainTip: number
 ) => {
   if (!areVaultsSynched(vaults, vaultsStatuses))
     throw new Error('vaults and statuses not synched');
@@ -956,11 +984,7 @@ export const getHotDescriptors = async (
     //No need to do extra computations. If there are no
     //accounts, then there are no vaults
     descriptors.push(
-      ...getHotTriggerDescriptors(
-        vaults,
-        vaultsStatuses,
-        await discovery.getExplorer().fetchBlockHeight()
-      )
+      ...getHotTriggerDescriptors(vaults, vaultsStatuses, blockhainTip)
     );
   return descriptors;
 };

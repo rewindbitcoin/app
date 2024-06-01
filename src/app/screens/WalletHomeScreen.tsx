@@ -77,6 +77,7 @@ const WalletHomeScreen = () => {
     vaults,
     vaultsStatuses,
     utxosData,
+    historyData,
     syncBlockchain,
     syncingBlockchain,
     wallet,
@@ -387,11 +388,17 @@ const WalletHomeScreen = () => {
         )}
         {activeTabIndex === 1 && (
           <View className="self-center">
-            {Array.from({ length: 100 }, (_, index) => (
-              <View key={index}>
-                <Text>Text {index}</Text>
-              </View>
-            ))}
+            {historyData &&
+              [...historyData].reverse().map(history => {
+                return (
+                  <View key={history.txId} className="flex-col p-4">
+                    <Text>{history.blockHeight}</Text>
+                    <Text>{history.txId}</Text>
+                    <Text>{history.type}</Text>
+                    <Text>{history.netReceived}</Text>
+                  </View>
+                );
+              })}
           </View>
         )}
 
