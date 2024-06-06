@@ -40,14 +40,15 @@ function AmountInput({
   const context = useContext<WalletContextType | null>(WalletContext);
   if (context === null) throw new Error('Context was not set');
   const { btcFiat } = context;
-  const { settings } = useSettings();
+  const { settings, setSettings } = useSettings();
   if (!settings)
     throw new Error(
       'This component should only be started after settings has been retrieved from storage'
     );
-  const [mode, setMode] = useState<SubUnit | 'Fiat'>(
-    typeof btcFiat !== 'number' ? 'Fiat' : settings.SUB_UNIT
-  );
+  const mode =
+    settings.FIAT_MODE && typeof btcFiat === 'number'
+      ? 'Fiat'
+      : settings.SUB_UNIT;
 
   const [showUnitsModal, setShowUnitsModal] = useState<boolean>(false);
 
@@ -69,10 +70,14 @@ function AmountInput({
     setShowUnitsModal(true);
   }, []);
 
-  const onUnitSelect = useCallback((unit: SubUnit | 'Fiat') => {
-    setShowUnitsModal(false);
-    setMode(unit);
-  }, []);
+  const onModeSelect = useCallback(
+    (mode: SubUnit | 'Fiat') => {
+      setShowUnitsModal(false);
+      if (mode === 'Fiat') setSettings({ ...settings, FIAT_MODE: true });
+      else setSettings({ ...settings, SUB_UNIT: mode, FIAT_MODE: false });
+    },
+    [settings, setSettings]
+  );
 
   const formatValue = useCallback(
     (modeValue: number) => {
@@ -127,11 +132,11 @@ function AmountInput({
       />
       <UnitsModal
         isVisible={showUnitsModal}
-        unit={mode}
+        mode={mode}
         locale={settings.LOCALE}
         currency={settings.CURRENCY}
         btcFiat={btcFiat}
-        onSelect={onUnitSelect}
+        onSelect={onModeSelect}
         onClose={() => setShowUnitsModal(false)}
       />
     </>

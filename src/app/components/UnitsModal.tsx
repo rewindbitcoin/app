@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import { View } from 'react-native';
 import { Modal, VerticalChoice, Text, useTheme } from '../../common/ui';
 import type { Locale } from '../../i18n-locales/init';
@@ -7,10 +7,9 @@ import { subUnits, SubUnit } from '../lib/settings';
 import { fromSats } from '../lib/btcRates';
 import { numberToLocalizedString } from '../../common/lib/numbers';
 
-const modes = ['Fiat', ...subUnits] as Array<SubUnit | 'Fiat'>;
 export default function UnitsModal({
   isVisible,
-  unit,
+  mode,
   currency,
   btcFiat,
   locale,
@@ -18,7 +17,7 @@ export default function UnitsModal({
   onClose
 }: {
   isVisible: boolean;
-  unit?: SubUnit | 'Fiat';
+  mode?: SubUnit | 'Fiat';
   currency: string;
   btcFiat: number | null | undefined;
   locale: Locale;
@@ -27,6 +26,11 @@ export default function UnitsModal({
 }) {
   const { t } = useTranslation();
   const theme = useTheme();
+  //Don't let the user pick Fiat mode if btcFiat is still not set...
+  const modes: Array<SubUnit | 'Fiat'> = useMemo(
+    () => (typeof btcFiat !== 'number' ? [...subUnits] : ['Fiat', ...subUnits]),
+    [btcFiat]
+  );
   const choices = modes.map(mode => {
     const modeAmount = fromSats(1e8, mode, btcFiat);
     const presentedUnit = mode === 'Fiat' ? currency : mode;
@@ -64,7 +68,7 @@ export default function UnitsModal({
       {...(onClose ? { onClose } : {})}
     >
       <VerticalChoice
-        {...(unit === undefined ? {} : { index: modes.indexOf(unit) })}
+        {...(mode === undefined ? {} : { index: modes.indexOf(mode) })}
         choices={choices}
         onSelect={handleSelect}
       />
