@@ -444,7 +444,10 @@ const WalletProviderRaw = ({
         if (
           descriptors.every(descriptor => discovery.whenFetched({ descriptor }))
         ) {
-          const { utxos } = discovery.getUtxosAndBalance({ descriptors });
+          const { utxos, balance } = discovery.getUtxosAndBalance({
+            descriptors
+          });
+          console.log('TRACE', { utxos, balance });
           const walletUtxosData = getUtxosData(
             utxos,
             vaults,
@@ -749,6 +752,7 @@ const WalletProviderRaw = ({
         //Note here they are not atomically set, so when using vaults one
         //must make sure they are synched somehow - See Vaults.tsx for an
         //example what to do
+        console.warn('TRACE, setVaults and setVaultsStatuses');
         await Promise.all([
           setVaults({ ...vaults, [vault.vaultId]: vault }),
           setVaultsStatuses({
@@ -759,6 +763,7 @@ const WalletProviderRaw = ({
         //TODO: enable this after tests. important to push after AWAIT setVaults
         //if successful
         //TODO: try-catch push result. This and all pushes in code.
+        console.warn('TODO, very important to make sure this worked');
         await discovery.getExplorer().push(vault.vaultTxHex);
 
         return true;

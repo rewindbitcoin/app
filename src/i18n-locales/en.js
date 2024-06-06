@@ -209,9 +209,16 @@ Vaults are time-locked, meaning that when an attack occurs, you have a few days 
 Here's how it works: during the time-lock, your funds can only be moved to a special Bitcoin address known as the Emergency Address. This address is protected by an Emergency Recovery Phrase, which acts like a password and is different from your regular one. This emergency phrase must be stored in an ultra-secure location beforehand.
 
 You'll find contextual help icons next to each input field during the Vault Set Up with more speciffic explanations.`,
-    notEnoughFunds:
-      '<group>ThunderDen establishes a minimum vaulting amount.\nThis assumes express transaction confirmations and the possibility of ultra-high network fees when unvaulting.</group><group><strong>Suggested Addition:</strong> Add about {{missingFunds}} to reach the vaulting minimum.\nNote that the exact vaultable amount might slightly differ due to changes in network fee conditions.</group>',
-    amountLabel: 'Vault Amount',
+    notEnoughFunds: `<strong>Minimum Vault Amount Notice</strong>
+
+ThunderDen requires a minimum amount to be frozen to ensure it is financially worthwhile for you.
+
+Essentially, we want to make sure you will still have a significant amount of Bitcoin (more than {{minRecoverableRatioPct}}%) after unlocking or recovering your funds in the event of an emergency.
+
+This minimum amount is calculated based on the assumption that you may need rapid transaction confirmations and that future network fees could become extremely high ({{feeRateCeilingK}} Ksats/vB).
+
+<strong>Suggested Action:</strong> Please add {{missingFunds}} to reach the minimum amount required for vaulting.`,
+    amountLabel: 'Amount to Freeze',
     securityLockTimeLabel: 'Theft-Protection Time-Lock',
     securityLockTimeDescription: 'Available {{blocks}} after defreeze',
     confirmationSpeedLabel: 'Vault Confirmation Speed',
@@ -347,6 +354,7 @@ You can either use the 'Create' wizard to generate a new emergency address or us
   },
   continueButton: 'Continue',
   okButton: 'OK',
+  goBack: 'Go Back',
   verifyButton: 'Verify',
   skipButton: 'Skip',
   confirmButton: 'Confirm',

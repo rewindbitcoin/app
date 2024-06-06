@@ -10,13 +10,11 @@ import {
   areVaultsSynched
 } from '../lib/vaults';
 import UnitsModal from './UnitsModal';
-import type { Currency, SubUnit } from '../lib/settings';
+import type { SubUnit } from '../lib/settings';
 import { useSettings } from '../hooks/useSettings';
 import { IconButton } from '../../common/ui';
-import { formatFiat, fromSats } from '../lib/btcRates';
+import { formatBalance } from '../lib/format';
 import FreezeIcon from './FreezeIcon';
-import { numberToLocalizedString } from '../../common/lib/numbers';
-import type { Locale } from '../../i18n-locales/init';
 import { useTranslation } from 'react-i18next';
 import type { NetworkId } from '../lib/network';
 
@@ -72,24 +70,6 @@ const Balance = ({
   );
 };
 
-const formatBalance = ({
-  balance,
-  currency,
-  locale,
-  mode
-}: {
-  balance: number;
-  currency: Currency;
-  locale: Locale;
-  mode: SubUnit | 'Fiat';
-}) => {
-  if (mode === 'Fiat') {
-    return formatFiat({ amount: balance, locale, currency });
-  } else {
-    return numberToLocalizedString(balance, locale);
-  }
-};
-
 const WalletHeader = ({
   networkId,
   utxosData,
@@ -107,21 +87,27 @@ const WalletHeader = ({
 }) => {
   const { t } = useTranslation();
   const [showUnitsModal, setShowUnitsModal] = useState<boolean>(false);
-  const { settings } = useSettings();
+  const { settings, setSettings } = useSettings();
   if (!settings)
     throw new Error(
       'This component should only be started after settings has been retrieved from storage'
     );
-  const [mode, setMode] = useState<SubUnit | 'Fiat'>(
-    typeof btcFiat !== 'number' ? 'Fiat' : settings.SUB_UNIT
-  );
+  const mode =
+    settings.FIAT_MODE && typeof btcFiat === 'number'
+      ? 'Fiat'
+      : settings.SUB_UNIT;
   const onUnitPress = useCallback(() => {
     setShowUnitsModal(true);
   }, []);
-  const onUnitSelect = useCallback((unit: SubUnit | 'Fiat') => {
-    setShowUnitsModal(false);
-    setMode(unit);
-  }, []);
+  const onModeSelect = useCallback(
+    (mode: SubUnit | 'Fiat') => {
+      console.log('onModeSelect', { mode });
+      setShowUnitsModal(false);
+      if (mode === 'Fiat') setSettings({ ...settings, FIAT_MODE: true });
+      else setSettings({ ...settings, SUB_UNIT: mode, FIAT_MODE: false });
+    },
+    [settings, setSettings]
+  );
   const balance = utxosData ? utxosDataBalance(utxosData) : undefined;
   const frozenBalance =
     vaults && vaultsStatuses && areVaultsSynched(vaults, vaultsStatuses)
@@ -136,10 +122,11 @@ const WalletHeader = ({
             balance === undefined || faucetPending
               ? undefined
               : formatBalance({
-                  mode: mode,
-                  balance: fromSats(balance, mode, btcFiat),
+                  satsBalance: balance,
+                  btcFiat,
+                  currency: settings.CURRENCY,
                   locale: settings.LOCALE,
-                  currency: settings.CURRENCY
+                  mode
                 })
           }
           iconText={mode === 'Fiat' ? settings.CURRENCY : mode}
@@ -151,10 +138,11 @@ const WalletHeader = ({
             frozenBalance === undefined
               ? undefined
               : formatBalance({
-                  mode: mode,
-                  balance: fromSats(frozenBalance, mode, btcFiat),
+                  satsBalance: frozenBalance,
+                  btcFiat,
+                  currency: settings.CURRENCY,
                   locale: settings.LOCALE,
-                  currency: settings.CURRENCY
+                  mode
                 })
           }
           iconText={mode === 'Fiat' ? settings.CURRENCY : mode}
@@ -171,11 +159,11 @@ const WalletHeader = ({
       )}
       <UnitsModal
         isVisible={showUnitsModal}
-        unit={mode}
+        mode={mode}
         locale={settings.LOCALE}
         currency={settings.CURRENCY}
         btcFiat={btcFiat}
-        onSelect={onUnitSelect}
+        onSelect={onModeSelect}
         onClose={() => setShowUnitsModal(false)}
       />
     </View>

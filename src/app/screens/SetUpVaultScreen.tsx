@@ -20,7 +20,8 @@ import {
   DUMMY_VAULT_OUTPUT,
   DUMMY_SERVICE_OUTPUT,
   DUMMY_CHANGE_OUTPUT,
-  getMainAccount
+  getMainAccount,
+  DUMMY_PKH_ADDRESS
 } from '../lib/vaultDescriptors';
 
 import { pickFeeEstimate } from '../lib/fees';
@@ -89,6 +90,8 @@ export default function VaultSetUp({
     //The most restrictive minVaultAmount, that is the LARGEST value possible
     //(computed assuming the user chose the largest feeRate):
     //This will be the min selectable value in the Slider
+    //If the user has less than largestMinVaultAmount then we will display a
+    //notEnoughFund notice in the Screen and won't allow to continue
     largestMinVaultAmount
   }: {
     maxVaultAmount: number | undefined;
@@ -97,6 +100,7 @@ export default function VaultSetUp({
   } = estimateVaultSetUpRange({
     accounts,
     utxosData,
+    coldAddress: coldAddress || DUMMY_PKH_ADDRESS(network),
     maxFeeRate,
     network,
     serviceFeeRate: settings.SERVICE_FEE_RATE,
@@ -171,37 +175,42 @@ export default function VaultSetUp({
       <View style={styles.content}>
         <View style={styles.intro}>
           {isValidVaultRange ? (
-            <Text>{t('vaultSetup.intro')}</Text>
+            <>
+              <Text>{t('vaultSetup.intro')}</Text>
+              <View className="self-start" style={styles.introMoreHelpButton}>
+                <Button mode="text" onPress={showVaultsHelp}>
+                  {t('vaultSetup.introMoreHelp')}
+                </Button>
+              </View>
+            </>
           ) : (
-            <Trans
-              i18nKey="vaultSetup.notEnoughFunds"
-              values={{
-                missingFunds: formatBtc(
-                  {
-                    amount: missingFunds * 1.1, //Ask for 10% more than needed
-                    subUnit: settings.SUB_UNIT,
-                    btcFiat,
-                    locale: settings.LOCALE,
-                    currency: settings.CURRENCY
-                  },
-                  t
-                )
-              }}
-              components={{
-                strong: <Text style={{ fontWeight: 'bold' }} />,
-                group: React.createElement(({ children }) => (
-                  <View style={styles.missingFundsGroup}>
-                    <Text>{children}</Text>
-                  </View>
-                ))
-              }}
-            />
+            <Text>
+              <Trans
+                i18nKey="vaultSetup.notEnoughFunds"
+                values={{
+                  missingFunds: formatBtc(
+                    {
+                      amount: missingFunds * 1.03, //Ask for 3% more than needed
+                      subUnit: settings.SUB_UNIT,
+                      btcFiat,
+                      locale: settings.LOCALE,
+                      currency: settings.CURRENCY
+                    },
+                    t
+                  ),
+                  minRecoverableRatioPct: parseFloat(
+                    (settings.MIN_RECOVERABLE_RATIO * 100).toFixed(2)
+                  ).toString(),
+                  feeRateCeilingK: parseFloat(
+                    (settings.PRESIGNED_FEE_RATE_CEILING / 1000).toFixed(2)
+                  ).toString()
+                }}
+                components={{
+                  strong: <Text style={{ fontWeight: 'bold' }} />
+                }}
+              />
+            </Text>
           )}
-          <View className="self-start" style={styles.introMoreHelpButton}>
-            <Button mode="text" onPress={showVaultsHelp}>
-              {t('vaultSetup.introMoreHelp')}
-            </Button>
-          </View>
         </View>
         {isValidVaultRange && (
           <>
@@ -236,17 +245,19 @@ export default function VaultSetUp({
             />
           </>
         )}
-        <View style={styles.buttonGroup}>
-          <Button onPress={navigation.goBack}>{t('cancelButton')}</Button>
-          {
+        {isValidVaultRange ? (
+          <View style={styles.buttonGroup}>
+            <Button onPress={navigation.goBack}>{t('cancelButton')}</Button>
             <View style={styles.buttonSpacing}>
               <Button disabled={!allFieldsValid} onPress={handleOK}>
                 {t('continueButton')}
               </Button>
             </View>
-          }
-        </View>
-        {!allFieldsValid && (
+          </View>
+        ) : (
+          <Button onPress={navigation.goBack}>{t('goBack')}</Button>
+        )}
+        {!allFieldsValid && isValidVaultRange && (
           <Text className="text-center text-amber-600 native:text-sm web:text-xs pt-2">
             {coldAddress
               ? t('vaultSetup.fillInAll')

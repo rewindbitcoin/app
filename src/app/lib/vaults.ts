@@ -376,6 +376,24 @@ export async function createVault({
   | 'USER_CANCEL'
   | 'UNKNOWN_ERROR'
 > {
+  console.log({
+    amount,
+    unvaultKey,
+    samples,
+    feeRate,
+    serviceFeeRate,
+    feeRateCeiling,
+    coldAddress,
+    changeDescriptor,
+    serviceAddress,
+    lockBlocks,
+    signer,
+    networkId,
+    utxosData,
+    nextVaultId,
+    nextVaultPath,
+    onProgress
+  });
   try {
     let signaturesProcessed = 0;
     let minPanicBalance = amount;
@@ -407,6 +425,14 @@ export async function createVault({
     });
     if (!selected) return 'COINSELECT_ERROR';
     const vaultUtxosData = selected.vaultUtxosData;
+    const vaultTargets = selected.targets;
+    const vaultFee = selected.fee;
+    if (vaultTargets[0]?.output !== vaultOutput)
+      throw new Error("coinselect first output should be the vault's output");
+    if (vaultTargets.length > 3)
+      throw new Error(
+        'coinselect ouputs should be vault, fee and change at most'
+      );
 
     const feeRates = feeRateSampling({
       samples,
@@ -427,8 +453,10 @@ export async function createVault({
     ////////////////////////////////
 
     const vaultBalance = amount - selected.serviceFee;
-    const vaultFee = utxosDataBalance(vaultUtxosData) - amount;
-
+    if (vaultBalance !== vaultTargets[0].value)
+      throw new Error(
+        'The coinselect algo should take into account service fee'
+      );
     const psbtVault = new Psbt({ network });
     //Add the inputs to psbtVault:
     const vaultFinalizers = [];
@@ -442,20 +470,22 @@ export async function createVault({
       });
       vaultFinalizers.push(inputFinalizer);
     }
-
-    //Add the output to psbtVault assuming feeRate:
-    vaultOutput.updatePsbtAsOutput({ psbt: psbtVault, value: vaultBalance });
-    if (selected.serviceFee > 0)
-      serviceOutput.updatePsbtAsOutput({
+    for (const target of vaultTargets) {
+      target.output.updatePsbtAsOutput({
         psbt: psbtVault,
-        value: selected.serviceFee
+        value: target.value
       });
+    }
     //Sign
     await signPsbt(signer, network, psbtVault);
     //Finalize
     vaultFinalizers.forEach(finalizer => finalizer({ psbt: psbtVault }));
     const txVault = psbtVault.extractTransaction(true);
     const vaultTxHex = txVault.toHex();
+    if (txVault.virtualSize() !== selected.vsize)
+      throw new Error(
+        'coinselected estimated a different vsize than the final one'
+      );
     const feeRateVault = vaultFee / txVault.virtualSize();
     if (feeRateVault < 1) return 'UNKNOWN_ERROR';
     txMap[vaultTxHex] = {
@@ -507,8 +537,12 @@ export async function createVault({
       );
       const triggerBalance = vaultBalance - feeTrigger;
 
-      if (triggerBalance <= dustThreshold(triggerOutput))
+      if (triggerBalance <= dustThreshold(triggerOutput)) {
+        console.warn(
+          `triggerBalance <= dust: ${triggerBalance} <= ${dustThreshold(triggerOutput)}`
+        );
         return 'NOT_ENOUGH_FUNDS';
+      }
 
       //Add the output to psbtTrigger:
       triggerOutput.updatePsbtAsOutput({
@@ -560,8 +594,12 @@ export async function createVault({
         );
         const panicBalance = triggerBalance - feePanic;
 
-        if (panicBalance <= dustThreshold(coldOutput))
+        if (panicBalance <= dustThreshold(coldOutput)) {
+          console.warn(
+            `panicBalance <= dust: ${panicBalance} <= ${dustThreshold(coldOutput)}`
+          );
           return 'NOT_ENOUGH_FUNDS';
+        }
         if (panicBalance < minPanicBalance) minPanicBalance = panicBalance;
 
         feePanicArray.push(feePanic);
@@ -642,7 +680,7 @@ export const estimateTriggerTxSize = memoize((lockBlocks: number) => {
     ]
   );
 });
-const estimatePanicTxSize = moize(
+export const estimatePanicTxSize = moize(
   (lockBlocks: number, coldAddress: string, network: Network) =>
     vsize(
       [
@@ -657,7 +695,8 @@ const estimatePanicTxSize = moize(
         })
       ],
       [new Output({ descriptor: createColdDescriptor(coldAddress), network })]
-    )
+    ),
+  { maxSize: 100 }
 );
 
 export function validateAddress(addressValue: string, network: Network) {
@@ -704,8 +743,19 @@ function getRemainingBlocks(
   return remainingBlocks;
 }
 
-const getVaultVaultedBalance = (vault: Vault, vaultStatus: VaultStatus) => {
-  if (vaultStatus.panicTxHex || vaultStatus.spendAsHotTxHex) return 0;
+export const getVaultVaultedBalance = (
+  vault: Vault,
+  vaultStatus: VaultStatus
+) => {
+  console.warn(
+    'TODO - in fact here, first make sure that the vault was really pushed and is either mined or at least in the mempool'
+  );
+  if (
+    vaultStatus.vaultTxBlockHeight === undefined ||
+    vaultStatus.panicTxHex ||
+    vaultStatus.spendAsHotTxHex
+  )
+    return 0;
 
   const vaultTx = Transaction.fromHex(vault.vaultTxHex);
   const vaultOutput = vaultTx.outs[0];

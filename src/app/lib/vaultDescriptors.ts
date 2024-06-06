@@ -30,6 +30,15 @@ export const DUMMY_SERVICE_ADDRESS = (network: Network) => {
   else throw new Error('Network not supported');
 };
 
+export const DUMMY_PKH_ADDRESS = (network: Network) => {
+  if (network === networks.bitcoin) return '1HoY94QENW9KijWkN2fqSHZXCpa8bd9ENi';
+  else if (network === networks.regtest)
+    return 'mpmckE36w9mPpricj6aPY3jkG2VcXxGEb8';
+  else if (network === networks.testnet)
+    return 'mpmckE36w9mPpricj6aPY3jkG2VcXxGEb8';
+  else throw new Error('Network not supported');
+};
+
 export const DUMMY_VAULT_OUTPUT = memoize(
   (network: Network) =>
     new Output({

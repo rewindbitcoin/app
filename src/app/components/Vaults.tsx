@@ -1,71 +1,79 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo } from 'react';
 import { View, Text } from 'react-native';
-import type {
-  Vault,
-  VaultStatus,
-  VaultsStatuses,
-  Vaults as VaultsType
+import {
+  type Vault,
+  type VaultStatus,
+  type VaultsStatuses,
+  type Vaults as VaultsType,
+  getVaultVaultedBalance
 } from '../lib/vaults';
-import { fetchBlockTimestamp } from '../lib/blockchain';
 import { useTranslation } from 'react-i18next';
 import { delegateVault } from '../lib/backup';
 import { ActivityIndicator, Button } from '../../common/ui';
+import { formatBalance } from '../lib/format';
+
+import { useSettings } from '../hooks/useSettings';
 
 const Vault = ({
-  esploraAPI,
+  btcFiat,
   vault,
   vaultStatus
 }: {
-  esploraAPI: string;
+  btcFiat: number | undefined;
   vault: Vault;
   vaultStatus: VaultStatus;
 }) => {
-  const [vaultBlockDate, setVaultBlockDate] = useState<string | null>(null);
+  const { settings } = useSettings();
+  if (!settings)
+    throw new Error(
+      'This component should only be started after settings has been retrieved from storage'
+    );
+  const mode =
+    settings.FIAT_MODE && typeof btcFiat === 'number'
+      ? 'Fiat'
+      : settings.SUB_UNIT;
+  console.log({ vault, vaultStatus });
+  const getVaultInitDate = (vault: Vault, vaultStatus: VaultStatus) => {
+    //vaultPushTime is a bit more precise but may not be available in a device
+    //using the same mnemonic. creationTime is good enough.
+    //Remember there are some props in vaultStatus that
+    //are used to keep internal track of user actions. See docs on VaultStatus.
+    const creationOrPushTime = vaultStatus.vaultPushTime || vault.creationTime;
+    const formattedDate = new Date(creationOrPushTime * 1000).toLocaleString();
+    return (
+      `TODO vault created on ${formattedDate}.` +
+      (vaultStatus.vaultTxBlockHeight === undefined
+        ? ` - ${'TODO confirming...'}`
+        : '')
+    );
+  };
 
-  useEffect(() => {
-    const fetchTimestamp = async () => {
-      if (vaultStatus.vaultTxBlockHeight) {
-        try {
-          const timestamp = await fetchBlockTimestamp(
-            esploraAPI,
-            vaultStatus.vaultTxBlockHeight
-          );
-          const date = new Date(timestamp * 1000).toLocaleString(); // Convert to human-readable date
-          setVaultBlockDate(date);
-        } catch (error) {
-          throw new Error('Error fetching block timestamp.');
-        }
-      }
-    };
+  const frozenBalance = getVaultVaultedBalance(vault, vaultStatus);
 
-    fetchTimestamp();
-  }, [vaultStatus, esploraAPI]);
   return (
     <>
       <Text>{vault.vaultId}</Text>
-      <Text
-        className={
-          vaultStatus.vaultTxBlockHeight && vaultBlockDate === null
-            ? 'animate-pulse bg-slate-200 rounded'
-            : 'bg-transparent'
-        }
-      >
-        {!vaultStatus.vaultTxBlockHeight
-          ? 'TODO Your vault is waiting to be confirmed...'
-          : vaultBlockDate === null
-            ? '      '
-            : `TODO Funds frozen on ${vaultBlockDate}`}
+      <Text>{getVaultInitDate(vault, vaultStatus)}</Text>
+      <Text>
+        TODO Vaulted Amount:{' '}
+        {formatBalance({
+          satsBalance: frozenBalance,
+          btcFiat,
+          currency: settings.CURRENCY,
+          locale: settings.LOCALE,
+          mode
+        }) + (mode === 'Fiat' ? '' : ' ' + mode)}
       </Text>
     </>
   );
 };
 
 const Vaults = ({
-  esploraAPI,
+  btcFiat,
   vaults,
   vaultsStatuses
 }: {
-  esploraAPI: string;
+  btcFiat: number | undefined;
   vaults: VaultsType;
   vaultsStatuses: VaultsStatuses;
 }) => {
@@ -102,7 +110,7 @@ const Vaults = ({
               <ActivityIndicator size={'large'} />
             ) : (
               <Vault
-                esploraAPI={esploraAPI}
+                btcFiat={btcFiat}
                 vault={vault}
                 vaultStatus={vaultStatus}
               />

@@ -377,7 +377,7 @@ const WalletHomeScreen = () => {
               <Vaults
                 vaults={vaults}
                 vaultsStatuses={vaultsStatuses}
-                esploraAPI={esploraAPI}
+                btcFiat={btcFiat}
               />
             )}
             <Button

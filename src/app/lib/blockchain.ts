@@ -1,3 +1,4 @@
+import moize from 'moize';
 // Define interfaces for type safety
 interface BlockStatus {
   confirmed: boolean;
@@ -50,16 +51,16 @@ async function getBlockDetails(
 }
 
 // Function to get the block timestamp
-export async function fetchBlockTimestamp(
-  esploraAPI: string,
-  blockHeight: number
-): Promise<number> {
-  // Get the block ID from the block height
-  const blockId = await getBlockId(esploraAPI, blockHeight);
+export const fetchBlockTimestamp = moize.promise(
+  async (esploraAPI: string, blockHeight: number): Promise<number> => {
+    // Get the block ID from the block height
+    const blockId = await getBlockId(esploraAPI, blockHeight);
 
-  // Fetch the block details using the block ID
-  const blockData = await getBlockDetails(esploraAPI, blockId);
+    // Fetch the block details using the block ID
+    const blockData = await getBlockDetails(esploraAPI, blockId);
 
-  // Return the block timestamp
-  return blockData.timestamp;
-}
+    // Return the block timestamp
+    return blockData.timestamp;
+  },
+  { maxSize: 100 }
+);

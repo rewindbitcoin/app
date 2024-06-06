@@ -151,6 +151,9 @@ export default function VaultCreate({
         }
       } else {
         //TODO: Else must Toast the Error! - Also must close the modal ?!?!?
+        console.warn(
+          'TODO: Else must Toast the Error! - Also must close the modal ?!?!?'
+        );
       }
     };
     createAndNotifyVault();
