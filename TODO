@@ -9,8 +9,28 @@ Swap el orden de Create <-> Create en Vault SetUp
 
 Lo de MAX_VAULT_CHECKS es cutre no???
 
+Wallet (abandon testnet ) en web es inusable por unos pocos segundos cuando se abre.
+Hay algun cálculo lentísimo que bloquea el input.
 
-Joder, si importo abandon abandon, entonces solo me usa la cuenta cero de segwit.
+
+Investigate the notEnoughFunds calculated - looks too high!
+The notEnoughFunds text sucks. Also does not use the Freeze wording
+
+The initial search of funds should have a blinking hidden Amount and Vault Amount
+when importing in the Header. It shows zero when importing abandon which is not
+correct and user may be mislead.
+
+Si tras crear un vvault cambio de Screen yo muy rapido y se ha metido el backup
+u entonces cambio de screen antes de aceptar todo, por tanto se saca de backup
+y se da por hecho que es válido aunque no haya habido push.
+
+
+xq notEnoughFunds es tan alto haciendo un vault q deje poco dinero?
+
+  Dont use Vault Amount .> But "Amount to Freeze"
+
+
+Joder, si importo abandon abandon, entonces solo me usa la cuenta co de segwit.
 	-> Esto está mal, cuando se haga import entonces tendré que tener todas o dejar
 elegir a la persona cual usar...
 
