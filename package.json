@@ -19,7 +19,7 @@
   },
   "dependencies": {
     "@babel/plugin-proposal-export-namespace-from": "^7.18.9",
-    "@bitcoinerlab/coinselect": "^1.2.0",
+    "@bitcoinerlab/coinselect": "^1.2.1",
     "@bitcoinerlab/descriptors": "^2.1.0",
     "@bitcoinerlab/discovery": "^1.0.3",
     "@bitcoinerlab/explorer": "^0.1.3",
