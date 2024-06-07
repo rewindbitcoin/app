@@ -20,7 +20,7 @@ export const DUMMY_PUBKEY =
 export const DUMMY_PUBKEY_2 =
   '038ffea936b2df76bf31220ebd56a34b30c6b86f40d3bd92664e2f5f98488dddfa';
 
-export const DUMMY_SERVICE_ADDRESS = (network: Network) => {
+export const DUMMY_SERVICE_ADDRESS = memoize((network: Network) => {
   if (network === networks.bitcoin)
     return 'bc1qp2u85wn9cekkw3khr3trpsznakhhfkekpk2mld';
   else if (network === networks.regtest)
@@ -28,16 +28,16 @@ export const DUMMY_SERVICE_ADDRESS = (network: Network) => {
   else if (network === networks.testnet)
     return 'tb1qm0k9mn48uqfs2w9gssvzmus4j8srrx5eje7wpf';
   else throw new Error('Network not supported');
-};
+});
 
-export const DUMMY_PKH_ADDRESS = (network: Network) => {
+export const DUMMY_PKH_ADDRESS = memoize((network: Network) => {
   if (network === networks.bitcoin) return '1HoY94QENW9KijWkN2fqSHZXCpa8bd9ENi';
   else if (network === networks.regtest)
     return 'mpmckE36w9mPpricj6aPY3jkG2VcXxGEb8';
   else if (network === networks.testnet)
     return 'mpmckE36w9mPpricj6aPY3jkG2VcXxGEb8';
   else throw new Error('Network not supported');
-};
+});
 
 export const DUMMY_VAULT_OUTPUT = memoize(
   (network: Network) =>

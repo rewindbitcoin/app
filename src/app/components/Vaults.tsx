@@ -32,7 +32,6 @@ const Vault = ({
     settings.FIAT_MODE && typeof btcFiat === 'number'
       ? 'Fiat'
       : settings.SUB_UNIT;
-  console.log({ vault, vaultStatus });
   const getVaultInitDate = (vault: Vault, vaultStatus: VaultStatus) => {
     //vaultPushTime is a bit more precise but may not be available in a device
     //using the same mnemonic. creationTime is good enough.
@@ -40,9 +39,11 @@ const Vault = ({
     //are used to keep internal track of user actions. See docs on VaultStatus.
     const creationOrPushTime = vaultStatus.vaultPushTime || vault.creationTime;
     const formattedDate = new Date(creationOrPushTime * 1000).toLocaleString();
+    console.log({ vaultTxBlockHeight: vaultStatus.vaultTxBlockHeight });
     return (
       `TODO vault created on ${formattedDate}.` +
-      (vaultStatus.vaultTxBlockHeight === undefined
+      (vaultStatus.vaultTxBlockHeight === undefined ||
+      vaultStatus.vaultTxBlockHeight === 0
         ? ` - ${'TODO confirming...'}`
         : '')
     );

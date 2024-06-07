@@ -61,9 +61,6 @@ const estimateMaxVaultAmount = moize.shallow(
     feeRate: number;
     serviceFeeRate: number;
   }) => {
-    //console.log('TRACE estimateMaxVaultAmount', { serviceFeeRate, feeRate });
-    // We cannot compute serviceFees yet because we don't know amounts but
-    // if serviceFeeRate, we will first assume there will a service output
     let coinselected:
       | {
           fee: number;
@@ -81,10 +78,6 @@ const estimateMaxVaultAmount = moize.shallow(
         remainder: vaultOutput,
         feeRate
       });
-      //console.log('TRACE estimateMaxVaultAmount', {
-      //  dustServiceFee,
-      //  coinselected
-      //});
     }
     if (coinselected) {
       // It looks like it was possible to add a service output. We
@@ -110,11 +103,6 @@ const estimateMaxVaultAmount = moize.shallow(
         remainder: vaultOutput,
         feeRate
       });
-      //console.log('TRACE estimateMaxVaultAmount', {
-      //  amount,
-      //  serviceFee,
-      //  finalCoinselected: coinselected
-      //});
     }
     if (!coinselected) {
       // At this point either it was impossible to add dust or it

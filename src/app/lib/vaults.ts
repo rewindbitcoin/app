@@ -376,24 +376,6 @@ export async function createVault({
   | 'USER_CANCEL'
   | 'UNKNOWN_ERROR'
 > {
-  console.log({
-    amount,
-    unvaultKey,
-    samples,
-    feeRate,
-    serviceFeeRate,
-    feeRateCeiling,
-    coldAddress,
-    changeDescriptor,
-    serviceAddress,
-    lockBlocks,
-    signer,
-    networkId,
-    utxosData,
-    nextVaultId,
-    nextVaultPath,
-    onProgress
-  });
   try {
     let signaturesProcessed = 0;
     let minPanicBalance = amount;
