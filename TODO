@@ -9,6 +9,8 @@ Swap el orden de Create <-> Create en Vault SetUp
 
 Lo de MAX_VAULT_CHECKS es cutre no???
 
+Probar craer Vault en Android, ahore me casca
+
 Wallet (abandon testnet ) en web es inusable por unos pocos segundos cuando se abre.
 Hay algun cálculo lentísimo que bloquea el input.
 
@@ -111,8 +113,6 @@ The days chooset in Vault SetUp should show a popup. Also, when choosing "blocks
 WalletHeader should say if its Testnet, Storm or Regtest (when its test wallet)
 
 cuando en la wallet doy a goBack tarda años
-
-On changing units, then make it permanent
 
 ok, so i made this REGTEST_FAUCET_API and STORM_FAUCET_API
 

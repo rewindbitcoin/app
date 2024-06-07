@@ -94,7 +94,7 @@ export default function VaultSetUp({
     //notEnoughFund notice in the Screen and won't allow to continue
     largestMinVaultAmount
   }: {
-    maxVaultAmount: number | undefined;
+   maxVaultAmount: number | undefined;
     lowestMaxVaultAmount: number;
     largestMinVaultAmount: number;
   } = estimateVaultSetUpRange({

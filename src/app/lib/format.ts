@@ -7,13 +7,15 @@ export const formatBalance = ({
   btcFiat,
   currency,
   locale,
-  mode
+  mode,
+  appendSubunit = false
 }: {
   satsBalance: number;
   btcFiat?: number | undefined;
   currency: Currency;
   locale: Locale;
   mode: SubUnit | 'Fiat';
+  appendSubunit?: boolean;
 }) => {
   if (mode === 'Fiat') {
     if (btcFiat === undefined)
@@ -24,6 +26,9 @@ export const formatBalance = ({
     return formatFiat({ amount: balance, locale, currency });
   } else {
     const balance = fromSats(satsBalance, mode, undefined);
-    return numberToLocalizedString(balance, locale);
+    return (
+      numberToLocalizedString(balance, locale) +
+      (appendSubunit ? ` ${mode}` : '')
+    );
   }
 };

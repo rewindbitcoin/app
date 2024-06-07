@@ -93,7 +93,13 @@ If you need further assistance, please contact ThunderDen Support.`
     },
     vault: {
       delegateButton: 'Delegate',
-      triggerDefreezeButton: 'Init Defreeze'
+      triggerUnfreezeButton: 'Init Unfreeze',
+      vaultTitle: 'Vault {{vaultNumber}}',
+      vaultDate: 'Created on {{date}}.',
+      amountFrozen: 'Amount Frozen',
+      frozenAmount: 'Amount Frozen: {{amount}}.',
+      confirming: 'Confirming…',
+      confirmed: 'Confirmed'
     }
   },
   walletHome: {
@@ -103,8 +109,8 @@ If you need further assistance, please contact ThunderDen Support.`
     faucetUnkownErrorMsg:
       "Oops! There was a glitch sending your coins. Tap 'Receive' to try getting your test coins again.",
     header: {
-      hotSubTitle: 'Available balance: Ready for immediate use',
-      frozenSubTitle: 'Frozen balance: Safeguarded in vaults',
+      hotSubTitle: 'Available Balance: Ready for immediate use',
+      frozenSubTitle: 'Frozen Balance: Safeguarded in vaults',
       testWalletWarning:
         'Test Wallet: Prices displayed as real Bitcoin for realism but hold no real value. ',
       regtestWalletPlusWarning: 'Fees mimic real ones for realism, too.'
@@ -220,7 +226,7 @@ This minimum amount is calculated based on the assumption that you may need rapi
 <strong>Suggested Action:</strong> Please add {{missingFunds}} to reach the minimum amount required for vaulting.`,
     amountLabel: 'Amount to Freeze',
     securityLockTimeLabel: 'Theft-Protection Time-Lock',
-    securityLockTimeDescription: 'Available {{blocks}} after defreeze',
+    securityLockTimeDescription: 'Available {{blocks}} after unfreeze',
     confirmationSpeedLabel: 'Vault Confirmation Speed',
     lockTimeError: 'Pick a valid Lock Time.',
     feeRateError: 'Pick a valid Fee Rate.',
