@@ -99,12 +99,20 @@ const WalletHomeScreen = () => {
   //When the user is notified about having detected some faucet funds:
   const faucetNotifiedRef = useRef<boolean>(false);
   const faucetDetectedRef = useRef<boolean>(false);
+
   useEffect(() => {
     faucetDetectedRef.current =
       faucetRequestedRef.current && !!historyData?.length;
-  }, [historyData]);
+    if (
+      faucetNotifiedRef.current === false &&
+      faucetDetectedRef.current &&
+      historyData?.length
+    ) {
+      faucetNotifiedRef.current = true;
+      toast.show(t('walletHome.faucetDetectedMsg'), { type: 'success' });
+    }
+  }, [historyData?.length, toast, t]);
 
-  //TODO: using here utxosData.length is bad because i might have spent the utxo and then its again length = 0
   const faucetPending: boolean =
     faucetRequestedRef.current && !historyData?.length;
   const syncingOrFaucetPending: boolean = syncingBlockchain || faucetPending;
@@ -163,6 +171,7 @@ const WalletHomeScreen = () => {
   const { faucetAPI, esploraAPI } = getAPIs(wallet?.networkId, settings);
   useEffect(() => {
     if (
+      historyData?.length === 0 &&
       wallet &&
       faucetAPI &&
       faucetRequestedRef.current === false &&
@@ -170,6 +179,7 @@ const WalletHomeScreen = () => {
       Object.keys(accounts).length &&
       isFirstLogin
     ) {
+      faucetRequestedRef.current = true;
       const network = wallet.networkId && networkMapping[wallet.networkId];
       (async () => {
         try {
@@ -189,15 +199,17 @@ const WalletHomeScreen = () => {
             });
         }
       })();
-      faucetRequestedRef.current = true;
     }
-  }, [faucetAPI, toast, wallet, isFirstLogin, accounts, syncBlockchain, t]);
-  useEffect(() => {
-    if (faucetNotifiedRef.current === false && faucetDetectedRef.current) {
-      faucetNotifiedRef.current = true;
-      toast.show(t('walletHome.faucetDetectedMsg'), { type: 'success' });
-    }
-  }, [utxosData?.length, toast, t]);
+  }, [
+    faucetAPI,
+    toast,
+    wallet,
+    isFirstLogin,
+    accounts,
+    syncBlockchain,
+    t,
+    historyData?.length
+  ]);
 
   const logOutAndGoBack = useCallback(() => {
     logOut();
