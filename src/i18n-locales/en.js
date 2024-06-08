@@ -13,8 +13,8 @@ export default {
     settingsTitle: 'Settings',
     btcRatesError:
       'Unable to retrieve current BTC rates. The displayed amounts in {{currency}} may not be accurate.',
-    feeEstimatesError:
-      'Unable to retrieve accurate fee estimates. Displayed transaction target times and fee amounts may be incorrect.',
+    blockchainDataError:
+      'Unable to retrieve up-to-date blockchain data. Transaction times and fee amounts may be slightly off. Please check your internet connection. Retrying in 60 seconds and will notify you if the problem persists.',
     secureStorageAuthenticationPrompt:
       "Please authenticate to access your wallet's sensitive data."
   },
@@ -95,10 +95,10 @@ If you need further assistance, please contact ThunderDen Support.`
       delegateButton: 'Delegate',
       triggerUnfreezeButton: 'Init Unfreeze',
       vaultTitle: 'Vault {{vaultNumber}}',
-      vaultDate: 'Created on {{date}}.',
+      vaultDate: 'Created on {{date}}',
       amountFrozen: 'Amount Frozen',
       frozenAmount: 'Amount Frozen: {{amount}}.',
-      confirming: 'Confirming…',
+      confirming: 'Confirming',
       confirmed: 'Confirmed'
     }
   },
