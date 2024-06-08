@@ -10,16 +10,16 @@ import {
   type VaultStatus,
   type VaultsStatuses,
   type Vaults as VaultsType,
-  getVaultVaultedBalance
+  getVaultVaultedBalance,
+  getRemainingBlocks
 } from '../lib/vaults';
+import VaultIcon from './VaultIcon';
 import { useTranslation } from 'react-i18next';
 import { delegateVault } from '../lib/backup';
 import { ActivityIndicator, Button } from '../../common/ui';
 import { formatBalance } from '../lib/format';
 
 import { useSettings } from '../hooks/useSettings';
-import FreezeIcon from './FreezeIcon';
-import { Svg } from 'react-native-svg';
 
 /*
  *
@@ -65,11 +65,13 @@ const getVaultInitDate = (vault: Vault, vaultStatus: VaultStatus) => {
 
 const Vault = ({
   btcFiat,
+  blockchainTip,
   vault,
   vaultNumber,
   vaultStatus
 }: {
   btcFiat: number | undefined;
+  blockchainTip: number | undefined;
   vault: Vault;
   vaultNumber: number;
   vaultStatus: VaultStatus | undefined;
@@ -95,6 +97,16 @@ const Vault = ({
   const frozenBalance =
     vaultStatus && getVaultVaultedBalance(vault, vaultStatus);
 
+  const remainingBlocks:
+    | 'LOADING'
+    | 'NOT_PUSHED'
+    | 'SPENT_AS_PANIC'
+    | 'SPENT_AS_HOT'
+    | number /*means it has been triggered*/ =
+    blockchainTip === undefined || vaultStatus === undefined
+      ? 'LOADING'
+      : getRemainingBlocks(vault, vaultStatus, blockchainTip);
+
   //<Text className="font-semibold text-primary-dark bg-primary text-white flex-1 p-4 w-full text-base">
   // TODO when not vaulted show: This Vault has been unfrozen and is moved to your available balance. TODO when panicked show: This Vault was rescued and was moved to your cold address: ADDRESS.
   return (
@@ -105,18 +117,7 @@ const Vault = ({
       {vaultStatus ? (
         <>
           <View className="flex-row items-center justify-start w-full p-4">
-            {vaultStatus.panicTxHex ? (
-              <Text>TODO Panic Icon</Text>
-            ) : vaultStatus.triggerTxHex ? (
-              <Text>TODO Trigger Icon - maybe hot already or not</Text>
-            ) : (
-              <Svg
-                className="native:text-base web:text-xs web:sm:text-base fill-none stroke-white stroke-2 w-6 h-6 bg-primary rounded-full p-0.5"
-                viewBox="0 0 24 24"
-              >
-                <FreezeIcon />
-              </Svg>
-            )}
+            <VaultIcon remainingBlocks={remainingBlocks} />
             <Text className="font-semibold text-slate-800 web:text-base native:text-lg pl-2 flex-shrink-0">
               {t('wallet.vault.vaultTitle', { vaultNumber })}
             </Text>
@@ -175,10 +176,12 @@ const Vault = ({
 
 const Vaults = ({
   btcFiat,
+  blockchainTip,
   vaults,
   vaultsStatuses
 }: {
   btcFiat: number | undefined;
+  blockchainTip: number | undefined;
   vaults: VaultsType;
   vaultsStatuses: VaultsStatuses;
 }) => {
@@ -196,6 +199,7 @@ const Vaults = ({
           <Vault
             key={vault.vaultId}
             btcFiat={btcFiat}
+            blockchainTip={blockchainTip}
             vault={vault}
             vaultNumber={sortedVaults.length - index}
             vaultStatus={vaultStatus}

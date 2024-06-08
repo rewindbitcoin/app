@@ -699,7 +699,7 @@ export function validateAddress(addressValue: string, network: Network) {
  * BIP68-non-final.
  *
  */
-function getRemainingBlocks(
+export function getRemainingBlocks(
   vault: Vault,
   vaultStatus: VaultStatus,
   blockhainTip: number
