@@ -83,6 +83,7 @@ const WalletHomeScreen = () => {
     walletError,
     requiresPassword,
     btcFiat,
+    blockchainData,
     onWallet,
     logOut,
     isFirstLogin,
@@ -92,6 +93,7 @@ const WalletHomeScreen = () => {
     throw new Error(
       `Navigated to walletId ${walletId} which does not correspond to the one in the context ${wallet?.walletId}`
     );
+  const blockchainTip = blockchainData?.blockchainTip;
 
   const faucetRequestedRef = useRef<boolean>(false);
   //When the user is notified about having detected some faucet funds:
@@ -383,6 +385,7 @@ const WalletHomeScreen = () => {
                 vaults={vaults}
                 vaultsStatuses={vaultsStatuses}
                 btcFiat={btcFiat}
+                blockchainTip={blockchainTip}
               />
             )}
           </View>

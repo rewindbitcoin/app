@@ -48,7 +48,8 @@ export default function VaultSetUp({
   if (context === null) {
     throw new Error('Context was not set');
   }
-  const { utxosData, networkId, feeEstimates, btcFiat, accounts } = context;
+  const { utxosData, networkId, blockchainData, btcFiat, accounts } = context;
+  const feeEstimates = blockchainData?.feeEstimates;
   if (!utxosData)
     throw new Error('SetUpVaultScreen cannot be called with unset utxos');
   if (!accounts)
@@ -94,7 +95,7 @@ export default function VaultSetUp({
     //notEnoughFund notice in the Screen and won't allow to continue
     largestMinVaultAmount
   }: {
-   maxVaultAmount: number | undefined;
+    maxVaultAmount: number | undefined;
     lowestMaxVaultAmount: number;
     largestMinVaultAmount: number;
   } = estimateVaultSetUpRange({

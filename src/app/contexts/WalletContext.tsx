@@ -75,7 +75,9 @@ export type WalletContextType = {
   fetchServiceAddress: () => Promise<string>;
   getUnvaultKey: () => Promise<string>;
   btcFiat: number | undefined;
-  feeEstimates: FeeEstimates | undefined;
+  blockchainData:
+    | { blockchainTip: number; feeEstimates: FeeEstimates }
+    | undefined;
   utxosData: UtxosData | undefined;
   historyData: HistoryData | undefined;
   signers: Signers | undefined;
@@ -163,9 +165,9 @@ const WalletProviderRaw = ({
     );
   }
 
-  const { blockchainData, setNetworkId: setFeeEstimatesNetworkId } =
+  const { blockchainData, setNetworkId: setBlockchainDataNetworkId } =
     useBlockchainData(wallet?.networkId);
-  const feeEstimates = blockchainData?.feeEstimates;
+  const blockchainTip = blockchainData?.blockchainTip;
 
   const { settings, settingsStorageStatus } = useSettings();
   const gapLimit = settings?.GAP_LIMIT;
@@ -360,7 +362,7 @@ const WalletProviderRaw = ({
        */
       signersCipherKey?: Uint8Array;
     }) => {
-      setFeeEstimatesNetworkId(walletDst.networkId);
+      setBlockchainDataNetworkId(walletDst.networkId);
       const walletId = walletDst.walletId;
       if (newSigners) {
         //Make sure we don't have values from previous app installs using the same id?
@@ -390,7 +392,7 @@ const WalletProviderRaw = ({
     [
       //logOut,
       t,
-      setFeeEstimatesNetworkId,
+      setBlockchainDataNetworkId,
       setNewSigners,
       setSignersCipherKey
     ]
@@ -432,9 +434,9 @@ const WalletProviderRaw = ({
         vaultsStatuses &&
         accounts &&
         network &&
+        blockchainTip &&
         discovery
       ) {
-        const blockchainTip = await discovery.getExplorer().fetchBlockHeight();
         const descriptors = getHotDescriptors(
           vaults,
           vaultsStatuses,
@@ -473,6 +475,7 @@ const WalletProviderRaw = ({
     utxosData,
     initialDiscovery,
     network,
+    blockchainTip,
     accounts,
     vaults,
     vaultsStatuses
@@ -542,6 +545,7 @@ const WalletProviderRaw = ({
       networkId &&
       gapLimit !== undefined &&
       discovery &&
+      blockchainTip &&
       vaults &&
       vaultsStatuses &&
       accounts &&
@@ -555,7 +559,6 @@ const WalletProviderRaw = ({
       vaultsAPI
     ) {
       const network = networkId && networkMapping[networkId];
-      const blockchainTip = await discovery.getExplorer().fetchBlockHeight();
 
       try {
         //First get updatedVaults & updatedVaultsStatuses:
@@ -692,6 +695,7 @@ const WalletProviderRaw = ({
     vaults,
     vaultsStatuses,
     networkId,
+    blockchainTip,
     signers,
     vaultsAPI,
     gapLimit
@@ -786,12 +790,12 @@ const WalletProviderRaw = ({
     getChangeDescriptor,
     fetchServiceAddress,
     btcFiat,
-    feeEstimates,
     signers,
     accounts,
     vaults,
     vaultsStatuses,
     networkId,
+    blockchainData,
     utxosData: walletId !== undefined ? utxosData[walletId] : undefined,
     historyData: walletId !== undefined ? historyData[walletId] : undefined,
     processCreatedVault,

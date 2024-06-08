@@ -22,7 +22,8 @@ function FeeInput({
 }) {
   const context = useContext<WalletContextType | null>(WalletContext);
   if (context === null) throw new Error('Context was not set');
-  const { feeEstimates, btcFiat } = context;
+  const { blockchainData, btcFiat } = context;
+  const feeEstimates = blockchainData?.feeEstimates;
   if (!feeEstimates)
     throw new Error('FeeInput cannot be called with unset feeEstimates');
   const { settings } = useSettings();
