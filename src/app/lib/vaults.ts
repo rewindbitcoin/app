@@ -464,10 +464,8 @@ export async function createVault({
     vaultFinalizers.forEach(finalizer => finalizer({ psbt: psbtVault }));
     const txVault = psbtVault.extractTransaction(true);
     const vaultTxHex = txVault.toHex();
-    if (txVault.virtualSize() !== selected.vsize)
-      throw new Error(
-        'coinselected estimated a different vsize than the final one'
-      );
+    if (txVault.virtualSize() > selected.vsize)
+      throw new Error('vsize larger than coinselected estimated one');
     const feeRateVault = vaultFee / txVault.virtualSize();
     if (feeRateVault < 1) return 'UNKNOWN_ERROR';
     txMap[vaultTxHex] = {

@@ -8,7 +8,6 @@ import React, {
 } from 'react';
 import Password from '../components/Password';
 import {
-  Button,
   View,
   Text,
   Pressable,
@@ -42,7 +41,6 @@ import WalletHeader from '../components/WalletHeader';
 import Vaults from '../components/Vaults';
 import type { RootStackParamList, NavigationPropsByScreenId } from '../screens';
 import { lighten } from 'polished';
-import { shareVaults } from '../lib/backup';
 
 import type { IconType } from '../../common/components/Modal';
 import { getAPIs } from '../lib/walletDerivedData';
@@ -220,11 +218,6 @@ const WalletHomeScreen = () => {
     if (walletError === 'USER_CANCEL') logOutAndGoBack();
   }, [walletError, logOutAndGoBack]);
 
-  const onRequestVaultsBackup = useCallback(() => {
-    if (!vaults) throw new Error('vaults not ready');
-    return shareVaults({ vaults });
-  }, [vaults]);
-
   // Use btcFiat, and any other data or functions provided by the context
   // ...
 
@@ -392,10 +385,6 @@ const WalletHomeScreen = () => {
                 btcFiat={btcFiat}
               />
             )}
-            <Button
-              title={t('walletHome.backupVaults')}
-              onPress={onRequestVaultsBackup}
-            />
           </View>
         )}
         {activeTabIndex === 1 && (

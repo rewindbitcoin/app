@@ -18,7 +18,6 @@ import { ActivityIndicator, Button } from '../../common/ui';
 import { formatBalance } from '../lib/format';
 
 import { useSettings } from '../hooks/useSettings';
-import type { TFunction } from 'i18next';
 import FreezeIcon from './FreezeIcon';
 import { Svg } from 'react-native-svg';
 
@@ -36,21 +35,32 @@ const getVaultInitDate = (vault: Vault, vaultStatus: VaultStatus) => {
   //Remember there are some props in vaultStatus that
   //are used to keep internal track of user actions. See docs on VaultStatus.
   const creationOrPushTime = vaultStatus.vaultPushTime || vault.creationTime;
-  const formattedDate = new Date(creationOrPushTime * 1000).toLocaleString();
-  return formattedDate;
-  //return (
-  //  t('wallet.vault.vaultDate', { date: formattedDate }) +
-  //  (vaultStatus.vaultTxBlockHeight === undefined ||
-  //  vaultStatus.vaultTxBlockHeight === 0
-  //    ? ` - ${'TODO confirming...'}`
-  //    : '')
-  //);
-};
 
-const confirmationAppend = (blockHeight: number | undefined, t: TFunction) => {
-  return ` ${
-    blockHeight ? t('wallet.vault.confirming') : t('wallet.vault.confirmed')
-  }`;
+  const date = new Date(creationOrPushTime * 1000);
+  const now = new Date();
+
+  const optionsWithYear: Intl.DateTimeFormatOptions = {
+    year: 'numeric',
+    month: 'long', // Month in letters
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit'
+  };
+
+  const optionsWithoutYear: Intl.DateTimeFormatOptions = {
+    month: 'long', // Month in letters
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit'
+  };
+
+  const options =
+    date.getFullYear() === now.getFullYear()
+      ? optionsWithoutYear
+      : optionsWithYear;
+
+  const formattedDate = date.toLocaleString(undefined, options);
+  return formattedDate;
 };
 
 const Vault = ({
@@ -95,49 +105,55 @@ const Vault = ({
       {vaultStatus ? (
         <>
           <View className="flex-row items-center justify-start w-full p-4">
-            <Svg
-              className="native:text-base web:text-xs web:sm:text-base fill-none stroke-white stroke-2 w-6 h-6 bg-primary rounded-full p-0.5"
-              viewBox="0 0 24 24"
-            >
-              <FreezeIcon />
-            </Svg>
-            <Text className="font-semibold text-slate-800 web:text-base native:text-lg pl-2">
+            {vaultStatus.panicTxHex ? (
+              <Text>TODO Panic Icon</Text>
+            ) : vaultStatus.triggerTxHex ? (
+              <Text>TODO Trigger Icon - maybe hot already or not</Text>
+            ) : (
+              <Svg
+                className="native:text-base web:text-xs web:sm:text-base fill-none stroke-white stroke-2 w-6 h-6 bg-primary rounded-full p-0.5"
+                viewBox="0 0 24 24"
+              >
+                <FreezeIcon />
+              </Svg>
+            )}
+            <Text className="font-semibold text-slate-800 web:text-base native:text-lg pl-2 flex-shrink-0">
               {t('wallet.vault.vaultTitle', { vaultNumber })}
             </Text>
-            <Text className="text-slate-500 ml-auto native:text-sm web:text-xs">
-              {getVaultInitDate(vault, vaultStatus)}
+            <Text className="text-slate-500 flex-1 text-right pl-4 native:text-sm web:text-xs">
+              {t('wallet.vault.vaultDate', {
+                date: getVaultInitDate(vault, vaultStatus)
+              })}
             </Text>
           </View>
           <View className="p-4 pt-0">
             <Text className="text-slate-500 native:text-sm web:text-xs font-semibold">
               {t('wallet.vault.amountFrozen')}
             </Text>
-            <Text className="native:text-xl web:text-lg font-bold">
-              {formatBalance({
-                satsBalance: frozenBalance === undefined ? 0 : frozenBalance,
-                btcFiat,
-                currency: settings.CURRENCY,
-                locale: settings.LOCALE,
-                mode,
-                appendSubunit: true
-              })}
-            </Text>
-            {frozenBalance === undefined ? null : (
-              <Text className="self-start text-slate-600">
-                {t('wallet.vault.frozenAmount', {
-                  amount: formatBalance({
-                    satsBalance: frozenBalance,
-                    btcFiat,
-                    currency: settings.CURRENCY,
-                    locale: settings.LOCALE,
-                    mode,
-                    appendSubunit: true
-                  })
-                }) + confirmationAppend(vaultStatus.vaultTxBlockHeight, t)}
+            <View className="flex-row items-center justify-start">
+              <Text className="native:text-xl web:text-lg font-bold">
+                {formatBalance({
+                  satsBalance: frozenBalance === undefined ? 0 : frozenBalance,
+                  btcFiat,
+                  currency: settings.CURRENCY,
+                  locale: settings.LOCALE,
+                  mode,
+                  appendSubunit: true
+                })}
               </Text>
-            )}
-            <Text>TODO Rescued Amount: </Text>
-            <Text>TODO Unfrozen Amount: </Text>
+              {vaultStatus.vaultTxBlockHeight ? null : (
+                <Text className="text-slate-500 native:text-sm web:text-xs">
+                  {`  •  ${t('wallet.vault.confirming')}…`}
+                </Text>
+              )}
+            </View>
+            <Text>This vault is being unfrozen • 3 days remaining</Text>
+            <Text>Unfrozen Amount</Text>
+            <Text>xxx btc</Text>
+            <Text>This vault was unfrozen on XXX</Text>
+            <Text>Rescued Amount</Text>
+            <Text>xxx btc</Text>
+            <Text>This vault was rescued on XXX</Text>
             <View className="w-full flex-row justify-between">
               <Button mode="secondary" onPress={handleDelegateVault}>
                 {t('wallet.vault.triggerUnfreezeButton')}
