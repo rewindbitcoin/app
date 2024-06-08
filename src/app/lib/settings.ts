@@ -20,7 +20,7 @@ export interface Settings {
   LOCALE: Locale;
   CURRENCY: Currency;
   BTC_FIAT_REFRESH_INTERVAL_MS: number;
-  BTC_FEE_ESTIMATES_REFRESH_INTERVAL_MS: number;
+  BLOCKCHAIN_DATA_REFRESH_INTERVAL_MS: number;
   WALLETS_DATA_VERSION: string;
 
   MAINNET_SERVICE_ADDRESS_API: string;
@@ -74,7 +74,7 @@ export const defaultSettings: Settings = {
   LOCALE: 'en-US',
   CURRENCY: 'USD',
   BTC_FIAT_REFRESH_INTERVAL_MS: 600000, //10 minutes
-  BTC_FEE_ESTIMATES_REFRESH_INTERVAL_MS: 600000, // 10 minutes
+  BLOCKCHAIN_DATA_REFRESH_INTERVAL_MS: 60000, // 1 minute
   WALLETS_DATA_VERSION: '1.0.0', //This does not define the version of the App, but keeps track of the changes in the signature of the Wallet
 
   //IMPORTANT - these variables below must correspond to those in services.env
