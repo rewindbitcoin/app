@@ -63,7 +63,7 @@ import { WalletError, getWalletError, getIsCorrupted } from '../lib/errors';
 import { useStorage } from '../../common/hooks/useStorage';
 import { useSecureStorageInfo } from '../../common/contexts/SecureStorageInfoContext';
 import { useSettings } from '../hooks/useSettings';
-import { useFeeEstimates } from '../hooks/useFeeEstimates';
+import { useBlockchainData } from '../hooks/useBlockchainData';
 import { useBtcFiat } from '../hooks/useBtcFiat';
 import { useWalletState } from '../hooks/useWalletState';
 
@@ -163,8 +163,9 @@ const WalletProviderRaw = ({
     );
   }
 
-  const { feeEstimates, setNetworkId: setFeeEstimatesNetworkId } =
-    useFeeEstimates(wallet?.networkId);
+  const { blockchainData, setNetworkId: setFeeEstimatesNetworkId } =
+    useBlockchainData(wallet?.networkId);
+  const feeEstimates = blockchainData?.feeEstimates;
 
   const { settings, settingsStorageStatus } = useSettings();
   const gapLimit = settings?.GAP_LIMIT;
