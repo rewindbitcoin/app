@@ -3,6 +3,19 @@ seek know resemble
 hurt pistol head
 first board better
 
+En Settings tendré que usa el cñodigo este: 
+import { shareVaults } from '../lib/backup';
+  const onRequestVaultsBackup = useCallback(() => {
+    if (!vaults) throw new Error('vaults not ready');
+    return shareVaults({ vaults });
+  }, [vaults]);
+
+No usar 
+        const blockchainTip = await discovery.getExplorer().fetchBlockHeight();
+        sino mas bien el nuevo useBlockchainData
+
+Vault = Cofre/Fortín/Depósito
+
 En una insgatlacion nueva en Android me salta un error de nativewind tras hacer el vault ?¿?¿?¿?
 
 Swap el orden de Create <-> Create en Vault SetUp
