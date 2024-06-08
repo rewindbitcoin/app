@@ -1,3 +1,6 @@
+/**
+ * retrieves feeEstimates and blockchainTip for passed networkId
+ */
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { networkMapping, type NetworkId } from '../lib/network';
 import { EsploraExplorer } from '@bitcoinerlab/explorer';
@@ -7,29 +10,35 @@ import { useToast } from '../../common/ui';
 import { useTranslation } from 'react-i18next';
 import { networks } from 'bitcoinjs-lib';
 
-type FeeEstimates = Record<string, number>;
-
-const feeEstimatesByNetworkId: Record<NetworkId, FeeEstimates | undefined> = {
-  ['BITCOIN']: undefined,
-  ['TESTNET']: undefined,
-  ['REGTEST']: undefined,
-  ['STORM']: undefined
+type BlockchainData = {
+  blockchainTip: number;
+  feeEstimates: Record<string, number>;
 };
+
+const blockchainDataByNetworkId: Record<NetworkId, BlockchainData | undefined> =
+  {
+    ['BITCOIN']: undefined,
+    ['TESTNET']: undefined,
+    ['REGTEST']: undefined,
+    ['STORM']: undefined
+  };
 const explorers: Record<NetworkId, EsploraExplorer | undefined> = {
   ['BITCOIN']: undefined,
   ['TESTNET']: undefined,
   ['REGTEST']: undefined,
   ['STORM']: undefined
 };
-export const useFeeEstimates = (initialNetworkId: NetworkId | undefined) => {
+export const useBlockchainData = (initialNetworkId: NetworkId | undefined) => {
   const { settings } = useSettings();
-  const [feeEstimates, setFeeEstimates] = useState<FeeEstimates | undefined>();
+  const [blockchainData, setBlockchainData] = useState<
+    BlockchainData | undefined
+  >();
   const toast = useToast();
   const { t } = useTranslation();
 
   const networkId = useRef<NetworkId | undefined>(initialNetworkId);
 
-  const fetchFeeEstimates = useCallback(
+  const fetchBlockchainData = useCallback(
     async (networkId: NetworkId) => {
       let explorer = explorers[networkId];
       const { esploraAPI } = getAPIs(networkId, settings);
@@ -49,12 +58,15 @@ export const useFeeEstimates = (initialNetworkId: NetworkId | undefined) => {
 
           explorers[networkId] = explorer;
         }
-        const feeEstimates = explorer
-          ? await explorer.fetchFeeEstimates()
+        const blockchainData = explorer
+          ? {
+              feeEstimates: await explorer.fetchFeeEstimates(),
+              blockchainTip: await explorer.fetchBlockHeight()
+            }
           : undefined;
-        return feeEstimates;
+        return blockchainData;
       } catch (err: unknown) {
-        toast.show(t('app.feeEstimatesError'), {
+        toast.show(t('app.blockchainDataError'), {
           type: 'warning'
         });
         return undefined;
@@ -67,17 +79,18 @@ export const useFeeEstimates = (initialNetworkId: NetworkId | undefined) => {
   //update whatever is set on networkId.current
   useEffect(() => {
     const interval =
-      settings?.BTC_FEE_ESTIMATES_REFRESH_INTERVAL_MS !== undefined
+      settings?.BLOCKCHAIN_DATA_REFRESH_INTERVAL_MS !== undefined
         ? setInterval(async () => {
             if (networkId.current) {
               const fetchedNetworkId = networkId.current;
-              const feeEstimates = await fetchFeeEstimates(fetchedNetworkId);
-              feeEstimatesByNetworkId[fetchedNetworkId] = feeEstimates;
+              const blockchainData =
+                await fetchBlockchainData(fetchedNetworkId);
+              blockchainDataByNetworkId[fetchedNetworkId] = blockchainData;
               if (networkId.current === fetchedNetworkId) {
-                setFeeEstimates(feeEstimates);
+                setBlockchainData(blockchainData);
               }
             }
-          }, settings?.BTC_FEE_ESTIMATES_REFRESH_INTERVAL_MS)
+          }, settings?.BLOCKCHAIN_DATA_REFRESH_INTERVAL_MS)
         : undefined;
     return () => {
       for (const key of Object.keys(explorers) as Array<NetworkId>) {
@@ -88,23 +101,23 @@ export const useFeeEstimates = (initialNetworkId: NetworkId | undefined) => {
         }
       }
       if (interval !== undefined) clearInterval(interval);
-      networkId.current = undefined; //Avoid pending setFeeEstimates if unmounted
+      networkId.current = undefined; //Avoid pending setBlockchainData if unmounted
     };
-  }, [settings?.BTC_FEE_ESTIMATES_REFRESH_INTERVAL_MS, fetchFeeEstimates]);
+  }, [settings?.BLOCKCHAIN_DATA_REFRESH_INTERVAL_MS, fetchBlockchainData]);
 
   const setNetworkId = useCallback(
     async (newNetworkId: NetworkId) => {
       networkId.current = newNetworkId;
-      setFeeEstimates(feeEstimatesByNetworkId[newNetworkId]);
-      const feeEstimates = await fetchFeeEstimates(newNetworkId);
-      feeEstimatesByNetworkId[newNetworkId] = feeEstimates;
+      setBlockchainData(blockchainDataByNetworkId[newNetworkId]);
+      const blockchainData = await fetchBlockchainData(newNetworkId);
+      blockchainDataByNetworkId[newNetworkId] = blockchainData;
       //networkId.current may be undefined now if unmounted:
       if (networkId.current === newNetworkId) {
-        setFeeEstimates(feeEstimates);
+        setBlockchainData(blockchainData);
       }
     },
-    [fetchFeeEstimates]
+    [fetchBlockchainData]
   );
 
-  return { feeEstimates, setNetworkId };
+  return { blockchainData, setNetworkId };
 };
