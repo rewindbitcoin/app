@@ -99,7 +99,13 @@ If you need further assistance, please contact ThunderDen Support.`
       amountFrozen: 'Amount Frozen',
       frozenAmount: 'Amount Frozen: {{amount}}.',
       confirming: 'Confirming',
-      confirmed: 'Confirmed'
+      confirmed: 'Confirmed',
+      beingUnfrozen: 'This vault is currently being unfrozen.',
+      unfreezeRequestLabel: 'Unfreeze Request Date',
+      rescueDateLabel: 'Rescue Date',
+      rescueAddressLabel: 'Rescue Address',
+      vaultSpendableDateLabel: 'Lock Period End Date',
+      frozenRemainingDateLabel: 'Funds Unlock Estimated Date'
     }
   },
   walletHome: {
@@ -215,11 +221,20 @@ Vaults are time-locked, meaning that when an attack occurs, you have a few days 
 Here's how it works: during the time-lock, your funds can only be moved to a special Bitcoin address known as the Emergency Address. This address is protected by an Emergency Recovery Phrase, which acts like a password and is different from your regular one. This emergency phrase must be stored in an ultra-secure location beforehand.
 
 You'll find contextual help icons next to each input field during the Vault Set Up with more speciffic explanations.`,
+    //    notEnoughFunds: `<strong>Minimum Vault Amount Notice</strong>
+    //
+    //ThunderDen requires a minimum amount to be frozen to ensure it is financially worthwhile for you.
+    //
+    //Essentially, we want to make sure you will still have a significant amount of Bitcoin (more than {{minRecoverableRatioPct}}%) after unlocking or recovering your funds in the event of an emergency.
+    //
+    //This minimum amount is calculated based on the assumption that you may need rapid transaction confirmations and that future network fees could become extremely high ({{feeRateCeilingK}} Ksats/vB).
+    //
+    //<strong>Suggested Action:</strong> Please add {{missingFunds}} to reach the minimum amount required for vaulting.`,
     notEnoughFunds: `<strong>Minimum Vault Amount Notice</strong>
 
 ThunderDen requires a minimum amount to be frozen to ensure it is financially worthwhile for you.
 
-Essentially, we want to make sure you will still have a significant amount of Bitcoin (more than {{minRecoverableRatioPct}}%) after unlocking or recovering your funds in the event of an emergency.
+We want to make sure you will be able to rescue your Vault in case of an emergency, regardless of future Bitcoin fees.
 
 This minimum amount is calculated based on the assumption that you may need rapid transaction confirmations and that future network fees could become extremely high ({{feeRateCeilingK}} Ksats/vB).
 

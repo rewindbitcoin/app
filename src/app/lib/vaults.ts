@@ -723,9 +723,18 @@ export function getRemainingBlocks(
   return remainingBlocks;
 }
 
-export const getVaultVaultedBalance = (
+/**
+ *
+ * If remainingBlocks is zero this function returns zero vaulted balance
+ * vaulted balance = frozen balance = balance that is not hot
+ *
+ * This is per definition.
+ */
+
+export const getVaultFrozenBalance = (
   vault: Vault,
-  vaultStatus: VaultStatus
+  vaultStatus: VaultStatus,
+  blockchainTip: number
 ) => {
   console.warn(
     'TODO - in fact here, first make sure that the vault was really pushed and is either mined or at least in the mempool'
@@ -733,7 +742,7 @@ export const getVaultVaultedBalance = (
   if (
     vaultStatus.vaultTxBlockHeight === undefined ||
     vaultStatus.panicTxHex ||
-    vaultStatus.spendAsHotTxHex
+    getRemainingBlocks(vault, vaultStatus, blockchainTip) === 0
   )
     return 0;
 
@@ -759,6 +768,11 @@ export const getVaultVaultedBalance = (
  * Wait until both are set before proceeding. This is important because
  * updateVaultsStatuses upddate status based on vaults so they must be
  * synched
+ *
+ * If remainingBlocks is zero this function returns zero vaulted balance
+ * vaulted balance = frozen balance = balance that is not hot
+ *
+ * This is per definition.
  */
 export const areVaultsSynched = (
   vaults: Vaults,
@@ -767,8 +781,13 @@ export const areVaultsSynched = (
   return shallowEqualArrays(Object.keys(vaults), Object.keys(vaultsStatuses));
 };
 
-export const getVaultsVaultedBalance = moize(
-  (vaults: Vaults, vaultsStatuses: VaultsStatuses) => {
+export const getVaultsFrozenBalance = moize(
+  (
+    vaults: Vaults,
+    vaultsStatuses: VaultsStatuses,
+
+    blockchainTip: number
+  ) => {
     let totalVaulted = 0;
     Object.entries(vaults).map(([vaultId, vault]) => {
       const vaultStatus = vaultsStatuses[vaultId];
@@ -776,7 +795,7 @@ export const getVaultsVaultedBalance = moize(
         throw new Error(
           `vaultsStatuses is not synchd. It should have key ${vaultId}`
         );
-      const vaulted = getVaultVaultedBalance(vault, vaultStatus);
+      const vaulted = getVaultFrozenBalance(vault, vaultStatus, blockchainTip);
       totalVaulted += vaulted;
     });
     return totalVaulted;

@@ -365,6 +365,7 @@ const WalletHomeScreen = () => {
             utxosData={utxosData}
             vaults={vaults}
             vaultsStatuses={vaultsStatuses}
+            blockchainTip={blockchainTip}
             btcFiat={btcFiat}
             faucetPending={faucetPending}
           />
@@ -384,6 +385,7 @@ const WalletHomeScreen = () => {
               <Vaults
                 vaults={vaults}
                 vaultsStatuses={vaultsStatuses}
+                esploraAPI={esploraAPI}
                 btcFiat={btcFiat}
                 blockchainTip={blockchainTip}
               />

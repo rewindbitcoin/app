@@ -1,32 +1,36 @@
 import React from 'react';
 import FreezeIcon from './FreezeIcon';
+import UnfreezeIcon from './UnfreezeIcon';
 import { Svg } from 'react-native-svg';
 import { Text } from 'react-native';
+import SaveBuoy from '../../../assets/SaveBuoy.svg';
+import type { getRemainingBlocks } from '../lib/vaults';
+
 const VaultIcon = ({
   remainingBlocks
 }: {
-  remainingBlocks:
-    | 'LOADING'
-    | 'NOT_PUSHED'
-    | 'SPENT_AS_PANIC'
-    | 'SPENT_AS_HOT'
-    | number /*means it has been triggered*/;
+  remainingBlocks: ReturnType<typeof getRemainingBlocks> | undefined;
 }) => {
-  return remainingBlocks === 'LOADING' ? (
-    <Text>TODO ActivityIndicato</Text>
+  return remainingBlocks === undefined ? (
+    <Text>TODO ActivityIndicator Loading</Text>
   ) : remainingBlocks === 'NOT_PUSHED' ? (
     <Svg
-      className="native:text-base web:text-xs web:sm:text-base fill-none stroke-white stroke-2 w-6 h-6 bg-primary rounded-full p-0.5"
+      className="fill-white w-6 h-6 bg-primary p-0.5 rounded-full bg-[#4286E7]"
       viewBox="0 0 24 24"
     >
       <FreezeIcon />
     </Svg>
   ) : remainingBlocks === 'SPENT_AS_PANIC' ? (
-    <Text>TODO Flotador Icon</Text>
-  ) : remainingBlocks === 'SPENT_AS_HOT' ? (
+    <SaveBuoy className="w-6 h-6" />
+  ) : remainingBlocks === 'SPENT_AS_HOT' || remainingBlocks === 0 ? (
     <Text>TODO Sun -heat Icon</Text>
   ) : (
-    <Text>{`melting ${remainingBlocks} remaining blocks`}</Text>
+    <Svg
+      className="fill-white w-6 h-6 p-0.5 rounded-full bg-[#00BFFF]"
+      viewBox="0 0 24 24"
+    >
+      <UnfreezeIcon />
+    </Svg>
   );
 };
 

@@ -66,9 +66,7 @@ export const defaultSettings: Settings = {
   PRESIGNED_FEE_RATE_CEILING: 10000, //TODO should be 10000
   // 2 hours
   INITIAL_CONFIRMATION_TIME: 2 * 60 * 60,
-  //TODO: set it to 2/3 in the production case
-  //MIN_RECOVERABLE_RATIO: '2/3' // express it in string so that it can be printed. Must be 0 > MIN_RECOVERABLE_RATIO > 1
-  MIN_RECOVERABLE_RATIO: 1 / 2, //TODO should be 2/3
+  MIN_RECOVERABLE_RATIO: 1 / 50, //TODO should it be 2/3?
   SUB_UNIT: 'btc',
   FIAT_MODE: false, //whether the user prefers using fiat than SUB_UNIT
   LOCALE: 'en-US',

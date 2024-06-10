@@ -62,5 +62,5 @@ export const fetchBlockTimestamp = moize.promise(
     // Return the block timestamp
     return blockData.timestamp;
   },
-  { maxSize: 100 }
+  { maxSize: 1000 }
 );
