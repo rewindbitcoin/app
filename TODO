@@ -7,8 +7,13 @@ En Vault no me gusta lo de los labels. Imprimir en formato texto?!?
 O que sea sencillo y no intimidante. No pro-oriented.
 
 Me he cargado el faucet
-Me he cargado el useBlochainData q era muy bueno porque cada minuto me pillaba
-el correcto, ahora solo se hace al inicio... (y además se hace 2 veces)
+  -> El problema es que necesito el blockchainTip ya al principio y no lo tengo: esto está arreglado PERO:
+  -> Antes tenia el la rutina de carga rapida de utxos, ahora casca porque blockchainTip no está puesto y tardará...
+    -> Pero tarda porque esta query es lenta del cagar: https://blockstream.info/api/block-height/847658 1.5 secs????
+  //Tries to initialize utxosData from the discovery object we got from disk
+  //ASAP (only if not set)
+  //TODO: Here also set history TAGiuenfsdkjfn
+  useEffect(() => {
 
 En Settings tendré que usa el cñodigo este: 
 import { shareVaults } from '../lib/backup';

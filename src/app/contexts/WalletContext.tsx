@@ -34,7 +34,8 @@ import React, {
   ReactNode,
   useEffect,
   useState,
-  useCallback
+  useCallback,
+  useRef
 } from 'react';
 import { shallowEqualObjects } from 'shallow-equal';
 import type { Wallet } from '../lib/wallets';
@@ -403,35 +404,40 @@ const WalletProviderRaw = ({
     ]
   );
 
+  const blockchainDataWalletIdRef = useRef<number>();
   useEffect(() => {
-    const setBlockchainDataPerWallet = async () => {
-      if (settings?.MAINNET_ESPLORA_API) {
-        console.log('TRACE setBlockchainDataPerWallet', {
-          initialDiscovery,
-          walletId
-        });
+    const updateBlockchainData = async () => {
+      if (blockchainDataWalletIdRef.current !== walletId) {
+        clearInterval(intervalId);
+      } else if (settings?.MAINNET_ESPLORA_API && initialDiscovery) {
         const discovery =
           initialDiscovery && (await ensureConnected(initialDiscovery));
-        const explorer =
+        //On Regtest networks, use mainnet fee estimates
+        const feeEstimatesExplorer =
           networkId === 'STORM' || networkId === 'REGTEST'
             ? new EsploraExplorer({
                 url: settings?.MAINNET_ESPLORA_API
               })
             : discovery?.getExplorer();
-        if (explorer && walletId !== undefined) {
-          const feeEstimates = await explorer.fetchFeeEstimates();
+        const explorer = discovery?.getExplorer();
+        if (explorer && feeEstimatesExplorer && walletId !== undefined) {
+          const feeEstimates = await feeEstimatesExplorer.fetchFeeEstimates();
           const tipHeight = await explorer.fetchBlockHeight();
           const tipStatus = await explorer.fetchBlockStatus(tipHeight);
           if (!tipStatus) throw new Error('Status should exist for tip');
-          console.log('TRACE setBlockchainData', { walletId, tipStatus });
           setBlockchainData(walletId, { feeEstimates, tipStatus });
         }
       }
     };
-    setBlockchainDataPerWallet();
+    const time = settings?.BLOCKCHAIN_DATA_REFRESH_INTERVAL_MS;
+    if (!time) return;
+    blockchainDataWalletIdRef.current = walletId;
+    updateBlockchainData();
+    const intervalId = setInterval(updateBlockchainData, time);
   }, [
     networkId,
     settings?.MAINNET_ESPLORA_API,
+    settings?.BLOCKCHAIN_DATA_REFRESH_INTERVAL_MS,
     initialDiscovery,
     walletId,
     setBlockchainData
@@ -751,10 +757,12 @@ const WalletProviderRaw = ({
     if (walletId !== undefined) setSyncingBlockchain(walletId, true);
   }, [walletId, setSyncingBlockchain]);
   //Automatically set syncingBlockchain to true on new walletId: auto sync
-  //on new wallet
+  //on new wallet. Make sure blockchainTip is set since otherwise sync()
+  //won't do anything as it's necessary.
   useEffect(() => {
-    if (walletId !== undefined && isReady) setSyncingBlockchain(walletId, true);
-  }, [walletId, setSyncingBlockchain, isReady]);
+    if (walletId !== undefined && isReady && blockchainTip)
+      setSyncingBlockchain(walletId, true);
+  }, [walletId, setSyncingBlockchain, isReady, blockchainTip]);
 
   const processCreatedVault = useCallback(
     async (
@@ -796,7 +804,6 @@ const WalletProviderRaw = ({
         //Note here they are not atomically set, so when using vaults one
         //must make sure they are synched somehow - See Vaults.tsx for an
         //example what to do
-        console.warn('TRACE, setVaults and setVaultsStatuses');
         await Promise.all([
           setVaults({ ...vaults, [vault.vaultId]: vault }),
           setVaultsStatuses({
