@@ -63,9 +63,10 @@ import { WalletError, getWalletError, getIsCorrupted } from '../lib/errors';
 import { useStorage } from '../../common/hooks/useStorage';
 import { useSecureStorageInfo } from '../../common/contexts/SecureStorageInfoContext';
 import { useSettings } from '../hooks/useSettings';
-import { useBlockchainData } from '../hooks/useBlockchainData';
 import { useBtcFiat } from '../hooks/useBtcFiat';
 import { useWalletState } from '../hooks/useWalletState';
+import type { BlockStatus } from '@bitcoinerlab/explorer/dist/interface';
+type BlockchainData = { tipStatus: BlockStatus; feeEstimates: FeeEstimates };
 
 export const WalletContext: Context<WalletContextType | null> =
   createContext<WalletContextType | null>(null);
@@ -75,9 +76,7 @@ export type WalletContextType = {
   fetchServiceAddress: () => Promise<string>;
   getUnvaultKey: () => Promise<string>;
   btcFiat: number | undefined;
-  blockchainData:
-    | { blockchainTip: number; feeEstimates: FeeEstimates }
-    | undefined;
+  blockchainData: BlockchainData | undefined;
   utxosData: UtxosData | undefined;
   historyData: HistoryData | undefined;
   signers: Signers | undefined;
@@ -142,6 +141,12 @@ const WalletProviderRaw = ({
     useWalletState<HistoryData>();
   const [syncingBlockchain, setSyncingBlockchain, clearSynchingBlockchain] =
     useWalletState<boolean>();
+  const [blockchainData, setBlockchainData, clearBlockchainData] =
+    useWalletState<BlockchainData>();
+  const blockchainTip =
+    walletId === undefined
+      ? undefined
+      : blockchainData[walletId]?.tipStatus.blockHeight;
 
   const btcFiat = useBtcFiat();
 
@@ -164,10 +169,6 @@ const WalletProviderRaw = ({
       `signersStorageEngine ${signersStorageEngine} does not match this system specs: ${Platform.OS}, canUseSecureStorage=${secureStorageInfo && secureStorageInfo.canUseSecureStorage}. Have you not enabled Biometric id in your system?`
     );
   }
-
-  const { blockchainData, setNetworkId: setBlockchainDataNetworkId } =
-    useBlockchainData(wallet?.networkId);
-  const blockchainTip = blockchainData?.blockchainTip;
 
   const { settings, settingsStorageStatus } = useSettings();
   const gapLimit = settings?.GAP_LIMIT;
@@ -323,6 +324,7 @@ const WalletProviderRaw = ({
         clearUtxosData(walletId);
         clearHistoryData(walletId);
         clearSynchingBlockchain(walletId);
+        clearBlockchainData(walletId);
         clearNewSigners(walletId);
         clearSignersCipherKey(walletId);
         clearDataCipherKey(walletId);
@@ -338,6 +340,7 @@ const WalletProviderRaw = ({
     clearDiscoveryCache,
     clearAccountsCache,
     clearUtxosData,
+    clearBlockchainData,
     clearHistoryData,
     clearSynchingBlockchain,
     clearNewSigners,
@@ -362,8 +365,17 @@ const WalletProviderRaw = ({
        */
       signersCipherKey?: Uint8Array;
     }) => {
-      setBlockchainDataNetworkId(walletDst.networkId);
       const walletId = walletDst.walletId;
+      const discovery =
+        initialDiscovery && (await ensureConnected(initialDiscovery));
+      const explorer = discovery?.getExplorer();
+      if (explorer) {
+        const feeEstimates = await explorer.fetchFeeEstimates();
+        const tipHeight = await explorer.fetchBlockHeight();
+        const tipStatus = await explorer.fetchBlockStatus(tipHeight);
+        if (!tipStatus) throw new Error('Status should exist for tip');
+        setBlockchainData(walletId, { feeEstimates, tipStatus });
+      }
       if (newSigners) {
         //Make sure we don't have values from previous app installs using the same id?
         const authenticationPrompt = t('app.secureStorageAuthenticationPrompt');
@@ -392,7 +404,8 @@ const WalletProviderRaw = ({
     [
       //logOut,
       t,
-      setBlockchainDataNetworkId,
+      initialDiscovery,
+      setBlockchainData,
       setNewSigners,
       setSignersCipherKey
     ]
@@ -795,7 +808,8 @@ const WalletProviderRaw = ({
     vaults,
     vaultsStatuses,
     networkId,
-    blockchainData,
+    blockchainData:
+      walletId !== undefined ? blockchainData[walletId] : undefined,
     utxosData: walletId !== undefined ? utxosData[walletId] : undefined,
     historyData: walletId !== undefined ? historyData[walletId] : undefined,
     processCreatedVault,
