@@ -93,7 +93,7 @@ const WalletHomeScreen = () => {
     throw new Error(
       `Navigated to walletId ${walletId} which does not correspond to the one in the context ${wallet?.walletId}`
     );
-  const blockchainTip = blockchainData?.blockchainTip;
+  const blockchainTip = blockchainData?.tipStatus.blockHeight;
 
   const faucetRequestedRef = useRef<boolean>(false);
   //When the user is notified about having detected some faucet funds:
@@ -168,7 +168,7 @@ const WalletHomeScreen = () => {
   );
   useEffect(() => navigation.setOptions(navOptions), [navigation, navOptions]);
 
-  const { faucetAPI, esploraAPI } = getAPIs(wallet?.networkId, settings);
+  const { faucetAPI } = getAPIs(wallet?.networkId, settings);
   useEffect(() => {
     if (
       historyData?.length === 0 &&
@@ -381,13 +381,12 @@ const WalletHomeScreen = () => {
 
         {activeTabIndex === 0 && (
           <View className="p-4">
-            {vaults && vaultsStatuses && esploraAPI && (
+            {vaults && vaultsStatuses && (
               <Vaults
                 vaults={vaults}
                 vaultsStatuses={vaultsStatuses}
-                esploraAPI={esploraAPI}
                 btcFiat={btcFiat}
-                blockchainTip={blockchainTip}
+                blockchainData={blockchainData}
               />
             )}
           </View>

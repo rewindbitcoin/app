@@ -3,13 +3,7 @@
 //For the delegage something along this;: https://icons.expo.fyi/Index/FontAwesome/handshake-o
 //https://icons.expo.fyi/Index/Foundation/torsos-all
 //or this: https://icons.expo.fyi/Index/FontAwesome5/hands-helping
-import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-  useRef
-} from 'react';
+import React, { useCallback, useEffect, useMemo, useRef } from 'react';
 import { View, Text } from 'react-native';
 
 import {
@@ -18,17 +12,19 @@ import {
   type VaultsStatuses,
   type Vaults as VaultsType,
   getVaultFrozenBalance,
-  getRemainingBlocks
+  getRemainingBlocks,
+  getVaultUnfrozenBalance
 } from '../lib/vaults';
 import VaultIcon from './VaultIcon';
 import { useTranslation } from 'react-i18next';
 import { delegateVault } from '../lib/backup';
 import { formatBalance } from '../lib/format';
 import { Button } from '../../common/ui';
-import { fetchBlockTimestamp } from '../lib/blockchain';
 
 import { useSettings } from '../hooks/useSettings';
 import type { SubUnit } from '../lib/settings';
+import type { Locale } from '../../i18n-locales/init';
+import type { BlockchainData } from '../contexts/WalletContext';
 
 /*
  *
@@ -40,7 +36,8 @@ import type { SubUnit } from '../lib/settings';
 
 const LOADING_TEXT = '     ';
 
-const formatVaultDate = (unixTime: number) => {
+const formatVaultDate = (unixTime: number | undefined, locale: Locale) => {
+  if (!unixTime) return;
   const date = new Date(unixTime * 1000);
   const now = new Date();
 
@@ -62,16 +59,20 @@ const formatVaultDate = (unixTime: number) => {
   )
     delete options.month;
 
-  return date.toLocaleString(undefined, options);
+  return date.toLocaleString(locale, options);
 };
 
-const getVaultInitDate = (vault: Vault, vaultStatus: VaultStatus) => {
+const getVaultInitDate = (
+  vault: Vault,
+  vaultStatus: VaultStatus,
+  locale: Locale
+) => {
   //vaultPushTime is a bit more precise but may not be available in a device
   //using the same mnemonic. creationTime is good enough.
   //Remember there are some props in vaultStatus that
   //are used to keep internal track of user actions. See docs on VaultStatus.
   const creationOrPushTime = vaultStatus.vaultPushTime || vault.creationTime;
-  return formatVaultDate(creationOrPushTime);
+  return formatVaultDate(creationOrPushTime, locale);
 };
 
 const Amount = ({
@@ -123,195 +124,163 @@ const Amount = ({
   );
 };
 
-const Label = ({ label }: { label: string }) => {
-  return <Text>{label}</Text>;
-};
-
-const DateValue = ({ time }: { time: undefined | number }) => {
-  return (
-    <Text
-      className={`${time ? 'bg-transparent' : 'animate-pulse bg-slate-200 rounded'}`}
-    >
-      {time ? formatVaultDate(time) : LOADING_TEXT}
-    </Text>
-  );
-};
-
-const Details = ({
-  remainingBlocks,
-  triggerBlockTime,
-  rescueBlockTime,
-  hotBlockTime,
-  tipBlockTime
-}: {
-  remainingBlocks: ReturnType<typeof getRemainingBlocks> | undefined;
-  triggerBlockTime: undefined | number;
-  rescueBlockTime: undefined | number;
-  hotBlockTime: undefined | number;
-  tipBlockTime: undefined | number;
-}) => {
-  const { t } = useTranslation();
-  /*
-
-      <Text>Unfrozen Amount</Text>
-      <Text>Rescued Amount</Text>
-      <Text>xxx btc</Text>
-      <Text>This vault was unfrozen on XXX</Text>
-      <Text>xxx btc</Text>
-      <Text>This vault was rescued on XXX</Text>
-       return 'TODO: This vault is being unfrozen • 3 days remaining'; 
-  */
-
-  if (remainingBlocks === 'SPENT_AS_PANIC') {
-    return (
-      <>
-        <View>
-          <Label label={t('wallet.vault.unfreezeRequestLabel')} />
-          <DateValue time={hotBlockTime} />
-        </View>
-        <View>
-          <Label label={t('wallet.vault.rescueDateLabel')} />
-          <DateValue time={rescueBlockTime} />
-        </View>
-        <View>
-          <Label label={t('wallet.vault.rescueAddressLabel')} />
-          <DateValue time={panicTxHex.extractAddress} />
-        </View>
-      </>
-    );
-  } else if (typeof remainingBlocks === 'number' && remainingBlocks > 0) {
-    <>
-      <View>
-        <Label label={t('wallet.vault.unfreezeRequestLabel')} />
-        <DateValue time={hotBlockTime} />
-      </View>
-      <View>
-        <Label label={t('wallet.vault.frozenRemainingDateLabel')} />
-        <DateValue
-          time={tipBlockTime && tipBlockTime + 588 * remainingBlocks}
-        />
-      </View>
-      ;
-    </>;
-  } else if (remainingBlocks === 0 /* || remainingBlocks === 'SPENT_AS_HOT'*/) {
-    const isLoading = !triggerBlockTime || !hotBlockTime;
-    return (
-      <Text>
-        <Trans
-          i18nKey="wallet.vault.vaultIsHot"
-          values={{
-            requestDate: isLoading
-              ? LOADING_TEXT
-              : formatVaultDate(triggerBlockTime),
-            time: isLoading ? LOADING_TEXT : formatVaultDate(hotBlockTime)
-          }}
-          components={{
-            wrapper: (
-              <Text
-                className={`${isLoading ? 'animate-pulse bg-slate-200 rounded' : 'bg-transparent'}`}
-              />
-            )
-          }}
-        />
-      </Text>
-    );
-  } else if (remainingBlocks === 0 || remainingBlocks === 'SPENT_AS_HOT') {
-    text = t('wallet.vault.vaultIsHot', {
-      requestDate: triggerBlockTime
-        ? formatVaultDate(triggerBlockTime)
-        : LOADING_TEXT,
-      hotDate: formatVaultDate(hotBlockTime)
-    });
-  } else if (remainingBlocks === 'SPENT_AS_PANIC') {
-    text = t('wallet.vault.rescued', {
-      date: formatVaultDate(rescueBlockTime)
-    });
-  }
-};
+//const Label = ({ label }: { label: string }) => {
+//  return <Text>{label}</Text>;
+//};
+//
+//const DateValue = ({
+//  time,
+//  locale
+//}: {
+//  time: undefined | number;
+//  locale: Locale;
+//}) => {
+//  return (
+//    <Text
+//      className={`${time ? 'bg-transparent' : 'animate-pulse bg-slate-200 rounded'}`}
+//    >
+//      {time ? formatVaultDate(time, locale) : LOADING_TEXT}
+//    </Text>
+//  );
+//};
+//
+//const Details = ({
+//  remainingBlocks,
+//  triggerTime,
+//  rescueTime,
+//  hotTime,
+//  tipTime,
+//  locale
+//}: {
+//  remainingBlocks: ReturnType<typeof getRemainingBlocks> | undefined;
+//  triggerTime: undefined | number;
+//  rescueTime: undefined | number;
+//  hotTime: undefined | number;
+//  tipTime: undefined | number;
+//  locale: Locale;
+//}) => {
+//  const { t } = useTranslation();
+//  /*
+//
+//      <Text>Unfrozen Amount</Text>
+//      <Text>Rescued Amount</Text>
+//      <Text>xxx btc</Text>
+//      <Text>This vault was unfrozen on XXX</Text>
+//      <Text>xxx btc</Text>
+//      <Text>This vault was rescued on XXX</Text>
+//       return 'TODO: This vault is being unfrozen • 3 days remaining';
+//  */
+//
+//  if (remainingBlocks === 'SPENT_AS_PANIC') {
+//    return (
+//      <>
+//        <View>
+//          <Label label={t('wallet.vault.triggerLabel')} />
+//          <DateValue time={hotTime} locale={locale} />
+//        </View>
+//        <View>
+//          <Label label={t('wallet.vault.rescueDateLabel')} />
+//          <DateValue time={rescueTime} locale={locale} />
+//        </View>
+//        <View>
+//          <Label label={t('wallet.vault.rescueAddressLabel')} />
+//          <DateValue time={panicTxHex.extractAddress} locale={locale} />
+//        </View>
+//      </>
+//    );
+//  } else if (typeof remainingBlocks === 'number' && remainingBlocks > 0) {
+//    return (
+//      <>
+//        <View>
+//          <Label label={t('wallet.vault.triggerLabel')} />
+//          <DateValue time={hotTime} locale={locale} />
+//        </View>
+//        <View>
+//          <Label label={t('wallet.vault.frozenRemainingDateLabel')} />
+//          <DateValue
+//            locale={locale}
+//            time={tipTime && tipTime + 588 * remainingBlocks}
+//          />
+//        </View>
+//        ;
+//      </>
+//    );
+//  } else if (remainingBlocks === 0 /* || remainingBlocks === 'SPENT_AS_HOT'*/) {
+//    const isLoading = !triggerTime || !hotTime;
+//    return (
+//      <Text>
+//        <Trans
+//          i18nKey="wallet.vault.vaultIsHot"
+//          values={{
+//            requestDate: isLoading
+//              ? LOADING_TEXT
+//              : formatVaultDate(triggerTime, locale),
+//            time: isLoading ? LOADING_TEXT : formatVaultDate(hotTime, locale)
+//          }}
+//          components={{
+//            wrapper: (
+//              <Text
+//                className={`${isLoading ? 'animate-pulse bg-slate-200 rounded' : 'bg-transparent'}`}
+//              />
+//            )
+//          }}
+//        />
+//      </Text>
+//    );
+//  } else if (remainingBlocks === 0 || remainingBlocks === 'SPENT_AS_HOT') {
+//    text = t('wallet.vault.vaultIsHot', {
+//      requestDate: triggerTime
+//        ? formatVaultDate(triggerTime, locale)
+//        : LOADING_TEXT,
+//      hotDate: formatVaultDate(hotTime, locale)
+//    });
+//  } else if (remainingBlocks === 'SPENT_AS_PANIC') {
+//    text = t('wallet.vault.rescued', {
+//      date: formatVaultDate(rescueTime, locale)
+//    });
+//  }
+//};
 
 const Vault = ({
   btcFiat,
-  blockchainTip,
+  blockchainData,
   vault,
   vaultNumber,
-  vaultStatus,
-  esploraApi
+  vaultStatus
 }: {
   btcFiat: number | undefined;
-  blockchainTip: number | undefined;
+  blockchainData: BlockchainData | undefined;
   vault: Vault;
   vaultNumber: number;
   vaultStatus: VaultStatus | undefined;
-  esploraApi: string;
 }) => {
-  const [rescueBlockTime, setRescueBlockTime] = useState<number | undefined>(
-    undefined
-  );
-  const [triggerBlockTime, setTriggerBlockTime] = useState<number | undefined>(
-    undefined
-  );
-  const [hotBlockTime, setHotBlockTime] = useState<number | undefined>(
-    undefined
-  );
-  const [tipBlockTime, setTipBlockTime] = useState<number | undefined>(
-    undefined
-  );
+  const { settings } = useSettings();
+  if (!settings) throw new Error('Settings has not been retrieved');
+  const tipHeight = blockchainData?.tipStatus.blockHeight;
+  //const tipTime = blockchainData?.tipStatus.blockTime;
+  const remainingBlocks =
+    tipHeight &&
+    vaultStatus &&
+    getRemainingBlocks(vault, vaultStatus, tipHeight);
+  const locale = settings.LOCALE;
+  const triggerDate = formatVaultDate(vaultStatus?.triggerTxBlockTime, locale);
+  const rescueDate = formatVaultDate(vaultStatus?.panicTxBlockTime, locale);
+  const unfreezeDate = formatVaultDate(vaultStatus?.hotBlockTime, locale);
+  const estimatedUnfreezeDate =
+    vaultStatus?.triggerTxBlockTime && typeof remainingBlocks === 'number'
+      ? formatVaultDate(
+          vaultStatus?.triggerTxBlockTime + remainingBlocks,
+          locale
+        )
+      : undefined;
   const vaultStatusRef = useRef(vaultStatus);
   useEffect(() => {
     return () => {
       vaultStatusRef.current = undefined; //unset on unmount
     };
   }, []);
-  useEffect(() => {
-    vaultStatusRef.current = vaultStatus;
-    const setBlockTimes = async () => {
-      const { triggerTxBlockHeight, panicTxBlockHeight } = vaultStatus || {};
-      try {
-        if (blockchainTip) {
-          const tipBlockTime = await fetchBlockTimestamp(
-            esploraApi,
-            blockchainTip
-          );
-          setTipBlockTime(tipBlockTime);
-        }
-        if (triggerTxBlockHeight) {
-          const triggerBlockTime = await fetchBlockTimestamp(
-            esploraApi,
-            triggerTxBlockHeight
-          );
-          if (vaultStatus === vaultStatusRef.current)
-            setTriggerBlockTime(triggerBlockTime);
-          if (
-            blockchainTip &&
-            triggerTxBlockHeight + vault.lockBlocks <= blockchainTip
-          ) {
-            const hotBlockTime = await fetchBlockTimestamp(
-              esploraApi,
-              triggerTxBlockHeight + vault.lockBlocks
-            );
-            if (vaultStatus === vaultStatusRef.current)
-              setHotBlockTime(hotBlockTime);
-          }
-        }
-        if (panicTxBlockHeight) {
-          const rescueBlockTime = await fetchBlockTimestamp(
-            esploraApi,
-            panicTxBlockHeight
-          );
-          if (vaultStatus === vaultStatusRef.current)
-            setRescueBlockTime(rescueBlockTime);
-        }
-      } catch (error) {}
-    };
-    setBlockTimes();
-  }, [esploraApi, vaultStatus, blockchainTip, vault.lockBlocks]);
 
-  const { settings } = useSettings();
   const { t } = useTranslation();
-  if (!settings)
-    throw new Error(
-      'This component should only be started after settings has been retrieved from storage'
-    );
 
   const handleDelegateVault = useCallback(() => {
     const readmeText = t('walletHome.delegateReadme');
@@ -325,14 +294,11 @@ const Vault = ({
       : settings.SUB_UNIT;
 
   const frozenBalance =
-    blockchainTip &&
+    tipHeight &&
     vaultStatus &&
-    getVaultFrozenBalance(vault, vaultStatus, blockchainTip);
-
-  const remainingBlocks =
-    blockchainTip &&
-    vaultStatus &&
-    getRemainingBlocks(vault, vaultStatus, blockchainTip);
+    getVaultFrozenBalance(vault, vaultStatus, tipHeight);
+  const unfrozenBalance =
+    vaultStatus && getVaultUnfrozenBalance(vault, vaultStatus);
 
   //<Text className="font-semibold text-primary-dark bg-primary text-white flex-1 p-4 w-full text-base">
   // TODO when not vaulted show: This Vault has been unfrozen and is moved to your available balance. TODO when panicked show: This Vault was rescued and was moved to your cold address: ADDRESS.
@@ -353,7 +319,7 @@ const Vault = ({
         >
           {vaultStatus
             ? t('wallet.vault.vaultDate', {
-                date: getVaultInitDate(vault, vaultStatus)
+                date: getVaultInitDate(vault, vaultStatus, locale)
               })
             : LOADING_TEXT}
         </Text>
@@ -368,13 +334,50 @@ const Vault = ({
           btcFiat={btcFiat}
           mode={mode}
         />
-        <Details
+        {/*this part should be only about the trigger*/}
+        <Text>
+          {
+            //TODO: Note that here below some of the dates may be undefined so
+            //I'd need some kind of LOADING_TEXT
+            remainingBlocks === 'SPENT_AS_PANIC'
+              ? t('wallet.vault.rescuedAfterUnfreeze', { rescueDate })
+              : remainingBlocks === 'SPENT_AS_HOT'
+                ? t('wallet.vault.unfrozenAndSpent', {
+                    triggerDate,
+                    unfreezeDate
+                  })
+                : remainingBlocks === 0
+                  ? t('wallet.vault.unfrozenAndHotBalance', {
+                      triggerDate,
+                      unfreezeDate
+                    })
+                  : typeof remainingBlocks === 'number' && remainingBlocks > 0
+                    ? t('wallet.vault.triggerWithEstimatedDate', {
+                        triggerDate,
+                        estimatedUnfreezeDate
+                      })
+                    : null
+          }
+        </Text>
+        {remainingBlocks === 'SPENT_AS_HOT' ||
+          (remainingBlocks === 0 && (
+            <Amount
+              title={t('wallet.vault.unfrozenAmount')}
+              isConfirming={false}
+              satsBalance={unfrozenBalance}
+              btcFiat={btcFiat}
+              mode={mode}
+            />
+          ))}
+        <Text>Unfrozen amount / Rescued amount</Text>
+        {/*this part should be about the rescue / hot*/}
+        {/*<Details
           remainingBlocks={remainingBlocks}
-          triggerBlockTime={triggerBlockTime}
-          rescueBlockTime={rescueBlockTime}
-          hotBlockTime={hotBlockTime}
-          tipBlockTime={tipBlockTime}
-        />
+          triggerTime={triggerTime}
+          rescueTime={rescueTime}
+          hotTime={hotTime}
+          tipTime={tipTime}
+        />*/}
         {
           // Rescued
           vaultStatus?.panicTxHex && <View></View>
@@ -398,16 +401,14 @@ const Vault = ({
 
 const Vaults = ({
   btcFiat,
-  blockchainTip,
+  blockchainData,
   vaults,
-  vaultsStatuses,
-  esploraApi
+  vaultsStatuses
 }: {
   btcFiat: number | undefined;
-  blockchainTip: number | undefined;
+  blockchainData: BlockchainData | undefined;
   vaults: VaultsType;
   vaultsStatuses: VaultsStatuses;
-  esploraApi: string;
 }) => {
   const sortedVaults = useMemo(() => {
     return Object.values(vaults).sort(
@@ -423,9 +424,8 @@ const Vaults = ({
           <Vault
             key={vault.vaultId}
             btcFiat={btcFiat}
-            blockchainTip={blockchainTip}
+            blockchainData={blockchainData}
             vault={vault}
-            esploraApi={esploraApi}
             vaultNumber={sortedVaults.length - index}
             vaultStatus={vaultStatus}
           />

@@ -66,7 +66,11 @@ import { useSettings } from '../hooks/useSettings';
 import { useBtcFiat } from '../hooks/useBtcFiat';
 import { useWalletState } from '../hooks/useWalletState';
 import type { BlockStatus } from '@bitcoinerlab/explorer/dist/interface';
-type BlockchainData = { tipStatus: BlockStatus; feeEstimates: FeeEstimates };
+import { EsploraExplorer } from '@bitcoinerlab/explorer';
+export type BlockchainData = {
+  tipStatus: BlockStatus;
+  feeEstimates: FeeEstimates;
+};
 
 export const WalletContext: Context<WalletContextType | null> =
   createContext<WalletContextType | null>(null);
@@ -366,16 +370,6 @@ const WalletProviderRaw = ({
       signersCipherKey?: Uint8Array;
     }) => {
       const walletId = walletDst.walletId;
-      const discovery =
-        initialDiscovery && (await ensureConnected(initialDiscovery));
-      const explorer = discovery?.getExplorer();
-      if (explorer) {
-        const feeEstimates = await explorer.fetchFeeEstimates();
-        const tipHeight = await explorer.fetchBlockHeight();
-        const tipStatus = await explorer.fetchBlockStatus(tipHeight);
-        if (!tipStatus) throw new Error('Status should exist for tip');
-        setBlockchainData(walletId, { feeEstimates, tipStatus });
-      }
       if (newSigners) {
         //Make sure we don't have values from previous app installs using the same id?
         const authenticationPrompt = t('app.secureStorageAuthenticationPrompt');
@@ -404,12 +398,44 @@ const WalletProviderRaw = ({
     [
       //logOut,
       t,
-      initialDiscovery,
-      setBlockchainData,
       setNewSigners,
       setSignersCipherKey
     ]
   );
+
+  useEffect(() => {
+    const setBlockchainDataPerWallet = async () => {
+      if (settings?.MAINNET_ESPLORA_API) {
+        console.log('TRACE setBlockchainDataPerWallet', {
+          initialDiscovery,
+          walletId
+        });
+        const discovery =
+          initialDiscovery && (await ensureConnected(initialDiscovery));
+        const explorer =
+          networkId === 'STORM' || networkId === 'REGTEST'
+            ? new EsploraExplorer({
+                url: settings?.MAINNET_ESPLORA_API
+              })
+            : discovery?.getExplorer();
+        if (explorer && walletId !== undefined) {
+          const feeEstimates = await explorer.fetchFeeEstimates();
+          const tipHeight = await explorer.fetchBlockHeight();
+          const tipStatus = await explorer.fetchBlockStatus(tipHeight);
+          if (!tipStatus) throw new Error('Status should exist for tip');
+          console.log('TRACE setBlockchainData', { walletId, tipStatus });
+          setBlockchainData(walletId, { feeEstimates, tipStatus });
+        }
+      }
+    };
+    setBlockchainDataPerWallet();
+  }, [
+    networkId,
+    settings?.MAINNET_ESPLORA_API,
+    initialDiscovery,
+    walletId,
+    setBlockchainData
+  ]);
 
   useEffect(() => {
     if (

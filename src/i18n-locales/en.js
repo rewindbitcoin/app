@@ -97,15 +97,36 @@ If you need further assistance, please contact ThunderDen Support.`
       vaultTitle: 'Vault {{vaultNumber}}',
       vaultDate: 'Created on {{date}}',
       amountFrozen: 'Amount Frozen',
+      unfrozenAmount: 'Unfrozen Amount',
       frozenAmount: 'Amount Frozen: {{amount}}.',
       confirming: 'Confirming',
       confirmed: 'Confirmed',
+
+      rescuedAfterUnfreeze:
+        'This vault was rescued on {{rescueDate}} following an unfreeze request on {{triggerDate}}.',
+      unfrozenAndSpent:
+        'An unfreeze request was made on {{triggerDate}}. The vault was unfrozen on {{unfreezeDate}} and has already been spent.',
+      unfrozenAndHotBalance:
+        'An unfreeze request was made on {{triggerDate}}. The vault was unfrozen on {{unfreezeDate}} and is now part of your hot balance.',
+      triggerWithEstimatedDate:
+        'Unfreeze was requested on {{triggerDate}}. The estimated unfreeze date is {{estimatedUnfreezeDate}}.',
+
+      triggerWithRemainingTime:
+        "Unfreeze was requested on {{triggerDate}}. It's currently being unfrozen with {{remainingTime}} remaining.",
+
       beingUnfrozen: 'This vault is currently being unfrozen.',
-      unfreezeRequestLabel: 'Unfreeze Request Date',
+      triggerLabel: 'Unfreeze Request Date',
       rescueDateLabel: 'Rescue Date',
       rescueAddressLabel: 'Rescue Address',
       vaultSpendableDateLabel: 'Lock Period End Date',
       frozenRemainingDateLabel: 'Funds Unlock Estimated Date'
+
+      //rescued:
+      //  'Unfreeze was requested on <wrapper>{{requestDate}} and the vault was rescued on <wrapper>{{date}}</wrapper>.',
+      //vaultIsHot:
+      //  'Unfreeze was requested on <wrapper>{{requestDate}}</wrapper> and funds were unlocked on <wrapper>{{hotDate}}</wrapper>.',
+      //vaultIsUnfreezing:
+      //  'Unfreeze has been requested on <wrapper>{{requestTime}}</wrapper> and funds will be unlocked in <wrapper>{{time}}</wrapper>.'
     }
   },
   walletHome: {

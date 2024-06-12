@@ -56,7 +56,20 @@ export type Vault = {
    * for path on the online P2P network. See fetchP2PVaultIds */
   vaultId: string;
   vaultPath: string;
+  /** Per definition, amount includes serviceFee. In other words:
+   *  - There is an output with value: (amount - serviceFee).
+   *    Note that the second output for serviceFee is sometimes not set.
+   *    See: selectVaultUtxosData.
+   *  - There is another output with value: serviceFee
+   *  - and maybe there an additional output with change.
+   *  So, the user will pay amount + miner fee.
+   */
   amount: number;
+  /**
+   * the vaulted amount after the vaultTxHex has been mined. It already excludes
+   * serviceFee. Note that serviceFee is not always set.
+   */
+  netAmount: number;
 
   vaultAddress: string;
   triggerAddress: string;
@@ -88,15 +101,33 @@ export type Vault = {
 export type VaultStatus = {
   vaultTxBlockHeight?: number;
 
+  /**
+   * tx, height & unix time when the vault unfreeze trigger was mined.
+   * If these are not set, then the other times and heights below cannot be
+   * computed and will be undefined.
+   */
   triggerTxHex?: string;
   triggerTxBlockHeight?: number;
+  triggerTxBlockTime?: number;
+
+  /**
+   * This is the block timestamp for (triggerTxBlockHeight + lockBlocks)
+   * Note that this can only be retrieved when the blockchain tip is equal
+   * or above (triggerTxBlockHeight + lockBlocks).
+   * It's set if and only if:
+   *  - triggerTx has been mined
+   *  - and (triggerTxBlockHeight + lockBlocks) is equal or below the blockchain tip
+   */
+  hotBlockTime?: number;
 
   panicTxHex?: string; //Maybe the samer as unlockingTxHex or not
   panicTxBlockHeight?: number;
+  panicTxBlockTime?: number;
 
   //If it was spent as hot:
   spendAsHotTxHex?: string;
   spendAsHotTxBlockHeight?: number;
+  spendAsHotTxBlockTime?: number;
 
   /** Props below are just to keep internal track of users actions.
    * They are kept so that the App knows the last action the user did WITHIN the
@@ -623,6 +654,7 @@ export async function createVault({
       vaultId: nextVaultId,
       vaultPath: nextVaultPath,
       amount,
+      netAmount: vaultBalance,
       minPanicBalance,
       feeRateCeiling,
       vaultAddress,
@@ -728,6 +760,9 @@ export function getRemainingBlocks(
  * If remainingBlocks is zero this function returns zero vaulted balance
  * vaulted balance = frozen balance = balance that is not hot
  *
+ * When the trigger as been init (and while it's still locked), this function
+ * substracts the trigger tx fee from the balance.
+ *
  * This is per definition.
  */
 
@@ -746,20 +781,41 @@ export const getVaultFrozenBalance = (
   )
     return 0;
 
-  const vaultTx = Transaction.fromHex(vault.vaultTxHex);
-  const vaultOutput = vaultTx.outs[0];
-  if (!vaultOutput) throw new Error('Invalid out');
-
   const triggerTxHex = vaultStatus.triggerTxHex;
   //Not triggered yet:
-  if (triggerTxHex === undefined) return vaultOutput.value;
+  if (triggerTxHex === undefined) return vault.netAmount;
 
   //Unvaulting triggered:
   const triggerFee = vault.txMap[triggerTxHex]?.fee;
   if (triggerFee === undefined)
     throw new Error('Trigger tx fee should have been set');
 
-  return vaultOutput.value - triggerFee;
+  return vault.netAmount - triggerFee;
+};
+/**
+ * Returns the vault current hot amount or the hot amount this vault
+ * ever had before being spent as hot
+ */
+export const getVaultUnfrozenBalance = (
+  vault: Vault,
+  vaultStatus: VaultStatus
+) => {
+  console.warn(
+    'TODO - in fact here, first make sure that the vault was really pushed and is either mined or at least in the mempool'
+  );
+  if (
+    vaultStatus.vaultTxBlockHeight === undefined ||
+    vaultStatus.panicTxHex ||
+    !vaultStatus.triggerTxHex
+  )
+    return 0;
+
+  //Unvaulting triggered:
+  const triggerFee = vault.txMap[vaultStatus.triggerTxHex]?.fee;
+  if (triggerFee === undefined)
+    throw new Error('Trigger tx fee should have been set');
+
+  return vault.netAmount - triggerFee;
 };
 
 /**
@@ -939,6 +995,16 @@ async function fetchVaultStatus(
   if (triggerTxData) {
     newVaultStatus.triggerTxHex = triggerTxData.txHex;
     newVaultStatus.triggerTxBlockHeight = triggerTxData.blockHeight;
+    const triggerBlockStatus = await explorer.fetchBlockStatus(
+      newVaultStatus.triggerTxBlockHeight
+    );
+    if (!triggerBlockStatus)
+      throw new Error('Block status should exist for existing block height');
+    newVaultStatus.triggerTxBlockTime = triggerBlockStatus.blockTime;
+    const hotVaultStatus = await explorer.fetchBlockStatus(
+      newVaultStatus.triggerTxBlockHeight + vault.lockBlocks
+    );
+    if (hotVaultStatus) newVaultStatus.hotBlockTime = hotVaultStatus.blockTime;
     const unlockingTxData = await fetchSpendingTx(
       triggerTxData.txHex,
       0,
@@ -955,9 +1021,25 @@ async function fetchVaultStatus(
       if (panicTxHex) {
         newVaultStatus.panicTxHex = unlockingTxData.txHex;
         newVaultStatus.panicTxBlockHeight = unlockingTxData.blockHeight;
+        const panicBlockStatus = await explorer.fetchBlockStatus(
+          newVaultStatus.panicTxBlockHeight
+        );
+        if (!panicBlockStatus)
+          throw new Error(
+            'Block status should exist for existing block height'
+          );
+        newVaultStatus.panicTxBlockTime = panicBlockStatus.blockTime;
       } else {
         newVaultStatus.spendAsHotTxHex = unlockingTxData.txHex;
         newVaultStatus.spendAsHotTxBlockHeight = unlockingTxData.blockHeight;
+        const spendAsHotBlockStatus = await explorer.fetchBlockStatus(
+          newVaultStatus.spendAsHotTxBlockHeight
+        );
+        if (!spendAsHotBlockStatus)
+          throw new Error(
+            'Block status should exist for existing block height'
+          );
+        newVaultStatus.spendAsHotTxBlockTime = spendAsHotBlockStatus.blockTime;
       }
     }
   }
