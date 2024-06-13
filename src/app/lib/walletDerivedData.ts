@@ -1,6 +1,6 @@
 import moize from 'moize';
 export type DiscoveryDataExport = ReturnType<DiscoveryInstance['export']>;
-import { EsploraExplorer } from '@bitcoinerlab/explorer';
+import { EsploraExplorer, Explorer } from '@bitcoinerlab/explorer';
 import { DiscoveryFactory, DiscoveryInstance } from '@bitcoinerlab/discovery';
 import { NetworkId, networkMapping } from './network';
 import { Vaults, getUtxosData as extractUtxosData } from '../lib/vaults';
@@ -76,6 +76,27 @@ export const ensureConnected = async (
     ) {
       // Ignore the error if the client is already connected
       return discovery;
+    } else {
+      // Re-throw all other errors
+      throw error;
+    }
+  }
+};
+//Similar as the above
+export const ensureExplorerConnected = async (
+  explorer: Explorer
+): Promise<Explorer> => {
+  try {
+    // Attempt to connect the explorer
+    await explorer.connect();
+    return explorer;
+  } catch (error: unknown) {
+    if (
+      error instanceof Error &&
+      error.message === 'Client already connected.'
+    ) {
+      // Ignore the error if the client is already connected
+      return explorer;
     } else {
       // Re-throw all other errors
       throw error;

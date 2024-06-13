@@ -28,7 +28,7 @@ export function useFeeEstimates({
   const [feeEstimates, setFeeEstimates] = useState<FeeEstimates>();
   const { settings } = useSettings();
   const mainnetAPI = settings?.MAINNET_ESPLORA_API;
-  const intevalTime = settings?.BLOCKCHAIN_DATA_REFRESH_INTERVAL_MS;
+  const intervalTime = settings?.BLOCKCHAIN_DATA_REFRESH_INTERVAL_MS;
   const { t } = useTranslation();
   const toast = useToast();
 
@@ -71,13 +71,13 @@ export function useFeeEstimates({
   }, [initialDiscovery]);
 
   useEffect(() => {
-    if (initialDiscovery && intevalTime && mainnetAPI && network) {
-      const intervalId = setInterval(updateFeeEstimates, intevalTime);
+    if (initialDiscovery && intervalTime && mainnetAPI && network) {
+      const intervalId = setInterval(updateFeeEstimates, intervalTime);
       updateFeeEstimates(); //1st call
       return () => clearInterval(intervalId);
     }
     return;
-  }, [updateFeeEstimates, initialDiscovery, mainnetAPI, intevalTime, network]);
+  }, [updateFeeEstimates, initialDiscovery, mainnetAPI, intervalTime, network]);
 
   return { feeEstimates, updateFeeEstimates };
 }

@@ -3,7 +3,13 @@
 //For the delegage something along this;: https://icons.expo.fyi/Index/FontAwesome/handshake-o
 //https://icons.expo.fyi/Index/Foundation/torsos-all
 //or this: https://icons.expo.fyi/Index/FontAwesome5/hands-helping
-import React, { useCallback, useEffect, useMemo, useRef } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState
+} from 'react';
 import { View, Text } from 'react-native';
 
 import {
@@ -25,6 +31,7 @@ import { useSettings } from '../hooks/useSettings';
 import type { SubUnit } from '../lib/settings';
 import type { Locale } from '../../i18n-locales/init';
 import type { BlockStatus } from '@bitcoinerlab/explorer/dist/interface';
+import InitUnfreeze from './InitUnfreeze';
 
 /*
  *
@@ -254,6 +261,16 @@ const Vault = ({
   vaultNumber: number;
   vaultStatus: VaultStatus | undefined;
 }) => {
+  const [showInitUnfreeze, setShowInitUnfreeze] = useState<boolean>(false);
+  const handleCloseInitUnfreeze = useCallback(
+    () => setShowInitUnfreeze(false),
+    []
+  );
+  const handleShowInitUnfreeze = useCallback(
+    () => setShowInitUnfreeze(true),
+    []
+  );
+  const handleInitUnfreeze = useCallback(() => setShowInitUnfreeze(false), []);
   const { settings } = useSettings();
   if (!settings) throw new Error('Settings has not been retrieved');
   const tipHeight = tipStatus?.blockHeight;
@@ -391,7 +408,7 @@ const Vault = ({
           remainingBlocks === 0 && !vaultStatus?.panicTxHex && <View></View>
         }
         <View className="w-full flex-row justify-between">
-          <Button mode="secondary" onPress={handleDelegateVault}>
+          <Button mode="secondary" onPress={handleShowInitUnfreeze}>
             {t('wallet.vault.triggerUnfreezeButton')}
           </Button>
           <Button mode="secondary" onPress={handleDelegateVault}>
@@ -399,6 +416,11 @@ const Vault = ({
           </Button>
         </View>
       </View>
+      <InitUnfreeze
+        isVisible={showInitUnfreeze}
+        onClose={handleCloseInitUnfreeze}
+        onInit={handleInitUnfreeze}
+      />
     </View>
   );
 };
