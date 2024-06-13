@@ -2,7 +2,7 @@ import { useState, useCallback } from 'react';
 export function useWalletState<T>(): [
   Record<number, T | undefined>,
   (walletId: number, newWalletIdState: T | undefined) => void,
-  (wallet: number) => void
+  (walletId: number) => void
 ] {
   const [walletsState, setWalletsState] = useState<
     Record<number, T | undefined>

@@ -11,10 +11,14 @@ export default {
     walletTitle: 'Wallet',
     settingsButton: 'Settings',
     settingsTitle: 'Settings',
+    feeEstimatesError:
+      'Unable to retrieve up-to-date fee estimates. Fee amounts may be slightly off. Please check your internet connection. Retrying in 60 seconds and will notify you if the problem persists.',
+    tipStatusError:
+      'Unable to retrieve the latest blockchain block. The displayed data may not be up-to-date. Please check your internet connection and try refreshing the wallet.',
     btcRatesError:
-      'Unable to retrieve current BTC rates. The displayed amounts in {{currency}} may not be accurate.',
-    blockchainDataError:
-      'Unable to retrieve up-to-date blockchain data. Transaction times and fee amounts may be slightly off. Please check your internet connection. Retrying in 60 seconds and will notify you if the problem persists.',
+      'Unable to retrieve current BTC rates. The displayed amounts in {{currency}} may not be accurate. Please check your internet connection.',
+    //blockchainDataError:
+    //  'Unable to retrieve up-to-date blockchain data. Transaction times and fee amounts may be slightly off. Please check your internet connection. Retrying in 60 seconds and will notify you if the problem persists.',
     secureStorageAuthenticationPrompt:
       "Please authenticate to access your wallet's sensitive data."
   },

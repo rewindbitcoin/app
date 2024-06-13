@@ -48,8 +48,7 @@ export default function VaultSetUp({
   if (context === null) {
     throw new Error('Context was not set');
   }
-  const { utxosData, networkId, blockchainData, btcFiat, accounts } = context;
-  const feeEstimates = blockchainData?.feeEstimates;
+  const { utxosData, networkId, feeEstimates, btcFiat, accounts } = context;
   if (!utxosData)
     throw new Error('SetUpVaultScreen cannot be called with unset utxos');
   if (!accounts)

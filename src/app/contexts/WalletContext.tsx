@@ -34,8 +34,7 @@ import React, {
   ReactNode,
   useEffect,
   useState,
-  useCallback,
-  useRef
+  useCallback
 } from 'react';
 import { shallowEqualObjects } from 'shallow-equal';
 import type { Wallet } from '../lib/wallets';
@@ -65,13 +64,10 @@ import { useStorage } from '../../common/hooks/useStorage';
 import { useSecureStorageInfo } from '../../common/contexts/SecureStorageInfoContext';
 import { useSettings } from '../hooks/useSettings';
 import { useBtcFiat } from '../hooks/useBtcFiat';
+import { useTipStatus } from '../hooks/useTipStatus';
+import { useFeeEstimates } from '../hooks/useFeeEstimates';
 import { useWalletState } from '../hooks/useWalletState';
 import type { BlockStatus } from '@bitcoinerlab/explorer/dist/interface';
-import { EsploraExplorer } from '@bitcoinerlab/explorer';
-export type BlockchainData = {
-  tipStatus: BlockStatus;
-  feeEstimates: FeeEstimates;
-};
 
 export const WalletContext: Context<WalletContextType | null> =
   createContext<WalletContextType | null>(null);
@@ -81,7 +77,8 @@ export type WalletContextType = {
   fetchServiceAddress: () => Promise<string>;
   getUnvaultKey: () => Promise<string>;
   btcFiat: number | undefined;
-  blockchainData: BlockchainData | undefined;
+  feeEstimates: FeeEstimates | undefined;
+  tipStatus: BlockStatus | undefined;
   utxosData: UtxosData | undefined;
   historyData: HistoryData | undefined;
   signers: Signers | undefined;
@@ -146,12 +143,6 @@ const WalletProviderRaw = ({
     useWalletState<HistoryData>();
   const [syncingBlockchain, setSyncingBlockchain, clearSynchingBlockchain] =
     useWalletState<boolean>();
-  const [blockchainData, setBlockchainData, clearBlockchainData] =
-    useWalletState<BlockchainData>();
-  const blockchainTip =
-    walletId === undefined
-      ? undefined
-      : blockchainData[walletId]?.tipStatus.blockHeight;
 
   const btcFiat = useBtcFiat();
 
@@ -226,6 +217,9 @@ const WalletProviderRaw = ({
     discoveryDataExport,
     discoveryStorageStatus.isSynchd
   );
+
+  const { tipStatus, updateTipStatus } = useTipStatus({ initialDiscovery });
+  const { feeEstimates } = useFeeEstimates({ initialDiscovery, network });
 
   const [vaults, setVaults, , clearVaultsCache, vaultsStorageStatus] =
     useStorage<Vaults>(
@@ -329,7 +323,6 @@ const WalletProviderRaw = ({
         clearUtxosData(walletId);
         clearHistoryData(walletId);
         clearSynchingBlockchain(walletId);
-        clearBlockchainData(walletId);
         clearNewSigners(walletId);
         clearSignersCipherKey(walletId);
         clearDataCipherKey(walletId);
@@ -345,7 +338,6 @@ const WalletProviderRaw = ({
     clearDiscoveryCache,
     clearAccountsCache,
     clearUtxosData,
-    clearBlockchainData,
     clearHistoryData,
     clearSynchingBlockchain,
     clearNewSigners,
@@ -404,45 +396,6 @@ const WalletProviderRaw = ({
     ]
   );
 
-  const blockchainDataWalletIdRef = useRef<number>();
-  useEffect(() => {
-    const updateBlockchainData = async () => {
-      if (blockchainDataWalletIdRef.current !== walletId) {
-        clearInterval(intervalId);
-      } else if (settings?.MAINNET_ESPLORA_API && initialDiscovery) {
-        const discovery =
-          initialDiscovery && (await ensureConnected(initialDiscovery));
-        //On Regtest networks, use mainnet fee estimates
-        const feeEstimatesExplorer =
-          networkId === 'STORM' || networkId === 'REGTEST'
-            ? new EsploraExplorer({
-                url: settings?.MAINNET_ESPLORA_API
-              })
-            : discovery?.getExplorer();
-        const explorer = discovery?.getExplorer();
-        if (explorer && feeEstimatesExplorer && walletId !== undefined) {
-          const feeEstimates = await feeEstimatesExplorer.fetchFeeEstimates();
-          const tipHeight = await explorer.fetchBlockHeight();
-          const tipStatus = await explorer.fetchBlockStatus(tipHeight);
-          if (!tipStatus) throw new Error('Status should exist for tip');
-          setBlockchainData(walletId, { feeEstimates, tipStatus });
-        }
-      }
-    };
-    const time = settings?.BLOCKCHAIN_DATA_REFRESH_INTERVAL_MS;
-    if (!time) return;
-    blockchainDataWalletIdRef.current = walletId;
-    updateBlockchainData();
-    const intervalId = setInterval(updateBlockchainData, time);
-  }, [
-    networkId,
-    settings?.MAINNET_ESPLORA_API,
-    settings?.BLOCKCHAIN_DATA_REFRESH_INTERVAL_MS,
-    initialDiscovery,
-    walletId,
-    setBlockchainData
-  ]);
-
   useEffect(() => {
     if (
       walletId !== undefined &&
@@ -479,48 +432,49 @@ const WalletProviderRaw = ({
         vaultsStatuses &&
         accounts &&
         network &&
-        blockchainTip &&
         discovery
       ) {
-        const descriptors = getHotDescriptors(
-          vaults,
-          vaultsStatuses,
-          accounts,
-          blockchainTip
-        );
-        //Make sure they are fetched already:
-        if (
-          descriptors.every(descriptor => discovery.whenFetched({ descriptor }))
-        ) {
-          const { utxos, balance } = discovery.getUtxosAndBalance({
-            descriptors
-          });
-          console.log('TRACE', { utxos, balance });
-          const walletUtxosData = getUtxosData(
-            utxos,
+        const tipStatus = await updateTipStatus();
+        if (tipStatus?.blockHeight) {
+          const descriptors = getHotDescriptors(
             vaults,
-            network,
-            discovery
+            vaultsStatuses,
+            accounts,
+            tipStatus.blockHeight
           );
-          setUtxosData(walletId, walletUtxosData);
-          const history = discovery.getHistory(
-            { descriptors },
-            true
-          ) as Array<TxAttribution>;
-          const walletHistoryData = getHistoryData(history, discovery);
-          setHistoryData(walletId, walletHistoryData);
+          //Make sure they are fetched already:
+          if (
+            descriptors.every(descriptor =>
+              discovery.whenFetched({ descriptor })
+            )
+          ) {
+            const { utxos } = discovery.getUtxosAndBalance({ descriptors });
+            const walletUtxosData = getUtxosData(
+              utxos,
+              vaults,
+              network,
+              discovery
+            );
+            setUtxosData(walletId, walletUtxosData);
+            const history = discovery.getHistory(
+              { descriptors },
+              true
+            ) as Array<TxAttribution>;
+            const walletHistoryData = getHistoryData(history, discovery);
+            setHistoryData(walletId, walletHistoryData);
+          }
         }
       }
     };
     setInitialUtxosData();
   }, [
+    updateTipStatus,
     setUtxosData,
     setHistoryData,
     walletId,
     utxosData,
     initialDiscovery,
     network,
-    blockchainTip,
     accounts,
     vaults,
     vaultsStatuses
@@ -590,7 +544,6 @@ const WalletProviderRaw = ({
       networkId &&
       gapLimit !== undefined &&
       discovery &&
-      blockchainTip &&
       vaults &&
       vaultsStatuses &&
       accounts &&
@@ -606,110 +559,118 @@ const WalletProviderRaw = ({
       const network = networkId && networkMapping[networkId];
 
       try {
-        //First get updatedVaults & updatedVaultsStatuses:
-        const p2pVaults = await fetchP2PVaults({
-          signer,
-          networkId,
-          vaultsAPI,
-          vaults
-        });
-        let updatedVaults = vaults; //initially they are the same
-        p2pVaults &&
-          Object.entries(p2pVaults).forEach(([key, p2pVault]) => {
-            const currentVault = vaults[key];
-            //A vault cannot mutate. It either exists or not, but once created
-            //it will never change:
-            if (p2pVault && !currentVault) {
-              // Mutate updatedVaults because a new one has been detected
-              updatedVaults = { ...updatedVaults };
-              updatedVaults[key] = p2pVault;
+        const tipStatus = await updateTipStatus();
+        if (tipStatus?.blockHeight) {
+          //First get updatedVaults & updatedVaultsStatuses:
+          const p2pVaults = await fetchP2PVaults({
+            signer,
+            networkId,
+            vaultsAPI,
+            vaults
+          });
+          let updatedVaults = vaults; //initially they are the same
+          p2pVaults &&
+            Object.entries(p2pVaults).forEach(([key, p2pVault]) => {
+              const currentVault = vaults[key];
+              //A vault cannot mutate. It either exists or not, but once created
+              //it will never change:
+              if (p2pVault && !currentVault) {
+                // Mutate updatedVaults because a new one has been detected
+                updatedVaults = { ...updatedVaults };
+                updatedVaults[key] = p2pVault;
+              }
+            });
+
+          const freshVaultsStatuses = await fetchVaultsStatuses(
+            updatedVaults,
+            vaultsStatuses,
+            discovery.getExplorer()
+          );
+
+          let updatedVaultsStatuses = vaultsStatuses; //initially they are the same
+          Object.entries(freshVaultsStatuses).forEach(([key, freshStatus]) => {
+            const currentStatus = vaultsStatuses[key];
+            //A vaultStatus can change in the future since it depends on user actions
+            if (!shallowEqualObjects(currentStatus, freshStatus)) {
+              // Mutate updatedVaultsStatuses because a change has been detected
+              updatedVaultsStatuses = { ...updatedVaultsStatuses };
+              updatedVaultsStatuses[key] = freshStatus;
             }
           });
 
-        const freshVaultsStatuses = await fetchVaultsStatuses(
-          updatedVaults,
-          vaultsStatuses,
-          discovery.getExplorer()
-        );
-
-        let updatedVaultsStatuses = vaultsStatuses; //initially they are the same
-        Object.entries(freshVaultsStatuses).forEach(([key, freshStatus]) => {
-          const currentStatus = vaultsStatuses[key];
-          //A vaultStatus can change in the future since it depends on user actions
-          if (!shallowEqualObjects(currentStatus, freshStatus)) {
-            // Mutate updatedVaultsStatuses because a change has been detected
-            updatedVaultsStatuses = { ...updatedVaultsStatuses };
-            updatedVaultsStatuses[key] = freshStatus;
-          }
-        });
-
-        //Now get utxosData
-        const descriptors = getHotDescriptors(
-          updatedVaults,
-          updatedVaultsStatuses,
-          accounts,
-          blockchainTip
-        );
-        if (descriptors.length)
-          await discovery.fetch({ descriptors, gapLimit });
-        else {
-          if (Object.keys(accounts).length)
-            throw new Error("Accounts shouldn't be set with unset descriptors");
-          const newAccounts: Accounts = {};
-          if (signer.type !== 'SOFTWARE') {
-            console.warn('Non-Software Wallets use default accounts for now');
-            const defaultAccount = await getDefaultAccount(signers, network);
-            const descriptors = await getDefaultDescriptors(signers, network);
-            newAccounts[defaultAccount] = { discard: false };
-            discovery.fetch({ descriptors, gapLimit });
-          } else {
-            if (!signer.mnemonic)
-              throw new Error('mnemonic not set for soft wallet');
-            const masterNode = getMasterNode(signer.mnemonic, network);
-            await discovery.fetchStandardAccounts({ masterNode, gapLimit });
-            const usedAccounts = discovery.getUsedAccounts();
-            if (usedAccounts.length)
-              for (const usedAccount of usedAccounts)
-                newAccounts[usedAccount] = { discard: false };
-            else {
+          //Now get utxosData
+          const descriptors = getHotDescriptors(
+            updatedVaults,
+            updatedVaultsStatuses,
+            accounts,
+            tipStatus.blockHeight
+          );
+          if (descriptors.length)
+            await discovery.fetch({ descriptors, gapLimit });
+          else {
+            if (Object.keys(accounts).length)
+              throw new Error(
+                "Accounts shouldn't be set with unset descriptors"
+              );
+            const newAccounts: Accounts = {};
+            if (signer.type !== 'SOFTWARE') {
+              console.warn('Non-Software Wallets use default accounts for now');
               const defaultAccount = await getDefaultAccount(signers, network);
+              const descriptors = await getDefaultDescriptors(signers, network);
               newAccounts[defaultAccount] = { discard: false };
+              discovery.fetch({ descriptors, gapLimit });
+            } else {
+              if (!signer.mnemonic)
+                throw new Error('mnemonic not set for soft wallet');
+              const masterNode = getMasterNode(signer.mnemonic, network);
+              await discovery.fetchStandardAccounts({ masterNode, gapLimit });
+              const usedAccounts = discovery.getUsedAccounts();
+              if (usedAccounts.length)
+                for (const usedAccount of usedAccounts)
+                  newAccounts[usedAccount] = { discard: false };
+              else {
+                const defaultAccount = await getDefaultAccount(
+                  signers,
+                  network
+                );
+                newAccounts[defaultAccount] = { discard: false };
+              }
+              setAccounts(newAccounts);
             }
-            setAccounts(newAccounts);
           }
+          //If utxos don't change, then getUtxosAndBalance return the same reference
+          //even if descriptors reference is different
+          const { utxos } = discovery.getUtxosAndBalance({ descriptors });
+          const walletUtxosData = getUtxosData(
+            utxos,
+            updatedVaults,
+            network,
+            discovery
+          );
+          const history = discovery.getHistory(
+            { descriptors },
+            true
+          ) as Array<TxAttribution>;
+          const walletHistoryData = getHistoryData(history, discovery);
+
+          //Save to disk. Saving is async, but it's ok not awaiting since all this
+          //data can be re-created any time by calling again syncBlockchain.
+          const exportedData = discovery.export();
+
+          //IMPORTANT - Note that values below are not sync immediatelly
+          //even if we used unstable_batchedUpdates that would not work since
+          //there are awaits within the setStorageValue. When using context
+          //it's important to make use of syncBlockchain var if planning to use
+          //vaults & vaultsStatuses for example (or any combination of state)
+
+          setDiscoveryDataExport(exportedData);
+          //Update them in state only if they changed (we mutated them)
+          if (vaults !== updatedVaults) setVaults(updatedVaults);
+          if (vaultsStatuses !== updatedVaultsStatuses)
+            setVaultsStatuses(updatedVaultsStatuses);
+          setUtxosData(walletId, walletUtxosData);
+          setHistoryData(walletId, walletHistoryData);
         }
-        //If utxos don't change, then getUtxosAndBalance return the same reference
-        //even if descriptors reference is different
-        const { utxos } = discovery.getUtxosAndBalance({ descriptors });
-        const walletUtxosData = getUtxosData(
-          utxos,
-          updatedVaults,
-          network,
-          discovery
-        );
-        const history = discovery.getHistory(
-          { descriptors },
-          true
-        ) as Array<TxAttribution>;
-        const walletHistoryData = getHistoryData(history, discovery);
-
-        //Save to disk. Saving is async, but it's ok not awaiting since all this
-        //data can be re-created any time by calling again syncBlockchain.
-        const exportedData = discovery.export();
-
-        //IMPORTANT - Note that values below are not sync immediatelly
-        //even if we used unstable_batchedUpdates that would not work since
-        //there are awaits within the setStorageValue. When using context
-        //it's important to make use of syncBlockchain var if planning to use
-        //vaults & vaultsStatuses for example (or any combination of state)
-
-        setDiscoveryDataExport(exportedData);
-        //Update them in state only if they changed (we mutated them)
-        if (vaults !== updatedVaults) setVaults(updatedVaults);
-        if (vaultsStatuses !== updatedVaultsStatuses)
-          setVaultsStatuses(updatedVaultsStatuses);
-        setUtxosData(walletId, walletUtxosData);
-        setHistoryData(walletId, walletHistoryData);
       } catch (error) {
         const errorMessage =
           error instanceof Error
@@ -725,6 +686,7 @@ const WalletProviderRaw = ({
 
     setSyncingBlockchain(walletId, false);
   }, [
+    updateTipStatus,
     setAccounts,
     setUtxosData,
     setHistoryData,
@@ -740,7 +702,6 @@ const WalletProviderRaw = ({
     vaults,
     vaultsStatuses,
     networkId,
-    blockchainTip,
     signers,
     vaultsAPI,
     gapLimit
@@ -759,10 +720,11 @@ const WalletProviderRaw = ({
   //Automatically set syncingBlockchain to true on new walletId: auto sync
   //on new wallet. Make sure blockchainTip is set since otherwise sync()
   //won't do anything as it's necessary.
+  //Also it will auto-trigger update on a new block
   useEffect(() => {
-    if (walletId !== undefined && isReady && blockchainTip)
+    if (walletId !== undefined && isReady && tipStatus?.blockHeight)
       setSyncingBlockchain(walletId, true);
-  }, [walletId, setSyncingBlockchain, isReady, blockchainTip]);
+  }, [walletId, setSyncingBlockchain, isReady, tipStatus?.blockHeight]);
 
   const processCreatedVault = useCallback(
     async (
@@ -841,8 +803,8 @@ const WalletProviderRaw = ({
     vaults,
     vaultsStatuses,
     networkId,
-    blockchainData:
-      walletId !== undefined ? blockchainData[walletId] : undefined,
+    feeEstimates,
+    tipStatus,
     utxosData: walletId !== undefined ? utxosData[walletId] : undefined,
     historyData: walletId !== undefined ? historyData[walletId] : undefined,
     processCreatedVault,

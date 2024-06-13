@@ -24,7 +24,7 @@ import { Button } from '../../common/ui';
 import { useSettings } from '../hooks/useSettings';
 import type { SubUnit } from '../lib/settings';
 import type { Locale } from '../../i18n-locales/init';
-import type { BlockchainData } from '../contexts/WalletContext';
+import type { BlockStatus } from '@bitcoinerlab/explorer/dist/interface';
 
 /*
  *
@@ -243,20 +243,20 @@ const Amount = ({
 
 const Vault = ({
   btcFiat,
-  blockchainData,
+  tipStatus,
   vault,
   vaultNumber,
   vaultStatus
 }: {
   btcFiat: number | undefined;
-  blockchainData: BlockchainData | undefined;
+  tipStatus: BlockStatus | undefined;
   vault: Vault;
   vaultNumber: number;
   vaultStatus: VaultStatus | undefined;
 }) => {
   const { settings } = useSettings();
   if (!settings) throw new Error('Settings has not been retrieved');
-  const tipHeight = blockchainData?.tipStatus.blockHeight;
+  const tipHeight = tipStatus?.blockHeight;
   //const tipTime = blockchainData?.tipStatus.blockTime;
   const remainingBlocks =
     tipHeight &&
@@ -339,24 +339,28 @@ const Vault = ({
           {
             //TODO: Note that here below some of the dates may be undefined so
             //I'd need some kind of LOADING_TEXT
-            remainingBlocks === 'SPENT_AS_PANIC'
-              ? t('wallet.vault.rescuedAfterUnfreeze', { rescueDate })
-              : remainingBlocks === 'SPENT_AS_HOT'
-                ? t('wallet.vault.unfrozenAndSpent', {
-                    triggerDate,
-                    unfreezeDate
-                  })
-                : remainingBlocks === 0
-                  ? t('wallet.vault.unfrozenAndHotBalance', {
-                      triggerDate,
-                      unfreezeDate
-                    })
-                  : typeof remainingBlocks === 'number' && remainingBlocks > 0
-                    ? t('wallet.vault.triggerWithEstimatedDate', {
-                        triggerDate,
-                        estimatedUnfreezeDate
-                      })
-                    : null
+            remainingBlocks === 'SPENT_AS_PANIC' ? (
+              t('wallet.vault.rescuedAfterUnfreeze', { rescueDate })
+            ) : remainingBlocks === 'SPENT_AS_HOT' ? (
+              t('wallet.vault.unfrozenAndSpent', {
+                triggerDate,
+                unfreezeDate
+              })
+            ) : remainingBlocks === 0 ? (
+              t('wallet.vault.unfrozenAndHotBalance', {
+                triggerDate,
+                unfreezeDate
+              })
+            ) : typeof remainingBlocks === 'number' && remainingBlocks > 0 ? (
+              t('wallet.vault.triggerWithEstimatedDate', {
+                triggerDate,
+                estimatedUnfreezeDate
+              })
+            ) : remainingBlocks === undefined ? (
+              <Text>
+                TODO Activity Indicator - remainingBlocks is undefined
+              </Text>
+            ) : null
           }
         </Text>
         {remainingBlocks === 'SPENT_AS_HOT' ||
@@ -401,12 +405,12 @@ const Vault = ({
 
 const Vaults = ({
   btcFiat,
-  blockchainData,
+  tipStatus,
   vaults,
   vaultsStatuses
 }: {
   btcFiat: number | undefined;
-  blockchainData: BlockchainData | undefined;
+  tipStatus: BlockStatus | undefined;
   vaults: VaultsType;
   vaultsStatuses: VaultsStatuses;
 }) => {
@@ -424,7 +428,7 @@ const Vaults = ({
           <Vault
             key={vault.vaultId}
             btcFiat={btcFiat}
-            blockchainData={blockchainData}
+            tipStatus={tipStatus}
             vault={vault}
             vaultNumber={sortedVaults.length - index}
             vaultStatus={vaultStatus}
