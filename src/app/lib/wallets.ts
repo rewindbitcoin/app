@@ -44,7 +44,25 @@ export type Signer = {
  * F.ex.: Legacy, Nested, Native or all of them.
  * Note that only the external descriptor is saved (per convention an external
  * descriptor represents an Account).
- * discard when this account should not be part tof this wallet
+ * the discard prop can be set in a settings panel when the user decides that
+ * a former detected account should not be part of this wallet anymore.
+ *
+ * The wallet accounts are only set once. It is done initially in the first
+ * sync (in WalletContext). Accounts are set using several heuristics explained
+ * below. After inially set, Object.keys(accounts).length will be true and they
+ * will never again be set.
+ *
+ * How are initial accounts set?
+ * - When the wallet signer corresponds a a Hardware Wallet, then
+ * accounts are automatically set to Segwit, account #0 (see createDefaultReceiveDescriptor)
+ *
+ *  - When the wallet signer is a Software Wallet then discovery.fetchStandardAccounts
+ *  is called and all the usedAccounts are automatically added into Accounts.
+ *
+ *  In Hardware Wallets, it is not possible to call discovery.fetch since it has
+ *  not been implemented yet to accept HWW signers. When this is implemented then
+ *  a common strategy can be used. In the meanwhile the best we can do is to
+ *  default to Segwit, account#0 for HWW signers.
  */
 
 export type Accounts = {

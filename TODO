@@ -6,23 +6,12 @@ first board better
 En Vault no me gusta lo de los labels. Imprimir en formato texto?!?
 O que sea sencillo y no intimidante. No pro-oriented.
 
-Me he cargado el faucet
-  -> El problema es que necesito el blockchainTip ya al principio y no lo tengo: esto está arreglado PERO:
-  -> Antes tenia el la rutina de carga rapida de utxos, ahora casca porque blockchainTip no está puesto y tardará...
-    -> Pero tarda porque esta query es lenta del cagar: https://blockstream.info/api/block-height/847658 1.5 secs????
-  //Tries to initialize utxosData from the discovery object we got from disk
-  //ASAP (only if not set)
-  //TODO: Here also set history TAGiuenfsdkjfn
-  useEffect(() => {
-
 En Settings tendré que usa el cñodigo este: 
 import { shareVaults } from '../lib/backup';
   const onRequestVaultsBackup = useCallback(() => {
     if (!vaults) throw new Error('vaults not ready');
     return shareVaults({ vaults });
   }, [vaults]);
-
-  Se me llama a esto de forma periodica. Quien llama a esto y xq? getVaultsVaultedBalance
 
 Vault = Cofre/Fortín/Depósito
 
@@ -63,25 +52,10 @@ A ver tengo un lio. Si estoy en Una wallet e importo por ejemplo abandon abandon
 en testnet, eso me puede llevar minutps, pero puedo salir de esa wallet y crar una nueva
 entonces que va a pasaer cuando vuelva... en que wallet se meterá todo eso. Supongo q en la correcta no?
 
-Documentar bien AccountNames (cambier nombre a Accounts) 
-  -> Me da error cound not get the main account, el codigo esta mal
-  -> No se me están metiendo las accounts (quiza porque hace un throw del error)
-    -> Para signer.type !== "SOFTWARE" AccountNames será por defecto siempre Segwit #0 ya que fetchStandardAccounts no está implementado. Docuemntar esto en Accounts - Dejar esto documentado como un TODO.
-    -> ELSE:
-    -> Si AccountNames esta vacío, se hace un fetchStandardAccounts. Se meten en AccountNames.
-      -> Si standardAccountSearch no encuentra nada, se mete directamente en Accounts la account de Segwit
-    -> Se pondran todas ellas en Accounts con discard = false. Luego el user lo podrá desactivar.
-
-  -> TODO: getReceiveDescriptr/Change buscará en las AccountNames y dará la mas moderna y nueva
-  -> Si standardAccountSearch es falso, se mete directamente en Accounts la account de Segwit
-  -> TAmbién: TAGsdfdsf
+TODO: implementar getReceiveDescriptor parecido a Change que buscará en las AccountNames y dará la mas moderna y nueva
 
 Tener en Storage esto también:
   -Tags (per tx, también se puede usar para tagear "Vaulted")
-  -Accounts
-Tener un estado en Context para:
-  -History, BTW: Set the history too  ASAP (TAGiuenfsdkjfn)
-    -> Both in initial case and in the sync
 
 Problema con getHistory ya q las txs no confirmadas me salen las primeras (como si fiuesen
 las mas viejas) ya que blockHeight es cero. Cuando las ordene será un follón

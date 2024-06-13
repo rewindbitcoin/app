@@ -420,7 +420,6 @@ const WalletProviderRaw = ({
 
   //Tries to initialize utxosData from the discovery object we got from disk
   //ASAP (only if not set)
-  //TODO: Here also set history TAGiuenfsdkjfn
   useEffect(() => {
     const setInitialUtxosData = async () => {
       const discovery =
