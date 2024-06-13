@@ -209,6 +209,11 @@ const Modal: React.FC<ModalProps> = ({
       <KeyboardAvoidingView behavior="position">
         {/*behavior="padding" makes it randomly flicker on android(1px up & down) when the keyboard is dismissed*/}
         <GestureHandlerRootView style={{ backgroundColor: 'transparent' }}>
+          {/* Read TAG-android-does-not-propagate-slider-events
+           * in EditableSlider.tsx ff the PanGestureHandler captures events in
+           * Android and does not propagate them.
+           * Basically, it is possible to fix the isse by setting some props in
+           * the Children or in the parent. */}
           <PanGestureHandler onGestureEvent={gestureHandler}>
             <Animated.View style={animatedStyle}>
               <View
