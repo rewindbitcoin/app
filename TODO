@@ -25,6 +25,10 @@ Lo de MAX_VAULT_CHECKS es cutre no???
 
 Probar craer Vault en Android, ahore me casca
 
+Si alguien me lanza una tx con poca fee, entonces las utxos que estan en
+el mempool no me las dejará elegir nunca, no? Debería poder cambiar el modo
+en settings. Show only confirmed txs.
+
 Cuando se hace un set de las fees entonces el modal de InitTrigger me desactiva
 el Keyboard si lo estoy editando (eso pasa cada minuto o así).
 
@@ -116,6 +120,8 @@ Missing helper texts in Vault SetUp...
   -> Theft Protection Timelock?  (may be the same heklp as Learm More about vaults)
 
 The days chooset in Vault SetUp should show a popup. Also, when choosing "blocks" render blocks in status...
+The Theft-Protection Time-Lock should use the flag naturalFormatting = true
+when using "days"
 
 WalletHeader should say if its Testnet, Storm or Regtest (when its test wallet)
 

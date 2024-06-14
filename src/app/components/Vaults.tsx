@@ -31,7 +31,7 @@ import { useSettings } from '../hooks/useSettings';
 import type { SubUnit } from '../lib/settings';
 import type { Locale } from '../../i18n-locales/init';
 import type { BlockStatus } from '@bitcoinerlab/explorer/dist/interface';
-import InitUnfreeze from './InitUnfreeze';
+import InitUnfreeze, { InitUnfreezeData } from './InitUnfreeze';
 
 /*
  *
@@ -270,7 +270,13 @@ const Vault = ({
     () => setShowInitUnfreeze(true),
     []
   );
-  const handleInitUnfreeze = useCallback(() => setShowInitUnfreeze(false), []);
+  const handleInitUnfreeze = useCallback(
+    (initUnfreezeData: InitUnfreezeData) => {
+      console.log(`push ${initUnfreezeData.txHex}`);
+      setShowInitUnfreeze(false);
+    },
+    []
+  );
   const { settings } = useSettings();
   if (!settings) throw new Error('Settings has not been retrieved');
   const tipHeight = tipStatus?.blockHeight;
@@ -417,7 +423,9 @@ const Vault = ({
         </View>
       </View>
       <InitUnfreeze
+        vault={vault}
         isVisible={showInitUnfreeze}
+        lockBlocks={vault.lockBlocks}
         onClose={handleCloseInitUnfreeze}
         onInit={handleInitUnfreeze}
       />

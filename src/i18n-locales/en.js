@@ -123,7 +123,7 @@ If you need further assistance, please contact ThunderDen Support.`
       rescueDateLabel: 'Rescue Date',
       rescueAddressLabel: 'Rescue Address',
       vaultSpendableDateLabel: 'Lock Period End Date',
-      frozenRemainingDateLabel: 'Funds Unlock Estimated Date'
+      frozenRemainingDateLabel: 'Funds Unlock Estimated Date',
 
       //rescued:
       //  'Unfreeze was requested on <wrapper>{{requestDate}} and the vault was rescued on <wrapper>{{date}}</wrapper>.',
@@ -131,6 +131,22 @@ If you need further assistance, please contact ThunderDen Support.`
       //  'Unfreeze was requested on <wrapper>{{requestDate}}</wrapper> and funds were unlocked on <wrapper>{{hotDate}}</wrapper>.',
       //vaultIsUnfreezing:
       //  'Unfreeze has been requested on <wrapper>{{requestTime}}</wrapper> and funds will be unlocked in <wrapper>{{time}}</wrapper>.'
+      triggerUnfreeze: {
+        intro: `You're about to start the process of unlocking your vault funds,\
+ which will eventually be ready for spending.
+
+This will start the unfreeze countdown. The funds will become unlocked and available\
+ after {{timeLockTime}}.
+
+Tap "Continue" to choose the mining fee and start the unfreeze countdown.`,
+        confirmationSpeedLabel: 'Fee for Unfreeze Start',
+        feeSelectorExplanation:
+          'Select a mining fee to determine how quickly the unfreeze countdown starts.',
+        additionalExplanation: `Once confirmed, after {{timeLockTime}} your\
+ funds will become unlocked and available.
+
+Tap "Init Unfreeze" to authorize and start the unfreeze countdown.`
+      }
     }
   },
   walletHome: {

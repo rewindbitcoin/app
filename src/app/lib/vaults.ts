@@ -540,7 +540,6 @@ export async function createVault({
       txHex: vaultTxHex,
       vout: 0
     });
-    const feeTriggerArray: Array<number> = [];
     for (const [feeRateIndex, feeRateTrigger] of feeRates.entries()) {
       const psbtTrigger = psbtTriggerBase.clone();
       const feeTrigger = Math.ceil(
@@ -573,7 +572,6 @@ export async function createVault({
         await sleep(0);
       }
       const txTrigger = psbtTrigger.extractTransaction(true);
-      feeTriggerArray.push(feeTrigger); //TODO: wrong
       const triggerTxHex = txTrigger.toHex();
       const feeRate = feeTrigger / txTrigger.virtualSize();
       if (feeRate < 1) return 'UNKNOWN_ERROR';
@@ -597,7 +595,6 @@ export async function createVault({
         txHex: triggerTxHex,
         vout: 0
       });
-      const feePanicArray: Array<number> = [];
       for (const [feeRateIndex, feeRatePanic] of feeRates.entries()) {
         const psbtPanic = psbtPanicBase.clone();
         const feePanic = Math.ceil(
@@ -613,7 +610,6 @@ export async function createVault({
         }
         if (panicBalance < minPanicBalance) minPanicBalance = panicBalance;
 
-        feePanicArray.push(feePanic);
         coldOutput.updatePsbtAsOutput({
           psbt: psbtPanic,
           value: triggerBalance - feePanic
