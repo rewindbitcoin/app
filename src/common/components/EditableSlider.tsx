@@ -216,7 +216,8 @@ const EditableSlider = ({
     return [
       fontsLoaded ? { fontFamily: 'RobotoMono_400Regular' } : {},
       styles.status,
-      isValidValue ? {} : { color: theme.colors.red }
+      isValidValue ? {} : { color: theme.colors.red },
+      { letterSpacing: -0.5 }
     ];
   }, [fontsLoaded, isValidValue, styles.status, theme.colors.red]);
 
