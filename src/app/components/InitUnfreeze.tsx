@@ -50,8 +50,8 @@ const InitUnfreeze = ({
         isVisible={true}
         title={t('TODO')}
         icon={{
-          family: 'Ionicons',
-          name: 'wallet'
+          family: 'MaterialCommunityIcons',
+          name: 'snowflake-melt'
         }}
         onClose={onClose}
         customButtons={

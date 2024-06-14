@@ -206,8 +206,20 @@ const Modal: React.FC<ModalProps> = ({
         //backgroundColor: 'red'
       }}
     >
-      <KeyboardAvoidingView behavior="position">
-        {/*behavior="padding" makes it randomly flicker on android(1px up & down) when the keyboard is dismissed*/}
+      <KeyboardAvoidingView behavior="padding">
+        {/*
+         * behavior="padding" on June 13, 2024
+         *
+         * I was using behavior="position" because behavior="padding" used to
+         * make it randomly flicker on android(1px up & down) when the keyboard
+         * is dismissed. However behavior="position" also had a problem:
+         * In Android, in the InitUnfreeze When the Fee Slider is shown,
+         * if the User opens the Keyboard to set up manually a fee,
+         * then the Slider stops working (while the Keyboard
+         * is shown. So I've reverted to behavior="padding". For some reason
+         * the flickering is not showing up anymore. Perhaps because I upgraded
+         * react-native version. It's unsure, so better keep monitoring it.
+         */}
         <GestureHandlerRootView
           style={{
             //See: https://github.com/software-mansion/react-native-gesture-handler/issues/139

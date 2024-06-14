@@ -8,7 +8,7 @@
  *   by the 'step' size. For example, if the step is 0.01 and a value of 0.213
  *   is passed, it adjusts to 0.21.
  *   This component may call onValueChange with a value not snapped if the user
- *   enters a valid number (but not spanned) in the TextInput (within range)
+ *   enters a valid number (but not snapped) in the TextInput (within range)
  *   This component snaps the initialValue but does not trigger an onChangeValue
  *   even if the initial snapped value is different than the initial value.
  *

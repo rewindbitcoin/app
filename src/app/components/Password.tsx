@@ -37,6 +37,10 @@ const Password = ({
     if (!password) throw new Error(`Password should have been set`);
     onPassword(password);
   }, [onPassword, password]);
+  const handleOnSubmitEditing = useCallback(() => {
+    if (password && validatePassword(password)) handlePassword();
+  }, [password, handlePassword]);
+
   const onChangePassword = useCallback((password: string) => {
     setPassword(password);
   }, []);
@@ -96,7 +100,7 @@ const Password = ({
         <TextInput
           value={password}
           enablesReturnKeyAutomatically
-          onSubmitEditing={handlePassword}
+          onSubmitEditing={handleOnSubmitEditing}
           ref={input}
           keyboardType={Platform.select({
             android: 'visible-password',
