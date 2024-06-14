@@ -25,6 +25,8 @@ Lo de MAX_VAULT_CHECKS es cutre no???
 
 Probar craer Vault en Android, ahore me casca
 
+Mejor usar la solucion minDist={20} en Modal ya que lo generaliza.
+
 Wallet (abandon testnet ) en web es inusable por unos pocos segundos cuando se abre.
 Hay algun cálculo lentísimo que bloquea el input.
 

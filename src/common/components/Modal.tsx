@@ -208,13 +208,45 @@ const Modal: React.FC<ModalProps> = ({
     >
       <KeyboardAvoidingView behavior="position">
         {/*behavior="padding" makes it randomly flicker on android(1px up & down) when the keyboard is dismissed*/}
-        <GestureHandlerRootView style={{ backgroundColor: 'transparent' }}>
-          {/* Read TAG-android-does-not-propagate-slider-events
-           * in EditableSlider.tsx ff the PanGestureHandler captures events in
-           * Android and does not propagate them.
-           * Basically, it is possible to fix the isse by setting some props in
-           * the Children or in the parent. */}
-          <PanGestureHandler onGestureEvent={gestureHandler}>
+        <GestureHandlerRootView
+          style={{
+            //See: https://github.com/software-mansion/react-native-gesture-handler/issues/139
+            backgroundColor: 'transparent'
+          }}
+        >
+          <PanGestureHandler
+            onGestureEvent={gestureHandler}
+            minDist={
+              /*
+               * TAG-android-does-not-propagate-slider-events
+               *
+               * This is so that Slider (see EditableSlider.tsx) works within the
+               * src/common/lib/Modal.tsx
+               *
+               * Note that this model uses a PanGestureHandler and in Android it captures
+               * events and does not let it propagate to the Slider.
+               * This affects the component InitTrigger, which renders de Slider for the
+               * fees within the Modal. See solution:
+               * https://github.com/callstack/react-native-slider/issues/296#issuecomment-1001085596
+               * Basically, you are ensuring that the Slider component becomes the responder
+               * immediately when a touch event begins. This prevents other gesture handlers
+               * (such as the Modal's PanGestureHandler) from interfering with the Slider's
+               * touch events.
+               *
+               * The above appears to work fine. Alternatively, it is possible to set
+               * minDist={20} as prop to the PanGestureHandler in the Modal and this also
+               * has proved to work well. See alternative solution:
+               * https://github.com/callstack/react-native-slider/issues/296#issuecomment-1138417122
+               *
+               * The minDist property sets the minimum distance a touch must move before the
+               * gesture is recognized as a pan. By increasing the minDist value to 20, you
+               * are increasing the threshold for the PanGestureHandler to start recognizing
+               * the gesture as a pan.
+               *
+               */
+              20
+            }
+          >
             <Animated.View style={animatedStyle}>
               <View
                 style={{

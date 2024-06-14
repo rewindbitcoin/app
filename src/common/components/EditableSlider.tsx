@@ -220,23 +220,18 @@ const EditableSlider = ({
     ];
   }, [fontsLoaded, isValidValue, styles.status, theme.colors.red]);
 
-  /*
-   * TAG-android-does-not-propagate-slider-events
+  /* Read TAG-android-does-not-propagate-slider-events
+   * in src/common/lib/Modal.tsx for a solution if the Slider does not propagate
+   * drag events in Android. F.ex. Modal.tsx solves the problem for a a
+   * PanGestureHandler that captures events in Android and does not propagate them.
+   * Basically, it is possible to fix the isse by setting some props in
+   * the Children or in the parent. It has been solved by setting some props
+   * in the parent. The 2 lines below could be used to fix the issue in the
+   * Slider:
    *
-   * This is so that slider works within the src/common/lib/Modal
-   * Note that this model uses a PanGestureHandler and in Android it captures
-   * events and does not let it propagate to the Slider.
-   * This affects the component InitTrigger, which renders de Slider for the
-   * fees within the Modal. See solution:
-   * https://github.com/callstack/react-native-slider/issues/296#issuecomment-1001085596
-   *
-   * This appears to work fine. Alternatively, it is possible to set
-   * minDist={20} as prop to the PanGestureHandler in the Modal and this also
-   * has proved to work well. See alternative solution:
-   * https://github.com/callstack/react-native-slider/issues/296#issuecomment-1138417122
-   *
+   * const onResponderGrant = useCallback(() => true, []);
+   * <Slider onResponderGrant={onResponderGrant} />
    */
-  const onResponderGrant = useCallback(() => true, []);
 
   return (
     <View style={styles.container}>
@@ -250,7 +245,6 @@ const EditableSlider = ({
       </View>
       <View style={styles.control}>
         <Slider
-          onResponderGrant={onResponderGrant}
           style={styles.slider}
           minimumTrackTintColor={theme.colors.primary}
           minimumValue={minimumValue}
