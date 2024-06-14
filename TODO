@@ -25,7 +25,13 @@ Lo de MAX_VAULT_CHECKS es cutre no???
 
 Probar craer Vault en Android, ahore me casca
 
-Mejor usar la solucion minDist={20} en Modal ya que lo generaliza.
+Cuando se hace un set de las fees entonces el modal de InitTrigger me desactiva
+el Keyboard si lo estoy editando (eso pasa cada minuto o así).
+
+En la Creación de Wallet, cambiar el Skip por "Later". Si se da a "Later" entonces
+debería salir un warning "Recovery Phrase Verification Pending"
+
+
 
 Wallet (abandon testnet ) en web es inusable por unos pocos segundos cuando se abre.
 Hay algun cálculo lentísimo que bloquea el input.
