@@ -3,6 +3,11 @@ export default {
   app: {
     networkError:
       'Oops! There was a network issue: {{message}}. Please check your connection and try again.',
+    pushError: `Oops! There was a problem submitting your transaction. Please check your connection and try again.
+
+Technical error: {{message}}`,
+    pushTimeoutError:
+      'Oops! It seems the recently submitted transaction is taking longer to be detected. Please check your connection and refresh your wallet. If it does not show up, try submitting it again.',
     newWalletTitle: 'New Wallet',
     thunderDenTitle: 'Thunder Den',
     mainTitle: 'Wallets',
@@ -139,13 +144,13 @@ This will start the unfreeze countdown. The funds will become unlocked and avail
  after {{timeLockTime}}.
 
 Tap "Continue" to choose the mining fee and start the unfreeze countdown.`,
-        confirmationSpeedLabel: 'Fee for Unfreeze Start',
+        confirmationSpeedLabel: 'Unfreeze Countdown Fee',
         feeSelectorExplanation:
           'Select a mining fee to determine how quickly the unfreeze countdown starts.',
-        additionalExplanation: `Once confirmed, after {{timeLockTime}} your\
- funds will become unlocked and available.
+        additionalExplanation: `The {{timeLockTime}} countdown will start once the\
+ unfreeze request is confirmed.
 
-Tap "Init Unfreeze" to authorize and start the unfreeze countdown.`
+Tap "Init Unfreeze" to request the start of the unfreeze countdown.`
       }
     }
   },
@@ -261,7 +266,7 @@ Vaults are time-locked, meaning that when an attack occurs, you have a few days 
 
 Here's how it works: during the time-lock, your funds can only be moved to a special Bitcoin address known as the Emergency Address. This address is protected by an Emergency Recovery Phrase, which acts like a password and is different from your regular one. This emergency phrase must be stored in an ultra-secure location beforehand.
 
-You'll find contextual help icons next to each input field during the Vault Set Up with more speciffic explanations.`,
+You'll find contextual help icons next to each input field during the Vault Set Up with more specific explanations.`,
     //    notEnoughFunds: `<strong>Minimum Vault Amount Notice</strong>
     //
     //ThunderDen requires a minimum amount to be frozen to ensure it is financially worthwhile for you.

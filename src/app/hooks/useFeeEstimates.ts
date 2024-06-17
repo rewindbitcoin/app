@@ -17,10 +17,7 @@ export function useFeeEstimates({
 }: {
   initialDiscovery: DiscoveryInstance | undefined;
   network: Network | undefined;
-}): {
-  feeEstimates: FeeEstimates | undefined;
-  updateFeeEstimates: () => Promise<FeeEstimates | undefined>;
-} {
+}): FeeEstimates | undefined {
   const initialDiscoveryRef = useRef<DiscoveryInstance | undefined>(
     initialDiscovery
   );
@@ -79,5 +76,5 @@ export function useFeeEstimates({
     return;
   }, [updateFeeEstimates, initialDiscovery, mainnetAPI, intervalTime, network]);
 
-  return { feeEstimates, updateFeeEstimates };
+  return feeEstimates;
 }

@@ -87,6 +87,7 @@ const WalletHomeScreen = () => {
     onWallet,
     logOut,
     isFirstLogin,
+    pushTx,
     accounts
   } = context;
   if (wallet && walletId !== wallet.walletId)
@@ -182,7 +183,7 @@ const WalletHomeScreen = () => {
       const network = wallet.networkId && networkMapping[wallet.networkId];
       (async () => {
         try {
-          toast.show(t('walletHome.faucetStartMsg'), { type: 'success' });
+          toast.show(t('walletHome.faucetStartMsg'));
           await faucetFirstReceive(accounts, network, faucetAPI, 'es-ES');
           //wait a few secs until esplora catches up...
           while (faucetDetectedRef.current === false) {
@@ -382,6 +383,8 @@ const WalletHomeScreen = () => {
           <View className="p-4">
             {vaults && vaultsStatuses && (
               <Vaults
+                syncBlockchain={syncBlockchain}
+                pushTx={pushTx}
                 vaults={vaults}
                 vaultsStatuses={vaultsStatuses}
                 btcFiat={btcFiat}

@@ -32,6 +32,7 @@ import type { SubUnit } from '../lib/settings';
 import type { Locale } from '../../i18n-locales/init';
 import type { BlockStatus } from '@bitcoinerlab/explorer/dist/interface';
 import InitUnfreeze, { InitUnfreezeData } from './InitUnfreeze';
+import type { PushTxFunction } from '../hooks/usePushTx';
 
 /*
  *
@@ -249,18 +250,23 @@ const Amount = ({
 //};
 
 const Vault = ({
+  syncBlockchain,
+  pushTx,
   btcFiat,
   tipStatus,
   vault,
   vaultNumber,
   vaultStatus
 }: {
+  syncBlockchain: () => void;
+  pushTx: PushTxFunction;
   btcFiat: number | undefined;
   tipStatus: BlockStatus | undefined;
   vault: Vault;
   vaultNumber: number;
   vaultStatus: VaultStatus | undefined;
 }) => {
+  const { t } = useTranslation();
   const [showInitUnfreeze, setShowInitUnfreeze] = useState<boolean>(false);
   const handleCloseInitUnfreeze = useCallback(
     () => setShowInitUnfreeze(false),
@@ -271,11 +277,29 @@ const Vault = ({
     []
   );
   const handleInitUnfreeze = useCallback(
-    (initUnfreezeData: InitUnfreezeData) => {
-      console.log(`push ${initUnfreezeData.txHex}`);
+    //TODO - set the triggerPushTime?: number;
+    async (initUnfreezeData: InitUnfreezeData) => {
+      const pushResult = await pushTx(initUnfreezeData.txHex);
+      if (pushResult === 'SUCCESS') {
+        syncBlockchain();
+      }
+      //TODO - create a useTxPush that i will use accross several places
+      //it will include all the below and you can pass the initpushmsg,
+      //succesfulpushmsg, timeoutmsg - it will connect to the wallet context
+      //to get the pusher
+      //TODO 1 - context should return a push fn. call it and await
+      //TODO 2 - check for errors throw - errors
+      //TODO 3 - once pushed - then similarly to WalletHome with faucetDetectedRef -
+      //do a polling until it is complete. note that the polling should have a stopper
+      //also in WalletHome. This is bad approach!!!
+      //  -> i guess i need another variable faucetDetectedRef ->
+      //  faucetDetectedOrTimeoutRef
+      //  TODO 4 - usePushTx is used withint the WalletContext and the function pushTx
+      //  will be returned per wallet.
       setShowInitUnfreeze(false);
+      //toast.show(t('TODO - The Unfreeze has been triggered.'));
     },
-    []
+    [pushTx, syncBlockchain]
   );
   const { settings } = useSettings();
   if (!settings) throw new Error('Settings has not been retrieved');
@@ -302,8 +326,6 @@ const Vault = ({
       vaultStatusRef.current = undefined; //unset on unmount
     };
   }, []);
-
-  const { t } = useTranslation();
 
   const handleDelegateVault = useCallback(() => {
     const readmeText = t('walletHome.delegateReadme');
@@ -434,11 +456,15 @@ const Vault = ({
 };
 
 const Vaults = ({
+  syncBlockchain,
+  pushTx,
   btcFiat,
   tipStatus,
   vaults,
   vaultsStatuses
 }: {
+  syncBlockchain: () => void;
+  pushTx: PushTxFunction;
   btcFiat: number | undefined;
   tipStatus: BlockStatus | undefined;
   vaults: VaultsType;
@@ -456,12 +482,14 @@ const Vaults = ({
         const vaultStatus = vaultsStatuses[vault.vaultId];
         return (
           <Vault
+            syncBlockchain={syncBlockchain}
             key={vault.vaultId}
             btcFiat={btcFiat}
             tipStatus={tipStatus}
             vault={vault}
             vaultNumber={sortedVaults.length - index}
             vaultStatus={vaultStatus}
+            pushTx={pushTx}
           />
         );
       })}

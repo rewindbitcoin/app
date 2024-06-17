@@ -67,6 +67,7 @@ import { useBtcFiat } from '../hooks/useBtcFiat';
 import { useTipStatus } from '../hooks/useTipStatus';
 import { useFeeEstimates } from '../hooks/useFeeEstimates';
 import { useWalletState } from '../hooks/useWalletState';
+import { PushTxFunction, usePushTx } from '../hooks/usePushTx';
 import type { BlockStatus } from '@bitcoinerlab/explorer/dist/interface';
 
 export const WalletContext: Context<WalletContextType | null> =
@@ -86,6 +87,7 @@ export type WalletContextType = {
   vaults: Vaults | undefined;
   vaultsStatuses: VaultsStatuses | undefined;
   networkId: NetworkId | undefined;
+  pushTx: PushTxFunction;
   processCreatedVault: (
     vault:
       | Vault
@@ -217,9 +219,10 @@ const WalletProviderRaw = ({
     discoveryDataExport,
     discoveryStorageStatus.isSynchd
   );
+  const pushTx = usePushTx(initialDiscovery);
 
   const { tipStatus, updateTipStatus } = useTipStatus({ initialDiscovery });
-  const { feeEstimates } = useFeeEstimates({ initialDiscovery, network });
+  const feeEstimates = useFeeEstimates({ initialDiscovery, network });
 
   const [vaults, setVaults, , clearVaultsCache, vaultsStorageStatus] =
     useStorage<Vaults>(
@@ -811,6 +814,7 @@ const WalletProviderRaw = ({
     syncingBlockchain: !!(
       walletId !== undefined && syncingBlockchain[walletId]
     ),
+    pushTx,
     vaultsAPI,
     vaultsSecondaryAPI,
     wallets,

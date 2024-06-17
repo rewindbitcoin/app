@@ -6,12 +6,17 @@ first board better
 En Vault no me gusta lo de los labels. Imprimir en formato texto?!?
 O que sea sencillo y no intimidante. No pro-oriented.
 
-En Settings tendré que usa el cñodigo este: 
+En Settings tendré que usa el código este: 
 import { shareVaults } from '../lib/backup';
   const onRequestVaultsBackup = useCallback(() => {
     if (!vaults) throw new Error('vaults not ready');
     return shareVaults({ vaults });
   }, [vaults]);
+
+In Settings add: [show confirmed balances & use confirmed utxos] / [show unconfirmed balances & use unconfirmed utxos]
+  -> Then adapt the whole App to make sense with proper Confirming... messages (pending balance add/substract of XXX) for both cases...
+
+I should add a super warning when the Fee selected by the user is bad (not enoguh - since i allow 1 sat/vbyte...).
 
 Vault = Cofre/Fortín/Depósito
 
@@ -25,9 +30,19 @@ Lo de MAX_VAULT_CHECKS es cutre no???
 
 Probar craer Vault en Android, ahore me casca
 
+Add a help icon also on the FeeInput. This is so that newbies get a hint about this
+think what happens if a help Modal is open in the InitUnfreeze fee selection, modal within modal works? ios/web/android?
+
+Ojo, faucet can get into an infinite loop because there is a while. If network problem infinite looop.
+see usePushTx how to do this thing.
+
 Si alguien me lanza una tx con poca fee, entonces las utxos que estan en
 el mempool no me las dejará elegir nunca, no? Debería poder cambiar el modo
 en settings. Show only confirmed txs.
+  ESTO ES DE VITAL IMPORTANCIA
+  ESTO ES DE VITAL IMPORTANCIA
+  ESTO ES DE VITAL IMPORTANCIA
+  
 
 Cuando se hace un set de las fees entonces el modal de InitTrigger me desactiva
 el Keyboard si lo estoy editando (eso pasa cada minuto o así).

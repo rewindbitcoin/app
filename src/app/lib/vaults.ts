@@ -972,7 +972,7 @@ async function fetchVaultTx(
  * vaultPushTime, triggerPushTime, panicPushTime and unvaultPushTime cannot be
  * retrieved from the network.
  */
-async function fetchVaultStatus(
+export async function fetchVaultStatus(
   vault: Vault,
   currvaultStatus: VaultStatus | undefined,
   explorer: Explorer
