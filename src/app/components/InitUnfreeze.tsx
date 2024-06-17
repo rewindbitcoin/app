@@ -86,7 +86,7 @@ const InitUnfreeze = ({
     ? pickFeeEstimate(feeEstimates, settings.INITIAL_CONFIRMATION_TIME)
     : null;
 
-  const [feeRate, setFeeRate] = useState<number | null>(initialFeeRate);
+  const [feeRate, setFeeRate] = useState<number | null>(null);
 
   const txData =
     feeRate && findNextEqualOrLargerFeeRate(triggerSortedTxs, feeRate);
@@ -97,6 +97,14 @@ const InitUnfreeze = ({
       setStep('intro');
     }
   }, [isVisible]);
+
+  useEffect(() => {
+    if (initialFeeRate !== null) {
+      setFeeRate(prevFeeRate =>
+        prevFeeRate === null ? initialFeeRate : prevFeeRate
+      );
+    }
+  }, [initialFeeRate]);
 
   const handleInitUnfreeze = useCallback(() => {
     if (!txData || !txSize)
