@@ -1,9 +1,9 @@
 import React from 'react';
 import { Svg, Path, Circle } from 'react-native-svg';
 
-const Spin = () => (
+const Spin = ({ className }: { className?: string }) => (
   <Svg
-    className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
+    className={`animate-spin h-5 w-5 ${className}`}
     fill="none"
     viewBox="0 0 24 24"
   >

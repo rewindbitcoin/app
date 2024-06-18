@@ -9,6 +9,7 @@ import {
 import RNModal from 'react-native-modal';
 import { Button } from './Button';
 import { useTheme } from '../theme';
+import type { IconType } from './types';
 import { Text } from './Text';
 import * as Icons from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -31,8 +32,6 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import { getRealWindowHeight } from 'react-native-extra-dimensions-android';
-
-export type IconType = { family: keyof typeof Icons; name: string };
 
 interface ModalProps {
   title: string;

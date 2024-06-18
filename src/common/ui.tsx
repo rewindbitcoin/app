@@ -29,3 +29,4 @@ import InfoButton from './components/InfoButton';
 export { InfoButton };
 import TabBar from './components/TabBar';
 export { TabBar };
+export type { IconType } from './components/types';
