@@ -220,7 +220,10 @@ const estimateMinVaultAmount = moize.shallow(
       );
       const totalFees =
         Math.ceil(feeRate * vaultTxSize) +
-        Math.ceil(feeRateCeiling * estimateTriggerTxSize(lockBlocks));
+        Math.ceil(feeRateCeiling * estimateTriggerTxSize(lockBlocks)) +
+        Math.ceil(
+          feeRateCeiling * estimatePanicTxSize(lockBlocks, coldAddress, network)
+        );
 
       return Math.ceil(totalFees / (1 - minRecoverableRatio));
     } else {
