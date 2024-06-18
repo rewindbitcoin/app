@@ -158,7 +158,7 @@ Tap "Init Unfreeze" to request the start of the unfreeze countdown.`
     faucetStartMsg: "Hang tight! We're sending you some coins to get started.",
     faucetDetectedMsg:
       'Hooray! Your test coins have arrived. Why not try freezing them to see how it works?',
-    faucetUnkownErrorMsg:
+    faucetErrorMsg:
       "Oops! There was a glitch sending your coins. Tap 'Receive' to try getting your test coins again.",
     header: {
       hotSubTitle: 'Available Balance: Ready for immediate use',

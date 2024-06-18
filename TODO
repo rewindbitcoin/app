@@ -33,8 +33,6 @@ Probar craer Vault en Android, ahore me casca
 Add a help icon also on the FeeInput. This is so that newbies get a hint about this
 think what happens if a help Modal is open in the InitUnfreeze fee selection, modal within modal works? ios/web/android?
 
-Ojo, faucet can get into an infinite loop because there is a while. If network problem infinite looop.
-see usePushTx how to do this thing.
 
 Si alguien me lanza una tx con poca fee, entonces las utxos que estan en
 el mempool no me las dejará elegir nunca, no? Debería poder cambiar el modo
@@ -96,13 +94,6 @@ Publucar update the discovery y actualizar este
 Me ha salido esto en iOS:
  ERROR  RangeError: Property storage exceeds 196607 properties
 
- After syncing after creating a vaulkt the syncing spinning does not stop. The 
- reason is this:
-  const syncingOrFaucetPending: boolean = syncingBlockchain || faucetPending;
-  faucetPending is true again beucase length goes to zero?
-  utxosData.length should not be the indication but some other history, which
-  i will need anyway for transactions
-
 After Vaulting it doeds not proceed to main page. Also it should auto-sync after vaulting
 Also the Header should reflect some (unconfifmed) status.
 
@@ -141,16 +132,6 @@ when using "days"
 WalletHeader should say if its Testnet, Storm or Regtest (when its test wallet)
 
 cuando en la wallet doy a goBack tarda años
-
-ok, so i made this REGTEST_FAUCET_API and STORM_FAUCET_API
-
--> So create a new context var call, isFirstLogInIn
-  -> Then do the fetchFaucet in the isFirstLogInIn as part of the WalletHome
-  and provide correct messages... this wallet will receive 0.1 BTC in approx 10 seconds
-  so that you can try
-
--> Use Skeletton for the prices
-  -> Also the freeze amount do not show while syncingOrFaucetPending
 
 fact, since i need to express if this is firstOpen
 -> BETTER simply do this on ALL new wallets (newSigners) on regtest or storm and that's it.

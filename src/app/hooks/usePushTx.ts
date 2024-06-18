@@ -5,7 +5,7 @@ import type { DiscoveryInstance } from '@bitcoinerlab/discovery';
 import { useToast } from '../../common/ui';
 import { useTranslation } from 'react-i18next';
 import { Transaction } from 'bitcoinjs-lib';
-const DETECTION_INTERVAL = 3000;
+const DETECTION_INTERVAL = 4000;
 const DETECT_RETRY_MAX = 5;
 
 export type PushTxFunction = (

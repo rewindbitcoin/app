@@ -99,6 +99,7 @@ export type WalletContextType = {
   syncBlockchain: () => void;
   syncingBlockchain: boolean;
   vaultsAPI: string | undefined;
+  faucetAPI: string | undefined;
   vaultsSecondaryAPI: string | undefined;
   wallets: Wallets | undefined;
   wallet: Wallet | undefined;
@@ -171,8 +172,13 @@ const WalletProviderRaw = ({
   const { settings, settingsStorageStatus } = useSettings();
   const gapLimit = settings?.GAP_LIMIT;
 
-  const { esploraAPI, serviceAddressAPI, vaultsAPI, vaultsSecondaryAPI } =
-    getAPIs(networkId, settings);
+  const {
+    esploraAPI,
+    serviceAddressAPI,
+    vaultsAPI,
+    faucetAPI,
+    vaultsSecondaryAPI
+  } = getAPIs(networkId, settings);
   const [wallets, setWallets, , , walletsStorageStatus] = useStorage<Wallets>(
     `WALLETS`,
     SERIALIZABLE,
@@ -816,6 +822,7 @@ const WalletProviderRaw = ({
     ),
     pushTx,
     vaultsAPI,
+    faucetAPI,
     vaultsSecondaryAPI,
     wallets,
     wallet,

@@ -23,7 +23,6 @@ import {
   KeyboardAwareScrollView,
   Modal,
   useTheme,
-  useToast,
   TabBar
 } from '../../common/ui';
 import { WalletContext, WalletContextType } from '../contexts/WalletContext';
@@ -43,10 +42,7 @@ import type { RootStackParamList, NavigationPropsByScreenId } from '../screens';
 import { lighten } from 'polished';
 
 import type { IconType } from '../../common/components/Modal';
-import { getAPIs } from '../lib/walletDerivedData';
-import { useSettings } from '../hooks/useSettings';
-import { faucetFirstReceive } from '../lib/faucet';
-import { networkMapping } from '../lib/network';
+import { useFaucet } from '../hooks/useFaucet';
 import type { ScrollView } from 'react-native-gesture-handler';
 
 //Using chrome dev tools, refresh the screen, after choosing a mobile size to activate it:
@@ -60,10 +56,6 @@ const WalletHomeScreen = () => {
   const route = useRoute<RouteProp<RootStackParamList, 'WALLET_HOME'>>();
   const walletId = route.params.walletId;
   const { t } = useTranslation();
-
-  const { settings } = useSettings();
-
-  const toast = useToast();
 
   const context = useContext<WalletContextType | null>(WalletContext);
   if (context === null) throw new Error('Context was not set');
@@ -86,35 +78,14 @@ const WalletHomeScreen = () => {
     tipStatus,
     onWallet,
     logOut,
-    isFirstLogin,
-    pushTx,
-    accounts
+    pushTx
   } = context;
   if (wallet && walletId !== wallet.walletId)
     throw new Error(
       `Navigated to walletId ${walletId} which does not correspond to the one in the context ${wallet?.walletId}`
     );
 
-  const faucetRequestedRef = useRef<boolean>(false);
-  //When the user is notified about having detected some faucet funds:
-  const faucetNotifiedRef = useRef<boolean>(false);
-  const faucetDetectedRef = useRef<boolean>(false);
-
-  useEffect(() => {
-    faucetDetectedRef.current =
-      faucetRequestedRef.current && !!historyData?.length;
-    if (
-      faucetNotifiedRef.current === false &&
-      faucetDetectedRef.current &&
-      historyData?.length
-    ) {
-      faucetNotifiedRef.current = true;
-      toast.show(t('walletHome.faucetDetectedMsg'), { type: 'success' });
-    }
-  }, [historyData?.length, toast, t]);
-
-  const faucetPending: boolean =
-    faucetRequestedRef.current && !historyData?.length;
+  const faucetPending = useFaucet();
   const syncingOrFaucetPending: boolean = syncingBlockchain || faucetPending;
 
   const title =
@@ -167,49 +138,6 @@ const WalletHomeScreen = () => {
     [theme.colors.primary, title, syncBlockchain, syncingOrFaucetPending]
   );
   useEffect(() => navigation.setOptions(navOptions), [navigation, navOptions]);
-
-  const { faucetAPI } = getAPIs(wallet?.networkId, settings);
-  useEffect(() => {
-    if (
-      historyData?.length === 0 &&
-      wallet &&
-      faucetAPI &&
-      faucetRequestedRef.current === false &&
-      accounts &&
-      Object.keys(accounts).length &&
-      isFirstLogin
-    ) {
-      faucetRequestedRef.current = true;
-      const network = wallet.networkId && networkMapping[wallet.networkId];
-      (async () => {
-        try {
-          toast.show(t('walletHome.faucetStartMsg'));
-          await faucetFirstReceive(accounts, network, faucetAPI, 'es-ES');
-          //wait a few secs until esplora catches up...
-          while (faucetDetectedRef.current === false) {
-            syncBlockchain();
-            await new Promise(resolve => setTimeout(resolve, 2000));
-          }
-        } catch (error: unknown) {
-          if (error instanceof Error && typeof error.message === 'string')
-            toast.show(error.message, { type: 'warning' });
-          else
-            toast.show(t('walletHome.faucetUnkownErrorMsg'), {
-              type: 'warning'
-            });
-        }
-      })();
-    }
-  }, [
-    faucetAPI,
-    toast,
-    wallet,
-    isFirstLogin,
-    accounts,
-    syncBlockchain,
-    t,
-    historyData?.length
-  ]);
 
   const logOutAndGoBack = useCallback(() => {
     logOut();
