@@ -991,16 +991,21 @@ export async function fetchVaultStatus(
   if (triggerTxData) {
     newVaultStatus.triggerTxHex = triggerTxData.txHex;
     newVaultStatus.triggerTxBlockHeight = triggerTxData.blockHeight;
-    const triggerBlockStatus = await explorer.fetchBlockStatus(
-      newVaultStatus.triggerTxBlockHeight
-    );
-    if (!triggerBlockStatus)
-      throw new Error('Block status should exist for existing block height');
-    newVaultStatus.triggerTxBlockTime = triggerBlockStatus.blockTime;
-    const hotVaultStatus = await explorer.fetchBlockStatus(
-      newVaultStatus.triggerTxBlockHeight + vault.lockBlocks
-    );
-    if (hotVaultStatus) newVaultStatus.hotBlockTime = hotVaultStatus.blockTime;
+    if (newVaultStatus.triggerTxBlockHeight !== 0) {
+      const triggerBlockStatus = await explorer.fetchBlockStatus(
+        newVaultStatus.triggerTxBlockHeight
+      );
+      if (!triggerBlockStatus)
+        throw new Error(
+          `Block status should exist for existing block height: ${newVaultStatus.triggerTxBlockHeight}`
+        );
+      newVaultStatus.triggerTxBlockTime = triggerBlockStatus.blockTime;
+      const hotVaultStatus = await explorer.fetchBlockStatus(
+        newVaultStatus.triggerTxBlockHeight + vault.lockBlocks
+      );
+      if (hotVaultStatus)
+        newVaultStatus.hotBlockTime = hotVaultStatus.blockTime;
+    }
     const unlockingTxData = await fetchSpendingTx(
       triggerTxData.txHex,
       0,
@@ -1017,25 +1022,30 @@ export async function fetchVaultStatus(
       if (panicTxHex) {
         newVaultStatus.panicTxHex = unlockingTxData.txHex;
         newVaultStatus.panicTxBlockHeight = unlockingTxData.blockHeight;
-        const panicBlockStatus = await explorer.fetchBlockStatus(
-          newVaultStatus.panicTxBlockHeight
-        );
-        if (!panicBlockStatus)
-          throw new Error(
-            'Block status should exist for existing block height'
+        if (newVaultStatus.panicTxBlockHeight !== 0) {
+          const panicBlockStatus = await explorer.fetchBlockStatus(
+            newVaultStatus.panicTxBlockHeight
           );
-        newVaultStatus.panicTxBlockTime = panicBlockStatus.blockTime;
+          if (!panicBlockStatus)
+            throw new Error(
+              'Block status should exist for existing block height'
+            );
+          newVaultStatus.panicTxBlockTime = panicBlockStatus.blockTime;
+        }
       } else {
         newVaultStatus.spendAsHotTxHex = unlockingTxData.txHex;
         newVaultStatus.spendAsHotTxBlockHeight = unlockingTxData.blockHeight;
-        const spendAsHotBlockStatus = await explorer.fetchBlockStatus(
-          newVaultStatus.spendAsHotTxBlockHeight
-        );
-        if (!spendAsHotBlockStatus)
-          throw new Error(
-            'Block status should exist for existing block height'
+        if (newVaultStatus.spendAsHotTxBlockHeight !== 0) {
+          const spendAsHotBlockStatus = await explorer.fetchBlockStatus(
+            newVaultStatus.spendAsHotTxBlockHeight
           );
-        newVaultStatus.spendAsHotTxBlockTime = spendAsHotBlockStatus.blockTime;
+          if (!spendAsHotBlockStatus)
+            throw new Error(
+              'Block status should exist for existing block height'
+            );
+          newVaultStatus.spendAsHotTxBlockTime =
+            spendAsHotBlockStatus.blockTime;
+        }
       }
     }
   }

@@ -88,7 +88,7 @@ const ConfirmBip39: React.FC<ConfirmBip39Props> = ({
         }
       />
       {validWordsThatDontMatch && (
-        <Text className="text-center text-amber-600 native:text-sm web:text-xs pt-2">
+        <Text className="text-center text-orange-600 native:text-sm web:text-xs pt-2">
           {t('bip39.validWordsThatDontMatch')}
         </Text>
       )}

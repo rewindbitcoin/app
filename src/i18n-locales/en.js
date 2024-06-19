@@ -111,17 +111,19 @@ If you need further assistance, please contact ThunderDen Support.`
       confirming: 'Confirming',
       confirmed: 'Confirmed',
 
-      rescuedAfterUnfreeze:
-        'This vault was rescued on {{rescueDate}} following an unfreeze request on {{triggerDate}}.',
+      pushedTrigger: 'An unfreeze request was made on {{triggerPushDate}}.',
+      confirmedTrigger: 'Unfreeze countdown began on {{triggerConfirmedDate}}.',
+
+      rescuedAfterUnfreeze: 'This vault was rescued on {{rescueDate}}.',
       unfrozenAndSpent:
-        'An unfreeze request was made on {{triggerDate}}. The vault was unfrozen on {{unfreezeDate}} and has already been spent.',
+        'The vault was unfrozen on {{unfreezeDate}} and has already been spent.',
       unfrozenAndHotBalance:
-        'An unfreeze request was made on {{triggerDate}}. The vault was unfrozen on {{unfreezeDate}} and is now part of your hot balance.',
+        'The vault was unfrozen on {{unfreezeDate}} and is now part of your hot balance.',
       triggerWithEstimatedDate:
-        'Unfreeze was requested on {{triggerDate}}. The estimated unfreeze date is {{estimatedUnfreezeDate}}.',
+        'The estimated unfreeze date is {{estimatedUnfreezeDate}}.',
 
       triggerWithRemainingTime:
-        "Unfreeze was requested on {{triggerDate}}. It's currently being unfrozen with {{remainingTime}} remaining.",
+        "It's currently being unfrozen with {{remainingTime}} remaining.",
 
       beingUnfrozen: 'This vault is currently being unfrozen.',
       triggerLabel: 'Unfreeze Request Date',
@@ -146,7 +148,7 @@ This will start the unfreeze countdown. The funds will become unlocked and avail
 Tap "Continue" to choose the mining fee and start the unfreeze countdown.`,
         confirmationSpeedLabel: 'Unfreeze Countdown Fee',
         feeSelectorExplanation:
-          'Select a mining fee to determine how quickly the unfreeze countdown starts.',
+          'Select a mining fee to request the start of the unfreeze countdown.',
         additionalExplanation: `The {{timeLockTime}} countdown will start once the\
  unfreeze request is confirmed.
 

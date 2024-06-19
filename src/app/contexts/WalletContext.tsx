@@ -7,6 +7,7 @@ import {
   getUtxosData,
   type Vault,
   type Vaults,
+  type VaultStatus,
   type VaultsStatuses,
   type UtxosData,
   getHotDescriptors,
@@ -77,6 +78,7 @@ export type WalletContextType = {
   getChangeDescriptor: () => Promise<string>;
   fetchServiceAddress: () => Promise<string>;
   getUnvaultKey: () => Promise<string>;
+  updateVaultStatus: (vaultId: string, vaultStatus: VaultStatus) => void;
   btcFiat: number | undefined;
   feeEstimates: FeeEstimates | undefined;
   tipStatus: BlockStatus | undefined;
@@ -764,7 +766,6 @@ const WalletProviderRaw = ({
         return false;
       } else {
         if (!initialDiscovery) throw new Error('Discovery not ready');
-        const discovery = await ensureConnected(initialDiscovery);
 
         // Create new vault
         if (vaults[vault.vaultId])
@@ -781,16 +782,11 @@ const WalletProviderRaw = ({
             [vault.vaultId]: { vaultPushTime: Math.floor(Date.now() / 1000) }
           })
         ]);
-        //TODO: enable this after tests. important to push after AWAIT setVaults
-        //if successful
-        //TODO: try-catch push result. This and all pushes in code.
-        console.warn('TODO, very important to make sure this worked');
-        await discovery.getExplorer().push(vault.vaultTxHex);
-
-        return true;
+        return (await pushTx(vault.vaultTxHex)) === 'SUCCESS';
       }
     },
     [
+      pushTx,
       setVaults,
       setVaultsStatuses,
       t,
@@ -801,10 +797,22 @@ const WalletProviderRaw = ({
     ]
   );
 
+  const updateVaultStatus = useCallback(
+    (vaultId: string, vaultStatus: VaultStatus) => {
+      const currVaultStatus = vaultsStatuses?.[vaultId];
+      if (!currVaultStatus)
+        throw new Error('Cannot update unexisting vault status');
+      if (!shallowEqualObjects(currVaultStatus, vaultStatus))
+        setVaultsStatuses({ ...vaultsStatuses, [vaultId]: vaultStatus });
+    },
+    [vaultsStatuses, setVaultsStatuses]
+  );
+
   const contextValue = {
     getUnvaultKey,
     getChangeDescriptor,
     fetchServiceAddress,
+    updateVaultStatus,
     btcFiat,
     signers,
     accounts,

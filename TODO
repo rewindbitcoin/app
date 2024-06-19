@@ -13,6 +13,17 @@ import { shareVaults } from '../lib/backup';
     return shareVaults({ vaults });
   }, [vaults]);
 
+Aun, randomly se me queda un loop infinito En el Init Unfreeze loading (isUnfreezeInitPending)
+  -> Puede ser que syncBlockchain no se lanzase porque ya estaba haciendo una...
+  y entonceds nunca pilla el nuveo vaultStatus.triggerTxHex. pero no es grave, el user
+  al hcaer refresh lo pilla todo.
+  Necesito un syncBlockchain que primero mira si syncyngBlockchain going on,
+  if going on wait 'til finished then re-trigger. Call it schedulrSyncBlochain
+
+It's vital after every push then immeditelly do a sync, otherwise the wallet may get unsynchd
+since an utxo is taken but may be reused later:
+  ->  Error: Failed request: sendrawtransaction RPC error: {"code":-26,"message":"txn-mempool-conflict"}. Status code: 400 (Bad Request). URL: https://storm.thunderden.com/api/tx.
+
 In Settings add: [show confirmed balances & use confirmed utxos] / [show unconfirmed balances & use unconfirmed utxos]
   -> Then adapt the whole App to make sense with proper Confirming... messages (pending balance add/substract of XXX) for both cases...
 

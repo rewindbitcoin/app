@@ -23,7 +23,8 @@ import {
   KeyboardAwareScrollView,
   Modal,
   useTheme,
-  TabBar
+  TabBar,
+  IconType
 } from '../../common/ui';
 import { WalletContext, WalletContextType } from '../contexts/WalletContext';
 import { useTranslation } from 'react-i18next';
@@ -41,7 +42,6 @@ import Vaults from '../components/Vaults';
 import type { RootStackParamList, NavigationPropsByScreenId } from '../screens';
 import { lighten } from 'polished';
 
-import type { IconType } from '../../common/components/Modal';
 import { useFaucet } from '../hooks/useFaucet';
 import type { ScrollView } from 'react-native-gesture-handler';
 
@@ -68,6 +68,7 @@ const WalletHomeScreen = () => {
     vaultsStatuses,
     utxosData,
     historyData,
+    updateVaultStatus,
     syncBlockchain,
     syncingBlockchain,
     wallet,
@@ -311,6 +312,7 @@ const WalletHomeScreen = () => {
           <View className="p-4">
             {vaults && vaultsStatuses && (
               <Vaults
+                updateVaultStatus={updateVaultStatus}
                 syncBlockchain={syncBlockchain}
                 pushTx={pushTx}
                 vaults={vaults}

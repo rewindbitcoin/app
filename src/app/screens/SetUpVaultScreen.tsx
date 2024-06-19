@@ -258,7 +258,7 @@ export default function VaultSetUp({
           <Button onPress={navigation.goBack}>{t('goBack')}</Button>
         )}
         {!allFieldsValid && isValidVaultRange && (
-          <Text className="text-center text-amber-600 native:text-sm web:text-xs pt-2">
+          <Text className="text-center text-orange-600 native:text-sm web:text-xs pt-2">
             {coldAddress
               ? t('vaultSetup.fillInAll')
               : t('vaultSetup.coldAddressMissing')}
