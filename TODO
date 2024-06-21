@@ -14,10 +14,8 @@ import { shareVaults } from '../lib/backup';
   }, [vaults]);
 
 21 - junio -2024
-Si hago un Vault de todo los fondos luego no tenbgo más utxos, entonces utxos.length es cero y entonces <VaultSetUp> hace
-  throw porque empty group. Se tendría que devolver directamente
-  el error de notEnoughFunds, pero para eso necesito tener algo de length...
 TODO: El useFaucet debería de hacer un fetchAddress solo de la dirección de faucet sin hacer todo un refresh de la blockchain usando el nuevo addTransaction
+TODO 2: Se hace 2 refreshes uno tras el otro al inicio.
 
 Aun, randomly se me queda un loop infinito En el Init Unfreeze loading (isUnfreezeInitPending)
   -> Puede ser que syncBlockchain no se lanzase porque ya estaba haciendo una...

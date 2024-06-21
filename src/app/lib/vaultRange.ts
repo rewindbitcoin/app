@@ -61,6 +61,7 @@ const estimateMaxVaultAmount = moize.shallow(
     feeRate: number;
     serviceFeeRate: number;
   }) => {
+    if (utxosData.length === 0) return;
     let coinselected:
       | {
           fee: number;
