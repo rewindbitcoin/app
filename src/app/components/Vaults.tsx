@@ -43,7 +43,6 @@ import type { SubUnit } from '../lib/settings';
 import type { Locale } from '../../i18n-locales/init';
 import type { BlockStatus } from '@bitcoinerlab/explorer/dist/interface';
 import InitUnfreeze, { InitUnfreezeData } from './InitUnfreeze';
-import type { PushTxFunction } from '../hooks/usePushTx';
 
 /*
  *
@@ -154,7 +153,6 @@ const VaultText: React.FC<{
 };
 
 const Vault = ({
-  syncBlockchain,
   updateVaultStatus,
   pushTx,
   btcFiat,
@@ -163,9 +161,8 @@ const Vault = ({
   vaultNumber,
   vaultStatus
 }: {
-  syncBlockchain: () => void;
   updateVaultStatus: (vaultId: string, vaultStatus: VaultStatus) => void;
-  pushTx: PushTxFunction;
+  pushTx: (txHex: string) => Promise<boolean>;
   btcFiat: number | undefined;
   tipStatus: BlockStatus | undefined;
   vault: Vault;
@@ -176,11 +173,6 @@ const Vault = ({
     useState<boolean>(false);
   const isUnfreezeInitPending =
     !vaultStatus?.triggerTxHex && isUnfreezeInitValid;
-  console.log('TRACE Vault entry', {
-    isUnfreezeInitPending,
-    isUnfreezeInitValid,
-    triggerTxHex: vaultStatus?.triggerTxHex
-  });
 
   const { t } = useTranslation();
   const [showInitUnfreeze, setShowInitUnfreeze] = useState<boolean>(false);
@@ -200,21 +192,19 @@ const Vault = ({
         setIsUnfreezeInitValid(true);
       });
       const pushResult = await pushTx(initUnfreezeData.txHex);
-      if (pushResult === 'SUCCESS') {
+      if (pushResult) {
         if (!vaultStatus)
           throw new Error('vault status should exist for existing vault');
-        vaultStatus.triggerPushTime = Math.floor(Date.now() / 1000);
-        unstable_batchedUpdates(() => {
-          console.log('TRACE updateVaultStatus', {
-            vaultId: vault.vaultId,
-            vaultStatus
-          });
-          updateVaultStatus(vault.vaultId, vaultStatus);
-          syncBlockchain();
-        });
+        const newVaultStatus = {
+          ...vaultStatus,
+          triggerTxHex: initUnfreezeData.txHex,
+          triggerTxBlockHeight: 0,
+          triggerPushTime: Math.floor(Date.now() / 1000)
+        };
+        updateVaultStatus(vault.vaultId, newVaultStatus);
       } else setIsUnfreezeInitValid(false);
     },
-    [pushTx, syncBlockchain, vault.vaultId, vaultStatus, updateVaultStatus]
+    [pushTx, vault.vaultId, vaultStatus, updateVaultStatus]
   );
   const { settings } = useSettings();
   if (!settings) throw new Error('Settings has not been retrieved');
@@ -248,7 +238,6 @@ const Vault = ({
   //It's better to find out the unfreeze expected time based on the remainig time
   // ant not using triggerTime + blockBlocks since previous blocks untiul now
   // may have not been 10' exactly
-  console.log('TRACE', { remainingBlocks });
   const unfreezeTimeBestGuess = !triggerTimeBestGuess
     ? undefined
     : typeof remainingBlocks !== 'number'
@@ -417,7 +406,6 @@ const Vault = ({
 };
 
 const Vaults = ({
-  syncBlockchain,
   updateVaultStatus,
   pushTx,
   btcFiat,
@@ -425,9 +413,8 @@ const Vaults = ({
   vaults,
   vaultsStatuses
 }: {
-  syncBlockchain: () => void;
   updateVaultStatus: (vaultId: string, vaultStatus: VaultStatus) => void;
-  pushTx: PushTxFunction;
+  pushTx: (txHex: string) => Promise<boolean>;
   btcFiat: number | undefined;
   tipStatus: BlockStatus | undefined;
   vaults: VaultsType;
@@ -445,7 +432,6 @@ const Vaults = ({
         const vaultStatus = vaultsStatuses[vault.vaultId];
         return (
           <Vault
-            syncBlockchain={syncBlockchain}
             updateVaultStatus={updateVaultStatus}
             key={vault.vaultId}
             btcFiat={btcFiat}

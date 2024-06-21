@@ -313,7 +313,6 @@ const WalletHomeScreen = () => {
             {vaults && vaultsStatuses && (
               <Vaults
                 updateVaultStatus={updateVaultStatus}
-                syncBlockchain={syncBlockchain}
                 pushTx={pushTx}
                 vaults={vaults}
                 vaultsStatuses={vaultsStatuses}

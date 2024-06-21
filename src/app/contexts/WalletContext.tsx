@@ -68,7 +68,6 @@ import { useBtcFiat } from '../hooks/useBtcFiat';
 import { useTipStatus } from '../hooks/useTipStatus';
 import { useFeeEstimates } from '../hooks/useFeeEstimates';
 import { useWalletState } from '../hooks/useWalletState';
-import { PushTxFunction, usePushTx } from '../hooks/usePushTx';
 import type { BlockStatus } from '@bitcoinerlab/explorer/dist/interface';
 
 export const WalletContext: Context<WalletContextType | null> =
@@ -89,7 +88,7 @@ export type WalletContextType = {
   vaults: Vaults | undefined;
   vaultsStatuses: VaultsStatuses | undefined;
   networkId: NetworkId | undefined;
-  pushTx: PushTxFunction;
+  pushTx: (txHex: string) => Promise<boolean>;
   processCreatedVault: (
     vault:
       | Vault
@@ -150,6 +149,8 @@ const WalletProviderRaw = ({
     useWalletState<boolean>();
 
   const btcFiat = useBtcFiat();
+
+  const toast = useToast();
 
   const secureStorageInfo = useSecureStorageInfo();
   const { t } = useTranslation();
@@ -227,7 +228,35 @@ const WalletProviderRaw = ({
     discoveryDataExport,
     discoveryStorageStatus.isSynchd
   );
-  const pushTx = usePushTx(initialDiscovery);
+  const pushTx = useCallback(
+    async (txHex: string) => {
+      const discovery =
+        initialDiscovery && (await ensureConnected(initialDiscovery));
+      if (!discovery)
+        throw new Error(
+          `Discovery not ready for pushTx while trying to push ${txHex}`
+        );
+      if (settings?.GAP_LIMIT === undefined)
+        throw new Error(
+          `settings.GAP_LIMIT not ready for pushTx while trying to push ${txHex}`
+        );
+      try {
+        await discovery.push({ txHex, gapLimit: settings.GAP_LIMIT });
+      } catch (error) {
+        const errorMessage =
+          error instanceof Error
+            ? error.message
+            : t('An unknown error occurred'); //TODO: translate
+
+        toast.show(t('networkError', { message: errorMessage }), {
+          type: 'warning'
+        });
+        return false;
+      }
+      return true;
+    },
+    [initialDiscovery, settings?.GAP_LIMIT, t, toast]
+  );
 
   const { tipStatus, updateTipStatus } = useTipStatus({ initialDiscovery });
   const feeEstimates = useFeeEstimates({ initialDiscovery, network });
@@ -427,8 +456,6 @@ const WalletProviderRaw = ({
     }
   }, [walletId, setDataCipherKey, signers, network, wallet?.encryption]);
 
-  const toast = useToast();
-
   //Tries to initialize utxosData from the discovery object we got from disk
   //ASAP (only if not set)
   useEffect(() => {
@@ -458,7 +485,7 @@ const WalletProviderRaw = ({
               discovery.whenFetched({ descriptor })
             )
           ) {
-            const { utxos } = discovery.getUtxosAndBalance({ descriptors });
+            const utxos = discovery.getUtxos({ descriptors });
             const walletUtxosData = getUtxosData(
               utxos,
               vaults,
@@ -648,9 +675,9 @@ const WalletProviderRaw = ({
               setAccounts(newAccounts);
             }
           }
-          //If utxos don't change, then getUtxosAndBalance return the same reference
+          //If utxos don't change, then getUtxos return the same reference
           //even if descriptors reference is different
-          const { utxos } = discovery.getUtxosAndBalance({ descriptors });
+          const utxos = discovery.getUtxos({ descriptors });
           const walletUtxosData = getUtxosData(
             utxos,
             updatedVaults,
@@ -736,6 +763,10 @@ const WalletProviderRaw = ({
       setSyncingBlockchain(walletId, true);
   }, [walletId, setSyncingBlockchain, isReady, tipStatus?.blockHeight]);
 
+  /**
+   * This already updates utxosData, vaults and vaultsStatuses without
+   * requiring any additional fetch.
+   */
   const processCreatedVault = useCallback(
     async (
       vault:
@@ -765,28 +796,74 @@ const WalletProviderRaw = ({
         toast.show(errorMessage, { type: 'danger' });
         return false;
       } else {
-        if (!initialDiscovery) throw new Error('Discovery not ready');
-
         // Create new vault
         if (vaults[vault.vaultId])
           throw new Error(`Vault for ${vault.vaultId} already exists`);
         if (vaultsStatuses[vault.vaultId])
           throw new Error(`VaultStatus for ${vault.vaultId} already exists`);
-        //Note here they are not atomically set, so when using vaults one
+
+        const newVaults = { ...vaults, [vault.vaultId]: vault };
+        const newVaultsStatuses = {
+          ...vaultsStatuses,
+          [vault.vaultId]: {
+            vaultPushTime: Math.floor(Date.now() / 1000),
+            vaultTxBlockHeight: 0
+          }
+        };
+
+        const pushAndSetUtxosData = async () => {
+          const discovery =
+            initialDiscovery && (await ensureConnected(initialDiscovery));
+          if (
+            !accounts ||
+            !tipStatus ||
+            !discovery ||
+            !network ||
+            walletId === undefined
+          )
+            throw new Error(
+              `Cannot processCreatedVault without all inputs ready - accounts: ${!!accounts}, tipStatus: ${!!tipStatus}, discovery: ${discovery}, network: ${network}, walletId: ${walletId}`
+            );
+          const descriptors = getHotDescriptors(
+            newVaults,
+            newVaultsStatuses,
+            accounts,
+            tipStatus.blockHeight
+          );
+          //pushTx will update the internal state of initialDiscovery:
+          const pushResult = await pushTx(vault.vaultTxHex);
+          if (pushResult) {
+            const utxos = discovery.getUtxos({ descriptors });
+            const walletUtxosData = getUtxosData(
+              utxos,
+              newVaults,
+              network,
+              discovery
+            );
+            setUtxosData(walletId, walletUtxosData);
+          }
+          return pushResult;
+        };
+        const pushResult = await pushAndSetUtxosData();
+        //Note here setVaults, setVaultsStatuses, ...
+        //are not atomically set, so when using vaults one
         //must make sure they are synched somehow - See Vaults.tsx for an
         //example what to do
-        await Promise.all([
-          setVaults({ ...vaults, [vault.vaultId]: vault }),
-          setVaultsStatuses({
-            ...vaultsStatuses,
-            [vault.vaultId]: { vaultPushTime: Math.floor(Date.now() / 1000) }
-          })
-        ]);
-        return (await pushTx(vault.vaultTxHex)) === 'SUCCESS';
+        if (pushResult)
+          await Promise.all([
+            setVaults(newVaults),
+            setVaultsStatuses(newVaultsStatuses)
+          ]);
+        return pushResult;
       }
     },
     [
       pushTx,
+      accounts,
+      network,
+      setUtxosData,
+      tipStatus,
+      walletId,
       setVaults,
       setVaultsStatuses,
       t,
