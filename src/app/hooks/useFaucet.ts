@@ -15,7 +15,7 @@ export function useFaucet() {
     historyData,
     wallet,
     accounts,
-    syncBlockchain,
+    fetchOutputHistory,
     isFirstLogin,
     faucetAPI
   } = context;
@@ -60,21 +60,40 @@ export function useFaucet() {
       faucetRequestedRef.current = true;
       const network = wallet.networkId && networkMapping[wallet.networkId];
       (async () => {
+        toast.show(t('walletHome.faucetStartMsg'));
+        let descriptor: string | undefined;
+        let index: number | undefined;
         try {
-          toast.show(t('walletHome.faucetStartMsg'));
-          await faucetFirstReceive(accounts, network, faucetAPI, 'es-ES');
-          //wait a few secs until esplora catches up...
-          for (let i = 0; i < DETECT_RETRY_MAX; i++) {
-            syncBlockchain();
+          ({ descriptor, index } = await faucetFirstReceive(
+            accounts,
+            network,
+            faucetAPI,
+            'es-ES'
+          ));
+        } catch (error: unknown) {
+          setFaucetFailed(true);
+          toast.show(t('walletHome.faucetErrorMsg'), { type: 'warning' });
+          return;
+        }
+        if (!descriptor || index === undefined)
+          throw new Error('faucetFirstReceive did not set a descriptor');
+        //wait a few secs until esplora catches up...
+        for (let i = 0; i < DETECT_RETRY_MAX; i++) {
+          const txHistory = await fetchOutputHistory({ descriptor, index });
+          if (!txHistory) {
+            setFaucetFailed(true);
+            toast.show(t('walletHome.faucetErrorMsg'), { type: 'warning' });
+            break;
+          } else if (txHistory.length === 0) {
             await new Promise(resolve =>
               setTimeout(resolve, DETECTION_INTERVAL)
             );
+          } else {
+            faucetDetectedRef.current = true;
+            break;
           }
-          if (!faucetDetectedRef.current) {
-            setFaucetFailed(true);
-            toast.show(t('walletHome.faucetErrorMsg'), { type: 'warning' });
-          }
-        } catch (error: unknown) {
+        }
+        if (!faucetDetectedRef.current) {
           setFaucetFailed(true);
           toast.show(t('walletHome.faucetErrorMsg'), { type: 'warning' });
         }
@@ -86,7 +105,7 @@ export function useFaucet() {
     wallet,
     isFirstLogin,
     accounts,
-    syncBlockchain,
+    fetchOutputHistory,
     t,
     historyData?.length
   ]);

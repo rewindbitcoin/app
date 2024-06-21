@@ -13,9 +13,6 @@ import { shareVaults } from '../lib/backup';
     return shareVaults({ vaults });
   }, [vaults]);
 
-21 - junio -2024
-TODO: El useFaucet debería de hacer un fetchAddress solo de la dirección de faucet sin hacer todo un refresh de la blockchain usando el nuevo addTransaction
-TODO 2: Se hace 2 refreshes uno tras el otro al inicio.
 
 Aun, randomly se me queda un loop infinito En el Init Unfreeze loading (isUnfreezeInitPending)
   -> Puede ser que syncBlockchain no se lanzase porque ya estaba haciendo una...

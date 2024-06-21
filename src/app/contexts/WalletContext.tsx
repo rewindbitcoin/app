@@ -13,7 +13,8 @@ import {
   getHotDescriptors,
   areVaultsSynched,
   HistoryData,
-  getHistoryData
+  getHistoryData,
+  TxHex
 } from '../lib/vaults';
 import type { Accounts, Signers, Wallets } from '../lib/wallets';
 import {
@@ -25,7 +26,6 @@ import { networkMapping, NetworkId } from '../lib/network';
 import {
   createUnvaultKey,
   getDefaultAccount,
-  getDefaultDescriptors,
   getMainAccount,
   getMasterNode
 } from '../lib/vaultDescriptors';
@@ -73,6 +73,12 @@ import type { BlockStatus } from '@bitcoinerlab/explorer/dist/interface';
 export const WalletContext: Context<WalletContextType | null> =
   createContext<WalletContextType | null>(null);
 
+type TxHistory = Array<{
+  txHex: TxHex;
+  blockHeight: number;
+  irreversible: boolean;
+}>;
+
 export type WalletContextType = {
   getChangeDescriptor: () => Promise<string>;
   fetchServiceAddress: () => Promise<string>;
@@ -89,6 +95,13 @@ export type WalletContextType = {
   vaultsStatuses: VaultsStatuses | undefined;
   networkId: NetworkId | undefined;
   pushTx: (txHex: string) => Promise<boolean>;
+  fetchOutputHistory: ({
+    descriptor,
+    index
+  }: {
+    descriptor: string;
+    index?: number;
+  }) => Promise<TxHistory | undefined>;
   processCreatedVault: (
     vault:
       | Vault
@@ -228,37 +241,10 @@ const WalletProviderRaw = ({
     discoveryDataExport,
     discoveryStorageStatus.isSynchd
   );
-  const pushTx = useCallback(
-    async (txHex: string) => {
-      const discovery =
-        initialDiscovery && (await ensureConnected(initialDiscovery));
-      if (!discovery)
-        throw new Error(
-          `Discovery not ready for pushTx while trying to push ${txHex}`
-        );
-      if (settings?.GAP_LIMIT === undefined)
-        throw new Error(
-          `settings.GAP_LIMIT not ready for pushTx while trying to push ${txHex}`
-        );
-      try {
-        await discovery.push({ txHex, gapLimit: settings.GAP_LIMIT });
-      } catch (error) {
-        const errorMessage =
-          error instanceof Error
-            ? error.message
-            : t('An unknown error occurred'); //TODO: translate
-
-        toast.show(t('networkError', { message: errorMessage }), {
-          type: 'warning'
-        });
-        return false;
-      }
-      return true;
-    },
-    [initialDiscovery, settings?.GAP_LIMIT, t, toast]
-  );
 
   const { tipStatus, updateTipStatus } = useTipStatus({ initialDiscovery });
+  const tipHeight = tipStatus?.blockHeight;
+  const isTipStatusReady = !!tipStatus;
   const feeEstimates = useFeeEstimates({ initialDiscovery, network });
 
   const [vaults, setVaults, , clearVaultsCache, vaultsStorageStatus] =
@@ -292,6 +278,159 @@ const WalletProviderRaw = ({
       undefined,
       walletId !== undefined ? dataCipherKey[walletId] : undefined
     );
+
+  const setUtxosAndHistoryData = useCallback(
+    async (
+      vaults: Vaults,
+      vaultsStatuses: VaultsStatuses,
+      accounts: Accounts,
+      tipHeight: number
+    ) => {
+      const discovery =
+        initialDiscovery && (await ensureConnected(initialDiscovery));
+      if (
+        tipHeight !== undefined &&
+        discovery &&
+        network &&
+        walletId !== undefined
+      ) {
+        const descriptors = getHotDescriptors(
+          vaults,
+          vaultsStatuses,
+          accounts,
+          tipHeight
+        );
+        const utxos = discovery.getUtxos({ descriptors });
+        const walletUtxosData = getUtxosData(utxos, vaults, network, discovery);
+        const history = discovery.getHistory(
+          { descriptors },
+          true
+        ) as Array<TxAttribution>;
+        const walletHistoryData = getHistoryData(history, discovery);
+        unstable_batchedUpdates(() => {
+          setUtxosData(walletId, walletUtxosData);
+          setHistoryData(walletId, walletHistoryData);
+        });
+        return true;
+      } else return false;
+    },
+    [initialDiscovery, network, setUtxosData, setHistoryData, walletId]
+  );
+
+  /**
+   * pushTx not only pushes the tx but it also updates the discovery internal
+   * data model with the info extracted from txHex
+   */
+  const pushTx = useCallback(
+    async (txHex: string): Promise<boolean> => {
+      const discovery =
+        initialDiscovery && (await ensureConnected(initialDiscovery));
+      if (!discovery)
+        throw new Error(
+          `Discovery not ready for pushTx while trying to push ${txHex}`
+        );
+      if (gapLimit === undefined)
+        throw new Error(
+          `gapLimit not ready for pushTx while trying to push ${txHex}`
+        );
+      try {
+        await discovery.push({ txHex, gapLimit });
+      } catch (error) {
+        const errorMessage =
+          error instanceof Error
+            ? error.message
+            : t('An unknown error occurred'); //TODO: translate
+
+        toast.show(t('networkError', { message: errorMessage }), {
+          type: 'warning'
+        });
+        return false;
+      }
+      return true;
+    },
+    [initialDiscovery, gapLimit, t, toast]
+  );
+
+  /**
+   * This is useful when the wallet is expecting funds in a speciffic output
+   * determined by descriptor (and index if ranged).
+   *
+   * By calling this function, the internal discovery data is updated and a
+   * full blockchain sync (which is expensive) can be avoided.
+   *
+   * It returns the history of the address (can be empty) or undefined if
+   * an error was found.
+   *
+   * Typically called when expecting a faucet in the firstReceiveAddress or
+   * when expecting some new money in a recently created address.
+   */
+  const fetchOutputHistory = useCallback(
+    async ({
+      descriptor,
+      index
+    }: {
+      descriptor: string;
+      index?: number;
+    }): Promise<TxHistory | undefined> => {
+      if (!vaults || !vaultsStatuses || !accounts || tipHeight === undefined)
+        throw new Error(
+          'fetchOutputHistory requires vaults, vaultsStatuses, accounts and tipHeight'
+        );
+      if (index === undefined && descriptor.includes('*'))
+        throw new Error('Use fetchOutputHistory only for a single output');
+      const discovery =
+        initialDiscovery && (await ensureConnected(initialDiscovery));
+      if (!discovery)
+        throw new Error(
+          `Discovery not ready for fetchTxHistory while trying to fetch descriptor ${descriptor}:${index}`
+        );
+      try {
+        const initialHistory = discovery.getHistory({
+          descriptor,
+          ...(index !== undefined ? { index } : {})
+        });
+        await discovery.fetch({
+          descriptor,
+          ...(index !== undefined ? { index } : {})
+        });
+        const newHistory = discovery.getHistory({
+          descriptor,
+          ...(index !== undefined ? { index } : {})
+        }) as TxHistory;
+        if (initialHistory !== newHistory) {
+          const result = await setUtxosAndHistoryData(
+            vaults,
+            vaultsStatuses,
+            accounts,
+            tipHeight
+          );
+          if (!result) throw new Error('Could not set utxos and data');
+        }
+        return newHistory;
+      } catch (error) {
+        const errorMessage =
+          error instanceof Error
+            ? error.message
+            : t(
+                'An unknown error occurred while fetching history of an output'
+              ); //TODO: translate
+        toast.show(t('networkError', { message: errorMessage }), {
+          type: 'warning'
+        });
+        return;
+      }
+    },
+    [
+      initialDiscovery,
+      t,
+      toast,
+      setUtxosAndHistoryData,
+      vaults,
+      vaultsStatuses,
+      accounts,
+      tipHeight
+    ]
+  );
 
   const isCorrupted = getIsCorrupted({
     wallet,
@@ -456,65 +595,26 @@ const WalletProviderRaw = ({
     }
   }, [walletId, setDataCipherKey, signers, network, wallet?.encryption]);
 
-  //Tries to initialize utxosData from the discovery object we got from disk
-  //ASAP (only if not set)
+  //Tries to initialize wallet utxos and history from the discovery object we
+  //got from disk ASAP (only if not set)
   useEffect(() => {
-    const setInitialUtxosData = async () => {
-      const discovery =
-        initialDiscovery && (await ensureConnected(initialDiscovery));
-      if (
-        walletId !== undefined &&
-        !utxosData[walletId] &&
-        vaults &&
-        vaultsStatuses &&
-        accounts &&
-        network &&
-        discovery
-      ) {
-        const tipStatus = await updateTipStatus();
-        if (tipStatus?.blockHeight) {
-          const descriptors = getHotDescriptors(
-            vaults,
-            vaultsStatuses,
-            accounts,
-            tipStatus.blockHeight
-          );
-          //Make sure they are fetched already:
-          if (
-            descriptors.every(descriptor =>
-              discovery.whenFetched({ descriptor })
-            )
-          ) {
-            const utxos = discovery.getUtxos({ descriptors });
-            const walletUtxosData = getUtxosData(
-              utxos,
-              vaults,
-              network,
-              discovery
-            );
-            setUtxosData(walletId, walletUtxosData);
-            const history = discovery.getHistory(
-              { descriptors },
-              true
-            ) as Array<TxAttribution>;
-            const walletHistoryData = getHistoryData(history, discovery);
-            setHistoryData(walletId, walletHistoryData);
-          }
-        }
-      }
-    };
-    setInitialUtxosData();
+    if (
+      !utxosData &&
+      !historyData &&
+      vaults &&
+      vaultsStatuses &&
+      accounts &&
+      tipHeight
+    )
+      setUtxosAndHistoryData(vaults, vaultsStatuses, accounts, tipHeight);
   }, [
-    updateTipStatus,
-    setUtxosData,
-    setHistoryData,
-    walletId,
-    utxosData,
-    initialDiscovery,
-    network,
-    accounts,
+    setUtxosAndHistoryData,
     vaults,
-    vaultsStatuses
+    vaultsStatuses,
+    accounts,
+    tipHeight,
+    utxosData,
+    historyData
   ]);
 
   const getChangeDescriptor = useCallback(async () => {
@@ -596,8 +696,8 @@ const WalletProviderRaw = ({
       const network = networkId && networkMapping[networkId];
 
       try {
-        const tipStatus = await updateTipStatus();
-        if (tipStatus?.blockHeight) {
+        const updatedTipHeight = (await updateTipStatus())?.blockHeight;
+        if (updatedTipHeight) {
           //First get updatedVaults & updatedVaultsStatuses:
           const p2pVaults = await fetchP2PVaults({
             signer,
@@ -635,27 +735,14 @@ const WalletProviderRaw = ({
             }
           });
 
-          //Now get utxosData
-          const descriptors = getHotDescriptors(
-            updatedVaults,
-            updatedVaultsStatuses,
-            accounts,
-            tipStatus.blockHeight
-          );
-          if (descriptors.length)
-            await discovery.fetch({ descriptors, gapLimit });
-          else {
-            if (Object.keys(accounts).length)
-              throw new Error(
-                "Accounts shouldn't be set with unset descriptors"
-              );
-            const newAccounts: Accounts = {};
+          //set accounts if still not set
+          let updatedAccounts = accounts;
+          if (!Object.keys(updatedAccounts).length) {
+            updatedAccounts = { ...accounts };
             if (signer.type !== 'SOFTWARE') {
               console.warn('Non-Software Wallets use default accounts for now');
               const defaultAccount = await getDefaultAccount(signers, network);
-              const descriptors = await getDefaultDescriptors(signers, network);
-              newAccounts[defaultAccount] = { discard: false };
-              discovery.fetch({ descriptors, gapLimit });
+              updatedAccounts[defaultAccount] = { discard: false };
             } else {
               if (!signer.mnemonic)
                 throw new Error('mnemonic not set for soft wallet');
@@ -664,49 +751,37 @@ const WalletProviderRaw = ({
               const usedAccounts = discovery.getUsedAccounts();
               if (usedAccounts.length)
                 for (const usedAccount of usedAccounts)
-                  newAccounts[usedAccount] = { discard: false };
+                  updatedAccounts[usedAccount] = { discard: false };
               else {
                 const defaultAccount = await getDefaultAccount(
                   signers,
                   network
                 );
-                newAccounts[defaultAccount] = { discard: false };
+                updatedAccounts[defaultAccount] = { discard: false };
               }
-              setAccounts(newAccounts);
             }
+            setAccounts(updatedAccounts);
           }
-          //If utxos don't change, then getUtxos return the same reference
-          //even if descriptors reference is different
-          const utxos = discovery.getUtxos({ descriptors });
-          const walletUtxosData = getUtxosData(
-            utxos,
+          const descriptors = getHotDescriptors(
             updatedVaults,
-            network,
-            discovery
+            updatedVaultsStatuses,
+            updatedAccounts,
+            updatedTipHeight
           );
-          const history = discovery.getHistory(
-            { descriptors },
-            true
-          ) as Array<TxAttribution>;
-          const walletHistoryData = getHistoryData(history, discovery);
-
-          //Save to disk. Saving is async, but it's ok not awaiting since all this
-          //data can be re-created any time by calling again syncBlockchain.
+          await discovery.fetch({ descriptors, gapLimit });
+          //Save to disk.
           const exportedData = discovery.export();
-
-          //IMPORTANT - Note that values below are not sync immediatelly
-          //even if we used unstable_batchedUpdates that would not work since
-          //there are awaits within the setStorageValue. When using context
-          //it's important to make use of syncBlockchain var if planning to use
-          //vaults & vaultsStatuses for example (or any combination of state)
-
           setDiscoveryDataExport(exportedData);
-          //Update them in state only if they changed (we mutated them)
           if (vaults !== updatedVaults) setVaults(updatedVaults);
           if (vaultsStatuses !== updatedVaultsStatuses)
             setVaultsStatuses(updatedVaultsStatuses);
-          setUtxosData(walletId, walletUtxosData);
-          setHistoryData(walletId, walletHistoryData);
+          const result = await setUtxosAndHistoryData(
+            updatedVaults,
+            updatedVaultsStatuses,
+            updatedAccounts,
+            updatedTipHeight
+          );
+          if (!result) throw new Error('Could not set utxos and history');
         }
       } catch (error) {
         const errorMessage =
@@ -724,9 +799,8 @@ const WalletProviderRaw = ({
     setSyncingBlockchain(walletId, false);
   }, [
     updateTipStatus,
+    setUtxosAndHistoryData,
     setAccounts,
-    setUtxosData,
-    setHistoryData,
     setSyncingBlockchain,
     walletId,
     accounts,
@@ -759,9 +833,10 @@ const WalletProviderRaw = ({
   //won't do anything as it's necessary.
   //Also it will auto-trigger update on a new block
   useEffect(() => {
-    if (walletId !== undefined && isReady && tipStatus?.blockHeight)
+    if (walletId !== undefined && isReady && isTipStatusReady) {
       setSyncingBlockchain(walletId, true);
-  }, [walletId, setSyncingBlockchain, isReady, tipStatus?.blockHeight]);
+    }
+  }, [walletId, setSyncingBlockchain, isReady, isTipStatusReady]);
 
   /**
    * This already updates utxosData, vaults and vaultsStatuses without
@@ -812,35 +887,20 @@ const WalletProviderRaw = ({
         };
 
         const pushAndSetUtxosData = async () => {
-          const discovery =
-            initialDiscovery && (await ensureConnected(initialDiscovery));
-          if (
-            !accounts ||
-            !tipStatus ||
-            !discovery ||
-            !network ||
-            walletId === undefined
-          )
+          if (!accounts || tipHeight === undefined)
             throw new Error(
-              `Cannot processCreatedVault without all inputs ready - accounts: ${!!accounts}, tipStatus: ${!!tipStatus}, discovery: ${discovery}, network: ${network}, walletId: ${walletId}`
+              `Cannot processCreatedVault without accounts: ${!!accounts} or tipHeight: ${!!tipHeight}`
             );
-          const descriptors = getHotDescriptors(
-            newVaults,
-            newVaultsStatuses,
-            accounts,
-            tipStatus.blockHeight
-          );
           //pushTx will update the internal state of initialDiscovery:
           const pushResult = await pushTx(vault.vaultTxHex);
           if (pushResult) {
-            const utxos = discovery.getUtxos({ descriptors });
-            const walletUtxosData = getUtxosData(
-              utxos,
+            const result = await setUtxosAndHistoryData(
               newVaults,
-              network,
-              discovery
+              newVaultsStatuses,
+              accounts,
+              tipHeight
             );
-            setUtxosData(walletId, walletUtxosData);
+            if (!result) throw new Error('Could not set utxos and history');
           }
           return pushResult;
         };
@@ -860,17 +920,14 @@ const WalletProviderRaw = ({
     [
       pushTx,
       accounts,
-      network,
-      setUtxosData,
-      tipStatus,
-      walletId,
+      tipHeight,
+      setUtxosAndHistoryData,
       setVaults,
       setVaultsStatuses,
       t,
       toast,
       vaults,
-      vaultsStatuses,
-      initialDiscovery
+      vaultsStatuses
     ]
   );
 
@@ -906,6 +963,7 @@ const WalletProviderRaw = ({
       walletId !== undefined && syncingBlockchain[walletId]
     ),
     pushTx,
+    fetchOutputHistory,
     vaultsAPI,
     faucetAPI,
     vaultsSecondaryAPI,

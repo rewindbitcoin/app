@@ -14,15 +14,12 @@ export const faucetFirstReceive = async (
   if (network !== networks.regtest)
     throw new Error('Cannot faucet non-regtest networks');
   const descriptor = getMainAccount(accounts, network); //account is external
+  const index = 0;
   const firstReceiveAddr = new Output({
     descriptor,
     network,
-    index: 0
+    index
   }).getAddress();
-  console.log({
-    firstReceiveAddr,
-    body: new URLSearchParams({ address: firstReceiveAddr })
-  });
   const response = await fetch(faucetAPI, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -43,6 +40,9 @@ export const faucetFirstReceive = async (
 
   return {
     txId: result.txId,
+    address: firstReceiveAddr,
+    descriptor,
+    index,
     info: result.info // May contain 'CACHED' or other additional information
   };
 };
