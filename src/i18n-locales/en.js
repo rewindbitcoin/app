@@ -114,6 +114,7 @@ If you need further assistance, please contact ThunderDen Support.`
       pushedTrigger: 'An unfreeze request was made on {{triggerPushDate}}.',
       confirmedTrigger: 'Unfreeze countdown began on {{triggerConfirmedDate}}.',
 
+      notTriggered: 'TODO {{lockTime}}.',
       rescuedAfterUnfreeze: 'This vault was rescued on {{rescueDate}}.',
       unfrozenAndSpent:
         'The vault was unfrozen on {{unfreezeDate}} and has already been spent.',

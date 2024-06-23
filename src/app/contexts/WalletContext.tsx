@@ -373,9 +373,7 @@ const WalletProviderRaw = ({
       index?: number;
     }): Promise<TxHistory | undefined> => {
       if (!vaults || !vaultsStatuses || !accounts || tipHeight === undefined)
-        throw new Error(
-          'fetchOutputHistory requires vaults, vaultsStatuses, accounts and tipHeight'
-        );
+        throw new Error('fetchOutputHistory inputs missing');
       if (index === undefined && descriptor.includes('*'))
         throw new Error('Use fetchOutputHistory only for a single output');
       const discovery =
@@ -385,19 +383,14 @@ const WalletProviderRaw = ({
           `Discovery not ready for fetchTxHistory while trying to fetch descriptor ${descriptor}:${index}`
         );
       try {
-        const initialHistory = discovery.getHistory({
+        const descriptorWithIndex = {
           descriptor,
           ...(index !== undefined ? { index } : {})
-        });
-        await discovery.fetch({
-          descriptor,
-          ...(index !== undefined ? { index } : {})
-        });
-        const newHistory = discovery.getHistory({
-          descriptor,
-          ...(index !== undefined ? { index } : {})
-        }) as TxHistory;
-        if (initialHistory !== newHistory) {
+        };
+        const initialHistory = discovery.getHistory(descriptorWithIndex);
+        await discovery.fetch(descriptorWithIndex);
+        const history = discovery.getHistory(descriptorWithIndex) as TxHistory;
+        if (initialHistory !== history) {
           const result = await setUtxosAndHistoryData(
             vaults,
             vaultsStatuses,
@@ -406,7 +399,7 @@ const WalletProviderRaw = ({
           );
           if (!result) throw new Error('Could not set utxos and data');
         }
-        return newHistory;
+        return history;
       } catch (error) {
         const errorMessage =
           error instanceof Error
@@ -599,12 +592,13 @@ const WalletProviderRaw = ({
   //got from disk ASAP (only if not set)
   useEffect(() => {
     if (
-      !utxosData &&
-      !historyData &&
+      walletId !== undefined &&
+      !utxosData[walletId] &&
+      !historyData[walletId] &&
       vaults &&
       vaultsStatuses &&
       accounts &&
-      tipHeight
+      tipHeight !== undefined
     )
       setUtxosAndHistoryData(vaults, vaultsStatuses, accounts, tipHeight);
   }, [
@@ -613,6 +607,7 @@ const WalletProviderRaw = ({
     vaultsStatuses,
     accounts,
     tipHeight,
+    walletId,
     utxosData,
     historyData
   ]);

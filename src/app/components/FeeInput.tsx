@@ -5,7 +5,7 @@ import React, { useContext, useCallback, useRef, useMemo } from 'react';
 import { CardEditableSlider } from '../../common/ui';
 import { WalletContext, WalletContextType } from '../contexts/WalletContext';
 import { snapWithinRange } from '../../common/lib/numbers';
-import { formatFeeRate } from '../lib/fees';
+import { formatFeeRate } from '../lib/format';
 import { useTranslation } from 'react-i18next';
 import { useSettings } from '../hooks/useSettings';
 

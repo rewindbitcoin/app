@@ -35,7 +35,7 @@ import {
 import VaultIcon from './VaultIcon';
 import { useTranslation } from 'react-i18next';
 import { delegateVault } from '../lib/backup';
-import { formatBalance } from '../lib/format';
+import { formatBalance, formatBlocks } from '../lib/format';
 import { Button } from '../../common/ui';
 
 import { useSettings } from '../hooks/useSettings';
@@ -232,7 +232,7 @@ const Vault = ({
   const triggerTimeBestGuess =
     vaultStatus?.triggerTxBlockTime ||
     (vaultStatus?.triggerPushTime
-      ? now + 10 * 60 //expected is alwaus 10' from now
+      ? now + 10 * 60 //expected is always 10' from now
       : undefined);
 
   //It's better to find out the unfreeze expected time based on the remainig time
@@ -338,7 +338,11 @@ const Vault = ({
           {
             //TODO: Note that here below some of the dates may be undefined so
             //I'd need some kind of LOADING_TEXT
-            remainingBlocks === 'SPENT_AS_PANIC' ? (
+            remainingBlocks === 'NOT_PUSHED' ? (
+              t('wallet.vault.notTriggered', {
+                lockTime: formatBlocks(vault.lockBlocks, t, true)
+              })
+            ) : remainingBlocks === 'SPENT_AS_PANIC' ? (
               t('wallet.vault.rescuedAfterUnfreeze', { rescueDate })
             ) : remainingBlocks === 'SPENT_AS_HOT' ? (
               t('wallet.vault.unfrozenAndSpent', {

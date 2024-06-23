@@ -4,8 +4,8 @@ import { Text } from 'react-native';
 import { CardEditableSlider, InfoButton, Modal } from '../../common/ui';
 import { useTranslation } from 'react-i18next';
 import { fromBlocks, toBlocks, getBlocksModeStep } from '../lib/timeUtils';
-import { formatLockTime } from '../lib/fees';
 import { useSettings } from '../hooks/useSettings';
+import { formatBlocks } from '../lib/format';
 
 function BlocksInput({
   initialValue,
@@ -47,8 +47,12 @@ function BlocksInput({
   }, [mode]);
 
   const formatValue = useCallback(
-    (modeValue: number) =>
-      formatLockTime(toBlocks(modeValue, mode, knownBlocksValueMap), t),
+    (modeValue: number) => {
+      const blocks = toBlocks(modeValue, mode, knownBlocksValueMap);
+      return t('vaultSetup.securityLockTimeDescription', {
+        blocks: formatBlocks(blocks, t)
+      });
+    },
     [t, knownBlocksValueMap, mode]
   );
 
