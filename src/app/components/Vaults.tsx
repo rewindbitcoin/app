@@ -16,6 +16,7 @@ import {
   unstable_batchedUpdates as RN_unstable_batchedUpdates,
   Platform
 } from 'react-native';
+import * as Icons from '@expo/vector-icons';
 const unstable_batchedUpdates = Platform.select({
   web: (cb: () => void) => {
     cb();
@@ -36,7 +37,7 @@ import VaultIcon from './VaultIcon';
 import { useTranslation } from 'react-i18next';
 import { delegateVault } from '../lib/backup';
 import { formatBalance, formatBlocks } from '../lib/format';
-import { Button } from '../../common/ui';
+import { Button, IconType } from '../../common/ui';
 
 import { useSettings } from '../hooks/useSettings';
 import type { SubUnit } from '../lib/settings';
@@ -143,12 +144,23 @@ const Amount = ({
 };
 
 const VaultText: React.FC<{
+  icon?: IconType;
   children: React.ReactNode;
-}> = ({ children }) => {
+}> = ({ icon, children }) => {
+  const Icon =
+    icon && icon.family && Icons[icon.family] ? Icons[icon.family] : null;
   return (
-    <Text className="text-slate-500 native:text-sm web:text-xs">
-      {children}
-    </Text>
+    <View className="flex-row items-center">
+      {icon && (
+        <Icon
+          className="pr-2 text-primary-dark native:text-sm web:text-xs"
+          name={icon.name}
+        />
+      )}
+      <Text className="text-slate-700 native:text-sm web:text-xs">
+        {children}
+      </Text>
+    </View>
   );
 };
 
@@ -310,79 +322,115 @@ const Vault = ({
           btcFiat={btcFiat}
           mode={mode}
         />
-        {/*this part should be only about the trigger*/}
-        {vaultStatus?.triggerPushTime && (
-          <VaultText>
-            {t('wallet.vault.pushedTrigger', {
-              triggerPushDate: formatVaultDate(
-                vaultStatus?.triggerPushTime,
-                locale
-              )
-            }) +
-              (vaultStatus.triggerTxBlockTime
-                ? ''
-                : `  •  ${t('wallet.vault.confirming')}…`)}
-          </VaultText>
-        )}
-        {vaultStatus?.triggerTxBlockTime && (
-          <VaultText>
-            {t('wallet.vault.confirmedTrigger', {
-              triggerConfirmedDate: formatVaultDate(
-                vaultStatus?.triggerTxBlockTime,
-                locale
-              )
+        {typeof remainingBlocks === 'number' && remainingBlocks > 0 && (
+          <Text className="native:text-sm web:text-xs uppercase text-slate-700">
+            {t('wallet.vault.timeRemaining', {
+              timeRemaining: formatBlocks(remainingBlocks, t, true)
             })}
-          </VaultText>
+          </Text>
         )}
-        <Text>
-          {
-            //TODO: Note that here below some of the dates may be undefined so
-            //I'd need some kind of LOADING_TEXT
-            remainingBlocks === 'NOT_PUSHED' ? (
-              t('wallet.vault.notTriggered', {
-                lockTime: formatBlocks(vault.lockBlocks, t, true)
-              })
-            ) : remainingBlocks === 'SPENT_AS_PANIC' ? (
-              t('wallet.vault.rescuedAfterUnfreeze', { rescueDate })
-            ) : remainingBlocks === 'SPENT_AS_HOT' ? (
-              t('wallet.vault.unfrozenAndSpent', {
-                unfreezeDate
-              })
-            ) : remainingBlocks === 0 ? (
-              t('wallet.vault.unfrozenAndHotBalance', {
-                unfreezeDate
-              })
-            ) : typeof remainingBlocks === 'number' && remainingBlocks > 0 ? (
-              t('wallet.vault.triggerWithEstimatedDate', {
+        {remainingBlocks === 'NOT_PUSHED' && (
+          <Text className="native:text-sm web:text-xs uppercase text-slate-700">
+            {t('wallet.vault.untriggeredLockTime', {
+              timeRemaining: formatBlocks(vault.lockBlocks, t, true)
+            })}
+          </Text>
+        )}
+        <View className="gap-2 pt-4">
+          {/*this part should be only about the trigger*/}
+          {vaultStatus?.triggerPushTime && (
+            <VaultText
+              icon={{
+                name: 'water-drop',
+                family: 'MaterialIcons'
+              }}
+            >
+              {t('wallet.vault.pushedTrigger', {
+                triggerPushDate: formatVaultDate(
+                  vaultStatus?.triggerPushTime,
+                  locale
+                )
+              }) +
+                (vaultStatus.triggerTxBlockTime
+                  ? ''
+                  : ` ${t('wallet.vault.confirming')}…`)}
+            </VaultText>
+          )}
+          {vaultStatus?.triggerTxBlockTime && (
+            <VaultText
+              icon={{
+                name: 'clock-start',
+                family: 'MaterialCommunityIcons'
+              }}
+            >
+              {t('wallet.vault.confirmedTrigger', {
+                triggerConfirmedDate: formatVaultDate(
+                  vaultStatus?.triggerTxBlockTime,
+                  locale
+                )
+              })}
+            </VaultText>
+          )}
+          {typeof remainingBlocks === 'number' && remainingBlocks > 0 && (
+            <VaultText
+              icon={{
+                name: 'flag-checkered',
+                family: 'MaterialCommunityIcons'
+              }}
+            >
+              {t('wallet.vault.triggerWithEstimatedDate', {
                 estimatedUnfreezeDate
-              })
-            ) : remainingBlocks === undefined ? (
-              <Text>
-                TODO Activity Indicator - remainingBlocks is undefined
-              </Text>
-            ) : null
+              })}
+            </VaultText>
+          )}
+          <Text>
+            {
+              //TODO: Note that here below some of the dates may be undefined so
+              //I'd need some kind of LOADING_TEXT
+              remainingBlocks === 'NOT_PUSHED' ? (
+                t('wallet.vault.notTriggered', {
+                  lockTime: formatBlocks(vault.lockBlocks, t, true)
+                })
+              ) : remainingBlocks === 'SPENT_AS_PANIC' ? (
+                t('wallet.vault.rescuedAfterUnfreeze', { rescueDate })
+              ) : remainingBlocks === 'SPENT_AS_HOT' ? (
+                t('wallet.vault.unfrozenAndSpent', {
+                  unfreezeDate
+                })
+              ) : remainingBlocks === 0 ? (
+                t('wallet.vault.unfrozenAndHotBalance', {
+                  unfreezeDate
+                })
+              ) : remainingBlocks === undefined ? (
+                <Text>
+                  TODO Activity Indicator - remainingBlocks is undefined
+                </Text>
+              ) : null
+            }
+          </Text>
+          {remainingBlocks === 'SPENT_AS_HOT' ||
+            (remainingBlocks === 0 && (
+              <Amount
+                title={t('wallet.vault.unfrozenAmount')}
+                isConfirming={false}
+                satsBalance={unfrozenBalance}
+                btcFiat={btcFiat}
+                mode={mode}
+              />
+            ))}
+          <Text>Unfrozen amount / Rescued amount</Text>
+        </View>
+        <View>
+          {/*this part should be about the rescue / hot*/}
+          {
+            // Rescued
+            vaultStatus?.panicTxHex && <View></View>
           }
-        </Text>
-        {remainingBlocks === 'SPENT_AS_HOT' ||
-          (remainingBlocks === 0 && (
-            <Amount
-              title={t('wallet.vault.unfrozenAmount')}
-              isConfirming={false}
-              satsBalance={unfrozenBalance}
-              btcFiat={btcFiat}
-              mode={mode}
-            />
-          ))}
-        <Text>Unfrozen amount / Rescued amount</Text>
-        {/*this part should be about the rescue / hot*/}
-        {
-          // Rescued
-          vaultStatus?.panicTxHex && <View></View>
-        }
-        {
-          // Spendable
-          remainingBlocks === 0 && !vaultStatus?.panicTxHex && <View></View>
-        }
+          {
+            // Spendable
+            remainingBlocks === 0 && !vaultStatus?.panicTxHex && <View></View>
+          }
+        </View>
         <View className="w-full flex-row justify-between">
           {!hasBeenTriggered && (
             <Button

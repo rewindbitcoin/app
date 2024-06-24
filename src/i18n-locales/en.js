@@ -111,17 +111,24 @@ If you need further assistance, please contact ThunderDen Support.`
       confirming: 'Confirming',
       confirmed: 'Confirmed',
 
-      pushedTrigger: 'An unfreeze request was made on {{triggerPushDate}}.',
-      confirmedTrigger: 'Unfreeze countdown began on {{triggerConfirmedDate}}.',
+      //pushedTrigger: 'An unfreeze request was made on {{triggerPushDate}}.',
+      pushedTrigger: 'Unfreeze requested on {{triggerPushDate}}.',
+      //confirmedTrigger: 'Unfreeze countdown began on {{triggerConfirmedDate}}.',
+      confirmedTrigger: 'Countdown began on {{triggerConfirmedDate}}.',
+      //triggerWithEstimatedDate:
+      //  'The estimated unfreeze date is {{estimatedUnfreezeDate}}.',
+      triggerWithEstimatedDate:
+        'Estimated unfreeze on {{estimatedUnfreezeDate}}.',
+      timeRemaining: '{{timeRemaining}} remaining',
+      untriggeredLockTime: 'Lock-Time: {{timeRemaining}}',
 
-      notTriggered: 'TODO {{lockTime}}.',
+      notTriggered:
+        'Funds are safely frozen. Initiating unfreeze starts a {{lockTime}} countdown before funds are available.',
       rescuedAfterUnfreeze: 'This vault was rescued on {{rescueDate}}.',
       unfrozenAndSpent:
         'The vault was unfrozen on {{unfreezeDate}} and has already been spent.',
       unfrozenAndHotBalance:
         'The vault was unfrozen on {{unfreezeDate}} and is now part of your hot balance.',
-      triggerWithEstimatedDate:
-        'The estimated unfreeze date is {{estimatedUnfreezeDate}}.',
 
       triggerWithRemainingTime:
         "It's currently being unfrozen with {{remainingTime}} remaining.",
