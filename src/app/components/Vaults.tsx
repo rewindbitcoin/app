@@ -37,7 +37,7 @@ import VaultIcon from './VaultIcon';
 import { useTranslation } from 'react-i18next';
 import { delegateVault } from '../lib/backup';
 import { formatBalance, formatBlocks } from '../lib/format';
-import { Button, IconType } from '../../common/ui';
+import { Button, IconType, InfoButton } from '../../common/ui';
 
 import { useSettings } from '../hooks/useSettings';
 import type { SubUnit } from '../lib/settings';
@@ -115,12 +115,12 @@ const Amount = ({
     );
   return (
     <>
-      <Text className="text-slate-500 native:text-sm web:text-xs font-semibold">
+      <Text className="text-slate-600 font-semibold pb-1 native:text-sm web:text-xs native:mobmed:text-base web:mobmed:text-sm">
         {title}
       </Text>
       <View className="flex-row items-center justify-start">
         <Text
-          className={`native:text-xl web:text-lg font-bold ${satsBalance === undefined ? 'animate-pulse bg-slate-200 rounded' : 'bg-transparent'}`}
+          className={`text-black native:text-xl web:text-lg font-bold ${satsBalance === undefined ? 'animate-pulse bg-slate-200 rounded' : 'bg-transparent'}`}
         >
           {satsBalance === undefined
             ? LOADING_TEXT
@@ -153,11 +153,11 @@ const VaultText: React.FC<{
     <View className="flex-row items-center">
       {icon && (
         <Icon
-          className="pr-2 text-primary-dark native:text-sm web:text-xs"
+          className="pr-2 text-primary-dark native:text-base web:text-sm native:mobmed:text-lg web:mobmed:text-base"
           name={icon.name}
         />
       )}
-      <Text className="text-slate-700 native:text-sm web:text-xs">
+      <Text className="text-slate-700 native:text-sm web:text-xs native:mobmed:text-base web:mobmed:text-sm">
         {children}
       </Text>
     </View>
@@ -196,6 +196,11 @@ const Vault = ({
     () => setShowInitUnfreeze(true),
     []
   );
+
+  const [isRescueInitValid, setIsRescueInitValid] = useState<boolean>(false);
+  const isRescueInitPending = !vaultStatus?.triggerTxHex && isRescueInitValid;
+  const [showInitRescue, setShowInitRescue] = useState<boolean>(false);
+  const handleInitRescue = useCallback(() => setShowInitRescue(true), []);
   const handleInitUnfreeze = useCallback(
     //TODO - set the triggerPushTime?: number;
     async (initUnfreezeData: InitUnfreezeData) => {
@@ -227,19 +232,34 @@ const Vault = ({
     vaultStatus &&
     getRemainingBlocks(vault, vaultStatus, tipHeight);
   const locale = settings.LOCALE;
-  const hasBeenTriggered =
-    vaultStatus?.triggerPushTime || vaultStatus?.triggerTxBlockHeight;
-  const rescueDate = formatVaultDate(vaultStatus?.panicTxBlockTime, locale);
-  const unfreezeDate = formatVaultDate(vaultStatus?.hotBlockTime, locale);
+  const rescuedDate = formatVaultDate(vaultStatus?.panicTxBlockTime, locale);
+  const spentAsHotDate = formatVaultDate(
+    vaultStatus?.spendAsHotTxBlockTime,
+    locale
+  );
+  const unfrozenDate = formatVaultDate(vaultStatus?.hotBlockTime, locale);
+  const isUnfreezeInitConfirmed = !!vaultStatus?.triggerTxBlockHeight;
+  const isUnfreezeInitNotConfirmed =
+    vaultStatus?.triggerPushTime && !isUnfreezeInitConfirmed;
+  const isUnfreezeInit = isUnfreezeInitNotConfirmed || isUnfreezeInitConfirmed;
+  const isUnfrozen =
+    remainingBlocks === 0 || remainingBlocks === 'SPENT_AS_HOT';
+  const isRescued = remainingBlocks === 'SPENT_AS_PANIC';
+
+  const canBeRescued = isUnfreezeInit && !rescuedDate && !spentAsHotDate;
+  const canBeDelegated = isUnfreezeInit || remainingBlocks === 'NOT_PUSHED';
+  const isUnfreezeOngoing =
+    typeof remainingBlocks === 'number' && remainingBlocks > 0;
+
+  console.log({
+    status: vaultStatus,
+    isUnfreezeInitConfirmed,
+    isUnfreezeInitNotConfirmed,
+    unfrozenDate,
+    canBeRescued
+  });
 
   const now = Math.floor(Date.now() / 1000);
-
-  //const triggerBlockHeightBestGuess =
-  //  vaultStatus?.triggerTxBlockHeight || vaultStatus?.triggerPushTime
-  //    ? tipStatus
-  //      ? tipStatus?.blockHeight + 1
-  //      : undefined
-  //    : undefined;
 
   const triggerTimeBestGuess =
     vaultStatus?.triggerTxBlockTime ||
@@ -248,7 +268,7 @@ const Vault = ({
       : undefined);
 
   //It's better to find out the unfreeze expected time based on the remainig time
-  // ant not using triggerTime + blockBlocks since previous blocks untiul now
+  // and not using triggerTime + blockBlocks since previous blocks untiul now
   // may have not been 10' exactly
   const unfreezeTimeBestGuess = !triggerTimeBestGuess
     ? undefined
@@ -312,21 +332,29 @@ const Vault = ({
             : LOADING_TEXT}
         </Text>
       </View>
-
-      {/* Body */}
       <View className="p-4 pt-0">
         <Amount
-          title={t('wallet.vault.amountFrozen')}
+          title={
+            isUnfreezeOngoing
+              ? t('wallet.vault.amountBeingUnfrozen')
+              : t('wallet.vault.amountFrozen')
+          }
           isConfirming={!vaultStatus?.vaultTxBlockHeight}
           satsBalance={frozenBalance}
           btcFiat={btcFiat}
           mode={mode}
         />
-        {typeof remainingBlocks === 'number' && remainingBlocks > 0 && (
+        {isUnfreezeOngoing && (
           <Text className="native:text-sm web:text-xs uppercase text-slate-700">
-            {t('wallet.vault.timeRemaining', {
-              timeRemaining: formatBlocks(remainingBlocks, t, true)
-            })}
+            {formatBlocks(remainingBlocks, t, true) ===
+            formatBlocks(vault.lockBlocks, t, true)
+              ? t('wallet.vault.timeRemaining', {
+                  timeRemaining: formatBlocks(remainingBlocks, t, true)
+                })
+              : t('wallet.vault.timeRemainingWrt', {
+                  timeRemaining: formatBlocks(remainingBlocks, t, true),
+                  lockTime: formatBlocks(vault.lockBlocks, t, true)
+                })}
           </Text>
         )}
         {remainingBlocks === 'NOT_PUSHED' && (
@@ -338,22 +366,19 @@ const Vault = ({
         )}
         <View className="gap-2 pt-4">
           {/*this part should be only about the trigger*/}
-          {vaultStatus?.triggerPushTime && (
+          {isUnfreezeInitNotConfirmed && (
             <VaultText
               icon={{
-                name: 'water-drop',
-                family: 'MaterialIcons'
+                name: 'clock-start',
+                family: 'MaterialCommunityIcons'
               }}
             >
-              {t('wallet.vault.pushedTrigger', {
+              {t('wallet.vault.pushedTriggerNotConfirmed', {
                 triggerPushDate: formatVaultDate(
                   vaultStatus?.triggerPushTime,
                   locale
                 )
-              }) +
-                (vaultStatus.triggerTxBlockTime
-                  ? ''
-                  : ` ${t('wallet.vault.confirming')}…`)}
+              })}
             </VaultText>
           )}
           {vaultStatus?.triggerTxBlockTime && (
@@ -371,7 +396,7 @@ const Vault = ({
               })}
             </VaultText>
           )}
-          {typeof remainingBlocks === 'number' && remainingBlocks > 0 && (
+          {isUnfreezeInit && !isUnfrozen && (
             <VaultText
               icon={{
                 name: 'flag-checkered',
@@ -383,31 +408,42 @@ const Vault = ({
               })}
             </VaultText>
           )}
-          <Text>
-            {
-              //TODO: Note that here below some of the dates may be undefined so
-              //I'd need some kind of LOADING_TEXT
-              remainingBlocks === 'NOT_PUSHED' ? (
-                t('wallet.vault.notTriggered', {
-                  lockTime: formatBlocks(vault.lockBlocks, t, true)
-                })
-              ) : remainingBlocks === 'SPENT_AS_PANIC' ? (
-                t('wallet.vault.rescuedAfterUnfreeze', { rescueDate })
-              ) : remainingBlocks === 'SPENT_AS_HOT' ? (
-                t('wallet.vault.unfrozenAndSpent', {
-                  unfreezeDate
-                })
-              ) : remainingBlocks === 0 ? (
-                t('wallet.vault.unfrozenAndHotBalance', {
-                  unfreezeDate
-                })
-              ) : remainingBlocks === undefined ? (
-                <Text>
-                  TODO Activity Indicator - remainingBlocks is undefined
-                </Text>
-              ) : null
-            }
-          </Text>
+          {isUnfreezeInit && isUnfrozen && (
+            <VaultText
+              icon={{
+                name: 'flag-checkered',
+                family: 'MaterialCommunityIcons'
+              }}
+            >
+              {t('wallet.vault.unfrozenDate', { unfrozenDate })}
+            </VaultText>
+          )}
+          {remainingBlocks === 'NOT_PUSHED' && (
+            <Text>
+              {t('wallet.vault.notTriggered', {
+                lockTime: formatBlocks(vault.lockBlocks, t, true)
+              })}
+            </Text>
+          )}
+          {remainingBlocks === 'SPENT_AS_PANIC' && (
+            <Text>
+              {t('wallet.vault.rescuedAfterUnfreeze', { rescuedDate })}
+            </Text>
+          )}
+          {remainingBlocks === 'SPENT_AS_HOT' && (
+            <Text>
+              {t('wallet.vault.unfrozenAndSpent', {
+                unfrozenDate
+              })}
+            </Text>
+          )}
+          {remainingBlocks === 0 && (
+            <Text>
+              {t('wallet.vault.unfrozenAndHotBalance', {
+                unfrozenDate
+              })}
+            </Text>
+          )}
           {remainingBlocks === 'SPENT_AS_HOT' ||
             (remainingBlocks === 0 && (
               <Amount
@@ -418,7 +454,6 @@ const Vault = ({
                 mode={mode}
               />
             ))}
-          <Text>Unfrozen amount / Rescued amount</Text>
         </View>
         <View>
           {/*this part should be about the rescue / hot*/}
@@ -431,19 +466,41 @@ const Vault = ({
             remainingBlocks === 0 && !vaultStatus?.panicTxHex && <View></View>
           }
         </View>
-        <View className="w-full flex-row justify-between">
-          {!hasBeenTriggered && (
-            <Button
-              mode="secondary"
-              onPress={handleShowInitUnfreeze}
-              loading={isUnfreezeInitPending}
-            >
-              {t('wallet.vault.triggerUnfreezeButton')}
-            </Button>
+        <View className="w-full flex-row justify-between pt-4 gap-6">
+          {canBeRescued && (
+            <View className={`flex-row items-center gap-2 mobmed:gap-4`}>
+              <Button
+                mode="secondary-alert"
+                onPress={handleInitRescue}
+                loading={isRescueInitPending}
+              >
+                {t('wallet.vault.rescueButton')}
+              </Button>
+              <InfoButton />
+            </View>
           )}
-          <Button mode="secondary" onPress={handleDelegateVault}>
-            Delegate
-          </Button>
+          {!isUnfreezeInit && (
+            <View className={`flex-row items-center gap-2 mobmed:gap-4`}>
+              <View className={`max-w-24 mobmed:max-w-full`}>
+                <Button
+                  mode="secondary"
+                  onPress={handleShowInitUnfreeze}
+                  loading={isUnfreezeInitPending}
+                >
+                  {t('wallet.vault.triggerUnfreezeButton')}
+                </Button>
+              </View>
+              <InfoButton />
+            </View>
+          )}
+          {canBeDelegated && (
+            <View className={`flex-row items-center gap-2 mobmed:gap-4`}>
+              <Button mode="secondary" onPress={handleDelegateVault}>
+                Delegate
+              </Button>
+              <InfoButton />
+            </View>
+          )}
         </View>
       </View>
       <InitUnfreeze

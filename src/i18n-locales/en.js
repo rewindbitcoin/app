@@ -101,35 +101,38 @@ To resolve this issue, please try accessing your wallet again. If the problem\
 If you need further assistance, please contact ThunderDen Support.`
     },
     vault: {
+      rescueButton: 'Rescue',
       delegateButton: 'Delegate',
       triggerUnfreezeButton: 'Init Unfreeze',
       vaultTitle: 'Vault {{vaultNumber}}',
       vaultDate: 'Created on {{date}}',
       amountFrozen: 'Amount Frozen',
+      amountBeingUnfrozen: 'Amount Being Unfrozen',
       unfrozenAmount: 'Unfrozen Amount',
       frozenAmount: 'Amount Frozen: {{amount}}.',
       confirming: 'Confirming',
       confirmed: 'Confirmed',
 
       //pushedTrigger: 'An unfreeze request was made on {{triggerPushDate}}.',
-      pushedTrigger: 'Unfreeze requested on {{triggerPushDate}}.',
+      pushedTriggerNotConfirmed: 'Unfreeze requested on {{triggerPushDate}}.',
       //confirmedTrigger: 'Unfreeze countdown began on {{triggerConfirmedDate}}.',
-      confirmedTrigger: 'Countdown began on {{triggerConfirmedDate}}.',
+      confirmedTrigger: 'Unfreeze countdown began on {{triggerConfirmedDate}}.',
       //triggerWithEstimatedDate:
       //  'The estimated unfreeze date is {{estimatedUnfreezeDate}}.',
       triggerWithEstimatedDate:
-        'Estimated unfreeze on {{estimatedUnfreezeDate}}.',
+        'Unfreeze estimated on {{estimatedUnfreezeDate}}.',
+      unfrozenDate: 'Unfrozen on {{unfrozenDate}}.',
       timeRemaining: '{{timeRemaining}} remaining',
-      untriggeredLockTime: 'Lock-Time: {{timeRemaining}}',
+      timeRemainingWRT: '{{timeRemaining}} of {{lockTime}} remaining',
+      untriggeredLockTime: 'Lock Time: {{timeRemaining}}',
 
       notTriggered:
         'Funds are safely frozen. Initiating unfreeze starts a {{lockTime}} countdown before funds are available.',
-      rescuedAfterUnfreeze: 'This vault was rescued on {{rescueDate}}.',
+      rescuedAfterUnfreeze: 'This vault was rescued on {{rescuedDate}}.',
       unfrozenAndSpent:
-        'The vault was unfrozen on {{unfreezeDate}} and has already been spent.',
+        'The vault was unfrozen on {{unfrozenDate}} and has already been spent.',
       unfrozenAndHotBalance:
-        'The vault was unfrozen on {{unfreezeDate}} and is now part of your hot balance.',
-
+        'The vault was unfrozen on {{unfrozenDate}} and is now part of your available balance.',
       triggerWithRemainingTime:
         "It's currently being unfrozen with {{remainingTime}} remaining.",
 

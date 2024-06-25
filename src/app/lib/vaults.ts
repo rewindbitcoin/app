@@ -767,9 +767,7 @@ export const getVaultFrozenBalance = (
   vaultStatus: VaultStatus,
   blockchainTip: number
 ) => {
-  console.warn(
-    'TODO - in fact here, first make sure that the vault was really pushed and is either mined or at least in the mempool'
-  );
+  //TODO - in fact here, first make sure that the vault was really pushed and is either mined or at least in the mempool
   if (
     vaultStatus.vaultTxBlockHeight === undefined ||
     vaultStatus.panicTxHex ||
@@ -796,9 +794,7 @@ export const getVaultUnfrozenBalance = (
   vault: Vault,
   vaultStatus: VaultStatus
 ) => {
-  console.warn(
-    'TODO - in fact here, first make sure that the vault was really pushed and is either mined or at least in the mempool'
-  );
+  //TODO - in fact here, first make sure that the vault was really pushed and is either mined or at least in the mempool
   if (
     vaultStatus.vaultTxBlockHeight === undefined ||
     vaultStatus.panicTxHex ||

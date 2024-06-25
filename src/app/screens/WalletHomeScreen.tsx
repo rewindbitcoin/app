@@ -285,7 +285,7 @@ const WalletHomeScreen = () => {
           //the bounce area when pulling to refresh was looking gray or white but the loading indicator was not appearing
           //See TAGiusfdnisdunf below
           //
-          `mb-20 ${Platform.OS === 'ios' || Platform.OS === 'web' ? '-z-10' : ''}`
+          `${Platform.OS === 'ios' || Platform.OS === 'web' ? '-z-10' : ''}`
         }
       >
         <View onLayout={handleHeader}>
@@ -309,7 +309,10 @@ const WalletHomeScreen = () => {
         </View>
 
         {activeTabIndex === 0 && (
-          <View className="p-4">
+          <View
+            className="p-4 mb-24"
+            //The mb-24 to let it scroll over the Receive - Send - Freeze buttons
+          >
             {vaults && vaultsStatuses && (
               <Vaults
                 updateVaultStatus={updateVaultStatus}
@@ -323,7 +326,10 @@ const WalletHomeScreen = () => {
           </View>
         )}
         {activeTabIndex === 1 && (
-          <View className="self-center">
+          <View
+            className="self-center mb-24"
+            //The mb-24 to let it scroll over the Receive - Send - Freeze buttons
+          >
             {historyData && historyData.length ? (
               [...historyData].reverse().map(history => {
                 return (

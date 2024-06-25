@@ -6,7 +6,7 @@ import * as Icons from '@expo/vector-icons';
 import Spin from './Spin';
 
 interface ButtonProps extends RN.PressableProps {
-  mode?: 'primary' | 'native' | 'secondary' | 'text';
+  mode?: 'primary' | 'native' | 'secondary' | 'secondary-alert' | 'text';
   iconLeft?: IconType;
   onPress?: ((event: RN.GestureResponderEvent) => void) | undefined;
   disabled?: boolean;
@@ -80,27 +80,39 @@ const Button: React.FC<ButtonProps> = ({
         {loading && <Spin className="text-white ml-2" />}
       </RN.Pressable>
     );
-  } else if (mode === 'secondary') {
+  } else if (mode === 'secondary' || mode === 'secondary-alert') {
     return (
       <RN.Pressable
         key={String(disabled)}
-        className={`flex-row min-w-20 items-center py-3 px-5 rounded-lg bg-primary-light ${disabled ? 'pointer-events-none opacity-50' : 'hover:bg-primary-light-hover active:bg-primary-light-hover active:scale-95'}`}
+        className={`flex-row min-w-20 items-center py-3 px-5 rounded-lg ${disabled ? 'pointer-events-none opacity-50' : `active:scale-95 ${mode === 'secondary-alert' ? 'bg-red-200 hover:bg-red-300 active:bg-red-300' : 'bg-primary-light hover:bg-primary-light-hover active:bg-primary-light-hover'}`}`}
         {...props}
       >
         {iconLeft && (
           <IconLeft
             name={iconLeft.name}
-            className="pr-2 font-semibold text-primary-dark native:text-sm web:text-xs web:sm:text-sm select-none"
+            className={`pr-2 font-semibold native:text-sm web:text-xs web:sm:text-sm select-none ${
+              mode === 'secondary-alert' ? 'text-red-800' : 'text-primary-dark'
+            }`}
           />
         )}
         {typeof children === 'string' ? (
-          <RN.Text className="text-center font-semibold text-primary-dark native:text-sm web:text-xs web:sm:text-sm select-none">
+          <RN.Text
+            className={`text-center font-semibold native:text-sm web:text-xs web:sm:text-sm select-none ${
+              mode === 'secondary-alert' ? 'text-red-800' : 'text-primary-dark'
+            }`}
+          >
             {children}
           </RN.Text>
         ) : React.isValidElement(children) ? (
           children
         ) : null}
-        {loading && <Spin className="text-primary-dark ml-2" />}
+        {loading && (
+          <Spin
+            className={`ml-2 ${
+              mode === 'secondary-alert' ? 'text-red-800' : 'text-primary-dark'
+            }`}
+          />
+        )}
       </RN.Pressable>
     );
   } else throw new Error(`Unsupported button mode ${mode}`);
