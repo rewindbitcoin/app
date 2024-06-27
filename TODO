@@ -4,8 +4,6 @@ https://icons.expo.fyi/Index/MaterialIcons/safety-check
 thunderden.com
 https://www.svgrepo.com/svg/519137/security
 
-chronoslock.com
-
 LaterOk.com
 
 goat oak pull
@@ -17,8 +15,13 @@ Este icono es buenisimo timelock!!!
 https://icons.expo.fyi/Index/MaterialCommunityIcons/lock-clock
 And for unfreezing... ? https://icons.expo.fyi/Index/MaterialCommunityIcons/progress-clock
 
-En Vault no me gusta lo de los labels. Imprimir en formato texto?!?
-O que sea sencillo y no intimidante. No pro-oriented.
+Importante: Las txs de los Vaults no aparecen en el historial de ops.
+Debería salir: tx - VAULT
+Debería salir: tx - TRIGGER_UNVAULT
+Debería salir: tx - RESCUED
+  -> Definitivamente necesiraré un sorting que me tenga en cuenta en las txs
+  que pertenecel al mismo bloque (o q estan en la mempool) para que ponga el orden
+  si una depende de la otra las ponga consecutivas y en orden
 
 En Settings tendré que usa el código este: 
 import { shareVaults } from '../lib/backup';

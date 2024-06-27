@@ -312,7 +312,7 @@ const WalletHomeScreen = () => {
 
         {activeTabIndex === 0 && (
           <View
-            className="p-4 max-w-2xl mb-28 self-center"
+            className="p-4 max-w-2xl w-full mb-28 self-center"
             //The mb-24 to let it scroll over the Receive - Send - Freeze buttons
           >
             {vaults && vaultsStatuses && (
@@ -329,7 +329,7 @@ const WalletHomeScreen = () => {
         )}
         {activeTabIndex === 1 && (
           <View
-            className="p-4 max-w-2xl mb-28 self-center"
+            className="p-4 max-w-2xl w-full mb-28 self-center"
             //The mb-24 to let it scroll over the Receive - Send - Freeze buttons
           >
             {historyData && historyData.length ? (
