@@ -50,11 +50,11 @@ const InitUnfreeze = ({
   vault,
   isVisible,
   lockBlocks,
-  onInit,
+  onInitUnfreeze,
   onClose
 }: {
   vault: Vault;
-  onInit: (initUnfreezeData: InitUnfreezeData) => void;
+  onInitUnfreeze: (initUnfreezeData: InitUnfreezeData) => void;
   lockBlocks: number;
   isVisible: boolean;
   onClose: () => void;
@@ -109,8 +109,8 @@ const InitUnfreeze = ({
   const handleInitUnfreeze = useCallback(() => {
     if (!txData || !txSize)
       throw new Error('Cannot unfreeze non-existing selected tx');
-    onInit(txData);
-  }, [onInit, txData, txSize]);
+    onInitUnfreeze(txData);
+  }, [onInitUnfreeze, txData, txSize]);
 
   const timeLockTime = formatBlocks(lockBlocks, t, true);
 

@@ -53,18 +53,18 @@ const Rescue = ({
   onClose
 }: {
   vault: Vault;
-  vaultStatus: VaultStatus;
+  vaultStatus: VaultStatus | undefined;
   onRescue: (rescueData: RescueData) => void;
   isVisible: boolean;
   onClose: () => void;
 }) => {
-  const triggerTxHex = vaultStatus.triggerTxHex;
-  if (!triggerTxHex) throw new Error('Vault has not been triggered');
-  const rescueTxs = vault.triggerMap[triggerTxHex];
-  if (!rescueTxs)
-    throw new Error("Triggered vault doesn't have matching rescue txs");
-
   const rescueSortedTxs = useMemo(() => {
+    if (!isVisible) return [];
+    const triggerTxHex = vaultStatus?.triggerTxHex;
+    if (!triggerTxHex) throw new Error('Vault has not been triggered');
+    const rescueTxs = vault.triggerMap[triggerTxHex];
+    if (!rescueTxs)
+      throw new Error("Triggered vault doesn't have matching rescue txs");
     return rescueTxs
       .map(txHex => {
         const txData = vault.txMap[txHex];
@@ -73,7 +73,7 @@ const Rescue = ({
         return { ...txData, vSize: tx.virtualSize(), txHex };
       })
       .sort((a, b) => a.feeRate - b.feeRate);
-  }, [vault, rescueTxs]);
+  }, [vault, vaultStatus?.triggerTxHex, isVisible]);
 
   const { t } = useTranslation();
   const context = useContext<WalletContextType | null>(WalletContext);

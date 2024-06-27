@@ -104,7 +104,11 @@ const Amount = ({
       </Text>
       <View className="flex-row items-center justify-start">
         <Text
-          className={`text-black native:text-xl web:text-lg font-bold ${satsBalance === undefined ? 'animate-pulse bg-slate-200 rounded' : 'animate-none bg-transparent'}`}
+          className={
+            `text-black native:text-xl web:text-lg font-bold ${satsBalance === undefined ? 'animate-pulse bg-slate-200 rounded' : 'animate-none bg-transparent opacity-100'}`
+            //after the animation it is important to set animate-none from the nativewind docs so that components are not re-rendered as new.
+            //Also opacity must be reset to initial value
+          }
         >
           {satsBalance === undefined
             ? LOADING_TEXT
@@ -186,10 +190,10 @@ const Vault = ({
   vaultNumber: number;
   vaultStatus: VaultStatus | undefined;
 }) => {
-  const [isUnfreezeInitRequestValid, setIsUnfreezeInitRequestValid] =
+  const [isInitUnfreezeRequestValid, setIsInitUnfreezeRequestValid] =
     useState<boolean>(false);
-  const isUnfreezeInitPending =
-    !vaultStatus?.triggerTxHex && isUnfreezeInitRequestValid;
+  const isInitUnfreezePending =
+    !vaultStatus?.triggerTxHex && isInitUnfreezeRequestValid;
 
   const { t } = useTranslation();
 
@@ -206,7 +210,7 @@ const Vault = ({
     async (initUnfreezeData: InitUnfreezeData) => {
       unstable_batchedUpdates(() => {
         setShowInitUnfreeze(false);
-        setIsUnfreezeInitRequestValid(true);
+        setIsInitUnfreezeRequestValid(true);
       });
       const pushResult = await pushTx(initUnfreezeData.txHex);
       if (pushResult) {
@@ -219,7 +223,7 @@ const Vault = ({
           triggerPushTime: Math.floor(Date.now() / 1000)
         };
         updateVaultStatus(vault.vaultId, newVaultStatus);
-      } else setIsUnfreezeInitRequestValid(false);
+      } else setIsInitUnfreezeRequestValid(false);
     },
     [pushTx, vault.vaultId, vaultStatus, updateVaultStatus]
   );
@@ -267,18 +271,18 @@ const Vault = ({
     locale
   );
   const unfrozenDate = formatVaultDate(vaultStatus?.hotBlockTime, locale);
-  const isUnfreezeInitConfirmed = !!vaultStatus?.triggerTxBlockHeight;
-  const isUnfreezeInitNotConfirmed =
-    vaultStatus?.triggerPushTime && !isUnfreezeInitConfirmed;
-  const isUnfreezeInit = isUnfreezeInitNotConfirmed || isUnfreezeInitConfirmed;
-  const canUnfreezeInit = !isUnfreezeInit;
+  const isInitUnfreezeConfirmed = !!vaultStatus?.triggerTxBlockHeight;
+  const isInitUnfreezeNotConfirmed =
+    vaultStatus?.triggerPushTime && !isInitUnfreezeConfirmed;
+  const isInitUnfreeze = isInitUnfreezeNotConfirmed || isInitUnfreezeConfirmed;
+  const canInitUnfreeze = !isInitUnfreeze;
   const isUnfrozen =
     remainingBlocks === 0 || remainingBlocks === 'SPENT_AS_HOT';
   const isRescued = remainingBlocks === 'SPENT_AS_PANIC';
 
-  const canBeRescued = isUnfreezeInit && !isUnfrozen && !isRescued;
+  const canBeRescued = isInitUnfreeze && !isUnfrozen && !isRescued;
   const canBeDelegated = !isUnfrozen && !isRescued;
-  //&&(isUnfreezeInit || remainingBlocks === 'TRIGGER_NOT_PUSHED');
+  //&&(isInitUnfreeze || remainingBlocks === 'TRIGGER_NOT_PUSHED');
   const isUnfreezeOngoing =
     typeof remainingBlocks === 'number' && remainingBlocks > 0;
 
@@ -290,14 +294,6 @@ const Vault = ({
       tipHeight - vaultStatus.panicTxBlockHeight > 3) ||
       (vaultStatus?.hotBlockHeight &&
         tipHeight - vaultStatus.hotBlockHeight > 3));
-
-  console.log({
-    status: vaultStatus,
-    isUnfreezeInitConfirmed,
-    isUnfreezeInitNotConfirmed,
-    unfrozenDate,
-    canBeRescued
-  });
 
   const now = Math.floor(Date.now() / 1000);
 
@@ -371,7 +367,11 @@ const Vault = ({
           {t('wallet.vault.vaultTitle', { vaultNumber })}
         </Text>
         <Text
-          className={`text-slate-500 flex-1 text-right pl-4 native:text-sm web:text-xs ${vaultStatus === undefined ? 'animate-pulse bg-slate-200 rounded' : 'animate-none bg-transparent'}`}
+          className={
+            `text-slate-500 flex-1 text-right pl-4 native:text-sm web:text-xs ${vaultStatus === undefined ? 'animate-pulse bg-slate-200 rounded' : 'animate-none bg-transparent opacity-100'}`
+            //after the animation it is important to set animate-none from the nativewind docs so that components are not re-rendered as new.
+            //Also opacity must be reset to initial value
+          }
         >
           {vaultStatus
             ? t('wallet.vault.vaultDate', {
@@ -419,7 +419,7 @@ const Vault = ({
         )}
         <View className="gap-2 pt-4">
           {/*this part should be only about the trigger*/}
-          {isUnfreezeInitNotConfirmed && (
+          {isInitUnfreezeNotConfirmed && (
             <VaultText
               icon={{
                 name: 'clock-start',
@@ -450,7 +450,7 @@ const Vault = ({
               })}
             </VaultText>
           )}
-          {isUnfreezeInit && !isUnfrozen && (
+          {isInitUnfreeze && !isUnfrozen && (
             <VaultText
               icon={{
                 name: 'flag-checkered',
@@ -462,7 +462,7 @@ const Vault = ({
               })}
             </VaultText>
           )}
-          {isUnfreezeInit && isUnfrozen && (
+          {isInitUnfreeze && isUnfrozen && (
             <VaultText
               icon={{
                 name: 'flag-checkered',
@@ -508,9 +508,9 @@ const Vault = ({
             remainingBlocks === 0 && !vaultStatus?.panicTxHex && <View></View>
           }
         </View>
-        {(canBeRescued || canUnfreezeInit || canBeDelegated || canBeHidden) && (
+        {(canBeRescued || canInitUnfreeze || canBeDelegated || canBeHidden) && (
           <View
-            className={`w-full flex-row ${[canBeRescued, canUnfreezeInit, canBeDelegated, canBeHidden].filter(Boolean).length > 1 ? 'justify-between' : 'justify-end'} pt-8 px-0 mobmed:px-4 gap-6`}
+            className={`w-full flex-row ${[canBeRescued, canInitUnfreeze, canBeDelegated, canBeHidden].filter(Boolean).length > 1 ? 'justify-between' : 'justify-end'} pt-8 px-0 mobmed:px-4 gap-6`}
           >
             {canBeRescued && (
               <VaultButton
@@ -521,11 +521,11 @@ const Vault = ({
                 onInfoPress={() => {}}
               />
             )}
-            {canUnfreezeInit && (
+            {canInitUnfreeze && (
               <VaultButton
                 mode="secondary"
                 onPress={handleShowInitUnfreeze}
-                loading={isUnfreezeInitPending}
+                loading={isInitUnfreezePending}
                 msg={t('wallet.vault.triggerUnfreezeButton')}
                 onInfoPress={() => {}}
               />
@@ -555,17 +555,15 @@ const Vault = ({
         isVisible={showInitUnfreeze}
         lockBlocks={vault.lockBlocks}
         onClose={handleCloseInitUnfreeze}
-        onInit={handleInitUnfreeze}
+        onInitUnfreeze={handleInitUnfreeze}
       />
-      {vaultStatus && (
-        <Rescue
-          vault={vault}
-          vaultStatus={vaultStatus}
-          isVisible={showRescue}
-          onClose={handleCloseRescue}
-          onRescue={handleRescue}
-        />
-      )}
+      <Rescue
+        vault={vault}
+        vaultStatus={vaultStatus}
+        isVisible={showRescue}
+        onClose={handleCloseRescue}
+        onRescue={handleRescue}
+      />
     </View>
   );
 };

@@ -44,7 +44,11 @@ const Balance = ({
           </Svg>
         )}
         <Text
-          className={`font-bold text-black text-3xl pr-0 mr-2 ${formattedBalance === undefined ? 'animate-pulse bg-slate-200 rounded' : 'animate-none bg-transparent'}`}
+          className={
+            `font-bold text-3xl pr-0 mr-2 ${formattedBalance === undefined ? 'animate-pulse bg-slate-200 rounded' : 'animate-none bg-transparent opacity-100'}`
+            //after the animation it is important to set animate-none from the nativewind docs so that components are not re-rendered as new.
+            //Also opacity must be reset to initial value
+          }
         >
           {formattedBalance === undefined ? '     ' : formattedBalance}
         </Text>
