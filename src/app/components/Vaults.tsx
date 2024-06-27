@@ -43,6 +43,7 @@ import type { SubUnit } from '../lib/settings';
 import type { Locale } from '../../i18n-locales/init';
 import type { BlockStatus } from '@bitcoinerlab/explorer/dist/interface';
 import InitUnfreeze, { InitUnfreezeData } from './InitUnfreeze';
+import Rescue, { RescueData } from './Rescue';
 
 const LOADING_TEXT = '     ';
 
@@ -185,10 +186,10 @@ const Vault = ({
   vaultNumber: number;
   vaultStatus: VaultStatus | undefined;
 }) => {
-  const [isUnfreezeInitValid, setIsUnfreezeInitValid] =
+  const [isUnfreezeInitRequestValid, setIsUnfreezeInitRequestValid] =
     useState<boolean>(false);
   const isUnfreezeInitPending =
-    !vaultStatus?.triggerTxHex && isUnfreezeInitValid;
+    !vaultStatus?.triggerTxHex && isUnfreezeInitRequestValid;
 
   const { t } = useTranslation();
 
@@ -201,18 +202,11 @@ const Vault = ({
     () => setShowInitUnfreeze(true),
     []
   );
-
-  const [isRescueInitValid, setIsRescueInitValid] = useState<boolean>(false);
-  const isRescueInitPending = !vaultStatus?.triggerTxHex && isRescueInitValid;
-  const [shownitRescue, setShowInitRescue] = useState<boolean>(false);
-  const handleInitRescue = useCallback(() => setShowInitRescue(true), []);
-
   const handleInitUnfreeze = useCallback(
-    //TODO - set the triggerPushTime?: number;
     async (initUnfreezeData: InitUnfreezeData) => {
       unstable_batchedUpdates(() => {
         setShowInitUnfreeze(false);
-        setIsUnfreezeInitValid(true);
+        setIsUnfreezeInitRequestValid(true);
       });
       const pushResult = await pushTx(initUnfreezeData.txHex);
       if (pushResult) {
@@ -225,10 +219,39 @@ const Vault = ({
           triggerPushTime: Math.floor(Date.now() / 1000)
         };
         updateVaultStatus(vault.vaultId, newVaultStatus);
-      } else setIsUnfreezeInitValid(false);
+      } else setIsUnfreezeInitRequestValid(false);
     },
     [pushTx, vault.vaultId, vaultStatus, updateVaultStatus]
   );
+
+  const [isRescueRequestValid, setIsRescueRequestValid] =
+    useState<boolean>(false);
+  const isRescuePending = !vaultStatus?.panicTxHex && isRescueRequestValid;
+  const [showRescue, setShowRescue] = useState<boolean>(false);
+  const handleCloseRescue = useCallback(() => setShowRescue(false), []);
+  const handleShowRescue = useCallback(() => setShowRescue(true), []);
+  const handleRescue = useCallback(
+    async (rescueData: RescueData) => {
+      unstable_batchedUpdates(() => {
+        setShowRescue(false);
+        setIsRescueRequestValid(true);
+      });
+      const pushResult = await pushTx(rescueData.txHex);
+      if (pushResult) {
+        if (!vaultStatus)
+          throw new Error('vault status should exist for existing vault');
+        const newVaultStatus = {
+          ...vaultStatus,
+          panicTxHex: rescueData.txHex,
+          panicTxBlockTime: 0,
+          panicPushTime: Math.floor(Date.now() / 1000)
+        };
+        updateVaultStatus(vault.vaultId, newVaultStatus);
+      } else setIsRescueRequestValid(false);
+    },
+    [pushTx, vault.vaultId, vaultStatus, updateVaultStatus]
+  );
+
   const { settings } = useSettings();
   if (!settings) throw new Error('Settings has not been retrieved');
   const tipHeight = tipStatus?.blockHeight;
@@ -464,7 +487,9 @@ const Vault = ({
             </Text>
           )}
           {remainingBlocks === 'SPENT_AS_HOT' && (
-            <Text className="pt-2">{t('wallet.vault.unfrozenAndSpent')}</Text>
+            <Text className="pt-2">
+              {t('wallet.vault.unfrozenAndSpent', { spentAsHotDate })}
+            </Text>
           )}
           {remainingBlocks === 0 && (
             <Text className="pt-2">
@@ -490,8 +515,8 @@ const Vault = ({
             {canBeRescued && (
               <VaultButton
                 mode="secondary-alert"
-                onPress={handleInitRescue}
-                loading={isRescueInitPending}
+                onPress={handleShowRescue}
+                loading={isRescuePending}
                 msg={t('wallet.vault.rescueButton')}
                 onInfoPress={() => {}}
               />
@@ -532,6 +557,15 @@ const Vault = ({
         onClose={handleCloseInitUnfreeze}
         onInit={handleInitUnfreeze}
       />
+      {vaultStatus && (
+        <Rescue
+          vault={vault}
+          vaultStatus={vaultStatus}
+          isVisible={showRescue}
+          onClose={handleCloseRescue}
+          onRescue={handleRescue}
+        />
+      )}
     </View>
   );
 };

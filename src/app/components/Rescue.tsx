@@ -12,13 +12,12 @@ import { useTranslation } from 'react-i18next';
 import { View, Text } from 'react-native';
 import FeeInput from './FeeInput';
 import { pickFeeEstimate } from '../lib/fees';
-import { formatBlocks } from '../lib/format';
 import { WalletContext, WalletContextType } from '../contexts/WalletContext';
 import { useSettings } from '../hooks/useSettings';
-import type { TxHex, TxId, Vault } from '../lib/vaults';
+import type { TxHex, TxId, Vault, VaultStatus } from '../lib/vaults';
 import { Transaction } from 'bitcoinjs-lib';
 
-export type InitUnfreezeData = {
+export type RescueData = {
   txHex: TxHex;
   txId: TxId;
   fee: number;
@@ -27,48 +26,54 @@ export type InitUnfreezeData = {
 };
 
 /**
- * Finds the component in triggerSortedTxs with the next equal or larger feeRate.
+ * Finds the component in rescueSortedTxs with the next equal or larger feeRate.
  *
- * @param triggerSortedTxs - The search space
+ * @param rescueSortedTxs - The search space
  * @param {number} feeRate - The fee rate to search for.
  * returns {object|null} The transaction data with the next equal or larger feeRate, or null if not found.
  */
 const findNextEqualOrLargerFeeRate = moize(
-  (triggerSortedTxs: Array<InitUnfreezeData>, feeRate: number) => {
+  (rescueSortedTxs: Array<RescueData>, feeRate: number) => {
     const result = findLowestTrueBinarySearch(
-      triggerSortedTxs.length - 1,
-      index => triggerSortedTxs[index]!.feeRate >= feeRate,
+      rescueSortedTxs.length - 1,
+      index => rescueSortedTxs[index]!.feeRate >= feeRate,
       100 //100 iterations at most
     );
-    if (result.value !== undefined) return triggerSortedTxs[result.value]!;
+    if (result.value !== undefined) return rescueSortedTxs[result.value]!;
     else return null;
   },
   { maxSize: 200 } //Let the Slider show around 200 points
 );
 
-const InitUnfreeze = ({
+const Rescue = ({
   vault,
+  vaultStatus,
   isVisible,
-  lockBlocks,
-  onInit,
+  onRescue,
   onClose
 }: {
   vault: Vault;
-  onInit: (initUnfreezeData: InitUnfreezeData) => void;
-  lockBlocks: number;
+  vaultStatus: VaultStatus;
+  onRescue: (rescueData: RescueData) => void;
   isVisible: boolean;
   onClose: () => void;
 }) => {
-  const triggerSortedTxs = useMemo(() => {
-    return Object.entries(vault.triggerMap)
-      .map(([triggerTxHex]) => {
-        const txData = vault.txMap[triggerTxHex];
-        if (!txData) throw new Error('trigger tx not mapped');
-        const tx = Transaction.fromHex(triggerTxHex);
-        return { ...txData, vSize: tx.virtualSize(), txHex: triggerTxHex };
+  const triggerTxHex = vaultStatus.triggerTxHex;
+  if (!triggerTxHex) throw new Error('Vault has not been triggered');
+  const rescueTxs = vault.triggerMap[triggerTxHex];
+  if (!rescueTxs)
+    throw new Error("Triggered vault doesn't have matching rescue txs");
+
+  const rescueSortedTxs = useMemo(() => {
+    return rescueTxs
+      .map(txHex => {
+        const txData = vault.txMap[txHex];
+        if (!txData) throw new Error('rescue tx not mapped');
+        const tx = Transaction.fromHex(txHex);
+        return { ...txData, vSize: tx.virtualSize(), txHex };
       })
       .sort((a, b) => a.feeRate - b.feeRate);
-  }, [vault]);
+  }, [vault, rescueTxs]);
 
   const { t } = useTranslation();
   const context = useContext<WalletContextType | null>(WalletContext);
@@ -89,7 +94,7 @@ const InitUnfreeze = ({
   const [feeRate, setFeeRate] = useState<number | null>(null);
 
   const txData =
-    feeRate && findNextEqualOrLargerFeeRate(triggerSortedTxs, feeRate);
+    feeRate && findNextEqualOrLargerFeeRate(rescueSortedTxs, feeRate);
   const txSize = feeRate === null ? null : txData && txData.vSize;
 
   useEffect(() => {
@@ -109,10 +114,8 @@ const InitUnfreeze = ({
   const handleInitUnfreeze = useCallback(() => {
     if (!txData || !txSize)
       throw new Error('Cannot unfreeze non-existing selected tx');
-    onInit(txData);
-  }, [onInit, txData, txSize]);
-
-  const timeLockTime = formatBlocks(lockBlocks, t, true);
+    onRescue(txData);
+  }, [onRescue, txData, txSize]);
 
   return (
     isVisible &&
@@ -147,7 +150,7 @@ const InitUnfreeze = ({
         {step === 'intro' ? (
           <View>
             <Text className="text-slate-600 pb-2 px-2">
-              {t('wallet.vault.triggerUnfreeze.intro', { timeLockTime })}
+              {t('wallet.vault.triggerUnfreeze.intro', { timeLockTime: 0 })}
             </Text>
           </View>
         ) : step === 'fee' ? (
@@ -165,7 +168,7 @@ const InitUnfreeze = ({
             </View>
             <Text className="text-slate-600 pt-4 px-2">
               {t('wallet.vault.triggerUnfreeze.additionalExplanation', {
-                timeLockTime
+                timeLockTime: 0
               })}
             </Text>
           </View>
@@ -177,4 +180,4 @@ const InitUnfreeze = ({
   );
 };
 
-export default InitUnfreeze;
+export default Rescue;

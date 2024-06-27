@@ -133,7 +133,7 @@ If you need further assistance, please contact ThunderDen Support.`
         'Funds are safely frozen. Initiating unfreeze starts a {{lockTime}} countdown before funds are available.',
       rescuedAfterUnfreeze: 'This vault was rescued on {{rescuedDate}}.',
       unfrozenAndSpent:
-        'The vault was successfully unfrozen and has already been spent.',
+        'The vault was successfully unfrozen and spent on {{spentAsHotDate}}.',
       unfrozenAndHotBalance:
         'The vault was successfully unfrozen and is now part of your available balance.',
       triggerWithRemainingTime:
