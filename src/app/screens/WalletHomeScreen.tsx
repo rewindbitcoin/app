@@ -119,7 +119,9 @@ const WalletHomeScreen = () => {
               size={17}
               color={theme.colors.primary}
               className={
-                !hasTouch && syncingOrFaucetPending ? 'animate-spin' : ''
+                !hasTouch && syncingOrFaucetPending
+                  ? 'animate-spin'
+                  : 'animate-none'
               }
             />
           </Pressable>
@@ -310,7 +312,7 @@ const WalletHomeScreen = () => {
 
         {activeTabIndex === 0 && (
           <View
-            className="p-4 mb-24"
+            className="p-4 max-w-2xl mb-28"
             //The mb-24 to let it scroll over the Receive - Send - Freeze buttons
           >
             {vaults && vaultsStatuses && (
@@ -327,7 +329,7 @@ const WalletHomeScreen = () => {
         )}
         {activeTabIndex === 1 && (
           <View
-            className="self-center mb-24"
+            className="mb-24"
             //The mb-24 to let it scroll over the Receive - Send - Freeze buttons
           >
             {historyData && historyData.length ? (

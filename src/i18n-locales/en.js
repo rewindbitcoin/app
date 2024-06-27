@@ -101,6 +101,7 @@ To resolve this issue, please try accessing your wallet again. If the problem\
 If you need further assistance, please contact ThunderDen Support.`
     },
     vault: {
+      hideButton: 'Hide',
       rescueButton: 'Rescue',
       delegateButton: 'Delegate',
       triggerUnfreezeButton: 'Init Unfreeze',
@@ -116,23 +117,25 @@ If you need further assistance, please contact ThunderDen Support.`
       //pushedTrigger: 'An unfreeze request was made on {{triggerPushDate}}.',
       pushedTriggerNotConfirmed: 'Unfreeze requested on {{triggerPushDate}}.',
       //confirmedTrigger: 'Unfreeze countdown began on {{triggerConfirmedDate}}.',
-      confirmedTrigger: 'Unfreeze countdown began on {{triggerConfirmedDate}}.',
+      confirmedTrigger:
+        'The {{lockTime}} countdown began on {{triggerConfirmedDate}}.',
       //triggerWithEstimatedDate:
       //  'The estimated unfreeze date is {{estimatedUnfreezeDate}}.',
       triggerWithEstimatedDate:
-        'Unfreeze estimated on {{estimatedUnfreezeDate}}.',
+        'Unfreeze estimated for {{estimatedUnfreezeDate}}.',
       unfrozenDate: 'Unfrozen on {{unfrozenDate}}.',
+      unfrozenOnNextBlock:
+        'The vault just became virtually unfrozen. Funds can be spent in the next block.',
       timeRemaining: '{{timeRemaining}} remaining',
-      timeRemainingWRT: '{{timeRemaining}} of {{lockTime}} remaining',
       untriggeredLockTime: 'Lock Time: {{timeRemaining}}',
 
       notTriggered:
         'Funds are safely frozen. Initiating unfreeze starts a {{lockTime}} countdown before funds are available.',
       rescuedAfterUnfreeze: 'This vault was rescued on {{rescuedDate}}.',
       unfrozenAndSpent:
-        'The vault was unfrozen on {{unfrozenDate}} and has already been spent.',
+        'The vault was successfully unfrozen and has already been spent.',
       unfrozenAndHotBalance:
-        'The vault was unfrozen on {{unfrozenDate}} and is now part of your available balance.',
+        'The vault was successfully unfrozen and is now part of your available balance.',
       triggerWithRemainingTime:
         "It's currently being unfrozen with {{remainingTime}} remaining.",
 

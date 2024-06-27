@@ -84,7 +84,7 @@ const Button: React.FC<ButtonProps> = ({
     return (
       <RN.Pressable
         key={String(disabled)}
-        className={`flex-row min-w-20 items-center py-3 px-5 rounded-lg ${disabled ? 'pointer-events-none opacity-50' : `active:scale-95 ${mode === 'secondary-alert' ? 'bg-red-200 hover:bg-red-300 active:bg-red-300' : 'bg-primary-light hover:bg-primary-light-hover active:bg-primary-light-hover'}`}`}
+        className={`flex-row min-w-20 justify-center items-center py-3 px-5 rounded-lg ${mode === 'secondary-alert' ? 'bg-red-200' : 'bg-primary-light'} ${disabled ? 'pointer-events-none opacity-50' : `active:scale-95 ${mode === 'secondary-alert' ? 'hover:bg-red-300 active:bg-red-300' : 'hover:bg-primary-light-hover active:bg-primary-light-hover'}`}`}
         {...props}
       >
         {iconLeft && (

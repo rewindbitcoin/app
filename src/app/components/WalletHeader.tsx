@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import { Text, View } from 'react-native';
-import { Svg, Path } from 'react-native-svg';
+import { Svg } from 'react-native-svg';
 import {
   utxosDataBalance,
   type UtxosData,
@@ -44,7 +44,7 @@ const Balance = ({
           </Svg>
         )}
         <Text
-          className={`font-bold text-black text-3xl pr-0 mr-2 ${formattedBalance === undefined ? 'animate-pulse bg-slate-200 rounded' : 'bg-transparent'}`}
+          className={`font-bold text-black text-3xl pr-0 mr-2 ${formattedBalance === undefined ? 'animate-pulse bg-slate-200 rounded' : 'animate-none bg-transparent'}`}
         >
           {formattedBalance === undefined ? '     ' : formattedBalance}
         </Text>

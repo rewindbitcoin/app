@@ -99,6 +99,11 @@ export type Vault = {
 };
 
 export type VaultStatus = {
+  /**
+   * whether to show it isHidden !== true or not
+   */
+  isHidden?: boolean;
+
   vaultTxBlockHeight?: number;
 
   /**
@@ -118,6 +123,7 @@ export type VaultStatus = {
    *  - triggerTx has been mined
    *  - and (triggerTxBlockHeight + lockBlocks) is equal or below the blockchain tip
    */
+  hotBlockHeight?: number;
   hotBlockTime?: number;
 
   panicTxHex?: string; //Maybe the samer as unlockingTxHex or not
@@ -719,7 +725,7 @@ export function validateAddress(addressValue: string, network: Network) {
 /**
  * How many blocks must be waited for spending from a triggerUnvault tx?
  *
- * returns 'NOT_PUSHED' if the trigger tx has not been pushed yet
+ * returns 'TRIGGER_NOT_PUSHED' if the trigger tx has not been pushed yet
  * returns 'SPENT_AS_HOT'/'SPENT_AS_PANIC' if the trigger tx has already been spent.
  *
  * returns an integer lockBlocks >= remainingBlocks >= 0 with the number of
@@ -731,8 +737,9 @@ export function getRemainingBlocks(
   vault: Vault,
   vaultStatus: VaultStatus,
   blockhainTip: number
-): 'NOT_PUSHED' | 'SPENT_AS_PANIC' | 'SPENT_AS_HOT' | number {
-  if (vaultStatus.triggerTxBlockHeight === undefined) return 'NOT_PUSHED';
+): 'TRIGGER_NOT_PUSHED' | 'SPENT_AS_PANIC' | 'SPENT_AS_HOT' | number {
+  if (vaultStatus.triggerTxBlockHeight === undefined)
+    return 'TRIGGER_NOT_PUSHED';
   if (vaultStatus.panicTxHex) return 'SPENT_AS_PANIC';
   if (vaultStatus.spendAsHotTxHex) return 'SPENT_AS_HOT';
   let remainingBlocks: number;
@@ -767,11 +774,12 @@ export const getVaultFrozenBalance = (
   vaultStatus: VaultStatus,
   blockchainTip: number
 ) => {
-  //TODO - in fact here, first make sure that the vault was really pushed and is either mined or at least in the mempool
+  const remainingBlocks = getRemainingBlocks(vault, vaultStatus, blockchainTip);
   if (
     vaultStatus.vaultTxBlockHeight === undefined ||
     vaultStatus.panicTxHex ||
-    getRemainingBlocks(vault, vaultStatus, blockchainTip) === 0
+    vaultStatus.spendAsHotTxHex ||
+    remainingBlocks === 0
   )
     return 0;
 
@@ -792,13 +800,15 @@ export const getVaultFrozenBalance = (
  */
 export const getVaultUnfrozenBalance = (
   vault: Vault,
-  vaultStatus: VaultStatus
+  vaultStatus: VaultStatus,
+  blockchainTip: number
 ) => {
-  //TODO - in fact here, first make sure that the vault was really pushed and is either mined or at least in the mempool
+  const remainingBlocks = getRemainingBlocks(vault, vaultStatus, blockchainTip);
   if (
     vaultStatus.vaultTxBlockHeight === undefined ||
     vaultStatus.panicTxHex ||
-    !vaultStatus.triggerTxHex
+    !vaultStatus.triggerTxHex ||
+    (typeof remainingBlocks === 'number' && remainingBlocks > 0)
   )
     return 0;
 
@@ -996,11 +1006,13 @@ export async function fetchVaultStatus(
           `Block status should exist for existing block height: ${newVaultStatus.triggerTxBlockHeight}`
         );
       newVaultStatus.triggerTxBlockTime = triggerBlockStatus.blockTime;
-      const hotVaultStatus = await explorer.fetchBlockStatus(
-        newVaultStatus.triggerTxBlockHeight + vault.lockBlocks
-      );
-      if (hotVaultStatus)
+      const hotBlockHeight =
+        newVaultStatus.triggerTxBlockHeight + vault.lockBlocks;
+      const hotVaultStatus = await explorer.fetchBlockStatus(hotBlockHeight);
+      if (hotVaultStatus) {
+        newVaultStatus.hotBlockHeight = hotBlockHeight;
         newVaultStatus.hotBlockTime = hotVaultStatus.blockTime;
+      }
     }
     const unlockingTxData = await fetchSpendingTx(
       triggerTxData.txHex,
