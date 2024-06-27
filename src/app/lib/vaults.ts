@@ -819,6 +819,28 @@ export const getVaultUnfrozenBalance = (
 
   return vault.netAmount - triggerFee;
 };
+/**
+ * Returns the vault rescued amount
+ */
+export const getVaultRescuedBalance = (
+  vault: Vault,
+  vaultStatus: VaultStatus
+) => {
+  if (!vaultStatus.panicTxHex) return 0;
+
+  if (!vaultStatus.triggerTxHex)
+    throw new Error('triggerTxHex unset for a panicTxHex');
+  //Unvaulting triggered:
+  const triggerFee = vault.txMap[vaultStatus.triggerTxHex]?.fee;
+  if (triggerFee === undefined)
+    throw new Error('Trigger tx fee should have been set');
+
+  const panicFee = vault.txMap[vaultStatus.panicTxHex]?.fee;
+  if (panicFee === undefined)
+    throw new Error('Panic tx fee should have been set');
+
+  return vault.netAmount - triggerFee - panicFee;
+};
 
 /**
  * When a new vault is created, vaults, vaultsStatuses are not

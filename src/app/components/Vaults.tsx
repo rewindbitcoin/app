@@ -30,7 +30,8 @@ import {
   type Vaults as VaultsType,
   getVaultFrozenBalance,
   getRemainingBlocks,
-  getVaultUnfrozenBalance
+  getVaultUnfrozenBalance,
+  getVaultRescuedBalance
 } from '../lib/vaults';
 import VaultIcon from './VaultIcon';
 import { useTranslation } from 'react-i18next';
@@ -54,7 +55,7 @@ const formatVaultDate = (unixTime: number | undefined, locale: Locale) => {
 
   const options: Intl.DateTimeFormatOptions = {
     year: 'numeric',
-    month: 'long', // Month in letters
+    month: 'short', // Abbreviated month in letters
     day: 'numeric',
     hour: '2-digit',
     minute: '2-digit'
@@ -266,6 +267,8 @@ const Vault = ({
     getRemainingBlocks(vault, vaultStatus, tipHeight);
   const locale = settings.LOCALE;
   const rescuedDate = formatVaultDate(vaultStatus?.panicTxBlockTime, locale);
+  const rescuePushDate = formatVaultDate(vaultStatus?.panicPushTime, locale);
+  const panicAddress = vault.coldAddress;
   const spentAsHotDate = formatVaultDate(
     vaultStatus?.spendAsHotTxBlockTime,
     locale
@@ -279,6 +282,7 @@ const Vault = ({
   const isUnfrozen =
     remainingBlocks === 0 || remainingBlocks === 'SPENT_AS_HOT';
   const isRescued = remainingBlocks === 'SPENT_AS_PANIC';
+  const isRescuedConfirmed = isRescued && vaultStatus?.panicTxBlockHeight;
 
   const canBeRescued = isInitUnfreeze && !isUnfrozen && !isRescued;
   const canBeDelegated = !isUnfrozen && !isRescued;
@@ -319,6 +323,12 @@ const Vault = ({
 
   const estimatedUnfreezeDate =
     unfreezeTimeBestGuess && formatVaultDate(unfreezeTimeBestGuess, locale);
+  const plannedUnfreezeTimeButRescued =
+    triggerTimeBestGuess && triggerTimeBestGuess + vault.lockBlocks * 10 * 60;
+  const plannedUnfreezeDateButRescued = formatVaultDate(
+    plannedUnfreezeTimeButRescued,
+    locale
+  );
   const vaultStatusRef = useRef(vaultStatus);
   useEffect(() => {
     return () => {
@@ -354,6 +364,8 @@ const Vault = ({
     tipHeight &&
     vaultStatus &&
     getVaultUnfrozenBalance(vault, vaultStatus, tipHeight);
+  const rescuedBalance =
+    tipHeight && vaultStatus && getVaultRescuedBalance(vault, vaultStatus);
 
   return (
     <View
@@ -399,6 +411,15 @@ const Vault = ({
             title={t('wallet.vault.unfrozenAmount')}
             isConfirming={false}
             satsBalance={unfrozenBalance}
+            btcFiat={btcFiat}
+            mode={mode}
+          />
+        )}
+        {!!rescuedBalance && (
+          <Amount
+            title={t('wallet.vault.rescuedAmount')}
+            isConfirming={isRescued && !isRescuedConfirmed}
+            satsBalance={rescuedBalance}
             btcFiat={btcFiat}
             mode={mode}
           />
@@ -450,7 +471,7 @@ const Vault = ({
               })}
             </VaultText>
           )}
-          {isInitUnfreeze && !isUnfrozen && (
+          {isInitUnfreeze && !isUnfrozen && !isRescued && (
             <VaultText
               icon={{
                 name: 'flag-checkered',
@@ -474,18 +495,60 @@ const Vault = ({
                 : t('wallet.vault.unfrozenOnNextBlock')}
             </VaultText>
           )}
-          {remainingBlocks === 'TRIGGER_NOT_PUSHED' && (
-            <Text className="pt-2">
-              {t('wallet.vault.notTriggered', {
-                lockTime: formatBlocks(vault.lockBlocks, t, true)
+          {isRescued && (
+            <VaultText
+              icon={{
+                name: 'flag-off',
+                family: 'MaterialCommunityIcons'
+              }}
+            >
+              {t('wallet.vault.triggerWithEstimatedDateButRescued', {
+                plannedUnfreezeDateButRescued
               })}
-            </Text>
+            </VaultText>
           )}
-          {remainingBlocks === 'SPENT_AS_PANIC' && (
-            <Text className="pt-2">
-              {t('wallet.vault.rescuedAfterUnfreeze', { rescuedDate })}
-            </Text>
+          {isRescued && isRescuedConfirmed && (
+            <VaultText
+              icon={{
+                name: 'shield-alert-outline',
+                family: 'MaterialCommunityIcons'
+              }}
+            >
+              {t('wallet.vault.confirmedRescue', {
+                rescuedDate,
+                panicAddress
+              })}
+            </VaultText>
           )}
+          {isRescued && !isRescuedConfirmed && (
+            <VaultText
+              icon={{
+                name: 'shield-alert-outline',
+                family: 'MaterialCommunityIcons'
+              }}
+            >
+              {t('wallet.vault.rescueNotConfirmed', {
+                rescuePushDate,
+                panicAddress
+              })}
+            </VaultText>
+          )}
+          {remainingBlocks === 'TRIGGER_NOT_PUSHED' &&
+            !vaultStatus?.vaultTxBlockHeight && (
+              <Text className="pt-2">
+                {t('wallet.vault.notTriggeredUnconfirmed', {
+                  lockTime: formatBlocks(vault.lockBlocks, t, true)
+                })}
+              </Text>
+            )}
+          {remainingBlocks === 'TRIGGER_NOT_PUSHED' &&
+            !!vaultStatus?.vaultTxBlockHeight && (
+              <Text className="pt-2">
+                {t('wallet.vault.notTriggered', {
+                  lockTime: formatBlocks(vault.lockBlocks, t, true)
+                })}
+              </Text>
+            )}
           {remainingBlocks === 'SPENT_AS_HOT' && (
             <Text className="pt-2">
               {t('wallet.vault.unfrozenAndSpent', { spentAsHotDate })}
@@ -494,6 +557,22 @@ const Vault = ({
           {remainingBlocks === 0 && (
             <Text className="pt-2">
               {t('wallet.vault.unfrozenAndHotBalance')}
+            </Text>
+          )}
+          {isRescued && isRescuedConfirmed && (
+            <Text className="pt-2">
+              {t('wallet.vault.confirmedRescueAddress', {
+                panicAddress
+                //TODO: Allow opening external browser for seeing the address / copy to clipboard
+              })}
+            </Text>
+          )}
+          {isRescued && !isRescuedConfirmed && (
+            <Text className="pt-2">
+              {t('wallet.vault.rescueNotConfirmedAddress', {
+                panicAddress
+                //TODO: Allow opening external browser for seeing the address / copy to clipboard
+              })}
             </Text>
           )}
         </View>

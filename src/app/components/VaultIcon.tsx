@@ -1,6 +1,5 @@
 import React from 'react';
 import { View } from 'react-native';
-import { FontAwesome } from '@expo/vector-icons';
 
 import HotIcon from './HotIcon';
 import FreezeIcon from './FreezeIcon';
@@ -8,6 +7,8 @@ import { Svg } from 'react-native-svg';
 import SaveBuoy from '../../../assets/SaveBuoy.svg';
 import type { getRemainingBlocks } from '../lib/vaults';
 import { ActivityIndicator } from '../../common/ui';
+import UnfreezeIcon from './UnfreezeIcon';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 
 const VaultIcon = ({
   remainingBlocks
@@ -24,7 +25,7 @@ const VaultIcon = ({
       <FreezeIcon />
     </Svg>
   ) : remainingBlocks === 'SPENT_AS_PANIC' ? (
-    <SaveBuoy className="w-6 h-6" />
+    <MaterialCommunityIcons name="alarm-light" size={24} color="red" />
   ) : remainingBlocks === 'SPENT_AS_HOT' || remainingBlocks === 0 ? (
     <Svg className="fill-yellow-400 w-8 h-8" viewBox="0 0 24 24">
       <HotIcon />
@@ -32,18 +33,20 @@ const VaultIcon = ({
   ) : (
     <View className="flex-row items-center">
       <Svg
-        className="mr-1.5 fill-white w-6 h-6 bg-primary p-0.5 rounded-full bg-[#4286E7]"
+        className="fill-white w-6 h-6 p-0.5 rounded-full bg-primary opacity-70"
         viewBox="0 0 24 24"
       >
-        <FreezeIcon />
-      </Svg>
-      <FontAwesome name="long-arrow-right" size={10} color="black" />
-      <Svg className="ml-1 fill-yellow-400 w-8 h-8" viewBox="0 0 24 24">
-        <HotIcon />
+        <UnfreezeIcon />
       </Svg>
     </View>
   );
 };
+
+/*
+ *
+ * old rescue save buoy:
+ *     <SaveBuoy className="w-6 h-6" />
+ */
 
 /* old unfreeze icon:
 import UnfreezeIcon from './UnfreezeIcon';
@@ -54,5 +57,19 @@ import UnfreezeIcon from './UnfreezeIcon';
       <UnfreezeIcon />
     </Svg>
     */
+/*
+ * unfreeze sequence:
+  *
+      <Svg
+        className="mr-1.5 fill-white w-6 h-6 bg-primary p-0.5 rounded-full bg-[#4286E7]"
+        viewBox="0 0 24 24"
+      >
+        <FreezeIcon />
+      </Svg>
+      <FontAwesome name="long-arrow-right" size={10} color="black" />
+      <Svg className="ml-1 fill-yellow-400 w-8 h-8" viewBox="0 0 24 24">
+        <HotIcon />
+      </Svg>
+      */
 
 export default React.memo(VaultIcon);

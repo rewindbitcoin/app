@@ -110,6 +110,7 @@ If you need further assistance, please contact ThunderDen Support.`
       amountFrozen: 'Amount Frozen',
       amountBeingUnfrozen: 'Amount Being Unfrozen',
       unfrozenAmount: 'Unfrozen Amount',
+      rescuedAmount: 'Rescued Amount',
       frozenAmount: 'Amount Frozen: {{amount}}.',
       confirming: 'Confirming',
       confirmed: 'Confirmed',
@@ -123,15 +124,23 @@ If you need further assistance, please contact ThunderDen Support.`
       //  'The estimated unfreeze date is {{estimatedUnfreezeDate}}.',
       triggerWithEstimatedDate:
         'Unfreeze estimated for {{estimatedUnfreezeDate}}.',
+      triggerWithEstimatedDateButRescued:
+        'Unfreeze was planned for {{plannedUnfreezeDateButRescued}}.',
       unfrozenDate: 'Unfrozen on {{unfrozenDate}}.',
       unfrozenOnNextBlock:
         'The vault just became virtually unfrozen. Funds can be spent in the next block.',
       timeRemaining: '{{timeRemaining}} remaining',
       untriggeredLockTime: 'Lock Time: {{timeRemaining}}',
-
+      notTriggeredUnconfirmed: `Funds freeze successfully requested.
+Initiating unfreeze starts a {{lockTime}} countdown before funds are available.`,
       notTriggered:
         'Funds are safely frozen. Initiating unfreeze starts a {{lockTime}} countdown before funds are available.',
-      rescuedAfterUnfreeze: 'This vault was rescued on {{rescuedDate}}.',
+      rescueNotConfirmed: `Rescue requested on {{rescuePushDate}}.`,
+      confirmedRescue: `Rescued on {{rescuedDate}}.`,
+      rescueNotConfirmedAddress: `Rescue successfully requested. Funds are being moved to your safe address:
+{{panicAddress}}.`,
+      confirmedRescueAddress: `The vault was successfully rescued and funds were moved to your secure address:
+{{panicAddress}}.`,
       unfrozenAndSpent:
         'The vault was successfully unfrozen and spent on {{spentAsHotDate}}.',
       unfrozenAndHotBalance:
@@ -280,7 +289,7 @@ While the app is in early development, we advise against using real Bitcoin for 
 
 Vaults are time-locked, meaning that when an attack occurs, you have a few days to react. This period allows you to cancel unauthorized transactions from the attackers. You can also delegate this cancellation to a trusted person.
 
-Here's how it works: during the time-lock, your funds can only be moved to a special Bitcoin address known as the Emergency Address. This address is protected by an Emergency Recovery Phrase, which acts like a password and is different from your regular one. This emergency phrase must be stored in an ultra-secure location beforehand.
+Here's how it works: during the time-lock, your funds can moved to a special Bitcoin address known as the Emergency Address. This address is protected by an Emergency Recovery Phrase, which acts like a password and is different from your regular one. This emergency phrase must be stored in an ultra-secure location beforehand.
 
 You'll find contextual help icons next to each input field during the Vault Set Up with more specific explanations.`,
     //    notEnoughFunds: `<strong>Minimum Vault Amount Notice</strong>
@@ -391,7 +400,7 @@ This minimum amount is calculated based on the assumption that you may need rapi
 
 When you set a time-lock, you specify a period during which any attempt to move your funds will be delayed. This delay gives you (or anyone you delegate) the necessary time to cancel unauthorized transactions, preventing theft.
 
-For example, if you set the time-lock to 7 days, any attempt to move your funds will be held for 7 days. During this period, not even you can access the funds, but you can cancel any transaction that is not authorized by you. If there is no attack and everything is normal, you will gain access to your funds as usual after the 7-day period.`
+For example, if you set the time-lock to 7 days, any attempt to move your funds will be held for 7 days. During this period, no one can access the funds. Not even you. But here's the perk: during this time, you can cancel any transaction that is not authorized by you. If there is no attack and everything is normal, you will gain access to your funds as usual after the 7-day period.`
     }
   },
   addressInput: {
