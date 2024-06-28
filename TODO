@@ -16,9 +16,10 @@ https://icons.expo.fyi/Index/MaterialCommunityIcons/lock-clock
 And for unfreezing... ? https://icons.expo.fyi/Index/MaterialCommunityIcons/progress-clock
 
 Importante: Las txs de los Vaults no aparecen en el historial de ops.
-Debería salir: tx - VAULT
-Debería salir: tx - TRIGGER_UNVAULT
-Debería salir: tx - RESCUED
+Debería salir: tx - VAULT -> Esta SÍ la tengo
+Debería salir: tx - TRIGGER_UNVAULT -> Esta NO la tengo
+Debería salir: tx - RESCUED -> Esta SÍ la tengo
+  -> usar discovery.compareTxOrder
   -> Definitivamente necesiraré un sorting que me tenga en cuenta en las txs
   que pertenecel al mismo bloque (o q estan en la mempool) para que ponga el orden
   si una depende de la otra las ponga consecutivas y en orden
