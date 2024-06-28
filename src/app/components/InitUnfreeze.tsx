@@ -16,7 +16,7 @@ import { formatBlocks } from '../lib/format';
 import { WalletContext, WalletContextType } from '../contexts/WalletContext';
 import { useSettings } from '../hooks/useSettings';
 import type { TxHex, TxId, Vault } from '../lib/vaults';
-import { Transaction } from 'bitcoinjs-lib';
+import { transactionFromHex } from '../lib/bitcoin';
 
 export type InitUnfreezeData = {
   txHex: TxHex;
@@ -64,7 +64,7 @@ const InitUnfreeze = ({
       .map(([triggerTxHex]) => {
         const txData = vault.txMap[triggerTxHex];
         if (!txData) throw new Error('trigger tx not mapped');
-        const tx = Transaction.fromHex(triggerTxHex);
+        const { tx } = transactionFromHex(triggerTxHex);
         return { ...txData, vSize: tx.virtualSize(), txHex: triggerTxHex };
       })
       .sort((a, b) => a.feeRate - b.feeRate);

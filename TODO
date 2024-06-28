@@ -16,13 +16,10 @@ https://icons.expo.fyi/Index/MaterialCommunityIcons/lock-clock
 And for unfreezing... ? https://icons.expo.fyi/Index/MaterialCommunityIcons/progress-clock
 
 Importante: Las txs de los Vaults no aparecen en el historial de ops.
-Debería salir: tx - VAULT -> Esta SÍ la tengo
-Debería salir: tx - TRIGGER_UNVAULT -> Esta NO la tengo
-Debería salir: tx - RESCUED -> Esta SÍ la tengo
-  -> usar discovery.compareTxOrder
-  -> Definitivamente necesiraré un sorting que me tenga en cuenta en las txs
-  que pertenecel al mismo bloque (o q estan en la mempool) para que ponga el orden
-  si una depende de la otra las ponga consecutivas y en orden
+Modificar getHistoryData para que se le puedan pasar vaultStatus y se añadan
+las txs.
+  TODO: calcular y pasar el value para RESCUE, TRIGGER_WAITING
+  TODO: pasar el vaultNumber (mirar como se hace en Vaults) además de el vaultId
 
 En Settings tendré que usa el código este: 
 import { shareVaults } from '../lib/backup';

@@ -306,7 +306,12 @@ const WalletProviderRaw = ({
           { descriptors },
           true
         ) as Array<TxAttribution>;
-        const walletHistoryData = getHistoryData(history, discovery);
+        const walletHistoryData = getHistoryData(
+          history,
+          vaults,
+          vaultsStatuses,
+          discovery
+        );
         unstable_batchedUpdates(() => {
           setUtxosData(walletId, walletUtxosData);
           setHistoryData(walletId, walletHistoryData);

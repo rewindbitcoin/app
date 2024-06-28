@@ -27,6 +27,7 @@ import type { DiscoveryInstance, TxAttribution } from '@bitcoinerlab/discovery';
 import { coinselect, vsize, dustThreshold } from '@bitcoinerlab/coinselect';
 import type { Explorer } from '@bitcoinerlab/explorer';
 import { type NetworkId, networkMapping } from './network';
+import { transactionFromHex } from './bitcoin';
 
 export type TxHex = string;
 export type TxId = string;
@@ -176,10 +177,19 @@ export type UtxosData = Array<{
   vout: number;
   output: OutputInstance;
 }>;
+type VaultPresignedTx = {
+  vaultTxType: 'TRIGGER_WAITING' | 'RESCUE';
+  tx: Transaction;
+  txId: TxId;
+  vaultId: string;
+  blockHeight: number;
+};
 export type HistoryData = Array<
-  TxAttribution & {
-    tx: Transaction;
-  }
+  | (TxAttribution & {
+      tx: Transaction;
+      vaultTxType?: 'VAULT' | 'TRIGGER_SPENDABLE';
+    })
+  | VaultPresignedTx
 >;
 
 /**
@@ -250,14 +260,69 @@ export const getUtxosData = memoize(
  */
 export const getHistoryData = memoize(
   (
+    /**
+     * this is the history of the hot descriptors only
+     * hot descriptors include trigger descriptors only when they are spendable
+     */
     history: Array<TxAttribution>,
+    vaults: Vaults,
+    vaultsStatuses: VaultsStatuses,
     discovery: DiscoveryInstance
   ): HistoryData => {
-    return history.map(txAttribution => ({
-      ...txAttribution,
-      // It's free getting the tx from discovery (memoized). Pass it down:
-      tx: discovery.getTransaction({ txId: txAttribution.txId })
-    }));
+    if (!areVaultsSynched(vaults, vaultsStatuses))
+      throw new Error('vaults and statuses not synched');
+    const historyData: HistoryData = [];
+
+    const vaultTxIds: Set<TxId> = new Set();
+    const triggerTxIds: Set<TxId> = new Set();
+    const spendableTriggerTxIds: Set<TxId> = new Set();
+
+    Object.entries(vaultsStatuses).forEach(([vaultId, vaultStatus]) => {
+      if (vaultStatus.triggerTxHex)
+        triggerTxIds.add(transactionFromHex(vaultStatus.triggerTxHex).txId);
+      const vaultTxHex = vaults[vaultId]?.vaultTxHex;
+      if (!vaultTxHex) throw new Error('Should have not passed as synched');
+      vaultTxIds.add(transactionFromHex(vaultTxHex).txId);
+    });
+
+    history.forEach(txAttribution => {
+      const txId = txAttribution.txId;
+      if (triggerTxIds.has(txId)) spendableTriggerTxIds.add(txId);
+      const historyEntry = {
+        ...txAttribution,
+        // It's free getting the tx from discovery (memoized). Pass it down:
+        tx: discovery.getTransaction({ txId }),
+        ...(vaultTxIds.has(txId) ? { vaultTxType: 'VAULT' as const } : {}),
+        ...(triggerTxIds.has(txId)
+          ? { vaultTxType: 'TRIGGER_SPENDABLE' as const }
+          : {})
+      };
+      historyData.push(historyEntry);
+    });
+    Object.entries(vaultsStatuses).forEach(([vaultId, vaultStatus]) => {
+      if (vaultStatus.triggerTxHex && vaultStatus.triggerTxBlockHeight) {
+        const { tx, txId } = transactionFromHex(vaultStatus.triggerTxHex);
+        if (!spendableTriggerTxIds.has(txId))
+          historyData.push({
+            tx,
+            txId,
+            vaultId,
+            vaultTxType: 'TRIGGER_WAITING',
+            blockHeight: vaultStatus.triggerTxBlockHeight
+          });
+      }
+      if (vaultStatus.panicTxHex && vaultStatus.panicTxBlockHeight) {
+        const { tx, txId } = transactionFromHex(vaultStatus.panicTxHex);
+        historyData.push({
+          tx,
+          txId,
+          vaultId,
+          vaultTxType: 'RESCUE',
+          blockHeight: vaultStatus.panicTxBlockHeight
+        });
+      }
+    });
+    return historyData.sort(discovery.compareTxOrder.bind(discovery));
   }
 );
 
@@ -937,7 +1002,7 @@ export async function fetchSpendingTx(
     return cachedResult;
   }
 
-  const tx = Transaction.fromHex(txHex);
+  const { tx, txId } = transactionFromHex(txHex);
 
   const output = tx.outs[vout];
   if (!output) throw new Error('Invalid out');
@@ -955,12 +1020,12 @@ export async function fetchSpendingTx(
     //console.log({ irreversible });
     //Check if this specific tx was spending my output:
     const historyTxHex = await explorer.fetchTx(txData.txId);
-    const txHistory = Transaction.fromHex(historyTxHex);
+    const { tx: txHistory } = transactionFromHex(historyTxHex);
     //For all the inputs in the tx see if one of them was spending from vout and txId
     const found = txHistory.ins.some(input => {
       const inputPrevtxId = Buffer.from(input.hash).reverse().toString('hex');
       const inputPrevOutput = input.index;
-      return inputPrevtxId === tx.getId() && inputPrevOutput === vout;
+      return inputPrevtxId === txId && inputPrevOutput === vout;
     });
     if (found) {
       const spendingTx = {
@@ -984,7 +1049,7 @@ async function fetchVaultTx(
   const cachedResult = vaultTxCache.get(vaultAddress);
   // Check if cached result exists and is irreversible, then return it
   if (cachedResult && cachedResult.irreversible) return cachedResult;
-  const vaultTxId = Transaction.fromHex(vaultTxHex).getId();
+  const { txId: vaultTxId } = transactionFromHex(vaultTxHex);
   const history = await explorer.fetchTxHistory({ address: vaultAddress });
 
   const vaultTx = history.find(txCandidate => txCandidate.txId === vaultTxId);

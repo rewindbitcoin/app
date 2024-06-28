@@ -15,7 +15,7 @@ import { pickFeeEstimate } from '../lib/fees';
 import { WalletContext, WalletContextType } from '../contexts/WalletContext';
 import { useSettings } from '../hooks/useSettings';
 import type { TxHex, TxId, Vault, VaultStatus } from '../lib/vaults';
-import { Transaction } from 'bitcoinjs-lib';
+import { transactionFromHex } from '../lib/bitcoin';
 
 export type RescueData = {
   txHex: TxHex;
@@ -69,7 +69,7 @@ const Rescue = ({
       .map(txHex => {
         const txData = vault.txMap[txHex];
         if (!txData) throw new Error('rescue tx not mapped');
-        const tx = Transaction.fromHex(txHex);
+        const { tx } = transactionFromHex(txHex);
         return { ...txData, vSize: tx.virtualSize(), txHex };
       })
       .sort((a, b) => a.feeRate - b.feeRate);

@@ -336,10 +336,18 @@ const WalletHomeScreen = () => {
               [...historyData].reverse().map(history => {
                 return (
                   <View key={history.txId} className="flex-col p-4">
-                    <Text>{history.blockHeight}</Text>
+                    <Text>Height: {history.blockHeight}</Text>
                     <Text>{history.txId}</Text>
-                    <Text>{history.type}</Text>
-                    <Text>{history.netReceived}</Text>
+                    {'type' in history && <Text>{history.type}</Text>}
+                    {'vaultId' in history && (
+                      <Text>VaultId: {history.vaultId}</Text>
+                    )}
+                    {'vaultTxType' in history && (
+                      <Text>{history.vaultTxType}</Text>
+                    )}
+                    {'netReceived' in history && (
+                      <Text>{history.netReceived}</Text>
+                    )}
                   </View>
                 );
               })
