@@ -341,6 +341,7 @@ const WalletProviderRaw = ({
       try {
         await discovery.push({ txHex, gapLimit });
       } catch (error) {
+        console.warn(error);
         const errorMessage =
           error instanceof Error
             ? error.message
@@ -406,6 +407,7 @@ const WalletProviderRaw = ({
         }
         return history;
       } catch (error) {
+        console.warn(error);
         const errorMessage =
           error instanceof Error
             ? error.message
@@ -784,6 +786,7 @@ const WalletProviderRaw = ({
           if (!result) throw new Error('Could not set utxos and history');
         }
       } catch (error) {
+        console.warn(error);
         const errorMessage =
           error instanceof Error
             ? error.message
@@ -792,7 +795,6 @@ const WalletProviderRaw = ({
         toast.show(t('networkError', { message: errorMessage }), {
           type: 'warning'
         });
-        console.error(errorMessage);
       }
     }
 
@@ -886,7 +888,7 @@ const WalletProviderRaw = ({
           }
         };
 
-        const pushAndSetUtxosData = async () => {
+        const pushAndSetUtxosAndHistoryData = async () => {
           if (!accounts || tipHeight === undefined)
             throw new Error(
               `Cannot processCreatedVault without accounts: ${!!accounts} or tipHeight: ${!!tipHeight}`
@@ -904,7 +906,7 @@ const WalletProviderRaw = ({
           }
           return pushResult;
         };
-        const pushResult = await pushAndSetUtxosData();
+        const pushResult = await pushAndSetUtxosAndHistoryData();
         //Note here setVaults, setVaultsStatuses, ...
         //are not atomically set, so when using vaults one
         //must make sure they are synched somehow - See Vaults.tsx for an
@@ -934,12 +936,24 @@ const WalletProviderRaw = ({
   const updateVaultStatus = useCallback(
     (vaultId: string, vaultStatus: VaultStatus) => {
       const currVaultStatus = vaultsStatuses?.[vaultId];
+      if (!vaults || !accounts || !tipHeight)
+        throw new Error('Cannot update statuses for uinit data');
       if (!currVaultStatus)
         throw new Error('Cannot update unexisting vault status');
-      if (!shallowEqualObjects(currVaultStatus, vaultStatus))
-        setVaultsStatuses({ ...vaultsStatuses, [vaultId]: vaultStatus });
+      if (!shallowEqualObjects(currVaultStatus, vaultStatus)) {
+        const newVaultsStatuses = { ...vaultsStatuses, [vaultId]: vaultStatus };
+        setUtxosAndHistoryData(vaults, newVaultsStatuses, accounts, tipHeight);
+        setVaultsStatuses(newVaultsStatuses);
+      }
     },
-    [vaultsStatuses, setVaultsStatuses]
+    [
+      vaults,
+      accounts,
+      setUtxosAndHistoryData,
+      tipHeight,
+      vaultsStatuses,
+      setVaultsStatuses
+    ]
   );
 
   const contextValue = {

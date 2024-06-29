@@ -339,14 +339,17 @@ const WalletHomeScreen = () => {
                     <Text>Height: {history.blockHeight}</Text>
                     <Text>{history.txId}</Text>
                     {'type' in history && <Text>{history.type}</Text>}
-                    {'vaultId' in history && (
-                      <Text>VaultId: {history.vaultId}</Text>
+                    {'vaultNumber' in history && (
+                      <Text>VaultId: {history.vaultNumber}</Text>
                     )}
                     {'vaultTxType' in history && (
                       <Text>{history.vaultTxType}</Text>
                     )}
                     {'netReceived' in history && (
-                      <Text>{history.netReceived}</Text>
+                      <Text>Net received: {history.netReceived}</Text>
+                    )}
+                    {'outValue' in history && (
+                      <Text>outValue: {history.outValue}</Text>
                     )}
                   </View>
                 );

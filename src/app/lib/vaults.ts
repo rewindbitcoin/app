@@ -177,19 +177,21 @@ export type UtxosData = Array<{
   vout: number;
   output: OutputInstance;
 }>;
+
 type VaultPresignedTx = {
-  vaultTxType: 'TRIGGER_WAITING' | 'RESCUE';
-  tx: Transaction;
   txId: TxId;
-  vaultId: string;
   blockHeight: number;
+  tx: Transaction;
+  vaultTxType: 'TRIGGER_WAITING' | 'RESCUE' | 'VAULT' | 'TRIGGER_SPENDABLE';
+  outValue: number;
+  vaultId: string;
+  vaultNumber: number;
+  pushTime?: number;
 };
 export type HistoryData = Array<
-  | (TxAttribution & {
-      tx: Transaction;
-      vaultTxType?: 'VAULT' | 'TRIGGER_SPENDABLE';
-    })
+  | (TxAttribution & { tx: Transaction })
   | VaultPresignedTx
+  | (TxAttribution & VaultPresignedTx)
 >;
 
 /**
@@ -252,77 +254,157 @@ export const getUtxosData = memoize(
   }
 );
 
+const getVaultNumber = moize((vaultId: string, vaults: Vaults) => {
+  const sortedVaults = Object.values(vaults).sort(
+    (a, b) => b.creationTime - a.creationTime
+  );
+  const index = sortedVaults.findIndex(vault => vault.vaultId === vaultId);
+  if (index === -1) throw new Error(`Vault with ID ${vaultId} not found`);
+  return sortedVaults.length - index;
+});
+
 /**
  * Returns an array of TxAttribution including also the Transaction.
- * Note that it's fine using memoize and just check for changes in history.
- * The rest of params are just tooling to complete utxosData but won't change
- * the result
+ * In addition it also adds all vaults presigned txs with their corresponding
+ * statuses.
+ *
+ * It returns txs in an Array ordered from old to new.
+ *
+ * Note here we use moize vs memoize in getUtxosData, since in this case, when
+ * vaultsStatuses change, then the history also changes, since in the history
+ * we not only provide the history of the hot descriptors but also the
+ * different stages of a vault (as recorded in vaultsStatuses).
  */
-export const getHistoryData = memoize(
+export const getHistoryData = moize(
   (
     /**
      * this is the history of the hot descriptors only
      * hot descriptors include trigger descriptors only when they are spendable
      */
-    history: Array<TxAttribution>,
+    hotHistory: Array<TxAttribution>,
     vaults: Vaults,
     vaultsStatuses: VaultsStatuses,
     discovery: DiscoveryInstance
   ): HistoryData => {
     if (!areVaultsSynched(vaults, vaultsStatuses))
-      throw new Error('vaults and statuses not synched');
+      throw new Error('getHistoryData: vaults and statuses not synched');
     const historyData: HistoryData = [];
 
-    const vaultTxIds: Set<TxId> = new Set();
-    const triggerTxIds: Set<TxId> = new Set();
-    const spendableTriggerTxIds: Set<TxId> = new Set();
+    const vaultTxs: Map<TxId, VaultPresignedTx> = new Map();
+    const triggerWaitingTxs: Map<TxId, VaultPresignedTx> = new Map();
+    const triggerSpendableTxs: Map<TxId, VaultPresignedTx> = new Map();
+    const panicTxs: Map<TxId, VaultPresignedTx> = new Map();
 
     Object.entries(vaultsStatuses).forEach(([vaultId, vaultStatus]) => {
-      if (vaultStatus.triggerTxHex)
-        triggerTxIds.add(transactionFromHex(vaultStatus.triggerTxHex).txId);
-      const vaultTxHex = vaults[vaultId]?.vaultTxHex;
-      if (!vaultTxHex) throw new Error('Should have not passed as synched');
-      vaultTxIds.add(transactionFromHex(vaultTxHex).txId);
-    });
-
-    history.forEach(txAttribution => {
-      const txId = txAttribution.txId;
-      if (triggerTxIds.has(txId)) spendableTriggerTxIds.add(txId);
-      const historyEntry = {
-        ...txAttribution,
-        // It's free getting the tx from discovery (memoized). Pass it down:
-        tx: discovery.getTransaction({ txId }),
-        ...(vaultTxIds.has(txId) ? { vaultTxType: 'VAULT' as const } : {}),
-        ...(triggerTxIds.has(txId)
-          ? { vaultTxType: 'TRIGGER_SPENDABLE' as const }
-          : {})
-      };
-      historyData.push(historyEntry);
-    });
-    Object.entries(vaultsStatuses).forEach(([vaultId, vaultStatus]) => {
-      if (vaultStatus.triggerTxHex && vaultStatus.triggerTxBlockHeight) {
-        const { tx, txId } = transactionFromHex(vaultStatus.triggerTxHex);
-        if (!spendableTriggerTxIds.has(txId))
-          historyData.push({
-            tx,
-            txId,
-            vaultId,
-            vaultTxType: 'TRIGGER_WAITING',
-            blockHeight: vaultStatus.triggerTxBlockHeight
-          });
-      }
-      if (vaultStatus.panicTxHex && vaultStatus.panicTxBlockHeight) {
-        const { tx, txId } = transactionFromHex(vaultStatus.panicTxHex);
-        historyData.push({
-          tx,
+      const vault = vaults[vaultId];
+      if (!vault) throw new Error('Vault unsynchd');
+      const vaultTxHex = vault.vaultTxHex;
+      const triggerTxHex = vaultStatus.triggerTxHex;
+      const panicTxHex = vaultStatus.panicTxHex;
+      const vaultNumber = getVaultNumber(vaultId, vaults);
+      {
+        const { txId, tx } = transactionFromHex(vaultTxHex);
+        const outValue = tx.outs[0]?.value;
+        if (outValue === undefined) throw new Error('Unset output');
+        const pushTime = vaultStatus.vaultPushTime;
+        const blockHeight = vaultStatus.vaultTxBlockHeight;
+        if (blockHeight === undefined)
+          throw new Error('Unset vault blockHeight');
+        vaultTxs.set(txId, {
           txId,
+          blockHeight,
+          tx,
+          vaultTxType: 'VAULT',
           vaultId,
+          vaultNumber,
+          outValue,
+          ...(pushTime !== undefined ? { pushTime } : {})
+        });
+      }
+      if (triggerTxHex) {
+        const { txId, tx } = transactionFromHex(triggerTxHex);
+        const outValue = tx.outs[0]?.value;
+        if (outValue === undefined) throw new Error('Unset output');
+        const pushTime = vaultStatus.triggerPushTime;
+        const blockHeight = vaultStatus.triggerTxBlockHeight;
+        if (blockHeight === undefined)
+          throw new Error('Unset trigger blockHeight');
+        //TODO: this "some" call below is potentially slow
+        const vaultTxType = hotHistory.some(hotEntry => hotEntry.txId === txId)
+          ? 'TRIGGER_SPENDABLE'
+          : 'TRIGGER_WAITING';
+        const triggerTxs =
+          vaultTxType === 'TRIGGER_SPENDABLE'
+            ? triggerSpendableTxs
+            : triggerWaitingTxs;
+        triggerTxs.set(txId, {
+          txId,
+          blockHeight,
+          tx,
+          vaultTxType,
+          vaultId,
+          vaultNumber,
+          outValue,
+          ...(pushTime !== undefined ? { pushTime } : {})
+        });
+      }
+      if (panicTxHex) {
+        const { txId, tx } = transactionFromHex(panicTxHex);
+        const outValue = tx.outs[0]?.value;
+        if (outValue === undefined) throw new Error('Unset output');
+        const pushTime = vaultStatus.panicPushTime;
+        const blockHeight = vaultStatus.panicTxBlockHeight;
+        if (blockHeight === undefined)
+          throw new Error('Unset panic blockHeight');
+        panicTxs.set(txId, {
+          txId,
+          blockHeight,
+          tx,
           vaultTxType: 'RESCUE',
-          blockHeight: vaultStatus.panicTxBlockHeight
+          vaultId,
+          vaultNumber,
+          outValue,
+          ...(pushTime !== undefined ? { pushTime } : {})
         });
       }
     });
-    return historyData.sort(discovery.compareTxOrder.bind(discovery));
+
+    //Merge all the 'TRIGGER_SPENDABLE' and the 'VAULT'. Those are part of
+    //hotHistory alreadyu
+    hotHistory.forEach(txAttribution => {
+      const txId = txAttribution.txId;
+      const tx = discovery.getTransaction({ txId });
+      const vaultTx = vaultTxs.get(txId);
+      const triggerSpendableTx = triggerSpendableTxs.get(txId);
+      const historyEntry = {
+        ...txAttribution,
+        tx,
+        ...(vaultTx ? vaultTx : {}),
+        ...(triggerSpendableTx ? triggerSpendableTx : {})
+      };
+      historyData.push(historyEntry);
+    });
+    //Add the remainig 'RESCUE' AND 'TRIGGER_WAITING'
+    triggerWaitingTxs.forEach(triggerWaitingTx =>
+      historyData.push(triggerWaitingTx)
+    );
+    panicTxs.forEach(panicTx => historyData.push(panicTx));
+
+    return (
+      historyData
+        //ascending pushTime order (old to new). Only apply if pushTime is known
+        .sort((txA, txB) =>
+          'pushTime' in txA &&
+          'pushTime' in txB &&
+          txA.blockHeight === 0 &&
+          txB.blockHeight === 0
+            ? txA.pushTime - txB.pushTime
+            : 0
+        )
+        //Use the final sorting method from discovery (takes into account
+        //blockHeight and tx dependencies
+        .sort(discovery.compareTxOrder.bind(discovery))
+    );
   }
 );
 

@@ -20,6 +20,11 @@ Modificar getHistoryData para que se le puedan pasar vaultStatus y se añadan
 las txs.
   TODO: calcular y pasar el value para RESCUE, TRIGGER_WAITING
   TODO: pasar el vaultNumber (mirar como se hace en Vaults) además de el vaultId
+  TODO: in the sorting, take the vaults txs pushTime into account...
+
+Imporatnte tengo los fetchVaultStatus que hacen uso de explorer.fetch y 
+ya me han dado error durante un fetcg... hacer un retrial y hacer un toast...
+handle eso
 
 En Settings tendré que usa el código este: 
 import { shareVaults } from '../lib/backup';
