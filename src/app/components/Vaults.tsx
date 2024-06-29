@@ -248,7 +248,7 @@ const Vault = ({
         const newVaultStatus = {
           ...vaultStatus,
           panicTxHex: rescueData.txHex,
-          panicTxBlockTime: 0,
+          panicTxBlockHeight: 0,
           panicPushTime: Math.floor(Date.now() / 1000)
         };
         updateVaultStatus(vault.vaultId, newVaultStatus);
