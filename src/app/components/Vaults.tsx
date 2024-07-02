@@ -16,6 +16,7 @@ import {
   Platform
 } from 'react-native';
 import * as Icons from '@expo/vector-icons';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 const unstable_batchedUpdates = Platform.select({
   web: (cb: () => void) => {
     cb();
@@ -35,9 +36,8 @@ import {
 } from '../lib/vaults';
 import VaultIcon from './VaultIcon';
 import { useTranslation } from 'react-i18next';
-import { delegateVault } from '../lib/backup';
 import { formatBalance, formatBlocks } from '../lib/format';
-import { Button, IconType, InfoButton } from '../../common/ui';
+import { Button, IconType, InfoButton, Modal } from '../../common/ui';
 
 import { useSettings } from '../hooks/useSettings';
 import type { SubUnit } from '../lib/settings';
@@ -45,6 +45,7 @@ import type { Locale } from '../../i18n-locales/init';
 import type { BlockStatus } from '@bitcoinerlab/explorer/dist/interface';
 import InitUnfreeze, { InitUnfreezeData } from './InitUnfreeze';
 import Rescue, { RescueData } from './Rescue';
+import Delegate from './Delegate';
 
 const LOADING_TEXT = '     ';
 
@@ -191,6 +192,26 @@ const Vault = ({
   vaultNumber: number;
   vaultStatus: VaultStatus | undefined;
 }) => {
+  const [showDelegateHelp, setShowDelegateHelp] = useState<boolean>(false);
+  const [showRescueHelp, setShowRescueHelp] = useState<boolean>(false);
+  const [showInitUnfreezeHelp, setShowInitUnfreezeHelp] =
+    useState<boolean>(false);
+  const handleDelegateHelp = useCallback(() => setShowDelegateHelp(true), []);
+  const handleRescueHelp = useCallback(() => setShowRescueHelp(true), []);
+  const handleInitUnfreezeHelp = useCallback(
+    () => setShowInitUnfreezeHelp(true),
+    []
+  );
+  const handleCloseDelegateHelp = useCallback(
+    () => setShowDelegateHelp(false),
+    []
+  );
+  const handleCloseRescueHelp = useCallback(() => setShowRescueHelp(false), []);
+  const handleCloseInitUnfreezeHelp = useCallback(
+    () => setShowInitUnfreezeHelp(false),
+    []
+  );
+
   const [isInitUnfreezeRequestValid, setIsInitUnfreezeRequestValid] =
     useState<boolean>(false);
   const isInitUnfreezePending =
@@ -228,6 +249,10 @@ const Vault = ({
     },
     [pushTx, vault.vaultId, vaultStatus, updateVaultStatus]
   );
+
+  const [showDelegate, setShowDelegate] = useState<boolean>(false);
+  const handleCloseDelegate = useCallback(() => setShowDelegate(false), []);
+  const handleShowDelegate = useCallback(() => setShowDelegate(true), []);
 
   const [isRescueRequestValid, setIsRescueRequestValid] =
     useState<boolean>(false);
@@ -282,7 +307,7 @@ const Vault = ({
   const isUnfrozen =
     remainingBlocks === 0 || remainingBlocks === 'SPENT_AS_HOT';
   const isRescued = remainingBlocks === 'SPENT_AS_PANIC';
-  const isRescuedConfirmed = isRescued && vaultStatus?.panicTxBlockHeight;
+  const isRescuedConfirmed = !!(isRescued && vaultStatus?.panicTxBlockHeight);
 
   const canBeRescued = isInitUnfreeze && !isUnfrozen && !isRescued;
   const canBeDelegated = !isUnfrozen && !isRescued;
@@ -335,13 +360,6 @@ const Vault = ({
       vaultStatusRef.current = undefined; //unset on unmount
     };
   }, []);
-
-  const handleDelegateVault = useCallback(() => {
-    const readmeText = t('walletHome.delegateReadme');
-    const readme = readmeText.split('\n');
-
-    delegateVault({ readme, vault });
-  }, [t, vault]);
 
   const handleHideVault = useCallback(() => {
     const newVaultStatus = {
@@ -425,18 +443,32 @@ const Vault = ({
           />
         )}
         {isUnfreezeOngoing && (
-          <Text className="native:text-sm web:text-xs uppercase text-slate-700">
-            {t('wallet.vault.timeRemaining', {
-              timeRemaining: formatBlocks(remainingBlocks, t, true)
-            })}
-          </Text>
+          <View className="flex-row items-center">
+            <MaterialCommunityIcons
+              name="lock-clock"
+              size={12}
+              className="text-slate-700 pr-1"
+            />
+            <Text className="native:text-sm web:text-xs uppercase text-slate-700">
+              {t('wallet.vault.timeRemaining', {
+                timeRemaining: formatBlocks(remainingBlocks, t, true)
+              })}
+            </Text>
+          </View>
         )}
         {remainingBlocks === 'TRIGGER_NOT_PUSHED' && (
-          <Text className="native:text-sm web:text-xs uppercase text-slate-700">
-            {t('wallet.vault.untriggeredLockTime', {
-              timeRemaining: formatBlocks(vault.lockBlocks, t, true)
-            })}
-          </Text>
+          <View className="flex-row items-center">
+            <MaterialCommunityIcons
+              name="lock-clock"
+              size={12}
+              className="text-slate-700 pr-1"
+            />
+            <Text className="native:text-sm web:text-xs uppercase text-slate-700">
+              {t('wallet.vault.untriggeredLockTime', {
+                timeRemaining: formatBlocks(vault.lockBlocks, t, true)
+              })}
+            </Text>
+          </View>
         )}
         <View className="gap-2 pt-4">
           {/*this part should be only about the trigger*/}
@@ -589,7 +621,7 @@ const Vault = ({
         </View>
         {(canBeRescued || canInitUnfreeze || canBeDelegated || canBeHidden) && (
           <View
-            className={`w-full flex-row ${[canBeRescued, canInitUnfreeze, canBeDelegated, canBeHidden].filter(Boolean).length > 1 ? 'justify-between' : 'justify-end'} pt-8 px-0 mobmed:px-4 gap-6`}
+            className={`w-full flex-row ${[canBeRescued, canInitUnfreeze, canBeDelegated, canBeHidden].filter(Boolean).length > 1 ? 'justify-between flex-wrap' : 'justify-end'} pt-8 px-0 moblg:px-4 gap-6`}
           >
             {canBeRescued && (
               <VaultButton
@@ -597,7 +629,7 @@ const Vault = ({
                 onPress={handleShowRescue}
                 loading={isRescuePending}
                 msg={t('wallet.vault.rescueButton')}
-                onInfoPress={() => {}}
+                onInfoPress={handleRescueHelp}
               />
             )}
             {canInitUnfreeze && (
@@ -606,16 +638,16 @@ const Vault = ({
                 onPress={handleShowInitUnfreeze}
                 loading={isInitUnfreezePending}
                 msg={t('wallet.vault.triggerUnfreezeButton')}
-                onInfoPress={() => {}}
+                onInfoPress={handleInitUnfreezeHelp}
               />
             )}
             {canBeDelegated && (
               <VaultButton
                 mode="secondary"
-                onPress={handleDelegateVault}
+                onPress={handleShowDelegate}
                 loading={false}
                 msg={t('wallet.vault.delegateButton')}
-                onInfoPress={() => {}}
+                onInfoPress={handleDelegateHelp}
               />
             )}
             {canBeHidden && (
@@ -643,6 +675,50 @@ const Vault = ({
         onClose={handleCloseRescue}
         onRescue={handleRescue}
       />
+      <Delegate
+        vault={vault}
+        isVisible={showDelegate}
+        onClose={handleCloseDelegate}
+      />
+      <Modal
+        title={t('wallet.vault.help.delegate.title')}
+        icon={{ family: 'FontAwesome5', name: 'hands-helping' }}
+        isVisible={showDelegateHelp}
+        onClose={handleCloseDelegateHelp}
+        closeButtonText={t('understoodButton')}
+      >
+        <Text className="pl-2 pr-2 text-slate-600">
+          {t('wallet.vault.help.delegate.text')}
+        </Text>
+      </Modal>
+      <Modal
+        title={t('wallet.vault.help.rescue.title')}
+        icon={{
+          family: 'MaterialCommunityIcons',
+          name: 'alarm-light'
+        }}
+        isVisible={showRescueHelp}
+        onClose={handleCloseRescueHelp}
+        closeButtonText={t('understoodButton')}
+      >
+        <Text className="pl-2 pr-2 text-slate-600">
+          {t('wallet.vault.help.rescue.text')}
+        </Text>
+      </Modal>
+      <Modal
+        title={t('wallet.vault.help.initUnfreeze.title')}
+        icon={{
+          family: 'MaterialCommunityIcons',
+          name: 'snowflake-melt'
+        }}
+        isVisible={showInitUnfreezeHelp}
+        onClose={handleCloseInitUnfreezeHelp}
+        closeButtonText={t('understoodButton')}
+      >
+        <Text className="pl-2 pr-2 text-slate-600">
+          {t('wallet.vault.help.initUnfreeze.text')}
+        </Text>
+      </Modal>
     </View>
   );
 };

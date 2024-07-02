@@ -4,7 +4,6 @@ import { View } from 'react-native';
 import HotIcon from './HotIcon';
 import FreezeIcon from './FreezeIcon';
 import { Svg } from 'react-native-svg';
-import SaveBuoy from '../../../assets/SaveBuoy.svg';
 import type { getRemainingBlocks } from '../lib/vaults';
 import { ActivityIndicator } from '../../common/ui';
 import UnfreezeIcon from './UnfreezeIcon';
@@ -33,7 +32,7 @@ const VaultIcon = ({
   ) : (
     <View className="flex-row items-center">
       <Svg
-        className="fill-white w-6 h-6 p-0.5 rounded-full bg-primary opacity-70"
+        className="fill-white w-6 h-6 p-0.5 rounded-full bg-[#800080]"
         viewBox="0 0 24 24"
       >
         <UnfreezeIcon />
@@ -45,6 +44,7 @@ const VaultIcon = ({
 /*
  *
  * old rescue save buoy:
+ * import SaveBuoy from '../../../assets/SaveBuoy.svg';
  *     <SaveBuoy className="w-6 h-6" />
  */
 

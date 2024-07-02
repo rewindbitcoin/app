@@ -9,7 +9,7 @@ Technical error: {{message}}`,
     pushTimeoutError:
       'Oops! It seems the recently submitted transaction is taking longer to be detected. Please check your connection and refresh your wallet. If it does not show up, try submitting it again.',
     newWalletTitle: 'New Wallet',
-    thunderDenTitle: 'Thunder Den',
+    thunderDenTitle: 'ThunderDen',
     mainTitle: 'Wallets',
     createVaultTitle: 'Creating Vault',
 
@@ -137,10 +137,12 @@ Initiating unfreeze starts a {{lockTime}} countdown before funds are available.`
         'Funds are safely frozen. Initiating unfreeze starts a {{lockTime}} countdown before funds are available.',
       rescueNotConfirmed: `Rescue requested on {{rescuePushDate}}.`,
       confirmedRescue: `Rescued on {{rescuedDate}}.`,
-      rescueNotConfirmedAddress: `Rescue successfully requested. Funds are being moved to your safe address:
-{{panicAddress}}.`,
+      rescueNotConfirmedAddress: `Rescue successfully requested. Funds are being moved to your safe address right now:
+
+{{panicAddress}}`,
       confirmedRescueAddress: `The vault was successfully rescued and funds were moved to your secure address:
-{{panicAddress}}.`,
+
+{{panicAddress}}`,
       unfrozenAndSpent:
         'The vault was successfully unfrozen and spent on {{spentAsHotDate}}.',
       unfrozenAndHotBalance:
@@ -176,6 +178,43 @@ Tap "Continue" to choose the mining fee and start the unfreeze countdown.`,
  unfreeze request is confirmed.
 
 Tap "Init Unfreeze" to request the start of the unfreeze countdown.`
+      },
+      rescue: {
+        confirmationSpeedLabel: 'Rescue Transaction Fee',
+        intro: `You're about to initiate the rescue of your vault funds. This will move the funds to your pre-configured emergency address immediately:
+
+{{panicAddress}}
+
+This address will likely be difficult to access if you followed the recommended guidelines during Vault Setup. Ensure you can eventually access it. Once sent, this wallet will no longer have access to them.
+
+This action is designed for extreme situations, such as theft or extortion, to ensure the safety of your Bitcoin. Make sure this is a deliberate decision.`,
+        feeSelectorExplanation:
+          'Select a mining fee for the rescue transaction to ensure prompt processing.',
+        additionalExplanation: `Once the rescue request is confirmed, the funds will be moved to your emergency address instantly.
+
+Tap 'Rescue' to initiate the rescue process.`
+      },
+      help: {
+        delegate: {
+          title: 'Delegate Control',
+          text: `The 'Delegate' action allows you to prepare in advance by assigning a trusted person to help during emergencies.
+
+If you are unable to access your wallet or are in danger, the delegated person can cancel unauthorized transactions during the vault's time-lock period for you.
+
+The delegate cannot access or spend the funds; they can only send the funds to the emergency address you specified during Setup. The delegate never has access to any of your keys and only handles pre-signed transactions, ensuring it's safe to pass on this responsibility.`
+        },
+        rescue: {
+          title: 'Rescue Funds',
+          text: `The 'Rescue' action allows you to immediately move your vault funds to the emergency address you set up during the Vault Setup. This action is designed for extreme situations, such as theft or extortion, to ensure the safety of your Bitcoin.
+
+Once the rescue is initiated, the funds will be sent to the emergency address, and this wallet will no longer have access to them. This process is irreversible.`
+        },
+        initUnfreeze: {
+          title: 'Initiate Unfreeze',
+          text: `The 'Init Unfreeze' action starts the countdown to unfreeze your vault. During this countdown period, your funds remain secure and cannot be moved.
+
+Once the countdown ends, your funds will be unlocked and accessible. It's important to stay vigilant and prepared to manage your funds immediately to ensure their continued security.`
+        }
       }
     }
   },
@@ -445,6 +484,7 @@ You can either use the 'Create' wizard to generate a new emergency address or us
       'Align the QR code within the frame to scan the Bitcoin address.'
   },
   continueButton: 'Continue',
+  imInDangerButton: "I'm in danger",
   okButton: 'OK',
   goBack: 'Go Back',
   verifyButton: 'Verify',

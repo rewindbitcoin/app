@@ -111,9 +111,9 @@ const Rescue = ({
     }
   }, [initialFeeRate]);
 
-  const handleInitUnfreeze = useCallback(() => {
+  const handleRescue = useCallback(() => {
     if (!txData || !txSize)
-      throw new Error('Cannot unfreeze non-existing selected tx');
+      throw new Error('Cannot rescue non-existing selected tx');
     onRescue(txData);
   }, [onRescue, txData, txSize]);
 
@@ -123,25 +123,29 @@ const Rescue = ({
       <Modal
         headerMini={true}
         isVisible={true}
-        title={t('wallet.vault.triggerUnfreezeButton')}
+        title={t('wallet.vault.rescueButton')}
         icon={{
           family: 'MaterialCommunityIcons',
-          name: 'snowflake-melt'
+          name: 'alarm-light'
         }}
         onClose={onClose}
         customButtons={
           step === 'intro' ? (
             <View className="items-center gap-6 flex-row justify-center pb-4">
               <Button onPress={onClose}>{t('cancelButton')}</Button>
-              <Button onPress={() => setStep('fee')}>
-                {t('continueButton')}
+              <Button mode="primary-alert" onPress={() => setStep('fee')}>
+                {t('imInDangerButton')}
               </Button>
             </View>
           ) : step === 'fee' ? (
             <View className="items-center gap-6 flex-row justify-center pb-4">
               <Button onPress={onClose}>{t('cancelButton')}</Button>
-              <Button onPress={handleInitUnfreeze} disabled={!txSize}>
-                {t('wallet.vault.triggerUnfreezeButton')}
+              <Button
+                mode="primary-alert"
+                onPress={handleRescue}
+                disabled={!txSize}
+              >
+                {t('wallet.vault.rescueButton')}
               </Button>
             </View>
           ) : undefined
@@ -150,24 +154,26 @@ const Rescue = ({
         {step === 'intro' ? (
           <View>
             <Text className="text-slate-600 pb-2 px-2">
-              {t('wallet.vault.triggerUnfreeze.intro', { timeLockTime: 0 })}
+              {t('wallet.vault.rescue.intro', {
+                panicAddress: vault.coldAddress
+              })}
             </Text>
           </View>
         ) : step === 'fee' ? (
           <View>
             <Text className="text-slate-600 pb-4 px-2">
-              {t('wallet.vault.triggerUnfreeze.feeSelectorExplanation')}
+              {t('wallet.vault.rescue.feeSelectorExplanation')}
             </Text>
             <View className="bg-slate-100 p-2 rounded-xl">
               <FeeInput
                 initialValue={initialFeeRate}
                 txSize={txSize}
-                label={t('wallet.vault.triggerUnfreeze.confirmationSpeedLabel')}
+                label={t('wallet.vault.rescue.confirmationSpeedLabel')}
                 onValueChange={setFeeRate}
               />
             </View>
             <Text className="text-slate-600 pt-4 px-2">
-              {t('wallet.vault.triggerUnfreeze.additionalExplanation', {
+              {t('wallet.vault.rescue.additionalExplanation', {
                 timeLockTime: 0
               })}
             </Text>

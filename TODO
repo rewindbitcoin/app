@@ -1,10 +1,9 @@
-ChronoBunker.com
-https://icons.expo.fyi/Index/MaterialIcons/safety-check
+ThunderDen.com
+RewindWallet.com
 
 thunderden.com
 https://www.svgrepo.com/svg/519137/security
 
-LaterOk.com
 
 goat oak pull
 seek know resemble
@@ -14,13 +13,6 @@ first board better
 Este icono es buenisimo timelock!!!
 https://icons.expo.fyi/Index/MaterialCommunityIcons/lock-clock
 And for unfreezing... ? https://icons.expo.fyi/Index/MaterialCommunityIcons/progress-clock
-
-Importante: Las txs de los Vaults no aparecen en el historial de ops.
-Modificar getHistoryData para que se le puedan pasar vaultStatus y se añadan
-las txs.
-  TODO: calcular y pasar el value para RESCUE, TRIGGER_WAITING
-  TODO: pasar el vaultNumber (mirar como se hace en Vaults) además de el vaultId
-  TODO: in the sorting, take the vaults txs pushTime into account...
 
 Imporatnte tengo los fetchVaultStatus que hacen uso de explorer.fetch y 
 ya me han dado error durante un fetcg... hacer un retrial y hacer un toast...
@@ -32,18 +24,6 @@ import { shareVaults } from '../lib/backup';
     if (!vaults) throw new Error('vaults not ready');
     return shareVaults({ vaults });
   }, [vaults]);
-
-
-Aun, randomly se me queda un loop infinito En el Init Unfreeze loading (isUnfreezeInitPending)
-  -> Puede ser que syncBlockchain no se lanzase porque ya estaba haciendo una...
-  y entonceds nunca pilla el nuveo vaultStatus.triggerTxHex. pero no es grave, el user
-  al hcaer refresh lo pilla todo.
-  Necesito un syncBlockchain que primero mira si syncyngBlockchain going on,
-  if going on wait 'til finished then re-trigger. Call it schedulrSyncBlochain
-
-It's vital after every push then immeditelly do a sync, otherwise the wallet may get unsynchd
-since an utxo is taken but may be reused later:
-  ->  Error: Failed request: sendrawtransaction RPC error: {"code":-26,"message":"txn-mempool-conflict"}. Status code: 400 (Bad Request). URL: https://storm.thunderden.com/api/tx.
 
 In Settings add: [show confirmed balances & use confirmed utxos] / [show unconfirmed balances & use unconfirmed utxos]
   -> Then adapt the whole App to make sense with proper Confirming... messages (pending balance add/substract of XXX) for both cases...

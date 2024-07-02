@@ -6,7 +6,13 @@ import * as Icons from '@expo/vector-icons';
 import Spin from './Spin';
 
 interface ButtonProps extends RN.PressableProps {
-  mode?: 'primary' | 'native' | 'secondary' | 'secondary-alert' | 'text';
+  mode?:
+    | 'primary'
+    | 'primary-alert'
+    | 'native'
+    | 'secondary'
+    | 'secondary-alert'
+    | 'text';
   iconLeft?: IconType;
   onPress?: ((event: RN.GestureResponderEvent) => void) | undefined;
   disabled?: boolean;
@@ -57,11 +63,11 @@ const Button: React.FC<ButtonProps> = ({
         ) : null}
       </RN.Pressable>
     );
-  } else if (mode === 'primary') {
+  } else if (mode === 'primary' || mode === 'primary-alert') {
     return (
       <RN.Pressable
         key={String(disabled)}
-        className={`flex-row min-w-20 justify-center items-center py-3 px-5 rounded-lg bg-primary ${disabled ? 'pointer-events-none opacity-50' : 'hover:opacity-90 active:opacity-90 active:scale-95'}`}
+        className={`flex-row min-w-20 justify-center items-center py-3 px-5 rounded-lg ${mode === 'primary-alert' ? 'bg-red-600' : 'bg-primary'} ${disabled ? 'pointer-events-none opacity-50' : 'hover:opacity-90 active:opacity-90 active:scale-95'}`}
         {...props}
       >
         {iconLeft && (

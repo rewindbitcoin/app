@@ -189,8 +189,11 @@ type VaultPresignedTx = {
   pushTime?: number;
 };
 export type HistoryData = Array<
+  //hot wallet normal Transactions (not associated with the Vaults):
   | (TxAttribution & { tx: Transaction })
+  // Vault-related presigned txs that are not par of the hot wallet: 'RESCUE' and 'TRIGGER_WAITING':
   | VaultPresignedTx
+  // Vault-related presigned txs that are also part of the hot wallet ('VAULT' and 'TRIGGER_SPENDABLE'):
   | (TxAttribution & VaultPresignedTx)
 >;
 
