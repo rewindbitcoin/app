@@ -1,4 +1,4 @@
-import React, { useState, useContext, useCallback } from 'react';
+import React, { useContext, useCallback } from 'react';
 import { Modal, Button } from '../../common/ui';
 import { useTranslation } from 'react-i18next';
 import { View, Text } from 'react-native';
@@ -15,7 +15,6 @@ const Delegate = ({
   isVisible: boolean;
   onClose: () => void;
 }) => {
-  const [step, setStep] = useState<'intro' | 'fee'>('intro');
   const { t } = useTranslation();
   const context = useContext<WalletContextType | null>(WalletContext);
   if (context === null) throw new Error('Context was not set');
@@ -34,48 +33,26 @@ const Delegate = ({
         isVisible={true}
         title={t('wallet.vault.delegateButton')}
         icon={{
-          family: 'MaterialCommunityIcons',
-          name: 'alarm-light'
+          family: 'FontAwesome5',
+          name: 'hands-helping'
         }}
         onClose={onClose}
         customButtons={
-          step === 'intro' ? (
-            <View className="items-center gap-6 flex-row justify-center pb-4">
-              <Button onPress={onClose}>{t('cancelButton')}</Button>
-              <Button mode="primary-alert" onPress={() => setStep('fee')}>
-                {t('continueButton')}
-              </Button>
-            </View>
-          ) : step === 'fee' ? (
-            <View className="items-center gap-6 flex-row justify-center pb-4">
-              <Button onPress={onClose}>{t('cancelButton')}</Button>
-              <Button mode="primary-alert" onPress={handleDelegateVault}>
-                {t('wallet.vault.delegateButton')}
-              </Button>
-            </View>
-          ) : undefined
+          <View className="items-center gap-6 flex-row justify-center pb-4">
+            <Button onPress={onClose}>{t('cancelButton')}</Button>
+            <Button mode="primary" onPress={handleDelegateVault}>
+              {t('wallet.vault.delegateButton')}
+            </Button>
+          </View>
         }
       >
-        {step === 'intro' ? (
-          <View>
-            <Text className="text-slate-600 pb-2 px-2">
-              {t('wallet.vault.delegate.intro', {
-                panicAddress: vault.coldAddress
-              })}
-            </Text>
-          </View>
-        ) : step === 'fee' ? (
-          <View>
-            <Text className="text-slate-600 pb-4 px-2">
-              {t('wallet.vault.delegate.feeSelectorExplanation')}
-            </Text>
-            <Text className="text-slate-600 pt-4 px-2">
-              {t('wallet.vault.delegate.additionalExplanation', {
-                timeLockTime: 0
-              })}
-            </Text>
-          </View>
-        ) : null}
+        <View>
+          <Text className="text-slate-600 pb-2 px-2">
+            {t('wallet.vault.delegate.intro', {
+              panicAddress: vault.coldAddress
+            })}
+          </Text>
+        </View>
       </Modal>
     )
   );
