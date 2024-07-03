@@ -157,12 +157,6 @@ Initiating unfreeze starts a {{lockTime}} countdown before funds are available.`
       vaultSpendableDateLabel: 'Lock Period End Date',
       frozenRemainingDateLabel: 'Funds Unlock Estimated Date',
 
-      //rescued:
-      //  'Unfreeze was requested on <wrapper>{{requestDate}} and the vault was rescued on <wrapper>{{date}}</wrapper>.',
-      //vaultIsHot:
-      //  'Unfreeze was requested on <wrapper>{{requestDate}}</wrapper> and funds were unlocked on <wrapper>{{hotDate}}</wrapper>.',
-      //vaultIsUnfreezing:
-      //  'Unfreeze has been requested on <wrapper>{{requestTime}}</wrapper> and funds will be unlocked in <wrapper>{{time}}</wrapper>.'
       triggerUnfreeze: {
         intro: `You're about to start the process of unlocking your vault funds,\
  which will eventually be ready for spending.
@@ -193,6 +187,23 @@ This action is designed for extreme situations, such as theft or extortion, to e
         additionalExplanation: `Once the rescue request is confirmed, the funds will be moved to your emergency address instantly.
 
 Tap 'Rescue' to initiate the rescue process.`
+      },
+      delegate: {
+        title: 'Delegation File',
+        texr: `You're about to generate a delegation file. This file can be shared with a trusted person who can help protect your Bitcoin.
+
+In case of an emergency, the delegated person can use the file to send your funds to the emergency address you specified during Vault Setup. They should visit thunderden.com and follow the straightforward instructions to complete the rescue operation easily.
+
+Bitcoin tech-savvy contacts can read the file and follow the instructions directly.
+
+Tap "Delegate" to generate and share the delegation file.`,
+        text: `You're about to generate a delegation file. This file can be shared with a trusted person who can help protect your Bitcoin.
+
+In case of an emergency, the delegated person can use the file to send your funds to the emergency address you specified during Vault Setup. The file only contains the necessary info for this and does not include any keys to access your funds.
+
+Contacts should visit thunderden.com and follow the straightforward instructions to complete the rescue operation easily. Bitcoin tech-savvy contacts can read the file and follow the instructions directly.
+
+Tap "Delegate" to generate and share the delegation file.`
       },
       help: {
         delegate: {

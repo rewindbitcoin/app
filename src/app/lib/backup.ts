@@ -357,7 +357,7 @@ export const delegateVault = async ({
     //TODO: toast throw new Error('Impossible to compress rescue');
   }
 
-  const fileName = `thunderden_rescue.json.gz`;
+  const fileName = `visit-thunderden_com.gz`;
   if (Platform.OS === 'web') {
     const blob = new Blob([compressedRescue], {
       type: 'application/octet-stream'

@@ -1,4 +1,4 @@
-import React, { useContext, useCallback } from 'react';
+import React, { useContext, useCallback, useState } from 'react';
 import { Modal, Button } from '../../common/ui';
 import { useTranslation } from 'react-i18next';
 import { View, Text } from 'react-native';
@@ -15,23 +15,27 @@ const Delegate = ({
   isVisible: boolean;
   onClose: () => void;
 }) => {
+  const [loading, setLoading] = useState<boolean>(false);
   const { t } = useTranslation();
   const context = useContext<WalletContextType | null>(WalletContext);
   if (context === null) throw new Error('Context was not set');
 
-  const handleDelegateVault = useCallback(() => {
+  const handleDelegateVault = useCallback(async () => {
+    setLoading(true);
     const readmeText = t('walletHome.delegateReadme');
     const readme = readmeText.split('\n');
 
-    delegateVault({ readme, vault });
-  }, [t, vault]);
+    await delegateVault({ readme, vault });
+    setLoading(false);
+    onClose();
+  }, [t, vault, onClose]);
 
   return (
     isVisible && (
       <Modal
         headerMini={true}
         isVisible={true}
-        title={t('wallet.vault.delegateButton')}
+        title={t('wallet.vault.delegate.title')}
         icon={{
           family: 'FontAwesome5',
           name: 'hands-helping'
@@ -40,7 +44,11 @@ const Delegate = ({
         customButtons={
           <View className="items-center gap-6 flex-row justify-center pb-4">
             <Button onPress={onClose}>{t('cancelButton')}</Button>
-            <Button mode="primary" onPress={handleDelegateVault}>
+            <Button
+              mode="primary"
+              onPress={handleDelegateVault}
+              loading={loading}
+            >
               {t('wallet.vault.delegateButton')}
             </Button>
           </View>
@@ -48,7 +56,7 @@ const Delegate = ({
       >
         <View>
           <Text className="text-slate-600 pb-2 px-2">
-            {t('wallet.vault.delegate.intro', {
+            {t('wallet.vault.delegate.text', {
               panicAddress: vault.coldAddress
             })}
           </Text>
