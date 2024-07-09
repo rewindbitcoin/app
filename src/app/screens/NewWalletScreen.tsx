@@ -117,7 +117,7 @@ export default function NewWalletScreen() {
         signersStorageEngine,
         encryption
       };
-      const signerId = 0; //ThunderDen v1.0 has Only 1 signer anyway
+      const signerId = 0; //RewindBitcoin v1.0 has Only 1 signer anyway
       const network = networkMapping[networkId];
       const mnemonic = words.join(' ');
       const masterNode = getMasterNode(mnemonic, network);

@@ -98,7 +98,7 @@ npx eas build --profile development --platform android --local #optinally with -
 #work without a computer in the same network):
 npx eas build --profile preview --platform android --local #optinally with --clear-cache
 #To install in the simulator manually
-adb install ThunderDen/build-1702360280369.apk
+adb install app/build-1702360280369.apk
 npx expo start -c --dev-client #-c clears caches and -dev-client uses the Non-Expo client
 #Or, even this other command which lets you chooose device
 npx expo run:android -d
@@ -144,7 +144,7 @@ npx eas build --platform ios --local --profile preview #optinally with --clear-c
 npx expo run:ios -d
 #which will  let you choose the device to run and install
 #If you get this error: CommandError: No code signing certificates are available to use.
-#open ios/ThunderDen.xcodeproj
+#open ios/RewindBitcoin.xcodeproj
 # -> Signing and capabilities -> Add ACcount - More info: https://github.com/expo/fyi/blob/main/setup-xcode-signing.md
 
 Install the ipa file using XCode->Window->Devices and Simulators and drag the ipa file to the "Installed Apps" of the device

@@ -45,7 +45,7 @@ export type VaultSettings = {
 export type Vault = {
   /** vaultId and vaultPath universally identify this vault.
    *
-   *  const vaultPath = THUNDERDEN_VAULT_PATH.replace(
+   *  const vaultPath = VAULT_PATH.replace(
    *    '<network>',
    *    network === networks.bitcoin ? '0' : '1'
    *  ).replace('<index>', index.toString());

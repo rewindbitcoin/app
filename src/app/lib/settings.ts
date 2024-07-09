@@ -30,7 +30,7 @@ import {
 
 export const subUnits = ['btc', 'bit', 'sat', 'mbit'] as const;
 export type SubUnit = (typeof subUnits)[number];
-export type Currency = 'USD' | 'EUR' | 'GBP'; //Keep in sync with thunderDenServices/btcRates
+export type Currency = 'USD' | 'EUR' | 'GBP'; //Keep in sync with ~/../btcRates
 import type { Locale } from '../../i18n-locales/init';
 export const SETTINGS_GLOBAL_STORAGE = 'SETTINGS_GLOBAL_STORAGE';
 

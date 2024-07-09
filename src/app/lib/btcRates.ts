@@ -5,7 +5,7 @@ import type { Locale } from '../../i18n-locales/init';
 
 export async function fetchBtcFiat(
   currency: Currency,
-  api: 'COINGECKO' | 'THUNDERDEN' = 'THUNDERDEN'
+  api: 'COINGECKO' | 'REWINDBITCOIN' = 'REWINDBITCOIN'
 ): Promise<number> {
   if (api === 'COINGECKO') {
     const url = `https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=${currency.toLowerCase()}`;
@@ -21,7 +21,7 @@ export async function fetchBtcFiat(
       console.error(`Failed to fetch BTC/${currency} rate:`, error);
       throw error; // Rethrow the error for further handling if necessary
     }
-  } else if (api === 'THUNDERDEN') {
+  } else if (api === 'REWINDBITCOIN') {
     const apiUrl = `${defaultSettings.BTC_RATES_API}/get?currency=${currency.toLowerCase()}`;
 
     try {

@@ -7,10 +7,10 @@ import {
 } from 'expo-file-system';
 import { shareAsync } from 'expo-sharing';
 const MAX_VAULT_CHECKS = 1000;
-const THUNDER_DEN_PURPOSE = 1073; // = [..."thunderden"].reduce((sum, char) => sum + char.charCodeAt(0), 0);
-const THUNDERDEN_VAULT_PATH = `m/${THUNDER_DEN_PURPOSE}'/<network>'/0'/<index>`;
-const THUNDERDEN_SIGNING_MESSAGE = 'ThunderDen Encryption';
-const THUNDERDEN_DATA_PATH = `m/${THUNDER_DEN_PURPOSE}'/<network>'/1'/0`;
+const PURPOSE = 1073; // = [..."thunderden"].reduce((sum, char) => sum + char.charCodeAt(0), 0);
+const VAULT_PATH = `m/${PURPOSE}'/<network>'/0'/<index>`;
+const SIGNING_MESSAGE = 'Satoshi Nakamoto'; //Can be any, but don't change it
+const DATA_PATH = `m/${PURPOSE}'/<network>'/1'/0`;
 
 import { crypto, Network, networks } from 'bitcoinjs-lib';
 import type { Signer } from './wallets';
@@ -49,7 +49,7 @@ export const fetchP2PVaultIds = async ({
   const existingVaults = [];
 
   for (let index = 0; index < MAX_VAULT_CHECKS; index++) {
-    const vaultPath = THUNDERDEN_VAULT_PATH.replace(
+    const vaultPath = VAULT_PATH.replace(
       '<network>',
       network === networks.bitcoin ? '0' : '1'
     ).replace('<index>', index.toString());
@@ -153,7 +153,7 @@ export const getDataCipherKey = async ({
   network: Network;
 }) => {
   return await getSeedDerivedCipherKey({
-    vaultPath: THUNDERDEN_DATA_PATH.replace(
+    vaultPath: DATA_PATH.replace(
       '<network>',
       network === networks.bitcoin ? '0' : '1'
     ),
@@ -180,7 +180,7 @@ const getSeedDerivedCipherKey = async ({
     throw new Error('Could not generatel a privateKey');
 
   const signature = MessageAPI.sign(
-    THUNDERDEN_SIGNING_MESSAGE,
+    SIGNING_MESSAGE,
     childNode.privateKey,
     true // assumes compressed
   );

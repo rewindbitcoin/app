@@ -9,7 +9,6 @@ Technical error: {{message}}`,
     pushTimeoutError:
       'Oops! It seems the recently submitted transaction is taking longer to be detected. Please check your connection and refresh your wallet. If it does not show up, try submitting it again.',
     newWalletTitle: 'New Wallet',
-    thunderDenTitle: 'ThunderDen',
     mainTitle: 'Wallets',
     createVaultTitle: 'Creating Vault',
 

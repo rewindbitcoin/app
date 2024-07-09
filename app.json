@@ -1,8 +1,8 @@
 {
   "expo": {
-    "name": "ThunderDen",
+    "name": "RewindBitcoin",
     "jsEngine": "hermes",
-    "slug": "ThunderDen",
+    "slug": "RewindBitcoin",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -19,11 +19,11 @@
       },
       "infoPlist": {
         "CFBundleAllowMixedLocalizations": true,
-        "NSFaceIDUsageDescription": "ThunderDen uses Face ID for enhanced security. This feature helps protect your Bitcoin wallet by ensuring that only you can access the sensitive data, like mnemonics, stored securely in the app. Your Face ID data is never accessed directly by the app and is only used to verify your identity.",
-        "NSCameraUsageDescription": "ThunderDen needs access to your camera to scan QR codes for Bitcoin addresses"
+        "NSFaceIDUsageDescription": "RewindBitcoin uses Face ID for enhanced security. This feature helps protect your Bitcoin wallet by ensuring that only you can access the sensitive data, like mnemonics, stored securely in the app. Your Face ID data is never accessed directly by the app and is only used to verify your identity.",
+        "NSCameraUsageDescription": "RewindBitcoin needs access to your camera to scan QR codes for Bitcoin addresses"
       },
       "supportsTablet": true,
-      "bundleIdentifier": "com.landabaso.ThunderDen"
+      "bundleIdentifier": "com.landabaso.RewindBitcoin"
     },
     "android": {
       "adaptiveIcon": {
@@ -31,7 +31,7 @@
         "backgroundColor": "#ffffff"
       },
       "softwareKeyboardLayoutMode": "resize",
-      "package": "com.landabaso.ThunderDen"
+      "package": "com.landabaso.RewindBitcoin"
     },
     "web": {
       "bundler": "metro",
