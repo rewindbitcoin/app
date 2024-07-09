@@ -25,6 +25,7 @@ import {
   PUBLIC_PLAYNET_ESPLORA_API_LOCATION,
   PUBLIC_PLAYNET_BLOCK_EXPLORER_LOCATION,
   LOCAL_REGTEST_BLOCK_EXPLORER_PORT
+  // @ts-expect-error @env is defined in bable.config.js
 } from '@env';
 
 export const subUnits = ['btc', 'bit', 'sat', 'mbit'] as const;

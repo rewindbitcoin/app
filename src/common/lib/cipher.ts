@@ -1,4 +1,5 @@
 //uses react-native-dotenv from bable.config.js and @rewindbitcoin/env
+// @ts-expect-error @env is defined in bable.config.js
 import { CIPHER_ADDITIONAL_DATA } from '@env';
 
 import sodium from 'react-native-libsodium';
