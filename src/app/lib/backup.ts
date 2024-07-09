@@ -339,7 +339,7 @@ export const delegateVault = async ({
     });
   });
   const rescue: Rescue = {
-    version: 'thunderden_rescue_V0',
+    version: 'rewbtc_rescue_v0',
     readme,
     networkId: vault.networkId,
     rescueTxMap
@@ -357,7 +357,7 @@ export const delegateVault = async ({
     //TODO: toast throw new Error('Impossible to compress rescue');
   }
 
-  const fileName = `visit-thunderden_com.gz`;
+  const fileName = `visit-RewindBitcoin_com.json.gz`;
   if (Platform.OS === 'web') {
     const blob = new Blob([compressedRescue], {
       type: 'application/octet-stream'
@@ -404,7 +404,7 @@ export const shareVaults = async ({
     //TODO: toast throw new Error('Impossible to compress vaults');
   }
 
-  const fileName = `thunderden_vaults.json.gz`;
+  const fileName = `rewbtc_vaults.json.gz`;
   if (Platform.OS === 'web') {
     const blob = new Blob([compressedVaults], {
       type: 'application/octet-stream'

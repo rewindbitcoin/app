@@ -1,5 +1,5 @@
 {
-  "name": "thunderden",
+  "name": "RewindBitcoin",
   "version": "1.0.0",
   "main": "node_modules/expo/AppEntry.js",
   "prettier": "@bitcoinerlab/configs/prettierConfig.json",
@@ -15,12 +15,12 @@
     "ios": "expo run:ios",
     "web": "expo start --web",
     "postinstall": "patch-package",
-    "i18n": "i18n-thunderden src"
+    "i18n": "i18n_rewbtc src"
   },
   "dependencies": {
     "@babel/plugin-proposal-export-namespace-from": "^7.18.9",
     "@bitcoinerlab/coinselect": "^1.2.1",
-    "@bitcoinerlab/descriptors": "^2.1.0",
+    "@bitcoinerlab/descriptors": "^2.2.0",
     "@bitcoinerlab/discovery": "^1.2.4",
     "@bitcoinerlab/explorer": "^0.2.1",
     "@bitcoinerlab/miniscript": "^1.4.0",
@@ -31,6 +31,7 @@
     "@react-navigation/native": "^6.1.9",
     "@react-navigation/native-stack": "^6.9.17",
     "@react-navigation/stack": "^6.3.20",
+    "@rewindbitcoin/i18n": "github:rewindbitcoin/i18n",
     "bip39": "^3.1.0",
     "bip68": "^1.0.4",
     "bitcoinjs-lib": "^6.1.5",
@@ -86,7 +87,6 @@
     "@babel/core": "^7.24.0",
     "@bitcoinerlab/configs": "github:bitcoinerlab/configs",
     "@expo/metro-runtime": "~3.2.1",
-    "@thunderdenlab/i18n": "github:thunderdenlab/i18n",
     "@types/lodash.memoize": "^4.1.8",
     "@types/react": "~18.2.79",
     "@types/react-native-extra-dimensions-android": "^1.2.3",

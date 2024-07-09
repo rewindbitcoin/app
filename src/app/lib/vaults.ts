@@ -158,7 +158,7 @@ export type RescueTxMap = Record<
   Array<{ txHex: TxHex; fee: number; feeRate: number }>
 >;
 export type Rescue = {
-  version: 'thunderden_rescue_V0';
+  version: 'rewbtc_rescue_v0';
   readme: Array<string>;
   networkId: NetworkId;
   rescueTxMap: RescueTxMap;

@@ -1,4 +1,4 @@
-const THUNDER_DEN_CIPHER_ADDITIONAL_DATA = 'Thunder Den';
+const REWIND_BITCOIN_CIPHER_ADDITIONAL_DATA = 'Rewind Bitcoin';
 
 import sodium from 'react-native-libsodium';
 import { crypto } from 'bitcoinjs-lib';
@@ -21,7 +21,7 @@ export const getManagedChacha = (key: Uint8Array) => {
       const rawCipherMessage =
         sodium.crypto_aead_xchacha20poly1305_ietf_encrypt(
           message,
-          THUNDER_DEN_CIPHER_ADDITIONAL_DATA, //additional data that can be verified (this is not encoded)
+          REWIND_BITCOIN_CIPHER_ADDITIONAL_DATA, //additional data that can be verified (this is not encoded)
           null, //secret nonce
           nonce, //public nonce
           key,
@@ -57,7 +57,7 @@ export const getManagedChacha = (key: Uint8Array) => {
         sodium.crypto_aead_xchacha20poly1305_ietf_decrypt(
           null, // secret nonce is null since it wasn't used in encryption
           encryptedMessage, // the encrypted part of the message
-          THUNDER_DEN_CIPHER_ADDITIONAL_DATA, // additional data for verification
+          REWIND_BITCOIN_CIPHER_ADDITIONAL_DATA, // additional data for verification
           nonce, // public nonce
           key
         );
