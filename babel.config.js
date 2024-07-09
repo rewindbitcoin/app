@@ -10,7 +10,19 @@ module.exports = function (api) {
     // npx expo install @babel/plugin-proposal-export-namespace-from react-native-reanimated
     plugins: [
       '@babel/plugin-proposal-export-namespace-from',
-      'react-native-reanimated/plugin'
+      'react-native-reanimated/plugin',
+      [
+        'module:react-native-dotenv',
+        {
+          moduleName: '@env',
+          path: './node_modules/@rewindbitcoin/env/services.env',
+          blacklist: null,
+          whitelist: null,
+          safe: false,
+          allowUndefined: true,
+          verbose: true
+        }
+      ]
     ]
   };
 };

@@ -125,19 +125,19 @@ export const getAPIs = moize(
           vaultsAPI = settings.TESTNET_VAULTS_API;
           vaultsSecondaryAPI = settings.TESTNET_VAULTS_SECONDARY_API;
           break;
-        case 'STORM':
-          esploraAPI = settings.STORM_ESPLORA_API;
-          serviceAddressAPI = settings.STORM_SERVICE_ADDRESS_API;
-          vaultsAPI = settings.STORM_VAULTS_API;
-          vaultsSecondaryAPI = settings.STORM_VAULTS_SECONDARY_API;
-          faucetAPI = settings.STORM_FAUCET_API;
+        case 'PLAYNET':
+          esploraAPI = settings.PLAYNET_ESPLORA_API;
+          serviceAddressAPI = settings.PLAYNET_SERVICE_ADDRESS_API;
+          vaultsAPI = settings.PLAYNET_VAULTS_API;
+          vaultsSecondaryAPI = settings.PLAYNET_VAULTS_SECONDARY_API;
+          faucetAPI = `${settings.PLAYNET_WEB_SERVER}faucet`;
           break;
         case 'REGTEST':
           esploraAPI = settings.REGTEST_ESPLORA_API;
           serviceAddressAPI = settings.REGTEST_SERVICE_ADDRESS_API;
           vaultsAPI = settings.REGTEST_VAULTS_API;
           vaultsSecondaryAPI = settings.REGTEST_VAULTS_SECONDARY_API;
-          faucetAPI = settings.REGTEST_FAUCET_API;
+          faucetAPI = `${settings.REGTEST_WEB_SERVER}faucet`;
           break;
         default:
           throw new Error(`networkId ${networkId} not supported.`);

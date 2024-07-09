@@ -192,7 +192,7 @@ Tap 'Rescue' to initiate the rescue process.`
         title: 'Delegation File',
         texr: `You're about to generate a delegation file. This file can be shared with a trusted person who can help protect your Bitcoin.
 
-In case of an emergency, the delegated person can use the file to send your funds to the emergency address you specified during Vault Setup. They should visit thunderden.com and follow the straightforward instructions to complete the rescue operation easily.
+In case of an emergency, the delegated person can use the file to send your funds to the emergency address you specified during Vault Setup. They should visit rewindbitcoin.com and follow the straightforward instructions to complete the rescue operation easily.
 
 Bitcoin tech-savvy contacts can read the file and follow the instructions directly.
 
@@ -201,7 +201,7 @@ Tap "Delegate" to generate and share the delegation file.`,
 
 In case of an emergency, the delegated person can use the file to send your funds to the emergency address you specified during Vault Setup. The file only contains the necessary info for this and does not include any keys to access your funds.
 
-Contacts should visit thunderden.com and follow the straightforward instructions to complete the rescue operation easily. Bitcoin tech-savvy contacts can read the file and follow the instructions directly.
+Contacts should visit rewindbitcoin.com and follow the straightforward instructions to complete the rescue operation easily. Bitcoin tech-savvy contacts can read the file and follow the instructions directly.
 
 Tap "Delegate" to generate and share the delegation file.`
       },
@@ -243,7 +243,7 @@ Once the countdown ends, your funds will be unlocked and accessible. It's import
       regtestWalletPlusWarning: 'Fees mimic real ones for realism, too.'
     },
     delegateReadme: `For immediate action, open this file at:
-https://rescue.thunderden.com
+https://rescue.rewindbitcoin.com
 
 Introduction:
 You have been given this file because you are trusted to assist in
@@ -259,7 +259,7 @@ VERIFY OWNER’S RISK STATUS BEFORE ACTING.
 
 Usage Instructions:
 1. Automated Recovery:
-   For a simplified process, visit https://rescue.thunderden.com.
+   For a simplified process, visit https://rescue.rewindbitcoin.com.
 
 2. Manual Recovery:
    This file contains a recovery transaction map. Each index in this map
@@ -274,7 +274,7 @@ Usage Instructions:
      transactions using a blockchain explorer with an appropriate fee rate
      for the current network conditions.
    - Remember, all these steps can be handled automatically by using the
-     online tool at https://rescue.thunderden.com, which simplifies
+     online tool at https://rescue.rewindbitcoin.com, which simplifies
      the identification and cancellation process`
   },
   network: {
@@ -284,8 +284,8 @@ Usage Instructions:
     testOrRealSubTitle:
       'Select your network: experiment safely on test networks or proceed with real Bitcoin.',
     help: {
-      stormNetworkBrief:
-        "Test risk-free on ThunderDen's own test network, mirroring real Bitcoin. Receive tokens at setup and more on request.",
+      playnetNetworkBrief:
+        "Test risk-free on Rewind's own test network, mirroring real Bitcoin. Receive tokens at setup and more on request.",
       testnetNetworkBrief:
         'A public network for Bitcoin testing. Obtaining Testnet tokens can be challenging.',
       bitcoinNetworkBrief:
@@ -321,7 +321,7 @@ The encryption uses the XChaCha20-Poly1305 algorithm, with a key that’s secure
  derived from your mnemonic recovery phrase.`,
     network: `ThunderDen provides a choice between testing environments and the real Bitcoin network (via Advanced Options).
 
-The currently recommended option is Storm, ThunderDen's own test network. Storm mirrors Bitcoin's real functionality and allows you to explore Send/Receive and Vaulting operations safely, offering free tokens for practice.
+The currently recommended option is the PlayNet, Rewind's own test network. The PlayNet mirrors Bitcoin's real functionality and allows you to explore Send/Receive and Vaulting operations safely, offering free tokens for practice.
 
 While the app is in early development, we advise against using real Bitcoin for any significant transactions.`
   },

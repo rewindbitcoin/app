@@ -1,4 +1,5 @@
-const REWIND_BITCOIN_CIPHER_ADDITIONAL_DATA = 'Rewind Bitcoin';
+//uses react-native-dotenv from bable.config.js and @rewindbitcoin/env
+import { CIPHER_ADDITIONAL_DATA } from '@env';
 
 import sodium from 'react-native-libsodium';
 import { crypto } from 'bitcoinjs-lib';
@@ -21,7 +22,7 @@ export const getManagedChacha = (key: Uint8Array) => {
       const rawCipherMessage =
         sodium.crypto_aead_xchacha20poly1305_ietf_encrypt(
           message,
-          REWIND_BITCOIN_CIPHER_ADDITIONAL_DATA, //additional data that can be verified (this is not encoded)
+          CIPHER_ADDITIONAL_DATA, //additional data that can be verified (this is not encoded)
           null, //secret nonce
           nonce, //public nonce
           key,
@@ -57,7 +58,7 @@ export const getManagedChacha = (key: Uint8Array) => {
         sodium.crypto_aead_xchacha20poly1305_ietf_decrypt(
           null, // secret nonce is null since it wasn't used in encryption
           encryptedMessage, // the encrypted part of the message
-          REWIND_BITCOIN_CIPHER_ADDITIONAL_DATA, // additional data for verification
+          CIPHER_ADDITIONAL_DATA, // additional data for verification
           nonce, // public nonce
           key
         );
