@@ -4,7 +4,7 @@ import { View } from 'react-native';
 import { Modal, VerticalChoice, Text } from '../../common/ui';
 import { useTranslation } from 'react-i18next';
 const networkIds = [
-  'PLAYNET',
+  'REWINDNET',
   'TESTNET',
   'BITCOIN',
   'REGTEST'
@@ -36,8 +36,8 @@ export default function NetworksModal({
         <Text className="text-slate-500 flex-1">
           {id === 'BITCOIN'
             ? t('network.help.bitcoinNetworkBrief')
-            : id === 'PLAYNET'
-              ? t('network.help.playnetNetworkBrief')
+            : id === 'REWINDNET'
+              ? t('network.help.rewindnetNetworkBrief')
               : id === 'TESTNET'
                 ? t('network.help.testnetNetworkBrief')
                 : id === 'REGTEST'

@@ -283,7 +283,7 @@ Usage Instructions:
     testOrRealSubTitle:
       'Select your network: experiment safely on test networks or proceed with real Bitcoin.',
     help: {
-      playnetNetworkBrief:
+      rewindnetNetworkBrief:
         "Test risk-free on Rewind's own test network, mirroring real Bitcoin. Receive tokens at setup and more on request.",
       testnetNetworkBrief:
         'A public network for Bitcoin testing. Obtaining Testnet tokens can be challenging.',
@@ -320,7 +320,7 @@ The encryption uses the XChaCha20-Poly1305 algorithm, with a key that’s secure
  derived from your mnemonic recovery phrase.`,
     network: `ThunderDen provides a choice between testing environments and the real Bitcoin network (via Advanced Options).
 
-The currently recommended option is the PlayNet, Rewind's own test network. The PlayNet mirrors Bitcoin's real functionality and allows you to explore Send/Receive and Vaulting operations safely, offering free tokens for practice.
+The currently recommended option is RewindNet, our own test network. RewindNet mirrors Bitcoin's real functionality and allows you to explore Send/Receive and Vaulting operations safely, offering free tokens for practice.
 
 While the app is in early development, we advise against using real Bitcoin for any significant transactions.`
   },

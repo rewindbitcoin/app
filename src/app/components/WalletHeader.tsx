@@ -159,7 +159,7 @@ const WalletHeader = ({
       {networkId !== 'BITCOIN' && (
         <Text className="pt-5 p-4 color-orange-600 text-sm">
           {t('walletHome.header.testWalletWarning')}
-          {networkId === 'PLAYNET' || networkId === 'REGTEST'
+          {networkId === 'REWINDNET' || networkId === 'REGTEST'
             ? ' ' + t('walletHome.header.regtestWalletPlusWarning')
             : ''}
         </Text>
