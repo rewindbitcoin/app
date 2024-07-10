@@ -125,12 +125,12 @@ export const getAPIs = moize(
           vaultsAPI = settings.TESTNET_VAULTS_API;
           vaultsSecondaryAPI = settings.TESTNET_VAULTS_SECONDARY_API;
           break;
-        case 'REWINDNET':
-          esploraAPI = settings.REWINDNET_ESPLORA_API;
-          serviceAddressAPI = settings.REWINDNET_SERVICE_ADDRESS_API;
-          vaultsAPI = settings.REWINDNET_VAULTS_API;
-          vaultsSecondaryAPI = settings.REWINDNET_VAULTS_SECONDARY_API;
-          faucetAPI = `${settings.REWINDNET_WEB_SERVER}faucet`;
+        case 'TAPE':
+          esploraAPI = settings.TAPE_ESPLORA_API;
+          serviceAddressAPI = settings.TAPE_SERVICE_ADDRESS_API;
+          vaultsAPI = settings.TAPE_VAULTS_API;
+          vaultsSecondaryAPI = settings.TAPE_VAULTS_SECONDARY_API;
+          faucetAPI = `${settings.TAPE_WEB_SERVER}faucet`;
           break;
         case 'REGTEST':
           esploraAPI = settings.REGTEST_ESPLORA_API;

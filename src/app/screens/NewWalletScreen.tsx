@@ -67,7 +67,7 @@ export default function NewWalletScreen() {
         : 'MMKV',
     signersPassword: undefined,
     encryption: 'SEED_DERIVED',
-    networkId: 'REWINDNET'
+    networkId: 'TAPE'
   });
 
   const onAdvancedSettings = useCallback(
