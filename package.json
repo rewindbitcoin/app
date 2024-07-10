@@ -1,5 +1,5 @@
 {
-  "name": "RewindBitcoin",
+  "name": "Rewind Bitcoin",
   "version": "1.0.0",
   "main": "node_modules/expo/AppEntry.js",
   "prettier": "@bitcoinerlab/configs/prettierConfig.json",
@@ -87,7 +87,7 @@
     "@babel/core": "^7.24.0",
     "@bitcoinerlab/configs": "github:bitcoinerlab/configs",
     "@expo/metro-runtime": "~3.2.1",
-    "@rewindbitcoin/env": "github:rewindbitcoin/env#v1.4.0",
+    "@rewindbitcoin/env": "github:rewindbitcoin/env#v17",
     "@types/lodash.memoize": "^4.1.8",
     "@types/react": "~18.2.79",
     "@types/react-native-extra-dimensions-android": "^1.2.3",

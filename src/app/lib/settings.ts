@@ -1,5 +1,6 @@
 //uses react-native-dotenv from bable.config.js and @rewindbitcoin/env
 import {
+  VERSION,
   PUBLIC_PROTOCOL,
   PUBLIC_API_SERVER_NAME,
   PUBLIC_MAINNET_SERVICE_ADDRESS_LOCATION,
@@ -27,6 +28,16 @@ import {
   LOCAL_REGTEST_BLOCK_EXPLORER_PORT
   // @ts-expect-error @env is defined in bable.config.js
 } from '@env';
+if (Number(VERSION) !== 17)
+  throw new Error(
+    `This is still running version: ${VERSION}.
+
+You must manually change the version check on settings.ts everytime env is updated.
+
+This is because expo/metro/babel caches using the file (settings.ts) that is the entry point to @env and caches it.
+
+So, manually change the version in settings.ts so that this does not throw`
+  );
 
 export const subUnits = ['btc', 'bit', 'sat', 'mbit'] as const;
 export type SubUnit = (typeof subUnits)[number];
