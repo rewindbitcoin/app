@@ -73,7 +73,7 @@ If you've forgotten the password for your wallet, you can create a new wallet us
     importRealBtcButton: 'Import Wallet',
     testingWalletInfo: 'This wallet will not use real Bitcoin.',
     realWalletWarning: 'Real Bitcoin wallets currently discouraged.',
-    creatingWallet: `⚡ Building your ThunderDen Wallet...
+    creatingWallet: `⚡ Building your Rewind Wallet...
 
 Zapping bytes and lining up the bits. Hang tight!`,
     errors: {
@@ -284,7 +284,7 @@ Usage Instructions:
       'Select your network: experiment safely on test networks or proceed with real Bitcoin.',
     help: {
       tapeNetworkBrief:
-        "Test risk-free on Rewind's own test network, mirroring real Bitcoin. Receive tokens at setup and more on request.",
+        "Test risk-free on Tape, Rewind's own test network that mirrors real Bitcoin. Receive tokens at setup and request more as needed.",
       testnetNetworkBrief:
         'A public network for Bitcoin testing. Obtaining Testnet tokens can be challenging.',
       bitcoinNetworkBrief:

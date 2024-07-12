@@ -105,6 +105,10 @@ export type VaultStatus = {
    */
   isHidden?: boolean;
 
+  /**
+   * if vaultTxBlockHeight is not set then it's because it was never sent
+   * or because it expired or was RBFd
+   */
   vaultTxBlockHeight?: number;
 
   /**
@@ -1156,7 +1160,23 @@ export async function fetchVaultStatus(
   explorer: Explorer
 ) {
   const newVaultStatus: VaultStatus = currvaultStatus
-    ? { ...currvaultStatus }
+    ? {
+        ...(currvaultStatus.isHidden !== undefined && {
+          isHidden: currvaultStatus.isHidden
+        }),
+        ...(currvaultStatus.vaultPushTime !== undefined && {
+          vaultPushTime: currvaultStatus.vaultPushTime
+        }),
+        ...(currvaultStatus.triggerPushTime !== undefined && {
+          triggerPushTime: currvaultStatus.triggerPushTime
+        }),
+        ...(currvaultStatus.panicPushTime !== undefined && {
+          panicPushTime: currvaultStatus.panicPushTime
+        }),
+        ...(currvaultStatus.unvaultPushTime !== undefined && {
+          unvaultPushTime: currvaultStatus.unvaultPushTime
+        })
+      }
     : {};
   const vaultTxData = await fetchVaultTx(
     vault.vaultAddress,

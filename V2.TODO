@@ -1,0 +1,17 @@
+RBF:
+  -> Implementar RBF en los vaults y en las txs
+    -> en la triggerTx
+      -> Simplemente muestra un panel con una fee > a la anterior
+    -> en la rescueTx
+      -> Simplemente muestra un panel con una fee > a la anterior
+
+  -> Luego implementar RBF en las txs así como en la vaultTx (q es una tx, en el fondo), en
+  la spend as hot (q es una tx, en el fondo)...
+
+    Hacer un módulo BumpFee, que se mostraría al lado de "Confirming..."
+    -> usaría las utxos existentes más otras.
+    -> En el caso que no haya otras utxos, entonces daría 2 opciones:
+      1. meter más fondos o
+      2. sustraer de los outputs (entonces crearía un vault con menos funds o bien enviaría 
+      menos fondos al destino - (quitaría del cambio, si lo hay en primer lugar, luego
+      quitaría del destino)
