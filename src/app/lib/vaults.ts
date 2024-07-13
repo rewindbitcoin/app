@@ -106,7 +106,7 @@ export type VaultStatus = {
   isHidden?: boolean;
 
   /**
-   * if vaultTxBlockHeight is not set then it's because it was never sent
+   * if vaultTxBlockHeight is not set then it's because it was never pushed
    * or because it expired or was RBFd
    */
   vaultTxBlockHeight?: number;
@@ -195,9 +195,13 @@ type VaultPresignedTx = {
 export type HistoryData = Array<
   //hot wallet normal Transactions (not associated with the Vaults):
   | (TxAttribution & { tx: Transaction })
-  // Vault-related presigned txs that are not par of the hot wallet: 'RESCUE' and 'TRIGGER_WAITING':
+
+  // Vault-related presigned txs that are not part of the hot wallet:
+  // 'RESCUE' and 'TRIGGER_WAITING':
   | VaultPresignedTx
-  // Vault-related presigned txs that are also part of the hot wallet ('VAULT' and 'TRIGGER_SPENDABLE'):
+
+  // Vault-related presigned txs that are also part of the hot wallet
+  // ('VAULT' and 'TRIGGER_SPENDABLE'):
   | (TxAttribution & VaultPresignedTx)
 >;
 
@@ -309,17 +313,15 @@ export const getHistoryData = moize(
       const triggerTxHex = vaultStatus.triggerTxHex;
       const panicTxHex = vaultStatus.panicTxHex;
       const vaultNumber = getVaultNumber(vaultId, vaults);
-      {
+      if (vaultStatus.vaultTxBlockHeight !== undefined) {
+        // vaultTxBlockHeight may be undefined if VAULT_NOT_FOUND
         const { txId, tx } = transactionFromHex(vaultTxHex);
         const outValue = tx.outs[0]?.value;
         if (outValue === undefined) throw new Error('Unset output');
         const pushTime = vaultStatus.vaultPushTime;
-        const blockHeight = vaultStatus.vaultTxBlockHeight;
-        if (blockHeight === undefined)
-          throw new Error('Unset vault blockHeight');
         vaultTxs.set(txId, {
           txId,
-          blockHeight,
+          blockHeight: vaultStatus.vaultTxBlockHeight,
           tx,
           vaultTxType: 'VAULT',
           vaultId,
@@ -879,6 +881,8 @@ export function validateAddress(addressValue: string, network: Network) {
 /**
  * How many blocks must be waited for spending from a triggerUnvault tx?
  *
+ * returns 'VAULT_NOT_FOUND' if vaultTxBlockHeight is not set; when not set
+ * it's because the vault was never pushed or because it expired or was RBFd
  * returns 'TRIGGER_NOT_PUSHED' if the trigger tx has not been pushed yet
  * returns 'SPENT_AS_HOT'/'SPENT_AS_PANIC' if the trigger tx has already been spent.
  *
@@ -891,7 +895,13 @@ export function getRemainingBlocks(
   vault: Vault,
   vaultStatus: VaultStatus,
   blockhainTip: number
-): 'TRIGGER_NOT_PUSHED' | 'SPENT_AS_PANIC' | 'SPENT_AS_HOT' | number {
+):
+  | 'VAULT_NOT_FOUND'
+  | 'TRIGGER_NOT_PUSHED'
+  | 'SPENT_AS_PANIC'
+  | 'SPENT_AS_HOT'
+  | number {
+  if (vaultStatus.vaultTxBlockHeight === undefined) return 'VAULT_NOT_FOUND';
   if (vaultStatus.triggerTxBlockHeight === undefined)
     return 'TRIGGER_NOT_PUSHED';
   if (vaultStatus.panicTxHex) return 'SPENT_AS_PANIC';
@@ -1183,7 +1193,16 @@ export async function fetchVaultStatus(
     vault.vaultTxHex,
     explorer
   );
-  if (vaultTxData) newVaultStatus.vaultTxBlockHeight = vaultTxData.blockHeight;
+  if (vaultTxData) {
+    if (
+      currvaultStatus?.isHidden &&
+      currvaultStatus.vaultTxBlockHeight === undefined
+    )
+      //If the user hid the vault because it was VAULT_NOT_FOUND but then all
+      //of a sudden we find it again in the blockchain, then show it!
+      newVaultStatus.isHidden = false;
+    newVaultStatus.vaultTxBlockHeight = vaultTxData.blockHeight;
+  }
 
   const triggerTxData = await fetchSpendingTx(vault.vaultTxHex, 0, explorer);
   if (triggerTxData) {

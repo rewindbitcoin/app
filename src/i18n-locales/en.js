@@ -130,6 +130,8 @@ If you need further assistance, please contact ThunderDen Support.`
         'The vault just became virtually unfrozen. Funds can be spent in the next block.',
       timeRemaining: '{{timeRemaining}} remaining',
       untriggeredLockTime: 'Lock Time: {{timeRemaining}}',
+      vaultNotFound:
+        'This vault was never included in the blockchain. The fees might have been too low, it could have been replaced by another transaction, or there might have been a network error during submission.',
       notTriggeredUnconfirmed: `Funds freeze successfully requested.
 Initiating unfreeze starts a {{lockTime}} countdown before funds are available.`,
       notTriggered:

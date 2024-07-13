@@ -17,15 +17,10 @@ unfreezing icon... ? https://icons.expo.fyi/Index/MaterialCommunityIcons/progres
 Imporatnte tengo los fetchVaultStatus que hacen uso de explorer.fetch y 
 ya me han dado error durante un fetcg... hacer un retrial y hacer un toast...
 handle eso
-  -> Además fetchVaultStatus puede que me devuelva el caso en que un vault
-  haya sido eliminado por RBP o porque la fee era tan baja que caducó
-  implementar variable "exists" de VaultStatus
-  -> Incluso es posible q esté calculando mal las amounts si una tx
-  ya no existe. Al final lo q hago es no definit las txs si no las encuentro
-    -> El único cambio q me puede afectar es el vaultTxBlockHeight
-      -> Como lo trataba antes?
-        -> En getRemainingBlocks crear un  nuevo status
-        'VAULT_NOT_FOUND'
+  -> Asociado con esto, si quito la red y hago un refresh, me salen 2 veces
+  el mismo mensaje de error toast de fee-estimates...
+  En realidad debería tener el mensaje de q no hay red. y no repetir mensajes toast...
+  Probar todo tipo de errores de red como el de arriba con los vault.
 
 
 En Settings tendré que usa el código este: 

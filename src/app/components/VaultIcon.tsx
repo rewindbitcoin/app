@@ -16,6 +16,8 @@ const VaultIcon = ({
 }) => {
   return remainingBlocks === undefined ? (
     <ActivityIndicator />
+  ) : remainingBlocks === 'VAULT_NOT_FOUND' ? (
+    <MaterialCommunityIcons name="snowflake-off" size={24} color="red" />
   ) : remainingBlocks === 'TRIGGER_NOT_PUSHED' ? (
     <Svg
       className="fill-white w-6 h-6 bg-primary p-0.5 rounded-full bg-[#4286E7]"

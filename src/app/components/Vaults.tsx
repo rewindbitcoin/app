@@ -299,30 +299,37 @@ const Vault = ({
     locale
   );
   const unfrozenDate = formatVaultDate(vaultStatus?.hotBlockTime, locale);
-  const isInitUnfreezeConfirmed = !!vaultStatus?.triggerTxBlockHeight;
+  const isInitUnfreezeConfirmed =
+    remainingBlocks !== 'VAULT_NOT_FOUND' &&
+    !!vaultStatus?.triggerTxBlockHeight;
   const isInitUnfreezeNotConfirmed =
-    vaultStatus?.triggerPushTime && !isInitUnfreezeConfirmed;
+    remainingBlocks !== 'VAULT_NOT_FOUND' &&
+    vaultStatus?.triggerPushTime &&
+    !isInitUnfreezeConfirmed;
   const isInitUnfreeze = isInitUnfreezeNotConfirmed || isInitUnfreezeConfirmed;
-  const canInitUnfreeze = !isInitUnfreeze;
+  const canInitUnfreeze =
+    remainingBlocks !== 'VAULT_NOT_FOUND' && !isInitUnfreeze;
   const isUnfrozen =
     remainingBlocks === 0 || remainingBlocks === 'SPENT_AS_HOT';
   const isRescued = remainingBlocks === 'SPENT_AS_PANIC';
   const isRescuedConfirmed = !!(isRescued && vaultStatus?.panicTxBlockHeight);
 
   const canBeRescued = isInitUnfreeze && !isUnfrozen && !isRescued;
-  const canBeDelegated = !isUnfrozen && !isRescued;
+  const canBeDelegated =
+    remainingBlocks !== 'VAULT_NOT_FOUND' && !isUnfrozen && !isRescued;
   //&&(isInitUnfreeze || remainingBlocks === 'TRIGGER_NOT_PUSHED');
   const isUnfreezeOngoing =
     typeof remainingBlocks === 'number' && remainingBlocks > 0;
 
-  //can be hidden if irreversible, that is after 3 blocks
-  //since iether a rescue tx or 3 blocks after having reached a hot status
   const canBeHidden =
-    tipHeight &&
-    ((vaultStatus?.panicTxBlockHeight &&
-      tipHeight - vaultStatus.panicTxBlockHeight > 3) ||
-      (vaultStatus?.hotBlockHeight &&
-        tipHeight - vaultStatus.hotBlockHeight > 3));
+    remainingBlocks === 'VAULT_NOT_FOUND' ||
+    //can be hidden if irreversible, that is after 3 blocks
+    //since iether a rescue tx or 3 blocks after having reached a hot status
+    (tipHeight &&
+      ((vaultStatus?.panicTxBlockHeight &&
+        tipHeight - vaultStatus.panicTxBlockHeight > 3) ||
+        (vaultStatus?.hotBlockHeight &&
+          tipHeight - vaultStatus.hotBlockHeight > 3)));
 
   const now = Math.floor(Date.now() / 1000);
 
@@ -418,7 +425,7 @@ const Vault = ({
                 ? t('wallet.vault.amountBeingUnfrozen')
                 : t('wallet.vault.amountFrozen')
             }
-            isConfirming={!vaultStatus?.vaultTxBlockHeight}
+            isConfirming={vaultStatus?.vaultTxBlockHeight === 0}
             satsBalance={frozenBalance}
             btcFiat={btcFiat}
             mode={mode}
@@ -470,7 +477,9 @@ const Vault = ({
             </Text>
           </View>
         )}
-        <View className="gap-2 pt-4">
+        <View
+          className={`gap-2 ${remainingBlocks !== 'VAULT_NOT_FOUND' ? 'pt-4' : ''}`}
+        >
           {/*this part should be only about the trigger*/}
           {isInitUnfreezeNotConfirmed && (
             <VaultText
@@ -564,6 +573,9 @@ const Vault = ({
                 panicAddress
               })}
             </VaultText>
+          )}
+          {remainingBlocks === 'VAULT_NOT_FOUND' && (
+            <Text className="pt-2">{t('wallet.vault.vaultNotFound')}</Text>
           )}
           {remainingBlocks === 'TRIGGER_NOT_PUSHED' &&
             !vaultStatus?.vaultTxBlockHeight && (
