@@ -107,7 +107,7 @@ const Amount = ({
       <View className="flex-row items-center justify-start">
         <Text
           className={
-            `text-black native:text-xl web:text-lg font-bold ${satsBalance === undefined ? 'animate-pulse bg-slate-200 rounded' : 'animate-none bg-transparent opacity-100'}`
+            `text-black native:text-xl web:text-lg font-bold ${satsBalance === undefined ? 'animate-pulse bg-slate-200 rounded overflow-hidden' : 'animate-none bg-transparent opacity-100'}`
             //after the animation it is important to set animate-none from the nativewind docs so that components are not re-rendered as new.
             //Also opacity must be reset to initial value
           }
@@ -405,7 +405,7 @@ const Vault = ({
         </Text>
         <Text
           className={
-            `text-slate-500 flex-1 text-right pl-4 native:text-sm web:text-xs ${vaultStatus === undefined ? 'animate-pulse bg-slate-200 rounded' : 'animate-none bg-transparent opacity-100'}`
+            `text-slate-500 flex-1 text-right pl-4 native:text-sm web:text-xs ${vaultStatus === undefined ? 'animate-pulse bg-slate-200 rounded overflow-hidden' : 'animate-none bg-transparent opacity-100'}`
             //after the animation it is important to set animate-none from the nativewind docs so that components are not re-rendered as new.
             //Also opacity must be reset to initial value
           }
