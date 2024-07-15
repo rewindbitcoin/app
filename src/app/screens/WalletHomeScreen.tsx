@@ -73,7 +73,7 @@ const WalletHomeScreen = () => {
     syncingBlockchain,
     wallet,
     wallets,
-    walletError,
+    walletStatus,
     requiresPassword,
     btcFiat,
     tipStatus,
@@ -148,8 +148,8 @@ const WalletHomeScreen = () => {
   }, [navigation, logOut]);
 
   useEffect(() => {
-    if (walletError === 'USER_CANCEL') logOutAndGoBack();
-  }, [walletError, logOutAndGoBack]);
+    if (walletStatus.biometricAuthCancelled) logOutAndGoBack();
+  }, [walletStatus, logOutAndGoBack]);
 
   // Use btcFiat, and any other data or functions provided by the context
   // ...
@@ -192,7 +192,7 @@ const WalletHomeScreen = () => {
     [theme.colors.primary]
   );
 
-  const userCancelIcon = useMemo<IconType>(
+  const biometricAuthCancelledIcon = useMemo<IconType>(
     () => ({ family: 'MaterialIcons', name: 'error' }),
     []
   );
@@ -367,20 +367,26 @@ const WalletHomeScreen = () => {
           onCancel={onPasswordCancel}
         />
         <Modal
-          isVisible={walletError && walletError !== 'USER_CANCEL'}
-          title={
-            walletError === 'BIOMETRICS_UNCAPABLE'
-              ? t('wallet.errors.biometricsUncapableTitle')
-              : t('wallet.errors.storageTitle')
+          isVisible={
+            walletStatus.isCorrupted ||
+            walletStatus.biometricsUncapable ||
+            walletStatus.readWriteError
           }
-          icon={userCancelIcon}
+          title={
+            walletStatus.biometricsUncapable
+              ? t('wallet.errors.biometricsUncapableTitle')
+              : t('wallet.errors.storageTitle') //Share msg for isCorrupted & storageError
+          }
+          icon={biometricAuthCancelledIcon}
           onClose={onCloseErrorModal}
         >
           <View className="px-2">
             <Text>
-              {walletError === 'BIOMETRICS_UNCAPABLE'
-                ? t('wallet.errors.biometricsUncapable')
-                : t('wallet.errors.storage')}
+              {
+                walletStatus.biometricsUncapable
+                  ? t('wallet.errors.biometricsUncapable')
+                  : t('wallet.errors.storage') //Share msg for isCorrupted & storageError
+              }
             </Text>
           </View>
         </Modal>

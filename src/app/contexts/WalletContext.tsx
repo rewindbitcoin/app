@@ -59,7 +59,11 @@ import { fetchP2PVaults, getDataCipherKey } from '../lib/backup';
 
 type DiscoveryDataExport = ReturnType<DiscoveryInstance['export']>;
 
-import { WalletError, getWalletError, getIsCorrupted } from '../lib/errors';
+import {
+  WalletStatus,
+  getStorageAccessStatus,
+  getIsCorrupted
+} from '../lib/status';
 
 import { useStorage } from '../../common/hooks/useStorage';
 import { useSecureStorageInfo } from '../../common/contexts/SecureStorageInfoContext';
@@ -117,7 +121,7 @@ export type WalletContextType = {
   vaultsSecondaryAPI: string | undefined;
   wallets: Wallets | undefined;
   wallet: Wallet | undefined;
-  walletError: WalletError;
+  walletStatus: WalletStatus;
   /** Whether the wallet needs to ask for a password and set it to retrieve
    * the signers */
   requiresPassword: boolean;
@@ -432,6 +436,16 @@ const WalletProviderRaw = ({
     ]
   );
 
+  const storageAccessStatus = getStorageAccessStatus({
+    isNewWallet: walletId !== undefined && !!newSigners[walletId],
+    settingsErrorCode: settingsStorageStatus.errorCode,
+    signersErrorCode: signersStorageStatus.errorCode,
+    walletsErrorCode: walletsStorageStatus.errorCode,
+    discoveryErrorCode: discoveryStorageStatus.errorCode,
+    vaultsErrorCode: vaultsStorageStatus.errorCode,
+    vaultsStatusesErrorCode: vaultsStatusesStorageStatus.errorCode,
+    accountsErrorCode: accountsStorageStatus.errorCode
+  });
   const isCorrupted = getIsCorrupted({
     wallet,
     signers,
@@ -861,11 +875,11 @@ const WalletProviderRaw = ({
         );
 
       if (typeof vault === 'string') {
-        //TODO translate them
+        //TODO translate them - are these errors?
         const errorMessages = {
           COINSELECT_ERROR: t('createVault.error.COINSELECT_ERROR'),
           NOT_ENOUGH_FUNDS: t('createVault.error.NOT_ENOUGH_FUNDS'),
-          USER_CANCEL: t('createVault.error.USER_CANCEL'),
+          USER_CANCEL: t('createVault.error.USER_CANCEL'), //TODO: This is not an error
           UNKNOWN_ERROR: t('createVault.error.UNKNOWN_ERROR')
         };
         const errorMessage = errorMessages[vault];
@@ -983,17 +997,7 @@ const WalletProviderRaw = ({
     vaultsSecondaryAPI,
     wallets,
     wallet,
-    walletError: getWalletError({
-      isNewWallet: walletId !== undefined && !!newSigners[walletId],
-      settingsErrorCode: settingsStorageStatus.errorCode,
-      signersErrorCode: signersStorageStatus.errorCode,
-      walletsErrorCode: walletsStorageStatus.errorCode,
-      discoveryErrorCode: discoveryStorageStatus.errorCode,
-      vaultsErrorCode: vaultsStorageStatus.errorCode,
-      vaultsStatusesErrorCode: vaultsStatusesStorageStatus.errorCode,
-      accountsErrorCode: accountsStorageStatus.errorCode,
-      isCorrupted
-    }),
+    walletStatus: { isCorrupted, ...storageAccessStatus },
     requiresPassword:
       (walletId !== undefined &&
         wallet?.signersEncryption === 'PASSWORD' &&

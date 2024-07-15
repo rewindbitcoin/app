@@ -1,27 +1,48 @@
 import type { StorageErrorCode } from '../../common/lib/storage';
 import type { Vaults, VaultsStatuses } from './vaults';
 import type { Accounts, Signers, Wallet } from './wallets';
-export type WalletError =
+
+type StorageAccessStatus = {
   /** When the user clicks on "Cancel" during authentication in wallet creation
    * or opening wallet */
-  | 'USER_CANCEL'
+  biometricAuthCancelled: boolean;
   /** this is the case of old Samsung Devices which do not let storing
    * data even if the system reports that they suppor it. We only find our
    * runtime
    * https://stackoverflow.com/questions/36043912/error-after-fingerprint-touched-on-samsung-phones-android-security-keystoreexce
    */
-  | 'BIOMETRICS_UNCAPABLE'
+  biometricsUncapable: boolean;
   /** some read write delete operation failed (or any other uknown error that
    * may arise in storage - see function isStorageError )*/
-  | 'STORAGE_ERROR'
+  readWriteError: boolean;
+};
+
+//type ActionResult = {
+//  lastOkDate: Date;
+//  /**
+//   * The error message if last result of an action geneates an error
+//   * If last result of an action is ok, then this is deleted
+//   */
+//  error?: unknown;
+//  errorType?: 'LOGIC' | 'NETWORK';
+//};
+
+export type WalletStatus = StorageAccessStatus & {
   /** Data retrieved from storage is not valid */
-  | 'CORRUPTED'
-  | false;
+  isCorrupted: boolean;
+
+  //sync: ActionResult;
+  //feeEstimates: ActionResult;
+  //btcRate: ActionResult;
+  //vaultCreation: ActionResult;
+
+  //pushTx: ActionResult;
+};
 
 /** Merges all possible storage errors into simpler meaningul errors to be
  * displayed to the user
  */
-export const getWalletError = ({
+export const getStorageAccessStatus = ({
   isNewWallet,
   settingsErrorCode,
   signersErrorCode,
@@ -29,8 +50,7 @@ export const getWalletError = ({
   discoveryErrorCode,
   vaultsErrorCode,
   vaultsStatusesErrorCode,
-  accountsErrorCode,
-  isCorrupted
+  accountsErrorCode
 }: {
   isNewWallet: boolean;
   settingsErrorCode: StorageErrorCode;
@@ -40,8 +60,10 @@ export const getWalletError = ({
   vaultsErrorCode: StorageErrorCode;
   vaultsStatusesErrorCode: StorageErrorCode;
   accountsErrorCode: StorageErrorCode;
-  isCorrupted: boolean;
-}): WalletError => {
+}): StorageAccessStatus => {
+  let biometricAuthCancelled = false;
+  let biometricsUncapable = false;
+  let readWriteError = false;
   //Don't pass it further down as a Wallet Error. This is probably a user
   //typing in the wrong password. We overwrite it as a non-error internally in
   //this function.
@@ -55,24 +77,29 @@ export const getWalletError = ({
     (signersErrorCode === 'BiometricsWriteError' ||
       signersErrorCode === 'BiometricsReadError')
   )
-    return 'BIOMETRICS_UNCAPABLE';
-  else if (
+    biometricsUncapable = true;
+  if (
     signersErrorCode === 'BiometricsReadUserCancel' ||
     signersErrorCode === 'BiometricsWriteUserCancel'
   ) {
-    return 'USER_CANCEL';
-  } else if (
+    biometricAuthCancelled = true;
+  }
+  if (
     settingsErrorCode ||
     walletsErrorCode ||
     discoveryErrorCode ||
-    signersErrorCode ||
+    (!biometricsUncapable && !biometricAuthCancelled && signersErrorCode) ||
     vaultsErrorCode ||
     vaultsStatusesErrorCode ||
     accountsErrorCode
   ) {
-    return 'STORAGE_ERROR';
-  } else if (isCorrupted) return 'CORRUPTED';
-  else return false;
+    readWriteError = true;
+  }
+  return {
+    biometricAuthCancelled,
+    biometricsUncapable,
+    readWriteError
+  };
 };
 
 /** Very rudimentary wallet integrity check. A much better implementation

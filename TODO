@@ -1,10 +1,9 @@
 https://basecamp.com/shapeup/0.3-chapter-01
 
 Re-branding:
-  - i18n-thunderden -> @rewbtc/i18n
   - storm.thunderden.com -> tape.rewindbitcoin.com
   - Safe Address -> Rewind Address
-  - Record - Comminity backups
+  - Record - Community backups
 
 
 goat oak pull
@@ -14,7 +13,7 @@ first board better
 
 unfreezing icon... ? https://icons.expo.fyi/Index/MaterialCommunityIcons/progress-clock
 
-Imporatnte tengo los fetchVaultStatus que hacen uso de explorer.fetch y 
+Importante tengo los fetchVaultStatus que hacen uso de explorer.fetch y 
 ya me han dado error durante un fetcg... hacer un retrial y hacer un toast...
 handle eso
   -> Asociado con esto, si quito la red y hago un refresh, me salen 2 veces
