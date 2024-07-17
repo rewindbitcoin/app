@@ -37,7 +37,7 @@ import {
 import VaultIcon from './VaultIcon';
 import { useTranslation } from 'react-i18next';
 import { formatBalance, formatBlocks } from '../lib/format';
-import { Button, IconType, InfoButton, Modal } from '../../common/ui';
+import { Button, IconType, InfoButton, Modal, useToast } from '../../common/ui';
 
 import { useSettings } from '../hooks/useSettings';
 import type { SubUnit } from '../lib/settings';
@@ -46,6 +46,7 @@ import type { BlockStatus } from '@bitcoinerlab/explorer/dist/interface';
 import InitUnfreeze, { InitUnfreezeData } from './InitUnfreeze';
 import Rescue, { RescueData } from './Rescue';
 import Delegate from './Delegate';
+import { toastifyErrorAsync } from '../lib/status';
 
 const LOADING_TEXT = '     ';
 
@@ -192,6 +193,7 @@ const Vault = ({
   vaultNumber: number;
   vaultStatus: VaultStatus | undefined;
 }) => {
+  const toast = useToast();
   const [showDelegateHelp, setShowDelegateHelp] = useState<boolean>(false);
   const [showRescueHelp, setShowRescueHelp] = useState<boolean>(false);
   const [showInitUnfreezeHelp, setShowInitUnfreezeHelp] =
@@ -234,8 +236,12 @@ const Vault = ({
         setShowInitUnfreeze(false);
         setIsInitUnfreezeRequestValid(true);
       });
-      const pushResult = await pushTx(initUnfreezeData.txHex);
-      if (pushResult) {
+      //const pushResult = await pushTx(initUnfreezeData.txHex);
+      const pushResult = await toastifyErrorAsync('NETWORK_ERROR', () =>
+        pushTx(initUnfreezeData.txHex)
+      );
+      if (pushResult === 'NETWORK_ERROR') setIsInitUnfreezeRequestValid(false);
+      else {
         if (!vaultStatus)
           throw new Error('vault status should exist for existing vault');
         const newVaultStatus = {
@@ -245,7 +251,7 @@ const Vault = ({
           triggerPushTime: Math.floor(Date.now() / 1000)
         };
         updateVaultStatus(vault.vaultId, newVaultStatus);
-      } else setIsInitUnfreezeRequestValid(false);
+      }
     },
     [pushTx, vault.vaultId, vaultStatus, updateVaultStatus]
   );
@@ -266,8 +272,12 @@ const Vault = ({
         setShowRescue(false);
         setIsRescueRequestValid(true);
       });
-      const pushResult = await pushTx(rescueData.txHex);
-      if (pushResult) {
+      //const pushResult = await pushTx(rescueData.txHex);
+      const pushResult = await toastifyErrorAsync('NETWORK_ERROR', () =>
+        pushTx(rescueData.txHex)
+      );
+      if (pushResult === 'NETWORK_ERROR') setIsRescueRequestValid(false);
+      else {
         if (!vaultStatus)
           throw new Error('vault status should exist for existing vault');
         const newVaultStatus = {
@@ -277,7 +287,7 @@ const Vault = ({
           panicPushTime: Math.floor(Date.now() / 1000)
         };
         updateVaultStatus(vault.vaultId, newVaultStatus);
-      } else setIsRescueRequestValid(false);
+      }
     },
     [pushTx, vault.vaultId, vaultStatus, updateVaultStatus]
   );

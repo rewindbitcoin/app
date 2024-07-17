@@ -33,7 +33,7 @@ export async function fetchBtcFiat(
       return data.rate;
     } catch (error) {
       console.error(
-        `Failed to fetch BTC/${currency} rate from ThunderDen:`,
+        `Failed to fetch BTC/${currency} rate from RewindBitcoin:`,
         error
       );
       throw error; // Rethrow the error for further handling if necessary

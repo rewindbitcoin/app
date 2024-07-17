@@ -11,16 +11,13 @@ seek know resemble
 hurt pistol head
 first board better
 
+
+OJO!!! el patch de react-native-toast-notifications solo se aplica al src!!!
+
+f (balance > 0.01 BTC) promptBackupFlow()
+This one line of code is like “nooo you are endangering user security not following the standard with exotic solutions, nooo”
+
 unfreezing icon... ? https://icons.expo.fyi/Index/MaterialCommunityIcons/progress-clock
-
-Importante tengo los fetchVaultStatus que hacen uso de explorer.fetch y 
-ya me han dado error durante un fetcg... hacer un retrial y hacer un toast...
-handle eso
-  -> Asociado con esto, si quito la red y hago un refresh, me salen 2 veces
-  el mismo mensaje de error toast de fee-estimates...
-  En realidad debería tener el mensaje de q no hay red. y no repetir mensajes toast...
-  Probar todo tipo de errores de red como el de arriba con los vault.
-
 
 En Settings tendré que usa el código este: 
 import { shareVaults } from '../lib/backup';

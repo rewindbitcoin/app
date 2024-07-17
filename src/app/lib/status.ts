@@ -1,3 +1,5 @@
+import { t } from 'i18next';
+import { Toast } from '../../common/ui';
 import type { StorageErrorCode } from '../../common/lib/storage';
 import type { Vaults, VaultsStatuses } from './vaults';
 import type { Accounts, Signers, Wallet } from './wallets';
@@ -27,7 +29,8 @@ type StorageAccessStatus = {
 //  errorType?: 'LOGIC' | 'NETWORK';
 //};
 
-export type WalletStatus = StorageAccessStatus & {
+export type WalletStatus = {
+  storageAccess: StorageAccessStatus;
   /** Data retrieved from storage is not valid */
   isCorrupted: boolean;
 
@@ -137,4 +140,25 @@ export const getIsCorrupted = ({
     (!vaultsStatuses && isVaultsStatusesSynchd) ||
     (!accounts && isAccountsSynchd)
   );
+};
+
+type ToastError = 'NETWORK_ERROR'; //'NETWORK_ERROR' | 'STORAGE_ERROR' |...
+export const toastifyErrorAsync = async <T>(
+  errorType: ToastError,
+  func: () => Promise<T>
+): Promise<T | ToastError> => {
+  try {
+    return await func();
+  } catch (error) {
+    console.warn(error);
+    const errorMessage =
+      error instanceof Error ? error.message : t('app.unknownError');
+
+    if (errorType === 'NETWORK_ERROR')
+      Toast.show(t('app.networkError', { message: errorMessage }), {
+        type: 'warning'
+      });
+    else throw new Error(`Invalid error type ${errorType}`);
+    return 'NETWORK_ERROR';
+  }
 };

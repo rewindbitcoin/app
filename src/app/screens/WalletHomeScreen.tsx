@@ -148,7 +148,7 @@ const WalletHomeScreen = () => {
   }, [navigation, logOut]);
 
   useEffect(() => {
-    if (walletStatus.biometricAuthCancelled) logOutAndGoBack();
+    if (walletStatus.storageAccess.biometricAuthCancelled) logOutAndGoBack();
   }, [walletStatus, logOutAndGoBack]);
 
   // Use btcFiat, and any other data or functions provided by the context
@@ -369,11 +369,11 @@ const WalletHomeScreen = () => {
         <Modal
           isVisible={
             walletStatus.isCorrupted ||
-            walletStatus.biometricsUncapable ||
-            walletStatus.readWriteError
+            walletStatus.storageAccess.biometricsUncapable ||
+            walletStatus.storageAccess.readWriteError
           }
           title={
-            walletStatus.biometricsUncapable
+            walletStatus.storageAccess.biometricsUncapable
               ? t('wallet.errors.biometricsUncapableTitle')
               : t('wallet.errors.storageTitle') //Share msg for isCorrupted & storageError
           }
@@ -383,7 +383,7 @@ const WalletHomeScreen = () => {
           <View className="px-2">
             <Text>
               {
-                walletStatus.biometricsUncapable
+                walletStatus.storageAccess.biometricsUncapable
                   ? t('wallet.errors.biometricsUncapable')
                   : t('wallet.errors.storage') //Share msg for isCorrupted & storageError
               }

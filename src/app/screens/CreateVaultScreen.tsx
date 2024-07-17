@@ -19,13 +19,15 @@ import {
   Text,
   KeyboardAwareScrollView,
   Theme,
-  useTheme
+  useTheme,
+  useToast
 } from '../../common/ui';
 import { p2pBackupVault, fetchP2PVaultIds } from '../lib/backup';
+import { useNavigation } from '@react-navigation/native';
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
-export default function VaultCreate({
+export default function CreateVaultScreen({
   vaultSettings,
   onVaultPushed
 }: {
@@ -64,6 +66,8 @@ export default function VaultCreate({
   )
     throw new Error('Missing data from context');
   const { t } = useTranslation();
+  const toast = useToast();
+  const navigation = useNavigation();
   const keepProgress = useRef<boolean>(true);
   const { settings } = useSettings();
   if (!settings)
@@ -150,10 +154,12 @@ export default function VaultCreate({
           onVaultPushed(result);
         }
       } else {
-        //TODO: Else must Toast the Error! - Also must close the modal ?!?!?
-        console.warn(
-          'TODO: Else must Toast the Error! - Also must close the modal ?!?!?'
-        );
+        if (vault !== 'USER_CANCEL') {
+          const errorMessage = t('createVault.error', { message: vault });
+          toast.show(errorMessage, { type: 'danger' });
+        } else {
+          if (navigation.canGoBack()) navigation.goBack();
+        }
       }
     };
     createAndNotifyVault();
@@ -161,6 +167,9 @@ export default function VaultCreate({
       isMounted = false;
     };
   }, [
+    navigation,
+    t,
+    toast,
     amount,
     coldAddress,
     feeRate,

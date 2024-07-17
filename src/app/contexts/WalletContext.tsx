@@ -106,14 +106,7 @@ export type WalletContextType = {
     descriptor: string;
     index?: number;
   }) => Promise<TxHistory | undefined>;
-  processCreatedVault: (
-    vault:
-      | Vault
-      | 'COINSELECT_ERROR'
-      | 'NOT_ENOUGH_FUNDS'
-      | 'USER_CANCEL'
-      | 'UNKNOWN_ERROR'
-  ) => Promise<boolean>;
+  processCreatedVault: (vault: Vault) => Promise<boolean>;
   syncBlockchain: () => void;
   syncingBlockchain: boolean;
   vaultsAPI: string | undefined;
@@ -328,7 +321,8 @@ const WalletProviderRaw = ({
 
   /**
    * pushTx not only pushes the tx but it also updates the discovery internal
-   * data model with the info extracted from txHex
+   * data model with the info extracted from txHex. Network errors must
+   * be handled on higher levels.
    */
   const pushTx = useCallback(
     async (txHex: string): Promise<boolean> => {
@@ -342,23 +336,10 @@ const WalletProviderRaw = ({
         throw new Error(
           `gapLimit not ready for pushTx while trying to push ${txHex}`
         );
-      try {
-        await discovery.push({ txHex, gapLimit });
-      } catch (error) {
-        console.warn(error);
-        const errorMessage =
-          error instanceof Error
-            ? error.message
-            : t('An unknown error occurred'); //TODO: translate
-
-        toast.show(t('networkError', { message: errorMessage }), {
-          type: 'warning'
-        });
-        return false;
-      }
+      await discovery.push({ txHex, gapLimit });
       return true;
     },
-    [initialDiscovery, gapLimit, t, toast]
+    [initialDiscovery, gapLimit]
   );
 
   /**
@@ -372,7 +353,9 @@ const WalletProviderRaw = ({
    * an error was found.
    *
    * Typically called when expecting a faucet in the firstReceiveAddress or
-   * when expecting some new money in a recently created address.
+   * when expecting some new money in a recently created address. Network errors
+   * must be handled on higher levels.
+
    */
   const fetchOutputHistory = useCallback(
     async ({
@@ -392,42 +375,26 @@ const WalletProviderRaw = ({
         throw new Error(
           `Discovery not ready for fetchTxHistory while trying to fetch descriptor ${descriptor}:${index}`
         );
-      try {
-        const descriptorWithIndex = {
-          descriptor,
-          ...(index !== undefined ? { index } : {})
-        };
-        const initialHistory = discovery.getHistory(descriptorWithIndex);
-        await discovery.fetch(descriptorWithIndex);
-        const history = discovery.getHistory(descriptorWithIndex) as TxHistory;
-        if (initialHistory !== history) {
-          const result = await setUtxosAndHistoryData(
-            vaults,
-            vaultsStatuses,
-            accounts,
-            tipHeight
-          );
-          if (!result) throw new Error('Could not set utxos and data');
-        }
-        return history;
-      } catch (error) {
-        console.warn(error);
-        const errorMessage =
-          error instanceof Error
-            ? error.message
-            : t(
-                'An unknown error occurred while fetching history of an output'
-              ); //TODO: translate
-        toast.show(t('networkError', { message: errorMessage }), {
-          type: 'warning'
-        });
-        return;
+      const descriptorWithIndex = {
+        descriptor,
+        ...(index !== undefined ? { index } : {})
+      };
+      const initialHistory = discovery.getHistory(descriptorWithIndex);
+      await discovery.fetch(descriptorWithIndex);
+      const history = discovery.getHistory(descriptorWithIndex) as TxHistory;
+      if (initialHistory !== history) {
+        const result = await setUtxosAndHistoryData(
+          vaults,
+          vaultsStatuses,
+          accounts,
+          tipHeight
+        );
+        if (!result) throw new Error('Could not set utxos and data');
       }
+      return history;
     },
     [
       initialDiscovery,
-      t,
-      toast,
       setUtxosAndHistoryData,
       vaults,
       vaultsStatuses,
@@ -806,7 +773,7 @@ const WalletProviderRaw = ({
             ? error.message
             : t('An unknown error occurred'); //TODO: translate
 
-        toast.show(t('networkError', { message: errorMessage }), {
+        toast.show(t('app.syncError', { message: errorMessage }), {
           type: 'warning'
         });
       }
@@ -859,14 +826,7 @@ const WalletProviderRaw = ({
    * requiring any additional fetch.
    */
   const processCreatedVault = useCallback(
-    async (
-      vault:
-        | Vault
-        | 'COINSELECT_ERROR'
-        | 'NOT_ENOUGH_FUNDS'
-        | 'USER_CANCEL'
-        | 'UNKNOWN_ERROR'
-    ): Promise<boolean> => {
+    async (vault: Vault): Promise<boolean> => {
       if (!vaults || !vaultsStatuses)
         throw new Error('Cannot use vaults without Storage');
       if (!vaults || !vaultsStatuses)
@@ -874,64 +834,50 @@ const WalletProviderRaw = ({
           'vaults and vaultsStatuses should be defined since they are synched'
         );
 
-      if (typeof vault === 'string') {
-        //TODO translate them - are these errors?
-        const errorMessages = {
-          COINSELECT_ERROR: t('createVault.error.COINSELECT_ERROR'),
-          NOT_ENOUGH_FUNDS: t('createVault.error.NOT_ENOUGH_FUNDS'),
-          USER_CANCEL: t('createVault.error.USER_CANCEL'), //TODO: This is not an error
-          UNKNOWN_ERROR: t('createVault.error.UNKNOWN_ERROR')
-        };
-        const errorMessage = errorMessages[vault];
-        if (!errorMessage) throw new Error('Unhandled vault creation error');
-        toast.show(errorMessage, { type: 'danger' });
-        return false;
-      } else {
-        // Create new vault
-        if (vaults[vault.vaultId])
-          throw new Error(`Vault for ${vault.vaultId} already exists`);
-        if (vaultsStatuses[vault.vaultId])
-          throw new Error(`VaultStatus for ${vault.vaultId} already exists`);
+      // Create new vault
+      if (vaults[vault.vaultId])
+        throw new Error(`Vault for ${vault.vaultId} already exists`);
+      if (vaultsStatuses[vault.vaultId])
+        throw new Error(`VaultStatus for ${vault.vaultId} already exists`);
 
-        const newVaults = { ...vaults, [vault.vaultId]: vault };
-        const newVaultsStatuses = {
-          ...vaultsStatuses,
-          [vault.vaultId]: {
-            vaultPushTime: Math.floor(Date.now() / 1000),
-            vaultTxBlockHeight: 0
-          }
-        };
+      const newVaults = { ...vaults, [vault.vaultId]: vault };
+      const newVaultsStatuses = {
+        ...vaultsStatuses,
+        [vault.vaultId]: {
+          vaultPushTime: Math.floor(Date.now() / 1000),
+          vaultTxBlockHeight: 0
+        }
+      };
 
-        const pushAndSetUtxosAndHistoryData = async () => {
-          if (!accounts || tipHeight === undefined)
-            throw new Error(
-              `Cannot processCreatedVault without accounts: ${!!accounts} or tipHeight: ${!!tipHeight}`
-            );
-          //pushTx will update the internal state of initialDiscovery:
-          const pushResult = await pushTx(vault.vaultTxHex);
-          if (pushResult) {
-            const result = await setUtxosAndHistoryData(
-              newVaults,
-              newVaultsStatuses,
-              accounts,
-              tipHeight
-            );
-            if (!result) throw new Error('Could not set utxos and history');
-          }
-          return pushResult;
-        };
-        const pushResult = await pushAndSetUtxosAndHistoryData();
-        //Note here setVaults, setVaultsStatuses, ...
-        //are not atomically set, so when using vaults one
-        //must make sure they are synched somehow - See Vaults.tsx for an
-        //example what to do
-        if (pushResult)
-          await Promise.all([
-            setVaults(newVaults),
-            setVaultsStatuses(newVaultsStatuses)
-          ]);
+      const pushAndSetUtxosAndHistoryData = async () => {
+        if (!accounts || tipHeight === undefined)
+          throw new Error(
+            `Cannot processCreatedVault without accounts: ${!!accounts} or tipHeight: ${!!tipHeight}`
+          );
+        //pushTx will update the internal state of initialDiscovery:
+        const pushResult = await pushTx(vault.vaultTxHex);
+        if (pushResult) {
+          const result = await setUtxosAndHistoryData(
+            newVaults,
+            newVaultsStatuses,
+            accounts,
+            tipHeight
+          );
+          if (!result) throw new Error('Could not set utxos and history');
+        }
         return pushResult;
-      }
+      };
+      const pushResult = await pushAndSetUtxosAndHistoryData();
+      //Note here setVaults, setVaultsStatuses, ...
+      //are not atomically set, so when using vaults one
+      //must make sure they are synched somehow - See Vaults.tsx for an
+      //example what to do
+      if (pushResult)
+        await Promise.all([
+          setVaults(newVaults),
+          setVaultsStatuses(newVaultsStatuses)
+        ]);
+      return pushResult;
     },
     [
       pushTx,
@@ -940,8 +886,6 @@ const WalletProviderRaw = ({
       setUtxosAndHistoryData,
       setVaults,
       setVaultsStatuses,
-      t,
-      toast,
       vaults,
       vaultsStatuses
     ]
@@ -997,7 +941,7 @@ const WalletProviderRaw = ({
     vaultsSecondaryAPI,
     wallets,
     wallet,
-    walletStatus: { isCorrupted, ...storageAccessStatus },
+    walletStatus: { isCorrupted, storageAccess: storageAccessStatus },
     requiresPassword:
       (walletId !== undefined &&
         wallet?.signersEncryption === 'PASSWORD' &&

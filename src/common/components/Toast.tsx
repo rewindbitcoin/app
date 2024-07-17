@@ -2,7 +2,8 @@ import React from 'react';
 
 import { Platform, View } from 'react-native';
 import { useHeaderHeight } from '@react-navigation/elements';
-import Toast, {
+import {
+  Toast,
   useToast,
   ToastProvider as ToastProviderOriginal
 } from 'react-native-toast-notifications';
@@ -26,6 +27,7 @@ const ToastProvider: React.FC<{ children: React.ReactNode }> = ({
     headerHeight = useHeaderHeight();
   } catch (err) {}
 
+  //TODO: get rif of helpRenderer!?!? is this ever used?
   const helpRenderer = (toast: ToastProps) => (
     <View
       style={{
@@ -64,7 +66,9 @@ const ToastProvider: React.FC<{ children: React.ReactNode }> = ({
       <Text style={{ color: '#a3a3a3', marginTop: 2 }}>{toast.message}</Text>
       <Button onPress={() => toast.onHide()}>Close</Button>
     </View>
-  );
+  ); //TODO translate "Close" above, however, the helpRenderer is not being used
+  //never in the code?
+
   //in react-native-web, when using modals, the Toast is hidden below the Screen
   //header. Thus, move it a bit below the header.
   //So, just skip the header altogether when in web && when placement is top:
@@ -74,6 +78,7 @@ const ToastProvider: React.FC<{ children: React.ReactNode }> = ({
     headerHeight !== undefined;
   return (
     <ToastProviderOriginal
+      duration={8000}
       placement={defaultPlacement}
       {...(setOffsetTop ? { offsetTop: headerHeight! } : {})}
       offsetBottom={30}

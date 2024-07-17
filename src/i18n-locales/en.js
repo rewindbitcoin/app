@@ -1,8 +1,11 @@
 //Treat this as a golrified json with comments & multi-line using string literals
 export default {
   app: {
-    networkError:
-      'Oops! There was a network issue: {{message}}. Please check your connection and try again.',
+    unknownError: 'An unknown error occurred.',
+    networkError: `Oops! There was a network issue: {{message}}.
+Please check your connection and try again.`,
+    syncError: `Oops! There was a problem updating your Wallet: {{message}}.
+Please check your connection and tap on refresh to try again.`,
     pushError: `Oops! There was a problem submitting your transaction. Please check your connection and try again.
 
 Technical error: {{message}}`,
@@ -382,7 +385,9 @@ This minimum amount is calculated based on the assumption that you may need rapi
  It may take around 30 secs, slightly longer on older devices.\
 
 
- Next, you'll get to review and confirm everything.`
+ Next, you'll get to review and confirm everything.`,
+    error:
+      'The vault could not be created due to an unexpected error. Please try again and notify the RewindBitcoin team about the following error: {{message}}.'
   },
   editableSlider: {
     maxValueError: 'Maximum is {{maximumValue}}',
