@@ -12,6 +12,7 @@ export const useBtcFiat = () => {
 
   const [btcFiat, setBtcFiat] = useState<number | undefined>();
   const currency = useRef<Currency | undefined>(settings?.CURRENCY);
+  const latestOk = useRef<Currency | undefined>(undefined);
 
   useEffect(() => {
     currency.current = settings?.CURRENCY;
@@ -22,12 +23,15 @@ export const useBtcFiat = () => {
       const updateBtcFiat = async () => {
         try {
           const btcFiat = await fetchBtcFiat(settings.CURRENCY);
-          if (currency.current === settings.CURRENCY) setBtcFiat(btcFiat);
+          if (currency.current === settings.CURRENCY) {
+            latestOk.current = settings.CURRENCY;
+            setBtcFiat(btcFiat);
+          }
         } catch (err) {
           toast.show(t('app.btcRatesError', { currency: settings.CURRENCY }), {
             type: 'warning'
           });
-          setBtcFiat(undefined);
+          if (currency.current !== latestOk.current) setBtcFiat(undefined); //otherwise simply keep last one
         }
       };
 
@@ -39,6 +43,7 @@ export const useBtcFiat = () => {
 
       return () => {
         clearInterval(interval);
+        latestOk.current = undefined;
         currency.current = undefined; //Avoid pending setBtcFiat if unmounted
       };
     }

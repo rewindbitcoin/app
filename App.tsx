@@ -90,7 +90,8 @@ const Main = () => {
 
   // init real Locale
   useEffect(() => {
-    if (settings?.LOCALE) initI18n(settings.LOCALE);
+    if (settings?.LOCALE && defaultSettings.LOCALE !== settings.LOCALE)
+      initI18n(settings.LOCALE);
   }, [settings?.LOCALE]);
 
   //disable elastic effect

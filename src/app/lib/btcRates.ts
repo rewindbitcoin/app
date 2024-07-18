@@ -1,7 +1,10 @@
+const RETRIES = 5;
 import memoize from 'lodash.memoize';
 import type { TFunction } from 'i18next';
 import { type SubUnit, type Currency, defaultSettings } from './settings';
 import type { Locale } from '../../i18n-locales/init';
+
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 export async function fetchBtcFiat(
   currency: Currency,
@@ -10,34 +13,33 @@ export async function fetchBtcFiat(
   if (api === 'COINGECKO') {
     const url = `https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=${currency.toLowerCase()}`;
 
-    try {
-      const response = await fetch(url);
-      if (!response.ok) {
-        throw new Error(`Error: ${response.status}`);
+    let response;
+    for (let retries = 0; retries < RETRIES; retries++) {
+      response = await fetch(url);
+      if (response.ok) {
+        const data = await response.json();
+        return data.bitcoin[currency.toLowerCase()];
       }
-      const data = await response.json();
-      return data.bitcoin.usd;
-    } catch (error) {
-      console.error(`Failed to fetch BTC/${currency} rate:`, error);
-      throw error; // Rethrow the error for further handling if necessary
+      await sleep(100);
     }
+    if (response?.status !== undefined)
+      throw new Error(`CoinGecko Status: ${response.status}`);
+    else throw new Error(`Uknown Error from CoinGecko `);
   } else if (api === 'REWINDBITCOIN') {
     const apiUrl = `${defaultSettings.BTC_RATES_API}/get?currency=${currency.toLowerCase()}`;
 
-    try {
-      const response = await fetch(apiUrl);
-      if (!response.ok) {
-        throw new Error(`Error: ${response.status}`);
+    let response;
+    for (let retries = 0; retries < RETRIES; retries++) {
+      response = await fetch(apiUrl);
+      if (response.ok) {
+        const data = await response.json();
+        return data.rate;
       }
-      const data = await response.json();
-      return data.rate;
-    } catch (error) {
-      console.error(
-        `Failed to fetch BTC/${currency} rate from RewindBitcoin:`,
-        error
-      );
-      throw error; // Rethrow the error for further handling if necessary
+      await sleep(100);
     }
+    if (response?.status !== undefined)
+      throw new Error(`RewindBitcoin BtcRates Status: ${response.status}`);
+    else throw new Error(`Uknown BtcRates Error from RewindBitcoin`);
   } else throw new Error(`Invalid API`);
 }
 
