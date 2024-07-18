@@ -4,6 +4,7 @@ import { useToast } from '../../common/ui';
 import { useTranslation } from 'react-i18next';
 import { fetchBtcFiat } from '../lib/btcRates';
 import type { Currency } from '../lib/settings';
+import type { TFunction } from 'i18next';
 
 export const useBtcFiat = () => {
   const toast = useToast();
@@ -14,9 +15,22 @@ export const useBtcFiat = () => {
   const currency = useRef<Currency | undefined>(settings?.CURRENCY);
   const latestOk = useRef<Currency | undefined>(undefined);
 
+  // Tracks the latest translation function to avoid redundant toasts. This approach
+  // mitigates unnecessary updates caused by `initI18n` in `App.tsx`, which could lead
+  // to double notifications during app initialization. The issue typically arises
+  // when there's no internet connection at start-up. Since `App.tsx` initializes
+  // i18n twice: once with the default language and once with the user's language—
+  // this approach prevents a second toast triggered by the initial `updateBtcFiat` call.
+  const tRef = useRef<TFunction | undefined>(undefined);
+  useEffect(() => {
+    tRef.current = t;
+  }, [t]);
+
   useEffect(() => {
     currency.current = settings?.CURRENCY;
+    const t = tRef.current;
     if (
+      t &&
       settings?.CURRENCY !== undefined &&
       settings?.BTC_FIAT_REFRESH_INTERVAL_MS !== undefined
     ) {
@@ -28,6 +42,7 @@ export const useBtcFiat = () => {
             setBtcFiat(btcFiat);
           }
         } catch (err) {
+          console.warn(err);
           toast.show(t('app.btcRatesError', { currency: settings.CURRENCY }), {
             type: 'warning'
           });
@@ -48,7 +63,7 @@ export const useBtcFiat = () => {
       };
     }
     return;
-  }, [t, toast, settings?.CURRENCY, settings?.BTC_FIAT_REFRESH_INTERVAL_MS]);
+  }, [toast, settings?.CURRENCY, settings?.BTC_FIAT_REFRESH_INTERVAL_MS]);
 
   return btcFiat;
 };
