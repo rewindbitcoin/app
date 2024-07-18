@@ -123,24 +123,14 @@ const Main = () => {
       />
     );
   }, [navigation]);
-  const NewWalletScreenWithToast = useCallback(
+  const CreateVaultScreenWithSettingsOnPushed = useCallback(
     () => (
-      <ToastProvider>
-        <NewWalletScreen />
-      </ToastProvider>
-    ),
-    []
-  );
-  const CreateVaultScreenWithSettingsOnPushedAndToast = useCallback(
-    () => (
-      <ToastProvider>
-        <CreateVaultScreen
-          vaultSettings={vaultSettings}
-          onVaultPushed={() => {
-            if (navigation.canGoBack()) navigation.goBack();
-          }}
-        />
-      </ToastProvider>
+      <CreateVaultScreen
+        vaultSettings={vaultSettings}
+        onVaultPushed={() => {
+          if (navigation.canGoBack()) navigation.goBack();
+        }}
+      />
     ),
     [navigation, vaultSettings]
   );
@@ -236,10 +226,7 @@ const Main = () => {
             // is pending to confirm if the issue persists there as well.
             presentation: iOsWithPhysicalButton === true ? 'card' : 'modal'
           }}
-          component={
-            //Modals need their own Toast component
-            NewWalletScreenWithToast
-          }
+          component={NewWalletScreen}
         />
 
         <RootStack.Screen
@@ -249,10 +236,7 @@ const Main = () => {
             // See comment above on Conditional presentation mode based on device model
             presentation: iOsWithPhysicalButton === true ? 'card' : 'modal'
           }}
-          component={
-            //Modals need their own Toast component
-            CreateVaultScreenWithSettingsOnPushedAndToast
-          }
+          component={CreateVaultScreenWithSettingsOnPushed}
         />
       </RootStack.Navigator>
     </WalletProvider>

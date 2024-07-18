@@ -1,7 +1,6 @@
 import React from 'react';
 
-import { Platform, View } from 'react-native';
-import { useHeaderHeight } from '@react-navigation/elements';
+import { View } from 'react-native';
 import {
   Toast,
   useToast,
@@ -16,17 +15,6 @@ const defaultPlacement = 'top';
 const ToastProvider: React.FC<{ children: React.ReactNode }> = ({
   children
 }) => {
-  let headerHeight: number | undefined = undefined;
-
-  try {
-    //useHeaderHeight will throw when this ToastProvider is rendered on the root
-    //of the App. This is because it's not within a screen (with header).
-    //
-    //However, this provider is also used with Modals (for example NewWalletScreen).
-    //When the provider is set within a modal, then we retrieve the header:
-    headerHeight = useHeaderHeight();
-  } catch (err) {}
-
   //TODO: get rif of helpRenderer!?!? is this ever used?
   const helpRenderer = (toast: ToastProps) => (
     <View
@@ -69,18 +57,10 @@ const ToastProvider: React.FC<{ children: React.ReactNode }> = ({
   ); //TODO translate "Close" above, however, the helpRenderer is not being used
   //never in the code?
 
-  //in react-native-web, when using modals, the Toast is hidden below the Screen
-  //header. Thus, move it a bit below the header.
-  //So, just skip the header altogether when in web && when placement is top:
-  const setOffsetTop =
-    defaultPlacement === 'top' &&
-    Platform.OS === 'web' &&
-    headerHeight !== undefined;
   return (
     <ToastProviderOriginal
       duration={8000}
       placement={defaultPlacement}
-      {...(setOffsetTop ? { offsetTop: headerHeight! } : {})}
       offsetBottom={30}
       renderType={{ help: helpRenderer }}
     >
