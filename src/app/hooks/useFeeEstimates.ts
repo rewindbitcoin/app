@@ -11,6 +11,8 @@ import type { FeeEstimates } from '../lib/fees';
 import { EsploraExplorer, Explorer } from '@bitcoinerlab/explorer';
 import { Network, networks } from 'bitcoinjs-lib';
 
+import { useNetStatus } from '../../common/hooks/useNetStatus';
+
 export function useFeeEstimates({
   initialDiscovery,
   network
@@ -29,9 +31,11 @@ export function useFeeEstimates({
   const { t } = useTranslation();
   const toast = useToast();
 
+  const netStatus = useNetStatus();
+
   const updateFeeEstimates = useCallback(async () => {
     try {
-      if (network) {
+      if (network && netStatus.isApiReachable) {
         let explorer: Explorer | undefined;
         if (network === networks.regtest && mainnetAPI) {
           //On Regtest, use mainnet for Fee Estimates
@@ -58,10 +62,18 @@ export function useFeeEstimates({
       }
       return undefined;
     } catch (err) {
+      console.warn(err);
       toast.show(t('app.feeEstimatesError'), { type: 'warning' });
     }
     return;
-  }, [initialDiscovery, t, toast, mainnetAPI, network]);
+  }, [
+    initialDiscovery,
+    t,
+    toast,
+    mainnetAPI,
+    network,
+    netStatus.isApiReachable
+  ]);
 
   useEffect(() => {
     initialDiscoveryRef.current = initialDiscovery;

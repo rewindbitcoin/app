@@ -5,11 +5,14 @@ import { useTranslation } from 'react-i18next';
 import { fetchBtcFiat } from '../lib/btcRates';
 import type { Currency } from '../lib/settings';
 import type { TFunction } from 'i18next';
+import { useNetStatus } from '../../common/hooks/useNetStatus';
 
 export const useBtcFiat = () => {
   const toast = useToast();
   const { t } = useTranslation();
   const { settings } = useSettings();
+
+  const netStatus = useNetStatus();
 
   const [btcFiat, setBtcFiat] = useState<number | undefined>();
   const currency = useRef<Currency | undefined>(settings?.CURRENCY);
@@ -32,7 +35,8 @@ export const useBtcFiat = () => {
     if (
       t &&
       settings?.CURRENCY !== undefined &&
-      settings?.BTC_FIAT_REFRESH_INTERVAL_MS !== undefined
+      settings?.BTC_FIAT_REFRESH_INTERVAL_MS !== undefined &&
+      netStatus.isApiReachable
     ) {
       const updateBtcFiat = async () => {
         try {
@@ -63,7 +67,12 @@ export const useBtcFiat = () => {
       };
     }
     return;
-  }, [toast, settings?.CURRENCY, settings?.BTC_FIAT_REFRESH_INTERVAL_MS]);
+  }, [
+    toast,
+    settings?.CURRENCY,
+    settings?.BTC_FIAT_REFRESH_INTERVAL_MS,
+    netStatus.isApiReachable
+  ]);
 
   return btcFiat;
 };

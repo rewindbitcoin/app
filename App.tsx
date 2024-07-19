@@ -32,6 +32,7 @@ import CreateVaultScreen from './src/app/screens/CreateVaultScreen';
 import { WalletProvider } from './src/app/contexts/WalletContext';
 import Settings from './src/app/screens/SettingsScreen';
 import { GlobalStorageProvider } from './src/common/contexts/GlobalStorageContext';
+import NetStatusProvider from './src/common/contexts/NetStatusContext';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import type { VaultSettings } from './src/app/lib/vaults';
 import { useTheme, Button } from './src/common/ui';
@@ -254,15 +255,17 @@ export default function App() {
     <SafeAreaProvider>
       <GestureHandlerRootView style={{ flex: 1 }}>
         <NavigationContainer theme={useTheme()}>
-          <GlobalStorageProvider>
-            <SecureStorageInfoProvider>
-              <ToastProvider>
-                <I18nextProvider i18n={i18n}>
-                  <MainMemo />
-                </I18nextProvider>
-              </ToastProvider>
-            </SecureStorageInfoProvider>
-          </GlobalStorageProvider>
+          <NetStatusProvider apiUrl={defaultSettings.GENERATE_204}>
+            <GlobalStorageProvider>
+              <SecureStorageInfoProvider>
+                <ToastProvider>
+                  <I18nextProvider i18n={i18n}>
+                    <MainMemo />
+                  </I18nextProvider>
+                </ToastProvider>
+              </SecureStorageInfoProvider>
+            </GlobalStorageProvider>
+          </NetStatusProvider>
         </NavigationContainer>
       </GestureHandlerRootView>
     </SafeAreaProvider>
