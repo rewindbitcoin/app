@@ -74,6 +74,8 @@ export interface Settings {
   TAPE_VAULTS_API: string;
   REGTEST_VAULTS_API: string;
 
+  GENERATE_204: string;
+
   BTC_RATES_API: string;
 
   MAINNET_VAULTS_SECONDARY_API: string;
@@ -117,7 +119,7 @@ export const defaultSettings: Settings = {
   FIAT_MODE: false, //whether the user prefers using fiat than SUB_UNIT
   LOCALE: 'en-US',
   CURRENCY: 'USD',
-  BTC_FIAT_REFRESH_INTERVAL_MS: 600000, //10 minutes
+  BTC_FIAT_REFRESH_INTERVAL_MS: 60000, //1 minutes
   BLOCKCHAIN_DATA_REFRESH_INTERVAL_MS: 60000, // 1 minute
   WALLETS_DATA_VERSION: '1.0.0', //This does not define the version of the App, but keeps track of the changes in the signature of the Wallet
 
@@ -130,6 +132,8 @@ export const defaultSettings: Settings = {
   TESTNET_VAULTS_API: `${PUBLIC_PROTOCOL}://${PUBLIC_API_SERVER_NAME}${PUBLIC_TESTNET_VAULTS_WRITER_LOCATION}`,
   TAPE_VAULTS_API: `${PUBLIC_PROTOCOL}://${PUBLIC_API_SERVER_NAME}${PUBLIC_TAPE_VAULTS_WRITER_LOCATION}`,
   REGTEST_VAULTS_API: `${LOCAL_PROTOCOL}://${LOCAL_HOST_NAME}:${LOCAL_REGTEST_VAULTS_WRITER_PORT}`,
+
+  GENERATE_204: `${PUBLIC_PROTOCOL}://${PUBLIC_API_SERVER_NAME}/generate_204`,
 
   BTC_RATES_API: `${PUBLIC_PROTOCOL}://${PUBLIC_API_SERVER_NAME}${PUBLIC_BTC_RATES_LOCATION}`,
 
