@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { fetchBtcFiat } from '../lib/btcRates';
 import type { Currency } from '../lib/settings';
 import type { TFunction } from 'i18next';
-import { useNetStatus } from '../../common/hooks/useNetStatus';
+import { useNetStatus } from './useNetStatus';
 
 export const useBtcFiat = () => {
   const toast = useToast();
@@ -13,6 +13,7 @@ export const useBtcFiat = () => {
   const { settings } = useSettings();
 
   const netStatus = useNetStatus();
+  const checkStatus = netStatus.checkStatus;
 
   const [btcFiat, setBtcFiat] = useState<number | undefined>();
   const currency = useRef<Currency | undefined>(settings?.CURRENCY);
@@ -36,7 +37,7 @@ export const useBtcFiat = () => {
       t &&
       settings?.CURRENCY !== undefined &&
       settings?.BTC_FIAT_REFRESH_INTERVAL_MS !== undefined &&
-      netStatus.isApiReachable
+      netStatus.apiReachable
     ) {
       const updateBtcFiat = async () => {
         try {
@@ -47,9 +48,14 @@ export const useBtcFiat = () => {
           }
         } catch (err) {
           console.warn(err);
-          toast.show(t('app.btcRatesError', { currency: settings.CURRENCY }), {
-            type: 'warning'
-          });
+          if (!(await checkStatus())?.apiReachable)
+            //check it again
+            toast.show(
+              t('app.btcRatesError', { currency: settings.CURRENCY }),
+              {
+                type: 'warning'
+              }
+            );
           if (currency.current !== latestOk.current) setBtcFiat(undefined); //otherwise simply keep last one
         }
       };
@@ -71,7 +77,8 @@ export const useBtcFiat = () => {
     toast,
     settings?.CURRENCY,
     settings?.BTC_FIAT_REFRESH_INTERVAL_MS,
-    netStatus.isApiReachable
+    netStatus.apiReachable,
+    checkStatus
   ]);
 
   return btcFiat;

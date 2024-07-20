@@ -1,7 +1,3 @@
-//TODO: Note that an import may be also needed when the signers data has been
-//removed since it may have been stored in SecureStore which can be deleted
-//at times. For example when restoring from a backup or when changing the fingerprints
-//or faceId of the device
 import React, { useCallback, useContext, useRef, useState } from 'react';
 import { defaultSettings } from '../lib/settings';
 import type { Wallet, Signer } from '../lib/wallets';

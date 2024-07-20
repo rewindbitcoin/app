@@ -35,7 +35,8 @@ import React, {
   ReactNode,
   useEffect,
   useState,
-  useCallback
+  useCallback,
+  useRef
 } from 'react';
 import { shallowEqualObjects } from 'shallow-equal';
 import type { Wallet } from '../lib/wallets';
@@ -69,10 +70,12 @@ import { useStorage } from '../../common/hooks/useStorage';
 import { useSecureStorageInfo } from '../../common/contexts/SecureStorageInfoContext';
 import { useSettings } from '../hooks/useSettings';
 import { useBtcFiat } from '../hooks/useBtcFiat';
+import { useNetStatus } from '../hooks/useNetStatus';
 import { useTipStatus } from '../hooks/useTipStatus';
 import { useFeeEstimates } from '../hooks/useFeeEstimates';
 import { useWalletState } from '../hooks/useWalletState';
 import type { BlockStatus } from '@bitcoinerlab/explorer/dist/interface';
+import { EsploraExplorer } from '@bitcoinerlab/explorer';
 
 export const WalletContext: Context<WalletContextType | null> =
   createContext<WalletContextType | null>(null);
@@ -142,6 +145,10 @@ const WalletProviderRaw = ({
   children: ReactNode;
   newWalletSigners?: Signers;
 }) => {
+  const explorerMainnetCheckFunctionRef = useRef<
+    (() => Promise<boolean>) | undefined
+  >(undefined);
+
   const [wallet, setWallet] = useState<Wallet>();
   const walletId = wallet?.walletId;
   const [newSigners, setNewSigners, clearNewSigners] =
@@ -186,11 +193,14 @@ const WalletProviderRaw = ({
   const gapLimit = settings?.GAP_LIMIT;
 
   const {
+    mainnetEsploraApi,
     esploraAPI,
     serviceAddressAPI,
     vaultsAPI,
     faucetAPI,
-    vaultsSecondaryAPI
+    vaultsSecondaryAPI,
+    generate204API,
+    generate204API2
   } = getAPIs(networkId, settings);
   const [wallets, setWallets, , , walletsStorageStatus] = useStorage<Wallets>(
     `WALLETS`,
@@ -238,6 +248,26 @@ const WalletProviderRaw = ({
     discoveryDataExport,
     discoveryStorageStatus.isSynchd
   );
+
+  const {
+    setExplorerCheckFunction,
+    setExplorerMainnetCheckFunction,
+    setGenerate204API,
+    setGenerate204API2
+  } = useNetStatus();
+  setExplorerCheckFunction(initialDiscovery?.getExplorer().isConnected);
+  setGenerate204API(generate204API);
+  setGenerate204API2(generate204API2);
+  //For Tape, we need to make sure blockstream esplora is working:
+  if (
+    networkId === 'TAPE' &&
+    mainnetEsploraApi &&
+    !explorerMainnetCheckFunctionRef.current
+  )
+    explorerMainnetCheckFunctionRef.current = new EsploraExplorer({
+      url: mainnetEsploraApi
+    }).isConnected;
+  setExplorerMainnetCheckFunction(explorerMainnetCheckFunctionRef.current);
 
   const { tipStatus, updateTipStatus } = useTipStatus({ initialDiscovery });
   const tipHeight = tipStatus?.blockHeight;

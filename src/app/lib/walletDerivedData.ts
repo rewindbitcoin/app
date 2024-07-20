@@ -106,11 +106,14 @@ export const ensureExplorerConnected = async (
 
 export const getAPIs = moize(
   (networkId: NetworkId | undefined, settings: Settings | undefined) => {
+    const mainnetEsploraApi = settings?.MAINNET_ESPLORA_API;
     let esploraAPI: string | undefined;
     let serviceAddressAPI: string | undefined;
     let vaultsAPI: string | undefined;
     let vaultsSecondaryAPI: string | undefined;
     let faucetAPI: string | undefined;
+    let generate204API: string | undefined;
+    let generate204API2: string | undefined;
     if (networkId && settings)
       switch (networkId) {
         case 'BITCOIN':
@@ -118,12 +121,16 @@ export const getAPIs = moize(
           serviceAddressAPI = settings.MAINNET_SERVICE_ADDRESS_API;
           vaultsAPI = settings.MAINNET_VAULTS_API;
           vaultsSecondaryAPI = settings.MAINNET_VAULTS_SECONDARY_API;
+          generate204API = settings.PUBLIC_GENERATE_204_API;
+          generate204API2 = settings.PUBLIC_GENERATE_204_SECONDARY_API;
           break;
         case 'TESTNET':
           esploraAPI = settings.TESTNET_ESPLORA_API;
           serviceAddressAPI = settings.TESTNET_SERVICE_ADDRESS_API;
           vaultsAPI = settings.TESTNET_VAULTS_API;
           vaultsSecondaryAPI = settings.TESTNET_VAULTS_SECONDARY_API;
+          generate204API = settings.PUBLIC_GENERATE_204_API;
+          generate204API2 = settings.PUBLIC_GENERATE_204_SECONDARY_API;
           break;
         case 'TAPE':
           esploraAPI = settings.TAPE_ESPLORA_API;
@@ -131,6 +138,8 @@ export const getAPIs = moize(
           vaultsAPI = settings.TAPE_VAULTS_API;
           vaultsSecondaryAPI = settings.TAPE_VAULTS_SECONDARY_API;
           faucetAPI = `${settings.TAPE_WEB_SERVER}faucet`;
+          generate204API = settings.PUBLIC_GENERATE_204_API;
+          generate204API2 = settings.PUBLIC_GENERATE_204_SECONDARY_API;
           break;
         case 'REGTEST':
           esploraAPI = settings.REGTEST_ESPLORA_API;
@@ -138,16 +147,21 @@ export const getAPIs = moize(
           vaultsAPI = settings.REGTEST_VAULTS_API;
           vaultsSecondaryAPI = settings.REGTEST_VAULTS_SECONDARY_API;
           faucetAPI = `${settings.REGTEST_WEB_SERVER}faucet`;
+          generate204API = settings.REGTEST_GENERATE_204_API;
+          generate204API2 = settings.REGTEST_GENERATE_204_SECONDARY_API;
           break;
         default:
           throw new Error(`networkId ${networkId} not supported.`);
       }
     return {
       faucetAPI,
+      mainnetEsploraApi,
       esploraAPI,
       serviceAddressAPI,
       vaultsAPI,
-      vaultsSecondaryAPI
+      vaultsSecondaryAPI,
+      generate204API,
+      generate204API2
     };
   }
 );

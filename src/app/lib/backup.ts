@@ -189,7 +189,7 @@ const getSeedDerivedCipherKey = async ({
   return cipherKey;
 };
 
-export const fetchP2PVault = async ({
+const fetchP2PVault = async ({
   vaultId,
   vaultPath,
   signer,

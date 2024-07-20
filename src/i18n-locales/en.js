@@ -18,8 +18,8 @@ Technical error: {{message}}`,
     walletTitle: 'Wallet',
     settingsButton: 'Settings',
     settingsTitle: 'Settings',
-    feeEstimatesError:
-      'Unable to retrieve up-to-date fee estimates. Fee amounts may be slightly off. Please check your internet connection. Retrying in 60 seconds and will notify you if the problem persists.',
+    feeEstimatesError: `Unable to retrieve up-to-date fee estimates. Fee amounts may be slightly off. Please check your internet connection.
+Retrying in 60 seconds and will notify you if the problem persists.`,
     tipStatusError:
       'Unable to retrieve the latest blockchain block. The displayed data may not be up-to-date. Please check your internet connection and try refreshing the wallet.',
     btcRatesError:
@@ -28,6 +28,16 @@ Technical error: {{message}}`,
     //  'Unable to retrieve up-to-date blockchain data. Transaction times and fee amounts may be slightly off. Please check your internet connection. Retrying in 60 seconds and will notify you if the problem persists.',
     secureStorageAuthenticationPrompt:
       "Please authenticate to access your wallet's sensitive data."
+  },
+  netStatus: {
+    internetNotReachableWarning:
+      'No Internet connection detected. This prevents checking wallet status, managing vaults, and sending or receiving funds. Please ensure your device is connected to access all features.',
+    apiNotReachableWarning:
+      'Unable to connect to our services. This affects Bitcoin price updates and prevents vault operations due to disrupted backups. Please try again later.',
+    blockchainExplorerNotReachableWarning:
+      'Unable to connect to the blockchain explorer. This prevents updating the status of your transactions and accessing up-to-date information on the Bitcoin network. Please check your connection and try again.',
+    connectionRestoredInfo:
+      'Connectivity restored. All wallet features are now fully operational.'
   },
   wallets: {
     addNew: 'Add New',
@@ -243,7 +253,7 @@ Once the countdown ends, your funds will be unlocked and accessible. It's import
       hotSubTitle: 'Available Balance: Ready for immediate use',
       frozenSubTitle: 'Frozen Balance: Safeguarded in vaults',
       testWalletWarning:
-        'Test Wallet: Prices displayed as real Bitcoin for realism but hold no real value. ',
+        'Test Wallet: Prices displayed as real Bitcoin for realism but hold no real value.',
       regtestWalletPlusWarning: 'Fees mimic real ones for realism, too.'
     },
     delegateReadme: `For immediate action, open this file at:

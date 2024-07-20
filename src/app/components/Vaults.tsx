@@ -37,7 +37,7 @@ import {
 import VaultIcon from './VaultIcon';
 import { useTranslation } from 'react-i18next';
 import { formatBalance, formatBlocks } from '../lib/format';
-import { Button, IconType, InfoButton, Modal, useToast } from '../../common/ui';
+import { Button, IconType, InfoButton, Modal } from '../../common/ui';
 
 import { useSettings } from '../hooks/useSettings';
 import type { SubUnit } from '../lib/settings';
@@ -193,7 +193,6 @@ const Vault = ({
   vaultNumber: number;
   vaultStatus: VaultStatus | undefined;
 }) => {
-  const toast = useToast();
   const [showDelegateHelp, setShowDelegateHelp] = useState<boolean>(false);
   const [showRescueHelp, setShowRescueHelp] = useState<boolean>(false);
   const [showInitUnfreezeHelp, setShowInitUnfreezeHelp] =

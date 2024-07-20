@@ -22,7 +22,7 @@
     "@bitcoinerlab/coinselect": "^1.2.1",
     "@bitcoinerlab/descriptors": "^2.2.0",
     "@bitcoinerlab/discovery": "^1.2.4",
-    "@bitcoinerlab/explorer": "^0.2.2",
+    "@bitcoinerlab/explorer": "^0.2.3",
     "@bitcoinerlab/miniscript": "^1.4.0",
     "@bitcoinerlab/secp256k1": "^1.1.1",
     "@expo-google-fonts/roboto-mono": "^0.2.3",

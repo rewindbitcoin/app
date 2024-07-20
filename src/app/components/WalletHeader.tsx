@@ -18,6 +18,7 @@ import FreezeIcon from './FreezeIcon';
 import HotIcon from './HotIcon';
 import { useTranslation } from 'react-i18next';
 import type { NetworkId } from '../lib/network';
+import { useNetStatus } from '../hooks/useNetStatus';
 
 const Balance = ({
   type,
@@ -92,6 +93,8 @@ const WalletHeader = ({
   const { t } = useTranslation();
   const [showUnitsModal, setShowUnitsModal] = useState<boolean>(false);
   const { settings, setSettings } = useSettings();
+  const netStatus = useNetStatus();
+  console.log(netStatus);
   if (!settings)
     throw new Error(
       'This component should only be started after settings has been retrieved from storage'
@@ -156,12 +159,51 @@ const WalletHeader = ({
           onUnitPress={onUnitPress}
         />
       </View>
-      {networkId !== 'BITCOIN' && (
+      {
+        //TODO:
+        //
+        //here use errorMessage from NetStatus!!!!
+        //here use errorMessage from NetStatus!!!!
+        //here use errorMessage from NetStatus!!!!
+        //here use errorMessage from NetStatus!!!!
+        //here use errorMessage from NetStatus!!!!
+        //here use errorMessage from NetStatus!!!!
+        //here use errorMessage from NetStatus!!!!
+        //here use errorMessage from NetStatus!!!!
+        //here use errorMessage from NetStatus!!!!
+        //here use errorMessage from NetStatus!!!!
+        //here use errorMessage from NetStatus!!!!
+        //here use errorMessage from NetStatus!!!!
+        //here use errorMessage from NetStatus!!!!
+        //here use errorMessage from NetStatus!!!!
+        //here use errorMessage from NetStatus!!!!
+        //here use errorMessage from NetStatus!!!!
+        //here use errorMessage from NetStatus!!!!
+        //here use errorMessage from NetStatus!!!!
+        //here use errorMessage from NetStatus!!!!
+        //here use errorMessage from NetStatus!!!!
+        //here use errorMessage from NetStatus!!!!
+        //
+        //
+        //only show this message if the api is reachable. Otherwise the header
+        //be too cluttered
+        netStatus.apiReachable && networkId !== 'BITCOIN' && (
+          <Text className="pt-5 p-4 color-orange-600 text-sm">
+            {t('walletHome.header.testWalletWarning')}
+            {networkId === 'TAPE' || networkId === 'REGTEST'
+              ? ' ' + t('walletHome.header.regtestWalletPlusWarning')
+              : ''}
+          </Text>
+        )
+      }
+      {!netStatus.internetReachable && (
         <Text className="pt-5 p-4 color-orange-600 text-sm">
-          {t('walletHome.header.testWalletWarning')}
-          {networkId === 'TAPE' || networkId === 'REGTEST'
-            ? ' ' + t('walletHome.header.regtestWalletPlusWarning')
-            : ''}
+          {t('netStatus.internetNotReachableWarning')}
+        </Text>
+      )}
+      {netStatus.internetReachable && !netStatus.apiReachable && (
+        <Text className="pt-5 p-4 color-orange-600 text-sm">
+          {t('netStatus.apiNotReachableWarning')}
         </Text>
       )}
       <UnitsModal

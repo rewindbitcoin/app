@@ -9,21 +9,20 @@ import React, {
 } from 'react';
 import { WalletContext, WalletContextType } from '../contexts/WalletContext';
 import { useTranslation } from 'react-i18next';
-import { View, StyleSheet } from 'react-native';
+import { View } from 'react-native';
 import * as Progress from 'react-native-progress';
-import { EdgeInsets, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { createVault, type VaultSettings, type Vault } from '../lib/vaults';
 import { useSettings } from '../hooks/useSettings';
 import {
   Button,
   Text,
   KeyboardAwareScrollView,
-  Theme,
-  useTheme,
   useToast
 } from '../../common/ui';
 import { p2pBackupVault, fetchP2PVaultIds } from '../lib/backup';
 import { useNavigation } from '@react-navigation/native';
+import { toastifyErrorAsync } from '../lib/status';
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -38,9 +37,10 @@ export default function CreateVaultScreen({
   const { amount, feeRate, lockBlocks, coldAddress } = vaultSettings;
 
   const insets = useSafeAreaInsets();
-  const theme = useTheme();
-  const styles = useMemo(() => getStyles(insets, theme), [insets, theme]);
-  //TODO Use a proper Cancellable Modal
+  const mbStyle = useMemo(
+    () => ({ marginBottom: 16 + insets.bottom }),
+    [insets]
+  );
   const context = useContext<WalletContextType | null>(WalletContext);
   if (context === null) throw new Error('Context was not set');
   const {
@@ -84,6 +84,11 @@ export default function CreateVaultScreen({
   const samples = settings.SAMPLES;
   const feeRateCeiling = settings.PRESIGNED_FEE_RATE_CEILING;
 
+  const goBack = useCallback(() => {
+    console.log('GO BACK');
+    if (navigation.canGoBack()) navigation.goBack();
+  }, [navigation]);
+
   const isVaultCreated = useRef<boolean>(false);
   useEffect(() => {
     if (isVaultCreated.current === true) return;
@@ -95,70 +100,76 @@ export default function CreateVaultScreen({
       await sleep(200);
 
       const unvaultKey = await getUnvaultKey();
-      const serviceAddress = await fetchServiceAddress(); //TODO: show error if network error
-      const changeDescriptor = await getChangeDescriptor();
-
-      const signer = signers[0];
-      if (!signer) throw new Error('signer unavailable');
-
-      const { nextVaultId, nextVaultPath } = await fetchP2PVaultIds({
-        signer,
-        networkId,
-        vaults,
-        vaultsAPI
-      });
-      const vault = await createVault({
-        amount,
-        unvaultKey,
-        samples,
-        feeRate,
-        serviceFeeRate: settings.SERVICE_FEE_RATE,
-        feeRateCeiling,
-        coldAddress,
-        changeDescriptor,
-        serviceAddress,
-        lockBlocks,
-        signer,
-        utxosData,
-        networkId,
-        nextVaultId,
-        nextVaultPath,
-        onProgress
-      });
-
-      if (typeof vault === 'object') {
-        setVault(vault);
-        //TODO: here now also show the progress, also it fhis fails then do
-        //not proceed
-        //TODO: Also there is a processCreatedVault that does stuff. integrate
-        //both
-        const backupResult = await p2pBackupVault({
-          vault,
-          signer,
-          vaultsAPI,
-          vaultsSecondaryAPI,
-          onProgress,
-          networkId
-        });
-        if (!backupResult)
-          throw new Error("Could not backup the vault, won't proceed");
-
-        //TODO: now this must do the backup on the server using holepunch!
-        //It must pass the serviceAddress as an authorization (and for anti-spam)
-        //The server must check in the mempool?
-        if (isMounted) {
-          //This updates Vaults And VaultsStatuses local
-          //storage
-          const result = await processCreatedVault(vault);
-          //TODO: ask for confirmation, then:
-          onVaultPushed(result);
-        }
+      const serviceAddress = await toastifyErrorAsync('NETWORK_ERROR', () =>
+        fetchServiceAddress()
+      );
+      if (serviceAddress === 'NETWORK_ERROR') {
+        goBack();
       } else {
-        if (vault !== 'USER_CANCEL') {
-          const errorMessage = t('createVault.error', { message: vault });
-          toast.show(errorMessage, { type: 'danger' });
+        const changeDescriptor = await getChangeDescriptor();
+
+        const signer = signers[0];
+        if (!signer) throw new Error('signer unavailable');
+
+        const { nextVaultId, nextVaultPath } = await fetchP2PVaultIds({
+          signer,
+          networkId,
+          vaults,
+          vaultsAPI
+        });
+        const vault = await createVault({
+          amount,
+          unvaultKey,
+          samples,
+          feeRate,
+          serviceFeeRate: settings.SERVICE_FEE_RATE,
+          feeRateCeiling,
+          coldAddress,
+          changeDescriptor,
+          serviceAddress,
+          lockBlocks,
+          signer,
+          utxosData,
+          networkId,
+          nextVaultId,
+          nextVaultPath,
+          onProgress
+        });
+
+        if (typeof vault === 'object') {
+          setVault(vault);
+          //TODO: here now also show the progress, also it fhis fails then do
+          //not proceed
+          //TODO: Also there is a processCreatedVault that does stuff. integrate
+          //both
+          const backupResult = await p2pBackupVault({
+            vault,
+            signer,
+            vaultsAPI,
+            vaultsSecondaryAPI,
+            onProgress,
+            networkId
+          });
+          //TODO here simply toast an error! dont throw
+          if (!backupResult)
+            throw new Error("Could not backup the vault, won't proceed");
+
+          //TODO: now this must do the backup on the server using holepunch!
+          //It must pass the serviceAddress as an authorization (and for anti-spam)
+          //The server must check in the mempool?
+          if (isMounted) {
+            //This updates Vaults And VaultsStatuses local
+            //storage
+            const result = await processCreatedVault(vault);
+            //TODO: ask for confirmation, then:
+            onVaultPushed(result);
+          }
         } else {
-          if (navigation.canGoBack()) navigation.goBack();
+          if (vault !== 'USER_CANCEL') {
+            const errorMessage = t('createVault.error', { message: vault });
+            toast.show(errorMessage, { type: 'danger' });
+          }
+          goBack();
         }
       }
     };
@@ -167,7 +178,7 @@ export default function CreateVaultScreen({
       isMounted = false;
     };
   }, [
-    navigation,
+    goBack,
     t,
     toast,
     amount,
@@ -195,9 +206,9 @@ export default function CreateVaultScreen({
     <KeyboardAwareScrollView
       contentInsetAdjustmentBehavior="automatic"
       keyboardShouldPersistTaps="handled"
-      contentContainerStyle={styles.contentContainer}
+      contentContainerClassName="flex-1"
     >
-      <View style={styles.content}>
+      <View className="self-center pt-5 max-w-lg w-full mx-4" style={mbStyle}>
         {vault ? (
           <>
             <Button
@@ -227,7 +238,6 @@ export default function CreateVaultScreen({
                 size={300}
                 showsText={true}
                 progress={progress}
-                style={styles.progressCircle}
               />
             </View>
             <Button
@@ -243,15 +253,3 @@ export default function CreateVaultScreen({
     </KeyboardAwareScrollView>
   );
 }
-
-const getStyles = (insets: EdgeInsets, theme: Theme) =>
-  StyleSheet.create({
-    contentContainer: { alignItems: 'center', paddingTop: 20 },
-    content: {
-      maxWidth: 500,
-      width: '100%',
-      marginHorizontal: theme.screenMargin,
-      marginBottom: theme.screenMargin + insets.bottom
-    },
-    progressCircle: {}
-  });
