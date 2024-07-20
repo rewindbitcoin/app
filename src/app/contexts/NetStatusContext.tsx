@@ -3,6 +3,7 @@ const RETRY_TIME_AFTER_FAIL = 5 * 1000;
 const ATTEMPTS = 5;
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+import { EsploraExplorer, Explorer } from '@bitcoinerlab/explorer';
 import { useToast } from '../../common/ui';
 
 import React, {
@@ -45,11 +46,9 @@ export interface NetStatus {
   explorerMainnetReachable: boolean;
   setGenerate204API: (generate204API: string | undefined) => void;
   setGenerate204API2: (generate204API2: string | undefined) => void;
-  setExplorerCheckFunction: (fn: (() => Promise<boolean>) | undefined) => void;
+  setExplorer: (explorer: Explorer | undefined) => void;
   //For Tape fees:
-  setExplorerMainnetCheckFunction: (
-    fn: (() => Promise<boolean>) | undefined
-  ) => void;
+  setMainnetEsploraApi: (mainnetEsploraApi: string | undefined) => void;
 }
 
 export const NetStatusContext = createContext<NetStatus | undefined>(undefined);
@@ -67,21 +66,21 @@ const NetStatusProvider: React.FC<NetStatusProviderProps> = ({ children }) => {
   const [generate204API2, setGenerate204API2] = useState<string | undefined>(
     undefined
   );
-  const [explorerCheckFunction, setExplorerCheckFunction] = useState<
-    (() => Promise<boolean>) | undefined
-  >(undefined);
-  const [explorerMainnetCheckFunction, setExplorerMainnetCheckFunction] =
-    useState<(() => Promise<boolean>) | undefined>(undefined); //For Tape fees
+  const [explorer, setExplorer] = useState<Explorer | undefined>(undefined);
 
   const [errorMessage, setErrorMessage] = useState<string | undefined>(
     undefined
   );
+  const errorMessageRef = useRef<string | undefined>(undefined);
   const [internetReachable, setInternetReachable] = useState(false);
   const [apiReachable, setApiReachable] = useState(false);
   const [api2Reachable, setApi2Reachable] = useState(false);
   const [explorerReachable, setExplorerReachable] = useState(false);
   const [explorerMainnetReachable, setExplorerMainnetReachable] =
     useState(false);
+  const [mainnetEsploraApi, setMainnetEsploraApi] = useState<
+    string | undefined
+  >(undefined);
   const checkInterval = useRef<NodeJS.Timeout | null>(null);
 
   const clearExistingInterval = useCallback(() => {
@@ -109,9 +108,25 @@ const NetStatusProvider: React.FC<NetStatusProviderProps> = ({ children }) => {
     return false; // All attempts failed
   }, []);
 
+  const mainnetEsploraApiRef = useRef<string | undefined>(undefined);
+  const explorerMainnetCheckFunctionRef = useRef<
+    (() => Promise<boolean>) | undefined
+  >(undefined);
   const checkStatus = useCallback(async () => {
     if (AppState.currentState !== 'active') return;
     clearExistingInterval();
+
+    if (mainnetEsploraApi !== mainnetEsploraApiRef.current) {
+      mainnetEsploraApiRef.current = mainnetEsploraApi;
+      if (mainnetEsploraApi) {
+        const explorer = new EsploraExplorer({
+          url: mainnetEsploraApi
+        });
+        explorerMainnetCheckFunctionRef.current = explorer.isConnected;
+      } else explorerMainnetCheckFunctionRef.current = undefined;
+    }
+    const explorerMainnetCheckFunction =
+      explorerMainnetCheckFunctionRef.current;
 
     let newErrorMessage: string | undefined = undefined;
 
@@ -127,15 +142,20 @@ const NetStatusProvider: React.FC<NetStatusProviderProps> = ({ children }) => {
     if (generate204API2 && !newApi2Reachable)
       newErrorMessage = t('netStatus.apiNotReachableWarning');
 
-    const newExplorerReachable = explorerCheckFunction
-      ? await explorerCheckFunction()
+    const newExplorerReachable = explorer
+      ? await explorer.isConnected()
       : false;
-    if (explorerCheckFunction && !newExplorerReachable)
+    if (explorer && !newExplorerReachable)
       newErrorMessage = t('netStatus.blockchainExplorerNotReachableWarning');
 
     const newExplorerMainnetReachable = explorerMainnetCheckFunction
       ? await explorerMainnetCheckFunction()
       : false;
+    console.log({
+      mainnetEsploraApi,
+      explorerMainnetCheckFunction,
+      newExplorerMainnetReachable
+    });
     if (explorerMainnetCheckFunction && !newExplorerMainnetReachable)
       newErrorMessage = t('netStatus.blockchainExplorerNotReachableWarning');
 
@@ -150,11 +170,14 @@ const NetStatusProvider: React.FC<NetStatusProviderProps> = ({ children }) => {
     if (!newInternetReachable)
       newErrorMessage = t('netStatus.internetNotReachableWarning');
 
-    if (newErrorMessage && errorMessage === undefined) {
+    if (newErrorMessage && errorMessageRef.current === undefined) {
+      console.log({ errorMessage, newErrorMessage });
       toast.show(newErrorMessage, { type: 'error' });
+      errorMessageRef.current = newErrorMessage;
     }
-    if (newErrorMessage === undefined && errorMessage) {
+    if (newErrorMessage === undefined && errorMessageRef.current) {
       toast.show(t('netStatus.connectionRestoredInfo'), { type: 'success' });
+      errorMessageRef.current = undefined;
     }
 
     unstable_batchedUpdates(() => {
@@ -171,6 +194,16 @@ const NetStatusProvider: React.FC<NetStatusProviderProps> = ({ children }) => {
       ? RETRY_TIME_AFTER_FAIL
       : RETRY_TIME_AFTER_OK;
     checkInterval.current = setTimeout(checkStatus, nextCheckDelay);
+
+    console.log({
+      newErrorMessage,
+      newInternetReachable,
+      newApiReachable,
+      newApi2Reachable,
+      newExplorerReachable,
+      newExplorerMainnetReachable
+    });
+
     return {
       internetReachable: newInternetReachable,
       apiReachable: newApiReachable,
@@ -186,8 +219,8 @@ const NetStatusProvider: React.FC<NetStatusProviderProps> = ({ children }) => {
     generate204API2,
     checkNetworkReachability,
     clearExistingInterval,
-    explorerCheckFunction,
-    explorerMainnetCheckFunction
+    explorer,
+    mainnetEsploraApi
   ]);
 
   useEffect(() => {
@@ -216,13 +249,14 @@ const NetStatusProvider: React.FC<NetStatusProviderProps> = ({ children }) => {
       apiReachable,
       api2Reachable,
       explorerReachable,
+      setExplorer,
       explorerMainnetReachable, //For Tape fees
-      setExplorerCheckFunction,
-      setExplorerMainnetCheckFunction, //For Tape fees
+      setMainnetEsploraApi, //Only set when needed: For Tape fees
       setGenerate204API,
       setGenerate204API2
     }),
     [
+      setMainnetEsploraApi,
       errorMessage,
       checkStatus,
       internetReachable,

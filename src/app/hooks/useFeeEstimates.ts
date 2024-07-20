@@ -32,7 +32,7 @@ export function useFeeEstimates({
   const toast = useToast();
 
   const netStatus = useNetStatus();
-  console.log({ netStatus });
+  //console.log({ netStatus });
 
   const updateFeeEstimates = useCallback(async () => {
     try {

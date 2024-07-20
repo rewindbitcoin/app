@@ -94,7 +94,6 @@ const WalletHeader = ({
   const [showUnitsModal, setShowUnitsModal] = useState<boolean>(false);
   const { settings, setSettings } = useSettings();
   const netStatus = useNetStatus();
-  console.log(netStatus);
   if (!settings)
     throw new Error(
       'This component should only be started after settings has been retrieved from storage'

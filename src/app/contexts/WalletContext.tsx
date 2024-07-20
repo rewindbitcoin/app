@@ -35,8 +35,7 @@ import React, {
   ReactNode,
   useEffect,
   useState,
-  useCallback,
-  useRef
+  useCallback
 } from 'react';
 import { shallowEqualObjects } from 'shallow-equal';
 import type { Wallet } from '../lib/wallets';
@@ -75,7 +74,6 @@ import { useTipStatus } from '../hooks/useTipStatus';
 import { useFeeEstimates } from '../hooks/useFeeEstimates';
 import { useWalletState } from '../hooks/useWalletState';
 import type { BlockStatus } from '@bitcoinerlab/explorer/dist/interface';
-import { EsploraExplorer } from '@bitcoinerlab/explorer';
 
 export const WalletContext: Context<WalletContextType | null> =
   createContext<WalletContextType | null>(null);
@@ -145,10 +143,6 @@ const WalletProviderRaw = ({
   children: ReactNode;
   newWalletSigners?: Signers;
 }) => {
-  const explorerMainnetCheckFunctionRef = useRef<
-    (() => Promise<boolean>) | undefined
-  >(undefined);
-
   const [wallet, setWallet] = useState<Wallet>();
   const walletId = wallet?.walletId;
   const [newSigners, setNewSigners, clearNewSigners] =
@@ -250,24 +244,38 @@ const WalletProviderRaw = ({
   );
 
   const {
-    setExplorerCheckFunction,
-    setExplorerMainnetCheckFunction,
+    setExplorer,
+    setMainnetEsploraApi, //Only set if needed (on TAPE network for fees)
     setGenerate204API,
     setGenerate204API2
   } = useNetStatus();
-  setExplorerCheckFunction(initialDiscovery?.getExplorer().isConnected);
-  setGenerate204API(generate204API);
-  setGenerate204API2(generate204API2);
-  //For Tape, we need to make sure blockstream esplora is working:
-  if (
-    networkId === 'TAPE' &&
-    mainnetEsploraApi &&
-    !explorerMainnetCheckFunctionRef.current
-  )
-    explorerMainnetCheckFunctionRef.current = new EsploraExplorer({
-      url: mainnetEsploraApi
-    }).isConnected;
-  setExplorerMainnetCheckFunction(explorerMainnetCheckFunctionRef.current);
+  const explorer = initialDiscovery?.getExplorer();
+  useEffect(() => {
+    unstable_batchedUpdates(() => {
+      console.log('TRACE setting to NetStatus', {
+        generate204API,
+        generate204API2,
+        mainnetEsploraApi: networkId === 'TAPE' ? mainnetEsploraApi : undefined
+      });
+      setExplorer(explorer);
+      setGenerate204API(generate204API);
+      setGenerate204API2(generate204API2);
+      //For Tape, we need to make sure blockstream esplora is working:
+      setMainnetEsploraApi(
+        networkId === 'TAPE' ? mainnetEsploraApi : undefined
+      );
+    });
+  }, [
+    mainnetEsploraApi,
+    networkId,
+    generate204API,
+    generate204API2,
+    explorer,
+    setExplorer,
+    setMainnetEsploraApi,
+    setGenerate204API,
+    setGenerate204API2
+  ]);
 
   const { tipStatus, updateTipStatus } = useTipStatus({ initialDiscovery });
   const tipHeight = tipStatus?.blockHeight;

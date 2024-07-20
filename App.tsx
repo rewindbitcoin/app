@@ -255,17 +255,17 @@ export default function App() {
     <SafeAreaProvider>
       <GestureHandlerRootView style={{ flex: 1 }}>
         <NavigationContainer theme={useTheme()}>
-          <NetStatusProvider>
-            <GlobalStorageProvider>
-              <SecureStorageInfoProvider>
-                <ToastProvider>
+          <ToastProvider>
+            <NetStatusProvider>
+              <GlobalStorageProvider>
+                <SecureStorageInfoProvider>
                   <I18nextProvider i18n={i18n}>
                     <MainMemo />
                   </I18nextProvider>
-                </ToastProvider>
-              </SecureStorageInfoProvider>
-            </GlobalStorageProvider>
-          </NetStatusProvider>
+                </SecureStorageInfoProvider>
+              </GlobalStorageProvider>
+            </NetStatusProvider>
+          </ToastProvider>
         </NavigationContainer>
       </GestureHandlerRootView>
     </SafeAreaProvider>
