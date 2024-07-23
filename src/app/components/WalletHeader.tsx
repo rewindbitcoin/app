@@ -94,6 +94,8 @@ const WalletHeader = ({
   const [showUnitsModal, setShowUnitsModal] = useState<boolean>(false);
   const { settings, setSettings } = useSettings();
   const netStatus = useNetStatus();
+  console.log('WalletHeader', JSON.stringify(netStatus, null, 2));
+  const { errorMessage: netErrorMessage } = netStatus;
   if (!settings)
     throw new Error(
       'This component should only be started after settings has been retrieved from storage'
@@ -159,34 +161,9 @@ const WalletHeader = ({
         />
       </View>
       {
-        //TODO:
-        //
-        //here use errorMessage from NetStatus!!!!
-        //here use errorMessage from NetStatus!!!!
-        //here use errorMessage from NetStatus!!!!
-        //here use errorMessage from NetStatus!!!!
-        //here use errorMessage from NetStatus!!!!
-        //here use errorMessage from NetStatus!!!!
-        //here use errorMessage from NetStatus!!!!
-        //here use errorMessage from NetStatus!!!!
-        //here use errorMessage from NetStatus!!!!
-        //here use errorMessage from NetStatus!!!!
-        //here use errorMessage from NetStatus!!!!
-        //here use errorMessage from NetStatus!!!!
-        //here use errorMessage from NetStatus!!!!
-        //here use errorMessage from NetStatus!!!!
-        //here use errorMessage from NetStatus!!!!
-        //here use errorMessage from NetStatus!!!!
-        //here use errorMessage from NetStatus!!!!
-        //here use errorMessage from NetStatus!!!!
-        //here use errorMessage from NetStatus!!!!
-        //here use errorMessage from NetStatus!!!!
-        //here use errorMessage from NetStatus!!!!
-        //
-        //
-        //only show this message if the api is reachable. Otherwise the header
-        //be too cluttered
-        netStatus.apiReachable && networkId !== 'BITCOIN' && (
+        //only show this message if the network status is fine.
+        //Otherwise the header would too cluttered
+        !netErrorMessage && networkId !== 'BITCOIN' && (
           <Text className="pt-5 p-4 color-orange-600 text-sm">
             {t('walletHome.header.testWalletWarning')}
             {networkId === 'TAPE' || networkId === 'REGTEST'
@@ -195,16 +172,14 @@ const WalletHeader = ({
           </Text>
         )
       }
-      {!netStatus.internetReachable && (
-        <Text className="pt-5 p-4 color-orange-600 text-sm">
-          {t('netStatus.internetNotReachableWarning')}
-        </Text>
-      )}
-      {netStatus.internetReachable && !netStatus.apiReachable && (
-        <Text className="pt-5 p-4 color-orange-600 text-sm">
-          {t('netStatus.apiNotReachableWarning')}
-        </Text>
-      )}
+      {
+        // show error permanent error messages
+        netErrorMessage && (
+          <Text className="pt-5 p-4 color-orange-600 text-sm">
+            {netErrorMessage}
+          </Text>
+        )
+      }
       <UnitsModal
         isVisible={showUnitsModal}
         mode={mode}

@@ -73,7 +73,9 @@ import { useNetStatus } from '../hooks/useNetStatus';
 import { useTipStatus } from '../hooks/useTipStatus';
 import { useFeeEstimates } from '../hooks/useFeeEstimates';
 import { useWalletState } from '../hooks/useWalletState';
+import { Explorer, EsploraExplorer } from '@bitcoinerlab/explorer';
 import type { BlockStatus } from '@bitcoinerlab/explorer/dist/interface';
+import { networks } from 'bitcoinjs-lib';
 
 export const WalletContext: Context<WalletContextType | null> =
   createContext<WalletContextType | null>(null);
@@ -152,6 +154,12 @@ const WalletProviderRaw = ({
     useWalletState<Uint8Array>();
   const [dataCipherKey, setDataCipherKey, clearDataCipherKey] =
     useWalletState<Uint8Array>();
+
+  // Share it accross all wallets. This explorer is only used for retrieving
+  // fees when using the TAPE network. It is shared accross several components
+  const [explorerMainnet, setExplorerMainnet] = useState<Explorer | undefined>(
+    undefined
+  );
 
   const [utxosData, setUtxosData, clearUtxosData] = useWalletState<UtxosData>();
   const [historyData, setHistoryData, clearHistoryData] =
@@ -243,36 +251,42 @@ const WalletProviderRaw = ({
     discoveryStorageStatus.isSynchd
   );
 
+  useEffect(() => {
+    if (mainnetEsploraApi && !explorerMainnet) {
+      const newExplorerMainnet = new EsploraExplorer({
+        url: mainnetEsploraApi
+      });
+      newExplorerMainnet.connect();
+      setExplorerMainnet(newExplorerMainnet);
+    }
+  }, [mainnetEsploraApi, explorerMainnet]);
+
   const {
-    setExplorer,
-    setMainnetEsploraApi, //Only set if needed (on TAPE network for fees)
+    setExplorer: setNetStatusExplorer,
+    setExplorerMainnet: setNetStatusExplorerMainnet, //Only set if needed (on TAPE network for fees)
     setGenerate204API,
     setGenerate204API2
   } = useNetStatus();
   const explorer = initialDiscovery?.getExplorer();
+  const usingMainnetFeesForRealism = network === networks.regtest;
   useEffect(() => {
     unstable_batchedUpdates(() => {
-      console.log('TRACE setting to NetStatus', {
-        generate204API,
-        generate204API2,
-        mainnetEsploraApi: networkId === 'TAPE' ? mainnetEsploraApi : undefined
-      });
-      setExplorer(explorer);
+      setNetStatusExplorer(explorer);
       setGenerate204API(generate204API);
       setGenerate204API2(generate204API2);
       //For Tape, we need to make sure blockstream esplora is working:
-      setMainnetEsploraApi(
-        networkId === 'TAPE' ? mainnetEsploraApi : undefined
+      setNetStatusExplorerMainnet(
+        usingMainnetFeesForRealism ? explorerMainnet : undefined
       );
     });
   }, [
-    mainnetEsploraApi,
-    networkId,
+    usingMainnetFeesForRealism,
     generate204API,
     generate204API2,
     explorer,
-    setExplorer,
-    setMainnetEsploraApi,
+    explorerMainnet,
+    setNetStatusExplorer,
+    setNetStatusExplorerMainnet,
     setGenerate204API,
     setGenerate204API2
   ]);
@@ -280,7 +294,27 @@ const WalletProviderRaw = ({
   const { tipStatus, updateTipStatus } = useTipStatus({ initialDiscovery });
   const tipHeight = tipStatus?.blockHeight;
   const isTipStatusReady = !!tipStatus;
-  const feeEstimates = useFeeEstimates({ initialDiscovery, network });
+  const {
+    feeEstimates,
+    setExplorer: setFeesExplorer,
+    setUsingMainnetFeesForRealism
+  } = useFeeEstimates();
+  useEffect(() => {
+    unstable_batchedUpdates(() => {
+      setFeesExplorer(
+        usingMainnetFeesForRealism
+          ? explorerMainnet
+          : initialDiscovery?.getExplorer()
+      );
+      setUsingMainnetFeesForRealism(usingMainnetFeesForRealism);
+    });
+  }, [
+    usingMainnetFeesForRealism,
+    setFeesExplorer,
+    setUsingMainnetFeesForRealism,
+    initialDiscovery,
+    explorerMainnet
+  ]);
 
   const [vaults, setVaults, , clearVaultsCache, vaultsStorageStatus] =
     useStorage<Vaults>(

@@ -1,9 +1,58 @@
-const RETRY_TIME_AFTER_OK = 20 * 1000;
-const RETRY_TIME_AFTER_FAIL = 5 * 1000;
+/**
+ * Usage:
+ *
+ * Call as const netStatus = useNetStatus();
+ *
+ * netStatus provides:
+ *
+ * Setters for network operations to check:
+ * - setExplorer: Sets an Esplora or Electrum client for regular checks.
+ * - setGenerate204API: Sets main RewindBitcoin API to check its generate_204
+ *   endpoint.
+ * - setGenerate204API2: Sets secondary API for ensuring vault backups can be
+ *   read from another host.
+ * - setExplorerMainnet: Sets Blockstream or popular blocks explorer for TAPE
+ *   network fee checks.
+ *
+ * Statuses for each setter (if set):
+ * - apiReachable: Status of the main API.
+ * - api2Reachable: Status of the secondary API.
+ * - explorerReachable: Status of the blockchain explorer.
+ * - explorerMainnetReachable: Status of the mainnet explorer for TAPE fees.
+ * - internetReachable: False if any set service or
+ *   https://clients3.google.com/generate_204 fails.
+ *
+ * Services are checked every minute. If any service fails, checks occur every
+ * 20s until restored.
+ *
+ * checkStatus: Instantly checks if all services are up. Toasts error/recovery
+ * messages as needed. At most one error is shown (the most relevant one) to
+ * avoid cluttering the UI. Note that error toasts also occur during regular
+ * scheduled checks if any service fails.
+ *
+ * errorMessage: Returns the current error message, if any. This can be used to
+ * display the error message permanently in a UI element, such as the
+ * WalletHeader.
+ *
+ * Typical usage:
+ * 1. Set required statuses: setExplorer, setGenerate204API, setGenerate204API2,
+ *    setExplorerMainnet.
+ * 2. The hook auto-checks all statuses and shows error messages on failure.
+ * 3. Before network operations, check relevant service status (e.g.,
+ *    api2Reachable).
+ * 4. If a network operation fails, await checkStatus().serviceStatus to verify
+ *    service availability.
+ * 5. If the service is down, the module will have already shown a generic error
+ *    to avoid cluttering the UI. If the service is up, handle and toast the
+ *    specific network operation failure externally.
+ */
+
+const RETRY_TIME_AFTER_OK = 60 * 1000;
+const RETRY_TIME_AFTER_FAIL = 20 * 1000;
 const ATTEMPTS = 5;
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
-import { EsploraExplorer, Explorer } from '@bitcoinerlab/explorer';
+import type { Explorer } from '@bitcoinerlab/explorer';
 import { useToast } from '../../common/ui';
 
 import React, {
@@ -47,8 +96,7 @@ export interface NetStatus {
   setGenerate204API: (generate204API: string | undefined) => void;
   setGenerate204API2: (generate204API2: string | undefined) => void;
   setExplorer: (explorer: Explorer | undefined) => void;
-  //For Tape fees:
-  setMainnetEsploraApi: (mainnetEsploraApi: string | undefined) => void;
+  setExplorerMainnet: (explorerMainnet: Explorer | undefined) => void; //For Tape fees
 }
 
 export const NetStatusContext = createContext<NetStatus | undefined>(undefined);
@@ -67,6 +115,9 @@ const NetStatusProvider: React.FC<NetStatusProviderProps> = ({ children }) => {
     undefined
   );
   const [explorer, setExplorer] = useState<Explorer | undefined>(undefined);
+  const [explorerMainnet, setExplorerMainnet] = useState<Explorer | undefined>(
+    undefined
+  );
 
   const [errorMessage, setErrorMessage] = useState<string | undefined>(
     undefined
@@ -78,9 +129,6 @@ const NetStatusProvider: React.FC<NetStatusProviderProps> = ({ children }) => {
   const [explorerReachable, setExplorerReachable] = useState(false);
   const [explorerMainnetReachable, setExplorerMainnetReachable] =
     useState(false);
-  const [mainnetEsploraApi, setMainnetEsploraApi] = useState<
-    string | undefined
-  >(undefined);
   const checkInterval = useRef<NodeJS.Timeout | null>(null);
 
   const clearExistingInterval = useCallback(() => {
@@ -108,55 +156,62 @@ const NetStatusProvider: React.FC<NetStatusProviderProps> = ({ children }) => {
     return false; // All attempts failed
   }, []);
 
-  const mainnetEsploraApiRef = useRef<string | undefined>(undefined);
-  const explorerMainnetCheckFunctionRef = useRef<
-    (() => Promise<boolean>) | undefined
-  >(undefined);
   const checkStatus = useCallback(async () => {
+    console.log('NetStatusContext network check starts');
     if (AppState.currentState !== 'active') return;
     clearExistingInterval();
 
-    if (mainnetEsploraApi !== mainnetEsploraApiRef.current) {
-      mainnetEsploraApiRef.current = mainnetEsploraApi;
-      if (mainnetEsploraApi) {
-        const explorer = new EsploraExplorer({
-          url: mainnetEsploraApi
-        });
-        explorerMainnetCheckFunctionRef.current = explorer.isConnected;
-      } else explorerMainnetCheckFunctionRef.current = undefined;
-    }
-    const explorerMainnetCheckFunction =
-      explorerMainnetCheckFunctionRef.current;
-
     let newErrorMessage: string | undefined = undefined;
 
-    const newApiReachable = generate204API
-      ? await checkNetworkReachability(generate204API)
-      : false;
+    // Create an array of promises for the network reachability checks
+    const checks = [
+      generate204API ? checkNetworkReachability(generate204API) : false,
+      generate204API2 ? checkNetworkReachability(generate204API2) : false,
+      explorer ? explorer.isConnected() : false,
+      explorerMainnet ? explorerMainnet.isConnected() : false,
+      checkNetworkReachability('https://clients3.google.com/generate_204')
+    ];
+    // Run all the checks in parallel
+    const [
+      newApiReachable = false,
+      newApi2Reachable = false,
+      newExplorerReachable = false,
+      newExplorerMainnetReachable = false,
+      googleReachable = false
+    ] = await Promise.all(checks);
+    console.log('NetStatusContext network checks complete', {
+      newApiReachable,
+      newApi2Reachable,
+      newExplorerReachable,
+      newExplorerMainnetReachable,
+      googleReachable
+    });
+    if (generate204API) {
+      const startTime = Date.now();
+      await checkNetworkReachability(generate204API);
+      console.log(`TIME generate204API ${Date.now() - startTime} ms`);
+    }
+    if (explorer) {
+      const startTime = Date.now();
+      await explorer.isConnected();
+      console.log(`TIME explorer ${Date.now() - startTime} ms`);
+    }
+    if (explorerMainnet) {
+      const startTime = Date.now();
+      await explorerMainnet.isConnected();
+      console.log(`TIME explorerMainnet ${Date.now() - startTime} ms`);
+    }
+
     if (generate204API && !newApiReachable)
       newErrorMessage = t('netStatus.apiNotReachableWarning');
 
-    const newApi2Reachable = generate204API2
-      ? await checkNetworkReachability(generate204API2)
-      : false;
     if (generate204API2 && !newApi2Reachable)
       newErrorMessage = t('netStatus.apiNotReachableWarning');
 
-    const newExplorerReachable = explorer
-      ? await explorer.isConnected()
-      : false;
     if (explorer && !newExplorerReachable)
       newErrorMessage = t('netStatus.blockchainExplorerNotReachableWarning');
 
-    const newExplorerMainnetReachable = explorerMainnetCheckFunction
-      ? await explorerMainnetCheckFunction()
-      : false;
-    console.log({
-      mainnetEsploraApi,
-      explorerMainnetCheckFunction,
-      newExplorerMainnetReachable
-    });
-    if (explorerMainnetCheckFunction && !newExplorerMainnetReachable)
+    if (explorerMainnet && !newExplorerMainnetReachable)
       newErrorMessage = t('netStatus.blockchainExplorerNotReachableWarning');
 
     const newInternetReachable =
@@ -164,15 +219,13 @@ const NetStatusProvider: React.FC<NetStatusProviderProps> = ({ children }) => {
       newApi2Reachable ||
       newExplorerReachable ||
       newExplorerMainnetReachable ||
-      (await checkNetworkReachability(
-        'https://clients3.google.com/generate_204'
-      ));
+      googleReachable;
+
     if (!newInternetReachable)
       newErrorMessage = t('netStatus.internetNotReachableWarning');
 
     if (newErrorMessage && errorMessageRef.current === undefined) {
-      console.log({ errorMessage, newErrorMessage });
-      toast.show(newErrorMessage, { type: 'error' });
+      toast.show(newErrorMessage, { type: 'warning' });
       errorMessageRef.current = newErrorMessage;
     }
     if (newErrorMessage === undefined && errorMessageRef.current) {
@@ -195,15 +248,6 @@ const NetStatusProvider: React.FC<NetStatusProviderProps> = ({ children }) => {
       : RETRY_TIME_AFTER_OK;
     checkInterval.current = setTimeout(checkStatus, nextCheckDelay);
 
-    console.log({
-      newErrorMessage,
-      newInternetReachable,
-      newApiReachable,
-      newApi2Reachable,
-      newExplorerReachable,
-      newExplorerMainnetReachable
-    });
-
     return {
       internetReachable: newInternetReachable,
       apiReachable: newApiReachable,
@@ -214,13 +258,12 @@ const NetStatusProvider: React.FC<NetStatusProviderProps> = ({ children }) => {
   }, [
     t,
     toast,
-    errorMessage,
     generate204API,
     generate204API2,
     checkNetworkReachability,
     clearExistingInterval,
     explorer,
-    mainnetEsploraApi
+    explorerMainnet
   ]);
 
   useEffect(() => {
@@ -251,12 +294,11 @@ const NetStatusProvider: React.FC<NetStatusProviderProps> = ({ children }) => {
       explorerReachable,
       setExplorer,
       explorerMainnetReachable, //For Tape fees
-      setMainnetEsploraApi, //Only set when needed: For Tape fees
+      setExplorerMainnet, //Only set when needed: For Tape fees
       setGenerate204API,
       setGenerate204API2
     }),
     [
-      setMainnetEsploraApi,
       errorMessage,
       checkStatus,
       internetReachable,

@@ -1,3 +1,4 @@
+/** for usage read notes en NetStatusContext.tsx */
 import { useContext } from 'react';
 import { NetStatusContext, NetStatus } from '../contexts/NetStatusContext';
 

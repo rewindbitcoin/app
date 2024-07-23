@@ -48,8 +48,9 @@ export const useBtcFiat = () => {
           }
         } catch (err) {
           console.warn(err);
-          if (!(await checkStatus())?.apiReachable)
-            //check it again
+          if ((await checkStatus())?.apiReachable)
+            //If it's reachable then this is a weird error we must toast. otherwise
+            //this will be toasted by NetStatus
             toast.show(
               t('app.btcRatesError', { currency: settings.CURRENCY }),
               {
