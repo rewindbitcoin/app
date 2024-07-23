@@ -166,8 +166,8 @@ const WalletHeader = ({
         !netErrorMessage && networkId !== 'BITCOIN' && (
           <Text className="pt-5 p-4 color-orange-600 text-sm">
             {t('walletHome.header.testWalletWarning')}
-            {networkId === 'TAPE' || networkId === 'REGTEST'
-              ? ' ' + t('walletHome.header.regtestWalletPlusWarning')
+            {networkId === 'TAPE'
+              ? ' ' + t('walletHome.header.tapeWalletPlusWarning')
               : ''}
           </Text>
         )

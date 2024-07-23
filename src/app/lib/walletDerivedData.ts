@@ -154,6 +154,7 @@ export const getAPIs = moize(
           throw new Error(`networkId ${networkId} not supported.`);
       }
     return {
+      generate204APIExternal: settings?.EXTERNAL_GENERATE_204,
       faucetAPI,
       mainnetEsploraApi,
       esploraAPI,

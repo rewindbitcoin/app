@@ -11,6 +11,9 @@
  *   endpoint.
  * - setGenerate204API2: Sets secondary API for ensuring vault backups can be
  *   read from another host.
+ * - setGenerate204APIExternal: Sets external API for ensuring the Internet
+ *   is reachable. F.ex.: https://clients3.google.com/generate_204.
+ *   read from another host.
  * - setExplorerMainnet: Sets Blockstream or popular blocks explorer for TAPE
  *   network fee checks.
  *
@@ -19,8 +22,7 @@
  * - api2Reachable: Status of the secondary API.
  * - explorerReachable: Status of the blockchain explorer.
  * - explorerMainnetReachable: Status of the mainnet explorer for TAPE fees.
- * - internetReachable: False if any set service or
- *   https://clients3.google.com/generate_204 fails.
+ * - internetReachable: False if any set service fails.
  *
  * Services are checked every minute. If any service fails, checks occur every
  * 20s until restored.
@@ -36,7 +38,8 @@
  *
  * Typical usage:
  * 1. Set required statuses: setExplorer, setGenerate204API, setGenerate204API2,
- *    setExplorerMainnet.
+ *    setExplorerMainnet. Optionally setGenerate204APIExternal (using google.com
+ *    servers for example)
  * 2. The hook auto-checks all statuses and shows error messages on failure.
  * 3. Before network operations, check relevant service status (e.g.,
  *    api2Reachable).
@@ -95,6 +98,9 @@ export interface NetStatus {
   explorerMainnetReachable: boolean;
   setGenerate204API: (generate204API: string | undefined) => void;
   setGenerate204API2: (generate204API2: string | undefined) => void;
+  setGenerate204APIExternal: (
+    setGenerate204APIExternal: string | undefined
+  ) => void;
   setExplorer: (explorer: Explorer | undefined) => void;
   setExplorerMainnet: (explorerMainnet: Explorer | undefined) => void; //For Tape fees
 }
@@ -114,6 +120,9 @@ const NetStatusProvider: React.FC<NetStatusProviderProps> = ({ children }) => {
   const [generate204API2, setGenerate204API2] = useState<string | undefined>(
     undefined
   );
+  const [generate204APIExternal, setGenerate204APIExternal] = useState<
+    string | undefined
+  >(undefined);
   const [explorer, setExplorer] = useState<Explorer | undefined>(undefined);
   const [explorerMainnet, setExplorerMainnet] = useState<Explorer | undefined>(
     undefined
@@ -169,7 +178,9 @@ const NetStatusProvider: React.FC<NetStatusProviderProps> = ({ children }) => {
       generate204API2 ? checkNetworkReachability(generate204API2) : false,
       explorer ? explorer.isConnected() : false,
       explorerMainnet ? explorerMainnet.isConnected() : false,
-      checkNetworkReachability('https://clients3.google.com/generate_204')
+      generate204APIExternal
+        ? checkNetworkReachability(generate204APIExternal)
+        : false
     ];
     // Run all the checks in parallel
     const [
@@ -177,15 +188,8 @@ const NetStatusProvider: React.FC<NetStatusProviderProps> = ({ children }) => {
       newApi2Reachable = false,
       newExplorerReachable = false,
       newExplorerMainnetReachable = false,
-      googleReachable = false
+      newApiExternalReachable = false
     ] = await Promise.all(checks);
-    console.log('NetStatusContext network checks complete', {
-      newApiReachable,
-      newApi2Reachable,
-      newExplorerReachable,
-      newExplorerMainnetReachable,
-      googleReachable
-    });
     if (generate204API) {
       const startTime = Date.now();
       await checkNetworkReachability(generate204API);
@@ -214,14 +218,37 @@ const NetStatusProvider: React.FC<NetStatusProviderProps> = ({ children }) => {
     if (explorerMainnet && !newExplorerMainnetReachable)
       newErrorMessage = t('netStatus.blockchainExplorerNotReachableWarning');
 
+    const internetCheckRequested =
+      !!generate204API ||
+      !!generate204API2 ||
+      !!generate204APIExternal ||
+      !!explorer ||
+      !!explorerMainnet;
     const newInternetReachable =
       newApiReachable ||
       newApi2Reachable ||
       newExplorerReachable ||
       newExplorerMainnetReachable ||
-      googleReachable;
+      newApiExternalReachable;
+    console.log(
+      'NetStatusContext network checks complete',
+      JSON.stringify(
+        {
+          generate204API,
+          internetCheckRequested,
+          newInternetReachable,
+          newApiReachable,
+          newApi2Reachable,
+          newExplorerReachable,
+          newExplorerMainnetReachable,
+          newApiExternalReachable
+        },
+        null,
+        2
+      )
+    );
 
-    if (!newInternetReachable)
+    if (!newInternetReachable && internetCheckRequested)
       newErrorMessage = t('netStatus.internetNotReachableWarning');
 
     if (newErrorMessage && errorMessageRef.current === undefined) {
@@ -260,6 +287,7 @@ const NetStatusProvider: React.FC<NetStatusProviderProps> = ({ children }) => {
     toast,
     generate204API,
     generate204API2,
+    generate204APIExternal,
     checkNetworkReachability,
     clearExistingInterval,
     explorer,
@@ -296,7 +324,8 @@ const NetStatusProvider: React.FC<NetStatusProviderProps> = ({ children }) => {
       explorerMainnetReachable, //For Tape fees
       setExplorerMainnet, //Only set when needed: For Tape fees
       setGenerate204API,
-      setGenerate204API2
+      setGenerate204API2,
+      setGenerate204APIExternal
     }),
     [
       errorMessage,

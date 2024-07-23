@@ -51,11 +51,15 @@ export function useFeeEstimates(): {
       //If the explorer is reachable then this means the error is due to
       //some weird error. toast it. Otherwise, it will have been toasted in
       //NetStatus
-      if (
-        usingMainnetFeesForRealism
-          ? currStatus?.explorerMainnetReachable
-          : currStatus?.explorerReachable
-      )
+      const feesExplorerReachable = usingMainnetFeesForRealism
+        ? currStatus?.explorerMainnetReachable
+        : currStatus?.explorerReachable;
+      //console.log('TRACE useFeeEstimates toast', {
+      //  usingMainnetFeesForRealism,
+      //  currStatus,
+      //  feesExplorerReachable
+      //});
+      if (!feesExplorerReachable)
         toast.show(t('app.feeEstimatesError'), { type: 'warning' });
     }
   }, [

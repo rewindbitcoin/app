@@ -75,7 +75,6 @@ import { useFeeEstimates } from '../hooks/useFeeEstimates';
 import { useWalletState } from '../hooks/useWalletState';
 import { Explorer, EsploraExplorer } from '@bitcoinerlab/explorer';
 import type { BlockStatus } from '@bitcoinerlab/explorer/dist/interface';
-import { networks } from 'bitcoinjs-lib';
 
 export const WalletContext: Context<WalletContextType | null> =
   createContext<WalletContextType | null>(null);
@@ -202,7 +201,8 @@ const WalletProviderRaw = ({
     faucetAPI,
     vaultsSecondaryAPI,
     generate204API,
-    generate204API2
+    generate204API2,
+    generate204APIExternal
   } = getAPIs(networkId, settings);
   const [wallets, setWallets, , , walletsStorageStatus] = useStorage<Wallets>(
     `WALLETS`,
@@ -265,10 +265,11 @@ const WalletProviderRaw = ({
     setExplorer: setNetStatusExplorer,
     setExplorerMainnet: setNetStatusExplorerMainnet, //Only set if needed (on TAPE network for fees)
     setGenerate204API,
-    setGenerate204API2
+    setGenerate204API2,
+    setGenerate204APIExternal
   } = useNetStatus();
   const explorer = initialDiscovery?.getExplorer();
-  const usingMainnetFeesForRealism = network === networks.regtest;
+  const usingMainnetFeesForRealism = networkId === 'TAPE';
   useEffect(() => {
     unstable_batchedUpdates(() => {
       setNetStatusExplorer(explorer);
@@ -278,11 +279,18 @@ const WalletProviderRaw = ({
       setNetStatusExplorerMainnet(
         usingMainnetFeesForRealism ? explorerMainnet : undefined
       );
+      //Don't check the internet with an external serverl (typically using
+      //google) when using a REGTEST wallet
+      if (networkId && networkId !== 'REGTEST')
+        setGenerate204APIExternal(generate204APIExternal);
     });
   }, [
+    networkId,
     usingMainnetFeesForRealism,
     generate204API,
     generate204API2,
+    generate204APIExternal,
+    setGenerate204APIExternal,
     explorer,
     explorerMainnet,
     setNetStatusExplorer,
