@@ -50,7 +50,7 @@ export const getStorageAccessStatus = ({
   settingsErrorCode,
   signersErrorCode,
   walletsErrorCode,
-  discoveryErrorCode,
+  discoveryDataErrorCode,
   vaultsErrorCode,
   vaultsStatusesErrorCode,
   accountsErrorCode
@@ -59,7 +59,7 @@ export const getStorageAccessStatus = ({
   settingsErrorCode: StorageErrorCode;
   signersErrorCode: StorageErrorCode;
   walletsErrorCode: StorageErrorCode;
-  discoveryErrorCode: StorageErrorCode;
+  discoveryDataErrorCode: StorageErrorCode;
   vaultsErrorCode: StorageErrorCode;
   vaultsStatusesErrorCode: StorageErrorCode;
   accountsErrorCode: StorageErrorCode;
@@ -90,7 +90,7 @@ export const getStorageAccessStatus = ({
   if (
     settingsErrorCode ||
     walletsErrorCode ||
-    discoveryErrorCode ||
+    discoveryDataErrorCode ||
     (!biometricsUncapable && !biometricAuthCancelled && signersErrorCode) ||
     vaultsErrorCode ||
     vaultsStatusesErrorCode ||
@@ -143,6 +143,11 @@ export const getIsCorrupted = ({
 };
 
 type ToastError = 'NETWORK_ERROR'; //'NETWORK_ERROR' | 'STORAGE_ERROR' |...
+/**
+ * When the error is permanent (such as in btc rates or fees failing then
+ * better use NetStatus.notifyErrorAsync
+ *
+ */
 export const toastifyErrorAsync = async <T>(
   errorType: ToastError,
   func: () => Promise<T>

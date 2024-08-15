@@ -17,11 +17,7 @@ import {
   TxHex
 } from '../lib/vaults';
 import type { Accounts, Signers, Wallets } from '../lib/wallets';
-import {
-  ensureConnected,
-  getAPIs,
-  getDisconnectedDiscovery
-} from '../lib/walletDerivedData';
+import { getAPIs } from '../lib/walletDerivedData';
 import { networkMapping, NetworkId } from '../lib/network';
 import {
   createUnvaultKey,
@@ -43,7 +39,11 @@ import { useToast } from '../../common/ui';
 import { SERIALIZABLE, deleteAsync } from '../../common/lib/storage';
 import { useTranslation } from 'react-i18next';
 
-import type { DiscoveryInstance, TxAttribution } from '@bitcoinerlab/discovery';
+import {
+  DiscoveryFactory,
+  type DiscoveryInstance,
+  type TxAttribution
+} from '@bitcoinerlab/discovery';
 import type { FeeEstimates } from '../lib/fees';
 import {
   Platform,
@@ -57,7 +57,7 @@ const unstable_batchedUpdates = Platform.select({
 });
 import { fetchP2PVaults, getDataCipherKey } from '../lib/backup';
 
-type DiscoveryDataExport = ReturnType<DiscoveryInstance['export']>;
+type DiscoveryData = ReturnType<DiscoveryInstance['export']>;
 
 import {
   WalletStatus,
@@ -120,7 +120,7 @@ export type WalletContextType = {
   /** Whether the wallet needs to ask for a password and set it to retrieve
    * the signers */
   requiresPassword: boolean;
-  logOut: () => void;
+  logOut: () => Promise<void>;
   onWallet: ({
     wallet,
     newSigners,
@@ -146,25 +146,29 @@ const WalletProviderRaw = ({
 }) => {
   const [wallet, setWallet] = useState<Wallet>();
   const walletId = wallet?.walletId;
-  const [newSigners, setNewSigners, clearNewSigners] =
-    useWalletState<Signers>();
-
-  const [signersCipherKey, setSignersCipherKey, clearSignersCipherKey] =
-    useWalletState<Uint8Array>();
-  const [dataCipherKey, setDataCipherKey, clearDataCipherKey] =
-    useWalletState<Uint8Array>();
-
-  // Share it accross all wallets. This explorer is only used for retrieving
-  // fees when using the TAPE network. It is shared accross several components
+  // This explorer is only used for retrieving
+  // fees when using the TAPE network. It is shared for all wallets.
   const [explorerMainnet, setExplorerMainnet] = useState<Explorer | undefined>(
     undefined
   );
-
-  const [utxosData, setUtxosData, clearUtxosData] = useWalletState<UtxosData>();
-  const [historyData, setHistoryData, clearHistoryData] =
+  const [walletsNewSigners, setNewSigners, clearNewSigners] =
+    useWalletState<Signers>();
+  const [walletsSignersCipherKey, setSignersCipherKey, clearSignersCipherKey] =
+    useWalletState<Uint8Array>();
+  const [walletsDataCipherKey, setDataCipherKey, clearDataCipherKey] =
+    useWalletState<Uint8Array>();
+  const [walletsDiscovery, setDiscovery, clearDiscovery] = useWalletState<
+    DiscoveryInstance | undefined
+  >();
+  const [walletsUtxosData, setUtxosData, clearUtxosData] =
+    useWalletState<UtxosData>();
+  const [walletsHistoryData, setHistoryData, clearHistoryData] =
     useWalletState<HistoryData>();
-  const [syncingBlockchain, setSyncingBlockchain, clearSynchingBlockchain] =
-    useWalletState<boolean>();
+  const [
+    walletsSyncingBlockchain,
+    setSyncingBlockchain,
+    clearSynchingBlockchain
+  ] = useWalletState<boolean>();
 
   const btcFiat = useBtcFiat();
 
@@ -212,117 +216,141 @@ const WalletProviderRaw = ({
 
   const initSigners =
     walletId !== undefined &&
-    (wallet?.signersEncryption !== 'PASSWORD' || signersCipherKey[walletId]);
+    (wallet?.signersEncryption !== 'PASSWORD' ||
+      walletsSignersCipherKey[walletId]);
 
   const [signers, , , clearSignersCache, signersStorageStatus] =
     useStorage<Signers>(
       initSigners ? `SIGNERS_${walletId}` : undefined,
       SERIALIZABLE,
-      walletId === undefined ? undefined : newSigners[walletId],
+      walletId === undefined ? undefined : walletsNewSigners[walletId],
       signersStorageEngine,
-      walletId === undefined ? undefined : signersCipherKey[walletId],
+      walletId === undefined ? undefined : walletsSignersCipherKey[walletId],
       t('app.secureStorageAuthenticationPrompt')
     );
 
   const initData =
     walletId !== undefined &&
     signersStorageStatus.errorCode === false &&
-    (wallet?.encryption !== 'SEED_DERIVED' || dataCipherKey[walletId]);
+    (wallet?.encryption !== 'SEED_DERIVED' || walletsDataCipherKey[walletId]);
 
   const [
-    discoveryDataExport,
-    setDiscoveryDataExport,
+    discoveryData,
+    setDiscoveryData,
     ,
-    clearDiscoveryCache,
-    discoveryStorageStatus
-  ] = useStorage<DiscoveryDataExport>(
+    clearDiscoveryDataCache,
+    discoveryDataStorageStatus
+  ] = useStorage<DiscoveryData>(
     initData ? `DISCOVERY_${walletId}` : undefined,
     SERIALIZABLE,
     undefined,
     undefined,
-    walletId !== undefined ? dataCipherKey[walletId] : undefined
+    walletId !== undefined ? walletsDataCipherKey[walletId] : undefined
   );
-  //getDisconnectedDiscovery uses memoization for all keys except discoveryDataExport
-  const initialDiscovery = getDisconnectedDiscovery(
+  useEffect(() => {
+    const initDiscovery = async () => {
+      if (
+        walletId !== undefined &&
+        esploraAPI &&
+        network &&
+        discoveryDataStorageStatus.isSynchd &&
+        //discoveryData may be changing continuously, but the discovery
+        //instance can be kept the same
+        !walletsDiscovery[walletId]
+      ) {
+        const explorer = new EsploraExplorer({ url: esploraAPI });
+        await explorer.connect(); //TODO This may throw!!!
+        const { Discovery } = DiscoveryFactory(explorer, network);
+        let discovery: DiscoveryInstance;
+        if (discoveryData) {
+          discovery = new Discovery({ imported: discoveryData });
+        } else {
+          discovery = new Discovery();
+        }
+        setDiscovery(walletId, discovery);
+      }
+    };
+    initDiscovery();
+    //Note there is no cleanup. Discovery is closed on logout
+  }, [
     walletId,
+    discoveryData,
+    discoveryDataStorageStatus.isSynchd,
     esploraAPI,
-    networkId,
-    discoveryDataExport,
-    discoveryStorageStatus.isSynchd
-  );
+    network,
+    setDiscovery,
+    walletsDiscovery
+  ]);
+  const discovery =
+    walletId !== undefined ? walletsDiscovery[walletId] : undefined;
 
   useEffect(() => {
-    if (mainnetEsploraApi && !explorerMainnet) {
-      const newExplorerMainnet = new EsploraExplorer({
-        url: mainnetEsploraApi
-      });
-      newExplorerMainnet.connect();
-      setExplorerMainnet(newExplorerMainnet);
-    }
-  }, [mainnetEsploraApi, explorerMainnet]);
+    const initializeExplorer = async () => {
+      if (mainnetEsploraApi && !explorerMainnet && networkId === 'TAPE') {
+        const newExplorerMainnet = new EsploraExplorer({
+          url: mainnetEsploraApi
+        });
+        //TODO: this can throw!! useNetStatus!!!
+        await newExplorerMainnet.connect();
+        setExplorerMainnet(newExplorerMainnet);
+      }
+    };
+    initializeExplorer();
+    return () => {
+      if (explorerMainnet) explorerMainnet.close();
+    };
+  }, [mainnetEsploraApi, explorerMainnet, networkId]);
 
   const {
-    setExplorer: setNetStatusExplorer,
-    setExplorerMainnet: setNetStatusExplorerMainnet, //Only set if needed (on TAPE network for fees)
-    setGenerate204API,
-    setGenerate204API2,
-    setGenerate204APIExternal
+    setExplorer: nsSetExplorer,
+    setGenerate204API: nsSetGenerate204API,
+    setGenerate204API2: nsSetGenerate204API2,
+    setExplorerMainnet: nsSetExplorerMainnet,
+    setGenerate204APIExternal: nsSetGenerate204APIExternal
   } = useNetStatus();
-  const explorer = initialDiscovery?.getExplorer();
-  const usingMainnetFeesForRealism = networkId === 'TAPE';
   useEffect(() => {
     unstable_batchedUpdates(() => {
-      setNetStatusExplorer(explorer);
-      setGenerate204API(generate204API);
-      setGenerate204API2(generate204API2);
-      //For Tape, we need to make sure blockstream esplora is working:
-      setNetStatusExplorerMainnet(
-        usingMainnetFeesForRealism ? explorerMainnet : undefined
-      );
-      //Don't check the internet with an external serverl (typically using
-      //google) when using a REGTEST wallet
-      if (networkId && networkId !== 'REGTEST')
-        setGenerate204APIExternal(generate204APIExternal);
+      if (discovery) {
+        nsSetExplorer(discovery.getExplorer());
+        nsSetGenerate204API(generate204API);
+        nsSetGenerate204API2(generate204API2);
+        //For Tape, we need to make sure blockstream esplora is working:
+        nsSetExplorerMainnet(
+          networkId === 'TAPE' ? explorerMainnet : undefined
+        );
+        //There's no need to check the internet with an external server (typically
+        //using google) when using a REGTEST wallet
+        if (
+          networkId &&
+          networkId !== 'REGTEST' &&
+          Platform.OS !==
+            'web' /* note that using web, we'll get into CORS issues on google servers,
+          however rewind servers are ok because they have Access-Control-Allow-Origin' '*'
+          in react-native (non-web), fetch does not check for CORS stuff
+          */
+        )
+          nsSetGenerate204APIExternal(generate204APIExternal);
+      }
     });
   }, [
+    discovery,
     networkId,
-    usingMainnetFeesForRealism,
     generate204API,
     generate204API2,
     generate204APIExternal,
-    setGenerate204APIExternal,
-    explorer,
     explorerMainnet,
-    setNetStatusExplorer,
-    setNetStatusExplorerMainnet,
-    setGenerate204API,
-    setGenerate204API2
+    nsSetExplorer,
+    nsSetGenerate204API,
+    nsSetGenerate204API2,
+    nsSetExplorerMainnet,
+    nsSetGenerate204APIExternal
   ]);
 
-  const { tipStatus, updateTipStatus } = useTipStatus({ initialDiscovery });
+  const { tipStatus, updateTipStatus } = useTipStatus();
   const tipHeight = tipStatus?.blockHeight;
   const isTipStatusReady = !!tipStatus;
-  const {
-    feeEstimates,
-    setExplorer: setFeesExplorer,
-    setUsingMainnetFeesForRealism
-  } = useFeeEstimates();
-  useEffect(() => {
-    unstable_batchedUpdates(() => {
-      setFeesExplorer(
-        usingMainnetFeesForRealism
-          ? explorerMainnet
-          : initialDiscovery?.getExplorer()
-      );
-      setUsingMainnetFeesForRealism(usingMainnetFeesForRealism);
-    });
-  }, [
-    usingMainnetFeesForRealism,
-    setFeesExplorer,
-    setUsingMainnetFeesForRealism,
-    initialDiscovery,
-    explorerMainnet
-  ]);
+  const { feeEstimates, setNetworkId: setFeesNetworkId } = useFeeEstimates();
+  useEffect(() => setFeesNetworkId(networkId), [networkId, setFeesNetworkId]);
 
   const [vaults, setVaults, , clearVaultsCache, vaultsStorageStatus] =
     useStorage<Vaults>(
@@ -330,7 +358,7 @@ const WalletProviderRaw = ({
       SERIALIZABLE,
       DEFAULT_VAULTS,
       undefined,
-      walletId !== undefined ? dataCipherKey[walletId] : undefined
+      walletId !== undefined ? walletsDataCipherKey[walletId] : undefined
     );
 
   const [
@@ -344,7 +372,7 @@ const WalletProviderRaw = ({
     SERIALIZABLE,
     DEFAULT_VAULTS_STATUSES,
     undefined,
-    walletId !== undefined ? dataCipherKey[walletId] : undefined
+    walletId !== undefined ? walletsDataCipherKey[walletId] : undefined
   );
 
   const [accounts, setAccounts, , clearAccountsCache, accountsStorageStatus] =
@@ -353,7 +381,7 @@ const WalletProviderRaw = ({
       SERIALIZABLE,
       DEFAULT_ACCOUNTS,
       undefined,
-      walletId !== undefined ? dataCipherKey[walletId] : undefined
+      walletId !== undefined ? walletsDataCipherKey[walletId] : undefined
     );
 
   const setUtxosAndHistoryData = useCallback(
@@ -363,8 +391,6 @@ const WalletProviderRaw = ({
       accounts: Accounts,
       tipHeight: number
     ) => {
-      const discovery =
-        initialDiscovery && (await ensureConnected(initialDiscovery));
       if (
         tipHeight !== undefined &&
         discovery &&
@@ -396,7 +422,7 @@ const WalletProviderRaw = ({
         return true;
       } else return false;
     },
-    [initialDiscovery, network, setUtxosData, setHistoryData, walletId]
+    [discovery, network, setUtxosData, setHistoryData, walletId]
   );
 
   /**
@@ -406,8 +432,6 @@ const WalletProviderRaw = ({
    */
   const pushTx = useCallback(
     async (txHex: string): Promise<boolean> => {
-      const discovery =
-        initialDiscovery && (await ensureConnected(initialDiscovery));
       if (!discovery)
         throw new Error(
           `Discovery not ready for pushTx while trying to push ${txHex}`
@@ -419,7 +443,7 @@ const WalletProviderRaw = ({
       await discovery.push({ txHex, gapLimit });
       return true;
     },
-    [initialDiscovery, gapLimit]
+    [discovery, gapLimit]
   );
 
   /**
@@ -449,8 +473,6 @@ const WalletProviderRaw = ({
         throw new Error('fetchOutputHistory inputs missing');
       if (index === undefined && descriptor.includes('*'))
         throw new Error('Use fetchOutputHistory only for a single output');
-      const discovery =
-        initialDiscovery && (await ensureConnected(initialDiscovery));
       if (!discovery)
         throw new Error(
           `Discovery not ready for fetchTxHistory while trying to fetch descriptor ${descriptor}:${index}`
@@ -474,7 +496,7 @@ const WalletProviderRaw = ({
       return history;
     },
     [
-      initialDiscovery,
+      discovery,
       setUtxosAndHistoryData,
       vaults,
       vaultsStatuses,
@@ -484,11 +506,11 @@ const WalletProviderRaw = ({
   );
 
   const storageAccessStatus = getStorageAccessStatus({
-    isNewWallet: walletId !== undefined && !!newSigners[walletId],
+    isNewWallet: walletId !== undefined && !!walletsNewSigners[walletId],
     settingsErrorCode: settingsStorageStatus.errorCode,
     signersErrorCode: signersStorageStatus.errorCode,
     walletsErrorCode: walletsStorageStatus.errorCode,
-    discoveryErrorCode: discoveryStorageStatus.errorCode,
+    discoveryDataErrorCode: discoveryDataStorageStatus.errorCode,
     vaultsErrorCode: vaultsStorageStatus.errorCode,
     vaultsStatusesErrorCode: vaultsStatusesStorageStatus.errorCode,
     accountsErrorCode: accountsStorageStatus.errorCode
@@ -511,13 +533,13 @@ const WalletProviderRaw = ({
    */
   const isReady =
     walletsStorageStatus.isSynchd &&
-    discoveryStorageStatus.isSynchd &&
+    discoveryDataStorageStatus.isSynchd &&
     signersStorageStatus.isSynchd &&
     vaultsStorageStatus.isSynchd &&
     vaultsStatusesStorageStatus.isSynchd &&
     accountsStorageStatus.isSynchd &&
     walletsStorageStatus.errorCode === false &&
-    discoveryStorageStatus.errorCode === false &&
+    discoveryDataStorageStatus.errorCode === false &&
     signersStorageStatus.errorCode === false &&
     vaultsStorageStatus.errorCode === false &&
     vaultsStatusesStorageStatus.errorCode === false &&
@@ -525,7 +547,7 @@ const WalletProviderRaw = ({
     !isCorrupted;
 
   const isFirstLogin =
-    isReady && walletId !== undefined && !!newSigners[walletId];
+    isReady && walletId !== undefined && !!walletsNewSigners[walletId];
 
   useEffect(() => {
     if (isReady) {
@@ -544,12 +566,11 @@ const WalletProviderRaw = ({
    * we must use the clear functions set in useStorage when created with the current
    * wallet
    */
-  const logOut = useCallback(() => {
+  const logOut = useCallback(async () => {
     if (walletId !== undefined) {
-      initialDiscovery
-        ?.getExplorer()
-        .close()
-        .catch(() => {}); //Swallow any errors.
+      try {
+        await discovery?.getExplorer().close();
+      } catch (err) {} //don't care about errors here
       unstable_batchedUpdates(() => {
         // Clear cache, so that data must be read from disk again for the walletId.
         // This forces cipherKeys to be evaluated again to decrypt from disk
@@ -557,9 +578,10 @@ const WalletProviderRaw = ({
         clearSignersCache();
         clearVaultsCache();
         clearVaultsStatusesCache();
-        clearDiscoveryCache();
+        clearDiscoveryDataCache();
         clearAccountsCache();
         //Clear other state:
+        clearDiscovery(walletId);
         clearUtxosData(walletId);
         clearHistoryData(walletId);
         clearSynchingBlockchain(walletId);
@@ -571,12 +593,13 @@ const WalletProviderRaw = ({
     }
   }, [
     walletId,
-    initialDiscovery,
+    discovery,
     clearSignersCache,
     clearVaultsCache,
     clearVaultsStatusesCache,
-    clearDiscoveryCache,
+    clearDiscoveryDataCache,
     clearAccountsCache,
+    clearDiscovery,
     clearUtxosData,
     clearHistoryData,
     clearSynchingBlockchain,
@@ -661,14 +684,15 @@ const WalletProviderRaw = ({
   useEffect(() => {
     if (
       walletId !== undefined &&
-      !utxosData[walletId] &&
-      !historyData[walletId] &&
+      !walletsUtxosData[walletId] &&
+      !walletsHistoryData[walletId] &&
       vaults &&
       vaultsStatuses &&
       accounts &&
       tipHeight !== undefined
-    )
+    ) {
       setUtxosAndHistoryData(vaults, vaultsStatuses, accounts, tipHeight);
+    }
   }, [
     setUtxosAndHistoryData,
     vaults,
@@ -676,16 +700,15 @@ const WalletProviderRaw = ({
     accounts,
     tipHeight,
     walletId,
-    utxosData,
-    historyData
+    walletsUtxosData,
+    walletsHistoryData
   ]);
 
   const getChangeDescriptor = useCallback(async () => {
     if (!network) throw new Error('Network not ready');
     if (!accounts) throw new Error('Accounts not ready');
     if (!Object.keys(accounts).length) throw new Error('Accounts not set');
-    if (!initialDiscovery) throw new Error('Discovery not ready');
-    const discovery = await ensureConnected(initialDiscovery);
+    if (!discovery) throw new Error('Discovery not ready');
     const account = getMainAccount(accounts, network);
     const changeDescriptorRanged = account.replace(/\/0\/\*/g, '/1/*');
     return changeDescriptorRanged.replaceAll(
@@ -696,7 +719,7 @@ const WalletProviderRaw = ({
         })
         .toString()
     );
-  }, [network, accounts, initialDiscovery]);
+  }, [network, accounts, discovery]);
 
   const getUnvaultKey = useCallback(async () => {
     if (!network) throw new Error('Network not ready');
@@ -737,8 +760,6 @@ const WalletProviderRaw = ({
    */
   const sync = useCallback(async () => {
     if (walletId === undefined) throw new Error('Cannot sync an unset wallet');
-    const discovery =
-      initialDiscovery && (await ensureConnected(initialDiscovery));
     const signer = signers?.[0];
     if (
       networkId &&
@@ -834,7 +855,7 @@ const WalletProviderRaw = ({
           await discovery.fetch({ descriptors, gapLimit });
           //Save to disk.
           const exportedData = discovery.export();
-          setDiscoveryDataExport(exportedData);
+          setDiscoveryData(exportedData);
           if (vaults !== updatedVaults) setVaults(updatedVaults);
           if (vaultsStatuses !== updatedVaultsStatuses)
             setVaultsStatuses(updatedVaultsStatuses);
@@ -867,10 +888,10 @@ const WalletProviderRaw = ({
     setSyncingBlockchain,
     walletId,
     accounts,
-    setDiscoveryDataExport,
+    setDiscoveryData,
     t,
     toast,
-    initialDiscovery,
+    discovery,
     setVaults,
     setVaultsStatuses,
     vaults,
@@ -885,8 +906,8 @@ const WalletProviderRaw = ({
   //syncingBlockchain is set to true either by the user calling to
   //syncingBlockchain or automatically in a useEffect when walletId changes
   useEffect(() => {
-    if (walletId !== undefined && syncingBlockchain[walletId]) sync();
-  }, [syncingBlockchain, walletId, sync]);
+    if (walletId !== undefined && walletsSyncingBlockchain[walletId]) sync();
+  }, [walletsSyncingBlockchain, walletId, sync]);
   //This function is passed in the context so that users can sync
   const syncBlockchain = useCallback(() => {
     if (walletId !== undefined) setSyncingBlockchain(walletId, true);
@@ -1007,12 +1028,13 @@ const WalletProviderRaw = ({
     networkId,
     feeEstimates,
     tipStatus,
-    utxosData: walletId !== undefined ? utxosData[walletId] : undefined,
-    historyData: walletId !== undefined ? historyData[walletId] : undefined,
+    utxosData: walletId !== undefined ? walletsUtxosData[walletId] : undefined,
+    historyData:
+      walletId !== undefined ? walletsHistoryData[walletId] : undefined,
     processCreatedVault,
     syncBlockchain,
     syncingBlockchain: !!(
-      walletId !== undefined && syncingBlockchain[walletId]
+      walletId !== undefined && walletsSyncingBlockchain[walletId]
     ),
     pushTx,
     fetchOutputHistory,
@@ -1025,7 +1047,7 @@ const WalletProviderRaw = ({
     requiresPassword:
       (walletId !== undefined &&
         wallet?.signersEncryption === 'PASSWORD' &&
-        !signersCipherKey[walletId]) ||
+        !walletsSignersCipherKey[walletId]) ||
       (typeof signersStorageStatus.errorCode !== 'boolean' &&
         signersStorageStatus.errorCode === 'DecryptError'),
     logOut,

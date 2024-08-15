@@ -17,7 +17,7 @@
  * - setExplorerMainnet: Sets Blockstream or popular blocks explorer for TAPE
  *   network fee checks.
  *
- * Statuses for each setter (if set):
+ * Statuses for each setter (if set). undefined if still unknown.
  * - apiReachable: Status of the main API.
  * - api2Reachable: Status of the secondary API.
  * - explorerReachable: Status of the blockchain explorer.
@@ -26,11 +26,6 @@
  *
  * Services are checked every minute. If any service fails, checks occur every
  * 20s until restored.
- *
- * checkStatus: Instantly checks if all services are up. Toasts error/recovery
- * messages as needed. At most one error is shown (the most relevant one) to
- * avoid cluttering the UI. Note that error toasts also occur during regular
- * scheduled checks if any service fails.
  *
  * errorMessage: Returns the current error message, if any. This can be used to
  * display the error message permanently in a UI element, such as the
@@ -43,13 +38,12 @@
  * 2. The hook auto-checks all statuses and shows error messages on failure.
  * 3. Before network operations, check relevant service status (e.g.,
  *    api2Reachable).
- * 4. If a network operation fails, await checkStatus().serviceStatus to verify
- *    service availability.
- * 5. If the service is down, the module will have already shown a generic error
- *    to avoid cluttering the UI. If the service is up, handle and toast the
- *    specific network operation failure externally.
+ * 4. If the service is down, the module will have already shown a generic error
+ *    to avoid cluttering the UI.
+ * 5. Use notifyNetErrorAsync to set other more particular network errors.
  */
 
+type NotifiedErrorType = 'feeEstimates' | 'btcFiat' | 'tipStatus';
 const RETRY_TIME_AFTER_OK = 60 * 1000;
 const RETRY_TIME_AFTER_FAIL = 20 * 1000;
 const ATTEMPTS = 5;
@@ -81,21 +75,18 @@ const unstable_batchedUpdates = Platform.select({
 
 export interface NetStatus {
   errorMessage: string | undefined;
-  checkStatus: () => Promise<
-    | undefined //when AppState.currentState !== 'active'
-    | {
-        internetReachable: boolean;
-        apiReachable: boolean;
-        api2Reachable: boolean;
-        explorerReachable: boolean;
-        explorerMainnetReachable: boolean;
-      }
-  >;
-  internetReachable: boolean;
-  apiReachable: boolean;
-  api2Reachable: boolean;
-  explorerReachable: boolean;
-  explorerMainnetReachable: boolean;
+  notifyNetErrorAsync: ({
+    errorType,
+    error
+  }: {
+    errorType: NotifiedErrorType;
+    error: string | false;
+  }) => Promise<void>;
+  internetReachable: boolean | undefined;
+  apiReachable: boolean | undefined;
+  api2Reachable: boolean | undefined;
+  explorerReachable: boolean | undefined;
+  explorerMainnetReachable: boolean | undefined;
   setGenerate204API: (generate204API: string | undefined) => void;
   setGenerate204API2: (generate204API2: string | undefined) => void;
   setGenerate204APIExternal: (
@@ -103,6 +94,8 @@ export interface NetStatus {
   ) => void;
   setExplorer: (explorer: Explorer | undefined) => void;
   setExplorerMainnet: (explorerMainnet: Explorer | undefined) => void; //For Tape fees
+  explorer: Explorer | undefined;
+  explorerMainnet: Explorer | undefined;
 }
 
 export const NetStatusContext = createContext<NetStatus | undefined>(undefined);
@@ -132,12 +125,17 @@ const NetStatusProvider: React.FC<NetStatusProviderProps> = ({ children }) => {
     undefined
   );
   const errorMessageRef = useRef<string | undefined>(undefined);
-  const [internetReachable, setInternetReachable] = useState(false);
-  const [apiReachable, setApiReachable] = useState(false);
-  const [api2Reachable, setApi2Reachable] = useState(false);
-  const [explorerReachable, setExplorerReachable] = useState(false);
-  const [explorerMainnetReachable, setExplorerMainnetReachable] =
-    useState(false);
+  const [apiReachable, setApiReachable] = useState<boolean | undefined>();
+  const [api2Reachable, setApi2Reachable] = useState<boolean | undefined>();
+  const [apiExternalReachable, setApiExternalReachable] = useState<
+    boolean | undefined
+  >();
+  const [explorerReachable, setExplorerReachable] = useState<
+    boolean | undefined
+  >();
+  const [explorerMainnetReachable, setExplorerMainnetReachable] = useState<
+    boolean | undefined
+  >();
   const checkInterval = useRef<NodeJS.Timeout | null>(null);
 
   const clearExistingInterval = useCallback(() => {
@@ -165,124 +163,168 @@ const NetStatusProvider: React.FC<NetStatusProviderProps> = ({ children }) => {
     return false; // All attempts failed
   }, []);
 
-  const checkStatus = useCallback(async () => {
-    console.log('NetStatusContext network check starts');
+  const deriveInternetReachable = useCallback(
+    ({
+      apiReachable,
+      api2Reachable,
+      explorerReachable,
+      explorerMainnetReachable,
+      apiExternalReachable
+    }: {
+      apiReachable: boolean | undefined;
+      api2Reachable: boolean | undefined;
+      explorerReachable: boolean | undefined;
+      explorerMainnetReachable: boolean | undefined;
+      apiExternalReachable: boolean | undefined;
+    }) => {
+      const internetReachable =
+        apiReachable ||
+        api2Reachable ||
+        explorerReachable ||
+        explorerMainnetReachable ||
+        apiExternalReachable;
+      const internetCheckRequested =
+        !!generate204API ||
+        !!generate204API2 ||
+        !!generate204APIExternal ||
+        !!explorer ||
+        !!explorerMainnet;
+      return { internetCheckRequested, internetReachable };
+    },
+    [
+      generate204API,
+      generate204API2,
+      generate204APIExternal,
+      explorer,
+      explorerMainnet
+    ]
+  );
+
+  const deriveErrorMessage = useCallback(
+    ({
+      apiReachable,
+      api2Reachable,
+      explorerReachable,
+      explorerMainnetReachable,
+      internetCheckRequested,
+      internetReachable
+    }: {
+      apiReachable: boolean | undefined;
+      api2Reachable: boolean | undefined;
+      explorerReachable: boolean | undefined;
+      explorerMainnetReachable: boolean | undefined;
+      internetCheckRequested: boolean | undefined;
+      internetReachable: boolean | undefined;
+    }) => {
+      let errorMessage: string | undefined = undefined;
+
+      //sorts notifierErrors from old to new. new notified errors trump
+      //old ones
+      const sortedNotifiedErrors = Object.entries(
+        notifiedErrorsRef.current
+      ).sort(([, a], [, b]) => a.date.getTime() - b.date.getTime());
+
+      sortedNotifiedErrors.forEach(([, notifiedError]) => {
+        if (notifiedError.error) errorMessage = notifiedError.error;
+      });
+
+      //api errors or explorer errors will trump any speciffic errors
+      if (generate204API && apiReachable === false)
+        errorMessage = t('netStatus.apiNotReachableWarning');
+
+      if (generate204API2 && api2Reachable === false)
+        errorMessage = t('netStatus.apiNotReachableWarning');
+
+      if (explorer && explorerReachable === false)
+        errorMessage = t('netStatus.blockchainExplorerNotReachableWarning');
+
+      if (explorerMainnet && explorerMainnetReachable === false)
+        errorMessage = t('netStatus.blockchainExplorerNotReachableWarning');
+
+      //internet reachability error trump any other errors
+      if (internetReachable === false && internetCheckRequested)
+        errorMessage = t('netStatus.internetNotReachableWarning');
+
+      return errorMessage;
+    },
+    [generate204API, generate204API2, explorer, explorerMainnet, t]
+  );
+
+  const updateNetStatus = useCallback(async () => {
     if (AppState.currentState !== 'active') return;
     clearExistingInterval();
 
-    let newErrorMessage: string | undefined = undefined;
-
     // Create an array of promises for the network reachability checks
     const checks = [
-      generate204API ? checkNetworkReachability(generate204API) : false,
-      generate204API2 ? checkNetworkReachability(generate204API2) : false,
-      explorer ? explorer.isConnected() : false,
-      explorerMainnet ? explorerMainnet.isConnected() : false,
+      generate204API ? checkNetworkReachability(generate204API) : undefined,
+      generate204API2 ? checkNetworkReachability(generate204API2) : undefined,
+      explorer ? explorer.isConnected() : undefined,
+      explorerMainnet ? explorerMainnet.isConnected() : undefined,
       generate204APIExternal
         ? checkNetworkReachability(generate204APIExternal)
-        : false
+        : undefined
     ];
     // Run all the checks in parallel
     const [
-      newApiReachable = false,
-      newApi2Reachable = false,
-      newExplorerReachable = false,
-      newExplorerMainnetReachable = false,
-      newApiExternalReachable = false
+      apiReachable,
+      api2Reachable,
+      explorerReachable,
+      explorerMainnetReachable,
+      apiExternalReachable
     ] = await Promise.all(checks);
-    if (generate204API) {
-      const startTime = Date.now();
-      await checkNetworkReachability(generate204API);
-      console.log(`TIME generate204API ${Date.now() - startTime} ms`);
+
+    const { internetReachable, internetCheckRequested } =
+      deriveInternetReachable({
+        apiReachable,
+        api2Reachable,
+        explorerReachable,
+        explorerMainnetReachable,
+        apiExternalReachable
+      });
+
+    const errorMessage = deriveErrorMessage({
+      apiReachable,
+      api2Reachable,
+      explorerReachable,
+      explorerMainnetReachable,
+      internetCheckRequested,
+      internetReachable
+    });
+
+    if (errorMessage && errorMessageRef.current !== errorMessage) {
+      toast.show(errorMessage, { type: 'warning' });
+      errorMessageRef.current = errorMessage;
     }
-    if (explorer) {
-      const startTime = Date.now();
-      await explorer.isConnected();
-      console.log(`TIME explorer ${Date.now() - startTime} ms`);
-    }
-    if (explorerMainnet) {
-      const startTime = Date.now();
-      await explorerMainnet.isConnected();
-      console.log(`TIME explorerMainnet ${Date.now() - startTime} ms`);
-    }
-
-    if (generate204API && !newApiReachable)
-      newErrorMessage = t('netStatus.apiNotReachableWarning');
-
-    if (generate204API2 && !newApi2Reachable)
-      newErrorMessage = t('netStatus.apiNotReachableWarning');
-
-    if (explorer && !newExplorerReachable)
-      newErrorMessage = t('netStatus.blockchainExplorerNotReachableWarning');
-
-    if (explorerMainnet && !newExplorerMainnetReachable)
-      newErrorMessage = t('netStatus.blockchainExplorerNotReachableWarning');
-
-    const internetCheckRequested =
-      !!generate204API ||
-      !!generate204API2 ||
-      !!generate204APIExternal ||
-      !!explorer ||
-      !!explorerMainnet;
-    const newInternetReachable =
-      newApiReachable ||
-      newApi2Reachable ||
-      newExplorerReachable ||
-      newExplorerMainnetReachable ||
-      newApiExternalReachable;
-    console.log(
-      'NetStatusContext network checks complete',
-      JSON.stringify(
-        {
-          generate204API,
-          internetCheckRequested,
-          newInternetReachable,
-          newApiReachable,
-          newApi2Reachable,
-          newExplorerReachable,
-          newExplorerMainnetReachable,
-          newApiExternalReachable
-        },
-        null,
-        2
-      )
-    );
-
-    if (!newInternetReachable && internetCheckRequested)
-      newErrorMessage = t('netStatus.internetNotReachableWarning');
-
-    if (newErrorMessage && errorMessageRef.current === undefined) {
-      toast.show(newErrorMessage, { type: 'warning' });
-      errorMessageRef.current = newErrorMessage;
-    }
-    if (newErrorMessage === undefined && errorMessageRef.current) {
+    if (errorMessage === undefined && errorMessageRef.current) {
       toast.show(t('netStatus.connectionRestoredInfo'), { type: 'success' });
       errorMessageRef.current = undefined;
     }
 
     unstable_batchedUpdates(() => {
-      setErrorMessage(newErrorMessage);
-      setExplorerReachable(newExplorerReachable);
-      setExplorerMainnetReachable(newExplorerMainnetReachable);
-      setApiReachable(newApiReachable);
-      setApi2Reachable(newApi2Reachable);
-      setInternetReachable(newInternetReachable);
+      setErrorMessage(errorMessage);
+      setExplorerReachable(explorerReachable);
+      setExplorerMainnetReachable(explorerMainnetReachable);
+      setApiReachable(apiReachable);
+      setApi2Reachable(api2Reachable);
+      setApiExternalReachable(apiExternalReachable);
     });
 
     // Schedule the next check
-    const nextCheckDelay = newErrorMessage
+    const nextCheckDelay = errorMessage
       ? RETRY_TIME_AFTER_FAIL
       : RETRY_TIME_AFTER_OK;
-    checkInterval.current = setTimeout(checkStatus, nextCheckDelay);
+    checkInterval.current = setTimeout(updateNetStatus, nextCheckDelay);
 
     return {
-      internetReachable: newInternetReachable,
-      apiReachable: newApiReachable,
-      api2Reachable: newApi2Reachable,
-      explorerReachable: newExplorerReachable,
-      explorerMainnetReachable: newExplorerMainnetReachable //For Tape fees
+      internetReachable,
+      apiReachable,
+      api2Reachable,
+      explorerReachable,
+      explorerMainnetReachable //For Tape fees
     };
   }, [
+    deriveInternetReachable,
+    deriveErrorMessage,
     t,
     toast,
     generate204API,
@@ -294,14 +336,104 @@ const NetStatusProvider: React.FC<NetStatusProviderProps> = ({ children }) => {
     explorerMainnet
   ]);
 
+  const notifiedErrorsRef = useRef<
+    Record<
+      NotifiedErrorType,
+      {
+        error: string | false;
+        date: Date;
+      }
+    >
+  >({
+    feeEstimates: { error: false, date: new Date() },
+    btcFiat: { error: false, date: new Date() },
+    tipStatus: { error: false, date: new Date() }
+  });
+
+  /**
+   * Sets speciffic network errors externally. internet, api or explorer errors
+   * will trump speciffic errors.
+   *
+   * Use this to notify permanent network errors. For example, if the fees are
+   * badly retrieved (after retrying) then notify this, since the app won't be
+   * able to operate correctly without those. Same for btc/USD rates, or tip status...
+   *
+   * Dont use this to notify spurious errors such as in pushing a tx that fails.
+   * Use toastifyErrorAsync instead.
+   *
+   * At most only one notified error is set (the last one). This is because the
+   * WalletHeader component will show at most one permanent error. Otherwise it
+   * gets crowded.
+   */
+  const notifyNetErrorAsync = useCallback(
+    async ({
+      errorType,
+      error
+    }: {
+      errorType: NotifiedErrorType;
+      error: string | false;
+    }) => {
+      notifiedErrorsRef.current[errorType] = {
+        error,
+        date: new Date()
+      };
+      const { internetReachable, internetCheckRequested } =
+        deriveInternetReachable({
+          apiReachable,
+          api2Reachable,
+          explorerReachable,
+          explorerMainnetReachable,
+          apiExternalReachable
+        });
+      //TODO: now call deriveErrorMessage, deriveErrorMessage should takle into
+      //account notifiedErrorsRef
+      if (!error) {
+        const errorMessage = deriveErrorMessage({
+          apiReachable,
+          api2Reachable,
+          explorerReachable,
+          explorerMainnetReachable,
+          internetCheckRequested,
+          internetReachable
+        });
+
+        if (errorMessage && errorMessageRef.current !== errorMessage) {
+          toast.show(errorMessage, { type: 'warning' });
+          errorMessageRef.current = errorMessage;
+        }
+        if (errorMessage === undefined && errorMessageRef.current) {
+          toast.show(t('netStatus.connectionRestoredInfo'), {
+            type: 'success'
+          });
+          errorMessageRef.current = undefined;
+        }
+        setErrorMessage(errorMessage);
+      } else {
+        await updateNetStatus();
+      }
+    },
+    [
+      t,
+      toast,
+      updateNetStatus,
+      deriveErrorMessage,
+      deriveInternetReachable,
+      apiReachable,
+      api2Reachable,
+      explorerReachable,
+      explorerMainnetReachable,
+      apiExternalReachable
+    ]
+  );
+
   useEffect(() => {
-    checkStatus(); // Initial check
+    updateNetStatus(); // Initial check
 
     const appStateSubscription = AppState.addEventListener(
       'change',
       nextAppState => {
         if (nextAppState === 'active') {
-          checkStatus();
+          updateNetStatus();
         }
       }
     );
@@ -310,17 +442,25 @@ const NetStatusProvider: React.FC<NetStatusProviderProps> = ({ children }) => {
       appStateSubscription.remove();
       clearExistingInterval();
     };
-  }, [checkStatus, clearExistingInterval]);
+  }, [updateNetStatus, clearExistingInterval]);
 
   const value = useMemo(
     () => ({
       errorMessage,
-      checkStatus,
-      internetReachable,
+      notifyNetErrorAsync,
+      internetReachable: deriveInternetReachable({
+        apiReachable,
+        api2Reachable,
+        explorerReachable,
+        explorerMainnetReachable,
+        apiExternalReachable
+      }).internetReachable,
       apiReachable,
       api2Reachable,
       explorerReachable,
       setExplorer,
+      explorer,
+      explorerMainnet,
       explorerMainnetReachable, //For Tape fees
       setExplorerMainnet, //Only set when needed: For Tape fees
       setGenerate204API,
@@ -328,13 +468,20 @@ const NetStatusProvider: React.FC<NetStatusProviderProps> = ({ children }) => {
       setGenerate204APIExternal
     }),
     [
+      explorer,
+      explorerReachable,
+
+      explorerMainnet,
+      explorerMainnetReachable,
+
       errorMessage,
-      checkStatus,
-      internetReachable,
+
+      notifyNetErrorAsync,
+
       apiReachable,
       api2Reachable,
-      explorerReachable,
-      explorerMainnetReachable
+      apiExternalReachable,
+      deriveInternetReachable
     ]
   );
 

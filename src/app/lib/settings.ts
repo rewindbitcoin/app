@@ -28,7 +28,7 @@ import {
   LOCAL_REGTEST_BLOCK_EXPLORER_PORT
   // @ts-expect-error @env is defined in bable.config.js
 } from '@env';
-if (Number(VERSION) !== 19)
+if (Number(VERSION) !== 20)
   throw new Error(
     `This is still running version: ${VERSION}.
 
@@ -150,17 +150,17 @@ export const defaultSettings: Settings = {
   TAPE_VAULTS_SECONDARY_API: `${PUBLIC_PROTOCOL}://${PUBLIC_API_SECONDARY_SERVER_NAME}${PUBLIC_TAPE_VAULTS_READER_LOCATION}`,
   REGTEST_VAULTS_SECONDARY_API: `${LOCAL_PROTOCOL}://${LOCAL_HOST_NAME}:${LOCAL_REGTEST_VAULTS_READER_PORT}`,
 
-  //MAINNET_ESPLORA_API: 'https://blockstream.info/api',
-  //TESTNET_ESPLORA_API: 'https://blockstream.info/testnet/api',
-  MAINNET_ESPLORA_API: 'https://mempool.space/api',
-  TESTNET_ESPLORA_API: 'https://mempool.space/testnet/api',
+  MAINNET_ESPLORA_API: 'https://blockstream.info/api',
+  TESTNET_ESPLORA_API: 'https://blockstream.info/testnet/api',
+  //MAINNET_ESPLORA_API: 'https://mempool.space/api',
+  //TESTNET_ESPLORA_API: 'https://mempool.space/testnet/api',
   TAPE_ESPLORA_API: `${PUBLIC_PROTOCOL}://${PUBLIC_TAPE_SERVER_NAME}${PUBLIC_TAPE_ESPLORA_API_LOCATION}`,
   REGTEST_ESPLORA_API: `${LOCAL_PROTOCOL}://${LOCAL_HOST_NAME}:${LOCAL_REGTEST_ESPLORA_API_PORT}`,
 
-  //MAINNET_BLOCK_EXPLORER: 'https://blockstream.info/',
-  //TESTNET_BLOCK_EXPLORER: 'https://blockstream.info/testnet/',
-  MAINNET_BLOCK_EXPLORER: 'https://mempool.space/',
-  TESTNET_BLOCK_EXPLORER: 'https://mempool.space/testnet/',
+  MAINNET_BLOCK_EXPLORER: 'https://blockstream.info',
+  TESTNET_BLOCK_EXPLORER: 'https://blockstream.info/testnet',
+  //MAINNET_BLOCK_EXPLORER: 'https://mempool.space/',
+  //TESTNET_BLOCK_EXPLORER: 'https://mempool.space/testnet/',
   TAPE_BLOCK_EXPLORER: `${PUBLIC_PROTOCOL}://${PUBLIC_TAPE_SERVER_NAME}${PUBLIC_TAPE_BLOCK_EXPLORER_LOCATION}`,
   REGTEST_BLOCK_EXPLORER: `${LOCAL_PROTOCOL}://${LOCAL_HOST_NAME}:${LOCAL_REGTEST_BLOCK_EXPLORER_PORT}`,
 

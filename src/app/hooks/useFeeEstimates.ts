@@ -3,40 +3,39 @@
 import { useState, useCallback, useEffect } from 'react';
 import { useSettings } from './useSettings';
 import { shallowEqualObjects } from 'shallow-equal';
-import { useToast } from '../../common/ui';
 import { useTranslation } from 'react-i18next';
 import type { FeeEstimates } from '../lib/fees';
-import type { Explorer } from '@bitcoinerlab/explorer';
 
 import { useNetStatus } from './useNetStatus';
+import type { NetworkId } from '../lib/network';
 
 export function useFeeEstimates(): {
   feeEstimates: FeeEstimates | undefined;
-  setExplorer: (explorer: Explorer | undefined) => void;
-  setUsingMainnetFeesForRealism: (usingMainnetFeesForRealism: boolean) => void;
+  setNetworkId: (networkId: NetworkId | undefined) => void;
 } {
-  const [explorer, setExplorer] = useState<Explorer | undefined>(undefined);
-  const [usingMainnetFeesForRealism, setUsingMainnetFeesForRealism] =
-    useState<boolean>(false);
+  const [networkId, setNetworkId] = useState<NetworkId | undefined>();
 
   const [feeEstimates, setFeeEstimates] = useState<FeeEstimates>();
   const { settings } = useSettings();
   const intervalTime = settings?.BLOCKCHAIN_DATA_REFRESH_INTERVAL_MS;
   const { t } = useTranslation();
-  const toast = useToast();
 
-  const { explorerMainnetReachable, explorerReachable, checkStatus } =
-    useNetStatus();
+  const {
+    explorer,
+    explorerReachable,
+    explorerMainnet,
+    explorerMainnetReachable,
+    notifyNetErrorAsync
+  } = useNetStatus();
 
   const updateFeeEstimates = useCallback(async () => {
+    const feesExplorer = networkId === 'TAPE' ? explorerMainnet : explorer;
     try {
       if (
-        explorer &&
-        (usingMainnetFeesForRealism
-          ? explorerMainnetReachable
-          : explorerReachable)
+        feesExplorer &&
+        (networkId === 'TAPE' ? explorerMainnetReachable : explorerReachable)
       ) {
-        const feeEstimates = await explorer.fetchFeeEstimates();
+        const feeEstimates = await feesExplorer.fetchFeeEstimates();
         setFeeEstimates(prevFeeEstimates => {
           if (shallowEqualObjects(feeEstimates, prevFeeEstimates)) {
             return prevFeeEstimates;
@@ -45,31 +44,22 @@ export function useFeeEstimates(): {
           }
         });
       }
+      notifyNetErrorAsync({ errorType: 'feeEstimates', error: false });
     } catch (err) {
       console.warn(err);
-      const currStatus = await checkStatus();
-      //If the explorer is reachable then this means the error is due to
-      //some weird error. toast it. Otherwise, it will have been toasted in
-      //NetStatus
-      const feesExplorerReachable = usingMainnetFeesForRealism
-        ? currStatus?.explorerMainnetReachable
-        : currStatus?.explorerReachable;
-      //console.log('TRACE useFeeEstimates toast', {
-      //  usingMainnetFeesForRealism,
-      //  currStatus,
-      //  feesExplorerReachable
-      //});
-      if (!feesExplorerReachable)
-        toast.show(t('app.feeEstimatesError'), { type: 'warning' });
+      notifyNetErrorAsync({
+        errorType: 'feeEstimates',
+        error: t('app.feeEstimatesError')
+      });
     }
   }, [
-    checkStatus,
+    networkId,
+    notifyNetErrorAsync,
     explorer,
+    explorerMainnet,
     explorerReachable,
     explorerMainnetReachable,
-    usingMainnetFeesForRealism,
-    t,
-    toast
+    t
   ]);
 
   useEffect(() => {
@@ -81,5 +71,8 @@ export function useFeeEstimates(): {
     return;
   }, [updateFeeEstimates, intervalTime]);
 
-  return { feeEstimates, setExplorer, setUsingMainnetFeesForRealism };
+  return {
+    feeEstimates,
+    setNetworkId
+  };
 }

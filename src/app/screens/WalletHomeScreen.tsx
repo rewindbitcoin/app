@@ -142,8 +142,8 @@ const WalletHomeScreen = () => {
   );
   useEffect(() => navigation.setOptions(navOptions), [navigation, navOptions]);
 
-  const logOutAndGoBack = useCallback(() => {
-    logOut();
+  const logOutAndGoBack = useCallback(async () => {
+    await logOut();
     if (navigation.canGoBack()) navigation.goBack();
   }, [navigation, logOut]);
 

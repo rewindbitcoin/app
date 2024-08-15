@@ -254,7 +254,7 @@ Once the countdown ends, your funds will be unlocked and accessible. It's import
       frozenSubTitle: 'Frozen Balance: Safeguarded in vaults',
       testWalletWarning:
         'Test Wallet: Prices displayed as real Bitcoin for realism but hold no real value.',
-      regtestWalletPlusWarning: 'Fees mimic real ones for realism, too.'
+      tapeWalletPlusWarning: 'Fees mimic real ones for realism, too.'
     },
     delegateReadme: `For immediate action, open this file at:
 https://rescue.rewindbitcoin.com

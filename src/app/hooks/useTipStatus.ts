@@ -1,63 +1,53 @@
 //useFeeEstimates and useTipStatus are very similar. A fix in one file should
 //probably imply a fix in the other
-import { useState, useCallback, useEffect, useRef } from 'react';
-import { ensureConnected } from '../lib/walletDerivedData';
+import { useState, useCallback, useEffect } from 'react';
 import { useSettings } from './useSettings';
-import type { DiscoveryInstance } from '@bitcoinerlab/discovery';
 import type { BlockStatus } from '@bitcoinerlab/explorer/dist/interface';
 import { shallowEqualObjects } from 'shallow-equal';
-import { useToast } from '../../common/ui';
 import { useTranslation } from 'react-i18next';
+import { useNetStatus } from './useNetStatus';
 
-export function useTipStatus({
-  initialDiscovery
-}: {
-  initialDiscovery: DiscoveryInstance | undefined;
-}): {
+export function useTipStatus(): {
   tipStatus: BlockStatus | undefined;
   updateTipStatus: () => Promise<BlockStatus | undefined>;
 } {
-  const initialDiscoveryRef = useRef<DiscoveryInstance | undefined>(
-    initialDiscovery
-  );
+  const { explorer, explorerReachable, notifyNetErrorAsync } = useNetStatus();
 
   const [tipStatus, setTipStatus] = useState<BlockStatus>();
   const { settings } = useSettings();
   const { t } = useTranslation();
-  const toast = useToast();
 
   const updateTipStatus = useCallback(async () => {
+    let tipStatus: undefined | BlockStatus = undefined;
     try {
-      const discovery =
-        initialDiscovery && (await ensureConnected(initialDiscovery));
-      if (discovery) {
-        const explorer = discovery.getExplorer();
+      if (explorer && explorerReachable) {
         const tipHeight = await explorer.fetchBlockHeight();
-        const tipStatus = await explorer.fetchBlockStatus(tipHeight);
-        if (initialDiscoveryRef.current === initialDiscovery) {
-          setTipStatus(prevTipStatus => {
-            if (shallowEqualObjects(tipStatus, prevTipStatus)) {
-              return prevTipStatus;
-            } else {
-              return tipStatus;
-            }
-          });
-          return tipStatus;
-        }
+        tipStatus = await explorer.fetchBlockStatus(tipHeight);
+        setTipStatus(prevTipStatus => {
+          if (shallowEqualObjects(tipStatus, prevTipStatus)) {
+            return prevTipStatus;
+          } else {
+            return tipStatus;
+          }
+        });
       }
-      return undefined;
+      notifyNetErrorAsync({
+        errorType: 'tipStatus',
+        error: false
+      });
+      return tipStatus;
     } catch (err) {
-      toast.show(t('app.tipStatusError'), { type: 'warning' });
+      console.warn(err);
+      notifyNetErrorAsync({
+        errorType: 'tipStatus',
+        error: t('app.tipStatusError')
+      });
+      return;
     }
-    return;
-  }, [initialDiscovery, t, toast]);
+  }, [explorer, explorerReachable, notifyNetErrorAsync, t]);
 
   useEffect(() => {
-    initialDiscoveryRef.current = initialDiscovery;
-  }, [initialDiscovery]);
-
-  useEffect(() => {
-    if (initialDiscovery && settings?.BLOCKCHAIN_DATA_REFRESH_INTERVAL_MS) {
+    if (explorer && settings?.BLOCKCHAIN_DATA_REFRESH_INTERVAL_MS) {
       const intervalId = setInterval(
         updateTipStatus,
         settings.BLOCKCHAIN_DATA_REFRESH_INTERVAL_MS
@@ -67,8 +57,8 @@ export function useTipStatus({
     }
     return;
   }, [
+    explorer,
     updateTipStatus,
-    initialDiscovery,
     settings?.BLOCKCHAIN_DATA_REFRESH_INTERVAL_MS
   ]);
 

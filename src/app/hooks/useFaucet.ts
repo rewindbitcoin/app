@@ -71,6 +71,7 @@ export function useFaucet() {
             'es-ES'
           ));
         } catch (error: unknown) {
+          console.warn(error);
           setFaucetFailed(true);
           toast.show(t('walletHome.faucetErrorMsg'), { type: 'warning' });
           return;

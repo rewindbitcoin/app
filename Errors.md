@@ -1,8 +1,19 @@
+- Ojo, tengo algun explorer.connect así como ensureConnected que puede hacer throw en WalletContext
+    -> ensureConnected debería hacer un toast o algo o pasarlo a NetStatus o algo
+
+- A ver useFeeEstimates que llame internamente a useNetStatus y saque todo de ahí
+El setNetworkId debería de hacerse hacia useNetStatus y no hacia useFeeEstimates
+El mainnetExplorer entonces también debería se cosa interna de useNetStatus
+Tambien useNetStatus debe de pilar los api settings de useSettings
+
 - No re-meter un toast si ya está puesto!
     -feeEstimates por algun motivo me sale mucho?
 
 - Si no tengo conexion a internet entonces hay muchos toast q no se debemn de poner
 y simplemente mostrar un mensaje permanente de q no hay red y no se puede usar la wallet
+
+- Error en useTipStatus ya que toma un valor inicial de initialDiscovery en useTipStatus
+pero nunca lo resetea
 
 ME FALTA useTipStatus too!
 el useNetStatus debería sacar un mensaje de no networrk /no api / network /api recovered en CAMBOPS de estado
