@@ -1,6 +1,9 @@
 - Ojo, tengo algun explorer.connect así como ensureConnected que puede hacer throw en WalletContext
     -> ensureConnected debería hacer un toast o algo o pasarlo a NetStatus o algo
 
+- Si no tengo red, aun tengo q enseñar algo del valor (en funcion de valor antiguo)
+- Ademas en web, si no tengo red me sale error de blocklchaon exxplorer no de in4ernt
+
 - A ver useFeeEstimates que llame internamente a useNetStatus y saque todo de ahí
 El setNetworkId debería de hacerse hacia useNetStatus y no hacia useFeeEstimates
 El mainnetExplorer entonces también debería se cosa interna de useNetStatus

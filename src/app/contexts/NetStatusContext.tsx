@@ -66,6 +66,7 @@ import {
   AppState,
   unstable_batchedUpdates as RN_unstable_batchedUpdates
 } from 'react-native';
+import type { NetworkId } from '../lib/network';
 const unstable_batchedUpdates = Platform.select({
   web: (cb: () => void) => {
     cb();
@@ -85,6 +86,8 @@ export interface NetStatus {
   internetReachable: boolean | undefined;
   apiReachable: boolean | undefined;
   api2Reachable: boolean | undefined;
+  networkId: NetworkId | undefined;
+  setNetworkId: (networkId: NetworkId | undefined) => void;
   explorerReachable: boolean | undefined;
   explorerMainnetReachable: boolean | undefined;
   setGenerate204API: (generate204API: string | undefined) => void;
@@ -116,6 +119,7 @@ const NetStatusProvider: React.FC<NetStatusProviderProps> = ({ children }) => {
   const [generate204APIExternal, setGenerate204APIExternal] = useState<
     string | undefined
   >(undefined);
+  const [networkId, setNetworkId] = useState<NetworkId | undefined>(undefined);
   const [explorer, setExplorer] = useState<Explorer | undefined>(undefined);
   const [explorerMainnet, setExplorerMainnet] = useState<Explorer | undefined>(
     undefined
@@ -177,18 +181,24 @@ const NetStatusProvider: React.FC<NetStatusProviderProps> = ({ children }) => {
       explorerMainnetReachable: boolean | undefined;
       apiExternalReachable: boolean | undefined;
     }) => {
-      const internetReachable =
-        apiReachable ||
-        api2Reachable ||
-        explorerReachable ||
-        explorerMainnetReachable ||
-        apiExternalReachable;
-      const internetCheckRequested =
-        !!generate204API ||
-        !!generate204API2 ||
-        !!generate204APIExternal ||
-        !!explorer ||
-        !!explorerMainnet;
+      // Determines if the internet is reachable by checking multiple variables.
+      // - If at least one of the variables is true, internetReachable will be true.
+      // - If all variables are false, internetReachable will be false.
+      // - If there is a mix of false and undefined, or if all are undefined, internetReachable will be undefined.
+
+      const internetChecks = [];
+      if (generate204API) internetChecks.push(apiReachable);
+      if (generate204API2) internetChecks.push(api2Reachable);
+      if (explorer) internetChecks.push(explorerReachable);
+      if (explorerMainnet) internetChecks.push(explorerMainnetReachable);
+      if (generate204APIExternal) internetChecks.push(apiExternalReachable);
+
+      const internetReachable = internetChecks.includes(true)
+        ? true
+        : internetChecks.every(val => val === false)
+          ? false
+          : undefined;
+      const internetCheckRequested = !!internetChecks.length;
       return { internetCheckRequested, internetReachable };
     },
     [
@@ -458,6 +468,8 @@ const NetStatusProvider: React.FC<NetStatusProviderProps> = ({ children }) => {
       apiReachable,
       api2Reachable,
       explorerReachable,
+      setNetworkId,
+      networkId,
       setExplorer,
       explorer,
       explorerMainnet,
@@ -468,6 +480,8 @@ const NetStatusProvider: React.FC<NetStatusProviderProps> = ({ children }) => {
       setGenerate204APIExternal
     }),
     [
+      networkId,
+
       explorer,
       explorerReachable,
 

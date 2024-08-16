@@ -306,11 +306,13 @@ const WalletProviderRaw = ({
     setGenerate204API: nsSetGenerate204API,
     setGenerate204API2: nsSetGenerate204API2,
     setExplorerMainnet: nsSetExplorerMainnet,
-    setGenerate204APIExternal: nsSetGenerate204APIExternal
+    setGenerate204APIExternal: nsSetGenerate204APIExternal,
+    setNetworkId: nsSetNetworkId
   } = useNetStatus();
   useEffect(() => {
     unstable_batchedUpdates(() => {
       if (discovery) {
+        nsSetNetworkId(networkId);
         nsSetExplorer(discovery.getExplorer());
         nsSetGenerate204API(generate204API);
         nsSetGenerate204API2(generate204API2);
@@ -339,6 +341,7 @@ const WalletProviderRaw = ({
     generate204API2,
     generate204APIExternal,
     explorerMainnet,
+    nsSetNetworkId,
     nsSetExplorer,
     nsSetGenerate204API,
     nsSetGenerate204API2,
@@ -348,9 +351,9 @@ const WalletProviderRaw = ({
 
   const { tipStatus, updateTipStatus } = useTipStatus();
   const tipHeight = tipStatus?.blockHeight;
-  const isTipStatusReady = !!tipStatus;
-  const { feeEstimates, setNetworkId: setFeesNetworkId } = useFeeEstimates();
-  useEffect(() => setFeesNetworkId(networkId), [networkId, setFeesNetworkId]);
+  const isTipStatusReady = !!updateTipStatus;
+  //nsExplorer === discovery?.getExplorer() && !!tipStatus;
+  const feeEstimates = useFeeEstimates();
 
   const [vaults, setVaults, , clearVaultsCache, vaultsStorageStatus] =
     useStorage<Vaults>(
@@ -759,7 +762,10 @@ const WalletProviderRaw = ({
    * Initiates the blockchain synchronization process.
    */
   const sync = useCallback(async () => {
+    console.log(`TRACE sync ${walletId}, ${networkId}`);
     if (walletId === undefined) throw new Error('Cannot sync an unset wallet');
+    if (updateTipStatus === undefined)
+      throw new Error('Cannot sync with unset updateTipStatus');
     const signer = signers?.[0];
     if (
       networkId &&

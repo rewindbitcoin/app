@@ -1,10 +1,11 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { useSettings } from './useSettings';
 import { useTranslation } from 'react-i18next';
 import { fetchBtcFiat } from '../lib/btcRates';
 import type { Currency } from '../lib/settings';
-import type { TFunction } from 'i18next';
 import { useNetStatus } from './useNetStatus';
+import { useStorage } from '../../common/hooks/useStorage';
+import { NUMBER } from '../../common/lib/storage';
 
 export const useBtcFiat = () => {
   const { t } = useTranslation();
@@ -12,49 +13,40 @@ export const useBtcFiat = () => {
 
   const { apiReachable, notifyNetErrorAsync } = useNetStatus();
 
-  const [btcFiat, setBtcFiat] = useState<number | undefined>();
-  const currency = useRef<Currency | undefined>(settings?.CURRENCY);
-  const latestOk = useRef<Currency | undefined>(undefined);
-
-  // Tracks the latest translation function to avoid redundant toasts. This approach
-  // mitigates unnecessary updates caused by `initI18n` in `App.tsx`, which could lead
-  // to double notifications during app initialization. The issue typically arises
-  // when there's no internet connection at start-up. Since `App.tsx` initializes
-  // i18n twice: once with the default language and once with the user's language—
-  // this approach prevents a second toast triggered by the initial `updateBtcFiat` call.
-  const tRef = useRef<TFunction | undefined>(undefined);
-  useEffect(() => {
-    tRef.current = t;
-  }, [t]);
+  const currencyRef = useRef<Currency | undefined>(settings?.CURRENCY);
+  const [btcFiat, setBtcFiat, , , storageStatus] = useStorage<number>(
+    settings?.CURRENCY && `BTC${settings.CURRENCY}`,
+    NUMBER
+  );
 
   useEffect(() => {
-    currency.current = settings?.CURRENCY;
-    const t = tRef.current;
     if (
       t &&
       settings?.CURRENCY !== undefined &&
       settings?.BTC_FIAT_REFRESH_INTERVAL_MS !== undefined &&
-      apiReachable
+      (apiReachable === true || apiReachable === undefined)
     ) {
       const updateBtcFiat = async () => {
         try {
+          if (storageStatus.errorCode) throw new Error(storageStatus.errorCode);
           const btcFiat = await fetchBtcFiat(settings.CURRENCY);
-          if (currency.current === settings.CURRENCY) {
-            latestOk.current = settings.CURRENCY;
-            setBtcFiat(btcFiat);
-          }
+          if (currencyRef.current === settings.CURRENCY) setBtcFiat(btcFiat);
           notifyNetErrorAsync({ errorType: 'btcFiat', error: false });
         } catch (err) {
           console.warn(err);
-          notifyNetErrorAsync({
-            errorType: 'btcFiat',
-            error: t('app.btcRatesError', { currency: settings.CURRENCY })
-          });
-          if (currency.current !== latestOk.current) setBtcFiat(undefined); //otherwise simply keep last one
+          if (apiReachable === true)
+            //only notify error if reachable is true, otherwise wait netStatus
+            //to get proper reachability status to notify errors (netStatus is
+            //still checking but we proceeded anyway to improve UX)...
+            notifyNetErrorAsync({
+              errorType: 'btcFiat',
+              error: t('app.btcRatesError', { currency: settings.CURRENCY })
+            });
         }
       };
 
-      updateBtcFiat(); //Initial call
+      if (currencyRef.current !== settings?.CURRENCY) updateBtcFiat(); //Initial call
+      currencyRef.current = settings?.CURRENCY;
 
       const interval = setInterval(() => {
         updateBtcFiat();
@@ -62,12 +54,13 @@ export const useBtcFiat = () => {
 
       return () => {
         clearInterval(interval);
-        latestOk.current = undefined;
-        currency.current = undefined; //Avoid pending setBtcFiat if unmounted
       };
     }
     return;
   }, [
+    t,
+    storageStatus.errorCode,
+    setBtcFiat,
     settings?.CURRENCY,
     settings?.BTC_FIAT_REFRESH_INTERVAL_MS,
     apiReachable,
