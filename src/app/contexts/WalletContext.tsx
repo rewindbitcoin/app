@@ -651,8 +651,11 @@ const WalletProviderRaw = ({
       //React 18 NOT on the new Architecture behaves as React 17:
       unstable_batchedUpdates(() => {
         //logOut(); //Log out from previous wallet
-        setWallet(walletDst);
-        netStatusReset(); //Net status depends on the wallet (explorer, ...); so reset it when it changes
+        setWallet(prevWallet => {
+          //Net status depends on the wallet (explorer, ...); so reset it ONLY when it changes
+          if (prevWallet !== walletDst) netStatusReset();
+          return walletDst;
+        });
         if (walletId !== undefined) {
           if (signersCipherKey) setSignersCipherKey(walletId, signersCipherKey);
           setNewSigners(walletId, newSigners);
