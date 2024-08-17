@@ -12,12 +12,10 @@ import { SERIALIZABLE } from '../../common/lib/storage';
 
 export function useTipStatus(): {
   tipStatus: BlockStatus | undefined;
-  updateTipStatus: undefined | (() => Promise<BlockStatus | undefined>);
+  updateTipStatus: () => Promise<BlockStatus | undefined>;
 } {
   const { explorer, explorerReachable, notifyNetErrorAsync, networkId } =
     useNetStatus();
-
-  const explorerReachableTrue = explorerReachable === true;
 
   const [tipStatus, setTipStatus, , , storageStatus] = useStorage<
     BlockStatus | undefined
@@ -31,13 +29,12 @@ export function useTipStatus(): {
   const intervalTime = settings?.BLOCKCHAIN_DATA_REFRESH_INTERVAL_MS;
   const { t } = useTranslation();
   const networkIdRef = useRef<NetworkId | undefined>(networkId);
-  const isInitRef = useRef<boolean>(false);
 
   const updateTipStatus = useCallback(async () => {
     let newTipStatus: undefined | BlockStatus = undefined;
     try {
       if (storageStatus.errorCode) throw new Error(storageStatus.errorCode);
-      if (explorer && explorerReachableTrue) {
+      if (explorer && explorerReachable !== false) {
         const tipHeight = await explorer.fetchBlockHeight();
         newTipStatus = await explorer.fetchBlockStatus(tipHeight);
 
@@ -56,7 +53,7 @@ export function useTipStatus(): {
       return newTipStatus;
     } catch (err) {
       console.warn(err);
-      if (explorerReachableTrue)
+      if (explorerReachable === true)
         //only notify error if reachable is true, otherwise wait netStatus
         //to get proper reachability status to notify errors (netStatus is
         //still checking but we proceeded anyway to improve UX)...
@@ -71,36 +68,18 @@ export function useTipStatus(): {
     setTipStatus,
     storageStatus.errorCode,
     explorer,
-    explorerReachableTrue,
+    explorerReachable,
     notifyNetErrorAsync,
     t
   ]);
 
   useEffect(() => {
-    if (networkId !== networkIdRef.current) {
-      isInitRef.current = false;
-    }
-    networkIdRef.current = networkId;
-    if (explorer && explorerReachableTrue && intervalTime) {
-      if (isInitRef.current === false) {
-        isInitRef.current = true;
-        const intervalId = setInterval(updateTipStatus, intervalTime);
-        //1st call - no need for this, since all wallets sync immediatelly on open anyway
-        // updateTipStatus();
-        return () => clearInterval(intervalId);
-      }
+    if (explorerReachable !== false && intervalTime) {
+      const intervalId = setInterval(updateTipStatus, intervalTime);
+      return () => clearInterval(intervalId);
     }
     return;
-  }, [
-    networkId,
-    explorer,
-    explorerReachableTrue,
-    updateTipStatus,
-    intervalTime
-  ]);
+  }, [networkId, explorerReachable, updateTipStatus, intervalTime]);
 
-  return {
-    tipStatus,
-    updateTipStatus: explorerReachableTrue ? updateTipStatus : undefined
-  };
+  return { tipStatus, updateTipStatus };
 }

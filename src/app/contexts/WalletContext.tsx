@@ -302,12 +302,15 @@ const WalletProviderRaw = ({
   }, [mainnetEsploraApi, explorerMainnet, networkId]);
 
   const {
+    reset: netStatusReset,
     setExplorer: nsSetExplorer,
     setGenerate204API: nsSetGenerate204API,
     setGenerate204API2: nsSetGenerate204API2,
     setExplorerMainnet: nsSetExplorerMainnet,
     setGenerate204APIExternal: nsSetGenerate204APIExternal,
-    setNetworkId: nsSetNetworkId
+    setNetworkId: nsSetNetworkId,
+    explorerReachable,
+    explorerMainnetReachable
   } = useNetStatus();
   useEffect(() => {
     unstable_batchedUpdates(() => {
@@ -351,7 +354,6 @@ const WalletProviderRaw = ({
 
   const { tipStatus, updateTipStatus } = useTipStatus();
   const tipHeight = tipStatus?.blockHeight;
-  const isTipStatusReady = !!updateTipStatus;
   //nsExplorer === discovery?.getExplorer() && !!tipStatus;
   const feeEstimates = useFeeEstimates();
 
@@ -592,9 +594,11 @@ const WalletProviderRaw = ({
         clearSignersCipherKey(walletId);
         clearDataCipherKey(walletId);
         setWallet(undefined);
+        netStatusReset(); //Stop checking network
       });
     }
   }, [
+    netStatusReset,
     walletId,
     discovery,
     clearSignersCache,
@@ -648,6 +652,7 @@ const WalletProviderRaw = ({
       unstable_batchedUpdates(() => {
         //logOut(); //Log out from previous wallet
         setWallet(walletDst);
+        netStatusReset(); //Net status depends on the wallet (explorer, ...); so reset it when it changes
         if (walletId !== undefined) {
           if (signersCipherKey) setSignersCipherKey(walletId, signersCipherKey);
           setNewSigners(walletId, newSigners);
@@ -658,7 +663,8 @@ const WalletProviderRaw = ({
       //logOut,
       t,
       setNewSigners,
-      setSignersCipherKey
+      setSignersCipherKey,
+      netStatusReset
     ]
   );
 
@@ -764,8 +770,6 @@ const WalletProviderRaw = ({
   const sync = useCallback(async () => {
     console.log(`TRACE sync ${walletId}, ${networkId}`);
     if (walletId === undefined) throw new Error('Cannot sync an unset wallet');
-    if (updateTipStatus === undefined)
-      throw new Error('Cannot sync with unset updateTipStatus');
     const signer = signers?.[0];
     if (
       networkId &&
@@ -919,14 +923,16 @@ const WalletProviderRaw = ({
     if (walletId !== undefined) setSyncingBlockchain(walletId, true);
   }, [walletId, setSyncingBlockchain]);
   //Automatically set syncingBlockchain to true on new walletId: auto sync
-  //on new wallet. Make sure blockchainTip is set since otherwise sync()
+  //on new wallet. Make sure explorer is reachablde since otherwise sync()
   //won't do anything as it's necessary.
   //Also it will auto-trigger update on a new block
+  const netReady =
+    explorerReachable && (networkId !== 'TAPE' || explorerMainnetReachable);
   useEffect(() => {
-    if (walletId !== undefined && isReady && isTipStatusReady) {
+    if (walletId !== undefined && isReady && netReady) {
       setSyncingBlockchain(walletId, true);
     }
-  }, [walletId, setSyncingBlockchain, isReady, isTipStatusReady]);
+  }, [walletId, setSyncingBlockchain, isReady, netReady]);
 
   /**
    * This already updates utxosData, vaults and vaultsStatuses without

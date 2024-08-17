@@ -74,6 +74,19 @@ const unstable_batchedUpdates = Platform.select({
   default: RN_unstable_batchedUpdates
 });
 
+type NotifiedErrors = Record<
+  NotifiedErrorType,
+  {
+    error: string | false;
+    date: Date;
+  }
+>;
+const notifiedErrorsInit: NotifiedErrors = {
+  feeEstimates: { error: false, date: new Date() },
+  btcFiat: { error: false, date: new Date() },
+  tipStatus: { error: false, date: new Date() }
+};
+
 export interface NetStatus {
   errorMessage: string | undefined;
   notifyNetErrorAsync: ({
@@ -99,6 +112,7 @@ export interface NetStatus {
   setExplorerMainnet: (explorerMainnet: Explorer | undefined) => void; //For Tape fees
   explorer: Explorer | undefined;
   explorerMainnet: Explorer | undefined;
+  reset: () => void;
 }
 
 export const NetStatusContext = createContext<NetStatus | undefined>(undefined);
@@ -129,6 +143,8 @@ const NetStatusProvider: React.FC<NetStatusProviderProps> = ({ children }) => {
     undefined
   );
   const errorMessageRef = useRef<string | undefined>(undefined);
+  const checkIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const notifiedErrorsRef = useRef<NotifiedErrors>(notifiedErrorsInit);
   const [apiReachable, setApiReachable] = useState<boolean | undefined>();
   const [api2Reachable, setApi2Reachable] = useState<boolean | undefined>();
   const [apiExternalReachable, setApiExternalReachable] = useState<
@@ -140,14 +156,29 @@ const NetStatusProvider: React.FC<NetStatusProviderProps> = ({ children }) => {
   const [explorerMainnetReachable, setExplorerMainnetReachable] = useState<
     boolean | undefined
   >();
-  const checkInterval = useRef<NodeJS.Timeout | null>(null);
 
   const clearExistingInterval = useCallback(() => {
-    if (checkInterval.current) {
-      clearTimeout(checkInterval.current);
-      checkInterval.current = null;
+    if (checkIntervalRef.current) {
+      clearTimeout(checkIntervalRef.current);
+      checkIntervalRef.current = null;
     }
   }, []);
+  const reset = useCallback(() => {
+    clearExistingInterval();
+    errorMessageRef.current = undefined;
+    notifiedErrorsRef.current = notifiedErrorsInit;
+    setGenerate204API(undefined);
+    setGenerate204API2(undefined);
+    setGenerate204APIExternal(undefined);
+    setNetworkId(undefined);
+    setExplorer(undefined);
+    setExplorerMainnet(undefined);
+    setErrorMessage(undefined);
+    setApiReachable(undefined);
+    setApi2Reachable(undefined);
+    setExplorerReachable(undefined);
+    setExplorerMainnetReachable(undefined);
+  }, [clearExistingInterval]);
 
   const checkNetworkReachability = useCallback(async (url: string) => {
     let attempts = ATTEMPTS;
@@ -323,7 +354,7 @@ const NetStatusProvider: React.FC<NetStatusProviderProps> = ({ children }) => {
     const nextCheckDelay = errorMessage
       ? RETRY_TIME_AFTER_FAIL
       : RETRY_TIME_AFTER_OK;
-    checkInterval.current = setTimeout(updateNetStatus, nextCheckDelay);
+    checkIntervalRef.current = setTimeout(updateNetStatus, nextCheckDelay);
 
     return {
       internetReachable,
@@ -345,20 +376,6 @@ const NetStatusProvider: React.FC<NetStatusProviderProps> = ({ children }) => {
     explorer,
     explorerMainnet
   ]);
-
-  const notifiedErrorsRef = useRef<
-    Record<
-      NotifiedErrorType,
-      {
-        error: string | false;
-        date: Date;
-      }
-    >
-  >({
-    feeEstimates: { error: false, date: new Date() },
-    btcFiat: { error: false, date: new Date() },
-    tipStatus: { error: false, date: new Date() }
-  });
 
   /**
    * Sets speciffic network errors externally. internet, api or explorer errors
@@ -477,9 +494,11 @@ const NetStatusProvider: React.FC<NetStatusProviderProps> = ({ children }) => {
       setExplorerMainnet, //Only set when needed: For Tape fees
       setGenerate204API,
       setGenerate204API2,
-      setGenerate204APIExternal
+      setGenerate204APIExternal,
+      reset
     }),
     [
+      reset,
       networkId,
 
       explorer,

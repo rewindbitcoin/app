@@ -73,24 +73,19 @@ export function useFeeEstimates(): FeeEstimates | undefined {
   ]);
 
   useEffect(() => {
-    if (networkId !== networkIdRef.current) isInitRef.current = false;
-    networkIdRef.current = networkId;
-    if (feesExplorer && feesExplorerReachable !== false && intervalTime) {
-      if (isInitRef.current === false) {
-        isInitRef.current = true;
-        const intervalId = setInterval(updateFeeEstimates, intervalTime);
-        updateFeeEstimates(); //1st call
-        return () => clearInterval(intervalId);
-      }
+    console.log('TRACE useFeeEstimates', {
+      init: isInitRef.current,
+      networkId,
+      currN: networkIdRef.current,
+      feesExplorerReachable
+    });
+    if (feesExplorerReachable !== false && intervalTime) {
+      const intervalId = setInterval(updateFeeEstimates, intervalTime);
+      updateFeeEstimates(); //1st call
+      return () => clearInterval(intervalId);
     }
     return;
-  }, [
-    updateFeeEstimates,
-    intervalTime,
-    networkId,
-    feesExplorer,
-    feesExplorerReachable
-  ]);
+  }, [networkId, feesExplorerReachable, updateFeeEstimates, intervalTime]);
 
   return feeEstimates;
 }
