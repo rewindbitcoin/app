@@ -7,17 +7,13 @@ import { useTranslation } from 'react-i18next';
 import type { FeeEstimates } from '../lib/fees';
 
 import { useNetStatus } from './useNetStatus';
-import type { NetworkId } from '../lib/network';
 import { useStorage } from '../../common/hooks/useStorage';
 import { SERIALIZABLE } from '../../common/lib/storage';
 
-export function useFeeEstimates(): FeeEstimates | undefined {
-  //feeEstimatesRef keeps track of as feeEstimates. It will be used
-  //to compare in shallowEqualObjects. shallowEqualObjects won't use feeEstimates
-  //to avoid re-renders (infinite loop)
-  const feeEstimatesRef = useRef<FeeEstimates>();
-  const networkIdRef = useRef<NetworkId | undefined>(undefined);
-  const isInitRef = useRef<boolean>(false);
+export function useFeeEstimates(): {
+  feeEstimates: FeeEstimates | undefined;
+  updateFeeEstimates: () => Promise<FeeEstimates | undefined>;
+} {
   const { settings } = useSettings();
   const intervalTime = settings?.BLOCKCHAIN_DATA_REFRESH_INTERVAL_MS;
   const { t } = useTranslation();
@@ -30,62 +26,64 @@ export function useFeeEstimates(): FeeEstimates | undefined {
     notifyNetErrorAsync,
     networkId
   } = useNetStatus();
+
   const [feeEstimates, setFeeEstimates, , , storageStatus] =
     useStorage<FeeEstimates>(networkId && `FEES_${networkId}`, SERIALIZABLE);
+
+  //feeEstimatesRef keeps track of as feeEstimates. It will be used
+  //to compare in shallowEqualObjects. shallowEqualObjects won't use feeEstimates
+  //to avoid re-renders (infinite loop)
+  const feeEstimatesRef = useRef<FeeEstimates | undefined>();
+  useEffect(() => {
+    feeEstimatesRef.current = undefined;
+  }, [setFeeEstimates]);
 
   const feesExplorer = networkId === 'TAPE' ? explorerMainnet : explorer;
   const feesExplorerReachable =
     networkId === 'TAPE' ? explorerMainnetReachable : explorerReachable;
 
   const updateFeeEstimates = useCallback(async () => {
+    let newFeeEstimates: undefined | FeeEstimates = undefined;
     try {
       if (storageStatus.errorCode) throw new Error(storageStatus.errorCode);
-      if (feesExplorer && feesExplorerReachable !== false) {
-        const newFeeEstimates = await feesExplorer.fetchFeeEstimates();
-        if (
-          networkIdRef.current === networkId &&
-          !shallowEqualObjects(newFeeEstimates, feeEstimatesRef.current)
-        ) {
+      if (feesExplorer && feesExplorerReachable) {
+        newFeeEstimates = await feesExplorer.fetchFeeEstimates();
+        if (!shallowEqualObjects(newFeeEstimates, feeEstimatesRef.current)) {
           setFeeEstimates(newFeeEstimates);
           feeEstimatesRef.current = newFeeEstimates;
         }
       }
       notifyNetErrorAsync({ errorType: 'feeEstimates', error: false });
+      return newFeeEstimates;
     } catch (err) {
       console.warn(err);
-      if (feesExplorerReachable === true)
-        //only notify error if reachable is true, otherwise wait netStatus
-        //to get proper reachability status to notify errors (netStatus is
-        //still checking but we proceeded anyway to improve UX)...
-        notifyNetErrorAsync({
-          errorType: 'feeEstimates',
-          error: t('app.feeEstimatesError')
-        });
+      notifyNetErrorAsync({
+        errorType: 'feeEstimates',
+        error: t('app.feeEstimatesError')
+      });
+      return;
     }
   }, [
     setFeeEstimates,
     storageStatus.errorCode,
-    networkId,
     notifyNetErrorAsync,
     feesExplorer,
     feesExplorerReachable,
     t
   ]);
+  useEffect(() => {
+    if (!feesExplorerReachable)
+      notifyNetErrorAsync({ errorType: 'feeEstimates', error: false });
+  }, [feesExplorerReachable, notifyNetErrorAsync]);
 
   useEffect(() => {
-    console.log('TRACE useFeeEstimates', {
-      init: isInitRef.current,
-      networkId,
-      currN: networkIdRef.current,
-      feesExplorerReachable
-    });
-    if (feesExplorerReachable !== false && intervalTime) {
+    if (feesExplorerReachable && intervalTime) {
       const intervalId = setInterval(updateFeeEstimates, intervalTime);
       updateFeeEstimates(); //1st call
       return () => clearInterval(intervalId);
     }
     return;
-  }, [networkId, feesExplorerReachable, updateFeeEstimates, intervalTime]);
+  }, [feesExplorerReachable, updateFeeEstimates, intervalTime]);
 
-  return feeEstimates;
+  return { updateFeeEstimates, feeEstimates };
 }

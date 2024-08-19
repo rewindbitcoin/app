@@ -1,80 +1,17 @@
+TAPE-> espero al sync -> desconecto internet -> sync manual -> reconecto -> espero a que wifi se conecte -> sync manual -> me sale de nuevo el toas de error seguido de el toast de ok
+
+- Pasar una rutina que me fuerza un refresh de netStatus. Poner un "Check again" al lado
+de los errores permanentes de NetStatus que hace un updateNetStatus, updateFeeEstimates y onTrue(sync)
+
 - Ojo, tengo algun explorer.connect así como ensureConnected que puede hacer throw en WalletContext
     -> ensureConnected debería hacer un toast o algo o pasarlo a NetStatus o algo
 
-- Si no tengo red, aun tengo q enseñar algo del valor (en funcion de valor antiguo)
-- Ademas en web, si no tengo red me sale error de blocklchaon exxplorer no de in4ernt
-
-- A ver useFeeEstimates que llame internamente a useNetStatus y saque todo de ahí
-El setNetworkId debería de hacerse hacia useNetStatus y no hacia useFeeEstimates
-El mainnetExplorer entonces también debería se cosa interna de useNetStatus
-Tambien useNetStatus debe de pilar los api settings de useSettings
-
-- No re-meter un toast si ya está puesto!
-    -feeEstimates por algun motivo me sale mucho?
-
-- Si no tengo conexion a internet entonces hay muchos toast q no se debemn de poner
-y simplemente mostrar un mensaje permanente de q no hay red y no se puede usar la wallet
-
-- Error en useTipStatus ya que toma un valor inicial de initialDiscovery en useTipStatus
-pero nunca lo resetea
-
-ME FALTA useTipStatus too!
-el useNetStatus debería sacar un mensaje de no networrk /no api / network /api recovered en CAMBOPS de estado
-Also, antes de sacar los errores de tipStatus o feeEstimates o lo q sea hacer un check the connectibity. Exportar de los hools
-la funcion de check inidiviual
-Incluso devería ser posible poder mirar el status de la conexion a electrum server (por si no se usa esplora...)
-así como los isExplorerUp? Si
-    -> Entonces antes de hacer un tast the feeError or tipStatus error hacer un await chek de api/internet/exploer
-
-- Entonces no permitir los sync, y los btcRates automáticos y los useFeeEstimates automaticos
-
-- Si no tengo red y accedo a una wallet no sync, entonces me sale el pulse pero no sale
-error nunca de timeout... ??
-    -> poruqe updateTipStatus me hace swallow del error y ne debería ?!?!
-        Luegoi simplemente no se hace el update...
-
-- Tengo un monton de toasts que no deberían aparecer si la causa principal
-
-- Loading a Wallet without internet connedction triggers 2 consecutive btc rates erorrs simultanenously
-
 - Si voy muy rapudo a creat un Vault me da error q aun no esta set el feeEstiamtes
-muchos de esos...
+muchos de esos... Esto me puede pasar cuando creo una wallet con una networkId q no tengo en Storage. Hacer un wait... o bien no mostrar el boton de enviar/redcibir/vaultear
 
 - revisar todas mis llamadas a mis propias apis - ahí tengo q tener toast
     buscar en lvim -> "fetch("
       const response = await fetch(`${serviceAddressAPI}/get`);
-
-es que a) No tengo acceso a Internet b) RewindBitcion está caído.
-En ese caso simplemente mostrar un mensaje de error permanente. Diciendo
-que will keep retrying every 60 seconds (tap to retry now)
-
- | Importante tengo los fetchVaultStatus que hacen uso de explorer.fetch y 
- || ya me han dado error durante un fetcg... hacer un retrial y hacer un toast...
- || handle eso
- ||   -> Asociado con esto, si quito la red y hago un refresh, me salen 2 veces
- ||   el mismo mensaje de error toast de fee-estimates...
- ||   En realidad debería tener el mensaje de q no hay red. y no repetir mensajes toast...
- ||   Probar todo tipo de errores de red como el de arriba con los vault.
-
-
-Problems:
-  do not repeat messages...
-    -> fee Estimates too many times
-  Dont let the app move if the app/wallet is experiencing an error:
-    - fees incorrect ?
-    - Show USD if values not correct ?
-    - Incorrect sync ?
-    - Old data, so do not allow to create vault/txs... ?
-    
-  Some errors are recoverable:  
-    -> network
-  Some are not recoverable:
-    -> storage error
-    -> many of the throw new Error() that i force
-
-BTC/USD errors...
-
-serviceApi errors...
 
 Backup errors...
 
@@ -101,6 +38,3 @@ Some Network errors being handled:
     - But handling is pretty bad because if network fails then it
     basically errors that feeEstimates was bad
     - Here I have fetchVaultStatus that does not retry...
-
-Explorer should retry stuff...
-Explorer should already return some error stuff?

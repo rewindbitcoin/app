@@ -36,6 +36,8 @@ Retrying in 60 seconds and will notify you if the problem persists.`,
       'Unable to connect to our services. This affects Bitcoin price updates and prevents vault operations due to disrupted backups. Please try again later.',
     blockchainExplorerNotReachableWarning:
       'Unable to connect to the blockchain explorer. This prevents updating the status of your transactions and accessing up-to-date information on the Bitcoin network. Please check your connection and try again.',
+    blockchainMainnetExplorerNotReachableWarning:
+      'Unable to connect to the blockchain explorer. This prevents updating the status of your transactions and accessing up-to-date information on the Bitcoin network. Please check your connection and try again.',
     connectionRestoredInfo:
       'Connectivity restored. All wallet features are now fully operational.'
   },

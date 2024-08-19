@@ -43,12 +43,47 @@
  * 5. Use notifyNetErrorAsync to set other more particular network errors.
  */
 
-type NotifiedErrorType = 'feeEstimates' | 'btcFiat' | 'tipStatus';
+const ATTEMPTS = 2;
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+const checkNetworkReachability = async (url: string) => {
+  let attempts = ATTEMPTS;
+
+  while (attempts > 0) {
+    try {
+      const response = await fetch(url);
+      if (response.status === 204) return true;
+      await sleep(200);
+      attempts--;
+    } catch (error) {
+      if (attempts <= 1) return false;
+      await sleep(200);
+      attempts--;
+    }
+  }
+  return false; // All attempts failed
+};
+const checkExplorerReachability = async (explorer: Explorer) => {
+  let attempts = ATTEMPTS;
+
+  while (attempts > 0) {
+    try {
+      const connected = await explorer.isConnected();
+      if (connected) return true;
+      else await explorer.connect();
+      if (attempts !== ATTEMPTS) await sleep(200);
+      attempts--;
+    } catch (error) {
+      if (attempts <= 1) return false;
+      await sleep(200);
+      attempts--;
+    }
+  }
+  return false; // All attempts failed
+};
+
 const RETRY_TIME_AFTER_OK = 60 * 1000;
 const RETRY_TIME_AFTER_FAIL = 20 * 1000;
-const ATTEMPTS = 5;
 
-const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 import type { Explorer } from '@bitcoinerlab/explorer';
 import { useToast } from '../../common/ui';
 
@@ -74,6 +109,7 @@ const unstable_batchedUpdates = Platform.select({
   default: RN_unstable_batchedUpdates
 });
 
+type NotifiedErrorType = 'feeEstimates' | 'btcFiat' | 'tipStatus';
 type NotifiedErrors = Record<
   NotifiedErrorType,
   {
@@ -85,6 +121,15 @@ const notifiedErrorsInit: NotifiedErrors = {
   feeEstimates: { error: false, date: new Date() },
   btcFiat: { error: false, date: new Date() },
   tipStatus: { error: false, date: new Date() }
+};
+
+type InitParams = {
+  explorer: Explorer | undefined;
+  explorerMainnet: Explorer | undefined;
+  generate204API: string | undefined;
+  generate204API2: string | undefined;
+  generate204APIExternal: string | undefined;
+  networkId: NetworkId | undefined;
 };
 
 export interface NetStatus {
@@ -100,19 +145,23 @@ export interface NetStatus {
   apiReachable: boolean | undefined;
   api2Reachable: boolean | undefined;
   networkId: NetworkId | undefined;
-  setNetworkId: (networkId: NetworkId | undefined) => void;
   explorerReachable: boolean | undefined;
   explorerMainnetReachable: boolean | undefined;
-  setGenerate204API: (generate204API: string | undefined) => void;
-  setGenerate204API2: (generate204API2: string | undefined) => void;
-  setGenerate204APIExternal: (
-    setGenerate204APIExternal: string | undefined
-  ) => void;
-  setExplorer: (explorer: Explorer | undefined) => void;
-  setExplorerMainnet: (explorerMainnet: Explorer | undefined) => void; //For Tape fees
   explorer: Explorer | undefined;
   explorerMainnet: Explorer | undefined;
   reset: () => void;
+  init: (params: InitParams) => void;
+  update: () => Promise<
+    | undefined
+    | {
+        errorMessage: string | undefined;
+        internetReachable: boolean | undefined;
+        apiReachable: boolean | undefined;
+        api2Reachable: boolean | undefined;
+        explorerReachable: boolean | undefined;
+        explorerMainnetReachable: boolean | undefined;
+      }
+  >;
 }
 
 export const NetStatusContext = createContext<NetStatus | undefined>(undefined);
@@ -179,24 +228,6 @@ const NetStatusProvider: React.FC<NetStatusProviderProps> = ({ children }) => {
     setExplorerReachable(undefined);
     setExplorerMainnetReachable(undefined);
   }, [clearExistingInterval]);
-
-  const checkNetworkReachability = useCallback(async (url: string) => {
-    let attempts = ATTEMPTS;
-
-    while (attempts > 0) {
-      try {
-        const response = await fetch(url);
-        if (response.status === 204) return true;
-        await sleep(200);
-        attempts--;
-      } catch (error) {
-        if (attempts <= 1) return false;
-        await sleep(200);
-        attempts--;
-      }
-    }
-    return false; // All attempts failed
-  }, []);
 
   const deriveInternetReachable = useCallback(
     ({
@@ -280,7 +311,9 @@ const NetStatusProvider: React.FC<NetStatusProviderProps> = ({ children }) => {
         errorMessage = t('netStatus.blockchainExplorerNotReachableWarning');
 
       if (explorerMainnet && explorerMainnetReachable === false)
-        errorMessage = t('netStatus.blockchainExplorerNotReachableWarning');
+        errorMessage = t(
+          'netStatus.blockchainMainnetExplorerNotReachableWarning'
+        );
 
       //internet reachability error trump any other errors
       if (internetReachable === false && internetCheckRequested)
@@ -291,7 +324,7 @@ const NetStatusProvider: React.FC<NetStatusProviderProps> = ({ children }) => {
     [generate204API, generate204API2, explorer, explorerMainnet, t]
   );
 
-  const updateNetStatus = useCallback(async () => {
+  const update = useCallback(async () => {
     if (AppState.currentState !== 'active') return;
     clearExistingInterval();
 
@@ -299,8 +332,8 @@ const NetStatusProvider: React.FC<NetStatusProviderProps> = ({ children }) => {
     const checks = [
       generate204API ? checkNetworkReachability(generate204API) : undefined,
       generate204API2 ? checkNetworkReachability(generate204API2) : undefined,
-      explorer ? explorer.isConnected() : undefined,
-      explorerMainnet ? explorerMainnet.isConnected() : undefined,
+      explorer ? checkExplorerReachability(explorer) : undefined,
+      explorerMainnet ? checkExplorerReachability(explorerMainnet) : undefined,
       generate204APIExternal
         ? checkNetworkReachability(generate204APIExternal)
         : undefined
@@ -334,6 +367,7 @@ const NetStatusProvider: React.FC<NetStatusProviderProps> = ({ children }) => {
 
     if (errorMessage && errorMessageRef.current !== errorMessage) {
       toast.show(errorMessage, { type: 'warning' });
+      console.log('TRACE update toast', { errorMessage });
       errorMessageRef.current = errorMessage;
     }
     if (errorMessage === undefined && errorMessageRef.current) {
@@ -354,9 +388,10 @@ const NetStatusProvider: React.FC<NetStatusProviderProps> = ({ children }) => {
     const nextCheckDelay = errorMessage
       ? RETRY_TIME_AFTER_FAIL
       : RETRY_TIME_AFTER_OK;
-    checkIntervalRef.current = setTimeout(updateNetStatus, nextCheckDelay);
+    checkIntervalRef.current = setTimeout(update, nextCheckDelay);
 
     return {
+      errorMessage,
       internetReachable,
       apiReachable,
       api2Reachable,
@@ -371,7 +406,6 @@ const NetStatusProvider: React.FC<NetStatusProviderProps> = ({ children }) => {
     generate204API,
     generate204API2,
     generate204APIExternal,
-    checkNetworkReachability,
     clearExistingInterval,
     explorer,
     explorerMainnet
@@ -412,9 +446,7 @@ const NetStatusProvider: React.FC<NetStatusProviderProps> = ({ children }) => {
           explorerMainnetReachable,
           apiExternalReachable
         });
-      //TODO: now call deriveErrorMessage, deriveErrorMessage should takle into
-      //account notifiedErrorsRef
-      if (!error) {
+      if (error === false) {
         const errorMessage = deriveErrorMessage({
           apiReachable,
           api2Reachable,
@@ -425,6 +457,12 @@ const NetStatusProvider: React.FC<NetStatusProviderProps> = ({ children }) => {
         });
 
         if (errorMessage && errorMessageRef.current !== errorMessage) {
+          console.log('TRACE notifyNetErrorAsync toast', {
+            currError: errorMessageRef.current,
+            error,
+            errorType,
+            errorMessage
+          });
           toast.show(errorMessage, { type: 'warning' });
           errorMessageRef.current = errorMessage;
         }
@@ -436,13 +474,13 @@ const NetStatusProvider: React.FC<NetStatusProviderProps> = ({ children }) => {
         }
         setErrorMessage(errorMessage);
       } else {
-        await updateNetStatus();
+        await update();
       }
     },
     [
       t,
       toast,
-      updateNetStatus,
+      update,
       deriveErrorMessage,
       deriveInternetReachable,
       apiReachable,
@@ -454,22 +492,40 @@ const NetStatusProvider: React.FC<NetStatusProviderProps> = ({ children }) => {
   );
 
   useEffect(() => {
-    updateNetStatus(); // Initial check
+    update(); // Initial check
 
     const appStateSubscription = AppState.addEventListener(
       'change',
       nextAppState => {
         if (nextAppState === 'active') {
-          updateNetStatus();
+          update();
         }
       }
     );
-
     return () => {
       appStateSubscription.remove();
       clearExistingInterval();
     };
-  }, [updateNetStatus, clearExistingInterval]);
+  }, [update, clearExistingInterval]);
+
+  const init = useCallback(
+    async ({
+      explorer,
+      explorerMainnet,
+      generate204API,
+      generate204API2,
+      generate204APIExternal,
+      networkId
+    }: InitParams) => {
+      setExplorer(explorer);
+      setExplorerMainnet(explorerMainnet);
+      setGenerate204API(generate204API);
+      setGenerate204API2(generate204API2);
+      setGenerate204APIExternal(generate204APIExternal);
+      setNetworkId(networkId);
+    },
+    []
+  );
 
   const value = useMemo(
     () => ({
@@ -485,20 +541,18 @@ const NetStatusProvider: React.FC<NetStatusProviderProps> = ({ children }) => {
       apiReachable,
       api2Reachable,
       explorerReachable,
-      setNetworkId,
       networkId,
-      setExplorer,
       explorer,
       explorerMainnet,
       explorerMainnetReachable, //For Tape fees
-      setExplorerMainnet, //Only set when needed: For Tape fees
-      setGenerate204API,
-      setGenerate204API2,
-      setGenerate204APIExternal,
-      reset
+      init,
+      reset,
+      update
     }),
     [
       reset,
+      init,
+      update,
       networkId,
 
       explorer,

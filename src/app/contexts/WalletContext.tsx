@@ -170,7 +170,7 @@ const WalletProviderRaw = ({
     clearSynchingBlockchain
   ] = useWalletState<boolean>();
 
-  const btcFiat = useBtcFiat();
+  const { btcFiat } = useBtcFiat();
 
   const toast = useToast();
 
@@ -259,14 +259,11 @@ const WalletProviderRaw = ({
         !walletsDiscovery[walletId]
       ) {
         const explorer = new EsploraExplorer({ url: esploraAPI });
-        await explorer.connect(); //TODO This may throw!!!
+        //explorer.connect performed in NetSTatusContext
         const { Discovery } = DiscoveryFactory(explorer, network);
-        let discovery: DiscoveryInstance;
-        if (discoveryData) {
-          discovery = new Discovery({ imported: discoveryData });
-        } else {
-          discovery = new Discovery();
-        }
+        const discovery = discoveryData
+          ? new Discovery({ imported: discoveryData })
+          : new Discovery();
         setDiscovery(walletId, discovery);
       }
     };
@@ -285,17 +282,15 @@ const WalletProviderRaw = ({
     walletId !== undefined ? walletsDiscovery[walletId] : undefined;
 
   useEffect(() => {
-    const initializeExplorer = async () => {
+    const initializeMainnetExplorer = async () => {
       if (mainnetEsploraApi && !explorerMainnet && networkId === 'TAPE') {
         const newExplorerMainnet = new EsploraExplorer({
           url: mainnetEsploraApi
-        });
-        //TODO: this can throw!! useNetStatus!!!
-        await newExplorerMainnet.connect();
+        }); //explorer.connect performed in NetSTatusContext
         setExplorerMainnet(newExplorerMainnet);
       }
     };
-    initializeExplorer();
+    initializeMainnetExplorer();
     return () => {
       if (explorerMainnet) explorerMainnet.close();
     };
@@ -303,38 +298,40 @@ const WalletProviderRaw = ({
 
   const {
     reset: netStatusReset,
-    setExplorer: nsSetExplorer,
-    setGenerate204API: nsSetGenerate204API,
-    setGenerate204API2: nsSetGenerate204API2,
-    setExplorerMainnet: nsSetExplorerMainnet,
-    setGenerate204APIExternal: nsSetGenerate204APIExternal,
-    setNetworkId: nsSetNetworkId,
+    init: netStatusInit,
+    update: netStatusUpdate,
+    apiReachable,
     explorerReachable,
     explorerMainnetReachable
   } = useNetStatus();
+  const netReady =
+    apiReachable &&
+    explorerReachable &&
+    (networkId !== 'TAPE' || explorerMainnetReachable);
+
   useEffect(() => {
     unstable_batchedUpdates(() => {
       if (discovery) {
-        nsSetNetworkId(networkId);
-        nsSetExplorer(discovery.getExplorer());
-        nsSetGenerate204API(generate204API);
-        nsSetGenerate204API2(generate204API2);
-        //For Tape, we need to make sure blockstream esplora is working:
-        nsSetExplorerMainnet(
-          networkId === 'TAPE' ? explorerMainnet : undefined
-        );
-        //There's no need to check the internet with an external server (typically
-        //using google) when using a REGTEST wallet
-        if (
-          networkId &&
-          networkId !== 'REGTEST' &&
-          Platform.OS !==
-            'web' /* note that using web, we'll get into CORS issues on google servers,
+        netStatusInit({
+          networkId,
+          explorer: discovery.getExplorer(),
+          generate204API,
+          generate204API2,
+          //For Tape, we need to make sure blockstream esplora is working:
+          explorerMainnet: networkId === 'TAPE' ? explorerMainnet : undefined,
+          generate204APIExternal:
+            //There's no need to check the internet with an external server (typically
+            //using google) when using a REGTEST wallet
+            networkId &&
+            networkId !== 'REGTEST' &&
+            Platform.OS !==
+              'web' /* note that using web, we'll get into CORS issues on google servers,
           however rewind servers are ok because they have Access-Control-Allow-Origin' '*'
           in react-native (non-web), fetch does not check for CORS stuff
           */
-        )
-          nsSetGenerate204APIExternal(generate204APIExternal);
+              ? generate204APIExternal
+              : undefined
+        });
       }
     });
   }, [
@@ -344,18 +341,12 @@ const WalletProviderRaw = ({
     generate204API2,
     generate204APIExternal,
     explorerMainnet,
-    nsSetNetworkId,
-    nsSetExplorer,
-    nsSetGenerate204API,
-    nsSetGenerate204API2,
-    nsSetExplorerMainnet,
-    nsSetGenerate204APIExternal
+    netStatusInit
   ]);
 
   const { tipStatus, updateTipStatus } = useTipStatus();
   const tipHeight = tipStatus?.blockHeight;
-  //nsExplorer === discovery?.getExplorer() && !!tipStatus;
-  const feeEstimates = useFeeEstimates();
+  const { feeEstimates } = useFeeEstimates();
 
   const [vaults, setVaults, , clearVaultsCache, vaultsStorageStatus] =
     useStorage<Vaults>(
@@ -536,7 +527,7 @@ const WalletProviderRaw = ({
   /** When all wallet realated data is synchronized and without any errors.
    * Use this variable to add the wallet into the wallets storage
    */
-  const isReady =
+  const dataReady =
     walletsStorageStatus.isSynchd &&
     discoveryDataStorageStatus.isSynchd &&
     signersStorageStatus.isSynchd &&
@@ -552,10 +543,10 @@ const WalletProviderRaw = ({
     !isCorrupted;
 
   const isFirstLogin =
-    isReady && walletId !== undefined && !!walletsNewSigners[walletId];
+    dataReady && walletId !== undefined && !!walletsNewSigners[walletId];
 
   useEffect(() => {
-    if (isReady) {
+    if (dataReady) {
       if (!wallet) throw new Error('wallet should be set when ready');
       if (walletId === undefined) throw new Error('walletd undefined');
       if (!wallets) throw new Error('wallets should be set when ready');
@@ -563,7 +554,7 @@ const WalletProviderRaw = ({
         setWallets({ ...wallets, [walletId]: wallet });
       }
     }
-  }, [setWallets, wallets, wallet, isReady, walletId]);
+  }, [setWallets, wallets, wallet, dataReady, walletId]);
 
   /**
    * Important, to logOut from wallet, wallet (and therefore walletId) must
@@ -771,10 +762,26 @@ const WalletProviderRaw = ({
    * Initiates the blockchain synchronization process.
    */
   const sync = useCallback(async () => {
-    console.log(`TRACE sync ${walletId}, ${networkId}`);
+    let updatedNetReady = netReady;
+    console.log('TRACE sync', { walletId, networkId, updatedNetReady });
+    if (updatedNetReady === false) {
+      const ns = await netStatusUpdate();
+      updatedNetReady =
+        ns?.apiReachable &&
+        ns?.explorerReachable &&
+        (networkId !== 'TAPE' || ns?.explorerMainnetReachable);
+      console.log('TRACE', { ns, updatedNetReady });
+      if (!updatedNetReady && ns?.errorMessage) {
+        toast.show(t('app.syncError', { message: ns?.errorMessage }), {
+          type: 'warning'
+        });
+      }
+    }
     if (walletId === undefined) throw new Error('Cannot sync an unset wallet');
     const signer = signers?.[0];
     if (
+      dataReady &&
+      updatedNetReady &&
       networkId &&
       gapLimit !== undefined &&
       discovery &&
@@ -790,6 +797,7 @@ const WalletProviderRaw = ({
       signer &&
       vaultsAPI
     ) {
+      console.log('TRACE sync proceeding');
       const network = networkId && networkMapping[networkId];
 
       try {
@@ -895,6 +903,9 @@ const WalletProviderRaw = ({
 
     setSyncingBlockchain(walletId, false);
   }, [
+    netStatusUpdate,
+    dataReady,
+    netReady,
     updateTipStatus,
     setUtxosAndHistoryData,
     setAccounts,
@@ -926,16 +937,15 @@ const WalletProviderRaw = ({
     if (walletId !== undefined) setSyncingBlockchain(walletId, true);
   }, [walletId, setSyncingBlockchain]);
   //Automatically set syncingBlockchain to true on new walletId: auto sync
-  //on new wallet. Make sure explorer is reachablde since otherwise sync()
+  //on new wallet. Make sure explorer and api (vault checking) is reachable
+  //since otherwise sync()
   //won't do anything as it's necessary.
   //Also it will auto-trigger update on a new block
-  const netReady =
-    explorerReachable && (networkId !== 'TAPE' || explorerMainnetReachable);
   useEffect(() => {
-    if (walletId !== undefined && isReady && netReady) {
+    if (walletId !== undefined && dataReady && netReady) {
       setSyncingBlockchain(walletId, true);
     }
-  }, [walletId, setSyncingBlockchain, isReady, netReady]);
+  }, [walletId, setSyncingBlockchain, dataReady, netReady, tipHeight]);
 
   /**
    * This already updates utxosData, vaults and vaultsStatuses without
