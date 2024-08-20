@@ -367,7 +367,6 @@ const NetStatusProvider: React.FC<NetStatusProviderProps> = ({ children }) => {
 
     if (errorMessage && errorMessageRef.current !== errorMessage) {
       toast.show(errorMessage, { type: 'warning' });
-      console.log('TRACE update toast', { errorMessage });
       errorMessageRef.current = errorMessage;
     }
     if (errorMessage === undefined && errorMessageRef.current) {
@@ -434,47 +433,43 @@ const NetStatusProvider: React.FC<NetStatusProviderProps> = ({ children }) => {
       errorType: NotifiedErrorType;
       error: string | false;
     }) => {
-      notifiedErrorsRef.current[errorType] = {
-        error,
-        date: new Date()
-      };
-      const { internetReachable, internetCheckRequested } =
-        deriveInternetReachable({
-          apiReachable,
-          api2Reachable,
-          explorerReachable,
-          explorerMainnetReachable,
-          apiExternalReachable
-        });
-      if (error === false) {
-        const errorMessage = deriveErrorMessage({
-          apiReachable,
-          api2Reachable,
-          explorerReachable,
-          explorerMainnetReachable,
-          internetCheckRequested,
-          internetReachable
-        });
+      if (notifiedErrorsRef.current[errorType].error !== error) {
+        notifiedErrorsRef.current[errorType] = {
+          error,
+          date: new Date()
+        };
+        const { internetReachable, internetCheckRequested } =
+          deriveInternetReachable({
+            apiReachable,
+            api2Reachable,
+            explorerReachable,
+            explorerMainnetReachable,
+            apiExternalReachable
+          });
+        if (error === false) {
+          const errorMessage = deriveErrorMessage({
+            apiReachable,
+            api2Reachable,
+            explorerReachable,
+            explorerMainnetReachable,
+            internetCheckRequested,
+            internetReachable
+          });
 
-        if (errorMessage && errorMessageRef.current !== errorMessage) {
-          console.log('TRACE notifyNetErrorAsync toast', {
-            currError: errorMessageRef.current,
-            error,
-            errorType,
-            errorMessage
-          });
-          toast.show(errorMessage, { type: 'warning' });
-          errorMessageRef.current = errorMessage;
+          if (errorMessage && errorMessageRef.current !== errorMessage) {
+            toast.show(errorMessage, { type: 'warning' });
+            errorMessageRef.current = errorMessage;
+          }
+          if (errorMessage === undefined && errorMessageRef.current) {
+            toast.show(t('netStatus.connectionRestoredInfo'), {
+              type: 'success'
+            });
+            errorMessageRef.current = undefined;
+          }
+          setErrorMessage(errorMessage);
+        } else {
+          await update();
         }
-        if (errorMessage === undefined && errorMessageRef.current) {
-          toast.show(t('netStatus.connectionRestoredInfo'), {
-            type: 'success'
-          });
-          errorMessageRef.current = undefined;
-        }
-        setErrorMessage(errorMessage);
-      } else {
-        await update();
       }
     },
     [

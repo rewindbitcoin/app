@@ -759,7 +759,8 @@ const WalletProviderRaw = ({
   }, [serviceAddressAPI]);
 
   /**
-   * Initiates the blockchain synchronization process.
+   * Initiates the blockchain synchronization process. If netStatus has errors
+   * it tries first to check the network.
    */
   const sync = useCallback(async () => {
     let updatedNetReady = netReady;
@@ -770,7 +771,6 @@ const WalletProviderRaw = ({
         ns?.apiReachable &&
         ns?.explorerReachable &&
         (networkId !== 'TAPE' || ns?.explorerMainnetReachable);
-      console.log('TRACE', { ns, updatedNetReady });
       if (!updatedNetReady && ns?.errorMessage) {
         toast.show(t('app.syncError', { message: ns?.errorMessage }), {
           type: 'warning'
