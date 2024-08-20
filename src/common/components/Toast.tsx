@@ -63,6 +63,10 @@ const ToastProvider: React.FC<{ children: React.ReactNode }> = ({
       placement={defaultPlacement}
       offsetBottom={30}
       renderType={{ help: helpRenderer }}
+      textStyle={{
+        maxWidth:
+          '100%' /*solves an issue with long words in text which were not beig correctly broken*/
+      }}
     >
       {children}
     </ToastProviderOriginal>
