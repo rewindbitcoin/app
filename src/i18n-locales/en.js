@@ -18,12 +18,11 @@ Technical error: {{message}}`,
     walletTitle: 'Wallet',
     settingsButton: 'Settings',
     settingsTitle: 'Settings',
-    feeEstimatesError: `Unable to retrieve up-to-date fee estimates. Fee amounts may be slightly off. Please check your internet connection.
-Retrying in 60 seconds and will notify you if the problem persists.`,
+    feeEstimatesError: `Unable to retrieve up-to-date fee estimates. Fee amounts may be slightly off.`,
     tipStatusError:
-      'Unable to retrieve the latest blockchain block. The displayed data may not be up-to-date. Please check your internet connection and try refreshing the wallet.',
+      'Unable to retrieve the latest blockchain block. The displayed data may not be up-to-date.',
     btcRatesError:
-      'Unable to retrieve current BTC rates. The displayed amounts in {{currency}} may not be accurate. Please check your internet connection.',
+      'Unable to retrieve current BTC rates. The displayed amounts in {{currency}} may not be accurate.',
     //blockchainDataError:
     //  'Unable to retrieve up-to-date blockchain data. Transaction times and fee amounts may be slightly off. Please check your internet connection. Retrying in 60 seconds and will notify you if the problem persists.',
     secureStorageAuthenticationPrompt:
@@ -31,13 +30,13 @@ Retrying in 60 seconds and will notify you if the problem persists.`,
   },
   netStatus: {
     internetNotReachableWarning:
-      'No Internet connection detected. This prevents checking wallet status, managing vaults, and sending or receiving funds. Please ensure your device is connected to access all features.',
+      'No Internet connection detected. This prevents checking wallet status, managing vaults, and sending or receiving funds.',
     apiNotReachableWarning:
-      'Unable to connect to our services. This affects Bitcoin price updates and prevents vault operations due to disrupted backups. Please try again later.',
+      'Unable to connect to our services. This affects Bitcoin price updates and prevents vault operations due to disrupted backups.',
     blockchainExplorerNotReachableWarning:
-      'Unable to connect to the blockchain explorer. This prevents updating the status of your transactions and accessing up-to-date information on the Bitcoin network. Please check your connection and try again.',
+      'Unable to connect to the blockchain explorer. This prevents updating the status of your transactions and accessing up-to-date information on the Bitcoin network.',
     blockchainMainnetExplorerNotReachableWarning:
-      'Unable to connect to the blockchain explorer. This prevents updating the status of your transactions and accessing up-to-date information on the Bitcoin network. Please check your connection and try again.',
+      'Unable to connect to the blockchain explorer. This prevents updating the status of your transactions and accessing up-to-date information on the Bitcoin network.',
     connectionRestoredInfo:
       'Connectivity restored. All wallet features are now fully operational.'
   },
@@ -252,6 +251,8 @@ Once the countdown ends, your funds will be unlocked and accessible. It's import
     faucetErrorMsg:
       "Oops! There was a glitch sending your coins. Tap 'Receive' to try getting your test coins again.",
     header: {
+      checkNetwork: 'Check again.',
+      checkingNetwork: 'Checking...',
       hotSubTitle: 'Available Balance: Ready for immediate use',
       frozenSubTitle: 'Frozen Balance: Safeguarded in vaults',
       testWalletWarning:

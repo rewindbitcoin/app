@@ -292,6 +292,8 @@ const WalletHomeScreen = () => {
       >
         <View onLayout={handleHeader}>
           <WalletHeader
+            syncBlockchain={syncBlockchain}
+            syncingBlockchain={syncingBlockchain}
             networkId={wallet.networkId}
             utxosData={utxosData}
             vaults={vaults}

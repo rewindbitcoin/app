@@ -31,7 +31,8 @@ import React, {
   ReactNode,
   useEffect,
   useState,
-  useCallback
+  useCallback,
+  useRef
 } from 'react';
 import { shallowEqualObjects } from 'shallow-equal';
 import type { Wallet } from '../lib/wallets';
@@ -758,26 +759,37 @@ const WalletProviderRaw = ({
     }
   }, [serviceAddressAPI]);
 
+  const isUserTriggeredSync = useRef<boolean>(false);
   /**
    * Initiates the blockchain synchronization process. If netStatus has errors
-   * it tries first to check the network.
+   * it tries first to check the network .
    */
   const sync = useCallback(async () => {
+    if (walletId === undefined) throw new Error('Cannot sync an unset wallet');
+    const isUserTriggered = isUserTriggeredSync.current;
+    isUserTriggeredSync.current = false;
+
     let updatedNetReady = netReady;
-    console.log('TRACE sync', { walletId, networkId, updatedNetReady });
-    if (updatedNetReady === false) {
+    console.log('TRACE sync', {
+      walletId,
+      networkId,
+      updatedNetReady,
+      isUserTriggered
+    });
+    if (updatedNetReady === false && isUserTriggered) {
+      //only check netStatus changes when we're sure the network is down and the
+      //user is requesting it. This is because this is an expensive operation
+      //and sync may also be called automatically on dependencies of dataReady,
+      //netReady, callback functions and so on...
       const ns = await netStatusUpdate();
       updatedNetReady =
         ns?.apiReachable &&
         ns?.explorerReachable &&
         (networkId !== 'TAPE' || ns?.explorerMainnetReachable);
       if (!updatedNetReady && ns?.errorMessage) {
-        toast.show(t('app.syncError', { message: ns?.errorMessage }), {
-          type: 'warning'
-        });
+        toast.show(ns?.errorMessage, { type: 'warning' });
       }
     }
-    if (walletId === undefined) throw new Error('Cannot sync an unset wallet');
     const signer = signers?.[0];
     if (
       dataReady &&
@@ -934,7 +946,10 @@ const WalletProviderRaw = ({
   }, [walletsSyncingBlockchain, walletId, sync]);
   //This function is passed in the context so that users can sync
   const syncBlockchain = useCallback(() => {
-    if (walletId !== undefined) setSyncingBlockchain(walletId, true);
+    if (walletId !== undefined) {
+      isUserTriggeredSync.current = true;
+      setSyncingBlockchain(walletId, true);
+    }
   }, [walletId, setSyncingBlockchain]);
   //Automatically set syncingBlockchain to true on new walletId: auto sync
   //on new wallet. Make sure explorer and api (vault checking) is reachable

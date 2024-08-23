@@ -43,10 +43,11 @@
  * 5. Use notifyNetErrorAsync to set other more particular network errors.
  */
 
-const ATTEMPTS = 2;
+const NET_ATTEMPTS = 2;
+const EXPLORER_ATTEMPTS = 1;
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 const checkNetworkReachability = async (url: string) => {
-  let attempts = ATTEMPTS;
+  let attempts = NET_ATTEMPTS;
 
   while (attempts > 0) {
     try {
@@ -63,14 +64,14 @@ const checkNetworkReachability = async (url: string) => {
   return false; // All attempts failed
 };
 const checkExplorerReachability = async (explorer: Explorer) => {
-  let attempts = ATTEMPTS;
+  let attempts = EXPLORER_ATTEMPTS;
 
   while (attempts > 0) {
     try {
       const connected = await explorer.isConnected();
       if (connected) return true;
       else await explorer.connect();
-      if (attempts !== ATTEMPTS) await sleep(200);
+      if (attempts !== EXPLORER_ATTEMPTS) await sleep(200);
       attempts--;
     } catch (error) {
       if (attempts <= 1) return false;
@@ -171,6 +172,7 @@ interface NetStatusProviderProps {
 }
 
 const NetStatusProvider: React.FC<NetStatusProviderProps> = ({ children }) => {
+  const isUpdating = useRef<boolean>(false);
   const { t } = useTranslation();
   const toast = useToast();
   const [generate204API, setGenerate204API] = useState<string | undefined>(
@@ -387,7 +389,8 @@ const NetStatusProvider: React.FC<NetStatusProviderProps> = ({ children }) => {
     const nextCheckDelay = errorMessage
       ? RETRY_TIME_AFTER_FAIL
       : RETRY_TIME_AFTER_OK;
-    checkIntervalRef.current = setTimeout(update, nextCheckDelay);
+    if (checkIntervalRef.current === null)
+      checkIntervalRef.current = setTimeout(update, nextCheckDelay);
 
     return {
       errorMessage,

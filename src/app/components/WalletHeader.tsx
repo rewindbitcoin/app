@@ -75,6 +75,8 @@ const Balance = ({
 
 const WalletHeader = ({
   networkId,
+  syncBlockchain,
+  syncingBlockchain,
   utxosData,
   vaults,
   vaultsStatuses,
@@ -84,6 +86,8 @@ const WalletHeader = ({
 }: {
   networkId: NetworkId;
   utxosData: UtxosData | undefined;
+  syncBlockchain: () => void;
+  syncingBlockchain: boolean;
   vaults: Vaults | undefined;
   vaultsStatuses: VaultsStatuses | undefined;
   blockchainTip: number | undefined;
@@ -94,8 +98,9 @@ const WalletHeader = ({
   const [showUnitsModal, setShowUnitsModal] = useState<boolean>(false);
   const { settings, setSettings } = useSettings();
   const netStatus = useNetStatus();
-  console.log('WalletHeader', JSON.stringify(netStatus, null, 2));
   const { errorMessage: netErrorMessage } = netStatus;
+  //const netErrorMessage =
+  //  'Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.';
   if (!settings)
     throw new Error(
       'This component should only be started after settings has been retrieved from storage'
@@ -160,26 +165,35 @@ const WalletHeader = ({
           onUnitPress={onUnitPress}
         />
       </View>
-      {
-        //only show this message if the network status is fine.
+      {netErrorMessage ? (
+        //only show tapeWalletPlusWarning err if the network status is fine.
         //Otherwise the header would too cluttered
-        !netErrorMessage && networkId !== 'BITCOIN' && (
-          <Text className="pt-5 p-4 color-orange-600 text-sm">
-            {t('walletHome.header.testWalletWarning')}
-            {networkId === 'TAPE'
-              ? ' ' + t('walletHome.header.tapeWalletPlusWarning')
-              : ''}
+        <View className="pt-5 p-4">
+          <Text className="items-center color-orange-600 native:text-base web:text-sm web:sm:text-base">
+            {netErrorMessage}{' '}
+            <Text
+              key={syncingBlockchain.toString()}
+              onPress={syncBlockchain}
+              className={`p-2 -m-2 text-primary ${syncingBlockchain ? 'pointer-events-none opacity-50' : 'hover:opacity-90 active:opacity-90 active:scale-95'}`}
+            >
+              {syncingBlockchain
+                ? t('walletHome.header.checkingNetwork')
+                : t('walletHome.header.checkNetwork')}
+            </Text>
           </Text>
+        </View>
+      ) : (
+        networkId !== 'BITCOIN' && (
+          <View className="pt-5 p-4">
+            <Text className="color-orange-600 text-sm">
+              {t('walletHome.header.testWalletWarning')}
+              {networkId === 'TAPE'
+                ? ' ' + t('walletHome.header.tapeWalletPlusWarning')
+                : ''}
+            </Text>
+          </View>
         )
-      }
-      {
-        // show error permanent error messages
-        netErrorMessage && (
-          <Text className="pt-5 p-4 color-orange-600 text-sm">
-            {netErrorMessage}
-          </Text>
-        )
-      }
+      )}
       <UnitsModal
         isVisible={showUnitsModal}
         mode={mode}

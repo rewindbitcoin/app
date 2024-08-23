@@ -22,6 +22,8 @@ interface ButtonProps extends RN.PressableProps {
    * disabled
    */
   loading?: boolean;
+  containerClassName?: string;
+  textClassName?: string;
 }
 
 const Button: React.FC<ButtonProps> = ({
@@ -29,6 +31,8 @@ const Button: React.FC<ButtonProps> = ({
   disabled = false,
   loading = false,
   mode = 'primary',
+  containerClassName = '',
+  textClassName = '',
   children,
   ...props
 }) => {
@@ -51,23 +55,26 @@ const Button: React.FC<ButtonProps> = ({
       <RN.Pressable
         key={String(disabled)}
         hitSlop={10}
-        className={`min-w-20 items-center ${disabled ? 'pointer-events-none opacity-50' : 'hover:opacity-90 active:opacity-90 active:scale-95'}`}
+        className={`flex-row min-w-20 justify-center items-center ${disabled ? 'pointer-events-none opacity-50' : 'hover:opacity-90 active:opacity-90 active:scale-95'} ${containerClassName}`}
         {...props}
       >
         {typeof children === 'string' ? (
-          <RN.Text className="text-center native:text-base text-primary web:text-sm web:sm:text-base select-none">
+          <RN.Text
+            className={`text-center text-primary native:text-base web:text-sm web:sm:text-base select-none ${textClassName}`}
+          >
             {children}
           </RN.Text>
         ) : React.isValidElement(children) ? (
           children
         ) : null}
+        {loading && <Spin className="text-primary ml-2" />}
       </RN.Pressable>
     );
   } else if (mode === 'primary' || mode === 'primary-alert') {
     return (
       <RN.Pressable
         key={String(disabled)}
-        className={`flex-row min-w-20 justify-center items-center py-3 px-5 rounded-lg ${mode === 'primary-alert' ? 'bg-red-600' : 'bg-primary'} ${disabled ? 'pointer-events-none opacity-50' : 'hover:opacity-90 active:opacity-90 active:scale-95'}`}
+        className={`flex-row min-w-20 justify-center items-center py-3 px-5 rounded-lg ${mode === 'primary-alert' ? 'bg-red-600' : 'bg-primary'} ${disabled ? 'pointer-events-none opacity-50' : 'hover:opacity-90 active:opacity-90 active:scale-95'} ${containerClassName}`}
         {...props}
       >
         {iconLeft && (
@@ -77,7 +84,9 @@ const Button: React.FC<ButtonProps> = ({
           />
         )}
         {typeof children === 'string' ? (
-          <RN.Text className="text-center font-semibold text-white native:text-sm web:text-xs web:sm:text-sm select-none">
+          <RN.Text
+            className={`text-center font-semibold text-white native:text-sm web:text-xs web:sm:text-sm select-none ${textClassName}`}
+          >
             {children}
           </RN.Text>
         ) : React.isValidElement(children) ? (
@@ -90,7 +99,7 @@ const Button: React.FC<ButtonProps> = ({
     return (
       <RN.Pressable
         key={String(disabled)}
-        className={`flex-row min-w-20 justify-center items-center py-3 px-5 rounded-lg ${mode === 'secondary-alert' ? 'bg-red-200' : 'bg-primary-light'} ${disabled ? 'pointer-events-none opacity-50' : `active:scale-95 ${mode === 'secondary-alert' ? 'hover:bg-red-300 active:bg-red-300' : 'hover:bg-primary-light-hover active:bg-primary-light-hover'}`}`}
+        className={`flex-row min-w-20 justify-center items-center py-3 px-5 rounded-lg ${mode === 'secondary-alert' ? 'bg-red-200' : 'bg-primary-light'} ${disabled ? 'pointer-events-none opacity-50' : `active:scale-95 ${mode === 'secondary-alert' ? 'hover:bg-red-300 active:bg-red-300' : 'hover:bg-primary-light-hover active:bg-primary-light-hover'}`} ${containerClassName}`}
         {...props}
       >
         {iconLeft && (
@@ -105,7 +114,7 @@ const Button: React.FC<ButtonProps> = ({
           <RN.Text
             className={`text-center font-semibold native:text-sm web:text-xs web:sm:text-sm select-none ${
               mode === 'secondary-alert' ? 'text-red-800' : 'text-primary-dark'
-            }`}
+            } ${textClassName}`}
           >
             {children}
           </RN.Text>
