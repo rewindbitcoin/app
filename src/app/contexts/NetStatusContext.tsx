@@ -1,46 +1,82 @@
 /**
- * Usage:
+ * Hook: `useNetStatus`
  *
- * Call as const netStatus = useNetStatus();
+ * **Usage:**
  *
- * netStatus provides:
+ * ```typescript
+ * const netStatus = useNetStatus();
+ * ```
  *
- * Setters for network operations to check:
- * - setExplorer: Sets an Esplora or Electrum client for regular checks.
- * - setGenerate204API: Sets main RewindBitcoin API to check its generate_204
- *   endpoint.
- * - setGenerate204API2: Sets secondary API for ensuring vault backups can be
- *   read from another host.
- * - setGenerate204APIExternal: Sets external API for ensuring the Internet
- *   is reachable. F.ex.: https://clients3.google.com/generate_204.
- *   read from another host.
- * - setExplorerMainnet: Sets Blockstream or popular blocks explorer for TAPE
- *   network fee checks.
+ * `netStatus` provides network statuses and methods for network operations.
  *
- * Statuses for each setter (if set). undefined if still unknown.
- * - apiReachable: Status of the main API.
- * - api2Reachable: Status of the secondary API.
- * - explorerReachable: Status of the blockchain explorer.
- * - explorerMainnetReachable: Status of the mainnet explorer for TAPE fees.
- * - internetReachable: False if any set service fails.
+ * **Properties:**
  *
- * Services are checked every minute. If any service fails, checks occur every
- * 20s until restored.
+ * - `apiReachable`: Status of the main API. `true` if reachable, `false` if
+ *   not, and `undefined` if unknown.
+ * - `api2Reachable`: Status of the secondary API. `true` if reachable, `false`
+ *   if not, and `undefined` if unknown.
+ * - `explorerReachable`: Status of the blockchain explorer. `true` if
+ *   reachable, `false` if not, and `undefined` if unknown.
+ * - `explorerMainnetReachable`: Status of the mainnet explorer for TAPE fees.
+ *   `true` if reachable, `false` if not, and `undefined` if unknown.
+ * - `internetReachable`: Overall internet status. `false` if all configured
+ *   services are unreachable, `true` if at least one is reachable, and
+ *   `undefined` if the status is unknown.
+ * - `errorMessage`: The current error message, if any. This message is kept to
+ *   a single one to avoid cluttering the UI. Prioritization is important:
+ *   - More general errors (e.g., "Internet not reachable") are shown first.
+ *   - Specific errors (e.g., "Explorer not reachable") are shown only if more
+ *     general errors are not present.
+ *   - A specific error passed with an `id` in `netRequest` is only shown if
+ *     the requirement is met (e.g., the explorer is reachable, and the
+ *     internet is reachable). This ensures that the most prominent error is
+ *     the one displayed, even if multiple errors occur simultaneously.
  *
- * errorMessage: Returns the current error message, if any. This can be used to
- * display the error message permanently in a UI element, such as the
- * WalletHeader.
+ * **Methods:**
  *
- * Typical usage:
- * 1. Set required statuses: setExplorer, setGenerate204API, setGenerate204API2,
- *    setExplorerMainnet. Optionally setGenerate204APIExternal (using google.com
- *    servers for example)
- * 2. The hook auto-checks all statuses and shows error messages on failure.
- * 3. Before network operations, check relevant service status (e.g.,
- *    api2Reachable).
- * 4. If the service is down, the module will have already shown a generic error
- *    to avoid cluttering the UI.
- * 5. Use notifyNetErrorAsync to set other more particular network errors.
+ * - `init(params: InitParams)`: Initializes the network status with the given
+ *   configuration parameters.
+ * - `reset()`: Resets all network statuses and clears any error messages,
+ *   restoring the hook to its initial state.
+ * - `netRequest<T>(options: { id?: string, func: () => Promise<T>,
+ *   requirements?: Requirements, errorMessage?: string }): Promise<T |
+ *   undefined>`:
+ *    - Executes a network operation (`func`), handling errors automatically
+ *      based on the provided requirements.
+ *    - Parameters:
+ *        - `id`: Optional identifier for the operation, used to track
+ *          "permanent" errors and prevent repeated notifications.
+ *          If id is not passed then the error is always notified and the
+ *          errorMessage returned is not affected by this error.
+ *        - `func`: The asynchronous function representing the network
+ *          operation to perform.
+ *        - `requirements`: An optional set of conditions that must be met
+ *          before executing `func` (e.g., certain services must be reachable).
+ *        - `errorMessage`: Optional custom error message to display if `func`
+ *          fails. If not passed, then the thrown Error message is used or
+ *          t('app.unknownError') in this order.
+ *    - Returns the result of `func` if successful, or `undefined` if an error
+ *      occurs or if the requirements are not met.
+ *
+ * **Behavior:**
+ *
+ * - Services are checked every minute. If a service fails, checks occur every
+ *   20 seconds until restored.
+ * - When a netRequest fails, services are checked immediatelly to discard a
+ *   more general error.
+ * - Errors are logged and can be accessed via `errorMessage`. If a service's
+ *   status changes, the error message is updated based on prioritization.
+ * - Network operations (`netRequest`) can be configured to execute only if
+ *   specific services are reachable, and errors can be managed to avoid
+ *   redundant notifications.
+ *
+ * **Typical Usage:**
+ *
+ * 1. Initialize the network status using `init` with the required configuration.
+ * 2. Perform network operations using `netRequest`, which handles errors and
+ *    conditions automatically.
+ * 3. Monitor the `internetReachable` status to ensure connectivity across
+ *    required services.
  */
 
 const NET_ATTEMPTS = 2;
@@ -285,22 +321,29 @@ const NetStatusProvider: React.FC<NetStatusProviderProps> = ({ children }) => {
     ]
   );
 
-  const deriveErrorMessage = useCallback(
+  const handleError = useCallback(
     ({
       apiReachable,
       api2Reachable,
       explorerReachable,
       explorerMainnetReachable,
-      internetCheckRequested,
-      internetReachable
+      apiExternalReachable
     }: {
       apiReachable: boolean | undefined;
       api2Reachable: boolean | undefined;
       explorerReachable: boolean | undefined;
       explorerMainnetReachable: boolean | undefined;
-      internetCheckRequested: boolean | undefined;
-      internetReachable: boolean | undefined;
+      apiExternalReachable: boolean | undefined;
     }) => {
+      const { internetReachable, internetCheckRequested } =
+        deriveInternetReachable({
+          apiReachable,
+          api2Reachable,
+          explorerReachable,
+          explorerMainnetReachable,
+          apiExternalReachable
+        });
+
       let errorMessage: string | undefined = undefined;
 
       //sorts notifierErrors from old to new. new notified errors trump
@@ -329,45 +372,9 @@ const NetStatusProvider: React.FC<NetStatusProviderProps> = ({ children }) => {
           'netStatus.blockchainMainnetExplorerNotReachableWarning'
         );
 
-      //internet reachability error trump any other errors
+      //internet reachability error trumps any other errors
       if (internetReachable === false && internetCheckRequested)
         errorMessage = t('netStatus.internetNotReachableWarning');
-
-      return errorMessage;
-    },
-    [generate204API, generate204API2, explorer, explorerMainnet, t]
-  );
-
-  const handleError = useCallback(
-    ({
-      apiReachable,
-      api2Reachable,
-      explorerReachable,
-      explorerMainnetReachable,
-      apiExternalReachable
-    }: {
-      apiReachable: boolean | undefined;
-      api2Reachable: boolean | undefined;
-      explorerReachable: boolean | undefined;
-      explorerMainnetReachable: boolean | undefined;
-      apiExternalReachable: boolean | undefined;
-    }) => {
-      const { internetReachable, internetCheckRequested } =
-        deriveInternetReachable({
-          apiReachable,
-          api2Reachable,
-          explorerReachable,
-          explorerMainnetReachable,
-          apiExternalReachable
-        });
-      const errorMessage = deriveErrorMessage({
-        apiReachable,
-        api2Reachable,
-        explorerReachable,
-        explorerMainnetReachable,
-        internetCheckRequested,
-        internetReachable
-      });
 
       if (errorMessage && errorMessageRef.current !== errorMessage) {
         toast.show(errorMessage, { type: 'warning' });
@@ -381,7 +388,15 @@ const NetStatusProvider: React.FC<NetStatusProviderProps> = ({ children }) => {
       }
       return { internetReachable, errorMessage };
     },
-    [deriveErrorMessage, deriveInternetReachable, t, toast]
+    [
+      explorer,
+      explorerMainnet,
+      generate204API,
+      generate204API2,
+      deriveInternetReachable,
+      t,
+      toast
+    ]
   );
 
   const update = useCallback(async () => {
@@ -528,13 +543,13 @@ const NetStatusProvider: React.FC<NetStatusProviderProps> = ({ children }) => {
 
         if (id) {
           const notifiedError = notifiedErrorsRef.current[id];
-          if (notifiedError && notifiedError.errorMessage !== errorMessage) {
+          if (notifiedError?.errorMessage !== errorMessage) {
             notifiedErrorsRef.current[id] = {
               ...(requirements ? { requirements } : {}),
               errorMessage,
               date: new Date()
             };
-            await update();
+            await update(); //The error will be notified in update
           }
         } else toast.show(errorMessage, { type: 'warning' });
       }
