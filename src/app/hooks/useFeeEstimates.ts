@@ -23,7 +23,7 @@ export function useFeeEstimates(): {
     explorerReachable,
     explorerMainnet,
     explorerMainnetReachable,
-    notifyNetErrorAsync,
+    netRequest,
     networkId
   } = useNetStatus();
 
@@ -44,37 +44,34 @@ export function useFeeEstimates(): {
 
   const updateFeeEstimates = useCallback(async () => {
     let newFeeEstimates: undefined | FeeEstimates = undefined;
-    try {
-      if (storageStatus.errorCode) throw new Error(storageStatus.errorCode);
-      if (feesExplorer && feesExplorerReachable) {
-        newFeeEstimates = await feesExplorer.fetchFeeEstimates();
-        if (!shallowEqualObjects(newFeeEstimates, feeEstimatesRef.current)) {
-          setFeeEstimates(newFeeEstimates);
-          feeEstimatesRef.current = newFeeEstimates;
+    await netRequest({
+      id: 'feeEstimates',
+      func: async () => {
+        if (storageStatus.errorCode) throw new Error(storageStatus.errorCode);
+        if (feesExplorer) {
+          newFeeEstimates = await feesExplorer.fetchFeeEstimates();
+          if (!shallowEqualObjects(newFeeEstimates, feeEstimatesRef.current)) {
+            setFeeEstimates(newFeeEstimates);
+            feeEstimatesRef.current = newFeeEstimates;
+          }
         }
-      }
-      notifyNetErrorAsync({ errorType: 'feeEstimates', error: false });
-      return newFeeEstimates;
-    } catch (err) {
-      console.warn(err);
-      notifyNetErrorAsync({
-        errorType: 'feeEstimates',
-        error: t('app.feeEstimatesError')
-      });
-      return;
-    }
+      },
+      requirements: {
+        ...(networkId === 'TAPE'
+          ? { explorerMainnetReachable: true }
+          : { explorerReachable: true })
+      },
+      errorMessage: t('app.feeEstimatesError')
+    });
+    return newFeeEstimates;
   }, [
+    networkId,
     setFeeEstimates,
     storageStatus.errorCode,
-    notifyNetErrorAsync,
+    netRequest,
     feesExplorer,
-    feesExplorerReachable,
     t
   ]);
-  useEffect(() => {
-    if (!feesExplorerReachable)
-      notifyNetErrorAsync({ errorType: 'feeEstimates', error: false });
-  }, [feesExplorerReachable, notifyNetErrorAsync]);
 
   useEffect(() => {
     if (feesExplorerReachable && intervalTime) {

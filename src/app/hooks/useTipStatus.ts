@@ -13,8 +13,7 @@ export function useTipStatus(): {
   tipStatus: BlockStatus | undefined;
   updateTipStatus: () => Promise<BlockStatus | undefined>;
 } {
-  const { explorer, explorerReachable, notifyNetErrorAsync, networkId } =
-    useNetStatus();
+  const { explorer, explorerReachable, netRequest, networkId } = useNetStatus();
 
   const [tipStatus, setTipStatus, , , storageStatus] = useStorage<
     BlockStatus | undefined
@@ -33,46 +32,26 @@ export function useTipStatus(): {
   const { t } = useTranslation();
 
   const updateTipStatus = useCallback(async () => {
-    console.log('TRACE updateTipStatus', { explorer, explorerReachable });
     let newTipStatus: undefined | BlockStatus = undefined;
-    try {
-      if (storageStatus.errorCode) throw new Error(storageStatus.errorCode);
-      if (explorer && explorerReachable) {
-        const tipHeight = await explorer.fetchBlockHeight();
-        console.log('TRACE updateTipStatus', { tipHeight });
-        newTipStatus = await explorer.fetchBlockStatus(tipHeight);
+    await netRequest({
+      id: 'tipStatus',
+      func: async () => {
+        if (storageStatus.errorCode) throw new Error(storageStatus.errorCode);
+        if (explorer) {
+          const tipHeight = await explorer.fetchBlockHeight();
+          newTipStatus = await explorer.fetchBlockStatus(tipHeight);
 
-        if (!shallowEqualObjects(newTipStatus, tipStatusRef.current)) {
-          setTipStatus(newTipStatus);
-          tipStatusRef.current = newTipStatus;
+          if (!shallowEqualObjects(newTipStatus, tipStatusRef.current)) {
+            setTipStatus(newTipStatus);
+            tipStatusRef.current = newTipStatus;
+          }
         }
-      }
-      await notifyNetErrorAsync({
-        errorType: 'tipStatus',
-        error: false
-      });
-      return newTipStatus;
-    } catch (err) {
-      console.log('TRACE updateTipStatus CATCH Error', { err });
-      console.warn(err);
-      await notifyNetErrorAsync({
-        errorType: 'tipStatus',
-        error: t('app.tipStatusError')
-      });
-      return;
-    }
-  }, [
-    setTipStatus,
-    storageStatus.errorCode,
-    explorer,
-    explorerReachable,
-    notifyNetErrorAsync,
-    t
-  ]);
-  useEffect(() => {
-    if (!explorerReachable)
-      notifyNetErrorAsync({ errorType: 'tipStatus', error: false });
-  }, [explorerReachable, notifyNetErrorAsync]);
+      },
+      requirements: { explorerReachable: true },
+      errorMessage: t('app.tipStatusError')
+    });
+    return newTipStatus;
+  }, [setTipStatus, storageStatus.errorCode, explorer, netRequest, t]);
 
   useEffect(() => {
     if (explorerReachable && intervalTime) {

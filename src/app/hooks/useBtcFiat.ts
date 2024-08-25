@@ -12,7 +12,7 @@ export const useBtcFiat = () => {
   const intervalTime = settings?.BTC_FIAT_REFRESH_INTERVAL_MS;
   const currency = settings?.CURRENCY;
 
-  const { apiReachable, notifyNetErrorAsync } = useNetStatus();
+  const { apiReachable, netRequest } = useNetStatus();
 
   const [btcFiat, setBtcFiat, , , storageStatus] = useStorage<number>(
     currency && `RATES_BTC${currency}`,
@@ -21,34 +21,20 @@ export const useBtcFiat = () => {
 
   const updateBtcFiat = useCallback(async () => {
     let btcFiat: number | undefined = undefined;
-    try {
-      if (storageStatus.errorCode) throw new Error(storageStatus.errorCode);
-      if (currency && apiReachable) {
-        btcFiat = await fetchBtcFiat(currency);
-        setBtcFiat(btcFiat);
-        notifyNetErrorAsync({ errorType: 'btcFiat', error: false });
-      }
-      return btcFiat;
-    } catch (err) {
-      console.warn(err);
-      notifyNetErrorAsync({
-        errorType: 'btcFiat',
-        error: t('app.btcRatesError', { currency })
-      });
-      return;
-    }
-  }, [
-    setBtcFiat,
-    storageStatus.errorCode,
-    currency,
-    notifyNetErrorAsync,
-    apiReachable,
-    t
-  ]);
-  useEffect(() => {
-    if (!apiReachable)
-      notifyNetErrorAsync({ errorType: 'btcFiat', error: false });
-  }, [apiReachable, notifyNetErrorAsync]);
+    await netRequest({
+      id: 'btcFiat',
+      func: async () => {
+        if (storageStatus.errorCode) throw new Error(storageStatus.errorCode);
+        if (currency) {
+          btcFiat = await fetchBtcFiat(currency);
+          setBtcFiat(btcFiat);
+        }
+      },
+      requirements: { apiReachable: true },
+      errorMessage: t('app.btcRatesError', { currency })
+    });
+    return btcFiat;
+  }, [setBtcFiat, storageStatus.errorCode, currency, netRequest, t]);
 
   useEffect(() => {
     if (intervalTime && apiReachable) {
