@@ -1,4 +1,4 @@
-//TODO - there are a lot of alert icons. This one is nice too:
+//TODO: - there are a lot of alert icons. This one is nice too:
 //https://icons.expo.fyi/Index/MaterialCommunityIcons/shield-alert
 //OJO, tambien snowflake-alert !?!?!
 import React from 'react';

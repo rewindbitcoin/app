@@ -150,7 +150,7 @@ export default function CreateVaultScreen({
             onProgress,
             networkId
           });
-          //TODO here simply toast an error! dont throw
+          //TODO: here simply toast an error! dont throw
           if (!backupResult)
             throw new Error("Could not backup the vault, won't proceed");
 

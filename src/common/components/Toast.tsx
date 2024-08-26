@@ -54,7 +54,7 @@ const ToastProvider: React.FC<{ children: React.ReactNode }> = ({
       <Text style={{ color: '#a3a3a3', marginTop: 2 }}>{toast.message}</Text>
       <Button onPress={() => toast.onHide()}>Close</Button>
     </View>
-  ); //TODO translate "Close" above, however, the helpRenderer is not being used
+  ); //TODO: translate "Close" above, however, the helpRenderer is not being used
   //never in the code?
 
   return (

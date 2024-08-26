@@ -353,7 +353,7 @@ const WalletHomeScreen = () => {
                 );
               })
             ) : (
-              <Text>TODO retrieving txs...</Text>
+              <Text>TODO: retrieving txs...</Text>
             )}
           </View>
         )}

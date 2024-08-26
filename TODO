@@ -31,7 +31,7 @@ In Settings add: [show confirmed balances & use confirmed utxos] / [show unconfi
 
 I should add a super warning when the Fee selected by the user is bad (not enoguh - since i allow 1 sat/vbyte...).
 
-TODO - show a Confirming... below the Available/Frozen Balance.
+TODO: - show a Confirming... below the Available/Frozen Balance.
 
 En una insgatlacion nueva en Android me salta un error de nativewind tras hacer el vault ?¿?ç¿?¿?
 

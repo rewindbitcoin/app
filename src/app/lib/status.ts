@@ -142,6 +142,7 @@ export const getIsCorrupted = ({
   );
 };
 
+//TODO: remove this function below
 type ToastError = 'NETWORK_ERROR'; //'NETWORK_ERROR' | 'STORAGE_ERROR' |...
 /**
  * When the error is permanent (such as in btc rates or fees failing then

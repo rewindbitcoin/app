@@ -6,7 +6,7 @@ import { useTranslation } from 'react-i18next';
 export default () => {
   const navigation = useNavigation();
   const { t } = useTranslation();
-  const mnemonic = 'TODO'; //TODO - only for BIP32 wallets
+  const mnemonic = 'TODO'; //TODO: - only for BIP32 wallets
   return (
     <KeyboardAwareScrollView
       keyboardShouldPersistTaps="handled"
