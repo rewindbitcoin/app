@@ -1,21 +1,15 @@
 import moize from 'moize';
-import React, {
-  useState,
-  useEffect,
-  useContext,
-  useMemo,
-  useCallback
-} from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Modal, Button, ActivityIndicator } from '../../common/ui';
 import { findLowestTrueBinarySearch } from '../../common/lib/binarySearch';
 import { useTranslation } from 'react-i18next';
 import { View, Text } from 'react-native';
 import FeeInput from './FeeInput';
 import { pickFeeEstimate } from '../lib/fees';
-import { WalletContext, WalletContextType } from '../contexts/WalletContext';
 import { useSettings } from '../hooks/useSettings';
 import type { TxHex, TxId, Vault, VaultStatus } from '../lib/vaults';
 import { transactionFromHex } from '../lib/bitcoin';
+import { useWallet } from '../hooks/useWallet';
 
 export type RescueData = {
   txHex: TxHex;
@@ -76,9 +70,7 @@ const Rescue = ({
   }, [vault, vaultStatus?.triggerTxHex, isVisible]);
 
   const { t } = useTranslation();
-  const context = useContext<WalletContextType | null>(WalletContext);
-  if (context === null) throw new Error('Context was not set');
-  const { feeEstimates } = context;
+  const { feeEstimates } = useWallet();
   const { settings } = useSettings();
   if (!settings)
     throw new Error(

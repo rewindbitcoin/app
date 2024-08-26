@@ -1,4 +1,4 @@
-//TODO: impportant FIX when the rates are not downloaded the SetupVaultsScreen
+//TODO: important FIX when the rates are not downloaded the SetupVaultsScreen
 //crashes
 //Same for unset utxosData. Simply disable that button / route or show
 //some warning Asking users to go back for not having rates / utxos yet
@@ -46,16 +46,8 @@ import {
   type TxAttribution
 } from '@bitcoinerlab/discovery';
 import type { FeeEstimates } from '../lib/fees';
-import {
-  Platform,
-  unstable_batchedUpdates as RN_unstable_batchedUpdates
-} from 'react-native';
-const unstable_batchedUpdates = Platform.select({
-  web: (cb: () => void) => {
-    cb();
-  },
-  default: RN_unstable_batchedUpdates
-});
+import { Platform } from 'react-native';
+import { batchedUpdates } from '~/common/lib/batchedUpdates';
 import { fetchP2PVaults, getDataCipherKey } from '../lib/backup';
 
 type DiscoveryData = ReturnType<DiscoveryInstance['export']>;
@@ -311,7 +303,7 @@ const WalletProviderRaw = ({
     (networkId !== 'TAPE' || explorerMainnetReachable);
 
   useEffect(() => {
-    unstable_batchedUpdates(() => {
+    batchedUpdates(() => {
       if (discovery) {
         netStatusInit({
           networkId,
@@ -412,7 +404,7 @@ const WalletProviderRaw = ({
           vaultsStatuses,
           discovery
         );
-        unstable_batchedUpdates(() => {
+        batchedUpdates(() => {
           setUtxosData(walletId, walletUtxosData);
           setHistoryData(walletId, walletHistoryData);
         });
@@ -568,7 +560,7 @@ const WalletProviderRaw = ({
       try {
         await discovery?.getExplorer().close();
       } catch (err) {} //don't care about errors here
-      unstable_batchedUpdates(() => {
+      batchedUpdates(() => {
         // Clear cache, so that data must be read from disk again for the walletId.
         // This forces cipherKeys to be evaluated again to decrypt from disk
         // In other words, passwords must be set again
@@ -641,7 +633,7 @@ const WalletProviderRaw = ({
         ]);
       }
       //React 18 NOT on the new Architecture behaves as React 17:
-      unstable_batchedUpdates(() => {
+      batchedUpdates(() => {
         //logOut(); //Log out from previous wallet
         setWallet(prevWallet => {
           //Net status depends on the wallet (explorer, ...); so reset it ONLY when it changes
@@ -742,7 +734,7 @@ const WalletProviderRaw = ({
       const response = await fetch(`${serviceAddressAPI}/get`);
       if (!response.ok) {
         throw new Error(
-          `Failed to fetch service address: ${response.statusText}`
+          `Failed to fetch service address${response.statusText ? `: ${response.statusText}` : ''}`
         );
       }
 

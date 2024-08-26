@@ -1,4 +1,4 @@
-import React, { useCallback, useContext, useMemo } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import { View, Pressable } from 'react-native';
 import { Text, KeyboardAwareScrollView } from '../../common/ui';
 import { useTranslation } from 'react-i18next';
@@ -13,10 +13,7 @@ import TestnetLogo from '../../../assets/Testnet.svg';
 import { Ubuntu_700Bold } from '@expo-google-fonts/ubuntu';
 import { useFonts } from 'expo-font';
 import { cssInterop } from 'nativewind';
-import {
-  WalletContext,
-  type WalletContextType
-} from '../contexts/WalletContext';
+import { useWallet } from '../hooks/useWallet';
 cssInterop(Svg, {
   className: {
     target: 'style',
@@ -72,9 +69,7 @@ const walletBg = (index: number) => walletBgs[index % walletBgs.length];
 const walletCl = (index: number) => walletCls[index % walletCls.length];
 
 const WalletsScreen = () => {
-  const context = useContext<WalletContextType | null>(WalletContext);
-  if (context === null) throw new Error('Context was not set');
-  const { onWallet, wallets } = context;
+  const { onWallet, wallets } = useWallet();
   if (!onWallet) throw new Error(`onWallet not set yet`);
   const [ubuntuLoaded] = useFonts({ Ubuntu700Bold: Ubuntu_700Bold });
   const insets = useSafeAreaInsets();

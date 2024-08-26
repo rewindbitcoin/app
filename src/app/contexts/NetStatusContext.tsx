@@ -133,18 +133,9 @@ import React, {
   useMemo
 } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Platform } from 'react-native';
-import {
-  AppState,
-  unstable_batchedUpdates as RN_unstable_batchedUpdates
-} from 'react-native';
+import { AppState } from 'react-native';
 import type { NetworkId } from '../lib/network';
-const unstable_batchedUpdates = Platform.select({
-  web: (cb: () => void) => {
-    cb();
-  },
-  default: RN_unstable_batchedUpdates
-});
+import { batchedUpdates } from '~/common/lib/batchedUpdates';
 
 type NotifiedErrors = Record<
   string,
@@ -445,7 +436,7 @@ const NetStatusProvider: React.FC<NetStatusProviderProps> = ({ children }) => {
       apiExternalReachable
     });
 
-    unstable_batchedUpdates(() => {
+    batchedUpdates(() => {
       setErrorMessage(errorMessage);
       setExplorerReachable(explorerReachable);
       setExplorerMainnetReachable(explorerMainnetReachable);

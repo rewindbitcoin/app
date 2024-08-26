@@ -1,7 +1,6 @@
 import React, {
   useCallback,
   useRef,
-  useContext,
   useEffect,
   useMemo,
   useState
@@ -26,7 +25,6 @@ import {
   TabBar,
   IconType
 } from '../../common/ui';
-import { WalletContext, WalletContextType } from '../contexts/WalletContext';
 import { useTranslation } from 'react-i18next';
 import { AntDesign, Ionicons } from '@expo/vector-icons';
 import {
@@ -44,6 +42,7 @@ import { lighten } from 'polished';
 
 import { useFaucet } from '../hooks/useFaucet';
 import type { ScrollView } from 'react-native-gesture-handler';
+import { useWallet } from '../hooks/useWallet';
 
 //Using chrome dev tools, refresh the screen, after choosing a mobile size to activate it:
 const hasTouch =
@@ -56,9 +55,6 @@ const WalletHomeScreen = () => {
   const route = useRoute<RouteProp<RootStackParamList, 'WALLET_HOME'>>();
   const walletId = route.params.walletId;
   const { t } = useTranslation();
-
-  const context = useContext<WalletContextType | null>(WalletContext);
-  if (context === null) throw new Error('Context was not set');
 
   const tabs = ['Vaults', 'Transactions']; //TODO: translate
   const [activeTabIndex, setActiveTabIndex] = useState<number>(0);
@@ -80,7 +76,7 @@ const WalletHomeScreen = () => {
     onWallet,
     logOut,
     pushTx
-  } = context;
+  } = useWallet();
   if (wallet && walletId !== wallet.walletId)
     throw new Error(
       `Navigated to walletId ${walletId} which does not correspond to the one in the context ${wallet?.walletId}`

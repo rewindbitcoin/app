@@ -5,18 +5,8 @@ import React, {
   useRef,
   useState
 } from 'react';
-import {
-  StyleSheet,
-  View,
-  Platform,
-  unstable_batchedUpdates as RN_unstable_batchedUpdates
-} from 'react-native';
-const unstable_batchedUpdates = Platform.select({
-  web: (cb: () => void) => {
-    cb();
-  },
-  default: RN_unstable_batchedUpdates
-});
+import { StyleSheet, View } from 'react-native';
+import { batchedUpdates } from '~/common/lib/batchedUpdates';
 
 import { LayoutAnimation } from 'react-native';
 import { useFonts } from 'expo-font';
@@ -138,7 +128,7 @@ export default function Bip39({
           else hideError();
 
           //Add text and update index:
-          unstable_batchedUpdates(() => {
+          batchedUpdates(() => {
             onWords(newWords);
             if (nextIndex !== -1) setActiveWordIndex(nextIndex);
           });

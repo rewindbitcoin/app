@@ -1,8 +1,7 @@
-import React, { useContext, useCallback, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { Modal, Button } from '../../common/ui';
 import { useTranslation } from 'react-i18next';
 import { View, Text } from 'react-native';
-import { WalletContext, WalletContextType } from '../contexts/WalletContext';
 import type { Vault } from '../lib/vaults';
 import { delegateVault } from '../lib/backup';
 
@@ -17,8 +16,6 @@ const Delegate = ({
 }) => {
   const [loading, setLoading] = useState<boolean>(false);
   const { t } = useTranslation();
-  const context = useContext<WalletContextType | null>(WalletContext);
-  if (context === null) throw new Error('Context was not set');
 
   const handleDelegateVault = useCallback(async () => {
     setLoading(true);

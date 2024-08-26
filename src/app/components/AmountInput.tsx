@@ -1,14 +1,7 @@
 //This component must work both for SendBitcoin and SetUpVault
-import React, {
-  useState,
-  useCallback,
-  useContext,
-  useRef,
-  useMemo
-} from 'react';
+import React, { useState, useCallback, useRef, useMemo } from 'react';
 import { CardEditableSlider } from '../../common/ui';
 import { useTranslation } from 'react-i18next';
-import { WalletContext, WalletContextType } from '../contexts/WalletContext';
 import type { SubUnit } from '../lib/settings';
 import {
   formatBtc,
@@ -18,6 +11,7 @@ import {
 } from '../lib/btcRates';
 import UnitsModal from './UnitsModal';
 import { useSettings } from '../hooks/useSettings';
+import { useWallet } from '../hooks/useWallet';
 
 function AmountInput({
   initialValue,
@@ -37,9 +31,7 @@ function AmountInput({
   onUserSelectedAmountChange: (value: number | null) => void;
 }) {
   const { t } = useTranslation();
-  const context = useContext<WalletContextType | null>(WalletContext);
-  if (context === null) throw new Error('Context was not set');
-  const { btcFiat } = context;
+  const { btcFiat } = useWallet();
   const { settings, setSettings } = useSettings();
   if (!settings)
     throw new Error(

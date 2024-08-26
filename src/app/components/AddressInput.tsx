@@ -1,18 +1,8 @@
 import { BarcodeType, CameraView, useCameraPermissions } from 'expo-camera';
 import { Camera } from 'expo-camera/legacy';
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
-import {
-  Platform,
-  View,
-  AppState,
-  unstable_batchedUpdates as RN_unstable_batchedUpdates
-} from 'react-native';
-const unstable_batchedUpdates = Platform.select({
-  web: (cb: () => void) => {
-    cb();
-  },
-  default: RN_unstable_batchedUpdates
-});
+import { View, AppState, Platform } from 'react-native';
+import { batchedUpdates } from '~/common/lib/batchedUpdates';
 import {
   TextInput,
   Text,
@@ -78,7 +68,7 @@ function AddressInput({
           : (['back', 'front'] as Array<'back' | 'front'>);
 
       if (camTypes.length) {
-        unstable_batchedUpdates(() => {
+        batchedUpdates(() => {
           setCamTypes(camTypes);
           const camFacing = camTypes.length === 1 ? camTypes[0]! : 'back';
           setCamFacing(camFacing);

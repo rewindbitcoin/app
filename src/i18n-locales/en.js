@@ -8,7 +8,9 @@ Please check your connection and try again.`,
 Please check your connection and tap on refresh to try again.`,
     pushError: `Oops! There was a problem submitting your transaction. Please check your connection and try again.
 
+
 Technical error: {{message}}`,
+    fetchServiceAddressError: `Oops! It seems we cannot contact our servers. Please check your connection and try again.`,
     pushTimeoutError:
       'Oops! It seems the recently submitted transaction is taking longer to be detected. Please check your connection and refresh your wallet. If it does not show up, try submitting it again.',
     newWalletTitle: 'New Wallet',

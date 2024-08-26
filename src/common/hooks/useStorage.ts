@@ -1,8 +1,5 @@
 import { useEffect, useState, useCallback, useContext } from 'react';
-import {
-  Platform,
-  unstable_batchedUpdates as RN_unstable_batchedUpdates
-} from 'react-native';
+import { Platform } from 'react-native';
 import {
   getAsync,
   setAsync,
@@ -14,12 +11,7 @@ import {
   StorageErrorCode,
   getStorageErrorCode
 } from '../lib/storage';
-const unstable_batchedUpdates = Platform.select({
-  web: (cb: () => void) => {
-    cb();
-  },
-  default: RN_unstable_batchedUpdates
-});
+import { batchedUpdates } from '../lib/batchedUpdates';
 
 /**
  * Usage of `useStorage`:
@@ -136,7 +128,7 @@ export const useStorage = <T>(
           authenticationPrompt
         );
 
-        unstable_batchedUpdates(() => {
+        batchedUpdates(() => {
           //useState assumes immutability: https://react.dev/reference/react/useState
           setValueMap(prevState =>
             prevState[key] !== newValue
@@ -180,7 +172,7 @@ export const useStorage = <T>(
           if (savedValue !== undefined) {
             // There was a previous stored value
 
-            unstable_batchedUpdates(() => {
+            batchedUpdates(() => {
               //useState assumes immutability: https://react.dev/reference/react/useState
               setValueMap(prevState =>
                 prevState[key] !== savedValue
@@ -198,7 +190,7 @@ export const useStorage = <T>(
           else {
             // There was no previous stored value value and no defaultValue was passed:
 
-            unstable_batchedUpdates(() => {
+            batchedUpdates(() => {
               //useState assumes immutability: https://react.dev/reference/react/useState
               setValueMap(prevState =>
                 prevState[key] !== undefined ||
@@ -245,7 +237,7 @@ export const useStorage = <T>(
    * Call it to force a read from disk (not using valueMap or errorCodeMap)
    */
   const clearCache = useCallback(() => {
-    unstable_batchedUpdates(() => {
+    batchedUpdates(() => {
       if (key) {
         setValueMap(prevState => {
           //if (key in prevState) { - Note: It's very important to set a New State

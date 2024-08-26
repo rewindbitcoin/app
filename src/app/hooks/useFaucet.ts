@@ -1,16 +1,14 @@
 const DETECTION_INTERVAL = 4000;
 const DETECT_RETRY_MAX = 5;
 
-import { useContext, useEffect, useRef, useState } from 'react';
-import { WalletContext, WalletContextType } from '../contexts/WalletContext';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useToast } from '../../common/ui';
 import { networkMapping } from '../lib/network';
 import { faucetFirstReceive } from '../lib/faucet';
+import { useWallet } from './useWallet';
 
 export function useFaucet() {
-  const context = useContext<WalletContextType | null>(WalletContext);
-  if (context === null) throw new Error('Context was not set');
   const {
     historyData,
     wallet,
@@ -18,7 +16,7 @@ export function useFaucet() {
     fetchOutputHistory,
     isFirstLogin,
     faucetAPI
-  } = context;
+  } = useWallet();
   const { t } = useTranslation();
 
   const toast = useToast();

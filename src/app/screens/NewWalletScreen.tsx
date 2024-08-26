@@ -1,4 +1,4 @@
-import React, { useCallback, useContext, useRef, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import { defaultSettings } from '../lib/settings';
 import type { Wallet, Signer } from '../lib/wallets';
 import { View, Text, Pressable, Keyboard, Platform } from 'react-native';
@@ -28,16 +28,11 @@ import { getPasswordDerivedCipherKey } from '../../common/lib/cipher';
 import { getMasterNode } from '../lib/vaultDescriptors';
 import Password from '../components/Password';
 import type { RootStackParamList, NavigationPropsByScreenId } from '../screens';
-import {
-  WalletContext,
-  type WalletContextType
-} from '../contexts/WalletContext';
 import { shallowEqualArrays } from 'shallow-equal';
+import { useWallet } from '../hooks/useWallet';
 
 export default function NewWalletScreen() {
-  const context = useContext<WalletContextType | null>(WalletContext);
-  const onWallet = context?.onWallet;
-  if (!onWallet) throw new Error(`onWallet not set yet`);
+  const { onWallet } = useWallet();
 
   const route = useRoute<RouteProp<RootStackParamList, 'NEW_WALLET'>>();
   const navigation = useNavigation<NavigationPropsByScreenId['NEW_WALLET']>();

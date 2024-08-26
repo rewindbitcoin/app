@@ -9,20 +9,10 @@ import React, {
   useRef,
   useState
 } from 'react';
-import {
-  View,
-  Text,
-  unstable_batchedUpdates as RN_unstable_batchedUpdates,
-  Platform
-} from 'react-native';
+import { View, Text } from 'react-native';
 import * as Icons from '@expo/vector-icons';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-const unstable_batchedUpdates = Platform.select({
-  web: (cb: () => void) => {
-    cb();
-  },
-  default: RN_unstable_batchedUpdates
-});
+import { batchedUpdates } from '~/common/lib/batchedUpdates';
 
 import {
   type Vault,
@@ -231,7 +221,7 @@ const Vault = ({
   );
   const handleInitUnfreeze = useCallback(
     async (initUnfreezeData: InitUnfreezeData) => {
-      unstable_batchedUpdates(() => {
+      batchedUpdates(() => {
         setShowInitUnfreeze(false);
         setIsInitUnfreezeRequestValid(true);
       });
@@ -267,7 +257,7 @@ const Vault = ({
   const handleShowRescue = useCallback(() => setShowRescue(true), []);
   const handleRescue = useCallback(
     async (rescueData: RescueData) => {
-      unstable_batchedUpdates(() => {
+      batchedUpdates(() => {
         setShowRescue(false);
         setIsRescueRequestValid(true);
       });

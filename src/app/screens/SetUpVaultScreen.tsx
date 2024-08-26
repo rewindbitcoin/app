@@ -3,7 +3,7 @@ import AmountInput from '../components/AmountInput';
 import BlocksInput from '../components/BlocksInput';
 import FeeInput from '../components/FeeInput';
 import { Trans, useTranslation } from 'react-i18next';
-import React, { useCallback, useContext, useState, useMemo } from 'react';
+import React, { useCallback, useState, useMemo } from 'react';
 import { useNavigation } from '@react-navigation/native';
 import { View, StyleSheet } from 'react-native';
 import {
@@ -25,11 +25,11 @@ import {
 } from '../lib/vaultDescriptors';
 
 import { pickFeeEstimate } from '../lib/fees';
-import { WalletContext, WalletContextType } from '../contexts/WalletContext';
 import { formatBtc } from '../lib/btcRates';
 import { estimateVaultSetUpRange } from '../lib/vaultRange';
 import { networkMapping } from '../lib/network';
 import { useSettings } from '../hooks/useSettings';
+import { useWallet } from '../hooks/useWallet';
 
 export default function VaultSetUp({
   onVaultSetUpComplete
@@ -38,17 +38,13 @@ export default function VaultSetUp({
 }) {
   const insets = useSafeAreaInsets();
   const theme = useTheme();
-  const context = useContext<WalletContextType | null>(WalletContext);
   const navigation = useNavigation();
   const styles = useMemo(() => getStyles(insets, theme), [insets, theme]);
   const [vaultsHelp, setVaultsHelp] = useState<boolean>(false);
   const showVaultsHelp = useCallback(() => setVaultsHelp(true), []);
   const hideVaultsHelp = useCallback(() => setVaultsHelp(false), []);
 
-  if (context === null) {
-    throw new Error('Context was not set');
-  }
-  const { utxosData, networkId, feeEstimates, btcFiat, accounts } = context;
+  const { utxosData, networkId, feeEstimates, btcFiat, accounts } = useWallet();
   if (!utxosData)
     throw new Error('SetUpVaultScreen cannot be called with unset utxos');
   if (!accounts)

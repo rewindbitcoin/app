@@ -1,13 +1,13 @@
 const FEE_RATE_STEP = 0.01;
 
 //This component must work both for SendBitcoin and SetUpVault
-import React, { useContext, useCallback, useRef, useMemo } from 'react';
+import React, { useCallback, useRef, useMemo } from 'react';
 import { CardEditableSlider } from '../../common/ui';
-import { WalletContext, WalletContextType } from '../contexts/WalletContext';
 import { snapWithinRange } from '../../common/lib/numbers';
 import { formatFeeRate } from '../lib/format';
 import { useTranslation } from 'react-i18next';
 import { useSettings } from '../hooks/useSettings';
+import { useWallet } from '../hooks/useWallet';
 
 function FeeInput({
   label,
@@ -20,9 +20,7 @@ function FeeInput({
   txSize: number | null;
   onValueChange: (value: number | null) => void;
 }) {
-  const context = useContext<WalletContextType | null>(WalletContext);
-  if (context === null) throw new Error('Context was not set');
-  const { feeEstimates, btcFiat } = context;
+  const { feeEstimates, btcFiat } = useWallet();
   if (!feeEstimates)
     throw new Error('FeeInput cannot be called with unset feeEstimates');
   const { settings } = useSettings();

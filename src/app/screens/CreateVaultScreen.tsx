@@ -1,13 +1,12 @@
 //TODO: get some style stuff for the color
 import React, {
-  useContext,
   useEffect,
   useState,
   useRef,
   useMemo,
   useCallback
 } from 'react';
-import { WalletContext, WalletContextType } from '../contexts/WalletContext';
+import { useWallet } from '../hooks/useWallet';
 import { useTranslation } from 'react-i18next';
 import { View } from 'react-native';
 import * as Progress from 'react-native-progress';
@@ -22,7 +21,7 @@ import {
 } from '../../common/ui';
 import { p2pBackupVault, fetchP2PVaultIds } from '../lib/backup';
 import { useNavigation } from '@react-navigation/native';
-import { toastifyErrorAsync } from '../lib/status';
+import { useNetStatus } from '../hooks/useNetStatus';
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -41,8 +40,6 @@ export default function CreateVaultScreen({
     () => ({ marginBottom: 16 + insets.bottom }),
     [insets]
   );
-  const context = useContext<WalletContextType | null>(WalletContext);
-  if (context === null) throw new Error('Context was not set');
   const {
     utxosData,
     networkId,
@@ -54,7 +51,7 @@ export default function CreateVaultScreen({
     vaults,
     vaultsAPI,
     vaultsSecondaryAPI
-  } = context;
+  } = useWallet();
 
   if (
     !utxosData ||
@@ -65,6 +62,7 @@ export default function CreateVaultScreen({
     !vaultsSecondaryAPI
   )
     throw new Error('Missing data from context');
+  const { netRequest } = useNetStatus();
   const { t } = useTranslation();
   const toast = useToast();
   const navigation = useNavigation();
@@ -100,10 +98,12 @@ export default function CreateVaultScreen({
       await sleep(200);
 
       const unvaultKey = await getUnvaultKey();
-      const serviceAddress = await toastifyErrorAsync('NETWORK_ERROR', () =>
-        fetchServiceAddress()
-      );
-      if (serviceAddress === 'NETWORK_ERROR') {
+      const serviceAddress = await netRequest({
+        func: fetchServiceAddress,
+        requirements: { apiReachable: true },
+        errorMessage: t('app.fetchServiceAddressError')
+      });
+      if (!serviceAddress) {
         goBack();
       } else {
         const changeDescriptor = await getChangeDescriptor();
@@ -178,6 +178,7 @@ export default function CreateVaultScreen({
       isMounted = false;
     };
   }, [
+    netRequest,
     goBack,
     t,
     toast,
