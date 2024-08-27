@@ -22,6 +22,8 @@ import {
 import { p2pBackupVault, fetchP2PVaultIds } from '../lib/backup';
 import { useNavigation } from '@react-navigation/native';
 import { useNetStatus } from '../hooks/useNetStatus';
+import { NavigationPropsByScreenId, WALLET_HOME } from '../screens';
+import { getUseOfValueInStyleWarning } from 'react-native-reanimated';
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -50,10 +52,12 @@ export default function CreateVaultScreen({
     processCreatedVault,
     vaults,
     vaultsAPI,
-    vaultsSecondaryAPI
+    vaultsSecondaryAPI,
+    wallet
   } = useWallet();
 
   if (
+    !wallet ||
     !utxosData ||
     !networkId ||
     !signers ||
@@ -62,10 +66,11 @@ export default function CreateVaultScreen({
     !vaultsSecondaryAPI
   )
     throw new Error('Missing data from context');
-  const { netRequest } = useNetStatus();
+  const walletId = wallet.walletId;
+  const { netRequest, apiReachable, api2Reachable } = useNetStatus();
   const { t } = useTranslation();
   const toast = useToast();
-  const navigation = useNavigation();
+  const navigation = useNavigation<NavigationPropsByScreenId['CREATE_VAULT']>();
   const keepProgress = useRef<boolean>(true);
   const { settings } = useSettings();
   if (!settings)
@@ -82,10 +87,20 @@ export default function CreateVaultScreen({
   const samples = settings.SAMPLES;
   const feeRateCeiling = settings.PRESIGNED_FEE_RATE_CEILING;
 
+  //TODO: on certain errors better do goWalletHome to goBack to the
+  //Wallet home
   const goBack = useCallback(() => {
-    console.log('GO BACK');
     if (navigation.canGoBack()) navigation.goBack();
   }, [navigation]);
+  const goWalletHome = useCallback(() => {
+    //navigation.navigate beahves as if doing a navigation.pop(2)
+    //So goBack from WALLET_HOME agter goWalletHome will still go to
+    //WALLETS
+    navigation.navigate(WALLET_HOME, { walletId });
+  }, [navigation, walletId]);
+  useEffect(() => {
+    if (!apiReachable || !api2Reachable) goWalletHome();
+  }, [apiReachable, api2Reachable, goWalletHome]);
 
   const isVaultCreated = useRef<boolean>(false);
   useEffect(() => {
@@ -98,14 +113,13 @@ export default function CreateVaultScreen({
       await sleep(200);
 
       const unvaultKey = await getUnvaultKey();
-      const serviceAddress = await netRequest({
+      const { result: serviceAddress } = await netRequest({
         func: fetchServiceAddress,
         requirements: { apiReachable: true },
         errorMessage: t('app.fetchServiceAddressError')
       });
-      if (!serviceAddress) {
-        goBack();
-      } else {
+      if (!serviceAddress) goWalletHome();
+      else {
         const changeDescriptor = await getChangeDescriptor();
 
         const signer = signers[0];
@@ -178,6 +192,7 @@ export default function CreateVaultScreen({
       isMounted = false;
     };
   }, [
+    goWalletHome,
     netRequest,
     goBack,
     t,
