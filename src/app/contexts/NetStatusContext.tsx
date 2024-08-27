@@ -177,7 +177,10 @@ export interface NetStatus {
       api2Reachable?: boolean;
     };
     errorMessage?: string;
-  }) => Promise<T | undefined>;
+  }) => Promise<{
+    result: T | undefined;
+    status: 'SUCCESS' | 'REQUIREMENTS_NOT_MET' | 'ERROR';
+  }>;
   internetReachable: boolean | undefined;
   apiReachable: boolean | undefined;
   api2Reachable: boolean | undefined;
@@ -499,19 +502,21 @@ const NetStatusProvider: React.FC<NetStatusProviderProps> = ({ children }) => {
         api2Reachable?: boolean;
       };
       errorMessage?: string;
-    }) => {
-      try {
-        if (
-          ((requirements?.explorerReachable && explorerReachable) ||
-            !requirements?.explorerReachable) &&
-          ((requirements?.explorerMainnetReachable &&
-            explorerMainnetReachable) ||
-            !requirements?.explorerMainnetReachable) &&
-          ((requirements?.apiReachable && apiReachable) ||
-            !requirements?.apiReachable) &&
-          ((requirements?.api2Reachable && api2Reachable) ||
-            !requirements?.api2Reachable)
-        ) {
+    }): Promise<{
+      result: T | undefined;
+      status: 'SUCCESS' | 'REQUIREMENTS_NOT_MET' | 'ERROR';
+    }> => {
+      if (
+        ((requirements?.explorerReachable && explorerReachable) ||
+          !requirements?.explorerReachable) &&
+        ((requirements?.explorerMainnetReachable && explorerMainnetReachable) ||
+          !requirements?.explorerMainnetReachable) &&
+        ((requirements?.apiReachable && apiReachable) ||
+          !requirements?.apiReachable) &&
+        ((requirements?.api2Reachable && api2Reachable) ||
+          !requirements?.api2Reachable)
+      ) {
+        try {
           const result = await func();
           if (id && notifiedErrorsRef.current[id]) {
             delete notifiedErrorsRef.current[id];
@@ -524,27 +529,32 @@ const NetStatusProvider: React.FC<NetStatusProviderProps> = ({ children }) => {
             });
             setErrorMessage(errorMessage);
           }
-          return result;
-        }
-      } catch (error) {
-        errorMessage =
-          errorMessage ||
-          (error instanceof Error && error.message) ||
-          t('app.unknownError');
+          return { result, status: 'SUCCESS' };
+        } catch (error) {
+          errorMessage =
+            errorMessage ||
+            (error instanceof Error && error.message) ||
+            t('app.unknownError');
 
-        if (id) {
-          const notifiedError = notifiedErrorsRef.current[id];
-          if (notifiedError?.errorMessage !== errorMessage) {
-            notifiedErrorsRef.current[id] = {
-              ...(requirements ? { requirements } : {}),
-              errorMessage,
-              date: new Date()
-            };
-            await update(); //The error will be notified in update
-          }
-        } else toast.show(errorMessage, { type: 'warning' });
-      }
-      return;
+          if (id) {
+            const notifiedError = notifiedErrorsRef.current[id];
+            if (notifiedError?.errorMessage !== errorMessage) {
+              notifiedErrorsRef.current[id] = {
+                ...(requirements ? { requirements } : {}),
+                errorMessage,
+                date: new Date()
+              };
+              //The error will be "toasted" in update
+              //don't return the 'ERROR' without awaiting the update to avoid a
+              //strange situation in which the function is reported as failure
+              //but we don't see the error notification for a while.
+              await update();
+            }
+          } else toast.show(errorMessage, { type: 'warning' });
+
+          return { result: undefined, status: 'ERROR' };
+        }
+      } else return { result: undefined, status: 'REQUIREMENTS_NOT_MET' };
     },
     [
       handleError,
