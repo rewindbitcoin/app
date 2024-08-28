@@ -233,7 +233,7 @@ const fetchP2PVault = async ({
           `Failed to fetch vault after ${maxAttempts} attempts: ${error instanceof Error ? error.message : 'Unknown error'}`
         );
       }
-      console.error(
+      console.warn(
         `Attempt ${attempt} failed: ${error instanceof Error ? error.message : 'Unknown error'}`
       );
       await new Promise(resolve => setTimeout(resolve, 1000));
