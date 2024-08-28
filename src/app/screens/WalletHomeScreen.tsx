@@ -1,3 +1,5 @@
+//TODO:: disable Send and Freeze buttons if !apiReachable (for freeze api2Reachable)
+//Receive may be left... for offline receive
 import React, {
   useCallback,
   useRef,
