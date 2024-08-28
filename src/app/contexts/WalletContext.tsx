@@ -101,7 +101,7 @@ export type WalletContextType = {
     descriptor: string;
     index?: number;
   }) => Promise<TxHistory | undefined>;
-  pushVaultAndUpdateStates: (vault: Vault) => Promise<boolean>;
+  pushVaultAndUpdateStates: (vault: Vault) => Promise<void>;
   syncBlockchain: () => void;
   syncingBlockchain: boolean;
   vaultsAPI: string | undefined;
@@ -967,14 +967,22 @@ const WalletProviderRaw = ({
   }, [walletId, setSyncingBlockchain, dataReady, netReady, tipHeight]);
 
   /**
-   * Pushes the vault and stores all assocaited data locally:
-   * It updates utxosData, vaults and vaultsStatuses without
+   * Pushes the vault and stores all associated data locally:
+   * It updates utxosData, history, vaults and vaultsStatuses without
    * requiring any additional fetch.
    * It also saves on disk discoveryExport.
-   * Note: this can throw during the push.
+   *
+   * Note: internallu states are updated before pushint the tx since it's
+   * safer to push if the update did not thow and we're sure all the data
+   * was suffesfully set.
+   *
+   * This function may throw. try-catch it from outer blocks.
+   *
+   * It returns true if the push was succesful.
+   * If the push failed for any reason, then.
    */
   const pushVaultAndUpdateStates = useCallback(
-    async (vault: Vault): Promise<boolean> => {
+    async (vault: Vault): Promise<void> => {
       if (!vaults || !vaultsStatuses)
         throw new Error('Cannot use vaults without Storage');
       if (!vaults || !vaultsStatuses)
@@ -997,40 +1005,28 @@ const WalletProviderRaw = ({
         }
       };
 
-      const pushAndSetUtxosHistoryExport = async () => {
+      const pushAndUpdate = async () => {
         if (!accounts || tipHeight === undefined)
           throw new Error(
             `Cannot pushVaultAndUpdateStates without accounts: ${!!accounts} or tipHeight: ${!!tipHeight}`
           );
-        let pushResult = false;
-        try {
-          await pushTx(vault.vaultTxHex);
-          pushResult = true;
-        } catch (error) {
-          console.warn(error);
-        }
-        if (pushResult) {
-          //pushTx updates the internal state of discovery
-          setUtxosHistoryExport(
-            newVaults,
-            newVaultsStatuses,
-            accounts,
-            tipHeight
-          );
-        }
-        return pushResult;
+        setUtxosHistoryExport(
+          newVaults,
+          newVaultsStatuses,
+          accounts,
+          tipHeight
+        );
+        await pushTx(vault.vaultTxHex);
       };
-      const pushResult = await pushAndSetUtxosHistoryExport();
+      await pushAndUpdate();
       //Note here setVaults, setVaultsStatuses, ...
       //are not atomically set, so when using vaults one
       //must make sure they are synched somehow - See Vaults.tsx for an
       //example what to do
-      if (pushResult)
-        await Promise.all([
-          setVaults(newVaults),
-          setVaultsStatuses(newVaultsStatuses)
-        ]);
-      return pushResult;
+      await Promise.all([
+        setVaults(newVaults),
+        setVaultsStatuses(newVaultsStatuses)
+      ]);
     },
     [
       pushTx,
