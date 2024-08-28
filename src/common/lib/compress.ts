@@ -2,6 +2,11 @@ import { Gzip } from 'fflate';
 import { TextEncoder } from './textencoder';
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+/**
+ * compresses data in chunks so that it does not lock the javascript engine.
+ * returns compressed data or undefined if requested onProgress.
+ */
 export const compressData = async ({
   data,
   chunkSize,
