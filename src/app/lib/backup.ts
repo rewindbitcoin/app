@@ -282,6 +282,7 @@ export const p2pBackupVault = async ({
     ...(onProgress ? { onProgress } : {})
   });
   if (!compressedVault) {
+    //TODO: don't throw here! This means user cancelled
     throw new Error('Could not compress the Vault');
   }
 
@@ -356,8 +357,9 @@ export const delegateVault = async ({
     ...(onProgress ? { onProgress } : {})
   });
   if (!compressedRescue) {
+    //TODO: This means it was user cancelled.
+    //TODO: but i need to try catch compressData for errors and toast somehow.
     return false;
-    //TODO: toast throw new Error('Impossible to compress rescue');
   }
 
   const fileName = `visit-RewindBitcoin_com.json.gz`;
@@ -403,8 +405,9 @@ export const shareVaults = async ({
     ...(onProgress ? { onProgress } : {})
   });
   if (!compressedVaults) {
+    //TODO: This means it was user cancelled.
+    //TODO: but i need to try catch compressData for errors and toast somehow.
     return false;
-    //TODO: toast throw new Error('Impossible to compress vaults');
   }
 
   const fileName = `rewbtc_vaults.json.gz`;
