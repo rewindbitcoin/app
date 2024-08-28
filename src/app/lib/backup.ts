@@ -249,6 +249,11 @@ const fetchP2PVault = async ({
  * it retrieves it from the secondary server and decompresses it and checks
  * whether it was ok. This function will throw on error messages, so deal with
  * this externally.
+ *
+ * returns a promise to true if succesful or false if the user cancelled the
+ * compression process returning false onProgress.
+ *
+ * it throws on errors on network failure or if the backup was inconsistent.
  */
 export const p2pBackupVault = async ({
   vault,
@@ -264,7 +269,7 @@ export const p2pBackupVault = async ({
   vaultsSecondaryAPI: string;
   onProgress?: (progress: number) => boolean;
   networkId: NetworkId;
-}) => {
+}): Promise<boolean> => {
   const network = networkMapping[networkId];
   const vaultId = vault.vaultId;
   const vaultPath = vault.vaultPath;
@@ -281,10 +286,7 @@ export const p2pBackupVault = async ({
     chunkSize: 256 * 1024, //chunks of 256 KB
     ...(onProgress ? { onProgress } : {})
   });
-  if (!compressedVault) {
-    //TODO: don't throw here! This means user cancelled
-    throw new Error('Could not compress the Vault');
-  }
+  if (!compressedVault) return false;
 
   const chacha = getManagedChacha(cipherKey);
   const cipheredCompressedVault = chacha.encrypt(compressedVault);

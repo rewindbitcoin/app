@@ -29,7 +29,7 @@ Some Network errors being handled:
 - updateBtcFiat
   - me hace swallow del error. Aquí es correcto.
 - fetchP2PVaults
-- p2pBackupVault -> hay un try catch
+- p2pBackupVault
 - sync
   - But handling is pretty bad because if network fails then it
     basically errors that feeEstimates was bad
