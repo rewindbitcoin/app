@@ -23,7 +23,6 @@ import { p2pBackupVault, fetchP2PVaultIds } from '../lib/backup';
 import { useNavigation } from '@react-navigation/native';
 import { useNetStatus } from '../hooks/useNetStatus';
 import { NavigationPropsByScreenId, WALLET_HOME } from '../screens';
-import { getUseOfValueInStyleWarning } from 'react-native-reanimated';
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -49,7 +48,7 @@ export default function CreateVaultScreen({
     getChangeDescriptor,
     getUnvaultKey,
     signers,
-    processCreatedVault,
+    pushVaultAndUpdateStates,
     vaults,
     vaultsAPI,
     vaultsSecondaryAPI,
@@ -61,7 +60,7 @@ export default function CreateVaultScreen({
     !utxosData ||
     !networkId ||
     !signers ||
-    !processCreatedVault ||
+    !pushVaultAndUpdateStates ||
     !vaultsAPI ||
     !vaultsSecondaryAPI
   )
@@ -87,8 +86,6 @@ export default function CreateVaultScreen({
   const samples = settings.SAMPLES;
   const feeRateCeiling = settings.PRESIGNED_FEE_RATE_CEILING;
 
-  //TODO: on certain errors better do goWalletHome to goBack to the
-  //Wallet home
   const goBack = useCallback(() => {
     if (navigation.canGoBack()) navigation.goBack();
   }, [navigation]);
@@ -107,10 +104,10 @@ export default function CreateVaultScreen({
     if (isVaultCreated.current === true) return;
     else isVaultCreated.current = true;
 
-    let isMounted = true;
     //Leave some time so that the progress is rendered
     const createAndNotifyVault = async () => {
       await sleep(200);
+      if (!navigation.isFocused()) return; //Don't proceed if lost focus after await
 
       const unvaultKey = await getUnvaultKey();
       const { result: serviceAddress } = await netRequest({
@@ -118,80 +115,81 @@ export default function CreateVaultScreen({
         requirements: { apiReachable: true },
         errorMessage: t('app.fetchServiceAddressError')
       });
-      if (!serviceAddress) goWalletHome();
-      else {
-        const changeDescriptor = await getChangeDescriptor();
+      if (!navigation.isFocused()) return; //Don't proceed if lost focus after await
+      if (!serviceAddress) {
+        goWalletHome();
+        return;
+      }
+      const changeDescriptor = await getChangeDescriptor();
+      if (!navigation.isFocused()) return; //Don't proceed if lost focus after await
 
-        const signer = signers[0];
-        if (!signer) throw new Error('signer unavailable');
+      const signer = signers[0];
+      if (!signer) throw new Error('signer unavailable');
 
-        const { nextVaultId, nextVaultPath } = await fetchP2PVaultIds({
-          signer,
-          networkId,
-          vaults,
-          vaultsAPI
+      const { nextVaultId, nextVaultPath } = await fetchP2PVaultIds({
+        signer,
+        networkId,
+        vaults,
+        vaultsAPI
+      });
+      if (!navigation.isFocused()) return; //Don't proceed if lost focus after await
+
+      const vault = await createVault({
+        amount,
+        unvaultKey,
+        samples,
+        feeRate,
+        serviceFeeRate: settings.SERVICE_FEE_RATE,
+        feeRateCeiling,
+        coldAddress,
+        changeDescriptor,
+        serviceAddress,
+        lockBlocks,
+        signer,
+        utxosData,
+        networkId,
+        nextVaultId,
+        nextVaultPath,
+        onProgress
+      });
+
+      if (typeof vault === 'object') {
+        setVault(vault);
+        //TODO: here now also show the progress, also it this fails then do
+        //not proceed
+        //TODO: Also there is a pushVaultAndUpdateStates that does stuff. integrate
+        //both
+        await netRequest({
+          func: () =>
+            p2pBackupVault({
+              vault,
+              signer,
+              vaultsAPI,
+              vaultsSecondaryAPI,
+              onProgress,
+              networkId
+            }),
+          requirements: { apiReachable: true, api2Reachable: true },
+          errorMessage: t('createVault.p2pBackupVaultError')
         });
-        const vault = await createVault({
-          amount,
-          unvaultKey,
-          samples,
-          feeRate,
-          serviceFeeRate: settings.SERVICE_FEE_RATE,
-          feeRateCeiling,
-          coldAddress,
-          changeDescriptor,
-          serviceAddress,
-          lockBlocks,
-          signer,
-          utxosData,
-          networkId,
-          nextVaultId,
-          nextVaultPath,
-          onProgress
-        });
 
-        if (typeof vault === 'object') {
-          setVault(vault);
-          //TODO: here now also show the progress, also it fhis fails then do
-          //not proceed
-          //TODO: Also there is a processCreatedVault that does stuff. integrate
-          //both
-          const backupResult = await p2pBackupVault({
-            vault,
-            signer,
-            vaultsAPI,
-            vaultsSecondaryAPI,
-            onProgress,
-            networkId
-          });
-          //TODO: here simply toast an error! dont throw
-          if (!backupResult)
-            throw new Error("Could not backup the vault, won't proceed");
+        if (!navigation.isFocused()) return; //Don't proceed after async op if unmounted - TODO: here we backup up the vault but then never pushed it, shoudn't the push be done by Rewind servers?
 
-          //TODO: now this must do the backup on the server using holepunch!
-          //It must pass the serviceAddress as an authorization (and for anti-spam)
-          //The server must check in the mempool?
-          if (isMounted) {
-            //This updates Vaults And VaultsStatuses local
-            //storage
-            const result = await processCreatedVault(vault);
-            //TODO: ask for confirmation, then:
-            onVaultPushed(result);
-          }
-        } else {
-          if (vault !== 'USER_CANCEL') {
-            const errorMessage = t('createVault.error', { message: vault });
-            toast.show(errorMessage, { type: 'danger' });
-          }
-          goBack();
+        //Update Vaults And VaultsStatuses local storage
+        const result = await pushVaultAndUpdateStates(vault); //TODO: netRequest ? wtf is pushVaultAndUpdateStates
+        //TODO: ask for confirmation, then:
+        onVaultPushed(result);
+      } else {
+        if (vault !== 'USER_CANCEL') {
+          const errorMessage = t('createVault.error', { message: vault });
+          toast.show(errorMessage, { type: 'danger' });
         }
+        goBack();
       }
     };
     createAndNotifyVault();
-    return () => {
-      isMounted = false;
-    };
   }, [
+    navigation,
     goWalletHome,
     netRequest,
     goBack,
@@ -208,7 +206,7 @@ export default function CreateVaultScreen({
     networkId,
     onProgress,
     onVaultPushed,
-    processCreatedVault,
+    pushVaultAndUpdateStates,
     samples,
     vaultsAPI,
     vaultsSecondaryAPI,

@@ -18,7 +18,7 @@ Network errors...
 
 Some Network errors being handled:
 
-- pushTx
+- pushTx -> This is used in several places. Must he netRequest'd
 - fetchOutputHistory
 - fetchServiceAddress
   -> Aqui si el faucet me falla printo 2 toasts... una en fetchOutputHistory y otra

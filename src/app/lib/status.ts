@@ -50,7 +50,7 @@ export const getStorageAccessStatus = ({
   settingsErrorCode,
   signersErrorCode,
   walletsErrorCode,
-  discoveryDataErrorCode,
+  discoveryExportErrorCode,
   vaultsErrorCode,
   vaultsStatusesErrorCode,
   accountsErrorCode
@@ -59,7 +59,7 @@ export const getStorageAccessStatus = ({
   settingsErrorCode: StorageErrorCode;
   signersErrorCode: StorageErrorCode;
   walletsErrorCode: StorageErrorCode;
-  discoveryDataErrorCode: StorageErrorCode;
+  discoveryExportErrorCode: StorageErrorCode;
   vaultsErrorCode: StorageErrorCode;
   vaultsStatusesErrorCode: StorageErrorCode;
   accountsErrorCode: StorageErrorCode;
@@ -90,7 +90,7 @@ export const getStorageAccessStatus = ({
   if (
     settingsErrorCode ||
     walletsErrorCode ||
-    discoveryDataErrorCode ||
+    discoveryExportErrorCode ||
     (!biometricsUncapable && !biometricAuthCancelled && signersErrorCode) ||
     vaultsErrorCode ||
     vaultsStatusesErrorCode ||

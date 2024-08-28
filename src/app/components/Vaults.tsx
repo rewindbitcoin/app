@@ -176,7 +176,7 @@ const Vault = ({
   vaultStatus
 }: {
   updateVaultStatus: (vaultId: string, vaultStatus: VaultStatus) => void;
-  pushTx: (txHex: string) => Promise<boolean>;
+  pushTx: (txHex: string) => Promise<void>;
   btcFiat: number | undefined;
   tipStatus: BlockStatus | undefined;
   vault: Vault;
@@ -225,7 +225,6 @@ const Vault = ({
         setShowInitUnfreeze(false);
         setIsInitUnfreezeRequestValid(true);
       });
-      //const pushResult = await pushTx(initUnfreezeData.txHex);
       const pushResult = await toastifyErrorAsync('NETWORK_ERROR', () =>
         pushTx(initUnfreezeData.txHex)
       );
@@ -743,7 +742,7 @@ const Vaults = ({
   vaultsStatuses
 }: {
   updateVaultStatus: (vaultId: string, vaultStatus: VaultStatus) => void;
-  pushTx: (txHex: string) => Promise<boolean>;
+  pushTx: (txHex: string) => Promise<void>;
   btcFiat: number | undefined;
   tipStatus: BlockStatus | undefined;
   vaults: VaultsType;

@@ -78,7 +78,12 @@ export function useFaucet() {
           throw new Error('faucetFirstReceive did not set a descriptor');
         //wait a few secs until esplora catches up...
         for (let i = 0; i < DETECT_RETRY_MAX; i++) {
-          const txHistory = await fetchOutputHistory({ descriptor, index });
+          let txHistory = undefined;
+          try {
+            txHistory = await fetchOutputHistory({ descriptor, index });
+          } catch (error) {
+            console.warn(error);
+          }
           if (!txHistory) {
             setFaucetFailed(true);
             toast.show(t('walletHome.faucetErrorMsg'), { type: 'warning' });

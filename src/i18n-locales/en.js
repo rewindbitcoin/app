@@ -401,6 +401,8 @@ This minimum amount is calculated based on the assumption that you may need rapi
 
 
  Next, you'll get to review and confirm everything.`,
+    p2pBackupVaultError:
+      'The vault could not be created because the backup failed. Please check your network connection, try again later, and contact Rewind if the problem persists.',
     error:
       'The vault could not be created due to an unexpected error. Please try again and notify the RewindBitcoin team about the following error: {{message}}.'
   },

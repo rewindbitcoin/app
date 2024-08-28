@@ -71,7 +71,7 @@ export const fetchP2PVaultIds = async ({
           if (responseBody.exists) {
             existingVaults.push({ vaultId, vaultPath });
           } else {
-            throw new Error(`Unexpected non-existing vaultId with status 200}`);
+            throw new Error(`Unexpected non-existing vaultId with status 200`);
           }
         } else {
           // Handle non-2xx status codes
@@ -213,7 +213,6 @@ const fetchP2PVault = async ({
 
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
-      console.log({ vaultGetUrl });
       const compressedEncryptedVault = await fetch(vaultGetUrl);
       if (compressedEncryptedVault.ok) {
         const compressedVault = chacha.decrypt(
@@ -245,6 +244,12 @@ const fetchP2PVault = async ({
   );
 };
 
+/**
+ * compresses the vault and pushes it to the primary backups server and then
+ * it retrieves it from the secondary server and decompresses it and checks
+ * whether it was ok. This function will throw on error messages, so deal with
+ * this externally.
+ */
 export const p2pBackupVault = async ({
   vault,
   signer,

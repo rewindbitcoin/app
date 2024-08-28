@@ -215,8 +215,8 @@ export type HistoryData = Array<
  * Important: Returns same reference for utxosData if utxos did not change
  *
  * Important: discovery is used to retrieve info. It does not modify
- * the discoveryData internal representation in any way, so there is no need
- * to save to disk exported discoveryData after using this function.
+ * the discoveryExport internal representation in any way, so there is no need
+ * to save to disk exported discoveryExport after using this function.
  *
  * Note that it's fine using memoize and just check for changes in utxos.
  * The rest of params are just tooling to complete utxosData but won't change

@@ -316,7 +316,7 @@ const WalletHomeScreen = () => {
             {vaults && vaultsStatuses && (
               <Vaults
                 updateVaultStatus={updateVaultStatus}
-                pushTx={pushTx}
+                pushTx={pushTx /*TODO: this can trow!*/}
                 vaults={vaults}
                 vaultsStatuses={vaultsStatuses}
                 btcFiat={btcFiat}
