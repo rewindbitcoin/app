@@ -126,14 +126,7 @@ const Main = () => {
     );
   }, [navigation]);
   const CreateVaultScreenWithSettingsOnPushed = useCallback(
-    () => (
-      <CreateVaultScreen
-        vaultSettings={vaultSettings}
-        onVaultPushed={() => {
-          if (navigation.canGoBack()) navigation.goBack();
-        }}
-      />
-    ),
+    () => <CreateVaultScreen vaultSettings={vaultSettings} />,
     [navigation, vaultSettings]
   );
   const screenOptions = useMemo<UniversalNavigationOptions>(
