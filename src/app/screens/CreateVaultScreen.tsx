@@ -1,4 +1,3 @@
-//TODO: get some style stuff for the color
 import React, {
   useEffect,
   useState,
@@ -31,7 +30,7 @@ export default function CreateVaultScreen({
   onVaultPushed
 }: {
   vaultSettings: VaultSettings | undefined;
-  onVaultPushed: (result: boolean) => void;
+  onVaultPushed: () => void;
 }) {
   if (!vaultSettings) throw new Error('vaultSettings not set');
   const { amount, feeRate, lockBlocks, coldAddress } = vaultSettings;
@@ -152,13 +151,16 @@ export default function CreateVaultScreen({
         nextVaultPath,
         onProgress
       });
+      if (!navigation.isFocused()) return; //Don't proceed if lost focus after await
 
+      //TODO: ask for confirmation, then:
       if (typeof vault === 'object') {
         setVault(vault);
         //TODO: here now also show the progress, also it this fails then do
         //not proceed
         //TODO: Also there is a pushVaultAndUpdateStates that does stuff. integrate
         //both
+        //TODO: this status must be checked to see if continue
         await netRequest({
           func: () =>
             p2pBackupVault({
@@ -175,10 +177,13 @@ export default function CreateVaultScreen({
 
         if (!navigation.isFocused()) return; //Don't proceed after async op if unmounted - TODO: here we backup up the vault but then never pushed it, shoudn't the push be done by Rewind servers?
 
-        //Update Vaults And VaultsStatuses local storage
-        const result = await pushVaultAndUpdateStates(vault); //TODO: netRequest ? wtf is pushVaultAndUpdateStates
-        //TODO: ask for confirmation, then:
-        onVaultPushed(result);
+        //Updates Vaults And VaultsStatuses local storage
+        await pushVaultAndUpdateStates(vault); //TODO: netRequest this shit because the push may have failed - even if this failed, note that
+        //TODO: if failed then run a modal (don't toas since this is important)
+        //and explain that no sweats here since the backup worked fine and if the
+        //tx is pushed you're just fine. If not, retry.
+        //TODO: toast succesfully backup up and pushed.
+        onVaultPushed();
       } else {
         if (vault !== 'USER_CANCEL') {
           const errorMessage = t('createVault.error', { message: vault });
