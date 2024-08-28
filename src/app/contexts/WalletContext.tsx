@@ -101,7 +101,7 @@ export type WalletContextType = {
     descriptor: string;
     index?: number;
   }) => Promise<TxHistory | undefined>;
-  pushVaultAndUpdateStates: (vault: Vault) => Promise<void>;
+  vaultPushAndUpdateStates: (vault: Vault) => Promise<void>;
   syncBlockchain: () => void;
   syncingBlockchain: boolean;
   vaultsAPI: string | undefined;
@@ -382,7 +382,7 @@ const WalletProviderRaw = ({
    * It also stores in disk discovery.export()
    */
   const setUtxosHistoryExport = useCallback(
-    (
+    async (
       vaults: Vaults,
       vaultsStatuses: VaultsStatuses,
       accounts: Accounts,
@@ -423,7 +423,7 @@ const WalletProviderRaw = ({
       });
       //Save to disk.
       const exportedData = discovery.export();
-      setDiscoveryExport(exportedData);
+      await setDiscoveryExport(exportedData);
     },
     [
       discovery,
@@ -499,7 +499,12 @@ const WalletProviderRaw = ({
       await discovery.fetch(descriptorWithIndex);
       const history = discovery.getHistory(descriptorWithIndex) as TxHistory;
       if (initialHistory !== history)
-        setUtxosHistoryExport(vaults, vaultsStatuses, accounts, tipHeight);
+        await setUtxosHistoryExport(
+          vaults,
+          vaultsStatuses,
+          accounts,
+          tipHeight
+        );
 
       return history;
     },
@@ -900,7 +905,7 @@ const WalletProviderRaw = ({
           if (vaults !== updatedVaults) setVaults(updatedVaults);
           if (vaultsStatuses !== updatedVaultsStatuses)
             setVaultsStatuses(updatedVaultsStatuses);
-          setUtxosHistoryExport(
+          await setUtxosHistoryExport(
             updatedVaults,
             updatedVaultsStatuses,
             updatedAccounts,
@@ -974,16 +979,19 @@ const WalletProviderRaw = ({
    *
    * This function may throw. try-catch it from outer blocks.
    *
-   * It returns true if the push was succesful.
-   * If the push failed for any reason, then.
+   * If the push or saving state fail for any reason, then it throws.
    */
-  const pushVaultAndUpdateStates = useCallback(
+  const vaultPushAndUpdateStates = useCallback(
     async (vault: Vault): Promise<void> => {
       if (!vaults || !vaultsStatuses)
         throw new Error('Cannot use vaults without Storage');
       if (!vaults || !vaultsStatuses)
         throw new Error(
           'vaults and vaultsStatuses should be defined since they are synched'
+        );
+      if (!accounts || tipHeight === undefined)
+        throw new Error(
+          `Cannot vaultPushAndUpdateStates without accounts: ${!!accounts} or tipHeight: ${!!tipHeight}`
         );
 
       // Create new vault
@@ -1001,25 +1009,18 @@ const WalletProviderRaw = ({
         }
       };
 
-      const pushAndUpdate = async () => {
-        if (!accounts || tipHeight === undefined)
-          throw new Error(
-            `Cannot pushVaultAndUpdateStates without accounts: ${!!accounts} or tipHeight: ${!!tipHeight}`
-          );
-        await pushTx(vault.vaultTxHex);
+      await pushTx(vault.vaultTxHex);
+      await Promise.all([
         setUtxosHistoryExport(
           newVaults,
           newVaultsStatuses,
           accounts,
           tipHeight
-        );
-      };
-      await pushAndUpdate();
-      //Note here setVaults, setVaultsStatuses, ...
-      //are not atomically set, so when using vaults one
-      //must make sure they are synched somehow - See Vaults.tsx for an
-      //example what to do
-      await Promise.all([
+        ),
+        //Note here setVaults, setVaultsStatuses, ...
+        //are not atomically set, so when using vaults one
+        //must make sure they are synched somehow - See Vaults.tsx for an
+        //example what to do
         setVaults(newVaults),
         setVaultsStatuses(newVaultsStatuses)
       ]);
@@ -1045,6 +1046,9 @@ const WalletProviderRaw = ({
         throw new Error('Cannot update unexisting vault status');
       if (!shallowEqualObjects(currVaultStatus, vaultStatus)) {
         const newVaultsStatuses = { ...vaultsStatuses, [vaultId]: vaultStatus };
+        //no need to await setUtxosHistoryExport since the await is only realated
+        //to saving in disk dataExport, which is not really important since it
+        //is just some initial point when opening a wallet before full sync
         setUtxosHistoryExport(vaults, newVaultsStatuses, accounts, tipHeight);
         setVaultsStatuses(newVaultsStatuses);
       }
@@ -1075,7 +1079,7 @@ const WalletProviderRaw = ({
     utxosData: walletId !== undefined ? walletsUtxosData[walletId] : undefined,
     historyData:
       walletId !== undefined ? walletsHistoryData[walletId] : undefined,
-    pushVaultAndUpdateStates,
+    vaultPushAndUpdateStates,
     syncBlockchain,
     syncingBlockchain: !!(
       walletId !== undefined && walletsSyncingBlockchain[walletId]
