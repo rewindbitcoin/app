@@ -972,10 +972,6 @@ const WalletProviderRaw = ({
    * requiring any additional fetch.
    * It also saves on disk discoveryExport.
    *
-   * Note: internallu states are updated before pushint the tx since it's
-   * safer to push if the update did not thow and we're sure all the data
-   * was suffesfully set.
-   *
    * This function may throw. try-catch it from outer blocks.
    *
    * It returns true if the push was succesful.
@@ -1010,13 +1006,13 @@ const WalletProviderRaw = ({
           throw new Error(
             `Cannot pushVaultAndUpdateStates without accounts: ${!!accounts} or tipHeight: ${!!tipHeight}`
           );
+        await pushTx(vault.vaultTxHex);
         setUtxosHistoryExport(
           newVaults,
           newVaultsStatuses,
           accounts,
           tipHeight
         );
-        await pushTx(vault.vaultTxHex);
       };
       await pushAndUpdate();
       //Note here setVaults, setVaultsStatuses, ...
