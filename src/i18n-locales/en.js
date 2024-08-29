@@ -394,7 +394,6 @@ This minimum amount is calculated based on the assumption that you may need rapi
     vaultAllFundsShortBadge: 'All Funds'
   },
   createVault: {
-    subTitle: 'Finalizing Your Vault',
     intro: `We're now generating tailored transactions to minimize future fees.\
  It may take around 30 secs, slightly longer on older devices.
 

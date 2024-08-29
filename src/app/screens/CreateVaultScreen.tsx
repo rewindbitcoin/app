@@ -14,7 +14,7 @@ import React, {
 } from 'react';
 import { useWallet } from '../hooks/useWallet';
 import { useTranslation } from 'react-i18next';
-import { View } from 'react-native';
+import { useWindowDimensions, View } from 'react-native';
 import * as Progress from 'react-native-progress';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { createVault, type VaultSettings, type Vault } from '../lib/vaults';
@@ -23,7 +23,8 @@ import {
   Button,
   Text,
   KeyboardAwareScrollView,
-  useToast
+  useToast,
+  ActivityIndicator
 } from '../../common/ui';
 import { p2pBackupVault, fetchP2PVaultIds } from '../lib/backup';
 import { useNavigation } from '@react-navigation/native';
@@ -41,11 +42,10 @@ export default function CreateVaultScreen({
   if (!vaultSettings) throw new Error('vaultSettings not set');
   const { amount, feeRate, lockBlocks, coldAddress } = vaultSettings;
 
+  const height = useWindowDimensions().height;
+
   const insets = useSafeAreaInsets();
-  const mbStyle = useMemo(
-    () => ({ marginBottom: 16 + insets.bottom }),
-    [insets]
-  );
+  const mbStyle = useMemo(() => ({ marginBottom: insets.bottom }), [insets]);
   const {
     utxosData,
     networkId,
@@ -322,14 +322,35 @@ export default function CreateVaultScreen({
       keyboardShouldPersistTaps="handled"
       contentContainerClassName="flex-1"
     >
-      <View className="self-center pt-5 max-w-lg w-full mx-4" style={mbStyle}>
-        {vault ? (
+      <View
+        className="flex-1 self-center max-w-lg w-full px-4 py-4 mobmed:py-8"
+        style={mbStyle}
+      >
+        {!vault ? (
+          //Initial view:
+          <View className="flex-1 justify-between">
+            <Text className="self-start">{t('createVault.intro')}</Text>
+            <View className="flex-grow justify-center items-center">
+              <Progress.Circle
+                size={height < 667 /*iPhone SE*/ ? 200 : 300}
+                showsText={true}
+                progress={progress}
+              />
+            </View>
+            <Button onPress={stopProgress}>{t('cancelButton')}</Button>
+          </View>
+        ) : (
+          //After the vault has been created:
           <>
             {!confirmRequested ? (
               <>
-                <Text>{t('createVault.confirmBackupSendVault')}</Text>
-                <Button onPress={goBack}>{t('cancelButton')}</Button>
-                <Button onPress={confirm}>{t('confirmButton')}</Button>
+                <Text className="mb-8 mobmed:mb-12">
+                  {t('createVault.confirmBackupSendVault')}
+                </Text>
+                <View className="items-center gap-6 flex-row justify-center">
+                  <Button onPress={goBack}>{t('cancelButton')}</Button>
+                  <Button onPress={confirm}>{t('confirmButton')}</Button>
+                </View>
               </>
             ) : (
               <>
@@ -350,31 +371,14 @@ export default function CreateVaultScreen({
                   </>
                 ) : (
                   <>
-                    <Text>{t('createVault.pushingVault')}</Text>
-                    {
-                      //TODO: A spinner here
-                    }
+                    <Text className="mb-12">
+                      {t('createVault.pushingVault')}
+                    </Text>
+                    <ActivityIndicator size="large" />
                   </>
                 )}
               </>
             )}
-          </>
-        ) : (
-          <>
-            <Text variant="headlineSmall" style={{ alignSelf: 'flex-start' }}>
-              {t('createVault.subTitle')}
-            </Text>
-            <Text style={{ marginVertical: 20, alignSelf: 'flex-start' }}>
-              {t('createVault.intro')}
-            </Text>
-            <View className="flex-grow justify-center items-center">
-              <Progress.Circle
-                size={300}
-                showsText={true}
-                progress={progress}
-              />
-            </View>
-            <Button onPress={stopProgress}>{t('cancelButton')}</Button>
           </>
         )}
       </View>
