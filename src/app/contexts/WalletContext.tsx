@@ -803,7 +803,7 @@ const WalletProviderRaw = ({
         ns?.explorerReachable &&
         (networkId !== 'TAPE' || ns?.explorerMainnetReachable);
       if (!updatedNetReady && ns?.errorMessage) {
-        toast.show(ns?.errorMessage, { type: 'warning' });
+        toast.show(ns.errorMessage, { type: 'warning' });
       }
     }
     const signer = signers?.[0];
