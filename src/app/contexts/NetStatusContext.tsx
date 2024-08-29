@@ -533,6 +533,8 @@ const NetStatusProvider: React.FC<NetStatusProviderProps> = ({ children }) => {
         try {
           const result = await func();
           if (id && notifiedErrorsRef.current[id]) {
+            //If there was an error related to this id, then clear it
+            //and handle the change:
             delete notifiedErrorsRef.current[id];
             const { errorMessage } = handleError({
               notifiedErrors: notifiedErrorsRef.current,
