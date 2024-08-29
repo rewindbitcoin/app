@@ -125,9 +125,9 @@ const Main = () => {
       />
     );
   }, [navigation]);
-  const CreateVaultScreenWithSettingsOnPushed = useCallback(
+  const CreateVaultScreenWithSettings = useCallback(
     () => <CreateVaultScreen vaultSettings={vaultSettings} />,
-    [navigation, vaultSettings]
+    [vaultSettings]
   );
   const screenOptions = useMemo<UniversalNavigationOptions>(
     () =>
@@ -231,7 +231,7 @@ const Main = () => {
             // See comment above on Conditional presentation mode based on device model
             presentation: iOsWithPhysicalButton === true ? 'card' : 'modal'
           }}
-          component={CreateVaultScreenWithSettingsOnPushed}
+          component={CreateVaultScreenWithSettings}
         />
       </RootStack.Navigator>
     </WalletProvider>
