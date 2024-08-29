@@ -10,7 +10,6 @@ Please check your connection and tap on refresh to try again.`,
 
 
 Technical error: {{message}}`,
-    fetchServiceAddressError: `Oops! It seems we cannot contact our servers. Please check your connection and try again.`,
     pushTimeoutError:
       'Oops! It seems the recently submitted transaction is taking longer to be detected. Please check your connection and refresh your wallet. If it does not show up, try submitting it again.',
     newWalletTitle: 'New Wallet',
@@ -96,7 +95,7 @@ Zapping bytes and lining up the bits. Hang tight!`,
       biometricsUncapableTitle: 'Wallet Setup Issue',
       biometricsUncapable: `The biometric implementation on your device has\
  issues, which are particularly common in Samsung models but can also occur in\
- other brands. To help us improve, please report your device model to ThunderDen\
+ other brands. To help us improve, please report your device model to Rewind\
  Support.
 
 Since biometrics cannot be used, the wallet creation process needs to be adjusted.\
@@ -107,13 +106,13 @@ Since biometrics cannot be used, the wallet creation process needs to be adjuste
       storage: `There was an error reading from or writing to your device's\
  storage. This issue may be due to corrupt data, insufficient storage space,\
  or other storage-related problems. Please note that all your wallet data is\
- securely backed up in an encrypted format on ThunderDen's P2P network.
+ securely backed up in an encrypted format on Rewinds's P2P network.
 
 To resolve this issue, please try accessing your wallet again. If the problem\
  persists, you can safely recreate your wallet using your mnemonic recovery\
  phrase. This will restore all your data securely from the backups.
 
-If you need further assistance, please contact ThunderDen Support.`
+If you need further assistance, please contact Rewind Support.`
     },
     vault: {
       hideButton: 'Hide',
@@ -338,7 +337,7 @@ While leaking this data wouldn't compromise your funds, encrypting it\
 
 The encryption uses the XChaCha20-Poly1305 algorithm, with a key that’s securely\
  derived from your mnemonic recovery phrase.`,
-    network: `ThunderDen provides a choice between testing environments and the real Bitcoin network (via Advanced Options).
+    network: `Rewind provides a choice between testing environments and the real Bitcoin network (via Advanced Options).
 
 The currently recommended option is the Tape Network, Rewind's own test network. Tape mirrors Bitcoin's real functionality and allows you to explore Send/Receive and Vaulting operations safely, offering free tokens for practice.
 
@@ -354,7 +353,7 @@ While the app is in early development, we advise against using real Bitcoin for 
     notEnoughFundsTitle: 'Vault Minimum Requirement',
     introMoreHelp: 'Learn More About Vaults',
     helpTitle: 'Learn About Vaults',
-    helpText: `In the event of extortion or theft, if someone gains access to your wallet's recovery phrase, they could potentially access your funds. ThunderDen provides a solution by freezing funds into Vaults.
+    helpText: `In the event of extortion or theft, if someone gains access to your wallet's recovery phrase, they could potentially access your funds. Rewind provides a solution by freezing funds into Vaults.
 
 Vaults are time-locked, meaning that when an attack occurs, you have a few days to react. This period allows you to cancel unauthorized transactions from the attackers. You can also delegate this cancellation to a trusted person.
 
@@ -363,7 +362,7 @@ Here's how it works: during the time-lock, your funds can moved to a special Bit
 You'll find contextual help icons next to each input field during the Vault Set Up with more specific explanations.`,
     //    notEnoughFunds: `<strong>Minimum Vault Amount Notice</strong>
     //
-    //ThunderDen requires a minimum amount to be frozen to ensure it is financially worthwhile for you.
+    //Rewind requires a minimum amount to be frozen to ensure it is financially worthwhile for you.
     //
     //Essentially, we want to make sure you will still have a significant amount of Bitcoin (more than {{minRecoverableRatioPct}}%) after unlocking or recovering your funds in the event of an emergency.
     //
@@ -372,7 +371,7 @@ You'll find contextual help icons next to each input field during the Vault Set 
     //<strong>Suggested Action:</strong> Please add {{missingFunds}} to reach the minimum amount required for vaulting.`,
     notEnoughFunds: `<strong>Minimum Vault Amount Notice</strong>
 
-ThunderDen requires a minimum amount to be frozen to ensure it is financially worthwhile for you.
+Rewind requires a minimum amount to be frozen to ensure it is financially worthwhile for you.
 
 We want to make sure you will be able to rescue your Vault in case of an emergency, regardless of future Bitcoin fees.
 
@@ -395,15 +394,33 @@ This minimum amount is calculated based on the assumption that you may need rapi
     vaultAllFundsShortBadge: 'All Funds'
   },
   createVault: {
-    vaultSuccess: 'Your vault has been successfully created.',
     subTitle: 'Finalizing Your Vault',
     intro: `We're now generating tailored transactions to minimize future fees.\
- It may take around 30 secs, slightly longer on older devices.\
+ It may take around 30 secs, slightly longer on older devices.
 
+Next, you'll get to confirm everything.`,
+    confirmBackupSendVault: `Your vault has been successfully created but not yet sent to the blockchain.
 
- Next, you'll get to review and confirm everything.`,
-    p2pBackupVaultError:
-      'The vault could not be created because the backup failed. Please check your network connection, try again later, and contact Rewind if the problem persists.',
+Before broadcasting it, we'll perform a secure P2P community backup. This ensures your vault configuration is encrypted and safely stored across multiple peers within the Rewind community.
+
+Each peer helps store these backups, but the vault details remain fully encrypted, so no one can access them. Only you can with your mnemonic.
+
+Anyone can easily run a peer to support the network. Learn more at rewindbitcoin.com.
+
+Please confirm to complete the backup and broadcast your vault to the blockchain.`,
+    // The backup will be stored on one peer and retrieved from another to verify its integrity.
+    backupInProgress: 'Backing up your vault and verifying the backup...',
+    pushingVault: `Your vault has been successfully backed up and is securely stored.
+
+Now, as the final step, we're sending your vault to the blockchain to activate it...`,
+    connectivityIssues:
+      'Connection issues detected. The vault was not created. Please check your internet connection and try again.',
+    vaultBackupError:
+      'Error during backup. The vault was not created. Please check your connection and try again.',
+    vaultPushError:
+      "Connection issues. Backup is complete, but we're unsure if the vault was sent to the blockchain. Refresh to check, and if it's missing, try again.",
+    vaultSuccess:
+      'Your vault has been successfully created and sent to the blockchain.',
     error:
       'The vault could not be created due to an unexpected error. Please try again and notify the RewindBitcoin team about the following error: {{message}}.'
   },
@@ -499,7 +516,7 @@ This address will be your ultimate safety net.`,
       newColdAddressSuccessfullyCrated:
         'Your new emergency address has been successfully created.',
       helpTitle: 'Emergency Address',
-      helpText: `ThunderDen gives you a few days to undo any theft attempt after an attack has occurred. During this time-lock, you can move your funds to an Emergency Bitcoin address. This address should be protected by a recovery phrase that is different from your regular one.
+      helpText: `Rewind gives you a few days to undo any theft attempt after an attack has occurred. During this time-lock, you can move your funds to an Emergency Bitcoin address. This address should be protected by a recovery phrase that is different from your regular one.
 
 Store this emergency recovery phrase in an extremely safe location that is not easily accessible, even for you. This is to ensure that, in case of extortion, you cannot be forced to reveal it to attackers. Examples include a safebox deposit abroad, buried in a secret remote location, or held by a trusted third-party custodian.
 

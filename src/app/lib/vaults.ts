@@ -520,6 +520,7 @@ const signPsbt = async (signer: Signer, network: Network, psbtVault: Psbt) => {
   signers.signBIP32({ psbt: psbtVault, masterNode });
 };
 
+//createVault does not throw. It returns errors as strings:
 export async function createVault({
   amount,
   unvaultKey,
