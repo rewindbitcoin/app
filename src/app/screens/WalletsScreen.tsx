@@ -99,11 +99,13 @@ const WalletsScreen = () => {
     });
   }, [navigation, wallets]);
 
+  const mbStyle = useMemo(() => ({ marginBottom: insets.bottom }), [insets]);
+
   return (
     <>
       <Pressable
         onPress={handleNewWallet}
-        style={{ marginBottom: insets.bottom }}
+        style={mbStyle}
         className={`bottom-8 right-8 z-10 p-4 bg-primary rounded-full hover:opacity-90 active:scale-95 active:opacity-90 fixed native:absolute shadow flex-row gap-1 items-center`}
       >
         <Svg
