@@ -43,6 +43,12 @@
  *   undefined>`:
  *    - Executes a network operation (`func`), handling errors automatically
  *      based on the provided requirements.
+ *    - A toast with an error message is ALWAYS displayed if the func throws.
+ *    - A toast with a success message is ALWAYS displayed when
+ *      internetReachable turns false to true.
+ *    - A toast is NOT shown if requirements are not met.
+ *    - A toast is NOT shown if id is passed and the same errorMessage would be
+ *      returned.
  *    - Parameters:
  *        - `id`: Optional identifier for the operation, used to track
  *          "permanent" errors and prevent repeated notifications.
@@ -315,14 +321,21 @@ const NetStatusProvider: React.FC<NetStatusProviderProps> = ({ children }) => {
     ]
   );
 
+  /**
+   * computes and returns the new error message. It also keeps track of the last
+   * computed one. If there was an error previously and not now anymore, then it
+   * toasts a success message
+   */
   const handleError = useCallback(
     ({
+      notifiedErrors,
       apiReachable,
       api2Reachable,
       explorerReachable,
       explorerMainnetReachable,
       apiExternalReachable
     }: {
+      notifiedErrors: NotifiedErrors;
       apiReachable: boolean | undefined;
       api2Reachable: boolean | undefined;
       explorerReachable: boolean | undefined;
@@ -342,9 +355,9 @@ const NetStatusProvider: React.FC<NetStatusProviderProps> = ({ children }) => {
 
       //sorts notifierErrors from old to new. new notified errors trump
       //old ones
-      const sortedNotifiedErrors = Object.entries(
-        notifiedErrorsRef.current
-      ).sort(([, a], [, b]) => a.date.getTime() - b.date.getTime());
+      const sortedNotifiedErrors = Object.entries(notifiedErrors).sort(
+        ([, a], [, b]) => a.date.getTime() - b.date.getTime()
+      );
 
       sortedNotifiedErrors.forEach(([, notifiedError]) => {
         if (notifiedError.errorMessage)
@@ -432,6 +445,7 @@ const NetStatusProvider: React.FC<NetStatusProviderProps> = ({ children }) => {
     }
 
     const { internetReachable, errorMessage } = handleError({
+      notifiedErrors: notifiedErrorsRef.current,
       apiReachable,
       api2Reachable,
       explorerReachable,
@@ -482,7 +496,7 @@ const NetStatusProvider: React.FC<NetStatusProviderProps> = ({ children }) => {
     }: {
       /**
        * don't pass an id if you don't want this error to be permanent. permanent
-       * errrors are provided in the context as errorMessage and will be typically
+       * errors are provided in the context as errorMessage and will be typically
        * shown in the Wallet Header in a prominent color in a permanent manner.
        *
        * when an "id" is passed then the error is only notified once
@@ -521,6 +535,7 @@ const NetStatusProvider: React.FC<NetStatusProviderProps> = ({ children }) => {
           if (id && notifiedErrorsRef.current[id]) {
             delete notifiedErrorsRef.current[id];
             const { errorMessage } = handleError({
+              notifiedErrors: notifiedErrorsRef.current,
               apiReachable,
               api2Reachable,
               explorerReachable,
