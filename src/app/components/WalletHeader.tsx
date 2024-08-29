@@ -185,7 +185,7 @@ const WalletHeader = ({
       ) : (
         networkId !== 'BITCOIN' && (
           <View className="pt-5 p-4">
-            <Text className="color-orange-600 text-sm">
+            <Text className="color-slate-500 text-sm">
               {t('walletHome.header.testWalletWarning')}
               {networkId === 'TAPE'
                 ? ' ' + t('walletHome.header.tapeWalletPlusWarning')
