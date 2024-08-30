@@ -513,7 +513,7 @@ This address will be your ultimate safety net.`,
       bip39Proposal: `Below is your Emergency Recovery Phrase. This is your key to accessing your funds in an emergency.`,
       bip39ProposalPart2: `This phrase won't be retrievable later on since it's not stored in the app. It's crucial to save it now.`,
       confirmBip39ProposalButton: 'I have written it down',
-      newColdAddressSuccessfullyCrated:
+      newColdAddressSuccessfullyCreated:
         'Your new Emergency Address has been successfully created.',
       helpTitle: 'Emergency Address',
       helpText: `Rewind gives you a few days to undo any theft attempt after an attack has occurred. During this time-lock, while your funds are frozen, you have the option to move the funds to an Emergency Bitcoin Address. This address should be protected by a Recovery Phrase that is different from your regular one.

@@ -33,6 +33,8 @@ const CreateColdAddress = ({
 
   useEffect(() => {
     if (!isVisible) {
+      //reset it
+      setWords(generateMnemonic().split(' '));
       setStep('intro');
       setIsBip39ConfirmationRequested(false);
     }
@@ -47,9 +49,12 @@ const CreateColdAddress = ({
   const onBip39Confirmed = useCallback(async () => {
     const coldAddress = await createColdAddress(words.join(' '), network);
     onAddress(coldAddress);
-    toast.show(t('addressInput.coldAddress.newColdAddressSuccessfullyCrated'), {
-      type: 'success'
-    });
+    toast.show(
+      t('addressInput.coldAddress.newColdAddressSuccessfullyCreated'),
+      {
+        type: 'success'
+      }
+    );
   }, [onAddress, network, words, toast, t]);
   return (
     isVisible && (
