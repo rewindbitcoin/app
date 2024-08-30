@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { View } from 'react-native';
 import { Modal, Text, Button } from '../../common/ui';
 import Bip39, { validateMnemonic } from './Bip39';
@@ -8,7 +8,7 @@ import { networks, type Network } from 'bitcoinjs-lib';
 interface ConfirmBip39Props {
   network?: Network;
   words: Array<string>; // The correct mnemonic words to verify against
-  onConfirmed: () => void; // Callback when the mnemonic is correctly verified
+  onConfirmed: () => Promise<void>; // Callback when the mnemonic is correctly verified
   onCancel: () => void; // Callback when the user cancels verification
 }
 
@@ -19,29 +19,39 @@ const ConfirmBip39: React.FC<ConfirmBip39Props> = ({
   onCancel
 }) => {
   const { t } = useTranslation();
-  const [isVisible, setIsVisible] = useState(true);
   const [validWordsThatDontMatch, setValidWordsThatDontMatch] = useState(false);
   const [userWords, setUserWords] = useState<Array<string>>(
     Array(correctWords.length).fill('')
   );
+  const [isSkipping, setIsSkipping] = useState<boolean>(false);
+  const [isConfirming, setIsConfirming] = useState<boolean>(false);
 
-  const handleCancel = useCallback(() => {
-    onCancel();
-    setIsVisible(false);
-  }, [onCancel]);
+  const handleConfirm = useCallback(() => setIsConfirming(true), []);
+  // Effect to execute `onConfirmed` after `isConfirming` is true
+  // This ensures `onConfirmed` is called on the next render cycle
+  // after the loading spinner on the Button is rendered
+  useEffect(() => {
+    // Use setTimeout to defer the `onConfirmed` call to the next event loop cycle
+    // Otherwise the spinner is shown but does not move... (it's stuck)
+    if (isConfirming) setTimeout(onConfirmed, 0);
+  }, [isConfirming, onConfirmed]);
+  //Same considerations as handleConfirm
+  const handleSkip = useCallback(() => setIsSkipping(true), []);
+  useEffect(() => {
+    if (isSkipping) setTimeout(onConfirmed, 0);
+  }, [isSkipping, onConfirmed]);
 
   const onWords = useCallback(
     (words: string[]) => {
       if (JSON.stringify(words) === JSON.stringify(correctWords)) {
-        setIsVisible(false);
-        onConfirmed();
+        handleConfirm();
       } else if (validateMnemonic(words.join(' '))) {
         //words do not match but are valid!?!?!
         setValidWordsThatDontMatch(true);
       }
       setUserWords(words);
     },
-    [correctWords, onConfirmed]
+    [correctWords, handleConfirm]
   );
 
   const canSkip =
@@ -50,18 +60,28 @@ const ConfirmBip39: React.FC<ConfirmBip39Props> = ({
   return (
     <Modal
       icon={{ family: 'MaterialIcons', name: 'playlist-add-check-circle' }}
-      isVisible={isVisible}
+      isVisible={true}
       title={t('bip39.confirmTitle')}
       headerMini
-      onClose={handleCancel}
+      {...(isConfirming || isSkipping ? {} : { onClose: onCancel })}
       customButtons={
         <>
           <View className="items-center gap-6 flex-row justify-center">
-            <Button onPress={handleCancel}>{t('cancelButton')}</Button>
+            <Button disabled={isConfirming || isSkipping} onPress={onCancel}>
+              {t('cancelButton')}
+            </Button>
             {canSkip && (
-              <Button onPress={onConfirmed}>{t('skipButton')}</Button>
+              <Button
+                loading={isSkipping}
+                disabled={isConfirming}
+                onPress={handleSkip}
+              >
+                {t('skipButton')}
+              </Button>
             )}
-            <Button disabled>{t('verifyButton')}</Button>
+            <Button disabled loading={isConfirming}>
+              {t('verifyButton')}
+            </Button>
           </View>
           {canSkip ? (
             <Text className="native:text-sm web:text-xs self-center text-slate-600 mt-2 mb-2">
