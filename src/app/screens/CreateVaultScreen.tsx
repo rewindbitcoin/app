@@ -1,10 +1,5 @@
 //TODO: when generating a new address there is a time lapse too long on the
 //Modal. Check what's going on.
-//TODO: test what happens if the user disables wifi and then clicks on create vault
-//  It shoudl fail for not being able to get servcieAddress and goHome after toas
-//  Problem is i get the toast for the lack of connectivity plus the error:
-//  errorMessage: app.fetchServiceAddressError
-//TODO: test what happens if the user disables wifi and then clicks on confirm
 import React, {
   useEffect,
   useState,
