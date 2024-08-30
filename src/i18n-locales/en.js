@@ -1,4 +1,6 @@
 //Treat this as a golrified json with comments & multi-line using string literals
+//TODO: Emergency Addres <-> Rewind Address?
+//TODO: recovery phrase or Recovery Phrase - be consistent
 export default {
   app: {
     unknownError: 'An unknown error occurred.',
@@ -226,9 +228,9 @@ Tap "Delegate" to generate and share the delegation file.`
           title: 'Delegate Control',
           text: `The 'Delegate' action allows you to prepare in advance by assigning a trusted person to help during emergencies.
 
-If you are unable to access your wallet or are in danger, the delegated person can cancel unauthorized transactions during the vault's time-lock period for you.
+If you're physically unable to access your wallet due to circumstances like incapacitation or coercion, the delegated person can secure your funds by moving them to your Emergency Address.
 
-The delegate cannot access or spend the funds; they can only send the funds to the emergency address you specified during Setup. The delegate never has access to any of your keys and only handles pre-signed transactions, ensuring it's safe to pass on this responsibility.`
+The delegate cannot access or spend the funds; they can only send the funds to the Emergency Address you specified during Setup. The delegate never has access to any of your keys and only handles pre-signed transactions, ensuring it's safe to pass on this responsibility.`
         },
         rescue: {
           title: 'Rescue Funds',
@@ -238,9 +240,9 @@ Once the rescue is initiated, the funds will be sent to the emergency address, a
         },
         initUnfreeze: {
           title: 'Initiate Unfreeze',
-          text: `The 'Init Unfreeze' action starts the countdown to unfreeze your vault. During this countdown period, your funds remain secure and cannot be moved.
+          text: `The 'Init Unfreeze' action starts the countdown to unfreeze your vault. During this countdown period, your funds remain locked and cannot be accessed by anyone, including you.
 
-Once the countdown ends, your funds will be unlocked and accessible. It's important to stay vigilant and prepared to manage your funds immediately to ensure their continued security.`
+Once the countdown ends, your funds will be unlocked and accessible.`
         }
       }
     }
@@ -353,13 +355,14 @@ While the app is in early development, we advise against using real Bitcoin for 
     notEnoughFundsTitle: 'Vault Minimum Requirement',
     introMoreHelp: 'Learn More About Vaults',
     helpTitle: 'Learn About Vaults',
-    helpText: `In the event of extortion or theft, if someone gains access to your wallet's recovery phrase, they could potentially access your funds. Rewind provides a solution by freezing funds into Vaults.
+    helpText: `In the event of extortion or theft, if someone gains access to your wallet's Recovery Phrase, they could potentially access your funds. Rewind provides a solution by freezing funds into Vaults.
 
-Vaults are time-locked, meaning that when an attack occurs, you have a few days to react. This period allows you to cancel unauthorized transactions from the attackers. You can also delegate this cancellation to a trusted person.
+Vaults time-lock your funds, freezing them for a few days so that regular transactions are not possible. This gives you time to secure your Bitcoin if your wallet is compromised. You can also delegate this responsibility to a trusted person.
 
-Here's how it works: during the time-lock, your funds can moved to a special Bitcoin address known as the Emergency Address. This address is protected by an Emergency Recovery Phrase, which acts like a password and is different from your regular one. This emergency phrase must be stored in an ultra-secure location beforehand.
+Here's how it works: during the time-lock, your funds can be moved to a special Bitcoin address known as the Emergency Address. This address is protected by an Emergency Recovery Phrase, which acts like a password and is different from your regular one. This Emergency Phrase must be stored in an ultra-secure location beforehand.
 
 You'll find contextual help icons next to each input field during the Vault Set Up with more specific explanations.`,
+
     //    notEnoughFunds: `<strong>Minimum Vault Amount Notice</strong>
     //
     //Rewind requires a minimum amount to be frozen to ensure it is financially worthwhile for you.
@@ -398,15 +401,13 @@ This minimum amount is calculated based on the assumption that you may need rapi
  It may take around 30 secs, slightly longer on older devices.
 
 Next, you'll get to confirm everything.`,
-    confirmBackupSendVault: `Your vault has been successfully created but not yet sent to the blockchain.
+    confirmBackupSendVault: `Your vault has been prepared but not yet sent to the blockchain.
 
-Before broadcasting it, we'll perform a secure P2P community backup. This ensures your vault configuration is encrypted and safely stored across multiple peers within the Rewind community.
-
-Each peer helps store these backups, but the vault details remain fully encrypted, so no one can access them. Only you can with your mnemonic.
-
-Anyone can easily run a peer to support the network. Learn more at rewindbitcoin.com.
+Before broadcasting it, we'll perform a secure P2P community backup. This ensures your vault configuration is securely encrypted and safely stored across multiple peers within the Rewind community.
 
 Please confirm to complete the backup and broadcast your vault to the blockchain.`,
+    //Each peer helps store these backups, but the vault details remain fully encrypted, so no one can access them. Only you can with your Recovery Phrase.
+    //Anyone can easily run a peer to support the network. Learn more at rewindbitcoin.com.
     // The backup will be stored on one peer and retrieved from another to verify its integrity.
     backupInProgress: 'Backing up your vault and verifying the backup...',
     pushingVault: `Your vault has been successfully backed up and is securely stored.
@@ -488,9 +489,9 @@ Now, as the final step, we're sending your vault to the blockchain to activate i
       helpTitle: 'Time-Lock Protection',
       helpText: `Imagine a scenario where someone gains unauthorized access to your wallet and tries to move your funds. The Theft-Protection Time-Lock is designed to protect you in such situations.
 
-When you set a time-lock, you specify a period during which any attempt to move your funds will be delayed. This delay gives you (or anyone you delegate) the necessary time to cancel unauthorized transactions, preventing theft.
+When you set a time-lock, you specify a period during which your funds are completely locked and cannot be moved by anyone. This lock gives you (or anyone you delegate) the necessary time to react to unauthorized access by moving the funds to a secure emergency address.
 
-For example, if you set the time-lock to 7 days, any attempt to move your funds will be held for 7 days. During this period, no one can access the funds. Not even you. But here's the perk: during this time, you can cancel any transaction that is not authorized by you. If there is no attack and everything is normal, you will gain access to your funds as usual after the 7-day period.`
+For example, if you set the time-lock to 7 days, your funds will be locked for that period, meaning they cannot be moved to any regular address. However, during this time, you can still secure your funds by transferring them to an Emergency Address. If everything is normal and there's no threat, your funds will become fully accessible again after the 7-day period, allowing normal transactions.`
     }
   },
   addressInput: {
@@ -515,9 +516,9 @@ This address will be your ultimate safety net.`,
       newColdAddressSuccessfullyCrated:
         'Your new emergency address has been successfully created.',
       helpTitle: 'Emergency Address',
-      helpText: `Rewind gives you a few days to undo any theft attempt after an attack has occurred. During this time-lock, you can move your funds to an Emergency Bitcoin address. This address should be protected by a recovery phrase that is different from your regular one.
+      helpText: `Rewind gives you a few days to undo any theft attempt after an attack has occurred. During this time-lock, while your funds are frozen, you have the option to move the funds to an Emergency Bitcoin Address. This address should be protected by a Recovery Phrase that is different from your regular one.
 
-Store this emergency recovery phrase in an extremely safe location that is not easily accessible, even for you. This is to ensure that, in case of extortion, you cannot be forced to reveal it to attackers. Examples include a safebox deposit abroad, buried in a secret remote location, or held by a trusted third-party custodian.
+Store this Emergency Recovery Phrase in an extremely safe location that is not easily accessible, even for you. This is to ensure that, in case of extortion, you cannot be forced to reveal it to attackers. Examples include a safebox deposit abroad, buried in a secret remote location, or held by a trusted third-party custodian.
 
 You can either use the 'Create' wizard to generate a new emergency address or use an existing address you already own.`
     },
