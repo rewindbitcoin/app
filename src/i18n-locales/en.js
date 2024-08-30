@@ -193,7 +193,7 @@ Tap "Init Unfreeze" to request the start of the unfreeze countdown.`
       },
       rescue: {
         confirmationSpeedLabel: 'Rescue Transaction Fee',
-        intro: `You're about to initiate the rescue of your vault funds. This will move the funds to your pre-configured emergency address immediately:
+        intro: `You're about to initiate the rescue of your vault funds. This will move the funds to your pre-configured Emergency Address immediately:
 
 {{panicAddress}}
 
@@ -202,7 +202,7 @@ This address will likely be difficult to access if you followed the recommended 
 This action is designed for extreme situations, such as theft or extortion, to ensure the safety of your Bitcoin. Make sure this is a deliberate decision.`,
         feeSelectorExplanation:
           'Select a mining fee for the rescue transaction to ensure prompt processing.',
-        additionalExplanation: `Once the rescue request is confirmed, the funds will be moved to your emergency address instantly.
+        additionalExplanation: `Once the rescue request is confirmed, the funds will be moved to your Emergency Address instantly.
 
 Tap 'Rescue' to initiate the rescue process.`
       },
@@ -210,14 +210,14 @@ Tap 'Rescue' to initiate the rescue process.`
         title: 'Delegation File',
         texr: `You're about to generate a delegation file. This file can be shared with a trusted person who can help protect your Bitcoin.
 
-In case of an emergency, the delegated person can use the file to send your funds to the emergency address you specified during Vault Setup. They should visit rewindbitcoin.com and follow the straightforward instructions to complete the rescue operation easily.
+In case of an emergency, the delegated person can use the file to send your funds to the Emergency Address you specified during Vault Setup. They should visit rewindbitcoin.com and follow the straightforward instructions to complete the rescue operation easily.
 
 Bitcoin tech-savvy contacts can read the file and follow the instructions directly.
 
 Tap "Delegate" to generate and share the delegation file.`,
         text: `You're about to generate a delegation file. This file can be shared with a trusted person who can help protect your Bitcoin.
 
-In case of an emergency, the delegated person can use the file to send your funds to the emergency address you specified during Vault Setup. The file only contains the necessary info for this and does not include any keys to access your funds.
+In case of an emergency, the delegated person can use the file to send your funds to the Emergency Address you specified during Vault Setup. The file only contains the necessary info for this and does not include any keys to access your funds.
 
 Contacts should visit rewindbitcoin.com and follow the straightforward instructions to complete the rescue operation easily. Bitcoin tech-savvy contacts can read the file and follow the instructions directly.
 
@@ -234,9 +234,9 @@ The delegate cannot access or spend the funds; they can only send the funds to t
         },
         rescue: {
           title: 'Rescue Funds',
-          text: `The 'Rescue' action allows you to immediately move your vault funds to the emergency address you set up during the Vault Setup. This action is designed for extreme situations, such as theft or extortion, to ensure the safety of your Bitcoin.
+          text: `The 'Rescue' action allows you to immediately move your vault funds to the Emergency Address you set up during the Vault Setup. This action is designed for extreme situations, such as theft or extortion, to ensure the safety of your Bitcoin.
 
-Once the rescue is initiated, the funds will be sent to the emergency address, and this wallet will no longer have access to them. This process is irreversible.`
+Once the rescue is initiated, the funds will be sent to the Emergency Address, and this wallet will no longer have access to them. This process is irreversible.`
         },
         initUnfreeze: {
           title: 'Initiate Unfreeze',
@@ -349,7 +349,7 @@ While the app is in early development, we advise against using real Bitcoin for 
     title: 'Vault Set Up',
     subTitle: 'Secure Your Bitcoin',
     fillInAll: 'Please fill in all the fields above to continue.',
-    coldAddressMissing: 'Please fill in the emergency address to continue.',
+    coldAddressMissing: 'Please fill in the Emergency Address to continue.',
     intro:
       'Customize your Vault. Select the amount to secure and your preferred protection timelock.',
     notEnoughFundsTitle: 'Vault Minimum Requirement',
@@ -489,7 +489,7 @@ Now, as the final step, we're sending your vault to the blockchain to activate i
       helpTitle: 'Time-Lock Protection',
       helpText: `Imagine a scenario where someone gains unauthorized access to your wallet and tries to move your funds. The Theft-Protection Time-Lock is designed to protect you in such situations.
 
-When you set a time-lock, you specify a period during which your funds are completely locked and cannot be moved by anyone. This lock gives you (or anyone you delegate) the necessary time to react to unauthorized access by moving the funds to a secure emergency address.
+When you set a time-lock, you specify a period during which your funds are completely locked and cannot be moved by anyone. This lock gives you (or anyone you delegate) the necessary time to react to unauthorized access by moving the funds to a secure Emergency Address.
 
 For example, if you set the time-lock to 7 days, your funds will be locked for that period, meaning they cannot be moved to any regular address. However, during this time, you can still secure your funds by transferring them to an Emergency Address. If everything is normal and there's no threat, your funds will become fully accessible again after the 7-day period, allowing normal transactions.`
     }
@@ -510,17 +510,17 @@ This process will set up a Bitcoin address where your funds can be safely sent i
 This address will be generated with a new recovery phrase. Think of it as the password for the address. Store this phrase in a place that is very difficult to access, even for you. Keep it separate from your regular wallet's recovery phrase.
 
 This address will be your ultimate safety net.`,
-      bip39Proposal: `Below is your emergency recovery phrase. This is your key to accessing your funds in an emergency.`,
+      bip39Proposal: `Below is your Emergency Recovery Phrase. This is your key to accessing your funds in an emergency.`,
       bip39ProposalPart2: `This phrase won't be retrievable later on since it's not stored in the app. It's crucial to save it now.`,
       confirmBip39ProposalButton: 'I have written it down',
       newColdAddressSuccessfullyCrated:
-        'Your new emergency address has been successfully created.',
+        'Your new Emergency Address has been successfully created.',
       helpTitle: 'Emergency Address',
       helpText: `Rewind gives you a few days to undo any theft attempt after an attack has occurred. During this time-lock, while your funds are frozen, you have the option to move the funds to an Emergency Bitcoin Address. This address should be protected by a Recovery Phrase that is different from your regular one.
 
 Store this Emergency Recovery Phrase in an extremely safe location that is not easily accessible, even for you. This is to ensure that, in case of extortion, you cannot be forced to reveal it to attackers. Examples include a safebox deposit abroad, buried in a secret remote location, or held by a trusted third-party custodian.
 
-You can either use the 'Create' wizard to generate a new emergency address or use an existing address you already own.`
+You can either use the 'Create' wizard to generate a new Emergency Address or use an existing address you already own.`
     },
     recipientAddress: {
       label: 'Recipient Address',
