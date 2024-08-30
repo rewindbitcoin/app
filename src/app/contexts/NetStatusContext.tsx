@@ -265,17 +265,19 @@ const NetStatusProvider: React.FC<NetStatusProviderProps> = ({ children }) => {
     clearExistingInterval();
     errorMessageRef.current = undefined;
     notifiedErrorsRef.current = {};
-    setGenerate204API(undefined);
-    setGenerate204API2(undefined);
-    setGenerate204APIExternal(undefined);
-    setNetworkId(undefined);
-    setExplorer(undefined);
-    setExplorerMainnet(undefined);
-    setErrorMessage(undefined);
-    setApiReachable(undefined);
-    setApi2Reachable(undefined);
-    setExplorerReachable(undefined);
-    setExplorerMainnetReachable(undefined);
+    batchedUpdates(() => {
+      setGenerate204API(undefined);
+      setGenerate204API2(undefined);
+      setGenerate204APIExternal(undefined);
+      setNetworkId(undefined);
+      setExplorer(undefined);
+      setExplorerMainnet(undefined);
+      setErrorMessage(undefined);
+      setApiReachable(undefined);
+      setApi2Reachable(undefined);
+      setExplorerReachable(undefined);
+      setExplorerMainnetReachable(undefined);
+    });
   }, [clearExistingInterval]);
 
   const deriveInternetReachable = useCallback(
