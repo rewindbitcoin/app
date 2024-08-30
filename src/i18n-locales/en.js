@@ -355,13 +355,13 @@ While the app is in early development, we advise against using real Bitcoin for 
     notEnoughFundsTitle: 'Vault Minimum Requirement',
     introMoreHelp: 'Learn More About Vaults',
     helpTitle: 'Learn About Vaults',
-    helpText: `In the event of extortion or theft, if someone gains access to your wallet's Recovery Phrase, they could potentially access your funds. Rewind provides a solution by freezing funds into Vaults.
+    helpText: `Wallet funds are secured by a Recovery Phrase, which acts as a password. If someone gains access to your phrase through extortion, theft, or misuse, they can access your funds. Rewind offers a solution by allowing you to freeze funds into Vaults.
 
-Vaults time-lock your funds, freezing them for a few days so that regular transactions are not possible. This gives you time to secure your Bitcoin if your wallet is compromised. You can also delegate this responsibility to a trusted person.
+In Vaults, your funds are frozen for a few days, preventing both attackers and even yourself from making transactions. This time-lock gives you a window to rescue your Bitcoin if compromised. You can also delegate this task to a trusted person.
 
-Here's how it works: during the time-lock, your funds can be moved to a special Bitcoin address known as the Emergency Address. This address is protected by an Emergency Recovery Phrase, which acts like a password and is different from your regular one. This Emergency Phrase must be stored in an ultra-secure location beforehand.
+Here's how it works: during the time-lock, while regular transactions are blocked, you can still move your funds instantly to a special Bitcoin Emergency Address. This address is secured by an Emergency Recovery Phrase, distinct from the regular phrase, and should be stored in a separate, ultra-secure location out of daily reach.
 
-You'll find contextual help icons next to each input field during the Vault Set Up with more specific explanations.`,
+You'll find help icons next to each input field during the Vault Set Up with specific explanations.`,
 
     //    notEnoughFunds: `<strong>Minimum Vault Amount Notice</strong>
     //
@@ -462,7 +462,7 @@ Now, as the final step, we're sending your vault to the blockchain to activate i
       'Enter the mnemonic recovery phrase you saved when you first set up your wallet. This restores access to your existing wallet and its funds.',
     createWalletText: 'Your New Wallet Awaits',
     createWalletSubText:
-      "Below is your wallet's recovery phrase. Think of it as your password to the Bitcoin network. It's crucial for accessing your wallet if you switch devices or loose/damage your current one. Write it down and keep it somewhere safe.",
+      "Below is your wallet's Recovery Phrase. Think of it as your password to the Bitcoin network. It's crucial for accessing your wallet if you switch devices or loose/damage your current one. Write it down and keep it somewhere safe.",
     segmented12: '12 Words',
     segmented24: '24 Words',
     selectWordsLength: 'Number of words:',
