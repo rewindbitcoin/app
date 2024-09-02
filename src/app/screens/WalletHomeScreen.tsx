@@ -8,6 +8,8 @@ import React, {
   useState
 } from 'react';
 import Password from '../components/Password';
+import Transaction from '../components/Transaction';
+import { useSettings } from '../hooks/useSettings';
 import {
   View,
   Text,
@@ -57,6 +59,9 @@ const WalletHomeScreen = () => {
   const route = useRoute<RouteProp<RootStackParamList, 'WALLET_HOME'>>();
   const walletId = route.params.walletId;
   const { t } = useTranslation();
+  const { settings } = useSettings();
+  if (!settings) throw new Error('settings not yet set');
+  const locale = settings.LOCALE;
 
   const tabs = ['Vaults', 'Transactions']; //TODO: translate
   const [activeTabIndex, setActiveTabIndex] = useState<number>(0);
@@ -77,6 +82,7 @@ const WalletHomeScreen = () => {
     tipStatus,
     onWallet,
     logOut,
+    fetchBlockTime,
     pushTx
   } = useWallet();
   if (wallet && walletId !== wallet.walletId)
@@ -333,27 +339,18 @@ const WalletHomeScreen = () => {
             //The mb-24 to let it scroll over the Receive - Send - Freeze buttons
           >
             {historyData && historyData.length ? (
-              [...historyData].reverse().map(history => {
-                return (
-                  <View key={history.txId} className="flex-col p-4">
-                    <Text>Height: {history.blockHeight}</Text>
-                    <Text>{history.txId}</Text>
-                    {'type' in history && <Text>{history.type}</Text>}
-                    {'vaultNumber' in history && (
-                      <Text>VaultId: {history.vaultNumber}</Text>
-                    )}
-                    {'vaultTxType' in history && (
-                      <Text>{history.vaultTxType}</Text>
-                    )}
-                    {'netReceived' in history && (
-                      <Text>Net received: {history.netReceived}</Text>
-                    )}
-                    {'outValue' in history && (
-                      <Text>outValue: {history.outValue}</Text>
-                    )}
-                  </View>
-                );
-              })
+              [...historyData]
+                .reverse()
+                .map(item => (
+                  <Transaction
+                    tipStatus={tipStatus}
+                    locale={locale}
+                    t={t}
+                    key={item.txId}
+                    item={item}
+                    fetchBlockTime={fetchBlockTime}
+                  />
+                ))
             ) : (
               <Text>TODO: retrieving txs...</Text>
             )}
