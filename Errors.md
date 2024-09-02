@@ -1,5 +1,8 @@
 # Errores
 
+Ojo! En las explicaciones, cuando se habla de timelocks parecen absolutos; decir
+siempre que son relativos.
+
 Si voy muy rápido a creat un Vault me da error q aun no esta set el feeEstiamtes
 muchos de esos... Esto me puede pasar cuando creo una wallet con una networkId
 q no tengo en Storage. Hacer un wait... o bien no mostrar el boton de
