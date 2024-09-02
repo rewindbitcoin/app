@@ -195,7 +195,7 @@ type VaultPresignedTx = {
   vaultNumber: number;
   pushTime?: number; //when pushed using this wallet
 };
-export type HistoryData = Array<
+export type HistoryDataItem =
   //hot wallet normal Transactions (not associated with the Vaults):
   | (TxAttribution & { tx: Transaction })
 
@@ -205,8 +205,9 @@ export type HistoryData = Array<
 
   // Vault-related presigned txs that are also part of the hot wallet
   // ('VAULT' and 'TRIGGER_SPENDABLE'):
-  | (TxAttribution & VaultPresignedTx)
->;
+  | (TxAttribution & VaultPresignedTx);
+
+export type HistoryData = Array<HistoryDataItem>;
 
 /**
  * For each utxo, get its corresponding:
@@ -1096,7 +1097,7 @@ const spendingTxCache = new Map();
  * Returns the tx that spent a Tx Output (or it's in the mempool about to spend it).
  * If it's in the mempool this is marked by setting blockHeight to zero.
  * This function will return early if last result was irreversible */
-export async function fetchSpendingTx(
+async function fetchSpendingTx(
   txHex: string,
   vout: number,
   explorer: Explorer
@@ -1174,7 +1175,7 @@ async function fetchVaultTx(
  * vaultPushTime, triggerPushTime, panicPushTime and unvaultPushTime cannot be
  * retrieved from the network.
  */
-export async function fetchVaultStatus(
+async function fetchVaultStatus(
   vault: Vault,
   currvaultStatus: VaultStatus | undefined,
   explorer: Explorer
@@ -1267,7 +1268,7 @@ export async function fetchVaultStatus(
           );
           if (!panicBlockStatus)
             throw new Error(
-              'Block status should exist for existing block height'
+              `Block status should exist for existing block height: ${newVaultStatus.panicTxBlockHeight}`
             );
           newVaultStatus.panicTxBlockTime = panicBlockStatus.blockTime;
         }
@@ -1280,7 +1281,7 @@ export async function fetchVaultStatus(
           );
           if (!spendAsHotBlockStatus)
             throw new Error(
-              'Block status should exist for existing block height'
+              `Block status should exist for existing block height: ${newVaultStatus.spendAsHotTxBlockHeight}`
             );
           newVaultStatus.spendAsHotTxBlockTime =
             spendAsHotBlockStatus.blockTime;
