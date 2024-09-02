@@ -42,6 +42,7 @@ interface ModalProps {
   closeButtonText?: string;
   headerMini?: boolean;
   onClose?: () => void;
+  onModalHide?: () => void;
   children: React.ReactNode;
 }
 
@@ -55,6 +56,7 @@ const Modal: React.FC<ModalProps> = ({
   headerMini = false,
   closeButtonText,
   onClose,
+  onModalHide,
   customButtons = null,
   title,
   subTitle,
@@ -196,6 +198,7 @@ const Modal: React.FC<ModalProps> = ({
         web: 'fadeOut',
         default: 'slideOutDown'
       })}
+      onModalHide={onModalHide}
       style={{
         ...(Platform.OS !== 'web' ? { justifyContent: 'flex-end' } : {}),
         margin: 0,
