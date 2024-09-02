@@ -2,7 +2,7 @@
 //probably imply a fix in the other
 import { useCallback, useEffect, useRef } from 'react';
 import { useSettings } from './useSettings';
-import type { BlockStatus } from '@bitcoinerlab/explorer/dist/interface';
+import type { BlockStatus } from '@bitcoinerlab/explorer';
 import { shallowEqualObjects } from 'shallow-equal';
 import { useTranslation } from 'react-i18next';
 import { useNetStatus } from './useNetStatus';
