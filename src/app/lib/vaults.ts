@@ -326,12 +326,12 @@ export const getHistoryData = moize(
         vaultTxs.set(txId, {
           txId,
           blockHeight: vaultStatus.vaultTxBlockHeight,
+          ...(blockTime !== undefined ? { blockTime } : {}),
           tx,
           vaultTxType: 'VAULT',
           vaultId,
           vaultNumber,
           outValue,
-          ...(blockTime !== undefined ? { blockTime } : {}),
           ...(pushTime !== undefined ? { pushTime } : {})
         });
       }
@@ -355,12 +355,12 @@ export const getHistoryData = moize(
         triggerTxs.set(txId, {
           txId,
           blockHeight,
+          ...(blockTime !== undefined ? { blockTime } : {}),
           tx,
           vaultTxType,
           vaultId,
           vaultNumber,
           outValue,
-          ...(blockTime !== undefined ? { blockTime } : {}),
           ...(pushTime !== undefined ? { pushTime } : {})
         });
       }
@@ -376,12 +376,12 @@ export const getHistoryData = moize(
         panicTxs.set(txId, {
           txId,
           blockHeight,
+          ...(blockTime !== undefined ? { blockTime } : {}),
           tx,
           vaultTxType: 'RESCUE',
           vaultId,
           vaultNumber,
           outValue,
-          ...(blockTime !== undefined ? { blockTime } : {}),
           ...(pushTime !== undefined ? { pushTime } : {})
         });
       }
