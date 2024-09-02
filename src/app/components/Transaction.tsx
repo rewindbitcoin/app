@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text } from 'react-native';
 import type { HistoryDataItem } from '../lib/vaults';
 import { Locale } from '~/i18n-locales/init';
@@ -34,12 +34,41 @@ const Transaction = ({
     return () => clearInterval(interval);
   }, []);
   //if rendered for whatever other reason, get the newest time
-  const now = Math.max(scheduledNow, Date.now());
+  const now = Math.max(scheduledNow, Date.now() / 1000);
 
+  const formatDate = (time: number) => {
+    const date = new Date(time * 1000);
+    const now = new Date();
+
+    const options: Intl.DateTimeFormatOptions = {
+      year: 'numeric',
+      month: 'short', // Abbreviated month in letters
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    };
+
+    // If the date is in the current year, delete the year to the options
+    if (date.getFullYear() === now.getFullYear()) delete options.year;
+    return date.toLocaleString(locale, options);
+  };
+  const formatRelTime = (relativeTime: number) => {
+    if (relativeTime < 60) {
+      return t('TODO: seconds ago - ' + Math.max(1, Math.round(relativeTime)));
+    }
+    if (relativeTime < 60 * 60) {
+      return t('TODO: minutes ago - ' + Math.round(relativeTime / 60));
+    } else {
+      return t('TODO: on ' + formatDate(now - relativeTime));
+    }
+  };
   const formatTime = () => {
     if (item.blockHeight === 0) {
       if ('pushTime' in item)
-        return t('TODO: ' + dateOrTime(now - item.pushTime));
+        return t(
+          'TODO: confirming, pushed on/since' +
+            formatRelTime(now - item.pushTime)
+        );
       else return t('TODO: confirming...');
     }
     if (!tipHeight && !blockTime)
@@ -53,12 +82,7 @@ const Transaction = ({
       throw new Error(
         `Could not estimate translated time for tx: ${item.txId}`
       );
-    if (blockTime) return t('TODO: blocktime -' + blockTime);
-    else if (tipHeight) {
-      return t('TODO: blocks ago -' + (tipHeight - item.blockHeight));
-    } else {
-      throw new Error('Could not format time');
-    }
+    return formatRelTime(timeAgo);
   };
 
   //We don't really care if fetchBlockTime fails (should never happen anyway).
