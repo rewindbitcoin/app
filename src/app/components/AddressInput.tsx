@@ -81,8 +81,12 @@ function AddressInput({
   }, [camAvailable, camPermission?.granted]);
 
   const { t } = useTranslation();
-  const [showNewAddress, setShowNewAddress] = useState<boolean>(false);
-  const handleNewAddress = useCallback(() => setShowNewAddress(true), []);
+  const [showCreateColdAddress, setShowCreateColdAddress] =
+    useState<boolean>(false);
+  const handleNewAddress = useCallback(
+    () => setShowCreateColdAddress(true),
+    []
+  );
   const handleScanQR = useCallback(() => setScanQR(true), []);
   const handleCloseScanQR = useCallback(() => setScanQR(false), []);
 
@@ -99,13 +103,16 @@ function AddressInput({
     });
     return () => subscription.remove();
   }, [handleCloseScanQR, camPermission?.granted]);
-  const handleCloseNewAddress = useCallback(() => setShowNewAddress(false), []);
+  const handleCloseNewAddress = useCallback(
+    () => setShowCreateColdAddress(false),
+    []
+  );
 
   const onAddress = useCallback(
     (address: string) => {
       setAddress(address);
       onValueChange(validateAddress(address, network) ? address : null);
-      setShowNewAddress(false);
+      setShowCreateColdAddress(false);
     },
     [onValueChange, network]
   );
@@ -225,7 +232,7 @@ function AddressInput({
       </View>
       <CreateColdAddress
         networkId={networkId}
-        isVisible={showNewAddress}
+        isVisible={showCreateColdAddress}
         onAddress={onAddress}
         onClose={handleCloseNewAddress}
       />
