@@ -1,4 +1,4 @@
-# Errores
+# Errores de NetStatus
 
 Si voy muy rápido a creat un Vault me da error q aun no esta set el feeEstiamtes
 muchos de esos... Esto me puede pasar cuando creo una wallet con una networkId
