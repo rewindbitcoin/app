@@ -32,7 +32,7 @@ import { Button, IconType, InfoButton, Modal } from '../../common/ui';
 import { useSettings } from '../hooks/useSettings';
 import type { SubUnit } from '../lib/settings';
 import type { Locale } from '../../i18n-locales/init';
-import type { BlockStatus } from '@bitcoinerlab/explorer/dist/interface';
+import type { BlockStatus } from '@bitcoinerlab/explorer';
 import InitUnfreeze, { InitUnfreezeData } from './InitUnfreeze';
 import Rescue, { RescueData } from './Rescue';
 import Delegate from './Delegate';
@@ -329,7 +329,19 @@ const Vault = ({
         (vaultStatus?.hotBlockHeight &&
           tipHeight - vaultStatus.hotBlockHeight > 3)));
 
-  const now = Math.floor(Date.now() / 1000);
+  const [scheduledNow, setScheduledNow] = useState<number>(Date.now() / 1000);
+  //update now every 5 minutes...
+  useEffect(() => {
+    const interval = setInterval(
+      () => {
+        setScheduledNow(Date.now() / 1000);
+      },
+      5 * 60 * 1000
+    );
+    return () => clearInterval(interval);
+  }, []);
+  //if rendered for whatever other reason, get the newest time
+  const now = Math.max(scheduledNow, Date.now());
 
   const triggerTimeBestGuess =
     vaultStatus?.triggerTxBlockTime ||
