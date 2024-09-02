@@ -110,6 +110,7 @@ export type VaultStatus = {
    * or because it expired or was RBFd
    */
   vaultTxBlockHeight?: number;
+  vaultTxBlockTime?: number;
 
   /**
    * tx, height & unix time when the vault unfreeze trigger was mined.
@@ -185,12 +186,13 @@ export type UtxosData = Array<{
 type VaultPresignedTx = {
   txId: TxId;
   blockHeight: number;
+  blockTime?: number; //when blockHeight !== 0
   tx: Transaction;
   vaultTxType: 'TRIGGER_WAITING' | 'RESCUE' | 'VAULT' | 'TRIGGER_SPENDABLE';
   outValue: number;
   vaultId: string;
   vaultNumber: number;
-  pushTime?: number;
+  pushTime?: number; //when pushed using this wallet
 };
 export type HistoryData = Array<
   //hot wallet normal Transactions (not associated with the Vaults):
@@ -319,6 +321,7 @@ export const getHistoryData = moize(
         const outValue = tx.outs[0]?.value;
         if (outValue === undefined) throw new Error('Unset output');
         const pushTime = vaultStatus.vaultPushTime;
+        const blockTime = vaultStatus.vaultTxBlockTime;
         vaultTxs.set(txId, {
           txId,
           blockHeight: vaultStatus.vaultTxBlockHeight,
@@ -327,6 +330,7 @@ export const getHistoryData = moize(
           vaultId,
           vaultNumber,
           outValue,
+          ...(blockTime !== undefined ? { blockTime } : {}),
           ...(pushTime !== undefined ? { pushTime } : {})
         });
       }
@@ -335,6 +339,7 @@ export const getHistoryData = moize(
         const outValue = tx.outs[0]?.value;
         if (outValue === undefined) throw new Error('Unset output');
         const pushTime = vaultStatus.triggerPushTime;
+        const blockTime = vaultStatus.triggerTxBlockTime;
         const blockHeight = vaultStatus.triggerTxBlockHeight;
         if (blockHeight === undefined)
           throw new Error('Unset trigger blockHeight');
@@ -354,6 +359,7 @@ export const getHistoryData = moize(
           vaultId,
           vaultNumber,
           outValue,
+          ...(blockTime !== undefined ? { blockTime } : {}),
           ...(pushTime !== undefined ? { pushTime } : {})
         });
       }
@@ -362,6 +368,7 @@ export const getHistoryData = moize(
         const outValue = tx.outs[0]?.value;
         if (outValue === undefined) throw new Error('Unset output');
         const pushTime = vaultStatus.panicPushTime;
+        const blockTime = vaultStatus.panicTxBlockTime;
         const blockHeight = vaultStatus.panicTxBlockHeight;
         if (blockHeight === undefined)
           throw new Error('Unset panic blockHeight');
@@ -373,6 +380,7 @@ export const getHistoryData = moize(
           vaultId,
           vaultNumber,
           outValue,
+          ...(blockTime !== undefined ? { blockTime } : {}),
           ...(pushTime !== undefined ? { pushTime } : {})
         });
       }
@@ -1203,6 +1211,16 @@ export async function fetchVaultStatus(
       //of a sudden we find it again in the blockchain, then show it!
       newVaultStatus.isHidden = false;
     newVaultStatus.vaultTxBlockHeight = vaultTxData.blockHeight;
+    if (newVaultStatus.vaultTxBlockHeight !== 0) {
+      const vaultBlockStatus = await explorer.fetchBlockStatus(
+        newVaultStatus.vaultTxBlockHeight
+      );
+      if (!vaultBlockStatus)
+        throw new Error(
+          `Block status should exist for existing block height: ${newVaultStatus.vaultTxBlockHeight}`
+        );
+      newVaultStatus.vaultTxBlockTime = vaultBlockStatus.blockTime;
+    }
   }
 
   const triggerTxData = await fetchSpendingTx(vault.vaultTxHex, 0, explorer);
