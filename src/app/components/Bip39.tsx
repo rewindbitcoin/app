@@ -1,3 +1,7 @@
+//Note that activeWordIndex moves forward only if there is an exact match.
+//That is, then when typing "you" (that is a valid word) it will not
+//automatically pass to next word since "your" is also a valid
+//word. Also , for example "feed" and "fee"...
 import React, {
   useCallback,
   useEffect,
@@ -32,8 +36,26 @@ const MAX_LENGTH = 8; //English wordlist max length = 8
 const isPartialWordValid = memoize((partialWord: string) => {
   return englishWordList.some((word: string) => word.startsWith(partialWord));
 });
-const isWordValid = memoize((candidateWord: string) => {
-  return englishWordList.some((word: string) => word === candidateWord);
+
+/**
+ * returns empty array if the candidateWord is not found. Even if there are words
+ * starting with candidateWord this will return an empty array.
+ *
+ * if candidateWord is found in englishWordList, this returns an array including
+ * candidateWord; but also including other words that start with candidateWord.
+ * For example, when typing "fee" that is a valid word, this function will
+ * return ["fee", "feed"]. But typing "fe" this returns [].
+ */
+const findMatchingWordAndCandidates = memoize((candidateWord: string) => {
+  if (!englishWordList.some((word: string) => word === candidateWord)) {
+    return [];
+  }
+
+  const matched = englishWordList.filter((word: string) =>
+    word.startsWith(candidateWord)
+  );
+
+  return matched;
 });
 
 import { validateMnemonic as validateMnemonicOriginal } from 'bip39';
@@ -69,7 +91,7 @@ export default function Bip39({
   const theme = useTheme();
   const styles = useMemo(() => getStyles(theme), [theme]);
 
-  const [activeWordIndex, setActiveWordIndex] = useState(0);
+  const [activeWordIndex, setActiveWordIndex] = useState<number>(0);
 
   const toast = useToast();
   const toastId = useRef<string>();
@@ -114,22 +136,39 @@ export default function Bip39({
           onWords(newWords);
           hideError();
         } else {
-          const isLastWord = !words.some(
+          //If editting last word (meaning all other words in inputs don't have errors)
+          const isEditingLastWord = !words.some(
             (word: string, index: number) =>
-              index !== activeWordIndex && !isWordValid(word)
+              index !== activeWordIndex &&
+              findMatchingWordAndCandidates(word).length === 0
           );
-          const nextIndex = newWords.findIndex(word => !isWordValid(word));
+          const matched = findMatchingWordAndCandidates(text);
           if (
-            isLastWord &&
-            isWordValid(text) &&
-            !validateMnemonic(newWords.join(' '))
+            isEditingLastWord &&
+            matched.length >= 1 &&
+            !matched.some(word =>
+              validateMnemonic(
+                newWords
+                  .map((w, i) => (i === activeWordIndex ? word : w))
+                  .join(' ')
+              )
+            )
           )
             showError();
           else hideError();
 
-          //Add text and update index:
+          //Add text and update index. For the current text, only move
+          //forward activeWordIndex if there is exactly one match (and no other
+          //candidartes; f.ex.: "fee" does not move forward the activeWordIndex
+          //since "fees" is another valid word)
           batchedUpdates(() => {
             onWords(newWords);
+            const nextIndex =
+              matched.length !== 1
+                ? activeWordIndex //keep current activeWordIndex if not exact match
+                : newWords.findIndex(
+                    word => findMatchingWordAndCandidates(word).length === 0
+                  );
             if (nextIndex !== -1) setActiveWordIndex(nextIndex);
           });
         }
@@ -221,7 +260,8 @@ export default function Bip39({
             value={word}
             className={`ios:pb-1 text-xs mobmed:text-sm rounded pl-2 ${readonly ? 'bg-slate-200' : 'bg-white'} flex-1 web:w-full outline-none ${fontsLoaded ? "font-['RobotoMono-400Regular']" : ''} ${
               (index === activeWordIndex && !isPartialWordValid(word)) ||
-              (index !== activeWordIndex && !isWordValid(word))
+              (index !== activeWordIndex &&
+                findMatchingWordAndCandidates(word).length === 0)
                 ? 'text-notification'
                 : 'text-black'
             }`}
