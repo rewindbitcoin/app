@@ -67,7 +67,7 @@ import { useTipStatus } from '../hooks/useTipStatus';
 import { useFeeEstimates } from '../hooks/useFeeEstimates';
 import { useWalletState } from '../hooks/useWalletState';
 import { Explorer, EsploraExplorer } from '@bitcoinerlab/explorer';
-import type { BlockStatus } from '@bitcoinerlab/explorer/dist/interface';
+import type { BlockStatus } from '@bitcoinerlab/explorer';
 
 export const WalletContext: Context<WalletContextType | null> =
   createContext<WalletContextType | null>(null);
@@ -93,6 +93,7 @@ export type WalletContextType = {
   vaults: Vaults | undefined;
   vaultsStatuses: VaultsStatuses | undefined;
   networkId: NetworkId | undefined;
+  fetchBlockTime: (blockHeight: number) => Promise<number | undefined>;
   pushTx: (txHex: string) => Promise<void>;
   fetchOutputHistory: ({
     descriptor,
@@ -433,6 +434,14 @@ const WalletProviderRaw = ({
       walletId,
       setDiscoveryExport
     ]
+  );
+
+  const fetchBlockTime = useCallback(
+    async (blockHeight: number) => {
+      return (await discovery?.getExplorer().fetchBlockStatus(blockHeight))
+        ?.blockTime;
+    },
+    [discovery]
   );
 
   /**
@@ -1084,6 +1093,7 @@ const WalletProviderRaw = ({
     syncingBlockchain: !!(
       walletId !== undefined && walletsSyncingBlockchain[walletId]
     ),
+    fetchBlockTime,
     pushTx,
     fetchOutputHistory,
     vaultsAPI,
