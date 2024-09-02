@@ -47,6 +47,8 @@ export default function NewWalletScreen() {
   const { canUseSecureStorage } = secureStorageInfo;
   const [isImport, setIsImport] = useState<boolean>(false);
   const [isConfirmBip39, setIsConfirmBip39] = useState<boolean>(false);
+  const [isHiddenBip39ConfModal, setIsHiddenBip39ConfModal] =
+    useState<boolean>(false);
   //const [words, setWords] = useState<string[]>(Array(12).fill(''));
   const [words, setWords] = useState<string[]>(generateMnemonic().split(' '));
   const validMnemonic = validateMnemonic(words.join(' '));
@@ -165,9 +167,14 @@ export default function NewWalletScreen() {
 
   const onBip39ConfirmationIsRequested = useCallback(() => {
     setIsConfirmBip39(true);
+    setIsHiddenBip39ConfModal(false);
   }, []);
   const onBip39Cancel = useCallback(() => {
     setIsConfirmBip39(false);
+  }, []);
+  //https://github.com/react-native-modal/react-native-modal?tab=readme-ov-file#i-cant-show-multiple-modals-one-after-another
+  const onBip39ConfirmationModalHidden = useCallback(() => {
+    setIsHiddenBip39ConfModal(true);
   }, []);
   const onBip39Confirmed = useCallback(async () => {
     setIsConfirmBip39(false);
@@ -329,14 +336,14 @@ export default function NewWalletScreen() {
             </View>
           </View>
         </View>
-        {isConfirmBip39 && (
-          <ConfirmBip39
-            network={networkMapping[advancedSettings.networkId]}
-            words={words}
-            onConfirmed={onBip39Confirmed}
-            onCancel={onBip39Cancel}
-          />
-        )}
+        <ConfirmBip39
+          isVisible={isConfirmBip39}
+          network={networkMapping[advancedSettings.networkId]}
+          words={words}
+          onConfirmed={onBip39Confirmed}
+          onCancel={onBip39Cancel}
+          onModalHide={onBip39ConfirmationModalHidden}
+        />
       </KeyboardAwareScrollView>
       <Modal
         title={t('network.testOrRealTitle')}
@@ -352,7 +359,7 @@ export default function NewWalletScreen() {
       </Modal>
       <Password
         mode="OPTIONAL_SET"
-        isVisible={askNonSecureSignersPassword}
+        isVisible={askNonSecureSignersPassword && isHiddenBip39ConfModal}
         onPassword={onNonSecureSignerPassword}
         onContinueWithoutPassword={onNonSecureSignerContinueWithoutPassword}
         onCancel={onNonSecureSignerPasswordCancel}

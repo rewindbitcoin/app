@@ -22,13 +22,21 @@ const CreateColdAddress = ({
   const { t } = useTranslation();
   const toast = useToast();
   const network = networkMapping[networkId];
-  const [isBip39ConfirmationRequested, setIsBip39ConfirmationRequested] =
-    useState<boolean>(false);
   const [words, setWords] = useState<string[]>(generateMnemonic().split(' '));
 
-  const [step, setStep] = useState<'intro' | 'bip39'>('intro');
+  const [step, setStep] = useState<'intro' | 'bip39' | 'bip39confirm'>('intro');
   const onWords = useCallback((words: Array<string>) => {
     setWords(words);
+  }, []);
+
+  //this is UX related not to show 2 Modals at the same time:
+  //https://github.com/react-native-modal/react-native-modal?tab=readme-ov-file#i-cant-show-multiple-modals-one-after-another
+  //There are 2 modals (one for Preview: 'intro' + 'bip39'; and <ConfirmBip39> is
+  //another modal - which cannot be shown simultaneously)
+  const [iIsPreviewModalHidden, setIsPreviewModalHidden] =
+    useState<boolean>(true);
+  const onPreviewModelHide = useCallback(() => {
+    setIsPreviewModalHidden(true);
   }, []);
 
   useEffect(() => {
@@ -36,12 +44,12 @@ const CreateColdAddress = ({
       //reset it
       setWords(generateMnemonic().split(' '));
       setStep('intro');
-      setIsBip39ConfirmationRequested(false);
-    }
+      setIsPreviewModalHidden(true);
+    } else setIsPreviewModalHidden(false);
   }, [isVisible]);
 
   const onBip39ConfirmationIsRequested = useCallback(() => {
-    setIsBip39ConfirmationRequested(true);
+    setStep('bip39confirm');
   }, []);
   const onBip39Cancel = useCallback(() => {
     onClose();
@@ -56,65 +64,65 @@ const CreateColdAddress = ({
       }
     );
   }, [onAddress, network, words, toast, t]);
+
   return (
-    isVisible && (
-      <>
-        {isBip39ConfirmationRequested ? (
-          <ConfirmBip39
-            network={network}
-            words={words}
-            onConfirmed={onBip39Confirmed}
-            onCancel={onBip39Cancel}
-          />
+    <>
+      <Modal
+        onModalHide={onPreviewModelHide}
+        headerMini={true}
+        isVisible={isVisible && step !== 'bip39confirm'}
+        title={t('addressInput.coldAddress.createNewModalTitle')}
+        icon={{
+          family: 'Ionicons',
+          name: 'wallet'
+        }}
+        onClose={onClose}
+        customButtons={
+          step === 'intro' ? (
+            <View className="items-center gap-6 flex-row justify-center pb-4">
+              <Button onPress={onClose}>{t('cancelButton')}</Button>
+              <Button onPress={() => setStep('bip39')}>
+                {t('continueButton')}
+              </Button>
+            </View>
+          ) : step === 'bip39' ? (
+            <View className="items-center gap-6 flex-row justify-center pb-4">
+              <Button onPress={onClose}>{t('cancelButton')}</Button>
+              <Button onPress={onBip39ConfirmationIsRequested}>
+                {t('addressInput.coldAddress.confirmBip39ProposalButton')}
+              </Button>
+            </View>
+          ) : undefined
+        }
+      >
+        {step === 'intro' ? (
+          <View>
+            <Text className="text-slate-600 pb-2">
+              {t('addressInput.coldAddress.intro')}
+            </Text>
+          </View>
         ) : (
-          <Modal
-            headerMini={true}
-            isVisible={true}
-            title={t('addressInput.coldAddress.createNewModalTitle')}
-            icon={{
-              family: 'Ionicons',
-              name: 'wallet'
-            }}
-            onClose={onClose}
-            customButtons={
-              step === 'intro' ? (
-                <View className="items-center gap-6 flex-row justify-center pb-4">
-                  <Button onPress={onClose}>{t('cancelButton')}</Button>
-                  <Button onPress={() => setStep('bip39')}>
-                    {t('continueButton')}
-                  </Button>
-                </View>
-              ) : step === 'bip39' ? (
-                <View className="items-center gap-6 flex-row justify-center pb-4">
-                  <Button onPress={onClose}>{t('cancelButton')}</Button>
-                  <Button onPress={onBip39ConfirmationIsRequested}>
-                    {t('addressInput.coldAddress.confirmBip39ProposalButton')}
-                  </Button>
-                </View>
-              ) : undefined
-            }
-          >
-            {step === 'intro' ? (
-              <View>
-                <Text className="text-slate-600 pb-2">
-                  {t('addressInput.coldAddress.intro')}
-                </Text>
-              </View>
-            ) : (
-              <View>
-                <Text className="native:text-sm web:text-xs text-slate-600 pb-4">
-                  {t('addressInput.coldAddress.bip39Proposal')}
-                </Text>
-                <Bip39 readonly onWords={onWords} words={words} />
-                <Text className="native:text-sm web:text-xs text-slate-600 pt-4">
-                  {t('addressInput.coldAddress.bip39ProposalPart2')}
-                </Text>
-              </View>
-            )}
-          </Modal>
+          <View>
+            <Text className="native:text-sm web:text-xs text-slate-600 pb-4">
+              {t('addressInput.coldAddress.bip39Proposal')}
+            </Text>
+            <Bip39 readonly onWords={onWords} words={words} />
+            <Text className="native:text-sm web:text-xs text-slate-600 pt-4">
+              {t('addressInput.coldAddress.bip39ProposalPart2')}
+            </Text>
+          </View>
         )}
-      </>
-    )
+      </Modal>
+      <ConfirmBip39
+        network={network}
+        isVisible={
+          isVisible && step === 'bip39confirm' && iIsPreviewModalHidden
+        }
+        words={words}
+        onConfirmed={onBip39Confirmed}
+        onCancel={onBip39Cancel}
+      />
+    </>
   );
 };
 

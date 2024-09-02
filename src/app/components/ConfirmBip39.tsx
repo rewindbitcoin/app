@@ -6,17 +6,21 @@ import { useTranslation } from 'react-i18next';
 import { networks, type Network } from 'bitcoinjs-lib';
 
 interface ConfirmBip39Props {
+  isVisible: boolean;
   network?: Network;
   words: Array<string>; // The correct mnemonic words to verify against
   onConfirmed: () => Promise<void>; // Callback when the mnemonic is correctly verified
   onCancel: () => void; // Callback when the user cancels verification
+  onModalHide?: () => void;
 }
 
 const ConfirmBip39: React.FC<ConfirmBip39Props> = ({
+  isVisible,
   network,
   words: correctWords,
   onConfirmed,
-  onCancel
+  onCancel,
+  onModalHide
 }) => {
   const { t } = useTranslation();
   const [validWordsThatDontMatch, setValidWordsThatDontMatch] = useState(false);
@@ -25,6 +29,16 @@ const ConfirmBip39: React.FC<ConfirmBip39Props> = ({
   );
   const [isSkipping, setIsSkipping] = useState<boolean>(false);
   const [isConfirming, setIsConfirming] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (!isVisible) {
+      //reset it
+      setValidWordsThatDontMatch(false);
+      setUserWords(Array(correctWords.length).fill(''));
+      setIsSkipping(false);
+      setIsConfirming(false);
+    }
+  }, [isVisible, correctWords.length]);
 
   const handleConfirm = useCallback(() => setIsConfirming(true), []);
   // Effect to execute `onConfirmed` after `isConfirming` is true
@@ -59,8 +73,9 @@ const ConfirmBip39: React.FC<ConfirmBip39Props> = ({
 
   return (
     <Modal
+      {...(onModalHide && { onModalHide })}
       icon={{ family: 'MaterialIcons', name: 'playlist-add-check-circle' }}
-      isVisible={true}
+      isVisible={isVisible}
       title={t('bip39.confirmTitle')}
       headerMini
       {...(isConfirming || isSkipping ? {} : { onClose: onCancel })}
