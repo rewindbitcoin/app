@@ -122,12 +122,13 @@ export type VaultStatus = {
   triggerTxBlockTime?: number;
 
   /**
-   * This is the block timestamp for (triggerTxBlockHeight + lockBlocks)
-   * Note that this can only be retrieved when the blockchain tip is equal
-   * or above (triggerTxBlockHeight + lockBlocks).
-   * It's set if and only if:
+   * These are the block height & timestamp for
+   * (triggerTxBlockHeight + lockBlocks)
+   * Note that hotBlockTime can only be retrieved when the blockchain tip is
+   * equal or above (triggerTxBlockHeight + lockBlocks).
+   * The two props below are set if and only if:
    *  - triggerTx has been mined
-   *  - and (triggerTxBlockHeight + lockBlocks) is equal or below the blockchain tip
+   *  - and the tip is equal or above (triggerTxBlockHeight + lockBlocks)
    */
   hotBlockHeight?: number;
   hotBlockTime?: number;
