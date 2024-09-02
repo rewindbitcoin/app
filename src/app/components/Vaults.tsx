@@ -341,7 +341,7 @@ const Vault = ({
     return () => clearInterval(interval);
   }, []);
   //if rendered for whatever other reason, get the newest time
-  const now = Math.max(scheduledNow, Date.now());
+  const now = Math.max(scheduledNow, Date.now() / 1000);
 
   const triggerTimeBestGuess =
     vaultStatus?.triggerTxBlockTime ||
