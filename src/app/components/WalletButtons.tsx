@@ -1,7 +1,9 @@
 import React from 'react';
 import FreezeIcon from './FreezeIcon';
+import ReceiveIcon from './ReceiveIcon';
+import SendIcon from './SendIcon';
 import { View, Text, Pressable } from 'react-native';
-import { Svg, Path } from 'react-native-svg';
+import { Svg } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 
@@ -23,17 +25,15 @@ const Button = ({
       }
     >
       <Svg
-        className="native:text-base web:text-xs web:sm:text-base fill-none stroke-white stroke-2 w-5 h-5"
+        className={`native:text-base web:text-xs web:sm:text-base stroke-white stroke-2 w-5 h-5 ${type === 'SEND' ? '-rotate-45' : ''} ${type === 'FREEZE' ? 'fill-white' : 'fill-none'}`}
         viewBox="0 0 24 24"
       >
         {type === 'RECEIVE' ? (
-          <Path d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
+          <ReceiveIcon />
         ) : type === 'SEND' ? (
-          <Path d="M6 12 3.269 3.125A59.769 59.769 0 0 1 21.485 12 59.768 59.768 0 0 1 3.27 20.875L5.999 12Zm0 0h7.5" />
+          <SendIcon />
         ) : (
-          <Svg className="fill-white">
-            <FreezeIcon />
-          </Svg>
+          <FreezeIcon />
         )}
       </Svg>
       <Text
