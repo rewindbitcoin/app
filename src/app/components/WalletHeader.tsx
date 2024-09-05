@@ -36,11 +36,11 @@ const Balance = ({
     <View>
       <View className="flex-row items-center justify-start">
         {type === 'HOT' ? (
-          <Svg className="w-6 h-6 mr-2" viewBox="0 0 24 24">
+          <Svg className="fill-yellow-400 w-6 h-6 mr-2" viewBox="0 0 24 24">
             <HotIcon />
           </Svg>
         ) : (
-          <Svg className="fill-black w-6 h-6 mr-2" viewBox="0 0 24 24">
+          <Svg className="fill-primary w-5 h-5 mr-2" viewBox="0 0 24 24">
             <FreezeIcon />
           </Svg>
         )}
