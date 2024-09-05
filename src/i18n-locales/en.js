@@ -155,14 +155,14 @@ Initiating unfreeze starts a {{lockTime}} countdown before funds are available.`
         'Funds are safely frozen. Initiating unfreeze starts a {{lockTime}} countdown before funds are available.',
       rescueNotConfirmed: `Rescue requested on {{rescuePushDate}}.`,
       confirmedRescue: `Rescued on {{rescuedDate}}.`,
-      rescueNotConfirmedAddress: `Rescue successfully requested. Funds are being moved to your safe address right now:
-
-{{panicAddress}}`,
-      confirmedRescueAddress: `The vault was successfully rescued and funds were moved to your secure address:
-
-{{panicAddress}}`,
+      rescueNotConfirmedAddress:
+        'Rescue successfully requested. Funds are being moved to your safe address right now:',
+      confirmedRescueAddress:
+        'The vault was successfully rescued and funds were moved to your secure address:',
       unfrozenAndSpent:
-        'The vault was successfully unfrozen and spent on {{spentAsHotDate}}.',
+        'The vault was successfully unfrozen. The unfrozen funds were spent on {{spentAsHotDate}} and are no longer available.',
+      unfrozenAndSpentPushed:
+        'The vault was successfully unfrozen. The unfrozen funds are in the process of being spent in a recent transaction.',
       unfrozenAndHotBalance:
         'The vault was successfully unfrozen and is now part of your available balance.',
       triggerWithRemainingTime:
@@ -256,7 +256,7 @@ Once the countdown ends, your funds will be unlocked and accessible.`
     header: {
       checkNetwork: 'Check again.',
       checkingNetwork: 'Checking...',
-      hotSubTitle: 'Available Balance: Ready for immediate use',
+      hotSubTitle: 'Hot Balance: Ready for immediate use',
       frozenSubTitle: 'Frozen Balance: Safeguarded in vaults',
       testWalletWarning:
         'Test Wallet: Prices displayed as real Bitcoin for realism but hold no real value.',
@@ -296,6 +296,49 @@ Usage Instructions:
    - Remember, all these steps can be handled automatically by using the
      online tool at https://rescue.rewindbitcoin.com, which simplifies
      the identification and cancellation process`
+  },
+  transaction: {
+    pushedMinsAgo_zero: 'Confirming... Submitted less than a minute ago',
+    pushedMinsAgo_one: 'Confirming... Submitted {{count}} minute ago',
+    pushedMinsAgo_other: 'Confirming... Submitted {{count}} minutes ago',
+    pushedOnDate: 'Confirming... Submitted on {{date}}',
+    recentlyPushed: 'Confirming... Recently submitted',
+
+    confirmedMinsAgo_zero: 'Less than a minute ago',
+    confirmedMinsAgo_one: '{{count}} minute ago',
+    confirmedMinsAgo_other: '{{count}} minutes ago',
+    confirmedOnDate: '{{date}}',
+    confirmedOnBlock: 'Confirmed on block {{block}}',
+
+    header: {
+      vault: 'Vault {{vaultNumber}} Creation',
+      trigger: 'Vault {{vaultNumber}} Unfreeze',
+      rescue: 'Vault {{vaultNumber}} Rescue',
+      received: 'Received',
+      sent: 'Sent',
+      receivedAndSent: 'Received and Sent',
+      consolidated: 'Consilidated'
+    },
+    details: {
+      vault: 'Frozen amount after fees: {{amount}}.',
+      //Old text is correct but too complex in the UI:
+      //triggerConfirmingPanic:
+      //  'Rescuing the {{amount}} received in this transaction after fees. Confirming...',
+      triggerConfirmingPanic:
+        'This transaction started the unfreeze countdown. A rescue process has been detected, and the countdown is being interrupted. The rescue is still confirming. Please hold on for final confirmation...',
+      //Old text is correct but too complex in the UI:
+      //triggerConfirmedPanic: 'This transaction started the unfreeze countdown, but it was interrupted, and the {{amount}} transferred in this transaction, after fees, was rescued.',
+      triggerConfirmedPanic:
+        'This transaction started the unfreeze countdown, but it was interrupted because the funds were rescued.',
+      triggerWaiting:
+        'This transaction started the unfreeze countdown, which is still in progress. The funds, {{amount}} after fees, are still frozen.',
+      triggerHotWallet:
+        'This transaction started the unfreeze countdown. The countdown completed, and the funds, after fees, became part of your hot wallet.',
+      rescued: 'Rescued amount after fees: {{amount}}.',
+      rescuedConfirming:
+        'Rescuing your vault. The final rescued amount after fees will be {{amount}}. Awaiting final confirmation...',
+      openBlockExplorer: 'View on Block Explorer'
+    }
   },
   network: {
     testOn: 'Test on {{networkId}}',
