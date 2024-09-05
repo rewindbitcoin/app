@@ -32,7 +32,7 @@ export const formatBalance = ({
     const balance = fromSats(satsBalance, mode, undefined);
     return (
       numberToLocalizedString(balance, locale) +
-      (appendSubunit ? ` ${mode}` : '')
+      (appendSubunit ? ` ${mode === 'btc' ? '₿' : mode}` : '')
     );
   }
 };
