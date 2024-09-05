@@ -1,9 +1,31 @@
+TODO: Si dejo la wallet varias horas en el simulador sin tocar, luego no 
+hace sync y da netReady = undefined.
+  Ahora lo tengo en:
+   LOG  TRACE sync {"isUserTriggered": false, "networkId": "TAPE", "updatedNetReady": true, "walletId": 28}
+   LOG  TRACE sync proceeding
+   Y se ha quedado así de forma indefinida...
+
+TODO: Tengo 2 todos para cuando History/Vaults está vacío.
+
+TODO: La cantidad que vaulteo es final VAULT + SERVICE FEE.
+con la que despues veo por el tema del serviceFee.
+  -> Debería ser lo que voy a vaultear y, aparte, pagar los fees necesarios.
+
+TODO: Cuando se hace refresco (no manual) entonces en iOS no hacer q me salga el
+refresh porque me cambia toda la UI....
+
 TODO: Ojo! En las explicaciones, cuando se habla de timelocks parecen absolutos; decir
 siempre que son relativos.
 
 TODO: i cannot dismiss toasts in iOS in the Creating Vault window... (the native modal)
 
-TODO: En el Creating New Wallet se permite hacer cancel!!! no deberia ser!!
+TODO: En el Creating New Wallet se permite hacer cancel!!! no deberia ser posible!!
+
+TODO: en Confirmation poner un resumen.
+
+TODO: LOCK-TIME mes espai sobre amunt, mes gran?
+
+TODO: Transactions -> History
 
 
 https://basecamp.com/shapeup/0.3-chapter-01
