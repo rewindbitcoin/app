@@ -32,7 +32,8 @@ const VaultIcon = ({
       <HotIcon />
     </Svg>
   ) : (
-    <View className="flex-row items-center rounded-full w-6 h-6 p-0.5 overflow-hidden bg-[#800080]">
+    //<View className="flex-row items-center rounded-full w-6 h-6 p-0.5 overflow-hidden bg-[#800080]">
+    <View className="flex-row items-center rounded-full w-6 h-6 p-0.5 overflow-hidden bg-primary">
       <Svg className="fill-white" viewBox="0 0 24 24">
         <UnfreezeIcon />
       </Svg>
