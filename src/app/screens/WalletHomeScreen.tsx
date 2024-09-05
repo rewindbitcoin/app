@@ -8,8 +8,7 @@ import React, {
   useState
 } from 'react';
 import Password from '../components/Password';
-import Transaction from '../components/Transaction';
-import { useSettings } from '../hooks/useSettings';
+import Transactions from '../components/Transactions';
 import {
   View,
   Text,
@@ -59,9 +58,6 @@ const WalletHomeScreen = () => {
   const route = useRoute<RouteProp<RootStackParamList, 'WALLET_HOME'>>();
   const walletId = route.params.walletId;
   const { t } = useTranslation();
-  const { settings } = useSettings();
-  if (!settings) throw new Error('settings not yet set');
-  const locale = settings.LOCALE;
 
   const tabs = ['Vaults', 'Transactions']; //TODO: translate
   const [activeTabIndex, setActiveTabIndex] = useState<number>(0);
@@ -83,7 +79,8 @@ const WalletHomeScreen = () => {
     onWallet,
     logOut,
     fetchBlockTime,
-    pushTx
+    pushTx,
+    blockExplorerURL
   } = useWallet();
   if (wallet && walletId !== wallet.walletId)
     throw new Error(
@@ -323,6 +320,7 @@ const WalletHomeScreen = () => {
           >
             {vaults && vaultsStatuses && (
               <Vaults
+                blockExplorerURL={blockExplorerURL}
                 updateVaultStatus={updateVaultStatus}
                 pushTx={pushTx /*TODO: this can trow!*/}
                 vaults={vaults}
@@ -338,22 +336,13 @@ const WalletHomeScreen = () => {
             className="p-4 max-w-2xl w-full mb-28 self-center"
             //The mb-24 to let it scroll over the Receive - Send - Freeze buttons
           >
-            {historyData && historyData.length ? (
-              [...historyData]
-                .reverse()
-                .map(item => (
-                  <Transaction
-                    tipStatus={tipStatus}
-                    locale={locale}
-                    t={t}
-                    key={item.txId}
-                    item={item}
-                    fetchBlockTime={fetchBlockTime}
-                  />
-                ))
-            ) : (
-              <Text>TODO: retrieving txs...</Text>
-            )}
+            <Transactions
+              blockExplorerURL={blockExplorerURL}
+              tipStatus={tipStatus}
+              historyData={historyData}
+              fetchBlockTime={fetchBlockTime}
+              btcFiat={btcFiat}
+            />
           </View>
         )}
 
