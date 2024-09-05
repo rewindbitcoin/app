@@ -35,6 +35,7 @@ export type TxId = string;
 export type VaultSettings = {
   /** amount + minerFees = total user spendings = value extracted from user utxos
    * vaultedAmount = amount - serviceFee
+   * In other words amount is the final vaulted amount + service fee.
    */
   amount: number;
   coldAddress: string;
@@ -496,7 +497,8 @@ const selectVaultUtxosData = ({
   serviceOutput: OutputInstance;
   changeOutput: OutputInstance;
   /** vaultedAmount = amount - serviceFee
-   * The user spends amount `+ minerFees and vaults vaultedAmount
+   * The user spends amount `+ minerFees -> this vaults a total of vaultedAmount
+   * In other words, amount = vaultedAmount + serviceFee
    */
   amount: number;
   feeRate: number;
@@ -568,7 +570,7 @@ export async function createVault({
   nextVaultPath,
   onProgress
 }: {
-  /** amount includes serviceFee */
+  /** amount includes vaultedAmount + serviceFee */
   amount: number;
   /** The unvault key expression that must be used to create triggerDescriptor */
   unvaultKey: string;
