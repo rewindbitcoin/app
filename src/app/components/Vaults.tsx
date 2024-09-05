@@ -1,7 +1,3 @@
-//TODO: create a formatter tgat renders: Confirming... or Confirmed on {}. Based on the blockHeight
-//For the delegage something along this;: https://icons.expo.fyi/Index/FontAwesome/handshake-o
-//https://icons.expo.fyi/Index/Foundation/torsos-all
-//or this: https://icons.expo.fyi/Index/FontAwesome5/hands-helping
 import React, {
   useCallback,
   useEffect,
@@ -9,7 +5,7 @@ import React, {
   useRef,
   useState
 } from 'react';
-import { View, Text } from 'react-native';
+import { View, Text, Linking } from 'react-native';
 import * as Icons from '@expo/vector-icons';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { batchedUpdates } from '~/common/lib/batchedUpdates';
@@ -166,14 +162,15 @@ const VaultButton = ({
   </View>
 );
 
-const Vault = ({
+const RawVault = ({
   updateVaultStatus,
   pushTx,
   btcFiat,
   tipStatus,
   vault,
   vaultNumber,
-  vaultStatus
+  vaultStatus,
+  blockExplorerURL
 }: {
   updateVaultStatus: (vaultId: string, vaultStatus: VaultStatus) => void;
   pushTx: (txHex: string) => Promise<void>;
@@ -182,6 +179,7 @@ const Vault = ({
   vault: Vault;
   vaultNumber: number;
   vaultStatus: VaultStatus | undefined;
+  blockExplorerURL: string | undefined;
 }) => {
   const [showDelegateHelp, setShowDelegateHelp] = useState<boolean>(false);
   const [showRescueHelp, setShowRescueHelp] = useState<boolean>(false);
@@ -605,7 +603,9 @@ const Vault = ({
             )}
           {remainingBlocks === 'SPENT_AS_HOT' && (
             <Text className="pt-2">
-              {t('wallet.vault.unfrozenAndSpent', { spentAsHotDate })}
+              {spentAsHotDate
+                ? t('wallet.vault.unfrozenAndSpent', { spentAsHotDate })
+                : t('wallet.vault.unfrozenAndSpentPushed')}
             </Text>
           )}
           {remainingBlocks === 0 && (
@@ -613,21 +613,28 @@ const Vault = ({
               {t('wallet.vault.unfrozenAndHotBalance')}
             </Text>
           )}
-          {isRescued && isRescuedConfirmed && (
-            <Text className="pt-2">
-              {t('wallet.vault.confirmedRescueAddress', {
-                panicAddress
-                //TODO: Allow opening external browser for seeing the address / copy to clipboard
-              })}
-            </Text>
-          )}
-          {isRescued && !isRescuedConfirmed && (
-            <Text className="pt-2">
-              {t('wallet.vault.rescueNotConfirmedAddress', {
-                panicAddress
-                //TODO: Allow opening external browser for seeing the address / copy to clipboard
-              })}
-            </Text>
+          {isRescued && (
+            <>
+              <Text className="pt-2">
+                {isRescuedConfirmed
+                  ? t('wallet.vault.confirmedRescueAddress')
+                  : t('wallet.vault.rescueNotConfirmedAddress')}
+              </Text>
+              <Button
+                iconRight={{
+                  family: 'FontAwesome5',
+                  name: 'external-link-alt'
+                }}
+                mode="text"
+                containerClassName="self-start pt-2 w-full"
+                textClassName="overflow-hidden text-ellipsis break-words whitespace-nowrap"
+                onPress={() =>
+                  Linking.openURL(`${blockExplorerURL}/${panicAddress}`)
+                }
+              >
+                {panicAddress}
+              </Button>
+            </>
           )}
         </View>
         <View>
@@ -745,13 +752,16 @@ const Vault = ({
   );
 };
 
+const Vault = React.memo(RawVault);
+
 const Vaults = ({
   updateVaultStatus,
   pushTx,
   btcFiat,
   tipStatus,
   vaults,
-  vaultsStatuses
+  vaultsStatuses,
+  blockExplorerURL
 }: {
   updateVaultStatus: (vaultId: string, vaultStatus: VaultStatus) => void;
   pushTx: (txHex: string) => Promise<void>;
@@ -759,6 +769,7 @@ const Vaults = ({
   tipStatus: BlockStatus | undefined;
   vaults: VaultsType;
   vaultsStatuses: VaultsStatuses;
+  blockExplorerURL: string | undefined;
 }) => {
   const sortedVaults = useMemo(() => {
     return Object.values(vaults).sort(
@@ -768,23 +779,28 @@ const Vaults = ({
 
   return (
     <View className="gap-y-4">
-      {sortedVaults.map((vault, index) => {
-        const vaultStatus = vaultsStatuses[vault.vaultId];
-        return (
-          !vaultStatus?.isHidden && (
-            <Vault
-              updateVaultStatus={updateVaultStatus}
-              key={vault.vaultId}
-              btcFiat={btcFiat}
-              tipStatus={tipStatus}
-              vault={vault}
-              vaultNumber={sortedVaults.length - index}
-              vaultStatus={vaultStatus}
-              pushTx={pushTx}
-            />
-          )
-        );
-      })}
+      {sortedVaults.length ? (
+        sortedVaults.map((vault, index) => {
+          const vaultStatus = vaultsStatuses[vault.vaultId];
+          return (
+            !vaultStatus?.isHidden && (
+              <Vault
+                updateVaultStatus={updateVaultStatus}
+                key={vault.vaultId}
+                btcFiat={btcFiat}
+                tipStatus={tipStatus}
+                vault={vault}
+                vaultNumber={sortedVaults.length - index}
+                vaultStatus={vaultStatus}
+                pushTx={pushTx}
+                blockExplorerURL={blockExplorerURL}
+              />
+            )
+          );
+        })
+      ) : (
+        <Text>TODO: no vaults yet, create one...</Text>
+      )}
     </View>
   );
 };
