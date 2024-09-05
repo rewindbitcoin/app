@@ -15,6 +15,7 @@ export const getAPIs = moize(
     let faucetAPI: string | undefined;
     let generate204API: string | undefined;
     let generate204API2: string | undefined;
+    let blockExplorerURL: string | undefined;
     if (networkId && settings)
       switch (networkId) {
         case 'BITCOIN':
@@ -24,6 +25,7 @@ export const getAPIs = moize(
           vaultsSecondaryAPI = settings.MAINNET_VAULTS_SECONDARY_API;
           generate204API = settings.PUBLIC_GENERATE_204_API;
           generate204API2 = settings.PUBLIC_GENERATE_204_SECONDARY_API;
+          blockExplorerURL = settings.MAINNET_BLOCK_EXPLORER;
           break;
         case 'TESTNET':
           esploraAPI = settings.TESTNET_ESPLORA_API;
@@ -32,6 +34,7 @@ export const getAPIs = moize(
           vaultsSecondaryAPI = settings.TESTNET_VAULTS_SECONDARY_API;
           generate204API = settings.PUBLIC_GENERATE_204_API;
           generate204API2 = settings.PUBLIC_GENERATE_204_SECONDARY_API;
+          blockExplorerURL = settings.TESTNET_BLOCK_EXPLORER;
           break;
         case 'TAPE':
           esploraAPI = settings.TAPE_ESPLORA_API;
@@ -41,6 +44,7 @@ export const getAPIs = moize(
           faucetAPI = `${settings.TAPE_WEB_SERVER}/faucet`;
           generate204API = settings.PUBLIC_GENERATE_204_API;
           generate204API2 = settings.PUBLIC_GENERATE_204_SECONDARY_API;
+          blockExplorerURL = settings.TAPE_BLOCK_EXPLORER;
           break;
         case 'REGTEST':
           esploraAPI = settings.REGTEST_ESPLORA_API;
@@ -50,6 +54,7 @@ export const getAPIs = moize(
           faucetAPI = `${settings.REGTEST_WEB_SERVER}/faucet`;
           generate204API = settings.REGTEST_GENERATE_204_API;
           generate204API2 = settings.REGTEST_GENERATE_204_SECONDARY_API;
+          blockExplorerURL = settings.REGTEST_BLOCK_EXPLORER;
           break;
         default:
           throw new Error(`networkId ${networkId} not supported.`);
@@ -63,7 +68,8 @@ export const getAPIs = moize(
       vaultsAPI,
       vaultsSecondaryAPI,
       generate204API,
-      generate204API2
+      generate204API2,
+      blockExplorerURL
     };
   }
 );

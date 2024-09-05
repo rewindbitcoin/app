@@ -108,6 +108,7 @@ export type WalletContextType = {
   vaultsAPI: string | undefined;
   faucetAPI: string | undefined;
   vaultsSecondaryAPI: string | undefined;
+  blockExplorerURL: string | undefined;
   wallets: Wallets | undefined;
   wallet: Wallet | undefined;
   walletStatus: WalletStatus;
@@ -200,7 +201,8 @@ const WalletProviderRaw = ({
     vaultsSecondaryAPI,
     generate204API,
     generate204API2,
-    generate204APIExternal
+    generate204APIExternal,
+    blockExplorerURL
   } = getAPIs(networkId, settings);
   const [wallets, setWallets, , , walletsStorageStatus] = useStorage<Wallets>(
     `WALLETS`,
@@ -784,7 +786,9 @@ const WalletProviderRaw = ({
     }
   }, [serviceAddressAPI]);
 
+  //Dit the user initiated the sync (true)? ir was it a scheduled one (false)?
   const isUserTriggeredSync = useRef<boolean>(false);
+
   /**
    * Initiates the blockchain synchronization process. If netStatus has errors
    * it tries first to check the network .
@@ -839,6 +843,7 @@ const WalletProviderRaw = ({
 
       try {
         const updatedTipHeight = (await updateTipStatus())?.blockHeight;
+        console.log('TRACE sync proceeding', { updatedTipHeight });
         if (updatedTipHeight) {
           //First get updatedVaults & updatedVaultsStatuses:
           const p2pVaults = await fetchP2PVaults({
@@ -847,6 +852,7 @@ const WalletProviderRaw = ({
             vaultsAPI,
             vaults
           });
+          console.log('TRACE sync proceeding', { p2pVaults });
           let updatedVaults = vaults; //initially they are the same
           p2pVaults &&
             Object.entries(p2pVaults).forEach(([key, p2pVault]) => {
@@ -865,6 +871,7 @@ const WalletProviderRaw = ({
             vaultsStatuses,
             discovery.getExplorer()
           );
+          console.log('TRACE sync proceeding', { freshVaultsStatuses });
 
           let updatedVaultsStatuses = vaultsStatuses; //initially they are the same
           Object.entries(freshVaultsStatuses).forEach(([key, freshStatus]) => {
@@ -884,12 +891,14 @@ const WalletProviderRaw = ({
             if (signer.type !== 'SOFTWARE') {
               console.warn('Non-Software Wallets use default accounts for now');
               const defaultAccount = await getDefaultAccount(signers, network);
+              console.log('TRACE sync proceeding', { defaultAccount });
               updatedAccounts[defaultAccount] = { discard: false };
             } else {
               if (!signer.mnemonic)
                 throw new Error('mnemonic not set for soft wallet');
               const masterNode = getMasterNode(signer.mnemonic, network);
               await discovery.fetchStandardAccounts({ masterNode, gapLimit });
+              console.log('TRACE sync proceeding fetchedStandardAccounts');
               const usedAccounts = discovery.getUsedAccounts();
               if (usedAccounts.length)
                 for (const usedAccount of usedAccounts)
@@ -901,6 +910,7 @@ const WalletProviderRaw = ({
                 );
                 updatedAccounts[defaultAccount] = { discard: false };
               }
+              console.log('TRACE sync proceeding', { getDefaultAccount });
             }
             setAccounts(updatedAccounts);
           }
@@ -911,6 +921,7 @@ const WalletProviderRaw = ({
             updatedTipHeight
           );
           await discovery.fetch({ descriptors, gapLimit });
+          console.log('TRACE sync proceeding discovery.fetch');
           if (vaults !== updatedVaults) setVaults(updatedVaults);
           if (vaultsStatuses !== updatedVaultsStatuses)
             setVaultsStatuses(updatedVaultsStatuses);
@@ -920,8 +931,10 @@ const WalletProviderRaw = ({
             updatedAccounts,
             updatedTipHeight
           );
+          console.log('TRACE sync proceeding setUtxosHistoryExport');
         }
       } catch (error) {
+        console.log('TRACE sync proceeding catch', { error });
         console.warn(error);
         const errorMessage =
           error instanceof Error ? error.message : t('app.unknownError');
@@ -932,6 +945,7 @@ const WalletProviderRaw = ({
       }
     }
 
+    console.log('TRACE sync proceeding setSyncingBlockchain to false now');
     setSyncingBlockchain(walletId, false);
   }, [
     netStatusUpdate,
@@ -1099,6 +1113,7 @@ const WalletProviderRaw = ({
     vaultsAPI,
     faucetAPI,
     vaultsSecondaryAPI,
+    blockExplorerURL,
     wallets,
     wallet,
     walletStatus: { isCorrupted, storageAccess: storageAccessStatus },
