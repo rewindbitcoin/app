@@ -189,22 +189,33 @@ type VaultPresignedTx = {
   blockHeight: number;
   blockTime?: number; //when blockHeight !== 0
   tx: Transaction;
-  vaultTxType: 'TRIGGER_WAITING' | 'RESCUE' | 'VAULT' | 'TRIGGER_SPENDABLE';
-  outValue: number;
+  /**
+   * TRIGGER_EXTERNAL when the triggertx is not part of the hot wallet:
+   *  - while the trigger tx output cannot be spent by the hot wallet (it's waiting)
+   *  - if the output of the trigger tx was spent as rescue
+   *
+   * TRIGGER_HOT_WALLET when this tx is part of the hot wallet:
+   *  - the output of the triggertx is an utxo of the hot wallet
+   *  - the output of the triggrertx was an utxo of the hot wallet and was spent
+   *    as hot
+   */
+  vaultTxType: 'TRIGGER_EXTERNAL' | 'RESCUE' | 'VAULT' | 'TRIGGER_HOT_WALLET';
+  outValue: number; //The amount in the vout[0] in sats. F.ex.: for 'VAULT' is the vaulted amount after mining fees and servive fees. For 'TRIGGER_*' is the amount that will become ready for the user and for 'RESCUE' the available amount after rescuing.
   vaultId: string;
   vaultNumber: number;
   pushTime?: number; //when pushed using this wallet
+  spentAsPanic?: 'CONFIRMING' | 'CONFIRMED'; //set only if this vault was spent as panic
 };
 export type HistoryDataItem =
   //hot wallet normal Transactions (not associated with the Vaults):
   | (TxAttribution & { tx: Transaction })
 
   // Vault-related presigned txs that are not part of the hot wallet:
-  // 'RESCUE' and 'TRIGGER_WAITING':
+  // 'RESCUE' and 'TRIGGER_EXTERNAL':
   | VaultPresignedTx
 
   // Vault-related presigned txs that are also part of the hot wallet
-  // ('VAULT' and 'TRIGGER_SPENDABLE'):
+  // ('VAULT' and 'TRIGGER_HOT_WALLET'):
   | (TxAttribution & VaultPresignedTx);
 
 export type HistoryData = Array<HistoryDataItem>;
@@ -306,8 +317,8 @@ export const getHistoryData = moize(
     const historyData: HistoryData = [];
 
     const vaultTxs: Map<TxId, VaultPresignedTx> = new Map();
-    const triggerWaitingTxs: Map<TxId, VaultPresignedTx> = new Map();
-    const triggerSpendableTxs: Map<TxId, VaultPresignedTx> = new Map();
+    const triggerExternalTxs: Map<TxId, VaultPresignedTx> = new Map();
+    const triggerHotWalletTxs: Map<TxId, VaultPresignedTx> = new Map();
     const panicTxs: Map<TxId, VaultPresignedTx> = new Map();
 
     Object.entries(vaultsStatuses).forEach(([vaultId, vaultStatus]) => {
@@ -347,15 +358,23 @@ export const getHistoryData = moize(
           throw new Error('Unset trigger blockHeight');
         //TODO: this "some" call below is potentially slow
         const vaultTxType = hotHistory.some(hotEntry => hotEntry.txId === txId)
-          ? 'TRIGGER_SPENDABLE'
-          : 'TRIGGER_WAITING';
+          ? 'TRIGGER_HOT_WALLET'
+          : 'TRIGGER_EXTERNAL';
         const triggerTxs =
-          vaultTxType === 'TRIGGER_SPENDABLE'
-            ? triggerSpendableTxs
-            : triggerWaitingTxs;
+          vaultTxType === 'TRIGGER_HOT_WALLET'
+            ? triggerHotWalletTxs
+            : triggerExternalTxs;
         triggerTxs.set(txId, {
           txId,
           blockHeight,
+          ...(vaultStatus.panicTxBlockHeight !== undefined
+            ? {
+                spentAsPanic:
+                  vaultStatus.panicTxBlockHeight === 0
+                    ? 'CONFIRMING'
+                    : 'CONFIRMED'
+              }
+            : {}),
           ...(blockTime !== undefined ? { blockTime } : {}),
           tx,
           vaultTxType,
@@ -388,24 +407,24 @@ export const getHistoryData = moize(
       }
     });
 
-    //Merge all the 'TRIGGER_SPENDABLE' and the 'VAULT'. Those are part of
-    //hotHistory alreadyu
+    //Merge all the 'TRIGGER_HOT_WALLET' and the 'VAULT'. Those are part of
+    //hotHistory already
     hotHistory.forEach(txAttribution => {
       const txId = txAttribution.txId;
       const tx = discovery.getTransaction({ txId });
       const vaultTx = vaultTxs.get(txId);
-      const triggerSpendableTx = triggerSpendableTxs.get(txId);
+      const triggerHotWalletTx = triggerHotWalletTxs.get(txId);
       const historyEntry = {
         ...txAttribution,
         tx,
         ...(vaultTx ? vaultTx : {}),
-        ...(triggerSpendableTx ? triggerSpendableTx : {})
+        ...(triggerHotWalletTx ? triggerHotWalletTx : {})
       };
       historyData.push(historyEntry);
     });
-    //Add the remainig 'RESCUE' AND 'TRIGGER_WAITING'
-    triggerWaitingTxs.forEach(triggerWaitingTx =>
-      historyData.push(triggerWaitingTx)
+    //Add the remainig 'RESCUE' AND 'TRIGGER_EXTERNAL'
+    triggerExternalTxs.forEach(triggerExternalTx =>
+      historyData.push(triggerExternalTx)
     );
     panicTxs.forEach(panicTx => historyData.push(panicTx));
 
@@ -1058,13 +1077,11 @@ export const getVaultsFrozenBalance = moize(
 );
 
 /**
- * Retrieve all the trigger descriptors which are currently:
- *  -hot: they are currently spendable.
- *    This means the current blockhainTip is over lockBlocks and it has not been
- *    spent.
- *  -spent
- *  -notTriggered
- *  -defreezing
+ * Retrieve all the trigger descriptors which form part of the hot wallet, that
+ * is, they are:
+ *  -they are currently spendable: This means the current blockhainTip is over
+ *  lockBlocks and it has not been spent.
+ *  -they used to be spendable as hot and were spent as hot.
  */
 const getHotTriggerDescriptors = (
   vaults: Vaults,
@@ -1078,7 +1095,12 @@ const getHotTriggerDescriptors = (
         throw new Error(
           `vaultsStatuses is not synchd. It should have key ${vaultId}`
         );
-      return getRemainingBlocks(vault, vaultStatus, blockhainTip) === 0;
+      const remainingBlocks = getRemainingBlocks(
+        vault,
+        vaultStatus,
+        blockhainTip
+      );
+      return remainingBlocks === 0 || remainingBlocks === 'SPENT_AS_HOT';
     })
     .map(([, vault]) => vault.triggerDescriptor);
 
@@ -1381,8 +1403,10 @@ const selectVaultUtxosDataMemo = ({
 export { selectVaultUtxosDataMemo as selectVaultUtxosData };
 
 /**
- * returns all the descriptors which can be spent right now (hot)
- * This includes: spendable vaults, change and external
+ * returns all the descriptors which can be spent right now (hot) or which
+ * were spent as hot already.
+ * This includes: spendable unfrozen vaults, spent vaults as hot, change and
+ * external.
  */
 export const getHotDescriptors = (
   vaults: Vaults,
