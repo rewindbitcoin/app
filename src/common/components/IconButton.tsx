@@ -1,5 +1,5 @@
 //This is deprecated (but still used accross the app). Better use
-//<Button iconLeft={}/>
+//<Button iconLeft={} iconRight={}/>
 import React, { useState, useMemo, useCallback } from 'react';
 import { StyleSheet, Pressable } from 'react-native';
 import { rgba } from 'polished';

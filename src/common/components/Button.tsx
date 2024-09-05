@@ -14,6 +14,7 @@ interface ButtonProps extends RN.PressableProps {
     | 'secondary-alert'
     | 'text';
   iconLeft?: IconType;
+  iconRight?: IconType;
   onPress?: ((event: RN.GestureResponderEvent) => void) | undefined;
   disabled?: boolean;
   /**
@@ -22,12 +23,17 @@ interface ButtonProps extends RN.PressableProps {
    * disabled
    */
   loading?: boolean;
+  /**
+   * note: this is experimental and does not work very well when trying to
+   * override classes already set
+   */
   containerClassName?: string;
   textClassName?: string;
 }
 
 const Button: React.FC<ButtonProps> = ({
   iconLeft,
+  iconRight,
   disabled = false,
   loading = false,
   mode = 'primary',
@@ -42,6 +48,10 @@ const Button: React.FC<ButtonProps> = ({
   const IconLeft =
     iconLeft && iconLeft.family && Icons[iconLeft.family]
       ? Icons[iconLeft.family]
+      : null;
+  const IconRight =
+    iconRight && iconRight.family && Icons[iconRight.family]
+      ? Icons[iconRight.family]
       : null;
 
   if (mode === 'native' && typeof children !== 'string')
@@ -58,6 +68,13 @@ const Button: React.FC<ButtonProps> = ({
         className={`flex-row min-w-20 justify-center items-center ${disabled ? 'pointer-events-none opacity-50' : 'hover:opacity-90 active:opacity-90 active:scale-95'} ${containerClassName}`}
         {...props}
       >
+        {iconLeft && (
+          <IconLeft
+            name={iconLeft.name}
+            color={theme.colors.primary}
+            className="pr-2 font-semibold text-primary native:text-sm web:text-xs web:sm:text-sm select-none"
+          />
+        )}
         {typeof children === 'string' ? (
           <RN.Text
             className={`text-center text-primary native:text-base web:text-sm web:sm:text-base select-none ${textClassName}`}
@@ -67,6 +84,13 @@ const Button: React.FC<ButtonProps> = ({
         ) : React.isValidElement(children) ? (
           children
         ) : null}
+        {iconRight && (
+          <IconRight
+            name={iconRight.name}
+            color={theme.colors.primary}
+            className="pl-2 font-semibold text-primary native:text-sm web:text-xs web:sm:text-sm select-none"
+          />
+        )}
         {loading && <Spin className="text-primary ml-2" />}
       </RN.Pressable>
     );
@@ -92,6 +116,12 @@ const Button: React.FC<ButtonProps> = ({
         ) : React.isValidElement(children) ? (
           children
         ) : null}
+        {iconRight && (
+          <IconRight
+            name={iconRight.name}
+            className="pl-2 font-semibold text-white native:text-sm web:text-xs web:sm:text-sm select-none"
+          />
+        )}
         {loading && <Spin className="text-white ml-2" />}
       </RN.Pressable>
     );
@@ -121,6 +151,14 @@ const Button: React.FC<ButtonProps> = ({
         ) : React.isValidElement(children) ? (
           children
         ) : null}
+        {iconRight && (
+          <IconRight
+            name={iconRight.name}
+            className={`pl-2 font-semibold native:text-sm web:text-xs web:sm:text-sm select-none ${
+              mode === 'secondary-alert' ? 'text-red-800' : 'text-primary-dark'
+            }`}
+          />
+        )}
         {loading && (
           <Spin
             className={`ml-2 ${
