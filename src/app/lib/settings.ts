@@ -104,7 +104,7 @@ export interface Settings {
 // Default values for the context
 export const defaultSettings: Settings = {
   GAP_LIMIT: 20,
-  SERVICE_FEE_RATE: 0.0004,
+  SERVICE_FEE_RATE: 0.004,
   MIN_FEE_RATE: 1,
   MIN_LOCK_BLOCKS: 1,
   MAX_LOCK_BLOCKS: 3 * 30 * 24 * 6,

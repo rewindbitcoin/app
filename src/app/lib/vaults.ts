@@ -33,11 +33,10 @@ export type TxHex = string;
 export type TxId = string;
 
 export type VaultSettings = {
-  /** amount + minerFees = total user spendings = value extracted from user utxos
-   * vaultedAmount = amount - serviceFee
-   * In other words amount is the final vaulted amount + service fee.
+  /** transactionAmount + minerFees = total user spendings = value extracted from user utxos
+   * vaultedAmount = tansactionAmount - serviceFee
    */
-  amount: number;
+  vaultedAmount: number;
   coldAddress: string;
   feeRate: number;
   lockBlocks: number;
@@ -57,21 +56,25 @@ export type Vault = {
    * They are be obtained from the next available pubKey
    * for path on the online P2P network. See fetchP2PVaultIds */
   vaultId: string;
+  /**
+   * the mining fee of the initial vaulting tx
+   */
+  vaultFee: number;
   vaultPath: string;
-  /** Per definition, amount includes serviceFee. In other words:
-   *  - There is an output with value: (amount - serviceFee).
+  /** Per definition, transactionAmount includes serviceFee. In other words:
+   *  - There is an output with value: (transactionAmount - serviceFee).
    *    Note that the second output for serviceFee is sometimes not set.
    *    See: selectVaultUtxosData.
    *  - There is another output with value: serviceFee
    *  - and maybe there an additional output with change.
-   *  So, the user will pay amount + miner fee.
+   *  So, the user will pay transactionAmount + miner fee.
    */
-  amount: number;
+  serviceFee: number;
   /**
    * the vaulted amount after the vaultTxHex has been mined. It already excludes
    * serviceFee. Note that serviceFee is not always set.
    */
-  netAmount: number;
+  vaultedAmount: number;
 
   vaultAddress: string;
   triggerAddress: string;
@@ -89,7 +92,7 @@ export type Vault = {
 
   /** Assuming a scenario of extreme fees (feeRateCeiling), what will be the
    * remaining balance after panicking */
-  minPanicBalance: number;
+  minPanicAmount: number;
 
   /**
    * the keyExpression for the unlocking using the unvaulting path
@@ -455,28 +458,64 @@ export const getOutputsWithValue = memoize((utxosData: UtxosData) =>
   })
 );
 
+export const calculateServiceFee = ({
+  serviceFeeRate,
+  serviceOutput,
+  vaultedAmount
+}: {
+  serviceFeeRate: number;
+  serviceOutput: OutputInstance;
+  vaultedAmount: number;
+}) => {
+  return serviceFeeRate
+    ? Math.max(
+        dustThreshold(serviceOutput) + 1,
+        Math.floor(serviceFeeRate * vaultedAmount)
+      )
+    : 0;
+};
+
 /**
- * serviceFee will be at least dust + 1
- * However if serviceFee makes the vaultedAmount to be <= its own dust limit
+ * splitTransactionAmount makes sure serviceFee and vaultedAmount are
+ * above dust, otherwise undefined is returned.
+ * If serviceFeeRate is zero, then serviceFee is also zero and it is assumed
+ * the vault won't have a serviceFee output.
+ * So:
+ *  - serviceFee will be at least dust + 1
+ *  - if serviceFee makes the vaultedAmount to be <= its own dust limit
  * then return zero
  */
-export const getServiceFee = ({
-  amount,
+export const splitTransactionAmount = ({
+  transactionAmount,
   vaultOutput,
   serviceOutput,
   serviceFeeRate
 }: {
-  amount: number;
+  transactionAmount: number;
   vaultOutput: OutputInstance;
   serviceOutput: OutputInstance;
   serviceFeeRate: number;
 }) => {
-  const serviceFee = Math.max(
-    dustThreshold(serviceOutput) + 1,
-    Math.round(serviceFeeRate * amount)
-  );
-  if (amount - serviceFee <= dustThreshold(vaultOutput)) return 0;
-  else return serviceFee;
+  // transactionAmount = serviceFee + vaultedAmount
+  // serviceFee = serviceFeeRate * vaultedAmount
+  // =>
+  //
+  //
+  // transactionAmount = serviceFee + (serviceFee / serviceFeeRate)
+  //        = serviceFee * (1 + 1/serviceFeeRate) =
+  //        = serviceFee * (serviceFeeRate + 1) / serviceFeeRate
+  // =>
+  // serviceFee = transactionAmount * serviceFeeRate / (1 + serviceFeeRate)
+  // serviceFee / serviceFeeRate = vaultedAmount = transactionAmount / (1 + serviceFeeRate)
+
+  const serviceFee = calculateServiceFee({
+    serviceOutput,
+    serviceFeeRate,
+    vaultedAmount: transactionAmount / (1 + serviceFeeRate)
+  });
+  const vaultedAmount = transactionAmount - serviceFee;
+  if (vaultedAmount <= dustThreshold(vaultOutput)) return;
+  else return { vaultedAmount, serviceFee, transactionAmount };
 };
 
 /**
@@ -488,7 +527,7 @@ const selectVaultUtxosData = ({
   vaultOutput,
   serviceOutput,
   changeOutput,
-  amount,
+  vaultedAmount,
   feeRate,
   serviceFeeRate
 }: {
@@ -496,25 +535,25 @@ const selectVaultUtxosData = ({
   vaultOutput: OutputInstance;
   serviceOutput: OutputInstance;
   changeOutput: OutputInstance;
-  /** vaultedAmount = amount - serviceFee
-   * The user spends amount `+ minerFees -> this vaults a total of vaultedAmount
-   * In other words, amount = vaultedAmount + serviceFee
+  /** vaultedAmount = transactionAmount - serviceFee
+   * The user spends transactionAmount `+ minerFees -> this vaults a total of vaultedAmount
+   * In other words, transactionAmount = vaultedAmount + serviceFee
    */
-  amount: number;
+  vaultedAmount: number;
   feeRate: number;
   serviceFeeRate: number;
 }) => {
   const utxos = getOutputsWithValue(utxosData);
-  const serviceFee = getServiceFee({
-    amount,
-    vaultOutput,
-    serviceOutput,
-    serviceFeeRate
+  if (vaultedAmount <= dustThreshold(vaultOutput)) return;
+  const serviceFee = calculateServiceFee({
+    vaultedAmount,
+    serviceFeeRate,
+    serviceOutput
   });
   const coinselected = coinselect({
     utxos,
     targets: [
-      { output: vaultOutput, value: amount - serviceFee },
+      { output: vaultOutput, value: vaultedAmount },
       ...(serviceFee ? [{ output: serviceOutput, value: serviceFee }] : [])
     ],
     remainder: changeOutput,
@@ -553,7 +592,7 @@ const signPsbt = async (signer: Signer, network: Network, psbtVault: Psbt) => {
 
 //createVault does not throw. It returns errors as strings:
 export async function createVault({
-  amount,
+  vaultedAmount,
   unvaultKey,
   samples,
   feeRate,
@@ -570,8 +609,8 @@ export async function createVault({
   nextVaultPath,
   onProgress
 }: {
-  /** amount includes vaultedAmount + serviceFee */
-  amount: number;
+  /** transactionAmount includes vaultedAmount + serviceFee */
+  vaultedAmount: number;
   /** The unvault key expression that must be used to create triggerDescriptor */
   unvaultKey: string;
   /** How many txs to compute. Note that the final number of tx is samples^2*/
@@ -603,7 +642,7 @@ export async function createVault({
 > {
   try {
     let signaturesProcessed = 0;
-    let minPanicBalance = amount;
+    let minPanicAmount = vaultedAmount; //Initialize to a large value
 
     const network = networkMapping[networkId];
 
@@ -623,7 +662,7 @@ export async function createVault({
     // Run the coinselector
     const selected = selectVaultUtxosDataMemo({
       utxosData,
-      amount,
+      vaultedAmount,
       vaultOutput,
       serviceOutput,
       changeOutput,
@@ -659,8 +698,7 @@ export async function createVault({
     //Prepare the Vault Tx:
     ////////////////////////////////
 
-    const vaultBalance = amount - selected.serviceFee;
-    if (vaultBalance !== vaultTargets[0].value)
+    if (vaultedAmount !== vaultTargets[0].value)
       throw new Error(
         'The coinselect algo should take into account service fee'
       );
@@ -739,11 +777,11 @@ export async function createVault({
       const feeTrigger = Math.ceil(
         feeRateTrigger * estimateTriggerTxSize(lockBlocks)
       );
-      const triggerBalance = vaultBalance - feeTrigger;
+      const triggerAmount = vaultedAmount - feeTrigger;
 
-      if (triggerBalance <= dustThreshold(triggerOutput)) {
+      if (triggerAmount <= dustThreshold(triggerOutput)) {
         console.warn(
-          `triggerBalance <= dust: ${triggerBalance} <= ${dustThreshold(triggerOutput)}`
+          `triggerAmount <= dust: ${triggerAmount} <= ${dustThreshold(triggerOutput)}`
         );
         return 'NOT_ENOUGH_FUNDS';
       }
@@ -751,7 +789,7 @@ export async function createVault({
       //Add the output to psbtTrigger:
       triggerOutput.updatePsbtAsOutput({
         psbt: psbtTrigger,
-        value: triggerBalance
+        value: triggerAmount
       });
       //Sign
       signers.signECPair({ psbt: psbtTrigger, ecpair: vaultPair });
@@ -794,19 +832,19 @@ export async function createVault({
         const feePanic = Math.ceil(
           feeRatePanic * estimatePanicTxSize(lockBlocks, coldAddress, network)
         );
-        const panicBalance = triggerBalance - feePanic;
+        const panicAmount = triggerAmount - feePanic;
 
-        if (panicBalance <= dustThreshold(coldOutput)) {
+        if (panicAmount <= dustThreshold(coldOutput)) {
           console.warn(
-            `panicBalance <= dust: ${panicBalance} <= ${dustThreshold(coldOutput)}`
+            `panicAmount <= dust: ${panicAmount} <= ${dustThreshold(coldOutput)}`
           );
           return 'NOT_ENOUGH_FUNDS';
         }
-        if (panicBalance < minPanicBalance) minPanicBalance = panicBalance;
+        if (panicAmount < minPanicAmount) minPanicAmount = panicAmount;
 
         coldOutput.updatePsbtAsOutput({
           psbt: psbtPanic,
-          value: triggerBalance - feePanic
+          value: triggerAmount - feePanic
         });
         //Sign
         signers.signECPair({ psbt: psbtPanic, ecpair: panicPair });
@@ -839,13 +877,20 @@ export async function createVault({
       if (panicTxs.length === 0)
         throw new Error(`Panic spending path has no solutions.`);
 
+    if (minPanicAmount === vaultedAmount)
+      throw new Error('Could not find minPanicAmount');
     return {
       networkId,
       vaultId: nextVaultId,
       vaultPath: nextVaultPath,
-      amount,
-      netAmount: vaultBalance,
-      minPanicBalance,
+      vaultFee,
+      serviceFee: calculateServiceFee({
+        vaultedAmount,
+        serviceOutput,
+        serviceFeeRate
+      }),
+      vaultedAmount,
+      minPanicAmount,
       feeRateCeiling,
       vaultAddress,
       triggerAddress,
@@ -956,8 +1001,8 @@ export function getRemainingBlocks(
 
 /**
  *
- * If remainingBlocks is zero this function returns zero vaulted balance
- * vaulted balance = frozen balance = balance that is not hot
+ * If remainingBlocks is zero this function returns zero vaulted amount
+ * vaulted amount = frozen balance = balance that is not hot
  *
  * When the trigger as been init (and while it's still locked), this function
  * substracts the trigger tx fee from the balance.
@@ -981,14 +1026,14 @@ export const getVaultFrozenBalance = (
 
   const triggerTxHex = vaultStatus.triggerTxHex;
   //Not triggered yet:
-  if (triggerTxHex === undefined) return vault.netAmount;
+  if (triggerTxHex === undefined) return vault.vaultedAmount;
 
   //Unvaulting triggered:
   const triggerFee = vault.txMap[triggerTxHex]?.fee;
   if (triggerFee === undefined)
     throw new Error('Trigger tx fee should have been set');
 
-  return vault.netAmount - triggerFee;
+  return vault.vaultedAmount - triggerFee;
 };
 /**
  * Returns the vault current hot amount or the hot amount this vault
@@ -1013,7 +1058,7 @@ export const getVaultUnfrozenBalance = (
   if (triggerFee === undefined)
     throw new Error('Trigger tx fee should have been set');
 
-  return vault.netAmount - triggerFee;
+  return vault.vaultedAmount - triggerFee;
 };
 /**
  * Returns the vault rescued amount
@@ -1035,7 +1080,7 @@ export const getVaultRescuedBalance = (
   if (panicFee === undefined)
     throw new Error('Panic tx fee should have been set');
 
-  return vault.netAmount - triggerFee - panicFee;
+  return vault.vaultedAmount - triggerFee - panicFee;
 };
 
 /**
@@ -1354,11 +1399,11 @@ const selectVaultUtxosDataFactory = memoize((utxosData: UtxosData) =>
       memoize((changeOutput: OutputInstance) =>
         memoize(
           ({
-            amount,
+            vaultedAmount,
             feeRate,
             serviceFeeRate
           }: {
-            amount: number;
+            vaultedAmount: number;
             feeRate: number;
             serviceFeeRate: number;
           }) =>
@@ -1367,12 +1412,12 @@ const selectVaultUtxosDataFactory = memoize((utxosData: UtxosData) =>
               vaultOutput,
               serviceOutput,
               changeOutput,
-              amount,
+              vaultedAmount,
               feeRate,
               serviceFeeRate
             }),
-          ({ amount, feeRate, serviceFeeRate }) =>
-            JSON.stringify({ amount, feeRate, serviceFeeRate })
+          ({ vaultedAmount, feeRate, serviceFeeRate }) =>
+            JSON.stringify({ vaultedAmount, feeRate, serviceFeeRate })
         )
       )
     )
@@ -1383,7 +1428,7 @@ const selectVaultUtxosDataMemo = ({
   vaultOutput,
   serviceOutput,
   changeOutput,
-  amount,
+  vaultedAmount,
   feeRate,
   serviceFeeRate
 }: {
@@ -1391,14 +1436,14 @@ const selectVaultUtxosDataMemo = ({
   vaultOutput: OutputInstance;
   serviceOutput: OutputInstance;
   changeOutput: OutputInstance;
-  amount: number;
+  vaultedAmount: number;
   feeRate: number;
   serviceFeeRate: number;
 }) =>
   selectVaultUtxosDataFactory(utxosData)(vaultOutput)(serviceOutput)(
     changeOutput
   )({
-    amount,
+    vaultedAmount,
     feeRate,
     serviceFeeRate
   });

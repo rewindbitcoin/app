@@ -56,6 +56,8 @@ export default function VaultSetUp({
       'SetUpVaultScreen cannot be called with unset feeEstimates'
     );
   const network = networkMapping[networkId];
+  const vaultOutput = DUMMY_VAULT_OUTPUT(network);
+  const serviceOutput = DUMMY_SERVICE_OUTPUT(network);
 
   const { settings } = useSettings();
   if (!settings)
@@ -66,6 +68,7 @@ export default function VaultSetUp({
   const [lockBlocks, setLockBlocks] = useState<number | null>(
     settings.INITIAL_LOCK_BLOCKS
   );
+  const serviceFeeRate = settings.SERVICE_FEE_RATE;
   const [coldAddress, setColdAddress] = useState<string | null>(null);
   const { t } = useTranslation();
 
@@ -77,87 +80,143 @@ export default function VaultSetUp({
   const maxFeeRate = Math.max(...Object.values(feeEstimates));
 
   const {
-    //max vault amount, given the current feeRate: This will be the max
-    //selectable value in the Slider
+    //maxVaultAmount = estimateMaxVaultAmount(feeRate)
+    //This is basically calling maxFunds algo in coinselect (for feeRate) and
+    //see the target values.
+    //It decreases as the feeRate increases. The lowest value is for maxFeeRate.
+    //See maxVaultAmountWhenMaxFee below.
+    //
+    //This will be the max selectable value in the Slider. The max wil change
+    //when the user moves the fee slider
     maxVaultAmount,
-    //The most restrictive maxVaultAmount, that is the LOWEST value possible
-    //(computed assuming the user chose the largest feeRate)
-    lowestMaxVaultAmount,
-    //The most restrictive minVaultAmount, that is the LARGEST value possible
-    //(computed assuming the user chose the largest feeRate):
-    //This will be the min selectable value in the Slider
-    //If the user has less than largestMinVaultAmount then we will display a
+    //
+    //Particular case of maxVaultAmount (read above).
+    //Used to learn if it is possible to create a vault =>
+    //maxVaultAmountWhenMaxFee >= than minRecoverableVaultAmount
+    maxVaultAmountWhenMaxFee,
+
+    //minRecoverableVaultAmount = estimateMinRecoverableVaultAmount(maxFeeRate)
+    //The minimum vaultable amount that is still recoverable in case of panic.
+    //It is computed assuming the user chose the largest feeRate. This is to
+    //prevent too much flicker in the Slider since the max already depends on
+    //feeRate. So we use the most restrictive feeRate: maxFeeRate.
+    //Note that minRecoverableVaultAmount is always defined since the algorithm
+    //assumes a new P2PKH input will add some more funds if needed.
+    //If the user has less than minRecoverableVaultAmount then we will display a
     //notEnoughFund notice in the Screen and won't allow to continue
-    largestMinVaultAmount
+    //
+    //This will be the min selectable value in the Slider. The min is fixed
+    //and does not change when the user changes the fee.
+    minRecoverableVaultAmount
   }: {
-    maxVaultAmount: number | undefined;
-    lowestMaxVaultAmount: number;
-    largestMinVaultAmount: number;
+    maxVaultAmount:
+      | {
+          vaultTxMiningFee: number;
+          serviceFee: number;
+          vaultedAmount: number;
+          transactionAmount: number;
+        }
+      | undefined;
+    maxVaultAmountWhenMaxFee:
+      | {
+          vaultTxMiningFee: number;
+          serviceFee: number;
+          vaultedAmount: number;
+          transactionAmount: number;
+        }
+      | undefined;
+    minRecoverableVaultAmount: {
+      vaultTxMiningFee: number;
+      serviceFee: number;
+      vaultedAmount: number;
+      transactionAmount: number;
+    };
   } = estimateVaultSetUpRange({
     accounts,
     utxosData,
     coldAddress: coldAddress || DUMMY_PKH_ADDRESS(network),
     maxFeeRate,
     network,
-    serviceFeeRate: settings.SERVICE_FEE_RATE,
+    serviceFeeRate,
     feeRate, //If feeRate is null, then estimateVaultSetUpRange uses maxFeeRate
     feeRateCeiling: settings.PRESIGNED_FEE_RATE_CEILING,
     minRecoverableRatio: settings.MIN_RECOVERABLE_RATIO
   });
   const isValidVaultRange =
     maxVaultAmount !== undefined &&
-    lowestMaxVaultAmount >= largestMinVaultAmount;
-  const missingFunds: number = largestMinVaultAmount - lowestMaxVaultAmount;
+    maxVaultAmountWhenMaxFee !== undefined &&
+    maxVaultAmountWhenMaxFee.vaultedAmount >=
+      minRecoverableVaultAmount.vaultedAmount;
+  const missingFunds: number =
+    minRecoverableVaultAmount.transactionAmount +
+    minRecoverableVaultAmount.vaultTxMiningFee -
+    //minus maxVaultAmountWhenMaxFee
+    (maxVaultAmountWhenMaxFee
+      ? maxVaultAmountWhenMaxFee.transactionAmount +
+        maxVaultAmountWhenMaxFee.vaultTxMiningFee
+      : 0);
 
-  const [userSelectedAmount, setUserSelectedAmount] = useState<number | null>(
-    isValidVaultRange ? maxVaultAmount : null
+  const [userSelectedVaultedAmount, setUserSelectedVaultedAmount] = useState<
+    number | null
+  >(isValidVaultRange ? maxVaultAmount.vaultedAmount : null);
+  const [isMaxVaultedAmount, setIsMaxVaultedAmount] = useState<boolean>(
+    userSelectedVaultedAmount === maxVaultAmount?.vaultedAmount
   );
-  const [isMaxAmount, setIsMaxAmount] = useState<boolean>(
-    userSelectedAmount === maxVaultAmount
-  );
-  const amount: number | null = isMaxAmount
+  const vaultedAmount: number | null = isMaxVaultedAmount
     ? isValidVaultRange
-      ? maxVaultAmount
+      ? maxVaultAmount.vaultedAmount
       : null
-    : userSelectedAmount;
+    : userSelectedVaultedAmount;
 
-  const onUserSelectedAmountChange = useCallback(
-    (userSelectedAmount: number | null) => {
-      setUserSelectedAmount(userSelectedAmount);
-      setIsMaxAmount(userSelectedAmount === maxVaultAmount);
+  const onUserSelectedVaultedAmountChange = useCallback(
+    (userSelectedVaultedAmount: number | null) => {
+      setUserSelectedVaultedAmount(userSelectedVaultedAmount);
+      setIsMaxVaultedAmount(
+        userSelectedVaultedAmount === maxVaultAmount?.vaultedAmount
+      );
     },
-    [maxVaultAmount]
+    [maxVaultAmount?.vaultedAmount]
   );
 
   const handleOK = useCallback(() => {
     if (
       feeRate === null ||
-      amount === null ||
+      vaultedAmount === null ||
       lockBlocks === null ||
       coldAddress === null
     )
       throw new Error('Cannot process Vault');
-    onVaultSetUpComplete({ coldAddress, feeRate, amount, lockBlocks });
-  }, [feeRate, amount, lockBlocks, onVaultSetUpComplete, coldAddress]);
+    onVaultSetUpComplete({
+      coldAddress,
+      feeRate,
+      vaultedAmount,
+      lockBlocks
+    });
+  }, [feeRate, vaultedAmount, lockBlocks, onVaultSetUpComplete, coldAddress]);
 
-  const txSize =
-    amount === null || feeRate === null
-      ? null
-      : selectVaultUtxosData({
-          utxosData,
-          vaultOutput: DUMMY_VAULT_OUTPUT(network),
-          serviceOutput: DUMMY_SERVICE_OUTPUT(network),
-          changeOutput: DUMMY_CHANGE_OUTPUT(
-            getMainAccount(accounts, network),
-            network
-          ),
-          feeRate,
-          amount,
-          serviceFeeRate: settings.SERVICE_FEE_RATE
-        })?.vsize || null;
+  let txSize = null;
+  if (vaultedAmount !== null && feeRate !== null) {
+    const selected = selectVaultUtxosData({
+      utxosData,
+      vaultOutput,
+      serviceOutput,
+      changeOutput: DUMMY_CHANGE_OUTPUT(
+        getMainAccount(accounts, network),
+        network
+      ),
+      feeRate,
+      vaultedAmount,
+      serviceFeeRate
+    });
+    if (!selected)
+      throw new Error(
+        "transactionAmount should be selectable since it's within range"
+      );
+    txSize = selected.vsize;
+  }
 
   const allFieldsValid =
-    amount !== null &&
+    vaultedAmount !== null &&
     lockBlocks !== null &&
     feeRate !== null &&
     coldAddress !== null;
@@ -211,12 +270,12 @@ export default function VaultSetUp({
         {isValidVaultRange && (
           <>
             <AmountInput
-              isMaxAmount={isMaxAmount}
+              isMaxAmount={isMaxVaultedAmount}
               label={t('vaultSetup.amountLabel')}
-              initialValue={maxVaultAmount}
-              min={largestMinVaultAmount}
-              max={maxVaultAmount}
-              onUserSelectedAmountChange={onUserSelectedAmountChange}
+              initialValue={maxVaultAmount.vaultedAmount}
+              min={minRecoverableVaultAmount.vaultedAmount}
+              max={maxVaultAmount.vaultedAmount}
+              onUserSelectedAmountChange={onUserSelectedVaultedAmountChange}
             />
             <View style={styles.cardSeparator} />
             <BlocksInput

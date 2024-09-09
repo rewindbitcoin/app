@@ -263,10 +263,7 @@ const WalletHomeScreen = () => {
           <WalletButtons
             handleReceive={handleReceive}
             handleSend={utxosData?.length ? handleSend : undefined}
-            handleFreeze={
-              //FIX, TODO: this is a bad heuristic, note that you might have a utxo below the dust limit and thus, you cannot send, also the fees may not be enough for sending. Same for vaults. In vaults i had some logic that told you that you need more money. Then using length 1 is ok, but then similar logic must be implemented in send.
-              utxosData?.length ? handleFreeze : undefined
-            }
+            handleFreeze={utxosData?.length ? handleFreeze : undefined}
           />
         )
       }

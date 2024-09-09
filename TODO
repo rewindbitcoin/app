@@ -5,6 +5,8 @@ hace sync y da netReady = undefined.
    LOG  TRACE sync proceeding
    Y se ha quedado así de forma indefinida...
 
+TODO: Todo en CreateVaultScreen para formatear bien con i18n el preview de las fees estimadas.
+
 TODO: Tengo 2 todos para cuando History/Vaults está vacío.
 
 TODO: La cantidad que vaulteo es final VAULT + SERVICE FEE.

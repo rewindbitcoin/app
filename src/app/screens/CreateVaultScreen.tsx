@@ -35,7 +35,7 @@ export default function CreateVaultScreen({
   vaultSettings: VaultSettings | undefined;
 }) {
   if (!vaultSettings) throw new Error('vaultSettings not set');
-  const { amount, feeRate, lockBlocks, coldAddress } = vaultSettings;
+  const { vaultedAmount, feeRate, lockBlocks, coldAddress } = vaultSettings;
 
   const height = useWindowDimensions().height;
 
@@ -249,7 +249,7 @@ export default function CreateVaultScreen({
 
       //createVault does not throw. It returns errors as strings:
       const vault = await createVault({
-        amount,
+        vaultedAmount,
         unvaultKey,
         samples,
         feeRate,
@@ -291,7 +291,7 @@ export default function CreateVaultScreen({
     goBack,
     t,
     toast,
-    amount,
+    vaultedAmount,
     coldAddress,
     feeRate,
     feeRateCeiling,
@@ -341,6 +341,11 @@ export default function CreateVaultScreen({
               <>
                 <Text className="mb-8 mobmed:mb-12">
                   {t('createVault.confirmBackupSendVault')}
+                </Text>
+                <Text className="mb-8 mobmed:mb-12">
+                  {t(
+                    `TODO: mining fee: ${vault.vaultFee} - serviceFee: ${vault.serviceFee}`
+                  )}
                 </Text>
                 <View className="items-center gap-6 flex-row justify-center">
                   <Button onPress={goBack}>{t('cancelButton')}</Button>
