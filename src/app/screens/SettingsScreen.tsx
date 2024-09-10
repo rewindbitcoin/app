@@ -3,7 +3,7 @@ import { Button, Text, StyleSheet } from 'react-native';
 import { KeyboardAwareScrollView } from '../../common/ui';
 import { useNavigation } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
-export default () => {
+const SettingsScreen = () => {
   const navigation = useNavigation();
   const { t } = useTranslation();
   const mnemonic = 'TODO'; //TODO: - only for BIP32 wallets
@@ -38,3 +38,5 @@ const internalStyles = StyleSheet.create({
     color: '#333'
   }
 });
+
+export default SettingsScreen;
