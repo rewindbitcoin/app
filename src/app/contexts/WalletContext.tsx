@@ -810,7 +810,9 @@ const WalletProviderRaw = ({
       //user is requesting it. This is because this is an expensive operation
       //and sync may also be called automatically on dependencies of dataReady,
       //netReady, callback functions and so on...
+      console.log('TRACE sync netStatusUpdate');
       const ns = await netStatusUpdate();
+      console.log('TRACE sync netStatusUpdate done');
       updatedNetReady =
         ns?.apiReachable &&
         ns?.explorerReachable &&
