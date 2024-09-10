@@ -7,6 +7,8 @@ hace sync y da netReady = undefined.
 
 TODO: Todo en CreateVaultScreen para formatear bien con i18n el preview de las fees estimadas.
 
+TODO: the links in Vaults.tsx and History.tsx appear larger than the texts in web.
+
 TODO: Tengo 2 todos para cuando History/Vaults está vacío.
 
 TODO: La cantidad que vaulteo es final VAULT + SERVICE FEE.
