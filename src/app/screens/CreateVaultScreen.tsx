@@ -344,7 +344,7 @@ export default function CreateVaultScreen({
                 </Text>
                 <Text className="mb-8 mobmed:mb-12">
                   {t(
-                    `TODO: mining fee: ${vault.vaultFee} - serviceFee: ${vault.serviceFee}`
+                    `TODO: mining fee: ${vault.txMap[vault.vaultTxHex]?.fee} - serviceFee: ${vault.serviceFee}`
                   )}
                 </Text>
                 <View className="items-center gap-6 flex-row justify-center">

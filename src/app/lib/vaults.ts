@@ -56,25 +56,24 @@ export type Vault = {
    * They are be obtained from the next available pubKey
    * for path on the online P2P network. See fetchP2PVaultIds */
   vaultId: string;
-  /**
-   * the mining fee of the initial vaulting tx
-   */
-  vaultFee: number;
   vaultPath: string;
-  /** Per definition, transactionAmount includes serviceFee. In other words:
-   *  - There is an output with value: (transactionAmount - serviceFee).
-   *    Note that the second output for serviceFee is sometimes not set.
-   *    See: selectVaultUtxosData.
-   *  - There is another output with value: serviceFee
-   *  - and maybe there an additional output with change.
-   *  So, the user will pay transactionAmount + miner fee.
-   */
-  serviceFee: number;
   /**
-   * the vaulted amount after the vaultTxHex has been mined. It already excludes
-   * serviceFee. Note that serviceFee is not always set.
+   * The vaulting tx transaction may have up yo 3 outputs:
+   * vaultedAmount, serviceFee and change.
+   * vaultedAmount is the vaulted amount after the vaultTxHex has been mined.
+   * Note that serviceFee is not always set.
    */
   vaultedAmount: number;
+  /**
+   * The 2nd output, used to pay service usage.
+   *  Note that this second output (for serviceFee) may not exist if
+   *  serviceFeeRate = 0.
+   *  See: selectVaultUtxosData.
+   *  There and maybe there an additional output with change.
+   *  So, int the inital vaulting tx,
+   *  the user will pay vaultedAmount + serviceFee + miner fee.
+   */
+  serviceFee: number;
 
   vaultAddress: string;
   triggerAddress: string;
@@ -609,7 +608,9 @@ export async function createVault({
   nextVaultPath,
   onProgress
 }: {
-  /** transactionAmount includes vaultedAmount + serviceFee */
+  /** The transactoin may have up yo 3 outputs: vaultedAmount, serviceFee and
+   * change
+   */
   vaultedAmount: number;
   /** The unvault key expression that must be used to create triggerDescriptor */
   unvaultKey: string;
@@ -672,7 +673,7 @@ export async function createVault({
     if (!selected) return 'COINSELECT_ERROR';
     const vaultUtxosData = selected.vaultUtxosData;
     const vaultTargets = selected.targets;
-    const vaultFee = selected.fee;
+    const vaultMiningFee = selected.fee;
     if (vaultTargets[0]?.output !== vaultOutput)
       throw new Error("coinselect first output should be the vault's output");
     if (vaultTargets.length > 3)
@@ -729,10 +730,10 @@ export async function createVault({
     const vaultTxHex = txVault.toHex();
     if (txVault.virtualSize() > selected.vsize)
       throw new Error('vsize larger than coinselected estimated one');
-    const feeRateVault = vaultFee / txVault.virtualSize();
+    const feeRateVault = vaultMiningFee / txVault.virtualSize();
     if (feeRateVault < 1) return 'UNKNOWN_ERROR';
     txMap[vaultTxHex] = {
-      fee: vaultFee,
+      fee: vaultMiningFee,
       feeRate: feeRateVault,
       txId: txVault.getId()
     };
@@ -883,7 +884,6 @@ export async function createVault({
       networkId,
       vaultId: nextVaultId,
       vaultPath: nextVaultPath,
-      vaultFee,
       serviceFee: calculateServiceFee({
         vaultedAmount,
         serviceOutput,
