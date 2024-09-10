@@ -195,7 +195,7 @@ export default function VaultSetUp({
   }, [feeRate, vaultedAmount, lockBlocks, onVaultSetUpComplete, coldAddress]);
 
   let txSize = null;
-  if (vaultedAmount !== null && feeRate !== null) {
+  if (isValidVaultRange && vaultedAmount !== null && feeRate !== null) {
     const selected = selectVaultUtxosData({
       utxosData,
       vaultOutput,
@@ -210,7 +210,7 @@ export default function VaultSetUp({
     });
     if (!selected)
       throw new Error(
-        "transactionAmount should be selectable since it's within range"
+        `vaultedAmount ${vaultedAmount} should be selectable since it's within range - [${minRecoverableVaultAmount?.vaultedAmount}, ${maxVaultAmount?.vaultedAmount}] - isValidVaultRange: ${isValidVaultRange}.`
       );
     txSize = selected.vsize;
   }
@@ -340,7 +340,7 @@ const getStyles = (insets: EdgeInsets, theme: Theme) =>
     contentContainer: {
       alignItems: 'center',
       paddingTop: 20,
-      paddingHorizontal: 8
+      paddingHorizontal: 20
     },
     content: {
       width: '100%',
