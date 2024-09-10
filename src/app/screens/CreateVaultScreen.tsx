@@ -26,6 +26,7 @@ import { useNavigation } from '@react-navigation/native';
 import { useNetStatus } from '../hooks/useNetStatus';
 import { NavigationPropsByScreenId, WALLET_HOME } from '../screens';
 import { batchedUpdates } from '~/common/lib/batchedUpdates';
+import { formatBalance, formatBlocks } from '../lib/format';
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -52,7 +53,8 @@ export default function CreateVaultScreen({
     vaults,
     vaultsAPI,
     vaultsSecondaryAPI,
-    wallet
+    wallet,
+    btcFiat
   } = useWallet();
 
   if (
@@ -81,6 +83,15 @@ export default function CreateVaultScreen({
     throw new Error(
       'This component should only be started after settings has been retrieved from storage'
     );
+  const samples = settings.SAMPLES;
+  const feeRateCeiling = settings.PRESIGNED_FEE_RATE_CEILING;
+  const currency = settings.CURRENCY;
+  const locale = settings.LOCALE;
+  const mode =
+    settings.FIAT_MODE && typeof btcFiat === 'number'
+      ? 'Fiat'
+      : settings.SUB_UNIT;
+  const serviceFeeRate = settings.SERVICE_FEE_RATE;
   // We know settings are the correct ones in this Component
   const [progress, setProgress] = useState<number>(0);
   const [confirmRequested, setConfirmRequested] = useState<boolean>(false);
@@ -96,9 +107,6 @@ export default function CreateVaultScreen({
     setProgress(progress);
     return keepProgress.current;
   }, []);
-
-  const samples = settings.SAMPLES;
-  const feeRateCeiling = settings.PRESIGNED_FEE_RATE_CEILING;
 
   const goBack = useCallback(() => {
     //goBack will unmount this screen as per react-navigation docs.
@@ -253,7 +261,7 @@ export default function CreateVaultScreen({
         unvaultKey,
         samples,
         feeRate,
-        serviceFeeRate: settings.SERVICE_FEE_RATE,
+        serviceFeeRate,
         feeRateCeiling,
         coldAddress,
         changeDescriptor,
@@ -305,11 +313,28 @@ export default function CreateVaultScreen({
     samples,
     vaultsAPI,
     vaultsSecondaryAPI,
-    settings.SERVICE_FEE_RATE,
+    serviceFeeRate,
     signer,
     vaults,
     utxosData
   ]);
+
+  let vaultTxInfo;
+  if (vault) {
+    vaultTxInfo = vault.txMap[vault.vaultTxHex];
+    if (!vaultTxInfo)
+      throw new Error(`Vault txMap entry not set for vault ${vault.vaultId}`);
+  }
+
+  const formatSats = (satsBalance: number) =>
+    formatBalance({
+      satsBalance,
+      btcFiat,
+      currency,
+      locale,
+      mode,
+      appendSubunit: true
+    });
 
   return (
     <KeyboardAwareScrollView
@@ -321,7 +346,7 @@ export default function CreateVaultScreen({
         className="flex-1 self-center max-w-lg w-full px-4 py-4 mobmed:py-8"
         style={mbStyle}
       >
-        {!vault ? (
+        {!vault || !vaultTxInfo ? (
           //Initial view:
           <View className="flex-1 justify-between">
             <Text className="self-start">{t('createVault.intro')}</Text>
@@ -339,17 +364,42 @@ export default function CreateVaultScreen({
           <>
             {!confirmRequested ? (
               <>
-                <Text className="mb-8 mobmed:mb-12">
+                <Text className="mb-4">
                   {t('createVault.confirmBackupSendVault')}
                 </Text>
-                <Text className="mb-8 mobmed:mb-12">
-                  {t(
-                    `TODO: mining fee: ${vault.txMap[vault.vaultTxHex]?.fee} - serviceFee: ${vault.serviceFee}`
-                  )}
+                <View className="bg-gray-100 p-4 rounded-lg mb-4 shadow gap-2">
+                  <View className="flex-row justify-between">
+                    <Text className="font-bold">
+                      {t('createVault.vaultedAmount')}
+                    </Text>
+                    <Text>{formatSats(vault.vaultedAmount)}</Text>
+                  </View>
+                  <View className="flex-row justify-between">
+                    <Text className="font-bold">
+                      {t('createVault.timeLock')}
+                    </Text>
+                    <Text>{formatBlocks(vault.lockBlocks, t)}</Text>
+                  </View>
+                  <View className="flex-row justify-between">
+                    <Text className="font-bold">
+                      {t('createVault.miningFee')}
+                    </Text>
+                    <Text>{formatSats(vaultTxInfo.fee)}</Text>
+                  </View>
+                  <View className="flex-row justify-between">
+                    <Text className="font-bold">
+                      {t('createVault.serviceFee')}
+                    </Text>
+                    <Text>{formatSats(vault.serviceFee)}</Text>
+                  </View>
+                </View>
+                <Text className="mb-8">
+                  {t('createVault.encryptionBackupExplain')}
                 </Text>
+
                 <View className="items-center gap-6 flex-row justify-center">
                   <Button onPress={goBack}>{t('cancelButton')}</Button>
-                  <Button onPress={confirm}>{t('confirmButton')}</Button>
+                  <Button onPress={confirm}>{t('submitButton')}</Button>
                 </View>
               </>
             ) : (

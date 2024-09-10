@@ -331,7 +331,7 @@ Usage Instructions:
       triggerConfirmedPanic:
         'This transaction started the unfreeze countdown, but it was interrupted because the funds were rescued.',
       triggerWaiting:
-        'This transaction started the unfreeze countdown, which is still in progress. The funds, {{amount}} after fees, are still frozen.',
+        'This transaction started the unfreeze countdown, which is still in progress. The funds, {{amount}} after this transaction fees, are still frozen.',
       triggerHotWallet:
         'This transaction started the unfreeze countdown. The countdown completed, and the funds, after fees, became part of your hot wallet.',
       rescued: 'Rescued amount after fees: {{amount}}.',
@@ -440,15 +440,21 @@ This minimum amount is calculated based on the assumption that you may need rapi
     vaultAllFundsShortBadge: 'All Funds'
   },
   createVault: {
-    intro: `We're now generating tailored transactions to minimize future fees.\
- It may take around 30 secs, slightly longer on older devices.
+    intro: `We're setting up your vault, generating multiple combinations to minimize future unfreezing fees.
+
+This may take around 30 seconds, longer on older devices.
 
 Next, you'll get to confirm everything.`,
-    confirmBackupSendVault: `Your vault has been prepared but not yet sent to the blockchain.
+    miningFee: 'Mining Fee:',
+    serviceFee: 'Vaulting Fee:',
+    timeLock: 'Time-Lock:',
+    vaultedAmount: 'Amount to Freeze:',
+    confirmBackupSendVault: `Your vault is ready for submission. Please review the following values before proceeding:`,
+    encryptionBackupExplain: `We will also encrypt and back up the vault settings on Rewind's P2P network for added security.
 
-Before broadcasting it, we'll perform a secure P2P community backup. This ensures your vault configuration is securely encrypted and safely stored across multiple peers within the Rewind community.
+If you lose this device, you can recover the vault using just your Recovery Phrase.
 
-Please confirm to complete the backup and broadcast your vault to the blockchain.`,
+Select 'Submit' to activate your vault.`,
     //Each peer helps store these backups, but the vault details remain fully encrypted, so no one can access them. Only you can with your Recovery Phrase.
     //Anyone can easily run a peer to support the network. Learn more at rewindbitcoin.com.
     // The backup will be stored on one peer and retrieved from another to verify its integrity.
@@ -585,6 +591,7 @@ You can either use the 'Create' wizard to generate a new Emergency Address or us
   verifyButton: 'Verify',
   skipButton: 'Skip',
   confirmButton: 'Confirm',
+  submitButton: 'Submit',
   saveButton: 'Save',
   cancelButton: 'Cancel',
   closeButton: 'Close',
