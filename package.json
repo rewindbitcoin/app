@@ -1,5 +1,5 @@
 {
-  "name": "Rewind Bitcoin",
+  "name": "@rewindbitcoin/app",
   "version": "0.1.0",
   "main": "node_modules/expo/AppEntry.js",
   "prettier": "@bitcoinerlab/configs/prettierConfig.json",
