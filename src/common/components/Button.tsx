@@ -65,7 +65,7 @@ const Button: React.FC<ButtonProps> = ({
       <RN.Pressable
         key={String(disabled)}
         hitSlop={10}
-        className={`flex-row min-w-20 justify-center items-center ${disabled ? 'pointer-events-none opacity-50' : 'hover:opacity-90 active:opacity-90 active:scale-95'} ${containerClassName}`}
+        className={`flex-row min-w-20 items-center ${disabled ? 'pointer-events-none opacity-50' : 'hover:opacity-90 active:opacity-90 active:scale-95'} ${containerClassName}`}
         {...props}
       >
         {iconLeft && (
@@ -77,7 +77,7 @@ const Button: React.FC<ButtonProps> = ({
         )}
         {typeof children === 'string' ? (
           <RN.Text
-            className={`text-center text-primary native:text-base web:text-sm web:sm:text-base select-none ${textClassName}`}
+            className={`text text-center text-primary native:text-base web:text-sm web:sm:text-base select-none ${textClassName}`}
           >
             {children}
           </RN.Text>

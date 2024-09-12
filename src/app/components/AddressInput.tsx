@@ -1,7 +1,7 @@
 import { BarcodeType, CameraView, useCameraPermissions } from 'expo-camera';
 import { Camera } from 'expo-camera/legacy';
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
-import { View, AppState, Platform } from 'react-native';
+import { View, AppState, Platform, Dimensions } from 'react-native';
 import { batchedUpdates } from '~/common/lib/batchedUpdates';
 import {
   TextInput,
@@ -169,6 +169,8 @@ function AddressInput({
       });
   }, [camFacing, onBarcodeScanned, onBarCodeScanned]);
 
+  const isNarrow = Dimensions.get('window').width <= 320;
+
   return (
     <View>
       <View className="pb-2 flex-row items-center">
@@ -179,7 +181,7 @@ function AddressInput({
         </Text>
         {type === 'emergency' && <InfoButton onPress={showColdAddressHelp} />}
       </View>
-      <View className="py-1 px-2 pl-4 bg-white rounded-md">
+      <View className="py-1 pr-2 p-2 mobmed:pl-4 bg-white rounded-md">
         <View className="flex-row items-center">
           <TextInput
             enablesReturnKeyAutomatically
@@ -196,25 +198,27 @@ function AddressInput({
             maxLength={100}
             onChangeText={onAddress}
             value={address}
-            className={`native:text-base web:text-xs web:mobmed:text-sm web:sm:text-base flex-1 overflow-hidden web:outline-none border-none p-2 pl-0 border-md ${address === '' && robotoLoaded ? ' tracking-tightest mobmed:tracking-tighter moblg:tracking-normal' : 'tracking-normal'} ${robotoLoaded ? "font-['RobotoMono400Regular']" : ''}`}
+            className={`native:text-base web:text-xs web:mobmed:text-sm web:sm:text-base flex-1 overflow-hidden web:outline-none border-none p-2 pl-0 border-md ${address === '' && robotoLoaded ? 'tracking-tightest mobmed:-tracking-widest moblg:tracking-tighter' : 'tracking-normal'} ${robotoLoaded ? "font-['RobotoMono400Regular']" : ''}`}
           />
-          {camAvailable && (
+          {type === 'emergency' && (
             <View className="py-1">
               <IconButton
-                text={t('addressInput.scan')}
-                onPress={handleScanQR}
-                iconFamily="MaterialCommunityIcons"
-                iconName="qrcode-scan"
-              />
-            </View>
-          )}
-          {type === 'emergency' && (
-            <View className={`py-1 ${camAvailable ? 'pl-3' : ''}`}>
-              <IconButton
+                size={isNarrow ? 12 : 13}
                 text={t('addressInput.createNewButton')}
                 onPress={handleNewAddress}
                 iconFamily="MaterialCommunityIcons"
                 iconName="wallet-plus-outline"
+              />
+            </View>
+          )}
+          {camAvailable && (
+            <View className={`py-1 ${type === 'emergency' ? 'pl-4' : ''}`}>
+              <IconButton
+                size={isNarrow ? 12 : 13}
+                text={t('addressInput.scan')}
+                onPress={handleScanQR}
+                iconFamily="MaterialCommunityIcons"
+                iconName="qrcode-scan"
               />
             </View>
           )}

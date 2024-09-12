@@ -110,7 +110,10 @@ const checkExplorerReachability = async (explorer: Explorer) => {
 
   while (attempts > 0) {
     try {
+      console.log('TRACE checkExplorerReachability isConnected');
       const connected = await explorer.isConnected();
+      console.log('TRACE checkExplorerReachability isConnected DONE');
+
       if (connected) return true;
       else await explorer.connect();
       if (attempts !== EXPLORER_ATTEMPTS) await sleep(200);

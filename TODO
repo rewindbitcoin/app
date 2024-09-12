@@ -1,3 +1,9 @@
+The Test Wallet  warning on top show inside a shadow View and allow dismiss
+Show the warning triangle as in Gmail for the storage low
+
+Also include a button for dismissing I have secured my wallet seed (and don't prompt it on start)
+  -> Then change the Skip to "Later"
+
 TODO: Si dejo la wallet varias horas en el simulador sin tocar, luego no 
 hace sync y da netReady = undefined.
   Ahora lo tengo en:

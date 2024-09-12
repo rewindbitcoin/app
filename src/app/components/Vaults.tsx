@@ -33,6 +33,7 @@ import InitUnfreeze, { InitUnfreezeData } from './InitUnfreeze';
 import Rescue, { RescueData } from './Rescue';
 import Delegate from './Delegate';
 import { toastifyErrorAsync } from '../lib/status';
+import LearnMoreAboutVaults from './LearnMoreAboutVaults';
 
 const LOADING_TEXT = '     ';
 
@@ -458,13 +459,13 @@ const RawVault = ({
           />
         )}
         {isUnfreezeOngoing && (
-          <View className="flex-row items-center">
+          <View className="flex-row items-center mt-2">
             <MaterialCommunityIcons
               name="lock-clock"
-              size={12}
-              className="text-slate-700 pr-1"
+              size={14}
+              className="text-slate-900 pr-1"
             />
-            <Text className="native:text-sm web:text-xs uppercase text-slate-700">
+            <Text className="native:text-sm web:text-xs uppercase text-slate-900">
               {t('wallet.vault.timeRemaining', {
                 timeRemaining: formatBlocks(remainingBlocks, t, true)
               })}
@@ -472,13 +473,13 @@ const RawVault = ({
           </View>
         )}
         {remainingBlocks === 'TRIGGER_NOT_PUSHED' && (
-          <View className="flex-row items-center">
+          <View className="flex-row items-center mt-2.5">
             <MaterialCommunityIcons
               name="lock-clock"
-              size={12}
-              className="text-slate-700 pr-1"
+              size={16}
+              className="text-slate-900 pr-1"
             />
-            <Text className="native:text-sm web:text-xs uppercase text-slate-700">
+            <Text className="native:text-sm web:text-xs uppercase text-slate-900">
               {t('wallet.vault.untriggeredLockTime', {
                 timeRemaining: formatBlocks(vault.lockBlocks, t, true)
               })}
@@ -488,7 +489,6 @@ const RawVault = ({
         <View
           className={`gap-2 ${remainingBlocks !== 'VAULT_NOT_FOUND' ? 'pt-4' : ''}`}
         >
-          {/*this part should be only about the trigger*/}
           {isInitUnfreezeNotConfirmed && (
             <VaultText
               icon={{
@@ -576,10 +576,12 @@ const RawVault = ({
                 family: 'MaterialCommunityIcons'
               }}
             >
-              {t('wallet.vault.rescueNotConfirmed', {
-                rescuePushDate,
-                panicAddress
-              })}
+              {rescuePushDate
+                ? t('wallet.vault.rescueNotConfirmed', {
+                    rescuePushDate,
+                    panicAddress
+                  })
+                : t('wallet.vault.rescueNotConfirmedUnknownPush')}
             </VaultText>
           )}
           {remainingBlocks === 'VAULT_NOT_FOUND' && (
@@ -614,20 +616,21 @@ const RawVault = ({
             </Text>
           )}
           {isRescued && (
+            // native:text-sm web:text-xs web:sm:text-sm
             <>
-              <Text className="pt-2">
+              <Text className="py-2">
                 {isRescuedConfirmed
                   ? t('wallet.vault.confirmedRescueAddress')
                   : t('wallet.vault.rescueNotConfirmedAddress')}
               </Text>
+              {/*text-ellipsis, whitespace-nowrap & break-words is web only; overflow-hidden on a Text element breaks words*/}
               <Button
                 iconRight={{
                   family: 'FontAwesome5',
                   name: 'external-link-alt'
                 }}
                 mode="text"
-                containerClassName="self-start pt-2 w-full"
-                textClassName="overflow-hidden text-ellipsis break-words whitespace-nowrap"
+                textClassName="overflow-hidden"
                 onPress={() =>
                   Linking.openURL(`${blockExplorerURL}/${panicAddress}`)
                 }
@@ -776,6 +779,7 @@ const Vaults = ({
       (a, b) => b.creationTime - a.creationTime
     );
   }, [vaults]);
+  const { t } = useTranslation();
 
   return (
     <View className="gap-y-4">
@@ -799,7 +803,37 @@ const Vaults = ({
           );
         })
       ) : (
-        <Text>TODO: no vaults yet, create one...</Text>
+        //https://www.ui8.net/supercharged/products/12-empty-states-icons
+        /*
+          <Svg
+            fill="none"
+            viewBox="0 0 24 24"
+            strokeWidth="1"
+            stroke="currentColor"
+            className="size-16 text-primary opacity-60"
+          >
+            <Path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M3.75 9.776c.112-.017.227-.026.344-.026h15.812c.117 0 .232.009.344.026m-16.5 0a2.25 2.25 0 0 0-1.883 2.542l.857 6a2.25 2.25 0 0 0 2.227 1.932H19.05a2.25 2.25 0 0 0 2.227-1.932l.857-6a2.25 2.25 0 0 0-1.883-2.542m-16.5 0V6A2.25 2.25 0 0 1 6 3.75h3.879a1.5 1.5 0 0 1 1.06.44l2.122 2.12a1.5 1.5 0 0 0 1.06.44H18A2.25 2.25 0 0 1 20.25 9v.776"
+            />
+          </Svg>
+            */
+        <View className="flex-col items-center self-center my-4 max-w-80">
+          <MaterialCommunityIcons
+            name="snowflake-off"
+            size={4 * 16}
+            className="text-primary opacity-50"
+          />
+
+          <Text className="font-bold text-slate-600 mt-4 text-center text-lg">
+            {t('wallet.vault.noFundsTile')}
+          </Text>
+          <Text className="text-slate-500 mt-2 text-center">
+            {t('wallet.vault.noFundsBody')}
+          </Text>
+          <LearnMoreAboutVaults />
+        </View>
       )}
     </View>
   );

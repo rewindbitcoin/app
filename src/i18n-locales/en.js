@@ -1,5 +1,8 @@
 //Treat this as a golrified json with comments & multi-line using string literals
 //TODO: Emergency Addres <-> Rewind Address?
+
+import LearnMoreAboutVaults from '~/app/components/LearnMoreAboutVaults';
+
 //TODO: recovery phrase or Recovery Phrase - be consistent
 export default {
   app: {
@@ -153,7 +156,8 @@ If you need further assistance, please contact Rewind Support.`
 Initiating unfreeze starts a {{lockTime}} countdown before funds are available.`,
       notTriggered:
         'Funds are safely frozen. Initiating unfreeze starts a {{lockTime}} countdown before funds are available.',
-      rescueNotConfirmed: `Rescue requested on {{rescuePushDate}}.`,
+      rescueNotConfirmed: `Rescue requested on {{rescuePushDate}}. Confirming...`,
+      rescueNotConfirmedUnknownPush: `Vault Rescue recently submitted. Confirming...`,
       confirmedRescue: `Rescued on {{rescuedDate}}.`,
       rescueNotConfirmedAddress:
         'Rescue successfully requested. Funds are being moved to your safe address right now:',
@@ -244,7 +248,10 @@ Once the rescue is initiated, the funds will be sent to the Emergency Address, a
 
 Once the countdown ends, your funds will be unlocked and accessible.`
         }
-      }
+      },
+      noFundsTile: 'No Funds Frozen Yet',
+      noFundsBody:
+        'Keep your savings secure by freezing the funds not needed daily in Vaults.'
     }
   },
   walletHome: {
@@ -331,7 +338,7 @@ Usage Instructions:
       triggerConfirmedPanic:
         'This transaction started the unfreeze countdown, but it was interrupted because the funds were rescued.',
       triggerWaiting:
-        'This transaction started the unfreeze countdown, which is still in progress. The funds, {{amount}} after this transaction fees, are still frozen.',
+        'This transaction started the unfreeze countdown, which is still in progress. The funds, {{amount}} after this transaction fee, are still frozen.',
       triggerHotWallet:
         'This transaction started the unfreeze countdown. The countdown completed, and the funds, after fees, became part of your hot wallet.',
       rescued: 'Rescued amount after fees: {{amount}}.',
@@ -388,23 +395,33 @@ The currently recommended option is the Tape Network, Rewind's own test network.
 
 While the app is in early development, we advise against using real Bitcoin for any significant transactions.`
   },
+  learnMoreAboutVaults: {
+    link: 'Learn More About Vaults',
+    title: 'Learn About Vaults',
+    //    body_old_delete: `Wallet funds are secured by a Recovery Phrase, which acts as a password. If someone gains access to your phrase through extortion, theft, or misuse, they can access your funds. Rewind offers a solution by allowing you to freeze funds into Vaults.
+    //
+    //In Vaults, your funds are frozen for a few days, preventing both attackers and even yourself from making transactions. This time-lock gives you a window to rescue your Bitcoin if compromised. You can also delegate this task to a trusted person.
+    //
+    //Here's how it works: during the time-lock, while regular transactions are blocked, you can still move your funds instantly to a special Bitcoin Emergency Address. This address is secured by an Emergency Recovery Phrase, distinct from the regular phrase, and should be stored in a separate, ultra-secure location out of daily reach.
+    //
+    //You'll find help icons next to each input field during the Vault Set Up with specific explanations.`,
+    body: `Your wallet is secured with a Recovery Phrase, similar to a password. If someone else gains access to this phrase through extortion, theft, or misuse, they can access your funds. To prevent this, Rewind lets you freeze your money in Vaults.
+
+When you freeze money, it remains locked until you choose to unfreeze it. Unfreezing doesn’t provide immediate access; instead, it initiates a countdown, giving you time to act if necessary.
+
+Suppose an attacker gains access and tries to unfreeze your funds to steal them. During the countdown, you can cancel this unauthorized attempt by immediately moving the funds to an Emergency Address. Rewind offers a wizard to help you set up and secure this rescue address.
+
+Also, you can delegate the rescue task to a trusted person in case you face extortion, duress or become incapacitated.
+
+Help icons and tips are available during Vault setup to guide you through the process.`
+  },
   vaultSetup: {
     title: 'Vault Set Up',
     subTitle: 'Secure Your Bitcoin',
     fillInAll: 'Please fill in all the fields above to continue.',
     coldAddressMissing: 'Please fill in the Emergency Address to continue.',
-    intro:
-      'Customize your Vault. Select the amount to secure and your preferred protection timelock.',
+    intro: 'Set the amount and protection time-lock.',
     notEnoughFundsTitle: 'Vault Minimum Requirement',
-    introMoreHelp: 'Learn More About Vaults',
-    helpTitle: 'Learn About Vaults',
-    helpText: `Wallet funds are secured by a Recovery Phrase, which acts as a password. If someone gains access to your phrase through extortion, theft, or misuse, they can access your funds. Rewind offers a solution by allowing you to freeze funds into Vaults.
-
-In Vaults, your funds are frozen for a few days, preventing both attackers and even yourself from making transactions. This time-lock gives you a window to rescue your Bitcoin if compromised. You can also delegate this task to a trusted person.
-
-Here's how it works: during the time-lock, while regular transactions are blocked, you can still move your funds instantly to a special Bitcoin Emergency Address. This address is secured by an Emergency Recovery Phrase, distinct from the regular phrase, and should be stored in a separate, ultra-secure location out of daily reach.
-
-You'll find help icons next to each input field during the Vault Set Up with specific explanations.`,
 
     //    notEnoughFunds: `<strong>Minimum Vault Amount Notice</strong>
     //
@@ -426,7 +443,7 @@ This minimum amount is calculated based on the assumption that you may need rapi
 <strong>Suggested Action:</strong> Please add {{missingFunds}} to reach the minimum amount required for vaulting.`,
     amountLabel: 'Amount to Freeze',
     securityLockTimeLabel: 'Theft-Protection Time-Lock',
-    securityLockTimeDescription: 'Available {{blocks}} after unfreeze',
+    securityLockTimeDescription: 'Unlocked {{blocks}} after unfreeze',
     confirmationSpeedLabel: 'Vault Confirmation Speed',
     lockTimeError: 'Pick a valid Lock Time.',
     feeRateError: 'Pick a valid Fee Rate.',
@@ -442,7 +459,7 @@ This minimum amount is calculated based on the assumption that you may need rapi
   createVault: {
     intro: `We're setting up your vault, generating multiple combinations to minimize future unfreezing fees.
 
-This may take around 30 seconds, longer on older devices.
+This may take around 30 seconds, slightly longer on older devices.
 
 Next, you'll get to confirm everything.`,
     miningFee: 'Mining Fee:',
@@ -538,9 +555,9 @@ Now, as the final step, we're sending your vault to the blockchain to activate i
       helpTitle: 'Time-Lock Protection',
       helpText: `Imagine a scenario where someone gains unauthorized access to your wallet and tries to move your funds. The Theft-Protection Time-Lock is designed to protect you in such situations.
 
-When you set a time-lock, you specify a period during which your funds are completely locked and cannot be moved by anyone. This lock gives you (or anyone you delegate) the necessary time to react to unauthorized access by moving the funds to a secure Emergency Address.
+When you create a Vault, your funds stay locked and cannot be moved by anyone. Not even you. If you initiate the unfreeze process, a Time-Lock countdown begins. During the countdown, your funds remain locked, with one exception: you can immediately transfer them to a secure Emergency Address if needed.
 
-For example, if you set the time-lock to 7 days, your funds will be locked for that period, meaning they cannot be moved to any regular address. However, during this time, you can still secure your funds by transferring them to an Emergency Address. If everything is normal and there's no threat, your funds will become fully accessible again after the 7-day period, allowing normal transactions.`
+For example, if you set a time-lock of 7 days, your funds will remain locked for that period after the unfreeze process starts. However, if you are under attack and the unfreeze is unauthorized, you can secure your funds by transferring them to an Emergency Address. If everything is normal and there's no threat, your funds will become fully accessible once the countdown ends, enabling regular transactions afterward.`
     }
   },
   addressInput: {
@@ -569,7 +586,7 @@ This address will be your ultimate safety net.`,
 
 Store this Emergency Recovery Phrase in an extremely safe location that is not easily accessible, even for you. This is to ensure that, in case of extortion, you cannot be forced to reveal it to attackers. Examples include a safebox deposit abroad, buried in a secret remote location, or held by a trusted third-party custodian.
 
-You can either use the 'Create' wizard to generate a new Emergency Address or use an existing address you already own.`
+You can either use the 'Create' wizard to generate a new Emergency Address or use an existing secure address you already own.`
     },
     recipientAddress: {
       label: 'Recipient Address',
@@ -595,7 +612,7 @@ You can either use the 'Create' wizard to generate a new Emergency Address or us
   saveButton: 'Save',
   cancelButton: 'Cancel',
   closeButton: 'Close',
-  understoodButton: 'Undestood',
+  understoodButton: 'Understood',
   factoryResetButton: 'Factory Reset',
   learnMore: 'Learn More.'
 };

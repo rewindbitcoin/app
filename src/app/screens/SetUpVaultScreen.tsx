@@ -2,6 +2,7 @@ import AddressInput from '../components/AddressInput';
 import AmountInput from '../components/AmountInput';
 import BlocksInput from '../components/BlocksInput';
 import FeeInput from '../components/FeeInput';
+import LearnMoreAboutVaults from '../components/LearnMoreAboutVaults';
 import { Trans, useTranslation } from 'react-i18next';
 import React, { useCallback, useState, useMemo } from 'react';
 import { useNavigation } from '@react-navigation/native';
@@ -11,8 +12,7 @@ import {
   Button,
   KeyboardAwareScrollView,
   useTheme,
-  Theme,
-  Modal
+  Theme
 } from '../../common/ui';
 import { EdgeInsets, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { selectVaultUtxosData, type VaultSettings } from '../lib/vaults';
@@ -40,9 +40,6 @@ export default function VaultSetUp({
   const theme = useTheme();
   const navigation = useNavigation();
   const styles = useMemo(() => getStyles(insets, theme), [insets, theme]);
-  const [vaultsHelp, setVaultsHelp] = useState<boolean>(false);
-  const showVaultsHelp = useCallback(() => setVaultsHelp(true), []);
-  const hideVaultsHelp = useCallback(() => setVaultsHelp(false), []);
 
   const { utxosData, networkId, feeEstimates, btcFiat, accounts } = useWallet();
   if (!utxosData)
@@ -233,9 +230,7 @@ export default function VaultSetUp({
             <>
               <Text>{t('vaultSetup.intro')}</Text>
               <View className="self-start" style={styles.introMoreHelpButton}>
-                <Button mode="text" onPress={showVaultsHelp}>
-                  {t('vaultSetup.introMoreHelp')}
-                </Button>
+                <LearnMoreAboutVaults />
               </View>
             </>
           ) : (
@@ -320,17 +315,6 @@ export default function VaultSetUp({
           </Text>
         )}
       </View>
-      <Modal
-        title={t('vaultSetup.helpTitle')}
-        icon={{ family: 'FontAwesome6', name: 'shield-halved' }}
-        isVisible={vaultsHelp}
-        onClose={hideVaultsHelp}
-        closeButtonText={t('understoodButton')}
-      >
-        <Text className="pl-2 pr-2 text-slate-600">
-          {t('vaultSetup.helpText')}
-        </Text>
-      </Modal>
     </KeyboardAwareScrollView>
   );
 }

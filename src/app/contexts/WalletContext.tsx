@@ -854,7 +854,7 @@ const WalletProviderRaw = ({
             vaultsAPI,
             vaults
           });
-          console.log('TRACE sync proceeding', { p2pVaults });
+          console.log('TRACE sync proceeding p2pVaults');
           let updatedVaults = vaults; //initially they are the same
           p2pVaults &&
             Object.entries(p2pVaults).forEach(([key, p2pVault]) => {
