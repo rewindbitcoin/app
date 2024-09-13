@@ -59,7 +59,7 @@ const ToastProvider: React.FC<{ children: React.ReactNode }> = ({
 
   return (
     <ToastProviderOriginal
-      duration={8000}
+      duration={6000}
       placement={defaultPlacement}
       offsetBottom={30}
       renderType={{ help: helpRenderer }}
