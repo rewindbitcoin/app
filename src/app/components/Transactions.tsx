@@ -6,7 +6,7 @@ import { TFunction } from 'i18next';
 import { BlockStatus } from '@bitcoinerlab/explorer';
 import { useSettings } from '../hooks/useSettings';
 import { useTranslation } from 'react-i18next';
-import { Svg } from 'react-native-svg';
+import { Path, Svg } from 'react-native-svg';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import Entypo from '@expo/vector-icons/Entypo';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
@@ -370,62 +370,80 @@ const Transactions = ({
       : settings.SUB_UNIT;
   const locale = settings.LOCALE;
   const { t } = useTranslation();
-  return (
+  return historyData && historyData.length ? (
     <View className="rounded-3xl bg-white gap-y-2">
-      {historyData && historyData.length ? (
-        [...historyData].reverse().map((item, index) => {
-          // Compute vaultOutValue and triggerOutValue, that is, if this tx
-          // is associated to a vaultId, then for this vaultId, compute which
-          // was the output value when vaulting and the output value when
-          // triggering the unvault
-          let vaultOutValue; //if known
-          //let triggerOutValue; //if known
-          const vaultHistoryDataItem = historyData.find(
-            vaultHistoryDataItem =>
-              'vaultTxType' in vaultHistoryDataItem &&
-              vaultHistoryDataItem.vaultTxType === 'VAULT' &&
-              'vaultId' in vaultHistoryDataItem &&
-              'vaultId' in item &&
-              vaultHistoryDataItem.vaultId === item.vaultId
-          );
-          if (vaultHistoryDataItem && 'outValue' in vaultHistoryDataItem)
-            vaultOutValue = vaultHistoryDataItem.outValue;
-          //const triggerHistoryDataItem = historyData.find(
-          //  triggerHistoryDataItem =>
-          //    'vaultTxType' in triggerHistoryDataItem &&
-          //    (triggerHistoryDataItem.vaultTxType === 'TRIGGER_EXTERNAL' ||
-          //      triggerHistoryDataItem.vaultTxType === 'TRIGGER_HOT_WALLET') &&
-          //    'vaultId' in triggerHistoryDataItem &&
-          //    'vaultId' in item &&
-          //    triggerHistoryDataItem.vaultId === item.vaultId
-          //);
-          //if (triggerHistoryDataItem && 'outValue' in triggerHistoryDataItem)
-          //  triggerOutValue = triggerHistoryDataItem.outValue;
+      {[...historyData].reverse().map((item, index) => {
+        // Compute vaultOutValue and triggerOutValue, that is, if this tx
+        // is associated to a vaultId, then for this vaultId, compute which
+        // was the output value when vaulting and the output value when
+        // triggering the unvault
+        let vaultOutValue; //if known
+        //let triggerOutValue; //if known
+        const vaultHistoryDataItem = historyData.find(
+          vaultHistoryDataItem =>
+            'vaultTxType' in vaultHistoryDataItem &&
+            vaultHistoryDataItem.vaultTxType === 'VAULT' &&
+            'vaultId' in vaultHistoryDataItem &&
+            'vaultId' in item &&
+            vaultHistoryDataItem.vaultId === item.vaultId
+        );
+        if (vaultHistoryDataItem && 'outValue' in vaultHistoryDataItem)
+          vaultOutValue = vaultHistoryDataItem.outValue;
+        //const triggerHistoryDataItem = historyData.find(
+        //  triggerHistoryDataItem =>
+        //    'vaultTxType' in triggerHistoryDataItem &&
+        //    (triggerHistoryDataItem.vaultTxType === 'TRIGGER_EXTERNAL' ||
+        //      triggerHistoryDataItem.vaultTxType === 'TRIGGER_HOT_WALLET') &&
+        //    'vaultId' in triggerHistoryDataItem &&
+        //    'vaultId' in item &&
+        //    triggerHistoryDataItem.vaultId === item.vaultId
+        //);
+        //if (triggerHistoryDataItem && 'outValue' in triggerHistoryDataItem)
+        //  triggerOutValue = triggerHistoryDataItem.outValue;
 
-          //      triggerOutValue={triggerOutValue}
-          return (
-            <React.Fragment key={item.txId}>
-              <Transaction
-                tipStatus={tipStatus}
-                locale={locale}
-                t={t}
-                item={item}
-                mode={mode}
-                btcFiat={btcFiat}
-                vaultOutValue={vaultOutValue}
-                currency={settings.CURRENCY}
-                fetchBlockTime={fetchBlockTime}
-                blockExplorerURL={blockExplorerURL}
-              />
-              {index < historyData.length - 1 && (
-                <View className="h-px bg-slate-300" />
-              )}
-            </React.Fragment>
-          );
-        })
-      ) : (
-        <Text>TODO: retrieving txs... or no txs yet...</Text>
-      )}
+        //      triggerOutValue={triggerOutValue}
+        return (
+          <React.Fragment key={item.txId}>
+            <Transaction
+              tipStatus={tipStatus}
+              locale={locale}
+              t={t}
+              item={item}
+              mode={mode}
+              btcFiat={btcFiat}
+              vaultOutValue={vaultOutValue}
+              currency={settings.CURRENCY}
+              fetchBlockTime={fetchBlockTime}
+              blockExplorerURL={blockExplorerURL}
+            />
+            {index < historyData.length - 1 && (
+              <View className="h-px bg-slate-300" />
+            )}
+          </React.Fragment>
+        );
+      })}
+    </View>
+  ) : (
+    <View className="flex-col items-center self-center my-4 max-w-80">
+      <Svg
+        fill="none"
+        viewBox="0 0 24 24"
+        strokeWidth="1.5"
+        stroke="currentColor"
+        className="size-20 text-primary opacity-60"
+      >
+        <Path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          d="M3.75 9.776c.112-.017.227-.026.344-.026h15.812c.117 0 .232.009.344.026m-16.5 0a2.25 2.25 0 0 0-1.883 2.542l.857 6a2.25 2.25 0 0 0 2.227 1.932H19.05a2.25 2.25 0 0 0 2.227-1.932l.857-6a2.25 2.25 0 0 0-1.883-2.542m-16.5 0V6A2.25 2.25 0 0 1 6 3.75h3.879a1.5 1.5 0 0 1 1.06.44l2.122 2.12a1.5 1.5 0 0 0 1.06.44H18A2.25 2.25 0 0 1 20.25 9v.776"
+        />
+      </Svg>
+      <Text className="font-bold text-slate-600 mt-4 text-center text-lg">
+        {t('transaction.noTransactionsTitle')}
+      </Text>
+      <Text className="text-slate-500 mt-2 text-center">
+        {t('transaction.noTransactionsBody')}
+      </Text>
     </View>
   );
 };

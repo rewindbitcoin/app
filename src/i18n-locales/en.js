@@ -138,7 +138,7 @@ If you need further assistance, please contact Rewind Support.`
       pushedTriggerNotConfirmed: 'Unfreeze requested on {{triggerPushDate}}.',
       //confirmedTrigger: 'Unfreeze countdown began on {{triggerConfirmedDate}}.',
       confirmedTrigger:
-        'The {{lockTime}} countdown began on {{triggerConfirmedDate}}.',
+        '{{lockTime}} countdown started on {{triggerConfirmedDate}}.',
       //triggerWithEstimatedDate:
       //  'The estimated unfreeze date is {{estimatedUnfreezeDate}}.',
       triggerWithEstimatedDate:
@@ -261,8 +261,8 @@ Once the countdown ends, your funds will be unlocked and accessible.`
     faucetErrorMsg:
       "Oops! There was a glitch sending your coins. Tap 'Receive' to try getting your test coins again.",
     header: {
-      checkNetwork: 'Check again.',
-      checkingNetwork: 'Checking...',
+      checkNetwork: 'Check again',
+      checkingNetwork: 'Checking',
       hotSubTitle: 'Hot Balance: Ready for immediate use',
       frozenSubTitle: 'Frozen Balance: Safeguarded in vaults',
       testWalletWarning:
@@ -305,6 +305,8 @@ Usage Instructions:
      the identification and cancellation process`
   },
   transaction: {
+    noTransactionsTitle: 'No Transactions Yet',
+    noTransactionsBody: `Your transactions will show up here once you start making moves.`,
     pushedMinsAgo_zero: 'Confirming... Submitted less than a minute ago',
     pushedMinsAgo_one: 'Confirming... Submitted {{count}} minute ago',
     pushedMinsAgo_other: 'Confirming... Submitted {{count}} minutes ago',
@@ -420,7 +422,8 @@ Help icons and tips are available during Vault setup to guide you through the pr
     subTitle: 'Secure Your Bitcoin',
     fillInAll: 'Please fill in all the fields above to continue.',
     coldAddressMissing: 'Please fill in the Emergency Address to continue.',
-    intro: 'Set the amount and protection time-lock.',
+    //intro: 'Set the amount to secure and protection time-lock.',
+    intro: 'Secure funds not needed daily by freezing them.',
     notEnoughFundsTitle: 'Vault Minimum Requirement',
 
     //    notEnoughFunds: `<strong>Minimum Vault Amount Notice</strong>
@@ -582,7 +585,7 @@ This address will be your ultimate safety net.`,
       newColdAddressSuccessfullyCreated:
         'Your new Emergency Address has been successfully created.',
       helpTitle: 'Emergency Address',
-      helpText: `Rewind gives you a few days to undo any theft attempt after an attack has occurred. During this time-lock, while your funds are frozen, you have the option to move the funds to an Emergency Bitcoin Address. This address should be protected by a Recovery Phrase that is different from your regular one.
+      helpText: `Rewind gives you a few days to undo any theft attempt after an attack has occurred. During this time-lock, while your funds are frozen, you have the option to move the funds to an Emergency Bitcoin Address. This address is protected by a Recovery Phrase that is different from your regular one.
 
 Store this Emergency Recovery Phrase in an extremely safe location that is not easily accessible, even for you. This is to ensure that, in case of extortion, you cannot be forced to reveal it to attackers. Examples include a safebox deposit abroad, buried in a secret remote location, or held by a trusted third-party custodian.
 
@@ -604,6 +607,7 @@ You can either use the 'Create' wizard to generate a new Emergency Address or us
   continueButton: 'Continue',
   imInDangerButton: "I'm in danger",
   okButton: 'OK',
+  dismissButton: 'Dismiss',
   goBack: 'Go Back',
   verifyButton: 'Verify',
   skipButton: 'Skip',
