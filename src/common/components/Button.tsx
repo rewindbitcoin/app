@@ -26,6 +26,9 @@ interface ButtonProps extends RN.PressableProps {
   /**
    * note: this is experimental and does not work very well when trying to
    * override classes already set
+   * https://www.nativewind.dev/v4/core-concepts/style-specificity
+   * details:
+   * https://github.com/nativewind/nativewind/issues/665#issuecomment-1823664308
    */
   containerClassName?: string;
   textClassName?: string;

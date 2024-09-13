@@ -228,10 +228,8 @@ export default function VaultSetUp({
         <View style={styles.intro}>
           {isValidVaultRange ? (
             <>
-              <Text>{t('vaultSetup.intro')}</Text>
-              <View className="self-start" style={styles.introMoreHelpButton}>
-                <LearnMoreAboutVaults />
-              </View>
+              <Text className="mb-1">{t('vaultSetup.intro')}</Text>
+              <LearnMoreAboutVaults />
             </>
           ) : (
             <Text>
@@ -336,7 +334,6 @@ const getStyles = (insets: EdgeInsets, theme: Theme) =>
     intro: {
       marginBottom: 2 * theme.screenMargin
     },
-    introMoreHelpButton: { marginTop: theme.screenMargin },
     missingFundsGroup: { marginBottom: theme.screenMargin },
     buttonGroup: {
       alignSelf: 'center',

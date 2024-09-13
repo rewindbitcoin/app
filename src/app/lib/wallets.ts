@@ -80,6 +80,15 @@ export type Wallet = {
   walletId: number;
   walletName?: string;
   version: string;
+  /**
+   * Show in the Wallet header a warning explaining tests wallets use fake
+   * real value. allow the user to dismiss this warning.
+   */
+  testWalletWarningDismissed?: boolean;
+  //TODO - Implement seed confirmation later (not on wallet creation - so that
+  //you can create a wallet express without requiring user to validate the
+  //mnemonic. This only applies to new walletes (not imported ones)
+  seedBackupDone?: boolean;
   networkId: NetworkId;
   /**
    * Signers are small string text which may contain the mnemonic (when using

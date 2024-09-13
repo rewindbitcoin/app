@@ -139,6 +139,8 @@ const WalletProviderRaw = ({
   children: ReactNode;
   newWalletSigners?: Signers;
 }) => {
+  //This keeps track of the current active wallet.
+  //There is a useEffect on "wallet" that updates the stored Wallets object too
   const [wallet, setWallet] = useState<Wallet>();
   const walletId = wallet?.walletId;
   // This explorer is only used for retrieving
@@ -672,7 +674,7 @@ const WalletProviderRaw = ({
         //logOut(); //Log out from previous wallet
         setWallet(prevWallet => {
           //Net status depends on the wallet (explorer, ...); so reset it ONLY when it changes
-          if (prevWallet !== walletDst) netStatusReset();
+          if (prevWallet?.walletId !== walletDst.walletId) netStatusReset();
           return walletDst;
         });
         if (walletId !== undefined) {

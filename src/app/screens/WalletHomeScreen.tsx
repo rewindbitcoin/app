@@ -249,6 +249,17 @@ const WalletHomeScreen = () => {
     setActiveTabIndex(index);
   }, []);
 
+  const dismissTestWalletWarning = useCallback(() => {
+    if (!wallet) throw new Error('Wallet not set in dismissTestWalletWarning');
+    if (!wallet.testWalletWarningDismissed)
+      onWallet({ wallet: { ...wallet, testWalletWarningDismissed: true } });
+  }, [wallet, onWallet]);
+  const setSeedBackupDone = useCallback(() => {
+    if (!wallet) throw new Error('Wallet not set in setSeedBackupDone');
+    if (!wallet.seedBackupDone)
+      onWallet({ wallet: { ...wallet, seedBackupDone: true } });
+  }, [wallet, onWallet]);
+
   return !wallet /*TODO: prepare nicer ActivityIndicator*/ ? (
     <View className="flex-1 justify-center">
       <ActivityIndicator size={'large'} color={theme.colors.primary} />
@@ -293,6 +304,10 @@ const WalletHomeScreen = () => {
             syncBlockchain={syncBlockchain}
             syncingBlockchain={syncingBlockchain}
             networkId={wallet.networkId}
+            testWalletWarningDismissed={!!wallet.testWalletWarningDismissed}
+            dismissTestWalletWarning={dismissTestWalletWarning}
+            seedBackupDone={!!wallet.seedBackupDone}
+            setSeedBackupDone={setSeedBackupDone}
             utxosData={utxosData}
             vaults={vaults}
             vaultsStatuses={vaultsStatuses}

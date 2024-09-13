@@ -12,13 +12,14 @@ import {
 import UnitsModal from './UnitsModal';
 import type { SubUnit } from '../lib/settings';
 import { useSettings } from '../hooks/useSettings';
-import { IconButton } from '../../common/ui';
+import { Button, IconButton } from '../../common/ui';
 import { formatBalance } from '../lib/format';
 import FreezeIcon from './FreezeIcon';
 import HotIcon from './HotIcon';
 import { useTranslation } from 'react-i18next';
 import type { NetworkId } from '../lib/network';
 import { useNetStatus } from '../hooks/useNetStatus';
+import { MaterialIcons } from '@expo/vector-icons';
 
 const Balance = ({
   type,
@@ -82,7 +83,11 @@ const WalletHeader = ({
   vaultsStatuses,
   blockchainTip,
   btcFiat,
-  faucetPending
+  faucetPending,
+  testWalletWarningDismissed,
+  dismissTestWalletWarning,
+  seedBackupDone,
+  setSeedBackupDone
 }: {
   networkId: NetworkId;
   utxosData: UtxosData | undefined;
@@ -93,7 +98,13 @@ const WalletHeader = ({
   blockchainTip: number | undefined;
   btcFiat: number | undefined;
   faucetPending: boolean;
+  testWalletWarningDismissed: boolean;
+  dismissTestWalletWarning: () => void;
+  seedBackupDone: boolean;
+  setSeedBackupDone: () => void;
 }) => {
+  void seedBackupDone; //TODO - Implement seed confirmation later
+  void setSeedBackupDone; //TODO - Implement seed confirmation later
   const { t } = useTranslation();
   const [showUnitsModal, setShowUnitsModal] = useState<boolean>(false);
   const { settings, setSettings } = useSettings();
@@ -165,34 +176,56 @@ const WalletHeader = ({
           onUnitPress={onUnitPress}
         />
       </View>
-      {netErrorMessage ? (
-        //only show tapeWalletPlusWarning err if the network status is fine.
-        //Otherwise the header would too cluttered
-        <View className="pt-5 p-4">
-          <Text className="items-center color-orange-600 native:text-base web:text-sm web:sm:text-base">
-            {netErrorMessage}{' '}
-            <Text
-              key={syncingBlockchain.toString()}
-              onPress={syncBlockchain}
-              className={`p-2 -m-2 text-primary ${syncingBlockchain ? 'pointer-events-none opacity-50' : 'hover:opacity-90 active:opacity-90 active:scale-95'}`}
-            >
-              {syncingBlockchain
-                ? t('walletHome.header.checkingNetwork')
-                : t('walletHome.header.checkNetwork')}
-            </Text>
-          </Text>
-        </View>
-      ) : (
-        networkId !== 'BITCOIN' && (
-          <View className="pt-5 p-4">
-            <Text className="color-slate-500 text-sm">
-              {t('walletHome.header.testWalletWarning')}
-              {networkId === 'TAPE'
-                ? ' ' + t('walletHome.header.tapeWalletPlusWarning')
-                : ''}
+      {(netErrorMessage ||
+        (networkId !== 'BITCOIN' && !testWalletWarningDismissed)) && (
+        <View className="p-4 mt-6 bg-white rounded-lg shadow relative">
+          <View className="absolute top-5 left-4">
+            <Text className="text-red-500">
+              <MaterialIcons name="warning-amber" size={20} />
             </Text>
           </View>
-        )
+          {netErrorMessage ? (
+            //only show tapeWalletPlusWarning err if the network status is fine.
+            //Otherwise the header would too cluttered
+            <>
+              <Text className="color-slate-500 ml-9 text-sm">
+                {netErrorMessage}
+              </Text>
+              <Button
+                textClassName="font-bold !text-sm"
+                containerClassName="self-end"
+                onPress={syncBlockchain}
+                loading={syncingBlockchain}
+                mode="text"
+              >
+                {syncingBlockchain
+                  ? t('walletHome.header.checkingNetwork')
+                  : t('walletHome.header.checkNetwork')}
+              </Button>
+            </>
+          ) : (
+            networkId !== 'BITCOIN' &&
+            !testWalletWarningDismissed && (
+              <>
+                <Text className="color-slate-500 ml-9 text-sm">
+                  {t('walletHome.header.testWalletWarning')}
+                  {networkId === 'TAPE'
+                    ? `
+` + t('walletHome.header.tapeWalletPlusWarning')
+                    : ''}
+                </Text>
+                <Button
+                  textClassName="font-bold !text-sm"
+                  containerClassName="self-end"
+                  onPress={dismissTestWalletWarning}
+                  mode="text"
+                >
+                  {t('dismissButton')}
+                </Button>
+              </>
+            )
+          )}
+        </View>
       )}
       <UnitsModal
         isVisible={showUnitsModal}
