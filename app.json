@@ -10,7 +10,7 @@
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#F7931A"
     },
     "assetBundlePatterns": ["**/*"],
     "ios": {
@@ -28,14 +28,14 @@
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#F7931A"
       },
       "softwareKeyboardLayoutMode": "resize",
       "package": "com.landabaso.RewindBitcoin"
     },
     "web": {
       "bundler": "metro",
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/favicon.svg"
     },
     "extra": {
       "eas": {

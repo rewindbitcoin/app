@@ -176,8 +176,14 @@ const WalletHomeScreen = () => {
     logOutAndGoBack();
   }, [logOutAndGoBack]);
 
-  const handleReceive = useCallback(() => {}, []);
-  const handleSend = useCallback(() => {}, []);
+  const handleReceive = useCallback(
+    () => navigation.navigate('RECEIVE'),
+    [navigation]
+  );
+  const handleSend = useCallback(
+    () => navigation.navigate('SEND'),
+    [navigation]
+  );
   const handleFreeze = useCallback(
     () => navigation.navigate('SETUP_VAULT'),
     [navigation]

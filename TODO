@@ -1,6 +1,8 @@
 Also include a button for dismissing I have secured my wallet seed (and don't prompt it on start)
   -> Then change the Skip to "Later"
 
+TODO: decidir q hacer con las fees (display + app stores)
+
 TODO: cambiar esplora http a wss -> https://github.com/Blockstream/esplora/issues/428
   -> actualizar @bitcoinerlab/explorer
   -> Usar este cliente: https://github.com/keep-network/electrum-client-js
@@ -19,12 +21,6 @@ TODO: Todo en CreateVaultScreen para formatear bien con i18n el preview de las f
 
 TODO: the links in Vaults.tsx and History.tsx appear larger than the texts in web.
 
-TODO: Tengo 2 todos para cuando History/Vaults está vacío.
-
-TODO: La cantidad que vaulteo es final VAULT + SERVICE FEE.
-con la que despues veo por el tema del serviceFee.
-  -> Debería ser lo que voy a vaultear y, aparte, pagar los fees necesarios.
-
 TODO: Cuando se hace refresco (no manual) entonces en iOS no hacer q me salga el
 refresh porque me cambia toda la UI....
 
@@ -32,6 +28,7 @@ TODO: Ojo! En las explicaciones, cuando se habla de timelocks parecen absolutos;
 siempre que son relativos.
 
 TODO: i cannot dismiss toasts in iOS in the Creating Vault window... (the native modal)
+  -> Add a close button - also polish styles in toats...
 
 TODO: En el Creating New Wallet se permite hacer cancel!!! no deberia ser posible!!
 

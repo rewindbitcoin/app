@@ -19,6 +19,8 @@ import {
   SETTINGS,
   SETUP_VAULT,
   CREATE_VAULT,
+  SEND,
+  RECEIVE,
   NEW_WALLET,
   UniversalNavigationOptions
 } from './src/app/screens';
@@ -28,6 +30,8 @@ import WalletsScreen from './src/app/screens/WalletsScreen';
 import NewWalletScreen from './src/app/screens/NewWalletScreen';
 import WalletHomeScreen from './src/app/screens/WalletHomeScreen';
 import SetUpVaultScreen from './src/app/screens/SetUpVaultScreen';
+import SendScreen from './src/app/screens/SendScreen';
+import ReceiveScreen from './src/app/screens/ReceiveScreen';
 import CreateVaultScreen from './src/app/screens/CreateVaultScreen';
 import { WalletProvider } from './src/app/contexts/WalletContext';
 import Settings from './src/app/screens/SettingsScreen';
@@ -184,6 +188,22 @@ const Main = () => {
             //}
           }}
           component={SetUpVaultScreenWithOnComplete}
+        />
+
+        <RootStack.Screen
+          name={SEND}
+          options={{
+            title: t('send.title')
+          }}
+          component={SendScreen}
+        />
+
+        <RootStack.Screen
+          name={RECEIVE}
+          options={{
+            title: t('receive.title')
+          }}
+          component={ReceiveScreen}
         />
 
         <RootStack.Screen
