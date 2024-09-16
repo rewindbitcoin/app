@@ -463,15 +463,21 @@ export const calculateServiceFee = ({
   vaultedAmount
 }: {
   serviceFeeRate: number;
-  serviceOutput: OutputInstance;
+  serviceOutput?: OutputInstance;
   vaultedAmount: number;
 }) => {
-  return serviceFeeRate
-    ? Math.max(
-        dustThreshold(serviceOutput) + 1,
-        Math.floor(serviceFeeRate * vaultedAmount)
-      )
-    : 0;
+  if (serviceFeeRate < 0)
+    throw new Error(`Invalid service fee rate: ${serviceFeeRate}`);
+  if (serviceFeeRate > 0) {
+    if (!serviceOutput)
+      throw new Error('Set a serviceOutput when fee rates are > 0');
+    return Math.max(
+      dustThreshold(serviceOutput) + 1,
+      Math.floor(serviceFeeRate * vaultedAmount)
+    );
+  } else {
+    return 0;
+  }
 };
 
 /**
@@ -532,7 +538,7 @@ const selectVaultUtxosData = ({
 }: {
   utxosData: UtxosData;
   vaultOutput: OutputInstance;
-  serviceOutput: OutputInstance;
+  serviceOutput?: OutputInstance;
   changeOutput: OutputInstance;
   /** vaultedAmount = transactionAmount - serviceFee
    * The user spends transactionAmount `+ minerFees -> this vaults a total of vaultedAmount
@@ -547,13 +553,15 @@ const selectVaultUtxosData = ({
   const serviceFee = calculateServiceFee({
     vaultedAmount,
     serviceFeeRate,
-    serviceOutput
+    ...(serviceOutput ? { serviceOutput } : {})
   });
   const coinselected = coinselect({
     utxos,
     targets: [
       { output: vaultOutput, value: vaultedAmount },
-      ...(serviceFee ? [{ output: serviceOutput, value: serviceFee }] : [])
+      ...(serviceFee && serviceOutput
+        ? [{ output: serviceOutput, value: serviceFee }]
+        : [])
     ],
     remainder: changeOutput,
     feeRate
@@ -1395,7 +1403,7 @@ export async function fetchVaultsStatuses(
 
 const selectVaultUtxosDataFactory = memoize((utxosData: UtxosData) =>
   memoize((vaultOutput: OutputInstance) =>
-    memoize((serviceOutput: OutputInstance) =>
+    memoize((serviceOutput: OutputInstance | 'no_service_output') =>
       memoize((changeOutput: OutputInstance) =>
         memoize(
           ({
@@ -1410,7 +1418,9 @@ const selectVaultUtxosDataFactory = memoize((utxosData: UtxosData) =>
             selectVaultUtxosData({
               utxosData,
               vaultOutput,
-              serviceOutput,
+              ...(serviceOutput === 'no_service_output'
+                ? {}
+                : { serviceOutput }),
               changeOutput,
               vaultedAmount,
               feeRate,
@@ -1434,15 +1444,15 @@ const selectVaultUtxosDataMemo = ({
 }: {
   utxosData: UtxosData;
   vaultOutput: OutputInstance;
-  serviceOutput: OutputInstance;
+  serviceOutput?: OutputInstance;
   changeOutput: OutputInstance;
   vaultedAmount: number;
   feeRate: number;
   serviceFeeRate: number;
 }) =>
-  selectVaultUtxosDataFactory(utxosData)(vaultOutput)(serviceOutput)(
-    changeOutput
-  )({
+  selectVaultUtxosDataFactory(utxosData)(vaultOutput)(
+    serviceOutput || 'no_service_output'
+  )(changeOutput)({
     vaultedAmount,
     feeRate,
     serviceFeeRate
