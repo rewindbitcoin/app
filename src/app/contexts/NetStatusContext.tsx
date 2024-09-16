@@ -112,14 +112,33 @@ const checkExplorerReachability = async (explorer: Explorer) => {
     try {
       console.log('TRACE checkExplorerReachability isConnected');
       const connected = await explorer.isConnected();
-      console.log('TRACE checkExplorerReachability isConnected DONE');
+      console.log('TRACE checkExplorerReachability isConnected DONE', {
+        connected
+      });
 
       if (connected) return true;
-      else await explorer.connect();
+      else {
+        console.log(
+          'TRACE checkExplorerReachability connect (was not connected)'
+        );
+        await explorer.connect();
+        console.log('TRACE checkExplorerReachability connect DONE');
+        console.log(
+          'TRACE checkExplorerReachability isConnected after correct connect'
+        );
+        const connected = await explorer.isConnected();
+        console.log(
+          'TRACE checkExplorerReachability isConnected after correct connect DONE'
+        );
+        if (connected) return true;
+      }
       if (attempts !== EXPLORER_ATTEMPTS) await sleep(200);
       attempts--;
     } catch (error) {
-      if (attempts <= 1) return false;
+      if (attempts <= 1) {
+        console.warn(error);
+        return false;
+      }
       await sleep(200);
       attempts--;
     }
