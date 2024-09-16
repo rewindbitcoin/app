@@ -17,7 +17,7 @@ import {
   TxHex
 } from '../lib/vaults';
 import type { Accounts, Signers, Wallets } from '../lib/wallets';
-import { getAPIs } from '../lib/walletDerivedData';
+import { electrumParams, getAPIs } from '../lib/walletDerivedData';
 import { networkMapping, NetworkId } from '../lib/network';
 import {
   createUnvaultKey,
@@ -66,7 +66,11 @@ import { useNetStatus } from '../hooks/useNetStatus';
 import { useTipStatus } from '../hooks/useTipStatus';
 import { useFeeEstimates } from '../hooks/useFeeEstimates';
 import { useWalletState } from '../hooks/useWalletState';
-import { Explorer, EsploraExplorer } from '@bitcoinerlab/explorer';
+import {
+  Explorer,
+  EsploraExplorer,
+  ElectrumExplorer
+} from '@bitcoinerlab/explorer';
 import type { BlockStatus } from '@bitcoinerlab/explorer';
 
 export const WalletContext: Context<WalletContextType | null> =
@@ -196,6 +200,8 @@ const WalletProviderRaw = ({
 
   const {
     mainnetEsploraApi,
+    mainnetElectrumApi,
+    electrumAPI,
     esploraAPI,
     serviceAddressAPI,
     vaultsAPI,
@@ -249,6 +255,7 @@ const WalletProviderRaw = ({
     const initDiscovery = async () => {
       if (
         walletId !== undefined &&
+        electrumAPI &&
         esploraAPI &&
         network &&
         discoveryExportStorageStatus.isSynchd &&
@@ -257,7 +264,13 @@ const WalletProviderRaw = ({
         //discovery instance should be kept the same once the App is open.
         !walletsDiscovery[walletId]
       ) {
-        const explorer = new EsploraExplorer({ url: esploraAPI });
+        const explorer =
+          Platform.OS === 'web'
+            ? new EsploraExplorer({ url: esploraAPI })
+            : new ElectrumExplorer({
+                network,
+                ...electrumParams(electrumAPI)
+              });
         //explorer.connect performed in NetSTatusContext
         const { Discovery } = DiscoveryFactory(explorer, network);
         const discovery = discoveryExport
@@ -272,6 +285,7 @@ const WalletProviderRaw = ({
     walletId,
     discoveryExport,
     discoveryExportStorageStatus.isSynchd,
+    electrumAPI,
     esploraAPI,
     network,
     setDiscovery,
@@ -282,18 +296,34 @@ const WalletProviderRaw = ({
 
   useEffect(() => {
     const initializeMainnetExplorer = async () => {
-      if (mainnetEsploraApi && !explorerMainnet && networkId === 'TAPE') {
-        const newExplorerMainnet = new EsploraExplorer({
-          url: mainnetEsploraApi
-        }); //explorer.connect performed in NetSTatusContext
-        setExplorerMainnet(newExplorerMainnet);
+      if (Platform.OS === 'web') {
+        if (mainnetEsploraApi && !explorerMainnet && networkId === 'TAPE') {
+          const newExplorerMainnet = new EsploraExplorer({
+            url: mainnetEsploraApi
+          }); //explorer.connect performed in NetSTatusContext
+          setExplorerMainnet(newExplorerMainnet);
+        }
+      } else {
+        const network = networkId && networkMapping[networkId];
+        if (
+          network &&
+          mainnetElectrumApi &&
+          !explorerMainnet &&
+          networkId === 'TAPE'
+        ) {
+          const newExplorerMainnet = new ElectrumExplorer({
+            network,
+            ...electrumParams(mainnetElectrumApi)
+          }); //explorer.connect performed in NetSTatusContext
+          setExplorerMainnet(newExplorerMainnet);
+        }
       }
     };
     initializeMainnetExplorer();
     return () => {
       if (explorerMainnet) explorerMainnet.close();
     };
-  }, [mainnetEsploraApi, explorerMainnet, networkId]);
+  }, [mainnetEsploraApi, mainnetElectrumApi, explorerMainnet, networkId]);
 
   const {
     reset: netStatusReset,

@@ -25,16 +25,22 @@ import {
   LOCAL_REGTEST_WEB_PORT,
   PUBLIC_TAPE_ESPLORA_API_LOCATION,
   PUBLIC_TAPE_BLOCK_EXPLORER_LOCATION,
-  LOCAL_REGTEST_BLOCK_EXPLORER_PORT
+  LOCAL_REGTEST_BLOCK_EXPLORER_PORT,
+  LOCAL_REGTEST_ELECTRUM_SERVER_PORT,
+  ELECTRUM_PUBLIC_PROTOCOL,
+  ELECTRUM_LOCAL_PROTOCOL,
+  PUBLIC_TAPE_ELECTRUM_PORT
   // @ts-expect-error @env is defined in bable.config.js
 } from '@env';
-if (Number(VERSION) !== 20)
+if (Number(VERSION) !== 21)
   throw new Error(
     `This is still running version: ${VERSION}.
 
 You must manually change the version check on settings.ts everytime env is updated.
 
 This is because expo/metro/babel caches using the file (settings.ts) that is the entry point to @env and caches it.
+
+Also make sure to clear the cache in metro: npx expo start --clear
 
 So, manually change the version in settings.ts so that this does not throw`
   );
@@ -91,6 +97,11 @@ export interface Settings {
   TESTNET_ESPLORA_API: string;
   TAPE_ESPLORA_API: string;
   REGTEST_ESPLORA_API: string;
+
+  MAINNET_ELECTRUM_API: string;
+  TESTNET_ELECTRUM_API: string;
+  TAPE_ELECTRUM_API: string;
+  REGTEST_ELECTRUM_API: string;
 
   TAPE_WEB_SERVER: string;
   REGTEST_WEB_SERVER: string;
@@ -156,6 +167,11 @@ export const defaultSettings: Settings = {
   //TESTNET_ESPLORA_API: 'https://mempool.space/testnet/api',
   TAPE_ESPLORA_API: `${PUBLIC_PROTOCOL}://${PUBLIC_TAPE_SERVER_NAME}${PUBLIC_TAPE_ESPLORA_API_LOCATION}`,
   REGTEST_ESPLORA_API: `${LOCAL_PROTOCOL}://${LOCAL_HOST_NAME}:${LOCAL_REGTEST_ESPLORA_API_PORT}`,
+
+  MAINNET_ELECTRUM_API: 'ssl://electrum.blockstream.info:50002',
+  TESTNET_ELECTRUM_API: 'ssl://electrum.blockstream.info:60002',
+  TAPE_ELECTRUM_API: `${ELECTRUM_PUBLIC_PROTOCOL}://${PUBLIC_TAPE_SERVER_NAME}:${PUBLIC_TAPE_ELECTRUM_PORT}`,
+  REGTEST_ELECTRUM_API: `${ELECTRUM_LOCAL_PROTOCOL}://${LOCAL_HOST_NAME}:${LOCAL_REGTEST_ELECTRUM_SERVER_PORT}`,
 
   MAINNET_BLOCK_EXPLORER: 'https://blockstream.info',
   TESTNET_BLOCK_EXPLORER: 'https://blockstream.info/testnet',

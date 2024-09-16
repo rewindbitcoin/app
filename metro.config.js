@@ -13,7 +13,11 @@ config.transformer = {
 config.resolver = {
   ...resolver,
   assetExts: resolver.assetExts.filter(ext => ext !== 'svg'),
-  sourceExts: [...resolver.sourceExts, 'svg']
+  sourceExts: [...resolver.sourceExts, 'svg'],
+  extraNodeModules: {
+    net: require.resolve('react-native-tcp-socket'),
+    tls: require.resolve('react-native-tcp-socket')
+  }
 };
 
 module.exports = withNativeWind(config, {
