@@ -1,8 +1,5 @@
 //Treat this as a golrified json with comments & multi-line using string literals
 //TODO: Emergency Addres <-> Rewind Address?
-
-import LearnMoreAboutVaults from '~/app/components/LearnMoreAboutVaults';
-
 //TODO: recovery phrase or Recovery Phrase - be consistent
 export default {
   app: {
@@ -201,7 +198,7 @@ Tap "Init Unfreeze" to request the start of the unfreeze countdown.`
 
 {{panicAddress}}
 
-This address will likely be difficult to access if you followed the recommended guidelines during Vault Setup. Ensure you can eventually access it. Once sent, this wallet will no longer have access to them.
+This address will likely be difficult to access if you followed the recommended guidelines during Vault Setup. Ensure you can eventually access it. Once the funds are sent, this wallet will no longer have access to them.
 
 This action is designed for extreme situations, such as theft or extortion, to ensure the safety of your Bitcoin. Make sure this is a deliberate decision.`,
         feeSelectorExplanation:
@@ -223,7 +220,7 @@ Tap "Delegate" to generate and share the delegation file.`,
 
 In case of an emergency, the delegated person can use the file to send your funds to the Emergency Address you specified during Vault Setup. The file only contains the necessary info for this and does not include any keys to access your funds.
 
-Contacts should visit rewindbitcoin.com and follow the straightforward instructions to complete the rescue operation easily. Bitcoin tech-savvy contacts can read the file and follow the instructions directly.
+Delegates should visit rewindbitcoin.com and follow the straightforward instructions to complete the rescue operation easily. Bitcoin tech-savvy delegates can read the file and follow the instructions directly.
 
 Tap "Delegate" to generate and share the delegation file.`
       },
