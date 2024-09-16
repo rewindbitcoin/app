@@ -188,7 +188,10 @@ const WalletHeader = ({
             //only show tapeWalletPlusWarning err if the network status is fine.
             //Otherwise the header would too cluttered
             <>
-              <Text className="color-slate-500 ml-9 text-sm">
+              <Text
+                key={syncingBlockchain.toString() /*fixes native-wind issues*/}
+                className="color-slate-500 ml-9 text-sm"
+              >
                 {netErrorMessage}
               </Text>
               <Button
@@ -207,7 +210,12 @@ const WalletHeader = ({
             networkId !== 'BITCOIN' &&
             !testWalletWarningDismissed && (
               <>
-                <Text className="color-slate-500 ml-9 text-sm">
+                <Text
+                  key={
+                    syncingBlockchain.toString() /*fixes native-wind issues*/
+                  }
+                  className="color-slate-500 ml-9 text-sm"
+                >
                   {t('walletHome.header.testWalletWarning')}
                   {networkId === 'TAPE'
                     ? `
