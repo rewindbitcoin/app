@@ -17,6 +17,8 @@ export const SETTINGS = 'SETTINGS' as const;
 export const WALLETS = 'WALLETS' as const;
 export const WALLET_HOME = 'WALLET_HOME' as const;
 export const SETUP_VAULT = 'SETUP_VAULT' as const;
+export const SEND = 'SEND' as const;
+export const RECEIVE = 'RECEIVE' as const;
 export const CREATE_VAULT = 'CREATE_VAULT' as const;
 export const NEW_WALLET = 'NEW_WALLET' as const;
 // https://reactnavigation.org/docs/typescript/
@@ -25,6 +27,8 @@ export type RootStackParamList = {
   WALLET_HOME: { walletId: number };
   WALLETS: undefined;
   SETUP_VAULT: undefined;
+  SEND: undefined;
+  RECEIVE: undefined;
   CREATE_VAULT: undefined;
   NEW_WALLET: { walletId: number };
 };
