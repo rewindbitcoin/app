@@ -260,7 +260,7 @@ const NetStatusProvider: React.FC<NetStatusProviderProps> = ({ children }) => {
     undefined
   );
   const errorMessageRef = useRef<string | undefined>(undefined);
-  const checkIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const updateTimeOut = useRef<NodeJS.Timeout | null>(null);
   /**
    * these are the current errors (and already notified)
    */
@@ -277,14 +277,14 @@ const NetStatusProvider: React.FC<NetStatusProviderProps> = ({ children }) => {
     boolean | undefined
   >();
 
-  const clearExistingInterval = useCallback(() => {
-    if (checkIntervalRef.current) {
-      clearTimeout(checkIntervalRef.current);
-      checkIntervalRef.current = null;
+  const clearUpdateTimeOut = useCallback(() => {
+    if (updateTimeOut.current) {
+      clearTimeout(updateTimeOut.current);
+      updateTimeOut.current = null;
     }
   }, []);
   const reset = useCallback(() => {
-    clearExistingInterval();
+    clearUpdateTimeOut();
     errorMessageRef.current = undefined;
     notifiedErrorsRef.current = {};
     batchedUpdates(() => {
@@ -300,7 +300,7 @@ const NetStatusProvider: React.FC<NetStatusProviderProps> = ({ children }) => {
       setExplorerReachable(undefined);
       setExplorerMainnetReachable(undefined);
     });
-  }, [clearExistingInterval]);
+  }, [clearUpdateTimeOut]);
 
   const deriveInternetReachable = useCallback(
     ({
@@ -431,8 +431,14 @@ const NetStatusProvider: React.FC<NetStatusProviderProps> = ({ children }) => {
   );
 
   const update = useCallback(async () => {
-    if (AppState.currentState !== 'active') return;
-    clearExistingInterval();
+    clearUpdateTimeOut();
+    if (AppState.currentState !== 'active') {
+      console.warn('Device is not active; postponing netStatus update');
+      //Don't perform updates when the device is not active, but Schedule
+      //new ones until it is.
+      updateTimeOut.current = setTimeout(update, RETRY_TIME_AFTER_OK);
+      return;
+    }
 
     // Create an array of promises for the network reachability checks
     const checks = [
@@ -490,8 +496,8 @@ const NetStatusProvider: React.FC<NetStatusProviderProps> = ({ children }) => {
     const nextCheckDelay = errorMessage
       ? RETRY_TIME_AFTER_FAIL
       : RETRY_TIME_AFTER_OK;
-    if (checkIntervalRef.current === null)
-      checkIntervalRef.current = setTimeout(update, nextCheckDelay);
+    if (updateTimeOut.current === null)
+      updateTimeOut.current = setTimeout(update, nextCheckDelay);
 
     return {
       errorMessage,
@@ -506,7 +512,7 @@ const NetStatusProvider: React.FC<NetStatusProviderProps> = ({ children }) => {
     generate204API,
     generate204API2,
     generate204APIExternal,
-    clearExistingInterval,
+    clearUpdateTimeOut,
     explorer,
     explorerMainnet
   ]);
@@ -623,9 +629,9 @@ const NetStatusProvider: React.FC<NetStatusProviderProps> = ({ children }) => {
     );
     return () => {
       appStateSubscription.remove();
-      clearExistingInterval();
+      clearUpdateTimeOut();
     };
-  }, [update, clearExistingInterval]);
+  }, [update, clearUpdateTimeOut]);
 
   const init = useCallback(
     async ({
