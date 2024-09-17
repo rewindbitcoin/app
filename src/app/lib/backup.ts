@@ -7,7 +7,7 @@ import {
 } from 'expo-file-system';
 import { shareAsync } from 'expo-sharing';
 const MAX_VAULT_CHECKS = 1000;
-const PURPOSE = 1073; // = [..."thunderden"].reduce((sum, char) => sum + char.charCodeAt(0), 0);
+const PURPOSE = 1073;
 const VAULT_PATH = `m/${PURPOSE}'/<network>'/0'/<index>`;
 const SIGNING_MESSAGE = 'Satoshi Nakamoto'; //Can be any, but don't change it
 const DATA_PATH = `m/${PURPOSE}'/<network>'/1'/0`;
