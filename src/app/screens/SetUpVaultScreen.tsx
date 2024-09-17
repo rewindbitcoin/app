@@ -6,15 +6,9 @@ import LearnMoreAboutVaults from '../components/LearnMoreAboutVaults';
 import { Trans, useTranslation } from 'react-i18next';
 import React, { useCallback, useState, useMemo } from 'react';
 import { useNavigation } from '@react-navigation/native';
-import { View, StyleSheet } from 'react-native';
-import {
-  Text,
-  Button,
-  KeyboardAwareScrollView,
-  useTheme,
-  Theme
-} from '../../common/ui';
-import { EdgeInsets, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { View } from 'react-native';
+import { Text, Button, KeyboardAwareScrollView } from '../../common/ui';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { selectVaultUtxosData, type VaultSettings } from '../lib/vaults';
 import {
   DUMMY_VAULT_OUTPUT,
@@ -37,9 +31,11 @@ export default function VaultSetUp({
   onVaultSetUpComplete: (vaultSettings: VaultSettings) => void;
 }) {
   const insets = useSafeAreaInsets();
-  const theme = useTheme();
+  const containerStyle = useMemo(
+    () => ({ marginBottom: insets.bottom / 4 + 16 }),
+    [insets.bottom]
+  );
   const navigation = useNavigation();
-  const styles = useMemo(() => getStyles(insets, theme), [insets, theme]);
 
   const { utxosData, networkId, feeEstimates, btcFiat, accounts } = useWallet();
   if (!utxosData)
@@ -222,10 +218,10 @@ export default function VaultSetUp({
     <KeyboardAwareScrollView
       contentInsetAdjustmentBehavior="automatic"
       keyboardShouldPersistTaps="handled"
-      contentContainerStyle={styles.contentContainer}
+      contentContainerClassName="items-center pt-5 px-5"
     >
-      <View style={styles.content}>
-        <View style={styles.intro}>
+      <View className="w-full max-w-screen-sm mx-4" style={containerStyle}>
+        <View className="mb-8">
           {isValidVaultRange ? (
             <>
               <Text className="mb-1">{t('vaultSetup.intro')}</Text>
@@ -254,7 +250,7 @@ export default function VaultSetUp({
                   ).toString()
                 }}
                 components={{
-                  strong: <Text style={{ fontWeight: 'bold' }} />
+                  strong: <Text className="font-bold" />
                 }}
               />
             </Text>
@@ -270,7 +266,7 @@ export default function VaultSetUp({
               max={maxVaultAmount.vaultedAmount}
               onUserSelectedAmountChange={onUserSelectedVaultedAmountChange}
             />
-            <View style={styles.cardSeparator} />
+            <View className="mb-8" />
             <BlocksInput
               label={t('vaultSetup.securityLockTimeLabel')}
               initialValue={settings.INITIAL_LOCK_BLOCKS}
@@ -278,13 +274,13 @@ export default function VaultSetUp({
               max={settings.MAX_LOCK_BLOCKS}
               onValueChange={setLockBlocks}
             />
-            <View style={styles.cardSeparator} />
+            <View className="mb-8" />
             <AddressInput
               type="emergency"
               networkId={networkId}
               onValueChange={setColdAddress}
             />
-            <View style={styles.cardSeparator} />
+            <View className="mb-8" />
             <FeeInput
               initialValue={initialFeeRate}
               txSize={txSize}
@@ -294,13 +290,11 @@ export default function VaultSetUp({
           </>
         )}
         {isValidVaultRange ? (
-          <View style={styles.buttonGroup}>
+          <View className="self-center flex-row justify-center items-center mt-5 gap-5">
             <Button onPress={navigation.goBack}>{t('cancelButton')}</Button>
-            <View style={styles.buttonSpacing}>
-              <Button disabled={!allFieldsValid} onPress={handleOK}>
-                {t('continueButton')}
-              </Button>
-            </View>
+            <Button disabled={!allFieldsValid} onPress={handleOK}>
+              {t('continueButton')}
+            </Button>
           </View>
         ) : (
           <Button onPress={navigation.goBack}>{t('goBack')}</Button>
@@ -316,31 +310,3 @@ export default function VaultSetUp({
     </KeyboardAwareScrollView>
   );
 }
-
-const getStyles = (insets: EdgeInsets, theme: Theme) =>
-  StyleSheet.create({
-    contentContainer: {
-      alignItems: 'center',
-      paddingTop: 20,
-      paddingHorizontal: 20
-    },
-    content: {
-      width: '100%',
-      maxWidth: 500,
-      marginHorizontal: theme.screenMargin,
-      marginBottom: theme.screenMargin + insets.bottom
-    },
-    cardSeparator: { marginBottom: 2 * theme.screenMargin },
-    intro: {
-      marginBottom: 2 * theme.screenMargin
-    },
-    missingFundsGroup: { marginBottom: theme.screenMargin },
-    buttonGroup: {
-      alignSelf: 'center',
-      flexDirection: 'row',
-      justifyContent: 'center',
-      alignItems: 'center',
-      marginTop: 20
-    },
-    buttonSpacing: { marginLeft: 20 }
-  });
