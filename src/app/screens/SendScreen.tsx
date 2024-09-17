@@ -2,17 +2,11 @@ import AddressInput from '../components/AddressInput';
 import AmountInput from '../components/AmountInput';
 import FeeInput from '../components/FeeInput';
 import { useTranslation } from 'react-i18next';
-import React, { useCallback, useState, useMemo } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { useNavigation } from '@react-navigation/native';
-import { View, StyleSheet } from 'react-native';
-import {
-  Text,
-  Button,
-  KeyboardAwareScrollView,
-  useTheme,
-  Theme
-} from '../../common/ui';
-import { EdgeInsets, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { View } from 'react-native';
+import { Text, Button, KeyboardAwareScrollView } from '../../common/ui';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { pickFeeEstimate } from '../lib/fees';
 import { estimateSendRange, estimateTxSize } from '../lib/sendRange';
@@ -23,9 +17,11 @@ import { DUMMY_CHANGE_OUTPUT, getMainAccount } from '../lib/vaultDescriptors';
 
 export default function Send() {
   const insets = useSafeAreaInsets();
-  const theme = useTheme();
+  const containerStyle = useMemo(
+    () => ({ marginBottom: insets.bottom / 4 + 16 }),
+    [insets.bottom]
+  );
   const navigation = useNavigation();
-  const styles = useMemo(() => getStyles(insets, theme), [insets, theme]);
 
   const { utxosData, networkId, feeEstimates, accounts } = useWallet();
   if (!utxosData)
@@ -108,82 +104,47 @@ export default function Send() {
     <KeyboardAwareScrollView
       contentInsetAdjustmentBehavior="automatic"
       keyboardShouldPersistTaps="handled"
-      contentContainerStyle={styles.contentContainer}
+      contentContainerClassName="items-center pt-5 px-5"
     >
-      <View style={styles.content}>
-        {isValidRange && (
-          <>
-            <AmountInput
-              isMaxAmount={isMaxAmount}
-              label={t('vaultSetup.amountLabel')}
-              initialValue={max}
-              min={min}
-              max={max}
-              onUserSelectedAmountChange={onUserSelectedAmountChange}
-            />
-            <View style={styles.cardSeparator} />
-            <AddressInput
-              type="external"
-              networkId={networkId}
-              onValueChange={setAddress}
-            />
-            <View style={styles.cardSeparator} />
-            <FeeInput
-              initialValue={initialFeeRate}
-              txSize={txSize}
-              label={t('vaultSetup.confirmationSpeedLabel')}
-              onValueChange={setFeeRate}
-            />
-          </>
-        )}
-        {isValidRange ? (
-          <View style={styles.buttonGroup}>
+      {isValidRange ? (
+        <View className="w-full max-w-screen-sm mx-4" style={containerStyle}>
+          <AddressInput
+            type="external"
+            networkId={networkId}
+            onValueChange={setAddress}
+          />
+          <View className="mb-8" />
+          <AmountInput
+            isMaxAmount={isMaxAmount}
+            label={t('send.amountLabel')}
+            initialValue={max}
+            min={min}
+            max={max}
+            onUserSelectedAmountChange={onUserSelectedAmountChange}
+          />
+          <View className="mb-8" />
+          <FeeInput
+            initialValue={initialFeeRate}
+            txSize={txSize}
+            label={t('send.confirmationSpeedLabel')}
+            onValueChange={setFeeRate}
+          />
+          <View className="self-center flex-row justify-center items-center mt-5 gap-5">
             <Button onPress={navigation.goBack}>{t('cancelButton')}</Button>
-            <View style={styles.buttonSpacing}>
-              <Button disabled={!allFieldsValid} onPress={handleOK}>
-                {t('continueButton')}
-              </Button>
-            </View>
+            <Button disabled={!allFieldsValid} onPress={handleOK}>
+              {t('continueButton')}
+            </Button>
           </View>
-        ) : (
+        </View>
+      ) : (
+        <View
+          className="w-full max-w-screen-sm mx-4"
+          style={{ marginBottom: insets.bottom / 4 + 16 }}
+        >
+          <Text className="mb-8">{t('send.notEnoughFunds')}</Text>
           <Button onPress={navigation.goBack}>{t('goBack')}</Button>
-        )}
-        {!allFieldsValid && isValidRange && (
-          <Text className="text-center text-orange-600 native:text-sm web:text-xs pt-2">
-            {address
-              ? t('vaultSetup.fillInAll')
-              : t('vaultSetup.addressMissing')}
-          </Text>
-        )}
-      </View>
+        </View>
+      )}
     </KeyboardAwareScrollView>
   );
 }
-
-const getStyles = (insets: EdgeInsets, theme: Theme) =>
-  StyleSheet.create({
-    contentContainer: {
-      alignItems: 'center',
-      paddingTop: 20,
-      paddingHorizontal: 20
-    },
-    content: {
-      width: '100%',
-      maxWidth: 500,
-      marginHorizontal: theme.screenMargin,
-      marginBottom: theme.screenMargin + insets.bottom
-    },
-    cardSeparator: { marginBottom: 2 * theme.screenMargin },
-    intro: {
-      marginBottom: 2 * theme.screenMargin
-    },
-    missingFundsGroup: { marginBottom: theme.screenMargin },
-    buttonGroup: {
-      alignSelf: 'center',
-      flexDirection: 'row',
-      justifyContent: 'center',
-      alignItems: 'center',
-      marginTop: 20
-    },
-    buttonSpacing: { marginLeft: 20 }
-  });

@@ -175,9 +175,9 @@ function AddressInput({
     <View>
       <View className="pb-2 flex-row items-center">
         <Text variant="cardTitle" className="px-2 text-left">
-          {t('addressInput.coldAddress.label', {
-            network: capitalizedNetworkId
-          })}
+          {type === 'emergency'
+            ? t('addressInput.coldAddress.label')
+            : t('addressInput.recipientAddress.label')}
         </Text>
         {type === 'emergency' && <InfoButton onPress={showColdAddressHelp} />}
       </View>
@@ -188,7 +188,7 @@ function AddressInput({
             placeholder={
               type === 'emergency'
                 ? t('addressInput.textInputPlaceholderWithCreate')
-                : t('addressInput.textInputPlaceholder')
+                : t('addressInput.recipientAddress.textInputPlaceholder')
             }
             placeholderTextColor="#A9A9A9"
             autoComplete="off"

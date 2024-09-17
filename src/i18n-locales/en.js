@@ -456,6 +456,12 @@ This minimum amount is calculated based on the assumption that you may need rapi
     feeRate: 'sats/vB',
     vaultAllFundsShortBadge: 'All Funds'
   },
+  send: {
+    title: 'Send Bitcoin',
+    notEnoughFunds: 'Insufficient funds to create the transaction',
+    amountLabel: 'Amount to Send',
+    confirmationSpeedLabel: 'Confirmation Speed'
+  },
   createVault: {
     intro: `We're setting up your vault, generating multiple combinations to minimize future unfreezing fees.
 
