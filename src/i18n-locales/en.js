@@ -469,7 +469,10 @@ This minimum amount is calculated based on the assumption that you may need rapi
       'Your transaction has been successfully created and sent to the blockchain.'
   },
   receive: {
-    title: 'Receive Bitcoin'
+    title: 'Receive Bitcoin',
+    clipboard: 'Address copied to clipboard!',
+    doneButton: 'Done',
+    intro: 'Scan or copy and share this address to receive Bitcoin'
   },
   createVault: {
     intro: `We're setting up your vault, generating multiple combinations to minimize future unfreezing fees.

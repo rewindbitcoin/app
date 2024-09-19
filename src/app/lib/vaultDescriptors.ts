@@ -69,7 +69,14 @@ export const computeChangeOutput = memoize(
   (changeDescriptor: string, network: Network) => {
     return new Output({
       descriptor: changeDescriptor,
-      index: 0,
+      network
+    });
+  }
+);
+export const computeReceiveOutput = memoize(
+  (receiveDescriptor: string, network: Network) => {
+    return new Output({
+      descriptor: receiveDescriptor,
       network
     });
   }

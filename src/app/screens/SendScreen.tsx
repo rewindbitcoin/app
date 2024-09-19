@@ -1,4 +1,3 @@
-//TODO: test all the toasts (even the errors)
 import AddressInput from '../components/AddressInput';
 import AmountInput from '../components/AmountInput';
 import FeeInput from '../components/FeeInput';
