@@ -41,7 +41,7 @@ export default function Send() {
     networkId,
     feeEstimates,
     accounts,
-    getChangeDescriptor,
+    getNextChangeDescriptorWithIndex,
     txPushAndUpdateStates,
     signers
   } = useWallet();
@@ -119,10 +119,14 @@ export default function Send() {
       throw new Error('Cannot process Transaction');
     let txHex;
     try {
-      const changeDescriptor = await getChangeDescriptor();
-      if (!changeDescriptor)
+      const changeDescriptorWithIndex =
+        await getNextChangeDescriptorWithIndex();
+      if (!changeDescriptorWithIndex)
         throw new Error('Impossible to obtain a new change descriptor');
-      const changeOutput = computeChangeOutput(changeDescriptor, network);
+      const changeOutput = computeChangeOutput(
+        changeDescriptorWithIndex,
+        network
+      );
       txHex = await calculateTxHex({
         signer,
         utxosData,
@@ -149,7 +153,7 @@ export default function Send() {
     signer,
     utxosData,
     network,
-    getChangeDescriptor,
+    getNextChangeDescriptorWithIndex,
     goBack,
     txPushAndUpdateStates,
     t,

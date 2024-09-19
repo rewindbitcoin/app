@@ -66,19 +66,22 @@ export const DUMMY_CHANGE_OUTPUT = memoize(
   }
 );
 export const computeChangeOutput = memoize(
-  (changeDescriptor: string, network: Network) => {
+  (
+    changeDescriptorWithIndex: { descriptor: string; index: number },
+    network: Network
+  ) => {
     return new Output({
-      descriptor: changeDescriptor,
+      ...changeDescriptorWithIndex,
       network
     });
   }
 );
 export const computeReceiveOutput = memoize(
-  (receiveDescriptor: string, network: Network) => {
-    return new Output({
-      descriptor: receiveDescriptor,
-      network
-    });
+  (
+    receiveDescriptorWithIndex: { descriptor: string; index: number },
+    network: Network
+  ) => {
+    return new Output({ ...receiveDescriptorWithIndex, network });
   }
 );
 

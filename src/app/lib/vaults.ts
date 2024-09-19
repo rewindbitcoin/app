@@ -590,7 +590,7 @@ export async function createVault({
   serviceFee,
   feeRateCeiling,
   coldAddress,
-  changeDescriptor,
+  changeDescriptorWithIndex,
   serviceOutput,
   lockBlocks,
   signer,
@@ -614,7 +614,7 @@ export async function createVault({
    * must be pre-computed*/
   feeRateCeiling: number;
   coldAddress: string;
-  changeDescriptor: string;
+  changeDescriptorWithIndex: { descriptor: string; index: number };
   serviceOutput: OutputInstance;
   lockBlocks: number;
   /** A signer async function able to sign any of the utxos in utxosData,
@@ -639,10 +639,7 @@ export async function createVault({
 
     const network = networkMapping[networkId];
 
-    const changeOutput = new Output({
-      descriptor: changeDescriptor,
-      network
-    });
+    const changeOutput = new Output({ ...changeDescriptorWithIndex, network });
     const vaultPair = ECPair.makeRandom();
     const vaultOutput = new Output({
       descriptor: createVaultDescriptor(vaultPair.publicKey.toString('hex')),

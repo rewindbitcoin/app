@@ -49,7 +49,7 @@ export default function CreateVaultScreen({
     utxosData,
     networkId,
     fetchServiceAddress,
-    getChangeDescriptor,
+    getNextChangeDescriptorWithIndex,
     getUnvaultKey,
     signers,
     vaultPushAndUpdateStates,
@@ -237,7 +237,8 @@ export default function CreateVaultScreen({
         goBack();
         return;
       }
-      const changeDescriptor = await getChangeDescriptor();
+      const changeDescriptorWithIndex =
+        await getNextChangeDescriptorWithIndex();
       if (!navigation.isFocused()) return; //Don't proceed if lost focus after await
 
       const { result: nextVaultData } = await netRequest({
@@ -270,7 +271,7 @@ export default function CreateVaultScreen({
         serviceFee,
         feeRateCeiling,
         coldAddress,
-        changeDescriptor,
+        changeDescriptorWithIndex,
         serviceOutput,
         lockBlocks,
         signer,
@@ -310,7 +311,7 @@ export default function CreateVaultScreen({
     coldAddress,
     feeRate,
     feeRateCeiling,
-    getChangeDescriptor,
+    getNextChangeDescriptorWithIndex,
     fetchServiceAddress,
     getUnvaultKey,
     lockBlocks,

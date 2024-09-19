@@ -83,8 +83,14 @@ type TxHistory = Array<{
 }>;
 
 export type WalletContextType = {
-  getChangeDescriptor: () => Promise<string>;
-  getReceiveDescriptor: () => Promise<string>;
+  getNextChangeDescriptorWithIndex: () => Promise<{
+    descriptor: string;
+    index: number;
+  }>;
+  getNextReceiveDescriptorWithIndex: () => Promise<{
+    descriptor: string;
+    index: number;
+  }>;
   fetchServiceAddress: () => Promise<string>;
   getUnvaultKey: () => Promise<string>;
   updateVaultStatus: (vaultId: string, vaultStatus: VaultStatus) => void;
@@ -769,38 +775,34 @@ const WalletProviderRaw = ({
     walletsHistoryData
   ]);
 
-  const getChangeDescriptor = useCallback(async () => {
+  const getNextChangeDescriptorWithIndex = useCallback(async () => {
     if (!network) throw new Error('Network not ready');
     if (!accounts) throw new Error('Accounts not ready');
     if (!Object.keys(accounts).length) throw new Error('Accounts not set');
     if (!discovery) throw new Error('Discovery not ready');
     const account = getMainAccount(accounts, network);
-    const changeDescriptorRanged = account.replace(/\/0\/\*/g, '/1/*');
-    return changeDescriptorRanged.replaceAll(
-      '*',
-      discovery
-        .getNextIndex({
-          descriptor: changeDescriptorRanged
-        })
-        .toString()
-    );
+    const changeDescriptor = account.replace(/\/0\/\*/g, '/1/*');
+    return {
+      descriptor: changeDescriptor,
+      index: discovery.getNextIndex({
+        descriptor: changeDescriptor
+      })
+    };
   }, [network, accounts, discovery]);
 
-  const getReceiveDescriptor = useCallback(async () => {
+  const getNextReceiveDescriptorWithIndex = useCallback(async () => {
     if (!network) throw new Error('Network not ready');
     if (!accounts) throw new Error('Accounts not ready');
     if (!Object.keys(accounts).length) throw new Error('Accounts not set');
     if (!discovery) throw new Error('Discovery not ready');
     const account = getMainAccount(accounts, network);
-    const receiveDescriptorRanged = account.replace(/\/0\/\*/g, '/0/*');
-    return receiveDescriptorRanged.replaceAll(
-      '*',
-      discovery
-        .getNextIndex({
-          descriptor: receiveDescriptorRanged
-        })
-        .toString()
-    );
+    const receiveDescriptor = account;
+    return {
+      descriptor: receiveDescriptor,
+      index: discovery.getNextIndex({
+        descriptor: receiveDescriptor
+      })
+    };
   }, [network, accounts, discovery]);
 
   const getUnvaultKey = useCallback(async () => {
@@ -973,8 +975,12 @@ const WalletProviderRaw = ({
             updatedAccounts,
             updatedTipHeight
           );
+          console.log('TRACE sync discovery.fetch', { descriptors });
           await discovery.fetch({ descriptors, gapLimit });
-          console.log('TRACE sync proceeding discovery.fetch');
+          console.log(
+            'TRACE sync proceeding discovery.fetch',
+            JSON.stringify(discovery.export().discoveryData, null, 2)
+          );
           if (vaults !== updatedVaults) setVaults(updatedVaults);
           if (vaultsStatuses !== updatedVaultsStatuses)
             setVaultsStatuses(updatedVaultsStatuses);
@@ -1155,8 +1161,8 @@ const WalletProviderRaw = ({
 
   const contextValue = {
     getUnvaultKey,
-    getChangeDescriptor,
-    getReceiveDescriptor,
+    getNextChangeDescriptorWithIndex,
+    getNextReceiveDescriptorWithIndex,
     fetchServiceAddress,
     updateVaultStatus,
     btcFiat,

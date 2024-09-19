@@ -28,14 +28,17 @@ export default function Send() {
     if (navigation.canGoBack()) navigation.goBack();
   }, [navigation]);
 
-  const [receiveDescriptor, setReceiveDescriptor] = useState<string>();
+  const [receiveDescriptorWithIndex, setReceiveDescriptorWithIndex] = useState<{
+    descriptor: string;
+    index: number;
+  }>();
 
   const {
     utxosData,
     networkId,
     feeEstimates,
     accounts,
-    getReceiveDescriptor,
+    getNextReceiveDescriptorWithIndex,
     fetchOutputHistory
   } = useWallet();
   if (!utxosData)
@@ -51,12 +54,12 @@ export default function Send() {
   const network = networkMapping[networkId];
 
   useEffect(() => {
-    if (receiveDescriptor) {
+    if (receiveDescriptorWithIndex) {
       const checkForReceivedFunds = async () => {
         for (let i = 0; i < DETECT_RETRY_MAX; i++) {
           try {
             const txHistory = await fetchOutputHistory({
-              descriptor: receiveDescriptor
+              ...receiveDescriptorWithIndex
             });
             if (txHistory) break;
             await new Promise(resolve =>
@@ -69,28 +72,29 @@ export default function Send() {
       };
 
       const unsubscribe = navigation.addListener('beforeRemove', () => {
-        if (receiveDescriptor) {
+        if (receiveDescriptorWithIndex) {
           checkForReceivedFunds();
         }
       });
       return unsubscribe;
     }
     return;
-  }, [navigation, receiveDescriptor, fetchOutputHistory]);
+  }, [navigation, receiveDescriptorWithIndex, fetchOutputHistory]);
 
   useEffect(() => {
     const f = async () => {
-      const receiveDescriptor = await getReceiveDescriptor();
-      setReceiveDescriptor(receiveDescriptor);
+      const receiveDescriptorWithIndex =
+        await getNextReceiveDescriptorWithIndex();
+      setReceiveDescriptorWithIndex(receiveDescriptorWithIndex);
     };
     f();
-  }, [getReceiveDescriptor, network]);
+  }, [getNextReceiveDescriptorWithIndex, network]);
 
   const receiveAddress = useMemo(
     () =>
-      receiveDescriptor &&
-      computeReceiveOutput(receiveDescriptor, network).getAddress(),
-    [receiveDescriptor, network]
+      receiveDescriptorWithIndex &&
+      computeReceiveOutput(receiveDescriptorWithIndex, network).getAddress(),
+    [receiveDescriptorWithIndex, network]
   );
 
   const { settings } = useSettings();
