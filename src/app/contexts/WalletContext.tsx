@@ -84,6 +84,7 @@ type TxHistory = Array<{
 
 export type WalletContextType = {
   getChangeDescriptor: () => Promise<string>;
+  getReceiveDescriptor: () => Promise<string>;
   fetchServiceAddress: () => Promise<string>;
   getUnvaultKey: () => Promise<string>;
   updateVaultStatus: (vaultId: string, vaultStatus: VaultStatus) => void;
@@ -107,6 +108,7 @@ export type WalletContextType = {
     index?: number;
   }) => Promise<TxHistory | undefined>;
   vaultPushAndUpdateStates: (vault: Vault) => Promise<void>;
+  txPushAndUpdateStates: (txHex: string) => Promise<void>;
   syncBlockchain: () => void;
   syncingBlockchain: boolean;
   vaultsAPI: string | undefined;
@@ -784,6 +786,23 @@ const WalletProviderRaw = ({
     );
   }, [network, accounts, discovery]);
 
+  const getReceiveDescriptor = useCallback(async () => {
+    if (!network) throw new Error('Network not ready');
+    if (!accounts) throw new Error('Accounts not ready');
+    if (!Object.keys(accounts).length) throw new Error('Accounts not set');
+    if (!discovery) throw new Error('Discovery not ready');
+    const account = getMainAccount(accounts, network);
+    const receiveDescriptorRanged = account.replace(/\/0\/\*/g, '/0/*');
+    return receiveDescriptorRanged.replaceAll(
+      '*',
+      discovery
+        .getNextIndex({
+          descriptor: receiveDescriptorRanged
+        })
+        .toString()
+    );
+  }, [network, accounts, discovery]);
+
   const getUnvaultKey = useCallback(async () => {
     if (!network) throw new Error('Network not ready');
     if (!signers) throw new Error('Signers not ready');
@@ -1041,11 +1060,7 @@ const WalletProviderRaw = ({
   const vaultPushAndUpdateStates = useCallback(
     async (vault: Vault): Promise<void> => {
       if (!vaults || !vaultsStatuses)
-        throw new Error('Cannot use vaults without Storage');
-      if (!vaults || !vaultsStatuses)
-        throw new Error(
-          'vaults and vaultsStatuses should be defined since they are synched'
-        );
+        throw new Error('vaults and vaultsStatuses should be defined');
       if (!accounts || tipHeight === undefined)
         throw new Error(
           `Cannot vaultPushAndUpdateStates without accounts: ${!!accounts} or tipHeight: ${!!tipHeight}`
@@ -1093,6 +1108,24 @@ const WalletProviderRaw = ({
       vaultsStatuses
     ]
   );
+  /**
+   * Similar as vaultPushAndUpdateStates but for regular txs
+   *
+   * This function may throw. try-catch it from outer blocks.
+   */
+  const txPushAndUpdateStates = useCallback(
+    async (txHex: string): Promise<void> => {
+      if (!vaults || !vaultsStatuses)
+        throw new Error('vaults and vaultsStatuses should be defined');
+      if (!accounts || tipHeight === undefined)
+        throw new Error(
+          `Cannot txPushAndUpdateStates without accounts: ${!!accounts} or tipHeight: ${!!tipHeight}`
+        );
+      await pushTx(txHex);
+      await setUtxosHistoryExport(vaults, vaultsStatuses, accounts, tipHeight);
+    },
+    [pushTx, accounts, tipHeight, setUtxosHistoryExport, vaults, vaultsStatuses]
+  );
 
   const updateVaultStatus = useCallback(
     (vaultId: string, vaultStatus: VaultStatus) => {
@@ -1123,6 +1156,7 @@ const WalletProviderRaw = ({
   const contextValue = {
     getUnvaultKey,
     getChangeDescriptor,
+    getReceiveDescriptor,
     fetchServiceAddress,
     updateVaultStatus,
     btcFiat,
@@ -1137,6 +1171,7 @@ const WalletProviderRaw = ({
     historyData:
       walletId !== undefined ? walletsHistoryData[walletId] : undefined,
     vaultPushAndUpdateStates,
+    txPushAndUpdateStates,
     syncBlockchain,
     syncingBlockchain: !!(
       walletId !== undefined && walletsSyncingBlockchain[walletId]
