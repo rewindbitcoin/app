@@ -82,6 +82,7 @@ const estimateMaxVaultAmount = moize.shallow(
         remainder: vaultOutput,
         feeRate
       });
+      console.log('TRACE maxFunds', JSON.stringify(coinselected, null, 2));
       if (!coinselected) return;
       // It looks like it was possible to add a service output. We
       // can now know the total amount and we can compute the correct
@@ -98,6 +99,7 @@ const estimateMaxVaultAmount = moize.shallow(
         serviceOutput,
         serviceFeeRate
       });
+      console.log('TRACE maxFunds split', JSON.stringify(split, null, 2));
       if (!split) return;
 
       //All code below are just assertions:
@@ -267,6 +269,8 @@ const estimateMinRecoverableVaultAmount = moize.shallow(
           feeRateCeiling * estimatePanicTxSize(lockBlocks, coldAddress, network)
         );
 
+      //FIXME: note i will have the same error with calculateServiceFee
+      //as in vaults.ts - calculateServiceFee should also give vaultedAmount?
       const minVaultedAmount = Math.max(
         dustThreshold(vaultOutput) + 1,
         Math.ceil(totalFees / (1 - minRecoverableRatio))

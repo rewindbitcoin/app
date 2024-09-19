@@ -1,3 +1,5 @@
+//FIXME: Sliding the feeRate makes this unresponsive - memoize is wrong
+//TODO: test all the toasts (even the errors)
 import AddressInput from '../components/AddressInput';
 import AmountInput from '../components/AmountInput';
 import FeeInput from '../components/FeeInput';
@@ -5,15 +7,27 @@ import { useTranslation } from 'react-i18next';
 import React, { useCallback, useMemo, useState } from 'react';
 import { useNavigation } from '@react-navigation/native';
 import { View } from 'react-native';
-import { Text, Button, KeyboardAwareScrollView } from '../../common/ui';
+import {
+  Text,
+  Button,
+  KeyboardAwareScrollView,
+  useToast
+} from '../../common/ui';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { pickFeeEstimate } from '../lib/fees';
-import { estimateSendRange, estimateTxSize } from '../lib/sendRange';
+import {
+  estimateSendRange,
+  estimateTxSize,
+  calculateTxHex
+} from '../lib/sendTransaction';
 import { networkMapping } from '../lib/network';
 import { useSettings } from '../hooks/useSettings';
 import { useWallet } from '../hooks/useWallet';
-import { DUMMY_CHANGE_OUTPUT, getMainAccount } from '../lib/vaultDescriptors';
+import {
+  DUMMY_CHANGE_DESCRIPTOR,
+  getMainAccount
+} from '../lib/vaultDescriptors';
 
 export default function Send() {
   const insets = useSafeAreaInsets();
@@ -23,7 +37,16 @@ export default function Send() {
   );
   const navigation = useNavigation();
 
-  const { utxosData, networkId, feeEstimates, accounts } = useWallet();
+  const {
+    utxosData,
+    networkId,
+    feeEstimates,
+    accounts,
+    getChangeDescriptor,
+    txPushAndUpdateStates,
+    signers
+  } = useWallet();
+
   if (!utxosData)
     throw new Error('SendScreen cannot be called with unset utxos');
   if (!accounts)
@@ -32,7 +55,16 @@ export default function Send() {
     throw new Error('SendScreen cannot be called with unset networkId');
   if (!feeEstimates)
     throw new Error('SendScreen cannot be called with unset feeEstimates');
+  if (!signers)
+    throw new Error('SendScreen cannot be called with unset signers');
+  const signer = signers[0];
+  if (!signer) throw new Error('signer unavailable');
   const network = networkMapping[networkId];
+
+  const goBack = useCallback(() => {
+    //goBack will unmount this screen as per react-navigation docs.
+    if (navigation.canGoBack()) navigation.goBack();
+  }, [navigation]);
 
   const { settings } = useSettings();
   if (!settings)
@@ -42,6 +74,7 @@ export default function Send() {
 
   const [address, setAddress] = useState<string | null>(null);
   const { t } = useTranslation();
+  const toast = useToast();
 
   const initialFeeRate = pickFeeEstimate(
     feeEstimates,
@@ -79,22 +112,56 @@ export default function Send() {
     [max]
   );
 
-  const handleOK = useCallback(() => {
+  const handleOK = useCallback(async () => {
     if (feeRate === null || amount === null || address === null)
       throw new Error('Cannot process Transaction');
-  }, [feeRate, amount, address]);
+    let txHex;
+    try {
+      const changeDescriptor = await getChangeDescriptor();
+      if (!changeDescriptor)
+        throw new Error('Impossible to obtain a new change descriptor');
+      txHex = await calculateTxHex({
+        signer,
+        utxosData,
+        address,
+        feeRate,
+        amount,
+        network,
+        changeDescriptor
+      });
+    } catch (err) {
+      toast.show(t('send.txCalculateError'), { type: 'warning' });
+    }
+    try {
+      if (txHex) {
+        await txPushAndUpdateStates(txHex);
+        toast.show(t('send.txSuccess'), { type: 'success' });
+      }
+    } catch (err) {
+      toast.show(t('send.txPushError'), { type: 'warning' });
+    }
+    goBack();
+  }, [
+    toast,
+    signer,
+    utxosData,
+    network,
+    getChangeDescriptor,
+    goBack,
+    txPushAndUpdateStates,
+    t,
+    feeRate,
+    amount,
+    address
+  ]);
 
-  const changeOutput = DUMMY_CHANGE_OUTPUT(
-    getMainAccount(accounts, network),
-    network
-  );
   const txSize = estimateTxSize({
     utxosData,
     address,
     feeRate,
     amount,
     network,
-    changeOutput
+    changeDescriptor: DUMMY_CHANGE_DESCRIPTOR(getMainAccount(accounts, network))
   });
 
   const allFieldsValid =

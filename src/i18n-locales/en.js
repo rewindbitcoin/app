@@ -460,7 +460,16 @@ This minimum amount is calculated based on the assumption that you may need rapi
     title: 'Send Bitcoin',
     notEnoughFunds: 'Insufficient funds to create the transaction',
     amountLabel: 'Amount to Send',
-    confirmationSpeedLabel: 'Confirmation Speed'
+    confirmationSpeedLabel: 'Confirmation Speed',
+    txCalculateError:
+      'The transaction could not be created. Sync your wallet and try again.',
+    txPushError:
+      "Connection issues. We're unsure if the transaction was sent to the blockchain. Refresh to check, and if it's missing, try again.",
+    txSuccess:
+      'Your transaction has been successfully created and sent to the blockchain.'
+  },
+  receive: {
+    title: 'Receive Bitcoin'
   },
   createVault: {
     intro: `We're setting up your vault, generating multiple combinations to minimize future unfreezing fees.

@@ -1,3 +1,15 @@
+TODO: cambiar las fees en SendScreen hace increiblemebnte lento, se necesita algun memoize
+TODO:  ERROR  Error: vaultedAmount 7966750 should be selectable since it's within range - [2540817, 7966750] - isValidVaultRange: true.
+ y luego mover violentamente las fees.
+-> Esto me pasa tras añadir una dirección en VaultSetUp y luego mover violentamente las fees.
+  -> Incluso me pasa sin añadir dirección nueva - me pasa en la Wallet Main de iOS SE Lo que he hecho es enviar 0.20 a alguna parte.
+    -> Me pasa con la fee 1.94
+
+
+
+
+
+
 Also include a button for dismissing I have secured my wallet seed (and don't prompt it on start)
   -> Then change the Skip to "Later"
 

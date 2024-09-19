@@ -457,6 +457,14 @@ export const getOutputsWithValue = memoize((utxosData: UtxosData) =>
   })
 );
 
+//transactionAmount -> vaultAmount -> serviceFee
+//Si tengo transactionAmount entonces se puede hacer siempre que
+//transactionAmount = vaultedAmount + serviceFee
+//Pero en SetUpVault obtengo el vaultedAmount.
+//En cambio tengo el maxTransactionAmount
+//Tengo que asegurarme que el maxTransactionAmount da un maxVaultAmount
+//que es reversible
+//Siempre se puede jugar con la fee (dar mas o menos) si son 1 o 2 sats
 export const calculateServiceFee = ({
   serviceFeeRate,
   serviceOutput,
@@ -468,15 +476,15 @@ export const calculateServiceFee = ({
 }) => {
   if (serviceFeeRate < 0)
     throw new Error(`Invalid service fee rate: ${serviceFeeRate}`);
-  if (serviceFeeRate > 0) {
+  else if (serviceFeeRate === 0) return 0;
+  else {
     if (!serviceOutput)
       throw new Error('Set a serviceOutput when fee rates are > 0');
-    return Math.max(
+    const serviceFee = Math.max(
       dustThreshold(serviceOutput) + 1,
       Math.floor(serviceFeeRate * vaultedAmount)
     );
-  } else {
-    return 0;
+    return serviceFee;
   }
 };
 
@@ -520,7 +528,48 @@ export const splitTransactionAmount = ({
   });
   const vaultedAmount = transactionAmount - serviceFee;
   if (vaultedAmount <= dustThreshold(vaultOutput)) return;
-  else return { vaultedAmount, serviceFee, transactionAmount };
+  else
+    return {
+      vaultedAmount,
+      serviceFee,
+      transactionAmount
+    };
+
+  //const finalServiceFee = calculateServiceFee({
+  //  serviceOutput,
+  //  serviceFeeRate,
+  //  vaultedAmount
+  //});
+  //const finalVaultedAmount = transactionAmount - finalServiceFee;
+  //if (
+  //  finalServiceFee !==
+  //  calculateServiceFee({
+  //    serviceOutput,
+  //    serviceFeeRate,
+  //    vaultedAmount: finalVaultedAmount
+  //  })
+  //)
+  //  throw new Error(
+  //    'Impossible to split tx:' +
+  //      JSON.stringify({
+  //        serviceFee,
+  //        vaultedAmount,
+  //        finalServiceFee,
+  //        finalVaultedAmount
+  //      })
+  //  );
+  //if (finalVaultedAmount <= dustThreshold(vaultOutput)) return;
+  //else
+  //  return {
+  //    vaultedAmount: finalVaultedAmount,
+  //    serviceFee: finalServiceFee,
+  //    transactionAmount
+  //  };
+  //FIXME: The below is not exact, since at times minServiveFee (will use dust)
+  //will make it impossible to do a split with low values of transactionAmount
+  //throw new Error(
+  //  'splitTransactionAmount must be refactored so that this never happens!'
+  //);
 };
 
 /**
@@ -565,6 +614,11 @@ const selectVaultUtxosData = ({
     ],
     remainder: changeOutput,
     feeRate
+  });
+  console.log('TRACE selectVaultUtxosData', {
+    feeRate,
+    serviceFee,
+    coinselected
   });
   if (!coinselected) return;
   const vaultUtxosData =

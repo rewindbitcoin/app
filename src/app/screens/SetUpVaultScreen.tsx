@@ -189,6 +189,11 @@ export default function VaultSetUp({
 
   let txSize = null;
   if (isValidVaultRange && vaultedAmount !== null && feeRate !== null) {
+    console.log('TRACE calling selectVaultUtxosData for feeRate: ', {
+      feeRate,
+      vaultedAmount,
+      maxVaultedAmount: maxVaultAmount.vaultedAmount
+    });
     const selected = selectVaultUtxosData({
       utxosData,
       vaultOutput,
@@ -203,7 +208,7 @@ export default function VaultSetUp({
     });
     if (!selected)
       throw new Error(
-        `vaultedAmount ${vaultedAmount} should be selectable since it's within range - [${minRecoverableVaultAmount?.vaultedAmount}, ${maxVaultAmount?.vaultedAmount}] - isValidVaultRange: ${isValidVaultRange}.`
+        `vaultedAmount ${vaultedAmount} should be selectable since it's within range - [${minRecoverableVaultAmount?.vaultedAmount}, ${maxVaultAmount?.vaultedAmount}] - isValidVaultRange: ${isValidVaultRange} - feeRate: ${feeRate}.`
       );
     txSize = selected.vsize;
   }
