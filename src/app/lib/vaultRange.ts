@@ -436,7 +436,7 @@ export const estimateVaultSetUpRange = moize.shallow(
  * But the reverse vaultedAmount -> (serviceFee, transactionAmount) cannot be
  * analytically found and several solutions can be possible in fact
  */
-export const estimateServiceFeeFromVaultedAmount = ({
+export const estimateServiceFee = ({
   vaultedAmount,
   serviceFeeRate,
   serviceOutput,
@@ -471,21 +471,21 @@ export const estimateServiceFeeFromVaultedAmount = ({
   if (vaultedAmount === maxVaultAmount.vaultedAmount)
     return maxVaultAmount.serviceFee;
 
-  let approxServiceFee = Math.max(
-    dustThreshold(serviceOutput) + 1,
-    Math.floor(serviceFeeRate * vaultedAmount)
-  );
-
   const largestPossibleFee = maxVaultAmount.transactionAmount - vaultedAmount; //largest possible serviceFee for vaultedAmount to be in-range
   const smallestPossibleFee = minVaultAmount.transactionAmount - vaultedAmount; //smallest possible serviceFee for vaultedAmount to be in-range
 
   if (smallestPossibleFee > largestPossibleFee)
     throw new Error('Impossible solution');
 
+  let estimatedServiceFee = Math.max(
+    dustThreshold(serviceOutput) + 1,
+    Math.floor(serviceFeeRate * vaultedAmount)
+  );
+
   //vaultedAmount + serviceFee must be within transaction ranges
-  approxServiceFee = Math.min(approxServiceFee, largestPossibleFee);
-  approxServiceFee = Math.max(approxServiceFee, smallestPossibleFee);
-  if (approxServiceFee < dustThreshold(serviceOutput) + 1)
+  estimatedServiceFee = Math.min(estimatedServiceFee, largestPossibleFee);
+  estimatedServiceFee = Math.max(estimatedServiceFee, smallestPossibleFee);
+  if (estimatedServiceFee <= dustThreshold(serviceOutput))
     throw new Error('Final serviceFee should be above dust');
-  return approxServiceFee;
+  return estimatedServiceFee;
 };

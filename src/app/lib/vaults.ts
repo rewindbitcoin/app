@@ -457,29 +457,6 @@ export const getOutputsWithValue = memoize((utxosData: UtxosData) =>
   })
 );
 
-const calculateServiceFee = ({
-  serviceFeeRate,
-  serviceOutput,
-  vaultedAmount
-}: {
-  serviceFeeRate: number;
-  serviceOutput?: OutputInstance;
-  vaultedAmount: number;
-}) => {
-  if (serviceFeeRate < 0)
-    throw new Error(`Invalid service fee rate: ${serviceFeeRate}`);
-  else if (serviceFeeRate === 0) return 0;
-  else {
-    if (!serviceOutput)
-      throw new Error('Set a serviceOutput when fee rates are > 0');
-    const serviceFee = Math.max(
-      dustThreshold(serviceOutput) + 1,
-      Math.floor(serviceFeeRate * vaultedAmount)
-    );
-    return serviceFee;
-  }
-};
-
 /**
  * splitTransactionAmount makes sure serviceFee and vaultedAmount are
  * above dust, otherwise undefined is returned.
@@ -498,28 +475,30 @@ export const splitTransactionAmount = ({
 }: {
   transactionAmount: number;
   vaultOutput: OutputInstance;
-  serviceOutput: OutputInstance;
+  serviceOutput?: OutputInstance;
   serviceFeeRate: number;
 }) => {
   // transactionAmount = serviceFee + vaultedAmount
-  // serviceFee = serviceFeeRate * vaultedAmount
-  // =>
-  //
-  //
-  // transactionAmount = serviceFee + (serviceFee / serviceFeeRate)
-  //        = serviceFee * (1 + 1/serviceFeeRate) =
-  //        = serviceFee * (serviceFeeRate + 1) / serviceFeeRate
-  // =>
-  // serviceFee = transactionAmount * serviceFeeRate / (1 + serviceFeeRate)
-  // serviceFee / serviceFeeRate = vaultedAmount = transactionAmount / (1 + serviceFeeRate)
+  // transactionAmount = vaultedAmount + (serviceFeeRate * vaultedAmount)
+  //                   = vaultedAmount (1 + serviceFeeRate)
+  // vaultedAmount = transactionAmount / (1 + serviceFeeRate)
 
-  const serviceFee = calculateServiceFee({
-    serviceOutput,
-    serviceFeeRate,
-    vaultedAmount: transactionAmount / (1 + serviceFeeRate)
-  });
-  const vaultedAmount = transactionAmount - serviceFee;
-  if (vaultedAmount <= dustThreshold(vaultOutput)) return;
+  if (serviceFeeRate < 0)
+    throw new Error(`Invalid service fee rate: ${serviceFeeRate}`);
+  else if (serviceFeeRate === 0)
+    return {
+      vaultedAmount: transactionAmount,
+      transactionAmount,
+      serviceFee: 0
+    };
+  if (!serviceOutput)
+    throw new Error('Set a serviceOutput when fee rates are > 0');
+  const vaultedAmount = Math.max(
+    dustThreshold(vaultOutput) + 1,
+    Math.ceil(transactionAmount / (1 + serviceFeeRate))
+  );
+  const serviceFee = transactionAmount - vaultedAmount;
+  if (serviceFee <= dustThreshold(serviceOutput)) return;
   else
     return {
       vaultedAmount,

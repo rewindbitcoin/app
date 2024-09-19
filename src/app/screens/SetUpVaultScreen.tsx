@@ -20,10 +20,7 @@ import {
 
 import { pickFeeEstimate } from '../lib/fees';
 import { formatBtc } from '../lib/btcRates';
-import {
-  estimateServiceFeeFromVaultedAmount,
-  estimateVaultSetUpRange
-} from '../lib/vaultRange';
+import { estimateServiceFee, estimateVaultSetUpRange } from '../lib/vaultRange';
 import { networkMapping } from '../lib/network';
 import { useSettings } from '../hooks/useSettings';
 import { useWallet } from '../hooks/useWallet';
@@ -165,7 +162,7 @@ export default function VaultSetUp({
     : userSelectedVaultedAmount;
   const serviceFee: number | null =
     vaultedAmount && maxVaultAmount && minRecoverableVaultAmount
-      ? estimateServiceFeeFromVaultedAmount({
+      ? estimateServiceFee({
           vaultedAmount,
           serviceFeeRate,
           serviceOutput,
