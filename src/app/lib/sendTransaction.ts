@@ -2,7 +2,11 @@ import moize from 'moize';
 import * as secp256k1 from '@bitcoinerlab/secp256k1';
 import { getOutputsWithValue, UtxosData } from './vaults';
 
-import { DescriptorsFactory, signers } from '@bitcoinerlab/descriptors';
+import {
+  DescriptorsFactory,
+  OutputInstance,
+  signers
+} from '@bitcoinerlab/descriptors';
 const { Output } = DescriptorsFactory(secp256k1);
 import { Network, Psbt } from 'bitcoinjs-lib';
 import { coinselect, dustThreshold, maxFunds } from '@bitcoinerlab/coinselect';
@@ -52,19 +56,15 @@ export const sendCoinselect = moize.shallow(
     feeRate,
     amount,
     network,
-    changeDescriptor
+    changeOutput
   }: {
     utxosData: UtxosData;
     address: string | null;
     feeRate: number | null;
     amount: number | null;
     network: Network;
-    changeDescriptor: string;
+    changeOutput: OutputInstance;
   }) => {
-    const changeOutput = new Output({
-      descriptor: changeDescriptor,
-      network
-    });
     if (!feeRate || !amount || !address) return null;
     const output = address ? computeOutput(address, network) : DUMMY_PKH_OUTPUT;
     const coinselected = coinselect({
@@ -83,14 +83,14 @@ export const estimateTxSize = ({
   feeRate,
   amount,
   network,
-  changeDescriptor
+  changeOutput
 }: {
   utxosData: UtxosData;
   address: string | null;
   feeRate: number | null;
   amount: number | null;
   network: Network;
-  changeDescriptor: string;
+  changeOutput: OutputInstance;
 }) => {
   const coinselected = sendCoinselect({
     utxosData,
@@ -98,7 +98,7 @@ export const estimateTxSize = ({
     feeRate,
     amount,
     network,
-    changeDescriptor
+    changeOutput
   });
   if (!coinselected) return null;
   return coinselected.vsize;
@@ -117,7 +117,7 @@ export const calculateTxHex = async ({
   feeRate,
   amount,
   network,
-  changeDescriptor,
+  changeOutput,
   signer
 }: {
   utxosData: UtxosData;
@@ -125,7 +125,7 @@ export const calculateTxHex = async ({
   feeRate: number | null;
   amount: number | null;
   network: Network;
-  changeDescriptor: string;
+  changeOutput: OutputInstance;
   signer: Signer;
 }) => {
   const coinselected = sendCoinselect({
@@ -134,7 +134,7 @@ export const calculateTxHex = async ({
     feeRate,
     amount,
     network,
-    changeDescriptor
+    changeOutput
   });
   if (!coinselected) return null;
   const targets = coinselected.targets;

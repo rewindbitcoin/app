@@ -1,4 +1,3 @@
-//FIXME: Sliding the feeRate makes this unresponsive - memoize is wrong
 //TODO: test all the toasts (even the errors)
 import AddressInput from '../components/AddressInput';
 import AmountInput from '../components/AmountInput';
@@ -25,7 +24,8 @@ import { networkMapping } from '../lib/network';
 import { useSettings } from '../hooks/useSettings';
 import { useWallet } from '../hooks/useWallet';
 import {
-  DUMMY_CHANGE_DESCRIPTOR,
+  computeChangeOutput,
+  DUMMY_CHANGE_OUTPUT,
   getMainAccount
 } from '../lib/vaultDescriptors';
 
@@ -89,6 +89,9 @@ export default function Send() {
     network,
     feeRate
   });
+  ////console.log({ min, max });
+  //const min = 547;
+  //const max = 7998655;
 
   const isValidRange = max >= min;
 
@@ -120,6 +123,7 @@ export default function Send() {
       const changeDescriptor = await getChangeDescriptor();
       if (!changeDescriptor)
         throw new Error('Impossible to obtain a new change descriptor');
+      const changeOutput = computeChangeOutput(changeDescriptor, network);
       txHex = await calculateTxHex({
         signer,
         utxosData,
@@ -127,7 +131,7 @@ export default function Send() {
         feeRate,
         amount,
         network,
-        changeDescriptor
+        changeOutput
       });
     } catch (err) {
       toast.show(t('send.txCalculateError'), { type: 'warning' });
@@ -161,8 +165,12 @@ export default function Send() {
     feeRate,
     amount,
     network,
-    changeDescriptor: DUMMY_CHANGE_DESCRIPTOR(getMainAccount(accounts, network))
+    changeOutput: DUMMY_CHANGE_OUTPUT(
+      getMainAccount(accounts, network),
+      network
+    )
   });
+  //const txSize = 200;
 
   const allFieldsValid =
     amount !== null && feeRate !== null && address !== null;

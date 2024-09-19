@@ -65,6 +65,15 @@ export const DUMMY_CHANGE_OUTPUT = memoize(
     });
   }
 );
+export const computeChangeOutput = memoize(
+  (changeDescriptor: string, network: Network) => {
+    return new Output({
+      descriptor: changeDescriptor,
+      index: 0,
+      network
+    });
+  }
+);
 
 export const DUMMY_PKH_OUTPUT = new Output({
   descriptor: `pkh(${DUMMY_PUBKEY})`
