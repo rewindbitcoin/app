@@ -27,6 +27,8 @@ import { useNetStatus } from '../hooks/useNetStatus';
 import { NavigationPropsByScreenId, WALLET_HOME } from '../screens';
 import { batchedUpdates } from '~/common/lib/batchedUpdates';
 import { formatBalance, formatBlocks } from '../lib/format';
+import { createServiceOutput } from '../lib/vaultDescriptors';
+import { networkMapping } from '../lib/network';
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -36,7 +38,8 @@ export default function CreateVaultScreen({
   vaultSettings: VaultSettings | undefined;
 }) {
   if (!vaultSettings) throw new Error('vaultSettings not set');
-  const { vaultedAmount, feeRate, lockBlocks, coldAddress } = vaultSettings;
+  const { vaultedAmount, serviceFee, feeRate, lockBlocks, coldAddress } =
+    vaultSettings;
 
   const height = useWindowDimensions().height;
 
@@ -91,7 +94,6 @@ export default function CreateVaultScreen({
     settings.FIAT_MODE && typeof btcFiat === 'number'
       ? 'Fiat'
       : settings.SUB_UNIT;
-  const serviceFeeRate = settings.SERVICE_FEE_RATE;
   // We know settings are the correct ones in this Component
   const [progress, setProgress] = useState<number>(0);
   const [confirmRequested, setConfirmRequested] = useState<boolean>(false);
@@ -255,17 +257,21 @@ export default function CreateVaultScreen({
         return;
       }
 
+      const serviceOutput = createServiceOutput(
+        serviceAddress,
+        networkMapping[networkId]
+      );
       //createVault does not throw. It returns errors as strings:
       const vault = await createVault({
         vaultedAmount,
         unvaultKey,
         samples,
         feeRate,
-        serviceFeeRate,
+        serviceFee,
         feeRateCeiling,
         coldAddress,
         changeDescriptor,
-        serviceAddress,
+        serviceOutput,
         lockBlocks,
         signer,
         utxosData,
@@ -300,6 +306,7 @@ export default function CreateVaultScreen({
     t,
     toast,
     vaultedAmount,
+    serviceFee,
     coldAddress,
     feeRate,
     feeRateCeiling,
@@ -313,7 +320,6 @@ export default function CreateVaultScreen({
     samples,
     vaultsAPI,
     vaultsSecondaryAPI,
-    serviceFeeRate,
     signer,
     vaults,
     utxosData

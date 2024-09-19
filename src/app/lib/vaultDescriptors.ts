@@ -74,6 +74,14 @@ export const createVaultDescriptor = (pubKey: string) => `wpkh(${pubKey})`;
 
 export const createServiceDescriptor = (address: string) => `addr(${address})`;
 
+export const createServiceOutput = moize(
+  (serviceAddress: string, network: Network) =>
+    new Output({
+      descriptor: createServiceDescriptor(serviceAddress),
+      network
+    })
+);
+
 export const createColdDescriptor = (address: string) => `addr(${address})`;
 
 /** Async because in the future i may have some signing server that will

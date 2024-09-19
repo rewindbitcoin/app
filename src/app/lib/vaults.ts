@@ -16,7 +16,6 @@ import {
   createVaultDescriptor,
   createTriggerDescriptor,
   createColdDescriptor,
-  createServiceDescriptor,
   DUMMY_PUBKEY,
   DUMMY_PUBKEY_2
 } from './vaultDescriptors';
@@ -37,6 +36,7 @@ export type VaultSettings = {
    * vaultedAmount = tansactionAmount - serviceFee
    */
   vaultedAmount: number;
+  serviceFee: number;
   coldAddress: string;
   feeRate: number;
   lockBlocks: number;
@@ -67,7 +67,7 @@ export type Vault = {
   /**
    * The 2nd output, used to pay service usage.
    *  Note that this second output (for serviceFee) may not exist if
-   *  serviceFeeRate = 0.
+   *  serviceFee= 0.
    *  See: selectVaultUtxosData.
    *  There and maybe there an additional output with change.
    *  So, int the inital vaulting tx,
@@ -457,15 +457,7 @@ export const getOutputsWithValue = memoize((utxosData: UtxosData) =>
   })
 );
 
-//transactionAmount -> vaultAmount -> serviceFee
-//Si tengo transactionAmount entonces se puede hacer siempre que
-//transactionAmount = vaultedAmount + serviceFee
-//Pero en SetUpVault obtengo el vaultedAmount.
-//En cambio tengo el maxTransactionAmount
-//Tengo que asegurarme que el maxTransactionAmount da un maxVaultAmount
-//que es reversible
-//Siempre se puede jugar con la fee (dar mas o menos) si son 1 o 2 sats
-export const calculateServiceFee = ({
+const calculateServiceFee = ({
   serviceFeeRate,
   serviceOutput,
   vaultedAmount
@@ -534,42 +526,6 @@ export const splitTransactionAmount = ({
       serviceFee,
       transactionAmount
     };
-
-  //const finalServiceFee = calculateServiceFee({
-  //  serviceOutput,
-  //  serviceFeeRate,
-  //  vaultedAmount
-  //});
-  //const finalVaultedAmount = transactionAmount - finalServiceFee;
-  //if (
-  //  finalServiceFee !==
-  //  calculateServiceFee({
-  //    serviceOutput,
-  //    serviceFeeRate,
-  //    vaultedAmount: finalVaultedAmount
-  //  })
-  //)
-  //  throw new Error(
-  //    'Impossible to split tx:' +
-  //      JSON.stringify({
-  //        serviceFee,
-  //        vaultedAmount,
-  //        finalServiceFee,
-  //        finalVaultedAmount
-  //      })
-  //  );
-  //if (finalVaultedAmount <= dustThreshold(vaultOutput)) return;
-  //else
-  //  return {
-  //    vaultedAmount: finalVaultedAmount,
-  //    serviceFee: finalServiceFee,
-  //    transactionAmount
-  //  };
-  //FIXME: The below is not exact, since at times minServiveFee (will use dust)
-  //will make it impossible to do a split with low values of transactionAmount
-  //throw new Error(
-  //  'splitTransactionAmount must be refactored so that this never happens!'
-  //);
 };
 
 /**
@@ -583,7 +539,7 @@ const selectVaultUtxosData = ({
   changeOutput,
   vaultedAmount,
   feeRate,
-  serviceFeeRate
+  serviceFee
 }: {
   utxosData: UtxosData;
   vaultOutput: OutputInstance;
@@ -595,15 +551,10 @@ const selectVaultUtxosData = ({
    */
   vaultedAmount: number;
   feeRate: number;
-  serviceFeeRate: number;
+  serviceFee: number;
 }) => {
   const utxos = getOutputsWithValue(utxosData);
   if (vaultedAmount <= dustThreshold(vaultOutput)) return;
-  const serviceFee = calculateServiceFee({
-    vaultedAmount,
-    serviceFeeRate,
-    ...(serviceOutput ? { serviceOutput } : {})
-  });
   const coinselected = coinselect({
     utxos,
     targets: [
@@ -657,11 +608,11 @@ export async function createVault({
   unvaultKey,
   samples,
   feeRate,
-  serviceFeeRate,
+  serviceFee,
   feeRateCeiling,
   coldAddress,
   changeDescriptor,
-  serviceAddress,
+  serviceOutput,
   lockBlocks,
   signer,
   networkId,
@@ -679,13 +630,13 @@ export async function createVault({
   /** How many txs to compute. Note that the final number of tx is samples^2*/
   samples: number;
   feeRate: number;
-  serviceFeeRate: number;
+  serviceFee: number;
   /** This is the largest fee rate for which at least one trigger and panic txs
    * must be pre-computed*/
   feeRateCeiling: number;
   coldAddress: string;
   changeDescriptor: string;
-  serviceAddress: string;
+  serviceOutput: OutputInstance;
   lockBlocks: number;
   /** A signer async function able to sign any of the utxos in utxosData,
    * placed in a Psbt */
@@ -709,10 +660,6 @@ export async function createVault({
 
     const network = networkMapping[networkId];
 
-    const serviceOutput = new Output({
-      descriptor: createServiceDescriptor(serviceAddress),
-      network
-    });
     const changeOutput = new Output({
       descriptor: changeDescriptor,
       network
@@ -730,7 +677,7 @@ export async function createVault({
       serviceOutput,
       changeOutput,
       feeRate,
-      serviceFeeRate
+      serviceFee
     });
     if (!selected) return 'COINSELECT_ERROR';
     const vaultUtxosData = selected.vaultUtxosData;
@@ -946,11 +893,7 @@ export async function createVault({
       networkId,
       vaultId: nextVaultId,
       vaultPath: nextVaultPath,
-      serviceFee: calculateServiceFee({
-        vaultedAmount,
-        serviceOutput,
-        serviceFeeRate
-      }),
+      serviceFee,
       vaultedAmount,
       minPanicAmount,
       feeRateCeiling,
@@ -1463,11 +1406,11 @@ const selectVaultUtxosDataFactory = memoize((utxosData: UtxosData) =>
           ({
             vaultedAmount,
             feeRate,
-            serviceFeeRate
+            serviceFee
           }: {
             vaultedAmount: number;
             feeRate: number;
-            serviceFeeRate: number;
+            serviceFee: number;
           }) =>
             selectVaultUtxosData({
               utxosData,
@@ -1478,10 +1421,10 @@ const selectVaultUtxosDataFactory = memoize((utxosData: UtxosData) =>
               changeOutput,
               vaultedAmount,
               feeRate,
-              serviceFeeRate
+              serviceFee
             }),
-          ({ vaultedAmount, feeRate, serviceFeeRate }) =>
-            JSON.stringify({ vaultedAmount, feeRate, serviceFeeRate })
+          ({ vaultedAmount, feeRate, serviceFee }) =>
+            JSON.stringify({ vaultedAmount, feeRate, serviceFee })
         )
       )
     )
@@ -1494,7 +1437,7 @@ const selectVaultUtxosDataMemo = ({
   changeOutput,
   vaultedAmount,
   feeRate,
-  serviceFeeRate
+  serviceFee
 }: {
   utxosData: UtxosData;
   vaultOutput: OutputInstance;
@@ -1502,14 +1445,14 @@ const selectVaultUtxosDataMemo = ({
   changeOutput: OutputInstance;
   vaultedAmount: number;
   feeRate: number;
-  serviceFeeRate: number;
+  serviceFee: number;
 }) =>
   selectVaultUtxosDataFactory(utxosData)(vaultOutput)(
     serviceOutput || 'no_service_output'
   )(changeOutput)({
     vaultedAmount,
     feeRate,
-    serviceFeeRate
+    serviceFee
   });
 export { selectVaultUtxosDataMemo as selectVaultUtxosData };
 

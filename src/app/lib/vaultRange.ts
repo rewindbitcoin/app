@@ -16,8 +16,7 @@ import {
   selectVaultUtxosData,
   estimateTriggerTxSize,
   estimatePanicTxSize,
-  splitTransactionAmount,
-  calculateServiceFee
+  splitTransactionAmount
 } from './vaults';
 import type { Accounts } from './wallets';
 // nLockTime which results into the largest possible serialized size:
@@ -142,14 +141,14 @@ const estimateMaxVaultAmount = moize.shallow(
         feeRate
       });
       if (!coinselected) return;
-      const vaultedAmount = coinselected.targets.reduce(
+      const transactionAmount = coinselected.targets.reduce(
         (a, { value }) => a + value,
         0
       );
       return {
         vaultTxMiningFee: coinselected.fee,
-        transactionAmount: vaultedAmount,
-        vaultedAmount,
+        transactionAmount,
+        vaultedAmount: transactionAmount,
         serviceFee: 0
       };
     }
@@ -216,7 +215,15 @@ const estimateMinRecoverableVaultAmount = moize.shallow(
     transactionAmount: number;
   } => {
     //The minimum vaultedAmount + serviceFee feasible:
-    const isRecoverable = (vaultedAmount: number) => {
+    const isRecoverable = (transactionAmount: number) => {
+      const split = splitTransactionAmount({
+        transactionAmount,
+        vaultOutput,
+        serviceOutput,
+        serviceFeeRate
+      });
+      if (!split) return false;
+      const { serviceFee, vaultedAmount } = split;
       const selected = selectVaultUtxosData({
         utxosData,
         vaultedAmount,
@@ -224,7 +231,7 @@ const estimateMinRecoverableVaultAmount = moize.shallow(
         serviceOutput,
         changeOutput,
         feeRate,
-        serviceFeeRate
+        serviceFee
       });
       if (!selected) return false;
       const totalFees =
@@ -257,7 +264,7 @@ const estimateMinRecoverableVaultAmount = moize.shallow(
 
     // If the current utxos cannot provide a solution, then we must
     // compute assuming that a new utxo (PKH) will send extra funds
-    if (!maxVaultAmount || !isRecoverable(maxVaultAmount.vaultedAmount)) {
+    if (!maxVaultAmount || !isRecoverable(maxVaultAmount.transactionAmount)) {
       const vaultTxSize = vsize(
         [...utxosData.map(utxoData => utxoData.output), DUMMY_PKH_OUTPUT],
         [vaultOutput, changeOutput, ...(serviceFeeRate ? [serviceOutput] : [])]
@@ -269,32 +276,61 @@ const estimateMinRecoverableVaultAmount = moize.shallow(
           feeRateCeiling * estimatePanicTxSize(lockBlocks, coldAddress, network)
         );
 
-      //FIXME: note i will have the same error with calculateServiceFee
-      //as in vaults.ts - calculateServiceFee should also give vaultedAmount?
-      const minVaultedAmount = Math.max(
-        dustThreshold(vaultOutput) + 1,
-        Math.ceil(totalFees / (1 - minRecoverableRatio))
+      let minTransactionAmount = Math.max(
+        dustThreshold(vaultOutput) + 1 + serviceFeeRate > 0
+          ? dustThreshold(serviceOutput) + 1
+          : 0,
+
+        // vaultedAmount >  totalFees / (1 - minRecoverableRatio)
+        // transactionAmount = vaultedAmount * (1 + serviceFeeRate)
+        // transactionAmount / (1 + serviceFeeRate) >  totalFees / (1 - minRecoverableRatio)
+        // transactionAmount > totalFees * (1 + serviceFeeRate) / (1 - serviceFeeRate)
+        Math.ceil(
+          (totalFees * (1 + serviceFeeRate)) / (1 - minRecoverableRatio)
+        )
       );
-      const minServiceFee = calculateServiceFee({
-        serviceFeeRate,
+      //Let's do a loop over minTransactionAmount++ to make sure the rounding
+      //ops above (mults, divisions, ...) don't round it down and make it not recoverable.
+      //In fact minTransactionAmount++ will probably (almost) neverhappen
+      for (let iters = 0; iters < 100; iters++) {
+        if (isRecoverable(minTransactionAmount)) break;
+        minTransactionAmount++;
+        if (iters === 99) throw new Error('Max iterations reached');
+      }
+
+      //Now split it. Since it isRecoverable it can be split 100% sure
+      const split = splitTransactionAmount({
+        transactionAmount: minTransactionAmount,
+        vaultOutput,
         serviceOutput,
-        vaultedAmount: minVaultedAmount
+        serviceFeeRate
       });
+      if (!split)
+        throw new Error('After adding a PKH output the tx should be splitable');
       return {
         vaultTxMiningFee: Math.ceil(feeRate * vaultTxSize),
-        vaultedAmount: minVaultedAmount,
-        serviceFee: minServiceFee,
-        transactionAmount: minVaultedAmount + minServiceFee
+        vaultedAmount: split.vaultedAmount,
+        serviceFee: split.serviceFee,
+        transactionAmount: minTransactionAmount
       };
     } else {
-      const { value: vaultedAmount } = findLowestTrueBinarySearch(
-        maxVaultAmount.vaultedAmount,
+      const { value: transactionAmount } = findLowestTrueBinarySearch(
+        maxVaultAmount.transactionAmount,
         isRecoverable,
         MIN_VAULT_BIN_SEARCH_ITERS
       );
-      if (vaultedAmount !== undefined) {
-        //Re-compute the selection algo with the returned solution transactionAmount
-        //It's cached; so no big deal here...
+      if (transactionAmount !== undefined) {
+        const split = splitTransactionAmount({
+          transactionAmount,
+          vaultOutput,
+          serviceOutput,
+          serviceFeeRate
+        });
+        if (!split)
+          throw new Error(
+            'After findLowestTrueBinarySearch the tx should be splitable'
+          );
+        const { serviceFee, vaultedAmount } = split;
         const selected = selectVaultUtxosData({
           utxosData,
           vaultedAmount,
@@ -302,7 +338,7 @@ const estimateMinRecoverableVaultAmount = moize.shallow(
           serviceOutput,
           changeOutput,
           feeRate,
-          serviceFeeRate
+          serviceFee
         });
         if (!selected)
           throw new Error(
@@ -310,8 +346,8 @@ const estimateMinRecoverableVaultAmount = moize.shallow(
           );
         return {
           vaultedAmount,
-          transactionAmount: vaultedAmount + selected.serviceFee,
-          serviceFee: selected.serviceFee,
+          transactionAmount,
+          serviceFee,
           vaultTxMiningFee: selected.fee
         };
       } else return maxVaultAmount;
@@ -384,3 +420,72 @@ export const estimateVaultSetUpRange = moize.shallow(
     };
   }
 );
+
+/**
+ * Note that here we can only do some approximations.
+ * The real serviceFee and real vaultedAmount are deduced unidirectionally
+ * from transactionAmount using splitTransactionAmount. splitTransactionAmount is
+ * the source of truth.
+ * However, the user selects a vaultedAmount. Then, we must
+ * find the most accurate serviceFee possible that ensures the final
+ * transaction is within ranges. So the final serviceFee may nit be exactly
+ * serviceFeeRate * vaultedAmount (because there are non-linearities because of
+ * dustThreshold and for roundings).
+ * In other words it is possible to do an exact:
+ *  transactionAmount -> (vaultedAmount, serviceFee)
+ * But the reverse vaultedAmount -> (serviceFee, transactionAmount) cannot be
+ * analytically found and several solutions can be possible in fact
+ */
+export const estimateServiceFeeFromVaultedAmount = ({
+  vaultedAmount,
+  serviceFeeRate,
+  serviceOutput,
+  minVaultAmount,
+  maxVaultAmount
+}: {
+  vaultedAmount: number;
+  serviceFeeRate: number;
+  serviceOutput: OutputInstance;
+  minVaultAmount: {
+    vaultTxMiningFee: number;
+    vaultedAmount: number;
+    serviceFee: number;
+    transactionAmount: number;
+  };
+  maxVaultAmount: {
+    vaultTxMiningFee: number;
+    vaultedAmount: number;
+    serviceFee: number;
+    transactionAmount: number;
+  };
+}) => {
+  if (vaultedAmount > maxVaultAmount.vaultedAmount)
+    throw new Error('Out of range');
+  if (vaultedAmount < minVaultAmount.vaultedAmount)
+    throw new Error('Out of range');
+
+  if (serviceFeeRate === 0) return 0;
+
+  if (vaultedAmount === minVaultAmount.vaultedAmount)
+    return minVaultAmount.serviceFee;
+  if (vaultedAmount === maxVaultAmount.vaultedAmount)
+    return maxVaultAmount.serviceFee;
+
+  let approxServiceFee = Math.max(
+    dustThreshold(serviceOutput) + 1,
+    Math.floor(serviceFeeRate * vaultedAmount)
+  );
+
+  const largestPossibleFee = maxVaultAmount.transactionAmount - vaultedAmount; //largest possible serviceFee for vaultedAmount to be in-range
+  const smallestPossibleFee = minVaultAmount.transactionAmount - vaultedAmount; //smallest possible serviceFee for vaultedAmount to be in-range
+
+  if (smallestPossibleFee > largestPossibleFee)
+    throw new Error('Impossible solution');
+
+  //vaultedAmount + serviceFee must be within transaction ranges
+  approxServiceFee = Math.min(approxServiceFee, largestPossibleFee);
+  approxServiceFee = Math.max(approxServiceFee, smallestPossibleFee);
+  if (approxServiceFee < dustThreshold(serviceOutput) + 1)
+    throw new Error('Final serviceFee should be above dust');
+  return approxServiceFee;
+};

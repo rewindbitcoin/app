@@ -2,12 +2,12 @@ import moize from 'moize';
 import * as secp256k1 from '@bitcoinerlab/secp256k1';
 import { getOutputsWithValue, UtxosData } from './vaults';
 
-import { DescriptorsFactory, OutputInstance } from '@bitcoinerlab/descriptors';
+import { DescriptorsFactory, signers } from '@bitcoinerlab/descriptors';
 const { Output } = DescriptorsFactory(secp256k1);
-import { Network } from 'bitcoinjs-lib';
+import { Network, Psbt } from 'bitcoinjs-lib';
 import { coinselect, dustThreshold, maxFunds } from '@bitcoinerlab/coinselect';
-import { DUMMY_PKH_OUTPUT } from './vaultDescriptors';
-import { add } from 'react-native-libsodium';
+import { DUMMY_PKH_OUTPUT, getMasterNode } from './vaultDescriptors';
+import type { Signer } from './wallets';
 
 const computeOutput = moize((address: string, network: Network) => {
   return new Output({
@@ -45,22 +45,26 @@ export const estimateSendRange = moize.shallow(
   }
 );
 
-export const estimateTxSize = moize.shallow(
+export const sendCoinselect = moize.shallow(
   ({
     utxosData,
-    address = null,
-    feeRate = null,
-    amount = null,
+    address,
+    feeRate,
+    amount,
     network,
-    changeOutput
+    changeDescriptor
   }: {
     utxosData: UtxosData;
     address: string | null;
     feeRate: number | null;
     amount: number | null;
     network: Network;
-    changeOutput: OutputInstance;
+    changeDescriptor: string;
   }) => {
+    const changeOutput = new Output({
+      descriptor: changeDescriptor,
+      network
+    });
     if (!feeRate || !amount || !address) return null;
     const output = address ? computeOutput(address, network) : DUMMY_PKH_OUTPUT;
     const coinselected = coinselect({
@@ -69,7 +73,94 @@ export const estimateTxSize = moize.shallow(
       remainder: changeOutput,
       feeRate
     });
-    if (!coinselected) return null;
-    return coinselected.vsize;
+    return coinselected;
   }
 );
+
+export const estimateTxSize = ({
+  utxosData,
+  address,
+  feeRate,
+  amount,
+  network,
+  changeDescriptor
+}: {
+  utxosData: UtxosData;
+  address: string | null;
+  feeRate: number | null;
+  amount: number | null;
+  network: Network;
+  changeDescriptor: string;
+}) => {
+  const coinselected = sendCoinselect({
+    utxosData,
+    address,
+    feeRate,
+    amount,
+    network,
+    changeDescriptor
+  });
+  if (!coinselected) return null;
+  return coinselected.vsize;
+};
+
+const signPsbt = async (signer: Signer, network: Network, psbtVault: Psbt) => {
+  const mnemonic = signer?.mnemonic;
+  if (!mnemonic) throw new Error('Could not initialize the signer');
+  const masterNode = getMasterNode(mnemonic, network);
+  signers.signBIP32({ psbt: psbtVault, masterNode });
+};
+
+export const calculateTxHex = async ({
+  utxosData,
+  address,
+  feeRate,
+  amount,
+  network,
+  changeDescriptor,
+  signer
+}: {
+  utxosData: UtxosData;
+  address: string | null;
+  feeRate: number | null;
+  amount: number | null;
+  network: Network;
+  changeDescriptor: string;
+  signer: Signer;
+}) => {
+  const coinselected = sendCoinselect({
+    utxosData,
+    address,
+    feeRate,
+    amount,
+    network,
+    changeDescriptor
+  });
+  if (!coinselected) return null;
+  const targets = coinselected.targets;
+
+  const psbt = new Psbt({ network });
+  const finalizers = [];
+  for (const utxoData of utxosData) {
+    const { output, vout, txHex } = utxoData;
+    // Add the utxo as input of psbtVault:
+    const inputFinalizer = output.updatePsbtAsInput({
+      psbt,
+      txHex,
+      vout
+    });
+    finalizers.push(inputFinalizer);
+  }
+  for (const target of targets) {
+    target.output.updatePsbtAsOutput({
+      psbt,
+      value: target.value
+    });
+  }
+  //Sign
+  await signPsbt(signer, network, psbt);
+  //Finalize
+  finalizers.forEach(finalizer => finalizer({ psbt }));
+  const tx = psbt.extractTransaction(true);
+  return tx.toHex();
+};

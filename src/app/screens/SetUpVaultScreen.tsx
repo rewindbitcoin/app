@@ -20,7 +20,10 @@ import {
 
 import { pickFeeEstimate } from '../lib/fees';
 import { formatBtc } from '../lib/btcRates';
-import { estimateVaultSetUpRange } from '../lib/vaultRange';
+import {
+  estimateServiceFeeFromVaultedAmount,
+  estimateVaultSetUpRange
+} from '../lib/vaultRange';
 import { networkMapping } from '../lib/network';
 import { useSettings } from '../hooks/useSettings';
 import { useWallet } from '../hooks/useWallet';
@@ -160,6 +163,16 @@ export default function VaultSetUp({
       ? maxVaultAmount.vaultedAmount
       : null
     : userSelectedVaultedAmount;
+  const serviceFee: number | null =
+    vaultedAmount && maxVaultAmount && minRecoverableVaultAmount
+      ? estimateServiceFeeFromVaultedAmount({
+          vaultedAmount,
+          serviceFeeRate,
+          serviceOutput,
+          minVaultAmount: minRecoverableVaultAmount,
+          maxVaultAmount
+        })
+      : null;
 
   const onUserSelectedVaultedAmountChange = useCallback(
     (userSelectedVaultedAmount: number | null) => {
@@ -175,6 +188,7 @@ export default function VaultSetUp({
     if (
       feeRate === null ||
       vaultedAmount === null ||
+      serviceFee === null ||
       lockBlocks === null ||
       coldAddress === null
     )
@@ -183,12 +197,25 @@ export default function VaultSetUp({
       coldAddress,
       feeRate,
       vaultedAmount,
+      serviceFee,
       lockBlocks
     });
-  }, [feeRate, vaultedAmount, lockBlocks, onVaultSetUpComplete, coldAddress]);
+  }, [
+    feeRate,
+    vaultedAmount,
+    serviceFee,
+    lockBlocks,
+    onVaultSetUpComplete,
+    coldAddress
+  ]);
 
   let txSize = null;
-  if (isValidVaultRange && vaultedAmount !== null && feeRate !== null) {
+  if (
+    isValidVaultRange &&
+    vaultedAmount !== null &&
+    serviceFee !== null &&
+    feeRate !== null
+  ) {
     console.log('TRACE calling selectVaultUtxosData for feeRate: ', {
       feeRate,
       vaultedAmount,
@@ -204,7 +231,7 @@ export default function VaultSetUp({
       ),
       feeRate,
       vaultedAmount,
-      serviceFeeRate
+      serviceFee
     });
     if (!selected)
       throw new Error(
