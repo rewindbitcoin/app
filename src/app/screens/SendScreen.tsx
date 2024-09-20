@@ -137,6 +137,7 @@ export default function Send() {
         changeOutput
       });
     } catch (err) {
+      console.warn(err);
       toast.show(t('send.txCalculateError'), { type: 'warning' });
     }
     try {
@@ -145,6 +146,7 @@ export default function Send() {
         toast.show(t('send.txSuccess'), { type: 'success' });
       }
     } catch (err) {
+      console.warn(err);
       toast.show(t('send.txPushError'), { type: 'warning' });
     }
     goBack();

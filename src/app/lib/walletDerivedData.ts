@@ -15,6 +15,7 @@ export const getAPIs = moize(
     let vaultsAPI: string | undefined;
     let vaultsSecondaryAPI: string | undefined;
     let faucetAPI: string | undefined;
+    let faucetURL: string | undefined;
     let generate204API: string | undefined;
     let generate204API2: string | undefined;
     let blockExplorerURL: string | undefined;
@@ -47,6 +48,7 @@ export const getAPIs = moize(
           vaultsAPI = settings.TAPE_VAULTS_API;
           vaultsSecondaryAPI = settings.TAPE_VAULTS_SECONDARY_API;
           faucetAPI = `${settings.TAPE_WEB_SERVER}/faucet`;
+          faucetURL = `${settings.TAPE_WEB_SERVER}`;
           generate204API = settings.PUBLIC_GENERATE_204_API;
           generate204API2 = settings.PUBLIC_GENERATE_204_SECONDARY_API;
           blockExplorerURL = settings.TAPE_BLOCK_EXPLORER;
@@ -58,6 +60,7 @@ export const getAPIs = moize(
           vaultsAPI = settings.REGTEST_VAULTS_API;
           vaultsSecondaryAPI = settings.REGTEST_VAULTS_SECONDARY_API;
           faucetAPI = `${settings.REGTEST_WEB_SERVER}/faucet`;
+          faucetURL = `${settings.REGTEST_WEB_SERVER}`;
           generate204API = settings.REGTEST_GENERATE_204_API;
           generate204API2 = settings.REGTEST_GENERATE_204_SECONDARY_API;
           blockExplorerURL = settings.REGTEST_BLOCK_EXPLORER;
@@ -68,6 +71,7 @@ export const getAPIs = moize(
     return {
       generate204APIExternal: settings?.EXTERNAL_GENERATE_204,
       faucetAPI,
+      faucetURL,
       mainnetEsploraApi,
       mainnetElectrumApi,
       esploraAPI,

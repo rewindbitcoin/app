@@ -4,9 +4,9 @@
 export default {
   app: {
     unknownError: 'An unknown error occurred.',
-    networkError: `Oops! There was a network issue: {{message}}.
+    networkError: `Oops! There was a network issue: {{message}}
 Please check your connection and try again.`,
-    syncError: `Oops! There was a problem updating your Wallet: {{message}}.
+    syncError: `Oops! There was a problem updating your Wallet: {{message}}
 Please check your connection and tap on refresh to try again.`,
     pushError: `Oops! There was a problem submitting your transaction. Please check your connection and try again.
 
@@ -472,7 +472,13 @@ This minimum amount is calculated based on the assumption that you may need rapi
     title: 'Receive Bitcoin',
     clipboard: 'Address copied to clipboard!',
     doneButton: 'Done',
-    intro: 'Scan or copy and share this address to receive Bitcoin'
+    shareAddress: 'Share Address',
+    copyAddress: 'Copy to Clipboard',
+    intro: 'Share this address to receive Bitcoin',
+    faucetIntro: 'Need test coins?',
+    requestTokens: 'Request them here!',
+    faucetNote:
+      'Coins are provided for practice on the {{networkName}} test network. These test tokens have no real value.'
   },
   createVault: {
     intro: `We're setting up your vault, generating multiple combinations to minimize future unfreezing fees.

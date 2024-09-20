@@ -119,6 +119,7 @@ export type WalletContextType = {
   syncingBlockchain: boolean;
   vaultsAPI: string | undefined;
   faucetAPI: string | undefined;
+  faucetURL: string | undefined;
   vaultsSecondaryAPI: string | undefined;
   blockExplorerURL: string | undefined;
   wallets: Wallets | undefined;
@@ -214,6 +215,7 @@ const WalletProviderRaw = ({
     serviceAddressAPI,
     vaultsAPI,
     faucetAPI,
+    faucetURL,
     vaultsSecondaryAPI,
     generate204API,
     generate204API2,
@@ -504,6 +506,7 @@ const WalletProviderRaw = ({
         throw new Error(
           `gapLimit not ready for pushTx while trying to push ${txHex}`
         );
+      console.log('TRACE push: ' + txHex);
       await discovery.push({ txHex, gapLimit });
     },
     [discovery, gapLimit]
@@ -534,6 +537,7 @@ const WalletProviderRaw = ({
       descriptor: string;
       index?: number;
     }): Promise<TxHistory | undefined> => {
+      console.log('TRACE fetchOutputHistory');
       if (!vaults || !vaultsStatuses || !accounts || tipHeight === undefined)
         throw new Error('fetchOutputHistory inputs missing');
       if (index === undefined && descriptor.includes('*'))
@@ -978,8 +982,8 @@ const WalletProviderRaw = ({
           console.log('TRACE sync discovery.fetch', { descriptors });
           await discovery.fetch({ descriptors, gapLimit });
           console.log(
-            'TRACE sync proceeding discovery.fetch',
-            JSON.stringify(discovery.export().discoveryData, null, 2)
+            'TRACE sync proceeding discovery.fetch'
+            //JSON.stringify(discovery.export().discoveryData, null, 2)
           );
           if (vaults !== updatedVaults) setVaults(updatedVaults);
           if (vaultsStatuses !== updatedVaultsStatuses)
@@ -1187,6 +1191,7 @@ const WalletProviderRaw = ({
     fetchOutputHistory,
     vaultsAPI,
     faucetAPI,
+    faucetURL,
     vaultsSecondaryAPI,
     blockExplorerURL,
     wallets,

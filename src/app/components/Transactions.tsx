@@ -126,7 +126,7 @@ const RawTransaction = ({
           const time = await fetchBlockTime(item.blockHeight);
           setBlockTime(time);
         } catch (error) {
-          console.warn('Failed to fetch block time:', error);
+          console.warn('Failed to fetch block time:', error, item.blockHeight);
         }
       };
       fetchTime();

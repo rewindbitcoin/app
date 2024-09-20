@@ -224,6 +224,7 @@ const estimateMinRecoverableVaultAmount = moize.shallow(
       });
       if (!split) return false;
       const { serviceFee, vaultedAmount } = split;
+      if (utxosData.length === 0) return false;
       const selected = selectVaultUtxosData({
         utxosData,
         vaultedAmount,
@@ -276,7 +277,7 @@ const estimateMinRecoverableVaultAmount = moize.shallow(
           feeRateCeiling * estimatePanicTxSize(lockBlocks, coldAddress, network)
         );
 
-      let minTransactionAmount = Math.max(
+      const minTransactionAmount = Math.max(
         dustThreshold(vaultOutput) + 1 + serviceFeeRate > 0
           ? dustThreshold(serviceOutput) + 1
           : 0,
@@ -289,14 +290,11 @@ const estimateMinRecoverableVaultAmount = moize.shallow(
           (totalFees * (1 + serviceFeeRate)) / (1 - minRecoverableRatio)
         )
       );
-      //Let's do a loop over minTransactionAmount++ to make sure the rounding
-      //ops above (mults, divisions, ...) don't round it down and make it not recoverable.
-      //In fact minTransactionAmount++ will probably (almost) neverhappen
-      for (let iters = 0; iters < 100; iters++) {
-        if (isRecoverable(minTransactionAmount)) break;
-        minTransactionAmount++;
-        if (iters === 99) throw new Error('Max iterations reached');
-      }
+      //Note that minTransactionAmount won't be exact since there are roundings,
+      //multiplications and divisions above. However, we're in the case
+      //where the utxos cannot be used anyway. This is an approximated  way to
+      //compute the minimum amount the user will need to add to the wallet
+      //to be able to vault
 
       //Now split it. Since it isRecoverable it can be split 100% sure
       const split = splitTransactionAmount({
