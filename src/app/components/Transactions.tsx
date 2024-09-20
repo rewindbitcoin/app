@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { View, Text, Linking } from 'react-native';
 import type { HistoryData, HistoryDataItem } from '../lib/vaults';
 import { Locale } from '~/i18n-locales/init';
@@ -349,6 +349,7 @@ const RawTransaction = ({
 
 const Transaction = React.memo(RawTransaction);
 
+const BATCH_SIZE = 10;
 const Transactions = ({
   btcFiat,
   tipStatus,
@@ -370,15 +371,35 @@ const Transactions = ({
       : settings.SUB_UNIT;
   const locale = settings.LOCALE;
   const { t } = useTranslation();
+
+  const reversedHistoryData = useMemo<HistoryData | undefined>(
+    () => historyData && [...historyData].reverse(),
+    [historyData]
+  );
+  const [displayedHistoryData, setDisplayedHistoryData] = useState<HistoryData>(
+    reversedHistoryData ? reversedHistoryData.slice(0, BATCH_SIZE) : []
+  );
+  const loadMore = useCallback(() => {
+    if (!reversedHistoryData)
+      throw new Error("Don't call loadMore when no data");
+    const nextIndex = displayedHistoryData.length;
+    const nextTransactions = reversedHistoryData.slice(
+      nextIndex,
+      nextIndex + BATCH_SIZE
+    );
+    setDisplayedHistoryData(transactions => [
+      ...transactions,
+      ...nextTransactions
+    ]);
+  }, [displayedHistoryData.length, reversedHistoryData]);
+
   return historyData && historyData.length ? (
     <View className="rounded-3xl bg-white gap-y-2">
-      {[...historyData].reverse().map((item, index) => {
-        // Compute vaultOutValue and triggerOutValue, that is, if this tx
-        // is associated to a vaultId, then for this vaultId, compute which
-        // was the output value when vaulting and the output value when
-        // triggering the unvault
+      {[...displayedHistoryData].map((item, index) => {
+        // Compute vaultOutValue, that is, if this tx
+        // is associated to a vaultId (for example its a vault, trigger, or a panic...),
+        // then for this vaultId, compute which was the output value when vaulting
         let vaultOutValue; //if known
-        //let triggerOutValue; //if known
         const vaultHistoryDataItem = historyData.find(
           vaultHistoryDataItem =>
             'vaultTxType' in vaultHistoryDataItem &&
@@ -389,19 +410,6 @@ const Transactions = ({
         );
         if (vaultHistoryDataItem && 'outValue' in vaultHistoryDataItem)
           vaultOutValue = vaultHistoryDataItem.outValue;
-        //const triggerHistoryDataItem = historyData.find(
-        //  triggerHistoryDataItem =>
-        //    'vaultTxType' in triggerHistoryDataItem &&
-        //    (triggerHistoryDataItem.vaultTxType === 'TRIGGER_EXTERNAL' ||
-        //      triggerHistoryDataItem.vaultTxType === 'TRIGGER_HOT_WALLET') &&
-        //    'vaultId' in triggerHistoryDataItem &&
-        //    'vaultId' in item &&
-        //    triggerHistoryDataItem.vaultId === item.vaultId
-        //);
-        //if (triggerHistoryDataItem && 'outValue' in triggerHistoryDataItem)
-        //  triggerOutValue = triggerHistoryDataItem.outValue;
-
-        //      triggerOutValue={triggerOutValue}
         return (
           <React.Fragment key={item.txId}>
             <Transaction
@@ -416,12 +424,21 @@ const Transactions = ({
               fetchBlockTime={fetchBlockTime}
               blockExplorerURL={blockExplorerURL}
             />
-            {index < historyData.length - 1 && (
+            {index < displayedHistoryData.length - 1 && (
               <View className="h-px bg-slate-300" />
             )}
           </React.Fragment>
         );
       })}
+      {displayedHistoryData.length < historyData.length && (
+        <Button
+          containerClassName="mx-4 mb-4"
+          mode="secondary"
+          onPress={loadMore}
+        >
+          {t('loadMoreButton')}
+        </Button>
+      )}
     </View>
   ) : (
     <View className="flex-col items-center self-center my-4 max-w-80">

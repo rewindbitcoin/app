@@ -29,6 +29,8 @@ interface ButtonProps extends RN.PressableProps {
    * https://www.nativewind.dev/v4/core-concepts/style-specificity
    * details:
    * https://github.com/nativewind/nativewind/issues/665#issuecomment-1823664308
+   *
+   * TLDR: to override styles use bang (!) f.ex.: containerClassName="!px-4"
    */
   containerClassName?: string;
   textClassName?: string;

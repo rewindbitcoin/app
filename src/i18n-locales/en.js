@@ -628,6 +628,7 @@ You can either use the 'Create' wizard to generate a new Emergency Address or us
   continueButton: 'Continue',
   imInDangerButton: "I'm in danger",
   okButton: 'OK',
+  loadMoreButton: 'Load More',
   dismissButton: 'Dismiss',
   goBack: 'Go Back',
   verifyButton: 'Verify',
