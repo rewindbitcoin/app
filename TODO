@@ -1,26 +1,30 @@
-TODO: cambiar las fees en SendScreen hace increiblemebnte lento, se necesita algun memoize
-TODO:  ERROR  Error: vaultedAmount 7966750 should be selectable since it's within range - [2540817, 7966750] - isValidVaultRange: true.
- y luego mover violentamente las fees.
--> Esto me pasa tras añadir una dirección en VaultSetUp y luego mover violentamente las fees.
-  -> Incluso me pasa sin añadir dirección nueva - me pasa en la Wallet Main de iOS SE Lo que he hecho es enviar 0.20 a alguna parte.
-    -> Me pasa con la fee 1.94
+TODO: set the initial accept terms
+
+TODO: abadon abandon... en testnet no me deja hacer nada (niungun click en nada)
+mientras está cargando
 
 
+TODO: add a prompt when the user tries to create real-bitcoin wallets to be extra sure
 
+TODO: the confirmation for hte vault shows "Vaulting Fees" - In Tape just show "Fees"
+to avoid questions by reviewers
 
-
+TODO: there is an error sending funds to self address
+  MUST update @bitcoinerlab/discovery and PUSH and NPM PUBLISH
 
 Also include a button for dismissing I have secured my wallet seed (and don't prompt it on start)
   -> Then change the Skip to "Later"
+
+TODO: recibiré críticas por estar usando utxos que nunca se aceptarán
+
+TODO: puedo poner 0 días (pero no se ve que son bloques), por tanto, estando en días,
+ no permitir 0 días.
 
 TODO: decidir q hacer con las fees (display + app stores)
 
 TODO: cambiar esplora http a wss -> https://github.com/Blockstream/esplora/issues/428
   -> actualizar @bitcoinerlab/explorer
   -> Usar este cliente: https://github.com/keep-network/electrum-client-js
-
-TODO: abandon abandon ... about en Mainnet mega lento al ver "Transactions" pero creo q
-es prob del render. Así q mostrar a poquitos...
 
 TODO: Si dejo la wallet varias horas en el simulador sin tocar, luego no 
 hace sync y da netReady = undefined.
