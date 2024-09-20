@@ -458,9 +458,13 @@ export const estimateServiceFee = ({
   };
 }) => {
   if (vaultedAmount > maxVaultAmount.vaultedAmount)
-    throw new Error('Out of range');
+    throw new Error(
+      `Out of range - vaultedAmount > max: ${vaultedAmount} > ${maxVaultAmount.vaultedAmount}`
+    );
   if (vaultedAmount < minVaultAmount.vaultedAmount)
-    throw new Error('Out of range');
+    throw new Error(
+      `Out of range - vaultedAmount < min: ${vaultedAmount} < ${minVaultAmount.vaultedAmount}`
+    );
 
   if (serviceFeeRate === 0) return 0;
 

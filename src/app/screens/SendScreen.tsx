@@ -104,7 +104,11 @@ export default function Send() {
     ? isValidRange
       ? max
       : null
-    : userSelectedAmount;
+    : //note userSelectedAmount could be briefly out of current [min, max]
+      //since it's updated on a callback later
+      userSelectedAmount
+      ? Math.min(Math.max(min, userSelectedAmount), max)
+      : null;
 
   const onUserSelectedAmountChange = useCallback(
     (userSelectedAmount: number | null) => {

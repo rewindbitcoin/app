@@ -159,7 +159,14 @@ export default function VaultSetUp({
     ? isValidVaultRange
       ? maxVaultAmount.vaultedAmount
       : null
-    : userSelectedVaultedAmount;
+    : //note userSelectedVaultedAmount could be briefly out of current [min, max]
+      //since it's updated on a callback later
+      userSelectedVaultedAmount && maxVaultAmount
+      ? Math.max(
+          minRecoverableVaultAmount.vaultedAmount,
+          Math.min(maxVaultAmount.vaultedAmount, userSelectedVaultedAmount)
+        )
+      : null;
   const serviceFee: number | null =
     vaultedAmount && maxVaultAmount && minRecoverableVaultAmount
       ? estimateServiceFee({
