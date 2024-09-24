@@ -14,6 +14,7 @@ import { Ubuntu_700Bold } from '@expo-google-fonts/ubuntu';
 import { useFonts } from 'expo-font';
 import { cssInterop } from 'nativewind';
 import { useWallet } from '../hooks/useWallet';
+import { walletTitle } from '../lib/wallets';
 cssInterop(Svg, {
   className: {
     target: 'style',
@@ -141,9 +142,7 @@ const WalletsScreen = () => {
                   <Text
                     className={`${ubuntuLoaded ? "font-['Ubuntu700Bold']" : ''} uppercase text-base text-white`}
                   >
-                    {Object.entries(wallets).length > 1
-                      ? t('wallets.walletId', { id: index + 1 })
-                      : t('wallets.mainWallet')}
+                    {walletTitle(wallet, wallets, t)}
                   </Text>
                   {wallet.networkId !== 'BITCOIN' && (
                     <View className={`flex-none rounded-xl ${walletBg(index)}`}>

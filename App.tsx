@@ -10,6 +10,7 @@ import {
   useSecureStorageInfo
 } from './src/common/contexts/SecureStorageInfoContext';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { Ionicons } from '@expo/vector-icons';
 
 import {
   createRootStack,
@@ -46,6 +47,7 @@ import { I18nextProvider, useTranslation } from 'react-i18next';
 import { i18n, initI18n } from './src/i18n-locales/init';
 import { AuthenticationType } from 'expo-local-authentication';
 import { useSettings } from './src/app/hooks/useSettings';
+import { Pressable } from 'react-native';
 //Init for 1st render. Then, on settings load from context & apply correct one
 initI18n(defaultSettings.LOCALE);
 
@@ -72,14 +74,22 @@ const Main = () => {
   const [vaultSettings, setVaultSettings] = useState<VaultSettings>();
 
   const navigation = useNavigation();
+  const theme = useTheme();
 
   const settingsButton = useCallback(
     () => (
-      <Button mode="text" onPress={() => navigation.navigate(SETTINGS)}>
-        {t('app.settingsButton')}
-      </Button>
+      <Pressable
+        onPress={() => navigation.navigate(SETTINGS)}
+        className={`hover:opacity-90 active:scale-95 active:opacity-90`}
+      >
+        <Ionicons
+          name="settings-outline"
+          size={20}
+          color={theme.colors.primary}
+        />
+      </Pressable>
     ),
-    [navigation, t]
+    [navigation, theme.colors.primary]
   );
   const onGoBack = useCallback(() => {
     if (navigation.canGoBack()) navigation.goBack();

@@ -1,6 +1,7 @@
 import type { NetworkId } from './network';
 import type { Engine as StorageEngine } from '../../common/lib/storage';
 import type { Account } from '@bitcoinerlab/discovery';
+import { TFunction } from 'i18next';
 /*
 TODO:
 To generate the random well-known key for thunder den, we used:
@@ -120,3 +121,9 @@ export type Wallet = {
 export type Wallets = {
   [walletId: number]: Wallet;
 };
+
+export const walletTitle = (wallet: Wallet, wallets: Wallets, t: TFunction) =>
+  wallet.walletName ||
+  (Object.entries(wallets).length === 1
+    ? t('wallets.mainWallet')
+    : t('wallets.walletId', { id: wallet.walletId + 1 }));

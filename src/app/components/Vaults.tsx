@@ -89,7 +89,7 @@ const Amount = ({
     );
   return (
     <>
-      <Text className="text-slate-600 font-semibold pb-1 native:text-sm web:text-xs native:mobmed:text-base web:mobmed:text-sm">
+      <Text className="text-slate-600 font-semibold native:text-sm web:text-xs native:mobmed:text-base web:mobmed:text-sm">
         {title}
       </Text>
       <View className="flex-row items-center justify-start">

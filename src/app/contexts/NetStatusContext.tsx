@@ -105,31 +105,50 @@ const checkNetworkReachability = async (url: string) => {
   }
   return false; // All attempts failed
 };
-const checkExplorerReachability = async (explorer: Explorer) => {
+const checkExplorerReachability = async (
+  explorer: Explorer,
+  traceInfo?: string
+) => {
   let attempts = EXPLORER_ATTEMPTS;
 
   while (attempts > 0) {
     try {
-      console.log('TRACE checkExplorerReachability isConnected');
+      console.log('TRACE checkExplorerReachability isConnected', { traceInfo });
       const connected = await explorer.isConnected();
       console.log('TRACE checkExplorerReachability isConnected DONE', {
+        traceInfo,
         connected
       });
 
       if (connected) return true;
       else {
+        const startTime = new Date().getTime(); // Capture the start time
         console.log(
-          'TRACE checkExplorerReachability connect (was not connected)'
+          'TRACE checkExplorerReachability connect (was not connected)',
+          { traceInfo }
         );
+
         await explorer.connect();
-        console.log('TRACE checkExplorerReachability connect DONE');
+
+        const connectEndTime = new Date().getTime(); // Time after connect attempt
         console.log(
-          'TRACE checkExplorerReachability isConnected after correct connect'
+          `TRACE checkExplorerReachability connect DONE (took ${connectEndTime - startTime}ms)`,
+          { traceInfo }
         );
+
+        console.log(
+          'TRACE checkExplorerReachability isConnected after correct connect',
+          { traceInfo }
+        );
+
         const connected = await explorer.isConnected();
+
+        const checkEndTime = new Date().getTime(); // Time after isConnected check
         console.log(
-          'TRACE checkExplorerReachability isConnected after correct connect DONE'
+          `TRACE checkExplorerReachability isConnected after correct connect DONE (took ${checkEndTime - connectEndTime}ms)`,
+          { traceInfo }
         );
+
         if (connected) return true;
       }
       if (attempts !== EXPLORER_ATTEMPTS) await sleep(200);
@@ -444,8 +463,12 @@ const NetStatusProvider: React.FC<NetStatusProviderProps> = ({ children }) => {
     const checks = [
       generate204API ? checkNetworkReachability(generate204API) : undefined,
       generate204API2 ? checkNetworkReachability(generate204API2) : undefined,
-      explorer ? checkExplorerReachability(explorer) : undefined,
-      explorerMainnet ? checkExplorerReachability(explorerMainnet) : undefined,
+      explorer
+        ? checkExplorerReachability(explorer, 'walletExplorer')
+        : undefined,
+      explorerMainnet
+        ? checkExplorerReachability(explorerMainnet, 'mainnetExplorer')
+        : undefined,
       generate204APIExternal
         ? checkNetworkReachability(generate204APIExternal)
         : undefined

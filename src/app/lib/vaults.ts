@@ -1104,44 +1104,6 @@ export const getVaultsFrozenBalance = moize(
   }
 );
 
-/**
- * Retrieve all the trigger descriptors which form part of the hot wallet, that
- * is, they are:
- *  -they are currently spendable: This means the current blockhainTip is over
- *  lockBlocks and it has not been spent.
- *  -they used to be spendable as hot and were spent as hot.
- */
-const getHotTriggerDescriptors = (
-  vaults: Vaults,
-  vaultsStatuses: VaultsStatuses,
-  blockhainTip: number
-): Array<string> => {
-  const descriptors = Object.entries(vaults)
-    .filter(([vaultId, vault]) => {
-      const vaultStatus = vaultsStatuses[vaultId];
-      if (!vaultStatus)
-        throw new Error(
-          `vaultsStatuses is not synchd. It should have key ${vaultId}`
-        );
-      const remainingBlocks = getRemainingBlocks(
-        vault,
-        vaultStatus,
-        blockhainTip
-      );
-      return remainingBlocks === 0 || remainingBlocks === 'SPENT_AS_HOT';
-    })
-    .map(([, vault]) => vault.triggerDescriptor);
-
-  // Check for duplicates
-  const descriptorSet = new Set(descriptors);
-  if (descriptorSet.size !== descriptors.length) {
-    throw new Error(
-      'triggerDescriptors should be unique; panicKey should be random'
-    );
-  }
-  return descriptors;
-};
-
 const spendingTxCache = new Map();
 /**
  * Returns the tx that spent a Tx Output (or it's in the mempool about to spend it).
@@ -1431,6 +1393,44 @@ const selectVaultUtxosDataMemo = ({
     serviceFee
   });
 export { selectVaultUtxosDataMemo as selectVaultUtxosData };
+
+/**
+ * Retrieve all the trigger descriptors which form part of the hot wallet, that
+ * is, they are:
+ *  -they are currently spendable: This means the current blockhainTip is over
+ *  lockBlocks and it has not been spent.
+ *  -they used to be spendable as hot and were spent as hot.
+ */
+const getHotTriggerDescriptors = (
+  vaults: Vaults,
+  vaultsStatuses: VaultsStatuses,
+  blockhainTip: number
+): Array<string> => {
+  const descriptors = Object.entries(vaults)
+    .filter(([vaultId, vault]) => {
+      const vaultStatus = vaultsStatuses[vaultId];
+      if (!vaultStatus)
+        throw new Error(
+          `vaultsStatuses is not synchd. It should have key ${vaultId}`
+        );
+      const remainingBlocks = getRemainingBlocks(
+        vault,
+        vaultStatus,
+        blockhainTip
+      );
+      return remainingBlocks === 0 || remainingBlocks === 'SPENT_AS_HOT';
+    })
+    .map(([, vault]) => vault.triggerDescriptor);
+
+  // Check for duplicates
+  const descriptorSet = new Set(descriptors);
+  if (descriptorSet.size !== descriptors.length) {
+    throw new Error(
+      'triggerDescriptors should be unique; panicKey should be random'
+    );
+  }
+  return descriptors;
+};
 
 /**
  * returns all the descriptors which can be spent right now (hot) or which

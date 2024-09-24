@@ -13,7 +13,7 @@ const SIGNING_MESSAGE = 'Satoshi Nakamoto'; //Can be any, but don't change it
 const DATA_PATH = `m/${PURPOSE}'/<network>'/1'/0`;
 
 import { crypto, Network, networks } from 'bitcoinjs-lib';
-import type { Signer } from './wallets';
+import type { Accounts, Signer } from './wallets';
 import { getMasterNode } from './vaultDescriptors';
 import { MessageFactory } from 'bitcoinjs-message';
 import * as secp256k1 from '@bitcoinerlab/secp256k1';
@@ -320,14 +320,15 @@ export const p2pBackupVault = async ({
 };
 
 export const delegateVault = async ({
-  readme,
+  readmeText,
   vault,
   onProgress
 }: {
-  readme: Array<string>;
+  readmeText: string;
   vault: Vault;
   onProgress?: (progress: number) => boolean;
 }): Promise<boolean> => {
+  const readme = text2JsonFriendly(readmeText, 80);
   const rescueTxMap: RescueTxMap = {};
   Object.entries(vault.triggerMap).forEach(([triggerTxHex, rescueTxHexs]) => {
     const triggerTxId = vault.txMap[triggerTxHex]?.txId;
@@ -392,29 +393,57 @@ export const delegateVault = async ({
   return true;
 };
 
-export const shareVaults = async ({
+// Function to pad each line to 80 characters
+function text2JsonFriendly(str: string, length: number) {
+  return str.split('\n').map((line: string) => {
+    const lineLength = line.length;
+    if (lineLength < length) {
+      // Pad the line with spaces to reach the desired length
+      return line + ' '.repeat(length - lineLength);
+    }
+    return line;
+  });
+}
+
+export const exportWallet = async ({
+  name,
+  exportInstuctions,
+  accounts,
   vaults,
   onProgress
 }: {
+  name: string;
+  exportInstuctions: string;
+  accounts: Accounts;
   vaults: Vaults;
   onProgress?: (progress: number) => boolean;
 }): Promise<boolean> => {
-  const strVaults = JSON.stringify(vaults, null, 2);
+  const descriptors = Object.entries(vaults).map(
+    ([, vault]) => vault.triggerDescriptor
+  );
+  for (const account of Object.keys(accounts))
+    descriptors.push(account, account.replace(/\/0\/\*/g, '/1/*'));
 
-  const compressedVaults = await compressData({
-    data: strVaults,
+  const strExport = JSON.stringify(
+    { README: text2JsonFriendly(exportInstuctions, 70), descriptors, vaults },
+    null,
+    2
+  );
+
+  const compressedExport = await compressData({
+    data: strExport,
     chunkSize: 256 * 1024, //chunks of 256 KB
     ...(onProgress ? { onProgress } : {})
   });
-  if (!compressedVaults) {
+  if (!compressedExport) {
     //TODO: This means it was user cancelled.
     //TODO: but i need to try catch compressData for errors and toast somehow.
     return false;
   }
 
-  const fileName = `rewbtc_vaults.json.gz`;
+  const fileName = `${name}_export.json.gz`;
   if (Platform.OS === 'web') {
-    const blob = new Blob([compressedVaults], {
+    const blob = new Blob([compressedExport], {
       type: 'application/octet-stream'
     });
     const url = URL.createObjectURL(blob);
@@ -429,7 +458,7 @@ export const shareVaults = async ({
     const filePath = `${documentDirectory}${fileName}`;
     await writeAsStringAsync(
       filePath,
-      Buffer.from(compressedVaults).toString('base64'),
+      Buffer.from(compressedExport).toString('base64'),
       {
         encoding: EncodingType.Base64
       }

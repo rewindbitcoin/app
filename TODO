@@ -1,5 +1,45 @@
 TODO: set the initial accept terms
 
+TODO: create a fakeTapeFees server and dont use an electrum
+server for this
+
+TODO: investigate why electrum becomes unresponsive at times.
+
+TODO: un catch global q resetee la wallet y me vaya a la home de wallets.
+
+TODO: the toasts style is so ugly!
+
+TODO: from time to time I don't get the faucet
+  -> Creo que es porque tengo q esperar a blockstream.
+    -> Pues es eso pero tambien por el isFirstLogin no queda bien
+      -> Es porque se hace un onWallet cuando hago dismiss del warning de Tape
+        que me borra el walletsNewSigners y por tanto el isFirstLogin
+  -> El sync no se produce hasta tener el mainnet...
+      const netReady =
+        apiReachable &&
+        explorerReachable &&
+        (networkId !== 'TAPE' || explorerMainnetReachable);
+  -> Necesito un buen server de electrum! Ahora paso a este:
+    MAINNET_ELECTRUM_API: 'ssl://electrum.blockstream.info:700', //https://blog.blockstream.com/en-esplora-and-other-alternatives-to-electrumx/
+
+
+TODO: generate new set of service address prive keys and save somewehere mega safe.
+
+TODO: weird, regtest block 150 halving is produced in regtest!!! FUCK!!
+  -> I need to create a fork of @bitcoinerlab/tester -> @rewindbitcoin/tape-services - DONE
+  -> The fork must compiler bitcoind, also compile stuff only for x86
+  -> Then apply a simplified version of this patch: https://github.com/bitcoin/bitcoin/pull/8623
+  -> Then generate 20000 blocks (1 million bitcoins) on load.
+
+TODO: update btcRates node
+
+TODO: dont show electrum connecting issues with mainnet electrum when using Tape
+fucking blockstream! or better find oyu ewhats the connection problem for when
+users using testnet or mainnet!
+
+TODO: long wallet names dont render nice in WalletsScreen
+TODO: WalletsScreen button Add hides wallets info when many wallets
+
 TODO: abadon abandon... en testnet no me deja hacer nada (niungun click en nada)
 mientras está cargando
 

@@ -47,7 +47,19 @@ So, manually change the version in settings.ts so that this does not throw`
 
 export const subUnits = ['btc', 'bit', 'sat', 'mbit'] as const;
 export type SubUnit = (typeof subUnits)[number];
-export type Currency = 'USD' | 'EUR' | 'GBP'; //Keep in sync with ~/../btcRates
+export const currencyCodes = [
+  'USD',
+  'EUR',
+  'JPY',
+  'GBP',
+  'CNY',
+  'KRW',
+  'CAD',
+  'AUD',
+  'CHF',
+  'INR'
+] as const; //Keep in sync with ~/../btcRates
+export type Currency = (typeof currencyCodes)[number];
 import type { Locale } from '../../i18n-locales/init';
 export const SETTINGS_GLOBAL_STORAGE = 'SETTINGS_GLOBAL_STORAGE';
 
@@ -168,7 +180,8 @@ export const defaultSettings: Settings = {
   TAPE_ESPLORA_API: `${PUBLIC_PROTOCOL}://${PUBLIC_TAPE_SERVER_NAME}${PUBLIC_TAPE_ESPLORA_API_LOCATION}`,
   REGTEST_ESPLORA_API: `${LOCAL_PROTOCOL}://${LOCAL_HOST_NAME}:${LOCAL_REGTEST_ESPLORA_API_PORT}`,
 
-  MAINNET_ELECTRUM_API: 'ssl://electrum.blockstream.info:50002',
+  //MAINNET_ELECTRUM_API: 'ssl://electrum.blockstream.info:50002',
+  MAINNET_ELECTRUM_API: 'ssl://blockstream.info:700', //https://blog.blockstream.com/en-esplora-and-other-alternatives-to-electrumx/
   TESTNET_ELECTRUM_API: 'ssl://electrum.blockstream.info:60002',
   TAPE_ELECTRUM_API: `${ELECTRUM_PUBLIC_PROTOCOL}://${PUBLIC_TAPE_SERVER_NAME}:${PUBLIC_TAPE_ELECTRUM_PORT}`,
   REGTEST_ELECTRUM_API: `${ELECTRUM_LOCAL_PROTOCOL}://${LOCAL_HOST_NAME}:${LOCAL_REGTEST_ELECTRUM_SERVER_PORT}`,

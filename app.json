@@ -10,9 +10,11 @@
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "contain",
-      "backgroundColor": "#F7931A"
+      "backgroundColor": "#FFFFFF"
     },
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "config": {
         "usesNonExemptEncryption": false
@@ -28,25 +30,34 @@
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#F7931A"
+        "backgroundColor": "#FFFFFF"
       },
       "softwareKeyboardLayoutMode": "resize",
-      "package": "com.landabaso.RewindBitcoin"
+      "package": "com.landabaso.RewindBitcoin",
+      "permissions": [
+        "android.permission.USE_BIOMETRIC",
+        "android.permission.USE_FINGERPRINT",
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO"
+      ]
     },
     "web": {
       "bundler": "metro",
-      "favicon": "./assets/favicon.svg"
+      "favicon": "./assets/favicon.png"
     },
     "extra": {
       "eas": {
-        "projectId": "83b28e9f-1d27-40ef-bac8-44da70b30f16"
+        "projectId": "0598db8e-d582-4b63-9bf1-3a3fca12dc83"
       }
     },
     "locales": {
       "es": "./src/i18n-locales/app.es.json"
     },
     "plugins": [
-      ["react-native-libsodium", {}],
+      [
+        "react-native-libsodium",
+        {}
+      ],
       "expo-font",
       "expo-local-authentication",
       "expo-secure-store",

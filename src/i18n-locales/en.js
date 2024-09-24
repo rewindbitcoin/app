@@ -54,6 +54,8 @@ Technical error: {{message}}`,
     walletId: 'Wallet {{id}}'
   },
   wallet: {
+    vaultTab: 'Vaults',
+    historyTab: 'History',
     receive: 'Receive',
     send: 'Send',
     freeze: 'Freeze',
@@ -149,10 +151,14 @@ If you need further assistance, please contact Rewind Support.`
       untriggeredLockTime: 'Lock Time: {{timeRemaining}}',
       vaultNotFound:
         'This vault was never included in the blockchain. The fees might have been too low, it could have been replaced by another transaction, or there might have been a network error during submission.',
-      notTriggeredUnconfirmed: `Funds freeze successfully requested.
-Initiating unfreeze starts a {{lockTime}} countdown before funds are available.`,
+      //      notTriggeredUnconfirmed: `Funds freeze successfully requested.
+      //Initiating unfreeze starts a {{lockTime}} countdown before funds are available.`,
+      notTriggeredUnconfirmed: `Your funds are securely set aside, awaiting final blockchain confirmation (this may take a few minutes).
+If you press 'Init Unfreeze', a waiting period of {{lockTime}} will begin, after which the funds will be available.`,
+      //notTriggered:
+      //  'Funds are safely frozen. Initiating unfreeze starts a {{lockTime}} countdown before funds are available.',
       notTriggered:
-        'Funds are safely frozen. Initiating unfreeze starts a {{lockTime}} countdown before funds are available.',
+        "Funds are safely frozen. If you press 'Init Unfreeze', a waiting period of {{lockTime}} will begin, after which the funds will be available.",
       rescueNotConfirmed: `Rescue requested on {{rescuePushDate}}. Confirming...`,
       rescueNotConfirmedUnknownPush: `Vault Rescue recently submitted. Confirming...`,
       confirmedRescue: `Rescued on {{rescuedDate}}.`,
@@ -625,6 +631,63 @@ You can either use the 'Create' wizard to generate a new Emergency Address or us
     scanQRCall2Action:
       'Align the QR code within the frame to scan the Bitcoin address.'
   },
+  settings: {
+    defaultButton: 'Reset to Default',
+    wallet: {
+      name: 'Name',
+      export: 'Export Descriptors and Vaults',
+      exportProgress: 'Packaging...',
+      recoveryPhrase: 'Recovery Phrase',
+      showRecoveryPhrase: 'Show Recovery Phrase',
+      exportInstructions: `This file contains the output descriptors for this wallet and
+its associated vaults, where applicable.
+
+Each vault includes a trigger transaction map (triggerMap).
+In this map, each index corresponds to a Hex-formatted transaction
+that can initiate the unvaulting process.
+
+Multiple unvaulting transactions are provided for each vault, each
+associated with a different fee rate, allowing you to choose
+based on current network fee conditions.
+See txMap for specific details on fees.
+
+For each unvaulting transaction, an array of rescue transactions
+is provided.
+These can cancel the unvaulting and come with varying fee rates,
+offering flexibility to respond to unauthorized access under
+different network conditions.
+Further details on these fee rates are also available in txMap.
+
+Please handle this information with care as it contains
+sensitive details crucial for the security of your funds.`,
+      delete: 'Delete Wallet',
+      deleteInfo: `Are you sure you want to delete this wallet? This action cannot be reversed.
+
+Please ensure you have backed up your recovery phrase and exported your wallet. If you have not done so, you will lose access to your funds forever.
+
+Type 'DELETE' below to confirm and proceed with the deletion.`,
+      confirmDelete: 'Confirm Delete',
+      deleteClosingNetwork: `Deletion in progress...
+
+Finalizing network operations.
+Please wait a few moments until completion.`,
+      deletePlaceholder: 'Type DELETE to confirm',
+      deleteText: 'DELETE',
+      deleteError: `Deletion failed. Please try again or restart the app if the problem persists.`,
+      gapLimitError: 'Gap Limit must be an integer between 1 and 100.',
+      electrumError:
+        'Invalid Electrum URL or server is down. Please check the URL and try again.'
+    },
+    general: {
+      title: 'General',
+      electrumBitcoin: 'Electrum Bitcoin',
+      electrumTape: 'Electrum Tape',
+      electrumTestnet: 'Electrum Testnet',
+      electrumRegtest: 'Electrum Regtest',
+      gapLimit: 'Gap Limit',
+      currency: 'Preferred Currency'
+    }
+  },
   continueButton: 'Continue',
   imInDangerButton: "I'm in danger",
   okButton: 'OK',
@@ -636,6 +699,7 @@ You can either use the 'Create' wizard to generate a new Emergency Address or us
   confirmButton: 'Confirm',
   submitButton: 'Submit',
   saveButton: 'Save',
+  savingButton: 'Saving...',
   cancelButton: 'Cancel',
   closeButton: 'Close',
   understoodButton: 'Understood',

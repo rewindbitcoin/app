@@ -40,12 +40,17 @@ import { getPasswordDerivedCipherKey } from '../../common/lib/cipher';
 import WalletButtons from '../components/WalletButtons';
 import WalletHeader from '../components/WalletHeader';
 import Vaults from '../components/Vaults';
-import type { RootStackParamList, NavigationPropsByScreenId } from '../screens';
+import {
+  type RootStackParamList,
+  type NavigationPropsByScreenId,
+  SETTINGS
+} from '../screens';
 import { lighten } from 'polished';
 
 import { useFaucet } from '../hooks/useFaucet';
 import type { ScrollView } from 'react-native-gesture-handler';
 import { useWallet } from '../hooks/useWallet';
+import { walletTitle } from '../lib/wallets';
 
 //Using chrome dev tools, refresh the screen, after choosing a mobile size to activate it:
 const hasTouch =
@@ -59,7 +64,7 @@ const WalletHomeScreen = () => {
   const walletId = route.params.walletId;
   const { t } = useTranslation();
 
-  const tabs = ['Vaults', 'Transactions']; //TODO: translate
+  const tabs = [t('wallet.vaultTab'), t('wallet.historyTab')];
   const [activeTabIndex, setActiveTabIndex] = useState<number>(0);
 
   const {
@@ -80,6 +85,7 @@ const WalletHomeScreen = () => {
     logOut,
     fetchBlockTime,
     pushTx,
+    feeEstimates,
     blockExplorerURL
   } = useWallet();
   if (wallet && walletId !== wallet.walletId)
@@ -87,15 +93,19 @@ const WalletHomeScreen = () => {
       `Navigated to walletId ${walletId} which does not correspond to the one in the context ${wallet?.walletId}`
     );
 
+  useEffect(() =>
+    navigation.addListener('beforeRemove', () => {
+      logOut();
+    })
+  );
+
   const faucetPending = useFaucet();
   const syncingOrFaucetPending: boolean = syncingBlockchain || faucetPending;
 
   const title =
     !wallet || !wallets
       ? t('app.walletTitle')
-      : Object.entries(wallets).length === 1
-        ? t('wallets.mainWallet')
-        : t('wallets.walletId', { id: wallet?.walletId + 1 });
+      : walletTitle(wallet, wallets, t);
 
   const theme = useTheme();
   const navOptions = useMemo(
@@ -128,6 +138,7 @@ const WalletHomeScreen = () => {
           </Pressable>
           <Pressable
             className={`hover:opacity-90 active:scale-95 active:opacity-90`}
+            onPress={() => navigation.navigate(SETTINGS)}
           >
             <Ionicons
               name="settings-outline"
@@ -139,7 +150,13 @@ const WalletHomeScreen = () => {
       ),
       headerRightContainerStyle: { marginRight: 16 }
     }),
-    [theme.colors.primary, title, syncBlockchain, syncingOrFaucetPending]
+    [
+      theme.colors.primary,
+      title,
+      syncBlockchain,
+      syncingOrFaucetPending,
+      navigation
+    ]
   );
   useEffect(() => navigation.setOptions(navOptions), [navigation, navOptions]);
 
@@ -279,8 +296,12 @@ const WalletHomeScreen = () => {
         isMounted && (
           <WalletButtons
             handleReceive={handleReceive}
-            handleSend={utxosData?.length ? handleSend : undefined}
-            handleFreeze={utxosData?.length ? handleFreeze : undefined}
+            handleSend={
+              feeEstimates && utxosData?.length ? handleSend : undefined
+            }
+            handleFreeze={
+              feeEstimates && utxosData?.length ? handleFreeze : undefined
+            }
           />
         )
       }
@@ -340,7 +361,7 @@ const WalletHomeScreen = () => {
               <Vaults
                 blockExplorerURL={blockExplorerURL}
                 updateVaultStatus={updateVaultStatus}
-                pushTx={pushTx /*TODO: this can trow!*/}
+                pushTx={pushTx}
                 vaults={vaults}
                 vaultsStatuses={vaultsStatuses}
                 btcFiat={btcFiat}

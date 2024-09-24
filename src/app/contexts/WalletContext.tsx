@@ -129,6 +129,7 @@ export type WalletContextType = {
    * the signers */
   requiresPassword: boolean;
   logOut: () => Promise<void>;
+  deleteWallet: (walletId: number) => Promise<void>;
   onWallet: ({
     wallet,
     newSigners,
@@ -678,6 +679,31 @@ const WalletProviderRaw = ({
     clearDataCipherKey
   ]);
 
+  const deleteWallet = useCallback(
+    async (walletId: number) => {
+      if (walletId !== wallet?.walletId)
+        throw new Error(`Cannot delete non-active wallet ${walletId}`);
+      if (!wallets) throw new Error(`Cannot delete non-existing wallets`);
+      await logOut();
+      const authenticationPrompt = t('app.secureStorageAuthenticationPrompt');
+      await Promise.all([
+        deleteAsync(
+          `SIGNERS_${walletId}`,
+          wallet.signersStorageEngine,
+          authenticationPrompt
+        ),
+        deleteAsync(`DISCOVERY_${walletId}`),
+        deleteAsync(`VAULTS_${walletId}`),
+        deleteAsync(`VAULTS_STATUSES_${walletId}`),
+        deleteAsync(`ACCOUNTS_${walletId}`)
+      ]);
+      const { [walletId]: walletToDelete, ...remainingWallets } = wallets;
+      void walletToDelete;
+      await setWallets(remainingWallets);
+    },
+    [logOut, t, wallet, setWallets, wallets]
+  );
+
   const onWallet = useCallback(
     async ({
       wallet: walletDst,
@@ -721,7 +747,7 @@ const WalletProviderRaw = ({
         });
         if (walletId !== undefined) {
           if (signersCipherKey) setSignersCipherKey(walletId, signersCipherKey);
-          setNewSigners(walletId, newSigners);
+          if (newSigners) setNewSigners(walletId, newSigners);
         }
       });
     },
@@ -1204,6 +1230,7 @@ const WalletProviderRaw = ({
       (typeof signersStorageStatus.errorCode !== 'boolean' &&
         signersStorageStatus.errorCode === 'DecryptError'),
     logOut,
+    deleteWallet,
     onWallet,
     isFirstLogin
   };

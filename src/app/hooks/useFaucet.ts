@@ -46,6 +46,13 @@ export function useFaucet() {
   }, [historyData?.length, toast, t]);
 
   useEffect(() => {
+    console.log('TRACE useFaucet', {
+      historyDataLength: historyData?.length,
+      wallet,
+      faucetRequested: faucetRequestedRef.current,
+      accountsLength: accounts && Object.keys(accounts).length,
+      isFirstLogin
+    });
     if (
       historyData?.length === 0 &&
       wallet &&

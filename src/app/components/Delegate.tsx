@@ -20,9 +20,8 @@ const Delegate = ({
   const handleDelegateVault = useCallback(async () => {
     setLoading(true);
     const readmeText = t('walletHome.delegateReadme');
-    const readme = readmeText.split('\n');
 
-    await delegateVault({ readme, vault });
+    await delegateVault({ readmeText, vault });
     setLoading(false);
     onClose();
   }, [t, vault, onClose]);
