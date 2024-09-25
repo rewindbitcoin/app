@@ -187,7 +187,10 @@ export default function CreateVaultScreen({
       //The toast with prev error message will have been shown.
       goBack();
     } else {
-      toast.show(t('createVault.vaultSuccess'), { type: 'success' });
+      toast.show(t('createVault.vaultSuccess'), {
+        type: 'success',
+        duration: 4000
+      });
       goBackToWalletHome();
     }
   }, [
@@ -375,35 +378,54 @@ export default function CreateVaultScreen({
                 <Text className="text-base mb-4">
                   {t('createVault.confirmBackupSendVault')}
                 </Text>
-                <View className="bg-gray-100 p-4 rounded-lg mb-4 shadow gap-2">
+                <View className="bg-gray-50 p-4 rounded-lg mb-4 shadow gap-2">
                   <View className="flex-row justify-between">
                     <Text className="text-base font-bold">
                       {t('createVault.vaultedAmount')}
                     </Text>
-                    <Text>{formatSats(vault.vaultedAmount)}</Text>
+                    <Text className="text-base">
+                      {formatSats(vault.vaultedAmount)}
+                    </Text>
                   </View>
                   <View className="flex-row justify-between">
                     <Text className="text-base font-bold">
                       {t('createVault.timeLock')}
                     </Text>
-                    <Text>{formatBlocks(vault.lockBlocks, t)}</Text>
-                  </View>
-                  <View className="flex-row justify-between">
-                    <Text className="text-base font-bold">
-                      {t('createVault.miningFee')}
-                    </Text>
                     <Text className="text-base">
-                      {formatSats(vaultTxInfo.fee)}
+                      {formatBlocks(vault.lockBlocks, t)}
                     </Text>
                   </View>
-                  <View className="flex-row justify-between">
-                    <Text className="text-base font-bold">
-                      {t('createVault.serviceFee')}
-                    </Text>
-                    <Text className="text-base">
-                      {formatSats(vault.serviceFee)}
-                    </Text>
-                  </View>
+                  {
+                    /*on Tape summarize fees into one*/ networkId === 'TAPE' ? (
+                      <View className="flex-row justify-between">
+                        <Text className="text-base font-bold">
+                          {t('createVault.allFees')}
+                        </Text>
+                        <Text className="text-base">
+                          {formatSats(vault.serviceFee + vaultTxInfo.fee)}
+                        </Text>
+                      </View>
+                    ) : (
+                      <>
+                        <View className="flex-row justify-between">
+                          <Text className="text-base font-bold">
+                            {t('createVault.miningFee')}
+                          </Text>
+                          <Text className="text-base">
+                            {formatSats(vaultTxInfo.fee)}
+                          </Text>
+                        </View>
+                        <View className="flex-row justify-between">
+                          <Text className="text-base font-bold">
+                            {t('createVault.serviceFee')}
+                          </Text>
+                          <Text className="text-base">
+                            {formatSats(vault.serviceFee)}
+                          </Text>
+                        </View>
+                      </>
+                    )
+                  }
                 </View>
                 <Text className="text-base mb-8">
                   {t('createVault.encryptionBackupExplain')}
