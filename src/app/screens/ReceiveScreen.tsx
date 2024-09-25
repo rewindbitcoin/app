@@ -195,7 +195,7 @@ export default function Receive() {
           </View>
           <Button onPress={goBack}>{t('receive.doneButton')}</Button>
           {requestTokensURL && networkName && (
-            <View className="mt-4 p-4 bg-gray-100 shadow rounded-lg items-center">
+            <View className="mt-4 p-4 bg-gray-50 shadow rounded-lg items-center">
               <View className="flex-row items-center mb-2">
                 <Text className="text-center">{t('receive.faucetIntro')}</Text>
                 <Button mode="text" onPress={onFaucet} className="ml-2">
