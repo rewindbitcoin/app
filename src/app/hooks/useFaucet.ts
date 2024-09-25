@@ -42,7 +42,12 @@ export function useFaucet() {
       historyData?.length
     ) {
       faucetNotifiedRef.current = true;
-      requesToastId.current = toast.show(t('walletHome.faucetDetectedMsg'), {
+      if (
+        requesToastId.current !== undefined &&
+        toast.isOpen(requesToastId.current)
+      )
+        toast.hide(requesToastId.current);
+      toast.show(t('walletHome.faucetDetectedMsg'), {
         type: 'success'
       });
     }
@@ -68,12 +73,7 @@ export function useFaucet() {
       faucetRequestedRef.current = true;
       const network = wallet.networkId && networkMapping[wallet.networkId];
       (async () => {
-        if (
-          requesToastId.current !== undefined &&
-          toast.isOpen(requesToastId.current)
-        )
-          toast.hide(requesToastId.current);
-        toast.show(t('walletHome.faucetStartMsg'));
+        requesToastId.current = toast.show(t('walletHome.faucetStartMsg'));
         let descriptor: string | undefined;
         let index: number | undefined;
         try {
@@ -86,6 +86,11 @@ export function useFaucet() {
         } catch (error: unknown) {
           console.warn(error);
           setFaucetFailed(true);
+          if (
+            requesToastId.current !== undefined &&
+            toast.isOpen(requesToastId.current)
+          )
+            toast.hide(requesToastId.current);
           toast.show(t('walletHome.faucetErrorMsg'), { type: 'warning' });
           return;
         }
@@ -101,6 +106,11 @@ export function useFaucet() {
           }
           if (!txHistory) {
             setFaucetFailed(true);
+            if (
+              requesToastId.current !== undefined &&
+              toast.isOpen(requesToastId.current)
+            )
+              toast.hide(requesToastId.current);
             toast.show(t('walletHome.faucetErrorMsg'), { type: 'warning' });
             break;
           } else if (txHistory.length === 0) {
@@ -114,6 +124,11 @@ export function useFaucet() {
         }
         if (!faucetDetectedRef.current) {
           setFaucetFailed(true);
+          if (
+            requesToastId.current !== undefined &&
+            toast.isOpen(requesToastId.current)
+          )
+            toast.hide(requesToastId.current);
           toast.show(t('walletHome.faucetErrorMsg'), { type: 'warning' });
         }
       })();
