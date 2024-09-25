@@ -426,7 +426,7 @@ export default function CreateVaultScreen({
                     </Text>
                     <View className="flex-grow justify-center items-center">
                       <Progress.Circle
-                        size={300}
+                        size={height < 667 /*iPhone SE*/ ? 200 : 300}
                         showsText={true}
                         progress={progress}
                       />
