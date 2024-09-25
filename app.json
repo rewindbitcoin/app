@@ -56,7 +56,7 @@
       "expo-font",
       "expo-local-authentication",
       "expo-secure-store",
-      "expo-camera"
+      ["expo-camera", { "recordAudioAndroid": false }]
     ]
   }
 }
