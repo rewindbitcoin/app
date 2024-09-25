@@ -1,18 +1,12 @@
-TODO: the confirmation for hte vault shows "Vaulting Fees" - In Tape just show "Fees"
-to avoid questions by reviewers
+TODO: Wallets:
+  TODO: set the initial accept terms
 
-TODO: El "Hooray messave" deberia cerrar el anterior.
+TODO: Me ha vuelto a cascar SetUpVaultScreen en el range una vez se hace 
+el goBackToWallet; es como si no se destruyese rápido maldita sea.
 
-TODO: Check if web camera works after i updated versions. See AddressInput
+TODO: the modal should show an absolute arrow when more contents to let the user its scrolable
 
-TODO: set the initial accept terms
-
-TODO: long wallet names dont render nice in WalletsScreen
-
-TODO: WalletsScreen button Add hides wallets info when many wallets
-
-TODO;: Creo q los textos de los modals se ven muy peques
-  -> Ver iphone SE/X en general q tal
+TODO: connectivity restored must close previous connectivity toast
 
 TODO: Creo que los textos de los Bip39 se veran peques en phones < iphne 11
 
@@ -23,6 +17,8 @@ TODO: create a fakeTapeFees server and dont use an electrum server for this
 TODO: investigate why electrum becomes unresponsive at times.
 
 TODO: un catch global q resetee la wallet y me vaya a la home de wallets.
+
+TODO: test android
 
 TODO: the toasts style is so ugly!
 
@@ -40,9 +36,11 @@ TODO: dont show electrum connecting issues with mainnet electrum when using Tape
 fucking blockstream! or better find oyu ewhats the connection problem for when
 users using testnet or mainnet!
 
-
 TODO: abadon abandon... en testnet no me deja hacer nada (niungun click en nada)
 mientras está cargando
+
+TODO: Check if web camera QR detection works after i updated versions. See AddressInput
+
 
 TODO: there is an error sending funds to self address
   MUST update @bitcoinerlab/discovery and PUSH and NPM PUBLISH

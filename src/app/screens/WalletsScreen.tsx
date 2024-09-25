@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { Text, View, Pressable } from 'react-native';
 import { KeyboardAwareScrollView } from '../../common/ui';
 import { useTranslation } from 'react-i18next';
@@ -102,9 +102,16 @@ const WalletsScreen = () => {
 
   const mbStyle = useMemo(() => ({ marginBottom: insets.bottom }), [insets]);
 
+  const buttonHeightRef = useRef<number>();
+  const scrollViewHeightRef = useRef<number>();
+  const [extraPadding, setExtraPadding] = useState<boolean>(false);
+
   return (
     <>
       <Pressable
+        onLayout={event =>
+          (buttonHeightRef.current = event.nativeEvent.layout.height)
+        }
         onPress={handleNewWallet}
         style={mbStyle}
         className={`bottom-8 right-8 z-10 p-4 bg-primary rounded-full hover:opacity-90 active:scale-95 active:opacity-90 fixed native:absolute shadow flex-row gap-1 items-center`}
@@ -121,43 +128,55 @@ const WalletsScreen = () => {
       </Pressable>
       <KeyboardAwareScrollView
         keyboardShouldPersistTaps="handled"
-        contentContainerStyle={{
-          //grow vertically to 100% and center child
-          flexGrow: 1,
-          justifyContent: 'center',
-
-          //paddingBottom: 60,
-          alignItems: 'center'
-        }}
+        contentContainerClassName="justify-center items-center"
+        contentContainerStyle={
+          { flexGrow: 1 } /*className flex-1 does not work!*/
+        }
+        onLayout={event =>
+          (scrollViewHeightRef.current = event.nativeEvent.layout.height)
+        }
       >
-        <View className="gap-4 max-w-full px-2 py-6">
+        <View
+          className={`gap-4 max-w-full px-2 py-6 ${extraPadding ? 'pb-32' : ''}`}
+          onLayout={event => {
+            const viewHeight = event.nativeEvent.layout.height;
+            console.log({
+              viewHeight,
+              scrollViewHeight: scrollViewHeightRef.current,
+              buttonHeight: buttonHeightRef.current
+            });
+            if (scrollViewHeightRef.current && buttonHeightRef.current)
+              setExtraPadding(
+                scrollViewHeightRef.current - viewHeight <=
+                  buttonHeightRef.current + 8 * 5 /*bottom-8*/
+              );
+          }}
+        >
           {wallets &&
             Object.entries(wallets).map(([walletId, wallet], index) => (
               <Pressable
-                className={`max-w-full w-96 min-h-56 gap-4 p-4 rounded-3xl active:opacity-90 hover:opacity-90 active:scale-95 overflow-hidden ${walletBg(index)}`}
+                className={`max-w-full w-96 min-h-56 gap-4 p-4 rounded-3xl active:opacity-90 hover:opacity-90 active:scale-95 ${walletBg(index)} overflow-hidden`}
                 onPress={handleWalletMap[wallet.walletId]}
                 key={walletId}
               >
-                <View className="z-10 flex flex-row justify-between">
+                <View className="z-10 flex-row justify-between">
                   <Text
-                    className={`${ubuntuLoaded ? "font-['Ubuntu700Bold']" : ''} uppercase text-base text-white`}
+                    className={`${ubuntuLoaded ? "font-['Ubuntu700Bold']" : ''} uppercase text-base text-white overflow-hidden max-w-[60%]`}
                   >
                     {walletTitle(wallet, wallets, t)}
                   </Text>
                   {wallet.networkId !== 'BITCOIN' && (
-                    <View className={`flex-none rounded-xl ${walletBg(index)}`}>
-                      <View className={`p-2 rounded-xl bg-white/70`}>
-                        <Text
-                          className={`font-semibold text-xs text-center text-primary right-0 leading-4 ${walletCl(index)}`}
-                        >
-                          {t('wallets.testWallet')}
-                        </Text>
-                        <Text
-                          className={`font-semibold text-xs text-center text-primary right-0 leading-4 ${walletCl(index)}`}
-                        >
-                          {t('wallets.noRealValue')}
-                        </Text>
-                      </View>
+                    <View className="p-2 rounded-xl bg-white/70">
+                      <Text
+                        className={`font-semibold text-xs text-center leading-4 ${walletCl(index)}`}
+                      >
+                        {t('wallets.testWallet')}
+                      </Text>
+                      <Text
+                        className={`font-semibold text-xs text-center leading-4 ${walletCl(index)}`}
+                      >
+                        {t('wallets.noRealValue')}
+                      </Text>
                     </View>
                   )}
                 </View>
