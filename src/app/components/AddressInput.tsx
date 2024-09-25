@@ -107,13 +107,36 @@ function AddressInput({
     []
   );
 
+  //const onAddress = useCallback(
+  //  (address: string) => {
+  //    setAddress(address);
+  //    onValueChange(validateAddress(address, network) ? address : null);
+  //    setShowCreateColdAddress(false);
+  //  },
+  //  [onValueChange, network]
+  //);
   const onAddress = useCallback(
-    (address: string) => {
+    (qrResult: string) => {
+      // Regular expression to match Bitcoin and its variants like testnet and regtest
+      const regex = /^(bitcoin):([a-zA-Z0-9]+)(\?[\s\S]*)?$/;
+      let address = qrResult; // Default to using the full result as address
+
+      // Extract address if it matches Bitcoin URI scheme
+      const match = qrResult.match(regex);
+      if (match && match[2]) {
+        address = match[2]; // The actual address part after 'bitcoin:'
+      }
+
+      // Set the address whether it's valid or not
       setAddress(address);
+
+      // Validate the extracted address and update the state accordingly
       onValueChange(validateAddress(address, network) ? address : null);
+
+      // Hide QR scanner or any related UI component
       setShowCreateColdAddress(false);
     },
-    [onValueChange, network]
+    [setAddress, onValueChange, network, setShowCreateColdAddress]
   );
 
   const onBarcodeScanned = useCallback(
@@ -142,6 +165,8 @@ function AddressInput({
   }, []);
 
   //https://github.com/expo/expo/issues/27934#issuecomment-2111797240
+  //Note, the above was true on version 15.0.9. I've updated expo-camera
+  //since then and web must be re-tested
   const cameraViewProps = useMemo(() => {
     if (!camFacing) return {};
     else
@@ -281,7 +306,7 @@ function AddressInput({
           <View className="gap-4 px-2 items-center">
             <Text>{t('addressInput.scanQRCall2Action')}</Text>
             <View className="h-40 w-72 self-center">
-              <CameraView {...cameraViewProps} />
+              <CameraView style={{ flex: 1 }} {...cameraViewProps} />
             </View>
           </View>
         )}
