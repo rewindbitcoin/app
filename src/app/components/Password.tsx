@@ -90,7 +90,7 @@ const Password = ({
       }
     >
       <View className="px-2">
-        <Text className="pb-6">
+        <Text className="text-base pb-6">
           {mode === 'FORCED_SET'
             ? t('wallet.forcedSetPasswordText')
             : mode === 'OPTIONAL_SET'
@@ -113,7 +113,7 @@ const Password = ({
           maxLength={32}
           {...(Platform.OS === 'ios' ? { textContentType: 'newPassword' } : {})}
           onChangeText={onChangePassword}
-          className="outline-none flex-1 web:w-full rounded bg-slate-200 py-2 px-4"
+          className="text-base outline-none flex-1 web:w-full rounded bg-slate-200 py-2 px-4"
         />
       </View>
     </Modal>

@@ -220,7 +220,7 @@ function AddressInput({
             maxLength={100}
             onChangeText={onAddress}
             value={address}
-            className={`native:text-base web:text-xs web:mobmed:text-sm web:sm:text-base flex-1 overflow-hidden web:outline-none border-none p-2 pl-0 border-md ${address === '' && robotoLoaded ? 'tracking-tightest mobmed:-tracking-widest moblg:tracking-tighter' : 'tracking-normal'} ${robotoLoaded ? "font-['RobotoMono400Regular']" : ''}`}
+            className={`ios:mb-1 native:text-base web:text-xs web:mobmed:text-sm web:sm:text-base flex-1 overflow-hidden web:outline-none border-none p-2 pl-0 border-md ${address === '' && robotoLoaded ? 'tracking-tightest mobmed:-tracking-widest moblg:tracking-tighter' : 'tracking-normal'} ${robotoLoaded ? "font-['RobotoMono400Regular']" : ''}`}
           />
           {type === 'emergency' && (
             <View className="py-1">
@@ -318,7 +318,7 @@ function AddressInput({
         onClose={hideColdAddressHelp}
         closeButtonText={t('understoodButton')}
       >
-        <Text className="pl-2 pr-2 text-slate-600">
+        <Text className="text-base pl-2 pr-2 text-slate-600">
           {t('addressInput.coldAddress.helpText')}
         </Text>
       </Modal>

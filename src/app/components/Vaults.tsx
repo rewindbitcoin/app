@@ -653,7 +653,7 @@ const RawVault = ({
         </View>
         {(canBeRescued || canInitUnfreeze || canBeDelegated || canBeHidden) && (
           <View
-            className={`w-full flex-row ${[canBeRescued, canInitUnfreeze, canBeDelegated, canBeHidden].filter(Boolean).length > 1 ? 'justify-between flex-wrap' : 'justify-end'} pt-8 px-0 moblg:px-4 gap-6`}
+            className={`w-full flex-row ${[canBeRescued, canInitUnfreeze, canBeDelegated, canBeHidden].filter(Boolean).length > 1 ? 'justify-between flex-wrap' : 'justify-end'} pt-8 px-0 moblg:px-4 gap-4 moblg:gap-6`}
           >
             {canBeRescued && (
               <VaultButton
@@ -719,7 +719,7 @@ const RawVault = ({
         onClose={handleCloseDelegateHelp}
         closeButtonText={t('understoodButton')}
       >
-        <Text className="pl-2 pr-2 text-slate-600">
+        <Text className="text-base pl-2 pr-2 text-slate-600">
           {t('wallet.vault.help.delegate.text')}
         </Text>
       </Modal>
@@ -733,7 +733,7 @@ const RawVault = ({
         onClose={handleCloseRescueHelp}
         closeButtonText={t('understoodButton')}
       >
-        <Text className="pl-2 pr-2 text-slate-600">
+        <Text className="text-base pl-2 pr-2 text-slate-600">
           {t('wallet.vault.help.rescue.text')}
         </Text>
       </Modal>
@@ -747,7 +747,7 @@ const RawVault = ({
         onClose={handleCloseInitUnfreezeHelp}
         closeButtonText={t('understoodButton')}
       >
-        <Text className="pl-2 pr-2 text-slate-600">
+        <Text className="text-base pl-2 pr-2 text-slate-600">
           {t('wallet.vault.help.initUnfreeze.text')}
         </Text>
       </Modal>

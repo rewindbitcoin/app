@@ -95,7 +95,7 @@ const CreateColdAddress = ({
       >
         {step === 'intro' ? (
           <View>
-            <Text className="text-slate-600 pb-2">
+            <Text className="text-base text-slate-600 pb-2">
               {t('addressInput.coldAddress.intro')}
             </Text>
           </View>

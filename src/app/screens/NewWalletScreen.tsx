@@ -355,7 +355,7 @@ export default function NewWalletScreen() {
         onClose={() => showNetworkHelp(false)}
         closeButtonText={t('understoodButton')}
       >
-        <Text className="pl-2 pr-2">{t('help.network')}</Text>
+        <Text className="text-base px-2">{t('help.network')}</Text>
       </Modal>
       <Password
         mode="OPTIONAL_SET"

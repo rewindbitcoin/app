@@ -51,7 +51,7 @@ const Delegate = ({
         }
       >
         <View>
-          <Text className="text-slate-600 pb-2 px-2">
+          <Text className="text-base text-slate-600 pb-2 px-2">
             {t('wallet.vault.delegate.text', {
               panicAddress: vault.coldAddress
             })}

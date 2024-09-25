@@ -37,12 +37,21 @@ export const formatBalance = ({
   }
 };
 
+const formatNumber = (num: number, naturalFormatting: boolean) => {
+  if (naturalFormatting) {
+    const fixed = num.toFixed(1);
+    return fixed.endsWith('.0') ? parseInt(fixed, 10) : fixed;
+  } else {
+    return num.toFixed(1);
+  }
+};
+
 /**
  * Formats block time estimates into human-readable strings.
  *
  * @param {number} blocks - The number of blocks to be converted into time estimates.
  * @param {TFunction} t - The translation function used for internationalization.
- * @param {boolean} [naturalFormatting=false] - A flag that determines if the formatted time should use natural formatting (e.g., removing trailing '.0').
+ * @param {boolean} [naturalFormatting=false] - A flag that determines if the formatted time should use natural formatting (e.g., removing trailing '.0'). Minutes are always natural-formatted.
  *
  * @returns {string} The formatted time estimate.
  *
@@ -59,29 +68,20 @@ export const formatBlocks = moize(
     const rawTimeInHours = timeInMinutes / 60;
     const rawTimeInDays = timeInMinutes / 1440;
 
-    const formatNumber = (num: number) => {
-      if (naturalFormatting) {
-        const fixed = num.toFixed(1);
-        return fixed.endsWith('.0') ? parseInt(fixed, 10) : fixed;
-      } else {
-        return num.toFixed(1);
-      }
-    };
-
     if (timeInMinutes < 60) {
       return t('timeEstimate.minutes', {
         count: timeInMinutes,
-        formattedCount: formatNumber(timeInMinutes)
+        formattedCount: formatNumber(timeInMinutes, true)
       });
     } else if (timeInMinutes < 1440) {
       return t('timeEstimate.hours', {
         count: rawTimeInHours,
-        formattedCount: formatNumber(rawTimeInHours)
+        formattedCount: formatNumber(rawTimeInHours, naturalFormatting)
       });
     } else {
       return t('timeEstimate.days', {
         count: rawTimeInDays,
-        formattedCount: formatNumber(rawTimeInDays)
+        formattedCount: formatNumber(rawTimeInDays, naturalFormatting)
       });
     }
   }
@@ -163,7 +163,10 @@ const formatFeeRateFactory = memoize((t: TFunction) =>
         }
       }
 
-      return strBtcFiat === null ? strTime : `${strTime} / ${strBtcFiat}`;
+      return strBtcFiat === null
+        ? strTime
+        : `${strTime}
+${strBtcFiat}`;
     },
     args => JSON.stringify(args)
   )

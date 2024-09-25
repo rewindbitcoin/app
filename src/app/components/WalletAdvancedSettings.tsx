@@ -1,14 +1,7 @@
 import React, { useCallback, useState } from 'react';
 
 import { Text, View, StyleSheet, Pressable, Platform } from 'react-native';
-import {
-  Modal,
-  Divider,
-  InfoButton,
-  Theme,
-  Switch,
-  useTheme
-} from '../../common/ui';
+import { Modal, Divider, InfoButton, Switch } from '../../common/ui';
 import type { Engine as StorageEngine } from '../../common/lib/storage';
 import Password from './Password';
 import { useTranslation } from 'react-i18next';
@@ -55,8 +48,7 @@ export default function WalletAdvancedSettings({
   const [passwordHelp, showPasswordHelp] = useState<boolean>(false);
   const [dataEncryptionHelp, showDataEncryptionHelp] = useState<boolean>(false);
   const [networktHelp, showNetworkHelp] = useState<boolean>(false);
-  const theme: Theme = useTheme();
-  const styles = getStyles(theme);
+  const styles = getStyles();
 
   const onPasswordSwitch = useCallback(
     (value: boolean) => {
@@ -137,33 +129,34 @@ export default function WalletAdvancedSettings({
           });
         }}
       >
-        <View style={[styles.header, advanced ? styles.title : styles.card]}>
+        <View
+          className={`overflow-hidden p-2 flex-row items-center ${advanced ? 'justify-start' : 'bg-white justify-between rounded-xl'}`}
+        >
           <Text
-            {...(advanced
-              ? { variant: 'cardTitle', style: styles.cardTitle }
-              : {})}
+            className={
+              advanced
+                ? 'font-bold uppercase text-slate-600 pl-4 mb-2 text-sm'
+                : 'ml-2 py-0.5 font-normal text-black text-base'
+            }
           >
             {t('wallet.advancedOptionsTitle')}
           </Text>
           <AntDesign
-            style={{
-              ...styles.cardTitle,
-              color: advanced
-                ? theme.colors.primary
-                : theme.colors.cardSecondary
-            }}
+            className={advanced ? '!text-primary ml-2 mb-2' : '!text-gray-400'}
             name={advanced ? 'close' : 'right'}
           />
         </View>
       </Pressable>
-      <View style={advanced ? { ...styles.card } : {}}>
+      <View
+        className={advanced ? 'overflow-hidden rounded-xl px-2 bg-white' : ''}
+      >
         {advanced && (
           <>
             {canUseSecureStorage && (
               <>
-                <View style={{ ...styles.row }}>
+                <View style={styles.row}>
                   <View style={styles.textContainer}>
-                    <Text className="pr-2">
+                    <Text className="pr-2 text-base">
                       {t('wallet.biometricEncryptionTitle')}
                     </Text>
                     <InfoButton onPress={() => showBiometricalHelp(true)} />
@@ -189,7 +182,9 @@ export default function WalletAdvancedSettings({
             )}
             <View style={styles.row}>
               <View style={styles.textContainer}>
-                <Text className="pr-2">{t('wallet.usePasswordTitle')}</Text>
+                <Text className="pr-2 text-base">
+                  {t('wallet.usePasswordTitle')}
+                </Text>
                 <InfoButton onPress={() => showPasswordHelp(true)} />
               </View>
               <Switch
@@ -206,7 +201,9 @@ export default function WalletAdvancedSettings({
             <Divider style={styles.lineSeparator} />
             <View style={styles.row}>
               <View style={styles.textContainer}>
-                <Text className="pr-2">{t('wallet.encryptAppDataTitle')}</Text>
+                <Text className="pr-2 text-base">
+                  {t('wallet.encryptAppDataTitle')}
+                </Text>
                 <InfoButton onPress={() => showDataEncryptionHelp(true)} />
               </View>
               <Switch
@@ -217,7 +214,9 @@ export default function WalletAdvancedSettings({
             <Divider style={styles.lineSeparator} />
             <View style={styles.row}>
               <View style={styles.textContainer}>
-                <Text className="pr-2">{t('network.testOrRealTitle')}</Text>
+                <Text className="pr-2 text-base">
+                  {t('network.testOrRealTitle')}
+                </Text>
                 <InfoButton onPress={() => showNetworkHelp(true)} />
               </View>
               <Pressable
@@ -225,17 +224,18 @@ export default function WalletAdvancedSettings({
                 hitSlop={{ top: 10, bottom: 10, right: 10 }}
                 className="max-w-20 mobmed:max-w-full flex-row items-center active:scale-95 active:opacity-90 hover:opacity-90"
               >
-                <MaterialCommunityIcons
-                  name="menu-swap-outline"
-                  className="text-primary text-sm mobmed:pr-1"
-                />
-                <Text className="text-primary text-center">
+                <Text className="text-gray-400 text-center text-base">
                   {advancedSettings.networkId === 'BITCOIN'
                     ? t('network.realBitcoin')
                     : t('network.testOn', {
                         networkId: capitalizedNetworkId
                       })}
                 </Text>
+                <AntDesign
+                  name="right"
+                  size={12}
+                  className="pl-4 !text-gray-400"
+                />
               </Pressable>
               <NetworksModal
                 isVisible={networkRequest}
@@ -254,7 +254,7 @@ export default function WalletAdvancedSettings({
         onClose={() => showBiometricalHelp(false)}
         closeButtonText={t('understoodButton')}
       >
-        <Text className="pl-2 pr-2">{t('help.biometric')}</Text>
+        <Text className="pl-2 pr-2 text-base">{t('help.biometric')}</Text>
       </Modal>
       <Modal
         title={t('wallet.passwordProtectionTitle')}
@@ -266,9 +266,9 @@ export default function WalletAdvancedSettings({
         onClose={() => showPasswordHelp(false)}
         closeButtonText={t('understoodButton')}
       >
-        <Text className="pl-2 pr-2">{t('help.password')}</Text>
+        <Text className="pl-2 pr-2 text-base">{t('help.password')}</Text>
         {canUseSecureStorage && (
-          <Text className="pt-4 pl-2 pr-2">
+          <Text className="pt-4 pl-2 pr-2 text-base">
             {t('help.passwordWithBiometric')}
           </Text>
         )}
@@ -283,7 +283,7 @@ export default function WalletAdvancedSettings({
         onClose={() => showDataEncryptionHelp(false)}
         closeButtonText={t('understoodButton')}
       >
-        <Text className="pl-2 pr-2">{t('help.encryptAppData')}</Text>
+        <Text className="pl-2 pr-2 text-base">{t('help.encryptAppData')}</Text>
       </Modal>
       <Modal
         title={t('network.testOrRealTitle')}
@@ -295,47 +295,27 @@ export default function WalletAdvancedSettings({
         onClose={() => showNetworkHelp(false)}
         closeButtonText={t('understoodButton')}
       >
-        <Text className="pl-2 pr-2">{t('help.network')}</Text>
+        <Text className="pl-2 pr-2 text-base">{t('help.network')}</Text>
       </Modal>
     </>
   );
 }
 
-const getStyles = (theme: Theme) => {
+const getStyles = () => {
   const styles = StyleSheet.create({
-    card: {
-      overflow: 'hidden',
-      borderRadius: 5,
-      padding: 10,
-      backgroundColor: theme.colors.card
-    },
-    header: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center'
-    },
-    title: {
-      overflow: 'hidden',
-      justifyContent: 'flex-start',
-      padding: 10
-    },
-    cardTitle: {
-      marginLeft: 10,
-      paddingVertical: 2
-    },
     row: {
       flexDirection: 'row',
-      paddingVertical: 10,
+      paddingVertical: 8,
       justifyContent: 'space-between',
       alignItems: 'center'
     },
     textContainer: {
-      marginLeft: 20,
+      marginLeft: 12,
       minHeight: 24,
       flexDirection: 'row',
       alignItems: 'center'
     },
-    lineSeparator: { marginLeft: 20 }
+    lineSeparator: { marginLeft: 12 }
   });
   return styles;
 };

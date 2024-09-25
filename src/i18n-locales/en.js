@@ -61,7 +61,7 @@ Technical error: {{message}}`,
     freeze: 'Freeze',
     optionalSetPasswordTitle: `Protect Wallet`,
     focedSetPasswordTitle: 'Set New Password',
-    forcedSetPasswordText: `Please set a new password (8-32 characters).
+    forcedSetPasswordText: `Please set a new password (8-32 chars).
 
 If you ever forget your password, you can recover your wallet\
  using your mnemonic recovery phrase.`,
@@ -82,7 +82,7 @@ If you've forgotten the password for your wallet, you can create a new wallet us
     advancedOptionsTitle: 'Advanced Options',
     usePasswordTitle: 'Use Password',
     biometricEncryptionTitle: 'Biometric Encryption',
-    passwordProtectionTitle: 'Password Protection',
+    passwordProtectionTitle: 'Password Protect',
     encryptAppDataTitle: 'Encrypt App Data',
     networkTitle: 'Network',
     importButton: 'Import',
@@ -215,13 +215,6 @@ Tap 'Rescue' to initiate the rescue process.`
       },
       delegate: {
         title: 'Delegation File',
-        texr: `You're about to generate a delegation file. This file can be shared with a trusted person who can help protect your Bitcoin.
-
-In case of an emergency, the delegated person can use the file to send your funds to the Emergency Address you specified during Vault Setup. They should visit rewindbitcoin.com and follow the straightforward instructions to complete the rescue operation easily.
-
-Bitcoin tech-savvy contacts can read the file and follow the instructions directly.
-
-Tap "Delegate" to generate and share the delegation file.`,
         text: `You're about to generate a delegation file. This file can be shared with a trusted person who can help protect your Bitcoin.
 
 In case of an emergency, the delegated person can use the file to send your funds to the Emergency Address you specified during Vault Setup. The file only contains the necessary info for this and does not include any keys to access your funds.
@@ -390,10 +383,9 @@ Each time you access the wallet, you will\
 
 While leaking this data wouldn't compromise your funds, encrypting it\
  ensures that even if it is accessed by unauthorized parties, they won't be able\
- to discern how you use your wallet, such as your spending habits or whom you transact with.
-
-The encryption uses the XChaCha20-Poly1305 algorithm, with a key that’s securely\
- derived from your mnemonic recovery phrase.`,
+ to discern how you use your wallet, such as your spending habits or whom you transact with.`,
+    //The encryption uses the XChaCha20-Poly1305 algorithm, with a key that’s securely\
+    // derived from your mnemonic recovery phrase.
     network: `Rewind provides a choice between testing environments and the real Bitcoin network (via Advanced Options).
 
 The currently recommended option is the Tape Network, Rewind's own test network. Tape mirrors Bitcoin's real functionality and allows you to explore Send/Receive and Vaulting operations safely, offering free tokens for practice.
@@ -449,7 +441,7 @@ This minimum amount is calculated based on the assumption that you may need rapi
 <strong>Suggested Action:</strong> Please add {{missingFunds}} to reach the minimum amount required for vaulting.`,
     amountLabel: 'Amount to Freeze',
     securityLockTimeLabel: 'Theft-Protection Time-Lock',
-    securityLockTimeDescription: 'Unlocked {{blocks}} after unfreeze',
+    securityLockTimeDescription: 'Unlocks {{blocks}} after unfreeze',
     confirmationSpeedLabel: 'Vault Confirmation Speed',
     lockTimeError: 'Pick a valid Lock Time.',
     feeRateError: 'Pick a valid Fee Rate.',
@@ -494,6 +486,7 @@ This may take around 30 seconds, slightly longer on older devices.
 Next, you'll get to confirm everything.`,
     miningFee: 'Mining Fee:',
     serviceFee: 'Vaulting Fee:',
+    allFees: 'Fees:',
     timeLock: 'Time-Lock:',
     vaultedAmount: 'Amount to Freeze:',
     confirmBackupSendVault: `Your vault is ready for submission. Please review the following values before proceeding:`,

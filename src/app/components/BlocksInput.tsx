@@ -95,7 +95,7 @@ function BlocksInput({
         onClose={hideColdAddressHelp}
         closeButtonText={t('understoodButton')}
       >
-        <Text className="pl-2 pr-2 text-slate-600">
+        <Text className="text-base pl-2 pr-2 text-slate-600">
           {t('blocksInput.coldAddress.helpText')}
         </Text>
       </Modal>

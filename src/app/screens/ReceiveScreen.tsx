@@ -159,7 +159,7 @@ export default function Receive() {
           className="w-full max-w-screen-sm mx-4 gap-8"
           style={containerStyle}
         >
-          <Text>{t('receive.intro')}</Text>
+          <Text className="text-base">{t('receive.intro')}</Text>
           <View className="items-center">
             <QRCode value={receiveAddress} size={200} />
           </View>
@@ -197,12 +197,14 @@ export default function Receive() {
           {requestTokensURL && networkName && (
             <View className="mt-4 p-4 bg-gray-50 shadow rounded-lg items-center">
               <View className="flex-row items-center mb-2">
-                <Text className="text-center">{t('receive.faucetIntro')}</Text>
+                <Text className="text-base text-center">
+                  {t('receive.faucetIntro')}
+                </Text>
                 <Button mode="text" onPress={onFaucet} className="ml-2">
                   {t('receive.requestTokens')}
                 </Button>
               </View>
-              <Text className="text-xs text-slate-600 mt-2">
+              <Text className="text-sm text-slate-600 mt-2">
                 {t('receive.faucetNote', { networkName })}
               </Text>
             </View>

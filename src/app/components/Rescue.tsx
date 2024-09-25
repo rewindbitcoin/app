@@ -145,7 +145,7 @@ const Rescue = ({
       >
         {step === 'intro' ? (
           <View>
-            <Text className="text-slate-600 pb-2 px-2">
+            <Text className="text-base text-slate-600 pb-2 px-2">
               {t('wallet.vault.rescue.intro', {
                 panicAddress: vault.coldAddress
               })}

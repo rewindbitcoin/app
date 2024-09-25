@@ -285,7 +285,7 @@ const getStyles = (theme: Theme) =>
     status: {
       textAlign: 'left',
       flex: 1,
-      paddingLeft: 5,
+      paddingLeft: 4,
       fontSize: 14,
       color: theme.colors.cardSecondary
     },
