@@ -46,6 +46,11 @@ const Balance = ({
           </Svg>
         )}
         <Text
+          key={
+            formattedBalance === undefined
+              ? 'loading'
+              : 'loaded' /*trick to reset the component to fix nativewind leaving some classes not correctly reset after the animation*/
+          }
           className={
             `font-bold text-3xl pr-0 mr-2 ${formattedBalance === undefined ? 'animate-pulse bg-slate-200 rounded overflow-hidden' : 'animate-none bg-transparent opacity-100'}`
             //after the animation it is important to set animate-none from the nativewind docs so that components are not re-rendered as new.
@@ -223,7 +228,7 @@ const WalletHeader = ({
                     : ''}
                 </Text>
                 <Button
-                  textClassName="font-bold !text-sm"
+                  textClassName="font-bold !text-sm mt-2"
                   containerClassName="self-end"
                   onPress={dismissTestWalletWarning}
                   mode="text"

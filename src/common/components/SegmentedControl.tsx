@@ -29,10 +29,6 @@ interface SegmentedControlProps {
    */
   onChange: (index: number) => void;
   /**
-   * An array of Badge Values corresponding to the Segment
-   */
-  badgeValues?: Array<number | null>;
-  /**
    * Is right-to-left mode.
    */
   isRTL?: boolean;
@@ -95,16 +91,12 @@ const SegmentedControl: React.FC<SegmentedControlProps> = ({
   segments,
   currentIndex,
   onChange,
-  badgeValues = [],
   isRTL = false,
   activeTextStyle,
   inactiveTextStyle,
   style,
   pressableWrapper,
-  tileStyle,
-  activeBadgeStyle,
-  inactiveBadgeStyle,
-  badgeTextStyle
+  tileStyle
 }: SegmentedControlProps) => {
   const theme = useTheme();
   const [width, setWidth] = useState<number>(0);
@@ -139,7 +131,7 @@ const SegmentedControl: React.FC<SegmentedControlProps> = ({
   });
 
   const finalisedActiveTextStyle: TextStyle = {
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: '600',
     textAlign: 'center',
     color: theme.colors.text, //'#111827',
@@ -148,34 +140,10 @@ const SegmentedControl: React.FC<SegmentedControlProps> = ({
   };
 
   const finalisedInActiveTextStyle: TextStyle = {
-    fontSize: 15,
+    fontSize: 16,
     textAlign: 'center',
     color: '#4b5563',
     ...inactiveTextStyle
-  };
-
-  const finalisedActiveBadgeStyle: ViewStyle = {
-    backgroundColor: '#27272a',
-    marginLeft: 4,
-    alignItems: 'center',
-    justifyContent: 'center',
-    ...activeBadgeStyle
-  };
-
-  const finalisedInActiveBadgeStyle: ViewStyle = {
-    backgroundColor: '#6b7280',
-    marginLeft: 4,
-    justifyContent: 'center',
-    alignItems: 'center',
-    ...inactiveBadgeStyle
-  };
-
-  const finalisedBadgeTextStyle: TextStyle = {
-    fontSize: 11,
-    fontWeight: '500',
-    textAlign: 'center',
-    color: theme.colors.white,
-    ...badgeTextStyle
   };
 
   const styles = useMemo(() => getStyles(theme), [theme]);
@@ -210,20 +178,6 @@ const SegmentedControl: React.FC<SegmentedControlProps> = ({
           >
             <View style={styles.textWrapper}>
               <Text style={textStyle}>{segment}</Text>
-              {badgeValues[index] && (
-                <View
-                  style={[
-                    styles.defaultBadgeContainerStyle,
-                    currentIndex === index
-                      ? finalisedActiveBadgeStyle
-                      : finalisedInActiveBadgeStyle
-                  ]}
-                >
-                  <Text style={finalisedBadgeTextStyle}>
-                    {badgeValues[index]}
-                  </Text>
-                </View>
-              )}
             </View>
           </Pressable>
         );

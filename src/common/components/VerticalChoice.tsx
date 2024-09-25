@@ -1,7 +1,6 @@
 import React, { ReactNode, useCallback } from 'react';
-import { View, Pressable } from 'react-native';
+import { Text, View, Pressable } from 'react-native';
 import Divider from './Divider';
-import { Text } from './Text';
 import AntDesign from '@expo/vector-icons/AntDesign';
 import { useTheme } from '../theme';
 

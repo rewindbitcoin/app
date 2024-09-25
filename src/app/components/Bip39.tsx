@@ -9,7 +9,7 @@ import React, {
   useRef,
   useState
 } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Text, StyleSheet, View } from 'react-native';
 import { batchedUpdates } from '~/common/lib/batchedUpdates';
 
 import { LayoutAnimation } from 'react-native';
@@ -21,7 +21,6 @@ import {
 import {
   useTheme,
   Theme,
-  Text,
   TextInput,
   SegmentedControl,
   useToast
@@ -287,7 +286,7 @@ const getStyles = (theme: Theme) => {
       backgroundColor: theme.colors.darkerOverDarkerBackground
     },
     segmentedTexts: {
-      fontSize: 12
+      fontSize: 14
     }
   });
 };

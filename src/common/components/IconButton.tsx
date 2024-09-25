@@ -1,11 +1,10 @@
 //This is deprecated (but still used accross the app). Better use
 //<Button iconLeft={} iconRight={}/>
 import React, { useState, useMemo, useCallback } from 'react';
-import { StyleSheet, Pressable } from 'react-native';
+import { Text, StyleSheet, Pressable } from 'react-native';
 import { rgba } from 'polished';
 import * as Icons from '@expo/vector-icons';
 import { useTheme, Theme } from '../theme';
-import { Text } from './Text';
 
 function IconButton({
   mode = 'icon-left',

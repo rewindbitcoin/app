@@ -4,13 +4,8 @@ import FeeInput from '../components/FeeInput';
 import { useTranslation } from 'react-i18next';
 import React, { useCallback, useMemo, useState } from 'react';
 import { useNavigation } from '@react-navigation/native';
-import { View } from 'react-native';
-import {
-  Text,
-  Button,
-  KeyboardAwareScrollView,
-  useToast
-} from '../../common/ui';
+import { View, Text } from 'react-native';
+import { Button, KeyboardAwareScrollView, useToast } from '../../common/ui';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { pickFeeEstimate } from '../lib/fees';

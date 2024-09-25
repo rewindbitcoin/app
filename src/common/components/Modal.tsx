@@ -4,13 +4,13 @@ import {
   Platform,
   KeyboardAvoidingView,
   Dimensions,
-  LayoutChangeEvent
+  LayoutChangeEvent,
+  Text
 } from 'react-native';
 import RNModal from 'react-native-modal';
 import { Button } from './Button';
 import { useTheme } from '../theme';
 import type { IconType } from './types';
-import { Text } from './Text';
 import * as Icons from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ubuntu_500Medium, Ubuntu_700Bold } from '@expo-google-fonts/ubuntu';

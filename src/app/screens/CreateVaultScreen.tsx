@@ -9,14 +9,13 @@ import React, {
 } from 'react';
 import { useWallet } from '../hooks/useWallet';
 import { useTranslation } from 'react-i18next';
-import { useWindowDimensions, View } from 'react-native';
+import { useWindowDimensions, View, Text } from 'react-native';
 import * as Progress from 'react-native-progress';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { createVault, type VaultSettings, type Vault } from '../lib/vaults';
 import { useSettings } from '../hooks/useSettings';
 import {
   Button,
-  Text,
   KeyboardAwareScrollView,
   useToast,
   ActivityIndicator
@@ -356,7 +355,9 @@ export default function CreateVaultScreen({
         {!vault || !vaultTxInfo ? (
           //Initial view:
           <View className="flex-1 justify-between">
-            <Text className="self-start">{t('createVault.intro')}</Text>
+            <Text className="text-base self-start">
+              {t('createVault.intro')}
+            </Text>
             <View className="flex-grow justify-center items-center">
               <Progress.Circle
                 size={height < 667 /*iPhone SE*/ ? 200 : 300}
@@ -371,36 +372,40 @@ export default function CreateVaultScreen({
           <>
             {!confirmRequested ? (
               <>
-                <Text className="mb-4">
+                <Text className="text-base mb-4">
                   {t('createVault.confirmBackupSendVault')}
                 </Text>
                 <View className="bg-gray-100 p-4 rounded-lg mb-4 shadow gap-2">
                   <View className="flex-row justify-between">
-                    <Text className="font-bold">
+                    <Text className="text-base font-bold">
                       {t('createVault.vaultedAmount')}
                     </Text>
                     <Text>{formatSats(vault.vaultedAmount)}</Text>
                   </View>
                   <View className="flex-row justify-between">
-                    <Text className="font-bold">
+                    <Text className="text-base font-bold">
                       {t('createVault.timeLock')}
                     </Text>
                     <Text>{formatBlocks(vault.lockBlocks, t)}</Text>
                   </View>
                   <View className="flex-row justify-between">
-                    <Text className="font-bold">
+                    <Text className="text-base font-bold">
                       {t('createVault.miningFee')}
                     </Text>
-                    <Text>{formatSats(vaultTxInfo.fee)}</Text>
+                    <Text className="text-base">
+                      {formatSats(vaultTxInfo.fee)}
+                    </Text>
                   </View>
                   <View className="flex-row justify-between">
-                    <Text className="font-bold">
+                    <Text className="text-base font-bold">
                       {t('createVault.serviceFee')}
                     </Text>
-                    <Text>{formatSats(vault.serviceFee)}</Text>
+                    <Text className="text-base">
+                      {formatSats(vault.serviceFee)}
+                    </Text>
                   </View>
                 </View>
-                <Text className="mb-8">
+                <Text className="text-base mb-8">
                   {t('createVault.encryptionBackupExplain')}
                 </Text>
 
@@ -416,7 +421,9 @@ export default function CreateVaultScreen({
                   //and now it's pushing the vault. Don't let the user
                   //cancel at this stage!!!
                   <>
-                    <Text>{t('createVault.backupInProgress')}</Text>
+                    <Text className="text-base">
+                      {t('createVault.backupInProgress')}
+                    </Text>
                     <View className="flex-grow justify-center items-center">
                       <Progress.Circle
                         size={300}
@@ -428,7 +435,7 @@ export default function CreateVaultScreen({
                   </>
                 ) : (
                   <>
-                    <Text className="mb-12">
+                    <Text className="text-base mb-12">
                       {t('createVault.pushingVault')}
                     </Text>
                     <ActivityIndicator size="large" />

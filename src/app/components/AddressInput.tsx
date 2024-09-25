@@ -1,11 +1,10 @@
 import { BarcodeType, CameraView, useCameraPermissions } from 'expo-camera';
 import { Camera } from 'expo-camera/legacy';
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
-import { View, AppState, Platform, Dimensions } from 'react-native';
+import { Text, View, AppState, Platform } from 'react-native';
 import { batchedUpdates } from '~/common/lib/batchedUpdates';
 import {
   TextInput,
-  Text,
   IconButton,
   InfoButton,
   ActivityIndicator,
@@ -169,12 +168,10 @@ function AddressInput({
       });
   }, [camFacing, onBarcodeScanned, onBarCodeScanned]);
 
-  const isNarrow = Dimensions.get('window').width <= 320;
-
   return (
     <View>
       <View className="pb-2 flex-row items-center">
-        <Text variant="cardTitle" className="px-2 text-left">
+        <Text className="px-2 text-left font-medium text-card-secondary text-sm uppercase">
           {type === 'emergency'
             ? t('addressInput.coldAddress.label')
             : t('addressInput.recipientAddress.label')}
@@ -203,7 +200,7 @@ function AddressInput({
           {type === 'emergency' && (
             <View className="py-1">
               <IconButton
-                size={isNarrow ? 12 : 13}
+                size={16}
                 text={t('addressInput.createNewButton')}
                 onPress={handleNewAddress}
                 iconFamily="MaterialCommunityIcons"
@@ -214,7 +211,7 @@ function AddressInput({
           {camAvailable && (
             <View className={`py-1 ${type === 'emergency' ? 'pl-4' : ''}`}>
               <IconButton
-                size={isNarrow ? 12 : 13}
+                size={16}
                 text={t('addressInput.scan')}
                 onPress={handleScanQR}
                 iconFamily="MaterialCommunityIcons"
@@ -226,7 +223,7 @@ function AddressInput({
         {address !== '' && !validateAddress(address, network) && (
           <Text
             className={`${robotoLoaded ? "font-['RobotoMono400Regular']" : ''}`}
-            style={{ fontSize: 13, color: 'red' }}
+            style={{ fontSize: 14, color: 'red' }}
           >
             {t('addressInput.invalidAddress', {
               network: capitalizedNetworkId

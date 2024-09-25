@@ -1,21 +1,11 @@
 //This is a HOC of EditableSlider formatted for Data Input
 import React, { useMemo } from 'react';
-import { View, StyleSheet } from 'react-native';
+import { Text, View, StyleSheet } from 'react-native';
 import { useTheme, Theme } from '../theme';
-import { Text } from './Text';
 import EditableSlider from './EditableSlider';
 import type { Locale } from '../../i18n-locales/init';
 import IconButton from './IconButton';
 
-//<Pressable onPress={onUnitPress}>
-//  <View style={styles.cardModeContainer}>
-//    <Text style={styles.cardModeAction}>{unit}</Text>
-//    <MaterialCommunityIcons
-//      name="menu-swap-outline"
-//      style={styles.cardModeAction}
-//    />
-//  </View>
-//</Pressable>
 function CardEditableSlider({
   initialValue,
   minimumValue,
@@ -51,7 +41,7 @@ function CardEditableSlider({
     <View style={styles.unitContainer}>
       {onUnitPress ? (
         <IconButton
-          size={12}
+          size={14}
           separationRatio={0}
           mode="icon-left"
           iconFamily="MaterialCommunityIcons"
@@ -67,7 +57,7 @@ function CardEditableSlider({
   return (
     <>
       <View className="pb-2 flex-row items-center">
-        <Text variant="cardTitle" className="px-2 text-left">
+        <Text className="px-2 text-left font-medium text-card-secondary text-sm uppercase">
           {label}
         </Text>
         {headerIcon}
@@ -102,14 +92,7 @@ const getStyles = (theme: Theme) => {
       borderWidth: 0,
       padding: 10
     },
-    cardModeContainer: { flexDirection: 'row', alignItems: 'center' },
-    cardModeAction: {
-      color: theme.colors.primary,
-      fontSize: 12,
-      paddingVertical: 5,
-      marginVertical: -5
-    },
     unitContainer: { marginLeft: 8 },
-    unitText: { fontSize: 12, color: theme.colors.text }
+    unitText: { fontSize: 14, color: theme.colors.text }
   });
 };

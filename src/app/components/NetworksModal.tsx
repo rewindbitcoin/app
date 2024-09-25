@@ -1,7 +1,7 @@
 import React, { useCallback } from 'react';
 import type { NetworkId } from '../../app/lib/network';
-import { View } from 'react-native';
-import { Modal, VerticalChoice, Text } from '../../common/ui';
+import { View, Text } from 'react-native';
+import { Modal, VerticalChoice } from '../../common/ui';
 import { useTranslation } from 'react-i18next';
 const networkIds = [
   'TAPE',

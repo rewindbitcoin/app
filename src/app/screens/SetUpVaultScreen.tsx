@@ -6,8 +6,8 @@ import LearnMoreAboutVaults from '../components/LearnMoreAboutVaults';
 import { Trans, useTranslation } from 'react-i18next';
 import React, { useCallback, useState, useMemo } from 'react';
 import { useNavigation } from '@react-navigation/native';
-import { View } from 'react-native';
-import { Text, Button, KeyboardAwareScrollView } from '../../common/ui';
+import { Text, View } from 'react-native';
+import { Button, KeyboardAwareScrollView } from '../../common/ui';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { selectVaultUtxosData, type VaultSettings } from '../lib/vaults';
 import {
@@ -260,7 +260,7 @@ export default function VaultSetUp({
         <View className="mb-8">
           {isValidVaultRange ? (
             <>
-              <Text className="mb-1">{t('vaultSetup.intro')}</Text>
+              <Text className="text-base mb-1">{t('vaultSetup.intro')}</Text>
               <LearnMoreAboutVaults />
             </>
           ) : (

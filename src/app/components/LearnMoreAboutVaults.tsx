@@ -1,5 +1,6 @@
 import React, { useState, useCallback } from 'react';
-import { Modal, Text, Button } from '../../common/ui';
+import { Text } from 'react-native';
+import { Modal, Button } from '../../common/ui';
 import { useTranslation } from 'react-i18next';
 
 const LearnMoreAboutVaults = () => {

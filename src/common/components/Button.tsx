@@ -82,7 +82,7 @@ const Button: React.FC<ButtonProps> = ({
         )}
         {typeof children === 'string' ? (
           <RN.Text
-            className={`text text-center text-primary native:text-base web:text-sm web:sm:text-base select-none ${textClassName}`}
+            className={`text-center text-primary native:text-base web:text-sm web:sm:text-base select-none ${textClassName}`}
           >
             {children}
           </RN.Text>

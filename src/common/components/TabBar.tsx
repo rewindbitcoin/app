@@ -82,7 +82,7 @@ const TabBar = ({
             className={`px-3 py-4 active:bg-primary-light hover:bg-primary-light`}
           >
             <Text
-              className={`font-bold ${activeTabIndex === index ? 'text-primary-dark' : 'text-slate-500'}`}
+              className={`text-base font-bold ${activeTabIndex === index ? 'text-primary-dark' : 'text-slate-500'}`}
             >
               {tab}
             </Text>

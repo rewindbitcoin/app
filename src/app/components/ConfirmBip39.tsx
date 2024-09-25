@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import { View } from 'react-native';
-import { Modal, Text, Button } from '../../common/ui';
+import { Text, View } from 'react-native';
+import { Modal, Button } from '../../common/ui';
 import Bip39, { validateMnemonic } from './Bip39';
 import { useTranslation } from 'react-i18next';
 import { networks, type Network } from 'bitcoinjs-lib';

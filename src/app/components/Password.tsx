@@ -1,8 +1,8 @@
 import { validatePassword } from '../lib/validators';
 import React, { useRef, useEffect, useCallback, useState } from 'react';
 
-import { Platform, View } from 'react-native';
-import { Modal, Text, TextInput, Button } from '../../common/ui';
+import { Platform, View, Text, TextInput } from 'react-native';
+import { Modal, Button } from '../../common/ui';
 import { useTranslation } from 'react-i18next';
 
 const Password = ({

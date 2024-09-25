@@ -189,13 +189,13 @@ const styles = StyleSheet.create({
   settingGroup: { marginBottom: 30 },
   label: {
     marginVertical: 10,
-    fontSize: 15,
+    fontSize: 16,
     alignSelf: 'stretch', //To ensure that textAlign works with short texts too
     textAlign: 'left',
     fontWeight: '500'
   },
   input: {
-    fontSize: 15,
+    fontSize: 16,
     padding: 10,
     borderWidth: 1,
     borderColor: 'gray',

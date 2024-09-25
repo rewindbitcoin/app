@@ -1,9 +1,8 @@
 import React, { useCallback, useState } from 'react';
 
-import { View, StyleSheet, Pressable, Platform } from 'react-native';
+import { Text, View, StyleSheet, Pressable, Platform } from 'react-native';
 import {
   Modal,
-  Text,
   Divider,
   InfoButton,
   Theme,

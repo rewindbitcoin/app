@@ -92,7 +92,7 @@ const EditableSlider = ({
   initialValue: number;
   minimumValue: number;
   maxLabel?: string;
-  unit?: string | ReactNode;
+  unit?: ReactNode;
   numberFormatting?: boolean;
   maximumValue: number;
   step?: number;
@@ -238,11 +238,7 @@ const EditableSlider = ({
     <View style={styles.container}>
       <View style={styles.statusAndUnit}>
         <Text style={statusStyle}>{statusText}</Text>
-        {typeof unit === 'string' ? (
-          <Text style={styles.unit}>{unit}</Text>
-        ) : (
-          unit
-        )}
+        {unit || null}
       </View>
       <View style={styles.control}>
         <Slider
@@ -290,11 +286,7 @@ const getStyles = (theme: Theme) =>
       textAlign: 'left',
       flex: 1,
       paddingLeft: 5,
-      fontSize: 13,
-      color: theme.colors.cardSecondary
-    },
-    unit: {
-      fontSize: 10,
+      fontSize: 14,
       color: theme.colors.cardSecondary
     },
     control: {
@@ -320,13 +312,13 @@ const getStyles = (theme: Theme) =>
       top: -5
     },
     maxLabel: {
-      fontSize: 10,
+      fontSize: 12,
       //fontStyle: 'italic',
       //color: theme.colors.cardSecondary
       color: 'green'
     },
     input: {
-      fontSize: 15,
+      fontSize: 16,
       paddingVertical: 5,
       borderBottomWidth: 1,
       borderBottomColor: theme.colors.primary

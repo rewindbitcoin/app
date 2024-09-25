@@ -1,6 +1,6 @@
 import React, { useCallback, useMemo } from 'react';
-import { View, Pressable } from 'react-native';
-import { Text, KeyboardAwareScrollView } from '../../common/ui';
+import { Text, View, Pressable } from 'react-native';
+import { KeyboardAwareScrollView } from '../../common/ui';
 import { useTranslation } from 'react-i18next';
 import { useNavigation } from '@react-navigation/native';
 import { NEW_WALLET, WALLET_HOME } from '../screens';

@@ -7,7 +7,6 @@ export { EditableSlider };
 import CardEditableSlider from './components/CardEditableSlider';
 export { CardEditableSlider };
 export { Button } from './components/Button';
-export { Text } from './components/Text';
 export * from './components/Toast';
 export { Modal } from './components/Modal';
 export { Switch } from './components/Switch';

@@ -593,7 +593,7 @@ For example, if you set a time-lock of 7 days, your funds will remain locked for
   addressInput: {
     invalidAddress: 'Invalid {{network}} address',
 
-    textInputPlaceholderWithCreate: 'Enter or Create an Address',
+    textInputPlaceholderWithCreate: 'Enter/Create Address',
     textInputPlaceholder: 'Enter an Address',
     createNewButton: 'Create',
     coldAddress: {

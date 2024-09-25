@@ -10,6 +10,7 @@ module.exports = {
       },
       colors: {
         backgroundDefault: '#f2f2f2',
+        'card-secondary': '#555',
         // Create a custom color that uses a CSS custom value
         primary: 'rgb(var(--color-primary))',
         'primary-dark': 'rgb(var(--color-primary-dark))',
@@ -35,7 +36,8 @@ module.exports = {
           '--color-primary': '0 122 255',
           '--color-primary-dark': '0 61 127',
           '--color-primary-light': '217 230 242',
-          '--color-primary-light-hover': '195 207 218'
+          '--color-primary-light-hover': '195 207 218',
+          '--color-card-secondary': '#555'
         }
       })
   ]

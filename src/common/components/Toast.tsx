@@ -1,12 +1,11 @@
 import React from 'react';
 
-import { View } from 'react-native';
+import { View, Text } from 'react-native';
 import {
   Toast,
   useToast,
   ToastProvider as ToastProviderOriginal
 } from 'react-native-toast-notifications';
-import { Text } from './Text';
 import { Button } from './Button';
 import type { ToastProps } from 'react-native-toast-notifications/lib/typescript/toast';
 
