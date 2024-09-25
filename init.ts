@@ -13,12 +13,13 @@ import '@expo/metro-runtime';
 //  ERROR  i18next::pluralResolver: Your environment seems not to be Intl API compatible, use an Intl.PluralRules polyfill. Will fallback to the compatibilityJSON v3 format handling.
 import 'intl-pluralrules';
 
-import { Platform } from 'react-native';
+import { Dimensions, Platform } from 'react-native';
 console.log('React Native version: ', Platform?.constants?.reactNativeVersion);
 console.log(
   'Hermes enabled: ',
   !!(global as { HermesInternal?: typeof HermesInternal }).HermesInternal
 );
+console.log('Device dimensions: ', Dimensions.get('window'));
 
 //shims for react-native
 if (typeof Buffer === 'undefined') global.Buffer = require('buffer').Buffer;

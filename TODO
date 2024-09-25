@@ -1,5 +1,11 @@
 TODO: set the initial accept terms
 
+TODO: remember btcRates!!!
+
+TODO: Camera does not work on devices
+
+TODO: fonts are incredibly tiny on ios device
+
 TODO: create a fakeTapeFees server and dont use an electrum
 server for this
 
@@ -8,20 +14,6 @@ TODO: investigate why electrum becomes unresponsive at times.
 TODO: un catch global q resetee la wallet y me vaya a la home de wallets.
 
 TODO: the toasts style is so ugly!
-
-TODO: from time to time I don't get the faucet
-  -> Creo que es porque tengo q esperar a blockstream.
-    -> Pues es eso pero tambien por el isFirstLogin no queda bien
-      -> Es porque se hace un onWallet cuando hago dismiss del warning de Tape
-        que me borra el walletsNewSigners y por tanto el isFirstLogin
-  -> El sync no se produce hasta tener el mainnet...
-      const netReady =
-        apiReachable &&
-        explorerReachable &&
-        (networkId !== 'TAPE' || explorerMainnetReachable);
-  -> Necesito un buen server de electrum! Ahora paso a este:
-    MAINNET_ELECTRUM_API: 'ssl://electrum.blockstream.info:700', //https://blog.blockstream.com/en-esplora-and-other-alternatives-to-electrumx/
-
 
 TODO: generate new set of service address prive keys and save somewehere mega safe.
 

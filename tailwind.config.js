@@ -18,9 +18,12 @@ module.exports = {
         notification: 'rgb(255, 59, 48)'
       },
       screens: {
+        //https://www.appmysite.com/blog/the-complete-guide-to-iphone-screen-resolutions-and-sizes/
         //https://devhints.io/resolutions
+        //https://github.com/GeekyAnts/NativeBase/issues/5217#issuecomment-1194435310
         mobmed: '360px',
         moblg: '412px'
+        //moblg: '481px'
       }
     }
   },

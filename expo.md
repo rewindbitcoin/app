@@ -144,6 +144,7 @@ npx eas build --platform ios --local --profile preview #optinally with --clear-c
         #then, install this certificate:
             https://www.apple.com/certificateauthority/AppleWWDRCAG3.cer
         #More info: https://github.com/expo/eas-cli/issues/1331
+    # If you run into 65 code errors by fastlane, then read this: https://github.com/expo/eas-cli/issues/1201#issuecomment-1446997753
 
 #If you want to run Expo on the real device (so you can reload after a few Js changes) you can run this:
 npx expo run:ios -d

@@ -29,7 +29,7 @@ const Text: React.FC<TextProps> = ({ variant, style, children, ...props }) => {
 const getStyles = (theme: Theme) =>
   RN.StyleSheet.create({
     cardTitle: {
-      fontSize: 12,
+      fontSize: 14,
       color: theme.colors.cardSecondary,
       fontWeight: '500'
     },

@@ -2,11 +2,18 @@
   "compilerOptions": {
     //so that i can use import xxx from "~/.."
     "paths": {
-      "~/*": ["./src/*"]
+      "~/*": [
+        "./src/*"
+      ]
     },
     "resolveJsonModule": true,
     "jsx": "react-native"
   },
   "extends": "@bitcoinerlab/configs/tsconfig.src",
-  "include": ["*.ts", "*.tsx", "./types/**/*.d.ts"]
+  "include": [
+    "*.ts",
+    "*.tsx",
+    "./types/**/*.d.ts",
+    "nativewind-env.d.ts"
+  ]
 }

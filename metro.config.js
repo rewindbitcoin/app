@@ -22,8 +22,9 @@ config.resolver = {
 
 module.exports = withNativeWind(config, {
   input: './global.css',
+  inlineRem: 16
 
   //https://www.nativewind.dev/v4/tailwind/typography/font-size#rem-scaling
   //14 is actually the default value. We explicitelly set it. It only sets iOs and Android. For Web, we must use a css rule
-  inlineRem: 14
+  //inlineRem: 14
 });

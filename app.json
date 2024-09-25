@@ -12,9 +12,7 @@
       "resizeMode": "contain",
       "backgroundColor": "#FFFFFF"
     },
-    "assetBundlePatterns": [
-      "**/*"
-    ],
+    "assetBundlePatterns": ["**/*"],
     "ios": {
       "config": {
         "usesNonExemptEncryption": false
@@ -25,7 +23,7 @@
         "NSCameraUsageDescription": "RewindBitcoin needs access to your camera to scan QR codes for Bitcoin addresses"
       },
       "supportsTablet": true,
-      "bundleIdentifier": "com.landabaso.RewindBitcoin"
+      "bundleIdentifier": "com.rewindbitcoin.app"
     },
     "android": {
       "adaptiveIcon": {
@@ -33,7 +31,7 @@
         "backgroundColor": "#FFFFFF"
       },
       "softwareKeyboardLayoutMode": "resize",
-      "package": "com.landabaso.RewindBitcoin",
+      "package": "com.rewindbitcoin.app",
       "permissions": [
         "android.permission.USE_BIOMETRIC",
         "android.permission.USE_FINGERPRINT",
@@ -54,10 +52,7 @@
       "es": "./src/i18n-locales/app.es.json"
     },
     "plugins": [
-      [
-        "react-native-libsodium",
-        {}
-      ],
+      ["react-native-libsodium", {}],
       "expo-font",
       "expo-local-authentication",
       "expo-secure-store",
