@@ -227,14 +227,12 @@ const WalletHeader = ({
 ` + t('walletHome.header.tapeWalletPlusWarning')
                     : ''}
                 </Text>
-                <Button
-                  textClassName="font-bold !text-sm mt-2"
-                  containerClassName="self-end"
+                <Text
+                  className={`self-end font-bold text-sm mt-2 text-primary hover:opacity-90 active:opacity-90 active:scale-95`}
                   onPress={dismissTestWalletWarning}
-                  mode="text"
                 >
                   {t('dismissButton')}
-                </Button>
+                </Text>
               </>
             )
           )}
