@@ -59,9 +59,7 @@ const CreateColdAddress = ({
     onAddress(coldAddress);
     toast.show(
       t('addressInput.coldAddress.newColdAddressSuccessfullyCreated'),
-      {
-        type: 'success'
-      }
+      { type: 'success', duration: 2000 }
     );
   }, [onAddress, network, words, toast, t]);
 

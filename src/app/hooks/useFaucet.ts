@@ -21,6 +21,7 @@ export function useFaucet() {
 
   const toast = useToast();
   const faucetRequestedRef = useRef<boolean>(false);
+  const requesToastId = useRef<string>();
   //When the user is notified about having either:
   //  - detected some faucet funds
   //  - faucet failed
@@ -41,7 +42,9 @@ export function useFaucet() {
       historyData?.length
     ) {
       faucetNotifiedRef.current = true;
-      toast.show(t('walletHome.faucetDetectedMsg'), { type: 'success' });
+      requesToastId.current = toast.show(t('walletHome.faucetDetectedMsg'), {
+        type: 'success'
+      });
     }
   }, [historyData?.length, toast, t]);
 
@@ -65,6 +68,11 @@ export function useFaucet() {
       faucetRequestedRef.current = true;
       const network = wallet.networkId && networkMapping[wallet.networkId];
       (async () => {
+        if (
+          requesToastId.current !== undefined &&
+          toast.isOpen(requesToastId.current)
+        )
+          toast.hide(requesToastId.current);
         toast.show(t('walletHome.faucetStartMsg'));
         let descriptor: string | undefined;
         let index: number | undefined;
