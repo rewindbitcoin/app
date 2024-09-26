@@ -135,6 +135,14 @@ export default function VaultSetUp({
     feeRateCeiling: settings.PRESIGNED_FEE_RATE_CEILING,
     minRecoverableRatio: settings.MIN_RECOVERABLE_RATIO
   });
+  if (
+    maxVaultAmount &&
+    maxVaultAmountWhenMaxFee &&
+    maxVaultAmountWhenMaxFee.vaultedAmount > maxVaultAmount.vaultedAmount
+  )
+    throw new Error(
+      `maxVaultAmountWhenMaxFee (${maxVaultAmountWhenMaxFee.vaultedAmount}) should never be larger than maxVaultAmount (${maxVaultAmount.vaultedAmount}), feeRate=${feeRate}, maxFeeRate: ${maxFeeRate}`
+    );
   const isValidVaultRange =
     maxVaultAmount !== undefined &&
     maxVaultAmountWhenMaxFee !== undefined &&
@@ -155,18 +163,18 @@ export default function VaultSetUp({
   const [isMaxVaultedAmount, setIsMaxVaultedAmount] = useState<boolean>(
     userSelectedVaultedAmount === maxVaultAmount?.vaultedAmount
   );
-  const vaultedAmount: number | null = isMaxVaultedAmount
-    ? isValidVaultRange
+  const vaultedAmount: number | null = !isValidVaultRange
+    ? null
+    : isMaxVaultedAmount
       ? maxVaultAmount.vaultedAmount
-      : null
-    : //note userSelectedVaultedAmount could be briefly out of current [min, max]
-      //since it's updated on a callback later
-      userSelectedVaultedAmount && maxVaultAmount
-      ? Math.max(
-          minRecoverableVaultAmount.vaultedAmount,
-          Math.min(maxVaultAmount.vaultedAmount, userSelectedVaultedAmount)
-        )
-      : null;
+      : //note userSelectedVaultedAmount could be briefly out of current [min, max]
+        //since it's updated on a callback later
+        userSelectedVaultedAmount && maxVaultAmount
+        ? Math.max(
+            minRecoverableVaultAmount.vaultedAmount,
+            Math.min(maxVaultAmount.vaultedAmount, userSelectedVaultedAmount)
+          )
+        : null;
   const serviceFee: number | null =
     vaultedAmount && maxVaultAmount && minRecoverableVaultAmount
       ? estimateServiceFee({
@@ -264,7 +272,7 @@ export default function VaultSetUp({
               <LearnMoreAboutVaults />
             </>
           ) : (
-            <Text>
+            <Text className="text-base">
               <Trans
                 i18nKey="vaultSetup.notEnoughFunds"
                 values={{
