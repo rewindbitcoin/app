@@ -1,27 +1,26 @@
-TODO: Wallets:
-  TODO: set the initial accept terms
-
-TODO: Creo que los textos de los Bip39 se veran peques en phones < iphne 11
-
-TODO: remember upload btcRates!!!
-
-TODO: create a fakeTapeFees server and dont use an electrum server for this
-
-TODO: investigate why electrum becomes unresponsive at times.
-
 TODO: un catch global q resetee la wallet y me vaya a la home de wallets.
 
 TODO: test android
+  -> Publish apk?
 
-TODO: the toasts style is so ugly!
+TODO: hacer web
 
-TODO: generate new set of service address prive keys and save somewehere mega safe.
+TODO: Wallets:
+  TODO: set the initial accept terms
 
 TODO: weird, regtest block 150 halving is produced in regtest!!! FUCK!!
   -> I need to create a fork of @bitcoinerlab/tester -> @rewindbitcoin/tape-services - DONE
   -> The fork must compiler bitcoind, also compile stuff only for x86
   -> Then apply a simplified version of this patch: https://github.com/bitcoin/bitcoin/pull/8623
   -> Then generate 20000 blocks (1 million bitcoins) on load.
+
+TODO: create a fakeTapeFees server and dont use an electrum server for this
+
+TODO: investigate why electrum becomes unresponsive at times.
+
+TODO: the toasts style is so ugly!
+
+TODO: generate new set of service address prive keys and save somewehere mega safe.
 
 TODO: dont show electrum connecting issues with mainnet electrum when using Tape
 fucking blockstream! or better find oyu ewhats the connection problem for when

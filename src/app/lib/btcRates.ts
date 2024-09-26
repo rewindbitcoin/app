@@ -62,23 +62,12 @@ export const formatFiat = ({
   locale: Locale;
   currency: Currency;
 }) => {
-  let formatter;
-
-  switch (currency) {
-    case 'USD':
-      formatter = intlCurrencyFormatter(locale, 'USD');
-      break;
-    case 'EUR':
-      formatter = intlCurrencyFormatter(locale, 'EUR');
-      break;
-    case 'GBP':
-      formatter = intlCurrencyFormatter(locale, 'GBP');
-      break;
-    default:
-      throw new Error(`Invalid currency ${currency}`);
+  try {
+    const formatter = intlCurrencyFormatter(locale, currency);
+    return formatter.format(amount);
+  } catch (error) {
+    throw new Error(`Invalid currency or locale configuration: ${currency}`);
   }
-
-  return formatter.format(amount);
 };
 
 const formatBtcFactory = memoize((t: TFunction) =>

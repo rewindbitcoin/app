@@ -198,7 +198,7 @@ const WalletProviderRaw = ({
     (signersStorageEngine === 'MMKV' && Platform.OS === 'web') ||
     (signersStorageEngine === 'IDB' && Platform.OS !== 'web') ||
     (signersStorageEngine === 'SECURESTORE' &&
-      secureStorageInfo &&
+      !!secureStorageInfo &&
       secureStorageInfo.canUseSecureStorage === false);
 
   const { settings, settingsStorageStatus } = useSettings();

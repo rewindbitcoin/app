@@ -3,6 +3,7 @@
 
 import './global.css';
 import './init';
+import ErrorBoundary from './src/ErrorBoundary';
 import React, { useCallback, useEffect, useState, useMemo } from 'react';
 import { Platform } from 'react-native';
 import {
@@ -274,6 +275,12 @@ const MainMemo = React.memo(Main);
 //If GestureHandlerRootView needed, place it just below SafeAreaProvider:
 // <GestureHandlerRootView style={{ flex: 1 }}> </GestureHandlerRootView>
 export default function App() {
+  const [errorKey, setErrorKey] = useState<number>(0);
+  const { t } = useTranslation();
+  const onGlobalError = useCallback(() => {
+    setErrorKey(prevErrorKey => prevErrorKey + 1);
+  }, []);
+
   return (
     <SafeAreaProvider>
       <GestureHandlerRootView style={{ flex: 1 }}>
@@ -283,7 +290,9 @@ export default function App() {
               <GlobalStorageProvider>
                 <SecureStorageInfoProvider>
                   <I18nextProvider i18n={i18n}>
-                    <MainMemo />
+                    <ErrorBoundary key={errorKey} onError={onGlobalError} t={t}>
+                      <MainMemo />
+                    </ErrorBoundary>
                   </I18nextProvider>
                 </SecureStorageInfoProvider>
               </GlobalStorageProvider>

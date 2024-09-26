@@ -706,5 +706,13 @@ Please wait a few moments until completion.`,
   closeButton: 'Close',
   understoodButton: 'Understood',
   factoryResetButton: 'Factory Reset',
-  learnMore: 'Learn More.'
+  tryAgain: 'Try Again',
+  learnMore: 'Learn More.',
+  globalError: {
+    general: `An unexpected error has occurred. Below you will find additional details that may help identify the issue. Some of this information is technical and intended for developers. There is no need for immediate concern.
+
+Your wallet should still be secure. Please tap on 'Try Again' to reload the app. If the problem persists, consider restoring your wallet using your recovery phrase. Your vaults and related data will be retrieved from community backups online.
+
+For further assistance or to report this issue, please contact RewindBitcoin support at rewindbitcoin.com or contact us at x.com/rewindbitcoin.`
+  }
 };
