@@ -44,7 +44,7 @@ export default function UnitsModal({
           flex: 1
         }}
       >
-        <Text>{presentedUnit}</Text>
+        <Text className="text-base">{presentedUnit}</Text>
         <Text style={{ color: theme.colors.cardSecondary }}>
           {numberToLocalizedString(modeAmount, locale)} {presentedUnit}
           {' = 1 btc'}

@@ -147,14 +147,12 @@ export default function WalletAdvancedSettings({
           />
         </View>
       </Pressable>
-      <View
-        className={advanced ? 'overflow-hidden rounded-xl px-2 bg-white' : ''}
-      >
+      <View className={advanced ? 'overflow-hidden rounded-xl bg-white' : ''}>
         {advanced && (
           <>
             {canUseSecureStorage && (
               <>
-                <View style={styles.row}>
+                <View className="flex-row p-2 justify-between items-center active:bg-gray-200">
                   <View style={styles.textContainer}>
                     <Text className="pr-2 text-base">
                       {t('wallet.biometricEncryptionTitle')}
@@ -180,7 +178,7 @@ export default function WalletAdvancedSettings({
                 <Divider style={styles.lineSeparator} />
               </>
             )}
-            <View style={styles.row}>
+            <View className="flex-row p-2 justify-between items-center active:bg-gray-200">
               <View style={styles.textContainer}>
                 <Text className="pr-2 text-base">
                   {t('wallet.usePasswordTitle')}
@@ -199,7 +197,7 @@ export default function WalletAdvancedSettings({
               />
             </View>
             <Divider style={styles.lineSeparator} />
-            <View style={styles.row}>
+            <View className="flex-row p-2 justify-between items-center active:bg-gray-200">
               <View style={styles.textContainer}>
                 <Text className="pr-2 text-base">
                   {t('wallet.encryptAppDataTitle')}
@@ -212,7 +210,7 @@ export default function WalletAdvancedSettings({
               />
             </View>
             <Divider style={styles.lineSeparator} />
-            <View style={styles.row}>
+            <View className="flex-row p-2 justify-between items-center active:bg-gray-200">
               <View style={styles.textContainer}>
                 <Text className="pr-2 text-base">
                   {t('network.testOrRealTitle')}
@@ -224,7 +222,7 @@ export default function WalletAdvancedSettings({
                 hitSlop={{ top: 10, bottom: 10, right: 10 }}
                 className="max-w-20 mobmed:max-w-full flex-row items-center active:scale-95 active:opacity-90 hover:opacity-90"
               >
-                <Text className="text-gray-400 text-center text-base">
+                <Text className="text-primary text-center text-base">
                   {advancedSettings.networkId === 'BITCOIN'
                     ? t('network.realBitcoin')
                     : t('network.testOn', {
@@ -234,7 +232,7 @@ export default function WalletAdvancedSettings({
                 <AntDesign
                   name="right"
                   size={12}
-                  className="pl-4 !text-gray-400"
+                  className="pl-4 !text-primary"
                 />
               </Pressable>
               <NetworksModal
@@ -303,12 +301,6 @@ export default function WalletAdvancedSettings({
 
 const getStyles = () => {
   const styles = StyleSheet.create({
-    row: {
-      flexDirection: 'row',
-      paddingVertical: 8,
-      justifyContent: 'space-between',
-      alignItems: 'center'
-    },
     textContainer: {
       marginLeft: 12,
       minHeight: 24,

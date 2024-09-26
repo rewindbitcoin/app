@@ -168,6 +168,22 @@ const Modal: React.FC<ModalProps> = ({
     });
   }, []);
 
+  const scrollViewRef = useRef<ScrollView | null>(null);
+  // Simulate a small scroll to hint at scrollability. This is specially
+  // important for iOS since persistentScrollbar only applies to Android
+  // See: https://stackoverflow.com/questions/47038519/permanently-visible-scroll-bar-for-scrollview-react-native
+  useEffect(() => {
+    if (isVisible) {
+      setTimeout(() => {
+        scrollViewRef.current?.flashScrollIndicators();
+      }, 1000);
+      setTimeout(() => {
+        scrollViewRef.current?.flashScrollIndicators();
+      }, 3000);
+    }
+    return;
+  }, [isVisible]);
+
   return (
     <RNModal
       {...(Platform.OS === 'android'
@@ -345,12 +361,17 @@ const Modal: React.FC<ModalProps> = ({
                 </View>
 
                 <ScrollView
+                  ref={scrollViewRef}
+                  persistentScrollbar={true}
                   keyboardShouldPersistTaps="handled"
-                  style={{ alignSelf: 'stretch' }}
+                  style={{
+                    alignSelf: 'stretch',
+                    marginHorizontal: 4 /*leave some margin so that the scrollbar in Android does not look too close to the edge (makes it difficult to grasp if content is scrollable, so 4 pixels margin here and additional 4 pixels padding in the children makes 8 pixels horizontal "padding"*/
+                  }}
                   contentContainerStyle={{
                     flexGrow: 1,
                     paddingVertical: scrollViewPaddingVertical,
-                    paddingHorizontal: 8,
+                    paddingHorizontal: 4,
                     justifyContent: 'center'
                   }}
                 >

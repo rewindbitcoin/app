@@ -623,14 +623,15 @@ const RawVault = ({
                   ? t('wallet.vault.confirmedRescueAddress')
                   : t('wallet.vault.rescueNotConfirmedAddress')}
               </Text>
-              {/*text-ellipsis, whitespace-nowrap & break-words is web only; overflow-hidden on a Text element breaks words*/}
+              {/*text-ellipsis, whitespace-nowrap & break-words is web only; overflow-hidden on a Text element breaks words
+               flex-1 explanation: https://www.bam.tech/article/why-my-text-is-going-off-screen */}
               <Button
                 iconRight={{
                   family: 'FontAwesome5',
                   name: 'external-link-alt'
                 }}
                 mode="text"
-                textClassName="overflow-hidden"
+                textClassName="overflow-hidden flex-1"
                 onPress={() =>
                   Linking.openURL(`${blockExplorerURL}/${panicAddress}`)
                 }

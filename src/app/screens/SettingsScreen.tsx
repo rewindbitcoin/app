@@ -123,7 +123,7 @@ const SettingsItem = ({
   const dangerColor = 'rgb(239,68,69)'; //text-red-500
   const gray400 = 'rgb(156,163,175)';
   return (
-    <Pressable onPress={onPressInternal} className="w-full">
+    <Pressable onPress={onPressInternal} className="w-full active:bg-gray-200">
       <View className="flex-row items-center">
         <Icon
           className="pl-3"
@@ -189,7 +189,7 @@ const SettingsItem = ({
         <View className="px-4">
           <TextInput
             ref={textInputRef}
-            className="outline-none flex-1 web:w-full rounded bg-slate-200 py-2 px-4"
+            className="text-base outline-none flex-1 web:w-full rounded bg-slate-200 py-2 px-4"
             value={value}
             enablesReturnKeyAutomatically
             autoComplete="off"
@@ -324,7 +324,7 @@ const SettingsScreen = () => {
             <Text className="font-bold uppercase text-slate-600 pl-4 mb-2 text-sm">
               {title}
             </Text>
-            <View className="bg-white rounded-xl">
+            <View className="bg-white rounded-xl overflow-hidden">
               <SettingsItem
                 icon={{
                   family: 'FontAwesome6',
@@ -540,12 +540,16 @@ const SettingsScreen = () => {
         >
           <View className="p-2">
             {deleteRequested && syncingBlockchain ? (
-              <Text>{t('settings.wallet.deleteClosingNetwork')}</Text>
+              <Text className="text-base">
+                {t('settings.wallet.deleteClosingNetwork')}
+              </Text>
             ) : (
               <>
-                <Text className="mb-8">{t('settings.wallet.deleteInfo')}</Text>
+                <Text className="text-base mb-8">
+                  {t('settings.wallet.deleteInfo')}
+                </Text>
                 <TextInput
-                  className="outline-none flex-1 web:w-full rounded bg-slate-200 py-2 px-4"
+                  className="text-base outline-none flex-1 web:w-full rounded bg-slate-200 py-2 px-4"
                   placeholder={t('settings.wallet.deletePlaceholder')}
                   value={deleteInputValue}
                   autoComplete="off"

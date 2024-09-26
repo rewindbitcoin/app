@@ -161,7 +161,7 @@ export default function Receive() {
         >
           <Text className="text-base">{t('receive.intro')}</Text>
           <View className="items-center">
-            <QRCode value={receiveAddress} size={200} />
+            <QRCode value={`bitcoin:${receiveAddress}`} size={200} />
           </View>
           <View className="items-center">
             {canShare ? (

@@ -19,6 +19,7 @@ web-build/
 *.key
 *.mobileprovision
 *.ipa
+build*.tar.gz
 
 # Metro
 .metro-health-check*

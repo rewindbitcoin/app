@@ -1,14 +1,12 @@
 TODO: Wallets:
   TODO: set the initial accept terms
 
-TODO: Me ha vuelto a cascar SetUpVaultScreen en el range una vez se hace 
-el goBackToWallet; es como si no se destruyese rápido maldita sea.
-
-TODO: the modal should show an absolute arrow when more contents to let the user its scrolable
-
 TODO: connectivity restored must close previous connectivity toast
 
 TODO: Creo que los textos de los Bip39 se veran peques en phones < iphne 11
+
+TODO: This should Toast not throw:
+  ERROR  Error: signersStorageEngine SECURESTORE does not match this system specs: ios, canUseSecureStorage=false. Have you not enabled Biometric id in your system?
 
 TODO: remember upload btcRates!!!
 
@@ -30,8 +28,6 @@ TODO: weird, regtest block 150 halving is produced in regtest!!! FUCK!!
   -> Then apply a simplified version of this patch: https://github.com/bitcoin/bitcoin/pull/8623
   -> Then generate 20000 blocks (1 million bitcoins) on load.
 
-TODO: update btcRates node
-
 TODO: dont show electrum connecting issues with mainnet electrum when using Tape
 fucking blockstream! or better find oyu ewhats the connection problem for when
 users using testnet or mainnet!
@@ -40,7 +36,6 @@ TODO: abadon abandon... en testnet no me deja hacer nada (niungun click en nada)
 mientras está cargando
 
 TODO: Check if web camera QR detection works after i updated versions. See AddressInput
-
 
 TODO: there is an error sending funds to self address
   MUST update @bitcoinerlab/discovery and PUSH and NPM PUBLISH
