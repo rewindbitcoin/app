@@ -364,6 +364,30 @@ const NetStatusProvider: React.FC<NetStatusProviderProps> = ({ children }) => {
     ]
   );
 
+  const toastQueueRef = useRef<Array<string>>([]);
+  /**
+   * Manages toasts by displaying success messages or queuing error messages.
+   * Closes all error messages on a success event.
+   *
+   * @param success Indicates whether the toast is for a success or error message.
+   * @param message The message to display in the toast.
+   */
+  const managedToast = useCallback(
+    (success: boolean, message: string) => {
+      if (success) {
+        toastQueueRef.current.forEach(id => {
+          if (toast.isOpen(id)) toast.hide(id);
+        });
+        toastQueueRef.current = [];
+        toast.show(message, { type: 'success' });
+      } else {
+        const newToastId = toast.show(message, { type: 'warning' });
+        toastQueueRef.current.push(newToastId);
+      }
+    },
+    [toast]
+  );
+
   /**
    * computes and returns the new error message. It also keeps track of the last
    * computed one. If there was an error previously and not now anymore, then it
@@ -427,13 +451,11 @@ const NetStatusProvider: React.FC<NetStatusProviderProps> = ({ children }) => {
         errorMessage = t('netStatus.internetNotReachableWarning');
 
       if (errorMessage && errorMessageRef.current !== errorMessage) {
-        toast.show(errorMessage, { type: 'warning' });
+        managedToast(false, errorMessage);
         errorMessageRef.current = errorMessage;
       }
       if (errorMessage === undefined && errorMessageRef.current) {
-        toast.show(t('netStatus.connectionRestoredInfo'), {
-          type: 'success'
-        });
+        managedToast(true, t('netStatus.connectionRestoredInfo'));
         errorMessageRef.current = undefined;
       }
       return { internetReachable, errorMessage };
@@ -445,7 +467,7 @@ const NetStatusProvider: React.FC<NetStatusProviderProps> = ({ children }) => {
       generate204API2,
       deriveInternetReachable,
       t,
-      toast
+      managedToast
     ]
   );
 
@@ -620,7 +642,7 @@ const NetStatusProvider: React.FC<NetStatusProviderProps> = ({ children }) => {
               //but we don't see the error notification for a while.
               await update();
             }
-          } else toast.show(errorMessage, { type: 'warning' });
+          } else managedToast(false, errorMessage);
 
           return { result: undefined, status: 'ERROR' };
         }
@@ -630,7 +652,7 @@ const NetStatusProvider: React.FC<NetStatusProviderProps> = ({ children }) => {
       handleError,
       update,
       t,
-      toast,
+      managedToast,
       apiExternalReachable,
       apiReachable,
       api2Reachable,

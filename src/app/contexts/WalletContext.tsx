@@ -99,6 +99,7 @@ export type WalletContextType = {
   tipStatus: BlockStatus | undefined;
   utxosData: UtxosData | undefined;
   historyData: HistoryData | undefined;
+  signersStorageError: boolean;
   signers: Signers | undefined;
   accounts: Accounts | undefined;
   vaults: Vaults | undefined;
@@ -193,17 +194,12 @@ const WalletProviderRaw = ({
   const network = networkId && networkMapping[networkId];
   if (wallet && !network) throw new Error(`Invalid networkId ${networkId}`);
 
-  if (
+  const signersStorageError =
     (signersStorageEngine === 'MMKV' && Platform.OS === 'web') ||
     (signersStorageEngine === 'IDB' && Platform.OS !== 'web') ||
     (signersStorageEngine === 'SECURESTORE' &&
       secureStorageInfo &&
-      secureStorageInfo.canUseSecureStorage === false)
-  ) {
-    throw new Error(
-      `signersStorageEngine ${signersStorageEngine} does not match this system specs: ${Platform.OS}, canUseSecureStorage=${secureStorageInfo && secureStorageInfo.canUseSecureStorage}. Have you not enabled Biometric id in your system?`
-    );
-  }
+      secureStorageInfo.canUseSecureStorage === false);
 
   const { settings, settingsStorageStatus } = useSettings();
   const gapLimit = settings?.GAP_LIMIT;
@@ -230,6 +226,7 @@ const WalletProviderRaw = ({
   );
 
   const initSigners =
+    !signersStorageError &&
     walletId !== undefined &&
     (wallet?.signersEncryption !== 'PASSWORD' ||
       walletsSignersCipherKey[walletId]);
@@ -1196,6 +1193,7 @@ const WalletProviderRaw = ({
     fetchServiceAddress,
     updateVaultStatus,
     btcFiat,
+    signersStorageError,
     signers,
     accounts,
     vaults,

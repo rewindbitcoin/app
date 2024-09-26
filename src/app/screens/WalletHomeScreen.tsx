@@ -26,7 +26,8 @@ import {
   Modal,
   useTheme,
   TabBar,
-  IconType
+  IconType,
+  Button
 } from '../../common/ui';
 import { useTranslation } from 'react-i18next';
 import { AntDesign, Ionicons } from '@expo/vector-icons';
@@ -68,6 +69,7 @@ const WalletHomeScreen = () => {
   const [activeTabIndex, setActiveTabIndex] = useState<number>(0);
 
   const {
+    signersStorageError,
     vaults,
     vaultsStatuses,
     utxosData,
@@ -160,6 +162,9 @@ const WalletHomeScreen = () => {
   );
   useEffect(() => navigation.setOptions(navOptions), [navigation, navOptions]);
 
+  const goBack = useCallback(async () => {
+    if (navigation.canGoBack()) navigation.goBack();
+  }, [navigation]);
   const logOutAndGoBack = useCallback(async () => {
     await logOut();
     if (navigation.canGoBack()) navigation.goBack();
@@ -283,7 +288,17 @@ const WalletHomeScreen = () => {
       onWallet({ wallet: { ...wallet, seedBackupDone: true } });
   }, [wallet, onWallet]);
 
-  return !wallet /*TODO: prepare nicer ActivityIndicator*/ ? (
+  return signersStorageError ? (
+    <View className="flex-1 justify-center p-4">
+      <Text className="text-base mb-4">
+        {t('wallet.errors.signersStorageRetrieveError')}
+      </Text>
+      <Button containerClassName="self-center" mode="text" onPress={goBack}>
+        {t('goBack')}
+      </Button>
+    </View>
+  ) : !wallet ? (
+    /*TODO: prepare nicer ActivityIndicator*/
     <View className="flex-1 justify-center">
       <ActivityIndicator size={'large'} color={theme.colors.primary} />
     </View>

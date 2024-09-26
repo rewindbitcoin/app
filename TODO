@@ -1,12 +1,7 @@
 TODO: Wallets:
   TODO: set the initial accept terms
 
-TODO: connectivity restored must close previous connectivity toast
-
 TODO: Creo que los textos de los Bip39 se veran peques en phones < iphne 11
-
-TODO: This should Toast not throw:
-  ERROR  Error: signersStorageEngine SECURESTORE does not match this system specs: ios, canUseSecureStorage=false. Have you not enabled Biometric id in your system?
 
 TODO: remember upload btcRates!!!
 

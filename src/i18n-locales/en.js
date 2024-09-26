@@ -116,7 +116,16 @@ To resolve this issue, please try accessing your wallet again. If the problem\
  persists, you can safely recreate your wallet using your mnemonic recovery\
  phrase. This will restore all your data securely from the backups.
 
-If you need further assistance, please contact Rewind Support.`
+If you need further assistance, please contact Rewind Support.`,
+      signersStorageRetrieveError: `We're having trouble accessing your wallet.
+
+This issue might be related to changes in your device's biometric security features. For example, adding a new fingerprint or updating facial recognition settings can invalidate previous configurations.
+
+It could be related to other factors unrelated to biometrics too.
+
+In any case, you can recreate your wallet using your Recovery Phrase to regain access to your funds and vaults.
+
+For further assistance, contact RewindBitcoin support.`
     },
     vault: {
       hideButton: 'Hide',
