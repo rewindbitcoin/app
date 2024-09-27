@@ -111,3 +111,9 @@ export function pickFeeEstimate(
 
   return feeEstimate;
 }
+
+/**
+ * Prevents users selecting fees too large
+ */
+export const computeMaxAllowedFeeRate = (feeEstimates: FeeEstimates) =>
+  2 * Math.max(...Object.values(feeEstimates));

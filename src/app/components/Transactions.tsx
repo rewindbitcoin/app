@@ -101,7 +101,7 @@ const RawTransaction = ({
           : !tipHeight //tipHeight should be defined if !blockHeight (see the early return above)
             ? undefined
             : (tipHeight - item.blockHeight) * 10 * 60;
-        if (!relTime)
+        if (relTime === undefined)
           throw new Error(
             `Could not estimate translated time for tx: ${item.txId}`
           );

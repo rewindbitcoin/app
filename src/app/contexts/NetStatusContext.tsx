@@ -679,7 +679,7 @@ const NetStatusProvider: React.FC<NetStatusProviderProps> = ({ children }) => {
   }, [update, clearUpdateTimeOut]);
 
   const init = useCallback(
-    async ({
+    ({
       explorer,
       explorerMainnet,
       generate204API,
@@ -687,12 +687,14 @@ const NetStatusProvider: React.FC<NetStatusProviderProps> = ({ children }) => {
       generate204APIExternal,
       networkId
     }: InitParams) => {
-      setExplorer(explorer);
-      setExplorerMainnet(explorerMainnet);
-      setGenerate204API(generate204API);
-      setGenerate204API2(generate204API2);
-      setGenerate204APIExternal(generate204APIExternal);
-      setNetworkId(networkId);
+      batchedUpdates(() => {
+        setExplorer(explorer);
+        setExplorerMainnet(explorerMainnet);
+        setGenerate204API(generate204API);
+        setGenerate204API2(generate204API2);
+        setGenerate204APIExternal(generate204APIExternal);
+        setNetworkId(networkId);
+      });
     },
     []
   );

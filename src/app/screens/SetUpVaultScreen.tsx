@@ -4,7 +4,7 @@ import BlocksInput from '../components/BlocksInput';
 import FeeInput from '../components/FeeInput';
 import LearnMoreAboutVaults from '../components/LearnMoreAboutVaults';
 import { Trans, useTranslation } from 'react-i18next';
-import React, { useCallback, useState, useMemo } from 'react';
+import React, { useCallback, useState, useMemo, useContext } from 'react';
 import { useNavigation } from '@react-navigation/native';
 import { Text, View } from 'react-native';
 import { Button, KeyboardAwareScrollView } from '../../common/ui';
@@ -18,7 +18,7 @@ import {
   DUMMY_PKH_ADDRESS
 } from '../lib/vaultDescriptors';
 
-import { pickFeeEstimate } from '../lib/fees';
+import { computeMaxAllowedFeeRate, pickFeeEstimate } from '../lib/fees';
 import { formatBtc } from '../lib/btcRates';
 import { estimateServiceFee, estimateVaultSetUpRange } from '../lib/vaultRange';
 import { networkMapping } from '../lib/network';
@@ -70,7 +70,16 @@ export default function VaultSetUp({
     settings.INITIAL_CONFIRMATION_TIME
   );
   const [feeRate, setFeeRate] = useState<number | null>(initialFeeRate);
-  const maxFeeRate = Math.max(...Object.values(feeEstimates));
+  const maxFeeRate = computeMaxAllowedFeeRate(feeEstimates);
+  const onFeeRate = useCallback(
+    (feeRate: number | null) => {
+      //Note that onFeeRate is called as a callback and may be
+      //briefly out of current [min, max]
+      //specially on old react-native architecture
+      setFeeRate(feeRate === null ? null : Math.min(maxFeeRate, feeRate));
+    },
+    [maxFeeRate]
+  );
 
   const {
     //maxVaultAmount = estimateMaxVaultAmount(feeRate)
@@ -329,7 +338,7 @@ export default function VaultSetUp({
               initialValue={initialFeeRate}
               txSize={txSize}
               label={t('vaultSetup.confirmationSpeedLabel')}
-              onValueChange={setFeeRate}
+              onValueChange={onFeeRate}
             />
           </>
         )}

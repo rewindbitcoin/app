@@ -5,6 +5,7 @@ import React, { useCallback, useRef, useMemo } from 'react';
 import { CardEditableSlider } from '../../common/ui';
 import { snapWithinRange } from '../../common/lib/numbers';
 import { formatFeeRate } from '../lib/format';
+import { computeMaxAllowedFeeRate } from '../lib/fees';
 import { useTranslation } from 'react-i18next';
 import { useSettings } from '../hooks/useSettings';
 import { useWallet } from '../hooks/useWallet';
@@ -91,9 +92,9 @@ function FeeInput({
   //const min = Math.min(...Object.values(feeEstimates));
   //const max = Math.max(...Object.values(feeEstimates));
   const snappedMin = 1;
-  const snappedMax = 2 * Math.max(...Object.values(snappedFeeEstimates));
+  const snappedMax = computeMaxAllowedFeeRate(snappedFeeEstimates);
   const min = 1;
-  const max = 2 * Math.max(...Object.values(feeEstimates));
+  const max = computeMaxAllowedFeeRate(feeEstimates);
 
   const onSnappedValueChange = useCallback(
     (newSnappedValue: number | null) => {
