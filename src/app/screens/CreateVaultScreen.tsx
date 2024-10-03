@@ -1,5 +1,4 @@
-//TODO: when generating a new address there is a time lapse too long on the
-//Modal. Check what's going on.
+const GROUP_FEES_ON_TAPE = true;
 import React, {
   useEffect,
   useState,
@@ -25,9 +24,10 @@ import { useNavigation } from '@react-navigation/native';
 import { useNetStatus } from '../hooks/useNetStatus';
 import { NavigationPropsByScreenId, WALLET_HOME } from '../screens';
 import { batchedUpdates } from '~/common/lib/batchedUpdates';
-import { formatBalance, formatBlocks } from '../lib/format';
+import { formatBlocks } from '../lib/format';
 import { createServiceOutput } from '../lib/vaultDescriptors';
 import { networkMapping } from '../lib/network';
+import { formatBtc } from '../lib/btcRates';
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -37,16 +37,23 @@ export default function CreateVaultScreen({
   vaultSettings: VaultSettings | undefined;
 }) {
   if (!vaultSettings) throw new Error('vaultSettings not set');
-  const { vaultedAmount, serviceFee, feeRate, lockBlocks, coldAddress } =
-    vaultSettings;
+  const {
+    vaultedAmount,
+    serviceFee,
+    coldAddress,
+    feeRate,
+    lockBlocks,
+
+    accounts,
+    btcFiat,
+    utxosData
+  } = vaultSettings;
 
   const height = useWindowDimensions().height;
 
   const insets = useSafeAreaInsets();
   const mbStyle = useMemo(() => ({ marginBottom: insets.bottom }), [insets]);
   const {
-    utxosData,
-    networkId,
     fetchServiceAddress,
     getNextChangeDescriptorWithIndex,
     getUnvaultKey,
@@ -56,12 +63,11 @@ export default function CreateVaultScreen({
     vaultsAPI,
     vaultsSecondaryAPI,
     wallet,
-    btcFiat
+    networkId
   } = useWallet();
 
   if (
     !wallet ||
-    !utxosData ||
     !networkId ||
     !signers ||
     !vaultPushAndUpdateStates ||
@@ -87,33 +93,56 @@ export default function CreateVaultScreen({
     );
   const samples = settings.SAMPLES;
   const feeRateCeiling = settings.PRESIGNED_FEE_RATE_CEILING;
-  const currency = settings.CURRENCY;
-  const locale = settings.LOCALE;
-  const mode =
-    settings.FIAT_MODE && typeof btcFiat === 'number'
-      ? 'Fiat'
-      : settings.SUB_UNIT;
   // We know settings are the correct ones in this Component
   const [progress, setProgress] = useState<number>(0);
   const [confirmRequested, setConfirmRequested] = useState<boolean>(false);
   const [vault, setVault] = useState<Vault>();
 
-  const stopProgress = useCallback(() => {
-    keepProgress.current = false;
-  }, []);
+  const backBlockerUnsubscriberRef = useRef<null | (() => void)>(null);
+
   useEffect(() => {
-    if (!navigation.isFocused()) stopProgress();
-  }, [navigation, stopProgress]);
-  const onProgress = useCallback((progress: number) => {
-    setProgress(progress);
-    return keepProgress.current;
-  }, []);
+    const preventGoBack = confirmRequested && progress === 1;
+    //prevents going back with any other action
+    //https://reactnavigation.org/docs/preventing-going-back/
+    if (preventGoBack) {
+      navigation.setOptions({
+        gestureEnabled: false,
+        headerBackVisible: false
+      });
+      backBlockerUnsubscriberRef.current = navigation.addListener(
+        'beforeRemove',
+        e => e.preventDefault()
+      );
+    } else {
+      navigation.setOptions({
+        gestureEnabled: true,
+        headerBackVisible: true
+      });
+    }
+    return () => {
+      if (backBlockerUnsubscriberRef.current) {
+        backBlockerUnsubscriberRef.current();
+        backBlockerUnsubscriberRef.current = null;
+      }
+    };
+  }, [confirmRequested, navigation, progress]);
 
   const goBack = useCallback(() => {
+    //programatical goBack will re-enable back behaviour
+    if (backBlockerUnsubscriberRef.current) {
+      backBlockerUnsubscriberRef.current();
+      backBlockerUnsubscriberRef.current = null;
+    }
     //goBack will unmount this screen as per react-navigation docs.
     if (navigation.canGoBack()) navigation.goBack();
   }, [navigation]);
   const goBackToWalletHome = useCallback(() => {
+    //programatical goBack will re-enable back behaviour
+    if (backBlockerUnsubscriberRef.current) {
+      backBlockerUnsubscriberRef.current();
+      backBlockerUnsubscriberRef.current = null;
+    }
+
     //In react navigation v6 navigation.navigate beahves as if doing a
     //navigation.pop(2). So it unmounts this screen.
     //Note that on version v7 the behaviour will change. Since a reset of all
@@ -126,6 +155,17 @@ export default function CreateVaultScreen({
     if (navigation.popTo) navigation.popTo(WALLET_HOME, { walletId });
     else navigation.navigate(WALLET_HOME, { walletId });
   }, [navigation, walletId]);
+
+  const stopProgress = useCallback(() => {
+    keepProgress.current = false;
+  }, []);
+  useEffect(() => {
+    if (!navigation.isFocused()) stopProgress();
+  }, [navigation, stopProgress]);
+  const onProgress = useCallback((progress: number) => {
+    setProgress(progress);
+    return keepProgress.current;
+  }, []);
 
   const isVaultCreated = useRef<boolean>(false);
 
@@ -240,7 +280,7 @@ export default function CreateVaultScreen({
         return;
       }
       const changeDescriptorWithIndex =
-        await getNextChangeDescriptorWithIndex();
+        await getNextChangeDescriptorWithIndex(accounts);
       if (!navigation.isFocused()) return; //Don't proceed if lost focus after await
 
       const { result: nextVaultData } = await netRequest({
@@ -325,7 +365,8 @@ export default function CreateVaultScreen({
     vaultsSecondaryAPI,
     signer,
     vaults,
-    utxosData
+    utxosData,
+    accounts
   ]);
 
   let vaultTxInfo;
@@ -335,15 +376,18 @@ export default function CreateVaultScreen({
       throw new Error(`Vault txMap entry not set for vault ${vault.vaultId}`);
   }
 
-  const formatSats = (satsBalance: number) =>
-    formatBalance({
-      satsBalance,
-      btcFiat,
-      currency,
-      locale,
-      mode,
-      appendSubunit: true
-    });
+  const formatAmount = useCallback(
+    (amount: number) => {
+      return formatBtc({
+        amount,
+        subUnit: settings.SUB_UNIT,
+        btcFiat,
+        locale: settings.LOCALE,
+        currency: settings.CURRENCY
+      });
+    },
+    [settings.SUB_UNIT, settings.LOCALE, settings.CURRENCY, btcFiat]
+  );
 
   return (
     <KeyboardAwareScrollView
@@ -363,7 +407,7 @@ export default function CreateVaultScreen({
             </Text>
             <View className="flex-grow justify-center items-center">
               <Progress.Circle
-                size={height < 667 /*iPhone SE*/ ? 200 : 300}
+                size={height <= 667 /*iPhone SE*/ ? 200 : 300}
                 showsText={true}
                 progress={progress}
               />
@@ -378,54 +422,63 @@ export default function CreateVaultScreen({
                 <Text className="text-base mb-4">
                   {t('createVault.confirmBackupSendVault')}
                 </Text>
-                <View className="bg-gray-50 p-4 rounded-lg mb-4 shadow gap-2">
-                  <View className="flex-row justify-between">
-                    <Text className="text-base font-bold">
-                      {t('createVault.vaultedAmount')}
+                <View className="bg-gray-50 p-4 rounded-lg mb-4 android:elevation ios:shadow gap-2">
+                  <View className="flex-row">
+                    <Text className="w-[30%] text-right text-base font-bold">
+                      {t('createVault.amount')}
                     </Text>
-                    <Text className="text-base">
-                      {formatSats(vault.vaultedAmount)}
+                    <Text className="w-[70%] pl-2 text-base">
+                      {formatAmount(vault.vaultedAmount)}
                     </Text>
                   </View>
-                  <View className="flex-row justify-between">
-                    <Text className="text-base font-bold">
+                  <View className="flex-row">
+                    <Text className="w-[30%] text-right text-base font-bold">
                       {t('createVault.timeLock')}
                     </Text>
-                    <Text className="text-base">
+                    <Text className="w-[70%] pl-2 text-base">
                       {formatBlocks(vault.lockBlocks, t)}
                     </Text>
                   </View>
                   {
-                    /*on Tape summarize fees into one*/ networkId === 'TAPE' ? (
-                      <View className="flex-row justify-between">
-                        <Text className="text-base font-bold">
+                    /*on Tape summarize fees into one*/ GROUP_FEES_ON_TAPE &&
+                    networkId === 'TAPE' ? (
+                      <View className="flex-row">
+                        <Text className="w-[30%] text-right text-base font-bold">
                           {t('createVault.allFees')}
                         </Text>
-                        <Text className="text-base">
-                          {formatSats(vault.serviceFee + vaultTxInfo.fee)}
+                        <Text className="w-[70%] pl-2 text-base">
+                          {formatAmount(vault.serviceFee + vaultTxInfo.fee)}
                         </Text>
                       </View>
                     ) : (
                       <>
-                        <View className="flex-row justify-between">
-                          <Text className="text-base font-bold">
+                        <View className="flex-row">
+                          <Text className="w-[30%] text-right text-base font-bold">
                             {t('createVault.miningFee')}
                           </Text>
-                          <Text className="text-base">
-                            {formatSats(vaultTxInfo.fee)}
+                          <Text className="w-[70%] pl-2 text-base">
+                            {formatAmount(vaultTxInfo.fee)}
                           </Text>
                         </View>
-                        <View className="flex-row justify-between">
-                          <Text className="text-base font-bold">
+                        <View className="flex-row">
+                          <Text className="w-[30%] text-right text-base font-bold">
                             {t('createVault.serviceFee')}
                           </Text>
-                          <Text className="text-base">
-                            {formatSats(vault.serviceFee)}
+                          <Text className="w-[70%] pl-2 text-base">
+                            {formatAmount(vault.serviceFee)}
                           </Text>
                         </View>
                       </>
                     )
                   }
+                  <View className="flex-row">
+                    <Text className="w-[30%] text-right text-base font-bold">
+                      {t('createVault.emergencyAddress')}
+                    </Text>
+                    <Text className="w-[70%] pl-2 text-base">
+                      {vault.coldAddress}
+                    </Text>
+                  </View>
                 </View>
                 <Text className="text-base mb-8">
                   {t('createVault.encryptionBackupExplain')}

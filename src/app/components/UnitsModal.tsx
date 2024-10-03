@@ -19,7 +19,7 @@ export default function UnitsModal({
   isVisible: boolean;
   mode?: SubUnit | 'Fiat';
   currency: string;
-  btcFiat: number | null | undefined;
+  btcFiat: number | undefined;
   locale: Locale;
   onSelect: (unit: SubUnit | 'Fiat') => void;
   onClose?: () => void;

@@ -40,6 +40,16 @@ export type VaultSettings = {
   coldAddress: string;
   feeRate: number;
   lockBlocks: number;
+  /** It's important to have the same accounts and utxosData reference as
+   * used in SetUpVaultScreen. These were used to compute the vault feeRate
+   * and should be tied together. Note those could change on a refresh.
+   */
+  accounts: Accounts;
+  utxosData: UtxosData;
+  /** when we present the confirmation text in CreateVaultScreen we want to
+   * display the same fiat values
+   */
+  btcFiat: number | undefined;
 };
 
 export type Vault = {
@@ -533,6 +543,7 @@ const selectVaultUtxosData = ({
   serviceFee: number;
 }) => {
   const utxos = getOutputsWithValue(utxosData);
+  if (!utxos.length) return;
   if (vaultedAmount <= dustThreshold(vaultOutput)) return;
   const coinselected = coinselect({
     utxos,
@@ -545,11 +556,11 @@ const selectVaultUtxosData = ({
     remainder: changeOutput,
     feeRate
   });
-  console.log('TRACE selectVaultUtxosData', {
-    feeRate,
-    serviceFee,
-    coinselected
-  });
+  //console.log('TRACE selectVaultUtxosData', {
+  //  feeRate,
+  //  serviceFee,
+  //  coinselected
+  //});
   if (!coinselected) return;
   const vaultUtxosData =
     coinselected.utxos.length === utxosData.length

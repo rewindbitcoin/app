@@ -15,3 +15,20 @@ RBF:
       2. sustraer de los outputs (entonces crearía un vault con menos funds o bien enviaría 
       menos fondos al destino - (quitaría del cambio, si lo hay en primer lugar, luego
       quitaría del destino)
+
+
+TODO: When i cancel many times vault being created then the app becomes every time
+slower and slower... whart is it doing? is still computing the vault?
+
+
+TODO: Poner un boton de settings en cada wallet en WalletsScreen
+
+TODO: ver como se puede hacer el RBF...
+  -> Entonces nos pondríamos en modo "RBF" q sería usando los utxos no confirmados...
+    -> Confirmar como funciona RBF, quiere decir q cualquier utxo es re-seleccionable o q la misma tx exactamente es necesaria?
+
+
+
+TODO: in the Send Bitcoin, for Tape, offer an address (hardcoded) that sends
+funs back to Tape. "Don't know where to send funds? Send it back to the Tape admin
+so that we can faucet other people"

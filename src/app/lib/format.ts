@@ -1,11 +1,17 @@
 import type { Locale } from '../../i18n-locales/init';
 import type { Currency, SubUnit } from '../lib/settings';
 import { numberToLocalizedString } from '../../common/lib/numbers';
-import { formatFiat, fromSats } from '../lib/btcRates';
+import { formatFiat, fromSats, formatBtc } from '../lib/btcRates';
 import type { TFunction } from 'i18next';
 import memoize from 'lodash.memoize';
 import moize from 'moize';
 import type { FeeEstimates } from './fees';
+/**
+ * this one will format fiat and also btc amounts
+ * When formatting btc amounts (sats, bits or whatever) it won't add zeros
+ * at the end of the amount to show the Bitcoin precision. Use formatBtc
+ * if you want this other behaviourt
+ */
 export const formatBalance = ({
   satsBalance,
   btcFiat,
@@ -22,9 +28,9 @@ export const formatBalance = ({
   appendSubunit?: boolean;
 }) => {
   if (mode === 'Fiat') {
-    if (btcFiat === undefined)
+    if (typeof btcFiat !== 'number')
       throw new Error(
-        'formatBalance cannot format Fiat values without a proper btcRate'
+        'formatBalance cannot format Fiat values without a proper btcFiat'
       );
     const balance = fromSats(satsBalance, mode, btcFiat);
     return formatFiat({ amount: balance, locale, currency });
@@ -90,32 +96,37 @@ export const formatBlocks = moize(
 const formatFeeRateFactory = memoize((t: TFunction) =>
   memoize(
     ({
+      fee,
       feeRate,
-      txSize,
       btcFiat,
+      subUnit,
       locale,
       currency,
       feeEstimates
     }: {
-      feeRate: number;
       /**
-       * Pass null to txSize in case you only want to show speed time.
-       * Pass the txSize if you also want to compute the fees
+       * Pass undefined to fee in case you only want to show speed time.
+       * Pass the fee if you also want to display the fees
        */
-      txSize: number | null;
-      btcFiat: number | null | undefined;
+      fee: number | undefined;
+      feeRate: number;
+      btcFiat: number | undefined;
+      subUnit: SubUnit;
       locale: Locale;
       currency: Currency;
-      feeEstimates: FeeEstimates | null;
+      feeEstimates: FeeEstimates | undefined;
     }) => {
       let strBtcFiat =
-        txSize === null ? null : t('feeRate.waitingForRates', { currency });
+        fee === undefined
+          ? undefined
+          : t('feeRate.waitingForRates', { currency });
       let strTime = t('feeRate.waitingForEstimates');
 
-      if (typeof btcFiat === 'number' && txSize !== null) {
-        const amount = (feeRate * txSize * btcFiat) / 1e8;
+      if (btcFiat !== undefined && fee !== undefined) {
+        //const amount = (feeRate * txSize * btcFiat) / 1e8;
+        const amount = fee;
         strBtcFiat = t('feeRate.fee', {
-          amount: formatFiat({ amount, locale, currency })
+          amount: formatBtc({ amount, subUnit, btcFiat, locale, currency })
         });
       }
 
@@ -163,7 +174,7 @@ const formatFeeRateFactory = memoize((t: TFunction) =>
         }
       }
 
-      return strBtcFiat === null
+      return strBtcFiat === undefined
         ? strTime
         : `${strTime}
 ${strBtcFiat}`;
@@ -174,12 +185,13 @@ ${strBtcFiat}`;
 
 export const formatFeeRate = (
   feeRateArgs: {
+    fee: number | undefined;
     feeRate: number;
-    txSize: number | null;
-    btcFiat: number | null | undefined;
+    btcFiat: number | undefined;
+    subUnit: SubUnit;
     locale: Locale;
     currency: Currency;
-    feeEstimates: FeeEstimates | null;
+    feeEstimates: FeeEstimates | undefined;
   },
   t: TFunction
 ) => formatFeeRateFactory(t)(feeRateArgs);

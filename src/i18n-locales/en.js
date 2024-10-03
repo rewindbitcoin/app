@@ -1,4 +1,4 @@
-//Treat this as a golrified json with comments & multi-line using string literals
+//Treat this as a glorified json with comments & multi-line using string literals
 //TODO: Emergency Addres <-> Rewind Address?
 //TODO: recovery phrase or Recovery Phrase - be consistent
 export default {
@@ -152,7 +152,7 @@ For further assistance, contact RewindBitcoin support.`
       triggerWithEstimatedDate:
         'Unfreeze estimated for {{estimatedUnfreezeDate}}.',
       triggerWithEstimatedDateButRescued:
-        'Unfreeze was planned for {{plannedUnfreezeDateButRescued}}.',
+        'Unfreeze planned for {{plannedUnfreezeDateButRescued}}.',
       unfrozenDate: 'Unfrozen on {{unfrozenDate}}.',
       unfrozenOnNextBlock:
         'The vault just became virtually unfrozen. Funds can be spent in the next block.',
@@ -168,11 +168,11 @@ If you press 'Init Unfreeze', a waiting period of {{lockTime}} will begin, after
       //  'Funds are safely frozen. Initiating unfreeze starts a {{lockTime}} countdown before funds are available.',
       notTriggered:
         "Funds are safely frozen. If you press 'Init Unfreeze', a waiting period of {{lockTime}} will begin, after which the funds will be available.",
-      rescueNotConfirmed: `Rescue requested on {{rescuePushDate}}. Confirming...`,
-      rescueNotConfirmedUnknownPush: `Vault Rescue recently submitted. Confirming...`,
+      rescueNotConfirmed: `Rescue requested on {{rescuePushDate}}.`,
+      rescueNotConfirmedUnknownPush: `Vault Rescue recently submitted.`,
       confirmedRescue: `Rescued on {{rescuedDate}}.`,
       rescueNotConfirmedAddress:
-        'Rescue successfully requested. Funds are being moved to your safe address right now:',
+        'Rescue successfully requested (awaiting for confirmation). Funds are being moved to your safe address right now:',
       confirmedRescueAddress:
         'The vault was successfully rescued and funds were moved to your secure address:',
       unfrozenAndSpent:
@@ -461,11 +461,18 @@ This minimum amount is calculated based on the assumption that you may need rapi
     days: 'days',
     blocks: 'blocks',
     feeRate: 'sats/vB',
-    vaultAllFundsShortBadge: 'All Funds'
+    vaultAllFundsShortBadge: 'All Funds',
+    interrupt: `We've detected changes in your wallet while you were setting up a new vault.
+
+For your security, please review these changes before proceeding.`
   },
   send: {
     title: 'Send Bitcoin',
     notEnoughFunds: 'Insufficient funds to create the transaction',
+    lowerFeeRate: `Transaction not possible with the selected fee rate and your available funds.
+
+Please lower the fee rate or add more funds.`,
+    invalidFeeRate: `Please select a valid fee rate.`,
     amountLabel: 'Amount to Send',
     confirmationSpeedLabel: 'Confirmation Speed',
     txCalculateError:
@@ -473,7 +480,18 @@ This minimum amount is calculated based on the assumption that you may need rapi
     txPushError:
       "Connection issues. We're unsure if the transaction was sent to the blockchain. Refresh to check, and if it's missing, try again.",
     txSuccess:
-      'Your transaction has been successfully created and sent to the blockchain.'
+      'Your transaction has been successfully created and sent to the blockchain.',
+    confirm: `Your transaction is ready for submission. Please review the following values before proceeding:`,
+    confirmModalTitle: 'Review and Confirm',
+    interrupt: `We've detected changes in your wallet while you were setting up a new transaction.
+
+For your security, please review these changes before proceeding.`,
+
+    confirmLabels: {
+      miningFee: 'Mining Fee',
+      amountLabel: 'Amount',
+      recipientAddress: 'Address'
+    }
   },
   receive: {
     title: 'Receive Bitcoin',
@@ -497,6 +515,11 @@ Next, you'll get to confirm everything.`,
     serviceFee: 'Vaulting Fee:',
     allFees: 'Fees:',
     timeLock: 'Time-Lock:',
+    amount: 'Amount:',
+    //Note to transalators: make this text below as short as possible. This is the
+    //label for Emergency Address in the summary that users review before
+    //final submission
+    emergencyAddress: 'Emergency:',
     vaultedAmount: 'Amount to Freeze:',
     confirmBackupSendVault: `Your vault is ready for submission. Please review the following values before proceeding:`,
     encryptionBackupExplain: `We will also encrypt and back up the vault settings on Rewind's P2P network for added security.
@@ -534,14 +557,6 @@ Now, as the final step, we're sending your vault to the blockchain to activate i
     hours_other: '{{formattedCount}} hours',
     days_one: '{{formattedCount}} day',
     days_other: '{{formattedCount}} days'
-  },
-  btcFormat: {
-    btc: '{{value}} BTC',
-    sats_one: '{{value}} sat',
-    sats_other: '{{value}} sats',
-    mbtc: '{{value}} mBTC',
-    bits_one: '{{value}} bit',
-    bits_other: '{{value}} bits'
   },
   feeRate: {
     waitingForRates: 'Waiting for BTC/{{currency}} rates...',
@@ -607,7 +622,7 @@ This process will set up a Bitcoin address where your funds can be safely sent i
 
 This address will be generated with a new recovery phrase. Think of it as the password for the address. Store this phrase in a place that is very difficult to access, even for you. Keep it separate from your regular wallet's recovery phrase.
 
-This address will be your ultimate safety net.`,
+This address will be your last line of defense.`,
       bip39Proposal: `Below is your Emergency Recovery Phrase. This is your key to accessing your funds in an emergency.`,
       bip39ProposalPart2: `This phrase won't be retrievable later on since it's not stored in the app. It's crucial to save it now.`,
       confirmBip39ProposalButton: 'I have written it down',

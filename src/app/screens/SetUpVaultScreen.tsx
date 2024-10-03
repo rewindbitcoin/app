@@ -4,7 +4,7 @@ import BlocksInput from '../components/BlocksInput';
 import FeeInput from '../components/FeeInput';
 import LearnMoreAboutVaults from '../components/LearnMoreAboutVaults';
 import { Trans, useTranslation } from 'react-i18next';
-import React, { useCallback, useState, useMemo, useContext } from 'react';
+import React, { useCallback, useState, useMemo, useEffect } from 'react';
 import { useNavigation } from '@react-navigation/native';
 import { Text, View } from 'react-native';
 import { Button, KeyboardAwareScrollView } from '../../common/ui';
@@ -15,15 +15,23 @@ import {
   DUMMY_SERVICE_OUTPUT,
   DUMMY_CHANGE_OUTPUT,
   getMainAccount,
-  DUMMY_PKH_ADDRESS
+  DUMMY_COLD_ADDRESS,
+  computeChangeOutput
 } from '../lib/vaultDescriptors';
+import useFirstDefinedValue from '../../common/hooks/useFirstDefinedValue';
+import useArrayChangeDetector from '../../common/hooks/useArrayChangeDetector';
 
-import { computeMaxAllowedFeeRate, pickFeeEstimate } from '../lib/fees';
+import {
+  computeMaxAllowedFeeRate,
+  FeeEstimates,
+  pickFeeEstimate
+} from '../lib/fees';
 import { formatBtc } from '../lib/btcRates';
 import { estimateServiceFee, estimateVaultSetUpRange } from '../lib/vaultRange';
 import { networkMapping } from '../lib/network';
 import { useSettings } from '../hooks/useSettings';
 import { useWallet } from '../hooks/useWallet';
+import { OutputInstance } from '@bitcoinerlab/descriptors';
 
 export default function VaultSetUp({
   onVaultSetUpComplete
@@ -37,7 +45,22 @@ export default function VaultSetUp({
   );
   const navigation = useNavigation();
 
-  const { utxosData, networkId, feeEstimates, btcFiat, accounts } = useWallet();
+  const {
+    feeEstimates: feeEstimatesRealTime,
+    btcFiat: btcFiatRealTime,
+    utxosData,
+    networkId,
+    accounts,
+    getNextChangeDescriptorWithIndex
+  } = useWallet();
+
+  //Warn the user and reset this component if wallet changes.
+  const walletChanged = useArrayChangeDetector([utxosData, accounts]);
+
+  //Cache to avoid flickering in the Sliders
+  const btcFiat = useFirstDefinedValue<number>(btcFiatRealTime);
+  const feeEstimates = useFirstDefinedValue<FeeEstimates>(feeEstimatesRealTime);
+
   if (!utxosData)
     throw new Error('SetUpVaultScreen cannot be called with unset utxos');
   if (!accounts)
@@ -49,8 +72,6 @@ export default function VaultSetUp({
       'SetUpVaultScreen cannot be called with unset feeEstimates'
     );
   const network = networkMapping[networkId];
-  const vaultOutput = DUMMY_VAULT_OUTPUT(network);
-  const serviceOutput = DUMMY_SERVICE_OUTPUT(network);
 
   const { settings } = useSettings();
   if (!settings)
@@ -63,23 +84,32 @@ export default function VaultSetUp({
   );
   const serviceFeeRate = settings.SERVICE_FEE_RATE;
   const [coldAddress, setColdAddress] = useState<string | null>(null);
+  const [changeOutput, setChangeOutput] = useState<OutputInstance | null>(null);
   const { t } = useTranslation();
+
+  useEffect(() => {
+    const getAndSetChangeOutput = async () => {
+      const changeDescriptorWithIndex =
+        await getNextChangeDescriptorWithIndex(accounts);
+      setChangeOutput(computeChangeOutput(changeDescriptorWithIndex, network));
+    };
+    getAndSetChangeOutput();
+  }, [getNextChangeDescriptorWithIndex, network, accounts]);
 
   const initialFeeRate = pickFeeEstimate(
     feeEstimates,
     settings.INITIAL_CONFIRMATION_TIME
   );
-  const [feeRate, setFeeRate] = useState<number | null>(initialFeeRate);
-  const maxFeeRate = computeMaxAllowedFeeRate(feeEstimates);
-  const onFeeRate = useCallback(
-    (feeRate: number | null) => {
-      //Note that onFeeRate is called as a callback and may be
-      //briefly out of current [min, max]
-      //specially on old react-native architecture
-      setFeeRate(feeRate === null ? null : Math.min(maxFeeRate, feeRate));
-    },
-    [maxFeeRate]
+  const [userSelectedFeeRate, setUserSelectedFeeRate] = useState<number | null>(
+    initialFeeRate
   );
+  const maxFeeRate = computeMaxAllowedFeeRate(feeEstimates);
+  const feeRate =
+    userSelectedFeeRate === null
+      ? null
+      : userSelectedFeeRate >= 1 && userSelectedFeeRate <= maxFeeRate
+        ? userSelectedFeeRate
+        : null;
 
   const {
     //maxVaultAmount = estimateMaxVaultAmount(feeRate)
@@ -136,7 +166,7 @@ export default function VaultSetUp({
   } = estimateVaultSetUpRange({
     accounts,
     utxosData,
-    coldAddress: coldAddress || DUMMY_PKH_ADDRESS(network),
+    coldAddress: coldAddress || DUMMY_COLD_ADDRESS(network),
     maxFeeRate,
     network,
     serviceFeeRate,
@@ -169,38 +199,43 @@ export default function VaultSetUp({
   const [userSelectedVaultedAmount, setUserSelectedVaultedAmount] = useState<
     number | null
   >(isValidVaultRange ? maxVaultAmount.vaultedAmount : null);
+
   const [isMaxVaultedAmount, setIsMaxVaultedAmount] = useState<boolean>(
-    userSelectedVaultedAmount === maxVaultAmount?.vaultedAmount
+    userSelectedVaultedAmount !== null &&
+      userSelectedVaultedAmount === maxVaultAmount?.vaultedAmount
   );
-  const vaultedAmount: number | null = !isValidVaultRange
-    ? null
-    : isMaxVaultedAmount
-      ? maxVaultAmount.vaultedAmount
-      : //note userSelectedVaultedAmount could be briefly out of current [min, max]
-        //since it's updated on a callback later
-        userSelectedVaultedAmount && maxVaultAmount
-        ? Math.max(
-            minRecoverableVaultAmount.vaultedAmount,
-            Math.min(maxVaultAmount.vaultedAmount, userSelectedVaultedAmount)
-          )
-        : null;
+  const vaultedAmount: number | null =
+    userSelectedVaultedAmount !== null &&
+    maxVaultAmount &&
+    userSelectedVaultedAmount >= minRecoverableVaultAmount.vaultedAmount &&
+    userSelectedVaultedAmount <= maxVaultAmount.vaultedAmount
+      ? userSelectedVaultedAmount
+      : null;
   const serviceFee: number | null =
-    vaultedAmount && maxVaultAmount && minRecoverableVaultAmount
+    vaultedAmount !== null && maxVaultAmount && minRecoverableVaultAmount
       ? estimateServiceFee({
           vaultedAmount,
           serviceFeeRate,
-          serviceOutput,
+          //We use a dummy service output because the real service address is
+          //only retrieved once, when finally creating the vaul, to avoid generating
+          //a huge gapLimit in Rewinds wallet
+          serviceOutput: DUMMY_SERVICE_OUTPUT(network),
           minVaultAmount: minRecoverableVaultAmount,
           maxVaultAmount
         })
       : null;
 
   const onUserSelectedVaultedAmountChange = useCallback(
-    (userSelectedVaultedAmount: number | null) => {
+    (userSelectedVaultedAmount: number | null, type: 'USER' | 'RESET') => {
       setUserSelectedVaultedAmount(userSelectedVaultedAmount);
-      setIsMaxVaultedAmount(
-        userSelectedVaultedAmount === maxVaultAmount?.vaultedAmount
-      );
+
+      //Make sure the MAX_FUNDS text is set when the user reacted to the
+      //slider or input box, not when the onValueChange is triggered because
+      //the componet was intenally reset
+      if (type === 'USER' && userSelectedVaultedAmount !== null)
+        setIsMaxVaultedAmount(
+          userSelectedVaultedAmount === maxVaultAmount?.vaultedAmount
+        );
     },
     [maxVaultAmount?.vaultedAmount]
   );
@@ -214,42 +249,45 @@ export default function VaultSetUp({
       coldAddress === null
     )
       throw new Error('Cannot process Vault');
+
     onVaultSetUpComplete({
-      coldAddress,
-      feeRate,
       vaultedAmount,
       serviceFee,
-      lockBlocks
+      coldAddress,
+      feeRate,
+      lockBlocks,
+
+      accounts,
+      btcFiat,
+      utxosData
     });
   }, [
     feeRate,
+    utxosData,
     vaultedAmount,
     serviceFee,
     lockBlocks,
     onVaultSetUpComplete,
-    coldAddress
+    coldAddress,
+    accounts,
+    btcFiat
   ]);
 
-  let txSize = null;
-  if (
-    isValidVaultRange &&
-    vaultedAmount !== null &&
-    serviceFee !== null &&
-    feeRate !== null
-  ) {
-    console.log('TRACE calling selectVaultUtxosData for feeRate: ', {
-      feeRate,
-      vaultedAmount,
-      maxVaultedAmount: maxVaultAmount.vaultedAmount
-    });
+  let fee = null;
+  if (vaultedAmount !== null && serviceFee !== null && feeRate !== null) {
     const selected = selectVaultUtxosData({
       utxosData,
-      vaultOutput,
-      serviceOutput,
-      changeOutput: DUMMY_CHANGE_OUTPUT(
-        getMainAccount(accounts, network),
-        network
-      ),
+      //We never use the final vaultOutput since it is built using a random
+      //key that we don't want to keep in memory
+      //This means the final fee may be larger depending on signature size
+      vaultOutput: DUMMY_VAULT_OUTPUT(network),
+      //We use a dummy service output because the real service address is
+      //only retrieved once, when finally creating the vaul, to avoid generating
+      //a huge gapLimit in Rewinds wallet
+      serviceOutput: DUMMY_SERVICE_OUTPUT(network),
+      changeOutput:
+        changeOutput ||
+        DUMMY_CHANGE_OUTPUT(getMainAccount(accounts, network), network),
       feeRate,
       vaultedAmount,
       serviceFee
@@ -258,7 +296,7 @@ export default function VaultSetUp({
       throw new Error(
         `vaultedAmount ${vaultedAmount} should be selectable since it's within range - [${minRecoverableVaultAmount?.vaultedAmount}, ${maxVaultAmount?.vaultedAmount}] - isValidVaultRange: ${isValidVaultRange} - feeRate: ${feeRate}.`
       );
-    txSize = selected.vsize;
+    fee = selected.fee;
   }
 
   const allFieldsValid =
@@ -271,30 +309,29 @@ export default function VaultSetUp({
     <KeyboardAwareScrollView
       contentInsetAdjustmentBehavior="automatic"
       keyboardShouldPersistTaps="handled"
-      contentContainerClassName="items-center pt-5 px-5"
+      contentContainerClassName="items-center pt-5 px-4"
     >
-      <View className="w-full max-w-screen-sm mx-4" style={containerStyle}>
-        <View className="mb-8">
-          {isValidVaultRange ? (
-            <>
-              <Text className="text-base mb-1">{t('vaultSetup.intro')}</Text>
-              <LearnMoreAboutVaults />
-            </>
-          ) : (
+      {walletChanged ? (
+        <View className="w-full max-w-screen-sm mx-4" style={containerStyle}>
+          <View className="mb-8">
+            <Text className="text-base">{t('vaultSetup.interrupt')}</Text>
+          </View>
+          <Button onPress={navigation.goBack}>{t('goBack')}</Button>
+        </View>
+      ) : !isValidVaultRange ? (
+        <View className="w-full max-w-screen-sm mx-4" style={containerStyle}>
+          <View className="mb-8">
             <Text className="text-base">
               <Trans
                 i18nKey="vaultSetup.notEnoughFunds"
                 values={{
-                  missingFunds: formatBtc(
-                    {
-                      amount: missingFunds * 1.03, //Ask for 3% more than needed
-                      subUnit: settings.SUB_UNIT,
-                      btcFiat,
-                      locale: settings.LOCALE,
-                      currency: settings.CURRENCY
-                    },
-                    t
-                  ),
+                  missingFunds: formatBtc({
+                    amount: missingFunds * 1.03, //Ask for 3% more than needed
+                    subUnit: settings.SUB_UNIT,
+                    btcFiat,
+                    locale: settings.LOCALE,
+                    currency: settings.CURRENCY
+                  }),
                   minRecoverableRatioPct: parseFloat(
                     (settings.MIN_RECOVERABLE_RATIO * 100).toFixed(2)
                   ).toString(),
@@ -307,59 +344,62 @@ export default function VaultSetUp({
                 }}
               />
             </Text>
-          )}
+          </View>
+          <Button onPress={navigation.goBack}>{t('goBack')}</Button>
         </View>
-        {isValidVaultRange && (
-          <>
-            <AmountInput
-              isMaxAmount={isMaxVaultedAmount}
-              label={t('vaultSetup.amountLabel')}
-              initialValue={maxVaultAmount.vaultedAmount}
-              min={minRecoverableVaultAmount.vaultedAmount}
-              max={maxVaultAmount.vaultedAmount}
-              onUserSelectedAmountChange={onUserSelectedVaultedAmountChange}
-            />
-            <View className="mb-8" />
-            <BlocksInput
-              label={t('vaultSetup.securityLockTimeLabel')}
-              initialValue={settings.INITIAL_LOCK_BLOCKS}
-              min={settings.MIN_LOCK_BLOCKS}
-              max={settings.MAX_LOCK_BLOCKS}
-              onValueChange={setLockBlocks}
-            />
-            <View className="mb-8" />
-            <AddressInput
-              type="emergency"
-              networkId={networkId}
-              onValueChange={setColdAddress}
-            />
-            <View className="mb-8" />
-            <FeeInput
-              initialValue={initialFeeRate}
-              txSize={txSize}
-              label={t('vaultSetup.confirmationSpeedLabel')}
-              onValueChange={onFeeRate}
-            />
-          </>
-        )}
-        {isValidVaultRange ? (
+      ) : (
+        <View className="w-full max-w-screen-sm mx-4" style={containerStyle}>
+          <View className="mb-8">
+            <Text className="text-base mb-1">{t('vaultSetup.intro')}</Text>
+            <LearnMoreAboutVaults />
+          </View>
+          <AmountInput
+            btcFiat={btcFiat}
+            isMaxAmount={isMaxVaultedAmount}
+            label={t('vaultSetup.amountLabel')}
+            initialValue={maxVaultAmount.vaultedAmount}
+            min={minRecoverableVaultAmount.vaultedAmount}
+            max={maxVaultAmount.vaultedAmount}
+            onValueChange={onUserSelectedVaultedAmountChange}
+          />
+          <View className="mb-8" />
+          <BlocksInput
+            label={t('vaultSetup.securityLockTimeLabel')}
+            initialValue={settings.INITIAL_LOCK_BLOCKS}
+            min={settings.MIN_LOCK_BLOCKS}
+            max={settings.MAX_LOCK_BLOCKS}
+            onValueChange={setLockBlocks}
+          />
+          <View className="mb-8" />
+          <AddressInput
+            type="emergency"
+            networkId={networkId}
+            onValueChange={setColdAddress}
+          />
+          <View className="mb-8" />
+          <FeeInput
+            btcFiat={btcFiat}
+            feeEstimates={feeEstimates}
+            initialValue={initialFeeRate}
+            fee={fee}
+            label={t('vaultSetup.confirmationSpeedLabel')}
+            onValueChange={setUserSelectedFeeRate}
+          />
           <View className="self-center flex-row justify-center items-center mt-5 gap-5">
             <Button onPress={navigation.goBack}>{t('cancelButton')}</Button>
             <Button disabled={!allFieldsValid} onPress={handleOK}>
               {t('continueButton')}
             </Button>
           </View>
-        ) : (
-          <Button onPress={navigation.goBack}>{t('goBack')}</Button>
-        )}
-        {!allFieldsValid && isValidVaultRange && (
-          <Text className="text-center text-orange-600 native:text-sm web:text-xs pt-2">
-            {coldAddress
-              ? t('vaultSetup.fillInAll')
-              : t('vaultSetup.coldAddressMissing')}
-          </Text>
-        )}
-      </View>
+          {!allFieldsValid && (
+            <Text className="text-center text-orange-600 native:text-sm web:text-xs pt-2">
+              {coldAddress
+                ? t('vaultSetup.fillInAll')
+                : t('vaultSetup.coldAddressMissing')}
+            </Text>
+          )}
+        </View>
+      )}
     </KeyboardAwareScrollView>
   );
 }

@@ -31,7 +31,7 @@ function CardEditableSlider({
   maxLabel?: string;
   step: number;
   formatError?: (invalidValue: number) => string | undefined;
-  onValueChange: (value: number | null) => void;
+  onValueChange: (value: number | null, type: 'USER' | 'RESET') => void;
   formatValue: (value: number) => string;
   locale: Locale;
 }) {
@@ -90,7 +90,8 @@ const getStyles = (theme: Theme) => {
       backgroundColor: theme.colors.card,
       borderRadius: 5,
       borderWidth: 0,
-      padding: 10
+      paddingHorizontal: 8,
+      paddingVertical: 12
     },
     unitContainer: { marginLeft: 8 },
     unitText: { fontSize: 14, color: theme.colors.text }

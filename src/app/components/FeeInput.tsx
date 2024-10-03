@@ -1,34 +1,39 @@
+//This component must work both for SendBitcoin and SetUpVault
+//When the mode, min or max is changed, then the CardEditableSlider is renewed.
+//That means the parent component must reset the last value set by onValueChange
+//to initialValue
+
 const FEE_RATE_STEP = 0.01;
 
-//This component must work both for SendBitcoin and SetUpVault
 import React, { useCallback, useRef, useMemo } from 'react';
 import { CardEditableSlider } from '../../common/ui';
 import { snapWithinRange } from '../../common/lib/numbers';
 import { formatFeeRate } from '../lib/format';
-import { computeMaxAllowedFeeRate } from '../lib/fees';
+import { computeMaxAllowedFeeRate, FeeEstimates } from '../lib/fees';
 import { useTranslation } from 'react-i18next';
 import { useSettings } from '../hooks/useSettings';
-import { useWallet } from '../hooks/useWallet';
 
 function FeeInput({
   label,
   initialValue,
-  txSize,
+  fee,
+  feeEstimates,
+  btcFiat,
   onValueChange
 }: {
   label: string;
   initialValue: number;
-  txSize: number | null;
-  onValueChange: (value: number | null) => void;
+  fee: number | null;
+  feeEstimates: FeeEstimates;
+  btcFiat: number | undefined;
+  onValueChange: (value: number | null, type: 'USER' | 'RESET') => void;
 }) {
-  const { feeEstimates, btcFiat } = useWallet();
-  if (!feeEstimates)
-    throw new Error('FeeInput cannot be called with unset feeEstimates');
   const { settings } = useSettings();
   if (!settings)
     throw new Error(
       'This component should only be started after settings has been retrieved from storage'
     );
+  const subUnit = settings.SUB_UNIT;
   const { t } = useTranslation();
 
   //We need a LUT from-to presented slider values (which are snapped)
@@ -52,25 +57,27 @@ function FeeInput({
   }, [feeEstimates]);
 
   const formatValue = useCallback(
-    (value: number) =>
+    (feeRate: number) =>
       formatFeeRate(
         {
-          feeRate: value,
+          fee: fee === null ? undefined : fee,
+          feeRate,
           locale: settings.LOCALE,
           currency: settings.CURRENCY,
-          txSize,
+          subUnit,
           btcFiat,
           feeEstimates: snappedFeeEstimates
         },
         t
       ),
     [
+      fee,
       btcFiat,
       settings.LOCALE,
       settings.CURRENCY,
       snappedFeeEstimates,
       t,
-      txSize
+      subUnit
     ]
   );
 
@@ -87,17 +94,13 @@ function FeeInput({
   if (snappedInitialValue === null)
     throw new Error('snappedInitialValue should be defined');
 
-  //const snappedMin = Math.min(...Object.values(snappedFeeEstimates));
-  //const snappedMax = Math.max(...Object.values(snappedFeeEstimates));
-  //const min = Math.min(...Object.values(feeEstimates));
-  //const max = Math.max(...Object.values(feeEstimates));
   const snappedMin = 1;
   const snappedMax = computeMaxAllowedFeeRate(snappedFeeEstimates);
   const min = 1;
   const max = computeMaxAllowedFeeRate(feeEstimates);
 
   const onSnappedValueChange = useCallback(
-    (newSnappedValue: number | null) => {
+    (newSnappedValue: number | null, type: 'USER' | 'RESET') => {
       let newValue: number | null;
       if (newSnappedValue === null) newValue = null;
       //Don't loose precission if we know original values:
@@ -105,7 +108,7 @@ function FeeInput({
       else if (newSnappedValue === snappedMax) newValue = max;
       else newValue = newSnappedValue;
       if (newValue !== null) nextInitialValueRef.current = newValue;
-      onValueChange(newValue);
+      onValueChange(newValue, type);
     },
     [min, max, snappedMin, snappedMax, onValueChange]
   );

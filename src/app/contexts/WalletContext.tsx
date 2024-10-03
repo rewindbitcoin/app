@@ -83,7 +83,7 @@ type TxHistory = Array<{
 }>;
 
 export type WalletContextType = {
-  getNextChangeDescriptorWithIndex: () => Promise<{
+  getNextChangeDescriptorWithIndex: (accounts: Accounts) => Promise<{
     descriptor: string;
     index: number;
   }>;
@@ -802,20 +802,22 @@ const WalletProviderRaw = ({
     walletsHistoryData
   ]);
 
-  const getNextChangeDescriptorWithIndex = useCallback(async () => {
-    if (!network) throw new Error('Network not ready');
-    if (!accounts) throw new Error('Accounts not ready');
-    if (!Object.keys(accounts).length) throw new Error('Accounts not set');
-    if (!discovery) throw new Error('Discovery not ready');
-    const account = getMainAccount(accounts, network);
-    const changeDescriptor = account.replace(/\/0\/\*/g, '/1/*');
-    return {
-      descriptor: changeDescriptor,
-      index: discovery.getNextIndex({
-        descriptor: changeDescriptor
-      })
-    };
-  }, [network, accounts, discovery]);
+  const getNextChangeDescriptorWithIndex = useCallback(
+    async (accounts: Accounts) => {
+      if (!network) throw new Error('Network not ready');
+      if (!Object.keys(accounts).length) throw new Error('Accounts not set');
+      if (!discovery) throw new Error('Discovery not ready');
+      const account = getMainAccount(accounts, network);
+      const changeDescriptor = account.replace(/\/0\/\*/g, '/1/*');
+      return {
+        descriptor: changeDescriptor,
+        index: discovery.getNextIndex({
+          descriptor: changeDescriptor
+        })
+      };
+    },
+    [network, discovery]
+  );
 
   const getNextReceiveDescriptorWithIndex = useCallback(async () => {
     if (!network) throw new Error('Network not ready');

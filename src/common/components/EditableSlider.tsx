@@ -7,10 +7,21 @@
  * - Snapping Behavior: Values are snapped to the nearest increment defined
  *   by the 'step' size. For example, if the step is 0.01 and a value of 0.213
  *   is passed, it adjusts to 0.21.
- *   This component may call onValueChange with a value not snapped if the user
+ *   This component will call onValueChange with a value not snapped if the user
  *   enters a valid number (but not snapped) in the TextInput (within range)
- *   This component snaps the initialValue but does not trigger an onChangeValue
- *   even if the initial snapped value is different than the initial value.
+ * - Initial Value:
+ *   This component calls onValueChange with exactly the initialValue passed
+ *   (if in range) or null (if not in range).
+ *   This initial call is done so that upper components get notified about the
+ *   current value when this component is inadvertedly re-mounted in some part
+ *   of the rendering tree (for example AmountInput resets this component by
+ *   changing the key everytime min/max/type change).
+ *   From then on, onValueChange is only called on user interactions.
+ *   To differentiate between user events and mount events, the
+ *   type is 'RESET' when the first initialValue is passed to onValueChange and
+ *   type is 'USER' when onValueChange is called after user interaction.
+ *   This component snaps the initialValue. But the 'RESET' type value passed to
+ *   onChangeValue on mount is `initialValue` (not the snapped version).
  *
  * - Minimum and Maximum Values: The 'minimumValue' and 'maximumValue' can
  *   be any number, allowing users to select these exact values regardless of
@@ -18,22 +29,31 @@
  *
  * - The slider's position must always forced to be put within range but marked
  *   in red if invalid. If the initialValue passed is not within range,
- *   it will initialized to the minimumValue.
+ *   it will shown as minimumValue in the in the slider.
  *
  * - Emitting Null Values: The component may emit `null` via 'onValueChange'
  *   on invalid number entered in the TextInput.
  *
  * - Internal Implementation:
- *     - 'numericInputControlledValue' represents the text input's value. It can be imprecise and
- *       is not constrained by range. Updated when the slider is used
+ *     - 'numericInputControlledValue' represents the text input's value.
+ *       It can be imprecise and is not constrained by range.
+ *       Updated when the slider is used
  *       or during TextInput interaction, even if invalid.
  *       Triggers 'onValueChange' with the value if within range.
  *     - 'onValueChange' is called with valid values or `null` in case of
- *       user input errors in the NumericInput text box.
+ *       user input errors in the NumericInput text box. The type 'USER' is
+ *       used for these calls.
  */
 
 const INPUT_MAX_LENGTH = 18;
-import React, { useState, useCallback, ReactNode, useMemo } from 'react';
+import React, {
+  useState,
+  useCallback,
+  ReactNode,
+  useMemo,
+  useEffect,
+  useRef
+} from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Locale } from '../../i18n-locales/init';
 
@@ -97,7 +117,7 @@ const EditableSlider = ({
   maximumValue: number;
   step?: number;
   formatError?: (invalidValue: number) => string | undefined;
-  onValueChange: (value: number | null) => void;
+  onValueChange: (value: number | null, type: 'USER' | 'RESET') => void;
   formatValue: (value: number) => string;
 }) => {
   const theme = useTheme();
@@ -106,6 +126,22 @@ const EditableSlider = ({
   const { t } = useTranslation();
 
   const [fontsLoaded] = useFonts({ RobotoMono_400Regular });
+
+  const lastNotifiedValue = useRef<number | null | undefined>(undefined);
+  const lastNotifiedType = useRef<'USER' | 'RESET' | undefined>(undefined);
+  const onValueChangeCached = useCallback(
+    (value: number | null, type: 'USER' | 'RESET') => {
+      if (
+        value !== lastNotifiedValue.current ||
+        type !== lastNotifiedType.current
+      ) {
+        onValueChange(value, type);
+        lastNotifiedValue.current = value;
+        lastNotifiedType.current = type;
+      }
+    },
+    [onValueChange]
+  );
 
   const onSliderValueChange = useCallback(
     (value: number) => {
@@ -130,9 +166,16 @@ const EditableSlider = ({
           step
         })
       );
-      onValueChange(snappedWithinRange);
+      onValueChangeCached(snappedWithinRange, 'USER');
     },
-    [minimumValue, maximumValue, step, locale, numberFormatting, onValueChange]
+    [
+      minimumValue,
+      maximumValue,
+      step,
+      locale,
+      numberFormatting,
+      onValueChangeCached
+    ]
   );
 
   const onNumberInputChangeValue = useCallback(
@@ -151,12 +194,12 @@ const EditableSlider = ({
         if (snappedWithinRange === null)
           throw new Error('snappedWithinRange should be valid');
         setSliderUncontrolledValue(snappedWithinRange);
-        onValueChange(value);
+        onValueChangeCached(value, 'USER');
       } else {
-        onValueChange(null);
+        onValueChangeCached(null, 'USER');
       }
     },
-    [minimumValue, maximumValue, step, onValueChange, locale]
+    [minimumValue, maximumValue, step, onValueChangeCached, locale]
   );
 
   //Slider is NOT a controlled component. State resides in Slider.
@@ -221,6 +264,19 @@ const EditableSlider = ({
     ];
   }, [fontsLoaded, isValidValue, styles.status, theme.colors.red]);
 
+  const firstNotificationDone = useRef<boolean>(false);
+  useEffect(() => {
+    if (firstNotificationDone.current === false) {
+      onValueChangeCached(
+        initialValue >= minimumValue && initialValue <= maximumValue
+          ? initialValue
+          : null,
+        'RESET'
+      );
+      firstNotificationDone.current = true;
+    }
+  }, [initialValue, onValueChangeCached, minimumValue, maximumValue]);
+
   /* Read TAG-android-does-not-propagate-slider-events
    * in src/common/lib/Modal.tsx for a solution if the Slider does not propagate
    * drag events in Android. F.ex. Modal.tsx solves the problem for a a
@@ -232,24 +288,34 @@ const EditableSlider = ({
    *
    * const onResponderGrant = useCallback(() => true, []);
    * <Slider onResponderGrant={onResponderGrant} />
+   *
+   * Applying both solutions is even smoother (on android)
+   * But both onResponderGrant in iOS does not work and the Slider is not
+   * operative, so only apply to android.
    */
 
+  const onResponderGrant = useCallback(() => true, []);
   return (
     <View style={styles.container}>
       <View style={styles.statusAndUnit}>
         <Text style={statusStyle}>{statusText}</Text>
         {unit || null}
       </View>
-      <View style={styles.control}>
-        <Slider
-          style={styles.slider}
-          minimumTrackTintColor={theme.colors.primary}
-          minimumValue={minimumValue}
-          maximumValue={maximumValue}
-          onValueChange={onSliderValueChange}
-          {...thumbTintColor}
-          value={sliderUncontrolledValue}
-        />
+      <View className="flex-row items-center w-full mt-4">
+        <View className="flex-1 mr-2">
+          <Slider
+            {...(Platform.OS === 'android'
+              ? { onResponderGrant: onResponderGrant }
+              : {})}
+            style={styles.slider}
+            minimumTrackTintColor={theme.colors.primary}
+            minimumValue={minimumValue}
+            maximumValue={maximumValue}
+            onValueChange={onSliderValueChange}
+            {...thumbTintColor}
+            value={sliderUncontrolledValue}
+          />
+        </View>
         <NumberInput
           locale={locale}
           maxLength={INPUT_MAX_LENGTH}
@@ -289,20 +355,22 @@ const getStyles = (theme: Theme) =>
       fontSize: 14,
       color: theme.colors.cardSecondary
     },
-    control: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      width: '100%',
-      //backgroundColor: 'yellow',
-      marginTop: 15
-    },
     slider: {
-      flex: 1,
+      //Note that using className does not work with Slider
+
       //Applying padding is very important in android real device or the thumb is very
       //difficult to be grabbed by the thumb finger since it is so thin.
       //However, on web dont apply padding since it adds offset to the thumb button!
-      ...(Platform.OS !== 'web' ? { padding: 15 } : {}),
-      marginRight: 10
+      ...(Platform.OS === 'android'
+        ? {
+            width: '50%' as const,
+            marginLeft: '25%' as const,
+            transform: [{ scaleX: 2 }, { scaleY: 2 }],
+            paddingVertical: 8
+          }
+        : Platform.OS === 'ios'
+          ? { paddingVertical: 16, paddingHorizontal: 8 }
+          : {})
     },
     maxLabelContainer: {
       position: 'absolute',

@@ -1,3 +1,4 @@
+import moize from 'moize';
 /**
  * Returns an array of precomputed `feeRates` within a range.
  *
@@ -90,27 +91,29 @@ export function feeRateSampling(
  * This method assumes 10 minute blocks.
  * @returns The fee rate in sats per vbyte.
  */
-export function pickFeeEstimate(
-  /** A record of fee estimates per number of blocks. */
-  feeEstimates: FeeEstimates,
-  /** The target time in seconds for the transaction to be mined. */
-  targetTime: number
-): number {
-  if (!Number.isSafeInteger(targetTime) || targetTime < 0)
-    throw new Error('Invalid targetTime!');
+export const pickFeeEstimate = moize(
+  (
+    /** A record of fee estimates per number of blocks. */
+    feeEstimates: FeeEstimates,
+    /** The target time in seconds for the transaction to be mined. */
+    targetTime: number
+  ) => {
+    if (!Number.isSafeInteger(targetTime) || targetTime < 0)
+      throw new Error('Invalid targetTime!');
 
-  const block = Object.keys(feeEstimates)
-    .map(block => Number(block))
-    .sort((a, b) => b - a) // sort in descending order
-    .find(block => block <= Math.max(targetTime / 600 + Number.EPSILON, 1));
-  if (typeof block === 'undefined') {
-    throw new Error('Invalid targetTime!');
+    const block = Object.keys(feeEstimates)
+      .map(block => Number(block))
+      .sort((a, b) => b - a) // sort in descending order
+      .find(block => block <= Math.max(targetTime / 600 + Number.EPSILON, 1));
+    if (typeof block === 'undefined') {
+      throw new Error('Invalid targetTime!');
+    }
+    const feeEstimate = feeEstimates[block];
+    if (feeEstimate === undefined) throw new Error('Error in pickFeeEstimate');
+
+    return feeEstimate;
   }
-  const feeEstimate = feeEstimates[block];
-  if (feeEstimate === undefined) throw new Error('Error in pickFeeEstimate');
-
-  return feeEstimate;
-}
+);
 
 /**
  * Prevents users selecting fees too large

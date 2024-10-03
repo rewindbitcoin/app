@@ -1,5 +1,5 @@
 /**
- * Performs a binary search to find the lowest number for which a given function
+ * Performs a binary search to find the lowest INTEGER number for which a given function
  * returns true, within a range [0, MAX]. The search is limited by a maximum
  * number of iterations, and indicates whether the found value is exact or
  * a result of reaching the iteration limit.

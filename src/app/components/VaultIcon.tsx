@@ -19,9 +19,13 @@ const VaultIcon = ({
   ) : remainingBlocks === 'VAULT_NOT_FOUND' ? (
     <MaterialCommunityIcons name="snowflake-off" size={24} color="red" />
   ) : remainingBlocks === 'TRIGGER_NOT_PUSHED' ? (
-    //bg-[#4286E7]
-    <View className="rounded-full w-6 h-6 p-0.5 overflow-hidden bg-primary">
-      <Svg className="fill-white" viewBox="0 0 24 24">
+    //<View className="rounded-full w-6 h-6 p-0.5 overflow-hidden bg-primary">
+    //  <Svg className="fill-white" viewBox="0 0 24 24">
+    //    <FreezeIcon />
+    //  </Svg>
+    //</View>
+    <View className="w-6 h-6">
+      <Svg className="fill-primary" viewBox="0 0 24 24">
         <FreezeIcon />
       </Svg>
     </View>
@@ -32,9 +36,14 @@ const VaultIcon = ({
       <HotIcon />
     </Svg>
   ) : (
-    //<View className="flex-row items-center rounded-full w-6 h-6 p-0.5 overflow-hidden bg-[#800080]">
-    <View className="flex-row items-center rounded-full w-6 h-6 p-0.5 overflow-hidden bg-primary">
-      <Svg className="fill-white" viewBox="0 0 24 24">
+    //Defreezing:
+    //<View className="flex-row items-center rounded-full w-6 h-6 p-0.5 overflow-hidden bg-primary">
+    //  <Svg className="fill-white" viewBox="0 0 24 24">
+    //    <UnfreezeIcon />
+    //  </Svg>
+    //</View>
+    <View className="w-6 h-6">
+      <Svg className="fill-primary" viewBox="0 0 24 24">
         <UnfreezeIcon />
       </Svg>
     </View>

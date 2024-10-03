@@ -122,20 +122,21 @@ const Amount = ({
 };
 
 const VaultText: React.FC<{
+  danger?: boolean;
   icon?: IconType;
   children: React.ReactNode;
-}> = ({ icon, children }) => {
+}> = ({ danger = false, icon, children }) => {
   const Icon =
     icon && icon.family && Icons[icon.family] ? Icons[icon.family] : null;
   return (
-    <View className="flex-row items-center">
+    <View className="flex-row items-start">
       {icon && (
         <Icon
-          className="pr-2 text-primary opacity-80 native:text-base web:text-sm native:mobmed:text-lg web:mobmed:text-base"
+          className={`!leading-5 pr-3 ${danger ? 'text-red-300' : 'text-primary'} native:text-base web:text-sm native:mobmed:text-lg web:mobmed:text-base`}
           name={icon.name}
         />
       )}
-      <Text className="flex-shrink text-slate-600 native:text-sm web:text-xs native:mobmed:text-base web:mobmed:text-sm">
+      <Text className="!leading-5 flex-shrink text-slate-600 native:text-sm web:text-xs native:mobmed:text-base web:mobmed:text-sm">
         {children}
       </Text>
     </View>
@@ -460,12 +461,12 @@ const RawVault = ({
         )}
         {isUnfreezeOngoing && (
           <View className="flex-row items-center mt-2">
-            <MaterialCommunityIcons
+            {/*<MaterialCommunityIcons
               name="lock-clock"
               size={14}
               className="text-slate-900 pr-1"
-            />
-            <Text className="native:text-sm web:text-xs uppercase text-slate-900">
+            />*/}
+            <Text className="native:text-sm web:text-xs uppercase text-primary-dark font-semibold">
               {t('wallet.vault.timeRemaining', {
                 timeRemaining: formatBlocks(remainingBlocks, t, true)
               })}
@@ -474,12 +475,12 @@ const RawVault = ({
         )}
         {remainingBlocks === 'TRIGGER_NOT_PUSHED' && (
           <View className="flex-row items-center mt-2.5">
-            <MaterialCommunityIcons
+            {/*<MaterialCommunityIcons
               name="lock-clock"
               size={16}
               className="text-slate-900 pr-1"
-            />
-            <Text className="native:text-sm web:text-xs uppercase text-slate-900">
+            />*/}
+            <Text className="native:text-sm web:text-xs uppercase text-primary-dark font-semibold">
               {t('wallet.vault.untriggeredLockTime', {
                 timeRemaining: formatBlocks(vault.lockBlocks, t, true)
               })}
@@ -487,12 +488,12 @@ const RawVault = ({
           </View>
         )}
         <View
-          className={`gap-2 ${remainingBlocks !== 'VAULT_NOT_FOUND' ? 'pt-4' : ''}`}
+          className={`gap-4 ${remainingBlocks !== 'VAULT_NOT_FOUND' ? 'pt-4' : ''}`}
         >
           {isInitUnfreezeNotConfirmed && (
             <VaultText
               icon={{
-                name: 'clock-start',
+                name: 'clock-fast',
                 family: 'MaterialCommunityIcons'
               }}
             >
@@ -507,7 +508,7 @@ const RawVault = ({
           {vaultStatus?.triggerTxBlockTime && (
             <VaultText
               icon={{
-                name: 'clock-start',
+                name: 'clock-fast',
                 family: 'MaterialCommunityIcons'
               }}
             >
@@ -546,6 +547,7 @@ const RawVault = ({
           )}
           {isRescued && (
             <VaultText
+              danger
               icon={{
                 name: 'flag-off',
                 family: 'MaterialCommunityIcons'

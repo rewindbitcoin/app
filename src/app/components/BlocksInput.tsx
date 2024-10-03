@@ -18,7 +18,7 @@ function BlocksInput({
   min: number;
   max: number;
   label: string;
-  onValueChange: (value: number | null) => void;
+  onValueChange: (value: number | null, type: 'USER' | 'RESET') => void;
 }) {
   const { t } = useTranslation();
   const { settings } = useSettings();
@@ -57,12 +57,12 @@ function BlocksInput({
   );
 
   const onModeValueChange = useCallback(
-    (newModeValue: number | null) => {
+    (newModeValue: number | null, type: 'USER' | 'RESET') => {
       let newValue: number | null;
       if (newModeValue === null) newValue = null;
       else newValue = toBlocks(newModeValue, mode, knownBlocksValueMap);
       if (newValue !== null) nextInitialValueRef.current = newValue;
-      onValueChange(newValue);
+      onValueChange(newValue, type);
     },
     [knownBlocksValueMap, mode, onValueChange]
   );

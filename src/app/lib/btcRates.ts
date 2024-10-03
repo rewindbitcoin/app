@@ -1,47 +1,6 @@
-const RETRIES = 5;
 import memoize from 'lodash.memoize';
-import type { TFunction } from 'i18next';
-import { type SubUnit, type Currency, defaultSettings } from './settings';
+import { type SubUnit, type Currency } from './settings';
 import type { Locale } from '../../i18n-locales/init';
-
-const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
-
-export async function fetchBtcFiat(
-  currency: Currency,
-  api: 'COINGECKO' | 'REWINDBITCOIN' = 'REWINDBITCOIN'
-): Promise<number> {
-  if (api === 'COINGECKO') {
-    const url = `https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=${currency.toLowerCase()}`;
-
-    let response;
-    for (let retries = 0; retries < RETRIES; retries++) {
-      response = await fetch(url);
-      if (response.ok) {
-        const data = await response.json();
-        return data.bitcoin[currency.toLowerCase()];
-      }
-      await sleep(100);
-    }
-    if (response?.status !== undefined)
-      throw new Error(`CoinGecko Status: ${response.status}`);
-    else throw new Error(`Uknown Error from CoinGecko `);
-  } else if (api === 'REWINDBITCOIN') {
-    const apiUrl = `${defaultSettings.BTC_RATES_API}/get?currency=${currency.toLowerCase()}`;
-
-    let response;
-    for (let retries = 0; retries < RETRIES; retries++) {
-      response = await fetch(apiUrl);
-      if (response.ok) {
-        const data = await response.json();
-        return data.rate;
-      }
-      await sleep(100);
-    }
-    if (response?.status !== undefined)
-      throw new Error(`RewindBitcoin BtcRates Status: ${response.status}`);
-    else throw new Error(`Uknown BtcRates Error from RewindBitcoin`);
-  } else throw new Error(`Invalid API`);
-}
 
 const intlCurrencyFormatter = memoize(
   (locale: Locale, currency: string) =>
@@ -70,89 +29,94 @@ export const formatFiat = ({
   }
 };
 
-const formatBtcFactory = memoize((t: TFunction) =>
-  memoize(
-    ({
-      amount,
-      subUnit,
-      btcFiat,
-      locale,
-      currency
-    }: {
-      amount: number;
-      subUnit: SubUnit;
-      btcFiat?: number | null | undefined;
-      locale: Locale;
-      currency: Currency;
-    }) => {
-      const ONE_BTC_IN_SATS = 100000000;
-      const THRESHOLD_FOR_BTC = ONE_BTC_IN_SATS * 0.1; // 0.1 BTC
-
-      let formattedValue;
-
-      if (amount >= THRESHOLD_FOR_BTC) {
-        formattedValue = t('btcFormat.btc', {
-          value: (amount / ONE_BTC_IN_SATS).toLocaleString(locale)
-        });
-      } else {
-        switch (subUnit) {
-          case 'sat':
-            formattedValue = t('btcFormat.sats', {
-              value: amount.toLocaleString(locale),
-              count: amount
-            });
-            break;
-          case 'mbit':
-            formattedValue = t('btcFormat.mbtc', {
-              value: (amount / 100000).toLocaleString(locale)
-            });
-            break;
-          case 'bit':
-            formattedValue = t('btcFormat.bits', {
-              value: (amount / 100).toLocaleString(locale),
-              count: amount / 100
-            });
-            break;
-          case 'btc':
-            formattedValue = t('btcFormat.btc', {
-              value: (amount / 100000000).toLocaleString(locale, {
-                minimumFractionDigits: 8
-              })
-            });
-            break;
-          default:
-            throw new Error(t('btcFormat.invalidSubunit', { subUnit }));
-        }
-      }
-
-      if (typeof btcFiat === 'number') {
-        formattedValue +=
-          ' / ' +
-          formatFiat({ amount: (amount * btcFiat) / 1e8, locale, currency });
-      }
-
-      return formattedValue;
-    },
-    args => JSON.stringify(args)
-  )
-);
-
-export const formatBtc = (
-  btcArgs: {
+const formatBtcFactory = memoize(
+  ({
+    amount,
+    subUnit,
+    btcFiat,
+    locale,
+    currency
+  }: {
     amount: number;
     subUnit: SubUnit;
-    btcFiat?: number | null | undefined;
+    btcFiat?: number | undefined;
     locale: Locale;
     currency: Currency;
+  }) => {
+    const ONE_BTC_IN_SATS = 100000000;
+    const THRESHOLD_FOR_BTC = ONE_BTC_IN_SATS * 0.1; // 0.1 BTC
+
+    let formattedValue;
+
+    if (amount >= THRESHOLD_FOR_BTC) {
+      formattedValue = `${(amount / ONE_BTC_IN_SATS).toLocaleString(locale, {
+        minimumFractionDigits: 8
+      })} ₿`;
+    } else {
+      switch (subUnit) {
+        case 'sat':
+          formattedValue =
+            amount === 1
+              ? `${amount.toLocaleString(locale)} sat`
+              : `${amount.toLocaleString(locale)} sats`;
+          break;
+        case 'mbit':
+          formattedValue = `${(amount / 100000).toLocaleString(locale)} mBTC`;
+          break;
+        case 'bit': {
+          const bits = amount / 100;
+          formattedValue =
+            bits === 1
+              ? `${bits.toLocaleString(locale)} bit`
+              : `${bits.toLocaleString(locale)} bits`;
+          break;
+        }
+        case 'btc':
+          formattedValue = `${(amount / ONE_BTC_IN_SATS).toLocaleString(
+            locale,
+            {
+              minimumFractionDigits: 8
+            }
+          )} ₿`;
+          break;
+        default:
+          throw new Error(`Invalid subunit: ${subUnit}`);
+      }
+    }
+
+    if (typeof btcFiat === 'number') {
+      formattedValue +=
+        ' / ' +
+        formatFiat({ amount: (amount * btcFiat) / 1e8, locale, currency });
+    }
+
+    return formattedValue;
   },
-  t: TFunction
-) => formatBtcFactory(t)(btcArgs);
+  args => JSON.stringify(args)
+);
+
+/**
+ * This functions tries to express a bitcoin amount in a natural way. So even
+ * if the user prefers "sats", for large quantities this function will return
+ * Bitcoin amounts.
+   See: const THRESHOLD_FOR_BTC = ONE_BTC_IN_SATS * 0.1; // 0.1 BTC
+
+ * Also, this function will pad zeros at the end of the amount to meet the
+ * bitcion precision: 0.1 BTC -> 0.10000000 ₿
+ */
+export const formatBtc = (btcArgs: {
+  amount: number;
+  subUnit: SubUnit;
+  btcFiat?: number | undefined;
+  locale: Locale;
+  currency: Currency;
+}) => formatBtcFactory(btcArgs);
 
 const FIAT_DECIMALS = 2;
 export const fromSats = (
   amount: number,
   mode: 'Fiat' | SubUnit,
-  btcFiat: number | null | undefined
+  btcFiat: number | undefined
 ) => {
   if (mode === 'sat') return amount;
   else if (mode === 'Fiat') {
@@ -173,7 +137,7 @@ export const fromSats = (
 export const toSats = (
   value: number,
   mode: 'Fiat' | SubUnit,
-  btcFiat: number | null | undefined,
+  btcFiat: number | undefined,
   /** pass known values, when available so that precission
    * is not loosed*/
   knownSatsValueMap?: {

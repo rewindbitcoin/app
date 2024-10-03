@@ -1,10 +1,50 @@
 import { useEffect, useCallback } from 'react';
 import { useSettings } from './useSettings';
 import { useTranslation } from 'react-i18next';
-import { fetchBtcFiat } from '../lib/btcRates';
 import { useNetStatus } from './useNetStatus';
 import { useStorage } from '../../common/hooks/useStorage';
 import { NUMBER } from '../../common/lib/storage';
+import { type Currency, defaultSettings } from '../lib/settings';
+
+const RETRIES = 5;
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+async function fetchBtcFiat(
+  currency: Currency,
+  api: 'COINGECKO' | 'REWINDBITCOIN' = 'REWINDBITCOIN'
+): Promise<number> {
+  if (api === 'COINGECKO') {
+    const url = `https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=${currency.toLowerCase()}`;
+
+    let response;
+    for (let retries = 0; retries < RETRIES; retries++) {
+      response = await fetch(url);
+      if (response.ok) {
+        const data = await response.json();
+        return data.bitcoin[currency.toLowerCase()];
+      }
+      await sleep(100);
+    }
+    if (response?.status !== undefined)
+      throw new Error(`CoinGecko Status: ${response.status}`);
+    else throw new Error(`Uknown Error from CoinGecko `);
+  } else if (api === 'REWINDBITCOIN') {
+    const apiUrl = `${defaultSettings.BTC_RATES_API}/get?currency=${currency.toLowerCase()}`;
+
+    let response;
+    for (let retries = 0; retries < RETRIES; retries++) {
+      response = await fetch(apiUrl);
+      if (response.ok) {
+        const data = await response.json();
+        return data.rate;
+      }
+      await sleep(100);
+    }
+    if (response?.status !== undefined)
+      throw new Error(`RewindBitcoin BtcRates Status: ${response.status}`);
+    else throw new Error(`Uknown BtcRates Error from RewindBitcoin`);
+  } else throw new Error(`Invalid API`);
+}
 
 export const useBtcFiat = () => {
   const { t } = useTranslation();

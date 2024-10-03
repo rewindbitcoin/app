@@ -5,12 +5,13 @@ import { findLowestTrueBinarySearch } from '../../common/lib/binarySearch';
 import { useTranslation } from 'react-i18next';
 import { View, Text } from 'react-native';
 import FeeInput from './FeeInput';
-import { pickFeeEstimate } from '../lib/fees';
+import { FeeEstimates, pickFeeEstimate } from '../lib/fees';
 import { formatBlocks } from '../lib/format';
 import { useSettings } from '../hooks/useSettings';
 import type { TxHex, TxId, Vault } from '../lib/vaults';
 import { transactionFromHex } from '../lib/bitcoin';
 import { useWallet } from '../hooks/useWallet';
+import useFirstDefinedValue from '~/common/hooks/useFirstDefinedValue';
 
 export type InitUnfreezeData = {
   txHex: TxHex;
@@ -65,7 +66,12 @@ const InitUnfreeze = ({
   }, [vault]);
 
   const { t } = useTranslation();
-  const { feeEstimates } = useWallet();
+  const { feeEstimates: feeEstimatesRealTime, btcFiat: btcFiatRealTime } =
+    useWallet();
+
+  //Cache to avoid flickering in the Sliders
+  const btcFiat = useFirstDefinedValue<number>(btcFiatRealTime);
+  const feeEstimates = useFirstDefinedValue<FeeEstimates>(feeEstimatesRealTime);
   const { settings } = useSettings();
   if (!settings)
     throw new Error(
@@ -82,7 +88,7 @@ const InitUnfreeze = ({
 
   const txData =
     feeRate && findNextEqualOrLargerFeeRate(triggerSortedTxs, feeRate);
-  const txSize = feeRate === null ? null : txData && txData.vSize;
+  const fee = feeRate === null ? null : txData && txData.fee;
 
   useEffect(() => {
     if (!isVisible) {
@@ -99,10 +105,9 @@ const InitUnfreeze = ({
   }, [initialFeeRate]);
 
   const handleInitUnfreeze = useCallback(() => {
-    if (!txData || !txSize)
-      throw new Error('Cannot unfreeze non-existing selected tx');
+    if (!txData) throw new Error('Cannot unfreeze non-existing selected tx');
     onInitUnfreeze(txData);
-  }, [onInitUnfreeze, txData, txSize]);
+  }, [onInitUnfreeze, txData]);
 
   const timeLockTime = formatBlocks(lockBlocks, t, true);
 
@@ -129,7 +134,7 @@ const InitUnfreeze = ({
           ) : step === 'fee' ? (
             <View className="items-center gap-6 flex-row justify-center pb-4">
               <Button onPress={onClose}>{t('cancelButton')}</Button>
-              <Button onPress={handleInitUnfreeze} disabled={!txSize}>
+              <Button onPress={handleInitUnfreeze} disabled={!txData}>
                 {t('wallet.vault.triggerUnfreezeButton')}
               </Button>
             </View>
@@ -148,12 +153,20 @@ const InitUnfreeze = ({
               {t('wallet.vault.triggerUnfreeze.feeSelectorExplanation')}
             </Text>
             <View className="bg-slate-100 p-2 rounded-xl">
-              <FeeInput
-                initialValue={initialFeeRate}
-                txSize={txSize}
-                label={t('wallet.vault.triggerUnfreeze.confirmationSpeedLabel')}
-                onValueChange={setFeeRate}
-              />
+              {feeEstimates ? (
+                <FeeInput
+                  btcFiat={btcFiat}
+                  feeEstimates={feeEstimates}
+                  initialValue={initialFeeRate}
+                  fee={fee}
+                  label={t(
+                    'wallet.vault.triggerUnfreeze.confirmationSpeedLabel'
+                  )}
+                  onValueChange={setFeeRate}
+                />
+              ) : (
+                <ActivityIndicator />
+              )}
             </View>
             <Text className="text-slate-600 pt-4 px-2">
               {t('wallet.vault.triggerUnfreeze.additionalExplanation', {

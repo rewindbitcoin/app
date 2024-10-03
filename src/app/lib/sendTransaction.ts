@@ -33,11 +33,13 @@ export const estimateSendRange = moize.shallow(
     feeRate: number | null;
   }) => {
     const output = address ? computeOutput(address, network) : DUMMY_PKH_OUTPUT;
-    let max = 0;
+    let max: number | null = null;
 
-    if (feeRate) {
+    const utxos = getOutputsWithValue(utxosData);
+
+    if (feeRate !== null && feeRate > 0 && utxos.length) {
       const coinselected = maxFunds({
-        utxos: getOutputsWithValue(utxosData),
+        utxos,
         targets: [],
         remainder: output,
         feeRate
@@ -45,11 +47,27 @@ export const estimateSendRange = moize.shallow(
       if (coinselected)
         max = coinselected.targets.reduce((a, { value }) => a + value, 0);
     }
-    return { min: dustThreshold(output) + 1, max };
+
+    let maxWhen1SxB = null;
+    if (utxos.length) {
+      const coinselected1SxB = maxFunds({
+        utxos,
+        targets: [],
+        remainder: output,
+        feeRate: 1
+      });
+      if (coinselected1SxB)
+        maxWhen1SxB = coinselected1SxB.targets.reduce(
+          (a, { value }) => a + value,
+          0
+        );
+    }
+
+    return { min: dustThreshold(output) + 1, max, maxWhen1SxB };
   }
 );
 
-export const sendCoinselect = moize.shallow(
+const sendCoinselect = moize.shallow(
   ({
     utxosData,
     address,
@@ -65,10 +83,11 @@ export const sendCoinselect = moize.shallow(
     network: Network;
     changeOutput: OutputInstance;
   }) => {
-    if (!feeRate || !amount || !address) return null;
+    const utxos = getOutputsWithValue(utxosData);
+    if (!feeRate || !amount || !address || !utxos.length) return null;
     const output = address ? computeOutput(address, network) : DUMMY_PKH_OUTPUT;
     const coinselected = coinselect({
-      utxos: getOutputsWithValue(utxosData),
+      utxos,
       targets: [{ output, value: amount }],
       remainder: changeOutput,
       feeRate
@@ -77,7 +96,7 @@ export const sendCoinselect = moize.shallow(
   }
 );
 
-export const estimateTxSize = ({
+export const estimateSendTxFee = ({
   utxosData,
   address,
   feeRate,
@@ -101,7 +120,7 @@ export const estimateTxSize = ({
     changeOutput
   });
   if (!coinselected) return null;
-  return coinselected.vsize;
+  return coinselected.fee;
 };
 
 const signPsbt = async (signer: Signer, network: Network, psbtVault: Psbt) => {
@@ -111,7 +130,7 @@ const signPsbt = async (signer: Signer, network: Network, psbtVault: Psbt) => {
   signers.signBIP32({ psbt: psbtVault, masterNode });
 };
 
-export const calculateTxHex = async ({
+export const calculateTx = async ({
   utxosData,
   address,
   feeRate,
@@ -138,10 +157,19 @@ export const calculateTxHex = async ({
   });
   if (!coinselected) return null;
   const targets = coinselected.targets;
+  const utxos = getOutputsWithValue(utxosData);
+  const sendUtxosData =
+    coinselected.utxos.length === utxosData.length
+      ? utxosData
+      : coinselected.utxos.map(utxo => {
+          const utxoData = utxosData[utxos.indexOf(utxo)];
+          if (!utxoData) throw new Error('Invalid utxoData');
+          return utxoData;
+        });
 
   const psbt = new Psbt({ network });
   const finalizers = [];
-  for (const utxoData of utxosData) {
+  for (const utxoData of sendUtxosData) {
     const { output, vout, txHex } = utxoData;
     // Add the utxo as input of psbtVault:
     const inputFinalizer = output.updatePsbtAsInput({
@@ -162,5 +190,12 @@ export const calculateTxHex = async ({
   //Finalize
   finalizers.forEach(finalizer => finalizer({ psbt }));
   const tx = psbt.extractTransaction(true);
-  return tx.toHex();
+  if (psbt.getFee() !== coinselected.fee)
+    throw new Error(
+      'Final fee in the psbt differs from the one after coinselect'
+    );
+  return {
+    txHex: tx.toHex(),
+    fee: coinselected.fee
+  };
 };

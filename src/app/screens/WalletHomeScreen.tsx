@@ -34,7 +34,8 @@ import { AntDesign, Ionicons } from '@expo/vector-icons';
 import {
   useNavigation,
   type RouteProp,
-  useRoute
+  useRoute,
+  useIsFocused
 } from '@react-navigation/native';
 import { getPasswordDerivedCipherKey } from '../../common/lib/cipher';
 
@@ -215,6 +216,7 @@ const WalletHomeScreen = () => {
   useEffect(() => {
     setIsMounted(true);
   }, []);
+  const isFocused = useIsFocused();
 
   const refreshColors = useMemo(
     () => [theme.colors.primary],
@@ -226,30 +228,31 @@ const WalletHomeScreen = () => {
     []
   );
 
-  const refreshControl = useMemo(
-    () =>
-      //isMounted prevents a renredering error in iOS where some times
-      //the layout was not ready and strange flickers may occur. Note that
-      //the syncingBlockchain is true initially on many ocassions and the
-      //transition was not being shown
-      isMounted ? (
-        <RefreshControl
-          tintColor={lighten(0.25, theme.colors.primary)}
-          colors={refreshColors}
-          refreshing={syncingOrFaucetPending}
-          onRefresh={syncBlockchain}
-        />
-      ) : (
-        <></>
-      ),
-    [
-      isMounted,
-      refreshColors,
-      syncBlockchain,
-      syncingOrFaucetPending,
-      theme.colors.primary
-    ]
-  );
+  const refreshControl = useMemo(() => {
+    //isMounted prevents a renredering error in iOS where some times
+    //the layout was not ready and strange flickers may occur. Note that
+    //the syncingBlockchain is true initially on many ocassions and the
+    //transition was not being shown
+    //
+    //In addition: isFocused prevents this error on iOS
+    //https://github.com/facebook/react-native/issues/32613
+    //https://www.reddit.com/r/reactnative/comments/x7ygwg/flatlist_refresh_indicator_freeze/
+    return hasTouch && isMounted ? (
+      <RefreshControl
+        tintColor={lighten(0.25, theme.colors.primary)}
+        colors={refreshColors}
+        refreshing={syncingOrFaucetPending && isFocused}
+        onRefresh={syncBlockchain}
+      />
+    ) : undefined;
+  }, [
+    isFocused,
+    isMounted,
+    refreshColors,
+    syncBlockchain,
+    syncingOrFaucetPending,
+    theme.colors.primary
+  ]);
   const stickyHeaderIndices = useMemo(() => [1], []);
 
   const lastScrollPosition = useRef<number>(0);
@@ -323,7 +326,7 @@ const WalletHomeScreen = () => {
       <KeyboardAwareScrollView
         ref={scrollViewRef}
         keyboardShouldPersistTaps="handled"
-        refreshControl={hasTouch ? refreshControl : undefined}
+        {...(refreshControl ? { refreshControl } : {})}
         stickyHeaderIndices={stickyHeaderIndices}
         onScroll={handleScroll}
         scrollEventThrottle={16}

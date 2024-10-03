@@ -305,7 +305,9 @@ function AddressInput({
         ) : (
           <View className="gap-4 px-2 items-center">
             <Text>{t('addressInput.scanQRCall2Action')}</Text>
-            <View className="h-40 w-72 self-center">
+            <View
+              className="h-40 w-72 self-center android:my-8" /*The extra margin on bottom on android is to avoid this problem: https://github.com/expo/expo/issues/30684#issuecomment-2379539652 (fails on Samsung)- the extra on top my-8 is so that this looks symetrical*/
+            >
               <CameraView style={{ flex: 1 }} {...cameraViewProps} />
             </View>
           </View>

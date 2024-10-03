@@ -5,11 +5,12 @@ import { findLowestTrueBinarySearch } from '../../common/lib/binarySearch';
 import { useTranslation } from 'react-i18next';
 import { View, Text } from 'react-native';
 import FeeInput from './FeeInput';
-import { pickFeeEstimate } from '../lib/fees';
+import { FeeEstimates, pickFeeEstimate } from '../lib/fees';
 import { useSettings } from '../hooks/useSettings';
 import type { TxHex, TxId, Vault, VaultStatus } from '../lib/vaults';
 import { transactionFromHex } from '../lib/bitcoin';
 import { useWallet } from '../hooks/useWallet';
+import useFirstDefinedValue from '~/common/hooks/useFirstDefinedValue';
 
 export type RescueData = {
   txHex: TxHex;
@@ -70,7 +71,12 @@ const Rescue = ({
   }, [vault, vaultStatus?.triggerTxHex, isVisible]);
 
   const { t } = useTranslation();
-  const { feeEstimates } = useWallet();
+  const { feeEstimates: feeEstimatesRealTime, btcFiat: btcFiatRealTime } =
+    useWallet();
+
+  //Cache to avoid flickering in the Sliders
+  const btcFiat = useFirstDefinedValue<number>(btcFiatRealTime);
+  const feeEstimates = useFirstDefinedValue<FeeEstimates>(feeEstimatesRealTime);
   const { settings } = useSettings();
   if (!settings)
     throw new Error(
@@ -87,7 +93,7 @@ const Rescue = ({
 
   const txData =
     feeRate && findNextEqualOrLargerFeeRate(rescueSortedTxs, feeRate);
-  const txSize = feeRate === null ? null : txData && txData.vSize;
+  const fee = feeRate === null ? null : txData && txData.fee;
 
   useEffect(() => {
     if (!isVisible) {
@@ -104,10 +110,9 @@ const Rescue = ({
   }, [initialFeeRate]);
 
   const handleRescue = useCallback(() => {
-    if (!txData || !txSize)
-      throw new Error('Cannot rescue non-existing selected tx');
+    if (!txData) throw new Error('Cannot rescue non-existing selected tx');
     onRescue(txData);
-  }, [onRescue, txData, txSize]);
+  }, [onRescue, txData]);
 
   return (
     isVisible &&
@@ -135,7 +140,7 @@ const Rescue = ({
               <Button
                 mode="primary-alert"
                 onPress={handleRescue}
-                disabled={!txSize}
+                disabled={!txData}
               >
                 {t('wallet.vault.rescueButton')}
               </Button>
@@ -157,12 +162,18 @@ const Rescue = ({
               {t('wallet.vault.rescue.feeSelectorExplanation')}
             </Text>
             <View className="bg-slate-100 p-2 rounded-xl">
-              <FeeInput
-                initialValue={initialFeeRate}
-                txSize={txSize}
-                label={t('wallet.vault.rescue.confirmationSpeedLabel')}
-                onValueChange={setFeeRate}
-              />
+              {feeEstimates ? (
+                <FeeInput
+                  btcFiat={btcFiat}
+                  feeEstimates={feeEstimates}
+                  initialValue={initialFeeRate}
+                  fee={fee}
+                  label={t('wallet.vault.rescue.confirmationSpeedLabel')}
+                  onValueChange={setFeeRate}
+                />
+              ) : (
+                <ActivityIndicator />
+              )}
             </View>
             <Text className="text-slate-600 pt-4 px-2">
               {t('wallet.vault.rescue.additionalExplanation', {

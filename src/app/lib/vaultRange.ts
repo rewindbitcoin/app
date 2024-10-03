@@ -63,7 +63,8 @@ const estimateMaxVaultAmount = moize.shallow(
         transactionAmount: number;
       }
     | undefined => {
-    if (utxosData.length === 0) return;
+    const utxos = getOutputsWithValue(utxosData);
+    if (utxos.length === 0) return;
     let coinselected:
       | {
           fee: number;
@@ -74,14 +75,14 @@ const estimateMaxVaultAmount = moize.shallow(
       | undefined;
     if (serviceFeeRate > 0) {
       coinselected = maxFunds({
-        utxos: getOutputsWithValue(utxosData),
+        utxos,
         targets: [
           { output: serviceOutput, value: dustThreshold(vaultOutput) + 1 }
         ],
         remainder: vaultOutput,
         feeRate
       });
-      console.log('TRACE maxFunds', JSON.stringify(coinselected, null, 2));
+      //console.log('TRACE maxFunds', JSON.stringify(coinselected, null, 2));
       if (!coinselected) return;
       // It looks like it was possible to add a service output. We
       // can now know the total amount and we can compute the correct
@@ -98,7 +99,7 @@ const estimateMaxVaultAmount = moize.shallow(
         serviceOutput,
         serviceFeeRate
       });
-      console.log('TRACE maxFunds split', JSON.stringify(split, null, 2));
+      //console.log('TRACE maxFunds split', JSON.stringify(split, null, 2));
       if (!split) return;
 
       //All code below are just assertions:
@@ -106,7 +107,7 @@ const estimateMaxVaultAmount = moize.shallow(
       //Note that output weights are kept the same and, thus, coinselection should
       //still be the same
       coinselected = maxFunds({
-        utxos: getOutputsWithValue(utxosData),
+        utxos,
         targets: [{ output: serviceOutput, value: split.serviceFee }],
         remainder: vaultOutput,
         feeRate
@@ -135,7 +136,7 @@ const estimateMaxVaultAmount = moize.shallow(
     } else {
       //When not having serviceFee it's simpler:
       coinselected = maxFunds({
-        utxos: getOutputsWithValue(utxosData),
+        utxos,
         targets: [],
         remainder: vaultOutput,
         feeRate
@@ -224,7 +225,6 @@ const estimateMinRecoverableVaultAmount = moize.shallow(
       });
       if (!split) return false;
       const { serviceFee, vaultedAmount } = split;
-      if (utxosData.length === 0) return false;
       const selected = selectVaultUtxosData({
         utxosData,
         vaultedAmount,
@@ -236,7 +236,7 @@ const estimateMinRecoverableVaultAmount = moize.shallow(
       });
       if (!selected) return false;
       const totalFees =
-        //selected.fee +
+        //selected.fee + (vaultedAmount is resulting amount after inital tx, so selected.fee has already been substracted from vaultedAmount)
         Math.ceil(feeRateCeiling * estimateTriggerTxSize(lockBlocks)) +
         Math.ceil(
           feeRateCeiling * estimatePanicTxSize(lockBlocks, coldAddress, network)

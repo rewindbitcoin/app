@@ -273,6 +273,8 @@ const Modal: React.FC<ModalProps> = ({
                * are increasing the threshold for the PanGestureHandler to start recognizing
                * the gesture as a pan.
                *
+               * Applying both solutions is even smoother (on android)
+               *
                */
               20
             }

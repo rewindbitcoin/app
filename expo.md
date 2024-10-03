@@ -1,5 +1,9 @@
 ## Motivation
 
+This is the distribution certificate for RewindBitcoin:
+427C9665FA69A6BD7C1B7E9CCF9C4D7
+(It's different than the one for La Bolsa Virtual: 5CB88186EE187942EEA701FA98104BEF)
+
 I needed to add a plugin for Android in app.json
 Motives:
 This is a fix for Android (AsyncStorage has a limitation of 2MB per row)
@@ -163,6 +167,30 @@ So I run:
 ```bash
 npx expo prebuild
 ````
+
+## TestFlight
+
+```bash
+eas build --profile production --platform ios --clear-cache --local
+eas submit --platform ios --profile production
+#then select the ipa file created on first command
+```
+
+having this in eas.json:
+
+```json
+  build:{
+    "production": {
+      "distribution": "store",
+      "ios": {
+        "buildConfiguration": "Release"
+      }
+    }
+  },
+  "submit": {
+    "production": {}
+  }
+```
 
 ## mmkv
 

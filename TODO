@@ -1,27 +1,30 @@
-FIXED?!?!
-      TODO: Me ha cascado el ultimo try-catch pero antes de crear siquiera la wallet,
-      en el VaultSetUp ya casca!!!
-      -> Me refiero a 
-            `maxVaultAmountWhenMaxFee (${maxVaultAmountWhenMaxFee.vaultedAmount}) should never be larger than maxVaultAmount (${maxVaultAmount.vaultedAmount}), feeRate=${feeRate}, maxFeeRate: ${maxFeeRate}`
-            Pero es que feeRafe=3.64 y maxFeeRate es 3.13!!!! como es posible q max suoerior a feeRate???
+TODO: web forma para contactar
+
+TODO: what happens if someone enters a taproot address? this crashes? what?
+better reject it!
+
+TODO: si quito la wifi y le doy repetifads veces a Check again me va añadiendo
+mensajes de error en lugar de replace
 
 TODO: Unable to retrieve up to date fee rates y luego me sale iummediatamente connectivity restored pero el toast.hide no se hizo
   -> Creo que el toast.hide es lento, es por eso? Hacer sino toast.update pero ese
   funcina bien y el tiempo se resetea?
     -> Hacer lo mismo luego en todo el codigo; buscar los toast.hide y aplicar
-
+  -> De hecho solo mostar errores cuando toca. Para que molestar al user?
+  -> Cuando he hecho logout sigue mostrando fallos de NetStatusContext
 
 TODO: Me salen errores de network en WalletsScreen. Pero no se ha hecho el logout?
   -> Cerrar todo tipo de cosa si logout hecho
 
 
-
-TODO: test android
+TODO: comprpbar estos arregos en android real:
   -> El hitSlop a mejorar mucho con los sliders yo no soy capaz
     -> Ademas si tengo el texto seleccionado (al menos en android) no puedo usar el slider
     -> En android esto se puede apañar con esto:
     https://github.com/callstack/react-native-slider/issues/227
     basicamente poinendo este style: transform: [{ scaleX: 2 }, { scaleY: 2 }]
+      -> Esto funciona bastante bien excepto que no pilla por arriba/abajo; pero 
+      pilla bien derecha izquieda...
     pero me desmonta el resto, claro...
       -> otra es ver lo de hitSlop...
       -> Give thumbImage a try for android...
@@ -39,9 +42,9 @@ TODO: hacer web - tape + rescue
   -> cambiar fondo de pantalla para q sea Commun
     -> pero un blau que li queda millor de contrast si et cal) (no estic 100% convençut es): 00539fff
 
-
 TODO: Wallets:
   TODO: set the initial accept terms
+
 
 TODO: weird, regtest block 150 halving is produced in regtest!!! FUCK!!
   -> I need to create a fork of @bitcoinerlab/tester -> @rewindbitcoin/tape-services - DONE
@@ -104,8 +107,6 @@ siempre que son relativos.
 
 TODO: i cannot dismiss toasts in iOS in the Creating Vault window... (the native modal)
   -> Add a close button - also polish styles in toats...
-
-TODO: En el Creating New Wallet se permite hacer cancel!!! no deberia ser posible!!
 
 TODO: en Confirmation poner un resumen.
 
@@ -450,3 +451,25 @@ TODO: extremelly important, before sharing this module make sure
   See: https://www.reddit.com/r/Bitcoin/comments/37oxow/the_security_issue_of_blockchaininfos_android/
 TODO: All Screens should use <ScrollView> with same options. Also default headers amke use of useAreaInsets fine, however, in those screens without defauklt header or bottom tabs that support insets, we must set them!
   -> https://reactnavigation.org/docs/handling-safe-area/
+
+
+
+
+  -----
+
+FIXED?!?!
+      TODO: Me ha cascado el ultimo try-catch pero antes de crear siquiera la wallet,
+      en el VaultSetUp ya casca!!!
+      -> Me refiero a 
+            `maxVaultAmountWhenMaxFee (${maxVaultAmountWhenMaxFee.vaultedAmount}) should never be larger than maxVaultAmount (${maxVaultAmount.vaultedAmount}), feeRate=${feeRate}, maxFeeRate: ${maxFeeRate}`
+            Pero es que feeRafe=3.64 y maxFeeRate es 3.13!!!! como es posible q max suoerior a feeRate???
+  TODO: iOS a veces el refresh se queda atontao
+    -> Esto pasa si esta haciendo refresh, entonces me voy a una nueva screen y vuelvo
+     y sigue haciendo refresh. Puede pasar cuando la red esta lenta. Entonces debería
+     desmontar y remontar el compo? Se puede probar desconectando la wifi y dando a refresh.
+     Puede pasar tambien supongo si se inicia un refresh automatico de eso de cada minuto
+     entonces al vovler anda haciendo el regresh...
+    -> https://www.reddit.com/r/reactnative/comments/x7ygwg/flatlist_refresh_indicator_freeze/
+    -> Possible work around re-render? turn it off after a few milliseconds after refresh if its
+    not refreshing and mount it back again?
+

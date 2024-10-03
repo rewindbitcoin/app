@@ -1,4 +1,7 @@
 //This component must work both for SendBitcoin and SetUpVault
+//When the mode, min or max is changed, then the CardEditableSlider is renewed.
+//That means the parent component must reset the last value set by onValueChange
+//to initialValue
 import React, { useState, useCallback, useRef, useMemo } from 'react';
 import { CardEditableSlider } from '../../common/ui';
 import { useTranslation } from 'react-i18next';
@@ -11,7 +14,6 @@ import {
 } from '../lib/btcRates';
 import UnitsModal from './UnitsModal';
 import { useSettings } from '../hooks/useSettings';
-import { useWallet } from '../hooks/useWallet';
 
 function AmountInput({
   initialValue,
@@ -19,7 +21,8 @@ function AmountInput({
   max,
   isMaxAmount,
   label,
-  onUserSelectedAmountChange
+  btcFiat,
+  onValueChange
 }: {
   initialValue: number;
   min: number;
@@ -27,11 +30,11 @@ function AmountInput({
   /** flag indicating wheter to initialize CardEditableSlider with the last
    * valid value or with max*/
   isMaxAmount: boolean;
+  btcFiat: number | undefined;
   label: string;
-  onUserSelectedAmountChange: (value: number | null) => void;
+  onValueChange: (value: number | null, type: 'USER' | 'RESET') => void;
 }) {
   const { t } = useTranslation();
-  const { btcFiat } = useWallet();
   const { settings, setSettings } = useSettings();
   if (!settings)
     throw new Error(
@@ -73,19 +76,15 @@ function AmountInput({
 
   const formatValue = useCallback(
     (modeValue: number) => {
-      return formatBtc(
-        {
-          amount: toSats(modeValue, mode, btcFiat, knownSatsValueMap),
-          subUnit: settings.SUB_UNIT,
-          btcFiat,
-          locale: settings.LOCALE,
-          currency: settings.CURRENCY
-        },
-        t
-      );
+      return formatBtc({
+        amount: toSats(modeValue, mode, btcFiat, knownSatsValueMap),
+        subUnit: settings.SUB_UNIT,
+        btcFiat,
+        locale: settings.LOCALE,
+        currency: settings.CURRENCY
+      });
     },
     [
-      t,
       knownSatsValueMap,
       mode,
       btcFiat,
@@ -96,14 +95,14 @@ function AmountInput({
   );
 
   const onModeValueChange = useCallback(
-    (newModeValue: number | null) => {
+    (newModeValue: number | null, type: 'USER' | 'RESET') => {
       let newValue: number | null;
       if (newModeValue === null) newValue = null;
       else newValue = toSats(newModeValue, mode, btcFiat, knownSatsValueMap);
       if (newValue !== null) nextInitialValueRef.current = newValue;
-      onUserSelectedAmountChange(newValue);
+      onValueChange(newValue, type);
     },
-    [knownSatsValueMap, mode, btcFiat, onUserSelectedAmountChange]
+    [knownSatsValueMap, mode, btcFiat, onValueChange]
   );
 
   return (
