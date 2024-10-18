@@ -12,7 +12,9 @@
       "resizeMode": "contain",
       "backgroundColor": "#FFFFFF"
     },
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "config": {
         "usesNonExemptEncryption": false
@@ -52,11 +54,20 @@
       "es": "./src/i18n-locales/app.es.json"
     },
     "plugins": [
-      ["react-native-libsodium", {}],
+      [
+        "react-native-libsodium",
+        {}
+      ],
       "expo-font",
       "expo-local-authentication",
       "expo-secure-store",
-      ["expo-camera", { "recordAudioAndroid": false }]
+      [
+        "expo-camera",
+        {
+          "recordAudioAndroid": false
+        }
+      ],
+      "expo-localization"
     ]
   }
 }

@@ -93,12 +93,20 @@ const checkNetworkReachability = async (url: string) => {
 
   while (attempts > 0) {
     try {
+      console.log('TRACE checkNetworkReachability (204) isConnected', { url });
       const response = await fetch(url);
+      console.log('TRACE checkNetworkReachability (204) isConnected DONE', {
+        url,
+        status: response.status
+      });
       if (response.status === 204) return true;
       await sleep(200);
       attempts--;
     } catch (error) {
-      if (attempts <= 1) return false;
+      if (attempts <= 1) {
+        console.warn(error);
+        return false;
+      }
       await sleep(200);
       attempts--;
     }

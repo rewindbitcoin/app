@@ -5,15 +5,20 @@ import type { Vaults, VaultsStatuses } from './vaults';
 import type { Accounts, Signers, Wallet } from './wallets';
 
 type StorageAccessStatus = {
+  /**
+   * The user added / removed a face / fingerprint. This invalidates the key.
+   * See: https://docs.expo.dev/versions/latest/sdk/securestore/#securestoregetitemasynckey-options
+   */
+  biometricsKeyInvalidated: boolean;
   /** When the user clicks on "Cancel" during authentication in wallet creation
    * or opening wallet */
   biometricAuthCancelled: boolean;
-  /** this is the case of old Samsung Devices which do not let storing
-   * data even if the system reports that they suppor it. We only find our
+  /** Note some old Samsung Devices can give this error when storing
+   * data even if the system reports that they support it. We only find our
    * runtime
    * https://stackoverflow.com/questions/36043912/error-after-fingerprint-touched-on-samsung-phones-android-security-keystoreexce
    */
-  biometricsUncapable: boolean;
+  biometricsReadWriteError: boolean;
   /** some read write delete operation failed (or any other uknown error that
    * may arise in storage - see function isStorageError )*/
   readWriteError: boolean;
@@ -46,7 +51,8 @@ export type WalletStatus = {
  * displayed to the user
  */
 export const getStorageAccessStatus = ({
-  isNewWallet,
+  signers,
+  isSignersSynchd,
   settingsErrorCode,
   signersErrorCode,
   walletsErrorCode,
@@ -55,7 +61,8 @@ export const getStorageAccessStatus = ({
   vaultsStatusesErrorCode,
   accountsErrorCode
 }: {
-  isNewWallet: boolean;
+  signers: Signers | undefined;
+  isSignersSynchd: boolean;
   settingsErrorCode: StorageErrorCode;
   signersErrorCode: StorageErrorCode;
   walletsErrorCode: StorageErrorCode;
@@ -64,8 +71,9 @@ export const getStorageAccessStatus = ({
   vaultsStatusesErrorCode: StorageErrorCode;
   accountsErrorCode: StorageErrorCode;
 }): StorageAccessStatus => {
+  let biometricsKeyInvalidated = false;
   let biometricAuthCancelled = false;
-  let biometricsUncapable = false;
+  let biometricsReadWriteError = false;
   let readWriteError = false;
   //Don't pass it further down as a Wallet Error. This is probably a user
   //typing in the wrong password. We overwrite it as a non-error internally in
@@ -76,32 +84,43 @@ export const getStorageAccessStatus = ({
   //means that the device is an old Samsung device probably that reported that
   //has biometrics but then failed. See note above in 'BIOMETRICS_UNCAPABLE'
   if (
-    isNewWallet &&
-    (signersErrorCode === 'BiometricsWriteError' ||
-      signersErrorCode === 'BiometricsReadError')
-  )
-    biometricsUncapable = true;
-  if (
     signersErrorCode === 'BiometricsReadUserCancel' ||
     signersErrorCode === 'BiometricsWriteUserCancel'
   ) {
     biometricAuthCancelled = true;
   }
+  //signers will be set to undefined if a new face or fingerprint is added/removed
+  //from the system. See https://docs.expo.dev/versions/latest/sdk/securestore/#securestoregetitemasynckey-options
+  //Note that we convert null->undefined internally in storage.ts
+  if (
+    signers === undefined &&
+    isSignersSynchd &&
+    biometricAuthCancelled === false
+  )
+    biometricsKeyInvalidated = true;
   if (
     settingsErrorCode ||
     walletsErrorCode ||
     discoveryExportErrorCode ||
-    (!biometricsUncapable && !biometricAuthCancelled && signersErrorCode) ||
+    (!biometricAuthCancelled && signersErrorCode) ||
     vaultsErrorCode ||
     vaultsStatusesErrorCode ||
     accountsErrorCode
   ) {
     readWriteError = true;
   }
+  if (
+    signersErrorCode === 'BiometricsWriteError' ||
+    signersErrorCode === 'BiometricsReadError'
+  )
+    biometricsReadWriteError = true;
   return {
+    //The user added / removed a face / fingerprint
+    biometricsKeyInvalidated,
+    //The user clicked on Cancel on the OS modal.
     biometricAuthCancelled,
-    biometricsUncapable,
-    readWriteError
+    biometricsReadWriteError,
+    readWriteError //this includes biometricsReadWriteError
   };
 };
 

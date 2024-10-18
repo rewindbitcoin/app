@@ -9,7 +9,7 @@ interface ConfirmBip39Props {
   isVisible: boolean;
   network?: Network;
   words: Array<string>; // The correct mnemonic words to verify against
-  onConfirmed: () => Promise<void>; // Callback when the mnemonic is correctly verified
+  onConfirmedOrSkipped: () => Promise<void>; // Callback when the mnemonic is correctly verified
   onCancel: () => void; // Callback when the user cancels verification
   onModalHide?: () => void;
 }
@@ -18,7 +18,7 @@ const ConfirmBip39: React.FC<ConfirmBip39Props> = ({
   isVisible,
   network,
   words: correctWords,
-  onConfirmed,
+  onConfirmedOrSkipped,
   onCancel,
   onModalHide
 }) => {
@@ -41,19 +41,19 @@ const ConfirmBip39: React.FC<ConfirmBip39Props> = ({
   }, [isVisible, correctWords.length]);
 
   const handleConfirm = useCallback(() => setIsConfirming(true), []);
-  // Effect to execute `onConfirmed` after `isConfirming` is true
-  // This ensures `onConfirmed` is called on the next render cycle
+  // Effect to execute `onConfirmedOrSkipped` after `isConfirming` is true
+  // This ensures `onConfirmedOrSkipped` is called on the next render cycle
   // after the loading spinner on the Button is rendered
   useEffect(() => {
-    // Use setTimeout to defer the `onConfirmed` call to the next event loop cycle
+    // Use setTimeout to defer the `onConfirmedOrSkipped` call to the next event loop cycle
     // Otherwise the spinner is shown but does not move... (it's stuck)
-    if (isConfirming) setTimeout(onConfirmed, 0);
-  }, [isConfirming, onConfirmed]);
+    if (isConfirming) setTimeout(onConfirmedOrSkipped, 0);
+  }, [isConfirming, onConfirmedOrSkipped]);
   //Same considerations as handleConfirm
   const handleSkip = useCallback(() => setIsSkipping(true), []);
   useEffect(() => {
-    if (isSkipping) setTimeout(onConfirmed, 0);
-  }, [isSkipping, onConfirmed]);
+    if (isSkipping) setTimeout(onConfirmedOrSkipped, 0);
+  }, [isSkipping, onConfirmedOrSkipped]);
 
   const onWords = useCallback(
     (words: string[]) => {

@@ -1,8 +1,11 @@
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { defaultSettings } from '../lib/settings';
 import type { Wallet, Signer } from '../lib/wallets';
 import { View, Text, Pressable, Keyboard, Platform } from 'react-native';
-import type { Engine as StorageEngine } from '../../common/lib/storage';
+import {
+  checkReadWriteBiometricsAccessAsync,
+  type Engine as StorageEngine
+} from '../../common/lib/storage';
 import {
   Button,
   ActivityIndicator,
@@ -41,7 +44,7 @@ export default function NewWalletScreen() {
     throw new Error(`Wallets should have been loaded`);
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
-  const secureStorageInfo = useSecureStorageInfo();
+  const { secureStorageInfo } = useSecureStorageInfo();
   if (!secureStorageInfo)
     throw new Error('Could not retrieve Secure Storage availability');
   const { canUseSecureStorage } = secureStorageInfo;
@@ -62,6 +65,22 @@ export default function NewWalletScreen() {
     encryption: 'SEED_DERIVED',
     networkId: 'TAPE'
   });
+  //If canUseSecureStorage is revoked:
+  useEffect(() => {
+    if (
+      canUseSecureStorage === false &&
+      advancedSettings.signersStorageEngine === 'SECURESTORE'
+    ) {
+      setAdvancedSettings({
+        ...advancedSettings,
+        signersStorageEngine: Platform.OS === 'web' ? 'IDB' : 'MMKV'
+      });
+    }
+  }, [canUseSecureStorage, advancedSettings]);
+
+  const [creatingWallet, setCreatingWallet] = useState<boolean>(false);
+  const [iOSBiometricsDeclined, setIOSBiometricsDeclined] =
+    useState<boolean>(false);
 
   const onAdvancedSettings = useCallback(
     (advancedSettings: AdvancedSettings) =>
@@ -83,8 +102,6 @@ export default function NewWalletScreen() {
     setWords(isImport ? generateMnemonic().split(' ') : Array(12).fill(''));
     setIsImport(!isImport);
   }, [isImport]);
-
-  const [creatingWallet, setCreatingWallet] = useState<boolean>(false);
   /**
    * import or create a new wallet
    */
@@ -96,11 +113,39 @@ export default function NewWalletScreen() {
       signersStorageEngine: StorageEngine,
       networkId: NetworkId
     ) => {
+      //In iOS the system lets the user encrypt and save data with biometrics
+      //without requesting user access to biometrics.
+      //iOS only requests bio access grants for reading. So it's better to ask
+      //the user grants before creating the wallet. Otherwise the user
+      //won't be able to access it if it does not grant biometrics acces when
+      //accessing the wallet later.
+      //In Android, the user is asked for biometrics access on write operations
+      //too. Then it is not necessary to re-request it here (this would require
+      //many fingerprint operations).
+      //TLDR: user declining biometrics are handled:
+      //  - Android: in WalletHomeScreen (See biometricsRequestNotAccepted)
+      //  - iOS: in NewWalletScreen (see below)
+      if (signersStorageEngine === 'SECURESTORE' && Platform.OS === 'ios') {
+        const readWriteAccess = await checkReadWriteBiometricsAccessAsync(
+          //This is the authenticatinPrompt. This in fact is only shown in fingerprint dialogs.
+          //In iOS (for FaceID) you end up seeing only NSFaceIDUsageDescription.
+          //
+          //So, try to have a good message for NSFaceIDUsageDescription that works for both creating/reading wallets
+          //On fingerprint-devices, users will see:
+          t('app.secureStorageCreationAuthenticationPrompt')
+        );
+        if (readWriteAccess === false) {
+          setIOSBiometricsDeclined(true);
+          return; //Eary stop here!
+        }
+      }
+
       setCreatingWallet(true);
       //This await Promise below is important so that the state is set above
       //immediatelly without waiting for all the awaits below. For some reason
       //this is needed
       await new Promise(resolve => setTimeout(resolve, 0));
+
       const wallet: Wallet = {
         creationEpoch: Math.floor(Date.now() / 1000),
         walletId,
@@ -134,7 +179,7 @@ export default function NewWalletScreen() {
       //navigation.navigate(WALLET_HOME, { walletId });
       navigation.replace('WALLET_HOME', { walletId });
     },
-    [navigation, onWallet, walletId]
+    [navigation, onWallet, walletId, t]
   );
 
   const hasAskedNonSecureSignersToSetPassword = useRef<boolean>(false);
@@ -176,7 +221,7 @@ export default function NewWalletScreen() {
   const onBip39ConfirmationModalHidden = useCallback(() => {
     setIsHiddenBip39ConfModal(true);
   }, []);
-  const onBip39Confirmed = useCallback(async () => {
+  const onBip39ConfirmedOrSkipped = useCallback(async () => {
     setIsConfirmBip39(false);
     if (
       !canUseSecureStorage &&
@@ -340,7 +385,7 @@ export default function NewWalletScreen() {
           isVisible={isConfirmBip39}
           network={networkMapping[advancedSettings.networkId]}
           words={words}
-          onConfirmed={onBip39Confirmed}
+          onConfirmedOrSkipped={onBip39ConfirmedOrSkipped}
           onCancel={onBip39Cancel}
           onModalHide={onBip39ConfirmationModalHidden}
         />
@@ -356,6 +401,25 @@ export default function NewWalletScreen() {
         closeButtonText={t('understoodButton')}
       >
         <Text className="text-base px-2">{t('help.network')}</Text>
+      </Modal>
+      <Modal
+        title={t('wallet.biometricsErrorTitle')}
+        icon={{ family: 'MaterialIcons', name: 'error' }}
+        isVisible={isHiddenBip39ConfModal && iOSBiometricsDeclined}
+        onClose={() => {
+          setIOSBiometricsDeclined(false);
+        }}
+        closeButtonText={t('understoodButton')}
+      >
+        <Text className="text-base px-2">
+          {t('wallet.new.biometricsRequestDeclined') +
+            '\n\n' +
+            (canUseSecureStorage
+              ? t('wallet.new.biometricsHowDisable')
+              : Platform.OS === 'ios'
+                ? t('wallet.new.biometricsCurrentlyDisabledIOS')
+                : t('wallet.new.biometricsCurrentlyDisabledNonIOS'))}
+        </Text>
       </Modal>
       <Password
         mode="OPTIONAL_SET"

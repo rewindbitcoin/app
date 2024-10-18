@@ -29,7 +29,9 @@ Technical error: {{message}}`,
     //blockchainDataError:
     //  'Unable to retrieve up-to-date blockchain data. Transaction times and fee amounts may be slightly off. Please check your internet connection. Retrying in 60 seconds and will notify you if the problem persists.',
     secureStorageAuthenticationPrompt:
-      "Please authenticate to access your wallet's sensitive data."
+      "Please authenticate to access your wallet's sensitive data.",
+    secureStorageCreationAuthenticationPrompt:
+      'Please authenticate to securely create a new wallet and encrypt your sensitive data.'
   },
   netStatus: {
     internetNotReachableWarning:
@@ -95,18 +97,53 @@ If you've forgotten the password for your wallet, you can create a new wallet us
     creatingWallet: `⚡ Building your Rewind Wallet...
 
 Zapping bytes and lining up the bits. Hang tight!`,
-    errors: {
-      biometricsUncapableTitle: 'Wallet Setup Issue',
-      biometricsUncapable: `The biometric implementation on your device has\
- issues, which are particularly common in Samsung models but can also occur in\
- other brands. To help us improve, please report your device model to Rewind\
- Support.
+    biometricsErrorTitle: 'Biometrics Error',
+    new: {
+      //Messages to show when accessing biometrics while setting up a new wallet
+      biometricsRequestDeclined: `We couldn’t set up biometric security (facial recognition or fingerprint authentication) for your wallet.
 
-Since biometrics cannot be used, the wallet creation process needs to be adjusted.\
- We recommend recreating your wallet using a password instead. To do this,\
- please disable biometrics and select a password under Advanced Options when\
- setting up your wallet.`,
-      storageTitle: 'Storage Access Error',
+This may be because you didn’t grant the necessary permissions, or your device doesn’t support biometrics.`,
+      biometricsCurrentlyDisabledNonIOS: `Since biometrics cannot be used on this device, new wallets will default to non-biometric security until you grant permissions.
+
+To re-enable biometrics, go to your device's Settings and ensure that biometric permissions are enabled.`,
+      biometricsCurrentlyDisabledIOS: `Since biometrics cannot be used on this device, new wallets will default to non-biometric security until you grant permissions.
+
+If you want to re-enable biometrics, go to Settings > RewindBitcoin and turn on Face ID or Touch ID (this may vary based on your OS version and device).`,
+      biometricsHowDisable: `Please try again and grant the necessary permissions.
+
+If you prefer not to use biometrics, you can disable this feature in the "Advanced Options" during the New Wallet setup process.`,
+      //Old Samsung devices, repeated failures in authentication when creating wallet:
+      biometricsReadWriteError: `The biometric implementation on your device has issues.
+
+This may be due to incompatibilities with your device, recent updates to your biometric settings (such as adding a new fingerprint or updating facial recognition), or repeated authentication failures.
+
+Since biometrics cannot be used, we recommend adjusting the wallet creation process. Please disable biometrics and select a password under 'Advanced Options' during the New Wallet setup.`
+    },
+    existing: {
+      //Messages to show when accessing biometrics while accessing an existin wallet
+      biometricsRequestDeclined:
+        'Access to your wallet was canceled. To continue, please allow biometric authentication when prompted.',
+      biometricsAccessFailureIOS: `We're having trouble accessing your wallet due to issues with biometric permissions.
+
+This might be because biometric permissions were disabled or revoked, or due to repeated authentication failures.
+
+Also, updating your device's biometric settings, such as adding a new fingerprint or updating facial recognition, can sometimes invalidate previous configurations.
+
+If you declined biometric access, you can enable it by going to your device's Settings > RewindBitcoin and turning on Face ID or Touch ID (this may vary based on your OS version and device).
+
+If the issue persists, you can recreate your wallet using your Recovery Phrase to regain access to your funds and vaults.`,
+      biometricsAccessFailureNonIOS: `We're having trouble accessing your wallet due to issues with biometric permissions.
+
+This might be because biometric permissions were disabled or revoked, or due to repeated authentication failures.
+
+Also, updating your device's biometric settings, such as adding a new fingerprint or updating facial recognition, can sometimes invalidate previous configurations.
+
+If you've recently changed any biometric settings, please try re-enabling biometrics in your device or restoring the app's permissions.
+
+If the issue persists, you can recreate your wallet using your Recovery Phrase to regain access to your funds and vaults.`
+    },
+    errors: {
+      storageTitle: 'Storage Error',
       storage: `There was an error reading from or writing to your device's\
  storage. This issue may be due to corrupt data, insufficient storage space,\
  or other storage-related problems. Please note that all your wallet data is\
@@ -116,17 +153,9 @@ To resolve this issue, please try accessing your wallet again. If the problem\
  persists, you can safely recreate your wallet using your mnemonic recovery\
  phrase. This will restore all your data securely from the backups.
 
-If you need further assistance, please contact Rewind Support.`,
-      signersStorageRetrieveError: `We're having trouble accessing your wallet.
-
-This issue might be related to changes in your device's biometric security features. For example, adding a new fingerprint or updating facial recognition settings can invalidate previous configurations.
-
-It could be related to other factors unrelated to biometrics too.
-
-In any case, you can recreate your wallet using your Recovery Phrase to regain access to your funds and vaults.
-
-For further assistance, contact RewindBitcoin support.`
+If you need further assistance, please contact Rewind Support.`
     },
+
     vault: {
       hideButton: 'Hide',
       rescueButton: 'Rescue',

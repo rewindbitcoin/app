@@ -20,7 +20,7 @@
  * Read more:
  * https://github.com/expo/expo/issues/22312
  *
- * getAsync returns undefined if the key is not found
+ * getAsync returns undefined if the key is not found (or has been invalidated).
  * setAsync cannot be used to set "undefined" or "null" values.
  *
  * Some other related error: https://github.com/expo/expo/issues/23426
@@ -28,7 +28,13 @@
 
 const SECURESTORE_ATTEMPTS = 2;
 
-const MATCH_USER_CANCEL = 'User cancel';
+//This is part of the string thrown in Expo Secure Store when the user
+//clicks on "Cancel" on the modal shown by the operating system. Note the
+//string returned is a bit different on iOS and Android. But both use "User cancel"
+//https://github.com/expo/expo/blob/95dec52592e24b45ed056cc4599640fb6bd97726/packages/expo-secure-store/android/src/main/java/expo/modules/securestore/AuthenticationPrompt.kt#L31
+//https://github.com/expo/expo/blob/95dec52592e24b45ed056cc4599640fb6bd97726/packages/expo-secure-store/ios/SecureStoreExceptions.swift#L39
+const BIOMETRICS_USER_CANCEL_THROW_PARTIAL_MATCH = 'User cancel';
+
 export type StorageErrorCode = keyof typeof StorageErrors | false;
 export const StorageErrors = {
   /** Thrown when reading from securestore using biometrics
@@ -178,10 +184,21 @@ export const getSecureStorageInfoAsync = async () => {
   const canUseSecureStorage =
     Platform.OS !== 'web' &&
     canUseBiometricAuthentication() &&
+    //Returns whether the SecureStore API is enabled on the current device. This does not check the app permissions. So if the API can be used basically.
     (await isAvailableAsync()) &&
+    //Determine whether a face or fingerprint scanner is available on the device.
     (await hasHardwareAsync()) &&
+    //Determine whether the device has saved fingerprints or facial data to use for authentication.
     (await isEnrolledAsync());
   const authenticationTypes = await supportedAuthenticationTypesAsync();
+  //console.log('TRACE', {
+  //  canUseSecureStorage,
+  //  authenticationTypes,
+  //  canUseBiometricAuthentication: canUseBiometricAuthentication(),
+  //  isAvailableAsync: await isAvailableAsync(),
+  //  hasHardwareAsync: await hasHardwareAsync(),
+  //  isEnrolledAsync: await isEnrolledAsync()
+  //});
   return { canUseSecureStorage, authenticationTypes };
 };
 
@@ -224,7 +241,7 @@ const secureStoreGetItemAsync = async (
       return await secureStoreOriginalGetItemAsync(key, options);
     } catch (error) {
       console.warn(error);
-      if (errorMatches(error, MATCH_USER_CANCEL))
+      if (errorMatches(error, BIOMETRICS_USER_CANCEL_THROW_PARTIAL_MATCH))
         throw new Error(StorageErrors.BiometricsReadUserCancel);
     }
   }
@@ -250,7 +267,7 @@ const secureStoreSetItemAsync = async (
       return await secureStoreOriginalSetItemAsync(key, value, options);
     } catch (error) {
       console.warn(error);
-      if (errorMatches(error, MATCH_USER_CANCEL))
+      if (errorMatches(error, BIOMETRICS_USER_CANCEL_THROW_PARTIAL_MATCH))
         throw new Error(StorageErrors.BiometricsWriteUserCancel);
     }
   }
@@ -504,4 +521,35 @@ export const getAsync = async <S extends SerializationFormat>(
     }
   }
   return result;
+};
+
+/**
+ * Use this function before creating new wallets with Biometrics enabled.
+ * It's needed to
+ * a) assert the user will grant access to biometrics and
+ * also
+ * b) makes sure the device is really able to use biometrics (even if pre-reported
+ * as able to do so; some Samsung devices report they're able and then throw
+ * when using biometrics).
+ *
+ * The explanation for  (a) is devices won't request users for FaceId/TouchId
+ * permission to use biometrics until a read is requested.
+ * So, perhaps a user would inadvertedly create a wallet using Biometrics, then
+ * use the wallet, and close it. When reopening it, the user would get the OS
+ * Modal asking for Biometrics usage. If the user clicks on "Dont give access"
+ * the App will not let the user see the info he crated)
+ */
+export const checkReadWriteBiometricsAccessAsync = async (
+  authenticationPrompt: string
+) => {
+  const value = Math.round(10000 * Math.random()).toString();
+  const key = `grant${value}`;
+  const options = secureStoreGetOptions(authenticationPrompt);
+  try {
+    await secureStoreSetItemAsync(key, value, options);
+    const received = await secureStoreGetItemAsync(key, options);
+    await secureStoreOriginalDeleteItemAsync(key, options);
+    if (value === received) return true;
+  } catch (err) {}
+  return false;
 };

@@ -54,7 +54,7 @@ const CreateColdAddress = ({
   const onBip39Cancel = useCallback(() => {
     onClose();
   }, [onClose]);
-  const onBip39Confirmed = useCallback(async () => {
+  const onBip39ConfirmedOrSkipped = useCallback(async () => {
     const coldAddress = await createColdAddress(words.join(' '), network);
     onAddress(coldAddress);
     toast.show(
@@ -117,7 +117,7 @@ const CreateColdAddress = ({
           isVisible && step === 'bip39confirm' && iIsPreviewModalHidden
         }
         words={words}
-        onConfirmed={onBip39Confirmed}
+        onConfirmedOrSkipped={onBip39ConfirmedOrSkipped}
         onCancel={onBip39Cancel}
       />
     </>

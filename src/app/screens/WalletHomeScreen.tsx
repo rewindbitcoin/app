@@ -23,10 +23,8 @@ import { RefreshControl } from 'react-native-web-refresh-control';
 
 import {
   KeyboardAwareScrollView,
-  Modal,
   useTheme,
   TabBar,
-  IconType,
   Button
 } from '../../common/ui';
 import { useTranslation } from 'react-i18next';
@@ -50,9 +48,33 @@ import {
 import { lighten } from 'polished';
 
 import { useFaucet } from '../hooks/useFaucet';
-import type { ScrollView } from 'react-native-gesture-handler';
 import { useWallet } from '../hooks/useWallet';
 import { walletTitle } from '../lib/wallets';
+import { useSecureStorageInfo } from '~/common/contexts/SecureStorageInfoContext';
+
+const ErrorView = ({
+  errorMessage,
+  goBack
+}: {
+  errorMessage: string;
+  goBack: () => void;
+}) => {
+  const { t } = useTranslation();
+  return (
+    <View className="flex-1 justify-center p-4 gap-2">
+      <KeyboardAwareScrollView>
+        <Text className="text-base mb-4">{errorMessage}</Text>
+      </KeyboardAwareScrollView>
+      <Button
+        containerClassName="self-center mb-8"
+        mode="text"
+        onPress={goBack}
+      >
+        {t('goBack')}
+      </Button>
+    </View>
+  );
+};
 
 //Using chrome dev tools, refresh the screen, after choosing a mobile size to activate it:
 const hasTouch =
@@ -70,7 +92,7 @@ const WalletHomeScreen = () => {
   const [activeTabIndex, setActiveTabIndex] = useState<number>(0);
 
   const {
-    signersStorageError,
+    signersStorageEngineMismatch,
     vaults,
     vaultsStatuses,
     utxosData,
@@ -95,6 +117,11 @@ const WalletHomeScreen = () => {
     throw new Error(
       `Navigated to walletId ${walletId} which does not correspond to the one in the context ${wallet?.walletId}`
     );
+
+  const { secureStorageInfo } = useSecureStorageInfo();
+  if (!secureStorageInfo)
+    throw new Error('Could not retrieve Secure Storage availability');
+  const { canUseSecureStorage } = secureStorageInfo;
 
   useEffect(() =>
     navigation.addListener('beforeRemove', () => {
@@ -171,10 +198,6 @@ const WalletHomeScreen = () => {
     if (navigation.canGoBack()) navigation.goBack();
   }, [navigation, logOut]);
 
-  useEffect(() => {
-    if (walletStatus.storageAccess.biometricAuthCancelled) logOutAndGoBack();
-  }, [walletStatus, logOutAndGoBack]);
-
   // Use btcFiat, and any other data or functions provided by the context
   // ...
 
@@ -195,9 +218,6 @@ const WalletHomeScreen = () => {
     },
     [wallet, onWallet]
   );
-  const onCloseErrorModal = useCallback(() => {
-    logOutAndGoBack();
-  }, [logOutAndGoBack]);
 
   const handleReceive = useCallback(
     () => navigation.navigate('RECEIVE'),
@@ -221,11 +241,6 @@ const WalletHomeScreen = () => {
   const refreshColors = useMemo(
     () => [theme.colors.primary],
     [theme.colors.primary]
-  );
-
-  const biometricAuthCancelledIcon = useMemo<IconType>(
-    () => ({ family: 'MaterialIcons', name: 'error' }),
-    []
   );
 
   const refreshControl = useMemo(() => {
@@ -291,15 +306,82 @@ const WalletHomeScreen = () => {
       onWallet({ wallet: { ...wallet, seedBackupDone: true } });
   }, [wallet, onWallet]);
 
-  return signersStorageError ? (
-    <View className="flex-1 justify-center p-4">
-      <Text className="text-base mb-4">
-        {t('wallet.errors.signersStorageRetrieveError')}
-      </Text>
-      <Button containerClassName="self-center" mode="text" onPress={goBack}>
-        {t('goBack')}
-      </Button>
-    </View>
+  //Check if wallets already contains this wallet. If not this means
+  //this is a new wallet being accessed for the first time.
+  const hasStorageEverBeenAccessed = !!wallets?.[walletId];
+
+  //These are the 5 possible storage errors. They are are not exclussive but
+  //shown priotarizing how we will display them (using ternary operators)
+
+  //Did the user decline access to biometrics?
+  //This one will be set in Android devices only.
+  //User declineations of biometrics in iOS are handled in NewWalletScreen.
+  //See: addWallet in NewWalletScreen for detailed explanation.
+  const biometricsRequestDeclinedOnWalletCreation =
+    walletStatus.storageAccess.biometricAuthCancelled &&
+    !hasStorageEverBeenAccessed;
+
+  //When the user clicks on "Cancel" to the system dialog asking for permission
+  //to read biometrics
+  const biometricsRequestDeclinedOnExistingWallet =
+    walletStatus.storageAccess.biometricAuthCancelled &&
+    hasStorageEverBeenAccessed;
+
+  //This variable flags an issue with some Samsung devices that report they provide
+  //SecureStorage (they have biometrics support) but then fail on writing data:
+  const biometricsFailureOnWalletCreation =
+    !hasStorageEverBeenAccessed &&
+    walletStatus.storageAccess.biometricsReadWriteError;
+
+  //This is when a wallet was already created with biometrics and now we're
+  //trying to access it but the biometrics are disabled or there is a read/write
+  //error accessing the data secured with biometrics
+  const biometricsAccessFailureOnExistingWallet =
+    //signersStorageEngineMismatch in most of the cases means the user is using
+    //SECURESTORAGE but the device (now) does not support it anymore for some
+    //reason (user disabled it?).
+    //signers will be set to invalidated if a new face or fingerprint is added/removed
+    //from the system. See https://docs.expo.dev/versions/latest/sdk/securestore/#securestoregetitemasynckey-options
+    signersStorageEngineMismatch ||
+    walletStatus.storageAccess.biometricsKeyInvalidated;
+
+  const storageError =
+    walletStatus.isCorrupted || walletStatus.storageAccess.readWriteError;
+
+  return biometricsRequestDeclinedOnWalletCreation ? (
+    <ErrorView
+      errorMessage={
+        t('wallet.new.biometricsRequestDeclined') +
+        '\n\n' +
+        (canUseSecureStorage
+          ? t('wallet.new.biometricsHowDisable')
+          : Platform.OS === 'ios'
+            ? t('wallet.new.biometricsCurrentlyDisabledIOS')
+            : t('wallet.new.biometricsCurrentlyDisabledNonIOS'))
+      }
+      goBack={goBack}
+    />
+  ) : biometricsFailureOnWalletCreation ? (
+    <ErrorView
+      errorMessage={t('wallet.new.biometricsReadWriteError')}
+      goBack={goBack}
+    />
+  ) : biometricsAccessFailureOnExistingWallet ? (
+    <ErrorView
+      errorMessage={
+        Platform.OS === 'ios'
+          ? t('wallet.existing.biometricsAccessFailureIOS')
+          : t('wallet.existing.biometricsAccessFailureNonIOS')
+      }
+      goBack={goBack}
+    />
+  ) : biometricsRequestDeclinedOnExistingWallet ? (
+    <ErrorView
+      errorMessage={t('wallet.existing.biometricsRequestDeclined')}
+      goBack={goBack}
+    />
+  ) : storageError ? (
+    <ErrorView errorMessage={t('wallet.errors.storage')} goBack={goBack} />
   ) : !wallet ? (
     /*TODO: prepare nicer ActivityIndicator*/
     <View className="flex-1 justify-center">
@@ -409,30 +491,6 @@ const WalletHomeScreen = () => {
           onPassword={onPassword}
           onCancel={onPasswordCancel}
         />
-        <Modal
-          isVisible={
-            walletStatus.isCorrupted ||
-            walletStatus.storageAccess.biometricsUncapable ||
-            walletStatus.storageAccess.readWriteError
-          }
-          title={
-            walletStatus.storageAccess.biometricsUncapable
-              ? t('wallet.errors.biometricsUncapableTitle')
-              : t('wallet.errors.storageTitle') //Share msg for isCorrupted & storageError
-          }
-          icon={biometricAuthCancelledIcon}
-          onClose={onCloseErrorModal}
-        >
-          <View className="px-2">
-            <Text>
-              {
-                walletStatus.storageAccess.biometricsUncapable
-                  ? t('wallet.errors.biometricsUncapable')
-                  : t('wallet.errors.storage') //Share msg for isCorrupted & storageError
-              }
-            </Text>
-          </View>
-        </Modal>
         {
           //See TAGiusfdnisdunf above
           //https://stackoverflow.com/questions/40366080/2-different-background-colours-for-scrollview-bounce

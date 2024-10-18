@@ -58,7 +58,7 @@ const Main = () => {
   // Get settings from disk. It will be used for setting the correct LOCALE.
   const { settings } = useSettings();
 
-  const secureStorageInfo = useSecureStorageInfo();
+  const { secureStorageInfo } = useSecureStorageInfo();
   //ios devices which do not have FACIAL_RECOGNITION are assumed to be the
   //ones with physical button. Also, initially iOsWithPhysicalButton will be
   //undefined since secureStorageInfo is async

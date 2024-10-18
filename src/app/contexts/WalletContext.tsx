@@ -99,7 +99,7 @@ export type WalletContextType = {
   tipStatus: BlockStatus | undefined;
   utxosData: UtxosData | undefined;
   historyData: HistoryData | undefined;
-  signersStorageError: boolean;
+  signersStorageEngineMismatch: boolean;
   signers: Signers | undefined;
   accounts: Accounts | undefined;
   vaults: Vaults | undefined;
@@ -186,7 +186,7 @@ const WalletProviderRaw = ({
 
   const toast = useToast();
 
-  const secureStorageInfo = useSecureStorageInfo();
+  const { secureStorageInfo } = useSecureStorageInfo();
   const { t } = useTranslation();
 
   const networkId = wallet?.networkId;
@@ -194,7 +194,7 @@ const WalletProviderRaw = ({
   const network = networkId && networkMapping[networkId];
   if (wallet && !network) throw new Error(`Invalid networkId ${networkId}`);
 
-  const signersStorageError =
+  const signersStorageEngineMismatch =
     (signersStorageEngine === 'MMKV' && Platform.OS === 'web') ||
     (signersStorageEngine === 'IDB' && Platform.OS !== 'web') ||
     (signersStorageEngine === 'SECURESTORE' &&
@@ -226,7 +226,7 @@ const WalletProviderRaw = ({
   );
 
   const initSigners =
-    !signersStorageError &&
+    !signersStorageEngineMismatch &&
     walletId !== undefined &&
     (wallet?.signersEncryption !== 'PASSWORD' ||
       walletsSignersCipherKey[walletId]);
@@ -504,7 +504,6 @@ const WalletProviderRaw = ({
         throw new Error(
           `gapLimit not ready for pushTx while trying to push ${txHex}`
         );
-      console.log('TRACE push: ' + txHex);
       await discovery.push({ txHex, gapLimit });
     },
     [discovery, gapLimit]
@@ -535,7 +534,6 @@ const WalletProviderRaw = ({
       descriptor: string;
       index?: number;
     }): Promise<TxHistory | undefined> => {
-      console.log('TRACE fetchOutputHistory');
       if (!vaults || !vaultsStatuses || !accounts || tipHeight === undefined)
         throw new Error('fetchOutputHistory inputs missing');
       if (index === undefined && descriptor.includes('*'))
@@ -572,7 +570,8 @@ const WalletProviderRaw = ({
   );
 
   const storageAccessStatus = getStorageAccessStatus({
-    isNewWallet: walletId !== undefined && !!walletsNewSigners[walletId],
+    signers,
+    isSignersSynchd: signersStorageStatus.isSynchd,
     settingsErrorCode: settingsStorageStatus.errorCode,
     signersErrorCode: signersStorageStatus.errorCode,
     walletsErrorCode: walletsStorageStatus.errorCode,
@@ -612,6 +611,8 @@ const WalletProviderRaw = ({
     accountsStorageStatus.errorCode === false &&
     !isCorrupted;
 
+  //isFirstLogin will be false until the data is ready.
+  //For example readwrite errors will prevent this from being true.
   const isFirstLogin =
     dataReady && walletId !== undefined && !!walletsNewSigners[walletId];
 
@@ -736,7 +737,7 @@ const WalletProviderRaw = ({
       }
       //React 18 NOT on the new Architecture behaves as React 17:
       batchedUpdates(() => {
-        //logOut(); //Log out from previous wallet
+        //logOut(); //Log out from previous wallet - This is done now on "beforeRemove" event in WalletsHomeScreen
         setWallet(prevWallet => {
           //Net status depends on the wallet (explorer, ...); so reset it ONLY when it changes
           if (prevWallet?.walletId !== walletDst.walletId) netStatusReset();
@@ -881,20 +882,12 @@ const WalletProviderRaw = ({
     isUserTriggeredSync.current = false;
 
     let updatedNetReady = netReady;
-    console.log('TRACE sync', {
-      walletId,
-      networkId,
-      updatedNetReady,
-      isUserTriggered
-    });
     if (updatedNetReady === false && isUserTriggered) {
       //only check netStatus changes when we're sure the network is down and the
       //user is requesting it. This is because this is an expensive operation
       //and sync may also be called automatically on dependencies of dataReady,
       //netReady, callback functions and so on...
-      console.log('TRACE sync netStatusUpdate');
       const ns = await netStatusUpdate();
-      console.log('TRACE sync netStatusUpdate done');
       updatedNetReady =
         ns?.apiReachable &&
         ns?.explorerReachable &&
@@ -922,12 +915,10 @@ const WalletProviderRaw = ({
       signer &&
       vaultsAPI
     ) {
-      console.log('TRACE sync proceeding');
       const network = networkId && networkMapping[networkId];
 
       try {
         const updatedTipHeight = (await updateTipStatus())?.blockHeight;
-        console.log('TRACE sync proceeding', { updatedTipHeight });
         if (updatedTipHeight) {
           //First get updatedVaults & updatedVaultsStatuses:
           const p2pVaults = await fetchP2PVaults({
@@ -936,7 +927,6 @@ const WalletProviderRaw = ({
             vaultsAPI,
             vaults
           });
-          console.log('TRACE sync proceeding p2pVaults');
           let updatedVaults = vaults; //initially they are the same
           p2pVaults &&
             Object.entries(p2pVaults).forEach(([key, p2pVault]) => {
@@ -955,7 +945,6 @@ const WalletProviderRaw = ({
             vaultsStatuses,
             discovery.getExplorer()
           );
-          console.log('TRACE sync proceeding', { freshVaultsStatuses });
 
           let updatedVaultsStatuses = vaultsStatuses; //initially they are the same
           Object.entries(freshVaultsStatuses).forEach(([key, freshStatus]) => {
@@ -975,14 +964,12 @@ const WalletProviderRaw = ({
             if (signer.type !== 'SOFTWARE') {
               console.warn('Non-Software Wallets use default accounts for now');
               const defaultAccount = await getDefaultAccount(signers, network);
-              console.log('TRACE sync proceeding', { defaultAccount });
               updatedAccounts[defaultAccount] = { discard: false };
             } else {
               if (!signer.mnemonic)
                 throw new Error('mnemonic not set for soft wallet');
               const masterNode = getMasterNode(signer.mnemonic, network);
               await discovery.fetchStandardAccounts({ masterNode, gapLimit });
-              console.log('TRACE sync proceeding fetchedStandardAccounts');
               const usedAccounts = discovery.getUsedAccounts();
               if (usedAccounts.length)
                 for (const usedAccount of usedAccounts)
@@ -994,7 +981,6 @@ const WalletProviderRaw = ({
                 );
                 updatedAccounts[defaultAccount] = { discard: false };
               }
-              console.log('TRACE sync proceeding', { getDefaultAccount });
             }
             setAccounts(updatedAccounts);
           }
@@ -1004,12 +990,7 @@ const WalletProviderRaw = ({
             updatedAccounts,
             updatedTipHeight
           );
-          console.log('TRACE sync discovery.fetch', { descriptors });
           await discovery.fetch({ descriptors, gapLimit });
-          console.log(
-            'TRACE sync proceeding discovery.fetch'
-            //JSON.stringify(discovery.export().discoveryData, null, 2)
-          );
           if (vaults !== updatedVaults) setVaults(updatedVaults);
           if (vaultsStatuses !== updatedVaultsStatuses)
             setVaultsStatuses(updatedVaultsStatuses);
@@ -1019,10 +1000,8 @@ const WalletProviderRaw = ({
             updatedAccounts,
             updatedTipHeight
           );
-          console.log('TRACE sync proceeding setUtxosHistoryExport');
         }
       } catch (error) {
-        console.log('TRACE sync proceeding catch', { error });
         console.warn(error);
         const errorMessage =
           error instanceof Error ? error.message : t('app.unknownError');
@@ -1033,7 +1012,6 @@ const WalletProviderRaw = ({
       }
     }
 
-    console.log('TRACE sync proceeding setSyncingBlockchain to false now');
     setSyncingBlockchain(walletId, false);
   }, [
     netStatusUpdate,
@@ -1195,7 +1173,7 @@ const WalletProviderRaw = ({
     fetchServiceAddress,
     updateVaultStatus,
     btcFiat,
-    signersStorageError,
+    signersStorageEngineMismatch,
     signers,
     accounts,
     vaults,

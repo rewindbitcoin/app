@@ -124,7 +124,7 @@ to expo server on your computer:
 npm run android
 ```
 
-Alternativelly, you can do it manually:
+Alternatively, you can do it manually:
 
 ````bash
 npx eas build --profile development --platform android --local #optinally with --clear-cache
@@ -135,8 +135,10 @@ npx eas build --profile development --platform android --local #optinally with -
 npx eas credentials
     #prepares the real device (connected with USB) so that you'll be able to install Apps
     #if need to know the UUID of the iphone: Connect with USB, got to XCODE->window->devices
+
 # This now creates a provisionin profile that you must install in the iphone (real device)
 npx eas device:create
+
 # This builds and installs a "production" version into the iphone USB connected:
 npx eas build --platform ios --local --profile preview #optinally with --clear-cache
     #the --profile preview let's you use "distribution: internal" from the eas.json,
@@ -153,9 +155,10 @@ npx eas build --platform ios --local --profile preview #optinally with --clear-c
 #If you want to run Expo on the real device (so you can reload after a few Js changes) you can run this:
 npx expo run:ios -d
 #which will  let you choose the device to run and install
+#If you get errors, try to open on xcode the project once and build. For some reason it will work then even if you clean the project.
 #If you get this error: CommandError: No code signing certificates are available to use.
 #open ios/RewindBitcoin.xcodeproj
-# -> Signing and capabilities -> Add ACcount - More info: https://github.com/expo/fyi/blob/main/setup-xcode-signing.md
+# -> Signing and capabilities -> Add Account - More info: https://github.com/expo/fyi/blob/main/setup-xcode-signing.md
 
 Install the ipa file using XCode->Window->Devices and Simulators and drag the ipa file to the "Installed Apps" of the device
 

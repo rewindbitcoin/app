@@ -174,8 +174,7 @@ const getSeedDerivedCipherKey = async ({
   if (!mnemonic) throw new Error('Could not initialize the signer');
   const masterNode = getMasterNode(mnemonic, network);
   const childNode = masterNode.derivePath(vaultPath);
-  if (!childNode.privateKey)
-    throw new Error('Could not generatel a privateKey');
+  if (!childNode.privateKey) throw new Error('Could not generate a privateKey');
 
   const signature = MessageAPI.sign(
     SIGNING_MESSAGE,
