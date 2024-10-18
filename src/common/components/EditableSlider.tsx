@@ -55,7 +55,6 @@ import React, {
   useRef
 } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { Locale } from '../../i18n-locales/init';
 
 import { View, Text, StyleSheet, Platform } from 'react-native';
 import NumberInput from './NumberInput';
@@ -85,7 +84,7 @@ function toFixed({
   step
 }: {
   value: number;
-  locale: Locale;
+  locale: string;
   numberFormatting: boolean;
   step: number;
 }): string {
@@ -108,7 +107,7 @@ const EditableSlider = ({
   onValueChange,
   formatValue = value => `${value}`
 }: {
-  locale: Locale;
+  locale: string;
   initialValue: number;
   minimumValue: number;
   maxLabel?: string;

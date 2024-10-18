@@ -1,7 +1,6 @@
 import React, { useCallback, useMemo } from 'react';
 import { View, Text } from 'react-native';
 import { Modal, VerticalChoice, useTheme } from '../../common/ui';
-import type { Locale } from '../../i18n-locales/init';
 import { useTranslation } from 'react-i18next';
 import { subUnits, SubUnit } from '../lib/settings';
 import { fromSats } from '../lib/btcRates';
@@ -20,7 +19,7 @@ export default function UnitsModal({
   mode?: SubUnit | 'Fiat';
   currency: string;
   btcFiat: number | undefined;
-  locale: Locale;
+  locale: string;
   onSelect: (unit: SubUnit | 'Fiat') => void;
   onClose?: () => void;
 }) {

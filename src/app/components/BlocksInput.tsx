@@ -4,8 +4,8 @@ import { Text } from 'react-native';
 import { CardEditableSlider, InfoButton, Modal } from '../../common/ui';
 import { useTranslation } from 'react-i18next';
 import { fromBlocks, toBlocks, getBlocksModeStep } from '../lib/timeUtils';
-import { useSettings } from '../hooks/useSettings';
 import { formatBlocks } from '../lib/format';
+import { useLocalization } from '../hooks/useLocalization';
 
 function BlocksInput({
   initialValue,
@@ -21,11 +21,7 @@ function BlocksInput({
   onValueChange: (value: number | null, type: 'USER' | 'RESET') => void;
 }) {
   const { t } = useTranslation();
-  const { settings } = useSettings();
-  if (!settings)
-    throw new Error(
-      'This component should only be started after settings has been retrieved from storage'
-    );
+  const { locale } = useLocalization();
   const [mode, setMode] = useState<'days' | 'blocks'>('days');
   const [coldAddressHelp, setColdAddressHelp] = useState<boolean>(false);
   const showColdAddressHelp = useCallback(() => setColdAddressHelp(true), []);
@@ -75,7 +71,7 @@ function BlocksInput({
   return (
     <>
       <CardEditableSlider
-        locale={settings.LOCALE}
+        locale={locale}
         label={label}
         headerIcon={headerIcon}
         key={`${mode}-${min}-${max}`}

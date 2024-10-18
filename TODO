@@ -10,6 +10,9 @@ FIXME: Get the trademark: Super Important !!!
 
 FIXME: FIXME: FIXME: FIXME: FIXME: FIXME: FIXME: FIXME: FIXME: FIXME: FIXME: FIXME: TODO: Puntos y comas default EN-US - ahora mismo se toma todo como si estuviesemos en ESTADOS UNIDOS!!!
 
+FIXME: Ojo q la lozalicacion edsta mal porque ahora me intenterá meter el español!!!
+  -> FIXME: Poner en i18next (se puede, ver como ) los fallbacks para catalan y gallego a español...
+
 FIXME:
 FIXME: Muchos reintentos fallidos (me dice q espere 30 ") tambien da fallo de Samsung old devices...
 TODO -> Si añado huella en Android me da luego para NUEVAS wallets el error de Samsung

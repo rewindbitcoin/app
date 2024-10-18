@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { View, Text, Linking } from 'react-native';
 import type { HistoryData, HistoryDataItem } from '../lib/vaults';
-import { Locale } from '~/i18n-locales/init';
 import { TFunction } from 'i18next';
 import { BlockStatus } from '@bitcoinerlab/explorer';
 import { useSettings } from '../hooks/useSettings';
@@ -18,6 +17,7 @@ import SendIcon from './SendIcon';
 import { Currency, SubUnit } from '../lib/settings';
 import { formatBalance } from '../lib/format';
 import { Button } from '~/common/ui';
+import { useLocalization } from '../hooks/useLocalization';
 
 const RawTransaction = ({
   tipStatus,
@@ -33,7 +33,7 @@ const RawTransaction = ({
   //triggerOutValue
 }: {
   tipStatus: BlockStatus | undefined;
-  locale: Locale;
+  locale: string;
   t: TFunction;
   item: HistoryDataItem;
   fetchBlockTime: (fetchBlockTime: number) => Promise<number | undefined>;
@@ -370,7 +370,7 @@ const Transactions = ({
     settings.FIAT_MODE && typeof btcFiat === 'number'
       ? 'Fiat'
       : settings.SUB_UNIT;
-  const locale = settings.LOCALE;
+  const { locale, currency } = useLocalization();
   const { t } = useTranslation();
 
   const reversedHistoryData = useMemo<HistoryData | undefined>(
@@ -421,7 +421,7 @@ const Transactions = ({
               mode={mode}
               btcFiat={btcFiat}
               vaultOutValue={vaultOutValue}
-              currency={settings.CURRENCY}
+              currency={currency}
               fetchBlockTime={fetchBlockTime}
               blockExplorerURL={blockExplorerURL}
             />

@@ -5,6 +5,7 @@ import { useNetStatus } from './useNetStatus';
 import { useStorage } from '../../common/hooks/useStorage';
 import { NUMBER } from '../../common/lib/storage';
 import { type Currency, defaultSettings } from '../lib/settings';
+import { useLocalization } from './useLocalization';
 
 const RETRIES = 5;
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
@@ -49,8 +50,8 @@ async function fetchBtcFiat(
 export const useBtcFiat = () => {
   const { t } = useTranslation();
   const { settings } = useSettings();
+  const { currency } = useLocalization();
   const intervalTime = settings?.BTC_FIAT_REFRESH_INTERVAL_MS;
-  const currency = settings?.CURRENCY;
 
   const { apiReachable, netRequest } = useNetStatus();
 

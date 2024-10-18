@@ -1,5 +1,4 @@
 import memoize from 'lodash.memoize';
-import type { Locale } from '../../i18n-locales/init';
 //https://stackoverflow.com/a/9539746
 const countDecimalDigits = memoize((number: number): number => {
   // Make sure it is a number and use the builtin number -> string.
@@ -22,7 +21,7 @@ const countDecimalDigits = memoize((number: number): number => {
   ); // exponent
 });
 
-const getLocaleSeparators = memoize((locale: Locale) => {
+const getLocaleSeparators = memoize((locale: string) => {
   const defaults = { delimiter: ',', separator: '.' };
   const formattedNumber = new Intl.NumberFormat(locale).format(12345.6);
   if (formattedNumber.length !== 8)
@@ -44,18 +43,18 @@ const getLocaleSeparators = memoize((locale: Locale) => {
 const numberToFormattedFixed = (
   value: number,
   precision: number,
-  locale: Locale
+  locale: string
 ) => {
   return new Intl.NumberFormat(locale, {
     minimumFractionDigits: precision,
     maximumFractionDigits: precision
   }).format(value);
 };
-const numberToFixed = (value: number, precision: number, locale: Locale) => {
+const numberToFixed = (value: number, precision: number, locale: string) => {
   const { separator } = getLocaleSeparators(locale);
   return value.toFixed(precision).replace('.', separator);
 };
-const numberToLocalizedString = (value: number, locale: Locale) => {
+const numberToLocalizedString = (value: number, locale: string) => {
   return new Intl.NumberFormat(locale, { maximumFractionDigits: 20 }).format(
     value
   );
@@ -64,7 +63,7 @@ const numberToLocalizedString = (value: number, locale: Locale) => {
 /** parses a localized string and returns a number or NaN if it
  * cannot be parsed
  */
-const localizedStrToNumber = (str: string, locale: Locale): number => {
+const localizedStrToNumber = (str: string, locale: string): number => {
   if (str === '') return NaN;
   const { delimiter, separator } = getLocaleSeparators(locale);
   //console.log({ str, delimiter, separator });
@@ -142,7 +141,7 @@ const localizedStrToNumber = (str: string, locale: Locale): number => {
  * to finally enter a non-zero later.
  * It strValue cannot be parsed as a number it simply returns the strValue
  */
-function localizeInputNumericString(strValue: string, locale: Locale) {
+function localizeInputNumericString(strValue: string, locale: string) {
   if (strValue === '') return strValue;
   const { delimiter, separator } = getLocaleSeparators(locale);
 
@@ -202,7 +201,7 @@ const findSingleAdditionDifferenceIndex = (newStr: string, oldStr: string) => {
 const unlocalizedKeyboardFix = (
   newStr: string,
   oldStr: string,
-  locale: Locale
+  locale: string
 ) => {
   const diffIndex = findSingleAdditionDifferenceIndex(newStr, oldStr);
 
@@ -252,7 +251,7 @@ const getNewCursor = (
   newStr: string,
   oldStr: string,
   oldCursor: number,
-  locale: Locale
+  locale: string
 ): number => {
   // Count the number of numeric characters to the right of oldCursor in oldStr
   let numbersToTheRight = 0;

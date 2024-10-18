@@ -12,6 +12,7 @@ import { formatFeeRate } from '../lib/format';
 import { computeMaxAllowedFeeRate, FeeEstimates } from '../lib/fees';
 import { useTranslation } from 'react-i18next';
 import { useSettings } from '../hooks/useSettings';
+import { useLocalization } from '../hooks/useLocalization';
 
 function FeeInput({
   label,
@@ -33,6 +34,7 @@ function FeeInput({
     throw new Error(
       'This component should only be started after settings has been retrieved from storage'
     );
+  const { locale, currency } = useLocalization();
   const subUnit = settings.SUB_UNIT;
   const { t } = useTranslation();
 
@@ -62,23 +64,15 @@ function FeeInput({
         {
           fee: fee === null ? undefined : fee,
           feeRate,
-          locale: settings.LOCALE,
-          currency: settings.CURRENCY,
+          locale,
+          currency,
           subUnit,
           btcFiat,
           feeEstimates: snappedFeeEstimates
         },
         t
       ),
-    [
-      fee,
-      btcFiat,
-      settings.LOCALE,
-      settings.CURRENCY,
-      snappedFeeEstimates,
-      t,
-      subUnit
-    ]
+    [fee, btcFiat, currency, locale, snappedFeeEstimates, t, subUnit]
   );
 
   //We will change the key in CardEditableSlider creating new components
@@ -115,7 +109,7 @@ function FeeInput({
 
   return (
     <CardEditableSlider
-      locale={settings.LOCALE}
+      locale={locale}
       label={label}
       key={`${min}-${max}`}
       minimumValue={snappedMin}

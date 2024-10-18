@@ -1,6 +1,5 @@
 const INPUT_MAX_LENGTH = 18;
 import React, { useState, useCallback, useRef, useMemo } from 'react';
-import type { Locale } from '../../i18n-locales/init';
 import AntDesign from '@expo/vector-icons/AntDesign';
 import {
   Text,
@@ -60,7 +59,7 @@ ClearButton.displayName = 'ClearButton';
 
 interface NumericInputProps {
   maxLength?: number;
-  locale: Locale;
+  locale: string;
   strValue: string;
   numberFormatting?: boolean;
   style?: TextStyle;

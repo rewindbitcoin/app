@@ -3,7 +3,6 @@ import React, { useMemo } from 'react';
 import { Text, View, StyleSheet } from 'react-native';
 import { useTheme, Theme } from '../theme';
 import EditableSlider from './EditableSlider';
-import type { Locale } from '../../i18n-locales/init';
 import IconButton from './IconButton';
 
 function CardEditableSlider({
@@ -33,7 +32,7 @@ function CardEditableSlider({
   formatError?: (invalidValue: number) => string | undefined;
   onValueChange: (value: number | null, type: 'USER' | 'RESET') => void;
   formatValue: (value: number) => string;
-  locale: Locale;
+  locale: string;
 }) {
   const theme = useTheme();
   const styles = useMemo(() => getStyles(theme), [theme]);

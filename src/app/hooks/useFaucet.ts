@@ -80,8 +80,7 @@ export function useFaucet() {
           ({ descriptor, index } = await faucetFirstReceive(
             accounts,
             network,
-            faucetAPI,
-            'es-ES'
+            faucetAPI
           ));
         } catch (error: unknown) {
           console.warn(error);

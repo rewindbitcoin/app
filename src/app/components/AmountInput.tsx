@@ -14,6 +14,7 @@ import {
 } from '../lib/btcRates';
 import UnitsModal from './UnitsModal';
 import { useSettings } from '../hooks/useSettings';
+import { useLocalization } from '../hooks/useLocalization';
 
 function AmountInput({
   initialValue,
@@ -36,6 +37,7 @@ function AmountInput({
 }) {
   const { t } = useTranslation();
   const { settings, setSettings } = useSettings();
+  const { locale, currency } = useLocalization();
   if (!settings)
     throw new Error(
       'This component should only be started after settings has been retrieved from storage'
@@ -80,18 +82,11 @@ function AmountInput({
         amount: toSats(modeValue, mode, btcFiat, knownSatsValueMap),
         subUnit: settings.SUB_UNIT,
         btcFiat,
-        locale: settings.LOCALE,
-        currency: settings.CURRENCY
+        locale,
+        currency
       });
     },
-    [
-      knownSatsValueMap,
-      mode,
-      btcFiat,
-      settings.SUB_UNIT,
-      settings.LOCALE,
-      settings.CURRENCY
-    ]
+    [knownSatsValueMap, mode, btcFiat, settings.SUB_UNIT, locale, currency]
   );
 
   const onModeValueChange = useCallback(
@@ -108,7 +103,7 @@ function AmountInput({
   return (
     <>
       <CardEditableSlider
-        locale={settings.LOCALE}
+        locale={locale}
         label={label}
         key={`${mode}-${min}-${max}`}
         maxLabel={t('amount.maxLabel').toUpperCase()}
@@ -118,14 +113,14 @@ function AmountInput({
         onValueChange={onModeValueChange}
         step={getAmountModeStep(mode)}
         formatValue={formatValue}
-        unit={mode === 'Fiat' ? settings.CURRENCY : mode}
+        unit={mode === 'Fiat' ? currency : mode}
         onUnitPress={onUnitPress}
       />
       <UnitsModal
         isVisible={showUnitsModal}
         mode={mode}
-        locale={settings.LOCALE}
-        currency={settings.CURRENCY}
+        locale={locale}
+        currency={currency}
         btcFiat={btcFiat}
         onSelect={onModeSelect}
         onClose={() => setShowUnitsModal(false)}

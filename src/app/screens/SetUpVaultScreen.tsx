@@ -32,6 +32,7 @@ import { networkMapping } from '../lib/network';
 import { useSettings } from '../hooks/useSettings';
 import { useWallet } from '../hooks/useWallet';
 import { OutputInstance } from '@bitcoinerlab/descriptors';
+import { useLocalization } from '../hooks/useLocalization';
 
 export default function VaultSetUp({
   onVaultSetUpComplete
@@ -78,6 +79,7 @@ export default function VaultSetUp({
     throw new Error(
       'This component should only be started after settings has been retrieved from storage'
     );
+  const { locale, currency } = useLocalization();
 
   const [lockBlocks, setLockBlocks] = useState<number | null>(
     settings.INITIAL_LOCK_BLOCKS
@@ -329,8 +331,8 @@ export default function VaultSetUp({
                     amount: missingFunds * 1.03, //Ask for 3% more than needed
                     subUnit: settings.SUB_UNIT,
                     btcFiat,
-                    locale: settings.LOCALE,
-                    currency: settings.CURRENCY
+                    locale,
+                    currency
                   }),
                   minRecoverableRatioPct: parseFloat(
                     (settings.MIN_RECOVERABLE_RATIO * 100).toFixed(2)

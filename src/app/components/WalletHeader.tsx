@@ -20,6 +20,7 @@ import { useTranslation } from 'react-i18next';
 import type { NetworkId } from '../lib/network';
 import { useNetStatus } from '../hooks/useNetStatus';
 import { MaterialIcons } from '@expo/vector-icons';
+import { useLocalization } from '../hooks/useLocalization';
 
 const Balance = ({
   type,
@@ -113,6 +114,7 @@ const WalletHeader = ({
   const { t } = useTranslation();
   const [showUnitsModal, setShowUnitsModal] = useState<boolean>(false);
   const { settings, setSettings } = useSettings();
+  const { locale, currency } = useLocalization();
   const netStatus = useNetStatus();
   const { errorMessage: netErrorMessage } = netStatus;
   //const netErrorMessage =
@@ -156,12 +158,12 @@ const WalletHeader = ({
               : formatBalance({
                   satsBalance: balance,
                   btcFiat,
-                  currency: settings.CURRENCY,
-                  locale: settings.LOCALE,
+                  currency,
+                  locale,
                   mode
                 })
           }
-          iconText={mode === 'Fiat' ? settings.CURRENCY : mode}
+          iconText={mode === 'Fiat' ? currency : mode}
           onUnitPress={onUnitPress}
         />
         <Balance
@@ -172,12 +174,12 @@ const WalletHeader = ({
               : formatBalance({
                   satsBalance: frozenBalance,
                   btcFiat,
-                  currency: settings.CURRENCY,
-                  locale: settings.LOCALE,
+                  currency,
+                  locale,
                   mode
                 })
           }
-          iconText={mode === 'Fiat' ? settings.CURRENCY : mode}
+          iconText={mode === 'Fiat' ? currency : mode}
           onUnitPress={onUnitPress}
         />
       </View>
@@ -241,8 +243,8 @@ const WalletHeader = ({
       <UnitsModal
         isVisible={showUnitsModal}
         mode={mode}
-        locale={settings.LOCALE}
-        currency={settings.CURRENCY}
+        locale={locale}
+        currency={currency}
         btcFiat={btcFiat}
         onSelect={onModeSelect}
         onClose={() => setShowUnitsModal(false)}

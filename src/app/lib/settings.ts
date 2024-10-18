@@ -32,6 +32,7 @@ import {
   PUBLIC_TAPE_ELECTRUM_PORT
   // @ts-expect-error @env is defined in bable.config.js
 } from '@env';
+import { getLocales } from 'expo-localization';
 if (Number(VERSION) !== 21)
   throw new Error(
     `This is still running version: ${VERSION}.
@@ -60,7 +61,6 @@ export const currencyCodes = [
   'INR'
 ] as const; //Keep in sync with ~/../btcRates
 export type Currency = (typeof currencyCodes)[number];
-import type { Locale } from '../../i18n-locales/init';
 export const SETTINGS_GLOBAL_STORAGE = 'SETTINGS_GLOBAL_STORAGE';
 
 export interface Settings {
@@ -76,7 +76,7 @@ export interface Settings {
   MIN_RECOVERABLE_RATIO: number;
   SUB_UNIT: SubUnit;
   FIAT_MODE: boolean;
-  LOCALE: Locale;
+  LOCALE: string;
   CURRENCY: Currency;
   BTC_FIAT_REFRESH_INTERVAL_MS: number;
   BLOCKCHAIN_DATA_REFRESH_INTERVAL_MS: number;
@@ -124,6 +124,8 @@ export interface Settings {
   REGTEST_BLOCK_EXPLORER: string;
 }
 
+const locales = getLocales();
+
 // Default values for the context
 export const defaultSettings: Settings = {
   GAP_LIMIT: 20,
@@ -144,8 +146,13 @@ export const defaultSettings: Settings = {
   MIN_RECOVERABLE_RATIO: 1 / 50, //TODO: should it be 2/3?
   SUB_UNIT: 'btc',
   FIAT_MODE: false, //whether the user prefers using fiat than SUB_UNIT
-  LOCALE: 'en-US',
-  CURRENCY: 'USD',
+  LOCALE: 'default', //systems default
+  //System default (if one of the possible ones):
+  CURRENCY:
+    locales[0]?.currencyCode &&
+    currencyCodes.includes(locales[0].currencyCode as Currency)
+      ? (locales[0].currencyCode as Currency)
+      : 'USD',
   BTC_FIAT_REFRESH_INTERVAL_MS: 60000, //1 minutes
   BLOCKCHAIN_DATA_REFRESH_INTERVAL_MS: 60000, // 1 minute
   WALLETS_DATA_VERSION: '1.0.0', //This does not define the version of the App, but keeps track of the changes in the signature of the Wallet

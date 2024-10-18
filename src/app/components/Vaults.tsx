@@ -27,17 +27,17 @@ import { Button, IconType, InfoButton, Modal } from '../../common/ui';
 
 import { useSettings } from '../hooks/useSettings';
 import type { SubUnit } from '../lib/settings';
-import type { Locale } from '../../i18n-locales/init';
 import type { BlockStatus } from '@bitcoinerlab/explorer';
 import InitUnfreeze, { InitUnfreezeData } from './InitUnfreeze';
 import Rescue, { RescueData } from './Rescue';
 import Delegate from './Delegate';
 import { toastifyErrorAsync } from '../lib/status';
 import LearnMoreAboutVaults from './LearnMoreAboutVaults';
+import { useLocalization } from '../hooks/useLocalization';
 
 const LOADING_TEXT = '     ';
 
-const formatVaultDate = (unixTime: number | undefined, locale: Locale) => {
+const formatVaultDate = (unixTime: number | undefined, locale: string) => {
   if (!unixTime) return;
   const date = new Date(unixTime * 1000);
   const now = new Date();
@@ -58,7 +58,7 @@ const formatVaultDate = (unixTime: number | undefined, locale: Locale) => {
 const getVaultInitDate = (
   vault: Vault,
   vaultStatus: VaultStatus,
-  locale: Locale
+  locale: string
 ) => {
   //vaultPushTime is a bit more precise but may not be available in a device
   //using the same mnemonic. creationTime is good enough.
@@ -81,12 +81,8 @@ const Amount = ({
   btcFiat: number | undefined;
   mode: 'Fiat' | SubUnit;
 }) => {
-  const { settings } = useSettings();
+  const { locale, currency } = useLocalization();
   const { t } = useTranslation();
-  if (!settings)
-    throw new Error(
-      'This component should only be started after settings has been retrieved from storage'
-    );
   return (
     <>
       <Text className="text-slate-600 font-semibold native:text-sm web:text-xs native:mobmed:text-base web:mobmed:text-sm">
@@ -105,8 +101,8 @@ const Amount = ({
             : formatBalance({
                 satsBalance,
                 btcFiat,
-                currency: settings.CURRENCY,
-                locale: settings.LOCALE,
+                currency,
+                locale,
                 mode,
                 appendSubunit: true
               })}
@@ -288,7 +284,7 @@ const RawVault = ({
     tipHeight &&
     vaultStatus &&
     getRemainingBlocks(vault, vaultStatus, tipHeight);
-  const locale = settings.LOCALE;
+  const { locale } = useLocalization();
   const rescuedDate = formatVaultDate(vaultStatus?.panicTxBlockTime, locale);
   const rescuePushDate = formatVaultDate(vaultStatus?.panicPushTime, locale);
   const panicAddress = vault.coldAddress;

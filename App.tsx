@@ -1,6 +1,3 @@
-// TODO: extremelly important, before sharing this module make sure
-// this works properly: react-native-get-random-values
-
 import './global.css';
 import './init';
 import ErrorBoundary from './src/ErrorBoundary';
@@ -43,21 +40,20 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import type { VaultSettings } from './src/app/lib/vaults';
 import { useTheme, Button } from './src/common/ui';
 
-import { defaultSettings } from './src/app/lib/settings';
 import { I18nextProvider, useTranslation } from 'react-i18next';
-import { i18n, initI18n } from './src/i18n-locales/init';
+import { i18n } from './src/i18n-locales/init';
+import {
+  i18nLanguageInit,
+  useLocalization
+} from './src/app/hooks/useLocalization';
+i18nLanguageInit();
 import { AuthenticationType } from 'expo-local-authentication';
-import { useSettings } from './src/app/hooks/useSettings';
 import { Pressable } from 'react-native';
 //Init for 1st render. Then, on settings load from context & apply correct one
-initI18n(defaultSettings.LOCALE);
 
 const RootStack = createRootStack();
 
 const Main = () => {
-  // Get settings from disk. It will be used for setting the correct LOCALE.
-  const { settings } = useSettings();
-
   const { secureStorageInfo } = useSecureStorageInfo();
   //ios devices which do not have FACIAL_RECOGNITION are assumed to be the
   //ones with physical button. Also, initially iOsWithPhysicalButton will be
@@ -104,11 +100,8 @@ const Main = () => {
     [t, onGoBack]
   );
 
-  // init real Locale
-  useEffect(() => {
-    if (settings?.LOCALE && defaultSettings.LOCALE !== settings.LOCALE)
-      initI18n(settings.LOCALE);
-  }, [settings?.LOCALE]);
+  //This will change the i18n language if the user dynamically chnages it
+  useLocalization();
 
   //disable elastic effect
   //https://stackoverflow.com/a/75120095/1660381

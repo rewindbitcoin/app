@@ -3,13 +3,11 @@ import { Network, networks } from 'bitcoinjs-lib';
 import * as secp256k1 from '@bitcoinerlab/secp256k1';
 import { DescriptorsFactory } from '@bitcoinerlab/descriptors';
 import { getMainAccount } from './vaultDescriptors';
-import type { Locale } from '../../i18n-locales/init';
 const { Output } = DescriptorsFactory(secp256k1);
 export const faucetFirstReceive = async (
   accounts: Accounts,
   network: Network,
-  faucetAPI: string,
-  locale: Locale
+  faucetAPI: string
 ) => {
   if (network !== networks.regtest)
     throw new Error('Cannot faucet non-regtest networks');
@@ -23,7 +21,13 @@ export const faucetFirstReceive = async (
   const response = await fetch(faucetAPI, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: `address=${encodeURIComponent(firstReceiveAddr)}&locale=${encodeURIComponent(locale)}`
+    //Here we could pass the locale so that error messages returned by the server
+    //are formatted in the users language. Not really useful anyway since the
+    //error is finally never shown to the user anyway...
+    //This is how this could be done:
+    //const languageTag = locale === 'default' ? getLocales()[0]!.languageTag : locale;
+    //body:`address=${encodeURIComponent(firstReceiveAddr)}&locale=${encodeURIComponent(languageTag)}`
+    body: `address=${encodeURIComponent(firstReceiveAddr)}`
   });
 
   // Check if the request was successful

@@ -1,9 +1,8 @@
 import memoize from 'lodash.memoize';
 import { type SubUnit, type Currency } from './settings';
-import type { Locale } from '../../i18n-locales/init';
 
 const intlCurrencyFormatter = memoize(
-  (locale: Locale, currency: string) =>
+  (locale: string, currency: string) =>
     // Undefined will use the system's locale
     new Intl.NumberFormat(locale, {
       style: 'currency',
@@ -18,7 +17,7 @@ export const formatFiat = ({
   currency
 }: {
   amount: number;
-  locale: Locale;
+  locale: string;
   currency: Currency;
 }) => {
   try {
@@ -40,7 +39,7 @@ const formatBtcFactory = memoize(
     amount: number;
     subUnit: SubUnit;
     btcFiat?: number | undefined;
-    locale: Locale;
+    locale: string;
     currency: Currency;
   }) => {
     const ONE_BTC_IN_SATS = 100000000;
@@ -108,7 +107,7 @@ export const formatBtc = (btcArgs: {
   amount: number;
   subUnit: SubUnit;
   btcFiat?: number | undefined;
-  locale: Locale;
+  locale: string;
   currency: Currency;
 }) => formatBtcFactory(btcArgs);
 

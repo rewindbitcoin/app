@@ -26,6 +26,7 @@ import { exportWallet } from '../lib/backup';
 import { electrumParams } from '../lib/walletDerivedData';
 import { ElectrumExplorer } from '@bitcoinerlab/explorer';
 import { NetworkId, networkMapping } from '../lib/network';
+import { useLocalization } from '../hooks/useLocalization';
 
 function sanitizeFilename(name: string) {
   // Regex to remove invalid file path characters
@@ -234,6 +235,7 @@ const SettingsScreen = () => {
   } = useWallet();
   const toast = useToast();
   const { settings, setSettings } = useSettings();
+  const { currency, setCurrency } = useLocalization();
   const [isBip39ModalVisible, setIsBip39ModalVisible] =
     useState<boolean>(false);
   const [exportProgress, setExportProgress] = useState<string>('');
@@ -407,7 +409,7 @@ const SettingsScreen = () => {
               onPress={() => {
                 setIsCurrencyModalVisible(true);
               }}
-              initialValue={settings.CURRENCY}
+              initialValue={currency}
             />
             {(Platform.OS === 'android' || Platform.OS === 'ios') && (
               <>
@@ -577,13 +579,13 @@ const SettingsScreen = () => {
               <Pressable
                 key={code}
                 onPress={() => {
-                  setSettings({ ...settings, CURRENCY: code });
+                  setCurrency(code);
                   setIsCurrencyModalVisible(false);
                 }}
-                className={`py-2 px-4 rounded-lg ${settings.CURRENCY === code ? 'bg-primary' : 'bg-gray-200'} my-1`}
+                className={`py-2 px-4 rounded-lg ${currency === code ? 'bg-primary' : 'bg-gray-200'} my-1`}
               >
                 <Text
-                  className={`${settings.CURRENCY === code ? 'text-white' : 'text-black'} text-center`}
+                  className={`${currency === code ? 'text-white' : 'text-black'} text-center`}
                 >
                   {code}
                 </Text>

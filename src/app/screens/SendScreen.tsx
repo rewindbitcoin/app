@@ -42,6 +42,7 @@ import { formatBtc } from '../lib/btcRates';
 import { OutputInstance } from '@bitcoinerlab/descriptors';
 import useFirstDefinedValue from '~/common/hooks/useFirstDefinedValue';
 import useArrayChangeDetector from '~/common/hooks/useArrayChangeDetector';
+import { useLocalization } from '../hooks/useLocalization';
 
 export default function Send() {
   const insets = useSafeAreaInsets();
@@ -98,6 +99,8 @@ export default function Send() {
     throw new Error(
       'This component should only be started after settings has been retrieved from storage'
     );
+
+  const { locale, currency } = useLocalization();
 
   const [address, setAddress] = useState<string | null>(null);
   const [isConfirm, setIsConfirm] = useState<boolean>(false);
@@ -261,11 +264,11 @@ export default function Send() {
         amount,
         subUnit: settings.SUB_UNIT,
         btcFiat,
-        locale: settings.LOCALE,
-        currency: settings.CURRENCY
+        locale,
+        currency
       });
     },
-    [settings.SUB_UNIT, settings.LOCALE, settings.CURRENCY, btcFiat]
+    [settings.SUB_UNIT, locale, currency, btcFiat]
   );
 
   const modalIcon = useMemo<IconType>(

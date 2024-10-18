@@ -28,6 +28,7 @@ import { formatBlocks } from '../lib/format';
 import { createServiceOutput } from '../lib/vaultDescriptors';
 import { networkMapping } from '../lib/network';
 import { formatBtc } from '../lib/btcRates';
+import { useLocalization } from '../hooks/useLocalization';
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -93,6 +94,7 @@ export default function CreateVaultScreen({
     );
   const samples = settings.SAMPLES;
   const feeRateCeiling = settings.PRESIGNED_FEE_RATE_CEILING;
+  const { locale, currency } = useLocalization();
   // We know settings are the correct ones in this Component
   const [progress, setProgress] = useState<number>(0);
   const [confirmRequested, setConfirmRequested] = useState<boolean>(false);
@@ -382,11 +384,11 @@ export default function CreateVaultScreen({
         amount,
         subUnit: settings.SUB_UNIT,
         btcFiat,
-        locale: settings.LOCALE,
-        currency: settings.CURRENCY
+        locale,
+        currency
       });
     },
-    [settings.SUB_UNIT, settings.LOCALE, settings.CURRENCY, btcFiat]
+    [settings.SUB_UNIT, locale, currency, btcFiat]
   );
 
   return (

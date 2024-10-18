@@ -1,4 +1,3 @@
-import type { Locale } from '../../i18n-locales/init';
 import type { Currency, SubUnit } from '../lib/settings';
 import { numberToLocalizedString } from '../../common/lib/numbers';
 import { formatFiat, fromSats, formatBtc } from '../lib/btcRates';
@@ -23,7 +22,7 @@ export const formatBalance = ({
   satsBalance: number;
   btcFiat?: number | undefined;
   currency: Currency;
-  locale: Locale;
+  locale: string;
   mode: SubUnit | 'Fiat';
   appendSubunit?: boolean;
 }) => {
@@ -112,7 +111,7 @@ const formatFeeRateFactory = memoize((t: TFunction) =>
       feeRate: number;
       btcFiat: number | undefined;
       subUnit: SubUnit;
-      locale: Locale;
+      locale: string;
       currency: Currency;
       feeEstimates: FeeEstimates | undefined;
     }) => {
@@ -189,7 +188,7 @@ export const formatFeeRate = (
     feeRate: number;
     btcFiat: number | undefined;
     subUnit: SubUnit;
-    locale: Locale;
+    locale: string;
     currency: Currency;
     feeEstimates: FeeEstimates | undefined;
   },
