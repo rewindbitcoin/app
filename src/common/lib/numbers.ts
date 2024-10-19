@@ -66,6 +66,7 @@ const numberToLocalizedString = (value: number, locale: string) => {
 const localizedStrToNumber = (str: string, locale: string): number => {
   if (str === '') return NaN;
   const { delimiter, separator } = getLocaleSeparators(locale);
+  console.log('TRACE', { delimiter, separator });
   //console.log({ str, delimiter, separator });
 
   // Mapping locale-specific numerals to Western Arabic numerals
@@ -122,8 +123,8 @@ const localizedStrToNumber = (str: string, locale: string): number => {
 
     // Replace decimal separator with dot and remove delimiters
     normalizedStr = normalizedStr
-      .replace(new RegExp(`\\${separator}`), '.')
-      .replace(new RegExp(`\\${delimiter}`, 'g'), '');
+      .replace(new RegExp(`\\${delimiter}`, 'g'), '')
+      .replace(new RegExp(`\\${separator}`), '.');
     //console.log({ finalNormalizedStr: normalizedStr });
 
     const parsedNumber = Number(normalizedStr);
