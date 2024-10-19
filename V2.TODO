@@ -1,3 +1,5 @@
+Study Hardware Wallet integrations with HWI:
+  https://github.com/wizardsardine/async-hwi/tree/master
 RBF:
   -> Implementar RBF en los vaults y en las txs
     -> en la triggerTx
