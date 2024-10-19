@@ -15,7 +15,6 @@ export const useSettings = () => {
       undefined,
       'GLOBAL'
     );
-  console.log(JSON.stringify(settings, null, 2));
 
   return {
     settings,
