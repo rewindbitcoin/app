@@ -50,7 +50,7 @@ const DELTA = 100;
 const ANIMATION_TIME = 300;
 const OPACITY = 0.3;
 
-const Modal: React.FC<ModalProps> = ({
+const RawModal: React.FC<ModalProps> = ({
   isVisible,
   icon,
   headerMini = false,
@@ -412,5 +412,7 @@ const Modal: React.FC<ModalProps> = ({
     </RNModal>
   );
 };
+
+const Modal = React.memo(RawModal);
 
 export { Modal };
