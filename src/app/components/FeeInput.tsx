@@ -5,14 +5,20 @@
 
 const FEE_RATE_STEP = 0.01;
 
-import React, { useCallback, useRef, useMemo } from 'react';
-import { CardEditableSlider } from '../../common/ui';
+import React, { useCallback, useRef, useMemo, useState } from 'react';
+import {
+  CardEditableSlider,
+  IconType,
+  InfoButton,
+  Modal
+} from '../../common/ui';
 import { snapWithinRange } from '../../common/lib/numbers';
 import { formatFeeRate } from '../lib/format';
 import { computeMaxAllowedFeeRate, FeeEstimates } from '../lib/fees';
 import { useTranslation } from 'react-i18next';
 import { useSettings } from '../hooks/useSettings';
 import { useLocalization } from '../hooks/useLocalization';
+import { Text } from 'react-native';
 
 function FeeInput({
   label,
@@ -20,7 +26,8 @@ function FeeInput({
   fee,
   feeEstimates,
   btcFiat,
-  onValueChange
+  onValueChange,
+  helpIconAvailable = true
 }: {
   label: string;
   initialValue: number;
@@ -28,6 +35,7 @@ function FeeInput({
   feeEstimates: FeeEstimates;
   btcFiat: number | undefined;
   onValueChange: (value: number | null, type: 'USER' | 'RESET') => void;
+  helpIconAvailable: boolean;
 }) {
   const { settings } = useSettings();
   if (!settings)
@@ -37,6 +45,10 @@ function FeeInput({
   const { locale, currency } = useLocalization();
   const subUnit = settings.SUB_UNIT;
   const { t } = useTranslation();
+
+  const [feeHelp, setFeeHelp] = useState<boolean>(false);
+  const showFeeHelp = useCallback(() => setFeeHelp(true), []);
+  const hideFeeHelp = useCallback(() => setFeeHelp(false), []);
 
   //We need a LUT from-to presented slider values (which are snapped)
   const snappedFeeEstimates = useMemo(() => {
@@ -107,19 +119,45 @@ function FeeInput({
     [min, max, snappedMin, snappedMax, onValueChange]
   );
 
+  const headerIcon = useMemo(
+    () => <InfoButton onPress={showFeeHelp} />,
+    [showFeeHelp]
+  );
+
+  const helpIcon = useMemo<IconType>(
+    () => ({ family: 'MaterialCommunityIcons', name: 'pickaxe' }),
+    []
+  );
+
   return (
-    <CardEditableSlider
-      locale={locale}
-      label={label}
-      key={`${min}-${max}`}
-      minimumValue={snappedMin}
-      maximumValue={snappedMax}
-      initialValue={snappedInitialValue}
-      onValueChange={onSnappedValueChange}
-      step={FEE_RATE_STEP}
-      formatValue={formatValue}
-      unit={'sats/vB'}
-    />
+    <>
+      <CardEditableSlider
+        locale={locale}
+        label={label}
+        {...(helpIconAvailable ? { headerIcon } : {})}
+        key={`${min}-${max}`}
+        minimumValue={snappedMin}
+        maximumValue={snappedMax}
+        initialValue={snappedInitialValue}
+        onValueChange={onSnappedValueChange}
+        step={FEE_RATE_STEP}
+        formatValue={formatValue}
+        unit={'sats/vB'}
+      />
+      {helpIconAvailable && (
+        <Modal
+          title={t('feeInput.helpTitle')}
+          icon={helpIcon}
+          isVisible={feeHelp}
+          onClose={hideFeeHelp}
+          closeButtonText={t('understoodButton')}
+        >
+          <Text className="text-base pl-2 pr-2 text-slate-600">
+            {t('feeInput.helpText')}
+          </Text>
+        </Modal>
+      )}
+    </>
   );
 }
 

@@ -1,27 +1,15 @@
-TODO: web forma para contactar
+TODO: Add help on the fees.
+  -> Ojo q algún help es un modal :-(
 
--> Check at 12:00 AM if the backup automatical works
--> Make sure the addresses being generated are the new ones
--> backup the folder hermes-production in a different location
+FIXME: formatBlocks/formatNumber should receive a locale
+  try in all places I changed it:
+    -CreateVaultScreen on the crateVault.timeLock
+    -Vaults. eevrywhere
+    -InitUnfreeze 
 
-FIXME: Add help on the fees.
+FIXME: Comprobar muy bien que los vaults siguen funcionando bien con todos
+ los locales (ahora hay muchas conversiones de datos y ya he encontrado algun bug)
 
-FIXME: Get the trademark: Super Important !!!
-
-FIXME: FIXME: FIXME: FIXME: FIXME: FIXME: FIXME: FIXME: FIXME: FIXME: FIXME: FIXME: TODO: Puntos y comas default EN-US - ahora mismo se toma todo como si estuviesemos en ESTADOS UNIDOS!!!
-
-FIXME: Ojo q la lozalicacion edsta mal porque ahora me intenterá meter el español!!!
-  -> FIXME: Poner en i18next (se puede, ver como ) los fallbacks para catalan y gallego a español...
-
-FIXME:
-FIXME: Muchos reintentos fallidos (me dice q espere 30 ") tambien da fallo de Samsung old devices...
-TODO -> Si añado huella en Android me da luego para NUEVAS wallets el error de Samsung
-  -> Verificar esto y adaptar biometricsSetupReadWriteError con nueva explicacion
-  recomendadndo o a) re-lanzar la app -si esto va bien o b) re-instalar la app
-    -> Mirar si esto es un fallo de los samsung viejos solamente y pasar del tema.
-      -> Probar con El de la mama. -> En efecto es problema Samsung viejo.
-TODO -> La pantalla de errores de WalletHomeScreen no permite scroll
--> Testear
 TODO -> probar con un iphone SE aun mas nuevo para ver si en el menu de la app
 sale Touch ID.
 -> TODO -> probar con un Android con FaceId. Porque quizá se comporte parecido a iOS?
@@ -30,61 +18,13 @@ android / broken_android / ios faceid / ios touchid (because of can the use canc
     -> iOS v
   new install -> new wallet -> grant permission
   new install -> new wallet -> grant permission -> read without grant permission (revoke on ios on system settins / anadrid simply say no ?)
+  new install -> new wallet -> fail many times on the fingerprint/FaceId
   If you feel like it...: new install -> new wallet -> grant permission -> add fingerprint -> read wallet
-
-FIXME: Android test what happens if user revokes.
-  -> It sends back to main wallets screen but ios provides more info. WEIRD.
-    -> It's better to provide more info
-
-FIXME: get rid of biometricsUncapable  - this is already integrated in the new version right?
-  -> I have 3 different things and gets confussing:
-   canUseSecureStorage, -> osReportsSecureStorageAvailable
-    -> The device provide this info. Run once on system boot.
-   biometricsUncapable,
-    -> Being used to detect when the Samsung devices fail: newWallet and Biometris[Read/Write]Error
-   signersStorageError -> signersStorageEngineMismatch
-    -> Incompatibility detected (SecureStorageEngine but os reports is not available)web usng MMKV...
-    -> Being used to detect when the user has remvoe the FaceID feature?
-  -> In fact, can i get the user cancel trhow message? does it work both for iOS and Android?
-  See:  catch (error) {
-      console.warn(error);
-      if (errorMatches(error, MATCH_USER_CANCEL))
-        throw new Error(StorageErrors.BiometricsReadUserCancel);
-    }
-
-
-TODO: create a hetzner backup of the node
-
-TODO: problems on new installations if user creates with biometrics then denies biometrics on read.
-  -> In addition creating new wallets will automatically generate the error.
-    -> On new installations 
-
-TODO: glitch sending coins twice. Investigate.
-
-TODO: verificar en que moneda se pone por defecto
-
-TODO: what happens if someone enters a taproot address? this crashes? what?
-better reject it!
 
 TODO: si quito la wifi y le doy repetifads veces a Check again me va añadiendo
 mensajes de error en lugar de replace
 
-Test Samsung 51:
-  -> FIXME: Imporatnt verify all the <ActivityIndicator/> since im using a custom implementation and alignmenta was failing in Android...
-    -> FIXME: el <RefreshControl/> sigue sin hacer una animacion
-      -> No es supoer importante yaq ue esto se debe a que tengo las animaciones desactivadas para "DESARROLLADORES", pero en real funcionaria. Ver:
-      https://stackoverflow.com/questions/50159860/activityindicator-not-spinning-or-animated-only-static-image-on-android
-
-  -> animations do not work
-    -> I get this warning: Reanimted -> Reduced motion is enabled on this device
-    https://docs.swmansion.com/react-native-reanimated/docs/guides/troubleshooting/#reduced-motion-setting-is-enabled-on-this-device
-    -> https://github.com/software-mansion/react-native-reanimated/issues/5253#issuecomment-2046526331
-    -> RefreshControl...
-      -> https://github.com/facebook/react-native/issues/35442
-  -> biometrics do not work
-  -> "Check again not in blue
-
-TODO: Add more traces to help identify "Storage Error" errors - keep trace of all data
+TODO: "Check again" on net errors not in blue
 
 TODO: Unable to retrieve up to date fee rates y luego me sale iummediatamente connectivity restored pero el toast.hide no se hizo
   -> Creo que el toast.hide es lento, es por eso? Hacer sino toast.update pero ese
@@ -97,23 +37,6 @@ TODO: Me salen errores de network en WalletsScreen. Pero no se ha hecho el logou
   -> Cerrar todo tipo de cosa si logout hecho
 
 
-TODO: comprpbar estos arregos en android real:
-  -> El hitSlop a mejorar mucho con los sliders yo no soy capaz
-    -> Ademas si tengo el texto seleccionado (al menos en android) no puedo usar el slider
-    -> En android esto se puede apañar con esto:
-    https://github.com/callstack/react-native-slider/issues/227
-    basicamente poinendo este style: transform: [{ scaleX: 2 }, { scaleY: 2 }]
-      -> Esto funciona bastante bien excepto que no pilla por arriba/abajo; pero 
-      pilla bien derecha izquieda...
-    pero me desmonta el resto, claro...
-      -> otra es ver lo de hitSlop...
-      -> Give thumbImage a try for android...
-
-
-  -> Publish apk?
-  -> Me falla el biometrics pero creo q es por mi movil
-  -> La camara sale por debajo del sitio contenido. Se veo fura del modal.
-    -> Es un fallo conocido manda huevos: https://github.com/expo/expo/issues/30684#issuecomment-2258300589
 
 
 
@@ -130,10 +53,19 @@ TODO: comprpbar estos arregos en android real:
 
 
 
+TODO: web forma para contactar
 
+TODO: what happens if someone enters a taproot address? this crashes? what?
+better reject it!
 
+TODO: Get the trademark: Super Important !!!
 
+TODO: Make sure the addresses being generated are the new ones
 
+TODO: glitch sending coins twice. Investigate.
+
+TODO: Ojo q la lozalicacion edsta mal porque ahora me intenterá meter el español!!!
+  -> FIXME: Poner en i18next (se puede, ver como ) los fallbacks para catalan y gallego a español...
 
 TODO: La web de rewind deberia usar url dinamica para Rescue (services.env)
 

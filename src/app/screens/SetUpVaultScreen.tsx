@@ -39,6 +39,7 @@ export default function VaultSetUp({
 }: {
   onVaultSetUpComplete: (vaultSettings: VaultSettings) => void;
 }) {
+  console.log('TRACE', 'VaultSetUp');
   const insets = useSafeAreaInsets();
   const containerStyle = useMemo(
     () => ({ marginBottom: insets.bottom / 4 + 16 }),

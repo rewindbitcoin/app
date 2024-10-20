@@ -395,7 +395,7 @@ export default function CreateVaultScreen({
     <KeyboardAwareScrollView
       contentInsetAdjustmentBehavior="automatic"
       keyboardShouldPersistTaps="handled"
-      contentContainerClassName="flex-1"
+      contentContainerClassName="flex-grow"
     >
       <View
         className="flex-1 self-center max-w-lg w-full px-4 py-4 mobmed:py-8"
@@ -438,7 +438,7 @@ export default function CreateVaultScreen({
                       {t('createVault.timeLock')}
                     </Text>
                     <Text className="w-[70%] pl-2 text-base">
-                      {formatBlocks(vault.lockBlocks, t)}
+                      {formatBlocks(vault.lockBlocks, t, locale, true)}
                     </Text>
                   </View>
                   {

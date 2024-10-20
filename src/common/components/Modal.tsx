@@ -33,7 +33,7 @@ import Animated, {
 
 import { getRealWindowHeight } from 'react-native-extra-dimensions-android';
 
-interface ModalProps {
+export interface ModalProps {
   title: string;
   subTitle?: string;
   isVisible: boolean;
@@ -126,7 +126,7 @@ const Modal: React.FC<ModalProps> = ({
       onCloseTriggered.current = false;
       translateY.value = 0;
     } else {
-      window.setTimeout(() => {
+      setTimeout(() => {
         //Make sure it's set to zero.
         if (isMountedRef.current && !isVisible) translateY.value = 0;
       }, 1.5 * ANIMATION_TIME);
@@ -173,15 +173,20 @@ const Modal: React.FC<ModalProps> = ({
   // important for iOS since persistentScrollbar only applies to Android
   // See: https://stackoverflow.com/questions/47038519/permanently-visible-scroll-bar-for-scrollview-react-native
   useEffect(() => {
+    let timer1: ReturnType<typeof setTimeout> | undefined;
+    let timer2: ReturnType<typeof setTimeout> | undefined;
     if (isVisible) {
-      setTimeout(() => {
+      timer1 = setTimeout(() => {
         scrollViewRef.current?.flashScrollIndicators();
       }, 1000);
-      setTimeout(() => {
+      timer2 = setTimeout(() => {
         scrollViewRef.current?.flashScrollIndicators();
       }, 3000);
     }
-    return;
+    return () => {
+      clearTimeout(timer1);
+      clearTimeout(timer2);
+    };
   }, [isVisible]);
 
   return (

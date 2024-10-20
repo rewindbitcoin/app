@@ -122,7 +122,13 @@ const Main = () => {
   //TODO: These screens below re-render too oftern, i'm passing new objects {{}}
   //to all of them, the useCallback does notthing if also passing {{}}
 
-  const SetUpVaultScreenWithOnComplete = useCallback(() => {
+  const SetUpVaultScreenWithOnComplete = () => {
+    useEffect(() => {
+      // This function will be called when the component unmounts
+      return () => {
+        console.log('SetUpVaultScreenWithOnComplete is being unmounted');
+      };
+    }, []);
     return (
       <SetUpVaultScreen
         onVaultSetUpComplete={(vaultSettings: VaultSettings) => {
@@ -132,7 +138,7 @@ const Main = () => {
         }}
       />
     );
-  }, [navigation]);
+  };
   const CreateVaultScreenWithSettings = useCallback(
     () => <CreateVaultScreen vaultSettings={vaultSettings} />,
     [vaultSettings]

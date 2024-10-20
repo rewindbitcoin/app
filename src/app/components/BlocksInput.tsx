@@ -46,10 +46,10 @@ function BlocksInput({
     (modeValue: number) => {
       const blocks = toBlocks(modeValue, mode, knownBlocksValueMap);
       return t('vaultSetup.securityLockTimeDescription', {
-        blocks: formatBlocks(blocks, t)
+        blocks: formatBlocks(blocks, t, locale)
       });
     },
-    [t, knownBlocksValueMap, mode]
+    [t, knownBlocksValueMap, mode, locale]
   );
 
   const onModeValueChange = useCallback(

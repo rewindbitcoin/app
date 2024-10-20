@@ -38,24 +38,13 @@ export default function Receive() {
   }>();
 
   const {
-    utxosData,
     networkId,
-    feeEstimates,
-    accounts,
     faucetURL,
     getNextReceiveDescriptorWithIndex,
     fetchOutputHistory
   } = useWallet();
-  if (!utxosData)
-    throw new Error('SetUpVaultScreen cannot be called with unset utxos');
-  if (!accounts)
-    throw new Error('SetUpVaultScreen cannot be called with unset accounts');
   if (!networkId)
-    throw new Error('SetUpVaultScreen cannot be called with unset networkId');
-  if (!feeEstimates)
-    throw new Error(
-      'SetUpVaultScreen cannot be called with unset feeEstimates'
-    );
+    throw new Error('ReceiveScreen cannot be called with unset networkId');
   const network = networkMapping[networkId];
 
   useEffect(() => {

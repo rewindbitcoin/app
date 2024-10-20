@@ -289,9 +289,15 @@ function AddressInput({
           </View>
         }
       >
-        {!camPermission?.granted ? (
+        {!camPermission?.canAskAgain ? (
+          <View className="p-8">
+            <Text className="text-base">
+              {t('addressInput.cameraPermissionDenied')}
+            </Text>
+          </View>
+        ) : !camPermission?.granted ? (
           <View className="gap-4 p-8">
-            <Text className="text-slate-600">
+            <Text className="text-slate-600 text-base pb-4">
               {t('addressInput.requestPermissionRationale')}
             </Text>
             <Button onPress={requestCamPermission}>

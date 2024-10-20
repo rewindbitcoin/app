@@ -464,7 +464,7 @@ const RawVault = ({
             />*/}
             <Text className="native:text-sm web:text-xs uppercase text-primary-dark font-semibold">
               {t('wallet.vault.timeRemaining', {
-                timeRemaining: formatBlocks(remainingBlocks, t, true)
+                timeRemaining: formatBlocks(remainingBlocks, t, locale, true)
               })}
             </Text>
           </View>
@@ -478,7 +478,7 @@ const RawVault = ({
             />*/}
             <Text className="native:text-sm web:text-xs uppercase text-primary-dark font-semibold">
               {t('wallet.vault.untriggeredLockTime', {
-                timeRemaining: formatBlocks(vault.lockBlocks, t, true)
+                timeRemaining: formatBlocks(vault.lockBlocks, t, locale, true)
               })}
             </Text>
           </View>
@@ -509,7 +509,7 @@ const RawVault = ({
               }}
             >
               {t('wallet.vault.confirmedTrigger', {
-                lockTime: formatBlocks(vault.lockBlocks, t, true),
+                lockTime: formatBlocks(vault.lockBlocks, t, locale, true),
                 triggerConfirmedDate: formatVaultDate(
                   vaultStatus?.triggerTxBlockTime,
                   locale
@@ -589,7 +589,7 @@ const RawVault = ({
             !vaultStatus?.vaultTxBlockHeight && (
               <Text className="pt-2">
                 {t('wallet.vault.notTriggeredUnconfirmed', {
-                  lockTime: formatBlocks(vault.lockBlocks, t, true)
+                  lockTime: formatBlocks(vault.lockBlocks, t, locale, true)
                 })}
               </Text>
             )}
@@ -597,7 +597,7 @@ const RawVault = ({
             !!vaultStatus?.vaultTxBlockHeight && (
               <Text className="pt-2">
                 {t('wallet.vault.notTriggered', {
-                  lockTime: formatBlocks(vault.lockBlocks, t, true)
+                  lockTime: formatBlocks(vault.lockBlocks, t, locale, true)
                 })}
               </Text>
             )}

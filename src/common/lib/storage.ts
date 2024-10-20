@@ -236,7 +236,7 @@ const secureStoreGetItemAsync = async (
         console.warn(
           `Secure Store failed reading ${key}. #Attempts: so far: ${attempts}. Attempting again.`
         );
-        await new Promise(resolve => setTimeout(resolve, 1000)); //sleep 1 second
+        //await new Promise(resolve => setTimeout(resolve, 100)); //sleep 0.1 second
       }
       return await secureStoreOriginalGetItemAsync(key, options);
     } catch (error) {
@@ -261,7 +261,7 @@ const secureStoreSetItemAsync = async (
         console.warn(
           `Secure Store failed setting ${key}. #Attempts so far: ${attempts}. Deleting key and attempting again.`
         );
-        await new Promise(resolve => setTimeout(resolve, 1000)); //sleep 1 second
+        //await new Promise(resolve => setTimeout(resolve, 100)); //sleep 0.1 second
         await secureStoreDeleteItemAsync(key, options);
       }
       return await secureStoreOriginalSetItemAsync(key, value, options);

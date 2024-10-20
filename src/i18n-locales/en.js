@@ -1,5 +1,6 @@
 //Treat this as a glorified json with comments & multi-line using string literals
 //TODO: Emergency Addres <-> Rewind Address?
+
 //TODO: recovery phrase or Recovery Phrase - be consistent
 export default {
   app: {
@@ -626,6 +627,14 @@ Now, as the final step, we're sending your vault to the blockchain to activate i
   units: {
     preferredUnitTitle: 'Preferred Unit'
   },
+  feeInput: {
+    helpTitle: 'Confirmation Speed',
+    helpText: `This setting determines the confirmation speed of your transaction on the network.
+
+The fee you choose compensates miners for including your transaction in the blockchain.
+
+Transactions with higher fees are prioritized by miners, increasing the likelihood of faster confirmation.`
+  },
   blocksInput: {
     coldAddress: {
       helpTitle: 'Time-Lock Protection',
@@ -669,10 +678,14 @@ You can either use the 'Create' wizard to generate a new Emergency Address or us
       textInputPlaceholder: "Enter recipient's address"
     },
     scan: 'Scan',
-    scanQRModalTitle: 'Scan Bitcoin QR Code',
+    scanQRModalTitle: 'Scan Bitcoin QR',
     flipCam: 'Flip Camera',
-    requestPermissionRationale:
-      'We need your permission to access the camera. The camera is used to scan QR codes containing Bitcoin addresses.',
+    cameraPermissionDenied: `Access to the camera has been permanently denied for this app.
+
+To use the camera, please go to your device's settings and manually enable camera permissions for this app.`,
+    requestPermissionRationale: `We need your permission to access the camera.
+
+The camera is used to scan QR codes containing Bitcoin addresses.`,
     triggerNativeRequestPermissionButton: 'Grant Camera Access',
     scanQRCall2Action:
       'Align the QR code within the frame to scan the Bitcoin address.'

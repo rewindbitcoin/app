@@ -1,3 +1,4 @@
+import { getLocalizationAsync } from 'expo-localization';
 import memoize from 'lodash.memoize';
 //https://stackoverflow.com/a/9539746
 const countDecimalDigits = memoize((number: number): number => {
@@ -37,21 +38,47 @@ const getLocaleSeparators = memoize((locale: string) => {
   if (delimiter === undefined || separator === undefined) return defaults;
   return { delimiter, separator };
 });
+
 /**
- * convert a number 10000.02 to fancy: 10,000.02
+ * Converts a number to a formatted string with localization and optional natural formatting.
+ * F.ex.: convert a number 10000.02 to fancy: 10,000.02
  */
 const numberToFormattedFixed = (
   value: number,
   precision: number,
-  locale: string
+  locale: string,
+  /**
+   * If true, does not add decimal separator and trailing zeros when the formatted
+   * value consists of a decimal separator followed by zeros. F.ex.: 1000.02 with
+   * precision 1 and naturalFormatting true, will return: 1,000
+   */
+  naturalFormatting: boolean = false
 ) => {
-  return new Intl.NumberFormat(locale, {
+  // Format the number with the specified locale and precision.
+  const formatted = new Intl.NumberFormat(locale, {
     minimumFractionDigits: precision,
     maximumFractionDigits: precision
   }).format(value);
+
+  // If naturalFormatting is enabled, further process to remove unnecessary
+  // decimal zeros.
+  if (naturalFormatting) {
+    const { separator } = getLocaleSeparators(locale);
+    const parts = formatted.split(separator);
+
+    // Check if the part after the decimal separator is all zeros.
+    if (parts[1] && parts[1].match(/^0+$/)) {
+      return parts[0]; // Return the integer part only.
+    }
+  }
+
+  // Return the original formatted string if no changes are needed or conditions aren't met.
+  return formatted;
 };
+
 const numberToFixed = (value: number, precision: number, locale: string) => {
   const { separator } = getLocaleSeparators(locale);
+  //toFixed always uses a dot (.) indepedent of localization
   return value.toFixed(precision).replace('.', separator);
 };
 const numberToLocalizedString = (value: number, locale: string) => {
@@ -66,7 +93,6 @@ const numberToLocalizedString = (value: number, locale: string) => {
 const localizedStrToNumber = (str: string, locale: string): number => {
   if (str === '') return NaN;
   const { delimiter, separator } = getLocaleSeparators(locale);
-  console.log('TRACE', { delimiter, separator });
   //console.log({ str, delimiter, separator });
 
   // Mapping locale-specific numerals to Western Arabic numerals

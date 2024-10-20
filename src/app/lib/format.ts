@@ -1,5 +1,8 @@
 import type { Currency, SubUnit } from '../lib/settings';
-import { numberToLocalizedString } from '../../common/lib/numbers';
+import {
+  numberToFormattedFixed,
+  numberToLocalizedString
+} from '../../common/lib/numbers';
 import { formatFiat, fromSats, formatBtc } from '../lib/btcRates';
 import type { TFunction } from 'i18next';
 import memoize from 'lodash.memoize';
@@ -42,15 +45,6 @@ export const formatBalance = ({
   }
 };
 
-const formatNumber = (num: number, naturalFormatting: boolean) => {
-  if (naturalFormatting) {
-    const fixed = num.toFixed(1);
-    return fixed.endsWith('.0') ? parseInt(fixed, 10) : fixed;
-  } else {
-    return num.toFixed(1);
-  }
-};
-
 /**
  * Formats block time estimates into human-readable strings.
  *
@@ -63,11 +57,16 @@ const formatNumber = (num: number, naturalFormatting: boolean) => {
  * @example
  * const t = (key, options) => `${options.formattedCount} ${key}`; // Example translation function
  *
- * formatBlocks(6, t); // Returns "1.0 hours"
- * formatBlocks(6, t, true); // Returns "1 hour"
+ * formatBlocks(6, t, locale); // Returns "1.0 hours"
+ * formatBlocks(6, t, locale, true); // Returns "1 hour"
  */
 export const formatBlocks = moize(
-  (blocks: number, t: TFunction, naturalFormatting: boolean = false) => {
+  (
+    blocks: number,
+    t: TFunction,
+    locale: string,
+    naturalFormatting: boolean = false
+  ) => {
     const averageBlockTimeInMinutes = 10;
     const timeInMinutes = blocks * averageBlockTimeInMinutes;
     const rawTimeInHours = timeInMinutes / 60;
@@ -76,17 +75,27 @@ export const formatBlocks = moize(
     if (timeInMinutes < 60) {
       return t('timeEstimate.minutes', {
         count: timeInMinutes,
-        formattedCount: formatNumber(timeInMinutes, true)
+        formattedCount: numberToFormattedFixed(timeInMinutes, 1, locale, true)
       });
     } else if (timeInMinutes < 1440) {
       return t('timeEstimate.hours', {
         count: rawTimeInHours,
-        formattedCount: formatNumber(rawTimeInHours, naturalFormatting)
+        formattedCount: numberToFormattedFixed(
+          rawTimeInHours,
+          1,
+          locale,
+          naturalFormatting
+        )
       });
     } else {
       return t('timeEstimate.days', {
         count: rawTimeInDays,
-        formattedCount: formatNumber(rawTimeInDays, naturalFormatting)
+        formattedCount: numberToFormattedFixed(
+          rawTimeInDays,
+          1,
+          locale,
+          naturalFormatting
+        )
       });
     }
   }
@@ -168,7 +177,7 @@ const formatFeeRateFactory = memoize((t: TFunction) =>
             strTime = t('feeRate.mayNotConfirm');
           else
             strTime = t('feeRate.confirmationTime', {
-              blocks: formatBlocks(target, t)
+              blocks: formatBlocks(target, t, locale)
             });
         }
       }

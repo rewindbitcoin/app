@@ -12,6 +12,7 @@ import type { TxHex, TxId, Vault } from '../lib/vaults';
 import { transactionFromHex } from '../lib/bitcoin';
 import { useWallet } from '../hooks/useWallet';
 import useFirstDefinedValue from '~/common/hooks/useFirstDefinedValue';
+import { useLocalization } from '../hooks/useLocalization';
 
 export type InitUnfreezeData = {
   txHex: TxHex;
@@ -54,6 +55,7 @@ const InitUnfreeze = ({
   isVisible: boolean;
   onClose: () => void;
 }) => {
+  const { locale } = useLocalization();
   const triggerSortedTxs = useMemo(() => {
     return Object.entries(vault.triggerMap)
       .map(([triggerTxHex]) => {
@@ -109,7 +111,7 @@ const InitUnfreeze = ({
     onInitUnfreeze(txData);
   }, [onInitUnfreeze, txData]);
 
-  const timeLockTime = formatBlocks(lockBlocks, t, true);
+  const timeLockTime = formatBlocks(lockBlocks, t, locale, true);
 
   return (
     isVisible &&
