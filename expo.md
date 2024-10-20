@@ -179,6 +179,12 @@ eas submit --platform ios --profile production
 #then select the ipa file created on first command
 ```
 
+## Generating a production apk for Android
+
+```bash
+eas build --profile production --platform android --clear-cache --local
+```
+
 having this in eas.json:
 
 ```json

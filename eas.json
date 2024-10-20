@@ -14,6 +14,9 @@
       }
     },
     "preview": {
+      "android": {
+        "gradleCommand": ":app:assembleRelease"
+      },
       "distribution": "internal"
     },
     "preview-simulator": {
@@ -23,9 +26,13 @@
     },
     "production": {
       "autoIncrement": true,
-      "distribution": "store",
       "ios": {
+        "distribution": "store",
         "buildConfiguration": "Release"
+      },
+      "android": {
+        "gradleCommand": ":app:assembleRelease",
+        "distribution": "internal"
       }
     }
   },
