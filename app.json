@@ -3,7 +3,7 @@
     "name": "RewindBitcoin",
     "jsEngine": "hermes",
     "slug": "RewindBitcoin",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -12,9 +12,7 @@
       "resizeMode": "contain",
       "backgroundColor": "#FFFFFF"
     },
-    "assetBundlePatterns": [
-      "**/*"
-    ],
+    "assetBundlePatterns": ["**/*"],
     "ios": {
       "config": {
         "usesNonExemptEncryption": false
@@ -54,10 +52,7 @@
       "es": "./src/i18n-locales/app.es.json"
     },
     "plugins": [
-      [
-        "react-native-libsodium",
-        {}
-      ],
+      ["react-native-libsodium", {}],
       "expo-font",
       "expo-local-authentication",
       "expo-secure-store",
