@@ -117,8 +117,10 @@ function AddressInput({
   //);
   const onAddress = useCallback(
     (qrResult: string) => {
-      // Regular expression to match Bitcoin and its variants like testnet and regtest
-      const regex = /^(bitcoin):([a-zA-Z0-9]+)(\?[\s\S]*)?$/;
+      // Regular expression to match Bitcoin:
+      // https://github.com/bitcoin/bips/blob/master/bip-0021.mediawiki#simpler-syntax
+      const regex =
+        /^([bB][iI][tT][cC][oO][iI][nN]:)?([a-zA-Z0-9]+)(\?[\s\S]*)?$/;
       let address = qrResult; // Default to using the full result as address
 
       // Extract address if it matches Bitcoin URI scheme
