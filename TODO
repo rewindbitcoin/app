@@ -1,15 +1,3 @@
-TODO: Add help on the fees.
-  -> Ojo q algún help es un modal :-(
-
-FIXME: formatBlocks/formatNumber should receive a locale
-  try in all places I changed it:
-    -CreateVaultScreen on the crateVault.timeLock
-    -Vaults. eevrywhere
-    -InitUnfreeze 
-
-FIXME: Comprobar muy bien que los vaults siguen funcionando bien con todos
- los locales (ahora hay muchas conversiones de datos y ya he encontrado algun bug)
-
 TODO -> probar con un iphone SE aun mas nuevo para ver si en el menu de la app
 sale Touch ID.
 -> TODO -> probar con un Android con FaceId. Porque quizá se comporte parecido a iOS?
@@ -35,6 +23,8 @@ TODO: Unable to retrieve up to date fee rates y luego me sale iummediatamente co
 
 TODO: Me salen errores de network en WalletsScreen. Pero no se ha hecho el logout?
   -> Cerrar todo tipo de cosa si logout hecho
+
+TODO: Implementar BIP39 passphrase. Se confunde con la Password?
 
 
 

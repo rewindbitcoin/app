@@ -1,6 +1,6 @@
 {
   "name": "@rewindbitcoin/app",
-  "version": "1.1.0",
+  "version": "1.1.2",
   "main": "node_modules/expo/AppEntry.js",
   "prettier": "@bitcoinerlab/configs/prettierConfig.json",
   "eslintConfig": {
@@ -85,7 +85,8 @@
     "shallow-equal": "^3.1.0",
     "stream": "^0.0.2",
     "tailwindcss": "^3.4.1",
-    "expo-localization": "~15.0.3"
+    "expo-localization": "~15.0.3",
+    "expo-application": "~5.9.1"
   },
   "devDependencies": {
     "@babel/core": "^7.24.0",
