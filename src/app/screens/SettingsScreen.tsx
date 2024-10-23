@@ -28,6 +28,12 @@ import { ElectrumExplorer } from '@bitcoinerlab/explorer';
 import { NetworkId, networkMapping } from '../lib/network';
 import { useLocalization } from '../hooks/useLocalization';
 
+import {
+  applicationName,
+  nativeApplicationVersion,
+  nativeBuildVersion
+} from 'expo-application';
+
 function sanitizeFilename(name: string) {
   // Regex to remove invalid file path characters
   return (
@@ -491,6 +497,10 @@ const SettingsScreen = () => {
               }}
             />
           </View>
+          <Text className="text-center mt-8 text-gray-400">
+            {applicationName} {nativeApplicationVersion} ({t('app.buildNumber')}{' '}
+            {nativeBuildVersion})
+          </Text>
         </View>
         <Modal
           icon={{

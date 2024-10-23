@@ -4,6 +4,7 @@
 //TODO: recovery phrase or Recovery Phrase - be consistent
 export default {
   app: {
+    buildNumber: 'Build',
     unknownError: 'An unknown error occurred.',
     networkError: `Oops! There was a network issue: {{message}}
 Please check your connection and try again.`,
