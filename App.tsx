@@ -76,6 +76,7 @@ const Main = () => {
   const settingsButton = useCallback(
     () => (
       <Pressable
+        hitSlop={10}
         onPress={() => navigation.navigate(SETTINGS)}
         className={`hover:opacity-90 active:scale-95 active:opacity-90`}
       >
@@ -285,8 +286,8 @@ export default function App() {
       <GestureHandlerRootView style={{ flex: 1 }}>
         <NavigationContainer theme={useTheme()}>
           <ToastProvider>
-            <NetStatusProvider>
-              <GlobalStorageProvider>
+            <GlobalStorageProvider>
+              <NetStatusProvider>
                 <SecureStorageInfoProvider>
                   <I18nextProvider i18n={i18n}>
                     <ErrorBoundary key={errorKey} onError={onGlobalError} t={t}>
@@ -294,8 +295,8 @@ export default function App() {
                     </ErrorBoundary>
                   </I18nextProvider>
                 </SecureStorageInfoProvider>
-              </GlobalStorageProvider>
-            </NetStatusProvider>
+              </NetStatusProvider>
+            </GlobalStorageProvider>
           </ToastProvider>
         </NavigationContainer>
       </GestureHandlerRootView>

@@ -15,6 +15,7 @@ import { useFonts } from 'expo-font';
 import { cssInterop } from 'nativewind';
 import { useWallet } from '../hooks/useWallet';
 import { walletTitle } from '../lib/wallets';
+import { useLocalization } from '../hooks/useLocalization';
 cssInterop(Svg, {
   className: {
     target: 'style',
@@ -76,6 +77,7 @@ const WalletsScreen = () => {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
   const { t } = useTranslation();
+  const { locale } = useLocalization();
   const handleWalletMap = useMemo(() => {
     if (!wallets) return {};
     else {
@@ -95,23 +97,47 @@ const WalletsScreen = () => {
 
   const handleNewWallet = useCallback(() => {
     if (!wallets) throw new Error('wallets not yet defined');
-    navigation.navigate(NEW_WALLET, {
-      walletId: Object.keys(wallets).length
-    });
+    //Get the max used + 1 (note that some wallets may have been deleted) so don't
+    //use wallets.length since we may end up reusing existin indices!!!
+    const walletId =
+      Object.values(wallets).length === 0
+        ? 0
+        : Math.max(...Object.values(wallets).map(wallet => wallet.walletId)) +
+          1;
+    navigation.navigate(NEW_WALLET, { walletId });
   }, [navigation, wallets]);
 
   const mbStyle = useMemo(() => ({ marginBottom: insets.bottom }), [insets]);
 
   const buttonHeightRef = useRef<number>();
   const scrollViewHeightRef = useRef<number>();
+  const contentHeightRef = useRef<number>();
   const [extraPadding, setExtraPadding] = useState<boolean>(false);
+
+  const handleExtraPadding = () => {
+    //Wait until we have all the layouts
+    if (
+      buttonHeightRef.current &&
+      scrollViewHeightRef.current &&
+      contentHeightRef.current
+    ) {
+      const newExtraPadding =
+        scrollViewHeightRef.current - contentHeightRef.current <=
+        buttonHeightRef.current + 8 * 5; /*bottom-8*/
+      //dont allow to set it to false
+      //to avoid unnecessary re-layouts and possible flickering
+      if (newExtraPadding === true && extraPadding === false)
+        setExtraPadding(true);
+    }
+  };
 
   return (
     <>
       <Pressable
-        onLayout={event =>
-          (buttonHeightRef.current = event.nativeEvent.layout.height)
-        }
+        onLayout={event => {
+          buttonHeightRef.current = event.nativeEvent.layout.height;
+          handleExtraPadding();
+        }}
         onPress={handleNewWallet}
         style={mbStyle}
         className={`bottom-8 right-8 z-10 p-4 bg-primary rounded-full hover:opacity-90 active:scale-95 active:opacity-90 fixed native:absolute shadow flex-row gap-1 items-center`}
@@ -132,24 +158,16 @@ const WalletsScreen = () => {
         contentContainerStyle={
           { flexGrow: 1 } /*className flex-1 does not work!*/
         }
-        onLayout={event =>
-          (scrollViewHeightRef.current = event.nativeEvent.layout.height)
-        }
+        onLayout={event => {
+          scrollViewHeightRef.current = event.nativeEvent.layout.height;
+          handleExtraPadding();
+        }}
       >
         <View
           className={`gap-4 max-w-full px-2 py-6 ${extraPadding ? 'pb-32' : ''}`}
           onLayout={event => {
-            const viewHeight = event.nativeEvent.layout.height;
-            console.log({
-              viewHeight,
-              scrollViewHeight: scrollViewHeightRef.current,
-              buttonHeight: buttonHeightRef.current
-            });
-            if (scrollViewHeightRef.current && buttonHeightRef.current)
-              setExtraPadding(
-                scrollViewHeightRef.current - viewHeight <=
-                  buttonHeightRef.current + 8 * 5 /*bottom-8*/
-              );
+            contentHeightRef.current = event.nativeEvent.layout.height;
+            handleExtraPadding();
           }}
         >
           {wallets &&
@@ -189,14 +207,11 @@ const WalletsScreen = () => {
                     {t('wallets.createdOn')}
                   </Text>
                   <Text className="flex-initial text-xs font-semibold text-white">
-                    {new Intl.DateTimeFormat(
-                      undefined /*use system's locale */,
-                      {
-                        year: 'numeric',
-                        month: 'long',
-                        day: '2-digit'
-                      }
-                    ).format(new Date(wallet.creationEpoch * 1000))}
+                    {new Intl.DateTimeFormat(locale, {
+                      year: 'numeric',
+                      month: 'long',
+                      day: '2-digit'
+                    }).format(new Date(wallet.creationEpoch * 1000))}
                   </Text>
                 </View>
                 <View className="z-10 absolute bottom-4 right-4 flex flex-row items-center gap-2">

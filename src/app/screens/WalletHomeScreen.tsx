@@ -52,6 +52,7 @@ import { useFaucet } from '../hooks/useFaucet';
 import { useWallet } from '../hooks/useWallet';
 import { walletTitle } from '../lib/wallets';
 import { useSecureStorageInfo } from '~/common/contexts/SecureStorageInfoContext';
+import { useNetStatus } from '../hooks/useNetStatus';
 
 const ErrorView = ({
   errorMessage,
@@ -92,10 +93,16 @@ const WalletHomeScreen = () => {
   const tabs = [t('wallet.vaultTab'), t('wallet.historyTab')];
   const [activeTabIndex, setActiveTabIndex] = useState<number>(0);
 
+  const [userTriggeredRefresh, setUserTriggeredRefresh] =
+    useState<boolean>(false);
+
+  const { explorerReachable } = useNetStatus();
+
   const {
     signersStorageEngineMismatch,
     vaults,
     vaultsStatuses,
+    accounts,
     utxosData,
     historyData,
     updateVaultStatus,
@@ -147,27 +154,31 @@ const WalletHomeScreen = () => {
       headerRight: () => (
         <View className="flex-row justify-between gap-5 items-center">
           <Pressable
+            hitSlop={10}
             onPress={syncingOrFaucetPending ? undefined : syncBlockchain}
             className={`${!syncingOrFaucetPending ? 'hover:opacity-90' : ''} active:scale-95 active:opacity-90 ${
-              syncingOrFaucetPending
+              syncingOrFaucetPending && userTriggeredRefresh //if the user triggered, then we show the native RefreshControl and therefore no need to make this so prominent
                 ? 'opacity-20 cursor-default'
                 : 'opacity-100'
             }`}
           >
             <AntDesign
               name={
-                !hasTouch && syncingOrFaucetPending ? 'loading1' : 'reload1'
+                (!hasTouch || !userTriggeredRefresh) && syncingOrFaucetPending
+                  ? 'loading1'
+                  : 'reload1'
               }
               size={17}
               color={theme.colors.primary}
               className={
-                !hasTouch && syncingOrFaucetPending
+                (!hasTouch || !userTriggeredRefresh) && syncingOrFaucetPending
                   ? 'animate-spin'
                   : 'animate-none'
               }
             />
           </Pressable>
           <Pressable
+            hitSlop={10}
             className={`hover:opacity-90 active:scale-95 active:opacity-90`}
             onPress={() => navigation.navigate(SETTINGS)}
           >
@@ -185,6 +196,7 @@ const WalletHomeScreen = () => {
       theme.colors.primary,
       title,
       syncBlockchain,
+      userTriggeredRefresh,
       syncingOrFaucetPending,
       navigation
     ]
@@ -244,6 +256,14 @@ const WalletHomeScreen = () => {
     [theme.colors.primary]
   );
 
+  const onRefresh = useCallback(() => {
+    setUserTriggeredRefresh(true);
+    syncBlockchain();
+  }, [syncBlockchain]);
+  useEffect(() => {
+    if (!syncingBlockchain) setUserTriggeredRefresh(false);
+  }, [syncingBlockchain]);
+
   const refreshControl = useMemo(() => {
     //isMounted prevents a renredering error in iOS where some times
     //the layout was not ready and strange flickers may occur. Note that
@@ -257,16 +277,17 @@ const WalletHomeScreen = () => {
       <RefreshControl
         tintColor={lighten(0.25, theme.colors.primary)}
         colors={refreshColors}
-        refreshing={syncingOrFaucetPending && isFocused}
-        onRefresh={syncBlockchain}
+        refreshing={syncingOrFaucetPending && isFocused && userTriggeredRefresh}
+        onRefresh={onRefresh}
       />
     ) : undefined;
   }, [
     isFocused,
     isMounted,
     refreshColors,
-    syncBlockchain,
+    onRefresh,
     syncingOrFaucetPending,
+    userTriggeredRefresh,
     theme.colors.primary
   ]);
   const stickyHeaderIndices = useMemo(() => [1], []);
@@ -396,12 +417,20 @@ const WalletHomeScreen = () => {
         //position. For some reason isMounted takes quite a bit to be true...
         isMounted && (
           <WalletButtons
-            handleReceive={handleReceive}
+            handleReceive={
+              accounts && Object.keys(accounts).length
+                ? handleReceive
+                : undefined
+            }
             handleSend={
-              feeEstimates && utxosData?.length ? handleSend : undefined
+              feeEstimates && explorerReachable && utxosData?.length
+                ? handleSend
+                : undefined
             }
             handleFreeze={
-              feeEstimates && utxosData?.length ? handleFreeze : undefined
+              feeEstimates && explorerReachable && utxosData?.length
+                ? handleFreeze
+                : undefined
             }
           />
         )

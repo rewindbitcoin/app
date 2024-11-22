@@ -31,9 +31,9 @@ import type { BlockStatus } from '@bitcoinerlab/explorer';
 import InitUnfreeze, { InitUnfreezeData } from './InitUnfreeze';
 import Rescue, { RescueData } from './Rescue';
 import Delegate from './Delegate';
-import { toastifyErrorAsync } from '../lib/status';
 import LearnMoreAboutVaults from './LearnMoreAboutVaults';
 import { useLocalization } from '../hooks/useLocalization';
+import { useNetStatus } from '../hooks/useNetStatus';
 
 const LOADING_TEXT = '     ';
 
@@ -198,6 +198,7 @@ const RawVault = ({
     () => setShowInitUnfreezeHelp(false),
     []
   );
+  const { netRequest } = useNetStatus();
 
   const [isInitUnfreezeRequestValid, setIsInitUnfreezeRequestValid] =
     useState<boolean>(false);
@@ -221,10 +222,12 @@ const RawVault = ({
         setShowInitUnfreeze(false);
         setIsInitUnfreezeRequestValid(true);
       });
-      const pushResult = await toastifyErrorAsync('NETWORK_ERROR', () =>
-        pushTx(initUnfreezeData.txHex)
-      );
-      if (pushResult === 'NETWORK_ERROR') setIsInitUnfreezeRequestValid(false);
+      const { status: pushStatus } = await netRequest({
+        whenToastErrors: 'ON_ANY_ERROR',
+        errorMessage: (message: string) => t('app.pushError', { message }),
+        func: () => pushTx(initUnfreezeData.txHex)
+      });
+      if (pushStatus !== 'SUCCESS') setIsInitUnfreezeRequestValid(false);
       else {
         if (!vaultStatus)
           throw new Error('vault status should exist for existing vault');
@@ -237,7 +240,7 @@ const RawVault = ({
         updateVaultStatus(vault.vaultId, newVaultStatus);
       }
     },
-    [pushTx, vault.vaultId, vaultStatus, updateVaultStatus]
+    [pushTx, vault.vaultId, vaultStatus, updateVaultStatus, netRequest, t]
   );
 
   const [showDelegate, setShowDelegate] = useState<boolean>(false);
@@ -256,11 +259,12 @@ const RawVault = ({
         setShowRescue(false);
         setIsRescueRequestValid(true);
       });
-      //const pushResult = await pushTx(rescueData.txHex);
-      const pushResult = await toastifyErrorAsync('NETWORK_ERROR', () =>
-        pushTx(rescueData.txHex)
-      );
-      if (pushResult === 'NETWORK_ERROR') setIsRescueRequestValid(false);
+      const { status: pushStatus } = await netRequest({
+        whenToastErrors: 'ON_ANY_ERROR',
+        errorMessage: (message: string) => t('app.pushError', { message }),
+        func: () => pushTx(rescueData.txHex)
+      });
+      if (pushStatus !== 'SUCCESS') setIsRescueRequestValid(false);
       else {
         if (!vaultStatus)
           throw new Error('vault status should exist for existing vault');
@@ -273,7 +277,7 @@ const RawVault = ({
         updateVaultStatus(vault.vaultId, newVaultStatus);
       }
     },
-    [pushTx, vault.vaultId, vaultStatus, updateVaultStatus]
+    [pushTx, vault.vaultId, vaultStatus, updateVaultStatus, netRequest, t]
   );
 
   const { settings } = useSettings();

@@ -3,7 +3,13 @@ const NAME_MAX_LENGTH = 32;
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import Bip39 from '../components/Bip39';
 import * as Icons from '@expo/vector-icons';
-import { Platform, Pressable, Text, TextInput } from 'react-native';
+import {
+  Platform,
+  Pressable,
+  Text,
+  TextInput,
+  unstable_batchedUpdates
+} from 'react-native';
 import {
   ActivityIndicator,
   Button,
@@ -18,12 +24,12 @@ import { View } from 'react-native';
 
 import AntDesign from '@expo/vector-icons/AntDesign';
 import { useSettings } from '../hooks/useSettings';
-import { defaultSettings, currencyCodes } from '../lib/settings';
+import { defaultSettings, currencyCodes, Settings } from '../lib/settings';
 import { walletTitle } from '../lib/wallets';
 import { useNavigation } from '@react-navigation/native';
 import { NavigationPropsByScreenId, WALLETS } from '../screens';
 import { exportWallet } from '../lib/backup';
-import { electrumParams } from '../lib/walletDerivedData';
+import { electrumParams, getAPIs } from '../lib/walletDerivedData';
 import { ElectrumExplorer } from '@bitcoinerlab/explorer';
 import { NetworkId, networkMapping } from '../lib/network';
 import { useLocalization } from '../hooks/useLocalization';
@@ -71,11 +77,12 @@ const SettingsItem = ({
    * for allowing a button "set default initialValue
    */
   defaultValue?: string;
-  validateValue?: (value: string) => Promise<boolean>;
+  validateValue?: (value: string) => Promise<true | string>;
   onValue?: (value: string) => void;
   showSeparator?: boolean;
 }) => {
   const { t } = useTranslation();
+  const [errorMessage, setErrorMessage] = useState<false | string>(false);
   const [isModalVisible, setIsModalVisible] = useState<boolean>(false);
   const [value, setValue] = useState<string>(initialValue || '');
   const [isValidatingValue, setIsValidatingValue] = useState<boolean>(false);
@@ -91,8 +98,21 @@ const SettingsItem = ({
   }, [onPress]);
 
   const handleValueChange = useCallback((text: string) => {
-    setValue(text);
+    unstable_batchedUpdates(() => {
+      setErrorMessage(false);
+      setValue(text);
+    });
   }, []);
+
+  const onCancel = useCallback(() => {
+    if (initialValue !== undefined) {
+      unstable_batchedUpdates(() => {
+        setValue(initialValue);
+        setErrorMessage(false);
+      });
+    }
+    hideModal();
+  }, [hideModal, initialValue]);
 
   const textInputRef = useRef<TextInput>(null);
   useEffect(() => {
@@ -105,12 +125,15 @@ const SettingsItem = ({
   const onSave = useCallback(async () => {
     if (validateValue) {
       setIsValidatingValue(true);
-      const isValid = await validateValue(value);
-      setIsValidatingValue(false);
-      if (!isValid) {
-        // Handle invalid input, e.g., show an error message
+      const validation = await validateValue(value);
+      if (validation !== true) {
+        unstable_batchedUpdates(() => {
+          setIsValidatingValue(false);
+          setErrorMessage(validation);
+        });
         return;
       }
+      setIsValidatingValue(false);
     }
     if (onValue) {
       onValue(value);
@@ -119,8 +142,11 @@ const SettingsItem = ({
   }, [value, validateValue, onValue]);
 
   const onSetDefault = useCallback(() => {
-    if (defaultValue) {
-      setValue(defaultValue);
+    if (defaultValue !== undefined) {
+      unstable_batchedUpdates(() => {
+        setValue(defaultValue);
+        setErrorMessage(false);
+      });
       if (onValue) onValue(defaultValue);
       hideModal();
     }
@@ -133,6 +159,7 @@ const SettingsItem = ({
     <Pressable onPress={onPressInternal} className="w-full active:bg-gray-200">
       <View className="flex-row items-center">
         <Icon
+          size={16}
           className="pl-3"
           name={icon.name}
           {...(danger && { color: dangerColor })}
@@ -169,11 +196,11 @@ const SettingsItem = ({
         isVisible={isModalVisible}
         {...(!isValidatingValue && { onClose: hideModal })}
         customButtons={
-          <View className="items-center gap-6 flex-row justify-center pb-4">
+          <View className="items-center gap-6 flex-wrap flex-row justify-center pb-4">
             <Button
               mode="secondary"
               disabled={isValidatingValue}
-              onPress={hideModal}
+              onPress={onCancel}
             >
               {t('cancelButton')}
             </Button>
@@ -193,7 +220,7 @@ const SettingsItem = ({
           </View>
         }
       >
-        <View className="px-4">
+        <View className="px-4 gap-2">
           <TextInput
             ref={textInputRef}
             className="text-base outline-none flex-1 web:w-full rounded bg-slate-200 py-2 px-4"
@@ -207,6 +234,11 @@ const SettingsItem = ({
             maxLength={maxLength}
             onChangeText={handleValueChange}
           />
+          {errorMessage && (
+            <View>
+              <Text className="text-base text-red-500">{errorMessage}</Text>
+            </View>
+          )}
         </View>
       </Modal>
     </Pressable>
@@ -262,6 +294,7 @@ const SettingsScreen = () => {
           await deleteWallet(wallet.walletId);
           goBackToWallets();
         } catch (err) {
+          setIsDeleteModalVisible(false); //toasts are not compatible with Modals in android (toasts appear behind the modal opacity effect
           toast.show(t('settings.wallet.deleteError'), { type: 'warning' });
         }
       }
@@ -279,12 +312,38 @@ const SettingsScreen = () => {
 
   const validateGapLimit = async (gapLimitStr: string) => {
     // Check if the string is a number and falls within the range 1 to 100
-    const gapLimit = parseInt(gapLimitStr, 10);
-    if (isNaN(gapLimit) || gapLimit < 1 || gapLimit > 100) {
-      toast.show(t('settings.wallet.gapLimitError'), { type: 'warning' });
-      return false;
+    const gapLimit = Number(gapLimitStr);
+    if (
+      isNaN(gapLimit) ||
+      gapLimit.toString() !== gapLimitStr ||
+      gapLimit < 1 ||
+      gapLimit > 100
+    ) {
+      return t('settings.wallet.gapLimitError');
     }
     return true;
+  };
+
+  const validateRegtestApiBase = async (settings: Settings) => {
+    const { generate204API, faucetURL } = getAPIs('REGTEST', settings);
+    const networkTimeout = settings.NETWORK_TIMEOUT;
+    if (!generate204API || !faucetURL) return t('app.unknownError');
+    try {
+      const response = await fetch(generate204API, {
+        signal: AbortSignal.timeout(networkTimeout)
+      });
+      if (response.status === 204) {
+        const response = await fetch(faucetURL, {
+          signal: AbortSignal.timeout(networkTimeout)
+        });
+        if (response.status === 200) {
+          return true;
+        }
+      }
+    } catch (err) {
+      console.warn(err);
+    }
+    return t('settings.wallet.regtestApiBaseError');
   };
 
   const validateElectrumURL = async (url: string, networkId: NetworkId) => {
@@ -296,14 +355,15 @@ const SettingsScreen = () => {
       });
       await explorer.connect();
       const isConnected = await explorer.isConnected();
-      await explorer.close();
-      if (isConnected) return true;
-      else console.warn(`Server ${url} is not connected`);
+
+      if (isConnected) {
+        await explorer.close();
+        return true;
+      } else console.warn(`Server ${url} is not connected`);
     } catch (err) {
       console.warn(err);
     }
-    toast.show(t('settings.wallet.electrumError'), { type: 'warning' });
-    return false;
+    return t('settings.wallet.electrumError');
   };
 
   const title = wallet && wallets ? walletTitle(wallet, wallets, t) : '';
@@ -417,6 +477,19 @@ const SettingsScreen = () => {
               }}
               initialValue={currency}
             />
+            <SettingsItem
+              icon={{
+                family: 'FontAwesome',
+                name: 'chain-broken'
+              }}
+              label={t('settings.general.gapLimit')}
+              initialValue={settings.GAP_LIMIT.toString()}
+              defaultValue={defaultSettings.GAP_LIMIT.toString()}
+              validateValue={validateGapLimit}
+              onValue={(gapLimitStr: string) => {
+                setSettings({ ...settings, GAP_LIMIT: parseInt(gapLimitStr) });
+              }}
+            />
             {(Platform.OS === 'android' || Platform.OS === 'ios') && (
               <>
                 <SettingsItem
@@ -440,6 +513,7 @@ const SettingsScreen = () => {
                     family: 'Ionicons',
                     name: 'logo-electron'
                   }}
+                  maxLength={URL_MAX_LENGTH}
                   label={t('settings.general.electrumTape')}
                   initialValue={settings.TAPE_ELECTRUM_API}
                   defaultValue={defaultSettings.TAPE_ELECTRUM_API}
@@ -455,6 +529,7 @@ const SettingsScreen = () => {
                     family: 'Ionicons',
                     name: 'logo-electron'
                   }}
+                  maxLength={URL_MAX_LENGTH}
                   label={t('settings.general.electrumTestnet')}
                   initialValue={settings.TESTNET_ELECTRUM_API}
                   defaultValue={defaultSettings.TESTNET_ELECTRUM_API}
@@ -470,6 +545,7 @@ const SettingsScreen = () => {
                     family: 'Ionicons',
                     name: 'logo-electron'
                   }}
+                  maxLength={URL_MAX_LENGTH}
                   label={t('settings.general.electrumRegtest')}
                   initialValue={settings.REGTEST_ELECTRUM_API}
                   defaultValue={defaultSettings.REGTEST_ELECTRUM_API}
@@ -485,19 +561,25 @@ const SettingsScreen = () => {
             <SettingsItem
               showSeparator={false}
               icon={{
-                family: 'FontAwesome',
-                name: 'chain-broken'
+                family: 'Ionicons',
+                name: 'flask'
               }}
-              label={t('settings.general.gapLimit')}
-              initialValue={settings.GAP_LIMIT.toString()}
-              defaultValue={defaultSettings.GAP_LIMIT.toString()}
-              validateValue={validateGapLimit}
-              onValue={(gapLimitStr: string) => {
-                setSettings({ ...settings, GAP_LIMIT: parseInt(gapLimitStr) });
+              maxLength={URL_MAX_LENGTH}
+              label={t('settings.general.regtestApiBase')}
+              initialValue={settings.REGTEST_API_BASE}
+              defaultValue={defaultSettings.REGTEST_API_BASE}
+              validateValue={(url: string) =>
+                validateRegtestApiBase({
+                  ...settings,
+                  REGTEST_API_BASE: url
+                })
+              }
+              onValue={(url: string) => {
+                setSettings({ ...settings, REGTEST_API_BASE: url });
               }}
             />
           </View>
-          <Text className="text-center mt-8 text-gray-400">
+          <Text className="text-center my-8 text-gray-400">
             {applicationName} {nativeApplicationVersion} ({t('app.buildNumber')}{' '}
             {nativeBuildVersion})
           </Text>

@@ -79,12 +79,13 @@ export default function CreateVaultScreen({
   const walletId = wallet.walletId;
   const {
     netRequest,
+    netToast,
     apiReachable,
     api2Reachable,
-    errorMessage: nsErrorMessage
+    permanentErrorMessage: nsErrorMessage
   } = useNetStatus();
-  const { t } = useTranslation();
   const toast = useToast();
+  const { t } = useTranslation();
   const navigation = useNavigation<NavigationPropsByScreenId['CREATE_VAULT']>();
   const keepProgress = useRef<boolean>(true);
   const { settings } = useSettings();
@@ -92,6 +93,7 @@ export default function CreateVaultScreen({
     throw new Error(
       'This component should only be started after settings has been retrieved from storage'
     );
+  const networkTimeout = settings.NETWORK_TIMEOUT;
   const samples = settings.SAMPLES;
   const feeRateCeiling = settings.PRESIGNED_FEE_RATE_CEILING;
   const { locale, currency } = useLocalization();
@@ -178,7 +180,7 @@ export default function CreateVaultScreen({
     //While the vault was being created, maybe the internet went down.
     //So recheck before confirm.
     if (nsErrorMessage && (!apiReachable || !api2Reachable)) {
-      toast.show(t('createVault.connectivityIssues'), { type: 'warning' });
+      netToast(false, t('createVault.connectivityIssues'));
       goBack();
       return;
     }
@@ -190,19 +192,20 @@ export default function CreateVaultScreen({
     });
 
     const { result: backedUp, status: backupStatus } = await netRequest({
+      whenToastErrors: 'ON_ANY_ERROR',
+      errorMessage: message => t('createVault.vaultBackupError', { message }),
       func: () =>
         p2pBackupVault({
+          networkTimeout,
           vault,
           signer,
           vaultsAPI,
           vaultsSecondaryAPI,
           onProgress,
           networkId
-        }),
-      errorMessage: t('createVault.vaultBackupError')
+        })
     });
     if (backupStatus !== 'SUCCESS') {
-      //The toast with prev error message will have been shown.
       goBack();
       return;
     }
@@ -221,8 +224,9 @@ export default function CreateVaultScreen({
     //  - Vaults and VaultsStatuses, discoveryExport local storage and
     //  - also derived data: utxosData and historyData
     const { status: pushAndUpdateStatus } = await netRequest({
-      func: () => vaultPushAndUpdateStates(vault),
-      errorMessage: t('createVault.vaultPushError')
+      whenToastErrors: 'ON_ANY_ERROR',
+      errorMessage: message => t('createVault.vaultPushError', { message }),
+      func: () => vaultPushAndUpdateStates(vault)
     });
 
     if (pushAndUpdateStatus !== 'SUCCESS') {
@@ -236,11 +240,13 @@ export default function CreateVaultScreen({
       goBackToWalletHome();
     }
   }, [
+    networkTimeout,
     apiReachable,
     api2Reachable,
     nsErrorMessage,
     goBackToWalletHome,
     toast,
+    netToast,
     signer,
     netRequest,
     vault,
@@ -260,7 +266,7 @@ export default function CreateVaultScreen({
     else isVaultCreated.current = true;
 
     if (!apiReachable || !api2Reachable) {
-      toast.show(t('createVault.connectivityIssues'), { type: 'warning' });
+      netToast(false, t('createVault.connectivityIssues'));
       goBackToWalletHome();
       return;
     }
@@ -272,8 +278,9 @@ export default function CreateVaultScreen({
 
       const unvaultKey = await getUnvaultKey();
       const { result: serviceAddress } = await netRequest({
-        func: fetchServiceAddress,
-        errorMessage: t('createVault.connectivityIssues')
+        whenToastErrors: 'ON_ANY_ERROR',
+        errorMessage: message => t('createVault.fetchIssues', { message }),
+        func: fetchServiceAddress
       });
       if (!navigation.isFocused()) return; //Don't proceed if lost focus after await
       if (!serviceAddress) {
@@ -286,14 +293,16 @@ export default function CreateVaultScreen({
       if (!navigation.isFocused()) return; //Don't proceed if lost focus after await
 
       const { result: nextVaultData } = await netRequest({
+        whenToastErrors: 'ON_ANY_ERROR',
+        errorMessage: message => t('createVault.fetchIssues', { message }),
         func: () =>
           fetchP2PVaultIds({
+            networkTimeout,
             signer,
             networkId,
             vaults,
             vaultsAPI
-          }),
-        errorMessage: t('createVault.connectivityIssues')
+          })
       });
       if (!navigation.isFocused()) return; //Don't proceed if lost focus after await
       if (!nextVaultData) {
@@ -334,7 +343,9 @@ export default function CreateVaultScreen({
         });
       } else {
         if (vault !== 'USER_CANCEL') {
-          const errorMessage = t('createVault.error', { message: vault });
+          const errorMessage = t('createVault.unexpectedError', {
+            message: vault
+          });
           toast.show(errorMessage, { type: 'danger' });
         }
         goBack();
@@ -342,6 +353,7 @@ export default function CreateVaultScreen({
     };
     create();
   }, [
+    networkTimeout,
     apiReachable,
     api2Reachable,
     navigation,
@@ -350,6 +362,7 @@ export default function CreateVaultScreen({
     goBack,
     t,
     toast,
+    netToast,
     vaultedAmount,
     serviceFee,
     coldAddress,

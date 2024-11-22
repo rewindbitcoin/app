@@ -97,14 +97,10 @@ export default function Bip39({
 
   const showError = useCallback(() => {
     if (toastId.current !== undefined && toast.isOpen(toastId.current))
-      toast.update(toastId.current, t('bip39.invalidErrorMessage'), {
-        type: 'danger'
-      });
-    else {
-      toastId.current = toast.show(t('bip39.invalidErrorMessage'), {
-        type: 'danger'
-      });
-    }
+      toast.hide(toastId.current);
+    toastId.current = toast.show(t('bip39.invalidErrorMessage'), {
+      type: 'danger'
+    });
   }, [t, toast]);
   const hideError = useCallback(
     () =>

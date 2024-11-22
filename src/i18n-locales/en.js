@@ -6,16 +6,18 @@ export default {
   app: {
     buildNumber: 'Build',
     unknownError: 'An unknown error occurred.',
-    networkError: `Oops! There was a network issue: {{message}}
-Please check your connection and try again.`,
-    syncError: `Oops! There was a problem updating your Wallet: {{message}}
-Please check your connection and tap on refresh to try again.`,
+    syncP2PVaultsError: `Unable to connect to the P2P backup network. This issue prevents syncing vaults created on other devices.
+
+{{message}}`,
+    syncNetworkError: `There was an issue during a network request while updating your wallet.
+
+{{message}}`,
+    syncUnexpectedError: `An unexpected issue has occurred while updating your wallet.
+
+{{message}}`,
     pushError: `Oops! There was a problem submitting your transaction. Please check your connection and try again.
 
-
-Technical error: {{message}}`,
-    pushTimeoutError:
-      'Oops! It seems the recently submitted transaction is taking longer to be detected. Please check your connection and refresh your wallet. If it does not show up, try submitting it again.',
+{{message}}`,
     newWalletTitle: 'New Wallet',
     mainTitle: 'Wallets',
     createVaultTitle: 'Creating Vault',
@@ -133,6 +135,8 @@ Also, updating your device's biometric settings, such as adding a new fingerprin
 
 If you declined biometric access, you can enable it by going to your device's Settings > RewindBitcoin and turning on Face ID or Touch ID (this may vary based on your OS version and device).
 
+This error can also occur if the app was reinstalled and restored with old iCloud data from a previous install, as biometrics are not included. If so, delete this wallet using the Settings icon.
+
 If the issue persists, you can recreate your wallet using your Recovery Phrase to regain access to your funds and vaults.`,
       biometricsAccessFailureNonIOS: `We're having trouble accessing your wallet due to issues with biometric permissions.
 
@@ -141,6 +145,8 @@ This might be because biometric permissions were disabled or revoked, or due to 
 Also, updating your device's biometric settings, such as adding a new fingerprint or updating facial recognition, can sometimes invalidate previous configurations.
 
 If you've recently changed any biometric settings, please try re-enabling biometrics in your device or restoring the app's permissions.
+
+This error can also occur if the app was reinstalled and restored with old Google Drive data from a previous install, as biometrics are not included. If so, delete this wallet using the Settings icon.
 
 If the issue persists, you can recreate your wallet using your Recovery Phrase to regain access to your funds and vaults.`
     },
@@ -291,7 +297,8 @@ Once the countdown ends, your funds will be unlocked and accessible.`
     }
   },
   walletHome: {
-    faucetStartMsg: "Hang tight! We're sending you some coins to get started.",
+    faucetStartMsg:
+      "Hang tight! We're sending you some coins to get started. This takes just a few seconds.",
     faucetDetectedMsg:
       'Hooray! Your test coins have arrived. Why not try freezing them to see how it works?',
     faucetErrorMsg:
@@ -439,7 +446,7 @@ While the app is in early development, we advise against using real Bitcoin for 
     //
     //In Vaults, your funds are frozen for a few days, preventing both attackers and even yourself from making transactions. This time-lock gives you a window to rescue your Bitcoin if compromised. You can also delegate this task to a trusted person.
     //
-    //Here's how it works: during the time-lock, while regular transactions are blocked, you can still move your funds instantly to a special Bitcoin Emergency Address. This address is secured by an Emergency Recovery Phrase, distinct from the regular phrase, and should be stored in a separate, ultra-secure location out of daily reach.
+    //Here's how it works: during the time-lock, while regular transactions are blocked, you can still move your funds instantly to a special Bitcoin mergency Address. This address is secured by an Emergency Recovery Phrase, distinct from the regular phrase, and should be stored in a separate, ultra-secure location out of daily reach.
     //
     //You'll find help icons next to each input field during the Vault Set Up with specific explanations.`,
     body: `Your wallet is secured with a Recovery Phrase, similar to a password. If someone else gains access to this phrase through extortion, theft, or misuse, they can access your funds. To prevent this, Rewind lets you freeze your money in Vaults.
@@ -459,6 +466,14 @@ Help icons and tips are available during Vault setup to guide you through the pr
     coldAddressMissing: 'Please fill in the Emergency Address to continue.',
     //intro: 'Set the amount to secure and protection time-lock.',
     intro: 'Secure funds not needed daily by freezing them.',
+    prefilledAddress: 'Pre-filled with your last unused one.',
+    prefilledAddressHelpTitle: 'Pre-filled Address',
+    prefilledAddressHelp: `The Emergency Address of your most recent vault is pre-filled for convenience, so you don’t need to keep track of multiple Emergency Phrases. For privacy, an Emergency Address will not be used again once it has been utilized.
+
+You can replace the pre-filled address or click "Create" to open a wizard and generate a new Emergency Address.
+
+Verify the address carefully to ensure it corresponds to an Emergency Phrase under your control:
+{{coldAddress}}.`,
     notEnoughFundsTitle: 'Vault Minimum Requirement',
 
     //    notEnoughFunds: `<strong>Minimum Vault Amount Notice</strong>
@@ -565,15 +580,20 @@ Select 'Submit' to activate your vault.`,
     pushingVault: `Your vault has been successfully backed up and is securely stored.
 
 Now, as the final step, we're sending your vault to the blockchain to activate it...`,
+    fetchIssues: `Connection issues detected. The vault was not created. Please check your internet connection and try again.
+
+{{message}}`,
     connectivityIssues:
       'Connection issues detected. The vault was not created. Please check your internet connection and try again.',
-    vaultBackupError:
-      'Error during backup. The vault was not created. Please check your connection and try again.',
-    vaultPushError:
-      "Connection issues. Backup is complete, but we're unsure if the vault was sent to the blockchain. Refresh to check, and if it's missing, try again.",
+    vaultBackupError: `Error during backup. The vault was not created. Please check your connection and try again.
+
+{{message}}`,
+    vaultPushError: `Connection issues. Backup is complete, but we're unsure if the vault was sent to the blockchain. Refresh to check, and if it's missing, try again.
+
+{{message}}`,
     vaultSuccess:
       'Your vault has been successfully created and sent to the blockchain.',
-    error:
+    unexpectedError:
       'The vault could not be created due to an unexpected error. Please try again and notify the RewindBitcoin team about the following error: {{message}}.'
   },
   editableSlider: {
@@ -736,7 +756,9 @@ Please wait a few moments until completion.`,
       deleteError: `Deletion failed. Please try again or restart the app if the problem persists.`,
       gapLimitError: 'Gap Limit must be an integer between 1 and 100.',
       electrumError:
-        'Invalid Electrum URL or server is down. Please check the URL and try again.'
+        'Invalid Electrum URL or server is down. Please check the URL and try again.',
+      regtestApiBaseError:
+        'Invalid Regtest API Base. Please check the URL and try again.'
     },
     general: {
       title: 'General',
@@ -744,6 +766,7 @@ Please wait a few moments until completion.`,
       electrumTape: 'Electrum Tape',
       electrumTestnet: 'Electrum Testnet',
       electrumRegtest: 'Electrum Regtest',
+      regtestApiBase: 'Regtest API Base',
       gapLimit: 'Gap Limit',
       currency: 'Preferred Currency'
     }
@@ -766,6 +789,7 @@ Please wait a few moments until completion.`,
   factoryResetButton: 'Factory Reset',
   tryAgain: 'Try Again',
   learnMore: 'Learn More.',
+  helpButton: 'Help',
   globalError: {
     general: `An unexpected error has occurred. Below you will find additional details that may help identify the issue. Some of this information is technical and intended for developers. There is no need for immediate concern.
 

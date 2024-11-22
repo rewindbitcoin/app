@@ -74,15 +74,21 @@ export function feeRateSampling(
 }
 
 /**
- *  Picks a fee rate in satoshis per virtual byte (vbyte), given:
- * - A record object mapping different fee rates to their respective block
- *   confirmations.
+ * Picks a fee rate in satoshis per virtual byte (vbyte) based on:
+ * - A record object mapping fee rates to their respective block confirmation targets.
  * - The desired wait time in seconds for the transaction to be confirmed.
  *
- * The method selects the fee rate for the earliest possible block, rather than
- * the closest one, to conservatively estimate higher fees. For instance, if the
- * target time is set to 19 minutes, the fee rate for the next block is returned
- * instead of the second block.
+ * The method selects the fee rate corresponding to the block target that matches
+ * the desired wait time (`targetTime`) or, if unavailable, the next fastest
+ * available target. If no valid fee rate can be found for the `targetTime`, the
+ * method defaults to the fastest available target defined in `feeEstimates`, even
+ * if this corresponds to a slower confirmation time than the requested `targetTime`.
+ *
+ * Example:
+ * - If the `targetTime` is set to 19 minutes, the fee rate for the next block
+ *   (10 minutes) is returned instead of the second block (20 minutes).
+ * - If no fee estimates are available for a 1-block confirmation target, the method
+ *   will return the fee rate for the fastest available block target in `feeEstimates`.
  *
  * If the user enters a targetTime below 10 minutes this method returns the
  * fee for 1 block confirmation, even if 10 > targetTime.
@@ -97,21 +103,34 @@ export const pickFeeEstimate = moize(
     feeEstimates: FeeEstimates,
     /** The target time in seconds for the transaction to be mined. */
     targetTime: number
-  ) => {
+  ): { block: number; feeEstimate: number } => {
     if (!Number.isSafeInteger(targetTime) || targetTime < 0)
-      throw new Error('Invalid targetTime!');
+      throw new Error(`Invalid targetTime: ${targetTime}!`);
 
-    const block = Object.keys(feeEstimates)
+    const targetBlock = Math.max(targetTime / 600 + Number.EPSILON, 1);
+
+    // Sort block targets in descending order (slower targets first)
+    const sortedBlocks = Object.keys(feeEstimates)
       .map(block => Number(block))
-      .sort((a, b) => b - a) // sort in descending order
-      .find(block => block <= Math.max(targetTime / 600 + Number.EPSILON, 1));
+      .sort((a, b) => b - a);
+
+    // Find the largest block target less than or equal to targetBlock
+    const block =
+      sortedBlocks.find(block => block <= targetBlock) ||
+      sortedBlocks[sortedBlocks.length - 1]; // Fallback: fastest block target (smallest block number)
+
     if (typeof block === 'undefined') {
-      throw new Error('Invalid targetTime!');
+      throw new Error(
+        `Could not find a block for targetTime ${targetTime} amongst ${Object.keys(feeEstimates).length} fees: ${JSON.stringify(feeEstimates)}`
+      );
     }
     const feeEstimate = feeEstimates[block];
-    if (feeEstimate === undefined) throw new Error('Error in pickFeeEstimate');
+    if (feeEstimate === undefined)
+      throw new Error(
+        `Error in pickFeeEstimate: feeEstimate undefined for block ${block}`
+      );
 
-    return feeEstimate;
+    return { block, feeEstimate };
   }
 );
 

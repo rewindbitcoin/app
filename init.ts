@@ -28,6 +28,15 @@ if (typeof Buffer === 'undefined') global.Buffer = require('buffer').Buffer;
 import 'react-native-get-random-values';
 import 'react-native-url-polyfill/auto';
 
+//polyfill AbortSignal.timeout if necessary
+if (typeof AbortSignal !== 'undefined' && !AbortSignal.timeout) {
+  AbortSignal.timeout = function (ms) {
+    const controller = new AbortController();
+    setTimeout(() => controller.abort(), ms);
+    return controller.signal;
+  };
+}
+
 //polyfill for react 'Hermes' TextEncoder
 //This is needed in storage.ts for import { utf8ToBytes, bytesToUtf8 } from '@noble/ciphers/utils';
 //Also for fflate strFromU8, strToU8

@@ -40,11 +40,14 @@ export default function Receive() {
   const {
     networkId,
     faucetURL,
+    accounts,
     getNextReceiveDescriptorWithIndex,
     fetchOutputHistory
   } = useWallet();
   if (!networkId)
     throw new Error('ReceiveScreen cannot be called with unset networkId');
+  if (!accounts)
+    throw new Error('ReceiveScreen cannot be called with unset accounts');
   const network = networkMapping[networkId];
 
   useEffect(() => {
@@ -55,13 +58,11 @@ export default function Receive() {
             const txHistory = await fetchOutputHistory({
               ...receiveDescriptorWithIndex
             });
-            if (txHistory) break;
+            if (txHistory?.length) break;
             await new Promise(resolve =>
               setTimeout(resolve, DETECTION_INTERVAL)
             );
-          } catch (error) {
-            console.warn(error);
-          }
+          } catch (error) {}
         }
       };
 
@@ -78,11 +79,11 @@ export default function Receive() {
   useEffect(() => {
     const f = async () => {
       const receiveDescriptorWithIndex =
-        await getNextReceiveDescriptorWithIndex();
+        await getNextReceiveDescriptorWithIndex(accounts);
       setReceiveDescriptorWithIndex(receiveDescriptorWithIndex);
     };
     f();
-  }, [getNextReceiveDescriptorWithIndex, network]);
+  }, [getNextReceiveDescriptorWithIndex, network, accounts]);
 
   const receiveAddress = useMemo(
     () =>

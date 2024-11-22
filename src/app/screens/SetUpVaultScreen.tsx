@@ -7,9 +7,18 @@ import { Trans, useTranslation } from 'react-i18next';
 import React, { useCallback, useState, useMemo, useEffect } from 'react';
 import { useNavigation } from '@react-navigation/native';
 import { Text, View } from 'react-native';
-import { Button, KeyboardAwareScrollView } from '../../common/ui';
+import {
+  Button,
+  IconType,
+  KeyboardAwareScrollView,
+  Modal
+} from '../../common/ui';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { selectVaultUtxosData, type VaultSettings } from '../lib/vaults';
+import {
+  areVaultsSynched,
+  selectVaultUtxosData,
+  type VaultSettings
+} from '../lib/vaults';
 import {
   DUMMY_VAULT_OUTPUT,
   DUMMY_SERVICE_OUTPUT,
@@ -39,7 +48,6 @@ export default function VaultSetUp({
 }: {
   onVaultSetUpComplete: (vaultSettings: VaultSettings) => void;
 }) {
-  console.log('TRACE', 'VaultSetUp');
   const insets = useSafeAreaInsets();
   const containerStyle = useMemo(
     () => ({ marginBottom: insets.bottom / 4 + 16 }),
@@ -53,6 +61,8 @@ export default function VaultSetUp({
     utxosData,
     networkId,
     accounts,
+    vaults,
+    vaultsStatuses,
     getNextChangeDescriptorWithIndex
   } = useWallet();
 
@@ -86,8 +96,28 @@ export default function VaultSetUp({
     settings.INITIAL_LOCK_BLOCKS
   );
   const serviceFeeRate = settings.SERVICE_FEE_RATE;
-  const [coldAddress, setColdAddress] = useState<string | null>(null);
+
+  const lastUnusedColdAddress =
+    vaults && vaultsStatuses && areVaultsSynched(vaults, vaultsStatuses)
+      ? Object.entries(vaults)
+          .filter(([vaultId]) => !vaultsStatuses[vaultId]?.panicTxHex)
+          .sort(([, a], [, b]) => b.creationTime - a.creationTime)[0]?.[1]
+          .coldAddress || null
+      : null;
+  const [coldAddress, setColdAddress] = useState<string | null>(
+    lastUnusedColdAddress
+  );
   const [changeOutput, setChangeOutput] = useState<OutputInstance | null>(null);
+  const [prefilledAddressHelp, setPrefilledAddressHelp] =
+    useState<boolean>(false);
+  const showPrefilledAddressHelp = useCallback(
+    () => setPrefilledAddressHelp(true),
+    []
+  );
+  const hidePrefilledAddressHelp = useCallback(
+    () => setPrefilledAddressHelp(false),
+    []
+  );
   const { t } = useTranslation();
 
   useEffect(() => {
@@ -99,7 +129,7 @@ export default function VaultSetUp({
     getAndSetChangeOutput();
   }, [getNextChangeDescriptorWithIndex, network, accounts]);
 
-  const initialFeeRate = pickFeeEstimate(
+  const { feeEstimate: initialFeeRate } = pickFeeEstimate(
     feeEstimates,
     settings.INITIAL_CONFIRMATION_TIME
   );
@@ -302,6 +332,11 @@ export default function VaultSetUp({
     fee = selected.fee;
   }
 
+  const prefilledAddressHelpIcon = useMemo<IconType>(
+    () => ({ family: 'FontAwesome6', name: 'shield-halved' }),
+    []
+  );
+
   const allFieldsValid =
     vaultedAmount !== null &&
     lockBlocks !== null &&
@@ -377,8 +412,35 @@ export default function VaultSetUp({
           <AddressInput
             type="emergency"
             networkId={networkId}
+            {...(coldAddress ? { initialValue: coldAddress } : {})}
             onValueChange={setColdAddress}
           />
+          {lastUnusedColdAddress && lastUnusedColdAddress === coldAddress ? (
+            <View className="px-1 pt-1 flex-row">
+              <Text className="text-sm text-slate-500">
+                {t('vaultSetup.prefilledAddress') + ' '}
+              </Text>
+              <Button
+                onPress={showPrefilledAddressHelp}
+                mode="text"
+                containerClassName="!opacity-80"
+                textClassName="!text-sm"
+              >
+                {t('helpButton')}
+              </Button>
+              <Modal
+                title={t('vaultSetup.prefilledAddressHelpTitle')}
+                icon={prefilledAddressHelpIcon}
+                isVisible={prefilledAddressHelp}
+                onClose={hidePrefilledAddressHelp}
+                closeButtonText={t('understoodButton')}
+              >
+                <Text className="pl-2 pr-2 text-base">
+                  {t('vaultSetup.prefilledAddressHelp', { coldAddress })}
+                </Text>
+              </Modal>
+            </View>
+          ) : null}
           <View className="mb-8" />
           <FeeInput
             btcFiat={btcFiat}

@@ -7,7 +7,8 @@ const { Output } = DescriptorsFactory(secp256k1);
 export const faucetFirstReceive = async (
   accounts: Accounts,
   network: Network,
-  faucetAPI: string
+  faucetAPI: string,
+  networkTimeout: number
 ) => {
   if (network !== networks.regtest)
     throw new Error('Cannot faucet non-regtest networks');
@@ -27,7 +28,8 @@ export const faucetFirstReceive = async (
     //This is how this could be done:
     //const languageTag = locale === 'default' ? getLocales()[0]!.languageTag : locale;
     //body:`address=${encodeURIComponent(firstReceiveAddr)}&locale=${encodeURIComponent(languageTag)}`
-    body: `address=${encodeURIComponent(firstReceiveAddr)}`
+    body: `address=${encodeURIComponent(firstReceiveAddr)}`,
+    signal: AbortSignal.timeout(networkTimeout)
   });
 
   // Check if the request was successful

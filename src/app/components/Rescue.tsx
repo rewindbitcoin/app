@@ -87,6 +87,7 @@ const Rescue = ({
 
   const initialFeeRate = feeEstimates
     ? pickFeeEstimate(feeEstimates, settings.INITIAL_CONFIRMATION_TIME)
+        .feeEstimate
     : null;
 
   const [feeRate, setFeeRate] = useState<number | null>(null);

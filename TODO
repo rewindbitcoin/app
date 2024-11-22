@@ -1,47 +1,6 @@
-TODO -> probar con un iphone SE aun mas nuevo para ver si en el menu de la app
-sale Touch ID.
--> TODO -> probar con un Android con FaceId. Porque quizá se comporte parecido a iOS?
-android / broken_android / ios faceid / ios touchid (because of can the use cancel the dialog?):
-  new install -> new wallet -> dont grant permission -> Continue creating the wallet
-    -> iOS v
-  new install -> new wallet -> grant permission
-  new install -> new wallet -> grant permission -> read without grant permission (revoke on ios on system settins / anadrid simply say no ?)
-  new install -> new wallet -> fail many times on the fingerprint/FaceId
-  If you feel like it...: new install -> new wallet -> grant permission -> add fingerprint -> read wallet
+TODO: Si quieres tener más Beta testers, en la web de Stacker News puedes compartir la info del proyecto y tendrás gente experta y novata dándote feed back. Te dejo por aquí una invitación: https://stacker.news/r/criptopanas   Es como un reddit, pero pagas en SAst por postear y en vez de likes recibes SATS.
 
-TODO: si quito la wifi y le doy repetifads veces a Check again me va añadiendo
-mensajes de error en lugar de replace
-
-TODO: "Check again" on net errors not in blue
-
-TODO: Unable to retrieve up to date fee rates y luego me sale iummediatamente connectivity restored pero el toast.hide no se hizo
-  -> Creo que el toast.hide es lento, es por eso? Hacer sino toast.update pero ese
-  funcina bien y el tiempo se resetea?
-    -> Hacer lo mismo luego en todo el codigo; buscar los toast.hide y aplicar
-  -> De hecho solo mostar errores cuando toca. Para que molestar al user?
-  -> Cuando he hecho logout sigue mostrando fallos de NetStatusContext
-
-TODO: Me salen errores de network en WalletsScreen. Pero no se ha hecho el logout?
-  -> Cerrar todo tipo de cosa si logout hecho
-
-TODO: Implementar BIP39 passphrase. Se confunde con la Password?
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+TODO: Cuando se hace refresh de discovery.fetch la app es un responsive
 
 TODO: web forma para contactar
 

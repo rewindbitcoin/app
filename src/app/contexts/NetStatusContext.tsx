@@ -8,6 +8,8 @@
  * ```
  *
  * `netStatus` provides network statuses and methods for network operations.
+ * It also connects / closes explorer instances. connect is done on the network
+ * status check automatically and closed on reset.
  *
  * **Properties:**
  *
@@ -22,8 +24,8 @@
  * - `internetReachable`: Overall internet status. `false` if all configured
  *   services are unreachable, `true` if at least one is reachable, and
  *   `undefined` if the status is unknown.
- * - `errorMessage`: The current error message, if any. This message is kept to
- *   a single one to avoid cluttering the UI. Prioritization is important:
+ * - `permanentErrorMessage`: The current error message, if any. This message is
+ *    kept to a single one to avoid cluttering the UI. Prioritization is important:
  *   - More general errors (e.g., "Internet not reachable") are shown first.
  *   - Specific errors (e.g., "Explorer not reachable") are shown only if more
  *     general errors are not present.
@@ -36,33 +38,46 @@
  *
  * - `init(params: InitParams)`: Initializes the network status with the given
  *   configuration parameters.
+ *
  * - `reset()`: Resets all network statuses and clears any error messages,
- *   restoring the hook to its initial state.
+ *   restoring the hook to its initial state. It also disconnects all explorers.
+ *
  * - `netRequest<T>(options: { id?: string, func: () => Promise<T>,
  *   requirements?: Requirements, errorMessage?: string }): Promise<T |
  *   undefined>`:
- *    - Executes a network operation (`func`), handling errors automatically
- *      based on the provided requirements.
- *    - A toast with an error message is ALWAYS displayed if the func throws.
- *    - A toast with a success message is ALWAYS displayed when
- *      internetReachable turns false to true.
- *    - A toast is NOT shown if requirements are not met.
- *    - A toast is NOT shown if id is passed and the same errorMessage would be
- *      returned.
+ *
+ *    When not passing an `id`:
+ *      - this function simply try-cathes the func and toasts the errorMessage
+ *        passed if it throws.
+ *      - It does not admit requirements and whenToastErrors must be 'ON_ANY_ERROR'.
+ *        requirements are not admitted to simplify the usage of this "dumb mode".
+ *
+ *    When passing an `id` this function "has memory":
+ *      - If required services are down it returns `result` undefined with
+ *        status REQUIREMENTS_NOT_MET.
+ *      - If required services are Up, netRequest try-cathes `func`.
+ *        If it throws it will check if the required services are still Up and
+ *        based on services Up/down and requirements it will compute and toast
+ *        the permanentErrorMessage.
+ *
  *    - Parameters:
  *        - `id`: Optional identifier for the operation, used to track
- *          "permanent" errors and prevent repeated notifications.
+ *          "permanent" errors and prevent repeated notifications when using
+ *          'ON_NEW_ERROR'.
  *          If id is not passed then the error is always notified and the
- *          errorMessage returned is not affected by this error.
+ *          permanentErrorMessage is not affected by this error.
  *        - `func`: The asynchronous function representing the network
  *          operation to perform.
  *        - `requirements`: An optional set of conditions that must be met
  *          before executing `func` (e.g., certain services must be reachable).
+ *          This only applies when id is set.
  *        - `errorMessage`: Optional custom error message to display if `func`
  *          fails. If not passed, then the thrown Error message is used or
  *          t('app.unknownError') in this order.
- *    - Returns the result of `func` if successful, or `undefined` if an error
- *      occurs or if the requirements are not met.
+ *
+ *    - Returns the result of `func` if successful, result=undefined with
+ *      Status: `ERROR` if an error occurs or status 'REQUIREMENTS_NOT_MET' if
+ *      the Requirements are not met.
  *
  * **Behavior:**
  *
@@ -86,95 +101,10 @@
  */
 
 const NET_ATTEMPTS = 2;
-const EXPLORER_ATTEMPTS = 1;
-const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
-const checkNetworkReachability = async (url: string) => {
-  let attempts = NET_ATTEMPTS;
-
-  while (attempts > 0) {
-    try {
-      console.log('TRACE checkNetworkReachability (204) isConnected', { url });
-      const response = await fetch(url);
-      console.log('TRACE checkNetworkReachability (204) isConnected DONE', {
-        url,
-        status: response.status
-      });
-      if (response.status === 204) return true;
-      await sleep(200);
-      attempts--;
-    } catch (error) {
-      if (attempts <= 1) {
-        console.warn(error);
-        return false;
-      }
-      await sleep(200);
-      attempts--;
-    }
-  }
-  return false; // All attempts failed
-};
-const checkExplorerReachability = async (
-  explorer: Explorer,
-  traceInfo?: string
-) => {
-  let attempts = EXPLORER_ATTEMPTS;
-
-  while (attempts > 0) {
-    try {
-      console.log('TRACE checkExplorerReachability isConnected', { traceInfo });
-      const connected = await explorer.isConnected();
-      console.log('TRACE checkExplorerReachability isConnected DONE', {
-        traceInfo,
-        connected
-      });
-
-      if (connected) return true;
-      else {
-        const startTime = new Date().getTime(); // Capture the start time
-        console.log(
-          'TRACE checkExplorerReachability connect (was not connected)',
-          { traceInfo }
-        );
-
-        await explorer.connect();
-
-        const connectEndTime = new Date().getTime(); // Time after connect attempt
-        console.log(
-          `TRACE checkExplorerReachability connect DONE (took ${connectEndTime - startTime}ms)`,
-          { traceInfo }
-        );
-
-        console.log(
-          'TRACE checkExplorerReachability isConnected after correct connect',
-          { traceInfo }
-        );
-
-        const connected = await explorer.isConnected();
-
-        const checkEndTime = new Date().getTime(); // Time after isConnected check
-        console.log(
-          `TRACE checkExplorerReachability isConnected after correct connect DONE (took ${checkEndTime - connectEndTime}ms)`,
-          { traceInfo }
-        );
-
-        if (connected) return true;
-      }
-      if (attempts !== EXPLORER_ATTEMPTS) await sleep(200);
-      attempts--;
-    } catch (error) {
-      if (attempts <= 1) {
-        console.warn(error);
-        return false;
-      }
-      await sleep(200);
-      attempts--;
-    }
-  }
-  return false; // All attempts failed
-};
-
+const EXPLORER_ATTEMPTS = 2;
 const RETRY_TIME_AFTER_OK = 60 * 1000;
 const RETRY_TIME_AFTER_FAIL = 20 * 1000;
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 import type { Explorer } from '@bitcoinerlab/explorer';
 import { useToast } from '../../common/ui';
@@ -191,17 +121,19 @@ import { useTranslation } from 'react-i18next';
 import { AppState } from 'react-native';
 import type { NetworkId } from '../lib/network';
 import { batchedUpdates } from '~/common/lib/batchedUpdates';
+import { useSettings } from '../hooks/useSettings';
 
+type Requirements = {
+  explorerReachable?: boolean;
+  explorerMainnetReachable?: boolean;
+  apiReachable?: boolean;
+  api2Reachable?: boolean;
+};
 type NotifiedErrors = Record<
   string,
   {
     errorMessage: string | false;
-    requirements?: {
-      explorerReachable?: boolean;
-      explorerMainnetReachable?: boolean;
-      apiReachable?: boolean;
-      api2Reachable?: boolean;
-    };
+    requirements?: Requirements;
     date: Date;
   }
 >;
@@ -216,11 +148,12 @@ type InitParams = {
 };
 
 export interface NetStatus {
-  errorMessage: string | undefined;
+  permanentErrorMessage: string | undefined;
   netRequest: <T>({
     id,
     func,
     requirements,
+    whenToastErrors,
     errorMessage
   }: {
     id?: string;
@@ -231,10 +164,11 @@ export interface NetStatus {
       apiReachable?: boolean;
       api2Reachable?: boolean;
     };
-    errorMessage?: string;
+    whenToastErrors: 'ON_NEW_ERROR' | 'ON_ANY_ERROR';
+    errorMessage?: string | ((message: string) => string);
   }) => Promise<{
     result: T | undefined;
-    status: 'SUCCESS' | 'REQUIREMENTS_NOT_MET' | 'ERROR';
+    status: 'SUCCESS' | 'REQUIREMENTS_NOT_MET' | 'ERROR' | 'NEW_SESSION';
   }>;
   internetReachable: boolean | undefined;
   apiReachable: boolean | undefined;
@@ -246,10 +180,15 @@ export interface NetStatus {
   explorerMainnet: Explorer | undefined;
   reset: () => void;
   init: (params: InitParams) => void;
-  update: () => Promise<
+  netToast: (success: boolean, message: string) => void;
+  update: ({
+    whenToastErrors
+  }: {
+    whenToastErrors: 'ON_NEW_ERROR' | 'ON_ANY_ERROR';
+  }) => Promise<
     | undefined
     | {
-        errorMessage: string | undefined;
+        permanentErrorMessage: string | undefined;
         internetReachable: boolean | undefined;
         apiReachable: boolean | undefined;
         api2Reachable: boolean | undefined;
@@ -268,6 +207,7 @@ interface NetStatusProviderProps {
 const NetStatusProvider: React.FC<NetStatusProviderProps> = ({ children }) => {
   const { t } = useTranslation();
   const toast = useToast();
+  const [isInit, setIsInit] = useState<boolean>(false);
   const [generate204API, setGenerate204API] = useState<string | undefined>(
     undefined
   );
@@ -283,10 +223,10 @@ const NetStatusProvider: React.FC<NetStatusProviderProps> = ({ children }) => {
     undefined
   );
 
-  const [errorMessage, setErrorMessage] = useState<string | undefined>(
-    undefined
-  );
-  const errorMessageRef = useRef<string | undefined>(undefined);
+  const [permanentErrorMessage, setPermanentErrorMessage] = useState<
+    string | undefined
+  >(undefined);
+  const permanentErrorMessageRef = useRef<string | undefined>(undefined);
   const updateTimeOut = useRef<NodeJS.Timeout | null>(null);
   /**
    * these are the current errors (and already notified)
@@ -304,15 +244,130 @@ const NetStatusProvider: React.FC<NetStatusProviderProps> = ({ children }) => {
     boolean | undefined
   >();
 
+  const { settings } = useSettings();
+
+  const networkTimeout = settings?.NETWORK_TIMEOUT;
+  const checkNetworkReachability = useCallback(
+    async (url: string) => {
+      const session = sessionRef.current;
+      let remainingAttempts = NET_ATTEMPTS;
+
+      if (!networkTimeout)
+        throw new Error('Settings not ready or NETWORK_TIMEOUT invalid');
+
+      while (remainingAttempts > 0) {
+        try {
+          const response = await fetch(url, {
+            signal: AbortSignal.timeout(networkTimeout)
+          });
+          if (session !== sessionRef.current) return false;
+          if (response.status === 204) return true;
+          await sleep(200);
+          if (session !== sessionRef.current) return false;
+          remainingAttempts--;
+        } catch (error) {
+          console.log(
+            `Failed network reachability check for ${url}, with remaining attempts ${remainingAttempts - 1}: `,
+            error
+          );
+          if (remainingAttempts <= 1) {
+            return false;
+          }
+          await sleep(200);
+          if (session !== sessionRef.current) return false;
+          remainingAttempts--;
+        }
+      }
+      return false; // All attempts failed
+    },
+    [networkTimeout]
+  );
+
+  const checkExplorerReachability = useCallback(
+    async (explorer: Explorer, traceInfo?: string): Promise<boolean> => {
+      const session = sessionRef.current;
+      let remainingAttempts = EXPLORER_ATTEMPTS;
+
+      while (remainingAttempts > 0) {
+        try {
+          const connected = await explorer.isConnected();
+          if (session !== sessionRef.current) return false;
+
+          if (connected) return true;
+          else {
+            if (!explorer.isClosed()) {
+              explorer.close();
+            }
+            await explorer.connect();
+            if (session !== sessionRef.current) return false;
+            return true;
+          }
+        } catch (error) {
+          console.log(
+            `Failed explorer reachability check for ${traceInfo}, with remaining attempts ${remainingAttempts - 1}: `,
+            error
+          );
+          if (remainingAttempts <= 1) {
+            return false;
+          }
+          await sleep(200);
+          if (session !== sessionRef.current) return false;
+          remainingAttempts--;
+        }
+      }
+      return false; // All attempts failed
+    },
+    []
+  );
+
+  //Closes automatically connections when resetting the components
+  const prevExplorerRef = useRef<Explorer | undefined>();
+  useEffect(() => {
+    const prevExplorer = prevExplorerRef.current;
+    const close = async () => {
+      if (!explorer && prevExplorer)
+        try {
+          if (!prevExplorer.isClosed()) prevExplorer.close();
+        } catch (err) {
+          console.error('Error closing explorer:', err);
+        }
+    };
+    close();
+    prevExplorerRef.current = explorer;
+  }, [explorer]);
+  const prevExplorerMainnetRef = useRef<Explorer | undefined>();
+  useEffect(() => {
+    const prevExplorerMainnet = prevExplorerMainnetRef.current;
+    const close = async () => {
+      if (!explorerMainnet && prevExplorerMainnet)
+        try {
+          if (!prevExplorerMainnet.isClosed()) prevExplorerMainnet.close();
+        } catch (err) {
+          console.error('Error closing explorerMainnet:', err);
+        }
+    };
+    close();
+    prevExplorerMainnetRef.current = explorerMainnet;
+  }, [explorerMainnet]);
+
   const clearUpdateTimeOut = useCallback(() => {
     if (updateTimeOut.current) {
       clearTimeout(updateTimeOut.current);
       updateTimeOut.current = null;
     }
   }, []);
+
+  const sessionRef = useRef<number>(0);
   const reset = useCallback(() => {
+    //Update the session number. If the session changes after a async operation
+    //then, we don't care anymore about it.
+    sessionRef.current++;
     clearUpdateTimeOut();
-    errorMessageRef.current = undefined;
+    toastQueueRef.current.forEach(q => {
+      if (toast.isOpen(q.id)) toast.hide(q.id);
+    });
+    toastQueueRef.current = [];
+    permanentErrorMessageRef.current = undefined;
     notifiedErrorsRef.current = {};
     batchedUpdates(() => {
       setGenerate204API(undefined);
@@ -321,13 +376,14 @@ const NetStatusProvider: React.FC<NetStatusProviderProps> = ({ children }) => {
       setNetworkId(undefined);
       setExplorer(undefined);
       setExplorerMainnet(undefined);
-      setErrorMessage(undefined);
+      setPermanentErrorMessage(undefined);
       setApiReachable(undefined);
       setApi2Reachable(undefined);
       setExplorerReachable(undefined);
       setExplorerMainnetReachable(undefined);
+      setIsInit(false);
     });
-  }, [clearUpdateTimeOut]);
+  }, [clearUpdateTimeOut, toast]);
 
   const deriveInternetReachable = useCallback(
     ({
@@ -372,7 +428,7 @@ const NetStatusProvider: React.FC<NetStatusProviderProps> = ({ children }) => {
     ]
   );
 
-  const toastQueueRef = useRef<Array<string>>([]);
+  const toastQueueRef = useRef<Array<{ id: string; message: string }>>([]);
   /**
    * Manages toasts by displaying success messages or queuing error messages.
    * Closes all error messages on a success event.
@@ -380,17 +436,41 @@ const NetStatusProvider: React.FC<NetStatusProviderProps> = ({ children }) => {
    * @param success Indicates whether the toast is for a success or error message.
    * @param message The message to display in the toast.
    */
-  const managedToast = useCallback(
-    (success: boolean, message: string) => {
+  const isToastInCurrentFrameRef = useRef<boolean>(false);
+  const netToast = useCallback(
+    async (success: boolean, message: string) => {
+      // If already called within the same execution context, wait for the
+      // next animation frame. This prevents consecutive calls to netToast
+      // within the same frame from showing duplicate toasts, as they will
+      // wait until the next frame to execute.
+      //
+      // This approach is necessary because react-native-toast-notifications
+      // only sets "open = true" after an animation frame. As a result,
+      // isOpen was returning false if checked within the same frame
+      // after a show():
+      // https://github.com/arnnis/react-native-toast-notifications/blob/e0ed48e1098359d933c84c9c6dbaafe13810ea68/src/toast-container.tsx#L57
+      while (isToastInCurrentFrameRef.current)
+        await new Promise(requestAnimationFrame);
+      isToastInCurrentFrameRef.current = true;
+      // Reset the flag at the end of the current frame
+      requestAnimationFrame(() => {
+        isToastInCurrentFrameRef.current = false;
+      });
+
       if (success) {
-        toastQueueRef.current.forEach(id => {
-          if (toast.isOpen(id)) toast.hide(id);
+        toastQueueRef.current.forEach(q => {
+          if (toast.isOpen(q.id)) toast.hide(q.id);
         });
         toastQueueRef.current = [];
         toast.show(message, { type: 'success' });
       } else {
+        toastQueueRef.current.forEach(q => {
+          if (toast.isOpen(q.id) && q.message === message) {
+            toast.hide(q.id);
+          }
+        });
         const newToastId = toast.show(message, { type: 'warning' });
-        toastQueueRef.current.push(newToastId);
+        toastQueueRef.current.push({ id: newToastId, message });
       }
     },
     [toast]
@@ -398,11 +478,12 @@ const NetStatusProvider: React.FC<NetStatusProviderProps> = ({ children }) => {
 
   /**
    * computes and returns the new error message. It also keeps track of the last
-   * computed one. If there was an error previously and not now anymore, then it
-   * toasts a success message
+   * computed one. It toasts the error if necessary and, if there was an error
+   * previously and not now anymore, then it toasts a success message
    */
   const handleError = useCallback(
     ({
+      whenToastErrors,
       notifiedErrors,
       apiReachable,
       api2Reachable,
@@ -410,6 +491,7 @@ const NetStatusProvider: React.FC<NetStatusProviderProps> = ({ children }) => {
       explorerMainnetReachable,
       apiExternalReachable
     }: {
+      whenToastErrors: 'ON_ANY_ERROR' | 'ON_NEW_ERROR';
       notifiedErrors: NotifiedErrors;
       apiReachable: boolean | undefined;
       api2Reachable: boolean | undefined;
@@ -426,7 +508,7 @@ const NetStatusProvider: React.FC<NetStatusProviderProps> = ({ children }) => {
           apiExternalReachable
         });
 
-      let errorMessage: string | undefined = undefined;
+      let permanentErrorMessage: string | undefined = undefined;
 
       //sorts notifierErrors from old to new. new notified errors trump
       //old ones
@@ -436,37 +518,46 @@ const NetStatusProvider: React.FC<NetStatusProviderProps> = ({ children }) => {
 
       sortedNotifiedErrors.forEach(([, notifiedError]) => {
         if (notifiedError.errorMessage)
-          errorMessage = notifiedError.errorMessage;
+          permanentErrorMessage = notifiedError.errorMessage;
       });
 
       //api errors or explorer errors will trump any speciffic errors
       if (generate204API && apiReachable === false)
-        errorMessage = t('netStatus.apiNotReachableWarning');
+        permanentErrorMessage = t('netStatus.apiNotReachableWarning');
 
       if (generate204API2 && api2Reachable === false)
-        errorMessage = t('netStatus.apiNotReachableWarning');
+        permanentErrorMessage = t('netStatus.apiNotReachableWarning');
 
       if (explorer && explorerReachable === false)
-        errorMessage = t('netStatus.blockchainExplorerNotReachableWarning');
+        permanentErrorMessage = t(
+          'netStatus.blockchainExplorerNotReachableWarning'
+        );
 
       if (explorerMainnet && explorerMainnetReachable === false)
-        errorMessage = t(
+        permanentErrorMessage = t(
           'netStatus.blockchainMainnetExplorerNotReachableWarning'
         );
 
       //internet reachability error trumps any other errors
       if (internetReachable === false && internetCheckRequested)
-        errorMessage = t('netStatus.internetNotReachableWarning');
+        permanentErrorMessage = t('netStatus.internetNotReachableWarning');
 
-      if (errorMessage && errorMessageRef.current !== errorMessage) {
-        managedToast(false, errorMessage);
-        errorMessageRef.current = errorMessage;
+      if (
+        permanentErrorMessage &&
+        (whenToastErrors === 'ON_ANY_ERROR' ||
+          permanentErrorMessageRef.current !== permanentErrorMessage)
+      ) {
+        netToast(false, permanentErrorMessage);
+        permanentErrorMessageRef.current = permanentErrorMessage;
       }
-      if (errorMessage === undefined && errorMessageRef.current) {
-        managedToast(true, t('netStatus.connectionRestoredInfo'));
-        errorMessageRef.current = undefined;
+      if (
+        permanentErrorMessage === undefined &&
+        permanentErrorMessageRef.current
+      ) {
+        netToast(true, t('netStatus.connectionRestoredInfo'));
+        permanentErrorMessageRef.current = undefined;
       }
-      return { internetReachable, errorMessage };
+      return { internetReachable, permanentErrorMessage };
     },
     [
       explorer,
@@ -475,114 +566,200 @@ const NetStatusProvider: React.FC<NetStatusProviderProps> = ({ children }) => {
       generate204API2,
       deriveInternetReachable,
       t,
-      managedToast
+      netToast
     ]
   );
 
-  const update = useCallback(async () => {
-    clearUpdateTimeOut();
-    if (AppState.currentState !== 'active') {
-      console.warn('Device is not active; postponing netStatus update');
-      //Don't perform updates when the device is not active, but Schedule
-      //new ones until it is.
-      updateTimeOut.current = setTimeout(update, RETRY_TIME_AFTER_OK);
-      return;
-    }
-
-    // Create an array of promises for the network reachability checks
-    const checks = [
-      generate204API ? checkNetworkReachability(generate204API) : undefined,
-      generate204API2 ? checkNetworkReachability(generate204API2) : undefined,
-      explorer
-        ? checkExplorerReachability(explorer, 'walletExplorer')
-        : undefined,
-      explorerMainnet
-        ? checkExplorerReachability(explorerMainnet, 'mainnetExplorer')
-        : undefined,
-      generate204APIExternal
-        ? checkNetworkReachability(generate204APIExternal)
-        : undefined
-    ];
-    // Run all the checks in parallel
-    const [
-      apiReachable,
-      api2Reachable,
+  const areRequiredServicesUp = useCallback(
+    ({
+      requirements,
       explorerReachable,
       explorerMainnetReachable,
-      apiExternalReachable
-    ] = await Promise.all(checks);
+      apiReachable,
+      api2Reachable
+    }: {
+      requirements: Requirements | undefined;
+      explorerReachable: boolean | undefined;
+      explorerMainnetReachable: boolean | undefined;
+      apiReachable: boolean | undefined;
+      api2Reachable: boolean | undefined;
+    }) => {
+      return (
+        ((requirements?.explorerReachable && explorerReachable) ||
+          !requirements?.explorerReachable) &&
+        ((requirements?.explorerMainnetReachable && explorerMainnetReachable) ||
+          !requirements?.explorerMainnetReachable) &&
+        ((requirements?.apiReachable && apiReachable) ||
+          !requirements?.apiReachable) &&
+        ((requirements?.api2Reachable && api2Reachable) ||
+          !requirements?.api2Reachable)
+      );
+    },
+    []
+  );
 
-    //Clear errors when the requirement is not met anymore
-    for (const id of Object.keys(notifiedErrorsRef.current)) {
-      const notifiedError = notifiedErrorsRef.current[id];
-      if (!notifiedError) throw new Error('notifiedError should be defined');
-      const requirements = notifiedError.requirements;
-      if (
-        (requirements?.explorerReachable && !explorerReachable) ||
-        (requirements?.explorerMainnetReachable && !explorerMainnetReachable) ||
-        (requirements?.apiReachable && !apiReachable) ||
-        (requirements?.api2Reachable && !api2Reachable)
-      ) {
-        delete notifiedErrorsRef.current[id];
+  const update = useCallback(
+    async ({
+      whenToastErrors
+    }: {
+      whenToastErrors: 'ON_NEW_ERROR' | 'ON_ANY_ERROR';
+    }) => {
+      if (!isInit) return; //update will be called on reset(). Ignore it.
+      const session = sessionRef.current;
+      clearUpdateTimeOut();
+      if (AppState.currentState === 'background') {
+        console.warn(
+          'Device is in the background; postponing netStatus update'
+        );
+        //Don't perform updates when the device is not active, but Schedule
+        //new ones until it is.
+        updateTimeOut.current = setTimeout(
+          () => update({ whenToastErrors: 'ON_NEW_ERROR' }),
+          RETRY_TIME_AFTER_OK
+        );
+        return;
       }
-    }
 
-    const { internetReachable, errorMessage } = handleError({
-      notifiedErrors: notifiedErrorsRef.current,
-      apiReachable,
-      api2Reachable,
-      explorerReachable,
-      explorerMainnetReachable,
-      apiExternalReachable
-    });
+      console.log(
+        `[${new Date().toISOString()}] [NetStatus] Update for: ${
+          [
+            'generate204API',
+            'generate204API2',
+            'walletExplorer',
+            'mainnetExplorer',
+            'generate204APIExternal'
+          ]
+            .filter(
+              (_service, index) =>
+                [
+                  generate204API,
+                  generate204API2,
+                  explorer,
+                  explorerMainnet,
+                  generate204APIExternal
+                ][index]
+            )
+            .join(', ') || 'No services defined'
+        }`
+      );
 
-    batchedUpdates(() => {
-      setErrorMessage(errorMessage);
-      setExplorerReachable(explorerReachable);
-      setExplorerMainnetReachable(explorerMainnetReachable);
-      setApiReachable(apiReachable);
-      setApi2Reachable(api2Reachable);
-      setApiExternalReachable(apiExternalReachable);
-    });
+      // Create an array of promises for the network reachability checks
+      const checks = [
+        generate204API ? checkNetworkReachability(generate204API) : undefined,
+        generate204API2 ? checkNetworkReachability(generate204API2) : undefined,
+        explorer
+          ? checkExplorerReachability(explorer, 'walletExplorer')
+          : undefined,
+        explorerMainnet
+          ? checkExplorerReachability(explorerMainnet, 'mainnetExplorer')
+          : undefined,
+        generate204APIExternal
+          ? checkNetworkReachability(generate204APIExternal)
+          : undefined
+      ];
+      // Run all the checks in parallel
+      const [
+        apiReachable,
+        api2Reachable,
+        explorerReachable,
+        explorerMainnetReachable,
+        apiExternalReachable
+      ] = await Promise.all(checks);
+      if (session !== sessionRef.current) {
+        console.log('Stoping scheduled network checks after wallet change');
+        if (updateTimeOut.current === null) {
+          updateTimeOut.current = setTimeout(
+            () => update({ whenToastErrors: 'ON_NEW_ERROR' }),
+            RETRY_TIME_AFTER_OK
+          );
+        }
+        return;
+      }
 
-    // Schedule the next check
-    const nextCheckDelay = errorMessage
-      ? RETRY_TIME_AFTER_FAIL
-      : RETRY_TIME_AFTER_OK;
-    if (updateTimeOut.current === null)
-      updateTimeOut.current = setTimeout(update, nextCheckDelay);
+      //Clear errors when the required services are NOT Up anymore
+      //This is the way to indicate that, in fact, this speciff error is due
+      //to a more generic error in one of its requirements
+      for (const id of Object.keys(notifiedErrorsRef.current)) {
+        const notifiedError = notifiedErrorsRef.current[id];
+        if (!notifiedError) throw new Error('notifiedError should be defined');
+        const requirements = notifiedError.requirements;
+        if (
+          !areRequiredServicesUp({
+            requirements,
+            explorerReachable,
+            explorerMainnetReachable,
+            apiReachable,
+            api2Reachable
+          })
+        )
+          delete notifiedErrorsRef.current[id];
+      }
 
-    return {
-      errorMessage,
-      internetReachable,
-      apiReachable,
-      api2Reachable,
-      explorerReachable,
-      explorerMainnetReachable //For Tape fees
-    };
-  }, [
-    handleError,
-    generate204API,
-    generate204API2,
-    generate204APIExternal,
-    clearUpdateTimeOut,
-    explorer,
-    explorerMainnet
-  ]);
+      const { internetReachable, permanentErrorMessage } = handleError({
+        whenToastErrors,
+        notifiedErrors: notifiedErrorsRef.current,
+        apiReachable,
+        api2Reachable,
+        explorerReachable,
+        explorerMainnetReachable,
+        apiExternalReachable
+      });
+
+      batchedUpdates(() => {
+        setPermanentErrorMessage(permanentErrorMessage);
+        setExplorerReachable(explorerReachable);
+        setExplorerMainnetReachable(explorerMainnetReachable);
+        setApiReachable(apiReachable);
+        setApi2Reachable(api2Reachable);
+        setApiExternalReachable(apiExternalReachable);
+      });
+
+      // Schedule the next check
+      const nextCheckDelay = permanentErrorMessage
+        ? RETRY_TIME_AFTER_FAIL
+        : RETRY_TIME_AFTER_OK;
+      if (updateTimeOut.current === null)
+        updateTimeOut.current = setTimeout(
+          () => update({ whenToastErrors: 'ON_NEW_ERROR' }),
+          nextCheckDelay
+        );
+
+      return {
+        permanentErrorMessage,
+        internetReachable,
+        apiReachable,
+        api2Reachable,
+        explorerReachable,
+        explorerMainnetReachable //For Tape fees
+      };
+    },
+    [
+      isInit,
+      checkNetworkReachability,
+      checkExplorerReachability,
+      areRequiredServicesUp,
+      handleError,
+      generate204API,
+      generate204API2,
+      generate204APIExternal,
+      clearUpdateTimeOut,
+      explorer,
+      explorerMainnet
+    ]
+  );
 
   const netRequest = useCallback(
     async <T,>({
       id,
       func,
       requirements,
+      whenToastErrors,
       errorMessage
     }: {
       /**
        * don't pass an id if you don't want this error to be permanent. permanent
        * errors are provided in the context as errorMessage and will be typically
        * shown in the Wallet Header in a prominent color in a permanent manner.
-       *
-       * when an "id" is passed then the error is only notified once
        */
       id?: string;
       func: () => Promise<T>;
@@ -598,28 +775,43 @@ const NetStatusProvider: React.FC<NetStatusProviderProps> = ({ children }) => {
         apiReachable?: boolean;
         api2Reachable?: boolean;
       };
-      errorMessage?: string;
+      whenToastErrors: 'ON_NEW_ERROR' | 'ON_ANY_ERROR';
+      errorMessage?: string | ((message: string) => string);
     }): Promise<{
       result: T | undefined;
-      status: 'SUCCESS' | 'REQUIREMENTS_NOT_MET' | 'ERROR';
+      status: 'SUCCESS' | 'REQUIREMENTS_NOT_MET' | 'ERROR' | 'NEW_SESSION';
     }> => {
+      if (whenToastErrors === 'ON_NEW_ERROR' && id === undefined)
+        throw new Error(
+          'When not setting an id, then toasts should be shown on any error'
+        );
+      if (requirements && id === undefined)
+        throw new Error("Don't pass requirements if not passing id");
+      if (!errorMessage)
+        console.warn(
+          'Passing a translated, human readable error message is recommended'
+        );
+      const session = sessionRef.current;
       if (
-        ((requirements?.explorerReachable && explorerReachable) ||
-          !requirements?.explorerReachable) &&
-        ((requirements?.explorerMainnetReachable && explorerMainnetReachable) ||
-          !requirements?.explorerMainnetReachable) &&
-        ((requirements?.apiReachable && apiReachable) ||
-          !requirements?.apiReachable) &&
-        ((requirements?.api2Reachable && api2Reachable) ||
-          !requirements?.api2Reachable)
+        areRequiredServicesUp({
+          requirements,
+          explorerReachable,
+          explorerMainnetReachable,
+          apiReachable,
+          api2Reachable
+        })
       ) {
         try {
           const result = await func();
+          if (session !== sessionRef.current) {
+            return { result: undefined, status: 'NEW_SESSION' };
+          }
           if (id && notifiedErrorsRef.current[id]) {
-            //If there was an error related to this id, then clear it
-            //and handle the change:
+            //If there was an error related to this id, then clear it since
+            //func was succesful, and handle the change:
             delete notifiedErrorsRef.current[id];
-            const { errorMessage } = handleError({
+            const { permanentErrorMessage } = handleError({
+              whenToastErrors,
               notifiedErrors: notifiedErrorsRef.current,
               apiReachable,
               api2Reachable,
@@ -627,30 +819,62 @@ const NetStatusProvider: React.FC<NetStatusProviderProps> = ({ children }) => {
               explorerMainnetReachable,
               apiExternalReachable
             });
-            setErrorMessage(errorMessage);
+            setPermanentErrorMessage(permanentErrorMessage);
           }
           return { result, status: 'SUCCESS' };
         } catch (error) {
-          errorMessage =
-            errorMessage ||
-            (error instanceof Error && error.message) ||
-            t('app.unknownError');
+          //We don't care about errors of other sessions (probably trying to
+          //do a network op on an expired session)
+          if (session !== sessionRef.current) {
+            return { result: undefined, status: 'NEW_SESSION' };
+          }
+          console.warn('netRequest failed:', error, {
+            id,
+            errorMessage,
+            requirements
+          });
+          const message =
+            (error instanceof Error && error.message) || t('app.unknownError');
+          const finalErrorMessage: string =
+            (typeof errorMessage === 'function'
+              ? errorMessage(message)
+              : errorMessage) || message;
 
           if (id) {
             const notifiedError = notifiedErrorsRef.current[id];
-            if (notifiedError?.errorMessage !== errorMessage) {
+            if (notifiedError?.errorMessage !== finalErrorMessage) {
               notifiedErrorsRef.current[id] = {
                 ...(requirements ? { requirements } : {}),
-                errorMessage,
+                errorMessage: finalErrorMessage,
                 date: new Date()
               };
-              //The error will be "toasted" in update
-              //don't return the 'ERROR' without awaiting the update to avoid a
-              //strange situation in which the function is reported as failure
-              //but we don't see the error notification for a while.
-              await update();
+
+              //The error will be "toasted" in update. It will be displayed as
+              //  - if, after net checks, required services are up:
+              //  toast the speciffic errorMessage.
+              //  - if, after net checks, required services are NOT up:
+              //  toast a more generic net error.
+              await update({ whenToastErrors });
+              if (session !== sessionRef.current) {
+                return { result: undefined, status: 'NEW_SESSION' };
+              }
             }
-          } else managedToast(false, errorMessage);
+          } else {
+            netToast(false, finalErrorMessage);
+
+            ////An error may be "toasted" im update.
+            //const servicesStatus = await update({ whenToastErrors });
+            //if (session !== sessionRef.current)
+            //  return { result: undefined, status: 'NEW_SESSION' };
+
+            //if (
+            //  servicesStatus &&
+            //  areRequiredServicesUp({ requirements, ...servicesStatus })
+            //)
+            //  //if udpate did not toast an error related to our requirements,
+            //  //then we must toast it, since the function throwed
+            //  netToast(false, errorMessage);
+          }
 
           return { result: undefined, status: 'ERROR' };
         }
@@ -658,9 +882,10 @@ const NetStatusProvider: React.FC<NetStatusProviderProps> = ({ children }) => {
     },
     [
       handleError,
+      areRequiredServicesUp,
       update,
       t,
-      managedToast,
+      netToast,
       apiExternalReachable,
       apiReachable,
       api2Reachable,
@@ -670,21 +895,30 @@ const NetStatusProvider: React.FC<NetStatusProviderProps> = ({ children }) => {
   );
 
   useEffect(() => {
-    update(); // Initial check
+    update({ whenToastErrors: 'ON_NEW_ERROR' }); // Initial check
 
+    let prevAppState = AppState.currentState; // Track the previous app state
     const appStateSubscription = AppState.addEventListener(
       'change',
       nextAppState => {
-        if (nextAppState === 'active') {
-          update();
+        // Note: iOS may briefly transition to 'inactive' during a Face ID
+        // prompt. To prevent unnecessary updates, only trigger updates when
+        // transitioning from 'background' to 'active'.
+        if (prevAppState === 'background' && nextAppState === 'active') {
+          console.log(
+            'NetStatus: triggering an update after app restored from the background',
+            `Previous: ${prevAppState}, Current: ${nextAppState}`
+          );
+          update({ whenToastErrors: 'ON_NEW_ERROR' });
         }
+        prevAppState = nextAppState;
       }
     );
     return () => {
       appStateSubscription.remove();
       clearUpdateTimeOut();
     };
-  }, [update, clearUpdateTimeOut]);
+  }, [isInit, update, clearUpdateTimeOut]);
 
   const init = useCallback(
     ({
@@ -702,6 +936,7 @@ const NetStatusProvider: React.FC<NetStatusProviderProps> = ({ children }) => {
         setGenerate204API2(generate204API2);
         setGenerate204APIExternal(generate204APIExternal);
         setNetworkId(networkId);
+        setIsInit(true);
       });
     },
     []
@@ -709,7 +944,7 @@ const NetStatusProvider: React.FC<NetStatusProviderProps> = ({ children }) => {
 
   const value = useMemo(
     () => ({
-      errorMessage,
+      permanentErrorMessage,
       netRequest,
       internetReachable: deriveInternetReachable({
         apiReachable,
@@ -727,7 +962,8 @@ const NetStatusProvider: React.FC<NetStatusProviderProps> = ({ children }) => {
       explorerMainnetReachable, //For Tape fees
       init,
       reset,
-      update
+      update,
+      netToast
     }),
     [
       netRequest,
@@ -735,6 +971,7 @@ const NetStatusProvider: React.FC<NetStatusProviderProps> = ({ children }) => {
       reset,
       init,
       update,
+      netToast,
       networkId,
 
       explorer,
@@ -743,7 +980,7 @@ const NetStatusProvider: React.FC<NetStatusProviderProps> = ({ children }) => {
       explorerMainnet,
       explorerMainnetReachable,
 
-      errorMessage,
+      permanentErrorMessage,
 
       apiReachable,
       api2Reachable,

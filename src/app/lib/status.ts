@@ -1,5 +1,3 @@
-import { t } from 'i18next';
-import { Toast } from '../../common/ui';
 import type { StorageErrorCode } from '../../common/lib/storage';
 import type { Vaults, VaultsStatuses } from './vaults';
 import type { Accounts, Signers, Wallet } from './wallets';
@@ -161,29 +159,34 @@ export const getIsCorrupted = ({
   );
 };
 
-//TODO: remove this function below
-type ToastError = 'NETWORK_ERROR'; //'NETWORK_ERROR' | 'STORAGE_ERROR' |...
-/**
- * When the error is permanent (such as in btc rates or fees failing then
- * better use NetStatus.notifyErrorAsync
- *
- */
-export const toastifyErrorAsync = async <T>(
-  errorType: ToastError,
-  func: () => Promise<T>
-): Promise<T | ToastError> => {
-  try {
-    return await func();
-  } catch (error) {
-    console.warn(error);
-    const errorMessage =
-      error instanceof Error ? error.message : t('app.unknownError');
-
-    if (errorType === 'NETWORK_ERROR')
-      Toast.show(t('app.networkError', { message: errorMessage }), {
-        type: 'warning'
-      });
-    else throw new Error(`Invalid error type ${errorType}`);
-    return 'NETWORK_ERROR';
-  }
-};
+//import { t } from 'i18next';
+//import { Toast } from '../../common/ui';
+//type ToastError = 'NETWORK_ERROR'; //'NETWORK_ERROR' | 'STORAGE_ERROR' |...
+///**
+// * When the error is permanent (such as in btc rates or fees failing then
+// * better use NetStatus.notifyErrorAsync
+// *
+// */
+//export const toastifyErrorAsync = async <T>(
+//  errorType: ToastError,
+//  func: () => Promise<T>
+//): Promise<T | ToastError> => {
+//  try {
+//    return await func();
+//  } catch (error) {
+//    console.warn(error);
+//    const errorMessage =
+//      error instanceof Error ? error.message : t('app.unknownError');
+//
+//    if (errorType === 'NETWORK_ERROR')
+//      Toast.show(t('app.networkError', { message: errorMessage }), {
+//        type: 'warning'
+//      });
+//    else throw new Error(`Invalid error type ${errorType}`);
+//    return 'NETWORK_ERROR';
+//  }
+//};
+//    If you activate the above, then add back this translation:
+//    networkError: `Oops! There was a network issue. Please check your connection and try again.
+//
+//{{message}}`,

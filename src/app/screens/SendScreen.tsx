@@ -118,7 +118,7 @@ export default function Send() {
     getAndSetChangeOutput();
   }, [getNextChangeDescriptorWithIndex, network, accounts]);
 
-  const initialFeeRate = pickFeeEstimate(
+  const { feeEstimate: initialFeeRate } = pickFeeEstimate(
     feeEstimates,
     settings.INITIAL_CONFIRMATION_TIME
   );

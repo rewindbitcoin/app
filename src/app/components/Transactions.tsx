@@ -5,8 +5,8 @@ import { TFunction } from 'i18next';
 import { BlockStatus } from '@bitcoinerlab/explorer';
 import { useSettings } from '../hooks/useSettings';
 import { useTranslation } from 'react-i18next';
-import { Path, Svg } from 'react-native-svg';
-import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
+import { Svg } from 'react-native-svg';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import Entypo from '@expo/vector-icons/Entypo';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import FreezeIcon from './FreezeIcon';
@@ -377,22 +377,29 @@ const Transactions = ({
     () => historyData && [...historyData].reverse(),
     [historyData]
   );
-  const [displayedHistoryData, setDisplayedHistoryData] = useState<HistoryData>(
-    reversedHistoryData ? reversedHistoryData.slice(0, BATCH_SIZE) : []
-  );
-  const loadMore = useCallback(() => {
-    if (!reversedHistoryData)
-      throw new Error("Don't call loadMore when no data");
-    const nextIndex = displayedHistoryData.length;
-    const nextTransactions = reversedHistoryData.slice(
-      nextIndex,
-      nextIndex + BATCH_SIZE
-    );
-    setDisplayedHistoryData(transactions => [
-      ...transactions,
-      ...nextTransactions
-    ]);
-  }, [displayedHistoryData.length, reversedHistoryData]);
+  const [batchIndex, setBatchIndex] = useState<number>(1);
+  const loadMore = useCallback(() => setBatchIndex(prev => prev + 1), []);
+  const displayedHistoryData = useMemo(() => {
+    if (!reversedHistoryData) return [];
+    return reversedHistoryData.slice(0, batchIndex * BATCH_SIZE);
+  }, [reversedHistoryData, batchIndex]);
+
+  //const [displayedHistoryData, setDisplayedHistoryData] = useState<HistoryData>(
+  //  reversedHistoryData ? reversedHistoryData.slice(0, BATCH_SIZE) : []
+  //);
+  //const loadMore = useCallback(() => {
+  //  if (!reversedHistoryData)
+  //    throw new Error("Don't call loadMore when no data");
+  //  const nextIndex = displayedHistoryData.length;
+  //  const nextTransactions = reversedHistoryData.slice(
+  //    nextIndex,
+  //    nextIndex + BATCH_SIZE
+  //  );
+  //  setDisplayedHistoryData(transactions => [
+  //    ...transactions,
+  //    ...nextTransactions
+  //  ]);
+  //}, [displayedHistoryData.length, reversedHistoryData]);
 
   return historyData && historyData.length ? (
     <View className="rounded-3xl bg-white gap-y-2">
@@ -443,19 +450,11 @@ const Transactions = ({
     </View>
   ) : (
     <View className="flex-col items-center self-center my-4 max-w-80">
-      <Svg
-        fill="none"
-        viewBox="0 0 24 24"
-        strokeWidth="1.5"
-        stroke="currentColor"
-        className="size-20 text-primary opacity-60"
-      >
-        <Path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          d="M3.75 9.776c.112-.017.227-.026.344-.026h15.812c.117 0 .232.009.344.026m-16.5 0a2.25 2.25 0 0 0-1.883 2.542l.857 6a2.25 2.25 0 0 0 2.227 1.932H19.05a2.25 2.25 0 0 0 2.227-1.932l.857-6a2.25 2.25 0 0 0-1.883-2.542m-16.5 0V6A2.25 2.25 0 0 1 6 3.75h3.879a1.5 1.5 0 0 1 1.06.44l2.122 2.12a1.5 1.5 0 0 0 1.06.44H18A2.25 2.25 0 0 1 20.25 9v.776"
-        />
-      </Svg>
+      <MaterialCommunityIcons
+        name="history"
+        size={4 * 16}
+        className="text-primary opacity-50"
+      />
       <Text className="font-bold text-slate-600 mt-4 text-center text-lg">
         {t('transaction.noTransactionsTitle')}
       </Text>

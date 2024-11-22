@@ -1,5 +1,5 @@
-import React, { useState, useCallback, useEffect } from 'react';
-import { Modal, Button, useToast } from '../../common/ui';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
+import { Modal, Button, useToast, IconType } from '../../common/ui';
 import { useTranslation } from 'react-i18next';
 import Bip39 from './Bip39';
 import ConfirmBip39 from '../components/ConfirmBip39';
@@ -63,6 +63,11 @@ const CreateColdAddress = ({
     );
   }, [onAddress, network, words, toast, t]);
 
+  const icon = useMemo<IconType>(
+    () => ({ family: 'Ionicons', name: 'wallet' }),
+    []
+  );
+
   return (
     <>
       <Modal
@@ -70,10 +75,7 @@ const CreateColdAddress = ({
         headerMini={true}
         isVisible={isVisible && step !== 'bip39confirm'}
         title={t('addressInput.coldAddress.createNewModalTitle')}
-        icon={{
-          family: 'Ionicons',
-          name: 'wallet'
-        }}
+        icon={icon}
         onClose={onClose}
         customButtons={
           step === 'intro' ? (
@@ -95,7 +97,7 @@ const CreateColdAddress = ({
       >
         {step === 'intro' ? (
           <View>
-            <Text className="text-base text-slate-600 pb-2">
+            <Text className="text-base text-slate-600 pb-2 px-2">
               {t('addressInput.coldAddress.intro')}
             </Text>
           </View>

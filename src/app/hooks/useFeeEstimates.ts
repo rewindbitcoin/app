@@ -10,9 +10,17 @@ import { useNetStatus } from './useNetStatus';
 import { useStorage } from '../../common/hooks/useStorage';
 import { SERIALIZABLE } from '../../common/lib/storage';
 
+//Only report an error if fee estimates cannot be obtained after 10 minutes
+const ERROR_REPORT_MAX_TIME = 10 * 60 * 1000;
+
 export function useFeeEstimates(): {
   feeEstimates: FeeEstimates | undefined;
-  updateFeeEstimates: () => Promise<FeeEstimates | undefined>;
+  updateFeeEstimates: ({
+    whenToastErrors
+  }: {
+    whenToastErrors: 'ON_NEW_ERROR' | 'ON_ANY_ERROR';
+  }) => Promise<FeeEstimates | undefined>;
+  isSynchd: boolean;
 } {
   const { settings } = useSettings();
   const intervalTime = settings?.BLOCKCHAIN_DATA_REFRESH_INTERVAL_MS;
@@ -27,60 +35,100 @@ export function useFeeEstimates(): {
     networkId
   } = useNetStatus();
 
+  const feesExplorer = networkId === 'TAPE' ? explorerMainnet : explorer;
+
   const [feeEstimates, setFeeEstimates, , , storageStatus] =
     useStorage<FeeEstimates>(networkId && `FEES_${networkId}`, SERIALIZABLE);
 
   //feeEstimatesRef keeps track of as feeEstimates. It will be used
   //to compare in shallowEqualObjects. shallowEqualObjects won't use feeEstimates
   //to avoid re-renders (infinite loop)
-  const feeEstimatesRef = useRef<FeeEstimates | undefined>();
+  //Also used to detect if this comes from storage or from network (storage == undefined)
+  const feeEstimatesRef = useRef<FeeEstimates | undefined>(feeEstimates);
+  const lastFeeEstimatesRef = useRef<number | undefined>();
   useEffect(() => {
     feeEstimatesRef.current = undefined;
-  }, [setFeeEstimates]);
+    lastFeeEstimatesRef.current = undefined;
+  }, [feesExplorer]);
 
-  const feesExplorer = networkId === 'TAPE' ? explorerMainnet : explorer;
   const feesExplorerReachable =
     networkId === 'TAPE' ? explorerMainnetReachable : explorerReachable;
 
-  const updateFeeEstimates = useCallback(async () => {
-    let newFeeEstimates: undefined | FeeEstimates = undefined;
-    await netRequest({
-      id: 'feeEstimates',
-      func: async () => {
-        if (storageStatus.errorCode) throw new Error(storageStatus.errorCode);
-        if (feesExplorer) {
-          newFeeEstimates = await feesExplorer.fetchFeeEstimates();
-          if (!shallowEqualObjects(newFeeEstimates, feeEstimatesRef.current)) {
-            setFeeEstimates(newFeeEstimates);
-            feeEstimatesRef.current = newFeeEstimates;
+  const updateFeeEstimates = useCallback(
+    async ({
+      whenToastErrors
+    }: {
+      whenToastErrors: 'ON_NEW_ERROR' | 'ON_ANY_ERROR';
+    }) => {
+      let newFeeEstimates: undefined | FeeEstimates = undefined;
+      await netRequest({
+        id: 'feeEstimates',
+        whenToastErrors,
+        requirements: {
+          ...(networkId === 'TAPE'
+            ? { explorerMainnetReachable: true }
+            : { explorerReachable: true })
+        },
+        errorMessage: t('app.feeEstimatesError'),
+        func: async () => {
+          if (storageStatus.errorCode) throw new Error(storageStatus.errorCode);
+          if (feesExplorer) {
+            try {
+              newFeeEstimates = await feesExplorer.fetchFeeEstimates();
+              //console.log(
+              //  `[${new Date().toISOString()}] [FeeEstimates]: ${JSON.stringify(newFeeEstimates)} | network: ${networkId}`
+              //);
+              lastFeeEstimatesRef.current = Date.now();
+              if (
+                !shallowEqualObjects(newFeeEstimates, feeEstimatesRef.current)
+              ) {
+                setFeeEstimates(newFeeEstimates);
+                feeEstimatesRef.current = newFeeEstimates;
+              }
+            } catch (error) {
+              if (
+                lastFeeEstimatesRef.current === undefined ||
+                Date.now() - lastFeeEstimatesRef.current > ERROR_REPORT_MAX_TIME
+              )
+                throw error;
+              else {
+                newFeeEstimates = feeEstimatesRef.current;
+                console.warn(
+                  'Could not obtain fresh fee estimates, but not throwing yet',
+                  error
+                );
+              }
+            }
           }
         }
-      },
-      requirements: {
-        ...(networkId === 'TAPE'
-          ? { explorerMainnetReachable: true }
-          : { explorerReachable: true })
-      },
-      errorMessage: t('app.feeEstimatesError')
-    });
-    return newFeeEstimates;
-  }, [
-    networkId,
-    setFeeEstimates,
-    storageStatus.errorCode,
-    netRequest,
-    feesExplorer,
-    t
-  ]);
+      });
+      return newFeeEstimates;
+    },
+    [
+      networkId,
+      setFeeEstimates,
+      storageStatus.errorCode,
+      netRequest,
+      feesExplorer,
+      t
+    ]
+  );
 
   useEffect(() => {
     if (feesExplorerReachable && intervalTime) {
-      const intervalId = setInterval(updateFeeEstimates, intervalTime);
-      updateFeeEstimates(); //1st call
+      const intervalId = setInterval(
+        () => updateFeeEstimates({ whenToastErrors: 'ON_NEW_ERROR' }),
+        intervalTime
+      );
+      updateFeeEstimates({ whenToastErrors: 'ON_NEW_ERROR' }); //1st call
       return () => clearInterval(intervalId);
     }
     return;
   }, [feesExplorerReachable, updateFeeEstimates, intervalTime]);
 
-  return { updateFeeEstimates, feeEstimates };
+  return {
+    updateFeeEstimates,
+    feeEstimates,
+    isSynchd: !!feeEstimatesRef.current
+  };
 }

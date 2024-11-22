@@ -7,6 +7,7 @@ import { useToast } from '../../common/ui';
 import { networkMapping } from '../lib/network';
 import { faucetFirstReceive } from '../lib/faucet';
 import { useWallet } from './useWallet';
+import { useSettings } from './useSettings';
 
 export function useFaucet() {
   const {
@@ -17,7 +18,9 @@ export function useFaucet() {
     isFirstLogin,
     faucetAPI
   } = useWallet();
+  const { settings } = useSettings();
   const { t } = useTranslation();
+  const networkTimeout = settings?.NETWORK_TIMEOUT;
 
   const toast = useToast();
   const faucetRequestedRef = useRef<boolean>(false);
@@ -54,56 +57,35 @@ export function useFaucet() {
   }, [historyData?.length, toast, t]);
 
   useEffect(() => {
-    console.log('TRACE useFaucet', {
-      historyDataLength: historyData?.length,
-      wallet,
-      faucetRequested: faucetRequestedRef.current,
-      accountsLength: accounts && Object.keys(accounts).length,
-      isFirstLogin
-    });
-    if (
-      historyData?.length === 0 &&
-      wallet &&
-      faucetAPI &&
-      faucetRequestedRef.current === false &&
-      accounts &&
-      Object.keys(accounts).length &&
-      isFirstLogin
-    ) {
-      faucetRequestedRef.current = true;
-      const network = wallet.networkId && networkMapping[wallet.networkId];
-      (async () => {
-        requesToastId.current = toast.show(t('walletHome.faucetStartMsg'));
-        let descriptor: string | undefined;
-        let index: number | undefined;
-        try {
-          ({ descriptor, index } = await faucetFirstReceive(
-            accounts,
-            network,
-            faucetAPI
-          ));
-        } catch (error: unknown) {
-          console.warn(error);
-          setFaucetFailed(true);
-          if (
-            requesToastId.current !== undefined &&
-            toast.isOpen(requesToastId.current)
-          )
-            toast.hide(requesToastId.current);
-          toast.show(t('walletHome.faucetErrorMsg'), { type: 'warning' });
-          return;
-        }
-        if (!descriptor || index === undefined)
-          throw new Error('faucetFirstReceive did not set a descriptor');
-        //wait a few secs until esplora catches up...
-        for (let i = 0; i < DETECT_RETRY_MAX; i++) {
-          let txHistory = undefined;
+    if (wallet?.networkId === 'TAPE' || wallet?.networkId === 'REGTEST') {
+      if (isFirstLogin && !requesToastId.current)
+        setTimeout(() => {
+          if (!requesToastId.current)
+            requesToastId.current = toast.show(t('walletHome.faucetStartMsg'));
+        }, 1000); //Let's show the Screen in it's full glory for a sec before displaying the toast
+      if (
+        historyData?.length === 0 &&
+        faucetAPI &&
+        networkTimeout &&
+        faucetRequestedRef.current === false &&
+        accounts &&
+        Object.keys(accounts).length &&
+        isFirstLogin
+      ) {
+        faucetRequestedRef.current = true;
+        const network = wallet.networkId && networkMapping[wallet.networkId];
+        (async () => {
+          let descriptor: string | undefined;
+          let index: number | undefined;
           try {
-            txHistory = await fetchOutputHistory({ descriptor, index });
-          } catch (error) {
+            ({ descriptor, index } = await faucetFirstReceive(
+              accounts,
+              network,
+              faucetAPI,
+              networkTimeout
+            ));
+          } catch (error: unknown) {
             console.warn(error);
-          }
-          if (!txHistory) {
             setFaucetFailed(true);
             if (
               requesToastId.current !== undefined &&
@@ -111,28 +93,50 @@ export function useFaucet() {
             )
               toast.hide(requesToastId.current);
             toast.show(t('walletHome.faucetErrorMsg'), { type: 'warning' });
-            break;
-          } else if (txHistory.length === 0) {
-            await new Promise(resolve =>
-              setTimeout(resolve, DETECTION_INTERVAL)
-            );
-          } else {
-            faucetDetectedRef.current = true;
-            break;
+            return;
           }
-        }
-        if (!faucetDetectedRef.current) {
-          setFaucetFailed(true);
-          if (
-            requesToastId.current !== undefined &&
-            toast.isOpen(requesToastId.current)
-          )
-            toast.hide(requesToastId.current);
-          toast.show(t('walletHome.faucetErrorMsg'), { type: 'warning' });
-        }
-      })();
+          if (!descriptor || index === undefined)
+            throw new Error('faucetFirstReceive did not set a descriptor');
+          //wait a few secs until esplora catches up...
+          for (let i = 0; i < DETECT_RETRY_MAX; i++) {
+            let txHistory = undefined;
+            try {
+              txHistory = await fetchOutputHistory({ descriptor, index });
+            } catch (error) {
+              console.warn(error);
+            }
+            if (!txHistory) {
+              setFaucetFailed(true);
+              if (
+                requesToastId.current !== undefined &&
+                toast.isOpen(requesToastId.current)
+              )
+                toast.hide(requesToastId.current);
+              toast.show(t('walletHome.faucetErrorMsg'), { type: 'warning' });
+              break;
+            } else if (txHistory.length === 0) {
+              await new Promise(resolve =>
+                setTimeout(resolve, DETECTION_INTERVAL)
+              );
+            } else {
+              faucetDetectedRef.current = true;
+              break;
+            }
+          }
+          if (!faucetDetectedRef.current) {
+            setFaucetFailed(true);
+            if (
+              requesToastId.current !== undefined &&
+              toast.isOpen(requesToastId.current)
+            )
+              toast.hide(requesToastId.current);
+            toast.show(t('walletHome.faucetErrorMsg'), { type: 'warning' });
+          }
+        })();
+      }
     }
   }, [
+    networkTimeout,
     faucetAPI,
     toast,
     wallet,

@@ -21,17 +21,19 @@ import CreateColdAddress from './CreateColdAddress';
 
 function AddressInput({
   onValueChange,
+  initialValue,
   networkId,
   type = 'external'
 }: {
   onValueChange: (value: string | null) => void;
+  initialValue?: string;
   networkId: NetworkId;
   type: 'external' | 'emergency';
 }) {
   const capitalizedNetworkId =
     networkId.charAt(0).toUpperCase() + networkId.slice(1).toLowerCase();
   const network = networkMapping[networkId];
-  const [address, setAddress] = useState<string>('');
+  const [address, setAddress] = useState<string>(initialValue || '');
   const [scanQR, setScanQR] = useState<boolean>(false);
   const [camAvailable, setCamAvailable] = useState<boolean>(false);
   const [camFacing, setCamFacing] = useState<'back' | 'front' | null>(null);

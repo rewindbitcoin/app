@@ -9,9 +9,17 @@ import { useNetStatus } from './useNetStatus';
 import { useStorage } from '../../common/hooks/useStorage';
 import { SERIALIZABLE } from '../../common/lib/storage';
 
+//Only report an error if tip cannot be obtained for 5 minutes trying it
+const ERROR_REPORT_MAX_TIME = 5 * 60 * 1000;
+
 export function useTipStatus(): {
   tipStatus: BlockStatus | undefined;
-  updateTipStatus: () => Promise<BlockStatus | undefined>;
+  updateTipStatus: ({
+    whenToastErrors
+  }: {
+    whenToastErrors: 'ON_NEW_ERROR' | 'ON_ANY_ERROR';
+  }) => Promise<BlockStatus | undefined>;
+  isSynchd: boolean;
 } {
   const { explorer, explorerReachable, netRequest, networkId } = useNetStatus();
 
@@ -22,44 +30,74 @@ export function useTipStatus(): {
   //tipStatusRef keeps track of as tipStatus. It will be used
   //to compare in shallowEqualObjects. shallowEqualObjects won't use tipStatus
   //to avoid re-renders (infinite loop)
-  const tipStatusRef = useRef<BlockStatus | undefined>();
+  //Also used to detect if this comes from storage or from network (storage == undefined)
+  const tipStatusRef = useRef<BlockStatus | undefined>(tipStatus);
+  const lastTipStatusRef = useRef<number | undefined>();
   useEffect(() => {
     tipStatusRef.current = undefined;
-  }, [setTipStatus]);
+    lastTipStatusRef.current = undefined;
+  }, [explorer]);
 
   const { settings } = useSettings();
   const intervalTime = settings?.BLOCKCHAIN_DATA_REFRESH_INTERVAL_MS;
   const { t } = useTranslation();
 
-  const updateTipStatus = useCallback(async () => {
-    let newTipStatus: undefined | BlockStatus = undefined;
-    await netRequest({
-      id: 'tipStatus',
-      func: async () => {
-        if (storageStatus.errorCode) throw new Error(storageStatus.errorCode);
-        if (explorer) {
-          const tipHeight = await explorer.fetchBlockHeight();
-          newTipStatus = await explorer.fetchBlockStatus(tipHeight);
+  const updateTipStatus = useCallback(
+    async ({
+      whenToastErrors
+    }: {
+      whenToastErrors: 'ON_NEW_ERROR' | 'ON_ANY_ERROR';
+    }) => {
+      let newTipStatus: undefined | BlockStatus = undefined;
+      await netRequest({
+        id: 'tipStatus',
+        whenToastErrors,
+        requirements: { explorerReachable: true },
+        errorMessage: t('app.tipStatusError'),
+        func: async () => {
+          if (storageStatus.errorCode) throw new Error(storageStatus.errorCode);
+          if (explorer && !explorer.isClosed()) {
+            try {
+              const tipHeight = await explorer.fetchBlockHeight();
+              lastTipStatusRef.current = Date.now();
+              newTipStatus = await explorer.fetchBlockStatus(tipHeight);
 
-          if (!shallowEqualObjects(newTipStatus, tipStatusRef.current)) {
-            setTipStatus(newTipStatus);
-            tipStatusRef.current = newTipStatus;
+              if (!shallowEqualObjects(newTipStatus, tipStatusRef.current)) {
+                setTipStatus(newTipStatus);
+                tipStatusRef.current = newTipStatus;
+              }
+            } catch (error) {
+              if (
+                lastTipStatusRef.current === undefined ||
+                Date.now() - lastTipStatusRef.current > ERROR_REPORT_MAX_TIME
+              )
+                throw error;
+              else {
+                newTipStatus = tipStatusRef.current;
+                console.warn(
+                  'Could not obtain fresh tip status, but not throwing yet',
+                  error
+                );
+              }
+            }
           }
         }
-      },
-      requirements: { explorerReachable: true },
-      errorMessage: t('app.tipStatusError')
-    });
-    return newTipStatus;
-  }, [setTipStatus, storageStatus.errorCode, explorer, netRequest, t]);
+      });
+      return newTipStatus;
+    },
+    [setTipStatus, storageStatus.errorCode, explorer, netRequest, t]
+  );
 
   useEffect(() => {
     if (explorerReachable && intervalTime) {
-      const intervalId = setInterval(updateTipStatus, intervalTime);
+      const intervalId = setInterval(
+        () => updateTipStatus({ whenToastErrors: 'ON_NEW_ERROR' }),
+        intervalTime
+      );
       return () => clearInterval(intervalId);
     }
     return;
   }, [explorerReachable, updateTipStatus, intervalTime]);
 
-  return { tipStatus, updateTipStatus };
+  return { tipStatus, updateTipStatus, isSynchd: !!tipStatusRef.current };
 }

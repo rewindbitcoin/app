@@ -115,8 +115,7 @@ const WalletHeader = ({
   const [showUnitsModal, setShowUnitsModal] = useState<boolean>(false);
   const { settings, setSettings } = useSettings();
   const { locale, currency } = useLocalization();
-  const netStatus = useNetStatus();
-  const { errorMessage: netErrorMessage } = netStatus;
+  const { permanentErrorMessage: netErrorMessage } = useNetStatus();
   //const netErrorMessage =
   //  'Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.';
   if (!settings)
@@ -203,7 +202,7 @@ const WalletHeader = ({
               </Text>
               <Button
                 textClassName="font-bold !text-sm"
-                containerClassName="self-end"
+                containerClassName="self-end mt-2"
                 onPress={syncBlockchain}
                 loading={syncingBlockchain}
                 mode="text"

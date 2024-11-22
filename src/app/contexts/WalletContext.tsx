@@ -1,7 +1,3 @@
-//TODO: important FIX when the rates are not downloaded the SetupVaultsScreen
-//crashes
-//Same for unset utxosData. Simply disable that button / route or show
-//some warning Asking users to go back for not having rates / utxos yet
 import {
   fetchVaultsStatuses,
   getUtxosData,
@@ -36,7 +32,6 @@ import React, {
 } from 'react';
 import { shallowEqualObjects } from 'shallow-equal';
 import type { Wallet } from '../lib/wallets';
-import { useToast } from '../../common/ui';
 import { SERIALIZABLE, deleteAsync } from '../../common/lib/storage';
 import { useTranslation } from 'react-i18next';
 
@@ -87,7 +82,7 @@ export type WalletContextType = {
     descriptor: string;
     index: number;
   }>;
-  getNextReceiveDescriptorWithIndex: () => Promise<{
+  getNextReceiveDescriptorWithIndex: (accounts: Accounts) => Promise<{
     descriptor: string;
     index: number;
   }>;
@@ -157,6 +152,9 @@ const WalletProviderRaw = ({
   //This keeps track of the current active wallet.
   //There is a useEffect on "wallet" that updates the stored Wallets object too
   const [wallet, setWallet] = useState<Wallet>();
+  //Keep also a ref version  of walletId so that in async functions we can
+  //check after the await if the walletId changed
+  const walletIdRef = useRef<number | undefined>();
   const walletId = wallet?.walletId;
   // This explorer is only used for retrieving
   // fees when using the TAPE network. It is shared for all wallets.
@@ -182,9 +180,7 @@ const WalletProviderRaw = ({
     clearSynchingBlockchain
   ] = useWalletState<boolean>();
 
-  const { btcFiat } = useBtcFiat();
-
-  const toast = useToast();
+  const { btcFiat, updateBtcFiat } = useBtcFiat();
 
   const { secureStorageInfo } = useSecureStorageInfo();
   const { t } = useTranslation();
@@ -203,6 +199,7 @@ const WalletProviderRaw = ({
 
   const { settings, settingsStorageStatus } = useSettings();
   const gapLimit = settings?.GAP_LIMIT;
+  const networkTimeout = settings?.NETWORK_TIMEOUT;
 
   const {
     mainnetEsploraApi,
@@ -241,6 +238,10 @@ const WalletProviderRaw = ({
       t('app.secureStorageAuthenticationPrompt')
     );
 
+  const initialDiscoveryExportRef = useRef<
+    DiscoveryExport | undefined | 'NOT_SYNCHD'
+  >('NOT_SYNCHD');
+
   const initStorage =
     walletId !== undefined &&
     signersStorageStatus.errorCode === false &&
@@ -259,85 +260,107 @@ const WalletProviderRaw = ({
     undefined,
     walletId !== undefined ? walletsDataCipherKey[walletId] : undefined
   );
+
+  if (discoveryExportStorageStatus.isSynchd) {
+    if (initialDiscoveryExportRef.current === 'NOT_SYNCHD') {
+      initialDiscoveryExportRef.current = discoveryExport;
+    }
+  } else initialDiscoveryExportRef.current = 'NOT_SYNCHD';
+  const initialDiscoveryExport = initialDiscoveryExportRef.current;
+
+  const discovery =
+    walletId !== undefined ? walletsDiscovery[walletId] : undefined;
+
+  //init discovery:
+  //discoveryExport may be changing continuously (this is the data that
+  //will be retrieved from disk next time the App is open). However the
+  //discovery instance should be kept the same once the App is open.
+  //So use initialDiscoveryExport
   useEffect(() => {
-    const initDiscovery = async () => {
-      if (
-        walletId !== undefined &&
-        electrumAPI &&
-        esploraAPI &&
-        network &&
-        discoveryExportStorageStatus.isSynchd &&
-        //discoveryExport may be changing continuously (this is the data that
-        //will be retrieved from disk next time the App is open). However the
-        //discovery instance should be kept the same once the App is open.
-        !walletsDiscovery[walletId]
-      ) {
-        const explorer =
-          Platform.OS === 'web'
-            ? new EsploraExplorer({ url: esploraAPI })
-            : new ElectrumExplorer({
-                network,
-                ...electrumParams(electrumAPI)
-              });
-        //explorer.connect performed in NetSTatusContext
-        const { Discovery } = DiscoveryFactory(explorer, network);
-        const discovery = discoveryExport
-          ? new Discovery({ imported: discoveryExport })
+    if (
+      settings?.NETWORK_TIMEOUT !== undefined &&
+      walletId !== undefined &&
+      electrumAPI &&
+      esploraAPI &&
+      network &&
+      initialDiscoveryExport !== 'NOT_SYNCHD'
+    ) {
+      const explorer =
+        Platform.OS === 'web'
+          ? new EsploraExplorer({
+              url: esploraAPI,
+              timeout: settings.NETWORK_TIMEOUT
+            })
+          : new ElectrumExplorer({
+              network,
+              ...electrumParams(electrumAPI),
+              timeout: settings.NETWORK_TIMEOUT
+            });
+      //explorer.connect performed in NetSTatusContext
+      const { Discovery } = DiscoveryFactory(explorer, network);
+      const newDiscovery =
+        initialDiscoveryExport !== undefined
+          ? new Discovery({ imported: initialDiscoveryExport })
           : new Discovery();
-        setDiscovery(walletId, discovery);
-      }
-    };
-    initDiscovery();
+
+      setDiscovery(walletId, newDiscovery);
+    }
     //Note there is no cleanup. Discovery is closed on logout
   }, [
+    initialDiscoveryExport,
     walletId,
-    discoveryExport,
-    discoveryExportStorageStatus.isSynchd,
     electrumAPI,
     esploraAPI,
     network,
     setDiscovery,
-    walletsDiscovery
+    settings?.NETWORK_TIMEOUT
   ]);
-  const discovery =
-    walletId !== undefined ? walletsDiscovery[walletId] : undefined;
 
+  //Init mainnet explorer
   useEffect(() => {
-    const initializeMainnetExplorer = async () => {
-      if (Platform.OS === 'web') {
-        if (mainnetEsploraApi && !explorerMainnet && networkId === 'TAPE') {
-          const newExplorerMainnet = new EsploraExplorer({
-            url: mainnetEsploraApi
-          }); //explorer.connect performed in NetSTatusContext
-          setExplorerMainnet(newExplorerMainnet);
-        }
-      } else {
-        const network = networkId && networkMapping[networkId];
-        if (
-          network &&
-          mainnetElectrumApi &&
-          !explorerMainnet &&
-          networkId === 'TAPE'
-        ) {
-          const newExplorerMainnet = new ElectrumExplorer({
-            network,
-            ...electrumParams(mainnetElectrumApi)
-          }); //explorer.connect performed in NetSTatusContext
-          setExplorerMainnet(newExplorerMainnet);
-        }
+    if (Platform.OS === 'web') {
+      if (
+        settings?.NETWORK_TIMEOUT !== undefined &&
+        mainnetEsploraApi &&
+        !explorerMainnet &&
+        networkId === 'TAPE'
+      ) {
+        const newExplorerMainnet = new EsploraExplorer({
+          url: mainnetEsploraApi,
+          timeout: settings?.NETWORK_TIMEOUT
+        }); //explorer.connect performed in NetSTatusContext
+        setExplorerMainnet(newExplorerMainnet);
       }
-    };
-    initializeMainnetExplorer();
-    return () => {
-      if (explorerMainnet) explorerMainnet.close();
-    };
-  }, [mainnetEsploraApi, mainnetElectrumApi, explorerMainnet, networkId]);
+    } else {
+      const network = networkId && networkMapping[networkId];
+      if (
+        network &&
+        mainnetElectrumApi &&
+        !explorerMainnet &&
+        networkId === 'TAPE'
+      ) {
+        const newExplorerMainnet = new ElectrumExplorer({
+          network,
+          ...electrumParams(mainnetElectrumApi)
+        }); //explorer.connect performed in NetSTatusContext
+        setExplorerMainnet(newExplorerMainnet);
+      }
+    }
+  }, [
+    mainnetEsploraApi,
+    mainnetElectrumApi,
+    explorerMainnet,
+    networkId,
+    settings?.NETWORK_TIMEOUT
+  ]);
 
   const {
     reset: netStatusReset,
     init: netStatusInit,
     update: netStatusUpdate,
     apiReachable,
+    netRequest,
+    netToast,
     explorerReachable,
     explorerMainnetReachable
   } = useNetStatus();
@@ -347,30 +370,34 @@ const WalletProviderRaw = ({
     (networkId !== 'TAPE' || explorerMainnetReachable);
 
   useEffect(() => {
-    batchedUpdates(() => {
-      if (discovery) {
-        netStatusInit({
-          networkId,
-          explorer: discovery.getExplorer(),
-          generate204API,
-          generate204API2,
-          //For Tape, we need to make sure blockstream esplora is working:
-          explorerMainnet: networkId === 'TAPE' ? explorerMainnet : undefined,
-          generate204APIExternal:
-            //There's no need to check the internet with an external server (typically
-            //using google) when using a REGTEST wallet
-            networkId &&
-            networkId !== 'REGTEST' &&
-            Platform.OS !==
-              'web' /* note that using web, we'll get into CORS issues on google servers,
+    //Wait until both explorers have been created
+    if (discovery?.getExplorer() && (networkId !== 'TAPE' || explorerMainnet)) {
+      //makes sure the netStatus is reset. A reset is already done on logOut.
+      //But we do it here again just in case we are getting a new explorers
+      //For example in case the user changes the Electrum Server on the Settings
+      //Screen and this hook is therefore triggered with a new explorer.
+      netStatusReset();
+      netStatusInit({
+        networkId,
+        explorer: discovery.getExplorer(),
+        generate204API,
+        generate204API2,
+        //For Tape, we need to make sure blockstream esplora is working:
+        explorerMainnet: networkId === 'TAPE' ? explorerMainnet : undefined,
+        generate204APIExternal:
+          //There's no need to check the internet with an external server (typically
+          //using google) when using a REGTEST wallet
+          networkId &&
+          networkId !== 'REGTEST' &&
+          Platform.OS !==
+            'web' /* note that using web, we'll get into CORS issues on google servers,
           however rewind servers are ok because they have Access-Control-Allow-Origin' '*'
           in react-native (non-web), fetch does not check for CORS stuff
           */
-              ? generate204APIExternal
-              : undefined
-        });
-      }
-    });
+            ? generate204APIExternal
+            : undefined
+      });
+    }
   }, [
     discovery,
     networkId,
@@ -378,12 +405,20 @@ const WalletProviderRaw = ({
     generate204API2,
     generate204APIExternal,
     explorerMainnet,
+    netStatusReset,
     netStatusInit
   ]);
 
   const { tipStatus, updateTipStatus } = useTipStatus();
   const tipHeight = tipStatus?.blockHeight;
-  const { feeEstimates } = useFeeEstimates();
+  const isFeeEstimatesSynchdRef = useRef<boolean>(false);
+  const {
+    feeEstimates,
+    updateFeeEstimates,
+    isSynchd: isFeeEstimatesSynchd
+  } = useFeeEstimates();
+  //Make isFeeEstimatesSynchd a ref. We don't want re-renders based on that.
+  isFeeEstimatesSynchdRef.current = isFeeEstimatesSynchd;
 
   const [vaults, setVaults, , clearVaultsCache, vaultsStorageStatus] =
     useStorage<Vaults>(
@@ -635,9 +670,6 @@ const WalletProviderRaw = ({
    */
   const logOut = useCallback(async () => {
     if (walletId !== undefined) {
-      try {
-        await discovery?.getExplorer().close();
-      } catch (err) {} //don't care about errors here
       batchedUpdates(() => {
         // Clear cache, so that data must be read from disk again for the walletId.
         // This forces cipherKeys to be evaluated again to decrypt from disk
@@ -656,13 +688,13 @@ const WalletProviderRaw = ({
         clearSignersCipherKey(walletId);
         clearDataCipherKey(walletId);
         setWallet(undefined);
-        netStatusReset(); //Stop checking network
+        walletIdRef.current = undefined;
+        netStatusReset(); //Stop checking network, also close all explorer instances
       });
     }
   }, [
     netStatusReset,
     walletId,
-    discovery,
     clearSignersCache,
     clearVaultsCache,
     clearVaultsStatusesCache,
@@ -740,9 +772,11 @@ const WalletProviderRaw = ({
         //logOut(); //Log out from previous wallet - This is done now on "beforeRemove" event in WalletsHomeScreen
         setWallet(prevWallet => {
           //Net status depends on the wallet (explorer, ...); so reset it ONLY when it changes
-          if (prevWallet?.walletId !== walletDst.walletId) netStatusReset();
+          if (prevWallet && prevWallet.walletId !== walletDst.walletId)
+            netStatusReset();
           return walletDst;
         });
+        walletIdRef.current = walletDst.walletId;
         if (walletId !== undefined) {
           if (signersCipherKey) setSignersCipherKey(walletId, signersCipherKey);
           if (newSigners) setNewSigners(walletId, newSigners);
@@ -820,20 +854,22 @@ const WalletProviderRaw = ({
     [network, discovery]
   );
 
-  const getNextReceiveDescriptorWithIndex = useCallback(async () => {
-    if (!network) throw new Error('Network not ready');
-    if (!accounts) throw new Error('Accounts not ready');
-    if (!Object.keys(accounts).length) throw new Error('Accounts not set');
-    if (!discovery) throw new Error('Discovery not ready');
-    const account = getMainAccount(accounts, network);
-    const receiveDescriptor = account;
-    return {
-      descriptor: receiveDescriptor,
-      index: discovery.getNextIndex({
-        descriptor: receiveDescriptor
-      })
-    };
-  }, [network, accounts, discovery]);
+  const getNextReceiveDescriptorWithIndex = useCallback(
+    async (accounts: Accounts) => {
+      if (!network) throw new Error('Network not ready');
+      if (!Object.keys(accounts).length) throw new Error('Accounts not set');
+      if (!discovery) throw new Error('Discovery not ready');
+      const account = getMainAccount(accounts, network);
+      const receiveDescriptor = account;
+      return {
+        descriptor: receiveDescriptor,
+        index: discovery.getNextIndex({
+          descriptor: receiveDescriptor
+        })
+      };
+    },
+    [network, discovery]
+  );
 
   const getUnvaultKey = useCallback(async () => {
     if (!network) throw new Error('Network not ready');
@@ -845,11 +881,20 @@ const WalletProviderRaw = ({
 
   const fetchServiceAddress = useCallback(async () => {
     if (!serviceAddressAPI) {
-      throw new Error('System not ready to fetch the service address.');
+      throw new Error(
+        'System not ready to fetch the service address (serviceAddressAPI).'
+      );
+    }
+    if (!networkTimeout) {
+      throw new Error(
+        'System not ready to fetch the service address (networkTimeout).'
+      );
     }
 
     try {
-      const response = await fetch(`${serviceAddressAPI}/get`);
+      const response = await fetch(`${serviceAddressAPI}/get`, {
+        signal: AbortSignal.timeout(networkTimeout)
+      });
       if (!response.ok) {
         throw new Error(
           `Failed to fetch service address${response.statusText ? `: ${response.statusText}` : ''}`
@@ -867,10 +912,11 @@ const WalletProviderRaw = ({
       console.error('Error fetching service address:', error);
       throw error; // Re-throw the error if you want to handle it outside or show a message to the user
     }
-  }, [serviceAddressAPI]);
+  }, [serviceAddressAPI, networkTimeout]);
 
-  //Dit the user initiated the sync (true)? ir was it a scheduled one (false)?
+  //Did the user initiated the sync (true)? ir was it a scheduled one (false)?
   const isUserTriggeredSync = useRef<boolean>(false);
+  const prevAccountsSyncRef = useRef<Accounts | undefined>();
 
   /**
    * Initiates the blockchain synchronization process. If netStatus has errors
@@ -878,34 +924,36 @@ const WalletProviderRaw = ({
    */
   const sync = useCallback(async () => {
     if (walletId === undefined) throw new Error('Cannot sync an unset wallet');
+
+    // Track `prevAccounts` to detect changes and manage state between syncs.
+    const prevAccounts = prevAccountsSyncRef.current;
+    prevAccountsSyncRef.current = accounts;
+
     const isUserTriggered = isUserTriggeredSync.current;
     isUserTriggeredSync.current = false;
+    const whenToastErrors = isUserTriggeredSync
+      ? 'ON_ANY_ERROR'
+      : 'ON_NEW_ERROR';
 
-    let updatedNetReady = netReady;
-    if (updatedNetReady === false && isUserTriggered) {
-      //only check netStatus changes when we're sure the network is down and the
-      //user is requesting it. This is because this is an expensive operation
-      //and sync may also be called automatically on dependencies of dataReady,
-      //netReady, callback functions and so on...
-      const ns = await netStatusUpdate();
-      updatedNetReady =
-        ns?.apiReachable &&
-        ns?.explorerReachable &&
-        (networkId !== 'TAPE' || ns?.explorerMainnetReachable);
-      if (!updatedNetReady && ns?.errorMessage) {
-        toast.show(ns.errorMessage, { type: 'warning' });
-      }
-    }
     const signer = signers?.[0];
+    const network = networkId && networkMapping[networkId];
+
     if (
       dataReady &&
-      updatedNetReady &&
       networkId &&
+      network &&
       gapLimit !== undefined &&
+      networkTimeout !== undefined &&
       discovery &&
       vaults &&
       vaultsStatuses &&
       accounts &&
+      // This condition below prevents unnecessary re-syncs after `accounts` are
+      // initially created by this function (prevAccounts.length === 0), as new
+      // accounts set here are already synced when created.
+      (prevAccounts === undefined /*load a wallet after app is opened*/ ||
+        Object.keys(prevAccounts).length !== 0 /*re-sync existing wallet*/ ||
+        Object.keys(accounts).length === 0) /*create new wallet*/ &&
       //When a new vault is created, vaults, vaultsStatuses and accounts are not
       //atomically set in state at the same time.
       //Wait until both are set before proceeding. This is important because
@@ -915,108 +963,240 @@ const WalletProviderRaw = ({
       signer &&
       vaultsAPI
     ) {
-      const network = networkId && networkMapping[networkId];
+      console.log(
+        `[${new Date().toISOString()}] [Sync] Wallet: ${walletId} | NetReady: ${netReady} | UserTriggered: ${isUserTriggered} | network: ${networkId}`
+      );
+
+      if (netReady === false && isUserTriggered) {
+        //This strategy only checks netStatus changes when we're sure the
+        //network is down and the user is requesting it. This is because this is
+        //an expensive operation and sync may also be called automatically on
+        //dependencies of dataReady, netReady, callback functions and so on...
+        //No prob if netStatusUpdate fails.
+        const ns = await netStatusUpdate({ whenToastErrors });
+        if (walletId !== walletIdRef.current) {
+          //do this after each await
+          setSyncingBlockchain(walletId, false);
+          return;
+        }
+        //wait until next execution thread to allow netStatusUpdate
+        //to update internal states, which will need to be ready for the netRequest
+        //calls below:
+        await new Promise(resolve => setTimeout(resolve, 100));
+        if (!ns?.explorerReachable || walletId !== walletIdRef.current) {
+          //do this after each await
+          //also don't continue if explorer is not reachable
+          setSyncingBlockchain(walletId, false);
+          return;
+        }
+      }
 
       try {
-        const updatedTipHeight = (await updateTipStatus())?.blockHeight;
-        if (updatedTipHeight) {
-          //First get updatedVaults & updatedVaultsStatuses:
-          const p2pVaults = await fetchP2PVaults({
-            signer,
-            networkId,
-            vaultsAPI,
-            vaults
-          });
-          let updatedVaults = vaults; //initially they are the same
-          p2pVaults &&
-            Object.entries(p2pVaults).forEach(([key, p2pVault]) => {
-              const currentVault = vaults[key];
-              //A vault cannot mutate. It either exists or not, but once created
-              //it will never change:
-              if (p2pVault && !currentVault) {
-                // Mutate updatedVaults because a new one has been detected
-                updatedVaults = { ...updatedVaults };
-                updatedVaults[key] = p2pVault;
-              }
-            });
+        updateBtcFiat({ networkTimeout, whenToastErrors }).catch(() => {
+          // Intentionally not awaited or wrapped in a try-catch.
+          // This call is meant to trigger a parallel update of the BTC rate.
+          // Any errors will be handled and displayed via a
+          // Toast / permanentErrorMessage by the async function itself.
+        });
+        //Toasts a warning error on failure but does not stop the sync
+        if (!isFeeEstimatesSynchdRef.current)
+          await updateFeeEstimates({ whenToastErrors });
+        if (walletId !== walletIdRef.current) {
+          //do this after each await
+          setSyncingBlockchain(walletId, false);
+          return;
+        }
+        const updatedTipHeight = (await updateTipStatus({ whenToastErrors }))
+          ?.blockHeight;
+        if (walletId !== walletIdRef.current || !updatedTipHeight) {
+          //do this after each await
+          //also don't continue if we cannot get a valid updatedTipHeight
+          setSyncingBlockchain(walletId, false);
+          return;
+        }
+        //First get updatedVaults & updatedVaultsStatuses:
 
-          const freshVaultsStatuses = await fetchVaultsStatuses(
-            updatedVaults,
-            vaultsStatuses,
-            discovery.getExplorer()
-          );
-
-          let updatedVaultsStatuses = vaultsStatuses; //initially they are the same
-          Object.entries(freshVaultsStatuses).forEach(([key, freshStatus]) => {
-            const currentStatus = vaultsStatuses[key];
-            //A vaultStatus can change in the future since it depends on user actions
-            if (!shallowEqualObjects(currentStatus, freshStatus)) {
-              // Mutate updatedVaultsStatuses because a change has been detected
-              updatedVaultsStatuses = { ...updatedVaultsStatuses };
-              updatedVaultsStatuses[key] = freshStatus;
+        //Toast a warning error on failure, but does not stop the sync
+        const { result: p2pVaults } = await netRequest({
+          id: 'p2pVaults',
+          errorMessage: (message: string) =>
+            t('app.syncP2PVaultsError', { message }),
+          whenToastErrors,
+          requirements: { apiReachable: true },
+          func: () =>
+            fetchP2PVaults({
+              networkTimeout,
+              signer,
+              networkId,
+              vaultsAPI,
+              vaults
+            })
+        });
+        if (walletId !== walletIdRef.current) {
+          //do this after each await
+          setSyncingBlockchain(walletId, false);
+          return;
+        }
+        let updatedVaults = vaults; //initially they are the same
+        if (p2pVaults)
+          Object.entries(p2pVaults).forEach(([key, p2pVault]) => {
+            const currentVault = vaults[key];
+            //A vault cannot mutate. It either exists or not, but once created
+            //it will never change:
+            if (p2pVault && !currentVault) {
+              // Mutate updatedVaults because a new one has been detected
+              updatedVaults = { ...updatedVaults };
+              updatedVaults[key] = p2pVault;
             }
           });
 
-          //set accounts if still not set
-          let updatedAccounts = accounts;
-          if (!Object.keys(updatedAccounts).length) {
-            updatedAccounts = { ...accounts };
-            if (signer.type !== 'SOFTWARE') {
-              console.warn('Non-Software Wallets use default accounts for now');
-              const defaultAccount = await getDefaultAccount(signers, network);
-              updatedAccounts[defaultAccount] = { discard: false };
-            } else {
-              if (!signer.mnemonic)
-                throw new Error('mnemonic not set for soft wallet');
-              const masterNode = getMasterNode(signer.mnemonic, network);
-              await discovery.fetchStandardAccounts({ masterNode, gapLimit });
-              const usedAccounts = discovery.getUsedAccounts();
-              if (usedAccounts.length)
-                for (const usedAccount of usedAccounts)
-                  updatedAccounts[usedAccount] = { discard: false };
-              else {
-                const defaultAccount = await getDefaultAccount(
-                  signers,
-                  network
-                );
-                updatedAccounts[defaultAccount] = { discard: false };
-              }
-            }
-            setAccounts(updatedAccounts);
+        const { result: freshVaultsStatuses } = await netRequest({
+          id: 'fetchVaultsStatuses',
+          errorMessage: (message: string) =>
+            t('app.syncNetworkError', { message }),
+          whenToastErrors,
+          requirements: { explorerReachable: true },
+          func: () =>
+            fetchVaultsStatuses(
+              updatedVaults,
+              vaultsStatuses,
+              discovery.getExplorer()
+            )
+        });
+        if (walletId !== walletIdRef.current || !freshVaultsStatuses) {
+          //do this after each await
+          //also don't continue if fetching vaults statuses failed as this would
+          //create unsynched vaults & vaultsStatuses
+          setSyncingBlockchain(walletId, false);
+          return;
+        }
+        let updatedVaultsStatuses = vaultsStatuses; //initially they are the same
+        Object.entries(freshVaultsStatuses).forEach(([key, freshStatus]) => {
+          const currentStatus = vaultsStatuses[key];
+          //A vaultStatus can change in the future since it depends on user actions
+          if (!shallowEqualObjects(currentStatus, freshStatus)) {
+            // Mutate updatedVaultsStatuses because a change has been detected
+            updatedVaultsStatuses = { ...updatedVaultsStatuses };
+            updatedVaultsStatuses[key] = freshStatus;
           }
-          const descriptors = getHotDescriptors(
-            updatedVaults,
-            updatedVaultsStatuses,
-            updatedAccounts,
-            updatedTipHeight
-          );
-          await discovery.fetch({ descriptors, gapLimit });
-          if (vaults !== updatedVaults) setVaults(updatedVaults);
-          if (vaultsStatuses !== updatedVaultsStatuses)
-            setVaultsStatuses(updatedVaultsStatuses);
-          await setUtxosHistoryExport(
-            updatedVaults,
-            updatedVaultsStatuses,
-            updatedAccounts,
-            updatedTipHeight
-          );
+        });
+
+        //set accounts if still not set
+        let updatedAccounts = accounts;
+        if (!Object.keys(updatedAccounts).length) {
+          updatedAccounts = { ...accounts };
+          if (signer.type !== 'SOFTWARE') {
+            console.warn('Non-Software Wallets use default accounts for now');
+            const defaultAccount = await getDefaultAccount(signers, network);
+            if (walletId !== walletIdRef.current) {
+              //do this after each await
+              setSyncingBlockchain(walletId, false);
+              return;
+            }
+            updatedAccounts[defaultAccount] = { discard: false };
+          } else {
+            if (!signer.mnemonic)
+              throw new Error('mnemonic not set for soft wallet');
+            const masterNode = getMasterNode(signer.mnemonic, network);
+            const { status: fetchStandardStatus } = await netRequest({
+              id: 'fetchStandardAccounts',
+              errorMessage: (message: string) =>
+                t('app.syncNetworkError', { message }),
+              whenToastErrors,
+              requirements: { explorerReachable: true },
+              func: () =>
+                discovery.fetchStandardAccounts({
+                  masterNode,
+                  gapLimit
+                })
+            });
+            if (
+              walletId !== walletIdRef.current ||
+              fetchStandardStatus !== 'SUCCESS'
+            ) {
+              //do this after each await
+              //also don't continue if discovery fails
+              setSyncingBlockchain(walletId, false);
+              return;
+            }
+            const usedAccounts = discovery.getUsedAccounts();
+            if (usedAccounts.length)
+              for (const usedAccount of usedAccounts)
+                updatedAccounts[usedAccount] = { discard: false };
+            else {
+              const defaultAccount = await getDefaultAccount(signers, network);
+              if (walletId !== walletIdRef.current) {
+                //do this after each await
+                setSyncingBlockchain(walletId, false);
+                return;
+              }
+              updatedAccounts[defaultAccount] = { discard: false };
+            }
+          }
+          setAccounts(updatedAccounts);
+        }
+        const descriptors = getHotDescriptors(
+          updatedVaults,
+          updatedVaultsStatuses,
+          updatedAccounts,
+          updatedTipHeight
+        );
+        const { status: fetchStatus } = await netRequest({
+          id: 'syncFetch',
+          errorMessage: (message: string) =>
+            t('app.syncNetworkError', { message }),
+          whenToastErrors,
+          requirements: { explorerReachable: true },
+          func: () => discovery.fetch({ descriptors, gapLimit })
+        });
+        if (walletId !== walletIdRef.current || fetchStatus !== 'SUCCESS') {
+          //do this after each await
+          //also don't continue if discovery fails
+          setSyncingBlockchain(walletId, false);
+          return;
+        }
+        if (vaults !== updatedVaults) setVaults(updatedVaults);
+        if (vaultsStatuses !== updatedVaultsStatuses)
+          setVaultsStatuses(updatedVaultsStatuses);
+        await setUtxosHistoryExport(
+          updatedVaults,
+          updatedVaultsStatuses,
+          updatedAccounts,
+          updatedTipHeight
+        );
+        if (walletId !== walletIdRef.current) {
+          //do this after each await
+          setSyncingBlockchain(walletId, false);
+          return;
         }
       } catch (error) {
         console.warn(error);
-        const errorMessage =
-          error instanceof Error ? error.message : t('app.unknownError');
+        //We don't care about errors of other wallets (probably trying to
+        //do a network op on an expired wallet with closed explorer)
+        if (walletId !== walletIdRef.current) {
+          setSyncingBlockchain(walletId, false);
+          return;
+        }
 
-        toast.show(t('app.syncError', { message: errorMessage }), {
-          type: 'warning'
-        });
+        netToast(
+          false,
+          t('app.syncUnexpectedError', {
+            message:
+              error instanceof Error ? error.message : t('app.unknownError')
+          })
+        );
       }
     }
 
     setSyncingBlockchain(walletId, false);
   }, [
+    netRequest,
+    netToast,
     netStatusUpdate,
     dataReady,
     netReady,
+    updateBtcFiat,
+    updateFeeEstimates,
     updateTipStatus,
     setUtxosHistoryExport,
     setAccounts,
@@ -1024,7 +1204,6 @@ const WalletProviderRaw = ({
     walletId,
     accounts,
     t,
-    toast,
     discovery,
     setVaults,
     setVaultsStatuses,
@@ -1033,8 +1212,10 @@ const WalletProviderRaw = ({
     networkId,
     signers,
     vaultsAPI,
-    gapLimit
+    gapLimit,
+    networkTimeout
   ]);
+
   //When syncingBlockchain is set then trigger sync() which does all the
   //syncing task, sync() will set back syncingBlockchain[walletId] back to false
   //syncingBlockchain is set to true either by the user calling to

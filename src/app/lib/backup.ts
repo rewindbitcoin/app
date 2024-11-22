@@ -31,12 +31,14 @@ export const fetchP2PVaultIds = async ({
   signer,
   networkId,
   vaults,
-  vaultsAPI
+  vaultsAPI,
+  networkTimeout
 }: {
   signer: Signer;
   networkId: NetworkId;
   vaults: Vaults | undefined;
   vaultsAPI: string;
+  networkTimeout: number;
 }): Promise<{
   nextVaultId: string;
   nextVaultPath: string;
@@ -64,7 +66,9 @@ export const fetchP2PVaultIds = async ({
       const vaultCheckUrl = `${vaultsAPI}/${vaultId}/check`;
 
       try {
-        const response = await fetch(vaultCheckUrl);
+        const response = await fetch(vaultCheckUrl, {
+          signal: AbortSignal.timeout(networkTimeout)
+        });
         const responseBody = await response.json(); // Always try to parse JSON
 
         if (response.ok) {
@@ -109,18 +113,21 @@ export async function fetchP2PVaults({
   signer,
   networkId,
   vaultsAPI,
-  vaults
+  vaults,
+  networkTimeout
 }: {
   signer: Signer;
   networkId: NetworkId;
   vaultsAPI: string;
   vaults: Vaults;
+  networkTimeout: number;
 }): Promise<Vaults> {
   const { existingVaults: p2pVaultIds } = await fetchP2PVaultIds({
     signer,
     networkId,
     vaults,
-    vaultsAPI
+    vaultsAPI,
+    networkTimeout
   });
 
   const p2pVaults: Vaults = {};
@@ -128,6 +135,7 @@ export async function fetchP2PVaults({
     const vault = vaults[vaultId];
     if (!vault) {
       const fetchedVault = await fetchP2PVault({
+        networkTimeout,
         vaultId,
         vaultPath,
         signer,
@@ -191,13 +199,15 @@ const fetchP2PVault = async ({
   vaultPath,
   signer,
   vaultsAPI,
-  networkId
+  networkId,
+  networkTimeout
 }: {
   vaultId: string;
   vaultPath: string;
   signer: Signer;
   vaultsAPI: string;
   networkId: NetworkId;
+  networkTimeout: number;
 }): Promise<{ strVault: string; vault: Vault }> => {
   const network = networkMapping[networkId];
   const vaultGetUrl = `${vaultsAPI}/${vaultId}/get`;
@@ -212,7 +222,9 @@ const fetchP2PVault = async ({
 
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
-      const compressedEncryptedVault = await fetch(vaultGetUrl);
+      const compressedEncryptedVault = await fetch(vaultGetUrl, {
+        signal: AbortSignal.timeout(networkTimeout)
+      });
       if (compressedEncryptedVault.ok) {
         const compressedVault = chacha.decrypt(
           new Uint8Array(await compressedEncryptedVault.arrayBuffer())
@@ -260,7 +272,8 @@ export const p2pBackupVault = async ({
   vaultsAPI,
   vaultsSecondaryAPI,
   onProgress,
-  networkId
+  networkId,
+  networkTimeout
 }: {
   vault: Vault;
   signer: Signer;
@@ -268,6 +281,7 @@ export const p2pBackupVault = async ({
   vaultsSecondaryAPI: string;
   onProgress?: (progress: number) => boolean;
   networkId: NetworkId;
+  networkTimeout: number;
 }): Promise<boolean> => {
   const network = networkMapping[networkId];
   const vaultId = vault.vaultId;
@@ -298,7 +312,8 @@ export const p2pBackupVault = async ({
       headers: {
         'Content-Type': 'application/octet-stream',
         'X-Vault-Commitment': commitment
-      }
+      },
+      signal: AbortSignal.timeout(networkTimeout)
     });
     if (!response.ok) {
       throw new Error('Network problems pushing the vault to the network');
@@ -308,6 +323,7 @@ export const p2pBackupVault = async ({
   }
 
   const { strVault: strP2PVault } = await fetchP2PVault({
+    networkTimeout,
     vaultId,
     vaultPath,
     signer,

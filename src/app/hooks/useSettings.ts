@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { useStorage } from '../../common/hooks/useStorage';
 import {
   defaultSettings,
@@ -16,8 +17,19 @@ export const useSettings = () => {
       'GLOBAL'
     );
 
+  // Use `useMemo` to compute `derivedSettings` only when `settings` changes
+  const derivedSettings = useMemo(() => {
+    if (!settings) return settings;
+    // Check if all default properties are present in `settings`
+    const isSettingsComplete = Object.keys(defaultSettings).every(
+      key => key in settings
+    );
+    // Return `settings` if complete, otherwise merge with `defaultSettings`
+    return isSettingsComplete ? settings : { ...defaultSettings, ...settings };
+  }, [settings]);
+
   return {
-    settings,
+    settings: derivedSettings,
     setSettings,
     settingsStorageStatus
   };

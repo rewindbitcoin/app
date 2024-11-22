@@ -1,4 +1,3 @@
-import { getLocalizationAsync } from 'expo-localization';
 import memoize from 'lodash.memoize';
 //https://stackoverflow.com/a/9539746
 const countDecimalDigits = memoize((number: number): number => {
@@ -68,6 +67,7 @@ const numberToFormattedFixed = (
 
     // Check if the part after the decimal separator is all zeros.
     if (parts[1] && parts[1].match(/^0+$/)) {
+      if (parts[0] === undefined) throw new Error('parts[0] should be defined');
       return parts[0]; // Return the integer part only.
     }
   }

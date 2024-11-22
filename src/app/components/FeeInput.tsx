@@ -35,7 +35,7 @@ function FeeInput({
   feeEstimates: FeeEstimates;
   btcFiat: number | undefined;
   onValueChange: (value: number | null, type: 'USER' | 'RESET') => void;
-  helpIconAvailable: boolean;
+  helpIconAvailable?: boolean;
 }) {
   const { settings } = useSettings();
   if (!settings)

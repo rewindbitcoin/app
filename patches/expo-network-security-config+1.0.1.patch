@@ -1,0 +1,49 @@
+diff --git a/node_modules/expo-network-security-config/index.js b/node_modules/expo-network-security-config/index.js
+index d57068f..386a5c9 100644
+--- a/node_modules/expo-network-security-config/index.js
++++ b/node_modules/expo-network-security-config/index.js
+@@ -1,5 +1,5 @@
+ const { AndroidConfig, withAndroidManifest, withDangerousMod } = require('expo/config-plugins');
+-const { mkdir, copyFile } = require('fs/promises');
++const { mkdir, copyFile, readFile, writeFile } = require('fs/promises');
+ const { join } = require('path');
+ 
+ /**
+@@ -33,6 +33,37 @@ module.exports = function withExpoNetworkSecurityConfig(config, { enable, networ
+     },
+   ]);
+ 
++  // Modify the debug manifest to remove networkSecurityConfig - in debug mode
++  // we don't want to apply our security file since debug mode is even less
++  // restrictive so that metro works properly
++  withDangerousMod(config, [
++    'android',
++    async (config) => {
++      const { projectRoot } = config.modRequest;
++      const debugManifestPath = join(projectRoot, 'android/app/src/debug/AndroidManifest.xml');
++
++      // Read and modify the debug manifest
++      try {
++        let debugManifestContent = await readFile(debugManifestPath, 'utf8');
++
++        // Add tools:remove="android:networkSecurityConfig" if not already present
++        if (!debugManifestContent.includes('tools:remove="android:networkSecurityConfig"')) {
++          debugManifestContent = debugManifestContent.replace(
++            /<application /,
++            '<application tools:remove="android:networkSecurityConfig" '
++          );
++
++          // Write the updated content back to the debug manifest
++          await writeFile(debugManifestPath, debugManifestContent, 'utf8');
++        }
++      } catch (error) {
++        console.warn(`Could not modify debug AndroidManifest.xml: ${error.message}`);
++      }
++
++      return config;
++    },
++  ]);
++
+   // Add networkSecurityConfig to AndroidManifest.xml
+   withAndroidManifest(config, (config) => {
+     const mainApplication = getMainApplicationOrThrow(config.modResults);

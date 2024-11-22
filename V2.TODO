@@ -1,3 +1,71 @@
+UXIO:
+  Usar sus placas pero en el reverso meter las 12 palabras.
+    Entonces se usa un modelo de passphrase. En el que se usan las 12 palabras y como passphrase algo derivado de tu seed hot.
+    Y tiene un segundo modo de gasto q es directamente gasto en las 12 palabras + 1 año si las 12 palabras + passphrase se pierde.
+    De modo q no se depende de asegurarse que uxio lo hace bien. y solo se confia en uxio tras 1 año.
+
+
+HWW compatible mode:
+  - NanoX / GreenWallet
+
+      -> Learn about pinning
+      -> Learn about pay to anchor:
+        -> https://x.com/peterktodd/status/1849845242679242790
+        -> https://bitcoinops.org/en/topics/ephemeral-anchors/
+        -> https://delvingbitcoin.org/t/segwit-ephemeral-anchors/160
+        -> https://bitcoin.stackexchange.com/questions/124383/understanding-v28-0-paytoanchor-script
+
+Additional note: If the user has the Rescue HWW Wallet (or we're generating it with the wizard)
+then the deletable key can be the one of the Rescue Wallet anyway! The attacker won't be able
+to access it anyway and this has the benefit that if the user looses the hot keys, then
+the vault is automatically backuped in cold
+
+Ofrecer a Yoni Assia! También compró esta: https://x.com/getdelta
+
+
+Onboarding usar IA:
+https://x.com/tierotiero/status/1858825810859233611
+
+
+
+Create the txFreeze tx that sends the money to randomPubKey of the random device. This uses current fees.
+
+  txFreeze:
+    -inputs: the utxos to be vaulted
+    -outputs:
+      - txF_0: service fee
+      - txF_1: randomPubKey wpkh
+    - miner fees:
+
+Then with the random device you sign (and not broadcast) the txInitUnfreeze that sends back the money (timelocked) to hot or sends to another random address also owned by the random device.
+
+txInitUnfreeze:
+  inputs - txF_1
+  outputs - a wsh that can be spent with:
+    -txIU_0: after a timelock by hot
+    -txIU_1: randomPubKey wpkh
+    -txIU_2: an output spendable by anyone. anyone can spend. pay-to-anchor. The hot wallet will pay for it.
+
+txRescue:
+  -inputs: txIU_1
+  -outputs:
+    txR_0: the hot wallet
+    txR_1: an anchored output. The delegate can receive several pre-signed txs that spend from this anchored or request help.
+  -fee: current fees? 
+
+Create only one init unfreeze tx with only one fee and add an additional output with little money which can be spent with the hot wallet. This is anchored output. this output can be used to CPFP and bump the fee using the hot wallet.
+
+The rescue path is also just only one. No multifees. It sends money to a temp address created randomy with the random device.
+
+the rescue address and to an anchored output. This anchored output is owned by a temporary key (so this part is still presigned) and takes money from a reserve from the user. This is the max money the user can spend in fees for rescue and the money.
+  -> the delegate will get prompted "Hey! you need to do a CPFP now, so ").
+    -> But you pre-attach a set of pre-signed txs to an anchor output that can either be used as fee or returned to parent.
+  -> Then use a HWW (ephemeral that co-signs the stuff and then you reset it)
+    -> For the delegate fee bumping use the concept of anchored outputs:
+       anchored outputs: small outputs added to a transaction that don’t affect the transaction's purpose but can serve as points of reference for creating "child" transactions to increase the effective fee rate of the original transaction. This is usually achieved with Child Pays for Parent (CPFP).
+        -> I think nothing can be done if you dont own the priv key to boost the rescue even if using anchoted outputs... its same as what im aready doing
+        -> Sí que se puede, creas un output extra, otra vez usando un random key, que se puede gastar dandote el cambio a ti o bien dejar como fee. Para ese no hace falta la HWW.
+
 Study Hardware Wallet integrations with HWI:
   https://github.com/wizardsardine/async-hwi/tree/master
 RBF:
@@ -18,6 +86,14 @@ RBF:
       menos fondos al destino - (quitaría del cambio, si lo hay en primer lugar, luego
       quitaría del destino)
 
+
+No permitir el screenshot de las seed
+
+
+
+TODO: Implementar BIP39 passphrase. Se confunde con la Password?
+
+TODO: Cambiar a este cliente de electrum: https://github.com/keep-network/electrum-client-js
 
 TODO: When i cancel many times vault being created then the app becomes every time
 slower and slower... whart is it doing? is still computing the vault?

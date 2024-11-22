@@ -54,16 +54,16 @@ export const getAPIs = moize(
           blockExplorerURL = settings.TAPE_BLOCK_EXPLORER;
           break;
         case 'REGTEST':
-          esploraAPI = settings.REGTEST_ESPLORA_API;
+          esploraAPI = `${settings.REGTEST_API_BASE}${settings.REGTEST_ESPLORA_API_SUFFIX}`;
           electrumAPI = settings.REGTEST_ELECTRUM_API;
-          serviceAddressAPI = settings.REGTEST_SERVICE_ADDRESS_API;
-          vaultsAPI = settings.REGTEST_VAULTS_API;
-          vaultsSecondaryAPI = settings.REGTEST_VAULTS_SECONDARY_API;
-          faucetAPI = `${settings.REGTEST_WEB_SERVER}/faucet`;
-          faucetURL = `${settings.REGTEST_WEB_SERVER}`;
-          generate204API = settings.REGTEST_GENERATE_204_API;
-          generate204API2 = settings.REGTEST_GENERATE_204_SECONDARY_API;
-          blockExplorerURL = settings.REGTEST_BLOCK_EXPLORER;
+          serviceAddressAPI = `${settings.REGTEST_API_BASE}${settings.REGTEST_SERVICE_ADDRESS_API_SUFFIX}`;
+          vaultsAPI = `${settings.REGTEST_API_BASE}${settings.REGTEST_VAULTS_API_SUFFIX}`;
+          vaultsSecondaryAPI = `${settings.REGTEST_API_BASE}${settings.REGTEST_VAULTS_SECONDARY_API_SUFFIX}`;
+          faucetAPI = `${settings.REGTEST_API_BASE}${settings.REGTEST_WEB_SERVER_SUFFIX}/faucet`;
+          faucetURL = `${settings.REGTEST_API_BASE}${settings.REGTEST_WEB_SERVER_SUFFIX}`;
+          generate204API = `${settings.REGTEST_API_BASE}${settings.REGTEST_GENERATE_204_API_SUFFIX}`;
+          generate204API2 = `${settings.REGTEST_API_BASE}${settings.REGTEST_GENERATE_204_SECONDARY_API_SUFFIX}`;
+          blockExplorerURL = `${settings.REGTEST_API_BASE}${settings.REGTEST_BLOCK_EXPLORER_SUFFIX}`;
           break;
         default:
           throw new Error(`networkId ${networkId} not supported.`);
@@ -109,7 +109,8 @@ export const getUtxosData = moize(
 export const electrumParams = (
   electrumAPI: string
 ): { protocol: 'ssl' | 'tcp'; host: string; port: number } => {
-  const regex = /^(.*):\/\/([^:/]+)(?::(\d+))?/;
+  //const regex = /^(.*):\/\/([^:/]+)(?::(\d+))?/;
+  const regex = /^(ssl|tcp):\/\/([^:/]+)(?::(\d{1,5}))?$/;
   const matches = electrumAPI.match(regex);
 
   // Throw if matches are not exactly 3 (protocol, host, and optionally port)
@@ -119,7 +120,7 @@ export const electrumParams = (
 
   const protocol = matches[1];
   const host = matches[2];
-  const port = matches[3];
+  const portStr = matches[3];
 
   if (!host) {
     throw new Error(`Invalid host: ${host}.`);
@@ -130,14 +131,26 @@ export const electrumParams = (
     throw new Error(`Invalid protocol: ${protocol}. Expected 'ssl' or 'tcp'.`);
   }
 
-  // Validate port (must be a number)
-  if (!port || isNaN(Number(port))) {
-    throw new Error(`Invalid or missing port: ${port}. Port must be a number.`);
+  let port: number | undefined;
+  if (portStr) {
+    port = Number(portStr);
+    if (
+      isNaN(port) ||
+      port.toString() !== portStr ||
+      port < 1 ||
+      port > 65535
+    ) {
+      throw new Error(
+        `Invalid port: ${portStr}. Port must be a number between 1 and 65535.`
+      );
+    }
+  } else {
+    throw new Error(`Port is missing in electrumAPI: ${electrumAPI}`);
   }
 
   return {
-    protocol: protocol as 'ssl' | 'tcp', // Type assertion for strict typing
+    protocol: protocol as 'ssl' | 'tcp',
     host,
-    port: Number(port) // Convert port to a number
+    port
   };
 };
