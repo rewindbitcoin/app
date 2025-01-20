@@ -61,8 +61,8 @@ export default function CreateVaultScreen({
     signers,
     vaultPushAndUpdateStates,
     vaults,
-    vaultsAPI,
-    vaultsSecondaryAPI,
+    cBVaultsWriterAPI,
+    cBVaultsReaderAPI,
     wallet,
     networkId
   } = useWallet();
@@ -72,8 +72,8 @@ export default function CreateVaultScreen({
     !networkId ||
     !signers ||
     !vaultPushAndUpdateStates ||
-    !vaultsAPI ||
-    !vaultsSecondaryAPI
+    !cBVaultsWriterAPI ||
+    !cBVaultsReaderAPI
   )
     throw new Error('Missing data from context');
   const walletId = wallet.walletId;
@@ -81,7 +81,7 @@ export default function CreateVaultScreen({
     netRequest,
     netToast,
     apiReachable,
-    api2Reachable,
+    cBVaultsReaderAPIReachable,
     permanentErrorMessage: nsErrorMessage
   } = useNetStatus();
   const toast = useToast();
@@ -179,7 +179,7 @@ export default function CreateVaultScreen({
   const confirm = useCallback(async () => {
     //While the vault was being created, maybe the internet went down.
     //So recheck before confirm.
-    if (nsErrorMessage && (!apiReachable || !api2Reachable)) {
+    if (nsErrorMessage && (!apiReachable || !cBVaultsReaderAPIReachable)) {
       netToast(false, t('createVault.connectivityIssues'));
       goBack();
       return;
@@ -199,8 +199,8 @@ export default function CreateVaultScreen({
           networkTimeout,
           vault,
           signer,
-          vaultsAPI,
-          vaultsSecondaryAPI,
+          cBVaultsWriterAPI,
+          cBVaultsReaderAPI,
           onProgress,
           networkId
         })
@@ -242,7 +242,7 @@ export default function CreateVaultScreen({
   }, [
     networkTimeout,
     apiReachable,
-    api2Reachable,
+    cBVaultsReaderAPIReachable,
     nsErrorMessage,
     goBackToWalletHome,
     toast,
@@ -250,8 +250,8 @@ export default function CreateVaultScreen({
     signer,
     netRequest,
     vault,
-    vaultsAPI,
-    vaultsSecondaryAPI,
+    cBVaultsWriterAPI,
+    cBVaultsReaderAPI,
     onProgress,
     networkId,
     t,
@@ -265,7 +265,7 @@ export default function CreateVaultScreen({
     if (isVaultCreated.current === true) return;
     else isVaultCreated.current = true;
 
-    if (!apiReachable || !api2Reachable) {
+    if (!apiReachable || !cBVaultsReaderAPIReachable) {
       netToast(false, t('createVault.connectivityIssues'));
       goBackToWalletHome();
       return;
@@ -301,7 +301,7 @@ export default function CreateVaultScreen({
             signer,
             networkId,
             vaults,
-            vaultsAPI
+            cBVaultsReaderAPI
           })
       });
       if (!navigation.isFocused()) return; //Don't proceed if lost focus after await
@@ -355,7 +355,7 @@ export default function CreateVaultScreen({
   }, [
     networkTimeout,
     apiReachable,
-    api2Reachable,
+    cBVaultsReaderAPIReachable,
     navigation,
     goBackToWalletHome,
     netRequest,
@@ -376,8 +376,8 @@ export default function CreateVaultScreen({
     onProgress,
     vaultPushAndUpdateStates,
     samples,
-    vaultsAPI,
-    vaultsSecondaryAPI,
+    cBVaultsWriterAPI,
+    cBVaultsReaderAPI,
     signer,
     vaults,
     utxosData,

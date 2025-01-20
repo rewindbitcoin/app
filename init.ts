@@ -1,3 +1,7 @@
+//import { LogBox } from 'react-native';
+//LogBox.ignoreAllLogs();
+//console.warn('WARNING: ignoring all logs');
+
 console.log(`Running in ${__DEV__ ? 'dev' : 'prod'} mode`);
 //import rnfe from 'react-native-fast-encoder';
 //const uint = new rnfe().encode('This is a test');

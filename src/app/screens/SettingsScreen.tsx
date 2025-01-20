@@ -324,6 +324,23 @@ const SettingsScreen = () => {
     return true;
   };
 
+  const validateCommunityBackupsAPI = async (settings: Settings) => {
+    const { generate204CbVaultsReaderAPI } = getAPIs('BITCOIN', settings);
+    const networkTimeout = settings.NETWORK_TIMEOUT;
+    if (!generate204CbVaultsReaderAPI) return t('app.unknownError');
+    try {
+      const response = await fetch(generate204CbVaultsReaderAPI, {
+        signal: AbortSignal.timeout(networkTimeout)
+      });
+      if (response.status === 204) {
+        return true;
+      }
+    } catch (err) {
+      console.warn(err);
+    }
+    return t('settings.wallet.communityBackupsError');
+  };
+
   const validateRegtestApiBase = async (settings: Settings) => {
     const { generate204API, faucetURL } = getAPIs('REGTEST', settings);
     const networkTimeout = settings.NETWORK_TIMEOUT;
@@ -558,6 +575,25 @@ const SettingsScreen = () => {
                 />
               </>
             )}
+            <SettingsItem
+              icon={{
+                family: 'MaterialIcons',
+                name: 'backup'
+              }}
+              maxLength={URL_MAX_LENGTH}
+              label={t('settings.general.communityBackups')}
+              initialValue={settings.COMMUNITY_BACKUPS_API}
+              defaultValue={defaultSettings.COMMUNITY_BACKUPS_API}
+              validateValue={(url: string) =>
+                validateCommunityBackupsAPI({
+                  ...settings,
+                  COMMUNITY_BACKUPS_API: url
+                })
+              }
+              onValue={(url: string) => {
+                setSettings({ ...settings, COMMUNITY_BACKUPS_API: url });
+              }}
+            />
             <SettingsItem
               showSeparator={false}
               icon={{

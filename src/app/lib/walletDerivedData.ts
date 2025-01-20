@@ -12,12 +12,12 @@ export const getAPIs = moize(
     let esploraAPI: string | undefined;
     let electrumAPI: string | undefined;
     let serviceAddressAPI: string | undefined;
-    let vaultsAPI: string | undefined;
-    let vaultsSecondaryAPI: string | undefined;
+    let cBVaultsWriterAPI: string | undefined;
+    let cBVaultsReaderAPI: string | undefined;
     let faucetAPI: string | undefined;
     let faucetURL: string | undefined;
     let generate204API: string | undefined;
-    let generate204API2: string | undefined;
+    let generate204CbVaultsReaderAPI: string | undefined;
     let blockExplorerURL: string | undefined;
     if (networkId && settings)
       switch (networkId) {
@@ -25,44 +25,44 @@ export const getAPIs = moize(
           esploraAPI = settings.MAINNET_ESPLORA_API;
           electrumAPI = settings.MAINNET_ELECTRUM_API;
           serviceAddressAPI = settings.MAINNET_SERVICE_ADDRESS_API;
-          vaultsAPI = settings.MAINNET_VAULTS_API;
-          vaultsSecondaryAPI = settings.MAINNET_VAULTS_SECONDARY_API;
+          cBVaultsWriterAPI = settings.MAINNET_COMMUNITY_BACKUPS_WRITER_API;
+          cBVaultsReaderAPI = `${settings.COMMUNITY_BACKUPS_API}/vaults`;
           generate204API = settings.PUBLIC_GENERATE_204_API;
-          generate204API2 = settings.PUBLIC_GENERATE_204_SECONDARY_API;
+          generate204CbVaultsReaderAPI = `${settings.COMMUNITY_BACKUPS_API}/generate_204`;
           blockExplorerURL = settings.MAINNET_BLOCK_EXPLORER;
           break;
         case 'TESTNET':
           esploraAPI = settings.TESTNET_ESPLORA_API;
           electrumAPI = settings.TESTNET_ELECTRUM_API;
           serviceAddressAPI = settings.TESTNET_SERVICE_ADDRESS_API;
-          vaultsAPI = settings.TESTNET_VAULTS_API;
-          vaultsSecondaryAPI = settings.TESTNET_VAULTS_SECONDARY_API;
+          cBVaultsWriterAPI = settings.TESTNET_COMMUNITY_BACKUPS_WRITER_API;
+          cBVaultsReaderAPI = `${settings.COMMUNITY_BACKUPS_API}/testnet/vaults`;
           generate204API = settings.PUBLIC_GENERATE_204_API;
-          generate204API2 = settings.PUBLIC_GENERATE_204_SECONDARY_API;
+          generate204CbVaultsReaderAPI = `${settings.COMMUNITY_BACKUPS_API}/generate_204`;
           blockExplorerURL = settings.TESTNET_BLOCK_EXPLORER;
           break;
         case 'TAPE':
           esploraAPI = settings.TAPE_ESPLORA_API;
           electrumAPI = settings.TAPE_ELECTRUM_API;
           serviceAddressAPI = settings.TAPE_SERVICE_ADDRESS_API;
-          vaultsAPI = settings.TAPE_VAULTS_API;
-          vaultsSecondaryAPI = settings.TAPE_VAULTS_SECONDARY_API;
+          cBVaultsWriterAPI = settings.TAPE_COMMUNITY_BACKUPS_WRITER_API;
+          cBVaultsReaderAPI = `${settings.COMMUNITY_BACKUPS_API}/tape/vaults`;
           faucetAPI = `${settings.TAPE_WEB_SERVER}/faucet`;
           faucetURL = `${settings.TAPE_WEB_SERVER}`;
           generate204API = settings.PUBLIC_GENERATE_204_API;
-          generate204API2 = settings.PUBLIC_GENERATE_204_SECONDARY_API;
+          generate204CbVaultsReaderAPI = `${settings.COMMUNITY_BACKUPS_API}/generate_204`;
           blockExplorerURL = settings.TAPE_BLOCK_EXPLORER;
           break;
         case 'REGTEST':
           esploraAPI = `${settings.REGTEST_API_BASE}${settings.REGTEST_ESPLORA_API_SUFFIX}`;
           electrumAPI = settings.REGTEST_ELECTRUM_API;
           serviceAddressAPI = `${settings.REGTEST_API_BASE}${settings.REGTEST_SERVICE_ADDRESS_API_SUFFIX}`;
-          vaultsAPI = `${settings.REGTEST_API_BASE}${settings.REGTEST_VAULTS_API_SUFFIX}`;
-          vaultsSecondaryAPI = `${settings.REGTEST_API_BASE}${settings.REGTEST_VAULTS_SECONDARY_API_SUFFIX}`;
+          cBVaultsWriterAPI = `${settings.REGTEST_API_BASE}${settings.REGTEST_COMMUNITY_BACKUPS_WRITER_API_SUFFIX}`;
+          cBVaultsReaderAPI = `${settings.REGTEST_API_BASE}${settings.REGTEST_COMMUNITY_BACKUPS_API_SUFFIX}/regtest/vaults`;
           faucetAPI = `${settings.REGTEST_API_BASE}${settings.REGTEST_WEB_SERVER_SUFFIX}/faucet`;
           faucetURL = `${settings.REGTEST_API_BASE}${settings.REGTEST_WEB_SERVER_SUFFIX}`;
           generate204API = `${settings.REGTEST_API_BASE}${settings.REGTEST_GENERATE_204_API_SUFFIX}`;
-          generate204API2 = `${settings.REGTEST_API_BASE}${settings.REGTEST_GENERATE_204_SECONDARY_API_SUFFIX}`;
+          generate204CbVaultsReaderAPI = `${settings.REGTEST_API_BASE}${settings.REGTEST_COMMUNITY_BACKUPS_API_SUFFIX}/generate_204`;
           blockExplorerURL = `${settings.REGTEST_API_BASE}${settings.REGTEST_BLOCK_EXPLORER_SUFFIX}`;
           break;
         default:
@@ -77,10 +77,10 @@ export const getAPIs = moize(
       esploraAPI,
       electrumAPI,
       serviceAddressAPI,
-      vaultsAPI,
-      vaultsSecondaryAPI,
+      cBVaultsWriterAPI,
+      cBVaultsReaderAPI,
       generate204API,
-      generate204API2,
+      generate204CbVaultsReaderAPI,
       blockExplorerURL
     };
   }

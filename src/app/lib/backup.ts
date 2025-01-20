@@ -31,13 +31,13 @@ export const fetchP2PVaultIds = async ({
   signer,
   networkId,
   vaults,
-  vaultsAPI,
+  cBVaultsReaderAPI,
   networkTimeout
 }: {
   signer: Signer;
   networkId: NetworkId;
   vaults: Vaults | undefined;
-  vaultsAPI: string;
+  cBVaultsReaderAPI: string;
   networkTimeout: number;
 }): Promise<{
   nextVaultId: string;
@@ -63,7 +63,7 @@ export const fetchP2PVaultIds = async ({
     if (vault) {
       existingVaults.push({ vaultId, vaultPath });
     } else {
-      const vaultCheckUrl = `${vaultsAPI}/${vaultId}/check`;
+      const vaultCheckUrl = `${cBVaultsReaderAPI}/${vaultId}/check`;
 
       try {
         const response = await fetch(vaultCheckUrl, {
@@ -112,13 +112,13 @@ export const fetchP2PVaultIds = async ({
 export async function fetchP2PVaults({
   signer,
   networkId,
-  vaultsAPI,
+  cBVaultsReaderAPI,
   vaults,
   networkTimeout
 }: {
   signer: Signer;
   networkId: NetworkId;
-  vaultsAPI: string;
+  cBVaultsReaderAPI: string;
   vaults: Vaults;
   networkTimeout: number;
 }): Promise<Vaults> {
@@ -126,7 +126,7 @@ export async function fetchP2PVaults({
     signer,
     networkId,
     vaults,
-    vaultsAPI,
+    cBVaultsReaderAPI,
     networkTimeout
   });
 
@@ -139,7 +139,7 @@ export async function fetchP2PVaults({
         vaultId,
         vaultPath,
         signer,
-        vaultsAPI,
+        cBVaultsReaderAPI,
         networkId
       });
       p2pVaults[vaultId] = fetchedVault.vault;
@@ -198,19 +198,19 @@ const fetchP2PVault = async ({
   vaultId,
   vaultPath,
   signer,
-  vaultsAPI,
+  cBVaultsReaderAPI,
   networkId,
   networkTimeout
 }: {
   vaultId: string;
   vaultPath: string;
   signer: Signer;
-  vaultsAPI: string;
+  cBVaultsReaderAPI: string;
   networkId: NetworkId;
   networkTimeout: number;
 }): Promise<{ strVault: string; vault: Vault }> => {
   const network = networkMapping[networkId];
-  const vaultGetUrl = `${vaultsAPI}/${vaultId}/get`;
+  const vaultGetUrl = `${cBVaultsReaderAPI}/${vaultId}/get`;
   const cipherKey = await getSeedDerivedCipherKey({
     vaultPath,
     signer,
@@ -269,16 +269,16 @@ const fetchP2PVault = async ({
 export const p2pBackupVault = async ({
   vault,
   signer,
-  vaultsAPI,
-  vaultsSecondaryAPI,
+  cBVaultsWriterAPI,
+  cBVaultsReaderAPI,
   onProgress,
   networkId,
   networkTimeout
 }: {
   vault: Vault;
   signer: Signer;
-  vaultsAPI: string;
-  vaultsSecondaryAPI: string;
+  cBVaultsWriterAPI: string;
+  cBVaultsReaderAPI: string;
   onProgress?: (progress: number) => boolean;
   networkId: NetworkId;
   networkTimeout: number;
@@ -304,7 +304,7 @@ export const p2pBackupVault = async ({
   const chacha = getManagedChacha(cipherKey);
   const cipheredCompressedVault = chacha.encrypt(compressedVault);
 
-  const vaultPushUrl = `${vaultsAPI}/${vaultId}`;
+  const vaultPushUrl = `${cBVaultsWriterAPI}/${vaultId}`;
   try {
     const response = await fetch(vaultPushUrl, {
       method: 'PUT',
@@ -327,7 +327,7 @@ export const p2pBackupVault = async ({
     vaultId,
     vaultPath,
     signer,
-    vaultsAPI: vaultsSecondaryAPI,
+    cBVaultsReaderAPI,
     networkId
   });
   if (strP2PVault === strVault) return true;

@@ -42,6 +42,8 @@ export default {
       'No Internet connection detected. This prevents checking wallet status, managing vaults, and sending or receiving funds.',
     apiNotReachableWarning:
       'Unable to connect to our services. This affects Bitcoin price updates and prevents vault operations due to disrupted backups.',
+    communityBackupsdNotReachableWarning:
+      'Unable to connect to the Community Backups node. This prevents vault operations due to disrupted backups.',
     blockchainExplorerNotReachableWarning:
       'Unable to connect to the blockchain explorer. This prevents updating the status of your transactions and accessing up-to-date information on the Bitcoin network.',
     blockchainMainnetExplorerNotReachableWarning:
@@ -369,7 +371,7 @@ Usage Instructions:
       received: 'Received',
       sent: 'Sent',
       receivedAndSent: 'Received and Sent',
-      consolidated: 'Consilidated'
+      consolidated: 'Consolidated'
     },
     details: {
       vault: 'Frozen amount after fees: {{amount}}.',
@@ -757,6 +759,8 @@ Please wait a few moments until completion.`,
       gapLimitError: 'Gap Limit must be an integer between 1 and 100.',
       electrumError:
         'Invalid Electrum URL or server is down. Please check the URL and try again.',
+      communityBackupsError:
+        'Invalid Community Backuos API Base. Please check the URL and try again.',
       regtestApiBaseError:
         'Invalid Regtest API Base. Please check the URL and try again.'
     },
@@ -766,6 +770,7 @@ Please wait a few moments until completion.`,
       electrumTape: 'Electrum Tape',
       electrumTestnet: 'Electrum Testnet',
       electrumRegtest: 'Electrum Regtest',
+      communityBackups: 'Community Backups',
       regtestApiBase: 'Regtest API Base',
       gapLimit: 'Gap Limit',
       currency: 'Preferred Currency'

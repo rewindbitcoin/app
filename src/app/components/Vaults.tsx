@@ -782,11 +782,16 @@ const Vaults = ({
       (a, b) => b.creationTime - a.creationTime
     );
   }, [vaults]);
+
+  const hasVisibleVaults = useMemo(() => {
+    return sortedVaults.some(vault => !vaultsStatuses[vault.vaultId]?.isHidden);
+  }, [sortedVaults, vaultsStatuses]);
+
   const { t } = useTranslation();
 
   return (
     <View className="gap-y-4">
-      {sortedVaults.length ? (
+      {hasVisibleVaults ? (
         sortedVaults.map((vault, index) => {
           const vaultStatus = vaultsStatuses[vault.vaultId];
           return (

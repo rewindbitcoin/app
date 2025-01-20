@@ -1,3 +1,71 @@
+#TODO run the backup and write the seed in hermes
+
+
+Hacer q se vea bien teléfono con fuentes grandes como el de mi padre.
+
+Reducir el tiempo. Default 3 dias.
+
+Subir de nuevo las comis a 0.95 % (lo q tienen bit2me o $299/once!)
+
+Permitir vaults de cantidades mas pequeñas. Omitir mi comisión en caso de vaults muy peques.
+
+Primera screen de aceptar condiciones y warning de aceptacion de riesgos
+
+Tests
+
+
+
+----
+Crear un curso de Bitcoin. Ideal si fuese versión web.
+Donde pasas a tener más "Badges". Idealmente on web.
+A medida q vas añadiendo "crear un reto", "delegar", "simulacros de ataque"...
+
+Crear un "how prepared you are?" - socializarlo
+
+Lo mismo con los "backups"
+
+
+---
+
+Reducir las fees a medida q compartan más la app.
+
+---
+
+---
+
+juegos con la red tape!
+  -> Compartir ficheros de delegación. Ver si la gente cancela una tx.
+
+---
+
+Con rankings?
+----
+
+
+TODO: Change Thefr-protection timelock to Theft-Protection Countdown???
+
+Bit2Me cobra 0.95% comisión brokerage
+-> 2020 2M€ facturacion
+-> 2021 13M€ facturacion
+Bit2Me Capital
+
+Bit2Me pilló mucho cliente a través de educación
+
+TODO: Cannot Hide Rescued Vault
+  -> Yeahy, but needs 3 blocks
+
+TODO: I got again one of these errors:
+https://github.com/Rapsssito/react-native-tcp-socket/issues/197
+In  TcpSockers.m there still are a couple of lines where assigning socker and then not checking nil! 
+FIX ALL THOSE!
+GCDAsyncSocket *socket = [server getSocket];
+  -> CHECK WHY THIS ONE WAS NEVER MERGED!!!
+  https://github.com/Rapsssito/react-native-tcp-socket/pull/172/files
+
+TODO: Same as netStatusUpdate does not update while on the background same
+should be done in useTipStatus / useFeeEstimates / useBtcFiat
+
+
 TODO: Si quieres tener más Beta testers, en la web de Stacker News puedes compartir la info del proyecto y tendrás gente experta y novata dándote feed back. Te dejo por aquí una invitación: https://stacker.news/r/criptopanas   Es como un reddit, pero pagas en SAst por postear y en vez de likes recibes SATS.
 
 TODO: Cuando se hace refresh de discovery.fetch la app es un responsive

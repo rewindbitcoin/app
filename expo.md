@@ -86,11 +86,11 @@ DON'T CTRL-C):
 
 ```bash
 #this will compile a release version
-npx eas build --platform android --local #optinally with --clear-cache
+npx eas build --platform android --local #optionally with --clear-cache
 #install it into a device
 adb devices
 #then, which generates an apk:
-npx eas build --profile preview --platform android --local #optinally with --clear-cache
+npx eas build --profile preview --platform android --local #optionally with --clear-cache
 #install it:
 adb -s 988674333331524734 install build-1702395889086.apk
 ```
@@ -99,10 +99,10 @@ There are different "profiles":
 
 ```bash
 #To compile "locally" and using expo and dev server (this creates the image that is installed on simulators):
-npx eas build --profile development --platform android --local #optinally with --clear-cache
+npx eas build --profile development --platform android --local #optionally with --clear-cache
 #To compile "locally" and using expo and not using a dev server (your App can
 #work without a computer in the same network):
-npx eas build --profile preview --platform android --local #optinally with --clear-cache
+npx eas build --profile preview --platform android --local #optionally with --clear-cache
 #To install in the simulator manually
 adb install app/build-1702360280369.apk
 npx expo start -c --dev-client #-c clears caches and -dev-client uses the Non-Expo client
@@ -127,7 +127,7 @@ npm run android
 Alternatively, you can do it manually:
 
 ````bash
-npx eas build --profile development --platform android --local #optinally with --clear-cache
+npx eas build --profile development --platform android --local #optionally with --clear-cache
 
 
 
@@ -140,7 +140,7 @@ npx eas credentials
 npx eas device:create
 
 # This builds and installs a "production" version into the iphone USB connected:
-npx eas build --platform ios --local --profile preview #optinally with --clear-cache
+npx eas build --platform ios --local --profile preview #optionally with --clear-cache
     #the --profile preview let's you use "distribution: internal" from the eas.json,
     #the --local compiles it using this machine (not using EXPO servers)
     #which means installation using usb to certain registewred devices
@@ -171,6 +171,37 @@ So I run:
 npx expo prebuild
 ````
 
+## Run iOS release version on a simulator
+
+```bash
+npx expo run:ios -d --configuration Release
+```
+
+## Record videos showing taps on ios
+
+To record a video on the simulator using taps. Using this project:
+<https://github.com/KaneCheshire/ShowTime>
+
+Go to ios/RewindBitcoin/
+then: `wget https://raw.githubusercontent.com/KaneCheshire/ShowTime/main/Sources/ShowTime/ShowTime.swift`
+To fine tune colors adapt:
+
+```swift
+@objc public static var strokeColor = UIColor(red: 1.0, green: 0.145, blue: 0.047, alpha: 1)
+```
+
+Then open xcode and click on the + symbol at the bottom of the folders and make sure to add the `ShowTime.swift` file
+
+Then open it on a simulator running version of iOS 17 (not 18 because there are rendering artifacts). For example iphone 15 on ios 17 is fine.
+It's been fixed for ios > 17? See: https://github.com/KaneCheshire/ShowTime/issues/63#issuecomment-2571424733
+
+VERY IMPORTANT! When done, remember to remove the compiled project when releasing a new production version or
+all the users will get the tap feedback thing in production:
+
+```bash
+npx expo  prebuild --clean #to reset the Swift package thing above
+```
+
 ## TestFlight
 
 ```bash
@@ -188,7 +219,7 @@ eas build --profile production --platform android --clear-cache --local
 having this in eas.json:
 
 ```json
-  build:{
+  "build": {
     "production": {
       "distribution": "store",
       "ios": {

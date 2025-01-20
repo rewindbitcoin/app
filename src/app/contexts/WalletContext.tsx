@@ -113,10 +113,10 @@ export type WalletContextType = {
   txPushAndUpdateStates: (txHex: string) => Promise<void>;
   syncBlockchain: () => void;
   syncingBlockchain: boolean;
-  vaultsAPI: string | undefined;
+  cBVaultsWriterAPI: string | undefined;
   faucetAPI: string | undefined;
   faucetURL: string | undefined;
-  vaultsSecondaryAPI: string | undefined;
+  cBVaultsReaderAPI: string | undefined;
   blockExplorerURL: string | undefined;
   wallets: Wallets | undefined;
   wallet: Wallet | undefined;
@@ -207,12 +207,12 @@ const WalletProviderRaw = ({
     electrumAPI,
     esploraAPI,
     serviceAddressAPI,
-    vaultsAPI,
+    cBVaultsWriterAPI,
     faucetAPI,
     faucetURL,
-    vaultsSecondaryAPI,
+    cBVaultsReaderAPI,
     generate204API,
-    generate204API2,
+    generate204CbVaultsReaderAPI,
     generate204APIExternal,
     blockExplorerURL
   } = getAPIs(networkId, settings);
@@ -381,7 +381,7 @@ const WalletProviderRaw = ({
         networkId,
         explorer: discovery.getExplorer(),
         generate204API,
-        generate204API2,
+        generate204CbVaultsReaderAPI,
         //For Tape, we need to make sure blockstream esplora is working:
         explorerMainnet: networkId === 'TAPE' ? explorerMainnet : undefined,
         generate204APIExternal:
@@ -402,7 +402,7 @@ const WalletProviderRaw = ({
     discovery,
     networkId,
     generate204API,
-    generate204API2,
+    generate204CbVaultsReaderAPI,
     generate204APIExternal,
     explorerMainnet,
     netStatusReset,
@@ -961,7 +961,7 @@ const WalletProviderRaw = ({
       //synched
       areVaultsSynched(vaults, vaultsStatuses) &&
       signer &&
-      vaultsAPI
+      cBVaultsReaderAPI
     ) {
       console.log(
         `[${new Date().toISOString()}] [Sync] Wallet: ${walletId} | NetReady: ${netReady} | UserTriggered: ${isUserTriggered} | network: ${networkId}`
@@ -1028,7 +1028,7 @@ const WalletProviderRaw = ({
               networkTimeout,
               signer,
               networkId,
-              vaultsAPI,
+              cBVaultsReaderAPI,
               vaults
             })
         });
@@ -1211,7 +1211,7 @@ const WalletProviderRaw = ({
     vaultsStatuses,
     networkId,
     signers,
-    vaultsAPI,
+    cBVaultsReaderAPI,
     gapLimit,
     networkTimeout
   ]);
@@ -1374,10 +1374,10 @@ const WalletProviderRaw = ({
     fetchBlockTime,
     pushTx,
     fetchOutputHistory,
-    vaultsAPI,
+    cBVaultsWriterAPI,
     faucetAPI,
     faucetURL,
-    vaultsSecondaryAPI,
+    cBVaultsReaderAPI,
     blockExplorerURL,
     wallets,
     wallet,
