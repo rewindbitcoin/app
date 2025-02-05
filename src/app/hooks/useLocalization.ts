@@ -11,6 +11,8 @@ import { Currency, defaultSettings } from '../lib/settings';
 import { useCallback } from 'react';
 
 let lastLanguageSet: undefined | string = undefined;
+//This will be called as quick as possible,
+//before any settings info is load from disk
 export const i18nLanguageInit = () => {
   if (defaultSettings.LOCALE === 'default') {
     const locales = getLocales();
@@ -47,15 +49,19 @@ export const useLocalization = () => {
   );
 
   const setLocale = useCallback(
-    (locale: Language | 'default') => {
+    (locale: string) => {
       if (!settings)
         throw new Error('Cannot set locale with unloaded settings');
       setSettings({ ...settings, LOCALE: locale });
       if (locale === 'default') {
         const systemLocale = locales[0]?.languageCode;
-        if (systemLocale) i18n.changeLanguage(systemLocale);
+        if (systemLocale) {
+          lastLanguageSet = systemLocale;
+          i18n.changeLanguage(lastLanguageSet);
+        }
       } else {
-        i18n.changeLanguage(locale);
+        lastLanguageSet = locale;
+        i18n.changeLanguage(lastLanguageSet);
       }
     },
     [setSettings, settings, locales]
