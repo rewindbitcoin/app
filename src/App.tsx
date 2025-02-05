@@ -1,4 +1,4 @@
-import './global.css';
+import '../global.css';
 import '../init';
 import ErrorBoundary from './ErrorBoundary';
 import React, { useCallback, useEffect, useState, useMemo } from 'react';
@@ -42,10 +42,7 @@ import { useTheme, Button } from './common/ui';
 
 import { I18nextProvider, useTranslation } from 'react-i18next';
 import { i18n } from './i18n-locales/init';
-import {
-  i18nLanguageInit,
-  useLocalization
-} from './app/hooks/useLocalization';
+import { i18nLanguageInit, useLocalization } from './app/hooks/useLocalization';
 i18nLanguageInit();
 import { AuthenticationType } from 'expo-local-authentication';
 import { Pressable } from 'react-native';
