@@ -1,7 +1,5 @@
 //Treat this as a glorified json with comments & multi-line using string literals
-//TODO: Emergency Addres <-> Rewind Address?
 
-//TODO: recovery phrase or Recovery Phrase - be consistent
 export default {
   app: {
     buildNumber: 'Build',
@@ -72,7 +70,7 @@ export default {
     forcedSetPasswordText: `Please set a new password (8-32 chars).
 
 If you ever forget your password, you can recover your wallet\
- using your mnemonic recovery phrase.`,
+ using your mnemonic Recovery Phrase.`,
     optionalSetPasswordText: `We suggest setting a password to boost your wallet's security.
 
 Though optional, a password safeguards your assets,\
@@ -86,7 +84,7 @@ Though optional, a password safeguards your assets,\
     requestPasswordButton: `Enter Password`,
     requestPasswordText: `Please enter the wallet's password to continue.
 
-If you've forgotten the password for your wallet, you can create a new wallet using your recovery phrase to regain access.`,
+If you've forgotten the password for your wallet, you can create a new wallet using your Recovery Phrase to regain access.`,
     advancedOptionsTitle: 'Advanced Options',
     usePasswordTitle: 'Use Password',
     biometricEncryptionTitle: 'Biometric Encryption',
@@ -413,14 +411,14 @@ Usage Instructions:
   help: {
     biometric: `Utilizes biometric features,\
  like fingerprint or facial recognition, to encrypt and securely store your\
- recovery phrase in this device. This ensures it is accessible only by you.
+ Recovery Phrase in this device. This ensures it is accessible only by you.
 
 Please note, if your biometric data changes (like\
  adding a new fingerprint), the system will invalidate the encryption\
- key, making the mnemonic recovery phrase unreadable. In such cases, you'll need to\
+ key, making the mnemonic Recovery Phrase unreadable. In such cases, you'll need to\
  re-enter the mnemonic. This measure ensures that only you can access\
  your wallet.`,
-    password: `Setting a password encrypts your mnemonic recovery phrase, providing a secure\
+    password: `Setting a password encrypts your mnemonic Recovery Phrase, providing a secure\
  layer of protection for your wallet.
 
 Each time you access the wallet, you will\
@@ -434,7 +432,7 @@ While leaking this data wouldn't compromise your funds, encrypting it\
  ensures that even if it is accessed by unauthorized parties, they won't be able\
  to discern how you use your wallet, such as your spending habits or whom you transact with.`,
     //The encryption uses the XChaCha20-Poly1305 algorithm, with a key that’s securely\
-    // derived from your mnemonic recovery phrase.
+    // derived from your mnemonic Recovery Phrase.
     network: `Rewind provides a choice between testing environments and the real Bitcoin network (via Advanced Options).
 
 The currently recommended option is the Tape Network, Rewind's own test network. Tape mirrors Bitcoin's real functionality and allows you to explore Send/Receive and Vaulting operations safely, offering free tokens for practice.
@@ -620,12 +618,12 @@ Now, as the final step, we're sending your vault to the blockchain to activate i
     expressConfirmation: 'Express Confirmation'
   },
   bip39: {
-    validWordsThatDontMatch: 'The entered recovery phrase does not match.',
+    validWordsThatDontMatch: 'The entered Recovery Phrase does not match.',
     chooseImport: 'Want to import instead?',
     chooseNew: 'Need to create a new wallet?',
     importWalletText: 'Restore Your Wallet',
     importWalletSubText:
-      'Enter the mnemonic recovery phrase you saved when you first set up your wallet. This restores access to your existing wallet and its funds.',
+      'Enter the mnemonic Recovery Phrase you saved when you first set up your wallet. This restores access to your existing wallet and its funds.',
     createWalletText: 'Your New Wallet Awaits',
     createWalletSubText:
       "Below is your wallet's Recovery Phrase. Think of it as your password to the Bitcoin network. It's crucial for accessing your wallet if you switch devices or loose/damage your current one. Write it down and keep it somewhere safe.",
@@ -639,9 +637,9 @@ Now, as the final step, we're sending your vault to the blockchain to activate i
     confirmTitle: 'Phrase Verification',
     //This will be rendered as subTitle in a Modal. In iphone 4 and small devices this should not go
     //over 3 lines of text:
-    //    confirmText: `Enter the recovery phrase for verification.\
+    //    confirmText: `Enter the Recovery Phrase for verification.\
     // This confirms you've noted it correctly and your wallet can be recovered.`,
-    confirmText: `Re-enter the recovery phrase to verify you've recorded it accurately, ensuring wallet recoverability.`,
+    confirmText: `Re-enter the Recovery Phrase to verify you've recorded it accurately, ensuring wallet recoverability.`,
     testingWalletsCanSkip: 'Test wallets can skip this tedious step.'
   },
   amount: {
@@ -681,7 +679,7 @@ For example, if you set a time-lock of 7 days, your funds will remain locked for
 
 This process will set up a Bitcoin address where your funds can be safely sent in case of an emergency, such as extortion or theft.
 
-This address will be generated with a new recovery phrase. Think of it as the password for the address. Store this phrase in a place that is very difficult to access, even for you. Keep it separate from your regular wallet's recovery phrase.
+This address will be generated with a new Recovery Phrase. Think of it as the password for the address. Store this phrase in a place that is very difficult to access, even for you. Keep it separate from your regular wallet's Recovery Phrase.
 
 This address will be your last line of defense.`,
       bip39Proposal: `Below is your Emergency Recovery Phrase. This is your key to accessing your funds in an emergency.`,
@@ -745,7 +743,7 @@ sensitive details crucial for the security of your funds.`,
       delete: 'Delete Wallet',
       deleteInfo: `Are you sure you want to delete this wallet? This action cannot be reversed.
 
-Please ensure you have backed up your recovery phrase and exported your wallet. If you have not done so, you will lose access to your funds forever.
+Please ensure you have backed up your Recovery Phrase and exported your wallet. If you have not done so, you will lose access to your funds forever.
 
 Type 'DELETE' below to confirm and proceed with the deletion.`,
       confirmDelete: 'Confirm Delete',
@@ -776,6 +774,7 @@ Please wait a few moments until completion.`,
       currency: 'Preferred Currency',
       language: 'Language',
       systemDefault: 'System Default',
+      //These below must be set in their native language
       languageNames: {
         en: 'English',
         es: 'Español'
@@ -804,7 +803,7 @@ Please wait a few moments until completion.`,
   globalError: {
     general: `An unexpected error has occurred. Below you will find additional details that may help identify the issue. Some of this information is technical and intended for developers. There is no need for immediate concern.
 
-Your wallet should still be secure. Please tap on 'Try Again' to reload the app. If the problem persists, consider restoring your wallet using your recovery phrase. Your vaults and related data will be retrieved from community backups online.
+Your wallet should still be secure. Please tap on 'Try Again' to reload the app. If the problem persists, consider restoring your wallet using your Recovery Phrase. Your vaults and related data will be retrieved from community backups online.
 
 For further assistance or to report this issue, please contact RewindBitcoin support at rewindbitcoin.com or contact us at x.com/rewindbitcoin.`
   }
