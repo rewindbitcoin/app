@@ -30,12 +30,12 @@ export const useLocalization = () => {
   //useLocales triggers a re-render if the user changes the language
   const locales = useLocales();
   const { settings, setSettings } = useSettings();
-  if (
-    settings?.LOCALE === 'default' &&
-    locales[0]?.languageCode &&
-    lastLanguageSet !== locales[0]?.languageCode
-  ) {
-    lastLanguageSet = locales[0]?.languageCode;
+  const systemLanguage = locales[0]?.languageCode;
+  const selectedLanguage =
+    settings?.LOCALE === 'default' ? systemLanguage : settings?.LOCALE;
+
+  if (selectedLanguage && lastLanguageSet !== selectedLanguage) {
+    lastLanguageSet = selectedLanguage;
     i18n.changeLanguage(lastLanguageSet);
   }
 
@@ -53,18 +53,8 @@ export const useLocalization = () => {
       if (!settings)
         throw new Error('Cannot set locale with unloaded settings');
       setSettings({ ...settings, LOCALE: locale });
-      if (locale === 'default') {
-        const systemLocale = locales[0]?.languageCode;
-        if (systemLocale) {
-          lastLanguageSet = systemLocale;
-          i18n.changeLanguage(lastLanguageSet);
-        }
-      } else {
-        lastLanguageSet = locale;
-        i18n.changeLanguage(lastLanguageSet);
-      }
     },
-    [setSettings, settings, locales]
+    [settings, setSettings]
   );
 
   return {
