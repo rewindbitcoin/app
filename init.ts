@@ -60,9 +60,7 @@ const { UIManager } = NativeModules;
 UIManager.setLayoutAnimationEnabledExperimental?.(true);
 
 //For electrum support in react native
-// @ts-expect-error: global type augmentation needed
 global.net = require('react-native-tcp-socket');
-// @ts-expect-error: global type augmentation needed
 global.tls = require('react-native-tcp-socket');
 
 //if (typeof __dirname === 'undefined') global.__dirname = '/';

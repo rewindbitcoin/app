@@ -11,6 +11,7 @@
   },
   "extends": "@bitcoinerlab/configs/tsconfig.src",
   "include": [
+    "index.js",
     "*.ts",
     "*.tsx",
     "./types/**/*.d.ts",
