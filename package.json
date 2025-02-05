@@ -1,7 +1,7 @@
 {
   "name": "@rewindbitcoin/app",
   "version": "1.1.4",
-  "main": "node_modules/expo/AppEntry.js",
+  "main": "index.js",
   "prettier": "@bitcoinerlab/configs/prettierConfig.json",
   "eslintConfig": {
     "extends": "./.eslintrc.js"
