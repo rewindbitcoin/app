@@ -1,12 +1,12 @@
 import './global.css';
-import './init';
-import ErrorBoundary from './src/ErrorBoundary';
+import '../init';
+import ErrorBoundary from './ErrorBoundary';
 import React, { useCallback, useEffect, useState, useMemo } from 'react';
 import { Platform } from 'react-native';
 import {
   SecureStorageInfoProvider,
   useSecureStorageInfo
-} from './src/common/contexts/SecureStorageInfoContext';
+} from './common/contexts/SecureStorageInfoContext';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -22,30 +22,30 @@ import {
   RECEIVE,
   NEW_WALLET,
   UniversalNavigationOptions
-} from './src/app/screens';
+} from './app/screens';
 import { NavigationContainer, useNavigation } from '@react-navigation/native';
-import { ToastProvider } from './src/common/components/Toast';
-import WalletsScreen from './src/app/screens/WalletsScreen';
-import NewWalletScreen from './src/app/screens/NewWalletScreen';
-import WalletHomeScreen from './src/app/screens/WalletHomeScreen';
-import SetUpVaultScreen from './src/app/screens/SetUpVaultScreen';
-import SendScreen from './src/app/screens/SendScreen';
-import ReceiveScreen from './src/app/screens/ReceiveScreen';
-import CreateVaultScreen from './src/app/screens/CreateVaultScreen';
-import { WalletProvider } from './src/app/contexts/WalletContext';
-import Settings from './src/app/screens/SettingsScreen';
-import { GlobalStorageProvider } from './src/common/contexts/GlobalStorageContext';
-import NetStatusProvider from './src/app/contexts/NetStatusContext';
+import { ToastProvider } from './common/components/Toast';
+import WalletsScreen from './app/screens/WalletsScreen';
+import NewWalletScreen from './app/screens/NewWalletScreen';
+import WalletHomeScreen from './app/screens/WalletHomeScreen';
+import SetUpVaultScreen from './app/screens/SetUpVaultScreen';
+import SendScreen from './app/screens/SendScreen';
+import ReceiveScreen from './app/screens/ReceiveScreen';
+import CreateVaultScreen from './app/screens/CreateVaultScreen';
+import { WalletProvider } from './app/contexts/WalletContext';
+import Settings from './app/screens/SettingsScreen';
+import { GlobalStorageProvider } from './common/contexts/GlobalStorageContext';
+import NetStatusProvider from './app/contexts/NetStatusContext';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import type { VaultSettings } from './src/app/lib/vaults';
-import { useTheme, Button } from './src/common/ui';
+import type { VaultSettings } from './app/lib/vaults';
+import { useTheme, Button } from './common/ui';
 
 import { I18nextProvider, useTranslation } from 'react-i18next';
-import { i18n } from './src/i18n-locales/init';
+import { i18n } from './i18n-locales/init';
 import {
   i18nLanguageInit,
   useLocalization
-} from './src/app/hooks/useLocalization';
+} from './app/hooks/useLocalization';
 i18nLanguageInit();
 import { AuthenticationType } from 'expo-local-authentication';
 import { Pressable } from 'react-native';
