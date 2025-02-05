@@ -1,5 +1,8 @@
 //Treat this as a golrified json with comments & multi-line using string literals
 export default {
+  app: {
+    buildNumber: 'Compilación'
+  }
   //vaultSetup: {
   //  amountLabel: 'Cantidad:',
   //  securityLockTimeLabel: 'Tiempo de Bloqueo de Seguridad (bloques):',

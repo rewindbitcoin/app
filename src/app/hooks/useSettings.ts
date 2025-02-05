@@ -16,6 +16,12 @@ export const useSettings = () => {
       undefined,
       'GLOBAL'
     );
+  //FIXME: new defaults:
+  //FIXME: old wallets won't inherit them, so what?
+  if (settings) settings.PRESIGNED_FEE_RATE_CEILING = 100;
+  if (settings) settings.INITIAL_LOCK_BLOCKS = 3 * 24 * 6;
+  if (settings) settings.MIN_RECOVERABLE_RATIO = 2 / 3;
+  if (settings) settings.SERVICE_FEE_RATE = 0.004; //0.0095;
 
   // Use `useMemo` to compute `derivedSettings` only when `settings` changes
   const derivedSettings = useMemo(() => {

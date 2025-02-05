@@ -1,18 +1,52 @@
-#TODO run the backup and write the seed in hermes
+DO THIS NOW! run the backup and write the seed in hermes
+
+Complete the FIXME: before publication.
+
+* Escribir DM Sergi de Abast:
+* https://x.com/abogadocripto
+ 
+* En Español
+
+* Modo watch-only, Modo Hardware Wallet.
+*   https://www.youtube.com/watch?v=f-8elm8xCLs
+*     -> Usa Blue wallet. Copiar idea.
+*   https://www.reddit.com/r/Bitcoin/comments/zudpbo/using_old_phone_as_cold_wallet/
+* Usar un movil viejo con Rewind Bitcoin.
+*   --> Sin necesidad de conexión a Internet.
+
+* Publicar
+*   -> Tests
+
+*   Video
+
+* Pedir beca
+
+* Alvaro d maria
+
+* Hacer q se vea bien teléfono con fuentes grandes como el de mi padre.
 
 
-Hacer q se vea bien teléfono con fuentes grandes como el de mi padre.
+- I have some FIXME: in the code for tests. Get rid of them before publishing:
+- Español
+- Reducir el tiempo. Default 3 dias.
+- Reducir cantidad mínima. Ver como aplicar el fee.
+    -> PRESIGNED_FEE_RATE_CEILING
+    -> MIN_RECOVERABLE_RATIO
+    -> FIXME: change the code in rescue and in the rescue part of the app.
+    -> Also on the unvault. can it be the case it'¡s not recoverable. than what happens.
+    In fact this can already happen if fees >> 10000 sat/vbyte
+- Tests
+- Publicar App
 
-Reducir el tiempo. Default 3 dias.
-
-Subir de nuevo las comis a 0.95 % (lo q tienen bit2me o $299/once!)
+Publicar Web
 
 Permitir vaults de cantidades mas pequeñas. Omitir mi comisión en caso de vaults muy peques.
+  -> Y si mi comi es proporcional a la fee pagada al minero?
 
 Primera screen de aceptar condiciones y warning de aceptacion de riesgos
 
-Tests
 
+Mas adelante -> Subir de nuevo las comis a 0.95 % (lo q tienen bit2me o $299/once!)
 
 
 ----

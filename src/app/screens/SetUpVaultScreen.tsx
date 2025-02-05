@@ -151,7 +151,7 @@ export default function VaultSetUp({
     //It decreases as the feeRate increases. The lowest value is for maxFeeRate.
     //See maxVaultAmountWhenMaxFee below.
     //
-    //This will be the max selectable value in the Slider. The max wil change
+    //This will be the max selectable value in the Slider. The max will change
     //when the user moves the fee slider
     maxVaultAmount,
     //
@@ -373,7 +373,7 @@ export default function VaultSetUp({
                   minRecoverableRatioPct: parseFloat(
                     (settings.MIN_RECOVERABLE_RATIO * 100).toFixed(2)
                   ).toString(),
-                  feeRateCeilingK: parseFloat(
+                  feeRateCeiling: parseFloat(
                     (settings.PRESIGNED_FEE_RATE_CEILING / 1000).toFixed(2)
                   ).toString()
                 }}

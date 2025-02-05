@@ -160,7 +160,8 @@ const estimateMaxVaultAmount = moize.shallow(
  *
  * Estimates the minimum vault amount needed to ensure at least `minRecoverableRatio`
  * of funds are recoverable (including serviceFee + vaultAmount), e.g., limiting loss
- * to no more than 1/3 (1 - minRecoverableRatio) of the initial value due to miner fees.
+ * to no more than (1 - minRecoverableRatio) of the initial value due to miner fees.
+ * F.ex. if minRecoverableRatio is 2/3, then loss is no more than 1/3.
  * This function might not always find the absolute minimum but provides a safe,
  * conservative estimation.
  *
@@ -426,7 +427,7 @@ export const estimateVaultSetUpRange = moize.shallow(
  * the source of truth.
  * However, the user selects a vaultedAmount. Then, we must
  * find the most accurate serviceFee possible that ensures the final
- * transaction is within ranges. So the final serviceFee may nit be exactly
+ * transaction is within ranges. So the final serviceFee may not be exactly
  * serviceFeeRate * vaultedAmount (because there are non-linearities because of
  * dustThreshold and for roundings).
  * In other words it is possible to do an exact:

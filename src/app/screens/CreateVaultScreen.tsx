@@ -96,6 +96,7 @@ export default function CreateVaultScreen({
   const networkTimeout = settings.NETWORK_TIMEOUT;
   const samples = settings.SAMPLES;
   const feeRateCeiling = settings.PRESIGNED_FEE_RATE_CEILING;
+  const maxFeeRateCeiling = settings.MAX_PRESIGNED_FEE_RATE_CEILING;
   const { locale, currency } = useLocalization();
   // We know settings are the correct ones in this Component
   const [progress, setProgress] = useState<number>(0);
@@ -323,6 +324,7 @@ export default function CreateVaultScreen({
         feeRate,
         serviceFee,
         feeRateCeiling,
+        maxFeeRateCeiling,
         coldAddress,
         changeDescriptorWithIndex,
         serviceOutput,
@@ -368,6 +370,7 @@ export default function CreateVaultScreen({
     coldAddress,
     feeRate,
     feeRateCeiling,
+    maxFeeRateCeiling,
     getNextChangeDescriptorWithIndex,
     fetchServiceAddress,
     getUnvaultKey,

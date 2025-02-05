@@ -70,6 +70,7 @@ export interface Settings {
   INITIAL_LOCK_BLOCKS: number;
   SAMPLES: number;
   PRESIGNED_FEE_RATE_CEILING: number;
+  MAX_PRESIGNED_FEE_RATE_CEILING: number;
   INITIAL_CONFIRMATION_TIME: number;
   MIN_RECOVERABLE_RATIO: number;
   SUB_UNIT: SubUnit;
@@ -138,10 +139,11 @@ export const defaultSettings: Settings = {
   //PRESIGNED_FEE_RATE_CEILING: 5 * 1000, //22-dec-2017 fee rates were 1000. TODO: Set this to 5000 which is 5x 22-dec-2017
   //https://twitter.com/KLoaec/status/1733880025017978914
   //PRESIGNED_FEE_RATE_CEILING: 2,
-  PRESIGNED_FEE_RATE_CEILING: 10000, //TODO: should be 10000
+  PRESIGNED_FEE_RATE_CEILING: 100, //This is the one used to compute minVaultAmount
+  MAX_PRESIGNED_FEE_RATE_CEILING: 10000, //TODO: should be 10000 - This is the one used to compute pressigned txs.
   // 2 hours
   INITIAL_CONFIRMATION_TIME: 2 * 60 * 60,
-  MIN_RECOVERABLE_RATIO: 1 / 50, //TODO: should it be 2/3?
+  MIN_RECOVERABLE_RATIO: 2 / 3,
   SUB_UNIT: 'btc',
   FIAT_MODE: false, //whether the user prefers using fiat than SUB_UNIT
   LOCALE: 'default', //systems default

@@ -484,7 +484,7 @@ Verify the address carefully to ensure it corresponds to an Emergency Phrase und
     //
     //Essentially, we want to make sure you will still have a significant amount of Bitcoin (more than {{minRecoverableRatioPct}}%) after unlocking or recovering your funds in the event of an emergency.
     //
-    //This minimum amount is calculated based on the assumption that you may need rapid transaction confirmations and that future network fees could become extremely high ({{feeRateCeilingK}} Ksats/vB).
+    //This minimum amount is calculated based on the assumption that you may need rapid transaction confirmations and that future network fees could become extremely high ({{feeRateCeiling}} Ksats/vB).
     //
     //<strong>Suggested Action:</strong> Please add {{missingFunds}} to reach the minimum amount required for vaulting.`,
     notEnoughFunds: `<strong>Minimum Vault Amount Notice</strong>
@@ -493,7 +493,7 @@ Rewind requires a minimum amount to be frozen to ensure it is financially worthw
 
 We want to make sure you will be able to rescue your Vault in case of an emergency, regardless of future Bitcoin fees.
 
-This minimum amount is calculated based on the assumption that you may need rapid transaction confirmations and that future network fees could become extremely high ({{feeRateCeilingK}} Ksats/vB).
+This minimum amount is calculated based on the assumption that you may need rapid transaction confirmations and that future network fees could become high ({{feeRateCeiling}} Ksats/vB).
 
 <strong>Suggested Action:</strong> Please add {{missingFunds}} to reach the minimum amount required for vaulting.`,
     amountLabel: 'Amount to Freeze',

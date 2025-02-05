@@ -33,7 +33,7 @@ export type TxId = string;
 
 export type VaultSettings = {
   /** transactionAmount + minerFees = total user spendings = value extracted from user utxos
-   * vaultedAmount = tansactionAmount - serviceFee
+   * vaultedAmount = transactionAmount - serviceFee
    */
   vaultedAmount: number;
   serviceFee: number;
@@ -600,6 +600,7 @@ export async function createVault({
   feeRate,
   serviceFee,
   feeRateCeiling,
+  maxFeeRateCeiling,
   coldAddress,
   changeDescriptorWithIndex,
   serviceOutput,
@@ -611,7 +612,7 @@ export async function createVault({
   nextVaultPath,
   onProgress
 }: {
-  /** The transactoin may have up yo 3 outputs: vaultedAmount, serviceFee and
+  /** The transaction may have up yo 3 outputs: vaultedAmount, serviceFee and
    * change
    */
   vaultedAmount: number;
@@ -624,6 +625,12 @@ export async function createVault({
   /** This is the largest fee rate for which at least one trigger and panic txs
    * must be pre-computed*/
   feeRateCeiling: number;
+  /** This is the largest fee rate for which
+   * this function computes presigned txs while there
+   * is still room.
+   * F.ex.: the max avaiable feeRate for the
+   * triggerTx can be maxFeeRateCeiling > feeRate > feeRateCeiling */
+  maxFeeRateCeiling: number;
   coldAddress: string;
   changeDescriptorWithIndex: { descriptor: string; index: number };
   serviceOutput: OutputInstance;
@@ -645,6 +652,7 @@ export async function createVault({
   | 'UNKNOWN_ERROR'
 > {
   try {
+    if (feeRateCeiling > maxFeeRateCeiling) return 'UNKNOWN_ERROR';
     let signaturesProcessed = 0;
     let minPanicAmount = vaultedAmount; //Initialize to a large value
 
@@ -679,9 +687,12 @@ export async function createVault({
 
     const feeRates = feeRateSampling({
       samples,
-      maxSatsPerByte: feeRateCeiling
+      maxSatsPerByte: maxFeeRateCeiling
     });
-    if (feeRates.length !== samples || feeRates.slice(-1)[0] !== feeRateCeiling)
+    if (
+      feeRates.length !== samples ||
+      feeRates.slice(-1)[0] !== maxFeeRateCeiling
+    )
       throw new Error(`feeRate sampling failed`);
     const txMap: TxMap = {};
     const triggerMap: TriggerMap = {};
@@ -777,91 +788,104 @@ export async function createVault({
       const triggerAmount = vaultedAmount - feeTrigger;
 
       if (triggerAmount <= dustThreshold(triggerOutput)) {
-        console.warn(
-          `triggerAmount <= dust: ${triggerAmount} <= ${dustThreshold(triggerOutput)}`
-        );
-        return 'NOT_ENOUGH_FUNDS';
-      }
-
-      //Add the output to psbtTrigger:
-      triggerOutput.updatePsbtAsOutput({
-        psbt: psbtTrigger,
-        value: triggerAmount
-      });
-      //Sign
-      signers.signECPair({ psbt: psbtTrigger, ecpair: vaultPair });
-      //Finalize (validate only 1st time - expensive calculation)
-      triggerInputFinalizer({
-        psbt: psbtTrigger,
-        validate: feeRateIndex === 0
-      });
-      if (signaturesProcessed++ % 10 === 0) {
-        if (onProgress(signaturesProcessed / (samples * samples)) === false)
-          return 'USER_CANCEL';
-        await sleep(0);
-      }
-      const txTrigger = psbtTrigger.extractTransaction(true);
-      const triggerTxHex = txTrigger.toHex();
-      const feeRate = feeTrigger / txTrigger.virtualSize();
-      if (feeRate < 1) return 'UNKNOWN_ERROR';
-      txMap[triggerTxHex] = {
-        fee: feeTrigger,
-        feeRate,
-        txId: txTrigger.getId()
-      };
-      triggerMap[triggerTxHex] = [];
-      const panicTxs = triggerMap[triggerTxHex];
-      if (!panicTxs) throw new Error('Invalid assingment');
-
-      //////////////////////
-      //Prepare the Panic Tx
-      //////////////////////
-
-      const psbtPanicBase = new Psbt({ network });
-      //Add the input to psbtPanicBase:
-      const panicInputFinalizer = triggerOutputPanicPath.updatePsbtAsInput({
-        psbt: psbtPanicBase,
-        txHex: triggerTxHex,
-        vout: 0
-      });
-      for (const [feeRateIndex, feeRatePanic] of feeRates.entries()) {
-        const psbtPanic = psbtPanicBase.clone();
-        const feePanic = Math.ceil(
-          feeRatePanic * estimatePanicTxSize(lockBlocks, coldAddress, network)
-        );
-        const panicAmount = triggerAmount - feePanic;
-
-        if (panicAmount <= dustThreshold(coldOutput)) {
+        if (feeRateTrigger <= feeRateCeiling) {
           console.warn(
-            `panicAmount <= dust: ${panicAmount} <= ${dustThreshold(coldOutput)}`
+            `triggerAmount <= dust: ${triggerAmount} <= ${dustThreshold(triggerOutput)}`
           );
           return 'NOT_ENOUGH_FUNDS';
         }
-        if (panicAmount < minPanicAmount) minPanicAmount = panicAmount;
-
-        coldOutput.updatePsbtAsOutput({
-          psbt: psbtPanic,
-          value: triggerAmount - feePanic
+      } else {
+        //Add the output to psbtTrigger:
+        triggerOutput.updatePsbtAsOutput({
+          psbt: psbtTrigger,
+          value: triggerAmount
         });
         //Sign
-        signers.signECPair({ psbt: psbtPanic, ecpair: panicPair });
-        //Finalize
-        panicInputFinalizer({ psbt: psbtPanic, validate: feeRateIndex === 0 });
+        signers.signECPair({ psbt: psbtTrigger, ecpair: vaultPair });
+        //Finalize (validate only 1st time - expensive calculation)
+        triggerInputFinalizer({
+          psbt: psbtTrigger,
+          validate: feeRateIndex === 0
+        });
         if (signaturesProcessed++ % 10 === 0) {
           if (onProgress(signaturesProcessed / (samples * samples)) === false)
             return 'USER_CANCEL';
           await sleep(0);
         }
-        const txPanic = psbtPanic.extractTransaction(true);
-        const panicTxHex = txPanic.toHex();
-        const feeRate = feePanic / txPanic.virtualSize();
+        const txTrigger = psbtTrigger.extractTransaction(true);
+        const triggerTxHex = txTrigger.toHex();
+        const feeRate = feeTrigger / txTrigger.virtualSize();
         if (feeRate < 1) return 'UNKNOWN_ERROR';
-        txMap[panicTxHex] = {
-          fee: feePanic,
+        txMap[triggerTxHex] = {
+          fee: feeTrigger,
           feeRate,
-          txId: txPanic.getId()
+          txId: txTrigger.getId()
         };
-        panicTxs.push(panicTxHex);
+        triggerMap[triggerTxHex] = [];
+        const panicTxs = triggerMap[triggerTxHex];
+        if (!panicTxs) throw new Error('Invalid assingment');
+
+        //////////////////////
+        //Prepare the Panic Tx
+        //////////////////////
+
+        const psbtPanicBase = new Psbt({ network });
+        //Add the input to psbtPanicBase:
+        const panicInputFinalizer = triggerOutputPanicPath.updatePsbtAsInput({
+          psbt: psbtPanicBase,
+          txHex: triggerTxHex,
+          vout: 0
+        });
+        for (const [feeRateIndex, feeRatePanic] of feeRates.entries()) {
+          const psbtPanic = psbtPanicBase.clone();
+          const feePanic = Math.ceil(
+            feeRatePanic * estimatePanicTxSize(lockBlocks, coldAddress, network)
+          );
+          const panicAmount = triggerAmount - feePanic;
+
+          if (panicAmount <= dustThreshold(coldOutput)) {
+            if (
+              feeRatePanic <= feeRateCeiling &&
+              feeRateTrigger <= feeRateCeiling
+            ) {
+              console.warn(
+                `panicAmount <= dust: ${panicAmount} <= ${dustThreshold(coldOutput)}`
+              );
+              return 'NOT_ENOUGH_FUNDS';
+            }
+          } else {
+            if (panicAmount < minPanicAmount) minPanicAmount = panicAmount;
+
+            coldOutput.updatePsbtAsOutput({
+              psbt: psbtPanic,
+              value: triggerAmount - feePanic
+            });
+            //Sign
+            signers.signECPair({ psbt: psbtPanic, ecpair: panicPair });
+            //Finalize
+            panicInputFinalizer({
+              psbt: psbtPanic,
+              validate: feeRateIndex === 0
+            });
+            if (signaturesProcessed++ % 10 === 0) {
+              if (
+                onProgress(signaturesProcessed / (samples * samples)) === false
+              )
+                return 'USER_CANCEL';
+              await sleep(0);
+            }
+            const txPanic = psbtPanic.extractTransaction(true);
+            const panicTxHex = txPanic.toHex();
+            const feeRate = feePanic / txPanic.virtualSize();
+            if (feeRate < 1) return 'UNKNOWN_ERROR';
+            txMap[panicTxHex] = {
+              fee: feePanic,
+              feeRate,
+              txId: txPanic.getId()
+            };
+            panicTxs.push(panicTxHex);
+          }
+        }
       }
     }
     //console.log({ signaturesProcessed, feeRatesN: feeRates.length });

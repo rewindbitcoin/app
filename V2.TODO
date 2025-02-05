@@ -3,6 +3,9 @@ UXIO:
     Entonces se usa un modelo de passphrase. En el que se usan las 12 palabras y como passphrase algo derivado de tu seed hot.
     Y tiene un segundo modo de gasto q es directamente gasto en las 12 palabras + 1 año si las 12 palabras + passphrase se pierde.
     De modo q no se depende de asegurarse que uxio lo hace bien. y solo se confia en uxio tras 1 año.
+    -> Cual es el limite de tiempo relativo? hardcocded. 
+    -> 2^16 blocks, or ~15 months
+      -https://x.com/Rob1Ham/status/1884098158768332930
 
 
 HWW compatible mode:
