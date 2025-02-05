@@ -498,9 +498,7 @@ const SettingsScreen = () => {
               initialValue={
                 locale === 'default'
                   ? t('settings.general.systemDefault')
-                  : locale === 'en'
-                    ? 'English'
-                    : 'Español'
+                  : t(`settings.general.languageNames.${locale}`)
               }
             />
             <SettingsItem
@@ -757,7 +755,7 @@ const SettingsScreen = () => {
                     locale === code ? 'text-white' : 'text-black'
                   } text-center`}
                 >
-                  {code === 'en' ? 'English' : 'Español'}
+                  {t(`settings.general.languageNames.${code}`)}
                 </Text>
               </Pressable>
             ))}

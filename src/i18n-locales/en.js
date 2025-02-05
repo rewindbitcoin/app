@@ -775,7 +775,11 @@ Please wait a few moments until completion.`,
       gapLimit: 'Gap Limit',
       currency: 'Preferred Currency',
       language: 'Language',
-      systemDefault: 'System Default'
+      systemDefault: 'System Default',
+      languageNames: {
+        en: 'English',
+        es: 'Español'
+      }
     }
   },
   continueButton: 'Continue',
