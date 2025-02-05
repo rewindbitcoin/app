@@ -39,6 +39,7 @@ import {
   nativeApplicationVersion,
   nativeBuildVersion
 } from 'expo-application';
+import { locales } from '~/i18n-locales/init';
 
 function sanitizeFilename(name: string) {
   // Regex to remove invalid file path characters
@@ -278,8 +279,10 @@ const SettingsScreen = () => {
     useState<boolean>(false);
   const [exportProgress, setExportProgress] = useState<string>('');
 
-  const [isLanguageModalVisible, setIsLanguageModalVisible] = useState<boolean>(false);
-  const [isCurrencyModalVisible, setIsCurrencyModalVisible] = useState<boolean>(false);
+  const [isLanguageModalVisible, setIsLanguageModalVisible] =
+    useState<boolean>(false);
+  const [isCurrencyModalVisible, setIsCurrencyModalVisible] =
+    useState<boolean>(false);
 
   //delete
   const [isDeleteModalVisible, setIsDeleteModalVisible] =
@@ -374,7 +377,7 @@ const SettingsScreen = () => {
       const isConnected = await explorer.isConnected();
 
       if (isConnected) {
-        await explorer.close();
+        explorer.close();
         return true;
       } else console.warn(`Server ${url} is not connected`);
     } catch (err) {
@@ -492,7 +495,13 @@ const SettingsScreen = () => {
               onPress={() => {
                 setIsLanguageModalVisible(true);
               }}
-              initialValue={locale === 'default' ? t('settings.general.systemDefault') : locale === 'en' ? 'English' : 'Español'}
+              initialValue={
+                locale === 'default'
+                  ? t('settings.general.systemDefault')
+                  : locale === 'en'
+                    ? 'English'
+                    : 'Español'
+              }
             />
             <SettingsItem
               icon={{
@@ -732,7 +741,7 @@ const SettingsScreen = () => {
                 {t('settings.general.systemDefault')}
               </Text>
             </Pressable>
-            {languageCodes.map(code => (
+            {locales.map(code => (
               <Pressable
                 key={code}
                 onPress={() => {
