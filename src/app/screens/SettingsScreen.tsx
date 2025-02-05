@@ -273,13 +273,13 @@ const SettingsScreen = () => {
   } = useWallet();
   const toast = useToast();
   const { settings, setSettings } = useSettings();
-  const { currency, setCurrency } = useLocalization();
+  const { currency, setCurrency, locale, setLocale } = useLocalization();
   const [isBip39ModalVisible, setIsBip39ModalVisible] =
     useState<boolean>(false);
   const [exportProgress, setExportProgress] = useState<string>('');
 
-  const [isCurrencyModalVisible, setIsCurrencyModalVisible] =
-    useState<boolean>(false);
+  const [isLanguageModalVisible, setIsLanguageModalVisible] = useState<boolean>(false);
+  const [isCurrencyModalVisible, setIsCurrencyModalVisible] = useState<boolean>(false);
 
   //delete
   const [isDeleteModalVisible, setIsDeleteModalVisible] =
@@ -483,6 +483,17 @@ const SettingsScreen = () => {
             {t('settings.general.title')}
           </Text>
           <View className="bg-white rounded-xl">
+            <SettingsItem
+              icon={{
+                family: 'MaterialIcons',
+                name: 'language'
+              }}
+              label={t('settings.general.language')}
+              onPress={() => {
+                setIsLanguageModalVisible(true);
+              }}
+              initialValue={locale === 'default' ? t('settings.general.systemDefault') : locale === 'en' ? 'English' : 'Español'}
+            />
             <SettingsItem
               icon={{
                 family: 'MaterialIcons',
@@ -690,6 +701,57 @@ const SettingsScreen = () => {
                 />
               </>
             )}
+          </View>
+        </Modal>
+        <Modal
+          icon={{
+            family: 'MaterialIcons',
+            name: 'language'
+          }}
+          title={t('settings.general.language')}
+          isVisible={isLanguageModalVisible}
+          closeButtonText={t('closeButton')}
+          onClose={() => setIsLanguageModalVisible(false)}
+        >
+          <View className="p-4">
+            <Pressable
+              key="default"
+              onPress={() => {
+                setLocale('default');
+                setIsLanguageModalVisible(false);
+              }}
+              className={`py-2 px-4 rounded-lg ${
+                locale === 'default' ? 'bg-primary' : 'bg-gray-200'
+              } my-1`}
+            >
+              <Text
+                className={`${
+                  locale === 'default' ? 'text-white' : 'text-black'
+                } text-center`}
+              >
+                {t('settings.general.systemDefault')}
+              </Text>
+            </Pressable>
+            {languageCodes.map(code => (
+              <Pressable
+                key={code}
+                onPress={() => {
+                  setLocale(code);
+                  setIsLanguageModalVisible(false);
+                }}
+                className={`py-2 px-4 rounded-lg ${
+                  locale === code ? 'bg-primary' : 'bg-gray-200'
+                } my-1`}
+              >
+                <Text
+                  className={`${
+                    locale === code ? 'text-white' : 'text-black'
+                  } text-center`}
+                >
+                  {code === 'en' ? 'English' : 'Español'}
+                </Text>
+              </Pressable>
+            ))}
           </View>
         </Modal>
         <Modal

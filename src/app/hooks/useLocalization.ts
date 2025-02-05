@@ -46,9 +46,25 @@ export const useLocalization = () => {
     [setSettings, settings]
   );
 
+  const setLocale = useCallback(
+    (locale: Language | 'default') => {
+      if (!settings)
+        throw new Error('Cannot set locale with unloaded settings');
+      setSettings({ ...settings, LOCALE: locale });
+      if (locale === 'default') {
+        const systemLocale = locales[0]?.languageCode;
+        if (systemLocale) i18n.changeLanguage(systemLocale);
+      } else {
+        i18n.changeLanguage(locale);
+      }
+    },
+    [setSettings, settings, locales]
+  );
+
   return {
     locale: settings?.LOCALE || defaultSettings.LOCALE,
     currency: settings?.CURRENCY || defaultSettings.CURRENCY,
-    setCurrency
+    setCurrency,
+    setLocale
   };
 };
