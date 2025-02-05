@@ -773,7 +773,9 @@ Please wait a few moments until completion.`,
       communityBackups: 'Community Backups',
       regtestApiBase: 'Regtest API Base',
       gapLimit: 'Gap Limit',
-      currency: 'Preferred Currency'
+      currency: 'Preferred Currency',
+      language: 'Language',
+      systemDefault: 'System Default'
     }
   },
   continueButton: 'Continue',
