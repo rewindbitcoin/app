@@ -3,6 +3,8 @@
 
 //Package:
 //https://docs.expo.dev/versions/latest/sdk/localization/
+//FIXME: Poner en i18next (se puede, ver como ) los fallbacks para catalan y
+//gallego a español...
 
 import { i18n } from '../../i18n-locales/init';
 import { useLocales, getLocales } from 'expo-localization';
