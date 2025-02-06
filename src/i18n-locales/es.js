@@ -385,7 +385,7 @@ Mientras la aplicación esté en una fase de desarrollo temprano, desaconsejamos
   },
   learnMoreAboutVaults: {
     link: 'Aprende qué son las Bóvedas',
-    title: '¿Qué son las Bóvedas',
+    title: '¿Qué son las Bóvedas?',
     body: `Tu billetera está protegida con una Frase de Recuperación, similar a una contraseña. Si alguien obtiene acceso a esta frase mediante extorsión, robo o por un uso indebido, podrá acceder a tus fondos. Para prevenirlo, Rewind te permite congelar tu dinero en Bóvedas.
 
 Cuando congelas tu dinero, éste permanece bloqueado hasta que elijas descongelarlo. La descongelación no proporciona acceso inmediato. En su lugar, se inicia una cuenta regresiva que te da tiempo para actuar si es necesario.
@@ -398,29 +398,31 @@ Hay iconos de ayuda y consejos disponibles durante la configuración de la Bóve
   },
   vaultSetup: {
     title: 'Configuración de Bóveda',
-    fillInAll: 'Por favor, completa todos los campos anteriores para continuar.',
-    coldAddressMissing: 'Por favor, ingresa la Dirección de Emergencia para continuar.',
+    fillInAll:
+      'Por favor, completa todos los campos anteriores para continuar.',
+    coldAddressMissing:
+      'Por favor, ingresa la Dirección de Emergencia para continuar.',
     intro: 'Asegura los fondos que no necesitas a diario congelándolos.',
     prefilledAddress: 'Pre-rellenada con tu última dirección no utilizada.',
     prefilledAddressHelpTitle: 'Dirección Pre-rellenada',
-    prefilledAddressHelp: `La Dirección de Emergencia de tu bóveda más reciente está pre-rellenada para tu comodidad, así no necesitas mantener un registro de múltiples Frases de Emergencia. Por privacidad, una Dirección de Emergencia no se volverá a usar una vez que haya sido utilizada.
+    prefilledAddressHelp: `La Dirección de Emergencia de tu bóveda más reciente está pre-rellenada para tu comodidad. Así no necesitas mantener un registro de múltiples Frases de Emergencia. Por privacidad, una Dirección de Emergencia no se volverá a usar una vez que haya sido utilizada.
 
 Puedes reemplazar la dirección pre-rellenada o hacer clic en "Crear" para abrir un asistente y generar una nueva Dirección de Emergencia.
 
 Verifica la dirección cuidadosamente para asegurarte de que corresponde a una Frase de Emergencia bajo tu control:
 {{coldAddress}}.`,
-    notEnoughFunds: `<strong>Aviso de Cantidad Mínima para Bóveda</strong>
+    notEnoughFunds: `<strong>Aviso de Cantidad Mínima para una Bóveda</strong>
 
-Rewind requiere una cantidad mínima para congelar para asegurar que sea financieramente viable para ti.
+Rewind requiere una cantidad de congelación mínima para asegurar que tenga sentido financieramente.
 
 Queremos asegurarnos de que podrás rescatar tu Bóveda en caso de emergencia, independientemente de las comisiones futuras de Bitcoin.
 
-Esta cantidad mínima se calcula asumiendo que podrías necesitar confirmaciones rápidas y que las comisiones de red futuras podrían llegar a ser altas ({{feeRateCeiling}} Ksats/vB).
+Esta cantidad mínima se calcula asumiendo que podrías necesitar confirmaciones rápidas y que las comisiones de minería futuras podrían llegar a ser altas ({{feeRateCeiling}} Ksats/vB).
 
-<strong>Acción Sugerida:</strong> Por favor, agrega {{missingFunds}} para alcanzar la cantidad mínima requerida para la bóveda.`,
+<strong>Acción Sugerida:</strong> Por favor, agrega {{missingFunds}} para alcanzar la cantidad mínima requerida para crear la bóveda.`,
     amountLabel: 'Cantidad a Congelar',
     securityLockTimeLabel: 'Tiempo de Bloqueo Anti-robo',
-    securityLockTimeDescription: 'Se desbloquea {{blocks}} después de descongelar',
+    securityLockTimeDescription: 'Se desbloquea {{blocks}} trás descongelar',
     confirmationSpeedLabel: 'Velocidad de Confirmación de Bóveda',
     interrupt: `Hemos detectado cambios en tu billetera mientras configurabas una nueva bóveda.
 
