@@ -15,10 +15,10 @@ export default {
     pushError: `¡Ups! Hubo un problema al enviar tu transacción. Por favor, verifica tu conexión e inténtalo de nuevo.
 
 {{message}}`,
-    newWalletTitle: 'Nueva Cartera',
-    mainTitle: 'Carteras',
+    newWalletTitle: 'Nueva Billetera',
+    mainTitle: 'Billeteras',
     createVaultTitle: 'Creando Bóveda',
-    walletTitle: 'Cartera',
+    walletTitle: 'Billetera',
     //settingsButton: 'Ajustes',
     settingsTitle: 'Ajustes',
     feeEstimatesError: `No se pudieron obtener estimaciones de comisiones actualizadas. Los montos de las comisiones pueden ser ligeramente inexactos.`,
@@ -379,7 +379,7 @@ Cada vez que accedas a la billetera, necesitarás ingresar esta contraseña para
 Aunque la filtración de estos datos no comprometería tus fondos, cifrarlos asegura que, incluso si son accedidos por partes no autorizadas, nadie podrá discernir cómo usas tu billetera, como son tus hábitos de gasto o con quién realizas transacciones.`,
     network: `Rewind te permite elegir entre diferentes entornos de prueba, así como la red real de Bitcoin (disponible en Opciones Avanzadas).
 
-Actualmente, recomendamos usar la Red Tape, la red de prueba propia de Rewind. Tape emula la funcionalidad real de Bitcoin y te permite explorar operaciones de envío, recepción y creación de bóvedas de forma segura, ofreciendo tokens gratuitos para practicar.
+Actualmente, recomendamos usar la Red Tape que es la red de prueba propia de Rewind. Tape emula la funcionalidad de Bitcoin y te permite explorar operaciones de envío, recepción y creación de bóvedas de forma segura, ofreciendo tokens gratuitos para practicar.
 
 Mientras la aplicación esté en una fase de desarrollo temprano, desaconsejamos usar Bitcoin real para transacciones significativas.`
   },
