@@ -111,6 +111,32 @@ Si prefieres no usar biometría, puedes desactivar esta función en "Opciones Av
 Esto puede deberse a incompatibilidades con tu dispositivo, actualizaciones recientes en tu configuración biométrica (como agregar una nueva huella digital o actualizar el reconocimiento facial), o fallos repetidos en la autenticación.
 
 Como no se puede usar la biometría, te recomendamos ajustar el proceso de creación de la billetera. Por favor, desactiva la biometría y selecciona una contraseña en 'Opciones Avanzadas' durante la configuración de Nueva Billetera.`
+    },
+    existing: {
+      biometricsRequestDeclined:
+        'Se canceló el acceso a tu billetera. Para continuar, por favor permite la autenticación biométrica cuando se te solicite.',
+      biometricsAccessFailureIOS: `Estamos teniendo problemas para acceder a tu billetera debido a problemas con los permisos biométricos.
+
+Esto puede deberse a que los permisos biométricos fueron desactivados o revocados, o debido a fallos repetidos en la autenticación.
+
+Además, actualizar la configuración biométrica de tu dispositivo, como agregar una nueva huella digital o actualizar el reconocimiento facial, puede a veces invalidar las configuraciones anteriores.
+
+Si rechazaste el acceso biométrico, puedes activarlo yendo a Configuración > RewindBitcoin de tu dispositivo y activando Face ID o Touch ID (esto puede variar según tu versión de iOS y dispositivo).
+
+Este error también puede ocurrir si la aplicación se reinstala y se restaura con datos antiguos de iCloud de una instalación anterior, ya que la biometría no se incluye. En ese caso, elimina esta billetera usando el ícono de Configuración.
+
+Si el problema persiste, puedes recrear tu billetera usando tu Frase de Recuperación para recuperar el acceso a tus fondos y bóvedas.`,
+      biometricsAccessFailureNonIOS: `Estamos teniendo problemas para acceder a tu billetera debido a problemas con los permisos biométricos.
+
+Esto puede deberse a que los permisos biométricos fueron desactivados o revocados, o debido a fallos repetidos en la autenticación.
+
+Además, actualizar la configuración biométrica de tu dispositivo, como agregar una nueva huella digital o actualizar el reconocimiento facial, puede a veces invalidar las configuraciones anteriores.
+
+Si has cambiado recientemente alguna configuración biométrica, intenta reactivar la biometría en tu dispositivo o restaurar los permisos de la aplicación.
+
+Este error también puede ocurrir si la aplicación se reinstala y se restaura con datos antiguos de Google Drive de una instalación anterior, ya que la biometría no se incluye. En ese caso, elimina esta billetera usando el ícono de Configuración.
+
+Si el problema persiste, puedes recrear tu billetera usando tu Frase de Recuperación para recuperar el acceso a tus fondos y bóvedas.`
     }
   }
 };
