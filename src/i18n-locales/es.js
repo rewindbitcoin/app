@@ -1,4 +1,4 @@
-//Treat this as a golrified json with comments & multi-line using string literals
+//Treat this as a glorified json with comments & multi-line using string literals
 export default {
   app: {
     buildNumber: 'Compilación'
