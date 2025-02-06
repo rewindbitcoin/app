@@ -382,5 +382,18 @@ Aunque la filtración de estos datos no comprometería tus fondos, cifrarlos ase
 Actualmente, recomendamos usar la Red Tape, la red de prueba propia de Rewind. Tape emula la funcionalidad real de Bitcoin y te permite explorar operaciones de envío, recepción y creación de bóvedas de forma segura, ofreciendo tokens gratuitos para practicar.
 
 Mientras la aplicación esté en una fase de desarrollo temprano, desaconsejamos usar Bitcoin real para transacciones significativas.`
+  },
+  learnMoreAboutVaults: {
+    link: 'Aprende qué son las Bóvedas',
+    title: '¿Qué son las Bóvedas',
+    body: `Tu billetera está protegida con una Frase de Recuperación, similar a una contraseña. Si alguien obtiene acceso a esta frase mediante extorsión, robo o por un uso indebido, podrá acceder a tus fondos. Para prevenirlo, Rewind te permite congelar tu dinero en Bóvedas.
+
+Cuando congelas tu dinero, éste permanece bloqueado hasta que elijas descongelarlo. La descongelación no proporciona acceso inmediato. En su lugar, se inicia una cuenta regresiva que te da tiempo para actuar si es necesario.
+
+Supongamos que un atacante accede a tu billetera e intenta descongelar tus fondos para robarlos. Durante la cuenta regresiva, puedes cancelar este intento no autorizado moviendo inmediatamente los fondos a una Dirección de Emergencia. Rewind ofrece un asistente para ayudarte a configurar y asegurar esta dirección de rescate.
+
+Además, puedes delegar la tarea de rescate a una persona de confianza en caso de que te enfrentes a situaciones de extorsión, coacción o quedes incapacitado.
+
+Hay iconos de ayuda y consejos disponibles durante la configuración de la Bóveda para guiarte durante el proceso.`
   }
 };
