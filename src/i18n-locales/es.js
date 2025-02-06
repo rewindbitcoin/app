@@ -351,19 +351,19 @@ Instrucciones de Uso:
     }
   },
   network: {
-    testOn: 'Prueba en {{networkId}}',
+    testOn: 'Probar en {{networkId}}',
     realBitcoin: 'Usar Bitcoin real',
     testOrRealTitle: 'Bitcoin de Prueba o Real',
     testOrRealSubTitle:
       'Selecciona tu red: experimenta de forma segura en redes de prueba o procede con Bitcoin real.',
     help: {
       tapeNetworkBrief:
-        'Prueba sin riesgo en Tape, la red de prueba propia de Rewind que refleja el Bitcoin real. Recibe tokens al configurar y solicita más cuando los necesites.',
+        'Prueba sin riesgo en Tape, la red de prueba propia de Rewind que simula el Bitcoin real. Recibe tokens al crear una billetera y solicita más cuando los necesites.',
       testnetNetworkBrief:
         'Una red pública para pruebas de Bitcoin. Obtener tokens de Testnet puede ser difícil.',
       bitcoinNetworkBrief:
-        'La red Bitcoin real. No recomendada para uso mientras esta App está en fases tempranas.',
-      regtestNetworkBrief: 'Específicamente para uso de desarrolladores.'
+        'La red de Bitcoin real. No recomendada mientras la App está en fases tempranas.',
+      regtestNetworkBrief: 'Específica para desarrolladores.'
     }
   }
 };
