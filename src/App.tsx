@@ -98,7 +98,7 @@ const Main = () => {
     [t, onGoBack]
   );
 
-  //This will change the i18n language if the user dynamically chnages it
+  //This will change the i18n language if the user dynamically changes it
   useLocalization();
 
   //disable elastic effect

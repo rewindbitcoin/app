@@ -116,7 +116,6 @@ TODO: Make sure the addresses being generated are the new ones
 TODO: glitch sending coins twice. Investigate.
 
 TODO: Ojo q la lozalicacion edsta mal porque ahora me intenterá meter el español!!!
-  -> FIXME: Poner en i18next (se puede, ver como ) los fallbacks para catalan y gallego a español...
 
 TODO: La web de rewind deberia usar url dinamica para Rescue (services.env)
 

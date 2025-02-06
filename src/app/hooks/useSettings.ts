@@ -16,7 +16,7 @@ export const useSettings = () => {
       undefined,
       'GLOBAL'
     );
-  //FIXME: new defaults:
+  //FIXME: set these new defaults:
   //FIXME: old wallets won't inherit them, so what?
   if (settings) settings.PRESIGNED_FEE_RATE_CEILING = 100;
   if (settings) settings.INITIAL_LOCK_BLOCKS = 3 * 24 * 6;

@@ -10,7 +10,7 @@ import { i18n } from '../../i18n-locales/init';
 import { useLocales, getLocales } from 'expo-localization';
 import { useSettings } from './useSettings';
 import { Currency, defaultSettings } from '../lib/settings';
-import { useCallback } from 'react';
+import { useCallback, useEffect } from 'react';
 
 let lastLanguageSet: undefined | string = undefined;
 //This will be called as quick as possible,
