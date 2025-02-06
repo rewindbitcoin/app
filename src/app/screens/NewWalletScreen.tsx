@@ -318,7 +318,10 @@ export default function NewWalletScreen() {
       >
         <View className="max-w-lg p-4 gap-4">
           <Text className="native:text-base web:text-sm web:sm:text-base text-slate-600">
-            {t(
+            {
+
+                  //it should using strin literal. AI!
+                  t(
               isImport
                 ? 'bip39.importWalletSubText'
                 : 'bip39.createWalletSubText'
