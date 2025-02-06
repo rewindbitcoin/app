@@ -395,5 +395,35 @@ Supongamos que un atacante accede a tu billetera e intenta descongelar tus fondo
 Además, puedes delegar la tarea de rescate a una persona de confianza en caso de que te enfrentes a situaciones de extorsión, coacción o quedes incapacitado.
 
 Hay iconos de ayuda y consejos disponibles durante la configuración de la Bóveda para guiarte durante el proceso.`
+  },
+  vaultSetup: {
+    title: 'Configuración de Bóveda',
+    fillInAll: 'Por favor, completa todos los campos anteriores para continuar.',
+    coldAddressMissing: 'Por favor, ingresa la Dirección de Emergencia para continuar.',
+    intro: 'Asegura los fondos que no necesitas a diario congelándolos.',
+    prefilledAddress: 'Pre-rellenada con tu última dirección no utilizada.',
+    prefilledAddressHelpTitle: 'Dirección Pre-rellenada',
+    prefilledAddressHelp: `La Dirección de Emergencia de tu bóveda más reciente está pre-rellenada para tu comodidad, así no necesitas mantener un registro de múltiples Frases de Emergencia. Por privacidad, una Dirección de Emergencia no se volverá a usar una vez que haya sido utilizada.
+
+Puedes reemplazar la dirección pre-rellenada o hacer clic en "Crear" para abrir un asistente y generar una nueva Dirección de Emergencia.
+
+Verifica la dirección cuidadosamente para asegurarte de que corresponde a una Frase de Emergencia bajo tu control:
+{{coldAddress}}.`,
+    notEnoughFunds: `<strong>Aviso de Cantidad Mínima para Bóveda</strong>
+
+Rewind requiere una cantidad mínima para congelar para asegurar que sea financieramente viable para ti.
+
+Queremos asegurarnos de que podrás rescatar tu Bóveda en caso de emergencia, independientemente de las comisiones futuras de Bitcoin.
+
+Esta cantidad mínima se calcula asumiendo que podrías necesitar confirmaciones rápidas y que las comisiones de red futuras podrían llegar a ser altas ({{feeRateCeiling}} Ksats/vB).
+
+<strong>Acción Sugerida:</strong> Por favor, agrega {{missingFunds}} para alcanzar la cantidad mínima requerida para la bóveda.`,
+    amountLabel: 'Cantidad a Congelar',
+    securityLockTimeLabel: 'Tiempo de Bloqueo Anti-robo',
+    securityLockTimeDescription: 'Se desbloquea {{blocks}} después de descongelar',
+    confirmationSpeedLabel: 'Velocidad de Confirmación de Bóveda',
+    interrupt: `Hemos detectado cambios en tu billetera mientras configurabas una nueva bóveda.
+
+Por tu seguridad, por favor revisa estos cambios antes de continuar.`
   }
 };
