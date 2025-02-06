@@ -349,5 +349,21 @@ Instrucciones de Uso:
         'Rescatando tu bóveda. La cantidad final rescatada después de comisiones será {{amount}}. Esperando confirmación final...',
       openBlockExplorer: 'Ver en el Explorador de Bloques'
     }
+  },
+  network: {
+    testOn: 'Prueba en {{networkId}}',
+    realBitcoin: 'Usar Bitcoin real',
+    testOrRealTitle: 'Bitcoin de Prueba o Real',
+    testOrRealSubTitle:
+      'Selecciona tu red: experimenta de forma segura en redes de prueba o procede con Bitcoin real.',
+    help: {
+      tapeNetworkBrief:
+        'Prueba sin riesgo en Tape, la red de prueba propia de Rewind que refleja el Bitcoin real. Recibe tokens al configurar y solicita más cuando los necesites.',
+      testnetNetworkBrief:
+        'Una red pública para pruebas de Bitcoin. Obtener tokens de Testnet puede ser difícil.',
+      bitcoinNetworkBrief:
+        'La red Bitcoin real. No recomendada para uso mientras esta App está en fases tempranas.',
+      regtestNetworkBrief: 'Específicamente para uso de desarrolladores.'
+    }
   }
 };
