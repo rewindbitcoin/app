@@ -252,25 +252,26 @@ Una vez que se inicia el rescate, los fondos serán enviados a la Dirección de 
 Una vez que termine la cuenta regresiva, tus fondos serán desbloqueados y accesibles.`
         }
       }
+    }
+  },
+  walletHome: {
+    faucetStartMsg:
+      '¡Espera un momento! Estamos enviándote algunas monedas para empezar. Esto sólo tomará unos segundos.',
+    faucetDetectedMsg:
+      '¡Genial! Tus monedas de prueba han llegado. ¿Por qué no intentas congelarlas para ver cómo funciona?',
+    faucetErrorMsg:
+      'Ups! Hubo un problema al enviar tus monedas. Pulsa "Recibir" para intentar obtener tus monedas de prueba nuevamente.',
+    header: {
+      checkNetwork: 'Reintentar',
+      checkingNetwork: 'Verificando',
+      hotSubTitle: 'Saldo Disponible: Listo para uso inmediato',
+      frozenSubTitle: 'Saldo Congelado: Protegido en bóvedas',
+      testWalletWarning:
+        'Billetera de Prueba: Los precios se muestran como Bitcoin real para mayor realismo pero no tienen valor real.',
+      tapeWalletPlusWarning:
+        'Las comisiones también son como las reales para mayor realismo.'
     },
-    walletHome: {
-      faucetStartMsg:
-        '¡Espera un momento! Estamos enviándote algunas monedas para empezar. Esto sólo tomará unos segundos.',
-      faucetDetectedMsg:
-        '¡Genial! Tus monedas de prueba han llegado. ¿Por qué no intentas congelarlas para ver cómo funciona?',
-      faucetErrorMsg:
-        'Ups! Hubo un problema al enviar tus monedas. Pulsa "Recibir" para intentar obtener tus monedas de prueba nuevamente.',
-      header: {
-        checkNetwork: 'Reintentar',
-        checkingNetwork: 'Verificando',
-        hotSubTitle: 'Saldo Disponible: Listo para uso inmediato',
-        frozenSubTitle: 'Saldo Congelado: Protegido en bóvedas',
-        testWalletWarning:
-          'Billetera de Prueba: Los precios se muestran como Bitcoin real para mayor realismo pero no tienen valor real.',
-        tapeWalletPlusWarning:
-          'Las comisiones también son como las reales para mayor realismo.'
-      },
-      delegateReadme: `Para actuar de forma inmediata, abre este archivo en:
+    delegateReadme: `Para actuar de forma inmediata, abre este archivo en:
 https://rescue.rewindbitcoin.com
 
 Introducción:
@@ -307,6 +308,46 @@ Instrucciones de Uso:
    - Recuerda que todos estos pasos pueden gestionarse automáticamente usando
      la herramienta en línea en https://rescue.rewindbitcoin.com, que simplifica
      el proceso de identificación y cancelación.`
+  },
+  transaction: {
+    noTransactionsTitle: 'Aún no hay transacciones',
+    noTransactionsBody:
+      'Tus transacciones aparecerán aquí una vez que empieces a operar.',
+    pushedMinsAgo_zero: 'Confirmando... Enviada hace menos de un minuto',
+    pushedMinsAgo_one: 'Confirmando... Enviada hace {{count}} minuto',
+    pushedMinsAgo_other: 'Confirmando... Enviada hace {{count}} minutos',
+    pushedOnDate: 'Confirmando... Enviada el {{date}}',
+    recentlyPushed: 'Confirmando... Enviada recientemente',
+
+    confirmedMinsAgo_zero: 'Hace menos de un minuto',
+    confirmedMinsAgo_one: 'Hace {{count}} minuto',
+    confirmedMinsAgo_other: 'Hace {{count}} minutos',
+    confirmedOnDate: '{{date}}',
+    confirmedOnBlock: 'Confirmada en el bloque {{block}}',
+
+    header: {
+      vault: 'Creación de Bóveda {{vaultNumber}}',
+      trigger: 'Descongelación de Bóveda {{vaultNumber}}',
+      rescue: 'Rescate de Bóveda {{vaultNumber}}',
+      received: 'Recibido',
+      sent: 'Enviado',
+      receivedAndSent: 'Recibido y Enviado',
+      consolidated: 'Consolidación'
+    },
+    details: {
+      vault: 'Cantidad congelada después de comisiones: {{amount}}.',
+      triggerConfirmingPanic:
+        'Esta transacción inició la cuenta regresiva de descongelación. Se ha detectado un proceso de rescate y la cuenta regresiva está siendo interrumpida. El rescate aún se está confirmando. Por favor, espera la confirmación final...',
+      triggerConfirmedPanic:
+        'Esta transacción inició la cuenta regresiva de descongelación, pero fue interrumpida porque los fondos fueron rescatados.',
+      triggerWaiting:
+        'Esta transacción inició la cuenta regresiva de descongelación, que aún está en progreso. Los fondos, {{amount}} después de esta comisión de transacción, siguen congelados.',
+      triggerHotWallet:
+        'Esta transacción inició la cuenta regresiva de descongelación. La cuenta regresiva se completó, y los fondos, después de comisiones, pasaron a formar parte de tu saldo disponible (caliente).',
+      rescued: 'Cantidad rescatada después de comisiones: {{amount}}.',
+      rescuedConfirming:
+        'Rescatando tu bóveda. La cantidad final rescatada después de comisiones será {{amount}}. Esperando confirmación final...',
+      openBlockExplorer: 'Ver en el Explorador de Bloques'
     }
   }
 };

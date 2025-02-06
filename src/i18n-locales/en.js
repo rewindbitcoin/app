@@ -349,7 +349,8 @@ Usage Instructions:
   },
   transaction: {
     noTransactionsTitle: 'No Transactions Yet',
-    noTransactionsBody: `Your transactions will show up here once you start making moves.`,
+    noTransactionsBody:
+      'Your transactions will show up here once you start making moves.',
     pushedMinsAgo_zero: 'Confirming... Submitted less than a minute ago',
     pushedMinsAgo_one: 'Confirming... Submitted {{count}} minute ago',
     pushedMinsAgo_other: 'Confirming... Submitted {{count}} minutes ago',
