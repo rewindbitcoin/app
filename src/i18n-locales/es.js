@@ -37,12 +37,21 @@ export default {
     apiNotReachableWarning:
       'No se puede conectar a nuestros servicios. Esto afecta a las actualizaciones del precio de Bitcoin e impide operaciones con bóvedas debido a la interrupción de las copias de seguridad.',
     communityBackupsdNotReachableWarning:
-      'No se puede conectar al nodo de Copias de Seguridad Comunitarias. Esto impide operaciones con bóvedas debido a la interrupción de las copias de seguridad.',
+      'No se puede conectar al nodo de Community Backups. Esto impide operaciones con bóvedas debido a la interrupción de las copias de seguridad.',
     blockchainExplorerNotReachableWarning:
       'No se puede conectar al explorador de la blockchain. Esto impide actualizar el estado de tus transacciones y acceder a información actualizada de la red Bitcoin.',
     blockchainMainnetExplorerNotReachableWarning:
       'No se puede conectar al explorador de la blockchain. Esto impide actualizar el estado de tus transacciones y acceder a información actualizada de la red Bitcoin.',
     connectionRestoredInfo:
       'Conectividad restaurada. Todas las funciones de la billetera están ahora completamente operativas.'
+  },
+  wallets: {
+    addNew: 'Añadir Nueva',
+    importWalletButton: 'Importar Billetera',
+    mainWallet: 'Billetera Principal',
+    testWallet: 'Billetera de Prueba',
+    noRealValue: 'Sin Valor Real',
+    createdOn: 'Creada el',
+    walletId: 'Billetera {{id}}'
   }
 };
