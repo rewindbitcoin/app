@@ -53,5 +53,43 @@ export default {
     noRealValue: 'Sin Valor Real',
     createdOn: 'Creada el',
     walletId: 'Billetera {{id}}'
-  }
+  },
+  wallet: {
+    vaultTab: 'Bóvedas',
+    historyTab: 'Historial',
+    receive: 'Recibir',
+    send: 'Enviar',
+    freeze: 'Congelar',
+    optionalSetPasswordTitle: 'Proteger Billetera',
+    focedSetPasswordTitle: 'Establecer Nueva Contraseña',
+    forcedSetPasswordText: `Por favor, establece una nueva contraseña (8-32 caracteres).
+
+Si alguna vez olvidas tu contraseña, puedes recuperar tu billetera usando tu Frase de Recuperación.`,
+    optionalSetPasswordText: `Te sugerimos establecer una contraseña para aumentar la seguridad de tu billetera.
+
+Aunque es opcional, una contraseña protege tus activos, especialmente en plataformas donde no se puede usar el cifrado biométrico.`,
+    skipOptionalSetPasswordButton: 'No Usar Contraseña',
+    setPasswordButton: 'Establecer Contraseña',
+    requestPasswordTitle: 'Ingresar Contraseña',
+    requestPasswordButton: 'Ingresar Contraseña',
+    requestPasswordText: `Por favor, ingresa la contraseña de la billetera para continuar.
+
+Si has olvidado la contraseña de tu billetera, puedes crear una nueva usando tu Frase de Recuperación para recuperar el acceso.`,
+    advancedOptionsTitle: 'Opciones Avanzadas',
+    usePasswordTitle: 'Usar Contraseña',
+    biometricEncryptionTitle: 'Cifrado Biométrico',
+    passwordProtectionTitle: 'Protección con Contraseña',
+    encryptAppDataTitle: 'Cifrar Datos de la App',
+    networkTitle: 'Red',
+    importButton: 'Importar',
+    createNonRealBtcButton: 'Crear Billetera de Prueba',
+    createRealBtcButton: 'Crear Billetera',
+    importNonRealBtcButton: 'Importar Billetera de Prueba',
+    importRealBtcButton: 'Importar Billetera',
+    testingWalletInfo: 'Esta billetera no usará Bitcoin real.',
+    realWalletWarning: 'Billeteras con Bitcoin real actualmente desaconsejadas.',
+    creatingWallet: `⚡ Construyendo tu Billetera Rewind...
+
+¡Organizando bytes y alineando bits. ¡Espera un momento!`,
+    biometricsErrorTitle: 'Error Biométrico'
 };
