@@ -92,6 +92,25 @@ Si has olvidado la contraseña de tu billetera, puedes crear una nueva usando tu
     creatingWallet: `⚡ Construyendo tu Billetera Rewind...
 
 ¡Organizando bytes y alineando bits. ¡Espera un momento!`,
-    biometricsErrorTitle: 'Error Biométrico'
+    biometricsErrorTitle: 'Error Biométrico',
+    new: {
+      biometricsRequestDeclined: `No pudimos configurar la seguridad biométrica (reconocimiento facial o autenticación de huella digital) para tu billetera.
+
+Esto puede deberse a que no otorgaste los permisos necesarios, o tu dispositivo no es compatible con biometría.`,
+      biometricsCurrentlyDisabledNonIOS: `Como la biometría no se puede usar en este dispositivo, las nuevas billeteras usarán seguridad no biométrica por defecto hasta que otorgues los permisos.
+
+Para reactivar la biometría, ve a la Configuración de tu dispositivo y asegúrate de que los permisos biométricos estén habilitados.`,
+      biometricsCurrentlyDisabledIOS: `Como la biometría no se puede usar en este dispositivo, las nuevas billeteras usarán seguridad no biométrica por defecto hasta que otorgues los permisos.
+
+Si deseas reactivar la biometría, ve a Configuración > RewindBitcoin y activa Face ID o Touch ID (esto puede variar según tu versión de iOS y dispositivo).`,
+      biometricsHowDisable: `Por favor, inténtalo de nuevo y otorga los permisos necesarios.
+
+Si prefieres no usar biometría, puedes desactivar esta función en "Opciones Avanzadas" durante el proceso de configuración de Nueva Billetera.`,
+      biometricsReadWriteError: `La implementación biométrica en tu dispositivo tiene problemas.
+
+Esto puede deberse a incompatibilidades con tu dispositivo, actualizaciones recientes en tu configuración biométrica (como agregar una nueva huella digital o actualizar el reconocimiento facial), o fallos repetidos en la autenticación.
+
+Como no se puede usar la biometría, te recomendamos ajustar el proceso de creación de la billetera. Por favor, desactiva la biometría y selecciona una contraseña en 'Opciones Avanzadas' durante la configuración de Nueva Billetera.`
+    }
   }
 };
