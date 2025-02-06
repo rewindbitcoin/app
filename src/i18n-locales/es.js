@@ -30,5 +30,19 @@ export default {
       'Por favor, autentícate para acceder a los datos sensibles de tu cartera.',
     secureStorageCreationAuthenticationPrompt:
       'Por favor, autentícate para crear de forma segura una nueva cartera y cifrar tus datos sensibles.'
+  },
+  netStatus: {
+    internetNotReachableWarning:
+      'No se detecta conexión a Internet. Esto impide verificar el estado de la cartera, gestionar bóvedas y enviar o recibir fondos.',
+    apiNotReachableWarning:
+      'No se puede conectar a nuestros servicios. Esto afecta a las actualizaciones del precio de Bitcoin e impide operaciones con bóvedas debido a la interrupción de las copias de seguridad.',
+    communityBackupsdNotReachableWarning:
+      'No se puede conectar al nodo de Copias de Seguridad Comunitarias. Esto impide operaciones con bóvedas debido a la interrupción de las copias de seguridad.',
+    blockchainExplorerNotReachableWarning:
+      'No se puede conectar al explorador de la blockchain. Esto impide actualizar el estado de tus transacciones y acceder a información actualizada de la red Bitcoin.',
+    blockchainMainnetExplorerNotReachableWarning:
+      'No se puede conectar al explorador de la blockchain. Esto impide actualizar el estado de tus transacciones y acceder a información actualizada de la red Bitcoin.',
+    connectionRestoredInfo:
+      'Conectividad restaurada. Todas las funciones de la cartera están ahora completamente operativas.'
   }
 };
