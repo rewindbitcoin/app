@@ -21,10 +21,14 @@ export default {
     walletTitle: 'Cartera',
     settingsButton: 'Ajustes',
     settingsTitle: 'Ajustes',
-    feeEstimatesError: `No se pudieron obtener las estimaciones de comisiones actualizadas. Los montos de las comisiones pueden ser ligeramente inexactos.`,
-    tipStatusError: 'No se pudo obtener el último bloque de la blockchain. Los datos mostrados pueden no estar actualizados.',
-    btcRatesError: 'No se pudieron obtener las tasas actuales de BTC. Los montos mostrados en {{currency}} pueden no ser precisos.',
-    secureStorageAuthenticationPrompt: 'Por favor, autentícate para acceder a los datos sensibles de tu cartera.',
-    secureStorageCreationAuthenticationPrompt: 'Por favor, autentícate para crear de forma segura una nueva cartera y cifrar tus datos sensibles.'
+    feeEstimatesError: `No se pudieron obtener estimaciones de comisiones actualizadas. Los montos de las comisiones pueden ser ligeramente inexactos.`,
+    tipStatusError:
+      'No se pudo obtener el último bloque de la blockchain. Los datos mostrados pueden no estar actualizados.',
+    btcRatesError:
+      'No se pudieron obtener el cambio actual de BTC. Los montos mostrados en {{currency}} pueden no ser precisos.',
+    secureStorageAuthenticationPrompt:
+      'Por favor, autentícate para acceder a los datos sensibles de tu cartera.',
+    secureStorageCreationAuthenticationPrompt:
+      'Por favor, autentícate para crear de forma segura una nueva cartera y cifrar tus datos sensibles.'
   }
 };
