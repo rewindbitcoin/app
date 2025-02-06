@@ -427,5 +427,81 @@ Esta cantidad mínima se calcula asumiendo que podrías necesitar confirmaciones
     interrupt: `Hemos detectado cambios en tu billetera mientras configurabas una nueva bóveda.
 
 Por tu seguridad, por favor revisa estos cambios antes de continuar.`
+  },
+  send: {
+    title: 'Enviar Bitcoin',
+    notEnoughFunds: 'Fondos insuficientes para crear la transacción',
+    lowerFeeRate: `No es posible crear la transacción con la comisión seleccionada y tus fondos disponibles.
+
+Por favor, reduce la comisión o agrega más fondos.`,
+    invalidFeeRate: `Por favor, selecciona una comisión válida.`,
+    amountLabel: 'Cantidad a Enviar',
+    confirmationSpeedLabel: 'Velocidad de Confirmación',
+    txCalculateError:
+      'No se pudo crear la transacción. Sincroniza tu billetera e inténtalo de nuevo.',
+    txPushError:
+      'Problemas de conexión. No estamos seguros si la transacción fue enviada a la blockchain. Actualiza para verificar, y si falta, inténtalo de nuevo.',
+    txSuccess:
+      'Tu transacción ha sido creada y enviada exitosamente a la blockchain.',
+    confirm: `Tu transacción está lista para ser enviada. Por favor, revisa los siguientes valores antes de proceder:`,
+    confirmModalTitle: 'Revisar y Confirmar',
+    interrupt: `Hemos detectado cambios en tu billetera mientras preparabas una nueva transacción.
+
+Por tu seguridad, por favor revisa estos cambios antes de continuar.`,
+    confirmLabels: {
+      miningFee: 'Comisión de Minería',
+      amountLabel: 'Cantidad',
+      recipientAddress: 'Dirección'
+    }
+  },
+  receive: {
+    title: 'Recibir Bitcoin',
+    clipboard: '¡Dirección copiada al portapapeles!',
+    doneButton: 'Listo',
+    shareAddress: 'Compartir Dirección',
+    copyAddress: 'Copiar al Portapapeles',
+    intro: 'Comparte esta dirección para recibir Bitcoin',
+    faucetIntro: '¿Necesitas monedas de prueba?',
+    requestTokens: '¡Solicítalas aquí!',
+    faucetNote:
+      'Las monedas se proporcionan para practicar en la red de prueba {{networkName}}. Estos tokens de prueba no tienen valor real.'
+  },
+  createVault: {
+    intro: `Estamos configurando tu bóveda, generando múltiples combinaciones para minimizar las comisiones futuras de descongelación.
+
+Esto puede tomar unos 30 segundos, un poco más en dispositivos antiguos.
+
+A continuación, podrás confirmar todo.`,
+    miningFee: 'Comisión de Minería:',
+    serviceFee: 'Comisión de Bóveda:',
+    allFees: 'Comisiones:',
+    timeLock: 'Tiempo de Bloqueo:',
+    amount: 'Cantidad:',
+    emergencyAddress: 'Emergencia:',
+    confirmBackupSendVault: `Tu bóveda está lista para ser enviada. Por favor, revisa los siguientes valores antes de proceder:`,
+    encryptionBackupExplain: `También cifraremos y respaldaremos la configuración de la bóveda en la red P2P de Rewind para mayor seguridad.
+
+Si pierdes este dispositivo, podrás recuperar la bóveda usando solo tu Frase de Recuperación.
+
+Selecciona 'Enviar' para activar tu bóveda.`,
+    backupInProgress: 'Respaldando tu bóveda y verificando el respaldo...',
+    pushingVault: `Tu bóveda ha sido respaldada exitosamente y está almacenada de forma segura.
+
+Ahora, como paso final, estamos enviando tu bóveda a la blockchain para activarla...`,
+    fetchIssues: `Se detectaron problemas de conexión. La bóveda no fue creada. Por favor, verifica tu conexión a Internet e inténtalo de nuevo.
+
+{{message}}`,
+    connectivityIssues:
+      'Se detectaron problemas de conexión. La bóveda no fue creada. Por favor, verifica tu conexión a Internet e inténtalo de nuevo.',
+    vaultBackupError: `Error durante el respaldo. La bóveda no fue creada. Por favor, verifica tu conexión e inténtalo de nuevo.
+
+{{message}}`,
+    vaultPushError: `Problemas de conexión. El respaldo está completo, pero no estamos seguros si la bóveda fue enviada a la blockchain. Actualiza para verificar, y si falta, inténtalo de nuevo.
+
+{{message}}`,
+    vaultSuccess:
+      'Tu bóveda ha sido creada y enviada exitosamente a la blockchain.',
+    unexpectedError:
+      'La bóveda no pudo ser creada debido a un error inesperado. Por favor, inténtalo de nuevo y notifica al equipo de RewindBitcoin sobre el siguiente error: {{message}}.'
   }
 };
