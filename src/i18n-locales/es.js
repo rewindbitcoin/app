@@ -423,7 +423,7 @@ Esta cantidad mínima se calcula asumiendo que podrías necesitar confirmaciones
     amountLabel: 'Cantidad a Congelar',
     securityLockTimeLabel: 'Tiempo de Bloqueo Anti-robo',
     securityLockTimeDescription: 'Se desbloquea {{blocks}} trás descongelar',
-    confirmationSpeedLabel: 'Velocidad de Confirmación de Bóveda',
+    confirmationSpeedLabel: 'Velocidad de Confirmación',
     interrupt: `Hemos detectado cambios en tu billetera mientras configurabas una nueva bóveda.
 
 Por tu seguridad, por favor revisa estos cambios antes de continuar.`

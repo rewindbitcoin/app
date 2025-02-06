@@ -498,7 +498,7 @@ This minimum amount is calculated based on the assumption that you may need rapi
     amountLabel: 'Amount to Freeze',
     securityLockTimeLabel: 'Theft-Protection Time-Lock',
     securityLockTimeDescription: 'Unlocks {{blocks}} after unfreeze',
-    confirmationSpeedLabel: 'Vault Confirmation Speed',
+    confirmationSpeedLabel: 'Confirmation Speed',
     //lockTimeError: 'Pick a valid Lock Time.',
     //feeRateError: 'Pick a valid Fee Rate.',
     //amountError: 'Pick a valid amount of Btc.',
