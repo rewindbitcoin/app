@@ -19,7 +19,7 @@ export default {
     mainTitle: 'Carteras',
     createVaultTitle: 'Creando Bóveda',
     walletTitle: 'Cartera',
-    settingsButton: 'Ajustes',
+    //settingsButton: 'Ajustes',
     settingsTitle: 'Ajustes',
     feeEstimatesError: `No se pudieron obtener estimaciones de comisiones actualizadas. Los montos de las comisiones pueden ser ligeramente inexactos.`,
     tipStatusError:
@@ -47,7 +47,7 @@ export default {
   },
   wallets: {
     addNew: 'Añadir Nueva',
-    importWalletButton: 'Importar Billetera',
+    //importWalletButton: 'Importar Billetera',
     mainWallet: 'Billetera Principal',
     testWallet: 'Billetera de Prueba',
     noRealValue: 'Sin Valor Real',
@@ -80,8 +80,8 @@ Si has olvidado la contraseña de tu billetera, puedes crear una nueva usando tu
     biometricEncryptionTitle: 'Cifrado Biométrico',
     passwordProtectionTitle: 'Protección con Contraseña',
     encryptAppDataTitle: 'Cifrar Datos de la App',
-    networkTitle: 'Red',
-    importButton: 'Importar',
+    //networkTitle: 'Red',
+    //importButton: 'Importar',
     createNonRealBtcButton: 'Crear Billetera de Prueba',
     createRealBtcButton: 'Crear Billetera',
     importNonRealBtcButton: 'Importar Billetera de Prueba',

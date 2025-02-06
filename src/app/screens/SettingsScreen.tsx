@@ -739,23 +739,23 @@ const SettingsScreen = () => {
                 {t('settings.general.systemDefault')}
               </Text>
             </Pressable>
-            {locales.map(code => (
+            {locales.map(locale => (
               <Pressable
-                key={code}
+                key={locale}
                 onPress={() => {
-                  setLocale(code);
+                  setLocale(locale);
                   setIsLanguageModalVisible(false);
                 }}
                 className={`py-2 px-4 rounded-lg ${
-                  locale === code ? 'bg-primary' : 'bg-gray-200'
+                  locale === locale ? 'bg-primary' : 'bg-gray-200'
                 } my-1`}
               >
                 <Text
                   className={`${
-                    locale === code ? 'text-white' : 'text-black'
+                    locale === locale ? 'text-white' : 'text-black'
                   } text-center`}
                 >
-                  {t(`settings.general.languageNames.${code}`)}
+                  {t(`settings.general.languageNames.${locale}`)}
                 </Text>
               </Pressable>
             ))}

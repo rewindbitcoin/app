@@ -21,7 +21,7 @@ export default {
     createVaultTitle: 'Creating Vault',
 
     walletTitle: 'Wallet',
-    settingsButton: 'Settings',
+    //settingsButton: 'Settings',
     settingsTitle: 'Settings',
     feeEstimatesError: `Unable to retrieve up-to-date fee estimates. Fee amounts may be slightly off.`,
     tipStatusError:
@@ -51,7 +51,7 @@ export default {
   },
   wallets: {
     addNew: 'Add New',
-    importWalletButton: 'Import Wallet',
+    //importWalletButton: 'Import Wallet',
     mainWallet: 'Main Wallet',
     testWallet: 'Test Wallet',
     noRealValue: 'No Real Value',
@@ -90,8 +90,8 @@ If you've forgotten the password for your wallet, you can create a new wallet us
     biometricEncryptionTitle: 'Biometric Encryption',
     passwordProtectionTitle: 'Password Protect',
     encryptAppDataTitle: 'Encrypt App Data',
-    networkTitle: 'Network',
-    importButton: 'Import',
+    //networkTitle: 'Network',
+    //importButton: 'Import',
     createNonRealBtcButton: 'Create Test Wallet',
     createRealBtcButton: 'Create Wallet',
     importNonRealBtcButton: 'Import Test Wallet',
@@ -151,7 +151,7 @@ This error can also occur if the app was reinstalled and restored with old Googl
 If the issue persists, you can recreate your wallet using your Recovery Phrase to regain access to your funds and vaults.`
     },
     errors: {
-      storageTitle: 'Storage Error',
+      //storageTitle: 'Storage Error',
       storage: `There was an error reading from or writing to your device's\
  storage. This issue may be due to corrupt data, insufficient storage space,\
  or other storage-related problems. Please note that all your wallet data is\
@@ -175,9 +175,9 @@ If you need further assistance, please contact Rewind Support.`
       amountBeingUnfrozen: 'Amount Being Unfrozen',
       unfrozenAmount: 'Unfrozen Amount',
       rescuedAmount: 'Rescued Amount',
-      frozenAmount: 'Amount Frozen: {{amount}}.',
+      //frozenAmount: 'Amount Frozen: {{amount}}.',
       confirming: 'Confirming',
-      confirmed: 'Confirmed',
+      //confirmed: 'Confirmed',
 
       //pushedTrigger: 'An unfreeze request was made on {{triggerPushDate}}.',
       pushedTriggerNotConfirmed: 'Unfreeze requested on {{triggerPushDate}}.',
@@ -218,15 +218,15 @@ If you press 'Init Unfreeze', a waiting period of {{lockTime}} will begin, after
         'The vault was successfully unfrozen. The unfrozen funds are in the process of being spent in a recent transaction.',
       unfrozenAndHotBalance:
         'The vault was successfully unfrozen and is now part of your available balance.',
-      triggerWithRemainingTime:
-        "It's currently being unfrozen with {{remainingTime}} remaining.",
+      //triggerWithRemainingTime:
+      //  "It's currently being unfrozen with {{remainingTime}} remaining.",
 
-      beingUnfrozen: 'This vault is currently being unfrozen.',
-      triggerLabel: 'Unfreeze Request Date',
-      rescueDateLabel: 'Rescue Date',
-      rescueAddressLabel: 'Rescue Address',
-      vaultSpendableDateLabel: 'Lock Period End Date',
-      frozenRemainingDateLabel: 'Funds Unlock Estimated Date',
+      //beingUnfrozen: 'This vault is currently being unfrozen.',
+      //triggerLabel: 'Unfreeze Request Date',
+      //rescueDateLabel: 'Rescue Date',
+      //rescueAddressLabel: 'Rescue Address',
+      //vaultSpendableDateLabel: 'Lock Period End Date',
+      //frozenRemainingDateLabel: 'Funds Unlock Estimated Date',
 
       triggerUnfreeze: {
         intro: `You're about to start the process of unlocking your vault funds,\
@@ -461,7 +461,7 @@ Help icons and tips are available during Vault setup to guide you through the pr
   },
   vaultSetup: {
     title: 'Vault Set Up',
-    subTitle: 'Secure Your Bitcoin',
+    //subTitle: 'Secure Your Bitcoin',
     fillInAll: 'Please fill in all the fields above to continue.',
     coldAddressMissing: 'Please fill in the Emergency Address to continue.',
     //intro: 'Set the amount to secure and protection time-lock.',
@@ -474,7 +474,7 @@ You can replace the pre-filled address or click "Create" to open a wizard and ge
 
 Verify the address carefully to ensure it corresponds to an Emergency Phrase under your control:
 {{coldAddress}}.`,
-    notEnoughFundsTitle: 'Vault Minimum Requirement',
+    //notEnoughFundsTitle: 'Vault Minimum Requirement',
 
     //    notEnoughFunds: `<strong>Minimum Vault Amount Notice</strong>
     //
@@ -498,16 +498,16 @@ This minimum amount is calculated based on the assumption that you may need rapi
     securityLockTimeLabel: 'Theft-Protection Time-Lock',
     securityLockTimeDescription: 'Unlocks {{blocks}} after unfreeze',
     confirmationSpeedLabel: 'Vault Confirmation Speed',
-    lockTimeError: 'Pick a valid Lock Time.',
-    feeRateError: 'Pick a valid Fee Rate.',
-    amountError: 'Pick a valid amount of Btc.',
-    invalidValues: 'Invalid Values.',
-    reduceVaultAmount:
-      'Faster vault creation fees reduce maximum to {{amount}}',
-    days: 'days',
-    blocks: 'blocks',
-    feeRate: 'sats/vB',
-    vaultAllFundsShortBadge: 'All Funds',
+    //lockTimeError: 'Pick a valid Lock Time.',
+    //feeRateError: 'Pick a valid Fee Rate.',
+    //amountError: 'Pick a valid amount of Btc.',
+    //invalidValues: 'Invalid Values.',
+    //reduceVaultAmount:
+    //  'Faster vault creation fees reduce maximum to {{amount}}',
+    //days: 'days',
+    //blocks: 'blocks',
+    //feeRate: 'sats/vB',
+    //vaultAllFundsShortBadge: 'All Funds',
     interrupt: `We've detected changes in your wallet while you were setting up a new vault.
 
 For your security, please review these changes before proceeding.`
@@ -566,7 +566,7 @@ Next, you'll get to confirm everything.`,
     //label for Emergency Address in the summary that users review before
     //final submission
     emergencyAddress: 'Emergency:',
-    vaultedAmount: 'Amount to Freeze:',
+    //vaultedAmount: 'Amount to Freeze:',
     confirmBackupSendVault: `Your vault is ready for submission. Please review the following values before proceeding:`,
     encryptionBackupExplain: `We will also encrypt and back up the vault settings on Rewind's P2P network for added security.
 
@@ -621,17 +621,17 @@ Now, as the final step, we're sending your vault to the blockchain to activate i
     validWordsThatDontMatch: 'The entered Recovery Phrase does not match.',
     chooseImport: 'Want to import instead?',
     chooseNew: 'Need to create a new wallet?',
-    importWalletText: 'Restore Your Wallet',
+    //importWalletText: 'Restore Your Wallet',
     importWalletSubText:
       'Enter the mnemonic Recovery Phrase you saved when you first set up your wallet. This restores access to your existing wallet and its funds.',
-    createWalletText: 'Your New Wallet Awaits',
+    //createWalletText: 'Your New Wallet Awaits',
     createWalletSubText:
       "Below is your wallet's Recovery Phrase. Think of it as your password to the Bitcoin network. It's crucial for accessing your wallet if you switch devices or loose/damage your current one. Write it down and keep it somewhere safe.",
     segmented12: '12 Words',
     segmented24: '24 Words',
-    selectWordsLength: 'Number of words:',
-    enterMnemonicText: 'Word #{{wordNumber}}:',
-    importWalletButton: 'Import Wallet',
+    //selectWordsLength: 'Number of words:',
+    //enterMnemonicText: 'Word #{{wordNumber}}:',
+    //importWalletButton: 'Import Wallet',
     invalidErrorMessage:
       'The word sequence you entered is not valid. Please double-check your words for any errors.',
     confirmTitle: 'Phrase Verification',
@@ -670,7 +670,7 @@ For example, if you set a time-lock of 7 days, your funds will remain locked for
     invalidAddress: 'Invalid {{network}} address',
 
     textInputPlaceholderWithCreate: 'Enter/Create Address',
-    textInputPlaceholder: 'Enter an Address',
+    //textInputPlaceholder: 'Enter an Address',
     createNewButton: 'Create',
     coldAddress: {
       label: 'Emergency Address',
@@ -783,7 +783,7 @@ Please wait a few moments until completion.`,
   },
   continueButton: 'Continue',
   imInDangerButton: "I'm in danger",
-  okButton: 'OK',
+  //okButton: 'OK',
   loadMoreButton: 'Load More',
   dismissButton: 'Dismiss',
   goBack: 'Go Back',
@@ -796,7 +796,7 @@ Please wait a few moments until completion.`,
   cancelButton: 'Cancel',
   closeButton: 'Close',
   understoodButton: 'Understood',
-  factoryResetButton: 'Factory Reset',
+  //factoryResetButton: 'Factory Reset',
   tryAgain: 'Try Again',
   learnMore: 'Learn More.',
   helpButton: 'Help',
