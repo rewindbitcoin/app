@@ -36,10 +36,15 @@ export const useLocalization = () => {
   const selectedLanguage =
     settings?.LOCALE === 'default' ? systemLanguage : settings?.LOCALE;
 
-  if (selectedLanguage && lastLanguageSet !== selectedLanguage) {
-    lastLanguageSet = selectedLanguage;
-    i18n.changeLanguage(lastLanguageSet);
-  }
+  // Move i18n.changeLanguage to an effect to avoid state updates during render.
+  // Even though i18next manages its own state, calling changeLanguage during render
+  // violates React's rules about side effects and can cause unexpected behavior.
+  useEffect(() => {
+    if (selectedLanguage && lastLanguageSet !== selectedLanguage) {
+      lastLanguageSet = selectedLanguage;
+      i18n.changeLanguage(lastLanguageSet);
+    }
+  }, [selectedLanguage]);
 
   const setCurrency = useCallback(
     (currency: Currency) => {
