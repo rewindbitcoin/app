@@ -377,15 +377,10 @@ Cada vez que accedas a la billetera, necesitarás ingresar esta contraseña para
     encryptAppData: `Esta opción cifra tus datos no mnemónicos, como bóvedas y otros detalles de las transacciones, protegiendo tus patrones de uso y direcciones de una posible exposición, preservando tu anonimato.
 
 Aunque la filtración de estos datos no comprometería tus fondos, cifrarlos asegura que, incluso si son accedidos por partes no autorizadas, nadie podrá discernir cómo usas tu billetera, como son tus hábitos de gasto o con quién realizas transacciones.`,
-    network: `Rewind te permite elegir entre diferentes entornos de prueba, así 
-como la red real de Bitcoin (disponible en Opciones Avanzadas).
+    network: `Rewind te permite elegir entre diferentes entornos de prueba, así como la red real de Bitcoin (disponible en Opciones Avanzadas).
 
-Actualmente, recomendamos usar la Red Tape, la red de prueba propia de 
-Rewind. Tape emula la funcionalidad real de Bitcoin y te permite explorar 
-operaciones de envío, recepción y creación de bóvedas de forma segura, 
-ofreciendo tokens gratuitos para practicar.
+Actualmente, recomendamos usar la Red Tape, la red de prueba propia de Rewind. Tape emula la funcionalidad real de Bitcoin y te permite explorar operaciones de envío, recepción y creación de bóvedas de forma segura, ofreciendo tokens gratuitos para practicar.
 
-Mientras la aplicación esté en una fase de desarrollo temprano, 
-desaconsejamos usar Bitcoin real para transacciones significativas.`
+Mientras la aplicación esté en una fase de desarrollo temprano, desaconsejamos usar Bitcoin real para transacciones significativas.`
   }
 };
