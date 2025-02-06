@@ -367,20 +367,25 @@ Instrucciones de Uso:
     }
   },
   help: {
-    biometric: `Utiliza funciones biométricas, como huella digital o reconocimiento facial, para cifrar y almacenar de forma segura tu Frase de Recuperación en este dispositivo. Esto asegura que solo tú puedas acceder a ella.
+    biometric: `Se utiliza funciones biométricas, como la huella digital o el reconocimiento facial, para cifrar y almacenar de forma segura tu Frase de Recuperación en este dispositivo. Esto asegura que sólo tú puedas acceder a ella.
 
-Ten en cuenta que si tus datos biométricos cambian (como agregar una nueva huella digital), el sistema invalidará la clave de cifrado, haciendo que la Frase de Recuperación sea ilegible. En estos casos, necesitarás volver a ingresar la frase. Esta medida garantiza que solo tú puedas acceder a tu billetera.`,
-    password: `Establecer una contraseña cifra tu Frase de Recuperación, proporcionando una capa adicional de protección para tu billetera.
+Ten en cuenta que si tus datos biométricos cambian (por ejemplo, agregando una nueva huella digital), el sistema invalidará la clave de cifrado, haciendo que la Frase de Recuperación sea ilegible. En estos casos, necesitarás volver a ingresar la frase. Esta medida garantiza que sólo tú puedas acceder a tu billetera.`,
+    password: `Cuando se establece una contraseña, se cifra tu Frase de Recuperación, proporcionando una capa adicional de protección para tu billetera.
 
 Cada vez que accedas a la billetera, necesitarás ingresar esta contraseña para descifrar la frase.`,
     passwordWithBiometric: `Si tienes el cifrado biométrico activado, puede que no sea necesaria una contraseña ya que la biometría ya ofrece una seguridad robusta.`,
-    encryptAppData: `Esta opción cifra tus datos no mnemónicos, como bóvedas y detalles de transacciones, protegiendo tus patrones de transacción y direcciones de posible exposición, preservando tu anonimato.
+    encryptAppData: `Esta opción cifra tus datos no mnemónicos, como bóvedas y otros detalles de las transacciones, protegiendo tus patrones de uso y direcciones de una posible exposición, preservando tu anonimato.
 
-Aunque la filtración de estos datos no comprometería tus fondos, cifrarlos asegura que, incluso si son accedidos por partes no autorizadas, no podrán discernir cómo usas tu billetera, como tus hábitos de gasto o con quién realizas transacciones.`,
-    network: `Rewind ofrece una elección entre entornos de prueba y la red real de Bitcoin (a través de Opciones Avanzadas).
+Aunque la filtración de estos datos no comprometería tus fondos, cifrarlos asegura que, incluso si son accedidos por partes no autorizadas, nadie podrá discernir cómo usas tu billetera, como son tus hábitos de gasto o con quién realizas transacciones.`,
+    network: `Rewind te permite elegir entre diferentes entornos de prueba, así 
+como la red real de Bitcoin (disponible en Opciones Avanzadas).
 
-La opción actualmente recomendada es la Red Tape, la red de prueba propia de Rewind. Tape refleja la funcionalidad real de Bitcoin y te permite explorar operaciones de Envío/Recepción y Bóvedas de forma segura, ofreciendo tokens gratuitos para practicar.
+Actualmente, recomendamos usar la Red Tape, la red de prueba propia de 
+Rewind. Tape emula la funcionalidad real de Bitcoin y te permite explorar 
+operaciones de envío, recepción y creación de bóvedas de forma segura, 
+ofreciendo tokens gratuitos para practicar.
 
-Mientras la aplicación está en desarrollo temprano, desaconsejamos usar Bitcoin real para transacciones significativas.`
+Mientras la aplicación esté en una fase de desarrollo temprano, 
+desaconsejamos usar Bitcoin real para transacciones significativas.`
   }
 };
