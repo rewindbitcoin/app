@@ -137,6 +137,14 @@ Si has cambiado recientemente alguna configuración biométrica, intenta reactiv
 Este error también puede ocurrir si la aplicación se reinstala y se restaura con datos antiguos de Google Drive de una instalación anterior, ya que la biometría no se incluye. En ese caso, elimina esta billetera usando el ícono de Configuración.
 
 Si el problema persiste, puedes recrear tu billetera usando tu Frase de Recuperación para recuperar el acceso a tus fondos y bóvedas.`
+    },
+    errors: {
+      storageTitle: 'Error de Almacenamiento',
+      storage: `Hubo un error al leer o escribir en el almacenamiento de tu dispositivo. Este problema puede deberse a datos corruptos, espacio de almacenamiento insuficiente u otros problemas relacionados con el almacenamiento. Ten en cuenta que todos los datos de tu billetera están respaldados de forma segura en formato cifrado en la red P2P de Rewind.
+
+Para resolver este problema, intenta acceder a tu billetera nuevamente. Si el problema persiste, puedes recrear de forma segura tu billetera usando tu frase mnemónica de recuperación. Esto restaurará todos tus datos de forma segura desde los respaldos.
+
+Si necesitas más ayuda, por favor contacta al Soporte de Rewind.`
     }
   }
 };
