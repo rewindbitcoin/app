@@ -158,8 +158,8 @@ If the issue persists, you can recreate your wallet using your Recovery Phrase t
  securely backed up in an encrypted format on Rewinds's P2P network.
 
 To resolve this issue, please try accessing your wallet again. If the problem\
- persists, you can safely recreate your wallet using your mnemonic recovery\
- phrase. This will restore all your data securely from the backups.
+ persists, you can safely recreate your wallet using your mnemonic Recovery\
+ Phrase. This will restore all your data securely from the backups.
 
 If you need further assistance, please contact Rewind Support.`
     },
