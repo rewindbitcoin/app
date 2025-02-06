@@ -252,6 +252,61 @@ Una vez que se inicia el rescate, los fondos serán enviados a la Dirección de 
 Una vez que termine la cuenta regresiva, tus fondos serán desbloqueados y accesibles.`
         }
       }
+    },
+    walletHome: {
+      faucetStartMsg:
+        '¡Espera un momento! Estamos enviándote algunas monedas para empezar. Esto sólo tomará unos segundos.',
+      faucetDetectedMsg:
+        '¡Genial! Tus monedas de prueba han llegado. ¿Por qué no intentas congelarlas para ver cómo funciona?',
+      faucetErrorMsg:
+        'Ups! Hubo un problema al enviar tus monedas. Pulsa "Recibir" para intentar obtener tus monedas de prueba nuevamente.',
+      header: {
+        checkNetwork: 'Reintentar',
+        checkingNetwork: 'Verificando',
+        hotSubTitle: 'Saldo Disponible: Listo para uso inmediato',
+        frozenSubTitle: 'Saldo Congelado: Protegido en bóvedas',
+        testWalletWarning:
+          'Billetera de Prueba: Los precios se muestran como Bitcoin real para mayor realismo pero no tienen valor real.',
+        tapeWalletPlusWarning:
+          'Las comisiones también son como las reales para mayor realismo.'
+      },
+      delegateReadme: `Para actuar de forma inmediata, abre este archivo en:
+https://rescue.rewindbitcoin.com
+
+Introducción:
+Has recibido este archivo porque alguien ha confiado en ti para ayudarle
+en caso de acceso no autorizado a una de sus bóvedas, con el objetivo de
+proteger sus fondos Bitcoin contra robo o extorsión.
+Úsalo con prudencia y verifica la amenaza antes de proceder.
+
+Pasos de Recuperación:
+Si existen transacciones no autorizadas que amenazan fondos, este
+documento te permite cancelarlas para garantizar su seguridad.
+
+VERIFICA EL ESTADO DEL PROPIETARIO ANTES DE ACTUAR.
+
+Instrucciones de Uso:
+1. Recuperación Automatizada:
+   Para un proceso simplificado, visita https://rescue.rewindbitcoin.com.
+
+2. Recuperación Manual:
+   Este archivo contiene un mapa de transacciones de recuperación. Cada índice
+   en este mapa corresponde a un ID de transacción que podría haber iniciado
+   un desbloqueo no autorizado. Tu tarea es identificar qué ID de transacción
+   inició el proceso de desbloqueo.
+
+   Asociado a cada ID de transacción, encontrarás un conjunto de posibles
+   transacciones que pueden cancelar este desbloqueo, revirtiendo el acceso
+   no autorizado.
+
+   - Para cancelar manualmente un desbloqueo no autorizado, localiza el ID de
+     la transacción inicial, luego selecciona y envía una de las transacciones
+     de cancelación proporcionadas usando un explorador de blockchain con una
+     comisión adecuada para las condiciones actuales de la red.
+
+   - Recuerda que todos estos pasos pueden gestionarse automáticamente usando
+     la herramienta en línea en https://rescue.rewindbitcoin.com, que simplifica
+     el proceso de identificación y cancelación.`
     }
   }
 };
