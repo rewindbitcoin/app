@@ -440,7 +440,7 @@ Por favor, reduce la comisión o agrega más fondos.`,
     txCalculateError:
       'No se pudo crear la transacción. Sincroniza tu billetera e inténtalo de nuevo.',
     txPushError:
-      'Problemas de conexión. No estamos seguros si la transacción fue enviada a la blockchain. Actualiza para verificar, y si falta, inténtalo de nuevo.',
+      'Problemas de conexión. No estamos seguros si la transacción fue enviada a la blockchain. Actualiza para verificar, y si no aparece, inténtalo de nuevo.',
     txSuccess:
       'Tu transacción ha sido creada y enviada exitosamente a la blockchain.',
     confirm: `Tu transacción está lista para ser enviada. Por favor, revisa los siguientes valores antes de proceder:`,
@@ -457,7 +457,7 @@ Por tu seguridad, por favor revisa estos cambios antes de continuar.`,
   receive: {
     title: 'Recibir Bitcoin',
     clipboard: '¡Dirección copiada al portapapeles!',
-    doneButton: 'Listo',
+    doneButton: '¡Listo!',
     shareAddress: 'Compartir Dirección',
     copyAddress: 'Copiar al Portapapeles',
     intro: 'Comparte esta dirección para recibir Bitcoin',
@@ -471,7 +471,7 @@ Por tu seguridad, por favor revisa estos cambios antes de continuar.`,
 
 Esto puede tomar unos 30 segundos, un poco más en dispositivos antiguos.
 
-A continuación, podrás confirmar todo.`,
+A continuación, podrás confirmarlo todo.`,
     miningFee: 'Comisión de Minería:',
     serviceFee: 'Comisión de Bóveda:',
     allFees: 'Comisiones:',
@@ -479,13 +479,13 @@ A continuación, podrás confirmar todo.`,
     amount: 'Cantidad:',
     emergencyAddress: 'Emergencia:',
     confirmBackupSendVault: `Tu bóveda está lista para ser enviada. Por favor, revisa los siguientes valores antes de proceder:`,
-    encryptionBackupExplain: `También cifraremos y respaldaremos la configuración de la bóveda en la red P2P de Rewind para mayor seguridad.
+    encryptionBackupExplain: `También cifraremos y respaldaremos con un backup la configuración de la bóveda en la red P2P de Rewind para mayor seguridad.
 
 Si pierdes este dispositivo, podrás recuperar la bóveda usando solo tu Frase de Recuperación.
 
 Selecciona 'Enviar' para activar tu bóveda.`,
-    backupInProgress: 'Respaldando tu bóveda y verificando el respaldo...',
-    pushingVault: `Tu bóveda ha sido respaldada exitosamente y está almacenada de forma segura.
+    backupInProgress: 'Respaldando tu bóveda y verificando el backup...',
+    pushingVault: `Tu bóveda ha sido respaldada en un backup exitosamente y está almacenada de forma segura.
 
 Ahora, como paso final, estamos enviando tu bóveda a la blockchain para activarla...`,
     fetchIssues: `Se detectaron problemas de conexión. La bóveda no fue creada. Por favor, verifica tu conexión a Internet e inténtalo de nuevo.
@@ -493,10 +493,10 @@ Ahora, como paso final, estamos enviando tu bóveda a la blockchain para activar
 {{message}}`,
     connectivityIssues:
       'Se detectaron problemas de conexión. La bóveda no fue creada. Por favor, verifica tu conexión a Internet e inténtalo de nuevo.',
-    vaultBackupError: `Error durante el respaldo. La bóveda no fue creada. Por favor, verifica tu conexión e inténtalo de nuevo.
+    vaultBackupError: `Error durante el backup. La bóveda no fue creada. Por favor, verifica tu conexión e inténtalo de nuevo.
 
 {{message}}`,
-    vaultPushError: `Problemas de conexión. El respaldo está completo, pero no estamos seguros si la bóveda fue enviada a la blockchain. Actualiza para verificar, y si falta, inténtalo de nuevo.
+    vaultPushError: `Problemas de conexión. El backup está completo, pero no estamos seguros si la bóveda fue enviada a la blockchain. Actualiza para verificar, y si falta, inténtalo de nuevo.
 
 {{message}}`,
     vaultSuccess:
