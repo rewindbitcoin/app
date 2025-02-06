@@ -87,9 +87,11 @@ Si has olvidado la contraseña de tu billetera, puedes crear una nueva usando tu
     importNonRealBtcButton: 'Importar Billetera de Prueba',
     importRealBtcButton: 'Importar Billetera',
     testingWalletInfo: 'Esta billetera no usará Bitcoin real.',
-    realWalletWarning: 'Billeteras con Bitcoin real actualmente desaconsejadas.',
+    realWalletWarning:
+      'Billeteras con Bitcoin real actualmente desaconsejadas.',
     creatingWallet: `⚡ Construyendo tu Billetera Rewind...
 
 ¡Organizando bytes y alineando bits. ¡Espera un momento!`,
     biometricsErrorTitle: 'Error Biométrico'
+  }
 };
