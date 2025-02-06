@@ -158,63 +158,77 @@ Si necesitas más ayuda, por favor contacta con el equipo de Soporte de Rewind.`
       unfrozenAmount: 'Cantidad Descongelada',
       rescuedAmount: 'Cantidad Rescatada',
       confirming: 'Confirmando',
-      pushedTriggerNotConfirmed: 'Descongelación solicitada el {{triggerPushDate}}.',
-      confirmedTrigger: 'Cuenta regresiva de {{lockTime}} iniciada el {{triggerConfirmedDate}}.',
-      triggerWithEstimatedDate: 'Descongelación estimada para el {{estimatedUnfreezeDate}}.',
-      triggerWithEstimatedDateButRescued: 'Descongelación planeada para el {{plannedUnfreezeDateButRescued}}.',
+      pushedTriggerNotConfirmed:
+        'Descongelación solicitada el {{triggerPushDate}}.',
+      confirmedTrigger:
+        'Cuenta regresiva de {{lockTime}} iniciada el {{triggerConfirmedDate}}.',
+      triggerWithEstimatedDate:
+        'Descongelación estimada para el {{estimatedUnfreezeDate}}.',
+      triggerWithEstimatedDateButRescued:
+        'Descongelación planeada para el {{plannedUnfreezeDateButRescued}}.',
       unfrozenDate: 'Descongelada el {{unfrozenDate}}.',
-      unfrozenOnNextBlock: 'La bóveda acaba de ser virtualmente descongelada. Los fondos podrán ser utilizados en el próximo bloque.',
+      unfrozenOnNextBlock:
+        'La bóveda está virtualmente descongelada. Los fondos podrán ser utilizados en el próximo bloque.',
       timeRemaining: '{{timeRemaining}} restante',
       untriggeredLockTime: 'Tiempo de Bloqueo: {{timeRemaining}}',
-      vaultNotFound: 'Esta bóveda nunca fue incluida en la blockchain. Las comisiones podrían haber sido muy bajas, podría haber sido reemplazada por otra transacción, o podría haber habido un error de red durante el envío.',
+      vaultNotFound:
+        'Esta bóveda nunca fue incluida en la blockchain. Las comisiones podrían haber sido muy bajas, podría haber sido reemplazada por otra transacción, o podría haber habido un error de red durante el envío.',
       notTriggeredUnconfirmed: `Tus fondos están apartados de forma segura, esperando la confirmación final de la blockchain (esto puede tomar unos minutos).
 Si presionas 'Iniciar Descongelación', comenzará un período de espera de {{lockTime}}, después del cual los fondos estarán disponibles.`,
       notTriggered: `Los fondos están congelados de forma segura. Si presionas 'Iniciar Descongelación', comenzará un período de espera de {{lockTime}}, después del cual los fondos estarán disponibles.`,
       rescueNotConfirmed: `Rescate solicitado el {{rescuePushDate}}.`,
-      rescueNotConfirmedUnknownPush: `Rescate de Bóveda recientemente enviado.`,
+      rescueNotConfirmedUnknownPush: `Rescate de Bóveda recientemente transmitido.`,
       confirmedRescue: `Rescatada el {{rescuedDate}}.`,
-      rescueNotConfirmedAddress: 'Rescate solicitado exitosamente (esperando confirmación). Los fondos están siendo movidos a tu dirección segura ahora mismo:',
-      confirmedRescueAddress: 'La bóveda fue rescatada exitosamente y los fondos fueron movidos a tu dirección segura:',
-      unfrozenAndSpent: 'La bóveda fue descongelada exitosamente. Los fondos descongelados fueron gastados el {{spentAsHotDate}} y ya no están disponibles.',
-      unfrozenAndSpentPushed: 'La bóveda fue descongelada exitosamente. Los fondos descongelados están en proceso de ser gastados en una transacción reciente.',
-      unfrozenAndHotBalance: 'La bóveda fue descongelada exitosamente y ahora forma parte de tu saldo disponible.',
+      rescueNotConfirmedAddress:
+        'Rescate solicitado exitosamente (esperando confirmación). Los fondos están siendo movidos a tu dirección segura ahora mismo:',
+      confirmedRescueAddress:
+        'La bóveda fue rescatada exitosamente y los fondos fueron movidos a tu dirección segura:',
+      unfrozenAndSpent:
+        'La bóveda fue descongelada exitosamente. Los fondos descongelados fueron gastados el {{spentAsHotDate}} y ya no están disponibles.',
+      unfrozenAndSpentPushed:
+        'La bóveda fue descongelada exitosamente. Los fondos descongelados están en proceso de ser gastados en una transacción reciente.',
+      unfrozenAndHotBalance:
+        'La bóveda fue descongelada exitosamente y ahora forma parte de tu saldo disponible.',
       noFundsTile: 'Sin Fondos Congelados Aún',
-      noFundsBody: 'Mantén tus ahorros seguros congelando en Bóvedas los fondos que no necesitas diariamente.',
+      noFundsBody:
+        'Mantén tus ahorros seguros congelando en Bóvedas los fondos que no necesitas diariamente.',
       triggerUnfreeze: {
-        intro: `Estás a punto de iniciar el proceso de desbloqueo de los fondos de tu bóveda, que eventualmente estarán listos para ser gastados.
+        intro: `Estás a punto de iniciar el proceso de desbloqueo de los fondos de tu bóveda, que, llegado el momento, estarán listos para ser gastados.
 
 Esto iniciará la cuenta regresiva de descongelación. Los fondos se desbloquearán y estarán disponibles después de {{timeLockTime}}.
 
-Toca "Continuar" para elegir la comisión minera e iniciar la cuenta regresiva de descongelación.`,
-        confirmationSpeedLabel: 'Comisión de Cuenta Regresiva de Descongelación',
-        feeSelectorExplanation: 'Selecciona una comisión minera para solicitar el inicio de la cuenta regresiva de descongelación.',
+Pulsa "Continuar" para elegir la comisión minera e iniciar la cuenta regresiva de descongelación.`,
+        confirmationSpeedLabel: 'Comisión',
+        feeSelectorExplanation:
+          'Elige la comisión de minería para iniciar la cuenta regresiva de descongelación.',
         additionalExplanation: `La cuenta regresiva de {{timeLockTime}} comenzará una vez que se confirme la solicitud de descongelación.
 
-Toca "Iniciar Descongelación" para solicitar el inicio de la cuenta regresiva de descongelación.`
+Pulsa "Iniciar Descongelación" para solicitar el inicio de la cuenta regresiva de descongelación.`
       },
       rescue: {
-        confirmationSpeedLabel: 'Comisión de Transacción de Rescate',
+        confirmationSpeedLabel: 'Comisión',
         intro: `Estás a punto de iniciar el rescate de los fondos de tu bóveda. Esto moverá los fondos inmediatamente a tu Dirección de Emergencia preconfigurada:
 
 {{panicAddress}}
 
-Es probable que esta dirección sea difícil de acceder si seguiste las pautas recomendadas durante la Configuración de la Bóveda. Asegúrate de que eventualmente puedas acceder a ella. Una vez que los fondos sean enviados, esta billetera ya no tendrá acceso a ellos.
+Es probable que esta dirección sea difícil de acceder si seguiste las pautas recomendadas durante la Configuración de la Bóveda. Asegúrate de que, llegado el momento, puedas acceder a ella. Una vez que los fondos sean enviados, esta billetera ya no tendrá acceso a ellos.
 
 Esta acción está diseñada para situaciones extremas, como robo o extorsión, para garantizar la seguridad de tus Bitcoin. Asegúrate de que esta sea una decisión deliberada.`,
-        feeSelectorExplanation: 'Selecciona una comisión minera para la transacción de rescate para asegurar un procesamiento rápido.',
+        feeSelectorExplanation:
+          'Elige la comisión de minería de la transacción de rescate para asegurar un procesamiento rápido.',
         additionalExplanation: `Una vez que se confirme la solicitud de rescate, los fondos serán movidos a tu Dirección de Emergencia instantáneamente.
 
-Toca 'Rescatar' para iniciar el proceso de rescate.`
+Pulsa 'Rescatar' para iniciar el proceso de rescate.`
       },
       delegate: {
         title: 'Archivo de Delegación',
-        text: `Estás a punto de generar un archivo de delegación. Este archivo puede ser compartido con una persona de confianza que puede ayudar a proteger tus Bitcoin.
+        text: `Estás a punto de generar un archivo de delegación. Este archivo puede ser compartido con una persona de confianza que te pueda ayudar a proteger tus Bitcoin.
 
-En caso de emergencia, la persona delegada puede usar el archivo para enviar tus fondos a la Dirección de Emergencia que especificaste durante la Configuración de la Bóveda. El archivo solo contiene la información necesaria para esto y no incluye ninguna clave para acceder a tus fondos.
+En caso de emergencia, la persona delegada puede usar el archivo para enviar tus fondos a la Dirección de Emergencia que especificaste durante la Configuración de la Bóveda. El archivo sólo contiene la información necesaria para hacer esto y no incluye ninguna clave para acceder a tus fondos.
 
-Los delegados deben visitar rewindbitcoin.com y seguir las instrucciones sencillas para completar la operación de rescate fácilmente. Los delegados con conocimientos técnicos de Bitcoin pueden leer el archivo y seguir las instrucciones directamente.
+Los delegados deben visitar rewindbitcoin.com y seguir instrucciones sencillas para completar la operación de rescate fácilmente. Los delegados con conocimientos técnicos de Bitcoin pueden leer el archivo y seguir las instrucciones directamente.
 
-Toca "Delegar" para generar y compartir el archivo de delegación.`
+Pulsa "Delegar" para generar y compartir el archivo de delegación.`
       },
       help: {
         delegate: {
@@ -223,7 +237,7 @@ Toca "Delegar" para generar y compartir el archivo de delegación.`
 
 Si no puedes acceder físicamente a tu billetera debido a circunstancias como incapacitación o coerción, la persona delegada puede asegurar tus fondos moviéndolos a tu Dirección de Emergencia.
 
-El delegado no puede acceder ni gastar los fondos; solo puede enviar los fondos a la Dirección de Emergencia que especificaste durante la Configuración. El delegado nunca tiene acceso a ninguna de tus claves y solo maneja transacciones pre-firmadas, lo que hace seguro transferir esta responsabilidad.`
+El delegado no puede acceder ni gastar los fondos; sólo puede enviar los fondos a la Dirección de Emergencia que especificaste durante la Configuración. El delegado nunca tiene acceso a ninguna de tus claves y sólo maneja transacciones pre-firmadas, lo que hace seguro transferir esta responsabilidad.`
         },
         rescue: {
           title: 'Rescatar Fondos',
