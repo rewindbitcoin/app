@@ -700,8 +700,8 @@ Por favor, espera unos momentos hasta que se complete.`,
   globalError: {
     general: `Ha ocurrido un error inesperado. A continuación encontrarás detalles adicionales que pueden ayudar a identificar el problema. Parte de esta información es técnica y está destinada a desarrolladores. No hay motivo de preocupación inmediata.
 
-Tu billetera debería seguir estando segura. Por favor, pulsa 'Intentar de Nuevo' para recargar la aplicación. Si el problema persiste, considera restaurar tu billetera usando tu Frase de Recuperación. Tus bóvedas y datos relacionados se recuperarán de los respaldos comunitarios en línea.
+Tu billetera debería seguir siendo segura. Por favor, pulsa 'Intentar de Nuevo' para recargar la aplicación. Si el problema persiste, considera restaurar tu billetera usando tu Frase de Recuperación. Tus bóvedas y datos relacionados se recuperarán de los backups comunitarios online.
 
-Para obtener más ayuda o reportar este problema, por favor contacta con el soporte de RewindBitcoin en rewindbitcoin.com o contáctanos en x.com/rewindbitcoin.`
+Para obtener más ayuda o reportar este problema, por favor contacta con el soporte de RewindBitcoin.`
   }
 };
