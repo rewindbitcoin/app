@@ -70,9 +70,9 @@ Si alguna vez olvidas tu contraseña, puedes recuperar tu billetera usando tu Fr
 Aunque es opcional, una contraseña protege tus activos, especialmente en plataformas donde no se puede usar el cifrado biométrico.`,
     skipOptionalSetPasswordButton: 'No Usar Contraseña',
     setPasswordButton: 'Establecer Contraseña',
-    requestPasswordTitle: 'Ingresar Contraseña',
-    requestPasswordButton: 'Ingresar Contraseña',
-    requestPasswordText: `Por favor, ingresa la contraseña de la billetera para continuar.
+    requestPasswordTitle: 'Intoducir Contraseña',
+    requestPasswordButton: 'Intoducir Contraseña',
+    requestPasswordText: `Por favor, escribe la contraseña de la billetera para continuar.
 
 Si has olvidado la contraseña de tu billetera, puedes crear una nueva usando tu Frase de Recuperación para recuperar el acceso.`,
     advancedOptionsTitle: 'Opciones Avanzadas',
@@ -369,10 +369,10 @@ Instrucciones de Uso:
   help: {
     biometric: `Se utiliza funciones biométricas, como la huella digital o el reconocimiento facial, para cifrar y almacenar de forma segura tu Frase de Recuperación en este dispositivo. Esto asegura que sólo tú puedas acceder a ella.
 
-Ten en cuenta que si tus datos biométricos cambian (por ejemplo, agregando una nueva huella digital), el sistema invalidará la clave de cifrado, haciendo que la Frase de Recuperación sea ilegible. En estos casos, necesitarás volver a ingresar la frase. Esta medida garantiza que sólo tú puedas acceder a tu billetera.`,
+Ten en cuenta que si tus datos biométricos cambian (por ejemplo, agregando una nueva huella digital), el sistema invalidará la clave de cifrado, haciendo que la Frase de Recuperación sea ilegible. En estos casos, necesitarás volver a escribir la frase. Esta medida garantiza que sólo tú puedas acceder a tu billetera.`,
     password: `Cuando se establece una contraseña, se cifra tu Frase de Recuperación, proporcionando una capa adicional de protección para tu billetera.
 
-Cada vez que accedas a la billetera, necesitarás ingresar esta contraseña para descifrar la frase.`,
+Cada vez que accedas a la billetera, necesitarás escribir esta contraseña para descifrar la frase.`,
     passwordWithBiometric: `Si tienes el cifrado biométrico activado, puede que no sea necesaria una contraseña ya que la biometría ya ofrece una seguridad robusta.`,
     encryptAppData: `Esta opción cifra tus datos no mnemónicos, como bóvedas y otros detalles de las transacciones, protegiendo tus patrones de uso y direcciones de una posible exposición, preservando tu anonimato.
 
@@ -401,7 +401,7 @@ Hay iconos de ayuda y consejos disponibles durante la configuración de la Bóve
     fillInAll:
       'Por favor, completa todos los campos anteriores para continuar.',
     coldAddressMissing:
-      'Por favor, ingresa la Dirección de Emergencia para continuar.',
+      'Por favor, escribe la Dirección de Emergencia para continuar.',
     intro: 'Asegura los fondos que no necesitas a diario congelándolos.',
     prefilledAddress: 'Pre-rellenada con tu última dirección no utilizada.',
     prefilledAddressHelpTitle: 'Dirección Pre-rellenada',
@@ -507,7 +507,7 @@ Ahora, como paso final, estamos enviando tu bóveda a la blockchain para activar
   editableSlider: {
     maxValueError: 'El máximo es {{maximumValue}}',
     minValueError: 'El mínimo es {{minimumValue}}',
-    invalidValue: 'Valor Inválido'
+    invalidValue: 'Valor inválido'
   },
   timeEstimate: {
     minutes_one: '{{formattedCount}} min',
@@ -518,30 +518,30 @@ Ahora, como paso final, estamos enviando tu bóveda a la blockchain para activar
     days_other: '{{formattedCount}} días'
   },
   feeRate: {
-    waitingForRates: 'Esperando tasas de BTC/{{currency}}...',
-    waitingForEstimates: 'Esperando estimaciones de comisiones...',
+    waitingForRates: 'Cargando el cambio BTC/{{currency}}...',
+    waitingForEstimates: 'Cargando estimaciones de comisiones...',
     fee: 'Comisión: {{amount}}',
-    confirmationTime: 'Confirma en ~{{blocks}}',
-    mayNotConfirm: 'Podría No Confirmar',
-    expressConfirmation: 'Confirmación Rápida'
+    confirmationTime: 'Confirmación en ~{{blocks}}',
+    mayNotConfirm: 'Podría no confirmarse',
+    expressConfirmation: 'Confirmación rápida'
   },
   bip39: {
-    validWordsThatDontMatch: 'La Frase de Recuperación ingresada no coincide.',
+    validWordsThatDontMatch: 'La Frase de Recuperación no coincide.',
     chooseImport: '¿Quieres importar en su lugar?',
     chooseNew: '¿Necesitas crear una nueva billetera?',
     importWalletSubText:
-      'Ingresa la Frase de Recuperación que guardaste cuando configuraste tu billetera por primera vez. Esto restaura el acceso a tu billetera existente y sus fondos.',
+      'Escribe la Frase de Recuperación que guardaste cuando configuraste tu billetera por primera vez. Esto restaurará el acceso a tu billetera existente y sus fondos.',
     createWalletSubText:
-      'A continuación está la Frase de Recuperación de tu billetera. Piensa en ella como tu contraseña para la red Bitcoin. Es crucial para acceder a tu billetera si cambias de dispositivo o pierdes/dañas el actual. Escríbela y guárdala en un lugar seguro.',
+      'Abajo tienes la Frase de Recuperación de tu billetera. Piensa en ella como tu contraseña para la red Bitcoin. Es crucial para acceder a tu billetera si cambias de dispositivo o pierdes/dañas el actual. Escríbela y guárdala en un lugar seguro.',
     segmented12: '12 Palabras',
     segmented24: '24 Palabras',
     invalidErrorMessage:
-      'La secuencia de palabras que ingresaste no es válida. Por favor, verifica tus palabras en busca de errores.',
+      'La secuencia de palabras que escribiste no es válida. Por favor, verifica tus palabras en busca de errores.',
     confirmTitle: 'Verificación de Frase',
     confirmText:
-      'Vuelve a ingresar la Frase de Recuperación para verificar que la has registrado correctamente, asegurando la recuperabilidad de la billetera.',
+      'Vuelve a escribir la Frase de Recuperación para verificar que la has registrado correctamente y asegurarte de que podrás recuperar la billetera.',
     testingWalletsCanSkip:
-      'Las billeteras de prueba pueden omitir este tedioso paso.'
+      'Las billeteras de prueba, este paso tedioso puede omitirse.'
   },
   amount: {
     maxLabel: 'Todos los Fondos'
