@@ -609,5 +609,74 @@ La cámara se usa para escanear códigos QR que contienen direcciones Bitcoin.`,
     triggerNativeRequestPermissionButton: 'Permitir Acceso a la Cámara',
     scanQRCall2Action:
       'Alinea el código QR dentro del marco para escanear la dirección Bitcoin.'
+  },
+  settings: {
+    defaultButton: 'Restablecer Valores',
+    wallet: {
+      name: 'Nombre',
+      export: 'Exportar Descriptores y Bóvedas',
+      exportProgress: 'Empaquetando...',
+      recoveryPhrase: 'Frase de Recuperación',
+      showRecoveryPhrase: 'Mostrar Frase de Recuperación',
+      exportInstructions: `Este archivo contiene los descriptores de salida para esta billetera y
+sus bóvedas asociadas, cuando corresponda.
+
+Cada bóveda incluye un mapa de transacciones de activación (triggerMap).
+En este mapa, cada índice corresponde a una transacción en formato Hex
+que puede iniciar el proceso de desbloqueo.
+
+Se proporcionan múltiples transacciones de desbloqueo para cada bóveda,
+cada una asociada con una comisión diferente, permitiéndote elegir
+según las condiciones actuales de comisiones de la red.
+Consulta txMap para detalles específicos sobre las comisiones.
+
+Para cada transacción de desbloqueo, se proporciona un conjunto de
+transacciones de rescate. Estas pueden cancelar el desbloqueo y vienen
+con diferentes tasas de comisión, ofreciendo flexibilidad para responder
+a accesos no autorizados bajo diferentes condiciones de red.
+Más detalles sobre estas tasas de comisión también están disponibles en txMap.
+
+Por favor, maneja esta información con cuidado ya que contiene
+detalles sensibles cruciales para la seguridad de tus fondos.`,
+      delete: 'Eliminar Billetera',
+      deleteInfo: `¿Estás seguro de que quieres eliminar esta billetera? Esta acción no se puede deshacer.
+
+Por favor, asegúrate de haber respaldado tu Frase de Recuperación y exportado tu billetera. Si no lo has hecho, perderás el acceso a tus fondos para siempre.
+
+Escribe 'ELIMINAR' abajo para confirmar y proceder con la eliminación.`,
+      confirmDelete: 'Confirmar Eliminación',
+      deleteClosingNetwork: `Eliminación en progreso...
+
+Finalizando operaciones de red.
+Por favor, espera unos momentos hasta que se complete.`,
+      deletePlaceholder: 'Escribe ELIMINAR para confirmar',
+      deleteText: 'ELIMINAR',
+      deleteError: `La eliminación falló. Por favor, inténtalo de nuevo o reinicia la aplicación si el problema persiste.`,
+      gapLimitError:
+        'El Límite de Intervalo debe ser un número entero entre 1 y 100.',
+      electrumError:
+        'URL de Electrum inválida o el servidor está caído. Por favor, verifica la URL e inténtalo de nuevo.',
+      communityBackupsError:
+        'API Base de Community Backups inválida. Por favor, verifica la URL e inténtalo de nuevo.',
+      regtestApiBaseError:
+        'API Base de Regtest inválida. Por favor, verifica la URL e inténtalo de nuevo.'
+    },
+    general: {
+      title: 'General',
+      electrumBitcoin: 'Electrum Bitcoin',
+      electrumTape: 'Electrum Tape',
+      electrumTestnet: 'Electrum Testnet',
+      electrumRegtest: 'Electrum Regtest',
+      communityBackups: 'Community Backups',
+      regtestApiBase: 'API Base de Regtest',
+      gapLimit: 'Límite de Intervalo',
+      currency: 'Moneda Preferida',
+      language: 'Idioma',
+      systemDefault: 'Predeterminado del Sistema',
+      languageNames: {
+        en: 'English',
+        es: 'Español'
+      }
+    }
   }
 };
