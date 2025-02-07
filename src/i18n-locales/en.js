@@ -759,7 +759,7 @@ Please wait a few moments until completion.`,
       electrumError:
         'Invalid Electrum URL or server is down. Please check the URL and try again.',
       communityBackupsError:
-        'Invalid Community Backuos API Base. Please check the URL and try again.',
+        'Invalid Community Backups API Base. Please check the URL and try again.',
       regtestApiBaseError:
         'Invalid Regtest API Base. Please check the URL and try again.'
     },

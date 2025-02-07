@@ -611,14 +611,14 @@ La cámara se usa para escanear códigos QR que contienen direcciones Bitcoin.`,
       'Alinea el código QR dentro del marco para escanear la dirección Bitcoin.'
   },
   settings: {
-    defaultButton: 'Restablecer Valores',
+    defaultButton: 'Restablecer Valores Predeterminados',
     wallet: {
       name: 'Nombre',
       export: 'Exportar Descriptores y Bóvedas',
       exportProgress: 'Empaquetando...',
       recoveryPhrase: 'Frase de Recuperación',
       showRecoveryPhrase: 'Mostrar Frase de Recuperación',
-      exportInstructions: `Este archivo contiene los descriptores de salida para esta billetera y
+      exportInstructions: `Este archivo contiene los descriptores de esta billetera y
 sus bóvedas asociadas, cuando corresponda.
 
 Cada bóveda incluye un mapa de transacciones de activación (triggerMap).
@@ -634,7 +634,7 @@ Para cada transacción de desbloqueo, se proporciona un conjunto de
 transacciones de rescate. Estas pueden cancelar el desbloqueo y vienen
 con diferentes tasas de comisión, ofreciendo flexibilidad para responder
 a accesos no autorizados bajo diferentes condiciones de red.
-Más detalles sobre estas tasas de comisión también están disponibles en txMap.
+Los detalles sobre estas tasas de comisión también están disponibles en txMap.
 
 Por favor, maneja esta información con cuidado ya que contiene
 detalles sensibles cruciales para la seguridad de tus fondos.`,
@@ -653,13 +653,14 @@ Por favor, espera unos momentos hasta que se complete.`,
       deleteText: 'ELIMINAR',
       deleteError: `La eliminación falló. Por favor, inténtalo de nuevo o reinicia la aplicación si el problema persiste.`,
       gapLimitError:
-        'El Límite de Intervalo debe ser un número entero entre 1 y 100.',
+        'El Límite de Exploración (Gap Limit) debe ser un número entero entre 1 y 100.',
       electrumError:
         'URL de Electrum inválida o el servidor está caído. Por favor, verifica la URL e inténtalo de nuevo.',
       communityBackupsError:
-        'API Base de Community Backups inválida. Por favor, verifica la URL e inténtalo de nuevo.',
+        'Base de la API de Community Backups no válida. Verifica la URL e inténtalo de nuevo.',
+
       regtestApiBaseError:
-        'API Base de Regtest inválida. Por favor, verifica la URL e inténtalo de nuevo.'
+        'Base de la API de Regtest no válida. Verifica la URL e inténtalo de nuevo.'
     },
     general: {
       title: 'General',
@@ -668,8 +669,8 @@ Por favor, espera unos momentos hasta que se complete.`,
       electrumTestnet: 'Electrum Testnet',
       electrumRegtest: 'Electrum Regtest',
       communityBackups: 'Community Backups',
-      regtestApiBase: 'API Base de Regtest',
-      gapLimit: 'Límite de Intervalo',
+      regtestApiBase: 'Base de la API de la Regtest',
+      gapLimit: 'Límite de Exploración (Gap Limit)',
       currency: 'Moneda Preferida',
       language: 'Idioma',
       systemDefault: 'Predeterminado del Sistema',
