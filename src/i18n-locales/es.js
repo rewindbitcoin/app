@@ -503,5 +503,68 @@ Ahora, como paso final, estamos enviando tu bóveda a la blockchain para activar
       'Tu bóveda ha sido creada y enviada exitosamente a la blockchain.',
     unexpectedError:
       'La bóveda no pudo ser creada debido a un error inesperado. Por favor, inténtalo de nuevo y notifica al equipo de RewindBitcoin sobre el siguiente error: {{message}}.'
+  },
+  editableSlider: {
+    maxValueError: 'El máximo es {{maximumValue}}',
+    minValueError: 'El mínimo es {{minimumValue}}',
+    invalidValue: 'Valor Inválido'
+  },
+  timeEstimate: {
+    minutes_one: '{{formattedCount}} min',
+    minutes_other: '{{formattedCount}} mins',
+    hours_one: '{{formattedCount}} hora',
+    hours_other: '{{formattedCount}} horas',
+    days_one: '{{formattedCount}} día',
+    days_other: '{{formattedCount}} días'
+  },
+  feeRate: {
+    waitingForRates: 'Esperando tasas de BTC/{{currency}}...',
+    waitingForEstimates: 'Esperando estimaciones de comisiones...',
+    fee: 'Comisión: {{amount}}',
+    confirmationTime: 'Confirma en ~{{blocks}}',
+    mayNotConfirm: 'Podría No Confirmar',
+    expressConfirmation: 'Confirmación Rápida'
+  },
+  bip39: {
+    validWordsThatDontMatch: 'La Frase de Recuperación ingresada no coincide.',
+    chooseImport: '¿Quieres importar en su lugar?',
+    chooseNew: '¿Necesitas crear una nueva billetera?',
+    importWalletSubText:
+      'Ingresa la Frase de Recuperación que guardaste cuando configuraste tu billetera por primera vez. Esto restaura el acceso a tu billetera existente y sus fondos.',
+    createWalletSubText:
+      'A continuación está la Frase de Recuperación de tu billetera. Piensa en ella como tu contraseña para la red Bitcoin. Es crucial para acceder a tu billetera si cambias de dispositivo o pierdes/dañas el actual. Escríbela y guárdala en un lugar seguro.',
+    segmented12: '12 Palabras',
+    segmented24: '24 Palabras',
+    invalidErrorMessage:
+      'La secuencia de palabras que ingresaste no es válida. Por favor, verifica tus palabras en busca de errores.',
+    confirmTitle: 'Verificación de Frase',
+    confirmText:
+      'Vuelve a ingresar la Frase de Recuperación para verificar que la has registrado correctamente, asegurando la recuperabilidad de la billetera.',
+    testingWalletsCanSkip:
+      'Las billeteras de prueba pueden omitir este tedioso paso.'
+  },
+  amount: {
+    maxLabel: 'Todos los Fondos'
+  },
+  units: {
+    preferredUnitTitle: 'Unidad Preferida'
+  },
+  feeInput: {
+    helpTitle: 'Velocidad de Confirmación',
+    helpText: `Esta configuración determina la velocidad de confirmación de tu transacción en la red.
+
+La comisión que elijas compensa a los mineros por incluir tu transacción en la blockchain.
+
+Las transacciones con comisiones más altas son priorizadas por los mineros, aumentando la probabilidad de una confirmación más rápida.`
+  },
+  blocksInput: {
+    coldAddress: {
+      helpTitle: 'Protección de Tiempo de Bloqueo',
+      helpText: `Imagina un escenario donde alguien obtiene acceso no autorizado a tu billetera e intenta mover tus fondos. El Tiempo de Bloqueo Anti-robo está diseñado para protegerte en tales situaciones.
+
+Cuando creas una Bóveda, tus fondos permanecen bloqueados y nadie puede moverlos. Ni siquiera tú. Si inicias el proceso de descongelación, comienza una cuenta regresiva de Tiempo de Bloqueo. Durante la cuenta regresiva, tus fondos permanecen bloqueados, con una excepción: puedes transferirlos inmediatamente a una Dirección de Emergencia si es necesario.
+
+Por ejemplo, si estableces un tiempo de bloqueo de 7 días, tus fondos permanecerán bloqueados durante ese período después de que comience el proceso de descongelación. Sin embargo, si estás bajo ataque y la descongelación no está autorizada, puedes asegurar tus fondos transfiriéndolos a una Dirección de Emergencia. Si todo es normal y no hay amenaza, tus fondos estarán completamente accesibles una vez que termine la cuenta regresiva, permitiendo transacciones regulares después.`
+    }
   }
 };
