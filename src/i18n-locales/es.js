@@ -569,29 +569,29 @@ Por ejemplo, si estableces un tiempo de bloqueo de 7 días, tus fondos permanece
   },
   addressInput: {
     invalidAddress: 'Dirección {{network}} inválida',
-    textInputPlaceholderWithCreate: 'Escribir/Crear Dirección',
+    textInputPlaceholderWithCreate: 'Entrar/Crear Dirección',
     createNewButton: 'Crear',
     coldAddress: {
       label: 'Dirección de Emergencia',
       createNewModalTitle: 'Dirección de Emergencia',
-      intro: `Bienvenido al asistente de creación de Dirección de Emergencia.
+      intro: `Bienvenido al asistente de creación de la Dirección de Emergencia.
 
 Este proceso configurará una dirección Bitcoin donde tus fondos pueden ser enviados de forma segura en caso de emergencia, como extorsión o robo.
 
 Esta dirección se generará con una nueva Frase de Recuperación. Piensa en ella como la contraseña de la dirección. Guarda esta frase en un lugar muy difícil de acceder, incluso para ti. Mantenla separada de la Frase de Recuperación de tu billetera regular.
 
 Esta dirección será tu última línea de defensa.`,
-      bip39Proposal: `A continuación está tu Frase de Recuperación de Emergencia. Esta es tu clave para acceder a tus fondos en una emergencia.`,
+      bip39Proposal: `Aquí abajo tienes tu Frase de Recuperación de Emergencia. Esta es tu clave para acceder a tus fondos en una emergencia.`,
       bip39ProposalPart2: `Esta frase no será recuperable más adelante ya que no se almacena en la aplicación. Es crucial guardarla ahora.`,
       confirmBip39ProposalButton: 'La he anotado',
       newColdAddressSuccessfullyCreated:
         'Tu nueva Dirección de Emergencia ha sido creada exitosamente.',
       helpTitle: 'Dirección de Emergencia',
-      helpText: `Rewind te da unos días para deshacer cualquier intento de robo después de que haya ocurrido un ataque. Durante este tiempo de bloqueo, mientras tus fondos están congelados, tienes la opción de mover los fondos a una Dirección de Emergencia Bitcoin. Esta dirección está protegida por una Frase de Recuperación diferente a tu frase regular.
+      helpText: `Rewind te da unos días para deshacer un robo de claves después de que haya ocurrido. Durante este tiempo de bloqueo, mientras tus fondos están congelados, tienes la opción de mover los fondos a una Dirección de Emergencia Bitcoin. Esta dirección está protegida por una Frase de Recuperación diferente a tu frase regular.
 
-Guarda esta Frase de Recuperación de Emergencia en un lugar extremadamente seguro que no sea fácilmente accesible, incluso para ti. Esto es para asegurar que, en caso de extorsión, no puedas ser forzado a revelarla a los atacantes. Ejemplos incluyen una caja de seguridad en el extranjero, enterrada en un lugar secreto remoto, o mantenida por un custodio tercero de confianza.
+Guarda esta Frase de Recuperación de Emergencia en un lugar extremadamente seguro que no sea fácilmente accesible, incluso para ti. Esto es para asegurar que, en caso de extorsión, no puedas ser forzado a revelarla a los atacantes. Por ejemplo, guárdala en una caja de seguridad en el extranjero, enterrada en un lugar secreto remoto o cédesala a un custodio de confianza.
 
-Puedes usar el asistente 'Crear' para generar una nueva Dirección de Emergencia o usar una dirección segura existente que ya poseas.`
+Puedes usar el asistente pulsando 'Crear' para generar una nueva Dirección de Emergencia o usar una dirección segura existente que ya poseas.`
     },
     recipientAddress: {
       label: 'Dirección del Destinatario',
@@ -599,7 +599,7 @@ Puedes usar el asistente 'Crear' para generar una nueva Dirección de Emergencia
     },
     scan: 'Escanear',
     scanQRModalTitle: 'Escanear QR Bitcoin',
-    flipCam: 'Voltear Cámara',
+    flipCam: 'Cambiar Cámara',
     cameraPermissionDenied: `El acceso a la cámara ha sido denegado permanentemente para esta aplicación.
 
 Para usar la cámara, por favor ve a la configuración de tu dispositivo y habilita manualmente los permisos de cámara para esta aplicación.`,
