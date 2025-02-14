@@ -333,7 +333,7 @@ const RawModal: React.FC<ModalProps> = ({
                     />
                   ) : null}
                   <Text
-                    className={`${ubuntuLoaded ? "font-['Ubuntu700Bold']" : ''} uppercase opacity-90 absolute ${headerMini ? 'top-[40%]' : subTitle ? 'top-[30%]' : 'top-[60%]'} pl-4 ${headerMini ? 'text-lg mobmed:text-xl ml-16' : 'text-xl mobmed:text-2xl mobmed:px-8'} text-white w-full`}
+                    className={`${ubuntuLoaded ? "font-['Ubuntu700Bold']" : ''} uppercase opacity-90 absolute ${headerMini ? 'top-[40%]' : subTitle ? 'top-[30%]' : 'top-[60%]'} pl-4 ${headerMini ? 'text-lg mobmed:text-xl ml-16' : 'text-xl mobmed:text-2xl mobmed:px-8'} text-white w-full whitespace-normal -translate-y-1/2`}
                   >
                     {title}
                   </Text>
