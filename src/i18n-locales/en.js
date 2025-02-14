@@ -714,6 +714,10 @@ The camera is used to scan QR codes containing Bitcoin addresses.`,
   },
   settings: {
     defaultButton: 'Reset to Default',
+    resetToDefaults: 'Reset All Settings to Defaults',
+    resetToDefaultsTitle: 'Reset Settings',
+    resetToDefaultsConfirm: 'Are you sure you want to reset all settings to their default values? This cannot be undone.',
+    resetButton: 'Reset',
     wallet: {
       name: 'Name',
       export: 'Export Descriptors and Vaults',
