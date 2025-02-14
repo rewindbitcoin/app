@@ -332,18 +332,20 @@ const RawModal: React.FC<ModalProps> = ({
                       name={icon.name}
                     />
                   ) : null}
-                  <Text
-                    className={`${ubuntuLoaded ? "font-['Ubuntu700Bold']" : ''} uppercase opacity-90 absolute ${headerMini ? 'top-[40%]' : subTitle ? 'top-[30%]' : 'top-[60%]'} pl-4 ${headerMini ? 'text-lg mobmed:text-xl ml-16' : 'text-xl mobmed:text-2xl mobmed:px-8'} text-white w-full whitespace-normal -translate-y-1/2`}
-                  >
-                    {title}
-                  </Text>
-                  {subTitle && (
+                  <View className="bottom-4 absolute w-full">
                     <Text
-                      className={`${ubuntuLoaded ? "font-['Ubuntu500Medium']" : ''} opacity-85 absolute top-[60%] w-full left-0 px-4 mobmed:px-8 text-white`}
+                      className={`${ubuntuLoaded ? "font-['Ubuntu700Bold']" : ''} uppercase opacity-90 pl-4 ${headerMini ? 'text-lg mobmed:text-xl ml-16' : 'text-xl mobmed:text-2xl mobmed:px-8'} text-white`}
                     >
-                      {subTitle}
+                      {title}
                     </Text>
-                  )}
+                    {subTitle && (
+                      <Text
+                        className={`${ubuntuLoaded ? "font-['Ubuntu500Medium']" : ''} opacity-85 w-full left-0 px-4 mobmed:px-8 text-white`}
+                      >
+                        {subTitle}
+                      </Text>
+                    )}
+                  </View>
                   {
                     //A bar as a hint to the user this is draggable
                     //Don't show on web
