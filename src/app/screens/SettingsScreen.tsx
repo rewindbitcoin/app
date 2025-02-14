@@ -281,9 +281,9 @@ const SettingsScreen = () => {
 
   const [isLanguageModalVisible, setIsLanguageModalVisible] =
     useState<boolean>(false);
-  const [isCurrencyModalVisible, setIsCurrencyModalVisible] = 
+  const [isCurrencyModalVisible, setIsCurrencyModalVisible] =
     useState<boolean>(false);
-  const [isResetModalVisible, setIsResetModalVisible] = 
+  const [isResetModalVisible, setIsResetModalVisible] =
     useState<boolean>(false);
 
   //delete
@@ -676,7 +676,7 @@ const SettingsScreen = () => {
           }
         >
           <View className="p-4">
-            <Text className="text-base text-center">
+            <Text className="text-base">
               {t('settings.resetToDefaultsConfirm')}
             </Text>
           </View>

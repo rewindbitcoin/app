@@ -355,7 +355,7 @@ Instrucciones de Uso:
     realBitcoin: 'Usar Bitcoin real',
     testOrRealTitle: 'Bitcoin de Prueba o Real',
     testOrRealSubTitle:
-      'Selecciona tu red: experimenta de forma segura en redes de prueba o procede con Bitcoin real.',
+      'Experimenta de forma segura en redes de prueba o procede con Bitcoin real.',
     help: {
       tapeNetworkBrief:
         'Prueba sin riesgo en Tape, la red de prueba propia de Rewind que simula el Bitcoin real. Recibe tokens al crear una billetera y solicita más cuando los necesites.',

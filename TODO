@@ -1,10 +1,9 @@
 DO THIS NOW! run the backup and write the seed in hermes
 
-Complete the FIXME: before publication.
-  -> New idea: set a "Reset to defaults".
-
 * Escribir DM Sergi de Abast:
 * https://x.com/abogadocripto
+
+* Desactivar las comisiones (ocultar bajo abanced or something)
 
 * Hacer lo del push notifications (optional)
  
@@ -24,20 +23,8 @@ Complete the FIXME: before publication.
 
 * Pedir beca
 
-* Alvaro d maria
-
 * Hacer q se vea bien teléfono con fuentes grandes como el de mi padre.
 
-
-- I have some FIXME: in the code for tests. Get rid of them before publishing:
-- Español
-- Reducir el tiempo. Default 3 dias.
-- Reducir cantidad mínima. Ver como aplicar el fee.
-    -> PRESIGNED_FEE_RATE_CEILING
-    -> MIN_RECOVERABLE_RATIO
-    -> FIXME: change the code in rescue and in the rescue part of the app.
-    -> Also on the unvault. can it be the case it'¡s not recoverable. than what happens.
-    In fact this can already happen if fees >> 10000 sat/vbyte
 - Tests
 - Publicar App
 

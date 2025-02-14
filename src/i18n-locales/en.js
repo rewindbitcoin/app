@@ -398,7 +398,7 @@ Usage Instructions:
     realBitcoin: 'Use real Bitcoin',
     testOrRealTitle: 'Test or Real Bitcoin',
     testOrRealSubTitle:
-      'Select your network: experiment safely on test networks or proceed with real Bitcoin.',
+      'Experiment safely on test networks or proceed with real Bitcoin.',
     help: {
       tapeNetworkBrief:
         "Test risk-free on Tape, Rewind's own test network that mirrors real Bitcoin. Receive tokens at setup and request more as needed.",
