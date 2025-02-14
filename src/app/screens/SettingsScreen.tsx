@@ -281,7 +281,9 @@ const SettingsScreen = () => {
 
   const [isLanguageModalVisible, setIsLanguageModalVisible] =
     useState<boolean>(false);
-  const [isCurrencyModalVisible, setIsCurrencyModalVisible] =
+  const [isCurrencyModalVisible, setIsCurrencyModalVisible] = 
+    useState<boolean>(false);
+  const [isResetModalVisible, setIsResetModalVisible] = 
     useState<boolean>(false);
 
   //delete
@@ -633,11 +635,52 @@ const SettingsScreen = () => {
               }}
             />
           </View>
+          <Button
+            mode="text"
+            onPress={() => setIsResetModalVisible(true)}
+            className="my-4"
+          >
+            {t('settings.resetToDefaults')}
+          </Button>
           <Text className="text-center my-8 text-gray-400">
             {applicationName} {nativeApplicationVersion} ({t('app.buildNumber')}{' '}
             {nativeBuildVersion})
           </Text>
         </View>
+        <Modal
+          icon={{
+            family: 'MaterialIcons',
+            name: 'restore'
+          }}
+          title={t('settings.resetToDefaultsTitle')}
+          isVisible={isResetModalVisible}
+          onClose={() => setIsResetModalVisible(false)}
+          customButtons={
+            <View className="items-center gap-6 flex-row justify-center pb-4">
+              <Button
+                mode="secondary"
+                onPress={() => setIsResetModalVisible(false)}
+              >
+                {t('cancelButton')}
+              </Button>
+              <Button
+                mode="primary"
+                onPress={() => {
+                  setSettings(defaultSettings);
+                  setIsResetModalVisible(false);
+                }}
+              >
+                {t('settings.resetButton')}
+              </Button>
+            </View>
+          }
+        >
+          <View className="p-4">
+            <Text className="text-base text-center">
+              {t('settings.resetToDefaultsConfirm')}
+            </Text>
+          </View>
+        </Modal>
         <Modal
           icon={{
             family: 'FontAwesome5',
