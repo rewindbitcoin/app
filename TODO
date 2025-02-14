@@ -1,9 +1,12 @@
 DO THIS NOW! run the backup and write the seed in hermes
 
 Complete the FIXME: before publication.
+  -> New idea: set a "Reset to defaults".
 
 * Escribir DM Sergi de Abast:
 * https://x.com/abogadocripto
+
+* Hacer lo del push notifications (optional)
  
 * En Español
 
@@ -47,6 +50,12 @@ Primera screen de aceptar condiciones y warning de aceptacion de riesgos
 
 
 Mas adelante -> Subir de nuevo las comis a 0.95 % (lo q tienen bit2me o $299/once!)
+
+
+TODO de decentralized:
+- Aceptar direcciones de electrum onion
+- Al confirmar las palabras que al poner 3 letras te de la sugerencia
+- La opción de mostrar la semilla no me termina de convencer, la entiendo pero tal vez debería pedirse nuevamente la autenticación
 
 
 ----

@@ -614,7 +614,8 @@ La cámara se usa para escanear códigos QR que contienen direcciones Bitcoin.`,
     defaultButton: 'Restablecer Valores Predeterminados',
     resetToDefaults: 'Restablecer Toda la Configuración',
     resetToDefaultsTitle: 'Restablecer Configuración',
-    resetToDefaultsConfirm: '¿Estás seguro de que deseas restablecer toda la configuración a sus valores predeterminados? Esta acción no se puede deshacer.',
+    resetToDefaultsConfirm:
+      '¿Estás seguro de que deseas restablecer toda la configuración a sus valores predeterminados? Esta acción no se puede deshacer.',
     resetButton: 'Restablecer',
     wallet: {
       name: 'Nombre',
