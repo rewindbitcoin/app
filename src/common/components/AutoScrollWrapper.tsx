@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { ScrollView } from 'react-native';
+import { View, ScrollView } from 'react-native';
 
 export default function AutoScrollWrapper({
   children,
@@ -17,7 +17,6 @@ export default function AutoScrollWrapper({
   const containerWidth = useRef(0);
 
   useEffect(() => {
-    console.log(contentWidth.current, containerWidth.current);
     if (enabled && contentWidth.current > containerWidth.current) {
       let scrolling = true;
       const scroll = async () => {
@@ -52,15 +51,24 @@ export default function AutoScrollWrapper({
       horizontal
       showsHorizontalScrollIndicator={false}
       scrollEventThrottle={16}
-      contentContainerClassName="w-full"
       onLayout={e => {
+        //console.log(e.nativeEvent.layout.width);
+        console.log('SCROLLVIEW:', e.nativeEvent.layout.width);
         containerWidth.current = e.nativeEvent.layout.width;
       }}
       onContentSizeChange={width => {
+        //console.log(width);
         contentWidth.current = width;
       }}
     >
-      {children}
+      <View
+        className="min-w-full"
+        onLayout={e => {
+          console.log('VIEW:', e.nativeEvent.layout.width);
+        }}
+      >
+        {children}
+      </View>
     </ScrollView>
   );
 }
