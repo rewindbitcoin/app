@@ -50,7 +50,8 @@ export default function AutoScrollWrapper({
       horizontal
       showsHorizontalScrollIndicator={false}
       scrollEventThrottle={16}
-      contentContainerClassName="flex-1"
+      className="flex-1"
+      contentContainerStyle={{ minWidth: '100%' }}
     >
       {children}
     </ScrollView>
