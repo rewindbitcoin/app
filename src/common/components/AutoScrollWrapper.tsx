@@ -52,7 +52,7 @@ export default function AutoScrollWrapper({
       horizontal
       showsHorizontalScrollIndicator={false}
       scrollEventThrottle={16}
-      contentContainerClassName="min-w-full"
+      contentContainerClassName="w-full"
       onLayout={e => {
         containerWidth.current = e.nativeEvent.layout.width;
       }}
