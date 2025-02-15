@@ -10,6 +10,7 @@ import React, {
   useState
 } from 'react';
 import { Text, StyleSheet, View } from 'react-native';
+import AutoScrollWrapper from '../../common/components/AutoScrollWrapper';
 import { batchedUpdates } from '~/common/lib/batchedUpdates';
 
 import { LayoutAnimation } from 'react-native';
@@ -247,19 +248,20 @@ export default function Bip39({
           >
             {`${index + 1 < 10 ? '\u00A0' : ''}${index + 1}`}
           </Text>
-          <TextInput
-            secureTextEntry={hideWords}
-            readOnly={readonly}
-            {...(activeWordIndex === index ? { ref: inputRef } : {})}
-            blurOnSubmit={false}
-            value={word}
-            className={`ios:pb-1 text-xs mobmed:text-sm rounded pl-2 ${readonly ? 'bg-slate-200' : 'bg-white'} flex-1 web:w-full outline-none ${fontsLoaded ? "font-['RobotoMono-400Regular']" : ''} ${
-              (index === activeWordIndex && !isPartialWordValid(word)) ||
-              (index !== activeWordIndex &&
-                findMatchingWordAndCandidates(word).length === 0)
-                ? 'text-notification'
-                : 'text-black'
-            }`}
+          <AutoScrollWrapper enabled={readonly}>
+            <TextInput
+              secureTextEntry={hideWords}
+              readOnly={readonly}
+              {...(activeWordIndex === index ? { ref: inputRef } : {})}
+              blurOnSubmit={false}
+              value={word}
+              className={`ios:pb-1 text-xs mobmed:text-sm rounded pl-2 ${readonly ? 'bg-slate-200' : 'bg-white'} flex-1 web:w-full outline-none ${fontsLoaded ? "font-['RobotoMono-400Regular']" : ''} ${
+                (index === activeWordIndex && !isPartialWordValid(word)) ||
+                (index !== activeWordIndex &&
+                  findMatchingWordAndCandidates(word).length === 0)
+                  ? 'text-notification'
+                  : 'text-black'
+              }`}
             spellCheck={false}
             maxLength={MAX_LENGTH + 1}
             autoComplete={'off'}
