@@ -25,18 +25,18 @@ export default function AutoScrollWrapper({
         while (scrolling) {
           // Wait initial delay
           await new Promise(resolve => setTimeout(resolve, delay));
-          
+
           // Scroll to end
           scrollRef.current?.scrollToEnd({ animated: true, duration });
-          
+
           // Wait at end
           await new Promise(resolve => setTimeout(resolve, delay));
-          
+
           // Scroll back to start
           scrollRef.current?.scrollTo({ x: 0, animated: true, duration });
         }
       };
-      
+
       scroll();
       return () => {
         scrolling = false;
@@ -56,7 +56,7 @@ export default function AutoScrollWrapper({
       onLayout={e => {
         containerWidth.current = e.nativeEvent.layout.width;
       }}
-      onContentSizeChange={(width) => {
+      onContentSizeChange={width => {
         contentWidth.current = width;
       }}
     >
