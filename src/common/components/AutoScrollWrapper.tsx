@@ -56,14 +56,11 @@ export default function AutoScrollWrapper({
         console.log('SCROLLVIEW:', e.nativeEvent.layout.width);
         containerWidth.current = e.nativeEvent.layout.width;
       }}
-      onContentSizeChange={width => {
-        //console.log(width);
-        contentWidth.current = width;
-      }}
     >
       <View
         className="min-w-full"
         onLayout={e => {
+          contentWidth.current = e.nativeEvent.layout.width;
           console.log('VIEW:', e.nativeEvent.layout.width);
         }}
       >
