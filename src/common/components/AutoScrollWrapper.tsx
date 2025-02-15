@@ -17,6 +17,7 @@ export default function AutoScrollWrapper({
   const containerWidth = useRef(0);
 
   useEffect(() => {
+    console.log(contentWidth.current, containerWidth.current);
     if (enabled && contentWidth.current > containerWidth.current) {
       let scrolling = true;
       const scroll = async () => {
@@ -55,7 +56,7 @@ export default function AutoScrollWrapper({
       onLayout={e => {
         containerWidth.current = e.nativeEvent.layout.width;
       }}
-      onContentSizeChange={(width) => {
+      onContentSizeChange={width => {
         contentWidth.current = width;
       }}
     >
