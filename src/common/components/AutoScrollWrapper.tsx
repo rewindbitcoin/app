@@ -52,6 +52,12 @@ export default function AutoScrollWrapper({
       showsHorizontalScrollIndicator={false}
       scrollEventThrottle={16}
       contentContainerClassName="min-w-full"
+      onLayout={e => {
+        containerWidth.current = e.nativeEvent.layout.width;
+      }}
+      onContentSizeChange={(width) => {
+        contentWidth.current = width;
+      }}
     >
       {children}
     </ScrollView>
