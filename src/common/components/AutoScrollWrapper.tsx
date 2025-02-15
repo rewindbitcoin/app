@@ -42,14 +42,13 @@ export default function AutoScrollWrapper({
 
   return (
     <View
-      style={styles.container}
-      onLayout={(e) => {
+      onLayout={e => {
         containerWidth.current = e.nativeEvent.layout.width;
       }}
     >
       <Animated.View
-        style={[styles.content, { transform: [{ translateX: scrollX }] }]}
-        onLayout={(e) => {
+        style={[{ transform: [{ translateX: scrollX }] }]}
+        onLayout={e => {
           contentWidth.current = e.nativeEvent.layout.width;
         }}
       >
@@ -58,13 +57,3 @@ export default function AutoScrollWrapper({
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    overflow: 'hidden',
-    flex: 1
-  },
-  content: {
-    flexDirection: 'row'
-  }
-});
