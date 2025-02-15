@@ -26,13 +26,13 @@ export default function AutoScrollWrapper({
           await new Promise(resolve => setTimeout(resolve, delay));
 
           // Scroll to end
-          scrollRef.current?.scrollToEnd({ animated: true, duration });
+          scrollRef.current?.scrollToEnd({ animated: true });
 
           // Wait at end
           await new Promise(resolve => setTimeout(resolve, delay));
 
           // Scroll back to start
-          scrollRef.current?.scrollTo({ x: 0, animated: true, duration });
+          scrollRef.current?.scrollTo({ x: 0, animated: true });
         }
       };
 
