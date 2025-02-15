@@ -5,14 +5,12 @@ export default function AutoScrollWrapper({
   children,
   enabled,
   duration = 3000,
-  delay = 1000,
-  style
+  delay = 1000
 }: {
   children: React.ReactNode;
   enabled: boolean;
   duration?: number;
   delay?: number;
-  style?: ViewStyle;
 }) {
   const scrollRef = useRef<ScrollView>(null);
   const contentWidth = useRef(0);
@@ -50,15 +48,9 @@ export default function AutoScrollWrapper({
     <ScrollView
       ref={scrollRef}
       horizontal
-      style={style}
       showsHorizontalScrollIndicator={false}
       scrollEventThrottle={16}
-      onLayout={e => {
-        containerWidth.current = e.nativeEvent.layout.width;
-      }}
-      onContentSizeChange={width => {
-        contentWidth.current = width;
-      }}
+      contentContainerClassName="flex-1"
     >
       {children}
     </ScrollView>
