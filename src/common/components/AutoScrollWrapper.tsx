@@ -1,59 +1,66 @@
 import React, { useEffect, useRef } from 'react';
-import { Animated, View, StyleSheet } from 'react-native';
+import { ScrollView, ViewStyle } from 'react-native';
 
 export default function AutoScrollWrapper({
   children,
   enabled,
   duration = 3000,
-  delay = 1000
+  delay = 1000,
+  style
 }: {
   children: React.ReactNode;
   enabled: boolean;
   duration?: number;
   delay?: number;
+  style?: ViewStyle;
 }) {
-  const scrollX = useRef(new Animated.Value(0)).current;
+  const scrollRef = useRef<ScrollView>(null);
   const contentWidth = useRef(0);
   const containerWidth = useRef(0);
 
   useEffect(() => {
     if (enabled && contentWidth.current > containerWidth.current) {
-      const animate = () => {
-        Animated.sequence([
-          Animated.timing(scrollX, {
-            toValue: -(contentWidth.current - containerWidth.current),
-            duration: duration,
-            useNativeDriver: true,
-            delay: delay
-          }),
-          Animated.timing(scrollX, {
-            toValue: 0,
-            duration: duration,
-            useNativeDriver: true,
-            delay: delay
-          })
-        ]).start(() => animate());
+      let scrolling = true;
+      const scroll = async () => {
+        while (scrolling) {
+          // Wait initial delay
+          await new Promise(resolve => setTimeout(resolve, delay));
+          
+          // Scroll to end
+          scrollRef.current?.scrollToEnd({ animated: true, duration });
+          
+          // Wait at end
+          await new Promise(resolve => setTimeout(resolve, delay));
+          
+          // Scroll back to start
+          scrollRef.current?.scrollTo({ x: 0, animated: true, duration });
+        }
       };
-      animate();
+      
+      scroll();
+      return () => {
+        scrolling = false;
+      };
     }
-  }, [enabled, scrollX, duration, delay]);
+  }, [enabled, duration, delay]);
 
   if (!enabled) return <>{children}</>;
 
   return (
-    <View
+    <ScrollView
+      ref={scrollRef}
+      horizontal
+      style={style}
+      showsHorizontalScrollIndicator={false}
+      scrollEventThrottle={16}
       onLayout={e => {
         containerWidth.current = e.nativeEvent.layout.width;
       }}
+      onContentSizeChange={(width) => {
+        contentWidth.current = width;
+      }}
     >
-      <Animated.View
-        style={[{ transform: [{ translateX: scrollX }] }]}
-        onLayout={e => {
-          contentWidth.current = e.nativeEvent.layout.width;
-        }}
-      >
-        {children}
-      </Animated.View>
-    </View>
+      {children}
+    </ScrollView>
   );
 }
