@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { ScrollView, ViewStyle } from 'react-native';
+import { ScrollView } from 'react-native';
 
 export default function AutoScrollWrapper({
   children,
@@ -40,6 +40,7 @@ export default function AutoScrollWrapper({
         scrolling = false;
       };
     }
+    return;
   }, [enabled, duration, delay]);
 
   if (!enabled) return <>{children}</>;
@@ -50,7 +51,6 @@ export default function AutoScrollWrapper({
       horizontal
       showsHorizontalScrollIndicator={false}
       scrollEventThrottle={16}
-      className="flex-1"
       contentContainerClassName="min-w-full"
     >
       {children}
