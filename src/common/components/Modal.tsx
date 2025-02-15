@@ -332,15 +332,19 @@ const RawModal: React.FC<ModalProps> = ({
                       name={icon.name}
                     />
                   ) : null}
-                  <View className="bottom-4 absolute w-full">
+                  <View
+                    className={`${headerMini ? 'bottom-2' : 'bottom-4'} absolute w-full`}
+                  >
                     <Text
-                      className={`${ubuntuLoaded ? "font-['Ubuntu700Bold']" : ''} uppercase opacity-90 pl-4 ${headerMini ? 'text-lg mobmed:text-xl ml-16' : 'text-xl mobmed:text-2xl mobmed:px-8'} text-white`}
+                      className={`${ubuntuLoaded ? "font-['Ubuntu700Bold']" : ''} uppercase opacity-90 ${headerMini ? 'text-lg ml-16' : 'pl-4 text-xl mobmed:text-2xl mobmed:px-8'} text-white ${subTitle ? '!leading-none' : ''}`}
+                      {...(headerMini ? { numberOfLines: 1 } : {})}
                     >
                       {title}
                     </Text>
                     {subTitle && (
                       <Text
                         className={`${ubuntuLoaded ? "font-['Ubuntu500Medium']" : ''} opacity-85 w-full left-0 px-4 mobmed:px-8 text-white`}
+                        numberOfLines={2}
                       >
                         {subTitle}
                       </Text>
