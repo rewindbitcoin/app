@@ -541,7 +541,7 @@ Ahora, como paso final, estamos enviando tu bóveda a la blockchain para activar
     confirmText:
       'Vuelve a escribir la Frase de Recuperación para verificar que la has registrado correctamente y asegurarte de que podrás recuperar la billetera.',
     testingWalletsCanSkip:
-      'Las billeteras de prueba, este paso tedioso puede omitirse.'
+      'Este paso tedioso puede omitirse nn billeteras de prueba.'
   },
   amount: {
     maxLabel: 'Todos los Fondos'
