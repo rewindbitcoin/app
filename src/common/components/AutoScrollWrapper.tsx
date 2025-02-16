@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Animated, Easing } from 'react-native';
+import { View, Animated, Easing, ScrollView } from 'react-native';
 
 export default function AutoScrollWrapper({
   children,
@@ -8,7 +8,7 @@ export default function AutoScrollWrapper({
   children: React.ReactNode;
   enabled: boolean;
 }) {
-  const scrollRef = useRef<Animated.ScrollView>(null);
+  const scrollRef = useRef<ScrollView>(null);
   const [measurements, setMeasurements] = useState({
     contentWidth: 0,
     containerWidth: 0
@@ -17,7 +17,7 @@ export default function AutoScrollWrapper({
 
   // Only scroll if content is wider than container (with a small tolerance)
   const shouldScroll =
-    enabled && measurements.contentWidth > measurements.containerWidth + 4;
+    enabled && measurements.contentWidth > measurements.containerWidth + 8;
 
   useEffect(() => {
     let scrolling = true;
@@ -25,6 +25,7 @@ export default function AutoScrollWrapper({
     if (shouldScroll) {
       const animateScroll = async () => {
         const delay = 1500;
+        const duration = 2000;
         while (scrolling) {
           // Wait initial delay before scrolling
           await new Promise(resolve => setTimeout(resolve, delay));
@@ -33,7 +34,7 @@ export default function AutoScrollWrapper({
           await new Promise(resolve => {
             Animated.timing(scrollX, {
               toValue: measurements.contentWidth - measurements.containerWidth,
-              duration: 4000, // 4 seconds
+              duration,
               easing: Easing.linear,
               useNativeDriver: false
             }).start(() => resolve(true));
@@ -46,7 +47,7 @@ export default function AutoScrollWrapper({
           await new Promise(resolve => {
             Animated.timing(scrollX, {
               toValue: 0,
-              duration: 4000, // 4 seconds
+              duration,
               easing: Easing.linear,
               useNativeDriver: false
             }).start(() => resolve(true));
