@@ -3,14 +3,10 @@ import { View, ScrollView } from 'react-native';
 
 export default function AutoScrollWrapper({
   children,
-  enabled,
-  duration = 3000,
-  delay = 1000
+  enabled
 }: {
   children: React.ReactNode;
   enabled: boolean;
-  duration?: number;
-  delay?: number;
 }) {
   const scrollRef = useRef<ScrollView>(null);
   const [measurements, setMeasurements] = useState({
@@ -18,22 +14,21 @@ export default function AutoScrollWrapper({
     containerWidth: 0
   });
 
-  const shouldScroll = enabled && measurements.contentWidth > measurements.containerWidth + 4;
+  const shouldScroll =
+    enabled && measurements.contentWidth > measurements.containerWidth + 4;
 
   useEffect(() => {
     if (shouldScroll) {
       let scrolling = true;
       const scroll = async () => {
+        const delay = 1000;
         while (scrolling) {
           // Wait initial delay
           await new Promise(resolve => setTimeout(resolve, delay));
-
           // Scroll to end
           scrollRef.current?.scrollToEnd({ animated: true });
-
           // Wait at end
           await new Promise(resolve => setTimeout(resolve, delay));
-
           // Scroll back to start
           scrollRef.current?.scrollTo({ x: 0, animated: true });
         }
@@ -45,7 +40,7 @@ export default function AutoScrollWrapper({
       };
     }
     return;
-  }, [enabled, duration, delay]);
+  }, [enabled, shouldScroll]);
 
   if (!enabled) return <>{children}</>;
 
