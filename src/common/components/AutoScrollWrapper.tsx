@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { View, ScrollView } from 'react-native';
 
 export default function AutoScrollWrapper({
@@ -13,11 +13,15 @@ export default function AutoScrollWrapper({
   delay?: number;
 }) {
   const scrollRef = useRef<ScrollView>(null);
-  const contentWidth = useRef(0);
-  const containerWidth = useRef(0);
+  const [measurements, setMeasurements] = useState({
+    contentWidth: 0,
+    containerWidth: 0
+  });
+
+  const shouldScroll = enabled && measurements.contentWidth > measurements.containerWidth + 4;
 
   useEffect(() => {
-    if (enabled) {
+    if (shouldScroll) {
       let scrolling = true;
       const scroll = async () => {
         while (scrolling) {
@@ -53,16 +57,19 @@ export default function AutoScrollWrapper({
       scrollEventThrottle={16}
       contentContainerClassName="grow"
       onLayout={e => {
-        //console.log(e.nativeEvent.layout.width);
-        console.log('SCROLLVIEW:', e.nativeEvent.layout.width);
-        containerWidth.current = e.nativeEvent.layout.width;
+        setMeasurements(prev => ({
+          ...prev,
+          containerWidth: e.nativeEvent.layout.width
+        }));
       }}
     >
       <View
         className="min-w-full"
         onLayout={e => {
-          contentWidth.current = e.nativeEvent.layout.width;
-          console.log('VIEW:', e.nativeEvent.layout.width);
+          setMeasurements(prev => ({
+            ...prev,
+            contentWidth: e.nativeEvent.layout.width
+          }));
         }}
       >
         {children}
