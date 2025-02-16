@@ -17,7 +17,7 @@ export default function AutoScrollWrapper({
   const containerWidth = useRef(0);
 
   useEffect(() => {
-    if (enabled && contentWidth.current > containerWidth.current) {
+    if (enabled) {
       let scrolling = true;
       const scroll = async () => {
         while (scrolling) {
@@ -51,6 +51,7 @@ export default function AutoScrollWrapper({
       horizontal
       showsHorizontalScrollIndicator={false}
       scrollEventThrottle={16}
+      contentContainerClassName="grow"
       onLayout={e => {
         //console.log(e.nativeEvent.layout.width);
         console.log('SCROLLVIEW:', e.nativeEvent.layout.width);
