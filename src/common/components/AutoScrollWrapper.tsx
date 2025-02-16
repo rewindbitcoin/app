@@ -57,19 +57,25 @@ export default function AutoScrollWrapper({
       scrollEventThrottle={16}
       contentContainerClassName="grow"
       onLayout={e => {
-        setMeasurements(prev => ({
-          ...prev,
-          containerWidth: e.nativeEvent.layout.width
-        }));
+        const event = e.nativeEvent;
+        if (event?.layout) {
+          setMeasurements(prev => ({
+            ...prev,
+            containerWidth: event.layout.width
+          }));
+        }
       }}
     >
       <View
         className="min-w-full"
         onLayout={e => {
-          setMeasurements(prev => ({
-            ...prev,
-            contentWidth: e.nativeEvent.layout.width
-          }));
+          const event = e.nativeEvent;
+          if (event?.layout) {
+            setMeasurements(prev => ({
+              ...prev,
+              contentWidth: event.layout.width
+            }));
+          }
         }}
       >
         {children}
