@@ -2,11 +2,9 @@ import React, { useEffect, useRef, useState } from 'react';
 import { View, Animated, Easing, ScrollView } from 'react-native';
 
 export default function AutoScrollWrapper({
-  children,
-  enabled
+  children
 }: {
   children: React.ReactNode;
-  enabled: boolean;
 }) {
   const scrollRef = useRef<ScrollView>(null);
   const [measurements, setMeasurements] = useState({
@@ -17,7 +15,7 @@ export default function AutoScrollWrapper({
 
   // Only scroll if content is wider than container (with a small tolerance)
   const shouldScroll =
-    enabled && measurements.contentWidth > measurements.containerWidth + 8;
+    measurements.contentWidth > measurements.containerWidth + 8;
 
   useEffect(() => {
     let scrolling = true;
@@ -61,7 +59,7 @@ export default function AutoScrollWrapper({
     return () => {
       scrolling = false;
     };
-  }, [enabled, shouldScroll, measurements, scrollX]);
+  }, [shouldScroll, measurements, scrollX]);
 
   // Listen to the animated value and update the scroll position accordingly.
   useEffect(() => {
@@ -73,16 +71,12 @@ export default function AutoScrollWrapper({
     };
   }, [scrollX]);
 
-  if (!enabled) return <>{children}</>;
-
   return (
     <Animated.ScrollView
       ref={scrollRef}
       horizontal
       showsHorizontalScrollIndicator={false}
       scrollEventThrottle={16}
-      // Ensure the content container grows to at least the width of the ScrollView
-      contentContainerStyle={{ flexGrow: 1 }}
       onLayout={e => {
         if (e.nativeEvent) {
           const event = e.nativeEvent;
@@ -94,8 +88,7 @@ export default function AutoScrollWrapper({
       }}
     >
       <View
-        // Here we ensure the inner view is at least as wide as the container.
-        style={{ minWidth: measurements.containerWidth }}
+        className="justify-center"
         onLayout={e => {
           if (e.nativeEvent) {
             const event = e.nativeEvent;

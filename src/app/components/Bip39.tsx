@@ -248,29 +248,41 @@ export default function Bip39({
           >
             {`${index + 1 < 10 ? '\u00A0' : ''}${index + 1}`}
           </Text>
-          <AutoScrollWrapper enabled={readonly}>
-            <TextInput
-              secureTextEntry={hideWords}
-              readOnly={readonly}
-              {...(activeWordIndex === index ? { ref: inputRef } : {})}
-              blurOnSubmit={false}
-              value={word}
-              className={`ios:pb-1 text-xs mobmed:text-sm rounded px-2 ${readonly ? 'bg-slate-200' : 'bg-white'} flex-1 web:w-full outline-none ${fontsLoaded ? "font-['RobotoMono-400Regular']" : ''} ${
-                (index === activeWordIndex && !isPartialWordValid(word)) ||
-                (index !== activeWordIndex &&
-                  findMatchingWordAndCandidates(word).length === 0)
-                  ? 'text-notification'
-                  : 'text-black'
-              }`}
-              spellCheck={false}
-              maxLength={MAX_LENGTH + 1}
-              autoComplete={'off'}
-              autoCorrect={false}
-              autoCapitalize="none"
-              onChangeText={handleChangeText}
-              onFocus={handleFocus(index)}
-            />
-          </AutoScrollWrapper>
+          <View
+            className={`${readonly ? 'bg-slate-200' : 'bg-white'} flex-1 flex-col justify-center rounded`}
+          >
+            {readonly ? (
+              <AutoScrollWrapper>
+                <Text
+                  className={`px-2 text-nowrap text-xs mobmed:text-sm ${fontsLoaded ? "font-['RobotoMono-400Regular']" : ''}`}
+                >
+                  {word}
+                </Text>
+              </AutoScrollWrapper>
+            ) : (
+              <TextInput
+                secureTextEntry={hideWords}
+                readOnly={readonly}
+                {...(activeWordIndex === index ? { ref: inputRef } : {})}
+                blurOnSubmit={false}
+                value={word}
+                className={`px-2 ios:pb-1 text-xs mobmed:text-sm outline-none ${fontsLoaded ? "font-['RobotoMono-400Regular']" : ''} ${
+                  (index === activeWordIndex && !isPartialWordValid(word)) ||
+                  (index !== activeWordIndex &&
+                    findMatchingWordAndCandidates(word).length === 0)
+                    ? 'text-notification'
+                    : 'text-black'
+                }`}
+                spellCheck={false}
+                maxLength={MAX_LENGTH + 1}
+                autoComplete={'off'}
+                autoCorrect={false}
+                autoCapitalize="none"
+                onChangeText={handleChangeText}
+                onFocus={handleFocus(index)}
+              />
+            )}
+          </View>
         </View>
       ))}
     </View>
