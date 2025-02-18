@@ -213,8 +213,8 @@ export default function WalletAdvancedSettings({
             </View>
             <Divider className="ml-3" />
             <View className="flex-row p-2 items-center active:bg-gray-200">
-              <View className="flex-1 flex-row items-center ml-3">
-                <Text className="pr-2 text-base truncate">
+              <View className="flex-1 ml-3 bg-yellow-400 flex-row items-center">
+                <Text className="text-base truncate bg-green-300">
                   {t('network.testOrRealTitle')}
                 </Text>
                 <InfoButton onPress={() => showNetworkHelp(true)} />
@@ -222,7 +222,7 @@ export default function WalletAdvancedSettings({
               <Pressable
                 onPress={onNetworkRequest}
                 hitSlop={{ top: 10, bottom: 10, right: 10 }}
-                className="ml-2 max-w-20 mobmed:max-w-full flex-row items-center active:scale-95 active:opacity-90 hover:opacity-90"
+                className="ml-2 flex-row items-center active:scale-95 active:opacity-90 hover:opacity-90 bg-red-400"
               >
                 <Text className="text-primary text-center text-base">
                   {advancedSettings.networkId === 'BITCOIN'
