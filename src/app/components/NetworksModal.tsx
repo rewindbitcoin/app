@@ -25,7 +25,10 @@ export default function NetworksModal({
   const choices = networkIds.map((id: NetworkId) => {
     return (
       <View key={id} className="flex-row justify-between flex-1">
-        <Text className="text-base capitalize w-20 mr-4">
+        <Text
+          className="text-base capitalize w-20 mr-4 truncate"
+          numberOfLines={1}
+        >
           {id.toLowerCase()}
         </Text>
         <Text className="text-slate-600 flex-1">
@@ -57,7 +60,7 @@ export default function NetworksModal({
       isVisible={isVisible}
       {...(onClose ? { onClose } : {})}
     >
-      <View className="px-2">
+      <View>
         <VerticalChoice
           index={networkIds.indexOf(networkId!)}
           choices={choices}
