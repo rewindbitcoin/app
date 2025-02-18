@@ -32,7 +32,9 @@ export default function NetworksModal({
           flex: 1
         }}
       >
-        <Text className="text-base capitalize w-20">{id.toLowerCase()}</Text>
+        <Text className="text-base capitalize w-20 mr-4">
+          {id.toLowerCase()}
+        </Text>
         <Text className="text-slate-600 flex-1">
           {id === 'BITCOIN'
             ? t('network.help.bitcoinNetworkBrief')
