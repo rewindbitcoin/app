@@ -1,6 +1,6 @@
 import React, { useCallback, useState } from 'react';
 
-import { Text, View, StyleSheet, Pressable, Platform } from 'react-native';
+import { Text, View, Pressable, Platform } from 'react-native';
 import { Modal, Divider, InfoButton, Switch } from '../../common/ui';
 import type { Engine as StorageEngine } from '../../common/lib/storage';
 import Password from './Password';
@@ -48,7 +48,6 @@ export default function WalletAdvancedSettings({
   const [passwordHelp, showPasswordHelp] = useState<boolean>(false);
   const [dataEncryptionHelp, showDataEncryptionHelp] = useState<boolean>(false);
   const [networktHelp, showNetworkHelp] = useState<boolean>(false);
-  const styles = getStyles();
 
   const onPasswordSwitch = useCallback(
     (value: boolean) => {
@@ -176,7 +175,7 @@ export default function WalletAdvancedSettings({
                     }
                   />
                 </View>
-                <Divider style={styles.lineSeparator} />
+                <Divider className="ml-3" />
               </>
             )}
             <View className="flex-row p-2 items-center active:bg-gray-200">
@@ -198,7 +197,7 @@ export default function WalletAdvancedSettings({
                 onCancel={onPasswordCancel}
               />
             </View>
-            <Divider style={styles.lineSeparator} />
+            <Divider className="ml-3" />
             <View className="flex-row p-2 items-center active:bg-gray-200">
               <View className="flex-1 flex-row items-center ml-3">
                 <Text className="pr-2 text-base truncate">
@@ -212,7 +211,7 @@ export default function WalletAdvancedSettings({
                 onValueChange={onEncryptSwitch}
               />
             </View>
-            <Divider style={styles.lineSeparator} />
+            <Divider className="ml-3" />
             <View className="flex-row p-2 items-center active:bg-gray-200">
               <View className="flex-1 flex-row items-center ml-3">
                 <Text className="pr-2 text-base truncate">
@@ -302,15 +301,3 @@ export default function WalletAdvancedSettings({
   );
 }
 
-const getStyles = () => {
-  const styles = StyleSheet.create({
-    textContainer: {
-      marginLeft: 12,
-      minHeight: 24,
-      flexDirection: 'row',
-      alignItems: 'center'
-    },
-    lineSeparator: { marginLeft: 12 }
-  });
-  return styles;
-};
