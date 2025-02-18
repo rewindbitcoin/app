@@ -221,10 +221,9 @@ export default function WalletAdvancedSettings({
                 <InfoButton onPress={() => showNetworkHelp(true)} />
               </View>
               <Pressable
-                className="ml-2"
                 onPress={onNetworkRequest}
                 hitSlop={{ top: 10, bottom: 10, right: 10 }}
-                className="max-w-20 mobmed:max-w-full flex-row items-center active:scale-95 active:opacity-90 hover:opacity-90"
+                className="ml-2 max-w-20 mobmed:max-w-full flex-row items-center active:scale-95 active:opacity-90 hover:opacity-90"
               >
                 <Text className="text-primary text-center text-base">
                   {advancedSettings.networkId === 'BITCOIN'
