@@ -152,14 +152,15 @@ export default function WalletAdvancedSettings({
           <>
             {canUseSecureStorage && (
               <>
-                <View className="flex-row p-2 justify-between items-center active:bg-gray-200">
-                  <View style={styles.textContainer}>
-                    <Text className="pr-2 text-base">
+                <View className="flex-row p-2 items-center active:bg-gray-200">
+                  <View className="flex-1 flex-row items-center ml-3">
+                    <Text className="pr-2 text-base truncate">
                       {t('wallet.biometricEncryptionTitle')}
                     </Text>
                     <InfoButton onPress={() => showBiometricalHelp(true)} />
                   </View>
                   <Switch
+                    className="ml-2"
                     value={
                       advancedSettings.signersStorageEngine === 'SECURESTORE'
                     }
@@ -178,14 +179,15 @@ export default function WalletAdvancedSettings({
                 <Divider style={styles.lineSeparator} />
               </>
             )}
-            <View className="flex-row p-2 justify-between items-center active:bg-gray-200">
-              <View style={styles.textContainer}>
-                <Text className="pr-2 text-base">
+            <View className="flex-row p-2 items-center active:bg-gray-200">
+              <View className="flex-1 flex-row items-center ml-3">
+                <Text className="pr-2 text-base truncate">
                   {t('wallet.usePasswordTitle')}
                 </Text>
                 <InfoButton onPress={() => showPasswordHelp(true)} />
               </View>
               <Switch
+                className="ml-2"
                 value={!!advancedSettings.signersPassword || passwordRequest}
                 onValueChange={onPasswordSwitch}
               />
@@ -197,27 +199,29 @@ export default function WalletAdvancedSettings({
               />
             </View>
             <Divider style={styles.lineSeparator} />
-            <View className="flex-row p-2 justify-between items-center active:bg-gray-200">
-              <View style={styles.textContainer}>
-                <Text className="pr-2 text-base">
+            <View className="flex-row p-2 items-center active:bg-gray-200">
+              <View className="flex-1 flex-row items-center ml-3">
+                <Text className="pr-2 text-base truncate">
                   {t('wallet.encryptAppDataTitle')}
                 </Text>
                 <InfoButton onPress={() => showDataEncryptionHelp(true)} />
               </View>
               <Switch
+                className="ml-2"
                 value={advancedSettings.encryption === 'SEED_DERIVED'}
                 onValueChange={onEncryptSwitch}
               />
             </View>
             <Divider style={styles.lineSeparator} />
-            <View className="flex-row p-2 justify-between items-center active:bg-gray-200">
-              <View style={styles.textContainer}>
-                <Text className="pr-2 text-base">
+            <View className="flex-row p-2 items-center active:bg-gray-200">
+              <View className="flex-1 flex-row items-center ml-3">
+                <Text className="pr-2 text-base truncate">
                   {t('network.testOrRealTitle')}
                 </Text>
                 <InfoButton onPress={() => showNetworkHelp(true)} />
               </View>
               <Pressable
+                className="ml-2"
                 onPress={onNetworkRequest}
                 hitSlop={{ top: 10, bottom: 10, right: 10 }}
                 className="max-w-20 mobmed:max-w-full flex-row items-center active:scale-95 active:opacity-90 hover:opacity-90"
