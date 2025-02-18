@@ -3,6 +3,14 @@ import { Text, View, Pressable } from 'react-native';
 import Divider from './Divider';
 import AntDesign from '@expo/vector-icons/AntDesign';
 import { useTheme } from '../theme';
+import { cssInterop } from 'nativewind';
+
+cssInterop(AntDesign, {
+  className: {
+    target: 'style',
+    nativeStyleToProp: { color: true, fontSize: 'size' }
+  }
+});
 
 const VerticalChoice = ({
   choices,
@@ -20,13 +28,10 @@ const VerticalChoice = ({
   const theme = useTheme();
 
   const Check = (check: boolean) => (
-    <View style={{ width: 20 }}>
+    <View className="w-5">
       {check && (
         <AntDesign
-          style={{
-            color: theme.colors.primary,
-            fontSize: 20
-          }}
+          className="!text-primary text-xl"
           name="check"
         />
       )}
@@ -34,17 +39,13 @@ const VerticalChoice = ({
   );
 
   return (
-    <View style={{ flexDirection: 'column' }}>
+    <View className="flex-col">
       {choices.map((candidate: string | ReactNode, candidateIndex: number) => (
         <React.Fragment key={candidateIndex}>
           {typeof candidate === 'string' ? (
             <>
               <Pressable
-                style={{
-                  flexDirection: 'row',
-                  justifyContent: 'space-between',
-                  paddingRight: 10
-                }}
+                className="flex-row justify-between pr-2.5"
                 onPress={onPress(candidateIndex)}
               >
                 <Text>{candidate}</Text>
@@ -55,20 +56,15 @@ const VerticalChoice = ({
           ) : (
             <>
               <Pressable
-                style={{
-                  flexDirection: 'row',
-                  justifyContent: 'space-between',
-                  paddingVertical: 10,
-                  paddingRight: 10
-                }}
+                className="flex-row justify-between py-2.5 pr-2.5"
                 onPress={onPress(candidateIndex)}
               >
-                <View style={{ width: 30 }}>
+                <View className="w-7.5">
                   {Check(index === candidateIndex)}
                 </View>
                 {candidate}
               </Pressable>
-              <View style={{ paddingLeft: 30 }}>
+              <View className="pl-7.5">
                 {candidateIndex < choices.length - 1 && <Divider />}
               </View>
             </>
