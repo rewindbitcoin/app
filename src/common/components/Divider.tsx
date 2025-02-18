@@ -1,9 +1,14 @@
 import React from 'react';
 import { useTheme } from '../theme';
 import { View } from 'react-native';
-import { styled } from 'nativewind';
+import { cssInterop } from 'nativewind';
 
-const StyledView = styled(View);
+const StyledView = View;
+cssInterop(StyledView, {
+  className: {
+    target: 'style'
+  }
+});
 
 export default function Divider({ className }: { className?: string }) {
   const theme = useTheme();
