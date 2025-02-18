@@ -213,12 +213,16 @@ export default function WalletAdvancedSettings({
             </View>
             <Divider className="ml-3" />
             <View className="flex-row p-2 items-center active:bg-gray-200">
-              <View className="flex-1 ml-3 bg-yellow-400">
+              <View className="flex-1 ml-3">
                 <View className="flex-row items-center">
-                  <Text className="text-base truncate flex-1">
-                    {t('network.testOrRealTitle')}
-                  </Text>
-                  <InfoButton onPress={() => showNetworkHelp(true)} />
+                  <View className="flex-1">
+                    <Text className="text-base truncate">
+                      {t('network.testOrRealTitle')}
+                    </Text>
+                  </View>
+                  <View className="w-8">
+                    <InfoButton onPress={() => showNetworkHelp(true)} />
+                  </View>
                 </View>
               </View>
               <Pressable
