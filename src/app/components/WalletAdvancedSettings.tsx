@@ -214,21 +214,17 @@ export default function WalletAdvancedSettings({
             <Divider className="ml-3" />
             <View className="flex-row p-2 items-center active:bg-gray-200">
               <View className="flex-1 ml-3 flex-row items-center">
-                <View className="flex-1">
-                  <Text className="text-base truncate">
-                    {t('network.testOrRealTitle')}
-                  </Text>
-                </View>
-                <View className="w-8">
-                  <InfoButton onPress={() => showNetworkHelp(true)} />
-                </View>
+                <Text className="mr-2 text-base truncate">
+                  {t('network.testOrRealTitle')}
+                </Text>
+                <InfoButton onPress={() => showNetworkHelp(true)} />
               </View>
               <Pressable
                 onPress={onNetworkRequest}
                 hitSlop={{ top: 10, bottom: 10, right: 10 }}
-                className="ml-2 flex-row items-center active:scale-95 active:opacity-90 hover:opacity-90 bg-red-400 max-w-[50%]"
+                className="ml-2 flex-row items-center active:scale-95 active:opacity-90 hover:opacity-90 max-w-[50%]"
               >
-                <Text className="text-primary text-center text-base">
+                <Text className="text-primary text-base flex-1 text-right">
                   {advancedSettings.networkId === 'BITCOIN'
                     ? t('network.realBitcoin')
                     : t('network.testOn', {
