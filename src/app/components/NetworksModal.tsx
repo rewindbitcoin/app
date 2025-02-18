@@ -26,11 +26,7 @@ export default function NetworksModal({
     return (
       <View
         key={id}
-        style={{
-          flexDirection: 'row',
-          justifyContent: 'space-between',
-          flex: 1
-        }}
+        className="flex-row justify-between flex-1"
       >
         <Text className="text-base capitalize w-20 mr-4">
           {id.toLowerCase()}
