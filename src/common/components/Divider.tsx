@@ -1,19 +1,18 @@
 import React from 'react';
 import { useTheme } from '../theme';
-import { View, ViewStyle } from 'react-native';
-export default function Divider({ style }: { style?: ViewStyle }) {
+import { View } from 'react-native';
+import { styled } from 'nativewind';
+
+const StyledView = styled(View);
+
+export default function Divider({ className }: { className?: string }) {
   const theme = useTheme();
   return (
-    <View
-      style={[
-        style,
-        {
-          height: 1,
-          width: '100%',
-          //marginVertical: 10,
-          backgroundColor: theme.colors.listsSeparator
-        }
-      ]}
+    <StyledView
+      className={`h-[1px] w-full ${className || ''}`}
+      style={{
+        backgroundColor: theme.colors.listsSeparator
+      }}
     />
   );
 }
