@@ -2,7 +2,6 @@ import React, { ReactNode, useCallback } from 'react';
 import { Text, View, Pressable } from 'react-native';
 import Divider from './Divider';
 import AntDesign from '@expo/vector-icons/AntDesign';
-import { useTheme } from '../theme';
 import { cssInterop } from 'nativewind';
 
 cssInterop(AntDesign, {
@@ -25,16 +24,10 @@ const VerticalChoice = ({
     (index: number) => () => onSelect(index),
     [onSelect]
   );
-  const theme = useTheme();
 
   const Check = (check: boolean) => (
     <View className="w-5">
-      {check && (
-        <AntDesign
-          className="!text-primary text-xl"
-          name="check"
-        />
-      )}
+      {check && <AntDesign className="!text-primary text-xl" name="check" />}
     </View>
   );
 
@@ -59,9 +52,7 @@ const VerticalChoice = ({
                 className="flex-row justify-between py-2.5 pr-2.5"
                 onPress={onPress(candidateIndex)}
               >
-                <View className="w-7.5">
-                  {Check(index === candidateIndex)}
-                </View>
+                <View className="w-7.5">{Check(index === candidateIndex)}</View>
                 {candidate}
               </Pressable>
               <View className="pl-7.5">

@@ -24,10 +24,7 @@ export default function NetworksModal({
   const { t } = useTranslation();
   const choices = networkIds.map((id: NetworkId) => {
     return (
-      <View
-        key={id}
-        className="flex-row justify-between flex-1"
-      >
+      <View key={id} className="flex-row justify-between flex-1">
         <Text className="text-base capitalize w-20 mr-4">
           {id.toLowerCase()}
         </Text>
