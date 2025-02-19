@@ -55,11 +55,13 @@ const Button = ({
 const WalletButtons = ({
   handleReceive,
   handleSend,
-  handleFreeze
+  handleFreeze,
+  onLayout
 }: {
   handleReceive?: (() => void) | undefined;
   handleSend?: (() => void) | undefined;
   handleFreeze?: (() => void) | undefined;
+  onLayout?: (e: LayoutChangeEvent) => void;
 }) => {
   const [buttonHeight, setButtonHeight] = useState(0);
   const [isMultiRow, setIsMultiRow] = useState(false);
@@ -72,6 +74,7 @@ const WalletButtons = ({
   return (
     <View
       style={{ marginBottom: insets.bottom }}
+      onLayout={onLayout}
       className={`self-center bottom-8 max-w-2xl px-2 moblg:px-4 w-full z-10 fixed native:absolute flex-wrap flex-row gap-4 ${isMultiRow ? 'justify-center' : elCount === 1 ? 'justify-center' : elCount === 2 ? 'justify-evenly' : 'justify-between'}`}
       onLayout={e => {
         const height = e.nativeEvent.layout.height;

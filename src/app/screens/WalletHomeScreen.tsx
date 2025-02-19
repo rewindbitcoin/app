@@ -250,6 +250,7 @@ const WalletHomeScreen = () => {
     setIsMounted(true);
   }, []);
   const isFocused = useIsFocused();
+  const [walletButtonsHeight, setWalletButtonsHeight] = useState(0);
 
   const refreshColors = useMemo(
     () => [theme.colors.primary],
@@ -432,6 +433,7 @@ const WalletHomeScreen = () => {
                 ? handleFreeze
                 : undefined
             }
+            onLayout={e => setWalletButtonsHeight(e.nativeEvent.layout.height)}
           />
         )
       }
@@ -484,7 +486,8 @@ const WalletHomeScreen = () => {
 
         {activeTabIndex === 0 && (
           <View
-            className="p-4 max-w-2xl w-full mb-28 self-center"
+            className={`p-4 max-w-2xl w-full self-center`}
+            style={{ marginBottom: walletButtonsHeight + 32 }} // 32px = 8rem from bottom-8
             //The mb-28 to let it scroll over the Receive - Send - Freeze buttons
           >
             {vaults && vaultsStatuses && (
@@ -502,7 +505,8 @@ const WalletHomeScreen = () => {
         )}
         {activeTabIndex === 1 && (
           <View
-            className="p-4 max-w-2xl w-full mb-28 self-center"
+            className={`p-4 max-w-2xl w-full self-center`}
+            style={{ marginBottom: walletButtonsHeight + 32 }} // 32px = 8rem from bottom-8
             //The mb-28 to let it scroll over the Receive - Send - Freeze buttons
           >
             <Transactions
