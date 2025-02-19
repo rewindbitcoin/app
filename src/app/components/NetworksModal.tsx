@@ -26,7 +26,7 @@ export default function NetworksModal({
     return (
       <View key={id} className="flex-row justify-between flex-1">
         <Text
-          className="text-base capitalize w-20 mr-4 truncate"
+          className="text-base leading-6 capitalize w-20 mr-2 truncate"
           numberOfLines={1}
         >
           {id.toLowerCase()}
@@ -60,7 +60,7 @@ export default function NetworksModal({
       isVisible={isVisible}
       {...(onClose ? { onClose } : {})}
     >
-      <View>
+      <View className="px-2">
         <VerticalChoice
           index={networkIds.indexOf(networkId!)}
           choices={choices}
