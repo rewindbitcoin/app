@@ -9,16 +9,19 @@ import { useTranslation } from 'react-i18next';
 
 const Button = ({
   onPress,
-  type
+  type,
+  onLayout
 }: {
   onPress: () => void;
   type: 'SEND' | 'RECEIVE' | 'FREEZE';
+  onLayout?: (e: any) => void;
 }) => {
   const insets = useSafeAreaInsets();
   const { t } = useTranslation();
   return (
     <Pressable
       onPress={onPress}
+      onLayout={onLayout}
       style={{ marginBottom: insets.bottom }}
       className={
         'py-2.5 pl-2.5 pr-3.5 mobmed:py-4 mobmed:pl-4 mobmed:pr-5 bg-primary rounded-full hover:opacity-90 active:scale-95 active:opacity-90 shadow flex-row gap-1 justify-center items-center'
