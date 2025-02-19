@@ -3,13 +3,7 @@ const NAME_MAX_LENGTH = 32;
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import Bip39 from '../components/Bip39';
 import * as Icons from '@expo/vector-icons';
-import {
-  Platform,
-  Pressable,
-  Text,
-  TextInput,
-  unstable_batchedUpdates
-} from 'react-native';
+import { Platform, Pressable, Text, TextInput } from 'react-native';
 import {
   ActivityIndicator,
   Button,
@@ -40,6 +34,7 @@ import {
   nativeBuildVersion
 } from 'expo-application';
 import { locales } from '~/i18n-locales/init';
+import { batchedUpdates } from '~/common/lib/batchedUpdates';
 
 function sanitizeFilename(name: string) {
   // Regex to remove invalid file path characters
@@ -99,7 +94,7 @@ const SettingsItem = ({
   }, [onPress]);
 
   const handleValueChange = useCallback((text: string) => {
-    unstable_batchedUpdates(() => {
+    batchedUpdates(() => {
       setErrorMessage(false);
       setValue(text);
     });
@@ -107,7 +102,7 @@ const SettingsItem = ({
 
   const onCancel = useCallback(() => {
     if (initialValue !== undefined) {
-      unstable_batchedUpdates(() => {
+      batchedUpdates(() => {
         setValue(initialValue);
         setErrorMessage(false);
       });
@@ -128,7 +123,7 @@ const SettingsItem = ({
       setIsValidatingValue(true);
       const validation = await validateValue(value);
       if (validation !== true) {
-        unstable_batchedUpdates(() => {
+        batchedUpdates(() => {
           setIsValidatingValue(false);
           setErrorMessage(validation);
         });
@@ -144,7 +139,7 @@ const SettingsItem = ({
 
   const onSetDefault = useCallback(() => {
     if (defaultValue !== undefined) {
-      unstable_batchedUpdates(() => {
+      batchedUpdates(() => {
         setValue(defaultValue);
         setErrorMessage(false);
       });
