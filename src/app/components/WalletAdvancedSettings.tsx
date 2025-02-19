@@ -214,7 +214,8 @@ export default function WalletAdvancedSettings({
             <Divider className="ml-3" />
             <View className="flex-row p-2 items-center active:bg-gray-200">
               <View className="flex-1 ml-3 flex-row items-center">
-                <Text className="mr-2 text-base">
+                <Text className="mr-2 text-base web:truncate">
+                  {/*when the width in web is narrow, this text breaks into multi-line. However, line-breaking on on web leaves some space on the right of the <Text> rendering the (i) info button weirdly to the right. Better not brek text and show 3 dots: ...*/}
                   {t('network.testOrRealTitle')}
                 </Text>
                 <InfoButton onPress={() => showNetworkHelp(true)} />
