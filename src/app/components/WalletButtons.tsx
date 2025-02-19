@@ -64,7 +64,15 @@ const WalletButtons = ({
     (handleReceive ? 1 : 0) + (handleSend ? 1 : 0) + (handleFreeze ? 1 : 0);
   return (
     <View
-      className={`self-center bottom-8 max-w-2xl px-2 moblg:px-4 w-full z-10 fixed native:absolute flex-wrap flex-row ${elCount === 1 ? 'justify-center' : elCount === 2 ? 'justify-evenly' : 'justify-between'}`}
+      className={`self-center bottom-8 max-w-2xl px-2 moblg:px-4 w-full z-10 fixed native:absolute flex-wrap flex-row gap-4 ${elCount === 1 ? 'justify-center' : elCount === 2 ? 'justify-evenly' : 'justify-between'}`}
+      onLayout={e => {
+        const height = e.nativeEvent.layout.height;
+        if (height > 80) { // If buttons wrap to more than one row
+          e.target.setNativeProps({
+            className: 'self-center bottom-8 max-w-2xl px-2 moblg:px-4 w-full z-10 fixed native:absolute flex-wrap flex-row gap-4 justify-center'
+          });
+        }
+      }}
     >
       {handleReceive && <Button type="RECEIVE" onPress={handleReceive} />}
       {handleSend && <Button type="SEND" onPress={handleSend} />}
