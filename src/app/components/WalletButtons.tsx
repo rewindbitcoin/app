@@ -64,7 +64,7 @@ const WalletButtons = ({
     (handleReceive ? 1 : 0) + (handleSend ? 1 : 0) + (handleFreeze ? 1 : 0);
   return (
     <View
-      className={`self-center bottom-8 max-w-2xl px-2 moblg:px-4 w-full z-10 fixed native:absolute flex-row ${elCount === 1 ? 'justify-center' : elCount === 2 ? 'justify-evenly' : 'justify-between'}`}
+      className={`self-center bottom-8 max-w-2xl px-2 moblg:px-4 w-full z-10 fixed native:absolute flex-wrap flex-row ${elCount === 1 ? 'justify-center' : elCount === 2 ? 'justify-evenly' : 'justify-between'}`}
     >
       {handleReceive && <Button type="RECEIVE" onPress={handleReceive} />}
       {handleSend && <Button type="SEND" onPress={handleSend} />}
