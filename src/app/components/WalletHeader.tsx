@@ -184,7 +184,7 @@ const WalletHeader = ({
       </View>
       {(netErrorMessage ||
         (networkId !== 'BITCOIN' && !testWalletWarningDismissed)) && (
-        <View className="p-4 mt-6 bg-white rounded-lg ios:shadow android:elevation relative">
+        <View className="p-4 mt-6 bg-white rounded-lg ios:shadow android:elevation web:shadow-md relative">
           <View className="absolute top-5 left-4">
             <Text className="text-red-500">
               <MaterialIcons name="warning-amber" size={20} />
