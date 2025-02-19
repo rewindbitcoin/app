@@ -26,7 +26,7 @@ export default function NetworksModal({
     return (
       <View key={id} className="flex-row justify-between flex-1">
         <Text
-          className="text-base capitalize w-20 mr-2 truncate"
+          className="text-base capitalize w-20 mr-2 web:truncate"
           numberOfLines={1}
         >
           {id.toLowerCase()}

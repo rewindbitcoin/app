@@ -99,7 +99,7 @@ const ConfirmBip39: React.FC<ConfirmBip39Props> = ({
             </Button>
           </View>
           {canSkip ? (
-            <Text className="native:text-sm web:text-xs self-center text-slate-600 mt-2 mb-2">
+            <Text className="native:text-sm web:text-xs self-center text-slate-600 mt-2 mb-2 px-2">
               {t('bip39.testingWalletsCanSkip')}
             </Text>
           ) : (
