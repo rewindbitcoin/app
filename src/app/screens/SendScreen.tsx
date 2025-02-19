@@ -360,7 +360,7 @@ export default function Send() {
           >
             <View className="px-4 py-2">
               <Text className="mb-2 text-base">{t('send.confirm')}</Text>
-              <View className="bg-gray-50 p-4 rounded-lg mb-4 android:elevation ios:shadow gap-2 mt-4">
+              <View className="bg-gray-50 p-4 rounded-lg mb-4 android:elevation ios:shadow web:shadow gap-2 mt-4">
                 <View className="flex-row">
                   <Text className="w-[30%] text-right text-base font-bold">
                     {t('send.confirmLabels.recipientAddress') + ':'}
