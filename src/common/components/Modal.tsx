@@ -72,6 +72,7 @@ const RawModal: React.FC<ModalProps> = ({
   const translateY = useSharedValue(0);
   const scrollViewPaddingVertical = 20;
   const [buttonHeight, setButtonHeight] = useState<number>(0);
+  const [hasMultipleLines, setHasMultipleLines] = useState(false);
 
   const [childrenHeight, setChildrenHeight] = useState<number>(200);
   const headerHeight = headerMini ? 60 : 150;
@@ -336,14 +337,14 @@ const RawModal: React.FC<ModalProps> = ({
                     className={`${headerMini ? 'bottom-2' : 'bottom-4'} absolute w-full`}
                   >
                     <Text
-                      className={`${ubuntuLoaded ? "font-['Ubuntu700Bold']" : ''} uppercase opacity-90 ${headerMini ? 'text-lg ml-16' : 'pl-4 text-xl mobmed:text-2xl mobmed:px-8'} text-white ${subTitle ? '!leading-none' : ''}`}
+                      className={`${ubuntuLoaded ? "font-['Ubuntu700Bold']" : ''} uppercase opacity-90 ${headerMini ? 'text-lg ml-16' : 'pl-4 text-xl mobmed:text-2xl mobmed:px-8'} text-white ${subTitle || hasMultipleLines ? '!leading-none' : ''}`}
                       {...(headerMini ? { numberOfLines: 1 } : {})}
                       onTextLayout={e => {
                         const linesLength = e.nativeEvent.lines.length;
-                        if (linesLength >= 3) {
-                          e.target.setNativeProps({
-                            className: `${ubuntuLoaded ? "font-['Ubuntu700Bold']" : ''} uppercase opacity-90 ${headerMini ? 'text-lg ml-16' : 'pl-4 text-xl mobmed:text-2xl mobmed:px-8'} text-white !leading-none}`
-                          });
+                        if (linesLength >= 3 && !hasMultipleLines) {
+                          setHasMultipleLines(true);
+                        } else if (linesLength < 3 && hasMultipleLines) {
+                          setHasMultipleLines(false);
                         }
                       }}
                     >
