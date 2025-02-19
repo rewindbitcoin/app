@@ -274,7 +274,7 @@ const SettingsScreen = () => {
   } = useWallet();
   const toast = useToast();
   const { settings, setSettings } = useSettings();
-  const { currency, setCurrency, locale, setLocale } = useLocalization();
+  const { currency, setCurrency, locale: currentLocale, setLocale } = useLocalization();
   const [isBip39ModalVisible, setIsBip39ModalVisible] =
     useState<boolean>(false);
   const [exportProgress, setExportProgress] = useState<string>('');
@@ -792,12 +792,12 @@ const SettingsScreen = () => {
                   setIsLanguageModalVisible(false);
                 }}
                 className={`py-2 px-4 rounded-lg ${
-                  locale === locale ? 'bg-primary' : 'bg-gray-200'
+                  locale === currentLocale ? 'bg-primary' : 'bg-gray-200'
                 } my-1`}
               >
                 <Text
                   className={`${
-                    locale === locale ? 'text-white' : 'text-black'
+                    locale === currentLocale ? 'text-white' : 'text-black'
                   } text-center`}
                 >
                   {t(`settings.general.languageNames.${locale}`)}
