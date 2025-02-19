@@ -503,7 +503,7 @@ const SettingsScreen = () => {
                 setIsLanguageModalVisible(true);
               }}
               initialValue={
-                currentLocale
+                currentLocale === 'default'
                   ? t('settings.general.systemDefault')
                   : t(`settings.general.languageNames.${currentLocale}`)
               }
