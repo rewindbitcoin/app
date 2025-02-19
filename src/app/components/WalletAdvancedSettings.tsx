@@ -153,7 +153,7 @@ export default function WalletAdvancedSettings({
               <>
                 <View className="flex-row p-2 items-center active:bg-gray-200">
                   <View className="flex-1 flex-row items-center ml-3">
-                    <Text className="pr-2 text-base truncate">
+                    <Text className="pr-2 text-base">
                       {t('wallet.biometricEncryptionTitle')}
                     </Text>
                     <InfoButton onPress={() => showBiometricalHelp(true)} />
@@ -180,7 +180,7 @@ export default function WalletAdvancedSettings({
             )}
             <View className="flex-row p-2 items-center active:bg-gray-200">
               <View className="flex-1 flex-row items-center ml-3">
-                <Text className="pr-2 text-base truncate">
+                <Text className="pr-2 text-base">
                   {t('wallet.usePasswordTitle')}
                 </Text>
                 <InfoButton onPress={() => showPasswordHelp(true)} />
@@ -200,7 +200,7 @@ export default function WalletAdvancedSettings({
             <Divider className="ml-3" />
             <View className="flex-row p-2 items-center active:bg-gray-200">
               <View className="flex-1 flex-row items-center ml-3">
-                <Text className="pr-2 text-base truncate">
+                <Text className="pr-2 text-base">
                   {t('wallet.encryptAppDataTitle')}
                 </Text>
                 <InfoButton onPress={() => showDataEncryptionHelp(true)} />
@@ -214,7 +214,7 @@ export default function WalletAdvancedSettings({
             <Divider className="ml-3" />
             <View className="flex-row p-2 items-center active:bg-gray-200">
               <View className="flex-1 ml-3 flex-row items-center">
-                <Text className="mr-2 text-base truncate">
+                <Text className="mr-2 text-base">
                   {t('network.testOrRealTitle')}
                 </Text>
                 <InfoButton onPress={() => showNetworkHelp(true)} />
