@@ -159,7 +159,7 @@ export default function Receive() {
                 <Text className="self-center" onPress={onClipboard}>
                   {receiveAddress}
                 </Text>
-                <View className="mt-4 gap-4 flex-row flex-wrap justify-center self-center">
+                <View className="mt-4 gap-x-6 gap-y-4 8 flex-row flex-wrap justify-center self-center">
                   <Button
                     mode="text"
                     onPress={onClipboard}
@@ -167,7 +167,6 @@ export default function Receive() {
                   >
                     {t('receive.copyAddress')}
                   </Button>
-                  <Text className="text-gray-500 self-center">|</Text>
                   <Button mode="text" onPress={onShare} iconRight={shareIcon}>
                     {t('receive.shareAddress')}
                   </Button>
@@ -187,11 +186,11 @@ export default function Receive() {
           <Button onPress={goBack}>{t('receive.doneButton')}</Button>
           {requestTokensURL && networkName && (
             <View className="mt-4 p-4 bg-gray-50 android:elevation ios:shadow rounded-lg items-center">
-              <View className="flex-row items-center mb-2">
+              <View className="flex-row flex-wrap items-center mb-2 gap-2">
                 <Text className="text-base text-center">
                   {t('receive.faucetIntro')}
                 </Text>
-                <Button mode="text" onPress={onFaucet} className="ml-2">
+                <Button mode="text" onPress={onFaucet}>
                   {t('receive.requestTokens')}
                 </Button>
               </View>
