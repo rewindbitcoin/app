@@ -642,10 +642,12 @@ const SettingsScreen = () => {
           >
             {t('settings.resetToDefaults')}
           </Button>
-          <Text className="text-center my-8 text-gray-400">
-            {applicationName} {nativeApplicationVersion} ({t('app.buildNumber')}{' '}
-            {nativeBuildVersion})
-          </Text>
+          {Platform.OS !== 'web' && (
+            <Text className="text-center my-8 text-gray-400">
+              {applicationName} {nativeApplicationVersion} (
+              {t('app.buildNumber')} {nativeBuildVersion})
+            </Text>
+          )}
         </View>
         <Modal
           icon={{
