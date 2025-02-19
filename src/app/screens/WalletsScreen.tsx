@@ -188,7 +188,7 @@ const WalletsScreen = () => {
                     {walletTitle(wallet, wallets, t)}
                   </Text>
                   {wallet.networkId !== 'BITCOIN' && (
-                    <View className="p-2 rounded-xl bg-white/70">
+                    <View className="self-start p-2 rounded-xl bg-white/70">
                       <Text
                         className={`font-semibold text-xs text-center leading-4 ${walletCl(index)}`}
                       >
