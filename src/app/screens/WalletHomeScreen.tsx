@@ -9,6 +9,7 @@ import React, {
 } from 'react';
 import Password from '../components/Password';
 import Transactions from '../components/Transactions';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   View,
   Text,
@@ -371,6 +372,8 @@ const WalletHomeScreen = () => {
   const storageError =
     walletStatus.isCorrupted || walletStatus.storageAccess.readWriteError;
 
+  const insets = useSafeAreaInsets();
+  console.log({ bottom: insets.bottom, walletButtonsHeight });
   return biometricsRequestDeclinedOnWalletCreation ? (
     <ErrorView
       errorMessage={
@@ -487,8 +490,10 @@ const WalletHomeScreen = () => {
         {activeTabIndex === 0 && (
           <View
             className={`p-4 max-w-2xl w-full self-center`}
-            style={{ marginBottom: walletButtonsHeight + 32 }} // 32px = 8rem from bottom-8
-            //The mb-28 to let it scroll over the Receive - Send - Freeze buttons
+            style={{
+              marginBottom: walletButtonsHeight + insets.bottom + 8 * 4
+            }}
+            //The added margin to let it scroll over the Receive - Send - Freeze buttons. Note there is a mb-8 in <WalletButtons>
           >
             {vaults && vaultsStatuses && (
               <Vaults
@@ -506,8 +511,10 @@ const WalletHomeScreen = () => {
         {activeTabIndex === 1 && (
           <View
             className={`p-4 max-w-2xl w-full self-center`}
-            style={{ marginBottom: walletButtonsHeight + 32 }} // 32px = 8rem from bottom-8
-            //The mb-28 to let it scroll over the Receive - Send - Freeze buttons
+            style={{
+              marginBottom: walletButtonsHeight + insets.bottom + 8 * 4
+            }}
+            //The added margin to let it scroll over the Receive - Send - Freeze buttons. Note there is a mb-8 in <WalletButtons>
           >
             <Transactions
               blockExplorerURL={blockExplorerURL}
