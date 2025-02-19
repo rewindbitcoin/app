@@ -62,6 +62,7 @@ const WalletButtons = ({
 }) => {
   const [buttonHeight, setButtonHeight] = useState(0);
   const [isMultiRow, setIsMultiRow] = useState(false);
+  console.log('WalletButtons', { buttonHeight, isMultiRow });
   const elCount =
     (handleReceive ? 1 : 0) + (handleSend ? 1 : 0) + (handleFreeze ? 1 : 0);
   return (
@@ -79,6 +80,7 @@ const WalletButtons = ({
           type="RECEIVE"
           onPress={handleReceive}
           onLayout={e => {
+            console.log('button height', e);
             if (!buttonHeight) {
               setButtonHeight(e.nativeEvent.layout.height);
             }
