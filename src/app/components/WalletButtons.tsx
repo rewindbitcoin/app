@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useCallback, useState } from 'react';
 import FreezeIcon from './FreezeIcon';
 import ReceiveIcon from './ReceiveIcon';
 import SendIcon from './SendIcon';
@@ -65,9 +65,11 @@ const WalletButtons = ({
 }) => {
   const [buttonHeight, setButtonHeight] = useState(0);
   const [isMultiRow, setIsMultiRow] = useState(false);
-  console.log('WalletButtons', { buttonHeight, isMultiRow });
   const elCount =
     (handleReceive ? 1 : 0) + (handleSend ? 1 : 0) + (handleFreeze ? 1 : 0);
+  const onButtonLayout = useCallback((e: LayoutChangeEvent) => {
+    setButtonHeight(e.nativeEvent.layout.height);
+  }, []);
   return (
     <View
       className={`self-center bottom-8 max-w-2xl px-2 moblg:px-4 w-full z-10 fixed native:absolute flex-wrap flex-row gap-4 ${isMultiRow ? 'justify-center' : elCount === 1 ? 'justify-center' : elCount === 2 ? 'justify-evenly' : 'justify-between'}`}
@@ -82,16 +84,19 @@ const WalletButtons = ({
         <Button
           type="RECEIVE"
           onPress={handleReceive}
-          onLayout={e => {
-            console.log('button height', e);
-            if (!buttonHeight) {
-              setButtonHeight(e.nativeEvent.layout.height);
-            }
-          }}
+          onLayout={onButtonLayout}
         />
       )}
-      {handleSend && <Button type="SEND" onPress={handleSend} />}
-      {handleFreeze && <Button type="FREEZE" onPress={handleFreeze} />}
+      {handleSend && (
+        <Button type="SEND" onPress={handleSend} onLayout={onButtonLayout} />
+      )}
+      {handleFreeze && (
+        <Button
+          type="FREEZE"
+          onPress={handleFreeze}
+          onLayout={onButtonLayout}
+        />
+      )}
     </View>
   );
 };
