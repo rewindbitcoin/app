@@ -1,10 +1,10 @@
 import React, { ReactNode, useCallback } from 'react';
 import { Text, View, Pressable } from 'react-native';
 import Divider from './Divider';
-import AntDesign from '@expo/vector-icons/AntDesign';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { cssInterop } from 'nativewind';
 
-cssInterop(AntDesign, {
+cssInterop(MaterialCommunityIcons, {
   className: {
     target: 'style',
     nativeStyleToProp: { color: true, fontSize: 'size' }
@@ -26,8 +26,24 @@ const VerticalChoice = ({
   );
 
   const Check = (check: boolean) => (
-    <View className="w-6">
-      {check && <AntDesign className="!text-primary text-xl" name="check" />}
+    <View className="w-8 pr-2">
+      {check ? (
+        //Text tag needed for correct vertically-aligned rendering in iOS/Android
+        <Text>
+          <MaterialCommunityIcons
+            className="!text-primary text-base"
+            name="check-circle"
+          />
+        </Text>
+      ) : (
+        //Text tag needed for correct vertically-aligned rendering in iOS/Android
+        <Text>
+          <MaterialCommunityIcons
+            className="!text-primary text-base"
+            name="circle-outline"
+          />
+        </Text>
+      )}
     </View>
   );
 
