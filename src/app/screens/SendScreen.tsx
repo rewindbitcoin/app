@@ -195,7 +195,6 @@ export default function Send() {
         const { txHex, fee } = txHexAndFee;
         txHexRef.current = txHex;
         feeRef.current = fee;
-        console.log({ txHex: txHexRef.current });
         setIsConfirm(true);
       } else {
         txHexRef.current = undefined;
