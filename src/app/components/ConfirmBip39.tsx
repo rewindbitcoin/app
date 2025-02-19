@@ -81,7 +81,7 @@ const ConfirmBip39: React.FC<ConfirmBip39Props> = ({
       {...(isConfirming || isSkipping ? {} : { onClose: onCancel })}
       customButtons={
         <>
-          <View className="items-center gap-6 flex-row flex-wrap justify-center">
+          <View className="items-center gap-4 moblg:gap-6 flex-row flex-wrap justify-center">
             <Button disabled={isConfirming || isSkipping} onPress={onCancel}>
               {t('cancelButton')}
             </Button>
