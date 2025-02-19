@@ -177,7 +177,9 @@ const SegmentedControl: React.FC<SegmentedControlProps> = ({
             style={[styles.touchableContainer, pressableWrapper]}
           >
             <View style={styles.textWrapper}>
-              <Text style={textStyle}>{segment}</Text>
+              <Text style={textStyle} numberOfLines={1}>
+                {segment}
+              </Text>
             </View>
           </Pressable>
         );
