@@ -176,7 +176,7 @@ export default function Receive() {
             ) : (
               <Button
                 mode="text"
-                textClassName="break-words"
+                textClassName="break-words break-all"
                 iconRight={clipboardIcon}
                 onPress={onClipboard}
               >
