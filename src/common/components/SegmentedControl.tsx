@@ -199,6 +199,7 @@ const getStyles = (theme: Theme) =>
       backgroundColor: theme.colors.darkerBackground
     },
     touchableContainer: {
+      //flex: 1,
       elevation: 9,
       height: '100%',
       paddingHorizontal: 16

@@ -292,8 +292,8 @@ const getStyles = (theme: Theme) => {
   return StyleSheet.create({
     segmented: {
       marginLeft: 10,
-      width: 200,
-      height: 30,
+      paddingVertical: 8,
+      textAlign: 'center',
       backgroundColor: theme.colors.darkerOverDarkerBackground
     },
     segmentedTexts: {
