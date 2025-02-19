@@ -2,7 +2,7 @@ import React, { useState, useRef } from 'react';
 import FreezeIcon from './FreezeIcon';
 import ReceiveIcon from './ReceiveIcon';
 import SendIcon from './SendIcon';
-import { View, Text, Pressable } from 'react-native';
+import { View, Text, Pressable, LayoutChangeEvent } from 'react-native';
 import { Svg } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
@@ -14,7 +14,7 @@ const Button = ({
 }: {
   onPress: () => void;
   type: 'SEND' | 'RECEIVE' | 'FREEZE';
-  onLayout?: (e: any) => void;
+  onLayout?: (e: LayoutChangeEvent) => void;
 }) => {
   const insets = useSafeAreaInsets();
   const { t } = useTranslation();
