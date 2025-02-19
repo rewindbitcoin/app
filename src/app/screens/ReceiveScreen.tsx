@@ -159,7 +159,7 @@ export default function Receive() {
                 <Text className="self-center" onPress={onClipboard}>
                   {receiveAddress}
                 </Text>
-                <View className="mt-4 gap-6 flex-row justify-center self-center">
+                <View className="mt-4 gap-4 flex-row flex-wrap justify-center self-center">
                   <Button
                     mode="text"
                     onPress={onClipboard}
@@ -167,7 +167,7 @@ export default function Receive() {
                   >
                     {t('receive.copyAddress')}
                   </Button>
-                  <Text className="text-gray-500">|</Text>
+                  <Text className="text-gray-500 self-center">|</Text>
                   <Button mode="text" onPress={onShare} iconRight={shareIcon}>
                     {t('receive.shareAddress')}
                   </Button>
