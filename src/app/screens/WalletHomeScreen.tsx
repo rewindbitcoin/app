@@ -373,7 +373,6 @@ const WalletHomeScreen = () => {
     walletStatus.isCorrupted || walletStatus.storageAccess.readWriteError;
 
   const insets = useSafeAreaInsets();
-  console.log({ bottom: insets.bottom, walletButtonsHeight });
   return biometricsRequestDeclinedOnWalletCreation ? (
     <ErrorView
       errorMessage={
