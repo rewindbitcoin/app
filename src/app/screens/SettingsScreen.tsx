@@ -527,7 +527,49 @@ const SettingsScreen = () => {
                 setSettings({ ...settings, GAP_LIMIT: parseInt(gapLimitStr) });
               }}
             />
-            {(Platform.OS === 'android' || Platform.OS === 'ios') && (
+            {Platform.OS === 'web' ? (
+              <>
+                <SettingsItem
+                  icon={{
+                    family: 'MaterialCommunityIcons',
+                    name: 'api'
+                  }}
+                  maxLength={URL_MAX_LENGTH}
+                  label={t('settings.general.esploraBitcoin')}
+                  initialValue={settings.MAINNET_ESPLORA_API}
+                  defaultValue={defaultSettings.MAINNET_ESPLORA_API}
+                  onValue={(url: string) => {
+                    setSettings({ ...settings, MAINNET_ESPLORA_API: url });
+                  }}
+                />
+                <SettingsItem
+                  icon={{
+                    family: 'MaterialCommunityIcons',
+                    name: 'api'
+                  }}
+                  maxLength={URL_MAX_LENGTH}
+                  label={t('settings.general.esploraTape')}
+                  initialValue={settings.TAPE_ESPLORA_API}
+                  defaultValue={defaultSettings.TAPE_ESPLORA_API}
+                  onValue={(url: string) => {
+                    setSettings({ ...settings, TAPE_ESPLORA_API: url });
+                  }}
+                />
+                <SettingsItem
+                  icon={{
+                    family: 'MaterialCommunityIcons',
+                    name: 'api'
+                  }}
+                  maxLength={URL_MAX_LENGTH}
+                  label={t('settings.general.esploraTestnet')}
+                  initialValue={settings.TESTNET_ESPLORA_API}
+                  defaultValue={defaultSettings.TESTNET_ESPLORA_API}
+                  onValue={(url: string) => {
+                    setSettings({ ...settings, TESTNET_ESPLORA_API: url });
+                  }}
+                />
+              </>
+            ) : (
               <>
                 <SettingsItem
                   icon={{
