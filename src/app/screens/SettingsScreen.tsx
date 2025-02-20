@@ -164,7 +164,7 @@ const SettingsItem = ({
         <View className="flex-1 ml-3">
           <View className="flex-row items-center justify-between py-2">
             <Text
-              className={`text-base flex-1 truncate ${danger ? 'text-red-500' : ''}`}
+              className={`text-base flex-1 ${danger ? 'text-red-500' : ''}`}
             >
               {label}
             </Text>
