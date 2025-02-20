@@ -294,8 +294,12 @@ const NetStatusProvider: React.FC<NetStatusProviderProps> = ({ children }) => {
           const connected = await explorer.isConnected();
           if (session !== sessionRef.current) return false;
 
-          if (connected) return true;
-          else {
+          if (connected) {
+            //Esplora clients need to be initalized so that isClosed()
+            //returns false even if they are always connected
+            if (explorer.isClosed()) explorer.connect();
+            return true;
+          } else {
             if (!explorer.isClosed()) {
               explorer.close();
             }
