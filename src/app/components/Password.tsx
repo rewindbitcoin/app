@@ -70,7 +70,7 @@ const Password = ({
       isVisible={isVisible}
       onClose={handleCancel}
       customButtons={
-        <View className="items-center pb-4 gap-2 mobmed:gap-6 flex-row justify-center">
+        <View className="items-center pb-4 gap-2 mobmed:gap-6 flex-row flex-wrap justify-center">
           {mode === 'OPTIONAL_SET' ? (
             <Button onPress={handleContinueWithoutPassword}>
               {t('wallet.skipOptionalSetPasswordButton')}
