@@ -168,7 +168,7 @@ const SettingsItem = ({
             >
               {label}
             </Text>
-            {initialValue && (
+            {initialValue !== undefined && (
               <Text
                 numberOfLines={1}
                 className={`text-base mr-4 flex-auto overflow-hidden text-right ml-4 max-w-[40%] ${danger ? 'text-red-500' : 'text-gray-400'}`}
