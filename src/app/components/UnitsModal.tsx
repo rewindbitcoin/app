@@ -66,11 +66,13 @@ export default function UnitsModal({
       isVisible={isVisible}
       {...(onClose ? { onClose } : {})}
     >
-      <VerticalChoice
-        {...(mode === undefined ? {} : { index: modes.indexOf(mode) })}
-        choices={choices}
-        onSelect={handleSelect}
-      />
+      <View className="px-2">
+        <VerticalChoice
+          {...(mode === undefined ? {} : { index: modes.indexOf(mode) })}
+          choices={choices}
+          onSelect={handleSelect}
+        />
+      </View>
     </Modal>
   );
 }
