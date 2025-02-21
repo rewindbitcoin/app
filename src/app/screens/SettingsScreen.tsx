@@ -377,14 +377,8 @@ const SettingsScreen = () => {
       const network = networkMapping[networkId];
       const explorer =
         type === 'electrum'
-          ? new ElectrumExplorer({
-              network,
-              ...electrumParams(url)
-            })
-          : new EsploraExplorer({
-              network,
-              url
-            });
+          ? new ElectrumExplorer({ network, ...electrumParams(url) })
+          : new EsploraExplorer({ url });
       await explorer.connect();
       const isConnected = await explorer.isConnected();
 
@@ -541,6 +535,25 @@ const SettingsScreen = () => {
                 setSettings({ ...settings, GAP_LIMIT: parseInt(gapLimitStr) });
               }}
             />
+            <SettingsItem
+              icon={{
+                family: 'MaterialIcons',
+                name: 'backup'
+              }}
+              maxLength={URL_MAX_LENGTH}
+              label={t('settings.general.communityBackups')}
+              initialValue={settings.COMMUNITY_BACKUPS_API}
+              defaultValue={defaultSettings.COMMUNITY_BACKUPS_API}
+              validateValue={(url: string) =>
+                validateCommunityBackupsAPI({
+                  ...settings,
+                  COMMUNITY_BACKUPS_API: url
+                })
+              }
+              onValue={(url: string) => {
+                setSettings({ ...settings, COMMUNITY_BACKUPS_API: url });
+              }}
+            />
             {Platform.OS === 'web' ? (
               <>
                 <SettingsItem
@@ -660,25 +673,6 @@ const SettingsScreen = () => {
                 />
               </>
             )}
-            <SettingsItem
-              icon={{
-                family: 'MaterialIcons',
-                name: 'backup'
-              }}
-              maxLength={URL_MAX_LENGTH}
-              label={t('settings.general.communityBackups')}
-              initialValue={settings.COMMUNITY_BACKUPS_API}
-              defaultValue={defaultSettings.COMMUNITY_BACKUPS_API}
-              validateValue={(url: string) =>
-                validateCommunityBackupsAPI({
-                  ...settings,
-                  COMMUNITY_BACKUPS_API: url
-                })
-              }
-              onValue={(url: string) => {
-                setSettings({ ...settings, COMMUNITY_BACKUPS_API: url });
-              }}
-            />
             <SettingsItem
               showSeparator={false}
               icon={{
