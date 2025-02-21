@@ -107,7 +107,7 @@ const Password = ({
           </Text>
         )}
         <TextInput
-          value={password}
+          value={password || ''}
           enablesReturnKeyAutomatically
           onSubmitEditing={handleOnSubmitEditing}
           ref={input}
