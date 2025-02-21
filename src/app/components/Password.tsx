@@ -38,7 +38,7 @@ const Password = ({
     onPassword(password);
   }, [onPassword, password]);
   const handleOnSubmitEditing = useCallback(() => {
-    if (password && validatePassword(password)) handlePassword();
+    if (password && validatePassword(password).isValid) handlePassword();
   }, [password, handlePassword]);
 
   const onChangePassword = useCallback((password: string) => {
@@ -79,7 +79,7 @@ const Password = ({
             <Button onPress={handleCancel}>{t('cancelButton')}</Button>
           )}
           <Button
-            disabled={password === undefined || !validatePassword(password)}
+            disabled={password === undefined || !validatePassword(password).isValid}
             onPress={handlePassword}
           >
             {mode === 'FORCED_SET' || mode === 'OPTIONAL_SET'
@@ -97,6 +97,15 @@ const Password = ({
               ? t('wallet.optionalSetPasswordText')
               : t('wallet.requestPasswordText')}
         </Text>
+        {password && !validatePassword(password).isValid && (
+          <Text className="text-notification text-sm pb-2">
+            {t(
+              validatePassword(password).error === 'TOO_SHORT'
+                ? 'password.validation.tooShort'
+                : 'password.validation.tooLong'
+            )}
+          </Text>
+        )}
         <TextInput
           value={password}
           enablesReturnKeyAutomatically
