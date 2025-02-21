@@ -359,27 +359,25 @@ const RawModal: React.FC<ModalProps> = ({
                       </Text>
                     )}
                   </View>
-                  {
+                  {Platform.select({
                     //A bar as a hint to the user this is draggable
                     //Don't show on web
-                    Platform.select({
-                      web: null,
-                      default: (
-                        <View
-                          style={{
-                            alignSelf: 'center',
-                            opacity: 0.3,
-                            position: 'absolute',
-                            borderWidth: 2,
-                            borderColor: theme.colors.white,
-                            borderRadius: 2,
-                            top: 10,
-                            width: 80
-                          }}
-                        />
-                      )
-                    })
-                  }
+                    web: null,
+                    default: (
+                      <View
+                        style={{
+                          alignSelf: 'center',
+                          opacity: 0.3,
+                          position: 'absolute',
+                          borderWidth: 2,
+                          borderColor: theme.colors.white,
+                          borderRadius: 2,
+                          top: 10,
+                          width: 80
+                        }}
+                      />
+                    )
+                  })}
                 </View>
 
                 <ScrollView
