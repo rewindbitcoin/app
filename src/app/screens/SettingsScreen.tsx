@@ -24,7 +24,7 @@ import { useNavigation } from '@react-navigation/native';
 import { NavigationPropsByScreenId, WALLETS } from '../screens';
 import { exportWallet } from '../lib/backup';
 import { electrumParams, getAPIs } from '../lib/walletDerivedData';
-import { ElectrumExplorer } from '@bitcoinerlab/explorer';
+import { ElectrumExplorer, EsploraExplorer } from '@bitcoinerlab/explorer';
 import { NetworkId, networkMapping } from '../lib/network';
 import { useLocalization } from '../hooks/useLocalization';
 
@@ -368,13 +368,23 @@ const SettingsScreen = () => {
     return t('settings.wallet.regtestApiBaseError');
   };
 
-  const validateElectrumURL = async (url: string, networkId: NetworkId) => {
+  const validateExplorerURL = async (
+    url: string,
+    networkId: NetworkId,
+    type: 'electrum' | 'esplora'
+  ) => {
     try {
       const network = networkMapping[networkId];
-      const explorer = new ElectrumExplorer({
-        network,
-        ...electrumParams(url)
-      });
+      const explorer =
+        type === 'electrum'
+          ? new ElectrumExplorer({
+              network,
+              ...electrumParams(url)
+            })
+          : new EsploraExplorer({
+              network,
+              url
+            });
       await explorer.connect();
       const isConnected = await explorer.isConnected();
 
@@ -385,7 +395,11 @@ const SettingsScreen = () => {
     } catch (err) {
       console.warn(err);
     }
-    return t('settings.wallet.electrumError');
+    return t(
+      type === 'electrum'
+        ? 'settings.wallet.electrumError'
+        : 'settings.wallet.esploraError'
+    );
   };
 
   const title = wallet && wallets ? walletTitle(wallet, wallets, t) : '';
@@ -538,6 +552,9 @@ const SettingsScreen = () => {
                   label={t('settings.general.esploraBitcoin')}
                   initialValue={settings.MAINNET_ESPLORA_API}
                   defaultValue={defaultSettings.MAINNET_ESPLORA_API}
+                  validateValue={(url: string) =>
+                    validateExplorerURL(url, 'BITCOIN', 'esplora')
+                  }
                   onValue={(url: string) => {
                     setSettings({ ...settings, MAINNET_ESPLORA_API: url });
                   }}
@@ -551,6 +568,9 @@ const SettingsScreen = () => {
                   label={t('settings.general.esploraTape')}
                   initialValue={settings.TAPE_ESPLORA_API}
                   defaultValue={defaultSettings.TAPE_ESPLORA_API}
+                  validateValue={(url: string) =>
+                    validateExplorerURL(url, 'TAPE', 'esplora')
+                  }
                   onValue={(url: string) => {
                     setSettings({ ...settings, TAPE_ESPLORA_API: url });
                   }}
@@ -564,6 +584,9 @@ const SettingsScreen = () => {
                   label={t('settings.general.esploraTestnet')}
                   initialValue={settings.TESTNET_ESPLORA_API}
                   defaultValue={defaultSettings.TESTNET_ESPLORA_API}
+                  validateValue={(url: string) =>
+                    validateExplorerURL(url, 'TESTNET', 'esplora')
+                  }
                   onValue={(url: string) => {
                     setSettings({ ...settings, TESTNET_ESPLORA_API: url });
                   }}
@@ -581,7 +604,7 @@ const SettingsScreen = () => {
                   initialValue={settings.MAINNET_ELECTRUM_API}
                   defaultValue={defaultSettings.MAINNET_ELECTRUM_API}
                   validateValue={(url: string) =>
-                    validateElectrumURL(url, 'BITCOIN')
+                    validateExplorerURL(url, 'BITCOIN', 'electrum')
                   }
                   onValue={(url: string) => {
                     setSettings({ ...settings, MAINNET_ELECTRUM_API: url });
@@ -597,7 +620,7 @@ const SettingsScreen = () => {
                   initialValue={settings.TAPE_ELECTRUM_API}
                   defaultValue={defaultSettings.TAPE_ELECTRUM_API}
                   validateValue={(url: string) =>
-                    validateElectrumURL(url, 'TAPE')
+                    validateExplorerURL(url, 'TAPE', 'electrum')
                   }
                   onValue={(url: string) => {
                     setSettings({ ...settings, TAPE_ELECTRUM_API: url });
@@ -613,7 +636,7 @@ const SettingsScreen = () => {
                   initialValue={settings.TESTNET_ELECTRUM_API}
                   defaultValue={defaultSettings.TESTNET_ELECTRUM_API}
                   validateValue={(url: string) =>
-                    validateElectrumURL(url, 'TESTNET')
+                    validateExplorerURL(url, 'TESTNET', 'electrum')
                   }
                   onValue={(url: string) => {
                     setSettings({ ...settings, TESTNET_ELECTRUM_API: url });
@@ -629,7 +652,7 @@ const SettingsScreen = () => {
                   initialValue={settings.REGTEST_ELECTRUM_API}
                   defaultValue={defaultSettings.REGTEST_ELECTRUM_API}
                   validateValue={(url: string) =>
-                    validateElectrumURL(url, 'REGTEST')
+                    validateExplorerURL(url, 'REGTEST', 'electrum')
                   }
                   onValue={(url: string) => {
                     setSettings({ ...settings, REGTEST_ELECTRUM_API: url });
