@@ -661,6 +661,8 @@ Por favor, espera unos momentos hasta que se complete.`,
         'El Límite de Exploración (Gap Limit) debe ser un número entero entre 1 y 100.',
       electrumError:
         'URL de Electrum inválida o el servidor está caído. Por favor, verifica la URL e inténtalo de nuevo.',
+      esploraError:
+        'URL de Esplora inválida o el servidor está caído. Por favor, verifica la URL e inténtalo de nuevo.',
       communityBackupsError:
         'Base de la API de Community Backups no válida. Verifica la URL e inténtalo de nuevo.',
 

@@ -763,6 +763,8 @@ Please wait a few moments until completion.`,
       gapLimitError: 'Gap Limit must be an integer between 1 and 100.',
       electrumError:
         'Invalid Electrum URL or server is down. Please check the URL and try again.',
+      esploraError:
+        'Invalid Esplora URL or server is down. Please check the URL and try again.',
       communityBackupsError:
         'Invalid Community Backups API Base. Please check the URL and try again.',
       regtestApiBaseError:
