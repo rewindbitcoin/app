@@ -294,6 +294,12 @@ Once the countdown ends, your funds will be unlocked and accessible.`
       noFundsTile: 'No Funds Frozen Yet',
       noFundsBody:
         'Keep your savings secure by freezing the funds not needed daily in Vaults.'
+    },
+    password: {
+      validation: {
+        tooShort: 'Password must be at least 8 characters',
+        tooLong: 'Password cannot be longer than 32 characters'
+      }
     }
   },
   walletHome: {

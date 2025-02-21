@@ -252,6 +252,12 @@ Una vez que se inicia el rescate, los fondos serán enviados a la Dirección de 
 Una vez que termine la cuenta regresiva, tus fondos serán desbloqueados y accesibles.`
         }
       }
+    },
+    password: {
+      validation: {
+        tooShort: 'La contraseña debe tener al menos 8 caracteres',
+        tooLong: 'La contraseña no puede tener más de 32 caracteres'
+      }
     }
   },
   walletHome: {

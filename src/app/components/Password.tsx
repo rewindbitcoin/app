@@ -79,7 +79,9 @@ const Password = ({
             <Button onPress={handleCancel}>{t('cancelButton')}</Button>
           )}
           <Button
-            disabled={password === undefined || !validatePassword(password).isValid}
+            disabled={
+              password === undefined || !validatePassword(password).isValid
+            }
             onPress={handlePassword}
           >
             {mode === 'FORCED_SET' || mode === 'OPTIONAL_SET'
@@ -99,11 +101,9 @@ const Password = ({
         </Text>
         {password && !validatePassword(password).isValid && (
           <Text className="text-notification text-sm pb-2">
-            {t(
-              validatePassword(password).error === 'TOO_SHORT'
-                ? 'password.validation.tooShort'
-                : 'password.validation.tooLong'
-            )}
+            {validatePassword(password).error === 'TOO_SHORT'
+              ? t('wallet.password.validation.tooShort')
+              : t('wallet.password.validation.tooLong')}
           </Text>
         )}
         <TextInput
