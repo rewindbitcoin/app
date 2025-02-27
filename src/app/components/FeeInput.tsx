@@ -18,7 +18,8 @@ import { computeMaxAllowedFeeRate, FeeEstimates } from '../lib/fees';
 import { useTranslation } from 'react-i18next';
 import { useSettings } from '../hooks/useSettings';
 import { useLocalization } from '../hooks/useLocalization';
-import { Text } from 'react-native';
+import { Text, View, Pressable, LayoutAnimation } from 'react-native';
+import AntDesign from '@expo/vector-icons/AntDesign';
 
 function FeeInput({
   label,
@@ -37,6 +38,17 @@ function FeeInput({
   onValueChange: (value: number | null, type: 'USER' | 'RESET') => void;
   helpIconAvailable?: boolean;
 }) {
+  const [expanded, setExpanded] = useState<boolean>(false);
+  const toggleExpanded = useCallback(() => {
+    LayoutAnimation.configureNext({
+      duration: 150,
+      update: {
+        type: LayoutAnimation.Types.linear,
+        property: LayoutAnimation.Properties.opacity
+      }
+    });
+    setExpanded(!expanded);
+  }, [expanded]);
   const { settings } = useSettings();
   if (!settings)
     throw new Error(
@@ -129,21 +141,74 @@ function FeeInput({
     []
   );
 
+  // Get the optimal fee rate from the estimates (usually the "30" minute target)
+  const optimalFeeRate = useMemo(() => {
+    const targets = Object.keys(feeEstimates);
+    // Try to get the medium priority fee (usually "30" minutes)
+    const mediumTarget = targets.find(t => t === '30') || targets[Math.floor(targets.length / 2)];
+    return feeEstimates[mediumTarget];
+  }, [feeEstimates]);
+
+  // Format the optimal fee for display
+  const optimalFeeFormatted = useMemo(() => {
+    return formatFeeRate(
+      {
+        fee: fee === null ? undefined : fee,
+        feeRate: optimalFeeRate,
+        locale,
+        currency,
+        subUnit,
+        btcFiat,
+        feeEstimates: snappedFeeEstimates
+      },
+      t
+    );
+  }, [fee, optimalFeeRate, locale, currency, subUnit, btcFiat, snappedFeeEstimates, t]);
+
   return (
     <>
-      <CardEditableSlider
-        locale={locale}
-        label={label}
-        {...(helpIconAvailable ? { headerIcon } : {})}
-        key={`${min}-${max}`}
-        minimumValue={snappedMin}
-        maximumValue={snappedMax}
-        initialValue={snappedInitialValue}
-        onValueChange={onSnappedValueChange}
-        step={FEE_RATE_STEP}
-        formatValue={formatValue}
-        unit={'sats/vB'}
-      />
+      <Pressable
+        onPress={toggleExpanded}
+        className={`overflow-hidden rounded-xl bg-white mb-2 ${expanded ? 'mb-0' : ''}`}
+      >
+        <View className="flex-row p-4 items-center justify-between">
+          <View className="flex-row items-center">
+            <Text className="text-base font-medium">{label}</Text>
+            {helpIconAvailable && (
+              <InfoButton onPress={showFeeHelp} />
+            )}
+          </View>
+          <View className="flex-row items-center">
+            {!expanded && (
+              <Text className="text-primary text-base mr-2">
+                {t('feeInput.autoOptimal')}: {optimalFeeFormatted}
+              </Text>
+            )}
+            <AntDesign
+              name={expanded ? 'up' : 'down'}
+              size={16}
+              className="!text-primary"
+            />
+          </View>
+        </View>
+      </Pressable>
+      
+      {expanded && (
+        <CardEditableSlider
+          locale={locale}
+          label={label}
+          {...(helpIconAvailable ? { headerIcon } : {})}
+          key={`${min}-${max}`}
+          minimumValue={snappedMin}
+          maximumValue={snappedMax}
+          initialValue={snappedInitialValue}
+          onValueChange={onSnappedValueChange}
+          step={FEE_RATE_STEP}
+          formatValue={formatValue}
+          unit={'sats/vB'}
+        />
+      )}
+      
       {helpIconAvailable && (
         <Modal
           title={t('feeInput.helpTitle')}
