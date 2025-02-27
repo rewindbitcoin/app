@@ -213,7 +213,7 @@ function AddressInput({
             enablesReturnKeyAutomatically
             placeholder={
               type === 'emergency'
-                ? t('addressInput.textInputPlaceholderWithCreate')
+                ? t('addressInput.coldAddress.textInputPlaceholderWithCreate')
                 : t('addressInput.recipientAddress.textInputPlaceholder')
             }
             placeholderTextColor="#A9A9A9"
