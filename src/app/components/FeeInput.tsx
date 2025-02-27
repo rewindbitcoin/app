@@ -207,19 +207,31 @@ function FeeInput({
           </View>
         </Pressable>
       ) : (
-        <CardEditableSlider
-          locale={locale}
-          label={label}
-          {...(helpIconAvailable ? { headerIcon } : {})}
-          key={`${min}-${max}`}
-          minimumValue={snappedMin}
-          maximumValue={snappedMax}
-          initialValue={snappedInitialValue}
-          onValueChange={onSnappedValueChange}
-          step={FEE_RATE_STEP}
-          formatValue={formatValue}
-          unit={'sats/vB'}
-        />
+        <View className="relative">
+          <CardEditableSlider
+            locale={locale}
+            label={label}
+            {...(helpIconAvailable ? { headerIcon } : {})}
+            key={`${min}-${max}`}
+            minimumValue={snappedMin}
+            maximumValue={snappedMax}
+            initialValue={snappedInitialValue}
+            onValueChange={onSnappedValueChange}
+            step={FEE_RATE_STEP}
+            formatValue={formatValue}
+            unit={'sats/vB'}
+          />
+          <Pressable 
+            onPress={toggleExpanded}
+            className="absolute top-4 right-4"
+          >
+            <AntDesign
+              name="close"
+              size={16}
+              className="!text-primary"
+            />
+          </Pressable>
+        </View>
       )}
 
       {helpIconAvailable && (
