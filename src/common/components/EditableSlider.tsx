@@ -323,7 +323,7 @@ const EditableSlider = ({
           onChangeValue={onNumberInputChangeValue}
         />
         {maxLabel && value === maximumValue && (
-          <View className="absolute right-0 top-0">
+          <View className="absolute right-0 top-1/2 -translate-y-1/2 -mt-2">
             <Text style={styles.maxLabel}>{maxLabel}</Text>
           </View>
         )}
