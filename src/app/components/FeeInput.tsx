@@ -171,25 +171,26 @@ function FeeInput({
         onPress={toggleExpanded}
         className={`overflow-hidden rounded-xl bg-white mb-2 ${expanded ? 'mb-0' : ''}`}
       >
-        <View className="flex-row p-4 items-center justify-between">
-          <View className="flex-row items-center">
-            <Text className="text-base font-medium">{label}</Text>
-            {helpIconAvailable && (
-              <InfoButton onPress={showFeeHelp} />
-            )}
-          </View>
-          <View className="flex-row items-center">
-            {!expanded && (
-              <Text className="text-primary text-base mr-2">
-                {t('feeInput.autoOptimal')}: {optimalFeeFormatted}
-              </Text>
-            )}
+        <View className="p-4">
+          <View className="flex-row items-center justify-between mb-1">
+            <View className="flex-row items-center flex-1 mr-2">
+              <Text className="text-base font-medium">{label}</Text>
+              {helpIconAvailable && (
+                <InfoButton onPress={showFeeHelp} />
+              )}
+            </View>
             <AntDesign
               name={expanded ? 'up' : 'down'}
               size={16}
               className="!text-primary"
             />
           </View>
+          
+          {!expanded && (
+            <Text className="text-primary text-base">
+              {t('feeInput.autoOptimal')}: {optimalFeeFormatted}
+            </Text>
+          )}
         </View>
       </Pressable>
       
