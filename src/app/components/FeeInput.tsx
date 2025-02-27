@@ -145,7 +145,8 @@ function FeeInput({
   const optimalFeeRate = useMemo(() => {
     const targets = Object.keys(feeEstimates);
     // Try to get the medium priority fee (usually "30" minutes)
-    const mediumTarget = targets.find(t => t === '30') || targets[Math.floor(targets.length / 2)];
+    const mediumTarget =
+      targets.find(t => t === '30') || targets[Math.floor(targets.length / 2)];
     return feeEstimates[mediumTarget];
   }, [feeEstimates]);
 
@@ -163,7 +164,16 @@ function FeeInput({
       },
       t
     );
-  }, [fee, optimalFeeRate, locale, currency, subUnit, btcFiat, snappedFeeEstimates, t]);
+  }, [
+    fee,
+    optimalFeeRate,
+    locale,
+    currency,
+    subUnit,
+    btcFiat,
+    snappedFeeEstimates,
+    t
+  ]);
 
   return (
     <>
@@ -182,13 +192,9 @@ function FeeInput({
                   </View>
                 )}
               </View>
-              <AntDesign
-                name="down"
-                size={16}
-                className="!text-primary"
-              />
+              <AntDesign name="down" size={16} className="!text-primary" />
             </View>
-            
+
             <Text className="text-primary text-base">
               {t('feeInput.autoOptimal')}: {optimalFeeFormatted}
             </Text>
@@ -201,10 +207,7 @@ function FeeInput({
               {label}
             </Text>
             <Pressable onPress={toggleExpanded}>
-              <AntDesign
-                className="!text-primary ml-2 mb-2"
-                name="close"
-              />
+              <AntDesign className="!text-primary ml-2 mb-2" name="close" />
             </Pressable>
           </View>
           <CardEditableSlider
@@ -221,7 +224,7 @@ function FeeInput({
           />
         </View>
       )}
-      
+
       {helpIconAvailable && (
         <Modal
           title={t('feeInput.helpTitle')}
