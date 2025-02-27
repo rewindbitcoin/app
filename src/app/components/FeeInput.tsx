@@ -177,52 +177,49 @@ function FeeInput({
 
   return (
     <>
-      {!expanded ? (
-        <Pressable
-          onPress={toggleExpanded}
-          className="overflow-hidden rounded-xl bg-white mb-2"
-        >
-          <View className="p-4">
-            <View className="flex-row items-center justify-between mb-1">
-              <View className="flex-row items-center flex-1 mr-2">
-                <Text className="text-base font-medium">{label}</Text>
-                {helpIconAvailable && (
-                  <View className="ml-2">
-                    <InfoButton onPress={showFeeHelp} />
-                  </View>
-                )}
-              </View>
-              <AntDesign name="down" size={16} className="!text-primary" />
+      <Pressable
+        onPress={toggleExpanded}
+        className={`overflow-hidden rounded-xl bg-white mb-2 ${expanded ? 'mb-0' : ''}`}
+      >
+        <View className="p-4">
+          <View className="flex-row items-center justify-between mb-1">
+            <View className="flex-row items-center flex-1 mr-2">
+              <Text className="text-base font-medium">{label}</Text>
+              {helpIconAvailable && (
+                <View className="ml-2">
+                  <InfoButton onPress={showFeeHelp} />
+                </View>
+              )}
             </View>
+            <AntDesign
+              name={expanded ? 'up' : 'down'}
+              size={16}
+              className="!text-primary"
+            />
+          </View>
 
+          {!expanded && (
             <Text className="text-primary text-base">
               {t('feeInput.autoOptimal')}: {optimalFeeFormatted}
             </Text>
-          </View>
-        </Pressable>
-      ) : (
-        <View className="overflow-hidden rounded-xl bg-white mb-2 p-2">
-          <View className="flex-row items-center justify-between">
-            <Text className="font-bold uppercase text-slate-600 pl-4 mb-2 text-sm">
-              {label}
-            </Text>
-            <Pressable onPress={toggleExpanded}>
-              <AntDesign className="!text-primary ml-2 mb-2" name="close" />
-            </Pressable>
-          </View>
-          <CardEditableSlider
-            locale={locale}
-            label=""
-            key={`${min}-${max}`}
-            minimumValue={snappedMin}
-            maximumValue={snappedMax}
-            initialValue={snappedInitialValue}
-            onValueChange={onSnappedValueChange}
-            step={FEE_RATE_STEP}
-            formatValue={formatValue}
-            unit={'sats/vB'}
-          />
+          )}
         </View>
+      </Pressable>
+
+      {expanded && (
+        <CardEditableSlider
+          locale={locale}
+          label={label}
+          {...(helpIconAvailable ? { headerIcon } : {})}
+          key={`${min}-${max}`}
+          minimumValue={snappedMin}
+          maximumValue={snappedMax}
+          initialValue={snappedInitialValue}
+          onValueChange={onSnappedValueChange}
+          step={FEE_RATE_STEP}
+          formatValue={formatValue}
+          unit={'sats/vB'}
+        />
       )}
 
       {helpIconAvailable && (
