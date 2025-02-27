@@ -141,21 +141,15 @@ function FeeInput({
     []
   );
 
-  // Get the optimal fee rate from the estimates (usually the "30" minute target)
-  const optimalFeeRate = useMemo(() => {
-    const targets = Object.keys(feeEstimates);
-    // Try to get the medium priority fee (usually "30" minutes)
-    const mediumTarget =
-      targets.find(t => t === '30') || targets[Math.floor(targets.length / 2)];
-    return feeEstimates[mediumTarget];
-  }, [feeEstimates]);
+  // Use the initialFeeRate as the optimal fee rate
+  const optimalFeeRate = initialValue;
 
   // Format the optimal fee for display
   const optimalFeeFormatted = useMemo(() => {
     return formatFeeRate(
       {
         fee: fee === null ? undefined : fee,
-        feeRate: optimalFeeRate,
+        feeRate: initialValue,
         locale,
         currency,
         subUnit,
@@ -166,7 +160,7 @@ function FeeInput({
     );
   }, [
     fee,
-    optimalFeeRate,
+    initialValue,
     locale,
     currency,
     subUnit,
