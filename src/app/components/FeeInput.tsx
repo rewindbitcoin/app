@@ -200,7 +200,7 @@ function FeeInput({
                 {optimalFeeFormatted}
               </Text>
             ) : (
-              <Text className="text-primary text-base">
+              <Text className="text-slate-600 text-base">
                 {t('feeInput.autoOptimal')}: {optimalFeeFormatted}
               </Text>
             )}
@@ -221,15 +221,11 @@ function FeeInput({
             formatValue={formatValue}
             unit={'sats/vB'}
           />
-          <Pressable 
+          <Pressable
             onPress={toggleExpanded}
-            className="absolute top-4 right-4"
+            className="absolute top-1 right-0"
           >
-            <AntDesign
-              name="close"
-              size={16}
-              className="!text-primary"
-            />
+            <AntDesign name="close" size={16} className="!text-primary" />
           </Pressable>
         </View>
       )}

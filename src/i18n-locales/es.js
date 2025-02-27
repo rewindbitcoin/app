@@ -559,11 +559,11 @@ Ahora, como paso final, estamos enviando tu bóveda a la blockchain para activar
   feeInput: {
     autoOptimal: 'Tarifa óptima',
     helpTitle: 'Velocidad de Confirmación',
-    helpText: `Esta configuración determina la velocidad de confirmación de tu transacción en la red.
+    helpText: `Esta acción creará una nueva transacción de Bitcoin que necesita ser procesada por mineros.
 
-La comisión que elijas compensa a los mineros por incluir tu transacción en la blockchain.
+Los mineros priorizan transacciones con comisiones más altas debido al espacio limitado en cada bloque.
 
-Las transacciones con comisiones más altas son priorizadas por los mineros, aumentando la probabilidad de una confirmación más rápida.`
+La comisión que elijas determina la rapidez con la que tu transacción será confirmada en la red, con comisiones más altas resultando en confirmaciones más rápidas.`
   },
   blocksInput: {
     days: 'días',
