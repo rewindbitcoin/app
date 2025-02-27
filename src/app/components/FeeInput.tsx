@@ -166,7 +166,7 @@ function FeeInput({
     );
   }, [
     fee,
-    initialValue,
+    snappedInitialValue,
     locale,
     currency,
     subUnit,
@@ -177,41 +177,36 @@ function FeeInput({
 
   return (
     <>
-      <Pressable
-        onPress={toggleExpanded}
-        className={`overflow-hidden rounded-xl bg-white mb-2 ${expanded ? 'mb-0' : ''}`}
-      >
-        <View className="p-4">
-          <View className="flex-row items-center justify-between mb-1">
-            <View className="flex-row items-center flex-1 mr-2">
-              <Text className="text-base font-medium">{label}</Text>
-              {helpIconAvailable && (
-                <View className="ml-2">
-                  <InfoButton onPress={showFeeHelp} />
-                </View>
-              )}
+      {!expanded ? (
+        <Pressable
+          onPress={toggleExpanded}
+          className={`overflow-hidden rounded-xl bg-white mb-2`}
+        >
+          <View className="p-4">
+            <View className="flex-row items-center justify-between mb-1">
+              <View className="flex-row items-center flex-1 mr-2">
+                <Text className="text-base font-medium">{label}</Text>
+                {helpIconAvailable && (
+                  <View className="ml-2">
+                    <InfoButton onPress={showFeeHelp} />
+                  </View>
+                )}
+              </View>
+              <AntDesign name={'down'} size={16} className="!text-primary" />
             </View>
-            <AntDesign
-              name={expanded ? 'up' : 'down'}
-              size={16}
-              className="!text-primary"
-            />
+
+            {userModifiedFee ? (
+              <Text className="text-primary text-base">
+                {optimalFeeFormatted}
+              </Text>
+            ) : (
+              <Text className="text-primary text-base">
+                {t('feeInput.autoOptimal')}: {optimalFeeFormatted}
+              </Text>
+            )}
           </View>
-
-          {!expanded && !userModifiedFee && (
-            <Text className="text-primary text-base">
-              {t('feeInput.autoOptimal')}: {optimalFeeFormatted}
-            </Text>
-          )}
-          {!expanded && userModifiedFee && (
-            <Text className="text-primary text-base">
-              {optimalFeeFormatted}
-            </Text>
-          )}
-        </View>
-      </Pressable>
-
-      {expanded && (
+        </Pressable>
+      ) : (
         <CardEditableSlider
           locale={locale}
           label={label}
