@@ -300,7 +300,7 @@ const EditableSlider = ({
         <Text style={statusStyle}>{statusText}</Text>
         {unit || null}
       </View>
-      <View className="flex-row items-center w-full mt-4">
+      <View className="flex-row items-center w-full mt-4 bg-yellow-100">
         <View className="flex-1 mr-2">
           <Slider
             {...(Platform.OS === 'android'
@@ -323,7 +323,7 @@ const EditableSlider = ({
           onChangeValue={onNumberInputChangeValue}
         />
         {maxLabel && value === maximumValue && (
-          <View style={styles.maxLabelContainer}>
+          <View className="absolute right-0 top-0">
             <Text style={styles.maxLabel}>{maxLabel}</Text>
           </View>
         )}
@@ -370,13 +370,6 @@ const getStyles = (theme: Theme) =>
         : Platform.OS === 'ios'
           ? { paddingVertical: 16, paddingHorizontal: 8 }
           : {})
-    },
-    maxLabelContainer: {
-      position: 'absolute',
-      //left: 10,
-      //top: 0
-      right: 0,
-      top: -5
     },
     maxLabel: {
       fontSize: 12,
