@@ -550,8 +550,8 @@ Ahora, como paso final, estamos enviando tu bóveda a la blockchain para activar
       'Este paso tedioso puede omitirse en billeteras de prueba.'
   },
   amount: {
-    //This should not be larger than 10~12 chars
-    maxLabel: 'Todos los Fondos'
+    //This should not be larger than 10~12 chars. Could also be Max or similar
+    maxLabel: 'Máximo'
   },
   units: {
     preferredUnitTitle: 'Unidad Preferida'

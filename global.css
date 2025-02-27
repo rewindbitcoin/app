@@ -6,7 +6,7 @@
 * is faster in mobile devices.
 * See: https://www.nativewind.dev/v4/tailwind/typography/font-size#rem-scaling
 *
-* On web, we use default 16px. Howeer note that React Native For web will default
+* On web, we use default 16px. However note that React Native For web will default
 * all <Text> to 14px. Thus, to make this consistent it is important to go
 * through all the <Text> instances in the project and set text-base
 * explicitelly.
