@@ -575,10 +575,10 @@ Por ejemplo, si estableces un tiempo de bloqueo de 7 días, tus fondos permanece
   },
   addressInput: {
     invalidAddress: 'Dirección {{network}} inválida',
-    textInputPlaceholderWithCreate: 'Entrar/Crear Dirección',
     createNewButton: 'Crear',
     coldAddress: {
       label: 'Dirección de Emergencia',
+      textInputPlaceholderWithCreate: 'Dirección Bitcoin',
       createNewModalTitle: 'Dirección de Emergencia',
       intro: `Bienvenido al asistente de creación de la Dirección de Emergencia.
 
@@ -601,7 +601,7 @@ Puedes usar el asistente pulsando 'Crear' para generar una nueva Dirección de E
     },
     recipientAddress: {
       label: 'Dirección del Destinatario',
-      textInputPlaceholder: 'Escribe la dirección del destinatario'
+      textInputPlaceholder: 'Dirección Bitcoin'
     },
     scan: 'Escanear',
     scanQRModalTitle: 'Escanear QR Bitcoin',

@@ -675,12 +675,11 @@ For example, if you set a time-lock of 7 days, your funds will remain locked for
   },
   addressInput: {
     invalidAddress: 'Invalid {{network}} address',
-
-    textInputPlaceholderWithCreate: 'Enter/Create Address',
     //textInputPlaceholder: 'Enter an Address',
     createNewButton: 'Create',
     coldAddress: {
       label: 'Emergency Address',
+      textInputPlaceholderWithCreate: 'Bitcoin Address',
       createNewModalTitle: 'Emergency Address',
       intro: `Welcome to the Emergency Address creation wizard.
 
@@ -703,7 +702,7 @@ You can either use the 'Create' wizard to generate a new Emergency Address or us
     },
     recipientAddress: {
       label: 'Recipient Address',
-      textInputPlaceholder: "Enter recipient's address"
+      textInputPlaceholder: 'Bitcoin Address'
     },
     scan: 'Scan',
     scanQRModalTitle: 'Scan Bitcoin QR',
