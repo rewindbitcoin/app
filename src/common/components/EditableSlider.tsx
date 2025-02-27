@@ -373,7 +373,7 @@ const getStyles = (theme: Theme) =>
     },
     maxLabel: {
       fontSize: 12,
-      lineHeight: 12,
+      lineHeight: 1,
       //fontStyle: 'italic',
       //color: theme.colors.cardSecondary
       color: 'green'
