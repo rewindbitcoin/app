@@ -176,7 +176,9 @@ function FeeInput({
             <View className="flex-row items-center flex-1 mr-2">
               <Text className="text-base font-medium">{label}</Text>
               {helpIconAvailable && (
-                <InfoButton onPress={showFeeHelp} />
+                <View className="ml-2">
+                  <InfoButton onPress={showFeeHelp} />
+                </View>
               )}
             </View>
             <AntDesign
