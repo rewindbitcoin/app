@@ -81,7 +81,9 @@ function BlocksInput({
         onValueChange={onModeValueChange}
         step={getBlocksModeStep(mode)}
         formatValue={formatValue}
-        unit={mode}
+        unit={
+          mode === 'blocks' ? t('blocksInput.blocks') : t('blocksInput.days')
+        }
         onUnitPress={onUnitPress}
       />
       <Modal

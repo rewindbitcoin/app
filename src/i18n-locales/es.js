@@ -550,6 +550,7 @@ Ahora, como paso final, estamos enviando tu bóveda a la blockchain para activar
       'Este paso tedioso puede omitirse en billeteras de prueba.'
   },
   amount: {
+    //This should not be larger than 10~12 chars
     maxLabel: 'Todos los Fondos'
   },
   units: {
@@ -564,6 +565,8 @@ La comisión que elijas compensa a los mineros por incluir tu transacción en la
 Las transacciones con comisiones más altas son priorizadas por los mineros, aumentando la probabilidad de una confirmación más rápida.`
   },
   blocksInput: {
+    days: 'días',
+    blocks: 'bloques',
     coldAddress: {
       helpTitle: 'Protección de Tiempo de Bloqueo',
       helpText: `Imagina un escenario donde alguien obtiene acceso no autorizado a tu billetera e intenta mover tus fondos. El Tiempo de Bloqueo Anti-robo está diseñado para protegerte en tales situaciones.

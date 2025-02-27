@@ -650,6 +650,7 @@ Now, as the final step, we're sending your vault to the blockchain to activate i
     testingWalletsCanSkip: 'Test wallets can skip this tedious step.'
   },
   amount: {
+    //This should not be larger than 10~12 chars
     maxLabel: 'All Funds'
   },
   units: {
@@ -664,6 +665,8 @@ The fee you choose compensates miners for including your transaction in the bloc
 Transactions with higher fees are prioritized by miners, increasing the likelihood of faster confirmation.`
   },
   blocksInput: {
+    days: 'days',
+    blocks: 'blocks',
     coldAddress: {
       helpTitle: 'Time-Lock Protection',
       helpText: `Imagine a scenario where someone gains unauthorized access to your wallet and tries to move your funds. The Theft-Protection Time-Lock is designed to protect you in such situations.
