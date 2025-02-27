@@ -146,7 +146,7 @@ function FeeInput({
     return formatFeeRate(
       {
         fee: fee === null ? undefined : fee,
-        feeRate: initialValue,
+        feeRate: snappedInitialValue,
         locale,
         currency,
         subUnit,
