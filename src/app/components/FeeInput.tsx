@@ -126,7 +126,7 @@ function FeeInput({
       else if (newSnappedValue === snappedMin) newValue = min;
       else if (newSnappedValue === snappedMax) newValue = max;
       else newValue = newSnappedValue;
-      
+
       if (newValue !== null) {
         nextInitialValueRef.current = newValue;
         // Mark as user modified if it's a user action and the value is different from initial
@@ -134,7 +134,7 @@ function FeeInput({
           setUserModifiedFee(true);
         }
       }
-      
+
       onValueChange(newValue, type);
     },
     [min, max, snappedMin, snappedMax, onValueChange, initialValue]
