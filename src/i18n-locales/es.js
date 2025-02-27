@@ -429,7 +429,7 @@ Esta cantidad mínima se calcula asumiendo que podrías necesitar confirmaciones
     amountLabel: 'Cantidad a Congelar',
     securityLockTimeLabel: 'Tiempo de Bloqueo Anti-robo',
     securityLockTimeDescription: 'Se desbloquea {{blocks}} trás descongelar',
-    confirmationSpeedLabel: 'Velocidad de Confirmación',
+    confirmationSpeedLabel: 'Comisión de minería',
     interrupt: `Hemos detectado cambios en tu billetera mientras configurabas una nueva bóveda.
 
 Por tu seguridad, por favor revisa estos cambios antes de continuar.`
@@ -442,7 +442,7 @@ Por tu seguridad, por favor revisa estos cambios antes de continuar.`
 Por favor, reduce la comisión o agrega más fondos.`,
     invalidFeeRate: `Por favor, selecciona una comisión válida.`,
     amountLabel: 'Cantidad a Enviar',
-    confirmationSpeedLabel: 'Velocidad de Confirmación',
+    confirmationSpeedLabel: 'Comisión de minería',
     txCalculateError:
       'No se pudo crear la transacción. Sincroniza tu billetera e inténtalo de nuevo.',
     txPushError:
@@ -455,7 +455,7 @@ Por favor, reduce la comisión o agrega más fondos.`,
 
 Por tu seguridad, por favor revisa estos cambios antes de continuar.`,
     confirmLabels: {
-      miningFee: 'Comisión de Minería',
+      miningFee: 'Comisión de minería',
       amountLabel: 'Cantidad',
       recipientAddress: 'Dirección'
     }
@@ -478,7 +478,7 @@ Por tu seguridad, por favor revisa estos cambios antes de continuar.`,
 Esto puede tomar unos 30 segundos, un poco más en dispositivos antiguos.
 
 A continuación, podrás confirmarlo todo.`,
-    miningFee: 'Comisión de Minería:',
+    miningFee: 'Comisión de minería:',
     serviceFee: 'Comisión de Bóveda:',
     allFees: 'Comisiones:',
     timeLock: 'Tiempo de Bloqueo:',
@@ -557,6 +557,7 @@ Ahora, como paso final, estamos enviando tu bóveda a la blockchain para activar
     preferredUnitTitle: 'Unidad Preferida'
   },
   feeInput: {
+    autoOptimal: 'Tarifa óptima',
     helpTitle: 'Velocidad de Confirmación',
     helpText: `Esta configuración determina la velocidad de confirmación de tu transacción en la red.
 

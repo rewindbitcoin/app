@@ -236,7 +236,7 @@ This will start the unfreeze countdown. The funds will become unlocked and avail
  after {{timeLockTime}}.
 
 Tap "Continue" to choose the mining fee and start the unfreeze countdown.`,
-        confirmationSpeedLabel: 'Unfreeze Countdown Fee',
+        confirmationSpeedLabel: 'Mining Fee',
         feeSelectorExplanation:
           'Select a mining fee to request the start of the unfreeze countdown.',
         additionalExplanation: `The {{timeLockTime}} countdown will start once the\
@@ -245,7 +245,7 @@ Tap "Continue" to choose the mining fee and start the unfreeze countdown.`,
 Tap "Init Unfreeze" to request the start of the unfreeze countdown.`
       },
       rescue: {
-        confirmationSpeedLabel: 'Rescue Transaction Fee',
+        confirmationSpeedLabel: 'Mining Fee',
         intro: `You're about to initiate the rescue of your vault funds. This will move the funds to your pre-configured Emergency Address immediately:
 
 {{panicAddress}}
@@ -504,7 +504,7 @@ This minimum amount is calculated based on the assumption that you may need rapi
     amountLabel: 'Amount to Freeze',
     securityLockTimeLabel: 'Theft-Protection Time-Lock',
     securityLockTimeDescription: 'Unlocks {{blocks}} after unfreeze',
-    confirmationSpeedLabel: 'Confirmation Speed',
+    confirmationSpeedLabel: 'Mining Fee',
     //lockTimeError: 'Pick a valid Lock Time.',
     //feeRateError: 'Pick a valid Fee Rate.',
     //amountError: 'Pick a valid amount of Btc.',
@@ -527,7 +527,7 @@ For your security, please review these changes before proceeding.`
 Please lower the fee rate or add more funds.`,
     invalidFeeRate: `Please select a valid fee rate.`,
     amountLabel: 'Amount to Send',
-    confirmationSpeedLabel: 'Confirmation Speed',
+    confirmationSpeedLabel: 'Mining Fee',
     txCalculateError:
       'The transaction could not be created. Sync your wallet and try again.',
     txPushError:
@@ -657,6 +657,7 @@ Now, as the final step, we're sending your vault to the blockchain to activate i
     preferredUnitTitle: 'Preferred Unit'
   },
   feeInput: {
+    autoOptimal: 'Auto optimal',
     helpTitle: 'Confirmation Speed',
     helpText: `This setting determines the confirmation speed of your transaction on the network.
 
