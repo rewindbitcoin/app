@@ -323,7 +323,7 @@ const EditableSlider = ({
           onChangeValue={onNumberInputChangeValue}
         />
         {maxLabel && value === maximumValue && (
-          <View className="absolute right-0 top-1/2 -mt-[0.375rem]">
+          <View className="absolute right-0 top-1/2 -mt-[0.375rem] bg-green-200">
             <Text style={styles.maxLabel}>{maxLabel}</Text>
           </View>
         )}
@@ -373,6 +373,7 @@ const getStyles = (theme: Theme) =>
     },
     maxLabel: {
       fontSize: 12,
+      lineHeight: 12,
       //fontStyle: 'italic',
       //color: theme.colors.cardSecondary
       color: 'green'
