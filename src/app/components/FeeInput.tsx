@@ -39,6 +39,7 @@ function FeeInput({
   helpIconAvailable?: boolean;
 }) {
   const [expanded, setExpanded] = useState<boolean>(false);
+  const [userModifiedFee, setUserModifiedFee] = useState<boolean>(false);
   const toggleExpanded = useCallback(() => {
     LayoutAnimation.configureNext({
       duration: 150,
@@ -125,10 +126,18 @@ function FeeInput({
       else if (newSnappedValue === snappedMin) newValue = min;
       else if (newSnappedValue === snappedMax) newValue = max;
       else newValue = newSnappedValue;
-      if (newValue !== null) nextInitialValueRef.current = newValue;
+      
+      if (newValue !== null) {
+        nextInitialValueRef.current = newValue;
+        // Mark as user modified if it's a user action and the value is different from initial
+        if (type === 'USER' && Math.abs(newValue - initialValue) > 0.001) {
+          setUserModifiedFee(true);
+        }
+      }
+      
       onValueChange(newValue, type);
     },
-    [min, max, snappedMin, snappedMax, onValueChange]
+    [min, max, snappedMin, snappedMax, onValueChange, initialValue]
   );
 
   const headerIcon = useMemo(
@@ -189,9 +198,14 @@ function FeeInput({
             />
           </View>
 
-          {!expanded && (
+          {!expanded && !userModifiedFee && (
             <Text className="text-primary text-base">
               {t('feeInput.autoOptimal')}: {optimalFeeFormatted}
+            </Text>
+          )}
+          {!expanded && userModifiedFee && (
+            <Text className="text-primary text-base">
+              {optimalFeeFormatted}
             </Text>
           )}
         </View>
