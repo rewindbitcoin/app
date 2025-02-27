@@ -75,7 +75,7 @@ const WalletButtons = ({
   return (
     <View
       style={{ marginBottom: insets.bottom }}
-      className={`self-center bottom-8 max-w-2xl px-2 moblg:px-4 w-full z-10 fixed native:absolute flex-wrap flex-row gap-4 ${isMultiRow ? 'justify-center' : elCount === 1 ? 'justify-center' : elCount === 2 ? 'justify-evenly' : 'justify-between'}`}
+      className={`self-center bottom-8 max-w-2xl px-2 moblg:px-4 gap-2 sm:gap-4 w-full z-10 fixed native:absolute flex-wrap flex-row ${isMultiRow ? 'justify-center' : elCount === 1 ? 'justify-center' : elCount === 2 ? 'justify-evenly' : 'justify-between'}`}
       onLayout={e => {
         setButtonGroupHeight(e.nativeEvent.layout.height);
         if (onLayout) onLayout(e);
