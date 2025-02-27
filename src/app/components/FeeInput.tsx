@@ -141,9 +141,6 @@ function FeeInput({
     []
   );
 
-  // Use the initialFeeRate as the optimal fee rate
-  const optimalFeeRate = initialValue;
-
   // Format the optimal fee for display
   const optimalFeeFormatted = useMemo(() => {
     return formatFeeRate(
