@@ -175,8 +175,7 @@ function FeeInput({
     snappedFeeEstimates,
     t
   ]);
-  
-  // Calculate the optimal fee with useMemo
+
   const optimalFee = useMemo(() => {
     return fee
       ? formatBtc({
@@ -212,9 +211,7 @@ function FeeInput({
             </View>
 
             {userModifiedFee ? (
-              <Text className="text-slate-600 text-sm">
-                {optimalFeeFormatted}
-              </Text>
+              <Text className="text-slate-600 text-sm">{optimalFee}</Text>
             ) : (
               <Text className="text-slate-600 text-sm">
                 {t('feeInput.autoOptimal')}: {optimalFee}
