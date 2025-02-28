@@ -657,7 +657,7 @@ Now, as the final step, we're sending your vault to the blockchain to activate i
     preferredUnitTitle: 'Preferred Unit'
   },
   feeInput: {
-    autoOptimal: 'Auto optimal',
+    autoOptimal: 'Optimal Fee',
     helpTitle: 'Confirmation Speed',
     helpText: `This action will create a new Bitcoin transaction that needs to be processed by miners.
 

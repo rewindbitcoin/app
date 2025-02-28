@@ -20,6 +20,7 @@ import { useSettings } from '../hooks/useSettings';
 import { useLocalization } from '../hooks/useLocalization';
 import { Text, View, Pressable, LayoutAnimation } from 'react-native';
 import AntDesign from '@expo/vector-icons/AntDesign';
+import { formatBtc } from '../lib/btcRates';
 
 function FeeInput({
   label,
@@ -174,6 +175,15 @@ function FeeInput({
     snappedFeeEstimates,
     t
   ]);
+  const optimalFee = fee
+    ? formatBtc({
+        amount: fee,
+        subUnit,
+        btcFiat,
+        locale,
+        currency
+      })
+    : t('feeRate.waitingForRates', { currency });
 
   return (
     <>
@@ -185,7 +195,9 @@ function FeeInput({
           <View className="p-4">
             <View className="flex-row items-center justify-between mb-1">
               <View className="flex-row items-center flex-1 mr-2">
-                <Text className="text-base font-medium">{label}</Text>
+                <Text className="text-sm text-card-secondary uppercase font-medium">
+                  {label}
+                </Text>
                 {helpIconAvailable && (
                   <View className="ml-2">
                     <InfoButton onPress={showFeeHelp} />
@@ -196,12 +208,12 @@ function FeeInput({
             </View>
 
             {userModifiedFee ? (
-              <Text className="text-primary text-base">
+              <Text className="text-slate-600 text-sm">
                 {optimalFeeFormatted}
               </Text>
             ) : (
-              <Text className="text-slate-600 text-base">
-                {t('feeInput.autoOptimal')}: {optimalFeeFormatted}
+              <Text className="text-slate-600 text-sm">
+                {t('feeInput.autoOptimal')}: {optimalFee}
               </Text>
             )}
           </View>
