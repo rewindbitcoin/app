@@ -175,15 +175,19 @@ function FeeInput({
     snappedFeeEstimates,
     t
   ]);
-  const optimalFee = fee
-    ? formatBtc({
-        amount: fee,
-        subUnit,
-        btcFiat,
-        locale,
-        currency
-      })
-    : t('feeRate.waitingForRates', { currency });
+  
+  // Calculate the optimal fee with useMemo
+  const optimalFee = useMemo(() => {
+    return fee
+      ? formatBtc({
+          amount: fee,
+          subUnit,
+          btcFiat,
+          locale,
+          currency
+        })
+      : t('feeRate.waitingForRates', { currency });
+  }, [fee, subUnit, btcFiat, locale, currency, t]);
 
   return (
     <>
