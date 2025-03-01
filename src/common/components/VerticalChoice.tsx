@@ -29,7 +29,7 @@ const VerticalChoice = ({
     <View className="w-8 pr-2">
       {check ? (
         //Text tag needed for correct vertically-aligned rendering in iOS/Android
-        <Text className="text-base">
+        <Text>
           <MaterialCommunityIcons
             className="!text-primary text-base"
             name="checkbox-marked-circle"
@@ -37,7 +37,7 @@ const VerticalChoice = ({
         </Text>
       ) : (
         //Text tag needed for correct vertically-aligned rendering in iOS/Android
-        <Text className="text-base">
+        <Text>
           <MaterialCommunityIcons
             className="!text-primary text-base"
             name="checkbox-blank-circle-outline"
