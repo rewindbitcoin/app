@@ -716,6 +716,7 @@ Por favor, espera unos momentos hasta que se complete.`,
   understoodButton: 'Entendido',
   tryAgain: 'Intentar de Nuevo',
   learnMore: 'Saber Más.',
+  loading: 'Cargando...',
   helpButton: 'Ayuda',
   globalError: {
     general: `Ha ocurrido un error inesperado. A continuación encontrarás detalles adicionales que pueden ayudar a identificar el problema. Parte de esta información es técnica y está destinada a desarrolladores. No hay motivo de preocupación inmediata.

@@ -819,6 +819,7 @@ Please wait a few moments until completion.`,
   //factoryResetButton: 'Factory Reset',
   tryAgain: 'Try Again',
   learnMore: 'Learn More.',
+  loading: 'Loading...',
   helpButton: 'Help',
   globalError: {
     general: `An unexpected error has occurred. Below you will find additional details that may help identify the issue. Some of this information is technical and intended for developers. There is no need for immediate concern.

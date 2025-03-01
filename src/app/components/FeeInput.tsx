@@ -151,30 +151,30 @@ function FeeInput({
     []
   );
 
-  // Format the optimal fee for display
-  const optimalFeeFormatted = useMemo(() => {
-    return formatFeeRate(
-      {
-        fee: fee === null ? undefined : fee,
-        feeRate: snappedInitialValue,
-        locale,
-        currency,
-        subUnit,
-        btcFiat,
-        feeEstimates: snappedFeeEstimates
-      },
-      t
-    );
-  }, [
-    fee,
-    snappedInitialValue,
-    locale,
-    currency,
-    subUnit,
-    btcFiat,
-    snappedFeeEstimates,
-    t
-  ]);
+  //// Format the optimal fee for display
+  //const optimalFeeFormatted = useMemo(() => {
+  //  return formatFeeRate(
+  //    {
+  //      fee: fee === null ? undefined : fee,
+  //      feeRate: snappedInitialValue,
+  //      locale,
+  //      currency,
+  //      subUnit,
+  //      btcFiat,
+  //      feeEstimates: snappedFeeEstimates
+  //    },
+  //    t
+  //  );
+  //}, [
+  //  fee,
+  //  snappedInitialValue,
+  //  locale,
+  //  currency,
+  //  subUnit,
+  //  btcFiat,
+  //  snappedFeeEstimates,
+  //  t
+  //]);
 
   const optimalFee = useMemo(() => {
     return fee
@@ -185,7 +185,7 @@ function FeeInput({
           locale,
           currency
         })
-      : t('feeRate.waitingForRates', { currency });
+      : t('loading');
   }, [fee, subUnit, btcFiat, locale, currency, t]);
 
   return (
