@@ -1,10 +1,10 @@
 import React, { ReactNode, useCallback } from 'react';
 import { Text, View, Pressable } from 'react-native';
 import Divider from './Divider';
-import Octicons from '@expo/vector-icons/Octicons';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { cssInterop } from 'nativewind';
 
-cssInterop(Octicons, {
+cssInterop(MaterialCommunityIcons, {
   className: {
     target: 'style',
     nativeStyleToProp: { color: true, fontSize: 'size' }
@@ -30,15 +30,15 @@ const VerticalChoice = ({
       {check ? (
         //Text tag needed for correct vertically-aligned rendering in iOS/Android
         <Text>
-          <Octicons
+          <MaterialCommunityIcons
             className="!text-primary text-base"
-            name="check-circle-fill"
+            name="checkbox-marked-circle"
           />
         </Text>
       ) : (
         //Text tag needed for correct vertically-aligned rendering in iOS/Android
         <Text>
-          <Octicons className="!text-primary text-base" name="circle" />
+          <MaterialCommunityIcons className="!text-primary text-base" name="checkbox-blank-circle-outline" />
         </Text>
       )}
     </View>
