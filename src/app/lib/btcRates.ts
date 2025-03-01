@@ -85,7 +85,11 @@ const formatBtcFactory = memoize(
 
     if (typeof btcFiat === 'number') {
       // Use non-breaking spaces and a more compact format to prevent awkward line breaks
-      const fiatValue = formatFiat({ amount: (amount * btcFiat) / 1e8, locale, currency });
+      const fiatValue = formatFiat({
+        amount: (amount * btcFiat) / 1e8,
+        locale,
+        currency
+      });
       formattedValue += `\u00A0≈\u00A0${fiatValue}`;
     }
 
