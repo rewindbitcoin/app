@@ -35,10 +35,7 @@ export default function UnitsModal({
     const presentedUnit = mode === 'Fiat' ? currency : mode;
     //return presentedUnit;
     return (
-      <View
-        key={mode}
-        className="flex-row justify-between flex-1"
-      >
+      <View key={mode} className="flex-row justify-between flex-1 items-center">
         <Text className="text-base">{presentedUnit}</Text>
         <Text className="text-cardSecondary">
           {numberToLocalizedString(modeAmount, locale)} {presentedUnit}

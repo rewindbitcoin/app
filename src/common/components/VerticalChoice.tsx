@@ -26,7 +26,7 @@ const VerticalChoice = ({
   );
 
   const Check = (check: boolean) => (
-    <View className="w-8 pr-2">
+    <View className="w-8 pr-2 android:mt-0.5">
       {check ? (
         //Text tag needed for correct vertically-aligned rendering in iOS/Android
         <Text>
