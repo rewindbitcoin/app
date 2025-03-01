@@ -420,9 +420,9 @@ export default function VaultSetUp({
               <Text className="text-sm text-slate-500">
                 {t('vaultSetup.prefilledAddress') + ' '}
                 <Text
-                  //Cannot use Button mode='text' here and use <Text onPress> instead since i want texts to be in the same line flow and the Pressable wrapper in Button breaks verrical alighnemt because of some sort iof react-narive bug
+                  //Cannot use Button mode='text' here and use <Text onPress> instead since I want texts to be in the same line flow and the Pressable wrapper in Button breaks vertical alignment because of some sort of React Native bug
                   onPress={showPrefilledAddressHelp}
-                  className="text-sm text-primary hover:opacity-90 active:opacity-90 active:scale-95 select-none"
+                  className="text-sm text-primary opacity-80 underline p-2 -m-2 select-none"
                 >
                   {t('helpButton')}
                 </Text>
