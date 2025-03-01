@@ -419,14 +419,12 @@ export default function VaultSetUp({
             <View className="px-1 pt-1">
               <Text className="text-sm text-slate-500">
                 {t('vaultSetup.prefilledAddress') + ' '}
-                <Button
+                <Text 
                   onPress={showPrefilledAddressHelp}
-                  mode="text"
-                  containerClassName="!opacity-80"
-                  textClassName="!text-sm"
+                  className="text-sm text-primary opacity-80"
                 >
                   {t('helpButton')}
-                </Button>
+                </Text>
               </Text>
               <Modal
                 title={t('vaultSetup.prefilledAddressHelpTitle')}
