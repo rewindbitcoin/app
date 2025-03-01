@@ -125,9 +125,7 @@ const formatFeeRateFactory = memoize((t: TFunction) =>
       feeEstimates: FeeEstimates | undefined;
     }) => {
       let strBtcFiat =
-        fee === undefined
-          ? undefined
-          : t('feeRate.waitingForRates', { currency });
+        fee === undefined ? undefined : t('loading', { currency });
       let strTime = t('feeRate.waitingForEstimates');
 
       if (btcFiat !== undefined && fee !== undefined) {
