@@ -419,9 +419,9 @@ export default function VaultSetUp({
             <View className="px-1 pt-1">
               <Text className="text-sm text-slate-500">
                 {t('vaultSetup.prefilledAddress') + ' '}
-                <Text 
+                <Text
                   onPress={showPrefilledAddressHelp}
-                  className="text-sm text-primary opacity-80 active:opacity-60 active:scale-95"
+                  className="text-sm text-primary hover:opacity-90 active:opacity-90 active:scale-95 select-none"
                 >
                   {t('helpButton')}
                 </Text>
