@@ -428,7 +428,7 @@ Esta cantidad mínima se calcula asumiendo que podrías necesitar confirmaciones
 <strong>Acción Sugerida:</strong> Por favor, agrega {{missingFunds}} para alcanzar la cantidad mínima requerida para crear la bóveda.`,
     amountLabel: 'Cantidad a Congelar',
     securityLockTimeLabel: 'Tiempo de Bloqueo Anti-robo',
-    securityLockTimeDescription: 'Se desbloquea {{blocks}} trás descongelar',
+    securityLockTimeDescription: 'Desbloqueo {{blocks}} trás descongelar',
     confirmationSpeedLabel: 'Comisión de minería',
     interrupt: `Hemos detectado cambios en tu billetera mientras configurabas una nueva bóveda.
 
