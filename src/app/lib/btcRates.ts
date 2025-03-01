@@ -84,7 +84,7 @@ const formatBtcFactory = memoize(
     }
 
     if (typeof btcFiat === 'number') {
-      formattedValue += ` ≈ ${formatFiat({ amount: (amount * btcFiat) / 1e8, locale, currency })}`;
+      formattedValue += ` (≈ ${formatFiat({ amount: (amount * btcFiat) / 1e8, locale, currency })})`;
     }
 
     return formattedValue;
