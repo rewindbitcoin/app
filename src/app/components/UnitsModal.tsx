@@ -37,14 +37,10 @@ export default function UnitsModal({
     return (
       <View
         key={mode}
-        style={{
-          flexDirection: 'row',
-          justifyContent: 'space-between',
-          flex: 1
-        }}
+        className="flex-row justify-between flex-1"
       >
         <Text className="text-base">{presentedUnit}</Text>
-        <Text style={{ color: theme.colors.cardSecondary }}>
+        <Text className="text-cardSecondary">
           {numberToLocalizedString(modeAmount, locale)} {presentedUnit}
           {' = 1 btc'}
         </Text>
