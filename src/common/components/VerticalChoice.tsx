@@ -54,8 +54,8 @@ const VerticalChoice = ({
                 className="flex-row justify-between"
                 onPress={onPress(candidateIndex)}
               >
-                <Text className="text-base">{candidate}</Text>
                 {Check(index === candidateIndex)}
+                <Text className="text-base">{candidate}</Text>
               </Pressable>
               {candidateIndex < choices.length - 1 && <Divider />}
             </>
