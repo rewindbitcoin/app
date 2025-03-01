@@ -50,24 +50,24 @@ const formatBtcFactory = memoize(
     if (amount >= THRESHOLD_FOR_BTC) {
       formattedValue = `${(amount / ONE_BTC_IN_SATS).toLocaleString(locale, {
         minimumFractionDigits: 8
-      })} ₿`;
+      })}\u00A0₿`;
     } else {
       switch (subUnit) {
         case 'sat':
           formattedValue =
             amount === 1
-              ? `${amount.toLocaleString(locale)} sat`
-              : `${amount.toLocaleString(locale)} sats`;
+              ? `${amount.toLocaleString(locale)}\u00A0sat`
+              : `${amount.toLocaleString(locale)}\u00A0sats`;
           break;
         case 'mbit':
-          formattedValue = `${(amount / 100000).toLocaleString(locale)} mBTC`;
+          formattedValue = `${(amount / 100000).toLocaleString(locale)}\u00A0mBTC`;
           break;
         case 'bit': {
           const bits = amount / 100;
           formattedValue =
             bits === 1
-              ? `${bits.toLocaleString(locale)} bit`
-              : `${bits.toLocaleString(locale)} bits`;
+              ? `${bits.toLocaleString(locale)}\u00A0bit`
+              : `${bits.toLocaleString(locale)}\u00A0bits`;
           break;
         }
         case 'btc':
@@ -76,7 +76,7 @@ const formatBtcFactory = memoize(
             {
               minimumFractionDigits: 8
             }
-          )} ₿`;
+          )}\u00A0₿`;
           break;
         default:
           throw new Error(`Invalid subunit: ${subUnit}`);
