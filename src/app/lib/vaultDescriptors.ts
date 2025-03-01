@@ -40,6 +40,16 @@ export const DUMMY_COLD_ADDRESS = memoize((network: Network) => {
   else throw new Error('Network not supported');
 });
 
+export const DUMMY_SEND_ADDRESS = memoize((network: Network) => {
+  if (network === networks.bitcoin)
+    return 'bc1qp2u85wn9cekkw3khr3trpsznakhhfkekpk2mld';
+  else if (network === networks.regtest)
+    return 'bcrt1qq7m6la3syc6wk5fglznegngxe5lhy8aajevva9';
+  else if (network === networks.testnet)
+    return 'tb1qm0k9mn48uqfs2w9gssvzmus4j8srrx5eje7wpf';
+  else throw new Error('Network not supported');
+});
+
 export const DUMMY_PKH_ADDRESS = memoize((network: Network) => {
   if (network === networks.bitcoin) return '1HoY94QENW9KijWkN2fqSHZXCpa8bd9ENi';
   else if (network === networks.regtest)

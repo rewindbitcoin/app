@@ -36,6 +36,7 @@ import { useWallet } from '../hooks/useWallet';
 import {
   computeChangeOutput,
   DUMMY_CHANGE_OUTPUT,
+  DUMMY_SEND_ADDRESS,
   getMainAccount
 } from '../lib/vaultDescriptors';
 import { formatBtc } from '../lib/btcRates';
@@ -235,7 +236,7 @@ export default function Send() {
 
   const fee = estimateSendTxFee({
     utxosData,
-    address,
+    address: address || DUMMY_SEND_ADDRESS(network),
     feeRate,
     amount,
     network,
