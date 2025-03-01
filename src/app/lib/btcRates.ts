@@ -90,7 +90,7 @@ const formatBtcFactory = memoize(
         locale,
         currency
       });
-      formattedValue += `\u00A0≈\u00A0${fiatValue}`;
+      formattedValue += `\u00A0≈ ${fiatValue}`;
     }
 
     return formattedValue;
