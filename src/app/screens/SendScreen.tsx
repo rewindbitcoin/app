@@ -360,28 +360,32 @@ export default function Send() {
           >
             <View className="px-4 py-2">
               <Text className="mb-2 text-base">{t('send.confirm')}</Text>
-              <View className="bg-gray-50 p-4 rounded-lg mb-4 android:elevation ios:shadow web:shadow gap-2 mt-4">
-                <View className="flex-row">
-                  <Text className="w-[30%] text-right text-base font-bold">
-                    {t('send.confirmLabels.recipientAddress') + ':'}
+              <View className="bg-gray-50 p-4 rounded-lg mb-4 android:elevation ios:shadow web:shadow gap-5 mt-4">
+                {/* Recipient Address */}
+                <View>
+                  <Text className="text-base font-bold mb-1">
+                    {t('send.confirmLabels.recipientAddress')}
                   </Text>
-                  <Text className="w-[70%] pl-2 text-base">{address}</Text>
+                  <Text className="text-base break-words">{address}</Text>
                 </View>
-                <View className="flex-row">
-                  <Text className="w-[30%] text-right  text-base font-bold">
-                    {t('send.confirmLabels.amountLabel') + ':'}
+                
+                {/* Amount */}
+                <View>
+                  <Text className="text-base font-bold mb-1">
+                    {t('send.confirmLabels.amountLabel')}
                   </Text>
-                  <Text className="w-[70%] pl-2 text-base">
+                  <Text className="text-base">
                     {amount !== null && formatAmount(amount)}
                   </Text>
                 </View>
-                <View className="flex-row">
-                  <Text className="w-[30%] text-right text-base font-bold">
-                    {t('send.confirmLabels.miningFee') + ':'}
+                
+                {/* Mining Fee */}
+                <View>
+                  <Text className="text-base font-bold mb-1">
+                    {t('send.confirmLabels.miningFee')}
                   </Text>
-                  <Text className="w-[70%] pl-2 text-base">
-                    {feeRef.current !== undefined &&
-                      formatAmount(feeRef.current)}
+                  <Text className="text-base">
+                    {feeRef.current !== undefined && formatAmount(feeRef.current)}
                   </Text>
                 </View>
               </View>
