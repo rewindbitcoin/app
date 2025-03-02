@@ -575,11 +575,12 @@ Next, you'll get to confirm everything.`,
     emergencyAddress: 'Emergency Address',
     //vaultedAmount: 'Amount to Freeze:',
     confirmBackupSendVault: `Your vault is ready for submission. Please review the following values before proceeding:`,
-    encryptionBackupExplain: `We will also encrypt and back up the vault settings on Rewind's P2P network for added security.
-
-If you lose this device, you can recover the vault using your Recovery Phrase.
-
-Select 'Submit' to activate your vault.`,
+    explainConfirm: `Select 'Submit' to activate your vault.`,
+    //    encryptionBackupExplain: `We will also encrypt and back up the vault settings on Rewind's P2P network for added security.
+    //
+    //If you lose this device, you can recover the vault using your Recovery Phrase.
+    //
+    //Select 'Submit' to activate your vault.`,
     //Each peer helps store these backups, but the vault details remain fully encrypted, so no one can access them. Only you can with your Recovery Phrase.
     //Anyone can easily run a peer to support the network. Learn more at rewindbitcoin.com.
     // The backup will be stored on one peer and retrieved from another to verify its integrity.

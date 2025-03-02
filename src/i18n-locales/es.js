@@ -485,11 +485,12 @@ A continuación, podrás confirmarlo todo.`,
     amount: 'Cantidad a congelar',
     emergencyAddress: 'Dirección de Emergencia',
     confirmBackupSendVault: `Tu bóveda está lista para ser enviada. Por favor, revisa los siguientes valores antes de proceder:`,
-    encryptionBackupExplain: `También cifraremos y respaldaremos con un backup la configuración de la bóveda en la red P2P de Rewind para mayor seguridad.
-
-Si pierdes este dispositivo, podrás recuperar la bóveda usando tu Frase de Recuperación.
-
-Selecciona 'Enviar' para activar tu bóveda.`,
+    explainConfirm: `Selecciona 'Enviar' para activar tu bóveda.`,
+    //    encryptionBackupExplain: `También cifraremos y respaldaremos con un backup la configuración de la bóveda en la red P2P de Rewind para mayor seguridad.
+    //
+    //Si pierdes este dispositivo, podrás recuperar la bóveda usando tu Frase de Recuperación.
+    //
+    //Selecciona 'Enviar' para activar tu bóveda.`,
     backupInProgress: 'Respaldando tu bóveda y verificando el backup...',
     pushingVault: `Tu bóveda ha sido respaldada en un backup exitosamente y está almacenada de forma segura.
 
