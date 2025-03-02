@@ -450,7 +450,7 @@ export default function CreateVaultScreen({
                       {formatAmount(vault.vaultedAmount)}
                     </Text>
                   </View>
-                  
+
                   {/* Time Lock */}
                   <View>
                     <Text className="text-base font-bold mb-1">
@@ -460,7 +460,7 @@ export default function CreateVaultScreen({
                       {formatBlocks(vault.lockBlocks, t, locale, true)}
                     </Text>
                   </View>
-                  
+
                   {/* Fees */}
                   {/*on Tape summarize fees into one*/}
                   {GROUP_FEES_ON_TAPE && networkId === 'TAPE' ? (
@@ -492,7 +492,7 @@ export default function CreateVaultScreen({
                       </View>
                     </>
                   )}
-                  
+
                   {/* Emergency Address */}
                   <View>
                     <Text className="text-base font-bold mb-1">
