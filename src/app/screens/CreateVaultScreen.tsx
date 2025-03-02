@@ -440,60 +440,65 @@ export default function CreateVaultScreen({
                 <Text className="text-base mb-4">
                   {t('createVault.confirmBackupSendVault')}
                 </Text>
-                <View className="bg-gray-50 p-4 rounded-lg mb-4 android:elevation ios:shadow web:shadow gap-2">
-                  <View className="flex-row">
-                    <Text className="w-[30%] text-right text-base font-bold">
+                <View className="bg-gray-50 p-4 rounded-lg mb-4 android:elevation ios:shadow web:shadow gap-5">
+                  {/* Amount */}
+                  <View>
+                    <Text className="text-base font-bold mb-1">
                       {t('createVault.amount')}
                     </Text>
-                    <Text className="w-[70%] pl-2 text-base">
+                    <Text className="text-base">
                       {formatAmount(vault.vaultedAmount)}
                     </Text>
                   </View>
-                  <View className="flex-row">
-                    <Text className="w-[30%] text-right text-base font-bold">
+                  
+                  {/* Time Lock */}
+                  <View>
+                    <Text className="text-base font-bold mb-1">
                       {t('createVault.timeLock')}
                     </Text>
-                    <Text className="w-[70%] pl-2 text-base">
+                    <Text className="text-base">
                       {formatBlocks(vault.lockBlocks, t, locale, true)}
                     </Text>
                   </View>
-                  {
-                    /*on Tape summarize fees into one*/ GROUP_FEES_ON_TAPE &&
-                    networkId === 'TAPE' ? (
-                      <View className="flex-row">
-                        <Text className="w-[30%] text-right text-base font-bold">
-                          {t('createVault.allFees')}
+                  
+                  {/* Fees */}
+                  {/*on Tape summarize fees into one*/}
+                  {GROUP_FEES_ON_TAPE && networkId === 'TAPE' ? (
+                    <View>
+                      <Text className="text-base font-bold mb-1">
+                        {t('createVault.allFees')}
+                      </Text>
+                      <Text className="text-base">
+                        {formatAmount(vault.serviceFee + vaultTxInfo.fee)}
+                      </Text>
+                    </View>
+                  ) : (
+                    <>
+                      <View>
+                        <Text className="text-base font-bold mb-1">
+                          {t('createVault.miningFee')}
                         </Text>
-                        <Text className="w-[70%] pl-2 text-base">
-                          {formatAmount(vault.serviceFee + vaultTxInfo.fee)}
+                        <Text className="text-base">
+                          {formatAmount(vaultTxInfo.fee)}
                         </Text>
                       </View>
-                    ) : (
-                      <>
-                        <View className="flex-row">
-                          <Text className="w-[30%] text-right text-base font-bold">
-                            {t('createVault.miningFee')}
-                          </Text>
-                          <Text className="w-[70%] pl-2 text-base">
-                            {formatAmount(vaultTxInfo.fee)}
-                          </Text>
-                        </View>
-                        <View className="flex-row">
-                          <Text className="w-[30%] text-right text-base font-bold">
-                            {t('createVault.serviceFee')}
-                          </Text>
-                          <Text className="w-[70%] pl-2 text-base">
-                            {formatAmount(vault.serviceFee)}
-                          </Text>
-                        </View>
-                      </>
-                    )
-                  }
-                  <View className="flex-row">
-                    <Text className="w-[30%] text-right text-base font-bold">
+                      <View>
+                        <Text className="text-base font-bold mb-1">
+                          {t('createVault.serviceFee')}
+                        </Text>
+                        <Text className="text-base">
+                          {formatAmount(vault.serviceFee)}
+                        </Text>
+                      </View>
+                    </>
+                  )}
+                  
+                  {/* Emergency Address */}
+                  <View>
+                    <Text className="text-base font-bold mb-1">
                       {t('createVault.emergencyAddress')}
                     </Text>
-                    <Text className="w-[70%] pl-2 text-base">
+                    <Text className="text-base break-words">
                       {vault.coldAddress}
                     </Text>
                   </View>
