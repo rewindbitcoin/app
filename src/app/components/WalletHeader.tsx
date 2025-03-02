@@ -147,74 +147,53 @@ const WalletHeader = ({
       ? getVaultsFrozenBalance(vaults, vaultsStatuses, blockchainTip)
       : undefined;
   return (
-    <View className="bg-white p-4 flex-col">
-      <View className="pl-5 gap-4">
-        <Balance
-          type="HOT"
-          formattedBalance={
-            balance === undefined || faucetPending
-              ? undefined
-              : formatBalance({
-                  satsBalance: balance,
-                  btcFiat,
-                  currency,
-                  locale,
-                  mode
-                })
-          }
-          iconText={mode === 'Fiat' ? currency : mode}
-          onUnitPress={onUnitPress}
-        />
-        <Balance
-          type="FROZEN"
-          formattedBalance={
-            frozenBalance === undefined
-              ? undefined
-              : formatBalance({
-                  satsBalance: frozenBalance,
-                  btcFiat,
-                  currency,
-                  locale,
-                  mode
-                })
-          }
-          iconText={mode === 'Fiat' ? currency : mode}
-          onUnitPress={onUnitPress}
-        />
-      </View>
-      {(netErrorMessage ||
-        (networkId !== 'BITCOIN' && !testWalletWarningDismissed)) && (
-        <View className="p-4 mt-6 bg-white rounded-lg ios:shadow android:elevation web:shadow relative">
-          <View className="absolute top-5 left-4">
-            <Text className="text-red-500">
-              <MaterialIcons name="warning-amber" size={20} />
-            </Text>
-          </View>
-          {netErrorMessage ? (
-            //only show tapeWalletPlusWarning err if the network status is fine.
-            //Otherwise the header would too cluttered
-            <>
-              <Text
-                key={syncingBlockchain.toString() /*fixes native-wind issues*/}
-                className="color-slate-500 ml-9 text-sm"
-              >
-                {netErrorMessage}
+    <View className="bg-white w-full">
+      <View className="py-4 px-8 flex-col max-w-screen-sm self-center w-full">
+        <View className="gap-4">
+          <Balance
+            type="HOT"
+            formattedBalance={
+              balance === undefined || faucetPending
+                ? undefined
+                : formatBalance({
+                    satsBalance: balance,
+                    btcFiat,
+                    currency,
+                    locale,
+                    mode
+                  })
+            }
+            iconText={mode === 'Fiat' ? currency : mode}
+            onUnitPress={onUnitPress}
+          />
+          <Balance
+            type="FROZEN"
+            formattedBalance={
+              frozenBalance === undefined
+                ? undefined
+                : formatBalance({
+                    satsBalance: frozenBalance,
+                    btcFiat,
+                    currency,
+                    locale,
+                    mode
+                  })
+            }
+            iconText={mode === 'Fiat' ? currency : mode}
+            onUnitPress={onUnitPress}
+          />
+        </View>
+        {(netErrorMessage ||
+          (networkId !== 'BITCOIN' && !testWalletWarningDismissed)) && (
+          <View className="p-4 mt-6 bg-white rounded-lg ios:shadow android:elevation web:shadow relative">
+            <View className="absolute top-5 left-4">
+              <Text className="text-red-500">
+                <MaterialIcons name="warning-amber" size={20} />
               </Text>
-              <Button
-                textClassName="font-bold !text-sm"
-                containerClassName="self-end mt-2"
-                onPress={syncBlockchain}
-                loading={syncingBlockchain}
-                mode="text"
-              >
-                {syncingBlockchain
-                  ? t('walletHome.header.checkingNetwork')
-                  : t('walletHome.header.checkNetwork')}
-              </Button>
-            </>
-          ) : (
-            networkId !== 'BITCOIN' &&
-            !testWalletWarningDismissed && (
+            </View>
+            {netErrorMessage ? (
+              //only show tapeWalletPlusWarning err if the network status is fine.
+              //Otherwise the header would too cluttered
               <>
                 <Text
                   key={
@@ -222,32 +201,57 @@ const WalletHeader = ({
                   }
                   className="color-slate-500 ml-9 text-sm"
                 >
-                  {t('walletHome.header.testWalletWarning')}
-                  {networkId === 'TAPE'
-                    ? `
-` + t('walletHome.header.tapeWalletPlusWarning')
-                    : ''}
+                  {netErrorMessage}
                 </Text>
-                <Text
-                  className={`self-end font-bold text-sm mt-2 text-primary hover:opacity-90 active:opacity-90 active:scale-95`}
-                  onPress={dismissTestWalletWarning}
+                <Button
+                  textClassName="font-bold !text-sm"
+                  containerClassName="self-end mt-2"
+                  onPress={syncBlockchain}
+                  loading={syncingBlockchain}
+                  mode="text"
                 >
-                  {t('dismissButton')}
-                </Text>
+                  {syncingBlockchain
+                    ? t('walletHome.header.checkingNetwork')
+                    : t('walletHome.header.checkNetwork')}
+                </Button>
               </>
-            )
-          )}
-        </View>
-      )}
-      <UnitsModal
-        isVisible={showUnitsModal}
-        mode={mode}
-        locale={locale}
-        currency={currency}
-        btcFiat={btcFiat}
-        onSelect={onModeSelect}
-        onClose={() => setShowUnitsModal(false)}
-      />
+            ) : (
+              networkId !== 'BITCOIN' &&
+              !testWalletWarningDismissed && (
+                <>
+                  <Text
+                    key={
+                      syncingBlockchain.toString() /*fixes native-wind issues*/
+                    }
+                    className="color-slate-500 ml-9 text-sm"
+                  >
+                    {t('walletHome.header.testWalletWarning')}
+                    {networkId === 'TAPE'
+                      ? `
+` + t('walletHome.header.tapeWalletPlusWarning')
+                      : ''}
+                  </Text>
+                  <Text
+                    className={`self-end font-bold text-sm mt-2 text-primary hover:opacity-90 active:opacity-90 active:scale-95`}
+                    onPress={dismissTestWalletWarning}
+                  >
+                    {t('dismissButton')}
+                  </Text>
+                </>
+              )
+            )}
+          </View>
+        )}
+        <UnitsModal
+          isVisible={showUnitsModal}
+          mode={mode}
+          locale={locale}
+          currency={currency}
+          btcFiat={btcFiat}
+          onSelect={onModeSelect}
+          onClose={() => setShowUnitsModal(false)}
+        />
+      </View>
     </View>
   );
 };

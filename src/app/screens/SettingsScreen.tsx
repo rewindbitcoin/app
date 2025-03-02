@@ -418,7 +418,7 @@ const SettingsScreen = () => {
         contentContainerClassName="items-center pt-5 px-5"
       >
         {wallet && wallets && (
-          <View className="w-full mb-6">
+          <View className="w-full mb-6 max-w-screen-sm">
             <Text className="font-bold uppercase text-slate-600 pl-4 mb-2 text-sm">
               {title}
             </Text>
@@ -491,7 +491,7 @@ const SettingsScreen = () => {
             </View>
           </View>
         )}
-        <View className="w-full">
+        <View className="w-full max-w-screen-sm">
           <Text className="font-bold uppercase text-slate-600 pl-4 mb-2 text-sm">
             {t('settings.general.title')}
           </Text>

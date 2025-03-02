@@ -64,7 +64,7 @@ const ErrorView = ({
 }) => {
   const { t } = useTranslation();
   return (
-    <View className="flex-1 justify-center p-4 gap-2">
+    <View className="flex-1 justify-center p-4 gap-2 max-w-screen-sm">
       <KeyboardAwareScrollView>
         <Text className="text-base mb-4">{errorMessage}</Text>
       </KeyboardAwareScrollView>
@@ -457,7 +457,7 @@ const WalletHomeScreen = () => {
           //the bounce area when pulling to refresh was looking gray or white but the loading indicator was not appearing
           //See TAGiusfdnisdunf below
           //
-          ` ${Platform.OS === 'ios' || Platform.OS === 'web' ? '-z-10' : ''}`
+          `${Platform.OS === 'ios' || Platform.OS === 'web' ? '-z-10' : ''}`
         }
       >
         <View onLayout={handleHeader}>
@@ -478,17 +478,19 @@ const WalletHomeScreen = () => {
           />
         </View>
 
-        <View className="bg-white border-b border-b-slate-300 px-6">
-          <TabBar
-            tabs={tabs}
-            activeTabIndex={activeTabIndex}
-            onActiveTab={onActiveTab}
-          />
+        <View className="bg-white border-b border-b-slate-300 w-full">
+          <View className="px-6 max-w-screen-sm self-center w-full">
+            <TabBar
+              tabs={tabs}
+              activeTabIndex={activeTabIndex}
+              onActiveTab={onActiveTab}
+            />
+          </View>
         </View>
 
         {activeTabIndex === 0 && (
           <View
-            className={`p-4 max-w-2xl w-full self-center`}
+            className={`p-4 max-w-screen-sm w-full self-center`}
             style={{
               marginBottom: walletButtonsHeight + insets.bottom + 8 * 4
             }}
@@ -509,7 +511,7 @@ const WalletHomeScreen = () => {
         )}
         {activeTabIndex === 1 && (
           <View
-            className={`p-4 max-w-2xl w-full self-center`}
+            className={`p-4 max-w-screen-sm w-full self-center`}
             style={{
               marginBottom: walletButtonsHeight + insets.bottom + 8 * 4
             }}

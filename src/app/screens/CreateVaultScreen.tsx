@@ -414,7 +414,7 @@ export default function CreateVaultScreen({
       contentContainerClassName="flex-grow"
     >
       <View
-        className="flex-1 self-center max-w-lg w-full px-4 py-4 mobmed:py-8"
+        className="flex-1 self-center max-w-screen-sm w-full px-4 py-4 mobmed:py-8"
         style={mbStyle}
       >
         {!vault || !vaultTxInfo ? (
@@ -504,7 +504,10 @@ export default function CreateVaultScreen({
                   </View>
                 </View>
                 <Text className="text-base mb-8">
-                  {t('createVault.encryptionBackupExplain')}
+                  {
+                    //t('createVault.encryptionBackupExplain')
+                    t('createVault.explainConfirm')
+                  }
                 </Text>
 
                 <View className="items-center gap-6 flex-row justify-center">

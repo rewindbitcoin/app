@@ -316,7 +316,7 @@ export default function NewWalletScreen() {
           alignItems: 'center'
         }}
       >
-        <View className="max-w-lg p-4 gap-4">
+        <View className="max-w-screen-sm p-4 gap-4">
           <Text className="native:text-base web:text-sm web:sm:text-base text-slate-600">
             {
               //it should using strin literal. AI!

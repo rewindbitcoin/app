@@ -164,7 +164,7 @@ const WalletsScreen = () => {
         }}
       >
         <View
-          className={`gap-4 max-w-full px-2 py-6 ${extraPadding ? 'pb-32' : ''}`}
+          className={`gap-4 max-w-screen-sm px-2 py-6 ${extraPadding ? 'pb-32' : ''}`}
           onLayout={event => {
             contentHeightRef.current = event.nativeEvent.layout.height;
             handleExtraPadding();
