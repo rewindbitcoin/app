@@ -337,7 +337,7 @@ const RawModal: React.FC<ModalProps> = ({
                     className={`${headerMini ? 'bottom-2' : 'bottom-4'} absolute w-full`}
                   >
                     <Text
-                      className={`${ubuntuLoaded ? "font-['Ubuntu700Bold']" : ''} uppercase opacity-90 ${headerMini ? 'text-lg ml-16' : 'pl-4 text-xl mobmed:text-2xl mobmed:px-8'} text-white ${subTitle || headerTitleHasManyLines ? '!leading-none' : ''}`}
+                      className={`${ubuntuLoaded ? "font-['Ubuntu700Bold']" : ''} uppercase opacity-90 ${headerMini ? 'text-lg ml-16 pr-2' : 'px-4 text-xl mobmed:text-2xl mobmed:px-8'} text-white ${subTitle || headerTitleHasManyLines ? '!leading-none' : ''}`}
                       {...(headerMini ? { numberOfLines: 1 } : {})}
                       onTextLayout={e => {
                         const linesLength = e.nativeEvent.lines.length;

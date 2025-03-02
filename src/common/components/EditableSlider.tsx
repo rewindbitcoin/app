@@ -346,7 +346,7 @@ const getStyles = (theme: Theme) =>
     },
     statusAndUnit: {
       flexDirection: 'row',
-      alignItems: 'center', //vertically
+      alignItems: 'flex-end', //vertically
       justifyContent: 'space-between',
       width: '100%'
     },

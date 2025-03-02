@@ -368,7 +368,7 @@ export default function Send() {
                   </Text>
                   <Text className="text-base break-words">{address}</Text>
                 </View>
-                
+
                 {/* Amount */}
                 <View>
                   <Text className="text-base font-bold mb-1">
@@ -378,14 +378,15 @@ export default function Send() {
                     {amount !== null && formatAmount(amount)}
                   </Text>
                 </View>
-                
+
                 {/* Mining Fee */}
                 <View>
                   <Text className="text-base font-bold mb-1">
                     {t('send.confirmLabels.miningFee')}
                   </Text>
                   <Text className="text-base">
-                    {feeRef.current !== undefined && formatAmount(feeRef.current)}
+                    {feeRef.current !== undefined &&
+                      formatAmount(feeRef.current)}
                   </Text>
                 </View>
               </View>
