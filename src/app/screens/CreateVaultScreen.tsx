@@ -419,7 +419,7 @@ export default function CreateVaultScreen({
       >
         {!vault || !vaultTxInfo ? (
           //Initial view:
-          <View className="flex-1 justify-between">
+          <View className="flex-1 justify-between gap-8">
             <Text className="text-base self-start">
               {t('createVault.intro')}
             </Text>
