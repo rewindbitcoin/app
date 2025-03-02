@@ -564,20 +564,20 @@ For your security, please review these changes before proceeding.`,
 This may take around 30 seconds, slightly longer on older devices.
 
 Next, you'll get to confirm everything.`,
-    miningFee: 'Mining Fee:',
-    serviceFee: 'Vaulting Fee:',
-    allFees: 'Fees:',
-    timeLock: 'Time-Lock:',
-    amount: 'Amount:',
+    miningFee: 'Mining Fee',
+    serviceFee: 'Vaulting Fee',
+    allFees: 'Fees',
+    timeLock: 'Time-Lock',
+    amount: 'Amount to Vault',
     //Note to transalators: make this text below as short as possible. This is the
     //label for Emergency Address in the summary that users review before
     //final submission
-    emergencyAddress: 'Emergency:',
+    emergencyAddress: 'Emergency Address',
     //vaultedAmount: 'Amount to Freeze:',
     confirmBackupSendVault: `Your vault is ready for submission. Please review the following values before proceeding:`,
     encryptionBackupExplain: `We will also encrypt and back up the vault settings on Rewind's P2P network for added security.
 
-If you lose this device, you can recover the vault using just your Recovery Phrase.
+If you lose this device, you can recover the vault using your Recovery Phrase.
 
 Select 'Submit' to activate your vault.`,
     //Each peer helps store these backups, but the vault details remain fully encrypted, so no one can access them. Only you can with your Recovery Phrase.

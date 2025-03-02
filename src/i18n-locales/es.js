@@ -478,16 +478,16 @@ Por tu seguridad, por favor revisa estos cambios antes de continuar.`,
 Esto puede tomar unos 30 segundos, un poco más en dispositivos antiguos.
 
 A continuación, podrás confirmarlo todo.`,
-    miningFee: 'Comisión de minería:',
-    serviceFee: 'Comisión de Bóveda:',
-    allFees: 'Comisiones:',
-    timeLock: 'Tiempo de Bloqueo:',
-    amount: 'Cantidad:',
-    emergencyAddress: 'Emergencia:',
+    miningFee: 'Comisión de minería',
+    serviceFee: 'Comisión de Bóveda',
+    allFees: 'Comisiones',
+    timeLock: 'Tiempo de Bloqueo',
+    amount: 'Cantidad a congelar',
+    emergencyAddress: 'Dirección de Emergencia',
     confirmBackupSendVault: `Tu bóveda está lista para ser enviada. Por favor, revisa los siguientes valores antes de proceder:`,
     encryptionBackupExplain: `También cifraremos y respaldaremos con un backup la configuración de la bóveda en la red P2P de Rewind para mayor seguridad.
 
-Si pierdes este dispositivo, podrás recuperar la bóveda usando solo tu Frase de Recuperación.
+Si pierdes este dispositivo, podrás recuperar la bóveda usando tu Frase de Recuperación.
 
 Selecciona 'Enviar' para activar tu bóveda.`,
     backupInProgress: 'Respaldando tu bóveda y verificando el backup...',
