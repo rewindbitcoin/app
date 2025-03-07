@@ -9,6 +9,7 @@ import React, {
   useRef,
   useState
 } from 'react';
+import { batchedUpdates } from '~/common/lib/batchedUpdates';
 import { useNavigation } from '@react-navigation/native';
 import { View, Text, LayoutChangeEvent } from 'react-native';
 import {
@@ -234,6 +235,54 @@ export default function Send() {
     goBack();
   }, [toast, goBack, txPushAndUpdateStates, t]);
 
+  /**
+   * Handles fee rate changes with special consideration for max amount
+   * selection.
+   *
+   * This function solves a critical UI flicker issue by synchronizing fee rate
+   * and amount updates:
+   *
+   * THE PROBLEM:
+   * 1. When user selects max amount and then changes fee rate, the available
+   * max amount changes
+   * 2. If we update only the fee rate first, the UI will briefly show an
+   * invalid state
+   * 3. This causes a visible flicker as the amount updates in a separate render
+   * cycle
+   *
+   * THE SOLUTION:
+   * 1. When fee changes and max amount is selected, we calculate the new max
+   * amount immediately
+   * 2. We batch both state updates (fee and amount) to happen in the same
+   * render cycle
+   * 3. This ensures the UI always shows a consistent state without flicker
+   */
+  const handleFeeRateChange = useCallback(
+    (newFeeRate: number | null) => {
+      batchedUpdates(() => {
+        // Always update the fee rate
+        setUserSelectedFeeRate(newFeeRate);
+        
+        // Only recalculate max amount if user has selected max and fee is valid
+        if (isMaxAmount && newFeeRate !== null) {
+          // Calculate the new max amount with the updated fee rate
+          const { max: newMaxAmount } = estimateSendRange({ 
+            utxosData, 
+            address: address || DUMMY_SEND_ADDRESS(network), 
+            network, 
+            feeRate: newFeeRate 
+          });
+          
+          // Update the amount in the same render cycle to prevent flicker
+          if (newMaxAmount !== null) {
+            setUserSelectedAmount(newMaxAmount);
+          }
+        }
+      });
+    },
+    [isMaxAmount, utxosData, address, network]
+  );
+
   const fee = estimateSendTxFee({
     utxosData,
     address: address || DUMMY_SEND_ADDRESS(network),
@@ -336,7 +385,7 @@ export default function Send() {
             initialValue={initialFeeRate}
             fee={fee}
             label={t('send.confirmationSpeedLabel')}
-            onValueChange={setUserSelectedFeeRate}
+            onValueChange={handleFeeRateChange}
           />
           <View className="self-center flex-row justify-center items-center mt-5 gap-5">
             <Button onPress={navigation.goBack}>{t('cancelButton')}</Button>
