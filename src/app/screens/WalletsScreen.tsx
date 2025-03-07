@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo, useRef, useState } from 'react';
-import { Text, View, Pressable } from 'react-native';
+import { Text, View, Pressable /*, useWindowDimensions*/ } from 'react-native';
 import { KeyboardAwareScrollView } from '../../common/ui';
 import { useTranslation } from 'react-i18next';
 import { useNavigation } from '@react-navigation/native';
@@ -75,6 +75,8 @@ const WalletsScreen = () => {
   if (!onWallet) throw new Error(`onWallet not set yet`);
   const [ubuntuLoaded] = useFonts({ Ubuntu700Bold: Ubuntu_700Bold });
   const insets = useSafeAreaInsets();
+  //const { width: windowWidth } = useWindowDimensions();
+
   const navigation = useNavigation();
   const { t } = useTranslation();
   const { locale } = useLocalization();
@@ -107,7 +109,18 @@ const WalletsScreen = () => {
     navigation.navigate(NEW_WALLET, { walletId });
   }, [navigation, wallets]);
 
-  const mbStyle = useMemo(() => ({ marginBottom: insets.bottom }), [insets]);
+  const mbStyle = useMemo(
+    //max-w-screen-sm = 640
+    () => ({
+      marginBottom: insets.bottom,
+      //right: (windowWidth > 640 ? (windowWidth - 640) / 2 : 0) + 8 * 4
+      //The right above makes sure the button is inside a max-w-screen-sm width (640px)
+      //this can be useful on web with large screen width. But I believe it looks better
+      //in web when its aligned to the right... (as below). Thing about it...
+      right: 8 * 4
+    }),
+    [insets /*, windowWidth*/]
+  );
 
   const buttonHeightRef = useRef<number>();
   const scrollViewHeightRef = useRef<number>();
@@ -140,7 +153,7 @@ const WalletsScreen = () => {
         }}
         onPress={handleNewWallet}
         style={mbStyle}
-        className={`bottom-8 right-8 z-10 p-4 bg-primary rounded-full hover:opacity-90 active:scale-95 active:opacity-90 fixed native:absolute shadow flex-row gap-1 items-center`}
+        className={`bottom-8 z-10 p-4 bg-primary rounded-full hover:opacity-90 active:scale-95 active:opacity-90 absolute shadow flex-row gap-1 items-center`}
       >
         <Svg
           className="fill-none stroke-white stroke-2 w-5 h-5"
