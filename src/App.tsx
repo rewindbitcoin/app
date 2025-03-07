@@ -121,12 +121,12 @@ const Main = () => {
   //to all of them, the useCallback does notthing if also passing {{}}
 
   const SetUpVaultScreenWithOnComplete = () => {
-    useEffect(() => {
-      // This function will be called when the component unmounts
-      return () => {
-        console.log('SetUpVaultScreenWithOnComplete is being unmounted');
-      };
-    }, []);
+    //useEffect(() => {
+    //  // This function will be called when the component unmounts
+    //  return () => {
+    //    console.log('SetUpVaultScreenWithOnComplete is being unmounted');
+    //  };
+    //}, []);
     return (
       <SetUpVaultScreen
         onVaultSetUpComplete={(vaultSettings: VaultSettings) => {
