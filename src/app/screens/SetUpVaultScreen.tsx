@@ -313,20 +313,28 @@ export default function VaultSetUp({
   ]);
 
   /**
-   * Handles fee rate changes with special consideration for max amount selection.
-   * 
-   * This function solves a critical UI flicker issue by synchronizing fee rate and amount updates:
-   * 
+   * Handles fee rate changes with special consideration for max amount
+   * selection.
+   *
+   * This function solves a critical UI flicker issue by synchronizing fee rate
+   * and amount updates:
+   *
    * THE PROBLEM:
-   * 1. When user selects max amount and then changes fee rate, the available max amount changes
-   * 2. If we update only the fee rate first, the UI will briefly show an invalid state
-   * 3. This causes a visible flicker as the amount updates in a separate render cycle
-   * 
+   * 1. When user selects max amount and then changes fee rate, the available
+   * max amount changes
+   * 2. If we update only the fee rate first, the UI will briefly show an
+   * invalid state
+   * 3. This causes a visible flicker as the amount updates in a separate render
+   * cycle (AmountInput will call onUserSelectedVaultedAmountChange with the
+   * correct value but a "tick" later)
+   *
    * THE SOLUTION:
-   * 1. When fee changes and max amount is selected, we calculate the new max amount immediately
-   * 2. We batch both state updates (fee and amount) to happen in the same render cycle
+   * 1. When fee changes and max amount is selected, we calculate the new max
+   * amount immediately
+   * 2. We batch both state updates (fee and amount) to happen in the same
+   * render cycle
    * 3. This ensures the UI always shows a consistent state without flicker
-   * 
+   *
    * OPTIMIZATION:
    * - We only perform the expensive calculation when necessary (max amount selected)
    * - We use the same calculation method as estimateVaultSetUpRange for consistency
@@ -337,7 +345,7 @@ export default function VaultSetUp({
       batchedUpdates(() => {
         // Always update the fee rate
         setUserSelectedFeeRate(newFeeRate);
-        
+
         // Only recalculate max amount if user has selected max and fee is valid
         if (isMaxVaultedAmount && newFeeRate !== null) {
           // Use the same calculation method as in the main render flow
@@ -349,7 +357,7 @@ export default function VaultSetUp({
             serviceFeeRate,
             feeRate: newFeeRate
           });
-          
+
           // Update the amount in the same render cycle to prevent flicker
           if (newMaxEstimate) {
             setUserSelectedVaultedAmount(newMaxEstimate.vaultedAmount);
