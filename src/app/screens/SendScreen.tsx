@@ -262,17 +262,17 @@ export default function Send() {
       batchedUpdates(() => {
         // Always update the fee rate
         setUserSelectedFeeRate(newFeeRate);
-        
+
         // Only recalculate max amount if user has selected max and fee is valid
         if (isMaxAmount && newFeeRate !== null) {
           // Calculate the new max amount with the updated fee rate
-          const { max: newMaxAmount } = estimateSendRange({ 
-            utxosData, 
-            address: address || DUMMY_SEND_ADDRESS(network), 
-            network, 
-            feeRate: newFeeRate 
+          const { max: newMaxAmount } = estimateSendRange({
+            utxosData,
+            address,
+            network,
+            feeRate: newFeeRate
           });
-          
+
           // Update the amount in the same render cycle to prevent flicker
           if (newMaxAmount !== null) {
             setUserSelectedAmount(newMaxAmount);

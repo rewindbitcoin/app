@@ -660,11 +660,11 @@ Now, as the final step, we're sending your vault to the blockchain to activate i
   feeInput: {
     autoOptimal: 'Optimal Fee',
     helpTitle: 'Confirmation Speed',
-    helpText: `This action will create a new Bitcoin transaction that needs to be processed by miners.
+    helpText: `You are creating a new Bitcoin transaction that will need to be processed by miners.
 
 Miners prioritize transactions with higher fees due to limited space in each block.
 
-The fee you choose determines how quickly your transaction will be confirmed on the network, with higher fees resulting in faster confirmation.`
+The fee you choose determines how quickly your transaction will be processed, with higher fees resulting in faster confirmation.`
   },
   blocksInput: {
     days: 'days',
