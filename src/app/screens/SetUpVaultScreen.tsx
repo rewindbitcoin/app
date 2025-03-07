@@ -244,6 +244,11 @@ export default function VaultSetUp({
     userSelectedVaultedAmount <= maxVaultAmount.vaultedAmount
       ? userSelectedVaultedAmount
       : null;
+  console.log({
+    userSelectedVaultedAmount,
+    minRecoverableVaultAmount: minRecoverableVaultAmount.vaultedAmount,
+    max: maxVaultAmount && maxVaultAmount.vaultedAmount
+  });
   const serviceFee: number | null =
     vaultedAmount !== null && maxVaultAmount && minRecoverableVaultAmount
       ? estimateServiceFee({
@@ -307,6 +312,7 @@ export default function VaultSetUp({
   ]);
 
   let fee = null;
+  console.log({ fee, vaultedAmount, serviceFee, feeRate });
   if (vaultedAmount !== null && serviceFee !== null && feeRate !== null) {
     const selected = selectVaultUtxosData({
       utxosData,
