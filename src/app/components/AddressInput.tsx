@@ -224,7 +224,7 @@ function AddressInput({
             maxLength={100}
             onChangeText={onAddress}
             value={address}
-            className={`ios:mb-1 native:text-base web:text-xs web:mobmed:text-sm web:sm:text-base flex-1 overflow-hidden web:outline-none border-none p-2 pl-0 border-md ${address === '' && robotoLoaded ? 'tracking-tightest mobmed:-tracking-widest moblg:tracking-tighter' : 'tracking-normal'} ${robotoLoaded ? "font-['RobotoMono400Regular']" : ''}`}
+            className={`w-full ios:mb-1 native:text-base web:text-xs web:mobmed:text-sm web:sm:text-base flex-1 overflow-hidden web:outline-none border-none p-2 pl-0 border-md ${address === '' && robotoLoaded ? 'tracking-tightest mobmed:-tracking-widest moblg:tracking-tighter' : 'tracking-normal'} ${robotoLoaded ? "font-['RobotoMono400Regular']" : ''}`}
           />
           {type === 'emergency' && (
             <View className="py-1">
