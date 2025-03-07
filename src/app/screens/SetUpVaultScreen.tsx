@@ -315,14 +315,14 @@ export default function VaultSetUp({
   // Create a synchronized fee rate setter that also updates vaulted amount if needed
   // It's better to set it ASAP if isMaxVaultedAmount, not to wait for
   // onUserSelectedVaultedAmountChange to set it since this would happen on the
-  // next execution thread with some flicker
+  // next execution thread and may add flicker
   const handleFeeRateChange = useCallback(
     (newFeeRate: number | null) => {
       batchedUpdates(() => {
         setUserSelectedFeeRate(newFeeRate);
         // If user had previously selected max amount, we need to update the vaulted amount
         // to match the new max when fee changes
-        if (isMaxVaultedAmount && newFeeRate !== null && maxVaultAmount) {
+        if (isMaxVaultedAmount && newFeeRate !== null) {
           // We need to recalculate what the new max would be with the new fee rate
           const newMaxEstimate = estimateMaxVaultAmount({
             utxosData,
@@ -336,7 +336,7 @@ export default function VaultSetUp({
         }
       });
     },
-    [isMaxVaultedAmount, maxVaultAmount, utxosData, network, serviceFeeRate]
+    [isMaxVaultedAmount, utxosData, network, serviceFeeRate]
   );
 
   let fee = null;
