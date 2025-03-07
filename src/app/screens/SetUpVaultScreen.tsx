@@ -136,6 +136,46 @@ export default function VaultSetUp({
   const [userSelectedFeeRate, setUserSelectedFeeRate] = useState<number | null>(
     initialFeeRate
   );
+  
+  // Create a synchronized fee rate setter that also updates vaulted amount if needed
+  const handleFeeRateChange = useCallback(
+    (newFeeRate: number | null) => {
+      setUserSelectedFeeRate(newFeeRate);
+      
+      // If user had previously selected max amount, we need to update the vaulted amount
+      // to match the new max when fee changes
+      if (isMaxVaultedAmount && newFeeRate !== null && maxVaultAmount) {
+        // We need to recalculate what the new max would be with the new fee rate
+        const newMaxEstimate = estimateVaultSetUpRange({
+          accounts,
+          utxosData,
+          coldAddress: coldAddress || DUMMY_COLD_ADDRESS(network),
+          maxFeeRate,
+          network,
+          serviceFeeRate,
+          feeRate: newFeeRate,
+          feeRateCeiling: settings.PRESIGNED_FEE_RATE_CEILING,
+          minRecoverableRatio: settings.MIN_RECOVERABLE_RATIO
+        }).maxVaultAmount;
+        
+        if (newMaxEstimate) {
+          setUserSelectedVaultedAmount(newMaxEstimate.vaultedAmount);
+        }
+      }
+    },
+    [
+      isMaxVaultedAmount, 
+      maxVaultAmount, 
+      accounts, 
+      utxosData, 
+      coldAddress, 
+      network, 
+      maxFeeRate, 
+      serviceFeeRate, 
+      settings.PRESIGNED_FEE_RATE_CEILING,
+      settings.MIN_RECOVERABLE_RATIO
+    ]
+  );
   const maxFeeRate = computeMaxAllowedFeeRate(feeEstimates);
   const feeRate =
     userSelectedFeeRate === null
@@ -453,7 +493,7 @@ export default function VaultSetUp({
             initialValue={initialFeeRate}
             fee={fee}
             label={t('vaultSetup.confirmationSpeedLabel')}
-            onValueChange={setUserSelectedFeeRate}
+            onValueChange={handleFeeRateChange}
           />
           <View className="self-center flex-row justify-center items-center mt-5 gap-5">
             <Button onPress={navigation.goBack}>{t('cancelButton')}</Button>
