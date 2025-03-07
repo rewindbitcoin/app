@@ -312,18 +312,36 @@ export default function VaultSetUp({
     btcFiat
   ]);
 
-  // Create a synchronized fee rate setter that also updates vaulted amount if needed
-  // It's better to set it ASAP if isMaxVaultedAmount, not to wait for
-  // onUserSelectedVaultedAmountChange to set it since this would happen on the
-  // next execution thread and may add flicker
+  /**
+   * Handles fee rate changes with special consideration for max amount selection.
+   * 
+   * This function solves a critical UI flicker issue by synchronizing fee rate and amount updates:
+   * 
+   * THE PROBLEM:
+   * 1. When user selects max amount and then changes fee rate, the available max amount changes
+   * 2. If we update only the fee rate first, the UI will briefly show an invalid state
+   * 3. This causes a visible flicker as the amount updates in a separate render cycle
+   * 
+   * THE SOLUTION:
+   * 1. When fee changes and max amount is selected, we calculate the new max amount immediately
+   * 2. We batch both state updates (fee and amount) to happen in the same render cycle
+   * 3. This ensures the UI always shows a consistent state without flicker
+   * 
+   * OPTIMIZATION:
+   * - We only perform the expensive calculation when necessary (max amount selected)
+   * - We use the same calculation method as estimateVaultSetUpRange for consistency
+   * - We batch updates to avoid multiple renders
+   */
   const handleFeeRateChange = useCallback(
     (newFeeRate: number | null) => {
       batchedUpdates(() => {
+        // Always update the fee rate
         setUserSelectedFeeRate(newFeeRate);
-        // If user had previously selected max amount, we need to update the vaulted amount
-        // to match the new max when fee changes
+        
+        // Only recalculate max amount if user has selected max and fee is valid
         if (isMaxVaultedAmount && newFeeRate !== null) {
-          // We need to recalculate what the new max would be with the new fee rate
+          // Use the same calculation method as in the main render flow
+          // This ensures consistency between the two calculations
           const newMaxEstimate = estimateMaxVaultAmount({
             utxosData,
             vaultOutput: DUMMY_VAULT_OUTPUT(network),
@@ -331,8 +349,11 @@ export default function VaultSetUp({
             serviceFeeRate,
             feeRate: newFeeRate
           });
-          if (newMaxEstimate)
+          
+          // Update the amount in the same render cycle to prevent flicker
+          if (newMaxEstimate) {
             setUserSelectedVaultedAmount(newMaxEstimate.vaultedAmount);
+          }
         }
       });
     },
