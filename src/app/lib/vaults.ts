@@ -652,6 +652,8 @@ export async function createVault({
   | 'UNKNOWN_ERROR'
 > {
   try {
+    //const psbts = [];
+    //const signedPsbts = [];
     if (feeRateCeiling > maxFeeRateCeiling) return 'UNKNOWN_ERROR';
     let signaturesProcessed = 0;
     let minPanicAmount = vaultedAmount; //Initialize to a large value
@@ -800,8 +802,10 @@ export async function createVault({
           psbt: psbtTrigger,
           value: triggerAmount
         });
+        //psbts.push(psbtTrigger.toHex());
         //Sign
         signers.signECPair({ psbt: psbtTrigger, ecpair: vaultPair });
+        //signedPsbts.push(psbtTrigger.toHex());
         //Finalize (validate only 1st time - expensive calculation)
         triggerInputFinalizer({
           psbt: psbtTrigger,
@@ -860,8 +864,10 @@ export async function createVault({
               psbt: psbtPanic,
               value: triggerAmount - feePanic
             });
+            //psbts.push(psbtPanic.toHex());
             //Sign
             signers.signECPair({ psbt: psbtPanic, ecpair: panicPair });
+            //signedPsbts.push(psbtPanic.toHex());
             //Finalize
             panicInputFinalizer({
               psbt: psbtPanic,
@@ -888,6 +894,8 @@ export async function createVault({
         }
       }
     }
+    //console.log(psbts);
+    //console.log(signedPsbts);
     //console.log({ signaturesProcessed, feeRatesN: feeRates.length });
 
     const vaultAddress = vaultOutput.getAddress();
