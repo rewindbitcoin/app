@@ -42,7 +42,7 @@ const MIN_VAULT_BIN_SEARCH_ITERS = 100;
  * to obtain a valid value.
  *
  */
-const estimateMaxVaultAmount = moize.shallow(
+export const estimateMaxVaultAmount = moize.shallow(
   ({
     utxosData,
     vaultOutput,

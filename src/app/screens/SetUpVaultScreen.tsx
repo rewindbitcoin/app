@@ -36,12 +36,17 @@ import {
   pickFeeEstimate
 } from '../lib/fees';
 import { formatBtc } from '../lib/btcRates';
-import { estimateServiceFee, estimateVaultSetUpRange } from '../lib/vaultRange';
+import {
+  estimateMaxVaultAmount,
+  estimateServiceFee,
+  estimateVaultSetUpRange
+} from '../lib/vaultRange';
 import { networkMapping } from '../lib/network';
 import { useSettings } from '../hooks/useSettings';
 import { useWallet } from '../hooks/useWallet';
 import { OutputInstance } from '@bitcoinerlab/descriptors';
 import { useLocalization } from '../hooks/useLocalization';
+import { batchedUpdates } from '~/common/lib/batchedUpdates';
 
 export default function VaultSetUp({
   onVaultSetUpComplete
@@ -313,41 +318,25 @@ export default function VaultSetUp({
   // next execution thread with some flicker
   const handleFeeRateChange = useCallback(
     (newFeeRate: number | null) => {
-      setUserSelectedFeeRate(newFeeRate);
-
-      // If user had previously selected max amount, we need to update the vaulted amount
-      // to match the new max when fee changes
-      if (isMaxVaultedAmount && newFeeRate !== null && maxVaultAmount) {
-        // We need to recalculate what the new max would be with the new fee rate
-        const newMaxEstimate = estimateVaultSetUpRange({
-          accounts,
-          utxosData,
-          coldAddress: coldAddress || DUMMY_COLD_ADDRESS(network),
-          maxFeeRate,
-          network,
-          serviceFeeRate,
-          feeRate: newFeeRate,
-          feeRateCeiling: settings.PRESIGNED_FEE_RATE_CEILING,
-          minRecoverableRatio: settings.MIN_RECOVERABLE_RATIO
-        }).maxVaultAmount;
-
-        if (newMaxEstimate) {
-          setUserSelectedVaultedAmount(newMaxEstimate.vaultedAmount);
+      batchedUpdates(() => {
+        setUserSelectedFeeRate(newFeeRate);
+        // If user had previously selected max amount, we need to update the vaulted amount
+        // to match the new max when fee changes
+        if (isMaxVaultedAmount && newFeeRate !== null && maxVaultAmount) {
+          // We need to recalculate what the new max would be with the new fee rate
+          const newMaxEstimate = estimateMaxVaultAmount({
+            utxosData,
+            vaultOutput: DUMMY_VAULT_OUTPUT(network),
+            serviceOutput: DUMMY_SERVICE_OUTPUT(network),
+            serviceFeeRate,
+            feeRate: newFeeRate
+          });
+          if (newMaxEstimate)
+            setUserSelectedVaultedAmount(newMaxEstimate.vaultedAmount);
         }
-      }
+      });
     },
-    [
-      isMaxVaultedAmount,
-      maxVaultAmount,
-      accounts,
-      utxosData,
-      coldAddress,
-      network,
-      maxFeeRate,
-      serviceFeeRate,
-      settings.PRESIGNED_FEE_RATE_CEILING,
-      settings.MIN_RECOVERABLE_RATIO
-    ]
+    [isMaxVaultedAmount, maxVaultAmount, utxosData, network, serviceFeeRate]
   );
 
   let fee = null;
