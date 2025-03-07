@@ -136,46 +136,7 @@ export default function VaultSetUp({
   const [userSelectedFeeRate, setUserSelectedFeeRate] = useState<number | null>(
     initialFeeRate
   );
-  
-  // Create a synchronized fee rate setter that also updates vaulted amount if needed
-  const handleFeeRateChange = useCallback(
-    (newFeeRate: number | null) => {
-      setUserSelectedFeeRate(newFeeRate);
-      
-      // If user had previously selected max amount, we need to update the vaulted amount
-      // to match the new max when fee changes
-      if (isMaxVaultedAmount && newFeeRate !== null && maxVaultAmount) {
-        // We need to recalculate what the new max would be with the new fee rate
-        const newMaxEstimate = estimateVaultSetUpRange({
-          accounts,
-          utxosData,
-          coldAddress: coldAddress || DUMMY_COLD_ADDRESS(network),
-          maxFeeRate,
-          network,
-          serviceFeeRate,
-          feeRate: newFeeRate,
-          feeRateCeiling: settings.PRESIGNED_FEE_RATE_CEILING,
-          minRecoverableRatio: settings.MIN_RECOVERABLE_RATIO
-        }).maxVaultAmount;
-        
-        if (newMaxEstimate) {
-          setUserSelectedVaultedAmount(newMaxEstimate.vaultedAmount);
-        }
-      }
-    },
-    [
-      isMaxVaultedAmount, 
-      maxVaultAmount, 
-      accounts, 
-      utxosData, 
-      coldAddress, 
-      network, 
-      maxFeeRate, 
-      serviceFeeRate, 
-      settings.PRESIGNED_FEE_RATE_CEILING,
-      settings.MIN_RECOVERABLE_RATIO
-    ]
-  );
+
   const maxFeeRate = computeMaxAllowedFeeRate(feeEstimates);
   const feeRate =
     userSelectedFeeRate === null
@@ -284,11 +245,6 @@ export default function VaultSetUp({
     userSelectedVaultedAmount <= maxVaultAmount.vaultedAmount
       ? userSelectedVaultedAmount
       : null;
-  console.log({
-    userSelectedVaultedAmount,
-    minRecoverableVaultAmount: minRecoverableVaultAmount.vaultedAmount,
-    max: maxVaultAmount && maxVaultAmount.vaultedAmount
-  });
   const serviceFee: number | null =
     vaultedAmount !== null && maxVaultAmount && minRecoverableVaultAmount
       ? estimateServiceFee({
@@ -351,8 +307,50 @@ export default function VaultSetUp({
     btcFiat
   ]);
 
+  // Create a synchronized fee rate setter that also updates vaulted amount if needed
+  // It's better to set it ASAP if isMaxVaultedAmount, not to wait for
+  // onUserSelectedVaultedAmountChange to set it since this would happen on the
+  // next execution thread with some flicker
+  const handleFeeRateChange = useCallback(
+    (newFeeRate: number | null) => {
+      setUserSelectedFeeRate(newFeeRate);
+
+      // If user had previously selected max amount, we need to update the vaulted amount
+      // to match the new max when fee changes
+      if (isMaxVaultedAmount && newFeeRate !== null && maxVaultAmount) {
+        // We need to recalculate what the new max would be with the new fee rate
+        const newMaxEstimate = estimateVaultSetUpRange({
+          accounts,
+          utxosData,
+          coldAddress: coldAddress || DUMMY_COLD_ADDRESS(network),
+          maxFeeRate,
+          network,
+          serviceFeeRate,
+          feeRate: newFeeRate,
+          feeRateCeiling: settings.PRESIGNED_FEE_RATE_CEILING,
+          minRecoverableRatio: settings.MIN_RECOVERABLE_RATIO
+        }).maxVaultAmount;
+
+        if (newMaxEstimate) {
+          setUserSelectedVaultedAmount(newMaxEstimate.vaultedAmount);
+        }
+      }
+    },
+    [
+      isMaxVaultedAmount,
+      maxVaultAmount,
+      accounts,
+      utxosData,
+      coldAddress,
+      network,
+      maxFeeRate,
+      serviceFeeRate,
+      settings.PRESIGNED_FEE_RATE_CEILING,
+      settings.MIN_RECOVERABLE_RATIO
+    ]
+  );
+
   let fee = null;
-  console.log({ fee, vaultedAmount, serviceFee, feeRate });
   if (vaultedAmount !== null && serviceFee !== null && feeRate !== null) {
     const selected = selectVaultUtxosData({
       utxosData,
