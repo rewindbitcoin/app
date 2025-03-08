@@ -225,10 +225,10 @@ export default function Send() {
     try {
       if (!txHexRef.current || !feeRef.current)
         throw new Error('txHex or fee not set in last phase');
-      
+
       // Set loading state to true
       setIsSubmitting(true);
-      
+
       await txPushAndUpdateStates(txHexRef.current);
       toast.show(t('send.txSuccess'), { type: 'success' });
     } catch (err) {
@@ -408,13 +408,10 @@ export default function Send() {
             onClose={handleCloseContinue}
             customButtons={
               <View className="items-center gap-6 flex-row justify-center mb-4">
-                <Button 
-                  onPress={handleCloseContinue}
-                  disabled={isSubmitting}
-                >
+                <Button onPress={handleCloseContinue} disabled={isSubmitting}>
                   {t('cancelButton')}
                 </Button>
-                <Button 
+                <Button
                   onPress={handleOK}
                   disabled={isSubmitting}
                   loading={isSubmitting}
