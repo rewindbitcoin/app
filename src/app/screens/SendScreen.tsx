@@ -106,6 +106,7 @@ export default function Send() {
 
   const [address, setAddress] = useState<string | null>(null);
   const [isConfirm, setIsConfirm] = useState<boolean>(false);
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const { t } = useTranslation();
   const toast = useToast();
 
@@ -224,15 +225,22 @@ export default function Send() {
     try {
       if (!txHexRef.current || !feeRef.current)
         throw new Error('txHex or fee not set in last phase');
+      
+      // Set loading state to true
+      setIsSubmitting(true);
+      
       await txPushAndUpdateStates(txHexRef.current);
       toast.show(t('send.txSuccess'), { type: 'success' });
     } catch (err) {
       console.warn(err);
       toast.show(t('send.txPushError'), { type: 'warning' });
+    } finally {
+      // Reset loading state
+      setIsSubmitting(false);
+      txHexRef.current = undefined;
+      feeRef.current = undefined;
+      goBack();
     }
-    txHexRef.current = undefined;
-    feeRef.current = undefined;
-    goBack();
   }, [toast, goBack, txPushAndUpdateStates, t]);
 
   /**
@@ -400,10 +408,19 @@ export default function Send() {
             onClose={handleCloseContinue}
             customButtons={
               <View className="items-center gap-6 flex-row justify-center mb-4">
-                <Button onPress={handleCloseContinue}>
+                <Button 
+                  onPress={handleCloseContinue}
+                  disabled={isSubmitting}
+                >
                   {t('cancelButton')}
                 </Button>
-                <Button onPress={handleOK}>{t('confirmButton')}</Button>
+                <Button 
+                  onPress={handleOK}
+                  disabled={isSubmitting}
+                  loading={isSubmitting}
+                >
+                  {t('confirmButton')}
+                </Button>
               </View>
             }
           >
