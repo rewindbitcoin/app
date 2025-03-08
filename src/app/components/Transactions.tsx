@@ -162,10 +162,14 @@ const RawTransaction = ({
     if (item.vaultTxType === 'VAULT') {
       header = (
         <View className="flex-row items-center flex-1">
-          <Svg className="fill-primary w-5 h-5" viewBox="0 0 24 24">
-            <FreezeIcon />
-          </Svg>
-          <Text className="text-base font-semibold ml-2">
+          <View className="flex-row items-center self-start">
+            {/*add an invisible space char with text-base to vertically cener the icon*/}
+            <Text className="text-base inline-block w-0"> </Text>
+            <Svg className="fill-primary w-5 h-5" viewBox="0 0 24 24">
+              <FreezeIcon />
+            </Svg>
+          </View>
+          <Text className="text-base font-semibold ml-2 flex-1">
             {t('transaction.header.vault', { vaultNumber })}
           </Text>
         </View>
@@ -181,7 +185,7 @@ const RawTransaction = ({
           <Svg className="fill-primary w-5 h-5" viewBox="0 0 24 24">
             <UnfreezeIcon />
           </Svg>
-          <Text className="text-base font-semibold ml-2">
+          <Text className="text-base font-semibold ml-2 flex-1">
             {t('transaction.header.trigger', { vaultNumber })}
           </Text>
         </View>
@@ -218,7 +222,7 @@ const RawTransaction = ({
       header = (
         <View className="flex-row items-center flex-1">
           <MaterialCommunityIcons name="alarm-light" size={20} color="red" />
-          <Text className="text-base font-semibold ml-2">
+          <Text className="text-base font-semibold ml-2 flex-1">
             {t('transaction.header.rescue', { vaultNumber })}
           </Text>
         </View>
@@ -234,7 +238,7 @@ const RawTransaction = ({
     header = (
       <View className="flex-row items-center flex-1">
         <Entypo name="merge" size={16} className="rotate-90" />
-        <Text className="text-base font-semibold ml-2">
+        <Text className="text-base font-semibold ml-2 flex-1">
           {t('transaction.header.consolidated')}
         </Text>
       </View>
@@ -243,7 +247,7 @@ const RawTransaction = ({
     header = (
       <View className="flex-row items-center flex-1">
         <MaterialIcons name="swap-horiz" size={20} />
-        <Text className="text-base font-semibold ml-2">
+        <Text className="text-base font-semibold ml-2 flex-1">
           {t('transaction.header.receivedAndSent')}
         </Text>
       </View>
@@ -257,7 +261,7 @@ const RawTransaction = ({
         >
           <ReceiveIcon />
         </Svg>
-        <Text className="text-base font-semibold ml-2">
+        <Text className="text-base font-semibold ml-2 flex-1">
           {t('transaction.header.received')}
         </Text>
       </View>
@@ -271,7 +275,7 @@ const RawTransaction = ({
         >
           <SendIcon />
         </Svg>
-        <Text className="text-base font-semibold ml-2">
+        <Text className="text-base font-semibold ml-2 flex-1">
           {t('transaction.header.sent')}
         </Text>
       </View>
@@ -284,9 +288,9 @@ const RawTransaction = ({
 
   return (
     <View className="overflow-hidden p-4">
-      <View className="flex-row justify-between items-start">
-        {header}
-        <View className="items-end">
+      <View className="flex-row justify-between items-start gap-2">
+        <View className="flex-1 items-start flex-row">{header}</View>
+        <View>
           {'netReceived' in item && (
             <View className="flex-row justify-end items-center">
               <Svg className="fill-yellow-400 w-5 h-5" viewBox="0 0 24 24">
