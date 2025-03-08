@@ -293,7 +293,7 @@ const RawTransaction = ({
           {/*add an invisible space char with text-base to vertically cener the icon*/}
           <Text className="text-base inline-block w-0"> </Text>
           <Svg
-            className="stroke-red-500 stroke-2 fill-none w-5 h-5 -rotate-45"
+            className="stroke-red-500 stroke-2 fill-none w-5 h-5 -rotate-45 -mt-1"
             viewBox="0 0 24 24"
           >
             <SendIcon />
