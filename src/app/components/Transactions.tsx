@@ -182,9 +182,13 @@ const RawTransaction = ({
     ) {
       header = (
         <View className="flex-row items-center flex-1">
-          <Svg className="fill-primary w-5 h-5" viewBox="0 0 24 24">
-            <UnfreezeIcon />
-          </Svg>
+          <View className="flex-row items-center self-start">
+            {/*add an invisible space char with text-base to vertically cener the icon*/}
+            <Text className="text-base inline-block w-0"> </Text>
+            <Svg className="fill-primary w-5 h-5" viewBox="0 0 24 24">
+              <UnfreezeIcon />
+            </Svg>
+          </View>
           <Text className="text-base font-semibold ml-2 flex-1">
             {t('transaction.header.trigger', { vaultNumber })}
           </Text>
@@ -221,7 +225,11 @@ const RawTransaction = ({
     } else if (item.vaultTxType === 'RESCUE') {
       header = (
         <View className="flex-row items-center flex-1">
-          <MaterialCommunityIcons name="alarm-light" size={20} color="red" />
+          <View className="flex-row items-center self-start">
+            {/*add an invisible space char with text-base to vertically cener the icon*/}
+            <Text className="text-base inline-block w-0"> </Text>
+            <MaterialCommunityIcons name="alarm-light" size={20} color="red" />
+          </View>
           <Text className="text-base font-semibold ml-2 flex-1">
             {t('transaction.header.rescue', { vaultNumber })}
           </Text>
@@ -237,7 +245,11 @@ const RawTransaction = ({
   } else if (item.type === 'CONSOLIDATED') {
     header = (
       <View className="flex-row items-center flex-1">
-        <Entypo name="merge" size={16} className="rotate-90" />
+        <View className="flex-row items-center self-start">
+          {/*add an invisible space char with text-base to vertically cener the icon*/}
+          <Text className="text-base inline-block w-0"> </Text>
+          <Entypo name="merge" size={16} className="rotate-90" />
+        </View>
         <Text className="text-base font-semibold ml-2 flex-1">
           {t('transaction.header.consolidated')}
         </Text>
@@ -246,7 +258,11 @@ const RawTransaction = ({
   } else if (item.type === 'RECEIVED_AND_SENT') {
     header = (
       <View className="flex-row items-center flex-1">
-        <MaterialIcons name="swap-horiz" size={20} />
+        <View className="flex-row items-center self-start">
+          {/*add an invisible space char with text-base to vertically cener the icon*/}
+          <Text className="text-base inline-block w-0"> </Text>
+          <MaterialIcons name="swap-horiz" size={20} />
+        </View>
         <Text className="text-base font-semibold ml-2 flex-1">
           {t('transaction.header.receivedAndSent')}
         </Text>
@@ -255,12 +271,16 @@ const RawTransaction = ({
   } else if (item.type === 'RECEIVED') {
     header = (
       <View className="flex-row items-center flex-1">
-        <Svg
-          className="stroke-green-500 stroke-2 fill-none w-5 h-5"
-          viewBox="0 0 24 24"
-        >
-          <ReceiveIcon />
-        </Svg>
+        <View className="flex-row items-center self-start">
+          {/*add an invisible space char with text-base to vertically cener the icon*/}
+          <Text className="text-base inline-block w-0"> </Text>
+          <Svg
+            className="stroke-green-500 stroke-2 fill-none w-5 h-5"
+            viewBox="0 0 24 24"
+          >
+            <ReceiveIcon />
+          </Svg>
+        </View>
         <Text className="text-base font-semibold ml-2 flex-1">
           {t('transaction.header.received')}
         </Text>
@@ -269,12 +289,16 @@ const RawTransaction = ({
   } else if (item.type === 'SENT') {
     header = (
       <View className="flex-row items-center flex-1">
-        <Svg
-          className="stroke-red-500 stroke-2 fill-none w-5 h-5 -rotate-45"
-          viewBox="0 0 24 24"
-        >
-          <SendIcon />
-        </Svg>
+        <View className="flex-row items-center self-start">
+          {/*add an invisible space char with text-base to vertically cener the icon*/}
+          <Text className="text-base inline-block w-0"> </Text>
+          <Svg
+            className="stroke-red-500 stroke-2 fill-none w-5 h-5 -rotate-45"
+            viewBox="0 0 24 24"
+          >
+            <SendIcon />
+          </Svg>
+        </View>
         <Text className="text-base font-semibold ml-2 flex-1">
           {t('transaction.header.sent')}
         </Text>
