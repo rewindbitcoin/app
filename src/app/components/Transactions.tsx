@@ -169,7 +169,7 @@ const RawTransaction = ({
               <FreezeIcon />
             </Svg>
           </View>
-          <Text className="text-base font-semibold ml-2 flex-1">
+          <Text className="text-base leading-snug font-semibold ml-2 flex-1">
             {t('transaction.header.vault', { vaultNumber })}
           </Text>
         </View>
@@ -189,7 +189,7 @@ const RawTransaction = ({
               <UnfreezeIcon />
             </Svg>
           </View>
-          <Text className="text-base font-semibold ml-2 flex-1">
+          <Text className="text-base leading-snug font-semibold ml-2 flex-1">
             {t('transaction.header.trigger', { vaultNumber })}
           </Text>
         </View>
@@ -230,7 +230,7 @@ const RawTransaction = ({
             <Text className="text-base inline-block w-0"> </Text>
             <MaterialCommunityIcons name="alarm-light" size={20} color="red" />
           </View>
-          <Text className="text-base font-semibold ml-2 flex-1">
+          <Text className="text-base leading-snug font-semibold ml-2 flex-1">
             {t('transaction.header.rescue', { vaultNumber })}
           </Text>
         </View>
@@ -250,7 +250,7 @@ const RawTransaction = ({
           <Text className="text-base inline-block w-0"> </Text>
           <Entypo name="merge" size={16} className="rotate-90" />
         </View>
-        <Text className="text-base font-semibold ml-2 flex-1">
+        <Text className="text-base leading-snug font-semibold ml-2 flex-1">
           {t('transaction.header.consolidated')}
         </Text>
       </View>
@@ -263,7 +263,7 @@ const RawTransaction = ({
           <Text className="text-base inline-block w-0"> </Text>
           <MaterialIcons name="swap-horiz" size={20} />
         </View>
-        <Text className="text-base font-semibold ml-2 flex-1">
+        <Text className="text-base leading-snug font-semibold ml-2 flex-1">
           {t('transaction.header.receivedAndSent')}
         </Text>
       </View>
@@ -281,7 +281,7 @@ const RawTransaction = ({
             <ReceiveIcon />
           </Svg>
         </View>
-        <Text className="text-base font-semibold ml-2 flex-1">
+        <Text className="text-base leading-snug font-semibold ml-2 flex-1">
           {t('transaction.header.received')}
         </Text>
       </View>
@@ -299,7 +299,7 @@ const RawTransaction = ({
             <SendIcon />
           </Svg>
         </View>
-        <Text className="text-base font-semibold ml-2 flex-1">
+        <Text className="text-base leading-snug font-semibold ml-2 flex-1">
           {t('transaction.header.sent')}
         </Text>
       </View>
