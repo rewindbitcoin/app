@@ -38,8 +38,10 @@ const Delegate = ({
         }}
         onClose={onClose}
         customButtons={
-          <View className="items-center gap-6 flex-row justify-center pb-4">
-            <Button onPress={onClose}>{t('cancelButton')}</Button>
+          <View className="items-center gap-6 gap-y-4 flex-row flex-wrap justify-center pb-4">
+            <Button mode="secondary" onPress={onClose}>
+              {t('cancelButton')}
+            </Button>
             <Button
               mode="primary"
               onPress={handleDelegateVault}

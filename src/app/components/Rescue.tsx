@@ -129,15 +129,19 @@ const Rescue = ({
         onClose={onClose}
         customButtons={
           step === 'intro' ? (
-            <View className="items-center gap-6 flex-row justify-center pb-4">
-              <Button onPress={onClose}>{t('cancelButton')}</Button>
+            <View className="items-center gap-6 gap-y-4 flex-row flex-wrap justify-center pb-4">
+              <Button mode="secondary" onPress={onClose}>
+                {t('cancelButton')}
+              </Button>
               <Button mode="primary-alert" onPress={() => setStep('fee')}>
                 {t('imInDangerButton')}
               </Button>
             </View>
           ) : step === 'fee' ? (
-            <View className="items-center gap-6 flex-row justify-center pb-4">
-              <Button onPress={onClose}>{t('cancelButton')}</Button>
+            <View className="items-center gap-6 gap-y-4 flex-row flex-wrap justify-center pb-4">
+              <Button mode="secondary" onPress={onClose}>
+                {t('cancelButton')}
+              </Button>
               <Button
                 mode="primary-alert"
                 onPress={handleRescue}

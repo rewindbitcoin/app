@@ -407,8 +407,12 @@ export default function Send() {
             isVisible={isConfirm}
             onClose={handleCloseContinue}
             customButtons={
-              <View className="items-center gap-6 flex-row justify-center mb-4">
-                <Button onPress={handleCloseContinue} disabled={isSubmitting}>
+              <View className="items-center gap-6 gap-y-4 flex-row flex-wrap justify-center mb-4">
+                <Button
+                  mode="secondary"
+                  onPress={handleCloseContinue}
+                  disabled={isSubmitting}
+                >
                   {t('cancelButton')}
                 </Button>
                 <Button

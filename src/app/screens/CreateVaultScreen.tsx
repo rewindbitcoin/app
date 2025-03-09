@@ -510,8 +510,10 @@ export default function CreateVaultScreen({
                   }
                 </Text>
 
-                <View className="items-center gap-6 flex-row justify-center">
-                  <Button onPress={goBack}>{t('cancelButton')}</Button>
+                <View className="items-center gap-6 gap-y-4 flex-row flex-wrap justify-center">
+                  <Button mode="secondary" onPress={goBack}>
+                    {t('cancelButton')}
+                  </Button>
                   <Button onPress={confirm}>{t('submitButton')}</Button>
                 </View>
               </>

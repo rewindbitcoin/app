@@ -275,7 +275,10 @@ function AddressInput({
         }}
         onClose={handleCloseScanQR}
         customButtons={
-          <View className="items-center gap-6 flex-row justify-center mb-4">
+          <View className="items-center gap-6 gap-y-4 flex-row flex-wrap justify-center mb-4">
+            <Button mode="secondary" onPress={handleCloseScanQR}>
+              {t('cancelButton')}
+            </Button>
             {camTypes !== null && camTypes.length > 1 && (
               <Button onPress={toggleCameraFacing}>
                 <View className="flex-row items-center">
@@ -289,7 +292,6 @@ function AddressInput({
                 </View>
               </Button>
             )}
-            <Button onPress={handleCloseScanQR}>{t('cancelButton')}</Button>
           </View>
         }
       >

@@ -128,15 +128,19 @@ const InitUnfreeze = ({
         onClose={onClose}
         customButtons={
           step === 'intro' ? (
-            <View className="items-center gap-6 flex-row justify-center pb-4">
-              <Button onPress={onClose}>{t('cancelButton')}</Button>
+            <View className="items-center gap-6 gap-y-4 flex-row flex-wrap justify-center pb-4">
+              <Button mode="secondary" onPress={onClose}>
+                {t('cancelButton')}
+              </Button>
               <Button onPress={() => setStep('fee')}>
                 {t('continueButton')}
               </Button>
             </View>
           ) : step === 'fee' ? (
-            <View className="items-center gap-6 flex-row justify-center pb-4">
-              <Button onPress={onClose}>{t('cancelButton')}</Button>
+            <View className="items-center gap-6 gap-y-4 flex-row flex-wrap justify-center pb-4">
+              <Button mode="secondary" onPress={onClose}>
+                {t('cancelButton')}
+              </Button>
               <Button onPress={handleInitUnfreeze} disabled={!txData}>
                 {t('wallet.vault.triggerUnfreezeButton')}
               </Button>
