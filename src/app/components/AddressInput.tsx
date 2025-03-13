@@ -73,7 +73,8 @@ function AddressInput({
   const handleInputLayout = useCallback(
     (e: LayoutChangeEvent) => {
       if (!address) return;
-      e.persist();
+      // e.persist() is not available in React for web
+      if (e.persist) e.persist();
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
 
       //android may call onLayout before the layout is complete...
