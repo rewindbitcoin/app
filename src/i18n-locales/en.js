@@ -640,7 +640,7 @@ Now, as the final step, we're sending your vault to the blockchain to activate i
     //over 3 lines of text:
     //    confirmText: `Enter the Recovery Phrase for verification.\
     // This confirms you've noted it correctly and your wallet can be recovered.`,
-    confirmText: `Re-enter the Recovery Phrase to verify you've recorded it accurately, ensuring wallet recoverability.`,
+    confirmText: `Re-enter the Phrase to verify it and ensure wallet recoverability.`,
     testingWalletsCanSkip: 'Test wallets can skip this tedious step.'
   },
   amount: {

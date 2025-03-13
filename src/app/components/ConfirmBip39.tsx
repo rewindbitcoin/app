@@ -104,7 +104,7 @@ const ConfirmBip39: React.FC<ConfirmBip39Props> = ({
             </Button>
           </View>
           {canSkip ? (
-            <Text className="native:text-sm web:text-xs self-center text-slate-600 mt-2 mb-2 px-2">
+            <Text className="text-xs self-center text-center text-slate-400 mt-2 mb-2 px-2">
               {t('bip39.testingWalletsCanSkip')}
             </Text>
           ) : (
@@ -113,7 +113,7 @@ const ConfirmBip39: React.FC<ConfirmBip39Props> = ({
         </>
       }
     >
-      <Text className="px-2 pb-4 native:text-sm web:text-xs text-slate-600">
+      <Text className="px-2 pb-4 text-base text-slate-600">
         {t('bip39.confirmText')}
       </Text>
       <Bip39
@@ -128,7 +128,7 @@ const ConfirmBip39: React.FC<ConfirmBip39Props> = ({
         }
       />
       {validWordsThatDontMatch && (
-        <Text className="text-center text-orange-600 native:text-sm web:text-xs pt-2">
+        <Text className="text-center text-orange-600 text-sm pt-2">
           {t('bip39.validWordsThatDontMatch')}
         </Text>
       )}

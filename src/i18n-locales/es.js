@@ -540,9 +540,8 @@ Ahora, como paso final, estamos enviando tu bóveda a la blockchain para activar
       'La secuencia de palabras que escribiste no es válida. Por favor, verifica tus palabras en busca de errores.',
     confirmTitle: 'Verificación de Frase',
     confirmText:
-      'Vuelve a escribir la Frase de Recuperación para verificar que la has registrado correctamente y asegurarte de que podrás recuperar la billetera.',
-    testingWalletsCanSkip:
-      'Este paso tedioso puede omitirse en billeteras de prueba.'
+      'Vuelve a escribir la Frase para verificarla y garantizar que podrás recuperar la billetera.',
+    testingWalletsCanSkip: 'Se puede omitir en billeteras de prueba.'
   },
   amount: {
     //This should not be larger than 10~12 chars. Could also be Max or similar
