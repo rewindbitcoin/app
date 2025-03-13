@@ -35,6 +35,7 @@ import {
 } from 'expo-application';
 import { locales } from '~/i18n-locales/init';
 import { batchedUpdates } from '~/common/lib/batchedUpdates';
+import { LayoutChangeEvent } from 'react-native';
 
 function sanitizeFilename(name: string) {
   // Regex to remove invalid file path characters
@@ -395,6 +396,14 @@ const SettingsScreen = () => {
         : 'settings.wallet.esploraError'
     );
   };
+
+  // Fix for Android placeholder text breaking into multiple lines after text deletion
+  // See: https://github.com/facebook/react-native/issues/30666#issuecomment-2681501484
+  const [inputWidth, setInputWidth] = useState<number | undefined>();
+  const handleInputLayout = useCallback((e: LayoutChangeEvent) => {
+    const { width } = e.nativeEvent.layout;
+    setInputWidth(prev => (prev === width ? prev : Math.floor(width - 1)));
+  }, []);
 
   const title = wallet && wallets ? walletTitle(wallet, wallets, t) : '';
 
@@ -801,7 +810,13 @@ const SettingsScreen = () => {
                   {t('settings.wallet.deleteInfo')}
                 </Text>
                 <TextInput
-                  className="text-base outline-none flex-1 web:w-full rounded bg-slate-200 py-2 px-4"
+                  className={`text-base outline-none web:w-full rounded bg-slate-200 py-2 px-4 ${Platform.OS === 'android' && inputWidth && deleteInputValue === '' ? '' : 'flex-1'}`}
+                  onLayout={handleInputLayout}
+                  {...(Platform.OS === 'android' &&
+                  inputWidth &&
+                  deleteInputValue === ''
+                    ? { style: { width: inputWidth } }
+                    : {})}
                   placeholder={t('settings.wallet.deletePlaceholder')}
                   value={deleteInputValue}
                   autoComplete="off"

@@ -61,12 +61,10 @@ function AddressInput({
 
   // Fix for Android placeholder text breaking into multiple lines after text deletion
   // See: https://github.com/facebook/react-native/issues/30666#issuecomment-2681501484
-  const [initialInputWidth, setInitialInputWidth] = useState<
-    number | undefined
-  >();
+  const [inputWidth, setInputWidth] = useState<number | undefined>();
   const handleInputLayout = useCallback((e: LayoutChangeEvent) => {
     const { width } = e.nativeEvent.layout;
-    setInitialInputWidth(prev => prev ?? width);
+    setInputWidth(prev => (prev === width ? prev : Math.floor(width - 1)));
   }, []);
 
   useEffect(() => {
@@ -240,16 +238,11 @@ function AddressInput({
             maxLength={100}
             onChangeText={onAddress}
             value={address}
+            className={`w-full ios:mb-1 native:text-base web:text-xs web:mobmed:text-sm web:sm:text-base overflow-hidden web:outline-none border-none p-2 pl-0 border-md tracking-normal ${robotoLoaded ? "font-['RobotoMono400Regular']" : ''} ${Platform.OS === 'android' && inputWidth && address === '' ? '' : 'flex-1'}`}
             onLayout={handleInputLayout}
-            {...(Platform.OS === 'android' && initialInputWidth && address === ''
-              ? {
-                  style: {
-                    minWidth: Math.ceil(initialInputWidth) + 2
-                  }
-                }
-              : {}
-            )}
-            className={`whitespace-nowrap w-full ios:mb-1 native:text-base web:text-xs web:mobmed:text-sm web:sm:text-base flex-1 overflow-hidden web:outline-none border-none p-2 pl-0 border-md tracking-normal ${robotoLoaded ? "font-['RobotoMono400Regular']" : ''}`}
+            {...(Platform.OS === 'android' && inputWidth && address === ''
+              ? { style: { width: inputWidth } }
+              : {})}
           />
           {type === 'emergency' && (
             <View className="py-1">
