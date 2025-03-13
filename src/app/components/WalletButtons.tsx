@@ -9,8 +9,7 @@ import { useTranslation } from 'react-i18next';
 
 const Button = ({
   onPress,
-  type,
-  onLayout
+  type
 }: {
   onPress: () => void;
   type: 'SEND' | 'RECEIVE' | 'FREEZE';
@@ -20,7 +19,7 @@ const Button = ({
     <Pressable
       onPress={onPress}
       className={
-        'py-2.5 pl-2.5 pr-3.5 mobmed:py-4 mobmed:pl-4 mobmed:pr-5 bg-primary rounded-full hover:opacity-90 active:scale-95 active:opacity-90 shadow flex-row gap-1 justify-center items-center m-1'
+        'py-2.5 pl-2.5 pr-3.5 mobmed:py-4 mobmed:pl-4 mobmed:pr-5 bg-primary rounded-full hover:opacity-90 active:scale-95 active:opacity-90 shadow flex-row gap-1 justify-center items-center'
       }
     >
       <Svg
@@ -62,7 +61,7 @@ const WalletButtons = ({
   onLayout?: (e: LayoutChangeEvent) => void;
 }) => {
   const insets = useSafeAreaInsets();
-  
+
   return (
     <View
       style={{ marginBottom: insets.bottom }}
@@ -70,16 +69,10 @@ const WalletButtons = ({
       onLayout={onLayout}
     >
       {/* Center-aligned container with flex-wrap */}
-      <View className="flex-row flex-wrap justify-center -m-1">
-        {handleReceive && (
-          <Button type="RECEIVE" onPress={handleReceive} />
-        )}
-        {handleSend && (
-          <Button type="SEND" onPress={handleSend} />
-        )}
-        {handleFreeze && (
-          <Button type="FREEZE" onPress={handleFreeze} />
-        )}
+      <View className="flex-row flex-wrap justify-center gap-2 sm:gap-4">
+        {handleReceive && <Button type="RECEIVE" onPress={handleReceive} />}
+        {handleSend && <Button type="SEND" onPress={handleSend} />}
+        {handleFreeze && <Button type="FREEZE" onPress={handleFreeze} />}
       </View>
     </View>
   );
