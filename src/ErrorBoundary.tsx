@@ -1,6 +1,6 @@
 import { TFunction } from 'i18next';
 import React, { Component, ErrorInfo, ReactNode, useMemo } from 'react';
-import { View, Text, Button } from 'react-native';
+import { View, Text, Button, StyleProp, ViewStyle } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { KeyboardAwareScrollView } from 'common/ui';
 
@@ -10,6 +10,21 @@ interface Props {
   //catchUhandleRejections: boolean;
   onError: (error: unknown) => void;
 }
+
+// Wrapper component to use hooks and pass them to the class component
+export default function ErrorBoundary(props: Props): JSX.Element {
+  const insets = useSafeAreaInsets();
+  const containerStyle = useMemo(
+    () => ({ marginBottom: insets.bottom / 4 + 16 }),
+    [insets.bottom]
+  );
+  
+  return <ErrorBoundaryClass {...props} containerStyle={containerStyle} />;
+}
+
+interface ErrorBoundaryClassProps extends Props {
+  containerStyle: StyleProp<ViewStyle>;
+}
 interface State {
   error: unknown;
 }
@@ -18,7 +33,7 @@ interface State {
 // https://eddiewould.com/2021/28/28/handling-rejected-promises-error-boundary-react/
 // The problem is addEventListener('unhandledrejection'
 // is not available in react-native
-export default class ErrorBoundary extends Component<Props, State> {
+class ErrorBoundaryClass extends Component<ErrorBoundaryClassProps, State> {
   //promiseRejectionHandler = (event: PromiseRejectionEvent) => {
   //  this.setState({
   //    error: event.reason
@@ -49,11 +64,6 @@ export default class ErrorBoundary extends Component<Props, State> {
   //  removeEventListener('unhandledrejection', this.promiseRejectionHandler);
   //}
 
-  const insets = useSafeAreaInsets();
-  const containerStyle = useMemo(
-    () => ({ marginBottom: insets.bottom / 4 + 16 }),
-    [insets.bottom]
-  );
   override render() {
     if (this.state.error) {
       return (
@@ -62,7 +72,7 @@ export default class ErrorBoundary extends Component<Props, State> {
           keyboardShouldPersistTaps="handled"
           contentContainerClassName="items-center pt-5 px-4"
         >
-          <View className="w-full max-w-screen-sm mx-4" style={containerStyle}>
+          <View className="w-full max-w-screen-sm mx-4" style={this.props.containerStyle}>
             <Text>{this.props.t('globalError.general')}</Text>
             <Text style={{ marginVertical: 32 }}>
               {this.state.error.toString()}
