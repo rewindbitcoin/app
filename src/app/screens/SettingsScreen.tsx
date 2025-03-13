@@ -400,10 +400,23 @@ const SettingsScreen = () => {
   // Fix for Android placeholder text breaking into multiple lines after text deletion
   // See: https://github.com/facebook/react-native/issues/30666#issuecomment-2681501484
   const [inputWidth, setInputWidth] = useState<number | undefined>();
-  const handleInputLayout = useCallback((e: LayoutChangeEvent) => {
-    const { width } = e.nativeEvent.layout;
-    setInputWidth(prev => (prev === width ? prev : Math.floor(width - 1)));
-  }, []);
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const handleInputLayout = useCallback(
+    (e: LayoutChangeEvent) => {
+      if (!deleteInputValue) return;
+      e.persist();
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+
+      //android may call onLayout before the layout is complete...
+      //then it calls it again...
+      //so just wait for 300ms to be sure its been rendered
+      timeoutRef.current = setTimeout(() => {
+        const { width } = e.nativeEvent.layout;
+        setInputWidth(prev => (prev === width ? prev : Math.floor(width - 1)));
+      }, 300);
+    },
+    [deleteInputValue]
+  );
 
   const title = wallet && wallets ? walletTitle(wallet, wallets, t) : '';
 
