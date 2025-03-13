@@ -1,5 +1,5 @@
 // TODO: very imporant to only allow Vaulting funds with 1 confirmatin at least (make this a setting)
-import { Network, Psbt, Transaction, address, crypto } from 'bitcoinjs-lib';
+import { Network, Psbt, Transaction, crypto } from 'bitcoinjs-lib';
 import memoize from 'lodash.memoize';
 import type { Accounts, Signer } from './wallets';
 import moize from 'moize';
@@ -972,7 +972,7 @@ export const estimatePanicTxSize = moize(
 
 export function validateAddress(addressValue: string, network: Network) {
   try {
-    address.toOutputScript(addressValue, network);
+    new Output({ descriptor: `addr(${addressValue})`, network });
     return true;
   } catch (e) {
     return false;
