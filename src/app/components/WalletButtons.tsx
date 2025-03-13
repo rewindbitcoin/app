@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React from 'react';
 import FreezeIcon from './FreezeIcon';
 import ReceiveIcon from './ReceiveIcon';
 import SendIcon from './SendIcon';
@@ -14,15 +14,13 @@ const Button = ({
 }: {
   onPress: () => void;
   type: 'SEND' | 'RECEIVE' | 'FREEZE';
-  onLayout?: (e: LayoutChangeEvent) => void;
 }) => {
   const { t } = useTranslation();
   return (
     <Pressable
       onPress={onPress}
-      onLayout={onLayout}
       className={
-        'py-2.5 pl-2.5 pr-3.5 mobmed:py-4 mobmed:pl-4 mobmed:pr-5 bg-primary rounded-full hover:opacity-90 active:scale-95 active:opacity-90 shadow flex-row gap-1 justify-center items-center'
+        'py-2.5 pl-2.5 pr-3.5 mobmed:py-4 mobmed:pl-4 mobmed:pr-5 bg-primary rounded-full hover:opacity-90 active:scale-95 active:opacity-90 shadow flex-row gap-1 justify-center items-center m-1'
       }
     >
       <Svg
@@ -63,41 +61,26 @@ const WalletButtons = ({
   handleFreeze?: (() => void) | undefined;
   onLayout?: (e: LayoutChangeEvent) => void;
 }) => {
-  const [buttonHeight, setButtonHeight] = useState(0);
-  const [buttonGroupHeight, setButtonGroupHeight] = useState(0);
   const insets = useSafeAreaInsets();
-  const elCount =
-    (handleReceive ? 1 : 0) + (handleSend ? 1 : 0) + (handleFreeze ? 1 : 0);
-  const onButtonLayout = useCallback((e: LayoutChangeEvent) => {
-    setButtonHeight(e.nativeEvent.layout.height);
-  }, []);
-  const isMultiRow = buttonHeight > 0 && buttonGroupHeight > buttonHeight * 1.2;
+  
   return (
     <View
       style={{ marginBottom: insets.bottom }}
-      className={`self-center bottom-8 max-w-screen-sm px-2 moblg:px-4 gap-2 sm:gap-4 w-full z-10 fixed native:absolute flex-wrap flex-row ${isMultiRow ? 'justify-center' : elCount === 1 ? 'justify-center' : elCount === 2 ? 'justify-evenly' : 'justify-between'}`}
-      onLayout={e => {
-        setButtonGroupHeight(e.nativeEvent.layout.height);
-        if (onLayout) onLayout(e);
-      }}
+      className="self-center bottom-8 max-w-screen-sm px-2 moblg:px-4 w-full z-10 fixed native:absolute"
+      onLayout={onLayout}
     >
-      {handleReceive && (
-        <Button
-          type="RECEIVE"
-          onPress={handleReceive}
-          onLayout={onButtonLayout}
-        />
-      )}
-      {handleSend && (
-        <Button type="SEND" onPress={handleSend} onLayout={onButtonLayout} />
-      )}
-      {handleFreeze && (
-        <Button
-          type="FREEZE"
-          onPress={handleFreeze}
-          onLayout={onButtonLayout}
-        />
-      )}
+      {/* Center-aligned container with flex-wrap */}
+      <View className="flex-row flex-wrap justify-center -m-1">
+        {handleReceive && (
+          <Button type="RECEIVE" onPress={handleReceive} />
+        )}
+        {handleSend && (
+          <Button type="SEND" onPress={handleSend} />
+        )}
+        {handleFreeze && (
+          <Button type="FREEZE" onPress={handleFreeze} />
+        )}
+      </View>
     </View>
   );
 };
