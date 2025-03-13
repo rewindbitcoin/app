@@ -1,7 +1,7 @@
 import { BarcodeType, CameraView, useCameraPermissions } from 'expo-camera';
 import { Camera } from 'expo-camera/legacy';
-import React, { useState, useCallback, useEffect, useMemo } from 'react';
-import { Text, View, AppState, Platform } from 'react-native';
+import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
+import { Text, View, AppState, Platform, LayoutChangeEvent } from 'react-native';
 import { batchedUpdates } from '~/common/lib/batchedUpdates';
 import {
   TextInput,
@@ -52,6 +52,13 @@ function AddressInput({
   const [robotoLoaded] = useFonts({
     RobotoMono400Regular: RobotoMono_400Regular
   });
+  
+  // Fix for Android placeholder text breaking into multiple lines after text deletion
+  const [initialInputWidth, setInitialInputWidth] = useState<number | undefined>();
+  const handleInputLayout = useCallback((e: LayoutChangeEvent) => {
+    const { width } = e.nativeEvent.layout;
+    setInitialInputWidth(prev => prev ?? width);
+  }, []);
 
   useEffect(() => {
     const checkCameras = async () => {
@@ -224,7 +231,16 @@ function AddressInput({
             maxLength={100}
             onChangeText={onAddress}
             value={address}
-            className={`whitespace-nowrap w-full ios:mb-1 native:text-base web:text-xs web:mobmed:text-sm web:sm:text-base flex-1 overflow-hidden web:outline-none border-none p-2 pl-0 border-md ${address === '' && robotoLoaded ? 'tracking-tightest mobmed:-tracking-widest moblg:tracking-tighter' : 'tracking-normal'} ${robotoLoaded ? "font-['RobotoMono400Regular']" : ''}`}
+            onLayout={handleInputLayout}
+            style={Platform.OS === 'android' && initialInputWidth 
+              ? { 
+                  minWidth: Math.ceil(initialInputWidth) + 2,
+                  includeFontPadding: false,
+                  textAlignVertical: 'center'
+                } 
+              : undefined
+            }
+            className={`whitespace-nowrap w-full ios:mb-1 native:text-base web:text-xs web:mobmed:text-sm web:sm:text-base flex-1 overflow-hidden web:outline-none border-none p-2 pl-0 border-md tracking-normal ${robotoLoaded ? "font-['RobotoMono400Regular']" : ''}`}
           />
           {type === 'emergency' && (
             <View className="py-1">
