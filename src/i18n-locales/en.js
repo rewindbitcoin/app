@@ -233,16 +233,11 @@ If you press 'Init Unfreeze', a waiting period of {{lockTime}} will begin, after
  which will eventually be ready for spending.
 
 This will start the unfreeze countdown. The funds will become unlocked and available\
- after {{timeLockTime}}.
-
-Tap "Continue" to choose the mining fee and start the unfreeze countdown.`,
+ after {{timeLockTime}}.`,
         confirmationSpeedLabel: 'Mining Fee',
         feeSelectorExplanation:
-          'Select a mining fee to request the start of the unfreeze countdown.',
-        additionalExplanation: `The {{timeLockTime}} countdown will start once the\
- unfreeze request is confirmed.
-
-Tap "Init Unfreeze" to request the start of the unfreeze countdown.`
+          'Confirm the mining fee to request the start of the unfreeze countdown.',
+        additionalExplanation: `The {{timeLockTime}} countdown will start as soon as the unfreeze is requested.`
       },
       rescue: {
         confirmationSpeedLabel: 'Mining Fee',
@@ -254,10 +249,8 @@ This address will likely be difficult to access if you followed the recommended 
 
 This action is designed for extreme situations, such as theft or extortion, to ensure the safety of your Bitcoin. Make sure this is a deliberate decision.`,
         feeSelectorExplanation:
-          'Select a mining fee for the rescue transaction to ensure prompt processing.',
-        additionalExplanation: `Once the rescue request is confirmed, the funds will be moved to your Emergency Address instantly.
-
-Tap 'Rescue' to initiate the rescue process.`
+          'Confirm the mining fee for the rescue transaction to ensure prompt processing.',
+        additionalExplanation: `Once the rescue request is confirmed, the funds will be moved to your Emergency Address instantly.`
       },
       delegate: {
         title: 'Delegation File',

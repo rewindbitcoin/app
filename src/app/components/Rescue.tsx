@@ -163,7 +163,7 @@ const Rescue = ({
           </View>
         ) : step === 'fee' ? (
           <View>
-            <Text className="text-slate-600 pb-4 px-2">
+            <Text className="text-base text-slate-600 pb-4 px-2">
               {t('wallet.vault.rescue.feeSelectorExplanation')}
             </Text>
             <View className="bg-slate-100 p-2 rounded-xl">
@@ -180,7 +180,7 @@ const Rescue = ({
                 <ActivityIndicator />
               )}
             </View>
-            <Text className="text-slate-600 pt-4 px-2">
+            <Text className="text-base text-slate-600 pt-4 px-2">
               {t('wallet.vault.rescue.additionalExplanation', {
                 timeLockTime: 0
               })}

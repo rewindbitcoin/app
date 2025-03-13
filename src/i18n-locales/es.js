@@ -169,7 +169,7 @@ Si necesitas más ayuda, por favor contacta con el equipo de Soporte de Rewind.`
       unfrozenDate: 'Descongelada el {{unfrozenDate}}.',
       unfrozenOnNextBlock:
         'La bóveda está virtualmente descongelada. Los fondos podrán ser utilizados en el próximo bloque.',
-      timeRemaining: '{{timeRemaining}} restante',
+      timeRemaining: 'Disponible en {{timeRemaining}}',
       untriggeredLockTime: 'Tiempo de Bloqueo: {{timeRemaining}}',
       vaultNotFound:
         'Esta bóveda nunca fue incluida en la blockchain. Las comisiones podrían haber sido muy bajas, podría haber sido reemplazada por otra transacción, o podría haber habido un error de red durante el envío.',
@@ -195,15 +195,11 @@ Si presionas 'Iniciar Descongelación', comenzará un período de espera de {{lo
       triggerUnfreeze: {
         intro: `Estás a punto de iniciar el proceso de desbloqueo de los fondos de tu bóveda, que, llegado el momento, estarán listos para ser gastados.
 
-Esto iniciará la cuenta regresiva de descongelación. Los fondos se desbloquearán y estarán disponibles después de {{timeLockTime}}.
-
-Pulsa "Continuar" para elegir la comisión minera e iniciar la cuenta regresiva de descongelación.`,
+Esto iniciará la cuenta regresiva de descongelación. Los fondos se desbloquearán y estarán disponibles después de {{timeLockTime}}.`,
         confirmationSpeedLabel: 'Comisión',
         feeSelectorExplanation:
-          'Elige la comisión de minería para iniciar la cuenta regresiva de descongelación.',
-        additionalExplanation: `La cuenta regresiva de {{timeLockTime}} comenzará una vez que se confirme la solicitud de descongelación.
-
-Pulsa "Iniciar Descongelación" para solicitar el inicio de la cuenta regresiva de descongelación.`
+          'Confirma la comisión de minería para iniciar la cuenta regresiva de descongelación.',
+        additionalExplanation: `La cuenta regresiva de {{timeLockTime}} comenzará en cuanto se inicie la descongelación.`
       },
       rescue: {
         confirmationSpeedLabel: 'Comisión',
@@ -215,10 +211,8 @@ Es probable que esta dirección sea difícil de acceder si seguiste las pautas r
 
 Esta acción está diseñada para situaciones extremas, como robo o extorsión, para garantizar la seguridad de tus Bitcoin. Asegúrate de que esta sea una decisión deliberada.`,
         feeSelectorExplanation:
-          'Elige la comisión de minería de la transacción de rescate para asegurar un procesamiento rápido.',
-        additionalExplanation: `Una vez que se confirme la solicitud de rescate, los fondos serán movidos a tu Dirección de Emergencia instantáneamente.
-
-Pulsa 'Rescatar' para iniciar el proceso de rescate.`
+          'Confirma la comisión de minería de la transacción de rescate para asegurar un procesamiento rápido.',
+        additionalExplanation: `Una vez que se confirme la solicitud de rescate, los fondos serán movidos a tu Dirección de Emergencia instantáneamente.`
       },
       delegate: {
         title: 'Archivo de Delegación',

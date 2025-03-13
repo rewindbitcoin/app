@@ -156,7 +156,7 @@ const InitUnfreeze = ({
           </View>
         ) : step === 'fee' ? (
           <View>
-            <Text className="text-slate-600 pb-4 px-2">
+            <Text className="text-base text-slate-600 pb-4 px-2">
               {t('wallet.vault.triggerUnfreeze.feeSelectorExplanation')}
             </Text>
             <View className="bg-slate-100 p-2 rounded-xl">
@@ -175,7 +175,7 @@ const InitUnfreeze = ({
                 <ActivityIndicator />
               )}
             </View>
-            <Text className="text-slate-600 pt-4 px-2">
+            <Text className="text-base text-slate-600 pt-4 px-2">
               {t('wallet.vault.triggerUnfreeze.additionalExplanation', {
                 timeLockTime
               })}
