@@ -125,12 +125,17 @@ const VaultText: React.FC<{
   const Icon =
     icon && icon.family && Icons[icon.family] ? Icons[icon.family] : null;
   return (
-    <View className="flex-row items-start">
+    <View className="flex-row items-center">
       {icon && (
-        <Icon
-          className={`!leading-5 pr-3 ${danger ? 'text-red-300' : 'text-primary'} native:text-base web:text-sm native:mobmed:text-lg web:mobmed:text-base`}
-          name={icon.name}
-        />
+        <View className="flex-row items-center self-start">
+          <Text className="!leading-5 native:text-sm web:text-xs native:mobmed:text-base web:mobmed:text-sm inline-block w-0">
+            {' '}
+          </Text>
+          <Icon
+            className={`!leading-5 pr-3 ${danger ? 'text-red-300' : 'text-primary'} native:text-base web:text-sm native:mobmed:text-lg web:mobmed:text-base`}
+            name={icon.name}
+          />
+        </View>
       )}
       <Text className="!leading-5 flex-shrink text-slate-600 native:text-sm web:text-xs native:mobmed:text-base web:mobmed:text-sm">
         {children}
