@@ -1,6 +1,8 @@
 import { TFunction } from 'i18next';
-import React, { Component, ErrorInfo, ReactNode } from 'react';
+import React, { Component, ErrorInfo, ReactNode, useMemo } from 'react';
 import { View, Text, Button } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { KeyboardAwareScrollView } from 'common/ui';
 
 interface Props {
   children: ReactNode;
@@ -47,19 +49,30 @@ export default class ErrorBoundary extends Component<Props, State> {
   //  removeEventListener('unhandledrejection', this.promiseRejectionHandler);
   //}
 
+  const insets = useSafeAreaInsets();
+  const containerStyle = useMemo(
+    () => ({ marginBottom: insets.bottom / 4 + 16 }),
+    [insets.bottom]
+  );
   override render() {
     if (this.state.error) {
       return (
-        <View style={{ flex: 1, marginTop: 40, padding: 16, paddingTop: 40 }}>
-          <Text>{this.props.t('globalError.general')}</Text>
-          <Text style={{ marginVertical: 32 }}>
-            {this.state.error.toString()}
-          </Text>
-          <Button
-            title={this.props.t('tryAgain')}
-            onPress={() => this.props.onError(this.state.error)}
-          />
-        </View>
+        <KeyboardAwareScrollView
+          contentInsetAdjustmentBehavior="automatic"
+          keyboardShouldPersistTaps="handled"
+          contentContainerClassName="items-center pt-5 px-4"
+        >
+          <View className="w-full max-w-screen-sm mx-4" style={containerStyle}>
+            <Text>{this.props.t('globalError.general')}</Text>
+            <Text style={{ marginVertical: 32 }}>
+              {this.state.error.toString()}
+            </Text>
+            <Button
+              title={this.props.t('tryAgain')}
+              onPress={() => this.props.onError(this.state.error)}
+            />
+          </View>
+        </KeyboardAwareScrollView>
       );
       /* more advanced usage example
       const error = this.state.error;
