@@ -2,7 +2,7 @@ import { TFunction } from 'i18next';
 import React, { Component, ErrorInfo, ReactNode, useMemo } from 'react';
 import { View, Text, Button, StyleProp, ViewStyle } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { KeyboardAwareScrollView } from 'common/ui';
+import { KeyboardAwareScrollView } from './common/ui';
 
 interface Props {
   children: ReactNode;
@@ -18,7 +18,7 @@ export default function ErrorBoundary(props: Props): JSX.Element {
     () => ({ marginBottom: insets.bottom / 4 + 16 }),
     [insets.bottom]
   );
-  
+
   return <ErrorBoundaryClass {...props} containerStyle={containerStyle} />;
 }
 
@@ -72,7 +72,10 @@ class ErrorBoundaryClass extends Component<ErrorBoundaryClassProps, State> {
           keyboardShouldPersistTaps="handled"
           contentContainerClassName="items-center pt-5 px-4"
         >
-          <View className="w-full max-w-screen-sm mx-4" style={this.props.containerStyle}>
+          <View
+            className="w-full max-w-screen-sm mx-4"
+            style={this.props.containerStyle}
+          >
             <Text>{this.props.t('globalError.general')}</Text>
             <Text style={{ marginVertical: 32 }}>
               {this.state.error.toString()}
