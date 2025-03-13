@@ -241,13 +241,14 @@ function AddressInput({
             onChangeText={onAddress}
             value={address}
             onLayout={handleInputLayout}
-            style={
-              Platform.OS === 'android' && initialInputWidth && address === ''
-                ? {
+            {...(Platform.OS === 'android' && initialInputWidth && address === ''
+              ? {
+                  style: {
                     minWidth: Math.ceil(initialInputWidth) + 2
                   }
-                : undefined
-            }
+                }
+              : {}
+            )}
             className={`whitespace-nowrap w-full ios:mb-1 native:text-base web:text-xs web:mobmed:text-sm web:sm:text-base flex-1 overflow-hidden web:outline-none border-none p-2 pl-0 border-md tracking-normal ${robotoLoaded ? "font-['RobotoMono400Regular']" : ''}`}
           />
           {type === 'emergency' && (
