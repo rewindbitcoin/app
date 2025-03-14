@@ -386,6 +386,7 @@ const WalletProviderRaw = ({
         explorer: discovery.getExplorer(),
         generate204API,
         generate204CbVaultsReaderAPI,
+        generate204WatchtowerAPI,
         //For Tape, we need to make sure blockstream esplora is working:
         explorerMainnet: networkId === 'TAPE' ? explorerMainnet : undefined,
         generate204APIExternal:
@@ -1191,7 +1192,7 @@ const WalletProviderRaw = ({
             errorMessage: (message: string) =>
               t('app.watchtowerRegistrationError', { message }),
             whenToastErrors,
-            requirements: { apiReachable: true },
+            requirements: { watchtowerAPIReachable: true },
             func: () =>
               registerVaultsWithWatchtower({
                 watchtowerApi: settings.WATCH_TOWER_API,
