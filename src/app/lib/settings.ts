@@ -32,7 +32,7 @@ import {
   // @ts-expect-error @env is defined in bable.config.js
 } from '@env';
 import { getLocales } from 'expo-localization';
-if (Number(VERSION) !== 32)
+if (Number(VERSION) !== 33)
   throw new Error(
     `This is still running version: ${VERSION}.
 

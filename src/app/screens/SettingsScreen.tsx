@@ -193,7 +193,7 @@ const SettingsItem = ({
         isVisible={isModalVisible}
         {...(!isValidatingValue && { onClose: hideModal })}
         customButtons={
-          <View className="items-center gap-6 gap-y-4 flex-row flex-wrap justify-center pb-4">
+          <View className="items-center gap-6 gap-y-4 flex-row flex-wrap justify-center pb-4 px-2">
             <Button
               mode="secondary"
               disabled={isValidatingValue}
@@ -776,7 +776,7 @@ const SettingsScreen = () => {
           isVisible={isResetModalVisible}
           onClose={() => setIsResetModalVisible(false)}
           customButtons={
-            <View className="items-center gap-6 gap-y-4 flex-row flex-wrap justify-center pb-4">
+            <View className="items-center gap-6 gap-y-4 flex-row flex-wrap justify-center pb-4 px-2">
               <Button
                 mode="secondary"
                 onPress={() => setIsResetModalVisible(false)}

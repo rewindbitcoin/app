@@ -8,12 +8,10 @@ import { TxId, Vaults, VaultsStatuses } from './vaults';
 
 // Check if the device can receive push notifications
 export const canReceiveNotifications = (): boolean => {
-  // Only mobile platforms (iOS/Android) can receive push notifications
-  const isMobilePlatform = Platform.OS === 'ios' || Platform.OS === 'android';
-  // Check if this is a physical device (not an emulator/simulator)
   const isPhysicalDevice = Device.isDevice;
-  
-  return isMobilePlatform && isPhysicalDevice;
+  return (
+    Platform.OS === 'ios' || (Platform.OS === 'android' && isPhysicalDevice)
+  );
 };
 
 // Type for the data to send to the watchtower
@@ -30,7 +28,9 @@ export async function configureNotifications() {
   // First check if this device can receive notifications
   const canReceive = canReceiveNotifications();
   if (!canReceive) {
-    console.warn('Device cannot receive push notifications (not a physical iOS/Android device)');
+    console.warn(
+      'Device cannot receive push notifications (not a physical iOS/Android device)'
+    );
     return false;
   }
 
@@ -75,7 +75,9 @@ export async function getExpoPushToken(): Promise<string | null> {
     // Check if this device can receive notifications
     const canReceive = canReceiveNotifications();
     if (!canReceive) {
-      console.warn('Push notifications are only supported on physical iOS/Android devices');
+      console.warn(
+        'Push notifications are only supported on physical iOS/Android devices'
+      );
       // For testing purposes, we'll continue anyway but return null at the end
       return null;
     }
