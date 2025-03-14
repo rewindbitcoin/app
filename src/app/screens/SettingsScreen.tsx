@@ -24,6 +24,7 @@ import { useNavigation } from '@react-navigation/native';
 import { NavigationPropsByScreenId, WALLETS } from '../screens';
 import { exportWallet } from '../lib/backup';
 import { electrumParams, getAPIs } from '../lib/walletDerivedData';
+import { validateWatchtowerAPI } from '../lib/validators';
 import { ElectrumExplorer, EsploraExplorer } from '@bitcoinerlab/explorer';
 import { NetworkId, networkMapping } from '../lib/network';
 import { useLocalization } from '../hooks/useLocalization';
@@ -717,10 +718,8 @@ const SettingsScreen = () => {
                 
                 // Try to connect to the watchtower API
                 try {
-                  const response = await fetch(`${url}/health`, {
-                    signal: AbortSignal.timeout(settings.NETWORK_TIMEOUT)
-                  });
-                  if (response.ok) {
+                  const isValid = await validateWatchtowerAPI(url, settings.NETWORK_TIMEOUT);
+                  if (isValid) {
                     return true;
                   }
                 } catch (err) {

@@ -1179,7 +1179,7 @@ const WalletProviderRaw = ({
         }
 
         // Register with watchtower service
-        if (settings?.WATCH_TOWER_API) {
+        if (watchtowerAPI) {
           // Configure notifications if not already done
           await configureNotifications();
           if (walletId !== walletIdRef.current) {
@@ -1197,7 +1197,7 @@ const WalletProviderRaw = ({
             requirements: { watchtowerAPIReachable: true },
             func: () =>
               registerVaultsWithWatchtower({
-                watchtowerApi: settings.WATCH_TOWER_API,
+                watchtowerApi: watchtowerAPI,
                 vaults: updatedVaults,
                 vaultsStatuses: updatedVaultsStatuses,
                 networkId,

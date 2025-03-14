@@ -14,10 +14,12 @@ export const getAPIs = moize(
     let serviceAddressAPI: string | undefined;
     let cBVaultsWriterAPI: string | undefined;
     let cBVaultsReaderAPI: string | undefined;
+    let watchtowerAPI: string | undefined;
     let faucetAPI: string | undefined;
     let faucetURL: string | undefined;
     let generate204API: string | undefined;
     let generate204CbVaultsReaderAPI: string | undefined;
+    let generate204WatchtowerAPI: string | undefined;
     let blockExplorerURL: string | undefined;
     if (networkId && settings)
       switch (networkId) {
@@ -27,8 +29,10 @@ export const getAPIs = moize(
           serviceAddressAPI = settings.MAINNET_SERVICE_ADDRESS_API;
           cBVaultsWriterAPI = settings.MAINNET_COMMUNITY_BACKUPS_WRITER_API;
           cBVaultsReaderAPI = `${settings.COMMUNITY_BACKUPS_API}/vaults`;
+          watchtowerAPI = settings.WATCH_TOWER_API ? `${settings.WATCH_TOWER_API}/mainnet` : undefined;
           generate204API = settings.PUBLIC_GENERATE_204_API;
           generate204CbVaultsReaderAPI = `${settings.COMMUNITY_BACKUPS_API}/generate_204`;
+          generate204WatchtowerAPI = settings.WATCH_TOWER_API ? `${settings.WATCH_TOWER_API}/generate_204` : undefined;
           blockExplorerURL = settings.MAINNET_BLOCK_EXPLORER;
           break;
         case 'TESTNET':
@@ -37,8 +41,10 @@ export const getAPIs = moize(
           serviceAddressAPI = settings.TESTNET_SERVICE_ADDRESS_API;
           cBVaultsWriterAPI = settings.TESTNET_COMMUNITY_BACKUPS_WRITER_API;
           cBVaultsReaderAPI = `${settings.COMMUNITY_BACKUPS_API}/testnet/vaults`;
+          watchtowerAPI = settings.WATCH_TOWER_API ? `${settings.WATCH_TOWER_API}/testnet` : undefined;
           generate204API = settings.PUBLIC_GENERATE_204_API;
           generate204CbVaultsReaderAPI = `${settings.COMMUNITY_BACKUPS_API}/generate_204`;
+          generate204WatchtowerAPI = settings.WATCH_TOWER_API ? `${settings.WATCH_TOWER_API}/generate_204` : undefined;
           blockExplorerURL = settings.TESTNET_BLOCK_EXPLORER;
           break;
         case 'TAPE':
@@ -47,10 +53,12 @@ export const getAPIs = moize(
           serviceAddressAPI = settings.TAPE_SERVICE_ADDRESS_API;
           cBVaultsWriterAPI = settings.TAPE_COMMUNITY_BACKUPS_WRITER_API;
           cBVaultsReaderAPI = `${settings.COMMUNITY_BACKUPS_API}/tape/vaults`;
+          watchtowerAPI = settings.WATCH_TOWER_API ? `${settings.WATCH_TOWER_API}/tape` : undefined;
           faucetAPI = `${settings.TAPE_WEB_SERVER}/faucet`;
           faucetURL = `${settings.TAPE_WEB_SERVER}`;
           generate204API = settings.PUBLIC_GENERATE_204_API;
           generate204CbVaultsReaderAPI = `${settings.COMMUNITY_BACKUPS_API}/generate_204`;
+          generate204WatchtowerAPI = settings.WATCH_TOWER_API ? `${settings.WATCH_TOWER_API}/generate_204` : undefined;
           blockExplorerURL = settings.TAPE_BLOCK_EXPLORER;
           break;
         case 'REGTEST':
@@ -59,10 +67,12 @@ export const getAPIs = moize(
           serviceAddressAPI = `${settings.REGTEST_API_BASE}${settings.REGTEST_SERVICE_ADDRESS_API_SUFFIX}`;
           cBVaultsWriterAPI = `${settings.REGTEST_API_BASE}${settings.REGTEST_COMMUNITY_BACKUPS_WRITER_API_SUFFIX}`;
           cBVaultsReaderAPI = `${settings.REGTEST_API_BASE}${settings.REGTEST_COMMUNITY_BACKUPS_API_SUFFIX}/regtest/vaults`;
+          watchtowerAPI = settings.WATCH_TOWER_API ? `${settings.REGTEST_API_BASE}${settings.REGTEST_WATCH_TOWER_API_SUFFIX}` : undefined;
           faucetAPI = `${settings.REGTEST_API_BASE}${settings.REGTEST_WEB_SERVER_SUFFIX}/faucet`;
           faucetURL = `${settings.REGTEST_API_BASE}${settings.REGTEST_WEB_SERVER_SUFFIX}`;
           generate204API = `${settings.REGTEST_API_BASE}${settings.REGTEST_GENERATE_204_API_SUFFIX}`;
           generate204CbVaultsReaderAPI = `${settings.REGTEST_API_BASE}${settings.REGTEST_COMMUNITY_BACKUPS_API_SUFFIX}/generate_204`;
+          generate204WatchtowerAPI = settings.WATCH_TOWER_API ? `${settings.WATCH_TOWER_API}/generate_204` : undefined;
           blockExplorerURL = `${settings.REGTEST_API_BASE}${settings.REGTEST_BLOCK_EXPLORER_SUFFIX}`;
           break;
         default:
@@ -79,8 +89,10 @@ export const getAPIs = moize(
       serviceAddressAPI,
       cBVaultsWriterAPI,
       cBVaultsReaderAPI,
+      watchtowerAPI,
       generate204API,
       generate204CbVaultsReaderAPI,
+      generate204WatchtowerAPI,
       blockExplorerURL
     };
   }
