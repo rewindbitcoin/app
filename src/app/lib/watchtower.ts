@@ -52,7 +52,7 @@ export async function getExpoPushToken(): Promise<string | null> {
     }
 
     // Check if this is a physical device
-    const isDevice = await Device.isDevice();
+    const isDevice = Device.isDevice;
     if (!isDevice) {
       console.warn('Push notifications are only supported on physical devices');
       // You might still want to continue for testing purposes
@@ -96,10 +96,10 @@ export async function registerVaultsWithWatchtower({
 
     // Group trigger transaction IDs by vault ID
     Object.entries(vaults)
-      .filter(([vaultId, vault]) => {
+      .filter(([vaultId]) => {
         const status = vaultsStatuses[vaultId];
-        // Only monitor vaults that are not hidden and are not yet triggered
-        return !status?.isHidden && !status?.triggerTxBlockHeight;
+        // Only monitor vaults that are not yet triggered
+        return !status?.triggerTxBlockHeight;
       })
       .forEach(([vaultId, vault]) => {
         // Each vault has multiple trigger transactions (one per fee rate)
