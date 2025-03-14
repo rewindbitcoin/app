@@ -54,7 +54,7 @@ export async function getExpoPushToken(): Promise<string | null> {
       return null;
     }
 
-    // Check if this is a physical device
+    // Check if this is a physical device - not emulator
     const isDevice = Device.isDevice;
     if (!isDevice) {
       console.warn('Push notifications are only supported on physical devices');
