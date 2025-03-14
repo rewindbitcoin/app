@@ -108,7 +108,13 @@ export async function registerVaultsWithWatchtower({
         // Each vault has multiple trigger transactions (one per fee rate)
         // Extract all trigger transaction IDs from the triggerMap
         const triggerTxIds: Array<TxId> = Object.keys(vault.triggerMap).map(
-          triggerTxHex => vault.txMap[triggerTxHex].txId
+          triggerTxHex => {
+            const txInfo = vault.txMap[triggerTxHex];
+            if (!txInfo) {
+              throw new Error(`Transaction info not found for trigger tx: ${triggerTxHex}`);
+            }
+            return txInfo.txId;
+          }
         );
 
         if (triggerTxIds.length > 0) {
