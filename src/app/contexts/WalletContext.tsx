@@ -12,6 +12,7 @@ import {
   getHistoryData,
   TxHex
 } from '../lib/vaults';
+import { configureNotifications, registerVaultsWithWatchtower } from '../lib/watchtower';
 import type { Accounts, Signers, Wallets } from '../lib/wallets';
 import { electrumParams, getAPIs } from '../lib/walletDerivedData';
 import { networkMapping, NetworkId } from '../lib/network';
@@ -917,6 +918,45 @@ const WalletProviderRaw = ({
   //Did the user initiated the sync (true)? ir was it a scheduled one (false)?
   const isUserTriggeredSync = useRef<boolean>(false);
   const prevAccountsSyncRef = useRef<Accounts | undefined>();
+  
+  const registerWithWatchtower = useCallback(
+    async ({
+      vaults,
+      vaultsStatuses,
+      networkId,
+      whenToastErrors
+    }: {
+      vaults: Vaults;
+      vaultsStatuses: VaultsStatuses;
+      networkId: NetworkId;
+      whenToastErrors: 'ON_ANY_ERROR' | 'ON_NEW_ERROR';
+    }) => {
+      if (!settings?.WATCH_TOWER_API || !networkTimeout) return;
+
+      // Configure notifications if not already done
+      await configureNotifications();
+
+      // Use netRequest to handle network errors
+      const { result } = await netRequest({
+        id: 'watchtowerRegistration',
+        errorMessage: (message: string) =>
+          t('app.watchtowerRegistrationError', { message }),
+        whenToastErrors,
+        requirements: { apiReachable: true },
+        func: () =>
+          registerVaultsWithWatchtower({
+            watchtowerApi: settings.WATCH_TOWER_API,
+            vaults,
+            vaultsStatuses,
+            networkId,
+            networkTimeout
+          })
+      });
+      
+      return result;
+    },
+    [netRequest, settings, networkTimeout, t]
+  );
 
   /**
    * Initiates the blockchain synchronization process. If netStatus has errors
@@ -1032,6 +1072,20 @@ const WalletProviderRaw = ({
               vaults
             })
         });
+        if (walletId !== walletIdRef.current) {
+          //do this after each await
+          setSyncingBlockchain(walletId, false);
+          return;
+        }
+        
+        // Register with watchtower service
+        await registerWithWatchtower({
+          vaults: updatedVaults,
+          vaultsStatuses,
+          networkId,
+          whenToastErrors
+        });
+        
         if (walletId !== walletIdRef.current) {
           //do this after each await
           setSyncingBlockchain(walletId, false);

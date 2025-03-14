@@ -80,6 +80,7 @@ export interface Settings {
   BTC_FIAT_REFRESH_INTERVAL_MS: number;
   BLOCKCHAIN_DATA_REFRESH_INTERVAL_MS: number;
   WALLETS_DATA_VERSION: string;
+  WATCH_TOWER_API: string;
 
   REGTEST_API_BASE: string;
 
@@ -156,6 +157,7 @@ export const defaultSettings: Settings = {
   BTC_FIAT_REFRESH_INTERVAL_MS: 60000, //1 minutes
   BLOCKCHAIN_DATA_REFRESH_INTERVAL_MS: 60000, // 1 minute
   WALLETS_DATA_VERSION: '1.0.0', //This does not define the version of the App, but keeps track of the changes in the signature of the Wallet
+  WATCH_TOWER_API: '', // Empty string means disabled by default
 
   REGTEST_API_BASE: `${LOCAL_PROTOCOL}://${REGTEST_HOST_NAME}`,
 

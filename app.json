@@ -22,7 +22,8 @@
         "UIFileSharingEnabled": true,
         "CFBundleAllowMixedLocalizations": true,
         "NSFaceIDUsageDescription": "RewindBitcoin uses Face ID for enhanced security. This feature helps protect your Bitcoin wallet by ensuring that only you can access the sensitive data, like mnemonics, stored securely in the app. Your Face ID data is never accessed directly by the app and is only used to verify your identity.",
-        "NSCameraUsageDescription": "RewindBitcoin needs access to your camera to scan QR codes for Bitcoin addresses"
+        "NSCameraUsageDescription": "RewindBitcoin needs access to your camera to scan QR codes for Bitcoin addresses",
+        "apsEnvironment": "development"
       },
       "supportsTablet": true,
       "bundleIdentifier": "com.rewindbitcoin.app"
@@ -40,7 +41,9 @@
         "android.permission.USE_BIOMETRIC",
         "android.permission.USE_FINGERPRINT",
         "android.permission.CAMERA",
-        "android.permission.RECORD_AUDIO"
+        "android.permission.RECORD_AUDIO",
+        "android.permission.RECEIVE_BOOT_COMPLETED",
+        "android.permission.VIBRATE"
       ]
     },
     "web": {
@@ -73,6 +76,13 @@
           "networkSecurityConfig": "./android_allow_http_on_rewindbitcoin_local.xml",
           "enable": true,
           "README": "Why? So that we can use the regtest environment. networkSecurityConfig is set for android so that the http protocol can be used on rewindbitcoin.local. On ios .local domains can be used in http by default - See https://developer.apple.com/documentation/bundleresources/information_property_list/nsapptransportsecurity/nsallowslocalnetworking"
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/notification-icon.png",
+          "color": "#ffffff"
         }
       ]
     ]
