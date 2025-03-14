@@ -1,7 +1,13 @@
 import '../global.css';
 import '../init';
 import ErrorBoundary from './ErrorBoundary';
-import React, { useCallback, useEffect, useState, useMemo, useRef } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useState,
+  useMemo,
+  useRef
+} from 'react';
 import { Platform } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import {
@@ -278,29 +284,29 @@ export default function App() {
   const onGlobalError = useCallback(() => {
     setErrorKey(prevErrorKey => prevErrorKey + 1);
   }, []);
-  
-  // Add these refs for notification listeners
+
+  // refs for notification listeners
   const notificationListener = useRef<Notifications.Subscription>();
   const responseListener = useRef<Notifications.Subscription>();
 
-  // Add this useEffect for notification handling
   useEffect(() => {
     // Set up notification listeners
-    notificationListener.current = Notifications.addNotificationReceivedListener(notification => {
-      console.log('Notification received:', notification);
-      // You can add custom handling here if needed
-    });
+    notificationListener.current =
+      Notifications.addNotificationReceivedListener(notification => {
+        console.log('Notification received:', notification);
+      });
 
-    responseListener.current = Notifications.addNotificationResponseReceivedListener(response => {
-      console.log('Notification response received:', response);
-      // Handle user interaction with the notification
-      // You might want to navigate to a specific screen here
-    });
+    responseListener.current =
+      Notifications.addNotificationResponseReceivedListener(response => {
+        console.warn('Notification response received:', response);
+      });
 
     // Clean up listeners on unmount
     return () => {
       if (notificationListener.current) {
-        Notifications.removeNotificationSubscription(notificationListener.current);
+        Notifications.removeNotificationSubscription(
+          notificationListener.current
+        );
       }
       if (responseListener.current) {
         Notifications.removeNotificationSubscription(responseListener.current);
