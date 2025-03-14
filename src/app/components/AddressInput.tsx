@@ -30,7 +30,6 @@ import { networkMapping, type NetworkId } from '../lib/network';
 import { useFonts } from 'expo-font';
 import { RobotoMono_400Regular } from '@expo-google-fonts/roboto-mono';
 import CreateColdAddress from './CreateColdAddress';
-import { add } from 'react-native-libsodium';
 
 function AddressInput({
   onValueChange,

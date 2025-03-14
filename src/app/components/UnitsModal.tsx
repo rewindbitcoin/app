@@ -1,6 +1,6 @@
 import React, { useCallback, useMemo } from 'react';
 import { View, Text } from 'react-native';
-import { Modal, VerticalChoice, useTheme } from '../../common/ui';
+import { Modal, VerticalChoice } from '../../common/ui';
 import { useTranslation } from 'react-i18next';
 import { subUnits, SubUnit } from '../lib/settings';
 import { fromSats } from '../lib/btcRates';
@@ -24,7 +24,6 @@ export default function UnitsModal({
   onClose?: () => void;
 }) {
   const { t } = useTranslation();
-  const theme = useTheme();
   //Don't let the user pick Fiat mode if btcFiat is still not set...
   const modes: Array<SubUnit | 'Fiat'> = useMemo(
     () => (typeof btcFiat !== 'number' ? [...subUnits] : ['Fiat', ...subUnits]),
