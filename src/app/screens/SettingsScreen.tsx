@@ -24,7 +24,6 @@ import { useNavigation } from '@react-navigation/native';
 import { NavigationPropsByScreenId, WALLETS } from '../screens';
 import { exportWallet } from '../lib/backup';
 import { electrumParams, getAPIs } from '../lib/walletDerivedData';
-import { validateWatchtowerAPI } from '../lib/validators';
 import { ElectrumExplorer, EsploraExplorer } from '@bitcoinerlab/explorer';
 import { NetworkId, networkMapping } from '../lib/network';
 import { useLocalization } from '../hooks/useLocalization';
@@ -578,6 +577,25 @@ const SettingsScreen = () => {
                 setSettings({ ...settings, COMMUNITY_BACKUPS_API: url });
               }}
             />
+            <SettingsItem
+              icon={{
+                family: 'MaterialCommunityIcons',
+                name: 'bell-ring'
+              }}
+              maxLength={URL_MAX_LENGTH}
+              label={t('settings.general.watchtowerApi')}
+              initialValue={settings.WATCH_TOWER_API}
+              defaultValue={defaultSettings.WATCH_TOWER_API}
+              validateValue={async (url: string) => {
+                validateCommunityBackupsAPI({
+                  ...settings,
+                  WATCH_TOWER_API: url
+                });
+              }}
+              onValue={(url: string) => {
+                setSettings({ ...settings, WATCH_TOWER_API: url });
+              }}
+            />
             {Platform.OS === 'web' ? (
               <>
                 <SettingsItem
@@ -697,41 +715,6 @@ const SettingsScreen = () => {
                 />
               </>
             )}
-            <SettingsItem
-              icon={{
-                family: 'MaterialCommunityIcons',
-                name: 'bell-ring'
-              }}
-              maxLength={URL_MAX_LENGTH}
-              label={t('settings.general.watchtowerApi')}
-              initialValue={settings.WATCH_TOWER_API}
-              defaultValue={defaultSettings.WATCH_TOWER_API}
-              validateValue={async (url: string) => {
-                if (!url) return true; // Empty URL is valid (disables the feature)
-                
-                // Basic URL validation
-                try {
-                  new URL(url);
-                } catch (e) {
-                  return t('settings.wallet.invalidUrlError');
-                }
-                
-                // Try to connect to the watchtower API
-                try {
-                  const isValid = await validateWatchtowerAPI(url, settings.NETWORK_TIMEOUT);
-                  if (isValid) {
-                    return true;
-                  }
-                } catch (err) {
-                  console.warn(err);
-                }
-                
-                return t('settings.wallet.watchtowerApiError');
-              }}
-              onValue={(url: string) => {
-                setSettings({ ...settings, WATCH_TOWER_API: url });
-              }}
-            />
             <SettingsItem
               showSeparator={false}
               icon={{

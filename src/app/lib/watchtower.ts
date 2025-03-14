@@ -71,13 +71,13 @@ export async function getExpoPushToken(): Promise<string | null> {
 
 // Register vaults with the watchtower service
 export async function registerVaultsWithWatchtower({
-  watchtowerApi,
+  watchtowerAPI,
   vaults,
   vaultsStatuses,
   networkId,
   networkTimeout
 }: {
-  watchtowerApi: string;
+  watchtowerAPI: string;
   vaults: Vaults;
   vaultsStatuses: VaultsStatuses;
   networkId: NetworkId;
@@ -85,7 +85,7 @@ export async function registerVaultsWithWatchtower({
 }): Promise<boolean> {
   try {
     // Skip if watchtower API is not configured
-    if (watchtowerApi === '') return true;
+    if (watchtowerAPI === '') return true;
 
     // Get push token
     const pushToken = await getExpoPushToken();
@@ -117,7 +117,7 @@ export async function registerVaultsWithWatchtower({
     };
 
     // Send data to the watchtower
-    const response = await fetch(`${watchtowerApi}/register`, {
+    const response = await fetch(`${watchtowerAPI}/register`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'

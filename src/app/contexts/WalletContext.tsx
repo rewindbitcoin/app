@@ -411,6 +411,7 @@ const WalletProviderRaw = ({
     generate204API,
     generate204CbVaultsReaderAPI,
     generate204APIExternal,
+    generate204WatchtowerAPI,
     explorerMainnet,
     netStatusReset,
     netStatusInit
@@ -968,7 +969,8 @@ const WalletProviderRaw = ({
       //synched
       areVaultsSynched(vaults, vaultsStatuses) &&
       signer &&
-      cBVaultsReaderAPI
+      cBVaultsReaderAPI &&
+      watchtowerAPI
     ) {
       console.log(
         `[${new Date().toISOString()}] [Sync] Wallet: ${walletId} | NetReady: ${netReady} | UserTriggered: ${isUserTriggered} | network: ${networkId}`
@@ -1179,32 +1181,30 @@ const WalletProviderRaw = ({
         }
 
         // Register with watchtower service
-        if (watchtowerAPI) {
-          // Configure notifications if not already done
-          await configureNotifications();
-          if (walletId !== walletIdRef.current) {
-            //do this after each await
-            setSyncingBlockchain(walletId, false);
-            return;
-          }
-
-          // Use netRequest to handle network errors
-          await netRequest({
-            id: 'watchtowerRegistration',
-            errorMessage: (message: string) =>
-              t('app.watchtowerRegistrationError', { message }),
-            whenToastErrors,
-            requirements: { watchtowerAPIReachable: true },
-            func: () =>
-              registerVaultsWithWatchtower({
-                watchtowerApi: watchtowerAPI,
-                vaults: updatedVaults,
-                vaultsStatuses: updatedVaultsStatuses,
-                networkId,
-                networkTimeout
-              })
-          });
+        // Configure notifications if not already done
+        await configureNotifications();
+        if (walletId !== walletIdRef.current) {
+          //do this after each await
+          setSyncingBlockchain(walletId, false);
+          return;
         }
+
+        // Use netRequest to handle network errors
+        await netRequest({
+          id: 'watchtowerRegistration',
+          errorMessage: (message: string) =>
+            t('app.watchtowerRegistrationError', { message }),
+          whenToastErrors,
+          requirements: { watchtowerAPIReachable: true },
+          func: () =>
+            registerVaultsWithWatchtower({
+              watchtowerAPI,
+              vaults: updatedVaults,
+              vaultsStatuses: updatedVaultsStatuses,
+              networkId,
+              networkTimeout
+            })
+        });
 
         if (walletId !== walletIdRef.current) {
           //do this after each await
@@ -1254,9 +1254,9 @@ const WalletProviderRaw = ({
     networkId,
     signers,
     cBVaultsReaderAPI,
+    watchtowerAPI,
     gapLimit,
-    networkTimeout,
-    settings?.WATCH_TOWER_API
+    networkTimeout
   ]);
 
   //When syncingBlockchain is set then trigger sync() which does all the
