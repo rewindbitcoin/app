@@ -78,15 +78,7 @@
           "README": "Why? So that we can use the regtest environment. networkSecurityConfig is set for android so that the http protocol can be used on rewindbitcoin.local. On ios .local domains can be used in http by default - See https://developer.apple.com/documentation/bundleresources/information_property_list/nsapptransportsecurity/nsallowslocalnetworking"
         }
       ],
-      [
-        "expo-notifications",
-        {
-          "icon": "./assets/notification-icon.png",
-          "color": "#ffffff"
-        }
-      ],
-      "expo-constants",
-      "expo-device"
+      ["expo-notifications", {}]
     ]
   }
 }
