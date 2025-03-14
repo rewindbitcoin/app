@@ -111,7 +111,9 @@ export async function registerVaultsWithWatchtower({
           triggerTxHex => {
             const txInfo = vault.txMap[triggerTxHex];
             if (!txInfo) {
-              throw new Error(`Transaction info not found for trigger tx: ${triggerTxHex}`);
+              throw new Error(
+                `Transaction info not found for trigger tx: ${triggerTxHex}`
+              );
             }
             return txInfo.txId;
           }
