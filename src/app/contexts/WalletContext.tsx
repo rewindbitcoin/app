@@ -12,7 +12,7 @@ import {
   getHistoryData,
   TxHex
 } from '../lib/vaults';
-import { configureNotifications, registerVaultsWithWatchtower } from '../lib/watchtower';
+import { configureNotifications, registerVaultsWithWatchtower, unregisterVaultFromWatchtower } from '../lib/watchtower';
 import type { Accounts, Signers, Wallets } from '../lib/wallets';
 import { electrumParams, getAPIs } from '../lib/walletDerivedData';
 import { networkMapping, NetworkId } from '../lib/network';
