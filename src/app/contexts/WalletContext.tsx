@@ -139,6 +139,26 @@ export type WalletContextType = {
     signersCipherKey?: Uint8Array;
   }) => Promise<void>;
   isFirstLogin: boolean;
+  registerWithWatchtower: ({
+    vaults,
+    vaultsStatuses,
+    networkId,
+    whenToastErrors
+  }: {
+    vaults: Vaults;
+    vaultsStatuses: VaultsStatuses;
+    networkId: NetworkId;
+    whenToastErrors: 'ON_ANY_ERROR' | 'ON_NEW_ERROR';
+  }) => Promise<boolean | undefined>;
+  unregisterVaultFromWatchtower: ({
+    vaultId,
+    networkId,
+    whenToastErrors
+  }: {
+    vaultId: string;
+    networkId: NetworkId;
+    whenToastErrors: 'ON_ANY_ERROR' | 'ON_NEW_ERROR';
+  }) => Promise<boolean | undefined>;
 };
 
 const DEFAULT_VAULTS_STATUSES: VaultsStatuses = {};
@@ -958,6 +978,39 @@ const WalletProviderRaw = ({
     [netRequest, settings, networkTimeout, t]
   );
 
+  const unregisterVaultFromWatchtower = useCallback(
+    async ({
+      vaultId,
+      networkId,
+      whenToastErrors
+    }: {
+      vaultId: string;
+      networkId: NetworkId;
+      whenToastErrors: 'ON_ANY_ERROR' | 'ON_NEW_ERROR';
+    }) => {
+      if (!settings?.WATCH_TOWER_API || !networkTimeout) return;
+
+      // Use netRequest to handle network errors
+      const { result } = await netRequest({
+        id: 'watchtowerUnregistration',
+        errorMessage: (message: string) =>
+          t('app.watchtowerUnregistrationError', { message }),
+        whenToastErrors,
+        requirements: { apiReachable: true },
+        func: () =>
+          unregisterVaultFromWatchtower({
+            watchtowerApi: settings.WATCH_TOWER_API,
+            vaultId,
+            networkId,
+            networkTimeout
+          })
+      });
+      
+      return result;
+    },
+    [netRequest, settings, networkTimeout, t]
+  );
+
   /**
    * Initiates the blockchain synchronization process. If netStatus has errors
    * it tries first to check the network .
@@ -1081,7 +1134,7 @@ const WalletProviderRaw = ({
         // Register with watchtower service
         await registerWithWatchtower({
           vaults: updatedVaults,
-          vaultsStatuses,
+          vaultsStatuses: updatedVaultsStatuses,
           networkId,
           whenToastErrors
         });
@@ -1389,6 +1442,22 @@ const WalletProviderRaw = ({
         //is just some initial point when opening a wallet before full sync
         setUtxosHistoryExport(vaults, newVaultsStatuses, accounts, tipHeight);
         setVaultsStatuses(newVaultsStatuses);
+        
+        // If the vault status now has a triggerTxBlockHeight, it means the vault
+        // has been triggered, so we should unregister it from the watchtower
+        if (
+          vaultStatus.triggerTxBlockHeight && 
+          !currVaultStatus.triggerTxBlockHeight &&
+          networkId
+        ) {
+          unregisterVaultFromWatchtower({
+            vaultId,
+            networkId,
+            whenToastErrors: 'ON_NEW_ERROR'
+          }).catch(err => {
+            console.error('Failed to unregister vault from watchtower:', err);
+          });
+        }
       }
     },
     [
@@ -1397,7 +1466,9 @@ const WalletProviderRaw = ({
       setUtxosHistoryExport,
       tipHeight,
       vaultsStatuses,
-      setVaultsStatuses
+      setVaultsStatuses,
+      networkId,
+      unregisterVaultFromWatchtower
     ]
   );
 
@@ -1445,7 +1516,9 @@ const WalletProviderRaw = ({
     logOut,
     deleteWallet,
     onWallet,
-    isFirstLogin
+    isFirstLogin,
+    registerWithWatchtower,
+    unregisterVaultFromWatchtower
   };
   return (
     <WalletContext.Provider value={contextValue}>
