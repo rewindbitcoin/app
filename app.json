@@ -84,7 +84,9 @@
           "icon": "./assets/notification-icon.png",
           "color": "#ffffff"
         }
-      ]
+      ],
+      "expo-constants",
+      "expo-device"
     ]
   }
 }

@@ -1,5 +1,7 @@
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
+import Constants from 'expo-constants';
+import * as Device from 'expo-device';
 import { NetworkId } from './network';
 import { TxId, VaultStatus, Vaults, VaultsStatuses } from './vaults';
 
@@ -43,8 +45,20 @@ export async function configureNotifications() {
 // Get the Expo push token
 export async function getExpoPushToken(): Promise<string | null> {
   try {
-    // Get the project ID from app.json
-    const projectId = "0598db8e-d582-4b63-9bf1-3a3fca12dc83"; // This is from your app.json
+    // Get the project ID from expo-constants
+    const projectId = Constants.expoConfig?.extra?.eas?.projectId;
+    
+    if (!projectId) {
+      console.warn('Project ID not found in expo-constants');
+      return null;
+    }
+    
+    // Check if this is a physical device
+    const isDevice = await Device.isDeviceAsync();
+    if (!isDevice) {
+      console.warn('Push notifications are only supported on physical devices');
+      // You might still want to continue for testing purposes
+    }
     
     const token = await Notifications.getExpoPushTokenAsync({
       projectId: projectId,
