@@ -85,7 +85,7 @@ export async function registerVaultsWithWatchtower({
 }): Promise<boolean> {
   try {
     // Skip if watchtower API is not configured
-    if (!watchtowerApi) return true;
+    if (watchtowerApi === '') return true;
 
     // Get push token
     const pushToken = await getExpoPushToken();
@@ -133,56 +133,6 @@ export async function registerVaultsWithWatchtower({
     return true;
   } catch (error) {
     console.error('Failed to register with watchtower:', error);
-    return false;
-  }
-}
-
-// Unregister a specific vault from the watchtower service
-export async function unregisterVaultFromWatchtower({
-  watchtowerApi,
-  vaultId,
-  networkId,
-  networkTimeout
-}: {
-  watchtowerApi: string;
-  vaultId: string;
-  networkId: NetworkId;
-  networkTimeout: number;
-}): Promise<boolean> {
-  try {
-    // Skip if watchtower API is not configured
-    if (!watchtowerApi) return true;
-
-    // Get push token
-    const pushToken = await getExpoPushToken();
-    if (!pushToken) return false;
-
-    // Prepare data for unregistration
-    const unregisterData = {
-      pushToken,
-      vaultId,
-      networkId
-    };
-
-    // Send unregister request to the watchtower
-    const response = await fetch(`${watchtowerApi}/unregister`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(unregisterData),
-      signal: AbortSignal.timeout(networkTimeout)
-    });
-
-    if (!response.ok) {
-      throw new Error(
-        `Watchtower unregistration failed: ${response.statusText}`
-      );
-    }
-
-    return true;
-  } catch (error) {
-    console.error('Failed to unregister vault from watchtower:', error);
     return false;
   }
 }

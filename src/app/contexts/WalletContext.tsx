@@ -14,8 +14,7 @@ import {
 } from '../lib/vaults';
 import {
   configureNotifications,
-  registerVaultsWithWatchtower,
-  unregisterVaultFromWatchtower
+  registerVaultsWithWatchtower
 } from '../lib/watchtower';
 import type { Accounts, Signers, Wallets } from '../lib/wallets';
 import { electrumParams, getAPIs } from '../lib/walletDerivedData';
@@ -959,40 +958,7 @@ const WalletProviderRaw = ({
 
       return result;
     },
-    [netRequest, settings, networkTimeout, t]
-  );
-
-  const unregisterVaultFromWatchtower = useCallback(
-    async ({
-      vaultId,
-      networkId,
-      whenToastErrors
-    }: {
-      vaultId: string;
-      networkId: NetworkId;
-      whenToastErrors: 'ON_ANY_ERROR' | 'ON_NEW_ERROR';
-    }) => {
-      if (!settings?.WATCH_TOWER_API || !networkTimeout) return;
-
-      // Use netRequest to handle network errors
-      const { result } = await netRequest({
-        id: 'watchtowerUnregistration',
-        errorMessage: (message: string) =>
-          t('app.watchtowerUnregistrationError', { message }),
-        whenToastErrors,
-        requirements: { apiReachable: true },
-        func: () =>
-          unregisterVaultFromWatchtower({
-            watchtowerApi: settings.WATCH_TOWER_API,
-            vaultId,
-            networkId,
-            networkTimeout
-          })
-      });
-
-      return result;
-    },
-    [netRequest, settings, networkTimeout, t]
+    [netRequest, settings?.WATCH_TOWER_API, networkTimeout, t]
   );
 
   /**
@@ -1115,19 +1081,6 @@ const WalletProviderRaw = ({
           return;
         }
 
-        // Register with watchtower service
-        await registerWithWatchtower({
-          vaults: updatedVaults,
-          vaultsStatuses: updatedVaultsStatuses,
-          networkId,
-          whenToastErrors
-        });
-
-        if (walletId !== walletIdRef.current) {
-          //do this after each await
-          setSyncingBlockchain(walletId, false);
-          return;
-        }
         let updatedVaults = vaults; //initially they are the same
         if (p2pVaults)
           Object.entries(p2pVaults).forEach(([key, p2pVault]) => {
@@ -1260,6 +1213,20 @@ const WalletProviderRaw = ({
           setSyncingBlockchain(walletId, false);
           return;
         }
+
+        // Register with watchtower service
+        await registerWithWatchtower({
+          vaults: updatedVaults,
+          vaultsStatuses: updatedVaultsStatuses,
+          networkId,
+          whenToastErrors
+        });
+
+        if (walletId !== walletIdRef.current) {
+          //do this after each await
+          setSyncingBlockchain(walletId, false);
+          return;
+        }
       } catch (error) {
         console.warn(error);
         //We don't care about errors of other wallets (probably trying to
@@ -1304,7 +1271,8 @@ const WalletProviderRaw = ({
     signers,
     cBVaultsReaderAPI,
     gapLimit,
-    networkTimeout
+    networkTimeout,
+    registerWithWatchtower
   ]);
 
   //When syncingBlockchain is set then trigger sync() which does all the
@@ -1426,22 +1394,6 @@ const WalletProviderRaw = ({
         //is just some initial point when opening a wallet before full sync
         setUtxosHistoryExport(vaults, newVaultsStatuses, accounts, tipHeight);
         setVaultsStatuses(newVaultsStatuses);
-
-        // If the vault status now has a triggerTxBlockHeight, it means the vault
-        // has been triggered, so we should unregister it from the watchtower
-        if (
-          vaultStatus.triggerTxBlockHeight &&
-          !currVaultStatus.triggerTxBlockHeight &&
-          networkId
-        ) {
-          unregisterVaultFromWatchtower({
-            vaultId,
-            networkId,
-            whenToastErrors: 'ON_NEW_ERROR'
-          }).catch(err => {
-            console.error('Failed to unregister vault from watchtower:', err);
-          });
-        }
       }
     },
     [
@@ -1450,9 +1402,7 @@ const WalletProviderRaw = ({
       setUtxosHistoryExport,
       tipHeight,
       vaultsStatuses,
-      setVaultsStatuses,
-      networkId,
-      unregisterVaultFromWatchtower
+      setVaultsStatuses
     ]
   );
 
