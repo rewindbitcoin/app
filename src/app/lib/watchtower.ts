@@ -4,7 +4,6 @@ import * as Notifications from 'expo-notifications';
 import Constants from 'expo-constants';
 import * as Device from 'expo-device';
 import { TxId, Vaults, VaultsStatuses } from './vaults';
-import { transactionFromHex } from './bitcoin';
 
 // Type for the data to send to the watchtower
 export type WatchtowerRegistrationData = {
@@ -109,10 +108,7 @@ export async function registerVaultsWithWatchtower({
         // Each vault has multiple trigger transactions (one per fee rate)
         // Extract all trigger transaction IDs from the triggerMap
         const triggerTxIds: Array<TxId> = Object.keys(vault.triggerMap).map(
-          triggerTxHex => {
-            const { txId } = transactionFromHex(triggerTxHex);
-            return txId;
-          }
+          triggerTxHex => vault.txMap[triggerTxHex].txId
         );
 
         if (triggerTxIds.length > 0) {
