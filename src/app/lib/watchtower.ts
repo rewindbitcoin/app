@@ -3,7 +3,18 @@
 import * as Notifications from 'expo-notifications';
 import Constants from 'expo-constants';
 import * as Device from 'expo-device';
+import { Platform } from 'react-native';
 import { TxId, Vaults, VaultsStatuses } from './vaults';
+
+// Check if the device can receive push notifications
+export const canReceiveNotifications = (): boolean => {
+  // Only mobile platforms (iOS/Android) can receive push notifications
+  const isMobilePlatform = Platform.OS === 'ios' || Platform.OS === 'android';
+  // Check if this is a physical device (not an emulator/simulator)
+  const isPhysicalDevice = Device.isDevice;
+  
+  return isMobilePlatform && isPhysicalDevice;
+};
 
 // Type for the data to send to the watchtower
 export type WatchtowerRegistrationData = {
@@ -16,6 +27,13 @@ export type WatchtowerRegistrationData = {
 
 // Configure notifications
 export async function configureNotifications() {
+  // First check if this device can receive notifications
+  const canReceive = canReceiveNotifications();
+  if (!canReceive) {
+    console.warn('Device cannot receive push notifications (not a physical iOS/Android device)');
+    return false;
+  }
+
   // Request permission
   const { status: existingStatus } = await Notifications.getPermissionsAsync();
   let finalStatus = existingStatus;
@@ -54,11 +72,12 @@ export async function getExpoPushToken(): Promise<string | null> {
       return null;
     }
 
-    // Check if this is a physical device - not emulator
-    const isDevice = Device.isDevice;
-    if (!isDevice) {
-      console.warn('Push notifications are only supported on physical devices');
-      // You might still want to continue for testing purposes
+    // Check if this device can receive notifications
+    const canReceive = canReceiveNotifications();
+    if (!canReceive) {
+      console.warn('Push notifications are only supported on physical iOS/Android devices');
+      // For testing purposes, we'll continue anyway but return null at the end
+      return null;
     }
 
     const token = await Notifications.getExpoPushTokenAsync({

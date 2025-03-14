@@ -14,7 +14,8 @@ import {
 } from '../lib/vaults';
 import {
   configureNotifications,
-  registerVaultsWithWatchtower
+  registerVaultsWithWatchtower,
+  canReceiveNotifications
 } from '../lib/watchtower';
 import type { Accounts, Signers, Wallets } from '../lib/wallets';
 import { electrumParams, getAPIs } from '../lib/walletDerivedData';
@@ -1181,12 +1182,14 @@ const WalletProviderRaw = ({
         }
 
         // Register with watchtower service
-        // Configure notifications if not already done
-        await configureNotifications();
-        if (walletId !== walletIdRef.current) {
-          //do this after each await
-          setSyncingBlockchain(walletId, false);
-          return;
+        // Configure notifications if not already done and if device supports it
+        if (canReceiveNotifications()) {
+          await configureNotifications();
+          if (walletId !== walletIdRef.current) {
+            //do this after each await
+            setSyncingBlockchain(walletId, false);
+            return;
+          }
         }
 
         // Use netRequest to handle network errors
