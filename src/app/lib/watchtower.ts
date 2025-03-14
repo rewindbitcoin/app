@@ -105,9 +105,6 @@ export async function registerVaultsWithWatchtower({
   networkTimeout: number;
 }): Promise<boolean> {
   try {
-    // Skip if watchtower API is not configured
-    if (watchtowerAPI === '') return true;
-
     // Get push token
     const pushToken = await getExpoPushToken();
     if (!pushToken) return false;
@@ -123,7 +120,7 @@ export async function registerVaultsWithWatchtower({
       .filter(([vaultId]) => {
         const status = vaultsStatuses[vaultId];
         // Only monitor vaults that are not yet triggered
-        return !status?.triggerTxBlockHeight;
+        return !status?.triggerTxHex;
       })
       .forEach(([vaultId, vault]) => {
         // Each vault has multiple trigger transactions (one per fee rate)
