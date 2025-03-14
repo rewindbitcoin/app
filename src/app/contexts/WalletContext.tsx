@@ -922,7 +922,6 @@ const WalletProviderRaw = ({
   const isUserTriggeredSync = useRef<boolean>(false);
   const prevAccountsSyncRef = useRef<Accounts | undefined>();
 
-
   /**
    * Initiates the blockchain synchronization process. If netStatus has errors
    * it tries first to check the network .
@@ -1177,9 +1176,14 @@ const WalletProviderRaw = ({
         }
 
         // Register with watchtower service
-        if (settings?.WATCH_TOWER_API && networkTimeout) {
+        if (settings?.WATCH_TOWER_API) {
           // Configure notifications if not already done
           await configureNotifications();
+          if (walletId !== walletIdRef.current) {
+            //do this after each await
+            setSyncingBlockchain(walletId, false);
+            return;
+          }
 
           // Use netRequest to handle network errors
           await netRequest({
@@ -1249,6 +1253,7 @@ const WalletProviderRaw = ({
     cBVaultsReaderAPI,
     gapLimit,
     networkTimeout,
+    settings?.WATCH_TOWER_API
   ]);
 
   //When syncingBlockchain is set then trigger sync() which does all the
