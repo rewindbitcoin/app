@@ -1201,7 +1201,6 @@ const WalletProviderRaw = ({
               watchtowerAPI,
               vaults: updatedVaults,
               vaultsStatuses: updatedVaultsStatuses,
-              networkId,
               networkTimeout
             })
         });

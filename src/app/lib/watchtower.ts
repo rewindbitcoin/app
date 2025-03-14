@@ -1,15 +1,14 @@
 import * as Notifications from 'expo-notifications';
 import Constants from 'expo-constants';
 import * as Device from 'expo-device';
-import { NetworkId } from './network';
 import { TxId, Vaults, VaultsStatuses } from './vaults';
+import { transactionFromHex } from './bitcoin';
 
 // Type for the data to send to the watchtower
 export type WatchtowerRegistrationData = {
   pushToken: string;
   vaults: Array<{
-    triggerTxId: TxId;
-    networkId: NetworkId;
+    triggerTxIds: Array<TxId>;
     vaultId: string;
   }>;
 };
@@ -45,7 +44,7 @@ export async function configureNotifications() {
 export async function getExpoPushToken(): Promise<string | null> {
   try {
     // Get the project ID from expo-constants
-    const projectId = Constants.expoConfig?.extra?.eas?.projectId;
+    const projectId = Constants.expoConfig?.['extra']?.['eas']?.projectId;
 
     if (!projectId) {
       console.warn('Project ID not found in expo-constants');
@@ -53,7 +52,7 @@ export async function getExpoPushToken(): Promise<string | null> {
     }
 
     // Check if this is a physical device
-    const isDevice = await Device.isDeviceAsync();
+    const isDevice = await Device.isDevice();
     if (!isDevice) {
       console.warn('Push notifications are only supported on physical devices');
       // You might still want to continue for testing purposes
@@ -74,13 +73,11 @@ export async function registerVaultsWithWatchtower({
   watchtowerAPI,
   vaults,
   vaultsStatuses,
-  networkId,
   networkTimeout
 }: {
   watchtowerAPI: string;
   vaults: Vaults;
   vaultsStatuses: VaultsStatuses;
-  networkId: NetworkId;
   networkTimeout: number;
 }): Promise<boolean> {
   try {
@@ -92,21 +89,35 @@ export async function registerVaultsWithWatchtower({
     if (!pushToken) return false;
 
     // Filter vaults that need monitoring (not triggered yet)
-    const vaultsToMonitor = Object.entries(vaults)
+    const vaultsToMonitor: Array<{
+      triggerTxIds: Array<TxId>;
+      vaultId: string;
+    }> = [];
+
+    // Group trigger transaction IDs by vault ID
+    Object.entries(vaults)
       .filter(([vaultId, vault]) => {
         const status = vaultsStatuses[vaultId];
-        // Only monitor vaults that are not hidden, have a trigger tx, and are not yet triggered
-        return (
-          !status?.isHidden &&
-          vault.triggerTxId &&
-          !status?.triggerTxBlockHeight
-        );
+        // Only monitor vaults that are not hidden and are not yet triggered
+        return !status?.isHidden && !status?.triggerTxBlockHeight;
       })
-      .map(([vaultId, vault]) => ({
-        triggerTxId: vault.triggerTxId as TxId,
-        networkId,
-        vaultId
-      }));
+      .forEach(([vaultId, vault]) => {
+        // Each vault has multiple trigger transactions (one per fee rate)
+        // Extract all trigger transaction IDs from the triggerMap
+        const triggerTxIds: Array<TxId> = Object.keys(vault.triggerMap).map(
+          triggerTxHex => {
+            const { txId } = transactionFromHex(triggerTxHex);
+            return txId;
+          }
+        );
+
+        if (triggerTxIds.length > 0) {
+          vaultsToMonitor.push({
+            triggerTxIds,
+            vaultId
+          });
+        }
+      });
 
     if (vaultsToMonitor.length === 0) return true; // No vaults to monitor
 
