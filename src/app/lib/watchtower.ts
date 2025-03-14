@@ -44,7 +44,9 @@ export async function configureNotifications() {
 export async function getExpoPushToken(): Promise<string | null> {
   try {
     // Get the project ID from expo-constants
-    const projectId = Constants.expoConfig?.['extra']?.['eas']?.projectId;
+    const projectId =
+      Constants.expoConfig?.['extra']?.['eas']?.projectId ??
+      Constants?.easConfig?.projectId;
 
     if (!projectId) {
       console.warn('Project ID not found in expo-constants');
