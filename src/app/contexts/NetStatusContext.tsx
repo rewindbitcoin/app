@@ -428,8 +428,7 @@ const NetStatusProvider: React.FC<NetStatusProviderProps> = ({ children }) => {
       if (generate204API) internetChecks.push(apiReachable);
       if (generate204CbVaultsReaderAPI)
         internetChecks.push(cBVaultsReaderAPIReachable);
-      if (generate204WatchtowerAPI)
-        internetChecks.push(watchtowerAPIReachable);
+      if (generate204WatchtowerAPI) internetChecks.push(watchtowerAPIReachable);
       if (explorer) internetChecks.push(explorerReachable);
       if (explorerMainnet) internetChecks.push(explorerMainnetReachable);
       if (generate204APIExternal) internetChecks.push(apiExternalReachable);
@@ -445,6 +444,7 @@ const NetStatusProvider: React.FC<NetStatusProviderProps> = ({ children }) => {
     [
       generate204API,
       generate204CbVaultsReaderAPI,
+      generate204WatchtowerAPI,
       generate204APIExternal,
       explorer,
       explorerMainnet
@@ -557,9 +557,7 @@ const NetStatusProvider: React.FC<NetStatusProviderProps> = ({ children }) => {
         );
 
       if (generate204WatchtowerAPI && watchtowerAPIReachable === false)
-        permanentErrorMessage = t(
-          'netStatus.watchtowerNotReachableWarning'
-        );
+        permanentErrorMessage = t('netStatus.watchtowerNotReachableWarning');
 
       if (explorer && explorerReachable === false)
         permanentErrorMessage = t(
@@ -597,6 +595,7 @@ const NetStatusProvider: React.FC<NetStatusProviderProps> = ({ children }) => {
       explorerMainnet,
       generate204API,
       generate204CbVaultsReaderAPI,
+      generate204WatchtowerAPI,
       deriveInternetReachable,
       t,
       netToast
@@ -789,6 +788,7 @@ const NetStatusProvider: React.FC<NetStatusProviderProps> = ({ children }) => {
       handleError,
       generate204API,
       generate204CbVaultsReaderAPI,
+      generate204WatchtowerAPI,
       generate204APIExternal,
       clearUpdateTimeOut,
       explorer,
@@ -822,6 +822,7 @@ const NetStatusProvider: React.FC<NetStatusProviderProps> = ({ children }) => {
         explorerMainnetReachable?: boolean;
         apiReachable?: boolean;
         cBVaultsReaderAPIReachable?: boolean;
+        watchtowerAPIReachable?: boolean;
       };
       whenToastErrors: 'ON_NEW_ERROR' | 'ON_ANY_ERROR';
       errorMessage?: string | ((message: string) => string);
@@ -864,6 +865,7 @@ const NetStatusProvider: React.FC<NetStatusProviderProps> = ({ children }) => {
               notifiedErrors: notifiedErrorsRef.current,
               apiReachable,
               cBVaultsReaderAPIReachable,
+              watchtowerAPIReachable,
               explorerReachable,
               explorerMainnetReachable,
               apiExternalReachable
@@ -938,6 +940,7 @@ const NetStatusProvider: React.FC<NetStatusProviderProps> = ({ children }) => {
       apiExternalReachable,
       apiReachable,
       cBVaultsReaderAPIReachable,
+      watchtowerAPIReachable,
       explorerReachable,
       explorerMainnetReachable
     ]
@@ -1037,6 +1040,7 @@ const NetStatusProvider: React.FC<NetStatusProviderProps> = ({ children }) => {
 
       apiReachable,
       cBVaultsReaderAPIReachable,
+      watchtowerAPIReachable,
       apiExternalReachable,
       deriveInternetReachable
     ]

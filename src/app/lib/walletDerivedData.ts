@@ -29,9 +29,6 @@ export const getAPIs = moize(
           cBVaultsReaderAPI = `${settings.COMMUNITY_BACKUPS_API}/vaults`;
           generate204API = settings.PUBLIC_GENERATE_204_API;
           generate204CbVaultsReaderAPI = `${settings.COMMUNITY_BACKUPS_API}/generate_204`;
-          generate204WatchtowerAPI = `${settings.WATCH_TOWER_API}/generate_204`;
-          generate204WatchtowerAPI = `${settings.WATCH_TOWER_API}/generate_204`;
-          generate204WatchtowerAPI = `${settings.WATCH_TOWER_API}/generate_204`;
           blockExplorerURL = settings.MAINNET_BLOCK_EXPLORER;
           break;
         case 'TESTNET':
@@ -66,7 +63,6 @@ export const getAPIs = moize(
           faucetURL = `${settings.REGTEST_API_BASE}${settings.REGTEST_WEB_SERVER_SUFFIX}`;
           generate204API = `${settings.REGTEST_API_BASE}${settings.REGTEST_GENERATE_204_API_SUFFIX}`;
           generate204CbVaultsReaderAPI = `${settings.REGTEST_API_BASE}${settings.REGTEST_COMMUNITY_BACKUPS_API_SUFFIX}/generate_204`;
-          generate204WatchtowerAPI = `${settings.WATCH_TOWER_API}/generate_204`;
           blockExplorerURL = `${settings.REGTEST_API_BASE}${settings.REGTEST_BLOCK_EXPLORER_SUFFIX}`;
           break;
         default:
@@ -85,7 +81,6 @@ export const getAPIs = moize(
       cBVaultsReaderAPI,
       generate204API,
       generate204CbVaultsReaderAPI,
-      generate204WatchtowerAPI,
       blockExplorerURL
     };
   }

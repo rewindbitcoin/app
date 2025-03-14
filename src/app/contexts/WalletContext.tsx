@@ -215,8 +215,10 @@ const WalletProviderRaw = ({
     faucetAPI,
     faucetURL,
     cBVaultsReaderAPI,
+    watchtowerAPI,
     generate204API,
     generate204CbVaultsReaderAPI,
+    generate204WatchtowerAPI,
     generate204APIExternal,
     blockExplorerURL
   } = getAPIs(networkId, settings);
