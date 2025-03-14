@@ -587,7 +587,7 @@ const SettingsScreen = () => {
               initialValue={settings.WATCH_TOWER_API}
               defaultValue={defaultSettings.WATCH_TOWER_API}
               validateValue={async (url: string) => {
-                validateCommunityBackupsAPI({
+                validateWatchTowerAPI({
                   ...settings,
                   WATCH_TOWER_API: url
                 });
