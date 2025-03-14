@@ -12,7 +12,11 @@ import {
   getHistoryData,
   TxHex
 } from '../lib/vaults';
-import { configureNotifications, registerVaultsWithWatchtower, unregisterVaultFromWatchtower } from '../lib/watchtower';
+import {
+  configureNotifications,
+  registerVaultsWithWatchtower,
+  unregisterVaultFromWatchtower
+} from '../lib/watchtower';
 import type { Accounts, Signers, Wallets } from '../lib/wallets';
 import { electrumParams, getAPIs } from '../lib/walletDerivedData';
 import { networkMapping, NetworkId } from '../lib/network';
@@ -139,26 +143,6 @@ export type WalletContextType = {
     signersCipherKey?: Uint8Array;
   }) => Promise<void>;
   isFirstLogin: boolean;
-  registerWithWatchtower: ({
-    vaults,
-    vaultsStatuses,
-    networkId,
-    whenToastErrors
-  }: {
-    vaults: Vaults;
-    vaultsStatuses: VaultsStatuses;
-    networkId: NetworkId;
-    whenToastErrors: 'ON_ANY_ERROR' | 'ON_NEW_ERROR';
-  }) => Promise<boolean | undefined>;
-  unregisterVaultFromWatchtower: ({
-    vaultId,
-    networkId,
-    whenToastErrors
-  }: {
-    vaultId: string;
-    networkId: NetworkId;
-    whenToastErrors: 'ON_ANY_ERROR' | 'ON_NEW_ERROR';
-  }) => Promise<boolean | undefined>;
 };
 
 const DEFAULT_VAULTS_STATUSES: VaultsStatuses = {};
@@ -938,7 +922,7 @@ const WalletProviderRaw = ({
   //Did the user initiated the sync (true)? ir was it a scheduled one (false)?
   const isUserTriggeredSync = useRef<boolean>(false);
   const prevAccountsSyncRef = useRef<Accounts | undefined>();
-  
+
   const registerWithWatchtower = useCallback(
     async ({
       vaults,
@@ -972,7 +956,7 @@ const WalletProviderRaw = ({
             networkTimeout
           })
       });
-      
+
       return result;
     },
     [netRequest, settings, networkTimeout, t]
@@ -1005,7 +989,7 @@ const WalletProviderRaw = ({
             networkTimeout
           })
       });
-      
+
       return result;
     },
     [netRequest, settings, networkTimeout, t]
@@ -1130,7 +1114,7 @@ const WalletProviderRaw = ({
           setSyncingBlockchain(walletId, false);
           return;
         }
-        
+
         // Register with watchtower service
         await registerWithWatchtower({
           vaults: updatedVaults,
@@ -1138,7 +1122,7 @@ const WalletProviderRaw = ({
           networkId,
           whenToastErrors
         });
-        
+
         if (walletId !== walletIdRef.current) {
           //do this after each await
           setSyncingBlockchain(walletId, false);
@@ -1442,11 +1426,11 @@ const WalletProviderRaw = ({
         //is just some initial point when opening a wallet before full sync
         setUtxosHistoryExport(vaults, newVaultsStatuses, accounts, tipHeight);
         setVaultsStatuses(newVaultsStatuses);
-        
+
         // If the vault status now has a triggerTxBlockHeight, it means the vault
         // has been triggered, so we should unregister it from the watchtower
         if (
-          vaultStatus.triggerTxBlockHeight && 
+          vaultStatus.triggerTxBlockHeight &&
           !currVaultStatus.triggerTxBlockHeight &&
           networkId
         ) {
@@ -1516,9 +1500,7 @@ const WalletProviderRaw = ({
     logOut,
     deleteWallet,
     onWallet,
-    isFirstLogin,
-    registerWithWatchtower,
-    unregisterVaultFromWatchtower
+    isFirstLogin
   };
   return (
     <WalletContext.Provider value={contextValue}>

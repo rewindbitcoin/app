@@ -1,9 +1,8 @@
 import * as Notifications from 'expo-notifications';
-import { Platform } from 'react-native';
 import Constants from 'expo-constants';
 import * as Device from 'expo-device';
 import { NetworkId } from './network';
-import { TxId, VaultStatus, Vaults, VaultsStatuses } from './vaults';
+import { TxId, Vaults, VaultsStatuses } from './vaults';
 
 // Type for the data to send to the watchtower
 export type WatchtowerRegistrationData = {
@@ -20,12 +19,12 @@ export async function configureNotifications() {
   // Request permission
   const { status: existingStatus } = await Notifications.getPermissionsAsync();
   let finalStatus = existingStatus;
-  
+
   if (existingStatus !== 'granted') {
     const { status } = await Notifications.requestPermissionsAsync();
     finalStatus = status;
   }
-  
+
   if (finalStatus !== 'granted') {
     return false;
   }
@@ -35,8 +34,8 @@ export async function configureNotifications() {
     handleNotification: async () => ({
       shouldShowAlert: true,
       shouldPlaySound: true,
-      shouldSetBadge: true,
-    }),
+      shouldSetBadge: true
+    })
   });
 
   return true;
@@ -47,21 +46,21 @@ export async function getExpoPushToken(): Promise<string | null> {
   try {
     // Get the project ID from expo-constants
     const projectId = Constants.expoConfig?.extra?.eas?.projectId;
-    
+
     if (!projectId) {
       console.warn('Project ID not found in expo-constants');
       return null;
     }
-    
+
     // Check if this is a physical device
     const isDevice = await Device.isDeviceAsync();
     if (!isDevice) {
       console.warn('Push notifications are only supported on physical devices');
       // You might still want to continue for testing purposes
     }
-    
+
     const token = await Notifications.getExpoPushTokenAsync({
-      projectId: projectId,
+      projectId: projectId
     });
     return token.data;
   } catch (error) {
@@ -87,7 +86,7 @@ export async function registerVaultsWithWatchtower({
   try {
     // Skip if watchtower API is not configured
     if (!watchtowerApi) return true;
-    
+
     // Get push token
     const pushToken = await getExpoPushToken();
     if (!pushToken) return false;
@@ -98,8 +97,8 @@ export async function registerVaultsWithWatchtower({
         const status = vaultsStatuses[vaultId];
         // Only monitor vaults that are not hidden, have a trigger tx, and are not yet triggered
         return (
-          !status?.isHidden && 
-          vault.triggerTxId && 
+          !status?.isHidden &&
+          vault.triggerTxId &&
           !status?.triggerTxBlockHeight
         );
       })
@@ -114,14 +113,14 @@ export async function registerVaultsWithWatchtower({
     // Prepare data for the watchtower
     const registrationData: WatchtowerRegistrationData = {
       pushToken,
-      vaults: vaultsToMonitor,
+      vaults: vaultsToMonitor
     };
 
     // Send data to the watchtower
     const response = await fetch(`${watchtowerApi}/register`, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
+        'Content-Type': 'application/json'
       },
       body: JSON.stringify(registrationData),
       signal: AbortSignal.timeout(networkTimeout)
@@ -153,7 +152,7 @@ export async function unregisterVaultFromWatchtower({
   try {
     // Skip if watchtower API is not configured
     if (!watchtowerApi) return true;
-    
+
     // Get push token
     const pushToken = await getExpoPushToken();
     if (!pushToken) return false;
@@ -169,14 +168,16 @@ export async function unregisterVaultFromWatchtower({
     const response = await fetch(`${watchtowerApi}/unregister`, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
+        'Content-Type': 'application/json'
       },
       body: JSON.stringify(unregisterData),
       signal: AbortSignal.timeout(networkTimeout)
     });
 
     if (!response.ok) {
-      throw new Error(`Watchtower unregistration failed: ${response.statusText}`);
+      throw new Error(
+        `Watchtower unregistration failed: ${response.statusText}`
+      );
     }
 
     return true;
