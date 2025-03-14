@@ -285,12 +285,13 @@ export default function App() {
     setErrorKey(prevErrorKey => prevErrorKey + 1);
   }, []);
 
-  // refs for notification listeners
+  // Refs for notification listeners:
+  //while the app is running
   const notificationListener = useRef<Notifications.Subscription>();
+  //when a user taps a notification
   const responseListener = useRef<Notifications.Subscription>();
 
   useEffect(() => {
-    // Set up notification listeners
     notificationListener.current =
       Notifications.addNotificationReceivedListener(notification => {
         console.log('Notification received:', notification);
@@ -301,7 +302,6 @@ export default function App() {
         console.warn('Notification response received:', response);
       });
 
-    // Clean up listeners on unmount
     return () => {
       if (notificationListener.current) {
         Notifications.removeNotificationSubscription(
