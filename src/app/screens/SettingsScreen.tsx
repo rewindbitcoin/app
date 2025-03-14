@@ -347,6 +347,23 @@ const SettingsScreen = () => {
     return t('settings.wallet.communityBackupsError');
   };
 
+  const validateWatchTowerAPI = async (settings: Settings) => {
+    const { generate204WatchtowerAPI } = getAPIs('BITCOIN', settings);
+    const networkTimeout = settings.NETWORK_TIMEOUT;
+    if (!generate204WatchtowerAPI) return t('app.unknownError');
+    try {
+      const response = await fetch(generate204WatchtowerAPI, {
+        signal: AbortSignal.timeout(networkTimeout)
+      });
+      if (response.status === 204) {
+        return true;
+      }
+    } catch (err) {
+      console.warn(err);
+    }
+    return t('settings.wallet.watchtowerApiError');
+  };
+
   const validateRegtestApiBase = async (settings: Settings) => {
     const { generate204API, faucetURL } = getAPIs('REGTEST', settings);
     const networkTimeout = settings.NETWORK_TIMEOUT;
@@ -586,12 +603,12 @@ const SettingsScreen = () => {
               label={t('settings.general.watchtowerApi')}
               initialValue={settings.WATCH_TOWER_API}
               defaultValue={defaultSettings.WATCH_TOWER_API}
-              validateValue={async (url: string) => {
+              validateValue={(url: string) =>
                 validateWatchTowerAPI({
                   ...settings,
                   WATCH_TOWER_API: url
-                });
-              }}
+                })
+              }
               onValue={(url: string) => {
                 setSettings({ ...settings, WATCH_TOWER_API: url });
               }}
