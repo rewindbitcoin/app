@@ -17,6 +17,7 @@ export const canReceiveNotifications = (): boolean => {
 // Type for the data to send to the watchtower
 export type WatchtowerRegistrationData = {
   pushToken: string;
+  walletName: string;
   vaults: Array<{
     triggerTxIds: Array<TxId>;
     vaultId: string;
