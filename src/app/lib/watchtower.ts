@@ -21,8 +21,16 @@ export type WatchtowerRegistrationData = {
   vaults: Array<{
     triggerTxIds: Array<TxId>;
     vaultId: string;
+    vaultNumber: number;
   }>;
 };
+
+// Track successful registrations to avoid redundant calls
+const successfulRegistrations: Record<string, {
+  vaultsCount: number;
+  pushToken: string;
+  walletName: string;
+}> = {};
 
 // Configure notifications
 export async function configureNotifications() {
@@ -112,6 +120,9 @@ export async function registerVaultsWithWatchtower({
     const pushToken = await getExpoPushToken();
     if (!pushToken) return false;
 
+    // Skip if watchtower API is not configured
+    if (!watchtowerAPI || watchtowerAPI === '') return true;
+    
     // Filter vaults that need monitoring (not triggered yet)
     const vaultsToMonitor: Array<{
       triggerTxIds: Array<TxId>;
@@ -154,6 +165,19 @@ export async function registerVaultsWithWatchtower({
 
     if (vaultsToMonitor.length === 0) return true; // No vaults to monitor
 
+    // Check if we've already successfully registered with the same data
+    const registrationKey = watchtowerAPI;
+    const previousRegistration = successfulRegistrations[registrationKey];
+    
+    // If we have a previous successful registration with the same data, skip
+    if (previousRegistration && 
+        previousRegistration.pushToken === pushToken &&
+        previousRegistration.walletName === walletName &&
+        previousRegistration.vaultsCount === vaultsToMonitor.length) {
+      console.log('Skipping watchtower registration - already registered in this session');
+      return true;
+    }
+
     // Prepare data for the watchtower
     const registrationData: WatchtowerRegistrationData = {
       pushToken,
@@ -174,6 +198,13 @@ export async function registerVaultsWithWatchtower({
     if (!response.ok) {
       throw new Error(`Watchtower registration failed: ${response.statusText}`);
     }
+
+    // Store successful registration
+    successfulRegistrations[registrationKey] = {
+      vaultsCount: vaultsToMonitor.length,
+      pushToken,
+      walletName
+    };
 
     return true;
   } catch (error) {
