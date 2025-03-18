@@ -4,7 +4,7 @@ import * as Notifications from 'expo-notifications';
 import Constants from 'expo-constants';
 import * as Device from 'expo-device';
 import { Platform } from 'react-native';
-import { TxId, Vaults, VaultsStatuses } from './vaults';
+import { getVaultNumber, TxId, Vaults, VaultsStatuses } from './vaults';
 
 // Check if the device can receive push notifications
 export const canReceiveNotifications = (): boolean => {
@@ -117,6 +117,7 @@ export async function registerVaultsWithWatchtower({
       triggerTxIds: Array<TxId>;
       commitment: string;
       vaultId: string;
+      vaultNumber: number;
     }> = [];
 
     // Group trigger transaction IDs by vault ID
@@ -145,7 +146,8 @@ export async function registerVaultsWithWatchtower({
           vaultsToMonitor.push({
             triggerTxIds,
             commitment: vault.vaultTxHex,
-            vaultId
+            vaultId,
+            vaultNumber: getVaultNumber(vaultId, vaults)
           });
         }
       });

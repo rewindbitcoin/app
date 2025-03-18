@@ -293,7 +293,7 @@ export const getUtxosData = memoize(
   }
 );
 
-const getVaultNumber = moize((vaultId: string, vaults: Vaults) => {
+export const getVaultNumber = moize((vaultId: string, vaults: Vaults) => {
   const sortedVaults = Object.values(vaults).sort(
     (a, b) => b.creationTime - a.creationTime
   );
