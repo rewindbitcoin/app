@@ -17,7 +17,12 @@ import {
   registerVaultsWithWatchtower,
   canReceiveNotifications
 } from '../lib/watchtower';
-import type { Accounts, Signers, Wallets } from '../lib/wallets';
+import {
+  walletTitle,
+  type Accounts,
+  type Signers,
+  type Wallets
+} from '../lib/wallets';
 import { electrumParams, getAPIs } from '../lib/walletDerivedData';
 import { networkMapping, NetworkId } from '../lib/network';
 import {
@@ -927,6 +932,9 @@ const WalletProviderRaw = ({
   const isUserTriggeredSync = useRef<boolean>(false);
   const prevAccountsSyncRef = useRef<Accounts | undefined>();
 
+  const watchTowerWalletName =
+    wallet && wallets && walletTitle(wallet, wallets, t);
+
   /**
    * Initiates the blockchain synchronization process. If netStatus has errors
    * it tries first to check the network .
@@ -948,6 +956,7 @@ const WalletProviderRaw = ({
     const network = networkId && networkMapping[networkId];
 
     if (
+      watchTowerWalletName !== undefined &&
       dataReady &&
       networkId &&
       network &&
@@ -1205,7 +1214,7 @@ const WalletProviderRaw = ({
               vaults: updatedVaults,
               vaultsStatuses: updatedVaultsStatuses,
               networkTimeout,
-              wallet
+              walletName: watchTowerWalletName
             })
         });
 
@@ -1235,6 +1244,7 @@ const WalletProviderRaw = ({
 
     setSyncingBlockchain(walletId, false);
   }, [
+    watchTowerWalletName,
     netRequest,
     netToast,
     netStatusUpdate,
