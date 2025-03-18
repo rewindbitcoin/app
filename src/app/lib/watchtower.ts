@@ -166,7 +166,9 @@ export async function registerVaultsWithWatchtower({
     if (vaultsToMonitor.length === 0) return true; // No vaults to monitor
 
     // Check if we've already successfully registered with the same data
-    const registrationKey = vaults; //FIXME: the registrationKey should be somthing unique to vaults but vaults cannot be used so perhaps a serialized vault1Id-vaultId- for all the vaults in vault can be used
+    // Create a unique key based on the watchtowerAPI and the sorted vault IDs
+    const vaultIds = Object.keys(vaults).sort().join('-');
+    const registrationKey = `${watchtowerAPI}:${vaultIds}`;
     const previousRegistration = successfulRegistrations[registrationKey];
 
     // If we have a previous successful registration with the same data, skip
