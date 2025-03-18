@@ -932,7 +932,7 @@ const WalletProviderRaw = ({
   const isUserTriggeredSync = useRef<boolean>(false);
   const prevAccountsSyncRef = useRef<Accounts | undefined>();
 
-  const watchTowerWalletName =
+  const watchtowerWalletName =
     wallet && wallets && walletTitle(wallet, wallets, t);
 
   /**
@@ -956,7 +956,7 @@ const WalletProviderRaw = ({
     const network = networkId && networkMapping[networkId];
 
     if (
-      watchTowerWalletName !== undefined &&
+      watchtowerWalletName !== undefined &&
       dataReady &&
       networkId &&
       network &&
@@ -1214,7 +1214,7 @@ const WalletProviderRaw = ({
               vaults: updatedVaults,
               vaultsStatuses: updatedVaultsStatuses,
               networkTimeout,
-              walletName: watchTowerWalletName
+              walletName: watchtowerWalletName
             })
         });
 
@@ -1244,7 +1244,7 @@ const WalletProviderRaw = ({
 
     setSyncingBlockchain(walletId, false);
   }, [
-    watchTowerWalletName,
+    watchtowerWalletName,
     netRequest,
     netToast,
     netStatusUpdate,

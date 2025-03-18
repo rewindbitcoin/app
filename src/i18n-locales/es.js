@@ -6,6 +6,9 @@ export default {
     syncP2PVaultsError: `No se pudo conectar a la red de respaldo P2P. Este problema impide sincronizar las bóvedas creadas en otros dispositivos.
 
 {{message}}`,
+    watchtowerRegistrationError: `No se pudo a la Torre de Vigilancia (watchtower). Esto impide detectar accesos a tus bóvedas y enviar alertas cuando se accede a ellas.
+
+{{message}}`,
     syncNetworkError: `Hubo un problema durante una solicitud de red al actualizar tu billetera.
 
 {{message}}`,
@@ -38,6 +41,7 @@ export default {
       'No se puede conectar a nuestros servicios. Esto afecta a las actualizaciones del precio de Bitcoin e impide operaciones con bóvedas debido a la interrupción de las copias de seguridad.',
     communityBackupsdNotReachableWarning:
       'No se puede conectar al nodo de Community Backups. Esto impide operaciones con bóvedas debido a la interrupción de las copias de seguridad.',
+    watchtowerNotReachableWarning: `No se pudo conectar a la Torre de Vigilancia (Watchtower). Esto impide el envío de alertas cuando se accede a tus bóvedas.`,
     blockchainExplorerNotReachableWarning:
       'No se puede conectar al explorador de la blockchain. Esto impide actualizar el estado de tus transacciones y acceder a información actualizada de la red Bitcoin.',
     blockchainMainnetExplorerNotReachableWarning:
@@ -669,13 +673,15 @@ Por favor, espera unos momentos hasta que se complete.`,
         'URL de Esplora inválida o el servidor está caído. Por favor, verifica la URL e inténtalo de nuevo.',
       communityBackupsError:
         'Base de la API de Community Backups no válida. Verifica la URL e inténtalo de nuevo.',
-
+      watchtowerError:
+        'Base de la API de la Torre de Vigilancia (Watchtower) no válida. Verifica la URL e inténtalo de nuevo.',
       regtestApiBaseError:
         'Base de la API de Regtest no válida. Verifica la URL e inténtalo de nuevo.'
     },
     general: {
       title: 'General',
       electrumBitcoin: 'Electrum Bitcoin',
+      watchtowerApi: 'Torre de Vigilancia (Watchtower)',
       electrumTape: 'Electrum Tape',
       electrumTestnet: 'Electrum Testnet',
       electrumRegtest: 'Electrum Regtest',

@@ -7,6 +7,9 @@ export default {
     syncP2PVaultsError: `Unable to connect to the P2P backup network. This issue prevents syncing vaults created on other devices.
 
 {{message}}`,
+    watchtowerRegistrationError: `Failed to connect to the Watchtower. This prevents detecting access to your vaults and sending alerts when they are accessed.
+
+{{message}}`,
     syncNetworkError: `There was an issue during a network request while updating your wallet.
 
 {{message}}`,
@@ -42,6 +45,7 @@ export default {
       'Unable to connect to our services. This affects Bitcoin price updates and prevents vault operations due to disrupted backups.',
     communityBackupsdNotReachableWarning:
       'Unable to connect to the Community Backups node. This prevents vault operations due to disrupted backups.',
+    watchtowerNotReachableWarning: `Unable to connect to the Watchtower. This prevents alerts from being sent when your vaults are accessed.`,
     blockchainExplorerNotReachableWarning:
       'Unable to connect to the blockchain explorer. This prevents updating the status of your transactions and accessing up-to-date information on the Bitcoin network.',
     blockchainMainnetExplorerNotReachableWarning:
@@ -770,12 +774,15 @@ Please wait a few moments until completion.`,
         'Invalid Esplora URL or server is down. Please check the URL and try again.',
       communityBackupsError:
         'Invalid Community Backups API Base. Please check the URL and try again.',
+      watchtowerError:
+        'Invalid Watchtower API Base. Please check the URL and try again.',
       regtestApiBaseError:
         'Invalid Regtest API Base. Please check the URL and try again.'
     },
     general: {
       title: 'General',
       electrumBitcoin: 'Electrum Bitcoin',
+      watchtowerApi: 'Watchtower',
       electrumTape: 'Electrum Tape',
       electrumTestnet: 'Electrum Testnet',
       electrumRegtest: 'Electrum Regtest',

@@ -361,7 +361,7 @@ const SettingsScreen = () => {
     } catch (err) {
       console.warn(err);
     }
-    return t('settings.wallet.watchtowerApiError');
+    return t('settings.wallet.watchtowerError');
   };
 
   const validateRegtestApiBase = async (settings: Settings) => {
