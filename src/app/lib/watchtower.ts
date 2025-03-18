@@ -26,14 +26,7 @@ export type WatchtowerRegistrationData = {
 };
 
 // Track successful registrations to avoid redundant calls
-const successfulRegistrations: Record<
-  string,
-  {
-    vaultsCount: number;
-    pushToken: string;
-    walletName: string;
-  }
-> = {};
+const successfulRegistrations: Record<string, boolean> = {};
 
 // Configure notifications
 export async function configureNotifications() {
@@ -171,13 +164,8 @@ export async function registerVaultsWithWatchtower({
     const registrationKey = `${watchtowerAPI}:${vaultIds}`;
     const previousRegistration = successfulRegistrations[registrationKey];
 
-    // If we have a previous successful registration with the same data, skip
-    if (
-      previousRegistration &&
-      previousRegistration.pushToken === pushToken &&
-      previousRegistration.walletName === walletName &&
-      previousRegistration.vaultsCount === vaultsToMonitor.length
-    ) {
+    // If we have a previous successful registration with the same key, skip
+    if (previousRegistration) {
       console.log(
         'Skipping watchtower registration - already registered in this session'
       );
@@ -206,11 +194,7 @@ export async function registerVaultsWithWatchtower({
     }
 
     // Store successful registration
-    successfulRegistrations[registrationKey] = {
-      vaultsCount: vaultsToMonitor.length,
-      pushToken,
-      walletName
-    };
+    successfulRegistrations[registrationKey] = true;
 
     return true;
   } catch (error) {
