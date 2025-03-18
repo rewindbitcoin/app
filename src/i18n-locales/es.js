@@ -6,7 +6,7 @@ export default {
     syncP2PVaultsError: `No se pudo conectar a la red de respaldo P2P. Este problema impide sincronizar las bóvedas creadas en otros dispositivos.
 
 {{message}}`,
-    watchtowerRegistrationError: `No se pudo a la Torre de Vigilancia (watchtower). Esto impide detectar accesos a tus bóvedas y enviar alertas cuando se accede a ellas.
+    watchtowerRegistrationError: `No se pudo conectar a la Torre de Vigilancia (Watchtower). Esto impide detectar accesos a tus bóvedas y enviar alertas cuando se accede a ellas.
 
 {{message}}`,
     syncNetworkError: `Hubo un problema durante una solicitud de red al actualizar tu billetera.
