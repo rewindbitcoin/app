@@ -165,12 +165,7 @@ export async function registerVaultsWithWatchtower({
     const previousRegistration = successfulRegistrations[registrationKey];
 
     // If we have a previous successful registration with the same key, skip
-    if (previousRegistration) {
-      console.log(
-        'Skipping watchtower registration - already registered in this session'
-      );
-      return true;
-    }
+    if (previousRegistration) return true;
 
     // Prepare data for the watchtower
     const registrationData: WatchtowerRegistrationData = {
