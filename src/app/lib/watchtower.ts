@@ -112,6 +112,7 @@ export async function registerVaultsWithWatchtower({
     // Filter vaults that need monitoring (not triggered yet)
     const vaultsToMonitor: Array<{
       triggerTxIds: Array<TxId>;
+      commitment: string;
       vaultId: string;
     }> = [];
 
@@ -140,6 +141,7 @@ export async function registerVaultsWithWatchtower({
         if (triggerTxIds.length > 0) {
           vaultsToMonitor.push({
             triggerTxIds,
+            commitment: vault.vaultTxHex,
             vaultId
           });
         }
