@@ -97,12 +97,14 @@ export async function registerVaultsWithWatchtower({
   watchtowerAPI,
   vaults,
   vaultsStatuses,
-  networkTimeout
+  networkTimeout,
+  wallet
 }: {
   watchtowerAPI: string;
   vaults: Vaults;
   vaultsStatuses: VaultsStatuses;
   networkTimeout: number;
+  wallet?: { walletName?: string };
 }): Promise<boolean> {
   try {
     // Get push token
@@ -152,6 +154,7 @@ export async function registerVaultsWithWatchtower({
     // Prepare data for the watchtower
     const registrationData: WatchtowerRegistrationData = {
       pushToken,
+      walletName: wallet?.walletName || 'Unnamed Wallet',
       vaults: vaultsToMonitor
     };
 
