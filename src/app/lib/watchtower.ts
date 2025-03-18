@@ -26,11 +26,14 @@ export type WatchtowerRegistrationData = {
 };
 
 // Track successful registrations to avoid redundant calls
-const successfulRegistrations: Record<string, {
-  vaultsCount: number;
-  pushToken: string;
-  walletName: string;
-}> = {};
+const successfulRegistrations: Record<
+  string,
+  {
+    vaultsCount: number;
+    pushToken: string;
+    walletName: string;
+  }
+> = {};
 
 // Configure notifications
 export async function configureNotifications() {
@@ -120,9 +123,6 @@ export async function registerVaultsWithWatchtower({
     const pushToken = await getExpoPushToken();
     if (!pushToken) return false;
 
-    // Skip if watchtower API is not configured
-    if (!watchtowerAPI || watchtowerAPI === '') return true;
-    
     // Filter vaults that need monitoring (not triggered yet)
     const vaultsToMonitor: Array<{
       triggerTxIds: Array<TxId>;
@@ -166,15 +166,19 @@ export async function registerVaultsWithWatchtower({
     if (vaultsToMonitor.length === 0) return true; // No vaults to monitor
 
     // Check if we've already successfully registered with the same data
-    const registrationKey = watchtowerAPI;
+    const registrationKey = vaults; //FIXME: the registrationKey should be somthing unique to vaults but vaults cannot be used so perhaps a serialized vault1Id-vaultId- for all the vaults in vault can be used
     const previousRegistration = successfulRegistrations[registrationKey];
-    
+
     // If we have a previous successful registration with the same data, skip
-    if (previousRegistration && 
-        previousRegistration.pushToken === pushToken &&
-        previousRegistration.walletName === walletName &&
-        previousRegistration.vaultsCount === vaultsToMonitor.length) {
-      console.log('Skipping watchtower registration - already registered in this session');
+    if (
+      previousRegistration &&
+      previousRegistration.pushToken === pushToken &&
+      previousRegistration.walletName === walletName &&
+      previousRegistration.vaultsCount === vaultsToMonitor.length
+    ) {
+      console.log(
+        'Skipping watchtower registration - already registered in this session'
+      );
       return true;
     }
 
