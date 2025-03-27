@@ -403,47 +403,31 @@ const SettingsScreen = () => {
       return t('app.unknownError');
 
     try {
-      try {
-        // Test HTTP services - generate204
-        const response = await fetch(generate204API, {
-          signal: AbortSignal.timeout(networkTimeout)
-        });
-
-        if (response.status !== 204) {
-          return t('settings.wallet.regtestHttpError');
-        }
-      } catch (httpErr) {
-        console.warn(httpErr);
+      // Test HTTP services - generate204
+      const response = await fetch(generate204API, {
+        signal: AbortSignal.timeout(networkTimeout)
+      });
+      if (response.status !== 204) return t('settings.wallet.regtestHttpError');
+      // Test HTTP services - faucet
+      const faucetResponse = await fetch(faucetURL, {
+        signal: AbortSignal.timeout(networkTimeout)
+      });
+      if (faucetResponse.status !== 200)
         return t('settings.wallet.regtestHttpError');
-      }
-
-      try {
-        // Test HTTP services - faucet
-        const faucetResponse = await fetch(faucetURL, {
-          signal: AbortSignal.timeout(networkTimeout)
-        });
-
-        if (faucetResponse.status !== 200) {
-          return t('settings.wallet.regtestHttpError');
-        }
-      } catch (faucetErr) {
-        console.warn(faucetErr);
-        return t('settings.wallet.regtestHttpError');
-      }
-
-      // Test Electrum connection using the existing validateExplorerURL function
-      const electrumValidation = await validateExplorerURL(
-        electrumAPI,
-        'REGTEST',
-        'electrum'
-      );
-      if (electrumValidation !== true) {
-        return t('settings.wallet.regtestElectrumError');
-      }
-    } catch (err) {
-      console.warn(err);
+    } catch (httpErr) {
+      console.warn(httpErr);
       return t('settings.wallet.regtestHttpError');
     }
+
+    // Test Electrum connection using the existing validateExplorerURL function
+    const electrumValidation = await validateExplorerURL(
+      electrumAPI,
+      'REGTEST',
+      'electrum'
+    );
+    if (electrumValidation !== true)
+      return t('settings.wallet.regtestElectrumError');
+
     return true;
   };
 
