@@ -72,7 +72,7 @@ export const getAPIs = moize(
           faucetURL = `${settings.REGTEST_API_BASE}${settings.REGTEST_WEB_SERVER_SUFFIX}`;
           generate204API = `${settings.REGTEST_API_BASE}${settings.REGTEST_GENERATE_204_API_SUFFIX}`;
           generate204CbVaultsReaderAPI = `${settings.REGTEST_API_BASE}${settings.REGTEST_COMMUNITY_BACKUPS_API_SUFFIX}/generate_204`;
-          generate204WatchtowerAPI = `${settings.REGTEST_API_BASE}${settings.REGTEST_WATCH_TOWER_API_SUFFIX}/enerate_204`;
+          generate204WatchtowerAPI = `${settings.REGTEST_API_BASE}${settings.REGTEST_WATCH_TOWER_API_SUFFIX}/generate_204`;
           blockExplorerURL = `${settings.REGTEST_API_BASE}${settings.REGTEST_BLOCK_EXPLORER_SUFFIX}`;
           break;
         default:

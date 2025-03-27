@@ -245,3 +245,7 @@ npx expo prebuild
 
 read this too in cause of trouble:
 <https://expo.canny.io/feature-requests/p/support-raw-tcp-sockets>
+
+## push notifications setup:
+https://docs.expo.dev/push-notifications/push-notifications-setup/
+  -> Android: https://docs.expo.dev/push-notifications/fcm-credentials/

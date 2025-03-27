@@ -98,6 +98,11 @@ export async function getExpoPushToken(): Promise<string | null> {
 }
 
 // Register vaults with the watchtower service
+// FIXME: this returning false is wrong, it shoudl throw
+//so I can then correctly report then in netRequest
+//FIXME: only call this if getExpoPushToken returns something, in fact
+//pass it as param. It may be the case the user never accepted push notifications
+//thwn warn the user or soimething.
 export async function registerVaultsWithWatchtower({
   watchtowerAPI,
   vaults,
@@ -162,10 +167,9 @@ export async function registerVaultsWithWatchtower({
     // Create a unique key based on the watchtowerAPI and the sorted vault IDs
     const vaultIds = Object.keys(vaults).sort().join('-');
     const registrationKey = `${watchtowerAPI}:${vaultIds}`;
-    const previousRegistration = successfulRegistrations[registrationKey];
 
     // If we have a previous successful registration with the same key, skip
-    if (previousRegistration) return true;
+    if (successfulRegistrations[registrationKey]) return true;
 
     // Prepare data for the watchtower
     const registrationData: WatchtowerRegistrationData = {
@@ -184,8 +188,13 @@ export async function registerVaultsWithWatchtower({
       signal: AbortSignal.timeout(networkTimeout)
     });
 
+    //FIXME: remove traces
+    console.log('TRACE', watchtowerAPI, JSON.stringify(response, null, 2));
+
     if (!response.ok) {
-      throw new Error(`Watchtower registration failed: ${response.statusText}`);
+      throw new Error(
+        `Watchtower registration failed (${response.status}): ${response.statusText}`
+      );
     }
 
     // Store successful registration
