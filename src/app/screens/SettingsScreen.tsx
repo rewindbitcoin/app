@@ -396,19 +396,9 @@ const SettingsScreen = () => {
         return t('settings.wallet.regtestFaucetError');
       }
 
-      // Test Electrum connection
-      const network = networkMapping['REGTEST'];
-      const electrumExplorer = new ElectrumExplorer({
-        network,
-        ...electrumParams(electrumAPI)
-      });
-
-      await electrumExplorer.connect();
-      const isElectrumConnected = await electrumExplorer.isConnected();
-      electrumExplorer.close();
-
-      if (!isElectrumConnected) {
-        console.warn(`Electrum server ${electrumAPI} is not connected`);
+      // Test Electrum connection using the existing validateExplorerURL function
+      const electrumValidation = await validateExplorerURL(electrumAPI, 'REGTEST', 'electrum');
+      if (electrumValidation !== true) {
         return t('settings.wallet.regtestElectrumError');
       }
 
