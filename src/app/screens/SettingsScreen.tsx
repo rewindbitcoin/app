@@ -366,14 +366,21 @@ const SettingsScreen = () => {
 
   const validateRegtestHostName = async (settings: Settings) => {
     try {
-      // Test HTTP services
-      const regtestBaseUrl = `${settings.REGTEST_PROTOCOL}://${settings.REGTEST_HOST_NAME}`;
-      const generate204Url = `${regtestBaseUrl}${settings.REGTEST_GENERATE_204_API_SUFFIX}`;
-      const faucetUrl = `${regtestBaseUrl}${settings.REGTEST_WEB_SERVER_SUFFIX}`;
+      // Get all APIs using the candidate settings
+      const {
+        generate204API,
+        faucetURL,
+        electrumAPI
+      } = getAPIs('REGTEST', settings);
+
+      if (!generate204API || !faucetURL || !electrumAPI) {
+        return t('app.unknownError');
+      }
 
       const networkTimeout = settings.NETWORK_TIMEOUT;
 
-      const response = await fetch(generate204Url, {
+      // Test HTTP services - generate204
+      const response = await fetch(generate204API, {
         signal: AbortSignal.timeout(networkTimeout)
       });
 
@@ -381,7 +388,8 @@ const SettingsScreen = () => {
         return t('settings.wallet.regtestHttpError');
       }
 
-      const faucetResponse = await fetch(faucetUrl, {
+      // Test HTTP services - faucet
+      const faucetResponse = await fetch(faucetURL, {
         signal: AbortSignal.timeout(networkTimeout)
       });
 
@@ -390,9 +398,6 @@ const SettingsScreen = () => {
       }
 
       // Test Electrum connection
-      const regtestElectrumBaseUrl = `${settings.REGTEST_ELECTRUM_PROTOCOL}://${settings.REGTEST_HOST_NAME}`;
-      const electrumAPI = `${regtestElectrumBaseUrl}${settings.REGTEST_ELECTRUM_API_SUFFIX}`;
-
       const network = networkMapping['REGTEST'];
       const electrumExplorer = new ElectrumExplorer({
         network,
