@@ -379,6 +379,7 @@ const WalletProviderRaw = ({
   const netReady =
     apiReachable &&
     explorerReachable &&
+    //FIXME: watchtower ???
     (networkId !== 'TAPE' || explorerMainnetReachable);
 
   useEffect(() => {

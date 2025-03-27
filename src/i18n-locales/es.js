@@ -695,7 +695,7 @@ Por favor, espera unos momentos hasta que se complete.`,
       communityBackups: 'Community Backups',
       regtestHostName: 'Host de Regtest',
       gapLimit: 'Límite de Exploración (Gap Limit)',
-      currency: 'Moneda Preferida',
+      currency: 'Moneda',
       language: 'Idioma',
       systemDefault: 'Predeterminado del Sistema',
       languageNames: {
