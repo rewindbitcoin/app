@@ -366,12 +366,11 @@ const SettingsScreen = () => {
 
   const validateRegtestHostName = async (settings: Settings) => {
     try {
-      // Get all APIs using the candidate settings
-      const {
-        generate204API,
-        faucetURL,
-        electrumAPI
-      } = getAPIs('REGTEST', settings);
+      // Get APIs using the candidate settings
+      const { generate204API, faucetURL, electrumAPI } = getAPIs(
+        'REGTEST',
+        settings
+      );
 
       if (!generate204API || !faucetURL || !electrumAPI) {
         return t('app.unknownError');
