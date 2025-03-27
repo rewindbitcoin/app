@@ -774,10 +774,12 @@ Please wait a few moments until completion.`,
         'Invalid Esplora URL or server is down. Please check the URL and try again.',
       communityBackupsError:
         'Invalid Community Backups API Base. Please check the URL and try again.',
+      regtestHttpError:
+        'Invalid Regtest HTTP connection. Please check the host name and try again.',
+      regtestElectrumError:
+        'Invalid Regtest Electrum connection. Please check the host name and try again.',
       watchtowerError:
-        'Invalid Watchtower API Base. Please check the URL and try again.',
-      regtestApiBaseError:
-        'Invalid Regtest API Base. Please check the URL and try again.'
+        'Invalid Watchtower API Base. Please check the URL and try again.'
     },
     general: {
       title: 'General',
@@ -790,7 +792,7 @@ Please wait a few moments until completion.`,
       esploraTape: 'Esplora Tape',
       esploraTestnet: 'Esplora Testnet',
       communityBackups: 'Community Backups',
-      regtestApiBase: 'Regtest API Base',
+      regtestHostName: 'Regtest Host Name',
       gapLimit: 'Gap Limit',
       currency: 'Preferred Currency',
       language: 'Language',

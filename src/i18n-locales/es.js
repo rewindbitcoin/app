@@ -619,7 +619,7 @@ La cámara se usa para escanear códigos QR que contienen direcciones Bitcoin.`,
       'Alinea el código QR dentro del marco para escanear la dirección Bitcoin.'
   },
   settings: {
-    defaultButton: 'Restablecer valores predeterminados',
+    defaultButton: 'Restablecer predeterminados',
     resetToDefaults: 'Restablecer toda la configuración',
     resetToDefaultsTitle: 'Restablecer Configuración',
     resetToDefaultsConfirm:
@@ -673,10 +673,12 @@ Por favor, espera unos momentos hasta que se complete.`,
         'URL de Esplora inválida o el servidor está caído. Por favor, verifica la URL e inténtalo de nuevo.',
       communityBackupsError:
         'Base de la API de Community Backups no válida. Verifica la URL e inténtalo de nuevo.',
+      regtestHttpError:
+        'Conexión HTTP de la Regtest no válida. Verifica el nombre del host e inténtalo de nuevo.',
+      regtestElectrumError:
+        'Conexión Electrum de la Regtest no válida. Verifica el nombre del host e inténtalo de nuevo.',
       watchtowerError:
-        'Base de la API de la Torre de Vigilancia (Watchtower) no válida. Verifica la URL e inténtalo de nuevo.',
-      regtestApiBaseError:
-        'Base de la API de Regtest no válida. Verifica la URL e inténtalo de nuevo.'
+        'Base de la API de la Torre de Vigilancia (Watchtower) no válida. Verifica la URL e inténtalo de nuevo.'
     },
     general: {
       title: 'General',
@@ -689,7 +691,7 @@ Por favor, espera unos momentos hasta que se complete.`,
       esploraTape: 'Esplora Tape',
       esploraTestnet: 'Esplora Testnet',
       communityBackups: 'Community Backups',
-      regtestApiBase: 'Base de la API de la Regtest',
+      regtestHostName: 'Host de la Regtest',
       gapLimit: 'Límite de Exploración (Gap Limit)',
       currency: 'Moneda Preferida',
       language: 'Idioma',

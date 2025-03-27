@@ -364,51 +364,6 @@ const SettingsScreen = () => {
     return t('settings.wallet.watchtowerError');
   };
 
-  const validateRegtestHostName = async (settings: Settings) => {
-    try {
-      // Get APIs using the candidate settings
-      const { generate204API, faucetURL, electrumAPI } = getAPIs(
-        'REGTEST',
-        settings
-      );
-
-      if (!generate204API || !faucetURL || !electrumAPI) {
-        return t('app.unknownError');
-      }
-
-      const networkTimeout = settings.NETWORK_TIMEOUT;
-
-      // Test HTTP services - generate204
-      const response = await fetch(generate204API, {
-        signal: AbortSignal.timeout(networkTimeout)
-      });
-
-      if (response.status !== 204) {
-        return t('settings.wallet.regtestHttpError');
-      }
-
-      // Test HTTP services - faucet
-      const faucetResponse = await fetch(faucetURL, {
-        signal: AbortSignal.timeout(networkTimeout)
-      });
-
-      if (faucetResponse.status !== 200) {
-        return t('settings.wallet.regtestFaucetError');
-      }
-
-      // Test Electrum connection using the existing validateExplorerURL function
-      const electrumValidation = await validateExplorerURL(electrumAPI, 'REGTEST', 'electrum');
-      if (electrumValidation !== true) {
-        return t('settings.wallet.regtestElectrumError');
-      }
-
-      return true;
-    } catch (err) {
-      console.warn(err);
-      return t('settings.wallet.regtestConnectionError');
-    }
-  };
-
   const validateExplorerURL = async (
     url: string,
     networkId: NetworkId,
@@ -435,6 +390,51 @@ const SettingsScreen = () => {
         ? 'settings.wallet.electrumError'
         : 'settings.wallet.esploraError'
     );
+  };
+
+  const validateRegtestHostName = async (settings: Settings) => {
+    // Get APIs using the candidate settings
+    const { generate204API, faucetURL, electrumAPI } = getAPIs(
+      'REGTEST',
+      settings
+    );
+    const networkTimeout = settings.NETWORK_TIMEOUT;
+    if (!generate204API || !faucetURL || !electrumAPI)
+      return t('app.unknownError');
+
+    try {
+      // Test HTTP services - generate204
+      const response = await fetch(generate204API, {
+        signal: AbortSignal.timeout(networkTimeout)
+      });
+
+      if (response.status !== 204) {
+        return t('settings.wallet.regtestHttpError');
+      }
+
+      // Test HTTP services - faucet
+      const faucetResponse = await fetch(faucetURL, {
+        signal: AbortSignal.timeout(networkTimeout)
+      });
+
+      if (faucetResponse.status !== 200) {
+        return t('settings.wallet.regtestHttpError');
+      }
+
+      // Test Electrum connection using the existing validateExplorerURL function
+      const electrumValidation = await validateExplorerURL(
+        electrumAPI,
+        'REGTEST',
+        'electrum'
+      );
+      if (electrumValidation !== true) {
+        return t('settings.wallet.regtestElectrumError');
+      }
+    } catch (err) {
+      console.warn(err);
+      return t('app.unknownError');
+    }
+    return true;
   };
 
   // Fix for Android placeholder text breaking into multiple lines after text deletion
