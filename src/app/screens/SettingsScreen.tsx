@@ -370,44 +370,44 @@ const SettingsScreen = () => {
       const regtestBaseUrl = `${settings.REGTEST_PROTOCOL}://${settings.REGTEST_HOST_NAME}`;
       const generate204Url = `${regtestBaseUrl}${settings.REGTEST_GENERATE_204_API_SUFFIX}`;
       const faucetUrl = `${regtestBaseUrl}${settings.REGTEST_WEB_SERVER_SUFFIX}`;
-      
+
       const networkTimeout = settings.NETWORK_TIMEOUT;
-      
+
       const response = await fetch(generate204Url, {
         signal: AbortSignal.timeout(networkTimeout)
       });
-      
+
       if (response.status !== 204) {
         return t('settings.wallet.regtestHttpError');
       }
-      
+
       const faucetResponse = await fetch(faucetUrl, {
         signal: AbortSignal.timeout(networkTimeout)
       });
-      
+
       if (faucetResponse.status !== 200) {
         return t('settings.wallet.regtestFaucetError');
       }
-      
+
       // Test Electrum connection
       const regtestElectrumBaseUrl = `${settings.REGTEST_ELECTRUM_PROTOCOL}://${settings.REGTEST_HOST_NAME}`;
       const electrumAPI = `${regtestElectrumBaseUrl}${settings.REGTEST_ELECTRUM_API_SUFFIX}`;
-      
+
       const network = networkMapping['REGTEST'];
-      const electrumExplorer = new ElectrumExplorer({ 
-        network, 
-        ...electrumParams(electrumAPI) 
+      const electrumExplorer = new ElectrumExplorer({
+        network,
+        ...electrumParams(electrumAPI)
       });
-      
+
       await electrumExplorer.connect();
       const isElectrumConnected = await electrumExplorer.isConnected();
       electrumExplorer.close();
-      
+
       if (!isElectrumConnected) {
         console.warn(`Electrum server ${electrumAPI} is not connected`);
         return t('settings.wallet.regtestElectrumError');
       }
-      
+
       return true;
     } catch (err) {
       console.warn(err);

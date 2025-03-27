@@ -21,7 +21,10 @@ export const getAPIs = moize(
     let generate204CbVaultsReaderAPI: string | undefined;
     let generate204WatchtowerAPI: string | undefined;
     let blockExplorerURL: string | undefined;
-    if (networkId && settings)
+    if (networkId && settings) {
+      const regtestBaseUrl = `${settings.REGTEST_PROTOCOL}://${settings.REGTEST_HOST_NAME}`;
+      const regtestElectrumBaseUrl = `${settings.REGTEST_ELECTRUM_PROTOCOL}://${settings.REGTEST_HOST_NAME}`;
+
       switch (networkId) {
         case 'BITCOIN':
           esploraAPI = settings.MAINNET_ESPLORA_API;
@@ -62,13 +65,9 @@ export const getAPIs = moize(
           blockExplorerURL = settings.TAPE_BLOCK_EXPLORER;
           break;
         case 'REGTEST':
-          // Construct base URLs for different protocols
-          const regtestBaseUrl = `${settings.REGTEST_PROTOCOL}://${settings.REGTEST_HOST_NAME}`;
-          const regtestElectrumBaseUrl = `${settings.REGTEST_ELECTRUM_PROTOCOL}://${settings.REGTEST_HOST_NAME}`;
-          
           // Construct all API endpoints
-          esploraAPI = `${regtestBaseUrl}${settings.REGTEST_ESPLORA_API_SUFFIX}`;
           electrumAPI = `${regtestElectrumBaseUrl}${settings.REGTEST_ELECTRUM_API_SUFFIX}`;
+          esploraAPI = `${regtestBaseUrl}${settings.REGTEST_ESPLORA_API_SUFFIX}`;
           serviceAddressAPI = `${regtestBaseUrl}${settings.REGTEST_SERVICE_ADDRESS_API_SUFFIX}`;
           cBVaultsWriterAPI = `${regtestBaseUrl}${settings.REGTEST_COMMUNITY_BACKUPS_WRITER_API_SUFFIX}`;
           cBVaultsReaderAPI = `${regtestBaseUrl}${settings.REGTEST_COMMUNITY_BACKUPS_API_SUFFIX}/regtest/vaults`;
@@ -83,6 +82,7 @@ export const getAPIs = moize(
         default:
           throw new Error(`networkId ${networkId} not supported.`);
       }
+    }
     return {
       generate204APIExternal: settings?.EXTERNAL_GENERATE_204,
       faucetAPI,
