@@ -627,7 +627,7 @@ La cámara se usa para escanear códigos QR que contienen direcciones Bitcoin.`,
     resetButton: 'Restablecer',
     wallet: {
       name: 'Nombre',
-      export: 'Exportar Descriptores y Bóvedas',
+      export: 'Exportar Billetera',
       exportProgress: 'Empaquetando...',
       recoveryPhrase: 'Frase de Recuperación',
       showRecoveryPhrase: 'Mostrar Frase de Recuperación',
@@ -673,6 +673,8 @@ Por favor, espera unos momentos hasta que se complete.`,
         'URL de Esplora inválida o el servidor está caído. Por favor, verifica la URL e inténtalo de nuevo.',
       communityBackupsError:
         'Base de la API de Community Backups no válida. Verifica la URL e inténtalo de nuevo.',
+      regtestHostNameFormatError:
+        'Formato no válido. Por favor, ingrese solo un nombre de host o dirección IP sin protocolo (http://, ssl://, etc.), puerto (:8080) o ruta (/api).',
       regtestHttpError:
         'Conexión HTTP de la Regtest no válida. Verifica el nombre del host e inténtalo de nuevo.',
       regtestElectrumError:
@@ -691,7 +693,7 @@ Por favor, espera unos momentos hasta que se complete.`,
       esploraTape: 'Esplora Tape',
       esploraTestnet: 'Esplora Testnet',
       communityBackups: 'Community Backups',
-      regtestHostName: 'Host de la Regtest',
+      regtestHostName: 'Host de Regtest',
       gapLimit: 'Límite de Exploración (Gap Limit)',
       currency: 'Moneda Preferida',
       language: 'Idioma',
