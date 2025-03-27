@@ -364,26 +364,55 @@ const SettingsScreen = () => {
     return t('settings.wallet.watchtowerError');
   };
 
-  const validateRegtestApiBase = async (settings: Settings) => {
-    const { generate204API, faucetURL } = getAPIs('REGTEST', settings);
-    const networkTimeout = settings.NETWORK_TIMEOUT;
-    if (!generate204API || !faucetURL) return t('app.unknownError');
+  const validateRegtestHostName = async (settings: Settings) => {
     try {
-      const response = await fetch(generate204API, {
+      // Test HTTP services
+      const regtestBaseUrl = `${settings.REGTEST_PROTOCOL}://${settings.REGTEST_HOST_NAME}`;
+      const generate204Url = `${regtestBaseUrl}${settings.REGTEST_GENERATE_204_API_SUFFIX}`;
+      const faucetUrl = `${regtestBaseUrl}${settings.REGTEST_WEB_SERVER_SUFFIX}`;
+      
+      const networkTimeout = settings.NETWORK_TIMEOUT;
+      
+      const response = await fetch(generate204Url, {
         signal: AbortSignal.timeout(networkTimeout)
       });
-      if (response.status === 204) {
-        const response = await fetch(faucetURL, {
-          signal: AbortSignal.timeout(networkTimeout)
-        });
-        if (response.status === 200) {
-          return true;
-        }
+      
+      if (response.status !== 204) {
+        return t('settings.wallet.regtestHttpError');
       }
+      
+      const faucetResponse = await fetch(faucetUrl, {
+        signal: AbortSignal.timeout(networkTimeout)
+      });
+      
+      if (faucetResponse.status !== 200) {
+        return t('settings.wallet.regtestFaucetError');
+      }
+      
+      // Test Electrum connection
+      const regtestElectrumBaseUrl = `${settings.REGTEST_ELECTRUM_PROTOCOL}://${settings.REGTEST_HOST_NAME}`;
+      const electrumAPI = `${regtestElectrumBaseUrl}${settings.REGTEST_ELECTRUM_API_SUFFIX}`;
+      
+      const network = networkMapping['REGTEST'];
+      const electrumExplorer = new ElectrumExplorer({ 
+        network, 
+        ...electrumParams(electrumAPI) 
+      });
+      
+      await electrumExplorer.connect();
+      const isElectrumConnected = await electrumExplorer.isConnected();
+      electrumExplorer.close();
+      
+      if (!isElectrumConnected) {
+        console.warn(`Electrum server ${electrumAPI} is not connected`);
+        return t('settings.wallet.regtestElectrumError');
+      }
+      
+      return true;
     } catch (err) {
       console.warn(err);
+      return t('settings.wallet.regtestConnectionError');
     }
-    return t('settings.wallet.regtestApiBaseError');
   };
 
   const validateExplorerURL = async (
@@ -714,22 +743,6 @@ const SettingsScreen = () => {
                     setSettings({ ...settings, TESTNET_ELECTRUM_API: url });
                   }}
                 />
-                <SettingsItem
-                  icon={{
-                    family: 'Ionicons',
-                    name: 'logo-electron'
-                  }}
-                  maxLength={URL_MAX_LENGTH}
-                  label={t('settings.general.electrumRegtest')}
-                  initialValue={settings.REGTEST_ELECTRUM_API}
-                  defaultValue={defaultSettings.REGTEST_ELECTRUM_API}
-                  validateValue={(url: string) =>
-                    validateExplorerURL(url, 'REGTEST', 'electrum')
-                  }
-                  onValue={(url: string) => {
-                    setSettings({ ...settings, REGTEST_ELECTRUM_API: url });
-                  }}
-                />
               </>
             )}
             <SettingsItem
@@ -738,18 +751,18 @@ const SettingsScreen = () => {
                 family: 'Ionicons',
                 name: 'flask'
               }}
-              maxLength={URL_MAX_LENGTH}
-              label={t('settings.general.regtestApiBase')}
-              initialValue={settings.REGTEST_API_BASE}
-              defaultValue={defaultSettings.REGTEST_API_BASE}
-              validateValue={(url: string) =>
-                validateRegtestApiBase({
+              maxLength={NAME_MAX_LENGTH}
+              label={t('settings.general.regtestHostName')}
+              initialValue={settings.REGTEST_HOST_NAME}
+              defaultValue={defaultSettings.REGTEST_HOST_NAME}
+              validateValue={(hostname: string) =>
+                validateRegtestHostName({
                   ...settings,
-                  REGTEST_API_BASE: url
+                  REGTEST_HOST_NAME: hostname
                 })
               }
-              onValue={(url: string) => {
-                setSettings({ ...settings, REGTEST_API_BASE: url });
+              onValue={(hostname: string) => {
+                setSettings({ ...settings, REGTEST_HOST_NAME: hostname });
               }}
             />
           </View>

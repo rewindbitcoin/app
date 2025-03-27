@@ -62,18 +62,23 @@ export const getAPIs = moize(
           blockExplorerURL = settings.TAPE_BLOCK_EXPLORER;
           break;
         case 'REGTEST':
-          esploraAPI = `${settings.REGTEST_API_BASE}${settings.REGTEST_ESPLORA_API_SUFFIX}`;
-          electrumAPI = settings.REGTEST_ELECTRUM_API;
-          serviceAddressAPI = `${settings.REGTEST_API_BASE}${settings.REGTEST_SERVICE_ADDRESS_API_SUFFIX}`;
-          cBVaultsWriterAPI = `${settings.REGTEST_API_BASE}${settings.REGTEST_COMMUNITY_BACKUPS_WRITER_API_SUFFIX}`;
-          cBVaultsReaderAPI = `${settings.REGTEST_API_BASE}${settings.REGTEST_COMMUNITY_BACKUPS_API_SUFFIX}/regtest/vaults`;
-          watchtowerAPI = `${settings.REGTEST_API_BASE}${settings.REGTEST_WATCH_TOWER_API_SUFFIX}/regtest/watchtower`;
-          faucetAPI = `${settings.REGTEST_API_BASE}${settings.REGTEST_WEB_SERVER_SUFFIX}/faucet`;
-          faucetURL = `${settings.REGTEST_API_BASE}${settings.REGTEST_WEB_SERVER_SUFFIX}`;
-          generate204API = `${settings.REGTEST_API_BASE}${settings.REGTEST_GENERATE_204_API_SUFFIX}`;
-          generate204CbVaultsReaderAPI = `${settings.REGTEST_API_BASE}${settings.REGTEST_COMMUNITY_BACKUPS_API_SUFFIX}/generate_204`;
-          generate204WatchtowerAPI = `${settings.REGTEST_API_BASE}${settings.REGTEST_WATCH_TOWER_API_SUFFIX}/generate_204`;
-          blockExplorerURL = `${settings.REGTEST_API_BASE}${settings.REGTEST_BLOCK_EXPLORER_SUFFIX}`;
+          // Construct base URLs for different protocols
+          const regtestBaseUrl = `${settings.REGTEST_PROTOCOL}://${settings.REGTEST_HOST_NAME}`;
+          const regtestElectrumBaseUrl = `${settings.REGTEST_ELECTRUM_PROTOCOL}://${settings.REGTEST_HOST_NAME}`;
+          
+          // Construct all API endpoints
+          esploraAPI = `${regtestBaseUrl}${settings.REGTEST_ESPLORA_API_SUFFIX}`;
+          electrumAPI = `${regtestElectrumBaseUrl}${settings.REGTEST_ELECTRUM_API_SUFFIX}`;
+          serviceAddressAPI = `${regtestBaseUrl}${settings.REGTEST_SERVICE_ADDRESS_API_SUFFIX}`;
+          cBVaultsWriterAPI = `${regtestBaseUrl}${settings.REGTEST_COMMUNITY_BACKUPS_WRITER_API_SUFFIX}`;
+          cBVaultsReaderAPI = `${regtestBaseUrl}${settings.REGTEST_COMMUNITY_BACKUPS_API_SUFFIX}/regtest/vaults`;
+          watchtowerAPI = `${regtestBaseUrl}${settings.REGTEST_WATCH_TOWER_API_SUFFIX}/regtest/watchtower`;
+          faucetAPI = `${regtestBaseUrl}${settings.REGTEST_WEB_SERVER_SUFFIX}/faucet`;
+          faucetURL = `${regtestBaseUrl}${settings.REGTEST_WEB_SERVER_SUFFIX}`;
+          generate204API = `${regtestBaseUrl}${settings.REGTEST_GENERATE_204_API_SUFFIX}`;
+          generate204CbVaultsReaderAPI = `${regtestBaseUrl}${settings.REGTEST_COMMUNITY_BACKUPS_API_SUFFIX}/generate_204`;
+          generate204WatchtowerAPI = `${regtestBaseUrl}${settings.REGTEST_WATCH_TOWER_API_SUFFIX}/generate_204`;
+          blockExplorerURL = `${regtestBaseUrl}${settings.REGTEST_BLOCK_EXPLORER_SUFFIX}`;
           break;
         default:
           throw new Error(`networkId ${networkId} not supported.`);
