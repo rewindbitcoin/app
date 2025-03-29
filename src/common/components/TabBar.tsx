@@ -66,11 +66,13 @@ const TabBar = ({
         const initialTab = tabs[activeTabIndex];
         if (initialTab === undefined) throw new Error('Invalid initial tab');
 
-        updateActiveTab(initialTab);
+        // Set initial position without animation
+        underlineTranslateX.setValue(x);
+        underlineScaleX.setValue(width);
         isInit.current = true;
       }
     },
-    [activeTabIndex, tabs, updateActiveTab]
+    [activeTabIndex, tabs, underlineTranslateX, underlineScaleX]
   );
 
   return (
