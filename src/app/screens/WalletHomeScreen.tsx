@@ -139,7 +139,8 @@ const WalletHomeScreen = () => {
   );
 
   const faucetPending = useFaucet();
-  const syncingOrFaucetPending: boolean = syncingBlockchain || faucetPending;
+  const syncingOrFaucetPendingOrExplorerConnecting: boolean =
+    syncingBlockchain || faucetPending || explorerReachable === undefined;
 
   const title =
     !wallet || !wallets
@@ -156,23 +157,29 @@ const WalletHomeScreen = () => {
         <View className="flex-row justify-between gap-5 items-center">
           <Pressable
             hitSlop={10}
-            onPress={syncingOrFaucetPending ? undefined : syncBlockchain}
-            className={`${!syncingOrFaucetPending ? 'hover:opacity-90' : ''} active:scale-95 active:opacity-90 ${
-              syncingOrFaucetPending && userTriggeredRefresh //if the user triggered, then we show the native RefreshControl and therefore no need to make this so prominent
+            onPress={
+              syncingOrFaucetPendingOrExplorerConnecting
+                ? undefined
+                : syncBlockchain
+            }
+            className={`${!syncingOrFaucetPendingOrExplorerConnecting ? 'hover:opacity-90' : ''} active:scale-95 active:opacity-90 ${
+              syncingOrFaucetPendingOrExplorerConnecting && userTriggeredRefresh //if the user triggered, then we show the native RefreshControl and therefore no need to make this so prominent
                 ? 'opacity-20 cursor-default'
                 : 'opacity-100'
             }`}
           >
             <AntDesign
               name={
-                (!hasTouch || !userTriggeredRefresh) && syncingOrFaucetPending
+                (!hasTouch || !userTriggeredRefresh) &&
+                syncingOrFaucetPendingOrExplorerConnecting
                   ? 'loading1'
                   : 'reload1'
               }
               size={17}
               color={theme.colors.primary}
               className={
-                (!hasTouch || !userTriggeredRefresh) && syncingOrFaucetPending
+                (!hasTouch || !userTriggeredRefresh) &&
+                syncingOrFaucetPendingOrExplorerConnecting
                   ? 'animate-spin'
                   : 'animate-none'
               }
@@ -198,7 +205,7 @@ const WalletHomeScreen = () => {
       title,
       syncBlockchain,
       userTriggeredRefresh,
-      syncingOrFaucetPending,
+      syncingOrFaucetPendingOrExplorerConnecting,
       navigation
     ]
   );
@@ -275,20 +282,29 @@ const WalletHomeScreen = () => {
     //In addition: isFocused prevents this error on iOS
     //https://github.com/facebook/react-native/issues/32613
     //https://www.reddit.com/r/reactnative/comments/x7ygwg/flatlist_refresh_indicator_freeze/
-    return hasTouch && isMounted ? (
+    //only let pull-2-refresh when explorer is known to fail or is ok.
+    //Dont let pull to refresh while undefined (unknown status) since it's
+    //already initalizing and after initialize it will start the sync
+    //automatically already
+    return hasTouch && isMounted && explorerReachable !== undefined ? (
       <RefreshControl
         tintColor={lighten(0.25, theme.colors.primary)}
         colors={refreshColors}
-        refreshing={syncingOrFaucetPending && isFocused && userTriggeredRefresh}
+        refreshing={
+          syncingOrFaucetPendingOrExplorerConnecting &&
+          isFocused &&
+          userTriggeredRefresh
+        }
         onRefresh={onRefresh}
       />
     ) : undefined;
   }, [
+    explorerReachable,
     isFocused,
     isMounted,
     refreshColors,
     onRefresh,
-    syncingOrFaucetPending,
+    syncingOrFaucetPendingOrExplorerConnecting,
     userTriggeredRefresh,
     theme.colors.primary
   ]);

@@ -379,7 +379,6 @@ const WalletProviderRaw = ({
   const netReady =
     apiReachable &&
     explorerReachable &&
-    //FIXME: watchtower ???
     (networkId !== 'TAPE' || explorerMainnetReachable);
 
   useEffect(() => {
@@ -1003,8 +1002,12 @@ const WalletProviderRaw = ({
         //to update internal states, which will need to be ready for the netRequest
         //calls below:
         await new Promise(resolve => setTimeout(resolve, 100));
-        if (!ns?.explorerReachable || walletId !== walletIdRef.current) {
+        if (walletId !== walletIdRef.current) {
           //do this after each await
+          setSyncingBlockchain(walletId, false);
+          return;
+        }
+        if (!ns?.explorerReachable) {
           //also don't continue if explorer is not reachable
           setSyncingBlockchain(walletId, false);
           return;
@@ -1028,8 +1031,12 @@ const WalletProviderRaw = ({
         }
         const updatedTipHeight = (await updateTipStatus({ whenToastErrors }))
           ?.blockHeight;
-        if (walletId !== walletIdRef.current || !updatedTipHeight) {
+        if (walletId !== walletIdRef.current) {
           //do this after each await
+          setSyncingBlockchain(walletId, false);
+          return;
+        }
+        if (!updatedTipHeight) {
           //also don't continue if we cannot get a valid updatedTipHeight
           setSyncingBlockchain(walletId, false);
           return;
@@ -1084,8 +1091,12 @@ const WalletProviderRaw = ({
               discovery.getExplorer()
             )
         });
-        if (walletId !== walletIdRef.current || !freshVaultsStatuses) {
+        if (walletId !== walletIdRef.current) {
           //do this after each await
+          setSyncingBlockchain(walletId, false);
+          return;
+        }
+        if (!freshVaultsStatuses) {
           //also don't continue if fetching vaults statuses failed as this would
           //create unsynched vaults & vaultsStatuses
           setSyncingBlockchain(walletId, false);
@@ -1131,11 +1142,12 @@ const WalletProviderRaw = ({
                   gapLimit
                 })
             });
-            if (
-              walletId !== walletIdRef.current ||
-              fetchStandardStatus !== 'SUCCESS'
-            ) {
+            if (walletId !== walletIdRef.current) {
               //do this after each await
+              setSyncingBlockchain(walletId, false);
+              return;
+            }
+            if (fetchStandardStatus !== 'SUCCESS') {
               //also don't continue if discovery fails
               setSyncingBlockchain(walletId, false);
               return;
@@ -1170,8 +1182,12 @@ const WalletProviderRaw = ({
           requirements: { explorerReachable: true },
           func: () => discovery.fetch({ descriptors, gapLimit })
         });
-        if (walletId !== walletIdRef.current || fetchStatus !== 'SUCCESS') {
+        if (walletId !== walletIdRef.current) {
           //do this after each await
+          setSyncingBlockchain(walletId, false);
+          return;
+        }
+        if (fetchStatus !== 'SUCCESS') {
           //also don't continue if discovery fails
           setSyncingBlockchain(walletId, false);
           return;
