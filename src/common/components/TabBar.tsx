@@ -29,8 +29,6 @@ const TabBar = ({
 
   const isInit = useRef<boolean>(false);
 
-  console.log('TRACE TabBar isInit', isInit);
-
   const updateActiveTab = useCallback(
     (tab: string) => {
       const newIndex = tabs.indexOf(tab);
