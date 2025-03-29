@@ -169,6 +169,11 @@ const WalletHomeScreen = () => {
             }`}
           >
             <AntDesign
+              key={
+                syncingOrFaucetPendingOrExplorerConnecting.toString()
+                //This is so that the reload1 icon resets to rotation zero
+                //after the animation is finished
+              }
               name={
                 (!hasTouch || !userTriggeredRefresh) &&
                 syncingOrFaucetPendingOrExplorerConnecting
