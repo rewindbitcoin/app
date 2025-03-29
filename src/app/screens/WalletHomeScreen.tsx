@@ -86,6 +86,12 @@ const hasTouch =
     : true; // Assume touch is available for iOS and Android
 
 const WalletHomeScreen = () => {
+  useEffect(() => {
+    console.log('WalletHomeScreen mounted');
+    return () => {
+      console.log('WalletHomeScreen unmounted');
+    };
+  }, []);
   const navigation = useNavigation<NavigationPropsByScreenId['WALLET_HOME']>();
   const route = useRoute<RouteProp<RootStackParamList, 'WALLET_HOME'>>();
   const walletId = route.params.walletId;
