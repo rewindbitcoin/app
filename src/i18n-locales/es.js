@@ -619,7 +619,7 @@ La cámara se usa para escanear códigos QR que contienen direcciones Bitcoin.`,
       'Alinea el código QR dentro del marco para escanear la dirección Bitcoin.'
   },
   settings: {
-    defaultButton: 'Restablecer predeterminados',
+    defaultButton: 'Restablecer',
     resetToDefaults: 'Restablecer toda la configuración',
     resetToDefaultsTitle: 'Restablecer Configuración',
     resetToDefaultsConfirm:
