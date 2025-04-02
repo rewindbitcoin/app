@@ -624,19 +624,21 @@ const RawVault = ({
                       lockTime: formatBlocks(vault.lockBlocks, t, locale, true)
                     })}
               </Text>
-              <View className="flex-row items-center mt-2">
-                <Pressable onPress={handleWatchtowerHelp}>
-                  <MaterialCommunityIcons
-                    name={
-                      registeredWatchtower ? 'shield-check' : 'shield-alert'
-                    }
-                    size={20}
-                    className={
-                      registeredWatchtower ? 'text-green-500' : 'text-red-500'
-                    }
-                  />
-                </Pressable>
-              </View>
+              {canBeNotified && (
+                <View className="flex-row items-center mt-2">
+                  <Pressable onPress={handleWatchtowerHelp}>
+                    <MaterialCommunityIcons
+                      name={
+                        registeredWatchtower ? 'shield-check' : 'shield-alert'
+                      }
+                      size={20}
+                      className={
+                        registeredWatchtower ? 'text-green-500' : 'text-red-500'
+                      }
+                    />
+                  </Pressable>
+                </View>
+              )}
             </>
           )}
           {remainingBlocks === 'SPENT_AS_HOT' && (
@@ -841,10 +843,11 @@ const Vaults = ({
 
   const { t } = useTranslation();
 
+  const canBeNotified = canReceiveNotifications();
   // Configure notifications when vaults are first detected
   useEffect(() => {
     const configureNotificationsIfNeeded = async () => {
-      if (sortedVaults.length > 0 && canReceiveNotifications()) {
+      if (sortedVaults.length > 0 && canBeNotified) {
         try {
           await configureNotifications();
         } catch (error) {
@@ -853,7 +856,7 @@ const Vaults = ({
       }
     };
     configureNotificationsIfNeeded();
-  }, [sortedVaults.length]);
+  }, [sortedVaults.length, canBeNotified]);
 
   return (
     <View className="gap-y-4">
