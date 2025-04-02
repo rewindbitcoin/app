@@ -26,18 +26,25 @@ export type WatchtowerRegistrationData = {
 };
 
 // Configure notifications
-export async function configureNotifications() {
+export type NotificationSetupResult = {
+  success: boolean;
+  canAskAgain: boolean;
+  error?: 'device_unsupported' | 'permission_denied';
+};
+
+export async function configureNotifications(): Promise<NotificationSetupResult> {
   // First check if this device can receive notifications
   const canReceive = canReceiveNotifications();
   if (!canReceive) {
-    console.warn(
-      'Device cannot receive push notifications (not a physical iOS/Android device)'
-    );
-    return false;
+    return {
+      success: false,
+      canAskAgain: false,
+      error: 'device_unsupported'
+    };
   }
 
   // Request permission
-  const { status: existingStatus } = await Notifications.getPermissionsAsync();
+  const { status: existingStatus, canAskAgain } = await Notifications.getPermissionsAsync();
   let finalStatus = existingStatus;
 
   if (existingStatus !== 'granted') {
@@ -46,7 +53,11 @@ export async function configureNotifications() {
   }
 
   if (finalStatus !== 'granted') {
-    return false;
+    return {
+      success: false,
+      canAskAgain,
+      error: 'permission_denied'
+    };
   }
 
   // Configure how notifications appear when the app is in foreground
@@ -58,7 +69,10 @@ export async function configureNotifications() {
     })
   });
 
-  return true;
+  return {
+    success: true,
+    canAskAgain: true
+  };
 }
 
 // Get the Expo push token

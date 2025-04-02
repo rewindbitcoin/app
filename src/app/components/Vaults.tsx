@@ -799,12 +799,36 @@ const RawVault = ({
         }}
         isVisible={showWatchtowerHelp}
         onClose={handleCloseWatchtowerHelp}
-        closeButtonText={t('understoodButton')}
+        customButtons={
+          <View className="items-center gap-6 gap-y-4 flex-row flex-wrap justify-center pb-4">
+            {!registeredWatchtower && (
+              <Button
+                mode="secondary"
+                onPress={async () => {
+                  const result = await configureNotifications();
+                  if (result.success) {
+                    // Watchtower registration will be handled by the useEffect
+                    handleCloseWatchtowerHelp();
+                  }
+                }}
+              >
+                {t('wallet.vault.help.watchtower.enableButton')}
+              </Button>
+            )}
+            <Button mode="secondary" onPress={handleCloseWatchtowerHelp}>
+              {t('understoodButton')}
+            </Button>
+          </View>
+        }
       >
         <Text className="text-base pl-2 pr-2 text-slate-600">
-          {registeredWatchtower
-            ? t('wallet.vault.help.watchtower.registered')
-            : t('wallet.vault.help.watchtower.unregistered')}
+          {registeredWatchtower ? (
+            t('wallet.vault.help.watchtower.registered')
+          ) : Platform.OS === 'ios' ? (
+            t('wallet.vault.help.watchtower.unregistered.ios')
+          ) : (
+            t('wallet.vault.help.watchtower.unregistered.android')
+          )}
         </Text>
       </Modal>
     </View>
