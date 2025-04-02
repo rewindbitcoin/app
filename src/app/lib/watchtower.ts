@@ -25,12 +25,13 @@ export type WatchtowerRegistrationData = {
 export type NotificationSetupResult = {
   success: boolean;
   canAskAgain: boolean;
-  error?: 'permission_denied';
 };
 
 export async function configureNotifications(): Promise<NotificationSetupResult> {
+  if (!canReceiveNotifications)
+    throw new Error('This device does not support notifications');
   // Request permission
-  const { status: existingStatus, canAskAgain } = 
+  const { status: existingStatus, canAskAgain } =
     await Notifications.getPermissionsAsync();
   let finalStatus = existingStatus;
 
@@ -42,8 +43,7 @@ export async function configureNotifications(): Promise<NotificationSetupResult>
   if (finalStatus !== 'granted') {
     return {
       success: false,
-      canAskAgain,
-      error: 'permission_denied'
+      canAskAgain
     };
   }
 
@@ -84,6 +84,7 @@ export async function getExpoPushToken(): Promise<string | null> {
       return null;
     }
 
+    //FIXME: this can throw since this is a fetch call!!!
     const token = await Notifications.getExpoPushTokenAsync({
       projectId: projectId
     });

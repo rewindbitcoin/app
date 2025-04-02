@@ -36,7 +36,8 @@ import { useLocalization } from '../hooks/useLocalization';
 import { useNetStatus } from '../hooks/useNetStatus';
 import {
   canReceiveNotifications,
-  configureNotifications
+  configureNotifications,
+  NotificationSetupResult
 } from '../lib/watchtower';
 import { Platform } from 'react-native';
 
@@ -196,7 +197,8 @@ const RawVault = ({
   const [showInitUnfreezeHelp, setShowInitUnfreezeHelp] =
     useState<boolean>(false);
   const [showWatchtowerHelp, setShowWatchtowerHelp] = useState<boolean>(false);
-  const [notificationResult, setNotificationResult] = useState<NotificationSetupResult>();
+  const [notificationResult, setNotificationResult] =
+    useState<NotificationSetupResult>();
   const handleDelegateHelp = useCallback(() => setShowDelegateHelp(true), []);
   const handleRescueHelp = useCallback(() => setShowRescueHelp(true), []);
   const handleInitUnfreezeHelp = useCallback(
@@ -213,12 +215,7 @@ const RawVault = ({
     []
   );
   const handleWatchtowerHelp = useCallback(async () => {
-    const result = await Notifications.getPermissionsAsync();
-    setNotificationResult({
-      success: result.granted,
-      canAskAgain: result.canAskAgain,
-      error: result.granted ? undefined : 'permission_denied'
-    });
+    setNotificationResult(await configureNotifications());
     setShowWatchtowerHelp(true);
   }, []);
   const handleCloseWatchtowerHelp = useCallback(
@@ -831,12 +828,12 @@ const RawVault = ({
           {registeredWatchtower
             ? t('wallet.vault.help.watchtower.registered')
             : notificationResult?.canAskAgain
-            ? Platform.OS === 'ios'
-              ? t('wallet.vault.help.watchtower.unregistered.ios')
-              : t('wallet.vault.help.watchtower.unregistered.android')
-            : Platform.OS === 'ios'
-            ? t('wallet.vault.help.watchtower.settings.ios')
-            : t('wallet.vault.help.watchtower.settings.android')}
+              ? Platform.OS === 'ios'
+                ? t('wallet.vault.help.watchtower.unregistered.ios')
+                : t('wallet.vault.help.watchtower.unregistered.android')
+              : Platform.OS === 'ios'
+                ? t('wallet.vault.help.watchtower.settings.ios')
+                : t('wallet.vault.help.watchtower.settings.android')}
         </Text>
       </Modal>
     </View>
@@ -875,20 +872,6 @@ const Vaults = ({
   }, [sortedVaults, vaultsStatuses]);
 
   const { t } = useTranslation();
-
-  // Configure notifications when vaults are first detected
-  useEffect(() => {
-    const configureNotificationsIfNeeded = async () => {
-      if (sortedVaults.length > 0 && canReceiveNotifications) {
-        try {
-          await configureNotifications();
-        } catch (error) {
-          console.warn('Failed to configure notifications:', error);
-        }
-      }
-    };
-    configureNotificationsIfNeeded();
-  }, [sortedVaults.length]);
 
   return (
     <View className="gap-y-4">
