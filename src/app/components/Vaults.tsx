@@ -214,8 +214,19 @@ const RawVault = ({
     () => setShowInitUnfreezeHelp(false),
     []
   );
+  // Configure notifications when vaults are first detected
+  useEffect(() => {
+    const configureNotificationsIfNeeded = async () => {
+      if (canReceiveNotifications)
+        try {
+          setNotificationResult(await configureNotifications());
+        } catch (error) {
+          console.warn('Failed to configure notifications:', error);
+        }
+    };
+    configureNotificationsIfNeeded();
+  }, []);
   const handleWatchtowerHelp = useCallback(async () => {
-    setNotificationResult(await configureNotifications());
     setShowWatchtowerHelp(true);
   }, []);
   const handleCloseWatchtowerHelp = useCallback(

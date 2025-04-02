@@ -63,6 +63,8 @@ export async function configureNotifications(): Promise<NotificationSetupResult>
 }
 
 // Get the Expo push token
+//FIXME: tjhis function cannot be called before configureNotifications
+//(requestPermissionsAsync)
 export async function getExpoPushToken(): Promise<string | null> {
   try {
     // Get the project ID from expo-constants
