@@ -196,6 +196,7 @@ const RawVault = ({
   const [showInitUnfreezeHelp, setShowInitUnfreezeHelp] =
     useState<boolean>(false);
   const [showWatchtowerHelp, setShowWatchtowerHelp] = useState<boolean>(false);
+  const [notificationResult, setNotificationResult] = useState<NotificationSetupResult>();
   const handleDelegateHelp = useCallback(() => setShowDelegateHelp(true), []);
   const handleRescueHelp = useCallback(() => setShowRescueHelp(true), []);
   const handleInitUnfreezeHelp = useCallback(
@@ -211,10 +212,15 @@ const RawVault = ({
     () => setShowInitUnfreezeHelp(false),
     []
   );
-  const handleWatchtowerHelp = useCallback(
-    () => setShowWatchtowerHelp(true),
-    []
-  );
+  const handleWatchtowerHelp = useCallback(async () => {
+    const result = await Notifications.getPermissionsAsync();
+    setNotificationResult({
+      success: result.granted,
+      canAskAgain: result.canAskAgain,
+      error: result.granted ? undefined : 'permission_denied'
+    });
+    setShowWatchtowerHelp(true);
+  }, []);
   const handleCloseWatchtowerHelp = useCallback(
     () => setShowWatchtowerHelp(false),
     []
@@ -801,13 +807,13 @@ const RawVault = ({
         onClose={handleCloseWatchtowerHelp}
         customButtons={
           <View className="items-center gap-6 gap-y-4 flex-row flex-wrap justify-center pb-4">
-            {!registeredWatchtower && (
+            {!registeredWatchtower && notificationResult?.canAskAgain && (
               <Button
                 mode="secondary"
                 onPress={async () => {
                   const result = await configureNotifications();
+                  setNotificationResult(result);
                   if (result.success) {
-                    // Watchtower registration will be handled by the useEffect
                     handleCloseWatchtowerHelp();
                   }
                 }}
@@ -824,9 +830,13 @@ const RawVault = ({
         <Text className="text-base pl-2 pr-2 text-slate-600">
           {registeredWatchtower
             ? t('wallet.vault.help.watchtower.registered')
-            : Platform.OS === 'ios'
+            : notificationResult?.canAskAgain
+            ? Platform.OS === 'ios'
               ? t('wallet.vault.help.watchtower.unregistered.ios')
-              : t('wallet.vault.help.watchtower.unregistered.android')}
+              : t('wallet.vault.help.watchtower.unregistered.android')
+            : Platform.OS === 'ios'
+            ? t('wallet.vault.help.watchtower.settings.ios')
+            : t('wallet.vault.help.watchtower.settings.android')}
         </Text>
       </Modal>
     </View>

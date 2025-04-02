@@ -25,22 +25,12 @@ export type WatchtowerRegistrationData = {
 export type NotificationSetupResult = {
   success: boolean;
   canAskAgain: boolean;
-  error?: 'device_unsupported' | 'permission_denied';
+  error?: 'permission_denied';
 };
 
 export async function configureNotifications(): Promise<NotificationSetupResult> {
-  // First check if this device can receive notifications
-  const canReceive = canReceiveNotifications;
-  if (!canReceive) {
-    return {
-      success: false,
-      canAskAgain: false,
-      error: 'device_unsupported'
-    };
-  }
-
   // Request permission
-  const { status: existingStatus, canAskAgain } =
+  const { status: existingStatus, canAskAgain } = 
     await Notifications.getPermissionsAsync();
   let finalStatus = existingStatus;
 
