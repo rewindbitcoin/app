@@ -38,6 +38,7 @@ import {
   canReceiveNotifications,
   configureNotifications
 } from '../lib/watchtower';
+const canBeNotified = canReceiveNotifications();
 
 const LOADING_TEXT = '     ';
 
@@ -843,7 +844,6 @@ const Vaults = ({
 
   const { t } = useTranslation();
 
-  const canBeNotified = canReceiveNotifications();
   // Configure notifications when vaults are first detected
   useEffect(() => {
     const configureNotificationsIfNeeded = async () => {
@@ -856,7 +856,7 @@ const Vaults = ({
       }
     };
     configureNotificationsIfNeeded();
-  }, [sortedVaults.length, canBeNotified]);
+  }, [sortedVaults.length]);
 
   return (
     <View className="gap-y-4">
