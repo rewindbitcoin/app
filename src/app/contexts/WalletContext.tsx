@@ -1196,16 +1196,7 @@ const WalletProviderRaw = ({
 
         // Now update again updatedVaultsStatuses with watchtower registrations
         //  1st. Register with watchtower service
-        //  Configure notifications if not already done if device supports it
-        if (canReceiveNotifications()) {
-          await configureNotifications();
-          if (walletId !== walletIdRef.current) {
-            //do this after each await
-            setSyncingBlockchain(walletId, false);
-            return;
-          }
-        }
-        //  2nd. register to the watchtower. This will return an array
+        //  Register to the watchtower. This will return an array
         //  with newly registered vaultIds or empty array of already registered
         const { result: newWatchedVaults } = await netRequest({
           id: 'watchtowerRegistration',

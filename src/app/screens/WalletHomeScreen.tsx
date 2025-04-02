@@ -263,6 +263,20 @@ const WalletHomeScreen = () => {
   useEffect(() => {
     setIsMounted(true);
   }, []);
+
+  // Configure notifications when vaults are first detected
+  useEffect(() => {
+    const configureNotificationsIfNeeded = async () => {
+      if (vaults && Object.keys(vaults).length > 0 && canReceiveNotifications()) {
+        try {
+          await configureNotifications();
+        } catch (error) {
+          console.warn('Failed to configure notifications:', error);
+        }
+      }
+    };
+    configureNotificationsIfNeeded();
+  }, [vaults]);
   const isFocused = useIsFocused();
   const [walletButtonsHeight, setWalletButtonsHeight] = useState(0);
 
