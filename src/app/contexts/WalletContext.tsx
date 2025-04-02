@@ -14,7 +14,7 @@ import {
 } from '../lib/vaults';
 import {
   configureNotifications,
-  registerVaultsWithWatchtower,
+  watchVaults,
   canReceiveNotifications
 } from '../lib/watchtower';
 import {
@@ -128,6 +128,7 @@ export type WalletContextType = {
   faucetURL: string | undefined;
   cBVaultsReaderAPI: string | undefined;
   blockExplorerURL: string | undefined;
+  watchtowerAPI: string | undefined;
   wallets: Wallets | undefined;
   wallet: Wallet | undefined;
   walletStatus: WalletStatus;
@@ -467,7 +468,7 @@ const WalletProviderRaw = ({
     );
 
   /**
-   * Call this when the wallet is updated somehow: chanegs in vaults in
+   * Call this when the wallet is updated somehow: changes in vaults in
    * fetched data and so on.
    *
    * It computes derived data: utxosData and historyData and sets them.
@@ -1192,23 +1193,10 @@ const WalletProviderRaw = ({
           setSyncingBlockchain(walletId, false);
           return;
         }
-        if (vaults !== updatedVaults) setVaults(updatedVaults);
-        if (vaultsStatuses !== updatedVaultsStatuses)
-          setVaultsStatuses(updatedVaultsStatuses);
-        await setUtxosHistoryExport(
-          updatedVaults,
-          updatedVaultsStatuses,
-          updatedAccounts,
-          updatedTipHeight
-        );
-        if (walletId !== walletIdRef.current) {
-          //do this after each await
-          setSyncingBlockchain(walletId, false);
-          return;
-        }
 
-        // Register with watchtower service
-        // Configure notifications if not already done and if device supports it
+        // Now update again updatedVaultsStatuses with watchtower registrations
+        //  1st. Register with watchtower service
+        //  Configure notifications if not already done if device supports it
         if (canReceiveNotifications()) {
           await configureNotifications();
           if (walletId !== walletIdRef.current) {
@@ -1217,16 +1205,16 @@ const WalletProviderRaw = ({
             return;
           }
         }
-
-        // Use netRequest to handle network errors
-        const { result: registeredVaultIds } = await netRequest({
+        //  2nd. register to the watchtower. This will return an array
+        //  with newly registered vaultIds or empty array of already registered
+        const { result: newWatchedVaults } = await netRequest({
           id: 'watchtowerRegistration',
           errorMessage: (message: string) =>
             t('app.watchtowerRegistrationError', { message }),
           whenToastErrors,
           requirements: { watchtowerAPIReachable: true },
           func: () =>
-            registerVaultsWithWatchtower({
+            watchVaults({
               watchtowerAPI,
               vaults: updatedVaults,
               vaultsStatuses: updatedVaultsStatuses,
@@ -1234,32 +1222,45 @@ const WalletProviderRaw = ({
               walletName: watchtowerWalletName
             })
         });
-
-        // Update vault statuses with new watchtower registrations
-        if (registeredVaultIds && registeredVaultIds.length > 0) {
-          registeredVaultIds.forEach(vaultId => {
-            const status = updatedVaultsStatuses[vaultId];
-            if (status) {
-              updatedVaultsStatuses = {
-                ...updatedVaultsStatuses,
-                [vaultId]: {
-                  ...status,
-                  registeredWatchtowers: [
-                    ...(status.registeredWatchtowers || []),
-                    watchtowerAPI
-                  ]
-                }
-              };
-            }
-          });
-          setVaultsStatuses(updatedVaultsStatuses);
-        }
-
         if (walletId !== walletIdRef.current) {
           //do this after each await
           setSyncingBlockchain(walletId, false);
           return;
         }
+        //  3rd. update updatedVaultsStatuses with fresh data
+        if (newWatchedVaults?.length)
+          for (const vaultId of newWatchedVaults) {
+            const status = updatedVaultsStatuses[vaultId];
+            if (!status) throw new Error('Unset status for vaultId');
+            updatedVaultsStatuses = {
+              ...updatedVaultsStatuses,
+              [vaultId]: {
+                ...status,
+                registeredWatchtowers: [
+                  ...(status.registeredWatchtowers ?? []),
+                  watchtowerAPI
+                ]
+              }
+            };
+          }
+
+        //Update states:
+        batchedUpdates(() => {
+          if (vaults !== updatedVaults) setVaults(updatedVaults);
+          if (vaultsStatuses !== updatedVaultsStatuses)
+            setVaultsStatuses(updatedVaultsStatuses);
+          // setUtxosHistoryExport internally uses the recently fetched discovery
+          // there's no need to wait since the async part is for storing data
+          // on disk. This data is re-stored on each blockchain sync operation
+          // anyway
+          setUtxosHistoryExport(
+            updatedVaults,
+            updatedVaultsStatuses,
+            updatedAccounts,
+            updatedTipHeight
+          );
+        });
+
       } catch (error) {
         console.warn(error);
         //We don't care about errors of other wallets (probably trying to
@@ -1472,6 +1473,7 @@ const WalletProviderRaw = ({
     faucetURL,
     cBVaultsReaderAPI,
     blockExplorerURL,
+    watchtowerAPI,
     wallets,
     wallet,
     walletStatus: { isCorrupted, storageAccess: storageAccessStatus },

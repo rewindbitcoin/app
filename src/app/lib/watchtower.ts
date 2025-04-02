@@ -25,9 +25,6 @@ export type WatchtowerRegistrationData = {
   }>;
 };
 
-// Track successful registrations to avoid redundant calls
-const successfulRegistrations: Record<string, boolean> = {};
-
 // Configure notifications
 export async function configureNotifications() {
   // First check if this device can receive notifications
@@ -98,12 +95,10 @@ export async function getExpoPushToken(): Promise<string | null> {
 }
 
 // Register vaults with the watchtower service
-// FIXME: this returning false is wrong, it shoudl throw
-//so I can then correctly report then in netRequest
 //FIXME: only call this if getExpoPushToken returns something, in fact
 //pass it as param. It may be the case the user never accepted push notifications
-//thwn warn the user or soimething.
-export async function registerVaultsWithWatchtower({
+//then warn the user or soimething.
+export async function watchVaults({
   watchtowerAPI,
   vaults,
   vaultsStatuses,
@@ -119,14 +114,17 @@ export async function registerVaultsWithWatchtower({
   try {
     // Get push token
     const pushToken = await getExpoPushToken();
-    if (!pushToken) return [];
+    if (!pushToken) return []; //FIXME: readl FIXME above
 
     const vaultsToMonitor = Object.entries(vaults)
       .filter(([vaultId]) => {
         const status = vaultsStatuses[vaultId];
-        // Only monitor vaults that are not yet triggered and not registered with current watchtower
-        return !status?.triggerTxHex && 
-               (!status?.registeredWatchtowers?.includes(watchtowerAPI));
+        // Only monitor vaults that are not yet triggered and not registered
+        // with current watchtower
+        return (
+          !status?.triggerTxHex &&
+          !status?.registeredWatchtowers?.includes(watchtowerAPI)
+        );
       })
       .map(([vaultId, vault]) => {
         // Each vault has multiple trigger transactions (one per fee rate)

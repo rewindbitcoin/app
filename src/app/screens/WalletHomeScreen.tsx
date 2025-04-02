@@ -120,7 +120,8 @@ const WalletHomeScreen = () => {
     fetchBlockTime,
     pushTx,
     feeEstimates,
-    blockExplorerURL
+    blockExplorerURL,
+    watchtowerAPI
   } = useWallet();
   if (wallet && walletId !== wallet.walletId)
     throw new Error(
@@ -519,6 +520,7 @@ const WalletHomeScreen = () => {
           >
             {vaults && vaultsStatuses && (
               <Vaults
+                watchtowerAPI={watchtowerAPI}
                 blockExplorerURL={blockExplorerURL}
                 updateVaultStatus={updateVaultStatus}
                 pushTx={pushTx}

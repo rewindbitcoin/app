@@ -5,7 +5,7 @@ import React, {
   useRef,
   useState
 } from 'react';
-import { View, Text, Linking } from 'react-native';
+import { View, Text, Linking, Pressable } from 'react-native';
 import * as Icons from '@expo/vector-icons';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { batchedUpdates } from '~/common/lib/batchedUpdates';
@@ -173,7 +173,8 @@ const RawVault = ({
   vault,
   vaultNumber,
   vaultStatus,
-  blockExplorerURL
+  blockExplorerURL,
+  watchtowerAPI
 }: {
   updateVaultStatus: (vaultId: string, vaultStatus: VaultStatus) => void;
   pushTx: (txHex: string) => Promise<void>;
@@ -183,10 +184,12 @@ const RawVault = ({
   vaultNumber: number;
   vaultStatus: VaultStatus | undefined;
   blockExplorerURL: string | undefined;
+  watchtowerAPI: string | undefined;
 }) => {
   const [showDelegateHelp, setShowDelegateHelp] = useState<boolean>(false);
   const [showRescueHelp, setShowRescueHelp] = useState<boolean>(false);
-  const [showInitUnfreezeHelp, setShowInitUnfreezeHelp] = useState<boolean>(false);
+  const [showInitUnfreezeHelp, setShowInitUnfreezeHelp] =
+    useState<boolean>(false);
   const [showWatchtowerHelp, setShowWatchtowerHelp] = useState<boolean>(false);
   const handleDelegateHelp = useCallback(() => setShowDelegateHelp(true), []);
   const handleRescueHelp = useCallback(() => setShowRescueHelp(true), []);
@@ -194,11 +197,23 @@ const RawVault = ({
     () => setShowInitUnfreezeHelp(true),
     []
   );
-  const handleCloseDelegateHelp = useCallback(() => setShowDelegateHelp(false), []);
+  const handleCloseDelegateHelp = useCallback(
+    () => setShowDelegateHelp(false),
+    []
+  );
   const handleCloseRescueHelp = useCallback(() => setShowRescueHelp(false), []);
-  const handleCloseInitUnfreezeHelp = useCallback(() => setShowInitUnfreezeHelp(false), []);
-  const handleWatchtowerHelp = useCallback(() => setShowWatchtowerHelp(true), []);
-  const handleCloseWatchtowerHelp = useCallback(() => setShowWatchtowerHelp(false), []);
+  const handleCloseInitUnfreezeHelp = useCallback(
+    () => setShowInitUnfreezeHelp(false),
+    []
+  );
+  const handleWatchtowerHelp = useCallback(
+    () => setShowWatchtowerHelp(true),
+    []
+  );
+  const handleCloseWatchtowerHelp = useCallback(
+    () => setShowWatchtowerHelp(false),
+    []
+  );
   const { netRequest } = useNetStatus();
 
   const [isInitUnfreezeRequestValid, setIsInitUnfreezeRequestValid] =
@@ -403,6 +418,10 @@ const RawVault = ({
   const rescuedBalance =
     tipHeight && vaultStatus && getVaultRescuedBalance(vault, vaultStatus);
 
+  const registeredWatchtower =
+    watchtowerAPI !== undefined &&
+    vaultStatus?.registeredWatchtowers?.includes(watchtowerAPI);
+
   return (
     <View
       key={vault.vaultId}
@@ -590,33 +609,32 @@ const RawVault = ({
           {remainingBlocks === 'VAULT_NOT_FOUND' && (
             <Text className="pt-2">{t('wallet.vault.vaultNotFound')}</Text>
           )}
-          {remainingBlocks === 'TRIGGER_NOT_PUSHED' &&
-            !vaultStatus?.vaultTxBlockHeight && (
+          {remainingBlocks === 'TRIGGER_NOT_PUSHED' && (
+            <>
               <Text className="pt-2">
-                {t('wallet.vault.notTriggeredUnconfirmed', {
-                  lockTime: formatBlocks(vault.lockBlocks, t, locale, true)
-                })}
+                {!vaultStatus?.vaultTxBlockHeight
+                  ? t('wallet.vault.notTriggeredUnconfirmed', {
+                      lockTime: formatBlocks(vault.lockBlocks, t, locale, true)
+                    })
+                  : t('wallet.vault.notTriggered', {
+                      lockTime: formatBlocks(vault.lockBlocks, t, locale, true)
+                    })}
               </Text>
-            )}
-          {remainingBlocks === 'TRIGGER_NOT_PUSHED' &&
-            !!vaultStatus?.vaultTxBlockHeight && (
-              <>
-                <Text className="pt-2">
-                  {t('wallet.vault.notTriggered', {
-                    lockTime: formatBlocks(vault.lockBlocks, t, locale, true)
-                  })}
-                </Text>
-                <View className="flex-row items-center mt-2">
-                  <Pressable onPress={handleWatchtowerHelp}>
-                    <MaterialCommunityIcons
-                      name={vaultStatus?.registeredWatchtowers?.includes(watchtowerAPI) ? "shield-check" : "shield-alert"}
-                      size={20}
-                      className={vaultStatus?.registeredWatchtowers?.includes(watchtowerAPI) ? "text-green-500" : "text-red-500"}
-                    />
-                  </Pressable>
-                </View>
-              </>
-            )}
+              <View className="flex-row items-center mt-2">
+                <Pressable onPress={handleWatchtowerHelp}>
+                  <MaterialCommunityIcons
+                    name={
+                      registeredWatchtower ? 'shield-check' : 'shield-alert'
+                    }
+                    size={20}
+                    className={
+                      registeredWatchtower ? 'text-green-500' : 'text-red-500'
+                    }
+                  />
+                </Pressable>
+              </View>
+            </>
+          )}
           {remainingBlocks === 'SPENT_AS_HOT' && (
             <Text className="pt-2">
               {spentAsHotDate
@@ -777,7 +795,7 @@ const RawVault = ({
         closeButtonText={t('understoodButton')}
       >
         <Text className="text-base pl-2 pr-2 text-slate-600">
-          {vaultStatus?.registeredWatchtowers?.includes(watchtowerAPI) 
+          {registeredWatchtower
             ? t('wallet.vault.help.watchtower.registered')
             : t('wallet.vault.help.watchtower.unregistered')}
         </Text>
@@ -795,7 +813,8 @@ const Vaults = ({
   tipStatus,
   vaults,
   vaultsStatuses,
-  blockExplorerURL
+  blockExplorerURL,
+  watchtowerAPI
 }: {
   updateVaultStatus: (vaultId: string, vaultStatus: VaultStatus) => void;
   pushTx: (txHex: string) => Promise<void>;
@@ -804,6 +823,7 @@ const Vaults = ({
   vaults: VaultsType;
   vaultsStatuses: VaultsStatuses;
   blockExplorerURL: string | undefined;
+  watchtowerAPI: string | undefined;
 }) => {
   const sortedVaults = useMemo(() => {
     return Object.values(vaults).sort(
@@ -834,6 +854,7 @@ const Vaults = ({
                 vaultStatus={vaultStatus}
                 pushTx={pushTx}
                 blockExplorerURL={blockExplorerURL}
+                watchtowerAPI={watchtowerAPI}
               />
             )
           );
