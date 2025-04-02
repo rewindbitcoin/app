@@ -268,20 +268,6 @@ const WalletHomeScreen = () => {
     setIsMounted(true);
   }, []);
 
-  const vaultsNum = vaults ? Object.keys(vaults).length : 0;
-  const cRN = canReceiveNotifications();
-  // Configure push notifications when vaults are first detected
-  useEffect(() => {
-    const configureNotificationsIfNeeded = async () => {
-      if (vaultsNum > 0 && cRN)
-        try {
-          await configureNotifications();
-        } catch (error) {
-          console.warn('Failed to configure notifications:', error);
-        }
-    };
-    configureNotificationsIfNeeded();
-  }, [vaultsNum, cRN]);
   const isFocused = useIsFocused();
   const [walletButtonsHeight, setWalletButtonsHeight] = useState(0);
 

@@ -837,6 +837,20 @@ const Vaults = ({
 
   const { t } = useTranslation();
 
+  // Configure notifications when vaults are first detected
+  useEffect(() => {
+    const configureNotificationsIfNeeded = async () => {
+      if (sortedVaults.length > 0 && canReceiveNotifications()) {
+        try {
+          await configureNotifications();
+        } catch (error) {
+          console.warn('Failed to configure notifications:', error);
+        }
+      }
+    };
+    configureNotificationsIfNeeded();
+  }, [sortedVaults.length]);
+
   return (
     <View className="gap-y-4">
       {hasVisibleVaults ? (
