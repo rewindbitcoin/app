@@ -186,23 +186,19 @@ const RawVault = ({
 }) => {
   const [showDelegateHelp, setShowDelegateHelp] = useState<boolean>(false);
   const [showRescueHelp, setShowRescueHelp] = useState<boolean>(false);
-  const [showInitUnfreezeHelp, setShowInitUnfreezeHelp] =
-    useState<boolean>(false);
+  const [showInitUnfreezeHelp, setShowInitUnfreezeHelp] = useState<boolean>(false);
+  const [showWatchtowerHelp, setShowWatchtowerHelp] = useState<boolean>(false);
   const handleDelegateHelp = useCallback(() => setShowDelegateHelp(true), []);
   const handleRescueHelp = useCallback(() => setShowRescueHelp(true), []);
   const handleInitUnfreezeHelp = useCallback(
     () => setShowInitUnfreezeHelp(true),
     []
   );
-  const handleCloseDelegateHelp = useCallback(
-    () => setShowDelegateHelp(false),
-    []
-  );
+  const handleCloseDelegateHelp = useCallback(() => setShowDelegateHelp(false), []);
   const handleCloseRescueHelp = useCallback(() => setShowRescueHelp(false), []);
-  const handleCloseInitUnfreezeHelp = useCallback(
-    () => setShowInitUnfreezeHelp(false),
-    []
-  );
+  const handleCloseInitUnfreezeHelp = useCallback(() => setShowInitUnfreezeHelp(false), []);
+  const handleWatchtowerHelp = useCallback(() => setShowWatchtowerHelp(true), []);
+  const handleCloseWatchtowerHelp = useCallback(() => setShowWatchtowerHelp(false), []);
   const { netRequest } = useNetStatus();
 
   const [isInitUnfreezeRequestValid, setIsInitUnfreezeRequestValid] =
@@ -604,11 +600,22 @@ const RawVault = ({
             )}
           {remainingBlocks === 'TRIGGER_NOT_PUSHED' &&
             !!vaultStatus?.vaultTxBlockHeight && (
-              <Text className="pt-2">
-                {t('wallet.vault.notTriggered', {
-                  lockTime: formatBlocks(vault.lockBlocks, t, locale, true)
-                })}
-              </Text>
+              <>
+                <Text className="pt-2">
+                  {t('wallet.vault.notTriggered', {
+                    lockTime: formatBlocks(vault.lockBlocks, t, locale, true)
+                  })}
+                </Text>
+                <View className="flex-row items-center mt-2">
+                  <Pressable onPress={handleWatchtowerHelp}>
+                    <MaterialCommunityIcons
+                      name={vaultStatus?.registeredWatchtowers?.includes(watchtowerAPI) ? "shield-check" : "shield-alert"}
+                      size={20}
+                      className={vaultStatus?.registeredWatchtowers?.includes(watchtowerAPI) ? "text-green-500" : "text-red-500"}
+                    />
+                  </Pressable>
+                </View>
+              </>
             )}
           {remainingBlocks === 'SPENT_AS_HOT' && (
             <Text className="pt-2">
@@ -757,6 +764,22 @@ const RawVault = ({
       >
         <Text className="text-base pl-2 pr-2 text-slate-600">
           {t('wallet.vault.help.initUnfreeze.text')}
+        </Text>
+      </Modal>
+      <Modal
+        title={t('wallet.vault.help.watchtower.title')}
+        icon={{
+          family: 'MaterialCommunityIcons',
+          name: 'shield-alert'
+        }}
+        isVisible={showWatchtowerHelp}
+        onClose={handleCloseWatchtowerHelp}
+        closeButtonText={t('understoodButton')}
+      >
+        <Text className="text-base pl-2 pr-2 text-slate-600">
+          {vaultStatus?.registeredWatchtowers?.includes(watchtowerAPI) 
+            ? t('wallet.vault.help.watchtower.registered')
+            : t('wallet.vault.help.watchtower.unregistered')}
         </Text>
       </Modal>
     </View>

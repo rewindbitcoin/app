@@ -115,28 +115,20 @@ export async function registerVaultsWithWatchtower({
   vaultsStatuses: VaultsStatuses;
   networkTimeout: number;
   walletName: string;
-}): Promise<boolean> {
+}): Promise<string[]> {
   try {
     // Get push token
     const pushToken = await getExpoPushToken();
-    if (!pushToken) return false;
+    if (!pushToken) return [];
 
-    // Filter vaults that need monitoring (not triggered yet)
-    const vaultsToMonitor: Array<{
-      triggerTxIds: Array<TxId>;
-      commitment: string;
-      vaultId: string;
-      vaultNumber: number;
-    }> = [];
-
-    // Group trigger transaction IDs by vault ID
-    Object.entries(vaults)
+    const vaultsToMonitor = Object.entries(vaults)
       .filter(([vaultId]) => {
         const status = vaultsStatuses[vaultId];
-        // Only monitor vaults that are not yet triggered
-        return !status?.triggerTxHex;
+        // Only monitor vaults that are not yet triggered and not registered with current watchtower
+        return !status?.triggerTxHex && 
+               (!status?.registeredWatchtowers?.includes(watchtowerAPI));
       })
-      .forEach(([vaultId, vault]) => {
+      .map(([vaultId, vault]) => {
         // Each vault has multiple trigger transactions (one per fee rate)
         // Extract all trigger transaction IDs from the triggerMap
         const triggerTxIds: Array<TxId> = Object.keys(vault.triggerMap).map(
@@ -151,25 +143,16 @@ export async function registerVaultsWithWatchtower({
           }
         );
 
-        if (triggerTxIds.length > 0) {
-          vaultsToMonitor.push({
-            triggerTxIds,
-            commitment: vault.vaultTxHex,
-            vaultId,
-            vaultNumber: getVaultNumber(vaultId, vaults)
-          });
-        }
-      });
+        return {
+          triggerTxIds,
+          commitment: vault.vaultTxHex,
+          vaultId,
+          vaultNumber: getVaultNumber(vaultId, vaults)
+        };
+      })
+      .filter(vault => vault.triggerTxIds.length > 0);
 
-    if (vaultsToMonitor.length === 0) return true; // No vaults to monitor
-
-    // Check if we've already successfully registered with the same data
-    // Create a unique key based on the watchtowerAPI and the sorted vault IDs
-    const vaultIds = Object.keys(vaults).sort().join('-');
-    const registrationKey = `${watchtowerAPI}:${vaultIds}`;
-
-    // If we have a previous successful registration with the same key, skip
-    if (successfulRegistrations[registrationKey]) return true;
+    if (vaultsToMonitor.length === 0) return [];
 
     // Prepare data for the watchtower
     const registrationData: WatchtowerRegistrationData = {
@@ -188,21 +171,15 @@ export async function registerVaultsWithWatchtower({
       signal: AbortSignal.timeout(networkTimeout)
     });
 
-    //FIXME: remove traces
-    console.log('TRACE', watchtowerAPI, JSON.stringify(response, null, 2));
-
     if (!response.ok) {
       throw new Error(
         `Watchtower registration failed (${response.status}): ${response.statusText}`
       );
     }
 
-    // Store successful registration
-    successfulRegistrations[registrationKey] = true;
-
-    return true;
+    return vaultsToMonitor.map(v => v.vaultId);
   } catch (error) {
     console.error('Failed to register with watchtower:', error);
-    return false;
+    throw error;
   }
 }

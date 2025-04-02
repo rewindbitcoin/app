@@ -118,6 +118,9 @@ export type VaultStatus = {
    */
   isHidden?: boolean;
 
+  /** Array of watchtower API URLs where this vault has been successfully registered */
+  registeredWatchtowers?: string[];
+
   /**
    * if vaultTxBlockHeight is not set then it's because it was never pushed
    * or because it expired or was RBFd

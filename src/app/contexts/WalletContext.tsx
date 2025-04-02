@@ -1219,7 +1219,7 @@ const WalletProviderRaw = ({
         }
 
         // Use netRequest to handle network errors
-        await netRequest({
+        const { result: registeredVaultIds } = await netRequest({
           id: 'watchtowerRegistration',
           errorMessage: (message: string) =>
             t('app.watchtowerRegistrationError', { message }),
@@ -1234,6 +1234,26 @@ const WalletProviderRaw = ({
               walletName: watchtowerWalletName
             })
         });
+
+        // Update vault statuses with new watchtower registrations
+        if (registeredVaultIds && registeredVaultIds.length > 0) {
+          registeredVaultIds.forEach(vaultId => {
+            const status = updatedVaultsStatuses[vaultId];
+            if (status) {
+              updatedVaultsStatuses = {
+                ...updatedVaultsStatuses,
+                [vaultId]: {
+                  ...status,
+                  registeredWatchtowers: [
+                    ...(status.registeredWatchtowers || []),
+                    watchtowerAPI
+                  ]
+                }
+              };
+            }
+          });
+          setVaultsStatuses(updatedVaultsStatuses);
+        }
 
         if (walletId !== walletIdRef.current) {
           //do this after each await
