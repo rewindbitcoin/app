@@ -54,6 +54,10 @@ import { useWallet } from '../hooks/useWallet';
 import { walletTitle } from '../lib/wallets';
 import { useSecureStorageInfo } from '~/common/contexts/SecureStorageInfoContext';
 import { useNetStatus } from '../hooks/useNetStatus';
+import {
+  canReceiveNotifications,
+  configureNotifications
+} from '../lib/watchtower';
 
 const ErrorView = ({
   errorMessage,
@@ -264,19 +268,20 @@ const WalletHomeScreen = () => {
     setIsMounted(true);
   }, []);
 
-  // Configure notifications when vaults are first detected
+  const vaultsNum = vaults ? Object.keys(vaults).length : 0;
+  const cRN = canReceiveNotifications();
+  // Configure push notifications when vaults are first detected
   useEffect(() => {
     const configureNotificationsIfNeeded = async () => {
-      if (vaults && Object.keys(vaults).length > 0 && canReceiveNotifications()) {
+      if (vaultsNum > 0 && cRN)
         try {
           await configureNotifications();
         } catch (error) {
           console.warn('Failed to configure notifications:', error);
         }
-      }
     };
     configureNotificationsIfNeeded();
-  }, [vaults]);
+  }, [vaultsNum, cRN]);
   const isFocused = useIsFocused();
   const [walletButtonsHeight, setWalletButtonsHeight] = useState(0);
 

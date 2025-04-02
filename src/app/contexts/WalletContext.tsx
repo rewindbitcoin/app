@@ -12,11 +12,7 @@ import {
   getHistoryData,
   TxHex
 } from '../lib/vaults';
-import {
-  configureNotifications,
-  watchVaults,
-  canReceiveNotifications
-} from '../lib/watchtower';
+import { watchVaults } from '../lib/watchtower';
 import {
   walletTitle,
   type Accounts,
@@ -1195,8 +1191,7 @@ const WalletProviderRaw = ({
         }
 
         // Now update again updatedVaultsStatuses with watchtower registrations
-        //  1st. Register with watchtower service
-        //  Register to the watchtower. This will return an array
+        //  1st. Register with watchtower service. This will return an array
         //  with newly registered vaultIds or empty array of already registered
         const { result: newWatchedVaults } = await netRequest({
           id: 'watchtowerRegistration',
@@ -1218,7 +1213,7 @@ const WalletProviderRaw = ({
           setSyncingBlockchain(walletId, false);
           return;
         }
-        //  3rd. update updatedVaultsStatuses with fresh data
+        //  2nd. update updatedVaultsStatuses with fresh data
         if (newWatchedVaults?.length)
           for (const vaultId of newWatchedVaults) {
             const status = updatedVaultsStatuses[vaultId];
@@ -1251,7 +1246,6 @@ const WalletProviderRaw = ({
             updatedTipHeight
           );
         });
-
       } catch (error) {
         console.warn(error);
         //We don't care about errors of other wallets (probably trying to
