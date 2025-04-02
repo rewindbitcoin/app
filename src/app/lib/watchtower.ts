@@ -7,12 +7,8 @@ import { Platform } from 'react-native';
 import { getVaultNumber, TxId, Vaults, VaultsStatuses } from './vaults';
 
 // Check if the device can receive push notifications
-export const canReceiveNotifications = (): boolean => {
-  const isPhysicalDevice = Device.isDevice;
-  return (
-    Platform.OS === 'ios' || (Platform.OS === 'android' && isPhysicalDevice)
-  );
-};
+export const canReceiveNotifications =
+  (Platform.OS === 'ios' || Platform.OS === 'android') && Device.isDevice;
 
 // Type for the data to send to the watchtower
 export type WatchtowerRegistrationData = {
@@ -34,7 +30,7 @@ export type NotificationSetupResult = {
 
 export async function configureNotifications(): Promise<NotificationSetupResult> {
   // First check if this device can receive notifications
-  const canReceive = canReceiveNotifications();
+  const canReceive = canReceiveNotifications;
   if (!canReceive) {
     return {
       success: false,
@@ -44,7 +40,8 @@ export async function configureNotifications(): Promise<NotificationSetupResult>
   }
 
   // Request permission
-  const { status: existingStatus, canAskAgain } = await Notifications.getPermissionsAsync();
+  const { status: existingStatus, canAskAgain } =
+    await Notifications.getPermissionsAsync();
   let finalStatus = existingStatus;
 
   if (existingStatus !== 'granted') {
@@ -89,8 +86,7 @@ export async function getExpoPushToken(): Promise<string | null> {
     }
 
     // Check if this device can receive notifications
-    const canReceive = canReceiveNotifications();
-    if (!canReceive) {
+    if (!canReceiveNotifications) {
       console.warn(
         'Push notifications are only supported on physical iOS/Android devices'
       );

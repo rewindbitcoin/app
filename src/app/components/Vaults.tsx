@@ -38,7 +38,7 @@ import {
   canReceiveNotifications,
   configureNotifications
 } from '../lib/watchtower';
-const canBeNotified = canReceiveNotifications();
+import { Platform } from 'react-native';
 
 const LOADING_TEXT = '     ';
 
@@ -625,7 +625,7 @@ const RawVault = ({
                       lockTime: formatBlocks(vault.lockBlocks, t, locale, true)
                     })}
               </Text>
-              {canBeNotified && (
+              {canReceiveNotifications && (
                 <View className="flex-row items-center mt-2">
                   <Pressable onPress={handleWatchtowerHelp}>
                     <MaterialCommunityIcons
@@ -822,13 +822,11 @@ const RawVault = ({
         }
       >
         <Text className="text-base pl-2 pr-2 text-slate-600">
-          {registeredWatchtower ? (
-            t('wallet.vault.help.watchtower.registered')
-          ) : Platform.OS === 'ios' ? (
-            t('wallet.vault.help.watchtower.unregistered.ios')
-          ) : (
-            t('wallet.vault.help.watchtower.unregistered.android')
-          )}
+          {registeredWatchtower
+            ? t('wallet.vault.help.watchtower.registered')
+            : Platform.OS === 'ios'
+              ? t('wallet.vault.help.watchtower.unregistered.ios')
+              : t('wallet.vault.help.watchtower.unregistered.android')}
         </Text>
       </Modal>
     </View>
@@ -871,7 +869,7 @@ const Vaults = ({
   // Configure notifications when vaults are first detected
   useEffect(() => {
     const configureNotificationsIfNeeded = async () => {
-      if (sortedVaults.length > 0 && canBeNotified) {
+      if (sortedVaults.length > 0 && canReceiveNotifications) {
         try {
           await configureNotifications();
         } catch (error) {
