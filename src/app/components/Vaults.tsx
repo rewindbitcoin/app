@@ -34,6 +34,10 @@ import Delegate from './Delegate';
 import LearnMoreAboutVaults from './LearnMoreAboutVaults';
 import { useLocalization } from '../hooks/useLocalization';
 import { useNetStatus } from '../hooks/useNetStatus';
+import {
+  canReceiveNotifications,
+  configureNotifications
+} from '../lib/watchtower';
 
 const LOADING_TEXT = '     ';
 

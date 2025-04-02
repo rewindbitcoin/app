@@ -54,10 +54,6 @@ import { useWallet } from '../hooks/useWallet';
 import { walletTitle } from '../lib/wallets';
 import { useSecureStorageInfo } from '~/common/contexts/SecureStorageInfoContext';
 import { useNetStatus } from '../hooks/useNetStatus';
-import {
-  canReceiveNotifications,
-  configureNotifications
-} from '../lib/watchtower';
 
 const ErrorView = ({
   errorMessage,
