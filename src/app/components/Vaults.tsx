@@ -6,7 +6,7 @@ import React, {
   useState
 } from 'react';
 
-const IRREVERSIBLE_BLOCKS = 3; // Number of blocks after which a transaction is considered irreversible
+const IRREVERSIBLE_BLOCKS = 4; // Number of blocks after which a transaction is considered irreversible
 import { View, Text, Linking, Pressable } from 'react-native';
 import * as Icons from '@expo/vector-icons';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
