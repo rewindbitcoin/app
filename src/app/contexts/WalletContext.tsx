@@ -934,21 +934,13 @@ const WalletProviderRaw = ({
   const watchtowerWalletName =
     wallet && wallets && walletTitle(wallet, wallets, t);
 
-  // It will return a mutared updatedVaultsStatuses if a new
-  // vault is registered or kept the same if not
   /**
-   * Registers vaults with the watchtower service and updates their registration status.
-   * 
-   * @param {Object} params - The registration parameters
-   * @param {VaultsType} params.vaults - The vaults to register
-   * @param {VaultsStatuses} params.vaultsStatuses - Current status of all vaults
-   * @param {'ON_NEW_ERROR' | 'ON_ANY_ERROR'} params.whenToastErrors - When to show error toasts
-   * 
-   * @returns {Promise<VaultsStatuses>} Updated vault statuses with new watchtower registrations.
-   * Returns the original vaultsStatuses object if no changes were needed (maintains reference equality).
-   * 
-   * @throws {Error} If required data for watchtower registration is missing
-   * @throws {Error} If a vault status is not found for a vault ID
+   * Registers vaults with the watchtower service and updates their
+   * registration status.
+   *
+   * @returns {Promise<VaultsStatuses>} Updated vault statuses with new
+   * watchtower registrations.
+   * Returns original vaultsStatuses object if no changes (immutable).
    */
   const registerWithWatchtower = useCallback(
     async ({
@@ -1278,7 +1270,8 @@ const WalletProviderRaw = ({
         }
 
         // Update vaultsStatuses with watchtower registrations
-        const watchtowerVaultsStatuses = await registerWithWatchtower({
+        // registerWithWatchtower uses netRequest internally
+        updatedVaultsStatuses = await registerWithWatchtower({
           vaults: updatedVaults,
           vaultsStatuses: updatedVaultsStatuses,
           whenToastErrors
@@ -1288,7 +1281,6 @@ const WalletProviderRaw = ({
           setSyncingBlockchain(walletId, false);
           return;
         }
-        updatedVaultsStatuses = watchtowerVaultsStatuses;
 
         //Update states:
         batchedUpdates(() => {
