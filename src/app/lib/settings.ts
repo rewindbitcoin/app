@@ -206,7 +206,7 @@ export const defaultSettings: Settings = {
   TESTNET_ELECTRUM_API: 'ssl://electrum.blockstream.info:60002',
   TAPE_ELECTRUM_API: `${ELECTRUM_PUBLIC_PROTOCOL}://${PUBLIC_TAPE_SERVER_NAME}:${PUBLIC_TAPE_ELECTRUM_PORT}`,
   //Here we default to ELECTRUM_LOCAL_PROTOCOL and REGTEST_HOST_NAME (we dont use _SUFFIX)
-  //FIXME: note that this does not work on iOS.
+  //TODO: note that this does not work on iOS.
   //You must explicitelly change rewindbitcoin.local to an IP
   //in settings
   REGTEST_ELECTRUM_API: `${ELECTRUM_LOCAL_PROTOCOL}://${REGTEST_HOST_NAME}:${LOCAL_REGTEST_ELECTRUM_SERVER_PORT}`,

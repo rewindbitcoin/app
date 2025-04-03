@@ -631,23 +631,24 @@ const RawVault = ({
             <Text className="pt-2">{t('wallet.vault.vaultNotFound')}</Text>
           )}
           {remainingBlocks === 'TRIGGER_NOT_PUSHED' && (
-            <>
-              <Text className="pt-2">
-                {!vaultStatus?.vaultTxBlockHeight
-                  ? t('wallet.vault.notTriggeredUnconfirmed', {
-                      lockTime: formatBlocks(vault.lockBlocks, t, locale, true)
-                    })
-                  : t('wallet.vault.notTriggered', {
-                      lockTime: formatBlocks(vault.lockBlocks, t, locale, true)
-                    })}
-              </Text>
-              {canReceiveNotifications && 
-                (remainingBlocks === 'TRIGGER_NOT_PUSHED' || 
-                (tipHeight && 
-                  ((vaultStatus?.panicTxBlockHeight && 
-                    tipHeight - vaultStatus.panicTxBlockHeight <= IRREVERSIBLE_BLOCKS) || 
-                  (vaultStatus?.hotBlockHeight && 
-                    tipHeight - vaultStatus.hotBlockHeight <= IRREVERSIBLE_BLOCKS)))) && (
+            <Text className="pt-2">
+              {!vaultStatus?.vaultTxBlockHeight
+                ? t('wallet.vault.notTriggeredUnconfirmed', {
+                    lockTime: formatBlocks(vault.lockBlocks, t, locale, true)
+                  })
+                : t('wallet.vault.notTriggered', {
+                    lockTime: formatBlocks(vault.lockBlocks, t, locale, true)
+                  })}
+            </Text>
+          )}
+          {
+            //Show the watchtower icon while the trigger tx is reversible
+            canReceiveNotifications &&
+              (remainingBlocks === 'TRIGGER_NOT_PUSHED' ||
+                (tipHeight &&
+                  vaultStatus?.triggerTxBlockHeight &&
+                  tipHeight - vaultStatus.triggerTxBlockHeight <=
+                    IRREVERSIBLE_BLOCKS)) && (
                 <View
                   className={`flex-row items-center mt-2 ${registeredWatchtower ? 'animate-none' : 'animate-pulse'}`}
                 >
@@ -669,9 +670,8 @@ const RawVault = ({
                     />
                   </Pressable>
                 </View>
-              )}
-            </>
-          )}
+              )
+          }
           {remainingBlocks === 'SPENT_AS_HOT' && (
             <Text className="pt-2">
               {spentAsHotDate
