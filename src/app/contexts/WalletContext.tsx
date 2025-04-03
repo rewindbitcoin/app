@@ -1205,7 +1205,8 @@ const WalletProviderRaw = ({
               vaults: updatedVaults,
               vaultsStatuses: updatedVaultsStatuses,
               networkTimeout,
-              walletName: watchtowerWalletName
+              walletName: watchtowerWalletName,
+              locale
             })
         });
         if (walletId !== walletIdRef.current) {

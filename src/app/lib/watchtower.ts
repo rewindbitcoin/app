@@ -14,6 +14,7 @@ export const canReceiveNotifications =
 export type WatchtowerRegistrationData = {
   pushToken: string;
   walletName: string;
+  locale: string;
   vaults: Array<{
     triggerTxIds: Array<TxId>;
     vaultId: string;
@@ -114,6 +115,7 @@ export async function watchVaults({
   vaultsStatuses: VaultsStatuses;
   networkTimeout: number;
   walletName: string;
+  locale: string;
 }): Promise<string[]> {
   try {
     // Get push token
@@ -160,6 +162,7 @@ export async function watchVaults({
     const registrationData: WatchtowerRegistrationData = {
       pushToken,
       walletName,
+      locale,
       vaults: vaultsToMonitor
     };
 
