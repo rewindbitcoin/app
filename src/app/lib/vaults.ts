@@ -1243,6 +1243,9 @@ async function fetchVaultStatus(
         ...(currvaultStatus.isHidden !== undefined && {
           isHidden: currvaultStatus.isHidden
         }),
+        ...(currvaultStatus.registeredWatchtowers !== undefined && {
+          registeredWatchtowers: currvaultStatus.registeredWatchtowers
+        }),
         ...(currvaultStatus.vaultPushTime !== undefined && {
           vaultPushTime: currvaultStatus.vaultPushTime
         }),

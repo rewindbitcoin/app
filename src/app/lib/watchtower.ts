@@ -108,7 +108,8 @@ export async function watchVaults({
   vaults,
   vaultsStatuses,
   networkTimeout,
-  walletName
+  walletName,
+  locale
 }: {
   watchtowerAPI: string;
   vaults: Vaults;
@@ -125,12 +126,10 @@ export async function watchVaults({
     const vaultsToMonitor = Object.entries(vaults)
       .filter(([vaultId]) => {
         const status = vaultsStatuses[vaultId];
-        // Only monitor vaults that are not yet triggered and not registered
-        // with current watchtower
-        return (
-          !status?.triggerTxHex &&
-          !status?.registeredWatchtowers?.includes(watchtowerAPI)
-        );
+        // Only monitor vaults that are not yet not registered
+        // with current watchtower even if they've been triggered (may be
+        // a recent trigger)
+        return !status?.registeredWatchtowers?.includes(watchtowerAPI);
       })
       .map(([vaultId, vault]) => {
         // Each vault has multiple trigger transactions (one per fee rate)

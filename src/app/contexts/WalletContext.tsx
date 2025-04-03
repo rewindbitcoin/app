@@ -73,6 +73,8 @@ import {
   ElectrumExplorer
 } from '@bitcoinerlab/explorer';
 import type { BlockStatus } from '@bitcoinerlab/explorer';
+import { defaultSettings } from '../lib/settings';
+import { getLocales } from 'expo-localization';
 
 export const WalletContext: Context<WalletContextType | null> =
   createContext<WalletContextType | null>(null);
@@ -1199,21 +1201,28 @@ const WalletProviderRaw = ({
             t('app.watchtowerRegistrationError', { message }),
           whenToastErrors,
           requirements: { watchtowerAPIReachable: true },
-          func: () =>
-            watchVaults({
+          func: () => {
+            const rawLocale = settings?.LOCALE ?? defaultSettings.LOCALE;
+            const locale =
+              rawLocale === 'default'
+                ? getLocales()[0]?.languageTag ?? 'en'
+                : rawLocale;
+            return watchVaults({
               watchtowerAPI,
               vaults: updatedVaults,
               vaultsStatuses: updatedVaultsStatuses,
               networkTimeout,
               walletName: watchtowerWalletName,
               locale
-            })
+            });
+          }
         });
         if (walletId !== walletIdRef.current) {
           //do this after each await
           setSyncingBlockchain(walletId, false);
           return;
         }
+
         //  2nd. update updatedVaultsStatuses with fresh data
         if (newWatchedVaults?.length)
           for (const vaultId of newWatchedVaults) {
@@ -1236,6 +1245,7 @@ const WalletProviderRaw = ({
           if (vaults !== updatedVaults) setVaults(updatedVaults);
           if (vaultsStatuses !== updatedVaultsStatuses)
             setVaultsStatuses(updatedVaultsStatuses);
+
           // setUtxosHistoryExport internally uses the recently fetched discovery
           // there's no need to wait since the async part is for storing data
           // on disk. This data is re-stored on each blockchain sync operation
@@ -1293,7 +1303,8 @@ const WalletProviderRaw = ({
     cBVaultsReaderAPI,
     watchtowerAPI,
     gapLimit,
-    networkTimeout
+    networkTimeout,
+    settings?.LOCALE
   ]);
 
   //When syncingBlockchain is set then trigger sync() which does all the
@@ -1405,7 +1416,7 @@ const WalletProviderRaw = ({
     (vaultId: string, vaultStatus: VaultStatus) => {
       const currVaultStatus = vaultsStatuses?.[vaultId];
       if (!vaults || !accounts || !tipHeight)
-        throw new Error('Cannot update statuses for uinit data');
+        throw new Error('Cannot update statuses for non-initialized data');
       if (!currVaultStatus)
         throw new Error('Cannot update unexisting vault status');
       if (!shallowEqualObjects(currVaultStatus, vaultStatus)) {
