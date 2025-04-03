@@ -934,6 +934,8 @@ const WalletProviderRaw = ({
   const watchtowerWalletName =
     wallet && wallets && walletTitle(wallet, wallets, t);
 
+  // It will return a mutared updatedVaultsStatuses if a new
+  // vault is registered or kept the same if not
   const registerWithWatchtower = useCallback(
     async ({
       vaults,
@@ -943,10 +945,7 @@ const WalletProviderRaw = ({
       vaults: Vaults;
       vaultsStatuses: VaultsStatuses;
       whenToastErrors: 'ON_NEW_ERROR' | 'ON_ANY_ERROR';
-    }): Promise<{
-      updatedVaultsStatuses: VaultsStatuses;
-      newWatchedVaults: Array<string> | undefined;
-    }> => {
+    }): Promise<VaultsStatuses> => {
       if (!watchtowerAPI || !networkTimeout || !watchtowerWalletName)
         throw new Error('Required data for watchtower registration missing');
 
@@ -975,13 +974,13 @@ const WalletProviderRaw = ({
 
       let updatedVaultsStatuses = vaultsStatuses;
       if (newWatchedVaults?.length) {
-        let hasChanges = false;
+        let alreadyMutated = false;
         for (const vaultId of newWatchedVaults) {
           const status = vaultsStatuses[vaultId];
           if (!status) throw new Error('Unset status for vaultId');
           if (!status.registeredWatchtowers?.includes(watchtowerAPI)) {
-            if (!hasChanges) {
-              hasChanges = true;
+            if (!alreadyMutated) {
+              alreadyMutated = true;
               updatedVaultsStatuses = { ...vaultsStatuses };
             }
             updatedVaultsStatuses[vaultId] = {
@@ -994,8 +993,7 @@ const WalletProviderRaw = ({
           }
         }
       }
-
-      return { updatedVaultsStatuses, newWatchedVaults };
+      return updatedVaultsStatuses;
     },
     [
       watchtowerAPI,
@@ -1266,12 +1264,11 @@ const WalletProviderRaw = ({
         }
 
         // Update vaultsStatuses with watchtower registrations
-        const { updatedVaultsStatuses: watchtowerVaultsStatuses } =
-          await registerWithWatchtower({
-            vaults: updatedVaults,
-            vaultsStatuses: updatedVaultsStatuses,
-            whenToastErrors
-          });
+        const watchtowerVaultsStatuses = await registerWithWatchtower({
+          vaults: updatedVaults,
+          vaultsStatuses: updatedVaultsStatuses,
+          whenToastErrors
+        });
         if (walletId !== walletIdRef.current) {
           //do this after each await
           setSyncingBlockchain(walletId, false);
