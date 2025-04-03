@@ -5,6 +5,8 @@ import React, {
   useRef,
   useState
 } from 'react';
+
+const IRREVERSIBLE_BLOCKS = 3; // Number of blocks after which a transaction is considered irreversible
 import { View, Text, Linking, Pressable } from 'react-native';
 import * as Icons from '@expo/vector-icons';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -356,13 +358,13 @@ const RawVault = ({
 
   const canBeHidden =
     remainingBlocks === 'VAULT_NOT_FOUND' ||
-    //can be hidden if irreversible, that is after 3 blocks
-    //since iether a rescue tx or 3 blocks after having reached a hot status
+    //can be hidden if irreversible after specified blocks
+    //since either a rescue tx or after having reached a hot status
     (tipHeight &&
       ((vaultStatus?.panicTxBlockHeight &&
-        tipHeight - vaultStatus.panicTxBlockHeight > 3) ||
+        tipHeight - vaultStatus.panicTxBlockHeight > IRREVERSIBLE_BLOCKS) ||
         (vaultStatus?.hotBlockHeight &&
-          tipHeight - vaultStatus.hotBlockHeight > 3)));
+          tipHeight - vaultStatus.hotBlockHeight > IRREVERSIBLE_BLOCKS)));
 
   const [scheduledNow, setScheduledNow] = useState<number>(Date.now() / 1000);
   //update now every 5 minutes...
@@ -639,7 +641,13 @@ const RawVault = ({
                       lockTime: formatBlocks(vault.lockBlocks, t, locale, true)
                     })}
               </Text>
-              {canReceiveNotifications && (
+              {canReceiveNotifications && 
+                (remainingBlocks === 'TRIGGER_NOT_PUSHED' || 
+                (tipHeight && 
+                  ((vaultStatus?.panicTxBlockHeight && 
+                    tipHeight - vaultStatus.panicTxBlockHeight <= IRREVERSIBLE_BLOCKS) || 
+                  (vaultStatus?.hotBlockHeight && 
+                    tipHeight - vaultStatus.hotBlockHeight <= IRREVERSIBLE_BLOCKS)))) && (
                 <View
                   className={`flex-row items-center mt-2 ${registeredWatchtower ? 'animate-none' : 'animate-pulse'}`}
                 >
