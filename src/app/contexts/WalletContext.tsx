@@ -97,6 +97,18 @@ export type WalletContextType = {
   fetchServiceAddress: () => Promise<string>;
   getUnvaultKey: () => Promise<string>;
   updateVaultStatus: (vaultId: string, vaultStatus: VaultStatus) => void;
+  registerWithWatchtower: ({
+    vaults,
+    vaultsStatuses,
+    whenToastErrors
+  }: {
+    vaults: VaultsType;
+    vaultsStatuses: VaultsStatuses;
+    whenToastErrors?: 'ON_NEW_ERROR' | 'ON_ANY_ERROR';
+  }) => Promise<{
+    updatedVaultsStatuses: VaultsStatuses;
+    newWatchedVaults: Array<string> | undefined;
+  }>;
   btcFiat: number | undefined;
   feeEstimates: FeeEstimates | undefined;
   tipStatus: BlockStatus | undefined;
@@ -1192,53 +1204,19 @@ const WalletProviderRaw = ({
           return;
         }
 
-        // Now update again updatedVaultsStatuses with watchtower registrations
-        //  1st. Register with watchtower service. This will return an array
-        //  with newly registered vaultIds or empty array of already registered
-        const { result: newWatchedVaults } = await netRequest({
-          id: 'watchtowerRegistration',
-          errorMessage: (message: string) =>
-            t('app.watchtowerRegistrationError', { message }),
-          whenToastErrors,
-          requirements: { watchtowerAPIReachable: true },
-          func: () => {
-            const rawLocale = settings?.LOCALE ?? defaultSettings.LOCALE;
-            const locale =
-              rawLocale === 'default'
-                ? getLocales()[0]?.languageTag ?? 'en'
-                : rawLocale;
-            return watchVaults({
-              watchtowerAPI,
-              vaults: updatedVaults,
-              vaultsStatuses: updatedVaultsStatuses,
-              networkTimeout,
-              walletName: watchtowerWalletName,
-              locale
-            });
-          }
-        });
+        // Update vaultsStatuses with watchtower registrations
+        const { updatedVaultsStatuses: watchtowerVaultsStatuses } =
+          await registerWithWatchtower({
+            vaults: updatedVaults,
+            vaultsStatuses: updatedVaultsStatuses,
+            whenToastErrors
+          });
         if (walletId !== walletIdRef.current) {
           //do this after each await
           setSyncingBlockchain(walletId, false);
           return;
         }
-
-        //  2nd. update updatedVaultsStatuses with fresh data
-        if (newWatchedVaults?.length)
-          for (const vaultId of newWatchedVaults) {
-            const status = updatedVaultsStatuses[vaultId];
-            if (!status) throw new Error('Unset status for vaultId');
-            updatedVaultsStatuses = {
-              ...updatedVaultsStatuses,
-              [vaultId]: {
-                ...status,
-                registeredWatchtowers: [
-                  ...(status.registeredWatchtowers ?? []),
-                  watchtowerAPI
-                ]
-              }
-            };
-          }
+        updatedVaultsStatuses = watchtowerVaultsStatuses;
 
         //Update states:
         batchedUpdates(() => {
@@ -1412,6 +1390,68 @@ const WalletProviderRaw = ({
     [pushTx, accounts, tipHeight, setUtxosHistoryExport, vaults, vaultsStatuses]
   );
 
+  const registerWithWatchtower = useCallback(
+    async ({
+      vaults,
+      vaultsStatuses,
+      whenToastErrors = 'ON_NEW_ERROR'
+    }: {
+      vaults: VaultsType;
+      vaultsStatuses: VaultsStatuses;
+      whenToastErrors?: 'ON_NEW_ERROR' | 'ON_ANY_ERROR';
+    }): Promise<{
+      updatedVaultsStatuses: VaultsStatuses;
+      newWatchedVaults: Array<string> | undefined;
+    }> => {
+      if (!watchtowerAPI || !networkTimeout || !watchtowerWalletName || !settings)
+        throw new Error('Required data for watchtower registration missing');
+
+      const { result: newWatchedVaults } = await netRequest({
+        id: 'watchtowerRegistration',
+        errorMessage: (message: string) =>
+          t('app.watchtowerRegistrationError', { message }),
+        whenToastErrors,
+        requirements: { watchtowerAPIReachable: true },
+        func: () => {
+          const rawLocale = settings?.LOCALE ?? defaultSettings.LOCALE;
+          const locale =
+            rawLocale === 'default'
+              ? getLocales()[0]?.languageTag ?? 'en'
+              : rawLocale;
+          return watchVaults({
+            watchtowerAPI,
+            vaults,
+            vaultsStatuses,
+            networkTimeout,
+            walletName: watchtowerWalletName,
+            locale
+          });
+        }
+      });
+
+      let updatedVaultsStatuses = vaultsStatuses;
+      if (newWatchedVaults?.length) {
+        for (const vaultId of newWatchedVaults) {
+          const status = vaultsStatuses[vaultId];
+          if (!status) throw new Error('Unset status for vaultId');
+          updatedVaultsStatuses = {
+            ...updatedVaultsStatuses,
+            [vaultId]: {
+              ...status,
+              registeredWatchtowers: [
+                ...(status.registeredWatchtowers ?? []),
+                watchtowerAPI
+              ]
+            }
+          };
+        }
+      }
+
+      return { updatedVaultsStatuses, newWatchedVaults };
+    },
+    [watchtowerAPI, networkTimeout, watchtowerWalletName, settings, netRequest, t]
+  );
+
   const updateVaultStatus = useCallback(
     (vaultId: string, vaultStatus: VaultStatus) => {
       const currVaultStatus = vaultsStatuses?.[vaultId];
@@ -1440,6 +1480,7 @@ const WalletProviderRaw = ({
 
   const contextValue = {
     getUnvaultKey,
+    registerWithWatchtower,
     getNextChangeDescriptorWithIndex,
     getNextReceiveDescriptorWithIndex,
     fetchServiceAddress,
