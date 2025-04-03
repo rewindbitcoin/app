@@ -362,7 +362,8 @@ const RawVault = ({
     //since either a rescue tx or after having reached a hot status
     (tipHeight &&
       ((vaultStatus?.panicTxBlockHeight &&
-        tipHeight - vaultStatus.panicTxBlockHeight >= IRREVERSIBLE_BLOCKS - 1) ||
+        tipHeight - vaultStatus.panicTxBlockHeight >=
+          IRREVERSIBLE_BLOCKS - 1) ||
         (vaultStatus?.hotBlockHeight &&
           tipHeight - vaultStatus.hotBlockHeight >= IRREVERSIBLE_BLOCKS - 1)));
 
@@ -647,7 +648,8 @@ const RawVault = ({
               (remainingBlocks === 'TRIGGER_NOT_PUSHED' ||
                 (tipHeight &&
                   vaultStatus?.triggerTxBlockHeight &&
-                  tipHeight - vaultStatus.triggerTxBlockHeight < IRREVERSIBLE_BLOCKS - 1)) && (
+                  tipHeight - vaultStatus.triggerTxBlockHeight <
+                    IRREVERSIBLE_BLOCKS - 1)) && (
                 <View
                   className={`flex-row items-center mt-2 ${registeredWatchtower ? 'animate-none' : 'animate-pulse'}`}
                 >
