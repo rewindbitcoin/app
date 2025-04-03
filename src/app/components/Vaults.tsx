@@ -362,9 +362,9 @@ const RawVault = ({
     //since either a rescue tx or after having reached a hot status
     (tipHeight &&
       ((vaultStatus?.panicTxBlockHeight &&
-        tipHeight - vaultStatus.panicTxBlockHeight > IRREVERSIBLE_BLOCKS) ||
+        tipHeight - vaultStatus.panicTxBlockHeight >= IRREVERSIBLE_BLOCKS - 1) ||
         (vaultStatus?.hotBlockHeight &&
-          tipHeight - vaultStatus.hotBlockHeight > IRREVERSIBLE_BLOCKS)));
+          tipHeight - vaultStatus.hotBlockHeight >= IRREVERSIBLE_BLOCKS - 1)));
 
   const [scheduledNow, setScheduledNow] = useState<number>(Date.now() / 1000);
   //update now every 5 minutes...
@@ -647,8 +647,7 @@ const RawVault = ({
               (remainingBlocks === 'TRIGGER_NOT_PUSHED' ||
                 (tipHeight &&
                   vaultStatus?.triggerTxBlockHeight &&
-                  tipHeight - vaultStatus.triggerTxBlockHeight <=
-                    IRREVERSIBLE_BLOCKS)) && (
+                  tipHeight - vaultStatus.triggerTxBlockHeight < IRREVERSIBLE_BLOCKS - 1)) && (
                 <View
                   className={`flex-row items-center mt-2 ${registeredWatchtower ? 'animate-none' : 'animate-pulse'}`}
                 >
