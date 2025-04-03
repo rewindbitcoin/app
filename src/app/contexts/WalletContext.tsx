@@ -975,19 +975,23 @@ const WalletProviderRaw = ({
 
       let updatedVaultsStatuses = vaultsStatuses;
       if (newWatchedVaults?.length) {
+        let hasChanges = false;
         for (const vaultId of newWatchedVaults) {
           const status = vaultsStatuses[vaultId];
           if (!status) throw new Error('Unset status for vaultId');
-          updatedVaultsStatuses = {
-            ...updatedVaultsStatuses,
-            [vaultId]: {
+          if (!status.registeredWatchtowers?.includes(watchtowerAPI)) {
+            if (!hasChanges) {
+              hasChanges = true;
+              updatedVaultsStatuses = { ...vaultsStatuses };
+            }
+            updatedVaultsStatuses[vaultId] = {
               ...status,
               registeredWatchtowers: [
                 ...(status.registeredWatchtowers ?? []),
                 watchtowerAPI
               ]
-            }
-          };
+            };
+          }
         }
       }
 
