@@ -197,7 +197,7 @@ const RawVault = ({
   const [showInitUnfreezeHelp, setShowInitUnfreezeHelp] =
     useState<boolean>(false);
   const [showWatchtowerHelp, setShowWatchtowerHelp] = useState<boolean>(false);
-  const [notificationResult, setNotificationResult] =
+  const [notificationSetupResult, setNotificationSetupResult] =
     useState<NotificationSetupResult>();
   const handleDelegateHelp = useCallback(() => setShowDelegateHelp(true), []);
   const handleRescueHelp = useCallback(() => setShowRescueHelp(true), []);
@@ -219,7 +219,7 @@ const RawVault = ({
     const configureNotificationsIfNeeded = async () => {
       if (canReceiveNotifications)
         try {
-          setNotificationResult(await configureNotifications());
+          setNotificationSetupResult(await configureNotifications());
         } catch (error) {
           console.warn('Failed to configure notifications:', error);
         }
@@ -640,15 +640,23 @@ const RawVault = ({
                     })}
               </Text>
               {canReceiveNotifications && (
-                <View className="flex-row items-center mt-2">
+                <View
+                  className={`flex-row items-center mt-2 ${registeredWatchtower ? 'animate-none' : 'animate-pulse'}`}
+                >
                   <Pressable onPress={handleWatchtowerHelp}>
                     <MaterialCommunityIcons
                       name={
-                        registeredWatchtower ? 'shield-check' : 'shield-alert'
+                        registeredWatchtower && notificationSetupResult?.success
+                          ? 'shield-check'
+                          : 'shield-alert'
                       }
                       size={20}
                       className={
-                        registeredWatchtower ? 'text-green-500' : 'text-red-500'
+                        notificationSetupResult?.success
+                          ? registeredWatchtower
+                            ? 'text-green-500'
+                            : 'text-slate-600'
+                          : 'text-red-500'
                       }
                     />
                   </Pressable>
@@ -815,20 +823,22 @@ const RawVault = ({
         onClose={handleCloseWatchtowerHelp}
         customButtons={
           <View className="items-center gap-6 gap-y-4 flex-row flex-wrap justify-center pb-4">
-            {!registeredWatchtower && notificationResult?.canAskAgain && (
-              <Button
-                mode="secondary"
-                onPress={async () => {
-                  const result = await configureNotifications();
-                  setNotificationResult(result);
-                  if (result.success) {
-                    handleCloseWatchtowerHelp();
-                  }
-                }}
-              >
-                {t('wallet.vault.help.watchtower.enableButton')}
-              </Button>
-            )}
+            {!registeredWatchtower &&
+              !notificationSetupResult?.success &&
+              notificationSetupResult?.canAskAgain && (
+                <Button
+                  mode="secondary"
+                  onPress={async () => {
+                    const result = await configureNotifications();
+                    setNotificationSetupResult(result);
+                    if (result.success) {
+                      handleCloseWatchtowerHelp();
+                    }
+                  }}
+                >
+                  {t('wallet.vault.help.watchtower.enableButton')}
+                </Button>
+              )}
             <Button mode="secondary" onPress={handleCloseWatchtowerHelp}>
               {t('understoodButton')}
             </Button>
@@ -836,15 +846,18 @@ const RawVault = ({
         }
       >
         <Text className="text-base pl-2 pr-2 text-slate-600">
-          {registeredWatchtower
-            ? t('wallet.vault.help.watchtower.registered')
-            : notificationResult?.canAskAgain
-              ? Platform.OS === 'ios'
-                ? t('wallet.vault.help.watchtower.unregistered.ios')
-                : t('wallet.vault.help.watchtower.unregistered.android')
-              : Platform.OS === 'ios'
-                ? t('wallet.vault.help.watchtower.settings.ios')
-                : t('wallet.vault.help.watchtower.settings.android')}
+          {
+            //FIXME: here i still need explanations for when success is false
+            registeredWatchtower
+              ? t('wallet.vault.help.watchtower.registered')
+              : notificationSetupResult?.canAskAgain
+                ? Platform.OS === 'ios'
+                  ? t('wallet.vault.help.watchtower.unregistered.ios')
+                  : t('wallet.vault.help.watchtower.unregistered.android')
+                : Platform.OS === 'ios'
+                  ? t('wallet.vault.help.watchtower.settings.ios')
+                  : t('wallet.vault.help.watchtower.settings.android')
+          }
         </Text>
       </Modal>
     </View>
