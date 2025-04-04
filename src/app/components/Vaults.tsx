@@ -513,7 +513,7 @@ const RawVault = ({
                   IRREVERSIBLE_BLOCKS - 1)) && (
               <Pressable
                 onPress={handleWatchtowerHelp}
-                className="rounded-lg border border-primary p-1.5"
+                className="p-1.5"
               >
                 <FontAwesome6
                   name="watchman-monitoring"
