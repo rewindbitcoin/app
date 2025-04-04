@@ -511,24 +511,25 @@ const RawVault = ({
                 !!vaultStatus?.triggerTxBlockHeight &&
                 tipHeight - vaultStatus.triggerTxBlockHeight <
                   IRREVERSIBLE_BLOCKS - 1)) && (
-              <View>
-                <Pressable onPress={handleWatchtowerHelp}>
-                  <MaterialCommunityIcons
-                    name={
-                      registeredWatchtower && notificationSetupResult?.success
-                        ? 'shield-check'
-                        : 'shield-alert'
-                    }
-                    className={`text-lg ${
-                      notificationSetupResult?.success
-                        ? registeredWatchtower
-                          ? 'text-green-500'
-                          : 'text-slate-600'
-                        : 'text-red-500'
-                    }`}
-                  />
-                </Pressable>
-              </View>
+              <Pressable
+                onPress={handleWatchtowerHelp}
+                className="rounded-lg border border-primary p-1.5"
+              >
+                <MaterialCommunityIcons
+                  name={
+                    registeredWatchtower && notificationSetupResult?.success
+                      ? 'tower-beach'
+                      : 'tower-fire'
+                  }
+                  className={`text-lg ${
+                    notificationSetupResult?.success
+                      ? registeredWatchtower
+                        ? 'text-green-500'
+                        : 'text-slate-600'
+                      : 'text-red-500'
+                  }`}
+                />
+              </Pressable>
             )}
         </View>
         {isUnfreezeOngoing && (
