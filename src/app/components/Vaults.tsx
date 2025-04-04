@@ -511,7 +511,7 @@ const RawVault = ({
                 !!vaultStatus?.triggerTxBlockHeight &&
                 tipHeight - vaultStatus.triggerTxBlockHeight <
                   IRREVERSIBLE_BLOCKS - 1)) && (
-              <View className="ml-4">
+              <View>
                 <Pressable onPress={handleWatchtowerHelp}>
                   <MaterialCommunityIcons
                     name={
@@ -519,14 +519,13 @@ const RawVault = ({
                         ? 'shield-check'
                         : 'shield-alert'
                     }
-                    size={20}
-                    className={
+                    className={`native:text-sm web:text-xs native:mobmed:text-base web:mobmed:text-sm ${
                       notificationSetupResult?.success
                         ? registeredWatchtower
                           ? 'text-green-500'
                           : 'text-slate-600'
                         : 'text-red-500'
-                    }
+                    }`}
                   />
                 </Pressable>
               </View>
