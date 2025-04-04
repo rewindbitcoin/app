@@ -644,8 +644,8 @@ const RawVault = ({
           )}
           {canReceiveNotifications &&
             (remainingBlocks === 'TRIGGER_NOT_PUSHED' ||
-              (tipHeight &&
-                vaultStatus?.triggerTxBlockHeight &&
+              (!!tipHeight &&
+                !!vaultStatus?.triggerTxBlockHeight &&
                 tipHeight - vaultStatus.triggerTxBlockHeight <
                   IRREVERSIBLE_BLOCKS - 1)) && (
               // Show the watchtower icon while the trigger tx is reversible
@@ -708,17 +708,6 @@ const RawVault = ({
               </Button>
             </>
           )}
-        </View>
-        <View>
-          {/*this part should be about the rescue / hot*/}
-          {
-            // Rescued
-            vaultStatus?.panicTxHex && <View></View>
-          }
-          {
-            // Spendable
-            remainingBlocks === 0 && !vaultStatus?.panicTxHex && <View></View>
-          }
         </View>
         {(canBeRescued || canInitUnfreeze || canBeDelegated || canBeHidden) && (
           <View
@@ -853,18 +842,16 @@ const RawVault = ({
         }
       >
         <Text className="text-base pl-2 pr-2 text-slate-600">
-          {
-            //FIXME: here i still need explanations for when success is false
-            registeredWatchtower
-              ? t('wallet.vault.help.watchtower.registered')
-              : notificationSetupResult?.canAskAgain
-                ? Platform.OS === 'ios'
-                  ? t('wallet.vault.help.watchtower.unregistered.ios')
-                  : t('wallet.vault.help.watchtower.unregistered.android')
-                : Platform.OS === 'ios'
-                  ? t('wallet.vault.help.watchtower.settings.ios')
-                  : t('wallet.vault.help.watchtower.settings.android')
-          }
+          {registeredWatchtower
+            ? //FIXME: here i still need explanations for when success is false
+              t('wallet.vault.help.watchtower.registered')
+            : notificationSetupResult?.canAskAgain
+              ? Platform.OS === 'ios'
+                ? t('wallet.vault.help.watchtower.unregistered.ios')
+                : t('wallet.vault.help.watchtower.unregistered.android')
+              : Platform.OS === 'ios'
+                ? t('wallet.vault.help.watchtower.settings.ios')
+                : t('wallet.vault.help.watchtower.settings.android')}
         </Text>
       </Modal>
     </View>
@@ -892,7 +879,7 @@ const Vaults = ({
   blockExplorerURL: string | undefined;
   watchtowerAPI: string | undefined;
 }) => {
-  //FIXME: add a navigation.addListener focus and use it to call
+  //TODO: add a navigation.addListener focus and use it to call
   //registerWithWatchtower({vaults, vaultsStatuses, whenToastErrors: 'ON_NEW_ERROR'})
   const sortedVaults = useMemo(() => {
     return Object.values(vaults).sort(
