@@ -642,37 +642,35 @@ const RawVault = ({
                   })}
             </Text>
           )}
-          {
-            //Show the watchtower icon while the trigger tx is reversible
-            canReceiveNotifications &&
-              (remainingBlocks === 'TRIGGER_NOT_PUSHED' ||
-                (tipHeight &&
-                  vaultStatus?.triggerTxBlockHeight &&
-                  tipHeight - vaultStatus.triggerTxBlockHeight <
-                    IRREVERSIBLE_BLOCKS - 1)) && (
-                <View
-                  className={`flex-row items-center mt-2 ${registeredWatchtower ? 'animate-none' : 'animate-pulse'}`}
-                >
-                  <Pressable onPress={handleWatchtowerHelp}>
-                    <MaterialCommunityIcons
-                      name={
-                        registeredWatchtower && notificationSetupResult?.success
-                          ? 'shield-check'
-                          : 'shield-alert'
-                      }
-                      size={20}
-                      className={
-                        notificationSetupResult?.success
-                          ? registeredWatchtower
-                            ? 'text-green-500'
-                            : 'text-slate-600'
-                          : 'text-red-500'
-                      }
-                    />
-                  </Pressable>
-                </View>
-              )
-          }
+          {canReceiveNotifications &&
+            (remainingBlocks === 'TRIGGER_NOT_PUSHED' ||
+              (tipHeight &&
+                vaultStatus?.triggerTxBlockHeight &&
+                tipHeight - vaultStatus.triggerTxBlockHeight <
+                  IRREVERSIBLE_BLOCKS - 1)) && (
+              // Show the watchtower icon while the trigger tx is reversible
+              <View
+                className={`flex-row items-center mt-2 ${registeredWatchtower ? 'animate-none' : 'animate-pulse'}`}
+              >
+                <Pressable onPress={handleWatchtowerHelp}>
+                  <MaterialCommunityIcons
+                    name={
+                      registeredWatchtower && notificationSetupResult?.success
+                        ? 'shield-check'
+                        : 'shield-alert'
+                    }
+                    size={20}
+                    className={
+                      notificationSetupResult?.success
+                        ? registeredWatchtower
+                          ? 'text-green-500'
+                          : 'text-slate-600'
+                        : 'text-red-500'
+                    }
+                  />
+                </Pressable>
+              </View>
+            )}
           {remainingBlocks === 'SPENT_AS_HOT' && (
             <Text className="pt-2">
               {spentAsHotDate
@@ -894,6 +892,8 @@ const Vaults = ({
   blockExplorerURL: string | undefined;
   watchtowerAPI: string | undefined;
 }) => {
+  //FIXME: add a navigation.addListener focus and use it to call
+  //registerWithWatchtower({vaults, vaultsStatuses, whenToastErrors: 'ON_NEW_ERROR'})
   const sortedVaults = useMemo(() => {
     return Object.values(vaults).sort(
       (a, b) => b.creationTime - a.creationTime
