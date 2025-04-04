@@ -9,7 +9,7 @@ import React, {
 const IRREVERSIBLE_BLOCKS = 4; // Number of blocks after which a transaction is considered irreversible
 import { View, Text, Linking, Pressable } from 'react-native';
 import * as Icons from '@expo/vector-icons';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { MaterialCommunityIcons, FontAwesome6 } from '@expo/vector-icons';
 import { batchedUpdates } from '~/common/lib/batchedUpdates';
 
 import {
@@ -515,12 +515,8 @@ const RawVault = ({
                 onPress={handleWatchtowerHelp}
                 className="rounded-lg border border-primary p-1.5"
               >
-                <MaterialCommunityIcons
-                  name={
-                    registeredWatchtower && notificationSetupResult?.success
-                      ? 'tower-beach'
-                      : 'tower-fire'
-                  }
+                <FontAwesome6
+                  name="watchman-monitoring"
                   className={`text-lg ${
                     notificationSetupResult?.success
                       ? registeredWatchtower
