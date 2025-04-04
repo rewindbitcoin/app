@@ -117,7 +117,7 @@ export type WalletContextType = {
     descriptor: string;
     index?: number;
   }) => Promise<TxHistory | undefined>;
-  vaultPushAndUpdateStates: (vault: Vault) => Promise<void>;
+  pushVaultRegisterWTAndUpdateStates: (vault: Vault) => Promise<void>;
   txPushAndUpdateStates: (txHex: string) => Promise<void>;
   syncBlockchain: () => void;
   syncingBlockchain: boolean;
@@ -1384,7 +1384,7 @@ const WalletProviderRaw = ({
    *
    * If the push or saving state fail for any reason, then it throws.
    */
-  const vaultPushAndUpdateStates = useCallback(
+  const pushVaultRegisterWTAndUpdateStates = useCallback(
     async (vault: Vault): Promise<void> => {
       if (!vaults || !vaultsStatuses)
         throw new Error('vaults and vaultsStatuses should be defined');
@@ -1507,7 +1507,7 @@ const WalletProviderRaw = ({
     utxosData: walletId !== undefined ? walletsUtxosData[walletId] : undefined,
     historyData:
       walletId !== undefined ? walletsHistoryData[walletId] : undefined,
-    vaultPushAndUpdateStates,
+    pushVaultRegisterWTAndUpdateStates,
     txPushAndUpdateStates,
     syncBlockchain,
     syncingBlockchain: !!(
