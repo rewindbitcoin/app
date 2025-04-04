@@ -1409,7 +1409,7 @@ const WalletProviderRaw = ({
       };
 
       await pushTx(vault.vaultTxHex);
-      
+
       // Register with watchtower immediately for new vaults
       const updatedVaultsStatuses = await registerWithWatchtower({
         vaults: newVaults,
@@ -1433,6 +1433,7 @@ const WalletProviderRaw = ({
       ]);
     },
     [
+      registerWithWatchtower,
       pushTx,
       accounts,
       tipHeight,
