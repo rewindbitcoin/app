@@ -470,37 +470,68 @@ const RawVault = ({
         </Text>
       </View>
       <View>
-        {!!frozenBalance && (
-          <Amount
-            title={
-              isUnfreezeOngoing
-                ? t('wallet.vault.amountBeingUnfrozen')
-                : t('wallet.vault.amountFrozen')
-            }
-            isConfirming={vaultStatus?.vaultTxBlockHeight === 0}
-            satsBalance={frozenBalance}
-            btcFiat={btcFiat}
-            mode={mode}
-          />
-        )}
-        {!!unfrozenBalance && (
-          <Amount
-            title={t('wallet.vault.unfrozenAmount')}
-            isConfirming={false}
-            satsBalance={unfrozenBalance}
-            btcFiat={btcFiat}
-            mode={mode}
-          />
-        )}
-        {!!rescuedBalance && (
-          <Amount
-            title={t('wallet.vault.rescuedAmount')}
-            isConfirming={isRescued && !isRescuedConfirmed}
-            satsBalance={rescuedBalance}
-            btcFiat={btcFiat}
-            mode={mode}
-          />
-        )}
+        <View className="flex-row justify-between items-start">
+          <View className="flex-1">
+            {!!frozenBalance && (
+              <Amount
+                title={
+                  isUnfreezeOngoing
+                    ? t('wallet.vault.amountBeingUnfrozen')
+                    : t('wallet.vault.amountFrozen')
+                }
+                isConfirming={vaultStatus?.vaultTxBlockHeight === 0}
+                satsBalance={frozenBalance}
+                btcFiat={btcFiat}
+                mode={mode}
+              />
+            )}
+            {!!unfrozenBalance && (
+              <Amount
+                title={t('wallet.vault.unfrozenAmount')}
+                isConfirming={false}
+                satsBalance={unfrozenBalance}
+                btcFiat={btcFiat}
+                mode={mode}
+              />
+            )}
+            {!!rescuedBalance && (
+              <Amount
+                title={t('wallet.vault.rescuedAmount')}
+                isConfirming={isRescued && !isRescuedConfirmed}
+                satsBalance={rescuedBalance}
+                btcFiat={btcFiat}
+                mode={mode}
+              />
+            )}
+          </View>
+          {canReceiveNotifications &&
+            (remainingBlocks === 'TRIGGER_NOT_PUSHED' ||
+              /*mempool*/ vaultStatus?.triggerTxBlockHeight === 0 ||
+              /*reversible*/ (!!tipHeight &&
+                !!vaultStatus?.triggerTxBlockHeight &&
+                tipHeight - vaultStatus.triggerTxBlockHeight <
+                  IRREVERSIBLE_BLOCKS - 1)) && (
+              <View className="ml-4">
+                <Pressable onPress={handleWatchtowerHelp}>
+                  <MaterialCommunityIcons
+                    name={
+                      registeredWatchtower && notificationSetupResult?.success
+                        ? 'shield-check'
+                        : 'shield-alert'
+                    }
+                    size={20}
+                    className={
+                      notificationSetupResult?.success
+                        ? registeredWatchtower
+                          ? 'text-green-500'
+                          : 'text-slate-600'
+                        : 'text-red-500'
+                    }
+                  />
+                </Pressable>
+              </View>
+            )}
+        </View>
         {isUnfreezeOngoing && (
           <View className="flex-row items-center mt-2">
             {/*<MaterialCommunityIcons
@@ -642,36 +673,6 @@ const RawVault = ({
                   })}
             </Text>
           )}
-          {canReceiveNotifications &&
-            (remainingBlocks === 'TRIGGER_NOT_PUSHED' ||
-              /*mempool*/ vaultStatus?.triggerTxBlockHeight === 0 ||
-              /*reversible*/ (!!tipHeight &&
-                !!vaultStatus?.triggerTxBlockHeight &&
-                tipHeight - vaultStatus.triggerTxBlockHeight <
-                  IRREVERSIBLE_BLOCKS - 1)) && (
-              // Show the watchtower icon while the trigger tx is reversible
-              <View
-                className={`flex-row items-center mt-2 ${registeredWatchtower ? 'animate-none' : 'animate-pulse'}`}
-              >
-                <Pressable onPress={handleWatchtowerHelp}>
-                  <MaterialCommunityIcons
-                    name={
-                      registeredWatchtower && notificationSetupResult?.success
-                        ? 'shield-check'
-                        : 'shield-alert'
-                    }
-                    size={20}
-                    className={
-                      notificationSetupResult?.success
-                        ? registeredWatchtower
-                          ? 'text-green-500'
-                          : 'text-slate-600'
-                        : 'text-red-500'
-                    }
-                  />
-                </Pressable>
-              </View>
-            )}
           {remainingBlocks === 'SPENT_AS_HOT' && (
             <Text className="pt-2">
               {spentAsHotDate
