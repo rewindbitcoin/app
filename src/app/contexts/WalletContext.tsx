@@ -1409,10 +1409,18 @@ const WalletProviderRaw = ({
       };
 
       await pushTx(vault.vaultTxHex);
+      
+      // Register with watchtower immediately for new vaults
+      const updatedVaultsStatuses = await registerWithWatchtower({
+        vaults: newVaults,
+        vaultsStatuses: newVaultsStatuses,
+        whenToastErrors: 'ON_ANY_ERROR'
+      });
+
       await Promise.all([
         setUtxosHistoryExport(
           newVaults,
-          newVaultsStatuses,
+          updatedVaultsStatuses,
           accounts,
           tipHeight
         ),
@@ -1421,7 +1429,7 @@ const WalletProviderRaw = ({
         //must make sure they are synched somehow - See Vaults.tsx for an
         //example what to do
         setVaults(newVaults),
-        setVaultsStatuses(newVaultsStatuses)
+        setVaultsStatuses(updatedVaultsStatuses)
       ]);
     },
     [
