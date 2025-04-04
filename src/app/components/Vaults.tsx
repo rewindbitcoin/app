@@ -470,7 +470,7 @@ const RawVault = ({
         </Text>
       </View>
       <View>
-        <View className="flex-row justify-between items-start">
+        <View className="flex-row justify-between items-center">
           <View className="flex-1">
             {!!frozenBalance && (
               <Amount
@@ -519,7 +519,7 @@ const RawVault = ({
                         ? 'shield-check'
                         : 'shield-alert'
                     }
-                    className={`native:text-sm web:text-xs native:mobmed:text-base web:mobmed:text-sm ${
+                    className={`text-lg ${
                       notificationSetupResult?.success
                         ? registeredWatchtower
                           ? 'text-green-500'
