@@ -9,7 +9,7 @@ import React, {
 const IRREVERSIBLE_BLOCKS = 4; // Number of blocks after which a transaction is considered irreversible
 import { View, Text, Linking, Pressable } from 'react-native';
 import * as Icons from '@expo/vector-icons';
-import { MaterialCommunityIcons, FontAwesome6 } from '@expo/vector-icons';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { batchedUpdates } from '~/common/lib/batchedUpdates';
 
 import {
@@ -513,7 +513,8 @@ const RawVault = ({
                   IRREVERSIBLE_BLOCKS - 1)) && (
               <Pressable
                 onPress={handleWatchtowerHelp}
-                className="p-1.5"
+                hitSlop={20}
+                className="p-1.5 bg-white rounded-xl shadow-sm android:elevation android:border android:border-slate-200 active:opacity-70 active:scale-95"
               >
                 <MaterialCommunityIcons
                   name={
@@ -521,7 +522,7 @@ const RawVault = ({
                       ? 'bell-outline'
                       : 'bell-off-outline'
                   }
-                  className={`text-lg ${
+                  className={`text-xl ${
                     notificationSetupResult?.success
                       ? registeredWatchtower
                         ? 'text-green-500'
@@ -815,7 +816,7 @@ const RawVault = ({
         title={t('wallet.vault.help.watchtower.title')}
         icon={{
           family: 'MaterialCommunityIcons',
-          name: 'shield-alert'
+          name: 'bell'
         }}
         isVisible={showWatchtowerHelp}
         onClose={handleCloseWatchtowerHelp}

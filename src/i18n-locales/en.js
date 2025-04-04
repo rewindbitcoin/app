@@ -786,7 +786,7 @@ Please wait a few moments until completion.`,
     general: {
       title: 'General',
       electrumBitcoin: 'Electrum Bitcoin',
-      watchtowerApi: 'Watchtower',
+      watchtowerApi: 'Watchtower Alerts',
       electrumTape: 'Electrum Tape',
       electrumTestnet: 'Electrum Testnet',
       electrumRegtest: 'Electrum Regtest',

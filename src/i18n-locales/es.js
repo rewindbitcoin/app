@@ -685,7 +685,7 @@ Por favor, espera unos momentos hasta que se complete.`,
     general: {
       title: 'General',
       electrumBitcoin: 'Electrum Bitcoin',
-      watchtowerApi: 'Torre de Vigilancia (Watchtower)',
+      watchtowerApi: 'Alertas de Vigilancia (Watchtower)',
       electrumTape: 'Electrum Tape',
       electrumTestnet: 'Electrum Testnet',
       electrumRegtest: 'Electrum Regtest',

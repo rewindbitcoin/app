@@ -394,12 +394,16 @@ const SettingsScreen = () => {
 
   const validateRegtestHostName = async (settings: Settings) => {
     const hostname = settings.REGTEST_HOST_NAME;
-    
+
     // Check if hostname contains protocol or port/path
-    if (hostname.includes('://') || hostname.includes(':') || hostname.includes('/')) {
+    if (
+      hostname.includes('://') ||
+      hostname.includes(':') ||
+      hostname.includes('/')
+    ) {
       return t('settings.wallet.regtestHostNameFormatError');
     }
-    
+
     // Get APIs using the candidate settings
     const { generate204API, faucetURL, electrumAPI } = getAPIs(
       'REGTEST',
@@ -621,7 +625,7 @@ const SettingsScreen = () => {
             <SettingsItem
               icon={{
                 family: 'MaterialCommunityIcons',
-                name: 'bell-ring'
+                name: 'bell-outline'
               }}
               maxLength={URL_MAX_LENGTH}
               label={t('settings.general.watchtowerApi')}
