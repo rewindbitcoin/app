@@ -515,8 +515,12 @@ const RawVault = ({
                 onPress={handleWatchtowerHelp}
                 className="p-1.5"
               >
-                <FontAwesome6
-                  name="watchman-monitoring"
+                <MaterialCommunityIcons
+                  name={
+                    registeredWatchtower && notificationSetupResult?.success
+                      ? 'bell-outline'
+                      : 'bell-off-outline'
+                  }
                   className={`text-lg ${
                     notificationSetupResult?.success
                       ? registeredWatchtower
