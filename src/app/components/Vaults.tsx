@@ -644,7 +644,8 @@ const RawVault = ({
           )}
           {canReceiveNotifications &&
             (remainingBlocks === 'TRIGGER_NOT_PUSHED' ||
-              (!!tipHeight &&
+              /*mempool*/ vaultStatus?.triggerTxBlockHeight === 0 ||
+              /*reversible*/ (!!tipHeight &&
                 !!vaultStatus?.triggerTxBlockHeight &&
                 tipHeight - vaultStatus.triggerTxBlockHeight <
                   IRREVERSIBLE_BLOCKS - 1)) && (
@@ -879,8 +880,6 @@ const Vaults = ({
   blockExplorerURL: string | undefined;
   watchtowerAPI: string | undefined;
 }) => {
-  //TODO: add a navigation.addListener focus and use it to call
-  //registerWithWatchtower({vaults, vaultsStatuses, whenToastErrors: 'ON_NEW_ERROR'})
   const sortedVaults = useMemo(() => {
     return Object.values(vaults).sort(
       (a, b) => b.creationTime - a.creationTime

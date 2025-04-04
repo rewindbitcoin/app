@@ -59,7 +59,7 @@ export default function CreateVaultScreen({
     getNextChangeDescriptorWithIndex,
     getUnvaultKey,
     signers,
-    vaultPushAndUpdateStates,
+    pushVaultRegisterWTAndUpdateStates,
     vaults,
     cBVaultsWriterAPI,
     cBVaultsReaderAPI,
@@ -71,7 +71,7 @@ export default function CreateVaultScreen({
     !wallet ||
     !networkId ||
     !signers ||
-    !vaultPushAndUpdateStates ||
+    !pushVaultRegisterWTAndUpdateStates ||
     !cBVaultsWriterAPI ||
     !cBVaultsReaderAPI
   )
@@ -227,7 +227,7 @@ export default function CreateVaultScreen({
     const { status: pushAndUpdateStatus } = await netRequest({
       whenToastErrors: 'ON_ANY_ERROR',
       errorMessage: message => t('createVault.vaultPushError', { message }),
-      func: () => vaultPushAndUpdateStates(vault)
+      func: () => pushVaultRegisterWTAndUpdateStates(vault)
     });
 
     if (pushAndUpdateStatus !== 'SUCCESS') {
@@ -258,7 +258,7 @@ export default function CreateVaultScreen({
     t,
     navigation,
     goBack,
-    vaultPushAndUpdateStates
+    pushVaultRegisterWTAndUpdateStates
   ]);
 
   useEffect(() => {
@@ -377,7 +377,7 @@ export default function CreateVaultScreen({
     lockBlocks,
     networkId,
     onProgress,
-    vaultPushAndUpdateStates,
+    pushVaultRegisterWTAndUpdateStates,
     samples,
     cBVaultsWriterAPI,
     cBVaultsReaderAPI,

@@ -1375,7 +1375,8 @@ const WalletProviderRaw = ({
   }, [walletId, setSyncingBlockchain, dataReady, netReady, tipHeight]);
 
   /**
-   * Pushes the vault and stores all associated data locally:
+   * Pushes the vault, registers to the Watchtower and stores all associated
+   * data locally:
    * It updates utxosData, history, vaults and vaultsStatuses without
    * requiring any additional fetch.
    * It also saves on disk discoveryExport.

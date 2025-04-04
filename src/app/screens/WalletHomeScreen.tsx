@@ -281,7 +281,7 @@ const WalletHomeScreen = () => {
   }, [syncingBlockchain]);
 
   const refreshControl = useMemo(() => {
-    //isMounted prevents a reredering error in iOS where some times
+    //isMounted prevents a rerendering error in iOS where some times
     //the layout was not ready and strange flickers may occur. Note that
     //the syncingBlockchain is true initially on many ocassions and the
     //transition was not being shown
