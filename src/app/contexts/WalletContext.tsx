@@ -12,7 +12,7 @@ import {
   getHistoryData,
   TxHex
 } from '../lib/vaults';
-import { watchVaults } from '../lib/watchtower';
+import { canReceiveNotifications, watchVaults } from '../lib/watchtower';
 import {
   walletTitle,
   type Accounts,
@@ -1271,15 +1271,17 @@ const WalletProviderRaw = ({
 
         // Update vaultsStatuses with watchtower registrations
         // registerWithWatchtower uses netRequest internally
-        updatedVaultsStatuses = await registerWithWatchtower({
-          vaults: updatedVaults,
-          vaultsStatuses: updatedVaultsStatuses,
-          whenToastErrors
-        });
-        if (walletId !== walletIdRef.current) {
-          //do this after each await
-          setSyncingBlockchain(walletId, false);
-          return;
+        if (canReceiveNotifications) {
+          updatedVaultsStatuses = await registerWithWatchtower({
+            vaults: updatedVaults,
+            vaultsStatuses: updatedVaultsStatuses,
+            whenToastErrors
+          });
+          if (walletId !== walletIdRef.current) {
+            //do this after each await
+            setSyncingBlockchain(walletId, false);
+            return;
+          }
         }
 
         //Update states:
@@ -1401,7 +1403,7 @@ const WalletProviderRaw = ({
         throw new Error(`VaultStatus for ${vault.vaultId} already exists`);
 
       const newVaults = { ...vaults, [vault.vaultId]: vault };
-      const newVaultsStatuses = {
+      let newVaultsStatuses = {
         ...vaultsStatuses,
         [vault.vaultId]: {
           vaultPushTime: Math.floor(Date.now() / 1000),
@@ -1411,17 +1413,18 @@ const WalletProviderRaw = ({
 
       await pushTx(vault.vaultTxHex);
 
-      // Register with watchtower immediately for new vaults
-      const updatedVaultsStatuses = await registerWithWatchtower({
-        vaults: newVaults,
-        vaultsStatuses: newVaultsStatuses,
-        whenToastErrors: 'ON_ANY_ERROR'
-      });
+      if (canReceiveNotifications)
+        // Register with watchtower immediately for new vaults
+        newVaultsStatuses = await registerWithWatchtower({
+          vaults: newVaults,
+          vaultsStatuses: newVaultsStatuses,
+          whenToastErrors: 'ON_ANY_ERROR'
+        });
 
       await Promise.all([
         setUtxosHistoryExport(
           newVaults,
-          updatedVaultsStatuses,
+          newVaultsStatuses,
           accounts,
           tipHeight
         ),
@@ -1430,7 +1433,7 @@ const WalletProviderRaw = ({
         //must make sure they are synched somehow - See Vaults.tsx for an
         //example what to do
         setVaults(newVaults),
-        setVaultsStatuses(updatedVaultsStatuses)
+        setVaultsStatuses(newVaultsStatuses)
       ]);
     },
     [

@@ -824,6 +824,9 @@ const RawVault = ({
           <View className="items-center gap-6 gap-y-4 flex-row flex-wrap justify-center pb-4">
             {!registeredWatchtower &&
               !notificationSetupResult?.success &&
+              //FIXME: complete this part of the code. Show texts explaining that
+              //you can retrigger the request to send push notifications
+              //or either direct the user to the system settings
               notificationSetupResult?.canAskAgain && (
                 <Button
                   mode="secondary"
