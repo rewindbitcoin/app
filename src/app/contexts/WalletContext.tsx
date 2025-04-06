@@ -756,13 +756,20 @@ const WalletProviderRaw = ({
 
   // Set up notification listeners
   useEffect(() => {
+    // Only set up notification listeners when data is ready
+    if (!dataReady) return;
+
     // Check for any notifications that might have launched the app
-    Notifications.getLastNotificationResponseAsync().then(response => {
-      if (response) {
-        console.log('Last notification response:', response);
-        processNotificationData(response.notification.request.content.data);
-      }
-    });
+    Notifications.getLastNotificationResponseAsync()
+      .then(response => {
+        if (response) {
+          console.log('Last notification response:', response);
+          processNotificationData(response.notification.request.content.data);
+        }
+      })
+      .catch(error => {
+        console.warn('Error getting last notification response:', error);
+      });
 
     // Listen for notifications received while app is in foreground
     notificationListener.current =
@@ -789,7 +796,7 @@ const WalletProviderRaw = ({
         responseListener.current = undefined;
       }
     };
-  }, [processNotificationData]);
+  }, [processNotificationData, dataReady]);
 
   /**
    * Important, to logOut from wallet, wallet (and therefore walletId) must
