@@ -298,9 +298,15 @@ export default function App() {
         // Access the new fields if needed
         const data = notification.request.content.data;
         if (data && typeof data === 'object') {
-          const walletId = data.walletId;
-          const watchtowerUrl = data.watchtowerUrl;
-          if (walletId) console.log('Notification for wallet:', walletId);
+          const walletId = data['walletId'];
+          const watchtowerUrl = data['watchtowerUrl'];
+          if (walletId) {
+            // Validate walletId is a string containing a non-negative integer
+            const walletIdNum = parseInt(walletId as string, 10);
+            if (!isNaN(walletIdNum) && walletIdNum >= 0) {
+              console.log('Notification for wallet:', walletIdNum);
+            }
+          }
           if (watchtowerUrl) console.log('From watchtower:', watchtowerUrl);
         }
       });
@@ -311,9 +317,15 @@ export default function App() {
         // Access the new fields if needed
         const data = response.notification.request.content.data;
         if (data && typeof data === 'object') {
-          const walletId = data.walletId;
-          const watchtowerUrl = data.watchtowerUrl;
-          if (walletId) console.log('Response for wallet:', walletId);
+          const walletId = data['walletId'];
+          const watchtowerUrl = data['watchtowerUrl'];
+          if (walletId) {
+            // Validate walletId is a string containing a non-negative integer
+            const walletIdNum = parseInt(walletId as string, 10);
+            if (!isNaN(walletIdNum) && walletIdNum >= 0) {
+              console.log('Response for wallet:', walletIdNum);
+            }
+          }
           if (watchtowerUrl) console.log('From watchtower:', watchtowerUrl);
         }
       });
