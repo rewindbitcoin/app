@@ -756,6 +756,14 @@ const WalletProviderRaw = ({
 
   // Set up notification listeners
   useEffect(() => {
+    // Check for any notifications that might have launched the app
+    Notifications.getLastNotificationResponseAsync().then(response => {
+      if (response) {
+        console.log('Last notification response:', response);
+        processNotificationData(response.notification.request.content.data);
+      }
+    });
+
     // Listen for notifications received while app is in foreground
     notificationListener.current =
       Notifications.addNotificationReceivedListener(notification => {
