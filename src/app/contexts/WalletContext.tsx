@@ -715,26 +715,37 @@ const WalletProviderRaw = ({
 
                     // Check if we already have a notification for this vault from this watchtower
                     if (!existingWatchtowerNotifications[vaultId]) {
-                      // Create new wallet object with updated notifications
-                      const updatedWallet = {
-                        ...currentWallet,
-                        notifications: {
-                          ...existingNotifications,
-                          [watchtowerId as string]: {
-                            ...existingWatchtowerNotifications,
-                            [vaultId]: {
-                              firstAttemptAt: data['firstDetectedAt'] as number || Date.now(),
-                              txid: data['txid'] as string
+                      // Validate required fields exist and are of correct type
+                      const firstDetectedAt = data['firstDetectedAt'] as number;
+                      const txid = data['txid'] as string;
+                      
+                      if (typeof firstDetectedAt === 'number' && typeof txid === 'string' && txid.length > 0) {
+                        // Create new wallet object with updated notifications
+                        const updatedWallet = {
+                          ...currentWallet,
+                          notifications: {
+                            ...existingNotifications,
+                            [watchtowerId as string]: {
+                              ...existingWatchtowerNotifications,
+                              [vaultId]: {
+                                firstAttemptAt: firstDetectedAt,
+                                txid: txid
+                              }
                             }
                           }
-                        }
-                      };
+                        };
 
-                      // Update wallets storage
-                      setWallets({
-                        ...wallets,
-                        [walletIdNum]: updatedWallet
-                      });
+                        // Update wallets storage
+                        setWallets({
+                          ...wallets,
+                          [walletIdNum]: updatedWallet
+                        });
+                      } else {
+                        console.warn('Invalid notification data received:', {
+                          firstDetectedAt,
+                          txid
+                        });
+                      }
                     }
                   }
                 }
@@ -775,26 +786,37 @@ const WalletProviderRaw = ({
 
                     // Check if we already have a notification for this vault from this watchtower
                     if (!existingWatchtowerNotifications[vaultId]) {
-                      // Create new wallet object with updated notifications
-                      const updatedWallet = {
-                        ...currentWallet,
-                        notifications: {
-                          ...existingNotifications,
-                          [watchtowerId as string]: {
-                            ...existingWatchtowerNotifications,
-                            [vaultId]: {
-                              firstAttemptAt: data['firstDetectedAt'] as number || Date.now(),
-                              txid: data['txid'] as string
+                      // Validate required fields exist and are of correct type
+                      const firstDetectedAt = data['firstDetectedAt'] as number;
+                      const txid = data['txid'] as string;
+                      
+                      if (typeof firstDetectedAt === 'number' && typeof txid === 'string' && txid.length > 0) {
+                        // Create new wallet object with updated notifications
+                        const updatedWallet = {
+                          ...currentWallet,
+                          notifications: {
+                            ...existingNotifications,
+                            [watchtowerId as string]: {
+                              ...existingWatchtowerNotifications,
+                              [vaultId]: {
+                                firstAttemptAt: firstDetectedAt,
+                                txid: txid
+                              }
                             }
                           }
-                        }
-                      };
+                        };
 
-                      // Update wallets storage
-                      setWallets({
-                        ...wallets,
-                        [walletIdNum]: updatedWallet
-                      });
+                        // Update wallets storage
+                        setWallets({
+                          ...wallets,
+                          [walletIdNum]: updatedWallet
+                        });
+                      } else {
+                        console.warn('Invalid notification data received:', {
+                          firstDetectedAt,
+                          txid
+                        });
+                      }
                     }
                   }
                 }
