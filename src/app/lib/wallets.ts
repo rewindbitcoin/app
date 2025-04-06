@@ -80,7 +80,6 @@ type Notifications = {
   [watchtowerAPI: string]: {
     [vaultId: string]: {
       firstAttemptAt: number;
-      txid: string;
     };
   };
 };

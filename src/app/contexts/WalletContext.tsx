@@ -702,7 +702,8 @@ const WalletProviderRaw = ({
                 // Only update if this is a new notification or for a different vault
                 const vaultId = data['vaultId'] as string;
                 if (vaultId) {
-                  const existingNotifications = currentWallet.notifications || {};
+                  const existingNotifications =
+                    currentWallet.notifications || {};
                   const existingWatchtowerNotifications =
                     existingNotifications[watchtowerId as string] || {};
 
@@ -711,8 +712,12 @@ const WalletProviderRaw = ({
                     // Validate required fields exist and are of correct type
                     const firstDetectedAt = data['firstDetectedAt'] as number;
                     const txid = data['txid'] as string;
-                    
-                    if (typeof firstDetectedAt === 'number' && typeof txid === 'string' && txid.length > 0) {
+
+                    if (
+                      typeof firstDetectedAt === 'number' &&
+                      typeof txid === 'string' &&
+                      txid.length > 0
+                    ) {
                       // Create new wallet object with updated notifications
                       const updatedWallet = {
                         ...currentWallet,
@@ -721,8 +726,7 @@ const WalletProviderRaw = ({
                           [watchtowerId as string]: {
                             ...existingWatchtowerNotifications,
                             [vaultId]: {
-                              firstAttemptAt: firstDetectedAt,
-                              txid: txid
+                              firstAttemptAt: firstDetectedAt
                             }
                           }
                         }
