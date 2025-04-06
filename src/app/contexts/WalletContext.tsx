@@ -682,148 +682,88 @@ const WalletProviderRaw = ({
   const notificationListener = useRef<Notifications.Subscription>();
   const responseListener = useRef<Notifications.Subscription>();
 
+  // Helper function to process notification data
+  const processNotificationData = useCallback(
+    (data: Record<string, unknown>) => {
+      if (data && typeof data === 'object') {
+        const walletIdStr = data['walletId'];
+        const watchtowerId = data['watchtowerId'];
+
+        if (walletIdStr) {
+          // Validate walletId is a string containing a non-negative integer
+          const walletIdNum = parseInt(walletIdStr as string, 10);
+          if (!isNaN(walletIdNum) && walletIdNum >= 0) {
+            console.log('Notification for wallet:', walletIdNum);
+
+            // Store the notification data in the wallet object
+            if (wallets && walletIdNum !== undefined) {
+              const currentWallet = wallets[walletIdNum];
+              if (currentWallet && watchtowerId) {
+                // Only update if this is a new notification or for a different vault
+                const vaultId = data['vaultId'] as string;
+                if (vaultId) {
+                  const existingNotifications = currentWallet.notifications || {};
+                  const existingWatchtowerNotifications =
+                    existingNotifications[watchtowerId as string] || {};
+
+                  // Check if we already have a notification for this vault from this watchtower
+                  if (!existingWatchtowerNotifications[vaultId]) {
+                    // Validate required fields exist and are of correct type
+                    const firstDetectedAt = data['firstDetectedAt'] as number;
+                    const txid = data['txid'] as string;
+                    
+                    if (typeof firstDetectedAt === 'number' && typeof txid === 'string' && txid.length > 0) {
+                      // Create new wallet object with updated notifications
+                      const updatedWallet = {
+                        ...currentWallet,
+                        notifications: {
+                          ...existingNotifications,
+                          [watchtowerId as string]: {
+                            ...existingWatchtowerNotifications,
+                            [vaultId]: {
+                              firstAttemptAt: firstDetectedAt,
+                              txid: txid
+                            }
+                          }
+                        }
+                      };
+
+                      // Update wallets storage
+                      setWallets({
+                        ...wallets,
+                        [walletIdNum]: updatedWallet
+                      });
+                    } else {
+                      console.warn('Invalid notification data received:', {
+                        firstDetectedAt,
+                        txid
+                      });
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    [wallets, setWallets]
+  );
+
   // Set up notification listeners
   useEffect(() => {
     // Listen for notifications received while app is in foreground
     notificationListener.current =
       Notifications.addNotificationReceivedListener(notification => {
         console.log('Notification received:', notification);
-
-        // Access the notification data
-        const data = notification.request.content.data;
-        if (data && typeof data === 'object') {
-          const walletIdStr = data['walletId'];
-          const watchtowerId = data['watchtowerId'];
-
-          if (walletIdStr) {
-            // Validate walletId is a string containing a non-negative integer
-            const walletIdNum = parseInt(walletIdStr as string, 10);
-            if (!isNaN(walletIdNum) && walletIdNum >= 0) {
-              console.log('Notification for wallet:', walletIdNum);
-
-              // Store the notification data in the wallet object
-              if (wallets && walletIdNum !== undefined) {
-                const currentWallet = wallets[walletIdNum];
-                if (currentWallet && watchtowerId) {
-                  // Only update if this is a new notification or for a different vault
-                  const vaultId = data['vaultId'] as string;
-                  if (vaultId) {
-                    const existingNotifications =
-                      currentWallet.notifications || {};
-                    const existingWatchtowerNotifications =
-                      existingNotifications[watchtowerId as string] || {};
-
-                    // Check if we already have a notification for this vault from this watchtower
-                    if (!existingWatchtowerNotifications[vaultId]) {
-                      // Validate required fields exist and are of correct type
-                      const firstDetectedAt = data['firstDetectedAt'] as number;
-                      const txid = data['txid'] as string;
-                      
-                      if (typeof firstDetectedAt === 'number' && typeof txid === 'string' && txid.length > 0) {
-                        // Create new wallet object with updated notifications
-                        const updatedWallet = {
-                          ...currentWallet,
-                          notifications: {
-                            ...existingNotifications,
-                            [watchtowerId as string]: {
-                              ...existingWatchtowerNotifications,
-                              [vaultId]: {
-                                firstAttemptAt: firstDetectedAt,
-                                txid: txid
-                              }
-                            }
-                          }
-                        };
-
-                        // Update wallets storage
-                        setWallets({
-                          ...wallets,
-                          [walletIdNum]: updatedWallet
-                        });
-                      } else {
-                        console.warn('Invalid notification data received:', {
-                          firstDetectedAt,
-                          txid
-                        });
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
+        processNotificationData(notification.request.content.data);
       });
 
     // Listen for user interaction with notifications
     responseListener.current =
       Notifications.addNotificationResponseReceivedListener(response => {
         console.warn('Notification response received:', response);
-
-        // Access the notification data
-        const data = response.notification.request.content.data;
-        if (data && typeof data === 'object') {
-          const walletIdStr = data['walletId'];
-          const watchtowerId = data['watchtowerId'];
-
-          if (walletIdStr) {
-            // Validate walletId is a string containing a non-negative integer
-            const walletIdNum = parseInt(walletIdStr as string, 10);
-            if (!isNaN(walletIdNum) && walletIdNum >= 0) {
-              console.log('Response for wallet:', walletIdNum);
-
-              // Store the notification data in the wallet object
-              if (wallets && walletIdNum !== undefined) {
-                const currentWallet = wallets[walletIdNum];
-                if (currentWallet && watchtowerId) {
-                  // Only update if this is a new notification or for a different vault
-                  const vaultId = data['vaultId'] as string;
-                  if (vaultId) {
-                    const existingNotifications =
-                      currentWallet.notifications || {};
-                    const existingWatchtowerNotifications =
-                      existingNotifications[watchtowerId as string] || {};
-
-                    // Check if we already have a notification for this vault from this watchtower
-                    if (!existingWatchtowerNotifications[vaultId]) {
-                      // Validate required fields exist and are of correct type
-                      const firstDetectedAt = data['firstDetectedAt'] as number;
-                      const txid = data['txid'] as string;
-                      
-                      if (typeof firstDetectedAt === 'number' && typeof txid === 'string' && txid.length > 0) {
-                        // Create new wallet object with updated notifications
-                        const updatedWallet = {
-                          ...currentWallet,
-                          notifications: {
-                            ...existingNotifications,
-                            [watchtowerId as string]: {
-                              ...existingWatchtowerNotifications,
-                              [vaultId]: {
-                                firstAttemptAt: firstDetectedAt,
-                                txid: txid
-                              }
-                            }
-                          }
-                        };
-
-                        // Update wallets storage
-                        setWallets({
-                          ...wallets,
-                          [walletIdNum]: updatedWallet
-                        });
-                      } else {
-                        console.warn('Invalid notification data received:', {
-                          firstDetectedAt,
-                          txid
-                        });
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
+        processNotificationData(response.notification.request.content.data);
       });
 
     // Clean up listeners on unmount
@@ -837,7 +777,7 @@ const WalletProviderRaw = ({
         Notifications.removeNotificationSubscription(responseListener.current);
       }
     };
-  }, [setWallets, wallets]);
+  }, [processNotificationData]);
 
   /**
    * Important, to logOut from wallet, wallet (and therefore walletId) must
