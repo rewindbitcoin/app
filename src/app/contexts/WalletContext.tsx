@@ -141,7 +141,6 @@ export type WalletContextType = {
   watchtowerAPI: string | undefined;
   wallets: Wallets | undefined;
   wallet: Wallet | undefined;
-  notifications: NotificationsStore;
   walletStatus: WalletStatus;
   /** Whether the wallet needs to ask for a password and set it to retrieve
    * the signers */
@@ -717,15 +716,16 @@ const WalletProviderRaw = ({
               console.log('Notification for wallet:', walletIdNum);
 
               // Store the notification data
-              setNotifications(prev => [
-                ...prev,
+              const newNotifications = [
+                ...notifications,
                 {
                   timestamp: Date.now(),
                   walletId: walletIdNum,
                   watchtowerAPI: watchtowerId as string,
                   data: { ...data }
                 }
-              ]);
+              ];
+              setNotifications(newNotifications);
             }
           }
         }
@@ -749,15 +749,16 @@ const WalletProviderRaw = ({
               console.log('Response for wallet:', walletIdNum);
 
               // Store the notification data
-              setNotifications(prev => [
-                ...prev,
+              const newNotifications = [
+                ...notifications,
                 {
                   timestamp: Date.now(),
                   walletId: walletIdNum,
                   watchtowerAPI: watchtowerId as string,
                   data: { ...data }
                 }
-              ]);
+              ];
+              setNotifications(newNotifications);
             }
           }
         }
@@ -1639,7 +1640,6 @@ const WalletProviderRaw = ({
     watchtowerAPI,
     wallets,
     wallet,
-    notifications,
     walletStatus: { isCorrupted, storageAccess: storageAccessStatus },
     requiresPassword:
       (walletId !== undefined &&
