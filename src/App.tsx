@@ -1,15 +1,8 @@
 import '../global.css';
 import '../init';
 import ErrorBoundary from './ErrorBoundary';
-import React, {
-  useCallback,
-  useEffect,
-  useState,
-  useMemo,
-  useRef
-} from 'react';
+import React, { useCallback, useEffect, useState, useMemo } from 'react';
 import { Platform } from 'react-native';
-import * as Notifications from 'expo-notifications';
 import {
   SecureStorageInfoProvider,
   useSecureStorageInfo

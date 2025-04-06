@@ -80,9 +80,6 @@ import { getLocales } from 'expo-localization';
 export const WalletContext: Context<WalletContextType | null> =
   createContext<WalletContextType | null>(null);
 
-// Import the NotificationData and WalletNotifications types from wallets.ts
-import { NotificationData, WalletNotifications } from '../lib/wallets';
-
 type TxHistory = Array<{
   txHex: TxHex;
   blockHeight: number;
@@ -141,7 +138,6 @@ export type WalletContextType = {
   deleteWallet: (walletId: number) => Promise<void>;
   onWallet: ({
     wallet,
-    notifications: wallet?.notifications,
     newSigners,
     isImport,
     signersCipherKey
@@ -712,9 +708,11 @@ const WalletProviderRaw = ({
                   // Only update if this is a new notification or for a different vault
                   const vaultId = data['vaultId'] as string;
                   if (vaultId) {
-                    const existingNotifications = currentWallet.notifications || {};
-                    const existingWatchtowerNotifications = existingNotifications[watchtowerId as string] || {};
-                    
+                    const existingNotifications =
+                      currentWallet.notifications || {};
+                    const existingWatchtowerNotifications =
+                      existingNotifications[watchtowerId as string] || {};
+
                     // Check if we already have a notification for this vault from this watchtower
                     if (!existingWatchtowerNotifications[vaultId]) {
                       // Create new wallet object with updated notifications
@@ -731,7 +729,7 @@ const WalletProviderRaw = ({
                           }
                         }
                       };
-                      
+
                       // Update wallets storage
                       setWallets({
                         ...wallets,
@@ -770,9 +768,11 @@ const WalletProviderRaw = ({
                   // Only update if this is a new notification or for a different vault
                   const vaultId = data['vaultId'] as string;
                   if (vaultId) {
-                    const existingNotifications = currentWallet.notifications || {};
-                    const existingWatchtowerNotifications = existingNotifications[watchtowerId as string] || {};
-                    
+                    const existingNotifications =
+                      currentWallet.notifications || {};
+                    const existingWatchtowerNotifications =
+                      existingNotifications[watchtowerId as string] || {};
+
                     // Check if we already have a notification for this vault from this watchtower
                     if (!existingWatchtowerNotifications[vaultId]) {
                       // Create new wallet object with updated notifications
@@ -789,7 +789,7 @@ const WalletProviderRaw = ({
                           }
                         }
                       };
-                      
+
                       // Update wallets storage
                       setWallets({
                         ...wallets,
@@ -815,7 +815,7 @@ const WalletProviderRaw = ({
         Notifications.removeNotificationSubscription(responseListener.current);
       }
     };
-  }, [setNotifications]);
+  }, [setWallets, wallets]);
 
   /**
    * Important, to logOut from wallet, wallet (and therefore walletId) must
