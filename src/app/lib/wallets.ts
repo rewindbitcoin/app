@@ -79,8 +79,8 @@ export type Signers = {
 type Notifications = {
   [watchtowerAPI: string]: {
     [vaultId: string]: {
-      timestamp: number;
-      data: Record<string, unknown>;
+      firstAttemptAt: number;
+      txid: string;
     };
   };
 };

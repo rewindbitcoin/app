@@ -723,8 +723,8 @@ const WalletProviderRaw = ({
                           [watchtowerId as string]: {
                             ...existingWatchtowerNotifications,
                             [vaultId]: {
-                              timestamp: Date.now(),
-                              data: { ...data }
+                              firstAttemptAt: data['firstDetectedAt'] as number || Date.now(),
+                              txid: data['txid'] as string
                             }
                           }
                         }
@@ -783,8 +783,8 @@ const WalletProviderRaw = ({
                           [watchtowerId as string]: {
                             ...existingWatchtowerNotifications,
                             [vaultId]: {
-                              timestamp: Date.now(),
-                              data: { ...data }
+                              firstAttemptAt: data['firstDetectedAt'] as number || Date.now(),
+                              txid: data['txid'] as string
                             }
                           }
                         }
