@@ -1399,6 +1399,10 @@ const WalletProviderRaw = ({
         throw new Error(
           `Cannot vaultPushAndUpdateStates without accounts: ${!!accounts} or tipHeight: ${!!tipHeight}`
         );
+      if (walletId === undefined)
+        throw new Error(
+          'walletId undefined in pushVaultRegisterWTAndUpdateStates'
+        );
 
       // Create new vault
       if (vaults[vault.vaultId])
@@ -1442,6 +1446,7 @@ const WalletProviderRaw = ({
       ]);
     },
     [
+      walletId,
       registerWithWatchtower,
       pushTx,
       accounts,

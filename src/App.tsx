@@ -298,13 +298,13 @@ export default function App() {
         // Access the new fields if needed
         const data = notification.request.content.data;
         if (data && typeof data === 'object') {
-          const walletId = data['walletId'];
+          const walletIdStr = data['walletId'];
           const watchtowerUrl = data['watchtowerUrl'];
-          if (walletId) {
+          if (walletIdStr) {
             // Validate walletId is a string containing a non-negative integer
-            const walletIdNum = parseInt(walletId as string, 10);
-            if (!isNaN(walletIdNum) && walletIdNum >= 0) {
-              console.log('Notification for wallet:', walletIdNum);
+            const walletId = parseInt(walletIdStr as string, 10);
+            if (!isNaN(walletId) && walletId >= 0) {
+              console.log('Notification for wallet:', walletId);
             }
           }
           if (watchtowerUrl) console.log('From watchtower:', watchtowerUrl);
