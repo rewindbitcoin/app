@@ -12,6 +12,7 @@ import {
   getHistoryData,
   TxHex
 } from '../lib/vaults';
+import * as Notifications from 'expo-notifications';
 import { canReceiveNotifications, watchVaults } from '../lib/watchtower';
 import {
   walletTitle,
@@ -79,6 +80,17 @@ import { getLocales } from 'expo-localization';
 export const WalletContext: Context<WalletContextType | null> =
   createContext<WalletContextType | null>(null);
 
+// Type for storing notification data
+export type NotificationData = {
+  timestamp: number;
+  walletId: number;
+  watchtowerAPI: string;
+  data: Record<string, any>;
+};
+
+// Type for storing all notifications
+export type NotificationsStore = Array<NotificationData>;
+
 type TxHistory = Array<{
   txHex: TxHex;
   blockHeight: number;
@@ -129,6 +141,7 @@ export type WalletContextType = {
   watchtowerAPI: string | undefined;
   wallets: Wallets | undefined;
   wallet: Wallet | undefined;
+  notifications: NotificationsStore;
   walletStatus: WalletStatus;
   /** Whether the wallet needs to ask for a password and set it to retrieve
    * the signers */
@@ -231,6 +244,13 @@ const WalletProviderRaw = ({
     `WALLETS`,
     SERIALIZABLE,
     {}
+  );
+
+  // Store notifications in a non-encrypted storage
+  const [notifications, setNotifications, , , notificationsStorageStatus] = useStorage<NotificationsStore>(
+    `NOTIFICATIONS`,
+    SERIALIZABLE,
+    []
   );
 
   const initSigners =
@@ -674,6 +694,85 @@ const WalletProviderRaw = ({
       }
     }
   }, [setWallets, wallets, wallet, dataReady, walletId]);
+
+  // Refs for notification listeners
+  const notificationListener = useRef<Notifications.Subscription>();
+  const responseListener = useRef<Notifications.Subscription>();
+
+  // Set up notification listeners
+  useEffect(() => {
+    // Listen for notifications received while app is in foreground
+    notificationListener.current = Notifications.addNotificationReceivedListener(notification => {
+      console.log('Notification received:', notification);
+      
+      // Access the notification data
+      const data = notification.request.content.data;
+      if (data && typeof data === 'object') {
+        const walletIdStr = data['walletId'];
+        const watchtowerId = data['watchtowerId'];
+        
+        if (walletIdStr) {
+          // Validate walletId is a string containing a non-negative integer
+          const walletIdNum = parseInt(walletIdStr as string, 10);
+          if (!isNaN(walletIdNum) && walletIdNum >= 0) {
+            console.log('Notification for wallet:', walletIdNum);
+            
+            // Store the notification data
+            setNotifications(prev => [
+              ...prev,
+              {
+                timestamp: Date.now(),
+                walletId: walletIdNum,
+                watchtowerAPI: watchtowerId as string,
+                data: { ...data }
+              }
+            ]);
+          }
+        }
+      }
+    });
+
+    // Listen for user interaction with notifications
+    responseListener.current = Notifications.addNotificationResponseReceivedListener(response => {
+      console.warn('Notification response received:', response);
+      
+      // Access the notification data
+      const data = response.notification.request.content.data;
+      if (data && typeof data === 'object') {
+        const walletIdStr = data['walletId'];
+        const watchtowerId = data['watchtowerId'];
+        
+        if (walletIdStr) {
+          // Validate walletId is a string containing a non-negative integer
+          const walletIdNum = parseInt(walletIdStr as string, 10);
+          if (!isNaN(walletIdNum) && walletIdNum >= 0) {
+            console.log('Response for wallet:', walletIdNum);
+            
+            // Store the notification data
+            setNotifications(prev => [
+              ...prev,
+              {
+                timestamp: Date.now(),
+                walletId: walletIdNum,
+                watchtowerAPI: watchtowerId as string,
+                data: { ...data }
+              }
+            ]);
+          }
+        }
+      }
+    });
+
+    // Clean up listeners on unmount
+    return () => {
+      if (notificationListener.current) {
+        Notifications.removeNotificationSubscription(notificationListener.current);
+      }
+      if (responseListener.current) {
+        Notifications.removeNotificationSubscription(responseListener.current);
+      }
+    };
+  }, [setNotifications]);
 
   /**
    * Important, to logOut from wallet, wallet (and therefore walletId) must
@@ -1538,6 +1637,7 @@ const WalletProviderRaw = ({
     watchtowerAPI,
     wallets,
     wallet,
+    notifications,
     walletStatus: { isCorrupted, storageAccess: storageAccessStatus },
     requiresPassword:
       (walletId !== undefined &&

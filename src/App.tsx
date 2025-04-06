@@ -285,62 +285,7 @@ export default function App() {
     setErrorKey(prevErrorKey => prevErrorKey + 1);
   }, []);
 
-  // Refs for notification listeners:
-  //while the app is running
-  const notificationListener = useRef<Notifications.Subscription>();
-  //when a user taps a notification
-  const responseListener = useRef<Notifications.Subscription>();
-
-  useEffect(() => {
-    notificationListener.current =
-      Notifications.addNotificationReceivedListener(notification => {
-        console.log('Notification received:', notification);
-        // Access the new fields if needed
-        const data = notification.request.content.data;
-        if (data && typeof data === 'object') {
-          const walletIdStr = data['walletId'];
-          const watchtowerId = data['watchtowerId'];
-          if (walletIdStr) {
-            // Validate walletId is a string containing a non-negative integer
-            const walletId = parseInt(walletIdStr as string, 10);
-            if (!isNaN(walletId) && walletId >= 0) {
-              console.log('Notification for wallet:', walletId);
-            }
-          }
-          if (watchtowerId) console.log('From watchtower:', watchtowerId);
-        }
-      });
-
-    responseListener.current =
-      Notifications.addNotificationResponseReceivedListener(response => {
-        console.warn('Notification response received:', response);
-        // Access the new fields if needed
-        const data = response.notification.request.content.data;
-        if (data && typeof data === 'object') {
-          const walletId = data['walletId'];
-          const watchtowerId = data['watchtowerId'];
-          if (walletId) {
-            // Validate walletId is a string containing a non-negative integer
-            const walletIdNum = parseInt(walletId as string, 10);
-            if (!isNaN(walletIdNum) && walletIdNum >= 0) {
-              console.log('Response for wallet:', walletIdNum);
-            }
-          }
-          if (watchtowerId) console.log('From watchtower:', watchtowerId);
-        }
-      });
-
-    return () => {
-      if (notificationListener.current) {
-        Notifications.removeNotificationSubscription(
-          notificationListener.current
-        );
-      }
-      if (responseListener.current) {
-        Notifications.removeNotificationSubscription(responseListener.current);
-      }
-    };
-  }, []);
+  // Notification handling has been moved to WalletContext
 
   return (
     <SafeAreaProvider>
