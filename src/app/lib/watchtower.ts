@@ -16,7 +16,7 @@ export type WatchtowerRegistrationData = {
   walletName: string;
   locale: string;
   walletId: string;
-  watchtowerUrl: string;
+  watchtowerId: string;
   vaults: Array<{
     triggerTxIds: Array<TxId>;
     vaultId: string;
@@ -167,7 +167,7 @@ export async function watchVaults({
       walletName,
       locale,
       walletId,
-      watchtowerUrl: watchtowerAPI,
+      watchtowerId: watchtowerAPI,
       vaults: vaultsToMonitor
     };
 

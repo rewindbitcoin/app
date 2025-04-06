@@ -299,7 +299,7 @@ export default function App() {
         const data = notification.request.content.data;
         if (data && typeof data === 'object') {
           const walletIdStr = data['walletId'];
-          const watchtowerUrl = data['watchtowerUrl'];
+          const watchtowerId = data['watchtowerId'];
           if (walletIdStr) {
             // Validate walletId is a string containing a non-negative integer
             const walletId = parseInt(walletIdStr as string, 10);
@@ -307,7 +307,7 @@ export default function App() {
               console.log('Notification for wallet:', walletId);
             }
           }
-          if (watchtowerUrl) console.log('From watchtower:', watchtowerUrl);
+          if (watchtowerId) console.log('From watchtower:', watchtowerId);
         }
       });
 
@@ -318,7 +318,7 @@ export default function App() {
         const data = response.notification.request.content.data;
         if (data && typeof data === 'object') {
           const walletId = data['walletId'];
-          const watchtowerUrl = data['watchtowerUrl'];
+          const watchtowerId = data['watchtowerId'];
           if (walletId) {
             // Validate walletId is a string containing a non-negative integer
             const walletIdNum = parseInt(walletId as string, 10);
@@ -326,7 +326,7 @@ export default function App() {
               console.log('Response for wallet:', walletIdNum);
             }
           }
-          if (watchtowerUrl) console.log('From watchtower:', watchtowerUrl);
+          if (watchtowerId) console.log('From watchtower:', watchtowerId);
         }
       });
 
