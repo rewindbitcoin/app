@@ -81,7 +81,7 @@ export const WalletContext: Context<WalletContextType | null> =
   createContext<WalletContextType | null>(null);
 
 // Type for storing notification data
-export type NotificationData = {
+type NotificationData = {
   timestamp: number;
   walletId: number;
   watchtowerAPI: string;
