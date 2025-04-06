@@ -946,11 +946,13 @@ const WalletProviderRaw = ({
     async ({
       vaults,
       vaultsStatuses,
-      whenToastErrors
+      whenToastErrors,
+      walletId
     }: {
       vaults: Vaults;
       vaultsStatuses: VaultsStatuses;
       whenToastErrors: 'ON_NEW_ERROR' | 'ON_ANY_ERROR';
+      walletId: string;
     }): Promise<VaultsStatuses> => {
       if (!watchtowerAPI || !networkTimeout || !watchtowerWalletName)
         throw new Error('Required data for watchtower registration missing');
@@ -973,7 +975,8 @@ const WalletProviderRaw = ({
             vaultsStatuses,
             networkTimeout,
             walletName: watchtowerWalletName,
-            locale
+            locale,
+            walletId
           });
         }
       });
@@ -1275,7 +1278,8 @@ const WalletProviderRaw = ({
           updatedVaultsStatuses = await registerWithWatchtower({
             vaults: updatedVaults,
             vaultsStatuses: updatedVaultsStatuses,
-            whenToastErrors
+            whenToastErrors,
+            walletId: walletId.toString()
           });
           if (walletId !== walletIdRef.current) {
             //do this after each await
@@ -1418,7 +1422,8 @@ const WalletProviderRaw = ({
         newVaultsStatuses = await registerWithWatchtower({
           vaults: newVaults,
           vaultsStatuses: newVaultsStatuses,
-          whenToastErrors: 'ON_ANY_ERROR'
+          whenToastErrors: 'ON_ANY_ERROR',
+          walletId: walletId.toString()
         });
 
       await Promise.all([

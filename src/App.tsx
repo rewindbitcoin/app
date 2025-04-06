@@ -295,11 +295,27 @@ export default function App() {
     notificationListener.current =
       Notifications.addNotificationReceivedListener(notification => {
         console.log('Notification received:', notification);
+        // Access the new fields if needed
+        const data = notification.request.content.data;
+        if (data && typeof data === 'object') {
+          const walletId = data.walletId;
+          const watchtowerUrl = data.watchtowerUrl;
+          if (walletId) console.log('Notification for wallet:', walletId);
+          if (watchtowerUrl) console.log('From watchtower:', watchtowerUrl);
+        }
       });
 
     responseListener.current =
       Notifications.addNotificationResponseReceivedListener(response => {
         console.warn('Notification response received:', response);
+        // Access the new fields if needed
+        const data = response.notification.request.content.data;
+        if (data && typeof data === 'object') {
+          const walletId = data.walletId;
+          const watchtowerUrl = data.watchtowerUrl;
+          if (walletId) console.log('Response for wallet:', walletId);
+          if (watchtowerUrl) console.log('From watchtower:', watchtowerUrl);
+        }
       });
 
     return () => {
