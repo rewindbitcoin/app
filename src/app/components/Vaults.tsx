@@ -182,7 +182,8 @@ const RawVault = ({
   vaultNumber,
   vaultStatus,
   blockExplorerURL,
-  watchtowerAPI
+  watchtowerAPI,
+  notifications
 }: {
   updateVaultStatus: (vaultId: string, vaultStatus: VaultStatus) => void;
   pushTx: (txHex: string) => Promise<void>;
@@ -193,6 +194,7 @@ const RawVault = ({
   vaultStatus: VaultStatus | undefined;
   blockExplorerURL: string | undefined;
   watchtowerAPI: string | undefined;
+  notifications?: WalletNotifications;
 }) => {
   const [showDelegateHelp, setShowDelegateHelp] = useState<boolean>(false);
   const [showRescueHelp, setShowRescueHelp] = useState<boolean>(false);
@@ -915,6 +917,7 @@ const Vaults = ({
                 pushTx={pushTx}
                 blockExplorerURL={blockExplorerURL}
                 watchtowerAPI={watchtowerAPI}
+                notifications={notifications}
               />
             )
           );

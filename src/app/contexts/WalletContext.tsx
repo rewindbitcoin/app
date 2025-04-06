@@ -80,16 +80,8 @@ import { getLocales } from 'expo-localization';
 export const WalletContext: Context<WalletContextType | null> =
   createContext<WalletContextType | null>(null);
 
-// Type for storing notification data
-type NotificationData = {
-  timestamp: number;
-  walletId: number;
-  watchtowerAPI: string;
-  data: Record<string, unknown>;
-};
-
-// Type for storing all notifications
-export type NotificationsStore = Array<NotificationData>;
+// Import the NotificationData and WalletNotifications types from wallets.ts
+import { NotificationData, WalletNotifications } from '../lib/wallets';
 
 type TxHistory = Array<{
   txHex: TxHex;
@@ -149,6 +141,7 @@ export type WalletContextType = {
   deleteWallet: (walletId: number) => Promise<void>;
   onWallet: ({
     wallet,
+    notifications: wallet?.notifications,
     newSigners,
     isImport,
     signersCipherKey
@@ -245,10 +238,7 @@ const WalletProviderRaw = ({
     {}
   );
 
-  // Store notifications in a non-encrypted storage
-  const [notifications, setNotifications, , , notificationsStorageStatus] =
-    useStorage<NotificationsStore>(`NOTIFICATIONS`, SERIALIZABLE, []);
-  void notificationsStorageStatus;
+  // Notifications are now stored in the wallet object
 
   const initSigners =
     !signersStorageEngineMismatch &&
@@ -715,17 +705,42 @@ const WalletProviderRaw = ({
             if (!isNaN(walletIdNum) && walletIdNum >= 0) {
               console.log('Notification for wallet:', walletIdNum);
 
-              // Store the notification data
-              const newNotifications = [
-                ...notifications,
-                {
-                  timestamp: Date.now(),
-                  walletId: walletIdNum,
-                  watchtowerAPI: watchtowerId as string,
-                  data: { ...data }
+              // Store the notification data in the wallet object
+              if (wallets && walletIdNum !== undefined) {
+                const currentWallet = wallets[walletIdNum];
+                if (currentWallet && watchtowerId) {
+                  // Only update if this is a new notification or for a different vault
+                  const vaultId = data['vaultId'] as string;
+                  if (vaultId) {
+                    const existingNotifications = currentWallet.notifications || {};
+                    const existingWatchtowerNotifications = existingNotifications[watchtowerId as string] || {};
+                    
+                    // Check if we already have a notification for this vault from this watchtower
+                    if (!existingWatchtowerNotifications[vaultId]) {
+                      // Create new wallet object with updated notifications
+                      const updatedWallet = {
+                        ...currentWallet,
+                        notifications: {
+                          ...existingNotifications,
+                          [watchtowerId as string]: {
+                            ...existingWatchtowerNotifications,
+                            [vaultId]: {
+                              timestamp: Date.now(),
+                              data: { ...data }
+                            }
+                          }
+                        }
+                      };
+                      
+                      // Update wallets storage
+                      setWallets({
+                        ...wallets,
+                        [walletIdNum]: updatedWallet
+                      });
+                    }
+                  }
                 }
-              ];
-              setNotifications(newNotifications);
+              }
             }
           }
         }
@@ -748,17 +763,42 @@ const WalletProviderRaw = ({
             if (!isNaN(walletIdNum) && walletIdNum >= 0) {
               console.log('Response for wallet:', walletIdNum);
 
-              // Store the notification data
-              const newNotifications = [
-                ...notifications,
-                {
-                  timestamp: Date.now(),
-                  walletId: walletIdNum,
-                  watchtowerAPI: watchtowerId as string,
-                  data: { ...data }
+              // Store the notification data in the wallet object
+              if (wallets && walletIdNum !== undefined) {
+                const currentWallet = wallets[walletIdNum];
+                if (currentWallet && watchtowerId) {
+                  // Only update if this is a new notification or for a different vault
+                  const vaultId = data['vaultId'] as string;
+                  if (vaultId) {
+                    const existingNotifications = currentWallet.notifications || {};
+                    const existingWatchtowerNotifications = existingNotifications[watchtowerId as string] || {};
+                    
+                    // Check if we already have a notification for this vault from this watchtower
+                    if (!existingWatchtowerNotifications[vaultId]) {
+                      // Create new wallet object with updated notifications
+                      const updatedWallet = {
+                        ...currentWallet,
+                        notifications: {
+                          ...existingNotifications,
+                          [watchtowerId as string]: {
+                            ...existingWatchtowerNotifications,
+                            [vaultId]: {
+                              timestamp: Date.now(),
+                              data: { ...data }
+                            }
+                          }
+                        }
+                      };
+                      
+                      // Update wallets storage
+                      setWallets({
+                        ...wallets,
+                        [walletIdNum]: updatedWallet
+                      });
+                    }
+                  }
                 }
-              ];
-              setNotifications(newNotifications);
+              }
             }
           }
         }
