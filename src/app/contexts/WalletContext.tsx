@@ -757,6 +757,10 @@ const WalletProviderRaw = ({
 
   // Function to fetch unacknowledged notifications from the watchtower
   // Returns true if successful, false otherwise
+  // This function is used to get possible notifications that were sent
+  // while the App was killed. If the user did not click on the Toast message
+  // in the system tray then the App has no way to know there had been
+  // a push notification. So call fetchWatchtowerPending on app start.
   const fetchWatchtowerPending = useCallback(async (): Promise<boolean> => {
     if (!watchtowerPendingAPI || !networkTimeout) {
       console.warn(
@@ -830,7 +834,7 @@ const WalletProviderRaw = ({
           });
         }
       }
-      
+
       // Successfully fetched and processed notifications
       return true;
     } catch (error) {
@@ -896,7 +900,7 @@ const WalletProviderRaw = ({
       if (pollingInterval) {
         clearInterval(pollingInterval);
       }
-      
+
       // Clean up notification listeners
       if (notificationListener.current) {
         notificationListener.current.remove();
@@ -907,7 +911,11 @@ const WalletProviderRaw = ({
         responseListener.current = undefined;
       }
     };
-  }, [fetchWatchtowerPending, processNotificationData, walletsStorageStatus.isSynchd]);
+  }, [
+    fetchWatchtowerPending,
+    processNotificationData,
+    walletsStorageStatus.isSynchd
+  ]);
 
   /**
    * Important, to logOut from wallet, wallet (and therefore walletId) must
