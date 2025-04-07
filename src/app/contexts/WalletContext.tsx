@@ -13,7 +13,11 @@ import {
   TxHex
 } from '../lib/vaults';
 import * as Notifications from 'expo-notifications';
-import { canReceiveNotifications, watchVaults } from '../lib/watchtower';
+import {
+  canReceiveNotifications,
+  getExpoPushToken,
+  watchVaults
+} from '../lib/watchtower';
 import {
   walletTitle,
   type Accounts,
@@ -773,15 +777,16 @@ const WalletProviderRaw = ({
   const fetchWatchtowerPending = useCallback(async (): Promise<boolean> => {
     if (!watchtowerPendingAPI || !networkTimeout) {
       console.warn(
-        'Cannot fetch unacknowledged notifications: missing endpoint or network timeout'
+        'Cannot fetch unacknowledged notifications: missing endpoint or network timeout',
+        { watchtowerPendingAPI, networkTimeout }
       );
       return false;
     }
 
     try {
       // Get the push token
-      const pushToken = await Notifications.getExpoPushTokenAsync();
-      if (!pushToken?.data) {
+      const pushToken = await getExpoPushToken();
+      if (!pushToken) {
         console.warn(
           'Cannot fetch unacknowledged notifications: no push token available'
         );
@@ -794,9 +799,7 @@ const WalletProviderRaw = ({
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({
-          pushToken: pushToken.data
-        }),
+        body: JSON.stringify({ pushToken }),
         signal: AbortSignal.timeout(networkTimeout)
       });
 
@@ -844,6 +847,8 @@ const WalletProviderRaw = ({
         }
       }
 
+      console.log('fetchWatchtowerPending OK');
+
       // Successfully fetched and processed notifications
       return true;
     } catch (error) {
@@ -855,7 +860,8 @@ const WalletProviderRaw = ({
 
   // Set up notification handling and polling for unacknowledged notifications
   useEffect(() => {
-    if (!walletsStorageStatus.isSynchd) return;
+    if (!walletsStorageStatus.isSynchd || !settingsStorageStatus.isSynchd)
+      return;
 
     // Check for any notifications that might have launched the app
     Notifications.getLastNotificationResponseAsync()
@@ -923,7 +929,8 @@ const WalletProviderRaw = ({
   }, [
     fetchWatchtowerPending,
     processNotificationData,
-    walletsStorageStatus.isSynchd
+    walletsStorageStatus.isSynchd,
+    settingsStorageStatus.isSynchd
   ]);
 
   /**
