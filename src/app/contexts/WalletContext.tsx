@@ -756,13 +756,13 @@ const WalletProviderRaw = ({
   );
 
   // Function to fetch unacknowledged notifications from the watchtower
-  // This function fails silently.
-  const fetchWatchtowerPending = useCallback(async () => {
+  // Returns true if successful, false otherwise
+  const fetchWatchtowerPending = useCallback(async (): Promise<boolean> => {
     if (!watchtowerPendingAPI || !networkTimeout) {
       console.warn(
         'Cannot fetch unacknowledged notifications: missing endpoint or network timeout'
       );
-      return;
+      return false;
     }
 
     try {
@@ -772,7 +772,7 @@ const WalletProviderRaw = ({
         console.warn(
           'Cannot fetch unacknowledged notifications: no push token available'
         );
-        return;
+        return false;
       }
 
       // Make the request to the watchtower API
@@ -791,7 +791,7 @@ const WalletProviderRaw = ({
         console.warn(
           `Failed to fetch unacknowledged notifications: ${response.status} ${response.statusText}`
         );
-        return;
+        return false;
       }
 
       const data = await response.json();
@@ -800,7 +800,7 @@ const WalletProviderRaw = ({
         console.warn(
           'Invalid response format for unacknowledged notifications'
         );
-        return;
+        return false;
       }
 
       // Process each notification
@@ -830,28 +830,17 @@ const WalletProviderRaw = ({
           });
         }
       }
+      
+      // Successfully fetched and processed notifications
+      return true;
     } catch (error) {
       // Don't throw, just log the warning
       console.warn('Error fetching unacknowledged notifications:', error);
+      return false;
     }
   }, [watchtowerPendingAPI, networkTimeout, processNotificationData]);
 
-  // Set up polling for unacknowledged notifications
-  useEffect(() => {
-    if (!walletsStorageStatus.isSynchd) return;
-
-    // Fetch unacknowledged notifications immediately on startup
-    fetchWatchtowerPending();
-
-    // Set up polling every minute
-    const pollingInterval = setInterval(() => {
-      fetchWatchtowerPending();
-    }, 60000); // 60 seconds
-
-    return () => {
-      clearInterval(pollingInterval);
-    };
-  }, [fetchWatchtowerPending, walletsStorageStatus.isSynchd]);
+  // Set up notification handling and polling for unacknowledged notifications
   useEffect(() => {
     if (!walletsStorageStatus.isSynchd) return;
 
@@ -881,7 +870,37 @@ const WalletProviderRaw = ({
         processNotificationData(response.notification.request.content.data);
       });
 
-    // Clean up listeners on unmount
+    // Fetch unacknowledged notifications immediately on startup
+    fetchWatchtowerPending().then(success => {
+      // Only set up polling if the initial fetch failed
+      if (!success) {
+        // Set up polling every minute until successful
+        const pollingInterval = setInterval(async () => {
+          const fetchSuccess = await fetchWatchtowerPending();
+          // If successful, stop polling
+          if (fetchSuccess) {
+            clearInterval(pollingInterval);
+          }
+        }, 60000); // 60 seconds
+        
+        // Clean up interval on unmount
+        return () => {
+          clearInterval(pollingInterval);
+          
+          // Also clean up notification listeners
+          if (notificationListener.current) {
+            notificationListener.current.remove();
+            notificationListener.current = undefined;
+          }
+          if (responseListener.current) {
+            responseListener.current.remove();
+            responseListener.current = undefined;
+          }
+        };
+      }
+    });
+
+    // Clean up notification listeners on unmount
     return () => {
       if (notificationListener.current) {
         notificationListener.current.remove();
@@ -892,7 +911,7 @@ const WalletProviderRaw = ({
         responseListener.current = undefined;
       }
     };
-  }, [processNotificationData, walletsStorageStatus.isSynchd]);
+  }, [fetchWatchtowerPending, processNotificationData, walletsStorageStatus.isSynchd]);
 
   /**
    * Important, to logOut from wallet, wallet (and therefore walletId) must
