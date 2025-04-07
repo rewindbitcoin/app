@@ -755,12 +755,21 @@ const WalletProviderRaw = ({
     [wallets, setWallets]
   );
 
-  // Function to fetch unacknowledged notifications from the watchtower
-  // Returns true if successful, false otherwise
-  // This function is used to get possible notifications that were sent
-  // while the App was killed. If the user did not click on the Toast message
-  // in the system tray then the App has no way to know there had been
-  // a push notification. So call fetchWatchtowerPending on app start.
+  /**
+   * Fetches unacknowledged notifications from the watchtower service.
+   * 
+   * This function is critical for recovering notifications that were sent while 
+   * the app was not running. When a notification arrives and the app is closed:
+   * 1. The OS shows a notification in the system tray
+   * 2. If the user doesn't interact with this notification, the app has no way
+   *    to know about it when launched later
+   * 
+   * By calling this function on app startup, we can retrieve any missed notifications
+   * directly from the watchtower server and process them as if they were just received.
+   * 
+   * @returns {Promise<boolean>} True if notifications were successfully fetched and processed,
+   *                            false if there was an error or the service was unavailable
+   */
   const fetchWatchtowerPending = useCallback(async (): Promise<boolean> => {
     if (!watchtowerPendingAPI || !networkTimeout) {
       console.warn(
