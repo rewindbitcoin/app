@@ -844,6 +844,9 @@ const WalletProviderRaw = ({
   useEffect(() => {
     if (!walletsStorageStatus.isSynchd) return;
 
+    // Variable to store the polling interval reference
+    let pollingInterval: NodeJS.Timeout | undefined;
+
     // Check for any notifications that might have launched the app
     Notifications.getLastNotificationResponseAsync()
       .then(response => {
@@ -871,37 +874,30 @@ const WalletProviderRaw = ({
       });
 
     // Fetch unacknowledged notifications immediately on startup
+    // and set up polling if needed
     fetchWatchtowerPending().then(success => {
       // Only set up polling if the initial fetch failed
       if (!success) {
         // Set up polling every minute until successful
-        const pollingInterval = setInterval(async () => {
+        pollingInterval = setInterval(async () => {
           const fetchSuccess = await fetchWatchtowerPending();
           // If successful, stop polling
-          if (fetchSuccess) {
+          if (fetchSuccess && pollingInterval) {
             clearInterval(pollingInterval);
+            pollingInterval = undefined;
           }
         }, 60000); // 60 seconds
-        
-        // Clean up interval on unmount
-        return () => {
-          clearInterval(pollingInterval);
-          
-          // Also clean up notification listeners
-          if (notificationListener.current) {
-            notificationListener.current.remove();
-            notificationListener.current = undefined;
-          }
-          if (responseListener.current) {
-            responseListener.current.remove();
-            responseListener.current = undefined;
-          }
-        };
       }
     });
 
-    // Clean up notification listeners on unmount
+    // Clean up notification listeners and polling interval on unmount
     return () => {
+      // Clear polling interval if it exists
+      if (pollingInterval) {
+        clearInterval(pollingInterval);
+      }
+      
+      // Clean up notification listeners
       if (notificationListener.current) {
         notificationListener.current.remove();
         notificationListener.current = undefined;
