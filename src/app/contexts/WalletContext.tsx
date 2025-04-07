@@ -755,9 +755,11 @@ const WalletProviderRaw = ({
   );
 
   // Set up notification listeners
+  // FIXME: make sure this is run only once.
+  // Also add a new 
+  //Also add a call to the watchtowerAPI endpoint for get active pushes
   useEffect(() => {
-    // Only set up notification listeners when data is ready
-    if (!dataReady) return;
+    if (!walletsStorageStatus.isSynchd) return;
 
     // Check for any notifications that might have launched the app
     Notifications.getLastNotificationResponseAsync()
@@ -796,7 +798,7 @@ const WalletProviderRaw = ({
         responseListener.current = undefined;
       }
     };
-  }, [processNotificationData, dataReady]);
+  }, [processNotificationData, walletsStorageStatus.isSynchd]);
 
   /**
    * Important, to logOut from wallet, wallet (and therefore walletId) must
