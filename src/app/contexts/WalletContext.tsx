@@ -757,16 +757,16 @@ const WalletProviderRaw = ({
 
   /**
    * Fetches unacknowledged notifications from the watchtower service.
-   * 
-   * This function is critical for recovering notifications that were sent while 
+   *
+   * This function is critical for recovering notifications that were sent while
    * the app was not running. When a notification arrives and the app is closed:
    * 1. The OS shows a notification in the system tray
    * 2. If the user doesn't interact with this notification, the app has no way
    *    to know about it when launched later
-   * 
+   *
    * By calling this function on app startup, we can retrieve any missed notifications
    * directly from the watchtower server and process them as if they were just received.
-   * 
+   *
    * @returns {Promise<boolean>} True if notifications were successfully fetched and processed,
    *                            false if there was an error or the service was unavailable
    */
@@ -857,9 +857,6 @@ const WalletProviderRaw = ({
   useEffect(() => {
     if (!walletsStorageStatus.isSynchd) return;
 
-    // Variable to store the polling interval reference
-    let pollingInterval: NodeJS.Timeout | undefined;
-
     // Check for any notifications that might have launched the app
     Notifications.getLastNotificationResponseAsync()
       .then(response => {
@@ -886,6 +883,8 @@ const WalletProviderRaw = ({
         processNotificationData(response.notification.request.content.data);
       });
 
+    // Variable to store the polling interval reference
+    let pollingInterval: NodeJS.Timeout | undefined;
     // Fetch unacknowledged notifications immediately on startup
     // and set up polling if needed
     fetchWatchtowerPending().then(success => {
@@ -908,6 +907,7 @@ const WalletProviderRaw = ({
       // Clear polling interval if it exists
       if (pollingInterval) {
         clearInterval(pollingInterval);
+        pollingInterval = undefined;
       }
 
       // Clean up notification listeners
