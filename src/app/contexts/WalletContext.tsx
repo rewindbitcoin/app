@@ -222,12 +222,12 @@ const WalletProviderRaw = ({
     faucetURL,
     cBVaultsReaderAPI,
     watchtowerAPI,
+    watchtowerNotificationsEndpoint,
     generate204API,
     generate204CbVaultsReaderAPI,
     generate204WatchtowerAPI,
     generate204APIExternal,
-    blockExplorerURL,
-    watchtowerPendingAPI
+    blockExplorerURL
   } = getAPIs(networkId, settings);
   const [wallets, setWallets, , , walletsStorageStatus] = useStorage<Wallets>(
     `WALLETS`,
@@ -755,56 +755,94 @@ const WalletProviderRaw = ({
     [wallets, setWallets]
   );
 
-  // TODO:
-  // There is also an endpoing called watchtowerPendingAPI that corresponds to
-  // this API:
-  // Retrieve Unacknowledged Notifications
-  //POST /all-networks/watchtower/notifications
-  //
-  //Purpose: Retrieves all unacknowledged notifications for a specific device across all networks.
-  //
-  //Request Body:
-  //
-  //{
-  //  "pushToken": "ExponentPushToken[xyz]"
-  //}
-  //Response:
-  //
-  //{
-  //  "notifications": [
-  //    {
-  //      "vaultId": "vault123",
-  //      "walletId": "wallet_unique_identifier",
-  //      "walletName": "My Bitcoin Wallet",
-  //      "vaultNumber": 1,
-  //      "watchtowerId": "client_provided_unique_id_for_watchtower",
-  //      "txid": "abcdef1234567890abcdef1234567890",
-  //      "attemptCount": 3,
-  //      "firstDetectedAt": 1634567890,
-  //      "networkId": "bitcoin"
-  //    },
-  //    {
-  //      "vaultId": "vault456",
-  //      "walletId": "wallet_unique_identifier",
-  //      "walletName": "My Testnet Wallet",
-  //      "vaultNumber": 2,
-  //      "watchtowerId": "client_provided_unique_id_for_watchtower",
-  //      "txid": "fedcba0987654321fedcba0987654321",
-  //      "attemptCount": 1,
-  //      "firstDetectedAt": 1634567891,
-  //      "networkId": "testnet"
-  //    }
-  //  ]
-  //}
-  //Responses:
-  //
-  //200 OK: Request successful (even if no notifications are found)
-  //400 Bad Request: Invalid input data (missing pushToken)
-  //500 Internal Server Error: Server error
-  //---
-  //you must query initially only for those requedsts sent if the app was killed
-  //and the user did not react. keep polling evey minute while the call fails
-  //dont throw an error bue console.warn if it fails and retry.
+  // Function to fetch unacknowledged notifications from the watchtower
+  const fetchUnacknowledgedNotifications = useCallback(async () => {
+    if (!watchtowerNotificationsEndpoint || !networkTimeout) {
+      console.warn('Cannot fetch unacknowledged notifications: missing endpoint or network timeout');
+      return;
+    }
+
+    try {
+      // Get the push token
+      const pushToken = await Notifications.getExpoPushTokenAsync();
+      if (!pushToken?.data) {
+        console.warn('Cannot fetch unacknowledged notifications: no push token available');
+        return;
+      }
+
+      // Make the request to the watchtower API
+      const response = await fetch(watchtowerNotificationsEndpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          pushToken: pushToken.data
+        }),
+        signal: AbortSignal.timeout(networkTimeout)
+      });
+
+      if (!response.ok) {
+        console.warn(`Failed to fetch unacknowledged notifications: ${response.status} ${response.statusText}`);
+        return;
+      }
+
+      const data = await response.json();
+      
+      if (!data.notifications || !Array.isArray(data.notifications)) {
+        console.warn('Invalid response format for unacknowledged notifications');
+        return;
+      }
+
+      // Process each notification
+      for (const notification of data.notifications) {
+        const {
+          vaultId,
+          walletId: notificationWalletId,
+          watchtowerId,
+          firstDetectedAt,
+          txid
+        } = notification;
+
+        if (
+          typeof vaultId === 'string' &&
+          typeof notificationWalletId === 'string' &&
+          typeof watchtowerId === 'string' &&
+          typeof firstDetectedAt === 'number' &&
+          typeof txid === 'string'
+        ) {
+          // Process the notification data
+          processNotificationData({
+            vaultId,
+            walletId: notificationWalletId,
+            watchtowerId,
+            firstDetectedAt,
+            txid
+          });
+        }
+      }
+    } catch (error) {
+      // Don't throw, just log the warning
+      console.warn('Error fetching unacknowledged notifications:', error);
+    }
+  }, [watchtowerNotificationsEndpoint, networkTimeout, processNotificationData]);
+
+  // Set up polling for unacknowledged notifications
+  useEffect(() => {
+    if (!walletsStorageStatus.isSynchd) return;
+
+    // Fetch unacknowledged notifications immediately on startup
+    fetchUnacknowledgedNotifications();
+
+    // Set up polling every minute
+    const pollingInterval = setInterval(() => {
+      fetchUnacknowledgedNotifications();
+    }, 60000); // 60 seconds
+
+    return () => {
+      clearInterval(pollingInterval);
+    };
+  }, [fetchUnacknowledgedNotifications, walletsStorageStatus.isSynchd]);
   useEffect(() => {
     if (!walletsStorageStatus.isSynchd) return;
 
