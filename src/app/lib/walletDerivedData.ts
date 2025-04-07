@@ -15,6 +15,7 @@ export const getAPIs = moize(
     let cBVaultsWriterAPI: string | undefined;
     let cBVaultsReaderAPI: string | undefined;
     let watchtowerAPI: string | undefined;
+    let unacknowledgedNotificationsAPI: string | undefined;
     let faucetAPI: string | undefined;
     let faucetURL: string | undefined;
     let generate204API: string | undefined;
@@ -24,6 +25,9 @@ export const getAPIs = moize(
     if (networkId && settings) {
       const regtestBaseUrl = `${settings.REGTEST_PROTOCOL}://${settings.REGTEST_HOST_NAME}`;
       const regtestElectrumBaseUrl = `${settings.REGTEST_ELECTRUM_PROTOCOL}://${settings.REGTEST_HOST_NAME}`;
+      
+      // Set up the unacknowledged notifications API - same for all networks
+      unacknowledgedNotificationsAPI = `${settings.WATCH_TOWER_API}/all-networks/watchtower/notifications`;
 
       switch (networkId) {
         case 'BITCOIN':
@@ -95,6 +99,7 @@ export const getAPIs = moize(
       cBVaultsWriterAPI,
       cBVaultsReaderAPI,
       watchtowerAPI,
+      unacknowledgedNotificationsAPI,
       generate204API,
       generate204CbVaultsReaderAPI,
       generate204WatchtowerAPI,
