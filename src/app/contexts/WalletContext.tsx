@@ -222,7 +222,7 @@ const WalletProviderRaw = ({
     faucetURL,
     cBVaultsReaderAPI,
     watchtowerAPI,
-    watchtowerNotificationsEndpoint,
+    watchtowerPendingAPI,
     generate204API,
     generate204CbVaultsReaderAPI,
     generate204WatchtowerAPI,
@@ -756,9 +756,12 @@ const WalletProviderRaw = ({
   );
 
   // Function to fetch unacknowledged notifications from the watchtower
-  const fetchUnacknowledgedNotifications = useCallback(async () => {
-    if (!watchtowerNotificationsEndpoint || !networkTimeout) {
-      console.warn('Cannot fetch unacknowledged notifications: missing endpoint or network timeout');
+  // This function fails silently.
+  const fetchWatchtowerPending = useCallback(async () => {
+    if (!watchtowerPendingAPI || !networkTimeout) {
+      console.warn(
+        'Cannot fetch unacknowledged notifications: missing endpoint or network timeout'
+      );
       return;
     }
 
@@ -766,12 +769,14 @@ const WalletProviderRaw = ({
       // Get the push token
       const pushToken = await Notifications.getExpoPushTokenAsync();
       if (!pushToken?.data) {
-        console.warn('Cannot fetch unacknowledged notifications: no push token available');
+        console.warn(
+          'Cannot fetch unacknowledged notifications: no push token available'
+        );
         return;
       }
 
       // Make the request to the watchtower API
-      const response = await fetch(watchtowerNotificationsEndpoint, {
+      const response = await fetch(watchtowerPendingAPI, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -783,14 +788,18 @@ const WalletProviderRaw = ({
       });
 
       if (!response.ok) {
-        console.warn(`Failed to fetch unacknowledged notifications: ${response.status} ${response.statusText}`);
+        console.warn(
+          `Failed to fetch unacknowledged notifications: ${response.status} ${response.statusText}`
+        );
         return;
       }
 
       const data = await response.json();
-      
+
       if (!data.notifications || !Array.isArray(data.notifications)) {
-        console.warn('Invalid response format for unacknowledged notifications');
+        console.warn(
+          'Invalid response format for unacknowledged notifications'
+        );
         return;
       }
 
@@ -825,24 +834,24 @@ const WalletProviderRaw = ({
       // Don't throw, just log the warning
       console.warn('Error fetching unacknowledged notifications:', error);
     }
-  }, [watchtowerNotificationsEndpoint, networkTimeout, processNotificationData]);
+  }, [watchtowerPendingAPI, networkTimeout, processNotificationData]);
 
   // Set up polling for unacknowledged notifications
   useEffect(() => {
     if (!walletsStorageStatus.isSynchd) return;
 
     // Fetch unacknowledged notifications immediately on startup
-    fetchUnacknowledgedNotifications();
+    fetchWatchtowerPending();
 
     // Set up polling every minute
     const pollingInterval = setInterval(() => {
-      fetchUnacknowledgedNotifications();
+      fetchWatchtowerPending();
     }, 60000); // 60 seconds
 
     return () => {
       clearInterval(pollingInterval);
     };
-  }, [fetchUnacknowledgedNotifications, walletsStorageStatus.isSynchd]);
+  }, [fetchWatchtowerPending, walletsStorageStatus.isSynchd]);
   useEffect(() => {
     if (!walletsStorageStatus.isSynchd) return;
 
