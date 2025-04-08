@@ -697,8 +697,6 @@ const WalletProviderRaw = ({
           // Validate walletId is a string containing a non-negative integer
           const walletIdNum = parseInt(walletIdStr as string, 10);
           if (!isNaN(walletIdNum) && walletIdNum >= 0) {
-            console.log('Notification for wallet:', walletIdNum);
-
             // Store the notification data in the wallet object
             if (wallets && walletIdNum !== undefined) {
               const currentWallet = wallets[walletIdNum];
@@ -847,13 +845,14 @@ const WalletProviderRaw = ({
           }
         }
 
-        console.log(`fetchWatchtowerPendingForNetwork OK for ${watchtowerAPI}`);
-
         // Successfully fetched and processed notifications
         return true;
       } catch (error) {
         // Don't throw, just log the warning
-        console.warn(`Error fetching unacknowledged notifications from ${watchtowerAPI}:`, error);
+        console.warn(
+          `Error fetching unacknowledged notifications from ${watchtowerAPI}:`,
+          error
+        );
         return false;
       }
     },
@@ -869,7 +868,9 @@ const WalletProviderRaw = ({
    */
   const fetchWatchtowerPending = useCallback(async (): Promise<boolean> => {
     if (!wallets) {
-      console.warn('Cannot fetch unacknowledged notifications: no wallets available');
+      console.warn(
+        'Cannot fetch unacknowledged notifications: no wallets available'
+      );
       return false;
     }
 
@@ -892,7 +893,7 @@ const WalletProviderRaw = ({
     // Fetch notifications for each network
     for (const networkId of networkIds) {
       const { watchtowerAPI } = getAPIs(networkId, settings);
-      
+
       if (!watchtowerAPI) {
         console.warn(`No watchtower API available for network: ${networkId}`);
         allSucceeded = false;
@@ -917,7 +918,6 @@ const WalletProviderRaw = ({
     Notifications.getLastNotificationResponseAsync()
       .then(response => {
         if (response) {
-          console.log('Last notification response:', response);
           processNotificationData(response.notification.request.content.data);
         }
       })
@@ -928,7 +928,6 @@ const WalletProviderRaw = ({
     // Listen for notifications received while app is in foreground
     notificationListener.current =
       Notifications.addNotificationReceivedListener(notification => {
-        console.log('Notification received:', notification);
         processNotificationData(notification.request.content.data);
       });
 
