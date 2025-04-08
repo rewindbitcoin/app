@@ -925,10 +925,9 @@ const WalletProviderRaw = ({
             pollingTimeout = undefined;
             return;
           }
-          // Wait 60 seconds before next attempt
-          pollingTimeout = setTimeout(poll, 60000);
+          pollingTimeout = setTimeout(poll, 60000); // Wait 60' for next attempt
         };
-        poll(); // start polling
+        pollingTimeout = setTimeout(poll, 60000); // poll failed WTs after 60'
       }
     });
 
