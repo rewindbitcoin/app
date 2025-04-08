@@ -888,74 +888,57 @@ const WalletProviderRaw = ({
         processNotificationData(response.notification.request.content.data);
       });
 
-    // Variable to store the polling interval reference
-    let pollingInterval: NodeJS.Timeout | undefined;
-    // Track which watchtower APIs failed to fetch notifications
-    const failedWatchtowerAPIs = new Set<string>();
+    let pollingTimeout: NodeJS.Timeout | undefined;
 
-    // Get unique network IDs from all wallets
-    const getWatchtowerAPIs = () => {
-      if (!wallets) return [];
-
-      const networkIds = new Set<NetworkId>();
-      Object.values(wallets).forEach(wallet => {
-        if (wallet.networkId) networkIds.add(wallet.networkId);
-      });
-
-      return Array.from(networkIds)
-        .map(networkId => getAPIs(networkId, settings).watchtowerAPI)
-        .filter(Boolean) as string[];
-    };
-
-    // Initial fetch of all watchtower APIs
-    const watchtowerAPIs = getWatchtowerAPIs();
+    // Track which watchtower APIs failed to fetch notifications (initially, all of them)
+    const failedWatchtowerAPIs: string[] = Object.values(wallets || [])
+      .map(w => w.networkId)
+      .filter((netId, i, arr) => netId && arr.indexOf(netId) === i)
+      .map(netId => getAPIs(netId, settings).watchtowerAPI as string)
+      .filter(Boolean);
 
     // Fetch notifications from all watchtower APIs
     Promise.all(
-      watchtowerAPIs.map(async watchtowerAPI => {
+      failedWatchtowerAPIs.map(async watchtowerAPI => {
         const success = await fetchWatchtowerPendingForNetwork(watchtowerAPI);
-        if (!success) failedWatchtowerAPIs.add(watchtowerAPI);
+        if (success) {
+          const index = failedWatchtowerAPIs.indexOf(watchtowerAPI);
+          if (index !== -1) failedWatchtowerAPIs.splice(index, 1);
+        }
       })
     ).then(() => {
-      // Only set up polling if any fetch failed
-      if (failedWatchtowerAPIs.size > 0) {
-        // Set up polling every minute for failed APIs only
-        pollingInterval = setInterval(async () => {
-          // Only retry failed watchtower APIs
-          if (failedWatchtowerAPIs.size === 0) {
-            if (pollingInterval) {
-              clearInterval(pollingInterval);
-              pollingInterval = undefined;
-            }
-            return;
-          }
-
-          // Try to fetch from each failed watchtower API
-          const retryAPIs = Array.from(failedWatchtowerAPIs);
-          for (const watchtowerAPI of retryAPIs) {
+      if (failedWatchtowerAPIs.length > 0) {
+        const poll = async () => {
+          for (const watchtowerAPI of [...failedWatchtowerAPIs]) {
+            if (!pollingTimeout) return; // cancel if unmounted
             const success =
               await fetchWatchtowerPendingForNetwork(watchtowerAPI);
             if (success) {
-              // Remove from failed APIs if successful
-              failedWatchtowerAPIs.delete(watchtowerAPI);
+              const index = failedWatchtowerAPIs.indexOf(watchtowerAPI);
+              if (index !== -1) failedWatchtowerAPIs.splice(index, 1);
             }
           }
 
-          // If all retries succeeded, stop polling
-          if (failedWatchtowerAPIs.size === 0 && pollingInterval) {
-            clearInterval(pollingInterval);
-            pollingInterval = undefined;
+          if (failedWatchtowerAPIs.length === 0) {
+            if (pollingTimeout) clearTimeout(pollingTimeout);
+            pollingTimeout = undefined;
+            return;
           }
-        }, 60000); // 60 seconds
+
+          // Wait 60 seconds before next attempt
+          pollingTimeout = setTimeout(poll, 60000);
+        };
+
+        poll(); // start polling
       }
     });
 
     // Clean up notification listeners and polling interval on unmount
     return () => {
       // Clear polling interval if it exists
-      if (pollingInterval) {
-        clearInterval(pollingInterval);
-        pollingInterval = undefined;
+      if (pollingTimeout) {
+        clearTimeout(pollingTimeout);
+        pollingTimeout = undefined;
       }
 
       // Clean up notification listeners
