@@ -174,6 +174,7 @@ const VaultButton = ({
 );
 
 const RawVault = ({
+  clearVaultNotifications,
   updateVaultStatus,
   pushTx,
   btcFiat,
@@ -184,6 +185,13 @@ const RawVault = ({
   blockExplorerURL,
   watchtowerAPI
 }: {
+  clearVaultNotifications: ({
+    vaultId,
+    ackWatchtower
+  }: {
+    vaultId: string;
+    ackWatchtower: boolean;
+  }) => Promise<void>;
   updateVaultStatus: (vaultId: string, vaultStatus: VaultStatus) => void;
   pushTx: (txHex: string) => Promise<void>;
   btcFiat: number | undefined;
@@ -228,6 +236,12 @@ const RawVault = ({
     };
     configureNotificationsIfNeeded();
   }, []);
+  // Each time the vault is "seen" we clear the notifications
+  useEffect(() => {
+    console.log('TRACE Vault mounted for ', vault.vaultId);
+    //FIXME: this should be on!!!
+    //clearVaultNotifications({ ackWatchtower: false, vaultId: vault.vaultId });
+  }, [clearVaultNotifications, vault.vaultId]);
   const handleWatchtowerHelp = useCallback(async () => {
     setShowWatchtowerHelp(true);
   }, []);
@@ -262,7 +276,13 @@ const RawVault = ({
       const { status: pushStatus } = await netRequest({
         whenToastErrors: 'ON_ANY_ERROR',
         errorMessage: (message: string) => t('app.pushError', { message }),
-        func: () => pushTx(initUnfreezeData.txHex)
+        func: async () => {
+          await clearVaultNotifications({
+            ackWatchtower: true,
+            vaultId: vault.vaultId
+          });
+          await pushTx(initUnfreezeData.txHex);
+        }
       });
       if (pushStatus !== 'SUCCESS') setIsInitUnfreezeRequestValid(false);
       else {
@@ -277,7 +297,15 @@ const RawVault = ({
         updateVaultStatus(vault.vaultId, newVaultStatus);
       }
     },
-    [pushTx, vault.vaultId, vaultStatus, updateVaultStatus, netRequest, t]
+    [
+      clearVaultNotifications,
+      pushTx,
+      vault.vaultId,
+      vaultStatus,
+      updateVaultStatus,
+      netRequest,
+      t
+    ]
   );
 
   const [showDelegate, setShowDelegate] = useState<boolean>(false);
@@ -867,6 +895,7 @@ const RawVault = ({
 const Vault = React.memo(RawVault);
 
 const Vaults = ({
+  clearVaultNotifications,
   updateVaultStatus,
   pushTx,
   btcFiat,
@@ -876,6 +905,13 @@ const Vaults = ({
   blockExplorerURL,
   watchtowerAPI
 }: {
+  clearVaultNotifications: ({
+    vaultId,
+    ackWatchtower
+  }: {
+    vaultId: string;
+    ackWatchtower: boolean;
+  }) => Promise<void>;
   updateVaultStatus: (vaultId: string, vaultStatus: VaultStatus) => void;
   pushTx: (txHex: string) => Promise<void>;
   btcFiat: number | undefined;
@@ -885,6 +921,9 @@ const Vaults = ({
   blockExplorerURL: string | undefined;
   watchtowerAPI: string | undefined;
 }) => {
+  useEffect(() => {
+    console.log('TRACE Vaults mounted');
+  }, []);
   const sortedVaults = useMemo(() => {
     return Object.values(vaults).sort(
       (a, b) => b.creationTime - a.creationTime
@@ -905,6 +944,7 @@ const Vaults = ({
           return (
             !vaultStatus?.isHidden && (
               <Vault
+                clearVaultNotifications={clearVaultNotifications}
                 updateVaultStatus={updateVaultStatus}
                 key={vault.vaultId}
                 btcFiat={btcFiat}

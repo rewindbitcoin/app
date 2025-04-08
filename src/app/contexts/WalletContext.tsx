@@ -152,12 +152,12 @@ export type WalletContextType = {
     signersCipherKey?: Uint8Array;
   }) => Promise<void>;
   isFirstLogin: boolean;
-  ackVaultInWatchtower: ({
+  clearVaultNotifications: ({
     vaultId,
-    whenToastErrors
+    ackWatchtower
   }: {
     vaultId: string;
-    whenToastErrors: 'ON_NEW_ERROR' | 'ON_ANY_ERROR';
+    ackWatchtower: boolean;
   }) => Promise<void>;
 };
 
@@ -1224,16 +1224,13 @@ const WalletProviderRaw = ({
   const watchtowerWalletName =
     wallet && wallets && walletTitle(wallet, wallets, t);
 
-  const ackVaultInWatchtower = useCallback(
+  const clearVaultNotifications = useCallback(
     async ({
       vaultId,
-      whenToastErrors
+      ackWatchtower
     }: {
       vaultId: string;
-      /* when it's an user action use ON_ANY_ERROR
-       * if this is an automated action: 'ON_NEW_ERROR'
-       */
-      whenToastErrors: 'ON_NEW_ERROR' | 'ON_ANY_ERROR';
+      ackWatchtower: boolean;
     }) => {
       if (
         !watchtowerAPI ||
@@ -1242,77 +1239,55 @@ const WalletProviderRaw = ({
         walletId == undefined
       )
         return;
-      const { result } = await netRequest({
-        id: 'watchtower',
-        errorMessage: (message: string) =>
-          t('app.watchtowerError', { message }),
-        whenToastErrors,
-        requirements: { watchtowerAPIReachable: true },
-        func: async () => {
-          try {
-            const pushToken = await getExpoPushToken();
-            const response = await fetch(`${watchtowerAPI}/ack`, {
-              body: JSON.stringify({ pushToken, vaultId }),
-              signal: AbortSignal.timeout(networkTimeout)
-            });
-            if (!response.ok) {
-              throw new Error(
-                `Failed to ack vault ${vaultId} in watchtower ${watchtowerAPI}`
-              );
-            }
-            return true;
-          } catch (error) {
-            // Handle errors (e.g., network issues, getting expo toke, invalid JSON, etc.)
-            console.error(
-              `Failed to ack vault ${vaultId} in watchtower ${watchtowerAPI}`,
-              error
-            );
-            throw error;
-          }
+
+      if (ackWatchtower)
+        //ack will silently fail. Not acking is not a big deal.
+        //This means the user will get a push notification and will need to ack
+        //again
+        try {
+          const pushToken = await getExpoPushToken();
+          await fetch(`${watchtowerAPI}/ack`, {
+            body: JSON.stringify({ pushToken, vaultId }),
+            signal: AbortSignal.timeout(networkTimeout)
+          });
+        } catch (error) {
+          // Handle errors (e.g., network issues, getting expo toke, invalid JSON, etc.)
+          console.warn(
+            `Failed to ack vault ${vaultId} in watchtower ${watchtowerAPI}. Continuing anyway...`,
+            error
+          );
         }
-      });
-      if (result) {
-        const currentWallet = wallets[walletId];
-        if (
-          currentWallet?.notifications?.[watchtowerAPI]?.[vaultId] !== undefined
-        ) {
-          // Create a deep copy to avoid mutating the original state
-          const updatedWallets = { ...wallets };
-          const updatedWallet = { ...currentWallet };
-          const updatedNotifications = { ...updatedWallet.notifications };
-          const updatedWatchtowerNotifications = {
-            ...updatedNotifications[watchtowerAPI]
-          };
+      const currentWallet = wallets[walletId];
+      if (
+        currentWallet?.notifications?.[watchtowerAPI]?.[vaultId] !== undefined
+      ) {
+        // Create a deep copy to avoid mutating the original state
+        const updatedWallets = { ...wallets };
+        const updatedWallet = { ...currentWallet };
+        const updatedNotifications = { ...updatedWallet.notifications };
+        const updatedWatchtowerNotifications = {
+          ...updatedNotifications[watchtowerAPI]
+        };
 
-          // Remove the specific vault notification
-          delete updatedWatchtowerNotifications[vaultId];
+        // Remove the specific vault notification
+        delete updatedWatchtowerNotifications[vaultId];
 
-          // If no more notifications for this watchtower, remove the watchtower entry
-          if (Object.keys(updatedWatchtowerNotifications).length === 0) {
-            delete updatedNotifications[watchtowerAPI];
-          } else {
-            updatedNotifications[watchtowerAPI] =
-              updatedWatchtowerNotifications;
-          }
-
-          // Update the wallet and wallets objects
-          updatedWallet.notifications = updatedNotifications;
-          updatedWallets[walletId] = updatedWallet;
-
-          // Update the state
-          setWallets(updatedWallets);
+        // If no more notifications for this watchtower, remove the watchtower entry
+        if (Object.keys(updatedWatchtowerNotifications).length === 0) {
+          delete updatedNotifications[watchtowerAPI];
+        } else {
+          updatedNotifications[watchtowerAPI] = updatedWatchtowerNotifications;
         }
+
+        // Update the wallet and wallets objects
+        updatedWallet.notifications = updatedNotifications;
+        updatedWallets[walletId] = updatedWallet;
+
+        // Update the state
+        setWallets(updatedWallets);
       }
     },
-    [
-      watchtowerAPI,
-      netRequest,
-      t,
-      networkTimeout,
-      wallets,
-      walletId,
-      setWallets
-    ]
+    [watchtowerAPI, networkTimeout, wallets, walletId, setWallets]
   );
 
   /**
@@ -1931,7 +1906,7 @@ const WalletProviderRaw = ({
     deleteWallet,
     onWallet,
     isFirstLogin,
-    ackVaultInWatchtower
+    clearVaultNotifications
   };
   return (
     <WalletContext.Provider value={contextValue}>
