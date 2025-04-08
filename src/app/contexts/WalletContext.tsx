@@ -1936,7 +1936,8 @@ const WalletProviderRaw = ({
     deleteWallet,
     onWallet,
     isFirstLogin,
-    ackAndClearVaultNotifications
+    ackAndClearVaultNotifications,
+    clearWalletNotifications
   };
   return (
     <WalletContext.Provider value={contextValue}>
