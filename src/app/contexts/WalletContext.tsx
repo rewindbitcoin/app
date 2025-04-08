@@ -1258,12 +1258,39 @@ const WalletProviderRaw = ({
           }
         }
       });
-      if (result) {
-        //TODO: if the notification is still set, delete it: call to setWallets
-        //deleting it. See processNotificationData to learn how to do this.
+      if (result && wallets && walletId !== undefined && watchtowerAPI) {
+        const currentWallet = wallets[walletId];
+        if (
+          currentWallet?.notifications?.[watchtowerAPI]?.[vaultId] !== undefined
+        ) {
+          // Create a deep copy to avoid mutating the original state
+          const updatedWallets = { ...wallets };
+          const updatedWallet = { ...currentWallet };
+          const updatedNotifications = { ...updatedWallet.notifications };
+          const updatedWatchtowerNotifications = {
+            ...updatedNotifications[watchtowerAPI]
+          };
+
+          // Remove the specific vault notification
+          delete updatedWatchtowerNotifications[vaultId];
+
+          // If no more notifications for this watchtower, remove the watchtower entry
+          if (Object.keys(updatedWatchtowerNotifications).length === 0) {
+            delete updatedNotifications[watchtowerAPI];
+          } else {
+            updatedNotifications[watchtowerAPI] = updatedWatchtowerNotifications;
+          }
+
+          // Update the wallet and wallets objects
+          updatedWallet.notifications = updatedNotifications;
+          updatedWallets[walletId] = updatedWallet;
+
+          // Update the state
+          setWallets(updatedWallets);
+        }
       }
     },
-    [watchtowerAPI, netRequest, t, networkTimeout]
+    [watchtowerAPI, netRequest, t, networkTimeout, wallets, walletId, setWallets]
   );
 
   /**
