@@ -1217,6 +1217,54 @@ const WalletProviderRaw = ({
   const watchtowerWalletName =
     wallet && wallets && walletTitle(wallet, wallets, t);
 
+  const ackVaultInWatchtower = useCallback(
+    async ({
+      vaultId,
+      whenToastErrors
+    }: {
+      vaultId: string;
+      /* when it's an user action use ON_ANY_ERROR
+       * if this is an automated action: 'ON_NEW_ERROR'
+       */
+      whenToastErrors: 'ON_NEW_ERROR' | 'ON_ANY_ERROR';
+    }) => {
+      if (!watchtowerAPI || !networkTimeout) return;
+      const { result } = await netRequest({
+        id: 'watchtower',
+        errorMessage: (message: string) =>
+          t('app.watchtowerError', { message }),
+        whenToastErrors,
+        requirements: { watchtowerAPIReachable: true },
+        func: async () => {
+          try {
+            const pushToken = await getExpoPushToken();
+            const response = await fetch(`${watchtowerAPI}/ack`, {
+              body: JSON.stringify({ pushToken, vaultId }),
+              signal: AbortSignal.timeout(networkTimeout)
+            });
+            if (!response.ok) {
+              throw new Error(
+                `Failed to ack vault ${vaultId} in watchtower ${watchtowerAPI}`
+              );
+            }
+            return true;
+          } catch (error) {
+            // Handle errors (e.g., network issues, getting expo toke, invalid JSON, etc.)
+            console.error(
+              `Failed to ack vault ${vaultId} in watchtower ${watchtowerAPI}`,
+              error
+            );
+            throw error;
+          }
+        }
+      });
+      if (result) {
+        //TODO: delete this notification an update wallets
+      }
+    },
+    [watchtowerAPI, netRequest, t, networkTimeout]
+  );
+
   /**
    * Registers vaults with the watchtower service and updates their
    * registration status.
@@ -1241,9 +1289,9 @@ const WalletProviderRaw = ({
         throw new Error('Required data for watchtower registration missing');
 
       const { result: newWatchedVaults } = await netRequest({
-        id: 'watchtowerRegistration',
+        id: 'watchtower',
         errorMessage: (message: string) =>
-          t('app.watchtowerRegistrationError', { message }),
+          t('app.watchtowerError', { message }),
         whenToastErrors,
         requirements: { watchtowerAPIReachable: true },
         func: () => {

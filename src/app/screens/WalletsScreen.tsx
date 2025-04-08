@@ -67,7 +67,8 @@ const walletCls = [
   'text-red-500',
   'text-teal-500'
 ];
-const walletBg = (index: number) => walletBgs[index % walletBgs.length];
+const walletBg = (index: number, hasNotifications: boolean) =>
+  hasNotifications ? 'bg-red-600' : walletBgs[index % walletBgs.length];
 const walletCl = (index: number) => walletCls[index % walletCls.length];
 
 const WalletsScreen = () => {
@@ -80,6 +81,15 @@ const WalletsScreen = () => {
   const navigation = useNavigation();
   const { t } = useTranslation();
   const { locale } = useLocalization();
+
+  const walletsWithWTNotifications = Object.entries(wallets || [])
+    .filter(
+      ([_, wallet]) =>
+        wallet.notifications && Object.keys(wallet.notifications).length > 0
+    )
+    .map(([walletId]) => Number(walletId));
+  const showOnlyNotifications = walletsWithWTNotifications.length > 0;
+
   const handleWalletMap = useMemo(() => {
     if (!wallets) return {};
     else {
@@ -89,6 +99,23 @@ const WalletsScreen = () => {
         const wallet = wallets[walletId];
         if (!wallet) throw new Error(`Unset wallet for ${walletId}`);
         map[walletId] = () => {
+          //FIXME: here clear the notifications and ack
+          //note that clearing the notificaiotns will immediately cause a fetch
+          //of pending! - but the thing is i should check if notifications
+          //are needed to be shown or not. I mean if the pushVault
+          //was done with this device and the time firstAttemptAt
+          //is close to now dont do anything
+          //Yeah but it needs to be cleared for notifiactions originated from
+          //other devices...
+          //So maybe call onWallet({wallet}) again with the nots unset after the
+          //clear
+          //
+          //
+          //But create a high level function ackAndClearNotifications that does te below:
+          //try {ack()}catch(){}finally{onWallet({wallet.delete notifications)}
+          //call to it when initing a trigger and when visiting a notified wallet
+          //as doing here:
+
           onWallet({ wallet });
           navigation.navigate(WALLET_HOME, { walletId });
         };
@@ -146,25 +173,27 @@ const WalletsScreen = () => {
 
   return (
     <>
-      <Pressable
-        onLayout={event => {
-          buttonHeightRef.current = event.nativeEvent.layout.height;
-          handleExtraPadding();
-        }}
-        onPress={handleNewWallet}
-        style={mbStyle}
-        className={`bottom-8 z-10 p-4 bg-primary rounded-full hover:opacity-90 active:scale-95 active:opacity-90 absolute shadow flex-row gap-1 items-center`}
-      >
-        <Svg
-          className="fill-none stroke-white stroke-2 w-5 h-5"
-          viewBox="0 0 24 24"
+      {!showOnlyNotifications && (
+        <Pressable
+          onLayout={event => {
+            buttonHeightRef.current = event.nativeEvent.layout.height;
+            handleExtraPadding();
+          }}
+          onPress={handleNewWallet}
+          style={mbStyle}
+          className={`bottom-8 z-10 p-4 bg-primary rounded-full hover:opacity-90 active:scale-95 active:opacity-90 absolute shadow flex-row gap-1 items-center`}
         >
-          <Path d="M12 9v6m3-3H9m12 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-        </Svg>
-        <Text className="text-center text-white font-semibold">
-          {t('wallets.addNew')}
-        </Text>
-      </Pressable>
+          <Svg
+            className="fill-none stroke-white stroke-2 w-5 h-5"
+            viewBox="0 0 24 24"
+          >
+            <Path d="M12 9v6m3-3H9m12 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+          </Svg>
+          <Text className="text-center text-white font-semibold">
+            {t('wallets.addNew')}
+          </Text>
+        </Pressable>
+      )}
       <KeyboardAwareScrollView
         keyboardShouldPersistTaps="handled"
         contentContainerClassName="justify-center items-center"
@@ -183,68 +212,84 @@ const WalletsScreen = () => {
             handleExtraPadding();
           }}
         >
+          {showOnlyNotifications && walletsWithWTNotifications.length > 0 && (
+            <View className="w-full max-w-96 p-4 mb-2 rounded-xl bg-red-100 border border-red-300">
+              <Text className="text-red-700 font-bold text-base mb-1">
+                {t('wallets.notificationWarningTitle')}
+              </Text>
+              <Text className="text-red-700 text-sm">
+                {t('wallets.notificationWarningMessage')}
+              </Text>
+            </View>
+          )}
           {wallets &&
-            Object.entries(wallets).map(([walletId, wallet], index) => (
-              <Pressable
-                className={`w-full max-w-96 min-h-56 gap-4 p-4 rounded-3xl active:opacity-90 hover:opacity-90 active:scale-95 ${walletBg(index)} overflow-hidden`}
-                onPress={handleWalletMap[wallet.walletId]}
-                key={walletId}
-              >
-                <View className="z-10 flex-row justify-between">
-                  <Text
-                    className={
-                      `${ubuntuLoaded ? "font-['Ubuntu700Bold']" : ''} uppercase text-base text-white overflow-hidden flex-1`
-                      // flex-1 explanation:
-                      // https://www.bam.tech/article/why-my-text-is-going-off-screen
-                    }
-                  >
-                    {walletTitle(wallet, wallets, t)}
-                  </Text>
-                  {wallet.networkId !== 'BITCOIN' && (
-                    <View className="self-start p-2 rounded-xl bg-white/70">
-                      <Text
-                        className={`font-semibold text-xs text-center leading-4 ${walletCl(index)}`}
-                      >
-                        {t('wallets.testWallet')}
-                      </Text>
-                      <Text
-                        className={`font-semibold text-xs text-center leading-4 ${walletCl(index)}`}
-                      >
-                        {t('wallets.noRealValue')}
-                      </Text>
-                    </View>
-                  )}
-                </View>
-                <View className="z-10 absolute bottom-4 left-4">
-                  <Text className="flex-initial text-xs font-semibold text-white">
-                    {t('wallets.createdOn')}
-                  </Text>
-                  <Text className="flex-initial text-xs font-semibold text-white">
-                    {new Intl.DateTimeFormat(locale, {
-                      year: 'numeric',
-                      month: 'long',
-                      day: '2-digit'
-                    }).format(new Date(wallet.creationEpoch * 1000))}
-                  </Text>
-                </View>
-                <View className="z-10 absolute bottom-4 right-4 flex flex-row items-center gap-2">
-                  <Text className="flex-initial uppercase text-xs font-bold text-white">
-                    {wallet.networkId}
-                  </Text>
-                  {wallet.networkId === 'BITCOIN' ? (
-                    <BitcoinLogo className="flex-initial w-8 h-8" />
-                  ) : wallet.networkId === 'TESTNET' ? (
-                    <TestnetLogo className="flex-initial w-8 h-8" />
-                  ) : (
-                    <RegtestLogo className="flex-initial w-8 h-8" />
-                  )}
-                </View>
-                <BitcoinSign
-                  opacity={0.1}
-                  className="w-60 z-0 fill-white absolute -bottom-46"
-                />
-              </Pressable>
-            ))}
+            Object.entries(wallets)
+              .filter(
+                ([walletId]) =>
+                  !showOnlyNotifications ||
+                  walletsWithWTNotifications.includes(Number(walletId))
+              )
+              .map(([walletId, wallet], index) => (
+                <Pressable
+                  className={`w-full max-w-96 min-h-56 gap-4 p-4 rounded-3xl active:opacity-90 hover:opacity-90 active:scale-95 ${walletBg(index, showOnlyNotifications)} overflow-hidden`}
+                  onPress={handleWalletMap[wallet.walletId]}
+                  key={walletId}
+                >
+                  <View className="z-10 flex-row justify-between">
+                    <Text
+                      className={
+                        `${ubuntuLoaded ? "font-['Ubuntu700Bold']" : ''} uppercase text-base text-white overflow-hidden flex-1`
+                        // flex-1 explanation:
+                        // https://www.bam.tech/article/why-my-text-is-going-off-screen
+                      }
+                    >
+                      {walletTitle(wallet, wallets, t)}
+                    </Text>
+                    {wallet.networkId !== 'BITCOIN' && (
+                      <View className="self-start p-2 rounded-xl bg-white/70">
+                        <Text
+                          className={`font-semibold text-xs text-center leading-4 ${walletCl(index)}`}
+                        >
+                          {t('wallets.testWallet')}
+                        </Text>
+                        <Text
+                          className={`font-semibold text-xs text-center leading-4 ${walletCl(index)}`}
+                        >
+                          {t('wallets.noRealValue')}
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                  <View className="z-10 absolute bottom-4 left-4">
+                    <Text className="flex-initial text-xs font-semibold text-white">
+                      {t('wallets.createdOn')}
+                    </Text>
+                    <Text className="flex-initial text-xs font-semibold text-white">
+                      {new Intl.DateTimeFormat(locale, {
+                        year: 'numeric',
+                        month: 'long',
+                        day: '2-digit'
+                      }).format(new Date(wallet.creationEpoch * 1000))}
+                    </Text>
+                  </View>
+                  <View className="z-10 absolute bottom-4 right-4 flex flex-row items-center gap-2">
+                    <Text className="flex-initial uppercase text-xs font-bold text-white">
+                      {wallet.networkId}
+                    </Text>
+                    {wallet.networkId === 'BITCOIN' ? (
+                      <BitcoinLogo className="flex-initial w-8 h-8" />
+                    ) : wallet.networkId === 'TESTNET' ? (
+                      <TestnetLogo className="flex-initial w-8 h-8" />
+                    ) : (
+                      <RegtestLogo className="flex-initial w-8 h-8" />
+                    )}
+                  </View>
+                  <BitcoinSign
+                    opacity={0.1}
+                    className="w-60 z-0 fill-white absolute -bottom-46"
+                  />
+                </Pressable>
+              ))}
         </View>
       </KeyboardAwareScrollView>
     </>

@@ -7,7 +7,7 @@ export default {
     syncP2PVaultsError: `Unable to connect to the P2P backup network. This issue prevents syncing vaults created on other devices.
 
 {{message}}`,
-    watchtowerRegistrationError: `Failed to connect to the Watchtower. This prevents detecting access to your vaults and sending alerts when they are accessed.
+    watchtowerError: `Failed to connect to the Watchtower. This prevents detecting access to your vaults and sending alerts when they are accessed.
 
 {{message}}`,
     syncNetworkError: `There was an issue during a network request while updating your wallet.
