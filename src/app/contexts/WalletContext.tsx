@@ -159,6 +159,7 @@ export type WalletContextType = {
     vaultId: string;
     ackWatchtower: boolean;
   }) => Promise<void>;
+  clearWalletNotifications: (walletId: number) => Promise<void>;
 };
 
 const DEFAULT_VAULTS_STATUSES: VaultsStatuses = {};
@@ -1289,6 +1290,34 @@ const WalletProviderRaw = ({
       }
     },
     [watchtowerAPI, networkTimeout, wallets, walletId, setWallets]
+  );
+
+  const clearWalletNotifications = useCallback(
+    async (targetWalletId: number) => {
+      if (!wallets) return; // No wallets loaded yet
+
+      const currentWallet = wallets[targetWalletId];
+
+      // Check if the wallet exists and has notifications
+      if (currentWallet?.notifications) {
+        // Create a deep copy to avoid mutating the original state,
+        // only if necessary
+        const updatedWallets = { ...wallets };
+        const updatedWallet = { ...currentWallet };
+
+        // Remove the notifications property entirely
+        delete updatedWallet.notifications;
+
+        // Update the specific wallet in the copied wallets object
+        updatedWallets[targetWalletId] = updatedWallet;
+
+        // Update the state with the modified wallets object
+        // This triggers a re-render only if the object reference changes
+        setWallets(updatedWallets);
+      }
+      // If the wallet doesn't exist or has no notifications, do nothing.
+    },
+    [wallets, setWallets]
   );
 
   /**
