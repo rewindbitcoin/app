@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useContext } from 'react';
+import { useEffect, useState, useCallback, useContext, useRef } from 'react';
 import { Platform } from 'react-native';
 import {
   getAsync,
@@ -68,6 +68,10 @@ import { batchedUpdates } from '../lib/batchedUpdates';
  */
 
 import { GlobalStorageContext } from '../contexts/GlobalStorageContext';
+
+// Module-level global fetching state used in GLOBAL mode
+const isGlobalFetching: { [key: string]: boolean } = {};
+
 type StorageState<T> = Record<string, T>;
 export const useStorage = <T>(
   /**
@@ -154,13 +158,19 @@ export const useStorage = <T>(
     ]
   );
 
+  //Don't re-trigger unnecessary fetches
+  const isLocalFetching = useRef<{ [key: string]: boolean }>({});
+  const isFetching =
+    type === 'GLOBAL' ? isGlobalFetching : isLocalFetching.current;
+
   //We only need to retrieve the value from the storage intially for each key
   //After having retrieved the initial value, then we will rely on
   //value set by setValue to not spam the storage with more requests that we
   //already know the result
   useEffect(() => {
-    if (key !== undefined) {
+    if (key !== undefined && !isFetching[key]) {
       const fetchValue = async () => {
+        isFetching[key] = true;
         try {
           const savedValue = await getAsync(
             key,
@@ -216,11 +226,14 @@ export const useStorage = <T>(
               ? { ...prevState, [key]: errorCode }
               : prevState
           );
+        } finally {
+          isFetching[key] = false;
         }
       };
       if (!(key in valueMap)) fetchValue();
     }
   }, [
+    isFetching,
     key,
     authenticationPrompt,
     cipherKey,
