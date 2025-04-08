@@ -1259,7 +1259,8 @@ const WalletProviderRaw = ({
         }
       });
       if (result) {
-        //TODO: delete this notification an update wallets
+        //TODO: if the notification is still set, delete it: call to setWallets
+        //deleting it. See processNotificationData to learn how to do this.
       }
     },
     [watchtowerAPI, netRequest, t, networkTimeout]
