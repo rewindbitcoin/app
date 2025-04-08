@@ -859,7 +859,7 @@ const WalletProviderRaw = ({
     [networkTimeout, processNotificationData]
   );
 
-  // Set up notification handling and polling for unacknowledged notifications
+  // Set up watchtower notification handling & polling for pending notifications
   useEffect(() => {
     if (!walletsStorageStatus.isSynchd || !settingsStorageStatus.isSynchd)
       return;
@@ -888,18 +888,20 @@ const WalletProviderRaw = ({
         processNotificationData(response.notification.request.content.data);
       });
 
+    // Check pending notifications that may arrive while the app was closed.
+    // This is the only possible way to retrieve them if the app was killed
+    // and the user did not tap on the notification.
     let pollingTimeout: NodeJS.Timeout | undefined;
-
-    // Track which watchtower APIs failed to fetch notifications (initially, all of them)
-    const failedWatchtowerAPIs: string[] = Object.values(wallets || [])
+    // Track which watchtower APIs failed to fetch notifications. Initially, all
+    const failedWatchtowerAPIs = Object.values(wallets || [])
       .map(w => w.networkId)
-      .filter((netId, i, arr) => netId && arr.indexOf(netId) === i)
-      .map(netId => getAPIs(netId, settings).watchtowerAPI as string)
-      .filter(Boolean);
+      .filter((netId, i, arr) => netId && arr.indexOf(netId) === i) //del duplicates
+      .map(netId => getAPIs(netId, settings).watchtowerAPI)
+      .filter(Boolean) as string[];
 
     // Fetch notifications from all watchtower APIs
     Promise.all(
-      failedWatchtowerAPIs.map(async watchtowerAPI => {
+      [...failedWatchtowerAPIs].map(async watchtowerAPI => {
         const success = await fetchWatchtowerPendingForNetwork(watchtowerAPI);
         if (success) {
           const index = failedWatchtowerAPIs.indexOf(watchtowerAPI);
@@ -910,25 +912,22 @@ const WalletProviderRaw = ({
       if (failedWatchtowerAPIs.length > 0) {
         const poll = async () => {
           for (const watchtowerAPI of [...failedWatchtowerAPIs]) {
-            if (!pollingTimeout) return; // cancel if unmounted
             const success =
               await fetchWatchtowerPendingForNetwork(watchtowerAPI);
+            if (!pollingTimeout) return; // cancel if unmounted
             if (success) {
               const index = failedWatchtowerAPIs.indexOf(watchtowerAPI);
               if (index !== -1) failedWatchtowerAPIs.splice(index, 1);
             }
           }
-
           if (failedWatchtowerAPIs.length === 0) {
             if (pollingTimeout) clearTimeout(pollingTimeout);
             pollingTimeout = undefined;
             return;
           }
-
           // Wait 60 seconds before next attempt
           pollingTimeout = setTimeout(poll, 60000);
         };
-
         poll(); // start polling
       }
     });
