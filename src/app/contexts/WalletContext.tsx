@@ -152,6 +152,13 @@ export type WalletContextType = {
     signersCipherKey?: Uint8Array;
   }) => Promise<void>;
   isFirstLogin: boolean;
+  ackVaultInWatchtower: ({
+    vaultId,
+    whenToastErrors
+  }: {
+    vaultId: string;
+    whenToastErrors: 'ON_NEW_ERROR' | 'ON_ANY_ERROR';
+  }) => Promise<void>;
 };
 
 const DEFAULT_VAULTS_STATUSES: VaultsStatuses = {};
@@ -1923,7 +1930,8 @@ const WalletProviderRaw = ({
     logOut,
     deleteWallet,
     onWallet,
-    isFirstLogin
+    isFirstLogin,
+    ackVaultInWatchtower
   };
   return (
     <WalletContext.Provider value={contextValue}>
