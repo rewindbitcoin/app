@@ -153,6 +153,7 @@ export type WalletContextType = {
   }) => Promise<void>;
   isFirstLogin: boolean;
   ackAndClearVaultNotifications: (vaultId: string) => Promise<void>;
+  ackAndClearWalletNotifications: (walletId: number) => Promise<void>;
 };
 
 const DEFAULT_VAULTS_STATUSES: VaultsStatuses = {};
@@ -1277,6 +1278,59 @@ const WalletProviderRaw = ({
     [watchtowerAPI, networkTimeout, wallets, walletId, setWallets]
   );
 
+  const ackAndClearWalletNotifications = useCallback(
+    async (targetWalletId: number) => {
+      if (!wallets || !networkTimeout) return; // Dependencies not ready
+
+      const currentWallet = wallets[targetWalletId];
+      const notifications = currentWallet?.notifications;
+
+      // Check if the wallet exists and has notifications
+      if (currentWallet && notifications) {
+        const pushToken = await getExpoPushToken(); // Get token once
+
+        // Iterate through watchtowers and vaults to acknowledge
+        for (const [wtAPI, vaultNots] of Object.entries(notifications)) {
+          for (const vaultId of Object.keys(vaultNots)) {
+            // Acknowledge each vault notification with its watchtower
+            // Silently fail on ack error, as not acking is not critical
+            try {
+              await fetch(`${wtAPI}/ack`, {
+                method: 'POST', // Explicitly set method for clarity
+                headers: {
+                  'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ pushToken, vaultId }),
+                signal: AbortSignal.timeout(networkTimeout)
+              });
+            } catch (error) {
+              console.warn(
+                `Failed to ack vault ${vaultId} in watchtower ${wtAPI}. Continuing anyway...`,
+                error
+              );
+            }
+          }
+        }
+
+        // Now clear the notifications locally after attempting acknowledgments
+        // Create a deep copy to avoid mutating the original state
+        const updatedWallets = { ...wallets };
+        const updatedWallet = { ...currentWallet };
+
+        // Remove the notifications property entirely
+        delete updatedWallet.notifications;
+
+        // Update the specific wallet in the copied wallets object
+        updatedWallets[targetWalletId] = updatedWallet;
+
+        // Update the state with the modified wallets object
+        setWallets(updatedWallets);
+      }
+      // If the wallet doesn't exist or has no notifications, do nothing.
+    },
+    [wallets, setWallets, networkTimeout] // Added networkTimeout dependency
+  );
+
   /**
    * Registers vaults with the watchtower service and updates their
    * registration status.
@@ -1893,7 +1947,8 @@ const WalletProviderRaw = ({
     deleteWallet,
     onWallet,
     isFirstLogin,
-    ackAndClearVaultNotifications
+    ackAndClearVaultNotifications,
+    ackAndClearWalletNotifications // Renamed here
   };
   return (
     <WalletContext.Provider value={contextValue}>
