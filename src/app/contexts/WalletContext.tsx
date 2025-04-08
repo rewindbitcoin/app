@@ -1228,7 +1228,13 @@ const WalletProviderRaw = ({
        */
       whenToastErrors: 'ON_NEW_ERROR' | 'ON_ANY_ERROR';
     }) => {
-      if (!watchtowerAPI || !networkTimeout) return;
+      if (
+        !watchtowerAPI ||
+        !networkTimeout ||
+        !wallets ||
+        walletId == undefined
+      )
+        return;
       const { result } = await netRequest({
         id: 'watchtower',
         errorMessage: (message: string) =>
@@ -1258,7 +1264,7 @@ const WalletProviderRaw = ({
           }
         }
       });
-      if (result && wallets && walletId !== undefined && watchtowerAPI) {
+      if (result) {
         const currentWallet = wallets[walletId];
         if (
           currentWallet?.notifications?.[watchtowerAPI]?.[vaultId] !== undefined
@@ -1278,7 +1284,8 @@ const WalletProviderRaw = ({
           if (Object.keys(updatedWatchtowerNotifications).length === 0) {
             delete updatedNotifications[watchtowerAPI];
           } else {
-            updatedNotifications[watchtowerAPI] = updatedWatchtowerNotifications;
+            updatedNotifications[watchtowerAPI] =
+              updatedWatchtowerNotifications;
           }
 
           // Update the wallet and wallets objects
@@ -1290,7 +1297,15 @@ const WalletProviderRaw = ({
         }
       }
     },
-    [watchtowerAPI, netRequest, t, networkTimeout, wallets, walletId, setWallets]
+    [
+      watchtowerAPI,
+      netRequest,
+      t,
+      networkTimeout,
+      wallets,
+      walletId,
+      setWallets
+    ]
   );
 
   /**
