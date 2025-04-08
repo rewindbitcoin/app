@@ -859,55 +859,6 @@ const WalletProviderRaw = ({
     [networkTimeout, processNotificationData]
   );
 
-  /**
-   * Fetches unacknowledged notifications from all watchtower services for all networks
-   * used by the wallets in the app.
-   *
-   * @returns {Promise<boolean>} True if all network notifications were successfully fetched,
-   *                            false if any network fetch failed
-   */
-  const fetchWatchtowerPending = useCallback(async (): Promise<boolean> => {
-    if (!wallets) {
-      console.warn(
-        'Cannot fetch unacknowledged notifications: no wallets available'
-      );
-      return false;
-    }
-
-    // Get unique network IDs from all wallets
-    const networkIds = new Set<NetworkId>();
-    Object.values(wallets).forEach(wallet => {
-      if (wallet.networkId) {
-        networkIds.add(wallet.networkId);
-      }
-    });
-
-    if (networkIds.size === 0) {
-      console.warn('No networks found in wallets');
-      return false;
-    }
-
-    // Track success status for all networks
-    let allSucceeded = true;
-
-    // Fetch notifications for each network
-    for (const networkId of networkIds) {
-      const { watchtowerAPI } = getAPIs(networkId, settings);
-
-      if (!watchtowerAPI) {
-        console.warn(`No watchtower API available for network: ${networkId}`);
-        allSucceeded = false;
-        continue;
-      }
-
-      const success = await fetchWatchtowerPendingForNetwork(watchtowerAPI);
-      if (!success) {
-        allSucceeded = false;
-      }
-    }
-
-    return allSucceeded;
-  }, [wallets, settings, fetchWatchtowerPendingForNetwork]);
 
   // Set up notification handling and polling for unacknowledged notifications
   useEffect(() => {
@@ -940,16 +891,66 @@ const WalletProviderRaw = ({
 
     // Variable to store the polling interval reference
     let pollingInterval: NodeJS.Timeout | undefined;
-    // Fetch unacknowledged notifications immediately on startup
-    // and set up polling if needed
-    fetchWatchtowerPending().then(success => {
-      // Only set up polling if the initial fetch failed
-      if (!success) {
-        // Set up polling every minute until successful
+    // Track which watchtower APIs failed to fetch notifications
+    const failedWatchtowerAPIs = new Set<string>();
+    
+    // Get unique network IDs from all wallets
+    const getWatchtowerAPIs = () => {
+      if (!wallets) return [];
+      
+      const networkIds = new Set<NetworkId>();
+      Object.values(wallets).forEach(wallet => {
+        if (wallet.networkId) {
+          networkIds.add(wallet.networkId);
+        }
+      });
+      
+      // Get watchtower APIs for each network
+      return Array.from(networkIds)
+        .map(networkId => {
+          const { watchtowerAPI } = getAPIs(networkId, settings);
+          return watchtowerAPI;
+        })
+        .filter(Boolean) as string[];
+    };
+    
+    // Initial fetch of all watchtower APIs
+    const watchtowerAPIs = getWatchtowerAPIs();
+    
+    // Fetch notifications from all watchtower APIs
+    Promise.all(
+      watchtowerAPIs.map(async watchtowerAPI => {
+        const success = await fetchWatchtowerPendingForNetwork(watchtowerAPI);
+        if (!success) {
+          failedWatchtowerAPIs.add(watchtowerAPI);
+        }
+      })
+    ).then(() => {
+      // Only set up polling if any fetch failed
+      if (failedWatchtowerAPIs.size > 0) {
+        // Set up polling every minute for failed APIs only
         pollingInterval = setInterval(async () => {
-          const fetchSuccess = await fetchWatchtowerPending();
-          // If successful, stop polling
-          if (fetchSuccess && pollingInterval) {
+          // Only retry failed watchtower APIs
+          if (failedWatchtowerAPIs.size === 0) {
+            if (pollingInterval) {
+              clearInterval(pollingInterval);
+              pollingInterval = undefined;
+            }
+            return;
+          }
+          
+          // Try to fetch from each failed watchtower API
+          const retryAPIs = Array.from(failedWatchtowerAPIs);
+          for (const watchtowerAPI of retryAPIs) {
+            const success = await fetchWatchtowerPendingForNetwork(watchtowerAPI);
+            if (success) {
+              // Remove from failed APIs if successful
+              failedWatchtowerAPIs.delete(watchtowerAPI);
+            }
+          }
+          
+          // If all retries succeeded, stop polling
+          if (failedWatchtowerAPIs.size === 0 && pollingInterval) {
             clearInterval(pollingInterval);
             pollingInterval = undefined;
           }
