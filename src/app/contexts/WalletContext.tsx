@@ -152,7 +152,7 @@ export type WalletContextType = {
     signersCipherKey?: Uint8Array;
   }) => Promise<void>;
   isFirstLogin: boolean;
-  clearVaultNotifications: ({
+  ackAndClearVaultNotifications: ({
     vaultId,
     ackWatchtower
   }: {
@@ -1224,7 +1224,7 @@ const WalletProviderRaw = ({
   const watchtowerWalletName =
     wallet && wallets && walletTitle(wallet, wallets, t);
 
-  const clearVaultNotifications = useCallback(
+  const ackAndClearVaultNotifications = useCallback(
     async ({
       vaultId,
       ackWatchtower
@@ -1240,7 +1240,7 @@ const WalletProviderRaw = ({
       )
         return;
 
-      if (ackWatchtower)
+      if (ackWatchtower) {
         //ack will silently fail. Not acking is not a big deal.
         //This means the user will get a push notification and will need to ack
         //again
@@ -1257,6 +1257,7 @@ const WalletProviderRaw = ({
             error
           );
         }
+      }
       const currentWallet = wallets[walletId];
       if (
         currentWallet?.notifications?.[watchtowerAPI]?.[vaultId] !== undefined
@@ -1273,17 +1274,17 @@ const WalletProviderRaw = ({
         delete updatedWatchtowerNotifications[vaultId];
 
         // If no more notifications for this watchtower, remove the watchtower entry
-        if (Object.keys(updatedWatchtowerNotifications).length === 0) {
+        if (Object.keys(updatedWatchtowerNotifications).length === 0)
           delete updatedNotifications[watchtowerAPI];
-        } else {
+        else
           updatedNotifications[watchtowerAPI] = updatedWatchtowerNotifications;
-        }
 
         // Update the wallet and wallets objects
-        updatedWallet.notifications = updatedNotifications;
-        updatedWallets[walletId] = updatedWallet;
+        if (Object.keys(updatedNotifications).length === 0)
+          delete updatedWallet.notifications;
+        else updatedWallet.notifications = updatedNotifications;
 
-        // Update the state
+        updatedWallets[walletId] = updatedWallet;
         setWallets(updatedWallets);
       }
     },
@@ -1906,7 +1907,7 @@ const WalletProviderRaw = ({
     deleteWallet,
     onWallet,
     isFirstLogin,
-    clearVaultNotifications
+    ackAndClearVaultNotifications
   };
   return (
     <WalletContext.Provider value={contextValue}>

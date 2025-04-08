@@ -99,9 +99,10 @@ const WalletHomeScreen = () => {
 
   const { explorerReachable } = useNetStatus();
 
+  // Each time the wallet is "seen" we clear the notifications
   useEffect(() => {
-    console.log('TRACE WalletHomeScreen mounted');
-  }, []);
+    clearWalletNotifications();
+  }, [clearWalletNotifications]);
 
   const {
     signersStorageEngineMismatch,
@@ -126,7 +127,8 @@ const WalletHomeScreen = () => {
     feeEstimates,
     blockExplorerURL,
     watchtowerAPI,
-    clearVaultNotifications
+    ackAndClearVaultNotifications,
+    clearWalletNotificatoins
   } = useWallet();
   if (wallet && walletId !== wallet.walletId)
     throw new Error(
@@ -527,7 +529,7 @@ const WalletHomeScreen = () => {
             {vaults && vaultsStatuses && (
               <Vaults
                 watchtowerAPI={watchtowerAPI}
-                clearVaultNotifications={clearVaultNotifications}
+                ackAndClearVaultNotifications={ackAndClearVaultNotifications}
                 blockExplorerURL={blockExplorerURL}
                 updateVaultStatus={updateVaultStatus}
                 pushTx={pushTx}

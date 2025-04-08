@@ -174,7 +174,7 @@ const VaultButton = ({
 );
 
 const RawVault = ({
-  clearVaultNotifications,
+  ackAndClearVaultNotifications,
   updateVaultStatus,
   pushTx,
   btcFiat,
@@ -185,7 +185,7 @@ const RawVault = ({
   blockExplorerURL,
   watchtowerAPI
 }: {
-  clearVaultNotifications: ({
+  ackAndClearVaultNotifications: ({
     vaultId,
     ackWatchtower
   }: {
@@ -236,12 +236,6 @@ const RawVault = ({
     };
     configureNotificationsIfNeeded();
   }, []);
-  // Each time the vault is "seen" we clear the notifications
-  useEffect(() => {
-    console.log('TRACE Vault mounted for ', vault.vaultId);
-    //FIXME: this should be on!!!
-    //clearVaultNotifications({ ackWatchtower: false, vaultId: vault.vaultId });
-  }, [clearVaultNotifications, vault.vaultId]);
   const handleWatchtowerHelp = useCallback(async () => {
     setShowWatchtowerHelp(true);
   }, []);
@@ -277,7 +271,7 @@ const RawVault = ({
         whenToastErrors: 'ON_ANY_ERROR',
         errorMessage: (message: string) => t('app.pushError', { message }),
         func: async () => {
-          await clearVaultNotifications({
+          await ackAndClearVaultNotifications({
             ackWatchtower: true,
             vaultId: vault.vaultId
           });
@@ -298,7 +292,7 @@ const RawVault = ({
       }
     },
     [
-      clearVaultNotifications,
+      ackAndClearVaultNotifications,
       pushTx,
       vault.vaultId,
       vaultStatus,
@@ -895,7 +889,7 @@ const RawVault = ({
 const Vault = React.memo(RawVault);
 
 const Vaults = ({
-  clearVaultNotifications,
+  ackAndClearVaultNotifications,
   updateVaultStatus,
   pushTx,
   btcFiat,
@@ -905,7 +899,7 @@ const Vaults = ({
   blockExplorerURL,
   watchtowerAPI
 }: {
-  clearVaultNotifications: ({
+  ackAndClearVaultNotifications: ({
     vaultId,
     ackWatchtower
   }: {
@@ -921,9 +915,6 @@ const Vaults = ({
   blockExplorerURL: string | undefined;
   watchtowerAPI: string | undefined;
 }) => {
-  useEffect(() => {
-    console.log('TRACE Vaults mounted');
-  }, []);
   const sortedVaults = useMemo(() => {
     return Object.values(vaults).sort(
       (a, b) => b.creationTime - a.creationTime
@@ -944,7 +935,7 @@ const Vaults = ({
           return (
             !vaultStatus?.isHidden && (
               <Vault
-                clearVaultNotifications={clearVaultNotifications}
+                ackAndClearVaultNotifications={ackAndClearVaultNotifications}
                 updateVaultStatus={updateVaultStatus}
                 key={vault.vaultId}
                 btcFiat={btcFiat}
