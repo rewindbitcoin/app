@@ -174,7 +174,7 @@ const VaultButton = ({
 );
 
 const RawVault = ({
-  ackAndClearVaultNotifications,
+  ackVaultNotifications,
   updateVaultStatus,
   pushTx,
   btcFiat,
@@ -185,13 +185,7 @@ const RawVault = ({
   blockExplorerURL,
   watchtowerAPI
 }: {
-  ackAndClearVaultNotifications: ({
-    vaultId,
-    ackWatchtower
-  }: {
-    vaultId: string;
-    ackWatchtower: boolean;
-  }) => Promise<void>;
+  ackVaultNotifications: (vaultId: string) => void;
   updateVaultStatus: (vaultId: string, vaultStatus: VaultStatus) => void;
   pushTx: (txHex: string) => Promise<void>;
   btcFiat: number | undefined;
@@ -271,10 +265,7 @@ const RawVault = ({
         whenToastErrors: 'ON_ANY_ERROR',
         errorMessage: (message: string) => t('app.pushError', { message }),
         func: async () => {
-          await ackAndClearVaultNotifications({
-            ackWatchtower: true,
-            vaultId: vault.vaultId
-          });
+          ackVaultNotifications(vault.vaultId);
           await pushTx(initUnfreezeData.txHex);
         }
       });
@@ -292,7 +283,7 @@ const RawVault = ({
       }
     },
     [
-      ackAndClearVaultNotifications,
+      ackVaultNotifications,
       pushTx,
       vault.vaultId,
       vaultStatus,
@@ -889,7 +880,7 @@ const RawVault = ({
 const Vault = React.memo(RawVault);
 
 const Vaults = ({
-  ackAndClearVaultNotifications,
+  ackVaultNotifications,
   updateVaultStatus,
   pushTx,
   btcFiat,
@@ -899,13 +890,7 @@ const Vaults = ({
   blockExplorerURL,
   watchtowerAPI
 }: {
-  ackAndClearVaultNotifications: ({
-    vaultId,
-    ackWatchtower
-  }: {
-    vaultId: string;
-    ackWatchtower: boolean;
-  }) => Promise<void>;
+  ackVaultNotifications: (vaultId: string) => void;
   updateVaultStatus: (vaultId: string, vaultStatus: VaultStatus) => void;
   pushTx: (txHex: string) => Promise<void>;
   btcFiat: number | undefined;
@@ -935,7 +920,7 @@ const Vaults = ({
           return (
             !vaultStatus?.isHidden && (
               <Vault
-                ackAndClearVaultNotifications={ackAndClearVaultNotifications}
+                ackVaultNotifications={ackVaultNotifications}
                 updateVaultStatus={updateVaultStatus}
                 key={vault.vaultId}
                 btcFiat={btcFiat}

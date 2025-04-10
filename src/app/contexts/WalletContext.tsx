@@ -53,7 +53,7 @@ import {
 } from '@bitcoinerlab/discovery';
 import type { FeeEstimates } from '../lib/fees';
 import { Platform } from 'react-native';
-import { batchedUpdates } from '~/common/lib/batchedUpdates';
+import { batchedUpdates } from '../../common/lib/batchedUpdates';
 import { fetchP2PVaults, getDataCipherKey } from '../lib/backup';
 
 type DiscoveryExport = ReturnType<DiscoveryInstance['export']>;
@@ -152,8 +152,7 @@ export type WalletContextType = {
     signersCipherKey?: Uint8Array;
   }) => Promise<void>;
   isFirstLogin: boolean;
-  ackAndClearVaultNotifications: (vaultId: string) => Promise<void>;
-  ackAndClearWalletNotifications: (walletId: number) => Promise<void>;
+  ackVaultNotifications: (vaultId: string) => void;
 };
 
 const DEFAULT_VAULTS_STATUSES: VaultsStatuses = {};
@@ -167,11 +166,10 @@ const WalletProviderRaw = ({
 }) => {
   //This keeps track of the current active wallet.
   //There is a useEffect on "wallet" that updates the stored Wallets object too
-  const [wallet, setWallet] = useState<Wallet>();
+  const [unsynchdWalletId, setWalletId] = useState<number>();
   //Keep also a ref version  of walletId so that in async functions we can
   //check after the await if the walletId changed
   const walletIdRef = useRef<number | undefined>();
-  const walletId = wallet?.walletId;
   // This explorer is only used for retrieving
   // fees when using the TAPE network. It is shared for all wallets.
   const [explorerMainnet, setExplorerMainnet] = useState<Explorer | undefined>(
@@ -200,6 +198,20 @@ const WalletProviderRaw = ({
 
   const { secureStorageInfo } = useSecureStorageInfo();
   const { t } = useTranslation();
+
+  const [wallets, setWallets, , , walletsStorageStatus] = useStorage<Wallets>(
+    `WALLETS`,
+    SERIALIZABLE,
+    {}
+  );
+  const wallet =
+    unsynchdWalletId !== undefined ? wallets?.[unsynchdWalletId] : undefined;
+  const walletId = wallet?.walletId; //walletId will be defined once the wallet is ready.
+  console.log(
+    'TRACE RENDER wallet',
+    { walletId, unsynchdWalletId },
+    JSON.stringify(wallet, null, 2)
+  );
 
   const networkId = wallet?.networkId;
   const signersStorageEngine = wallet?.signersStorageEngine;
@@ -234,11 +246,6 @@ const WalletProviderRaw = ({
     generate204APIExternal,
     blockExplorerURL
   } = getAPIs(networkId, settings);
-  const [wallets, setWallets, , , walletsStorageStatus] = useStorage<Wallets>(
-    `WALLETS`,
-    SERIALIZABLE,
-    {}
-  );
 
   // Notifications are now stored in the wallet object
 
@@ -247,6 +254,22 @@ const WalletProviderRaw = ({
     walletId !== undefined &&
     (wallet?.signersEncryption !== 'PASSWORD' ||
       walletsSignersCipherKey[walletId]);
+
+  console.log(
+    'TRACE initSigners',
+    JSON.stringify(
+      {
+        initSigners: !!initSigners,
+        walletId,
+        signersStorageEngine,
+        wallet: !!wallet,
+        signersEncryption: wallet?.signersEncryption,
+        cipherKey: !!walletId && !!walletsSignersCipherKey[walletId]
+      },
+      null,
+      2
+    )
+  );
 
   const [signers, , , clearSignersCache, signersStorageStatus] =
     useStorage<Signers>(
@@ -673,17 +696,6 @@ const WalletProviderRaw = ({
   const isFirstLogin =
     dataReady && walletId !== undefined && !!walletsNewSigners[walletId];
 
-  useEffect(() => {
-    if (dataReady) {
-      if (!wallet) throw new Error('wallet should be set when ready');
-      if (walletId === undefined) throw new Error('walletd undefined');
-      if (!wallets) throw new Error('wallets should be set when ready');
-      if (!shallowEqualObjects(wallet, wallets[walletId])) {
-        setWallets({ ...wallets, [walletId]: wallet });
-      }
-    }
-  }, [setWallets, wallets, wallet, dataReady, walletId]);
-
   // Refs for notification listeners
   const notificationListener = useRef<Notifications.Subscription>();
   const responseListener = useRef<Notifications.Subscription>();
@@ -730,7 +742,8 @@ const WalletProviderRaw = ({
                           [watchtowerId as string]: {
                             ...existingWatchtowerNotifications,
                             [vaultId]: {
-                              firstAttemptAt: firstDetectedAt
+                              firstAttemptAt: firstDetectedAt,
+                              acked: false
                             }
                           }
                         }
@@ -757,6 +770,10 @@ const WalletProviderRaw = ({
     },
     [wallets, setWallets]
   );
+
+  useEffect(() => {
+    console.log('TRACE wallets changed!');
+  }, [wallets]);
 
   /**
    * Fetches unacknowledged notifications from the watchtower service for a specific network.
@@ -985,7 +1002,7 @@ const WalletProviderRaw = ({
         clearNewSigners(walletId);
         clearSignersCipherKey(walletId);
         clearDataCipherKey(walletId);
-        setWallet(undefined);
+        setWalletId(undefined);
         walletIdRef.current = undefined;
         netStatusReset(); //Stop checking network, also close all explorer instances
       });
@@ -1027,6 +1044,7 @@ const WalletProviderRaw = ({
       ]);
       const { [walletId]: walletToDelete, ...remainingWallets } = wallets;
       void walletToDelete;
+      // This is the other only place this function can be called
       await setWallets(remainingWallets);
     },
     [logOut, t, wallet, setWallets, wallets]
@@ -1068,21 +1086,22 @@ const WalletProviderRaw = ({
       //React 18 NOT on the new Architecture behaves as React 17:
       batchedUpdates(() => {
         //logOut(); //Log out from previous wallet - This is done now on "beforeRemove" event in WalletsHomeScreen
-        setWallet(prevWallet => {
+        setWalletId(prevWalletId => {
           //Net status depends on the wallet (explorer, ...); so reset it ONLY when it changes
-          if (prevWallet && prevWallet.walletId !== walletDst.walletId)
-            netStatusReset();
-          return walletDst;
+          if (prevWalletId !== walletId) netStatusReset();
+          return walletId;
         });
-        walletIdRef.current = walletDst.walletId;
-        if (walletId !== undefined) {
-          if (signersCipherKey) setSignersCipherKey(walletId, signersCipherKey);
-          if (newSigners) setNewSigners(walletId, newSigners);
-        }
+        walletIdRef.current = walletId;
+        if (signersCipherKey) setSignersCipherKey(walletId, signersCipherKey);
+        if (newSigners) setNewSigners(walletId, newSigners);
+        if (wallets && walletDst !== wallets[walletId])
+          setWallets({ ...wallets, [walletId]: walletDst });
       });
     },
     [
       //logOut,
+      wallets,
+      setWallets,
       t,
       setNewSigners,
       setSignersCipherKey,
@@ -1219,116 +1238,43 @@ const WalletProviderRaw = ({
   const watchtowerWalletName =
     wallet && wallets && walletTitle(wallet, wallets, t);
 
-  const ackAndClearVaultNotifications = useCallback(
-    async (vaultId: string) => {
+  const ackVaultNotifications = useCallback(
+    (vaultId: string) => {
       if (
         !watchtowerAPI ||
         !networkTimeout ||
         !wallets ||
-        walletId == undefined
+        walletId === undefined
       )
         return;
 
-      //ack will silently fail. Not acking is not a big deal.
-      //This means the user will get a push notification and will need to ack
-      //again
-      try {
-        const pushToken = await getExpoPushToken();
-        await fetch(`${watchtowerAPI}/ack`, {
-          body: JSON.stringify({ pushToken, vaultId }),
-          signal: AbortSignal.timeout(networkTimeout)
-        });
-      } catch (error) {
-        // Handle errors (e.g., network issues, getting expo toke, invalid JSON, etc.)
-        console.warn(
-          `Failed to ack vault ${vaultId} in watchtower ${watchtowerAPI}. Continuing anyway...`,
-          error
-        );
-      }
-      const currentWallet = wallets[walletId];
-      if (
-        currentWallet?.notifications?.[watchtowerAPI]?.[vaultId] !== undefined
-      ) {
-        // Create a deep copy to avoid mutating the original state
-        const updatedWallets = { ...wallets };
-        const updatedWallet = { ...currentWallet };
-        const updatedNotifications = { ...updatedWallet.notifications };
-        const updatedWatchtowerNotifications = {
-          ...updatedNotifications[watchtowerAPI]
-        };
+      const wallet = wallets[walletId];
+      if (!wallet) return;
 
-        // Remove the specific vault notification
-        delete updatedWatchtowerNotifications[vaultId];
+      const currentNotification =
+        wallet.notifications?.[watchtowerAPI]?.[vaultId];
+      if (!currentNotification || currentNotification.acked === true) return;
 
-        // If no more notifications for this watchtower, remove the watchtower entry
-        if (Object.keys(updatedWatchtowerNotifications).length === 0)
-          delete updatedNotifications[watchtowerAPI];
-        else
-          updatedNotifications[watchtowerAPI] = updatedWatchtowerNotifications;
-
-        // Update the wallet and wallets objects
-        if (Object.keys(updatedNotifications).length === 0)
-          delete updatedWallet.notifications;
-        else updatedWallet.notifications = updatedNotifications;
-
-        updatedWallets[walletId] = updatedWallet;
-        setWallets(updatedWallets);
-      }
-    },
-    [watchtowerAPI, networkTimeout, wallets, walletId, setWallets]
-  );
-
-  const ackAndClearWalletNotifications = useCallback(
-    async (targetWalletId: number) => {
-      if (!wallets || !networkTimeout) return; // Dependencies not ready
-
-      const currentWallet = wallets[targetWalletId];
-      const notifications = currentWallet?.notifications;
-
-      // Check if the wallet exists and has notifications
-      if (currentWallet && notifications) {
-        const pushToken = await getExpoPushToken(); // Get token once
-
-        // Iterate through watchtowers and vaults to acknowledge
-        for (const [wtAPI, vaultNots] of Object.entries(notifications)) {
-          for (const vaultId of Object.keys(vaultNots)) {
-            // Acknowledge each vault notification with its watchtower
-            // Silently fail on ack error, as not acking is not critical
-            try {
-              await fetch(`${wtAPI}/ack`, {
-                method: 'POST', // Explicitly set method for clarity
-                headers: {
-                  'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ pushToken, vaultId }),
-                signal: AbortSignal.timeout(networkTimeout)
-              });
-            } catch (error) {
-              console.warn(
-                `Failed to ack vault ${vaultId} in watchtower ${wtAPI}. Continuing anyway...`,
-                error
-              );
+      const updatedWallets = {
+        ...wallets,
+        [walletId]: {
+          ...wallet,
+          notifications: {
+            ...wallet.notifications,
+            [watchtowerAPI]: {
+              ...wallet.notifications?.[watchtowerAPI],
+              [vaultId]: {
+                ...currentNotification,
+                acked: true
+              }
             }
           }
         }
+      };
 
-        // Now clear the notifications locally after attempting acknowledgments
-        // Create a deep copy to avoid mutating the original state
-        const updatedWallets = { ...wallets };
-        const updatedWallet = { ...currentWallet };
-
-        // Remove the notifications property entirely
-        delete updatedWallet.notifications;
-
-        // Update the specific wallet in the copied wallets object
-        updatedWallets[targetWalletId] = updatedWallet;
-
-        // Update the state with the modified wallets object
-        setWallets(updatedWallets);
-      }
-      // If the wallet doesn't exist or has no notifications, do nothing.
+      setWallets(updatedWallets);
     },
-    [wallets, setWallets, networkTimeout] // Added networkTimeout dependency
+    [watchtowerAPI, networkTimeout, wallets, walletId, setWallets]
   );
 
   /**
@@ -1947,8 +1893,7 @@ const WalletProviderRaw = ({
     deleteWallet,
     onWallet,
     isFirstLogin,
-    ackAndClearVaultNotifications,
-    ackAndClearWalletNotifications // Renamed here
+    ackVaultNotifications
   };
   return (
     <WalletContext.Provider value={contextValue}>

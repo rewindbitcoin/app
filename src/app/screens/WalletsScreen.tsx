@@ -14,7 +14,7 @@ import { Ubuntu_700Bold } from '@expo-google-fonts/ubuntu';
 import { useFonts } from 'expo-font';
 import { cssInterop } from 'nativewind';
 import { useWallet } from '../hooks/useWallet';
-import { walletTitle } from '../lib/wallets';
+import { Wallet, walletTitle } from '../lib/wallets';
 import { useLocalization } from '../hooks/useLocalization';
 cssInterop(Svg, {
   className: {
@@ -71,6 +71,37 @@ const walletBg = (index: number, hasNotifications: boolean) =>
   hasNotifications ? 'bg-red-600' : walletBgs[index % walletBgs.length];
 const walletCl = (index: number) => walletCls[index % walletCls.length];
 
+function ackWalletNotifications(wallet: Wallet): Wallet {
+  const notifications = wallet.notifications;
+  if (!notifications) return wallet;
+
+  let walletChanged = false;
+  const updatedNotifications: typeof notifications = {};
+
+  for (const [watchtowerAPI, vaults] of Object.entries(notifications)) {
+    let watchtowerChanged = false;
+
+    const updatedVaults: typeof vaults = {};
+
+    for (const [vaultId, notification] of Object.entries(vaults)) {
+      if (notification.acked === true) {
+        updatedVaults[vaultId] = notification;
+      } else {
+        updatedVaults[vaultId] = { ...notification, acked: true };
+        watchtowerChanged = true;
+      }
+    }
+    updatedNotifications[watchtowerAPI] = watchtowerChanged
+      ? updatedVaults
+      : vaults;
+    if (watchtowerChanged) walletChanged = true;
+  }
+
+  return walletChanged
+    ? { ...wallet, notifications: updatedNotifications }
+    : wallet;
+}
+
 const WalletsScreen = () => {
   const { onWallet, wallets } = useWallet();
   if (!onWallet) throw new Error(`onWallet not set yet`);
@@ -82,10 +113,15 @@ const WalletsScreen = () => {
   const { t } = useTranslation();
   const { locale } = useLocalization();
 
-  const walletsWithWTNotifications = Object.entries(wallets || [])
+  const walletsWithWTNotifications = Object.entries(wallets || {})
     .filter(
       ([_, wallet]) =>
-        wallet.notifications && Object.keys(wallet.notifications).length > 0
+        wallet.notifications &&
+        Object.values(wallet.notifications).some(watchtower =>
+          Object.values(watchtower).some(
+            notification => notification.acked === false
+          )
+        )
     )
     .map(([walletId]) => Number(walletId));
   const showOnlyNotifications = walletsWithWTNotifications.length > 0;
@@ -99,24 +135,7 @@ const WalletsScreen = () => {
         const wallet = wallets[walletId];
         if (!wallet) throw new Error(`Unset wallet for ${walletId}`);
         map[walletId] = () => {
-          //FIXME: here clear the notifications and ack
-          //note that clearing the notificaiotns will immediately cause a fetch
-          //of pending! - but the thing is i should check if notifications
-          //are needed to be shown or not. I mean if the pushVault
-          //was done with this device and the time firstAttemptAt
-          //is close to now dont do anything
-          //Yeah but it needs to be cleared for notifiactions originated from
-          //other devices...
-          //So maybe call onWallet({wallet}) again with the nots unset after the
-          //clear
-          //
-          //
-          //But create a high level function ackAndClearNotifications that does te below:
-          //try {ack()}catch(){}finally{onWallet({wallet.delete notifications)}
-          //call to it when initing a trigger and when visiting a notified wallet
-          //as doing here:
-
-          onWallet({ wallet });
+          onWallet({ wallet: ackWalletNotifications(wallet) });
           navigation.navigate(WALLET_HOME, { walletId });
         };
       });
