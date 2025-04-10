@@ -702,7 +702,8 @@ const WalletProviderRaw = ({
   const responseListener = useRef<Notifications.Subscription>();
 
   /**
-   * Sends an acknowledgment to the watchtower that a notification for a specific vault has been received/seen by the app.
+   * Sends an acknowledgment to the watchtower that a notification for a
+   * specific vault has been received/seen by the app.
    * Fails silently with a console warning if the request fails.
    */
   const sendAckToWatchtower = useCallback(
@@ -770,10 +771,11 @@ const WalletProviderRaw = ({
                   const existingWatchtowerNotifications =
                     existingNotifications[watchtowerId as string] || {};
 
-                  // Check if we already have a notification for this vault from this watchtower
-                  if (existingWatchtowerNotifications[vaultId]) {
+                  // Check if we already have a notification for this vault from
+                  // this watchtower
+                  if (existingWatchtowerNotifications[vaultId])
                     sendAckToWatchtower(watchtowerId as string, vaultId);
-                  } else {
+                  else {
                     // Notification doesn't exist yet, add it.
                     // Validate required fields exist and are of correct type
                     const firstDetectedAt = data['firstDetectedAt'] as number;
