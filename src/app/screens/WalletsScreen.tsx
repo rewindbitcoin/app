@@ -71,7 +71,13 @@ const walletBg = (index: number, hasNotifications: boolean) =>
   hasNotifications ? 'bg-red-600' : walletBgs[index % walletBgs.length];
 const walletCl = (index: number) => walletCls[index % walletCls.length];
 
-function setWalletNotificationsAcknowledged(wallet: Wallet): Wallet {
+/**
+ * Creates a new wallet object with all notifications marked as acknowledged.
+ * Returns the original wallet object if no changes were needed.
+ * @param wallet The input wallet object.
+ * @returns A new wallet object with acknowledged notifications, or the original object.
+ */
+function getWalletWithAcknowledgedNotifications(wallet: Wallet): Wallet {
   const notifications = wallet.notifications;
   if (!notifications) return wallet;
 
@@ -135,7 +141,8 @@ const WalletsScreen = () => {
         const wallet = wallets[walletId];
         if (!wallet) throw new Error(`Unset wallet for ${walletId}`);
         map[walletId] = () => {
-          onWallet({ wallet: setWalletNotificationsAcknowledged(wallet) });
+          // When navigating to the wallet, pass the version with notifications marked as acked
+          onWallet({ wallet: getWalletWithAcknowledgedNotifications(wallet) });
           navigation.navigate(WALLET_HOME, { walletId });
         };
       });
