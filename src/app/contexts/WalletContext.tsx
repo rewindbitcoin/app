@@ -748,8 +748,12 @@ const WalletProviderRaw = ({
     [networkTimeout]
   );
 
-  // Helper function to process notification data
-  const processNotificationData = useCallback(
+  /**
+   * Handles incoming notification data from the watchtower service.
+   * Validates the data, adds new notifications to the wallet state,
+   * and triggers acknowledgments for existing, unacked notifications.
+   */
+  const handleWatchtowerNotification = useCallback(
     (data: Record<string, unknown>) => {
       if (data && typeof data === 'object') {
         const walletIdStr = data['walletId'];
@@ -905,8 +909,8 @@ const WalletProviderRaw = ({
             typeof firstDetectedAt === 'number' &&
             typeof txid === 'string'
           ) {
-            // Process the notification data
-            processNotificationData({
+            // Process the notification data using the handler
+            handleWatchtowerNotification({
               vaultId,
               walletId: notificationWalletId,
               watchtowerId,
@@ -927,7 +931,7 @@ const WalletProviderRaw = ({
         return false;
       }
     },
-    [networkTimeout, processNotificationData]
+    [networkTimeout, handleWatchtowerNotification]
   );
 
   // Set up watchtower notification handling & polling for pending notifications
@@ -939,7 +943,9 @@ const WalletProviderRaw = ({
     Notifications.getLastNotificationResponseAsync()
       .then(response => {
         if (response) {
-          processNotificationData(response.notification.request.content.data);
+          handleWatchtowerNotification(
+            response.notification.request.content.data
+          );
         }
       })
       .catch(error => {
@@ -949,14 +955,16 @@ const WalletProviderRaw = ({
     // Listen for notifications received while app is in foreground
     notificationListener.current =
       Notifications.addNotificationReceivedListener(notification => {
-        processNotificationData(notification.request.content.data);
+        handleWatchtowerNotification(notification.request.content.data);
       });
 
-    // Listen for user interaction with notifications
+    // Listen for user interaction with notifications (tapping the notification)
     responseListener.current =
       Notifications.addNotificationResponseReceivedListener(response => {
-        console.warn('Notification response received:', response);
-        processNotificationData(response.notification.request.content.data);
+        console.log('Notification response received:', response);
+        handleWatchtowerNotification(
+          response.notification.request.content.data
+        );
       });
 
     // Check pending notifications that may arrive while the app was closed.
@@ -1024,7 +1032,7 @@ const WalletProviderRaw = ({
     fetchWatchtowerPendingForNetwork,
     settings,
     wallets,
-    processNotificationData,
+    handleWatchtowerNotification,
     walletsStorageStatus.isSynchd,
     settingsStorageStatus.isSynchd
   ]);
