@@ -71,7 +71,7 @@ const walletBg = (index: number, hasNotifications: boolean) =>
   hasNotifications ? 'bg-red-600' : walletBgs[index % walletBgs.length];
 const walletCl = (index: number) => walletCls[index % walletCls.length];
 
-function ackWalletNotifications(wallet: Wallet): Wallet {
+function setWalletNotificationsAcknowledged(wallet: Wallet): Wallet {
   const notifications = wallet.notifications;
   if (!notifications) return wallet;
 
@@ -135,7 +135,7 @@ const WalletsScreen = () => {
         const wallet = wallets[walletId];
         if (!wallet) throw new Error(`Unset wallet for ${walletId}`);
         map[walletId] = () => {
-          onWallet({ wallet: ackWalletNotifications(wallet) });
+          onWallet({ wallet: setWalletNotificationsAcknowledged(wallet) });
           navigation.navigate(WALLET_HOME, { walletId });
         };
       });

@@ -152,7 +152,7 @@ export type WalletContextType = {
     signersCipherKey?: Uint8Array;
   }) => Promise<void>;
   isFirstLogin: boolean;
-  ackVaultNotifications: (vaultId: string) => void;
+  setVaultNotificationAcknowledged: (vaultId: string) => void;
 };
 
 const DEFAULT_VAULTS_STATUSES: VaultsStatuses = {};
@@ -203,56 +203,6 @@ const WalletProviderRaw = ({
     `WALLETS`,
     SERIALIZABLE,
     {}
-  );
-
-  /**
-   * Sends an acknowledgment to the watchtower that a notification for a specific vault has been received/seen by the app.
-   * Fails silently with a console warning if the request fails.
-   */
-  const ackWatchtowerNotification = useCallback(
-    async (watchtowerAPI: string, vaultId: string) => {
-      if (!networkTimeout) {
-        console.warn(
-          'Cannot acknowledge watchtower notification: networkTimeout not set.'
-        );
-        return;
-      }
-      try {
-        const pushToken = await getExpoPushToken();
-        if (!pushToken) {
-          console.warn(
-            'Cannot acknowledge watchtower notification: pushToken not available.'
-          );
-          return;
-        }
-
-        const ackEndpoint = `${watchtowerAPI}/ack`;
-        const response = await fetch(ackEndpoint, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({ pushToken, vaultId }),
-          signal: AbortSignal.timeout(networkTimeout)
-        });
-
-        if (!response.ok) {
-          console.warn(
-            `Failed to acknowledge watchtower notification for vault ${vaultId} at ${watchtowerAPI}: ${response.status} ${response.statusText}`
-          );
-        } else {
-          console.log(
-            `Successfully acknowledged watchtower notification for vault ${vaultId} at ${watchtowerAPI}`
-          );
-        }
-      } catch (error) {
-        console.warn(
-          `Error acknowledging watchtower notification for vault ${vaultId} at ${watchtowerAPI}:`,
-          error
-        );
-      }
-    },
-    [networkTimeout] // Depends only on networkTimeout from the outer scope
   );
 
   const wallet =
@@ -751,6 +701,52 @@ const WalletProviderRaw = ({
   const notificationListener = useRef<Notifications.Subscription>();
   const responseListener = useRef<Notifications.Subscription>();
 
+  /**
+   * Sends an acknowledgment to the watchtower that a notification for a specific vault has been received/seen by the app.
+   * Fails silently with a console warning if the request fails.
+   */
+  const sendAckToWatchtower = useCallback(
+    async (watchtowerAPI: string, vaultId: string) => {
+      if (!networkTimeout) {
+        console.warn(
+          'Cannot acknowledge watchtower notification: networkTimeout not set.'
+        );
+        return;
+      }
+      try {
+        const pushToken = await getExpoPushToken();
+        if (!pushToken) {
+          console.warn(
+            'Cannot acknowledge watchtower notification: pushToken not available.'
+          );
+          return;
+        }
+
+        const ackEndpoint = `${watchtowerAPI}/ack`;
+        const response = await fetch(ackEndpoint, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ pushToken, vaultId }),
+          signal: AbortSignal.timeout(networkTimeout)
+        });
+
+        if (!response.ok) {
+          console.warn(
+            `Failed to acknowledge watchtower notification for vault ${vaultId} at ${watchtowerAPI}: ${response.status} ${response.statusText}`
+          );
+        }
+      } catch (error) {
+        console.warn(
+          `Error acknowledging watchtower notification for vault ${vaultId} at ${watchtowerAPI}:`,
+          error
+        );
+      }
+    },
+    [networkTimeout]
+  );
+
   // Helper function to process notification data
   const processNotificationData = useCallback(
     (data: Record<string, unknown>) => {
@@ -773,18 +769,10 @@ const WalletProviderRaw = ({
                     currentWallet.notifications || {};
                   const existingWatchtowerNotifications =
                     existingNotifications[watchtowerId as string] || {};
-                  const existingNotificationEntry =
-                    existingWatchtowerNotifications[vaultId];
 
                   // Check if we already have a notification for this vault from this watchtower
-                  if (existingNotificationEntry) {
-                    // If notification already exists and is not acked, try to ack it with the watchtower API
-                    if (!existingNotificationEntry.acked) {
-                      ackWatchtowerNotification(
-                        watchtowerId as string,
-                        vaultId
-                      );
-                    }
+                  if (existingWatchtowerNotifications[vaultId]) {
+                    sendAckToWatchtower(watchtowerId as string, vaultId);
                   } else {
                     // Notification doesn't exist yet, add it.
                     // Validate required fields exist and are of correct type
@@ -830,7 +818,7 @@ const WalletProviderRaw = ({
         }
       }
     },
-    [wallets, setWallets]
+    [wallets, setWallets, sendAckToWatchtower]
   );
 
   useEffect(() => {
@@ -1300,7 +1288,7 @@ const WalletProviderRaw = ({
   const watchtowerWalletName =
     wallet && wallets && walletTitle(wallet, wallets, t);
 
-  const ackVaultNotifications = useCallback(
+  const setVaultNotificationAcknowledged = useCallback(
     (vaultId: string) => {
       if (
         !watchtowerAPI ||
@@ -1955,7 +1943,7 @@ const WalletProviderRaw = ({
     deleteWallet,
     onWallet,
     isFirstLogin,
-    ackVaultNotifications
+    setVaultNotificationAcknowledged
   };
   return (
     <WalletContext.Provider value={contextValue}>

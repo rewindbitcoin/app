@@ -122,7 +122,7 @@ const WalletHomeScreen = () => {
     feeEstimates,
     blockExplorerURL,
     watchtowerAPI,
-    ackVaultNotifications
+    setVaultNotificationAcknowledged
   } = useWallet();
   if (wallet && walletId !== wallet.walletId)
     throw new Error(
@@ -523,7 +523,9 @@ const WalletHomeScreen = () => {
             {vaults && vaultsStatuses && (
               <Vaults
                 watchtowerAPI={watchtowerAPI}
-                ackVaultNotifications={ackVaultNotifications}
+                setVaultNotificationAcknowledged={
+                  setVaultNotificationAcknowledged
+                }
                 blockExplorerURL={blockExplorerURL}
                 updateVaultStatus={updateVaultStatus}
                 pushTx={pushTx}

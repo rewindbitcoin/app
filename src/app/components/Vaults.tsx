@@ -174,7 +174,7 @@ const VaultButton = ({
 );
 
 const RawVault = ({
-  ackVaultNotifications,
+  setVaultNotificationAcknowledged,
   updateVaultStatus,
   pushTx,
   btcFiat,
@@ -185,7 +185,7 @@ const RawVault = ({
   blockExplorerURL,
   watchtowerAPI
 }: {
-  ackVaultNotifications: (vaultId: string) => void;
+  setVaultNotificationAcknowledged: (vaultId: string) => void;
   updateVaultStatus: (vaultId: string, vaultStatus: VaultStatus) => void;
   pushTx: (txHex: string) => Promise<void>;
   btcFiat: number | undefined;
@@ -265,7 +265,7 @@ const RawVault = ({
         whenToastErrors: 'ON_ANY_ERROR',
         errorMessage: (message: string) => t('app.pushError', { message }),
         func: async () => {
-          ackVaultNotifications(vault.vaultId);
+          setVaultNotificationAcknowledged(vault.vaultId);
           await pushTx(initUnfreezeData.txHex);
         }
       });
@@ -283,7 +283,7 @@ const RawVault = ({
       }
     },
     [
-      ackVaultNotifications,
+      setVaultNotificationAcknowledged,
       pushTx,
       vault.vaultId,
       vaultStatus,
@@ -880,7 +880,7 @@ const RawVault = ({
 const Vault = React.memo(RawVault);
 
 const Vaults = ({
-  ackVaultNotifications,
+  setVaultNotificationAcknowledged,
   updateVaultStatus,
   pushTx,
   btcFiat,
@@ -890,7 +890,7 @@ const Vaults = ({
   blockExplorerURL,
   watchtowerAPI
 }: {
-  ackVaultNotifications: (vaultId: string) => void;
+  setVaultNotificationAcknowledged: (vaultId: string) => void;
   updateVaultStatus: (vaultId: string, vaultStatus: VaultStatus) => void;
   pushTx: (txHex: string) => Promise<void>;
   btcFiat: number | undefined;
@@ -920,7 +920,9 @@ const Vaults = ({
           return (
             !vaultStatus?.isHidden && (
               <Vault
-                ackVaultNotifications={ackVaultNotifications}
+                setVaultNotificationAcknowledged={
+                  setVaultNotificationAcknowledged
+                }
                 updateVaultStatus={updateVaultStatus}
                 key={vault.vaultId}
                 btcFiat={btcFiat}
