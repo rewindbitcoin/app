@@ -119,32 +119,53 @@ export const useStorage = <T>(
   /** sets storage and sate value */
   const setStorageValue = useCallback(
     async (newValue: T) => {
-      if (newValue === undefined)
+      if (newValue === undefined) {
         throw new Error(
           'Cannot set undefined value, since undefined is used to mark empty keys'
         );
+      }
+
       if (key !== undefined) {
-        await setAsync(
-          key,
-          assertSerializationFormat(newValue, serializationFormat),
-          engine,
-          cipherKey,
-          authenticationPrompt
-        );
+        let prevValue: typeof valueMap;
+        let prevError: typeof errorCodeMap;
+
+        // We optimistically update the UI state first to ensure fast feedback and rendering.
+        // The actual storage write is awaited *after* state update to avoid blocking UI.
+        // If the storage write fails, we revert to the previous state to stay consistent.
+        // The same error is re-thrown to allow parent logic to react (e.g. show toast).
 
         batchedUpdates(() => {
-          //useState assumes immutability: https://react.dev/reference/react/useState
-          setValueMap(prevState =>
-            prevState[key] !== newValue
+          setValueMap(prevState => {
+            prevValue = prevState;
+            return prevState[key] !== newValue
               ? { ...prevState, [key]: newValue }
-              : prevState
-          );
-          setErrorCodeMap(prevState =>
-            prevState[key] !== false
+              : prevState;
+          });
+
+          setErrorCodeMap(prevState => {
+            prevError = prevState;
+            return prevState[key] !== false
               ? { ...prevState, [key]: false }
-              : prevState
-          );
+              : prevState;
+          });
         });
+
+        try {
+          await setAsync(
+            key,
+            assertSerializationFormat(newValue, serializationFormat),
+            engine,
+            cipherKey,
+            authenticationPrompt
+          );
+        } catch (err) {
+          // Revert to previous state
+          batchedUpdates(() => {
+            setValueMap(prevValue!);
+            setErrorCodeMap(prevError!);
+          });
+          throw err;
+        }
       }
     },
     [
