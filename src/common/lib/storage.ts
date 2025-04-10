@@ -166,9 +166,18 @@ import {
   supportedAuthenticationTypesAsync
 } from 'expo-local-authentication';
 
-//import { strToU8, strFromU8 } from 'fflate';
+import { strToU8, strFromU8 } from 'fflate';
 import { getManagedChacha } from './cipher';
+
 import { TextEncoder, TextDecoder } from './textencoder';
+// IMPORTANT:
+// We use `strToU8` / `strFromU8` for ciphered messages in the Secure Store
+// instead of `TextEncoder` / `TextDecoder`.
+// Reason: `TextDecoder().decode(cipherMessage)` will fail when the input
+// contains non-UTF-8 binary (encrypted data).
+// This caused incomplete strings in SecureStore in some cases.
+// `strFromU8` provides a reliable, reversible byte-to-string mapping.
+// We still use `TextEncoder` where UTF-8 text is expected.
 
 import {
   AFTER_FIRST_UNLOCK,
@@ -410,9 +419,9 @@ export const setAsync = async (
         `Engine ${engine} does not support native Uint8Array since it uses JSON.stringify`
       );
     const secureStoreValue =
-      //(cipherMessage && strFromU8(cipherMessage, true)) ||
-      (cipherMessage &&
-        new TextDecoder().decode(cipherMessage, { stream: false })) ||
+      (cipherMessage && strFromU8(cipherMessage, true)) ||
+      //(cipherMessage &&
+      //  new TextDecoder().decode(cipherMessage, { stream: false })) ||
       JSON.stringify(value);
     if (secureStoreValue.length > 2048)
       throw new Error(
@@ -459,8 +468,8 @@ export const getAsync = async <S extends SerializationFormat>(
       stringValue === null
         ? undefined
         : cipherKey
-          ? //? strToU8(stringValue, true)
-            new TextEncoder().encode(stringValue)
+          ? //? new TextEncoder().encode(stringValue)
+            strToU8(stringValue, true)
           : JSON.parse(stringValue);
   } else if (engine === 'MMKV') {
     if (cipherKey) {
