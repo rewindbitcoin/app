@@ -77,10 +77,15 @@ const getVaultInitDate = (
   locale: string
 ) => {
   //vaultPushTime is a bit more precise but may not be available in a device
-  //using the same mnemonic. creationTime is good enough.
+  //using the same mnemonic. Also we may have old vaultPushTime that never
+  //reached the blockchain for network issues...
+  //creationTime is good enough.
   //Remember there are some props in vaultStatus that
   //are used to keep internal track of user actions. See docs on VaultStatus.
-  const creationOrPushTime = vaultStatus.vaultPushTime || vault.creationTime;
+  const creationOrPushTime =
+    vaultStatus.vaultPushTime && vaultStatus.vaultPushTime > vault.creationTime
+      ? vaultStatus.vaultPushTime
+      : vault.creationTime;
   return formatVaultDate(creationOrPushTime, locale);
 };
 
@@ -359,6 +364,10 @@ const RawVault = ({
     vaultStatus?.triggerTxBlockHeight !== undefined &&
     vaultStatus.triggerTxBlockHeight > 0;
   const isInitUnfreezeInMempool = vaultStatus?.triggerTxBlockHeight === 0;
+  //FIXME: using triggerPushTime is risky cause what if it never reaches
+  //the mempool? - same for vaultPushTime, panicPushTime, unvaultPushTime
+  //Search for "ushTime" and fix ALL The code. Only consider pushes if very recent
+  //Also modify the docs
   const isInitUnfreezePushed = vaultStatus?.triggerPushTime;
   const isInitUnfreeze =
     isInitUnfreezeInMempool || isInitUnfreezePushed || isInitUnfreezeConfirmed;
@@ -370,7 +379,7 @@ const RawVault = ({
   const canBeRescued = isInitUnfreeze && !isUnfrozen && !isRescued;
   const canBeDelegated =
     remainingBlocks !== 'VAULT_NOT_FOUND' && !isUnfrozen && !isRescued;
-  //&&(isInitUnfreeze || remainingBlocks === 'TRIGGER_NOT_PUSHED');
+  //&&(isInitUnfreeze || remainingBlocks === 'TRIGGER_NOT_FOUND');
   const isUnfreezeOngoing =
     typeof remainingBlocks === 'number' && remainingBlocks > 0;
 
@@ -527,7 +536,7 @@ const RawVault = ({
             )}
           </View>
           {canReceiveNotifications &&
-            (remainingBlocks === 'TRIGGER_NOT_PUSHED' ||
+            (remainingBlocks === 'TRIGGER_NOT_FOUND' ||
               /*mempool*/ vaultStatus?.triggerTxBlockHeight === 0 ||
               /*reversible*/ (!!tipHeight &&
                 !!vaultStatus?.triggerTxBlockHeight &&
@@ -569,7 +578,7 @@ const RawVault = ({
             </Text>
           </View>
         )}
-        {remainingBlocks === 'TRIGGER_NOT_PUSHED' && (
+        {remainingBlocks === 'TRIGGER_NOT_FOUND' && (
           <View className="flex-row items-center mt-2.5">
             {/*<MaterialCommunityIcons
               name="lock-clock"
@@ -685,7 +694,7 @@ const RawVault = ({
           {remainingBlocks === 'VAULT_NOT_FOUND' && (
             <Text className="pt-2">{t('wallet.vault.vaultNotFound')}</Text>
           )}
-          {remainingBlocks === 'TRIGGER_NOT_PUSHED' && (
+          {remainingBlocks === 'TRIGGER_NOT_FOUND' && (
             <Text className="pt-2">
               {!vaultStatus?.vaultTxBlockHeight
                 ? t('wallet.vault.notTriggeredUnconfirmed', {

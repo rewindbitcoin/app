@@ -987,7 +987,7 @@ export function validateAddress(addressValue: string, network: Network) {
  *
  * returns 'VAULT_NOT_FOUND' if vaultTxBlockHeight is not set; when not set
  * it's because the vault was never pushed or because it expired or was RBFd
- * returns 'TRIGGER_NOT_PUSHED' if the trigger tx has not been pushed yet
+ * returns 'TRIGGER_NOT_FOUND' if the trigger tx has not been pushed yet
  * returns 'SPENT_AS_HOT'/'SPENT_AS_PANIC' if the trigger tx has already been spent.
  *
  * returns an integer lockBlocks >= remainingBlocks >= 0 with the number of
@@ -1001,13 +1001,13 @@ export function getRemainingBlocks(
   blockhainTip: number
 ):
   | 'VAULT_NOT_FOUND'
-  | 'TRIGGER_NOT_PUSHED'
+  | 'TRIGGER_NOT_FOUND'
   | 'SPENT_AS_PANIC'
   | 'SPENT_AS_HOT'
   | number {
   if (vaultStatus.vaultTxBlockHeight === undefined) return 'VAULT_NOT_FOUND';
   if (vaultStatus.triggerTxBlockHeight === undefined)
-    return 'TRIGGER_NOT_PUSHED';
+    return 'TRIGGER_NOT_FOUND';
   if (vaultStatus.panicTxHex) return 'SPENT_AS_PANIC';
   if (vaultStatus.spendAsHotTxHex) return 'SPENT_AS_HOT';
   let remainingBlocks: number;
