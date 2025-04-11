@@ -1,4 +1,6 @@
 // TODO: very imporant to only allow Vaulting funds with 1 confirmatin at least (make this a setting)
+const PUSH_TIMEOUT_MS = 3 * 60 * 60 * 1000; // 3 hours
+
 import { Network, Psbt, Transaction, crypto } from 'bitcoinjs-lib';
 import memoize from 'lodash.memoize';
 import type { Accounts, Signer } from './wallets';
@@ -19,7 +21,7 @@ import {
   DUMMY_PUBKEY,
   DUMMY_PUBKEY_2
 } from './vaultDescriptors';
-import { shallowEqualArrays } from 'shallow-equal';
+import { shallowEqualArrays, shallowEqualObjects } from 'shallow-equal';
 
 import { feeRateSampling } from './fees';
 import type { DiscoveryInstance, TxAttribution } from '@bitcoinerlab/discovery';
@@ -168,11 +170,13 @@ export type VaultStatus = {
    *
    * So, not reliable. To be used ONLY for UX purposes: For example to prevent
    * users to re-push txs in short periods of time.
+   *
+   * These variables are reset after PUSH_TIMEOUT_MS milliseconds if the
+   * pushed tx cannot be found in the mempool or in a block.
    */
   vaultPushTime?: number;
   triggerPushTime?: number;
   panicPushTime?: number;
-  unvaultPushTime?: number;
 };
 
 export type RescueTxMap = Record<
@@ -1230,7 +1234,7 @@ async function fetchVaultTx(
 
 /**
  * Note that vaultsStatuses fetched are only partial since
- * vaultPushTime, triggerPushTime, panicPushTime and unvaultPushTime cannot be
+ * vaultPushTime, triggerPushTime and panicPushTime cannot be
  * retrieved from the network.
  */
 async function fetchVaultStatus(
@@ -1254,9 +1258,6 @@ async function fetchVaultStatus(
         }),
         ...(currvaultStatus.panicPushTime !== undefined && {
           panicPushTime: currvaultStatus.panicPushTime
-        }),
-        ...(currvaultStatus.unvaultPushTime !== undefined && {
-          unvaultPushTime: currvaultStatus.unvaultPushTime
         })
       }
     : {};
@@ -1285,6 +1286,12 @@ async function fetchVaultStatus(
       newVaultStatus.vaultTxBlockTime = vaultBlockStatus.blockTime;
     }
   }
+  // Vault Tx NOT Found - Check if push time should be reset
+  else if (
+    newVaultStatus.vaultPushTime &&
+    Date.now() - newVaultStatus.vaultPushTime > PUSH_TIMEOUT_MS
+  )
+    delete newVaultStatus.vaultPushTime;
 
   const triggerTxData = await fetchSpendingTx(vault.vaultTxHex, 0, explorer);
   if (triggerTxData) {
@@ -1334,6 +1341,10 @@ async function fetchVaultStatus(
           newVaultStatus.panicTxBlockTime = panicBlockStatus.blockTime;
         }
       } else {
+        // Panic Tx NOT Found - panic push time should be reset since this
+        // was finally spent as hot
+        delete newVaultStatus.panicPushTime;
+
         newVaultStatus.spendAsHotTxHex = unlockingTxData.txHex;
         newVaultStatus.spendAsHotTxBlockHeight = unlockingTxData.blockHeight;
         if (newVaultStatus.spendAsHotTxBlockHeight !== 0) {
@@ -1349,14 +1360,28 @@ async function fetchVaultStatus(
         }
       }
     }
+    // Panic Tx NOT Found - Check if push time should be reset
+    else if (
+      newVaultStatus.panicPushTime &&
+      Date.now() - newVaultStatus.panicPushTime > PUSH_TIMEOUT_MS
+    )
+      delete newVaultStatus.panicPushTime;
   }
-  return newVaultStatus;
+  // Trigger Tx NOT Found - Check if push time should be reset
+  else if (
+    newVaultStatus.triggerPushTime &&
+    Date.now() - newVaultStatus.triggerPushTime > PUSH_TIMEOUT_MS
+  )
+    delete newVaultStatus.triggerPushTime;
+  if (currvaultStatus && shallowEqualObjects(currvaultStatus, newVaultStatus))
+    return currvaultStatus;
+  else return newVaultStatus;
 }
 
 /**
  * performs a fetchVaultStatus for all vaults in parallel
  * Note that vaultsStatuses fetched are only partial since
- * vaultPushTime, triggerPushTime, panicPushTime and unvaultPushTime cannot be
+ * vaultPushTime, triggerPushTime and panicPushTime cannot be
  * retrieved from the network. We add them back using currvaultStatus if they
  * exist.
  */
