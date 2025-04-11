@@ -377,7 +377,8 @@ const RawVault = ({
   const isRescuedConfirmed = !!(isRescued && vaultStatus?.panicTxBlockHeight);
 
   const canBeRescued = isInitUnfreeze && !isUnfrozen && !isRescued;
-  const canBeDelegated = !isUnfrozen && !isRescued;
+  const canBeDelegated =
+    remainingBlocks !== 'VAULT_NOT_FOUND' && !isUnfrozen && !isRescued;
   //&&(isInitUnfreeze || remainingBlocks === 'TRIGGER_NOT_FOUND');
   const isUnfreezeOngoing =
     typeof remainingBlocks === 'number' && remainingBlocks > 0;
