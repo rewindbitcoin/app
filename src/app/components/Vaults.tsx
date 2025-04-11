@@ -382,6 +382,9 @@ const RawVault = ({
   //&&(isInitUnfreeze || remainingBlocks === 'TRIGGER_NOT_FOUND');
   const isUnfreezeOngoing =
     typeof remainingBlocks === 'number' && remainingBlocks > 0;
+  //FIXME: discrepancy between isUnfreezeOngoing which is needed for the Amount computation
+  //and !isInitUnfreeze for the buttons rendering. The isInitUnfreeze also
+  //includes pushed-not-in-mempool-yet
 
   const canBeHidden =
     remainingBlocks === 'VAULT_NOT_FOUND' ||
@@ -757,7 +760,7 @@ const RawVault = ({
               />
             )}
             {!isInitUnfreeze && (
-              //Aqui si no está en la mempool se sigue enseñando
+              //FIXME: antes -> Aqui si no está en la mempool se sigue enseñando
               <VaultButton
                 mode="secondary"
                 onPress={handleShowInitUnfreeze}
