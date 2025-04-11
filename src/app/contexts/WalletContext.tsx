@@ -208,11 +208,6 @@ const WalletProviderRaw = ({
   const wallet =
     unsynchdWalletId !== undefined ? wallets?.[unsynchdWalletId] : undefined;
   const walletId = wallet?.walletId; //walletId will be defined once the wallet is ready.
-  console.log(
-    'TRACE RENDER wallet',
-    { walletId, unsynchdWalletId },
-    JSON.stringify(wallet, null, 2)
-  );
 
   const networkId = wallet?.networkId;
   const signersStorageEngine = wallet?.signersStorageEngine;
@@ -255,22 +250,6 @@ const WalletProviderRaw = ({
     walletId !== undefined &&
     (wallet?.signersEncryption !== 'PASSWORD' ||
       walletsSignersCipherKey[walletId]);
-
-  console.log(
-    'TRACE initSigners',
-    JSON.stringify(
-      {
-        initSigners: !!initSigners,
-        walletId,
-        signersStorageEngine,
-        wallet: !!wallet,
-        signersEncryption: wallet?.signersEncryption,
-        cipherKey: !!walletId && !!walletsSignersCipherKey[walletId]
-      },
-      null,
-      2
-    )
-  );
 
   const [signers, , , clearSignersCache, signersStorageStatus] =
     useStorage<Signers>(
@@ -751,7 +730,7 @@ const WalletProviderRaw = ({
   /**
    * Handles incoming notification data from the watchtower service.
    * Validates the data, adds new notifications to the wallet state,
-   * and triggers acknowledgments for existing, unacked notifications.
+   * and triggers acknowledgments for existing notifications.
    */
   const handleWatchtowerNotification = useCallback(
     (data: Record<string, unknown>) => {
@@ -777,9 +756,10 @@ const WalletProviderRaw = ({
 
                   // Check if we already have a notification for this vault from
                   // this watchtower
-                  if (existingWatchtowerNotifications[vaultId])
-                    sendAckToWatchtower(watchtowerId as string, vaultId);
-                  else {
+                  if (existingWatchtowerNotifications[vaultId]) {
+                    if (existingWatchtowerNotifications[vaultId].acked === true)
+                      sendAckToWatchtower(watchtowerId as string, vaultId);
+                  } else {
                     // Notification doesn't exist yet, add it.
                     // Validate required fields exist and are of correct type
                     const firstDetectedAt = data['firstDetectedAt'] as number;

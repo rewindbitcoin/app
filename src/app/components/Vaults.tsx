@@ -1,3 +1,11 @@
+//FIXME: la campanita sale roja al ppio. Mejor hacer un pulse desde el gris....
+//
+//FIXME:Add Accelerate links on the confirming... texts on the right!!!
+//for the init and for the rescue
+//
+//FIXME: SPENT_AS_PANIC -> panicTxHex is set after the push!!! and SPENT_AS_HOT ??
+//but when are they unset if then not found anymore in the mempool?
+//also this is not SPENT! but MAYBE
 import React, {
   useCallback,
   useEffect,
@@ -348,15 +356,12 @@ const RawVault = ({
   );
   const unfrozenDate = formatVaultDate(vaultStatus?.hotBlockTime, locale);
   const isInitUnfreezeConfirmed =
-    remainingBlocks !== 'VAULT_NOT_FOUND' &&
-    !!vaultStatus?.triggerTxBlockHeight;
-  const isInitUnfreezeNotConfirmed =
-    remainingBlocks !== 'VAULT_NOT_FOUND' &&
-    vaultStatus?.triggerPushTime &&
-    !isInitUnfreezeConfirmed;
-  const isInitUnfreeze = isInitUnfreezeNotConfirmed || isInitUnfreezeConfirmed;
-  const canInitUnfreeze =
-    remainingBlocks !== 'VAULT_NOT_FOUND' && !isInitUnfreeze;
+    vaultStatus?.triggerTxBlockHeight !== undefined &&
+    vaultStatus.triggerTxBlockHeight > 0;
+  const isInitUnfreezeInMempool = vaultStatus?.triggerTxBlockHeight === 0;
+  const isInitUnfreezePushed = vaultStatus?.triggerPushTime;
+  const isInitUnfreeze =
+    isInitUnfreezeInMempool || isInitUnfreezePushed || isInitUnfreezeConfirmed;
   const isUnfrozen =
     remainingBlocks === 0 || remainingBlocks === 'SPENT_AS_HOT';
   const isRescued = remainingBlocks === 'SPENT_AS_PANIC';
@@ -394,16 +399,18 @@ const RawVault = ({
   //if rendered for whatever other reason, get the newest time
   const now = Math.max(scheduledNow, Date.now() / 1000);
 
-  const triggerTimeBestGuess =
-    vaultStatus?.triggerTxBlockTime ||
-    (vaultStatus?.triggerPushTime
+  const triggerBlockTimeBestGuess = vaultStatus?.triggerTxBlockTime
+    ? vaultStatus.triggerTxBlockTime
+    : vaultStatus?.triggerPushTime
       ? now + 10 * 60 //expected is always 10' from now
-      : undefined);
+      : vaultStatus?.triggerTxBlockHeight === 0 //in the mempool but pushed in another device
+        ? now + 10 * 60 //expected is always 10' from now
+        : undefined;
 
   //It's better to find out the unfreeze expected time based on the remainig time
-  // and not using triggerTime + blockBlocks since previous blocks untiul now
+  // and not using triggerTime + blockBlocks since previous blocks until now
   // may have not been 10' exactly
-  const unfreezeTimeBestGuess = !triggerTimeBestGuess
+  const unfreezeTimeBestGuess = !triggerBlockTimeBestGuess
     ? undefined
     : typeof remainingBlocks !== 'number'
       ? undefined
@@ -416,8 +423,10 @@ const RawVault = ({
 
   const estimatedUnfreezeDate =
     unfreezeTimeBestGuess && formatVaultDate(unfreezeTimeBestGuess, locale);
+
   const plannedUnfreezeTimeButRescued =
-    triggerTimeBestGuess && triggerTimeBestGuess + vault.lockBlocks * 10 * 60;
+    triggerBlockTimeBestGuess &&
+    triggerBlockTimeBestGuess + vault.lockBlocks * 10 * 60;
   const plannedUnfreezeDateButRescued = formatVaultDate(
     plannedUnfreezeTimeButRescued,
     locale
@@ -577,7 +586,7 @@ const RawVault = ({
         <View
           className={`gap-4 ${remainingBlocks !== 'VAULT_NOT_FOUND' ? 'pt-4' : ''}`}
         >
-          {isInitUnfreezeNotConfirmed && (
+          {isInitUnfreezePushed && !isInitUnfreezeConfirmed && (
             <VaultText
               icon={{
                 name: 'clock-fast',
@@ -725,9 +734,9 @@ const RawVault = ({
             </>
           )}
         </View>
-        {(canBeRescued || canInitUnfreeze || canBeDelegated || canBeHidden) && (
+        {(canBeRescued || !isInitUnfreeze || canBeDelegated || canBeHidden) && (
           <View
-            className={`w-full flex-row ${[canBeRescued, canInitUnfreeze, canBeDelegated, canBeHidden].filter(Boolean).length > 1 ? 'justify-between flex-wrap' : 'justify-end'} pt-8 px-0 moblg:px-4 gap-4 moblg:gap-6`}
+            className={`w-full flex-row ${[canBeRescued, !isInitUnfreeze, canBeDelegated, canBeHidden].filter(Boolean).length > 1 ? 'justify-between flex-wrap' : 'justify-end'} pt-8 px-0 moblg:px-4 gap-4 moblg:gap-6`}
           >
             {canBeRescued && (
               <VaultButton
@@ -738,7 +747,8 @@ const RawVault = ({
                 onInfoPress={handleRescueHelp}
               />
             )}
-            {canInitUnfreeze && (
+            {!isInitUnfreeze && (
+              //Aqui si no está en la mempool se sigue enseñando
               <VaultButton
                 mode="secondary"
                 onPress={handleShowInitUnfreeze}
