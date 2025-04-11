@@ -77,8 +77,8 @@ const getVaultInitDate = (
   locale: string
 ) => {
   //vaultPushTime is a bit more precise but may not be available in a device
-  //using the same mnemonic. Also we may have old vaultPushTime that never
-  //reached the blockchain for network issues...
+  //using the same mnemonic. Also we may have old vaultPushTime of previous
+  //attempts that never reached the blockchain for network issues...
   //creationTime is good enough.
   //Remember there are some props in vaultStatus that
   //are used to keep internal track of user actions. See docs on VaultStatus.
