@@ -1236,28 +1236,29 @@ async function fetchVaultTx(
  * Note that vaultsStatuses fetched are only partial since
  * vaultPushTime, triggerPushTime and panicPushTime cannot be
  * retrieved from the network.
+ * Immutable.
  */
 async function fetchVaultStatus(
   vault: Vault,
-  currvaultStatus: VaultStatus | undefined,
+  currVaultStatus: VaultStatus | undefined,
   explorer: Explorer
 ) {
-  const newVaultStatus: VaultStatus = currvaultStatus
+  const newVaultStatus: VaultStatus = currVaultStatus
     ? {
-        ...(currvaultStatus.isHidden !== undefined && {
-          isHidden: currvaultStatus.isHidden
+        ...(currVaultStatus.isHidden !== undefined && {
+          isHidden: currVaultStatus.isHidden
         }),
-        ...(currvaultStatus.registeredWatchtowers !== undefined && {
-          registeredWatchtowers: currvaultStatus.registeredWatchtowers
+        ...(currVaultStatus.registeredWatchtowers !== undefined && {
+          registeredWatchtowers: currVaultStatus.registeredWatchtowers
         }),
-        ...(currvaultStatus.vaultPushTime !== undefined && {
-          vaultPushTime: currvaultStatus.vaultPushTime
+        ...(currVaultStatus.vaultPushTime !== undefined && {
+          vaultPushTime: currVaultStatus.vaultPushTime
         }),
-        ...(currvaultStatus.triggerPushTime !== undefined && {
-          triggerPushTime: currvaultStatus.triggerPushTime
+        ...(currVaultStatus.triggerPushTime !== undefined && {
+          triggerPushTime: currVaultStatus.triggerPushTime
         }),
-        ...(currvaultStatus.panicPushTime !== undefined && {
-          panicPushTime: currvaultStatus.panicPushTime
+        ...(currVaultStatus.panicPushTime !== undefined && {
+          panicPushTime: currVaultStatus.panicPushTime
         })
       }
     : {};
@@ -1268,8 +1269,8 @@ async function fetchVaultStatus(
   );
   if (vaultTxData) {
     if (
-      currvaultStatus?.isHidden &&
-      currvaultStatus.vaultTxBlockHeight === undefined
+      currVaultStatus?.isHidden &&
+      currVaultStatus.vaultTxBlockHeight === undefined
     )
       //If the user hid the vault because it was VAULT_NOT_FOUND but then all
       //of a sudden we find it again in the blockchain, then show it!
@@ -1373,8 +1374,8 @@ async function fetchVaultStatus(
     Date.now() - newVaultStatus.triggerPushTime > PUSH_TIMEOUT_MS
   )
     delete newVaultStatus.triggerPushTime;
-  if (currvaultStatus && shallowEqualObjects(currvaultStatus, newVaultStatus))
-    return currvaultStatus;
+  if (currVaultStatus && shallowEqualObjects(currVaultStatus, newVaultStatus))
+    return currVaultStatus;
   else return newVaultStatus;
 }
 
@@ -1382,8 +1383,9 @@ async function fetchVaultStatus(
  * performs a fetchVaultStatus for all vaults in parallel
  * Note that vaultsStatuses fetched are only partial since
  * vaultPushTime, triggerPushTime and panicPushTime cannot be
- * retrieved from the network. We add them back using currvaultStatus if they
+ * retrieved from the network. We add them back using currVaultStatus if they
  * exist.
+ * Immutable.
  */
 export async function fetchVaultsStatuses(
   vaults: Vaults,
@@ -1400,7 +1402,7 @@ export async function fetchVaultsStatuses(
   });
 
   const results = await Promise.all(fetchPromises);
-  return results.reduce((acc, current) => {
+  const newVaultsStatuses = results.reduce((acc, current) => {
     const vaultAddress = Object.keys(current)[0];
     if (vaultAddress === undefined) throw new Error('vaultAddress undefined');
     const vaultStatus = current[vaultAddress];
@@ -1408,6 +1410,10 @@ export async function fetchVaultsStatuses(
     acc[vaultAddress] = vaultStatus;
     return acc;
   }, {});
+
+  if (shallowEqualObjects(currVaultStatuses, newVaultsStatuses))
+    return currVaultStatuses;
+  else return newVaultsStatuses;
 }
 
 const selectVaultUtxosDataFactory = memoize((utxosData: UtxosData) =>
