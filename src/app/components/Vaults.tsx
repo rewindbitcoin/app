@@ -492,13 +492,6 @@ const RawVault = ({
     watchtowerAPI !== undefined &&
     vaultStatus?.registeredWatchtowers?.includes(watchtowerAPI);
 
-  console.log('TRACE', {
-    OS: Platform.OS,
-    canReceiveNotifications,
-    registeredWatchtower,
-    notificationSetupResult
-  });
-
   return (
     <View
       key={vault.vaultId}
