@@ -577,16 +577,20 @@ const RawVault = ({
               >
                 <MaterialCommunityIcons
                   name={
-                    registeredWatchtower && notificationSetupResult?.success
-                      ? 'bell-outline'
-                      : 'bell-off-outline'
+                    notificationSetupResult === undefined
+                      ? 'bell-outline' // Default to outline while loading
+                      : registeredWatchtower && notificationSetupResult?.success
+                        ? 'bell-outline'
+                        : 'bell-off-outline'
                   }
                   className={`text-xl ${
-                    notificationSetupResult?.success
-                      ? registeredWatchtower
-                        ? 'text-green-500'
-                        : 'text-slate-600'
-                      : 'text-red-500'
+                    notificationSetupResult === undefined
+                      ? 'text-slate-400 animate-pulse' // Pulse effect while undefined
+                      : notificationSetupResult.success
+                        ? registeredWatchtower
+                          ? 'text-green-500' // Green if registered and setup successful
+                          : 'text-slate-600' // Slate if not registered but setup successful
+                        : 'text-red-500' // Red if setup failed
                   }`}
                 />
               </Pressable>
