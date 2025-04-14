@@ -1,5 +1,5 @@
 // TODO: very imporant to only allow Vaulting funds with 1 confirmatin at least (make this a setting)
-const PUSH_TIMEOUT_MS = 3 * 60 * 60 * 1000; // 3 hours
+const PUSH_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
 
 import { Network, Psbt, Transaction, crypto } from 'bitcoinjs-lib';
 import memoize from 'lodash.memoize';
@@ -991,8 +991,9 @@ export function validateAddress(addressValue: string, network: Network) {
  *
  * returns 'VAULT_NOT_FOUND' if vaultTxBlockHeight is not set; when not set
  * it's because the vault was never pushed or because it expired or was RBFd
- * returns 'TRIGGER_NOT_FOUND' if the trigger tx has not been pushed yet
- * returns 'SPENT_AS_HOT'/'SPENT_AS_PANIC' if the trigger tx has already been spent.
+ * returns 'TRIGGER_NOT_FOUND' if the trigger tx is not in the mempool/blockchain
+ * returns 'FOUND_AS_HOT'/'FOUND_AS_PANIC' if the trigger tx has already been
+ * spent by a tx confirmed or is found in the mempool.
  *
  * returns an integer lockBlocks >= remainingBlocks >= 0 with the number of
  * blocks the user must wait before pushing a tx so that they won't get
@@ -1006,14 +1007,14 @@ export function getRemainingBlocks(
 ):
   | 'VAULT_NOT_FOUND'
   | 'TRIGGER_NOT_FOUND'
-  | 'SPENT_AS_PANIC'
-  | 'SPENT_AS_HOT'
+  | 'FOUND_AS_PANIC'
+  | 'FOUND_AS_HOT'
   | number {
   if (vaultStatus.vaultTxBlockHeight === undefined) return 'VAULT_NOT_FOUND';
   if (vaultStatus.triggerTxBlockHeight === undefined)
     return 'TRIGGER_NOT_FOUND';
-  if (vaultStatus.panicTxHex) return 'SPENT_AS_PANIC';
-  if (vaultStatus.spendAsHotTxHex) return 'SPENT_AS_HOT';
+  if (vaultStatus.panicTxHex) return 'FOUND_AS_PANIC'; //will be set if in mempool or confirmed
+  if (vaultStatus.spendAsHotTxHex) return 'FOUND_AS_HOT'; //will be set if in mempool or confirmed
   let remainingBlocks: number;
   const isTriggerInMempool = vaultStatus.triggerTxBlockHeight === 0;
   if (isTriggerInMempool) {
@@ -1183,6 +1184,7 @@ async function fetchSpendingTx(
     .toString('hex');
 
   //retrieve all txs that sent / received from this scriptHash
+  //fetchTxHistory also includes mempool
   const history = await explorer.fetchTxHistory({ scriptHash });
 
   for (let i = 0; i < history.length; i++) {
@@ -1498,7 +1500,7 @@ const getHotTriggerDescriptors = (
         vaultStatus,
         blockhainTip
       );
-      return remainingBlocks === 0 || remainingBlocks === 'SPENT_AS_HOT';
+      return remainingBlocks === 0 || remainingBlocks === 'FOUND_AS_HOT';
     })
     .map(([, vault]) => vault.triggerDescriptor);
 

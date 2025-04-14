@@ -1,11 +1,8 @@
 //FIXME: la campanita sale roja al ppio. Mejor hacer un pulse desde el gris....
 //
-//FIXME:Add Accelerate links on the confirming... texts on the right!!!
+//TODO:Add Accelerate links on the confirming... texts on the right!!!
 //for the init and for the rescue
 //
-//FIXME: SPENT_AS_PANIC -> panicTxHex is set after the push!!! and SPENT_AS_HOT ??
-//but when are they unset if then not found anymore in the mempool?
-//also this is not SPENT! but MAYBE
 import React, {
   useCallback,
   useEffect,
@@ -53,7 +50,10 @@ import { Platform } from 'react-native';
 
 const LOADING_TEXT = '     ';
 
-const formatVaultDate = (unixTime: number | undefined, locale: string) => {
+const formatVaultDate = (
+  unixTime: number | undefined,
+  locale: string
+): string | undefined => {
   if (!unixTime) return;
   const date = new Date(unixTime * 1000);
   const now = new Date();
@@ -252,10 +252,10 @@ const RawVault = ({
   );
   const { netRequest } = useNetStatus();
 
-  const [isInitUnfreezeRequestValid, setIsInitUnfreezeRequestValid] =
+  const [isInitUnfreezeBeingHandled, setIsInitUnfreezeBeingHandled] =
     useState<boolean>(false);
   const isInitUnfreezePending =
-    !vaultStatus?.triggerTxHex && isInitUnfreezeRequestValid;
+    !vaultStatus?.triggerTxHex && isInitUnfreezeBeingHandled;
 
   const { t } = useTranslation();
 
@@ -272,7 +272,7 @@ const RawVault = ({
     async (initUnfreezeData: InitUnfreezeData) => {
       batchedUpdates(() => {
         setShowInitUnfreeze(false);
-        setIsInitUnfreezeRequestValid(true);
+        setIsInitUnfreezeBeingHandled(true);
       });
       const { status: pushStatus } = await netRequest({
         whenToastErrors: 'ON_ANY_ERROR',
@@ -282,7 +282,7 @@ const RawVault = ({
           await pushTx(initUnfreezeData.txHex);
         }
       });
-      if (pushStatus !== 'SUCCESS') setIsInitUnfreezeRequestValid(false);
+      if (pushStatus !== 'SUCCESS') setIsInitUnfreezeBeingHandled(false);
       else {
         if (!vaultStatus)
           throw new Error('vault status should exist for existing vault');
@@ -310,9 +310,10 @@ const RawVault = ({
   const handleCloseDelegate = useCallback(() => setShowDelegate(false), []);
   const handleShowDelegate = useCallback(() => setShowDelegate(true), []);
 
-  const [isRescueRequestValid, setIsRescueRequestValid] =
+  const [isRescueBeingHandled, setIsRescueBeingHandled] =
     useState<boolean>(false);
-  const isRescuePending = !vaultStatus?.panicTxHex && isRescueRequestValid;
+  const isRescueBeingHandledNotYetPushed =
+    !vaultStatus?.panicTxHex && isRescueBeingHandled;
   const [showRescue, setShowRescue] = useState<boolean>(false);
   const handleCloseRescue = useCallback(() => setShowRescue(false), []);
   const handleShowRescue = useCallback(() => setShowRescue(true), []);
@@ -320,14 +321,14 @@ const RawVault = ({
     async (rescueData: RescueData) => {
       batchedUpdates(() => {
         setShowRescue(false);
-        setIsRescueRequestValid(true);
+        setIsRescueBeingHandled(true);
       });
       const { status: pushStatus } = await netRequest({
         whenToastErrors: 'ON_ANY_ERROR',
         errorMessage: (message: string) => t('app.pushError', { message }),
         func: () => pushTx(rescueData.txHex)
       });
-      if (pushStatus !== 'SUCCESS') setIsRescueRequestValid(false);
+      if (pushStatus !== 'SUCCESS') setIsRescueBeingHandled(false);
       else {
         if (!vaultStatus)
           throw new Error('vault status should exist for existing vault');
@@ -360,34 +361,41 @@ const RawVault = ({
     locale
   );
   const unfrozenDate = formatVaultDate(vaultStatus?.hotBlockTime, locale);
-  const isInitUnfreezeConfirmed =
+  const isInitUnfreezeTxConfirmed =
     vaultStatus?.triggerTxBlockHeight !== undefined &&
     vaultStatus.triggerTxBlockHeight > 0;
-  const isInitUnfreezeInMempool = vaultStatus?.triggerTxBlockHeight === 0;
-  //FIXME: using triggerPushTime is risky cause what if it never reaches
-  //the mempool? - same for vaultPushTime, panicPushTime, unvaultPushTime
-  //Search for "ushTime" and fix ALL The code. Only consider pushes if very recent
-  //Also modify the docs
-  const isInitUnfreezePushed = vaultStatus?.triggerPushTime;
-  const isInitUnfreeze =
-    isInitUnfreezeInMempool || isInitUnfreezePushed || isInitUnfreezeConfirmed;
+  const isInitUnfreezeTxInMempool = vaultStatus?.triggerTxBlockHeight === 0;
+  const isInitUnfreezeTxConfirmedButReversible =
+    !!tipHeight &&
+    !!vaultStatus?.triggerTxBlockHeight &&
+    tipHeight - vaultStatus.triggerTxBlockHeight < IRREVERSIBLE_BLOCKS - 1;
+  const isInitUnfreezeTxPushed = !!vaultStatus?.triggerPushTime;
+  const isInitUnfreezeTx =
+    isInitUnfreezeTxInMempool ||
+    isInitUnfreezeTxPushed ||
+    isInitUnfreezeTxConfirmed;
   const isUnfrozen =
-    remainingBlocks === 0 || remainingBlocks === 'SPENT_AS_HOT';
-  const isRescued = remainingBlocks === 'SPENT_AS_PANIC';
-  const isRescuedConfirmed = !!(isRescued && vaultStatus?.panicTxBlockHeight);
+    remainingBlocks === 0 || remainingBlocks === 'FOUND_AS_HOT';
+  const isRescueTxPushed = !!vaultStatus?.panicPushTime;
+  const isRescueTxInMempool = vaultStatus?.vaultTxBlockHeight === 0;
+  const isRescueTxConfirmed =
+    vaultStatus?.panicTxBlockHeight !== undefined &&
+    vaultStatus.panicTxBlockHeight > 0;
+  const isRescueTx =
+    isRescueTxPushed || isRescueTxInMempool || isRescueTxConfirmed;
 
-  const canBeRescued = isInitUnfreeze && !isUnfrozen && !isRescued;
-  const canBeDelegated =
-    remainingBlocks !== 'VAULT_NOT_FOUND' && !isUnfrozen && !isRescued;
-  //&&(isInitUnfreeze || remainingBlocks === 'TRIGGER_NOT_FOUND');
-  const isUnfreezeOngoing =
-    typeof remainingBlocks === 'number' && remainingBlocks > 0;
-  //FIXME: discrepancy between isUnfreezeOngoing which is needed for the Amount computation
-  //and !isInitUnfreeze for the buttons rendering. The isInitUnfreeze also
-  //includes pushed-not-in-mempool-yet
+  const isVaultTxConfirmed =
+    vaultStatus?.vaultTxBlockHeight !== undefined &&
+    vaultStatus.vaultTxBlockHeight > 0;
+  const isVaultTxInMempool = vaultStatus?.vaultTxBlockHeight === 0;
+  const isVaultTxPushed = !!vault?.vaultTxHex;
+  const isVaultTx = isVaultTxPushed || isVaultTxInMempool || isVaultTxConfirmed;
+
+  const canBeRescued = isInitUnfreezeTx && !isUnfrozen && !isRescueTx;
+  const canBeDelegated = isVaultTx && !isUnfrozen && !isRescueTx;
 
   const canBeHidden =
-    remainingBlocks === 'VAULT_NOT_FOUND' ||
+    !isVaultTx ||
     //can be hidden if irreversible after specified blocks
     //since either a rescue tx or after having reached a hot status
     (tipHeight &&
@@ -413,11 +421,9 @@ const RawVault = ({
 
   const triggerBlockTimeBestGuess = vaultStatus?.triggerTxBlockTime
     ? vaultStatus.triggerTxBlockTime
-    : vaultStatus?.triggerPushTime
+    : isInitUnfreezeTxPushed || isInitUnfreezeTxInMempool
       ? now + 10 * 60 //expected is always 10' from now
-      : vaultStatus?.triggerTxBlockHeight === 0 //in the mempool but pushed in another device
-        ? now + 10 * 60 //expected is always 10' from now
-        : undefined;
+      : undefined;
 
   //It's better to find out the unfreeze expected time based on the remainig time
   // and not using triggerTime + blockBlocks since previous blocks until now
@@ -430,19 +436,25 @@ const RawVault = ({
         ? undefined //this means it already is unfrozen
         : now + remainingBlocks * 10 * 60; //expected is always 10' from now, whatever is now
 
-  //const remainingTimeBestGuess =
-  //  unfreezeTimeBestGuess && unfreezeTimeBestGuess - now;
-
   const estimatedUnfreezeDate =
     unfreezeTimeBestGuess && formatVaultDate(unfreezeTimeBestGuess, locale);
+
+  const triggerConfirmedDate = formatVaultDate(
+    vaultStatus?.triggerTxBlockTime,
+    locale
+  );
 
   const plannedUnfreezeTimeButRescued =
     triggerBlockTimeBestGuess &&
     triggerBlockTimeBestGuess + vault.lockBlocks * 10 * 60;
-  const plannedUnfreezeDateButRescued = formatVaultDate(
+  const plannedUnfreezeButRescuedDate = formatVaultDate(
     plannedUnfreezeTimeButRescued,
     locale
   );
+  const triggerPushDate = formatVaultDate(vaultStatus?.triggerPushTime, locale);
+
+  const vaultInitDate =
+    vaultStatus && getVaultInitDate(vault, vaultStatus, locale);
   const vaultStatusRef = useRef(vaultStatus);
   useEffect(() => {
     return () => {
@@ -496,9 +508,9 @@ const RawVault = ({
             //Also opacity must be reset to initial value
           }
         >
-          {vaultStatus
+          {vaultInitDate
             ? t('wallet.vault.vaultDate', {
-                date: getVaultInitDate(vault, vaultStatus, locale)
+                date: vaultInitDate
               })
             : LOADING_TEXT}
         </Text>
@@ -509,11 +521,13 @@ const RawVault = ({
             {!!frozenBalance && (
               <Amount
                 title={
-                  isUnfreezeOngoing
+                  isInitUnfreezeTx
                     ? t('wallet.vault.amountBeingUnfrozen')
                     : t('wallet.vault.amountFrozen')
                 }
-                isConfirming={vaultStatus?.vaultTxBlockHeight === 0}
+                isConfirming={
+                  (isVaultTxPushed || isVaultTxInMempool) && !isVaultTxConfirmed
+                }
                 satsBalance={frozenBalance}
                 btcFiat={btcFiat}
                 mode={mode}
@@ -531,7 +545,10 @@ const RawVault = ({
             {!!rescuedBalance && (
               <Amount
                 title={t('wallet.vault.rescuedAmount')}
-                isConfirming={isRescued && !isRescuedConfirmed}
+                isConfirming={
+                  (isRescueTxPushed || isRescueTxInMempool) &&
+                  !isRescueTxConfirmed
+                }
                 satsBalance={rescuedBalance}
                 btcFiat={btcFiat}
                 mode={mode}
@@ -540,11 +557,8 @@ const RawVault = ({
           </View>
           {canReceiveNotifications &&
             (remainingBlocks === 'TRIGGER_NOT_FOUND' ||
-              /*mempool*/ vaultStatus?.triggerTxBlockHeight === 0 ||
-              /*reversible*/ (!!tipHeight &&
-                !!vaultStatus?.triggerTxBlockHeight &&
-                tipHeight - vaultStatus.triggerTxBlockHeight <
-                  IRREVERSIBLE_BLOCKS - 1)) && (
+              isInitUnfreezeTxInMempool ||
+              isInitUnfreezeTxConfirmedButReversible) && (
               <Pressable
                 onPress={handleWatchtowerHelp}
                 hitSlop={20}
@@ -567,7 +581,7 @@ const RawVault = ({
               </Pressable>
             )}
         </View>
-        {isUnfreezeOngoing && (
+        {typeof remainingBlocks === 'number' && remainingBlocks > 0 && (
           <View className="flex-row items-center mt-2">
             {/*<MaterialCommunityIcons
               name="lock-clock"
@@ -595,25 +609,25 @@ const RawVault = ({
             </Text>
           </View>
         )}
-        <View
-          className={`gap-4 ${remainingBlocks !== 'VAULT_NOT_FOUND' ? 'pt-4' : ''}`}
-        >
-          {isInitUnfreezePushed && !isInitUnfreezeConfirmed && (
-            <VaultText
-              icon={{
-                name: 'clock-fast',
-                family: 'MaterialCommunityIcons'
-              }}
-            >
-              {t('wallet.vault.pushedTriggerNotConfirmed', {
-                triggerPushDate: formatVaultDate(
-                  vaultStatus?.triggerPushTime,
-                  locale
-                )
-              })}
-            </VaultText>
-          )}
-          {vaultStatus?.triggerTxBlockTime && (
+        <View className={`gap-4 ${isVaultTx ? 'pt-4' : ''}`}>
+          {(isInitUnfreezeTxPushed || isInitUnfreezeTxInMempool) &&
+            !isInitUnfreezeTxConfirmed && (
+              <VaultText
+                icon={{
+                  name: 'clock-fast',
+                  family: 'MaterialCommunityIcons'
+                }}
+              >
+                {
+                  t('wallet.vault.pushedTriggerNotConfirmed', {
+                    //FIXME: what if pushed in another device?
+                    triggerPushDate //FIXME: what if unset?
+                  })
+                  //TODO: accelerate
+                }
+              </VaultText>
+            )}
+          {triggerConfirmedDate && (
             <VaultText
               icon={{
                 name: 'clock-fast',
@@ -622,14 +636,11 @@ const RawVault = ({
             >
               {t('wallet.vault.confirmedTrigger', {
                 lockTime: formatBlocks(vault.lockBlocks, t, locale, true),
-                triggerConfirmedDate: formatVaultDate(
-                  vaultStatus?.triggerTxBlockTime,
-                  locale
-                )
+                triggerConfirmedDate
               })}
             </VaultText>
           )}
-          {isInitUnfreeze && !isUnfrozen && !isRescued && (
+          {isInitUnfreezeTx && !isUnfrozen && !isRescueTx && (
             <VaultText
               icon={{
                 name: 'flag-checkered',
@@ -637,11 +648,11 @@ const RawVault = ({
               }}
             >
               {t('wallet.vault.triggerWithEstimatedDate', {
-                estimatedUnfreezeDate
+                estimatedUnfreezeDate //FIXME: what if unset?
               })}
             </VaultText>
           )}
-          {isInitUnfreeze && isUnfrozen && (
+          {isInitUnfreezeTx && isUnfrozen && (
             <VaultText
               icon={{
                 name: 'flag-checkered',
@@ -653,7 +664,7 @@ const RawVault = ({
                 : t('wallet.vault.unfrozenOnNextBlock')}
             </VaultText>
           )}
-          {isRescued && (
+          {isRescueTx && (
             <VaultText
               danger
               icon={{
@@ -662,11 +673,11 @@ const RawVault = ({
               }}
             >
               {t('wallet.vault.triggerWithEstimatedDateButRescued', {
-                plannedUnfreezeDateButRescued
+                plannedUnfreezeButRescuedDate //FIXME: what if unset?
               })}
             </VaultText>
           )}
-          {isRescued && isRescuedConfirmed && (
+          {rescuedDate && (
             <VaultText
               icon={{
                 name: 'shield-alert-outline',
@@ -679,36 +690,40 @@ const RawVault = ({
               })}
             </VaultText>
           )}
-          {isRescued && !isRescuedConfirmed && (
+          {isRescueTx && !isRescueTxConfirmed && (
             <VaultText
               icon={{
                 name: 'shield-alert-outline',
                 family: 'MaterialCommunityIcons'
               }}
             >
-              {rescuePushDate
-                ? t('wallet.vault.rescueNotConfirmed', {
-                    rescuePushDate,
-                    panicAddress
-                  })
-                : t('wallet.vault.rescueNotConfirmedUnknownPush')}
+              {
+                rescuePushDate
+                  ? t('wallet.vault.rescueNotConfirmed', {
+                      //FIXME: what if pushed in another device?
+                      rescuePushDate,
+                      panicAddress
+                    })
+                  : t('wallet.vault.rescueNotConfirmedUnknownPush')
+                //TODO: accelerate
+              }
             </VaultText>
           )}
-          {remainingBlocks === 'VAULT_NOT_FOUND' && (
+          {!isVaultTx && (
             <Text className="pt-2">{t('wallet.vault.vaultNotFound')}</Text>
           )}
           {remainingBlocks === 'TRIGGER_NOT_FOUND' && (
             <Text className="pt-2">
-              {!vaultStatus?.vaultTxBlockHeight
-                ? t('wallet.vault.notTriggeredUnconfirmed', {
+              {isVaultTxConfirmed
+                ? t('wallet.vault.notTriggered', {
                     lockTime: formatBlocks(vault.lockBlocks, t, locale, true)
                   })
-                : t('wallet.vault.notTriggered', {
+                : t('wallet.vault.notTriggeredUnconfirmed', {
                     lockTime: formatBlocks(vault.lockBlocks, t, locale, true)
                   })}
             </Text>
           )}
-          {remainingBlocks === 'SPENT_AS_HOT' && (
+          {remainingBlocks === 'FOUND_AS_HOT' && (
             <Text className="pt-2">
               {spentAsHotDate
                 ? t('wallet.vault.unfrozenAndSpent', { spentAsHotDate })
@@ -720,11 +735,11 @@ const RawVault = ({
               {t('wallet.vault.unfrozenAndHotBalance')}
             </Text>
           )}
-          {isRescued && (
+          {isRescueTx && (
             // native:text-sm web:text-xs web:sm:text-sm
             <>
               <Text className="py-2">
-                {isRescuedConfirmed
+                {isRescueTxConfirmed
                   ? t('wallet.vault.confirmedRescueAddress')
                   : t('wallet.vault.rescueNotConfirmedAddress')}
               </Text>
@@ -746,20 +761,23 @@ const RawVault = ({
             </>
           )}
         </View>
-        {(canBeRescued || !isInitUnfreeze || canBeDelegated || canBeHidden) && (
+        {(canBeRescued ||
+          !isInitUnfreezeTx ||
+          canBeDelegated ||
+          canBeHidden) && (
           <View
-            className={`w-full flex-row ${[canBeRescued, !isInitUnfreeze, canBeDelegated, canBeHidden].filter(Boolean).length > 1 ? 'justify-between flex-wrap' : 'justify-end'} pt-8 px-0 moblg:px-4 gap-4 moblg:gap-6`}
+            className={`w-full flex-row ${[canBeRescued, !isInitUnfreezeTx, canBeDelegated, canBeHidden].filter(Boolean).length > 1 ? 'justify-between flex-wrap' : 'justify-end'} pt-8 px-0 moblg:px-4 gap-4 moblg:gap-6`}
           >
             {canBeRescued && (
               <VaultButton
                 mode="secondary-alert"
                 onPress={handleShowRescue}
-                loading={isRescuePending}
+                loading={isRescueBeingHandledNotYetPushed}
                 msg={t('wallet.vault.rescueButton')}
                 onInfoPress={handleRescueHelp}
               />
             )}
-            {!isInitUnfreeze && (
+            {!isInitUnfreezeTx && (
               //FIXME: antes -> Aqui si no está en la mempool se sigue enseñando
               <VaultButton
                 mode="secondary"
