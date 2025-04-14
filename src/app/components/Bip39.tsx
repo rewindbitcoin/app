@@ -279,6 +279,7 @@ export default function Bip39({
                     ? 'text-notification'
                     : 'text-black'
                 }`}
+                style={fixTextFlicker}
                 spellCheck={false}
                 maxLength={MAX_LENGTH + 1}
                 autoComplete={'off'}
@@ -286,7 +287,6 @@ export default function Bip39({
                 autoCapitalize="none"
                 onChangeText={handleChangeText}
                 onFocus={handleFocus(index)}
-                style={fixTextFlicker} // Apply the fix here
               />
             )}
           </View>
