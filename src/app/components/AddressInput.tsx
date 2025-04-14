@@ -87,10 +87,17 @@ function AddressInput({
     [address]
   );
 
-  // NativeWind's `text-base` sets a lineHeight, which causes a subtle jump/flicker
-  // on each keystroke in TextInput. This is a known React Native quirk.
-  // Setting lineHeight to `undefined` prevents layout recalculations while typing.
-  const fixTextFlicker = useMemo(() => ({ lineHeight: undefined }), []);
+  // Memoize the entire style object for the TextInput to prevent unnecessary re-renders.
+  // This includes the base flicker fix (lineHeight: undefined) and the conditional
+  // Android width fix.
+  const textInputStyle = useMemo(() => {
+    const baseStyle = { lineHeight: undefined }; // Flicker fix
+    const androidWidthStyle =
+      Platform.OS === 'android' && inputWidth && address === ''
+        ? { width: inputWidth }
+        : {};
+    return [baseStyle, androidWidthStyle];
+  }, [inputWidth, address]);
 
   useEffect(() => {
     const checkCameras = async () => {
@@ -265,12 +272,7 @@ function AddressInput({
             value={address}
             className={`w-full ios:mb-1 native:text-base web:text-xs web:mobmed:text-sm web:sm:text-base overflow-hidden web:outline-none border-none p-2 pl-0 border-md tracking-normal ${robotoLoaded ? "font-['RobotoMono400Regular']" : ''} ${Platform.OS === 'android' && inputWidth && address === '' ? '' : 'flex-1'}`}
             onLayout={handleInputLayout}
-            style={[
-              fixTextFlicker, // Apply the base flicker fix
-              Platform.OS === 'android' && inputWidth && address === ''
-                ? { width: inputWidth } // Apply conditional Android width fix
-                : {}
-            ]}
+            style={textInputStyle} // Apply the fully memoized style
           />
           {type === 'emergency' && (
             <View className="py-1">
