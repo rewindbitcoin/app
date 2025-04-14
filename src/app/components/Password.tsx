@@ -1,5 +1,11 @@
 import { validatePassword } from '../lib/validators';
-import React, { useRef, useEffect, useCallback, useState } from 'react';
+import React, {
+  useRef,
+  useEffect,
+  useCallback,
+  useState,
+  useMemo
+} from 'react';
 
 import { Platform, View, Text, TextInput } from 'react-native';
 import { Modal, Button } from '../../common/ui';
@@ -56,6 +62,12 @@ const Password = ({
     // Cleanup function
     return () => clearTimeout(timer);
   }, [isVisible]);
+
+  // NativeWind's `text-base` sets a lineHeight, which causes a subtle jump/flicker
+  // on each keystroke in TextInput. This is a known React Native quirk.
+  // Setting lineHeight to `undefined` prevents layout recalculations while typing.
+  const textInputStyle = useMemo(() => ({ lineHeight: undefined }), []);
+
   return (
     <Modal
       title={
