@@ -66,7 +66,7 @@ const Password = ({
   // NativeWind's `text-base` sets a lineHeight, which causes a subtle jump/flicker
   // on each keystroke in TextInput. This is a known React Native quirk.
   // Setting lineHeight to `undefined` prevents layout recalculations while typing.
-  const textInputStyle = useMemo(() => ({ lineHeight: undefined }), []);
+  const fixTextFlicker = useMemo(() => ({ lineHeight: undefined }), []);
 
   return (
     <Modal
@@ -137,12 +137,7 @@ const Password = ({
           {...(Platform.OS === 'ios' ? { textContentType: 'newPassword' } : {})}
           onChangeText={onChangePassword}
           className="text-base outline-none flex-1 web:w-full rounded bg-slate-200 py-2 px-4"
-          style={{
-            // NativeWind's `text-base` sets a lineHeight, which causes a subtle jump/flicker
-            // on each keystroke in TextInput. This is a known React Native quirk.
-            // Setting lineHeight to `undefined` prevents layout recalculations while typing.
-            lineHeight: undefined
-          }}
+          style={fixTextFlicker}
         />
       </View>
     </Modal>
