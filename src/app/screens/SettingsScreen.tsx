@@ -1,6 +1,12 @@
 const URL_MAX_LENGTH = 256;
 const NAME_MAX_LENGTH = 32;
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState
+} from 'react';
 import Bip39 from '../components/Bip39';
 import * as Icons from '@expo/vector-icons';
 import { Platform, Pressable, Text, TextInput } from 'react-native';
@@ -152,6 +158,11 @@ const SettingsItem = ({
   const Icon = Icons[icon.family];
   const dangerColor = 'rgb(239,68,69)'; //text-red-500
   const gray400 = 'rgb(156,163,175)';
+
+  // NativeWind's `text-base` sets a lineHeight, which causes a subtle jump/flicker
+  // on each keystroke in TextInput. This is a known React Native quirk.
+  // Setting lineHeight to `undefined` prevents layout recalculations while typing.
+  const fixTextFlicker = useMemo(() => ({ lineHeight: undefined }), []);
   return (
     <Pressable onPress={onPressInternal} className="w-full active:bg-gray-200">
       <View className="flex-row items-center">
@@ -221,6 +232,7 @@ const SettingsItem = ({
           <TextInput
             ref={textInputRef}
             className="text-base outline-none flex-1 web:w-full rounded bg-slate-200 py-2 px-4"
+            style={fixTextFlicker}
             value={value}
             enablesReturnKeyAutomatically
             autoComplete="off"
@@ -467,6 +479,11 @@ const SettingsScreen = () => {
   const title = wallet && wallets ? walletTitle(wallet, wallets, t) : '';
 
   const mnemonic = signers && signers[0]?.mnemonic;
+
+  // NativeWind's `text-base` sets a lineHeight, which causes a subtle jump/flicker
+  // on each keystroke in TextInput. This is a known React Native quirk.
+  // Setting lineHeight to `undefined` prevents layout recalculations while typing.
+  const fixTextFlicker = useMemo(() => ({ lineHeight: undefined }), []);
 
   if (!settings)
     return (
@@ -874,11 +891,14 @@ const SettingsScreen = () => {
                 <TextInput
                   className={`text-base outline-none web:w-full rounded bg-slate-200 py-2 px-4 ${Platform.OS === 'android' && inputWidth && deleteInputValue === '' ? '' : 'flex-1'}`}
                   onLayout={handleInputLayout}
-                  {...(Platform.OS === 'android' &&
-                  inputWidth &&
-                  deleteInputValue === ''
-                    ? { style: { width: inputWidth } }
-                    : {})}
+                  style={[
+                    fixTextFlicker,
+                    Platform.OS === 'android' &&
+                    inputWidth &&
+                    deleteInputValue === ''
+                      ? { width: inputWidth }
+                      : {}
+                  ]}
                   placeholder={t('settings.wallet.deletePlaceholder')}
                   value={deleteInputValue}
                   autoComplete="off"
