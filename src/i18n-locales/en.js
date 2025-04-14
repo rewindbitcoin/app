@@ -185,6 +185,7 @@ If you need further assistance, please contact Rewind Support.`
 
       //pushedTrigger: 'An unfreeze request was made on {{triggerPushDate}}.',
       pushedTriggerNotConfirmed: 'Unfreeze requested on {{triggerPushDate}}.',
+      pushedTriggerNotConfirmedUnknownDate: 'Unfreeze recently requested.',
       //confirmedTrigger: 'Unfreeze countdown began on {{triggerConfirmedDate}}.',
       confirmedTrigger:
         '{{lockTime}} countdown started on {{triggerConfirmedDate}}.',

@@ -1,3 +1,7 @@
+//TEST:
+//do a normal vault creation at xx:01 and then do a rescue and all that
+//and see how this looks in another device that did not do the push
+//
 //FIXME: la campanita sale roja al ppio. Mejor hacer un pulse desde el gris....
 //
 //TODO:Add Accelerate links on the confirming... texts on the right!!!
@@ -619,10 +623,11 @@ const RawVault = ({
                 }}
               >
                 {
-                  t('wallet.vault.pushedTriggerNotConfirmed', {
-                    //FIXME: what if pushed in another device?
-                    triggerPushDate //FIXME: what if unset?
-                  })
+                  triggerPushDate
+                    ? t('wallet.vault.pushedTriggerNotConfirmed', {
+                        triggerPushDate
+                      })
+                    : t('wallet.vault.pushedTriggerNotConfirmedUnknownDate')
                   //TODO: accelerate
                 }
               </VaultText>
@@ -640,18 +645,21 @@ const RawVault = ({
               })}
             </VaultText>
           )}
-          {isInitUnfreezeTx && !isUnfrozen && !isRescueTx && (
-            <VaultText
-              icon={{
-                name: 'flag-checkered',
-                family: 'MaterialCommunityIcons'
-              }}
-            >
-              {t('wallet.vault.triggerWithEstimatedDate', {
-                estimatedUnfreezeDate //FIXME: what if unset?
-              })}
-            </VaultText>
-          )}
+          {isInitUnfreezeTx &&
+            !isUnfrozen &&
+            !isRescueTx &&
+            estimatedUnfreezeDate && (
+              <VaultText
+                icon={{
+                  name: 'flag-checkered',
+                  family: 'MaterialCommunityIcons'
+                }}
+              >
+                {t('wallet.vault.triggerWithEstimatedDate', {
+                  estimatedUnfreezeDate
+                })}
+              </VaultText>
+            )}
           {isInitUnfreezeTx && isUnfrozen && (
             <VaultText
               icon={{
@@ -664,7 +672,7 @@ const RawVault = ({
                 : t('wallet.vault.unfrozenOnNextBlock')}
             </VaultText>
           )}
-          {isRescueTx && (
+          {isRescueTx && plannedUnfreezeButRescuedDate && (
             <VaultText
               danger
               icon={{
@@ -673,7 +681,7 @@ const RawVault = ({
               }}
             >
               {t('wallet.vault.triggerWithEstimatedDateButRescued', {
-                plannedUnfreezeButRescuedDate //FIXME: what if unset?
+                plannedUnfreezeButRescuedDate
               })}
             </VaultText>
           )}
@@ -700,7 +708,6 @@ const RawVault = ({
               {
                 rescuePushDate
                   ? t('wallet.vault.rescueNotConfirmed', {
-                      //FIXME: what if pushed in another device?
                       rescuePushDate,
                       panicAddress
                     })
@@ -778,7 +785,6 @@ const RawVault = ({
               />
             )}
             {!isInitUnfreezeTx && (
-              //FIXME: antes -> Aqui si no está en la mempool se sigue enseñando
               <VaultButton
                 mode="secondary"
                 onPress={handleShowInitUnfreeze}
