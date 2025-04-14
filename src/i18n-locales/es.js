@@ -171,7 +171,7 @@ Si necesitas más ayuda, por favor contacta con el equipo de Soporte de Rewind.`
       triggerWithEstimatedDate:
         'Descongelación estimada para el {{estimatedUnfreezeDate}}.',
       triggerWithEstimatedDateButRescued:
-        'Descongelación planeada para el {{plannedUnfreezeDateButRescued}}.',
+        'Descongelación planeada para el {{plannedUnfreezeButRescuedDate}}.',
       unfrozenDate: 'Descongelada el {{unfrozenDate}}.',
       unfrozenOnNextBlock:
         'La bóveda está virtualmente descongelada. Los fondos podrán ser utilizados en el próximo bloque.',

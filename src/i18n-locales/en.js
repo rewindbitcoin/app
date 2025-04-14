@@ -194,7 +194,7 @@ If you need further assistance, please contact Rewind Support.`
       triggerWithEstimatedDate:
         'Unfreeze estimated for {{estimatedUnfreezeDate}}.',
       triggerWithEstimatedDateButRescued:
-        'Unfreeze planned for {{plannedUnfreezeDateButRescued}}.',
+        'Unfreeze planned for {{plannedUnfreezeButRescuedDate}}.',
       unfrozenDate: 'Unfrozen on {{unfrozenDate}}.',
       unfrozenOnNextBlock:
         'The vault just became virtually unfrozen. Funds can be spent in the next block.',

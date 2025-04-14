@@ -2,8 +2,6 @@
 //do a normal vault creation at xx:01 and then do a rescue and all that
 //and see how this looks in another device that did not do the push
 //
-//FIXME: la campanita sale roja al ppio. Mejor hacer un pulse desde el gris....
-//
 //TODO:Add Accelerate links on the confirming... texts on the right!!!
 //for the init and for the rescue
 //
@@ -381,7 +379,7 @@ const RawVault = ({
   const isUnfrozen =
     remainingBlocks === 0 || remainingBlocks === 'FOUND_AS_HOT';
   const isRescueTxPushed = !!vaultStatus?.panicPushTime;
-  const isRescueTxInMempool = vaultStatus?.vaultTxBlockHeight === 0;
+  const isRescueTxInMempool = vaultStatus?.panicTxBlockHeight === 0;
   const isRescueTxConfirmed =
     vaultStatus?.panicTxBlockHeight !== undefined &&
     vaultStatus.panicTxBlockHeight > 0;
@@ -573,24 +571,25 @@ const RawVault = ({
               <Pressable
                 onPress={handleWatchtowerHelp}
                 hitSlop={20}
-                className="p-1.5 bg-white rounded-xl shadow-sm android:elevation android:border android:border-slate-200 active:opacity-70 active:scale-95"
+                disabled={notificationSetupResult === undefined} // Disable while loading
+                className={`p-1.5 bg-white rounded-xl shadow-sm android:elevation android:border android:border-slate-200 active:opacity-70 active:scale-95 ${notificationSetupResult === undefined ? 'animate-pulse' : ''}`}
               >
                 <MaterialCommunityIcons
                   name={
                     notificationSetupResult === undefined
-                      ? 'bell-outline' // Default to outline while loading
+                      ? 'bell-outline'
                       : registeredWatchtower && notificationSetupResult?.success
                         ? 'bell-outline'
                         : 'bell-off-outline'
                   }
                   className={`text-xl ${
                     notificationSetupResult === undefined
-                      ? 'text-slate-400 animate-pulse' // Pulse effect while undefined
+                      ? 'text-slate-400' // Pulse effect while undefined
                       : notificationSetupResult.success
                         ? registeredWatchtower
-                          ? 'text-green-500' // Green if registered and setup successful
-                          : 'text-slate-600' // Slate if not registered but setup successful
-                        : 'text-red-500' // Red if setup failed
+                          ? 'text-green-500'
+                          : 'text-slate-600'
+                        : 'text-red-500'
                   }`}
                 />
               </Pressable>
