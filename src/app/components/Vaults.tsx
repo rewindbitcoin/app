@@ -386,7 +386,7 @@ const RawVault = ({
   const isRescueTx =
     isRescueTxPushed || isRescueTxInMempool || isRescueTxConfirmed;
 
-  const canBeInitUnfreeze = isVaultTx && !isInitUnfreezeTx;
+  const canInitUnfreeze = isVaultTx && !isInitUnfreezeTx;
   const canBeRescued = isInitUnfreezeTx && !isUnfrozen && !isRescueTx;
   const canBeDelegated = isVaultTx && !isUnfrozen && !isRescueTx;
 
@@ -765,12 +765,9 @@ const RawVault = ({
             </>
           )}
         </View>
-        {(canBeRescued ||
-          canBeInitUnfreeze ||
-          canBeDelegated ||
-          canBeHidden) && (
+        {(canBeRescued || canInitUnfreeze || canBeDelegated || canBeHidden) && (
           <View
-            className={`w-full flex-row ${[canBeRescued, !isInitUnfreezeTx, canBeDelegated, canBeHidden].filter(Boolean).length > 1 ? 'justify-between flex-wrap' : 'justify-end'} pt-8 px-0 moblg:px-4 gap-4 moblg:gap-6`}
+            className={`w-full flex-row ${[canBeRescued, canInitUnfreeze, canBeDelegated, canBeHidden].filter(Boolean).length > 1 ? 'justify-between flex-wrap' : 'justify-end'} pt-8 px-0 moblg:px-4 gap-4 moblg:gap-6`}
           >
             {canBeRescued && (
               <VaultButton
@@ -781,7 +778,7 @@ const RawVault = ({
                 onInfoPress={handleRescueHelp}
               />
             )}
-            {canBeInitUnfreeze && (
+            {canInitUnfreeze && (
               <VaultButton
                 mode="secondary"
                 onPress={handleShowInitUnfreeze}
