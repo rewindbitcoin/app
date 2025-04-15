@@ -291,7 +291,26 @@ Once the countdown ends, your funds will be unlocked and accessible.`
       },
       noFundsTile: 'No Funds Frozen Yet',
       noFundsBody:
-        'Keep your savings secure by freezing the funds not needed daily in Vaults.'
+        'Keep your savings secure by freezing the funds not needed daily in Vaults.',
+      watchtower: {
+        permissionTitle: 'Enable Vault Alerts?',
+        allowButton: 'Allow Notifications',
+        permissionExplanation:
+          'Allow Rewind to send push notifications. This is highly recommended to alert you immediately if unauthorized access to your vault is attempted, giving you time to protect your funds.',
+        statusTitle: 'Vault Monitoring Status',
+        registered:
+          "This vault is monitored. You'll receive a push notification if unauthorized activity is detected.",
+        unregistered: {
+          ios: 'To enable monitoring and receive alerts, please allow push notifications when prompted.',
+          android:
+            'To enable monitoring and receive alerts, please allow push notifications when prompted.'
+        },
+        settings: {
+          ios: "To receive alerts, please go to your device's Settings > Notifications > Rewind and enable notifications.",
+          android:
+            "To receive alerts, please go to your device's Settings > Apps > Rewind > Notifications and enable notifications."
+        }
+      }
     },
     password: {
       validation: {

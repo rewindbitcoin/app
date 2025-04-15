@@ -2,6 +2,10 @@
 //do a normal vault creation at xx:01 and then do a rescue and all that
 //and see how this looks in another device that did not do the push
 //
+//TEST: test what if the watchtower is down
+//
+//FIXME: missing spanish translations and improve english ones
+//
 //TODO:Add Accelerate links on the confirming... texts on the right!!!
 //for the init and for the rescue
 //
@@ -868,7 +872,7 @@ const RawVault = ({
         </Text>
       </Modal>
       <Modal
-        title={t('wallet.vault.help.watchtower.title')}
+        title={t('wallet.vault.watchtower.statusTitle')}
         icon={{
           family: 'MaterialCommunityIcons',
           name: 'bell'
@@ -895,7 +899,7 @@ const RawVault = ({
                     }
                   }}
                 >
-                  {t('wallet.vault.help.watchtower.enableButton')}
+                  {t('wallet.vault.watchtower.allowButton')}
                 </Button>
               )}
             <Button mode="secondary" onPress={handleCloseWatchtowerHelp}>
@@ -907,14 +911,14 @@ const RawVault = ({
         <Text className="text-base pl-2 pr-2 text-slate-600">
           {registeredWatchtower
             ? //FIXME: here i still need explanations for when success is false
-              t('wallet.vault.help.watchtower.registered')
+              t('wallet.vault.watchtower.registered')
             : notificationSetupResult?.canAskAgain
               ? Platform.OS === 'ios'
-                ? t('wallet.vault.help.watchtower.unregistered.ios')
-                : t('wallet.vault.help.watchtower.unregistered.android')
+                ? t('wallet.vault.watchtower.unregistered.ios')
+                : t('wallet.vault.watchtower.unregistered.android')
               : Platform.OS === 'ios'
-                ? t('wallet.vault.help.watchtower.settings.ios')
-                : t('wallet.vault.help.watchtower.settings.android')}
+                ? t('wallet.vault.watchtower.settings.ios')
+                : t('wallet.vault.watchtower.settings.android')}
         </Text>
       </Modal>
     </View>
@@ -949,14 +953,8 @@ const Vaults = ({
   const { t } = useTranslation();
   const [notificationSetupResult, setNotificationSetupResult] =
     useState<NotificationSetupResult>();
-  const [
-    showPermissionExplanationModal,
-    setShowPermissionExplanationModal
-  ] = useState(false);
-
-  // Configure notifications when vaults are first detected
-  // This is the where the App will request users to accept push Notifications
-  const vaultsExist = Object.keys(vaults).length > 0;
+  const [showPermissionExplanationModal, setShowPermissionExplanationModal] =
+    useState(false);
 
   const handleRequestPermission = useCallback(async () => {
     setShowPermissionExplanationModal(false);
@@ -968,66 +966,43 @@ const Vaults = ({
       if (result.success) await syncWatchtowerRegistration();
     } catch (error: unknown) {
       console.warn('Failed during notification configuration:', error);
-      // Optionally update state to reflect the error
-      setNotificationSetupResult({ success: false, canAskAgain: false }); // Example error state
     }
   }, [syncWatchtowerRegistration]);
 
   const handleCancelPermissionRequest = useCallback(() => {
     setShowPermissionExplanationModal(false);
-    // Update state to reflect that permission was not granted, but could be asked again
-    setNotificationSetupResult(prevResult => {
-      const newState = { success: false, canAskAgain: true };
-      return shallowEqualObjects(prevResult, newState) ? prevResult : newState;
-    });
   }, []);
 
+  // Configure notifications when vaults are first detected
+  // This is the where the App will request users to accept push Notifications
+  const hasVaults = Object.keys(vaults).length > 0;
   useEffect(() => {
     const setupNotificationsAndWatchtower = async () => {
-      if (canReceiveNotifications && vaultsExist) {
+      if (canReceiveNotifications && hasVaults) {
         try {
-          const { status: existingStatus, canAskAgain } =
+          const { status, canAskAgain } =
             await Notifications.getPermissionsAsync();
-
-          if (existingStatus === 'granted') {
-            // Already granted, configure handler and sync
-            const result = await configureNotifications(); // This will confirm status and set handler
+          if (status !== 'granted' && canAskAgain)
+            // show explanation modal after 1 seconds so that users
+            // already have seen their vault activity
+            setTimeout(() => setShowPermissionExplanationModal(true), 1000);
+          else {
+            const result = await configureNotifications();
             setNotificationSetupResult(prevResult =>
               shallowEqualObjects(prevResult, result) ? prevResult : result
             );
             if (result.success) await syncWatchtowerRegistration();
-          } else if (canAskAgain) {
-            // Not granted, but can ask again -> show explanation modal first
-            setShowPermissionExplanationModal(true);
-            // Set initial state reflecting current status before asking
-            setNotificationSetupResult(prevResult => {
-              const newState = { success: false, canAskAgain: true };
-              return shallowEqualObjects(prevResult, newState)
-                ? prevResult
-                : newState;
-            });
-          } else {
-            // Not granted and cannot ask again (denied)
-            setNotificationSetupResult(prevResult => {
-              const newState = { success: false, canAskAgain: false };
-              return shallowEqualObjects(prevResult, newState)
-                ? prevResult
-                : newState;
-            });
           }
         } catch (error: unknown) {
           console.warn(
             'Failed during notification permission check or setup:',
             error
           );
-          // Optionally update state to reflect the error
-          setNotificationSetupResult({ success: false, canAskAgain: false }); // Example error state
         }
       }
     };
     setupNotificationsAndWatchtower();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [vaultsExist]); // Dependencies managed carefully: syncWatchtowerRegistration is in callbacks
+  }, [hasVaults, syncWatchtowerRegistration]);
 
   const sortedVaults = useMemo(() => {
     return Object.values(vaults).sort(
@@ -1039,20 +1014,26 @@ const Vaults = ({
     return sortedVaults.some(vault => !vaultsStatuses[vault.vaultId]?.isHidden);
   }, [sortedVaults, vaultsStatuses]);
 
+  const permissionsIcon = useMemo(
+    () =>
+      ({
+        family: 'MaterialCommunityIcons',
+        name: 'bell-alert-outline'
+      }) as IconType,
+    []
+  );
+
   return (
     <View className="gap-y-4">
-      <Modal
-        title={t('wallet.vault.notifications.permissionTitle')}
-        icon={{
-          family: 'MaterialCommunityIcons',
-          name: 'bell-alert-outline'
-        }}
+      <Modal //FIXME: missing translations
+        title={t('wallet.vault.watchtower.permissionTitle')}
+        icon={permissionsIcon}
         isVisible={showPermissionExplanationModal}
-        onClose={handleCancelPermissionRequest} // Closing means cancelling for now
+        onClose={handleCancelPermissionRequest}
         customButtons={
           <View className="items-center gap-6 gap-y-4 flex-row flex-wrap justify-center pb-4">
             <Button mode="primary" onPress={handleRequestPermission}>
-              {t('wallet.vault.notifications.allowButton')}
+              {t('wallet.vault.watchtower.allowButton')}
             </Button>
             <Button mode="secondary" onPress={handleCancelPermissionRequest}>
               {t('cancelButton')}
@@ -1061,7 +1042,7 @@ const Vaults = ({
         }
       >
         <Text className="text-base pl-2 pr-2 text-slate-600">
-          {t('wallet.vault.notifications.permissionExplanation')}
+          {t('wallet.vault.watchtower.permissionExplanation')}
         </Text>
       </Modal>
       {hasVisibleVaults ? (

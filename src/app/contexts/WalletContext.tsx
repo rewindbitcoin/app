@@ -14,7 +14,7 @@ import {
 } from '../lib/vaults';
 import * as Notifications from 'expo-notifications';
 import {
-  canReceiveNotifications,
+  // cfcanReceiveNotifications,
   getExpoPushToken,
   watchVaults
 } from '../lib/watchtower';
@@ -1437,7 +1437,7 @@ const WalletProviderRaw = ({
     } catch (error) {
       // Errors during registration are handled within registerWithWatchtower (via netRequest)
       // but catch any unexpected errors here.
-      console.error('Error during syncWatchtowerRegistration:', error);
+      console.warn('Error during syncWatchtowerRegistration:', error);
     }
   }, [
     vaults,
@@ -1708,23 +1708,23 @@ const WalletProviderRaw = ({
           return;
         }
 
-        // Update vaultsStatuses with watchtower registrations
-        // registerWithWatchtower uses netRequest internally
-        // registerWithWatchtower does nothing if already registered or if
-        // the user has not accepted push Notifications yet
-        if (canReceiveNotifications) {
-          updatedVaultsStatuses = await registerWithWatchtower({
-            vaults: updatedVaults,
-            vaultsStatuses: updatedVaultsStatuses,
-            whenToastErrors,
-            walletId: walletId.toString()
-          });
-          if (walletId !== walletIdRef.current) {
-            //do this after each await
-            setSyncingBlockchain(walletId, false);
-            return;
-          }
-        }
+        //        // Update vaultsStatuses with watchtower registrations
+        //        // registerWithWatchtower uses netRequest internally
+        //        // registerWithWatchtower does nothing if already registered or if
+        //        // the user has not accepted push Notifications yet
+        //        if (canReceiveNotifications) {
+        //          updatedVaultsStatuses = await registerWithWatchtower({
+        //            vaults: updatedVaults,
+        //            vaultsStatuses: updatedVaultsStatuses,
+        //            whenToastErrors,
+        //            walletId: walletId.toString()
+        //          });
+        //          if (walletId !== walletIdRef.current) {
+        //            //do this after each await
+        //            setSyncingBlockchain(walletId, false);
+        //            return;
+        //          }
+        //        }
 
         //Update states:
         batchedUpdates(() => {
@@ -1764,7 +1764,7 @@ const WalletProviderRaw = ({
 
     setSyncingBlockchain(walletId, false);
   }, [
-    registerWithWatchtower,
+    //    registerWithWatchtower,
     watchtowerWalletName,
     netRequest,
     netToast,
@@ -1852,7 +1852,8 @@ const WalletProviderRaw = ({
         throw new Error(`VaultStatus for ${vault.vaultId} already exists`);
 
       const newVaults = { ...vaults, [vault.vaultId]: vault };
-      let newVaultsStatuses = {
+      //let newVaultsStatuses = {
+      const newVaultsStatuses = {
         ...vaultsStatuses,
         [vault.vaultId]: {
           vaultPushTime: Math.floor(Date.now() / 1000),
@@ -1862,17 +1863,17 @@ const WalletProviderRaw = ({
 
       await pushTx(vault.vaultTxHex);
 
-      if (canReceiveNotifications)
-        // Register with watchtower immediately for new vaults
-        // registerWithWatchtower uses netRequest internally
-        // registerWithWatchtower does nothing if already registered or if
-        // the user has not accepted push Notifications yet
-        newVaultsStatuses = await registerWithWatchtower({
-          vaults: newVaults,
-          vaultsStatuses: newVaultsStatuses,
-          whenToastErrors: 'ON_ANY_ERROR',
-          walletId: walletId.toString()
-        });
+      //if (canReceiveNotifications)
+      //  // Register with watchtower immediately for new vaults
+      //  // registerWithWatchtower uses netRequest internally
+      //  // registerWithWatchtower does nothing if already registered or if
+      //  // the user has not accepted push Notifications yet
+      //  newVaultsStatuses = await registerWithWatchtower({
+      //    vaults: newVaults,
+      //    vaultsStatuses: newVaultsStatuses,
+      //    whenToastErrors: 'ON_ANY_ERROR',
+      //    walletId: walletId.toString()
+      //  });
 
       await Promise.all([
         setUtxosHistoryExport(
@@ -1891,7 +1892,7 @@ const WalletProviderRaw = ({
     },
     [
       walletId,
-      registerWithWatchtower,
+      //registerWithWatchtower,
       pushTx,
       accounts,
       tipHeight,
