@@ -44,7 +44,6 @@ import LearnMoreAboutVaults from './LearnMoreAboutVaults';
 import { shallowEqualObjects } from 'shallow-equal';
 import { useLocalization } from '../hooks/useLocalization';
 import { useNetStatus } from '../hooks/useNetStatus';
-import { useWallet } from '../hooks/useWallet';
 import {
   canReceiveNotifications,
   configureNotifications,
@@ -949,12 +948,16 @@ const Vaults = ({
   const [notificationSetupResult, setNotificationSetupResult] =
     useState<NotificationSetupResult>();
   // Configure notifications when vaults are first detected
+  // This is the where the App will request users to accept push Notifications
+  const vaultsExist = Object.keys(vaults).length > 0;
   useEffect(() => {
     const setupNotificationsAndWatchtower = async () => {
-      if (canReceiveNotifications) {
+      if (canReceiveNotifications && vaultsExist) {
         try {
           const result = await configureNotifications();
-          setNotificationSetupResult(result);
+          setNotificationSetupResult(prevResult =>
+            shallowEqualObjects(prevResult, result) ? prevResult : result
+          );
           if (result.success) await syncWatchtowerRegistration();
         } catch (error: unknown) {
           console.warn(
@@ -965,7 +968,7 @@ const Vaults = ({
       }
     };
     setupNotificationsAndWatchtower();
-  }, [syncWatchtowerRegistration]);
+  }, [syncWatchtowerRegistration, vaultsExist]);
 
   const sortedVaults = useMemo(() => {
     return Object.values(vaults).sort(
