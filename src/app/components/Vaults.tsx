@@ -198,7 +198,9 @@ const RawVault = ({
   vaultNumber,
   vaultStatus,
   blockExplorerURL,
-  watchtowerAPI
+  watchtowerAPI,
+  notificationSetupResult,
+  setNotificationSetupResult
 }: {
   setVaultNotificationAcknowledged: (vaultId: string) => void;
   updateVaultStatus: (vaultId: string, vaultStatus: VaultStatus) => void;
@@ -210,14 +212,16 @@ const RawVault = ({
   vaultStatus: VaultStatus | undefined;
   blockExplorerURL: string | undefined;
   watchtowerAPI: string | undefined;
+  notificationSetupResult: NotificationSetupResult | undefined;
+  setNotificationSetupResult: React.Dispatch<
+    React.SetStateAction<NotificationSetupResult | undefined>
+  >;
 }) => {
   const [showDelegateHelp, setShowDelegateHelp] = useState<boolean>(false);
   const [showRescueHelp, setShowRescueHelp] = useState<boolean>(false);
   const [showInitUnfreezeHelp, setShowInitUnfreezeHelp] =
     useState<boolean>(false);
   const [showWatchtowerHelp, setShowWatchtowerHelp] = useState<boolean>(false);
-  const [notificationSetupResult, setNotificationSetupResult] =
-    useState<NotificationSetupResult>();
   const handleDelegateHelp = useCallback(() => setShowDelegateHelp(true), []);
   const handleRescueHelp = useCallback(() => setShowRescueHelp(true), []);
   const handleInitUnfreezeHelp = useCallback(
@@ -233,20 +237,6 @@ const RawVault = ({
     () => setShowInitUnfreezeHelp(false),
     []
   );
-  // Configure notifications when vaults are first detected
-  useEffect(() => {
-    const configureNotificationsIfNeeded = async () => {
-      if (canReceiveNotifications)
-        try {
-          setNotificationSetupResult(await configureNotifications());
-          //FIXME: and now i'd need to do the registerWithWatchtower
-          //and updateVaultsStatuses
-        } catch (error) {
-          console.warn('Failed to configure notifications:', error);
-        }
-    };
-    configureNotificationsIfNeeded();
-  }, []);
   const handleWatchtowerHelp = useCallback(async () => {
     setShowWatchtowerHelp(true);
   }, []);
@@ -951,6 +941,23 @@ const Vaults = ({
   blockExplorerURL: string | undefined;
   watchtowerAPI: string | undefined;
 }) => {
+  const [notificationSetupResult, setNotificationSetupResult] =
+    useState<NotificationSetupResult>();
+  // Configure notifications when vaults are first detected
+  useEffect(() => {
+    const configureNotificationsIfNeeded = async () => {
+      if (canReceiveNotifications)
+        try {
+          setNotificationSetupResult(await configureNotifications());
+          //FIXME: and now i'd need to do the registerWithWatchtower
+          //and updateVaultsStatuses
+        } catch (error) {
+          console.warn('Failed to configure notifications:', error);
+        }
+    };
+    configureNotificationsIfNeeded();
+  }, []);
+
   const sortedVaults = useMemo(() => {
     return Object.values(vaults).sort(
       (a, b) => b.creationTime - a.creationTime
@@ -984,6 +991,8 @@ const Vaults = ({
                 pushTx={pushTx}
                 blockExplorerURL={blockExplorerURL}
                 watchtowerAPI={watchtowerAPI}
+                notificationSetupResult={notificationSetupResult}
+                setNotificationSetupResult={setNotificationSetupResult}
               />
             )
           );
