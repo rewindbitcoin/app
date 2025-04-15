@@ -1293,7 +1293,7 @@ const WalletProviderRaw = ({
 
       const currentNotification =
         wallet.notifications?.[watchtowerAPI]?.[vaultId];
-      if (!currentNotification || currentNotification.acked === true) return;
+      if (currentNotification?.acked === true) return;
 
       const updatedWallets = {
         ...wallets,
@@ -1320,6 +1320,8 @@ const WalletProviderRaw = ({
   /**
    * Registers vaults with the watchtower service and updates their
    * registration status.
+   * If configureNotifications has not been called this call has no effect.
+   * If all vaults have already been registered this function has no effect.
    *
    * @returns {Promise<VaultsStatuses>} Updated vault statuses with new
    * watchtower registrations.
@@ -1339,7 +1341,6 @@ const WalletProviderRaw = ({
     }): Promise<VaultsStatuses> => {
       if (!watchtowerAPI || !networkTimeout || !watchtowerWalletName)
         throw new Error('Required data for watchtower registration missing');
-
       const { result: newWatchedVaults } = await netRequest({
         id: 'watchtower',
         errorMessage: (message: string) =>
@@ -1657,7 +1658,8 @@ const WalletProviderRaw = ({
 
         // Update vaultsStatuses with watchtower registrations
         // registerWithWatchtower uses netRequest internally
-        // registerWithWatchtower does nothing if already registered
+        // registerWithWatchtower does nothing if already registered or if
+        // the user has not accepted push Notifications yet
         if (canReceiveNotifications) {
           updatedVaultsStatuses = await registerWithWatchtower({
             vaults: updatedVaults,
@@ -1765,11 +1767,14 @@ const WalletProviderRaw = ({
   }, [walletId, setSyncingBlockchain, dataReady, netReady, tipHeight]);
 
   /**
-   * Pushes the vault, registers to the Watchtower and stores all associated
+   * Pushes the vault, registers to the Watchtower (if device supports it and
+   * if access was granted) and stores all associated
    * data locally:
    * It updates utxosData, history, vaults and vaultsStatuses without
    * requiring any additional fetch.
    * It also saves on disk discoveryExport.
+   *
+   * This function won't request user permissions for push notifications.
    *
    * This function may throw. try-catch it from outer blocks.
    *
@@ -1807,6 +1812,9 @@ const WalletProviderRaw = ({
 
       if (canReceiveNotifications)
         // Register with watchtower immediately for new vaults
+        // registerWithWatchtower uses netRequest internally
+        // registerWithWatchtower does nothing if already registered or if
+        // the user has not accepted push Notifications yet
         newVaultsStatuses = await registerWithWatchtower({
           vaults: newVaults,
           vaultsStatuses: newVaultsStatuses,

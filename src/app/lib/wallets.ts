@@ -79,7 +79,7 @@ export type Signers = {
 type Notifications = {
   [watchtowerAPI: string]: {
     [vaultId: string]: {
-      firstAttemptAt: number;
+      firstAttemptAt?: number;
       acked: boolean;
     };
   };

@@ -239,6 +239,8 @@ const RawVault = ({
       if (canReceiveNotifications)
         try {
           setNotificationSetupResult(await configureNotifications());
+          //FIXME: and now i'd need to do the registerWithWatchtower
+          //and updateVaultsStatuses
         } catch (error) {
           console.warn('Failed to configure notifications:', error);
         }

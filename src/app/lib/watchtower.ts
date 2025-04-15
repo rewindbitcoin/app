@@ -67,8 +67,7 @@ export async function configureNotifications(): Promise<NotificationSetupResult>
 }
 
 // Get the Expo push token
-//FIXME: tjhis function cannot be called before configureNotifications
-//(requestPermissionsAsync)
+// If configureNotifications has not been called, this will return null.
 export async function getExpoPushToken(): Promise<string | null> {
   try {
     // Get the project ID from expo-constants
@@ -80,6 +79,9 @@ export async function getExpoPushToken(): Promise<string | null> {
       console.warn('Project ID not found in expo-constants');
       return null;
     }
+
+    if ((await Notifications.getPermissionsAsync()).status !== 'granted')
+      return null;
 
     // Check if this device can receive notifications
     if (!canReceiveNotifications) {
@@ -104,7 +106,9 @@ export async function getExpoPushToken(): Promise<string | null> {
 // Register vaults with the watchtower service
 //FIXME: only call this if getExpoPushToken returns something, in fact
 //pass it as param. It may be the case the user never accepted push notifications
-//then warn the user or soimething.
+//then warn the user or something.
+//FIXME: this function cannot be called before configureNotifications
+//(requestPermissionsAsync) - it will hang indefinitely
 export async function watchVaults({
   watchtowerAPI,
   vaults,
@@ -125,7 +129,7 @@ export async function watchVaults({
   try {
     // Get push token
     const pushToken = await getExpoPushToken();
-    if (!pushToken) return []; //FIXME: readl FIXME above
+    if (!pushToken) return []; //FIXME: read 1st FIXME above
 
     const vaultsToMonitor = Object.entries(vaults)
       .filter(([vaultId]) => {
