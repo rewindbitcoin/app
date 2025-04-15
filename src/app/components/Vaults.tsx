@@ -43,6 +43,7 @@ import Delegate from './Delegate';
 import LearnMoreAboutVaults from './LearnMoreAboutVaults';
 import { useLocalization } from '../hooks/useLocalization';
 import { useNetStatus } from '../hooks/useNetStatus';
+import { useWallet } from '../hooks/useWallet';
 import {
   canReceiveNotifications,
   configureNotifications,
@@ -245,6 +246,7 @@ const RawVault = ({
     []
   );
   const { netRequest } = useNetStatus();
+  const { syncWatchtowerRegistration } = useWallet();
 
   const [isInitUnfreezeBeingHandled, setIsInitUnfreezeBeingHandled] =
     useState<boolean>(false);
@@ -944,18 +946,41 @@ const Vaults = ({
     useState<NotificationSetupResult>();
   // Configure notifications when vaults are first detected
   useEffect(() => {
-    const configureNotificationsIfNeeded = async () => {
-      if (canReceiveNotifications)
+    const setupNotificationsAndWatchtower = async () => {
+      if (canReceiveNotifications) {
         try {
-          setNotificationSetupResult(await configureNotifications());
-          //FIXME: and now i'd need to do the registerWithWatchtower
-          //and updateVaultsStatuses
+          const result = await configureNotifications();
+          setNotificationSetupResult(result);
+          // If notifications were successfully configured (or already were),
+          // attempt to register vaults with the watchtower.
+          if (result.success) {
+            // syncWatchtowerRegistration handles checking which vaults need
+            // registration and updates statuses internally if needed.
+            await syncWatchtowerRegistration();
+          }
         } catch (error) {
-          console.warn('Failed to configure notifications:', error);
+          console.warn(
+            'Failed during notification or watchtower setup:',
+            error
+          );
+          // Set a failure state for notification setup if configureNotifications failed
+          if (!notificationSetupResult) {
+            // Avoid overwriting if syncWatchtowerRegistration failed but configure succeeded
+            setNotificationSetupResult({
+              success: false,
+              canAskAgain: false, // Assume we can't ask again on generic error
+              error: error instanceof Error ? error.message : 'Unknown error'
+            });
+          }
         }
+      } else {
+        // If notifications are not supported, set state accordingly
+        setNotificationSetupResult({ success: false, canAskAgain: false });
+      }
     };
-    configureNotificationsIfNeeded();
-  }, []);
+    setupNotificationsAndWatchtower();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [syncWatchtowerRegistration]); // Only run once on mount essentially, syncWatchtowerRegistration is stable
 
   const sortedVaults = useMemo(() => {
     return Object.values(vaults).sort(

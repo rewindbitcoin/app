@@ -115,6 +115,7 @@ export type WalletContextType = {
   networkId: NetworkId | undefined;
   fetchBlockTime: (blockHeight: number) => Promise<number | undefined>;
   pushTx: (txHex: string) => Promise<void>;
+  syncWatchtowerRegistration: () => Promise<void>;
   fetchOutputHistory: ({
     descriptor,
     index
@@ -1399,6 +1400,55 @@ const WalletProviderRaw = ({
   );
 
   /**
+   * Calls registerWithWatchtower and updates the vaultsStatuses state if
+   * the registration process resulted in changes.
+   */
+  const syncWatchtowerRegistration = useCallback(async () => {
+    // Ensure all required data is available before proceeding
+    if (
+      !vaults ||
+      !vaultsStatuses ||
+      walletId === undefined ||
+      !watchtowerAPI ||
+      !networkTimeout ||
+      !watchtowerWalletName
+    ) {
+      console.warn(
+        'syncWatchtowerRegistration: Skipping due to missing data.'
+      );
+      return;
+    }
+
+    try {
+      const updatedVaultsStatuses = await registerWithWatchtower({
+        vaults,
+        vaultsStatuses,
+        // Use 'ON_NEW_ERROR' for background sync to avoid spamming toasts
+        whenToastErrors: 'ON_NEW_ERROR',
+        walletId: walletId.toString()
+      });
+
+      // Only update state if the object reference changed, indicating a mutation
+      if (updatedVaultsStatuses !== vaultsStatuses) {
+        setVaultsStatuses(updatedVaultsStatuses);
+      }
+    } catch (error) {
+      // Errors during registration are handled within registerWithWatchtower (via netRequest)
+      // but catch any unexpected errors here.
+      console.error('Error during syncWatchtowerRegistration:', error);
+    }
+  }, [
+    vaults,
+    vaultsStatuses,
+    walletId,
+    registerWithWatchtower,
+    setVaultsStatuses,
+    watchtowerAPI, // Added dependencies from the check
+    networkTimeout, // Added dependencies from the check
+    watchtowerWalletName // Added dependencies from the check
+  ]);
+
+  /**
    * Initiates the blockchain synchronization process. If netStatus has errors
    * it tries first to check the network .
    */
@@ -1921,6 +1971,7 @@ const WalletProviderRaw = ({
     ),
     fetchBlockTime,
     pushTx,
+    syncWatchtowerRegistration,
     fetchOutputHistory,
     cBVaultsWriterAPI,
     faucetAPI,
