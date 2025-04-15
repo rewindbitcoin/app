@@ -983,9 +983,9 @@ const Vaults = ({
           const { status, canAskAgain } =
             await Notifications.getPermissionsAsync();
           if (status !== 'granted' && canAskAgain)
-            // show explanation modal after 1 seconds so that users
+            // show explanation modal after 3 seconds so that users
             // already have seen their vault activity
-            setTimeout(() => setShowPermissionExplanationModal(true), 1000);
+            setTimeout(() => setShowPermissionExplanationModal(true), 3000);
           else {
             const result = await configureNotifications();
             setNotificationSetupResult(prevResult =>
