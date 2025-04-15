@@ -41,6 +41,7 @@ import InitUnfreeze, { InitUnfreezeData } from './InitUnfreeze';
 import Rescue, { RescueData } from './Rescue';
 import Delegate from './Delegate';
 import LearnMoreAboutVaults from './LearnMoreAboutVaults';
+import { shallowEqualObjects } from 'shallow-equal';
 import { useLocalization } from '../hooks/useLocalization';
 import { useNetStatus } from '../hooks/useNetStatus';
 import { useWallet } from '../hooks/useWallet';
@@ -886,7 +887,9 @@ const RawVault = ({
                   mode="secondary"
                   onPress={async () => {
                     const result = await configureNotifications();
-                    setNotificationSetupResult(result);
+                    if (!shallowEqualObjects(notificationSetupResult, result)) {
+                      setNotificationSetupResult(result);
+                    }
                     if (result.success) {
                       handleCloseWatchtowerHelp();
                     }
