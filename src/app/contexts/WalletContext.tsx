@@ -1413,9 +1413,7 @@ const WalletProviderRaw = ({
       !networkTimeout ||
       !watchtowerWalletName
     ) {
-      console.warn(
-        'syncWatchtowerRegistration: Skipping due to missing data.'
-      );
+      console.warn('syncWatchtowerRegistration: Skipping due to missing data.');
       return;
     }
 
@@ -1429,7 +1427,11 @@ const WalletProviderRaw = ({
       });
 
       // Only update state if the object reference changed, indicating a mutation
-      if (updatedVaultsStatuses !== vaultsStatuses) {
+      // Also make sure vaults are still synched after the await above
+      if (
+        updatedVaultsStatuses !== vaultsStatuses &&
+        areVaultsSynched(vaults, vaultsStatuses)
+      ) {
         setVaultsStatuses(updatedVaultsStatuses);
       }
     } catch (error) {
