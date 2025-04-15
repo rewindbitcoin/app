@@ -355,6 +355,14 @@ const RawVault = ({
     locale
   );
   const unfrozenDate = formatVaultDate(vaultStatus?.hotBlockTime, locale);
+
+  const isVaultTxConfirmed =
+    vaultStatus?.vaultTxBlockHeight !== undefined &&
+    vaultStatus.vaultTxBlockHeight > 0;
+  const isVaultTxInMempool = vaultStatus?.vaultTxBlockHeight === 0;
+  const isVaultTxPushed = !!vaultStatus?.vaultPushTime;
+  const isVaultTx = isVaultTxPushed || isVaultTxInMempool || isVaultTxConfirmed;
+
   const isInitUnfreezeTxConfirmed =
     vaultStatus?.triggerTxBlockHeight !== undefined &&
     vaultStatus.triggerTxBlockHeight > 0;
@@ -378,13 +386,7 @@ const RawVault = ({
   const isRescueTx =
     isRescueTxPushed || isRescueTxInMempool || isRescueTxConfirmed;
 
-  const isVaultTxConfirmed =
-    vaultStatus?.vaultTxBlockHeight !== undefined &&
-    vaultStatus.vaultTxBlockHeight > 0;
-  const isVaultTxInMempool = vaultStatus?.vaultTxBlockHeight === 0;
-  const isVaultTxPushed = !!vault?.vaultTxHex;
-  const isVaultTx = isVaultTxPushed || isVaultTxInMempool || isVaultTxConfirmed;
-
+  const canBeInitUnfreeze = isVaultTx && !isInitUnfreezeTx;
   const canBeRescued = isInitUnfreezeTx && !isUnfrozen && !isRescueTx;
   const canBeDelegated = isVaultTx && !isUnfrozen && !isRescueTx;
 
@@ -764,7 +766,7 @@ const RawVault = ({
           )}
         </View>
         {(canBeRescued ||
-          !isInitUnfreezeTx ||
+          canBeInitUnfreeze ||
           canBeDelegated ||
           canBeHidden) && (
           <View
@@ -779,7 +781,7 @@ const RawVault = ({
                 onInfoPress={handleRescueHelp}
               />
             )}
-            {!isInitUnfreezeTx && (
+            {canBeInitUnfreeze && (
               <VaultButton
                 mode="secondary"
                 onPress={handleShowInitUnfreeze}
