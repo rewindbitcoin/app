@@ -977,16 +977,21 @@ const Vaults = ({
   // This is the where the App will request users to accept push Notifications
   const hasVaults = Object.keys(vaults).length > 0;
   useEffect(() => {
+    let timeoutId: NodeJS.Timeout | undefined;
+
     const setupNotificationsAndWatchtower = async () => {
       if (canReceiveNotifications && hasVaults) {
         try {
           const { status, canAskAgain } =
             await Notifications.getPermissionsAsync();
-          if (status !== 'granted' && canAskAgain)
+          if (status !== 'granted' && canAskAgain) {
             // show explanation modal after 3 seconds so that users
             // already have seen their vault activity
-            setTimeout(() => setShowPermissionExplanationModal(true), 3000);
-          else {
+            timeoutId = setTimeout(
+              () => setShowPermissionExplanationModal(true),
+              3000
+            );
+          } else {
             const result = await configureNotifications();
             setNotificationSetupResult(prevResult =>
               shallowEqualObjects(prevResult, result) ? prevResult : result
@@ -1002,6 +1007,14 @@ const Vaults = ({
       }
     };
     setupNotificationsAndWatchtower();
+
+    // Cleanup function to clear the timeout if the component unmounts
+    // or if the effect re-runs before the timeout finishes
+    return () => {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    };
   }, [hasVaults, syncWatchtowerRegistration]);
 
   const sortedVaults = useMemo(() => {
