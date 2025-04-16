@@ -883,9 +883,6 @@ const RawVault = ({
           <View className="items-center gap-6 gap-y-4 flex-row flex-wrap justify-center pb-4">
             {!registeredWatchtower &&
               !notificationSetupResult?.success &&
-              //FIXME: complete this part of the code. Show texts explaining that
-              //you can retrigger the request to send push notifications
-              //or either direct the user to the system settings
               notificationSetupResult?.canAskAgain && (
                 <Button
                   mode="secondary"
@@ -909,16 +906,22 @@ const RawVault = ({
         }
       >
         <Text className="text-base pl-2 pr-2 text-slate-600">
-          {registeredWatchtower
-            ? //FIXME: here i still need explanations for when success is false
-              t('wallet.vault.watchtower.registered')
-            : notificationSetupResult?.canAskAgain
-              ? Platform.OS === 'ios'
-                ? t('wallet.vault.watchtower.unregistered.ios')
-                : t('wallet.vault.watchtower.unregistered.android')
-              : Platform.OS === 'ios'
-                ? t('wallet.vault.watchtower.settings.ios')
-                : t('wallet.vault.watchtower.settings.android')}
+          {
+            //FIXME: it can be registered but without revoked permissions
+            //FIXME: 2 diff errors: when the watchtower does not work and when revoked permissiosn
+            //FIXME: here i still need explanations for when success is false
+            registeredWatchtower
+              ? t('wallet.vault.watchtower.registered')
+              : notificationSetupResult?.success === true
+                ? 'FIXME: problems congtacting the watchtower' //FIXME: do this
+                : notificationSetupResult?.canAskAgain
+                  ? Platform.OS === 'ios'
+                    ? t('wallet.vault.watchtower.unregistered.ios')
+                    : t('wallet.vault.watchtower.unregistered.android')
+                  : Platform.OS === 'ios'
+                    ? t('wallet.vault.watchtower.settings.ios')
+                    : t('wallet.vault.watchtower.settings.android')
+          }
         </Text>
       </Modal>
     </View>
@@ -968,10 +971,6 @@ const Vaults = ({
       console.warn('Failed during notification configuration:', error);
     }
   }, [syncWatchtowerRegistration]);
-
-  const handleCancelPermissionRequest = useCallback(() => {
-    setShowPermissionExplanationModal(false);
-  }, []);
 
   // Configure notifications when vaults are first detected
   // This is the where the App will request users to accept push Notifications
@@ -1042,14 +1041,11 @@ const Vaults = ({
         title={t('wallet.vault.watchtower.permissionTitle')}
         icon={permissionsIcon}
         isVisible={showPermissionExplanationModal}
-        onClose={handleCancelPermissionRequest}
+        onClose={handleRequestPermission}
         customButtons={
           <View className="items-center gap-6 gap-y-4 flex-row flex-wrap justify-center pb-4">
             <Button mode="primary" onPress={handleRequestPermission}>
-              {t('wallet.vault.watchtower.allowButton')}
-            </Button>
-            <Button mode="secondary" onPress={handleCancelPermissionRequest}>
-              {t('cancelButton')}
+              {t('continueButton')}
             </Button>
           </View>
         }

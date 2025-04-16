@@ -295,8 +295,13 @@ Once the countdown ends, your funds will be unlocked and accessible.`
       watchtower: {
         permissionTitle: 'Enable Vault Alerts?',
         allowButton: 'Allow Notifications',
-        permissionExplanation:
-          'Allow Rewind to send push notifications. This is highly recommended to alert you immediately if unauthorized access to your vault is attempted, giving you time to protect your funds.',
+        permissionExplanation: `Rewind needs permission to send important security alerts about your Vaults as notifications.
+
+We highly recommend allowing them.
+
+If someone accesses your Recovery Phrase (e.g., via theft or loss) and tries to unfreeze your Vaults, notifications allow Rewind to instantly alert *this specific device*. This gives you crucial time to secure your Bitcoin before it can be stolen.
+
+Tap 'Continue'. You will then be asked by your phone's system to allow notifications.`,
         statusTitle: 'Vault Monitoring Status',
         registered:
           "This vault is monitored. You'll receive a push notification if unauthorized activity is detected.",
