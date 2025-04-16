@@ -913,7 +913,7 @@ const RawVault = ({
             registeredWatchtower
               ? t('wallet.vault.watchtower.registered')
               : notificationSetupResult?.success === true
-                ? 'FIXME: problems congtacting the watchtower' //FIXME: do this
+                ? t('wallet.vault.watchtower.registrationError')
                 : notificationSetupResult?.canAskAgain
                   ? Platform.OS === 'ios'
                     ? t('wallet.vault.watchtower.unregistered.ios')
