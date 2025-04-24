@@ -51,14 +51,16 @@ export async function configureNotifications(): Promise<NotificationSetupResult>
   }
 
   // Configure how notifications appear when the app is in foreground
-  // If we still want to get the message in the tray:
-  Notifications.setNotificationHandler({
-    handleNotification: async () => ({
-      shouldShowAlert: true,
-      shouldPlaySound: true,
-      shouldSetBadge: true
-    })
-  });
+  // We rather disable this
+  //
+  //// If we still want to get the message in the tray:
+  //Notifications.setNotificationHandler({
+  //  handleNotification: async () => ({
+  //    shouldShowAlert: true,
+  //    shouldPlaySound: false,
+  //    shouldSetBadge: false
+  //  })
+  //});
 
   return {
     status: finalStatus,

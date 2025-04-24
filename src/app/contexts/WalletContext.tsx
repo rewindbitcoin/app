@@ -804,10 +804,6 @@ const WalletProviderRaw = ({
     [wallets, setWallets, sendAckToWatchtower]
   );
 
-  useEffect(() => {
-    console.log('TRACE wallets changed!');
-  }, [wallets]);
-
   /**
 º  * Fetches unacknowledged notifications from the watchtower service.
    *
@@ -939,7 +935,6 @@ const WalletProviderRaw = ({
     // Listen for user interaction with notifications (tapping the notification)
     responseListener.current =
       Notifications.addNotificationResponseReceivedListener(response => {
-        console.log('Notification response received:', response);
         handleWatchtowerNotification(
           response.notification.request.content.data
         );
