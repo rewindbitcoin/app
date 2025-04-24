@@ -1,3 +1,4 @@
+//FIXME: decouple useWatchTower?
 import {
   fetchVaultsStatuses,
   getUtxosData,
