@@ -21,7 +21,7 @@ import React, {
 } from 'react';
 
 const IRREVERSIBLE_BLOCKS = 4; // Number of blocks after which a transaction is considered irreversible
-import { View, Text, Linking, Pressable } from 'react-native';
+import { View, Text, Linking, Pressable, AppState } from 'react-native';
 import * as Icons from '@expo/vector-icons';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { batchedUpdates } from '~/common/lib/batchedUpdates';
@@ -1015,6 +1015,20 @@ const Vaults = ({
       }
     };
   }, [hasVaults, syncWatchtowerRegistration]);
+
+  //Check permissions again when the app gains focus
+  //TODO: fix the await not in an async parent and the dependencies if needed and the cleanup and types and any other error
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', nextAppState => {
+      if (nextAppState === 'active') {
+        const result = await Notifications.getPermissionsAsync();
+        setNotificationSetupResult(prevResult =>
+          shallowEqualObjects(prevResult, result) ? prevResult : result
+        );
+      }
+    });
+    return () => subscription.remove();
+  }, []);
 
   const sortedVaults = useMemo(() => {
     return Object.values(vaults).sort(
