@@ -21,7 +21,14 @@ import React, {
 } from 'react';
 
 const IRREVERSIBLE_BLOCKS = 4; // Number of blocks after which a transaction is considered irreversible
-import { View, Text, Linking, Pressable, AppState, AppStateStatus } from 'react-native'; // Added AppStateStatus
+import {
+  View,
+  Text,
+  Linking,
+  Pressable,
+  AppState,
+  AppStateStatus
+} from 'react-native';
 import * as Icons from '@expo/vector-icons';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { batchedUpdates } from '~/common/lib/batchedUpdates';
@@ -574,14 +581,15 @@ const RawVault = ({
                   name={
                     notificationSetupResult === undefined
                       ? 'bell-outline'
-                      : registeredWatchtower && notificationSetupResult?.success
+                      : registeredWatchtower &&
+                          notificationSetupResult.status === 'granted'
                         ? 'bell-outline'
                         : 'bell-off-outline'
                   }
                   className={`text-xl ${
                     notificationSetupResult === undefined
                       ? 'text-slate-400' // Pulse effect while undefined
-                      : notificationSetupResult.success
+                      : notificationSetupResult.status === 'granted'
                         ? registeredWatchtower
                           ? 'text-green-500'
                           : 'text-slate-600'
@@ -885,8 +893,9 @@ const RawVault = ({
         customButtons={
           <View className="items-center gap-6 gap-y-4 flex-row flex-wrap justify-center pb-4">
             {!registeredWatchtower &&
-              !notificationSetupResult?.success &&
-              notificationSetupResult?.canAskAgain && (
+              notificationSetupResult &&
+              notificationSetupResult.status !== 'granted' &&
+              notificationSetupResult.canAskAgain && (
                 <Button
                   mode="secondary"
                   onPress={async () => {
@@ -894,7 +903,7 @@ const RawVault = ({
                     if (!shallowEqualObjects(notificationSetupResult, result)) {
                       setNotificationSetupResult(result);
                     }
-                    if (result.success) {
+                    if (result.status === 'granted') {
                       handleCloseWatchtowerHelp();
                     }
                   }}
@@ -911,7 +920,7 @@ const RawVault = ({
         <Text className="text-base pl-2 pr-2 text-slate-600">
           {registeredWatchtower
             ? t('wallet.vault.watchtower.registered')
-            : notificationSetupResult?.success === true
+            : notificationSetupResult?.status === 'granted'
               ? t('wallet.vault.watchtower.registrationError')
               : notificationSetupResult?.canAskAgain
                 ? Platform.OS === 'ios'
@@ -966,7 +975,7 @@ const Vaults = ({
       setNotificationSetupResult(prevResult =>
         shallowEqualObjects(prevResult, result) ? prevResult : result
       );
-      if (result.success) await syncWatchtowerRegistration();
+      if (result.status === 'granted') await syncWatchtowerRegistration();
     } catch (error: unknown) {
       console.warn('Failed during notification configuration:', error);
     }
@@ -995,7 +1004,7 @@ const Vaults = ({
             setNotificationSetupResult(prevResult =>
               shallowEqualObjects(prevResult, result) ? prevResult : result
             );
-            if (result.success) await syncWatchtowerRegistration();
+            if (result.status === 'granted') await syncWatchtowerRegistration();
           }
         } catch (error: unknown) {
           console.warn(
@@ -1016,52 +1025,52 @@ const Vaults = ({
     };
   }, [hasVaults, syncWatchtowerRegistration]);
 
-  // --- AppState Listener for Permission Changes ---
+  //Check when the app comes to the foreground (perhaps it was in the back
+  //while the user was tuning on notifications manually)
   const appState = useRef(AppState.currentState);
   useEffect(() => {
     const handleAppStateChange = async (nextAppState: AppStateStatus) => {
       if (
         appState.current.match(/inactive|background/) &&
         nextAppState === 'active' &&
-        canReceiveNotifications // Only check if device supports notifications
+        canReceiveNotifications
       ) {
-        console.log('App has come to the foreground, checking permissions...');
         try {
-          const { status: currentStatus, canAskAgain: currentCanAskAgain } =
+          const newResult: NotificationSetupResult =
             await Notifications.getPermissionsAsync();
-
-          const newResult: NotificationSetupResult = {
-            success: currentStatus === 'granted',
-            canAskAgain: currentCanAskAgain
-          };
 
           setNotificationSetupResult(prevResult => {
             if (!prevResult || !shallowEqualObjects(prevResult, newResult)) {
-              console.log('Notification permission status updated:', newResult);
               // If permissions are now granted, trigger watchtower sync
-              if (newResult.success) {
-                 syncWatchtowerRegistration().catch(err => console.warn("Error syncing watchtower after permission check:", err));
-              }
+              if (newResult.status === 'granted')
+                syncWatchtowerRegistration().catch(err =>
+                  console.warn(
+                    'Error syncing watchtower after permission check:',
+                    err
+                  )
+                );
+
               return newResult;
             }
             return prevResult; // No change
           });
         } catch (error) {
-          console.warn("Error checking notification permissions on AppState change:", error);
+          console.warn(
+            'Error checking notification permissions on AppState change:',
+            error
+          );
         }
       }
       appState.current = nextAppState;
     };
 
-    const subscription = AppState.addEventListener('change', handleAppStateChange);
+    const subscription = AppState.addEventListener(
+      'change',
+      handleAppStateChange
+    );
 
-    // Cleanup listener on component unmount
-    return () => {
-      subscription.remove();
-    };
-  }, [setNotificationSetupResult, syncWatchtowerRegistration]); // Added dependencies
-  // --- End AppState Listener ---
-
+    return () => subscription.remove();
+  }, [setNotificationSetupResult, syncWatchtowerRegistration]);
 
   const sortedVaults = useMemo(() => {
     return Object.values(vaults).sort(

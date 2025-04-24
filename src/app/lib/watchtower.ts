@@ -26,7 +26,7 @@ export type WatchtowerRegistrationData = {
 
 // Configure notifications
 export type NotificationSetupResult = {
-  success: boolean;
+  status: Notifications.PermissionStatus;
   canAskAgain: boolean;
 };
 
@@ -45,7 +45,7 @@ export async function configureNotifications(): Promise<NotificationSetupResult>
 
   if (finalStatus !== 'granted') {
     return {
-      success: false,
+      status: finalStatus,
       canAskAgain
     };
   }
@@ -61,7 +61,7 @@ export async function configureNotifications(): Promise<NotificationSetupResult>
   });
 
   return {
-    success: true,
+    status: finalStatus,
     canAskAgain: true
   };
 }

@@ -313,7 +313,7 @@ Tap 'Continue'. You will then be asked by your phone's system to allow notificat
             'To enable monitoring and receive alerts, please allow push notifications when prompted.'
         },
         settings: {
-          ios: "To receive alerts, please go to your device's Settings > Notifications > Rewind and enable notifications.",
+          ios: "To receive alerts, please go to your device's Settings > Notifications > RewindBitcoin and enable notifications.",
           android:
             "To receive alerts, please go to your device's Settings > Apps > Rewind > Notifications and enable notifications."
         }
