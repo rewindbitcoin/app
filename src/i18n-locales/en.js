@@ -305,6 +305,8 @@ Tap 'Continue'. You will then be asked by your phone's system to allow notificat
         statusTitle: 'Vault Monitoring Status',
         registered:
           "This vault is monitored. You'll receive a push notification if unauthorized activity is detected.",
+        registrationError:
+          "Could not connect to the vault monitoring service. Please check your internet connection and ensure the watchtower service is available. You can also try selecting a different watchtower in the app's settings.",
         unregistered: {
           ios: 'To enable monitoring and receive alerts, please allow push notifications when prompted.',
           android:

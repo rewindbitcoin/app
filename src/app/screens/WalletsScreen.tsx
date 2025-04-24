@@ -244,7 +244,10 @@ const WalletsScreen = () => {
                 {t('wallets.notificationWarningTitle')}
               </Text>
               <Text className="text-red-700 text-sm">
-                {t('wallets.notificationWarningMessage')}
+                {
+                  //FIXME: translate this!!!
+                  t('wallets.notificationWarningMessage')
+                }
               </Text>
             </View>
           )}

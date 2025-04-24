@@ -13,11 +13,7 @@ import {
   TxHex
 } from '../lib/vaults';
 import * as Notifications from 'expo-notifications';
-import {
-  // cfcanReceiveNotifications,
-  getExpoPushToken,
-  watchVaults
-} from '../lib/watchtower';
+import { getExpoPushToken, watchVaults } from '../lib/watchtower';
 import {
   walletTitle,
   type Accounts,
@@ -813,10 +809,11 @@ const WalletProviderRaw = ({
   }, [wallets]);
 
   /**
-   * Fetches unacknowledged notifications from the watchtower service for a specific network.
+º  * Fetches unacknowledged notifications from the watchtower service.
    *
-   * This function is critical for recovering notifications that were sent while
-   * the app was not running. When a notification arrives and the app is closed:
+   * This function is critical for recovering notifications that were sent
+   * while the app was not running (killed). When a notification arrives and the
+   * app is closed:
    * 1. The OS shows a notification in the system tray
    * 2. If the user doesn't interact with this notification, the app has no way
    *    to know about it when launched later
@@ -825,7 +822,7 @@ const WalletProviderRaw = ({
    * @returns {Promise<boolean>} True if notifications were successfully fetched and processed,
    *                            false if there was an error or the service was unavailable
    */
-  const fetchWatchtowerPendingForNetwork = useCallback(
+  const fetchWatchtowerUnacked = useCallback(
     async (watchtowerAPI: string): Promise<boolean> => {
       if (!networkTimeout) {
         console.warn(
@@ -948,7 +945,8 @@ const WalletProviderRaw = ({
         );
       });
 
-    // Check pending notifications that may arrive while the app was closed.
+    // Check pending notifications that may have arrived while the app was
+    // closed (killed).
     // This is the only possible way to retrieve them if the app was killed
     // and the user did not tap on the notification.
     let pollingTimeout: NodeJS.Timeout | undefined;
@@ -962,7 +960,7 @@ const WalletProviderRaw = ({
     // Fetch notifications from all watchtower APIs
     Promise.all(
       [...failedWatchtowerAPIs].map(async watchtowerAPI => {
-        const success = await fetchWatchtowerPendingForNetwork(watchtowerAPI);
+        const success = await fetchWatchtowerUnacked(watchtowerAPI);
         if (success) {
           const index = failedWatchtowerAPIs.indexOf(watchtowerAPI);
           if (index !== -1) failedWatchtowerAPIs.splice(index, 1);
@@ -972,8 +970,7 @@ const WalletProviderRaw = ({
       if (failedWatchtowerAPIs.length > 0) {
         const poll = async () => {
           for (const watchtowerAPI of [...failedWatchtowerAPIs]) {
-            const success =
-              await fetchWatchtowerPendingForNetwork(watchtowerAPI);
+            const success = await fetchWatchtowerUnacked(watchtowerAPI);
             if (!pollingTimeout) return; // cancel if unmounted
             if (success) {
               const index = failedWatchtowerAPIs.indexOf(watchtowerAPI);
@@ -1010,7 +1007,7 @@ const WalletProviderRaw = ({
       }
     };
   }, [
-    fetchWatchtowerPendingForNetwork,
+    fetchWatchtowerUnacked,
     settings,
     wallets,
     handleWatchtowerNotification,
@@ -1321,32 +1318,28 @@ const WalletProviderRaw = ({
   /**
    * Registers vaults with the watchtower service and updates their
    * registration status.
+   *
    * If configureNotifications has not been called this call has no effect.
    * If all vaults have already been registered this function has no effect.
    *
-   * @returns {Promise<VaultsStatuses>} Updated vault statuses with new
-   * watchtower registrations.
-   * Returns original vaultsStatuses object if no changes (immutable).
+   * Updates the vaultsStatuses state if the registration process resulted in
+   * changes.
    */
-  const registerWithWatchtower = useCallback(
-    async ({
-      vaults,
-      vaultsStatuses,
-      whenToastErrors,
-      walletId
-    }: {
-      vaults: Vaults;
-      vaultsStatuses: VaultsStatuses;
-      whenToastErrors: 'ON_NEW_ERROR' | 'ON_ANY_ERROR';
-      walletId: string;
-    }): Promise<VaultsStatuses> => {
+  const syncWatchtowerRegistration = useCallback(async () => {
+    // Ensure all required data is available before proceeding
+    if (!vaults || !vaultsStatuses || walletId === undefined) {
+      console.warn('syncWatchtowerRegistration: Skipping due to missing data.');
+      return;
+    }
+
+    try {
       if (!watchtowerAPI || !networkTimeout || !watchtowerWalletName)
         throw new Error('Required data for watchtower registration missing');
       const { result: newWatchedVaults } = await netRequest({
         id: 'watchtower',
         errorMessage: (message: string) =>
           t('app.watchtowerError', { message }),
-        whenToastErrors,
+        whenToastErrors: 'ON_NEW_ERROR',
         requirements: { watchtowerAPIReachable: true },
         func: () => {
           const rawLocale = settings?.LOCALE ?? defaultSettings.LOCALE;
@@ -1361,7 +1354,7 @@ const WalletProviderRaw = ({
             networkTimeout,
             walletName: watchtowerWalletName,
             locale,
-            walletId
+            walletId: walletId.toString()
           });
         }
       });
@@ -1387,53 +1380,16 @@ const WalletProviderRaw = ({
           }
         }
       }
-      return updatedVaultsStatuses;
-    },
-    [
-      watchtowerAPI,
-      networkTimeout,
-      watchtowerWalletName,
-      settings?.LOCALE,
-      netRequest,
-      t
-    ]
-  );
-
-  /**
-   * Calls registerWithWatchtower and updates the vaultsStatuses state if
-   * the registration process resulted in changes.
-   */
-  const syncWatchtowerRegistration = useCallback(async () => {
-    // Ensure all required data is available before proceeding
-    if (
-      !vaults ||
-      !vaultsStatuses ||
-      walletId === undefined ||
-      !watchtowerAPI ||
-      !networkTimeout ||
-      !watchtowerWalletName
-    ) {
-      console.warn('syncWatchtowerRegistration: Skipping due to missing data.');
-      return;
-    }
-
-    try {
-      const updatedVaultsStatuses = await registerWithWatchtower({
-        vaults,
-        vaultsStatuses,
-        // Use 'ON_NEW_ERROR' for background sync to avoid spamming toasts
-        whenToastErrors: 'ON_NEW_ERROR',
-        walletId: walletId.toString()
-      });
 
       // Only update state if the object reference changed, indicating a mutation
-      // Also make sure vaults are still synched after the await above
       if (
         updatedVaultsStatuses !== vaultsStatuses &&
+        // Also make sure vaults are still synched after the await above
+        // Not a big issue not setting vault statuses now (if unsynched). The
+        // update will be done in the next cycle
         areVaultsSynched(vaults, vaultsStatuses)
-      ) {
+      )
         setVaultsStatuses(updatedVaultsStatuses);
-      }
     } catch (error) {
       // Errors during registration are handled within registerWithWatchtower (via netRequest)
       // but catch any unexpected errors here.
@@ -1443,11 +1399,13 @@ const WalletProviderRaw = ({
     vaults,
     vaultsStatuses,
     walletId,
-    registerWithWatchtower,
     setVaultsStatuses,
-    watchtowerAPI, // Added dependencies from the check
-    networkTimeout, // Added dependencies from the check
-    watchtowerWalletName // Added dependencies from the check
+    netRequest,
+    networkTimeout,
+    settings?.LOCALE,
+    t,
+    watchtowerAPI,
+    watchtowerWalletName
   ]);
 
   /**
@@ -1708,24 +1666,6 @@ const WalletProviderRaw = ({
           return;
         }
 
-        //        // Update vaultsStatuses with watchtower registrations
-        //        // registerWithWatchtower uses netRequest internally
-        //        // registerWithWatchtower does nothing if already registered or if
-        //        // the user has not accepted push Notifications yet
-        //        if (canReceiveNotifications) {
-        //          updatedVaultsStatuses = await registerWithWatchtower({
-        //            vaults: updatedVaults,
-        //            vaultsStatuses: updatedVaultsStatuses,
-        //            whenToastErrors,
-        //            walletId: walletId.toString()
-        //          });
-        //          if (walletId !== walletIdRef.current) {
-        //            //do this after each await
-        //            setSyncingBlockchain(walletId, false);
-        //            return;
-        //          }
-        //        }
-
         //Update states:
         batchedUpdates(() => {
           if (vaults !== updatedVaults) setVaults(updatedVaults);
@@ -1764,7 +1704,6 @@ const WalletProviderRaw = ({
 
     setSyncingBlockchain(walletId, false);
   }, [
-    //    registerWithWatchtower,
     watchtowerWalletName,
     netRequest,
     netToast,
@@ -1863,18 +1802,6 @@ const WalletProviderRaw = ({
 
       await pushTx(vault.vaultTxHex);
 
-      //if (canReceiveNotifications)
-      //  // Register with watchtower immediately for new vaults
-      //  // registerWithWatchtower uses netRequest internally
-      //  // registerWithWatchtower does nothing if already registered or if
-      //  // the user has not accepted push Notifications yet
-      //  newVaultsStatuses = await registerWithWatchtower({
-      //    vaults: newVaults,
-      //    vaultsStatuses: newVaultsStatuses,
-      //    whenToastErrors: 'ON_ANY_ERROR',
-      //    walletId: walletId.toString()
-      //  });
-
       await Promise.all([
         setUtxosHistoryExport(
           newVaults,
@@ -1892,7 +1819,6 @@ const WalletProviderRaw = ({
     },
     [
       walletId,
-      //registerWithWatchtower,
       pushTx,
       accounts,
       tipHeight,

@@ -2,13 +2,16 @@
 //do a normal vault creation at xx:01 and then do a rescue and all that
 //and see how this looks in another device that did not do the push
 //
-//TEST: test what if the watchtower is down
+//TEST:
+//test what if the watchtower is down
 //
-//FIXME: missing spanish translations and improve english ones
+//FIXME:
+//missing spanish translations and improve english ones
 //
-//TODO:Add Accelerate links on the confirming... texts on the right!!!
+//TODO:
+//Add Accelerate links on the confirming... texts on the right!!!
 //for the init and for the rescue
-//
+
 import React, {
   useCallback,
   useEffect,
@@ -906,22 +909,17 @@ const RawVault = ({
         }
       >
         <Text className="text-base pl-2 pr-2 text-slate-600">
-          {
-            //FIXME: it can be registered but without revoked permissions
-            //FIXME: 2 diff errors: when the watchtower does not work and when revoked permissiosn
-            //FIXME: here i still need explanations for when success is false
-            registeredWatchtower
-              ? t('wallet.vault.watchtower.registered')
-              : notificationSetupResult?.success === true
-                ? t('wallet.vault.watchtower.registrationError')
-                : notificationSetupResult?.canAskAgain
-                  ? Platform.OS === 'ios'
-                    ? t('wallet.vault.watchtower.unregistered.ios')
-                    : t('wallet.vault.watchtower.unregistered.android')
-                  : Platform.OS === 'ios'
-                    ? t('wallet.vault.watchtower.settings.ios')
-                    : t('wallet.vault.watchtower.settings.android')
-          }
+          {registeredWatchtower
+            ? t('wallet.vault.watchtower.registered')
+            : notificationSetupResult?.success === true
+              ? t('wallet.vault.watchtower.registrationError')
+              : notificationSetupResult?.canAskAgain
+                ? Platform.OS === 'ios'
+                  ? t('wallet.vault.watchtower.unregistered.ios')
+                  : t('wallet.vault.watchtower.unregistered.android')
+                : Platform.OS === 'ios'
+                  ? t('wallet.vault.watchtower.settings.ios')
+                  : t('wallet.vault.watchtower.settings.android')}
         </Text>
       </Modal>
     </View>
@@ -956,11 +954,13 @@ const Vaults = ({
   const { t } = useTranslation();
   const [notificationSetupResult, setNotificationSetupResult] =
     useState<NotificationSetupResult>();
-  const [showPermissionExplanationModal, setShowPermissionExplanationModal] =
-    useState(false);
+  const [
+    showNotificationsPermissionExplanationModal,
+    setShowNotificationsPermissionExplanationModal
+  ] = useState(false);
 
-  const handleRequestPermission = useCallback(async () => {
-    setShowPermissionExplanationModal(false);
+  const handleNotificationsPermissionRequest = useCallback(async () => {
+    setShowNotificationsPermissionExplanationModal(false);
     try {
       const result = await configureNotifications();
       setNotificationSetupResult(prevResult =>
@@ -987,7 +987,7 @@ const Vaults = ({
             // show explanation modal after 3 seconds so that users
             // already have seen their vault activity
             timeoutId = setTimeout(
-              () => setShowPermissionExplanationModal(true),
+              () => setShowNotificationsPermissionExplanationModal(true),
               3000
             );
           } else {
@@ -1037,14 +1037,17 @@ const Vaults = ({
 
   return (
     <View className="gap-y-4">
-      <Modal //FIXME: missing translations
+      <Modal
         title={t('wallet.vault.watchtower.permissionTitle')}
         icon={permissionsIcon}
-        isVisible={showPermissionExplanationModal}
-        onClose={handleRequestPermission}
+        isVisible={showNotificationsPermissionExplanationModal}
+        onClose={handleNotificationsPermissionRequest}
         customButtons={
           <View className="items-center gap-6 gap-y-4 flex-row flex-wrap justify-center pb-4">
-            <Button mode="primary" onPress={handleRequestPermission}>
+            <Button
+              mode="primary"
+              onPress={handleNotificationsPermissionRequest}
+            >
               {t('continueButton')}
             </Button>
           </View>

@@ -104,6 +104,8 @@ export async function getExpoPushToken(): Promise<string | null> {
 }
 
 // Register vaults with the watchtower service
+// The backend won't return an error when trying to re-register a vault.
+//
 //FIXME: only call this if getExpoPushToken returns something, in fact
 //pass it as param. It may be the case the user never accepted push notifications
 //then warn the user or something.
