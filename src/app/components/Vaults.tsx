@@ -21,7 +21,7 @@ import React, {
 } from 'react';
 
 const IRREVERSIBLE_BLOCKS = 4; // Number of blocks after which a transaction is considered irreversible
-import { View, Text, Linking, Pressable, AppState } from 'react-native';
+import { View, Text, Linking, Pressable, AppState, AppStateStatus } from 'react-native'; // Added AppStateStatus
 import * as Icons from '@expo/vector-icons';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { batchedUpdates } from '~/common/lib/batchedUpdates';
@@ -1016,19 +1016,52 @@ const Vaults = ({
     };
   }, [hasVaults, syncWatchtowerRegistration]);
 
-  //Check permissions again when the app gains focus
-  //TODO: fix the await not in an async parent and the dependencies if needed and the cleanup and types and any other error
+  // --- AppState Listener for Permission Changes ---
+  const appState = useRef(AppState.currentState);
   useEffect(() => {
-    const subscription = AppState.addEventListener('change', nextAppState => {
-      if (nextAppState === 'active') {
-        const result = await Notifications.getPermissionsAsync();
-        setNotificationSetupResult(prevResult =>
-          shallowEqualObjects(prevResult, result) ? prevResult : result
-        );
+    const handleAppStateChange = async (nextAppState: AppStateStatus) => {
+      if (
+        appState.current.match(/inactive|background/) &&
+        nextAppState === 'active' &&
+        canReceiveNotifications // Only check if device supports notifications
+      ) {
+        console.log('App has come to the foreground, checking permissions...');
+        try {
+          const { status: currentStatus, canAskAgain: currentCanAskAgain } =
+            await Notifications.getPermissionsAsync();
+
+          const newResult: NotificationSetupResult = {
+            success: currentStatus === 'granted',
+            canAskAgain: currentCanAskAgain
+          };
+
+          setNotificationSetupResult(prevResult => {
+            if (!prevResult || !shallowEqualObjects(prevResult, newResult)) {
+              console.log('Notification permission status updated:', newResult);
+              // If permissions are now granted, trigger watchtower sync
+              if (newResult.success) {
+                 syncWatchtowerRegistration().catch(err => console.warn("Error syncing watchtower after permission check:", err));
+              }
+              return newResult;
+            }
+            return prevResult; // No change
+          });
+        } catch (error) {
+          console.warn("Error checking notification permissions on AppState change:", error);
+        }
       }
-    });
-    return () => subscription.remove();
-  }, []);
+      appState.current = nextAppState;
+    };
+
+    const subscription = AppState.addEventListener('change', handleAppStateChange);
+
+    // Cleanup listener on component unmount
+    return () => {
+      subscription.remove();
+    };
+  }, [setNotificationSetupResult, syncWatchtowerRegistration]); // Added dependencies
+  // --- End AppState Listener ---
+
 
   const sortedVaults = useMemo(() => {
     return Object.values(vaults).sort(
