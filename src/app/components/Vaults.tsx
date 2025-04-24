@@ -892,8 +892,7 @@ const RawVault = ({
         onClose={handleCloseWatchtowerHelp}
         customButtons={
           <View className="items-center gap-6 gap-y-4 flex-row flex-wrap justify-center pb-4">
-            {!registeredWatchtower &&
-              notificationSetupResult &&
+            {notificationSetupResult &&
               notificationSetupResult.status !== 'granted' &&
               notificationSetupResult.canAskAgain && (
                 <Button
@@ -918,9 +917,9 @@ const RawVault = ({
         }
       >
         <Text className="text-base pl-2 pr-2 text-slate-600">
-          {registeredWatchtower
+          {registeredWatchtower && notificationSetupResult?.status === 'granted'
             ? t('wallet.vault.watchtower.registered')
-            : notificationSetupResult?.status === 'granted'
+            : !registeredWatchtower
               ? t('wallet.vault.watchtower.registrationError')
               : notificationSetupResult?.canAskAgain
                 ? Platform.OS === 'ios'
