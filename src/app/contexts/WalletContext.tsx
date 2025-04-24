@@ -12,6 +12,8 @@ import {
   getHistoryData,
   TxHex
 } from '../lib/vaults';
+import { useNavigation } from '@react-navigation/native';
+import { WALLETS, type NavigationPropsByScreenId } from '../screens';
 import * as Notifications from 'expo-notifications';
 import { getExpoPushToken, watchVaults } from '../lib/watchtower';
 import {
@@ -785,6 +787,21 @@ const WalletProviderRaw = ({
                       typeof txid === 'string' &&
                       txid.length > 0
                     ) {
+                      // Check if this vault was triggered from another device
+                      const vaultStatus = vaultsStatuses?.[vaultId];
+                      const triggerPushTime = vaultStatus?.triggerPushTime;
+                    
+                      // If there's no triggerPushTime or it's not close to firstDetectedAt,
+                      // then this trigger came from another device
+                      const PUSH_TIME_THRESHOLD = 60; // seconds
+                      const wasTriggeredFromThisDevice = 
+                        triggerPushTime !== undefined && 
+                        Math.abs(triggerPushTime - firstDetectedAt) < PUSH_TIME_THRESHOLD;
+
+                      if (!wasTriggeredFromThisDevice) {
+                        goBackToWallets(walletIdNum);
+                      }
+
                       // Create new wallet object with updated notifications
                       const updatedWallet = {
                         ...currentWallet,
