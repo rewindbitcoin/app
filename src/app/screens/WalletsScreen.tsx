@@ -68,7 +68,9 @@ const walletCls = [
   'text-teal-500'
 ];
 const walletBg = (index: number, hasNotifications: boolean) =>
-  hasNotifications ? 'bg-red-600' : walletBgs[index % walletBgs.length];
+  hasNotifications ? 'bg-red-800' : walletBgs[index % walletBgs.length];
+//const walletBg = (index: number, _hasNotifications: boolean) =>
+//  walletBgs[index % walletBgs.length];
 const walletCl = (index: number) => walletCls[index % walletCls.length];
 
 /**
@@ -222,7 +224,10 @@ const WalletsScreen = () => {
       )}
       <KeyboardAwareScrollView
         keyboardShouldPersistTaps="handled"
-        contentContainerClassName="justify-center items-center"
+        contentContainerClassName={
+          //FIXME: this shows white when pulling - i solved this before in another screen dont remember where - WalletHomeScreen
+          `justify-center items-center ${showOnlyNotifications ? 'bg-red-600' : ''}`
+        }
         contentContainerStyle={
           { flexGrow: 1 } /*className flex-1 does not work!*/
         }
@@ -239,14 +244,14 @@ const WalletsScreen = () => {
           }}
         >
           {showOnlyNotifications && walletsWithWTNotifications.length > 0 && (
-            <View className="w-full max-w-96 p-4 mb-2 rounded-xl bg-red-100 border border-red-300">
-              <Text className="text-red-700 font-bold text-base mb-1">
+            <View className="p-4 mb-2">
+              <Text className="text-white font-bold text-base mb-1">
                 {t('wallets.notificationWarningTitle')}
               </Text>
-              <Text className="text-red-700 text-sm">
+              <Text className="text-white text-sm">
                 {
-                  //FIXME: translate this!!!
                   t('wallets.notificationWarningMessage')
+                  //FIXME: translate this!!!
                 }
               </Text>
             </View>

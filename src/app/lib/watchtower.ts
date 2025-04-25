@@ -70,6 +70,8 @@ export async function configureNotifications(): Promise<NotificationSetupResult>
 
 // Get the Expo push token
 // If configureNotifications has not been called, this will return null.
+// FIXME: probably cache this in disk since this cannot change
+// cache it in memory/disk
 export async function getExpoPushToken(): Promise<string | null> {
   try {
     // Get the project ID from expo-constants

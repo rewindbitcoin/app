@@ -13,9 +13,13 @@ import {
   TxHex
 } from '../lib/vaults';
 import { useNavigation } from '@react-navigation/native';
-import { WALLETS, type NavigationPropsByScreenId } from '../screens';
+import { WALLETS } from '../screens';
 import * as Notifications from 'expo-notifications';
-import { getExpoPushToken, watchVaults } from '../lib/watchtower';
+import {
+  getExpoPushToken,
+  watchVaults,
+  canReceiveNotifications
+} from '../lib/watchtower';
 import {
   walletTitle,
   type Accounts,
@@ -197,16 +201,15 @@ const WalletProviderRaw = ({
 
   const { secureStorageInfo } = useSecureStorageInfo();
   const { t } = useTranslation();
-  const navigation = useNavigation<NavigationPropsByScreenId[typeof WALLETS]>();
+  const navigation = useNavigation();
 
   const goBackToWallets = useCallback(
     (walletId: number) => {
       //In react navigation v6 navigation.navigate behaves as if doing a
-      //navigation.pop(2). So it unmounts this screen.
+      //navigation.pop(<number>). So it unmounts the current screen.
       //Note that on version v7 the behaviour will change. Since a reset of all
       //states and refs is necessary when leaving this screen, then make sure
-      //
-      //I will still be using the same behaviupur when i upgrade to v7
+      //I will still be using the same behaviour when i upgrade to v7
       //https://reactnavigation.org/docs/7.x/upgrading-from-6.x#the-navigate-method-no-longer-goes-back-use-popto-instead
       //
       // @ts-expect-error: Using popTo for future upgrade to v7
@@ -790,17 +793,17 @@ const WalletProviderRaw = ({
                       // Check if this vault was triggered from another device
                       const vaultStatus = vaultsStatuses?.[vaultId];
                       const triggerPushTime = vaultStatus?.triggerPushTime;
-                    
+
                       // If there's no triggerPushTime or it's not close to firstDetectedAt,
                       // then this trigger came from another device
-                      const PUSH_TIME_THRESHOLD = 60; // seconds
-                      const wasTriggeredFromThisDevice = 
-                        triggerPushTime !== undefined && 
-                        Math.abs(triggerPushTime - firstDetectedAt) < PUSH_TIME_THRESHOLD;
+                      const PUSH_TIME_THRESHOLD = 5 * 60; // seconds
+                      const wasTriggeredFromThisDevice =
+                        triggerPushTime !== undefined &&
+                        Math.abs(triggerPushTime - firstDetectedAt) <
+                          PUSH_TIME_THRESHOLD;
 
-                      if (!wasTriggeredFromThisDevice) {
+                      if (!wasTriggeredFromThisDevice)
                         goBackToWallets(walletIdNum);
-                      }
 
                       // Create new wallet object with updated notifications
                       const updatedWallet = {
@@ -836,7 +839,7 @@ const WalletProviderRaw = ({
         }
       }
     },
-    [wallets, setWallets, sendAckToWatchtower]
+    [wallets, setWallets, sendAckToWatchtower, goBackToWallets, vaultsStatuses]
   );
 
   /**
@@ -945,7 +948,11 @@ const WalletProviderRaw = ({
 
   // Set up watchtower notification handling & polling for pending notifications
   useEffect(() => {
-    if (!walletsStorageStatus.isSynchd || !settingsStorageStatus.isSynchd)
+    if (
+      !walletsStorageStatus.isSynchd ||
+      !settingsStorageStatus.isSynchd ||
+      !canReceiveNotifications
+    )
       return;
 
     // Check for any notifications that might have launched the app

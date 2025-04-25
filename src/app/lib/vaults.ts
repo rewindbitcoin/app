@@ -1,5 +1,5 @@
 // TODO: very imporant to only allow Vaulting funds with 1 confirmatin at least (make this a setting)
-const PUSH_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
+const PUSH_TIMEOUT = 30 * 60; // 30 minutes
 
 import { Network, Psbt, Transaction, crypto } from 'bitcoinjs-lib';
 import memoize from 'lodash.memoize';
@@ -161,6 +161,7 @@ export type VaultStatus = {
   spendAsHotTxBlockTime?: number;
 
   /** Props below are just to keep internal track of users actions.
+   * Units are SECONDS.
    * They are kept so that the App knows the last action the user did WITHIN the
    * app:
    * - doesn't mean the action succeed. Perhaps a vault process did not have
@@ -171,7 +172,7 @@ export type VaultStatus = {
    * So, not reliable. To be used ONLY for UX purposes: For example to prevent
    * users to re-push txs in short periods of time.
    *
-   * These variables are reset after PUSH_TIMEOUT_MS milliseconds if the
+   * These variables are reset after PUSH_TIMEOUT seconds if the
    * pushed tx cannot be found in the mempool or in a block.
    */
   vaultPushTime?: number;
@@ -1292,7 +1293,7 @@ async function fetchVaultStatus(
   // Vault Tx NOT Found - Check if push time should be reset
   else if (
     newVaultStatus.vaultPushTime &&
-    Date.now() - newVaultStatus.vaultPushTime > PUSH_TIMEOUT_MS
+    Math.floor(Date.now() / 1000) - newVaultStatus.vaultPushTime > PUSH_TIMEOUT
   )
     delete newVaultStatus.vaultPushTime;
 
@@ -1366,14 +1367,16 @@ async function fetchVaultStatus(
     // Panic Tx NOT Found - Check if push time should be reset
     else if (
       newVaultStatus.panicPushTime &&
-      Date.now() - newVaultStatus.panicPushTime > PUSH_TIMEOUT_MS
+      Math.floor(Date.now() / 1000) - newVaultStatus.panicPushTime >
+        PUSH_TIMEOUT
     )
       delete newVaultStatus.panicPushTime;
   }
   // Trigger Tx NOT Found - Check if push time should be reset
   else if (
     newVaultStatus.triggerPushTime &&
-    Date.now() - newVaultStatus.triggerPushTime > PUSH_TIMEOUT_MS
+    Math.floor(Date.now() / 1000) - newVaultStatus.triggerPushTime >
+      PUSH_TIMEOUT
   )
     delete newVaultStatus.triggerPushTime;
   if (currVaultStatus && shallowEqualObjects(currVaultStatus, newVaultStatus))
