@@ -59,9 +59,11 @@ export default {
     mainWallet: 'Main Wallet',
     testWallet: 'Test Wallet',
     noRealValue: 'No Real Value',
-    notificationWarningTitle: 'Vault Access Alert',
-    notificationWarningMessage_one: 'Unauthorized unfreeze attempt may be in progress. Check your wallet below and take action if needed.',
-    notificationWarningMessage_other: 'Unauthorized unfreeze attempts may be in progress. Check your wallets below and take action if needed.',
+    notificationWarningTitle: 'Security Alert: Vault Access',
+    notificationWarningMessage_one:
+      'Suspicious activity detected in one of your Vaults. If you didn’t initiate this, open your wallet now and take action.',
+    notificationWarningMessage_other:
+      'Suspicious activity detected in multiple Vaults. If you didn’t initiate this, open your wallets now and take action.',
     //As in Created on January 19, 2010
     createdOn: 'Created on',
     walletId: 'Wallet {{id}}'

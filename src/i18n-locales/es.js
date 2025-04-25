@@ -55,9 +55,12 @@ export default {
     mainWallet: 'Billetera Principal',
     testWallet: 'Billetera de Prueba',
     noRealValue: 'Sin Valor Real',
-    notificationWarningTitle: 'Alerta de Acceso a Bóveda',
-    notificationWarningMessage_one: 'Se ha detectado un intento de descongelación no autorizado. Revisa tu billetera a continuación y toma medidas si es necesario.',
-    notificationWarningMessage_other: 'Se han detectado intentos de descongelación no autorizados. Revisa tus billeteras a continuación y toma medidas si es necesario.',
+    notificationWarningTitle: 'Alerta de seguridad: acceso a la Bóveda',
+    notificationWarningMessage_one:
+      'Se ha detectado una actividad sospechosa en una de tus Bóvedas. Si no has sido tú, abre tu billetera ahora y actúa.',
+    notificationWarningMessage_other:
+      'Se ha detectado actividad sospechosa en varias Bóvedas. Si no has sido tú, abre tus billeteras ahora y actúa.',
+    //As in Created on January 19, 2010
     createdOn: 'Creada el',
     walletId: 'Billetera {{id}}'
   },

@@ -72,7 +72,7 @@ const walletBg = (index: number, hasNotifications: boolean) =>
   hasNotifications ? 'bg-red-800' : walletBgs[index % walletBgs.length];
 //const walletBg = (index: number, _hasNotifications: boolean) =>
 //  walletBgs[index % walletBgs.length];
-const walletCl = (index: number, hasNotifications: boolean) => 
+const walletCl = (index: number, hasNotifications: boolean) =>
   hasNotifications ? 'text-red-800' : walletCls[index % walletCls.length];
 
 /**
@@ -246,7 +246,7 @@ const WalletsScreen = () => {
           }}
         >
           {showOnlyNotifications && walletsWithWTNotifications.length > 0 && (
-            <View className="p-4 mb-4 items-center">
+            <View className="mb-8 items-center">
               <MaterialCommunityIcons
                 name="alert-octagon-outline"
                 className="text-white text-9xl mb-4"
