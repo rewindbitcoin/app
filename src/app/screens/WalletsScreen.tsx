@@ -250,7 +250,7 @@ const WalletsScreen = () => {
                 name="alert-octagon-outline"
                 className="text-white text-9xl mb-4"
               />
-              <Text className="text-white font-bold text-lg mb-2">
+              <Text className="text-white font-bold text-xl mb-2">
                 {t('wallets.notificationWarningTitle')}
               </Text>
               <Text className="text-white text-base">
