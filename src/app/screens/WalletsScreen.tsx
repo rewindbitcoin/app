@@ -236,7 +236,7 @@ const WalletsScreen = () => {
           `justify-center items-center ${showOnlyNotifications ? 'bg-red-600' : ''} ${Platform.OS === 'ios' || Platform.OS === 'web' ? '-z-10' : ''}`
         }
         contentContainerStyle={
-          { flexGrow: 1 } /*className flex-1 does not work!*/
+          showOnlyNotifications ? {} : { flexGrow: 1 } /*className flex-1 does not work!*/
         }
         onLayout={event => {
           scrollViewHeightRef.current = event.nativeEvent.layout.height;
