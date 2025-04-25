@@ -72,7 +72,8 @@ const walletBg = (index: number, hasNotifications: boolean) =>
   hasNotifications ? 'bg-red-800' : walletBgs[index % walletBgs.length];
 //const walletBg = (index: number, _hasNotifications: boolean) =>
 //  walletBgs[index % walletBgs.length];
-const walletCl = (index: number) => walletCls[index % walletCls.length];
+const walletCl = (index: number, hasNotifications: boolean) => 
+  hasNotifications ? 'text-red-800' : walletCls[index % walletCls.length];
 
 /**
  * Creates a new wallet object with all notifications marked as acknowledged.
@@ -284,12 +285,12 @@ const WalletsScreen = () => {
                     {wallet.networkId !== 'BITCOIN' && (
                       <View className="self-start p-2 rounded-xl bg-white/70">
                         <Text
-                          className={`font-semibold text-xs text-center leading-4 ${walletCl(index)}`}
+                          className={`font-semibold text-xs text-center leading-4 ${walletCl(index, showOnlyNotifications)}`}
                         >
                           {t('wallets.testWallet')}
                         </Text>
                         <Text
-                          className={`font-semibold text-xs text-center leading-4 ${walletCl(index)}`}
+                          className={`font-semibold text-xs text-center leading-4 ${walletCl(index, showOnlyNotifications)}`}
                         >
                           {t('wallets.noRealValue')}
                         </Text>
