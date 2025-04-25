@@ -59,6 +59,8 @@ export default {
     mainWallet: 'Main Wallet',
     testWallet: 'Test Wallet',
     noRealValue: 'No Real Value',
+    notificationWarningTitle: 'Vault Access Alert',
+    notificationWarningMessage: 'Unauthorized unfreeze attempts may be in progress. Check your wallets below and take action if needed.',
     //As in Created on January 19, 2010
     createdOn: 'Created on',
     walletId: 'Wallet {{id}}'

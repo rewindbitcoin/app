@@ -55,6 +55,8 @@ export default {
     mainWallet: 'Billetera Principal',
     testWallet: 'Billetera de Prueba',
     noRealValue: 'Sin Valor Real',
+    notificationWarningTitle: 'Alerta de Acceso a Bóveda',
+    notificationWarningMessage: 'Se han detectado intentos de descongelación no autorizados. Revisa tus billeteras a continuación y toma medidas si es necesario.',
     createdOn: 'Creada el',
     walletId: 'Billetera {{id}}'
   },
