@@ -255,7 +255,9 @@ const WalletsScreen = () => {
                 {t('wallets.notificationWarningTitle')}
               </Text>
               <Text className="text-white text-base">
-                {t('wallets.notificationWarningMessage')}
+                {t('wallets.notificationWarningMessage', {
+                  count: walletsWithWTNotifications.length
+                })}
               </Text>
             </View>
           )}
