@@ -245,7 +245,7 @@ const WalletsScreen = () => {
             handleExtraPadding();
           }}
         >
-          {showOnlyNotifications && walletsWithWTNotifications.length > 0 && (
+          {showOnlyNotifications && (
             <View className="mb-8 items-center">
               <MaterialCommunityIcons
                 name="alert-octagon-outline"
