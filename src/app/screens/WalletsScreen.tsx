@@ -247,9 +247,8 @@ const WalletsScreen = () => {
           {showOnlyNotifications && walletsWithWTNotifications.length > 0 && (
             <View className="p-4 mb-2 items-center">
               <MaterialCommunityIcons
-                name="alert-circle"
-                className="text-white text-4xl mb-2"
-                size={48}
+                name="alert-octagon-outline"
+                className="text-white text-9xl mb-2"
               />
               <Text className="text-white font-bold text-base mb-1">
                 {t('wallets.notificationWarningTitle')}
