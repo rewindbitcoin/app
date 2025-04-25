@@ -236,7 +236,9 @@ const WalletsScreen = () => {
           `justify-center items-center ${showOnlyNotifications ? 'bg-red-600' : ''} ${Platform.OS === 'ios' || Platform.OS === 'web' ? '-z-10' : ''}`
         }
         contentContainerStyle={
-          showOnlyNotifications ? {} : { flexGrow: 1 } /*className flex-1 does not work!*/
+          showOnlyNotifications
+            ? {}
+            : { flexGrow: 1 } /*className flex-1 does not work!*/
         }
         onLayout={event => {
           scrollViewHeightRef.current = event.nativeEvent.layout.height;
@@ -251,7 +253,7 @@ const WalletsScreen = () => {
           }}
         >
           {showOnlyNotifications && (
-            <View className="mb-8 items-center px-2">
+            <View className="mb-8 items-center px-2 py-4">
               <MaterialCommunityIcons
                 name="alert-octagon-outline"
                 className="text-white text-9xl mb-4"
