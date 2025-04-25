@@ -6,7 +6,7 @@ export default {
     syncP2PVaultsError: `No se pudo conectar a la red de respaldo P2P. Este problema impide sincronizar las bóvedas creadas en otros dispositivos.
 
 {{message}}`,
-    watchtowerError: `No se pudo conectar a la Torre de Vigilancia (Watchtower). Esto impide detectar accesos a tus bóvedas y enviar alertas cuando se accede a ellas.
+    watchtowerError: `No se pudo conectar con la Torre de Vigilancia (Watchtower). Esto impide detectar accesos a tus Bóvedas y enviar alertas de seguridad.
 
 {{message}}`,
     syncNetworkError: `Hubo un problema durante una solicitud de red al actualizar tu billetera.
@@ -41,7 +41,7 @@ export default {
       'No se puede conectar a nuestros servicios. Esto afecta a las actualizaciones del precio de Bitcoin e impide operaciones con bóvedas debido a la interrupción de las copias de seguridad.',
     communityBackupsdNotReachableWarning:
       'No se puede conectar al nodo de Community Backups. Esto impide operaciones con bóvedas debido a la interrupción de las copias de seguridad.',
-    watchtowerNotReachableWarning: `No se pudo conectar a la Torre de Vigilancia (Watchtower). Esto impide el envío de alertas cuando se accede a tus bóvedas.`,
+    watchtowerNotReachableWarning: `No se pudo conectar con la Torre de Vigilancia (Watchtower). Esto impide enviar alertas si alguien accede a tus Bóvedas.`,
     blockchainExplorerNotReachableWarning:
       'No se puede conectar al explorador de la blockchain. Esto impide actualizar el estado de tus transacciones y acceder a información actualizada de la red Bitcoin.',
     blockchainMainnetExplorerNotReachableWarning:
@@ -204,6 +204,29 @@ Si presionas 'Iniciar Descongelación', comenzará un período de espera de {{lo
       noFundsTile: 'Sin Fondos Congelados Aún',
       noFundsBody:
         'Mantén tus ahorros seguros congelando en Bóvedas los fondos que no necesitas diariamente.',
+      watchtower: {
+        permissionTitle: '¿Activar alertas de Bóveda?',
+        allowButton: 'Permitir notificaciones',
+        permissionExplanation: `Rewind necesita permiso para enviarte alertas críticas de seguridad sobre tus Bóvedas.
+
+Recomendamos encarecidamente activarlas.
+
+Si alguien accede a tu Frase de Recuperación (por ejemplo, por robo o pérdida) e intenta desbloquear tus Bóvedas, Rewind podrá alertar *a este dispositivo* al instante. Esto te da una oportunidad crucial para proteger tu Bitcoin antes de que sea demasiado tarde.
+
+Pulsa "Continuar". Después, tu dispositivo te pedirá permiso para permitir las notificaciones.`,
+        statusTitle: 'Estado del monitoreo de la Bóveda',
+        registered:
+          'Esta Bóveda está siendo monitoreada. Recibirás una notificación si se detecta actividad no autorizada.',
+        registrationError:
+          'No se pudo conectar con la Torre de Vigilancia (Watchtower). Verifica tu conexión a internet y asegúrate de que el servicio esté disponible. También puedes probar a seleccionar otra Torre desde los ajustes de la app.',
+        unregistered:
+          'Para activar el monitoreo y recibir alertas, permite las notificaciones cuando se te solicite.',
+        settings: {
+          ios: 'Para recibir alertas, ve a los Ajustes del dispositivo > Notificaciones > RewindBitcoin y activa las notificaciones.',
+          android:
+            'Para recibir alertas, ve a los Ajustes del dispositivo > Aplicaciones > RewindBitcoin > Notificaciones y activa las notificaciones.'
+        }
+      },
       triggerUnfreeze: {
         intro: `Estás a punto de iniciar el proceso de desbloqueo de los fondos de tu bóveda, que, llegado el momento, estarán listos para ser gastados.
 
@@ -688,12 +711,12 @@ Por favor, espera unos momentos hasta que se complete.`,
       regtestElectrumError:
         'Conexión Electrum de la Regtest no válida. Verifica el nombre del host e inténtalo de nuevo.',
       watchtowerError:
-        'Base de la API de la Torre de Vigilancia (Watchtower) no válida. Verifica la URL e inténtalo de nuevo.'
+        'La URL base de la API de la Torre de Vigilancia (Watchtower) no es válida. Verifica la dirección e inténtalo de nuevo.'
     },
     general: {
       title: 'General',
       electrumBitcoin: 'Electrum Bitcoin',
-      watchtowerApi: 'Alertas de Vigilancia (Watchtower)',
+      watchtowerApi: 'Torre de Vigilancia (Watchtower)',
       electrumTape: 'Electrum Tape',
       electrumTestnet: 'Electrum Testnet',
       electrumRegtest: 'Electrum Regtest',

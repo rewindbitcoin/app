@@ -922,9 +922,7 @@ const RawVault = ({
             : !registeredWatchtower
               ? t('wallet.vault.watchtower.registrationError')
               : notificationSetupResult?.canAskAgain
-                ? Platform.OS === 'ios'
-                  ? t('wallet.vault.watchtower.unregistered.ios')
-                  : t('wallet.vault.watchtower.unregistered.android')
+                ? t('wallet.vault.watchtower.unregistered')
                 : Platform.OS === 'ios'
                   ? t('wallet.vault.watchtower.settings.ios')
                   : t('wallet.vault.watchtower.settings.android')}

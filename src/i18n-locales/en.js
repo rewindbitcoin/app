@@ -300,27 +300,24 @@ Once the countdown ends, your funds will be unlocked and accessible.`
       watchtower: {
         permissionTitle: 'Enable Vault Alerts?',
         allowButton: 'Allow Notifications',
-        permissionExplanation: `Rewind needs permission to send important security alerts about your Vaults as notifications.
+        permissionExplanation: `Rewind needs permission to send critical security alerts about your Vaults.
 
-We highly recommend allowing them.
+We strongly recommend enabling them.
 
-If someone accesses your Recovery Phrase (e.g., via theft or loss) and tries to unfreeze your Vaults, notifications allow Rewind to instantly alert *this specific device*. This gives you crucial time to secure your Bitcoin before it can be stolen.
+If someone gains access to your Recovery Phrase (e.g., through theft or loss) and attempts to unfreeze your Vaults, Rewind can instantly alert *this specific device*. This gives you a crucial window to secure your Bitcoin before it’s too late.
 
-Tap 'Continue'. You will then be asked by your phone's system to allow notifications.`,
+Tap 'Continue'. Your device will then prompt you to allow notifications.`,
         statusTitle: 'Vault Monitoring Status',
         registered:
-          "This vault is monitored. You'll receive a push notification if unauthorized activity is detected.",
+          "This Vault is being monitored. You'll receive a push notification if unauthorized activity is detected.",
         registrationError:
-          "Could not connect to the vault monitoring service. Please check your internet connection and ensure the watchtower service is available. You can also try selecting a different watchtower in the app's settings.",
-        unregistered: {
-          ios: 'To enable monitoring and receive alerts, please allow push notifications when prompted.',
-          android:
-            'To enable monitoring and receive alerts, please allow push notifications when prompted.'
-        },
+          "Couldn't connect to the Vault monitoring service. Please check your internet connection and ensure the watchtower service is available. You can also try selecting a different watchtower in the app's settings.",
+        unregistered:
+          'To enable monitoring and receive alerts, please allow push notifications when prompted.',
         settings: {
-          ios: "To receive alerts, please go to your device's Settings > Notifications > RewindBitcoin and enable notifications.",
+          ios: "To receive alerts, go to your device's Settings > Notifications > RewindBitcoin and enable notifications.",
           android:
-            "To receive alerts, please go to your device's Settings > Apps > Rewind > Notifications and enable notifications."
+            "To receive alerts, go to your device's Settings > Apps > RewindBitcoin > Notifications and enable notifications."
         }
       }
     },
