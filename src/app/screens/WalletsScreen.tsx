@@ -1,5 +1,10 @@
 import React, { useCallback, useMemo, useRef, useState } from 'react';
-import { Text, View, Pressable /*, useWindowDimensions*/ } from 'react-native';
+import {
+  Text,
+  View,
+  Pressable /*, useWindowDimensions*/,
+  Platform
+} from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { KeyboardAwareScrollView } from '../../common/ui';
 import { useTranslation } from 'react-i18next';
@@ -227,8 +232,8 @@ const WalletsScreen = () => {
       <KeyboardAwareScrollView
         keyboardShouldPersistTaps="handled"
         contentContainerClassName={
-          //FIXME: this shows white when pulling - i solved this before in another screen dont remember where - WalletHomeScreen
-          `justify-center items-center ${showOnlyNotifications ? 'bg-red-600' : ''}`
+          //See TAGiusfdnisdunf in WalletHomeScreen for explanations
+          `justify-center items-center ${showOnlyNotifications ? 'bg-red-600' : ''} ${Platform.OS === 'ios' || Platform.OS === 'web' ? '-z-10' : ''}`
         }
         contentContainerStyle={
           { flexGrow: 1 } /*className flex-1 does not work!*/
@@ -246,7 +251,7 @@ const WalletsScreen = () => {
           }}
         >
           {showOnlyNotifications && (
-            <View className="mb-8 items-center">
+            <View className="mb-8 items-center px-2">
               <MaterialCommunityIcons
                 name="alert-octagon-outline"
                 className="text-white text-9xl mb-4"
@@ -330,6 +335,19 @@ const WalletsScreen = () => {
                 </Pressable>
               ))}
         </View>
+        {
+          //See TAGiusfdnisdunf in WalletHomeScreen for explanations
+          (Platform.OS === 'ios' || Platform.OS === 'web') && (
+            <>
+              <View
+                className={`absolute native:h-[1000] native:-top-[1000] web:h-[1000px] web:-top-[1000px] left-0 right-0 ${showOnlyNotifications ? 'bg-red-600' : ''}`}
+              />
+              <View
+                className={`absolute native:h-[1000] native:bottom-[-1000] web:h-[1000px] web:bottom-[-1000px] left-0 right-0 ${showOnlyNotifications ? 'bg-red-600' : ''}`}
+              />
+            </>
+          )
+        }
       </KeyboardAwareScrollView>
     </>
   );

@@ -59,11 +59,11 @@ export default {
     mainWallet: 'Main Wallet',
     testWallet: 'Test Wallet',
     noRealValue: 'No Real Value',
-    notificationWarningTitle: 'Security Alert: Vault Access',
+    notificationWarningTitle: 'Unauthorized Access Detected',
     notificationWarningMessage_one:
-      'Suspicious activity detected in one of your Vaults. If you didn’t initiate this, open your wallet now and take action.',
+      'An unauthorized access attempt to one of your Vaults was detected. If this wasn’t you, open your wallet now and take action immediately.',
     notificationWarningMessage_other:
-      'Suspicious activity detected in multiple Vaults. If you didn’t initiate this, open your wallets now and take action.',
+      'Unauthorized access attempts to multiple Vaults were detected. If this wasn’t you, open your wallets now and take action immediately.',
     //As in Created on January 19, 2010
     createdOn: 'Created on',
     walletId: 'Wallet {{id}}'

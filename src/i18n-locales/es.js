@@ -55,11 +55,11 @@ export default {
     mainWallet: 'Billetera Principal',
     testWallet: 'Billetera de Prueba',
     noRealValue: 'Sin Valor Real',
-    notificationWarningTitle: 'Alerta de seguridad: acceso a la Bóveda',
+    notificationWarningTitle: 'Acceso no autorizado detectado',
     notificationWarningMessage_one:
-      'Se ha detectado una actividad sospechosa en una de tus Bóvedas. Si no has sido tú, abre tu billetera ahora y actúa.',
+      'Se ha detectado un intento de acceso no autorizado a una de tus Bóvedas. Si no has sido tú, abre tu billetera ahora y actúa de inmediato.',
     notificationWarningMessage_other:
-      'Se ha detectado actividad sospechosa en varias Bóvedas. Si no has sido tú, abre tus billeteras ahora y actúa.',
+      'Se han detectado intentos de acceso no autorizado a varias de tus Bóvedas. Si no has sido tú, abre tus billeteras ahora y actúa de inmediato.',
     //As in Created on January 19, 2010
     createdOn: 'Creada el',
     walletId: 'Billetera {{id}}'
