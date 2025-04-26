@@ -1,14 +1,9 @@
-//TEST:
-//do a normal vault creation at xx:01 and then do a rescue and all that
-//and see how this looks in another device that did not do the push
-//
-//TEST:
-//test what if the watchtower is down
-//
+//FIXME:: walletIds should not be re-usable. walletId should be permanent.
+
+//FIXME: if the walletId in the push does not exist anymore don't warn.
+// - if deleting a wallet, it should ack or something the server.
+
 //FIXME:
-//missing spanish translations and improve english ones
-//
-//TODO:
 //Add Accelerate links on the confirming... texts on the right!!!
 //for the init and for the rescue
 
@@ -978,14 +973,22 @@ const Vaults = ({
     }
   }, [syncWatchtowerRegistration]);
 
-  // Configure notifications when vaults are first detected
-  // This is the where the App will request users to accept push Notifications
-  const hasVaults = Object.keys(vaults).length > 0;
+  // Initialize push notifications whenever the vault count increases.
+  // Requests permission if needed, then configures notifications
+  // and syncs watchtower registration once per new vault detected.
+  const vaultCount = Object.keys(vaults).length;
+  // keep a stable ref to the latest syncWatchtowerRegistration fn
+  const syncWatchtowerRegistrationRef = useRef(syncWatchtowerRegistration);
+  useEffect(() => {
+    syncWatchtowerRegistrationRef.current = syncWatchtowerRegistration;
+  }, [syncWatchtowerRegistration]);
+
   useEffect(() => {
     let timeoutId: NodeJS.Timeout | undefined;
 
     const setupNotificationsAndWatchtower = async () => {
-      if (canReceiveNotifications && hasVaults) {
+      // Only proceed if we haven't synced yet and we have vaults
+      if (canReceiveNotifications && vaultCount > 0) {
         try {
           const { status, canAskAgain } =
             await Notifications.getPermissionsAsync();
@@ -1001,7 +1004,8 @@ const Vaults = ({
             setNotificationSetupResult(prevResult =>
               shallowEqualObjects(prevResult, result) ? prevResult : result
             );
-            if (result.status === 'granted') await syncWatchtowerRegistration();
+            if (result.status === 'granted')
+              await syncWatchtowerRegistrationRef.current();
           }
         } catch (error: unknown) {
           console.warn(
@@ -1016,11 +1020,9 @@ const Vaults = ({
     // Cleanup function to clear the timeout if the component unmounts
     // or if the effect re-runs before the timeout finishes
     return () => {
-      if (timeoutId) {
-        clearTimeout(timeoutId);
-      }
+      if (timeoutId) clearTimeout(timeoutId);
     };
-  }, [hasVaults, syncWatchtowerRegistration]);
+  }, [vaultCount]);
 
   //Check when the app comes to the foreground (perhaps it was in the back
   //while the user was tuning on notifications manually)

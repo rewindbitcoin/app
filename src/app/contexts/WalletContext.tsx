@@ -1354,7 +1354,7 @@ const WalletProviderRaw = ({
 
   /**
    * Registers vaults with the watchtower service and updates their
-   * registration status.
+   * registration status (registeredWatchtowers field in vaultStatus).
    *
    * If configureNotifications has not been called this call has no effect.
    * If all vaults have already been registered this function has no effect.
@@ -1401,7 +1401,7 @@ const WalletProviderRaw = ({
         let alreadyMutated = false;
         for (const vaultId of newWatchedVaults) {
           const status = vaultsStatuses[vaultId];
-          if (!status) throw new Error('Unset status for vaultId');
+          if (!status) throw new Error('Unset status for vaultId: ' + vaultId);
           if (!status.registeredWatchtowers?.includes(watchtowerAPI)) {
             if (!alreadyMutated) {
               alreadyMutated = true;
@@ -1828,7 +1828,6 @@ const WalletProviderRaw = ({
         throw new Error(`VaultStatus for ${vault.vaultId} already exists`);
 
       const newVaults = { ...vaults, [vault.vaultId]: vault };
-      //let newVaultsStatuses = {
       const newVaultsStatuses = {
         ...vaultsStatuses,
         [vault.vaultId]: {
@@ -1839,20 +1838,21 @@ const WalletProviderRaw = ({
 
       await pushTx(vault.vaultTxHex);
 
-      await Promise.all([
-        setUtxosHistoryExport(
-          newVaults,
-          newVaultsStatuses,
-          accounts,
-          tipHeight
-        ),
-        //Note here setVaults, setVaultsStatuses, ...
-        //are not atomically set, so when using vaults one
-        //must make sure they are synched somehow - See Vaults.tsx for an
-        //example what to do
-        setVaults(newVaults),
-        setVaultsStatuses(newVaultsStatuses)
-      ]);
+      const stateUpdatePromises: Array<Promise<void>> = [];
+      batchedUpdates(() => {
+        stateUpdatePromises.push(
+          setVaults(newVaults),
+          setVaultsStatuses(newVaultsStatuses),
+          setUtxosHistoryExport(
+            newVaults,
+            newVaultsStatuses,
+            accounts,
+            tipHeight
+          )
+        );
+      });
+      // Wait for all state updates to complete
+      await Promise.all(stateUpdatePromises);
     },
     [
       walletId,
