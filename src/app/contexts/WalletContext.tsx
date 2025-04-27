@@ -842,21 +842,40 @@ const WalletProviderRaw = ({
     [wallets, setWallets, sendAckToWatchtower, goBackToWallets, vaultsStatuses]
   );
 
+  // Cache of “unacknowledged” watchtower notifications by API URL.
+  // Populated exactly once on app startup (to recover any notifications
+  // you missed while the app was killed), then replayed from memory
+  // on subsequent calls to `fetchAndHandleWatchtowerUnacked`.
+  const watchtowerUnackedNotificationsRef = useRef<
+    Record<
+      string,
+      {
+        vaultId: string;
+        walletId: string;
+        watchtowerId: string;
+        firstDetectedAt: number;
+        txid: string;
+      }[]
+    >
+  >({});
+
   /**
-º  * Fetches unacknowledged notifications from the watchtower service.
+   * Retrieve and process any “unacknowledged” notifications from the watchtower.
    *
-   * This function is critical for recovering notifications that were sent
-   * while the app was not running (killed). When a notification arrives and the
-   * app is closed:
-   * 1. The OS shows a notification in the system tray
-   * 2. If the user doesn't interact with this notification, the app has no way
-   *    to know about it when launched later
+   * When the app is killed, OS‐delivered push notifications never surface
+   * in JS unless the user taps them. This function:
+   *   1. Fetches the “missed” notifications exactly once per WT URL (on first call).
+   *   2. Caches the raw payload in `watchtowerUnackedNotificationsRef`.
+   *   3. On every subsequent call, skips the network and invokes
+   *      `handleWatchtowerNotification` for each cached entry, ensuring
+   *      those notifications are handled in the app’s current context
+   *      (for example, taking into account whatever wallet is active now).
    *
    * @param {string} watchtowerAPI - The base watchtower API URL for the specific network
    * @returns {Promise<boolean>} True if notifications were successfully fetched and processed,
    *                            false if there was an error or the service was unavailable
    */
-  const fetchWatchtowerUnacked = useCallback(
+  const fetchAndHandleWatchtowerUnacked = useCallback(
     async (watchtowerAPI: string): Promise<boolean> => {
       if (!networkTimeout) {
         console.warn(
@@ -866,53 +885,63 @@ const WalletProviderRaw = ({
       }
 
       try {
-        // Get the push token
-        const pushToken = await getExpoPushToken();
-        if (!pushToken) {
-          console.warn(
-            'Cannot fetch unacknowledged notifications: no push token available'
-          );
-          return false;
+        //only bug the WT once. Then cache the response. The WT should only be
+        //queried on App load in case it was killed. Then we use events.
+        if (!watchtowerUnackedNotificationsRef.current[watchtowerAPI]) {
+          // Get the push token
+          const pushToken = await getExpoPushToken();
+          if (!pushToken) {
+            console.warn(
+              'Cannot fetch unacknowledged notifications: no push token available'
+            );
+            return false;
+          }
+
+          // Construct the notifications endpoint for this network
+          const notificationsEndpoint = `${watchtowerAPI}/notifications`;
+
+          // Make the request to the watchtower API
+          const response = await fetch(notificationsEndpoint, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ pushToken }),
+            signal: AbortSignal.timeout(networkTimeout)
+          });
+
+          if (!response.ok) {
+            console.warn(
+              `Failed to fetch unacknowledged notifications from ${notificationsEndpoint}: ${response.status} ${response.statusText}`
+            );
+            return false;
+          }
+
+          const data = await response.json();
+
+          if (!data.notifications || !Array.isArray(data.notifications)) {
+            console.warn(
+              'Invalid response format for unacknowledged notifications'
+            );
+            return false;
+          }
+          watchtowerUnackedNotificationsRef.current[watchtowerAPI] =
+            data.notifications;
         }
 
-        // Construct the notifications endpoint for this network
-        const notificationsEndpoint = `${watchtowerAPI}/notifications`;
+        if (!watchtowerUnackedNotificationsRef.current[watchtowerAPI])
+          throw new Error('watchtowerUnackedNotificationsRef should be set');
 
-        // Make the request to the watchtower API
-        const response = await fetch(notificationsEndpoint, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({ pushToken }),
-          signal: AbortSignal.timeout(networkTimeout)
-        });
-
-        if (!response.ok) {
-          console.warn(
-            `Failed to fetch unacknowledged notifications from ${notificationsEndpoint}: ${response.status} ${response.statusText}`
-          );
-          return false;
-        }
-
-        const data = await response.json();
-
-        if (!data.notifications || !Array.isArray(data.notifications)) {
-          console.warn(
-            'Invalid response format for unacknowledged notifications'
-          );
-          return false;
-        }
-
-        // Process each notification
-        for (const notification of data.notifications) {
+        // Process each unacked notification
+        for (const unackedNotification of watchtowerUnackedNotificationsRef
+          .current[watchtowerAPI]) {
           const {
             vaultId,
             walletId: notificationWalletId,
             watchtowerId,
             firstDetectedAt,
             txid
-          } = notification;
+          } = unackedNotification;
 
           if (
             typeof vaultId === 'string' &&
@@ -929,6 +958,13 @@ const WalletProviderRaw = ({
               firstDetectedAt,
               txid
             });
+          } else {
+            console.warn(
+              `watchtower returned corrupted data`,
+              unackedNotification
+            );
+            delete watchtowerUnackedNotificationsRef.current[watchtowerAPI];
+            return false;
           }
         }
 
@@ -946,7 +982,7 @@ const WalletProviderRaw = ({
     [networkTimeout, handleWatchtowerNotification]
   );
 
-  // Set up watchtower notification handling & polling for pending notifications
+  // Set up watchtower fotification handling & polling for pending notifications
   useEffect(() => {
     if (
       !walletsStorageStatus.isSynchd ||
@@ -987,34 +1023,36 @@ const WalletProviderRaw = ({
     // This is the only possible way to retrieve them if the app was killed
     // and the user did not tap on the notification.
     let pollingTimeout: NodeJS.Timeout | undefined;
-    // Track which watchtower APIs failed to fetch notifications. Initially, all
-    const failedWatchtowerAPIs = Object.values(wallets || [])
+    // Track which watchtower APIs are we using.
+    const watchtowerAPIChecks = Object.values(wallets || [])
       .map(w => w.networkId)
       .filter((netId, i, arr) => netId && arr.indexOf(netId) === i) //del duplicates
       .map(netId => getAPIs(netId, settings).watchtowerAPI)
       .filter(Boolean) as string[];
 
+    const failedWatchtowerAPIChecks = [...watchtowerAPIChecks]; //Init failed to ALL on 1st cycle
     // Fetch notifications from all watchtower APIs
     Promise.all(
-      [...failedWatchtowerAPIs].map(async watchtowerAPI => {
-        const success = await fetchWatchtowerUnacked(watchtowerAPI);
+      [...failedWatchtowerAPIChecks].map(async watchtowerAPI => {
+        const success = await fetchAndHandleWatchtowerUnacked(watchtowerAPI);
         if (success) {
-          const index = failedWatchtowerAPIs.indexOf(watchtowerAPI);
-          if (index !== -1) failedWatchtowerAPIs.splice(index, 1);
+          const index = failedWatchtowerAPIChecks.indexOf(watchtowerAPI);
+          if (index !== -1) failedWatchtowerAPIChecks.splice(index, 1);
         }
       })
     ).then(() => {
-      if (failedWatchtowerAPIs.length > 0) {
+      if (failedWatchtowerAPIChecks.length > 0) {
         const poll = async () => {
-          for (const watchtowerAPI of [...failedWatchtowerAPIs]) {
-            const success = await fetchWatchtowerUnacked(watchtowerAPI);
+          for (const watchtowerAPI of [...failedWatchtowerAPIChecks]) {
+            const success =
+              await fetchAndHandleWatchtowerUnacked(watchtowerAPI);
             if (!pollingTimeout) return; // cancel if unmounted
             if (success) {
-              const index = failedWatchtowerAPIs.indexOf(watchtowerAPI);
-              if (index !== -1) failedWatchtowerAPIs.splice(index, 1);
+              const index = failedWatchtowerAPIChecks.indexOf(watchtowerAPI);
+              if (index !== -1) failedWatchtowerAPIChecks.splice(index, 1);
             }
           }
-          if (failedWatchtowerAPIs.length === 0) {
+          if (failedWatchtowerAPIChecks.length === 0) {
             if (pollingTimeout) clearTimeout(pollingTimeout);
             pollingTimeout = undefined;
             return;
@@ -1044,7 +1082,7 @@ const WalletProviderRaw = ({
       }
     };
   }, [
-    fetchWatchtowerUnacked,
+    fetchAndHandleWatchtowerUnacked,
     settings,
     wallets,
     handleWatchtowerNotification,
