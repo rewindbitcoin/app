@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { randomUUID } from 'crypto';
 import { defaultSettings } from '../lib/settings';
 import type { Wallet, Signer } from '../lib/wallets';
 import { View, Text, Pressable, Keyboard, Platform } from 'react-native';
