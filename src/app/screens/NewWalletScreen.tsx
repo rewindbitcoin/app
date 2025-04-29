@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { randomUUID } from 'crypto';
+import { v4 as uuid } from 'uuid';
 import { defaultSettings } from '../lib/settings';
 import type { Wallet, Signer } from '../lib/wallets';
 import { View, Text, Pressable, Keyboard, Platform } from 'react-native';
@@ -150,6 +150,7 @@ export default function NewWalletScreen() {
       const wallet: Wallet = {
         creationEpoch: Math.floor(Date.now() / 1000),
         walletId,
+        walletUUID: uuid(),
         version: defaultSettings.WALLETS_DATA_VERSION,
         networkId,
         signersEncryption: signersPassword ? 'PASSWORD' : 'NONE',

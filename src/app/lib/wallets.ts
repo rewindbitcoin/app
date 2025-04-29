@@ -88,6 +88,7 @@ type Notifications = {
 export type Wallet = {
   creationEpoch: number;
   walletId: number;
+  walletUUID: string;
   walletName?: string;
   version: string;
   /**

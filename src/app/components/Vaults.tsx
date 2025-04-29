@@ -1,7 +1,8 @@
 //FIXME:: walletIds should not be re-usable. walletId should be permanent.
 
-//FIXME: if the walletId in the push does not exist anymore don't warn.
-// - if deleting a wallet, it should ack or something the server.
+//FIXME: if the walletUUID in the push does not exist anymore display a message on walletsscreen
+// - then ack the server to stop spamming us
+// - ALSO: if deleting a wallet, it should ack or something the server.
 
 //FIXME:
 //Add Accelerate links on the confirming... texts on the right!!!

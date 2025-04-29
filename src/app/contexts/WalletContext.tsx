@@ -1,3 +1,4 @@
+//FIXME: the watchtower api will return now the UUId too so change the WT reader
 import {
   fetchVaultsStatuses,
   getUtxosData,
@@ -12,6 +13,7 @@ import {
   getHistoryData,
   TxHex
 } from '../lib/vaults';
+import { v4 as uuid } from 'uuid';
 import { useNavigation } from '@react-navigation/native';
 import { WALLETS } from '../screens';
 import * as Notifications from 'expo-notifications';
@@ -21,7 +23,7 @@ import {
   canReceiveNotifications
 } from '../lib/watchtower';
 import {
-  walletTitle,
+  walletTitle as walletTitleFn,
   type Accounts,
   type Signers,
   type Wallets
@@ -224,6 +226,22 @@ const WalletProviderRaw = ({
     SERIALIZABLE,
     {}
   );
+  // Add this effect to handle backwards compatibility
+  // (wallets prior to Apr 29, 2025, created without uuid)
+  useEffect(() => {
+    if (wallets) {
+      let needsUpdate = false;
+      const updatedWallets = { ...wallets };
+      Object.entries(updatedWallets).forEach(([idStr, wallet]) => {
+        const id = parseInt(idStr, 10);
+        if (!wallet.walletUUID) {
+          needsUpdate = true;
+          updatedWallets[id] = { ...wallet, walletUUID: uuid() };
+        }
+      });
+      if (needsUpdate) setWallets(updatedWallets);
+    }
+  }, [wallets, setWallets]);
 
   const wallet =
     unsynchdWalletId !== undefined ? wallets?.[unsynchdWalletId] : undefined;
@@ -752,7 +770,7 @@ const WalletProviderRaw = ({
    * Validates the data, adds new notifications to the wallet state,
    * and triggers acknowledgments for existing notifications.
    */
-  const handleWatchtowerNotification = useCallback(
+  const old_delete_me_handleWatchtowerNotification = useCallback(
     (data: Record<string, unknown>) => {
       if (data && typeof data === 'object') {
         const walletIdStr = data['walletId'];
@@ -832,6 +850,98 @@ const WalletProviderRaw = ({
                       });
                     }
                   }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    [wallets, setWallets, sendAckToWatchtower, goBackToWallets, vaultsStatuses]
+  );
+  void old_delete_me_handleWatchtowerNotification;
+
+  /**
+   * Handles incoming notification data from the watchtower service.
+   * Validates the data, adds new notifications to the wallet state,
+   * and triggers acknowledgments for existing notifications.
+   */
+  const handleWatchtowerNotification = useCallback(
+    (data: Record<string, unknown>) => {
+      if (data && typeof data === 'object') {
+        const walletUUID = data['walletUUID'];
+        const watchtowerId = data['watchtowerId'];
+
+        if (walletUUID && typeof walletUUID === 'string') {
+          // Find the wallet with matching UUID
+          const wallet = Object.values(wallets || {}).find(
+            wallet => wallet.walletUUID === walletUUID
+          );
+
+          if (wallet && watchtowerId) {
+            // Only update if this is a new notification or for a different vault
+            const vaultId = data['vaultId'] as string;
+            if (vaultId) {
+              const existingNotifications = wallet.notifications || {};
+              const existingWatchtowerNotifications =
+                existingNotifications[watchtowerId as string] || {};
+
+              // Check if we already have a notification for this vault from
+              // this watchtower
+              if (existingWatchtowerNotifications[vaultId]) {
+                if (existingWatchtowerNotifications[vaultId].acked === true)
+                  sendAckToWatchtower(watchtowerId as string, vaultId);
+              } else {
+                // Notification doesn't exist yet, add it.
+                // Validate required fields exist and are of correct type
+                const firstDetectedAt = data['firstDetectedAt'] as number;
+                const txid = data['txid'] as string;
+
+                if (
+                  typeof firstDetectedAt === 'number' &&
+                  typeof txid === 'string' &&
+                  txid.length > 0
+                ) {
+                  // Check if this vault was triggered from another device
+                  const vaultStatus = vaultsStatuses?.[vaultId];
+                  const triggerPushTime = vaultStatus?.triggerPushTime;
+
+                  // If there's no triggerPushTime or it's not close to firstDetectedAt,
+                  // then this trigger came from another device
+                  const PUSH_TIME_THRESHOLD = 5 * 60; // seconds
+                  const wasTriggeredFromThisDevice =
+                    triggerPushTime !== undefined &&
+                    Math.abs(triggerPushTime - firstDetectedAt) <
+                      PUSH_TIME_THRESHOLD;
+
+                  if (!wasTriggeredFromThisDevice)
+                    goBackToWallets(wallet.walletId);
+
+                  // Create new wallet object with updated notifications
+                  const updatedWallet = {
+                    ...wallet,
+                    notifications: {
+                      ...existingNotifications,
+                      [watchtowerId as string]: {
+                        ...existingWatchtowerNotifications,
+                        [vaultId]: {
+                          firstAttemptAt: firstDetectedAt,
+                          acked: false
+                        }
+                      }
+                    }
+                  };
+
+                  // Update wallets storage
+                  setWallets({
+                    ...wallets,
+                    [wallet.walletId]: updatedWallet
+                  });
+                } else {
+                  console.warn('Invalid notification data received:', {
+                    firstDetectedAt,
+                    txid
+                  });
                 }
               }
             }
@@ -1348,8 +1458,7 @@ const WalletProviderRaw = ({
   const isUserTriggeredSync = useRef<boolean>(false);
   const prevAccountsSyncRef = useRef<Accounts | undefined>();
 
-  const watchtowerWalletName =
-    wallet && wallets && walletTitle(wallet, wallets, t);
+  const walletTitle = wallet && wallets && walletTitleFn(wallet, wallets, t);
 
   const setVaultNotificationAcknowledged = useCallback(
     (vaultId: string) => {
@@ -1408,7 +1517,12 @@ const WalletProviderRaw = ({
     }
 
     try {
-      if (!watchtowerAPI || !networkTimeout || !watchtowerWalletName)
+      if (
+        !watchtowerAPI ||
+        !networkTimeout ||
+        !walletTitle ||
+        !wallet?.walletUUID
+      )
         throw new Error('Required data for watchtower registration missing');
       const { result: newWatchedVaults } = await netRequest({
         id: 'watchtower',
@@ -1427,9 +1541,9 @@ const WalletProviderRaw = ({
             vaults,
             vaultsStatuses,
             networkTimeout,
-            walletName: watchtowerWalletName,
+            walletName: walletTitle,
             locale,
-            walletId: walletId.toString()
+            walletUUID: wallet.walletUUID
           });
         }
       });
@@ -1480,7 +1594,8 @@ const WalletProviderRaw = ({
     settings?.LOCALE,
     t,
     watchtowerAPI,
-    watchtowerWalletName
+    wallet?.walletUUID,
+    walletTitle
   ]);
 
   /**
@@ -1504,7 +1619,7 @@ const WalletProviderRaw = ({
     const network = networkId && networkMapping[networkId];
 
     if (
-      watchtowerWalletName !== undefined &&
+      walletTitle !== undefined &&
       dataReady &&
       networkId &&
       network &&
@@ -1779,7 +1894,7 @@ const WalletProviderRaw = ({
 
     setSyncingBlockchain(walletId, false);
   }, [
-    watchtowerWalletName,
+    walletTitle,
     netRequest,
     netToast,
     netStatusUpdate,

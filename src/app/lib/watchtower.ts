@@ -15,7 +15,7 @@ export type WatchtowerRegistrationData = {
   pushToken: string;
   walletName: string;
   locale: string;
-  walletId: string;
+  walletUUID: string;
   watchtowerId: string;
   vaults: Array<{
     triggerTxIds: Array<TxId>;
@@ -122,7 +122,7 @@ export async function watchVaults({
   networkTimeout,
   walletName,
   locale,
-  walletId
+  walletUUID
 }: {
   watchtowerAPI: string;
   vaults: Vaults;
@@ -130,7 +130,7 @@ export async function watchVaults({
   networkTimeout: number;
   walletName: string;
   locale: string;
-  walletId: string;
+  walletUUID: string;
 }): Promise<string[]> {
   try {
     // Get push token
@@ -176,7 +176,7 @@ export async function watchVaults({
       pushToken,
       walletName,
       locale,
-      walletId,
+      walletUUID,
       watchtowerId: watchtowerAPI,
       vaults: vaultsToMonitor
     };
