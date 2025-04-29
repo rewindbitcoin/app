@@ -260,7 +260,7 @@ const WalletsScreen = () => {
           {orphanedWatchtowerWalletUUIDs.size > 0 && !showOnlyNotifications && (
             <View className="mb-4 bg-yellow-500 p-4 rounded-lg mx-2 w-full">
               <Text className="text-white font-medium text-center">
-                {t('wallets.orphanedNotificationWarning', {
+                {t('wallets.orphanedWatchtowerWalletUUID', {
                   count: orphanedWatchtowerWalletUUIDs.size
                 })}
               </Text>
@@ -268,9 +268,7 @@ const WalletsScreen = () => {
                 onPress={clearOrphanedWatchtowerWalletUUIDs}
                 className="mt-2 bg-white/20 py-2 px-4 rounded-full self-center"
               >
-                <Text className="text-white text-sm">
-                  {t('common.dismiss')}
-                </Text>
+                <Text className="text-white text-sm">{t('dismissButton')}</Text>
               </Pressable>
             </View>
           )}

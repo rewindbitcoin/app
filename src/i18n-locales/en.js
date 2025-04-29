@@ -66,7 +66,11 @@ export default {
       'Unauthorized access attempts to multiple Vaults were detected. If this wasn’t you, open your wallets now and take action immediately.',
     //As in Created on January 19, 2010
     createdOn: 'Created on',
-    walletId: 'Wallet {{id}}'
+    walletId: 'Wallet {{id}}',
+    orphanedWatchtowerWalletUUID_one:
+      'A watchtower alert arrived for a wallet that no longer exists.',
+    orphanedWatchtowerWalletUUID_other:
+      'Watchtower alerts arrived for {{count}} wallets that no longer exist.'
   },
   wallet: {
     vaultTab: 'Vaults',

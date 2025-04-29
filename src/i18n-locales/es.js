@@ -62,7 +62,11 @@ export default {
       'Se han detectado intentos de acceso no autorizado a varias de tus Bóvedas. Si no has sido tú, abre tus billeteras ahora y actúa de inmediato.',
     //As in Created on January 19, 2010
     createdOn: 'Creada el',
-    walletId: 'Billetera {{id}}'
+    walletId: 'Billetera {{id}}',
+    orphanedWatchtowerWalletUUID_one:
+      'Ha llegado una alerta de la Torre de Vigilancia para una billetera que ya no existe.',
+    orphanedWatchtowerWalletUUID_other:
+      'Han llegado alertas de la Torre de Vigilancia para {{count}} billeteras que ya no existen.'
   },
   wallet: {
     vaultTab: 'Bóvedas',

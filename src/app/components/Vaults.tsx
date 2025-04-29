@@ -1,5 +1,8 @@
 //FIXME:: walletIds should not be re-usable. walletId should be permanent.
 
+//FIXME: if i switch from the wallet app to a a diff app (f.ex.: Safari or whatever)
+//and i receoive the push notification and come back manually (not clickin on the push not) after receiving the pus notidication then it does not goBackToWallets
+
 //FIXME: if the walletUUID in the push does not exist anymore display a message on walletsscreen
 // - then ack the server to stop spamming us
 // - ALSO: if deleting a wallet, it should ack or something the server.

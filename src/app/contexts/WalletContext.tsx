@@ -1,3 +1,4 @@
+//FIXME: still testing orphanedWatchtowerWalletUUIDs rendering results
 import {
   fetchVaultsStatuses,
   getUtxosData,
@@ -170,7 +171,8 @@ const WalletProviderRaw = ({
   children: ReactNode;
   newWalletSigners?: Signers;
 }) => {
-  const [orphanedWatchtowerWalletUUIDs, setOrphanedWatchtowerWalletUUIDs] = useState<Set<string>>(new Set());
+  const [orphanedWatchtowerWalletUUIDs, setOrphanedWatchtowerWalletUUIDs] =
+    useState<Set<string>>(new Set());
   //This keeps track of the current active wallet.
   //There is a useEffect on "wallet" that updates the stored Wallets object too
   const [unsynchdWalletId, setWalletId] = useState<number>();
@@ -771,6 +773,10 @@ const WalletProviderRaw = ({
    */
   const handleWatchtowerNotification = useCallback(
     (data: Record<string, unknown>) => {
+      console.log(
+        'TRACE handleWatchtowerNotification',
+        JSON.stringify(data, null, 2)
+      );
       if (data && typeof data === 'object') {
         const walletUUID = data['walletUUID'];
         const watchtowerId = data['watchtowerId'];
@@ -779,6 +785,10 @@ const WalletProviderRaw = ({
           // Find the wallet with matching UUID
           const wallet = Object.values(wallets || {}).find(
             wallet => wallet.walletUUID === walletUUID
+          );
+          console.log(
+            'TRACE handleWatchtowerNotification',
+            JSON.stringify(wallet, null, 2)
           );
 
           // Handle unknown wallet UUIDs (from deleted wallets or old installations)
@@ -789,7 +799,9 @@ const WalletProviderRaw = ({
                 `Received notification for unknown wallet UUID: ${walletUUID}. This could be from a deleted wallet or old installation.`
               );
               sendAckToWatchtower(watchtowerId as string, vaultId);
-              setOrphanedWatchtowerWalletUUIDs(prev => new Set(prev).add(walletUUID));
+              setOrphanedWatchtowerWalletUUIDs(prev =>
+                new Set(prev).add(walletUUID)
+              );
               goBackToWallets();
             }
           } else {
@@ -1004,7 +1016,7 @@ const WalletProviderRaw = ({
     [networkTimeout, handleWatchtowerNotification]
   );
 
-  // Set up watchtower fotification handling & polling for pending notifications
+  // Set up watchtower notification handling & polling for pending notifications
   useEffect(() => {
     if (
       !walletsStorageStatus.isSynchd ||
@@ -2014,7 +2026,8 @@ const WalletProviderRaw = ({
     wallet,
     walletStatus: { isCorrupted, storageAccess: storageAccessStatus },
     orphanedWatchtowerWalletUUIDs,
-    clearOrphanedWatchtowerWalletUUIDs: () => setOrphanedWatchtowerWalletUUIDs(new Set()),
+    clearOrphanedWatchtowerWalletUUIDs: () =>
+      setOrphanedWatchtowerWalletUUIDs(new Set()),
     requiresPassword:
       (walletId !== undefined &&
         wallet?.signersEncryption === 'PASSWORD' &&
