@@ -118,7 +118,12 @@ function getWalletWithAcknowledgedNotifications(wallet: Wallet): Wallet {
 }
 
 const WalletsScreen = () => {
-  const { onWallet, wallets, orphanedNotifications, clearOrphanedNotifications } = useWallet();
+  const {
+    onWallet,
+    wallets,
+    orphanedWatchtowerWalletUUIDs,
+    clearOrphanedWatchtowerWalletUUIDs
+  } = useWallet();
   if (!onWallet) throw new Error(`onWallet not set yet`);
   const [ubuntuLoaded] = useFonts({ Ubuntu700Bold: Ubuntu_700Bold });
   const insets = useSafeAreaInsets();
@@ -259,11 +264,13 @@ const WalletsScreen = () => {
                   count: orphanedNotifications.length
                 })}
               </Text>
-              <Pressable 
+              <Pressable
                 onPress={clearOrphanedNotifications}
                 className="mt-2 bg-white/20 py-2 px-4 rounded-full self-center"
               >
-                <Text className="text-white text-sm">{t('common.dismiss')}</Text>
+                <Text className="text-white text-sm">
+                  {t('common.dismiss')}
+                </Text>
               </Pressable>
             </View>
           )}
