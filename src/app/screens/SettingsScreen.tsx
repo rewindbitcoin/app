@@ -266,7 +266,7 @@ const SettingsScreen = () => {
     //https://reactnavigation.org/docs/7.x/upgrading-from-6.x#the-navigate-method-no-longer-goes-back-use-popto-instead
     //
     // @ts-expect-error: Using popTo for future upgrade to v7
-    if (navigation.popTo) navigation.popTo(WALLETS, { walletId });
+    if (navigation.popTo) navigation.popTo(WALLETS);
     else navigation.navigate(WALLETS);
   }, [navigation]);
   const { t } = useTranslation();

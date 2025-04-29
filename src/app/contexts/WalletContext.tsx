@@ -1,4 +1,3 @@
-//FIXME: the watchtower api will return now the UUId too so change the WT reader
 import {
   fetchVaultsStatuses,
   getUtxosData,
@@ -205,21 +204,18 @@ const WalletProviderRaw = ({
   const { t } = useTranslation();
   const navigation = useNavigation();
 
-  const goBackToWallets = useCallback(
-    (walletId: number) => {
-      //In react navigation v6 navigation.navigate behaves as if doing a
-      //navigation.pop(<number>). So it unmounts the current screen.
-      //Note that on version v7 the behaviour will change. Since a reset of all
-      //states and refs is necessary when leaving this screen, then make sure
-      //I will still be using the same behaviour when i upgrade to v7
-      //https://reactnavigation.org/docs/7.x/upgrading-from-6.x#the-navigate-method-no-longer-goes-back-use-popto-instead
-      //
-      // @ts-expect-error: Using popTo for future upgrade to v7
-      if (navigation.popTo) navigation.popTo(WALLETS, { walletId });
-      else navigation.navigate(WALLETS);
-    },
-    [navigation]
-  );
+  const goBackToWallets = useCallback(() => {
+    //In react navigation v6 navigation.navigate behaves as if doing a
+    //navigation.pop(<number>). So it unmounts the current screen.
+    //Note that on version v7 the behaviour will change. Since a reset of all
+    //states and refs is necessary when leaving this screen, then make sure
+    //I will still be using the same behaviour when i upgrade to v7
+    //https://reactnavigation.org/docs/7.x/upgrading-from-6.x#the-navigate-method-no-longer-goes-back-use-popto-instead
+    //
+    // @ts-expect-error: Using popTo for future upgrade to v7
+    if (navigation.popTo) navigation.popTo(WALLETS);
+    else navigation.navigate(WALLETS);
+  }, [navigation]);
 
   const [wallets, setWallets, , , walletsStorageStatus] = useStorage<Wallets>(
     `WALLETS`,
@@ -790,12 +786,8 @@ const WalletProviderRaw = ({
                 `Received notification for unknown wallet UUID: ${walletUUID}. This could be from a deleted wallet or old installation.`
               );
               sendAckToWatchtower(watchtowerId as string, vaultId);
-              return;
             }
-          }
-
-          if (wallet) {
-            // Only update if this is a new notification or for a different vault
+          } else {
             const vaultId = data['vaultId'] as string;
             if (vaultId) {
               const existingNotifications = wallet.notifications || {};
@@ -830,8 +822,7 @@ const WalletProviderRaw = ({
                     Math.abs(triggerPushTime - firstDetectedAt) <
                       PUSH_TIME_THRESHOLD;
 
-                  if (!wasTriggeredFromThisDevice)
-                    goBackToWallets(wallet.walletId);
+                  if (!wasTriggeredFromThisDevice) goBackToWallets();
 
                   // Create new wallet object with updated notifications
                   const updatedWallet = {
