@@ -776,13 +776,25 @@ const WalletProviderRaw = ({
         const walletUUID = data['walletUUID'];
         const watchtowerId = data['watchtowerId'];
 
-        if (walletUUID && typeof walletUUID === 'string') {
+        if (walletUUID && typeof walletUUID === 'string' && watchtowerId) {
           // Find the wallet with matching UUID
           const wallet = Object.values(wallets || {}).find(
             wallet => wallet.walletUUID === walletUUID
           );
 
-          if (wallet && watchtowerId) {
+          // Handle unknown wallet UUIDs (from deleted wallets or old installations)
+          if (!wallet) {
+            const vaultId = data['vaultId'] as string;
+            if (typeof vaultId === 'string') {
+              console.warn(
+                `Received notification for unknown wallet UUID: ${walletUUID}. This could be from a deleted wallet or old installation.`
+              );
+              sendAckToWatchtower(watchtowerId as string, vaultId);
+              return;
+            }
+          }
+
+          if (wallet) {
             // Only update if this is a new notification or for a different vault
             const vaultId = data['vaultId'] as string;
             if (vaultId) {
