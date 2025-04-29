@@ -94,8 +94,8 @@ type TxHistory = Array<{
 }>;
 
 export type WalletContextType = {
-  orphanedNotifications: Array<{ walletUUID: string }>;
-  clearOrphanedNotifications: () => void;
+  orphanedWatchtowerWalletUUIDs: Set<string>;
+  clearOrphanedWatchtowerWalletUUIDs: () => void;
   getNextChangeDescriptorWithIndex: (accounts: Accounts) => Promise<{
     descriptor: string;
     index: number;
@@ -170,9 +170,7 @@ const WalletProviderRaw = ({
   children: ReactNode;
   newWalletSigners?: Signers;
 }) => {
-  const [orphanedNotifications, setOrphanedNotifications] = useState<
-    Array<{ walletUUID: string }>
-  >([]);
+  const [orphanedWatchtowerWalletUUIDs, setOrphanedWatchtowerWalletUUIDs] = useState<Set<string>>(new Set());
   //This keeps track of the current active wallet.
   //There is a useEffect on "wallet" that updates the stored Wallets object too
   const [unsynchdWalletId, setWalletId] = useState<number>();
@@ -791,7 +789,7 @@ const WalletProviderRaw = ({
                 `Received notification for unknown wallet UUID: ${walletUUID}. This could be from a deleted wallet or old installation.`
               );
               sendAckToWatchtower(watchtowerId as string, vaultId);
-              setOrphanedNotifications(prev => [...prev, { walletUUID }]);
+              setOrphanedWatchtowerWalletUUIDs(prev => new Set(prev).add(walletUUID));
               goBackToWallets();
             }
           } else {
@@ -2015,8 +2013,8 @@ const WalletProviderRaw = ({
     wallets,
     wallet,
     walletStatus: { isCorrupted, storageAccess: storageAccessStatus },
-    orphanedNotifications,
-    clearOrphanedNotifications: () => setOrphanedNotifications([]),
+    orphanedWatchtowerWalletUUIDs,
+    clearOrphanedWatchtowerWalletUUIDs: () => setOrphanedWatchtowerWalletUUIDs(new Set()),
     requiresPassword:
       (walletId !== undefined &&
         wallet?.signersEncryption === 'PASSWORD' &&
