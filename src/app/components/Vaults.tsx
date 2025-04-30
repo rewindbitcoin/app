@@ -974,8 +974,14 @@ const Vaults = ({
         shallowEqualObjects(prevResult, result) ? prevResult : result
       );
       if (result.status === 'granted') {
-        const pushToken = await getExpoPushToken();
+        if (!pushToken) {
+          pushToken = await getExpoPushToken();
+          setPushToken(pushToken);
+        }
         if (pushToken) await syncWatchtowerRegistration(pushToken);
+        else {
+          //FIXME: deal with this
+        }
       }
     } catch (error: unknown) {
       console.warn('Failed during notification configuration:', error);
@@ -1017,9 +1023,15 @@ const Vaults = ({
               shallowEqualObjects(prevResult, result) ? prevResult : result
             );
             if (result.status === 'granted') {
-              const pushToken = await getExpoPushToken();
+              if (!pushToken) {
+                pushToken = await getExpoPushToken();
+                setPushToken(pushToken);
+              }
               if (pushToken)
                 await syncWatchtowerRegistrationRef.current(pushToken);
+              else {
+                //FIXME: deal with this
+              }
             }
           }
         } catch (error: unknown) {
@@ -1039,9 +1051,11 @@ const Vaults = ({
     };
   }, [vaultCount]);
 
+  //FIXME: test again setting enabling the notifications manually
+
   //Check when the app comes to the foreground (perhaps it was in the back
   //while the user was tuning on notifications manually)
-  //So here it's a good place to retrieve the expoPushToken
+  //So here it's a good place to retrieve the pushToken
   const appState = useRef(AppState.currentState);
   useEffect(() => {
     const handleAppStateChange = async (nextAppState: AppStateStatus) => {
@@ -1053,8 +1067,12 @@ const Vaults = ({
         try {
           const result = await Notifications.getPermissionsAsync();
           if (result.status === 'granted') {
-            const pushToken = await getExpoPushToken();
-            if (pushToken)
+            if (!pushToken) {
+              pushToken = await getExpoPushToken();
+              setPushToken(pushToken);
+            }
+            if (pushToken) {
+              setPushToken(pushToken);
               setNotificationPermissionsStatus(prevResult => {
                 if (!shallowEqualObjects(prevResult, result)) {
                   if (prevResult?.status !== 'granted')
@@ -1069,6 +1087,9 @@ const Vaults = ({
                 }
                 return prevResult; // No change
               });
+            } else {
+              //FIXME: deal with this
+            }
           }
         } catch (error) {
           console.warn(

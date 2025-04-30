@@ -34,21 +34,16 @@ export async function getOrRequestPermissionsForNotifications(): Promise<Notific
   return result;
 }
 
-let cachedPushToken: string | null | undefined = undefined;
-
+//FIXME: the function below needs internet connection, so retry
+//a couple of times and handle this somehow with if (!pushToken)
+//
 /**
  * Retrieves the Expo push token for the device.
- * Caches the token in memory after the first successful retrieval.
- * Subsequent calls will return the cached token immediately if available.
  * Returns null if permissions are not granted, not on a physical device,
  * or if fetching fails.
  * @returns {Promise<string | null>} The Expo push token or null.
  */
 export async function getExpoPushToken(): Promise<string | null> {
-  if (cachedPushToken !== undefined) {
-    return cachedPushToken;
-  }
-
   try {
     // Get the project ID from expo-constants
     const projectId =
@@ -71,17 +66,13 @@ export async function getExpoPushToken(): Promise<string | null> {
       // For testing purposes, we'll continue anyway but return null at the end
       return null;
     }
-
-    //FIXME: this can throw since this is a fetch call!!!
     const tokenResponse = await Notifications.getExpoPushTokenAsync({
       projectId: projectId
     });
-    cachedPushToken = tokenResponse.data;
-    return cachedPushToken;
+    return tokenResponse.data;
   } catch (error) {
     console.error('Failed to get push token:', error);
-    cachedPushToken = null; // Cache failure as null
-    return cachedPushToken;
+    return null;
   }
 }
 
