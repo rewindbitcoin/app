@@ -1,12 +1,3 @@
-//FIXME:: walletIds should not be re-usable. walletId should be permanent.
-
-//FIXME: if i switch from the wallet app to a a diff app (f.ex.: Safari or whatever)
-//and i receoive the push notification and come back manually (not clickin on the push not) after receiving the pus notidication then it does not goBackToWallets
-
-//FIXME: if the walletUUID in the push does not exist anymore display a message on walletsscreen
-// - then ack the server to stop spamming us
-// - ALSO: if deleting a wallet, it should ack or something the server.
-
 //FIXME:
 //Add Accelerate links on the confirming... texts on the right!!!
 //for the init and for the rescue
@@ -60,8 +51,8 @@ import { useLocalization } from '../hooks/useLocalization';
 import { useNetStatus } from '../hooks/useNetStatus';
 import {
   canReceiveNotifications,
-  configureNotifications,
-  NotificationSetupResult
+  getExpoPushToken,
+  getOrRequestPermissionsForNotifications
 } from '../lib/watchtower';
 import { Platform } from 'react-native';
 
@@ -203,6 +194,11 @@ const VaultButton = ({
   </View>
 );
 
+const permissionsForNotificationsIcon = {
+  family: 'MaterialCommunityIcons',
+  name: 'bell-alert-outline'
+} as IconType;
+
 const RawVault = ({
   setVaultNotificationAcknowledged,
   updateVaultStatus,
@@ -214,8 +210,8 @@ const RawVault = ({
   vaultStatus,
   blockExplorerURL,
   watchtowerAPI,
-  notificationSetupResult,
-  setNotificationSetupResult
+  notificationPermissionStatus,
+  setNotificationPermissionsStatus
 }: {
   setVaultNotificationAcknowledged: (vaultId: string) => void;
   updateVaultStatus: (vaultId: string, vaultStatus: VaultStatus) => void;
@@ -227,9 +223,13 @@ const RawVault = ({
   vaultStatus: VaultStatus | undefined;
   blockExplorerURL: string | undefined;
   watchtowerAPI: string | undefined;
-  notificationSetupResult: NotificationSetupResult | undefined;
-  setNotificationSetupResult: React.Dispatch<
-    React.SetStateAction<NotificationSetupResult | undefined>
+  notificationPermissionStatus:
+    | Notifications.NotificationPermissionsStatus
+    | undefined;
+  setNotificationPermissionsStatus: React.Dispatch<
+    React.SetStateAction<
+      Notifications.NotificationPermissionsStatus | undefined
+    >
   >;
 }) => {
   const [showDelegateHelp, setShowDelegateHelp] = useState<boolean>(false);
@@ -573,22 +573,22 @@ const RawVault = ({
               <Pressable
                 onPress={handleWatchtowerHelp}
                 hitSlop={20}
-                disabled={notificationSetupResult === undefined} // Disable while loading
-                className={`p-1.5 bg-white rounded-xl shadow-sm android:elevation android:border android:border-slate-200 active:opacity-70 active:scale-95 ${notificationSetupResult === undefined ? 'animate-pulse' : ''}`}
+                disabled={notificationPermissionStatus === undefined} // Disable while loading
+                className={`p-1.5 bg-white rounded-xl shadow-sm android:elevation android:border android:border-slate-200 active:opacity-70 active:scale-95 ${notificationPermissionStatus === undefined ? 'animate-pulse' : ''}`}
               >
                 <MaterialCommunityIcons
                   name={
-                    notificationSetupResult === undefined
+                    notificationPermissionStatus === undefined
                       ? 'bell-outline'
                       : registeredWatchtower &&
-                          notificationSetupResult.status === 'granted'
+                          notificationPermissionStatus.status === 'granted'
                         ? 'bell-outline'
                         : 'bell-off-outline'
                   }
                   className={`text-xl ${
-                    notificationSetupResult === undefined
+                    notificationPermissionStatus === undefined
                       ? 'text-slate-400' // Pulse effect while undefined
-                      : notificationSetupResult.status === 'granted'
+                      : notificationPermissionStatus.status === 'granted'
                         ? registeredWatchtower
                           ? 'text-green-500'
                           : 'text-slate-600'
@@ -891,19 +891,20 @@ const RawVault = ({
         onClose={handleCloseWatchtowerHelp}
         customButtons={
           <View className="items-center gap-6 gap-y-4 flex-row flex-wrap justify-center pb-4">
-            {notificationSetupResult &&
-              notificationSetupResult.status !== 'granted' &&
-              notificationSetupResult.canAskAgain && (
+            {notificationPermissionStatus &&
+              notificationPermissionStatus.status !== 'granted' &&
+              notificationPermissionStatus.canAskAgain && (
                 <Button
                   mode="secondary"
                   onPress={async () => {
-                    const result = await configureNotifications();
-                    if (!shallowEqualObjects(notificationSetupResult, result)) {
-                      setNotificationSetupResult(result);
-                    }
-                    if (result.status === 'granted') {
+                    const result =
+                      await getOrRequestPermissionsForNotifications();
+                    if (
+                      !shallowEqualObjects(notificationPermissionStatus, result)
+                    )
+                      setNotificationPermissionsStatus(result);
+                    if (result.status === 'granted')
                       handleCloseWatchtowerHelp();
-                    }
                   }}
                 >
                   {t('wallet.vault.watchtower.allowButton')}
@@ -916,11 +917,12 @@ const RawVault = ({
         }
       >
         <Text className="text-base pl-2 pr-2 text-slate-600">
-          {registeredWatchtower && notificationSetupResult?.status === 'granted'
+          {registeredWatchtower &&
+          notificationPermissionStatus?.status === 'granted'
             ? t('wallet.vault.watchtower.registered')
             : !registeredWatchtower
               ? t('wallet.vault.watchtower.registrationError')
-              : notificationSetupResult?.canAskAgain
+              : notificationPermissionStatus?.canAskAgain
                 ? t('wallet.vault.watchtower.unregistered')
                 : Platform.OS === 'ios'
                   ? t('wallet.vault.watchtower.settings.ios')
@@ -947,7 +949,7 @@ const Vaults = ({
 }: {
   setVaultNotificationAcknowledged: (vaultId: string) => void;
   updateVaultStatus: (vaultId: string, vaultStatus: VaultStatus) => void;
-  syncWatchtowerRegistration: () => Promise<void>;
+  syncWatchtowerRegistration: (pushToken: string) => Promise<void>;
   pushTx: (txHex: string) => Promise<void>;
   btcFiat: number | undefined;
   tipStatus: BlockStatus | undefined;
@@ -957,21 +959,24 @@ const Vaults = ({
   watchtowerAPI: string | undefined;
 }) => {
   const { t } = useTranslation();
-  const [notificationSetupResult, setNotificationSetupResult] =
-    useState<NotificationSetupResult>();
+  const [notificationPermissionStatus, setNotificationPermissionsStatus] =
+    useState<Notifications.NotificationPermissionsStatus>();
   const [
-    showNotificationsPermissionExplanationModal,
-    setShowNotificationsPermissionExplanationModal
+    showPermissionsForNotificationsExplainModal,
+    setShowPermissionsForNotificationsExplainModal
   ] = useState(false);
 
-  const handleNotificationsPermissionRequest = useCallback(async () => {
-    setShowNotificationsPermissionExplanationModal(false);
+  const handlePermissionsForNotifications = useCallback(async () => {
+    setShowPermissionsForNotificationsExplainModal(false);
     try {
-      const result = await configureNotifications();
-      setNotificationSetupResult(prevResult =>
+      const result = await getOrRequestPermissionsForNotifications();
+      setNotificationPermissionsStatus(prevResult =>
         shallowEqualObjects(prevResult, result) ? prevResult : result
       );
-      if (result.status === 'granted') await syncWatchtowerRegistration();
+      if (result.status === 'granted') {
+        const pushToken = await getExpoPushToken();
+        if (pushToken) await syncWatchtowerRegistration(pushToken);
+      }
     } catch (error: unknown) {
       console.warn('Failed during notification configuration:', error);
     }
@@ -987,6 +992,9 @@ const Vaults = ({
     syncWatchtowerRegistrationRef.current = syncWatchtowerRegistration;
   }, [syncWatchtowerRegistration]);
 
+  //Each time a new vault is added, we must sync. This is the first
+  //time the user may see the modal that will ask the user to accept the
+  //pushToken
   useEffect(() => {
     let timeoutId: NodeJS.Timeout | undefined;
 
@@ -1000,16 +1008,19 @@ const Vaults = ({
             // show explanation modal after 3 seconds so that users
             // already have seen their vault activity
             timeoutId = setTimeout(
-              () => setShowNotificationsPermissionExplanationModal(true),
+              () => setShowPermissionsForNotificationsExplainModal(true),
               3000
             );
           } else {
-            const result = await configureNotifications();
-            setNotificationSetupResult(prevResult =>
+            const result = await getOrRequestPermissionsForNotifications();
+            setNotificationPermissionsStatus(prevResult =>
               shallowEqualObjects(prevResult, result) ? prevResult : result
             );
-            if (result.status === 'granted')
-              await syncWatchtowerRegistrationRef.current();
+            if (result.status === 'granted') {
+              const pushToken = await getExpoPushToken();
+              if (pushToken)
+                await syncWatchtowerRegistrationRef.current(pushToken);
+            }
           }
         } catch (error: unknown) {
           console.warn(
@@ -1030,6 +1041,7 @@ const Vaults = ({
 
   //Check when the app comes to the foreground (perhaps it was in the back
   //while the user was tuning on notifications manually)
+  //So here it's a good place to retrieve the expoPushToken
   const appState = useRef(AppState.currentState);
   useEffect(() => {
     const handleAppStateChange = async (nextAppState: AppStateStatus) => {
@@ -1039,24 +1051,25 @@ const Vaults = ({
         canReceiveNotifications
       ) {
         try {
-          const newResult: NotificationSetupResult =
-            await Notifications.getPermissionsAsync();
+          const result = await Notifications.getPermissionsAsync();
+          if (result.status === 'granted') {
+            const pushToken = await getExpoPushToken();
+            if (pushToken)
+              setNotificationPermissionsStatus(prevResult => {
+                if (!shallowEqualObjects(prevResult, result)) {
+                  if (prevResult?.status !== 'granted')
+                    syncWatchtowerRegistration(pushToken).catch(err =>
+                      console.warn(
+                        'Error syncing watchtower after permission check:',
+                        err
+                      )
+                    );
 
-          setNotificationSetupResult(prevResult => {
-            if (!prevResult || !shallowEqualObjects(prevResult, newResult)) {
-              // If permissions are now granted, trigger watchtower sync
-              if (newResult.status === 'granted')
-                syncWatchtowerRegistration().catch(err =>
-                  console.warn(
-                    'Error syncing watchtower after permission check:',
-                    err
-                  )
-                );
-
-              return newResult;
-            }
-            return prevResult; // No change
-          });
+                  return result;
+                }
+                return prevResult; // No change
+              });
+          }
         } catch (error) {
           console.warn(
             'Error checking notification permissions on AppState change:',
@@ -1073,7 +1086,7 @@ const Vaults = ({
     );
 
     return () => subscription.remove();
-  }, [setNotificationSetupResult, syncWatchtowerRegistration]);
+  }, [setNotificationPermissionsStatus, syncWatchtowerRegistration]);
 
   const sortedVaults = useMemo(() => {
     return Object.values(vaults).sort(
@@ -1085,28 +1098,16 @@ const Vaults = ({
     return sortedVaults.some(vault => !vaultsStatuses[vault.vaultId]?.isHidden);
   }, [sortedVaults, vaultsStatuses]);
 
-  const permissionsIcon = useMemo(
-    () =>
-      ({
-        family: 'MaterialCommunityIcons',
-        name: 'bell-alert-outline'
-      }) as IconType,
-    []
-  );
-
   return (
     <View className="gap-y-4">
       <Modal
         title={t('wallet.vault.watchtower.permissionTitle')}
-        icon={permissionsIcon}
-        isVisible={showNotificationsPermissionExplanationModal}
-        onClose={handleNotificationsPermissionRequest}
+        icon={permissionsForNotificationsIcon}
+        isVisible={showPermissionsForNotificationsExplainModal}
+        onClose={handlePermissionsForNotifications}
         customButtons={
           <View className="items-center gap-6 gap-y-4 flex-row flex-wrap justify-center pb-4">
-            <Button
-              mode="primary"
-              onPress={handleNotificationsPermissionRequest}
-            >
+            <Button mode="primary" onPress={handlePermissionsForNotifications}>
               {t('continueButton')}
             </Button>
           </View>
@@ -1135,8 +1136,10 @@ const Vaults = ({
                 pushTx={pushTx}
                 blockExplorerURL={blockExplorerURL}
                 watchtowerAPI={watchtowerAPI}
-                notificationSetupResult={notificationSetupResult}
-                setNotificationSetupResult={setNotificationSetupResult}
+                notificationPermissionStatus={notificationPermissionStatus}
+                setNotificationPermissionsStatus={
+                  setNotificationPermissionsStatus
+                }
               />
             )
           );

@@ -24,52 +24,18 @@ export type WatchtowerRegistrationData = {
   }>;
 };
 
-// Configure notifications
-export type NotificationSetupResult = {
-  status: Notifications.PermissionStatus;
-  canAskAgain: boolean;
-};
-
-export async function configureNotifications(): Promise<NotificationSetupResult> {
+export async function getOrRequestPermissionsForNotifications(): Promise<Notifications.NotificationPermissionsStatus> {
   if (!canReceiveNotifications)
     throw new Error('This device does not support notifications');
   // Request permission
-  const { status: existingStatus, canAskAgain } =
-    await Notifications.getPermissionsAsync();
-  let finalStatus = existingStatus;
-
-  if (existingStatus !== 'granted') {
-    const { status } = await Notifications.requestPermissionsAsync();
-    finalStatus = status;
-  }
-
-  if (finalStatus !== 'granted') {
-    return {
-      status: finalStatus,
-      canAskAgain
-    };
-  }
-
-  // Configure how notifications appear when the app is in foreground
-  // We rather disable this
-  //
-  //// If we still want to get the message in the tray:
-  //Notifications.setNotificationHandler({
-  //  handleNotification: async () => ({
-  //    shouldShowAlert: true,
-  //    shouldPlaySound: false,
-  //    shouldSetBadge: false
-  //  })
-  //});
-
-  return {
-    status: finalStatus,
-    canAskAgain: true
-  };
+  let result = await Notifications.getPermissionsAsync();
+  if (result.status !== 'granted' && result.canAskAgain)
+    result = await Notifications.requestPermissionsAsync();
+  return result;
 }
 
 // Get the Expo push token
-// If configureNotifications has not been called, this will return null.
+// If getOrRequestPermissionsForNotifications has not been called, this will return null.
 // FIXME: probably cache this in disk since this cannot change
 // cache it in memory/disk
 export async function getExpoPushToken(): Promise<string | null> {
@@ -113,9 +79,10 @@ export async function getExpoPushToken(): Promise<string | null> {
 //FIXME: only call this if getExpoPushToken returns something, in fact
 //pass it as param. It may be the case the user never accepted push notifications
 //then warn the user or something.
-//FIXME: this function cannot be called before configureNotifications
+//FIXME: this function cannot be called before getOrRequestPermissionsForNotifications
 //(requestPermissionsAsync) - it will hang indefinitely
 export async function watchVaults({
+  pushToken,
   watchtowerAPI,
   vaults,
   vaultsStatuses,
@@ -124,6 +91,7 @@ export async function watchVaults({
   locale,
   walletUUID
 }: {
+  pushToken: string;
   watchtowerAPI: string;
   vaults: Vaults;
   vaultsStatuses: VaultsStatuses;
@@ -134,8 +102,7 @@ export async function watchVaults({
 }): Promise<string[]> {
   try {
     // Get push token
-    const pushToken = await getExpoPushToken();
-    if (!pushToken) return []; //FIXME: read 1st FIXME above
+    if (!pushToken) throw new Error('Cannot watchVaults without a pushToken');
 
     const vaultsToMonitor = Object.entries(vaults)
       .filter(([vaultId]) => {
