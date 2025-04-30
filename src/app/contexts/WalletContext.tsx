@@ -21,9 +21,14 @@ import {
   type Subscription,
   addNotificationReceivedListener,
   addNotificationResponseReceivedListener,
-  getLastNotificationResponseAsync
+  getLastNotificationResponseAsync,
+  getPermissionsAsync
 } from 'expo-notifications';
-import { watchVaults, canReceiveNotifications } from '../lib/watchtower';
+import {
+  watchVaults,
+  canReceiveNotifications,
+  getExpoPushToken
+} from '../lib/watchtower';
 import {
   walletTitle as walletTitleFn,
   type Accounts,
@@ -428,6 +433,7 @@ const WalletProviderRaw = ({
     apiReachable,
     netRequest,
     netToast,
+    internetReachable,
     explorerReachable,
     explorerMainnetReachable
   } = useNetStatus();
@@ -1027,6 +1033,26 @@ const WalletProviderRaw = ({
     },
     [networkTimeout, handleWatchtowerNotification]
   );
+
+  //Set pushToken intially if possible. This means the user already granted
+  //permissions and we can retrieve it
+  //React to changes in internetReachable so that this can be retried if
+  //pushToken has not been set already
+  //First time pushToken will be set in the App is in Vaults after creating
+  //the first vault and showing the user some modal explainig the reason why
+  useEffect(() => {
+    const f = async () => {
+      try {
+        if (canReceiveNotifications && !pushToken) {
+          if ((await getPermissionsAsync()).status === 'granted') {
+            const pushToken = await getExpoPushToken();
+            setPushToken(pushToken);
+          }
+        }
+      } catch (e) {}
+    };
+    f();
+  }, [pushToken, internetReachable]);
 
   // Set up watchtower notification handling & polling for pending notifications
   useEffect(() => {

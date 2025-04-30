@@ -945,7 +945,9 @@ const Vaults = ({
   vaults,
   vaultsStatuses,
   blockExplorerURL,
-  watchtowerAPI
+  watchtowerAPI,
+  pushToken,
+  setPushToken
 }: {
   setVaultNotificationAcknowledged: (vaultId: string) => void;
   updateVaultStatus: (vaultId: string, vaultStatus: VaultStatus) => void;
@@ -981,7 +983,8 @@ const Vaults = ({
           currentPushToken = await getExpoPushToken();
           setPushToken(currentPushToken); // Update context state
         }
-        if (currentPushToken) await syncWatchtowerRegistration(currentPushToken);
+        if (currentPushToken)
+          await syncWatchtowerRegistration(currentPushToken);
         else {
           //FIXME: deal with this
           console.warn('Could not get push token after granting permissions.');
@@ -990,7 +993,7 @@ const Vaults = ({
     } catch (error: unknown) {
       console.warn('Failed during notification configuration:', error);
     }
-  }, [syncWatchtowerRegistration]);
+  }, [syncWatchtowerRegistration, pushToken, setPushToken]);
 
   // Initialize push notifications whenever the vault count increases.
   // Requests permission if needed, then configures notifications
@@ -1055,13 +1058,12 @@ const Vaults = ({
     return () => {
       if (timeoutId) clearTimeout(timeoutId);
     };
-  }, [vaultCount]);
-
-  //FIXME: test again setting enabling the notifications manually
+  }, [vaultCount, pushToken, setPushToken]);
 
   //Check when the app comes to the foreground (perhaps it was in the back
   //while the user was tuning on notifications manually)
   //So here it's a good place to retrieve the pushToken
+  //FIXME: test again setting enabling the notifications manually
   const appState = useRef(AppState.currentState);
   useEffect(() => {
     const handleAppStateChange = async (nextAppState: AppStateStatus) => {
