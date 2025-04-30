@@ -99,6 +99,8 @@ type TxHistory = Array<{
 export type WalletContextType = {
   orphanedWatchtowerWalletUUIDs: Set<string>;
   clearOrphanedWatchtowerWalletUUIDs: () => Promise<void>;
+  pushToken: string | null;
+  setPushToken: (token: string | null) => void;
   getNextChangeDescriptorWithIndex: (accounts: Accounts) => Promise<{
     descriptor: string;
     index: number;
@@ -173,6 +175,7 @@ const WalletProviderRaw = ({
   children: ReactNode;
   newWalletSigners?: Signers;
 }) => {
+  const [pushToken, setPushToken] = useState<string | null>(null);
   const [orphanedWatchtowerWalletUUIDs, setOrphanedWatchtowerWalletUUIDs] =
     useState<Set<string>>(new Set());
   //This keeps track of the current active wallet.
@@ -2063,6 +2066,8 @@ const WalletProviderRaw = ({
   );
 
   const contextValue = {
+    pushToken,
+    setPushToken,
     getUnvaultKey,
     getNextChangeDescriptorWithIndex,
     getNextReceiveDescriptorWithIndex,
