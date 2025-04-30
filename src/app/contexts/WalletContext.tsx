@@ -1031,6 +1031,7 @@ const WalletProviderRaw = ({
   // Set up watchtower notification handling & polling for pending notifications
   useEffect(() => {
     if (
+      !pushToken ||
       !walletsStorageStatus.isSynchd ||
       !settingsStorageStatus.isSynchd ||
       !canReceiveNotifications
@@ -1162,6 +1163,7 @@ const WalletProviderRaw = ({
       appStateSub.remove();
     };
   }, [
+    pushToken,
     fetchAndHandleWatchtowerUnacked,
     settings,
     wallets,
