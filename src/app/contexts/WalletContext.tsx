@@ -23,7 +23,7 @@ import { useNavigation } from '@react-navigation/native';
 import { WALLETS } from '../screens';
 import {
   getPresentedNotificationsAsync,
-  //dismissNotificationAsync,
+  dismissNotificationAsync,
   type Subscription,
   addNotificationReceivedListener,
   addNotificationResponseReceivedListener,
@@ -108,7 +108,7 @@ type TxHistory = Array<{
 
 export type WalletContextType = {
   orphanedWatchtowerWalletUUIDs: Set<string>;
-  clearOrphanedWatchtowerWalletUUIDs: () => void;
+  clearOrphanedWatchtowerWalletUUIDs: () => Promise<void>;
   getNextChangeDescriptorWithIndex: (accounts: Accounts) => Promise<{
     descriptor: string;
     index: number;
@@ -1157,6 +1157,37 @@ const WalletProviderRaw = ({
     settingsStorageStatus.isSynchd
   ]);
 
+  const clearOrphanedWatchtowerWalletUUIDs = useCallback(async () => {
+    const uuidsToClear = new Set(orphanedWatchtowerWalletUUIDs);
+
+    if (uuidsToClear.size === 0) {
+      return;
+    }
+
+    try {
+      const presentedNotifications = await getPresentedNotificationsAsync();
+      const dismissPromises: Promise<void>[] = [];
+
+      for (const notification of presentedNotifications) {
+        const notificationWalletUUID = notification.request.content.data
+          ?.walletUUID as string | undefined;
+        if (notificationWalletUUID && uuidsToClear.has(notificationWalletUUID)) {
+          console.log(
+            `Dismissing orphaned notification: ${notification.request.identifier} for UUID: ${notificationWalletUUID}`
+          );
+          dismissPromises.push(
+            dismissNotificationAsync(notification.request.identifier)
+          );
+        }
+      }
+      await Promise.all(dismissPromises);
+    } catch (error) {
+      console.warn('Error dismissing orphaned notifications:', error);
+    } finally {
+      setOrphanedWatchtowerWalletUUIDs(new Set());
+    }
+  }, [orphanedWatchtowerWalletUUIDs, setOrphanedWatchtowerWalletUUIDs]);
+
   /**
    * Important, to logOut from wallet, wallet (and therefore walletId) must
    * be the current state. It's not possible to pass walletId as argument since
@@ -2059,8 +2090,7 @@ const WalletProviderRaw = ({
     wallet,
     walletStatus: { isCorrupted, storageAccess: storageAccessStatus },
     orphanedWatchtowerWalletUUIDs,
-    clearOrphanedWatchtowerWalletUUIDs: () =>
-      setOrphanedWatchtowerWalletUUIDs(new Set()),
+    clearOrphanedWatchtowerWalletUUIDs,
     requiresPassword:
       (walletId !== undefined &&
         wallet?.signersEncryption === 'PASSWORD' &&
