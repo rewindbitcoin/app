@@ -68,9 +68,9 @@ export default {
     createdOn: 'Created on',
     walletId: 'Wallet {{id}}',
     orphanedWatchtowerWalletUUID_one:
-      'A watchtower alert arrived for a wallet that no longer exists.',
+      'An access attempt to one of your Vaults was detected and the app was notified. It belongs to a wallet that no longer exists on this device. You probably deleted this wallet or reinstalled the app. We can’t help further, but we wanted to let you know.',
     orphanedWatchtowerWalletUUID_other:
-      'Watchtower alerts arrived for {{count}} wallets that no longer exist.'
+      'Access attempts to {{count}} of your Vaults were detected and the app was notified, but the wallets they belong to no longer exist on this device. You probably deleted those wallets or reinstalled the app. We can’t help further, but we wanted to let you know.'
   },
   wallet: {
     vaultTab: 'Vaults',

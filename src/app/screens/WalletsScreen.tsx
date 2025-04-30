@@ -1,3 +1,5 @@
+//FIXME: check the button extra padding thing when multipl walles. since i modifgled tje KeyboardAwareScrollView adding
+//some abs views
 import React, { useCallback, useMemo, useRef, useState } from 'react';
 import {
   Text,
@@ -144,7 +146,9 @@ const WalletsScreen = () => {
         )
     )
     .map(([walletId]) => Number(walletId));
-  const showOnlyNotifications = walletsWithWTNotifications.length > 0;
+  const showOnlyAttackedWallets = walletsWithWTNotifications.length > 0;
+  const dangerMode =
+    showOnlyAttackedWallets || orphanedWatchtowerWalletUUIDs.size > 0;
 
   const handleWalletMap = useMemo(() => {
     if (!wallets) return {};
@@ -213,7 +217,7 @@ const WalletsScreen = () => {
 
   return (
     <>
-      {!showOnlyNotifications && (
+      {!dangerMode && (
         <Pressable
           onLayout={event => {
             buttonHeightRef.current = event.nativeEvent.layout.height;
@@ -238,12 +242,10 @@ const WalletsScreen = () => {
         keyboardShouldPersistTaps="handled"
         contentContainerClassName={
           //See TAGiusfdnisdunf in WalletHomeScreen for explanations
-          `justify-center items-center ${showOnlyNotifications ? 'bg-red-600' : ''} ${Platform.OS === 'ios' || Platform.OS === 'web' ? '-z-10' : ''}`
+          `justify-center items-center ${dangerMode ? 'bg-red-600' : ''} ${Platform.OS === 'ios' || Platform.OS === 'web' ? '-z-10' : ''}`
         }
         contentContainerStyle={
-          showOnlyNotifications
-            ? {}
-            : { flexGrow: 1 } /*className flex-1 does not work!*/
+          dangerMode ? {} : { flexGrow: 1 } /*className flex-1 does not work!*/
         }
         onLayout={event => {
           scrollViewHeightRef.current = event.nativeEvent.layout.height;
@@ -257,47 +259,56 @@ const WalletsScreen = () => {
             handleExtraPadding();
           }}
         >
-          {orphanedWatchtowerWalletUUIDs.size > 0 && !showOnlyNotifications && (
-            <View className="mb-4 bg-yellow-500 p-4 rounded-lg mx-2 w-full">
-              <Text className="text-white font-medium text-center">
-                {t('wallets.orphanedWatchtowerWalletUUID', {
-                  count: orphanedWatchtowerWalletUUIDs.size
-                })}
-              </Text>
-              <Pressable
-                onPress={clearOrphanedWatchtowerWalletUUIDs}
-                className="mt-2 bg-white/20 py-2 px-4 rounded-full self-center"
-              >
-                <Text className="text-white text-sm">{t('dismissButton')}</Text>
-              </Pressable>
-            </View>
-          )}
-          {showOnlyNotifications && (
+          {dangerMode && (
             <View className="mb-8 items-center px-2 py-4">
               <MaterialCommunityIcons
                 name="alert-octagon-outline"
                 className="text-white text-9xl mb-4"
               />
-              <Text className="text-white font-bold text-xl mb-2">
-                {t('wallets.notificationWarningTitle')}
-              </Text>
-              <Text className="text-white text-base">
-                {t('wallets.notificationWarningMessage', {
-                  count: walletsWithWTNotifications.length
-                })}
-              </Text>
+              {showOnlyAttackedWallets ? (
+                <>
+                  <Text className="text-white font-bold text-xl mb-2">
+                    {t('wallets.notificationWarningTitle')}
+                  </Text>
+                  <Text className="text-white text-base">
+                    {t('wallets.notificationWarningMessage', {
+                      count: walletsWithWTNotifications.length
+                    })}
+                  </Text>
+                </>
+              ) : (
+                //only show orphaned wallets when real danger
+                //showOnlyAttackedWallets) has been cleared
+                orphanedWatchtowerWalletUUIDs.size > 0 && (
+                  <>
+                    <Text className="text-white font-medium text-center text-base mb-4">
+                      {t('wallets.orphanedWatchtowerWalletUUID', {
+                        count: orphanedWatchtowerWalletUUIDs.size
+                      })}
+                    </Text>
+                    <Pressable
+                      onPress={clearOrphanedWatchtowerWalletUUIDs}
+                      className="self-center bg-white px-4 py-2 rounded-full"
+                    >
+                      <Text className="text-red-500 font-semibold text-base">
+                        {t('dismissButton')}
+                      </Text>
+                    </Pressable>
+                  </>
+                )
+              )}
             </View>
           )}
           {wallets &&
             Object.entries(wallets)
               .filter(
                 ([walletId]) =>
-                  !showOnlyNotifications ||
+                  !showOnlyAttackedWallets ||
                   walletsWithWTNotifications.includes(Number(walletId))
               )
               .map(([walletId, wallet], index) => (
                 <Pressable
-                  className={`w-full max-w-96 min-h-56 gap-4 p-4 rounded-3xl active:opacity-90 hover:opacity-90 active:scale-95 ${walletBg(index, showOnlyNotifications)} overflow-hidden`}
+                  className={`w-full max-w-96 min-h-56 gap-4 p-4 rounded-3xl active:opacity-90 hover:opacity-90 active:scale-95 ${walletBg(index, showOnlyAttackedWallets)} overflow-hidden`}
                   onPress={handleWalletMap[wallet.walletId]}
                   key={walletId}
                 >
@@ -314,12 +325,12 @@ const WalletsScreen = () => {
                     {wallet.networkId !== 'BITCOIN' && (
                       <View className="self-start p-2 rounded-xl bg-white/70">
                         <Text
-                          className={`font-semibold text-xs text-center leading-4 ${walletCl(index, showOnlyNotifications)}`}
+                          className={`font-semibold text-xs text-center leading-4 ${walletCl(index, showOnlyAttackedWallets)}`}
                         >
                           {t('wallets.testWallet')}
                         </Text>
                         <Text
-                          className={`font-semibold text-xs text-center leading-4 ${walletCl(index, showOnlyNotifications)}`}
+                          className={`font-semibold text-xs text-center leading-4 ${walletCl(index, showOnlyAttackedWallets)}`}
                         >
                           {t('wallets.noRealValue')}
                         </Text>
@@ -362,10 +373,10 @@ const WalletsScreen = () => {
           (Platform.OS === 'ios' || Platform.OS === 'web') && (
             <>
               <View
-                className={`absolute native:h-[1000] native:-top-[1000] web:h-[1000px] web:-top-[1000px] left-0 right-0 ${showOnlyNotifications ? 'bg-red-600' : ''}`}
+                className={`absolute native:h-[1000] native:-top-[1000] web:h-[1000px] web:-top-[1000px] left-0 right-0 ${dangerMode ? 'bg-red-600' : ''}`}
               />
               <View
-                className={`absolute native:h-[1000] native:bottom-[-1000] web:h-[1000px] web:bottom-[-1000px] left-0 right-0 ${showOnlyNotifications ? 'bg-red-600' : ''}`}
+                className={`absolute native:h-[1000] native:bottom-[-1000] web:h-[1000px] web:bottom-[-1000px] left-0 right-0 ${dangerMode ? 'bg-red-600' : ''}`}
               />
             </>
           )

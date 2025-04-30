@@ -64,9 +64,9 @@ export default {
     createdOn: 'Creada el',
     walletId: 'Billetera {{id}}',
     orphanedWatchtowerWalletUUID_one:
-      'Ha llegado una alerta de la Torre de Vigilancia para una billetera que ya no existe.',
+      'Se ha detectado un intento de acceso a una de tus Bóvedas y la app fue notificada, pero la billetera a la que pertenece ya no existe en este dispositivo. Probablemente eliminaste la billetera o reinstalaste la app. No podemos ayudar más, pero queríamos informarte.',
     orphanedWatchtowerWalletUUID_other:
-      'Han llegado alertas de la Torre de Vigilancia para {{count}} billeteras que ya no existen.'
+      'Se han detectado intentos de acceso a varias de tus Bóvedas y la app fue notificada, pero las billeteras a las que pertenecen ya no existen en este dispositivo. Probablemente eliminaste esas billeteras o reinstalaste la app. No podemos ayudar más, pero queríamos informarte.'
   },
   wallet: {
     vaultTab: 'Bóvedas',
