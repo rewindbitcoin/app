@@ -34,11 +34,21 @@ export async function getOrRequestPermissionsForNotifications(): Promise<Notific
   return result;
 }
 
-// Get the Expo push token
-// If getOrRequestPermissionsForNotifications has not been called, this will return null.
-// FIXME: probably cache this in disk since this cannot change
-// cache it in memory/disk
+let cachedPushToken: string | null | undefined = undefined;
+
+/**
+ * Retrieves the Expo push token for the device.
+ * Caches the token in memory after the first successful retrieval.
+ * Subsequent calls will return the cached token immediately if available.
+ * Returns null if permissions are not granted, not on a physical device,
+ * or if fetching fails.
+ * @returns {Promise<string | null>} The Expo push token or null.
+ */
 export async function getExpoPushToken(): Promise<string | null> {
+  if (cachedPushToken !== undefined) {
+    return cachedPushToken;
+  }
+
   try {
     // Get the project ID from expo-constants
     const projectId =
@@ -63,13 +73,15 @@ export async function getExpoPushToken(): Promise<string | null> {
     }
 
     //FIXME: this can throw since this is a fetch call!!!
-    const token = await Notifications.getExpoPushTokenAsync({
+    const tokenResponse = await Notifications.getExpoPushTokenAsync({
       projectId: projectId
     });
-    return token.data;
+    cachedPushToken = tokenResponse.data;
+    return cachedPushToken;
   } catch (error) {
     console.error('Failed to get push token:', error);
-    return null;
+    cachedPushToken = null; // Cache failure as null
+    return cachedPushToken;
   }
 }
 
