@@ -1,5 +1,3 @@
-//FIXME: check the button extra padding thing when multipl walles. since i modifgled tje KeyboardAwareScrollView adding
-//some abs views
 import React, { useCallback, useMemo, useRef, useState } from 'react';
 import {
   Text,

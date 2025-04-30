@@ -1045,11 +1045,34 @@ const WalletProviderRaw = ({
     )
       return;
 
+    // helper to process all tray notifications
+    const processPresented = async () => {
+      try {
+        const list = await getPresentedNotificationsAsync();
+        (list as import('expo-notifications').Notification[]).forEach(
+          n => handleWatchtowerNotification(n.request.content.data)
+          //if needed they can be cleared with dismissNotificationAsync.
+          //But do this only after clicking on the wallet itself. This is
+          //done in clearOrphanedWatchtowerWalletUUIDs for orphaned ones.
+          //Should we clear also the non-orphaned ones? I think it's nice
+          //to keep then still visible
+        );
+      } catch (e) {
+        console.warn('Error fetching presented notifications', e);
+      }
+    };
+
     // Handle the notification (tap) that may have launched the app.
     // getLastNotificationResponseAsync() only returns a response if the user
     // actually tapped a notification to open the app. It will resolve to null
     // if the app was started by any other means (e.g. launched from the home
     // screen or brought to the foreground via the app switcher).
+    //
+    // Note: tapping a notification automatically removes it from the OS
+    // notification center, so processPresented
+    // (getPresentedNotificationsAsync) won’t include that tapped alert.
+    // That’s why this one-time call is still necessary even when we also use
+    // getPresentedNotificationsAsync() to catch remaining tray notifications.
     getLastNotificationResponseAsync()
       .then(response => {
         if (response) {
@@ -1061,6 +1084,13 @@ const WalletProviderRaw = ({
       .catch(error => {
         console.warn('Error getting last notification response:', error);
       });
+
+    // Initial pass for anything still in the tray
+    processPresented();
+    // Also check on every foreground transition
+    const appStateSub = AppState.addEventListener('change', state => {
+      if (state === 'active') processPresented();
+    });
 
     // Listen for notifications received while app is in foreground
     notificationListener.current = addNotificationReceivedListener(
@@ -1114,20 +1144,6 @@ const WalletProviderRaw = ({
     }
     runFetchAndPoll();
 
-    // Also check on every foreground transition
-    const appStateSub = AppState.addEventListener('change', state => {
-      if (state === 'active') {
-        getPresentedNotificationsAsync().then(list => {
-          list.forEach(n => {
-            handleWatchtowerNotification(n.request.content.data);
-            //dismissNotificationAsync(n.request.identifier); //leave them there...
-            //FIXME: super important to call the dismissNotificationAsync for
-            //when clearOrphanedWatchtowerWalletUUIDs is called
-          });
-        });
-      }
-    });
-
     // Clean up notification listeners and polling interval on unmount
     return () => {
       // Clear polling interval if it exists
@@ -1159,26 +1175,19 @@ const WalletProviderRaw = ({
 
   const clearOrphanedWatchtowerWalletUUIDs = useCallback(async () => {
     const uuidsToClear = new Set(orphanedWatchtowerWalletUUIDs);
-
-    if (uuidsToClear.size === 0) {
-      return;
-    }
+    if (uuidsToClear.size === 0) return;
 
     try {
       const presentedNotifications = await getPresentedNotificationsAsync();
       const dismissPromises: Promise<void>[] = [];
 
       for (const notification of presentedNotifications) {
-        const notificationWalletUUID = notification.request.content.data
-          ?.walletUUID as string | undefined;
-        if (notificationWalletUUID && uuidsToClear.has(notificationWalletUUID)) {
-          console.log(
-            `Dismissing orphaned notification: ${notification.request.identifier} for UUID: ${notificationWalletUUID}`
-          );
+        const notificationWalletUUID =
+          notification.request.content.data?.['walletUUID'];
+        if (notificationWalletUUID && uuidsToClear.has(notificationWalletUUID))
           dismissPromises.push(
             dismissNotificationAsync(notification.request.identifier)
           );
-        }
       }
       await Promise.all(dismissPromises);
     } catch (error) {
