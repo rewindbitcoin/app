@@ -957,6 +957,8 @@ const Vaults = ({
   vaultsStatuses: VaultsStatuses;
   blockExplorerURL: string | undefined;
   watchtowerAPI: string | undefined;
+  pushToken: string | null;
+  setPushToken: (token: string | null) => void;
 }) => {
   const { t } = useTranslation();
   const [notificationPermissionStatus, setNotificationPermissionsStatus] =
@@ -970,17 +972,19 @@ const Vaults = ({
     setShowPermissionsForNotificationsExplainModal(false);
     try {
       const result = await getOrRequestPermissionsForNotifications();
+      let currentPushToken = pushToken; // Use prop value initially
       setNotificationPermissionsStatus(prevResult =>
         shallowEqualObjects(prevResult, result) ? prevResult : result
       );
       if (result.status === 'granted') {
-        if (!pushToken) {
-          pushToken = await getExpoPushToken();
-          setPushToken(pushToken);
+        if (!currentPushToken) {
+          currentPushToken = await getExpoPushToken();
+          setPushToken(currentPushToken); // Update context state
         }
-        if (pushToken) await syncWatchtowerRegistration(pushToken);
+        if (currentPushToken) await syncWatchtowerRegistration(currentPushToken);
         else {
           //FIXME: deal with this
+          console.warn('Could not get push token after granting permissions.');
         }
       }
     } catch (error: unknown) {
@@ -1019,18 +1023,20 @@ const Vaults = ({
             );
           } else {
             const result = await getOrRequestPermissionsForNotifications();
+            let currentPushToken = pushToken; // Use prop value initially
             setNotificationPermissionsStatus(prevResult =>
               shallowEqualObjects(prevResult, result) ? prevResult : result
             );
             if (result.status === 'granted') {
-              if (!pushToken) {
-                pushToken = await getExpoPushToken();
-                setPushToken(pushToken);
+              if (!currentPushToken) {
+                currentPushToken = await getExpoPushToken();
+                setPushToken(currentPushToken); // Update context state
               }
-              if (pushToken)
-                await syncWatchtowerRegistrationRef.current(pushToken);
+              if (currentPushToken)
+                await syncWatchtowerRegistrationRef.current(currentPushToken);
               else {
                 //FIXME: deal with this
+                console.warn('Could not get push token during initial setup.');
               }
             }
           }
@@ -1067,29 +1073,37 @@ const Vaults = ({
         try {
           const result = await Notifications.getPermissionsAsync();
           if (result.status === 'granted') {
-            if (!pushToken) {
-              pushToken = await getExpoPushToken();
-              setPushToken(pushToken);
+            let currentPushToken = pushToken; // Use prop value initially
+            if (!currentPushToken) {
+              currentPushToken = await getExpoPushToken();
+              setPushToken(currentPushToken); // Update context state
             }
-            if (pushToken) {
-              setPushToken(pushToken);
+            if (currentPushToken) {
+              // Update local state if needed
               setNotificationPermissionsStatus(prevResult => {
                 if (!shallowEqualObjects(prevResult, result)) {
+                  // Sync only if permissions changed *to* granted
                   if (prevResult?.status !== 'granted')
-                    syncWatchtowerRegistration(pushToken).catch(err =>
+                    syncWatchtowerRegistration(currentPushToken).catch(err =>
                       console.warn(
-                        'Error syncing watchtower after permission check:',
+                        'Error syncing watchtower after AppState permission check:',
                         err
                       )
                     );
 
                   return result;
                 }
-                return prevResult; // No change
+                return prevResult; // No change in permissions status
               });
             } else {
               //FIXME: deal with this
+              console.warn('Could not get push token on AppState change.');
             }
+          } else {
+            // Update local state if permissions changed (e.g., revoked)
+            setNotificationPermissionsStatus(prevResult =>
+              shallowEqualObjects(prevResult, result) ? prevResult : result
+            );
           }
         } catch (error) {
           console.warn(
@@ -1107,7 +1121,12 @@ const Vaults = ({
     );
 
     return () => subscription.remove();
-  }, [setNotificationPermissionsStatus, syncWatchtowerRegistration]);
+  }, [
+    pushToken,
+    setPushToken,
+    setNotificationPermissionsStatus,
+    syncWatchtowerRegistration
+  ]);
 
   const sortedVaults = useMemo(() => {
     return Object.values(vaults).sort(

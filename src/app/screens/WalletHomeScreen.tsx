@@ -123,7 +123,9 @@ const WalletHomeScreen = () => {
     blockExplorerURL,
     watchtowerAPI,
     setVaultNotificationAcknowledged,
-    syncWatchtowerRegistration
+    syncWatchtowerRegistration,
+    pushToken,
+    setPushToken
   } = useWallet();
   if (wallet && walletId !== wallet.walletId)
     throw new Error(
@@ -535,6 +537,8 @@ const WalletHomeScreen = () => {
                 vaultsStatuses={vaultsStatuses}
                 btcFiat={btcFiat}
                 tipStatus={tipStatus}
+                pushToken={pushToken}
+                setPushToken={setPushToken}
               />
             )}
           </View>
