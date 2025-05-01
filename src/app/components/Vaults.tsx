@@ -211,7 +211,9 @@ const RawVault = ({
   blockExplorerURL,
   watchtowerAPI,
   notificationPermissionStatus,
-  setNotificationPermissionsStatus
+  setNotificationPermissionsStatus,
+  pushToken,
+  setPushToken
 }: {
   setVaultNotificationAcknowledged: (vaultId: string) => void;
   updateVaultStatus: (vaultId: string, vaultStatus: VaultStatus) => void;
@@ -231,6 +233,8 @@ const RawVault = ({
       Notifications.NotificationPermissionsStatus | undefined
     >
   >;
+  pushToken: string | null;
+  setPushToken: (token: string | null) => void;
 }) => {
   const [showDelegateHelp, setShowDelegateHelp] = useState<boolean>(false);
   const [showRescueHelp, setShowRescueHelp] = useState<boolean>(false);
@@ -577,22 +581,23 @@ const RawVault = ({
                 className={`p-1.5 bg-white rounded-xl shadow-sm android:elevation android:border android:border-slate-200 active:opacity-70 active:scale-95 ${notificationPermissionStatus === undefined ? 'animate-pulse' : ''}`}
               >
                 <MaterialCommunityIcons
+                  // Permissions unknown (status undefined):
+                  //   name='bell-outline', className='text-slate-400', still requesting perms
+                  // Permissions requested but not registered:
+                  //   name='bell-off-outline', className='text-red-500', failed registration
+                  // Registered:
+                  //   name='bell-outline', className='text-green-500', success
                   name={
-                    notificationPermissionStatus === undefined
-                      ? 'bell-outline'
-                      : registeredWatchtower &&
-                          notificationPermissionStatus.status === 'granted'
-                        ? 'bell-outline'
-                        : 'bell-off-outline'
+                    notificationPermissionStatus && !registeredWatchtower
+                      ? 'bell-off-outline'
+                      : 'bell-outline' //will be green or slate
                   }
                   className={`text-xl ${
-                    notificationPermissionStatus === undefined
-                      ? 'text-slate-400' // Pulse effect while undefined
-                      : notificationPermissionStatus.status === 'granted'
-                        ? registeredWatchtower
-                          ? 'text-green-500'
-                          : 'text-slate-600'
-                        : 'text-red-500'
+                    notificationPermissionStatus && !registeredWatchtower
+                      ? 'text-red-500'
+                      : notificationPermissionStatus
+                        ? 'text-green-500'
+                        : 'text-slate-400'
                   }`}
                 />
               </Pressable>
@@ -892,22 +897,60 @@ const RawVault = ({
         customButtons={
           <View className="items-center gap-6 gap-y-4 flex-row flex-wrap justify-center pb-4">
             {notificationPermissionStatus &&
-              notificationPermissionStatus.status !== 'granted' &&
-              notificationPermissionStatus.canAskAgain && (
+              ((notificationPermissionStatus.status === 'granted' &&
+                !pushToken) ||
+                (notificationPermissionStatus.status !== 'granted' &&
+                  notificationPermissionStatus.canAskAgain)) && (
                 <Button
                   mode="secondary"
-                  onPress={async () => {
-                    const result =
-                      await getOrRequestPermissionsForNotifications();
-                    if (
-                      !shallowEqualObjects(notificationPermissionStatus, result)
-                    )
-                      setNotificationPermissionsStatus(result);
-                    if (result.status === 'granted')
-                      handleCloseWatchtowerHelp();
-                  }}
+                  onPress={
+                    //FIXME: ojo this is not checking registeredWatchtower ???
+                    //Multiple things:
+                    //  -> not yet granted?
+                    //  -> pushToken failed?
+                    async () => {
+                      // ask for permission if needed
+                      let currentPermissions = notificationPermissionStatus;
+                      if (
+                        currentPermissions.status !== 'granted' &&
+                        currentPermissions.canAskAgain
+                      ) {
+                        const result =
+                          await getOrRequestPermissionsForNotifications();
+                        if (!shallowEqualObjects(currentPermissions, result)) {
+                          setNotificationPermissionsStatus(result);
+                        }
+                        currentPermissions = result;
+                      }
+
+                      // only if granted, try to get a token
+                      if (currentPermissions.status === 'granted') {
+                        let currentPushToken = pushToken;
+                        if (!currentPushToken) {
+                          currentPushToken = await getExpoPushToken();
+                          setPushToken(currentPushToken);
+                        }
+
+                        // if we really have a token, close & sync
+                        if (currentPushToken) {
+                          handleCloseWatchtowerHelp();
+                          await syncWatchtowerRegistration(currentPushToken);
+                        } else {
+                          console.warn(
+                            'Could not get push token after granting permissions.'
+                          );
+                        }
+                      }
+                      //if everything fails the modal is kept open and the user will
+                      //need to click on the other understoodButton
+                    }
+                  }
                 >
-                  {t('wallet.vault.watchtower.allowButton')}
+                  {
+                    //FIXME: allowButton may not be good enough for all
+                    //the cases. Perhaps "Enable Notifications"?
+                    t('wallet.vault.watchtower.allowButton')
+                  }
                 </Button>
               )}
             <Button mode="secondary" onPress={handleCloseWatchtowerHelp}>
@@ -917,12 +960,15 @@ const RawVault = ({
         }
       >
         <Text className="text-base pl-2 pr-2 text-slate-600">
-          {registeredWatchtower &&
-          notificationPermissionStatus?.status === 'granted'
+          {registeredWatchtower
             ? t('wallet.vault.watchtower.registered')
-            : !registeredWatchtower
-              ? t('wallet.vault.watchtower.registrationError')
-              : notificationPermissionStatus?.canAskAgain
+            : notificationPermissionStatus?.status === 'granted'
+              ? //not registered but granted:
+                !pushToken
+                ? t('wallet.vault.watchtower.pushTokenFailed')
+                : t('wallet.vault.watchtower.registrationError')
+              : //not registered and not granted:
+                notificationPermissionStatus?.canAskAgain
                 ? t('wallet.vault.watchtower.unregistered')
                 : Platform.OS === 'ios'
                   ? t('wallet.vault.watchtower.settings.ios')
@@ -986,7 +1032,6 @@ const Vaults = ({
         if (currentPushToken)
           await syncWatchtowerRegistration(currentPushToken);
         else {
-          //FIXME: deal with this
           console.warn('Could not get push token after granting permissions.');
         }
       }
@@ -1038,7 +1083,6 @@ const Vaults = ({
               if (currentPushToken)
                 await syncWatchtowerRegistrationRef.current(currentPushToken);
               else {
-                //FIXME: deal with this
                 console.warn('Could not get push token during initial setup.');
               }
             }
@@ -1098,7 +1142,6 @@ const Vaults = ({
                 return prevResult; // No change in permissions status
               });
             } else {
-              //FIXME: deal with this
               console.warn('Could not get push token on AppState change.');
             }
           } else {
@@ -1182,6 +1225,8 @@ const Vaults = ({
                 setNotificationPermissionsStatus={
                   setNotificationPermissionsStatus
                 }
+                pushToken={pushToken}
+                setPushToken={setPushToken}
               />
             )
           );

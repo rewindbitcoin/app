@@ -34,9 +34,6 @@ export async function getOrRequestPermissionsForNotifications(): Promise<Notific
   return result;
 }
 
-//FIXME: the function below needs internet connection, so retry
-//a couple of times and handle this somehow with if (!pushToken)
-//
 /**
  * Retrieves the Expo push token for the device.
  * Returns null if permissions are not granted, not on a physical device,
@@ -78,12 +75,6 @@ export async function getExpoPushToken(): Promise<string | null> {
 
 // Register vaults with the watchtower service
 // The backend won't return an error when trying to re-register a vault.
-//
-//FIXME: only call this if getExpoPushToken returns something, in fact
-//pass it as param. It may be the case the user never accepted push notifications
-//then warn the user or something.
-//FIXME: this function cannot be called before getOrRequestPermissionsForNotifications
-//(requestPermissionsAsync) - it will hang indefinitely
 export async function watchVaults({
   pushToken,
   watchtowerAPI,
