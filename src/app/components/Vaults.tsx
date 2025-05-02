@@ -1,13 +1,19 @@
+//FIXME: el mensage en la push notiification no es muy alarmante
+
+//FIXME: documentar bien en la web cuando se muestra el push notification!
+//cuando se hace desde otro dispositivo?
+//cuando se hace desde un dispositivco q no hizo el push?
+//  -> Esto tiene q ir a la web
+
 //FIXME: Add Accelerate links on the confirming... texts on the right!!!
 //for the init and for the rescue
-
-//FIXME: if internet is fine but !204 the watchtower also show the bell red off
 
 //FIXME: tests: (Android / iOS):
 // - registration error GOOD
 // - user denying grant
 // - pushToken not set
 // - receiving old wallets push
+// - testear el animate-pulse
 
 import React, {
   useCallback,
@@ -275,7 +281,6 @@ const RawVault = ({
   );
   const { netRequest, internetReachable, watchtowerAPIReachable } =
     useNetStatus();
-
   const [isInitUnfreezeBeingHandled, setIsInitUnfreezeBeingHandled] =
     useState<boolean>(false);
   const isInitUnfreezePending =
@@ -512,21 +517,83 @@ const RawVault = ({
   const rescuedBalance =
     tipHeight && vaultStatus && getVaultRescuedBalance(vault, vaultStatus);
 
-  const handleWatchtowerStatusReset = useCallback(async () => {
+  const retryWatchtowerSetup = useCallback(async () => {
     setShowWatchtowerStatusModal(false);
     //request if necessay (it gets if already granted):
     const { pushToken } = await ensurePermissionsAndToken('REQUEST');
     if (pushToken) await syncWatchtowerRegistration(pushToken);
     else console.warn('Failed during notification system request');
   }, [ensurePermissionsAndToken, syncWatchtowerRegistration]);
-  // keep a stable ref to the latest handleWatchtowerStatusReset fn
-  const handleWatchtowerStatusResetRef = useRef(handleWatchtowerStatusReset);
+  // keep a stable ref to the latest retryWatchtowerSetup fn
+  const retryWatchtowerSetupRef = useRef(retryWatchtowerSetup);
   useEffect(() => {
-    handleWatchtowerStatusResetRef.current = handleWatchtowerStatusReset;
-  }, [handleWatchtowerStatusReset]);
-  const registeredWatchtower =
+    retryWatchtowerSetupRef.current = retryWatchtowerSetup;
+  }, [retryWatchtowerSetup]);
+
+  // --- Derived Notification/Watchtower States ---
+  const isWatchtowerRegistered =
     watchtowerAPI !== undefined &&
-    vaultStatus?.registeredWatchtowers?.includes(watchtowerAPI);
+    !!vaultStatus?.registeredWatchtowers?.includes(watchtowerAPI);
+
+  const isWatchtowerStatusPending =
+    notificationPermissions === undefined ||
+    watchtowerAPIReachable === undefined;
+
+  const isWatchtowerDown =
+    watchtowerAPIReachable === false && internetReachable === true;
+
+  const shouldRetryPushToken =
+    notificationPermissions?.status === 'granted' && pushToken !== '';
+
+  const canPromptForNotificationPermission =
+    !notificationPermissions ||
+    (notificationPermissions.status !== 'granted' &&
+      notificationPermissions.canAskAgain);
+
+  // Determine the overall status for UI elements
+  const watchtowerNeedsRetry =
+    !isWatchtowerStatusPending &&
+    (!isWatchtowerRegistered ||
+      isWatchtowerDown ||
+      shouldRetryPushToken ||
+      canPromptForNotificationPermission);
+
+  const watchtowerBellIconName =
+    isWatchtowerStatusPending || (isWatchtowerRegistered && !isWatchtowerDown)
+      ? 'bell-outline'
+      : 'bell-off-outline';
+
+  const watchtowerBellIconColor = isWatchtowerStatusPending
+    ? 'slate' // Loading/Unknown
+    : isWatchtowerRegistered && !isWatchtowerDown
+      ? 'green' // Success state
+      : 'red'; // Any failed state (not registered, watchtower down)
+
+  const getWatchtowerStatusMessage = () => {
+    if (isWatchtowerStatusPending) {
+      return t('wallet.vault.watchtower.loading');
+    }
+    if (isWatchtowerRegistered) {
+      return t('wallet.vault.watchtower.registered');
+    } else if (notificationPermissions?.status === 'granted') {
+      // Permissions OK, but not registered
+      if (shouldRetryPushToken) {
+        return t('wallet.vault.watchtower.pushTokenFailed');
+      } else {
+        return t('wallet.vault.watchtower.registrationError');
+      }
+    } else {
+      // Permissions not granted
+      if (notificationPermissions?.canAskAgain) {
+        return t('wallet.vault.watchtower.unregistered');
+      } else {
+        return Platform.OS === 'ios'
+          ? t('wallet.vault.watchtower.settings.ios')
+          : t('wallet.vault.watchtower.settings.android');
+      }
+    }
+  };
+  // --- End Derived States ---
 
   return (
     <View
@@ -600,28 +667,13 @@ const RawVault = ({
               <Pressable
                 onPress={handleShowWatchtowerStatusModal}
                 hitSlop={20}
-                disabled={notificationPermissions === undefined} // Disable while loading
-                className={`p-1.5 bg-white rounded-xl shadow-sm android:elevation android:border android:border-slate-200 active:opacity-70 active:scale-95 ${notificationPermissions === undefined ? 'animate-pulse' : ''}`}
+                disabled={isWatchtowerStatusPending}
+                className={`p-1.5 bg-white rounded-xl shadow-sm android:elevation android:border android:border-slate-200 active:opacity-70 active:scale-95 ${isWatchtowerStatusPending ? 'animate-pulse' : ''}`}
               >
                 <MaterialCommunityIcons
-                  // Permissions unknown (status undefined):
-                  //   name='bell-outline', className='text-slate-400', still requesting perms
-                  // Permissions requested but not registered:
-                  //   name='bell-off-outline', className='text-red-500', failed registration
-                  // Registered:
-                  //   name='bell-outline', className='text-green-500', success
-                  name={
-                    notificationPermissions && !registeredWatchtower
-                      ? 'bell-off-outline'
-                      : 'bell-outline' //will be green or slate
-                  }
-                  className={`text-xl ${
-                    notificationPermissions && !registeredWatchtower
-                      ? 'text-red-500'
-                      : notificationPermissions
-                        ? 'text-green-500'
-                        : 'text-slate-400'
-                  }`}
+                  name={watchtowerBellIconName}
+                  className={`text-xl ${watchtowerBellIconColor === 'red' ? 'text-red-500' : watchtowerBellIconColor === 'slate' ? 'text-slate-400' : 'text-green-500'}
+                 `}
                 />
               </Pressable>
             )}
@@ -918,27 +970,20 @@ const RawVault = ({
         isVisible={showWatchtowerStatusModal}
         onClose={handleCloseWatchtowerStatusModal}
         customButtons={(() => {
-          const needsEnable =
-            !registeredWatchtower ||
-            !notificationPermissions ||
-            (notificationPermissions.status !== 'granted' &&
-              notificationPermissions.canAskAgain) ||
-            !pushToken;
-
           return (
             <View className="items-center gap-6 gap-y-4 flex-row flex-wrap justify-center pb-4">
               <Button
-                mode={needsEnable ? 'secondary' : 'primary'}
+                mode={watchtowerNeedsRetry ? 'secondary' : 'primary'}
                 onPress={handleCloseWatchtowerStatusModal}
               >
                 {t('understoodButton')}
               </Button>
-              {needsEnable && (
+              {watchtowerNeedsRetry && (
                 <Button
                   mode="primary"
-                  onPress={handleWatchtowerStatusResetRef.current}
+                  onPress={retryWatchtowerSetupRef.current}
                 >
-                  {t('wallet.vault.watchtower.enableButton')}
+                  {t('wallet.vault.watchtower.retryButton')}
                 </Button>
               )}
             </View>
@@ -946,19 +991,7 @@ const RawVault = ({
         })()}
       >
         <Text className="text-base pl-2 pr-2 text-slate-600">
-          {registeredWatchtower
-            ? t('wallet.vault.watchtower.registered')
-            : notificationPermissions?.status === 'granted'
-              ? //not registered but granted:
-                !pushToken
-                ? t('wallet.vault.watchtower.pushTokenFailed')
-                : t('wallet.vault.watchtower.registrationError')
-              : //not registered and not granted:
-                notificationPermissions?.canAskAgain
-                ? t('wallet.vault.watchtower.unregistered')
-                : Platform.OS === 'ios'
-                  ? t('wallet.vault.watchtower.settings.ios')
-                  : t('wallet.vault.watchtower.settings.android')}
+          {getWatchtowerStatusMessage()}
         </Text>
       </Modal>
     </View>
