@@ -545,10 +545,12 @@ const RawVault = ({
   const shouldRetryPushToken =
     notificationPermissions?.status === 'granted' && pushToken !== '';
 
-  const canPromptForNotificationPermission =
-    !notificationPermissions ||
-    (notificationPermissions.status !== 'granted' &&
-      notificationPermissions.canAskAgain);
+  const isNotificationPermissionReaskable =
+    notificationPermissions &&
+    notificationPermissions.status !== 'granted' &&
+    notificationPermissions.canAskAgain;
+  const shouldRequestNotificationPermission =
+    !notificationPermissions || isNotificationPermissionReaskable;
 
   // Determine the overall status for UI elements
   const watchtowerNeedsRetry =
@@ -556,7 +558,7 @@ const RawVault = ({
     (!isWatchtowerRegistered ||
       isWatchtowerDown ||
       shouldRetryPushToken ||
-      canPromptForNotificationPermission);
+      shouldRequestNotificationPermission);
 
   const watchtowerBellIconName =
     isWatchtowerStatusPending || (isWatchtowerRegistered && !isWatchtowerDown)
@@ -580,12 +582,12 @@ const RawVault = ({
       if (shouldRetryPushToken) {
         return t('wallet.vault.watchtower.pushTokenFailed');
       } else {
-        return t('wallet.vault.watchtower.registrationError');
+        return t('wallet.vault.watchtower.watchtowerServiceError');
       }
     } else {
-      // Permissions not granted
-      if (notificationPermissions?.canAskAgain) {
-        return t('wallet.vault.watchtower.unregistered');
+      // Permissions not granted, but reaskable
+      if (isNotificationPermissionReaskable) {
+        return t('wallet.vault.watchtower.notGranted');
       } else {
         return Platform.OS === 'ios'
           ? t('wallet.vault.watchtower.settings.ios')
