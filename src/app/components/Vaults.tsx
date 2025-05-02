@@ -983,14 +983,16 @@ const RawVault = ({
               {watchtowerNeedsRetry && (
                 <Button
                   mode="primary"
-                  disabled={isWatchtowerDown && syncingBlockchain}
+                  loading={isWatchtowerDown && syncingBlockchain}
                   onPress={
                     isWatchtowerDown
                       ? syncBlockchain
                       : retryWatchtowerSetupRef.current
                   }
                 >
-                  {t('wallet.vault.watchtower.retryButton')}
+                  {isWatchtowerDown && syncingBlockchain
+                    ? t('wallet.vault.watchtower.retryingButton')
+                    : t('wallet.vault.watchtower.retryButton')}
                 </Button>
               )}
             </View>
