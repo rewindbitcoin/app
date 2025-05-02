@@ -1,4 +1,4 @@
-//FIXME: el mensage en la push notiification no es muy alarmante
+//FIXME: el mensage en la push notification no es muy alarmante
 
 //FIXME: documentar bien en la web cuando se muestra el push notification!
 //cuando se hace desde otro dispositivo?
@@ -14,6 +14,7 @@
 // - pushToken not set
 // - receiving old wallets push
 // - testear el animate-pulse
+// - Android!
 
 import React, {
   useCallback,
@@ -543,7 +544,7 @@ const RawVault = ({
     watchtowerAPIReachable === false && internetReachable === true;
 
   const shouldRetryPushToken =
-    notificationPermissions?.status === 'granted' && pushToken !== '';
+    notificationPermissions?.status === 'granted' && pushToken === '';
 
   const isNotificationPermissionReaskable =
     notificationPermissions &&
@@ -571,11 +572,15 @@ const RawVault = ({
       ? 'green' // Success state
       : 'red'; // Any failed state (not registered, watchtower down)
 
+  //FIXME: this if-else spagetthi is messy
   const getWatchtowerStatusMessage = () => {
-    if (isWatchtowerStatusPending) {
+    if (isWatchtowerDown) {
+      return t('wallet.vault.watchtower.watchtowerServiceError');
+    } else if (shouldRequestNotificationPermission) {
+      return t('wallet.vault.watchtower.notGranted');
+    } else if (isWatchtowerStatusPending) {
       return t('wallet.vault.watchtower.loading');
-    }
-    if (isWatchtowerRegistered) {
+    } else if (isWatchtowerRegistered) {
       return t('wallet.vault.watchtower.registered');
     } else if (notificationPermissions?.status === 'granted') {
       // Permissions OK, but not registered
