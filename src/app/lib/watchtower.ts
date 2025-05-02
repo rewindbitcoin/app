@@ -60,10 +60,22 @@ export async function getExpoPushToken(title: string): Promise<string> {
       );
       return '';
     }
-    const tokenResponse = await Notifications.getExpoPushTokenAsync({
-      projectId: projectId
-    });
-    return tokenResponse.data;
+    // Attempt to fetch the Expo push token, retrying on failure
+    let lastError: unknown;
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        const { data: expoToken } = await Notifications.getExpoPushTokenAsync({
+          projectId
+        });
+        return expoToken;
+      } catch (err) {
+        lastError = err;
+        // small backoff: 500ms, 1000ms, 1500ms, ...
+        await new Promise(res => setTimeout(res, 500 * attempt));
+      }
+    }
+    console.error('Failed to get Expo push token after retries:', lastError);
+    return '';
   } catch (error) {
     console.error('Failed to get push token:', error);
     return '';
