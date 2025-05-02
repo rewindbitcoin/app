@@ -1,8 +1,10 @@
 //FIXME: Add Accelerate links on the confirming... texts on the right!!!
 //for the init and for the rescue
 
+//FIXME: if internet is fine but !204 the watchtower also show the bell red off
+
 //FIXME: tests: (Android / iOS):
-// - registration error
+// - registration error GOOD
 // - user denying grant
 // - pushToken not set
 // - receiving old wallets push
@@ -210,6 +212,8 @@ const RawVault = ({
   vaultNumber,
   vaultStatus,
   blockExplorerURL,
+  syncBlockchain,
+  syncingBlockchain,
   watchtowerAPI,
   syncWatchtowerRegistration,
   ensurePermissionsAndToken,
@@ -225,6 +229,8 @@ const RawVault = ({
   vaultNumber: number;
   vaultStatus: VaultStatus | undefined;
   blockExplorerURL: string | undefined;
+  syncBlockchain: () => void;
+  syncingBlockchain: boolean;
   watchtowerAPI: string | undefined;
   syncWatchtowerRegistration: (pushToken: string) => Promise<void>;
   ensurePermissionsAndToken: (mode: 'GET' | 'REQUEST') => Promise<{
@@ -267,7 +273,8 @@ const RawVault = ({
     () => setShowWatchtowerStatusModal(false),
     []
   );
-  const { netRequest } = useNetStatus();
+  const { netRequest, internetReachable, watchtowerAPIReachable } =
+    useNetStatus();
 
   const [isInitUnfreezeBeingHandled, setIsInitUnfreezeBeingHandled] =
     useState<boolean>(false);
@@ -910,35 +917,33 @@ const RawVault = ({
         }}
         isVisible={showWatchtowerStatusModal}
         onClose={handleCloseWatchtowerStatusModal}
-        customButtons={
-          (() => {
-            const needsEnable =
-              !registeredWatchtower ||
-              !notificationPermissions ||
-              (notificationPermissions.status !== 'granted' &&
-                notificationPermissions.canAskAgain) ||
-              !pushToken;
+        customButtons={(() => {
+          const needsEnable =
+            !registeredWatchtower ||
+            !notificationPermissions ||
+            (notificationPermissions.status !== 'granted' &&
+              notificationPermissions.canAskAgain) ||
+            !pushToken;
 
-            return (
-              <View className="items-center gap-6 gap-y-4 flex-row flex-wrap justify-center pb-4">
+          return (
+            <View className="items-center gap-6 gap-y-4 flex-row flex-wrap justify-center pb-4">
+              <Button
+                mode={needsEnable ? 'secondary' : 'primary'}
+                onPress={handleCloseWatchtowerStatusModal}
+              >
+                {t('understoodButton')}
+              </Button>
+              {needsEnable && (
                 <Button
-                  mode={needsEnable ? 'secondary' : 'primary'}
-                  onPress={handleCloseWatchtowerStatusModal}
+                  mode="primary"
+                  onPress={handleWatchtowerStatusResetRef.current}
                 >
-                  {t('understoodButton')}
+                  {t('wallet.vault.watchtower.enableButton')}
                 </Button>
-                {needsEnable && (
-                  <Button
-                    mode="primary"
-                    onPress={handleWatchtowerStatusResetRef.current}
-                  >
-                    {t('wallet.vault.watchtower.enableButton')}
-                  </Button>
-                )}
-              </View>
-            );
-          })()
-        }
+              )}
+            </View>
+          );
+        })()}
       >
         <Text className="text-base pl-2 pr-2 text-slate-600">
           {registeredWatchtower
@@ -972,6 +977,8 @@ const Vaults = ({
   vaults,
   vaultsStatuses,
   blockExplorerURL,
+  syncBlockchain,
+  syncingBlockchain,
   watchtowerAPI,
   pushToken,
   setPushToken
@@ -985,6 +992,8 @@ const Vaults = ({
   vaults: VaultsType;
   vaultsStatuses: VaultsStatuses;
   blockExplorerURL: string | undefined;
+  syncBlockchain: () => void;
+  syncingBlockchain: boolean;
   watchtowerAPI: string | undefined;
   pushToken: string | undefined;
   setPushToken: (token: string) => void;
@@ -1185,6 +1194,8 @@ const Vaults = ({
                 vaultStatus={vaultStatus}
                 pushTx={pushTx}
                 blockExplorerURL={blockExplorerURL}
+                syncBlockchain={syncBlockchain}
+                syncingBlockchain={syncingBlockchain}
                 watchtowerAPI={watchtowerAPI}
                 notificationPermissions={notificationPermissions}
                 pushToken={pushToken}

@@ -530,6 +530,8 @@ const WalletHomeScreen = () => {
                 setVaultNotificationAcknowledged={
                   setVaultNotificationAcknowledged
                 }
+                syncBlockchain={syncBlockchain}
+                syncingBlockchain={syncingBlockchain}
                 blockExplorerURL={blockExplorerURL}
                 updateVaultStatus={updateVaultStatus}
                 pushTx={pushTx}
