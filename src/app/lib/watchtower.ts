@@ -24,24 +24,22 @@ export type WatchtowerRegistrationData = {
   }>;
 };
 
-export async function getOrRequestPermissionsForNotifications(): Promise<Notifications.NotificationPermissionsStatus> {
-  if (!canReceiveNotifications)
-    throw new Error('This device does not support notifications');
-  // Request permission
-  let result = await Notifications.getPermissionsAsync();
-  if (result.status !== 'granted' && result.canAskAgain)
-    result = await Notifications.requestPermissionsAsync();
-  return result;
-}
-
 /**
  * Retrieves the Expo push token for the device.
  * Returns null if permissions are not granted, not on a physical device,
  * or if fetching fails.
  * @returns {Promise<string | null>} The Expo push token or null.
  */
-export async function getExpoPushToken(): Promise<string | null> {
+export async function getExpoPushToken(title: string): Promise<string | null> {
   try {
+    if (Platform.OS === 'android') {
+      // On Android, a channel must exists; we set it at HIGH importance
+      await Notifications.setNotificationChannelAsync('default', {
+        name: title,
+        importance: Notifications.AndroidImportance.HIGH,
+        vibrationPattern: [0, 500, 200, 500, 200, 500]
+      });
+    }
     // Get the project ID from expo-constants
     const projectId =
       Constants.expoConfig?.['extra']?.['eas']?.projectId ??

@@ -21,14 +21,9 @@ import {
   type Subscription,
   addNotificationReceivedListener,
   addNotificationResponseReceivedListener,
-  getLastNotificationResponseAsync,
-  getPermissionsAsync
+  getLastNotificationResponseAsync
 } from 'expo-notifications';
-import {
-  watchVaults,
-  canReceiveNotifications,
-  getExpoPushToken
-} from '../lib/watchtower';
+import { watchVaults, canReceiveNotifications } from '../lib/watchtower';
 import {
   walletTitle as walletTitleFn,
   type Accounts,
@@ -104,8 +99,10 @@ type TxHistory = Array<{
 export type WalletContextType = {
   orphanedWatchtowerWalletUUIDs: Set<string>;
   clearOrphanedWatchtowerWalletUUIDs: () => Promise<void>;
-  pushToken: string | null;
-  setPushToken: (token: string | null) => void;
+  //pushToken: undefined before being read from storage,
+  //null when read from storage but the vaule had never been set yet.
+  pushToken: string | null | undefined;
+  setPushToken: (token: string | null) => Promise<void>;
   getNextChangeDescriptorWithIndex: (accounts: Accounts) => Promise<{
     descriptor: string;
     index: number;
@@ -180,7 +177,6 @@ const WalletProviderRaw = ({
   children: ReactNode;
   newWalletSigners?: Signers;
 }) => {
-  const [pushToken, setPushToken] = useState<string | null>(null);
   const [orphanedWatchtowerWalletUUIDs, setOrphanedWatchtowerWalletUUIDs] =
     useState<Set<string>>(new Set());
   //This keeps track of the current active wallet.
@@ -218,6 +214,14 @@ const WalletProviderRaw = ({
   const { secureStorageInfo } = useSecureStorageInfo();
   const { t } = useTranslation();
   const navigation = useNavigation();
+
+  // pushToken type will be undefined while not read, null if read but never set
+  // or a string if set
+  const [pushToken, setPushToken] = useStorage<string | null>(
+    'PUSH_TOKEN',
+    SERIALIZABLE, //not using STRING, since it can be both null and a string
+    null
+  );
 
   const goBackToWallets = useCallback(() => {
     //In react navigation v6 navigation.navigate behaves as if doing a
@@ -433,7 +437,6 @@ const WalletProviderRaw = ({
     apiReachable,
     netRequest,
     netToast,
-    internetReachable,
     explorerReachable,
     explorerMainnetReachable
   } = useNetStatus();
@@ -1034,26 +1037,6 @@ const WalletProviderRaw = ({
     [networkTimeout, handleWatchtowerNotification]
   );
 
-  //Set pushToken intially if possible. This means the user already granted
-  //permissions and we can retrieve it
-  //React to changes in internetReachable so that this can be retried if
-  //pushToken has not been set already
-  //First time pushToken will be set in the App is in Vaults after creating
-  //the first vault and showing the user some modal explainig the reason why
-  useEffect(() => {
-    const f = async () => {
-      try {
-        if (canReceiveNotifications && !pushToken) {
-          if ((await getPermissionsAsync()).status === 'granted') {
-            const pushToken = await getExpoPushToken();
-            setPushToken(pushToken);
-          }
-        }
-      } catch (e) {}
-    };
-    f();
-  }, [pushToken, internetReachable]);
-
   // Set up watchtower notification handling & polling for pending notifications
   useEffect(() => {
     if (
@@ -1525,7 +1508,6 @@ const WalletProviderRaw = ({
    * Registers vaults with the watchtower service and updates their
    * registration status (registeredWatchtowers field in vaultStatus).
    *
-   * If configureNotifications has not been called this call has no effect.
    * If all vaults have already been registered this function has no effect.
    *
    * Updates the vaultsStatuses state if the registration process resulted in
@@ -1550,10 +1532,9 @@ const WalletProviderRaw = ({
         )
           throw new Error('Required data for watchtower registration missing');
         const { result: newWatchedVaults } = await netRequest({
-          id: 'watchtower',
           errorMessage: (message: string) =>
             t('app.watchtowerError', { message }),
-          whenToastErrors: 'ON_NEW_ERROR',
+          whenToastErrors: 'ON_ANY_ERROR',
           requirements: { watchtowerAPIReachable: true },
           func: () => {
             const rawLocale = settings?.LOCALE ?? defaultSettings.LOCALE;

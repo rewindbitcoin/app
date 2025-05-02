@@ -209,8 +209,8 @@ Si presionas 'Iniciar Descongelación', comenzará un período de espera de {{lo
       noFundsBody:
         'Mantén tus ahorros seguros congelando en Bóvedas los fondos que no necesitas diariamente.',
       watchtower: {
-        permissionTitle: '¿Activar alertas de Bóveda?',
-        allowButton: 'Permitir notificaciones',
+        permissionTitle: 'Alertas de Bóveda',
+        enableButton: 'Habilitar notificaciones',
         permissionExplanation: `Rewind necesita permiso para enviarte alertas críticas de seguridad sobre tus Bóvedas.
 
 Recomendamos encarecidamente activarlas.

@@ -302,8 +302,8 @@ Once the countdown ends, your funds will be unlocked and accessible.`
       noFundsBody:
         'Keep your savings secure by freezing the funds not needed daily in Vaults.',
       watchtower: {
-        permissionTitle: 'Enable Vault Alerts?',
-        allowButton: 'Allow Notifications',
+        permissionTitle: 'Vault Alerts',
+        enableButton: 'Enable Notifications',
         permissionExplanation: `Rewind needs permission to send critical security alerts about your Vaults.
 
 We strongly recommend enabling them.
