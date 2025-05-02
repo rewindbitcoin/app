@@ -911,23 +911,33 @@ const RawVault = ({
         isVisible={showWatchtowerStatusModal}
         onClose={handleCloseWatchtowerStatusModal}
         customButtons={
-          <View className="items-center gap-6 gap-y-4 flex-row flex-wrap justify-center pb-4">
-            {(!registeredWatchtower ||
+          (() => {
+            const needsEnable =
+              !registeredWatchtower ||
               !notificationPermissions ||
               (notificationPermissions.status !== 'granted' &&
                 notificationPermissions.canAskAgain) ||
-              !pushToken) && (
-              <Button
-                mode="secondary"
-                onPress={handleWatchtowerStatusResetRef.current}
-              >
-                {t('wallet.vault.watchtower.enableButton')}
-              </Button>
-            )}
-            <Button mode="secondary" onPress={handleCloseWatchtowerStatusModal}>
-              {t('understoodButton')}
-            </Button>
-          </View>
+              !pushToken;
+
+            return (
+              <View className="items-center gap-6 gap-y-4 flex-row flex-wrap justify-center pb-4">
+                <Button
+                  mode={needsEnable ? 'secondary' : 'primary'}
+                  onPress={handleCloseWatchtowerStatusModal}
+                >
+                  {t('understoodButton')}
+                </Button>
+                {needsEnable && (
+                  <Button
+                    mode="primary"
+                    onPress={handleWatchtowerStatusResetRef.current}
+                  >
+                    {t('wallet.vault.watchtower.enableButton')}
+                  </Button>
+                )}
+              </View>
+            );
+          })()
         }
       >
         <Text className="text-base pl-2 pr-2 text-slate-600">
