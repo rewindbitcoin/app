@@ -959,7 +959,6 @@ const WalletProviderRaw = ({
         if (!watchtowerUnackedNotificationsRef.current[watchtowerAPI]) {
           // Construct the notifications endpoint for this network
           const notificationsEndpoint = `${watchtowerAPI}/notifications`;
-
           // Make the request to the watchtower API
           const response = await fetch(notificationsEndpoint, {
             method: 'POST',
@@ -1140,7 +1139,7 @@ const WalletProviderRaw = ({
       let failedAPIs = [...watchtowerAPIChecks];
       const poll = async () => {
         for (const api of [...failedAPIs]) {
-          const ok = await fetchAndHandleWatchtowerUnacked(api, pushToken);
+          const ok = await fetchAndHandleWatchtowerUnacked(pushToken, api);
           if (ok) failedAPIs = failedAPIs.filter(a => a !== api); // remove from failed list
         }
         // if anything still failed, retry in 60s
@@ -1535,7 +1534,6 @@ const WalletProviderRaw = ({
           errorMessage: (message: string) =>
             t('app.watchtowerError', { message }),
           whenToastErrors: 'ON_ANY_ERROR',
-          requirements: { watchtowerAPIReachable: true },
           func: () => {
             const rawLocale = settings?.LOCALE ?? defaultSettings.LOCALE;
             const locale =

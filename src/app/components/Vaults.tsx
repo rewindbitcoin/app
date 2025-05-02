@@ -1,6 +1,12 @@
 //FIXME: Add Accelerate links on the confirming... texts on the right!!!
 //for the init and for the rescue
 
+//FIXME: tests: (Android / iOS):
+// - registration error
+// - user denying grant
+// - pushToken not set
+// - receiving old wallets push
+
 import React, {
   useCallback,
   useEffect,
@@ -499,7 +505,6 @@ const RawVault = ({
   const rescuedBalance =
     tipHeight && vaultStatus && getVaultRescuedBalance(vault, vaultStatus);
 
-  //FIXME: test registration error. test used denying grant. test pushToken not set
   const handleWatchtowerStatusReset = useCallback(async () => {
     setShowWatchtowerStatusModal(false);
     //request if necessay (it gets if already granted):
