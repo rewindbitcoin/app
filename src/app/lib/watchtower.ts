@@ -26,11 +26,11 @@ export type WatchtowerRegistrationData = {
 
 /**
  * Retrieves the Expo push token for the device.
- * Returns null if permissions are not granted, not on a physical device,
+ * Returns '' if permissions are not granted, not on a physical device,
  * or if fetching fails.
  * @returns {Promise<string | null>} The Expo push token or null.
  */
-export async function getExpoPushToken(title: string): Promise<string | null> {
+export async function getExpoPushToken(title: string): Promise<string> {
   try {
     if (Platform.OS === 'android') {
       // On Android, a channel must exists; we set it at HIGH importance
@@ -47,19 +47,18 @@ export async function getExpoPushToken(title: string): Promise<string | null> {
 
     if (!projectId) {
       console.warn('Project ID not found in expo-constants');
-      return null;
+      return '';
     }
 
     if ((await Notifications.getPermissionsAsync()).status !== 'granted')
-      return null;
+      return '';
 
     // Check if this device can receive notifications
     if (!canReceiveNotifications) {
       console.warn(
         'Push notifications are only supported on physical iOS/Android devices'
       );
-      // For testing purposes, we'll continue anyway but return null at the end
-      return null;
+      return '';
     }
     const tokenResponse = await Notifications.getExpoPushTokenAsync({
       projectId: projectId
@@ -67,7 +66,7 @@ export async function getExpoPushToken(title: string): Promise<string | null> {
     return tokenResponse.data;
   } catch (error) {
     console.error('Failed to get push token:', error);
-    return null;
+    return '';
   }
 }
 

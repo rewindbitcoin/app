@@ -49,7 +49,7 @@ import React, {
 } from 'react';
 import { shallowEqualObjects } from 'shallow-equal';
 import type { Wallet } from '../lib/wallets';
-import { SERIALIZABLE, deleteAsync } from '../../common/lib/storage';
+import { SERIALIZABLE, STRING, deleteAsync } from '../../common/lib/storage';
 import { useTranslation } from 'react-i18next';
 
 import {
@@ -101,8 +101,8 @@ export type WalletContextType = {
   clearOrphanedWatchtowerWalletUUIDs: () => Promise<void>;
   //pushToken: undefined before being read from storage,
   //null when read from storage but the vaule had never been set yet.
-  pushToken: string | null | undefined;
-  setPushToken: (token: string | null) => Promise<void>;
+  pushToken: string | undefined;
+  setPushToken: (token: string) => Promise<void>;
   getNextChangeDescriptorWithIndex: (accounts: Accounts) => Promise<{
     descriptor: string;
     index: number;
@@ -215,12 +215,12 @@ const WalletProviderRaw = ({
   const { t } = useTranslation();
   const navigation = useNavigation();
 
-  // pushToken type will be undefined while not read, null if read but never set
+  // pushToken type will be undefined while not read, '' if read but never set
   // or a string if set
-  const [pushToken, setPushToken] = useStorage<string | null>(
+  const [pushToken, setPushToken] = useStorage<string>(
     'PUSH_TOKEN',
-    SERIALIZABLE, //not using STRING, since it can be both null and a string
-    null
+    STRING,
+    ''
   );
 
   const goBackToWallets = useCallback(() => {

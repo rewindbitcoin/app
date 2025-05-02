@@ -1,5 +1,4 @@
-//FIXME:
-//Add Accelerate links on the confirming... texts on the right!!!
+//FIXME: Add Accelerate links on the confirming... texts on the right!!!
 //for the init and for the rescue
 
 import React, {
@@ -226,13 +225,13 @@ const RawVault = ({
     notificationPermissions:
       | Notifications.NotificationPermissionsStatus
       | undefined;
-    pushToken: string | null | undefined;
+    pushToken: string | undefined;
   }>;
 
   notificationPermissions:
     | Notifications.NotificationPermissionsStatus
     | undefined;
-  pushToken: string | null | undefined;
+  pushToken: string | undefined;
 }) => {
   const [showDelegateHelp, setShowDelegateHelp] = useState<boolean>(false);
   const [showRescueHelp, setShowRescueHelp] = useState<boolean>(false);
@@ -500,7 +499,7 @@ const RawVault = ({
   const rescuedBalance =
     tipHeight && vaultStatus && getVaultRescuedBalance(vault, vaultStatus);
 
-  //FIXME: test registration error. test used denying grant
+  //FIXME: test registration error. test used denying grant. test pushToken not set
   const handleWatchtowerStatusReset = useCallback(async () => {
     setShowWatchtowerStatusModal(false);
     //request if necessay (it gets if already granted):
@@ -948,9 +947,6 @@ const RawVault = ({
 
 const Vault = React.memo(RawVault);
 
-//FIXME: how are errors in syncWatchtowerRegistration dealt? if the sync
-//fails, does it re-start automatically?
-//
 const Vaults = ({
   setVaultNotificationAcknowledged,
   updateVaultStatus,
@@ -975,8 +971,8 @@ const Vaults = ({
   vaultsStatuses: VaultsStatuses;
   blockExplorerURL: string | undefined;
   watchtowerAPI: string | undefined;
-  pushToken: string | null | undefined;
-  setPushToken: (token: string | null) => void;
+  pushToken: string | undefined;
+  setPushToken: (token: string) => void;
 }) => {
   const { t } = useTranslation();
   // This needs to be in state for rendering purposes:
@@ -1059,15 +1055,15 @@ const Vaults = ({
         currentPermissions?.status === 'granted' &&
         //undefined is when it's still not been read from storage, and
         //therefore it's better not trying to set it
-        //null is when it's been read from storage and it had not been set yet.
+        //'' is when it's been read from storage and it had not been set yet.
         //Note that pushToken never changes so no need to requery it:
         //https://docs.expo.dev/push-notifications/faq/?utm_source=chatgpt.com#when-and-why-does-the-expopushtoken-change
-        currentPushToken === null
+        currentPushToken === ''
       ) {
         try {
           currentPushToken = await getExpoPushToken(
             t('wallet.vault.watchtower.permissionTitle')
-          ); //FIXME: add here some retries. Make sure net is ready.
+          );
           setPushToken(currentPushToken);
         } catch (err) {
           console.warn('Could not getExpoPushToken', err);
