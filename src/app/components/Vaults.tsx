@@ -535,6 +535,7 @@ const RawVault = ({
   const isWatchtowerRegistered =
     watchtowerAPI !== undefined &&
     !!vaultStatus?.registeredWatchtowers?.includes(watchtowerAPI);
+
   const isWatchtowerAPIPending = watchtowerAPIReachable === undefined;
   const isWatchtowerStatusPending =
     notificationPermissions === undefined || isWatchtowerAPIPending;
@@ -545,15 +546,14 @@ const RawVault = ({
   const shouldRetryPushToken =
     notificationPermissions?.status === 'granted' && pushToken === '';
 
-  const isNotificationPermissionReaskable =
+  const shouldRequestNotificationPermission =
+    !notificationPermissions ||
+    (notificationPermissions.status !== 'granted' &&
+      notificationPermissions.canAskAgain);
+  const shouldDirectToSystemNotificationSettings =
     notificationPermissions &&
     notificationPermissions.status !== 'granted' &&
-    notificationPermissions.canAskAgain;
-  const shouldRequestNotificationPermission =
-    !notificationPermissions || isNotificationPermissionReaskable;
-  const shouldDirectToSystemNotificationSettings =
-    notificationPermissions?.status !== 'granted' &&
-    notificationPermissions?.canAskAgain === false;
+    notificationPermissions.canAskAgain === false;
 
   const watchtowerBellIconName =
     isWatchtowerStatusPending || (isWatchtowerRegistered && !isWatchtowerDown)

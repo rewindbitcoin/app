@@ -305,7 +305,7 @@ Once the countdown ends, your funds will be unlocked and accessible.`
         permissionTitle: 'Vault Alerts',
         retryButton: 'Retry',
         retryingButton: 'Retrying',
-        loading: 'Checking Vault monitoring status…',
+        apiPending: 'Checking Vault monitoring status…',
         permissionExplanation: `Rewind needs permission to send critical security alerts about your Vaults.
 
 We strongly recommend enabling them.
