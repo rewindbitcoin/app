@@ -305,6 +305,7 @@ Once the countdown ends, your funds will be unlocked and accessible.`
         permissionTitle: 'Vault Alerts',
         retryButton: 'Retry',
         retryingButton: 'Retrying',
+        goToSettings: 'Open Settings',
         apiPending: 'Checking Vault monitoring status…',
         permissionExplanation: `Rewind needs permission to send critical security alerts about your Vaults.
 
@@ -324,11 +325,11 @@ Tap 'Continue'. Your device will then prompt you to allow notifications.`,
           "Couldn't connect to the Vault notifications service. Please check your internet connection. If the issue persists, try again in a few minutes or contact RewindBitcoin support.",
         notGranted:
           'To enable monitoring and receive alerts, please allow notifications when prompted.',
-        systemNotGranted: {
-          ios: "To receive alerts, go to your device's Settings > Notifications > RewindBitcoin and enable notifications.",
-          android:
-            "To receive alerts, go to your device's Settings > Apps > RewindBitcoin > Notifications and enable notifications."
-        }
+        systemNotGranted: `Notifications are currently disabled.
+
+Rewind needs permission to send you critical security alerts about your Vaults. Tap 'Open Settings' below to open your device’s notification settings and enable alerts for this app.
+
+You’ll be instantly notified if someone gains access to your keys and attempts to unfreeze your Vault.`
       }
     },
     password: {

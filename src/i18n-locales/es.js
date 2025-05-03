@@ -212,6 +212,7 @@ Si presionas 'Iniciar Descongelación', comenzará un período de espera de {{lo
         permissionTitle: 'Alertas de Bóveda',
         retryButton: 'Reintentar',
         retryingButton: 'Reintentando',
+        goToSettings: 'Abrir ajustes',
         apiPending: 'Comprobando el estado del monitoreo de la Bóveda…',
         permissionExplanation: `Rewind necesita permiso para enviarte alertas críticas de seguridad sobre tus Bóvedas.
 
@@ -231,11 +232,11 @@ Pulsa "Continuar". Después, tu dispositivo te pedirá permiso para permitir las
           'No se ha podido conectar con el servicio de notificaciones de Bóvedas. Por favor, comprueba tu conexión a Internet. Si el problema persiste, inténtalo de nuevo en unos minutos o contacta con el soporte de RewindBitcoin.',
         notGranted:
           'Para activar el monitoreo y recibir alertas, permite las notificaciones cuando se te solicite.',
-        systemNotGranted: {
-          ios: 'Para recibir alertas, ve a los Ajustes del dispositivo > Notificaciones > RewindBitcoin y activa las notificaciones.',
-          android:
-            'Para recibir alertas, ve a los Ajustes del dispositivo > Aplicaciones > RewindBitcoin > Notificaciones y activa las notificaciones.'
-        }
+        systemNotGranted: `Las notificaciones están desactivadas.
+
+Rewind necesita permiso para enviarte alertas críticas de seguridad sobre tus Bóvedas. Pulsa 'Abrir ajustes' abajo para abrir la configuración de notificaciones de tu dispositivo y habilitar las alertas para esta app.
+
+Recibirás un aviso inmediato si alguien accede a tus claves e intenta desbloquear tu Bóveda.`
       },
       triggerUnfreeze: {
         intro: `Estás a punto de iniciar el proceso de desbloqueo de los fondos de tu bóveda, que, llegado el momento, estarán listos para ser gastados.

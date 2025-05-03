@@ -1,5 +1,8 @@
 //FIXME: el mensage en la push notification no es muy alarmante
 
+//FIXME: if i go to setttings and disable the notiifcaiotns, the bells still show
+//green after coming back to the app
+
 //FIXME: documentar bien en la web cuando se muestra el push notification!
 //cuando se hace desde otro dispositivo?
 //cuando se hace desde un dispositivco q no hizo el push?
@@ -64,7 +67,6 @@ import { shallowEqualObjects } from 'shallow-equal';
 import { useLocalization } from '../hooks/useLocalization';
 import { useNetStatus } from '../hooks/useNetStatus';
 import { canReceiveNotifications, getExpoPushToken } from '../lib/watchtower';
-import { Platform } from 'react-native';
 
 const LOADING_TEXT = '     ';
 
@@ -555,26 +557,13 @@ const RawVault = ({
     notificationPermissions.status !== 'granted' &&
     notificationPermissions.canAskAgain === false;
 
-  const watchtowerBellIconName =
-    isWatchtowerStatusPending || (isWatchtowerRegistered && !isWatchtowerDown)
-      ? 'bell-outline'
-      : 'bell-off-outline';
-
-  const watchtowerBellIconColor = isWatchtowerStatusPending
-    ? 'slate' // Loading/Unknown
-    : isWatchtowerRegistered && !isWatchtowerDown
-      ? 'green' // Success state
-      : 'red'; // Any failed state (not registered, watchtower down)
-
   const watchtowerStatusMessage = (() => {
     if (isWatchtowerDown) {
       return t('wallet.vault.watchtower.watchtowerServiceError');
     } else if (shouldRequestNotificationPermission) {
       return t('wallet.vault.watchtower.notGranted');
     } else if (shouldDirectToSystemNotificationSettings) {
-      return Platform.OS === 'ios'
-        ? t('wallet.vault.watchtower.systemNotGranted.ios')
-        : t('wallet.vault.watchtower.systemNotGranted.android');
+      return t('wallet.vault.watchtower.systemNotGranted');
     } else if (shouldRetryPushToken) {
       return t('wallet.vault.watchtower.pushTokenFailed');
     } else if (isWatchtowerAPIPending) {
@@ -590,17 +579,40 @@ const RawVault = ({
       return t('wallet.vault.watchtower.registrationFailed');
     }
   })();
-  //const watchtowerNeedsRetry =
-  //  watchtowerStatusMessage !== t('wallet.vault.watchtower.registered') &&
-  //  watchtowerStatusMessage !== t('wallet.vault.watchtower.apiPending');
-  //The code above is equivalent to this:
+
   const watchtowerNeedsRetry =
     isWatchtowerDown ||
     shouldRequestNotificationPermission ||
     shouldDirectToSystemNotificationSettings ||
     shouldRetryPushToken ||
     (!isWatchtowerStatusPending && !isWatchtowerRegistered);
+
+  const watchtowerBellIconName = watchtowerNeedsRetry
+    ? 'bell-off-outline'
+    : 'bell-outline';
+
+  const watchtowerBellIconColor = watchtowerNeedsRetry
+    ? 'red'
+    : isWatchtowerStatusPending
+      ? 'slate'
+      : 'green';
   // --- End Derived States ---
+  //console.log(
+  //  'TRACE',
+  //  JSON.stringify(
+  //    {
+  //      watchtowerNeedsRetry,
+  //      isWatchtowerDown,
+  //      shouldRequestNotificationPermission,
+  //      shouldDirectToSystemNotificationSettings,
+  //      shouldRetryPushToken,
+  //      isWatchtowerStatusPending,
+  //      isWatchtowerRegistered
+  //    },
+  //    null,
+  //    2
+  //  )
+  //);
 
   return (
     <View
@@ -991,12 +1003,16 @@ const RawVault = ({
                   onPress={
                     isWatchtowerDown
                       ? syncBlockchain
-                      : retryWatchtowerSetupRef.current
+                      : shouldDirectToSystemNotificationSettings
+                        ? Linking.openSettings
+                        : retryWatchtowerSetupRef.current
                   }
                 >
                   {isWatchtowerDown && syncingBlockchain
                     ? t('wallet.vault.watchtower.retryingButton')
-                    : t('wallet.vault.watchtower.retryButton')}
+                    : shouldDirectToSystemNotificationSettings
+                      ? t('wallet.vault.watchtower.goToSettings')
+                      : t('wallet.vault.watchtower.retryButton')}
                 </Button>
               )}
             </View>
