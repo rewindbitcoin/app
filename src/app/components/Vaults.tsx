@@ -1,7 +1,6 @@
 //FIXME: el mensage en la push notification no es muy alarmante
 
-//FIXME: if i go to setttings and disable the notiifcaiotns, the bells still show
-//green after coming back to the app
+//FIXME: remove all TRACE
 
 //FIXME: documentar bien en la web cuando se muestra el push notification!
 //cuando se hace desde otro dispositivo?
@@ -63,7 +62,6 @@ import Rescue, { RescueData } from './Rescue';
 import Delegate from './Delegate';
 import LearnMoreAboutVaults from './LearnMoreAboutVaults';
 import * as Notifications from 'expo-notifications';
-import { shallowEqualObjects } from 'shallow-equal';
 import { useLocalization } from '../hooks/useLocalization';
 import { useNetStatus } from '../hooks/useNetStatus';
 import { canReceiveNotifications, getExpoPushToken } from '../lib/watchtower';
@@ -686,7 +684,7 @@ const RawVault = ({
               <Pressable
                 onPress={handleShowWatchtowerStatusModal}
                 hitSlop={20}
-                className={`p-1.5 bg-white rounded-xl shadow-sm android:elevation android:border android:border-slate-200 active:opacity-70 active:scale-95 ${watchtowerBellIconColor === 'slate' ? 'animate-pulse' : ''}`}
+                className={`p-1.5 bg-white rounded-xl shadow-sm android:elevation android:border android:border-slate-200 active:opacity-70 active:scale-95 ${watchtowerBellIconColor === 'slate' ? 'animate-pulse' : 'animate-none'}`}
               >
                 <MaterialCommunityIcons
                   name={watchtowerBellIconName}
@@ -1072,13 +1070,6 @@ const Vaults = ({
     setShowPermissionsForNotificationsExplainModal(false);
   }, []);
 
-  const handleNotificationsSystemRequest = useCallback(async () => {
-    setShowPermissionsForNotificationsExplainModal(false);
-    const { pushToken } = await ensurePermissionsAndTokenRef.current('REQUEST');
-    if (pushToken) await syncWatchtowerRegistrationRef.current(pushToken);
-    else console.warn('Failed during notification system request');
-  }, []);
-
   // Initialize push notifications whenever the vault count increases.
   // Requests permission if needed, then configures notifications
   // and syncs watchtower registration once per new vault detected.
@@ -1088,6 +1079,63 @@ const Vaults = ({
   useEffect(() => {
     syncWatchtowerRegistrationRef.current = syncWatchtowerRegistration;
   }, [syncWatchtowerRegistration]);
+
+  /**
+   * gets the most recent pushToken and notifications permissions
+   * note that notification permissions can change at any time since
+   * the user can revoke permissions any time. We'll detect those changes
+   * new grants/revoke when the app comes back to the foreground (see above)
+   */
+  const notificationPermissionsRef = useRef(notificationPermissions);
+  const pushTokenRef = useRef(pushToken);
+  const ensurePermissionsAndToken = useCallback(
+    async (mode: 'GET' | 'REQUEST') => {
+      try {
+        notificationPermissionsRef.current =
+          mode === 'GET'
+            ? await Notifications.getPermissionsAsync()
+            : await Notifications.requestPermissionsAsync();
+        setNotificationPermissions(prevPermissions => {
+          return JSON.stringify(prevPermissions) ===
+            JSON.stringify(notificationPermissionsRef.current)
+            ? prevPermissions
+            : notificationPermissionsRef.current;
+        });
+      } catch (err) {
+        console.warn('Could not getPermissionsAsync', err);
+      }
+      if (
+        notificationPermissionsRef.current?.status === 'granted' &&
+        //undefined is when it's still not been read from storage, and
+        //therefore it's better not trying to set it
+        //'' is when it's been read from storage and it had not been set yet.
+        //Note that pushToken never changes so no need to requery it:
+        //https://docs.expo.dev/push-notifications/faq/?utm_source=chatgpt.com#when-and-why-does-the-expopushtoken-change
+        pushTokenRef.current === ''
+      ) {
+        try {
+          pushTokenRef.current = await getExpoPushToken(
+            t('wallet.vault.watchtower.permissionTitle')
+          );
+          setPushToken(pushTokenRef.current);
+        } catch (err) {
+          console.warn('Could not getExpoPushToken', err);
+        }
+      }
+      return {
+        notificationPermissions: notificationPermissionsRef.current,
+        pushToken: pushTokenRef.current
+      };
+    },
+    [setPushToken, t]
+  );
+
+  const handleNotificationsSystemRequest = useCallback(async () => {
+    setShowPermissionsForNotificationsExplainModal(false);
+    const { pushToken } = await ensurePermissionsAndToken('REQUEST');
+    if (pushToken) await syncWatchtowerRegistrationRef.current(pushToken);
+    else console.warn('Failed during notification system request');
+  }, [ensurePermissionsAndToken]);
 
   //Check when the app comes to the foreground (perhaps it was in the back
   //while the user was tuning on notifications manually)
@@ -1100,7 +1148,7 @@ const Vaults = ({
         nextAppState === 'active' &&
         canReceiveNotifications
       ) {
-        const { pushToken } = await ensurePermissionsAndTokenRef.current('GET');
+        const { pushToken } = await ensurePermissionsAndToken('GET');
         //Won't do anything if already registerted, also never throws:
         if (pushToken) syncWatchtowerRegistrationRef.current(pushToken);
       }
@@ -1111,61 +1159,6 @@ const Vaults = ({
       handleAppStateChange
     );
     return () => subscription.remove();
-  }, []);
-
-  /**
-   * gets the most recent pushToken and notifications permissions
-   * note that notification permissions can change at any time since
-   * the user can revoke permissions any time. We'll detect those changes
-   * new grants/revoke when the app comes back to the foreground (see above)
-   */
-  const ensurePermissionsAndToken = useCallback(
-    async (mode: 'GET' | 'REQUEST') => {
-      let currentPermissions = notificationPermissions;
-      let currentPushToken = pushToken;
-
-      try {
-        currentPermissions =
-          mode === 'GET'
-            ? await Notifications.getPermissionsAsync()
-            : await Notifications.requestPermissionsAsync();
-        setNotificationPermissions(prevPermissions =>
-          shallowEqualObjects(prevPermissions, currentPermissions)
-            ? prevPermissions
-            : currentPermissions
-        );
-      } catch (err) {
-        console.warn('Could not getPermissionsAsync', err);
-      }
-      if (
-        currentPermissions?.status === 'granted' &&
-        //undefined is when it's still not been read from storage, and
-        //therefore it's better not trying to set it
-        //'' is when it's been read from storage and it had not been set yet.
-        //Note that pushToken never changes so no need to requery it:
-        //https://docs.expo.dev/push-notifications/faq/?utm_source=chatgpt.com#when-and-why-does-the-expopushtoken-change
-        currentPushToken === ''
-      ) {
-        try {
-          currentPushToken = await getExpoPushToken(
-            t('wallet.vault.watchtower.permissionTitle')
-          );
-          setPushToken(currentPushToken);
-        } catch (err) {
-          console.warn('Could not getExpoPushToken', err);
-        }
-      }
-      return {
-        notificationPermissions: currentPermissions,
-        pushToken: currentPushToken
-      };
-    },
-    [pushToken, setPushToken, notificationPermissions, t]
-  );
-  // keep a stable ref to the latest ensurePermissionsAndToken fn
-  const ensurePermissionsAndTokenRef = useRef(ensurePermissionsAndToken);
-  useEffect(() => {
-    ensurePermissionsAndTokenRef.current = ensurePermissionsAndToken;
   }, [ensurePermissionsAndToken]);
 
   //Each time a new vault is added, we must sync. This is the first
@@ -1178,7 +1171,7 @@ const Vaults = ({
       // Only proceed if we haven't synced yet and we have vaults
       if (canReceiveNotifications && vaultCount > 0) {
         const { pushToken, notificationPermissions } =
-          await ensurePermissionsAndTokenRef.current('GET');
+          await ensurePermissionsAndToken('GET');
         try {
           if (
             notificationPermissions?.status !== 'granted' &&
@@ -1207,7 +1200,7 @@ const Vaults = ({
     return () => {
       if (timeoutId) clearTimeout(timeoutId);
     };
-  }, [vaultCount]);
+  }, [vaultCount, ensurePermissionsAndToken]);
 
   const sortedVaults = useMemo(() => {
     return Object.values(vaults).sort(

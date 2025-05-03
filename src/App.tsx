@@ -274,6 +274,8 @@ const MainMemo = React.memo(Main);
 export default function App() {
   const [errorKey, setErrorKey] = useState<number>(0);
   const { t } = useTranslation();
+  const theme = useTheme();
+
   const onGlobalError = useCallback(() => {
     setErrorKey(prevErrorKey => prevErrorKey + 1);
   }, []);
@@ -283,7 +285,7 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <GestureHandlerRootView style={{ flex: 1 }}>
-        <NavigationContainer theme={useTheme()}>
+        <NavigationContainer theme={theme}>
           <ToastProvider>
             <GlobalStorageProvider>
               <NetStatusProvider>
