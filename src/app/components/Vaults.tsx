@@ -547,9 +547,9 @@ const RawVault = ({
     notificationPermissions?.status === 'granted' && pushToken === '';
 
   const shouldRequestNotificationPermission =
-    !notificationPermissions ||
-    (notificationPermissions.status !== 'granted' &&
-      notificationPermissions.canAskAgain);
+    notificationPermissions &&
+    notificationPermissions.status !== 'granted' &&
+    notificationPermissions.canAskAgain;
   const shouldDirectToSystemNotificationSettings =
     notificationPermissions &&
     notificationPermissions.status !== 'granted' &&
@@ -564,7 +564,7 @@ const RawVault = ({
       return t('wallet.vault.watchtower.systemNotGranted');
     } else if (shouldRetryPushToken) {
       return t('wallet.vault.watchtower.pushTokenFailed');
-    } else if (isWatchtowerAPIPending) {
+    } else if (isWatchtowerStatusPending) {
       return t('wallet.vault.watchtower.apiPending');
     } else if (isWatchtowerRegistered) {
       return t('wallet.vault.watchtower.registered');
