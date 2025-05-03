@@ -318,11 +318,13 @@ Tap 'Continue'. Your device will then prompt you to allow notifications.`,
           "This Vault is being monitored. You'll receive a notification if unauthorized activity is detected.",
         watchtowerServiceError:
           "Couldn't connect to the Vault monitoring service. Please check your internet connection and ensure the watchtower service is available. You can also try selecting a different watchtower in the app's settings.",
+        registrationFailed:
+          'We couldn’t register your Vault for monitoring. Please check your internet connection and try again in a few minutes.',
         pushTokenFailed:
           "Couldn't connect to the Vault notifications service. Please check your internet connection. If the issue persists, try again in a few minutes or contact RewindBitcoin support.",
         notGranted:
           'To enable monitoring and receive alerts, please allow notifications when prompted.',
-        settings: {
+        systemNotGranted: {
           ios: "To receive alerts, go to your device's Settings > Notifications > RewindBitcoin and enable notifications.",
           android:
             "To receive alerts, go to your device's Settings > Apps > RewindBitcoin > Notifications and enable notifications."

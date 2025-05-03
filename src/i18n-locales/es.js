@@ -225,11 +225,13 @@ Pulsa "Continuar". Después, tu dispositivo te pedirá permiso para permitir las
           'Esta Bóveda está siendo monitoreada. Recibirás una notificación si se detecta actividad no autorizada.',
         watchtowerServiceError:
           'No se pudo conectar con la Torre de Vigilancia (Watchtower). Verifica tu conexión a internet y asegúrate de que el servicio esté disponible. También puedes probar a seleccionar otra Torre desde los ajustes de la app.',
+        registrationFailed:
+          'No hemos podido registrar tu Bóveda para el monitoreo. Por favor, comprueba tu conexión a Internet e inténtalo de nuevo en unos minutos.',
         pushTokenFailed:
           'No se ha podido conectar con el servicio de notificaciones de Bóvedas. Por favor, comprueba tu conexión a Internet. Si el problema persiste, inténtalo de nuevo en unos minutos o contacta con el soporte de RewindBitcoin.',
         notGranted:
           'Para activar el monitoreo y recibir alertas, permite las notificaciones cuando se te solicite.',
-        settings: {
+        systemNotGranted: {
           ios: 'Para recibir alertas, ve a los Ajustes del dispositivo > Notificaciones > RewindBitcoin y activa las notificaciones.',
           android:
             'Para recibir alertas, ve a los Ajustes del dispositivo > Aplicaciones > RewindBitcoin > Notificaciones y activa las notificaciones.'

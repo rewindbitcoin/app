@@ -552,6 +552,9 @@ const RawVault = ({
     notificationPermissions.canAskAgain;
   const shouldRequestNotificationPermission =
     !notificationPermissions || isNotificationPermissionReaskable;
+  const shouldDirectToSystemNotificationSettings =
+    notificationPermissions?.status !== 'granted' &&
+    notificationPermissions?.canAskAgain === false;
 
   // Determine the overall status for UI elements
   const watchtowerNeedsRetry =
@@ -572,32 +575,28 @@ const RawVault = ({
       ? 'green' // Success state
       : 'red'; // Any failed state (not registered, watchtower down)
 
-  //FIXME: this if-else spagetthi is messy
   const getWatchtowerStatusMessage = () => {
     if (isWatchtowerDown) {
       return t('wallet.vault.watchtower.watchtowerServiceError');
     } else if (shouldRequestNotificationPermission) {
       return t('wallet.vault.watchtower.notGranted');
+    } else if (shouldDirectToSystemNotificationSettings) {
+      return Platform.OS === 'ios'
+        ? t('wallet.vault.watchtower.systemNotGranted.ios')
+        : t('wallet.vault.watchtower.systemNotGranted.android');
+    } else if (shouldRetryPushToken) {
+      return t('wallet.vault.watchtower.pushTokenFailed');
     } else if (isWatchtowerStatusPending) {
       return t('wallet.vault.watchtower.loading');
     } else if (isWatchtowerRegistered) {
       return t('wallet.vault.watchtower.registered');
-    } else if (notificationPermissions?.status === 'granted') {
-      // Permissions OK, but not registered
-      if (shouldRetryPushToken) {
-        return t('wallet.vault.watchtower.pushTokenFailed');
-      } else {
-        return t('wallet.vault.watchtower.watchtowerServiceError');
-      }
     } else {
-      // Permissions not granted, but reaskable
-      if (isNotificationPermissionReaskable) {
-        return t('wallet.vault.watchtower.notGranted');
-      } else {
-        return Platform.OS === 'ios'
-          ? t('wallet.vault.watchtower.settings.ios')
-          : t('wallet.vault.watchtower.settings.android');
-      }
+      // At this point:
+      // - notificationPermissions.status === 'granted'
+      // - pushToken exists
+      // - watchtowerAPIReachable === true
+      // - but isWatchtowerRegistered === false
+      return t('wallet.vault.watchtower.registrationFailed');
     }
   };
   // --- End Derived States ---
