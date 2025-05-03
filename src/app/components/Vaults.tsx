@@ -535,10 +535,9 @@ const RawVault = ({
   const isWatchtowerRegistered =
     watchtowerAPI !== undefined &&
     !!vaultStatus?.registeredWatchtowers?.includes(watchtowerAPI);
-
+  const isWatchtowerAPIPending = watchtowerAPIReachable === undefined;
   const isWatchtowerStatusPending =
-    notificationPermissions === undefined ||
-    watchtowerAPIReachable === undefined;
+    notificationPermissions === undefined || isWatchtowerAPIPending;
 
   const isWatchtowerDown =
     watchtowerAPIReachable === false && internetReachable === true;
@@ -556,14 +555,6 @@ const RawVault = ({
     notificationPermissions?.status !== 'granted' &&
     notificationPermissions?.canAskAgain === false;
 
-  // Determine the overall status for UI elements
-  const watchtowerNeedsRetry =
-    !isWatchtowerStatusPending &&
-    (!isWatchtowerRegistered ||
-      isWatchtowerDown ||
-      shouldRetryPushToken ||
-      shouldRequestNotificationPermission);
-
   const watchtowerBellIconName =
     isWatchtowerStatusPending || (isWatchtowerRegistered && !isWatchtowerDown)
       ? 'bell-outline'
@@ -575,7 +566,7 @@ const RawVault = ({
       ? 'green' // Success state
       : 'red'; // Any failed state (not registered, watchtower down)
 
-  const getWatchtowerStatusMessage = () => {
+  const watchtowerStatusMessage = (() => {
     if (isWatchtowerDown) {
       return t('wallet.vault.watchtower.watchtowerServiceError');
     } else if (shouldRequestNotificationPermission) {
@@ -586,8 +577,8 @@ const RawVault = ({
         : t('wallet.vault.watchtower.systemNotGranted.android');
     } else if (shouldRetryPushToken) {
       return t('wallet.vault.watchtower.pushTokenFailed');
-    } else if (isWatchtowerStatusPending) {
-      return t('wallet.vault.watchtower.loading');
+    } else if (isWatchtowerAPIPending) {
+      return t('wallet.vault.watchtower.apiPending');
     } else if (isWatchtowerRegistered) {
       return t('wallet.vault.watchtower.registered');
     } else {
@@ -598,7 +589,17 @@ const RawVault = ({
       // - but isWatchtowerRegistered === false
       return t('wallet.vault.watchtower.registrationFailed');
     }
-  };
+  })();
+  //const watchtowerNeedsRetry =
+  //  watchtowerStatusMessage !== t('wallet.vault.watchtower.registered') &&
+  //  watchtowerStatusMessage !== t('wallet.vault.watchtower.apiPending');
+  //The code above is equivalent to this:
+  const watchtowerNeedsRetry =
+    isWatchtowerDown ||
+    shouldRequestNotificationPermission ||
+    shouldDirectToSystemNotificationSettings ||
+    shouldRetryPushToken ||
+    (!isWatchtowerStatusPending && !isWatchtowerRegistered);
   // --- End Derived States ---
 
   return (
@@ -673,8 +674,7 @@ const RawVault = ({
               <Pressable
                 onPress={handleShowWatchtowerStatusModal}
                 hitSlop={20}
-                disabled={isWatchtowerStatusPending}
-                className={`p-1.5 bg-white rounded-xl shadow-sm android:elevation android:border android:border-slate-200 active:opacity-70 active:scale-95 ${isWatchtowerStatusPending ? 'animate-pulse' : ''}`}
+                className={`p-1.5 bg-white rounded-xl shadow-sm android:elevation android:border android:border-slate-200 active:opacity-70 active:scale-95 ${watchtowerBellIconColor === 'slate' ? 'animate-pulse' : ''}`}
               >
                 <MaterialCommunityIcons
                   name={watchtowerBellIconName}
@@ -1004,7 +1004,7 @@ const RawVault = ({
         })()}
       >
         <Text className="text-base pl-2 pr-2 text-slate-600">
-          {getWatchtowerStatusMessage()}
+          {watchtowerStatusMessage}
         </Text>
       </Modal>
     </View>

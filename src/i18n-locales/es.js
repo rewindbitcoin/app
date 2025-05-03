@@ -212,7 +212,7 @@ Si presionas 'Iniciar Descongelación', comenzará un período de espera de {{lo
         permissionTitle: 'Alertas de Bóveda',
         retryButton: 'Reintentar',
         retryingButton: 'Reintentando',
-        loading: 'Comprobando el estado del monitoreo de la Bóveda…',
+        apiPending: 'Comprobando el estado del monitoreo de la Bóveda…',
         permissionExplanation: `Rewind necesita permiso para enviarte alertas críticas de seguridad sobre tus Bóvedas.
 
 Recomendamos encarecidamente activarlas.
