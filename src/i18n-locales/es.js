@@ -212,6 +212,7 @@ Si presionas 'Iniciar Descongelación', comenzará un período de espera de {{lo
         permissionTitle: 'Alertas de Bóveda',
         retryButton: 'Reintentar',
         retryingButton: 'Reintentando',
+        openSystemPrompt: 'Permitir',
         goToSettings: 'Abrir ajustes',
         apiPending: 'Comprobando el estado del monitoreo de la Bóveda…',
         permissionExplanation: `Rewind necesita permiso para enviarte alertas críticas de seguridad sobre tus Bóvedas.
@@ -238,10 +239,18 @@ Rewind necesita permiso para enviarte alertas críticas de seguridad sobre tus B
 
 Recibirás un aviso inmediato si alguien accede a tus claves e intenta desbloquear tu Bóveda.`
       },
+      cannotAccelerateMaxFee: `Ya estás usando la comisión más alta. No es posible acelerar más.`,
       triggerUnfreeze: {
         intro: `Estás a punto de iniciar el proceso de desbloqueo de los fondos de tu bóveda, que, llegado el momento, estarán listos para ser gastados.
 
 Esto iniciará la cuenta regresiva de descongelación. Los fondos se desbloquearán y estarán disponibles después de {{timeLockTime}}.`,
+        introAccelerate: `LEE CON ATENCIÓN:
+
+"Acelerar" dará prioridad a tu solicitud de descongelación pagando una comisión más alta a los mineros. Tu solicitud original ya está en curso, pero esto puede adelantarla en la cola de confirmación.
+
+Nota: "Acelerar" no reduce el período de bloqueo; sólo ayuda a que el proceso comience antes si una comisión baja lo retrasó.
+
+Seguramente sólo necesitas esperar unos 10 minutos y realmente no necesitas esto. Usa "Acelerar" sólo si esperar ese tiempo (que podría alargarse hasta un par de horas) no es aceptable.`,
         confirmationSpeedLabel: 'Comisión',
         feeSelectorExplanation:
           'Confirma la comisión de minería para iniciar la cuenta regresiva de descongelación.',
@@ -249,6 +258,11 @@ Esto iniciará la cuenta regresiva de descongelación. Los fondos se desbloquear
       },
       rescue: {
         confirmationSpeedLabel: 'Comisión',
+        introAccelerate: `LEE CON ATENCIÓN:
+
+"Acelerar" dará prioridad a tu solicitud de rescate aumentando la comisión de los mineros. Tu solicitud original ya está en curso, pero esto puede adelantarla en la cola de confirmación.
+
+Seguramente sólo necesitas esperar unos 10 minutos y realmente no necesitas esto. Usa "Acelerar" sólo si esperar ese tiempo (que podría alargarse hasta un par de horas) no es aceptable.`,
         intro: `Estás a punto de iniciar el rescate de los fondos de tu bóveda. Esto moverá los fondos inmediatamente a tu Dirección de Emergencia preconfigurada:
 
 {{panicAddress}}
@@ -716,7 +730,7 @@ Por favor, espera unos momentos hasta que se complete.`,
       communityBackupsError:
         'Base de la API de Community Backups no válida. Verifica la URL e inténtalo de nuevo.',
       regtestHostNameFormatError:
-        'Formato no válido. Por favor, ingrese solo un nombre de host o dirección IP sin protocolo (http://, ssl://, etc.), puerto (:8080) o ruta (/api).',
+        'Formato no válido. Por favor, ingrese sólo un nombre de host o dirección IP sin protocolo (http://, ssl://, etc.), puerto (:8080) o ruta (/api).',
       regtestHttpError:
         'Conexión HTTP de la Regtest no válida. Verifica el nombre del host e inténtalo de nuevo.',
       regtestElectrumError:
@@ -748,6 +762,7 @@ Por favor, espera unos momentos hasta que se complete.`,
   },
   continueButton: 'Continuar',
   imInDangerButton: 'Estoy en Peligro',
+  accelerateButton: 'Acelerar',
   loadMoreButton: 'Cargar Más',
   dismissButton: 'Descartar',
   goBack: 'Volver',

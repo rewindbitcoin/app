@@ -61,16 +61,16 @@ export default {
     noRealValue: 'No Real Value',
     notificationWarningTitle: 'Unauthorized Access Detected',
     notificationWarningMessage_one:
-      'An unauthorized access attempt to one of your Vaults was detected. If this wasn’t you, open your wallet now and take action immediately.',
+      "An unauthorized access attempt to one of your Vaults was detected. If this wasn't you, open your wallet now and take action immediately.",
     notificationWarningMessage_other:
-      'Unauthorized access attempts to multiple Vaults were detected. If this wasn’t you, open your wallets now and take action immediately.',
+      "Unauthorized access attempts to multiple Vaults were detected. If this wasn't you, open your wallets now and take action immediately.",
     //As in Created on January 19, 2010
     createdOn: 'Created on',
     walletId: 'Wallet {{id}}',
     orphanedWatchtowerWalletUUID_one:
-      'An access attempt to one of your Vaults was detected and the app was notified. It belongs to a wallet that no longer exists on this device. You probably deleted this wallet or reinstalled the app. We can’t help further, but we wanted to let you know.',
+      "An access attempt to one of your Vaults was detected and the app was notified. It belongs to a wallet that no longer exists on this device. You probably deleted this wallet or reinstalled the app. We can't help further, but we wanted to let you know.",
     orphanedWatchtowerWalletUUID_other:
-      'Access attempts to {{count}} of your Vaults were detected and the app was notified, but the wallets they belong to no longer exist on this device. You probably deleted those wallets or reinstalled the app. We can’t help further, but we wanted to let you know.'
+      "Access attempts to {{count}} of your Vaults were detected and the app was notified, but the wallets they belong to no longer exist on this device. You probably deleted those wallets or reinstalled the app. We can't help further, but we wanted to let you know."
   },
   wallet: {
     vaultTab: 'Vaults',
@@ -117,9 +117,9 @@ Zapping bytes and lining up the bits. Hang tight!`,
     biometricsErrorTitle: 'Biometrics Error',
     new: {
       //Messages to show when accessing biometrics while setting up a new wallet
-      biometricsRequestDeclined: `We couldn’t set up biometric security (facial recognition or fingerprint authentication) for your wallet.
+      biometricsRequestDeclined: `We couldn't set up biometric security (facial recognition or fingerprint authentication) for your wallet.
 
-This may be because you didn’t grant the necessary permissions, or your device doesn’t support biometrics.`,
+This may be because you didn't grant the necessary permissions, or your device doesn't support biometrics.`,
       biometricsCurrentlyDisabledNonIOS: `Since biometrics cannot be used on this device, new wallets will default to non-biometric security until you grant permissions.
 
 To re-enable biometrics, go to your device's Settings and ensure that biometric permissions are enabled.`,
@@ -242,12 +242,20 @@ If you press 'Init Unfreeze', a waiting period of {{lockTime}} will begin, after
       //vaultSpendableDateLabel: 'Lock Period End Date',
       //frozenRemainingDateLabel: 'Funds Unlock Estimated Date',
 
+      cannotAccelerateMaxFee: `You are already on the highest fee. Acceleration isn't available.`,
       triggerUnfreeze: {
         intro: `You're about to start the process of unlocking your vault funds,\
  which will eventually be ready for spending.
 
 This will start the unfreeze countdown. The funds will become unlocked and available\
  after {{timeLockTime}}.`,
+        introAccelerate: `READ CAREFULLY:
+
+"Accelerate" will boost your unfreeze request by offering a higher fee to miners. Your original request is already pending, but this can move it ahead in the confirmation queue.
+
+Remember, "Accelerate" won't shorten the lock period. It only speeds up when your unfreeze process actually begins if low fees had held it up.
+
+You likely only need to wait around 10 minutes and really don't need this. Use "Accelerate" only if waiting that time (which could stretch to a couple of hours) isn't acceptable.`,
         confirmationSpeedLabel: 'Mining Fee',
         feeSelectorExplanation:
           'Confirm the mining fee to request the start of the unfreeze countdown.',
@@ -255,6 +263,11 @@ This will start the unfreeze countdown. The funds will become unlocked and avail
       },
       rescue: {
         confirmationSpeedLabel: 'Mining Fee',
+        introAccelerate: `READ CAREFULLY:
+
+"Accelerate" will boost your rescue request by offering miners a higher fee. Your original request is already pending, but this can move it up in the confirmation queue.
+
+You likely only need to wait around 10 minutes and really don't need this. Use "Accelerate" only if waiting that time (which could stretch to a couple of hours) isn't acceptable.`,
         intro: `You're about to initiate the rescue of your vault funds. This will move the funds to your pre-configured Emergency Address immediately:
 
 {{panicAddress}}
@@ -305,13 +318,14 @@ Once the countdown ends, your funds will be unlocked and accessible.`
         permissionTitle: 'Vault Alerts',
         retryButton: 'Retry',
         retryingButton: 'Retrying',
+        openSystemPrompt: 'Allow',
         goToSettings: 'Open Settings',
         apiPending: 'Checking Vault monitoring status…',
         permissionExplanation: `Rewind needs permission to send critical security alerts about your Vaults.
 
 We strongly recommend enabling them.
 
-If someone gains access to your Recovery Phrase (e.g., through theft or loss) and attempts to unfreeze your Vaults, Rewind can instantly alert *this specific device*. This gives you a crucial window to secure your Bitcoin before it’s too late.
+If someone gains access to your Recovery Phrase (e.g., through theft or loss) and attempts to unfreeze your Vaults, Rewind can instantly alert *this specific device*. This gives you a crucial window to secure your Bitcoin before it's too late.
 
 Tap 'Continue'. Your device will then prompt you to allow notifications.`,
         statusTitle: 'Vault Monitoring Status',
@@ -320,16 +334,16 @@ Tap 'Continue'. Your device will then prompt you to allow notifications.`,
         watchtowerServiceError:
           "Couldn't connect to the Vault monitoring service. Please check your internet connection and ensure the watchtower service is available. You can also try selecting a different watchtower in the app's settings.",
         registrationFailed:
-          'We couldn’t register your Vault for monitoring. Please check your internet connection and try again in a few minutes.',
+          "We couldn't register your Vault for monitoring. Please check your internet connection and try again in a few minutes.",
         pushTokenFailed:
           "Couldn't connect to the Vault notifications service. Please check your internet connection. If the issue persists, try again in a few minutes or contact RewindBitcoin support.",
         notGranted:
           'To enable monitoring and receive alerts, please allow notifications when prompted.',
         systemNotGranted: `Notifications are currently disabled.
 
-Rewind needs permission to send you critical security alerts about your Vaults. Tap 'Open Settings' below to open your device’s notification settings and enable alerts for this app.
+Rewind needs permission to send you critical security alerts about your Vaults. Tap 'Open Settings' below to open your device's notification settings and enable alerts for this app.
 
-You’ll be instantly notified if someone gains access to your keys and attempts to unfreeze your Vault.`
+You'll be instantly notified if someone gains access to your keys and attempts to unfreeze your Vault.`
       }
     },
     password: {
@@ -360,7 +374,7 @@ https://rescue.rewindbitcoin.com
 
 Introduction:
 You have been given this file because you are trusted to assist in
-the event of unauthorized vault access, aiming to protect the owner’s
+the event of unauthorized vault access, aiming to protect the owner's
 Bitcoin funds from theft or extortion. Use it wisely and verify the
 threat before proceeding.
 
@@ -368,7 +382,7 @@ Recovery Steps:
 If unauthorized transactions are threatening the assets, this document
 allows you to cancel those transactions, ensuring the security of the funds.
 
-VERIFY OWNER’S RISK STATUS BEFORE ACTING.
+VERIFY OWNER'S RISK STATUS BEFORE ACTING.
 
 Usage Instructions:
 1. Automated Recovery:
@@ -475,7 +489,7 @@ Each time you access the wallet, you will\
 While leaking this data wouldn't compromise your funds, encrypting it\
  ensures that even if it is accessed by unauthorized parties, they won't be able\
  to discern how you use your wallet, such as your spending habits or whom you transact with.`,
-    //The encryption uses the XChaCha20-Poly1305 algorithm, with a key that’s securely\
+    //The encryption uses the XChaCha20-Poly1305 algorithm, with a key that's securely\
     // derived from your mnemonic Recovery Phrase.
     network: `Rewind provides a choice between testing environments and the real Bitcoin network (via Advanced Options).
 
@@ -495,7 +509,7 @@ While the app is in early development, we advise against using real Bitcoin for 
     //You'll find help icons next to each input field during the Vault Set Up with specific explanations.`,
     body: `Your wallet is secured with a Recovery Phrase, similar to a password. If someone else gains access to this phrase through extortion, theft, or misuse, they can access your funds. To prevent this, Rewind lets you freeze your money in Vaults.
 
-When you freeze money, it remains locked until you choose to unfreeze it. Unfreezing doesn’t provide immediate access; instead, it initiates a countdown, giving you time to act if necessary.
+When you freeze money, it remains locked until you choose to unfreeze it. Unfreezing doesn't provide immediate access; instead, it initiates a countdown, giving you time to act if necessary.
 
 Suppose an attacker gains access and tries to unfreeze your funds to steal them. During the countdown, you can cancel this unauthorized attempt by immediately moving the funds to an Emergency Address. Rewind offers a wizard to help you set up and secure this rescue address.
 
@@ -512,7 +526,7 @@ Help icons and tips are available during Vault setup to guide you through the pr
     intro: 'Secure funds not needed daily by freezing them.',
     prefilledAddress: 'Pre-filled with your last unused one.',
     prefilledAddressHelpTitle: 'Pre-filled Address',
-    prefilledAddressHelp: `The Emergency Address of your most recent vault is pre-filled for convenience, so you don’t need to keep track of multiple Emergency Phrases. For privacy, an Emergency Address will not be used again once it has been utilized.
+    prefilledAddressHelp: `The Emergency Address of your most recent vault is pre-filled for convenience, so you don't need to keep track of multiple Emergency Phrases. For privacy, an Emergency Address will not be used again once it has been utilized.
 
 You can replace the pre-filled address or click "Create" to open a wizard and generate a new Emergency Address.
 
@@ -848,6 +862,7 @@ Please wait a few moments until completion.`,
   },
   continueButton: 'Continue',
   imInDangerButton: "I'm in danger",
+  accelerateButton: 'Accelerate',
   //okButton: 'OK',
   loadMoreButton: 'Load More',
   dismissButton: 'Dismiss',

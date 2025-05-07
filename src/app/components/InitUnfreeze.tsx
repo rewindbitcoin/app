@@ -5,10 +5,14 @@ import { findLowestTrueBinarySearch } from '../../common/lib/binarySearch';
 import { useTranslation } from 'react-i18next';
 import { View, Text } from 'react-native';
 import FeeInput from './FeeInput';
-import { FeeEstimates, pickFeeEstimate } from '../lib/fees';
+import {
+  computeMaxAllowedFeeRate,
+  FeeEstimates,
+  pickFeeEstimate
+} from '../lib/fees';
 import { formatBlocks } from '../lib/format';
 import { useSettings } from '../hooks/useSettings';
-import type { TxHex, TxId, Vault } from '../lib/vaults';
+import type { TxHex, TxId, Vault, VaultStatus } from '../lib/vaults';
 import { transactionFromHex } from '../lib/bitcoin';
 import { useWallet } from '../hooks/useWallet';
 import useFirstDefinedValue from '~/common/hooks/useFirstDefinedValue';
@@ -44,18 +48,34 @@ const findNextEqualOrLargerFeeRate = moize(
 
 const InitUnfreeze = ({
   vault,
+  vaultStatus,
   isVisible,
   lockBlocks,
   onInitUnfreeze,
   onClose
 }: {
   vault: Vault;
+  vaultStatus: VaultStatus | undefined;
   onInitUnfreeze: (initUnfreezeData: InitUnfreezeData) => void;
   lockBlocks: number;
   isVisible: boolean;
   onClose: () => void;
 }) => {
   const { locale } = useLocalization();
+
+  // zero if this is not a RBF, and => 1 if this is InitUnfreeze
+  // isVisibletrying to do a RBF of a prev one
+  const feeRateToReplace = useMemo(() => {
+    if (!vaultStatus?.triggerTxHex) return 0;
+    else {
+      const { tx } = transactionFromHex(vaultStatus.triggerTxHex);
+      const outValue = tx.outs[0]?.value;
+      if (!tx || tx.outs.length !== 1 || !outValue)
+        throw new Error('Invalid triggerTxHex');
+      return (vault.vaultedAmount - outValue) / tx.virtualSize();
+    }
+  }, [vaultStatus?.triggerTxHex, vault.vaultedAmount]);
+
   const triggerSortedTxs = useMemo(() => {
     return Object.entries(vault.triggerMap)
       .map(([triggerTxHex]) => {
@@ -74,6 +94,7 @@ const InitUnfreeze = ({
   //Cache to avoid flickering in the Sliders
   const btcFiat = useFirstDefinedValue<number>(btcFiatRealTime);
   const feeEstimates = useFirstDefinedValue<FeeEstimates>(feeEstimatesRealTime);
+  const maxFeeRate = feeEstimates ? computeMaxAllowedFeeRate(feeEstimates) : 0;
   const { settings } = useSettings();
   if (!settings)
     throw new Error(
@@ -83,8 +104,11 @@ const InitUnfreeze = ({
   const [step, setStep] = useState<'intro' | 'fee'>('intro');
 
   const initialFeeRate = feeEstimates
-    ? pickFeeEstimate(feeEstimates, settings.INITIAL_CONFIRMATION_TIME)
-        .feeEstimate
+    ? Math.max(
+        feeRateToReplace + 1,
+        pickFeeEstimate(feeEstimates, settings.INITIAL_CONFIRMATION_TIME)
+          .feeEstimate
+      )
     : null;
 
   const [feeRate, setFeeRate] = useState<number | null>(null);
@@ -115,8 +139,7 @@ const InitUnfreeze = ({
   const timeLockTime = formatBlocks(lockBlocks, t, locale, true);
 
   return (
-    isVisible &&
-    (initialFeeRate ? (
+    isVisible && (
       <Modal
         headerMini={true}
         isVisible={true}
@@ -126,32 +149,54 @@ const InitUnfreeze = ({
           name: 'snowflake-melt'
         }}
         onClose={onClose}
-        customButtons={
-          step === 'intro' ? (
-            <View className="items-center gap-6 gap-y-4 flex-row flex-wrap justify-center pb-4">
-              <Button mode="secondary" onPress={onClose}>
-                {t('cancelButton')}
-              </Button>
-              <Button onPress={() => setStep('fee')}>
-                {t('continueButton')}
-              </Button>
-            </View>
-          ) : step === 'fee' ? (
-            <View className="items-center gap-6 gap-y-4 flex-row flex-wrap justify-center pb-4">
-              <Button mode="secondary" onPress={onClose}>
-                {t('cancelButton')}
-              </Button>
-              <Button onPress={handleInitUnfreeze} disabled={!txData}>
-                {t('wallet.vault.triggerUnfreezeButton')}
-              </Button>
-            </View>
-          ) : undefined
+        {
+          //loading... (no buttons)
+          ...(!initialFeeRate ||
+          //cannot RBF
+          feeRateToReplace + 1 > maxFeeRate
+            ? {}
+            : {
+                customButtons:
+                  step === 'intro' ? (
+                    <View className="items-center gap-6 gap-y-4 flex-row flex-wrap justify-center pb-4">
+                      <Button mode="secondary" onPress={onClose}>
+                        {t('cancelButton')}
+                      </Button>
+                      <Button onPress={() => setStep('fee')}>
+                        {feeRateToReplace
+                          ? t('accelerateButton')
+                          : t('continueButton')}
+                      </Button>
+                    </View>
+                  ) : step === 'fee' ? (
+                    <View className="items-center gap-6 gap-y-4 flex-row flex-wrap justify-center pb-4">
+                      <Button mode="secondary" onPress={onClose}>
+                        {t('cancelButton')}
+                      </Button>
+                      <Button onPress={handleInitUnfreeze} disabled={!txData}>
+                        {t('wallet.vault.triggerUnfreezeButton')}
+                      </Button>
+                    </View>
+                  ) : undefined
+              })
         }
       >
-        {step === 'intro' ? (
+        {!initialFeeRate ? (
+          //loading...
+          <ActivityIndicator />
+        ) : feeRateToReplace + 1 > maxFeeRate ? (
+          //cannot RBF
           <View>
             <Text className="text-base text-slate-600 pb-2 px-2">
-              {t('wallet.vault.triggerUnfreeze.intro', { timeLockTime })}
+              {t('wallet.vault.cannotAccelerateMaxFee')}
+            </Text>
+          </View>
+        ) : step === 'intro' ? (
+          <View>
+            <Text className="text-base text-slate-600 pb-2 px-2">
+              {feeRateToReplace
+                ? t('wallet.vault.triggerUnfreeze.introAccelerate')
+                : t('wallet.vault.triggerUnfreeze.intro', { timeLockTime })}
             </Text>
           </View>
         ) : step === 'fee' ? (
@@ -162,6 +207,7 @@ const InitUnfreeze = ({
             <View className="bg-slate-100 p-2 rounded-xl">
               {feeEstimates ? (
                 <FeeInput
+                  {...(feeRateToReplace ? { min: feeRateToReplace + 1 } : {})}
                   btcFiat={btcFiat}
                   feeEstimates={feeEstimates}
                   initialValue={initialFeeRate}
@@ -183,9 +229,7 @@ const InitUnfreeze = ({
           </View>
         ) : null}
       </Modal>
-    ) : (
-      <ActivityIndicator />
-    ))
+    )
   );
 };
 

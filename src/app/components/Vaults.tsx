@@ -1,6 +1,14 @@
-//FIXME: el mensage en la push notification no es muy alarmante
+//FIXME: if face id (biometrics) is disabled redirect user to settings:
+// - biometricsCurrentlyDisabledNonIOS
+// - biometricsCurrentlyDisabledIOS
+// - biometricsAccessFailureIOS
+// - biometricsAccessFailureNonIOS
+//
 
-//FIXME: remove all TRACE
+//FIXME: if camera grant is not given redirect user to settings
+//- cameraPermissionDenied
+
+//FIXME: el mensage en la push notification no es muy alarmante
 
 //FIXME: documentar bien en la web cuando se muestra el push notification!
 //cuando se hace desde otro dispositivo?
@@ -9,6 +17,8 @@
 
 //FIXME: Add Accelerate links on the confirming... texts on the right!!!
 //for the init and for the rescue
+//  -> What happens when RBF and i've pushTx twice (which directly sets the tx
+//  in disdovery???)
 
 //FIXME: tests: (Android / iOS):
 // - registration error GOOD
@@ -18,6 +28,8 @@
 // - testear el animate-pulse
 // - Android!
 
+//FIXME: El Accelerate da un mensaje raro en caso q se haya minado
+//mientrastanto
 import React, {
   useCallback,
   useEffect,
@@ -160,7 +172,9 @@ const VaultText: React.FC<{
   danger?: boolean;
   icon?: IconType;
   children: React.ReactNode;
-}> = ({ danger = false, icon, children }) => {
+  onAccelerate?: () => void;
+}> = ({ danger = false, icon, children, onAccelerate }) => {
+  const { t } = useTranslation();
   const Icon =
     icon && icon.family && Icons[icon.family] ? Icons[icon.family] : null;
   return (
@@ -178,6 +192,11 @@ const VaultText: React.FC<{
       )}
       <Text className="!leading-5 flex-shrink text-slate-600 native:text-sm native:mobmed:text-base">
         {children}
+        {onAccelerate !== undefined && (
+          <Text onPress={onAccelerate} className="text-primary p-8">
+            {' ' + t('accelerateButton') + ' ➤'}
+          </Text>
+        )}
       </Text>
     </View>
   );
@@ -572,7 +591,7 @@ const RawVault = ({
       // At this point:
       // - notificationPermissions.status === 'granted'
       // - pushToken exists
-      // - watchtowerAPIReachable === true
+      // - isWatchtowerStatusPending === false
       // - but isWatchtowerRegistered === false
       return t('wallet.vault.watchtower.registrationFailed');
     }
@@ -595,22 +614,6 @@ const RawVault = ({
       ? 'slate'
       : 'green';
   // --- End Derived States ---
-  //console.log(
-  //  'TRACE',
-  //  JSON.stringify(
-  //    {
-  //      watchtowerNeedsRetry,
-  //      isWatchtowerDown,
-  //      shouldRequestNotificationPermission,
-  //      shouldDirectToSystemNotificationSettings,
-  //      shouldRetryPushToken,
-  //      isWatchtowerStatusPending,
-  //      isWatchtowerRegistered
-  //    },
-  //    null,
-  //    2
-  //  )
-  //);
 
   return (
     <View
@@ -730,15 +733,13 @@ const RawVault = ({
                   name: 'clock-fast',
                   family: 'MaterialCommunityIcons'
                 }}
+                onAccelerate={handleShowInitUnfreeze}
               >
-                {
-                  triggerPushDate
-                    ? t('wallet.vault.pushedTriggerNotConfirmed', {
-                        triggerPushDate
-                      })
-                    : t('wallet.vault.pushedTriggerNotConfirmedUnknownDate')
-                  //TODO: accelerate
-                }
+                {triggerPushDate
+                  ? t('wallet.vault.pushedTriggerNotConfirmed', {
+                      triggerPushDate
+                    })
+                  : t('wallet.vault.pushedTriggerNotConfirmedUnknownDate')}
               </VaultText>
             )}
           {triggerConfirmedDate && (
@@ -813,16 +814,14 @@ const RawVault = ({
                 name: 'shield-alert-outline',
                 family: 'MaterialCommunityIcons'
               }}
+              onAccelerate={handleShowRescue}
             >
-              {
-                rescuePushDate
-                  ? t('wallet.vault.rescueNotConfirmed', {
-                      rescuePushDate,
-                      panicAddress
-                    })
-                  : t('wallet.vault.rescueNotConfirmedUnknownPush')
-                //TODO: accelerate
-              }
+              {rescuePushDate
+                ? t('wallet.vault.rescueNotConfirmed', {
+                    rescuePushDate,
+                    panicAddress
+                  })
+                : t('wallet.vault.rescueNotConfirmedUnknownPush')}
             </VaultText>
           )}
           {!isVaultTx && (
@@ -834,9 +833,13 @@ const RawVault = ({
                 ? t('wallet.vault.notTriggered', {
                     lockTime: formatBlocks(vault.lockBlocks, t, locale, true)
                   })
-                : t('wallet.vault.notTriggeredUnconfirmed', {
-                    lockTime: formatBlocks(vault.lockBlocks, t, locale, true)
-                  })}
+                : t(
+                    'wallet.vault.notTriggeredUnconfirmed',
+                    {
+                      lockTime: formatBlocks(vault.lockBlocks, t, locale, true)
+                    }
+                    //TODO: accelerate? But this needs a real RBF implementation in coinselect
+                  )}
             </Text>
           )}
           {remainingBlocks === 'FOUND_AS_HOT' && (
@@ -921,6 +924,7 @@ const RawVault = ({
       </View>
       <InitUnfreeze
         vault={vault}
+        vaultStatus={vaultStatus}
         isVisible={showInitUnfreeze}
         lockBlocks={vault.lockBlocks}
         onClose={handleCloseInitUnfreeze}
@@ -1008,9 +1012,11 @@ const RawVault = ({
                 >
                   {isWatchtowerDown && syncingBlockchain
                     ? t('wallet.vault.watchtower.retryingButton')
-                    : shouldDirectToSystemNotificationSettings
-                      ? t('wallet.vault.watchtower.goToSettings')
-                      : t('wallet.vault.watchtower.retryButton')}
+                    : shouldRequestNotificationPermission
+                      ? t('wallet.vault.watchtower.openSystemPrompt')
+                      : shouldDirectToSystemNotificationSettings
+                        ? t('wallet.vault.watchtower.goToSettings')
+                        : t('wallet.vault.watchtower.retryButton')}
                 </Button>
               )}
             </View>
