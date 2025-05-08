@@ -419,7 +419,21 @@ export default function NewWalletScreen() {
         onClose={() => {
           setIOSBiometricsDeclined(false);
         }}
-        closeButtonText={t('understoodButton')}
+        customButtons={
+          <View className="items-center gap-6 gap-y-4 flex-row flex-wrap justify-center mb-4">
+            <Button
+              mode="secondary"
+              onPress={() => setIOSBiometricsDeclined(false)}
+            >
+              {t('understoodButton')}
+            </Button>
+            {!canUseSecureStorage && (
+              <Button mode="primary" onPress={Linking.openSettings}>
+                {t('wallet.new.openSettingsButton')}
+              </Button>
+            )}
+          </View>
+        }
       >
         <View className="px-2 items-center">
           <Text className="text-base">
@@ -431,15 +445,6 @@ export default function NewWalletScreen() {
                   ? t('wallet.new.biometricsCurrentlyDisabledIOS')
                   : t('wallet.new.biometricsCurrentlyDisabledNonIOS'))}
           </Text>
-          {!canUseSecureStorage && (
-            <Button
-              mode="primary"
-              onPress={Linking.openSettings}
-              containerClassName="self-center mt-4 mb-2"
-            >
-              {t('wallet.new.openSettingsButton')}
-            </Button>
-          )}
         </View>
       </Modal>
       <Password
