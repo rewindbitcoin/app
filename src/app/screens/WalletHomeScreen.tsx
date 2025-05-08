@@ -19,7 +19,8 @@ import {
   NativeSyntheticEvent,
   NativeScrollEvent,
   LayoutChangeEvent,
-  ScrollView
+  ScrollView,
+  Linking
 } from 'react-native';
 import { RefreshControl } from 'react-native-web-refresh-control';
 
@@ -57,19 +58,22 @@ import { useNetStatus } from '../hooks/useNetStatus';
 
 const ErrorView = ({
   errorMessage,
-  goBack
+  goBack,
+  action
 }: {
   errorMessage: string;
   goBack: () => void;
+  action?: React.ReactNode;
 }) => {
   const { t } = useTranslation();
   return (
     <View className="flex-1 justify-center p-4 gap-2 max-w-screen-sm">
-      <KeyboardAwareScrollView>
+      <KeyboardAwareScrollView contentContainerClassName="items-center">
         <Text className="text-base mb-4">{errorMessage}</Text>
+        {action}
       </KeyboardAwareScrollView>
       <Button
-        containerClassName="self-center mb-8"
+        containerClassName="self-center mt-4 mb-8"
         mode="text"
         onPress={goBack}
       >
@@ -412,6 +416,17 @@ const WalletHomeScreen = () => {
             : t('wallet.new.biometricsCurrentlyDisabledNonIOS'))
       }
       goBack={goBack}
+      action={
+        !canUseSecureStorage ? (
+          <Button
+            mode="primary"
+            onPress={() => Linking.openSettings()}
+            containerClassName="self-center mt-2"
+          >
+            {t('wallet.new.openSettingsButton')}
+          </Button>
+        ) : undefined
+      }
     />
   ) : biometricsFailureOnWalletCreation ? (
     <ErrorView

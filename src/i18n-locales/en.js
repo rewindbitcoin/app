@@ -120,15 +120,16 @@ Zapping bytes and lining up the bits. Hang tight!`,
       biometricsRequestDeclined: `We couldn't set up biometric security (facial recognition or fingerprint authentication) for your wallet.
 
 This may be because you didn't grant the necessary permissions, or your device doesn't support biometrics.`,
-      biometricsCurrentlyDisabledNonIOS: `Since biometrics cannot be used on this device, new wallets will default to non-biometric security until you grant permissions.
+      biometricsCurrentlyDisabledNonIOS: `Since biometrics cannot be used on this device, new wallets will default to non-biometric security.
 
-To re-enable biometrics, go to your device's Settings and ensure that biometric permissions are enabled.`,
-      biometricsCurrentlyDisabledIOS: `Since biometrics cannot be used on this device, new wallets will default to non-biometric security until you grant permissions.
+Tap the button below to go to your device's Settings and ensure that biometric permissions are enabled to re-activate them.`,
+      biometricsCurrentlyDisabledIOS: `Since biometrics cannot be used on this device, new wallets will default to non-biometric security.
 
-If you want to re-enable biometrics, go to Settings > RewindBitcoin and turn on Face ID or Touch ID (this may vary based on your OS version and device).`,
+Tap the button below to go to your device's Settings, then navigate to RewindBitcoin and turn on Face ID or Touch ID (this may vary based on your OS version and device) to re-activate them.`,
       biometricsHowDisable: `Please try again and grant the necessary permissions.
 
 If you prefer not to use biometrics, you can disable this feature in the "Advanced Options" during the New Wallet setup process.`,
+      openSettingsButton: 'Open Device Settings',
       //Old Samsung devices, repeated failures in authentication when creating wallet:
       biometricsReadWriteError: `The biometric implementation on your device has issues.
 

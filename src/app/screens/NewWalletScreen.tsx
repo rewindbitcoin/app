@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { v4 as uuid } from 'uuid';
 import { defaultSettings } from '../lib/settings';
 import type { Wallet, Signer } from '../lib/wallets';
-import { View, Text, Pressable, Keyboard, Platform } from 'react-native';
+import { View, Text, Pressable, Keyboard, Platform, Linking } from 'react-native';
 import {
   checkReadWriteBiometricsAccessAsync,
   type Engine as StorageEngine
@@ -414,15 +414,26 @@ export default function NewWalletScreen() {
         }}
         closeButtonText={t('understoodButton')}
       >
-        <Text className="text-base px-2">
-          {t('wallet.new.biometricsRequestDeclined') +
-            '\n\n' +
-            (canUseSecureStorage
-              ? t('wallet.new.biometricsHowDisable')
-              : Platform.OS === 'ios'
-                ? t('wallet.new.biometricsCurrentlyDisabledIOS')
-                : t('wallet.new.biometricsCurrentlyDisabledNonIOS'))}
-        </Text>
+        <View className="px-2 items-center">
+          <Text className="text-base">
+            {t('wallet.new.biometricsRequestDeclined') +
+              '\n\n' +
+              (canUseSecureStorage
+                ? t('wallet.new.biometricsHowDisable')
+                : Platform.OS === 'ios'
+                  ? t('wallet.new.biometricsCurrentlyDisabledIOS')
+                  : t('wallet.new.biometricsCurrentlyDisabledNonIOS'))}
+          </Text>
+          {!canUseSecureStorage && (
+            <Button
+              mode="primary"
+              onPress={() => Linking.openSettings()}
+              containerClassName="self-center mt-4 mb-2"
+            >
+              {t('wallet.new.openSettingsButton')}
+            </Button>
+          )}
+        </View>
       </Modal>
       <Password
         mode="OPTIONAL_SET"
