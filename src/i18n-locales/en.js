@@ -125,7 +125,7 @@ This may be because you didn't grant the necessary permissions, or your device d
 Tap the button below to go to your device's Settings and ensure that biometric permissions are enabled to re-activate them.`,
       biometricsCurrentlyDisabledIOS: `Since biometrics cannot be used on this device, new wallets will default to non-biometric security.
 
-Tap the button below to go to your device's Settings, then navigate to RewindBitcoin and turn on Face ID or Touch ID (this may vary based on your OS version and device) to re-activate them.`,
+Tap the button below to go to your device's Settings and turn on Face ID or Touch ID (this may vary based on your OS version and device) to re-activate them.`,
       biometricsHowDisable: `Please try again and grant the necessary permissions.
 
 If you prefer not to use biometrics, you can disable this feature in the "Advanced Options" during the New Wallet setup process.`,

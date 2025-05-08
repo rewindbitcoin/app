@@ -116,7 +116,7 @@ Esto puede deberse a que no otorgaste los permisos necesarios, o tu dispositivo 
 Pulsa el botón de abajo para ir a la Configuración de tu dispositivo y asegúrate de que los permisos biométricos estén habilitados para reactivarlos.`,
       biometricsCurrentlyDisabledIOS: `Como la biometría no se puede usar en este dispositivo, las nuevas billeteras usarán seguridad no biométrica por defecto.
 
-Pulsa el botón de abajo para ir a la Configuración de tu dispositivo, luego navega a RewindBitcoin y activa Face ID o Touch ID (esto puede variar según tu versión de iOS y dispositivo) para reactivarlos.`,
+Pulsa el botón de abajo para ir a la Configuración de tu dispositivo y activa Face ID o Touch ID (esto puede variar según tu versión de iOS y dispositivo) para reactivarlos.`,
       biometricsHowDisable: `Por favor, inténtalo de nuevo y otorga los permisos necesarios.
 
 Si prefieres no usar biometría, puedes desactivar esta función en "Opciones Avanzadas" durante el proceso de configuración de Nueva Billetera.`,
