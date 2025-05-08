@@ -420,7 +420,7 @@ const WalletHomeScreen = () => {
         !canUseSecureStorage ? (
           <Button
             mode="primary"
-            onPress={() => Linking.openSettings()}
+            onPress={Linking.openSettings}
             containerClassName="self-center mt-2"
           >
             {t('wallet.new.openSettingsButton')}

@@ -2,7 +2,14 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { v4 as uuid } from 'uuid';
 import { defaultSettings } from '../lib/settings';
 import type { Wallet, Signer } from '../lib/wallets';
-import { View, Text, Pressable, Keyboard, Platform, Linking } from 'react-native';
+import {
+  View,
+  Text,
+  Pressable,
+  Keyboard,
+  Platform,
+  Linking
+} from 'react-native';
 import {
   checkReadWriteBiometricsAccessAsync,
   type Engine as StorageEngine
@@ -427,7 +434,7 @@ export default function NewWalletScreen() {
           {!canUseSecureStorage && (
             <Button
               mode="primary"
-              onPress={() => Linking.openSettings()}
+              onPress={Linking.openSettings}
               containerClassName="self-center mt-4 mb-2"
             >
               {t('wallet.new.openSettingsButton')}
