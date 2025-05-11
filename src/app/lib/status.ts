@@ -50,7 +50,7 @@ export type WalletStatus = {
  */
 export const getStorageAccessStatus = ({
   signers,
-  isSignersSynchd,
+  isSignersDiskSynchd,
   settingsErrorCode,
   signersErrorCode,
   walletsErrorCode,
@@ -60,7 +60,7 @@ export const getStorageAccessStatus = ({
   accountsErrorCode
 }: {
   signers: Signers | undefined;
-  isSignersSynchd: boolean;
+  isSignersDiskSynchd: boolean;
   settingsErrorCode: StorageErrorCode;
   signersErrorCode: StorageErrorCode;
   walletsErrorCode: StorageErrorCode;
@@ -73,10 +73,14 @@ export const getStorageAccessStatus = ({
   let biometricAuthCancelled = false;
   let biometricsReadWriteError = false;
   let readWriteError = false;
+  let badPassword = false;
   //Don't pass it further down as a Wallet Error. This is probably a user
   //typing in the wrong password. We overwrite it as a non-error internally in
   //this function.
-  if (signersErrorCode === 'DecryptError') signersErrorCode = false;
+  if (signersErrorCode === 'DecryptError') {
+    signersErrorCode = false;
+    badPassword = true;
+  }
   //When setting up a new wallet we treat biometrics error specially. This is
   //the first time the App checks if Biometrics properly work. An error here
   //means that the device is an old Samsung device probably that reported that
@@ -91,8 +95,9 @@ export const getStorageAccessStatus = ({
   //from the system. See https://docs.expo.dev/versions/latest/sdk/securestore/#securestoregetitemasynckey-options
   //Note that we convert null->undefined internally in storage.ts
   if (
+    badPassword === false &&
     signers === undefined &&
-    isSignersSynchd &&
+    isSignersDiskSynchd &&
     biometricAuthCancelled === false
   )
     biometricsKeyInvalidated = true;
@@ -128,7 +133,7 @@ export const getStorageAccessStatus = ({
 export const getIsCorrupted = ({
   wallet,
   signers,
-  isSignersSynchd,
+  isSignersDiskSynchd,
   signersErrorCode,
   vaults,
   isVaultsSynchd,
@@ -139,7 +144,7 @@ export const getIsCorrupted = ({
 }: {
   wallet: Wallet | undefined;
   signers: Signers | undefined;
-  isSignersSynchd: boolean;
+  isSignersDiskSynchd: boolean;
   signersErrorCode: StorageErrorCode;
   vaults: Vaults | undefined;
   isVaultsSynchd: boolean;
@@ -152,7 +157,7 @@ export const getIsCorrupted = ({
     !wallet ||
     //If we dont' have signers because of DecryptError, this is probably a user
     //typing in the wrong password. So quite probably this is not corrupted.
-    (!signers && isSignersSynchd && signersErrorCode !== 'DecryptError') ||
+    (!signers && isSignersDiskSynchd && signersErrorCode !== 'DecryptError') ||
     (!vaults && isVaultsSynchd) ||
     (!vaultsStatuses && isVaultsStatusesSynchd) ||
     (!accounts && isAccountsSynchd)

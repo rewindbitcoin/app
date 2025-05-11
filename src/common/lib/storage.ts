@@ -66,7 +66,8 @@ export function getStorageErrorCode(error: unknown): StorageErrorCode {
 }
 
 export type StorageStatus = {
-  isSynchd: boolean;
+  isSynchd: boolean; // optimistic / already‑in‑memory
+  isDiskSynchd: boolean; // disk confirmed
   errorCode: StorageErrorCode;
 };
 

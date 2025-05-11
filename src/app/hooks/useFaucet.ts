@@ -9,6 +9,8 @@ import { faucetFirstReceive } from '../lib/faucet';
 import { useWallet } from './useWallet';
 import { useSettings } from './useSettings';
 
+//FIXME: dont faucet imported wallets
+//FIXME; on android the notice appears quite late...
 export function useFaucet() {
   const {
     historyData,

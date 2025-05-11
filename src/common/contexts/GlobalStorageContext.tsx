@@ -11,6 +11,10 @@ type ProviderValue<T> = {
   setErrorCodeMap: React.Dispatch<
     React.SetStateAction<Record<string, StorageErrorCode>>
   >;
+  persistedMap: Record<string, boolean>;
+  setDiskSynchedMap: React.Dispatch<
+    React.SetStateAction<Record<string, boolean>>
+  >;
 };
 export const GlobalStorageContext =
   createContext<ProviderValue<unknown> | null>(null);
@@ -22,10 +26,20 @@ export const GlobalStorageProvider: React.FC<{ children: ReactNode }> = ({
   const [errorCodeMap, setErrorCodeMap] = useState<
     Record<string, StorageErrorCode>
   >({});
+  const [persistedMap, setDiskSynchedMap] = useState<Record<string, boolean>>(
+    {}
+  );
 
   return (
     <GlobalStorageContext.Provider
-      value={{ valueMap, setValueMap, errorCodeMap, setErrorCodeMap }}
+      value={{
+        valueMap,
+        setValueMap,
+        errorCodeMap,
+        setErrorCodeMap,
+        persistedMap,
+        setDiskSynchedMap
+      }}
     >
       {children}
     </GlobalStorageContext.Provider>

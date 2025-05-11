@@ -413,6 +413,10 @@ export default function NewWalletScreen() {
         <Text className="text-base px-2">{t('help.network')}</Text>
       </Modal>
       <Modal
+        //This Modal one can open in iOS devices only.
+        //User declineations of biometrics in Android are handled in
+        //WalletHomeScreen.
+        //See: addWallet in NewWalletScreen for detailed explanation.
         title={t('wallet.biometricsErrorTitle')}
         icon={{ family: 'MaterialIcons', name: 'error' }}
         isVisible={isHiddenBip39ConfModal && iOSBiometricsDeclined}

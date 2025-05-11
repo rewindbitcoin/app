@@ -54,8 +54,19 @@ import { batchedUpdates } from '../lib/batchedUpdates';
  * deleteValue deletes the value from storage
  * clearCache forces the next call to read from storage (will not use memory)
  *
- * 'storageStatus: {isSynchd: boolean; errorCode: StorageErrorCode}':
- * isSynchd is a boolean indicating if the data has been fetched from storage.
+ * 'storageStatus: {isSynchd: boolean; errorCode: StorageErrorCode;
+ * isDiskSynchd: boolean;}':
+ * isSynchd     True once we have **any** value in memory for this key,
+ *              either because we fetched it from storage or because we
+ *              optimistically queued a write. Useful for hiding loading
+ *              skeletons quickly.
+ *              isSynchd will be true even after an successful read/write,
+ *              meaning that we at least tried.
+ * isDiskSynchd  True only after we have finished at least one real
+ *              round‑trip with the backing store (successful read or write).
+ *              This is set even if the read/write operation fails.
+ *              Lets callers know durability has been confirmed.
+ *              errorCode can only be trusted when isDiskSynchd is true.
  * Useful for determining if 'value' is 'undefined' because it's yet to be
  * fetched or because it was never set in storage.
  * 'storageStatus.errorCode indicates whether the cipherKey (if used) could not
@@ -105,6 +116,10 @@ export const useStorage = <T>(
   const [localErrorCodeMap, setLocalErrorCodeMap] = useState<
     Record<string, StorageErrorCode>
   >({});
+  const [localDiskSynchedMap, setLocalDiskSynchedMap] = useState<
+    Record<string, boolean>
+  >({});
+
   const valueMap =
     type === 'GLOBAL' && context ? context.valueMap : localValueMap;
   const setValueMap =
@@ -115,8 +130,14 @@ export const useStorage = <T>(
     type === 'GLOBAL' && context
       ? context.setErrorCodeMap
       : setLocalErrorCodeMap;
+  const persistedMap =
+    type === 'GLOBAL' && context ? context.persistedMap : localDiskSynchedMap;
+  const setDiskSynchedMap =
+    type === 'GLOBAL' && context
+      ? context.setDiskSynchedMap
+      : setLocalDiskSynchedMap;
 
-  /** sets storage and sate value */
+  /** sets storage and state value */
   const setStorageValue = useCallback(
     async (newValue: T) => {
       if (newValue === undefined) {
@@ -127,7 +148,7 @@ export const useStorage = <T>(
 
       if (key !== undefined) {
         let prevValue: typeof valueMap;
-        let prevError: typeof errorCodeMap;
+        //let prevError: typeof errorCodeMap;
 
         // We optimistically update the UI state first to ensure fast feedback and rendering.
         // The actual storage write is awaited *after* state update to avoid blocking UI.
@@ -143,7 +164,7 @@ export const useStorage = <T>(
           });
 
           setErrorCodeMap(prevState => {
-            prevError = prevState;
+            //prevError = prevState;
             return prevState[key] !== false
               ? { ...prevState, [key]: false }
               : prevState;
@@ -151,6 +172,14 @@ export const useStorage = <T>(
         });
 
         try {
+          //if (key.includes('SIGNERS')) {
+          //  console.log('TRACE setAsync', {
+          //    key,
+          //    engine,
+          //    serializationFormat,
+          //    cipherKey
+          //  });
+          //}
           await setAsync(
             key,
             assertSerializationFormat(newValue, serializationFormat),
@@ -158,11 +187,29 @@ export const useStorage = <T>(
             cipherKey,
             authenticationPrompt
           );
+          setDiskSynchedMap(prev =>
+            prev[key] ? prev : { ...prev, [key]: true }
+          );
         } catch (err) {
           // Revert to previous state
+
+          //batchedUpdates(() => {
+          //  setValueMap(prevValue);
+          //  setErrorCodeMap(prevError);
+          //});
+          console.warn(err);
+          const errorCode = getStorageErrorCode(err);
           batchedUpdates(() => {
-            setValueMap(prevValue!);
-            setErrorCodeMap(prevError!);
+            // 1. roll back the optimistic value
+            setValueMap(prevValue);
+            // 2. surface the error so UI / callers can react
+            setErrorCodeMap(prev =>
+              prev[key] !== errorCode ? { ...prev, [key]: errorCode } : prev
+            );
+            // 3. a valid round trip was done; even if errored
+            setDiskSynchedMap(prev =>
+              prev[key] ? prev : { ...prev, [key]: true }
+            );
           });
           throw err;
         }
@@ -172,6 +219,7 @@ export const useStorage = <T>(
       key,
       setValueMap,
       setErrorCodeMap,
+      setDiskSynchedMap,
       serializationFormat,
       engine,
       cipherKey,
@@ -193,6 +241,14 @@ export const useStorage = <T>(
       const fetchValue = async () => {
         isFetching[key] = true;
         try {
+          //if (key.includes('SIGNERS')) {
+          //  console.log('TRACE getAsync', {
+          //    key,
+          //    engine,
+          //    serializationFormat,
+          //    cipherKey
+          //  });
+          //}
           const savedValue = await getAsync(
             key,
             serializationFormat,
@@ -200,6 +256,7 @@ export const useStorage = <T>(
             cipherKey,
             authenticationPrompt
           );
+
           if (savedValue !== undefined) {
             // There was a previous stored value
 
@@ -215,8 +272,14 @@ export const useStorage = <T>(
                   ? { ...prevState, [key]: false }
                   : prevState
               );
+              setDiskSynchedMap(prev =>
+                prev[key] ? prev : { ...prev, [key]: true }
+              );
             });
           } else if (defaultValue !== undefined)
+            //It was not set and we have a default value, so set it
+            //value, errorCode and Persisted is handled in setStorageValue
+            //depending on the write operation result
             await setStorageValue(defaultValue);
           else {
             // There was no previous stored value value and no defaultValue was passed:
@@ -237,16 +300,36 @@ export const useStorage = <T>(
                   ? { ...prevState, [key]: false }
                   : prevState
               );
+              // a valid round trip was done
+              setDiskSynchedMap(prev =>
+                prev[key] ? prev : { ...prev, [key]: true }
+              );
             });
           }
         } catch (err: unknown) {
-          console.warn(err);
-          const errorCode = getStorageErrorCode(err);
-          setErrorCodeMap(prevState =>
-            prevState[key] !== errorCode
-              ? { ...prevState, [key]: errorCode }
-              : prevState
+          console.warn(
+            'Failed fetch',
+            {
+              key,
+              engine,
+              serializationFormat,
+              usingCipherKey: !!cipherKey,
+              authenticationPrompt
+            },
+            err
           );
+          const errorCode = getStorageErrorCode(err);
+          batchedUpdates(() => {
+            setErrorCodeMap(prevState =>
+              prevState[key] !== errorCode
+                ? { ...prevState, [key]: errorCode }
+                : prevState
+            );
+            // a valid round trip was done; even if errored
+            setDiskSynchedMap(prev =>
+              prev[key] ? prev : { ...prev, [key]: true }
+            );
+          });
         } finally {
           isFetching[key] = false;
         }
@@ -263,6 +346,7 @@ export const useStorage = <T>(
     serializationFormat,
     setStorageValue,
     setValueMap,
+    setDiskSynchedMap,
     valueMap,
     setErrorCodeMap
   ]);
@@ -288,16 +372,19 @@ export const useStorage = <T>(
         });
 
         setErrorCodeMap(prevState => {
-          //if (key in prevState) {
           const { [key]: omitted, ...newState } = prevState;
           void omitted;
           return newState;
-          //}
-          //return prevState;
+        });
+
+        setDiskSynchedMap(prev => {
+          const { [key]: omitted, ...newState } = prev;
+          void omitted;
+          return newState;
         });
       }
     });
-  }, [key, setValueMap, setErrorCodeMap]);
+  }, [key, setValueMap, setErrorCodeMap, setDiskSynchedMap]);
 
   const deleteValue = useCallback(async () => {
     if (key) {
@@ -312,20 +399,22 @@ export const useStorage = <T>(
       setStorageValue,
       deleteValue,
       clearCache,
-      { isSynchd: false, errorCode: false }
+      { isSynchd: false, errorCode: false, isDiskSynchd: false }
     ];
   else {
     if (key in valueMap && !(key in errorCodeMap))
       throw new Error(`errorCodeMap not set for ${key}`);
     //valueMap is not set when decrypt error, but we know it's synchd anyway
     const isSynchd = key in valueMap || key in errorCodeMap;
+    const isDiskSynchd = !!persistedMap[key];
+
     const errorCode = errorCodeMap[key] || false;
     return [
       valueMap[key] as T | undefined,
       setStorageValue,
       deleteValue,
       clearCache,
-      { isSynchd, errorCode }
+      { isSynchd, errorCode, isDiskSynchd }
     ];
   }
 };

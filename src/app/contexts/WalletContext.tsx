@@ -1,3 +1,6 @@
+//FIXME: the problem i had before optimistic updates was the useEffects were
+//being called multiple times. Specially the watchtower stuff.
+//FIXME: make sure that biometrics + password is still working - test bad password
 import {
   fetchVaultsStatuses,
   getUtxosData,
@@ -152,7 +155,7 @@ export type WalletContextType = {
    * the signers */
   requiresPassword: boolean;
   logOut: () => Promise<void>;
-  deleteWallet: (walletId: number) => Promise<void>;
+  deleteWallet: (idToDelete: number) => Promise<void>;
   onWallet: ({
     wallet,
     newSigners,
@@ -164,6 +167,7 @@ export type WalletContextType = {
     isImport?: boolean;
     signersCipherKey?: Uint8Array;
   }) => Promise<void>;
+  isWalletReady: boolean;
   isFirstLogin: boolean;
   setVaultNotificationAcknowledged: (vaultId: string) => void;
 };
@@ -179,12 +183,16 @@ const WalletProviderRaw = ({
 }) => {
   const [orphanedWatchtowerWalletUUIDs, setOrphanedWatchtowerWalletUUIDs] =
     useState<Set<string>>(new Set());
-  //This keeps track of the current active wallet.
-  //There is a useEffect on "wallet" that updates the stored Wallets object too
-  const [unsynchdWalletId, setWalletId] = useState<number>();
-  //Keep also a ref version  of walletId so that in async functions we can
-  //check after the await if the walletId changed
-  const walletIdRef = useRef<number | undefined>();
+  //activeWallet keeps track of the current wallet.
+  //There is a useEffect on "activeWallet" that updates the stored Wallets objec
+  //too.
+  //This is set before the activeWallet is added to walletsStorage. Reason is we
+  //first need to make sure biometrics work properly.
+  //walletsStorage is only set after isWalletDiskSynched (and SecureStorage worked).
+  const [activeWallet, setActiveWallet] = useState<Wallet>();
+  //Serves to keep a ref version of walletId so that in async functions we can
+  //check after the await if the activeWallet.walletId changed
+  const walletIdRef = useRef<number>();
   // This explorer is only used for retrieving
   // fees when using the TAPE network. It is shared for all wallets.
   const [explorerMainnet, setExplorerMainnet] = useState<Explorer | undefined>(
@@ -192,8 +200,15 @@ const WalletProviderRaw = ({
   );
   const [walletsNewSigners, setNewSigners, clearNewSigners] =
     useWalletState<Signers>();
+  // the password:
   const [walletsSignersCipherKey, setSignersCipherKey, clearSignersCipherKey] =
     useWalletState<Uint8Array>();
+  //walletsDataCipherKey is the encryption key for all data.
+  //Data is encryped with XChaCha20-Poly1305 using a key
+  //derived from the mnemonic.
+  //The mnemonic itself is stored in SecureStorage. We can also encrypt
+  //it further with a password: signersCipherKey. signersCipherKey is different
+  //than walletsDataCipherKey. walletsDataCipherKey is only stored in memory.
   const [walletsDataCipherKey, setDataCipherKey, clearDataCipherKey] =
     useWalletState<Uint8Array>();
   const [walletsDiscovery, setDiscovery, clearDiscovery] = useWalletState<
@@ -241,36 +256,28 @@ const WalletProviderRaw = ({
     SERIALIZABLE,
     {}
   );
+
   // Add this effect to handle backwards compatibility
   // (wallets prior to Apr 29, 2025, created without uuid)
   useEffect(() => {
     if (wallets) {
       let needsUpdate = false;
       const updatedWallets = { ...wallets };
-      Object.entries(updatedWallets).forEach(([idStr, wallet]) => {
+      Object.entries(updatedWallets).forEach(([idStr, storedWallet]) => {
         const id = parseInt(idStr, 10);
-        if (!wallet.walletUUID) {
+        if (!storedWallet.walletUUID) {
           needsUpdate = true;
-          updatedWallets[id] = { ...wallet, walletUUID: uuid() };
+          updatedWallets[id] = { ...storedWallet, walletUUID: uuid() };
         }
       });
       if (needsUpdate) setWallets(updatedWallets);
     }
   }, [wallets, setWallets]);
 
-  const wallet =
-    unsynchdWalletId !== undefined ? wallets?.[unsynchdWalletId] : undefined;
-  const walletId = wallet?.walletId; //walletId will be defined once the wallet is ready.
-
-  const networkId = wallet?.networkId;
-  const signersStorageEngine = wallet?.signersStorageEngine;
-  const network = networkId && networkMapping[networkId];
-  if (wallet && !network) throw new Error(`Invalid networkId ${networkId}`);
-
   const signersStorageEngineMismatch =
-    (signersStorageEngine === 'MMKV' && Platform.OS === 'web') ||
-    (signersStorageEngine === 'IDB' && Platform.OS !== 'web') ||
-    (signersStorageEngine === 'SECURESTORE' &&
+    (activeWallet?.signersStorageEngine === 'MMKV' && Platform.OS === 'web') ||
+    (activeWallet?.signersStorageEngine === 'IDB' && Platform.OS !== 'web') ||
+    (activeWallet?.signersStorageEngine === 'SECURESTORE' &&
       !!secureStorageInfo &&
       secureStorageInfo.canUseSecureStorage === false);
 
@@ -294,23 +301,32 @@ const WalletProviderRaw = ({
     generate204WatchtowerAPI,
     generate204APIExternal,
     blockExplorerURL
-  } = getAPIs(networkId, settings);
+  } = getAPIs(activeWallet?.networkId, settings);
 
   // Notifications are now stored in the wallet object
 
-  const initSigners =
+  // Password
+  const signersCipherKey =
+    activeWallet && walletsSignersCipherKey[activeWallet.walletId];
+  const canInitSigners =
     !signersStorageEngineMismatch &&
-    walletId !== undefined &&
-    (wallet?.signersEncryption !== 'PASSWORD' ||
-      walletsSignersCipherKey[walletId]);
+    !!activeWallet &&
+    //login-in or registering with a password (passed to onWallet)
+    (!!signersCipherKey ||
+      //login-in to a wallet created before that does not need password:
+      wallets?.[activeWallet.walletId]?.signersEncryption === 'NONE');
 
+  // First thing i need to retrieve is signers
+  // then, once the signers is retrieved i'll be able to retrieve the rest,
+  // which depends on the signers cipher key which is used to encrypt the
+  // rest of the data
   const [signers, , , clearSignersCache, signersStorageStatus] =
     useStorage<Signers>(
-      initSigners ? `SIGNERS_${walletId}` : undefined,
+      canInitSigners ? `SIGNERS_${activeWallet.walletId}` : undefined,
       SERIALIZABLE,
-      walletId === undefined ? undefined : walletsNewSigners[walletId],
-      signersStorageEngine,
-      walletId === undefined ? undefined : walletsSignersCipherKey[walletId],
+      activeWallet && walletsNewSigners[activeWallet.walletId],
+      activeWallet?.signersStorageEngine,
+      signersCipherKey,
       t('app.secureStorageAuthenticationPrompt')
     );
 
@@ -318,10 +334,13 @@ const WalletProviderRaw = ({
     DiscoveryExport | undefined | 'NOT_SYNCHD'
   >('NOT_SYNCHD');
 
-  const initStorage =
-    walletId !== undefined &&
+  // When to init `DISCOVERY_${walletId}`, `VAULTS_${walletId}`,
+  //`VAULTS_STATUSES_${walletId}` and `ACCOUNTS_${walletId}`
+  const canInitNonSignersWalletDataStorage =
+    activeWallet &&
     signersStorageStatus.errorCode === false &&
-    (wallet?.encryption !== 'SEED_DERIVED' || walletsDataCipherKey[walletId]);
+    (activeWallet.encryption !== 'SEED_DERIVED' ||
+      walletsDataCipherKey[activeWallet.walletId]);
 
   const [
     discoveryExport,
@@ -330,11 +349,13 @@ const WalletProviderRaw = ({
     clearDiscoveryExportCache,
     discoveryExportStorageStatus
   ] = useStorage<DiscoveryExport>(
-    initStorage ? `DISCOVERY_${walletId}` : undefined,
+    canInitNonSignersWalletDataStorage
+      ? `DISCOVERY_${activeWallet.walletId}`
+      : undefined,
     SERIALIZABLE,
     undefined,
     undefined,
-    walletId !== undefined ? walletsDataCipherKey[walletId] : undefined
+    activeWallet && walletsDataCipherKey[activeWallet.walletId]
   );
 
   if (discoveryExportStorageStatus.isSynchd) {
@@ -344,8 +365,7 @@ const WalletProviderRaw = ({
   } else initialDiscoveryExportRef.current = 'NOT_SYNCHD';
   const initialDiscoveryExport = initialDiscoveryExportRef.current;
 
-  const discovery =
-    walletId !== undefined ? walletsDiscovery[walletId] : undefined;
+  const discovery = activeWallet && walletsDiscovery[activeWallet.walletId];
 
   //init discovery:
   //discoveryExport may be changing continuously (this is the data that
@@ -353,9 +373,11 @@ const WalletProviderRaw = ({
   //discovery instance should be kept the same once the App is open.
   //So use initialDiscoveryExport
   useEffect(() => {
+    const network =
+      activeWallet?.networkId && networkMapping[activeWallet.networkId];
     if (
       settings?.NETWORK_TIMEOUT !== undefined &&
-      walletId !== undefined &&
+      activeWallet?.walletId !== undefined &&
       electrumAPI &&
       esploraAPI &&
       network &&
@@ -379,15 +401,15 @@ const WalletProviderRaw = ({
           ? new Discovery({ imported: initialDiscoveryExport })
           : new Discovery();
 
-      setDiscovery(walletId, newDiscovery);
+      setDiscovery(activeWallet.walletId, newDiscovery);
     }
     //Note there is no cleanup. Discovery is closed on logout
   }, [
     initialDiscoveryExport,
-    walletId,
+    activeWallet?.walletId,
     electrumAPI,
     esploraAPI,
-    network,
+    activeWallet?.networkId,
     setDiscovery,
     settings?.NETWORK_TIMEOUT
   ]);
@@ -399,7 +421,7 @@ const WalletProviderRaw = ({
         settings?.NETWORK_TIMEOUT !== undefined &&
         mainnetEsploraApi &&
         !explorerMainnet &&
-        networkId === 'TAPE'
+        activeWallet?.networkId === 'TAPE'
       ) {
         const newExplorerMainnet = new EsploraExplorer({
           url: mainnetEsploraApi,
@@ -408,12 +430,13 @@ const WalletProviderRaw = ({
         setExplorerMainnet(newExplorerMainnet);
       }
     } else {
-      const network = networkId && networkMapping[networkId];
+      const network =
+        activeWallet?.networkId && networkMapping[activeWallet.networkId];
       if (
         network &&
         mainnetElectrumApi &&
         !explorerMainnet &&
-        networkId === 'TAPE'
+        activeWallet.networkId === 'TAPE'
       ) {
         const newExplorerMainnet = new ElectrumExplorer({
           network,
@@ -426,7 +449,7 @@ const WalletProviderRaw = ({
     mainnetEsploraApi,
     mainnetElectrumApi,
     explorerMainnet,
-    networkId,
+    activeWallet?.networkId,
     settings?.NETWORK_TIMEOUT
   ]);
 
@@ -443,29 +466,33 @@ const WalletProviderRaw = ({
   const netReady =
     apiReachable &&
     explorerReachable &&
-    (networkId !== 'TAPE' || explorerMainnetReachable);
+    (activeWallet?.networkId !== 'TAPE' || explorerMainnetReachable);
 
   useEffect(() => {
     //Wait until both explorers have been created
-    if (discovery?.getExplorer() && (networkId !== 'TAPE' || explorerMainnet)) {
+    if (
+      discovery?.getExplorer() &&
+      (activeWallet?.networkId !== 'TAPE' || explorerMainnet)
+    ) {
       //makes sure the netStatus is reset. A reset is already done on logOut.
       //But we do it here again just in case we are getting a new explorers
       //For example in case the user changes the Electrum Server on the Settings
       //Screen and this hook is therefore triggered with a new explorer.
       netStatusReset();
       netStatusInit({
-        networkId,
+        networkId: activeWallet?.networkId,
         explorer: discovery.getExplorer(),
         generate204API,
         generate204CbVaultsReaderAPI,
         generate204WatchtowerAPI,
         //For Tape, we need to make sure blockstream esplora is working:
-        explorerMainnet: networkId === 'TAPE' ? explorerMainnet : undefined,
+        explorerMainnet:
+          activeWallet?.networkId === 'TAPE' ? explorerMainnet : undefined,
         generate204APIExternal:
           //There's no need to check the internet with an external server (typically
           //using google) when using a REGTEST wallet
-          networkId &&
-          networkId !== 'REGTEST' &&
+          activeWallet?.networkId &&
+          activeWallet.networkId !== 'REGTEST' &&
           Platform.OS !==
             'web' /* note that using web, we'll get into CORS issues on google servers,
           however rewind servers are ok because they have Access-Control-Allow-Origin' '*'
@@ -477,7 +504,7 @@ const WalletProviderRaw = ({
     }
   }, [
     discovery,
-    networkId,
+    activeWallet?.networkId,
     generate204API,
     generate204CbVaultsReaderAPI,
     generate204APIExternal,
@@ -500,11 +527,13 @@ const WalletProviderRaw = ({
 
   const [vaults, setVaults, , clearVaultsCache, vaultsStorageStatus] =
     useStorage<Vaults>(
-      initStorage ? `VAULTS_${walletId}` : undefined,
+      canInitNonSignersWalletDataStorage
+        ? `VAULTS_${activeWallet.walletId}`
+        : undefined,
       SERIALIZABLE,
       DEFAULT_VAULTS,
       undefined,
-      walletId !== undefined ? walletsDataCipherKey[walletId] : undefined
+      activeWallet && walletsDataCipherKey[activeWallet.walletId]
     );
 
   const [
@@ -514,20 +543,24 @@ const WalletProviderRaw = ({
     clearVaultsStatusesCache,
     vaultsStatusesStorageStatus
   ] = useStorage<VaultsStatuses>(
-    initStorage ? `VAULTS_STATUSES_${walletId}` : undefined,
+    canInitNonSignersWalletDataStorage
+      ? `VAULTS_STATUSES_${activeWallet.walletId}`
+      : undefined,
     SERIALIZABLE,
     DEFAULT_VAULTS_STATUSES,
     undefined,
-    walletId !== undefined ? walletsDataCipherKey[walletId] : undefined
+    activeWallet && walletsDataCipherKey[activeWallet.walletId]
   );
 
   const [accounts, setAccounts, , clearAccountsCache, accountsStorageStatus] =
     useStorage<Accounts>(
-      initStorage ? `ACCOUNTS_${walletId}` : undefined,
+      canInitNonSignersWalletDataStorage
+        ? `ACCOUNTS_${activeWallet.walletId}`
+        : undefined,
       SERIALIZABLE,
       DEFAULT_ACCOUNTS,
       undefined,
-      walletId !== undefined ? walletsDataCipherKey[walletId] : undefined
+      activeWallet && walletsDataCipherKey[activeWallet.walletId]
     );
 
   /**
@@ -544,11 +577,13 @@ const WalletProviderRaw = ({
       accounts: Accounts,
       tipHeight: number
     ) => {
+      const network =
+        activeWallet?.networkId && networkMapping[activeWallet.networkId];
       if (
         tipHeight === undefined ||
         !discovery ||
         !network ||
-        walletId === undefined
+        activeWallet?.walletId === undefined
       ) {
         throw new Error(
           'Cannot set utxos and history data: required data is missing'
@@ -574,8 +609,8 @@ const WalletProviderRaw = ({
         discovery
       );
       batchedUpdates(() => {
-        setUtxosData(walletId, walletUtxosData);
-        setHistoryData(walletId, walletHistoryData);
+        setUtxosData(activeWallet.walletId, walletUtxosData);
+        setHistoryData(activeWallet.walletId, walletHistoryData);
       });
       //Save to disk.
       const exportedData = discovery.export();
@@ -583,10 +618,10 @@ const WalletProviderRaw = ({
     },
     [
       discovery,
-      network,
+      activeWallet?.networkId,
       setUtxosData,
       setHistoryData,
-      walletId,
+      activeWallet?.walletId,
       setDiscoveryExport
     ]
   );
@@ -684,7 +719,7 @@ const WalletProviderRaw = ({
 
   const storageAccessStatus = getStorageAccessStatus({
     signers,
-    isSignersSynchd: signersStorageStatus.isSynchd,
+    isSignersDiskSynchd: signersStorageStatus.isDiskSynchd,
     settingsErrorCode: settingsStorageStatus.errorCode,
     signersErrorCode: signersStorageStatus.errorCode,
     walletsErrorCode: walletsStorageStatus.errorCode,
@@ -694,9 +729,9 @@ const WalletProviderRaw = ({
     accountsErrorCode: accountsStorageStatus.errorCode
   });
   const isCorrupted = getIsCorrupted({
-    wallet,
+    wallet: activeWallet,
     signers,
-    isSignersSynchd: signersStorageStatus.isSynchd,
+    isSignersDiskSynchd: signersStorageStatus.isDiskSynchd,
     signersErrorCode: signersStorageStatus.errorCode,
     vaults,
     isVaultsSynchd: vaultsStorageStatus.isSynchd,
@@ -706,16 +741,16 @@ const WalletProviderRaw = ({
     isAccountsSynchd: accountsStorageStatus.isSynchd
   });
 
-  /** When all wallet realated data is synchronized and without any errors.
+  /** When all wallet related data is synchronized and without any errors.
    * Use this variable to add the wallet into the wallets storage
    */
-  const dataReady =
-    walletsStorageStatus.isSynchd &&
-    discoveryExportStorageStatus.isSynchd &&
-    signersStorageStatus.isSynchd &&
-    vaultsStorageStatus.isSynchd &&
-    vaultsStatusesStorageStatus.isSynchd &&
-    accountsStorageStatus.isSynchd &&
+  const isWalletDiskSynched =
+    walletsStorageStatus.isDiskSynchd &&
+    discoveryExportStorageStatus.isDiskSynchd &&
+    signersStorageStatus.isDiskSynchd &&
+    vaultsStorageStatus.isDiskSynchd &&
+    vaultsStatusesStorageStatus.isDiskSynchd &&
+    accountsStorageStatus.isDiskSynchd &&
     walletsStorageStatus.errorCode === false &&
     discoveryExportStorageStatus.errorCode === false &&
     signersStorageStatus.errorCode === false &&
@@ -724,10 +759,23 @@ const WalletProviderRaw = ({
     accountsStorageStatus.errorCode === false &&
     !isCorrupted;
 
+  useEffect(() => {
+    if (isWalletDiskSynched) {
+      if (!activeWallet) throw new Error('wallet should be set when ready');
+      if (activeWallet.walletId !== walletIdRef.current)
+        throw new Error("walletIds don't match!");
+      if (!wallets) throw new Error('wallets should be set when ready');
+      if (!shallowEqualObjects(activeWallet, wallets[activeWallet.walletId])) {
+        setWallets({ ...wallets, [activeWallet.walletId]: activeWallet });
+      }
+    }
+  }, [setWallets, isWalletDiskSynched, activeWallet, wallets]);
+
+  const isWalletReady = isWalletDiskSynched && !!activeWallet;
   //isFirstLogin will be false until the data is ready.
   //For example readwrite errors will prevent this from being true.
   const isFirstLogin =
-    dataReady && walletId !== undefined && !!walletsNewSigners[walletId];
+    isWalletReady && !!walletsNewSigners[activeWallet.walletId];
 
   // Refs for notification listeners
   const notificationListener = useRef<Subscription>();
@@ -811,12 +859,12 @@ const WalletProviderRaw = ({
 
         if (walletUUID && typeof walletUUID === 'string' && watchtowerId) {
           // Find the wallet with matching UUID
-          const wallet = Object.values(wallets || {}).find(
-            wallet => wallet.walletUUID === walletUUID
+          const matchingWallet = Object.values(wallets || {}).find(
+            matchingWallet => matchingWallet.walletUUID === walletUUID
           );
 
           // Handle unknown wallet UUIDs (from deleted wallets or old installations)
-          if (!wallet) {
+          if (!matchingWallet) {
             const vaultId = data['vaultId'] as string;
             if (typeof vaultId === 'string') {
               console.warn(
@@ -831,7 +879,7 @@ const WalletProviderRaw = ({
           } else {
             const vaultId = data['vaultId'] as string;
             if (vaultId) {
-              const existingNotifications = wallet.notifications || {};
+              const existingNotifications = matchingWallet.notifications || {};
               const existingWatchtowerNotifications =
                 existingNotifications[watchtowerId as string] || {};
 
@@ -871,7 +919,7 @@ const WalletProviderRaw = ({
 
                   // Create new wallet object with updated notifications
                   const updatedWallet = {
-                    ...wallet,
+                    ...matchingWallet,
                     notifications: {
                       ...existingNotifications,
                       [watchtowerId as string]: {
@@ -885,9 +933,13 @@ const WalletProviderRaw = ({
                   };
 
                   // Update wallets storage
-                  setWallets({
-                    ...wallets,
-                    [wallet.walletId]: updatedWallet
+                  batchedUpdates(() => {
+                    setWallets({
+                      ...wallets,
+                      [matchingWallet.walletId]: updatedWallet
+                    });
+                    if (updatedWallet.walletId === activeWallet?.walletId)
+                      setActiveWallet(updatedWallet);
                   });
                 } else {
                   console.warn('Invalid notification data received:', {
@@ -901,7 +953,14 @@ const WalletProviderRaw = ({
         }
       }
     },
-    [wallets, setWallets, sendAckToWatchtower, goBackToWallets, vaultsStatuses]
+    [
+      activeWallet?.walletId,
+      wallets,
+      setWallets,
+      sendAckToWatchtower,
+      goBackToWallets,
+      vaultsStatuses
+    ]
   );
 
   // Cache of “unacknowledged” watchtower notifications by API URL.
@@ -1211,7 +1270,7 @@ const WalletProviderRaw = ({
    * wallet
    */
   const logOut = useCallback(async () => {
-    if (walletId !== undefined) {
+    if (activeWallet?.walletId !== undefined) {
       batchedUpdates(() => {
         // Clear cache, so that data must be read from disk again for the walletId.
         // This forces cipherKeys to be evaluated again to decrypt from disk
@@ -1222,21 +1281,21 @@ const WalletProviderRaw = ({
         clearDiscoveryExportCache();
         clearAccountsCache();
         //Clear other state:
-        clearDiscovery(walletId);
-        clearUtxosData(walletId);
-        clearHistoryData(walletId);
-        clearSynchingBlockchain(walletId);
-        clearNewSigners(walletId);
-        clearSignersCipherKey(walletId);
-        clearDataCipherKey(walletId);
-        setWalletId(undefined);
+        clearDiscovery(activeWallet.walletId);
+        clearUtxosData(activeWallet.walletId);
+        clearHistoryData(activeWallet.walletId);
+        clearSynchingBlockchain(activeWallet.walletId);
+        clearNewSigners(activeWallet.walletId);
+        clearSignersCipherKey(activeWallet.walletId);
+        clearDataCipherKey(activeWallet.walletId);
+        setActiveWallet(undefined);
         walletIdRef.current = undefined;
         netStatusReset(); //Stop checking network, also close all explorer instances
       });
     }
   }, [
     netStatusReset,
-    walletId,
+    activeWallet?.walletId,
     clearSignersCache,
     clearVaultsCache,
     clearVaultsStatusesCache,
@@ -1252,36 +1311,49 @@ const WalletProviderRaw = ({
   ]);
 
   const deleteWallet = useCallback(
-    async (walletId: number) => {
-      if (walletId !== wallet?.walletId)
-        throw new Error(`Cannot delete non-active wallet ${walletId}`);
+    async (idToDelete: number) => {
+      if (idToDelete !== activeWallet?.walletId)
+        throw new Error(`Cannot delete non-active wallet ${idToDelete}`);
       if (!wallets) throw new Error(`Cannot delete non-existing wallets`);
-      await logOut();
       const authenticationPrompt = t('app.secureStorageAuthenticationPrompt');
+      await logOut(); //clears the cache - Super important!!!
       await Promise.all([
         deleteAsync(
-          `SIGNERS_${walletId}`,
-          wallet.signersStorageEngine,
+          `SIGNERS_${idToDelete}`,
+          activeWallet.signersStorageEngine,
           authenticationPrompt
         ),
-        deleteAsync(`DISCOVERY_${walletId}`),
-        deleteAsync(`VAULTS_${walletId}`),
-        deleteAsync(`VAULTS_STATUSES_${walletId}`),
-        deleteAsync(`ACCOUNTS_${walletId}`)
+        deleteAsync(`DISCOVERY_${idToDelete}`),
+        deleteAsync(`VAULTS_${idToDelete}`),
+        deleteAsync(`VAULTS_STATUSES_${idToDelete}`),
+        deleteAsync(`ACCOUNTS_${idToDelete}`)
       ]);
-      const { [walletId]: walletToDelete, ...remainingWallets } = wallets;
+      const { [idToDelete]: walletToDelete, ...remainingWallets } = wallets;
       void walletToDelete;
-      // This is the other only place this function can be called
-      await setWallets(remainingWallets);
+      let walletsPromise: Promise<void> | undefined;
+
+      batchedUpdates(() => {
+        setActiveWallet(undefined);
+        walletsPromise = setWallets(remainingWallets);
+      });
+      if (!walletsPromise) throw new Error('walletsPromise not set');
+      await walletsPromise;
     },
-    [logOut, t, wallet, setWallets, wallets]
+    [
+      logOut,
+      t,
+      activeWallet?.walletId,
+      activeWallet?.signersStorageEngine,
+      setWallets,
+      wallets
+    ]
   );
 
   const onWallet = useCallback(
     async ({
       wallet: walletDst,
       newSigners,
-      signersCipherKey
+      signersCipherKey: signersCipherKeyDst
     }: {
       wallet: Wallet;
       /**
@@ -1294,54 +1366,60 @@ const WalletProviderRaw = ({
        */
       signersCipherKey?: Uint8Array;
     }) => {
-      const walletId = walletDst.walletId;
+      if (
+        walletIdRef.current !== undefined &&
+        walletIdRef.current !== walletDst.walletId
+      ) {
+        console.warn('Wallet swap request without previous logOut');
+        logOut();
+      }
+      if (
+        walletIdRef.current !== undefined &&
+        wallets &&
+        !wallets[walletIdRef.current] //this means the wallet was not really created.
+      ) {
+        console.warn('Wallet creation attempt with previous one uncleared.');
+        logOut();
+      }
       if (newSigners) {
         //Make sure we don't have values from previous app installs using the same id?
         const authenticationPrompt = t('app.secureStorageAuthenticationPrompt');
         await Promise.all([
           deleteAsync(
-            `SIGNERS_${walletId}`,
+            `SIGNERS_${walletDst.walletId}`,
             walletDst.signersStorageEngine,
             authenticationPrompt
           ),
-          deleteAsync(`DISCOVERY_${walletId}`),
-          deleteAsync(`VAULTS_${walletId}`),
-          deleteAsync(`VAULTS_STATUSES_${walletId}`),
-          deleteAsync(`ACCOUNTS_${walletId}`)
+          deleteAsync(`DISCOVERY_${walletDst.walletId}`),
+          deleteAsync(`VAULTS_${walletDst.walletId}`),
+          deleteAsync(`VAULTS_STATUSES_${walletDst.walletId}`),
+          deleteAsync(`ACCOUNTS_${walletDst.walletId}`)
         ]);
+        //in addition to deleteAsync caches are cleared with logOut - see above
       }
-      //React 18 NOT on the new Architecture behaves as React 17:
       batchedUpdates(() => {
-        //logOut(); //Log out from previous wallet - This is done now on "beforeRemove" event in WalletsHomeScreen
-        setWalletId(prevWalletId => {
+        setActiveWallet(prevWallet => {
           //Net status depends on the wallet (explorer, ...); so reset it ONLY when it changes
-          if (prevWalletId !== walletId) netStatusReset();
-          return walletId;
+          if (prevWallet && prevWallet.walletId !== walletDst.walletId)
+            netStatusReset();
+          return walletDst;
         });
-        walletIdRef.current = walletId;
-        if (signersCipherKey) setSignersCipherKey(walletId, signersCipherKey);
-        if (newSigners) setNewSigners(walletId, newSigners);
-        if (wallets && walletDst !== wallets[walletId])
-          setWallets({ ...wallets, [walletId]: walletDst });
+        walletIdRef.current = walletDst.walletId;
+        setSignersCipherKey(walletDst.walletId, signersCipherKeyDst);
+        if (newSigners) setNewSigners(walletDst.walletId, newSigners);
       });
     },
-    [
-      //logOut,
-      wallets,
-      setWallets,
-      t,
-      setNewSigners,
-      setSignersCipherKey,
-      netStatusReset
-    ]
+    [t, setNewSigners, setSignersCipherKey, netStatusReset, logOut, wallets]
   );
 
   useEffect(() => {
+    const network =
+      activeWallet?.networkId && networkMapping[activeWallet.networkId];
     if (
-      walletId !== undefined &&
+      activeWallet?.walletId !== undefined &&
       signers &&
       network &&
-      wallet.encryption === 'SEED_DERIVED'
+      activeWallet?.encryption === 'SEED_DERIVED'
     ) {
       const signer = signers[0];
       if (!signer) throw new Error('signer unavailable');
@@ -1350,19 +1428,25 @@ const WalletProviderRaw = ({
           signer,
           network
         });
-        setDataCipherKey(walletId, walletDataCipherKey);
+        setDataCipherKey(activeWallet?.walletId, walletDataCipherKey);
       };
       fetchDataCipherKey();
     }
-  }, [walletId, setDataCipherKey, signers, network, wallet?.encryption]);
+  }, [
+    activeWallet?.walletId,
+    activeWallet?.encryption,
+    setDataCipherKey,
+    signers,
+    activeWallet?.networkId
+  ]);
 
   //Tries to initialize wallet utxos and history from the discovery object we
   //got from disk ASAP (only if not set)
   useEffect(() => {
     if (
-      walletId !== undefined &&
-      !walletsUtxosData[walletId] &&
-      !walletsHistoryData[walletId] &&
+      activeWallet?.walletId !== undefined &&
+      !walletsUtxosData[activeWallet.walletId] &&
+      !walletsHistoryData[activeWallet.walletId] &&
       vaults &&
       vaultsStatuses &&
       accounts &&
@@ -1376,13 +1460,15 @@ const WalletProviderRaw = ({
     vaultsStatuses,
     accounts,
     tipHeight,
-    walletId,
+    activeWallet?.walletId,
     walletsUtxosData,
     walletsHistoryData
   ]);
 
   const getNextChangeDescriptorWithIndex = useCallback(
     async (accounts: Accounts) => {
+      const network =
+        activeWallet?.networkId && networkMapping[activeWallet.networkId];
       if (!network) throw new Error('Network not ready');
       if (!Object.keys(accounts).length) throw new Error('Accounts not set');
       if (!discovery) throw new Error('Discovery not ready');
@@ -1395,11 +1481,13 @@ const WalletProviderRaw = ({
         })
       };
     },
-    [network, discovery]
+    [activeWallet?.networkId, discovery]
   );
 
   const getNextReceiveDescriptorWithIndex = useCallback(
     async (accounts: Accounts) => {
+      const network =
+        activeWallet?.networkId && networkMapping[activeWallet.networkId];
       if (!network) throw new Error('Network not ready');
       if (!Object.keys(accounts).length) throw new Error('Accounts not set');
       if (!discovery) throw new Error('Discovery not ready');
@@ -1412,16 +1500,18 @@ const WalletProviderRaw = ({
         })
       };
     },
-    [network, discovery]
+    [activeWallet?.networkId, discovery]
   );
 
   const getUnvaultKey = useCallback(async () => {
+    const network =
+      activeWallet?.networkId && networkMapping[activeWallet.networkId];
     if (!network) throw new Error('Network not ready');
     if (!signers) throw new Error('Signers not ready');
     const signer = signers[0];
     if (!signer) throw new Error('signer unavailable');
     return await createUnvaultKey({ signer, network });
-  }, [network, signers]);
+  }, [activeWallet?.networkId, signers]);
 
   const fetchServiceAddress = useCallback(async () => {
     if (!serviceAddressAPI) {
@@ -1462,45 +1552,52 @@ const WalletProviderRaw = ({
   const isUserTriggeredSync = useRef<boolean>(false);
   const prevAccountsSyncRef = useRef<Accounts | undefined>();
 
-  const walletTitle = wallet && wallets && walletTitleFn(wallet, wallets, t);
+  const walletTitle =
+    activeWallet && wallets && walletTitleFn(activeWallet, wallets, t);
 
+  //FIXME: is this correct? does vaultId belong to the active wallet???
+  //throw if not
   const setVaultNotificationAcknowledged = useCallback(
     (vaultId: string) => {
       if (
         !watchtowerAPI ||
         !networkTimeout ||
         !wallets ||
-        walletId === undefined
+        activeWallet?.walletId === undefined
       )
         return;
 
-      const wallet = wallets[walletId];
-      if (!wallet) return;
+      const matchedWallet = wallets[activeWallet.walletId];
+      if (!matchedWallet) return; //FIXME: shouldnt this throw?
 
       const currentNotification =
-        wallet.notifications?.[watchtowerAPI]?.[vaultId];
+        matchedWallet.notifications?.[watchtowerAPI]?.[vaultId];
       if (currentNotification?.acked === true) return;
 
-      const updatedWallets = {
-        ...wallets,
-        [walletId]: {
-          ...wallet,
-          notifications: {
-            ...wallet.notifications,
-            [watchtowerAPI]: {
-              ...wallet.notifications?.[watchtowerAPI],
-              [vaultId]: {
-                ...currentNotification,
-                acked: true
-              }
+      const updatedMatchedWallet = {
+        ...matchedWallet,
+        notifications: {
+          ...matchedWallet.notifications,
+          [watchtowerAPI]: {
+            ...matchedWallet.notifications?.[watchtowerAPI],
+            [vaultId]: {
+              ...currentNotification,
+              acked: true
             }
           }
         }
       };
+      const updatedWallets = {
+        ...wallets,
+        [matchedWallet.walletId]: updatedMatchedWallet
+      };
 
-      setWallets(updatedWallets);
+      batchedUpdates(() => {
+        setActiveWallet(updatedMatchedWallet);
+        setWallets(updatedWallets);
+      });
     },
-    [watchtowerAPI, networkTimeout, wallets, walletId, setWallets]
+    [watchtowerAPI, networkTimeout, wallets, activeWallet?.walletId, setWallets]
   );
 
   /**
@@ -1515,20 +1612,16 @@ const WalletProviderRaw = ({
   const syncWatchtowerRegistration = useCallback(
     async (pushToken: string) => {
       // Ensure all required data is available before proceeding
-      if (!vaults || !vaultsStatuses || walletId === undefined) {
+      if (!vaults || !vaultsStatuses || activeWallet?.walletId === undefined) {
         console.warn(
           'syncWatchtowerRegistration: Skipping due to missing data.'
         );
         return;
       }
 
+      const walletUUID = activeWallet?.walletUUID;
       try {
-        if (
-          !watchtowerAPI ||
-          !networkTimeout ||
-          !walletTitle ||
-          !wallet?.walletUUID
-        )
+        if (!watchtowerAPI || !networkTimeout || !walletTitle || !walletUUID)
           throw new Error('Required data for watchtower registration missing');
         const { result: newWatchedVaults } = await netRequest({
           errorMessage: (message: string) =>
@@ -1548,7 +1641,7 @@ const WalletProviderRaw = ({
               networkTimeout,
               walletName: walletTitle,
               locale,
-              walletUUID: wallet.walletUUID
+              walletUUID
             });
           }
         });
@@ -1592,16 +1685,16 @@ const WalletProviderRaw = ({
       }
     },
     [
+      activeWallet?.walletUUID,
       vaults,
       vaultsStatuses,
-      walletId,
+      activeWallet?.walletId,
       setVaultsStatuses,
       netRequest,
       networkTimeout,
       settings?.LOCALE,
       t,
       watchtowerAPI,
-      wallet?.walletUUID,
       walletTitle
     ]
   );
@@ -1611,7 +1704,8 @@ const WalletProviderRaw = ({
    * it tries first to check the network .
    */
   const sync = useCallback(async () => {
-    if (walletId === undefined) throw new Error('Cannot sync an unset wallet');
+    if (activeWallet?.walletId === undefined)
+      throw new Error('Cannot sync an unset wallet');
 
     // Track `prevAccounts` to detect changes and manage state between syncs.
     const prevAccounts = prevAccountsSyncRef.current;
@@ -1624,12 +1718,13 @@ const WalletProviderRaw = ({
       : 'ON_NEW_ERROR';
 
     const signer = signers?.[0];
-    const network = networkId && networkMapping[networkId];
+    const network =
+      activeWallet.networkId && networkMapping[activeWallet.networkId];
 
     if (
       walletTitle !== undefined &&
-      dataReady &&
-      networkId &&
+      isWalletDiskSynched &&
+      activeWallet.networkId &&
       network &&
       gapLimit !== undefined &&
       networkTimeout !== undefined &&
@@ -1654,33 +1749,33 @@ const WalletProviderRaw = ({
       watchtowerAPI
     ) {
       console.log(
-        `[${new Date().toISOString()}] [Sync] Wallet: ${walletId} | NetReady: ${netReady} | UserTriggered: ${isUserTriggered} | network: ${networkId}`
+        `[${new Date().toISOString()}] [Sync] Wallet: ${activeWallet.walletId} | NetReady: ${netReady} | UserTriggered: ${isUserTriggered} | network: ${activeWallet.networkId}`
       );
 
       if (netReady === false && isUserTriggered) {
         //This strategy only checks netStatus changes when we're sure the
         //network is down and the user is requesting it. This is because this is
         //an expensive operation and sync may also be called automatically on
-        //dependencies of dataReady, netReady, callback functions and so on...
+        //dependencies of isWalletDiskSynched, netReady, callback functions and so on...
         //No prob if netStatusUpdate fails.
         const ns = await netStatusUpdate({ whenToastErrors });
-        if (walletId !== walletIdRef.current) {
+        if (activeWallet.walletId !== walletIdRef.current) {
           //do this after each await
-          setSyncingBlockchain(walletId, false);
+          setSyncingBlockchain(activeWallet.walletId, false);
           return;
         }
         //wait until next execution thread to allow netStatusUpdate
         //to update internal states, which will need to be ready for the netRequest
         //calls below:
         await new Promise(resolve => setTimeout(resolve, 100));
-        if (walletId !== walletIdRef.current) {
+        if (activeWallet.walletId !== walletIdRef.current) {
           //do this after each await
-          setSyncingBlockchain(walletId, false);
+          setSyncingBlockchain(activeWallet.walletId, false);
           return;
         }
         if (!ns?.explorerReachable) {
           //also don't continue if explorer is not reachable
-          setSyncingBlockchain(walletId, false);
+          setSyncingBlockchain(activeWallet.walletId, false);
           return;
         }
       }
@@ -1695,21 +1790,21 @@ const WalletProviderRaw = ({
         //Toasts a warning error on failure but does not stop the sync
         if (!isFeeEstimatesSynchdRef.current)
           await updateFeeEstimates({ whenToastErrors });
-        if (walletId !== walletIdRef.current) {
+        if (activeWallet.walletId !== walletIdRef.current) {
           //do this after each await
-          setSyncingBlockchain(walletId, false);
+          setSyncingBlockchain(activeWallet.walletId, false);
           return;
         }
         const updatedTipHeight = (await updateTipStatus({ whenToastErrors }))
           ?.blockHeight;
-        if (walletId !== walletIdRef.current) {
+        if (activeWallet.walletId !== walletIdRef.current) {
           //do this after each await
-          setSyncingBlockchain(walletId, false);
+          setSyncingBlockchain(activeWallet.walletId, false);
           return;
         }
         if (!updatedTipHeight) {
           //also don't continue if we cannot get a valid updatedTipHeight
-          setSyncingBlockchain(walletId, false);
+          setSyncingBlockchain(activeWallet.walletId, false);
           return;
         }
         //First get updatedVaults & updatedVaultsStatuses:
@@ -1725,14 +1820,14 @@ const WalletProviderRaw = ({
             fetchP2PVaults({
               networkTimeout,
               signer,
-              networkId,
+              networkId: activeWallet.networkId,
               cBVaultsReaderAPI,
               vaults
             })
         });
-        if (walletId !== walletIdRef.current) {
+        if (activeWallet.walletId !== walletIdRef.current) {
           //do this after each await
-          setSyncingBlockchain(walletId, false);
+          setSyncingBlockchain(activeWallet.walletId, false);
           return;
         }
 
@@ -1762,15 +1857,15 @@ const WalletProviderRaw = ({
               discovery.getExplorer()
             )
         });
-        if (walletId !== walletIdRef.current) {
+        if (activeWallet.walletId !== walletIdRef.current) {
           //do this after each await
-          setSyncingBlockchain(walletId, false);
+          setSyncingBlockchain(activeWallet.walletId, false);
           return;
         }
         if (!freshVaultsStatuses) {
           //also don't continue if fetching vaults statuses failed as this would
           //create unsynched vaults & vaultsStatuses
-          setSyncingBlockchain(walletId, false);
+          setSyncingBlockchain(activeWallet.walletId, false);
           return;
         }
         let updatedVaultsStatuses = vaultsStatuses; //initially they are the same
@@ -1791,9 +1886,9 @@ const WalletProviderRaw = ({
           if (signer.type !== 'SOFTWARE') {
             console.warn('Non-Software Wallets use default accounts for now');
             const defaultAccount = await getDefaultAccount(signers, network);
-            if (walletId !== walletIdRef.current) {
+            if (activeWallet.walletId !== walletIdRef.current) {
               //do this after each await
-              setSyncingBlockchain(walletId, false);
+              setSyncingBlockchain(activeWallet.walletId, false);
               return;
             }
             updatedAccounts[defaultAccount] = { discard: false };
@@ -1813,14 +1908,14 @@ const WalletProviderRaw = ({
                   gapLimit
                 })
             });
-            if (walletId !== walletIdRef.current) {
+            if (activeWallet.walletId !== walletIdRef.current) {
               //do this after each await
-              setSyncingBlockchain(walletId, false);
+              setSyncingBlockchain(activeWallet.walletId, false);
               return;
             }
             if (fetchStandardStatus !== 'SUCCESS') {
               //also don't continue if discovery fails
-              setSyncingBlockchain(walletId, false);
+              setSyncingBlockchain(activeWallet.walletId, false);
               return;
             }
             const usedAccounts = discovery.getUsedAccounts();
@@ -1829,9 +1924,9 @@ const WalletProviderRaw = ({
                 updatedAccounts[usedAccount] = { discard: false };
             else {
               const defaultAccount = await getDefaultAccount(signers, network);
-              if (walletId !== walletIdRef.current) {
+              if (activeWallet.walletId !== walletIdRef.current) {
                 //do this after each await
-                setSyncingBlockchain(walletId, false);
+                setSyncingBlockchain(activeWallet.walletId, false);
                 return;
               }
               updatedAccounts[defaultAccount] = { discard: false };
@@ -1853,14 +1948,14 @@ const WalletProviderRaw = ({
           requirements: { explorerReachable: true },
           func: () => discovery.fetch({ descriptors, gapLimit })
         });
-        if (walletId !== walletIdRef.current) {
+        if (activeWallet.walletId !== walletIdRef.current) {
           //do this after each await
-          setSyncingBlockchain(walletId, false);
+          setSyncingBlockchain(activeWallet.walletId, false);
           return;
         }
         if (fetchStatus !== 'SUCCESS') {
           //also don't continue if discovery fails
-          setSyncingBlockchain(walletId, false);
+          setSyncingBlockchain(activeWallet.walletId, false);
           return;
         }
 
@@ -1885,8 +1980,8 @@ const WalletProviderRaw = ({
         console.warn(error);
         //We don't care about errors of other wallets (probably trying to
         //do a network op on an expired wallet with closed explorer)
-        if (walletId !== walletIdRef.current) {
-          setSyncingBlockchain(walletId, false);
+        if (activeWallet.walletId !== walletIdRef.current) {
+          setSyncingBlockchain(activeWallet.walletId, false);
           return;
         }
 
@@ -1900,13 +1995,13 @@ const WalletProviderRaw = ({
       }
     }
 
-    setSyncingBlockchain(walletId, false);
+    setSyncingBlockchain(activeWallet.walletId, false);
   }, [
     walletTitle,
     netRequest,
     netToast,
     netStatusUpdate,
-    dataReady,
+    isWalletDiskSynched,
     netReady,
     updateBtcFiat,
     updateFeeEstimates,
@@ -1914,7 +2009,7 @@ const WalletProviderRaw = ({
     setUtxosHistoryExport,
     setAccounts,
     setSyncingBlockchain,
-    walletId,
+    activeWallet?.walletId,
     accounts,
     t,
     discovery,
@@ -1922,7 +2017,7 @@ const WalletProviderRaw = ({
     setVaultsStatuses,
     vaults,
     vaultsStatuses,
-    networkId,
+    activeWallet?.networkId,
     signers,
     cBVaultsReaderAPI,
     watchtowerAPI,
@@ -1935,25 +2030,39 @@ const WalletProviderRaw = ({
   //syncingBlockchain is set to true either by the user calling to
   //syncingBlockchain or automatically in a useEffect when walletId changes
   useEffect(() => {
-    if (walletId !== undefined && walletsSyncingBlockchain[walletId]) sync();
-  }, [walletsSyncingBlockchain, walletId, sync]);
+    if (
+      activeWallet?.walletId !== undefined &&
+      walletsSyncingBlockchain[activeWallet.walletId]
+    )
+      sync();
+  }, [walletsSyncingBlockchain, activeWallet?.walletId, sync]);
   //This function is passed in the context so that users can sync
   const syncBlockchain = useCallback(() => {
-    if (walletId !== undefined) {
+    if (activeWallet?.walletId !== undefined) {
       isUserTriggeredSync.current = true;
-      setSyncingBlockchain(walletId, true);
+      setSyncingBlockchain(activeWallet.walletId, true);
     }
-  }, [walletId, setSyncingBlockchain]);
+  }, [activeWallet?.walletId, setSyncingBlockchain]);
   //Automatically set syncingBlockchain to true on new walletId: auto sync
-  //on new wallet. Make sure explorer and api (vault checking) is reachable
+  //on new activeWallet. Make sure explorer and api (vault checking) is reachable
   //since otherwise sync()
   //won't do anything as it's necessary.
   //Also it will auto-trigger update on a new block
   useEffect(() => {
-    if (walletId !== undefined && dataReady && netReady) {
-      setSyncingBlockchain(walletId, true);
+    if (
+      activeWallet?.walletId !== undefined &&
+      isWalletDiskSynched &&
+      netReady
+    ) {
+      setSyncingBlockchain(activeWallet.walletId, true);
     }
-  }, [walletId, setSyncingBlockchain, dataReady, netReady, tipHeight]);
+  }, [
+    activeWallet?.walletId,
+    setSyncingBlockchain,
+    isWalletDiskSynched,
+    netReady,
+    tipHeight
+  ]);
 
   /**
    * Pushes the vault, registers to the Watchtower (if device supports it and
@@ -1977,7 +2086,7 @@ const WalletProviderRaw = ({
         throw new Error(
           `Cannot vaultPushAndUpdateStates without accounts: ${!!accounts} or tipHeight: ${!!tipHeight}`
         );
-      if (walletId === undefined)
+      if (activeWallet?.walletId === undefined)
         throw new Error(
           'walletId undefined in pushVaultRegisterWTAndUpdateStates'
         );
@@ -2016,7 +2125,7 @@ const WalletProviderRaw = ({
       await Promise.all(stateUpdatePromises);
     },
     [
-      walletId,
+      activeWallet?.walletId,
       pushTx,
       accounts,
       tipHeight,
@@ -2086,17 +2195,16 @@ const WalletProviderRaw = ({
     accounts,
     vaults,
     vaultsStatuses,
-    networkId,
+    networkId: activeWallet?.networkId,
     feeEstimates,
     tipStatus,
-    utxosData: walletId !== undefined ? walletsUtxosData[walletId] : undefined,
-    historyData:
-      walletId !== undefined ? walletsHistoryData[walletId] : undefined,
+    utxosData: activeWallet && walletsUtxosData[activeWallet.walletId],
+    historyData: activeWallet && walletsHistoryData[activeWallet.walletId],
     pushVaultRegisterWTAndUpdateStates,
     txPushAndUpdateStates,
     syncBlockchain,
     syncingBlockchain: !!(
-      walletId !== undefined && walletsSyncingBlockchain[walletId]
+      activeWallet && walletsSyncingBlockchain[activeWallet.walletId]
     ),
     fetchBlockTime,
     pushTx,
@@ -2109,19 +2217,20 @@ const WalletProviderRaw = ({
     blockExplorerURL,
     watchtowerAPI,
     wallets,
-    wallet,
+    wallet: activeWallet,
     walletStatus: { isCorrupted, storageAccess: storageAccessStatus },
     orphanedWatchtowerWalletUUIDs,
     clearOrphanedWatchtowerWalletUUIDs,
     requiresPassword:
-      (walletId !== undefined &&
-        wallet?.signersEncryption === 'PASSWORD' &&
-        !walletsSignersCipherKey[walletId]) ||
+      (activeWallet?.signersEncryption === 'PASSWORD' &&
+        !walletsSignersCipherKey[activeWallet.walletId]) ||
       (typeof signersStorageStatus.errorCode !== 'boolean' &&
+        // DecryptError is most probably the user entered a bad password
         signersStorageStatus.errorCode === 'DecryptError'),
     logOut,
     deleteWallet,
     onWallet,
+    isWalletReady,
     isFirstLogin,
     setVaultNotificationAcknowledged
   };

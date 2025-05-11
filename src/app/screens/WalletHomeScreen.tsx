@@ -244,6 +244,7 @@ const WalletHomeScreen = () => {
       if (!wallet) throw new Error(`wallet not set yet`);
       const cb = async () => {
         const signersCipherKey = await getPasswordDerivedCipherKey(password);
+        await logOut(); //closes the password modal; nice when entering incorrect pass
         onWallet({
           wallet,
           signersCipherKey
@@ -251,7 +252,7 @@ const WalletHomeScreen = () => {
       };
       cb();
     },
-    [wallet, onWallet]
+    [wallet, onWallet, logOut]
   );
 
   const handleReceive = useCallback(
