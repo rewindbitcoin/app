@@ -3,7 +3,10 @@
 // - biometricsCurrentlyDisabledIOS
 // - biometricsAccessFailureIOS
 // - biometricsAccessFailureNonIOS
-//
+
+//FIXME: make sure that watchtower is not called repetitively on useEffects
+
+//FIXME: make sure that biometrics + password is still working - test bad password
 
 //FIXME: if camera grant is not given redirect user to settings
 //- cameraPermissionDenied

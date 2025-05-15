@@ -1,6 +1,3 @@
-//FIXME: the problem i had before optimistic updates was the useEffects were
-//being called multiple times. Specially the watchtower stuff.
-//FIXME: make sure that biometrics + password is still working - test bad password
 import {
   fetchVaultsStatuses,
   getUtxosData,
