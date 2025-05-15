@@ -388,7 +388,7 @@ const WalletProviderRaw = ({
               ...electrumParams(electrumAPI),
               timeout: settings.NETWORK_TIMEOUT
             });
-      //explorer.connect performed in NetSTatusContext
+      //explorer.connect performed in NetStatusContext
       const { Discovery } = DiscoveryFactory(explorer, network);
       const newDiscovery =
         initialDiscoveryExport !== undefined
@@ -1345,7 +1345,7 @@ const WalletProviderRaw = ({
   /**
    * isGeneratedRef.current will be true when the mnemonic is created in the App
    * (not imported). This does not need to be state since rendering does not
-   * depend on it. It will be used in useFaucer together with isFirstLogin,
+   * depend on it. It will be used in useFaucet together with isFirstLogin,
    * which is the state that conditions the rendering.
    */
   const isGeneratedRef = useRef<boolean>(false);
@@ -1938,7 +1938,17 @@ const WalletProviderRaw = ({
               updatedAccounts[defaultAccount] = { discard: false };
             }
           }
-          setAccounts(updatedAccounts);
+          //setAccounts(updatedAccounts);
+          //dont setAccounts yet. Only after discovery.fetch below is ok;
+          //otherwise we may end up setting partial states:
+          //  -accounts set
+          //  -accounts corresponding fetched utxos NOT set:
+          //    fetched utxos are stored in discovery with setUtxosHistoryExport
+          //This problem can appear when logging out immediatelly after
+          //new fauceted wallet. The faucet is triggered on "accounts" change
+          //but then the discovery object is never set. Next time we open
+          //the wallet, there'll be a mismatch and discovery will complain
+          //when trying to compute balances of unfetched utxos.
         }
         const descriptors = getHotDescriptors(
           updatedVaults,
@@ -1967,6 +1977,7 @@ const WalletProviderRaw = ({
 
         //Update states:
         batchedUpdates(() => {
+          if (accounts !== updatedAccounts) setAccounts(updatedAccounts);
           if (vaults !== updatedVaults) setVaults(updatedVaults);
           if (vaultsStatuses !== updatedVaultsStatuses)
             setVaultsStatuses(updatedVaultsStatuses);
