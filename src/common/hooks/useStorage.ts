@@ -172,14 +172,6 @@ export const useStorage = <T>(
         });
 
         try {
-          //if (key.includes('SIGNERS')) {
-          //  console.log('TRACE setAsync', {
-          //    key,
-          //    engine,
-          //    serializationFormat,
-          //    cipherKey
-          //  });
-          //}
           await setAsync(
             key,
             assertSerializationFormat(newValue, serializationFormat),
@@ -197,7 +189,7 @@ export const useStorage = <T>(
           //  setValueMap(prevValue);
           //  setErrorCodeMap(prevError);
           //});
-          console.warn(err);
+          console.warn(`Error setting key ${key}. Reverting changes...`, err);
           const errorCode = getStorageErrorCode(err);
           batchedUpdates(() => {
             // 1. roll back the optimistic value
@@ -241,14 +233,6 @@ export const useStorage = <T>(
       const fetchValue = async () => {
         isFetching[key] = true;
         try {
-          //if (key.includes('SIGNERS')) {
-          //  console.log('TRACE getAsync', {
-          //    key,
-          //    engine,
-          //    serializationFormat,
-          //    cipherKey
-          //  });
-          //}
           const savedValue = await getAsync(
             key,
             serializationFormat,

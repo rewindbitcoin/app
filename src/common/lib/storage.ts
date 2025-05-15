@@ -167,18 +167,25 @@ import {
   supportedAuthenticationTypesAsync
 } from 'expo-local-authentication';
 
-import { strToU8, strFromU8 } from 'fflate';
 import { getManagedChacha } from './cipher';
 
+// IMPORTANT: SecureStore binary encoding caveat
+//
+// We can’t rely on TextEncoder/TextDecoder for encrypted data, because
+// `TextDecoder().decode(cipherBytes)` will throw or truncate when bytes
+// aren’t valid UTF-8. That leads to partial or corrupted strings in the
+// SecureStore.
+//
+// Instead, we map raw bytes <-> ISO-8859-1 "Latin-1" code points using fflate’s
+// `strFromU8`/`strToU8` (with the `latin1` flag), then wrap that in
+// Base-64 for safe transport (btoa/atob).
+//
+// Base-64 output is pure ASCII, so SecureStore won’t mangle control chars.
+//
+// We still use TextEncoder/TextDecoder in any other code paths that
+// genuinely expect UTF-8 text.
 import { TextEncoder, TextDecoder } from './textencoder';
-// IMPORTANT:
-// We use `strToU8` / `strFromU8` for ciphered messages in the Secure Store
-// instead of `TextEncoder` / `TextDecoder`.
-// Reason: `TextDecoder().decode(cipherMessage)` will fail when the input
-// contains non-UTF-8 binary (encrypted data).
-// This caused incomplete strings in SecureStore in some cases.
-// `strFromU8` provides a reliable, reversible byte-to-string mapping.
-// We still use `TextEncoder` where UTF-8 text is expected.
+import { strToU8, strFromU8 } from 'fflate';
 
 import {
   AFTER_FIRST_UNLOCK,
@@ -420,7 +427,7 @@ export const setAsync = async (
         `Engine ${engine} does not support native Uint8Array since it uses JSON.stringify`
       );
     const secureStoreValue =
-      (cipherMessage && strFromU8(cipherMessage, true)) ||
+      (cipherMessage && btoa(strFromU8(cipherMessage, true))) ||
       //(cipherMessage &&
       //  new TextDecoder().decode(cipherMessage, { stream: false })) ||
       JSON.stringify(value);
@@ -470,7 +477,7 @@ export const getAsync = async <S extends SerializationFormat>(
         ? undefined
         : cipherKey
           ? //? new TextEncoder().encode(stringValue)
-            strToU8(stringValue, true)
+            strToU8(atob(stringValue), true)
           : JSON.parse(stringValue);
   } else if (engine === 'MMKV') {
     if (cipherKey) {

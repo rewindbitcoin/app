@@ -10,6 +10,7 @@ import { useWallet } from './useWallet';
 import { useSettings } from './useSettings';
 
 //FIXME: dont faucet imported wallets
+//   -> has been fixed; test this works
 //FIXME; on android the notice appears quite late...
 export function useFaucet() {
   const {
@@ -18,6 +19,7 @@ export function useFaucet() {
     accounts,
     fetchOutputHistory,
     isFirstLogin,
+    isGenerated,
     faucetAPI
   } = useWallet();
   const { settings } = useSettings();
@@ -60,7 +62,7 @@ export function useFaucet() {
 
   useEffect(() => {
     if (wallet?.networkId === 'TAPE' || wallet?.networkId === 'REGTEST') {
-      if (isFirstLogin && !requesToastId.current)
+      if (isFirstLogin && isGenerated && !requesToastId.current)
         setTimeout(() => {
           if (!requesToastId.current)
             requesToastId.current = toast.show(t('walletHome.faucetStartMsg'));
@@ -72,7 +74,8 @@ export function useFaucet() {
         faucetRequestedRef.current === false &&
         accounts &&
         Object.keys(accounts).length &&
-        isFirstLogin
+        isFirstLogin &&
+        isGenerated
       ) {
         faucetRequestedRef.current = true;
         const network = wallet.networkId && networkMapping[wallet.networkId];
@@ -143,6 +146,7 @@ export function useFaucet() {
     toast,
     wallet,
     isFirstLogin,
+    isGenerated,
     accounts,
     fetchOutputHistory,
     t,

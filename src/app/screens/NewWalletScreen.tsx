@@ -182,13 +182,14 @@ export default function NewWalletScreen() {
         ...(signersCipherKey ? { signersCipherKey } : {}),
         newSigners: {
           [signerId]: signer
-        }
+        },
+        isGenerated: !isImport
       });
       //if (navigation.canGoBack()) navigation.goBack();
       //navigation.navigate(WALLET_HOME, { walletId });
       navigation.replace('WALLET_HOME', { walletId });
     },
-    [navigation, onWallet, walletId, t]
+    [navigation, onWallet, walletId, t, isImport]
   );
 
   const hasAskedNonSecureSignersToSetPassword = useRef<boolean>(false);

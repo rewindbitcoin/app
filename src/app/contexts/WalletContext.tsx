@@ -159,16 +159,16 @@ export type WalletContextType = {
   onWallet: ({
     wallet,
     newSigners,
-    isImport,
+    isGenerated,
     signersCipherKey
   }: {
     wallet: Wallet;
     newSigners?: Signers;
-    isImport?: boolean;
+    isGenerated?: boolean;
     signersCipherKey?: Uint8Array;
   }) => Promise<void>;
-  isWalletReady: boolean;
   isFirstLogin: boolean;
+  isGenerated: boolean;
   setVaultNotificationAcknowledged: (vaultId: string) => void;
 };
 
@@ -278,8 +278,7 @@ const WalletProviderRaw = ({
     (activeWallet?.signersStorageEngine === 'MMKV' && Platform.OS === 'web') ||
     (activeWallet?.signersStorageEngine === 'IDB' && Platform.OS !== 'web') ||
     (activeWallet?.signersStorageEngine === 'SECURESTORE' &&
-      !!secureStorageInfo &&
-      secureStorageInfo.canUseSecureStorage === false);
+      secureStorageInfo?.canUseSecureStorage === false);
 
   const { settings, settingsStorageStatus } = useSettings();
   const gapLimit = settings?.GAP_LIMIT;
@@ -310,11 +309,15 @@ const WalletProviderRaw = ({
     activeWallet && walletsSignersCipherKey[activeWallet.walletId];
   const canInitSigners =
     !signersStorageEngineMismatch &&
-    !!activeWallet &&
-    //login-in or registering with a password (passed to onWallet)
-    (!!signersCipherKey ||
-      //login-in to a wallet created before that does not need password:
-      wallets?.[activeWallet.walletId]?.signersEncryption === 'NONE');
+    (activeWallet?.signersEncryption === 'NONE' ||
+      (activeWallet?.signersEncryption === 'PASSWORD' && !!signersCipherKey));
+  // When to init `DISCOVERY_${walletId}`, `VAULTS_${walletId}`,
+  //`VAULTS_STATUSES_${walletId}` and `ACCOUNTS_${walletId}`
+  const canInitCipheredDataStorage =
+    canInitSigners &&
+    (activeWallet?.encryption === 'NONE' ||
+      (activeWallet?.encryption === 'SEED_DERIVED' &&
+        !!walletsDataCipherKey[activeWallet.walletId]));
 
   // First thing i need to retrieve is signers
   // then, once the signers is retrieved i'll be able to retrieve the rest,
@@ -324,23 +327,11 @@ const WalletProviderRaw = ({
     useStorage<Signers>(
       canInitSigners ? `SIGNERS_${activeWallet.walletId}` : undefined,
       SERIALIZABLE,
-      activeWallet && walletsNewSigners[activeWallet.walletId],
+      activeWallet && walletsNewSigners[activeWallet.walletId], //default val
       activeWallet?.signersStorageEngine,
-      signersCipherKey,
+      signersCipherKey, // cipher key
       t('app.secureStorageAuthenticationPrompt')
     );
-
-  const initialDiscoveryExportRef = useRef<
-    DiscoveryExport | undefined | 'NOT_SYNCHD'
-  >('NOT_SYNCHD');
-
-  // When to init `DISCOVERY_${walletId}`, `VAULTS_${walletId}`,
-  //`VAULTS_STATUSES_${walletId}` and `ACCOUNTS_${walletId}`
-  const canInitNonSignersWalletDataStorage =
-    activeWallet &&
-    signersStorageStatus.errorCode === false &&
-    (activeWallet.encryption !== 'SEED_DERIVED' ||
-      walletsDataCipherKey[activeWallet.walletId]);
 
   const [
     discoveryExport,
@@ -349,7 +340,7 @@ const WalletProviderRaw = ({
     clearDiscoveryExportCache,
     discoveryExportStorageStatus
   ] = useStorage<DiscoveryExport>(
-    canInitNonSignersWalletDataStorage
+    canInitCipheredDataStorage
       ? `DISCOVERY_${activeWallet.walletId}`
       : undefined,
     SERIALIZABLE,
@@ -358,6 +349,9 @@ const WalletProviderRaw = ({
     activeWallet && walletsDataCipherKey[activeWallet.walletId]
   );
 
+  const initialDiscoveryExportRef = useRef<
+    DiscoveryExport | undefined | 'NOT_SYNCHD'
+  >('NOT_SYNCHD');
   if (discoveryExportStorageStatus.isSynchd) {
     if (initialDiscoveryExportRef.current === 'NOT_SYNCHD') {
       initialDiscoveryExportRef.current = discoveryExport;
@@ -527,7 +521,7 @@ const WalletProviderRaw = ({
 
   const [vaults, setVaults, , clearVaultsCache, vaultsStorageStatus] =
     useStorage<Vaults>(
-      canInitNonSignersWalletDataStorage
+      canInitCipheredDataStorage
         ? `VAULTS_${activeWallet.walletId}`
         : undefined,
       SERIALIZABLE,
@@ -543,7 +537,7 @@ const WalletProviderRaw = ({
     clearVaultsStatusesCache,
     vaultsStatusesStorageStatus
   ] = useStorage<VaultsStatuses>(
-    canInitNonSignersWalletDataStorage
+    canInitCipheredDataStorage
       ? `VAULTS_STATUSES_${activeWallet.walletId}`
       : undefined,
     SERIALIZABLE,
@@ -554,7 +548,7 @@ const WalletProviderRaw = ({
 
   const [accounts, setAccounts, , clearAccountsCache, accountsStorageStatus] =
     useStorage<Accounts>(
-      canInitNonSignersWalletDataStorage
+      canInitCipheredDataStorage
         ? `ACCOUNTS_${activeWallet.walletId}`
         : undefined,
       SERIALIZABLE,
@@ -770,12 +764,6 @@ const WalletProviderRaw = ({
       }
     }
   }, [setWallets, isWalletDiskSynched, activeWallet, wallets]);
-
-  const isWalletReady = isWalletDiskSynched && !!activeWallet;
-  //isFirstLogin will be false until the data is ready.
-  //For example readwrite errors will prevent this from being true.
-  const isFirstLogin =
-    isWalletReady && !!walletsNewSigners[activeWallet.walletId];
 
   // Refs for notification listeners
   const notificationListener = useRef<Subscription>();
@@ -1290,6 +1278,11 @@ const WalletProviderRaw = ({
         clearDataCipherKey(activeWallet.walletId);
         setActiveWallet(undefined);
         walletIdRef.current = undefined;
+        prevAccountsSyncRef.current = undefined;
+        initialDiscoveryExportRef.current = 'NOT_SYNCHD';
+        isUserTriggeredSync.current = false;
+        isFeeEstimatesSynchdRef.current = false;
+        isGeneratedRef.current = false;
         netStatusReset(); //Stop checking network, also close all explorer instances
       });
     }
@@ -1349,11 +1342,19 @@ const WalletProviderRaw = ({
     ]
   );
 
+  /**
+   * isGeneratedRef.current will be true when the mnemonic is created in the App
+   * (not imported). This does not need to be state since rendering does not
+   * depend on it. It will be used in useFaucer together with isFirstLogin,
+   * which is the state that conditions the rendering.
+   */
+  const isGeneratedRef = useRef<boolean>(false);
   const onWallet = useCallback(
     async ({
       wallet: walletDst,
-      newSigners,
-      signersCipherKey: signersCipherKeyDst
+      newSigners: newSignersDst,
+      signersCipherKey: signersCipherKeyDst,
+      isGenerated
     }: {
       wallet: Wallet;
       /**
@@ -1365,6 +1366,11 @@ const WalletProviderRaw = ({
        * set it when creating new wallets with password or when loggin in with password
        */
       signersCipherKey?: Uint8Array;
+      /**
+       * isGenerated will be true when the mnemonic is created in the App
+       * (not imported)
+       */
+      isGenerated?: boolean;
     }) => {
       if (
         walletIdRef.current !== undefined &&
@@ -1381,7 +1387,7 @@ const WalletProviderRaw = ({
         console.warn('Wallet creation attempt with previous one uncleared.');
         logOut();
       }
-      if (newSigners) {
+      if (newSignersDst) {
         //Make sure we don't have values from previous app installs using the same id?
         const authenticationPrompt = t('app.secureStorageAuthenticationPrompt');
         await Promise.all([
@@ -1398,19 +1404,28 @@ const WalletProviderRaw = ({
         //in addition to deleteAsync caches are cleared with logOut - see above
       }
       batchedUpdates(() => {
+        if (newSignersDst) setNewSigners(walletDst.walletId, newSignersDst);
+        walletIdRef.current = walletDst.walletId;
+        setSignersCipherKey(walletDst.walletId, signersCipherKeyDst);
+        if (typeof isGenerated !== 'undefined')
+          isGeneratedRef.current = isGenerated;
         setActiveWallet(prevWallet => {
           //Net status depends on the wallet (explorer, ...); so reset it ONLY when it changes
           if (prevWallet && prevWallet.walletId !== walletDst.walletId)
             netStatusReset();
           return walletDst;
         });
-        walletIdRef.current = walletDst.walletId;
-        setSignersCipherKey(walletDst.walletId, signersCipherKeyDst);
-        if (newSigners) setNewSigners(walletDst.walletId, newSigners);
       });
     },
     [t, setNewSigners, setSignersCipherKey, netStatusReset, logOut, wallets]
   );
+
+  //isFirstLogin will be false until the data is ready.
+  //For example readwrite errors will prevent this from being true.
+  const isFirstLogin =
+    isWalletDiskSynched &&
+    !!activeWallet &&
+    !!walletsNewSigners[activeWallet.walletId];
 
   useEffect(() => {
     const network =
@@ -1555,31 +1570,22 @@ const WalletProviderRaw = ({
   const walletTitle =
     activeWallet && wallets && walletTitleFn(activeWallet, wallets, t);
 
-  //FIXME: is this correct? does vaultId belong to the active wallet???
-  //throw if not
   const setVaultNotificationAcknowledged = useCallback(
     (vaultId: string) => {
-      if (
-        !watchtowerAPI ||
-        !networkTimeout ||
-        !wallets ||
-        activeWallet?.walletId === undefined
-      )
-        return;
-
-      const matchedWallet = wallets[activeWallet.walletId];
-      if (!matchedWallet) return; //FIXME: shouldnt this throw?
-
+      if (!watchtowerAPI || !wallets || !activeWallet)
+        throw new Error(
+          "Couldn't setVaultNotificationAcknowledged. Not ready."
+        );
       const currentNotification =
-        matchedWallet.notifications?.[watchtowerAPI]?.[vaultId];
+        activeWallet.notifications?.[watchtowerAPI]?.[vaultId];
       if (currentNotification?.acked === true) return;
 
-      const updatedMatchedWallet = {
-        ...matchedWallet,
+      const updatedActiveWallet = {
+        ...activeWallet,
         notifications: {
-          ...matchedWallet.notifications,
+          ...activeWallet.notifications,
           [watchtowerAPI]: {
-            ...matchedWallet.notifications?.[watchtowerAPI],
+            ...activeWallet.notifications?.[watchtowerAPI],
             [vaultId]: {
               ...currentNotification,
               acked: true
@@ -1589,15 +1595,15 @@ const WalletProviderRaw = ({
       };
       const updatedWallets = {
         ...wallets,
-        [matchedWallet.walletId]: updatedMatchedWallet
+        [activeWallet.walletId]: updatedActiveWallet
       };
 
       batchedUpdates(() => {
-        setActiveWallet(updatedMatchedWallet);
+        setActiveWallet(updatedActiveWallet);
         setWallets(updatedWallets);
       });
     },
-    [watchtowerAPI, networkTimeout, wallets, activeWallet?.walletId, setWallets]
+    [watchtowerAPI, wallets, activeWallet, setWallets]
   );
 
   /**
@@ -2230,8 +2236,8 @@ const WalletProviderRaw = ({
     logOut,
     deleteWallet,
     onWallet,
-    isWalletReady,
     isFirstLogin,
+    isGenerated: isGeneratedRef.current,
     setVaultNotificationAcknowledged
   };
   return (
