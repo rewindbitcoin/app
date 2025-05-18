@@ -464,7 +464,7 @@ const SettingsScreen = () => {
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
   const handleInputLayout = useCallback(
     (e: LayoutChangeEvent) => {
-      if (!deleteInputValue) return;
+      if (deleteInputValue !== '') return;
       // e.persist() is not available in React for web
       if (e.persist) e.persist();
       if (timeoutRef.current) clearTimeout(timeoutRef.current);

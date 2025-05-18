@@ -1,9 +1,3 @@
-//FIXME: En una wallet nueva, el tooltip "Direccion de Emergencia" en
-//Español no cabe en Android vermell (textInputPlaceholderWithCreate)
-//There are several fixes search for-> Fix for Android placeholder text breaking into multiple lines after text deletion
-//  -> It's fine the second time the text is rendered. (reloading the wallet)!
-//  why?
-
 //FIXME: if face id (biometrics) is disabled redirect user to settings:
 // - biometricsCurrentlyDisabledNonIOS
 // - biometricsCurrentlyDisabledIOS

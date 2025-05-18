@@ -87,7 +87,7 @@ function AddressInput({
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
   const handleInputLayout = useCallback(
     (e: LayoutChangeEvent) => {
-      if (!address) return;
+      if (address !== '') return;
       // e.persist() is not available in React for web
       if (e.persist) e.persist();
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
