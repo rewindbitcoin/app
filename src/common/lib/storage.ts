@@ -159,7 +159,7 @@ const idbDel = async (key: string) => {
   }
 };
 
-import { Platform } from 'react-native';
+import { AppState, Platform } from 'react-native';
 
 import {
   hasHardwareAsync,
@@ -255,9 +255,14 @@ const secureStoreGetItemAsync = async (
         );
         //await new Promise(resolve => setTimeout(resolve, 100)); //sleep 0.1 second
       }
-      return await secureStoreOriginalGetItemAsync(key, options);
+      if (AppState.currentState !== 'active')
+        throw new Error(
+          'Cannot call to secureStoreOriginalGetItemAsync since App is not active'
+        );
+      const res = await secureStoreOriginalGetItemAsync(key, options);
+      return res;
     } catch (error) {
-      console.warn(error);
+      console.warn('secureStoreGetItemAsync failed', error);
       if (errorMatches(error, BIOMETRICS_USER_CANCEL_THROW_PARTIAL_MATCH))
         throw new Error(StorageErrors.BiometricsReadUserCancel);
     }
@@ -281,9 +286,14 @@ const secureStoreSetItemAsync = async (
         //await new Promise(resolve => setTimeout(resolve, 100)); //sleep 0.1 second
         await secureStoreDeleteItemAsync(key, options);
       }
-      return await secureStoreOriginalSetItemAsync(key, value, options);
+      if (AppState.currentState !== 'active')
+        throw new Error(
+          'Cannot call to secureStoreOriginalSetItemAsync since App is not active'
+        );
+      const res = await secureStoreOriginalSetItemAsync(key, value, options);
+      return res;
     } catch (error) {
-      console.warn(error);
+      console.warn('secureStoreSetItemAsync failed', error);
       if (errorMatches(error, BIOMETRICS_USER_CANCEL_THROW_PARTIAL_MATCH))
         throw new Error(StorageErrors.BiometricsWriteUserCancel);
     }
@@ -297,7 +307,7 @@ const secureStoreDeleteItemAsync = async (
   try {
     return secureStoreOriginalDeleteItemAsync(key, options);
   } catch (err) {
-    console.warn(err);
+    console.warn('secureStoreDeleteItemAsync failed', err);
   }
   throw new Error(StorageErrors.DeleteError);
 };
@@ -415,7 +425,7 @@ export const setAsync = async (
     try {
       cipherMessage = chacha.encrypt(uint8OriginalMessage);
     } catch (err: unknown) {
-      console.warn(err);
+      console.warn('chacha.encrypt failed', err);
       throw new Error(StorageErrors.EncryptError);
     }
   }
@@ -527,7 +537,7 @@ export const getAsync = async <S extends SerializationFormat>(
       try {
         decryptedResult = chacha.decrypt(result);
       } catch (err: unknown) {
-        console.warn(err);
+        console.warn('chacha.decrypt failed', err);
         throw new Error(StorageErrors.DecryptError);
       }
       //const strResult = strFromU8(decryptedResult);
@@ -565,6 +575,10 @@ export const checkReadWriteBiometricsAccessAsync = async (
   try {
     await secureStoreSetItemAsync(key, value, options);
     const received = await secureStoreGetItemAsync(key, options);
+    if (AppState.currentState !== 'active')
+      throw new Error(
+        'Cannot call to secureStoreOriginalDeleteItemAsync since App is not active'
+      );
     await secureStoreOriginalDeleteItemAsync(key, options);
     if (value === received) return true;
   } catch (err) {}

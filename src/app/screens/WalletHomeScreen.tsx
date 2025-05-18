@@ -70,15 +70,13 @@ const ErrorView = ({
     <View className="flex-1 justify-center p-4 gap-2 max-w-screen-sm">
       <KeyboardAwareScrollView contentContainerClassName="items-center">
         <Text className="text-base mb-4">{errorMessage}</Text>
-        {action}
       </KeyboardAwareScrollView>
-      <Button
-        containerClassName="self-center mt-4 mb-8"
-        mode="text"
-        onPress={goBack}
-      >
-        {t('goBack')}
-      </Button>
+      <View className="items-center gap-6 gap-y-4 flex-row flex-wrap justify-center mt-4 mb-8">
+        <Button mode={action ? 'secondary' : 'text'} onPress={goBack}>
+          {t('goBack')}
+        </Button>
+        {action}
+      </View>
     </View>
   );
 };
@@ -228,8 +226,8 @@ const WalletHomeScreen = () => {
   const goBack = useCallback(async () => {
     if (navigation.canGoBack()) navigation.goBack();
   }, [navigation]);
-  const logOutAndGoBack = useCallback(async () => {
-    await logOut();
+  const logOutAndGoBack = useCallback(() => {
+    logOut();
     if (navigation.canGoBack()) navigation.goBack();
   }, [navigation, logOut]);
 
@@ -244,7 +242,7 @@ const WalletHomeScreen = () => {
       if (!wallet) throw new Error(`wallet not set yet`);
       const cb = async () => {
         const signersCipherKey = await getPasswordDerivedCipherKey(password);
-        await logOut(); //closes the password modal; nice when entering incorrect pass
+        logOut(); //closes the password modal; nice when entering incorrect pass
         onWallet({
           wallet,
           signersCipherKey
@@ -370,9 +368,12 @@ const WalletHomeScreen = () => {
   //shown priotarizing how we will display them (using ternary operators)
 
   //Did the user decline access to biometrics?
-  //This one will be set in Android devices only.
   //User declineations of biometrics in iOS are handled in NewWalletScreen.
   //See: addWallet in NewWalletScreen for detailed explanation.
+  //This one will be set in Android devices only. In fact, not even in Android
+  //since android never prompts with system dialogs for biometrics grant.
+  //So biometricsRequestDeclinedOnWalletCreation should always be false unless
+  //Android changes how it works in the future.
   const biometricsRequestDeclinedOnWalletCreation =
     walletStatus.storageAccess.biometricAuthCancelled &&
     !hasStorageEverBeenAccessed;
@@ -440,6 +441,17 @@ const WalletHomeScreen = () => {
         Platform.OS === 'ios'
           ? t('wallet.existing.biometricsAccessFailureIOS')
           : t('wallet.existing.biometricsAccessFailureNonIOS')
+      }
+      action={
+        Platform.OS === 'ios' ? (
+          <Button
+            mode="primary"
+            onPress={Linking.openSettings}
+            containerClassName="self-center mt-2"
+          >
+            {t('wallet.new.openSettingsButton')}
+          </Button>
+        ) : undefined
       }
       goBack={goBack}
     />

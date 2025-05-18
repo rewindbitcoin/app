@@ -1,3 +1,21 @@
+//FIXME: Android Vermell:
+//  Try to create a wallet. Then while it's "setting bytes and bits" click twice
+//  to the physycal back button. Then, biometrics will be broken from now on
+//  until the app is restarted.
+//  Trying to create a wallet after this then enters a limbo. No errors notified
+//  Possible isFetching kept to true.
+
+//FIXME: while the app is synching i cannot go back for some reason.
+
+//FIXME: En Android si creo una wallet super rapidamente
+//doy un pare de veces en el boton de back se queda en un estado raro de back
+
+//FIXME: En una wallet nueva, el tooltip "Direccion de Emergencia" en
+//Español no cabe en Android vermell (textInputPlaceholderWithCreate)
+//There are several fixes search for-> Fix for Android placeholder text breaking into multiple lines after text deletion
+//  -> It's fine the second time the text is rendered. (reloading the wallet)!
+//  why?
+
 //FIXME: if face id (biometrics) is disabled redirect user to settings:
 // - biometricsCurrentlyDisabledNonIOS
 // - biometricsCurrentlyDisabledIOS
@@ -33,6 +51,74 @@
 
 //FIXME: El Accelerate da un mensaje raro en caso q se haya minado
 //mientrastanto
+
+//FIXME: disabling bio does not prompt for password (optionalSetPasswordText)
+
+//TEST:
+//  Do not grant permissions on the systems popup on wallet creation
+//    iOS (biometricsCurrentlyDisabledIOS) ✅
+//    mama CANNOT TEST - CAN NEVER HAPPEN ✅
+//    samsung vermell CANNOT TEST - CAN NEVER HAPPEN ✅
+//  After a Wallet was created with Biometrics, then disabled on the device.
+//    iOS (biometricsAccessFailureIOS) ✅
+//    mama CANNOT TEST - CAN NEVER HAPPEN ✅
+//    samsung vermell CANNOT TEST - CAN NEVER HAPPEN ✅
+//  Cancelled Biometrics on Wallet Creation
+//    iOS (biometricsRequestDeclined) ❔
+//    mama ❌
+//      Sometomes the wallet is created even before I provide
+//      the fingerprint. Even if I click on cancel
+//      But it's kind of random and have not been able to reproduce it
+//      even if i tried for an hour
+//      When I click on cancel when this happens then the
+//      wallet is never accessible. Not sure what happens
+//      if I register the fingerprint
+//        -> Somehow I can replicate:
+//        Create a wallet, when it says "Organizando bits..." click quickly
+//        on the back button until app closes.
+//        Then open again the app and try to create again the same wallet.
+//        It will complain about the repeated ReadWrite problems.
+//        Then lock / unlock the device and the wallet is created even without
+//        fingerprint.
+//    samsung vermell (biometricsReadWriteError) ❔
+//  Cancelled Biometrics on Wallet Login
+//    iOS (biometricsRequestDeclined) ❔
+//    mama ❔
+//    samsung vermell (biometricsReadWriteError) ❔
+//  Repeated failures on Biometrics on Wallet Creation
+//    iOS (biometricsRequestDeclined) ✅
+//    mama ✅
+//    samsung vermell (biometricsReadWriteError) ✅
+//      (Es necesario hacer un unlock con el patron para q vuelva a funcionar)
+//  Repeated failures on Biometrics on Wallet Login
+//    iOS (biometricsRequestDeclined) ✅
+//    mama
+//    samsung vermell (biometricsAccessFailureNonIOS) ❌
+//      Si fallo el acceso una vez, entonces no se vuelve a preguntar.
+//  Biometrics broken on the device
+//    faulty samsung (no vermell) (biometricsReadWriteError) ✅
+//  Signup/signin with NO password and NO bio.
+//    iOS ❔
+//    mama ❔
+//    samsung vermell❔
+//  Test that if bio is disabled or cannot be used it prompts for password.
+//    iOS ❔
+//    mama ❔
+//    samsung vermell❔
+//  If bio is enable, it does not prompt for password since this was a deliberate
+//  action by the user.
+//    iOS ✅
+//    mama ❔
+//    samsung vermell ❔
+//  Signup/signin with password and no bio (test that it asks for password)
+//    iOS ✅
+//    mama ❔
+//    samsung vermell ❔
+//  Add a new fingerprint
+//    iOS ❔
+//    mama ❔
+//    samsung vermell❔
+
 import React, {
   useCallback,
   useEffect,
@@ -196,9 +282,12 @@ const VaultText: React.FC<{
       <Text className="!leading-5 flex-shrink text-slate-600 native:text-sm native:mobmed:text-base">
         {children}
         {onAccelerate !== undefined && (
-          <Text onPress={onAccelerate} className="text-primary p-8">
-            {' ' + t('accelerateButton') + ' ➤'}
-          </Text>
+          <>
+            <Text> </Text>
+            <Text onPress={onAccelerate} className="text-primary p-8">
+              {t('accelerateButton') + ' ➤'}
+            </Text>
+          </>
         )}
       </Text>
     </View>

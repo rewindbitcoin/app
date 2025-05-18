@@ -213,7 +213,11 @@ const SettingsItem = ({
               {t('cancelButton')}
             </Button>
             {defaultValue && defaultValue !== value && (
-              <Button mode="secondary" onPress={onSetDefault}>
+              <Button
+                mode="secondary"
+                disabled={isValidatingValue}
+                onPress={onSetDefault}
+              >
                 {t('settings.defaultButton')}
               </Button>
             )}

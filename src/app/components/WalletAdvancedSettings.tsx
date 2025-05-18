@@ -151,7 +151,7 @@ export default function WalletAdvancedSettings({
           <>
             {canUseSecureStorage && (
               <>
-                <View className="flex-row p-2 items-center active:bg-gray-200">
+                <View className="flex-row p-2 items-center active:bg-gray-200 gap-4">
                   <View className="flex-1 flex-row items-center ml-3">
                     <Text className="pr-2 text-base">
                       {t('wallet.biometricEncryptionTitle')}
@@ -159,7 +159,6 @@ export default function WalletAdvancedSettings({
                     <InfoButton onPress={() => showBiometricalHelp(true)} />
                   </View>
                   <Switch
-                    className="ml-2"
                     value={
                       advancedSettings.signersStorageEngine === 'SECURESTORE'
                     }
@@ -178,7 +177,7 @@ export default function WalletAdvancedSettings({
                 <Divider className="ml-3" />
               </>
             )}
-            <View className="flex-row p-2 items-center active:bg-gray-200">
+            <View className="flex-row p-2 items-center active:bg-gray-200 gap-4">
               <View className="flex-1 flex-row items-center ml-3">
                 <Text className="pr-2 text-base">
                   {t('wallet.usePasswordTitle')}
@@ -186,7 +185,6 @@ export default function WalletAdvancedSettings({
                 <InfoButton onPress={() => showPasswordHelp(true)} />
               </View>
               <Switch
-                className="ml-2"
                 value={!!advancedSettings.signersPassword || passwordRequest}
                 onValueChange={onPasswordSwitch}
               />
@@ -198,7 +196,7 @@ export default function WalletAdvancedSettings({
               />
             </View>
             <Divider className="ml-3" />
-            <View className="flex-row p-2 items-center active:bg-gray-200">
+            <View className="flex-row p-2 items-center active:bg-gray-200 gap-4">
               <View className="flex-1 flex-row items-center ml-3">
                 <Text className="pr-2 text-base">
                   {t('wallet.encryptAppDataTitle')}
@@ -206,16 +204,14 @@ export default function WalletAdvancedSettings({
                 <InfoButton onPress={() => showDataEncryptionHelp(true)} />
               </View>
               <Switch
-                className="ml-2"
                 value={advancedSettings.encryption === 'SEED_DERIVED'}
                 onValueChange={onEncryptSwitch}
               />
             </View>
             <Divider className="ml-3" />
-            <View className="flex-row p-2 items-center active:bg-gray-200">
-              <View className="flex-1 ml-3 flex-row items-center">
-                <Text className="mr-2 text-base web:truncate">
-                  {/*when the width in web is narrow, this text breaks into multi-line. However, line-breaking on on web leaves some space on the right of the <Text> rendering the (i) info button weirdly to the right. Better not brek text and show 3 dots: ...*/}
+            <View className="flex-row p-2 items-center active:bg-gray-200 gap-4">
+              <View className="flex-1 flex-row items-center ml-3">
+                <Text className="pr-2 text-base">
                   {t('network.testOrRealTitle')}
                 </Text>
                 <InfoButton onPress={() => showNetworkHelp(true)} />
@@ -223,7 +219,7 @@ export default function WalletAdvancedSettings({
               <Pressable
                 onPress={onNetworkRequest}
                 hitSlop={{ top: 10, bottom: 10, right: 10 }}
-                className="ml-2 flex-row items-center active:scale-95 active:opacity-90 hover:opacity-90 max-w-[50%]"
+                className="flex-row items-center active:scale-95 active:opacity-90 hover:opacity-90 max-w-[50%]"
               >
                 <Text className="text-primary text-base flex-1 text-right">
                   {advancedSettings.networkId === 'BITCOIN'

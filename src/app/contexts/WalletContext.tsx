@@ -151,7 +151,7 @@ export type WalletContextType = {
   /** Whether the wallet needs to ask for a password and set it to retrieve
    * the signers */
   requiresPassword: boolean;
-  logOut: () => Promise<void>;
+  logOut: () => void;
   deleteWallet: (idToDelete: number) => Promise<void>;
   onWallet: ({
     wallet,
@@ -305,16 +305,10 @@ const WalletProviderRaw = ({
   const signersCipherKey =
     activeWallet && walletsSignersCipherKey[activeWallet.walletId];
   const canInitSigners =
+    activeWallet?.walletId === walletIdRef.current &&
     !signersStorageEngineMismatch &&
     (activeWallet?.signersEncryption === 'NONE' ||
       (activeWallet?.signersEncryption === 'PASSWORD' && !!signersCipherKey));
-  // When to init `DISCOVERY_${walletId}`, `VAULTS_${walletId}`,
-  //`VAULTS_STATUSES_${walletId}` and `ACCOUNTS_${walletId}`
-  const canInitCipheredDataStorage =
-    canInitSigners &&
-    (activeWallet?.encryption === 'NONE' ||
-      (activeWallet?.encryption === 'SEED_DERIVED' &&
-        !!walletsDataCipherKey[activeWallet.walletId]));
 
   // First thing i need to retrieve is signers
   // then, once the signers is retrieved i'll be able to retrieve the rest,
@@ -329,6 +323,15 @@ const WalletProviderRaw = ({
       signersCipherKey, // cipher key
       t('app.secureStorageAuthenticationPrompt')
     );
+  // When to init `DISCOVERY_${walletId}`, `VAULTS_${walletId}`,
+  //`VAULTS_STATUSES_${walletId}` and `ACCOUNTS_${walletId}`
+  const canInitCipheredDataStorage =
+    activeWallet?.walletId === walletIdRef.current &&
+    signersStorageStatus.isDiskSynchd &&
+    signersStorageStatus.errorCode === false &&
+    (activeWallet?.encryption === 'NONE' ||
+      (activeWallet?.encryption === 'SEED_DERIVED' &&
+        !!walletsDataCipherKey[activeWallet.walletId]));
 
   const [
     discoveryExport,
@@ -736,6 +739,7 @@ const WalletProviderRaw = ({
    * Use this variable to add the wallet into the wallets storage
    */
   const isWalletDiskSynched =
+    activeWallet?.walletId === walletIdRef.current &&
     walletsStorageStatus.isDiskSynchd &&
     discoveryExportStorageStatus.isDiskSynchd &&
     signersStorageStatus.isDiskSynchd &&
@@ -900,7 +904,12 @@ const WalletProviderRaw = ({
                     Math.abs(triggerPushTime - firstDetectedAt) <
                       PUSH_TIME_THRESHOLD;
 
-                  if (!wasTriggeredFromThisDevice) goBackToWallets();
+                  if (!wasTriggeredFromThisDevice) {
+                    console.warn(
+                      'Going back to wallets for notification not triggered from this device'
+                    );
+                    goBackToWallets();
+                  }
 
                   // Create new wallet object with updated notifications
                   const updatedWallet = {
@@ -1254,7 +1263,7 @@ const WalletProviderRaw = ({
    * we must use the clear functions set in useStorage when created with the current
    * wallet
    */
-  const logOut = useCallback(async () => {
+  const logOut = useCallback(() => {
     if (activeWallet?.walletId !== undefined) {
       batchedUpdates(() => {
         // Clear cache, so that data must be read from disk again for the walletId.
@@ -1306,7 +1315,7 @@ const WalletProviderRaw = ({
         throw new Error(`Cannot delete non-active wallet ${idToDelete}`);
       if (!wallets) throw new Error(`Cannot delete non-existing wallets`);
       const authenticationPrompt = t('app.secureStorageAuthenticationPrompt');
-      await logOut(); //clears the cache - Super important!!!
+      logOut(); //clears the cache - Super important!!!
       await Promise.all([
         deleteAsync(
           `SIGNERS_${idToDelete}`,
@@ -1369,6 +1378,14 @@ const WalletProviderRaw = ({
        */
       isGenerated?: boolean;
     }) => {
+      console.log(
+        'TRACE onWallet',
+        JSON.stringify(
+          { walletDst, walletIdRef: walletIdRef.current, newSignersDst },
+          null,
+          2
+        )
+      );
       if (
         walletIdRef.current !== undefined &&
         walletIdRef.current !== walletDst.walletId
@@ -1384,6 +1401,7 @@ const WalletProviderRaw = ({
         console.warn('Wallet creation attempt with previous one uncleared.');
         logOut();
       }
+      walletIdRef.current = walletDst.walletId;
       if (newSignersDst) {
         //Make sure we don't have values from previous app installs using the same id?
         const authenticationPrompt = t('app.secureStorageAuthenticationPrompt');
@@ -1398,11 +1416,15 @@ const WalletProviderRaw = ({
           deleteAsync(`VAULTS_STATUSES_${walletDst.walletId}`),
           deleteAsync(`ACCOUNTS_${walletDst.walletId}`)
         ]);
+        if (walletIdRef.current !== walletDst.walletId) {
+          logOut();
+          return;
+        }
         //in addition to deleteAsync caches are cleared with logOut - see above
       }
       batchedUpdates(() => {
+        console.log('TRACE onWallet batch set');
         if (newSignersDst) setNewSigners(walletDst.walletId, newSignersDst);
-        walletIdRef.current = walletDst.walletId;
         setSignersCipherKey(walletDst.walletId, signersCipherKeyDst);
         if (typeof isGenerated !== 'undefined')
           isGeneratedRef.current = isGenerated;
@@ -1440,6 +1462,7 @@ const WalletProviderRaw = ({
           signer,
           network
         });
+        if (activeWallet?.walletId !== walletIdRef.current) return;
         setDataCipherKey(activeWallet?.walletId, walletDataCipherKey);
       };
       fetchDataCipherKey();

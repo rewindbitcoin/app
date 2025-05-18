@@ -43,7 +43,7 @@ import { shallowEqualArrays } from 'shallow-equal';
 import { useWallet } from '../hooks/useWallet';
 
 export default function NewWalletScreen() {
-  const { onWallet } = useWallet();
+  const { onWallet, logOut } = useWallet();
 
   const route = useRoute<RouteProp<RootStackParamList, 'NEW_WALLET'>>();
   const navigation = useNavigation<NavigationPropsByScreenId['NEW_WALLET']>();
@@ -106,6 +106,13 @@ export default function NewWalletScreen() {
     });
   }, []);
 
+  useEffect(() =>
+    navigation.addListener('beforeRemove', () => {
+      //Fired only when going back (not when going fwd / replacing)
+      logOut();
+    })
+  );
+
   const switchNewImport = useCallback(() => {
     setWords(isImport ? generateMnemonic().split(' ') : Array(12).fill(''));
     setIsImport(!isImport);
@@ -142,6 +149,7 @@ export default function NewWalletScreen() {
           //On fingerprint-devices, users will see:
           t('app.secureStorageCreationAuthenticationPrompt')
         );
+        if (!navigation.isFocused()) return; //after each await
         if (readWriteAccess === false) {
           setIOSBiometricsDeclined(true);
           return; //Eary stop here!
@@ -153,6 +161,7 @@ export default function NewWalletScreen() {
       //immediatelly without waiting for all the awaits below. For some reason
       //this is needed
       await new Promise(resolve => setTimeout(resolve, 0));
+      if (!navigation.isFocused()) return; //after each await
 
       const wallet: Wallet = {
         creationEpoch: Math.floor(Date.now() / 1000),
@@ -172,6 +181,7 @@ export default function NewWalletScreen() {
       const signersCipherKey = signersPassword
         ? await getPasswordDerivedCipherKey(signersPassword)
         : undefined;
+      if (!navigation.isFocused()) return; //after each await
       const signer: Signer = {
         masterFingerprint,
         type: 'SOFTWARE',
@@ -185,8 +195,7 @@ export default function NewWalletScreen() {
         },
         isGenerated: !isImport
       });
-      //if (navigation.canGoBack()) navigation.goBack();
-      //navigation.navigate(WALLET_HOME, { walletId });
+      if (!navigation.isFocused()) return; //after each await
       navigation.replace('WALLET_HOME', { walletId });
     },
     [navigation, onWallet, walletId, t, isImport]
@@ -427,7 +436,7 @@ export default function NewWalletScreen() {
         customButtons={
           <View className="items-center gap-6 gap-y-4 flex-row flex-wrap justify-center mb-4">
             <Button
-              mode="secondary"
+              mode={!canUseSecureStorage ? 'secondary' : 'primary'}
               onPress={() => setIOSBiometricsDeclined(false)}
             >
               {t('understoodButton')}

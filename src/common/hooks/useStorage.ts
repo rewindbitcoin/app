@@ -63,7 +63,7 @@ import { batchedUpdates } from '../lib/batchedUpdates';
  *              isSynchd will be true even after an successful read/write,
  *              meaning that we at least tried.
  * isDiskSynchd  True only after we have finished at least one real
- *              round‑trip with the backing store (successful read or write).
+ *              round‑trip with the backing store: read or write (successful or not).
  *              This is set even if the read/write operation fails.
  *              Lets callers know durability has been confirmed.
  *              errorCode can only be trusted when isDiskSynchd is true.
@@ -130,8 +130,8 @@ export const useStorage = <T>(
     type === 'GLOBAL' && context
       ? context.setErrorCodeMap
       : setLocalErrorCodeMap;
-  const persistedMap =
-    type === 'GLOBAL' && context ? context.persistedMap : localDiskSynchedMap;
+  const diskSynchedMap =
+    type === 'GLOBAL' && context ? context.diskSynchedMap : localDiskSynchedMap;
   const setDiskSynchedMap =
     type === 'GLOBAL' && context
       ? context.setDiskSynchedMap
@@ -182,7 +182,8 @@ export const useStorage = <T>(
           setDiskSynchedMap(prev =>
             prev[key] ? prev : { ...prev, [key]: true }
           );
-        } catch (err) {
+        } catch (err: unknown) {
+          console.warn('setAsync failed on key', key, err);
           // Revert to previous state
 
           //batchedUpdates(() => {
@@ -291,6 +292,7 @@ export const useStorage = <T>(
             });
           }
         } catch (err: unknown) {
+          console.warn('getAsync failed on key', key, err);
           console.warn(
             'Failed fetch',
             {
@@ -390,7 +392,7 @@ export const useStorage = <T>(
       throw new Error(`errorCodeMap not set for ${key}`);
     //valueMap is not set when decrypt error, but we know it's synchd anyway
     const isSynchd = key in valueMap || key in errorCodeMap;
-    const isDiskSynchd = !!persistedMap[key];
+    const isDiskSynchd = !!diskSynchedMap[key];
 
     const errorCode = errorCodeMap[key] || false;
     return [

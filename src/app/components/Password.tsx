@@ -84,7 +84,7 @@ const Password = ({
       customButtons={
         <View className="items-center pb-4 gap-2 mobmed:gap-6 mobmed:gap-y-4 flex-row flex-wrap justify-center">
           {mode === 'OPTIONAL_SET' ? (
-            <Button onPress={handleContinueWithoutPassword}>
+            <Button mode="secondary" onPress={handleContinueWithoutPassword}>
               {t('wallet.skipOptionalSetPasswordButton')}
             </Button>
           ) : (

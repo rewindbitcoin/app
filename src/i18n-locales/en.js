@@ -133,7 +133,7 @@ If you prefer not to use biometrics, you can disable this feature in the "Advanc
       //Old Samsung devices, repeated failures in authentication when creating wallet:
       biometricsReadWriteError: `The biometric implementation on your device has issues.
 
-This may be due to incompatibilities with your device, recent updates to your biometric settings (such as adding a new fingerprint or updating facial recognition), or repeated authentication failures.
+This may be due to incompatibilities with your device, recent updates to your biometric settings (such as adding a new fingerprint or updating facial recognition), or repeated authentication failures (biometrics may get locked for a couple of minutes or until you lock and unlock your device with your PIN/pattern and restart the App).
 
 Since biometrics cannot be used, we recommend adjusting the wallet creation process. Please disable biometrics and select a password under 'Advanced Options' during the New Wallet setup.`
     },
@@ -147,20 +147,20 @@ This might be because biometric permissions were disabled or revoked, or due to 
 
 Also, updating your device's biometric settings, such as adding a new fingerprint or updating facial recognition, can sometimes invalidate previous configurations.
 
-If you declined biometric access, you can enable it by going to your device's Settings > RewindBitcoin and turning on Face ID or Touch ID (this may vary based on your OS version and device).
+If you have disabled biometric access, tap 'Open Settings' below to re-enable Face ID or Touch ID.
 
-This error can also occur if the app was reinstalled and restored with old iCloud data from a previous install, as biometrics are not included. If so, delete this wallet using the Settings icon.
+This error can also occur if the app was reinstalled and restored with old iCloud data from a previous install, as biometrics are not included. If so, delete this wallet.
 
 If the issue persists, you can recreate your wallet using your Recovery Phrase to regain access to your funds and vaults.`,
       biometricsAccessFailureNonIOS: `We're having trouble accessing your wallet due to issues with biometric permissions.
 
-This might be because biometric permissions were disabled or revoked, or due to repeated authentication failures.
+This might be because biometric permissions were disabled or revoked, or due to repeated authentication failures (biometrics may get locked for a couple of minutes or until you lock and unlock your device with your PIN/pattern and restart the App).
 
 Also, updating your device's biometric settings, such as adding a new fingerprint or updating facial recognition, can sometimes invalidate previous configurations.
 
 If you've recently changed any biometric settings, please try re-enabling biometrics in your device or restoring the app's permissions.
 
-This error can also occur if the app was reinstalled and restored with old Google Drive data from a previous install, as biometrics are not included. If so, delete this wallet using the Settings icon.
+This error can also occur if the app was reinstalled and restored with old Google Drive data from a previous install, as biometrics are not included. If so, delete this wallet.
 
 If the issue persists, you can recreate your wallet using your Recovery Phrase to regain access to your funds and vaults.`
     },
