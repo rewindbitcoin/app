@@ -1,15 +1,3 @@
-//FIXME: Android Vermell:
-//  Try to create a wallet. Then while it's "setting bytes and bits" click twice
-//  to the physycal back button. Then, biometrics will be broken from now on
-//  until the app is restarted.
-//  Trying to create a wallet after this then enters a limbo. No errors notified
-//  Possible isFetching kept to true.
-
-//FIXME: while the app is synching i cannot go back for some reason.
-
-//FIXME: En Android si creo una wallet super rapidamente
-//doy un pare de veces en el boton de back se queda en un estado raro de back
-
 //FIXME: En una wallet nueva, el tooltip "Direccion de Emergencia" en
 //Español no cabe en Android vermell (textInputPlaceholderWithCreate)
 //There are several fixes search for-> Fix for Android placeholder text breaking into multiple lines after text deletion

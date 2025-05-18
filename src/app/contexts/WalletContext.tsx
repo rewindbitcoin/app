@@ -1958,8 +1958,11 @@ const WalletProviderRaw = ({
               updatedAccounts[defaultAccount] = { discard: false };
             }
           }
-          //setAccounts(updatedAccounts);
-          //dont setAccounts yet. Only after discovery.fetch below is ok;
+          //TAGsijufnviudsgndsf
+          //Early setAccounts so that the buttons show up and quick faucet.
+          //Set it even if utxos are not set yet (using setUtxosHistoryExport).
+          //However, undo this setAccounts if something goes wrong below.
+          //Keep it ONLY after discovery.fetch below is ok;
           //otherwise we may end up setting partial states:
           //  -accounts set
           //  -accounts corresponding fetched utxos NOT set:
@@ -1969,6 +1972,7 @@ const WalletProviderRaw = ({
           //but then the discovery object is never set. Next time we open
           //the wallet, there'll be a mismatch and discovery will complain
           //when trying to compute balances of unfetched utxos.
+          setAccounts(updatedAccounts);
         }
         const descriptors = getHotDescriptors(
           updatedVaults,
@@ -1986,18 +1990,25 @@ const WalletProviderRaw = ({
         });
         if (activeWallet.walletId !== walletIdRef.current) {
           //do this after each await
-          setSyncingBlockchain(activeWallet.walletId, false);
+          batchedUpdates(() => {
+            setSyncingBlockchain(activeWallet.walletId, false);
+            setAccounts(accounts); //Read TAGsijufnviudsgndsf
+          });
           return;
         }
         if (fetchStatus !== 'SUCCESS') {
           //also don't continue if discovery fails
-          setSyncingBlockchain(activeWallet.walletId, false);
+          batchedUpdates(() => {
+            setSyncingBlockchain(activeWallet.walletId, false);
+            setAccounts(accounts); //Read TAGsijufnviudsgndsf
+          });
           return;
         }
 
         //Update states:
         batchedUpdates(() => {
-          if (accounts !== updatedAccounts) setAccounts(updatedAccounts);
+          //Already upated Read TAGsijufnviudsgndsf
+          //if (accounts !== updatedAccounts) setAccounts(updatedAccounts);
           if (vaults !== updatedVaults) setVaults(updatedVaults);
           if (vaultsStatuses !== updatedVaultsStatuses)
             setVaultsStatuses(updatedVaultsStatuses);
