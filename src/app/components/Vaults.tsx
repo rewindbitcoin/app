@@ -1,3 +1,5 @@
+//FIXME: Specially on Android while fetching everything becomes unresponsive as fuck
+
 //FIXME: if face id (biometrics) is disabled redirect user to settings:
 // - biometricsCurrentlyDisabledNonIOS
 // - biometricsCurrentlyDisabledIOS
@@ -761,7 +763,7 @@ const RawVault = ({
               <Pressable
                 onPress={handleShowWatchtowerStatusModal}
                 hitSlop={20}
-                className={`p-1.5 bg-white rounded-xl shadow-sm android:elevation android:border android:border-slate-200 active:opacity-70 active:scale-95 ${watchtowerBellIconColor === 'slate' ? 'animate-pulse' : 'animate-none'}`}
+                className={`p-1.5 bg-white rounded-xl web:shadow-sm ios:shadow-sm android:elevation android:border android:border-slate-200 active:opacity-70 active:scale-95 ${watchtowerBellIconColor === 'slate' ? 'animate-pulse' : 'animate-none'}`}
               >
                 <MaterialCommunityIcons
                   name={watchtowerBellIconName}

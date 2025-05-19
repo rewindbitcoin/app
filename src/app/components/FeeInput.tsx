@@ -204,6 +204,7 @@ function FeeInput({
     <>
       {!expanded ? (
         <Pressable
+          hitSlop={10}
           onPress={toggleExpanded}
           className={`overflow-hidden rounded-xl bg-white mb-2`}
         >
@@ -247,6 +248,7 @@ function FeeInput({
             unit={'sats/vB'}
           />
           <Pressable
+          hitSlop={10}
             onPress={toggleExpanded}
             className="absolute top-1 right-0"
           >

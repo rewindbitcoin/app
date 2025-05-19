@@ -464,7 +464,8 @@ const SettingsScreen = () => {
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
   const handleInputLayout = useCallback(
     (e: LayoutChangeEvent) => {
-      if (deleteInputValue !== '') return;
+      if (inputWidth !== undefined) return;
+      //if (deleteInputValue !== '') return;
       // e.persist() is not available in React for web
       if (e.persist) e.persist();
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
@@ -477,7 +478,7 @@ const SettingsScreen = () => {
         setInputWidth(prev => (prev === width ? prev : Math.floor(width - 1)));
       }, 300);
     },
-    [deleteInputValue]
+    [inputWidth]
   );
 
   const title = wallet && wallets ? walletTitle(wallet, wallets, t) : '';

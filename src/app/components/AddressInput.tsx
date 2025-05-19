@@ -87,7 +87,8 @@ function AddressInput({
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
   const handleInputLayout = useCallback(
     (e: LayoutChangeEvent) => {
-      if (address !== '') return;
+      if (inputWidth !== undefined) return;
+      //if (address !== '') return;
       // e.persist() is not available in React for web
       if (e.persist) e.persist();
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
@@ -100,7 +101,7 @@ function AddressInput({
         setInputWidth(prev => (prev === width ? prev : Math.floor(width - 1)));
       }, 300);
     },
-    [address]
+    [inputWidth]
   );
 
   useEffect(() => {
