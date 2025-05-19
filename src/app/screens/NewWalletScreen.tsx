@@ -1,3 +1,47 @@
+//These are the tests needed to run in case biometrics code is changed:✅❔❌
+//  Do not grant system permissions on the systems popup on wallet creation
+//    iOS (biometricsCurrentlyDisabledIOS) ✅
+//    samsung SM_A515F CANNOT TEST - CAN NEVER HAPPEN ✅
+//    samsung SM_G965F (red cover) CANNOT TEST - CAN NEVER HAPPEN ✅
+//  After a Wallet was created with Biometrics, then disabled on the device.
+//    iOS ✅
+//    samsung SM_A515F CANNOT TEST - CAN NEVER HAPPEN ✅
+//  Enter wrong finger/face and then Cancel the Biometrics Retry Popup on Wallet Creation
+//    iOS ✅
+//    samsung SM_G965F (red cover) ✅
+//    samsung SM_A515F ✅
+//  Cancel the Biometrics Popup on Wallet Login (already granted)
+//    iOS ✅
+//    samsung SM_G965F (red cover) ✅
+//    samsung SM_A515F ✅
+//  Repeated failures on Biometrics on Wallet Creation
+//    iOS ✅
+//    samsung SM_G965F (red cover) ✅
+//      (Es necesario hacer un unlock con el patron para q vuelva a funcionar)
+//    samsung SM_A515F ✅
+//  Repeated failures on Biometrics on Wallet Login
+//    iOS ✅
+//    samsung SM_G965F (red cover) ✅
+//    samsung SM_A515F ✅
+//  Signup/signin with NO password and NO bio.
+//    iOS ✅
+//    samsung SM_G965F (red cover) ✅
+//    samsung SM_A515F ✅
+//  Test that if bio is disabled or cannot be used it prompts for password.
+//    iOS ✅
+//    samsung SM_G965F (red cover) CANNOT TEST - CANNOT DISABLE PER APP ✅
+//    samsung SM_A515F CANNOT TEST - CANNOT DISABLE PER APP ✅
+//  If bio is enabled but the user turns it off, the App does not prompt for password since this was a deliberate action by the user.
+//    iOS ✅
+//    samsung SM_G965F (red cover) CANNOT TEST - CANNOT DISABLE PER APP ✅
+//    samsung SM_A515F CANNOT TEST - CANNOT DISABLE PER APP ✅
+//  Add a new fingerprint/face
+//    iOS ❔
+//    samsung SM_G965F (red cover) ❔
+//    samsung SM_A515F ❔
+//  Biometrics broken on the device
+//    faulty samsung SM_G965F (the one without red cover) ✅
+
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { v4 as uuid } from 'uuid';
 import { defaultSettings } from '../lib/settings';
