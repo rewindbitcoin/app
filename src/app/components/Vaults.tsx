@@ -1,6 +1,3 @@
-//FIXME: El Accelerate da un mensaje raro en caso q se haya minado
-//mientrastanto
-//
 //FIXME: Accelerate
 //  -> What happens when RBF and i've pushTx twice (which directly sets the tx
 //  in disdovery???)
