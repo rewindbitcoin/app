@@ -50,6 +50,7 @@ export type WalletStatus = {
  */
 export const getStorageAccessStatus = ({
   signers,
+  signersStorageEngine,
   isSignersDiskSynchd,
   settingsErrorCode,
   signersErrorCode,
@@ -60,6 +61,7 @@ export const getStorageAccessStatus = ({
   accountsErrorCode
 }: {
   signers: Signers | undefined;
+  signersStorageEngine: 'MMKV' | 'IDB' | 'SECURESTORE' | undefined;
   isSignersDiskSynchd: boolean;
   settingsErrorCode: StorageErrorCode;
   signersErrorCode: StorageErrorCode;
@@ -95,6 +97,7 @@ export const getStorageAccessStatus = ({
   //from the system. See https://docs.expo.dev/versions/latest/sdk/securestore/#securestoregetitemasynckey-options
   //Note that we convert null->undefined internally in storage.ts
   if (
+    signersStorageEngine === 'SECURESTORE' &&
     badPassword === false &&
     signers === undefined &&
     isSignersDiskSynchd &&

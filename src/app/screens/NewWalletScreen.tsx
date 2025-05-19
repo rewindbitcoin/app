@@ -457,7 +457,8 @@ export default function NewWalletScreen() {
                 ? t('wallet.new.biometricsHowDisable')
                 : Platform.OS === 'ios'
                   ? t('wallet.new.biometricsCurrentlyDisabledIOS')
-                  : t('wallet.new.biometricsCurrentlyDisabledNonIOS'))}
+                  : //biometricsCurrentlyDisabledNonIOS will never show up
+                    t('wallet.new.biometricsCurrentlyDisabledNonIOS'))}
           </Text>
         </View>
       </Modal>

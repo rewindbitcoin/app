@@ -1,14 +1,6 @@
-//FIXME: Specially on Android while fetching everything becomes unresponsive as fuck
-
-//FIXME: if face id (biometrics) is disabled redirect user to settings:
-// - biometricsCurrentlyDisabledNonIOS
-// - biometricsCurrentlyDisabledIOS
-// - biometricsAccessFailureIOS
-// - biometricsAccessFailureNonIOS
+//FIXME: Specially on Android while fetching, everything becomes unresponsive
 
 //FIXME: make sure that watchtower is not called repetitively on useEffects
-
-//FIXME: make sure that biometrics + password is still working - test bad password
 
 //FIXME: if camera grant is not given redirect user to settings
 //- cameraPermissionDenied
@@ -17,7 +9,7 @@
 
 //FIXME: documentar bien en la web cuando se muestra el push notification!
 //cuando se hace desde otro dispositivo?
-//cuando se hace desde un dispositivco q no hizo el push?
+//cuando se hace desde un dispositivco q no hizo el push? YES
 //  -> Esto tiene q ir a la web
 
 //FIXME: Add Accelerate links on the confirming... texts on the right!!!
@@ -27,7 +19,7 @@
 
 //FIXME: tests: (Android / iOS):
 // - registration error GOOD
-// - user denying grant
+// - user denying access to notifications
 // - pushToken not set
 // - receiving old wallets push
 // - testear el animate-pulse
@@ -36,72 +28,49 @@
 //FIXME: El Accelerate da un mensaje raro en caso q se haya minado
 //mientrastanto
 
-//FIXME: disabling bio does not prompt for password (optionalSetPasswordText)
-
-//TEST:
-//  Do not grant permissions on the systems popup on wallet creation
+//TEST:✅❔❌
+//  Do not grant system permissions on the systems popup on wallet creation
 //    iOS (biometricsCurrentlyDisabledIOS) ✅
 //    mama CANNOT TEST - CAN NEVER HAPPEN ✅
 //    samsung vermell CANNOT TEST - CAN NEVER HAPPEN ✅
 //  After a Wallet was created with Biometrics, then disabled on the device.
-//    iOS (biometricsAccessFailureIOS) ✅
+//    iOS ✅
 //    mama CANNOT TEST - CAN NEVER HAPPEN ✅
-//    samsung vermell CANNOT TEST - CAN NEVER HAPPEN ✅
-//  Cancelled Biometrics on Wallet Creation
-//    iOS (biometricsRequestDeclined) ❔
-//    mama ❌
-//      Sometomes the wallet is created even before I provide
-//      the fingerprint. Even if I click on cancel
-//      But it's kind of random and have not been able to reproduce it
-//      even if i tried for an hour
-//      When I click on cancel when this happens then the
-//      wallet is never accessible. Not sure what happens
-//      if I register the fingerprint
-//        -> Somehow I can replicate:
-//        Create a wallet, when it says "Organizando bits..." click quickly
-//        on the back button until app closes.
-//        Then open again the app and try to create again the same wallet.
-//        It will complain about the repeated ReadWrite problems.
-//        Then lock / unlock the device and the wallet is created even without
-//        fingerprint.
-//    samsung vermell (biometricsReadWriteError) ❔
-//  Cancelled Biometrics on Wallet Login
-//    iOS (biometricsRequestDeclined) ❔
-//    mama ❔
-//    samsung vermell (biometricsReadWriteError) ❔
-//  Repeated failures on Biometrics on Wallet Creation
-//    iOS (biometricsRequestDeclined) ✅
+//  Enter wrong finger/face and then Cancel the Biometrics Retry Popup on Wallet Creation
+//    iOS ✅
+//    samsung vermell ✅
 //    mama ✅
-//    samsung vermell (biometricsReadWriteError) ✅
+//  Cancel the Biometrics Popup on Wallet Login (already granted)
+//    iOS ✅
+//    samsung vermell ✅
+//    mama ✅
+//  Repeated failures on Biometrics on Wallet Creation
+//    iOS ✅
+//    samsung vermell ✅
 //      (Es necesario hacer un unlock con el patron para q vuelva a funcionar)
+//    mama ✅
 //  Repeated failures on Biometrics on Wallet Login
-//    iOS (biometricsRequestDeclined) ✅
-//    mama
-//    samsung vermell (biometricsAccessFailureNonIOS) ❌
-//      Si fallo el acceso una vez, entonces no se vuelve a preguntar.
-//  Biometrics broken on the device
-//    faulty samsung (no vermell) (biometricsReadWriteError) ✅
+//    iOS ✅
+//    samsung vermell ✅
+//    mama ✅
 //  Signup/signin with NO password and NO bio.
-//    iOS ❔
-//    mama ❔
-//    samsung vermell❔
+//    iOS ✅
+//    samsung vermell ✅
+//    mama ✅
 //  Test that if bio is disabled or cannot be used it prompts for password.
-//    iOS ❔
-//    mama ❔
-//    samsung vermell❔
-//  If bio is enable, it does not prompt for password since this was a deliberate
-//  action by the user.
 //    iOS ✅
-//    mama ❔
-//    samsung vermell ❔
-//  Signup/signin with password and no bio (test that it asks for password)
+//    samsung vermell CANNOT TEST - CANNOT DISABLE PER APP ✅
+//    mama CANNOT TEST - CANNOT DISABLE PER APP ✅
+//  If bio is enabled but the user turns it off, the App does not prompt for password since this was a deliberate action by the user.
 //    iOS ✅
-//    mama ❔
-//    samsung vermell ❔
-//  Add a new fingerprint
+//    samsung vermell CANNOT TEST - CANNOT DISABLE PER APP ✅
+//    mama CANNOT TEST - CANNOT DISABLE PER APP ✅
+//  Add a new fingerprint/face
 //    iOS ❔
+//    samsung vermell ❔
 //    mama ❔
-//    samsung vermell❔
+//  Biometrics broken on the device
+//    faulty samsung (no vermell) ✅
 
 import React, {
   useCallback,

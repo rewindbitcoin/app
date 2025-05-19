@@ -248,7 +248,7 @@ function FeeInput({
             unit={'sats/vB'}
           />
           <Pressable
-          hitSlop={10}
+            hitSlop={10}
             onPress={toggleExpanded}
             className="absolute top-1 right-0"
           >

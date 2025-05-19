@@ -255,9 +255,9 @@ const secureStoreGetItemAsync = async (
         );
         //await new Promise(resolve => setTimeout(resolve, 100)); //sleep 0.1 second
       }
-      if (AppState.currentState !== 'active')
+      if (AppState.currentState === 'background')
         throw new Error(
-          'Cannot call to secureStoreOriginalGetItemAsync since App is not active'
+          'Cannot call to secureStoreOriginalGetItemAsync since App is running in the background'
         );
       const res = await secureStoreOriginalGetItemAsync(key, options);
       return res;
@@ -286,9 +286,9 @@ const secureStoreSetItemAsync = async (
         //await new Promise(resolve => setTimeout(resolve, 100)); //sleep 0.1 second
         await secureStoreDeleteItemAsync(key, options);
       }
-      if (AppState.currentState !== 'active')
+      if (AppState.currentState === 'background')
         throw new Error(
-          'Cannot call to secureStoreOriginalSetItemAsync since App is not active'
+          'Cannot call to secureStoreOriginalSetItemAsync since App is running in the background'
         );
       const res = await secureStoreOriginalSetItemAsync(key, value, options);
       return res;
@@ -575,12 +575,14 @@ export const checkReadWriteBiometricsAccessAsync = async (
   try {
     await secureStoreSetItemAsync(key, value, options);
     const received = await secureStoreGetItemAsync(key, options);
-    if (AppState.currentState !== 'active')
+    if (AppState.currentState === 'background')
       throw new Error(
-        'Cannot call to secureStoreOriginalDeleteItemAsync since App is not active'
+        'Cannot call to secureStoreOriginalDeleteItemAsync since App is running in the background'
       );
     await secureStoreOriginalDeleteItemAsync(key, options);
     if (value === received) return true;
-  } catch (err) {}
+  } catch (err) {
+    console.warn(err);
+  }
   return false;
 };

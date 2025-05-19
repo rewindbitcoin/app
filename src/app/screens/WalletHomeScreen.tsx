@@ -370,10 +370,8 @@ const WalletHomeScreen = () => {
   //Did the user decline access to biometrics?
   //User declineations of biometrics in iOS are handled in NewWalletScreen.
   //See: addWallet in NewWalletScreen for detailed explanation.
-  //This one will be set in Android devices only. In fact, not even in Android
-  //since android never prompts with system dialogs for biometrics grant.
-  //So biometricsRequestDeclinedOnWalletCreation should always be false unless
-  //Android changes how it works in the future.
+  //This one will be set in Android devices only when creating a wallet and
+  //clicking on the "Cancel" button on the system popup
   const biometricsRequestDeclinedOnWalletCreation =
     walletStatus.storageAccess.biometricAuthCancelled &&
     !hasStorageEverBeenAccessed;
@@ -407,13 +405,16 @@ const WalletHomeScreen = () => {
 
   const insets = useSafeAreaInsets();
   return biometricsRequestDeclinedOnWalletCreation ? (
+    //True only for Android when clicking Cancel in the popup on wallet creation
     <ErrorView
       errorMessage={
         t('wallet.new.biometricsRequestDeclined') +
         '\n\n' +
         (canUseSecureStorage
           ? t('wallet.new.biometricsHowDisable')
-          : Platform.OS === 'ios'
+          : // The `!canUseSecureStorage` case will never occur, because secure
+            // storage is always available on Android.
+            Platform.OS === 'ios'
             ? t('wallet.new.biometricsCurrentlyDisabledIOS')
             : t('wallet.new.biometricsCurrentlyDisabledNonIOS'))
       }

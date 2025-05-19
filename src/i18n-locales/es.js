@@ -116,7 +116,7 @@ Esto puede deberse a que no otorgaste los permisos necesarios, o tu dispositivo 
 Pulsa el botón de abajo para ir a la Configuración de tu dispositivo y asegúrate de que los permisos biométricos estén habilitados para reactivarlos.`,
       biometricsCurrentlyDisabledIOS: `Como la biometría no se puede usar en este dispositivo, las nuevas billeteras usarán seguridad no biométrica por defecto.
 
-Pulsa el botón de abajo para ir a la Configuración de tu dispositivo y activa Face ID o Touch ID (esto puede variar según tu versión de iOS y dispositivo) para reactivarlos.`,
+Pulsa el botón de abajo para Abrir los Ajustes de tu Dispositivo y activa Face ID o Touch ID (esto puede variar según tu versión de iOS y dispositivo) para reactivarlos.`,
       biometricsHowDisable: `Por favor, inténtalo de nuevo y otorga los permisos necesarios.
 
 Si prefieres no usar biometría, puedes desactivar esta función en "Opciones Avanzadas" durante el proceso de configuración de Nueva Billetera.`,
@@ -136,7 +136,7 @@ Esto puede deberse a que los permisos biométricos fueron desactivados o revocad
 
 Además, actualizar la configuración biométrica de tu dispositivo, como agregar una nueva huella digital o actualizar el reconocimiento facial, puede a veces invalidar las configuraciones anteriores.
 
-Si has deshabilitado el acceso biométrico, toca 'Abrir Ajustes' a continuación para volver a habilitar Face ID o Touch ID.
+Si has deshabilitado el acceso biométrico, toca 'Abrir Ajustes del Dispositivo' a continuación para volver a habilitar Face ID o Touch ID.
 
 Este error también puede ocurrir si la aplicación se reinstala y se restaura con datos antiguos de iCloud de una instalación anterior, ya que la biometría no se incluye. En ese caso, elimina esta billetera.
 

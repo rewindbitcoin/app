@@ -713,6 +713,7 @@ const WalletProviderRaw = ({
 
   const storageAccessStatus = getStorageAccessStatus({
     signers,
+    signersStorageEngine: activeWallet?.signersStorageEngine,
     isSignersDiskSynchd: signersStorageStatus.isDiskSynchd,
     settingsErrorCode: settingsStorageStatus.errorCode,
     signersErrorCode: signersStorageStatus.errorCode,
@@ -1378,14 +1379,6 @@ const WalletProviderRaw = ({
        */
       isGenerated?: boolean;
     }) => {
-      console.log(
-        'TRACE onWallet',
-        JSON.stringify(
-          { walletDst, walletIdRef: walletIdRef.current, newSignersDst },
-          null,
-          2
-        )
-      );
       if (
         walletIdRef.current !== undefined &&
         walletIdRef.current !== walletDst.walletId
@@ -1423,7 +1416,6 @@ const WalletProviderRaw = ({
         //in addition to deleteAsync caches are cleared with logOut - see above
       }
       batchedUpdates(() => {
-        console.log('TRACE onWallet batch set');
         if (newSignersDst) setNewSigners(walletDst.walletId, newSignersDst);
         setSignersCipherKey(walletDst.walletId, signersCipherKeyDst);
         if (typeof isGenerated !== 'undefined')

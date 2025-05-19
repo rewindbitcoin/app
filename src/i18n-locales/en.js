@@ -122,7 +122,7 @@ Zapping bytes and lining up the bits. Hang tight!`,
 This may be because you didn't grant the necessary permissions, or your device doesn't support biometrics.`,
       biometricsCurrentlyDisabledNonIOS: `Since biometrics cannot be used on this device, new wallets will default to non-biometric security.
 
-Tap the button below to go to your device's Settings and ensure that biometric permissions are enabled to re-activate them.`,
+Tap the button below to Open your Device's Settings and ensure that biometric permissions are enabled to re-activate them.`, //Logic will prevent this one from showing up
       biometricsCurrentlyDisabledIOS: `Since biometrics cannot be used on this device, new wallets will default to non-biometric security.
 
 Tap the button below to go to your device's Settings and turn on Face ID or Touch ID (this may vary based on your OS version and device) to re-activate them.`,
@@ -147,7 +147,7 @@ This might be because biometric permissions were disabled or revoked, or due to 
 
 Also, updating your device's biometric settings, such as adding a new fingerprint or updating facial recognition, can sometimes invalidate previous configurations.
 
-If you have disabled biometric access, tap 'Open Settings' below to re-enable Face ID or Touch ID.
+If you have disabled biometric access, tap 'Open Device Settings' below to re-enable Face ID or Touch ID.
 
 This error can also occur if the app was reinstalled and restored with old iCloud data from a previous install, as biometrics are not included. If so, delete this wallet.
 
