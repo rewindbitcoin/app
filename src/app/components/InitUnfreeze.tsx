@@ -123,12 +123,12 @@ const InitUnfreeze = ({
     }
   }, [isVisible]);
 
+  // Reset feeRate every time initialFeeRate changes, that is,
+  // every time feeRateToReplace changes
   useEffect(() => {
-    if (initialFeeRate !== null) {
-      setFeeRate(prevFeeRate =>
-        prevFeeRate === null ? initialFeeRate : prevFeeRate
-      );
-    }
+    setFeeRate(prev =>
+      initialFeeRate !== null && prev !== initialFeeRate ? initialFeeRate : prev
+    );
   }, [initialFeeRate]);
 
   const handleInitUnfreeze = useCallback(() => {

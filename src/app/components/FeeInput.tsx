@@ -163,32 +163,7 @@ function FeeInput({
     []
   );
 
-  //// Format the optimal fee for display
-  //const optimalFeeFormatted = useMemo(() => {
-  //  return formatFeeRate(
-  //    {
-  //      fee: fee === null ? undefined : fee,
-  //      feeRate: snappedInitialValue,
-  //      locale,
-  //      currency,
-  //      subUnit,
-  //      btcFiat,
-  //      feeEstimates: snappedFeeEstimates
-  //    },
-  //    t
-  //  );
-  //}, [
-  //  fee,
-  //  snappedInitialValue,
-  //  locale,
-  //  currency,
-  //  subUnit,
-  //  btcFiat,
-  //  snappedFeeEstimates,
-  //  t
-  //]);
-
-  const optimalFee = useMemo(() => {
+  const contractedFee = useMemo(() => {
     return fee
       ? formatBtc({
           amount: fee,
@@ -224,10 +199,10 @@ function FeeInput({
             </View>
 
             {userModifiedFee ? (
-              <Text className="text-slate-600 text-sm">{optimalFee}</Text>
+              <Text className="text-slate-600 text-sm">{contractedFee}</Text>
             ) : (
               <Text className="text-slate-600 text-sm">
-                {t('feeInput.autoOptimal')}: {optimalFee}
+                {t('feeInput.autoOptimal')}: {contractedFee}
               </Text>
             )}
           </View>
