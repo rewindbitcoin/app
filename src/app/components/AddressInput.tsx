@@ -12,7 +12,8 @@ import {
   View,
   AppState,
   Platform,
-  LayoutChangeEvent
+  LayoutChangeEvent,
+  Linking
 } from 'react-native';
 import { batchedUpdates } from '~/common/lib/batchedUpdates';
 import {
@@ -328,24 +329,35 @@ function AddressInput({
         }}
         onClose={handleCloseScanQR}
         customButtons={
-          <View className="items-center gap-6 gap-y-4 flex-row flex-wrap justify-center mb-4">
-            <Button mode="secondary" onPress={handleCloseScanQR}>
-              {t('cancelButton')}
-            </Button>
-            {camTypes !== null && camTypes.length > 1 && (
-              <Button onPress={toggleCameraFacing}>
-                <View className="flex-row items-center">
-                  <MaterialCommunityIcons
-                    name="camera-flip-outline"
-                    className="text-white text-xl -my-4 pr-2"
-                  />
-                  <Text className="text-center native:text-sm font-semibold text-white web:text-xs web:sm:text-sm select-none">
-                    {t('addressInput.flipCam')}
-                  </Text>
-                </View>
+          !camPermission?.canAskAgain ? (
+            <View className="items-center gap-6 gap-y-4 flex-row flex-wrap justify-center mb-4">
+              <Button mode="secondary" onPress={handleCloseScanQR}>
+                {t('cancelButton')}
               </Button>
-            )}
-          </View>
+              <Button mode="primary" onPress={Linking.openSettings}>
+                {t('addressInput.openSettingsButton')}
+              </Button>
+            </View>
+          ) : (
+            <View className="items-center gap-6 gap-y-4 flex-row flex-wrap justify-center mb-4">
+              <Button mode="secondary" onPress={handleCloseScanQR}>
+                {t('cancelButton')}
+              </Button>
+              {camTypes !== null && camTypes.length > 1 && (
+                <Button onPress={toggleCameraFacing}>
+                  <View className="flex-row items-center">
+                    <MaterialCommunityIcons
+                      name="camera-flip-outline"
+                      className="text-white text-xl -my-4 pr-2"
+                    />
+                    <Text className="text-center native:text-sm font-semibold text-white web:text-xs web:sm:text-sm select-none">
+                      {t('addressInput.flipCam')}
+                    </Text>
+                  </View>
+                </Button>
+              )}
+            </View>
+          )
         }
       >
         {!camPermission?.canAskAgain ? (

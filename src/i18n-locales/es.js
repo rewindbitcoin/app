@@ -665,9 +665,10 @@ Puedes usar el asistente pulsando 'Crear' para generar una nueva Dirección de E
     scan: 'Escanear',
     scanQRModalTitle: 'Escanear QR Bitcoin',
     flipCam: 'Cambiar Cámara',
+    openSettingsButton: 'Abrir Ajustes del Dispositivo',
     cameraPermissionDenied: `El acceso a la cámara ha sido denegado permanentemente para esta aplicación.
 
-Para usar la cámara, por favor ve a la configuración de tu dispositivo y habilita manualmente los permisos de cámara para esta aplicación.`,
+Pulsa el botón de abajo para ir a la configuración de tu dispositivo y habilita manualmente los permisos de cámara para esta aplicación.`,
     requestPermissionRationale: `Necesitamos tu permiso para acceder a la cámara.
 
 La cámara se usa para escanear códigos QR que contienen direcciones Bitcoin.`,

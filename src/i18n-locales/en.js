@@ -764,9 +764,10 @@ You can either use the 'Create' wizard to generate a new Emergency Address or us
     scan: 'Scan',
     scanQRModalTitle: 'Scan Bitcoin QR',
     flipCam: 'Flip Camera',
+    openSettingsButton: 'Open Device Settings',
     cameraPermissionDenied: `Access to the camera has been permanently denied for this app.
 
-To use the camera, please go to your device's settings and manually enable camera permissions for this app.`,
+Tap the button below to go to your device's settings and manually enable camera permissions for this app.`,
     requestPermissionRationale: `We need your permission to access the camera.
 
 The camera is used to scan QR codes containing Bitcoin addresses.`,
