@@ -1,11 +1,14 @@
-//FIXME: Accelerate
-//  -> What happens when RBF and i've pushTx twice (which directly sets the tx
-//  in disdovery???)
-
-//FIXME: if camera grant is not given redirect user to settings
-//- cameraPermissionDenied
+//FIXME: remove the option "Encrypt App Data"
 
 //FIXME: Specially on Android while fetching, everything becomes unresponsive
+
+//FIXME: on android i created credentials for development, for notifications
+//I'm not sure about iOS, but I need to document all this and create
+//credentials for all profiles probably
+
+//FIXME: añadir test de biometrics + password
+
+//FIXME: testear la verificacion de mnemonics
 
 //FIXME: el mensage en la push notification no es muy alarmante
 

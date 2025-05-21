@@ -29,6 +29,7 @@
     },
     "android": {
       "README_allowBackup": "In android, SecureStore, does not persist data when uninstalling the app. However mmkv data can persist if Google Drive App Data Backups is enabled. So it's better to disable Google Droive App Data Backups altogether since the reinstalled app will report it exists a wallet and then cannot access the encrypted mnemonic - iOS backups both data and encrypted data, which is just fine",
+      "googleServicesFile": "./google-services.json",
       "allowBackup": false,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",

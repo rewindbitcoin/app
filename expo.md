@@ -248,4 +248,14 @@ read this too in cause of trouble:
 
 ## push notifications setup:
 https://docs.expo.dev/push-notifications/push-notifications-setup/
+  -> For iOS: npx eas credentials
+    Push Notifications:
+    Answer yes to:
+      Setup Push Notifications for your project
+      Generating a new Apple Push Notifications service key
   -> Android: https://docs.expo.dev/push-notifications/fcm-credentials/
+    You'll access: https://console.firebase.google.com/
+    Username is: labolsavirtual@labolsavirtual.com
+    It uses now 2FA with Google Authenticator - Google: labolsavirtual@labolsavirtual.com
+
+

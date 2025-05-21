@@ -254,6 +254,8 @@ const WalletProviderRaw = ({
     {}
   );
 
+  //console.log('TRACE', Platform.OS, JSON.stringify(wallets, null, 2));
+
   // Add this effect to handle backwards compatibility
   // (wallets prior to Apr 29, 2025, created without uuid)
   useEffect(() => {
@@ -758,8 +760,6 @@ const WalletProviderRaw = ({
   useEffect(() => {
     if (isWalletDiskSynched) {
       if (!activeWallet) throw new Error('wallet should be set when ready');
-      if (activeWallet.walletId !== walletIdRef.current)
-        throw new Error("walletIds don't match!");
       if (!wallets) throw new Error('wallets should be set when ready');
       if (!shallowEqualObjects(activeWallet, wallets[activeWallet.walletId])) {
         setWallets({ ...wallets, [activeWallet.walletId]: activeWallet });
@@ -1091,6 +1091,29 @@ const WalletProviderRaw = ({
   );
 
   // Set up watchtower notification handling & polling for pending notifications
+  const lastNotificationResponseHandledRef = useRef<boolean>(false);
+  // Possible values for watchtowerPollTimeoutRef:
+  //   'PENDING'  - Polling has not started yet.
+  //   'CHECKING' - Currently performing the initial polling (determining if
+  //   all APIs are OK or if further polling is needed).
+  //   'COMPLETE' - All watchtower APIs have been checked and no further
+  //   polling is required.
+  //   NodeJS.Timeout - A polling retry is scheduled and waiting to run.
+  const watchtowerPollTimeoutRef = useRef<
+    NodeJS.Timeout | 'PENDING' | 'CHECKING' | 'COMPLETE'
+  >('PENDING');
+  useEffect(() => {
+    return () => {
+      if (
+        watchtowerPollTimeoutRef.current !== 'PENDING' &&
+        watchtowerPollTimeoutRef.current !== 'COMPLETE'
+      ) {
+        clearTimeout(watchtowerPollTimeoutRef.current);
+        watchtowerPollTimeoutRef.current = 'COMPLETE';
+      }
+    };
+  }, []);
+
   useEffect(() => {
     if (
       !pushToken ||
@@ -1128,19 +1151,22 @@ const WalletProviderRaw = ({
     // (getPresentedNotificationsAsync) won’t include that tapped alert.
     // That’s why this one-time call is still necessary even when we also use
     // getPresentedNotificationsAsync() to catch remaining tray notifications.
-    getLastNotificationResponseAsync()
-      .then(response => {
-        if (response) {
-          handleWatchtowerNotification(
-            pushToken,
-            response.notification.request.content.data
-          );
-        }
-      })
-      .catch(error => {
-        console.warn('Error getting last notification response:', error);
-      });
-
+    if (lastNotificationResponseHandledRef.current === false) {
+      getLastNotificationResponseAsync()
+        .then(response => {
+          if (response) {
+            handleWatchtowerNotification(
+              pushToken,
+              response.notification.request.content.data
+            );
+          }
+          lastNotificationResponseHandledRef.current = true;
+        })
+        .catch(error => {
+          console.warn('Error getting last notification response:', error);
+          lastNotificationResponseHandledRef.current = true;
+        });
+    }
     // Initial pass for anything still in the tray
     processPresented(pushToken);
     // Also check on every foreground transition
@@ -1172,7 +1198,6 @@ const WalletProviderRaw = ({
     // closed (killed).
     // This is the only possible way to retrieve them if the app was killed
     // (force-stopped) and the user did not tap on the notification.
-    let pollingTimeout: NodeJS.Timeout | undefined;
 
     // Track which watchtower APIs are we using.
     const watchtowerAPIChecks = Object.values(wallets || [])
@@ -1184,34 +1209,30 @@ const WalletProviderRaw = ({
     // One cold fallback for force-stop / killed silent gap
     // (only needed because OS won’t deliver when force-stopped/killed)
     function runFetchAndPoll(pushToken: string) {
-      // clear any existing timer
-      if (pollingTimeout) {
-        clearTimeout(pollingTimeout);
-        pollingTimeout = undefined;
+      if (watchtowerPollTimeoutRef.current === 'PENDING' && wallets) {
+        // Defensive: prevents duplicate polling if effect runs again before poll starts
+
+        watchtowerPollTimeoutRef.current = 'CHECKING';
+        // start with all APIs marked “failed”
+        let failedAPIs = [...watchtowerAPIChecks];
+        const poll = async () => {
+          for (const api of [...failedAPIs]) {
+            const ok = await fetchAndHandleWatchtowerUnacked(pushToken, api);
+            if (ok) failedAPIs = failedAPIs.filter(a => a !== api); // remove from failed list
+          }
+          // if anything still failed, retry in 60s
+          if (failedAPIs.length > 0)
+            watchtowerPollTimeoutRef.current = setTimeout(poll, 60000);
+          else watchtowerPollTimeoutRef.current = 'COMPLETE';
+        };
+        // do the first fetch right away
+        poll();
       }
-      // start with all APIs marked “failed”
-      let failedAPIs = [...watchtowerAPIChecks];
-      const poll = async () => {
-        for (const api of [...failedAPIs]) {
-          const ok = await fetchAndHandleWatchtowerUnacked(pushToken, api);
-          if (ok) failedAPIs = failedAPIs.filter(a => a !== api); // remove from failed list
-        }
-        // if anything still failed, retry in 60s
-        if (failedAPIs.length > 0) pollingTimeout = setTimeout(poll, 60000);
-      };
-      // do the first fetch right away
-      poll();
     }
     runFetchAndPoll(pushToken);
 
     // Clean up notification listeners and polling interval on unmount
     return () => {
-      // Clear polling interval if it exists
-      if (pollingTimeout) {
-        clearTimeout(pollingTimeout);
-        pollingTimeout = undefined;
-      }
-
       // Clean up notification listeners
       if (notificationListener.current) {
         notificationListener.current.remove();
