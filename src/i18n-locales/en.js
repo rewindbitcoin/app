@@ -900,7 +900,7 @@ For further assistance or to report this issue, please contact RewindBitcoin sup
     checkbox3:
       'I understand that Rewind Bitcoin is not a bank, exchange or financial institution.',
     checkbox4:
-      'I understand if I lose wallet access, Rewind Bitcoin is not liable and cannot help.',
+      'I understand if I lose wallet access, Rewind is not liable and cannot help.',
     checkbox5_part1: 'I have read and agreed to the',
     termsLink: 'Terms of Service',
     checkbox5_part2: 'and',

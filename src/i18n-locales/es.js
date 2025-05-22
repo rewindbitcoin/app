@@ -3,7 +3,7 @@ export default {
   app: {
     buildNumber: 'Compilación',
     unknownError: 'Ha ocurrido un error desconocido.',
-    syncP2PVaultsError: `No se pudo conectar a la red de respaldo P2P. Este problema impide sincronizar las bóvedas creadas en otros dispositivos.
+    syncP2PVaultsError: `No se pudo conectar a la red de backups P2P. Este problema impide sincronizar las bóvedas creadas en otros dispositivos.
 
 {{message}}`,
     watchtowerError: `No se pudo conectar con la Torre de Vigilancia (Watchtower). Esto impide detectar accesos a tus Bóvedas y enviar alertas de seguridad.
@@ -157,7 +157,7 @@ Si el problema persiste, puedes recrear tu billetera usando tu Frase de Recupera
       //storageTitle: 'Error de Almacenamiento',
       storage: `Hubo un error al leer o escribir en el almacenamiento de tu dispositivo. Este problema puede deberse a datos corruptos, espacio de almacenamiento insuficiente u otros problemas relacionados con el almacenamiento. Ten en cuenta que todos los datos de tu billetera están respaldados de forma segura en formato cifrado en la red P2P de Rewind.
 
-Para resolver este problema, intenta acceder a tu billetera nuevamente. Si el problema persiste, puedes recrear de forma segura tu billetera usando tu Frase Mnemónica de Recuperación. Esto restaurará todos tus datos de forma segura desde los respaldos.
+Para resolver este problema, intenta acceder a tu billetera nuevamente. Si el problema persiste, puedes recrear de forma segura tu billetera usando tu Frase Mnemónica de Recuperación. Esto restaurará todos tus datos de forma segura desde los backups.
 
 Si necesitas más ayuda, por favor contacta con el equipo de Soporte de Rewind.`
     },
@@ -793,11 +793,11 @@ Para obtener más ayuda o reportar este problema, por favor contacta con el sopo
     intro:
       'Por favor, lee y acepta los siguientes términos antes de continuar.',
     checkbox1:
-      'Entiendo que soy el único responsable de la seguridad y respaldo de mis billeteras, no Rewind Bitcoin.',
+      'Entiendo que soy el único responsable de la seguridad y backups de mis billeteras, no Rewind Bitcoin.',
     checkbox2:
-      'Entiendo que usar Rewind Bitcoin para fines ilegales va contra nuestros términos.',
+      'Entiendo que usar Rewind con fines ilegales va contra nuestros términos.',
     checkbox3:
-      'Entiendo que Rewind Bitcoin no es un banco, casa de cambio o institución financiera.',
+      'Entiendo que Rewind Bitcoin no es un banco, exchange o institución financiera.',
     checkbox4:
       'Entiendo que si pierdo acceso a mis billeteras, Rewind Bitcoin no es responsable ni puede ayudar.',
     checkbox5_part1: 'He leído y acepto los',

@@ -7,6 +7,8 @@ import {
   Linking
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useStorage } from '../../common/hooks/useStorage';
+import { BOOLEAN } from '../../common/lib/storage';
 import { KeyboardAwareScrollView, Modal, Button } from '../../common/ui';
 import { useTranslation } from 'react-i18next';
 import { useNavigation } from '@react-navigation/native';
@@ -21,7 +23,7 @@ import { Ubuntu_700Bold } from '@expo-google-fonts/ubuntu';
 import { useFonts } from 'expo-font';
 import { cssInterop } from 'nativewind';
 import { useWallet } from '../hooks/useWallet';
-import { Wallet, walletTitle } from '../lib/wallets';
+import { Wallet, Wallets, walletTitle } from '../lib/wallets';
 import { useLocalization } from '../hooks/useLocalization';
 cssInterop(Svg, {
   className: {
@@ -62,6 +64,9 @@ const walletBgs = [
   'bg-red-500',
   'bg-teal-500'
 ];
+
+const TERMS_ACCEPTED_STORAGE_KEY = 'rewindbitcoin/terms_accepted';
+
 const walletCls = [
   'text-blue-500',
   'text-yellow-500',
@@ -133,6 +138,10 @@ const WalletsScreen = () => {
   const navigation = useNavigation();
   const { t } = useTranslation();
   const { locale } = useLocalization();
+
+  const [termsAccepted, setTermsAccepted, termsAcceptedIsLoaded] =
+    useStorage<boolean>(TERMS_ACCEPTED_STORAGE_KEY, BOOLEAN, false);
+
   const [showTermsModal, setShowTermsModal] = useState(false);
   const [checkboxStates, setCheckboxStates] = useState([
     false,
@@ -149,6 +158,18 @@ const WalletsScreen = () => {
   };
 
   const allCheckboxesChecked = checkboxStates.every(Boolean);
+
+  const calculateNextWalletId = useCallback(
+    (currentWallets: Wallets | null | undefined): number => {
+      if (!currentWallets || Object.values(currentWallets).length === 0) {
+        return 0;
+      }
+      return (
+        Math.max(...Object.values(currentWallets).map(w => w.walletId)) + 1
+      );
+    },
+    []
+  );
 
   const walletsWithWTNotifications = Object.entries(wallets || {})
     .filter(
@@ -183,25 +204,43 @@ const WalletsScreen = () => {
     }
   }, [wallets, onWallet, navigation]);
 
-  const handleNewWallet = useCallback(() => {
+  const handleNewWallet = useCallback(async () => {
+    if (!termsAcceptedIsLoaded) {
+      // Wait until storage value is loaded
+      return;
+    }
     if (!wallets) throw new Error('wallets not yet defined');
-    if (Object.values(wallets).length === 0) {
+
+    if (!termsAccepted) {
       setCheckboxStates([false, false, false, false, false]); // Reset states
       setShowTermsModal(true);
     } else {
-      const walletId =
-        Math.max(...Object.values(wallets).map(wallet => wallet.walletId)) + 1;
+      const walletId = calculateNextWalletId(wallets);
       navigation.navigate(NEW_WALLET, { walletId });
     }
-  }, [navigation, wallets]);
+  }, [
+    navigation,
+    wallets,
+    termsAccepted,
+    termsAcceptedIsLoaded,
+    setShowTermsModal,
+    setCheckboxStates,
+    calculateNextWalletId
+  ]);
 
-  const handleAcceptAndContinue = useCallback(() => {
+  const handleAcceptAndContinue = useCallback(async () => {
     if (!wallets) throw new Error('wallets not yet defined');
-    // This modal is only shown when there are no wallets, so the first walletId will be 0.
-    const walletId = 0;
+    await setTermsAccepted(true);
+    const walletId = calculateNextWalletId(wallets);
     setShowTermsModal(false);
     navigation.navigate(NEW_WALLET, { walletId });
-  }, [navigation, wallets]);
+  }, [
+    navigation,
+    wallets,
+    setTermsAccepted,
+    setShowTermsModal,
+    calculateNextWalletId
+  ]);
 
   const mbStyle = useMemo(
     //max-w-screen-sm = 640
@@ -285,7 +324,7 @@ const WalletsScreen = () => {
                 size={24}
                 className="text-primary mr-3 mt-0.5"
               />
-              <Text className="flex-1 text-sm text-slate-600">{label}</Text>
+              <Text className="flex-1 text-sm">{label}</Text>
             </Pressable>
           ))}
           <Pressable
@@ -301,7 +340,7 @@ const WalletsScreen = () => {
               size={24}
               className="text-primary mr-3 mt-0.5"
             />
-            <Text className="flex-1 text-sm text-slate-600">
+            <Text className="flex-1 text-sm">
               {t('termsModal.checkbox5_part1')}{' '}
               <Text
                 className="text-primary underline"
@@ -323,7 +362,7 @@ const WalletsScreen = () => {
               {t('termsModal.checkbox5_part3')}
             </Text>
           </Pressable>
-          <Text className="text-sm text-slate-600 mt-2">
+          <Text className="text-center text-xs text-slate-600 mt-2">
             {t('termsModal.agreementNotice')}
           </Text>
         </View>
