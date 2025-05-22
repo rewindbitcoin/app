@@ -1,3 +1,4 @@
+const SHOW_DATA_ENCRYPTION_SETTING = false;
 import React, { useCallback, useState } from 'react';
 
 import { Text, View, Pressable, Platform } from 'react-native';
@@ -196,19 +197,23 @@ export default function WalletAdvancedSettings({
               />
             </View>
             <Divider className="ml-3" />
-            <View className="flex-row p-2 items-center active:bg-gray-200 gap-4">
-              <View className="flex-1 flex-row items-center ml-3">
-                <Text className="pr-2 text-base">
-                  {t('wallet.encryptAppDataTitle')}
-                </Text>
-                <InfoButton onPress={() => showDataEncryptionHelp(true)} />
-              </View>
-              <Switch
-                value={advancedSettings.encryption === 'SEED_DERIVED'}
-                onValueChange={onEncryptSwitch}
-              />
-            </View>
-            <Divider className="ml-3" />
+            {SHOW_DATA_ENCRYPTION_SETTING && (
+              <>
+                <View className="flex-row p-2 items-center active:bg-gray-200 gap-4">
+                  <View className="flex-1 flex-row items-center ml-3">
+                    <Text className="pr-2 text-base">
+                      {t('wallet.encryptAppDataTitle')}
+                    </Text>
+                    <InfoButton onPress={() => showDataEncryptionHelp(true)} />
+                  </View>
+                  <Switch
+                    value={advancedSettings.encryption === 'SEED_DERIVED'}
+                    onValueChange={onEncryptSwitch}
+                  />
+                </View>
+                <Divider className="ml-3" />
+              </>
+            )}
             <View className="flex-row p-2 items-center active:bg-gray-200 gap-4">
               <View className="flex-1 flex-row items-center ml-3">
                 <Text className="pr-2 text-base">

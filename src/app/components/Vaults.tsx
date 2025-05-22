@@ -1,16 +1,8 @@
-//FIXME: remove the option "Encrypt App Data"
-
 //FIXME: Specially on Android while fetching, everything becomes unresponsive
 
 //FIXME: on android i created credentials for development, for notifications
 //I'm not sure about iOS, but I need to document all this and create
 //credentials for all profiles probably
-
-//FIXME: añadir test de biometrics + password
-
-//FIXME: testear la verificacion de mnemonics
-
-//FIXME: el mensage en la push notification no es muy alarmante
 
 //FIXME: documentar bien en la web cuando se muestra el push notification!
 //cuando se hace desde otro dispositivo?
@@ -24,6 +16,9 @@
 // - receiving old wallets push
 // - testear el animate-pulse
 // - Android!
+
+// When creating a Wallet, the Phrase Verification does not hide the
+// words below
 
 import React, {
   useCallback,
