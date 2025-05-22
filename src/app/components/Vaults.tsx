@@ -17,9 +17,6 @@
 // - testear el animate-pulse
 // - Android!
 
-// When creating a Wallet, the Phrase Verification does not hide the
-// words below
-
 import React, {
   useCallback,
   useEffect,

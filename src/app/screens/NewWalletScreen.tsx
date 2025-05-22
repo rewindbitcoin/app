@@ -41,13 +41,10 @@
 //    samsung SM_A515F ❔
 //  Biometrics broken on the device
 //    faulty samsung SM_G965F (the one without red cover) ✅
-//FIXME: complete the test below on real device
 //  Signup + Login with biometrics + password + verifying mnemonic (not skipping)
-//    iOS ❔
+//    iOS ✅
 //    samsung SM_G965F (red cover) ✅
 //    samsung SM_A515F ✅
-//
-//FIXME: testear la verificacion de mnemonics
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { v4 as uuid } from 'uuid';
