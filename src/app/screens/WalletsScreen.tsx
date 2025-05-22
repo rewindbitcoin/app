@@ -155,6 +155,10 @@ const WalletsScreen = () => {
   //}, [setTermsAccepted, termsAcceptedStatus.isSynchd]);
 
   const [showTermsModal, setShowTermsModal] = useState(false);
+  const [
+    pendingWalletIdForNavigation,
+    setPendingWalletIdForNavigation
+  ] = useState<number | null>(null);
   const [checkboxStates, setCheckboxStates] = useState([
     false,
     false,
@@ -241,14 +245,26 @@ const WalletsScreen = () => {
 
   const handleAcceptAndContinue = useCallback(async () => {
     if (!wallets) throw new Error('wallets not yet defined');
-    setTermsAccepted(true);
+    await setTermsAccepted(true); // Ensure terms are persisted
     const walletId = calculateNextWalletId(wallets);
-    console.log('TRACE handleAcceptAndContinue going to new', walletId);
-    setShowTermsModal(false);
-    requestAnimationFrame(() => {
-      navigation.navigate(NEW_WALLET, { walletId });
-    });
-  }, [navigation, wallets, setTermsAccepted, calculateNextWalletId]);
+    setPendingWalletIdForNavigation(walletId);
+    setShowTermsModal(false); // This will trigger onModalHide
+  }, [
+    wallets,
+    setTermsAccepted,
+    calculateNextWalletId,
+    setPendingWalletIdForNavigation,
+    setShowTermsModal
+  ]);
+
+  const onTermsModalHide = useCallback(() => {
+    if (pendingWalletIdForNavigation !== null) {
+      navigation.navigate(NEW_WALLET, {
+        walletId: pendingWalletIdForNavigation
+      });
+      setPendingWalletIdForNavigation(null); // Reset for next time
+    }
+  }, [pendingWalletIdForNavigation, navigation, setPendingWalletIdForNavigation]);
 
   const mbStyle = useMemo(
     //max-w-screen-sm = 640
@@ -295,10 +311,13 @@ const WalletsScreen = () => {
           name: 'file-document-outline'
         }}
         isVisible={showTermsModal}
+        onModalHide={onTermsModalHide}
         onClose={() => {
           batchedUpdates(() => {
             setShowTermsModal(false);
             setCheckboxStates([false, false, false, false, false]);
+            // If modal is closed without accepting, ensure no pending navigation
+            setPendingWalletIdForNavigation(null);
           });
         }}
         customButtons={
