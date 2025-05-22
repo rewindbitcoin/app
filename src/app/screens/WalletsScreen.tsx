@@ -1,4 +1,10 @@
-import React, { useCallback, useMemo, useRef, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState
+} from 'react';
 import {
   Text,
   View,
@@ -25,6 +31,7 @@ import { cssInterop } from 'nativewind';
 import { useWallet } from '../hooks/useWallet';
 import { Wallet, Wallets, walletTitle } from '../lib/wallets';
 import { useLocalization } from '../hooks/useLocalization';
+import { batchedUpdates } from '~/common/lib/batchedUpdates';
 cssInterop(Svg, {
   className: {
     target: 'style',
@@ -139,8 +146,13 @@ const WalletsScreen = () => {
   const { t } = useTranslation();
   const { locale } = useLocalization();
 
-  const [termsAccepted, setTermsAccepted, termsAcceptedIsLoaded] =
+  const [termsAccepted, setTermsAccepted, , , termsAcceptedStatus] =
     useStorage<boolean>(TERMS_ACCEPTED_STORAGE_KEY, BOOLEAN, false);
+
+  //reset for tests
+  //useEffect(() => {
+  //  if (termsAcceptedStatus.isSynchd) setTermsAccepted(false);
+  //}, [setTermsAccepted, termsAcceptedStatus.isSynchd]);
 
   const [showTermsModal, setShowTermsModal] = useState(false);
   const [checkboxStates, setCheckboxStates] = useState([
@@ -160,8 +172,8 @@ const WalletsScreen = () => {
   const allCheckboxesChecked = checkboxStates.every(Boolean);
 
   const calculateNextWalletId = useCallback(
-    (currentWallets: Wallets | null | undefined): number => {
-      if (!currentWallets || Object.values(currentWallets).length === 0) {
+    (currentWallets: Wallets): number => {
+      if (Object.values(currentWallets).length === 0) {
         return 0;
       }
       return (
@@ -205,16 +217,15 @@ const WalletsScreen = () => {
   }, [wallets, onWallet, navigation]);
 
   const handleNewWallet = useCallback(async () => {
-    if (!termsAcceptedIsLoaded) {
-      // Wait until storage value is loaded
-      return;
-    }
+    if (!termsAcceptedStatus.isSynchd) return; // Wait until storage is loaded
     if (!wallets) throw new Error('wallets not yet defined');
 
-    if (!termsAccepted) {
-      setCheckboxStates([false, false, false, false, false]); // Reset states
-      setShowTermsModal(true);
-    } else {
+    if (!termsAccepted)
+      batchedUpdates(() => {
+        setCheckboxStates([false, false, false, false, false]); // Reset states
+        setShowTermsModal(true);
+      });
+    else {
       const walletId = calculateNextWalletId(wallets);
       navigation.navigate(NEW_WALLET, { walletId });
     }
@@ -222,7 +233,7 @@ const WalletsScreen = () => {
     navigation,
     wallets,
     termsAccepted,
-    termsAcceptedIsLoaded,
+    termsAcceptedStatus.isSynchd,
     setShowTermsModal,
     setCheckboxStates,
     calculateNextWalletId
@@ -230,17 +241,14 @@ const WalletsScreen = () => {
 
   const handleAcceptAndContinue = useCallback(async () => {
     if (!wallets) throw new Error('wallets not yet defined');
-    await setTermsAccepted(true);
+    setTermsAccepted(true);
     const walletId = calculateNextWalletId(wallets);
+    console.log('TRACE handleAcceptAndContinue going to new', walletId);
     setShowTermsModal(false);
-    navigation.navigate(NEW_WALLET, { walletId });
-  }, [
-    navigation,
-    wallets,
-    setTermsAccepted,
-    setShowTermsModal,
-    calculateNextWalletId
-  ]);
+    requestAnimationFrame(() => {
+      navigation.navigate(NEW_WALLET, { walletId });
+    });
+  }, [navigation, wallets, setTermsAccepted, calculateNextWalletId]);
 
   const mbStyle = useMemo(
     //max-w-screen-sm = 640
@@ -288,8 +296,10 @@ const WalletsScreen = () => {
         }}
         isVisible={showTermsModal}
         onClose={() => {
-          setShowTermsModal(false);
-          setCheckboxStates([false, false, false, false, false]);
+          batchedUpdates(() => {
+            setShowTermsModal(false);
+            setCheckboxStates([false, false, false, false, false]);
+          });
         }}
         customButtons={
           <View className="items-center w-full pb-4 px-4">
