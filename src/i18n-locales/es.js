@@ -787,5 +787,25 @@ Por favor, espera unos momentos hasta que se complete.`,
 Tu billetera debería seguir siendo segura. Por favor, pulsa 'Intentar de Nuevo' para recargar la aplicación. Si el problema persiste, considera restaurar tu billetera usando tu Frase de Recuperación. Tus bóvedas y datos relacionados se recuperarán de los backups comunitarios online.
 
 Para obtener más ayuda o reportar este problema, por favor contacta con el soporte de RewindBitcoin.`
+  },
+  termsModal: {
+    title: 'Aceptar Términos',
+    intro:
+      'Por favor, lee y acepta los siguientes términos antes de continuar.',
+    checkbox1:
+      'Entiendo que soy el único responsable de la seguridad y respaldo de mis billeteras, no Rewind Bitcoin.',
+    checkbox2:
+      'Entiendo que usar Rewind Bitcoin para fines ilegales va contra nuestros términos.',
+    checkbox3:
+      'Entiendo que Rewind Bitcoin no es un banco, casa de cambio o institución financiera.',
+    checkbox4:
+      'Entiendo que si pierdo acceso a mis billeteras, Rewind Bitcoin no es responsable ni puede ayudar.',
+    checkbox5_part1: 'He leído y acepto los',
+    termsLink: 'Términos de Servicio',
+    checkbox5_part2: 'y la',
+    privacyLink: 'Política de Privacidad',
+    checkbox5_part3: '.',
+    agreementNotice: 'Al marcar las casillas, aceptas estos términos.',
+    continueButton: 'Entiendo, Continuar'
   }
 };

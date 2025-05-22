@@ -3,10 +3,11 @@ import {
   Text,
   View,
   Pressable /*, useWindowDimensions*/,
-  Platform
+  Platform,
+  Linking
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { KeyboardAwareScrollView } from '../../common/ui';
+import { KeyboardAwareScrollView, Modal, Button } from '../../common/ui';
 import { useTranslation } from 'react-i18next';
 import { useNavigation } from '@react-navigation/native';
 import { NEW_WALLET, WALLET_HOME } from '../screens';
@@ -132,6 +133,22 @@ const WalletsScreen = () => {
   const navigation = useNavigation();
   const { t } = useTranslation();
   const { locale } = useLocalization();
+  const [showTermsModal, setShowTermsModal] = useState(false);
+  const [checkboxStates, setCheckboxStates] = useState([
+    false,
+    false,
+    false,
+    false,
+    false
+  ]);
+
+  const handleCheckboxToggle = (index: number) => {
+    const newStates = [...checkboxStates];
+    newStates[index] = !newStates[index];
+    setCheckboxStates(newStates);
+  };
+
+  const allCheckboxesChecked = checkboxStates.every(Boolean);
 
   const walletsWithWTNotifications = Object.entries(wallets || {})
     .filter(
@@ -168,13 +185,21 @@ const WalletsScreen = () => {
 
   const handleNewWallet = useCallback(() => {
     if (!wallets) throw new Error('wallets not yet defined');
-    //Get the max used + 1 (note that some wallets may have been deleted) so don't
-    //use wallets.length since we may end up reusing existin indices!!!
-    const walletId =
-      Object.values(wallets).length === 0
-        ? 0
-        : Math.max(...Object.values(wallets).map(wallet => wallet.walletId)) +
-          1;
+    if (Object.values(wallets).length === 0) {
+      setCheckboxStates([false, false, false, false, false]); // Reset states
+      setShowTermsModal(true);
+    } else {
+      const walletId =
+        Math.max(...Object.values(wallets).map(wallet => wallet.walletId)) + 1;
+      navigation.navigate(NEW_WALLET, { walletId });
+    }
+  }, [navigation, wallets]);
+
+  const handleAcceptAndContinue = useCallback(() => {
+    if (!wallets) throw new Error('wallets not yet defined');
+    // This modal is only shown when there are no wallets, so the first walletId will be 0.
+    const walletId = 0;
+    setShowTermsModal(false);
     navigation.navigate(NEW_WALLET, { walletId });
   }, [navigation, wallets]);
 
@@ -215,6 +240,94 @@ const WalletsScreen = () => {
 
   return (
     <>
+      <Modal
+        title={t('termsModal.title')}
+        subTitle={t('termsModal.intro')}
+        icon={{
+          family: 'MaterialCommunityIcons',
+          name: 'file-document-outline'
+        }}
+        isVisible={showTermsModal}
+        onClose={() => {
+          setShowTermsModal(false);
+          setCheckboxStates([false, false, false, false, false]);
+        }}
+        customButtons={
+          <View className="items-center w-full pb-4 px-4">
+            <Button
+              mode="primary"
+              disabled={!allCheckboxesChecked}
+              onPress={handleAcceptAndContinue}
+            >
+              {t('termsModal.continueButton')}
+            </Button>
+          </View>
+        }
+      >
+        <View className="gap-y-3">
+          {[
+            t('termsModal.checkbox1'),
+            t('termsModal.checkbox2'),
+            t('termsModal.checkbox3'),
+            t('termsModal.checkbox4')
+          ].map((label, index) => (
+            <Pressable
+              key={index}
+              onPress={() => handleCheckboxToggle(index)}
+              className="flex-row items-start py-1"
+            >
+              <MaterialCommunityIcons
+                name={
+                  checkboxStates[index]
+                    ? 'checkbox-marked-outline'
+                    : 'checkbox-blank-outline'
+                }
+                size={24}
+                className="text-primary mr-3 mt-0.5"
+              />
+              <Text className="flex-1 text-sm text-slate-600">{label}</Text>
+            </Pressable>
+          ))}
+          <Pressable
+            onPress={() => handleCheckboxToggle(4)}
+            className="flex-row items-start py-1"
+          >
+            <MaterialCommunityIcons
+              name={
+                checkboxStates[4]
+                  ? 'checkbox-marked-outline'
+                  : 'checkbox-blank-outline'
+              }
+              size={24}
+              className="text-primary mr-3 mt-0.5"
+            />
+            <Text className="flex-1 text-sm text-slate-600">
+              {t('termsModal.checkbox5_part1')}{' '}
+              <Text
+                className="text-primary underline"
+                onPress={() =>
+                  Linking.openURL('https://rewindbitcoin.com/terms')
+                }
+              >
+                {t('termsModal.termsLink')}
+              </Text>{' '}
+              {t('termsModal.checkbox5_part2')}{' '}
+              <Text
+                className="text-primary underline"
+                onPress={() =>
+                  Linking.openURL('https://rewindbitcoin.com/privacy')
+                }
+              >
+                {t('termsModal.privacyLink')}
+              </Text>
+              {t('termsModal.checkbox5_part3')}
+            </Text>
+          </Pressable>
+          <Text className="text-sm text-slate-600 mt-2">
+            {t('termsModal.agreementNotice')}
+          </Text>
+        </View>
+      </Modal>
       {!dangerMode && (
         <Pressable
           onLayout={event => {

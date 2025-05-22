@@ -889,5 +889,24 @@ Please wait a few moments until completion.`,
 Your wallet should still be secure. Please tap on 'Try Again' to reload the app. If the problem persists, consider restoring your wallet using your Recovery Phrase. Your vaults and related data will be retrieved from community backups online.
 
 For further assistance or to report this issue, please contact RewindBitcoin support at rewindbitcoin.com or contact us at x.com/rewindbitcoin.`
+  },
+  termsModal: {
+    title: 'Accept Terms',
+    intro: 'Please read and agree to the following terms before you continue.',
+    checkbox1:
+      "I understand I'm solely responsible for my wallet's security and backup, not Rewind Bitcoin.",
+    checkbox2:
+      'I understand using Rewind Bitcoin for illegal purposes is against our terms.',
+    checkbox3:
+      'I understand that Rewind Bitcoin is not a bank, exchange or financial institution.',
+    checkbox4:
+      'I understand if I lose wallet access, Rewind Bitcoin is not liable and cannot help.',
+    checkbox5_part1: 'I have read and agreed to the',
+    termsLink: 'Terms of Service',
+    checkbox5_part2: 'and',
+    privacyLink: 'Privacy Policy',
+    checkbox5_part3: '.',
+    agreementNotice: 'By checking the boxes, you agree to these terms.',
+    continueButton: 'I Understand, Continue'
   }
 };
