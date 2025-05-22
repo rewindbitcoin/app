@@ -262,7 +262,7 @@ export default function Bip39({
                 <Text
                   className={`px-2 text-nowrap text-xs mobmed:text-sm ${fontsLoaded ? "font-['RobotoMono-400Regular']" : ''}`}
                 >
-                  {word}
+                  {hideWords ? '****' : word}
                 </Text>
               </AutoScrollWrapper>
             ) : (
