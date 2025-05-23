@@ -843,108 +843,108 @@ const WalletProviderRaw = ({
    */
   const handleWatchtowerNotification = useCallback(
     (pushToken: string, data: Record<string, unknown>) => {
-      if (data && typeof data === 'object') {
-        const walletUUID = data['walletUUID'];
-        const watchtowerId = data['watchtowerId'];
+      if (!data || typeof data !== 'object') {
+        console.warn('Malformed data in notification');
+        return;
+      }
 
-        if (walletUUID && typeof walletUUID === 'string' && watchtowerId) {
-          // Find the wallet with matching UUID
-          const matchingWallet = Object.values(wallets || {}).find(
-            matchingWallet => matchingWallet.walletUUID === walletUUID
-          );
+      const watchtowerId = data['watchtowerId'];
+      if (typeof watchtowerId !== 'string' || watchtowerId === '') {
+        console.warn('Malformed watchtowerId in notification');
+        return;
+      }
 
-          // Handle unknown wallet UUIDs (from deleted wallets or old installations)
-          if (!matchingWallet) {
-            const vaultId = data['vaultId'] as string;
-            if (typeof vaultId === 'string') {
-              console.warn(
-                `Received notification for unknown wallet UUID: ${walletUUID}. This could be from a deleted wallet or old installation.`
-              );
-              sendAckToWatchtower(pushToken, watchtowerId as string, vaultId);
-              setOrphanedWatchtowerWalletUUIDs(prev =>
-                new Set(prev).add(walletUUID)
-              );
-              goBackToWallets();
-            }
-          } else {
-            const vaultId = data['vaultId'] as string;
-            if (vaultId) {
-              const existingNotifications = matchingWallet.notifications || {};
-              const existingWatchtowerNotifications =
-                existingNotifications[watchtowerId as string] || {};
+      const walletUUID = data['walletUUID'];
+      if (typeof walletUUID !== 'string' || walletUUID === '') {
+        console.warn('Malformed walletUUID in notification');
+        return;
+      }
 
-              // Check if we already have a notification for this vault from
-              // this watchtower
-              if (existingWatchtowerNotifications[vaultId]) {
-                if (existingWatchtowerNotifications[vaultId].acked === true)
-                  sendAckToWatchtower(
-                    pushToken,
-                    watchtowerId as string,
-                    vaultId
-                  );
-              } else {
-                // Notification doesn't exist yet, add it.
-                // Validate required fields exist and are of correct type
-                const firstDetectedAt = data['firstDetectedAt'] as number;
-                const txid = data['txid'] as string;
+      const vaultId = data['vaultId'] as string;
+      if (typeof vaultId !== 'string' || vaultId === '') {
+        console.warn('Malformed vaultId in notification');
+        return;
+      }
 
-                if (
-                  typeof firstDetectedAt === 'number' &&
-                  typeof txid === 'string' &&
-                  txid.length > 0
-                ) {
-                  // Check if this vault was triggered from another device
-                  const vaultStatus = vaultsStatuses?.[vaultId];
-                  const triggerPushTime = vaultStatus?.triggerPushTime;
+      const firstDetectedAt = data['firstDetectedAt'];
+      if (typeof firstDetectedAt !== 'number') {
+        console.warn('Malformed firstDetectedAt in notification');
+        return;
+      }
 
-                  // If there's no triggerPushTime or it's not close to firstDetectedAt,
-                  // then this trigger came from another device
-                  const PUSH_TIME_THRESHOLD = 5 * 60; // seconds
-                  const wasTriggeredFromThisDevice =
-                    triggerPushTime !== undefined &&
-                    Math.abs(triggerPushTime - firstDetectedAt) <
-                      PUSH_TIME_THRESHOLD;
+      const txid = data['txid'];
+      if (typeof txid !== 'string' || txid === '') {
+        console.warn('Malformed txid in notification');
+        return;
+      }
 
-                  if (!wasTriggeredFromThisDevice) {
-                    console.warn(
-                      'Going back to wallets for notification not triggered from this device'
-                    );
-                    goBackToWallets();
-                  }
+      // Find the wallet with matching UUID
+      const matchingWallet = Object.values(wallets || {}).find(
+        matchingWallet => matchingWallet.walletUUID === walletUUID
+      );
 
-                  // Create new wallet object with updated notifications
-                  const updatedWallet = {
-                    ...matchingWallet,
-                    notifications: {
-                      ...existingNotifications,
-                      [watchtowerId as string]: {
-                        ...existingWatchtowerNotifications,
-                        [vaultId]: {
-                          firstAttemptAt: firstDetectedAt,
-                          acked: false
-                        }
-                      }
-                    }
-                  };
+      // Handle unknown wallet UUIDs (from deleted wallets or old installations)
+      if (!matchingWallet) {
+        console.warn(
+          `Received notification for unknown wallet UUID: ${walletUUID}. This could be from a deleted wallet or old installation.`
+        );
+        sendAckToWatchtower(pushToken, watchtowerId, vaultId);
+        setOrphanedWatchtowerWalletUUIDs(prev => new Set(prev).add(walletUUID));
+        goBackToWallets();
+      } else {
+        const existingNotifications = matchingWallet.notifications || {};
+        const existingWatchtowerNotifications =
+          existingNotifications[watchtowerId] || {};
 
-                  // Update wallets storage
-                  batchedUpdates(() => {
-                    setWallets({
-                      ...wallets,
-                      [matchingWallet.walletId]: updatedWallet
-                    });
-                    if (updatedWallet.walletId === activeWallet?.walletId)
-                      setActiveWallet(updatedWallet);
-                  });
-                } else {
-                  console.warn('Invalid notification data received:', {
-                    firstDetectedAt,
-                    txid
-                  });
+        // Check if we already have a notification for this vault from
+        // this watchtower
+        if (existingWatchtowerNotifications[vaultId]) {
+          if (existingWatchtowerNotifications[vaultId].acked === true)
+            sendAckToWatchtower(pushToken, watchtowerId, vaultId);
+        } else {
+          // Notification doesn't exist yet, add it.
+          // Check if this vault was triggered from another device
+          const vaultStatus = vaultsStatuses?.[vaultId];
+          const triggerPushTime = vaultStatus?.triggerPushTime;
+
+          // If there's no triggerPushTime or it's not close to firstDetectedAt,
+          // then this trigger came from another device
+          const PUSH_TIME_THRESHOLD = 5 * 60; // in seconds
+          const wasTriggeredFromThisDevice =
+            triggerPushTime !== undefined &&
+            Math.abs(triggerPushTime - firstDetectedAt) < PUSH_TIME_THRESHOLD;
+
+          if (!wasTriggeredFromThisDevice) {
+            console.warn(
+              'Going back to wallets for notification not triggered from this device'
+            );
+            goBackToWallets();
+          }
+
+          // Create new wallet object with updated notifications
+          const updatedWallet = {
+            ...matchingWallet,
+            notifications: {
+              ...existingNotifications,
+              [watchtowerId]: {
+                ...existingWatchtowerNotifications,
+                [vaultId]: {
+                  firstAttemptAt: firstDetectedAt,
+                  acked: false
                 }
               }
             }
-          }
+          };
+
+          // Update wallets storage
+          batchedUpdates(() => {
+            setWallets({
+              ...wallets,
+              [matchingWallet.walletId]: updatedWallet
+            });
+            if (updatedWallet.walletId === activeWallet?.walletId)
+              setActiveWallet(updatedWallet);
+          });
         }
       }
     },

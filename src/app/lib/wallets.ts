@@ -80,6 +80,10 @@ type Notifications = {
   [watchtowerAPI: string]: {
     [vaultId: string]: {
       firstAttemptAt?: number;
+      /**
+       * set to true once we know the user knows a vault was triggered
+       * handleWatchtowerNotification will notify the watchtower based on this flag
+       */
       acked: boolean;
     };
   };
