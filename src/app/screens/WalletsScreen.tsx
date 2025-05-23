@@ -149,16 +149,7 @@ const WalletsScreen = () => {
   const [termsAccepted, setTermsAccepted, , , termsAcceptedStatus] =
     useStorage<boolean>(TERMS_ACCEPTED_STORAGE_KEY, BOOLEAN, false);
 
-  //reset for tests
-  //useEffect(() => {
-  //  if (termsAcceptedStatus.isSynchd) setTermsAccepted(false);
-  //}, [setTermsAccepted, termsAcceptedStatus.isSynchd]);
-
   const [showTermsModal, setShowTermsModal] = useState(false);
-  const [
-    pendingWalletIdForNavigation,
-    setPendingWalletIdForNavigation
-  ] = useState<number | null>(null);
   const [checkboxStates, setCheckboxStates] = useState([
     false,
     false,
@@ -166,6 +157,7 @@ const WalletsScreen = () => {
     false,
     false
   ]);
+  const [termsModalHidden, setTermsModalHidden] = useState(true);
 
   const handleCheckboxToggle = (index: number) => {
     const newStates = [...checkboxStates];
@@ -228,6 +220,7 @@ const WalletsScreen = () => {
       batchedUpdates(() => {
         setCheckboxStates([false, false, false, false, false]); // Reset states
         setShowTermsModal(true);
+        setTermsModalHidden(false);
       });
     else {
       const walletId = calculateNextWalletId(wallets);
@@ -244,27 +237,49 @@ const WalletsScreen = () => {
   ]);
 
   const handleAcceptAndContinue = useCallback(async () => {
-    if (!wallets) throw new Error('wallets not yet defined');
-    await setTermsAccepted(true); // Ensure terms are persisted
-    const walletId = calculateNextWalletId(wallets);
-    setPendingWalletIdForNavigation(walletId);
-    setShowTermsModal(false); // This will trigger onModalHide
+    batchedUpdates(() => {
+      setTermsAccepted(true);
+      setShowTermsModal(false);
+    });
+  }, [setTermsAccepted]);
+
+  // ⚠️ Navigation after modal acceptance
+  //
+  // When the user accepts the terms, we need to close the modal and THEN
+  // navigate to the NEW_WALLET screen. With `react-native-modal`, calling
+  // navigation immediately after closing the modal (even inside onModalHide)
+  // can cause navigation stack glitches or race conditions on some devices,
+  // due to the way modal overlays and animations interact with the native
+  // view hierarchy and React Navigation.
+  //
+  // This effect ensures navigation only happens AFTER the modal has fully
+  // unmounted AND the terms have been accepted.
+  //
+  // See discussion and root cause here:
+  //   - https://github.com/react-navigation/react-navigation/issues/11725
+  //   - https://github.com/react-native-modal/react-native-modal/issues/481
+  //
+  // DO NOT trigger navigation in the same tick as closing the modal, or in
+  // onModalHide, without such a state guard. Otherwise, you may get
+  // "bounce-back" or navigation failures on real devices.
+  useEffect(() => {
+    if (termsModalHidden && termsAccepted) {
+      if (!wallets) throw new Error('wallets not yet defined');
+      const walletId = calculateNextWalletId(wallets);
+      navigation.navigate(NEW_WALLET, { walletId });
+    }
   }, [
-    wallets,
-    setTermsAccepted,
     calculateNextWalletId,
-    setPendingWalletIdForNavigation,
-    setShowTermsModal
+    navigation,
+    termsAccepted,
+    termsModalHidden,
+    wallets
   ]);
 
-  const onTermsModalHide = useCallback(() => {
-    if (pendingWalletIdForNavigation !== null) {
-      navigation.navigate(NEW_WALLET, {
-        walletId: pendingWalletIdForNavigation
-      });
-      setPendingWalletIdForNavigation(null); // Reset for next time
-    }
-  }, [pendingWalletIdForNavigation, navigation, setPendingWalletIdForNavigation]);
+  //reset for tests
+  //useEffect(() => {
+  //  if (termsAcceptedStatus.isSynchd) setTermsAccepted(false);
+  //}, [setTermsAccepted, termsAcceptedStatus.isSynchd]);
 
   const mbStyle = useMemo(
     //max-w-screen-sm = 640
@@ -303,99 +318,6 @@ const WalletsScreen = () => {
 
   return (
     <>
-      <Modal
-        title={t('termsModal.title')}
-        subTitle={t('termsModal.intro')}
-        icon={{
-          family: 'MaterialCommunityIcons',
-          name: 'file-document-outline'
-        }}
-        isVisible={showTermsModal}
-        onModalHide={onTermsModalHide}
-        onClose={() => {
-          batchedUpdates(() => {
-            setShowTermsModal(false);
-            setCheckboxStates([false, false, false, false, false]);
-            // If modal is closed without accepting, ensure no pending navigation
-            setPendingWalletIdForNavigation(null);
-          });
-        }}
-        customButtons={
-          <View className="items-center w-full pb-4 px-4">
-            <Button
-              mode="primary"
-              disabled={!allCheckboxesChecked}
-              onPress={handleAcceptAndContinue}
-            >
-              {t('termsModal.continueButton')}
-            </Button>
-          </View>
-        }
-      >
-        <View className="gap-y-3">
-          {[
-            t('termsModal.checkbox1'),
-            t('termsModal.checkbox2'),
-            t('termsModal.checkbox3'),
-            t('termsModal.checkbox4')
-          ].map((label, index) => (
-            <Pressable
-              key={index}
-              onPress={() => handleCheckboxToggle(index)}
-              className="flex-row items-start py-1"
-            >
-              <MaterialCommunityIcons
-                name={
-                  checkboxStates[index]
-                    ? 'checkbox-marked-outline'
-                    : 'checkbox-blank-outline'
-                }
-                size={24}
-                className="text-primary mr-3 mt-0.5"
-              />
-              <Text className="flex-1 text-sm">{label}</Text>
-            </Pressable>
-          ))}
-          <Pressable
-            onPress={() => handleCheckboxToggle(4)}
-            className="flex-row items-start py-1"
-          >
-            <MaterialCommunityIcons
-              name={
-                checkboxStates[4]
-                  ? 'checkbox-marked-outline'
-                  : 'checkbox-blank-outline'
-              }
-              size={24}
-              className="text-primary mr-3 mt-0.5"
-            />
-            <Text className="flex-1 text-sm">
-              {t('termsModal.checkbox5_part1')}{' '}
-              <Text
-                className="text-primary underline"
-                onPress={() =>
-                  Linking.openURL('https://rewindbitcoin.com/terms')
-                }
-              >
-                {t('termsModal.termsLink')}
-              </Text>{' '}
-              {t('termsModal.checkbox5_part2')}{' '}
-              <Text
-                className="text-primary underline"
-                onPress={() =>
-                  Linking.openURL('https://rewindbitcoin.com/privacy')
-                }
-              >
-                {t('termsModal.privacyLink')}
-              </Text>
-              {t('termsModal.checkbox5_part3')}
-            </Text>
-          </Pressable>
-          <Text className="text-center text-xs text-slate-600 mt-2">
-            {t('termsModal.agreementNotice')}
-          </Text>
-        </View>
-      </Modal>
       {!dangerMode && (
         <Pressable
           onLayout={event => {
@@ -561,6 +483,99 @@ const WalletsScreen = () => {
           )
         }
       </KeyboardAwareScrollView>
+      <Modal
+        title={t('termsModal.title')}
+        subTitle={t('termsModal.intro')}
+        icon={{
+          family: 'MaterialCommunityIcons',
+          name: 'file-document-outline'
+        }}
+        onModalHide={() => {
+          setTermsModalHidden(true);
+        }}
+        isVisible={showTermsModal}
+        onClose={() => {
+          batchedUpdates(() => {
+            setShowTermsModal(false);
+            setCheckboxStates([false, false, false, false, false]);
+          });
+        }}
+        customButtons={
+          <View className="items-center w-full pb-4 px-4">
+            <Button
+              mode="primary"
+              disabled={!allCheckboxesChecked}
+              onPress={handleAcceptAndContinue}
+            >
+              {t('termsModal.continueButton')}
+            </Button>
+          </View>
+        }
+      >
+        <View className="gap-y-3">
+          {[
+            t('termsModal.checkbox1'),
+            t('termsModal.checkbox2'),
+            t('termsModal.checkbox3'),
+            t('termsModal.checkbox4')
+          ].map((label, index) => (
+            <Pressable
+              key={index}
+              onPress={() => handleCheckboxToggle(index)}
+              className="flex-row items-start py-1"
+            >
+              <MaterialCommunityIcons
+                name={
+                  checkboxStates[index]
+                    ? 'checkbox-marked-outline'
+                    : 'checkbox-blank-outline'
+                }
+                size={24}
+                className="text-primary mr-3 mt-0.5"
+              />
+              <Text className="flex-1 text-sm">{label}</Text>
+            </Pressable>
+          ))}
+          <Pressable
+            onPress={() => handleCheckboxToggle(4)}
+            className="flex-row items-start py-1"
+          >
+            <MaterialCommunityIcons
+              name={
+                checkboxStates[4]
+                  ? 'checkbox-marked-outline'
+                  : 'checkbox-blank-outline'
+              }
+              size={24}
+              className="text-primary mr-3 mt-0.5"
+            />
+            <Text className="flex-1 text-sm">
+              {t('termsModal.checkbox5_part1')}{' '}
+              <Text
+                className="text-primary underline"
+                onPress={() =>
+                  Linking.openURL('https://rewindbitcoin.com/terms')
+                }
+              >
+                {t('termsModal.termsLink')}
+              </Text>{' '}
+              {t('termsModal.checkbox5_part2')}{' '}
+              <Text
+                className="text-primary underline"
+                onPress={() =>
+                  Linking.openURL('https://rewindbitcoin.com/privacy')
+                }
+              >
+                {t('termsModal.privacyLink')}
+              </Text>
+              {t('termsModal.checkbox5_part3')}
+            </Text>
+          </Pressable>
+          <Text className="text-center text-xs text-slate-600 mt-2">
+            {t('termsModal.agreementNotice')}
+          </Text>
+        </View>
+      </Modal>
     </>
   );
 };
