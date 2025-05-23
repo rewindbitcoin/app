@@ -9,13 +9,12 @@ import {
   Text,
   View,
   Pressable /*, useWindowDimensions*/,
-  Platform,
-  Linking
+  Platform
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useStorage } from '../../common/hooks/useStorage';
 import { BOOLEAN } from '../../common/lib/storage';
-import { KeyboardAwareScrollView, Modal, Button } from '../../common/ui';
+import { KeyboardAwareScrollView } from '../../common/ui';
 import { useTranslation } from 'react-i18next';
 import { useNavigation } from '@react-navigation/native';
 import { NEW_WALLET, WALLET_HOME } from '../screens';
@@ -32,6 +31,7 @@ import { useWallet } from '../hooks/useWallet';
 import { Wallet, Wallets, walletTitle } from '../lib/wallets';
 import { useLocalization } from '../hooks/useLocalization';
 import { batchedUpdates } from '~/common/lib/batchedUpdates';
+import TermsModal from '../components/TermsModal';
 cssInterop(Svg, {
   className: {
     target: 'style',
@@ -150,22 +150,7 @@ const WalletsScreen = () => {
     useStorage<boolean>(TERMS_ACCEPTED_STORAGE_KEY, BOOLEAN, false);
 
   const [showTermsModal, setShowTermsModal] = useState(false);
-  const [checkboxStates, setCheckboxStates] = useState([
-    false,
-    false,
-    false,
-    false,
-    false
-  ]);
   const [termsModalHidden, setTermsModalHidden] = useState(true);
-
-  const handleCheckboxToggle = (index: number) => {
-    const newStates = [...checkboxStates];
-    newStates[index] = !newStates[index];
-    setCheckboxStates(newStates);
-  };
-
-  const allCheckboxesChecked = checkboxStates.every(Boolean);
 
   const calculateNextWalletId = useCallback(
     (currentWallets: Wallets): number => {
@@ -216,13 +201,12 @@ const WalletsScreen = () => {
     if (!termsAcceptedStatus.isSynchd) return; // Wait until storage is loaded
     if (!wallets) throw new Error('wallets not yet defined');
 
-    if (!termsAccepted)
+    if (!termsAccepted) {
       batchedUpdates(() => {
-        setCheckboxStates([false, false, false, false, false]); // Reset states
         setShowTermsModal(true);
         setTermsModalHidden(false);
       });
-    else {
+    } else {
       const walletId = calculateNextWalletId(wallets);
       navigation.navigate(NEW_WALLET, { walletId });
     }
@@ -232,16 +216,26 @@ const WalletsScreen = () => {
     termsAccepted,
     termsAcceptedStatus.isSynchd,
     setShowTermsModal,
-    setCheckboxStates,
+    setTermsModalHidden,
     calculateNextWalletId
   ]);
 
-  const handleAcceptAndContinue = useCallback(async () => {
+  const handleAcceptTerms = useCallback(() => {
     batchedUpdates(() => {
       setTermsAccepted(true);
+      // This will trigger onModalHide, then the useEffect for navigation
       setShowTermsModal(false);
     });
-  }, [setTermsAccepted]);
+  }, [setTermsAccepted, setShowTermsModal]);
+
+  const handleCloseTermsModal = useCallback(() => {
+    setShowTermsModal(false);
+    // setTermsModalHidden will be set by onModalHide
+  }, [setShowTermsModal]);
+
+  const onTermsModalHide = useCallback(() => {
+    setTermsModalHidden(true);
+  }, []);
 
   // ⚠️ Navigation after modal acceptance
   //
@@ -276,7 +270,7 @@ const WalletsScreen = () => {
     wallets
   ]);
 
-  //reset for tests
+  //reset TERMS_ACCEPTED_STORAGE_KEY for tests
   //useEffect(() => {
   //  if (termsAcceptedStatus.isSynchd) setTermsAccepted(false);
   //}, [setTermsAccepted, termsAcceptedStatus.isSynchd]);
@@ -483,99 +477,12 @@ const WalletsScreen = () => {
           )
         }
       </KeyboardAwareScrollView>
-      <Modal
-        title={t('termsModal.title')}
-        subTitle={t('termsModal.intro')}
-        icon={{
-          family: 'MaterialCommunityIcons',
-          name: 'file-document-outline'
-        }}
-        onModalHide={() => {
-          setTermsModalHidden(true);
-        }}
+      <TermsModal
         isVisible={showTermsModal}
-        onClose={() => {
-          batchedUpdates(() => {
-            setShowTermsModal(false);
-            setCheckboxStates([false, false, false, false, false]);
-          });
-        }}
-        customButtons={
-          <View className="items-center w-full pb-4 px-4">
-            <Button
-              mode="primary"
-              disabled={!allCheckboxesChecked}
-              onPress={handleAcceptAndContinue}
-            >
-              {t('termsModal.continueButton')}
-            </Button>
-          </View>
-        }
-      >
-        <View className="gap-y-3">
-          {[
-            t('termsModal.checkbox1'),
-            t('termsModal.checkbox2'),
-            t('termsModal.checkbox3'),
-            t('termsModal.checkbox4')
-          ].map((label, index) => (
-            <Pressable
-              key={index}
-              onPress={() => handleCheckboxToggle(index)}
-              className="flex-row items-start py-1"
-            >
-              <MaterialCommunityIcons
-                name={
-                  checkboxStates[index]
-                    ? 'checkbox-marked-outline'
-                    : 'checkbox-blank-outline'
-                }
-                size={24}
-                className="text-primary mr-3 mt-0.5"
-              />
-              <Text className="flex-1 text-sm">{label}</Text>
-            </Pressable>
-          ))}
-          <Pressable
-            onPress={() => handleCheckboxToggle(4)}
-            className="flex-row items-start py-1"
-          >
-            <MaterialCommunityIcons
-              name={
-                checkboxStates[4]
-                  ? 'checkbox-marked-outline'
-                  : 'checkbox-blank-outline'
-              }
-              size={24}
-              className="text-primary mr-3 mt-0.5"
-            />
-            <Text className="flex-1 text-sm">
-              {t('termsModal.checkbox5_part1')}{' '}
-              <Text
-                className="text-primary underline"
-                onPress={() =>
-                  Linking.openURL('https://rewindbitcoin.com/terms')
-                }
-              >
-                {t('termsModal.termsLink')}
-              </Text>{' '}
-              {t('termsModal.checkbox5_part2')}{' '}
-              <Text
-                className="text-primary underline"
-                onPress={() =>
-                  Linking.openURL('https://rewindbitcoin.com/privacy')
-                }
-              >
-                {t('termsModal.privacyLink')}
-              </Text>
-              {t('termsModal.checkbox5_part3')}
-            </Text>
-          </Pressable>
-          <Text className="text-center text-xs text-slate-600 mt-2">
-            {t('termsModal.agreementNotice')}
-          </Text>
-        </View>
-      </Modal>
+        onAccept={handleAcceptTerms}
+        onClose={handleCloseTermsModal}
+        onModalHide={onTermsModalHide}
+      />
     </>
   );
 };

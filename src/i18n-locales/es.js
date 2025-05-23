@@ -793,13 +793,13 @@ Para obtener más ayuda o reportar este problema, por favor contacta con el sopo
     intro:
       'Por favor, lee y acepta los siguientes términos antes de continuar.',
     checkbox1:
-      'Entiendo que soy el único responsable de la seguridad y backups de mis billeteras, no Rewind Bitcoin.',
+      'Entiendo que soy el único responsable de la seguridad y backups de mis billeteras, no Rewind.',
     checkbox2:
       'Entiendo que usar Rewind con fines ilegales va contra nuestros términos.',
     checkbox3:
-      'Entiendo que Rewind Bitcoin no es un banco, exchange o institución financiera.',
+      'Entiendo que Rewind no es un banco, exchange o institución financiera.',
     checkbox4:
-      'Entiendo que si pierdo acceso a mis billeteras, Rewind Bitcoin no es responsable ni puede ayudar.',
+      'Entiendo que si pierdo acceso a mis billeteras, Rewind no es responsable ni puede ayudar.',
     checkbox5_part1: 'He leído y acepto los',
     termsLink: 'Términos de Servicio',
     checkbox5_part2: 'y la',
