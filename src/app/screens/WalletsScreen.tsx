@@ -150,7 +150,18 @@ const WalletsScreen = () => {
     useStorage<boolean>(TERMS_ACCEPTED_STORAGE_KEY, BOOLEAN, false);
 
   const [showTermsModal, setShowTermsModal] = useState(false);
-  const [termsModalHidden, setTermsModalHidden] = useState(true);
+
+  // State to manage the navigation flow after terms acceptance
+  // 'idle': No terms-related navigation flow is active.
+  // 'terms_accepted_awaiting_modal_hide': User accepted terms, modal is closing,
+  // waiting for onModalHide.
+  // 'terms_accepted_after_modal_hide': Modal has hidden and terms were accepted,
+  // ready to navigate to new wallet screen.
+  const [termsNavigationFlowState, setTermsNavigationFlowState] = useState<
+    | 'idle'
+    | 'terms_accepted_awaiting_modal_hide'
+    | 'terms_accepted_after_modal_hide'
+  >('idle');
 
   const calculateNextWalletId = useCallback(
     (currentWallets: Wallets): number => {
@@ -202,10 +213,7 @@ const WalletsScreen = () => {
     if (!wallets) throw new Error('wallets not yet defined');
 
     if (!termsAccepted) {
-      batchedUpdates(() => {
-        setShowTermsModal(true);
-        setTermsModalHidden(false);
-      });
+      setShowTermsModal(true);
     } else {
       const walletId = calculateNextWalletId(wallets);
       navigation.navigate(NEW_WALLET, { walletId });
@@ -216,26 +224,26 @@ const WalletsScreen = () => {
     termsAccepted,
     termsAcceptedStatus.isSynchd,
     setShowTermsModal,
-    setTermsModalHidden,
     calculateNextWalletId
   ]);
 
   const handleAcceptTerms = useCallback(() => {
     batchedUpdates(() => {
+      setTermsNavigationFlowState('terms_accepted_awaiting_modal_hide');
       setTermsAccepted(true);
-      // This will trigger onModalHide, then the useEffect for navigation
+      // This will trigger onTermsModalHide, then the useEffect for navigation
       setShowTermsModal(false);
     });
-  }, [setTermsAccepted, setShowTermsModal]);
+  }, [setTermsAccepted, setShowTermsModal, setTermsNavigationFlowState]);
 
   const handleCloseTermsModal = useCallback(() => {
     setShowTermsModal(false);
-    // setTermsModalHidden will be set by onModalHide
   }, [setShowTermsModal]);
 
   const onTermsModalHide = useCallback(() => {
-    setTermsModalHidden(true);
-  }, []);
+    if (termsNavigationFlowState === 'terms_accepted_awaiting_modal_hide')
+      setTermsNavigationFlowState('terms_accepted_after_modal_hide');
+  }, [termsNavigationFlowState]);
 
   // ⚠️ Navigation after modal acceptance
   //
@@ -257,18 +265,13 @@ const WalletsScreen = () => {
   // onModalHide, without such a state guard. Otherwise, you may get
   // "bounce-back" or navigation failures on real devices.
   useEffect(() => {
-    if (termsModalHidden && termsAccepted) {
+    if (termsNavigationFlowState === 'terms_accepted_after_modal_hide') {
+      setTermsNavigationFlowState('idle'); // Reset the flow state
       if (!wallets) throw new Error('wallets not yet defined');
       const walletId = calculateNextWalletId(wallets);
       navigation.navigate(NEW_WALLET, { walletId });
     }
-  }, [
-    calculateNextWalletId,
-    navigation,
-    termsAccepted,
-    termsModalHidden,
-    wallets
-  ]);
+  }, [calculateNextWalletId, navigation, wallets, termsNavigationFlowState]);
 
   //reset TERMS_ACCEPTED_STORAGE_KEY for tests
   //useEffect(() => {
