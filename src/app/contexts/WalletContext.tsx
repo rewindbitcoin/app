@@ -228,7 +228,7 @@ const WalletProviderRaw = ({
   const navigation = useNavigation();
 
   // pushToken type will be undefined while not read, '' if read but never set
-  // or a string if set
+  // or a non-empty string if set
   const [pushToken, setPushToken] = useStorage<string>(
     'PUSH_TOKEN',
     STRING,

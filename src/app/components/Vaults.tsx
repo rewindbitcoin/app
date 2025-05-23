@@ -9,9 +9,6 @@
 //cuando se hace desde un dispositivco q no hizo el push? YES
 //  -> Esto tiene q ir a la web
 
-//FIXME: on android the red warning (initial) does not cover the full screen in
-//red to the bottom.
-
 //FIXME: tests: (Android / iOS):
 // - registration error GOOD
 // - user denying access to notifications

@@ -340,10 +340,7 @@ const WalletsScreen = () => {
         keyboardShouldPersistTaps="handled"
         contentContainerClassName={
           //See TAGiusfdnisdunf in WalletHomeScreen for explanations
-          `justify-center items-center ${dangerMode ? 'bg-red-600' : ''} ${Platform.OS === 'ios' || Platform.OS === 'web' ? '-z-10' : ''}`
-        }
-        contentContainerStyle={
-          dangerMode ? {} : { flexGrow: 1 } /*className flex-1 does not work!*/
+          `grow ${dangerMode ? 'justify-start' : 'justify-center'} items-center ${dangerMode ? 'bg-red-600' : ''} ${Platform.OS === 'ios' || Platform.OS === 'web' ? '-z-10' : ''}`
         }
         onLayout={event => {
           scrollViewHeightRef.current = event.nativeEvent.layout.height;
