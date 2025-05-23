@@ -1199,12 +1199,10 @@ const WalletProviderRaw = ({
     // This is the only possible way to retrieve them if the app was killed
     // (force-stopped) and the user did not tap on the notification.
 
-    // Track which watchtower APIs are we using.
-    const watchtowerAPIChecks = Object.values(wallets || [])
+    // Track which networks are we using.
+    const watchtowerNetworkIdsToCheck = Object.values(wallets || [])
       .map(w => w.networkId)
-      .filter((netId, i, arr) => netId && arr.indexOf(netId) === i) //del duplicates
-      .map(netId => getAPIs(netId, settings).watchtowerAPI)
-      .filter(Boolean) as string[];
+      .filter((netId, i, arr) => netId && arr.indexOf(netId) === i); // del duplicates
 
     // One cold fallback for force-stop / killed silent gap
     // (only needed because OS won’t deliver when force-stopped/killed)
@@ -1213,15 +1211,22 @@ const WalletProviderRaw = ({
         // Defensive: prevents duplicate polling if effect runs again before poll starts
 
         watchtowerPollTimeoutRef.current = 'CHECKING';
-        // start with all APIs marked “failed”
-        let failedAPIs = [...watchtowerAPIChecks];
+        // start with all networks marked “failed”
+        let failedNetworkIds = [...watchtowerNetworkIdsToCheck];
         const poll = async () => {
-          for (const api of [...failedAPIs]) {
+          //for (const api of [...failedAPIs]) {
+          for (const networkId of [...failedNetworkIds]) {
+            const api = getAPIs(networkId, settings).watchtowerAPI;
+            if (api === undefined)
+              throw new Error(
+                `Network ${networkId} does not have a valid watchtower api`
+              );
             const ok = await fetchAndHandleWatchtowerUnacked(pushToken, api);
-            if (ok) failedAPIs = failedAPIs.filter(a => a !== api); // remove from failed list
+            if (ok)
+              failedNetworkIds = failedNetworkIds.filter(a => a !== networkId); // remove from failed list
           }
           // if anything still failed, retry in 60s
-          if (failedAPIs.length > 0)
+          if (failedNetworkIds.length > 0)
             watchtowerPollTimeoutRef.current = setTimeout(poll, 60000);
           else watchtowerPollTimeoutRef.current = 'COMPLETE';
         };

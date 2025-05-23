@@ -1,3 +1,6 @@
+//FIXME: I received notifications 6 hours after having acked them. So weird.
+//investigate. I got them both in iOS and Android.
+
 //FIXME: Specially on Android while fetching, everything becomes unresponsive
 
 //FIXME: on android i created credentials for development, for notifications
