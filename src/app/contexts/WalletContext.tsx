@@ -12,6 +12,7 @@ import {
   getHistoryData,
   TxHex
 } from '../lib/vaults';
+import { type Notification } from 'expo-notifications';
 import { v4 as uuid } from 'uuid';
 import { useNavigation } from '@react-navigation/native';
 import { WALLETS } from '../screens';
@@ -842,39 +843,60 @@ const WalletProviderRaw = ({
    * and triggers acknowledgments for existing notifications.
    */
   const handleWatchtowerNotification = useCallback(
-    (pushToken: string, data: Record<string, unknown>) => {
+    (
+      pushToken: string,
+      data: Record<string, unknown>,
+      /** for debugging purposes: who called handleWatchtowerNotification **/
+      source: 'TRAY' | 'FETCH'
+    ) => {
       if (!data || typeof data !== 'object') {
-        console.warn('Malformed data in notification');
+        console.warn(
+          'Malformed data in notification',
+          JSON.stringify(data, null, 2),
+          source
+        );
         return;
       }
 
       const watchtowerId = data['watchtowerId'];
       if (typeof watchtowerId !== 'string' || watchtowerId === '') {
-        console.warn('Malformed watchtowerId in notification');
+        console.warn(
+          'Malformed watchtowerId in notification',
+          watchtowerId,
+          source
+        );
         return;
       }
 
       const walletUUID = data['walletUUID'];
       if (typeof walletUUID !== 'string' || walletUUID === '') {
-        console.warn('Malformed walletUUID in notification');
+        console.warn(
+          'Malformed walletUUID in notification',
+          walletUUID,
+          source
+        );
         return;
       }
 
       const vaultId = data['vaultId'] as string;
       if (typeof vaultId !== 'string' || vaultId === '') {
-        console.warn('Malformed vaultId in notification');
+        console.warn('Malformed vaultId in notification', vaultId, source);
         return;
       }
 
       const firstDetectedAt = data['firstDetectedAt'];
       if (typeof firstDetectedAt !== 'number') {
-        console.warn('Malformed firstDetectedAt in notification');
+        console.warn(
+          'Malformed firstDetectedAt in notification',
+          firstDetectedAt,
+          source
+        );
         return;
       }
 
       const txid = data['txid'];
       if (typeof txid !== 'string' || txid === '') {
-        console.warn('Malformed txid in notification');
+        console.warn('Malformed txid in notification', txid, source);
         return;
       }
 
@@ -886,7 +908,7 @@ const WalletProviderRaw = ({
       // Handle unknown wallet UUIDs (from deleted wallets or old installations)
       if (!matchingWallet) {
         console.warn(
-          `Received notification for unknown wallet UUID: ${walletUUID}. This could be from a deleted wallet or old installation.`
+          `Received notification for unknown wallet UUID: ${walletUUID} from ${source}. This could be from a deleted wallet or old installation.`
         );
         sendAckToWatchtower(pushToken, watchtowerId, vaultId);
         setOrphanedWatchtowerWalletUUIDs(prev => new Set(prev).add(walletUUID));
@@ -916,7 +938,7 @@ const WalletProviderRaw = ({
 
           if (!wasTriggeredFromThisDevice) {
             console.warn(
-              'Going back to wallets for notification not triggered from this device'
+              `Going back to wallets for notification not triggered from this device from ${source}`
             );
             goBackToWallets();
           }
@@ -1127,7 +1149,7 @@ const WalletProviderRaw = ({
     const processPresented = async (pushToken: string) => {
       try {
         const list = await getPresentedNotificationsAsync();
-        (list as import('expo-notifications').Notification[]).forEach(
+        (list as Array<Notification>).forEach(
           n => handleWatchtowerNotification(pushToken, n.request.content.data)
           //if needed they can be cleared with dismissNotificationAsync.
           //But do this only after clicking on the wallet itself. This is
