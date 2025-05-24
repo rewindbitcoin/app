@@ -851,9 +851,7 @@ const WalletProviderRaw = ({
     ) => {
       if (!data || typeof data !== 'object') {
         console.warn(
-          'Malformed data in notification',
-          JSON.stringify(data, null, 2),
-          source
+          `Malformed data in notification: ${JSON.stringify(data, null, 2)} from ${source}.`
         );
         return;
       }
@@ -861,9 +859,7 @@ const WalletProviderRaw = ({
       const watchtowerId = data['watchtowerId'];
       if (typeof watchtowerId !== 'string' || watchtowerId === '') {
         console.warn(
-          'Malformed watchtowerId in notification',
-          watchtowerId,
-          source
+          `Malformed watchtowerId in notification: ${watchtowerId} from ${source}.`
         );
         return;
       }
@@ -871,32 +867,30 @@ const WalletProviderRaw = ({
       const walletUUID = data['walletUUID'];
       if (typeof walletUUID !== 'string' || walletUUID === '') {
         console.warn(
-          'Malformed walletUUID in notification',
-          walletUUID,
-          source
+          `Malformed walletUUID in notification: ${walletUUID} from ${source}.`
         );
         return;
       }
 
       const vaultId = data['vaultId'] as string;
       if (typeof vaultId !== 'string' || vaultId === '') {
-        console.warn('Malformed vaultId in notification', vaultId, source);
+        console.warn(
+          `Malformed vaultId in notification: ${vaultId} from ${source}.`
+        );
         return;
       }
 
       const firstDetectedAt = data['firstDetectedAt'];
       if (typeof firstDetectedAt !== 'number') {
         console.warn(
-          'Malformed firstDetectedAt in notification',
-          firstDetectedAt,
-          source
+          `Malformed firstDetectedAt in notification: ${firstDetectedAt} from ${source}.`
         );
         return;
       }
 
       const txid = data['txid'];
       if (typeof txid !== 'string' || txid === '') {
-        console.warn('Malformed txid in notification', txid, source);
+        console.warn(`Malformed txid in notification: ${txid} from ${source}.`);
         return;
       }
 
