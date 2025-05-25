@@ -26,7 +26,7 @@ import {
 import {
   watchVaults,
   canReceiveNotifications,
-  fetchAndHandleWatchtowerUnacked,
+  fetchWatchtowerUnackedNotifications,
   sendAckToWatchtower
 } from '../lib/watchtower';
 import {
@@ -1011,6 +1011,8 @@ const WalletProviderRaw = ({
 
     // One cold fallback for force-stop / killed silent gap
     // (only needed because OS won’t deliver when force-stopped/killed)
+    //FIXME: move this on outer scope and add an abort controller that
+    //also controls the polling
     function runFetchAndPoll(pushToken: string) {
       // Track which networks are we using.
       const watchtowerNetworkIdsToCheck = Object.values(wallets || [])
@@ -1029,16 +1031,24 @@ const WalletProviderRaw = ({
               throw new Error(
                 `Network ${networkId} does not have a valid watchtower api`
               );
-            //FIXME: trick here is to only actually fetch on mount or after
-            //app comes active from background (not inactive) or if last failed
-            const ok = await fetchAndHandleWatchtowerUnacked({
-              pushToken,
-              networkTimeout,
-              watchtowerAPI,
-              handleWatchtowerNotification
-            });
-            if (ok)
+            const unackedNotifications =
+              await fetchWatchtowerUnackedNotifications({
+                pushToken,
+                networkTimeout,
+                watchtowerAPI
+              });
+
+            if (unackedNotifications !== null) {
+              // Process each unacked notification
+              for (const notification of unackedNotifications) {
+                handleWatchtowerNotification(
+                  pushToken,
+                  notification, // Pass the whole notification object
+                  'FETCH'
+                );
+              }
               failedNetworkIds = failedNetworkIds.filter(a => a !== networkId); // remove from failed list
+            }
           }
           // if anything still failed, retry in 60s
           if (failedNetworkIds.length > 0)

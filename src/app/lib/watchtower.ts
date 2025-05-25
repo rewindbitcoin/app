@@ -174,153 +174,137 @@ export async function watchVaults({
   }
 }
 
+// Type for a single unacknowledged notification item
+export type UnackedNotificationItem = {
+  vaultId: string;
+  walletUUID: string;
+  watchtowerId: string;
+  firstDetectedAt: number;
+  txid: string;
+};
+
 // Cache of “unacknowledged” watchtower notifications by API URL.
 // Populated exactly once on app startup (to recover any notifications
 // you missed while the app was killed), then replayed from memory
-// on subsequent calls to `fetchAndHandleWatchtowerUnacked`.
+// on subsequent calls to `fetchWatchtowerUnackedNotifications`.
+// This cache should only store validated notification arrays.
+// FIXME: problem here is watchtowerUnackedNotifications must be cleared on app
+// state change...
+//FIXME: so the task here is to reset it on app state change!!!
+//then the runFetchAndPoll must be reset on any change as usual.
 const watchtowerUnackedNotifications: Record<
   string,
-  {
-    vaultId: string;
-    walletUUID: string;
-    watchtowerId: string;
-    firstDetectedAt: number;
-    txid: string;
-  }[]
+  UnackedNotificationItem[]
 > = {};
 
 /**
- * Retrieve and process any “unacknowledged” notifications from the watchtower.
+ * Retrieve any “unacknowledged” notifications from the watchtower.
  *
  * When the app is killed, OS‐delivered push notifications never surface
  * in JS unless the user taps them (at least on force-stopped apps on Android).
  * This function:
  *   1. Fetches the “missed” notifications exactly once per WT URL (on first call).
- *   2. Caches the raw payload in `watchtowerUnackedNotificationsRef`.
- *   3. On every subsequent call, skips the network and invokes
- *      `handleWatchtowerNotification` for each cached entry, ensuring
- *      those notifications are handled in the app’s current context
- *      (for example, taking into account whatever wallet is active now).
+ *   2. Validates the fetched notifications.
+ *   3. Caches the validated payload in `watchtowerUnackedNotifications`.
+ *   4. On every subsequent call, skips the network and returns the cached entries.
  *
  * @param {string} watchtowerAPI - The base watchtower API URL for the specific network
- * @returns {Promise<boolean>} True if notifications were successfully fetched and processed,
- *                            false if there was an error or the service was unavailable
+ * @returns {Promise<UnackedNotificationItem[] | null>} An array of unacknowledged notifications,
+ *                                                    or null if there was an error or the service was unavailable.
  */
-export async function fetchAndHandleWatchtowerUnacked({
+export async function fetchWatchtowerUnackedNotifications({
   networkTimeout,
   pushToken,
-  watchtowerAPI,
-  handleWatchtowerNotification
+  watchtowerAPI
 }: {
   networkTimeout: number | undefined;
   pushToken: string;
   watchtowerAPI: string;
-  handleWatchtowerNotification: (
-    pushToken: string,
-    data: Record<string, unknown>,
-    source:
-      | 'PRESENT_IN_TRAY'
-      | 'FETCH'
-      | 'OPENED'
-      | 'FOREGROUND_LISTENER'
-      | 'TAPPED'
-  ) => void;
-}): Promise<boolean> {
+}): Promise<UnackedNotificationItem[] | null> {
   if (!networkTimeout) {
     console.warn(
-      'Cannot fetch unacknowledged notifications: missing network timeout'
+      'Cannot fetch unacknowledged notifications: missing network timeout.'
     );
-    return false;
+    return null;
   }
   if (!pushToken) {
     console.warn(
-      'Cannot fetch unacknowledged notifications: no push token available'
+      'Cannot fetch unacknowledged notifications: no push token available.'
     );
-    return false;
+    return null;
+  }
+
+  // If already cached, return the (pre-validated) cached notifications.
+  if (watchtowerUnackedNotifications[watchtowerAPI]) {
+    return watchtowerUnackedNotifications[watchtowerAPI];
   }
 
   try {
-    //only bug the WT once. Then cache the response. The WT should only be
-    //queried on App load in case it was killed. Then we use events.
-    if (!watchtowerUnackedNotifications[watchtowerAPI]) {
-      // Construct the notifications endpoint for this network
-      const notificationsEndpoint = `${watchtowerAPI}/notifications`;
-      // Make the request to the watchtower API
-      const response = await fetch(notificationsEndpoint, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ pushToken }),
-        signal: AbortSignal.timeout(networkTimeout)
-      });
+    // Construct the notifications endpoint for this network
+    const notificationsEndpoint = `${watchtowerAPI}/notifications`;
+    // Make the request to the watchtower API
+    const response = await fetch(notificationsEndpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ pushToken }),
+      signal: AbortSignal.timeout(networkTimeout)
+    });
 
-      if (!response.ok) {
-        console.warn(
-          `Failed to fetch unacknowledged notifications from ${notificationsEndpoint}: ${response.status} ${response.statusText}`
-        );
-        return false;
-      }
-
-      const data = await response.json();
-
-      if (!data.notifications || !Array.isArray(data.notifications)) {
-        console.warn(
-          'Invalid response format for unacknowledged notifications'
-        );
-        return false;
-      }
-      watchtowerUnackedNotifications[watchtowerAPI] = data.notifications;
+    if (!response.ok) {
+      console.warn(
+        `Failed to fetch unacknowledged notifications from ${notificationsEndpoint}: ${response.status} ${response.statusText}.`
+      );
+      return null;
     }
 
-    if (!watchtowerUnackedNotifications[watchtowerAPI])
-      throw new Error('watchtowerUnackedNotificationsRef should be set');
+    const data = await response.json();
 
-    // Process each unacked notification
-    for (const unackedNotification of watchtowerUnackedNotifications[
-      watchtowerAPI
-    ]) {
-      const { vaultId, walletUUID, watchtowerId, firstDetectedAt, txid } =
-        unackedNotification;
+    if (!data.notifications || !Array.isArray(data.notifications)) {
+      console.warn(
+        `Invalid response format for unacknowledged notifications from ${watchtowerAPI}.`
+      );
+      return null;
+    }
 
+    const validatedNotifications: UnackedNotificationItem[] = [];
+
+    for (const item of data.notifications) {
       if (
-        typeof vaultId === 'string' &&
-        typeof walletUUID === 'string' &&
-        typeof watchtowerId === 'string' &&
-        typeof firstDetectedAt === 'number' &&
-        typeof txid === 'string'
+        item &&
+        typeof item.vaultId === 'string' &&
+        typeof item.walletUUID === 'string' &&
+        typeof item.watchtowerId === 'string' &&
+        typeof item.firstDetectedAt === 'number' &&
+        typeof item.txid === 'string'
       ) {
-        // Process the notification data using the handler
-        handleWatchtowerNotification(
-          pushToken,
-          {
-            vaultId,
-            walletUUID,
-            watchtowerId,
-            firstDetectedAt,
-            txid
-          },
-          'FETCH'
-        );
+        validatedNotifications.push({
+          vaultId: item.vaultId,
+          walletUUID: item.walletUUID,
+          watchtowerId: item.watchtowerId,
+          firstDetectedAt: item.firstDetectedAt,
+          txid: item.txid
+        });
       } else {
         console.warn(
-          `The watchtower returned corrupted data`,
-          JSON.stringify(unackedNotification, null, 2)
+          `The watchtower ${watchtowerAPI} returned corrupted data: ${JSON.stringify(item, null, 2)}.`
         );
-        delete watchtowerUnackedNotifications[watchtowerAPI];
-        return false;
+        // Do not cache if any item is invalid.
+        return null;
       }
     }
 
-    // Successfully fetched and processed notifications
-    return true;
+    // Cache the validated notifications
+    watchtowerUnackedNotifications[watchtowerAPI] = validatedNotifications;
+    return validatedNotifications;
   } catch (error) {
     // Don't throw, just log the warning
     console.warn(
       `Error fetching unacknowledged notifications from ${watchtowerAPI}:`,
       error
     );
-    return false;
+    return null;
   }
 }
 
