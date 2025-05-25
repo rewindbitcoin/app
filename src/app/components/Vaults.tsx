@@ -1,3 +1,7 @@
+//FIXME: Malformed watchtowerId in notification
+//  -> Also focussing the app directly (without clicking on the notificaion)
+//  did not show the red warning
+//
 //FIXME: I received notifications 6 hours after having acked them. So weird.
 //investigate. I got them both in iOS and Android.
 

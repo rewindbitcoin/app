@@ -1,3 +1,5 @@
+//FIXME: on App state refetch from the watchtower...
+//FIXME: on App state and on App start dismiss all...
 import {
   fetchVaultsStatuses,
   getUtxosData,
@@ -12,19 +14,20 @@ import {
   getHistoryData,
   TxHex
 } from '../lib/vaults';
-import { type Notification } from 'expo-notifications';
 import { v4 as uuid } from 'uuid';
 import { useNavigation } from '@react-navigation/native';
 import { WALLETS } from '../screens';
 import {
-  getPresentedNotificationsAsync,
-  dismissNotificationAsync,
   type Subscription,
   addNotificationReceivedListener,
   addNotificationResponseReceivedListener,
   getLastNotificationResponseAsync
 } from 'expo-notifications';
-import { watchVaults, canReceiveNotifications } from '../lib/watchtower';
+import {
+  watchVaults,
+  canReceiveNotifications,
+  fetchAndHandleWatchtowerUnacked
+} from '../lib/watchtower';
 import {
   walletTitle as walletTitleFn,
   type Accounts,
@@ -59,7 +62,7 @@ import {
   type TxAttribution
 } from '@bitcoinerlab/discovery';
 import type { FeeEstimates } from '../lib/fees';
-import { AppState, Platform } from 'react-native';
+import { Platform } from 'react-native';
 import { batchedUpdates } from '../../common/lib/batchedUpdates';
 import { fetchP2PVaults, getDataCipherKey } from '../lib/backup';
 
@@ -847,7 +850,12 @@ const WalletProviderRaw = ({
       pushToken: string,
       data: Record<string, unknown>,
       /** for debugging purposes: who called handleWatchtowerNotification **/
-      source: 'TRAY' | 'FETCH'
+      source:
+        | 'PRESENT_IN_TRAY'
+        | 'FETCH'
+        | 'OPENED'
+        | 'FOREGROUND_LISTENER'
+        | 'TAPPED'
     ) => {
       if (!data || typeof data !== 'object') {
         console.warn(
@@ -974,138 +982,6 @@ const WalletProviderRaw = ({
     ]
   );
 
-  // Cache of “unacknowledged” watchtower notifications by API URL.
-  // Populated exactly once on app startup (to recover any notifications
-  // you missed while the app was killed), then replayed from memory
-  // on subsequent calls to `fetchAndHandleWatchtowerUnacked`.
-  const watchtowerUnackedNotificationsRef = useRef<
-    Record<
-      string,
-      {
-        vaultId: string;
-        walletUUID: string;
-        watchtowerId: string;
-        firstDetectedAt: number;
-        txid: string;
-      }[]
-    >
-  >({});
-
-  /**
-   * Retrieve and process any “unacknowledged” notifications from the watchtower.
-   *
-   * When the app is killed, OS‐delivered push notifications never surface
-   * in JS unless the user taps them (at least on force-stopped apps on Android).
-   * This function:
-   *   1. Fetches the “missed” notifications exactly once per WT URL (on first call).
-   *   2. Caches the raw payload in `watchtowerUnackedNotificationsRef`.
-   *   3. On every subsequent call, skips the network and invokes
-   *      `handleWatchtowerNotification` for each cached entry, ensuring
-   *      those notifications are handled in the app’s current context
-   *      (for example, taking into account whatever wallet is active now).
-   *
-   * @param {string} watchtowerAPI - The base watchtower API URL for the specific network
-   * @returns {Promise<boolean>} True if notifications were successfully fetched and processed,
-   *                            false if there was an error or the service was unavailable
-   */
-  const fetchAndHandleWatchtowerUnacked = useCallback(
-    async (pushToken: string, watchtowerAPI: string): Promise<boolean> => {
-      if (!networkTimeout) {
-        console.warn(
-          'Cannot fetch unacknowledged notifications: missing network timeout'
-        );
-        return false;
-      }
-      if (!pushToken) {
-        console.warn(
-          'Cannot fetch unacknowledged notifications: no push token available'
-        );
-        return false;
-      }
-
-      try {
-        //only bug the WT once. Then cache the response. The WT should only be
-        //queried on App load in case it was killed. Then we use events.
-        if (!watchtowerUnackedNotificationsRef.current[watchtowerAPI]) {
-          // Construct the notifications endpoint for this network
-          const notificationsEndpoint = `${watchtowerAPI}/notifications`;
-          // Make the request to the watchtower API
-          const response = await fetch(notificationsEndpoint, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ pushToken }),
-            signal: AbortSignal.timeout(networkTimeout)
-          });
-
-          if (!response.ok) {
-            console.warn(
-              `Failed to fetch unacknowledged notifications from ${notificationsEndpoint}: ${response.status} ${response.statusText}`
-            );
-            return false;
-          }
-
-          const data = await response.json();
-
-          if (!data.notifications || !Array.isArray(data.notifications)) {
-            console.warn(
-              'Invalid response format for unacknowledged notifications'
-            );
-            return false;
-          }
-          watchtowerUnackedNotificationsRef.current[watchtowerAPI] =
-            data.notifications;
-        }
-
-        if (!watchtowerUnackedNotificationsRef.current[watchtowerAPI])
-          throw new Error('watchtowerUnackedNotificationsRef should be set');
-
-        // Process each unacked notification
-        for (const unackedNotification of watchtowerUnackedNotificationsRef
-          .current[watchtowerAPI]) {
-          const { vaultId, walletUUID, watchtowerId, firstDetectedAt, txid } =
-            unackedNotification;
-
-          if (
-            typeof vaultId === 'string' &&
-            typeof walletUUID === 'string' &&
-            typeof watchtowerId === 'string' &&
-            typeof firstDetectedAt === 'number' &&
-            typeof txid === 'string'
-          ) {
-            // Process the notification data using the handler
-            handleWatchtowerNotification(pushToken, {
-              vaultId,
-              walletUUID,
-              watchtowerId,
-              firstDetectedAt,
-              txid
-            });
-          } else {
-            console.warn(
-              `watchtower returned corrupted data`,
-              unackedNotification
-            );
-            delete watchtowerUnackedNotificationsRef.current[watchtowerAPI];
-            return false;
-          }
-        }
-
-        // Successfully fetched and processed notifications
-        return true;
-      } catch (error) {
-        // Don't throw, just log the warning
-        console.warn(
-          `Error fetching unacknowledged notifications from ${watchtowerAPI}:`,
-          error
-        );
-        return false;
-      }
-    },
-    [networkTimeout, handleWatchtowerNotification]
-  );
-
   // Set up watchtower notification handling & polling for pending notifications
   const lastNotificationResponseHandledRef = useRef<boolean>(false);
   // Possible values for watchtowerPollTimeoutRef:
@@ -1139,23 +1015,6 @@ const WalletProviderRaw = ({
     )
       return;
 
-    // helper to process all tray notifications
-    const processPresented = async (pushToken: string) => {
-      try {
-        const list = await getPresentedNotificationsAsync();
-        (list as Array<Notification>).forEach(
-          n => handleWatchtowerNotification(pushToken, n.request.content.data)
-          //if needed they can be cleared with dismissNotificationAsync.
-          //But do this only after clicking on the wallet itself. This is
-          //done in clearOrphanedWatchtowerWalletUUIDs for orphaned ones.
-          //Should we clear also the non-orphaned ones? I think it's nice
-          //to keep then still visible
-        );
-      } catch (e) {
-        console.warn('Error fetching presented notifications', e);
-      }
-    };
-
     // Handle the notification (tap) that may have launched the app.
     // getLastNotificationResponseAsync() only returns a response if the user
     // actually tapped a notification to open the app. It will resolve to null
@@ -1163,17 +1022,17 @@ const WalletProviderRaw = ({
     // screen or brought to the foreground via the app switcher).
     //
     // Note: tapping a notification automatically removes it from the OS
-    // notification center, so processPresented
-    // (getPresentedNotificationsAsync) won’t include that tapped alert.
-    // That’s why this one-time call is still necessary even when we also use
-    // getPresentedNotificationsAsync() to catch remaining tray notifications.
+    // notification center, so getPresentedNotificationsAsync
+    // won’t include that tapped alert.
+    // Also getPresentedNotificationsAsync does not include data!
     if (lastNotificationResponseHandledRef.current === false) {
       getLastNotificationResponseAsync()
         .then(response => {
           if (response) {
             handleWatchtowerNotification(
               pushToken,
-              response.notification.request.content.data
+              response.notification.request.content.data,
+              'OPENED'
             );
           }
           lastNotificationResponseHandledRef.current = true;
@@ -1183,19 +1042,13 @@ const WalletProviderRaw = ({
           lastNotificationResponseHandledRef.current = true;
         });
     }
-    // Initial pass for anything still in the tray
-    processPresented(pushToken);
-    // Also check on every foreground transition
-    const appStateSub = AppState.addEventListener('change', state => {
-      if (state === 'active') processPresented(pushToken);
-    });
-
     // Listen for notifications received while app is in foreground
     notificationListener.current = addNotificationReceivedListener(
       notification => {
         handleWatchtowerNotification(
           pushToken,
-          notification.request.content.data
+          notification.request.content.data,
+          'FOREGROUND_LISTENER'
         );
       }
     );
@@ -1205,7 +1058,8 @@ const WalletProviderRaw = ({
       response => {
         handleWatchtowerNotification(
           pushToken,
-          response.notification.request.content.data
+          response.notification.request.content.data,
+          'TAPPED'
         );
       }
     );
@@ -1215,14 +1069,13 @@ const WalletProviderRaw = ({
     // This is the only possible way to retrieve them if the app was killed
     // (force-stopped) and the user did not tap on the notification.
 
-    // Track which networks are we using.
-    const watchtowerNetworkIdsToCheck = Object.values(wallets || [])
-      .map(w => w.networkId)
-      .filter((netId, i, arr) => netId && arr.indexOf(netId) === i); // del duplicates
-
     // One cold fallback for force-stop / killed silent gap
     // (only needed because OS won’t deliver when force-stopped/killed)
     function runFetchAndPoll(pushToken: string) {
+      // Track which networks are we using.
+      const watchtowerNetworkIdsToCheck = Object.values(wallets || [])
+        .map(w => w.networkId)
+        .filter((netId, i, arr) => netId && arr.indexOf(netId) === i); // del duplicates
       if (watchtowerPollTimeoutRef.current === 'PENDING' && wallets) {
         // Defensive: prevents duplicate polling if effect runs again before poll starts
 
@@ -1230,14 +1083,18 @@ const WalletProviderRaw = ({
         // start with all networks marked “failed”
         let failedNetworkIds = [...watchtowerNetworkIdsToCheck];
         const poll = async () => {
-          //for (const api of [...failedAPIs]) {
           for (const networkId of [...failedNetworkIds]) {
-            const api = getAPIs(networkId, settings).watchtowerAPI;
-            if (api === undefined)
+            const watchtowerAPI = getAPIs(networkId, settings).watchtowerAPI;
+            if (watchtowerAPI === undefined)
               throw new Error(
                 `Network ${networkId} does not have a valid watchtower api`
               );
-            const ok = await fetchAndHandleWatchtowerUnacked(pushToken, api);
+            const ok = await fetchAndHandleWatchtowerUnacked({
+              pushToken,
+              networkTimeout,
+              watchtowerAPI,
+              handleWatchtowerNotification
+            });
             if (ok)
               failedNetworkIds = failedNetworkIds.filter(a => a !== networkId); // remove from failed list
           }
@@ -1263,13 +1120,11 @@ const WalletProviderRaw = ({
         responseListener.current.remove();
         responseListener.current = undefined;
       }
-
-      appStateSub.remove();
     };
   }, [
     pushToken,
-    fetchAndHandleWatchtowerUnacked,
     settings,
+    networkTimeout,
     wallets,
     handleWatchtowerNotification,
     walletsStorageStatus.isSynchd,
@@ -1277,28 +1132,9 @@ const WalletProviderRaw = ({
   ]);
 
   const clearOrphanedWatchtowerWalletUUIDs = useCallback(async () => {
-    const uuidsToClear = new Set(orphanedWatchtowerWalletUUIDs);
-    if (uuidsToClear.size === 0) return;
-
-    try {
-      const presentedNotifications = await getPresentedNotificationsAsync();
-      const dismissPromises: Promise<void>[] = [];
-
-      for (const notification of presentedNotifications) {
-        const notificationWalletUUID =
-          notification.request.content.data?.['walletUUID'];
-        if (notificationWalletUUID && uuidsToClear.has(notificationWalletUUID))
-          dismissPromises.push(
-            dismissNotificationAsync(notification.request.identifier)
-          );
-      }
-      await Promise.all(dismissPromises);
-    } catch (error) {
-      console.warn('Error dismissing orphaned notifications:', error);
-    } finally {
-      setOrphanedWatchtowerWalletUUIDs(new Set());
-    }
-  }, [orphanedWatchtowerWalletUUIDs, setOrphanedWatchtowerWalletUUIDs]);
+    //FIXME: If you want to dismiss, then dismiss all of them??
+    setOrphanedWatchtowerWalletUUIDs(new Set());
+  }, []);
 
   /**
    * Important, to logOut from wallet, wallet (and therefore walletId) must

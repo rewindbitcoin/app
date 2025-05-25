@@ -173,3 +173,218 @@ export async function watchVaults({
     throw error;
   }
 }
+
+// Cache of “unacknowledged” watchtower notifications by API URL.
+// Populated exactly once on app startup (to recover any notifications
+// you missed while the app was killed), then replayed from memory
+// on subsequent calls to `fetchAndHandleWatchtowerUnacked`.
+const watchtowerUnackedNotifications: Record<
+  string,
+  {
+    vaultId: string;
+    walletUUID: string;
+    watchtowerId: string;
+    firstDetectedAt: number;
+    txid: string;
+  }[]
+> = {};
+
+/**
+ * Retrieve and process any “unacknowledged” notifications from the watchtower.
+ *
+ * When the app is killed, OS‐delivered push notifications never surface
+ * in JS unless the user taps them (at least on force-stopped apps on Android).
+ * This function:
+ *   1. Fetches the “missed” notifications exactly once per WT URL (on first call).
+ *   2. Caches the raw payload in `watchtowerUnackedNotificationsRef`.
+ *   3. On every subsequent call, skips the network and invokes
+ *      `handleWatchtowerNotification` for each cached entry, ensuring
+ *      those notifications are handled in the app’s current context
+ *      (for example, taking into account whatever wallet is active now).
+ *
+ * @param {string} watchtowerAPI - The base watchtower API URL for the specific network
+ * @returns {Promise<boolean>} True if notifications were successfully fetched and processed,
+ *                            false if there was an error or the service was unavailable
+ */
+export async function fetchAndHandleWatchtowerUnacked({
+  networkTimeout,
+  pushToken,
+  watchtowerAPI,
+  handleWatchtowerNotification
+}: {
+  networkTimeout: number | undefined;
+  pushToken: string;
+  watchtowerAPI: string;
+  handleWatchtowerNotification: (
+    pushToken: string,
+    data: Record<string, unknown>,
+    source:
+      | 'PRESENT_IN_TRAY'
+      | 'FETCH'
+      | 'OPENED'
+      | 'FOREGROUND_LISTENER'
+      | 'TAPPED'
+  ) => void;
+}): Promise<boolean> {
+  if (!networkTimeout) {
+    console.warn(
+      'Cannot fetch unacknowledged notifications: missing network timeout'
+    );
+    return false;
+  }
+  if (!pushToken) {
+    console.warn(
+      'Cannot fetch unacknowledged notifications: no push token available'
+    );
+    return false;
+  }
+
+  try {
+    //only bug the WT once. Then cache the response. The WT should only be
+    //queried on App load in case it was killed. Then we use events.
+    if (!watchtowerUnackedNotifications[watchtowerAPI]) {
+      // Construct the notifications endpoint for this network
+      const notificationsEndpoint = `${watchtowerAPI}/notifications`;
+      // Make the request to the watchtower API
+      const response = await fetch(notificationsEndpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ pushToken }),
+        signal: AbortSignal.timeout(networkTimeout)
+      });
+
+      if (!response.ok) {
+        console.warn(
+          `Failed to fetch unacknowledged notifications from ${notificationsEndpoint}: ${response.status} ${response.statusText}`
+        );
+        return false;
+      }
+
+      const data = await response.json();
+
+      if (!data.notifications || !Array.isArray(data.notifications)) {
+        console.warn(
+          'Invalid response format for unacknowledged notifications'
+        );
+        return false;
+      }
+      watchtowerUnackedNotifications[watchtowerAPI] = data.notifications;
+    }
+
+    if (!watchtowerUnackedNotifications[watchtowerAPI])
+      throw new Error('watchtowerUnackedNotificationsRef should be set');
+
+    // Process each unacked notification
+    for (const unackedNotification of watchtowerUnackedNotifications[
+      watchtowerAPI
+    ]) {
+      const { vaultId, walletUUID, watchtowerId, firstDetectedAt, txid } =
+        unackedNotification;
+
+      if (
+        typeof vaultId === 'string' &&
+        typeof walletUUID === 'string' &&
+        typeof watchtowerId === 'string' &&
+        typeof firstDetectedAt === 'number' &&
+        typeof txid === 'string'
+      ) {
+        // Process the notification data using the handler
+        handleWatchtowerNotification(
+          pushToken,
+          {
+            vaultId,
+            walletUUID,
+            watchtowerId,
+            firstDetectedAt,
+            txid
+          },
+          'FETCH'
+        );
+      } else {
+        console.warn(
+          `The watchtower returned corrupted data`,
+          JSON.stringify(unackedNotification, null, 2)
+        );
+        delete watchtowerUnackedNotifications[watchtowerAPI];
+        return false;
+      }
+    }
+
+    // Successfully fetched and processed notifications
+    return true;
+  } catch (error) {
+    // Don't throw, just log the warning
+    console.warn(
+      `Error fetching unacknowledged notifications from ${watchtowerAPI}:`,
+      error
+    );
+    return false;
+  }
+}
+
+// getPresentedNotificationsAsync cannot be used because it does not include
+// data!
+// https://github.com/expo/expo/issues/21109
+// const clearOrphanedWatchtowerWalletUUIDs = useCallback(async () => {
+//   const uuidsToClear = new Set(orphanedWatchtowerWalletUUIDs);
+//   if (uuidsToClear.size === 0) return;
+//
+//   try {
+//     const presentedNotifications = await getPresentedNotificationsAsync();
+//     const dismissPromises: Promise<void>[] = [];
+//
+//     for (const notification of presentedNotifications) {
+//       const notificationWalletUUID =
+//         notification.request.content.data?.['walletUUID'];
+//       if (notificationWalletUUID && uuidsToClear.has(notificationWalletUUID))
+//         dismissPromises.push(
+//           dismissNotificationAsync(notification.request.identifier)
+//         );
+//     }
+//     await Promise.all(dismissPromises);
+//   } catch (error) {
+//     console.warn('Error dismissing orphaned notifications:', error);
+//   } finally {
+//     setOrphanedWatchtowerWalletUUIDs(new Set());
+//   }
+// }, [orphanedWatchtowerWalletUUIDs, setOrphanedWatchtowerWalletUUIDs]);
+
+// helper to process all tray notifications
+// getPresentedNotificationsAsync does not include data!
+// https://github.com/expo/expo/issues/21109
+// So processPresented cannot be used
+//const processPresented = async (pushToken: string) => {
+//  try {
+//    const list = await getPresentedNotificationsAsync();
+//    (list as Array<Notification>).forEach(
+//      n => {
+//        console.log('TRACE', JSON.stringify(n, null, 2));
+//        handleWatchtowerNotification(
+//          pushToken,
+//          n.request.content.data,
+//          'PRESENT_IN_TRAY'
+//        );
+//      }
+//      //if needed they can be cleared with dismissNotificationAsync.
+//      //But do this only after clicking on the wallet itself. This is
+//      //done in clearOrphanedWatchtowerWalletUUIDs for orphaned ones.
+//      //Should we clear also the non-orphaned ones? I think it's nice
+//      //to keep then still visible
+//    );
+//  } catch (e) {
+//    console.warn('Error fetching presented notifications', e);
+//  }
+//};
+//
+//
+//Initial pass for anything still in the tray
+//processPresented(pushToken);
+//// Also check on every foreground transition
+//const appStateSub = AppState.addEventListener('change', state => {
+//  if (state === 'active') processPresented(pushToken);
+//});
+//
+//In the same useEffect clear function where the listeners are removed also:
+//appStateSub.remove();
