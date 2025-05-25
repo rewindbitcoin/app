@@ -224,31 +224,23 @@ AppState.addEventListener('change', (nextAppState: AppStateStatus) => {
 export async function fetchWatchtowerUnackedNotifications({
   networkTimeout,
   pushToken,
-  watchtowerAPI
+  watchtowerAPI,
+  signal
 }: {
-  networkTimeout: number | undefined;
+  networkTimeout: number;
   pushToken: string;
   watchtowerAPI: string;
+  signal?: AbortSignal;
 }): Promise<UnackedNotificationItem[] | null> {
-  if (!networkTimeout) {
-    console.warn(
-      'Cannot fetch unacknowledged notifications: missing network timeout.'
-    );
-    return null;
-  }
-  if (!pushToken) {
-    console.warn(
-      'Cannot fetch unacknowledged notifications: no push token available.'
-    );
-    return null;
-  }
-
   // If already cached, return the (pre-validated) cached notifications.
-  if (watchtowerUnackedNotifications[watchtowerAPI]) {
+  if (watchtowerUnackedNotifications[watchtowerAPI])
     return watchtowerUnackedNotifications[watchtowerAPI];
-  }
 
   try {
+    const fetchOptionsSignal = signal
+      ? AbortSignal.any([signal, AbortSignal.timeout(networkTimeout)])
+      : AbortSignal.timeout(networkTimeout);
+
     // Construct the notifications endpoint for this network
     const notificationsEndpoint = `${watchtowerAPI}/notifications`;
     // Make the request to the watchtower API
@@ -258,8 +250,16 @@ export async function fetchWatchtowerUnackedNotifications({
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({ pushToken }),
-      signal: AbortSignal.timeout(networkTimeout)
+      signal: fetchOptionsSignal
     });
+
+    // If aborted after fetch started but before here.
+    if (signal?.aborted) {
+      console.warn(
+        `Fetch for ${watchtowerAPI} aborted by external signal after response.`
+      );
+      return null;
+    }
 
     if (!response.ok) {
       console.warn(
@@ -267,7 +267,6 @@ export async function fetchWatchtowerUnackedNotifications({
       );
       return null;
     }
-
     const data = await response.json();
 
     if (!data.notifications || !Array.isArray(data.notifications)) {
@@ -306,13 +305,28 @@ export async function fetchWatchtowerUnackedNotifications({
 
     // Cache the validated notifications
     watchtowerUnackedNotifications[watchtowerAPI] = validatedNotifications;
+
+    // Check external signal again befor final return
+    if (signal?.aborted) {
+      console.warn(
+        `Fetch for ${watchtowerAPI} aborted by external signal before finish.`
+      );
+      return null;
+    }
     return validatedNotifications;
   } catch (error) {
-    // Don't throw, just log the warning
-    console.warn(
-      `Error fetching unacknowledged notifications from ${watchtowerAPI}:`,
-      error
-    );
+    if (error instanceof DOMException && error.name === 'AbortError') {
+      // Log specific message for abort, could be due to timeout or external signal
+      console.warn(
+        `Fetch for ${watchtowerAPI} aborted: ${(error as Error).message}.`
+      );
+    } else {
+      // Log other errors
+      console.warn(
+        `Error fetching unacknowledged notifications from ${watchtowerAPI}:`,
+        error
+      );
+    }
     return null;
   }
 }

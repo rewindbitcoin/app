@@ -948,6 +948,7 @@ const WalletProviderRaw = ({
 
   useEffect(() => {
     if (
+      !networkTimeout ||
       !pushToken ||
       !walletsStorageStatus.isSynchd ||
       !settingsStorageStatus.isSynchd ||
