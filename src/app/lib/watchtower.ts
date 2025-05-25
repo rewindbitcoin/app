@@ -3,7 +3,7 @@
 import * as Notifications from 'expo-notifications';
 import Constants from 'expo-constants';
 import * as Device from 'expo-device';
-import { Platform } from 'react-native';
+import { AppState, AppStateStatus, Platform } from 'react-native';
 import { getVaultNumber, TxId, Vaults, VaultsStatuses } from './vaults';
 
 // Check if the device can receive push notifications
@@ -188,14 +188,22 @@ export type UnackedNotificationItem = {
 // you missed while the app was killed), then replayed from memory
 // on subsequent calls to `fetchWatchtowerUnackedNotifications`.
 // This cache should only store validated notification arrays.
-// FIXME: problem here is watchtowerUnackedNotifications must be cleared on app
-// state change...
-//FIXME: so the task here is to reset it on app state change!!!
-//then the runFetchAndPoll must be reset on any change as usual.
-const watchtowerUnackedNotifications: Record<
-  string,
-  UnackedNotificationItem[]
-> = {};
+let watchtowerUnackedNotifications: Record<string, UnackedNotificationItem[]> =
+  {};
+
+// Keep track of the current app state
+let currentAppState: AppStateStatus = AppState.currentState;
+
+// Listen to AppState changes to reset the cache when app becomes active from background
+AppState.addEventListener('change', (nextAppState: AppStateStatus) => {
+  if (
+    nextAppState === 'active' &&
+    currentAppState === 'background' // Only reset if coming from background
+  ) {
+    watchtowerUnackedNotifications = {};
+  }
+  currentAppState = nextAppState;
+});
 
 /**
  * Retrieve any “unacknowledged” notifications from the watchtower.
