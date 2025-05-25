@@ -26,7 +26,8 @@ import {
 import {
   watchVaults,
   canReceiveNotifications,
-  fetchAndHandleWatchtowerUnacked
+  fetchAndHandleWatchtowerUnacked,
+  sendAckToWatchtower
 } from '../lib/watchtower';
 import {
   walletTitle as walletTitleFn,
@@ -771,75 +772,6 @@ const WalletProviderRaw = ({
     }
   }, [setWallets, isWalletDiskSynched, activeWallet, wallets]);
 
-  // Refs for notification listeners
-  const notificationListener = useRef<Subscription>();
-  const responseListener = useRef<Subscription>();
-
-  /**
-   * Acknowledges to the watchtower service that a vault notification
-   * has been received or seen by the user.
-   *
-   * This function is idempotent: once it has successfully ACK’d a given
-   * (watchtowerAPI, vaultId) pair, further calls for the same vault
-   * will no-op and will not hit the network again.
-   *
-   * If the network request fails (e.g. no timeout, missing push token,
-   * non-2xx response), it logs a warning but does not throw.
-   *
-   * @param watchtowerAPI - Base URL of the watchtower service.
-   * @param vaultId       - Identifier of the vault whose notification is being acknowledged.
-   * @returns A promise that resolves to `true` if the ACK was sent (or had already been sent),
-   *          and `false` if the request could not be made or failed.
-   */
-
-  const watchtowerAckedRef = useRef<Record<string, Set<string>>>({});
-
-  const sendAckToWatchtower = useCallback(
-    async (pushToken: string, watchtowerAPI: string, vaultId: string) => {
-      if (!networkTimeout) {
-        console.warn(
-          'Cannot acknowledge watchtower notification: networkTimeout not set.'
-        );
-        return;
-      }
-      if (!pushToken) {
-        console.warn(
-          'Cannot acknowledge watchtower notification: pushToken not available.'
-        );
-        return;
-      }
-      // skip if we've already acked this vault --
-      if (!watchtowerAckedRef.current[watchtowerAPI])
-        watchtowerAckedRef.current[watchtowerAPI] = new Set<string>();
-
-      if (watchtowerAckedRef.current[watchtowerAPI].has(vaultId)) return; // nothing to do
-
-      try {
-        const ackEndpoint = `${watchtowerAPI}/ack`;
-        const response = await fetch(ackEndpoint, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({ pushToken, vaultId }),
-          signal: AbortSignal.timeout(networkTimeout)
-        });
-
-        if (!response.ok) {
-          console.warn(
-            `Failed to acknowledge watchtower notification for vault ${vaultId} at ${watchtowerAPI}: ${response.status} ${response.statusText}`
-          );
-        } else watchtowerAckedRef.current[watchtowerAPI].add(vaultId);
-      } catch (error) {
-        console.warn(
-          `Error acknowledging watchtower notification for vault ${vaultId} at ${watchtowerAPI}:`,
-          error
-        );
-      }
-    },
-    [networkTimeout]
-  );
-
   /**
    * Handles incoming notification data from the watchtower service.
    * Validates the data, adds new notifications to the wallet state,
@@ -912,7 +844,12 @@ const WalletProviderRaw = ({
         console.warn(
           `Received notification for unknown wallet UUID: ${walletUUID} from ${source}. This could be from a deleted wallet or old installation.`
         );
-        sendAckToWatchtower(pushToken, watchtowerId, vaultId);
+        sendAckToWatchtower({
+          pushToken,
+          watchtowerAPI: watchtowerId,
+          vaultId,
+          networkTimeout
+        });
         setOrphanedWatchtowerWalletUUIDs(prev => new Set(prev).add(walletUUID));
         goBackToWallets();
       } else {
@@ -924,7 +861,12 @@ const WalletProviderRaw = ({
         // this watchtower
         if (existingWatchtowerNotifications[vaultId]) {
           if (existingWatchtowerNotifications[vaultId].acked === true)
-            sendAckToWatchtower(pushToken, watchtowerId, vaultId);
+            sendAckToWatchtower({
+              pushToken,
+              watchtowerAPI: watchtowerId,
+              vaultId,
+              networkTimeout
+            });
         } else {
           // Notification doesn't exist yet, add it.
           // Check if this vault was triggered from another device
@@ -976,11 +918,20 @@ const WalletProviderRaw = ({
       activeWallet?.walletId,
       wallets,
       setWallets,
-      sendAckToWatchtower,
+      networkTimeout,
       goBackToWallets,
       vaultsStatuses
     ]
   );
+
+  const clearOrphanedWatchtowerWalletUUIDs = useCallback(async () => {
+    //FIXME: If you want to dismiss, then dismiss all of them??
+    setOrphanedWatchtowerWalletUUIDs(new Set());
+  }, []);
+
+  // Refs for notification listeners
+  const notificationListenerRef = useRef<Subscription>();
+  const responseListenerRef = useRef<Subscription>();
 
   // Set up watchtower notification handling & polling for pending notifications
   const lastNotificationResponseHandledRef = useRef<boolean>(false);
@@ -994,17 +945,6 @@ const WalletProviderRaw = ({
   const watchtowerPollTimeoutRef = useRef<
     NodeJS.Timeout | 'PENDING' | 'CHECKING' | 'COMPLETE'
   >('PENDING');
-  useEffect(() => {
-    return () => {
-      if (
-        watchtowerPollTimeoutRef.current !== 'PENDING' &&
-        watchtowerPollTimeoutRef.current !== 'COMPLETE'
-      ) {
-        clearTimeout(watchtowerPollTimeoutRef.current);
-        watchtowerPollTimeoutRef.current = 'COMPLETE';
-      }
-    };
-  }, []);
 
   useEffect(() => {
     if (
@@ -1043,7 +983,7 @@ const WalletProviderRaw = ({
         });
     }
     // Listen for notifications received while app is in foreground
-    notificationListener.current = addNotificationReceivedListener(
+    notificationListenerRef.current = addNotificationReceivedListener(
       notification => {
         handleWatchtowerNotification(
           pushToken,
@@ -1054,7 +994,7 @@ const WalletProviderRaw = ({
     );
 
     // Listen for user interaction with notifications (tapping the notification)
-    responseListener.current = addNotificationResponseReceivedListener(
+    responseListenerRef.current = addNotificationResponseReceivedListener(
       response => {
         handleWatchtowerNotification(
           pushToken,
@@ -1089,6 +1029,8 @@ const WalletProviderRaw = ({
               throw new Error(
                 `Network ${networkId} does not have a valid watchtower api`
               );
+            //FIXME: trick here is to only actually fetch on mount or after
+            //app comes active from background (not inactive) or if last failed
             const ok = await fetchAndHandleWatchtowerUnacked({
               pushToken,
               networkTimeout,
@@ -1112,13 +1054,13 @@ const WalletProviderRaw = ({
     // Clean up notification listeners and polling interval on unmount
     return () => {
       // Clean up notification listeners
-      if (notificationListener.current) {
-        notificationListener.current.remove();
-        notificationListener.current = undefined;
+      if (notificationListenerRef.current) {
+        notificationListenerRef.current.remove();
+        notificationListenerRef.current = undefined;
       }
-      if (responseListener.current) {
-        responseListener.current.remove();
-        responseListener.current = undefined;
+      if (responseListenerRef.current) {
+        responseListenerRef.current.remove();
+        responseListenerRef.current = undefined;
       }
     };
   }, [
@@ -1131,9 +1073,17 @@ const WalletProviderRaw = ({
     settingsStorageStatus.isSynchd
   ]);
 
-  const clearOrphanedWatchtowerWalletUUIDs = useCallback(async () => {
-    //FIXME: If you want to dismiss, then dismiss all of them??
-    setOrphanedWatchtowerWalletUUIDs(new Set());
+  //Clean up of polling done only once:
+  useEffect(() => {
+    return () => {
+      if (
+        watchtowerPollTimeoutRef.current !== 'PENDING' &&
+        watchtowerPollTimeoutRef.current !== 'COMPLETE'
+      ) {
+        clearTimeout(watchtowerPollTimeoutRef.current);
+        watchtowerPollTimeoutRef.current = 'COMPLETE';
+      }
+    };
   }, []);
 
   /**

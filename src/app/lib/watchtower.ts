@@ -324,6 +324,78 @@ export async function fetchAndHandleWatchtowerUnacked({
   }
 }
 
+/**
+ * Acknowledges to the watchtower service that a vault notification
+ * has been received or seen by the user.
+ *
+ * This function is idempotent: once it has successfully ACK’d a given
+ * (watchtowerAPI, vaultId) pair, further calls for the same vault
+ * will no-op and will not hit the network again.
+ *
+ * If the network request fails (e.g. no timeout, missing push token,
+ * non-2xx response), it logs a warning but does not throw.
+ *
+ * @param watchtowerAPI - Base URL of the watchtower service.
+ * @param vaultId       - Identifier of the vault whose notification is being acknowledged.
+ * @returns A promise that resolves to `true` if the ACK was sent (or had already been sent),
+ *          and `false` if the request could not be made or failed.
+ */
+
+const watchtowerAcked: Record<string, Set<string>> = {};
+
+export async function sendAckToWatchtower({
+  pushToken,
+  watchtowerAPI,
+  vaultId,
+  networkTimeout
+}: {
+  pushToken: string;
+  watchtowerAPI: string;
+  vaultId: string;
+  networkTimeout: number | undefined;
+}) {
+  if (!networkTimeout) {
+    console.warn(
+      'Cannot acknowledge watchtower notification: networkTimeout not set.'
+    );
+    return;
+  }
+  if (!pushToken) {
+    console.warn(
+      'Cannot acknowledge watchtower notification: pushToken not available.'
+    );
+    return;
+  }
+  // skip if we've already acked this vault --
+  if (!watchtowerAcked[watchtowerAPI])
+    watchtowerAcked[watchtowerAPI] = new Set<string>();
+
+  if (watchtowerAcked[watchtowerAPI].has(vaultId)) return; // nothing to do
+
+  try {
+    const ackEndpoint = `${watchtowerAPI}/ack`;
+    const response = await fetch(ackEndpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ pushToken, vaultId }),
+      signal: AbortSignal.timeout(networkTimeout)
+    });
+
+    if (!response.ok) {
+      console.warn(
+        `Failed to acknowledge watchtower notification for vault ${vaultId} at ${watchtowerAPI}: ${response.status} ${response.statusText}`
+      );
+    } else watchtowerAcked[watchtowerAPI].add(vaultId);
+  } catch (error) {
+    console.warn(
+      `Error acknowledging watchtower notification for vault ${vaultId} at ${watchtowerAPI}:`,
+      error
+    );
+  }
+}
+
 // getPresentedNotificationsAsync cannot be used because it does not include
 // data!
 // https://github.com/expo/expo/issues/21109
