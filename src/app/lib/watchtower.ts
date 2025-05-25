@@ -185,7 +185,8 @@ export type UnackedNotificationItem = {
 
 // Cache of “unacknowledged” watchtower notifications by API URL.
 // Populated exactly once on app startup (to recover any notifications
-// you missed while the app was killed), then replayed from memory
+// you missed while the app was killed) and when the app becomes active again,
+// then replayed from memory
 // on subsequent calls to `fetchWatchtowerUnackedNotifications`.
 // This cache should only store validated notification arrays.
 let watchtowerUnackedNotifications: Record<string, UnackedNotificationItem[]> =
