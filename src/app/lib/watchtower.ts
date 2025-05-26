@@ -183,8 +183,10 @@ export type UnackedNotificationItem = {
   txid: string;
 };
 
-//FIXME: also dont refetch failed API calls every time, but at mostevery 30 seconds?
-//so return again as failed if re-fetching too often!!!
+//Be nice, don't requery failed watchtower queries for 30 seconds...
+const WATCHTOWER_RETRY_WINDOW_MS = 30 * 1000;
+// Stores the timestamp of the last failed fetch attempt for each watchtowerAPI
+const watchtowerFailedFetchTimestamps: Record<string, number> = {};
 
 // Cache of “unacknowledged” watchtower notifications by API URL.
 // Populated exactly once on app startup (to recover any notifications
@@ -236,8 +238,17 @@ export async function fetchWatchtowerUnackedNotifications({
   signal?: AbortSignal;
 }): Promise<UnackedNotificationItem[] | null> {
   // If already cached, return the (pre-validated) cached notifications.
-  if (watchtowerUnackedNotifications[watchtowerAPI])
+  if (watchtowerUnackedNotifications[watchtowerAPI]) {
+    // Successful cache hit, clear any previous failure timestamp for this API
+    delete watchtowerFailedFetchTimestamps[watchtowerAPI];
     return watchtowerUnackedNotifications[watchtowerAPI];
+  }
+
+  // Check if there was a recent failed attempt for this API
+  if (watchtowerFailedFetchTimestamps[watchtowerAPI]) {
+    const lastFailedTime = watchtowerFailedFetchTimestamps[watchtowerAPI];
+    if (Date.now() - lastFailedTime < WATCHTOWER_RETRY_WINDOW_MS) return null; // Assume same failure state
+  }
 
   try {
     const fetchOptionsSignal = signal
@@ -268,6 +279,7 @@ export async function fetchWatchtowerUnackedNotifications({
       console.warn(
         `Failed to fetch unacknowledged notifications from ${notificationsEndpoint}: ${response.status} ${response.statusText}.`
       );
+      watchtowerFailedFetchTimestamps[watchtowerAPI] = Date.now();
       return null;
     }
     const data = await response.json();
@@ -276,6 +288,7 @@ export async function fetchWatchtowerUnackedNotifications({
       console.warn(
         `Invalid response format for unacknowledged notifications from ${watchtowerAPI}.`
       );
+      watchtowerFailedFetchTimestamps[watchtowerAPI] = Date.now();
       return null;
     }
 
@@ -302,12 +315,15 @@ export async function fetchWatchtowerUnackedNotifications({
           `The watchtower ${watchtowerAPI} returned corrupted data: ${JSON.stringify(item, null, 2)}.`
         );
         // Do not cache if any item is invalid.
+        watchtowerFailedFetchTimestamps[watchtowerAPI] = Date.now();
         return null;
       }
     }
 
     // Cache the validated notifications
     watchtowerUnackedNotifications[watchtowerAPI] = validatedNotifications;
+    // Clear any previous failure timestamp on success
+    delete watchtowerFailedFetchTimestamps[watchtowerAPI];
 
     // Check external signal again befor final return
     if (signal?.aborted) {
@@ -318,6 +334,8 @@ export async function fetchWatchtowerUnackedNotifications({
     }
     return validatedNotifications;
   } catch (error) {
+    // Record failure timestamp
+    watchtowerFailedFetchTimestamps[watchtowerAPI] = Date.now();
     if (error instanceof DOMException && error.name === 'AbortError') {
       // Log specific message for abort, could be due to timeout or external signal
       console.warn(
