@@ -183,6 +183,9 @@ export type UnackedNotificationItem = {
   txid: string;
 };
 
+//FIXME: also dont refetch failed API calls every time, but at mostevery 30 seconds?
+//so return again as failed if re-fetching too often!!!
+
 // Cache of “unacknowledged” watchtower notifications by API URL.
 // Populated exactly once on app startup (to recover any notifications
 // you missed while the app was killed) and when the app becomes active again,

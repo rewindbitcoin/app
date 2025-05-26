@@ -926,6 +926,7 @@ const WalletProviderRaw = ({
 
   const clearOrphanedWatchtowerWalletUUIDs = useCallback(async () => {
     //FIXME: If you want to dismiss, then dismiss all of them??
+    //dismissAllNotificationsAsync()
     setOrphanedWatchtowerWalletUUIDs(new Set());
   }, []);
 
@@ -942,9 +943,7 @@ const WalletProviderRaw = ({
   //   'COMPLETE' - All watchtower APIs have been checked and no further
   //   polling is required.
   //   NodeJS.Timeout - A polling retry is scheduled and waiting to run.
-  const watchtowerPollTimeoutRef = useRef<
-    NodeJS.Timeout | 'PENDING' | 'CHECKING' | 'COMPLETE'
-  >('PENDING');
+  const watchtowerPollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const pollAbortControllerRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
@@ -1007,117 +1006,80 @@ const WalletProviderRaw = ({
     );
 
     // Check pending notifications that may have arrived while the app was
-    // closed (killed).
+    // closed (killed) or while  in the background.
     // This is the only possible way to retrieve them if the app was killed
     // (force-stopped) and the user did not tap on the notification.
-
-    // One cold fallback for force-stop / killed silent gap
-    // (only needed because OS won’t deliver when force-stopped/killed)
+    // Also getPresentedNotificationsAsync cannot be trusted since the
+    // data sent from the notifications server is not included.
+    // Ensures only one runFetchAndPoll is ever running at once; aborts previous
+    // poll and timeout.
     function runFetchAndPoll(token: string) {
-      // 1. Abort previous polling operation and clear its timeout
       if (pollAbortControllerRef.current) {
         pollAbortControllerRef.current.abort();
-        // pollAbortControllerRef.current is set to null by the aborted pollAsync or by cleanup
+        pollAbortControllerRef.current = null;
       }
-      if (typeof watchtowerPollTimeoutRef.current === 'number') {
+      if (watchtowerPollTimeoutRef.current) {
         clearTimeout(watchtowerPollTimeoutRef.current);
+        watchtowerPollTimeoutRef.current = null;
       }
-
-      // 2. Setup for new poll
-      const controller = new AbortController();
-      pollAbortControllerRef.current = controller;
 
       if (!wallets || Object.keys(wallets).length === 0) {
-        watchtowerPollTimeoutRef.current = 'COMPLETE';
-        pollAbortControllerRef.current = null; // No active poll
+        watchtowerPollTimeoutRef.current = null;
+        pollAbortControllerRef.current = null;
         return;
       }
-      watchtowerPollTimeoutRef.current = 'CHECKING';
-
+      //keep a local copy for aborted checks since pollAbortControllerRef will
+      //be set to null
+      const localController = new AbortController();
+      pollAbortControllerRef.current = localController;
       let localFailedNetworkIds = Object.values(wallets)
         .map(w => w.networkId)
         .filter((netId, i, arr) => netId && arr.indexOf(netId) === i);
-
       const pollAsync = async () => {
-        if (controller.signal.aborted) {
-          // If this controller was aborted by a new runFetchAndPoll call or effect cleanup
-          if (pollAbortControllerRef.current === controller) {
-            pollAbortControllerRef.current = null;
-          }
-          return;
-        }
-
-        const currentIterationFailedIds = [...localFailedNetworkIds];
-        for (const networkId of currentIterationFailedIds) {
-          if (controller.signal.aborted) return;
-
+        //was it aborted in the timeout wait?
+        if (localController.signal.aborted) return;
+        const currentIterationFailedNetworkIds = [...localFailedNetworkIds];
+        for (const networkId of currentIterationFailedNetworkIds) {
           const currentWatchtowerAPI = getAPIs(
             networkId,
             settings
           ).watchtowerAPI;
-          if (currentWatchtowerAPI === undefined) {
-            localFailedNetworkIds = localFailedNetworkIds.filter(
-              id => id !== networkId
-            );
-            continue;
-          }
-
+          if (currentWatchtowerAPI === undefined)
+            throw new Error(`watchtowerAPI unavailable for: ${networkId}`);
+          if (networkTimeout === undefined)
+            throw new Error('networkTimeout undefined');
+          if (localController.signal.aborted) return;
           const unackedNotifications =
             await fetchWatchtowerUnackedNotifications({
               pushToken: token,
               networkTimeout,
               watchtowerAPI: currentWatchtowerAPI,
-              signal: controller.signal
+              signal: localController.signal
             });
-
-          if (controller.signal.aborted) return;
+          // fetchWatchtowerUnackedNotifications may have been aborted during
+          // the await; check signal before continuing:
+          if (localController.signal.aborted) return;
 
           if (unackedNotifications !== null) {
-            for (const notification of unackedNotifications) {
+            for (const notification of unackedNotifications)
               handleWatchtowerNotification(token, notification, 'FETCH');
-            }
             localFailedNetworkIds = localFailedNetworkIds.filter(
               id => id !== networkId
             );
           }
         }
 
-        if (controller.signal.aborted) return;
-
-        if (localFailedNetworkIds.length > 0) {
-          // Ensure we are still the active poll before setting timeout
-          if (pollAbortControllerRef.current === controller) {
-            watchtowerPollTimeoutRef.current = setTimeout(pollAsync, 60000);
-          }
-        } else {
-          if (pollAbortControllerRef.current === controller) {
-            watchtowerPollTimeoutRef.current = 'COMPLETE';
-            pollAbortControllerRef.current = null; // Mark as no longer active
-          }
+        if (localFailedNetworkIds.length > 0)
+          watchtowerPollTimeoutRef.current = setTimeout(pollAsync, 60000);
+        else {
+          //successfully finished:
+          watchtowerPollTimeoutRef.current = null;
+          pollAbortControllerRef.current = null;
         }
       };
       pollAsync();
     }
-
-    if (
-      networkTimeout &&
-      pushToken &&
-      walletsStorageStatus.isSynchd &&
-      settingsStorageStatus.isSynchd &&
-      canReceiveNotifications
-    ) {
-      runFetchAndPoll(pushToken);
-    } else {
-      // Conditions not met, ensure any existing poll is stopped.
-      if (pollAbortControllerRef.current) {
-        pollAbortControllerRef.current.abort();
-        pollAbortControllerRef.current = null;
-      }
-      if (typeof watchtowerPollTimeoutRef.current === 'number') {
-        clearTimeout(watchtowerPollTimeoutRef.current);
-      }
-      watchtowerPollTimeoutRef.current = 'PENDING';
-    }
+    runFetchAndPoll(pushToken);
 
     // Clean up notification listeners and polling interval on unmount
     return () => {
@@ -1135,10 +1097,10 @@ const WalletProviderRaw = ({
         pollAbortControllerRef.current.abort();
         pollAbortControllerRef.current = null;
       }
-      if (typeof watchtowerPollTimeoutRef.current === 'number') {
+      if (watchtowerPollTimeoutRef.current) {
         clearTimeout(watchtowerPollTimeoutRef.current);
+        watchtowerPollTimeoutRef.current = null;
       }
-      watchtowerPollTimeoutRef.current = 'PENDING';
     };
   }, [
     pushToken,
