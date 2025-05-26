@@ -1,5 +1,3 @@
-//FIXME: on App state refetch from the watchtower...
-//FIXME: on App state and on App start dismiss all...
 import {
   fetchVaultsStatuses,
   getUtxosData,
@@ -63,7 +61,7 @@ import {
   type TxAttribution
 } from '@bitcoinerlab/discovery';
 import type { FeeEstimates } from '../lib/fees';
-import { Platform } from 'react-native';
+import { AppState, AppStateStatus, Platform } from 'react-native';
 import { batchedUpdates } from '../../common/lib/batchedUpdates';
 import { fetchP2PVaults, getDataCipherKey } from '../lib/backup';
 
@@ -925,8 +923,6 @@ const WalletProviderRaw = ({
   );
 
   const clearOrphanedWatchtowerWalletUUIDs = useCallback(async () => {
-    //FIXME: If you want to dismiss, then dismiss all of them??
-    //dismissAllNotificationsAsync()
     setOrphanedWatchtowerWalletUUIDs(new Set());
   }, []);
 
@@ -963,9 +959,7 @@ const WalletProviderRaw = ({
     // screen or brought to the foreground via the app switcher).
     //
     // Note: tapping a notification automatically removes it from the OS
-    // notification center, so getPresentedNotificationsAsync
-    // won’t include that tapped alert.
-    // Also getPresentedNotificationsAsync does not include data!
+    // notification center
     if (lastNotificationResponseHandledRef.current === false) {
       getLastNotificationResponseAsync()
         .then(response => {
@@ -1081,6 +1075,19 @@ const WalletProviderRaw = ({
     }
     runFetchAndPoll(pushToken);
 
+    let previousAppState = AppState.currentState;
+    const handleAppStateChange = (nextAppState: AppStateStatus) => {
+      if (previousAppState === 'background' && nextAppState === 'active')
+        // App has come to the foreground, re-run fetch and poll
+        runFetchAndPoll(pushToken);
+      previousAppState = nextAppState;
+    };
+
+    const appStateSubscription = AppState.addEventListener(
+      'change',
+      handleAppStateChange
+    );
+
     // Clean up notification listeners and polling interval on unmount
     return () => {
       // Clean up notification listeners
@@ -1101,6 +1108,7 @@ const WalletProviderRaw = ({
         clearTimeout(watchtowerPollTimeoutRef.current);
         watchtowerPollTimeoutRef.current = null;
       }
+      appStateSubscription.remove();
     };
   }, [
     pushToken,
