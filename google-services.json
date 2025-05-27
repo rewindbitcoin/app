@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "926061581094",
+    "project_id": "rewindbitcoin-ba3bd",
+    "storage_bucket": "rewindbitcoin-ba3bd.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:926061581094:android:3032bfb9b89d7f7477e7e7",
+        "android_client_info": {
+          "package_name": "com.labolsavirtual.rewindbitcoin"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAzIlWcF4vx2-AXq3yLw5UuwkoZ89fDMS4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:926061581094:android:2cd04d8d0687cd8277e7e7",
+        "android_client_info": {
+          "package_name": "com.rewindbitcoin.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAzIlWcF4vx2-AXq3yLw5UuwkoZ89fDMS4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

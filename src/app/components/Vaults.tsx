@@ -1,19 +1,23 @@
-//FIXME: Malformed watchtowerId in notification
-//  -> Also focussing the app directly (without clicking on the notificaion)
-//  did not show the red warning
-//
 //FIXME: I received notifications 6 hours after having acked them. So weird.
 //investigate. I got them both in iOS and Android.
 
+//FIXME: I receive 2 messages duplucated:
+//  -> Unable to connect to the Watchtower
+//  -> Failed to to the Watchtower. Specially this second one is too repetitive
+//  each time i focus the vualts i'll get it even of there's a permanent
+//  error message (Unable to connect) fixed
+
 //FIXME: Specially on Android while fetching, everything becomes unresponsive
+//  Also on iOS. It's like if at times toasts are undismissable!?!
 
 //FIXME: on android i created credentials for development, for notifications
 //I'm not sure about iOS, but I need to document all this and create
 //credentials for all profiles probably
+//  -> Doesnt matter if it was for dev, document thisl
 
 //FIXME: documentar bien en la web cuando se muestra el push notification!
-//cuando se hace desde otro dispositivo?
-//cuando se hace desde un dispositivco q no hizo el push? YES
+//cuando se hace desde otro dispositivo? Cuando se hace trigger desded otro y si
+//en el actial se ha registrado correctamtene
 //  -> Esto tiene q ir a la web
 
 //FIXME: tests: (Android / iOS):
@@ -24,6 +28,11 @@
 // - testear el animate-pulse
 // - Android!
 
+//FIXME: en android (real device productoin app the badge counter is not reseted)
+//It should be reseted after goint to one of the affected wallets.
+//  -> Se resetea en cuanto se hace click en la noti
+//  -> Dismiss todo cuando no quedan ni clearOrphanedWatchtowerWalletUUIDs ni
+//  ninguna wallet con not
 import React, {
   useCallback,
   useEffect,

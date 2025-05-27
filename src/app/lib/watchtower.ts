@@ -211,6 +211,23 @@ AppState.addEventListener('change', (nextAppState: AppStateStatus) => {
   currentAppState = nextAppState;
 });
 
+function combineAbortSignals(signals: Array<AbortSignal>) {
+  const controller = new AbortController();
+
+  function forwardAbort(signal: AbortSignal) {
+    if (signal.aborted) {
+      controller.abort();
+    } else {
+      signal.addEventListener('abort', () => controller.abort(), {
+        once: true
+      });
+    }
+  }
+
+  signals.forEach(forwardAbort);
+  return controller.signal;
+}
+
 /**
  * Retrieve any “unacknowledged” notifications from the watchtower.
  *
@@ -252,7 +269,7 @@ export async function fetchWatchtowerUnackedNotifications({
 
   try {
     const fetchOptionsSignal = signal
-      ? AbortSignal.any([signal, AbortSignal.timeout(networkTimeout)])
+      ? combineAbortSignals([signal, AbortSignal.timeout(networkTimeout)])
       : AbortSignal.timeout(networkTimeout);
 
     // Construct the notifications endpoint for this network
@@ -336,18 +353,11 @@ export async function fetchWatchtowerUnackedNotifications({
   } catch (error) {
     // Record failure timestamp
     watchtowerFailedFetchTimestamps[watchtowerAPI] = Date.now();
-    if (error instanceof DOMException && error.name === 'AbortError') {
-      // Log specific message for abort, could be due to timeout or external signal
-      console.warn(
-        `Fetch for ${watchtowerAPI} aborted: ${(error as Error).message}.`
-      );
-    } else {
-      // Log other errors
-      console.warn(
-        `Error fetching unacknowledged notifications from ${watchtowerAPI}:`,
-        error
-      );
-    }
+    // Log other errors
+    console.warn(
+      `Error fetching unacknowledged notifications from ${watchtowerAPI}:`,
+      error
+    );
     return null;
   }
 }

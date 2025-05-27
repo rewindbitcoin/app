@@ -55,4 +55,3 @@ src/i18n/*.keys*.json
 .aider*
 
 secrets/
-google-services.json
