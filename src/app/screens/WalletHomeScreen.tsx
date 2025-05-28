@@ -630,14 +630,12 @@ const WalletHomeScreen = () => {
           </View>
         </View>
 
-        {activeTabIndex === 0 && (
-          <View
-            className={`p-4 max-w-screen-sm w-full self-center`}
-            style={{
-              marginBottom: walletButtonsHeight + insets.bottom + 8 * 4
-            }}
-            //The added margin to let it scroll over the Receive - Send - Freeze buttons. Note there is a mb-8 in <WalletButtons>
-          >
+        <View
+          className={`p-4 max-w-screen-sm w-full self-center ${activeTabIndex === 0 ? '' : 'hidden'}`}
+          //The added margin to let it scroll over the Receive - Send - Freeze buttons. Note there is a mb-8 in <WalletButtons>
+        >
+          {/* marginBottom is applied to the content inside to ensure scroll area covers buttons */}
+          <View style={{ marginBottom: walletButtonsHeight + insets.bottom + 8 * 4 }}>
             {vaults && vaultsStatuses && (
               <Vaults
                 syncWatchtowerRegistration={syncWatchtowerRegistration}
@@ -659,15 +657,13 @@ const WalletHomeScreen = () => {
               />
             )}
           </View>
-        )}
-        {activeTabIndex === 1 && (
-          <View
-            className={`p-4 max-w-screen-sm w-full self-center`}
-            style={{
-              marginBottom: walletButtonsHeight + insets.bottom + 8 * 4
-            }}
-            //The added margin to let it scroll over the Receive - Send - Freeze buttons. Note there is a mb-8 in <WalletButtons>
-          >
+        </View>
+        <View
+          className={`p-4 max-w-screen-sm w-full self-center ${activeTabIndex === 1 ? '' : 'hidden'}`}
+          //The added margin to let it scroll over the Receive - Send - Freeze buttons. Note there is a mb-8 in <WalletButtons>
+        >
+          {/* marginBottom is applied to the content inside to ensure scroll area covers buttons */}
+          <View style={{ marginBottom: walletButtonsHeight + insets.bottom + 8 * 4 }}>
             <Transactions
               blockExplorerURL={blockExplorerURL}
               tipStatus={tipStatus}
@@ -676,7 +672,7 @@ const WalletHomeScreen = () => {
               btcFiat={btcFiat}
             />
           </View>
-        )}
+        </View>
 
         <Password
           mode="REQUEST"
