@@ -551,13 +551,13 @@ const NetStatusProvider: React.FC<NetStatusProviderProps> = ({ children }) => {
       if (generate204API && apiReachable === false)
         permanentErrorMessage = t('netStatus.apiNotReachableWarning');
 
+      if (generate204WatchtowerAPI && watchtowerAPIReachable === false)
+        permanentErrorMessage = t('netStatus.watchtowerNotReachableWarning');
+
       if (generate204CbVaultsReaderAPI && cBVaultsReaderAPIReachable === false)
         permanentErrorMessage = t(
           'netStatus.communityBackupsdNotReachableWarning'
         );
-
-      if (generate204WatchtowerAPI && watchtowerAPIReachable === false)
-        permanentErrorMessage = t('netStatus.watchtowerNotReachableWarning');
 
       if (explorer && explorerReachable === false)
         permanentErrorMessage = t(
@@ -662,6 +662,7 @@ const NetStatusProvider: React.FC<NetStatusProviderProps> = ({ children }) => {
           [
             'generate204API',
             'generate204CbVaultsReaderAPI',
+            'generate204WatchtowerAPI',
             'walletExplorer',
             'mainnetExplorer',
             'generate204APIExternal'
@@ -671,6 +672,7 @@ const NetStatusProvider: React.FC<NetStatusProviderProps> = ({ children }) => {
                 [
                   generate204API,
                   generate204CbVaultsReaderAPI,
+                  generate204WatchtowerAPI,
                   explorer,
                   explorerMainnet,
                   generate204APIExternal
@@ -879,17 +881,17 @@ const NetStatusProvider: React.FC<NetStatusProviderProps> = ({ children }) => {
           if (session !== sessionRef.current) {
             return { result: undefined, status: 'NEW_SESSION' };
           }
-          console.warn('netRequest failed:', error, {
-            id,
-            errorMessage,
-            requirements
-          });
           const message =
             (error instanceof Error && error.message) || t('app.unknownError');
           const finalErrorMessage: string =
             (typeof errorMessage === 'function'
               ? errorMessage(message)
               : errorMessage) || message;
+          console.warn('netRequest failed:', error, {
+            id,
+            finalErrorMessage,
+            requirements
+          });
 
           if (id) {
             const notifiedError = notifiedErrorsRef.current[id];

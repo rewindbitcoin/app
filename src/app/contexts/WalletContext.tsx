@@ -463,13 +463,14 @@ const WalletProviderRaw = ({
     init: netStatusInit,
     update: netStatusUpdate,
     watchtowerAPIReachable,
+    cBVaultsReaderAPIReachable,
     apiReachable,
     netRequest,
     netToast,
     explorerReachable,
     explorerMainnetReachable
   } = useNetStatus();
-  const netReady =
+  const isCoreNetReady =
     apiReachable &&
     explorerReachable &&
     (activeWallet?.networkId !== 'TAPE' || explorerMainnetReachable);
@@ -1090,7 +1091,6 @@ const WalletProviderRaw = ({
       previousAppState = nextAppState;
     };
 
-    //FIXME: when is this event unsunscribed?
     const appStateSubscription = AppState.addEventListener(
       'change',
       handleAppStateChange
@@ -1488,6 +1488,11 @@ const WalletProviderRaw = ({
     [watchtowerAPI, wallets, activeWallet, setWallets]
   );
 
+  const netRequestRef = useRef(netRequest);
+  useEffect(() => {
+    netRequestRef.current = netRequest;
+  }, [netRequest]);
+
   /**
    * Registers vaults with the watchtower service and updates their
    * registration status (registeredWatchtowers field in vaultStatus).
@@ -1527,14 +1532,18 @@ const WalletProviderRaw = ({
         let canProceed = false;
         if (watchtowerAPIReachable) canProceed = true;
         else {
+          //console.log(
+          //  'TRACE syncWatchtowerRegistration calling to netStatusUpdate'
+          //);
           const status = await netStatusUpdate({ whenToastErrors });
           if (activeWallet.walletId !== walletIdRef.current) return; //do this after each await
+          await new Promise(resolve => setTimeout(resolve, 100)); //time for setting netRequestRef.current
+          if (activeWallet.walletId !== walletIdRef.current) return; //do this after each await
+          //netStatusUpdate will update internal states.
+          //Therefore we must use an up-to-date netRequest. This is the
+          //reason we use netRequestRef.current in the following
           // if it just became reachable…
           if (status?.watchtowerAPIReachable) {
-            //wait until next execution thread to allow netStatusUpdate
-            //to update internal states, which will need to be ready for the netRequest
-            //calls below:
-            await new Promise(resolve => setTimeout(resolve, 100));
             if (activeWallet.walletId !== walletIdRef.current) return;
             //do this after each await
             canProceed = true;
@@ -1542,17 +1551,20 @@ const WalletProviderRaw = ({
         }
         //console.log('TRACE syncWatchtowerRegistration', {
         //  canProceed,
-        //  watchtowerAPIReachable,
         //  whenToastErrors
         //});
         if (!canProceed) return;
-        const { result: newWatchedVaults } = await netRequest({
+        const { result: newWatchedVaults } = await netRequestRef.current({
           id: 'syncWatchtowerRegistration',
           whenToastErrors,
           requirements: { watchtowerAPIReachable: true },
           errorMessage: (message: string) =>
             t('app.watchtowerError', { message }),
           func: () => {
+            //console.log('TRACE syncWatchtowerRegistration netRequest DONE!', {
+            //  canProceed,
+            //  whenToastErrors
+            //});
             const rawLocale = settings?.LOCALE ?? defaultSettings.LOCALE;
             const locale =
               rawLocale === 'default'
@@ -1616,7 +1628,6 @@ const WalletProviderRaw = ({
       vaultsStatuses,
       activeWallet?.walletId,
       setVaultsStatuses,
-      netRequest,
       networkTimeout,
       settings?.LOCALE,
       t,
@@ -1677,14 +1688,19 @@ const WalletProviderRaw = ({
       watchtowerAPI
     ) {
       console.log(
-        `[${new Date().toISOString()}] [Sync] Wallet: ${activeWallet.walletId} | NetReady: ${netReady} | UserTriggered: ${isUserTriggered} | network: ${activeWallet.networkId}`
+        `[${new Date().toISOString()}] [Sync] Wallet: ${activeWallet.walletId} | NetReady: ${isCoreNetReady} | watchtowerAPIReachable: ${watchtowerAPIReachable} | cBVaultsReaderAPIReachable: ${cBVaultsReaderAPIReachable} | UserTriggered: ${isUserTriggered} | network: ${activeWallet.networkId}`
       );
 
-      if (netReady === false && isUserTriggered) {
+      if (
+        (isCoreNetReady === false ||
+          watchtowerAPIReachable === false ||
+          cBVaultsReaderAPIReachable === false) &&
+        isUserTriggered
+      ) {
         //This strategy only checks netStatus changes when we're sure the
-        //network is down and the user is requesting it. This is because this is
+        //some of the APIs are  down and the user is requesting it. This is because this is
         //an expensive operation and sync may also be called automatically on
-        //dependencies of isWalletDiskSynched, netReady, callback functions and so on...
+        //dependencies of isWalletDiskSynched, isCoreNetReady, callback functions and so on...
         //No prob if netStatusUpdate fails.
         const ns = await netStatusUpdate({ whenToastErrors });
         if (activeWallet.walletId !== walletIdRef.current) {
@@ -1692,10 +1708,10 @@ const WalletProviderRaw = ({
           setSyncingBlockchain(activeWallet.walletId, false);
           return;
         }
-        //wait until next execution thread to allow netStatusUpdate
-        //to update internal states, which will need to be ready for the netRequest
-        //calls below:
-        await new Promise(resolve => setTimeout(resolve, 100));
+        //netStatusUpdate will update internal states.
+        //Therefore we must use an up-to-date netRequest. This is the
+        //reason we use netRequestRef.current in the following
+        await new Promise(resolve => setTimeout(resolve, 100)); //time for setting netRequestRef.current
         if (activeWallet.walletId !== walletIdRef.current) {
           //do this after each await
           setSyncingBlockchain(activeWallet.walletId, false);
@@ -1738,12 +1754,12 @@ const WalletProviderRaw = ({
         //First get updatedVaults & updatedVaultsStatuses:
 
         //Toast a warning error on failure, but does not stop the sync
-        const { result: p2pVaults } = await netRequest({
+        const { result: p2pVaults } = await netRequestRef.current({
           id: 'p2pVaults',
           errorMessage: (message: string) =>
             t('app.syncP2PVaultsError', { message }),
           whenToastErrors,
-          requirements: { apiReachable: true },
+          requirements: { cBVaultsReaderAPIReachable: true },
           func: () =>
             fetchP2PVaults({
               networkTimeout,
@@ -1772,7 +1788,7 @@ const WalletProviderRaw = ({
             }
           });
 
-        const { result: freshVaultsStatuses } = await netRequest({
+        const { result: freshVaultsStatuses } = await netRequestRef.current({
           id: 'fetchVaultsStatuses',
           errorMessage: (message: string) =>
             t('app.syncNetworkError', { message }),
@@ -1824,18 +1840,20 @@ const WalletProviderRaw = ({
             if (!signer.mnemonic)
               throw new Error('mnemonic not set for soft wallet');
             const masterNode = getMasterNode(signer.mnemonic, network);
-            const { status: fetchStandardStatus } = await netRequest({
-              id: 'fetchStandardAccounts',
-              errorMessage: (message: string) =>
-                t('app.syncNetworkError', { message }),
-              whenToastErrors,
-              requirements: { explorerReachable: true },
-              func: () =>
-                discovery.fetchStandardAccounts({
-                  masterNode,
-                  gapLimit
-                })
-            });
+            const { status: fetchStandardStatus } = await netRequestRef.current(
+              {
+                id: 'fetchStandardAccounts',
+                errorMessage: (message: string) =>
+                  t('app.syncNetworkError', { message }),
+                whenToastErrors,
+                requirements: { explorerReachable: true },
+                func: () =>
+                  discovery.fetchStandardAccounts({
+                    masterNode,
+                    gapLimit
+                  })
+              }
+            );
             if (activeWallet.walletId !== walletIdRef.current) {
               //do this after each await
               setSyncingBlockchain(activeWallet.walletId, false);
@@ -1882,7 +1900,7 @@ const WalletProviderRaw = ({
           updatedAccounts,
           updatedTipHeight
         );
-        const { status: fetchStatus } = await netRequest({
+        const { status: fetchStatus } = await netRequestRef.current({
           id: 'syncFetch',
           errorMessage: (message: string) =>
             t('app.syncNetworkError', { message }),
@@ -1948,11 +1966,12 @@ const WalletProviderRaw = ({
     setSyncingBlockchain(activeWallet.walletId, false);
   }, [
     walletTitle,
-    netRequest,
     netToast,
     netStatusUpdate,
     isWalletDiskSynched,
-    netReady,
+    isCoreNetReady,
+    watchtowerAPIReachable,
+    cBVaultsReaderAPIReachable,
     updateBtcFiat,
     updateFeeEstimates,
     updateTipStatus,
@@ -2002,7 +2021,7 @@ const WalletProviderRaw = ({
     if (
       activeWallet?.walletId !== undefined &&
       isWalletDiskSynched &&
-      netReady
+      isCoreNetReady
     ) {
       setSyncingBlockchain(activeWallet.walletId, true);
     }
@@ -2010,7 +2029,7 @@ const WalletProviderRaw = ({
     activeWallet?.walletId,
     setSyncingBlockchain,
     isWalletDiskSynched,
-    netReady,
+    isCoreNetReady,
     tipHeight
   ]);
 

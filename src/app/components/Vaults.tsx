@@ -1,24 +1,6 @@
 //FIXME: I received notifications 6 hours after having acked them. So weird.
 //investigate. I got them both in iOS and Android.
 
-//FIXME: if i have turned off the watchtower, then create a vault, then
-//turn on the watchtower then the "bell" goes to gray "Checking Vault monitoring status..." but
-//does not turn off or on
-
-//FIXME: test create a vault with watchtower down, then turn on the watchtower
-
-//FIXME: ensure syncWatchtowerRegistration is done on initial start???
-
-//FIXME: vaults and history tabs should not be recalculated each time
-
-//FIXME: test on android the new P2R
-
-//FIXME: I receive 2 messages duplucated:
-//  -> Unable to connect to the Watchtower
-//  -> Failed to to the Watchtower. Specially this second one is too repetitive
-//  each time i focus the vualts i'll get it even of there's a permanent
-//  error message (Unable to connect) fixed
-
 //FIXME: Specially on Android while fetching, everything becomes unresponsive
 //  Also on iOS. It's like if at times toasts are undismissable!?!
 
@@ -45,6 +27,7 @@
 //  -> Se resetea en cuanto se hace click en la noti
 //  -> Dismiss todo cuando no quedan ni clearOrphanedWatchtowerWalletUUIDs ni
 //  ninguna wallet con not
+
 import React, {
   useCallback,
   useEffect,

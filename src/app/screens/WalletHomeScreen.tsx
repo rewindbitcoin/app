@@ -635,7 +635,11 @@ const WalletHomeScreen = () => {
           //The added margin to let it scroll over the Receive - Send - Freeze buttons. Note there is a mb-8 in <WalletButtons>
         >
           {/* marginBottom is applied to the content inside to ensure scroll area covers buttons */}
-          <View style={{ marginBottom: walletButtonsHeight + insets.bottom + 8 * 4 }}>
+          <View
+            style={{
+              marginBottom: walletButtonsHeight + insets.bottom + 8 * 4
+            }}
+          >
             {vaults && vaultsStatuses && (
               <Vaults
                 syncWatchtowerRegistration={syncWatchtowerRegistration}
@@ -643,7 +647,6 @@ const WalletHomeScreen = () => {
                 setVaultNotificationAcknowledged={
                   setVaultNotificationAcknowledged
                 }
-                syncBlockchain={syncBlockchain}
                 syncingBlockchain={syncingBlockchain}
                 blockExplorerURL={blockExplorerURL}
                 updateVaultStatus={updateVaultStatus}
@@ -663,7 +666,11 @@ const WalletHomeScreen = () => {
           //The added margin to let it scroll over the Receive - Send - Freeze buttons. Note there is a mb-8 in <WalletButtons>
         >
           {/* marginBottom is applied to the content inside to ensure scroll area covers buttons */}
-          <View style={{ marginBottom: walletButtonsHeight + insets.bottom + 8 * 4 }}>
+          <View
+            style={{
+              marginBottom: walletButtonsHeight + insets.bottom + 8 * 4
+            }}
+          >
             <Transactions
               blockExplorerURL={blockExplorerURL}
               tipStatus={tipStatus}
