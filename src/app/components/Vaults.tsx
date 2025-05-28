@@ -1,6 +1,18 @@
 //FIXME: I received notifications 6 hours after having acked them. So weird.
 //investigate. I got them both in iOS and Android.
 
+//FIXME: if i have turned off the watchtower, then create a vault, then
+//turn on the watchtower then the "bell" goes to gray "Checking Vault monitoring status..." but
+//does not turn off or on
+
+//FIXME: test create a vault with watchtower down, then turn on the watchtower
+
+//FIXME: ensure syncWatchtowerRegistration is done on initial start???
+
+//FIXME: vaults and history tabs should not be recalculated each time
+
+//FIXME: test on android the new P2R
+
 //FIXME: I receive 2 messages duplucated:
 //  -> Unable to connect to the Watchtower
 //  -> Failed to to the Watchtower. Specially this second one is too repetitive
@@ -244,7 +256,6 @@ const RawVault = ({
   vaultNumber,
   vaultStatus,
   blockExplorerURL,
-  syncBlockchain,
   syncingBlockchain,
   watchtowerAPI,
   syncWatchtowerRegistration,
@@ -261,10 +272,15 @@ const RawVault = ({
   vaultNumber: number;
   vaultStatus: VaultStatus | undefined;
   blockExplorerURL: string | undefined;
-  syncBlockchain: () => void;
   syncingBlockchain: boolean;
   watchtowerAPI: string | undefined;
-  syncWatchtowerRegistration: (pushToken: string) => Promise<void>;
+  syncWatchtowerRegistration: ({
+    pushToken,
+    isUserTriggered
+  }: {
+    pushToken: string;
+    isUserTriggered: boolean;
+  }) => Promise<void>;
   ensurePermissionsAndToken: (mode: 'GET' | 'REQUEST') => Promise<{
     notificationPermissions:
       | Notifications.NotificationPermissionsStatus
@@ -543,11 +559,25 @@ const RawVault = ({
   const rescuedBalance =
     tipHeight && vaultStatus && getVaultRescuedBalance(vault, vaultStatus);
 
+  const isMountedRef = useRef(true);
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+  /**
+   * this is called on the user pushing on the retry button when the
+   * watchtower is unreachable
+   */
   const retryWatchtowerSetup = useCallback(async () => {
     setShowWatchtowerStatusModal(false);
     //request if necessay (it gets if already granted):
     const { pushToken } = await ensurePermissionsAndToken('REQUEST');
-    if (pushToken) await syncWatchtowerRegistration(pushToken);
+    if (pushToken && isMountedRef.current)
+      await syncWatchtowerRegistration({
+        pushToken,
+        isUserTriggered: true
+      });
     else console.warn('Failed during notification system request');
   }, [ensurePermissionsAndToken, syncWatchtowerRegistration]);
   // keep a stable ref to the latest retryWatchtowerSetup fn
@@ -1010,7 +1040,7 @@ const RawVault = ({
                   loading={isWatchtowerDown && syncingBlockchain}
                   onPress={
                     isWatchtowerDown
-                      ? syncBlockchain
+                      ? retryWatchtowerSetupRef.current
                       : shouldDirectToSystemNotificationSettings
                         ? Linking.openSettings
                         : retryWatchtowerSetupRef.current
@@ -1049,7 +1079,6 @@ const Vaults = ({
   vaults,
   vaultsStatuses,
   blockExplorerURL,
-  syncBlockchain,
   syncingBlockchain,
   watchtowerAPI,
   pushToken,
@@ -1057,14 +1086,19 @@ const Vaults = ({
 }: {
   setVaultNotificationAcknowledged: (vaultId: string) => void;
   updateVaultStatus: (vaultId: string, vaultStatus: VaultStatus) => void;
-  syncWatchtowerRegistration: (pushToken: string) => Promise<void>;
+  syncWatchtowerRegistration: ({
+    pushToken,
+    isUserTriggered
+  }: {
+    pushToken: string;
+    isUserTriggered: boolean;
+  }) => Promise<void>;
   pushTx: (txHex: string) => Promise<void>;
   btcFiat: number | undefined;
   tipStatus: BlockStatus | undefined;
   vaults: VaultsType;
   vaultsStatuses: VaultsStatuses;
   blockExplorerURL: string | undefined;
-  syncBlockchain: () => void;
   syncingBlockchain: boolean;
   watchtowerAPI: string | undefined;
   pushToken: string | undefined;
@@ -1080,6 +1114,13 @@ const Vaults = ({
   ] = useState(false);
   const closePermissionsForNotificationsExplainModal = useCallback(() => {
     setShowPermissionsForNotificationsExplainModal(false);
+  }, []);
+
+  const isMountedRef = useRef(true);
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+    };
   }, []);
 
   // Initialize push notifications whenever the vault count increases.
@@ -1142,29 +1183,45 @@ const Vaults = ({
     [setPushToken, t]
   );
 
+  /**
+   * When the user clicks on the button that opens notifications system
+   * permission
+   */
   const handleNotificationsSystemRequest = useCallback(async () => {
     setShowPermissionsForNotificationsExplainModal(false);
     const { pushToken } = await ensurePermissionsAndToken('REQUEST');
-    if (pushToken) await syncWatchtowerRegistrationRef.current(pushToken);
+    if (!isMountedRef.current) return;
+    if (pushToken)
+      await syncWatchtowerRegistrationRef.current({
+        pushToken,
+        isUserTriggered: true
+      });
     else console.warn('Failed during notification system request');
   }, [ensurePermissionsAndToken]);
 
   //Check when the app comes to the foreground (perhaps it was in the back
   //while the user was tuning on notifications manually)
   //So here it's a good place to retrieve the pushToken
-  const appState = useRef(AppState.currentState);
   useEffect(() => {
+    let previousAppState = AppState.currentState;
     const handleAppStateChange = async (nextAppState: AppStateStatus) => {
       if (
-        appState.current.match(/inactive|background/) &&
+        previousAppState === 'background' &&
         nextAppState === 'active' &&
         canReceiveNotifications
       ) {
+        previousAppState = nextAppState; //ASAP before the await
         const { pushToken } = await ensurePermissionsAndToken('GET');
         //Won't do anything if already registerted, also never throws:
-        if (pushToken) syncWatchtowerRegistrationRef.current(pushToken);
+        if (pushToken && isMountedRef.current)
+          syncWatchtowerRegistrationRef.current({
+            pushToken,
+            //this is not user driven, so don't show the toast
+            //if this error is already registerted
+            isUserTriggered: false
+          });
       }
-      appState.current = nextAppState;
+      previousAppState = nextAppState;
     };
     const subscription = AppState.addEventListener(
       'change',
@@ -1173,13 +1230,32 @@ const Vaults = ({
     return () => subscription.remove();
   }, [ensurePermissionsAndToken]);
 
+  //initial notificationPermissions GET and watchtower sync if there are vaults
+  const hasInitializedRef = useRef(false);
+  useEffect(() => {
+    if (hasInitializedRef.current) return;
+    hasInitializedRef.current = true;
+    const init = async () => {
+      const { pushToken } = await ensurePermissionsAndToken('GET');
+      if (isMountedRef.current && pushToken)
+        syncWatchtowerRegistration({ pushToken, isUserTriggered: false });
+    };
+    if (vaultCount) init();
+  }, [ensurePermissionsAndToken, syncWatchtowerRegistration, vaultCount]);
+
   //Each time a new vault is added, we must sync. This is the first
   //time the user may see the modal that will explain the user to accept the
   //system modal requesting push notifications permissions
+  const prevVaultCountRef = useRef(vaultCount);
   useEffect(() => {
     let timeoutId: NodeJS.Timeout | undefined;
 
     const onNewVault = async () => {
+      //console.log('TRACE onNewVault', {
+      //  vaultCount,
+      //  isMountedRef: isMountedRef.current,
+      //  canReceiveNotifications
+      //});
       // Only proceed if we haven't synced yet and we have vaults
       if (canReceiveNotifications && vaultCount > 0) {
         const { pushToken, notificationPermissions } =
@@ -1191,11 +1267,18 @@ const Vaults = ({
           )
             // show explanation modal after 3 seconds so that users
             // already have seen their vault activity
-            timeoutId = setTimeout(
-              () => setShowPermissionsForNotificationsExplainModal(true),
-              3000
-            );
-          if (pushToken) await syncWatchtowerRegistrationRef.current(pushToken);
+            timeoutId = setTimeout(() => {
+              if (isMountedRef.current)
+                setShowPermissionsForNotificationsExplainModal(true);
+            }, 3000);
+          //console.log('TRACE useEffect - onNewVault', vaultCount);
+          if (!isMountedRef.current) return;
+          if (pushToken)
+            await syncWatchtowerRegistrationRef.current({
+              pushToken,
+              //This is triggered only on new vault creation
+              isUserTriggered: true
+            });
           else console.warn('Could not get push token during initial setup.');
         } catch (error: unknown) {
           console.warn(
@@ -1205,8 +1288,8 @@ const Vaults = ({
         }
       }
     };
-    onNewVault();
-
+    if (vaultCount > prevVaultCountRef.current) onNewVault();
+    prevVaultCountRef.current = vaultCount;
     // Cleanup function to clear the timeout if the component unmounts
     // or if the effect re-runs before the timeout finishes
     return () => {
@@ -1261,7 +1344,6 @@ const Vaults = ({
                 vaultStatus={vaultStatus}
                 pushTx={pushTx}
                 blockExplorerURL={blockExplorerURL}
-                syncBlockchain={syncBlockchain}
                 syncingBlockchain={syncingBlockchain}
                 watchtowerAPI={watchtowerAPI}
                 notificationPermissions={notificationPermissions}

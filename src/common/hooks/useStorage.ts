@@ -432,7 +432,7 @@ export const useStorage = <T>(
  *   - Global data that changes infrequently to minimize re-renders.
  * - Use LOCAL for:
  *   - State specific to a component or domain that doesn't affect others.
- *   - Example: Vault speciffic information. This avoids unnecessary re-renders
+ *   - Example: Vault specific information. This avoids unnecessary re-renders
  *     in other parts of the app.
  *   - Note: Other components using useStorage(key, ....,. "LOCAL") with the
  *     same key won't be notified of changes. This is important to take into

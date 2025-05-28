@@ -130,7 +130,13 @@ export type WalletContextType = {
   networkId: NetworkId | undefined;
   fetchBlockTime: (blockHeight: number) => Promise<number | undefined>;
   pushTx: (txHex: string) => Promise<void>;
-  syncWatchtowerRegistration: (pushToken: string) => Promise<void>;
+  syncWatchtowerRegistration: ({
+    pushToken,
+    isUserTriggered
+  }: {
+    pushToken: string;
+    isUserTriggered: boolean;
+  }) => Promise<void>;
   fetchOutputHistory: ({
     descriptor,
     index
@@ -456,6 +462,7 @@ const WalletProviderRaw = ({
     reset: netStatusReset,
     init: netStatusInit,
     update: netStatusUpdate,
+    watchtowerAPIReachable,
     apiReachable,
     netRequest,
     netToast,
@@ -657,7 +664,7 @@ const WalletProviderRaw = ({
   );
 
   /**
-   * This is useful when the wallet is expecting funds in a speciffic output
+   * This is useful when the wallet is expecting funds in a specific output
    * determined by descriptor (and index if ranged).
    *
    * By calling this function, the internal discovery data is updated and a
@@ -1083,6 +1090,7 @@ const WalletProviderRaw = ({
       previousAppState = nextAppState;
     };
 
+    //FIXME: when is this event unsunscribed?
     const appStateSubscription = AppState.addEventListener(
       'change',
       handleAppStateChange
@@ -1490,7 +1498,13 @@ const WalletProviderRaw = ({
    * changes.
    */
   const syncWatchtowerRegistration = useCallback(
-    async (pushToken: string) => {
+    async ({
+      pushToken,
+      isUserTriggered
+    }: {
+      pushToken: string;
+      isUserTriggered: boolean;
+    }) => {
       // Ensure all required data is available before proceeding
       if (!vaults || !vaultsStatuses || activeWallet?.walletId === undefined) {
         console.warn(
@@ -1499,14 +1513,45 @@ const WalletProviderRaw = ({
         return;
       }
 
+      const whenToastErrors = isUserTriggered ? 'ON_ANY_ERROR' : 'ON_NEW_ERROR';
       const walletUUID = activeWallet?.walletUUID;
+      //console.log('TRACE syncWatchtowerRegistration', {
+      //  isUserTriggered,
+      //  whenToastErrors,
+      //  watchtowerAPIReachable
+      //});
       try {
         if (!watchtowerAPI || !networkTimeout || !walletTitle || !walletUUID)
           throw new Error('Required data for watchtower registration missing');
+
+        let canProceed = false;
+        if (watchtowerAPIReachable) canProceed = true;
+        else {
+          const status = await netStatusUpdate({ whenToastErrors });
+          if (activeWallet.walletId !== walletIdRef.current) return; //do this after each await
+          // if it just became reachable…
+          if (status?.watchtowerAPIReachable) {
+            //wait until next execution thread to allow netStatusUpdate
+            //to update internal states, which will need to be ready for the netRequest
+            //calls below:
+            await new Promise(resolve => setTimeout(resolve, 100));
+            if (activeWallet.walletId !== walletIdRef.current) return;
+            //do this after each await
+            canProceed = true;
+          }
+        }
+        //console.log('TRACE syncWatchtowerRegistration', {
+        //  canProceed,
+        //  watchtowerAPIReachable,
+        //  whenToastErrors
+        //});
+        if (!canProceed) return;
         const { result: newWatchedVaults } = await netRequest({
+          id: 'syncWatchtowerRegistration',
+          whenToastErrors,
+          requirements: { watchtowerAPIReachable: true },
           errorMessage: (message: string) =>
             t('app.watchtowerError', { message }),
-          whenToastErrors: 'ON_ANY_ERROR',
           func: () => {
             const rawLocale = settings?.LOCALE ?? defaultSettings.LOCALE;
             const locale =
@@ -1525,6 +1570,7 @@ const WalletProviderRaw = ({
             });
           }
         });
+        if (activeWallet.walletId !== walletIdRef.current) return;
 
         let updatedVaultsStatuses = vaultsStatuses;
         if (newWatchedVaults?.length) {
@@ -1575,7 +1621,9 @@ const WalletProviderRaw = ({
       settings?.LOCALE,
       t,
       watchtowerAPI,
-      walletTitle
+      walletTitle,
+      netStatusUpdate,
+      watchtowerAPIReachable
     ]
   );
 

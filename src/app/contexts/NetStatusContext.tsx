@@ -547,7 +547,7 @@ const NetStatusProvider: React.FC<NetStatusProviderProps> = ({ children }) => {
           permanentErrorMessage = notifiedError.errorMessage;
       });
 
-      //api errors or explorer errors will trump any speciffic errors
+      //api errors or explorer errors will trump any specific errors
       if (generate204API && apiReachable === false)
         permanentErrorMessage = t('netStatus.apiNotReachableWarning');
 
@@ -814,7 +814,7 @@ const NetStatusProvider: React.FC<NetStatusProviderProps> = ({ children }) => {
       /**
        * which services are pre-required.
        * Only run func if the requirements are met.
-       * Also, only notify speciffic errors if the
+       * Also, only notify specific errors if the
        * required services are up and running.
        */
       requirements?: {
@@ -902,7 +902,7 @@ const NetStatusProvider: React.FC<NetStatusProviderProps> = ({ children }) => {
 
               //The error will be "toasted" in update. It will be displayed as
               //  - if, after net checks, required services are up:
-              //  toast the speciffic errorMessage.
+              //  toast the specific errorMessage.
               //  - if, after net checks, required services are NOT up:
               //  toast a more generic net error.
               await update({ whenToastErrors });

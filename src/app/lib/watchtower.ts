@@ -84,6 +84,7 @@ export async function getExpoPushToken(title: string): Promise<string> {
 
 // Register vaults with the watchtower service
 // The backend won't return an error when trying to re-register a vault.
+// The backend is not queried if the vault was already registered
 export async function watchVaults({
   pushToken,
   watchtowerAPI,

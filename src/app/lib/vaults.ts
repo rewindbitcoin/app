@@ -246,7 +246,7 @@ export type HistoryData = Array<HistoryDataItem>;
  * - previous txHex and vout
  * - output descriptor
  * - index? if the descriptor retrieved in discovery was ranged
- * - signersPubKeys? if it can only be spent through a speciffic spending path
+ * - signersPubKeys? if it can only be spent through a specific spending path
  *
  * Important: Returns same reference for utxosData if utxos did not change
  *
