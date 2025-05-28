@@ -22,12 +22,6 @@
 // - testear el animate-pulse
 // - Android!
 
-//FIXME: en android (real device productoin app the badge counter is not reseted)
-//It should be reseted after goint to one of the affected wallets.
-//  -> Se resetea en cuanto se hace click en la noti
-//  -> Dismiss todo cuando no quedan ni clearOrphanedWatchtowerWalletUUIDs ni
-//  ninguna wallet con not
-
 import React, {
   useCallback,
   useEffect,

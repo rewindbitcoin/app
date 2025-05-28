@@ -19,7 +19,9 @@ import {
   type Subscription,
   addNotificationReceivedListener,
   addNotificationResponseReceivedListener,
-  getLastNotificationResponseAsync
+  dismissAllNotificationsAsync,
+  getLastNotificationResponseAsync,
+  setBadgeCountAsync
 } from 'expo-notifications';
 import {
   watchVaults,
@@ -805,7 +807,8 @@ const WalletProviderRaw = ({
       const watchtowerId = data['watchtowerId'];
       if (typeof watchtowerId !== 'string' || watchtowerId === '') {
         console.warn(
-          `Malformed watchtowerId in notification: ${watchtowerId} from ${source}.`
+          `Malformed watchtowerId in notification: ${watchtowerId} from ${source}.`,
+          data
         );
         return;
       }
@@ -813,7 +816,8 @@ const WalletProviderRaw = ({
       const walletUUID = data['walletUUID'];
       if (typeof walletUUID !== 'string' || walletUUID === '') {
         console.warn(
-          `Malformed walletUUID in notification: ${walletUUID} from ${source}.`
+          `Malformed walletUUID in notification: ${walletUUID} from ${source}.`,
+          data
         );
         return;
       }
@@ -821,7 +825,8 @@ const WalletProviderRaw = ({
       const vaultId = data['vaultId'] as string;
       if (typeof vaultId !== 'string' || vaultId === '') {
         console.warn(
-          `Malformed vaultId in notification: ${vaultId} from ${source}.`
+          `Malformed vaultId in notification: ${vaultId} from ${source}.`,
+          data
         );
         return;
       }
@@ -829,14 +834,18 @@ const WalletProviderRaw = ({
       const firstDetectedAt = data['firstDetectedAt'];
       if (typeof firstDetectedAt !== 'number') {
         console.warn(
-          `Malformed firstDetectedAt in notification: ${firstDetectedAt} from ${source}.`
+          `Malformed firstDetectedAt in notification: ${firstDetectedAt} from ${source}.`,
+          data
         );
         return;
       }
 
       const txid = data['txid'];
       if (typeof txid !== 'string' || txid === '') {
-        console.warn(`Malformed txid in notification: ${txid} from ${source}.`);
+        console.warn(
+          `Malformed txid in notification: ${txid} from ${source}.`,
+          data
+        );
         return;
       }
 
@@ -933,6 +942,23 @@ const WalletProviderRaw = ({
   const clearOrphanedWatchtowerWalletUUIDs = useCallback(async () => {
     setOrphanedWatchtowerWalletUUIDs(new Set());
   }, []);
+
+  // Dismiss all notifications when there are no unacknowledged ones remaining
+  const nonOrphanedUnackedCount = Object.values(wallets ?? {}).filter(wallet =>
+    Object.values(wallet.notifications ?? {}).some(watchtower =>
+      Object.values(watchtower).some(n => !n.acked)
+    )
+  ).length;
+  const totalUnackedCount =
+    orphanedWatchtowerWalletUUIDs.size + nonOrphanedUnackedCount;
+  const prevUnackedCountRef = useRef(totalUnackedCount);
+  useEffect(() => {
+    if (prevUnackedCountRef.current > 0 && totalUnackedCount === 0) {
+      dismissAllNotificationsAsync();
+      setBadgeCountAsync(0);
+    }
+    prevUnackedCountRef.current = totalUnackedCount;
+  }, [totalUnackedCount]);
 
   // Refs for notification listeners
   const notificationListenerRef = useRef<Subscription>();
