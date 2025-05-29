@@ -318,12 +318,9 @@ export default function NewWalletScreen() {
       >
         <View className="max-w-screen-sm p-4 gap-4">
           <Text className="native:text-base web:text-sm web:sm:text-base text-slate-600">
-            {
-              //it should using strin literal. AI!
-              isImport
-                ? t('bip39.importWalletSubText')
-                : t('bip39.createWalletSubText')
-            }
+            {isImport
+              ? t('bip39.importWalletSubText')
+              : t('bip39.createWalletSubText')}
           </Text>
           <Pressable
             hitSlop={10}
