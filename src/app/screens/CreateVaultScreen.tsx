@@ -278,17 +278,18 @@ export default function CreateVaultScreen({
       if (!navigation.isFocused()) return; //Don't proceed if lost focus after await
 
       const unvaultKey = await getUnvaultKey();
-      const { result: serviceAddress } = await netRequest({
+      const { result } = await netRequest({
         whenToastErrors: 'ON_ANY_ERROR',
         errorMessage: message => t('createVault.fetchIssues', { message }),
         func: fetchServiceAddress
       });
       if (!navigation.isFocused()) return; //Don't proceed if lost focus after await
-      if (!serviceAddress) {
+      if (!result) {
         //The toast with prev error message will have been shown.
         goBack();
         return;
       }
+      const { address: serviceAddress, quiet } = result;
       const changeDescriptorWithIndex =
         await getNextChangeDescriptorWithIndex(accounts);
       if (!navigation.isFocused()) return; //Don't proceed if lost focus after await
@@ -462,17 +463,8 @@ export default function CreateVaultScreen({
                   </View>
 
                   {/* Fees */}
-                  {/*on Tape summarize fees into one*/}
-                  {GROUP_FEES_ON_TAPE && networkId === 'TAPE' ? (
-                    <View>
-                      <Text className="text-base font-bold mb-1">
-                        {t('createVault.allFees')}
-                      </Text>
-                      <Text className="text-base">
-                        {formatAmount(vault.serviceFee + vaultTxInfo.fee)}
-                      </Text>
-                    </View>
-                  ) : (
+                  {/*don't show fees if quiet*/}
+                  {!quiet && (
                     <>
                       <View>
                         <Text className="text-base font-bold mb-1">
