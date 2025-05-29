@@ -53,3 +53,5 @@ deprecated/
 
 src/i18n/*.keys*.json
 .aider*
+
+secrets/

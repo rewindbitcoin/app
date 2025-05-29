@@ -12,7 +12,8 @@ import {
   View,
   AppState,
   Platform,
-  LayoutChangeEvent
+  LayoutChangeEvent,
+  Linking
 } from 'react-native';
 import { batchedUpdates } from '~/common/lib/batchedUpdates';
 import {
@@ -30,7 +31,6 @@ import { networkMapping, type NetworkId } from '../lib/network';
 import { useFonts } from 'expo-font';
 import { RobotoMono_400Regular } from '@expo-google-fonts/roboto-mono';
 import CreateColdAddress from './CreateColdAddress';
-import { add } from 'react-native-libsodium';
 
 function AddressInput({
   onValueChange,
@@ -69,10 +69,27 @@ function AddressInput({
   // Fix for Android placeholder text breaking into multiple lines after text deletion
   // See: https://github.com/facebook/react-native/issues/30666#issuecomment-2681501484
   const [inputWidth, setInputWidth] = useState<number | undefined>();
+  // Memoize the entire style object for the TextInput to prevent unnecessary re-renders.
+  // This includes the base flicker fix (lineHeight: undefined) and the conditional
+  // Android width fix.
+  // Background on thee flicker fix:
+  // NativeWind's `text-base` sets a lineHeight, which causes a subtle jump/flicker
+  // on each keystroke in TextInput. This is a known React Native quirk.
+  // Setting lineHeight to `undefined` prevents layout recalculations while typing.
+  const textInputStyle = useMemo(() => {
+    const baseStyle = { lineHeight: undefined }; // Flicker fix
+    const androidWidthStyle =
+      Platform.OS === 'android' && inputWidth && address === ''
+        ? { width: inputWidth }
+        : {};
+    return [baseStyle, androidWidthStyle];
+  }, [inputWidth, address]);
+
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
   const handleInputLayout = useCallback(
     (e: LayoutChangeEvent) => {
-      if (!address) return;
+      if (inputWidth !== undefined) return;
+      //if (address !== '') return;
       // e.persist() is not available in React for web
       if (e.persist) e.persist();
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
@@ -85,7 +102,7 @@ function AddressInput({
         setInputWidth(prev => (prev === width ? prev : Math.floor(width - 1)));
       }, 300);
     },
-    [address]
+    [inputWidth]
   );
 
   useEffect(() => {
@@ -261,9 +278,7 @@ function AddressInput({
             value={address}
             className={`w-full ios:mb-1 native:text-base web:text-xs web:mobmed:text-sm web:sm:text-base overflow-hidden web:outline-none border-none p-2 pl-0 border-md tracking-normal ${robotoLoaded ? "font-['RobotoMono400Regular']" : ''} ${Platform.OS === 'android' && inputWidth && address === '' ? '' : 'flex-1'}`}
             onLayout={handleInputLayout}
-            {...(Platform.OS === 'android' && inputWidth && address === ''
-              ? { style: { width: inputWidth } }
-              : {})}
+            style={textInputStyle}
           />
           {type === 'emergency' && (
             <View className="py-1">
@@ -314,24 +329,35 @@ function AddressInput({
         }}
         onClose={handleCloseScanQR}
         customButtons={
-          <View className="items-center gap-6 gap-y-4 flex-row flex-wrap justify-center mb-4">
-            <Button mode="secondary" onPress={handleCloseScanQR}>
-              {t('cancelButton')}
-            </Button>
-            {camTypes !== null && camTypes.length > 1 && (
-              <Button onPress={toggleCameraFacing}>
-                <View className="flex-row items-center">
-                  <MaterialCommunityIcons
-                    name="camera-flip-outline"
-                    className="text-white text-xl -my-4 pr-2"
-                  />
-                  <Text className="text-center native:text-sm font-semibold text-white web:text-xs web:sm:text-sm select-none">
-                    {t('addressInput.flipCam')}
-                  </Text>
-                </View>
+          !camPermission?.canAskAgain ? (
+            <View className="items-center gap-6 gap-y-4 flex-row flex-wrap justify-center mb-4">
+              <Button mode="secondary" onPress={handleCloseScanQR}>
+                {t('cancelButton')}
               </Button>
-            )}
-          </View>
+              <Button mode="primary" onPress={Linking.openSettings}>
+                {t('addressInput.openSettingsButton')}
+              </Button>
+            </View>
+          ) : (
+            <View className="items-center gap-6 gap-y-4 flex-row flex-wrap justify-center mb-4">
+              <Button mode="secondary" onPress={handleCloseScanQR}>
+                {t('cancelButton')}
+              </Button>
+              {camTypes !== null && camTypes.length > 1 && (
+                <Button onPress={toggleCameraFacing}>
+                  <View className="flex-row items-center">
+                    <MaterialCommunityIcons
+                      name="camera-flip-outline"
+                      className="text-white text-xl -my-4 pr-2"
+                    />
+                    <Text className="text-center native:text-sm font-semibold text-white web:text-xs web:sm:text-sm select-none">
+                      {t('addressInput.flipCam')}
+                    </Text>
+                  </View>
+                </Button>
+              )}
+            </View>
+          )
         }
       >
         {!camPermission?.canAskAgain ? (

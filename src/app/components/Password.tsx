@@ -1,5 +1,11 @@
 import { validatePassword } from '../lib/validators';
-import React, { useRef, useEffect, useCallback, useState } from 'react';
+import React, {
+  useRef,
+  useEffect,
+  useCallback,
+  useState,
+  useMemo
+} from 'react';
 
 import { Platform, View, Text, TextInput } from 'react-native';
 import { Modal, Button } from '../../common/ui';
@@ -56,6 +62,12 @@ const Password = ({
     // Cleanup function
     return () => clearTimeout(timer);
   }, [isVisible]);
+
+  // NativeWind's `text-base` sets a lineHeight, which causes a subtle jump/flicker
+  // on each keystroke in TextInput. This is a known React Native quirk.
+  // Setting lineHeight to `undefined` prevents layout recalculations while typing.
+  const fixTextFlicker = useMemo(() => ({ lineHeight: undefined }), []);
+
   return (
     <Modal
       title={
@@ -72,7 +84,7 @@ const Password = ({
       customButtons={
         <View className="items-center pb-4 gap-2 mobmed:gap-6 mobmed:gap-y-4 flex-row flex-wrap justify-center">
           {mode === 'OPTIONAL_SET' ? (
-            <Button onPress={handleContinueWithoutPassword}>
+            <Button mode="secondary" onPress={handleContinueWithoutPassword}>
               {t('wallet.skipOptionalSetPasswordButton')}
             </Button>
           ) : (
@@ -125,6 +137,7 @@ const Password = ({
           {...(Platform.OS === 'ios' ? { textContentType: 'newPassword' } : {})}
           onChangeText={onChangePassword}
           className="text-base outline-none flex-1 web:w-full rounded bg-slate-200 py-2 px-4"
+          style={fixTextFlicker}
         />
       </View>
     </Modal>

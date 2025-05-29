@@ -352,7 +352,7 @@ const RawModal: React.FC<ModalProps> = ({
                     </Text>
                     {subTitle && (
                       <Text
-                        className={`${ubuntuLoaded ? "font-['Ubuntu500Medium']" : ''} opacity-85 w-full left-0 px-4 mobmed:px-8 text-white pt-0.5`}
+                        className={`${ubuntuLoaded ? "font-['Ubuntu500Medium']" : ''} opacity-75 w-full left-0 px-4 mobmed:px-8 text-white pt-4`}
                         numberOfLines={2}
                       >
                         {subTitle}

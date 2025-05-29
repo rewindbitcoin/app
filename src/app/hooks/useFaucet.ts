@@ -16,6 +16,7 @@ export function useFaucet() {
     accounts,
     fetchOutputHistory,
     isFirstLogin,
+    isGenerated,
     faucetAPI
   } = useWallet();
   const { settings } = useSettings();
@@ -24,7 +25,7 @@ export function useFaucet() {
 
   const toast = useToast();
   const faucetRequestedRef = useRef<boolean>(false);
-  const requesToastId = useRef<string>();
+  const requestToastId = useRef<string>();
   //When the user is notified about having either:
   //  - detected some faucet funds
   //  - faucet failed
@@ -34,34 +35,50 @@ export function useFaucet() {
   const faucetPending: boolean =
     faucetRequestedRef.current && !historyData?.length && !faucetFailed;
 
+  //Serves to keep a ref version of walletId so that in async functions we can
+  //check after the await if the activeWallet.walletId changed
+  const walletIdRef = useRef<number | undefined>(wallet?.walletId);
+  useEffect(() => {
+    walletIdRef.current = wallet?.walletId;
+    return () => {
+      walletIdRef.current = undefined;
+    };
+  }, [wallet?.walletId]);
+
   //Check history length so that when a faucet was requested, we can
   //confirm it when it receives and funds and we can notify it.
   useEffect(() => {
     faucetDetectedRef.current =
       faucetRequestedRef.current && !!historyData?.length;
     if (
+      walletIdRef.current !== undefined &&
+      wallet?.walletId === walletIdRef.current &&
       faucetNotifiedRef.current === false &&
       faucetDetectedRef.current &&
       historyData?.length
     ) {
       faucetNotifiedRef.current = true;
       if (
-        requesToastId.current !== undefined &&
-        toast.isOpen(requesToastId.current)
+        requestToastId.current !== undefined &&
+        toast.isOpen(requestToastId.current)
       )
-        toast.hide(requesToastId.current);
+        toast.hide(requestToastId.current);
       toast.show(t('walletHome.faucetDetectedMsg'), {
         type: 'success'
       });
     }
-  }, [historyData?.length, toast, t]);
+  }, [wallet?.walletId, historyData?.length, toast, t]);
 
   useEffect(() => {
     if (wallet?.networkId === 'TAPE' || wallet?.networkId === 'REGTEST') {
-      if (isFirstLogin && !requesToastId.current)
+      if (isFirstLogin && isGenerated && !requestToastId.current)
         setTimeout(() => {
-          if (!requesToastId.current)
-            requesToastId.current = toast.show(t('walletHome.faucetStartMsg'));
+          if (
+            walletIdRef.current !== undefined &&
+            wallet?.walletId === walletIdRef.current &&
+            !requestToastId.current
+          )
+            requestToastId.current = toast.show(t('walletHome.faucetStartMsg'));
         }, 1000); //Let's show the Screen in it's full glory for a sec before displaying the toast
       if (
         historyData?.length === 0 &&
@@ -70,7 +87,8 @@ export function useFaucet() {
         faucetRequestedRef.current === false &&
         accounts &&
         Object.keys(accounts).length &&
-        isFirstLogin
+        isFirstLogin &&
+        isGenerated
       ) {
         faucetRequestedRef.current = true;
         const network = wallet.networkId && networkMapping[wallet.networkId];
@@ -84,14 +102,16 @@ export function useFaucet() {
               faucetAPI,
               networkTimeout
             ));
+            if (wallet?.walletId !== walletIdRef.current) return; //do after each await
           } catch (error: unknown) {
             console.warn(error);
+            if (wallet?.walletId !== walletIdRef.current) return; //do after each await
             setFaucetFailed(true);
             if (
-              requesToastId.current !== undefined &&
-              toast.isOpen(requesToastId.current)
+              requestToastId.current !== undefined &&
+              toast.isOpen(requestToastId.current)
             )
-              toast.hide(requesToastId.current);
+              toast.hide(requestToastId.current);
             toast.show(t('walletHome.faucetErrorMsg'), { type: 'warning' });
             return;
           }
@@ -102,22 +122,25 @@ export function useFaucet() {
             let txHistory = undefined;
             try {
               txHistory = await fetchOutputHistory({ descriptor, index });
+              if (wallet?.walletId !== walletIdRef.current) return; //do after each await
             } catch (error) {
               console.warn(error);
+              if (wallet?.walletId !== walletIdRef.current) return; //do after each await
             }
             if (!txHistory) {
               setFaucetFailed(true);
               if (
-                requesToastId.current !== undefined &&
-                toast.isOpen(requesToastId.current)
+                requestToastId.current !== undefined &&
+                toast.isOpen(requestToastId.current)
               )
-                toast.hide(requesToastId.current);
+                toast.hide(requestToastId.current);
               toast.show(t('walletHome.faucetErrorMsg'), { type: 'warning' });
               break;
             } else if (txHistory.length === 0) {
               await new Promise(resolve =>
                 setTimeout(resolve, DETECTION_INTERVAL)
               );
+              if (wallet?.walletId !== walletIdRef.current) return; //do after each await
             } else {
               faucetDetectedRef.current = true;
               break;
@@ -126,10 +149,10 @@ export function useFaucet() {
           if (!faucetDetectedRef.current) {
             setFaucetFailed(true);
             if (
-              requesToastId.current !== undefined &&
-              toast.isOpen(requesToastId.current)
+              requestToastId.current !== undefined &&
+              toast.isOpen(requestToastId.current)
             )
-              toast.hide(requesToastId.current);
+              toast.hide(requestToastId.current);
             toast.show(t('walletHome.faucetErrorMsg'), { type: 'warning' });
           }
         })();
@@ -141,6 +164,7 @@ export function useFaucet() {
     toast,
     wallet,
     isFirstLogin,
+    isGenerated,
     accounts,
     fetchOutputHistory,
     t,

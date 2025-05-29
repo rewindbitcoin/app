@@ -76,9 +76,23 @@ export type Signers = {
   [masterFingerprint: string]: Signer;
 };
 
+type Notifications = {
+  [watchtowerAPI: string]: {
+    [vaultId: string]: {
+      firstAttemptAt?: number;
+      /**
+       * set to true once we know the user knows a vault was triggered
+       * handleWatchtowerNotification will notify the watchtower based on this flag
+       */
+      acked: boolean;
+    };
+  };
+};
+
 export type Wallet = {
   creationEpoch: number;
   walletId: number;
+  walletUUID: string;
   walletName?: string;
   version: string;
   /**
@@ -86,6 +100,10 @@ export type Wallet = {
    * real value. allow the user to dismiss this warning.
    */
   testWalletWarningDismissed?: boolean;
+  /**
+   * Store notifications received from watchtowers
+   */
+  notifications?: Notifications;
   //TODO - Implement seed confirmation later (not on wallet creation - so that
   //you can create a wallet express without requiring user to validate the
   //mnemonic. This only applies to new walletes (not imported ones)

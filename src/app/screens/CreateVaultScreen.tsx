@@ -1,4 +1,3 @@
-const GROUP_FEES_ON_TAPE = true;
 import React, {
   useEffect,
   useState,
@@ -59,7 +58,7 @@ export default function CreateVaultScreen({
     getNextChangeDescriptorWithIndex,
     getUnvaultKey,
     signers,
-    vaultPushAndUpdateStates,
+    pushVaultRegisterWTAndUpdateStates,
     vaults,
     cBVaultsWriterAPI,
     cBVaultsReaderAPI,
@@ -71,7 +70,7 @@ export default function CreateVaultScreen({
     !wallet ||
     !networkId ||
     !signers ||
-    !vaultPushAndUpdateStates ||
+    !pushVaultRegisterWTAndUpdateStates ||
     !cBVaultsWriterAPI ||
     !cBVaultsReaderAPI
   )
@@ -101,6 +100,9 @@ export default function CreateVaultScreen({
   // We know settings are the correct ones in this Component
   const [progress, setProgress] = useState<number>(0);
   const [confirmRequested, setConfirmRequested] = useState<boolean>(false);
+  const [serviceAddressQuiet, setServiceAddressQuiet] = useState<
+    boolean | undefined
+  >(undefined);
   const [vault, setVault] = useState<Vault>();
 
   const backBlockerUnsubscriberRef = useRef<null | (() => void)>(null);
@@ -227,7 +229,7 @@ export default function CreateVaultScreen({
     const { status: pushAndUpdateStatus } = await netRequest({
       whenToastErrors: 'ON_ANY_ERROR',
       errorMessage: message => t('createVault.vaultPushError', { message }),
-      func: () => vaultPushAndUpdateStates(vault)
+      func: () => pushVaultRegisterWTAndUpdateStates(vault)
     });
 
     if (pushAndUpdateStatus !== 'SUCCESS') {
@@ -258,7 +260,7 @@ export default function CreateVaultScreen({
     t,
     navigation,
     goBack,
-    vaultPushAndUpdateStates
+    pushVaultRegisterWTAndUpdateStates
   ]);
 
   useEffect(() => {
@@ -278,17 +280,19 @@ export default function CreateVaultScreen({
       if (!navigation.isFocused()) return; //Don't proceed if lost focus after await
 
       const unvaultKey = await getUnvaultKey();
-      const { result: serviceAddress } = await netRequest({
+      const { result } = await netRequest({
         whenToastErrors: 'ON_ANY_ERROR',
         errorMessage: message => t('createVault.fetchIssues', { message }),
         func: fetchServiceAddress
       });
       if (!navigation.isFocused()) return; //Don't proceed if lost focus after await
-      if (!serviceAddress) {
+      if (!result) {
         //The toast with prev error message will have been shown.
         goBack();
         return;
       }
+      const { address: serviceAddress, quiet } = result;
+      setServiceAddressQuiet(quiet);
       const changeDescriptorWithIndex =
         await getNextChangeDescriptorWithIndex(accounts);
       if (!navigation.isFocused()) return; //Don't proceed if lost focus after await
@@ -377,7 +381,7 @@ export default function CreateVaultScreen({
     lockBlocks,
     networkId,
     onProgress,
-    vaultPushAndUpdateStates,
+    pushVaultRegisterWTAndUpdateStates,
     samples,
     cBVaultsWriterAPI,
     cBVaultsReaderAPI,
@@ -462,17 +466,8 @@ export default function CreateVaultScreen({
                   </View>
 
                   {/* Fees */}
-                  {/*on Tape summarize fees into one*/}
-                  {GROUP_FEES_ON_TAPE && networkId === 'TAPE' ? (
-                    <View>
-                      <Text className="text-base font-bold mb-1">
-                        {t('createVault.allFees')}
-                      </Text>
-                      <Text className="text-base">
-                        {formatAmount(vault.serviceFee + vaultTxInfo.fee)}
-                      </Text>
-                    </View>
-                  ) : (
+                  {/*don't show fees if quiet*/}
+                  {serviceAddressQuiet === false && (
                     <>
                       <View>
                         <Text className="text-base font-bold mb-1">

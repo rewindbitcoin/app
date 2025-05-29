@@ -56,6 +56,7 @@ const VerticalChoice = ({
               <Pressable
                 className="flex-row justify-between"
                 onPress={onPress(candidateIndex)}
+                hitSlop={20}
               >
                 {Check(index === candidateIndex)}
                 <Text className="text-base">{candidate}</Text>
@@ -67,6 +68,7 @@ const VerticalChoice = ({
               <Pressable
                 className="flex-row justify-between"
                 onPress={onPress(candidateIndex)}
+                hitSlop={20}
               >
                 <View className="w-8">{Check(index === candidateIndex)}</View>
                 {candidate}

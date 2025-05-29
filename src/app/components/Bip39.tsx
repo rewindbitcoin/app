@@ -224,6 +224,12 @@ export default function Bip39({
     },
     [onChangeNWords]
   );
+
+  // NativeWind's `text-base` sets a lineHeight, which causes a subtle jump/flicker
+  // on each keystroke in TextInput. This is a known React Native quirk.
+  // Setting lineHeight to `undefined` prevents layout recalculations while typing.
+  const fixTextFlicker = useMemo(() => ({ lineHeight: undefined }), []);
+
   return (
     <View className="rounded-xl bg-backgroundDefault flex-row flex-wrap pt-2 pr-2 w-full android:border android:border-gray-300 shadow mobmed:pt-3 mobmed:pr-3">
       {readonly === false && disableLengthChange === false && onWords && (
@@ -256,7 +262,7 @@ export default function Bip39({
                 <Text
                   className={`px-2 text-nowrap text-xs mobmed:text-sm ${fontsLoaded ? "font-['RobotoMono-400Regular']" : ''}`}
                 >
-                  {word}
+                  {hideWords ? '****' : word}
                 </Text>
               </AutoScrollWrapper>
             ) : (
@@ -273,6 +279,7 @@ export default function Bip39({
                     ? 'text-notification'
                     : 'text-black'
                 }`}
+                style={fixTextFlicker}
                 spellCheck={false}
                 maxLength={MAX_LENGTH + 1}
                 autoComplete={'off'}

@@ -3,7 +3,10 @@ export default {
   app: {
     buildNumber: 'Compilación',
     unknownError: 'Ha ocurrido un error desconocido.',
-    syncP2PVaultsError: `No se pudo conectar a la red de respaldo P2P. Este problema impide sincronizar las bóvedas creadas en otros dispositivos.
+    syncP2PVaultsError: `No se pudo conectar a la red de backups P2P. Este problema impide sincronizar las bóvedas creadas en otros dispositivos.
+
+{{message}}`,
+    watchtowerError: `No se pudo conectar con la Torre de Vigilancia (Watchtower). Esto impide detectar accesos a tus Bóvedas y enviar alertas de seguridad.
 
 {{message}}`,
     syncNetworkError: `Hubo un problema durante una solicitud de red al actualizar tu billetera.
@@ -38,6 +41,7 @@ export default {
       'No se puede conectar a nuestros servicios. Esto afecta a las actualizaciones del precio de Bitcoin e impide operaciones con bóvedas debido a la interrupción de las copias de seguridad.',
     communityBackupsdNotReachableWarning:
       'No se puede conectar al nodo de Community Backups. Esto impide operaciones con bóvedas debido a la interrupción de las copias de seguridad.',
+    watchtowerNotReachableWarning: `No se pudo conectar con la Torre de Vigilancia (Watchtower). Esto impide enviar alertas si alguien accede a tus Bóvedas.`,
     blockchainExplorerNotReachableWarning:
       'No se puede conectar al explorador de la blockchain. Esto impide actualizar el estado de tus transacciones y acceder a información actualizada de la red Bitcoin.',
     blockchainMainnetExplorerNotReachableWarning:
@@ -51,8 +55,18 @@ export default {
     mainWallet: 'Billetera Principal',
     testWallet: 'Billetera de Prueba',
     noRealValue: 'Sin Valor Real',
+    notificationWarningTitle: 'Acceso no autorizado detectado',
+    notificationWarningMessage_one:
+      'Se ha detectado un intento de acceso no autorizado a una de tus Bóvedas. Si no has sido tú, abre tu billetera ahora y actúa de inmediato.',
+    notificationWarningMessage_other:
+      'Se han detectado intentos de acceso no autorizado a varias de tus Bóvedas. Si no has sido tú, abre tus billeteras ahora y actúa de inmediato.',
+    //As in Created on January 19, 2010
     createdOn: 'Creada el',
-    walletId: 'Billetera {{id}}'
+    walletId: 'Billetera {{id}}',
+    orphanedWatchtowerWalletUUID_one:
+      'Se ha detectado un intento de acceso a una de tus Bóvedas y la app fue notificada, pero la billetera a la que pertenece ya no existe en este dispositivo. Probablemente eliminaste la billetera o reinstalaste la app. No podemos ayudar más, pero queríamos informarte.',
+    orphanedWatchtowerWalletUUID_other:
+      'Se han detectado intentos de acceso a varias de tus Bóvedas y la app fue notificada, pero las billeteras a las que pertenecen ya no existen en este dispositivo. Probablemente eliminaste esas billeteras o reinstalaste la app. No podemos ayudar más, pero queríamos informarte.'
   },
   wallet: {
     vaultTab: 'Bóvedas',
@@ -77,7 +91,7 @@ Aunque es opcional, una contraseña protege tus activos, especialmente en plataf
 Si has olvidado la contraseña de tu billetera, puedes crear una nueva usando tu Frase de Recuperación para recuperar el acceso.`,
     advancedOptionsTitle: 'Opciones Avanzadas',
     usePasswordTitle: 'Usar Contraseña',
-    biometricEncryptionTitle: 'Cifrado Biométrico',
+    biometricEncryptionTitle: 'Seguridad Biométrica',
     passwordProtectionTitle: 'Protección con Contraseña',
     encryptAppDataTitle: 'Cifrar Datos de la App',
     //networkTitle: 'Red',
@@ -97,18 +111,19 @@ Si has olvidado la contraseña de tu billetera, puedes crear una nueva usando tu
       biometricsRequestDeclined: `No pudimos configurar la seguridad biométrica (reconocimiento facial o autenticación de huella digital) para tu billetera.
 
 Esto puede deberse a que no otorgaste los permisos necesarios, o tu dispositivo no es compatible con biometría.`,
-      biometricsCurrentlyDisabledNonIOS: `Como la biometría no se puede usar en este dispositivo, las nuevas billeteras usarán seguridad no biométrica por defecto hasta que otorgues los permisos.
+      biometricsCurrentlyDisabledNonIOS: `Como la biometría no se puede usar en este dispositivo, las nuevas billeteras usarán seguridad no biométrica por defecto.
 
-Para reactivar la biometría, ve a la Configuración de tu dispositivo y asegúrate de que los permisos biométricos estén habilitados.`,
-      biometricsCurrentlyDisabledIOS: `Como la biometría no se puede usar en este dispositivo, las nuevas billeteras usarán seguridad no biométrica por defecto hasta que otorgues los permisos.
+Pulsa el botón de abajo para ir a la Configuración de tu dispositivo y asegúrate de que los permisos biométricos estén habilitados para reactivarlos.`,
+      biometricsCurrentlyDisabledIOS: `Como la biometría no se puede usar en este dispositivo, las nuevas billeteras usarán seguridad no biométrica por defecto.
 
-Si deseas reactivar la biometría, ve a Configuración > RewindBitcoin y activa Face ID o Touch ID (esto puede variar según tu versión de iOS y dispositivo).`,
+Pulsa el botón de abajo para Abrir los Ajustes de tu Dispositivo y activa Face ID o Touch ID (esto puede variar según tu versión de iOS y dispositivo) para reactivarlos.`,
       biometricsHowDisable: `Por favor, inténtalo de nuevo y otorga los permisos necesarios.
 
 Si prefieres no usar biometría, puedes desactivar esta función en "Opciones Avanzadas" durante el proceso de configuración de Nueva Billetera.`,
+      openSettingsButton: 'Abrir Ajustes del Dispositivo',
       biometricsReadWriteError: `La implementación biométrica en tu dispositivo tiene problemas.
 
-Esto puede deberse a incompatibilidades con tu dispositivo, actualizaciones recientes en tu configuración biométrica (como agregar una nueva huella digital o actualizar el reconocimiento facial), o fallos repetidos en la autenticación.
+Esto puede deberse a incompatibilidades con tu dispositivo, actualizaciones recientes en tu configuración biométrica (como agregar una nueva huella digital o actualizar el reconocimiento facial), o fallos repetidos en la autenticación (las biométricas pueden bloquearse durante un par de minutos o hasta que bloquees y desbloquees tu dispositivo con tu PIN/patrón y reinicies la App).
 
 Como no se puede usar la biometría, te recomendamos ajustar el proceso de creación de la billetera. Por favor, desactiva la biometría y selecciona una contraseña en 'Opciones Avanzadas' durante la configuración de Nueva Billetera.`
     },
@@ -121,20 +136,20 @@ Esto puede deberse a que los permisos biométricos fueron desactivados o revocad
 
 Además, actualizar la configuración biométrica de tu dispositivo, como agregar una nueva huella digital o actualizar el reconocimiento facial, puede a veces invalidar las configuraciones anteriores.
 
-Si rechazaste el acceso biométrico, puedes activarlo yendo a Configuración > RewindBitcoin de tu dispositivo y activando Face ID o Touch ID (esto puede variar según tu versión de iOS y dispositivo).
+Si has deshabilitado el acceso biométrico, toca 'Abrir Ajustes del Dispositivo' a continuación para volver a habilitar Face ID o Touch ID.
 
-Este error también puede ocurrir si la aplicación se reinstala y se restaura con datos antiguos de iCloud de una instalación anterior, ya que la biometría no se incluye. En ese caso, elimina esta billetera usando el ícono de Configuración.
+Este error también puede ocurrir si la aplicación se reinstala y se restaura con datos antiguos de iCloud de una instalación anterior, ya que la biometría no se incluye. En ese caso, elimina esta billetera.
 
 Si el problema persiste, puedes recrear tu billetera usando tu Frase de Recuperación para recuperar el acceso a tus fondos y bóvedas.`,
       biometricsAccessFailureNonIOS: `Estamos teniendo problemas para acceder a tu billetera debido a problemas con los permisos biométricos.
 
-Esto puede deberse a que los permisos biométricos fueron desactivados o revocados, o debido a fallos repetidos en la autenticación.
+Esto puede deberse a que los permisos biométricos fueron desactivados o revocados, o debido a fallos repetidos en la autenticación (las biométricas pueden bloquearse durante un par de minutos o hasta que bloquees y desbloquees tu dispositivo con tu PIN/patrón y reinicies la App).
 
 Además, actualizar la configuración biométrica de tu dispositivo, como agregar una nueva huella digital o actualizar el reconocimiento facial, puede a veces invalidar las configuraciones anteriores.
 
 Si has cambiado recientemente alguna configuración biométrica, intenta reactivar la biometría en tu dispositivo o restaurar los permisos de la aplicación.
 
-Este error también puede ocurrir si la aplicación se reinstala y se restaura con datos antiguos de Google Drive de una instalación anterior, ya que la biometría no se incluye. En ese caso, elimina esta billetera usando el ícono de Configuración.
+Este error también puede ocurrir si la aplicación se reinstala y se restaura con datos antiguos de Google Drive de una instalación anterior, ya que la biometría no se incluye. En ese caso, elimina esta billetera.
 
 Si el problema persiste, puedes recrear tu billetera usando tu Frase de Recuperación para recuperar el acceso a tus fondos y bóvedas.`
     },
@@ -142,7 +157,7 @@ Si el problema persiste, puedes recrear tu billetera usando tu Frase de Recupera
       //storageTitle: 'Error de Almacenamiento',
       storage: `Hubo un error al leer o escribir en el almacenamiento de tu dispositivo. Este problema puede deberse a datos corruptos, espacio de almacenamiento insuficiente u otros problemas relacionados con el almacenamiento. Ten en cuenta que todos los datos de tu billetera están respaldados de forma segura en formato cifrado en la red P2P de Rewind.
 
-Para resolver este problema, intenta acceder a tu billetera nuevamente. Si el problema persiste, puedes recrear de forma segura tu billetera usando tu Frase Mnemónica de Recuperación. Esto restaurará todos tus datos de forma segura desde los respaldos.
+Para resolver este problema, intenta acceder a tu billetera nuevamente. Si el problema persiste, puedes recrear de forma segura tu billetera usando tu Frase Mnemónica de Recuperación. Esto restaurará todos tus datos de forma segura desde los backups.
 
 Si necesitas más ayuda, por favor contacta con el equipo de Soporte de Rewind.`
     },
@@ -160,12 +175,14 @@ Si necesitas más ayuda, por favor contacta con el equipo de Soporte de Rewind.`
       confirming: 'Confirmando',
       pushedTriggerNotConfirmed:
         'Descongelación solicitada el {{triggerPushDate}}.',
+      pushedTriggerNotConfirmedUnknownDate:
+        'Descongelación solicitada recientemente.',
       confirmedTrigger:
         'Cuenta regresiva de {{lockTime}} iniciada el {{triggerConfirmedDate}}.',
       triggerWithEstimatedDate:
         'Descongelación estimada para el {{estimatedUnfreezeDate}}.',
       triggerWithEstimatedDateButRescued:
-        'Descongelación planeada para el {{plannedUnfreezeDateButRescued}}.',
+        'Descongelación planeada para el {{plannedUnfreezeButRescuedDate}}.',
       unfrozenDate: 'Descongelada el {{unfrozenDate}}.',
       unfrozenOnNextBlock:
         'La bóveda está virtualmente descongelada. Los fondos podrán ser utilizados en el próximo bloque.',
@@ -173,7 +190,7 @@ Si necesitas más ayuda, por favor contacta con el equipo de Soporte de Rewind.`
       untriggeredLockTime: 'Tiempo de Bloqueo: {{timeRemaining}}',
       vaultNotFound:
         'Esta bóveda nunca fue incluida en la blockchain. Las comisiones podrían haber sido muy bajas, podría haber sido reemplazada por otra transacción, o podría haber habido un error de red durante el envío.',
-      notTriggeredUnconfirmed: `Tus fondos están apartados de forma segura, esperando la confirmación final de la blockchain (esto puede tomar unos minutos).
+      notTriggeredUnconfirmed: `Tus fondos están seguros, esperando la confirmación final de la blockchain (esto puede tomar unos minutos).
 Si presionas 'Iniciar Descongelación', comenzará un período de espera de {{lockTime}}, después del cual los fondos estarán disponibles.`,
       notTriggered: `Los fondos están congelados de forma segura. Si presionas 'Iniciar Descongelación', comenzará un período de espera de {{lockTime}}, después del cual los fondos estarán disponibles.`,
       rescueNotConfirmed: `Rescate solicitado el {{rescuePushDate}}.`,
@@ -192,10 +209,49 @@ Si presionas 'Iniciar Descongelación', comenzará un período de espera de {{lo
       noFundsTile: 'Sin Fondos Congelados Aún',
       noFundsBody:
         'Mantén tus ahorros seguros congelando en Bóvedas los fondos que no necesitas diariamente.',
+      watchtower: {
+        permissionTitle: 'Alertas de Bóveda',
+        retryButton: 'Reintentar',
+        retryingButton: 'Reintentando',
+        openSystemPrompt: 'Permitir',
+        goToSettings: 'Abrir ajustes',
+        apiPending: 'Comprobando el estado del monitoreo de la Bóveda…',
+        permissionExplanation: `Rewind necesita permiso para enviarte alertas críticas de seguridad sobre tus Bóvedas.
+
+Recomendamos encarecidamente activarlas.
+
+Si alguien accede a tu Frase de Recuperación (por ejemplo, por robo o pérdida) e intenta desbloquear tus Bóvedas, Rewind podrá alertar *a este dispositivo* al instante. Esto te da una oportunidad crucial para proteger tu Bitcoin antes de que sea demasiado tarde.
+
+Pulsa "Continuar". Después, tu dispositivo te pedirá permiso para permitir las notificaciones.`,
+        statusTitle: 'Estado del monitoreo de la Bóveda',
+        registered:
+          'Esta Bóveda está siendo monitoreada. Recibirás una notificación si se detecta actividad no autorizada.',
+        watchtowerServiceError:
+          'No se pudo conectar con la Torre de Vigilancia (Watchtower). Verifica tu conexión a internet y asegúrate de que el servicio esté disponible. También puedes probar a seleccionar otra Torre desde los ajustes de la app.',
+        registrationFailed:
+          'No hemos podido registrar tu Bóveda para el monitoreo. Por favor, comprueba tu conexión a Internet e inténtalo de nuevo en unos minutos.',
+        pushTokenFailed:
+          'No se ha podido conectar con el servicio de notificaciones de Bóvedas. Por favor, comprueba tu conexión a Internet. Si el problema persiste, inténtalo de nuevo en unos minutos o contacta con el soporte de RewindBitcoin.',
+        notGranted:
+          'Para activar el monitoreo y recibir alertas, permite las notificaciones cuando se te solicite.',
+        systemNotGranted: `Las notificaciones están desactivadas.
+
+Rewind necesita permiso para enviarte alertas críticas de seguridad sobre tus Bóvedas. Pulsa 'Abrir ajustes' abajo para abrir la configuración de notificaciones de tu dispositivo y habilitar las alertas para esta app.
+
+Recibirás un aviso inmediato si alguien accede a tus claves e intenta desbloquear tu Bóveda.`
+      },
+      cannotAccelerateMaxFee: `Ya estás usando la comisión más alta. No es posible acelerar más.`,
       triggerUnfreeze: {
         intro: `Estás a punto de iniciar el proceso de desbloqueo de los fondos de tu bóveda, que, llegado el momento, estarán listos para ser gastados.
 
 Esto iniciará la cuenta regresiva de descongelación. Los fondos se desbloquearán y estarán disponibles después de {{timeLockTime}}.`,
+        introAccelerate: `LEE CON ATENCIÓN:
+
+"Acelerar" dará prioridad a tu solicitud de descongelación pagando una comisión más alta a los mineros. Tu solicitud original ya está en curso, pero esto puede adelantarla en la cola de confirmación.
+
+Nota: "Acelerar" no reduce el período de bloqueo; sólo ayuda a que el proceso comience antes si una comisión baja lo retrasó.
+
+Seguramente sólo necesitas esperar unos 10 minutos y realmente no necesitas esto. Usa "Acelerar" sólo si esperar ese tiempo (que podría alargarse hasta un par de horas) no es aceptable.`,
         confirmationSpeedLabel: 'Comisión',
         feeSelectorExplanation:
           'Confirma la comisión de minería para iniciar la cuenta regresiva de descongelación.',
@@ -203,6 +259,11 @@ Esto iniciará la cuenta regresiva de descongelación. Los fondos se desbloquear
       },
       rescue: {
         confirmationSpeedLabel: 'Comisión',
+        introAccelerate: `LEE CON ATENCIÓN:
+
+"Acelerar" dará prioridad a tu solicitud de rescate aumentando la comisión de los mineros. Tu solicitud original ya está en curso, pero esto puede adelantarla en la cola de confirmación.
+
+Seguramente sólo necesitas esperar unos 10 minutos y realmente no necesitas esto. Usa "Acelerar" sólo si esperar ese tiempo (que podría alargarse hasta un par de horas) no es aceptable.`,
         intro: `Estás a punto de iniciar el rescate de los fondos de tu bóveda. Esto moverá los fondos inmediatamente a tu Dirección de Emergencia preconfigurada:
 
 {{panicAddress}}
@@ -367,12 +428,19 @@ Instrucciones de Uso:
     }
   },
   help: {
-    biometric: `Se utiliza funciones biométricas, como la huella digital o el reconocimiento facial, para cifrar y almacenar de forma segura tu Frase de Recuperación en este dispositivo. Esto asegura que sólo tú puedas acceder a ella.
+    biometric: `Protegemos tu Frase de Recuperación con el sistema biométrico de tu dispositivo (huella digital o reconocimiento facial) y un coprocesador resistente a manipulaciones integrado en el hardware de tu dispositivo, completamente aislado del procesador principal.
 
-Ten en cuenta que si tus datos biométricos cambian (por ejemplo, agregando una nueva huella digital), el sistema invalidará la clave de cifrado, haciendo que la Frase de Recuperación sea ilegible. En estos casos, necesitarás volver a escribir la frase. Esta medida garantiza que sólo tú puedas acceder a tu billetera.`,
-    password: `Cuando se establece una contraseña, se cifra tu Frase de Recuperación, proporcionando una capa adicional de protección para tu billetera.
+Esto no es solo un bloqueo de la app. Tu Frase de Recuperación se almacena únicamente como datos cifrados, con su clave de descifrado sellada dentro de ese chip seguro y nunca expuesta.
 
-Cada vez que accedas a la billetera, necesitarás escribir esta contraseña para descifrar la frase.`,
+Cada vez que te autenticas con biometría, el coprocesador seguro descifra tu frase para la app. Sin una huella o reconocimiento facial válidos, los datos permanecen totalmente inaccesibles, incluso si alguien obtiene acceso físico a tu dispositivo.`,
+    //Ten en cuenta que si tus datos biométricos cambian (por ejemplo, agregando una nueva huella digital), el sistema invalidará la clave de cifrado, haciendo que la Frase de Recuperación sea ilegible. En estos casos, necesitarás volver a escribir la frase. Esta medida garantiza que sólo tú puedas acceder a tu billetera.`,
+
+    //    password: `Cuando se establece una contraseña, se cifra tu Frase de Recuperación, proporcionando una capa adicional de protección para tu billetera.
+    //
+    //Cada vez que accedas a la billetera, necesitarás escribir esta contraseña para descifrar la frase.`,
+    password: `Cuando está activada, la billetera se protege mediante cifrado con la contraseña que elijas.
+
+Necesitarás introducir esta contraseña cada vez que abras la billetera, garantizando que solo tú puedas acceder a ella.`,
     passwordWithBiometric: `Si tienes el cifrado biométrico activado, puede que no sea necesaria una contraseña ya que la biometría ya ofrece una seguridad robusta.`,
     encryptAppData: `Esta opción cifra tus datos no mnemónicos, como bóvedas y otros detalles de las transacciones, protegiendo tus patrones de uso y direcciones de una posible exposición, preservando tu anonimato.
 
@@ -604,9 +672,10 @@ Puedes usar el asistente pulsando 'Crear' para generar una nueva Dirección de E
     scan: 'Escanear',
     scanQRModalTitle: 'Escanear QR Bitcoin',
     flipCam: 'Cambiar Cámara',
+    openSettingsButton: 'Abrir Ajustes del Dispositivo',
     cameraPermissionDenied: `El acceso a la cámara ha sido denegado permanentemente para esta aplicación.
 
-Para usar la cámara, por favor ve a la configuración de tu dispositivo y habilita manualmente los permisos de cámara para esta aplicación.`,
+Pulsa el botón de abajo para ir a la configuración de tu dispositivo y habilita manualmente los permisos de cámara para esta aplicación.`,
     requestPermissionRationale: `Necesitamos tu permiso para acceder a la cámara.
 
 La cámara se usa para escanear códigos QR que contienen direcciones Bitcoin.`,
@@ -615,7 +684,7 @@ La cámara se usa para escanear códigos QR que contienen direcciones Bitcoin.`,
       'Alinea el código QR dentro del marco para escanear la dirección Bitcoin.'
   },
   settings: {
-    defaultButton: 'Restablecer valores predeterminados',
+    defaultButton: 'Restablecer',
     resetToDefaults: 'Restablecer toda la configuración',
     resetToDefaultsTitle: 'Restablecer Configuración',
     resetToDefaultsConfirm:
@@ -623,7 +692,7 @@ La cámara se usa para escanear códigos QR que contienen direcciones Bitcoin.`,
     resetButton: 'Restablecer',
     wallet: {
       name: 'Nombre',
-      export: 'Exportar Descriptores y Bóvedas',
+      export: 'Exportar Billetera',
       exportProgress: 'Empaquetando...',
       recoveryPhrase: 'Frase de Recuperación',
       showRecoveryPhrase: 'Mostrar Frase de Recuperación',
@@ -669,13 +738,19 @@ Por favor, espera unos momentos hasta que se complete.`,
         'URL de Esplora inválida o el servidor está caído. Por favor, verifica la URL e inténtalo de nuevo.',
       communityBackupsError:
         'Base de la API de Community Backups no válida. Verifica la URL e inténtalo de nuevo.',
-
-      regtestApiBaseError:
-        'Base de la API de Regtest no válida. Verifica la URL e inténtalo de nuevo.'
+      regtestHostNameFormatError:
+        'Formato no válido. Por favor, ingrese sólo un nombre de host o dirección IP sin protocolo (http://, ssl://, etc.), puerto (:8080) o ruta (/api).',
+      regtestHttpError:
+        'Conexión HTTP de la Regtest no válida. Verifica el nombre del host e inténtalo de nuevo.',
+      regtestElectrumError:
+        'Conexión Electrum de la Regtest no válida. Verifica el nombre del host e inténtalo de nuevo.',
+      watchtowerError:
+        'La URL base de la API de la Torre de Vigilancia (Watchtower) no es válida. Verifica la dirección e inténtalo de nuevo.'
     },
     general: {
       title: 'General',
       electrumBitcoin: 'Electrum Bitcoin',
+      watchtowerApi: 'Torre de Vigilancia (Watchtower)',
       electrumTape: 'Electrum Tape',
       electrumTestnet: 'Electrum Testnet',
       electrumRegtest: 'Electrum Regtest',
@@ -683,9 +758,9 @@ Por favor, espera unos momentos hasta que se complete.`,
       esploraTape: 'Esplora Tape',
       esploraTestnet: 'Esplora Testnet',
       communityBackups: 'Community Backups',
-      regtestApiBase: 'Base de la API de la Regtest',
+      regtestHostName: 'Host de Regtest',
       gapLimit: 'Límite de Exploración (Gap Limit)',
-      currency: 'Moneda Preferida',
+      currency: 'Moneda',
       language: 'Idioma',
       systemDefault: 'Predeterminado del Sistema',
       languageNames: {
@@ -696,6 +771,7 @@ Por favor, espera unos momentos hasta que se complete.`,
   },
   continueButton: 'Continuar',
   imInDangerButton: 'Estoy en Peligro',
+  accelerateButton: 'Acelerar',
   loadMoreButton: 'Cargar Más',
   dismissButton: 'Descartar',
   goBack: 'Volver',
@@ -718,5 +794,25 @@ Por favor, espera unos momentos hasta que se complete.`,
 Tu billetera debería seguir siendo segura. Por favor, pulsa 'Intentar de Nuevo' para recargar la aplicación. Si el problema persiste, considera restaurar tu billetera usando tu Frase de Recuperación. Tus bóvedas y datos relacionados se recuperarán de los backups comunitarios online.
 
 Para obtener más ayuda o reportar este problema, por favor contacta con el soporte de RewindBitcoin.`
+  },
+  termsModal: {
+    title: 'Aceptar Términos',
+    intro:
+      'Por favor, lee y acepta los siguientes términos antes de continuar.',
+    checkbox1:
+      'Entiendo que soy el único responsable de la seguridad y backups de mis billeteras, no Rewind.',
+    checkbox2:
+      'Entiendo que usar Rewind con fines ilegales va contra nuestros términos.',
+    checkbox3:
+      'Entiendo que Rewind no es un banco, exchange o institución financiera.',
+    checkbox4:
+      'Entiendo que si pierdo acceso a mis billeteras, Rewind no es responsable ni puede ayudar.',
+    checkbox5_part1: 'He leído y acepto los',
+    termsLink: 'Términos de Servicio',
+    checkbox5_part2: 'y la',
+    privacyLink: 'Política de Privacidad',
+    checkbox5_part3: '.',
+    agreementNotice: 'Al marcar las casillas, aceptas estos términos.',
+    continueButton: 'Entiendo, Continuar'
   }
 };

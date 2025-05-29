@@ -18,7 +18,7 @@ const VaultIcon = ({
     <ActivityIndicator />
   ) : remainingBlocks === 'VAULT_NOT_FOUND' ? (
     <MaterialCommunityIcons name="snowflake-off" size={24} color="red" />
-  ) : remainingBlocks === 'TRIGGER_NOT_PUSHED' ? (
+  ) : remainingBlocks === 'TRIGGER_NOT_FOUND' ? (
     //<View className="rounded-full w-6 h-6 p-0.5 overflow-hidden bg-primary">
     //  <Svg className="fill-white" viewBox="0 0 24 24">
     //    <FreezeIcon />
@@ -29,9 +29,9 @@ const VaultIcon = ({
         <FreezeIcon />
       </Svg>
     </View>
-  ) : remainingBlocks === 'SPENT_AS_PANIC' ? (
+  ) : remainingBlocks === 'FOUND_AS_PANIC' ? (
     <MaterialCommunityIcons name="alarm-light" size={24} color="red" />
-  ) : remainingBlocks === 'SPENT_AS_HOT' || remainingBlocks === 0 ? (
+  ) : remainingBlocks === 'FOUND_AS_HOT' || remainingBlocks === 0 ? (
     <Svg className="fill-yellow-400 w-8 h-8" viewBox="0 0 24 24">
       <HotIcon />
     </Svg>

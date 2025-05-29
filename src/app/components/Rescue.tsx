@@ -5,7 +5,11 @@ import { findLowestTrueBinarySearch } from '../../common/lib/binarySearch';
 import { useTranslation } from 'react-i18next';
 import { View, Text } from 'react-native';
 import FeeInput from './FeeInput';
-import { FeeEstimates, pickFeeEstimate } from '../lib/fees';
+import {
+  computeMaxAllowedFeeRate,
+  FeeEstimates,
+  pickFeeEstimate
+} from '../lib/fees';
 import { useSettings } from '../hooks/useSettings';
 import type { TxHex, TxId, Vault, VaultStatus } from '../lib/vaults';
 import { transactionFromHex } from '../lib/bitcoin';
@@ -53,6 +57,23 @@ const Rescue = ({
   isVisible: boolean;
   onClose: () => void;
 }) => {
+  // zero if this is not a RBF, and => 1 if this is InitUnfreeze
+  // isVisibletrying to do a RBF of a prev one
+  const feeRateToReplace = useMemo(() => {
+    if (!vaultStatus?.triggerTxHex || !vaultStatus?.panicTxHex) return 0;
+    else {
+      const { tx: triggerTx } = transactionFromHex(vaultStatus.triggerTxHex);
+      const { tx: panicTx } = transactionFromHex(vaultStatus.panicTxHex);
+      const triggerOutValue = triggerTx.outs[0]?.value;
+      if (!triggerTx || triggerTx.outs.length !== 1 || !triggerOutValue)
+        throw new Error('Invalid triggerTxHex');
+      const panicOutValue = panicTx.outs[0]?.value;
+      if (!panicTx || panicTx.outs.length !== 1 || !panicOutValue)
+        throw new Error('Invalid panicTxHex');
+      return (triggerOutValue - panicOutValue) / panicTx.virtualSize();
+    }
+  }, [vaultStatus?.triggerTxHex, vaultStatus?.panicTxHex]);
+
   const rescueSortedTxs = useMemo(() => {
     if (!isVisible) return [];
     const triggerTxHex = vaultStatus?.triggerTxHex;
@@ -77,6 +98,7 @@ const Rescue = ({
   //Cache to avoid flickering in the Sliders
   const btcFiat = useFirstDefinedValue<number>(btcFiatRealTime);
   const feeEstimates = useFirstDefinedValue<FeeEstimates>(feeEstimatesRealTime);
+  const maxFeeRate = feeEstimates ? computeMaxAllowedFeeRate(feeEstimates) : 0;
   const { settings } = useSettings();
   if (!settings)
     throw new Error(
@@ -86,8 +108,11 @@ const Rescue = ({
   const [step, setStep] = useState<'intro' | 'fee'>('intro');
 
   const initialFeeRate = feeEstimates
-    ? pickFeeEstimate(feeEstimates, settings.INITIAL_CONFIRMATION_TIME)
-        .feeEstimate
+    ? Math.max(
+        feeRateToReplace + 1,
+        pickFeeEstimate(feeEstimates, settings.INITIAL_CONFIRMATION_TIME)
+          .feeEstimate
+      )
     : null;
 
   const [feeRate, setFeeRate] = useState<number | null>(null);
@@ -102,12 +127,12 @@ const Rescue = ({
     }
   }, [isVisible]);
 
+  // Reset feeRate every time initialFeeRate changes, that is,
+  // every time feeRateToReplace changes
   useEffect(() => {
-    if (initialFeeRate !== null) {
-      setFeeRate(prevFeeRate =>
-        prevFeeRate === null ? initialFeeRate : prevFeeRate
-      );
-    }
+    setFeeRate(prev =>
+      initialFeeRate !== null && prev !== initialFeeRate ? initialFeeRate : prev
+    );
   }, [initialFeeRate]);
 
   const handleRescue = useCallback(() => {
@@ -116,8 +141,7 @@ const Rescue = ({
   }, [onRescue, txData]);
 
   return (
-    isVisible &&
-    (initialFeeRate ? (
+    isVisible && (
       <Modal
         headerMini={true}
         isVisible={true}
@@ -127,38 +151,63 @@ const Rescue = ({
           name: 'alarm-light'
         }}
         onClose={onClose}
-        customButtons={
-          step === 'intro' ? (
-            <View className="items-center gap-6 gap-y-4 flex-row flex-wrap justify-center pb-4">
-              <Button mode="secondary" onPress={onClose}>
-                {t('cancelButton')}
-              </Button>
-              <Button mode="primary-alert" onPress={() => setStep('fee')}>
-                {t('imInDangerButton')}
-              </Button>
-            </View>
-          ) : step === 'fee' ? (
-            <View className="items-center gap-6 gap-y-4 flex-row flex-wrap justify-center pb-4">
-              <Button mode="secondary" onPress={onClose}>
-                {t('cancelButton')}
-              </Button>
-              <Button
-                mode="primary-alert"
-                onPress={handleRescue}
-                disabled={!txData}
-              >
-                {t('wallet.vault.rescueButton')}
-              </Button>
-            </View>
-          ) : undefined
+        {
+          //loading... (no buttons)
+          ...(!initialFeeRate ||
+          //cannot RBF
+          feeRateToReplace + 1 > maxFeeRate
+            ? {}
+            : {
+                customButtons:
+                  step === 'intro' ? (
+                    <View className="items-center gap-6 gap-y-4 flex-row flex-wrap justify-center pb-4">
+                      <Button mode="secondary" onPress={onClose}>
+                        {t('cancelButton')}
+                      </Button>
+                      <Button
+                        mode="primary-alert"
+                        onPress={() => setStep('fee')}
+                      >
+                        {feeRateToReplace
+                          ? t('accelerateButton')
+                          : t('imInDangerButton')}
+                      </Button>
+                    </View>
+                  ) : step === 'fee' ? (
+                    <View className="items-center gap-6 gap-y-4 flex-row flex-wrap justify-center pb-4">
+                      <Button mode="secondary" onPress={onClose}>
+                        {t('cancelButton')}
+                      </Button>
+                      <Button
+                        mode="primary-alert"
+                        onPress={handleRescue}
+                        disabled={!txData}
+                      >
+                        {t('wallet.vault.rescueButton')}
+                      </Button>
+                    </View>
+                  ) : undefined
+              })
         }
       >
-        {step === 'intro' ? (
+        {!initialFeeRate ? (
+          //loading...
+          <ActivityIndicator />
+        ) : feeRateToReplace + 1 > maxFeeRate ? (
+          //cannot RBF
           <View>
             <Text className="text-base text-slate-600 pb-2 px-2">
-              {t('wallet.vault.rescue.intro', {
-                panicAddress: vault.coldAddress
-              })}
+              {t('wallet.vault.cannotAccelerateMaxFee')}
+            </Text>
+          </View>
+        ) : step === 'intro' ? (
+          <View>
+            <Text className="text-base text-slate-600 pb-2 px-2">
+              {feeRateToReplace
+                ? t('wallet.vault.rescue.introAccelerate')
+                : t('wallet.vault.rescue.intro', {
+                    panicAddress: vault.coldAddress
+                  })}
             </Text>
           </View>
         ) : step === 'fee' ? (
@@ -169,6 +218,7 @@ const Rescue = ({
             <View className="bg-slate-100 p-2 rounded-xl">
               {feeEstimates ? (
                 <FeeInput
+                  {...(feeRateToReplace ? { min: feeRateToReplace + 1 } : {})}
                   btcFiat={btcFiat}
                   feeEstimates={feeEstimates}
                   initialValue={initialFeeRate}
@@ -188,9 +238,7 @@ const Rescue = ({
           </View>
         ) : null}
       </Modal>
-    ) : (
-      <ActivityIndicator />
-    ))
+    )
   );
 };
 

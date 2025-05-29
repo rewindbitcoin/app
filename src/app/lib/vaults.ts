@@ -1,4 +1,6 @@
 // TODO: very imporant to only allow Vaulting funds with 1 confirmatin at least (make this a setting)
+const PUSH_TIMEOUT = 30 * 60; // 30 minutes
+
 import { Network, Psbt, Transaction, crypto } from 'bitcoinjs-lib';
 import memoize from 'lodash.memoize';
 import type { Accounts, Signer } from './wallets';
@@ -19,7 +21,7 @@ import {
   DUMMY_PUBKEY,
   DUMMY_PUBKEY_2
 } from './vaultDescriptors';
-import { shallowEqualArrays } from 'shallow-equal';
+import { shallowEqualArrays, shallowEqualObjects } from 'shallow-equal';
 
 import { feeRateSampling } from './fees';
 import type { DiscoveryInstance, TxAttribution } from '@bitcoinerlab/discovery';
@@ -118,6 +120,9 @@ export type VaultStatus = {
    */
   isHidden?: boolean;
 
+  /** Array of watchtower API URLs where this vault has been successfully registered */
+  registeredWatchtowers?: string[];
+
   /**
    * if vaultTxBlockHeight is not set then it's because it was never pushed
    * or because it expired or was RBFd
@@ -156,6 +161,7 @@ export type VaultStatus = {
   spendAsHotTxBlockTime?: number;
 
   /** Props below are just to keep internal track of users actions.
+   * Units are SECONDS.
    * They are kept so that the App knows the last action the user did WITHIN the
    * app:
    * - doesn't mean the action succeed. Perhaps a vault process did not have
@@ -165,11 +171,13 @@ export type VaultStatus = {
    *
    * So, not reliable. To be used ONLY for UX purposes: For example to prevent
    * users to re-push txs in short periods of time.
+   *
+   * These variables are reset after PUSH_TIMEOUT seconds if the
+   * pushed tx cannot be found in the mempool or in a block.
    */
   vaultPushTime?: number;
   triggerPushTime?: number;
   panicPushTime?: number;
-  unvaultPushTime?: number;
 };
 
 export type RescueTxMap = Record<
@@ -238,7 +246,7 @@ export type HistoryData = Array<HistoryDataItem>;
  * - previous txHex and vout
  * - output descriptor
  * - index? if the descriptor retrieved in discovery was ranged
- * - signersPubKeys? if it can only be spent through a speciffic spending path
+ * - signersPubKeys? if it can only be spent through a specific spending path
  *
  * Important: Returns same reference for utxosData if utxos did not change
  *
@@ -293,7 +301,7 @@ export const getUtxosData = memoize(
   }
 );
 
-const getVaultNumber = moize((vaultId: string, vaults: Vaults) => {
+export const getVaultNumber = moize((vaultId: string, vaults: Vaults) => {
   const sortedVaults = Object.values(vaults).sort(
     (a, b) => b.creationTime - a.creationTime
   );
@@ -984,8 +992,9 @@ export function validateAddress(addressValue: string, network: Network) {
  *
  * returns 'VAULT_NOT_FOUND' if vaultTxBlockHeight is not set; when not set
  * it's because the vault was never pushed or because it expired or was RBFd
- * returns 'TRIGGER_NOT_PUSHED' if the trigger tx has not been pushed yet
- * returns 'SPENT_AS_HOT'/'SPENT_AS_PANIC' if the trigger tx has already been spent.
+ * returns 'TRIGGER_NOT_FOUND' if the trigger tx is not in the mempool/blockchain
+ * returns 'FOUND_AS_HOT'/'FOUND_AS_PANIC' if the trigger tx has already been
+ * spent by a tx confirmed or is found in the mempool.
  *
  * returns an integer lockBlocks >= remainingBlocks >= 0 with the number of
  * blocks the user must wait before pushing a tx so that they won't get
@@ -998,15 +1007,15 @@ export function getRemainingBlocks(
   blockhainTip: number
 ):
   | 'VAULT_NOT_FOUND'
-  | 'TRIGGER_NOT_PUSHED'
-  | 'SPENT_AS_PANIC'
-  | 'SPENT_AS_HOT'
+  | 'TRIGGER_NOT_FOUND'
+  | 'FOUND_AS_PANIC'
+  | 'FOUND_AS_HOT'
   | number {
   if (vaultStatus.vaultTxBlockHeight === undefined) return 'VAULT_NOT_FOUND';
   if (vaultStatus.triggerTxBlockHeight === undefined)
-    return 'TRIGGER_NOT_PUSHED';
-  if (vaultStatus.panicTxHex) return 'SPENT_AS_PANIC';
-  if (vaultStatus.spendAsHotTxHex) return 'SPENT_AS_HOT';
+    return 'TRIGGER_NOT_FOUND';
+  if (vaultStatus.panicTxHex) return 'FOUND_AS_PANIC'; //will be set if in mempool or confirmed
+  if (vaultStatus.spendAsHotTxHex) return 'FOUND_AS_HOT'; //will be set if in mempool or confirmed
   let remainingBlocks: number;
   const isTriggerInMempool = vaultStatus.triggerTxBlockHeight === 0;
   if (isTriggerInMempool) {
@@ -1176,6 +1185,7 @@ async function fetchSpendingTx(
     .toString('hex');
 
   //retrieve all txs that sent / received from this scriptHash
+  //fetchTxHistory also includes mempool
   const history = await explorer.fetchTxHistory({ scriptHash });
 
   for (let i = 0; i < history.length; i++) {
@@ -1227,30 +1237,31 @@ async function fetchVaultTx(
 
 /**
  * Note that vaultsStatuses fetched are only partial since
- * vaultPushTime, triggerPushTime, panicPushTime and unvaultPushTime cannot be
+ * vaultPushTime, triggerPushTime and panicPushTime cannot be
  * retrieved from the network.
+ * Immutable.
  */
 async function fetchVaultStatus(
   vault: Vault,
-  currvaultStatus: VaultStatus | undefined,
+  currVaultStatus: VaultStatus | undefined,
   explorer: Explorer
 ) {
-  const newVaultStatus: VaultStatus = currvaultStatus
+  const newVaultStatus: VaultStatus = currVaultStatus
     ? {
-        ...(currvaultStatus.isHidden !== undefined && {
-          isHidden: currvaultStatus.isHidden
+        ...(currVaultStatus.isHidden !== undefined && {
+          isHidden: currVaultStatus.isHidden
         }),
-        ...(currvaultStatus.vaultPushTime !== undefined && {
-          vaultPushTime: currvaultStatus.vaultPushTime
+        ...(currVaultStatus.registeredWatchtowers !== undefined && {
+          registeredWatchtowers: currVaultStatus.registeredWatchtowers
         }),
-        ...(currvaultStatus.triggerPushTime !== undefined && {
-          triggerPushTime: currvaultStatus.triggerPushTime
+        ...(currVaultStatus.vaultPushTime !== undefined && {
+          vaultPushTime: currVaultStatus.vaultPushTime
         }),
-        ...(currvaultStatus.panicPushTime !== undefined && {
-          panicPushTime: currvaultStatus.panicPushTime
+        ...(currVaultStatus.triggerPushTime !== undefined && {
+          triggerPushTime: currVaultStatus.triggerPushTime
         }),
-        ...(currvaultStatus.unvaultPushTime !== undefined && {
-          unvaultPushTime: currvaultStatus.unvaultPushTime
+        ...(currVaultStatus.panicPushTime !== undefined && {
+          panicPushTime: currVaultStatus.panicPushTime
         })
       }
     : {};
@@ -1261,8 +1272,8 @@ async function fetchVaultStatus(
   );
   if (vaultTxData) {
     if (
-      currvaultStatus?.isHidden &&
-      currvaultStatus.vaultTxBlockHeight === undefined
+      currVaultStatus?.isHidden &&
+      currVaultStatus.vaultTxBlockHeight === undefined
     )
       //If the user hid the vault because it was VAULT_NOT_FOUND but then all
       //of a sudden we find it again in the blockchain, then show it!
@@ -1279,6 +1290,12 @@ async function fetchVaultStatus(
       newVaultStatus.vaultTxBlockTime = vaultBlockStatus.blockTime;
     }
   }
+  // Vault Tx NOT Found - Check if push time should be reset
+  else if (
+    newVaultStatus.vaultPushTime &&
+    Math.floor(Date.now() / 1000) - newVaultStatus.vaultPushTime > PUSH_TIMEOUT
+  )
+    delete newVaultStatus.vaultPushTime;
 
   const triggerTxData = await fetchSpendingTx(vault.vaultTxHex, 0, explorer);
   if (triggerTxData) {
@@ -1328,6 +1345,10 @@ async function fetchVaultStatus(
           newVaultStatus.panicTxBlockTime = panicBlockStatus.blockTime;
         }
       } else {
+        // Panic Tx NOT Found - panic push time should be reset since this
+        // was finally spent as hot
+        delete newVaultStatus.panicPushTime;
+
         newVaultStatus.spendAsHotTxHex = unlockingTxData.txHex;
         newVaultStatus.spendAsHotTxBlockHeight = unlockingTxData.blockHeight;
         if (newVaultStatus.spendAsHotTxBlockHeight !== 0) {
@@ -1343,16 +1364,33 @@ async function fetchVaultStatus(
         }
       }
     }
+    // Panic Tx NOT Found - Check if push time should be reset
+    else if (
+      newVaultStatus.panicPushTime &&
+      Math.floor(Date.now() / 1000) - newVaultStatus.panicPushTime >
+        PUSH_TIMEOUT
+    )
+      delete newVaultStatus.panicPushTime;
   }
-  return newVaultStatus;
+  // Trigger Tx NOT Found - Check if push time should be reset
+  else if (
+    newVaultStatus.triggerPushTime &&
+    Math.floor(Date.now() / 1000) - newVaultStatus.triggerPushTime >
+      PUSH_TIMEOUT
+  )
+    delete newVaultStatus.triggerPushTime;
+  if (currVaultStatus && shallowEqualObjects(currVaultStatus, newVaultStatus))
+    return currVaultStatus;
+  else return newVaultStatus;
 }
 
 /**
  * performs a fetchVaultStatus for all vaults in parallel
  * Note that vaultsStatuses fetched are only partial since
- * vaultPushTime, triggerPushTime, panicPushTime and unvaultPushTime cannot be
- * retrieved from the network. We add them back using currvaultStatus if they
+ * vaultPushTime, triggerPushTime and panicPushTime cannot be
+ * retrieved from the network. We add them back using currVaultStatus if they
  * exist.
+ * Immutable.
  */
 export async function fetchVaultsStatuses(
   vaults: Vaults,
@@ -1369,7 +1407,7 @@ export async function fetchVaultsStatuses(
   });
 
   const results = await Promise.all(fetchPromises);
-  return results.reduce((acc, current) => {
+  const newVaultsStatuses = results.reduce((acc, current) => {
     const vaultAddress = Object.keys(current)[0];
     if (vaultAddress === undefined) throw new Error('vaultAddress undefined');
     const vaultStatus = current[vaultAddress];
@@ -1377,6 +1415,10 @@ export async function fetchVaultsStatuses(
     acc[vaultAddress] = vaultStatus;
     return acc;
   }, {});
+
+  if (shallowEqualObjects(currVaultStatuses, newVaultsStatuses))
+    return currVaultStatuses;
+  else return newVaultsStatuses;
 }
 
 const selectVaultUtxosDataFactory = memoize((utxosData: UtxosData) =>
@@ -1461,7 +1503,7 @@ const getHotTriggerDescriptors = (
         vaultStatus,
         blockhainTip
       );
-      return remainingBlocks === 0 || remainingBlocks === 'SPENT_AS_HOT';
+      return remainingBlocks === 0 || remainingBlocks === 'FOUND_AS_HOT';
     })
     .map(([, vault]) => vault.triggerDescriptor);
 

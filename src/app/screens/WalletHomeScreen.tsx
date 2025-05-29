@@ -19,7 +19,8 @@ import {
   NativeSyntheticEvent,
   NativeScrollEvent,
   LayoutChangeEvent,
-  ScrollView
+  ScrollView,
+  Linking
 } from 'react-native';
 import { RefreshControl } from 'react-native-web-refresh-control';
 
@@ -57,24 +58,25 @@ import { useNetStatus } from '../hooks/useNetStatus';
 
 const ErrorView = ({
   errorMessage,
-  goBack
+  goBack,
+  action
 }: {
   errorMessage: string;
   goBack: () => void;
+  action?: React.ReactNode;
 }) => {
   const { t } = useTranslation();
   return (
     <View className="flex-1 justify-center p-4 gap-2 max-w-screen-sm">
-      <KeyboardAwareScrollView>
+      <KeyboardAwareScrollView contentContainerClassName="items-center">
         <Text className="text-base mb-4">{errorMessage}</Text>
       </KeyboardAwareScrollView>
-      <Button
-        containerClassName="self-center mb-8"
-        mode="text"
-        onPress={goBack}
-      >
-        {t('goBack')}
-      </Button>
+      <View className="items-center gap-6 gap-y-4 flex-row flex-wrap justify-center mt-4 mb-8">
+        <Button mode={action ? 'secondary' : 'text'} onPress={goBack}>
+          {t('goBack')}
+        </Button>
+        {action}
+      </View>
     </View>
   );
 };
@@ -120,7 +122,12 @@ const WalletHomeScreen = () => {
     fetchBlockTime,
     pushTx,
     feeEstimates,
-    blockExplorerURL
+    blockExplorerURL,
+    watchtowerAPI,
+    setVaultNotificationAcknowledged,
+    syncWatchtowerRegistration,
+    pushToken,
+    setPushToken
   } = useWallet();
   if (wallet && walletId !== wallet.walletId)
     throw new Error(
@@ -139,7 +146,8 @@ const WalletHomeScreen = () => {
   );
 
   const faucetPending = useFaucet();
-  const syncingOrFaucetPending: boolean = syncingBlockchain || faucetPending;
+  const syncingOrFaucetPendingOrExplorerConnecting: boolean =
+    syncingBlockchain || faucetPending || explorerReachable === undefined;
 
   const title =
     !wallet || !wallets
@@ -156,23 +164,34 @@ const WalletHomeScreen = () => {
         <View className="flex-row justify-between gap-5 items-center">
           <Pressable
             hitSlop={10}
-            onPress={syncingOrFaucetPending ? undefined : syncBlockchain}
-            className={`${!syncingOrFaucetPending ? 'hover:opacity-90' : ''} active:scale-95 active:opacity-90 ${
-              syncingOrFaucetPending && userTriggeredRefresh //if the user triggered, then we show the native RefreshControl and therefore no need to make this so prominent
+            onPress={
+              syncingOrFaucetPendingOrExplorerConnecting
+                ? undefined
+                : syncBlockchain
+            }
+            className={`${!syncingOrFaucetPendingOrExplorerConnecting ? 'hover:opacity-90' : ''} active:scale-95 active:opacity-90 ${
+              syncingOrFaucetPendingOrExplorerConnecting && userTriggeredRefresh //if the user triggered, then we show the native RefreshControl and therefore no need to make this so prominent
                 ? 'opacity-20 cursor-default'
                 : 'opacity-100'
             }`}
           >
             <AntDesign
+              key={
+                syncingOrFaucetPendingOrExplorerConnecting.toString()
+                //This is so that the reload1 icon resets to rotation zero
+                //after the animation is finished
+              }
               name={
-                (!hasTouch || !userTriggeredRefresh) && syncingOrFaucetPending
+                (!hasTouch || !userTriggeredRefresh) &&
+                syncingOrFaucetPendingOrExplorerConnecting
                   ? 'loading1'
                   : 'reload1'
               }
               size={17}
               color={theme.colors.primary}
               className={
-                (!hasTouch || !userTriggeredRefresh) && syncingOrFaucetPending
+                (!hasTouch || !userTriggeredRefresh) &&
+                syncingOrFaucetPendingOrExplorerConnecting
                   ? 'animate-spin'
                   : 'animate-none'
               }
@@ -198,7 +217,7 @@ const WalletHomeScreen = () => {
       title,
       syncBlockchain,
       userTriggeredRefresh,
-      syncingOrFaucetPending,
+      syncingOrFaucetPendingOrExplorerConnecting,
       navigation
     ]
   );
@@ -207,8 +226,8 @@ const WalletHomeScreen = () => {
   const goBack = useCallback(async () => {
     if (navigation.canGoBack()) navigation.goBack();
   }, [navigation]);
-  const logOutAndGoBack = useCallback(async () => {
-    await logOut();
+  const logOutAndGoBack = useCallback(() => {
+    logOut();
     if (navigation.canGoBack()) navigation.goBack();
   }, [navigation, logOut]);
 
@@ -223,6 +242,7 @@ const WalletHomeScreen = () => {
       if (!wallet) throw new Error(`wallet not set yet`);
       const cb = async () => {
         const signersCipherKey = await getPasswordDerivedCipherKey(password);
+        logOut(); //closes the password modal; nice when entering incorrect pass
         onWallet({
           wallet,
           signersCipherKey
@@ -230,7 +250,7 @@ const WalletHomeScreen = () => {
       };
       cb();
     },
-    [wallet, onWallet]
+    [wallet, onWallet, logOut]
   );
 
   const handleReceive = useCallback(
@@ -250,13 +270,8 @@ const WalletHomeScreen = () => {
   useEffect(() => {
     setIsMounted(true);
   }, []);
-  const isFocused = useIsFocused();
-  const [walletButtonsHeight, setWalletButtonsHeight] = useState(0);
 
-  const refreshColors = useMemo(
-    () => [theme.colors.primary],
-    [theme.colors.primary]
-  );
+  const isFocused = useIsFocused();
 
   const onRefresh = useCallback(() => {
     setUserTriggeredRefresh(true);
@@ -266,32 +281,132 @@ const WalletHomeScreen = () => {
     if (!syncingBlockchain) setUserTriggeredRefresh(false);
   }, [syncingBlockchain]);
 
+  //const refreshColors = useMemo(
+  //  () => [theme.colors.primary],
+  //  [theme.colors.primary]
+  //);
+  //const refreshControl = useMemo(() => {
+  //  //isMounted prevents a rerendering error in iOS where some times
+  //  //the layout was not ready and strange flickers may occur. Note that
+  //  //the syncingBlockchain is true initially on many ocassions and the
+  //  //transition was not being shown
+  //  //
+  //  //In addition: isFocused prevents this error on iOS
+  //  //https://github.com/facebook/react-native/issues/32613
+  //  //https://www.reddit.com/r/reactnative/comments/x7ygwg/flatlist_refresh_indicator_freeze/
+  //  //only let pull-2-refresh when explorer is known to fail or is ok.
+  //  //Dont let pull to refresh while undefined (unknown status) since it's
+  //  //already initalizing and after initialize it will start the sync
+  //  //automatically already
+  //  return hasTouch && isMounted && explorerReachable !== undefined ? (
+  //    <RefreshControl
+  //      tintColor={lighten(0.25, theme.colors.primary)}
+  //      colors={refreshColors}
+  //      refreshing={
+  //        syncingOrFaucetPendingOrExplorerConnecting &&
+  //        isFocused &&
+  //        userTriggeredRefresh
+  //      }
+  //      onRefresh={onRefresh}
+  //    />
+  //  ) : undefined;
+  //}, [
+  //  explorerReachable,
+  //  isFocused,
+  //  isMounted,
+  //  refreshColors,
+  //  onRefresh,
+  //  syncingOrFaucetPendingOrExplorerConnecting,
+  //  userTriggeredRefresh,
+  //  theme.colors.primary
+  //]);
+  //Replaced for the one below since adding refreshControl dynamically
+  //re-renders completelly the children component when passed!!!
+  //Triggering useEffects twice on all children and creating expensive call
+  //in general
+
+  /*
+   * We **always** create a <RefreshControl> on the first render so that
+   * KeyboardAwareScrollView keeps the same native UIScrollView instance.
+   * Adding the prop later would force RN to swap the view, UNMOUNTING and
+   * REMOUNTING every child (expensive and troublesome).
+   *
+   * Guard conditions explained:
+   * • hasTouch    – don’t show pull-to-refresh on desktop-web.
+   * • isMounted   – avoids an iOS flicker that happens before the layout
+   *                 is ready. The problem is related to syncingBlockchain being
+   *                 true initially; then the transition was not being shown
+   * • isFocused   – works around a known iOS bug where a hidden screen
+   *                 with an active RefreshControl can freeze
+   *                 (RN issue #32613, Reddit thread below).
+   * • explorerReachable !== undefined
+   *               – wait until the reachability probe has finished;
+   *                 after defined the wallet will auto-sync. Only let
+   *                 pull-2-refresh when explorer is known to fail or is ok.
+   *
+   * References / diagnostics:
+   *   https://github.com/facebook/react-native/issues/32613
+   *   https://www.reddit.com/r/reactnative/comments/x7ygwg/flatlist_refresh_indicator_freeze/
+   *
+   * Result: the prop is stable, the control is invisible & inert until the
+   * above conditions are met, and our children mount only once.
+   */
+
   const refreshControl = useMemo(() => {
-    //isMounted prevents a renredering error in iOS where some times
-    //the layout was not ready and strange flickers may occur. Note that
-    //the syncingBlockchain is true initially on many ocassions and the
-    //transition was not being shown
-    //
-    //In addition: isFocused prevents this error on iOS
-    //https://github.com/facebook/react-native/issues/32613
-    //https://www.reddit.com/r/reactnative/comments/x7ygwg/flatlist_refresh_indicator_freeze/
-    return hasTouch && isMounted ? (
+    // Conditions under which *real* pull-to-refresh should work
+    const canRefresh =
+      hasTouch && // don’t show on desktop web
+      isMounted && // avoid iOS “layout not ready” flicker
+      explorerReachable !== undefined; // wait until status known
+
+    return (
       <RefreshControl
-        tintColor={lighten(0.25, theme.colors.primary)}
-        colors={refreshColors}
-        refreshing={syncingOrFaucetPending && isFocused && userTriggeredRefresh}
-        onRefresh={onRefresh}
+        /* iOS spinner tint – invisible until we’re ready */
+        tintColor={
+          canRefresh ? lighten(0.25, theme.colors.primary) : 'transparent'
+        }
+        /* Android spinner colours – harmless on iOS */
+        colors={[theme.colors.primary]}
+        /* Spinner state */
+        refreshing={
+          canRefresh &&
+          syncingOrFaucetPendingOrExplorerConnecting &&
+          isFocused &&
+          userTriggeredRefresh
+        }
+        /* Android-only; ignored on iOS but keeps API symmetrical */
+        enabled={canRefresh}
+        /* Callback – no-op until we really want it */
+        onRefresh={canRefresh ? onRefresh : () => {}}
       />
-    ) : undefined;
+    );
   }, [
-    isFocused,
     isMounted,
-    refreshColors,
+    explorerReachable,
     onRefresh,
-    syncingOrFaucetPending,
+    syncingOrFaucetPendingOrExplorerConnecting,
+    isFocused,
     userTriggeredRefresh,
     theme.colors.primary
   ]);
+
+  // Prevent this problem:
+  // https://github.com/facebook/react-native/issues/32613
+  // https://www.reddit.com/r/reactnative/comments/x7ygwg/flatlist_refresh_indicator_freeze/
+  useEffect(() => {
+    const unsubBlur = navigation.addListener('blur', () => {
+      if (syncingOrFaucetPendingOrExplorerConnecting && userTriggeredRefresh)
+        scrollToTop();
+    });
+    return () => unsubBlur();
+  }, [
+    navigation,
+    userTriggeredRefresh,
+    syncingOrFaucetPendingOrExplorerConnecting
+  ]);
+
+  const [walletButtonsHeight, setWalletButtonsHeight] = useState(0);
+
   const stickyHeaderIndices = useMemo(() => [1], []);
 
   const lastScrollPosition = useRef<number>(0);
@@ -338,9 +453,10 @@ const WalletHomeScreen = () => {
   //shown priotarizing how we will display them (using ternary operators)
 
   //Did the user decline access to biometrics?
-  //This one will be set in Android devices only.
   //User declineations of biometrics in iOS are handled in NewWalletScreen.
   //See: addWallet in NewWalletScreen for detailed explanation.
+  //This one will be set in Android devices only when creating a wallet and
+  //clicking on the "Cancel" button on the system popup
   const biometricsRequestDeclinedOnWalletCreation =
     walletStatus.storageAccess.biometricAuthCancelled &&
     !hasStorageEverBeenAccessed;
@@ -373,18 +489,33 @@ const WalletHomeScreen = () => {
     walletStatus.isCorrupted || walletStatus.storageAccess.readWriteError;
 
   const insets = useSafeAreaInsets();
+
   return biometricsRequestDeclinedOnWalletCreation ? (
+    //True only for Android when clicking Cancel in the popup on wallet creation
     <ErrorView
       errorMessage={
         t('wallet.new.biometricsRequestDeclined') +
         '\n\n' +
         (canUseSecureStorage
           ? t('wallet.new.biometricsHowDisable')
-          : Platform.OS === 'ios'
+          : // The `!canUseSecureStorage` case will never occur, because secure
+            // storage is always available on Android.
+            Platform.OS === 'ios'
             ? t('wallet.new.biometricsCurrentlyDisabledIOS')
             : t('wallet.new.biometricsCurrentlyDisabledNonIOS'))
       }
       goBack={goBack}
+      action={
+        !canUseSecureStorage ? (
+          <Button
+            mode="primary"
+            onPress={Linking.openSettings}
+            containerClassName="self-center mt-2"
+          >
+            {t('wallet.new.openSettingsButton')}
+          </Button>
+        ) : undefined
+      }
     />
   ) : biometricsFailureOnWalletCreation ? (
     <ErrorView
@@ -397,6 +528,17 @@ const WalletHomeScreen = () => {
         Platform.OS === 'ios'
           ? t('wallet.existing.biometricsAccessFailureIOS')
           : t('wallet.existing.biometricsAccessFailureNonIOS')
+      }
+      action={
+        Platform.OS === 'ios' ? (
+          <Button
+            mode="primary"
+            onPress={Linking.openSettings}
+            containerClassName="self-center mt-2"
+          >
+            {t('wallet.new.openSettingsButton')}
+          </Button>
+        ) : undefined
       }
       goBack={goBack}
     />
@@ -415,7 +557,7 @@ const WalletHomeScreen = () => {
   ) : (
     <>
       {
-        //isMounted prevents a renredering error in iOS where some times
+        //isMounted prevents a rerendering error in iOS where some times
         //the absolute-positioned buttons were not showing in the correct
         //position. For some reason isMounted takes quite a bit to be true...
         isMounted && (
@@ -442,7 +584,7 @@ const WalletHomeScreen = () => {
       <KeyboardAwareScrollView
         ref={scrollViewRef}
         keyboardShouldPersistTaps="handled"
-        {...(refreshControl ? { refreshControl } : {})}
+        refreshControl={refreshControl}
         stickyHeaderIndices={stickyHeaderIndices}
         onScroll={handleScroll}
         scrollEventThrottle={16}
@@ -488,16 +630,24 @@ const WalletHomeScreen = () => {
           </View>
         </View>
 
-        {activeTabIndex === 0 && (
+        <View
+          className={`p-4 max-w-screen-sm w-full self-center ${activeTabIndex === 0 ? '' : 'hidden'}`}
+          //The added margin to let it scroll over the Receive - Send - Freeze buttons. Note there is a mb-8 in <WalletButtons>
+        >
+          {/* marginBottom is applied to the content inside to ensure scroll area covers buttons */}
           <View
-            className={`p-4 max-w-screen-sm w-full self-center`}
             style={{
               marginBottom: walletButtonsHeight + insets.bottom + 8 * 4
             }}
-            //The added margin to let it scroll over the Receive - Send - Freeze buttons. Note there is a mb-8 in <WalletButtons>
           >
             {vaults && vaultsStatuses && (
               <Vaults
+                syncWatchtowerRegistration={syncWatchtowerRegistration}
+                watchtowerAPI={watchtowerAPI}
+                setVaultNotificationAcknowledged={
+                  setVaultNotificationAcknowledged
+                }
+                syncingBlockchain={syncingBlockchain}
                 blockExplorerURL={blockExplorerURL}
                 updateVaultStatus={updateVaultStatus}
                 pushTx={pushTx}
@@ -505,17 +655,21 @@ const WalletHomeScreen = () => {
                 vaultsStatuses={vaultsStatuses}
                 btcFiat={btcFiat}
                 tipStatus={tipStatus}
+                pushToken={pushToken}
+                setPushToken={setPushToken}
               />
             )}
           </View>
-        )}
-        {activeTabIndex === 1 && (
+        </View>
+        <View
+          className={`p-4 max-w-screen-sm w-full self-center ${activeTabIndex === 1 ? '' : 'hidden'}`}
+          //The added margin to let it scroll over the Receive - Send - Freeze buttons. Note there is a mb-8 in <WalletButtons>
+        >
+          {/* marginBottom is applied to the content inside to ensure scroll area covers buttons */}
           <View
-            className={`p-4 max-w-screen-sm w-full self-center`}
             style={{
               marginBottom: walletButtonsHeight + insets.bottom + 8 * 4
             }}
-            //The added margin to let it scroll over the Receive - Send - Freeze buttons. Note there is a mb-8 in <WalletButtons>
           >
             <Transactions
               blockExplorerURL={blockExplorerURL}
@@ -525,7 +679,7 @@ const WalletHomeScreen = () => {
               btcFiat={btcFiat}
             />
           </View>
-        )}
+        </View>
 
         <Password
           mode="REQUEST"

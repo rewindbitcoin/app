@@ -76,7 +76,7 @@ If not:
 Then:
 
 ```bash
-npx eas login
+eas login
 ```
 
 Now, (following this instructions <https://docs.expo.dev/build-reference/local-builds/>):
@@ -86,11 +86,11 @@ DON'T CTRL-C):
 
 ```bash
 #this will compile a release version
-npx eas build --platform android --local #optionally with --clear-cache
+eas build --platform android --local #optionally with --clear-cache
 #install it into a device
 adb devices
 #then, which generates an apk:
-npx eas build --profile preview --platform android --local #optionally with --clear-cache
+eas build --profile preview --platform android --local #optionally with --clear-cache
 #install it:
 adb -s 988674333331524734 install build-1702395889086.apk
 ```
@@ -99,10 +99,10 @@ There are different "profiles":
 
 ```bash
 #To compile "locally" and using expo and dev server (this creates the image that is installed on simulators):
-npx eas build --profile development --platform android --local #optionally with --clear-cache
+eas build --profile development --platform android --local #optionally with --clear-cache
 #To compile "locally" and using expo and not using a dev server (your App can
 #work without a computer in the same network):
-npx eas build --profile preview --platform android --local #optionally with --clear-cache
+eas build --profile preview --platform android --local #optionally with --clear-cache
 #To install in the simulator manually
 adb install app/build-1702360280369.apk
 npx expo start -c --dev-client #-c clears caches and -dev-client uses the Non-Expo client
@@ -127,20 +127,20 @@ npm run android
 Alternatively, you can do it manually:
 
 ````bash
-npx eas build --profile development --platform android --local #optionally with --clear-cache
+eas build --profile development --platform android --local #optionally with --clear-cache
 
 
 
 ### iOS on real device
-npx eas credentials
+eas credentials
     #prepares the real device (connected with USB) so that you'll be able to install Apps
     #if need to know the UUID of the iphone: Connect with USB, got to XCODE->window->devices
 
 # This now creates a provisionin profile that you must install in the iphone (real device)
-npx eas device:create
+eas device:create
 
 # This builds and installs a "production" version into the iphone USB connected:
-npx eas build --platform ios --local --profile preview #optionally with --clear-cache
+eas build --platform ios --local --profile preview #optionally with --clear-cache
     #the --profile preview let's you use "distribution: internal" from the eas.json,
     #the --local compiles it using this machine (not using EXPO servers)
     #which means installation using usb to certain registewred devices
@@ -245,3 +245,17 @@ npx expo prebuild
 
 read this too in cause of trouble:
 <https://expo.canny.io/feature-requests/p/support-raw-tcp-sockets>
+
+## push notifications setup:
+https://docs.expo.dev/push-notifications/push-notifications-setup/
+  -> For iOS: eas credentials
+    Push Notifications:
+    Answer yes to:
+      Setup Push Notifications for your project
+      Generating a new Apple Push Notifications service key
+  -> Android: https://docs.expo.dev/push-notifications/fcm-credentials/
+    You'll access: https://console.firebase.google.com/
+    Username is: labolsavirtual@labolsavirtual.com
+    It uses now 2FA with Google Authenticator - Google: labolsavirtual@labolsavirtual.com
+
+

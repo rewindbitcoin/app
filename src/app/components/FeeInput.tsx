@@ -29,6 +29,7 @@ function FeeInput({
   feeEstimates,
   btcFiat,
   onValueChange,
+  min = 1,
   helpIconAvailable = true
 }: {
   label: string;
@@ -38,6 +39,7 @@ function FeeInput({
   btcFiat: number | undefined;
   onValueChange: (value: number | null, type: 'USER' | 'RESET') => void;
   helpIconAvailable?: boolean;
+  min?: number;
 }) {
   const [expanded, setExpanded] = useState<boolean>(false);
   const [userModifiedFee, setUserModifiedFee] = useState<boolean>(false);
@@ -114,9 +116,19 @@ function FeeInput({
   if (snappedInitialValue === null)
     throw new Error('snappedInitialValue should be defined');
 
-  const snappedMin = 1;
+  if (min < 1) throw new Error('min feeRate cannot be below 1: ' + min);
+
   const snappedMax = computeMaxAllowedFeeRate(snappedFeeEstimates);
-  const min = 1;
+  const snappedMin = snapWithinRange({
+    minimumValue: Number.MIN_VALUE,
+    maximumValue: Number.MAX_VALUE,
+    step: FEE_RATE_STEP,
+    value: min
+  });
+  if (snappedMin === null)
+    throw new Error(
+      `snapping between MIN_VALUE and MAX_VALUE can never be null: step: ${FEE_RATE_STEP}, min: ${min}, snappedMin: ${snappedMin}`
+    );
   const max = computeMaxAllowedFeeRate(feeEstimates);
 
   const onSnappedValueChange = useCallback(
@@ -151,32 +163,7 @@ function FeeInput({
     []
   );
 
-  //// Format the optimal fee for display
-  //const optimalFeeFormatted = useMemo(() => {
-  //  return formatFeeRate(
-  //    {
-  //      fee: fee === null ? undefined : fee,
-  //      feeRate: snappedInitialValue,
-  //      locale,
-  //      currency,
-  //      subUnit,
-  //      btcFiat,
-  //      feeEstimates: snappedFeeEstimates
-  //    },
-  //    t
-  //  );
-  //}, [
-  //  fee,
-  //  snappedInitialValue,
-  //  locale,
-  //  currency,
-  //  subUnit,
-  //  btcFiat,
-  //  snappedFeeEstimates,
-  //  t
-  //]);
-
-  const optimalFee = useMemo(() => {
+  const contractedFee = useMemo(() => {
     return fee
       ? formatBtc({
           amount: fee,
@@ -192,6 +179,7 @@ function FeeInput({
     <>
       {!expanded ? (
         <Pressable
+          hitSlop={10}
           onPress={toggleExpanded}
           className={`overflow-hidden rounded-xl bg-white mb-2`}
         >
@@ -211,10 +199,10 @@ function FeeInput({
             </View>
 
             {userModifiedFee ? (
-              <Text className="text-slate-600 text-sm">{optimalFee}</Text>
+              <Text className="text-slate-600 text-sm">{contractedFee}</Text>
             ) : (
               <Text className="text-slate-600 text-sm">
-                {t('feeInput.autoOptimal')}: {optimalFee}
+                {t('feeInput.autoOptimal')}: {contractedFee}
               </Text>
             )}
           </View>
@@ -235,6 +223,7 @@ function FeeInput({
             unit={'sats/vB'}
           />
           <Pressable
+            hitSlop={10}
             onPress={toggleExpanded}
             className="absolute top-1 right-0"
           >

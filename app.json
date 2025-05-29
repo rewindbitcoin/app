@@ -3,7 +3,7 @@
     "name": "RewindBitcoin",
     "jsEngine": "hermes",
     "slug": "RewindBitcoin",
-    "version": "1.1.4",
+    "version": "1.2.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -29,6 +29,7 @@
     },
     "android": {
       "README_allowBackup": "In android, SecureStore, does not persist data when uninstalling the app. However mmkv data can persist if Google Drive App Data Backups is enabled. So it's better to disable Google Droive App Data Backups altogether since the reinstalled app will report it exists a wallet and then cannot access the encrypted mnemonic - iOS backups both data and encrypted data, which is just fine",
+      "googleServicesFile": "./google-services.json",
       "allowBackup": false,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
@@ -40,7 +41,7 @@
         "android.permission.USE_BIOMETRIC",
         "android.permission.USE_FINGERPRINT",
         "android.permission.CAMERA",
-        "android.permission.RECORD_AUDIO"
+        "android.permission.RECEIVE_BOOT_COMPLETED"
       ]
     },
     "web": {
@@ -73,6 +74,13 @@
           "networkSecurityConfig": "./android_allow_http_on_rewindbitcoin_local.xml",
           "enable": true,
           "README": "Why? So that we can use the regtest environment. networkSecurityConfig is set for android so that the http protocol can be used on rewindbitcoin.local. On ios .local domains can be used in http by default - See https://developer.apple.com/documentation/bundleresources/information_property_list/nsapptransportsecurity/nsallowslocalnetworking"
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "defaultChannel": "default",
+          "color": "#007AFF"
         }
       ]
     ]

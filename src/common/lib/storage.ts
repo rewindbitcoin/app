@@ -66,7 +66,8 @@ export function getStorageErrorCode(error: unknown): StorageErrorCode {
 }
 
 export type StorageStatus = {
-  isSynchd: boolean;
+  isSynchd: boolean; // optimistic / already‑in‑memory
+  isDiskSynchd: boolean; // disk confirmed
   errorCode: StorageErrorCode;
 };
 
@@ -158,7 +159,7 @@ const idbDel = async (key: string) => {
   }
 };
 
-import { Platform } from 'react-native';
+import { AppState, Platform } from 'react-native';
 
 import {
   hasHardwareAsync,
@@ -166,9 +167,25 @@ import {
   supportedAuthenticationTypesAsync
 } from 'expo-local-authentication';
 
-//import { strToU8, strFromU8 } from 'fflate';
 import { getManagedChacha } from './cipher';
+
+// IMPORTANT: SecureStore binary encoding caveat
+//
+// We can’t rely on TextEncoder/TextDecoder for encrypted data, because
+// `TextDecoder().decode(cipherBytes)` will throw or truncate when bytes
+// aren’t valid UTF-8. That leads to partial or corrupted strings in the
+// SecureStore.
+//
+// Instead, we map raw bytes <-> ISO-8859-1 "Latin-1" code points using fflate’s
+// `strFromU8`/`strToU8` (with the `latin1` flag), then wrap that in
+// Base-64 for safe transport (btoa/atob).
+//
+// Base-64 output is pure ASCII, so SecureStore won’t mangle control chars.
+//
+// We still use TextEncoder/TextDecoder in any other code paths that
+// genuinely expect UTF-8 text.
 import { TextEncoder, TextDecoder } from './textencoder';
+import { strToU8, strFromU8 } from 'fflate';
 
 import {
   AFTER_FIRST_UNLOCK,
@@ -238,9 +255,14 @@ const secureStoreGetItemAsync = async (
         );
         //await new Promise(resolve => setTimeout(resolve, 100)); //sleep 0.1 second
       }
-      return await secureStoreOriginalGetItemAsync(key, options);
+      if (AppState.currentState === 'background')
+        throw new Error(
+          'Cannot call to secureStoreOriginalGetItemAsync since App is running in the background'
+        );
+      const res = await secureStoreOriginalGetItemAsync(key, options);
+      return res;
     } catch (error) {
-      console.warn(error);
+      console.warn('secureStoreGetItemAsync failed', error);
       if (errorMatches(error, BIOMETRICS_USER_CANCEL_THROW_PARTIAL_MATCH))
         throw new Error(StorageErrors.BiometricsReadUserCancel);
     }
@@ -264,9 +286,14 @@ const secureStoreSetItemAsync = async (
         //await new Promise(resolve => setTimeout(resolve, 100)); //sleep 0.1 second
         await secureStoreDeleteItemAsync(key, options);
       }
-      return await secureStoreOriginalSetItemAsync(key, value, options);
+      if (AppState.currentState === 'background')
+        throw new Error(
+          'Cannot call to secureStoreOriginalSetItemAsync since App is running in the background'
+        );
+      const res = await secureStoreOriginalSetItemAsync(key, value, options);
+      return res;
     } catch (error) {
-      console.warn(error);
+      console.warn('secureStoreSetItemAsync failed', error);
       if (errorMatches(error, BIOMETRICS_USER_CANCEL_THROW_PARTIAL_MATCH))
         throw new Error(StorageErrors.BiometricsWriteUserCancel);
     }
@@ -280,7 +307,7 @@ const secureStoreDeleteItemAsync = async (
   try {
     return secureStoreOriginalDeleteItemAsync(key, options);
   } catch (err) {
-    console.warn(err);
+    console.warn('secureStoreDeleteItemAsync failed', err);
   }
   throw new Error(StorageErrors.DeleteError);
 };
@@ -398,7 +425,7 @@ export const setAsync = async (
     try {
       cipherMessage = chacha.encrypt(uint8OriginalMessage);
     } catch (err: unknown) {
-      console.warn(err);
+      console.warn('chacha.encrypt failed', err);
       throw new Error(StorageErrors.EncryptError);
     }
   }
@@ -410,9 +437,9 @@ export const setAsync = async (
         `Engine ${engine} does not support native Uint8Array since it uses JSON.stringify`
       );
     const secureStoreValue =
-      //(cipherMessage && strFromU8(cipherMessage, true)) ||
-      (cipherMessage &&
-        new TextDecoder().decode(cipherMessage, { stream: false })) ||
+      (cipherMessage && btoa(strFromU8(cipherMessage, true))) ||
+      //(cipherMessage &&
+      //  new TextDecoder().decode(cipherMessage, { stream: false })) ||
       JSON.stringify(value);
     if (secureStoreValue.length > 2048)
       throw new Error(
@@ -459,8 +486,8 @@ export const getAsync = async <S extends SerializationFormat>(
       stringValue === null
         ? undefined
         : cipherKey
-          ? //? strToU8(stringValue, true)
-            new TextEncoder().encode(stringValue)
+          ? //? new TextEncoder().encode(stringValue)
+            strToU8(atob(stringValue), true)
           : JSON.parse(stringValue);
   } else if (engine === 'MMKV') {
     if (cipherKey) {
@@ -510,7 +537,7 @@ export const getAsync = async <S extends SerializationFormat>(
       try {
         decryptedResult = chacha.decrypt(result);
       } catch (err: unknown) {
-        console.warn(err);
+        console.warn('chacha.decrypt failed', err);
         throw new Error(StorageErrors.DecryptError);
       }
       //const strResult = strFromU8(decryptedResult);
@@ -548,8 +575,14 @@ export const checkReadWriteBiometricsAccessAsync = async (
   try {
     await secureStoreSetItemAsync(key, value, options);
     const received = await secureStoreGetItemAsync(key, options);
+    if (AppState.currentState === 'background')
+      throw new Error(
+        'Cannot call to secureStoreOriginalDeleteItemAsync since App is running in the background'
+      );
     await secureStoreOriginalDeleteItemAsync(key, options);
     if (value === received) return true;
-  } catch (err) {}
+  } catch (err) {
+    console.warn(err);
+  }
   return false;
 };

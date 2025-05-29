@@ -7,6 +7,9 @@ export default {
     syncP2PVaultsError: `Unable to connect to the P2P backup network. This issue prevents syncing vaults created on other devices.
 
 {{message}}`,
+    watchtowerError: `Failed to connect to the Watchtower. This prevents detecting access to your vaults and sending alerts when they are accessed.
+
+{{message}}`,
     syncNetworkError: `There was an issue during a network request while updating your wallet.
 
 {{message}}`,
@@ -42,6 +45,7 @@ export default {
       'Unable to connect to our services. This affects Bitcoin price updates and prevents vault operations due to disrupted backups.',
     communityBackupsdNotReachableWarning:
       'Unable to connect to the Community Backups node. This prevents vault operations due to disrupted backups.',
+    watchtowerNotReachableWarning: `Unable to connect to the Watchtower. This prevents alerts from being sent when your vaults are accessed.`,
     blockchainExplorerNotReachableWarning:
       'Unable to connect to the blockchain explorer. This prevents updating the status of your transactions and accessing up-to-date information on the Bitcoin network.',
     blockchainMainnetExplorerNotReachableWarning:
@@ -55,9 +59,18 @@ export default {
     mainWallet: 'Main Wallet',
     testWallet: 'Test Wallet',
     noRealValue: 'No Real Value',
+    notificationWarningTitle: 'Unauthorized Access Detected',
+    notificationWarningMessage_one:
+      "An unauthorized access attempt to one of your Vaults was detected. If this wasn't you, open your wallet now and take action immediately.",
+    notificationWarningMessage_other:
+      "Unauthorized access attempts to multiple Vaults were detected. If this wasn't you, open your wallets now and take action immediately.",
     //As in Created on January 19, 2010
     createdOn: 'Created on',
-    walletId: 'Wallet {{id}}'
+    walletId: 'Wallet {{id}}',
+    orphanedWatchtowerWalletUUID_one:
+      "An access attempt to one of your Vaults was detected and the app was notified. It belongs to a wallet that no longer exists on this device. You probably deleted this wallet or reinstalled the app. We can't help further, but we wanted to let you know.",
+    orphanedWatchtowerWalletUUID_other:
+      "Access attempts to {{count}} of your Vaults were detected and the app was notified, but the wallets they belong to no longer exist on this device. You probably deleted those wallets or reinstalled the app. We can't help further, but we wanted to let you know."
   },
   wallet: {
     vaultTab: 'Vaults',
@@ -87,7 +100,7 @@ Though optional, a password safeguards your assets,\
 If you've forgotten the password for your wallet, you can create a new wallet using your Recovery Phrase to regain access.`,
     advancedOptionsTitle: 'Advanced Options',
     usePasswordTitle: 'Use Password',
-    biometricEncryptionTitle: 'Biometric Encryption',
+    biometricEncryptionTitle: 'Biometric Security',
     passwordProtectionTitle: 'Password Protect',
     encryptAppDataTitle: 'Encrypt App Data',
     //networkTitle: 'Network',
@@ -104,22 +117,23 @@ Zapping bytes and lining up the bits. Hang tight!`,
     biometricsErrorTitle: 'Biometrics Error',
     new: {
       //Messages to show when accessing biometrics while setting up a new wallet
-      biometricsRequestDeclined: `We couldn’t set up biometric security (facial recognition or fingerprint authentication) for your wallet.
+      biometricsRequestDeclined: `We couldn't set up biometric security (facial recognition or fingerprint authentication) for your wallet.
 
-This may be because you didn’t grant the necessary permissions, or your device doesn’t support biometrics.`,
-      biometricsCurrentlyDisabledNonIOS: `Since biometrics cannot be used on this device, new wallets will default to non-biometric security until you grant permissions.
+This may be because you didn't grant the necessary permissions, or your device doesn't support biometrics.`,
+      biometricsCurrentlyDisabledNonIOS: `Since biometrics cannot be used on this device, new wallets will default to non-biometric security.
 
-To re-enable biometrics, go to your device's Settings and ensure that biometric permissions are enabled.`,
-      biometricsCurrentlyDisabledIOS: `Since biometrics cannot be used on this device, new wallets will default to non-biometric security until you grant permissions.
+Tap the button below to Open your Device's Settings and ensure that biometric permissions are enabled to re-activate them.`, //Logic will prevent this one from showing up
+      biometricsCurrentlyDisabledIOS: `Since biometrics cannot be used on this device, new wallets will default to non-biometric security.
 
-If you want to re-enable biometrics, go to Settings > RewindBitcoin and turn on Face ID or Touch ID (this may vary based on your OS version and device).`,
+Tap the button below to go to your device's Settings and turn on Face ID or Touch ID (this may vary based on your OS version and device) to re-activate them.`,
       biometricsHowDisable: `Please try again and grant the necessary permissions.
 
 If you prefer not to use biometrics, you can disable this feature in the "Advanced Options" during the New Wallet setup process.`,
+      openSettingsButton: 'Open Device Settings',
       //Old Samsung devices, repeated failures in authentication when creating wallet:
       biometricsReadWriteError: `The biometric implementation on your device has issues.
 
-This may be due to incompatibilities with your device, recent updates to your biometric settings (such as adding a new fingerprint or updating facial recognition), or repeated authentication failures.
+This may be due to incompatibilities with your device, recent updates to your biometric settings (such as adding a new fingerprint or updating facial recognition), or repeated authentication failures (biometrics may get locked for a couple of minutes or until you lock and unlock your device with your PIN/pattern and restart the App).
 
 Since biometrics cannot be used, we recommend adjusting the wallet creation process. Please disable biometrics and select a password under 'Advanced Options' during the New Wallet setup.`
     },
@@ -133,20 +147,20 @@ This might be because biometric permissions were disabled or revoked, or due to 
 
 Also, updating your device's biometric settings, such as adding a new fingerprint or updating facial recognition, can sometimes invalidate previous configurations.
 
-If you declined biometric access, you can enable it by going to your device's Settings > RewindBitcoin and turning on Face ID or Touch ID (this may vary based on your OS version and device).
+If you have disabled biometric access, tap 'Open Device Settings' below to re-enable Face ID or Touch ID.
 
-This error can also occur if the app was reinstalled and restored with old iCloud data from a previous install, as biometrics are not included. If so, delete this wallet using the Settings icon.
+This error can also occur if the app was reinstalled and restored with old iCloud data from a previous install, as biometrics are not included. If so, delete this wallet.
 
 If the issue persists, you can recreate your wallet using your Recovery Phrase to regain access to your funds and vaults.`,
       biometricsAccessFailureNonIOS: `We're having trouble accessing your wallet due to issues with biometric permissions.
 
-This might be because biometric permissions were disabled or revoked, or due to repeated authentication failures.
+This might be because biometric permissions were disabled or revoked, or due to repeated authentication failures (biometrics may get locked for a couple of minutes or until you lock and unlock your device with your PIN/pattern and restart the App).
 
 Also, updating your device's biometric settings, such as adding a new fingerprint or updating facial recognition, can sometimes invalidate previous configurations.
 
 If you've recently changed any biometric settings, please try re-enabling biometrics in your device or restoring the app's permissions.
 
-This error can also occur if the app was reinstalled and restored with old Google Drive data from a previous install, as biometrics are not included. If so, delete this wallet using the Settings icon.
+This error can also occur if the app was reinstalled and restored with old Google Drive data from a previous install, as biometrics are not included. If so, delete this wallet.
 
 If the issue persists, you can recreate your wallet using your Recovery Phrase to regain access to your funds and vaults.`
     },
@@ -181,6 +195,7 @@ If you need further assistance, please contact Rewind Support.`
 
       //pushedTrigger: 'An unfreeze request was made on {{triggerPushDate}}.',
       pushedTriggerNotConfirmed: 'Unfreeze requested on {{triggerPushDate}}.',
+      pushedTriggerNotConfirmedUnknownDate: 'Unfreeze recently requested.',
       //confirmedTrigger: 'Unfreeze countdown began on {{triggerConfirmedDate}}.',
       confirmedTrigger:
         '{{lockTime}} countdown started on {{triggerConfirmedDate}}.',
@@ -189,7 +204,7 @@ If you need further assistance, please contact Rewind Support.`
       triggerWithEstimatedDate:
         'Unfreeze estimated for {{estimatedUnfreezeDate}}.',
       triggerWithEstimatedDateButRescued:
-        'Unfreeze planned for {{plannedUnfreezeDateButRescued}}.',
+        'Unfreeze planned for {{plannedUnfreezeButRescuedDate}}.',
       unfrozenDate: 'Unfrozen on {{unfrozenDate}}.',
       unfrozenOnNextBlock:
         'The vault just became virtually unfrozen. Funds can be spent in the next block.',
@@ -228,12 +243,20 @@ If you press 'Init Unfreeze', a waiting period of {{lockTime}} will begin, after
       //vaultSpendableDateLabel: 'Lock Period End Date',
       //frozenRemainingDateLabel: 'Funds Unlock Estimated Date',
 
+      cannotAccelerateMaxFee: `You are already on the highest fee. Acceleration isn't available.`,
       triggerUnfreeze: {
         intro: `You're about to start the process of unlocking your vault funds,\
  which will eventually be ready for spending.
 
 This will start the unfreeze countdown. The funds will become unlocked and available\
  after {{timeLockTime}}.`,
+        introAccelerate: `READ CAREFULLY:
+
+"Accelerate" will boost your unfreeze request by offering a higher fee to miners. Your original request is already pending, but this can move it ahead in the confirmation queue.
+
+Remember, "Accelerate" won't shorten the lock period. It only speeds up when your unfreeze process actually begins if low fees had held it up.
+
+You likely only need to wait around 10 minutes and really don't need this. Use "Accelerate" only if waiting that time (which could stretch to a couple of hours) isn't acceptable.`,
         confirmationSpeedLabel: 'Mining Fee',
         feeSelectorExplanation:
           'Confirm the mining fee to request the start of the unfreeze countdown.',
@@ -241,6 +264,11 @@ This will start the unfreeze countdown. The funds will become unlocked and avail
       },
       rescue: {
         confirmationSpeedLabel: 'Mining Fee',
+        introAccelerate: `READ CAREFULLY:
+
+"Accelerate" will boost your rescue request by offering miners a higher fee. Your original request is already pending, but this can move it up in the confirmation queue.
+
+You likely only need to wait around 10 minutes and really don't need this. Use "Accelerate" only if waiting that time (which could stretch to a couple of hours) isn't acceptable.`,
         intro: `You're about to initiate the rescue of your vault funds. This will move the funds to your pre-configured Emergency Address immediately:
 
 {{panicAddress}}
@@ -286,7 +314,38 @@ Once the countdown ends, your funds will be unlocked and accessible.`
       },
       noFundsTile: 'No Funds Frozen Yet',
       noFundsBody:
-        'Keep your savings secure by freezing the funds not needed daily in Vaults.'
+        'Keep your savings secure by freezing the funds not needed daily in Vaults.',
+      watchtower: {
+        permissionTitle: 'Vault Alerts',
+        retryButton: 'Retry',
+        retryingButton: 'Retrying',
+        openSystemPrompt: 'Allow',
+        goToSettings: 'Open Settings',
+        apiPending: 'Checking Vault monitoring status…',
+        permissionExplanation: `Rewind needs permission to send critical security alerts about your Vaults.
+
+We strongly recommend enabling them.
+
+If someone gains access to your Recovery Phrase (e.g., through theft or loss) and attempts to unfreeze your Vaults, Rewind can instantly alert *this specific device*. This gives you a crucial window to secure your Bitcoin before it's too late.
+
+Tap 'Continue'. Your device will then prompt you to allow notifications.`,
+        statusTitle: 'Vault Monitoring Status',
+        registered:
+          "This Vault is being monitored. You'll receive a notification if unauthorized activity is detected.",
+        watchtowerServiceError:
+          "Couldn't connect to the Vault monitoring service. Please check your internet connection and ensure the watchtower service is available. You can also try selecting a different watchtower in the app's settings.",
+        registrationFailed:
+          "We couldn't register your Vault for monitoring. Please check your internet connection and try again in a few minutes.",
+        pushTokenFailed:
+          "Couldn't connect to the Vault notifications service. Please check your internet connection. If the issue persists, try again in a few minutes or contact RewindBitcoin support.",
+        notGranted:
+          'To enable monitoring and receive alerts, please allow notifications when prompted.',
+        systemNotGranted: `Notifications are currently disabled.
+
+Rewind needs permission to send you critical security alerts about your Vaults. Tap 'Open Settings' below to open your device's notification settings and enable alerts for this app.
+
+You'll be instantly notified if someone gains access to your keys and attempts to unfreeze your Vault.`
+      }
     },
     password: {
       validation: {
@@ -316,7 +375,7 @@ https://rescue.rewindbitcoin.com
 
 Introduction:
 You have been given this file because you are trusted to assist in
-the event of unauthorized vault access, aiming to protect the owner’s
+the event of unauthorized vault access, aiming to protect the owner's
 Bitcoin funds from theft or extortion. Use it wisely and verify the
 threat before proceeding.
 
@@ -324,7 +383,7 @@ Recovery Steps:
 If unauthorized transactions are threatening the assets, this document
 allows you to cancel those transactions, ensuring the security of the funds.
 
-VERIFY OWNER’S RISK STATUS BEFORE ACTING.
+VERIFY OWNER'S RISK STATUS BEFORE ACTING.
 
 Usage Instructions:
 1. Automated Recovery:
@@ -409,29 +468,27 @@ Usage Instructions:
     }
   },
   help: {
-    biometric: `Utilizes biometric features,\
- like fingerprint or facial recognition, to encrypt and securely store your\
- Recovery Phrase in this device. This ensures it is accessible only by you.
+    biometric: `We protect your Recovery Phrase with your device’s biometric system (fingerprint or face scan) and a tamper-resistant co-processor embedded in your device's hardware, completely isolated from the main processor.
 
-Please note, if your biometric data changes (like\
- adding a new fingerprint), the system will invalidate the encryption\
- key, making the mnemonic Recovery Phrase unreadable. In such cases, you'll need to\
- re-enter the mnemonic. This measure ensures that only you can access\
- your wallet.`,
-    password: `Setting a password encrypts your mnemonic Recovery Phrase, providing a secure\
- layer of protection for your wallet.
+This isn't just an app lock. Your Recovery Phrase is stored only as encrypted data, with its decryption key sealed inside that secure chip and never exposed.
 
-Each time you access the wallet, you will\
- need to enter this password to decrypt the mnemonic phrase.`,
-    passwordWithBiometric: `If you have biometric encryption enabled, a password\
- may not be necessary as biometrics already offer robust security.`,
+Whenever you authenticate with biometrics, the secure co-processor decrypts your phrase for the app. Without a valid fingerprint or face match, the data stays entirely inaccessible, even if someone gains physical access to your device.`,
+    //Please note, if your biometric data changes (like adding a new fingerprint), the system will invalidate the encryption key, making the mnemonic Recovery Phrase unreadable. In such cases, you'll need to re-enter the mnemonic. This measure ensures that only you can access your wallet.
+
+    //    password: `Setting a password encrypts your mnemonic Recovery Phrase, providing a secure layer of protection for your wallet.
+    //
+    //Each time you access the wallet, you will need to enter this password to decrypt the mnemonic phrase.`,
+    password: `When enabled, the wallet is ciphered behind a password you choose.
+
+You'll need to enter this password every time you open the wallet, ensuring only you can access it.`,
+    passwordWithBiometric: `If you have biometric encryption enabled, a password may not be necessary as biometrics already offer robust security.`,
     encryptAppData: `This option encrypts your non-mnemonic data, like vaults and transaction details,\
  shielding your transaction patterns and addresses from potential exposure, preserving your anonymity.
 
 While leaking this data wouldn't compromise your funds, encrypting it\
  ensures that even if it is accessed by unauthorized parties, they won't be able\
  to discern how you use your wallet, such as your spending habits or whom you transact with.`,
-    //The encryption uses the XChaCha20-Poly1305 algorithm, with a key that’s securely\
+    //The encryption uses the XChaCha20-Poly1305 algorithm, with a key that's securely\
     // derived from your mnemonic Recovery Phrase.
     network: `Rewind provides a choice between testing environments and the real Bitcoin network (via Advanced Options).
 
@@ -451,7 +508,7 @@ While the app is in early development, we advise against using real Bitcoin for 
     //You'll find help icons next to each input field during the Vault Set Up with specific explanations.`,
     body: `Your wallet is secured with a Recovery Phrase, similar to a password. If someone else gains access to this phrase through extortion, theft, or misuse, they can access your funds. To prevent this, Rewind lets you freeze your money in Vaults.
 
-When you freeze money, it remains locked until you choose to unfreeze it. Unfreezing doesn’t provide immediate access; instead, it initiates a countdown, giving you time to act if necessary.
+When you freeze money, it remains locked until you choose to unfreeze it. Unfreezing doesn't provide immediate access; instead, it initiates a countdown, giving you time to act if necessary.
 
 Suppose an attacker gains access and tries to unfreeze your funds to steal them. During the countdown, you can cancel this unauthorized attempt by immediately moving the funds to an Emergency Address. Rewind offers a wizard to help you set up and secure this rescue address.
 
@@ -468,7 +525,7 @@ Help icons and tips are available during Vault setup to guide you through the pr
     intro: 'Secure funds not needed daily by freezing them.',
     prefilledAddress: 'Pre-filled with your last unused one.',
     prefilledAddressHelpTitle: 'Pre-filled Address',
-    prefilledAddressHelp: `The Emergency Address of your most recent vault is pre-filled for convenience, so you don’t need to keep track of multiple Emergency Phrases. For privacy, an Emergency Address will not be used again once it has been utilized.
+    prefilledAddressHelp: `The Emergency Address of your most recent vault is pre-filled for convenience, so you don't need to keep track of multiple Emergency Phrases. For privacy, an Emergency Address will not be used again once it has been utilized.
 
 You can replace the pre-filled address or click "Create" to open a wizard and generate a new Emergency Address.
 
@@ -705,9 +762,10 @@ You can either use the 'Create' wizard to generate a new Emergency Address or us
     scan: 'Scan',
     scanQRModalTitle: 'Scan Bitcoin QR',
     flipCam: 'Flip Camera',
+    openSettingsButton: 'Open Device Settings',
     cameraPermissionDenied: `Access to the camera has been permanently denied for this app.
 
-To use the camera, please go to your device's settings and manually enable camera permissions for this app.`,
+Tap the button below to go to your device's settings and manually enable camera permissions for this app.`,
     requestPermissionRationale: `We need your permission to access the camera.
 
 The camera is used to scan QR codes containing Bitcoin addresses.`,
@@ -724,7 +782,7 @@ The camera is used to scan QR codes containing Bitcoin addresses.`,
     resetButton: 'Reset',
     wallet: {
       name: 'Name',
-      export: 'Export Descriptors and Vaults',
+      export: 'Export Wallet',
       exportProgress: 'Packaging...',
       recoveryPhrase: 'Recovery Phrase',
       showRecoveryPhrase: 'Show Recovery Phrase',
@@ -770,12 +828,19 @@ Please wait a few moments until completion.`,
         'Invalid Esplora URL or server is down. Please check the URL and try again.',
       communityBackupsError:
         'Invalid Community Backups API Base. Please check the URL and try again.',
-      regtestApiBaseError:
-        'Invalid Regtest API Base. Please check the URL and try again.'
+      regtestHostNameFormatError:
+        'Invalid format. Please enter only a hostname or IP address without protocol (http://, ssl://, etc.), port (:8080), or path (/api).',
+      regtestHttpError:
+        'Invalid Regtest HTTP connection. Please check the host name and try again.',
+      regtestElectrumError:
+        'Invalid Regtest Electrum connection. Please check the host name and try again.',
+      watchtowerError:
+        'Invalid Watchtower API Base. Please check the URL and try again.'
     },
     general: {
       title: 'General',
       electrumBitcoin: 'Electrum Bitcoin',
+      watchtowerApi: 'Watchtower Alerts',
       electrumTape: 'Electrum Tape',
       electrumTestnet: 'Electrum Testnet',
       electrumRegtest: 'Electrum Regtest',
@@ -783,9 +848,9 @@ Please wait a few moments until completion.`,
       esploraTape: 'Esplora Tape',
       esploraTestnet: 'Esplora Testnet',
       communityBackups: 'Community Backups',
-      regtestApiBase: 'Regtest API Base',
+      regtestHostName: 'Regtest Host',
       gapLimit: 'Gap Limit',
-      currency: 'Preferred Currency',
+      currency: 'Currency',
       language: 'Language',
       systemDefault: 'System Default',
       //These below must be set in their native language
@@ -797,6 +862,7 @@ Please wait a few moments until completion.`,
   },
   continueButton: 'Continue',
   imInDangerButton: "I'm in danger",
+  accelerateButton: 'Accelerate',
   //okButton: 'OK',
   loadMoreButton: 'Load More',
   dismissButton: 'Dismiss',
@@ -821,5 +887,24 @@ Please wait a few moments until completion.`,
 Your wallet should still be secure. Please tap on 'Try Again' to reload the app. If the problem persists, consider restoring your wallet using your Recovery Phrase. Your vaults and related data will be retrieved from community backups online.
 
 For further assistance or to report this issue, please contact RewindBitcoin support at rewindbitcoin.com or contact us at x.com/rewindbitcoin.`
+  },
+  termsModal: {
+    title: 'Accept Terms',
+    intro: 'Please read and agree to the following terms before you continue.',
+    checkbox1:
+      "I understand I'm solely responsible for my wallet's security and backup, not Rewind Bitcoin.",
+    checkbox2:
+      'I understand using Rewind Bitcoin for illegal purposes is against our terms.',
+    checkbox3:
+      'I understand that Rewind Bitcoin is not a bank, exchange or financial institution.',
+    checkbox4:
+      'I understand if I lose wallet access, Rewind is not liable and cannot help.',
+    checkbox5_part1: 'I have read and agreed to the',
+    termsLink: 'Terms of Service',
+    checkbox5_part2: 'and',
+    privacyLink: 'Privacy Policy',
+    checkbox5_part3: '.',
+    agreementNotice: 'By checking the boxes, you agree to these terms.',
+    continueButton: 'I Understand, Continue'
   }
 };

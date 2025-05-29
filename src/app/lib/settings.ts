@@ -15,8 +15,10 @@ import {
   LOCAL_REGTEST_VAULTS_WRITER_PORT,
   LOCAL_REGTEST_ESPLORA_API_PORT,
   LOCAL_COMMUNITY_BACKUPS_PORT,
+  LOCAL_WATCH_TOWER_PORT,
   PUBLIC_BTC_RATES_LOCATION,
   PUBLIC_COMMUNITY_BACKUPS_SERVER_NAME,
+  PUBLIC_WATCH_TOWER_SERVER_NAME,
   PUBLIC_TAPE_SERVER_NAME,
   PUBLIC_TAPE_WEB_LOCATION,
   LOCAL_REGTEST_WEB_PORT,
@@ -30,7 +32,7 @@ import {
   // @ts-expect-error @env is defined in bable.config.js
 } from '@env';
 import { getLocales } from 'expo-localization';
-if (Number(VERSION) !== 32)
+if (Number(VERSION) !== 33)
   throw new Error(
     `This is still running version: ${VERSION}.
 
@@ -81,7 +83,10 @@ export interface Settings {
   BLOCKCHAIN_DATA_REFRESH_INTERVAL_MS: number;
   WALLETS_DATA_VERSION: string;
 
-  REGTEST_API_BASE: string;
+  REGTEST_HOST_NAME: string;
+  REGTEST_PROTOCOL: string;
+  REGTEST_ELECTRUM_PROTOCOL: string;
+  REGTEST_ELECTRUM_API_SUFFIX: string;
 
   MAINNET_SERVICE_ADDRESS_API: string;
   TESTNET_SERVICE_ADDRESS_API: string;
@@ -96,6 +101,9 @@ export interface Settings {
   //reader: (the p2p node)
   COMMUNITY_BACKUPS_API: string;
   REGTEST_COMMUNITY_BACKUPS_API_SUFFIX: string;
+
+  WATCH_TOWER_API: string;
+  REGTEST_WATCH_TOWER_API_SUFFIX: string;
 
   EXTERNAL_GENERATE_204: string;
   PUBLIC_GENERATE_204_API: string;
@@ -157,7 +165,10 @@ export const defaultSettings: Settings = {
   BLOCKCHAIN_DATA_REFRESH_INTERVAL_MS: 60000, // 1 minute
   WALLETS_DATA_VERSION: '1.0.0', //This does not define the version of the App, but keeps track of the changes in the signature of the Wallet
 
-  REGTEST_API_BASE: `${LOCAL_PROTOCOL}://${REGTEST_HOST_NAME}`,
+  REGTEST_HOST_NAME: REGTEST_HOST_NAME,
+  REGTEST_PROTOCOL: LOCAL_PROTOCOL,
+  REGTEST_ELECTRUM_PROTOCOL: ELECTRUM_LOCAL_PROTOCOL,
+  REGTEST_ELECTRUM_API_SUFFIX: `:${LOCAL_REGTEST_ELECTRUM_SERVER_PORT}`,
 
   MAINNET_SERVICE_ADDRESS_API: `${PUBLIC_PROTOCOL}://${PUBLIC_API_SERVER_NAME}${PUBLIC_MAINNET_SERVICE_ADDRESS_LOCATION}`,
   TESTNET_SERVICE_ADDRESS_API: `${PUBLIC_PROTOCOL}://${PUBLIC_API_SERVER_NAME}${PUBLIC_TESTNET_SERVICE_ADDRESS_LOCATION}`,
@@ -172,6 +183,9 @@ export const defaultSettings: Settings = {
   //Vaults reader API:
   COMMUNITY_BACKUPS_API: `${PUBLIC_PROTOCOL}://${PUBLIC_COMMUNITY_BACKUPS_SERVER_NAME}`,
   REGTEST_COMMUNITY_BACKUPS_API_SUFFIX: `:${LOCAL_COMMUNITY_BACKUPS_PORT}`,
+
+  WATCH_TOWER_API: `${PUBLIC_PROTOCOL}://${PUBLIC_WATCH_TOWER_SERVER_NAME}`,
+  REGTEST_WATCH_TOWER_API_SUFFIX: `:${LOCAL_WATCH_TOWER_PORT}`,
 
   //Other 204 health check endpoints
   EXTERNAL_GENERATE_204: 'https://clients3.google.com/generate_204',
@@ -192,6 +206,9 @@ export const defaultSettings: Settings = {
   TESTNET_ELECTRUM_API: 'ssl://electrum.blockstream.info:60002',
   TAPE_ELECTRUM_API: `${ELECTRUM_PUBLIC_PROTOCOL}://${PUBLIC_TAPE_SERVER_NAME}:${PUBLIC_TAPE_ELECTRUM_PORT}`,
   //Here we default to ELECTRUM_LOCAL_PROTOCOL and REGTEST_HOST_NAME (we dont use _SUFFIX)
+  //TODO: note that this does not work on iOS.
+  //You must explicitelly change rewindbitcoin.local to an IP
+  //in settings
   REGTEST_ELECTRUM_API: `${ELECTRUM_LOCAL_PROTOCOL}://${REGTEST_HOST_NAME}:${LOCAL_REGTEST_ELECTRUM_SERVER_PORT}`,
 
   MAINNET_BLOCK_EXPLORER: 'https://blockstream.info',

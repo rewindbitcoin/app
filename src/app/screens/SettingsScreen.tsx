@@ -1,6 +1,12 @@
 const URL_MAX_LENGTH = 256;
 const NAME_MAX_LENGTH = 32;
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState
+} from 'react';
 import Bip39 from '../components/Bip39';
 import * as Icons from '@expo/vector-icons';
 import { Platform, Pressable, Text, TextInput } from 'react-native';
@@ -152,6 +158,11 @@ const SettingsItem = ({
   const Icon = Icons[icon.family];
   const dangerColor = 'rgb(239,68,69)'; //text-red-500
   const gray400 = 'rgb(156,163,175)';
+
+  // NativeWind's `text-base` sets a lineHeight, which causes a subtle jump/flicker
+  // on each keystroke in TextInput. This is a known React Native quirk.
+  // Setting lineHeight to `undefined` prevents layout recalculations while typing.
+  const fixTextFlicker = useMemo(() => ({ lineHeight: undefined }), []);
   return (
     <Pressable onPress={onPressInternal} className="w-full active:bg-gray-200">
       <View className="flex-row items-center">
@@ -193,7 +204,7 @@ const SettingsItem = ({
         isVisible={isModalVisible}
         {...(!isValidatingValue && { onClose: hideModal })}
         customButtons={
-          <View className="items-center gap-6 gap-y-4 flex-row flex-wrap justify-center pb-4">
+          <View className="items-center gap-6 gap-y-4 flex-row flex-wrap justify-center pb-4 px-2">
             <Button
               mode="secondary"
               disabled={isValidatingValue}
@@ -202,7 +213,11 @@ const SettingsItem = ({
               {t('cancelButton')}
             </Button>
             {defaultValue && defaultValue !== value && (
-              <Button mode="secondary" onPress={onSetDefault}>
+              <Button
+                mode="secondary"
+                disabled={isValidatingValue}
+                onPress={onSetDefault}
+              >
                 {t('settings.defaultButton')}
               </Button>
             )}
@@ -221,6 +236,7 @@ const SettingsItem = ({
           <TextInput
             ref={textInputRef}
             className="text-base outline-none flex-1 web:w-full rounded bg-slate-200 py-2 px-4"
+            style={fixTextFlicker}
             value={value}
             enablesReturnKeyAutomatically
             autoComplete="off"
@@ -254,7 +270,7 @@ const SettingsScreen = () => {
     //https://reactnavigation.org/docs/7.x/upgrading-from-6.x#the-navigate-method-no-longer-goes-back-use-popto-instead
     //
     // @ts-expect-error: Using popTo for future upgrade to v7
-    if (navigation.popTo) navigation.popTo(WALLETS, { walletId });
+    if (navigation.popTo) navigation.popTo(WALLETS);
     else navigation.navigate(WALLETS);
   }, [navigation]);
   const { t } = useTranslation();
@@ -347,26 +363,21 @@ const SettingsScreen = () => {
     return t('settings.wallet.communityBackupsError');
   };
 
-  const validateRegtestApiBase = async (settings: Settings) => {
-    const { generate204API, faucetURL } = getAPIs('REGTEST', settings);
+  const validateWatchTowerAPI = async (settings: Settings) => {
+    const { generate204WatchtowerAPI } = getAPIs('BITCOIN', settings);
     const networkTimeout = settings.NETWORK_TIMEOUT;
-    if (!generate204API || !faucetURL) return t('app.unknownError');
+    if (!generate204WatchtowerAPI) return t('app.unknownError');
     try {
-      const response = await fetch(generate204API, {
+      const response = await fetch(generate204WatchtowerAPI, {
         signal: AbortSignal.timeout(networkTimeout)
       });
       if (response.status === 204) {
-        const response = await fetch(faucetURL, {
-          signal: AbortSignal.timeout(networkTimeout)
-        });
-        if (response.status === 200) {
-          return true;
-        }
+        return true;
       }
     } catch (err) {
       console.warn(err);
     }
-    return t('settings.wallet.regtestApiBaseError');
+    return t('settings.wallet.watchtowerError');
   };
 
   const validateExplorerURL = async (
@@ -397,13 +408,64 @@ const SettingsScreen = () => {
     );
   };
 
+  const validateRegtestHostName = async (settings: Settings) => {
+    const hostname = settings.REGTEST_HOST_NAME;
+
+    // Check if hostname contains protocol or port/path
+    if (
+      hostname.includes('://') ||
+      hostname.includes(':') ||
+      hostname.includes('/')
+    ) {
+      return t('settings.wallet.regtestHostNameFormatError');
+    }
+
+    // Get APIs using the candidate settings
+    const { generate204API, faucetURL, electrumAPI } = getAPIs(
+      'REGTEST',
+      settings
+    );
+    const networkTimeout = settings.NETWORK_TIMEOUT;
+    if (!generate204API || !faucetURL || !electrumAPI)
+      return t('app.unknownError');
+
+    try {
+      // Test HTTP services - generate204
+      const response = await fetch(generate204API, {
+        signal: AbortSignal.timeout(networkTimeout)
+      });
+      if (response.status !== 204) return t('settings.wallet.regtestHttpError');
+      // Test HTTP services - faucet
+      const faucetResponse = await fetch(faucetURL, {
+        signal: AbortSignal.timeout(networkTimeout)
+      });
+      if (faucetResponse.status !== 200)
+        return t('settings.wallet.regtestHttpError');
+    } catch (httpErr) {
+      console.warn(httpErr);
+      return t('settings.wallet.regtestHttpError');
+    }
+
+    // Test Electrum connection using the existing validateExplorerURL function
+    const electrumValidation = await validateExplorerURL(
+      electrumAPI,
+      'REGTEST',
+      'electrum'
+    );
+    if (electrumValidation !== true)
+      return t('settings.wallet.regtestElectrumError');
+
+    return true;
+  };
+
   // Fix for Android placeholder text breaking into multiple lines after text deletion
   // See: https://github.com/facebook/react-native/issues/30666#issuecomment-2681501484
   const [inputWidth, setInputWidth] = useState<number | undefined>();
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
   const handleInputLayout = useCallback(
     (e: LayoutChangeEvent) => {
-      if (!deleteInputValue) return;
+      if (inputWidth !== undefined) return;
+      //if (deleteInputValue !== '') return;
       // e.persist() is not available in React for web
       if (e.persist) e.persist();
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
@@ -416,12 +478,17 @@ const SettingsScreen = () => {
         setInputWidth(prev => (prev === width ? prev : Math.floor(width - 1)));
       }, 300);
     },
-    [deleteInputValue]
+    [inputWidth]
   );
 
   const title = wallet && wallets ? walletTitle(wallet, wallets, t) : '';
 
   const mnemonic = signers && signers[0]?.mnemonic;
+
+  // NativeWind's `text-base` sets a lineHeight, which causes a subtle jump/flicker
+  // on each keystroke in TextInput. This is a known React Native quirk.
+  // Setting lineHeight to `undefined` prevents layout recalculations while typing.
+  const fixTextFlicker = useMemo(() => ({ lineHeight: undefined }), []);
 
   if (!settings)
     return (
@@ -577,6 +644,25 @@ const SettingsScreen = () => {
                 setSettings({ ...settings, COMMUNITY_BACKUPS_API: url });
               }}
             />
+            <SettingsItem
+              icon={{
+                family: 'MaterialCommunityIcons',
+                name: 'bell-outline'
+              }}
+              maxLength={URL_MAX_LENGTH}
+              label={t('settings.general.watchtowerApi')}
+              initialValue={settings.WATCH_TOWER_API}
+              defaultValue={defaultSettings.WATCH_TOWER_API}
+              validateValue={(url: string) =>
+                validateWatchTowerAPI({
+                  ...settings,
+                  WATCH_TOWER_API: url
+                })
+              }
+              onValue={(url: string) => {
+                setSettings({ ...settings, WATCH_TOWER_API: url });
+              }}
+            />
             {Platform.OS === 'web' ? (
               <>
                 <SettingsItem
@@ -678,22 +764,6 @@ const SettingsScreen = () => {
                     setSettings({ ...settings, TESTNET_ELECTRUM_API: url });
                   }}
                 />
-                <SettingsItem
-                  icon={{
-                    family: 'Ionicons',
-                    name: 'logo-electron'
-                  }}
-                  maxLength={URL_MAX_LENGTH}
-                  label={t('settings.general.electrumRegtest')}
-                  initialValue={settings.REGTEST_ELECTRUM_API}
-                  defaultValue={defaultSettings.REGTEST_ELECTRUM_API}
-                  validateValue={(url: string) =>
-                    validateExplorerURL(url, 'REGTEST', 'electrum')
-                  }
-                  onValue={(url: string) => {
-                    setSettings({ ...settings, REGTEST_ELECTRUM_API: url });
-                  }}
-                />
               </>
             )}
             <SettingsItem
@@ -702,18 +772,18 @@ const SettingsScreen = () => {
                 family: 'Ionicons',
                 name: 'flask'
               }}
-              maxLength={URL_MAX_LENGTH}
-              label={t('settings.general.regtestApiBase')}
-              initialValue={settings.REGTEST_API_BASE}
-              defaultValue={defaultSettings.REGTEST_API_BASE}
-              validateValue={(url: string) =>
-                validateRegtestApiBase({
+              maxLength={NAME_MAX_LENGTH}
+              label={t('settings.general.regtestHostName')}
+              initialValue={settings.REGTEST_HOST_NAME}
+              defaultValue={defaultSettings.REGTEST_HOST_NAME}
+              validateValue={(hostname: string) =>
+                validateRegtestHostName({
                   ...settings,
-                  REGTEST_API_BASE: url
+                  REGTEST_HOST_NAME: hostname
                 })
               }
-              onValue={(url: string) => {
-                setSettings({ ...settings, REGTEST_API_BASE: url });
+              onValue={(hostname: string) => {
+                setSettings({ ...settings, REGTEST_HOST_NAME: hostname });
               }}
             />
           </View>
@@ -740,7 +810,7 @@ const SettingsScreen = () => {
           isVisible={isResetModalVisible}
           onClose={() => setIsResetModalVisible(false)}
           customButtons={
-            <View className="items-center gap-6 gap-y-4 flex-row flex-wrap justify-center pb-4">
+            <View className="items-center gap-6 gap-y-4 flex-row flex-wrap justify-center pb-4 px-2">
               <Button
                 mode="secondary"
                 onPress={() => setIsResetModalVisible(false)}
@@ -826,11 +896,14 @@ const SettingsScreen = () => {
                 <TextInput
                   className={`text-base outline-none web:w-full rounded bg-slate-200 py-2 px-4 ${Platform.OS === 'android' && inputWidth && deleteInputValue === '' ? '' : 'flex-1'}`}
                   onLayout={handleInputLayout}
-                  {...(Platform.OS === 'android' &&
-                  inputWidth &&
-                  deleteInputValue === ''
-                    ? { style: { width: inputWidth } }
-                    : {})}
+                  style={[
+                    fixTextFlicker,
+                    Platform.OS === 'android' &&
+                    inputWidth &&
+                    deleteInputValue === ''
+                      ? { width: inputWidth }
+                      : {}
+                  ]}
                   placeholder={t('settings.wallet.deletePlaceholder')}
                   value={deleteInputValue}
                   autoComplete="off"
