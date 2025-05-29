@@ -44,7 +44,11 @@ import LearnMoreAboutVaults from './LearnMoreAboutVaults';
 import * as Notifications from 'expo-notifications';
 import { useLocalization } from '../hooks/useLocalization';
 import { useNetStatus } from '../hooks/useNetStatus';
-import { canReceiveNotifications, getExpoPushToken } from '../lib/watchtower';
+import {
+  canReceiveNotifications,
+  getExpoPushToken,
+  sendAckToWatchtower
+} from '../lib/watchtower';
 
 const LOADING_TEXT = '     ';
 
@@ -283,6 +287,9 @@ const RawVault = ({
 
   const { t } = useTranslation();
 
+  const { settings } = useSettings();
+  if (!settings) throw new Error('Settings has not been retrieved');
+
   const [showInitUnfreeze, setShowInitUnfreeze] = useState<boolean>(false);
   const handleCloseInitUnfreeze = useCallback(
     () => setShowInitUnfreeze(false),
@@ -303,6 +310,29 @@ const RawVault = ({
         errorMessage: (message: string) => t('app.pushError', { message }),
         func: async () => {
           setVaultNotificationAcknowledged(vault.vaultId);
+          try {
+            // `sendAckToWatchtower` is normally submitted by `handleWatchtowerNotification`
+            // when a notification is received (and after `setVaultNotificationAcknowledged` has been called - see above).
+            // We call `sendAckToWatchtower` immediately here as a proactive measure.
+            // If the user closes the app before `handleWatchtowerNotification`
+            // can handle an incoming notification, sending the ack now prevents the same device
+            // that triggered the transaction (tx) from receiving a redundant push notification.
+            if (pushToken && watchtowerAPI)
+              await sendAckToWatchtower({
+                pushToken,
+                watchtowerAPI,
+                vaultId: vault.vaultId,
+                networkTimeout: settings?.NETWORK_TIMEOUT
+              });
+          } catch (err) {
+            console.warn(
+              'Could not ack the watchtower for an auto-trigger from this wallet',
+              err,
+              pushToken,
+              watchtowerAPI,
+              vault.vaultId
+            );
+          }
           await pushTx(initUnfreezeData.txHex);
         }
       });
@@ -321,6 +351,9 @@ const RawVault = ({
     },
     [
       setVaultNotificationAcknowledged,
+      pushToken,
+      watchtowerAPI,
+      settings?.NETWORK_TIMEOUT,
       pushTx,
       vault.vaultId,
       vaultStatus,
@@ -368,8 +401,6 @@ const RawVault = ({
     [pushTx, vault.vaultId, vaultStatus, updateVaultStatus, netRequest, t]
   );
 
-  const { settings } = useSettings();
-  if (!settings) throw new Error('Settings has not been retrieved');
   const tipHeight = tipStatus?.blockHeight;
   //const tipTime = blockchainData?.tipStatus.blockTime;
   const remainingBlocks =
