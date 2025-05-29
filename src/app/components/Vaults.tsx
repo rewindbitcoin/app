@@ -1,27 +1,3 @@
-//FIXME: I received notifications 6 hours after having acked them. So weird.
-//investigate. I got them both in iOS and Android.
-
-//FIXME: Specially on Android while fetching, everything becomes unresponsive
-//  Also on iOS. It's like if at times toasts are undismissable!?!
-
-//FIXME: on android i created credentials for development, for notifications
-//I'm not sure about iOS, but I need to document all this and create
-//credentials for all profiles probably
-//  -> Doesnt matter if it was for dev, document thisl
-
-//FIXME: documentar bien en la web cuando se muestra el push notification!
-//cuando se hace desde otro dispositivo? Cuando se hace trigger desded otro y si
-//en el actial se ha registrado correctamtene
-//  -> Esto tiene q ir a la web
-
-//FIXME: tests: (Android / iOS):
-// - registration error GOOD
-// - user denying access to notifications
-// - pushToken not set
-// - receiving old wallets push
-// - testear el animate-pulse
-// - Android!
-
 import React, {
   useCallback,
   useEffect,

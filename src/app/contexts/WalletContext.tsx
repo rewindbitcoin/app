@@ -116,7 +116,7 @@ export type WalletContextType = {
     descriptor: string;
     index: number;
   }>;
-  fetchServiceAddress: () => Promise<string>;
+  fetchServiceAddress: () => Promise<{ address: string; quiet: boolean }>;
   getUnvaultKey: () => Promise<string>;
   updateVaultStatus: (vaultId: string, vaultStatus: VaultStatus) => void;
   btcFiat: number | undefined;
@@ -1459,11 +1459,13 @@ const WalletProviderRaw = ({
       }
 
       const data = await response.json();
+      let quiet = false;
       if (!data.address) {
         throw new Error('Invalid response: address field is missing.');
       }
+      if (data.quiet === true) quiet = data.quiet;
 
-      return data.address;
+      return { address: data.address, quiet };
     } catch (error) {
       // Handle errors (e.g., network issues, invalid JSON, etc.)
       console.error('Error fetching service address:', error);

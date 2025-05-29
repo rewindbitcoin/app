@@ -3,7 +3,7 @@
     "name": "RewindBitcoin",
     "jsEngine": "hermes",
     "slug": "RewindBitcoin",
-    "version": "1.1.4",
+    "version": "1.2.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",

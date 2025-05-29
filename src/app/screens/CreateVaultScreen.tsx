@@ -1,4 +1,3 @@
-const GROUP_FEES_ON_TAPE = true;
 import React, {
   useEffect,
   useState,

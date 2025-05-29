@@ -100,7 +100,7 @@ Though optional, a password safeguards your assets,\
 If you've forgotten the password for your wallet, you can create a new wallet using your Recovery Phrase to regain access.`,
     advancedOptionsTitle: 'Advanced Options',
     usePasswordTitle: 'Use Password',
-    biometricEncryptionTitle: 'Biometric Encryption',
+    biometricEncryptionTitle: 'Biometric Security',
     passwordProtectionTitle: 'Password Protect',
     encryptAppDataTitle: 'Encrypt App Data',
     //networkTitle: 'Network',
@@ -468,22 +468,20 @@ Usage Instructions:
     }
   },
   help: {
-    biometric: `Utilizes biometric features,\
- like fingerprint or facial recognition, to encrypt and securely store your\
- Recovery Phrase in this device. This ensures it is accessible only by you.
+    biometric: `We protect your Recovery Phrase with your device’s biometric system (fingerprint or face scan) and a tamper-resistant co-processor embedded in your device's hardware, completely isolated from the main processor.
 
-Please note, if your biometric data changes (like\
- adding a new fingerprint), the system will invalidate the encryption\
- key, making the mnemonic Recovery Phrase unreadable. In such cases, you'll need to\
- re-enter the mnemonic. This measure ensures that only you can access\
- your wallet.`,
-    password: `Setting a password encrypts your mnemonic Recovery Phrase, providing a secure\
- layer of protection for your wallet.
+This isn't just an app lock. Your Recovery Phrase is stored only as encrypted data, with its decryption key sealed inside that secure chip and never exposed.
 
-Each time you access the wallet, you will\
- need to enter this password to decrypt the mnemonic phrase.`,
-    passwordWithBiometric: `If you have biometric encryption enabled, a password\
- may not be necessary as biometrics already offer robust security.`,
+Whenever you authenticate with biometrics, the secure co-processor decrypts your phrase for the app. Without a valid fingerprint or face match, the data stays entirely inaccessible, even if someone gains physical access to your device.`,
+    //Please note, if your biometric data changes (like adding a new fingerprint), the system will invalidate the encryption key, making the mnemonic Recovery Phrase unreadable. In such cases, you'll need to re-enter the mnemonic. This measure ensures that only you can access your wallet.
+
+    //    password: `Setting a password encrypts your mnemonic Recovery Phrase, providing a secure layer of protection for your wallet.
+    //
+    //Each time you access the wallet, you will need to enter this password to decrypt the mnemonic phrase.`,
+    password: `When enabled, the wallet is ciphered behind a password you choose.
+
+You'll need to enter this password every time you open the wallet, ensuring only you can access it.`,
+    passwordWithBiometric: `If you have biometric encryption enabled, a password may not be necessary as biometrics already offer robust security.`,
     encryptAppData: `This option encrypts your non-mnemonic data, like vaults and transaction details,\
  shielding your transaction patterns and addresses from potential exposure, preserving your anonymity.
 

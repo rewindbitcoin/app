@@ -91,7 +91,7 @@ Aunque es opcional, una contraseña protege tus activos, especialmente en plataf
 Si has olvidado la contraseña de tu billetera, puedes crear una nueva usando tu Frase de Recuperación para recuperar el acceso.`,
     advancedOptionsTitle: 'Opciones Avanzadas',
     usePasswordTitle: 'Usar Contraseña',
-    biometricEncryptionTitle: 'Cifrado Biométrico',
+    biometricEncryptionTitle: 'Seguridad Biométrica',
     passwordProtectionTitle: 'Protección con Contraseña',
     encryptAppDataTitle: 'Cifrar Datos de la App',
     //networkTitle: 'Red',
@@ -428,12 +428,19 @@ Instrucciones de Uso:
     }
   },
   help: {
-    biometric: `Se utiliza funciones biométricas, como la huella digital o el reconocimiento facial, para cifrar y almacenar de forma segura tu Frase de Recuperación en este dispositivo. Esto asegura que sólo tú puedas acceder a ella.
+    biometric: `Protegemos tu Frase de Recuperación con el sistema biométrico de tu dispositivo (huella digital o reconocimiento facial) y un coprocesador resistente a manipulaciones integrado en el hardware de tu dispositivo, completamente aislado del procesador principal.
 
-Ten en cuenta que si tus datos biométricos cambian (por ejemplo, agregando una nueva huella digital), el sistema invalidará la clave de cifrado, haciendo que la Frase de Recuperación sea ilegible. En estos casos, necesitarás volver a escribir la frase. Esta medida garantiza que sólo tú puedas acceder a tu billetera.`,
-    password: `Cuando se establece una contraseña, se cifra tu Frase de Recuperación, proporcionando una capa adicional de protección para tu billetera.
+Esto no es solo un bloqueo de la app. Tu Frase de Recuperación se almacena únicamente como datos cifrados, con su clave de descifrado sellada dentro de ese chip seguro y nunca expuesta.
 
-Cada vez que accedas a la billetera, necesitarás escribir esta contraseña para descifrar la frase.`,
+Cada vez que te autenticas con biometría, el coprocesador seguro descifra tu frase para la app. Sin una huella o reconocimiento facial válidos, los datos permanecen totalmente inaccesibles, incluso si alguien obtiene acceso físico a tu dispositivo.`,
+    //Ten en cuenta que si tus datos biométricos cambian (por ejemplo, agregando una nueva huella digital), el sistema invalidará la clave de cifrado, haciendo que la Frase de Recuperación sea ilegible. En estos casos, necesitarás volver a escribir la frase. Esta medida garantiza que sólo tú puedas acceder a tu billetera.`,
+
+    //    password: `Cuando se establece una contraseña, se cifra tu Frase de Recuperación, proporcionando una capa adicional de protección para tu billetera.
+    //
+    //Cada vez que accedas a la billetera, necesitarás escribir esta contraseña para descifrar la frase.`,
+    password: `Cuando está activada, la billetera se protege mediante cifrado con la contraseña que elijas.
+
+Necesitarás introducir esta contraseña cada vez que abras la billetera, garantizando que solo tú puedas acceder a ella.`,
     passwordWithBiometric: `Si tienes el cifrado biométrico activado, puede que no sea necesaria una contraseña ya que la biometría ya ofrece una seguridad robusta.`,
     encryptAppData: `Esta opción cifra tus datos no mnemónicos, como bóvedas y otros detalles de las transacciones, protegiendo tus patrones de uso y direcciones de una posible exposición, preservando tu anonimato.
 
