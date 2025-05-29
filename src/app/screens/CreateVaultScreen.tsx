@@ -101,6 +101,9 @@ export default function CreateVaultScreen({
   // We know settings are the correct ones in this Component
   const [progress, setProgress] = useState<number>(0);
   const [confirmRequested, setConfirmRequested] = useState<boolean>(false);
+  const [serviceAddressQuiet, setServiceAddressQuiet] = useState<
+    boolean | undefined
+  >(undefined);
   const [vault, setVault] = useState<Vault>();
 
   const backBlockerUnsubscriberRef = useRef<null | (() => void)>(null);
@@ -290,6 +293,7 @@ export default function CreateVaultScreen({
         return;
       }
       const { address: serviceAddress, quiet } = result;
+      setServiceAddressQuiet(quiet);
       const changeDescriptorWithIndex =
         await getNextChangeDescriptorWithIndex(accounts);
       if (!navigation.isFocused()) return; //Don't proceed if lost focus after await
@@ -464,7 +468,7 @@ export default function CreateVaultScreen({
 
                   {/* Fees */}
                   {/*don't show fees if quiet*/}
-                  {!quiet && (
+                  {serviceAddressQuiet === false && (
                     <>
                       <View>
                         <Text className="text-base font-bold mb-1">
