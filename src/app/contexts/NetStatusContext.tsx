@@ -312,6 +312,7 @@ const NetStatusProvider: React.FC<NetStatusProviderProps> = ({ children }) => {
             return true;
           } else {
             if (!explorer.isClosed()) {
+              console.warn('Closing pending explorer');
               explorer.close();
             }
             await explorer.connect();
@@ -343,7 +344,10 @@ const NetStatusProvider: React.FC<NetStatusProviderProps> = ({ children }) => {
     const close = async () => {
       if (!explorer && prevExplorer)
         try {
-          if (!prevExplorer.isClosed()) prevExplorer.close();
+          if (!prevExplorer.isClosed()) {
+            //console.warn('Closing previous explorer');
+            prevExplorer.close();
+          }
         } catch (err) {
           console.error('Error closing explorer:', err);
         }

@@ -1560,9 +1560,6 @@ const WalletProviderRaw = ({
         let canProceed = false;
         if (watchtowerAPIReachable) canProceed = true;
         else {
-          //console.log(
-          //  'TRACE syncWatchtowerRegistration calling to netStatusUpdate'
-          //);
           const status = await netStatusUpdate({ whenToastErrors });
           if (activeWallet.walletId !== walletIdRef.current) return; //do this after each await
           await new Promise(resolve => setTimeout(resolve, 100)); //time for setting netRequestRef.current
@@ -1590,6 +1587,7 @@ const WalletProviderRaw = ({
             t('app.watchtowerError', { message }),
           func: () => {
             //console.log('TRACE syncWatchtowerRegistration netRequest DONE!', {
+            //  watchtowerAPIReachable,
             //  canProceed,
             //  whenToastErrors
             //});
@@ -1730,6 +1728,7 @@ const WalletProviderRaw = ({
         //an expensive operation and sync may also be called automatically on
         //dependencies of isWalletDiskSynched, isCoreNetReady, callback functions and so on...
         //No prob if netStatusUpdate fails.
+        //console.log('TRACE sync calling to netStatusUpdate');
         const ns = await netStatusUpdate({ whenToastErrors });
         if (activeWallet.walletId !== walletIdRef.current) {
           //do this after each await

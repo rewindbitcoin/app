@@ -1217,16 +1217,28 @@ const Vaults = ({
 
   //initial notificationPermissions GET and watchtower sync if there are vaults
   const hasInitializedRef = useRef(false);
+  const { watchtowerAPIReachable } = useNetStatus();
   useEffect(() => {
     if (hasInitializedRef.current) return;
-    hasInitializedRef.current = true;
     const init = async () => {
       const { pushToken } = await ensurePermissionsAndToken('GET');
-      if (isMountedRef.current && pushToken)
+      if (
+        isMountedRef.current &&
+        pushToken &&
+        watchtowerAPIReachable &&
+        hasInitializedRef.current === false
+      ) {
         syncWatchtowerRegistration({ pushToken, isUserTriggered: false });
+        hasInitializedRef.current = true;
+      }
     };
     if (vaultCount) init();
-  }, [ensurePermissionsAndToken, syncWatchtowerRegistration, vaultCount]);
+  }, [
+    ensurePermissionsAndToken,
+    syncWatchtowerRegistration,
+    vaultCount,
+    watchtowerAPIReachable
+  ]);
 
   //Each time a new vault is added, we must sync. This is the first
   //time the user may see the modal that will explain the user to accept the
