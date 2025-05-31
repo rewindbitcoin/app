@@ -116,6 +116,7 @@ const RawTransaction = ({
     }
   };
 
+  //FIXME: in fact on Tape this ALWAYS FAILS:  WARN  Failed to fetch block time: [Error: Socket is closed.] 54415 - probably because electrum is not ready!?!?!
   //We don't really care if fetchBlockTime fails (should never happen anyway).
   //So no need for displaying error or whatever...
   //Just render using the blockHeight info.
