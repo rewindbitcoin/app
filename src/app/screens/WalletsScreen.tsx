@@ -186,7 +186,7 @@ const WalletsScreen = () => {
         )
     )
     .map(([walletId]) => Number(walletId));
-  //const walletsWithWTNotifications = [3];
+  //const walletsWithWTNotifications = [0]; //for screenshots
   const showOnlyAttackedWallets = walletsWithWTNotifications.length > 0;
   const dangerMode =
     showOnlyAttackedWallets || orphanedWatchtowerWalletUUIDs.size > 0;

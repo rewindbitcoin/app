@@ -7,6 +7,7 @@ import React, {
 } from 'react';
 
 const IRREVERSIBLE_BLOCKS = 4; // Number of blocks after which a transaction is considered irreversible
+//const IRREVERSIBLE_BLOCKS = 0; // For Screenshots
 import {
   View,
   Text,

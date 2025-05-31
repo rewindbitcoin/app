@@ -202,7 +202,7 @@ all the users will get the tap feedback thing in production:
 npx expo  prebuild --clean #to reset the Swift package thing above
 ```
 
-## TestFlight
+## TestFlight or AppStore Distribution
 
 ```bash
 eas build --profile production --platform ios --clear-cache --local
@@ -210,27 +210,8 @@ eas submit --platform ios --profile production
 #then select the ipa file created on first command
 ```
 
-## Generating a production apk for Android
-
-```bash
+## Generating a Google PlayStore build
 eas build --profile production --platform android --clear-cache --local
-```
-
-having this in eas.json:
-
-```json
-  "build": {
-    "production": {
-      "distribution": "store",
-      "ios": {
-        "buildConfiguration": "Release"
-      }
-    }
-  },
-  "submit": {
-    "production": {}
-  }
-```
 
 ## mmkv
 

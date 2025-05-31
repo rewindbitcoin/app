@@ -31,8 +31,8 @@
         "buildConfiguration": "Release"
       },
       "android": {
-        "gradleCommand": ":app:assembleRelease",
-        "distribution": "internal"
+        "distribution": "store",
+        "buildType": "app-bundle"
       }
     }
   },

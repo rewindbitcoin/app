@@ -56,4 +56,4 @@ src/i18n/*.keys*.json
 
 secrets/
 
-appstore.md
+publish_stores.md
