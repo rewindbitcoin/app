@@ -677,6 +677,7 @@ const WalletHomeScreen = () => {
               historyData={historyData}
               fetchBlockTime={fetchBlockTime}
               btcFiat={btcFiat}
+              explorerReachable={explorerReachable}
             />
           </View>
         </View>

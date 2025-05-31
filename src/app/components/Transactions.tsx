@@ -29,7 +29,8 @@ const RawTransaction = ({
   currency,
   mode,
   blockExplorerURL,
-  vaultOutValue
+  vaultOutValue,
+  explorerReachable
   //triggerOutValue
 }: {
   tipStatus: BlockStatus | undefined;
@@ -41,6 +42,7 @@ const RawTransaction = ({
   currency: Currency;
   mode: 'Fiat' | SubUnit;
   blockExplorerURL: string | undefined;
+  explorerReachable: boolean | undefined;
   /** if this tx is associated with a vaultId, then pass the output value
    * of the inital vault tx and also the output value of the trigger tx
    * (if they exist)
@@ -116,12 +118,11 @@ const RawTransaction = ({
     }
   };
 
-  //FIXME: in fact on Tape this ALWAYS FAILS:  WARN  Failed to fetch block time: [Error: Socket is closed.] 54415 - probably because electrum is not ready!?!?!
   //We don't really care if fetchBlockTime fails (should never happen anyway).
   //So no need for displaying error or whatever...
   //Just render using the blockHeight info.
   useEffect(() => {
-    if (blockTime === undefined && item.blockHeight) {
+    if (explorerReachable && blockTime === undefined && item.blockHeight) {
       const fetchTime = async () => {
         try {
           const time = await fetchBlockTime(item.blockHeight);
@@ -132,7 +133,7 @@ const RawTransaction = ({
       };
       fetchTime();
     }
-  }, [blockTime, item.blockHeight, fetchBlockTime]);
+  }, [explorerReachable, blockTime, item.blockHeight, fetchBlockTime]);
 
   /**
    * types:
@@ -385,13 +386,15 @@ const Transactions = ({
   tipStatus,
   historyData,
   fetchBlockTime,
-  blockExplorerURL
+  blockExplorerURL,
+  explorerReachable
 }: {
   btcFiat: number | undefined;
   tipStatus: BlockStatus | undefined;
   historyData: HistoryData | undefined;
   fetchBlockTime: (fetchBlockTime: number) => Promise<number | undefined>;
   blockExplorerURL: string | undefined;
+  explorerReachable: boolean | undefined;
 }) => {
   const { settings } = useSettings();
   if (!settings) throw new Error('settings not yet set');
@@ -460,6 +463,7 @@ const Transactions = ({
               currency={currency}
               fetchBlockTime={fetchBlockTime}
               blockExplorerURL={blockExplorerURL}
+              explorerReachable={explorerReachable}
             />
             {index < displayedHistoryData.length - 1 && (
               <View className="h-px bg-slate-300" />
