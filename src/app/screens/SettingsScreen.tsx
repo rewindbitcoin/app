@@ -245,6 +245,7 @@ const SettingsItem = ({
             autoCapitalize="none"
             onSubmitEditing={onSave}
             maxLength={maxLength}
+            editable={!isValidatingValue}
             onChangeText={handleValueChange}
           />
           {errorMessage && (

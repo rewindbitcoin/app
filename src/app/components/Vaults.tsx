@@ -1097,9 +1097,10 @@ const Vaults = ({
     showPermissionsForNotificationsExplainModal,
     setShowPermissionsForNotificationsExplainModal
   ] = useState(false);
-  const closePermissionsForNotificationsExplainModal = useCallback(() => {
-    setShowPermissionsForNotificationsExplainModal(false);
-  }, []);
+  //Apple Store reviewers don’t like that users can Cancel before the system request
+  //const closePermissionsForNotificationsExplainModal = useCallback(() => {
+  //  setShowPermissionsForNotificationsExplainModal(false);
+  //}, []);
 
   const isMountedRef = useRef(true);
   useEffect(() => {
@@ -1310,7 +1311,9 @@ const Vaults = ({
         title={t('wallet.vault.watchtower.permissionTitle')}
         icon={permissionsForNotificationsIcon}
         isVisible={showPermissionsForNotificationsExplainModal}
-        onClose={closePermissionsForNotificationsExplainModal}
+        /* Apple Store reviewers don't like that users can Cancel 
+          before the system request
+        onClose={closePermissionsForNotificationsExplainModal} */
         customButtons={
           <View className="items-center gap-6 gap-y-4 flex-row flex-wrap justify-center pb-4">
             <Button mode="primary" onPress={handleNotificationsSystemRequest}>

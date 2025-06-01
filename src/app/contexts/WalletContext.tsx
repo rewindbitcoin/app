@@ -180,7 +180,8 @@ export type WalletContextType = {
   setVaultNotificationAcknowledged: (vaultId: string) => void;
 };
 
-const UI_YIELD_ITERATION_COUNT = 10;
+const UI_YIELD_ITERATION_COUNT = 1;
+const UI_YIELD_ITERATION_TIME_MS = 0;
 const DEFAULT_VAULTS_STATUSES: VaultsStatuses = {};
 const DEFAULT_ACCOUNTS: Accounts = {};
 const DEFAULT_VAULTS: Vaults = {};
@@ -1715,7 +1716,7 @@ const WalletProviderRaw = ({
       watchtowerAPI
     ) {
       console.log(
-        `[${new Date().toISOString()}] [Sync] Wallet: ${activeWallet.walletId} | NetReady: ${isCoreNetReady} | watchtowerAPIReachable: ${watchtowerAPIReachable} | cBVaultsReaderAPIReachable: ${cBVaultsReaderAPIReachable} | UserTriggered: ${isUserTriggered} | network: ${activeWallet.networkId}`
+        `[${new Date().toISOString()}] [Sync] Wallet: ${activeWallet.walletId} | isCoreNetReady: ${isCoreNetReady} | watchtowerAPIReachable: ${watchtowerAPIReachable} | cBVaultsReaderAPIReachable: ${cBVaultsReaderAPIReachable} | UserTriggered: ${isUserTriggered} | network: ${activeWallet.networkId}`
       );
 
       if (
@@ -1882,13 +1883,19 @@ const WalletProviderRaw = ({
                     gapLimit,
                     async onAccountProgress() {
                       fetchStandardAccountsProgressCounter++;
+                      if (activeWallet.walletId !== walletIdRef.current)
+                        //abort fetchStandardAccounts
+                        return false;
                       if (
                         fetchStandardAccountsProgressCounter %
                           UI_YIELD_ITERATION_COUNT ===
                         0
                       ) {
-                        await new Promise(resolve => setTimeout(resolve, 0));
+                        await new Promise(resolve =>
+                          setTimeout(resolve, UI_YIELD_ITERATION_TIME_MS)
+                        );
                       }
+                      return;
                     }
                   })
               }
@@ -1952,9 +1959,14 @@ const WalletProviderRaw = ({
               gapLimit,
               async onProgress() {
                 fetchProgressCounter++;
+                //abort fetch
+                if (activeWallet.walletId !== walletIdRef.current) return false;
                 if (fetchProgressCounter % UI_YIELD_ITERATION_COUNT === 0) {
-                  await new Promise(resolve => setTimeout(resolve, 0));
+                  await new Promise(resolve =>
+                    setTimeout(resolve, UI_YIELD_ITERATION_TIME_MS)
+                  );
                 }
+                return;
               }
             })
         });

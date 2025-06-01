@@ -303,18 +303,32 @@ const NetStatusProvider: React.FC<NetStatusProviderProps> = ({ children }) => {
       while (remainingAttempts > 0) {
         try {
           const connected = await explorer.isConnected();
+          //console.log('TRACE checkExplorerReachability', traceInfo, {
+          //  remainingAttempts,
+          //  connected,
+          //  check: session !== sessionRef.current,
+          //  isClosed: explorer.isClosed()
+          //});
           if (session !== sessionRef.current) return false;
 
           if (connected) {
             //Esplora clients need to be initalized so that isClosed()
             //returns false even if they are always connected
-            if (explorer.isClosed()) explorer.connect();
+            if (explorer.isClosed()) {
+              //console.log(
+              //  'TRACE checkExplorerReachability connect Esplora?',
+              //  traceInfo
+              //);
+              await explorer.connect();
+              if (session !== sessionRef.current) return false;
+            }
             return true;
           } else {
             if (!explorer.isClosed()) {
               console.warn('Closing pending explorer');
               explorer.close();
             }
+            //console.log('TRACE checkExplorerReachability connect', traceInfo);
             await explorer.connect();
             if (session !== sessionRef.current) return false;
             return true;
@@ -345,7 +359,7 @@ const NetStatusProvider: React.FC<NetStatusProviderProps> = ({ children }) => {
       if (!explorer && prevExplorer)
         try {
           if (!prevExplorer.isClosed()) {
-            //console.warn('Closing previous explorer');
+            console.log('[NetStatus]: Closing explorer.');
             prevExplorer.close();
           }
         } catch (err) {
