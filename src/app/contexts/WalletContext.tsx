@@ -180,6 +180,7 @@ export type WalletContextType = {
   setVaultNotificationAcknowledged: (vaultId: string) => void;
 };
 
+const UI_YIELD_ITERATION_COUNT = 10;
 const DEFAULT_VAULTS_STATUSES: VaultsStatuses = {};
 const DEFAULT_ACCOUNTS: Accounts = {};
 const DEFAULT_VAULTS: Vaults = {};
@@ -1867,6 +1868,7 @@ const WalletProviderRaw = ({
             if (!signer.mnemonic)
               throw new Error('mnemonic not set for soft wallet');
             const masterNode = getMasterNode(signer.mnemonic, network);
+            let fetchStandardAccountsProgressCounter = 0;
             const { status: fetchStandardStatus } = await netRequestRef.current(
               {
                 id: 'fetchStandardAccounts',
@@ -1877,7 +1879,17 @@ const WalletProviderRaw = ({
                 func: () =>
                   discovery.fetchStandardAccounts({
                     masterNode,
-                    gapLimit
+                    gapLimit,
+                    async onAccountProgress() {
+                      fetchStandardAccountsProgressCounter++;
+                      if (
+                        fetchStandardAccountsProgressCounter %
+                          UI_YIELD_ITERATION_COUNT ===
+                        0
+                      ) {
+                        await new Promise(resolve => setTimeout(resolve, 0));
+                      }
+                    }
                   })
               }
             );
@@ -1927,13 +1939,24 @@ const WalletProviderRaw = ({
           updatedAccounts,
           updatedTipHeight
         );
+        let fetchProgressCounter = 0;
         const { status: fetchStatus } = await netRequestRef.current({
           id: 'syncFetch',
           errorMessage: (message: string) =>
             t('app.syncNetworkError', { message }),
           whenToastErrors,
           requirements: { explorerReachable: true },
-          func: () => discovery.fetch({ descriptors, gapLimit })
+          func: () =>
+            discovery.fetch({
+              descriptors,
+              gapLimit,
+              async onProgress() {
+                fetchProgressCounter++;
+                if (fetchProgressCounter % UI_YIELD_ITERATION_COUNT === 0) {
+                  await new Promise(resolve => setTimeout(resolve, 0));
+                }
+              }
+            })
         });
         if (activeWallet.walletId !== walletIdRef.current) {
           //do this after each await
