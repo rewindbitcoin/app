@@ -463,12 +463,12 @@ Usage Instructions:
       testnetNetworkBrief:
         'A public network for Bitcoin testing. Obtaining Testnet tokens can be challenging.',
       bitcoinNetworkBrief:
-        'The real Bitcoin network. Not recommended for use while this App is in early phases.',
+        "Real Bitcoin network. Not recommended for use until you've first experimented with test networks, especially if you're not yet experienced with Bitcoin.",
       regtestNetworkBrief: 'Specifically for developer use.'
     }
   },
   help: {
-    biometric: `We protect your Recovery Phrase with your device’s biometric system (fingerprint or face scan) and a tamper-resistant co-processor embedded in your device's hardware, completely isolated from the main processor.
+    biometric: `We protect your Recovery Phrase with your device's biometric system (fingerprint or face scan) and a tamper-resistant co-processor embedded in your device's hardware, completely isolated from the main processor.
 
 This isn't just an app lock. Your Recovery Phrase is stored only as encrypted data, with its decryption key sealed inside that secure chip and never exposed.
 
@@ -492,9 +492,7 @@ While leaking this data wouldn't compromise your funds, encrypting it\
     // derived from your mnemonic Recovery Phrase.
     network: `Rewind provides a choice between testing environments and the real Bitcoin network (via Advanced Options).
 
-The currently recommended option is the Tape Network, Rewind's own test network. Tape mirrors Bitcoin's real functionality and allows you to explore Send/Receive and Vaulting operations safely, offering free tokens for practice.
-
-While the app is in early development, we advise against using real Bitcoin for any significant transactions.`
+If you're not yet experienced with Bitcoin Vaults, we advise starting with the Tape Network, Rewind's own test network. Tape mirrors Bitcoin's real functionality and lets you explore send, receive, and vaulting operations safely, with free tokens for practice.`
   },
   learnMoreAboutVaults: {
     link: 'Learn More About Vaults',

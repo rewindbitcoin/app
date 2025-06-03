@@ -423,7 +423,7 @@ Instrucciones de Uso:
       testnetNetworkBrief:
         'Una red pública para pruebas de Bitcoin. Obtener tokens de Testnet puede ser difícil.',
       bitcoinNetworkBrief:
-        'La red de Bitcoin real. No recomendada mientras la App está en fases tempranas.',
+        'La red real de Bitcoin. No recomendada hasta que primero hayas experimentado con redes de prueba, especialmente si aún no tienes experiencia con Bitcoin.',
       regtestNetworkBrief: 'Específica para desarrolladores.'
     }
   },
@@ -447,9 +447,7 @@ Necesitarás introducir esta contraseña cada vez que abras la billetera, garant
 Aunque la filtración de estos datos no comprometería tus fondos, cifrarlos asegura que, incluso si son accedidos por partes no autorizadas, nadie podrá discernir cómo usas tu billetera, como son tus hábitos de gasto o con quién realizas transacciones.`,
     network: `Rewind te permite elegir entre diferentes entornos de prueba, así como la red real de Bitcoin (disponible en Opciones Avanzadas).
 
-Actualmente, recomendamos usar la Red Tape que es la red de prueba propia de Rewind. Tape emula la funcionalidad de Bitcoin y te permite explorar operaciones de envío, recepción y creación de bóvedas de forma segura, ofreciendo tokens gratuitos para practicar.
-
-Mientras la aplicación esté en una fase de desarrollo temprano, desaconsejamos usar Bitcoin real para transacciones significativas.`
+Si aún no tienes experiencia con las bóvedas de Bitcoin, te recomendamos comenzar con la Red Tape, la red de prueba propia de Rewind. Tape replica la funcionalidad real de Bitcoin y te permite explorar operaciones de envío, recepción y creación de bóvedas de forma segura, con tokens gratuitos para practicar.`
   },
   learnMoreAboutVaults: {
     link: 'Aprende qué son las Bóvedas',
