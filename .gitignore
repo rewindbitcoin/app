@@ -55,5 +55,6 @@ src/i18n/*.keys*.json
 .aider*
 
 secrets/
+credentials/
 
 publish_stores.md

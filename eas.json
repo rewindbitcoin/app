@@ -21,7 +21,8 @@
     },
     "preview-simulator": {
       "ios": {
-        "simulator": true
+        "simulator": true,
+        "buildConfiguration": "Release"
       }
     },
     "production": {

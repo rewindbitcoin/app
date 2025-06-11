@@ -3,7 +3,7 @@
     "name": "RewindBitcoin",
     "jsEngine": "hermes",
     "slug": "RewindBitcoin",
-    "version": "1.2.1",
+    "version": "1.2.2",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -20,9 +20,7 @@
       "infoPlist": {
         "README_UIFileSharingEnabled": "So that the app reveals to the host its Shared Documents. This is necessary for air-gapped signing.",
         "UIFileSharingEnabled": true,
-        "CFBundleAllowMixedLocalizations": true,
-        "NSFaceIDUsageDescription": "RewindBitcoin uses Face ID for enhanced security. This feature helps protect your Bitcoin wallet by ensuring that only you can access the sensitive data, like mnemonics, stored securely in the app. Your Face ID data is never accessed directly by the app and is only used to verify your identity.",
-        "NSCameraUsageDescription": "RewindBitcoin needs access to your camera to scan QR codes for Bitcoin addresses"
+        "CFBundleAllowMixedLocalizations": true
       },
       "supportsTablet": true,
       "bundleIdentifier": "com.rewindbitcoin.app"
@@ -54,7 +52,8 @@
       }
     },
     "locales": {
-      "es": "./src/i18n-locales/app.es.json"
+      "es": "./src/i18n-locales/app.es.json",
+      "en": "./src/i18n-locales/app.en.json"
     },
     "plugins": [
       ["react-native-libsodium", {}],

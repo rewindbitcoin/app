@@ -12,3 +12,6 @@ In our case, we use it to enable connections over HTTP (using unencrypted clear 
 However, in this plugin, this setting was being applied to both the release and debug environments.
 
 This patch ensures that the <network-security-config> directive is applied only in release mode. In debug mode, Android is already less restrictive due to android:usesCleartextTraffic, so it’s better not to interfere with that configuration. We patched this package to prevent the directive from affecting debug builds.
+
+expo-device
+https://github.com/expo/expo/commit/a6c1fc09e33d780b6c80a7be0ba6d710f4e2b8db

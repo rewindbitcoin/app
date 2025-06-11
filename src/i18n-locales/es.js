@@ -430,7 +430,7 @@ Instrucciones de Uso:
   help: {
     biometric: `Protegemos tu Frase de Recuperación con el sistema biométrico de tu dispositivo (huella digital o reconocimiento facial) y un coprocesador resistente a manipulaciones integrado en el hardware de tu dispositivo, completamente aislado del procesador principal.
 
-Esto no es solo un bloqueo de la app. Tu Frase de Recuperación se almacena únicamente como datos cifrados, con su clave de descifrado sellada dentro de ese chip seguro y nunca expuesta.
+Esto no es sólo un bloqueo de la app. Tu Frase de Recuperación se almacena únicamente como datos cifrados, con su clave de descifrado sellada dentro de ese chip seguro y nunca expuesta.
 
 Cada vez que te autenticas con biometría, el coprocesador seguro descifra tu frase para la app. Sin una huella o reconocimiento facial válidos, los datos permanecen totalmente inaccesibles, incluso si alguien obtiene acceso físico a tu dispositivo.`,
     //Ten en cuenta que si tus datos biométricos cambian (por ejemplo, agregando una nueva huella digital), el sistema invalidará la clave de cifrado, haciendo que la Frase de Recuperación sea ilegible. En estos casos, necesitarás volver a escribir la frase. Esta medida garantiza que sólo tú puedas acceder a tu billetera.`,
@@ -440,7 +440,7 @@ Cada vez que te autenticas con biometría, el coprocesador seguro descifra tu fr
     //Cada vez que accedas a la billetera, necesitarás escribir esta contraseña para descifrar la frase.`,
     password: `Cuando está activada, la billetera se protege mediante cifrado con la contraseña que elijas.
 
-Necesitarás introducir esta contraseña cada vez que abras la billetera, garantizando que solo tú puedas acceder a ella.`,
+Necesitarás introducir esta contraseña cada vez que abras la billetera, garantizando que sólo tú puedas acceder a ella.`,
     passwordWithBiometric: `Si tienes el cifrado biométrico activado, puede que no sea necesaria una contraseña ya que la biometría ya ofrece una seguridad robusta.`,
     encryptAppData: `Esta opción cifra tus datos no mnemónicos, como bóvedas y otros detalles de las transacciones, protegiendo tus patrones de uso y direcciones de una posible exposición, preservando tu anonimato.
 
