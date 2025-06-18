@@ -138,6 +138,11 @@ function AddressInput({
     useState<boolean>(false);
   const handleNewAddress = useCallback(
     () => setShowCreateColdAddress(true),
+    //for demo videos
+    //() => {
+    //  setAddress('bcrt1qa5rryvepn57yu9uz57sshvfwg6h9wwmaht5zpw');
+    //  onValueChange('bcrt1qa5rryvepn57yu9uz57sshvfwg6h9wwmaht5zpw');
+    //},
     []
   );
   const handleScanQR = useCallback(() => setScanQR(true), []);

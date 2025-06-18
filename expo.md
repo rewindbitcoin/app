@@ -190,10 +190,21 @@ To fine tune colors adapt:
 @objc public static var strokeColor = UIColor(red: 1.0, green: 0.145, blue: 0.047, alpha: 1)
 ```
 
-Then open xcode and click on the + symbol at the bottom of the folders and make sure to add the `ShowTime.swift` file
+Then replace UILabel to UIView and remove lines:
+        text = ShowTime.shouldShowMultipleTapCount && touch.tapCount > 1 ? "\(touch.tapCount)" : nil
+        textAlignment = .center
+        textColor = ShowTime.multipleTapCountTextColor
+        font = ShowTime.multipleTapCountTextFont
 
-Then open it on a simulator running version of iOS 17 (not 18 because there are rendering artifacts). For example iphone 15 on ios 17 is fine.
-It's been fixed for ios > 17? See: https://github.com/KaneCheshire/ShowTime/issues/63#issuecomment-2571424733
+
+as per: https://github.com/KaneCheshire/ShowTime/issues/63#issuecomment-2571424733
+Then:
+open RewindBitcoin.xcworkspace
+
+Then in xcode and click on the + symbol at the bottom of the folders and make sure to add the `ShowTime.swift` file
+
+Then build and run it on a simulator as usual:
+npx expo run:ios --device "iPhone 16 Pro"
 
 VERY IMPORTANT! When done, remember to remove the compiled project when releasing a new production version or
 all the users will get the tap feedback thing in production:
