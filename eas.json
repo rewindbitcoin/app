@@ -6,6 +6,7 @@
   "build": {
     "development": {
       "distribution": "internal",
+      "environment": "development",
       "android": {
         "gradleCommand": ":app:assembleDebug"
       },
@@ -14,18 +15,21 @@
       }
     },
     "preview": {
+      "distribution": "internal",
+      "environment": "preview",
       "android": {
         "gradleCommand": ":app:assembleRelease"
-      },
-      "distribution": "internal"
+      }
     },
     "preview-simulator": {
+      "environment": "preview",
       "ios": {
         "simulator": true,
         "buildConfiguration": "Release"
       }
     },
     "production": {
+      "environment": "production",
       "autoIncrement": true,
       "ios": {
         "distribution": "store",

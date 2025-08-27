@@ -79,10 +79,21 @@ const mmkvSet = (
   value: string | number | boolean | Uint8Array
 ) => {
   try {
-    mmkvStorage.set(key, value);
+    if (value instanceof Uint8Array) {
+      // react-native-mmkv V3 now expects an ArrayBuffer instead of a Uint8Array
+      // Give MMKV an ArrayBuffer that matches exactly the bytes you intend.
+      const ab =
+        value.byteOffset === 0 && value.byteLength === value.buffer.byteLength
+          ? value.buffer // zero-copy
+          : value.buffer.slice(
+              value.byteOffset,
+              value.byteOffset + value.byteLength
+            ); // copy only if it's a subarray
+      mmkvStorage.set(key, ab);
+    } else mmkvStorage.set(key, value);
   } catch (err) {
     console.warn(err);
-    throw new Error(StorageErrors.ReadError);
+    throw new Error(StorageErrors.WriteError);
   }
 };
 const mmkvDel = (key: string) => {
@@ -119,7 +130,10 @@ const mmkvGetBoolean = (key: string) => {
 };
 const mmkvGetBuffer = (key: string) => {
   try {
-    return mmkvStorage.getBuffer(key);
+    //mmkv v3 now returns ArrayBuffer instead of Uint8Array
+    const raw = mmkvStorage.getBuffer(key);
+    if (!raw) return raw;
+    else return new Uint8Array(raw);
   } catch (err) {
     console.warn(err);
   }

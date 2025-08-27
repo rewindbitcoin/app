@@ -1,0 +1,22 @@
+diff --git a/node_modules/react-native-reanimated/lib/module/ReducedMotion.js b/node_modules/react-native-reanimated/lib/module/ReducedMotion.js
+index 556f2bb..e84874b 100644
+--- a/node_modules/react-native-reanimated/lib/module/ReducedMotion.js
++++ b/node_modules/react-native-reanimated/lib/module/ReducedMotion.js
+@@ -3,9 +3,14 @@
+ import { makeMutable } from "./mutables.js";
+ import { isWeb, isWindowAvailable } from "./PlatformChecker.js";
+ export function isReducedMotionEnabledInSystem() {
+-  return isWeb() ? isWindowAvailable() ?
+-  // @ts-ignore Fallback if `window` is undefined.
+-  window.matchMedia('(prefers-reduced-motion: reduce)').matches : false : !!global._REANIMATED_IS_REDUCED_MOTION;
++//  return isWeb() ? isWindowAvailable() ?
++//  // @ts-ignore Fallback if `window` is undefined.
++//  window.matchMedia('(prefers-reduced-motion: reduce)').matches : false : !!global._REANIMATED_IS_REDUCED_MOTION;
++    return isWeb()
++    ? (isWindowAvailable()
++      ? window.matchMedia('(prefers-reduced-motion: reduce)').matches
++      : false)
++    : false;
+ }
+ const IS_REDUCED_MOTION_ENABLED_IN_SYSTEM = isReducedMotionEnabledInSystem();
+ export const ReducedMotionManager = {

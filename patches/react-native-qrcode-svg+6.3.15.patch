@@ -1,8 +1,8 @@
 diff --git a/node_modules/react-native-qrcode-svg/index.d.ts b/node_modules/react-native-qrcode-svg/index.d.ts
-index 97d1d3f..39eeaaa 100644
+index b04bbfc..e7f3729 100644
 --- a/node_modules/react-native-qrcode-svg/index.d.ts
 +++ b/node_modules/react-native-qrcode-svg/index.d.ts
-@@ -5,7 +5,7 @@ declare class QRCode extends React.PureComponent<QRCodeProps, any> {}
+@@ -6,7 +6,7 @@ declare class QRCode extends React.PureComponent<QRCodeProps, any> {}
  
  export interface QRCodeProps {
    /* what the qr code stands for */

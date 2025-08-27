@@ -1,8 +1,8 @@
 diff --git a/node_modules/react-native-tcp-socket/ios/TcpSockets.m b/node_modules/react-native-tcp-socket/ios/TcpSockets.m
-index 3a9783a..bd05fda 100644
+index fc99b73..6d57ce1 100644
 --- a/node_modules/react-native-tcp-socket/ios/TcpSockets.m
 +++ b/node_modules/react-native-tcp-socket/ios/TcpSockets.m
-@@ -185,20 +185,22 @@ - (void)onWrittenData:(TcpSocketClient *)client msgId:(NSNumber *)msgId {
+@@ -219,20 +219,22 @@ RCT_EXPORT_METHOD(getCertificate:(nonnull NSNumber *)cId
  
  - (void)onConnect:(TcpSocketClient *)client {
      GCDAsyncSocket *socket = [client getSocket];
@@ -21,20 +21,20 @@ index 3a9783a..bd05fda 100644
 -                           }
 -                       }];
 +    if([socket localPort] != nil && [socket connectedPort] != nil) {
-+        [self sendEventWithName:@"connect"
-+                           body:@{
-+                               @"id" : client.id,
-+                               @"connection" : @{
-+                                   @"localAddress" : [socket localHost],
-+                                   @"localPort" :
-+                                       [NSNumber numberWithInt:[socket localPort]],
-+                                   @"remoteAddress" : [socket connectedHost],
-+                                   @"remotePort" : [NSNumber
-+                                       numberWithInt:[socket connectedPort]],
-+                                   @"remoteFamily" : [socket isIPv4] ? @"IPv4"
-+                                                                     : @"IPv6"
-+                               }
-+                           }];
++      [self sendEventWithName:@"connect"
++                         body:@{
++                             @"id" : client.id,
++                             @"connection" : @{
++                                 @"localAddress" : [socket localHost],
++                                 @"localPort" :
++                                     [NSNumber numberWithInt:[socket localPort]],
++                                 @"remoteAddress" : [socket connectedHost],
++                                 @"remotePort" : [NSNumber
++                                     numberWithInt:[socket connectedPort]],
++                                 @"remoteFamily" : [socket isIPv4] ? @"IPv4"
++                                                                   : @"IPv6"
++                             }
++                         }];
 +    }
  }
  

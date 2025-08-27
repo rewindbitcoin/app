@@ -1,5 +1,5 @@
 import { BarcodeType, CameraView, useCameraPermissions } from 'expo-camera';
-import { Camera } from 'expo-camera/legacy';
+import { getAvailableCameraTypesAsync } from '~/app/lib/camera-compat';
 import React, {
   useState,
   useCallback,
@@ -117,7 +117,7 @@ function AddressInput({
     const prepareCameras = async () => {
       const camTypes =
         Platform.OS === 'web'
-          ? await Camera.getAvailableCameraTypesAsync()
+          ? await getAvailableCameraTypesAsync()
           : (['back', 'front'] as Array<'back' | 'front'>);
 
       if (camTypes.length) {

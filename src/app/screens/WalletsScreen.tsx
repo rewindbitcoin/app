@@ -101,7 +101,7 @@ const walletCl = (index: number, hasNotifications: boolean) =>
  */
 function getWalletWithAcknowledgedNotifications(wallet: Wallet): Wallet {
   const notifications = wallet.notifications;
-  if (!notifications) return wallet;
+  if (!notifications) return wallet; //FIXME: what?!?!?! so we dont ack??? -> when are notifications set?
 
   let walletChanged = false;
   const updatedNotifications: typeof notifications = {};

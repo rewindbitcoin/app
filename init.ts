@@ -18,11 +18,19 @@ import '@expo/metro-runtime';
 //  ERROR  i18next::pluralResolver: Your environment seems not to be Intl API compatible, use an Intl.PluralRules polyfill. Will fallback to the compatibilityJSON v3 format handling.
 import 'intl-pluralrules';
 
-import { Dimensions, Platform } from 'react-native';
+import { Dimensions, Platform, TurboModuleRegistry } from 'react-native';
 console.log('React Native version: ', Platform?.constants?.reactNativeVersion);
 console.log(
   'Hermes enabled: ',
   !!(global as { HermesInternal?: typeof HermesInternal }).HermesInternal
+);
+console.log(
+  'Using Fabric: ',
+  !!(global as { nativeFabricUIManager?: unknown }).nativeFabricUIManager
+);
+console.log(
+  'Using TurboModules:',
+  typeof TurboModuleRegistry?.getEnforcing === 'function'
 );
 console.log('Device dimensions: ', Dimensions.get('window'));
 
@@ -55,9 +63,9 @@ if (typeof AbortSignal !== 'undefined' && !AbortSignal.timeout) {
 //const str = new rnfe().decode(uint, { stream: false });
 
 //If planning to use React Animated:
-import { NativeModules } from 'react-native';
-const { UIManager } = NativeModules;
-UIManager.setLayoutAnimationEnabledExperimental?.(true);
+//import { NativeModules } from 'react-native';
+//const { UIManager } = NativeModules;
+//UIManager.setLayoutAnimationEnabledExperimental?.(true);
 
 //For electrum support in react native
 global.net = require('react-native-tcp-socket');

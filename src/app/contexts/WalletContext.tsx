@@ -777,6 +777,9 @@ const WalletProviderRaw = ({
       if (!activeWallet) throw new Error('wallet should be set when ready');
       if (!wallets) throw new Error('wallets should be set when ready');
       if (!shallowEqualObjects(activeWallet, wallets[activeWallet.walletId])) {
+        //FIXME: DANGER prob may be here!!! I may reset the wallets to the former one!!!
+        //after the setVaultNotificationAcknowledged, since wallets will
+        //change but activeWallet not!
         setWallets({ ...wallets, [activeWallet.walletId]: activeWallet });
       }
     }
@@ -922,6 +925,7 @@ const WalletProviderRaw = ({
           // Update wallets storage
           batchedUpdates(() => {
             setWallets({
+              //FIXME: dangerous for the useEffect DANGER
               ...wallets,
               [matchingWallet.walletId]: updatedWallet
             });
@@ -1318,6 +1322,7 @@ const WalletProviderRaw = ({
         setSignersCipherKey(walletDst.walletId, signersCipherKeyDst);
         if (typeof isGenerated !== 'undefined')
           isGeneratedRef.current = isGenerated;
+        //FIXME: aqui ojito porque no actualizo wallets DANGER
         setActiveWallet(prevWallet => {
           //Net status depends on the wallet (explorer, ...); so reset it ONLY when it changes
           if (prevWallet && prevWallet.walletId !== walletDst.walletId)

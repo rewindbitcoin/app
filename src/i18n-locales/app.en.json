@@ -1,4 +1,6 @@
 {
-  "NSFaceIDUsageDescription": "RewindBitcoin uses Face ID for enhanced security. This feature helps protect your Bitcoin wallet by ensuring that only you can access the sensitive data, like mnemonics, stored securely in the app. Your Face ID data is never accessed directly by the app and is only used to verify your identity.",
-  "NSCameraUsageDescription": "RewindBitcoin needs access to your camera to scan QR codes for Bitcoin addresses"
+  "ios": {
+    "NSFaceIDUsageDescription": "RewindBitcoin uses Face ID for enhanced security. This feature helps protect your Bitcoin wallet by ensuring that only you can access the sensitive data, like mnemonics, stored securely in the app. Your Face ID data is never accessed directly by the app and is only used to verify your identity.",
+    "NSCameraUsageDescription": "RewindBitcoin needs access to your camera to scan QR codes for Bitcoin addresses"
+  }
 }
