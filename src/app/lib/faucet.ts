@@ -1,9 +1,7 @@
 import type { Accounts } from './wallets';
 import { Network, networks } from 'bitcoinjs-lib';
-import * as secp256k1 from '@bitcoinerlab/secp256k1';
-import { DescriptorsFactory } from '@bitcoinerlab/descriptors';
 import { getMainAccount } from './vaultDescriptors';
-const { Output } = DescriptorsFactory(secp256k1);
+import { ensureDescriptorsFactoryInstance } from './descriptorsFactory';
 export const faucetFirstReceive = async (
   accounts: Accounts,
   network: Network,
@@ -14,6 +12,7 @@ export const faucetFirstReceive = async (
     throw new Error('Cannot faucet non-regtest networks');
   const descriptor = getMainAccount(accounts, network); //account is external
   const index = 0;
+  const { Output } = ensureDescriptorsFactoryInstance();
   const firstReceiveAddr = new Output({
     descriptor,
     network,

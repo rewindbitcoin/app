@@ -33,6 +33,7 @@ import useArrayChangeDetector from '../../common/hooks/useArrayChangeDetector';
 import {
   computeMaxAllowedFeeRate,
   FeeEstimates,
+  MIN_FEE_RATE,
   pickFeeEstimate
 } from '../lib/fees';
 import { formatBtc } from '../lib/btcRates';
@@ -146,7 +147,7 @@ export default function VaultSetUp({
   const feeRate =
     userSelectedFeeRate === null
       ? null
-      : userSelectedFeeRate >= 1 && userSelectedFeeRate <= maxFeeRate
+      : userSelectedFeeRate >= MIN_FEE_RATE && userSelectedFeeRate <= maxFeeRate
         ? userSelectedFeeRate
         : null;
 

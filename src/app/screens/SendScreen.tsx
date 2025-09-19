@@ -24,6 +24,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   computeMaxAllowedFeeRate,
   FeeEstimates,
+  MIN_FEE_RATE,
   pickFeeEstimate
 } from '../lib/fees';
 import {
@@ -132,7 +133,7 @@ export default function Send() {
   const feeRate =
     userSelectedFeeRate === null
       ? null
-      : userSelectedFeeRate >= 1 && userSelectedFeeRate <= maxFeeRate
+      : userSelectedFeeRate >= MIN_FEE_RATE && userSelectedFeeRate <= maxFeeRate
         ? userSelectedFeeRate
         : null;
 

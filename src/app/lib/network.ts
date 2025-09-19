@@ -1,4 +1,4 @@
-import { networks, Network } from 'bitcoinjs-lib';
+import { networks, type Network } from 'bitcoinjs-lib';
 export type NetworkId = 'BITCOIN' | 'TESTNET' | 'REGTEST' | 'TAPE';
 export const networkMapping: { [key in NetworkId]: Network } = {
   BITCOIN: networks.bitcoin,

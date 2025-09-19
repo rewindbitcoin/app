@@ -1,16 +1,16 @@
 import {
-  fetchVaultsStatuses,
-  getUtxosData,
   type Vault,
   type Vaults,
   type VaultStatus,
   type VaultsStatuses,
   type UtxosData,
+  type HistoryData,
+  type TxHex,
+  fetchVaultsStatuses,
+  getUtxosData,
   getHotDescriptors,
   areVaultsSynched,
-  HistoryData,
-  getHistoryData,
-  TxHex
+  getHistoryData
 } from '../lib/vaults';
 import { v4 as uuid } from 'uuid';
 import { useNavigation } from '@react-navigation/native';
@@ -36,7 +36,7 @@ import {
   type Wallets
 } from '../lib/wallets';
 import { electrumParams, getAPIs } from '../lib/walletDerivedData';
-import { networkMapping, NetworkId } from '../lib/network';
+import { networkMapping, type NetworkId } from '../lib/network';
 import {
   createUnvaultKey,
   getDefaultAccount,
@@ -57,11 +57,7 @@ import type { Wallet } from '../lib/wallets';
 import { SERIALIZABLE, STRING, deleteAsync } from '../../common/lib/storage';
 import { useTranslation } from 'react-i18next';
 
-import {
-  DiscoveryFactory,
-  type DiscoveryInstance,
-  type TxAttribution
-} from '@bitcoinerlab/discovery';
+import type { DiscoveryInstance, TxAttribution } from '@bitcoinerlab/discovery';
 import type { FeeEstimates } from '../lib/fees';
 import { AppState, AppStateStatus, Platform } from 'react-native';
 import { batchedUpdates } from '../../common/lib/batchedUpdates';
@@ -84,11 +80,11 @@ import { useTipStatus } from '../hooks/useTipStatus';
 import { useFeeEstimates } from '../hooks/useFeeEstimates';
 import { useWalletState } from '../hooks/useWalletState';
 import {
-  Explorer,
+  type BlockStatus,
+  type Explorer,
   EsploraExplorer,
   ElectrumExplorer
 } from '@bitcoinerlab/explorer';
-import type { BlockStatus } from '@bitcoinerlab/explorer';
 import { defaultSettings } from '../lib/settings';
 import { getLocales } from 'expo-localization';
 
@@ -404,6 +400,9 @@ const WalletProviderRaw = ({
               timeout: settings.NETWORK_TIMEOUT
             });
       //explorer.connect performed in NetStatusContext
+      //Don't do this at the top level since it's quite slow.
+      //Also it's better to pre-warmup loading in App.tsx after initial interactions
+      const { DiscoveryFactory } = require('@bitcoinerlab/discovery');
       const { Discovery } = DiscoveryFactory(explorer, network);
       const newDiscovery =
         initialDiscoveryExport !== undefined
@@ -1601,7 +1600,7 @@ const WalletProviderRaw = ({
             const rawLocale = settings?.LOCALE ?? defaultSettings.LOCALE;
             const locale =
               rawLocale === 'default'
-                ? getLocales()[0]?.languageTag ?? 'en'
+                ? (getLocales()[0]?.languageTag ?? 'en')
                 : rawLocale;
             return watchVaults({
               pushToken,

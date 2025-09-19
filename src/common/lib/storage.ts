@@ -431,7 +431,7 @@ export const setAsync = async (
       throw new Error(
         `Uint8Array is not compatible with cipher (uses JSON.stringify)`
       );
-    const chacha = getManagedChacha(cipherKey);
+    const chacha = await getManagedChacha(cipherKey);
     const originalMessage = value;
     const strOriginalMessage = JSON.stringify(originalMessage);
     //const uint8OriginalMessage = strToU8(strOriginalMessage);
@@ -546,7 +546,7 @@ export const getAsync = async <S extends SerializationFormat>(
         `Impossible to decode non-binary encoded value: ${typeof result}`
       );
     } else {
-      const chacha = getManagedChacha(cipherKey);
+      const chacha = await getManagedChacha(cipherKey);
       let decryptedResult: Uint8Array;
       try {
         decryptedResult = chacha.decrypt(result);

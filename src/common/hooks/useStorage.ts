@@ -60,7 +60,7 @@ import { batchedUpdates } from '../lib/batchedUpdates';
  *              either because we fetched it from storage or because we
  *              optimistically queued a write. Useful for hiding loading
  *              skeletons quickly.
- *              isSynchd will be true even after an successful read/write,
+ *              isSynchd will be true even after an unsuccessful read/write,
  *              meaning that we at least tried.
  * isDiskSynchd  True only after we have finished at least one real
  *              round‑trip with the backing store: read or write (successful or not).
@@ -147,7 +147,8 @@ export const useStorage = <T>(
       }
 
       if (key !== undefined) {
-        let prevValue: typeof valueMap;
+        let prevForKey: T | undefined;
+        //let prevValue: typeof valueMap;
         //let prevError: typeof errorCodeMap;
 
         // We optimistically update the UI state first to ensure fast feedback and rendering.
@@ -157,7 +158,8 @@ export const useStorage = <T>(
 
         batchedUpdates(() => {
           setValueMap(prevState => {
-            prevValue = prevState;
+            prevForKey = prevState[key] as T | undefined;
+            //prevValue = prevState;
             return prevState[key] !== newValue
               ? { ...prevState, [key]: newValue }
               : prevState;
@@ -194,7 +196,13 @@ export const useStorage = <T>(
           const errorCode = getStorageErrorCode(err);
           batchedUpdates(() => {
             // 1. roll back the optimistic value
-            setValueMap(prevValue);
+            //setValueMap(prevValue); -> This can revert other keys too! better use prevForKey!
+            setValueMap(prevState => {
+              const nextState = { ...prevState };
+              if (prevForKey === undefined) delete nextState[key];
+              else nextState[key] = prevForKey;
+              return nextState;
+            });
             // 2. surface the error so UI / callers can react
             setErrorCodeMap(prev =>
               prev[key] !== errorCode ? { ...prev, [key]: errorCode } : prev
@@ -230,9 +238,9 @@ export const useStorage = <T>(
   //value set by setValue to not spam the storage with more requests that we
   //already know the result
   useEffect(() => {
-    if (key !== undefined && !isFetching[key]) {
+    //fetch a value only if not ongoing and not done yet (successful or not)
+    if (key !== undefined && !isFetching[key] && !diskSynchedMap[key]) {
       const fetchValue = async () => {
-        isFetching[key] = true;
         try {
           const savedValue = await getAsync(
             key,
@@ -320,7 +328,9 @@ export const useStorage = <T>(
           isFetching[key] = false;
         }
       };
-      if (!(key in valueMap)) fetchValue();
+
+      isFetching[key] = true;
+      fetchValue();
     }
   }, [
     isFetching,
@@ -333,7 +343,8 @@ export const useStorage = <T>(
     setStorageValue,
     setValueMap,
     setDiskSynchedMap,
-    valueMap,
+    //valueMap,
+    diskSynchedMap,
     setErrorCodeMap
   ]);
 

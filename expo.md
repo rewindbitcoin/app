@@ -153,6 +153,16 @@ eas build --platform ios --local --profile preview #optionally with --clear-cach
     # If you run into 65 code errors by fastlane, then read this: https://github.com/expo/eas-cli/issues/1201#issuecomment-1446997753
 
 #If you want to run Expo on the real device (so you can reload after a few Js changes) you can run this:
+
+#If you get Exit status: 70 it's probably because of the rsync command being used by fastlane internally.
+#if "which rsync" does not show the system one then this is the uss.e
+#Learn more: https://github.com/fastlane/fastlane/discussions/27962
+#Try this:
+#  PATH=/usr/bin:$PATH eas build --profile production --platform ios --clear-cache --local
+
+# If you get Error: Unable to resolve module (directing to some import() function) then try:
+# rm -rf $TMPDIR/metro-cache
+# Then compile it again
 npx expo run:ios -d
 #which will  let you choose the device to run and install
 #If you get errors, try to open on xcode the project once and build. For some reason it will work then even if you clean the project.
@@ -206,6 +216,9 @@ Then in xcode and click on the + symbol at the bottom of the folders and make su
 Then build and run it on a simulator as usual:
 npx expo run:ios --device "iPhone 16 Pro"
 
+Then open it on a simulator running version of iOS 17 (not 18 because there are rendering artifacts). For example iphone 15 on ios 17 is fine.
+It's been fixed for ios > 17? See: https://github.com/KaneCheshire/ShowTime/issues/63#issuecomment-2571424733
+
 VERY IMPORTANT! When done, remember to remove the compiled project when releasing a new production version or
 all the users will get the tap feedback thing in production:
 
@@ -223,6 +236,9 @@ eas submit --platform ios --profile production
 
 ## Generating a Google PlayStore build
 eas build --profile production --platform android --clear-cache --local
+Then go to:
+https://play.google.com/apps/publish/
+Use this login: labolsavirtual@labolsavirtual.com
 
 ## mmkv
 
@@ -251,3 +267,5 @@ https://docs.expo.dev/push-notifications/push-notifications-setup/
     It uses now 2FA with Google Authenticator - Google: labolsavirtual@labolsavirtual.com
 
 
+
+---

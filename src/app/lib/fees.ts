@@ -1,4 +1,6 @@
 import moize from 'moize';
+
+export const MIN_FEE_RATE = 0.1;
 /**
  * Returns an array of precomputed `feeRates` within a range.
  *
@@ -14,7 +16,7 @@ export function feeRateSampling(
   }: {
     /**
      * The minimum fee rate in satoshis per byte.
-     * Must be >= 1 and <= 1E6.
+     * Must be >= MIN_FEE_RATE and <= 1E6.
      * @defaultValue 1
      */
     minSatsPerByte?: number;
@@ -37,7 +39,7 @@ export function feeRateSampling(
      */
     logScale?: boolean;
   } = {
-    minSatsPerByte: 1,
+    minSatsPerByte: MIN_FEE_RATE,
     maxSatsPerByte: 10000,
     samples: 100,
     logScale: true
@@ -45,7 +47,7 @@ export function feeRateSampling(
 ) {
   const result: Array<number> = [];
 
-  if (minSatsPerByte < 1 || minSatsPerByte > 1e6)
+  if (minSatsPerByte < MIN_FEE_RATE || minSatsPerByte > 1e6)
     throw new Error('Invalid minSatsPerByte');
   if (maxSatsPerByte < minSatsPerByte || maxSatsPerByte > 1e6)
     throw new Error('Invalid maxSatsPerByte');

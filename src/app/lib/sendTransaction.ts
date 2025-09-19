@@ -1,19 +1,15 @@
 import moize from 'moize';
-import * as secp256k1 from '@bitcoinerlab/secp256k1';
 import { getOutputsWithValue, UtxosData } from './vaults';
 
-import {
-  DescriptorsFactory,
-  OutputInstance,
-  signers
-} from '@bitcoinerlab/descriptors';
-const { Output } = DescriptorsFactory(secp256k1);
+import { OutputInstance, signers } from '@bitcoinerlab/descriptors';
+import { ensureDescriptorsFactoryInstance } from './descriptorsFactory';
 import { Network, Psbt } from 'bitcoinjs-lib';
 import { coinselect, dustThreshold, maxFunds } from '@bitcoinerlab/coinselect';
 import { DUMMY_PKH_OUTPUT, getMasterNode } from './vaultDescriptors';
 import type { Signer } from './wallets';
 
 const computeOutput = moize((address: string, network: Network) => {
+  const { Output } = ensureDescriptorsFactoryInstance();
   return new Output({
     descriptor: `addr(${address})`,
     network
@@ -32,7 +28,9 @@ export const estimateSendRange = moize.shallow(
     address: string | null;
     feeRate: number | null;
   }) => {
-    const output = address ? computeOutput(address, network) : DUMMY_PKH_OUTPUT;
+    const output = address
+      ? computeOutput(address, network)
+      : DUMMY_PKH_OUTPUT();
     let max: number | null = null;
 
     const utxos = getOutputsWithValue(utxosData);
@@ -85,7 +83,9 @@ const sendCoinselect = moize.shallow(
   }) => {
     const utxos = getOutputsWithValue(utxosData);
     if (!feeRate || !amount || !address || !utxos.length) return null;
-    const output = address ? computeOutput(address, network) : DUMMY_PKH_OUTPUT;
+    const output = address
+      ? computeOutput(address, network)
+      : DUMMY_PKH_OUTPUT();
     const coinselected = coinselect({
       utxos,
       targets: [{ output, value: amount }],

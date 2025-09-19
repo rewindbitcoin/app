@@ -205,10 +205,22 @@ export default function NewWalletScreen() {
       }
 
       setCreatingWallet(true);
-      //This await Promise below is important so that the state is set above
-      //immediatelly without waiting for all the awaits below. For some reason
-      //this is needed
-      await new Promise(resolve => setTimeout(resolve, 0));
+      // We yield TWO frames before the heavy work (getMasterNode which
+      // will load discoveryFactory):
+      //
+      // - setting state setCreatingWallet(true) schedules React to render the spinner.
+      // - The 1st requestAnimationFrame callback runs BEFORE the next
+      //   frame's paint. If we start
+      //   heavy work right after that, we block the paint and the spinner never
+      //   appears.
+      // - The 2nd RAF gives the UI thread a full frame to actually COMMIT + PAINT
+      //   the spinner (and start its animation). We resume on the following frame.
+      //   At that point the spinner is spinning, even if we block the next frame.
+      //
+      // Note: a microtask (Promise.resolve/queueMicrotask) or setTimeout(0) is not
+      // enough; they both happen before paint. Two RAFs is the reliable paint-yield.
+      await new Promise(resolve => requestAnimationFrame(resolve));
+      await new Promise(resolve => requestAnimationFrame(resolve));
       if (!navigation.isFocused()) return; //after each await
 
       const wallet: Wallet = {

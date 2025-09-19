@@ -9,12 +9,12 @@ import React, {
 } from 'react';
 import Password from '../components/Password';
 import Transactions from '../components/Transactions';
+import RefreshIconAnimated from '../components/RefreshIconAnimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   View,
   Text,
   Pressable,
-  ActivityIndicator,
   Platform,
   NativeSyntheticEvent,
   NativeScrollEvent,
@@ -28,10 +28,11 @@ import {
   KeyboardAwareScrollView,
   useTheme,
   TabBar,
-  Button
+  Button,
+  ActivityIndicator
 } from '../../common/ui';
 import { useTranslation } from 'react-i18next';
-import { AntDesign, Ionicons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import {
   useNavigation,
   type RouteProp,
@@ -53,7 +54,7 @@ import { lighten } from 'polished';
 import { useFaucet } from '../hooks/useFaucet';
 import { useWallet } from '../hooks/useWallet';
 import { walletTitle } from '../lib/wallets';
-import { useSecureStorageInfo } from '~/common/contexts/SecureStorageInfoContext';
+import { useSecureStorageInfo } from '../../common/contexts/SecureStorageInfoContext';
 import { useNetStatus } from '../hooks/useNetStatus';
 
 const ErrorView = ({
@@ -135,9 +136,9 @@ const WalletHomeScreen = () => {
     );
 
   const { secureStorageInfo } = useSecureStorageInfo();
-  if (!secureStorageInfo)
-    throw new Error('Could not retrieve Secure Storage availability');
-  const { canUseSecureStorage } = secureStorageInfo;
+  //if (!secureStorageInfo)
+  //  throw new Error('Could not retrieve Secure Storage availability');
+  //const { canUseSecureStorage } = secureStorageInfo;
 
   useEffect(() =>
     navigation.addListener('beforeRemove', () => {
@@ -155,6 +156,7 @@ const WalletHomeScreen = () => {
       : walletTitle(wallet, wallets, t);
 
   const theme = useTheme();
+
   const navOptions = useMemo(
     () => ({
       // In ios the title is rendered with some delay,
@@ -175,26 +177,13 @@ const WalletHomeScreen = () => {
                 : 'opacity-100'
             }`}
           >
-            <AntDesign
-              key={
-                syncingOrFaucetPendingOrExplorerConnecting.toString()
-                //This is so that the reload1 icon resets to rotation zero
-                //after the animation is finished
-              }
-              name={
-                (!hasTouch || !userTriggeredRefresh) &&
+            <RefreshIconAnimated
+              hasTouch={hasTouch}
+              syncingOrFaucetPendingOrExplorerConnecting={
                 syncingOrFaucetPendingOrExplorerConnecting
-                  ? 'loading1'
-                  : 'reload1'
               }
+              userTriggeredRefresh={userTriggeredRefresh}
               size={17}
-              color={theme.colors.primary}
-              className={
-                (!hasTouch || !userTriggeredRefresh) &&
-                syncingOrFaucetPendingOrExplorerConnecting
-                  ? 'animate-spin'
-                  : 'animate-none'
-              }
             />
           </Pressable>
           <Pressable
@@ -281,50 +270,6 @@ const WalletHomeScreen = () => {
     if (!syncingBlockchain) setUserTriggeredRefresh(false);
   }, [syncingBlockchain]);
 
-  //const refreshColors = useMemo(
-  //  () => [theme.colors.primary],
-  //  [theme.colors.primary]
-  //);
-  //const refreshControl = useMemo(() => {
-  //  //isMounted prevents a rerendering error in iOS where some times
-  //  //the layout was not ready and strange flickers may occur. Note that
-  //  //the syncingBlockchain is true initially on many ocassions and the
-  //  //transition was not being shown
-  //  //
-  //  //In addition: isFocused prevents this error on iOS
-  //  //https://github.com/facebook/react-native/issues/32613
-  //  //https://www.reddit.com/r/reactnative/comments/x7ygwg/flatlist_refresh_indicator_freeze/
-  //  //only let pull-2-refresh when explorer is known to fail or is ok.
-  //  //Dont let pull to refresh while undefined (unknown status) since it's
-  //  //already initalizing and after initialize it will start the sync
-  //  //automatically already
-  //  return hasTouch && isMounted && explorerReachable !== undefined ? (
-  //    <RefreshControl
-  //      tintColor={lighten(0.25, theme.colors.primary)}
-  //      colors={refreshColors}
-  //      refreshing={
-  //        syncingOrFaucetPendingOrExplorerConnecting &&
-  //        isFocused &&
-  //        userTriggeredRefresh
-  //      }
-  //      onRefresh={onRefresh}
-  //    />
-  //  ) : undefined;
-  //}, [
-  //  explorerReachable,
-  //  isFocused,
-  //  isMounted,
-  //  refreshColors,
-  //  onRefresh,
-  //  syncingOrFaucetPendingOrExplorerConnecting,
-  //  userTriggeredRefresh,
-  //  theme.colors.primary
-  //]);
-  //Replaced for the one below since adding refreshControl dynamically
-  //re-renders completelly the children component when passed!!!
-  //Triggering useEffects twice on all children and creating expensive call
-  //in general
-
   /*
    * We **always** create a <RefreshControl> on the first render so that
    * KeyboardAwareScrollView keeps the same native UIScrollView instance.
@@ -361,6 +306,13 @@ const WalletHomeScreen = () => {
 
     return (
       <RefreshControl
+        /*
+         The zIndex is related TAGiusfdnisdunf
+          Note: Using z-10 using className did not work!
+          This is needed to that it's shown on iOS.
+          See: https://github.com/facebook/react-native/issues/51914#issuecomment-3275606712
+        */
+        style={{ zIndex: 2 }}
         /* iOS spinner tint – invisible until we’re ready */
         tintColor={
           canRefresh ? lighten(0.25, theme.colors.primary) : 'transparent'
@@ -490,13 +442,17 @@ const WalletHomeScreen = () => {
 
   const insets = useSafeAreaInsets();
 
-  return biometricsRequestDeclinedOnWalletCreation ? (
+  return !secureStorageInfo ? (
+    <View className="flex-1 justify-center">
+      <ActivityIndicator size={'large'} />
+    </View>
+  ) : biometricsRequestDeclinedOnWalletCreation ? (
     //True only for Android when clicking Cancel in the popup on wallet creation
     <ErrorView
       errorMessage={
         t('wallet.new.biometricsRequestDeclined') +
         '\n\n' +
-        (canUseSecureStorage
+        (secureStorageInfo.canUseSecureStorage
           ? t('wallet.new.biometricsHowDisable')
           : // The `!canUseSecureStorage` case will never occur, because secure
             // storage is always available on Android.
@@ -506,7 +462,7 @@ const WalletHomeScreen = () => {
       }
       goBack={goBack}
       action={
-        !canUseSecureStorage ? (
+        !secureStorageInfo.canUseSecureStorage ? (
           <Button
             mode="primary"
             onPress={Linking.openSettings}
@@ -552,7 +508,7 @@ const WalletHomeScreen = () => {
   ) : !wallet ? (
     /*TODO: prepare nicer ActivityIndicator*/
     <View className="flex-1 justify-center">
-      <ActivityIndicator size={'large'} color={theme.colors.primary} />
+      <ActivityIndicator size={'large'} />
     </View>
   ) : (
     <>
@@ -596,9 +552,17 @@ const WalletHomeScreen = () => {
           //See the last elemenbt in the ScrollView
           //Then, the -z-10 is set so that the refresh indicator appears above the
           //white position-absolute View (see TAGiusfdnisdunf). Othwewise
-          //the bounce area when pulling to refresh was looking gray or white but the loading indicator was not appearing
+          //the bounce area when pulling to refresh was looking gray or white but
+          //the loading indicator was not appearing
           //See TAGiusfdnisdunf below
           //
+          //Note: this negative z index is no longer necessary on iOS (since
+          //we already use Index: 2.
+          //We're using this new idea:
+          //https://github.com/facebook/react-native/issues/51914#issuecomment-3275606712
+          //(see the code in the MANDATORY Reproducer)
+          //Hovewer removing this line below has not been tested on web yet s
+          //we leave it as this
           `${Platform.OS === 'ios' || Platform.OS === 'web' ? '-z-10' : ''}`
         }
       >
@@ -640,7 +604,7 @@ const WalletHomeScreen = () => {
               marginBottom: walletButtonsHeight + insets.bottom + 8 * 4
             }}
           >
-            {vaults && vaultsStatuses && (
+            {vaults && vaultsStatuses ? (
               <Vaults
                 syncWatchtowerRegistration={syncWatchtowerRegistration}
                 watchtowerAPI={watchtowerAPI}
@@ -658,6 +622,11 @@ const WalletHomeScreen = () => {
                 pushToken={pushToken}
                 setPushToken={setPushToken}
               />
+            ) : (
+              //FIXME: Here center a bit more and use the natove one or requestAnimatedFrame x 2
+              <View className="flex-col items-center self-center my-4 max-w-80">
+                <ActivityIndicator size="large" />
+              </View>
             )}
           </View>
         </View>

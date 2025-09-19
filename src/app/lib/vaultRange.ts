@@ -268,7 +268,7 @@ const estimateMinRecoverableVaultAmount = moize.shallow(
     // compute assuming that a new utxo (PKH) will send extra funds
     if (!maxVaultAmount || !isRecoverable(maxVaultAmount.transactionAmount)) {
       const vaultTxSize = vsize(
-        [...utxosData.map(utxoData => utxoData.output), DUMMY_PKH_OUTPUT],
+        [...utxosData.map(utxoData => utxoData.output), DUMMY_PKH_OUTPUT()],
         [vaultOutput, changeOutput, ...(serviceFeeRate ? [serviceOutput] : [])]
       );
       const totalFees =

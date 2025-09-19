@@ -1,7 +1,6 @@
 {
   "expo": {
     "newArchEnabled": true,
-
     "name": "RewindBitcoin",
     "jsEngine": "hermes",
     "slug": "RewindBitcoin",
@@ -9,7 +8,9 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "splash": {
         "image": "./assets/splash.png",
@@ -25,7 +26,8 @@
         "CFBundleAllowMixedLocalizations": true
       },
       "supportsTablet": true,
-      "bundleIdentifier": "com.rewindbitcoin.app"
+      "bundleIdentifier": "com.rewindbitcoin.app",
+      "appleTeamId": "YLPTXNT537"
     },
     "android": {
       "README_allowBackup": "In android, SecureStore, does not persist data when uninstalling the app. However mmkv data can persist if Google Drive App Data Backups is enabled. So it's better to disable Google Droive App Data Backups altogether since the reinstalled app will report it exists a wallet and then cannot access the encrypted mnemonic - iOS backups both data and encrypted data, which is just fine",
@@ -63,7 +65,10 @@
       "en": "./src/i18n-locales/app.en.json"
     },
     "plugins": [
-      ["react-native-libsodium", {}],
+      [
+        "react-native-libsodium",
+        {}
+      ],
       "expo-font",
       "expo-local-authentication",
       "expo-secure-store",

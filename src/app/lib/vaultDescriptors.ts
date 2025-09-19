@@ -9,11 +9,9 @@ import {
   keyExpressionBIP32
 } from '@bitcoinerlab/descriptors';
 import { compilePolicy } from '@bitcoinerlab/miniscript';
-import * as secp256k1 from '@bitcoinerlab/secp256k1';
-import { DescriptorsFactory } from '@bitcoinerlab/descriptors';
-const { Output, BIP32, expand } = DescriptorsFactory(secp256k1);
 import { Accounts, Signer, Signers, SOFTWARE } from './wallets';
 import type { Account } from '@bitcoinerlab/discovery';
+import { ensureDescriptorsFactoryInstance } from './descriptorsFactory';
 
 export const DUMMY_PUBKEY =
   '0330d54fd0dd420a6e5f8d3624f5f3482cae350f79d5f0753bf5beef9c2d91af3c';
@@ -59,25 +57,26 @@ export const DUMMY_PKH_ADDRESS = memoize((network: Network) => {
   else throw new Error('Network not supported');
 });
 
-export const DUMMY_VAULT_OUTPUT = memoize(
-  (network: Network) =>
-    new Output({
-      descriptor: createVaultDescriptor(DUMMY_PUBKEY),
-      network
-    })
-);
-export const DUMMY_SERVICE_OUTPUT = memoize(
-  (network: Network) =>
-    new Output({
-      descriptor: createServiceDescriptor(DUMMY_SERVICE_ADDRESS(network)),
-      network
-    })
-);
+export const DUMMY_VAULT_OUTPUT = memoize((network: Network) => {
+  const { Output } = ensureDescriptorsFactoryInstance();
+  return new Output({
+    descriptor: createVaultDescriptor(DUMMY_PUBKEY),
+    network
+  });
+});
+export const DUMMY_SERVICE_OUTPUT = memoize((network: Network) => {
+  const { Output } = ensureDescriptorsFactoryInstance();
+  return new Output({
+    descriptor: createServiceDescriptor(DUMMY_SERVICE_ADDRESS(network)),
+    network
+  });
+});
 export const DUMMY_CHANGE_DESCRIPTOR = (account: string) =>
   account.replace(/\/0\/\*/g, '/1/0');
 
 export const DUMMY_CHANGE_OUTPUT = memoize(
   (account: string, network: Network) => {
+    const { Output } = ensureDescriptorsFactoryInstance();
     return new Output({
       descriptor: account.replace(/\/0\/\*/g, '/1/*'),
       index: 0,
@@ -90,6 +89,7 @@ export const computeChangeOutput = memoize(
     changeDescriptorWithIndex: { descriptor: string; index: number },
     network: Network
   ) => {
+    const { Output } = ensureDescriptorsFactoryInstance();
     return new Output({
       ...changeDescriptorWithIndex,
       network
@@ -101,12 +101,16 @@ export const computeReceiveOutput = memoize(
     receiveDescriptorWithIndex: { descriptor: string; index: number },
     network: Network
   ) => {
+    const { Output } = ensureDescriptorsFactoryInstance();
     return new Output({ ...receiveDescriptorWithIndex, network });
   }
 );
 
-export const DUMMY_PKH_OUTPUT = new Output({
-  descriptor: `pkh(${DUMMY_PUBKEY})`
+export const DUMMY_PKH_OUTPUT = memoize(() => {
+  const { Output } = ensureDescriptorsFactoryInstance();
+  return new Output({
+    descriptor: `pkh(${DUMMY_PUBKEY})`
+  });
 });
 
 export const createVaultDescriptor = (pubKey: string) => `wpkh(${pubKey})`;
@@ -114,11 +118,13 @@ export const createVaultDescriptor = (pubKey: string) => `wpkh(${pubKey})`;
 export const createServiceDescriptor = (address: string) => `addr(${address})`;
 
 export const createServiceOutput = moize(
-  (serviceAddress: string, network: Network) =>
-    new Output({
+  (serviceAddress: string, network: Network) => {
+    const { Output } = ensureDescriptorsFactoryInstance();
+    return new Output({
       descriptor: createServiceDescriptor(serviceAddress),
       network
-    })
+    });
+  }
 );
 
 export const createColdDescriptor = (address: string) => `addr(${address})`;
@@ -126,6 +132,7 @@ export const createColdDescriptor = (address: string) => `addr(${address})`;
 /** Async because in the future i may have some signing server that will
  * guarantee randomness...*/
 export const createColdAddress = async (mnemonic: string, network: Network) => {
+  const { Output } = ensureDescriptorsFactoryInstance();
   const masterNode = getMasterNode(mnemonic, network);
   const descriptor = scriptExpressions.wpkhBIP32({
     masterNode,
@@ -137,9 +144,10 @@ export const createColdAddress = async (mnemonic: string, network: Network) => {
   return new Output({ descriptor, network }).getAddress();
 };
 
-export const getMasterNode = moize((mnemonic: string, network: Network) =>
-  BIP32.fromSeed(mnemonicToSeedSync(mnemonic), network)
-);
+export const getMasterNode = moize((mnemonic: string, network: Network) => {
+  const { BIP32 } = ensureDescriptorsFactoryInstance();
+  return BIP32.fromSeed(mnemonicToSeedSync(mnemonic), network);
+});
 
 /** Async because some signers will be async */
 const createDefaultReceiveDescriptor = async ({
@@ -281,6 +289,7 @@ export const getMainAccount = moize(
       accountNumber: number;
     }[] = [];
 
+    const { expand } = ensureDescriptorsFactoryInstance();
     Object.keys(accounts).forEach(descriptor => {
       const expansion = expand({ descriptor, network });
       const expandedExpression = expansion.expandedExpression;

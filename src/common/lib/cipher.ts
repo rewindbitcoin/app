@@ -2,14 +2,18 @@
 // @ts-expect-error @env is defined in bable.config.js
 import { CIPHER_ADDITIONAL_DATA } from '@env';
 
-import sodium from 'react-native-libsodium';
 import { crypto } from 'bitcoinjs-lib';
 
 //This better give it an async signature in case it needs to be async in the future
 export const getPasswordDerivedCipherKey = async (password: string) =>
   crypto.sha256(Buffer.from(password));
 
-export const getManagedChacha = (key: Uint8Array) => {
+export const getManagedChacha = async (key: Uint8Array) => {
+  //defer the load since this can really slow down initial loads in slow old
+  //android devices.
+  //const sodium = await import('react-native-libsodium');
+  const sodium = require('react-native-libsodium');
+
   return {
     encrypt: (message: string | Uint8Array) => {
       const nonce = sodium.randombytes_buf(

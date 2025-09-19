@@ -19,10 +19,6 @@ However, in this plugin, this setting was being applied to both the release and 
 
 This patch ensures that the <network-security-config> directive is applied only in release mode. In debug mode, Android is already less restrictive due to android:usesCleartextTraffic, so it’s better not to interfere with that configuration. We patched this package to prevent the directive from affecting debug builds.
 
-react-native-modal:
-https://github.com/react-native-modal/react-native-modal/issues/822
-https://github.com/react-native-modal/react-native-modal/pull/784
-
 ---
 
 ## `react-native-fast-encoder` Patch
@@ -48,3 +44,20 @@ npx expo prebuild --clean && npm run android
 ```
 
 builds successfully without errors in future versions.
+
+---
+
+## `react-native` Patch
+Needed for iOS: The refresh control was not showing the spinner:
+https://github.com/facebook/react-native/issues/51914#issuecomment-3200609030
+
+In fact i picked this file (a commit corresponding to a release candidate for 0.82):
+https://github.com/facebook/react-native/blob/40c60adacf17f3d5fe54cfcbaf70138de1fe0537/packages/react-native/React/Fabric/Mounting/ComponentViews/ScrollView/RCTPullToRefreshViewComponentView.mm
+And adapted the path of these imports:
+#import <react/renderer/components/rncore/ComponentDescriptors.h>
+#import <react/renderer/components/rncore/EventEmitters.h>
+#import <react/renderer/components/rncore/Props.h>
+#import <react/renderer/components/rncore/RCTComponentViewHelpers.h>
+
+See explanation here:
+https://github.com/facebook/react-native/issues/51914#issuecomment-3275606712

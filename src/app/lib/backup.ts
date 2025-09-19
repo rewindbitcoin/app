@@ -216,7 +216,7 @@ const fetchP2PVault = async ({
     signer,
     network
   });
-  const chacha = getManagedChacha(cipherKey);
+  const chacha = await getManagedChacha(cipherKey);
 
   const maxAttempts = 10;
 
@@ -301,7 +301,7 @@ export const p2pBackupVault = async ({
   });
   if (!compressedVault) return false;
 
-  const chacha = getManagedChacha(cipherKey);
+  const chacha = await getManagedChacha(cipherKey);
   const cipheredCompressedVault = chacha.encrypt(compressedVault);
 
   const vaultPushUrl = `${cBVaultsWriterAPI}/${vaultId}`;

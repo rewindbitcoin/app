@@ -1,8 +1,17 @@
+import * as SplashScreen from 'expo-splash-screen';
+SplashScreen.preventAutoHideAsync();
+
 import '../global.css';
 import '../init';
 import ErrorBoundary from './ErrorBoundary';
-import React, { useCallback, useEffect, useState, useMemo } from 'react';
-import { Platform } from 'react-native';
+import React, {
+  useCallback,
+  useEffect,
+  useState,
+  useMemo,
+  Suspense
+} from 'react';
+import { Platform, View } from 'react-native';
 import {
   SecureStorageInfoProvider,
   useSecureStorageInfo
@@ -25,20 +34,23 @@ import {
 } from './app/screens';
 import { NavigationContainer, useNavigation } from '@react-navigation/native';
 import { ToastProvider } from './common/components/Toast';
-import WalletsScreen from './app/screens/WalletsScreen';
-import NewWalletScreen from './app/screens/NewWalletScreen';
-import WalletHomeScreen from './app/screens/WalletHomeScreen';
-import SetUpVaultScreen from './app/screens/SetUpVaultScreen';
-import SendScreen from './app/screens/SendScreen';
-import ReceiveScreen from './app/screens/ReceiveScreen';
-import CreateVaultScreen from './app/screens/CreateVaultScreen';
 import { WalletProvider } from './app/contexts/WalletContext';
-import Settings from './app/screens/SettingsScreen';
+//Since wallets screen is the inital screen to be loaded, dont use
+//getComponent for this one (deferred)
+import WalletsScreen from './app/screens/WalletsScreen';
+//import NewWalletScreen from './app/screens/NewWalletScreen';
+//import WalletHomeScreen from './app/screens/WalletHomeScreen';
+//import SetUpVaultScreen from './app/screens/SetUpVaultScreen';
+//import SendScreen from './app/screens/SendScreen';
+//import ReceiveScreen from './app/screens/ReceiveScreen';
+//import CreateVaultScreen from './app/screens/CreateVaultScreen';
+//import Settings from './app/screens/SettingsScreen';
+
 import { GlobalStorageProvider } from './common/contexts/GlobalStorageContext';
 import NetStatusProvider from './app/contexts/NetStatusContext';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import type { VaultSettings } from './app/lib/vaults';
-import { useTheme, Button } from './common/ui';
+import { useTheme, Button, ActivityIndicator } from './common/ui';
 
 import { I18nextProvider, useTranslation } from 'react-i18next';
 import { i18n } from './i18n-locales/init';
@@ -46,6 +58,11 @@ import { i18nLanguageInit, useLocalization } from './app/hooks/useLocalization';
 i18nLanguageInit();
 import { AuthenticationType } from 'expo-local-authentication';
 import { Pressable } from 'react-native';
+//SetUpVaultScreen isfquite slow to load
+const LazySetUpVaultScreen = React.lazy(
+  () => import('./app/screens/SetUpVaultScreen')
+);
+
 //Init for 1st render. Then, on settings load from context & apply correct one
 
 const RootStack = createRootStack();
@@ -115,32 +132,47 @@ const Main = () => {
     return () => {};
   }, []);
 
+  //react-native-libsodium is loaded in a deferred way in cipher.ts not to
+  //slow down initial boot on old Android devices. Anyway when the device
+  //is iddle we can already start the boot process.
+  //Same for the initial "DescriptorsFactory" call.
+  //useEffect(() => {
+  //  InteractionManager.runAfterInteractions(async () => {
+  //    await import('react-native-libsodium');
+  //    preloadDescriptorsFactoryInstance();
+  //    import('@bitcoinerlab/discovery');
+  //  });
+  //}, []);
+
   const headerRightContainerStyle = { marginRight: 16 };
+
+  const LazySetUpVaultScreenWithOnComplete = () => {
+    return (
+      <Suspense
+        fallback={
+          <View className="flex-1 justify-center items-center">
+            <ActivityIndicator size="large" />
+          </View>
+        }
+      >
+        <LazySetUpVaultScreen
+          onVaultSetUpComplete={(vaultSettings: VaultSettings) => {
+            setVaultSettings(vaultSettings);
+            navigation?.navigate(CREATE_VAULT);
+          }}
+        />
+      </Suspense>
+    );
+  };
 
   //TODO: These screens below re-render too oftern, i'm passing new objects {{}}
   //to all of them, the useCallback does notthing if also passing {{}}
 
-  const SetUpVaultScreenWithOnComplete = () => {
-    //useEffect(() => {
-    //  // This function will be called when the component unmounts
-    //  return () => {
-    //    console.log('SetUpVaultScreenWithOnComplete is being unmounted');
-    //  };
-    //}, []);
-    return (
-      <SetUpVaultScreen
-        onVaultSetUpComplete={(vaultSettings: VaultSettings) => {
-          setVaultSettings(vaultSettings);
-          if (navigation) navigation.navigate(CREATE_VAULT);
-          else throw new Error('navigation not set');
-        }}
-      />
-    );
-  };
-  const CreateVaultScreenWithSettings = useCallback(
-    () => <CreateVaultScreen vaultSettings={vaultSettings} />,
-    [vaultSettings]
-  );
+  const CreateVaultScreenWithSettings = useCallback(() => {
+    const CreateVaultScreen =
+      require('./app/screens/CreateVaultScreen.tsx').default; // Lazy
+    return <CreateVaultScreen vaultSettings={vaultSettings} />;
+  }, [vaultSettings]);
   const screenOptions = useMemo<UniversalNavigationOptions>(
     () =>
       isNativeStack
@@ -153,6 +185,8 @@ const Main = () => {
           },
     []
   );
+  const splashHidden = React.useRef(false);
+
   return (
     <WalletProvider>
       <RootStack.Navigator screenOptions={screenOptions}>
@@ -163,7 +197,35 @@ const Main = () => {
             headerRightContainerStyle,
             headerRight: settingsButton
           }}
+          //getComponent={() => require('./app/screens/WalletsScreen').default}
           component={WalletsScreen}
+          listeners={{
+            focus: () => {
+              if (!splashHidden.current) {
+                splashHidden.current = true;
+                requestAnimationFrame(() => {
+                  SplashScreen.hideAsync();
+
+                  //While the idea of pre-warmup originally made sense, it
+                  //prevented smooth clicks from the user when the app was load
+                  //It's better to load them later when needed...
+                  //
+                  //requestAnimationFrame(() => {
+                  //  InteractionManager.runAfterInteractions(() => {
+                  //    //react-native-libsodium is loaded in a deferred way in
+                  //    //cipher.ts not to slow down initial boot on old Android
+                  //    //devices. Anyway when the device
+                  //    //is iddle we can already start the boot process.
+                  //    //Same for the initial "DescriptorsFactory" call.
+                  //    import('react-native-libsodium');
+                  //    preloadDescriptorsFactoryInstance();
+                  //    import('@bitcoinerlab/discovery');
+                  //  });
+                  //});
+                });
+              }
+            }
+          }}
         />
 
         <RootStack.Screen
@@ -174,7 +236,7 @@ const Main = () => {
             // t('app.walletTitle') from here to avoid unpleasant quick text rewrite
             // t('app.walletTitle')
           }}
-          component={WalletHomeScreen}
+          getComponent={() => require('./app/screens/WalletHomeScreen').default}
         />
 
         <RootStack.Screen
@@ -186,7 +248,7 @@ const Main = () => {
 
             //TODO: For iOS way cooler but work to be done yet
             //https://github.com/react-navigation/react-navigation/issues/11550
-            //https://github.com/software-mansion/react-native-screens/discussions/1229#discussioncomment-1927333
+            //https://github.com/software-mansion/react-native-screens/discussions/1229#discusioncomment-1927333
             //headerTitle: t('vaultSetup.title'),
             //headerLargeTitle: true,
             //headerTransparent: Platform.OS === 'ios',
@@ -195,7 +257,7 @@ const Main = () => {
             //  backgroundColor: PlatformColor('systemGroupedBackgroundColor') // Color of your background
             //}
           }}
-          component={SetUpVaultScreenWithOnComplete}
+          component={React.memo(LazySetUpVaultScreenWithOnComplete)}
         />
 
         <RootStack.Screen
@@ -203,7 +265,7 @@ const Main = () => {
           options={{
             title: t('send.title')
           }}
-          component={SendScreen}
+          getComponent={() => require('./app/screens/SendScreen').default}
         />
 
         <RootStack.Screen
@@ -211,12 +273,12 @@ const Main = () => {
           options={{
             title: t('receive.title')
           }}
-          component={ReceiveScreen}
+          getComponent={() => require('./app/screens/ReceiveScreen').default}
         />
 
         <RootStack.Screen
           name={SETTINGS}
-          component={Settings}
+          getComponent={() => require('./app/screens/SettingsScreen').default}
           options={{ title: t('app.settingsTitle') }}
         />
 
@@ -249,7 +311,7 @@ const Main = () => {
             // is pending to confirm if the issue persists there as well.
             presentation: iOsWithPhysicalButton === true ? 'card' : 'modal'
           }}
-          component={NewWalletScreen}
+          getComponent={() => require('./app/screens/NewWalletScreen').default}
         />
 
         <RootStack.Screen

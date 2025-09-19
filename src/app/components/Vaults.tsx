@@ -50,6 +50,7 @@ import {
   getExpoPushToken,
   sendAckToWatchtower
 } from '../lib/watchtower';
+import SkeletonPulse from './SkeletonPulse';
 
 const LOADING_TEXT = '     ';
 
@@ -113,24 +114,20 @@ const Amount = ({
         {title}
       </Text>
       <View className="flex-row items-center justify-start">
-        <Text
-          className={
-            `text-black native:text-xl web:text-lg font-bold ${satsBalance === undefined ? 'animate-pulse bg-slate-200 rounded overflow-hidden' : 'animate-none bg-transparent opacity-100'}`
-            //after the animation it is important to set animate-none from the nativewind docs so that components are not re-rendered as new.
-            //Also opacity must be reset to initial value
-          }
-        >
-          {satsBalance === undefined
-            ? LOADING_TEXT
-            : formatBalance({
-                satsBalance,
-                btcFiat,
-                currency,
-                locale,
-                mode,
-                appendSubunit: true
-              })}
-        </Text>
+        <SkeletonPulse active={satsBalance === undefined}>
+          <Text className={`text-black native:text-xl web:text-lg font-bold`}>
+            {satsBalance === undefined
+              ? LOADING_TEXT
+              : formatBalance({
+                  satsBalance,
+                  btcFiat,
+                  currency,
+                  locale,
+                  mode,
+                  appendSubunit: true
+                })}
+          </Text>
+        </SkeletonPulse>
         {isConfirming ? (
           <Text className="text-slate-500 native:text-sm web:text-xs">
             {`  •  ${t('wallet.vault.confirming')}…`}
@@ -647,19 +644,17 @@ const RawVault = ({
         <Text className="font-semibold text-slate-800 web:text-base native:text-lg pl-2 flex-shrink-0">
           {t('wallet.vault.vaultTitle', { vaultNumber })}
         </Text>
-        <Text
-          className={
-            `text-slate-500 flex-1 text-right pl-4 native:text-sm web:text-xs ${vaultStatus === undefined ? 'animate-pulse bg-slate-200 rounded overflow-hidden' : 'animate-none bg-transparent opacity-100'}`
-            //after the animation it is important to set animate-none from the nativewind docs so that components are not re-rendered as new.
-            //Also opacity must be reset to initial value
-          }
-        >
-          {vaultInitDate
-            ? t('wallet.vault.vaultDate', {
-                date: vaultInitDate
-              })
-            : LOADING_TEXT}
-        </Text>
+        <SkeletonPulse active={!vaultInitDate}>
+          <Text
+            className={`text-slate-500 flex-1 text-right pl-4 native:text-sm web:text-xs`}
+          >
+            {vaultInitDate
+              ? t('wallet.vault.vaultDate', {
+                  date: vaultInitDate
+                })
+              : LOADING_TEXT}
+          </Text>
+        </SkeletonPulse>
       </View>
       <View>
         <View className="flex-row justify-between items-center">

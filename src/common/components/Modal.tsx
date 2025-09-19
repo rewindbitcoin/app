@@ -77,7 +77,7 @@ const RawModal: React.FC<ModalProps> = ({
   const [childrenHeight, setChildrenHeight] = useState<number>(200);
   const headerHeight = headerMini ? 60 : 150;
 
-  const onCloseTriggered = useRef<boolean>(false);
+  const onCloseTriggered = useSharedValue<boolean>(false);
 
   const Icon =
     icon && icon.family && Icons[icon.family] ? Icons[icon.family] : null;
@@ -96,13 +96,14 @@ const RawModal: React.FC<ModalProps> = ({
       onEnd: _ => {
         if (translateY.value > DELTA && onClose) {
           runOnJS(onClose)();
+          onCloseTriggered.value = true;
           //translateY.value = withSpring(-200, { duration: ANIMATION_TIME });
         } else {
           translateY.value = withSpring(0);
         }
       },
       onCancel: _ => {
-        if (!onCloseTriggered.current) translateY.value = withSpring(0);
+        if (!onCloseTriggered.value) translateY.value = withSpring(0);
       }
     })
   });
@@ -117,14 +118,14 @@ const RawModal: React.FC<ModalProps> = ({
     };
   });
   const handleClose = () => {
-    onCloseTriggered.current = true;
+    onCloseTriggered.value = true;
     if (onClose) onClose();
   };
   const isMountedRef = useRef<boolean>(false);
   useEffect(() => {
     isMountedRef.current = true;
     if (isVisible) {
-      onCloseTriggered.current = false;
+      onCloseTriggered.value = false;
       translateY.value = 0;
     } else {
       setTimeout(() => {
@@ -135,7 +136,7 @@ const RawModal: React.FC<ModalProps> = ({
     return () => {
       isMountedRef.current = false;
     };
-  }, [isVisible, translateY]);
+  }, [isVisible, translateY, onCloseTriggered]);
 
   const onParentLayout = useCallback(
     (event: LayoutChangeEvent) => {
@@ -200,7 +201,12 @@ const RawModal: React.FC<ModalProps> = ({
       animationInTiming={ANIMATION_TIME}
       animationOutTiming={ANIMATION_TIME}
       backdropTransitionInTiming={ANIMATION_TIME}
-      backdropTransitionOutTiming={ANIMATION_TIME}
+      backdropTransitionOutTiming={
+        //Set it to 1 if flickering appears: https://github.com/react-native-modal/react-native-modal/issues/268#issuecomment-2798406717
+        //Note that the flicker may still show on on debug mode in real devices.
+        //It's barely seen on release (or preview) mode on real devies
+        1
+      }
       backdropOpacity={OPACITY}
       hideModalContentWhileAnimating
       useNativeDriver={

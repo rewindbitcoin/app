@@ -332,7 +332,7 @@ const WalletsScreen = () => {
           >
             <Path d="M12 9v6m3-3H9m12 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
           </Svg>
-          <Text className="text-center text-white font-semibold">
+          <Text className="text-center text-white font-semibold native:text-base web:text-xs">
             {t('wallets.addNew')}
           </Text>
         </Pressable>

@@ -138,73 +138,71 @@ export default function Receive() {
 
   const canShare = Platform.OS === 'ios' || Platform.OS === 'android';
 
-  return (
+  return receiveAddress ? (
     <KeyboardAwareScrollView
       contentInsetAdjustmentBehavior="automatic"
       keyboardShouldPersistTaps="handled"
       contentContainerClassName="items-center pt-5 px-5"
     >
-      {receiveAddress ? (
-        <View
-          className="w-full max-w-screen-sm mx-4 gap-8"
-          style={containerStyle}
-        >
-          <Text className="text-base">{t('receive.intro')}</Text>
-          <View className="items-center">
-            <QRCode value={`bitcoin:${receiveAddress}`} size={200} />
-          </View>
-          <View className="items-center">
-            {canShare ? (
-              <View className="gap-2">
-                <Text className="self-center" onPress={onClipboard}>
-                  {receiveAddress}
-                </Text>
-                <View className="mt-4 gap-x-6 gap-y-4 8 flex-row flex-wrap justify-center self-center">
-                  <Button
-                    mode="text"
-                    onPress={onClipboard}
-                    iconRight={clipboardIcon}
-                  >
-                    {t('receive.copyAddress')}
-                  </Button>
-                  <Button mode="text" onPress={onShare} iconRight={shareIcon}>
-                    {t('receive.shareAddress')}
-                  </Button>
-                </View>
-              </View>
-            ) : (
-              <Button
-                mode="text"
-                textClassName="break-words break-all"
-                iconRight={clipboardIcon}
-                onPress={onClipboard}
-              >
+      <View
+        className="w-full max-w-screen-sm mx-4 gap-8"
+        style={containerStyle}
+      >
+        <Text className="text-base">{t('receive.intro')}</Text>
+        <View className="items-center">
+          <QRCode value={`bitcoin:${receiveAddress}`} size={200} />
+        </View>
+        <View className="items-center">
+          {canShare ? (
+            <View className="gap-2">
+              <Text className="self-center" onPress={onClipboard}>
                 {receiveAddress}
-              </Button>
-            )}
-          </View>
-          <Button onPress={goBack}>{t('receive.doneButton')}</Button>
-          {requestTokensURL && networkName && (
-            <View className="mt-4 p-4 bg-gray-50 android:elevation ios:shadow web:shadow rounded-lg items-center">
-              <View className="flex-row flex-wrap items-center mb-2 gap-2">
-                <Text className="text-base text-center">
-                  {t('receive.faucetIntro')}
-                </Text>
-                <Button mode="text" onPress={onFaucet}>
-                  {t('receive.requestTokens')}
+              </Text>
+              <View className="mt-4 gap-x-6 gap-y-4 8 flex-row flex-wrap justify-center self-center">
+                <Button
+                  mode="text"
+                  onPress={onClipboard}
+                  iconRight={clipboardIcon}
+                >
+                  {t('receive.copyAddress')}
+                </Button>
+                <Button mode="text" onPress={onShare} iconRight={shareIcon}>
+                  {t('receive.shareAddress')}
                 </Button>
               </View>
-              <Text className="text-sm text-slate-600 mt-2">
-                {t('receive.faucetNote', { networkName })}
-              </Text>
             </View>
+          ) : (
+            <Button
+              mode="text"
+              textClassName="break-words break-all"
+              iconRight={clipboardIcon}
+              onPress={onClipboard}
+            >
+              {receiveAddress}
+            </Button>
           )}
         </View>
-      ) : (
-        <View className="flex-1 justify-center">
-          <ActivityIndicator size={'large'} />
-        </View>
-      )}
+        <Button onPress={goBack}>{t('receive.doneButton')}</Button>
+        {requestTokensURL && networkName && (
+          <View className="mt-4 p-4 bg-gray-50 android:elevation ios:shadow web:shadow rounded-lg items-center">
+            <View className="flex-row flex-wrap items-center mb-2 gap-2">
+              <Text className="text-base text-center">
+                {t('receive.faucetIntro')}
+              </Text>
+              <Button mode="text" onPress={onFaucet}>
+                {t('receive.requestTokens')}
+              </Button>
+            </View>
+            <Text className="text-sm text-slate-600 mt-2">
+              {t('receive.faucetNote', { networkName })}
+            </Text>
+          </View>
+        )}
+      </View>
     </KeyboardAwareScrollView>
+  ) : (
+    <View className="flex-1 justify-center items-center">
+      <ActivityIndicator size={'large'} />
+    </View>
   );
 }

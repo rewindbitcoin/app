@@ -1,7 +1,7 @@
 import type { NetworkId } from './network';
 import type { Engine as StorageEngine } from '../../common/lib/storage';
 import type { Account } from '@bitcoinerlab/discovery';
-import { TFunction } from 'i18next';
+import { type TFunction } from 'i18next';
 /*
 TODO:
 To generate the random well-known key for thunder den, we used:

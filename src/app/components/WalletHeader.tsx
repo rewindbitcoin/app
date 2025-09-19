@@ -21,6 +21,9 @@ import type { NetworkId } from '../lib/network';
 import { useNetStatus } from '../hooks/useNetStatus';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useLocalization } from '../hooks/useLocalization';
+import SkeletonPulse from './SkeletonPulse';
+
+const LOADING_TEXT = '     ';
 
 const Balance = ({
   type,
@@ -46,20 +49,15 @@ const Balance = ({
             <FreezeIcon />
           </Svg>
         )}
-        <Text
-          key={
-            formattedBalance === undefined
-              ? 'loading'
-              : 'loaded' /*trick to reset the component to fix nativewind leaving some classes not correctly reset after the animation*/
-          }
-          className={
-            `font-bold text-3xl pr-0 mr-2 ${formattedBalance === undefined ? 'animate-pulse bg-slate-200 rounded overflow-hidden' : 'animate-none bg-transparent opacity-100'}`
-            //after the animation it is important to set animate-none from the nativewind docs so that components are not re-rendered as new.
-            //Also opacity must be reset to initial value
-          }
+        <SkeletonPulse
+          active={formattedBalance === undefined}
+          className="mr-2"
+          style={{ marginRight: 8 }}
         >
-          {formattedBalance === undefined ? '     ' : formattedBalance}
-        </Text>
+          <Text className="font-bold text-3xl pr-0">
+            {formattedBalance === undefined ? LOADING_TEXT : formattedBalance}
+          </Text>
+        </SkeletonPulse>
         <IconButton
           size={16}
           color={'black'}

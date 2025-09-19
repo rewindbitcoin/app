@@ -1,18 +1,13 @@
 // TODO: very imporant to only allow Vaulting funds with 1 confirmatin at least (make this a setting)
 const PUSH_TIMEOUT = 30 * 60; // 30 minutes
 
-import { Network, Psbt, Transaction, crypto } from 'bitcoinjs-lib';
+import { type Network, type Transaction, Psbt, crypto } from 'bitcoinjs-lib';
 import memoize from 'lodash.memoize';
 import type { Accounts, Signer } from './wallets';
 import moize from 'moize';
 
-import * as secp256k1 from '@bitcoinerlab/secp256k1';
-import {
-  signers,
-  DescriptorsFactory,
-  OutputInstance
-} from '@bitcoinerlab/descriptors';
-const { Output, ECPair, parseKeyExpression } = DescriptorsFactory(secp256k1);
+import { type OutputInstance, signers } from '@bitcoinerlab/descriptors';
+import { ensureDescriptorsFactoryInstance } from './descriptorsFactory';
 import {
   getMasterNode,
   createVaultDescriptor,
@@ -265,6 +260,7 @@ export const getUtxosData = memoize(
     network: Network,
     discovery: DiscoveryInstance
   ): UtxosData => {
+    const { Output, parseKeyExpression } = ensureDescriptorsFactoryInstance();
     return utxos.map(utxo => {
       const [txId, strVout] = utxo.split(':');
       const vout = Number(strVout);
@@ -660,6 +656,7 @@ export async function createVault({
   | 'UNKNOWN_ERROR'
 > {
   try {
+    const { parseKeyExpression } = ensureDescriptorsFactoryInstance();
     //const psbts = [];
     //const signedPsbts = [];
     if (feeRateCeiling > maxFeeRateCeiling) return 'UNKNOWN_ERROR';
@@ -668,6 +665,7 @@ export async function createVault({
 
     const network = networkMapping[networkId];
 
+    const { Output, ECPair } = ensureDescriptorsFactoryInstance();
     const changeOutput = new Output({ ...changeDescriptorWithIndex, network });
     const vaultPair = ECPair.makeRandom();
     const vaultOutput = new Output({
@@ -945,6 +943,7 @@ export async function createVault({
  * For estimation purposes only, using dummy keys
  */
 export const estimateTriggerTxSize = memoize((lockBlocks: number) => {
+  const { Output } = ensureDescriptorsFactoryInstance();
   // Assumes bitcoin network (not important for txSizes anyway)
   return vsize(
     [new Output({ descriptor: createVaultDescriptor(DUMMY_PUBKEY) })],
@@ -960,8 +959,9 @@ export const estimateTriggerTxSize = memoize((lockBlocks: number) => {
   );
 });
 export const estimatePanicTxSize = moize(
-  (lockBlocks: number, coldAddress: string, network: Network) =>
-    vsize(
+  (lockBlocks: number, coldAddress: string, network: Network) => {
+    const { Output } = ensureDescriptorsFactoryInstance();
+    return vsize(
       [
         new Output({
           descriptor: createTriggerDescriptor({
@@ -974,12 +974,14 @@ export const estimatePanicTxSize = moize(
         })
       ],
       [new Output({ descriptor: createColdDescriptor(coldAddress), network })]
-    ),
+    );
+  },
   { maxSize: 100 }
 );
 
 export function validateAddress(addressValue: string, network: Network) {
   try {
+    const { Output } = ensureDescriptorsFactoryInstance();
     new Output({ descriptor: `addr(${addressValue})`, network });
     return true;
   } catch (e) {

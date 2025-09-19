@@ -14,7 +14,11 @@ import {
 } from '../../common/ui';
 import { snapWithinRange } from '../../common/lib/numbers';
 import { formatFeeRate } from '../lib/format';
-import { computeMaxAllowedFeeRate, FeeEstimates } from '../lib/fees';
+import {
+  computeMaxAllowedFeeRate,
+  FeeEstimates,
+  MIN_FEE_RATE
+} from '../lib/fees';
 import { useTranslation } from 'react-i18next';
 import { useSettings } from '../hooks/useSettings';
 import { useLocalization } from '../hooks/useLocalization';
@@ -29,7 +33,7 @@ function FeeInput({
   feeEstimates,
   btcFiat,
   onValueChange,
-  min = 1,
+  min = MIN_FEE_RATE,
   helpIconAvailable = true
 }: {
   label: string;
@@ -116,7 +120,8 @@ function FeeInput({
   if (snappedInitialValue === null)
     throw new Error('snappedInitialValue should be defined');
 
-  if (min < 1) throw new Error('min feeRate cannot be below 1: ' + min);
+  if (min < MIN_FEE_RATE)
+    throw new Error(`min feeRate cannot be below ${MIN_FEE_RATE}: ` + min);
 
   const snappedMax = computeMaxAllowedFeeRate(snappedFeeEstimates);
   const snappedMin = snapWithinRange({
