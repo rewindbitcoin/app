@@ -61,3 +61,12 @@ And adapted the path of these imports:
 
 See explanation here:
 https://github.com/facebook/react-native/issues/51914#issuecomment-3275606712
+
+---
+
+#react-native-libsodium
+implements this PR: https://github.com/serenity-kit/react-native-libsodium/issues/81
+I decided to create a fork since patch-package was not working well with binaries: https://github.com/landabaso/react-native-libsodium
+
+#react-native-fast-encoder
+https://github.com/maksimlya/react-native-fast-encoder/issues/9#issuecomment-3333723780

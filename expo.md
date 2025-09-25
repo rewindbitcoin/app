@@ -230,6 +230,8 @@ npx expo  prebuild --clean #to reset the Swift package thing above
 
 ```bash
 eas build --profile production --platform ios --clear-cache --local
+#If you get "Unable to resolve module" then: "rm -rf $TMPDIR/metro-cache"
+#if you get error 70, prepend this: PATH=/usr/bin:$PATH eas build --profile production --platform ios --clear-cache --local
 eas submit --platform ios --profile production
 #then select the ipa file created on first command
 ```
