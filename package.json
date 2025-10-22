@@ -1,6 +1,6 @@
 {
   "name": "@rewindbitcoin/app",
-  "version": "1.2.4",
+  "version": "2.0.0",
   "main": "index.js",
   "prettier": "@bitcoinerlab/configs/prettierConfig.json",
   "eslintConfig": {
