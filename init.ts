@@ -144,7 +144,8 @@ global.tls = require('react-native-tcp-socket');
 //process.browser = false;
 //process.execPath = '/';
 
-//global.process.version = "";
+// @ts-expect-error Polyfill for environments missing process.version
+if (global.process.version === undefined) global.process.version = '';
 
 //import './electrumSupport'
 

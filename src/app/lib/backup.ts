@@ -12,7 +12,8 @@ const VAULT_PATH = `m/${PURPOSE}'/<network>'/0'/<index>`;
 const SIGNING_MESSAGE = 'Satoshi Nakamoto'; //Can be any, but don't change it
 const DATA_PATH = `m/${PURPOSE}'/<network>'/1'/0`;
 
-import { crypto, Network, networks } from 'bitcoinjs-lib';
+import { Network, networks } from 'bitcoinjs-lib';
+import { sha256 } from '@noble/hashes/sha2';
 import type { Accounts, Signer } from './wallets';
 import { getMasterNode } from './vaultDescriptors';
 import { MessageFactory } from 'bitcoinjs-message';
@@ -189,7 +190,7 @@ const getSeedDerivedCipherKey = async ({
     childNode.privateKey,
     true // assumes compressed
   );
-  const cipherKey = crypto.sha256(signature);
+  const cipherKey = sha256(signature);
 
   return cipherKey;
 };

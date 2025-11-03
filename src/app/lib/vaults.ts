@@ -1,7 +1,8 @@
 // TODO: very imporant to only allow Vaulting funds with 1 confirmatin at least (make this a setting)
 const PUSH_TIMEOUT = 30 * 60; // 30 minutes
 
-import { type Network, type Transaction, Psbt, crypto } from 'bitcoinjs-lib';
+import { type Network, type Transaction, Psbt } from 'bitcoinjs-lib';
+import { sha256 } from '@noble/hashes/sha2';
 import memoize from 'lodash.memoize';
 import type { Accounts, Signer } from './wallets';
 import moize from 'moize';
@@ -1182,7 +1183,7 @@ async function fetchSpendingTx(
 
   const output = tx.outs[vout];
   if (!output) throw new Error('Invalid out');
-  const scriptHash = Buffer.from(crypto.sha256(output.script))
+  const scriptHash = Buffer.from(sha256(output.script))
     .reverse()
     .toString('hex');
 
