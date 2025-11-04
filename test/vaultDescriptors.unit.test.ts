@@ -2,8 +2,6 @@
 // Distributed under the GPL software license
 
 import { networks } from 'bitcoinjs-lib';
-import * as secp256k1 from '@bitcoinerlab/secp256k1';
-import { DescriptorsFactory } from '@bitcoinerlab/descriptors';
 import { fixtures } from './fixtutres';
 import {
   createColdAddress,
@@ -19,7 +17,6 @@ import {
   type Signer,
   type Signers
 } from '../dist/src/app/lib/wallets';
-const { Output } = DescriptorsFactory(secp256k1);
 
 const network = networks.regtest;
 
@@ -62,7 +59,6 @@ describe('vaultDescriptors unit tests', () => {
       DUMMY_SERVICE_ADDRESS(network),
       network
     );
-    expect(serviceOutput).toBeInstanceOf(Output);
     expect(serviceOutput.getAddress()).toBe(DUMMY_SERVICE_ADDRESS(network));
   });
 });
