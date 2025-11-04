@@ -3,6 +3,7 @@
 
 import { RegtestUtils } from 'regtest-client';
 import { networks, Psbt } from 'bitcoinjs-lib';
+import { fixtures } from './fixtutres';
 const network = networks.regtest;
 const networkId = 'REGTEST';
 import * as secp256k1 from '@bitcoinerlab/secp256k1';
@@ -24,19 +25,6 @@ import { DiscoveryFactory, DiscoveryInstance } from '@bitcoinerlab/discovery';
 
 const sleep = async (ms: number) =>
   await new Promise(resolve => setTimeout(resolve, ms));
-
-const FAUCET_AMOUNT = 1000000;
-const VAULTED_AMOUNT = 100000;
-const GAP_LIMIT = 20;
-const SAMPLES = 60;
-const PRESIGNED_FEE_RATE_CEILING = 100;
-const MAX_PRESIGNED_FEE_RATE_CEILING = 10000;
-const LOCK_BLOCKS = 10;
-
-const TRIGGER_FEE_RATE = 1;
-
-const PURPOSE = 1073;
-const VAULT_PATH = `m/${PURPOSE}'/<network>'/0'/<index>`;
 
 import {
   createVault,
@@ -84,12 +72,21 @@ const findNextEqualOrLargerFeeRate = (
 };
 
 describe('E2E: Multiple Pre-Signed txs Vault', () => {
-  const MNEMONIC =
-    'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about';
-  const COLD_MNEMONIC = 'oil oil oil oil oil oil oil oil oil oil oil oil';
-
-  const BURN_MNEMONIC =
-    'term title ship scorpion ahead blade error sentence tongue law afford slush';
+  const {
+    MNEMONIC,
+    COLD_MNEMONIC,
+    BURN_MNEMONIC,
+    VAULT_PATH,
+    FAUCET_AMOUNT,
+    VAULTED_AMOUNT,
+    GAP_LIMIT,
+    SAMPLES,
+    PRESIGNED_FEE_RATE_CEILING,
+    MAX_PRESIGNED_FEE_RATE_CEILING,
+    LOCK_BLOCKS,
+    TRIGGER_FEE_RATE,
+    expected
+  } = fixtures.edge2edge;
   const burnMasterNode = getMasterNode(BURN_MNEMONIC, network);
   const burnDescriptor = scriptExpressions.wpkhBIP32({
     masterNode: burnMasterNode,
@@ -119,7 +116,7 @@ describe('E2E: Multiple Pre-Signed txs Vault', () => {
     };
     signers[0] = signer;
     expect(signers[0]).toEqual({
-      masterFingerprint: '73c5da0a',
+      masterFingerprint: expected.masterFingerprint,
       type: 'SOFTWARE',
       mnemonic: MNEMONIC
     });
@@ -132,28 +129,21 @@ describe('E2E: Multiple Pre-Signed txs Vault', () => {
     });
     if (!unvaultKeyInfo.pubkey) throw new Error();
     unvaultPubKey = unvaultKeyInfo.pubkey;
-    expect(unvaultKey).toBe(
-      "[73c5da0a/0']tpubD97UxEEVXiRs2uHYkHSU6ddidnoP2XQ54ddFZYJ7Cqo1szH58GtZeEDf7yiGGz5ABCaECZE5AusSmQWfFvoAeM56m6CzoB77UGDb1wTwDyz/0"
-    );
+    expect(unvaultKey).toBe(expected.unvaultKey);
     expect(unvaultPubKey).toEqual(
-      Buffer.from(
-        '03038c1b21ba6eb640c4d325fcd23e62e1740b05364e2f8cf4d02036e506ad2aec',
-        'hex'
-      )
+      Buffer.from(expected.unvaultPubKeyHex, 'hex')
     );
   });
   let coldAddress: string;
   test('Create cold address', async () => {
     coldAddress = await createColdAddress(COLD_MNEMONIC, network);
-    expect(coldAddress).toBe('bcrt1qdj8q2slg766q6c6atuz0vqjghzrtaum39nxal0');
+    expect(coldAddress).toBe(expected.coldAddress);
   });
   let accounts: Accounts;
   test('Create default accounts', async () => {
     const defaultAccount = await getDefaultAccount(signers, network);
     accounts = { [defaultAccount]: { discard: false } };
-    expect(Object.keys(accounts)[0]).toBe(
-      "wpkh([73c5da0a/84'/1'/0']tpubDC8msFGeGuwnKG9Upg7DM2b4DaRqg3CUZa5g8v2SRQ6K4NSkxUgd7HsL2XVWbVm39yBA4LAxysQAm397zwQSQoQgewGiYZqrA9DsP4zbQ1M/0/*)"
-    );
+    expect(Object.keys(accounts)[0]).toBe(expected.defaultAccount);
     expect(accounts[defaultAccount]).toEqual({ discard: false });
   });
   let explorer: EsploraExplorer;
@@ -174,10 +164,7 @@ describe('E2E: Multiple Pre-Signed txs Vault', () => {
       accounts,
       tipHeight
     );
-    expect(descriptors).toEqual([
-      "wpkh([73c5da0a/84'/1'/0']tpubDC8msFGeGuwnKG9Upg7DM2b4DaRqg3CUZa5g8v2SRQ6K4NSkxUgd7HsL2XVWbVm39yBA4LAxysQAm397zwQSQoQgewGiYZqrA9DsP4zbQ1M/0/*)",
-      "wpkh([73c5da0a/84'/1'/0']tpubDC8msFGeGuwnKG9Upg7DM2b4DaRqg3CUZa5g8v2SRQ6K4NSkxUgd7HsL2XVWbVm39yBA4LAxysQAm397zwQSQoQgewGiYZqrA9DsP4zbQ1M/1/*)"
-    ]);
+    expect(descriptors).toEqual(expected.descriptors);
 
     await discovery.fetch({ descriptors, gapLimit: GAP_LIMIT });
   });
@@ -185,9 +172,7 @@ describe('E2E: Multiple Pre-Signed txs Vault', () => {
   test('Create change descriptor', async () => {
     const account = getMainAccount(accounts, network);
     const changeDescriptor = account.replace(/\/0\/\*/g, '/1/*');
-    expect(changeDescriptor).toBe(
-      "wpkh([73c5da0a/84'/1'/0']tpubDC8msFGeGuwnKG9Upg7DM2b4DaRqg3CUZa5g8v2SRQ6K4NSkxUgd7HsL2XVWbVm39yBA4LAxysQAm397zwQSQoQgewGiYZqrA9DsP4zbQ1M/1/*)"
-    );
+    expect(changeDescriptor).toBe(expected.changeDescriptor);
     changeDescriptorWithIndex = {
       descriptor: changeDescriptor,
       index: discovery.getNextIndex({
