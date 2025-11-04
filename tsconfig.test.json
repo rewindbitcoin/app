@@ -1,0 +1,13 @@
+{
+  "compilerOptions": {
+    "resolveJsonModule": true,
+    "jsx": "react-native"
+  },
+  "extends": "@bitcoinerlab/configs/tsconfig.test",
+  "include": [
+    "test/**/*.ts",
+    "test/**/*.tsx",
+    "./types/**/*.d.ts",
+    "nativewind-env.d.ts"
+  ]
+}
