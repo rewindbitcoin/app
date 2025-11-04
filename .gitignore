@@ -61,3 +61,5 @@ publish_stores.md
 
 test/**/*.js
 test/**/*.d.ts
+
+ReleaseNotest.txt
