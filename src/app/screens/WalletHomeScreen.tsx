@@ -1,3 +1,6 @@
+// Copyright (C) 2025 Jose-Luis Landabaso - https://rewindbitcoin.com
+// Licensed under the GNU GPL v3 or later. See the LICENSE file for details.
+
 //TODO:: disable Send and Freeze buttons if !apiReachable (for freeze cBVaultsReaderAPIReachable)
 //Receive may be left... for offline receive
 import React, {

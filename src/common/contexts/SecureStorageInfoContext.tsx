@@ -1,3 +1,6 @@
+// Copyright (C) 2025 Jose-Luis Landabaso - https://rewindbitcoin.com
+// Licensed under the GNU GPL v3 or later. See the LICENSE file for details.
+
 /** returns undefined until it is retrieved whether the system has SecureStorage
  * avilability. Then, it returns a boolean
  */

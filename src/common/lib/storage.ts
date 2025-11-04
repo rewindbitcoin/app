@@ -1,3 +1,6 @@
+// Copyright (C) 2025 Jose-Luis Landabaso - https://rewindbitcoin.com
+// Licensed under the GNU GPL v3 or later. See the LICENSE file for details.
+
 //TODO: Test this json.stringify function which is faster for typescript:
 //  -> In addition, it supports Uint8Array
 //    https://dev.to/samchon/i-made-10x-faster-jsonstringify-functions-even-type-safe-2eme

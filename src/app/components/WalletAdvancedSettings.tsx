@@ -1,3 +1,6 @@
+// Copyright (C) 2025 Jose-Luis Landabaso - https://rewindbitcoin.com
+// Licensed under the GNU GPL v3 or later. See the LICENSE file for details.
+
 const SHOW_DATA_ENCRYPTION_SETTING = false;
 import React, { useCallback, useState } from 'react';
 

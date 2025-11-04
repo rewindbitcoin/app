@@ -1,3 +1,6 @@
+// Copyright (C) 2025 Jose-Luis Landabaso - https://rewindbitcoin.com
+// Licensed under the GNU GPL v3 or later. See the LICENSE file for details.
+
 // Forked from: https://github.com/Karthik-B-06/react-native-segmented-control
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {

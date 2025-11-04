@@ -1,3 +1,6 @@
+// Copyright (C) 2025 Jose-Luis Landabaso - https://rewindbitcoin.com
+// Licensed under the GNU GPL v3 or later. See the LICENSE file for details.
+
 import React, { useCallback, useMemo } from 'react';
 import { View, Text } from 'react-native';
 import { Modal, VerticalChoice } from '../../common/ui';

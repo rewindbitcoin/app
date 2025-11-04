@@ -1,3 +1,6 @@
+// Copyright (C) 2025 Jose-Luis Landabaso - https://rewindbitcoin.com
+// Licensed under the GNU GPL v3 or later. See the LICENSE file for details.
+
 /**
  * Performs a binary search to find the lowest INTEGER number for which a given function
  * returns true, within a range [0, MAX]. The search is limited by a maximum

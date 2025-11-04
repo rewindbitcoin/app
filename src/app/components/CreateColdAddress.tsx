@@ -1,3 +1,6 @@
+// Copyright (C) 2025 Jose-Luis Landabaso - https://rewindbitcoin.com
+// Licensed under the GNU GPL v3 or later. See the LICENSE file for details.
+
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { Modal, Button, useToast, IconType } from '../../common/ui';
 import { useTranslation } from 'react-i18next';

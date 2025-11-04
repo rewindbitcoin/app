@@ -1,3 +1,6 @@
+// Copyright (C) 2025 Jose-Luis Landabaso - https://rewindbitcoin.com
+// Licensed under the GNU GPL v3 or later. See the LICENSE file for details.
+
 //uses react-native-dotenv from bable.config.js and @rewindbitcoin/env
 // @ts-expect-error @env is defined in bable.config.js
 import { CIPHER_ADDITIONAL_DATA } from '@env';

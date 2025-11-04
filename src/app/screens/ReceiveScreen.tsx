@@ -1,3 +1,6 @@
+// Copyright (C) 2025 Jose-Luis Landabaso - https://rewindbitcoin.com
+// Licensed under the GNU GPL v3 or later. See the LICENSE file for details.
+
 const DETECTION_INTERVAL = 4000;
 const DETECT_RETRY_MAX = 5;
 import { useTranslation } from 'react-i18next';

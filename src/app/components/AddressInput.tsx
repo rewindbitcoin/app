@@ -1,3 +1,6 @@
+// Copyright (C) 2025 Jose-Luis Landabaso - https://rewindbitcoin.com
+// Licensed under the GNU GPL v3 or later. See the LICENSE file for details.
+
 import { BarcodeType, CameraView, useCameraPermissions } from 'expo-camera';
 import { getAvailableCameraTypesAsync } from '~/app/lib/camera-compat';
 import React, {

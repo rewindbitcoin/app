@@ -1,3 +1,6 @@
+// Copyright (C) 2025 Jose-Luis Landabaso - https://rewindbitcoin.com
+// Licensed under the GNU GPL v3 or later. See the LICENSE file for details.
+
 // camera-compat.ts
 // Replacement for the removed Camera.getAvailableCameraTypesAsync()
 // Works with Expo SDK 52/53 and newer "CameraView" API.

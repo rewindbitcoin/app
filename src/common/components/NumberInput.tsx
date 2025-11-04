@@ -1,3 +1,6 @@
+// Copyright (C) 2025 Jose-Luis Landabaso - https://rewindbitcoin.com
+// Licensed under the GNU GPL v3 or later. See the LICENSE file for details.
+
 const INPUT_MAX_LENGTH = 18;
 import React, { useState, useCallback, useRef, useMemo } from 'react';
 import AntDesign from '@expo/vector-icons/AntDesign';

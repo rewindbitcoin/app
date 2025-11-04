@@ -1,3 +1,6 @@
+// Copyright (C) 2025 Jose-Luis Landabaso - https://rewindbitcoin.com
+// Licensed under the GNU GPL v3 or later. See the LICENSE file for details.
+
 export { TextInput } from 'react-native';
 export * from './theme';
 import ActivityIndicator from './components/ActivityIndicator';

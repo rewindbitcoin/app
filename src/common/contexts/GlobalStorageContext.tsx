@@ -1,3 +1,6 @@
+// Copyright (C) 2025 Jose-Luis Landabaso - https://rewindbitcoin.com
+// Licensed under the GNU GPL v3 or later. See the LICENSE file for details.
+
 //See docs in "useStorage.ts"
 
 import React, { useState, createContext, ReactNode } from 'react';

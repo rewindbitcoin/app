@@ -1,3 +1,6 @@
+// Copyright (C) 2025 Jose-Luis Landabaso - https://rewindbitcoin.com
+// Licensed under the GNU GPL v3 or later. See the LICENSE file for details.
+
 /**
  * The `EditableSlider` combines a slider with a text input for precise value
  * entry. It supports value snapping based on a specified step and handles

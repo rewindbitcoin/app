@@ -1,3 +1,6 @@
+// Copyright (C) 2025 Jose-Luis Landabaso - https://rewindbitcoin.com
+// Licensed under the GNU GPL v3 or later. See the LICENSE file for details.
+
 //Note that activeWordIndex moves forward only if there is an exact match.
 //That is, then when typing "you" (that is a valid word) it will not
 //automatically pass to next word since "your" is also a valid

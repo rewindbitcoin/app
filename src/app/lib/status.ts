@@ -1,3 +1,6 @@
+// Copyright (C) 2025 Jose-Luis Landabaso - https://rewindbitcoin.com
+// Licensed under the GNU GPL v3 or later. See the LICENSE file for details.
+
 import type { StorageErrorCode } from '../../common/lib/storage';
 import type { Vaults, VaultsStatuses } from './vaults';
 import type { Accounts, Signers, Wallet } from './wallets';

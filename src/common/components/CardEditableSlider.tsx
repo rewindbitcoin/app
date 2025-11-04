@@ -1,3 +1,6 @@
+// Copyright (C) 2025 Jose-Luis Landabaso - https://rewindbitcoin.com
+// Licensed under the GNU GPL v3 or later. See the LICENSE file for details.
+
 //This is a HOC of EditableSlider formatted for Data Input
 import React, { useMemo } from 'react';
 import { Text, View, StyleSheet } from 'react-native';

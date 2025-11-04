@@ -1,3 +1,6 @@
+// Copyright (C) 2025 Jose-Luis Landabaso - https://rewindbitcoin.com
+// Licensed under the GNU GPL v3 or later. See the LICENSE file for details.
+
 import AddressInput from '../components/AddressInput';
 import AmountInput from '../components/AmountInput';
 import BlocksInput from '../components/BlocksInput';

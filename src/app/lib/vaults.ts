@@ -1,3 +1,6 @@
+// Copyright (C) 2025 Jose-Luis Landabaso - https://rewindbitcoin.com
+// Licensed under the GNU GPL v3 or later. See the LICENSE file for details.
+
 // TODO: very imporant to only allow Vaulting funds with 1 confirmatin at least (make this a setting)
 const PUSH_TIMEOUT = 30 * 60; // 30 minutes
 

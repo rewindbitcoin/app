@@ -1,3 +1,6 @@
+// Copyright (C) 2025 Jose-Luis Landabaso - https://rewindbitcoin.com
+// Licensed under the GNU GPL v3 or later. See the LICENSE file for details.
+
 //This is deprecated (but still used accross the app). Better use
 //<Button iconLeft={} iconRight={}/>
 import React, { useState, useMemo, useCallback } from 'react';

@@ -1,3 +1,6 @@
+// Copyright (C) 2025 Jose-Luis Landabaso - https://rewindbitcoin.com
+// Licensed under the GNU GPL v3 or later. See the LICENSE file for details.
+
 import { AntDesign } from '@expo/vector-icons';
 import React, { useEffect, useMemo, useRef } from 'react';
 import { useTheme } from '../../common/ui';

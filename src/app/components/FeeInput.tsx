@@ -1,3 +1,6 @@
+// Copyright (C) 2025 Jose-Luis Landabaso - https://rewindbitcoin.com
+// Licensed under the GNU GPL v3 or later. See the LICENSE file for details.
+
 //This component must work both for SendBitcoin and SetUpVault
 //When the mode, min or max is changed, then the CardEditableSlider is renewed.
 //That means the parent component must reset the last value set by onValueChange

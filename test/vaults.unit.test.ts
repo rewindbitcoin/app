@@ -1,5 +1,5 @@
-// Copyright (c) 2025 Jose-Luis Landabaso - https://rewindbitcoin.com
-// Distributed under the GPL software license
+// Copyright (C) 2025 Jose-Luis Landabaso - https://rewindbitcoin.com
+// Licensed under the GNU GPL v3 or later. See the LICENSE file for details.
 
 import { fixtures } from './fixtutres';
 import {

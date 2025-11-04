@@ -1,3 +1,6 @@
+// Copyright (C) 2025 Jose-Luis Landabaso - https://rewindbitcoin.com
+// Licensed under the GNU GPL v3 or later. See the LICENSE file for details.
+
 import React, { useCallback } from 'react';
 import type { NetworkId } from '../../app/lib/network';
 import { View, Text } from 'react-native';

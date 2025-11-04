@@ -1,3 +1,6 @@
+// Copyright (C) 2025 Jose-Luis Landabaso - https://rewindbitcoin.com
+// Licensed under the GNU GPL v3 or later. See the LICENSE file for details.
+
 import type { Accounts } from './wallets';
 import { Network, networks } from 'bitcoinjs-lib';
 import { getMainAccount } from './vaultDescriptors';

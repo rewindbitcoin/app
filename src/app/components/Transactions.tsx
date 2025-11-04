@@ -1,3 +1,6 @@
+// Copyright (C) 2025 Jose-Luis Landabaso - https://rewindbitcoin.com
+// Licensed under the GNU GPL v3 or later. See the LICENSE file for details.
+
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { View, Text, Linking } from 'react-native';
 import type { HistoryData, HistoryDataItem } from '../lib/vaults';

@@ -1,3 +1,6 @@
+// Copyright (C) 2025 Jose-Luis Landabaso - https://rewindbitcoin.com
+// Licensed under the GNU GPL v3 or later. See the LICENSE file for details.
+
 //useFeeEstimates and useTipStatus are very similar. A fix in one file should
 //probably imply a fix in the other
 import { useCallback, useEffect, useRef } from 'react';

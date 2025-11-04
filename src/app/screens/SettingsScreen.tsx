@@ -1,3 +1,6 @@
+// Copyright (C) 2025 Jose-Luis Landabaso - https://rewindbitcoin.com
+// Licensed under the GNU GPL v3 or later. See the LICENSE file for details.
+
 const URL_MAX_LENGTH = 256;
 const NAME_MAX_LENGTH = 32;
 import React, {
