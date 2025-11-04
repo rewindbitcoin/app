@@ -237,6 +237,12 @@ export type HistoryDataItem =
 
 export type HistoryData = Array<HistoryDataItem>;
 
+export type TxHistory = Array<{
+  txHex: TxHex;
+  blockHeight: number;
+  irreversible: boolean;
+}>;
+
 /**
  * For each utxo, get its corresponding:
  * - previous txHex and vout
@@ -986,6 +992,7 @@ export function validateAddress(addressValue: string, network: Network) {
     new Output({ descriptor: `addr(${addressValue})`, network });
     return true;
   } catch (e) {
+    void e;
     return false;
   }
 }

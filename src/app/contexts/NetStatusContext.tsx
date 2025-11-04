@@ -352,7 +352,7 @@ const NetStatusProvider: React.FC<NetStatusProviderProps> = ({ children }) => {
   );
 
   //Closes automatically connections when resetting the components
-  const prevExplorerRef = useRef<Explorer | undefined>();
+  const prevExplorerRef = useRef<Explorer | undefined>(undefined);
   useEffect(() => {
     const prevExplorer = prevExplorerRef.current;
     const close = async () => {
@@ -369,7 +369,7 @@ const NetStatusProvider: React.FC<NetStatusProviderProps> = ({ children }) => {
     close();
     prevExplorerRef.current = explorer;
   }, [explorer]);
-  const prevExplorerMainnetRef = useRef<Explorer | undefined>();
+  const prevExplorerMainnetRef = useRef<Explorer | undefined>(undefined);
   useEffect(() => {
     const prevExplorerMainnet = prevExplorerMainnetRef.current;
     const close = async () => {

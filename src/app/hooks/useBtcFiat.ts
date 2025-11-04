@@ -70,7 +70,7 @@ export const useBtcFiat = () => {
   );
 
   const btcFiatRef = useRef<number | undefined>(btcFiat);
-  const lastBtcFiatRef = useRef<number | undefined>();
+  const lastBtcFiatRef = useRef<number | undefined>(undefined);
   useEffect(() => {
     btcFiatRef.current = undefined;
     lastBtcFiatRef.current = undefined;

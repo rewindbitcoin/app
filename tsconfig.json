@@ -13,7 +13,8 @@
   "include": [
     "index.js",
     "*.ts",
-    "*.tsx",
+    "src/**/*.ts",
+    "src/**/*.tsx",
     "./types/**/*.d.ts",
     "nativewind-env.d.ts"
   ]

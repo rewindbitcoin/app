@@ -32,7 +32,7 @@ export function useTipStatus(): {
   //to avoid re-renders (infinite loop)
   //Also used to detect if this comes from storage or from network (storage == undefined)
   const tipStatusRef = useRef<BlockStatus | undefined>(tipStatus);
-  const lastTipStatusRef = useRef<number | undefined>();
+  const lastTipStatusRef = useRef<number | undefined>(undefined);
   useEffect(() => {
     tipStatusRef.current = undefined;
     lastTipStatusRef.current = undefined;

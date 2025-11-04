@@ -8,6 +8,7 @@ import { networkMapping } from '../lib/network';
 import { faucetFirstReceive } from '../lib/faucet';
 import { useWallet } from './useWallet';
 import { useSettings } from './useSettings';
+import { type TxHistory } from '../lib/vaults';
 
 export function useFaucet() {
   const {
@@ -25,7 +26,7 @@ export function useFaucet() {
 
   const toast = useToast();
   const faucetRequestedRef = useRef<boolean>(false);
-  const requestToastId = useRef<string>();
+  const requestToastId = useRef<string | undefined>(undefined);
   //When the user is notified about having either:
   //  - detected some faucet funds
   //  - faucet failed
@@ -119,7 +120,7 @@ export function useFaucet() {
             throw new Error('faucetFirstReceive did not set a descriptor');
           //wait a few secs until esplora catches up...
           for (let i = 0; i < DETECT_RETRY_MAX; i++) {
-            let txHistory = undefined;
+            let txHistory: TxHistory | undefined = undefined;
             try {
               txHistory = await fetchOutputHistory({ descriptor, index });
               if (wallet?.walletId !== walletIdRef.current) return; //do after each await

@@ -33,6 +33,8 @@ export type RootStackParamList = {
   NEW_WALLET: { walletId: number };
 };
 
+/* eslint-disable @typescript-eslint/no-namespace */
+/* eslint-disable @typescript-eslint/no-empty-object-type */
 // https://reactnavigation.org/docs/typescript/#specifying-default-types-for-usenavigation-link-ref-etc
 declare global {
   namespace ReactNavigation {

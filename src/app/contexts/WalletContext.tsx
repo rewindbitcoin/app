@@ -5,7 +5,7 @@ import {
   type VaultsStatuses,
   type UtxosData,
   type HistoryData,
-  type TxHex,
+  type TxHistory,
   fetchVaultsStatuses,
   getUtxosData,
   getHotDescriptors,
@@ -90,12 +90,6 @@ import { getLocales } from 'expo-localization';
 
 export const WalletContext: Context<WalletContextType | null> =
   createContext<WalletContextType | null>(null);
-
-type TxHistory = Array<{
-  txHex: TxHex;
-  blockHeight: number;
-  irreversible: boolean;
-}>;
 
 export type WalletContextType = {
   orphanedWatchtowerWalletUUIDs: Set<string>;
@@ -198,7 +192,7 @@ const WalletProviderRaw = ({
   const [activeWallet, setActiveWallet] = useState<Wallet>();
   //Serves to keep a ref version of walletId so that in async functions we can
   //check after the await if the activeWallet.walletId changed
-  const walletIdRef = useRef<number>();
+  const walletIdRef = useRef<number | undefined>(undefined);
   // This explorer is only used for retrieving
   // fees when using the TAPE network. It is shared for all wallets.
   const [explorerMainnet, setExplorerMainnet] = useState<Explorer | undefined>(
@@ -402,6 +396,7 @@ const WalletProviderRaw = ({
       //explorer.connect performed in NetStatusContext
       //Don't do this at the top level since it's quite slow.
       //Also it's better to pre-warmup loading in App.tsx after initial interactions
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
       const { DiscoveryFactory } = require('@bitcoinerlab/discovery');
       const { Discovery } = DiscoveryFactory(explorer, network);
       const newDiscovery =
@@ -966,8 +961,8 @@ const WalletProviderRaw = ({
   }, [totalUnackedCount]);
 
   // Refs for notification listeners
-  const notificationListenerRef = useRef<Subscription>();
-  const responseListenerRef = useRef<Subscription>();
+  const notificationListenerRef = useRef<Subscription | undefined>(undefined);
+  const responseListenerRef = useRef<Subscription | undefined>(undefined);
 
   // Set up watchtower notification handling & polling for pending notifications
   const lastNotificationResponseHandledRef = useRef<boolean>(false);
@@ -1481,7 +1476,7 @@ const WalletProviderRaw = ({
 
   //Did the user initiated the sync (true)? ir was it a scheduled one (false)?
   const isUserTriggeredSync = useRef<boolean>(false);
-  const prevAccountsSyncRef = useRef<Accounts | undefined>();
+  const prevAccountsSyncRef = useRef<Accounts | undefined>(undefined);
 
   const walletTitle =
     activeWallet && wallets && walletTitleFn(activeWallet, wallets, t);

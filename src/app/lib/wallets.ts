@@ -73,7 +73,7 @@ export type Accounts = {
 //This interface is used to save all the signers associated with a Wallet.
 //Signers are stored with this key: `SIGNERS_${walletId}`
 export type Signers = {
-  [masterFingerprint: string]: Signer;
+  [signerId: number]: Signer;
 };
 
 type Notifications = {

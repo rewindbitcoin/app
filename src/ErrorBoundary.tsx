@@ -12,7 +12,7 @@ interface Props {
 }
 
 // Wrapper component to use hooks and pass them to the class component
-export default function ErrorBoundary(props: Props): JSX.Element {
+export default function ErrorBoundary(props: Props) {
   const insets = useSafeAreaInsets();
   const containerStyle = useMemo(
     () => ({ marginBottom: insets.bottom / 4 + 16 }),

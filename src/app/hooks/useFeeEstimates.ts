@@ -45,7 +45,7 @@ export function useFeeEstimates(): {
   //to avoid re-renders (infinite loop)
   //Also used to detect if this comes from storage or from network (storage == undefined)
   const feeEstimatesRef = useRef<FeeEstimates | undefined>(feeEstimates);
-  const lastFeeEstimatesRef = useRef<number | undefined>();
+  const lastFeeEstimatesRef = useRef<number | undefined>(undefined);
   useEffect(() => {
     feeEstimatesRef.current = undefined;
     lastFeeEstimatesRef.current = undefined;

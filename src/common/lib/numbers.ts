@@ -157,6 +157,7 @@ const localizedStrToNumber = (str: string, locale: string): number => {
     //console.log({ parsedNumber });
     return isNaN(parsedNumber) ? NaN : parsedNumber;
   } catch (error) {
+    void error;
     return NaN;
   }
 };

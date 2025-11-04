@@ -292,9 +292,9 @@ const WalletsScreen = () => {
     [insets /*, windowWidth*/]
   );
 
-  const buttonHeightRef = useRef<number>();
-  const scrollViewHeightRef = useRef<number>();
-  const contentHeightRef = useRef<number>();
+  const buttonHeightRef = useRef<number>(undefined);
+  const scrollViewHeightRef = useRef<number>(undefined);
+  const contentHeightRef = useRef<number>(undefined);
   const [extraPadding, setExtraPadding] = useState<boolean>(false);
 
   const handleExtraPadding = () => {

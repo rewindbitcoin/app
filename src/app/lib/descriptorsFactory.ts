@@ -31,7 +31,9 @@ export function ensureDescriptorsFactoryInstance() {
   if (_instance) return _instance;
 
   //const t0 = Date.now();
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const secp = require('@bitcoinerlab/secp256k1');
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { DescriptorsFactory } = require('@bitcoinerlab/descriptors');
 
   _instance = DescriptorsFactory(secp);

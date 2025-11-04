@@ -320,6 +320,7 @@ export const p2pBackupVault = async ({
       throw new Error('Network problems pushing the vault to the network');
     }
   } catch (err) {
+    void err;
     throw new Error('Network problems pushing the vault to the network');
   }
 
@@ -383,7 +384,7 @@ export const delegateVault = async ({
 
   const fileName = `visit-RewindBitcoin_com.json.gz`;
   if (Platform.OS === 'web') {
-    const blob = new Blob([compressedRescue], {
+    const blob = new Blob([compressedRescue as Uint8Array<ArrayBuffer>], {
       type: 'application/octet-stream'
     });
     const url = URL.createObjectURL(blob);
@@ -459,7 +460,7 @@ export const exportWallet = async ({
 
   const fileName = `${name}_export.json.gz`;
   if (Platform.OS === 'web') {
-    const blob = new Blob([compressedExport], {
+    const blob = new Blob([compressedExport as Uint8Array<ArrayBuffer>], {
       type: 'application/octet-stream'
     });
     const url = URL.createObjectURL(blob);

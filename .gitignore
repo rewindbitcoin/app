@@ -58,3 +58,6 @@ secrets/
 credentials/
 
 publish_stores.md
+
+test/**/*.js
+test/**/*.d.ts

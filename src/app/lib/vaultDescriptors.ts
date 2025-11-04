@@ -1,7 +1,8 @@
 import memoize from 'lodash.memoize';
-import type { BIP32Interface } from 'bip32';
+//import type { BIP32Interface } from 'bip32';
 import moize from 'moize';
 import { mnemonicToSeedSync } from 'bip39';
+// eslint-disable-next-line @typescript-eslint/no-require-imports
 const { encode: olderEncode } = require('bip68');
 import { networks, type Network } from 'bitcoinjs-lib';
 import {
@@ -170,35 +171,35 @@ const createDefaultReceiveDescriptor = async ({
   } else throw new Error(`Signer type ${signer.type} not supported`);
 };
 
-const createDefaultChangeDescriptorFromMasterNode = (
-  masterNode: BIP32Interface,
-  network: Network
-) =>
-  scriptExpressions.wpkhBIP32({
-    masterNode,
-    network,
-    account: 0,
-    index: '*',
-    change: 1
-  });
+//const createDefaultChangeDescriptorFromMasterNode = (
+//  masterNode: BIP32Interface,
+//  network: Network
+//) =>
+//  scriptExpressions.wpkhBIP32({
+//    masterNode,
+//    network,
+//    account: 0,
+//    index: '*',
+//    change: 1
+//  });
 
 /** Async because some signers will be async */
-const createDefaultChangeDescriptor = async ({
-  signer,
-  network
-}: {
-  signer: Signer;
-  network: Network;
-}) => {
-  if (signer.type === SOFTWARE) {
-    const mnemonic = signer.mnemonic;
-    if (!mnemonic) throw new Error(`mnemonic not provided for ${signer.type}`);
-    return createDefaultChangeDescriptorFromMasterNode(
-      getMasterNode(mnemonic, network),
-      network
-    );
-  } else throw new Error(`Signer type ${signer.type} not supported`);
-};
+//const createDefaultChangeDescriptor = async ({
+//  signer,
+//  network
+//}: {
+//  signer: Signer;
+//  network: Network;
+//}) => {
+//  if (signer.type === SOFTWARE) {
+//    const mnemonic = signer.mnemonic;
+//    if (!mnemonic) throw new Error(`mnemonic not provided for ${signer.type}`);
+//    return createDefaultChangeDescriptorFromMasterNode(
+//      getMasterNode(mnemonic, network),
+//      network
+//    );
+//  } else throw new Error(`Signer type ${signer.type} not supported`);
+//};
 
 export const createUnvaultKey = async ({
   signer,
@@ -241,22 +242,22 @@ export const createTriggerDescriptor = ({
   return triggerDescriptor;
 };
 
-export const getDefaultDescriptors = async (
-  signers: Signers,
-  network: Network
-) => {
-  const signer = signers[0];
-  if (!signer) throw new Error('signer unavailable');
-  const changeDescriptorRanged = await createDefaultChangeDescriptor({
-    signer,
-    network
-  });
-  const receiveDescriptorRanged = await createDefaultReceiveDescriptor({
-    signer,
-    network
-  });
-  return [receiveDescriptorRanged, changeDescriptorRanged];
-};
+//export const getDefaultDescriptors = async (
+//  signers: Signers,
+//  network: Network
+//) => {
+//  const signer = signers[0];
+//  if (!signer) throw new Error('signer unavailable');
+//  const changeDescriptorRanged = await createDefaultChangeDescriptor({
+//    signer,
+//    network
+//  });
+//  const receiveDescriptorRanged = await createDefaultReceiveDescriptor({
+//    signer,
+//    network
+//  });
+//  return [receiveDescriptorRanged, changeDescriptorRanged];
+//};
 export const getDefaultAccount = async (signers: Signers, network: Network) => {
   const signer = signers[0];
   if (!signer) throw new Error('signer unavailable');

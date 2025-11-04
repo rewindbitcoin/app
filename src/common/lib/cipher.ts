@@ -12,6 +12,7 @@ export const getManagedChacha = async (key: Uint8Array) => {
   //defer the load since this can really slow down initial loads in slow old
   //android devices.
   //const sodium = await import('react-native-libsodium');
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const sodium = require('react-native-libsodium');
 
   return {

@@ -57,7 +57,7 @@ const Spin = ({ className }: { className?: string }) => {
 
   return (
     <AnimatedSvg
-      className={className}
+      {...(className ? { className } : {})}
       width={20}
       height={20}
       fill="none"

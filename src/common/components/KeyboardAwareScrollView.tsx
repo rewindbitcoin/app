@@ -7,7 +7,7 @@ import { Platform, ScrollView, ScrollViewProps } from 'react-native';
 const KeyboardAwareScrollView = forwardRef<ScrollView, ScrollViewProps>(
   (props, ref) => {
     // RNKASV uses innerRef
-    const innerRef = (element: JSX.Element): void => {
+    const innerRef = (element: ScrollView): void => {
       const scrollEl = element as unknown as ScrollView;
       if (typeof ref === 'function') ref(scrollEl);
       else if (ref && typeof ref === 'object') ref.current = scrollEl;

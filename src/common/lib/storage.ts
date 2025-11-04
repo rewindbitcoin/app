@@ -89,7 +89,7 @@ const mmkvSet = (
               value.byteOffset,
               value.byteOffset + value.byteLength
             ); // copy only if it's a subarray
-      mmkvStorage.set(key, ab);
+      mmkvStorage.set(key, ab as ArrayBuffer);
     } else mmkvStorage.set(key, value);
   } catch (err) {
     console.warn(err);

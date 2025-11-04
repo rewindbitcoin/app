@@ -94,7 +94,7 @@ export default function Bip39({
   const [activeWordIndex, setActiveWordIndex] = useState<number>(0);
 
   const toast = useToast();
-  const toastId = useRef<string>();
+  const toastId = useRef<string>(undefined);
 
   const showError = useCallback(() => {
     if (toastId.current !== undefined && toast.isOpen(toastId.current))

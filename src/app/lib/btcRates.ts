@@ -24,6 +24,7 @@ export const formatFiat = ({
     const formatter = intlCurrencyFormatter(locale, currency);
     return formatter.format(amount);
   } catch (error) {
+    void error;
     throw new Error(`Invalid currency or locale configuration: ${currency}`);
   }
 };
