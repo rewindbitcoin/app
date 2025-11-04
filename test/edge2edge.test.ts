@@ -118,7 +118,11 @@ describe('E2E: Multiple Pre-Signed txs Vault', () => {
       mnemonic: MNEMONIC
     };
     signers[0] = signer;
-    console.log('TRACE', { signers });
+    expect(signers[0]).toEqual({
+      masterFingerprint: '73c5da0a',
+      type: 'SOFTWARE',
+      mnemonic: MNEMONIC
+    });
   });
   test('Create unvault key', async () => {
     unvaultKey = await createUnvaultKey({ signer, network });
@@ -128,18 +132,29 @@ describe('E2E: Multiple Pre-Signed txs Vault', () => {
     });
     if (!unvaultKeyInfo.pubkey) throw new Error();
     unvaultPubKey = unvaultKeyInfo.pubkey;
-    console.log('TRACE', { signers, unvaultKey, unvaultPubKey });
+    expect(unvaultKey).toBe(
+      "[73c5da0a/0']tpubD97UxEEVXiRs2uHYkHSU6ddidnoP2XQ54ddFZYJ7Cqo1szH58GtZeEDf7yiGGz5ABCaECZE5AusSmQWfFvoAeM56m6CzoB77UGDb1wTwDyz/0"
+    );
+    expect(unvaultPubKey).toEqual(
+      Buffer.from(
+        '03038c1b21ba6eb640c4d325fcd23e62e1740b05364e2f8cf4d02036e506ad2aec',
+        'hex'
+      )
+    );
   });
   let coldAddress: string;
   test('Create cold address', async () => {
     coldAddress = await createColdAddress(COLD_MNEMONIC, network);
-    console.log('TRACE', { coldAddress });
+    expect(coldAddress).toBe('bcrt1qdj8q2slg766q6c6atuz0vqjghzrtaum39nxal0');
   });
   let accounts: Accounts;
   test('Create default accounts', async () => {
     const defaultAccount = await getDefaultAccount(signers, network);
     accounts = { [defaultAccount]: { discard: false } };
-    console.log('TRACE', { accounts });
+    expect(Object.keys(accounts)[0]).toBe(
+      "wpkh([73c5da0a/84'/1'/0']tpubDC8msFGeGuwnKG9Upg7DM2b4DaRqg3CUZa5g8v2SRQ6K4NSkxUgd7HsL2XVWbVm39yBA4LAxysQAm397zwQSQoQgewGiYZqrA9DsP4zbQ1M/0/*)"
+    );
+    expect(accounts[defaultAccount]).toEqual({ discard: false });
   });
   let explorer: EsploraExplorer;
   let discovery: DiscoveryInstance;
@@ -151,15 +166,18 @@ describe('E2E: Multiple Pre-Signed txs Vault', () => {
   let descriptors: Array<string>;
   test('Discovery initial fetch', async () => {
     const tipHeight = await explorer.fetchBlockHeight();
-    console.log({ tipHeight });
+    expect(typeof tipHeight).toBe('number');
+    expect(tipHeight).toBeGreaterThan(0);
     descriptors = getHotDescriptors(
       vaults,
       vaultsStatuses,
       accounts,
       tipHeight
     );
-
-    console.log({ descriptors });
+    expect(descriptors).toEqual([
+      "wpkh([73c5da0a/84'/1'/0']tpubDC8msFGeGuwnKG9Upg7DM2b4DaRqg3CUZa5g8v2SRQ6K4NSkxUgd7HsL2XVWbVm39yBA4LAxysQAm397zwQSQoQgewGiYZqrA9DsP4zbQ1M/0/*)",
+      "wpkh([73c5da0a/84'/1'/0']tpubDC8msFGeGuwnKG9Upg7DM2b4DaRqg3CUZa5g8v2SRQ6K4NSkxUgd7HsL2XVWbVm39yBA4LAxysQAm397zwQSQoQgewGiYZqrA9DsP4zbQ1M/1/*)"
+    ]);
 
     await discovery.fetch({ descriptors, gapLimit: GAP_LIMIT });
   });
@@ -167,13 +185,17 @@ describe('E2E: Multiple Pre-Signed txs Vault', () => {
   test('Create change descriptor', async () => {
     const account = getMainAccount(accounts, network);
     const changeDescriptor = account.replace(/\/0\/\*/g, '/1/*');
-    console.log('TRACE', { account, changeDescriptor });
+    expect(changeDescriptor).toBe(
+      "wpkh([73c5da0a/84'/1'/0']tpubDC8msFGeGuwnKG9Upg7DM2b4DaRqg3CUZa5g8v2SRQ6K4NSkxUgd7HsL2XVWbVm39yBA4LAxysQAm397zwQSQoQgewGiYZqrA9DsP4zbQ1M/1/*)"
+    );
     changeDescriptorWithIndex = {
       descriptor: changeDescriptor,
       index: discovery.getNextIndex({
         descriptor: changeDescriptor
       })
     };
+    //change index will be incread on each run
+    //expect(changeDescriptorWithIndex.index).toBe(0);
   });
   let serviceOutput: OutputInstance;
   test('Create serviceOutput', async () => {
@@ -244,10 +266,16 @@ describe('E2E: Multiple Pre-Signed txs Vault', () => {
       nextVaultPath: vaultPath,
       onProgress
     });
-    //TODO: expect ty¡peof vault to be an object
-    if (typeof vault !== 'object')
-      console.log({ vault }); //errors are strings
-    else console.log('success');
+    expect(typeof vault).toBe('object');
+    if (typeof vault === 'object') {
+      expect(vault.vaultedAmount).toBe(VAULTED_AMOUNT);
+      expect(vault.lockBlocks).toBe(LOCK_BLOCKS);
+      expect(vault.unvaultKey).toBe(unvaultKey);
+      //There must be at least SAMPLES trigger txs + 1 vault tx
+      expect(Object.keys(vault.txMap).length).toBeGreaterThan(SAMPLES);
+      //There must be some trigger txs
+      expect(Object.keys(vault.triggerMap).length).toBeGreaterThan(0);
+    }
 
     if (typeof vault !== 'object') throw new Error();
     vaults[vault.vaultId] = vault;
@@ -276,18 +304,21 @@ describe('E2E: Multiple Pre-Signed txs Vault', () => {
       triggerSortedTxs,
       TRIGGER_FEE_RATE
     );
-    //TODO: expect not null
+    expect(triggerTxData).not.toBeNull();
     if (triggerTxData === null) throw new Error();
+    expect(triggerTxData.feeRate).toBeGreaterThanOrEqual(TRIGGER_FEE_RATE);
     await discovery.push({ txHex: triggerTxData.txHex, gapLimit: GAP_LIMIT });
     await regtestUtils.mine(1);
     await sleep(1000);
   });
   test('Try to access vaulted funds (will fail)', async () => {
     if (typeof vault !== 'object') throw new Error();
-    //TODO: note that the triggerDescriptor will change on each run since
+    //note that the triggerDescriptor will change on each run since
     //a tmp key is created internally
     //Same for the triggerAddress
-    console.log({ triggerDescriptor: vault.triggerDescriptor, unvaultKey });
+    expect(vault.triggerDescriptor).toMatch(/^wsh\(andor\(pk\(/);
+    expect(vault.triggerDescriptor).toContain(unvaultKey);
+    expect(vault.triggerDescriptor).toContain(`older(${LOCK_BLOCKS})`);
 
     const triggerOutput = new Output({
       descriptor: vault.triggerDescriptor,
@@ -296,17 +327,17 @@ describe('E2E: Multiple Pre-Signed txs Vault', () => {
     });
 
     const triggerAddress = triggerOutput.getAddress();
-
-    console.log('TRACE', { triggerAddress });
+    expect(triggerAddress).toMatch(/^bcrt1q/);
 
     //Don't use regtestUtils.unspents: https://github.com/bitcoinjs/regtest-server/issues/23
     const response = await fetch(
       `${ESPLORA_LOCAL_REGTEST_URL}/address/${triggerAddress}/utxo`
     );
     const triggerUtxos = await response.json();
-    //TODO: expect to be length 1
-
-    console.log(JSON.stringify({ triggerUtxos }, null, 2));
+    expect(triggerUtxos).toHaveLength(1);
+    expect(triggerUtxos[0].vout).toBe(0);
+    expect(triggerUtxos[0].value).toBeLessThan(VAULTED_AMOUNT);
+    expect(typeof triggerUtxos[0].status.confirmed).toBe('boolean');
 
     const psbt = new Psbt({ network });
     const { txHex } = await regtestUtils.fetch(triggerUtxos[0].txid);
@@ -320,18 +351,14 @@ describe('E2E: Multiple Pre-Signed txs Vault', () => {
     signBIP32({ psbt, masterNode });
     finalize({ psbt });
 
-    console.log('TRACE', 'finalized');
-
     const attackTxHex = psbt.extractTransaction(true).toHex();
-    try {
-      await discovery.push({
+    //expect this to throw and the error message must contain non-BIP68-final
+    await expect(
+      discovery.push({
         txHex: attackTxHex,
         gapLimit: GAP_LIMIT
-      });
-    } catch (error) {
-      console.log('TRACE', { error });
-      //TODO: expect this to throw and the error message must contain non-BIP68-final
-    }
+      })
+    ).rejects.toThrow(/non-BIP68-final/);
   });
   test('Send it to the panic address', async () => {
     if (typeof vault !== 'object') throw new Error();
@@ -339,10 +366,12 @@ describe('E2E: Multiple Pre-Signed txs Vault', () => {
     const panicTxs = vault.triggerMap[triggerTxData.txHex];
     if (!panicTxs) throw new Error('Invalid triggerMap');
     //Push the panic tx with largest fee
-    await discovery.push({
-      txHex: panicTxs[panicTxs.length - 1]!,
-      gapLimit: GAP_LIMIT
-    });
-    //TODO: expect above not to throw
+    //expect above not to throw
+    await expect(
+      discovery.push({
+        txHex: panicTxs[panicTxs.length - 1]!,
+        gapLimit: GAP_LIMIT
+      })
+    ).resolves.not.toThrow();
   });
 });
