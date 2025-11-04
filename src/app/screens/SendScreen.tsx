@@ -174,8 +174,8 @@ export default function Send() {
     [maxAmount]
   );
 
-  const txHexRef = useRef<string>();
-  const feeRef = useRef<number>();
+  const txHexRef = useRef<string>(undefined);
+  const feeRef = useRef<number>(undefined);
   const handleCloseContinue = useCallback(() => setIsConfirm(false), []);
   const handleContinue = useCallback(async () => {
     if (

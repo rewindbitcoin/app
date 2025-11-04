@@ -51,7 +51,6 @@ const Balance = ({
         )}
         <SkeletonPulse
           active={formattedBalance === undefined}
-          className="mr-2"
           style={{ marginRight: 8 }}
         >
           <Text className="font-bold text-3xl pr-0">
