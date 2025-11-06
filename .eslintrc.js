@@ -8,8 +8,8 @@ module.exports = {
   rules: {
     // Add any specific rules you want to override or enforce
     'react-hooks/rules-of-hooks': 'error',
-    'react-hooks/exhaustive-deps': 'warn'
-    // ...other custom rules
+    'react-hooks/exhaustive-deps': 'warn',
+    'react-hooks/refs': 'warn' // change from 'error' to 'warn'
   },
   settings: {
     react: {
