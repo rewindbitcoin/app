@@ -34,20 +34,23 @@ import {
   PUBLIC_TAPE_ELECTRUM_PORT
   // @ts-expect-error @env is defined in bable.config.js
 } from '@env';
-import { getLocales } from 'expo-localization';
 if (Number(VERSION) !== 33)
   throw new Error(
-    `This is still running version: ${VERSION}.
+    `⚠️ Environment version mismatch detected.
 
-You must manually change the version check on settings.ts everytime env is updated.
+This check exists *intentionally* to force you to edit 'settings.ts' and bump the VERSION number.
+Doing so changes the file hash, ensuring Metro/Babel recompiles '@env' instead of serving the cached version.
 
-This is because expo/metro/babel caches using the file (settings.ts) that is the entry point to @env and caches it.
+To refresh it:
+‐ Open 'settings.ts' (the file that imports '@env').
+‐ Increase the VERSION constant in it (e.g. from 33 → 34) so the file hash changes.
+‐ Then restart Metro with cleared cache:
+    npx expo start --clear
 
-Also make sure to clear the cache in metro: npx expo start --clear
-
-So, manually change the version in settings.ts so that this does not throw`
+More info: https://github.com/goatandsheep/react-native-dotenv/issues/422`
   );
 
+import { getLocales } from 'expo-localization';
 export const subUnits = ['btc', 'bit', 'sat', 'mbit'] as const;
 export type SubUnit = (typeof subUnits)[number];
 export const currencyCodes = [
