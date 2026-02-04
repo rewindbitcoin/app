@@ -78,3 +78,11 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program. If not, see [https://www.gnu.org/licenses/](https://www.gnu.org/licenses/).
+
+---
+
+## 🙏 Supporters
+
+The RewindBitcoin Project is proudly supported by the [OpenSats](https://opensats.org) organization.
+
+[![OpenSats logo](https://raw.githubusercontent.com/bitcoinerlab/.github/main/profile/assets/opensats.svg)](https://opensats.org)
