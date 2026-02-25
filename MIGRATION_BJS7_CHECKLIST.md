@@ -71,12 +71,12 @@ Note: Stage numbers reflect original plan order; Stage 6 has partial work becaus
 Installed and verified:
 
 - `bitcoinjs-lib@7.0.1`
-- `@bitcoinerlab/descriptors@3.0.5`
+- `@bitcoinerlab/descriptors@3.0.6`
 - `@bitcoinerlab/discovery@2.0.0`
 - `@bitcoinerlab/coinselect@2.0.0`
 - `@bitcoinerlab/explorer@1.0.0`
-- `@bitcoinerlab/miniscript@2.0.0`
-- `@bitcoinerlab/miniscript-policies@1.1.0` (added for policy compiler compatibility)
+- `@bitcoinerlab/miniscript@2.0.0` (devDependency)
+- `@bitcoinerlab/miniscript-policies@1.1.0` (devDependency; policy compiler compatibility)
 - `@bitcoinerlab/btcmessage@4.0.1` (replaces prior `bitcoinjs-message` fork)
 
 Command evidence:
@@ -191,6 +191,7 @@ Validation:
 
 - `grep '\bBuffer\b' src` -> no matches.
 - `grep '\bBuffer\b' init.ts` -> no matches.
+- `npm test` -> pass (after Buffer removal + `@bitcoinerlab/btcmessage` switch).
 
 ---
 
@@ -416,6 +417,8 @@ Keep monitoring for infra flakiness (`ECONNRESET`/`Bad Request`) in CI/regtest e
 
 Current modified/new files in this migration branch include:
 
+- `MIGRATION_BJS7_CHECKLIST.md`
+- `init.ts`
 - `package.json`
 - `package-lock.json`
 - `src/app/lib/sats.ts` (new)
@@ -425,6 +428,7 @@ Current modified/new files in this migration branch include:
 - `src/app/lib/vaultDescriptors.ts`
 - `src/app/lib/backup.ts`
 - `src/app/lib/walletDerivedData.ts`
+- `src/common/lib/cipher.ts`
 - `src/app/screens/NewWalletScreen.tsx`
 - `src/app/components/InitUnfreeze.tsx`
 - `src/app/components/Rescue.tsx`
