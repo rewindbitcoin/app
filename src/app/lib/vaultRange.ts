@@ -22,7 +22,7 @@ import {
   splitTransactionAmount
 } from './vaults';
 import type { Accounts } from './wallets';
-import { numberToSats, satsToNumber } from './sats';
+import { numberToSats, satsToNumber, toSats } from './sats';
 // nLockTime which results into the largest possible serialized size:
 const LOCK_BLOCKS_MAS_SIZE = 0xffff;
 const MIN_VAULT_BIN_SEARCH_ITERS = 100;
@@ -69,13 +69,9 @@ export const estimateMaxVaultAmount = moize.shallow(
     | undefined => {
     const utxos = getOutputsWithValue(utxosData);
     if (utxos.length === 0) return;
-    const utxosCoinselect = utxos.map(utxo => ({
-      output: utxo.output,
-      value: numberToSats(utxo.value, 'vault utxo value')
-    }));
     if (serviceFeeRate > 0) {
       const initialCoinselected = maxFunds({
-        utxos: utxosCoinselect,
+        utxos,
         targets: [
           {
             output: serviceOutput,
@@ -96,9 +92,9 @@ export const estimateMaxVaultAmount = moize.shallow(
       // serviceFee and the correct coinselect
 
       //The total amount is correct, but targets have incorrect ratios
-      const transactionAmount = initialCoinselected.targets.reduce(
-        (a, { value }) => a + satsToNumber(value, 'maxFunds target value'),
-        0
+      const transactionAmount = initialCoinselected.targets.reduce<bigint>(
+        (a, { value }) => a + value,
+        BigInt(0)
       );
       const split = splitTransactionAmount({
         transactionAmount,
@@ -114,11 +110,11 @@ export const estimateMaxVaultAmount = moize.shallow(
       //Note that output weights are kept the same and, thus, coinselection should
       //still be the same
       const coinselected = maxFunds({
-        utxos: utxosCoinselect,
+        utxos,
         targets: [
           {
             output: serviceOutput,
-            value: numberToSats(split.serviceFee, 'service fee')
+            value: split.serviceFee
           }
         ],
         remainder: vaultOutput,
@@ -132,13 +128,13 @@ export const estimateMaxVaultAmount = moize.shallow(
       //A final check after assining the correct values to each output.
       //finalTransactionAmount must be the same as amount since output weights
       //do not change (only value does).
-      const finalTransactionAmount = coinselected.targets.reduce(
-        (a, { value }) => a + satsToNumber(value, 'final target value'),
-        0
+      const finalTransactionAmount = coinselected.targets.reduce<bigint>(
+        (a, { value }) => a + value,
+        BigInt(0)
       );
       if (transactionAmount !== finalTransactionAmount)
         throw new Error(
-          `Invalid final transactionAmount after assigning final rates in estimateMaxVaultAmount: transactionAmount: ${transactionAmount}, finalAmount: ${finalTransactionAmount}.`
+          `Invalid final transactionAmount after assigning final rates in estimateMaxVaultAmount: transactionAmount: ${transactionAmount.toString()}, finalAmount: ${finalTransactionAmount.toString()}.`
         );
 
       return {
@@ -146,28 +142,36 @@ export const estimateMaxVaultAmount = moize.shallow(
           coinselected.fee,
           'vault coinselect fee'
         ),
-        ...split
+        vaultedAmount: satsToNumber(split.vaultedAmount, 'vaulted amount'),
+        serviceFee: satsToNumber(split.serviceFee, 'service fee'),
+        transactionAmount: satsToNumber(
+          split.transactionAmount,
+          'transaction amount'
+        )
       };
     } else {
       //When not having serviceFee it's simpler:
       const coinselected = maxFunds({
-        utxos: utxosCoinselect,
+        utxos,
         targets: [],
         remainder: vaultOutput,
         feeRate
       });
       if (!coinselected) return;
-      const transactionAmount = coinselected.targets.reduce(
-        (a, { value }) => a + satsToNumber(value, 'maxFunds target value'),
-        0
+      const transactionAmount = coinselected.targets.reduce<bigint>(
+        (a, { value }) => a + value,
+        BigInt(0)
       );
       return {
         vaultTxMiningFee: satsToNumber(
           coinselected.fee,
           'vault coinselect fee'
         ),
-        transactionAmount,
-        vaultedAmount: transactionAmount,
+        transactionAmount: satsToNumber(
+          transactionAmount,
+          'transaction amount'
+        ),
+        vaultedAmount: satsToNumber(transactionAmount, 'vaulted amount'),
         serviceFee: 0
       };
     }
@@ -237,7 +241,10 @@ const estimateMinRecoverableVaultAmount = moize.shallow(
     //The minimum vaultedAmount + serviceFee feasible:
     const isRecoverable = (transactionAmount: number) => {
       const split = splitTransactionAmount({
-        transactionAmount,
+        transactionAmount: toSats(
+          transactionAmount,
+          'recoverable transaction amount'
+        ),
         vaultOutput,
         serviceOutput,
         serviceFeeRate
@@ -269,7 +276,10 @@ const estimateMinRecoverableVaultAmount = moize.shallow(
       // vaultedAmount * (1 - minRecoverableRatio) > totalFees
       // vaultedAmount > totalFees / (1 - minRecoverableRatio)
       // If minRecoverableRatio =  2/3 => It can loose up to 1/3 of value in fees
-      return vaultedAmount >= Math.ceil(totalFees / (1 - minRecoverableRatio));
+      return (
+        satsToNumber(vaultedAmount, 'recoverable vaulted amount') >=
+        Math.ceil(totalFees / (1 - minRecoverableRatio))
+      );
     };
 
     //1st compute the max possible; This is the starting value in the binary tree
@@ -323,7 +333,10 @@ const estimateMinRecoverableVaultAmount = moize.shallow(
 
       //Now split it. Since it isRecoverable it can be split 100% sure
       const split = splitTransactionAmount({
-        transactionAmount: minTransactionAmount,
+        transactionAmount: toSats(
+          minTransactionAmount,
+          'minimum transaction amount'
+        ),
         vaultOutput,
         serviceOutput,
         serviceFeeRate
@@ -332,8 +345,8 @@ const estimateMinRecoverableVaultAmount = moize.shallow(
         throw new Error('After adding a PKH output the tx should be splitable');
       return {
         vaultTxMiningFee: Math.ceil(feeRate * vaultTxSize),
-        vaultedAmount: split.vaultedAmount,
-        serviceFee: split.serviceFee,
+        vaultedAmount: satsToNumber(split.vaultedAmount, 'vaulted amount'),
+        serviceFee: satsToNumber(split.serviceFee, 'service fee'),
         transactionAmount: minTransactionAmount
       };
     } else {
@@ -344,7 +357,10 @@ const estimateMinRecoverableVaultAmount = moize.shallow(
       );
       if (transactionAmount !== undefined) {
         const split = splitTransactionAmount({
-          transactionAmount,
+          transactionAmount: toSats(
+            transactionAmount,
+            'binary search transaction amount'
+          ),
           vaultOutput,
           serviceOutput,
           serviceFeeRate
@@ -368,10 +384,10 @@ const estimateMinRecoverableVaultAmount = moize.shallow(
             'This should have a solution since isRecoverable calls it exactly the same'
           );
         return {
-          vaultedAmount,
+          vaultedAmount: satsToNumber(vaultedAmount, 'vaulted amount'),
           transactionAmount,
-          serviceFee,
-          vaultTxMiningFee: selected.fee
+          serviceFee: satsToNumber(serviceFee, 'service fee'),
+          vaultTxMiningFee: satsToNumber(selected.fee, 'vault mining fee')
         };
       } else return maxVaultAmount;
     }

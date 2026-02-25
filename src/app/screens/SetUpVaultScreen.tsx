@@ -51,6 +51,7 @@ import { useWallet } from '../hooks/useWallet';
 import { OutputInstance } from '@bitcoinerlab/descriptors';
 import { useLocalization } from '../hooks/useLocalization';
 import { batchedUpdates } from '~/common/lib/batchedUpdates';
+import { satsToNumber, toSats } from '../lib/sats';
 
 export default function VaultSetUp({
   onVaultSetUpComplete
@@ -388,14 +389,14 @@ export default function VaultSetUp({
         changeOutput ||
         DUMMY_CHANGE_OUTPUT(getMainAccount(accounts, network), network),
       feeRate,
-      vaultedAmount,
-      serviceFee
+      vaultedAmount: toSats(vaultedAmount, 'selected vaulted amount'),
+      serviceFee: toSats(serviceFee, 'selected service fee')
     });
     if (!selected)
       throw new Error(
         `vaultedAmount ${vaultedAmount} should be selectable since it's within range - [${minRecoverableVaultAmount?.vaultedAmount}, ${maxVaultAmount?.vaultedAmount}] - isValidVaultRange: ${isValidVaultRange} - feeRate: ${feeRate}.`
       );
-    fee = selected.fee;
+    fee = satsToNumber(selected.fee, 'selected vault mining fee');
   }
 
   const prefilledAddressHelpIcon = useMemo<IconType>(

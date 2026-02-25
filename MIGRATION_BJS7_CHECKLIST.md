@@ -95,7 +95,9 @@ Current status:
 Added temporary conversion module:
 
 - `src/app/lib/sats.ts`
-  - `numberToSats(...)`
+  - bigint-native helpers (no `Sats` alias)
+  - `toSats(...)`, `satsFromNumber(...)`, `satsFromString(...)`, `satsToString(...)`
+  - `numberToSats(...)` (compat alias)
   - `satsToNumber(...)`
   - `satsToNumberOrUndefined(...)`
 
@@ -193,6 +195,23 @@ Validation:
 - `grep '\bBuffer\b' init.ts` -> no matches.
 - `npm test` -> pass (after Buffer removal + `@bitcoinerlab/btcmessage` switch).
 
+### 4.11 Stage 2 bigint hardening progress `[~]`
+
+- `src/app/lib/vaults.ts` core sat computations now run bigint-native internally:
+  - `getOutputsWithValue(...)` returns bigint values,
+  - `splitTransactionAmount(...)` accepts/returns bigint sats,
+  - `selectVaultUtxosData(...)` consumes/returns bigint sats.
+- `createVault(...)` now performs fee/amount arithmetic using bigint internally and converts to numbers only at returned UI/storage boundaries.
+- `src/app/lib/sendTransaction.ts` coinselection and PSBT fee/target handling are now bigint-native internally, with number conversion only at public return points.
+- `src/app/lib/vaultRange.ts` now uses bigint-aware split/selection internally and converts back to number at screen-facing API boundaries.
+- `src/app/screens/SetUpVaultScreen.tsx` explicitly converts boundary inputs to sats via `toSats(...)`.
+
+Validation:
+
+- `npm run build:src` -> pass.
+- `npm run build:test` -> pass.
+- `npm test` -> pass.
+
 ---
 
 ## 5) Current verification snapshot
@@ -279,8 +298,8 @@ Keep monitoring for infra flakiness (`ECONNRESET`/`Bad Request`) in CI/regtest e
 
 ### Remaining checklist
 
-- [ ] Introduce explicit `type Sats = bigint` in shared domain types.
-- [ ] Restrict number<->bigint conversion to boundary modules only.
+- [x] Standardize on `bigint` for sats in shared domain types (no alias).
+- [~] Restrict number<->bigint conversion to boundary modules only.
 - [ ] Add boundary helper coverage for parse/format/serialize paths.
 - [ ] Audit domain models so sat fields are bigint-native.
 
@@ -306,8 +325,8 @@ Keep monitoring for infra flakiness (`ECONNRESET`/`Bad Request`) in CI/regtest e
 
 ### Remaining checklist
 
-- [ ] Remove temporary number bridging from core computations.
-- [ ] Ensure `txMap`, output values, fees, and dust comparisons are bigint-safe.
+- [~] Remove temporary number bridging from core computations.
+- [~] Ensure `txMap`, output values, fees, and dust comparisons are bigint-safe.
 - [ ] Align discovery usage to v2 expectations (fetch before deriving indexes/utxos).
 - [ ] Re-verify vault creation/unfreeze/panic flow under regtest.
 
@@ -406,7 +425,7 @@ Keep monitoring for infra flakiness (`ECONNRESET`/`Bad Request`) in CI/regtest e
 
 ## 7) Immediate next jobs (ordered)
 
-1. Introduce explicit domain `Sats = bigint` typing and reduce adapter usage to I/O only.
+1. Finish Stage 2 boundary hardening: keep bigint in domain modules and reduce number conversions to explicit UI/storage API boundaries only.
 2. Normalize UI/state/storage boundaries to bigint + decimal-string persistence.
 3. Expand regression coverage for fee math and dust threshold behavior under bigint.
 4. Add lightweight CI guardrails for `Buffer` and sat-number usage in domain modules.

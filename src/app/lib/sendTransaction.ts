@@ -10,7 +10,7 @@ import { Network, Psbt } from 'bitcoinjs-lib';
 import { coinselect, dustThreshold, maxFunds } from '@bitcoinerlab/coinselect';
 import { DUMMY_PKH_OUTPUT, getMasterNode } from './vaultDescriptors';
 import type { Signer } from './wallets';
-import { numberToSats, satsToNumber } from './sats';
+import { satsToNumber, toSats } from './sats';
 
 type CoinselectUtxo = {
   output: OutputInstance;
@@ -18,9 +18,9 @@ type CoinselectUtxo = {
 };
 
 type SendCoinselectResult = {
-  fee: number;
+  fee: bigint;
   vsize: number;
-  targets: Array<{ output: OutputInstance; value: number }>;
+  targets: Array<{ output: OutputInstance; value: bigint }>;
   selectedUtxos: Array<CoinselectUtxo>;
   allUtxos: Array<CoinselectUtxo>;
 };
@@ -51,14 +51,10 @@ export const estimateSendRange = moize.shallow(
     let max: number | null = null;
 
     const utxos = getOutputsWithValue(utxosData);
-    const utxosCoinselect = utxos.map(utxo => ({
-      output: utxo.output,
-      value: numberToSats(utxo.value, 'send utxo value')
-    }));
 
-    if (feeRate !== null && feeRate > 0 && utxosCoinselect.length) {
+    if (feeRate !== null && feeRate > 0 && utxos.length) {
       const coinselected = maxFunds({
-        utxos: utxosCoinselect,
+        utxos,
         targets: [],
         remainder: output,
         feeRate
@@ -71,9 +67,9 @@ export const estimateSendRange = moize.shallow(
     }
 
     let maxWhen1SxB = null;
-    if (utxosCoinselect.length) {
+    if (utxos.length) {
       const coinselected1SxB = maxFunds({
-        utxos: utxosCoinselect,
+        utxos,
         targets: [],
         remainder: output,
         feeRate: 1
@@ -111,29 +107,23 @@ const sendCoinselect = moize.shallow(
   }): SendCoinselectResult | null => {
     const utxos = getOutputsWithValue(utxosData);
     if (!feeRate || !amount || !address || !utxos.length) return null;
-    const utxosCoinselect: Array<CoinselectUtxo> = utxos.map(utxo => ({
-      output: utxo.output,
-      value: numberToSats(utxo.value, 'send utxo value')
-    }));
     const output = address
       ? computeOutput(address, network)
       : DUMMY_PKH_OUTPUT();
+    const amountSats = toSats(amount, 'send amount');
     const coinselected = coinselect({
-      utxos: utxosCoinselect,
-      targets: [{ output, value: numberToSats(amount, 'send amount') }],
+      utxos,
+      targets: [{ output, value: amountSats }],
       remainder: changeOutput,
       feeRate
     });
     if (!coinselected) return null;
     return {
-      fee: satsToNumber(coinselected.fee, 'send fee'),
+      fee: coinselected.fee,
       vsize: coinselected.vsize,
-      targets: coinselected.targets.map(target => ({
-        output: target.output,
-        value: satsToNumber(target.value, 'send target value')
-      })),
+      targets: coinselected.targets,
       selectedUtxos: coinselected.utxos,
-      allUtxos: utxosCoinselect
+      allUtxos: utxos
     };
   }
 );
@@ -162,7 +152,7 @@ export const estimateSendTxFee = ({
     changeOutput
   });
   if (!coinselected) return null;
-  return coinselected.fee;
+  return satsToNumber(coinselected.fee, 'send estimated fee');
 };
 
 const signPsbt = async (signer: Signer, network: Network, psbtVault: Psbt) => {
@@ -223,7 +213,7 @@ export const calculateTx = async ({
   for (const target of targets) {
     target.output.updatePsbtAsOutput({
       psbt,
-      value: numberToSats(target.value, 'send target value')
+      value: target.value
     });
   }
   //Sign
@@ -231,12 +221,12 @@ export const calculateTx = async ({
   //Finalize
   finalizers.forEach(finalizer => finalizer({ psbt }));
   const tx = psbt.extractTransaction(true);
-  if (psbt.getFee() !== numberToSats(coinselected.fee, 'send selected fee'))
+  if (psbt.getFee() !== coinselected.fee)
     throw new Error(
       'Final fee in the psbt differs from the one after coinselect'
     );
   return {
     txHex: tx.toHex(),
-    fee: coinselected.fee
+    fee: satsToNumber(coinselected.fee, 'send selected fee')
   };
 };

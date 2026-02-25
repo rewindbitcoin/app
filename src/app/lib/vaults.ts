@@ -29,7 +29,12 @@ import { coinselect, vsize, dustThreshold } from '@bitcoinerlab/coinselect';
 import type { Explorer } from '@bitcoinerlab/explorer';
 import { type NetworkId, networkMapping } from './network';
 import { transactionFromHex } from './bitcoin';
-import { numberToSats, satsToNumber, satsToNumberOrUndefined } from './sats';
+import {
+  numberToSats,
+  satsToNumber,
+  satsToNumberOrUndefined,
+  toSats
+} from './sats';
 
 export type TxHex = string;
 export type TxId = string;
@@ -205,6 +210,11 @@ export type UtxosData = Array<{
   vout: number;
   output: OutputInstance;
 }>;
+
+type OutputWithValue = {
+  output: OutputInstance;
+  value: bigint;
+};
 
 type VaultPresignedTx = {
   txId: TxId;
@@ -490,8 +500,8 @@ export const getOutputsWithValue = memoize((utxosData: UtxosData) =>
     if (!out) throw new Error('Invalid utxo');
     return {
       output: utxo.output,
-      value: satsToNumber(out.value, 'utxo value')
-    };
+      value: out.value
+    } satisfies OutputWithValue;
   })
 );
 
@@ -511,7 +521,7 @@ export const splitTransactionAmount = ({
   serviceOutput,
   serviceFeeRate
 }: {
-  transactionAmount: number;
+  transactionAmount: bigint;
   vaultOutput: OutputInstance;
   serviceOutput?: OutputInstance;
   serviceFeeRate: number;
@@ -527,17 +537,23 @@ export const splitTransactionAmount = ({
     return {
       vaultedAmount: transactionAmount,
       transactionAmount,
-      serviceFee: 0
+      serviceFee: BigInt(0)
     };
   if (!serviceOutput)
     throw new Error('Set a serviceOutput when fee rates are > 0');
-  const vaultedAmount = Math.max(
-    satsToNumber(dustThreshold(vaultOutput), 'vault dust threshold') + 1,
-    Math.ceil(transactionAmount / (1 + serviceFeeRate))
+  const transactionAmountNumber = satsToNumber(
+    transactionAmount,
+    'split transaction amount'
+  );
+  const vaultedAmount = numberToSats(
+    Math.max(
+      satsToNumber(dustThreshold(vaultOutput), 'vault dust threshold') + 1,
+      Math.ceil(transactionAmountNumber / (1 + serviceFeeRate))
+    ),
+    'vaulted amount'
   );
   const serviceFee = transactionAmount - vaultedAmount;
-  if (serviceFee <= satsToNumber(dustThreshold(serviceOutput), 'service dust'))
-    return;
+  if (serviceFee <= dustThreshold(serviceOutput)) return;
   else
     return {
       vaultedAmount,
@@ -567,30 +583,25 @@ const selectVaultUtxosData = ({
    * The user spends transactionAmount `+ minerFees -> this vaults a total of vaultedAmount
    * In other words, transactionAmount = vaultedAmount + serviceFee
    */
-  vaultedAmount: number;
+  vaultedAmount: bigint;
   feeRate: number;
-  serviceFee: number;
+  serviceFee: bigint;
 }) => {
   const utxos = getOutputsWithValue(utxosData);
   if (!utxos.length) return;
-  if (vaultedAmount <= satsToNumber(dustThreshold(vaultOutput), 'vault dust'))
-    return;
-  const utxosCoinselect = utxos.map(utxo => ({
-    output: utxo.output,
-    value: numberToSats(utxo.value, 'utxo value')
-  }));
+  if (vaultedAmount <= dustThreshold(vaultOutput)) return;
   const coinselected = coinselect({
-    utxos: utxosCoinselect,
+    utxos,
     targets: [
       {
         output: vaultOutput,
-        value: numberToSats(vaultedAmount, 'vault amount')
+        value: vaultedAmount
       },
-      ...(serviceFee && serviceOutput
+      ...(serviceFee > BigInt(0) && serviceOutput
         ? [
             {
               output: serviceOutput,
-              value: numberToSats(serviceFee, 'service fee')
+              value: serviceFee
             }
           ]
         : [])
@@ -608,24 +619,25 @@ const selectVaultUtxosData = ({
     coinselected.utxos.length === utxosData.length
       ? utxosData
       : coinselected.utxos.map(utxo => {
-          const utxoData = utxosData[utxosCoinselect.indexOf(utxo)];
+          const utxoData = utxosData[utxos.indexOf(utxo)];
           if (!utxoData) throw new Error('Invalid utxoData');
           return utxoData;
         });
   return {
     vsize: coinselected.vsize,
-    fee: satsToNumber(coinselected.fee, 'vault coinselect fee'),
+    fee: coinselected.fee,
     serviceFee,
-    targets: coinselected.targets.map(target => ({
-      output: target.output,
-      value: satsToNumber(target.value, 'vault target value')
-    })),
+    targets: coinselected.targets,
     vaultUtxosData
   };
 };
 
+export const utxosDataBalanceSats = memoize((utxosData: UtxosData): bigint =>
+  getOutputsWithValue(utxosData).reduce((a, { value }) => a + value, BigInt(0))
+);
+
 export const utxosDataBalance = memoize((utxosData: UtxosData): number =>
-  getOutputsWithValue(utxosData).reduce((a, { value }) => a + value, 0)
+  satsToNumber(utxosDataBalanceSats(utxosData), 'utxosData balance')
 );
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
@@ -702,7 +714,9 @@ export async function createVault({
     //const signedPsbts = [];
     if (feeRateCeiling > maxFeeRateCeiling) return 'UNKNOWN_ERROR';
     let signaturesProcessed = 0;
-    let minPanicAmount = vaultedAmount; //Initialize to a large value
+    const vaultedAmountSats = toSats(vaultedAmount, 'vaulted amount');
+    const serviceFeeSats = toSats(serviceFee, 'service fee');
+    let minPanicAmount = vaultedAmountSats; //Initialize to a large value
 
     const network = networkMapping[networkId];
 
@@ -716,12 +730,12 @@ export async function createVault({
     // Run the coinselector
     const selected = selectVaultUtxosDataMemo({
       utxosData,
-      vaultedAmount,
+      vaultedAmount: vaultedAmountSats,
       vaultOutput,
       serviceOutput,
       changeOutput,
       feeRate,
-      serviceFee
+      serviceFee: serviceFeeSats
     });
     if (!selected) return 'COINSELECT_ERROR';
     const vaultUtxosData = selected.vaultUtxosData;
@@ -755,7 +769,7 @@ export async function createVault({
     //Prepare the Vault Tx:
     ////////////////////////////////
 
-    if (vaultedAmount !== vaultTargets[0].value)
+    if (vaultedAmountSats !== vaultTargets[0].value)
       throw new Error(
         'The coinselect algo should take into account service fee'
       );
@@ -775,7 +789,7 @@ export async function createVault({
     for (const target of vaultTargets) {
       target.output.updatePsbtAsOutput({
         psbt: psbtVault,
-        value: numberToSats(target.value, 'vault output value')
+        value: target.value
       });
     }
     //Sign
@@ -786,10 +800,14 @@ export async function createVault({
     const vaultTxHex = txVault.toHex();
     if (txVault.virtualSize() > selected.vsize)
       throw new Error('vsize larger than coinselected estimated one');
-    const feeRateVault = vaultMiningFee / txVault.virtualSize();
+    const vaultMiningFeeNumber = satsToNumber(
+      vaultMiningFee,
+      'vault mining fee'
+    );
+    const feeRateVault = vaultMiningFeeNumber / txVault.virtualSize();
     if (feeRateVault < 1) return 'UNKNOWN_ERROR';
     txMap[vaultTxHex] = {
-      fee: vaultMiningFee,
+      fee: vaultMiningFeeNumber,
       feeRate: feeRateVault,
       txId: txVault.getId()
     };
@@ -834,16 +852,13 @@ export async function createVault({
       const feeTrigger = Math.ceil(
         feeRateTrigger * estimateTriggerTxSize(lockBlocks)
       );
-      const triggerAmount = vaultedAmount - feeTrigger;
-      const triggerDust = satsToNumber(
-        dustThreshold(triggerOutput),
-        'trigger dust threshold'
-      );
+      const triggerAmount = vaultedAmountSats - BigInt(feeTrigger);
+      const triggerDust = dustThreshold(triggerOutput);
 
       if (triggerAmount <= triggerDust) {
         if (feeRateTrigger <= feeRateCeiling) {
           console.warn(
-            `triggerAmount <= dust: ${triggerAmount} <= ${triggerDust}`
+            `triggerAmount <= dust: ${satsToNumber(triggerAmount, 'trigger amount')} <= ${satsToNumber(triggerDust, 'trigger dust')}`
           );
           return 'NOT_ENOUGH_FUNDS';
         }
@@ -851,7 +866,7 @@ export async function createVault({
         //Add the output to psbtTrigger:
         triggerOutput.updatePsbtAsOutput({
           psbt: psbtTrigger,
-          value: numberToSats(triggerAmount, 'trigger amount')
+          value: triggerAmount
         });
         //psbts.push(psbtTrigger.toHex());
         //Sign
@@ -896,11 +911,8 @@ export async function createVault({
           const feePanic = Math.ceil(
             feeRatePanic * estimatePanicTxSize(lockBlocks, coldAddress, network)
           );
-          const panicAmount = triggerAmount - feePanic;
-          const panicDust = satsToNumber(
-            dustThreshold(coldOutput),
-            'panic dust threshold'
-          );
+          const panicAmount = triggerAmount - BigInt(feePanic);
+          const panicDust = dustThreshold(coldOutput);
 
           if (panicAmount <= panicDust) {
             if (
@@ -908,7 +920,7 @@ export async function createVault({
               feeRateTrigger <= feeRateCeiling
             ) {
               console.warn(
-                `panicAmount <= dust: ${panicAmount} <= ${panicDust}`
+                `panicAmount <= dust: ${satsToNumber(panicAmount, 'panic amount')} <= ${satsToNumber(panicDust, 'panic dust')}`
               );
               return 'NOT_ENOUGH_FUNDS';
             }
@@ -917,7 +929,7 @@ export async function createVault({
 
             coldOutput.updatePsbtAsOutput({
               psbt: psbtPanic,
-              value: numberToSats(triggerAmount - feePanic, 'panic amount')
+              value: panicAmount
             });
             //psbts.push(psbtPanic.toHex());
             //Sign
@@ -961,15 +973,15 @@ export async function createVault({
       if (panicTxs.length === 0)
         throw new Error(`Panic spending path has no solutions.`);
 
-    if (minPanicAmount === vaultedAmount)
+    if (minPanicAmount === vaultedAmountSats)
       throw new Error('Could not find minPanicAmount');
     return {
       networkId,
       vaultId: nextVaultId,
       vaultPath: nextVaultPath,
-      serviceFee,
-      vaultedAmount,
-      minPanicAmount,
+      serviceFee: satsToNumber(serviceFeeSats, 'service fee'),
+      vaultedAmount: satsToNumber(vaultedAmountSats, 'vaulted amount'),
+      minPanicAmount: satsToNumber(minPanicAmount, 'min panic amount'),
       feeRateCeiling,
       vaultAddress,
       triggerAddress,
@@ -1482,9 +1494,9 @@ const selectVaultUtxosDataFactory = memoize((utxosData: UtxosData) =>
             feeRate,
             serviceFee
           }: {
-            vaultedAmount: number;
+            vaultedAmount: bigint;
             feeRate: number;
-            serviceFee: number;
+            serviceFee: bigint;
           }) =>
             selectVaultUtxosData({
               utxosData,
@@ -1498,7 +1510,7 @@ const selectVaultUtxosDataFactory = memoize((utxosData: UtxosData) =>
               serviceFee
             }),
           ({ vaultedAmount, feeRate, serviceFee }) =>
-            JSON.stringify({ vaultedAmount, feeRate, serviceFee })
+            `${vaultedAmount.toString()}:${feeRate}:${serviceFee.toString()}`
         )
       )
     )
@@ -1517,9 +1529,9 @@ const selectVaultUtxosDataMemo = ({
   vaultOutput: OutputInstance;
   serviceOutput?: OutputInstance;
   changeOutput: OutputInstance;
-  vaultedAmount: number;
+  vaultedAmount: bigint;
   feeRate: number;
-  serviceFee: number;
+  serviceFee: bigint;
 }) =>
   selectVaultUtxosDataFactory(utxosData)(vaultOutput)(
     serviceOutput || 'no_service_output'
