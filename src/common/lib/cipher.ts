@@ -6,10 +6,11 @@
 import { CIPHER_ADDITIONAL_DATA } from '@env';
 
 import { sha256 } from '@noble/hashes/sha2';
+import { TextEncoder } from './textencoder';
 
 //This better give it an async signature in case it needs to be async in the future
 export const getPasswordDerivedCipherKey = async (password: string) =>
-  sha256(Buffer.from(password));
+  sha256(new TextEncoder().encode(password));
 
 export const getManagedChacha = async (key: Uint8Array) => {
   //defer the load since this can really slow down initial loads in slow old

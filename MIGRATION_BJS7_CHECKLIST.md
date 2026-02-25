@@ -55,7 +55,7 @@ while preserving functionality and keeping the app buildable throughout.
 - `[x]` Stage 1 - Dependency major upgrades + temporary compatibility
 - `[~]` Stage 2 - Sats/bytes boundaries and migration scaffolding
 - `[~]` Stage 3 - Core vault/send logic migration (partial, still adapter-backed)
-- `[~]` Stage 4 - Buffer removal (partial)
+- `[x]` Stage 4 - Buffer removal from app code
 - `[~]` Stage 6 - Tests and integration hardening (functional E2E restored)
 - `[ ]` Stage 5 - UI/state/storage full bigint normalization
 - `[ ]` Stage 7 - Cleanup and enforcement gates
@@ -77,10 +77,11 @@ Installed and verified:
 - `@bitcoinerlab/explorer@1.0.0`
 - `@bitcoinerlab/miniscript@2.0.0`
 - `@bitcoinerlab/miniscript-policies@1.1.0` (added for policy compiler compatibility)
+- `@bitcoinerlab/btcmessage@4.0.1` (replaces prior `bitcoinjs-message` fork)
 
 Command evidence:
 
-- `npm ls bitcoinjs-lib @bitcoinerlab/descriptors @bitcoinerlab/discovery @bitcoinerlab/coinselect @bitcoinerlab/explorer @bitcoinerlab/miniscript @bitcoinerlab/miniscript-policies`
+- `npm ls bitcoinjs-lib @bitcoinerlab/descriptors @bitcoinerlab/discovery @bitcoinerlab/coinselect @bitcoinerlab/explorer @bitcoinerlab/miniscript @bitcoinerlab/miniscript-policies @bitcoinerlab/btcmessage`
 
 ### 4.2 Build stability checkpoints `[x]`
 
@@ -175,6 +176,21 @@ Result:
 
 - `test/edge2edge.test.js` now passes.
 - Full `npm test` currently passes (with existing lint warnings only).
+
+### 4.10 App-level Buffer removal completed `[x]`
+
+Removed all remaining app-level `Buffer` usage:
+
+- `src/common/lib/cipher.ts` now hashes password bytes via `TextEncoder`.
+- `src/app/lib/backup.ts` now uses `toBase64(...)` and no longer converts through `Buffer`.
+- `src/app/lib/backup.ts` no longer wraps private keys with `Buffer.from(...)` before signing.
+- Message signing now uses `@bitcoinerlab/btcmessage` in `src/app/lib/backup.ts`.
+- `init.ts` no longer installs a global `Buffer` polyfill.
+
+Validation:
+
+- `grep '\bBuffer\b' src` -> no matches.
+- `grep '\bBuffer\b' init.ts` -> no matches.
 
 ---
 
@@ -300,7 +316,7 @@ Keep monitoring for infra flakiness (`ECONNRESET`/`Bad Request`) in CI/regtest e
 
 ---
 
-## Stage 4 - Remove Buffer usage from app code `[~]`
+## Stage 4 - Remove Buffer usage from app code `[x]`
 
 ### Goals
 
@@ -308,17 +324,13 @@ Keep monitoring for infra flakiness (`ECONNRESET`/`Bad Request`) in CI/regtest e
 
 ### Current remaining `Buffer` references
 
-- `src/app/lib/backup.ts:194`
-- `src/app/lib/backup.ts:406`
-- `src/app/lib/backup.ts:482`
-- `src/common/lib/cipher.ts:12`
-- `init.ts:99` (global polyfill)
+- none in app source (`src/**`) or `init.ts`.
 
 ### Remaining checklist
 
-- [ ] Replace remaining `Buffer.from(...)` usage in `backup.ts`.
-- [ ] Replace `Buffer` usage in `cipher.ts` with typed-array hashing input.
-- [ ] Re-evaluate and remove `global.Buffer` polyfill from `init.ts` if no longer required.
+- [x] Replace remaining `Buffer.from(...)` usage in `backup.ts`.
+- [x] Replace `Buffer` usage in `cipher.ts` with typed-array hashing input.
+- [x] Re-evaluate and remove `global.Buffer` polyfill from `init.ts`.
 
 ### Exit criteria
 
@@ -393,11 +405,10 @@ Keep monitoring for infra flakiness (`ECONNRESET`/`Bad Request`) in CI/regtest e
 
 ## 7) Immediate next jobs (ordered)
 
-1. Remove remaining `Buffer` usages in `backup.ts`, `cipher.ts`, and `init.ts`.
-2. Introduce explicit domain `Sats = bigint` typing and reduce adapter usage to I/O only.
-3. Normalize UI/state/storage boundaries to bigint + decimal-string persistence.
-4. Expand regression coverage for fee math and dust threshold behavior under bigint.
-5. Add lightweight CI guardrails for `Buffer` and sat-number usage in domain modules.
+1. Introduce explicit domain `Sats = bigint` typing and reduce adapter usage to I/O only.
+2. Normalize UI/state/storage boundaries to bigint + decimal-string persistence.
+3. Expand regression coverage for fee math and dust threshold behavior under bigint.
+4. Add lightweight CI guardrails for `Buffer` and sat-number usage in domain modules.
 
 ---
 

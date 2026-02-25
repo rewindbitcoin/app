@@ -19,9 +19,9 @@ import { Network, networks } from 'bitcoinjs-lib';
 import { sha256 } from '@noble/hashes/sha2';
 import type { Accounts, Signer } from './wallets';
 import { getMasterNode } from './vaultDescriptors';
-import { MessageFactory } from 'bitcoinjs-message';
+import { MessageFactory } from '@bitcoinerlab/btcmessage';
 import * as secp256k1 from '@bitcoinerlab/secp256k1';
-import { toHex } from 'uint8array-tools';
+import { toBase64, toHex } from 'uint8array-tools';
 const MessageAPI = MessageFactory(secp256k1);
 
 import { compressData } from '../../common/lib/compress';
@@ -191,7 +191,7 @@ const getSeedDerivedCipherKey = async ({
 
   const signature = MessageAPI.sign(
     SIGNING_MESSAGE,
-    Buffer.from(childNode.privateKey),
+    childNode.privateKey,
     true // assumes compressed
   );
   const cipherKey = sha256(signature);
@@ -401,13 +401,9 @@ export const delegateVault = async ({
     URL.revokeObjectURL(url);
   } else {
     const filePath = `${documentDirectory}${fileName}`;
-    await writeAsStringAsync(
-      filePath,
-      Buffer.from(compressedRescue).toString('base64'),
-      {
-        encoding: EncodingType.Base64
-      }
-    );
+    await writeAsStringAsync(filePath, toBase64(compressedRescue), {
+      encoding: EncodingType.Base64
+    });
     await shareAsync(filePath);
     await deleteAsync(filePath);
   }
@@ -477,13 +473,9 @@ export const exportWallet = async ({
     URL.revokeObjectURL(url);
   } else {
     const filePath = `${documentDirectory}${fileName}`;
-    await writeAsStringAsync(
-      filePath,
-      Buffer.from(compressedExport).toString('base64'),
-      {
-        encoding: EncodingType.Base64
-      }
-    );
+    await writeAsStringAsync(filePath, toBase64(compressedExport), {
+      encoding: EncodingType.Base64
+    });
     await shareAsync(filePath);
     await deleteAsync(filePath);
   }

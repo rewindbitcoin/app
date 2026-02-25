@@ -95,9 +95,6 @@ console.log(
 );
 console.log('Device dimensions: ', Dimensions.get('window'));
 
-//shims for react-native
-if (typeof Buffer === 'undefined') global.Buffer = require('buffer').Buffer;
-
 import 'react-native-get-random-values';
 import 'react-native-url-polyfill/auto';
 
