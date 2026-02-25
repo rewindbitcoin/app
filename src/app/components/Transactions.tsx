@@ -21,6 +21,7 @@ import { Currency, SubUnit } from '../lib/settings';
 import { formatBalance } from '../lib/format';
 import { Button } from '~/common/ui';
 import { useLocalization } from '../hooks/useLocalization';
+import { satsToNumber } from '../lib/sats';
 
 const RawTransaction = ({
   tipStatus,
@@ -314,23 +315,27 @@ const RawTransaction = ({
       `Unsupported tx type: ${item.type} - ${'vaultTxType' in item && item.vaultTxType}`
     );
   }
+  const hotReceived =
+    'netReceived' in item
+      ? satsToNumber(item.netReceived, 'transaction net received')
+      : undefined;
 
   return (
     <View className="overflow-hidden p-4">
       <View className="flex-row justify-between items-start gap-2">
         <View className="flex-1 items-start flex-row">{header}</View>
         <View>
-          {'netReceived' in item && (
+          {hotReceived !== undefined && (
             <View className="flex-row justify-end items-center">
               <Svg className="fill-yellow-400 w-5 h-5" viewBox="0 0 24 24">
                 <HotIcon />
               </Svg>
               <Text
-                className={`ml-2 ${item.netReceived >= 0 ? 'text-green-700' : 'text-red-700'}`}
+                className={`ml-2 ${hotReceived >= 0 ? 'text-green-700' : 'text-red-700'}`}
               >
-                {item.netReceived > 0 ? '+' : ''}
+                {hotReceived > 0 ? '+' : ''}
                 {formatBalance({
-                  satsBalance: item.netReceived,
+                  satsBalance: hotReceived,
                   btcFiat,
                   currency,
                   locale,

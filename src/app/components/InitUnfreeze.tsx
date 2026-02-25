@@ -20,6 +20,7 @@ import { transactionFromHex } from '../lib/bitcoin';
 import { useWallet } from '../hooks/useWallet';
 import useFirstDefinedValue from '~/common/hooks/useFirstDefinedValue';
 import { useLocalization } from '../hooks/useLocalization';
+import { satsToNumber } from '../lib/sats';
 
 export type InitUnfreezeData = {
   txHex: TxHex;
@@ -75,7 +76,10 @@ const InitUnfreeze = ({
       const outValue = tx.outs[0]?.value;
       if (!tx || tx.outs.length !== 1 || !outValue)
         throw new Error('Invalid triggerTxHex');
-      return (vault.vaultedAmount - outValue) / tx.virtualSize();
+      return (
+        (vault.vaultedAmount - satsToNumber(outValue, 'trigger out value')) /
+        tx.virtualSize()
+      );
     }
   }, [vaultStatus?.triggerTxHex, vault.vaultedAmount]);
 

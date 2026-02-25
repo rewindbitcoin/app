@@ -6,6 +6,7 @@ const PUSH_TIMEOUT = 30 * 60; // 30 minutes
 
 import { type Network, type Transaction, Psbt } from 'bitcoinjs-lib';
 import { sha256 } from '@noble/hashes/sha2';
+import { fromHex, toHex } from 'uint8array-tools';
 import memoize from 'lodash.memoize';
 import type { Accounts, Signer } from './wallets';
 import moize from 'moize';
@@ -28,6 +29,7 @@ import { coinselect, vsize, dustThreshold } from '@bitcoinerlab/coinselect';
 import type { Explorer } from '@bitcoinerlab/explorer';
 import { type NetworkId, networkMapping } from './network';
 import { transactionFromHex } from './bitcoin';
+import { numberToSats, satsToNumber, satsToNumberOrUndefined } from './sats';
 
 export type TxHex = string;
 export type TxId = string;
@@ -358,7 +360,10 @@ export const getHistoryData = moize(
       if (vaultStatus.vaultTxBlockHeight !== undefined) {
         // vaultTxBlockHeight may be undefined if VAULT_NOT_FOUND
         const { txId, tx } = transactionFromHex(vaultTxHex);
-        const outValue = tx.outs[0]?.value;
+        const outValue = satsToNumberOrUndefined(
+          tx.outs[0]?.value,
+          'vault tx out value'
+        );
         if (outValue === undefined) throw new Error('Unset output');
         const pushTime = vaultStatus.vaultPushTime;
         const blockTime = vaultStatus.vaultTxBlockTime;
@@ -376,7 +381,10 @@ export const getHistoryData = moize(
       }
       if (triggerTxHex) {
         const { txId, tx } = transactionFromHex(triggerTxHex);
-        const outValue = tx.outs[0]?.value;
+        const outValue = satsToNumberOrUndefined(
+          tx.outs[0]?.value,
+          'trigger tx out value'
+        );
         if (outValue === undefined) throw new Error('Unset output');
         const pushTime = vaultStatus.triggerPushTime;
         const blockTime = vaultStatus.triggerTxBlockTime;
@@ -413,7 +421,10 @@ export const getHistoryData = moize(
       }
       if (panicTxHex) {
         const { txId, tx } = transactionFromHex(panicTxHex);
-        const outValue = tx.outs[0]?.value;
+        const outValue = satsToNumberOrUndefined(
+          tx.outs[0]?.value,
+          'panic tx out value'
+        );
         if (outValue === undefined) throw new Error('Unset output');
         const pushTime = vaultStatus.panicPushTime;
         const blockTime = vaultStatus.panicTxBlockTime;
@@ -477,7 +488,10 @@ export const getOutputsWithValue = memoize((utxosData: UtxosData) =>
   utxosData.map(utxo => {
     const out = utxo.tx.outs[utxo.vout];
     if (!out) throw new Error('Invalid utxo');
-    return { output: utxo.output, value: out.value };
+    return {
+      output: utxo.output,
+      value: satsToNumber(out.value, 'utxo value')
+    };
   })
 );
 
@@ -518,11 +532,12 @@ export const splitTransactionAmount = ({
   if (!serviceOutput)
     throw new Error('Set a serviceOutput when fee rates are > 0');
   const vaultedAmount = Math.max(
-    dustThreshold(vaultOutput) + 1,
+    satsToNumber(dustThreshold(vaultOutput), 'vault dust threshold') + 1,
     Math.ceil(transactionAmount / (1 + serviceFeeRate))
   );
   const serviceFee = transactionAmount - vaultedAmount;
-  if (serviceFee <= dustThreshold(serviceOutput)) return;
+  if (serviceFee <= satsToNumber(dustThreshold(serviceOutput), 'service dust'))
+    return;
   else
     return {
       vaultedAmount,
@@ -558,13 +573,26 @@ const selectVaultUtxosData = ({
 }) => {
   const utxos = getOutputsWithValue(utxosData);
   if (!utxos.length) return;
-  if (vaultedAmount <= dustThreshold(vaultOutput)) return;
+  if (vaultedAmount <= satsToNumber(dustThreshold(vaultOutput), 'vault dust'))
+    return;
+  const utxosCoinselect = utxos.map(utxo => ({
+    output: utxo.output,
+    value: numberToSats(utxo.value, 'utxo value')
+  }));
   const coinselected = coinselect({
-    utxos,
+    utxos: utxosCoinselect,
     targets: [
-      { output: vaultOutput, value: vaultedAmount },
+      {
+        output: vaultOutput,
+        value: numberToSats(vaultedAmount, 'vault amount')
+      },
       ...(serviceFee && serviceOutput
-        ? [{ output: serviceOutput, value: serviceFee }]
+        ? [
+            {
+              output: serviceOutput,
+              value: numberToSats(serviceFee, 'service fee')
+            }
+          ]
         : [])
     ],
     remainder: changeOutput,
@@ -580,15 +608,18 @@ const selectVaultUtxosData = ({
     coinselected.utxos.length === utxosData.length
       ? utxosData
       : coinselected.utxos.map(utxo => {
-          const utxoData = utxosData[utxos.indexOf(utxo)];
+          const utxoData = utxosData[utxosCoinselect.indexOf(utxo)];
           if (!utxoData) throw new Error('Invalid utxoData');
           return utxoData;
         });
   return {
     vsize: coinselected.vsize,
-    fee: coinselected.fee,
+    fee: satsToNumber(coinselected.fee, 'vault coinselect fee'),
     serviceFee,
-    targets: coinselected.targets,
+    targets: coinselected.targets.map(target => ({
+      output: target.output,
+      value: satsToNumber(target.value, 'vault target value')
+    })),
     vaultUtxosData
   };
 };
@@ -679,7 +710,7 @@ export async function createVault({
     const changeOutput = new Output({ ...changeDescriptorWithIndex, network });
     const vaultPair = ECPair.makeRandom();
     const vaultOutput = new Output({
-      descriptor: createVaultDescriptor(vaultPair.publicKey.toString('hex')),
+      descriptor: createVaultDescriptor(toHex(vaultPair.publicKey)),
       network
     });
     // Run the coinselector
@@ -744,7 +775,7 @@ export async function createVault({
     for (const target of vaultTargets) {
       target.output.updatePsbtAsOutput({
         psbt: psbtVault,
-        value: target.value
+        value: numberToSats(target.value, 'vault output value')
       });
     }
     //Sign
@@ -773,7 +804,7 @@ export async function createVault({
     //Prepare the output...
     const triggerDescriptor = createTriggerDescriptor({
       unvaultKey,
-      panicKey: panicPubKey.toString('hex'),
+      panicKey: toHex(panicPubKey),
       lockBlocks
     });
 
@@ -804,11 +835,15 @@ export async function createVault({
         feeRateTrigger * estimateTriggerTxSize(lockBlocks)
       );
       const triggerAmount = vaultedAmount - feeTrigger;
+      const triggerDust = satsToNumber(
+        dustThreshold(triggerOutput),
+        'trigger dust threshold'
+      );
 
-      if (triggerAmount <= dustThreshold(triggerOutput)) {
+      if (triggerAmount <= triggerDust) {
         if (feeRateTrigger <= feeRateCeiling) {
           console.warn(
-            `triggerAmount <= dust: ${triggerAmount} <= ${dustThreshold(triggerOutput)}`
+            `triggerAmount <= dust: ${triggerAmount} <= ${triggerDust}`
           );
           return 'NOT_ENOUGH_FUNDS';
         }
@@ -816,7 +851,7 @@ export async function createVault({
         //Add the output to psbtTrigger:
         triggerOutput.updatePsbtAsOutput({
           psbt: psbtTrigger,
-          value: triggerAmount
+          value: numberToSats(triggerAmount, 'trigger amount')
         });
         //psbts.push(psbtTrigger.toHex());
         //Sign
@@ -862,14 +897,18 @@ export async function createVault({
             feeRatePanic * estimatePanicTxSize(lockBlocks, coldAddress, network)
           );
           const panicAmount = triggerAmount - feePanic;
+          const panicDust = satsToNumber(
+            dustThreshold(coldOutput),
+            'panic dust threshold'
+          );
 
-          if (panicAmount <= dustThreshold(coldOutput)) {
+          if (panicAmount <= panicDust) {
             if (
               feeRatePanic <= feeRateCeiling &&
               feeRateTrigger <= feeRateCeiling
             ) {
               console.warn(
-                `panicAmount <= dust: ${panicAmount} <= ${dustThreshold(coldOutput)}`
+                `panicAmount <= dust: ${panicAmount} <= ${panicDust}`
               );
               return 'NOT_ENOUGH_FUNDS';
             }
@@ -878,7 +917,7 @@ export async function createVault({
 
             coldOutput.updatePsbtAsOutput({
               psbt: psbtPanic,
-              value: triggerAmount - feePanic
+              value: numberToSats(triggerAmount - feePanic, 'panic amount')
             });
             //psbts.push(psbtPanic.toHex());
             //Sign
@@ -979,7 +1018,7 @@ export const estimatePanicTxSize = moize(
             panicKey: DUMMY_PUBKEY_2,
             lockBlocks
           }),
-          signersPubKeys: [Buffer.from(DUMMY_PUBKEY_2, 'hex')],
+          signersPubKeys: [fromHex(DUMMY_PUBKEY_2)],
           network
         })
       ],
@@ -1193,9 +1232,8 @@ async function fetchSpendingTx(
 
   const output = tx.outs[vout];
   if (!output) throw new Error('Invalid out');
-  const scriptHash = Buffer.from(sha256(output.script))
-    .reverse()
-    .toString('hex');
+  const scriptHashBytes = Uint8Array.from(sha256(output.script)).reverse();
+  const scriptHash = toHex(scriptHashBytes);
 
   //retrieve all txs that sent / received from this scriptHash
   //fetchTxHistory also includes mempool
@@ -1211,7 +1249,7 @@ async function fetchSpendingTx(
     const { tx: txHistory } = transactionFromHex(historyTxHex);
     //For all the inputs in the tx see if one of them was spending from vout and txId
     const found = txHistory.ins.some(input => {
-      const inputPrevtxId = Buffer.from(input.hash).reverse().toString('hex');
+      const inputPrevtxId = toHex(Uint8Array.from(input.hash).reverse());
       const inputPrevOutput = input.index;
       return inputPrevtxId === txId && inputPrevOutput === vout;
     });

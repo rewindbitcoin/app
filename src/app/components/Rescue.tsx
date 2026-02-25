@@ -18,6 +18,7 @@ import type { TxHex, TxId, Vault, VaultStatus } from '../lib/vaults';
 import { transactionFromHex } from '../lib/bitcoin';
 import { useWallet } from '../hooks/useWallet';
 import useFirstDefinedValue from '~/common/hooks/useFirstDefinedValue';
+import { satsToNumber } from '../lib/sats';
 
 export type RescueData = {
   txHex: TxHex;
@@ -73,7 +74,11 @@ const Rescue = ({
       const panicOutValue = panicTx.outs[0]?.value;
       if (!panicTx || panicTx.outs.length !== 1 || !panicOutValue)
         throw new Error('Invalid panicTxHex');
-      return (triggerOutValue - panicOutValue) / panicTx.virtualSize();
+      return (
+        (satsToNumber(triggerOutValue, 'trigger out value') -
+          satsToNumber(panicOutValue, 'panic out value')) /
+        panicTx.virtualSize()
+      );
     }
   }, [vaultStatus?.triggerTxHex, vaultStatus?.panicTxHex]);
 

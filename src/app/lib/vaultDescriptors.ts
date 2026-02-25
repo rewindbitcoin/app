@@ -12,7 +12,6 @@ import {
   scriptExpressions,
   keyExpressionBIP32
 } from '@bitcoinerlab/descriptors';
-import { compilePolicy } from '@bitcoinerlab/miniscript';
 import { Accounts, Signer, Signers, SOFTWARE } from './wallets';
 import type { Account } from '@bitcoinerlab/discovery';
 import { ensureDescriptorsFactoryInstance } from './descriptorsFactory';
@@ -232,16 +231,8 @@ export const createTriggerDescriptor = ({
   panicKey: string;
   lockBlocks: number;
 }) => {
-  //TODO: Do not compile the POLICY. hardcode the miniscript
-  const POLICY = (older: number) =>
-    `or(pk(@panicKey),99@and(pk(@unvaultKey),older(${older})))`;
   const older = olderEncode({ blocks: lockBlocks });
-  const { miniscript, issane } = compilePolicy(POLICY(older));
-  if (!issane) throw new Error('Policy not sane');
-
-  const triggerDescriptor = `wsh(${miniscript
-    .replace('@unvaultKey', unvaultKey)
-    .replace('@panicKey', panicKey)})`;
+  const triggerDescriptor = `wsh(andor(pk(${unvaultKey}),older(${older}),pkh(${panicKey})))`;
   return triggerDescriptor;
 };
 
@@ -313,6 +304,7 @@ export const getMainAccount = moize(
           keyPath === '/0/*' &&
           accountNumberH === `${accountNumber}'` &&
           purposeH === `${purpose}'` &&
+          //FIXME: should I add here TR?
           [44, 49, 84].includes(purpose) &&
           coinTypeH === (network === networks.bitcoin ? "0'" : "1'") &&
           ((purpose === 44 && expandedExpression === 'pkh(@0)') ||
@@ -327,6 +319,7 @@ export const getMainAccount = moize(
     if (mainCandidates.length === 0)
       throw new Error('Could not get the main account');
 
+    //FIXME: should I add here TR?
     const purposeOrder: { [key: number]: number } = { 84: 0, 49: 1, 44: 2 };
     // Sort by purpose preference and then by account number
     mainCandidates.sort((a, b) => {

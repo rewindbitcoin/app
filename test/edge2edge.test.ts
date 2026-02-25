@@ -3,6 +3,7 @@
 
 import { RegtestUtils } from 'regtest-client';
 import { networks, Psbt } from 'bitcoinjs-lib';
+import { fromHex, toHex } from 'uint8array-tools';
 import { fixtures } from './fixtutres';
 const network = networks.regtest;
 const networkId = 'REGTEST';
@@ -104,11 +105,11 @@ describe('E2E: Multiple Pre-Signed txs Vault', () => {
 
   const esploraPort = process.env['ESPLORA_PORT'] || '3002';
   let unvaultKey: string;
-  let unvaultPubKey: Buffer;
+  let unvaultPubKey: Uint8Array;
   const signers: Signers = {};
   let signer: Signer;
   test('Create signer', async () => {
-    const masterFingerprint = masterNode.fingerprint.toString('hex');
+    const masterFingerprint = toHex(masterNode.fingerprint);
     signer = {
       masterFingerprint,
       type: 'SOFTWARE',
@@ -130,9 +131,7 @@ describe('E2E: Multiple Pre-Signed txs Vault', () => {
     if (!unvaultKeyInfo.pubkey) throw new Error();
     unvaultPubKey = unvaultKeyInfo.pubkey;
     expect(unvaultKey).toBe(expected.unvaultKey);
-    expect(unvaultPubKey).toEqual(
-      Buffer.from(expected.unvaultPubKeyHex, 'hex')
-    );
+    expect(unvaultPubKey).toEqual(fromHex(expected.unvaultPubKeyHex));
   });
   let coldAddress: string;
   test('Create cold address', async () => {
@@ -167,7 +166,7 @@ describe('E2E: Multiple Pre-Signed txs Vault', () => {
     expect(descriptors).toEqual(expected.descriptors);
 
     await discovery.fetch({ descriptors, gapLimit: GAP_LIMIT });
-  });
+  }, 20000);
   let changeDescriptorWithIndex: { descriptor: string; index: number };
   test('Create change descriptor', async () => {
     const account = getMainAccount(accounts, network);
@@ -200,7 +199,7 @@ describe('E2E: Multiple Pre-Signed txs Vault', () => {
     });
     await regtestUtils.faucet(nextOutput.getAddress(), FAUCET_AMOUNT);
     await discovery.fetch({ descriptors, gapLimit: GAP_LIMIT });
-  });
+  }, 20000);
   let vault:
     | Vault
     | 'COINSELECT_ERROR'
@@ -208,6 +207,8 @@ describe('E2E: Multiple Pre-Signed txs Vault', () => {
     | 'USER_CANCEL'
     | 'UNKNOWN_ERROR';
   test('Create the vault', async () => {
+    if (!descriptors.length)
+      throw new Error('descriptors should have been initialized');
     const utxos = discovery.getUtxos({ descriptors });
     const utxosData = getUtxosData(utxos, vaults, network, discovery);
 
@@ -218,7 +219,7 @@ describe('E2E: Multiple Pre-Signed txs Vault', () => {
 
     const vaultNode = masterNode.derivePath(vaultPath);
     if (!vaultNode.publicKey) throw new Error('Could not generate a vaultId');
-    const vaultId = vaultNode.publicKey.toString('hex');
+    const vaultId = toHex(vaultNode.publicKey);
 
     const onProgress = (progress: number) => {
       void progress;
@@ -331,7 +332,10 @@ describe('E2E: Multiple Pre-Signed txs Vault', () => {
       vout: 0,
       txHex
     });
-    burnOutput.updatePsbtAsOutput({ psbt, value: triggerUtxos[0].value - 500 });
+    burnOutput.updatePsbtAsOutput({
+      psbt,
+      value: BigInt(triggerUtxos[0].value - 500)
+    });
 
     signBIP32({ psbt, masterNode });
     finalize({ psbt });

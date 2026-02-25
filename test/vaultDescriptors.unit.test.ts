@@ -2,6 +2,7 @@
 // Licensed under the GNU GPL v3 or later. See the LICENSE file for details.
 
 import { networks } from 'bitcoinjs-lib';
+import { toHex } from 'uint8array-tools';
 import { fixtures } from './fixtutres';
 import {
   createColdAddress,
@@ -23,7 +24,7 @@ const network = networks.regtest;
 describe('vaultDescriptors unit tests', () => {
   const { MNEMONIC, COLD_MNEMONIC, expected } = fixtures.edge2edge;
   const masterNode = getMasterNode(MNEMONIC, network);
-  const masterFingerprint = masterNode.fingerprint.toString('hex');
+  const masterFingerprint = toHex(masterNode.fingerprint);
   const signer: Signer = {
     masterFingerprint,
     type: 'SOFTWARE',

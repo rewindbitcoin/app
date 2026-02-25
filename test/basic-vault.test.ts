@@ -3,6 +3,7 @@
 
 import { RegtestUtils } from 'regtest-client';
 import { networks } from 'bitcoinjs-lib';
+import { toHex } from 'uint8array-tools';
 import * as secp256k1 from '@bitcoinerlab/secp256k1';
 import * as descriptors from '@bitcoinerlab/descriptors';
 const scriptExpressions = descriptors.scriptExpressions;
@@ -10,7 +11,7 @@ const keyExpressionBIP32 = descriptors.keyExpressionBIP32;
 import { mnemonicToSeedSync } from 'bip39';
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { encode: olderEncode } = require('bip68');
-import { compilePolicy } from '@bitcoinerlab/miniscript';
+import { compilePolicy, ready } from '@bitcoinerlab/miniscript-policies';
 import { EsploraExplorer } from '@bitcoinerlab/explorer';
 const { Output, BIP32, ECPair } = descriptors.DescriptorsFactory(secp256k1);
 
@@ -33,6 +34,7 @@ describe('Basic Vault', () => {
 
   const esploraPort = process.env['ESPLORA_PORT'] || '3002';
   test('Create and fund a vault', async () => {
+    await ready;
     const POLICY = (older: number) =>
       `or(pk(@panicKey),99@and(pk(@unvaultKey),older(${older})))`;
     const older = olderEncode({ blocks: lockBlocks });
@@ -60,7 +62,7 @@ describe('Basic Vault', () => {
 
     vaultDescriptor = `wsh(${miniscript
       .replace('@unvaultKey', unvaultKey)
-      .replace('@panicKey', panicPubKey.toString('hex'))})`;
+      .replace('@panicKey', toHex(panicPubKey))})`;
 
     const vaultOutput = new Output({ descriptor: vaultDescriptor, network });
     vaultAddress = vaultOutput.getAddress();

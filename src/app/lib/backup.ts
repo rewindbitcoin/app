@@ -21,6 +21,7 @@ import type { Accounts, Signer } from './wallets';
 import { getMasterNode } from './vaultDescriptors';
 import { MessageFactory } from 'bitcoinjs-message';
 import * as secp256k1 from '@bitcoinerlab/secp256k1';
+import { toHex } from 'uint8array-tools';
 const MessageAPI = MessageFactory(secp256k1);
 
 import { compressData } from '../../common/lib/compress';
@@ -62,7 +63,7 @@ export const fetchP2PVaultIds = async ({
 
     const vaultNode = masterNode.derivePath(vaultPath);
     if (!vaultNode.publicKey) throw new Error('Could not generate a vaultId');
-    const vaultId = vaultNode.publicKey.toString('hex');
+    const vaultId = toHex(vaultNode.publicKey);
     const vault = vaults?.[vaultId];
     if (vault) {
       existingVaults.push({ vaultId, vaultPath });
@@ -190,7 +191,7 @@ const getSeedDerivedCipherKey = async ({
 
   const signature = MessageAPI.sign(
     SIGNING_MESSAGE,
-    childNode.privateKey,
+    Buffer.from(childNode.privateKey),
     true // assumes compressed
   );
   const cipherKey = sha256(signature);

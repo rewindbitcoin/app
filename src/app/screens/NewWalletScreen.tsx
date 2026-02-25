@@ -51,6 +51,7 @@
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { v4 as uuid } from 'uuid';
+import { toHex } from 'uint8array-tools';
 import { defaultSettings } from '../lib/settings';
 import type { Wallet, Signer } from '../lib/wallets';
 import {
@@ -240,7 +241,7 @@ export default function NewWalletScreen() {
       const network = networkMapping[networkId];
       const mnemonic = words.join(' ');
       const masterNode = getMasterNode(mnemonic, network);
-      const masterFingerprint = masterNode.fingerprint.toString('hex');
+      const masterFingerprint = toHex(masterNode.fingerprint);
       const signersCipherKey = signersPassword
         ? await getPasswordDerivedCipherKey(signersPassword)
         : undefined;

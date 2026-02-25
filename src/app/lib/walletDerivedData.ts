@@ -4,7 +4,6 @@
 import moize from 'moize';
 import { NetworkId, networkMapping } from './network';
 import { Vaults, getUtxosData as extractUtxosData } from '../lib/vaults';
-import type { Descriptor } from '@bitcoinerlab/discovery/dist/types';
 import type { Settings } from './settings';
 import type { DiscoveryInstance } from '@bitcoinerlab/discovery';
 
@@ -115,7 +114,7 @@ export const getAPIs = moize(
 export const getUtxosData = moize(
   (
     discovery: DiscoveryInstance | undefined,
-    descriptors: Array<Descriptor> | undefined,
+    descriptors: Array<string> | undefined,
     vaults: Vaults | undefined,
     networkId: NetworkId
   ) => {
