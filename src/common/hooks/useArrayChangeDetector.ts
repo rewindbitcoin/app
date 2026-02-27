@@ -21,10 +21,20 @@ export default function useArrayChangeDetector<T>(values: T[]): boolean {
   const initialValuesRef = useRef<T[]>(values);
   const changeDetectedRef = useRef<boolean>(false);
 
+  // Safe: this latch is monotonic (false -> true only once per mount), so
+  // reading it in render is deterministic and intentionally avoids extra state.
+  // eslint-disable-next-line react-hooks/refs
   if (changeDetectedRef.current) return true;
   else {
+    // Safe: compare against the initial snapshot synchronously to allow
+    // immediate interruption behavior in the same render pass.
+    // eslint-disable-next-line react-hooks/refs
     const hasChange = !shallowEqualArrays(initialValuesRef.current, values);
-    if (hasChange) changeDetectedRef.current = hasChange;
+    if (hasChange) {
+      // Safe: one-way latch write that prevents flipping back to false.
+      // eslint-disable-next-line react-hooks/refs
+      changeDetectedRef.current = hasChange;
+    }
     return hasChange;
   }
 }

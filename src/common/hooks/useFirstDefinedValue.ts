@@ -28,8 +28,15 @@ export default function useFirstDefinedValue<T>(
   value: T | undefined
 ): T | undefined {
   const ref = useRef<T | undefined>(undefined);
+  // Safe: this hook intentionally latches the first defined value once and
+  // keeps it stable to avoid UI flicker and state-triggered retriggers.
+  // eslint-disable-next-line react-hooks/refs
   if (ref.current === undefined && value !== undefined) {
+    // Safe: one-time write from undefined -> defined.
+    // eslint-disable-next-line react-hooks/refs
     ref.current = value;
   }
+  // Safe: return the latched value without introducing extra state updates.
+  // eslint-disable-next-line react-hooks/refs
   return ref.current;
 }

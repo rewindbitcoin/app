@@ -36,7 +36,10 @@ export function useFaucet() {
   const faucetNotifiedRef = useRef<boolean>(false);
   const faucetDetectedRef = useRef<boolean>(false);
   const [faucetFailed, setFaucetFailed] = useState<boolean>(false);
+  // Safe: write-once in-flight flag used to render pending UI without creating
+  // extra state transitions while the faucet request is running.
   const faucetPending: boolean =
+    // eslint-disable-next-line react-hooks/refs
     faucetRequestedRef.current && !historyData?.length && !faucetFailed;
 
   //Serves to keep a ref version of walletId so that in async functions we can

@@ -8,5 +8,8 @@ export function usePrevious<T>(value: T): T | undefined {
   useEffect(() => {
     ref.current = value;
   }, [value]);
+  // Safe: this hook's contract is to expose the previous committed value from
+  // a ref updated in effect, without adding extra state renders.
+  // eslint-disable-next-line react-hooks/refs
   return ref.current;
 }

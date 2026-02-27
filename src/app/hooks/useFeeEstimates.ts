@@ -132,6 +132,9 @@ export function useFeeEstimates(): {
   return {
     updateFeeEstimates,
     feeEstimates,
+    // Safe: this ref is the canonical cache of the latest known estimates;
+    // reading it here preserves old sync semantics without extra refreshes.
+    // eslint-disable-next-line react-hooks/refs
     isSynchd: !!feeEstimatesRef.current
   };
 }

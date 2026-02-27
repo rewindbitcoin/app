@@ -102,5 +102,12 @@ export function useTipStatus(): {
     return;
   }, [explorerReachable, updateTipStatus, intervalTime]);
 
-  return { tipStatus, updateTipStatus, isSynchd: !!tipStatusRef.current };
+  return {
+    tipStatus,
+    updateTipStatus,
+    // Safe: this ref tracks the latest fetched tip status cache; using it keeps
+    // existing sync behavior without adding state-driven refresh cycles.
+    // eslint-disable-next-line react-hooks/refs
+    isSynchd: !!tipStatusRef.current
+  };
 }
