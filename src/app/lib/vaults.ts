@@ -29,7 +29,7 @@ import { coinselect, vsize, dustThreshold } from '@bitcoinerlab/coinselect';
 import type { Explorer } from '@bitcoinerlab/explorer';
 import { type NetworkId, networkMapping } from './network';
 import { transactionFromHex } from './bitcoin';
-import { numberToSats, satsToNumber, satsToNumberOrUndefined } from './sats';
+import { toBigInt, toNumber, toNumberOrUndefined } from './sats';
 
 export type TxHex = string;
 export type TxId = string;
@@ -360,10 +360,7 @@ export const getHistoryData = moize(
       if (vaultStatus.vaultTxBlockHeight !== undefined) {
         // vaultTxBlockHeight may be undefined if VAULT_NOT_FOUND
         const { txId, tx } = transactionFromHex(vaultTxHex);
-        const outValue = satsToNumberOrUndefined(
-          tx.outs[0]?.value,
-          'vault tx out value'
-        );
+        const outValue = toNumberOrUndefined(tx.outs[0]?.value);
         if (outValue === undefined) throw new Error('Unset output');
         const pushTime = vaultStatus.vaultPushTime;
         const blockTime = vaultStatus.vaultTxBlockTime;
@@ -381,10 +378,7 @@ export const getHistoryData = moize(
       }
       if (triggerTxHex) {
         const { txId, tx } = transactionFromHex(triggerTxHex);
-        const outValue = satsToNumberOrUndefined(
-          tx.outs[0]?.value,
-          'trigger tx out value'
-        );
+        const outValue = toNumberOrUndefined(tx.outs[0]?.value);
         if (outValue === undefined) throw new Error('Unset output');
         const pushTime = vaultStatus.triggerPushTime;
         const blockTime = vaultStatus.triggerTxBlockTime;
@@ -421,10 +415,7 @@ export const getHistoryData = moize(
       }
       if (panicTxHex) {
         const { txId, tx } = transactionFromHex(panicTxHex);
-        const outValue = satsToNumberOrUndefined(
-          tx.outs[0]?.value,
-          'panic tx out value'
-        );
+        const outValue = toNumberOrUndefined(tx.outs[0]?.value);
         if (outValue === undefined) throw new Error('Unset output');
         const pushTime = vaultStatus.panicPushTime;
         const blockTime = vaultStatus.panicTxBlockTime;
@@ -490,7 +481,7 @@ export const getOutputsWithValue = memoize((utxosData: UtxosData) =>
     if (!out) throw new Error('Invalid utxo');
     return {
       output: utxo.output,
-      value: satsToNumber(out.value, 'utxo value')
+      value: toNumber(out.value)
     };
   })
 );
@@ -532,12 +523,11 @@ export const splitTransactionAmount = ({
   if (!serviceOutput)
     throw new Error('Set a serviceOutput when fee rates are > 0');
   const vaultedAmount = Math.max(
-    satsToNumber(dustThreshold(vaultOutput), 'vault dust threshold') + 1,
+    toNumber(dustThreshold(vaultOutput)) + 1,
     Math.ceil(transactionAmount / (1 + serviceFeeRate))
   );
   const serviceFee = transactionAmount - vaultedAmount;
-  if (serviceFee <= satsToNumber(dustThreshold(serviceOutput), 'service dust'))
-    return;
+  if (serviceFee <= toNumber(dustThreshold(serviceOutput))) return;
   else
     return {
       vaultedAmount,
@@ -573,24 +563,23 @@ const selectVaultUtxosData = ({
 }) => {
   const utxos = getOutputsWithValue(utxosData);
   if (!utxos.length) return;
-  if (vaultedAmount <= satsToNumber(dustThreshold(vaultOutput), 'vault dust'))
-    return;
+  if (vaultedAmount <= toNumber(dustThreshold(vaultOutput))) return;
   const utxosCoinselect = utxos.map(utxo => ({
     output: utxo.output,
-    value: numberToSats(utxo.value, 'utxo value')
+    value: toBigInt(utxo.value)
   }));
   const coinselected = coinselect({
     utxos: utxosCoinselect,
     targets: [
       {
         output: vaultOutput,
-        value: numberToSats(vaultedAmount, 'vault amount')
+        value: toBigInt(vaultedAmount)
       },
       ...(serviceFee && serviceOutput
         ? [
             {
               output: serviceOutput,
-              value: numberToSats(serviceFee, 'service fee')
+              value: toBigInt(serviceFee)
             }
           ]
         : [])
@@ -614,11 +603,11 @@ const selectVaultUtxosData = ({
         });
   return {
     vsize: coinselected.vsize,
-    fee: satsToNumber(coinselected.fee, 'vault coinselect fee'),
+    fee: toNumber(coinselected.fee),
     serviceFee,
     targets: coinselected.targets.map(target => ({
       output: target.output,
-      value: satsToNumber(target.value, 'vault target value')
+      value: toNumber(target.value)
     })),
     vaultUtxosData
   };
@@ -775,7 +764,7 @@ export async function createVault({
     for (const target of vaultTargets) {
       target.output.updatePsbtAsOutput({
         psbt: psbtVault,
-        value: numberToSats(target.value, 'vault output value')
+        value: toBigInt(target.value)
       });
     }
     //Sign
@@ -835,10 +824,7 @@ export async function createVault({
         feeRateTrigger * estimateTriggerTxSize(lockBlocks)
       );
       const triggerAmount = vaultedAmount - feeTrigger;
-      const triggerDust = satsToNumber(
-        dustThreshold(triggerOutput),
-        'trigger dust threshold'
-      );
+      const triggerDust = toNumber(dustThreshold(triggerOutput));
 
       if (triggerAmount <= triggerDust) {
         if (feeRateTrigger <= feeRateCeiling) {
@@ -851,7 +837,7 @@ export async function createVault({
         //Add the output to psbtTrigger:
         triggerOutput.updatePsbtAsOutput({
           psbt: psbtTrigger,
-          value: numberToSats(triggerAmount, 'trigger amount')
+          value: toBigInt(triggerAmount)
         });
         //psbts.push(psbtTrigger.toHex());
         //Sign
@@ -897,10 +883,7 @@ export async function createVault({
             feeRatePanic * estimatePanicTxSize(lockBlocks, coldAddress, network)
           );
           const panicAmount = triggerAmount - feePanic;
-          const panicDust = satsToNumber(
-            dustThreshold(coldOutput),
-            'panic dust threshold'
-          );
+          const panicDust = toNumber(dustThreshold(coldOutput));
 
           if (panicAmount <= panicDust) {
             if (
@@ -917,7 +900,7 @@ export async function createVault({
 
             coldOutput.updatePsbtAsOutput({
               psbt: psbtPanic,
-              value: numberToSats(triggerAmount - feePanic, 'panic amount')
+              value: toBigInt(triggerAmount - feePanic)
             });
             //psbts.push(psbtPanic.toHex());
             //Sign

@@ -21,7 +21,7 @@ import { Currency, SubUnit } from '../lib/settings';
 import { formatBalance } from '../lib/format';
 import { Button } from '~/common/ui';
 import { useLocalization } from '../hooks/useLocalization';
-import { satsToNumber } from '../lib/sats';
+import { toNumber } from '../lib/sats';
 
 const RawTransaction = ({
   tipStatus,
@@ -317,7 +317,7 @@ const RawTransaction = ({
   }
   const hotReceived =
     'netReceived' in item
-      ? satsToNumber(item.netReceived, 'transaction net received')
+      ? toNumber(item.netReceived)
       : undefined;
 
   return (

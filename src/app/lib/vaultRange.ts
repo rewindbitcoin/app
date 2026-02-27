@@ -22,7 +22,7 @@ import {
   splitTransactionAmount
 } from './vaults';
 import type { Accounts } from './wallets';
-import { numberToSats, satsToNumber } from './sats';
+import { toBigInt, toNumber } from './sats';
 // nLockTime which results into the largest possible serialized size:
 const LOCK_BLOCKS_MAS_SIZE = 0xffff;
 const MIN_VAULT_BIN_SEARCH_ITERS = 100;
@@ -71,7 +71,7 @@ export const estimateMaxVaultAmount = moize.shallow(
     if (utxos.length === 0) return;
     const utxosCoinselect = utxos.map(utxo => ({
       output: utxo.output,
-      value: numberToSats(utxo.value, 'vault utxo value')
+      value: toBigInt(utxo.value)
     }));
     if (serviceFeeRate > 0) {
       const initialCoinselected = maxFunds({
@@ -79,11 +79,7 @@ export const estimateMaxVaultAmount = moize.shallow(
         targets: [
           {
             output: serviceOutput,
-            value: numberToSats(
-              satsToNumber(dustThreshold(vaultOutput), 'vault dust threshold') +
-                1,
-              'initial service fee'
-            )
+            value: toBigInt(toNumber(dustThreshold(vaultOutput)) + 1)
           }
         ],
         remainder: vaultOutput,
@@ -97,7 +93,7 @@ export const estimateMaxVaultAmount = moize.shallow(
 
       //The total amount is correct, but targets have incorrect ratios
       const transactionAmount = initialCoinselected.targets.reduce(
-        (a, { value }) => a + satsToNumber(value, 'maxFunds target value'),
+        (a, { value }) => a + toNumber(value),
         0
       );
       const split = splitTransactionAmount({
@@ -118,7 +114,7 @@ export const estimateMaxVaultAmount = moize.shallow(
         targets: [
           {
             output: serviceOutput,
-            value: numberToSats(split.serviceFee, 'service fee')
+            value: toBigInt(split.serviceFee)
           }
         ],
         remainder: vaultOutput,
@@ -133,7 +129,7 @@ export const estimateMaxVaultAmount = moize.shallow(
       //finalTransactionAmount must be the same as amount since output weights
       //do not change (only value does).
       const finalTransactionAmount = coinselected.targets.reduce(
-        (a, { value }) => a + satsToNumber(value, 'final target value'),
+        (a, { value }) => a + toNumber(value),
         0
       );
       if (transactionAmount !== finalTransactionAmount)
@@ -142,10 +138,7 @@ export const estimateMaxVaultAmount = moize.shallow(
         );
 
       return {
-        vaultTxMiningFee: satsToNumber(
-          coinselected.fee,
-          'vault coinselect fee'
-        ),
+        vaultTxMiningFee: toNumber(coinselected.fee),
         ...split
       };
     } else {
@@ -158,14 +151,11 @@ export const estimateMaxVaultAmount = moize.shallow(
       });
       if (!coinselected) return;
       const transactionAmount = coinselected.targets.reduce(
-        (a, { value }) => a + satsToNumber(value, 'maxFunds target value'),
+        (a, { value }) => a + toNumber(value),
         0
       );
       return {
-        vaultTxMiningFee: satsToNumber(
-          coinselected.fee,
-          'vault coinselect fee'
-        ),
+        vaultTxMiningFee: toNumber(coinselected.fee),
         transactionAmount,
         vaultedAmount: transactionAmount,
         serviceFee: 0
@@ -297,15 +287,9 @@ const estimateMinRecoverableVaultAmount = moize.shallow(
         );
 
       const minTransactionAmount = Math.max(
-        satsToNumber(dustThreshold(vaultOutput), 'vault dust threshold') +
+        toNumber(dustThreshold(vaultOutput)) +
           1 +
-          serviceFeeRate >
-          0
-          ? satsToNumber(
-              dustThreshold(serviceOutput),
-              'service dust threshold'
-            ) + 1
-          : 0,
+          (serviceFeeRate > 0 ? toNumber(dustThreshold(serviceOutput)) + 1 : 0),
 
         // vaultedAmount >  totalFees / (1 - minRecoverableRatio)
         // transactionAmount = vaultedAmount * (1 + serviceFeeRate)
@@ -505,17 +489,14 @@ export const estimateServiceFee = ({
     throw new Error('Impossible solution');
 
   let estimatedServiceFee = Math.max(
-    satsToNumber(dustThreshold(serviceOutput), 'service dust threshold') + 1,
+    toNumber(dustThreshold(serviceOutput)) + 1,
     Math.floor(serviceFeeRate * vaultedAmount)
   );
 
   //vaultedAmount + serviceFee must be within transaction ranges
   estimatedServiceFee = Math.min(estimatedServiceFee, largestPossibleFee);
   estimatedServiceFee = Math.max(estimatedServiceFee, smallestPossibleFee);
-  if (
-    estimatedServiceFee <=
-    satsToNumber(dustThreshold(serviceOutput), 'service dust threshold')
-  )
+  if (estimatedServiceFee <= toNumber(dustThreshold(serviceOutput)))
     throw new Error('Final serviceFee should be above dust');
   return estimatedServiceFee;
 };

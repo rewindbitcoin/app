@@ -4,30 +4,21 @@
 const MAX_SAFE_BIGINT = BigInt(Number.MAX_SAFE_INTEGER);
 const MIN_SAFE_BIGINT = BigInt(Number.MIN_SAFE_INTEGER);
 
-export const satsToNumber = (
-  value: bigint | number,
-  label = 'sats'
-): number => {
-  if (typeof value === 'number') {
-    if (!Number.isSafeInteger(value))
-      throw new Error(`${label} must be a safe integer: ${value}`);
-    return value;
-  }
+export const toNumber = (value: bigint): number => {
   if (value > MAX_SAFE_BIGINT || value < MIN_SAFE_BIGINT)
-    throw new Error(`${label} is out of Number safe range: ${value}`);
+    throw new Error(`BigInt value is out of Number safe range: ${value}`);
   return Number(value);
 };
 
-export const satsToNumberOrUndefined = (
-  value: bigint | number | undefined,
-  label = 'sats'
+export const toNumberOrUndefined = (
+  value: bigint | undefined
 ): number | undefined => {
   if (value === undefined) return undefined;
-  return satsToNumber(value, label);
+  return toNumber(value);
 };
 
-export const numberToSats = (value: number, label = 'sats'): bigint => {
+export const toBigInt = (value: number): bigint => {
   if (!Number.isSafeInteger(value))
-    throw new Error(`${label} must be a safe integer: ${value}`);
+    throw new Error(`Expected a safe integer number, received: ${value}`);
   return BigInt(value);
 };
