@@ -50,7 +50,7 @@ Why this version exists:
 - No legacy vault creation path is required anymore.
 - Legacy vault handling is still required (read/status/trigger/rescue compatibility).
 - Exported creation API name can remain `createVault`, but implementation must be Rewind2-only.
-- `vaultMode` must be persisted per vault at creation time and used for all later trigger/rescue execution.
+- `vaultMode` is inferred from trigger tx shape (`LEGACY`/`TRUC`/`NON_TRUC`) at runtime; no vault record migration field is required.
 
 ### 1.3 Policy-mode transaction rules (locked)
 
@@ -62,7 +62,7 @@ Why this version exists:
   - Package can still be used for submission convenience.
   - Parent cannot be zero-fee; parent must satisfy relay minimum feerate.
   - Zero-value P2A anchor is not used; use non-dust anchor value.
-- Execution always follows the vault's stored `vaultMode`, not the current global toggle.
+- Execution uses inferred mode from tx shape, not runtime toggle.
 
 ### 1.4 Non-negotiables
 
@@ -137,7 +137,7 @@ This plan fixes sequencing:
 
 ### 4.5 Tx policy mode contract
 
-- Introduce explicit `vaultMode` field for Rewind2 vaults:
+- Introduce explicit runtime `vaultMode` concept for Rewind2 flows:
   - `TRUC`
   - `NON_TRUC`
 - Mode selection at creation time:
@@ -238,23 +238,21 @@ This is the exact implementation checklist for Stage 1, in plain terms.
 - each key is `'TRUC' | 'NON_TRUC'`
 - Rule:
   - The current network picks one of these settings.
-  - Each created vault persists its own `vaultMode`.
+  - New vault creation uses network `*_VAULT_MODE` setting.
 
-3. Add vault persistence field
+3. Keep vault schema stable (no new persistence field)
 
-- Add field to new Rewind2 vault records:
-- `vaultMode: 'TRUC' | 'NON_TRUC' | 'LEGACY'`
 - Rule:
-  - This value is set at creation time and never inferred later.
+  - Infer mode from tx shape at runtime (P2A presence/value + tx version).
+  - Legacy records remain unchanged.
 
 4. Add small helper used by execution
 
 - Add helper:
 - `getVaultMode(vault)`
 - Behavior:
-  - During trigger/rescue: use persisted mode for Rewind2 vaults.
-  - For legacy vaults: return `undefined` and keep legacy execution behavior.
-  - For older Rewind2 records missing mode: return `undefined` (fail-safe).
+- During trigger/rescue: infer mode from tx shape for Rewind2 vaults.
+- For legacy vaults: infer `LEGACY` when no P2A output is present.
 
 5. Add Stage 1 policy matrix doc content
 
@@ -268,8 +266,8 @@ This is the exact implementation checklist for Stage 1, in plain terms.
 
 - `S1-UNIT-001`: network defaults map correctly.
 - `S1-UNIT-002`: per-network `*_VAULT_MODE` settings are consumed in creation flow.
-- `S1-UNIT-003`: persisted vault `vaultMode` wins during execution.
-- `S1-UNIT-004`: new Rewind2 vault record includes `vaultMode`.
+- `S1-UNIT-003`: mode inference (`TRUC`/`NON_TRUC`/`LEGACY`) works from tx shape.
+- `S1-UNIT-004`: no vault schema field changes were introduced for mode.
 - `S1-UNIT-005`: matrix invariants snapshot (doc-contract test or constant-contract test).
 
 7. Stage 1 review packet (required before Stage 2)
@@ -282,7 +280,7 @@ This is the exact implementation checklist for Stage 1, in plain terms.
 
 ---
 
-### Stage 2 - Transaction template contract freeze by `vaultMode`
+### Stage 2 - Transaction template contract freeze by inferred `vaultMode`
 
 Goals:
 
@@ -297,7 +295,7 @@ Tasks:
 
 Required invariants:
 
-- Parent template produced by builder is policy-compatible for the vault's stored mode.
+- Parent template produced by builder is policy-compatible for the vault's inferred mode.
 - Child builder links correctly to parent anchor/output expectations.
 - Template errors are typed, not stringly-typed ad hoc.
 
@@ -318,14 +316,14 @@ Tasks:
 - Add/confirm family/version discriminators.
 - Ensure legacy parser remains permissive.
 - Define Rewind2 record schema fields needed for deterministic reconstruction.
-- Add persisted `vaultMode` to Rewind2 records.
+- Keep vault record format stable; do not add mode fields.
 - Remove new-write path dependence on legacy fee-grid semantics.
 
 Exit criteria:
 
 - Legacy read paths pass.
 - Rewind2 schema can round-trip.
-- `vaultMode` round-trip/persistence coverage passes.
+- Inference coverage from tx shape passes.
 
 ---
 
@@ -338,7 +336,7 @@ Goals:
 Tasks:
 
 - Implement/route `createVault(...)` to Rewind2 builder.
-- Select and persist `vaultMode` at creation using network `*_VAULT_MODE` setting.
+- Select creation policy from network `*_VAULT_MODE` setting.
 - Remove service-fee/service-address usage from new create flow:
   - no service output target,
   - no service address fetch requirement,
@@ -409,7 +407,7 @@ Goals:
 Tasks:
 
 - Build engine helpers for:
-  - canonical parent resolution by stored `vaultMode`,
+  - canonical parent resolution by inferred `vaultMode`,
   - protected-only child plan,
   - blended fallback plan,
   - submit-time revalidation,
@@ -607,7 +605,7 @@ Reviewer options:
 - **Policy mismatch on target backend**
   - Mitigation: Stage 1 locked policy matrix + compatibility package routing.
 - **Mode drift after vault creation (toggle changed later)**
-  - Mitigation: persist `vaultMode` per vault and execute by stored mode.
+  - Mitigation: infer mode from tx shape; execution does not depend on later setting changes.
 - **Range/math regressions in setup**
   - Mitigation: explicit selectability invariants and tests.
 - **Over-complex UI logic regressions**
@@ -625,7 +623,7 @@ Done means all are true:
 
 - New vault creation from `main` is Rewind2-only and free (no service fee/service address).
 - Network defaults are implemented (`BITCOIN=TRUC`, `TESTNET/REGTEST/TAPE=NON_TRUC`) with toggle support.
-- `vaultMode` is persisted per vault and execution always follows stored mode.
+- `vaultMode` inference is deterministic from tx shape and execution is stable.
 - Legacy vaults remain operable.
 - Trigger/rescue execution is policy-compatible on target backend(s).
 - Protected-first, blended fallback, and clamp semantics work as specified.
@@ -663,3 +661,51 @@ Status: completed
 - Risks left:
   - ...
 ```
+
+---
+
+## 12) Execution journal (current run)
+
+### Stage 1 - Vault mode model simplification and inference wiring
+
+Status: completed
+
+- Changes:
+  - Simplified policy model to inferred `vaultMode` (`'TRUC' | 'NON_TRUC' | 'LEGACY'`).
+  - Removed extra policy abstraction layer and related indirection.
+  - Added per-network settings keys for creation defaults:
+    - `MAINNET_VAULT_MODE`
+    - `TESTNET_VAULT_MODE`
+    - `TAPE_VAULT_MODE`
+    - `REGTEST_VAULT_MODE`
+  - Wired runtime mode inference helpers from trigger tx shape and removed mode-passing plumbing.
+- Tests:
+  - `npm test`
+- Findings:
+  - Single-field mode model is easier to reason about and matches wallet KISS philosophy.
+- Risks left:
+  - Creation path was still legacy by default before Stage 2 cutover.
+
+### Stage 2 - Rewind2-only creation cutover + no service-address dependency
+
+Status: completed
+
+- Changes:
+  - Added Rewind2 creation builder (`createRewind2Vault(...)`) and made public `createVault(...)` route new vault creation to Rewind2-only mode.
+  - Kept `createLegacyVault(...)` exported only for legacy compatibility tests/tools, not app create flow.
+  - Removed service-address fetch dependency from create screen:
+    - no `fetchServiceAddress` call in create flow,
+    - uses dummy service output only for compatibility with existing shared selectors.
+  - Enforced free-vault behavior in setup/create path:
+    - service fee rate forced to zero in setup path,
+    - settings default `SERVICE_FEE_RATE` set to `0`.
+  - Kept vault schema stable (no new mode fields persisted).
+  - Updated legacy edge2edge suite to call `createLegacyVault(...)` explicitly so legacy behavior remains covered without affecting new create policy.
+- Tests:
+  - `npm test`
+- Findings:
+  - New create flow no longer depends on service-address backend.
+  - Legacy coverage remains intact while app creation path moves to Rewind2.
+- Risks left:
+  - Reserve-target and safeguarded reserve accounting are not fully wired yet in this stage.
+  - Mode-specific template differences (`TRUC` vs `NON_TRUC`) are partially shared and still need dedicated template-hardening stage.

@@ -15,7 +15,6 @@ import {
 } from '../lib/fees';
 import { useSettings } from '../hooks/useSettings';
 import {
-  getVaultMode,
   type TxHex,
   type TxId,
   type Vault,
@@ -32,7 +31,6 @@ export type RescueData = {
   fee: number;
   feeRate: number;
   vSize: number;
-  vaultMode?: 'TRUC' | 'NON_TRUC' | 'LEGACY';
 };
 
 /**
@@ -151,11 +149,8 @@ const Rescue = ({
 
   const handleRescue = useCallback(() => {
     if (!txData) throw new Error('Cannot rescue non-existing selected tx');
-    onRescue({
-      ...txData,
-      vaultMode: getVaultMode(vault)
-    });
-  }, [onRescue, txData, vault]);
+    onRescue(txData);
+  }, [onRescue, txData]);
 
   return (
     isVisible && (

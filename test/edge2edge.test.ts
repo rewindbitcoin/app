@@ -28,7 +28,7 @@ const sleep = async (ms: number) =>
   await new Promise(resolve => setTimeout(resolve, ms));
 
 import {
-  createVault,
+  createLegacyVault,
   getHotDescriptors,
   getUtxosData,
   type Vaults,
@@ -226,7 +226,7 @@ describe('E2E: Multiple Pre-Signed txs Vault', () => {
       return true;
     };
 
-    vault = await createVault({
+    vault = await createLegacyVault({
       vaultedAmount: VAULTED_AMOUNT,
       unvaultKey,
       samples: SAMPLES,

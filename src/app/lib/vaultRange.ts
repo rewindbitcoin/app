@@ -17,8 +17,8 @@ import {
   UtxosData,
   getOutputsWithValue,
   selectVaultUtxosData,
-  estimateTriggerTxSize,
-  estimatePanicTxSize,
+  estimateLegacyTriggerTxSize,
+  estimateLegacyPanicTxSize,
   splitTransactionAmount
 } from './vaults';
 import type { Accounts } from './wallets';
@@ -46,7 +46,7 @@ const MIN_VAULT_BIN_SEARCH_ITERS = 100;
  * to obtain a valid value.
  *
  */
-export const estimateMaxVaultAmount = moize.shallow(
+export const estimateLegacyMaxVaultAmount = moize.shallow(
   ({
     utxosData,
     vaultOutput,
@@ -134,7 +134,7 @@ export const estimateMaxVaultAmount = moize.shallow(
       );
       if (transactionAmount !== finalTransactionAmount)
         throw new Error(
-          `Invalid final transactionAmount after assigning final rates in estimateMaxVaultAmount: transactionAmount: ${transactionAmount}, finalAmount: ${finalTransactionAmount}.`
+          `Invalid final transactionAmount after assigning final rates in estimateLegacyMaxVaultAmount: transactionAmount: ${transactionAmount}, finalAmount: ${finalTransactionAmount}.`
         );
 
       return {
@@ -191,7 +191,7 @@ export const estimateMaxVaultAmount = moize.shallow(
  * search or the computed value in cases where current UTXOs don't provide a solution.
  *
  */
-const estimateMinRecoverableVaultAmount = moize.shallow(
+const estimateLegacyMinRecoverableVaultAmount = moize.shallow(
   ({
     utxosData,
     coldAddress,
@@ -246,9 +246,10 @@ const estimateMinRecoverableVaultAmount = moize.shallow(
       if (!selected) return false;
       const totalFees =
         //selected.fee + (vaultedAmount is resulting amount after inital tx, so selected.fee has already been substracted from vaultedAmount)
-        Math.ceil(feeRateCeiling * estimateTriggerTxSize(lockBlocks)) +
+        Math.ceil(feeRateCeiling * estimateLegacyTriggerTxSize(lockBlocks)) +
         Math.ceil(
-          feeRateCeiling * estimatePanicTxSize(lockBlocks, coldAddress, network)
+          feeRateCeiling *
+            estimateLegacyPanicTxSize(lockBlocks, coldAddress, network)
         );
       //Lets compute min assuming we want the system to be able to rescue funds.
       //That is the guy getting the rescue file can at least try to rescue some
@@ -264,7 +265,7 @@ const estimateMinRecoverableVaultAmount = moize.shallow(
 
     //1st compute the max possible; This is the starting value in the binary tree
     //search. But first check if max is even possible.
-    const maxVaultAmount = estimateMaxVaultAmount({
+    const maxVaultAmount = estimateLegacyMaxVaultAmount({
       vaultOutput,
       serviceOutput,
       utxosData,
@@ -281,9 +282,10 @@ const estimateMinRecoverableVaultAmount = moize.shallow(
       );
       const totalFees =
         //Math.ceil(feeRate * vaultTxSize) +
-        Math.ceil(feeRateCeiling * estimateTriggerTxSize(lockBlocks)) +
+        Math.ceil(feeRateCeiling * estimateLegacyTriggerTxSize(lockBlocks)) +
         Math.ceil(
-          feeRateCeiling * estimatePanicTxSize(lockBlocks, coldAddress, network)
+          feeRateCeiling *
+            estimateLegacyPanicTxSize(lockBlocks, coldAddress, network)
         );
 
       const minTransactionAmount = Math.max(
@@ -362,7 +364,7 @@ const estimateMinRecoverableVaultAmount = moize.shallow(
   }
 );
 
-export const estimateVaultSetUpRange = moize.shallow(
+export const estimateLegacyVaultSetUpRange = moize.shallow(
   ({
     accounts,
     utxosData,
@@ -384,14 +386,14 @@ export const estimateVaultSetUpRange = moize.shallow(
     feeRateCeiling: number;
     minRecoverableRatio: number;
   }) => {
-    const maxVaultAmountWhenMaxFee = estimateMaxVaultAmount({
+    const maxVaultAmountWhenMaxFee = estimateLegacyMaxVaultAmount({
       utxosData,
       vaultOutput: DUMMY_VAULT_OUTPUT(network),
       serviceOutput: DUMMY_SERVICE_OUTPUT(network),
       feeRate: maxFeeRate,
       serviceFeeRate
     });
-    const minRecoverableVaultAmount = estimateMinRecoverableVaultAmount({
+    const minRecoverableVaultAmount = estimateLegacyMinRecoverableVaultAmount({
       utxosData,
       coldAddress,
       network,
@@ -410,7 +412,7 @@ export const estimateVaultSetUpRange = moize.shallow(
       feeRateCeiling,
       minRecoverableRatio
     });
-    const maxVaultAmount = estimateMaxVaultAmount({
+    const maxVaultAmount = estimateLegacyMaxVaultAmount({
       utxosData,
       vaultOutput: DUMMY_VAULT_OUTPUT(network),
       serviceOutput: DUMMY_SERVICE_OUTPUT(network),
@@ -443,7 +445,7 @@ export const estimateVaultSetUpRange = moize.shallow(
  * But the reverse vaultedAmount -> (serviceFee, transactionAmount) cannot be
  * analytically found and several solutions can be possible in fact
  */
-export const estimateServiceFee = ({
+export const estimateLegacyServiceFee = ({
   vaultedAmount,
   serviceFeeRate,
   serviceOutput,

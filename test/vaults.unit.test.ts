@@ -4,12 +4,35 @@
 import { fixtures } from './fixtutres';
 import {
   getHotDescriptors,
+  getPanicAnchorOutputIndex,
+  getTriggerAnchorOutputIndex,
   getVaultMode,
   type Vault,
   type Vaults,
   type VaultsStatuses
 } from '../dist/src/app/lib/vaults';
 import { type Accounts } from '../dist/src/app/lib/wallets';
+import { Transaction } from 'bitcoinjs-lib';
+import { fromHex } from 'uint8array-tools';
+
+/** Builds a tiny synthetic tx for vault mode inference tests. */
+const createSyntheticTxHex = ({
+  version,
+  mainOutputValue,
+  p2aValue
+}: {
+  version: number;
+  mainOutputValue: number;
+  p2aValue?: number;
+}) => {
+  const tx = new Transaction();
+  tx.version = version;
+  tx.addInput(new Uint8Array(32), 0);
+  tx.addOutput(fromHex(`0014${'00'.repeat(20)}`), BigInt(mainOutputValue));
+  if (p2aValue !== undefined)
+    tx.addOutput(fromHex('51024e73'), BigInt(p2aValue));
+  return tx.toHex();
+};
 
 describe('vaults unit tests', () => {
   const { expected } = fixtures.edge2edge;
@@ -30,21 +53,47 @@ describe('vaults unit tests', () => {
     expect(descriptors).toEqual(expected.descriptors);
   });
 
-  test('getVaultMode respects legacy and rewind2 tags', () => {
-    const rewind2Vault = {
-      networkId: 'BITCOIN',
-      vaultMode: 'NON_TRUC'
+  test('getVaultMode infers TRUC from version 3 + 0-sat P2A', () => {
+    const triggerTxHex = createSyntheticTxHex({
+      version: 3,
+      mainOutputValue: 10000,
+      p2aValue: 0
+    });
+    const vault = {
+      triggerMap: { [triggerTxHex]: [] }
     } as unknown as Vault;
-    expect(getVaultMode(rewind2Vault)).toBe('NON_TRUC');
+    expect(getVaultMode(vault)).toBe('TRUC');
+    expect(getTriggerAnchorOutputIndex(triggerTxHex)).toBe(1);
+  });
 
-    const rewind2LegacyRecordNoMode = {
-      networkId: 'BITCOIN'
+  test('getVaultMode infers NON_TRUC from non-zero P2A anchor', () => {
+    const triggerTxHex = createSyntheticTxHex({
+      version: 2,
+      mainOutputValue: 10000,
+      p2aValue: 330
+    });
+    const panicTxHex = createSyntheticTxHex({
+      version: 2,
+      mainOutputValue: 9000,
+      p2aValue: 330
+    });
+    const vault = {
+      triggerMap: { [triggerTxHex]: [panicTxHex] }
     } as unknown as Vault;
-    expect(getVaultMode(rewind2LegacyRecordNoMode)).toBe('LEGACY');
+    expect(getVaultMode(vault)).toBe('NON_TRUC');
+    expect(getTriggerAnchorOutputIndex(triggerTxHex)).toBe(1);
+    expect(getPanicAnchorOutputIndex(panicTxHex)).toBe(1);
+  });
 
+  test('getVaultMode falls back to LEGACY when no P2A output exists', () => {
+    const legacyTriggerTxHex = createSyntheticTxHex({
+      version: 2,
+      mainOutputValue: 10000
+    });
     const legacyVault = {
-      networkId: 'BITCOIN'
+      triggerMap: { [legacyTriggerTxHex]: [] }
     } as unknown as Vault;
     expect(getVaultMode(legacyVault)).toBe('LEGACY');
+    expect(getTriggerAnchorOutputIndex(legacyTriggerTxHex)).toBeUndefined();
   });
 });

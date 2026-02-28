@@ -16,7 +16,6 @@ import {
 import { formatBlocks } from '../lib/format';
 import { useSettings } from '../hooks/useSettings';
 import {
-  getVaultMode,
   type TxHex,
   type TxId,
   type Vault,
@@ -34,7 +33,6 @@ export type InitUnfreezeData = {
   fee: number;
   feeRate: number;
   vSize: number;
-  vaultMode?: 'TRUC' | 'NON_TRUC' | 'LEGACY';
 };
 
 /**
@@ -147,11 +145,8 @@ const InitUnfreeze = ({
 
   const handleInitUnfreeze = useCallback(() => {
     if (!txData) throw new Error('Cannot unfreeze non-existing selected tx');
-    onInitUnfreeze({
-      ...txData,
-      vaultMode: getVaultMode(vault)
-    });
-  }, [onInitUnfreeze, txData, vault]);
+    onInitUnfreeze(txData);
+  }, [onInitUnfreeze, txData]);
 
   const timeLockTime = formatBlocks(lockBlocks, t, locale, true);
 

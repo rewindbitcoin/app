@@ -41,9 +41,8 @@ import {
 } from '../lib/fees';
 import { formatBtc } from '../lib/btcRates';
 import {
-  estimateMaxVaultAmount,
-  estimateServiceFee,
-  estimateVaultSetUpRange
+  estimateLegacyMaxVaultAmount,
+  estimateLegacyVaultSetUpRange
 } from '../lib/vaultRange';
 import { networkMapping } from '../lib/network';
 import { useSettings } from '../hooks/useSettings';
@@ -104,7 +103,7 @@ export default function VaultSetUp({
   const [lockBlocks, setLockBlocks] = useState<number | null>(
     settings.INITIAL_LOCK_BLOCKS
   );
-  const serviceFeeRate = settings.SERVICE_FEE_RATE;
+  const serviceFeeRate = 0;
 
   const lastUnusedColdAddress =
     vaults && vaultsStatuses && areVaultsSynched(vaults, vaultsStatuses)
@@ -155,7 +154,7 @@ export default function VaultSetUp({
         : null;
 
   const {
-    //maxVaultAmount = estimateMaxVaultAmount(feeRate)
+    //maxVaultAmount = estimateLegacyMaxVaultAmount(feeRate)
     //This is basically calling maxFunds algo in coinselect (for feeRate) and
     //see the target values.
     //It decreases as the feeRate increases. The lowest value is for maxFeeRate.
@@ -170,7 +169,7 @@ export default function VaultSetUp({
     //maxVaultAmountWhenMaxFee >= than minRecoverableVaultAmount
     maxVaultAmountWhenMaxFee,
 
-    //minRecoverableVaultAmount = estimateMinRecoverableVaultAmount(maxFeeRate)
+    //minRecoverableVaultAmount = estimateLegacyMinRecoverableVaultAmount(maxFeeRate)
     //The minimum vaultable amount that is still recoverable in case of panic.
     //It is computed assuming the user chose the largest feeRate. This is to
     //prevent too much flicker in the Slider since the max already depends on
@@ -206,14 +205,14 @@ export default function VaultSetUp({
       vaultedAmount: number;
       transactionAmount: number;
     };
-  } = estimateVaultSetUpRange({
+  } = estimateLegacyVaultSetUpRange({
     accounts,
     utxosData,
     coldAddress: coldAddress || DUMMY_COLD_ADDRESS(network),
     maxFeeRate,
     network,
     serviceFeeRate,
-    feeRate, //If feeRate is null, then estimateVaultSetUpRange uses maxFeeRate
+    feeRate, //If feeRate is null, then estimateLegacyVaultSetUpRange uses maxFeeRate
     feeRateCeiling: settings.PRESIGNED_FEE_RATE_CEILING,
     minRecoverableRatio: settings.MIN_RECOVERABLE_RATIO
   });
@@ -254,19 +253,7 @@ export default function VaultSetUp({
     userSelectedVaultedAmount <= maxVaultAmount.vaultedAmount
       ? userSelectedVaultedAmount
       : null;
-  const serviceFee: number | null =
-    vaultedAmount !== null && maxVaultAmount && minRecoverableVaultAmount
-      ? estimateServiceFee({
-          vaultedAmount,
-          serviceFeeRate,
-          //We use a dummy service output because the real service address is
-          //only retrieved once, when finally creating the vaul, to avoid generating
-          //a huge gapLimit in Rewinds wallet
-          serviceOutput: DUMMY_SERVICE_OUTPUT(network),
-          minVaultAmount: minRecoverableVaultAmount,
-          maxVaultAmount
-        })
-      : null;
+  const serviceFee: number | null = vaultedAmount !== null ? 0 : null;
 
   const onUserSelectedVaultedAmountChange = useCallback(
     (userSelectedVaultedAmount: number | null, type: 'USER' | 'RESET') => {
@@ -341,7 +328,7 @@ export default function VaultSetUp({
    *
    * OPTIMIZATION:
    * - We only perform the expensive calculation when necessary (max amount selected)
-   * - We use the same calculation method as estimateVaultSetUpRange for consistency
+    * - We use the same calculation method as estimateLegacyVaultSetUpRange for consistency
    * - We batch updates to avoid multiple renders
    */
   const handleFeeRateChange = useCallback(
@@ -354,7 +341,7 @@ export default function VaultSetUp({
         if (isMaxVaultedAmount && newFeeRate !== null) {
           // Use the same calculation method as in the main render flow
           // This ensures consistency between the two calculations
-          const newMaxEstimate = estimateMaxVaultAmount({
+          const newMaxEstimate = estimateLegacyMaxVaultAmount({
             utxosData,
             vaultOutput: DUMMY_VAULT_OUTPUT(network),
             serviceOutput: DUMMY_SERVICE_OUTPUT(network),

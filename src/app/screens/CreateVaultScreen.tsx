@@ -27,7 +27,7 @@ import { useNetStatus } from '../hooks/useNetStatus';
 import { NavigationPropsByScreenId, WALLET_HOME } from '../screens';
 import { batchedUpdates } from '~/common/lib/batchedUpdates';
 import { formatBlocks } from '../lib/format';
-import { createServiceOutput } from '../lib/vaultDescriptors';
+import { DUMMY_SERVICE_OUTPUT } from '../lib/vaultDescriptors';
 import { networkMapping } from '../lib/network';
 import { formatBtc } from '../lib/btcRates';
 import { useLocalization } from '../hooks/useLocalization';
@@ -57,7 +57,6 @@ export default function CreateVaultScreen({
   const insets = useSafeAreaInsets();
   const mbStyle = useMemo(() => ({ marginBottom: insets.bottom }), [insets]);
   const {
-    fetchServiceAddress,
     getNextChangeDescriptorWithIndex,
     getUnvaultKey,
     signers,
@@ -111,9 +110,6 @@ export default function CreateVaultScreen({
   // We know settings are the correct ones in this Component
   const [progress, setProgress] = useState<number>(0);
   const [confirmRequested, setConfirmRequested] = useState<boolean>(false);
-  const [serviceAddressQuiet, setServiceAddressQuiet] = useState<
-    boolean | undefined
-  >(undefined);
   const [vault, setVault] = useState<Vault>();
 
   const backBlockerUnsubscriberRef = useRef<null | (() => void)>(null);
@@ -291,19 +287,6 @@ export default function CreateVaultScreen({
       if (!navigation.isFocused()) return; //Don't proceed if lost focus after await
 
       const unvaultKey = await getUnvaultKey();
-      const { result } = await netRequest({
-        whenToastErrors: 'ON_ANY_ERROR',
-        errorMessage: message => t('createVault.fetchIssues', { message }),
-        func: fetchServiceAddress
-      });
-      if (!navigation.isFocused()) return; //Don't proceed if lost focus after await
-      if (!result) {
-        //The toast with prev error message will have been shown.
-        goBack();
-        return;
-      }
-      const { address: serviceAddress, quiet } = result;
-      setServiceAddressQuiet(quiet);
       const changeDescriptorWithIndex =
         await getNextChangeDescriptorWithIndex(accounts);
       if (!navigation.isFocused()) return; //Don't proceed if lost focus after await
@@ -327,10 +310,7 @@ export default function CreateVaultScreen({
         return;
       }
 
-      const serviceOutput = createServiceOutput(
-        serviceAddress,
-        networkMapping[networkId]
-      );
+      const serviceOutput = DUMMY_SERVICE_OUTPUT(networkMapping[networkId]);
       //createVault does not throw. It returns errors as strings:
       const vault = await createVault({
         vaultedAmount,
@@ -388,7 +368,6 @@ export default function CreateVaultScreen({
     feeRateCeiling,
     maxFeeRateCeiling,
     getNextChangeDescriptorWithIndex,
-    fetchServiceAddress,
     getUnvaultKey,
     lockBlocks,
     networkId,
@@ -479,27 +458,14 @@ export default function CreateVaultScreen({
                   </View>
 
                   {/* Fees */}
-                  {/*don't show fees if quiet*/}
-                  {serviceAddressQuiet === false && (
-                    <>
-                      <View>
-                        <Text className="text-base font-bold mb-1">
-                          {t('createVault.miningFee')}
-                        </Text>
-                        <Text className="text-base">
-                          {formatAmount(vaultTxInfo.fee)}
-                        </Text>
-                      </View>
-                      <View>
-                        <Text className="text-base font-bold mb-1">
-                          {t('createVault.serviceFee')}
-                        </Text>
-                        <Text className="text-base">
-                          {formatAmount(vault.serviceFee)}
-                        </Text>
-                      </View>
-                    </>
-                  )}
+                  <View>
+                    <Text className="text-base font-bold mb-1">
+                      {t('createVault.miningFee')}
+                    </Text>
+                    <Text className="text-base">
+                      {formatAmount(vaultTxInfo.fee)}
+                    </Text>
+                  </View>
 
                   {/* Emergency Address */}
                   <View>

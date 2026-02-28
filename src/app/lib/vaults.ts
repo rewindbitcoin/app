@@ -31,6 +31,11 @@ import { type NetworkId, networkMapping } from './network';
 import { transactionFromHex } from './bitcoin';
 import { toBigInt, toNumber, toNumberOrUndefined } from './sats';
 
+const DEFAULT_REWIND2_PARENT_FEE_RATE = 1;
+const P2A_OUTPUT_SCRIPT = fromHex('51024e73');
+const P2A_OUTPUT_SCRIPT_HEX = toHex(P2A_OUTPUT_SCRIPT);
+const NON_TRUC_P2A_ANCHOR_VALUE = 330;
+
 export type TxHex = string;
 export type TxId = string;
 
@@ -101,8 +106,6 @@ export type Vault = {
   triggerMap: TriggerMap;
 
   networkId: NetworkId;
-
-  vaultMode?: 'TRUC' | 'NON_TRUC' | 'LEGACY';
 
   /** Assuming a scenario of extreme fees (feeRateCeiling), what will be the
    * remaining balance after panicking */
@@ -232,13 +235,64 @@ type VaultPresignedTx = {
 };
 
 /**
- * Returns vault mode using a simple fallback for old records.
+ * Finds the P2A output index/value in a transaction.
  *
- * - If `vaultMode` exists, return it.
- * - If missing, treat as `LEGACY`.
+ * Returns `undefined` when the tx has no P2A output.
  */
-export const getVaultMode = (vault: Vault): 'TRUC' | 'NON_TRUC' | 'LEGACY' =>
-  vault.vaultMode ?? 'LEGACY';
+const getP2AOutputData = (
+  tx: Transaction
+): { index: number; value: number } | undefined => {
+  const index = tx.outs.findIndex(
+    out => toHex(out.script) === P2A_OUTPUT_SCRIPT_HEX
+  );
+  if (index < 0) return;
+  const output = tx.outs[index];
+  if (!output) return;
+  return { index, value: toNumber(output.value) };
+};
+
+/**
+ * Derives trigger P2A anchor output index by inspecting the trigger tx hex.
+ *
+ * This avoids persisting anchor indexes in vault data.
+ */
+export const getTriggerAnchorOutputIndex = (
+  triggerTxHex: TxHex
+): number | undefined => {
+  const { tx } = transactionFromHex(triggerTxHex);
+  return getP2AOutputData(tx)?.index;
+};
+
+/**
+ * Derives panic P2A anchor output index by inspecting the panic tx hex.
+ *
+ * Same idea as trigger anchor derivation: no persisted index is needed.
+ */
+export const getPanicAnchorOutputIndex = (
+  panicTxHex: TxHex
+): number | undefined => {
+  const { tx } = transactionFromHex(panicTxHex);
+  return getP2AOutputData(tx)?.index;
+};
+
+/**
+ * Infers vault mode from trigger transaction shape.
+ *
+ * Human rule of thumb:
+ * - no P2A output => `LEGACY`
+ * - version 3 + 0-sat P2A => `TRUC`
+ * - P2A present with non-zero value => `NON_TRUC`
+ */
+export const getVaultMode = (vault: Vault): 'TRUC' | 'NON_TRUC' | 'LEGACY' => {
+  for (const triggerTxHex of Object.keys(vault.triggerMap)) {
+    const { tx } = transactionFromHex(triggerTxHex);
+    const anchor = getP2AOutputData(tx);
+    if (!anchor) continue;
+    if (tx.version === 3 && anchor.value === 0) return 'TRUC';
+    return 'NON_TRUC';
+  }
+  return 'LEGACY';
+};
 export type HistoryDataItem =
   //hot wallet normal Transactions (not associated with the Vaults):
   | (TxAttribution & { tx: Transaction })
@@ -637,14 +691,20 @@ const signPsbt = async (signer: Signer, network: Network, psbtVault: Psbt) => {
   signers.signBIP32({ psbt: psbtVault, masterNode });
 };
 
-//createVault does not throw. It returns errors as strings:
-export async function createVault({
+/**
+ * Legacy vault creation helper.
+ *
+ * Kept only for compatibility tooling/tests. App create flow should use
+ * Rewind2 via `createVault(...)`.
+ *
+ * This function does not throw operational errors. It returns status strings.
+ */
+export async function createLegacyVault({
   vaultedAmount,
   unvaultKey,
   samples,
   feeRate,
   serviceFee,
-  vaultMode: _vaultMode,
   feeRateCeiling,
   maxFeeRateCeiling,
   coldAddress,
@@ -668,7 +728,6 @@ export async function createVault({
   samples: number;
   feeRate: number;
   serviceFee: number;
-  vaultMode?: 'TRUC' | 'NON_TRUC';
   /** This is the largest fee rate for which at least one trigger and panic txs
    * must be pre-computed*/
   feeRateCeiling: number;
@@ -833,7 +892,7 @@ export async function createVault({
     for (const [feeRateIndex, feeRateTrigger] of feeRates.entries()) {
       const psbtTrigger = psbtTriggerBase.clone();
       const feeTrigger = Math.ceil(
-        feeRateTrigger * estimateTriggerTxSize(lockBlocks)
+        feeRateTrigger * estimateLegacyTriggerTxSize(lockBlocks)
       );
       const triggerAmount = vaultedAmount - feeTrigger;
       const triggerDust = toNumber(dustThreshold(triggerOutput));
@@ -892,7 +951,8 @@ export async function createVault({
         for (const [feeRateIndex, feeRatePanic] of feeRates.entries()) {
           const psbtPanic = psbtPanicBase.clone();
           const feePanic = Math.ceil(
-            feeRatePanic * estimatePanicTxSize(lockBlocks, coldAddress, network)
+            feeRatePanic *
+              estimateLegacyPanicTxSize(lockBlocks, coldAddress, network)
           );
           const panicAmount = triggerAmount - feePanic;
           const panicDust = toNumber(dustThreshold(coldOutput));
@@ -973,7 +1033,6 @@ export async function createVault({
       coldAddress,
       lockBlocks,
       triggerDescriptor,
-      vaultMode: 'LEGACY',
       creationTime: Math.floor(Date.now() / 1000),
       triggerMap,
       txMap
@@ -985,9 +1044,273 @@ export async function createVault({
 }
 
 /**
+ * Creates a Rewind2 vault (single trigger + single panic parent set).
+ *
+ * This function does not throw operational errors. It returns status strings.
+ */
+export async function createRewind2Vault({
+  vaultedAmount,
+  unvaultKey,
+  feeRate,
+  feeRateCeiling,
+  coldAddress,
+  changeDescriptorWithIndex,
+  lockBlocks,
+  signer,
+  networkId,
+  utxosData,
+  nextVaultId,
+  nextVaultPath,
+  onProgress,
+  vaultMode
+}: {
+  vaultedAmount: number;
+  unvaultKey: string;
+  feeRate: number;
+  feeRateCeiling: number;
+  coldAddress: string;
+  changeDescriptorWithIndex: { descriptor: string; index: number };
+  lockBlocks: number;
+  signer: Signer;
+  networkId: NetworkId;
+  utxosData: UtxosData;
+  nextVaultId: string;
+  nextVaultPath: string;
+  onProgress: (progress: number) => boolean;
+  vaultMode: 'TRUC' | 'NON_TRUC';
+}): Promise<
+  | Vault
+  | 'COINSELECT_ERROR'
+  | 'NOT_ENOUGH_FUNDS'
+  | 'USER_CANCEL'
+  | 'UNKNOWN_ERROR'
+> {
+  try {
+    const { parseKeyExpression } = ensureDescriptorsFactoryInstance();
+    const network = networkMapping[networkId];
+    const { Output, ECPair } = ensureDescriptorsFactoryInstance();
+    const changeOutput = new Output({ ...changeDescriptorWithIndex, network });
+
+    const vaultPair = ECPair.makeRandom();
+    const vaultOutput = new Output({
+      descriptor: createVaultDescriptor(toHex(vaultPair.publicKey)),
+      network
+    });
+    const selected = selectVaultUtxosDataMemo({
+      utxosData,
+      vaultedAmount,
+      vaultOutput,
+      changeOutput,
+      feeRate,
+      serviceFee: 0
+    });
+    if (!selected) return 'COINSELECT_ERROR';
+    const vaultUtxosData = selected.vaultUtxosData;
+    const vaultTargets = selected.targets;
+    const vaultMiningFee = selected.fee;
+    if (vaultTargets[0]?.output !== vaultOutput)
+      throw new Error("coinselect first output should be the vault's output");
+
+    const txMap: TxMap = {};
+    const triggerMap: TriggerMap = {};
+
+    const coldOutput = new Output({
+      descriptor: createColdDescriptor(coldAddress),
+      network
+    });
+
+    const psbtVault = new Psbt({ network });
+    const vaultFinalizers = [];
+    for (const utxoData of vaultUtxosData) {
+      const { output, vout, txHex } = utxoData;
+      const inputFinalizer = output.updatePsbtAsInput({
+        psbt: psbtVault,
+        txHex,
+        vout
+      });
+      vaultFinalizers.push(inputFinalizer);
+    }
+    for (const target of vaultTargets) {
+      target.output.updatePsbtAsOutput({
+        psbt: psbtVault,
+        value: toBigInt(target.value)
+      });
+    }
+    await signPsbt(signer, network, psbtVault);
+    vaultFinalizers.forEach(finalizer => finalizer({ psbt: psbtVault }));
+    const txVault = psbtVault.extractTransaction(true);
+    const vaultTxHex = txVault.toHex();
+    txMap[vaultTxHex] = {
+      fee: vaultMiningFee,
+      feeRate: vaultMiningFee / txVault.virtualSize(),
+      txId: txVault.getId()
+    };
+    if (onProgress(0.25) === false) return 'USER_CANCEL';
+    await sleep(0);
+
+    const panicPair = ECPair.makeRandom();
+    const panicPubKey = panicPair.publicKey;
+    const triggerDescriptor = createTriggerDescriptor({
+      unvaultKey,
+      panicKey: toHex(panicPubKey),
+      lockBlocks
+    });
+
+    const triggerOutput = new Output({
+      descriptor: triggerDescriptor,
+      network
+    });
+    const triggerOutputPanicPath = new Output({
+      descriptor: triggerDescriptor,
+      network,
+      signersPubKeys: [panicPubKey]
+    });
+
+    const isTrucMode = vaultMode === 'TRUC';
+    const parentFeeRate = isTrucMode ? 0 : DEFAULT_REWIND2_PARENT_FEE_RATE;
+    const anchorValue = isTrucMode ? 0 : NON_TRUC_P2A_ANCHOR_VALUE;
+
+    const triggerFee = Math.ceil(
+      parentFeeRate * estimateLegacyTriggerTxSize(lockBlocks)
+    );
+    const triggerAmount = vaultedAmount - triggerFee - anchorValue;
+    const triggerDust = toNumber(dustThreshold(triggerOutput));
+    if (triggerAmount <= triggerDust) return 'NOT_ENOUGH_FUNDS';
+
+    const psbtTrigger = new Psbt({ network });
+    psbtTrigger.setVersion(isTrucMode ? 3 : 2);
+    const triggerInputFinalizer = vaultOutput.updatePsbtAsInput({
+      psbt: psbtTrigger,
+      txHex: vaultTxHex,
+      vout: 0
+    });
+    triggerOutput.updatePsbtAsOutput({
+      psbt: psbtTrigger,
+      value: toBigInt(triggerAmount)
+    });
+    psbtTrigger.addOutput({
+      script: P2A_OUTPUT_SCRIPT,
+      value: toBigInt(anchorValue)
+    });
+    signers.signECPair({ psbt: psbtTrigger, ecpair: vaultPair });
+    triggerInputFinalizer({ psbt: psbtTrigger, validate: true });
+    const txTrigger = psbtTrigger.extractTransaction(true);
+    const triggerTxHex = txTrigger.toHex();
+    txMap[triggerTxHex] = {
+      fee: triggerFee,
+      feeRate: triggerFee / txTrigger.virtualSize(),
+      txId: txTrigger.getId()
+    };
+    if (onProgress(0.65) === false) return 'USER_CANCEL';
+    await sleep(0);
+
+    const panicFee = Math.ceil(
+      parentFeeRate *
+        estimateLegacyPanicTxSize(lockBlocks, coldAddress, network)
+    );
+    const panicAmount = triggerAmount - panicFee - anchorValue;
+    const panicDust = toNumber(dustThreshold(coldOutput));
+    if (panicAmount <= panicDust) return 'NOT_ENOUGH_FUNDS';
+
+    const psbtPanic = new Psbt({ network });
+    psbtPanic.setVersion(isTrucMode ? 3 : 2);
+    const panicInputFinalizer = triggerOutputPanicPath.updatePsbtAsInput({
+      psbt: psbtPanic,
+      txHex: triggerTxHex,
+      vout: 0
+    });
+    coldOutput.updatePsbtAsOutput({
+      psbt: psbtPanic,
+      value: toBigInt(panicAmount)
+    });
+    psbtPanic.addOutput({
+      script: P2A_OUTPUT_SCRIPT,
+      value: toBigInt(anchorValue)
+    });
+    signers.signECPair({ psbt: psbtPanic, ecpair: panicPair });
+    panicInputFinalizer({ psbt: psbtPanic, validate: true });
+    const txPanic = psbtPanic.extractTransaction(true);
+    const panicTxHex = txPanic.toHex();
+    txMap[panicTxHex] = {
+      fee: panicFee,
+      feeRate: panicFee / txPanic.virtualSize(),
+      txId: txPanic.getId()
+    };
+    triggerMap[triggerTxHex] = [panicTxHex];
+    if (onProgress(0.9) === false) return 'USER_CANCEL';
+
+    const vaultAddress = vaultOutput.getAddress();
+    const triggerAddress = triggerOutput.getAddress();
+    const { pubkey: unvaultPubKey } = parseKeyExpression({
+      keyExpression: unvaultKey,
+      network
+    });
+    if (!unvaultPubKey) throw new Error('Cannot extract unvaultPubKey');
+
+    return {
+      networkId,
+      vaultId: nextVaultId,
+      vaultPath: nextVaultPath,
+      serviceFee: 0,
+      vaultedAmount,
+      minPanicAmount: panicAmount,
+      feeRateCeiling,
+      vaultAddress,
+      triggerAddress,
+      vaultTxHex,
+      unvaultKey,
+      coldAddress,
+      lockBlocks,
+      triggerDescriptor,
+      creationTime: Math.floor(Date.now() / 1000),
+      triggerMap,
+      txMap
+    };
+  } catch (error) {
+    console.error(error);
+    return 'UNKNOWN_ERROR';
+  }
+}
+
+/**
+ * Creates new vaults in Rewind2 mode only.
+ *
+ * New legacy vault creation is intentionally disabled.
+ */
+export async function createVault(
+  params: Parameters<typeof createLegacyVault>[0] & {
+    vaultMode: 'TRUC' | 'NON_TRUC';
+  }
+): Promise<
+  | Vault
+  | 'COINSELECT_ERROR'
+  | 'NOT_ENOUGH_FUNDS'
+  | 'USER_CANCEL'
+  | 'UNKNOWN_ERROR'
+> {
+  const mode = params.vaultMode === 'TRUC' ? 'TRUC' : 'NON_TRUC';
+  return createRewind2Vault({
+    vaultedAmount: params.vaultedAmount,
+    unvaultKey: params.unvaultKey,
+    feeRate: params.feeRate,
+    feeRateCeiling: params.feeRateCeiling,
+    coldAddress: params.coldAddress,
+    changeDescriptorWithIndex: params.changeDescriptorWithIndex,
+    lockBlocks: params.lockBlocks,
+    signer: params.signer,
+    networkId: params.networkId,
+    utxosData: params.utxosData,
+    nextVaultId: params.nextVaultId,
+    nextVaultPath: params.nextVaultPath,
+    onProgress: params.onProgress,
+    vaultMode: mode
+  });
+}
+
+/**
  * For estimation purposes only, using dummy keys
  */
-export const estimateTriggerTxSize = memoize((lockBlocks: number) => {
+export const estimateLegacyTriggerTxSize = memoize((lockBlocks: number) => {
   const { Output } = ensureDescriptorsFactoryInstance();
   // Assumes bitcoin network (not important for txSizes anyway)
   return vsize(
@@ -1003,7 +1326,7 @@ export const estimateTriggerTxSize = memoize((lockBlocks: number) => {
     ]
   );
 });
-export const estimatePanicTxSize = moize(
+export const estimateLegacyPanicTxSize = moize(
   (lockBlocks: number, coldAddress: string, network: Network) => {
     const { Output } = ensureDescriptorsFactoryInstance();
     return vsize(

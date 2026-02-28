@@ -71,7 +71,6 @@ export const SETTINGS_GLOBAL_STORAGE = 'SETTINGS_GLOBAL_STORAGE';
 export interface Settings {
   NETWORK_TIMEOUT: number;
   GAP_LIMIT: number;
-  SERVICE_FEE_RATE: number;
   MIN_FEE_RATE: number;
   MIN_LOCK_BLOCKS: number;
   MAX_LOCK_BLOCKS: number;
@@ -150,7 +149,6 @@ const locales = getLocales();
 export const defaultSettings: Settings = {
   NETWORK_TIMEOUT: 20000,
   GAP_LIMIT: 20,
-  SERVICE_FEE_RATE: 0.004,
   MIN_FEE_RATE: 1,
   MIN_LOCK_BLOCKS: 1,
   MAX_LOCK_BLOCKS: 3 * 30 * 24 * 6,
