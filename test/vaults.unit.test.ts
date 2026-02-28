@@ -4,6 +4,8 @@
 import { fixtures } from './fixtutres';
 import {
   getHotDescriptors,
+  getVaultMode,
+  type Vault,
   type Vaults,
   type VaultsStatuses
 } from '../dist/src/app/lib/vaults';
@@ -26,5 +28,23 @@ describe('vaults unit tests', () => {
       tipHeight
     );
     expect(descriptors).toEqual(expected.descriptors);
+  });
+
+  test('getVaultMode respects legacy and rewind2 tags', () => {
+    const rewind2Vault = {
+      networkId: 'BITCOIN',
+      vaultMode: 'NON_TRUC'
+    } as unknown as Vault;
+    expect(getVaultMode(rewind2Vault)).toBe('NON_TRUC');
+
+    const rewind2LegacyRecordNoMode = {
+      networkId: 'BITCOIN'
+    } as unknown as Vault;
+    expect(getVaultMode(rewind2LegacyRecordNoMode)).toBe('LEGACY');
+
+    const legacyVault = {
+      networkId: 'BITCOIN'
+    } as unknown as Vault;
+    expect(getVaultMode(legacyVault)).toBe('LEGACY');
   });
 });

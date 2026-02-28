@@ -87,6 +87,14 @@ export interface Settings {
   CURRENCY: Currency;
   BTC_FIAT_REFRESH_INTERVAL_MS: number;
   BLOCKCHAIN_DATA_REFRESH_INTERVAL_MS: number;
+  /** Mode used for new mainnet vault creation. */
+  MAINNET_VAULT_MODE: 'TRUC' | 'NON_TRUC';
+  /** Mode used for new testnet vault creation. */
+  TESTNET_VAULT_MODE: 'TRUC' | 'NON_TRUC';
+  /** Mode used for new tape vault creation. */
+  TAPE_VAULT_MODE: 'TRUC' | 'NON_TRUC';
+  /** Mode used for new regtest vault creation. */
+  REGTEST_VAULT_MODE: 'TRUC' | 'NON_TRUC';
   WALLETS_DATA_VERSION: string;
 
   REGTEST_HOST_NAME: string;
@@ -169,6 +177,10 @@ export const defaultSettings: Settings = {
       : 'USD',
   BTC_FIAT_REFRESH_INTERVAL_MS: 60000, //1 minutes
   BLOCKCHAIN_DATA_REFRESH_INTERVAL_MS: 60000, // 1 minute
+  MAINNET_VAULT_MODE: 'TRUC',
+  TESTNET_VAULT_MODE: 'NON_TRUC',
+  TAPE_VAULT_MODE: 'NON_TRUC',
+  REGTEST_VAULT_MODE: 'NON_TRUC',
   WALLETS_DATA_VERSION: '1.0.0', //This does not define the version of the App, but keeps track of the changes in the signature of the Wallet
 
   REGTEST_HOST_NAME: REGTEST_HOST_NAME,

@@ -24,6 +24,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { batchedUpdates } from '~/common/lib/batchedUpdates';
 
 import {
+  getVaultMode,
   type Vault,
   type VaultStatus,
   type VaultsStatuses,
@@ -302,6 +303,10 @@ const RawVault = ({
   );
   const handleInitUnfreeze = useCallback(
     async (initUnfreezeData: InitUnfreezeData) => {
+      const vaultMode = getVaultMode(vault);
+      if ((initUnfreezeData.vaultMode ?? 'LEGACY') !== vaultMode)
+        throw new Error('Invalid vaultMode for trigger execution');
+
       batchedUpdates(() => {
         setShowInitUnfreeze(false);
         setIsInitUnfreezeBeingHandled(true);
@@ -356,6 +361,7 @@ const RawVault = ({
       watchtowerAPI,
       settings?.NETWORK_TIMEOUT,
       pushTx,
+      vault,
       vault.vaultId,
       vaultStatus,
       updateVaultStatus,
@@ -377,6 +383,10 @@ const RawVault = ({
   const handleShowRescue = useCallback(() => setShowRescue(true), []);
   const handleRescue = useCallback(
     async (rescueData: RescueData) => {
+      const vaultMode = getVaultMode(vault);
+      if ((rescueData.vaultMode ?? 'LEGACY') !== vaultMode)
+        throw new Error('Invalid vaultMode for rescue execution');
+
       batchedUpdates(() => {
         setShowRescue(false);
         setIsRescueBeingHandled(true);
@@ -399,7 +409,7 @@ const RawVault = ({
         updateVaultStatus(vault.vaultId, newVaultStatus);
       }
     },
-    [pushTx, vault.vaultId, vaultStatus, updateVaultStatus, netRequest, t]
+    [pushTx, vault, vault.vaultId, vaultStatus, updateVaultStatus, netRequest, t]
   );
 
   const tipHeight = tipStatus?.blockHeight;

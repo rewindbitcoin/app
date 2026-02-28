@@ -102,6 +102,8 @@ export type Vault = {
 
   networkId: NetworkId;
 
+  vaultMode?: 'TRUC' | 'NON_TRUC' | 'LEGACY';
+
   /** Assuming a scenario of extreme fees (feeRateCeiling), what will be the
    * remaining balance after panicking */
   minPanicAmount: number;
@@ -228,6 +230,15 @@ type VaultPresignedTx = {
   pushTime?: number; //when pushed using this wallet
   spentAsPanic?: 'CONFIRMING' | 'CONFIRMED'; //set only if this vault was spent as panic
 };
+
+/**
+ * Returns vault mode using a simple fallback for old records.
+ *
+ * - If `vaultMode` exists, return it.
+ * - If missing, treat as `LEGACY`.
+ */
+export const getVaultMode = (vault: Vault): 'TRUC' | 'NON_TRUC' | 'LEGACY' =>
+  vault.vaultMode ?? 'LEGACY';
 export type HistoryDataItem =
   //hot wallet normal Transactions (not associated with the Vaults):
   | (TxAttribution & { tx: Transaction })
@@ -633,6 +644,7 @@ export async function createVault({
   samples,
   feeRate,
   serviceFee,
+  vaultMode: _vaultMode,
   feeRateCeiling,
   maxFeeRateCeiling,
   coldAddress,
@@ -656,6 +668,7 @@ export async function createVault({
   samples: number;
   feeRate: number;
   serviceFee: number;
+  vaultMode?: 'TRUC' | 'NON_TRUC';
   /** This is the largest fee rate for which at least one trigger and panic txs
    * must be pre-computed*/
   feeRateCeiling: number;
@@ -694,7 +707,6 @@ export async function createVault({
     let minPanicAmount = vaultedAmount; //Initialize to a large value
 
     const network = networkMapping[networkId];
-
     const { Output, ECPair } = ensureDescriptorsFactoryInstance();
     const changeOutput = new Output({ ...changeDescriptorWithIndex, network });
     const vaultPair = ECPair.makeRandom();
@@ -961,6 +973,7 @@ export async function createVault({
       coldAddress,
       lockBlocks,
       triggerDescriptor,
+      vaultMode: 'LEGACY',
       creationTime: Math.floor(Date.now() / 1000),
       triggerMap,
       txMap

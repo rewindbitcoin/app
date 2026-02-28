@@ -15,7 +15,13 @@ import {
 } from '../lib/fees';
 import { formatBlocks } from '../lib/format';
 import { useSettings } from '../hooks/useSettings';
-import type { TxHex, TxId, Vault, VaultStatus } from '../lib/vaults';
+import {
+  getVaultMode,
+  type TxHex,
+  type TxId,
+  type Vault,
+  type VaultStatus
+} from '../lib/vaults';
 import { transactionFromHex } from '../lib/bitcoin';
 import { useWallet } from '../hooks/useWallet';
 import useFirstDefinedValue from '~/common/hooks/useFirstDefinedValue';
@@ -28,6 +34,7 @@ export type InitUnfreezeData = {
   fee: number;
   feeRate: number;
   vSize: number;
+  vaultMode?: 'TRUC' | 'NON_TRUC' | 'LEGACY';
 };
 
 /**
@@ -140,8 +147,11 @@ const InitUnfreeze = ({
 
   const handleInitUnfreeze = useCallback(() => {
     if (!txData) throw new Error('Cannot unfreeze non-existing selected tx');
-    onInitUnfreeze(txData);
-  }, [onInitUnfreeze, txData]);
+    onInitUnfreeze({
+      ...txData,
+      vaultMode: getVaultMode(vault)
+    });
+  }, [onInitUnfreeze, txData, vault]);
 
   const timeLockTime = formatBlocks(lockBlocks, t, locale, true);
 

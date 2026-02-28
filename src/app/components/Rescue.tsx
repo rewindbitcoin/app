@@ -14,7 +14,13 @@ import {
   pickFeeEstimate
 } from '../lib/fees';
 import { useSettings } from '../hooks/useSettings';
-import type { TxHex, TxId, Vault, VaultStatus } from '../lib/vaults';
+import {
+  getVaultMode,
+  type TxHex,
+  type TxId,
+  type Vault,
+  type VaultStatus
+} from '../lib/vaults';
 import { transactionFromHex } from '../lib/bitcoin';
 import { useWallet } from '../hooks/useWallet';
 import useFirstDefinedValue from '~/common/hooks/useFirstDefinedValue';
@@ -26,6 +32,7 @@ export type RescueData = {
   fee: number;
   feeRate: number;
   vSize: number;
+  vaultMode?: 'TRUC' | 'NON_TRUC' | 'LEGACY';
 };
 
 /**
@@ -144,8 +151,11 @@ const Rescue = ({
 
   const handleRescue = useCallback(() => {
     if (!txData) throw new Error('Cannot rescue non-existing selected tx');
-    onRescue(txData);
-  }, [onRescue, txData]);
+    onRescue({
+      ...txData,
+      vaultMode: getVaultMode(vault)
+    });
+  }, [onRescue, txData, vault]);
 
   return (
     isVisible && (

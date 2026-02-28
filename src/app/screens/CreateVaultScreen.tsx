@@ -99,6 +99,14 @@ export default function CreateVaultScreen({
   const samples = settings.SAMPLES;
   const feeRateCeiling = settings.PRESIGNED_FEE_RATE_CEILING;
   const maxFeeRateCeiling = settings.MAX_PRESIGNED_FEE_RATE_CEILING;
+  const vaultMode =
+    networkId === 'BITCOIN'
+      ? settings.MAINNET_VAULT_MODE
+      : networkId === 'TESTNET'
+        ? settings.TESTNET_VAULT_MODE
+        : networkId === 'TAPE'
+          ? settings.TAPE_VAULT_MODE
+          : settings.REGTEST_VAULT_MODE;
   const { locale, currency } = useLocalization();
   // We know settings are the correct ones in this Component
   const [progress, setProgress] = useState<number>(0);
@@ -330,6 +338,7 @@ export default function CreateVaultScreen({
         samples,
         feeRate,
         serviceFee,
+        vaultMode,
         feeRateCeiling,
         maxFeeRateCeiling,
         coldAddress,
@@ -383,6 +392,7 @@ export default function CreateVaultScreen({
     getUnvaultKey,
     lockBlocks,
     networkId,
+    vaultMode,
     onProgress,
     pushVaultRegisterWTAndUpdateStates,
     samples,
