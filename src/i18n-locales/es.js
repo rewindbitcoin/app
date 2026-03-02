@@ -760,6 +760,14 @@ Por favor, espera unos momentos hasta que se complete.`,
       esploraTestnet: 'Esplora Testnet',
       communityBackups: 'Community Backups',
       regtestHostName: 'Host de Regtest',
+      vaultMode: 'Modo de Bóveda',
+      vaultModeFastDemo: 'Demo Rápida',
+      vaultModeRealisticTruc: 'Modo Seguro (TRUC)',
+      vaultModeHelp: `"Demo Rápida" es mejor para pruebas rápidas porque evita algunas esperas de confirmación.
+
+"Modo Seguro (TRUC)" requiere transacciones confirmadas, por eso las demos son más lentas.
+
+TRUC resuelve los ataques de fee-pinning y es el único modo permitido en la red Bitcoin real. Actívalo cuando quieras probar lo más parecido posible al uso real.`,
       gapLimit: 'Límite de Exploración (Gap Limit)',
       currency: 'Moneda',
       language: 'Idioma',

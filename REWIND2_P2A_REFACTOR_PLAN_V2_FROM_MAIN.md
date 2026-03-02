@@ -222,23 +222,18 @@ This is the exact implementation checklist for Stage 1, in plain terms.
 
 - Use explicit union `'TRUC' | 'NON_TRUC'` (no extra policy type alias required).
 - Defaults are stored directly in settings fields:
-  - `MAINNET_VAULT_MODE = 'TRUC'`
-  - `TESTNET_VAULT_MODE = 'NON_TRUC'`
-  - `REGTEST_VAULT_MODE = 'NON_TRUC'`
-  - `TAPE_VAULT_MODE = 'NON_TRUC'`
+  - `TESTING_VAULT_MODE = 'NON_TRUC'`
+  - Mainnet creation path always uses `TRUC`.
 
-2. Add user policy mode setting keys
+2. Add user policy mode setting key
 
-- Add settings keys:
-  - `MAINNET_VAULT_MODE`
-  - `TESTNET_VAULT_MODE`
-  - `REGTEST_VAULT_MODE`
-  - `TAPE_VAULT_MODE`
+- Add settings key:
+  - `TESTING_VAULT_MODE`
 - Value shape:
-- each key is `'TRUC' | 'NON_TRUC'`
+  - `'TRUC' | 'NON_TRUC'`
 - Rule:
-  - The current network picks one of these settings.
-  - New vault creation uses network `*_VAULT_MODE` setting.
+  - Applies to `TESTNET`/`TAPE`/`REGTEST`.
+  - New vault creation on `BITCOIN` always uses `TRUC`.
 
 3. Keep vault schema stable (no new persistence field)
 
@@ -673,11 +668,7 @@ Status: completed
 - Changes:
   - Simplified policy model to inferred `vaultMode` (`'TRUC' | 'NON_TRUC' | 'LEGACY'`).
   - Removed extra policy abstraction layer and related indirection.
-  - Added per-network settings keys for creation defaults:
-    - `MAINNET_VAULT_MODE`
-    - `TESTNET_VAULT_MODE`
-    - `TAPE_VAULT_MODE`
-    - `REGTEST_VAULT_MODE`
+  - Added vault mode settings for creation defaults.
   - Wired runtime mode inference helpers from trigger tx shape and removed mode-passing plumbing.
 - Tests:
   - `npm test`
@@ -709,3 +700,22 @@ Status: completed
 - Risks left:
   - Reserve-target and safeguarded reserve accounting are not fully wired yet in this stage.
   - Mode-specific template differences (`TRUC` vs `NON_TRUC`) are partially shared and still need dedicated template-hardening stage.
+
+### Stage 3 - Beginner-friendly vault mode toggle for demo networks
+
+Status: completed
+
+- Changes:
+  - Added a simple `Vault Mode` setting UI for `TESTNET`/`TAPE`/`REGTEST` only, with one shared `TESTING_VAULT_MODE` setting.
+  - Added two clear options for non-expert users:
+    - `Fast Demo` (`NON_TRUC`)
+    - `Realistic (TRUC)`
+  - Added in-app explanation text about realism, slower demo flow due to confirmations, and fee-pinning safety benefits of TRUC.
+  - Hid this setting on real Bitcoin network.
+  - Enforced `BITCOIN` create flow to always use `TRUC` regardless of stored settings.
+- Tests:
+  - `npm test`
+- Findings:
+  - Users can now simulate real-network behavior on test environments without exposing risky mode switches on mainnet.
+- Risks left:
+  - UI setting behavior is covered by manual flows; no dedicated Settings UI test suite yet.

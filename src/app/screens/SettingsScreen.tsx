@@ -304,6 +304,8 @@ const SettingsScreen = () => {
     useState<boolean>(false);
   const [isCurrencyModalVisible, setIsCurrencyModalVisible] =
     useState<boolean>(false);
+  const [isVaultModeModalVisible, setIsVaultModeModalVisible] =
+    useState<boolean>(false);
   const [isResetModalVisible, setIsResetModalVisible] =
     useState<boolean>(false);
 
@@ -486,6 +488,29 @@ const SettingsScreen = () => {
   );
 
   const title = wallet && wallets ? walletTitle(wallet, wallets, t) : '';
+
+  const shouldShowVaultModeSetting =
+    wallet?.networkId === 'TESTNET' ||
+    wallet?.networkId === 'TAPE' ||
+    wallet?.networkId === 'REGTEST';
+
+  const currentVaultMode =
+    settings?.TESTING_VAULT_MODE ?? defaultSettings.TESTING_VAULT_MODE;
+
+  const currentVaultModeLabel =
+    currentVaultMode === 'TRUC'
+      ? t('settings.general.vaultModeRealisticTruc')
+      : t('settings.general.vaultModeFastDemo');
+
+  /** Saves vault mode for all testing networks. */
+  const setTestingVaultMode = useCallback(
+    (mode: 'TRUC' | 'NON_TRUC') => {
+      if (!settings) return;
+      setSettings({ ...settings, TESTING_VAULT_MODE: mode });
+      setIsVaultModeModalVisible(false);
+    },
+    [setSettings, settings]
+  );
 
   const mnemonic = signers && signers[0]?.mnemonic;
 
@@ -771,7 +796,7 @@ const SettingsScreen = () => {
               </>
             )}
             <SettingsItem
-              showSeparator={false}
+              showSeparator={shouldShowVaultModeSetting}
               icon={{
                 family: 'Ionicons',
                 name: 'flask'
@@ -790,6 +815,18 @@ const SettingsScreen = () => {
                 setSettings({ ...settings, REGTEST_HOST_NAME: hostname });
               }}
             />
+            {shouldShowVaultModeSetting && (
+              <SettingsItem
+                showSeparator={false}
+                icon={{
+                  family: 'MaterialCommunityIcons',
+                  name: 'package-variant-closed'
+                }}
+                label={t('settings.general.vaultMode')}
+                onPress={() => setIsVaultModeModalVisible(true)}
+                initialValue={currentVaultModeLabel}
+              />
+            )}
           </View>
           <Button
             mode="text"
@@ -998,6 +1035,42 @@ const SettingsScreen = () => {
                 </Text>
               </Pressable>
             ))}
+          </View>
+        </Modal>
+        <Modal
+          icon={{
+            family: 'MaterialCommunityIcons',
+            name: 'package-variant-closed'
+          }}
+          title={t('settings.general.vaultMode')}
+          isVisible={isVaultModeModalVisible}
+          closeButtonText={t('closeButton')}
+          onClose={() => setIsVaultModeModalVisible(false)}
+        >
+          <View className="p-4 gap-3">
+            <Text className="text-base text-slate-600">
+              {t('settings.general.vaultModeHelp')}
+            </Text>
+            <Pressable
+              onPress={() => setTestingVaultMode('NON_TRUC')}
+              className={`py-2 px-4 rounded-lg ${currentVaultMode === 'NON_TRUC' ? 'bg-primary' : 'bg-gray-200'} my-1`}
+            >
+              <Text
+                className={`${currentVaultMode === 'NON_TRUC' ? 'text-white' : 'text-black'} text-center`}
+              >
+                {t('settings.general.vaultModeFastDemo')}
+              </Text>
+            </Pressable>
+            <Pressable
+              onPress={() => setTestingVaultMode('TRUC')}
+              className={`py-2 px-4 rounded-lg ${currentVaultMode === 'TRUC' ? 'bg-primary' : 'bg-gray-200'} my-1`}
+            >
+              <Text
+                className={`${currentVaultMode === 'TRUC' ? 'text-white' : 'text-black'} text-center`}
+              >
+                {t('settings.general.vaultModeRealisticTruc')}
+              </Text>
+            </Pressable>
           </View>
         </Modal>
       </KeyboardAwareScrollView>

@@ -850,6 +850,14 @@ Please wait a few moments until completion.`,
       esploraTestnet: 'Esplora Testnet',
       communityBackups: 'Community Backups',
       regtestHostName: 'Regtest Host',
+      vaultMode: 'Vault Mode',
+      vaultModeFastDemo: 'Fast Demo',
+      vaultModeRealisticTruc: 'Safe Mode (TRUC)',
+      vaultModeHelp: `"Fast Demo" is better for quick testing because it avoids some confirmation waits.
+
+"Safe Mode (TRUC)" requires confirmed transactions, so demos are slower.
+
+TRUC solves fee-pinning attacks and is the only allowed mode on the real Bitcoin network. Turn it on when you want to test as close as possible to real-world usage.`,
       gapLimit: 'Gap Limit',
       currency: 'Currency',
       language: 'Language',
