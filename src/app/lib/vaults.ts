@@ -83,7 +83,7 @@ export type Vault = {
    */
   vaultedAmount: number;
   /**
-   * The 2nd output, used to pay service usage.
+   * The 2nd output, used to pay service usage (in Legacy vaults).
    *  Note that this second output (for serviceFee) may not exist if
    *  serviceFee= 0.
    *  See: selectVaultUtxosData.
@@ -103,7 +103,7 @@ export type Vault = {
   vaultTxHex: string;
 
   txMap: TxMap;
-  triggerMap: TriggerMap;
+  triggerMap: TriggerMap; //In Legacy maps length ~80 txs. In Rewind2 length=1
 
   networkId: NetworkId;
 
@@ -1048,11 +1048,10 @@ export async function createLegacyVault({
  *
  * This function does not throw operational errors. It returns status strings.
  */
-export async function createRewind2Vault({
+export async function createVault({
   vaultedAmount,
   unvaultKey,
   feeRate,
-  feeRateCeiling,
   coldAddress,
   changeDescriptorWithIndex,
   lockBlocks,
@@ -1067,7 +1066,6 @@ export async function createRewind2Vault({
   vaultedAmount: number;
   unvaultKey: string;
   feeRate: number;
-  feeRateCeiling: number;
   coldAddress: string;
   changeDescriptorWithIndex: { descriptor: string; index: number };
   lockBlocks: number;
@@ -1251,10 +1249,10 @@ export async function createRewind2Vault({
       networkId,
       vaultId: nextVaultId,
       vaultPath: nextVaultPath,
-      serviceFee: 0,
+      serviceFee: 0, //FIXME: unneeded in Legacy
       vaultedAmount,
-      minPanicAmount: panicAmount,
-      feeRateCeiling,
+      minPanicAmount: panicAmount, //FIXME: unneeded in Legacy; in legacy this is also not used by the app anyway.
+      feeRateCeiling: 0, //FIXME: unneeded in Legacy
       vaultAddress,
       triggerAddress,
       vaultTxHex,
@@ -1270,41 +1268,6 @@ export async function createRewind2Vault({
     console.error(error);
     return 'UNKNOWN_ERROR';
   }
-}
-
-/**
- * Creates new vaults in Rewind2 mode only.
- *
- * New legacy vault creation is intentionally disabled.
- */
-export async function createVault(
-  params: Parameters<typeof createLegacyVault>[0] & {
-    vaultMode: 'TRUC' | 'NON_TRUC';
-  }
-): Promise<
-  | Vault
-  | 'COINSELECT_ERROR'
-  | 'NOT_ENOUGH_FUNDS'
-  | 'USER_CANCEL'
-  | 'UNKNOWN_ERROR'
-> {
-  const mode = params.vaultMode === 'TRUC' ? 'TRUC' : 'NON_TRUC';
-  return createRewind2Vault({
-    vaultedAmount: params.vaultedAmount,
-    unvaultKey: params.unvaultKey,
-    feeRate: params.feeRate,
-    feeRateCeiling: params.feeRateCeiling,
-    coldAddress: params.coldAddress,
-    changeDescriptorWithIndex: params.changeDescriptorWithIndex,
-    lockBlocks: params.lockBlocks,
-    signer: params.signer,
-    networkId: params.networkId,
-    utxosData: params.utxosData,
-    nextVaultId: params.nextVaultId,
-    nextVaultPath: params.nextVaultPath,
-    onProgress: params.onProgress,
-    vaultMode: mode
-  });
 }
 
 /**

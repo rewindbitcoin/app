@@ -75,9 +75,9 @@ export interface Settings {
   MIN_LOCK_BLOCKS: number;
   MAX_LOCK_BLOCKS: number;
   INITIAL_LOCK_BLOCKS: number;
-  SAMPLES: number;
-  PRESIGNED_FEE_RATE_CEILING: number;
-  MAX_PRESIGNED_FEE_RATE_CEILING: number;
+  SAMPLES: number; //FIXME: unneeded in Rewind2
+  PRESIGNED_FEE_RATE_CEILING: number; //FIXME: unneeded in Rewind2
+  MAX_PRESIGNED_FEE_RATE_CEILING: number; //FIXME: unneeded in Rewind2
   INITIAL_CONFIRMATION_TIME: number;
   MIN_RECOVERABLE_RATIO: number;
   SUB_UNIT: SubUnit;

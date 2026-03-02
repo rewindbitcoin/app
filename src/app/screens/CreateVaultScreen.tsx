@@ -27,8 +27,6 @@ import { useNetStatus } from '../hooks/useNetStatus';
 import { NavigationPropsByScreenId, WALLET_HOME } from '../screens';
 import { batchedUpdates } from '~/common/lib/batchedUpdates';
 import { formatBlocks } from '../lib/format';
-import { DUMMY_SERVICE_OUTPUT } from '../lib/vaultDescriptors';
-import { networkMapping } from '../lib/network';
 import { formatBtc } from '../lib/btcRates';
 import { useLocalization } from '../hooks/useLocalization';
 
@@ -42,7 +40,6 @@ export default function CreateVaultScreen({
   if (!vaultSettings) throw new Error('vaultSettings not set');
   const {
     vaultedAmount,
-    serviceFee,
     coldAddress,
     feeRate,
     lockBlocks,
@@ -95,10 +92,9 @@ export default function CreateVaultScreen({
       'This component should only be started after settings has been retrieved from storage'
     );
   const networkTimeout = settings.NETWORK_TIMEOUT;
-  const samples = settings.SAMPLES;
   const feeRateCeiling = settings.PRESIGNED_FEE_RATE_CEILING;
-  const maxFeeRateCeiling = settings.MAX_PRESIGNED_FEE_RATE_CEILING;
-  const vaultMode = networkId === 'BITCOIN' ? 'TRUC' : settings.TESTING_VAULT_MODE;
+  const vaultMode =
+    networkId === 'BITCOIN' ? 'TRUC' : settings.TESTING_VAULT_MODE;
   const { locale, currency } = useLocalization();
   // We know settings are the correct ones in this Component
   const [progress, setProgress] = useState<number>(0);
@@ -303,27 +299,21 @@ export default function CreateVaultScreen({
         return;
       }
 
-      const serviceOutput = DUMMY_SERVICE_OUTPUT(networkMapping[networkId]);
       //createVault does not throw. It returns errors as strings:
       const vault = await createVault({
         vaultedAmount,
         unvaultKey,
-        samples,
         feeRate,
-        serviceFee,
-        vaultMode,
-        feeRateCeiling,
-        maxFeeRateCeiling,
         coldAddress,
         changeDescriptorWithIndex,
-        serviceOutput,
         lockBlocks,
         signer,
         utxosData,
         networkId,
         nextVaultId: nextVaultData.nextVaultId,
         nextVaultPath: nextVaultData.nextVaultPath,
-        onProgress
+        onProgress,
+        vaultMode
       });
       if (!navigation.isFocused()) return; //Don't proceed if lost focus after await
 
@@ -355,11 +345,9 @@ export default function CreateVaultScreen({
     toast,
     netToast,
     vaultedAmount,
-    serviceFee,
     coldAddress,
     feeRate,
     feeRateCeiling,
-    maxFeeRateCeiling,
     getNextChangeDescriptorWithIndex,
     getUnvaultKey,
     lockBlocks,
@@ -367,7 +355,6 @@ export default function CreateVaultScreen({
     vaultMode,
     onProgress,
     pushVaultRegisterWTAndUpdateStates,
-    samples,
     cBVaultsWriterAPI,
     cBVaultsReaderAPI,
     signer,
