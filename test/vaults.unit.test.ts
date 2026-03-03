@@ -3,17 +3,25 @@
 
 import { fixtures } from './fixtutres';
 import {
+  estimateCpfpPackage,
   getHotDescriptors,
   getPanicAnchorOutputIndex,
   getTriggerAnchorOutputIndex,
   getVaultMode,
+  type UtxosData,
   type Vault,
   type Vaults,
   type VaultsStatuses
 } from '../dist/src/app/lib/vaults';
 import { type Accounts } from '../dist/src/app/lib/wallets';
-import { Transaction } from 'bitcoinjs-lib';
+import { networks, Transaction } from 'bitcoinjs-lib';
 import { fromHex } from 'uint8array-tools';
+import {
+  createServiceOutput,
+  DUMMY_SERVICE_ADDRESS
+} from '../dist/src/app/lib/vaultDescriptors';
+
+const NON_TRUC_P2A_ANCHOR_VALUE = 330; //FIXME: verify this is ok - better make this dynamic?
 
 /** Builds a tiny synthetic tx for vault mode inference tests. */
 const createSyntheticTxHex = ({
@@ -32,6 +40,21 @@ const createSyntheticTxHex = ({
   if (p2aValue !== undefined)
     tx.addOutput(fromHex('51024e73'), BigInt(p2aValue));
   return tx.toHex();
+};
+
+const createSyntheticUtxoData = (value: number): UtxosData[number] => {
+  const network = networks.regtest;
+  const output = createServiceOutput(DUMMY_SERVICE_ADDRESS(network), network);
+  const tx = new Transaction();
+  tx.version = 2;
+  tx.addInput(new Uint8Array(32), 0);
+  tx.addOutput(fromHex(`0014${'00'.repeat(20)}`), BigInt(value));
+  return {
+    tx,
+    txHex: tx.toHex(),
+    vout: 0,
+    output
+  };
 };
 
 describe('vaults unit tests', () => {
@@ -70,12 +93,12 @@ describe('vaults unit tests', () => {
     const triggerTxHex = createSyntheticTxHex({
       version: 2,
       mainOutputValue: 10000,
-      p2aValue: 330
+      p2aValue: NON_TRUC_P2A_ANCHOR_VALUE
     });
     const panicTxHex = createSyntheticTxHex({
       version: 2,
       mainOutputValue: 9000,
-      p2aValue: 330
+      p2aValue: NON_TRUC_P2A_ANCHOR_VALUE
     });
     const vault = {
       triggerMap: { [triggerTxHex]: [panicTxHex] }
@@ -95,5 +118,77 @@ describe('vaults unit tests', () => {
     } as unknown as Vault;
     expect(getVaultMode(legacyVault)).toBe('LEGACY');
     expect(getTriggerAnchorOutputIndex(legacyTriggerTxHex)).toBeUndefined();
+  });
+
+  test('estimateCpfpPackage computes effective package fee data', () => {
+    const network = networks.regtest;
+    const changeOutput = createServiceOutput(
+      DUMMY_SERVICE_ADDRESS(network),
+      network
+    );
+    const parentTxHex = createSyntheticTxHex({
+      version: 2,
+      mainOutputValue: 12000,
+      p2aValue: NON_TRUC_P2A_ANCHOR_VALUE
+    });
+    const plan = estimateCpfpPackage({
+      parentTxHex,
+      parentFee: 120,
+      targetEffectiveFeeRate: 2,
+      utxosData: [createSyntheticUtxoData(3000)],
+      changeOutput
+    });
+
+    expect(plan).toBeDefined();
+    if (!plan) throw new Error('Expected CPFP plan');
+    expect(plan.parentTxHex).toBe(parentTxHex);
+    expect(plan.anchorValue).toBe(NON_TRUC_P2A_ANCHOR_VALUE);
+    expect(plan.childFee).toBeGreaterThanOrEqual(0);
+    expect(plan.childOutputValue).toBeGreaterThan(0);
+    expect(plan.effectiveFeeRate).toBeGreaterThanOrEqual(2);
+  });
+
+  test('estimateCpfpPackage returns undefined for legacy parent tx', () => {
+    const network = networks.regtest;
+    const changeOutput = createServiceOutput(
+      DUMMY_SERVICE_ADDRESS(network),
+      network
+    );
+    const parentTxHex = createSyntheticTxHex({
+      version: 2,
+      mainOutputValue: 12000
+    });
+    const plan = estimateCpfpPackage({
+      parentTxHex,
+      parentFee: 120,
+      targetEffectiveFeeRate: 2,
+      utxosData: [createSyntheticUtxoData(3000)],
+      changeOutput
+    });
+    expect(plan).toBeUndefined();
+  });
+
+  test('estimateCpfpPackage enforces TRUC child size limit', () => {
+    const network = networks.regtest;
+    const changeOutput = createServiceOutput(
+      DUMMY_SERVICE_ADDRESS(network),
+      network
+    );
+    const parentTxHex = createSyntheticTxHex({
+      version: 3,
+      mainOutputValue: 12000,
+      p2aValue: 0
+    });
+    const utxosData = Array.from({ length: 200 }, () =>
+      createSyntheticUtxoData(100)
+    );
+    const plan = estimateCpfpPackage({
+      parentTxHex,
+      parentFee: 0,
+      targetEffectiveFeeRate: 120,
+      utxosData,
+      changeOutput
+    });
+    expect(plan).toBeUndefined();
   });
 });

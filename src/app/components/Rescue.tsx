@@ -18,12 +18,16 @@ import {
   type TxHex,
   type TxId,
   type Vault,
-  type VaultStatus
+  type VaultStatus,
+  estimateCpfpPackage,
+  getVaultMode
 } from '../lib/vaults';
 import { transactionFromHex } from '../lib/bitcoin';
 import { useWallet } from '../hooks/useWallet';
 import useFirstDefinedValue from '~/common/hooks/useFirstDefinedValue';
 import { toNumber } from '../lib/sats';
+import { DUMMY_CHANGE_OUTPUT, getMainAccount } from '../lib/vaultDescriptors';
+import { networkMapping } from '../lib/network';
 
 export type RescueData = {
   txHex: TxHex;
@@ -31,6 +35,7 @@ export type RescueData = {
   fee: number;
   feeRate: number;
   vSize: number;
+  parentFee?: number;
 };
 
 /**
@@ -66,11 +71,16 @@ const Rescue = ({
   isVisible: boolean;
   onClose: () => void;
 }) => {
+  const vaultMode = useMemo(() => getVaultMode(vault), [vault]);
+  const isLegacyVault = vaultMode === 'LEGACY';
+  const isAccelerationAttempt = !!vaultStatus?.panicTxHex;
+
   // zero if this is not a RBF, and => 1 if this is InitUnfreeze
-  // isVisibletrying to do a RBF of a prev one
+  // trying to do a RBF of a prev one
   const feeRateToReplace = useMemo(() => {
-    if (!vaultStatus?.triggerTxHex || !vaultStatus?.panicTxHex) return 0;
-    else {
+    if (!isAccelerationAttempt) return 0;
+    if (isLegacyVault) {
+      if (!vaultStatus?.triggerTxHex || !vaultStatus?.panicTxHex) return 0;
       const { tx: triggerTx } = transactionFromHex(vaultStatus.triggerTxHex);
       const { tx: panicTx } = transactionFromHex(vaultStatus.panicTxHex);
       const triggerOutValue = triggerTx.outs[0]?.value;
@@ -84,9 +94,22 @@ const Rescue = ({
         panicTx.virtualSize()
       );
     }
-  }, [vaultStatus?.triggerTxHex, vaultStatus?.panicTxHex]);
+    const panicTxHex = vaultStatus?.panicTxHex;
+    if (!panicTxHex) return 0;
+    const panicTxData = vault.txMap[panicTxHex];
+    if (!panicTxData) return 0;
+    const { tx } = transactionFromHex(panicTxHex);
+    return panicTxData.fee / tx.virtualSize();
+  }, [
+    isAccelerationAttempt,
+    isLegacyVault,
+    vaultStatus?.triggerTxHex,
+    vaultStatus?.panicTxHex,
+    vault
+  ]);
 
   const rescueSortedTxs = useMemo(() => {
+    if (!isLegacyVault) return [];
     if (!isVisible) return [];
     const triggerTxHex = vaultStatus?.triggerTxHex;
     if (!triggerTxHex) throw new Error('Vault has not been triggered');
@@ -101,11 +124,32 @@ const Rescue = ({
         return { ...txData, vSize: tx.virtualSize(), txHex };
       })
       .sort((a, b) => a.feeRate - b.feeRate);
-  }, [vault, vaultStatus?.triggerTxHex, isVisible]);
+  }, [vault, vaultStatus?.triggerTxHex, isVisible, isLegacyVault]);
+
+  const rewind2RescueTx = useMemo(() => {
+    if (isLegacyVault) return null;
+    if (!isVisible) return null;
+    const triggerTxHex = vaultStatus?.triggerTxHex;
+    if (!triggerTxHex) throw new Error('Vault has not been triggered');
+    const rescueTxs = vault.triggerMap[triggerTxHex];
+    if (!rescueTxs || rescueTxs.length === 0)
+      throw new Error("Triggered vault doesn't have matching rescue txs");
+    const rescueTxHex = rescueTxs[0];
+    if (!rescueTxHex) throw new Error('Invalid rescue tx');
+    const txData = vault.txMap[rescueTxHex];
+    if (!txData) throw new Error('rescue tx not mapped');
+    const { tx } = transactionFromHex(rescueTxHex);
+    return { ...txData, vSize: tx.virtualSize(), txHex: rescueTxHex };
+  }, [vault, vaultStatus?.triggerTxHex, isLegacyVault, isVisible]);
 
   const { t } = useTranslation();
-  const { feeEstimates: feeEstimatesRealTime, btcFiat: btcFiatRealTime } =
-    useWallet();
+  const {
+    feeEstimates: feeEstimatesRealTime,
+    btcFiat: btcFiatRealTime,
+    utxosData,
+    accounts,
+    networkId
+  } = useWallet();
 
   //Cache to avoid flickering in the Sliders
   const btcFiat = useFirstDefinedValue<number>(btcFiatRealTime);
@@ -129,8 +173,44 @@ const Rescue = ({
 
   const [feeRate, setFeeRate] = useState<number | null>(null);
 
-  const txData =
-    feeRate && findNextEqualOrLargerFeeRate(rescueSortedTxs, feeRate);
+  const rewind2Plan = useMemo(() => {
+    if (
+      isLegacyVault ||
+      feeRate === null ||
+      !rewind2RescueTx ||
+      !utxosData ||
+      !accounts ||
+      Object.keys(accounts).length === 0 ||
+      !networkId
+    )
+      return null;
+    const network = networkMapping[networkId];
+    const changeOutput = DUMMY_CHANGE_OUTPUT(
+      getMainAccount(accounts, network),
+      network
+    );
+    return estimateCpfpPackage({
+      parentTxHex: rewind2RescueTx.txHex,
+      parentFee: rewind2RescueTx.fee,
+      targetEffectiveFeeRate: feeRate,
+      utxosData,
+      changeOutput
+    });
+  }, [isLegacyVault, feeRate, rewind2RescueTx, utxosData, accounts, networkId]);
+
+  const txData: RescueData | null =
+    feeRate === null
+      ? null
+      : isLegacyVault
+        ? (findNextEqualOrLargerFeeRate(rescueSortedTxs, feeRate) ?? null)
+        : rewind2RescueTx && rewind2Plan
+          ? {
+              ...rewind2RescueTx,
+              parentFee: rewind2RescueTx.fee,
+              fee: rewind2Plan.totalFee,
+              feeRate: rewind2Plan.effectiveFeeRate
+            }
+          : null;
   const fee = feeRate === null ? null : txData && txData.fee;
 
   useEffect(() => {
@@ -180,7 +260,7 @@ const Rescue = ({
                         mode="primary-alert"
                         onPress={() => setStep('fee')}
                       >
-                        {feeRateToReplace
+                        {isAccelerationAttempt
                           ? t('accelerateButton')
                           : t('imInDangerButton')}
                       </Button>
@@ -215,7 +295,7 @@ const Rescue = ({
         ) : step === 'intro' ? (
           <View>
             <Text className="text-base text-slate-600 pb-2 px-2">
-              {feeRateToReplace
+              {isAccelerationAttempt
                 ? t('wallet.vault.rescue.introAccelerate')
                 : t('wallet.vault.rescue.intro', {
                     panicAddress: vault.coldAddress

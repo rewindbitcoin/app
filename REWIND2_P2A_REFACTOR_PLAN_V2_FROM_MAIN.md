@@ -1,6 +1,6 @@
 # Rewind2 + P2A Refactor Plan v2 (From `main`, Risk-First)
 
-Last updated: 2026-02-27
+Last updated: 2026-03-03
 Starting point: `main`
 Execution model: stage-by-stage with mandatory stop/review gates
 
@@ -28,10 +28,9 @@ Why this version exists:
 - New vaults are Rewind2-style only.
 - Community Backups remain enabled for new vaults in this phase.
 - Watchtower wire contract remains unchanged in this phase.
-- Reserve target at creation must cover two high-priority protection actions (trigger + rescue).
-- Reserve is safeguarded by default.
-- `Use as hot` remains one-way (`SAFEGUARDED -> HOT_RELEASED`) in this phase.
-- If there are no active vaults, safeguarded reserve is auto-available.
+- No dedicated anchor-reserve output/descriptor is used in this phase.
+- Trigger/Rescue CPFP children are funded from regular wallet UTXOs at submit time.
+- UX must clearly recommend keeping a wallet-side fee buffer for emergency trigger/rescue package fees.
 - Trigger/Rescue fee UX remains slider-based and simple.
 - If selected fee is infeasible at submit time, clamp to highest feasible and warn.
 - Delegate guidance must mention that an additional fee-bump child transaction may be required.
@@ -51,6 +50,8 @@ Why this version exists:
 - Legacy vault handling is still required (read/status/trigger/rescue compatibility).
 - Exported creation API name can remain `createVault`, but implementation must be Rewind2-only.
 - `vaultMode` is inferred from trigger tx shape (`LEGACY`/`TRUC`/`NON_TRUC`) at runtime; no vault record migration field is required.
+- Rewind2 playground implementation is the reference behavior baseline for tx construction and execution semantics.
+- On-chain backups are in-scope for the refactor direction; backup indexing/discovery should align with Rewind2 behavior.
 
 ### 1.3 Policy-mode transaction rules (locked)
 
@@ -94,7 +95,7 @@ This plan fixes sequencing:
 
 - Rewind2-only vault creation from `main`.
 - No-service-fee creation model.
-- P2A reserve + fee-bump execution path.
+- P2A package fee-bump execution path funded from regular wallet UTXOs (no dedicated anchor reserve).
 - Legacy vault compatibility paths.
 - Watchtower and backups compatibility.
 - Deterministic tests and rollout gates.
@@ -104,6 +105,7 @@ This plan fixes sequencing:
 - Backup architecture redesign.
 - Watchtower API redesign.
 - Legacy vault record rewrite.
+- Safeguarded reserve policy/UX (`SAFEGUARDED`/`HOT_RELEASED`) in this pass.
 
 ---
 
@@ -143,7 +145,7 @@ This plan fixes sequencing:
 - Mode selection at creation time:
   - default from current network policy defaults,
   - overridable by settings toggle.
-- Persist selected mode on vault record and never infer from current runtime defaults.
+- Do not persist mode on vault records; infer mode from tx shape (`LEGACY`/`TRUC`/`NON_TRUC`) at runtime.
 - Enforce mode-specific builders/validators:
   - `TRUC`: v3 + zero-fee parent + zero-value P2A anchor + package path.
   - `NON_TRUC`: non-zero parent fee + non-dust anchor + package path.
@@ -337,7 +339,7 @@ Tasks:
   - no service address fetch requirement,
   - service fee forced to zero.
 - Keep legacy creation path non-callable from UI.
-- Ensure reserve sizing for two-action protection is retained.
+- Align create flow with Rewind2 on-chain backup indexing semantics.
 
 Files likely touched:
 
@@ -362,11 +364,11 @@ Goals:
 Tasks:
 
 - Rework `vaultRange` computations for no-service-fee baseline.
-- Preserve reserve accounting correctness.
+- Ensure setup estimates remain valid without any dedicated reserve output.
 - Add invariant tests:
   - `maxVaultAmountWhenMaxFee <= maxVaultAmount`,
   - any selected amount in range yields successful `selectVaultUtxosData`,
-  - reserve-included cases remain selectable.
+  - setup copy warns users to keep an additional wallet-side fee buffer.
 
 Exit criteria:
 
@@ -374,22 +376,22 @@ Exit criteria:
 
 ---
 
-### Stage 6 - Reserve policy and balance model
+### Stage 6 - Fee-buffer UX contract (no anchor reserve)
 
 Goals:
 
-- Preserve safeguarded-by-default UX with one-way hot release.
+- Keep the funding model simple and explicit for users.
 
 Tasks:
 
-- Implement/validate wallet-level policy state (`SAFEGUARDED`, `HOT_RELEASED`).
-- Enforce auto-available override when active vault count is zero.
-- Ensure reserve descriptor discovery and balance attribution remain deterministic.
-- Keep safeguarded funds excluded from hot spend unless policy allows.
+- Add concise user guidance in setup/create/trigger/rescue flows:
+  - fee-bump child spends regular wallet UTXOs,
+  - keep a spendable fee buffer outside vaulted funds.
+- Add deterministic error/copy when selected fee is infeasible with available wallet UTXOs.
 
 Exit criteria:
 
-- Balance buckets and spendability rules match product contract.
+- Users receive actionable buffer guidance and actionable infeasible-funding feedback.
 
 ---
 
@@ -403,11 +405,10 @@ Tasks:
 
 - Build engine helpers for:
   - canonical parent resolution by inferred `vaultMode`,
-  - protected-only child plan,
-  - blended fallback plan,
+  - wallet-UTXO child plan,
   - submit-time revalidation,
   - clamp-to-feasible logic,
-  - reserve-spent accounting update rules.
+  - insufficient-buffer classification.
 - Return typed results and typed failures.
 
 Exit criteria:
@@ -434,7 +435,7 @@ Tasks:
   - policy rejected,
   - parent missing,
   - selected fee infeasible (clamped),
-  - no feasible child even with blended funds,
+  - no feasible child with current wallet UTXOs,
   - template/policy incompatibility (dedicated).
 - Map each surface to user copy that is actionable and non-misleading.
 
@@ -457,9 +458,7 @@ Tasks:
   - slider remains simple,
   - engine handles feasibility/funding decisions,
   - clamp warnings shown when needed.
-- `WalletHeader`:
-  - safeguarded line,
-  - one-way `Use as hot` confirmation.
+- Keep buffer guidance copy non-technical and consistent across screens.
 - Keep copy non-technical.
 
 Exit criteria:
@@ -505,7 +504,7 @@ Tasks:
   - duplicate idempotency.
 - Integration/edge2edge coverage:
   - trigger/rescue happy paths,
-  - protected-only and blended,
+  - wallet-UTXO child funding,
   - clamp path,
   - endpoint unavailable,
   - parent-missing timing,
@@ -564,12 +563,11 @@ Reviewer options:
 - Rewind2 creation without service fee.
 - `createVault(...)` emits Rewind2-only records.
 - Legacy record parse remains intact.
-- Range/selectability invariants under reserve.
+- Range/selectability invariants without reserve output assumptions.
 - Child builder outcomes:
   - not needed,
-  - protected success,
-  - blended success,
-  - insufficient funds.
+  - wallet-UTXO success,
+  - insufficient wallet buffer.
 - Broadcast error classification:
   - duplicate,
   - endpoint unavailable,
@@ -590,7 +588,7 @@ Reviewer options:
 ### 7.3 UX and copy checks
 
 - No service-fee references in create flow copy.
-- `Use as hot` one-way and warning text behavior.
+- Buffer guidance appears in trigger/rescue related copy where relevant.
 - Error copy is actionable and not misleading.
 
 ---
@@ -603,6 +601,8 @@ Reviewer options:
   - Mitigation: infer mode from tx shape; execution does not depend on later setting changes.
 - **Range/math regressions in setup**
   - Mitigation: explicit selectability invariants and tests.
+- **Insufficient wallet balance for CPFP child at trigger/rescue time**
+  - Mitigation: pre-submit feasibility checks + clear user guidance to keep a spendable fee buffer.
 - **Over-complex UI logic regressions**
   - Mitigation: engine-first, thin-UI integration.
 - **Legacy behavior breakage**
@@ -621,8 +621,8 @@ Done means all are true:
 - `vaultMode` inference is deterministic from tx shape and execution is stable.
 - Legacy vaults remain operable.
 - Trigger/rescue execution is policy-compatible on target backend(s).
-- Protected-first, blended fallback, and clamp semantics work as specified.
-- Safeguarded reserve UX contract is implemented (including one-way `Use as hot`).
+- Wallet-UTXO CPFP funding and clamp semantics work as specified.
+- Users are clearly informed to keep a spendable fee buffer for emergency actions.
 - Watchtower and backups remain compatible.
 - Full test matrix passes.
 
@@ -698,7 +698,7 @@ Status: completed
   - New create flow no longer depends on service-address backend.
   - Legacy coverage remains intact while app creation path moves to Rewind2.
 - Risks left:
-  - Reserve-target and safeguarded reserve accounting are not fully wired yet in this stage.
+  - On-chain-backup creation/index wiring still needs final alignment with the app create flow.
   - Mode-specific template differences (`TRUC` vs `NON_TRUC`) are partially shared and still need dedicated template-hardening stage.
 
 ### Stage 3 - Beginner-friendly vault mode toggle for demo networks
@@ -719,3 +719,18 @@ Status: completed
   - Users can now simulate real-network behavior on test environments without exposing risky mode switches on mainnet.
 - Risks left:
   - UI setting behavior is covered by manual flows; no dedicated Settings UI test suite yet.
+
+### Stage 4 - Direction lock update (anchor-reserve removed)
+
+Status: completed
+
+- Changes:
+  - Locked refactor direction to no dedicated anchor-reserve model.
+  - Locked trigger/rescue CPFP funding model to regular wallet UTXOs + parent P2A anchor.
+  - Locked UX requirement to explain fee-buffer expectations to users.
+- Tests:
+  - Plan/documentation update only (no code changes in this stage).
+- Findings:
+  - This reduces architecture complexity and keeps execution aligned with current app behavior.
+- Risks left:
+  - Users may run out of spendable wallet UTXOs at emergency time if they vault nearly all funds; UX and errors must remain explicit.

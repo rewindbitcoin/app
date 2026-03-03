@@ -68,6 +68,7 @@
     "moize": "^6.1.6",
     "nativewind": "4.1.23",
     "polished": "^4.2.2",
+    "pushdata-bitcoin": "^1.0.1",
     "react": "19.0.0",
     "react-dom": "19.0.0",
     "react-i18next": "^16.2.4",

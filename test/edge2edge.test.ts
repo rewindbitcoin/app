@@ -14,7 +14,6 @@ import {
   signers as descriptorsSigners
 } from '@bitcoinerlab/descriptors';
 const signBIP32 = descriptorsSigners.signBIP32;
-import { type OutputInstance } from '@bitcoinerlab/descriptors';
 import {
   ESPLORA_LOCAL_REGTEST_URL,
   EsploraExplorer
@@ -28,7 +27,7 @@ const sleep = async (ms: number) =>
   await new Promise(resolve => setTimeout(resolve, ms));
 
 import {
-  createLegacyVault,
+  createVault,
   getHotDescriptors,
   getUtxosData,
   type Vaults,
@@ -36,9 +35,7 @@ import {
   type VaultsStatuses
 } from '../dist/src/app/lib/vaults';
 import {
-  createServiceOutput,
   createUnvaultKey,
-  DUMMY_SERVICE_ADDRESS,
   getDefaultAccount,
   getMainAccount,
   getMasterNode
@@ -50,7 +47,6 @@ import {
 } from '../dist/src/app/lib/wallets';
 import { createColdAddress } from '../dist/src/app/lib/vaultDescriptors';
 import { transactionFromHex } from '../dist/src/app/lib/bitcoin';
-import { findLowestTrueBinarySearch } from '../dist/src/common/lib/binarySearch';
 
 type InitUnfreezeData = {
   txHex: string;
@@ -58,18 +54,6 @@ type InitUnfreezeData = {
   fee: number;
   feeRate: number;
   vSize: number;
-};
-const findNextEqualOrLargerFeeRate = (
-  triggerSortedTxs: Array<InitUnfreezeData>,
-  feeRate: number
-) => {
-  const result = findLowestTrueBinarySearch(
-    triggerSortedTxs.length - 1,
-    index => triggerSortedTxs[index]!.feeRate >= feeRate,
-    100 //100 iterations at most
-  );
-  if (result.value !== undefined) return triggerSortedTxs[result.value]!;
-  else return null;
 };
 
 describe('E2E: Multiple Pre-Signed txs Vault', () => {
@@ -81,11 +65,7 @@ describe('E2E: Multiple Pre-Signed txs Vault', () => {
     FAUCET_AMOUNT,
     VAULTED_AMOUNT,
     GAP_LIMIT,
-    SAMPLES,
-    PRESIGNED_FEE_RATE_CEILING,
-    MAX_PRESIGNED_FEE_RATE_CEILING,
     LOCK_BLOCKS,
-    TRIGGER_FEE_RATE,
     expected
   } = fixtures.edge2edge;
   const burnMasterNode = getMasterNode(BURN_MNEMONIC, network);
@@ -181,13 +161,6 @@ describe('E2E: Multiple Pre-Signed txs Vault', () => {
     //change index will be incread on each run
     //expect(changeDescriptorWithIndex.index).toBe(0);
   });
-  let serviceOutput: OutputInstance;
-  test('Create serviceOutput', async () => {
-    serviceOutput = createServiceOutput(
-      DUMMY_SERVICE_ADDRESS(network),
-      network
-    );
-  });
   test('Fund the wallet', async () => {
     const account = getMainAccount(accounts, network);
     const receiveDescriptor = account;
@@ -226,41 +199,32 @@ describe('E2E: Multiple Pre-Signed txs Vault', () => {
       return true;
     };
 
-    vault = await createLegacyVault({
+    vault = await createVault({
       vaultedAmount: VAULTED_AMOUNT,
       unvaultKey,
-      samples: SAMPLES,
       feeRate: 2,
-      serviceFee: 1000,
-      /** This is the largest fee rate for which at least one trigger and panic txs
-       * must be pre-computed*/
-      feeRateCeiling: PRESIGNED_FEE_RATE_CEILING,
-      /** This is the largest fee rate for which
-       * this function computes presigned txs while there
-       * is still room.
-       * F.ex.: the max avaiable feeRate for the
-       * triggerTx can be maxFeeRateCeiling > feeRate > feeRateCeiling */
-      maxFeeRateCeiling: MAX_PRESIGNED_FEE_RATE_CEILING,
       coldAddress,
       changeDescriptorWithIndex,
-      serviceOutput,
       lockBlocks: LOCK_BLOCKS,
       signer,
       networkId,
       utxosData,
       nextVaultId: vaultId,
       nextVaultPath: vaultPath,
-      onProgress
+      onProgress,
+      vaultMode: 'NON_TRUC'
     });
     expect(typeof vault).toBe('object');
     if (typeof vault === 'object') {
       expect(vault.vaultedAmount).toBe(VAULTED_AMOUNT);
       expect(vault.lockBlocks).toBe(LOCK_BLOCKS);
       expect(vault.unvaultKey).toBe(unvaultKey);
-      //There must be at least SAMPLES trigger txs + 1 vault tx
-      expect(Object.keys(vault.txMap).length).toBeGreaterThan(SAMPLES);
-      //There must be some trigger txs
-      expect(Object.keys(vault.triggerMap).length).toBeGreaterThan(0);
+      // Vault + trigger + panic
+      expect(Object.keys(vault.txMap)).toHaveLength(3);
+      // Rewind2 style: a single trigger with a single panic
+      expect(Object.keys(vault.triggerMap)).toHaveLength(1);
+      const [onlyPanicTxs] = Object.values(vault.triggerMap);
+      expect(onlyPanicTxs).toHaveLength(1);
     }
 
     if (typeof vault !== 'object') throw new Error();
@@ -277,22 +241,13 @@ describe('E2E: Multiple Pre-Signed txs Vault', () => {
   let triggerTxData: InitUnfreezeData | null;
   test('Init the unfreeze and mine it', async () => {
     if (typeof vault !== 'object') throw new Error();
-    const triggerSortedTxs = Object.entries(vault.triggerMap)
-      .map(([triggerTxHex]) => {
-        if (typeof vault !== 'object') throw new Error();
-        const txData = vault.txMap[triggerTxHex];
-        if (!txData) throw new Error('trigger tx not mapped');
-        const { tx } = transactionFromHex(triggerTxHex);
-        return { ...txData, vSize: tx.virtualSize(), txHex: triggerTxHex };
-      })
-      .sort((a, b) => a.feeRate - b.feeRate);
-    triggerTxData = findNextEqualOrLargerFeeRate(
-      triggerSortedTxs,
-      TRIGGER_FEE_RATE
-    );
-    expect(triggerTxData).not.toBeNull();
-    if (triggerTxData === null) throw new Error();
-    expect(triggerTxData.feeRate).toBeGreaterThanOrEqual(TRIGGER_FEE_RATE);
+    const [triggerTxHex] = Object.keys(vault.triggerMap);
+    if (!triggerTxHex) throw new Error('Missing trigger tx');
+    const txData = vault.txMap[triggerTxHex];
+    if (!txData) throw new Error('trigger tx not mapped');
+    const { tx } = transactionFromHex(triggerTxHex);
+    triggerTxData = { ...txData, vSize: tx.virtualSize(), txHex: triggerTxHex };
+    expect(triggerTxData.feeRate).toBeGreaterThan(0);
     await discovery.push({ txHex: triggerTxData.txHex, gapLimit: GAP_LIMIT });
     await regtestUtils.mine(1);
     await sleep(1000);

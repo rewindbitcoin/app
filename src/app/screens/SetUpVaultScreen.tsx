@@ -24,7 +24,6 @@ import {
 } from '../lib/vaults';
 import {
   DUMMY_VAULT_OUTPUT,
-  DUMMY_SERVICE_OUTPUT,
   DUMMY_CHANGE_OUTPUT,
   getMainAccount,
   DUMMY_COLD_ADDRESS,
@@ -103,7 +102,6 @@ export default function VaultSetUp({
   const [lockBlocks, setLockBlocks] = useState<number | null>(
     settings.INITIAL_LOCK_BLOCKS
   );
-  const serviceFeeRate = 0;
 
   const lastUnusedColdAddress =
     vaults && vaultsStatuses && areVaultsSynched(vaults, vaultsStatuses)
@@ -211,7 +209,6 @@ export default function VaultSetUp({
     coldAddress: coldAddress || DUMMY_COLD_ADDRESS(network),
     maxFeeRate,
     network,
-    serviceFeeRate,
     feeRate, //If feeRate is null, then estimateLegacyVaultSetUpRange uses maxFeeRate
     feeRateCeiling: settings.PRESIGNED_FEE_RATE_CEILING,
     minRecoverableRatio: settings.MIN_RECOVERABLE_RATIO
@@ -328,7 +325,7 @@ export default function VaultSetUp({
    *
    * OPTIMIZATION:
    * - We only perform the expensive calculation when necessary (max amount selected)
-    * - We use the same calculation method as estimateLegacyVaultSetUpRange for consistency
+   * - We use the same calculation method as estimateLegacyVaultSetUpRange for consistency
    * - We batch updates to avoid multiple renders
    */
   const handleFeeRateChange = useCallback(
@@ -344,8 +341,6 @@ export default function VaultSetUp({
           const newMaxEstimate = estimateLegacyMaxVaultAmount({
             utxosData,
             vaultOutput: DUMMY_VAULT_OUTPUT(network),
-            serviceOutput: DUMMY_SERVICE_OUTPUT(network),
-            serviceFeeRate,
             feeRate: newFeeRate
           });
 
@@ -356,7 +351,7 @@ export default function VaultSetUp({
         }
       });
     },
-    [isMaxVaultedAmount, utxosData, network, serviceFeeRate]
+    [isMaxVaultedAmount, utxosData, network]
   );
 
   let fee = null;
@@ -367,10 +362,6 @@ export default function VaultSetUp({
       //key that we don't want to keep in memory
       //This means the final fee may be larger depending on signature size
       vaultOutput: DUMMY_VAULT_OUTPUT(network),
-      //We use a dummy service output because the real service address is
-      //only retrieved once, when finally creating the vaul, to avoid generating
-      //a huge gapLimit in Rewinds wallet
-      serviceOutput: DUMMY_SERVICE_OUTPUT(network),
       changeOutput:
         changeOutput ||
         DUMMY_CHANGE_OUTPUT(getMainAccount(accounts, network), network),

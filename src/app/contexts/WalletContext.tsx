@@ -125,6 +125,13 @@ export type WalletContextType = {
   networkId: NetworkId | undefined;
   fetchBlockTime: (blockHeight: number) => Promise<number | undefined>;
   pushTx: (txHex: string) => Promise<void>;
+  pushTxPackage: ({
+    parentTxHex,
+    childTxHex
+  }: {
+    parentTxHex: string;
+    childTxHex: string;
+  }) => Promise<void>;
   syncWatchtowerRegistration: ({
     pushToken,
     isUserTriggered
@@ -666,6 +673,88 @@ const WalletProviderRaw = ({
   );
 
   /**
+   * Pushes a 1-parent-1-child package through Esplora `/txs/package` and
+   * updates discovery state locally.
+   */
+  const pushTxPackage = useCallback(
+    async ({
+      parentTxHex,
+      childTxHex
+    }: {
+      parentTxHex: string;
+      childTxHex: string;
+    }) => {
+      if (!discovery) throw new Error('Discovery not ready for pushTxPackage');
+      if (gapLimit === undefined)
+        throw new Error('gapLimit not ready for pushTxPackage');
+      if (!esploraAPI)
+        throw new Error('esploraAPI not ready for pushTxPackage');
+
+      const response = await fetch(`${esploraAPI}/txs/package`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify([parentTxHex, childTxHex]),
+        ...(networkTimeout !== undefined
+          ? { signal: AbortSignal.timeout(networkTimeout) }
+          : {})
+      });
+
+      if (response.status === 404)
+        throw new Error('Package endpoint unavailable: /txs/package');
+      if (!response.ok) {
+        const message = await response.text();
+        throw new Error(message || 'Package broadcast failed');
+      }
+
+      const packageResult = (await response.json()) as {
+        package_msg?: string;
+        'tx-results'?: Record<string, { error?: string }>;
+      };
+      const packageMsg = packageResult['package_msg'];
+      const txErrors = packageResult['tx-results']
+        ? Object.values(packageResult['tx-results'])
+            .map(result => result.error)
+            .filter((error): error is string => typeof error === 'string')
+        : [];
+      if (packageMsg !== 'success' || txErrors.length > 0)
+        throw new Error(
+          `Package broadcast rejected: ${packageMsg || 'unknown'}${txErrors.length ? ` (${txErrors.join('; ')})` : ''}`
+        );
+
+      const parentResult = discovery.addTransaction({
+        txData: {
+          txHex: parentTxHex,
+          blockHeight: 0,
+          irreversible: false
+        },
+        gapLimit
+      });
+      const childResult = discovery.addTransaction({
+        txData: {
+          txHex: childTxHex,
+          blockHeight: 0,
+          irreversible: false
+        },
+        gapLimit
+      });
+
+      const descriptorsToRefetch: Array<string> = [];
+      if (parentResult.success === false)
+        descriptorsToRefetch.push(
+          ...parentResult.conflicts.map(conflict => conflict.descriptor)
+        );
+      if (childResult.success === false)
+        descriptorsToRefetch.push(
+          ...childResult.conflicts.map(conflict => conflict.descriptor)
+        );
+      const uniqueDescriptors = Array.from(new Set(descriptorsToRefetch));
+      if (uniqueDescriptors.length)
+        await discovery.fetch({ descriptors: uniqueDescriptors, gapLimit });
+    },
+    [discovery, gapLimit, esploraAPI, networkTimeout]
+  );
+
+  /**
    * This is useful when the wallet is expecting funds in a specific output
    * determined by descriptor (and index if ranged).
    *
@@ -703,7 +792,7 @@ const WalletProviderRaw = ({
         ...(index !== undefined ? { index } : {})
       };
       const initialHistory = discovery.getHistory(descriptorWithIndex);
-      await discovery.fetch(descriptorWithIndex);
+      await discovery.fetch(descriptorWithIndex); //FIXME: and the gapLimit???
       const history = discovery.getHistory(descriptorWithIndex) as TxHistory;
       if (initialHistory !== history)
         await setUtxosHistoryExport(
@@ -1392,6 +1481,7 @@ const WalletProviderRaw = ({
     walletsHistoryData
   ]);
 
+  //TODO: getNextOnChainBackupDescriptorWithIndex
   const getNextChangeDescriptorWithIndex = useCallback(
     async (accounts: Accounts) => {
       const network =
@@ -2241,6 +2331,7 @@ const WalletProviderRaw = ({
     ),
     fetchBlockTime,
     pushTx,
+    pushTxPackage,
     syncWatchtowerRegistration,
     fetchOutputHistory,
     cBVaultsWriterAPI,

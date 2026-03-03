@@ -8,10 +8,14 @@ import { type Network, type Transaction, Psbt } from 'bitcoinjs-lib';
 import { sha256 } from '@noble/hashes/sha2';
 import { fromHex, toHex } from 'uint8array-tools';
 import memoize from 'lodash.memoize';
-import type { Accounts, Signer } from './wallets';
+import { SOFTWARE, type Accounts, type Signer } from './wallets';
 import moize from 'moize';
 
-import { type OutputInstance, signers } from '@bitcoinerlab/descriptors';
+import {
+  keyExpressionBIP32,
+  type OutputInstance,
+  signers
+} from '@bitcoinerlab/descriptors';
 import { ensureDescriptorsFactoryInstance } from './descriptorsFactory';
 import {
   getMasterNode,
@@ -23,18 +27,32 @@ import {
 } from './vaultDescriptors';
 import { shallowEqualArrays, shallowEqualObjects } from 'shallow-equal';
 
-import { feeRateSampling } from './fees';
 import type { DiscoveryInstance, TxAttribution } from '@bitcoinerlab/discovery';
-import { coinselect, vsize, dustThreshold } from '@bitcoinerlab/coinselect';
+import {
+  coinselect,
+  vsize,
+  maxFunds,
+  dustThreshold
+} from '@bitcoinerlab/coinselect';
 import type { Explorer } from '@bitcoinerlab/explorer';
-import { type NetworkId, networkMapping } from './network';
+import { coinTypeFromNetwork, type NetworkId, networkMapping } from './network';
 import { transactionFromHex } from './bitcoin';
 import { toBigInt, toNumber, toNumberOrUndefined } from './sats';
 
-const DEFAULT_REWIND2_PARENT_FEE_RATE = 1;
 const P2A_OUTPUT_SCRIPT = fromHex('51024e73');
 const P2A_OUTPUT_SCRIPT_HEX = toHex(P2A_OUTPUT_SCRIPT);
-const NON_TRUC_P2A_ANCHOR_VALUE = 330;
+import {
+  OP_RETURN_BACKUP_TX_VBYTES,
+  PANIC_TX_VBYTES,
+  TRIGGER_TX_VBYTES
+} from './vaultSizes';
+import { generateMnemonic, mnemonicToSeedSync } from 'bip39';
+
+// P2A input weight = base input (36 prevout + 1 scriptLen + 4 sequence) * 4
+// plus segwit marker/flag (2) and witness (1 stack item count + 1 empty push)
+// so weight = 41*4 + 2 + 2 = 166 wu => vsize = ceil(166/4) = 42 vB.
+const P2A_INPUT_WEIGHT = 166;
+const MAX_TRUC_CHILD_VSIZE = 1000; // TRUC v3 child size limit (vbytes)
 
 export type TxHex = string;
 export type TxId = string;
@@ -293,6 +311,206 @@ export const getVaultMode = (vault: Vault): 'TRUC' | 'NON_TRUC' | 'LEGACY' => {
   }
   return 'LEGACY';
 };
+
+const getUtxoDataValue = (utxoData: UtxosData[number]) => {
+  const out = utxoData.tx.outs[utxoData.vout];
+  if (!out) throw new Error('Invalid utxoData output');
+  return toNumber(out.value);
+};
+
+const estimateCpfpChildVSize = (
+  selectedUtxosData: UtxosData,
+  changeOutput: OutputInstance
+) => {
+  const p2aInput = {
+    isSegwit: () => true,
+    inputWeight: () => P2A_INPUT_WEIGHT
+  };
+  return vsize(
+    [
+      p2aInput as unknown as OutputInstance,
+      ...selectedUtxosData.map(utxoData => utxoData.output)
+    ],
+    [changeOutput]
+  );
+};
+
+/**
+ * Estimates a feasible Rewind2 parent+child CPFP package for a target
+ * effective fee rate.
+ *
+ * The selected fee rate is interpreted as:
+ * `(parentFee + childFee) / (parentVSize + childVSize)`.
+ */
+export const estimateCpfpPackage = ({
+  parentTxHex,
+  parentFee,
+  targetEffectiveFeeRate,
+  utxosData,
+  changeOutput
+}: {
+  parentTxHex: TxHex;
+  parentFee: number;
+  targetEffectiveFeeRate: number;
+  utxosData: UtxosData;
+  changeOutput: OutputInstance;
+}):
+  | {
+      parentTxHex: TxHex;
+      parentTxId: TxId;
+      parentFee: number;
+      parentVSize: number;
+      anchorOutputIndex: number;
+      anchorValue: number;
+      selectedUtxosData: UtxosData;
+      selectedUtxosValue: number;
+      childVSize: number;
+      childFee: number;
+      childOutputValue: number;
+      totalFee: number;
+      effectiveFeeRate: number;
+    }
+  | undefined => {
+  const { tx: parentTx, txId: parentTxId } = transactionFromHex(parentTxHex);
+  const anchor = getP2AOutputData(parentTx);
+  if (!anchor) return;
+
+  const parentVSize = parentTx.virtualSize();
+  const dust = toNumber(dustThreshold(changeOutput));
+  const sortedUtxosData = [...utxosData].sort(
+    (a, b) => getUtxoDataValue(b) - getUtxoDataValue(a)
+  );
+
+  let selectedUtxosData: UtxosData = [];
+  let selectedUtxosValue = 0;
+
+  for (let i = 0; i <= sortedUtxosData.length; i++) {
+    const childVSize = estimateCpfpChildVSize(selectedUtxosData, changeOutput);
+    if (parentTx.version === 3 && childVSize > MAX_TRUC_CHILD_VSIZE) return; //FIXME: throw some message?
+
+    const totalPackageVSize = parentVSize + childVSize;
+    const totalTargetFee = Math.ceil(
+      targetEffectiveFeeRate * totalPackageVSize
+    );
+
+    const childFee = Math.max(0, totalTargetFee - parentFee);
+    const childOutputValue = anchor.value + selectedUtxosValue - childFee;
+
+    if (childOutputValue > dust) {
+      const totalFee = parentFee + childFee;
+      return {
+        parentTxHex,
+        parentTxId,
+        parentFee,
+        parentVSize,
+        anchorOutputIndex: anchor.index,
+        anchorValue: anchor.value,
+        selectedUtxosData,
+        selectedUtxosValue,
+        childVSize,
+        childFee,
+        childOutputValue,
+        totalFee,
+        effectiveFeeRate: totalFee / totalPackageVSize
+      };
+    }
+
+    const nextUtxoData = sortedUtxosData[i];
+    if (!nextUtxoData) break;
+    selectedUtxosData = [...selectedUtxosData, nextUtxoData];
+    selectedUtxosValue += getUtxoDataValue(nextUtxoData);
+  }
+  return;
+};
+
+/**
+ * Builds and signs the Rewind2 CPFP child tx for a selected effective fee
+ * rate.
+ */
+export const createCpfpChildTx = async ({
+  parentTxHex,
+  parentFee,
+  targetEffectiveFeeRate,
+  utxosData,
+  changeOutput,
+  signer,
+  network
+}: {
+  parentTxHex: TxHex;
+  parentFee: number;
+  targetEffectiveFeeRate: number;
+  utxosData: UtxosData;
+  changeOutput: OutputInstance;
+  signer: Signer;
+  network: Network;
+}): Promise<
+  | {
+      childTxHex: TxHex;
+      childTxId: TxId;
+      childFee: number;
+      childVSize: number;
+      totalFee: number;
+      effectiveFeeRate: number;
+    }
+  | undefined
+> => {
+  const plan = estimateCpfpPackage({
+    parentTxHex,
+    parentFee,
+    targetEffectiveFeeRate,
+    utxosData,
+    changeOutput
+  });
+  if (!plan) return;
+
+  const { tx: parentTx } = transactionFromHex(parentTxHex);
+  const psbt = new Psbt({ network });
+  psbt.setVersion(parentTx.version === 3 ? 3 : 2);
+  psbt.addInput({
+    hash: plan.parentTxId,
+    index: plan.anchorOutputIndex,
+    witnessUtxo: {
+      script: P2A_OUTPUT_SCRIPT,
+      value: toBigInt(plan.anchorValue)
+    }
+  });
+
+  const childInputFinalizers = plan.selectedUtxosData.map(utxoData =>
+    utxoData.output.updatePsbtAsInput({
+      psbt,
+      txHex: utxoData.txHex,
+      vout: utxoData.vout
+    })
+  );
+  changeOutput.updatePsbtAsOutput({
+    psbt,
+    value: toBigInt(plan.childOutputValue)
+  });
+
+  await signPsbt(signer, network, psbt);
+  psbt.finalizeInput(0, () => ({
+    finalScriptSig: new Uint8Array(0),
+    finalScriptWitness: Uint8Array.of(0)
+  }));
+  childInputFinalizers.forEach(finalizer => finalizer({ psbt }));
+
+  const tx = psbt.extractTransaction(true);
+  const firstOutput = tx.outs[0];
+  if (!firstOutput) throw new Error('CPFP child output unset');
+  const childVSize = tx.virtualSize();
+  const childFee =
+    plan.anchorValue + plan.selectedUtxosValue - toNumber(firstOutput.value);
+  const totalFee = plan.parentFee + childFee;
+  return {
+    childTxHex: tx.toHex(),
+    childTxId: tx.getId(),
+    childFee,
+    childVSize,
+    totalFee,
+    effectiveFeeRate: totalFee / (plan.parentVSize + childVSize)
+  };
+};
+
 export type HistoryDataItem =
   //hot wallet normal Transactions (not associated with the Vaults):
   | (TxAttribution & { tx: Transaction })
@@ -546,60 +764,10 @@ export const getOutputsWithValue = memoize((utxosData: UtxosData) =>
     if (!out) throw new Error('Invalid utxo');
     return {
       output: utxo.output,
-      value: toNumber(out.value)
+      value: out.value
     };
   })
 );
-
-/**
- * splitTransactionAmount makes sure serviceFee and vaultedAmount are
- * above dust, otherwise undefined is returned.
- * If serviceFeeRate is zero, then serviceFee is also zero and it is assumed
- * the vault won't have a serviceFee output.
- * So:
- *  - serviceFee will be at least dust + 1
- *  - if serviceFee makes the vaultedAmount to be <= its own dust limit
- * then return zero
- */
-export const splitTransactionAmount = ({
-  transactionAmount,
-  vaultOutput,
-  serviceOutput,
-  serviceFeeRate
-}: {
-  transactionAmount: number;
-  vaultOutput: OutputInstance;
-  serviceOutput?: OutputInstance;
-  serviceFeeRate: number;
-}) => {
-  // transactionAmount = serviceFee + vaultedAmount
-  // transactionAmount = vaultedAmount + (serviceFeeRate * vaultedAmount)
-  //                   = vaultedAmount (1 + serviceFeeRate)
-  // vaultedAmount = transactionAmount / (1 + serviceFeeRate)
-
-  if (serviceFeeRate < 0)
-    throw new Error(`Invalid service fee rate: ${serviceFeeRate}`);
-  else if (serviceFeeRate === 0)
-    return {
-      vaultedAmount: transactionAmount,
-      transactionAmount,
-      serviceFee: 0
-    };
-  if (!serviceOutput)
-    throw new Error('Set a serviceOutput when fee rates are > 0');
-  const vaultedAmount = Math.max(
-    toNumber(dustThreshold(vaultOutput)) + 1,
-    Math.ceil(transactionAmount / (1 + serviceFeeRate))
-  );
-  const serviceFee = transactionAmount - vaultedAmount;
-  if (serviceFee <= toNumber(dustThreshold(serviceOutput))) return;
-  else
-    return {
-      vaultedAmount,
-      serviceFee,
-      transactionAmount
-    };
-};
 
 /**
  * The vault coinselector
@@ -631,7 +799,7 @@ const selectVaultUtxosData = ({
   if (vaultedAmount <= toNumber(dustThreshold(vaultOutput))) return;
   const utxosCoinselect = utxos.map(utxo => ({
     output: utxo.output,
-    value: toBigInt(utxo.value)
+    value: utxo.value
   }));
   const coinselected = coinselect({
     utxos: utxosCoinselect,
@@ -679,11 +847,15 @@ const selectVaultUtxosData = ({
 };
 
 export const utxosDataBalance = memoize((utxosData: UtxosData): number =>
-  getOutputsWithValue(utxosData).reduce((a, { value }) => a + value, 0)
+  getOutputsWithValue(utxosData).reduce(
+    (a, { value }) => a + toNumber(value),
+    0
+  )
 );
 
-const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
-
+/**
+ * Async interface - this will make it easier to port this code to HWW
+ */
 const signPsbt = async (signer: Signer, network: Network, psbtVault: Psbt) => {
   const mnemonic = signer?.mnemonic;
   if (!mnemonic) throw new Error('Could not initialize the signer');
@@ -691,232 +863,535 @@ const signPsbt = async (signer: Signer, network: Network, psbtVault: Psbt) => {
   signers.signBIP32({ psbt: psbtVault, masterNode });
 };
 
+//NEW CODE
+//NEW CODE
+//NEW CODE
+//NEW CODE
+//NEW CODE
+//NEW CODE
+//NEW CODE
+//NEW CODE
+//NEW CODE
+//NEW CODE
+
+const MIN_RELAY_FEE_RATE = 0.1;
+const NON_TRUC_P2A_ANCHOR_VALUE = BigInt(330);
+const VAULT_OUTPUT_INDEX = 0;
+const BACKUP_OUTPUT_INDEX = 1;
+const VAULT_PURPOSE = 1073;
+
+const getVaultOriginPath = (network: Network) =>
+  `/${VAULT_PURPOSE}'/${coinTypeFromNetwork(network)}'/0'`;
+
 /**
- * Creates a Rewind2 vault (single trigger + single panic parent set).
- *
- * This function does not throw operational errors. It returns status strings.
+ * Async interface - this will make it easier to port this code to HWW
  */
-export async function createVault({
+const retrieveKeyDataFromSigner = async ({
+  signer,
+  originPath,
+  keyPath,
+  network
+}: {
+  signer: Signer;
+  originPath: string;
+  keyPath: string;
+  network: Network;
+}) => {
+  const mnemonic = signer?.mnemonic;
+  if (!mnemonic)
+    throw new Error('Could not initialize the key expression deriver');
+  const masterNode = getMasterNode(mnemonic, network);
+  return {
+    keyExpression: keyExpressionBIP32({
+      masterNode,
+      originPath,
+      keyPath
+    }),
+    pubkey: masterNode.derivePath(`m${originPath}${keyPath}`).publicKey
+  };
+};
+
+//FIXME: put this in vaultDescriptors?
+export const getOnChainBackupDescriptor = async ({
+  signer,
+  network,
+  index
+}: {
+  signer: Signer;
+  network: Network;
+  index: number | '*';
+}) => {
+  const keyPath = index === '*' ? '/*' : `/${index}`;
+  const { keyExpression } = await retrieveKeyDataFromSigner({
+    signer,
+    network,
+    originPath: getVaultOriginPath(network),
+    keyPath
+  });
+  return `wpkh(${keyExpression})`;
+};
+
+const getBackupCost = (feeRate: number): bigint => {
+  return BigInt(Math.ceil(Math.max(...OP_RETURN_BACKUP_TX_VBYTES) * feeRate));
+};
+
+const coinselectVaultUtxosData = ({
+  utxosData,
+  vaultOutput,
+  vaultedAmount,
+  backupOutput,
+  backupCost,
+  changeOutput,
+  feeRate
+}: {
+  utxosData: UtxosData;
+  vaultOutput: OutputInstance;
+  vaultedAmount: bigint | 'MAX_FUNDS';
+  backupOutput?: OutputInstance;
+  backupCost?: bigint;
+  changeOutput: OutputInstance;
+  feeRate: number;
+}) => {
+  const utxos = getOutputsWithValue(utxosData);
+  if (!utxos.length) return 'NO_UTXOS';
+  if (
+    typeof vaultedAmount === 'bigint' &&
+    vaultedAmount <= dustThreshold(vaultOutput)
+  )
+    return `VAULT OUT BELOW DUST: ${vaultedAmount} <= ${dustThreshold(vaultOutput)}`;
+  if (backupOutput && backupCost !== undefined) {
+    if (backupCost <= dustThreshold(backupOutput))
+      return `BACKUP OUT BELOW DUST: ${backupCost} <= ${dustThreshold(backupOutput)}`;
+  } else if (backupOutput || backupCost !== undefined) {
+    throw new Error('backupOutput and backupCost must be provided together');
+  }
+  let coinselected;
+  let targets;
+  if (vaultedAmount === 'MAX_FUNDS') {
+    targets = [];
+    if (backupOutput && backupCost !== undefined)
+      targets.push({ output: backupOutput, value: backupCost });
+
+    coinselected = maxFunds({
+      utxos,
+      targets,
+      remainder: vaultOutput,
+      feeRate
+    });
+    if (!coinselected) return 'MAX_FUNDS COINSELECTOR FAILED';
+    const vaultTarget = coinselected.targets.find(
+      target => target.output === vaultOutput
+    );
+    if (!vaultTarget) throw new Error('Could not find vaultOutput');
+    if (vaultTarget.value <= dustThreshold(vaultOutput))
+      return `VAULT TARGET OUT BELOW DUST: ${vaultTarget.value} <= ${dustThreshold(vaultOutput)}`;
+    // maxFunds returns targets with the remainder (vault output) last, while createVault expects the vault output first and backup second
+    targets = [];
+    targets[VAULT_OUTPUT_INDEX] = {
+      output: vaultOutput,
+      value: vaultTarget.value
+    };
+    if (backupOutput && backupCost !== undefined)
+      targets[BACKUP_OUTPUT_INDEX] = {
+        output: backupOutput,
+        value: backupCost
+      };
+    vaultedAmount = vaultTarget.value;
+  } else {
+    targets = [];
+    targets[VAULT_OUTPUT_INDEX] = { output: vaultOutput, value: vaultedAmount };
+    if (backupOutput && backupCost !== undefined)
+      targets[BACKUP_OUTPUT_INDEX] = {
+        output: backupOutput,
+        value: backupCost
+      };
+
+    coinselected = coinselect({
+      utxos,
+      targets,
+      remainder: changeOutput,
+      feeRate
+    });
+    if (!coinselected) return 'REGULAR COINSELECTOR FAILED';
+    targets = coinselected.targets;
+  }
+  const selectedUtxosData =
+    coinselected.utxos.length === utxosData.length
+      ? utxosData
+      : coinselected.utxos.map(utxo => {
+          const utxoData = utxosData[utxos.indexOf(utxo)];
+          if (!utxoData) throw new Error('Invalid utxoData');
+          return utxoData;
+        });
+
+  return {
+    vsize: coinselected.vsize,
+    fee: coinselected.fee,
+    targets,
+    vaultedAmount,
+    utxosData: selectedUtxosData
+  };
+};
+
+/**
+ * Builds deterministic vault outputs and runs coin selection for them.
+ *
+ * Uses a randomly derived vault output, a deterministic backup output derived
+ * from the vault index, and a wallet change output to compute the coinselector
+ * for the requested vaulted amount. The backup cost is derived from the
+ * backup type and fee rate.
+ */
+export const getVaultContext = async ({
+  signer,
+  randomSigner,
+  changeDescriptorWithIndex,
+  vaultIndex,
+  vaultMode,
+  feeRate,
+  utxosData,
+  vaultedAmount,
+  shiftFeesToBackupEnd = false,
+  network
+}: {
+  signer: Signer;
+  randomSigner: Signer;
+  changeDescriptorWithIndex: { descriptor: string; index: number };
+  vaultIndex: number;
+  vaultMode: 'TRUC' | 'NON_TRUC';
+  feeRate: number;
+  vaultedAmount: bigint | 'MAX_FUNDS';
+  utxosData: UtxosData;
+  shiftFeesToBackupEnd?: boolean;
+  network: Network;
+}) => {
+  const { Output } = ensureDescriptorsFactoryInstance();
+  const randomOriginPath = `/84'/${coinTypeFromNetwork(network)}'/0'`;
+  const randomKeyPath = `/0/0`;
+  const { keyExpression: randomKey, pubkey: randomPubKey } =
+    await retrieveKeyDataFromSigner({
+      signer: randomSigner,
+      network,
+      originPath: randomOriginPath,
+      keyPath: randomKeyPath
+    });
+  const vaultOutput = new Output({ descriptor: `wpkh(${randomKey})`, network });
+  const backupOutput = new Output({
+    descriptor: await getOnChainBackupDescriptor({
+      signer,
+      network,
+      index: vaultIndex
+    }),
+    network
+  });
+  const changeOutput = new Output({ ...changeDescriptorWithIndex, network });
+
+  const backupCost = getBackupCost(feeRate);
+  // Run the coinselector
+  const selected = coinselectVaultUtxosData({
+    utxosData,
+    vaultOutput,
+    vaultedAmount,
+    backupOutput,
+    backupCost,
+    changeOutput,
+    feeRate
+  });
+
+  let backupOutputValue = backupCost;
+  if (shiftFeesToBackupEnd && typeof selected !== 'string') {
+    const minRelayFeeRate = vaultMode === 'TRUC' ? 0 : MIN_RELAY_FEE_RATE;
+    const minRelayFee = BigInt(Math.ceil(selected.vsize * minRelayFeeRate));
+    if (selected.fee < minRelayFee)
+      throw new Error(
+        `Coinselected fee (${selected.fee}) below min relay fee (${minRelayFee})`
+      );
+    const feeShift = selected.fee - minRelayFee;
+    if (feeShift > 0) {
+      backupOutputValue = backupCost + feeShift;
+      const backupTargetIndex = selected.targets.findIndex(
+        target => target.output === backupOutput
+      );
+      if (backupTargetIndex < 0)
+        throw new Error('Backup output target not found');
+      selected.targets = selected.targets.map((target, index) =>
+        index === backupTargetIndex
+          ? { ...target, value: backupOutputValue }
+          : target
+      );
+      selected.fee = minRelayFee;
+    }
+  }
+
+  return {
+    randomKey,
+    randomPubKey,
+    vaultOutput,
+    backupOutput,
+    changeOutput,
+    backupCost,
+    backupOutputValue,
+    selected
+  };
+};
+
+export const createVault = async ({
   vaultedAmount,
   unvaultKey,
   feeRate,
-  coldAddress,
-  changeDescriptorWithIndex,
-  lockBlocks,
-  signer,
-  networkId,
   utxosData,
-  nextVaultId,
-  nextVaultPath,
-  onProgress,
-  vaultMode
+  signer,
+  randomSigner,
+  coldAddress,
+  lockBlocks,
+  changeDescriptorWithIndex,
+  vaultIndex,
+  vaultMode,
+  shiftFeesToBackupEnd = false,
+  networkId
 }: {
-  vaultedAmount: number;
+  vaultedAmount: bigint;
+  /** The unvault key expression that must be used to create triggerDescriptor */
   unvaultKey: string;
   feeRate: number;
+  utxosData: UtxosData;
+  signer: Signer;
+  randomSigner: Signer;
   coldAddress: string;
   changeDescriptorWithIndex: { descriptor: string; index: number };
   lockBlocks: number;
-  signer: Signer;
-  networkId: NetworkId;
-  utxosData: UtxosData;
-  nextVaultId: string;
-  nextVaultPath: string;
-  onProgress: (progress: number) => boolean;
+  vaultIndex: number;
   vaultMode: 'TRUC' | 'NON_TRUC';
-}): Promise<
-  | Vault
-  | 'COINSELECT_ERROR'
-  | 'NOT_ENOUGH_FUNDS'
-  | 'USER_CANCEL'
-  | 'UNKNOWN_ERROR'
-> {
-  try {
-    const { parseKeyExpression } = ensureDescriptorsFactoryInstance();
-    const network = networkMapping[networkId];
-    const { Output, ECPair } = ensureDescriptorsFactoryInstance();
-    const changeOutput = new Output({ ...changeDescriptorWithIndex, network });
-
-    const vaultPair = ECPair.makeRandom();
-    const vaultOutput = new Output({
-      descriptor: createVaultDescriptor(toHex(vaultPair.publicKey)),
-      network
-    });
-    const selected = selectVaultUtxosDataMemo({
-      utxosData,
-      vaultedAmount,
-      vaultOutput,
-      changeOutput,
-      feeRate,
-      serviceFee: 0
-    });
-    if (!selected) return 'COINSELECT_ERROR';
-    const vaultUtxosData = selected.vaultUtxosData;
-    const vaultTargets = selected.targets;
-    const vaultMiningFee = selected.fee;
-    if (vaultTargets[0]?.output !== vaultOutput)
-      throw new Error("coinselect first output should be the vault's output");
-
-    const txMap: TxMap = {};
-    const triggerMap: TriggerMap = {};
-
-    const coldOutput = new Output({
-      descriptor: createColdDescriptor(coldAddress),
-      network
-    });
-
-    const psbtVault = new Psbt({ network });
-    const vaultFinalizers = [];
-    for (const utxoData of vaultUtxosData) {
-      const { output, vout, txHex } = utxoData;
-      const inputFinalizer = output.updatePsbtAsInput({
-        psbt: psbtVault,
-        txHex,
-        vout
-      });
-      vaultFinalizers.push(inputFinalizer);
-    }
-    for (const target of vaultTargets) {
-      target.output.updatePsbtAsOutput({
-        psbt: psbtVault,
-        value: toBigInt(target.value)
-      });
-    }
-    await signPsbt(signer, network, psbtVault);
-    vaultFinalizers.forEach(finalizer => finalizer({ psbt: psbtVault }));
-    const txVault = psbtVault.extractTransaction(true);
-    const vaultTxHex = txVault.toHex();
-    txMap[vaultTxHex] = {
-      fee: vaultMiningFee,
-      feeRate: vaultMiningFee / txVault.virtualSize(),
-      txId: txVault.getId()
-    };
-    if (onProgress(0.25) === false) return 'USER_CANCEL';
-    await sleep(0);
-
-    const panicPair = ECPair.makeRandom();
-    const panicPubKey = panicPair.publicKey;
-    const triggerDescriptor = createTriggerDescriptor({
-      unvaultKey,
-      panicKey: toHex(panicPubKey),
-      lockBlocks
-    });
-
-    const triggerOutput = new Output({
-      descriptor: triggerDescriptor,
-      network
-    });
-    const triggerOutputPanicPath = new Output({
-      descriptor: triggerDescriptor,
-      network,
-      signersPubKeys: [panicPubKey]
-    });
-
-    const isTrucMode = vaultMode === 'TRUC';
-    const parentFeeRate = isTrucMode ? 0 : DEFAULT_REWIND2_PARENT_FEE_RATE;
-    const anchorValue = isTrucMode ? 0 : NON_TRUC_P2A_ANCHOR_VALUE;
-
-    const triggerFee = Math.ceil(
-      parentFeeRate * estimateLegacyTriggerTxSize(lockBlocks)
+  shiftFeesToBackupEnd?: boolean;
+  networkId: NetworkId;
+}) => {
+  const network = networkMapping[networkId];
+  const {
+    randomKey,
+    randomPubKey,
+    vaultOutput,
+    backupOutput,
+    selected,
+    backupCost,
+    backupOutputValue
+  } = await getVaultContext({
+    signer,
+    randomSigner,
+    changeDescriptorWithIndex,
+    vaultIndex,
+    vaultMode,
+    feeRate,
+    utxosData,
+    vaultedAmount,
+    shiftFeesToBackupEnd,
+    network
+  });
+  const { Output, parseKeyExpression } = ensureDescriptorsFactoryInstance();
+  if (typeof selected === 'string') return 'COINSELECT_ERROR: ' + selected;
+  const vaultUtxosData = selected.utxosData;
+  const vaultTargets = selected.targets;
+  if (vaultTargets[VAULT_OUTPUT_INDEX]?.output !== vaultOutput)
+    throw new Error("coinselect first output should be the vault's output");
+  if (vaultTargets[BACKUP_OUTPUT_INDEX]?.output !== backupOutput)
+    throw new Error('coinselect second output should be the backup output');
+  if (vaultTargets.length > 3)
+    throw new Error(
+      'coinselect outputs should be vault, backup, anchor reserve, and change at most'
     );
-    const triggerAmount = vaultedAmount - triggerFee - anchorValue;
-    const triggerDust = toNumber(dustThreshold(triggerOutput));
-    if (triggerAmount <= triggerDust) return 'NOT_ENOUGH_FUNDS';
+  const psbtVault = new Psbt({ network });
 
-    const psbtTrigger = new Psbt({ network });
-    psbtTrigger.setVersion(isTrucMode ? 3 : 2);
-    const triggerInputFinalizer = vaultOutput.updatePsbtAsInput({
-      psbt: psbtTrigger,
-      txHex: vaultTxHex,
-      vout: 0
-    });
-    triggerOutput.updatePsbtAsOutput({
-      psbt: psbtTrigger,
-      value: toBigInt(triggerAmount)
-    });
-    psbtTrigger.addOutput({
-      script: P2A_OUTPUT_SCRIPT,
-      value: toBigInt(anchorValue)
-    });
-    signers.signECPair({ psbt: psbtTrigger, ecpair: vaultPair });
-    triggerInputFinalizer({ psbt: psbtTrigger, validate: true });
-    const txTrigger = psbtTrigger.extractTransaction(true);
-    const triggerTxHex = txTrigger.toHex();
-    txMap[triggerTxHex] = {
-      fee: triggerFee,
-      feeRate: triggerFee / txTrigger.virtualSize(),
-      txId: txTrigger.getId()
-    };
-    if (onProgress(0.65) === false) return 'USER_CANCEL';
-    await sleep(0);
+  psbtVault.setVersion(vaultMode === 'TRUC' ? 3 : 2);
 
-    const panicFee = Math.ceil(
-      parentFeeRate *
-        estimateLegacyPanicTxSize(lockBlocks, coldAddress, network)
-    );
-    const panicAmount = triggerAmount - panicFee - anchorValue;
-    const panicDust = toNumber(dustThreshold(coldOutput));
-    if (panicAmount <= panicDust) return 'NOT_ENOUGH_FUNDS';
-
-    const psbtPanic = new Psbt({ network });
-    psbtPanic.setVersion(isTrucMode ? 3 : 2);
-    const panicInputFinalizer = triggerOutputPanicPath.updatePsbtAsInput({
-      psbt: psbtPanic,
-      txHex: triggerTxHex,
-      vout: 0
+  //Add the inputs to psbtVault:
+  const vaultFinalizers = [];
+  for (const utxoData of vaultUtxosData) {
+    const { output, vout, txHex } = utxoData;
+    // Add the utxo as input of psbtVault:
+    const inputFinalizer = output.updatePsbtAsInput({
+      psbt: psbtVault,
+      txHex,
+      vout
     });
-    coldOutput.updatePsbtAsOutput({
-      psbt: psbtPanic,
-      value: toBigInt(panicAmount)
-    });
-    psbtPanic.addOutput({
-      script: P2A_OUTPUT_SCRIPT,
-      value: toBigInt(anchorValue)
-    });
-    signers.signECPair({ psbt: psbtPanic, ecpair: panicPair });
-    panicInputFinalizer({ psbt: psbtPanic, validate: true });
-    const txPanic = psbtPanic.extractTransaction(true);
-    const panicTxHex = txPanic.toHex();
-    txMap[panicTxHex] = {
-      fee: panicFee,
-      feeRate: panicFee / txPanic.virtualSize(),
-      txId: txPanic.getId()
-    };
-    triggerMap[triggerTxHex] = [panicTxHex];
-    if (onProgress(0.9) === false) return 'USER_CANCEL';
-
-    const vaultAddress = vaultOutput.getAddress();
-    const triggerAddress = triggerOutput.getAddress();
-    const { pubkey: unvaultPubKey } = parseKeyExpression({
-      keyExpression: unvaultKey,
-      network
-    });
-    if (!unvaultPubKey) throw new Error('Cannot extract unvaultPubKey');
-
-    return {
-      networkId,
-      vaultId: nextVaultId,
-      vaultPath: nextVaultPath,
-      serviceFee: 0, //FIXME: unneeded in Legacy
-      vaultedAmount,
-      minPanicAmount: panicAmount, //FIXME: unneeded in Legacy; in legacy this is also not used by the app anyway.
-      feeRateCeiling: 0, //FIXME: unneeded in Legacy
-      vaultAddress,
-      triggerAddress,
-      vaultTxHex,
-      unvaultKey,
-      coldAddress,
-      lockBlocks,
-      triggerDescriptor,
-      creationTime: Math.floor(Date.now() / 1000),
-      triggerMap,
-      txMap
-    };
-  } catch (error) {
-    console.error(error);
-    return 'UNKNOWN_ERROR';
+    vaultFinalizers.push(inputFinalizer);
   }
-}
+  for (const target of vaultTargets) {
+    target.output.updatePsbtAsOutput({
+      psbt: psbtVault,
+      value: target.value
+    });
+  }
+  const backupOutputIndex = vaultTargets.findIndex(
+    target => target.output === backupOutput
+  );
+  if (backupOutputIndex !== BACKUP_OUTPUT_INDEX) return 'UNKNOWN_ERROR';
+  if (backupOutputValue !== vaultTargets[backupOutputIndex]?.value)
+    return 'UNKNOWN_ERROR';
+  //Sign
+  signPsbt(signer, network, psbtVault);
+  //Finalize
+  vaultFinalizers.forEach(finalizer => finalizer({ psbt: psbtVault }));
+  const vaultTx = psbtVault.extractTransaction();
+  const vaultTxHex = vaultTx.toHex();
+  const vaultVsize = vaultTx.virtualSize();
+  if (vaultVsize > selected.vsize)
+    throw new Error('vsize larger than coinselected estimated one');
+  const panicKey = randomKey;
+  const triggerDescriptor = createTriggerDescriptor({
+    unvaultKey,
+    panicKey,
+    lockBlocks
+  });
+  const triggerOutputPanicPath = new Output({
+    descriptor: triggerDescriptor,
+    network,
+    signersPubKeys: [randomPubKey]
+  });
+  const { pubkey: unvaultPubKey } = parseKeyExpression({
+    keyExpression: unvaultKey,
+    network
+  });
+  if (!unvaultPubKey) throw new Error('Could not extract unvaultPubKey');
+
+  const triggerParentFee =
+    vaultMode === 'TRUC'
+      ? BigInt(0)
+      : BigInt(Math.ceil(Math.max(...TRIGGER_TX_VBYTES) * MIN_RELAY_FEE_RATE));
+  const panicParentFee =
+    vaultMode === 'TRUC'
+      ? BigInt(0)
+      : BigInt(Math.ceil(Math.max(...PANIC_TX_VBYTES) * MIN_RELAY_FEE_RATE));
+  const triggerOutputValue =
+    vaultedAmount -
+    (vaultMode === 'TRUC' ? BigInt(0) : NON_TRUC_P2A_ANCHOR_VALUE) -
+    triggerParentFee;
+  const triggerDust = dustThreshold(triggerOutputPanicPath);
+  if (triggerOutputValue <= triggerDust)
+    return `COINSELECT_ERROR: trigger output below dust ${triggerOutputValue} <= ${triggerDust}`;
+
+  const psbtTrigger = new Psbt({ network });
+  psbtTrigger.setVersion(vaultMode === 'TRUC' ? 3 : 2);
+  //Add the input (vaultOutput) to psbtTrigger as input:
+  const triggerInputFinalizer = vaultOutput.updatePsbtAsInput({
+    psbt: psbtTrigger,
+    txHex: vaultTxHex,
+    vout: 0
+  });
+  psbtTrigger.addOutput({
+    script: P2A_OUTPUT_SCRIPT,
+    value: vaultMode === 'TRUC' ? BigInt(0) : NON_TRUC_P2A_ANCHOR_VALUE
+  }); //vout: 0
+  triggerOutputPanicPath.updatePsbtAsOutput({
+    psbt: psbtTrigger,
+    value: triggerOutputValue
+  }); //vout: 1
+  signPsbt(randomSigner, network, psbtTrigger);
+  triggerInputFinalizer({ psbt: psbtTrigger });
+  const triggerTx = psbtTrigger.extractTransaction();
+  const triggerTxHex = triggerTx.toHex();
+  const triggerVsize = triggerTx.virtualSize();
+  if (!TRIGGER_TX_VBYTES.includes(triggerVsize))
+    throw new Error(`Unexpected trigger vsize: ${triggerVsize}`);
+
+  const psbtPanic = new Psbt({ network });
+  psbtPanic.setVersion(vaultMode === 'TRUC' ? 3 : 2);
+  psbtPanic.addOutput({
+    script: P2A_OUTPUT_SCRIPT,
+    value: vaultMode === 'TRUC' ? BigInt(0) : NON_TRUC_P2A_ANCHOR_VALUE
+  }); //vout: 0
+  const panicInputFinalizer = triggerOutputPanicPath.updatePsbtAsInput({
+    psbt: psbtPanic,
+    txHex: triggerTxHex,
+    vout: 1
+  });
+  const coldOutput = new Output({
+    descriptor: `addr(${coldAddress})`,
+    network
+  });
+  const panicOutputValue =
+    triggerOutputValue -
+    (vaultMode === 'TRUC' ? BigInt(0) : NON_TRUC_P2A_ANCHOR_VALUE) -
+    panicParentFee;
+  const panicDust = dustThreshold(coldOutput);
+  if (panicOutputValue <= panicDust)
+    return `COINSELECT_ERROR: panic output below dust ${panicOutputValue} <= ${panicDust}`;
+  coldOutput.updatePsbtAsOutput({ psbt: psbtPanic, value: panicOutputValue });
+  signPsbt(randomSigner, network, psbtPanic);
+  panicInputFinalizer({ psbt: psbtPanic });
+  const panicTx = psbtPanic.extractTransaction();
+  const panicTxHex = panicTx.toHex();
+  const panicVsize = panicTx.virtualSize();
+  if (!PANIC_TX_VBYTES.includes(panicVsize))
+    throw new Error(`Unexpected panic vsize: ${panicVsize}`);
+
+  const vaultFee = Number(psbtVault.getFee());
+  const triggerFee = Number(psbtTrigger.getFee());
+  const panicFee = Number(psbtPanic.getFee());
+  if (vaultMode === 'TRUC' && (triggerFee !== 0 || panicFee !== 0))
+    throw new Error(
+      `Invalid TRUC parent fees trigger=${triggerFee}, panic=${panicFee}`
+    );
+  if (vaultMode !== 'TRUC') {
+    const minTriggerFee = Math.ceil(triggerVsize * MIN_RELAY_FEE_RATE);
+    const minPanicFee = Math.ceil(panicVsize * MIN_RELAY_FEE_RATE);
+    if (triggerFee < minTriggerFee)
+      throw new Error(
+        `Invalid NON_TRUC trigger fee ${triggerFee} < ${minTriggerFee}`
+      );
+    if (panicFee < minPanicFee)
+      throw new Error(
+        `Invalid NON_TRUC panic fee ${panicFee} < ${minPanicFee}`
+      );
+  }
+  return {
+    triggerDescriptor,
+    creationTime: Math.floor(Date.now() / 1000),
+    vaultAddress: vaultOutput.getAddress(),
+    triggerAddress: triggerOutputPanicPath.getAddress(),
+    vaultTxHex,
+    backupCost,
+    backupOutputValue,
+    txMap: {
+      [vaultTxHex]: {
+        txId: vaultTx.getId(),
+        fee: vaultFee,
+        feeRate: vaultFee / vaultTx.virtualSize()
+      },
+      [triggerTxHex]: {
+        txId: triggerTx.getId(),
+        fee: triggerFee,
+        feeRate: triggerFee / triggerTx.virtualSize()
+      },
+      [panicTxHex]: {
+        txId: panicTx.getId(),
+        fee: panicFee,
+        feeRate: panicFee / panicTx.virtualSize()
+      }
+    },
+    triggerMap: { [triggerTxHex]: [panicTxHex] }
+  };
+};
+
+//END NEW CODE
+//END NEW CODE
+//END NEW CODE
+//END NEW CODE
+//END NEW CODE
+//END NEW CODE
+//END NEW CODE
+//END NEW CODE
+//END NEW CODE
+//END NEW CODE
+
+export const getRandomSigner = async (networkId: NetworkId) => {
+  const network = networkMapping[networkId];
+  const { BIP32 } = ensureDescriptorsFactoryInstance();
+  const randomMnemonic = generateMnemonic();
+  const masterNode = BIP32.fromSeed(
+    mnemonicToSeedSync(randomMnemonic),
+    network
+  );
+  const masterFingerprint = toHex(masterNode.fingerprint);
+  return { masterFingerprint, type: SOFTWARE, mnemonic: randomMnemonic };
+};
 
 /**
  * For estimation purposes only, using dummy keys

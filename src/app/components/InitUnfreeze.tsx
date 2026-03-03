@@ -19,13 +19,17 @@ import {
   type TxHex,
   type TxId,
   type Vault,
-  type VaultStatus
+  type VaultStatus,
+  estimateCpfpPackage,
+  getVaultMode
 } from '../lib/vaults';
 import { transactionFromHex } from '../lib/bitcoin';
 import { useWallet } from '../hooks/useWallet';
 import useFirstDefinedValue from '~/common/hooks/useFirstDefinedValue';
 import { useLocalization } from '../hooks/useLocalization';
 import { toNumber } from '../lib/sats';
+import { DUMMY_CHANGE_OUTPUT, getMainAccount } from '../lib/vaultDescriptors';
+import { networkMapping } from '../lib/network';
 
 export type InitUnfreezeData = {
   txHex: TxHex;
@@ -33,6 +37,7 @@ export type InitUnfreezeData = {
   fee: number;
   feeRate: number;
   vSize: number;
+  parentFee?: number;
 };
 
 /**
@@ -71,24 +76,38 @@ const InitUnfreeze = ({
   onClose: () => void;
 }) => {
   const { locale } = useLocalization();
+  const vaultMode = useMemo(() => getVaultMode(vault), [vault]);
+  const isLegacyVault = vaultMode === 'LEGACY';
+  const isAccelerationAttempt = !!vaultStatus?.triggerTxHex;
 
   // zero if this is not a RBF, and => 1 if this is InitUnfreeze
-  // isVisibletrying to do a RBF of a prev one
+  // trying to do a RBF of a prev one
   const feeRateToReplace = useMemo(() => {
-    if (!vaultStatus?.triggerTxHex) return 0;
-    else {
+    if (!isAccelerationAttempt) return 0;
+    if (isLegacyVault) {
+      if (!vaultStatus?.triggerTxHex) return 0;
       const { tx } = transactionFromHex(vaultStatus.triggerTxHex);
       const outValue = tx.outs[0]?.value;
       if (!tx || tx.outs.length !== 1 || !outValue)
         throw new Error('Invalid triggerTxHex');
-      return (
-        (vault.vaultedAmount - toNumber(outValue)) /
-        tx.virtualSize()
-      );
+      return (vault.vaultedAmount - toNumber(outValue)) / tx.virtualSize();
     }
-  }, [vaultStatus?.triggerTxHex, vault.vaultedAmount]);
+    const triggerTxHex = vaultStatus?.triggerTxHex;
+    if (!triggerTxHex) return 0;
+    const triggerTxData = vault.txMap[triggerTxHex];
+    if (!triggerTxData) return 0;
+    const { tx } = transactionFromHex(triggerTxHex);
+    return triggerTxData.fee / tx.virtualSize();
+  }, [
+    isAccelerationAttempt,
+    isLegacyVault,
+    vaultStatus?.triggerTxHex,
+    vault.vaultedAmount,
+    vault
+  ]);
 
   const triggerSortedTxs = useMemo(() => {
+    if (!isLegacyVault) return [];
     return Object.entries(vault.triggerMap)
       .map(([triggerTxHex]) => {
         const txData = vault.txMap[triggerTxHex];
@@ -97,11 +116,30 @@ const InitUnfreeze = ({
         return { ...txData, vSize: tx.virtualSize(), txHex: triggerTxHex };
       })
       .sort((a, b) => a.feeRate - b.feeRate);
-  }, [vault]);
+  }, [vault, isLegacyVault]);
+
+  const rewind2TriggerTx = useMemo(() => {
+    if (isLegacyVault) return null;
+    const triggerTxHex = Object.keys(vault.triggerMap)[0];
+    if (!triggerTxHex) return null;
+    const txData = vault.txMap[triggerTxHex];
+    if (!txData) throw new Error('trigger tx not mapped');
+    const { tx } = transactionFromHex(triggerTxHex);
+    return {
+      ...txData,
+      vSize: tx.virtualSize(),
+      txHex: triggerTxHex
+    };
+  }, [vault, isLegacyVault]);
 
   const { t } = useTranslation();
-  const { feeEstimates: feeEstimatesRealTime, btcFiat: btcFiatRealTime } =
-    useWallet();
+  const {
+    feeEstimates: feeEstimatesRealTime,
+    btcFiat: btcFiatRealTime,
+    utxosData,
+    accounts,
+    networkId
+  } = useWallet();
 
   //Cache to avoid flickering in the Sliders
   const btcFiat = useFirstDefinedValue<number>(btcFiatRealTime);
@@ -125,8 +163,51 @@ const InitUnfreeze = ({
 
   const [feeRate, setFeeRate] = useState<number | null>(null);
 
-  const txData =
-    feeRate && findNextEqualOrLargerFeeRate(triggerSortedTxs, feeRate);
+  const rewind2Plan = useMemo(() => {
+    if (
+      isLegacyVault ||
+      feeRate === null ||
+      !rewind2TriggerTx ||
+      !utxosData ||
+      !accounts ||
+      Object.keys(accounts).length === 0 ||
+      !networkId
+    )
+      return null;
+    const network = networkMapping[networkId];
+    const changeOutput = DUMMY_CHANGE_OUTPUT(
+      getMainAccount(accounts, network),
+      network
+    );
+    return estimateCpfpPackage({
+      parentTxHex: rewind2TriggerTx.txHex,
+      parentFee: rewind2TriggerTx.fee,
+      targetEffectiveFeeRate: feeRate,
+      utxosData,
+      changeOutput
+    });
+  }, [
+    isLegacyVault,
+    feeRate,
+    rewind2TriggerTx,
+    utxosData,
+    accounts,
+    networkId
+  ]);
+
+  const txData: InitUnfreezeData | null =
+    feeRate === null
+      ? null
+      : isLegacyVault
+        ? (findNextEqualOrLargerFeeRate(triggerSortedTxs, feeRate) ?? null)
+        : rewind2TriggerTx && rewind2Plan
+          ? {
+              ...rewind2TriggerTx,
+              parentFee: rewind2TriggerTx.fee,
+              fee: rewind2Plan.totalFee,
+              feeRate: rewind2Plan.effectiveFeeRate
+            }
+          : null;
   const fee = feeRate === null ? null : txData && txData.fee;
 
   useEffect(() => {
@@ -175,7 +256,7 @@ const InitUnfreeze = ({
                         {t('cancelButton')}
                       </Button>
                       <Button onPress={() => setStep('fee')}>
-                        {feeRateToReplace
+                        {isAccelerationAttempt
                           ? t('accelerateButton')
                           : t('continueButton')}
                       </Button>
@@ -206,7 +287,7 @@ const InitUnfreeze = ({
         ) : step === 'intro' ? (
           <View>
             <Text className="text-base text-slate-600 pb-2 px-2">
-              {feeRateToReplace
+              {isAccelerationAttempt
                 ? t('wallet.vault.triggerUnfreeze.introAccelerate')
                 : t('wallet.vault.triggerUnfreeze.intro', { timeLockTime })}
             </Text>

@@ -53,7 +53,7 @@ export const estimateSendRange = moize.shallow(
     const utxos = getOutputsWithValue(utxosData);
     const utxosCoinselect = utxos.map(utxo => ({
       output: utxo.output,
-      value: toBigInt(utxo.value)
+      value: utxo.value
     }));
 
     if (feeRate !== null && feeRate > 0 && utxosCoinselect.length) {
@@ -113,7 +113,7 @@ const sendCoinselect = moize.shallow(
     if (!feeRate || !amount || !address || !utxos.length) return null;
     const utxosCoinselect: Array<CoinselectUtxo> = utxos.map(utxo => ({
       output: utxo.output,
-      value: toBigInt(utxo.value)
+      value: utxo.value
     }));
     const output = address
       ? computeOutput(address, network)

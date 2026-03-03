@@ -5,7 +5,6 @@ import moize from 'moize';
 import type { Network } from 'bitcoinjs-lib';
 import {
   DUMMY_VAULT_OUTPUT,
-  DUMMY_SERVICE_OUTPUT,
   DUMMY_CHANGE_OUTPUT,
   DUMMY_PKH_OUTPUT,
   getMainAccount
@@ -18,149 +17,57 @@ import {
   getOutputsWithValue,
   selectVaultUtxosData,
   estimateLegacyTriggerTxSize,
-  estimateLegacyPanicTxSize,
-  splitTransactionAmount
+  estimateLegacyPanicTxSize
 } from './vaults';
 import type { Accounts } from './wallets';
-import { toBigInt, toNumber } from './sats';
+import { toNumber } from './sats';
 // nLockTime which results into the largest possible serialized size:
 const LOCK_BLOCKS_MAS_SIZE = 0xffff;
 const MIN_VAULT_BIN_SEARCH_ITERS = 100;
 
+type VaultAmountEstimate = {
+  vaultTxMiningFee: number;
+  vaultedAmount: number;
+  serviceFee: number;
+  transactionAmount: number;
+};
+
 /**
- * Estimates the maximum vault amount when sending maxFunds.
- * This amount accounts for the sume of both the vault and
- * service fee (if serviceFeeRate > 0).
- *
- * The function performs a series of calculations to determine if it's possible
- * to include a service fee without violating the dust threshold constraints.
- *
- * - First, it checks if it's possible to add a minimal service output (dust).
- * - Then, it calculates the correct service fee based on the total amount and
- *   tries to include it.
- * - If including the correct service fee is not possible, it returns undefined.
- * - Finally, it calculates the maximum vault amount based on the available UTXOs
- *   and the determined fee conditions.
- *
- * The function returns the estimated amount or `undefined` if it's impossible
- * to obtain a valid value.
- *
+ * Estimates the max vaultable amount for a given fee rate.
  */
 export const estimateLegacyMaxVaultAmount = moize.shallow(
   ({
     utxosData,
     vaultOutput,
-    serviceOutput,
-    feeRate,
-    serviceFeeRate
+    feeRate
   }: {
     utxosData: UtxosData;
     vaultOutput: OutputInstance;
-    serviceOutput: OutputInstance;
     feeRate: number;
-    serviceFeeRate: number;
-  }):
-    | {
-        vaultTxMiningFee: number;
-        vaultedAmount: number;
-        serviceFee: number;
-        transactionAmount: number;
-      }
-    | undefined => {
+  }): VaultAmountEstimate | undefined => {
     const utxos = getOutputsWithValue(utxosData);
     if (utxos.length === 0) return;
     const utxosCoinselect = utxos.map(utxo => ({
       output: utxo.output,
-      value: toBigInt(utxo.value)
+      value: utxo.value
     }));
-    if (serviceFeeRate > 0) {
-      const initialCoinselected = maxFunds({
-        utxos: utxosCoinselect,
-        targets: [
-          {
-            output: serviceOutput,
-            value: toBigInt(toNumber(dustThreshold(vaultOutput)) + 1)
-          }
-        ],
-        remainder: vaultOutput,
-        feeRate
-      });
-      //console.log('TRACE maxFunds', JSON.stringify(coinselected, null, 2));
-      if (!initialCoinselected) return;
-      // It looks like it was possible to add a service output. We
-      // can now know the total amount and we can compute the correct
-      // serviceFee and the correct coinselect
-
-      //The total amount is correct, but targets have incorrect ratios
-      const transactionAmount = initialCoinselected.targets.reduce(
-        (a, { value }) => a + toNumber(value),
-        0
-      );
-      const split = splitTransactionAmount({
-        transactionAmount,
-        vaultOutput,
-        serviceOutput,
-        serviceFeeRate
-      });
-      //console.log('TRACE maxFunds split', JSON.stringify(split, null, 2));
-      if (!split) return;
-
-      //All code below are just assertions:
-      //Now let's recompute the utxos using the correct serviceFee value.
-      //Note that output weights are kept the same and, thus, coinselection should
-      //still be the same
-      const coinselected = maxFunds({
-        utxos: utxosCoinselect,
-        targets: [
-          {
-            output: serviceOutput,
-            value: toBigInt(split.serviceFee)
-          }
-        ],
-        remainder: vaultOutput,
-        feeRate
-      });
-      if (!coinselected)
-        throw new Error(
-          `Final coinselected should be defined and be the same as before reassigning values`
-        );
-
-      //A final check after assining the correct values to each output.
-      //finalTransactionAmount must be the same as amount since output weights
-      //do not change (only value does).
-      const finalTransactionAmount = coinselected.targets.reduce(
-        (a, { value }) => a + toNumber(value),
-        0
-      );
-      if (transactionAmount !== finalTransactionAmount)
-        throw new Error(
-          `Invalid final transactionAmount after assigning final rates in estimateLegacyMaxVaultAmount: transactionAmount: ${transactionAmount}, finalAmount: ${finalTransactionAmount}.`
-        );
-
-      return {
-        vaultTxMiningFee: toNumber(coinselected.fee),
-        ...split
-      };
-    } else {
-      //When not having serviceFee it's simpler:
-      const coinselected = maxFunds({
-        utxos: utxosCoinselect,
-        targets: [],
-        remainder: vaultOutput,
-        feeRate
-      });
-      if (!coinselected) return;
-      const transactionAmount = coinselected.targets.reduce(
-        (a, { value }) => a + toNumber(value),
-        0
-      );
-      return {
-        vaultTxMiningFee: toNumber(coinselected.fee),
-        transactionAmount,
-        vaultedAmount: transactionAmount,
-        serviceFee: 0
-      };
-    }
+    const coinselected = maxFunds({
+      utxos: utxosCoinselect,
+      targets: [],
+      remainder: vaultOutput,
+      feeRate
+    });
+    if (!coinselected) return;
+    const transactionAmount = coinselected.targets.reduce(
+      (a, { value }) => a + toNumber(value),
+      0
+    );
+    return {
+      vaultTxMiningFee: toNumber(coinselected.fee),
+      transactionAmount,
+      vaultedAmount: transactionAmount,
+      serviceFee: 0
+    };
   }
 );
 
@@ -197,11 +104,9 @@ const estimateLegacyMinRecoverableVaultAmount = moize.shallow(
     coldAddress,
     network,
     vaultOutput,
-    serviceOutput,
     changeOutput,
     lockBlocks,
     feeRate,
-    serviceFeeRate,
     feeRateCeiling,
     minRecoverableRatio
   }: {
@@ -209,39 +114,23 @@ const estimateLegacyMinRecoverableVaultAmount = moize.shallow(
     coldAddress: string;
     network: Network;
     vaultOutput: OutputInstance;
-    serviceOutput: OutputInstance;
     changeOutput: OutputInstance;
     lockBlocks: number;
     /** Fee rate used for the Vault*/
     feeRate: number;
-    serviceFeeRate: number;
     /** Max Fee rate for the presigned txs */
     feeRateCeiling: number;
     minRecoverableRatio: number;
-  }): {
-    vaultTxMiningFee: number;
-    vaultedAmount: number;
-    serviceFee: number;
-    transactionAmount: number;
-  } => {
-    //The minimum vaultedAmount + serviceFee feasible:
+  }): VaultAmountEstimate => {
     const isRecoverable = (transactionAmount: number) => {
-      const split = splitTransactionAmount({
-        transactionAmount,
-        vaultOutput,
-        serviceOutput,
-        serviceFeeRate
-      });
-      if (!split) return false;
-      const { serviceFee, vaultedAmount } = split;
+      const vaultedAmount = transactionAmount;
       const selected = selectVaultUtxosData({
         utxosData,
         vaultedAmount,
         vaultOutput,
-        serviceOutput,
         changeOutput,
         feeRate,
-        serviceFee
+        serviceFee: 0
       });
       if (!selected) return false;
       const totalFees =
@@ -267,10 +156,8 @@ const estimateLegacyMinRecoverableVaultAmount = moize.shallow(
     //search. But first check if max is even possible.
     const maxVaultAmount = estimateLegacyMaxVaultAmount({
       vaultOutput,
-      serviceOutput,
       utxosData,
-      feeRate,
-      serviceFeeRate
+      feeRate
     });
 
     // If the current utxos cannot provide a solution, then we must
@@ -278,7 +165,7 @@ const estimateLegacyMinRecoverableVaultAmount = moize.shallow(
     if (!maxVaultAmount || !isRecoverable(maxVaultAmount.transactionAmount)) {
       const vaultTxSize = vsize(
         [...utxosData.map(utxoData => utxoData.output), DUMMY_PKH_OUTPUT()],
-        [vaultOutput, changeOutput, ...(serviceFeeRate ? [serviceOutput] : [])]
+        [vaultOutput, changeOutput]
       );
       const totalFees =
         //Math.ceil(feeRate * vaultTxSize) +
@@ -289,17 +176,8 @@ const estimateLegacyMinRecoverableVaultAmount = moize.shallow(
         );
 
       const minTransactionAmount = Math.max(
-        toNumber(dustThreshold(vaultOutput)) +
-          1 +
-          (serviceFeeRate > 0 ? toNumber(dustThreshold(serviceOutput)) + 1 : 0),
-
-        // vaultedAmount >  totalFees / (1 - minRecoverableRatio)
-        // transactionAmount = vaultedAmount * (1 + serviceFeeRate)
-        // transactionAmount / (1 + serviceFeeRate) >  totalFees / (1 - minRecoverableRatio)
-        // transactionAmount > totalFees * (1 + serviceFeeRate) / (1 - serviceFeeRate)
-        Math.ceil(
-          (totalFees * (1 + serviceFeeRate)) / (1 - minRecoverableRatio)
-        )
+        toNumber(dustThreshold(vaultOutput)) + 1,
+        Math.ceil(totalFees / (1 - minRecoverableRatio))
       );
       //Note that minTransactionAmount won't be exact since there are roundings,
       //multiplications and divisions above. However, we're in the case
@@ -307,19 +185,10 @@ const estimateLegacyMinRecoverableVaultAmount = moize.shallow(
       //compute the minimum amount the user will need to add to the wallet
       //to be able to vault
 
-      //Now split it. Since it isRecoverable it can be split 100% sure
-      const split = splitTransactionAmount({
-        transactionAmount: minTransactionAmount,
-        vaultOutput,
-        serviceOutput,
-        serviceFeeRate
-      });
-      if (!split)
-        throw new Error('After adding a PKH output the tx should be splitable');
       return {
         vaultTxMiningFee: Math.ceil(feeRate * vaultTxSize),
-        vaultedAmount: split.vaultedAmount,
-        serviceFee: split.serviceFee,
+        vaultedAmount: minTransactionAmount,
+        serviceFee: 0,
         transactionAmount: minTransactionAmount
       };
     } else {
@@ -329,25 +198,14 @@ const estimateLegacyMinRecoverableVaultAmount = moize.shallow(
         MIN_VAULT_BIN_SEARCH_ITERS
       );
       if (transactionAmount !== undefined) {
-        const split = splitTransactionAmount({
-          transactionAmount,
-          vaultOutput,
-          serviceOutput,
-          serviceFeeRate
-        });
-        if (!split)
-          throw new Error(
-            'After findLowestTrueBinarySearch the tx should be splitable'
-          );
-        const { serviceFee, vaultedAmount } = split;
+        const vaultedAmount = transactionAmount;
         const selected = selectVaultUtxosData({
           utxosData,
           vaultedAmount,
           vaultOutput,
-          serviceOutput,
           changeOutput,
           feeRate,
-          serviceFee
+          serviceFee: 0
         });
         if (!selected)
           throw new Error(
@@ -356,7 +214,7 @@ const estimateLegacyMinRecoverableVaultAmount = moize.shallow(
         return {
           vaultedAmount,
           transactionAmount,
-          serviceFee,
+          serviceFee: 0,
           vaultTxMiningFee: selected.fee
         };
       } else return maxVaultAmount;
@@ -370,7 +228,6 @@ export const estimateLegacyVaultSetUpRange = moize.shallow(
     utxosData,
     coldAddress,
     maxFeeRate,
-    serviceFeeRate,
     feeRate = null,
     feeRateCeiling,
     minRecoverableRatio,
@@ -382,23 +239,19 @@ export const estimateLegacyVaultSetUpRange = moize.shallow(
     maxFeeRate: number;
     network: Network;
     feeRate?: number | null;
-    serviceFeeRate: number;
     feeRateCeiling: number;
     minRecoverableRatio: number;
   }) => {
     const maxVaultAmountWhenMaxFee = estimateLegacyMaxVaultAmount({
       utxosData,
       vaultOutput: DUMMY_VAULT_OUTPUT(network),
-      serviceOutput: DUMMY_SERVICE_OUTPUT(network),
-      feeRate: maxFeeRate,
-      serviceFeeRate
+      feeRate: maxFeeRate
     });
     const minRecoverableVaultAmount = estimateLegacyMinRecoverableVaultAmount({
       utxosData,
       coldAddress,
       network,
       vaultOutput: DUMMY_VAULT_OUTPUT(network),
-      serviceOutput: DUMMY_SERVICE_OUTPUT(network),
       changeOutput: DUMMY_CHANGE_OUTPUT(
         getMainAccount(accounts, network),
         network
@@ -408,19 +261,16 @@ export const estimateLegacyVaultSetUpRange = moize.shallow(
       // minRecoverableVaultAmount in the Slider does not change when the user
       // changes the feeRate
       feeRate: maxFeeRate,
-      serviceFeeRate,
       feeRateCeiling,
       minRecoverableRatio
     });
     const maxVaultAmount = estimateLegacyMaxVaultAmount({
       utxosData,
       vaultOutput: DUMMY_VAULT_OUTPUT(network),
-      serviceOutput: DUMMY_SERVICE_OUTPUT(network),
       // while feeRate has not been set, estimate using the largest possible
       // feeRate. We allow the maxVaultAmount to change depending on the fee
       // rate selected by the uset
-      feeRate: feeRate !== null ? feeRate : maxFeeRate,
-      serviceFeeRate
+      feeRate: feeRate !== null ? feeRate : maxFeeRate
     });
     return {
       maxVaultAmountWhenMaxFee,
@@ -429,76 +279,3 @@ export const estimateLegacyVaultSetUpRange = moize.shallow(
     };
   }
 );
-
-/**
- * Note that here we can only do some approximations.
- * The real serviceFee and real vaultedAmount are deduced unidirectionally
- * from transactionAmount using splitTransactionAmount. splitTransactionAmount is
- * the source of truth.
- * However, the user selects a vaultedAmount. Then, we must
- * find the most accurate serviceFee possible that ensures the final
- * transaction is within ranges. So the final serviceFee may not be exactly
- * serviceFeeRate * vaultedAmount (because there are non-linearities because of
- * dustThreshold and for roundings).
- * In other words it is possible to do an exact:
- *  transactionAmount -> (vaultedAmount, serviceFee)
- * But the reverse vaultedAmount -> (serviceFee, transactionAmount) cannot be
- * analytically found and several solutions can be possible in fact
- */
-export const estimateLegacyServiceFee = ({
-  vaultedAmount,
-  serviceFeeRate,
-  serviceOutput,
-  minVaultAmount,
-  maxVaultAmount
-}: {
-  vaultedAmount: number;
-  serviceFeeRate: number;
-  serviceOutput: OutputInstance;
-  minVaultAmount: {
-    vaultTxMiningFee: number;
-    vaultedAmount: number;
-    serviceFee: number;
-    transactionAmount: number;
-  };
-  maxVaultAmount: {
-    vaultTxMiningFee: number;
-    vaultedAmount: number;
-    serviceFee: number;
-    transactionAmount: number;
-  };
-}) => {
-  if (vaultedAmount > maxVaultAmount.vaultedAmount)
-    throw new Error(
-      `Out of range - vaultedAmount > max: ${vaultedAmount} > ${maxVaultAmount.vaultedAmount}`
-    );
-  if (vaultedAmount < minVaultAmount.vaultedAmount)
-    throw new Error(
-      `Out of range - vaultedAmount < min: ${vaultedAmount} < ${minVaultAmount.vaultedAmount}`
-    );
-
-  if (serviceFeeRate === 0) return 0;
-
-  if (vaultedAmount === minVaultAmount.vaultedAmount)
-    return minVaultAmount.serviceFee;
-  if (vaultedAmount === maxVaultAmount.vaultedAmount)
-    return maxVaultAmount.serviceFee;
-
-  const largestPossibleFee = maxVaultAmount.transactionAmount - vaultedAmount; //largest possible serviceFee for vaultedAmount to be in-range
-  const smallestPossibleFee = minVaultAmount.transactionAmount - vaultedAmount; //smallest possible serviceFee for vaultedAmount to be in-range
-
-  if (smallestPossibleFee > largestPossibleFee)
-    throw new Error('Impossible solution');
-
-  let estimatedServiceFee = Math.max(
-    toNumber(dustThreshold(serviceOutput)) + 1,
-    Math.floor(serviceFeeRate * vaultedAmount)
-  );
-
-  //vaultedAmount + serviceFee must be within transaction ranges
-  estimatedServiceFee = Math.min(estimatedServiceFee, largestPossibleFee);
-  estimatedServiceFee = Math.max(estimatedServiceFee, smallestPossibleFee);
-  if (estimatedServiceFee <= toNumber(dustThreshold(serviceOutput)))
-    throw new Error('Final serviceFee should be above dust');
-  return estimatedServiceFee;
-};

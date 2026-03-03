@@ -13,7 +13,12 @@ import { useTranslation } from 'react-i18next';
 import { useWindowDimensions, View, Text } from 'react-native';
 import * as Progress from 'react-native-progress';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { createVault, type VaultSettings, type Vault } from '../lib/vaults';
+import {
+  createVault,
+  type VaultSettings,
+  type Vault,
+  getRandomSigner
+} from '../lib/vaults';
 import { useSettings } from '../hooks/useSettings';
 import {
   Button,
@@ -29,6 +34,7 @@ import { batchedUpdates } from '~/common/lib/batchedUpdates';
 import { formatBlocks } from '../lib/format';
 import { formatBtc } from '../lib/btcRates';
 import { useLocalization } from '../hooks/useLocalization';
+import { toBigInt } from '../lib/sats';
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -280,7 +286,7 @@ export default function CreateVaultScreen({
         await getNextChangeDescriptorWithIndex(accounts);
       if (!navigation.isFocused()) return; //Don't proceed if lost focus after await
 
-      const { result: nextVaultData } = await netRequest({
+      const { result: nextVaultP2PData } = await netRequest({
         whenToastErrors: 'ON_ANY_ERROR',
         errorMessage: message => t('createVault.fetchIssues', { message }),
         func: () =>
@@ -292,40 +298,61 @@ export default function CreateVaultScreen({
             cBVaultsReaderAPI
           })
       });
+
       if (!navigation.isFocused()) return; //Don't proceed if lost focus after await
-      if (!nextVaultData) {
+      if (!nextVaultP2PData) {
         //The toast with prev error message will have been shown.
         goBack();
         return;
       }
 
       //createVault does not throw. It returns errors as strings:
-      const vault = await createVault({
-        vaultedAmount,
+      const vaultData = await createVault({
+        vaultedAmount: toBigInt(vaultedAmount),
         unvaultKey,
         feeRate,
-        coldAddress,
-        changeDescriptorWithIndex,
-        lockBlocks,
-        signer,
         utxosData,
-        networkId,
-        nextVaultId: nextVaultData.nextVaultId,
-        nextVaultPath: nextVaultData.nextVaultPath,
-        onProgress,
-        vaultMode
+        signer,
+        randomSigner: await getRandomSigner(networkId),
+        coldAddress,
+        lockBlocks,
+        changeDescriptorWithIndex,
+        vaultIndex: nextVaultP2PData.nextVaultIndex, //FIXME: TAG:ifrubr43frev -> this is only correct as long as we keep backing up in P2P in addition to onchain, otherwiser we'll need to also retrieve the nextIndex from the onChainBackupDescriptor and find out the Max between onChainBackupDescriptorNextIndex and nextVaultP2PData.nextVaultIndex.
+        // Also assert that onChainBackupDescriptorNextIndex === 0 || onChainBackupDescriptorNextIndex > nextVaultP2PData.nextVaultIndex
+        vaultMode,
+        shiftFeesToBackupEnd: true,
+        networkId
       });
       if (!navigation.isFocused()) return; //Don't proceed if lost focus after await
 
-      if (typeof vault === 'object') {
+      if (typeof vaultData === 'object') {
+        const vault = {
+          vaultId: nextVaultP2PData.nextVaultId, //FIXME: this assumes p2p backups - read TAG:ifrubr43fre
+          vaultPath: nextVaultP2PData.nextVaultPath, //FIXME: this assumes p2p backups - read TAG:ifrubr43fre
+          vaultedAmount,
+          serviceFee: 0,
+          vaultAddress: vaultData.vaultAddress,
+          triggerAddress: vaultData.triggerAddress,
+          coldAddress,
+          feeRateCeiling: 0,
+          lockBlocks,
+          vaultTxHex: vaultData.vaultTxHex,
+          txMap: vaultData.txMap,
+          triggerMap: vaultData.triggerMap,
+          networkId,
+          minPanicAmount: 0,
+          unvaultKey,
+          triggerDescriptor: vaultData.triggerDescriptor,
+          creationTime: vaultData.creationTime
+        };
         batchedUpdates(() => {
           setVault(vault);
           setProgress(1);
         });
       } else {
-        if (vault !== 'USER_CANCEL') {
+        if (vaultData !== 'USER_CANCEL') {
           const errorMessage = t('createVault.unexpectedError', {
-            message: vault
+            message: vaultData
           });
           toast.show(errorMessage, { type: 'danger' });
         }

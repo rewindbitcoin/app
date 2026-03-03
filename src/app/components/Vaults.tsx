@@ -28,7 +28,9 @@ import {
   type VaultStatus,
   type VaultsStatuses,
   type Vaults as VaultsType,
+  createCpfpChildTx,
   getVaultFrozenBalance,
+  getVaultMode,
   getRemainingBlocks,
   getVaultUnfrozenBalance,
   getVaultRescuedBalance
@@ -43,6 +45,7 @@ import type { SubUnit } from '../lib/settings';
 import type { BlockStatus } from '@bitcoinerlab/explorer';
 import InitUnfreeze, { InitUnfreezeData } from './InitUnfreeze';
 import Rescue, { RescueData } from './Rescue';
+import { useWallet } from '../hooks/useWallet';
 import Delegate from './Delegate';
 import LearnMoreAboutVaults from './LearnMoreAboutVaults';
 import * as Notifications from 'expo-notifications';
@@ -54,6 +57,8 @@ import {
   sendAckToWatchtower
 } from '../lib/watchtower';
 import SkeletonPulse from './SkeletonPulse';
+import { networkMapping } from '../lib/network';
+import { computeChangeOutput } from '../lib/vaultDescriptors';
 
 const LOADING_TEXT = '     ';
 
@@ -290,6 +295,14 @@ const RawVault = ({
 
   const { settings } = useSettings();
   if (!settings) throw new Error('Settings has not been retrieved');
+  const {
+    accounts,
+    utxosData,
+    networkId,
+    signers,
+    getNextChangeDescriptorWithIndex,
+    pushTxPackage
+  } = useWallet();
 
   const [showInitUnfreeze, setShowInitUnfreeze] = useState<boolean>(false);
   const handleCloseInitUnfreeze = useCallback(
@@ -334,7 +347,43 @@ const RawVault = ({
               vault.vaultId
             );
           }
-          await pushTx(initUnfreezeData.txHex);
+          const vaultMode = getVaultMode(vault);
+          if (vaultMode === 'LEGACY') {
+            await pushTx(initUnfreezeData.txHex);
+            return;
+          }
+
+          if (!accounts || !utxosData || !networkId || !signers)
+            throw new Error('Wallet not ready for Rewind2 trigger package');
+          const signer = signers[0];
+          if (!signer) throw new Error('signer unavailable');
+          const network = networkMapping[networkId];
+          const changeDescriptorWithIndex =
+            await getNextChangeDescriptorWithIndex(accounts);
+          const changeOutput = computeChangeOutput(
+            changeDescriptorWithIndex,
+            network
+          );
+          const parentFee =
+            initUnfreezeData.parentFee ??
+            vault.txMap[initUnfreezeData.txHex]?.fee;
+          if (parentFee === undefined)
+            throw new Error('Missing trigger parent fee for Rewind2 package');
+          const childTxData = await createCpfpChildTx({
+            parentTxHex: initUnfreezeData.txHex,
+            parentFee,
+            targetEffectiveFeeRate: initUnfreezeData.feeRate,
+            utxosData,
+            changeOutput,
+            signer,
+            network
+          });
+          if (!childTxData)
+            throw new Error('Cannot build trigger fee-bump transaction');
+          await pushTxPackage({
+            parentTxHex: initUnfreezeData.txHex,
+            childTxHex: childTxData.childTxHex
+          });
         }
       });
       if (pushStatus !== 'SUCCESS') setIsInitUnfreezeBeingHandled(false);
@@ -355,6 +404,12 @@ const RawVault = ({
       pushToken,
       watchtowerAPI,
       settings?.NETWORK_TIMEOUT,
+      accounts,
+      utxosData,
+      networkId,
+      signers,
+      getNextChangeDescriptorWithIndex,
+      pushTxPackage,
       pushTx,
       vault,
       vault.vaultId,
@@ -385,7 +440,43 @@ const RawVault = ({
       const { status: pushStatus } = await netRequest({
         whenToastErrors: 'ON_ANY_ERROR',
         errorMessage: (message: string) => t('app.pushError', { message }),
-        func: () => pushTx(rescueData.txHex)
+        func: async () => {
+          const vaultMode = getVaultMode(vault);
+          if (vaultMode === 'LEGACY') {
+            await pushTx(rescueData.txHex);
+            return;
+          }
+          if (!accounts || !utxosData || !networkId || !signers)
+            throw new Error('Wallet not ready for Rewind2 rescue package');
+          const signer = signers[0];
+          if (!signer) throw new Error('signer unavailable');
+          const network = networkMapping[networkId];
+          const changeDescriptorWithIndex =
+            await getNextChangeDescriptorWithIndex(accounts);
+          const changeOutput = computeChangeOutput(
+            changeDescriptorWithIndex,
+            network
+          );
+          const parentFee =
+            rescueData.parentFee ?? vault.txMap[rescueData.txHex]?.fee;
+          if (parentFee === undefined)
+            throw new Error('Missing rescue parent fee for Rewind2 package');
+          const childTxData = await createCpfpChildTx({
+            parentTxHex: rescueData.txHex,
+            parentFee,
+            targetEffectiveFeeRate: rescueData.feeRate,
+            utxosData,
+            changeOutput,
+            signer,
+            network
+          });
+          if (!childTxData)
+            throw new Error('Cannot build rescue fee-bump transaction');
+          await pushTxPackage({
+            parentTxHex: rescueData.txHex,
+            childTxHex: childTxData.childTxHex
+          });
+        }
       });
       if (pushStatus !== 'SUCCESS') setIsRescueBeingHandled(false);
       else {
@@ -400,7 +491,21 @@ const RawVault = ({
         updateVaultStatus(vault.vaultId, newVaultStatus);
       }
     },
-    [pushTx, vault, vault.vaultId, vaultStatus, updateVaultStatus, netRequest, t]
+    [
+      pushTx,
+      vault,
+      vault.vaultId,
+      vaultStatus,
+      updateVaultStatus,
+      netRequest,
+      t,
+      accounts,
+      utxosData,
+      networkId,
+      signers,
+      getNextChangeDescriptorWithIndex,
+      pushTxPackage
+    ]
   );
 
   const tipHeight = tipStatus?.blockHeight;
