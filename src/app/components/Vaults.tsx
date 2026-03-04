@@ -38,13 +38,17 @@ import {
 import VaultIcon from './VaultIcon';
 import { useTranslation } from 'react-i18next';
 import { formatBalance, formatBlocks } from '../lib/format';
-import { Button, IconType, InfoButton, Modal } from '../../common/ui';
+import { Button, IconType, InfoButton, Modal, useToast } from '../../common/ui';
 
 import { useSettings } from '../hooks/useSettings';
 import type { SubUnit } from '../lib/settings';
 import type { BlockStatus } from '@bitcoinerlab/explorer';
-import InitUnfreeze, { InitUnfreezeData } from './InitUnfreeze';
-import Rescue, { RescueData } from './Rescue';
+import InitUnfreeze from './InitUnfreeze';
+import Rescue from './Rescue';
+import {
+  getReplacementNonAnchorTxos,
+  type VaultActionTxData
+} from '../lib/vaultActionTx';
 import { useWallet } from '../hooks/useWallet';
 import Delegate from './Delegate';
 import LearnMoreAboutVaults from './LearnMoreAboutVaults';
@@ -292,12 +296,17 @@ const RawVault = ({
     !vaultStatus?.triggerTxHex && isInitUnfreezeBeingHandled;
 
   const { t } = useTranslation();
+  const toast = useToast();
+  const vaultMode = useMemo(() => getVaultMode(vault), [vault]);
+  const isLegacyVault = vaultMode === 'LEGACY';
 
   const { settings } = useSettings();
   if (!settings) throw new Error('Settings has not been retrieved');
   const {
     accounts,
     utxosData,
+    getUtxosDataFromTxos,
+    historyData,
     networkId,
     signers,
     getNextChangeDescriptorWithIndex,
@@ -314,89 +323,112 @@ const RawVault = ({
     []
   );
   const handleInitUnfreeze = useCallback(
-    async (initUnfreezeData: InitUnfreezeData) => {
+    async (initUnfreezeData: VaultActionTxData) => {
       batchedUpdates(() => {
         setShowInitUnfreeze(false);
         setIsInitUnfreezeBeingHandled(true);
       });
-      const { status: pushStatus } = await netRequest({
-        whenToastErrors: 'ON_ANY_ERROR',
-        errorMessage: (message: string) => t('app.pushError', { message }),
-        func: async () => {
-          setVaultNotificationAcknowledged(vault.vaultId);
-          try {
-            // `sendAckToWatchtower` is normally submitted by `handleWatchtowerNotification`
-            // when a notification is received (and after `setVaultNotificationAcknowledged` has been called - see above).
-            // We call `sendAckToWatchtower` immediately here as a proactive measure.
-            // If the user closes the app before `handleWatchtowerNotification`
-            // can handle an incoming notification, sending the ack now prevents the same device
-            // that triggered the transaction (tx) from receiving a redundant push notification.
-            if (pushToken && watchtowerAPI)
-              await sendAckToWatchtower({
+      const isTriggerAccelerationAttempt =
+        !!vaultStatus?.triggerPushTime ||
+        vaultStatus?.triggerTxBlockHeight === 0;
+      if (isTriggerAccelerationAttempt)
+        toast.show(t('wallet.vault.triggerUnfreeze.accelerateSubmitting'));
+      let triggerCpfpTxHex: string | undefined;
+      try {
+        const { status: pushStatus } = await netRequest({
+          whenToastErrors: 'ON_ANY_ERROR',
+          errorMessage: (message: string) => t('app.pushError', { message }),
+          func: async () => {
+            setVaultNotificationAcknowledged(vault.vaultId);
+            try {
+              // `sendAckToWatchtower` is normally submitted by `handleWatchtowerNotification`
+              // when a notification is received (and after `setVaultNotificationAcknowledged` has been called - see above).
+              // We call `sendAckToWatchtower` immediately here as a proactive measure.
+              // If the user closes the app before `handleWatchtowerNotification`
+              // can handle an incoming notification, sending the ack now prevents the same device
+              // that triggered the transaction (tx) from receiving a redundant push notification.
+              if (pushToken && watchtowerAPI)
+                await sendAckToWatchtower({
+                  pushToken,
+                  watchtowerAPI,
+                  vaultId: vault.vaultId,
+                  networkTimeout: settings?.NETWORK_TIMEOUT
+                });
+            } catch (err) {
+              console.warn(
+                'Could not ack the watchtower for an auto-trigger from this wallet',
+                err,
                 pushToken,
                 watchtowerAPI,
-                vaultId: vault.vaultId,
-                networkTimeout: settings?.NETWORK_TIMEOUT
-              });
-          } catch (err) {
-            console.warn(
-              'Could not ack the watchtower for an auto-trigger from this wallet',
-              err,
-              pushToken,
-              watchtowerAPI,
-              vault.vaultId
-            );
-          }
-          const vaultMode = getVaultMode(vault);
-          if (vaultMode === 'LEGACY') {
-            await pushTx(initUnfreezeData.txHex);
-            return;
-          }
+                vault.vaultId
+              );
+            }
+            if (isLegacyVault) {
+              await pushTx(initUnfreezeData.parentTxHex);
+              return;
+            }
 
-          if (!accounts || !utxosData || !networkId || !signers)
-            throw new Error('Wallet not ready for Rewind2 trigger package');
-          const signer = signers[0];
-          if (!signer) throw new Error('signer unavailable');
-          const network = networkMapping[networkId];
-          const changeDescriptorWithIndex =
-            await getNextChangeDescriptorWithIndex(accounts);
-          const changeOutput = computeChangeOutput(
-            changeDescriptorWithIndex,
-            network
-          );
-          const parentFee =
-            initUnfreezeData.parentFee ??
-            vault.txMap[initUnfreezeData.txHex]?.fee;
-          if (parentFee === undefined)
-            throw new Error('Missing trigger parent fee for Rewind2 package');
-          const childTxData = await createCpfpChildTx({
-            parentTxHex: initUnfreezeData.txHex,
-            parentFee,
-            targetEffectiveFeeRate: initUnfreezeData.feeRate,
-            utxosData,
-            changeOutput,
-            signer,
-            network
-          });
-          if (!childTxData)
-            throw new Error('Cannot build trigger fee-bump transaction');
-          await pushTxPackage({
-            parentTxHex: initUnfreezeData.txHex,
-            childTxHex: childTxData.childTxHex
-          });
-        }
-      });
-      if (pushStatus !== 'SUCCESS') setIsInitUnfreezeBeingHandled(false);
-      else {
+            if (!accounts || !utxosData || !networkId || !signers)
+              throw new Error('Wallet not ready for Rewind2 trigger package');
+            const signer = signers[0];
+            if (!signer) throw new Error('signer unavailable');
+            const network = networkMapping[networkId];
+            const changeDescriptorWithIndex =
+              await getNextChangeDescriptorWithIndex(accounts);
+            const changeOutput = computeChangeOutput(
+              changeDescriptorWithIndex,
+              network
+            );
+
+            let candidateUtxosData = utxosData;
+            if (isTriggerAccelerationAttempt) {
+              const previousChildTxHex = vaultStatus?.triggerCpfpTxHex;
+              if (!previousChildTxHex)
+                throw new Error(
+                  'Missing synced trigger CPFP inputs for acceleration'
+                );
+              const replacementTxos = getReplacementNonAnchorTxos({
+                parentTxHex: initUnfreezeData.parentTxHex,
+                previousChildTxHex
+              });
+              candidateUtxosData = getUtxosDataFromTxos(replacementTxos);
+              if (candidateUtxosData.length !== replacementTxos.length)
+                throw new Error(
+                  'Missing exact trigger replacement inputs from discovery'
+                );
+            }
+            const childTxData = await createCpfpChildTx({
+              parentTxHex: initUnfreezeData.parentTxHex,
+              parentFee: initUnfreezeData.parentTxFee,
+              targetEffectiveFeeRate: initUnfreezeData.effectiveFeeRate,
+              utxosData: candidateUtxosData,
+              changeOutput,
+              signer,
+              network
+            });
+            if (!childTxData)
+              throw new Error('Cannot build trigger fee-bump transaction');
+            triggerCpfpTxHex = childTxData.childTxHex;
+            await pushTxPackage({
+              parentTxHex: initUnfreezeData.parentTxHex,
+              childTxHex: childTxData.childTxHex
+            });
+          }
+        });
+
+        if (pushStatus !== 'SUCCESS') return;
         if (!vaultStatus)
           throw new Error('vault status should exist for existing vault');
         const newVaultStatus = {
           ...vaultStatus,
-          triggerTxHex: initUnfreezeData.txHex,
+          triggerTxHex: initUnfreezeData.parentTxHex,
           triggerTxBlockHeight: 0,
-          triggerPushTime: Math.floor(Date.now() / 1000)
+          triggerPushTime: Math.floor(Date.now() / 1000),
+          ...(triggerCpfpTxHex !== undefined && { triggerCpfpTxHex })
         };
         updateVaultStatus(vault.vaultId, newVaultStatus);
+      } finally {
+        setIsInitUnfreezeBeingHandled(false);
       }
     },
     [
@@ -406,16 +438,18 @@ const RawVault = ({
       settings?.NETWORK_TIMEOUT,
       accounts,
       utxosData,
+      getUtxosDataFromTxos,
       networkId,
       signers,
       getNextChangeDescriptorWithIndex,
       pushTxPackage,
       pushTx,
-      vault,
+      isLegacyVault,
       vault.vaultId,
       vaultStatus,
       updateVaultStatus,
       netRequest,
+      toast,
       t
     ]
   );
@@ -432,79 +466,105 @@ const RawVault = ({
   const handleCloseRescue = useCallback(() => setShowRescue(false), []);
   const handleShowRescue = useCallback(() => setShowRescue(true), []);
   const handleRescue = useCallback(
-    async (rescueData: RescueData) => {
+    async (rescueData: VaultActionTxData) => {
       batchedUpdates(() => {
         setShowRescue(false);
         setIsRescueBeingHandled(true);
       });
-      const { status: pushStatus } = await netRequest({
-        whenToastErrors: 'ON_ANY_ERROR',
-        errorMessage: (message: string) => t('app.pushError', { message }),
-        func: async () => {
-          const vaultMode = getVaultMode(vault);
-          if (vaultMode === 'LEGACY') {
-            await pushTx(rescueData.txHex);
-            return;
+      const isRescueAccelerationAttempt =
+        !!vaultStatus?.panicPushTime || vaultStatus?.panicTxBlockHeight === 0;
+      if (isRescueAccelerationAttempt)
+        toast.show(t('wallet.vault.rescue.accelerateSubmitting'));
+      let panicCpfpTxHex: string | undefined;
+      try {
+        const { status: pushStatus } = await netRequest({
+          whenToastErrors: 'ON_ANY_ERROR',
+          errorMessage: (message: string) => t('app.pushError', { message }),
+          func: async () => {
+            if (isLegacyVault) {
+              await pushTx(rescueData.parentTxHex);
+              return;
+            }
+
+            if (!accounts || !utxosData || !networkId || !signers)
+              throw new Error('Wallet not ready for Rewind2 rescue package');
+            const signer = signers[0];
+            if (!signer) throw new Error('signer unavailable');
+            const network = networkMapping[networkId];
+            const changeDescriptorWithIndex =
+              await getNextChangeDescriptorWithIndex(accounts);
+            const changeOutput = computeChangeOutput(
+              changeDescriptorWithIndex,
+              network
+            );
+
+            let candidateUtxosData = utxosData;
+            if (isRescueAccelerationAttempt) {
+              const previousChildTxHex = vaultStatus?.panicCpfpTxHex;
+              if (!previousChildTxHex)
+                throw new Error(
+                  'Missing synced rescue CPFP inputs for acceleration'
+                );
+              const replacementTxos = getReplacementNonAnchorTxos({
+                parentTxHex: rescueData.parentTxHex,
+                previousChildTxHex
+              });
+              candidateUtxosData = getUtxosDataFromTxos(replacementTxos);
+              if (candidateUtxosData.length !== replacementTxos.length)
+                throw new Error(
+                  'Missing exact rescue replacement inputs from discovery'
+                );
+            }
+            const childTxData = await createCpfpChildTx({
+              parentTxHex: rescueData.parentTxHex,
+              parentFee: rescueData.parentTxFee,
+              targetEffectiveFeeRate: rescueData.effectiveFeeRate,
+              utxosData: candidateUtxosData,
+              changeOutput,
+              signer,
+              network
+            });
+            if (!childTxData)
+              throw new Error('Cannot build rescue fee-bump transaction');
+            panicCpfpTxHex = childTxData.childTxHex;
+            await pushTxPackage({
+              parentTxHex: rescueData.parentTxHex,
+              childTxHex: childTxData.childTxHex
+            });
           }
-          if (!accounts || !utxosData || !networkId || !signers)
-            throw new Error('Wallet not ready for Rewind2 rescue package');
-          const signer = signers[0];
-          if (!signer) throw new Error('signer unavailable');
-          const network = networkMapping[networkId];
-          const changeDescriptorWithIndex =
-            await getNextChangeDescriptorWithIndex(accounts);
-          const changeOutput = computeChangeOutput(
-            changeDescriptorWithIndex,
-            network
-          );
-          const parentFee =
-            rescueData.parentFee ?? vault.txMap[rescueData.txHex]?.fee;
-          if (parentFee === undefined)
-            throw new Error('Missing rescue parent fee for Rewind2 package');
-          const childTxData = await createCpfpChildTx({
-            parentTxHex: rescueData.txHex,
-            parentFee,
-            targetEffectiveFeeRate: rescueData.feeRate,
-            utxosData,
-            changeOutput,
-            signer,
-            network
-          });
-          if (!childTxData)
-            throw new Error('Cannot build rescue fee-bump transaction');
-          await pushTxPackage({
-            parentTxHex: rescueData.txHex,
-            childTxHex: childTxData.childTxHex
-          });
-        }
-      });
-      if (pushStatus !== 'SUCCESS') setIsRescueBeingHandled(false);
-      else {
+        });
+
+        if (pushStatus !== 'SUCCESS') return;
         if (!vaultStatus)
           throw new Error('vault status should exist for existing vault');
         const newVaultStatus = {
           ...vaultStatus,
-          panicTxHex: rescueData.txHex,
+          panicTxHex: rescueData.parentTxHex,
           panicTxBlockHeight: 0,
-          panicPushTime: Math.floor(Date.now() / 1000)
+          panicPushTime: Math.floor(Date.now() / 1000),
+          ...(panicCpfpTxHex !== undefined && { panicCpfpTxHex })
         };
         updateVaultStatus(vault.vaultId, newVaultStatus);
+      } finally {
+        setIsRescueBeingHandled(false);
       }
     },
     [
       pushTx,
-      vault,
       vault.vaultId,
       vaultStatus,
       updateVaultStatus,
       netRequest,
+      toast,
       t,
       accounts,
       utxosData,
+      getUtxosDataFromTxos,
       networkId,
       signers,
       getNextChangeDescriptorWithIndex,
-      pushTxPackage
+      pushTxPackage,
+      isLegacyVault
     ]
   );
 
@@ -557,6 +617,73 @@ const RawVault = ({
   const canInitUnfreeze = isVaultTx && !isInitUnfreezeTx;
   const canBeRescued = isInitUnfreezeTx && !isUnfrozen && !isRescueTx;
   const canBeDelegated = isVaultTx && !isUnfrozen && !isRescueTx;
+
+  const canAccelerateTrigger = useMemo(() => {
+    if (isInitUnfreezeBeingHandled) return false;
+    if (
+      !(
+        (isInitUnfreezeTxPushed || isInitUnfreezeTxInMempool) &&
+        !isInitUnfreezeTxConfirmed
+      )
+    )
+      return false;
+    if (isLegacyVault) return true;
+    if (!historyData?.length) return false;
+    const parentTxHex = vaultStatus?.triggerTxHex;
+    const previousChildTxHex = vaultStatus?.triggerCpfpTxHex;
+    if (!parentTxHex || !previousChildTxHex) return false;
+    try {
+      const replacementTxos = getReplacementNonAnchorTxos({
+        parentTxHex,
+        previousChildTxHex
+      });
+      return (
+        getUtxosDataFromTxos(replacementTxos).length === replacementTxos.length
+      );
+    } catch {
+      return false;
+    }
+  }, [
+    isInitUnfreezeTxPushed,
+    isInitUnfreezeTxInMempool,
+    isInitUnfreezeTxConfirmed,
+    isInitUnfreezeBeingHandled,
+    isLegacyVault,
+    vaultStatus?.triggerTxHex,
+    vaultStatus?.triggerCpfpTxHex,
+    historyData,
+    getUtxosDataFromTxos
+  ]);
+
+  const canAccelerateRescue = useMemo(() => {
+    if (isRescueBeingHandled) return false;
+    if (!(isRescueTx && !isRescueTxConfirmed)) return false;
+    if (isLegacyVault) return true;
+    if (!historyData?.length) return false;
+    const parentTxHex = vaultStatus?.panicTxHex;
+    const previousChildTxHex = vaultStatus?.panicCpfpTxHex;
+    if (!parentTxHex || !previousChildTxHex) return false;
+    try {
+      const replacementTxos = getReplacementNonAnchorTxos({
+        parentTxHex,
+        previousChildTxHex
+      });
+      return (
+        getUtxosDataFromTxos(replacementTxos).length === replacementTxos.length
+      );
+    } catch {
+      return false;
+    }
+  }, [
+    isRescueTx,
+    isRescueTxConfirmed,
+    isRescueBeingHandled,
+    isLegacyVault,
+    vaultStatus?.panicTxHex,
+    vaultStatus?.panicCpfpTxHex,
+    historyData,
+    getUtxosDataFromTxos
+  ]);
 
   const canBeHidden =
     !isVaultTx ||
@@ -858,7 +985,9 @@ const RawVault = ({
                   name: 'clock-fast',
                   family: 'MaterialCommunityIcons'
                 }}
-                onAccelerate={handleShowInitUnfreeze}
+                {...(canAccelerateTrigger
+                  ? { onAccelerate: handleShowInitUnfreeze }
+                  : {})}
               >
                 {triggerPushDate
                   ? t('wallet.vault.pushedTriggerNotConfirmed', {
@@ -939,7 +1068,9 @@ const RawVault = ({
                 name: 'shield-alert-outline',
                 family: 'MaterialCommunityIcons'
               }}
-              onAccelerate={handleShowRescue}
+              {...(canAccelerateRescue
+                ? { onAccelerate: handleShowRescue }
+                : {})}
             >
               {rescuePushDate
                 ? t('wallet.vault.rescueNotConfirmed', {

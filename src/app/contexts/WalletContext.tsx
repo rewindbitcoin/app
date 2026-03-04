@@ -90,6 +90,7 @@ import {
 } from '@bitcoinerlab/explorer';
 import { defaultSettings } from '../lib/settings';
 import { getLocales } from 'expo-localization';
+import { transactionFromHex } from '../lib/bitcoin';
 
 export const WalletContext: Context<WalletContextType | null> =
   createContext<WalletContextType | null>(null);
@@ -125,6 +126,7 @@ export type WalletContextType = {
   networkId: NetworkId | undefined;
   fetchBlockTime: (blockHeight: number) => Promise<number | undefined>;
   pushTx: (txHex: string) => Promise<void>;
+  getUtxosDataFromTxos: (txos: Array<string>) => UtxosData;
   pushTxPackage: ({
     parentTxHex,
     childTxHex
@@ -672,9 +674,28 @@ const WalletProviderRaw = ({
     [discovery, gapLimit]
   );
 
+  const getUtxosDataFromTxos = useCallback(
+    (txos: Array<string>): UtxosData => {
+      if (!discovery || !vaults || !activeWallet?.networkId)
+        throw new Error('Wallet not ready for getUtxosDataFromTxos');
+      const network = networkMapping[activeWallet.networkId];
+      return getUtxosData(txos, vaults, network, discovery);
+    },
+    [discovery, vaults, activeWallet?.networkId]
+  );
+
   /**
-   * Pushes a 1-parent-1-child package through Esplora `/txs/package` and
-   * updates discovery state locally.
+   * Pushes a 1-parent-1-child package through Esplora `/txs/package`.
+   *
+   * This method intentionally mirrors the behavior of `discovery.push`:
+   *
+   * 1) Broadcast to the network.
+   * 2) Probe mempool visibility for each tx (parent + child).
+   * 3) Update discovery via `addTransaction`.
+   * 4) If `addTransaction` reports `INPUTS_ALREADY_SPENT`, synchronize
+   *    affected descriptors with `discovery.fetch`.
+   *
+   * Like `discovery.push`, mempool visibility failures only emit warnings.
    */
   const pushTxPackage = useCallback(
     async ({
@@ -721,6 +742,31 @@ const WalletProviderRaw = ({
           `Package broadcast rejected: ${packageMsg || 'unknown'}${txErrors.length ? ` (${txErrors.join('; ')})` : ''}`
         );
 
+      const DETECTION_INTERVAL = 3000;
+      const DETECT_RETRY_MAX = 20;
+      const parentTxId = transactionFromHex(parentTxHex).txId;
+      const childTxId = transactionFromHex(childTxHex).txId;
+      const explorer = discovery.getExplorer();
+
+      let parentFoundInMempool = false;
+      let childFoundInMempool = false;
+      for (let i = 0; i < DETECT_RETRY_MAX; i++) {
+        if (!parentFoundInMempool)
+          try {
+            if (await explorer.fetchTx(parentTxId)) parentFoundInMempool = true;
+          } catch {
+            // keep polling until retries are exhausted
+          }
+        if (!childFoundInMempool)
+          try {
+            if (await explorer.fetchTx(childTxId)) childFoundInMempool = true;
+          } catch {
+            // keep polling until retries are exhausted
+          }
+        if (parentFoundInMempool && childFoundInMempool) break;
+        await new Promise(resolve => setTimeout(resolve, DETECTION_INTERVAL));
+      }
+
       const parentResult = discovery.addTransaction({
         txData: {
           txHex: parentTxHex,
@@ -738,18 +784,35 @@ const WalletProviderRaw = ({
         gapLimit
       });
 
-      const descriptorsToRefetch: Array<string> = [];
-      if (parentResult.success === false)
-        descriptorsToRefetch.push(
-          ...parentResult.conflicts.map(conflict => conflict.descriptor)
+      const descriptorsToSync = new Set<string>();
+      if (parentResult.success === false && parentResult.conflicts.length > 0)
+        parentResult.conflicts.forEach(conflict =>
+          descriptorsToSync.add(conflict.descriptor)
         );
-      if (childResult.success === false)
-        descriptorsToRefetch.push(
-          ...childResult.conflicts.map(conflict => conflict.descriptor)
+      if (childResult.success === false && childResult.conflicts.length > 0)
+        childResult.conflicts.forEach(conflict =>
+          descriptorsToSync.add(conflict.descriptor)
         );
-      const uniqueDescriptors = Array.from(new Set(descriptorsToRefetch));
-      if (uniqueDescriptors.length)
+
+      let syncPerformed = false;
+      const uniqueDescriptors = Array.from(descriptorsToSync);
+      if (uniqueDescriptors.length > 0) {
         await discovery.fetch({ descriptors: uniqueDescriptors, gapLimit });
+        syncPerformed = true;
+      }
+
+      if (syncPerformed)
+        console.warn(
+          `package txids ${parentTxId}, ${childTxId}: Input conflict(s) detected; state synchronization was performed for affected descriptors. The library state reflects this outcome.`
+        );
+      if (!parentFoundInMempool)
+        console.warn(
+          `txId ${parentTxId}: Pushed package parent was not found in the mempool immediately after broadcasting.`
+        );
+      if (!childFoundInMempool)
+        console.warn(
+          `txId ${childTxId}: Pushed package child was not found in the mempool immediately after broadcasting.`
+        );
     },
     [discovery, gapLimit, esploraAPI, networkTimeout]
   );
@@ -2331,6 +2394,7 @@ const WalletProviderRaw = ({
     ),
     fetchBlockTime,
     pushTx,
+    getUtxosDataFromTxos,
     pushTxPackage,
     syncWatchtowerRegistration,
     fetchOutputHistory,

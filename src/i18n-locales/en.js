@@ -260,6 +260,9 @@ This will start the unfreeze countdown. The funds will become unlocked and avail
 Remember, "Accelerate" won't shorten the lock period. It only speeds up when your unfreeze process actually begins if low fees had held it up.
 
 You likely only need to wait around 10 minutes and really don't need this. Use "Accelerate" only if waiting that time (which could stretch to a couple of hours) isn't acceptable.`,
+        accelerateSubmitting: 'Acceleration submitted. Processing…',
+        accelerateSuccess:
+          'Unfreeze acceleration submitted successfully. Waiting for confirmation.',
         confirmationSpeedLabel: 'Mining Fee',
         feeSelectorExplanation:
           'Confirm the mining fee to request the start of the unfreeze countdown.',
@@ -272,6 +275,9 @@ You likely only need to wait around 10 minutes and really don't need this. Use "
 "Accelerate" will boost your rescue request by offering miners a higher fee. Your original request is already pending, but this can move it up in the confirmation queue.
 
 You likely only need to wait around 10 minutes and really don't need this. Use "Accelerate" only if waiting that time (which could stretch to a couple of hours) isn't acceptable.`,
+        accelerateSubmitting: 'Acceleration submitted. Processing…',
+        accelerateSuccess:
+          'Rescue acceleration submitted successfully. Waiting for confirmation.',
         intro: `You're about to initiate the rescue of your vault funds. This will move the funds to your pre-configured Emergency Address immediately:
 
 {{panicAddress}}

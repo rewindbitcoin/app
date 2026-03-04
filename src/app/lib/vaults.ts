@@ -1,7 +1,19 @@
 // Copyright (C) 2025 Jose-Luis Landabaso - https://rewindbitcoin.com
 // Licensed under the GNU GPL v3 or later. See the LICENSE file for details.
 
-// TODO: very imporant to only allow Vaulting funds with 1 confirmatin at least (make this a setting)
+//TODO: keep anchor buffer
+//TODO: compute new ranges. Note that
+//  - when using non-truc i am sending dust
+//  - im sending a backup too
+//TODO: send the onchain backup
+//TODO: refactor functions and use onChainBackup.ts
+
+// TODO: very imporant to only allow Vaulting funds with 1 confirmatin at least (make this a setting) - test realistic vaults (TRUC)
+//
+// TODO: 1) the History has bad UX woth bee bumps:
+//  - classify CPFP child txs as explicit “Fee bump” entries (instead of generic RECEIVED/SENT),
+//  - render clear fee-bump labels in Transactions,
+//  - add i18n copy for that type.
 const PUSH_TIMEOUT = 30 * 60; // 30 minutes
 
 import { type Network, type Transaction, Psbt } from 'bitcoinjs-lib';
@@ -202,6 +214,11 @@ export type VaultStatus = {
   vaultPushTime?: number;
   triggerPushTime?: number;
   panicPushTime?: number;
+
+  /** Last known trigger CPFP child tx hex (if any). */
+  triggerCpfpTxHex?: string;
+  /** Last known panic CPFP child tx hex (if any). */
+  panicCpfpTxHex?: string;
 };
 
 export type RescueTxMap = Record<
@@ -469,6 +486,7 @@ export const createCpfpChildTx = async ({
   psbt.addInput({
     hash: plan.parentTxId,
     index: plan.anchorOutputIndex,
+    sequence: 0xfffffffd,
     witnessUtxo: {
       script: P2A_OUTPUT_SCRIPT,
       value: toBigInt(plan.anchorValue)
@@ -561,7 +579,9 @@ export const getUtxosData = memoize(
       const vout = Number(strVout);
       if (!txId || isNaN(vout) || !Number.isInteger(vout) || vout < 0)
         throw new Error(`Invalid utxo ${utxo}`);
-      const descriptorAndIndex = discovery.getDescriptor({ utxo });
+      const descriptorAndIndex =
+        discovery.getDescriptor({ utxo }) ??
+        discovery.getDescriptor({ txo: utxo });
       if (!descriptorAndIndex) throw new Error(`Unmatched ${utxo}`);
       let signersPubKeys;
       for (const vault of Object.values(vaults)) {
@@ -1275,13 +1295,13 @@ export const createVault = async ({
     txHex: vaultTxHex,
     vout: 0
   });
-  psbtTrigger.addOutput({
-    script: P2A_OUTPUT_SCRIPT,
-    value: vaultMode === 'TRUC' ? BigInt(0) : NON_TRUC_P2A_ANCHOR_VALUE
-  }); //vout: 0
   triggerOutputPanicPath.updatePsbtAsOutput({
     psbt: psbtTrigger,
     value: triggerOutputValue
+  }); //vout: 0
+  psbtTrigger.addOutput({
+    script: P2A_OUTPUT_SCRIPT,
+    value: vaultMode === 'TRUC' ? BigInt(0) : NON_TRUC_P2A_ANCHOR_VALUE
   }); //vout: 1
   signPsbt(randomSigner, network, psbtTrigger);
   triggerInputFinalizer({ psbt: psbtTrigger });
@@ -1293,14 +1313,10 @@ export const createVault = async ({
 
   const psbtPanic = new Psbt({ network });
   psbtPanic.setVersion(vaultMode === 'TRUC' ? 3 : 2);
-  psbtPanic.addOutput({
-    script: P2A_OUTPUT_SCRIPT,
-    value: vaultMode === 'TRUC' ? BigInt(0) : NON_TRUC_P2A_ANCHOR_VALUE
-  }); //vout: 0
   const panicInputFinalizer = triggerOutputPanicPath.updatePsbtAsInput({
     psbt: psbtPanic,
     txHex: triggerTxHex,
-    vout: 1
+    vout: 0
   });
   const coldOutput = new Output({
     descriptor: `addr(${coldAddress})`,
@@ -1313,7 +1329,11 @@ export const createVault = async ({
   const panicDust = dustThreshold(coldOutput);
   if (panicOutputValue <= panicDust)
     return `COINSELECT_ERROR: panic output below dust ${panicOutputValue} <= ${panicDust}`;
-  coldOutput.updatePsbtAsOutput({ psbt: psbtPanic, value: panicOutputValue });
+  coldOutput.updatePsbtAsOutput({ psbt: psbtPanic, value: panicOutputValue }); //vout: 0
+  psbtPanic.addOutput({
+    script: P2A_OUTPUT_SCRIPT,
+    value: vaultMode === 'TRUC' ? BigInt(0) : NON_TRUC_P2A_ANCHOR_VALUE
+  }); //vout: 1
   signPsbt(randomSigner, network, psbtPanic);
   panicInputFinalizer({ psbt: psbtPanic });
   const panicTx = psbtPanic.extractTransaction();
@@ -1718,6 +1738,12 @@ async function fetchVaultStatus(
         }),
         ...(currVaultStatus.panicPushTime !== undefined && {
           panicPushTime: currVaultStatus.panicPushTime
+        }),
+        ...(currVaultStatus.triggerCpfpTxHex !== undefined && {
+          triggerCpfpTxHex: currVaultStatus.triggerCpfpTxHex
+        }),
+        ...(currVaultStatus.panicCpfpTxHex !== undefined && {
+          panicCpfpTxHex: currVaultStatus.panicCpfpTxHex
         })
       }
     : {};
@@ -1753,10 +1779,22 @@ async function fetchVaultStatus(
   )
     delete newVaultStatus.vaultPushTime;
 
+  const vaultMode = getVaultMode(vault);
   const triggerTxData = await fetchSpendingTx(vault.vaultTxHex, 0, explorer);
   if (triggerTxData) {
     newVaultStatus.triggerTxHex = triggerTxData.txHex;
     newVaultStatus.triggerTxBlockHeight = triggerTxData.blockHeight;
+    if (vaultMode === 'LEGACY') delete newVaultStatus.triggerCpfpTxHex;
+    else {
+      const triggerCpfpTxData = await fetchSpendingTx(
+        triggerTxData.txHex,
+        1,
+        explorer
+      );
+      if (triggerCpfpTxData)
+        newVaultStatus.triggerCpfpTxHex = triggerCpfpTxData.txHex;
+      else delete newVaultStatus.triggerCpfpTxHex;
+    }
     if (newVaultStatus.triggerTxBlockHeight !== 0) {
       const triggerBlockStatus = await explorer.fetchBlockStatus(
         newVaultStatus.triggerTxBlockHeight
@@ -1790,6 +1828,16 @@ async function fetchVaultStatus(
       if (panicTxHex) {
         newVaultStatus.panicTxHex = unlockingTxData.txHex;
         newVaultStatus.panicTxBlockHeight = unlockingTxData.blockHeight;
+        if (vaultMode !== 'LEGACY') {
+          const panicCpfpTxData = await fetchSpendingTx(
+            unlockingTxData.txHex,
+            1,
+            explorer
+          );
+          if (panicCpfpTxData)
+            newVaultStatus.panicCpfpTxHex = panicCpfpTxData.txHex;
+          else delete newVaultStatus.panicCpfpTxHex;
+        } else delete newVaultStatus.panicCpfpTxHex;
         if (newVaultStatus.panicTxBlockHeight !== 0) {
           const panicBlockStatus = await explorer.fetchBlockStatus(
             newVaultStatus.panicTxBlockHeight
@@ -1804,6 +1852,7 @@ async function fetchVaultStatus(
         // Panic Tx NOT Found - panic push time should be reset since this
         // was finally spent as hot
         delete newVaultStatus.panicPushTime;
+        delete newVaultStatus.panicCpfpTxHex;
 
         newVaultStatus.spendAsHotTxHex = unlockingTxData.txHex;
         newVaultStatus.spendAsHotTxBlockHeight = unlockingTxData.blockHeight;
@@ -1825,16 +1874,60 @@ async function fetchVaultStatus(
       newVaultStatus.panicPushTime &&
       Math.floor(Date.now() / 1000) - newVaultStatus.panicPushTime >
         PUSH_TIMEOUT
-    )
+    ) {
       delete newVaultStatus.panicPushTime;
+      delete newVaultStatus.panicTxHex;
+      delete newVaultStatus.panicTxBlockHeight;
+      delete newVaultStatus.panicTxBlockTime;
+      delete newVaultStatus.panicCpfpTxHex;
+    } else if (newVaultStatus.panicPushTime) {
+      if (currVaultStatus?.panicTxHex !== undefined)
+        newVaultStatus.panicTxHex = currVaultStatus.panicTxHex;
+      if (currVaultStatus?.panicTxBlockHeight !== undefined)
+        newVaultStatus.panicTxBlockHeight = currVaultStatus.panicTxBlockHeight;
+      if (currVaultStatus?.panicTxBlockTime !== undefined)
+        newVaultStatus.panicTxBlockTime = currVaultStatus.panicTxBlockTime;
+      if (currVaultStatus?.panicCpfpTxHex !== undefined)
+        newVaultStatus.panicCpfpTxHex = currVaultStatus.panicCpfpTxHex;
+    } else delete newVaultStatus.panicCpfpTxHex;
   }
   // Trigger Tx NOT Found - Check if push time should be reset
   else if (
     newVaultStatus.triggerPushTime &&
     Math.floor(Date.now() / 1000) - newVaultStatus.triggerPushTime >
       PUSH_TIMEOUT
-  )
+  ) {
     delete newVaultStatus.triggerPushTime;
+    delete newVaultStatus.triggerTxHex;
+    delete newVaultStatus.triggerTxBlockHeight;
+    delete newVaultStatus.triggerTxBlockTime;
+    delete newVaultStatus.triggerCpfpTxHex;
+    delete newVaultStatus.panicTxHex;
+    delete newVaultStatus.panicTxBlockHeight;
+    delete newVaultStatus.panicTxBlockTime;
+    delete newVaultStatus.panicCpfpTxHex;
+  } else if (newVaultStatus.triggerPushTime) {
+    if (currVaultStatus?.triggerTxHex !== undefined)
+      newVaultStatus.triggerTxHex = currVaultStatus.triggerTxHex;
+    if (currVaultStatus?.triggerTxBlockHeight !== undefined)
+      newVaultStatus.triggerTxBlockHeight =
+        currVaultStatus.triggerTxBlockHeight;
+    if (currVaultStatus?.triggerTxBlockTime !== undefined)
+      newVaultStatus.triggerTxBlockTime = currVaultStatus.triggerTxBlockTime;
+    if (currVaultStatus?.triggerCpfpTxHex !== undefined)
+      newVaultStatus.triggerCpfpTxHex = currVaultStatus.triggerCpfpTxHex;
+    if (currVaultStatus?.panicTxHex !== undefined)
+      newVaultStatus.panicTxHex = currVaultStatus.panicTxHex;
+    if (currVaultStatus?.panicTxBlockHeight !== undefined)
+      newVaultStatus.panicTxBlockHeight = currVaultStatus.panicTxBlockHeight;
+    if (currVaultStatus?.panicTxBlockTime !== undefined)
+      newVaultStatus.panicTxBlockTime = currVaultStatus.panicTxBlockTime;
+    if (currVaultStatus?.panicCpfpTxHex !== undefined)
+      newVaultStatus.panicCpfpTxHex = currVaultStatus.panicCpfpTxHex;
+  } else {
+    delete newVaultStatus.triggerCpfpTxHex;
+    delete newVaultStatus.panicCpfpTxHex;
+  }
   if (currVaultStatus && shallowEqualObjects(currVaultStatus, newVaultStatus))
     return currVaultStatus;
   else return newVaultStatus;
