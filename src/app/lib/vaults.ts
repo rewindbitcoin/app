@@ -1660,35 +1660,58 @@ async function fetchSpendingTx(
   const scriptHashBytes = Uint8Array.from(sha256(output.script)).reverse();
   const scriptHash = toHex(scriptHashBytes);
 
-  //retrieve all txs that sent / received from this scriptHash
-  //fetchTxHistory also includes mempool
-  const history = await explorer.fetchTxHistory({ scriptHash });
+  // During mempool replacements (accelerate), fetchTxHistory and fetchTx can
+  // briefly become inconsistent: history can include txids that were just evicted.
+  // Retry a few full scans to distinguish transient races from persistent
+  // explorer errors.
+  const MAX_HISTORY_SCAN_ATTEMPTS = 3;
+  const RETRY_DELAY_MS = 250;
+  for (let attempt = 0; attempt < MAX_HISTORY_SCAN_ATTEMPTS; attempt++) {
+    let hadFetchTxError = false;
+    //retrieve all txs that sent / received from this scriptHash
+    //fetchTxHistory also includes mempool
+    const history = await explorer.fetchTxHistory({ scriptHash });
 
-  for (let i = 0; i < history.length; i++) {
-    const txData = history[i];
-    if (!txData) throw new Error('Invalid history');
-    //const irreversible = txData.irreversible;
-    //console.log({ irreversible });
-    //Check if this specific tx was spending my output:
-    const historyTxHex = await explorer.fetchTx(txData.txId);
-    const { tx: txHistory } = transactionFromHex(historyTxHex);
-    //For all the inputs in the tx see if one of them was spending from vout and txId
-    const found = txHistory.ins.some(input => {
-      const inputPrevtxId = toHex(Uint8Array.from(input.hash).reverse());
-      const inputPrevOutput = input.index;
-      return inputPrevtxId === txId && inputPrevOutput === vout;
-    });
-    if (found) {
-      const spendingTx = {
-        txHex: historyTxHex,
-        irreversible: txData.irreversible,
-        blockHeight: txData.blockHeight
-      };
-      spendingTxCache.set(cacheKey, spendingTx);
-      return spendingTx;
+    for (let i = 0; i < history.length; i++) {
+      const txData = history[i];
+      if (!txData) throw new Error('Invalid history');
+      //Check if this specific tx was spending my output:
+      let historyTxHex: string;
+      try {
+        historyTxHex = await explorer.fetchTx(txData.txId);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        hadFetchTxError = true;
+        console.warn(
+          `[fetchSpendingTx] Attempt ${attempt + 1}/${MAX_HISTORY_SCAN_ATTEMPTS}: fetchTx failed for history txid ${txData.txId} on outpoint ${txId}:${vout}; refetching history: ${message}`
+        );
+        break;
+      }
+      const { tx: txHistory } = transactionFromHex(historyTxHex);
+      //For all the inputs in the tx see if one of them was spending from vout and txId
+      const found = txHistory.ins.some(input => {
+        const inputPrevtxId = toHex(Uint8Array.from(input.hash).reverse());
+        const inputPrevOutput = input.index;
+        return inputPrevtxId === txId && inputPrevOutput === vout;
+      });
+      if (found) {
+        const spendingTx = {
+          txHex: historyTxHex,
+          irreversible: txData.irreversible,
+          blockHeight: txData.blockHeight
+        };
+        spendingTxCache.set(cacheKey, spendingTx);
+        return spendingTx;
+      }
     }
+
+    if (!hadFetchTxError) return;
+    else if (attempt < MAX_HISTORY_SCAN_ATTEMPTS - 1)
+      await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS));
   }
-  return;
+  throw new Error(
+    `Failed to resolve spending tx for outpoint ${txId}:${vout} after ${MAX_HISTORY_SCAN_ATTEMPTS} attempts due to repeated fetchTx errors.`
+  );
 }
 
 const vaultTxCache = new Map();
