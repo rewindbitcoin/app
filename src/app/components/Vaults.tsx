@@ -65,6 +65,7 @@ import { networkMapping } from '../lib/network';
 import { computeChangeOutput } from '../lib/vaultDescriptors';
 
 const LOADING_TEXT = '     ';
+const INITIAL_NOW_SECONDS = Math.floor(Date.now() / 1000);
 
 const formatVaultDate = (
   unixTime: number | undefined,
@@ -155,7 +156,14 @@ const VaultText: React.FC<{
   icon?: IconType;
   children: React.ReactNode;
   onAccelerate?: () => void;
-}> = ({ danger = false, icon, children, onAccelerate }) => {
+  accelerateLoading?: boolean;
+}> = ({
+  danger = false,
+  icon,
+  children,
+  onAccelerate,
+  accelerateLoading = false
+}) => {
   const { t } = useTranslation();
   const Icon =
     icon && icon.family && Icons[icon.family] ? Icons[icon.family] : null;
@@ -172,17 +180,22 @@ const VaultText: React.FC<{
           />
         </View>
       )}
-      <Text className="!leading-5 flex-shrink text-slate-600 native:text-sm native:mobmed:text-base">
-        {children}
-        {onAccelerate !== undefined && (
-          <>
-            <Text> </Text>
-            <Text onPress={onAccelerate} className="text-primary p-8">
-              {t('accelerateButton') + ' ➤'}
-            </Text>
-          </>
+      <View className="flex-1">
+        <Text className="!leading-5 text-slate-600 native:text-sm native:mobmed:text-base">
+          {children}
+        </Text>
+        {(onAccelerate !== undefined || accelerateLoading) && (
+          <Button
+            mode="text"
+            onPress={onAccelerate}
+            disabled={accelerateLoading || onAccelerate === undefined}
+            loading={accelerateLoading}
+            containerClassName="self-start -ml-1"
+          >
+            {' ' + t('accelerateButton') + (accelerateLoading ? '' : ' ➤')}
+          </Button>
         )}
-      </Text>
+      </View>
     </View>
   );
 };
@@ -331,8 +344,6 @@ const RawVault = ({
       const isTriggerAccelerationAttempt =
         !!vaultStatus?.triggerPushTime ||
         vaultStatus?.triggerTxBlockHeight === 0;
-      if (isTriggerAccelerationAttempt)
-        toast.show(t('wallet.vault.triggerUnfreeze.accelerateSubmitting'));
       let triggerCpfpTxHex: string | undefined;
       try {
         const { status: pushStatus } = await netRequest({
@@ -417,6 +428,8 @@ const RawVault = ({
         });
 
         if (pushStatus !== 'SUCCESS') return;
+        if (isTriggerAccelerationAttempt)
+          toast.show(t('wallet.vault.accelerateSuccess'), { type: 'success' });
         if (!vaultStatus)
           throw new Error('vault status should exist for existing vault');
         const newVaultStatus = {
@@ -473,8 +486,6 @@ const RawVault = ({
       });
       const isRescueAccelerationAttempt =
         !!vaultStatus?.panicPushTime || vaultStatus?.panicTxBlockHeight === 0;
-      if (isRescueAccelerationAttempt)
-        toast.show(t('wallet.vault.rescue.accelerateSubmitting'));
       let panicCpfpTxHex: string | undefined;
       try {
         const { status: pushStatus } = await netRequest({
@@ -535,6 +546,8 @@ const RawVault = ({
         });
 
         if (pushStatus !== 'SUCCESS') return;
+        if (isRescueAccelerationAttempt)
+          toast.show(t('wallet.vault.accelerateSuccess'), { type: 'success' });
         if (!vaultStatus)
           throw new Error('vault status should exist for existing vault');
         const newVaultStatus = {
@@ -696,19 +709,18 @@ const RawVault = ({
         (vaultStatus?.hotBlockHeight &&
           tipHeight - vaultStatus.hotBlockHeight >= IRREVERSIBLE_BLOCKS - 1)));
 
-  const [scheduledNow, setScheduledNow] = useState<number>(Date.now() / 1000);
+  const [scheduledNow, setScheduledNow] = useState<number>(INITIAL_NOW_SECONDS);
   //update now every 5 minutes...
   useEffect(() => {
     const interval = setInterval(
       () => {
-        setScheduledNow(Date.now() / 1000);
+        setScheduledNow(Math.floor(Date.now() / 1000));
       },
       5 * 60 * 1000
     );
     return () => clearInterval(interval);
   }, []);
-  //if rendered for whatever other reason, get the newest time
-  const now = Math.max(scheduledNow, Date.now() / 1000);
+  const now = scheduledNow;
 
   const triggerBlockTimeBestGuess = vaultStatus?.triggerTxBlockTime
     ? vaultStatus.triggerTxBlockTime
@@ -985,6 +997,7 @@ const RawVault = ({
                   name: 'clock-fast',
                   family: 'MaterialCommunityIcons'
                 }}
+                accelerateLoading={isInitUnfreezeBeingHandled}
                 {...(canAccelerateTrigger
                   ? { onAccelerate: handleShowInitUnfreeze }
                   : {})}
@@ -1068,6 +1081,7 @@ const RawVault = ({
                 name: 'shield-alert-outline',
                 family: 'MaterialCommunityIcons'
               }}
+              accelerateLoading={isRescueBeingHandled}
               {...(canAccelerateRescue
                 ? { onAccelerate: handleShowRescue }
                 : {})}
