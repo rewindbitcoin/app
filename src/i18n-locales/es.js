@@ -244,6 +244,8 @@ Rewind necesita permiso para enviarte alertas críticas de seguridad sobre tus B
 Recibirás un aviso inmediato si alguien accede a tus claves e intenta desbloquear tu Bóveda.`
       },
       cannotAccelerateMaxFee: `Ya estás usando la comisión más alta. No es posible acelerar más.`,
+      accelerateSuccess:
+        'Aceleración enviada con éxito. Esperando confirmación.',
       triggerUnfreeze: {
         intro: `Estás a punto de iniciar el proceso de desbloqueo de los fondos de tu bóveda, que, llegado el momento, estarán listos para ser gastados.
 
@@ -255,9 +257,6 @@ Esto iniciará la cuenta regresiva de descongelación. Los fondos se desbloquear
 Nota: "Acelerar" no reduce el período de bloqueo; sólo ayuda a que el proceso comience antes si una comisión baja lo retrasó.
 
 Seguramente sólo necesitas esperar unos 10 minutos y realmente no necesitas esto. Usa "Acelerar" sólo si esperar ese tiempo (que podría alargarse hasta un par de horas) no es aceptable.`,
-        accelerateSubmitting: 'Aceleración enviada. Procesando…',
-        accelerateSuccess:
-          'Aceleración de descongelación enviada con éxito. Esperando confirmación.',
         confirmationSpeedLabel: 'Comisión',
         feeSelectorExplanation:
           'Confirma la comisión de minería para iniciar la cuenta regresiva de descongelación.',
@@ -270,9 +269,6 @@ Seguramente sólo necesitas esperar unos 10 minutos y realmente no necesitas est
 "Acelerar" dará prioridad a tu solicitud de rescate aumentando la comisión de los mineros. Tu solicitud original ya está en curso, pero esto puede adelantarla en la cola de confirmación.
 
 Seguramente sólo necesitas esperar unos 10 minutos y realmente no necesitas esto. Usa "Acelerar" sólo si esperar ese tiempo (que podría alargarse hasta un par de horas) no es aceptable.`,
-        accelerateSubmitting: 'Aceleración enviada. Procesando…',
-        accelerateSuccess:
-          'Aceleración de rescate enviada con éxito. Esperando confirmación.',
         intro: `Estás a punto de iniciar el rescate de los fondos de tu bóveda. Esto moverá los fondos inmediatamente a tu Dirección de Emergencia preconfigurada:
 
 {{panicAddress}}
@@ -399,6 +395,8 @@ Instrucciones de Uso:
       vault: 'Creación de Bóveda {{vaultNumber}}',
       trigger: 'Descongelación de Bóveda {{vaultNumber}}',
       rescue: 'Rescate de Bóveda {{vaultNumber}}',
+      feePayerTrigger: 'Comisión de Descongelación de Bóveda {{vaultNumber}}',
+      feePayerRescue: 'Comisión de Rescate de Bóveda {{vaultNumber}}',
       received: 'Recibido',
       sent: 'Enviado',
       receivedAndSent: 'Recibido y Enviado',
@@ -417,6 +415,14 @@ Instrucciones de Uso:
       rescued: 'Cantidad rescatada después de comisiones: {{amount}}.',
       rescuedConfirming:
         'Rescatando tu bóveda. La cantidad final rescatada después de comisiones será {{amount}}. Esperando confirmación final...',
+      feePayerTrigger:
+        'Esta transacción CPFP pagadora de comisión ayudó a confirmar tu descongelación.',
+      feePayerTriggerConfirming:
+        'Esta transacción CPFP pagadora de comisión está ayudando a confirmar tu descongelación. Esperando confirmación...',
+      feePayerRescue:
+        'Esta transacción CPFP pagadora de comisión ayudó a confirmar tu rescate.',
+      feePayerRescueConfirming:
+        'Esta transacción CPFP pagadora de comisión está ayudando a confirmar tu rescate. Esperando confirmación...',
       openBlockExplorer: 'Ver en el Explorador de Bloques'
     }
   },

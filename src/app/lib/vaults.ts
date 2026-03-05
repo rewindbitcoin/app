@@ -10,10 +10,10 @@
 
 // TODO: very imporant to only allow Vaulting funds with 1 confirmatin at least (make this a setting) - test realistic vaults (TRUC)
 //
-// TODO: 1) the History has bad UX woth bee bumps:
-//  - classify CPFP child txs as explicit “Fee bump” entries (instead of generic RECEIVED/SENT),
-//  - render clear fee-bump labels in Transactions,
-//  - add i18n copy for that type.
+//FIXME: the Fee bump message with "Accelerate" is confussing. We use "Accelerate"
+//for the RBF to accelerate rescue/init trigger presigned txs.
+//The tx with the rocker icon shows the tx that is the child used to boost the
+//package
 const PUSH_TIMEOUT = 30 * 60; // 30 minutes
 
 import { type Network, type Transaction, Psbt } from 'bitcoinjs-lib';
@@ -267,6 +267,13 @@ type VaultPresignedTx = {
   vaultNumber: number;
   pushTime?: number; //when pushed using this wallet
   spentAsPanic?: 'CONFIRMING' | 'CONFIRMED'; //set only if this vault was spent as panic
+};
+
+type VaultAnchorChildTx = {
+  tx: Transaction;
+  feePayerTxType: 'TRIGGER' | 'RESCUE';
+  vaultId: string;
+  vaultNumber: number;
 };
 
 /**
@@ -539,7 +546,10 @@ export type HistoryDataItem =
 
   // Vault-related presigned txs that are also part of the hot wallet
   // ('VAULT' and 'TRIGGER_HOT_WALLET'):
-  | (TxAttribution & VaultPresignedTx);
+  | (TxAttribution & VaultPresignedTx)
+
+  // CPFP children used to bump trigger/rescue flows
+  | (TxAttribution & VaultAnchorChildTx);
 
 export type HistoryData = Array<HistoryDataItem>;
 
@@ -652,6 +662,7 @@ export const getHistoryData = moize(
     const triggerExternalTxs: Map<TxId, VaultPresignedTx> = new Map();
     const triggerHotWalletTxs: Map<TxId, VaultPresignedTx> = new Map();
     const panicTxs: Map<TxId, VaultPresignedTx> = new Map();
+    const anchorChildTxs: Map<TxId, VaultAnchorChildTx> = new Map();
 
     Object.entries(vaultsStatuses).forEach(([vaultId, vaultStatus]) => {
       const vault = vaults[vaultId];
@@ -659,6 +670,8 @@ export const getHistoryData = moize(
       const vaultTxHex = vault.vaultTxHex;
       const triggerTxHex = vaultStatus.triggerTxHex;
       const panicTxHex = vaultStatus.panicTxHex;
+      const triggerCpfpTxHex = vaultStatus.triggerCpfpTxHex;
+      const panicCpfpTxHex = vaultStatus.panicCpfpTxHex;
       const vaultNumber = getVaultNumber(vaultId, vaults);
       if (vaultStatus.vaultTxBlockHeight !== undefined) {
         // vaultTxBlockHeight may be undefined if VAULT_NOT_FOUND
@@ -737,6 +750,24 @@ export const getHistoryData = moize(
           ...(pushTime !== undefined ? { pushTime } : {})
         });
       }
+      if (triggerCpfpTxHex) {
+        const { txId, tx } = transactionFromHex(triggerCpfpTxHex);
+        anchorChildTxs.set(txId, {
+          tx,
+          feePayerTxType: 'TRIGGER',
+          vaultId,
+          vaultNumber
+        });
+      }
+      if (panicCpfpTxHex) {
+        const { txId, tx } = transactionFromHex(panicCpfpTxHex);
+        anchorChildTxs.set(txId, {
+          tx,
+          feePayerTxType: 'RESCUE',
+          vaultId,
+          vaultNumber
+        });
+      }
     });
 
     //Merge all the 'TRIGGER_HOT_WALLET' and the 'VAULT'. Those are part of
@@ -746,11 +777,13 @@ export const getHistoryData = moize(
       const tx = discovery.getTransaction({ txId });
       const vaultTx = vaultTxs.get(txId);
       const triggerHotWalletTx = triggerHotWalletTxs.get(txId);
+      const anchorChildTx = anchorChildTxs.get(txId);
       const historyEntry = {
         ...txAttribution,
         tx,
         ...(vaultTx ? vaultTx : {}),
-        ...(triggerHotWalletTx ? triggerHotWalletTx : {})
+        ...(triggerHotWalletTx ? triggerHotWalletTx : {}),
+        ...(anchorChildTx ? anchorChildTx : {})
       };
       historyData.push(historyEntry);
     });

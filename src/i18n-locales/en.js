@@ -247,6 +247,8 @@ If you press 'Init Unfreeze', a waiting period of {{lockTime}} will begin, after
       //frozenRemainingDateLabel: 'Funds Unlock Estimated Date',
 
       cannotAccelerateMaxFee: `You are already on the highest fee. Acceleration isn't available.`,
+      accelerateSuccess:
+        'Acceleration submitted successfully. Waiting for confirmation.',
       triggerUnfreeze: {
         intro: `You're about to start the process of unlocking your vault funds,\
  which will eventually be ready for spending.
@@ -260,9 +262,6 @@ This will start the unfreeze countdown. The funds will become unlocked and avail
 Remember, "Accelerate" won't shorten the lock period. It only speeds up when your unfreeze process actually begins if low fees had held it up.
 
 You likely only need to wait around 10 minutes and really don't need this. Use "Accelerate" only if waiting that time (which could stretch to a couple of hours) isn't acceptable.`,
-        accelerateSubmitting: 'Acceleration submitted. Processing…',
-        accelerateSuccess:
-          'Unfreeze acceleration submitted successfully. Waiting for confirmation.',
         confirmationSpeedLabel: 'Mining Fee',
         feeSelectorExplanation:
           'Confirm the mining fee to request the start of the unfreeze countdown.',
@@ -275,9 +274,6 @@ You likely only need to wait around 10 minutes and really don't need this. Use "
 "Accelerate" will boost your rescue request by offering miners a higher fee. Your original request is already pending, but this can move it up in the confirmation queue.
 
 You likely only need to wait around 10 minutes and really don't need this. Use "Accelerate" only if waiting that time (which could stretch to a couple of hours) isn't acceptable.`,
-        accelerateSubmitting: 'Acceleration submitted. Processing…',
-        accelerateSuccess:
-          'Rescue acceleration submitted successfully. Waiting for confirmation.',
         intro: `You're about to initiate the rescue of your vault funds. This will move the funds to your pre-configured Emergency Address immediately:
 
 {{panicAddress}}
@@ -434,6 +430,8 @@ Usage Instructions:
       vault: 'Vault {{vaultNumber}} Creation',
       trigger: 'Vault {{vaultNumber}} Unfreeze',
       rescue: 'Vault {{vaultNumber}} Rescue',
+      feePayerTrigger: 'Vault {{vaultNumber}} Unfreeze Fee',
+      feePayerRescue: 'Vault {{vaultNumber}} Rescue Fee',
       received: 'Received',
       sent: 'Sent',
       receivedAndSent: 'Received and Sent',
@@ -457,6 +455,14 @@ Usage Instructions:
       rescued: 'Rescued amount after fees: {{amount}}.',
       rescuedConfirming:
         'Rescuing your vault. The final rescued amount after fees will be {{amount}}. Awaiting final confirmation...',
+      feePayerTrigger:
+        'This CPFP fee-payer transaction helped confirm your unfreeze.',
+      feePayerTriggerConfirming:
+        'This CPFP fee-payer transaction is helping confirm your unfreeze. Waiting for confirmation...',
+      feePayerRescue:
+        'This CPFP fee-payer transaction helped confirm your rescue.',
+      feePayerRescueConfirming:
+        'This CPFP fee-payer transaction is helping confirm your rescue. Waiting for confirmation...',
       openBlockExplorer: 'View on Block Explorer'
     }
   },
