@@ -2,7 +2,7 @@
 // Licensed under the GNU GPL v3 or later. See the LICENSE file for details.
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { View, Text, Linking } from 'react-native';
+import { View, Text, Linking, StyleSheet } from 'react-native';
 import type { HistoryData, HistoryDataItem } from '../lib/vaults';
 import { TFunction } from 'i18next';
 import { BlockStatus } from '@bitcoinerlab/explorer';
@@ -24,6 +24,17 @@ import { useLocalization } from '../hooks/useLocalization';
 import { toNumber } from '../lib/sats';
 
 const INITIAL_NOW_SECONDS = Math.floor(Date.now() / 1000);
+
+// Avoid NativeWind `-rotate-45` on Svg className. It can trigger css-interop
+// "variables-upgrade" remount paths and crash with a misleading navigation
+// context error during re-renders:
+// - https://github.com/nativewind/nativewind/issues/1711
+// - https://github.com/expo/expo/issues/38191
+const styles = StyleSheet.create({
+  sentIconRotation: {
+    transform: [{ rotate: '-45deg' }]
+  }
+});
 
 const RawTransaction = ({
   tipStatus,
@@ -323,22 +334,23 @@ const RawTransaction = ({
       </View>
     );
   } else if (item.type === 'SENT') {
-    console.log(
-      'TRACE',
-      'item type is SENT',
-      JSON.stringify(
-        item,
-        (_, v) => (typeof v === 'bigint' ? v.toString() : v),
-        2
-      )
-    );
+    //console.log(
+    //  'TRACE',
+    //  'item type is SENT',
+    //  JSON.stringify(
+    //    item,
+    //    (_, v) => (typeof v === 'bigint' ? v.toString() : v),
+    //    2
+    //  )
+    //);
     header = (
       <View className="flex-row items-center flex-1">
         <View className="flex-row items-center self-start">
           {/*add an invisible space char with text-base to vertically cener the icon*/}
           <Text className="text-base inline-block w-0"> </Text>
           <Svg
-            className="stroke-red-500 stroke-2 fill-none w-5 h-5 -rotate-45 -mt-1"
+            className="stroke-red-500 stroke-2 fill-none w-5 h-5 -mt-1"
+            style={styles.sentIconRotation}
             viewBox="0 0 24 24"
           >
             <SendIcon />

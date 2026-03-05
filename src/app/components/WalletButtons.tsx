@@ -5,10 +5,27 @@ import React from 'react';
 import FreezeIcon from './FreezeIcon';
 import ReceiveIcon from './ReceiveIcon';
 import SendIcon from './SendIcon';
-import { View, Text, Pressable, LayoutChangeEvent } from 'react-native';
+import {
+  View,
+  Text,
+  Pressable,
+  LayoutChangeEvent,
+  StyleSheet
+} from 'react-native';
 import { Svg } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
+
+// Avoid NativeWind `-rotate-45` on Svg className. It can trigger css-interop
+// "variables-upgrade" remount paths and crash with a misleading navigation
+// context error during re-renders:
+// - https://github.com/nativewind/nativewind/issues/1711
+// - https://github.com/expo/expo/issues/38191
+const styles = StyleSheet.create({
+  sendIconRotation: {
+    transform: [{ rotate: '-45deg' }]
+  }
+});
 
 const Button = ({
   onPress,
@@ -26,7 +43,8 @@ const Button = ({
       }
     >
       <Svg
-        className={`native:text-base web:text-xs web:sm:text-base stroke-white stroke-2 w-5 h-5 ${type === 'SEND' ? '-rotate-45' : ''} ${type === 'FREEZE' ? 'fill-white' : 'fill-none'}`}
+        className={`native:text-base web:text-xs web:sm:text-base stroke-white stroke-2 w-5 h-5 ${type === 'FREEZE' ? 'fill-white' : 'fill-none'}`}
+        style={type === 'SEND' ? styles.sendIconRotation : undefined}
         viewBox="0 0 24 24"
       >
         {type === 'RECEIVE' ? (

@@ -70,3 +70,8 @@ I decided to create a fork since patch-package was not working well with binarie
 
 #react-native-fast-encoder
 https://github.com/maksimlya/react-native-fast-encoder/issues/9#issuecomment-3333723780
+
+--
+
+#react-native-css-interop
+https://github.com/nativewind/nativewind/issues/1711#issuecomment-4006761379

@@ -1,5 +1,5 @@
 diff --git a/node_modules/react-native-css-interop/dist/runtime/native/render-component.js b/node_modules/react-native-css-interop/dist/runtime/native/render-component.js
-index a352339..e325ac8 100644
+index a352339..df11e80 100644
 --- a/node_modules/react-native-css-interop/dist/runtime/native/render-component.js
 +++ b/node_modules/react-native-css-interop/dist/runtime/native/render-component.js
 @@ -16,6 +16,11 @@ exports.UpgradeState = {
@@ -50,7 +50,7 @@ index a352339..e325ac8 100644
              }
          }
          state.containers = exports.UpgradeState.UPGRADED;
-@@ -121,10 +126,60 @@ function createAnimatedComponent(Component) {
+@@ -121,26 +126,63 @@ function createAnimatedComponent(Component) {
      animatedCache.set(Component, AnimatedComponent);
      return AnimatedComponent;
  }
@@ -68,6 +68,22 @@ index a352339..e325ac8 100644
 +    return "Anonymous";
  }
 -function stringify(object) {
+-    const seen = new WeakSet();
+-    return JSON.stringify(object, function replace(_, value) {
+-        if (!(value !== null && typeof value === "object")) {
+-            return value;
+-        }
+-        if (seen.has(value)) {
+-            return "[Circular]";
+-        }
+-        seen.add(value);
+-        const newValue = Array.isArray(value) ? [] : {};
+-        for (const entry of Object.entries(value)) {
+-            newValue[entry[0]] = replace(entry[0], entry[1]);
+-        }
+-        seen.delete(value);
+-        return newValue;
+-    }, 2);
 +function safeGetProp(object, key) {
 +    try {
 +        return object?.[key];
@@ -104,40 +120,16 @@ index a352339..e325ac8 100644
 +    return `reason=${reason} base=${baseComponent} current=${currentComponent}`;
 +}
 +function printUpgradeWarning(warning, originalProps, diagnostics) {
-+    const className = formatDiagnosticValue(safeGetProp(originalProps, "className"));
-+    const testID = formatDiagnosticValue(safeGetProp(originalProps, "testID"));
-+    const hasStyle = safeGetProp(originalProps, "style") !== undefined;
-+    console.warn(`[css-interop upgrade] ${formatDiagnosticsTag(diagnostics)} className=${className} testID=${testID} hasStyle=${hasStyle}`);
-+    console.log(`CssInterop upgrade warning.\n\n${warning}.\n\nThis warning was caused by a component with the props:\n${stringify(originalProps, diagnostics)}\n\nIf adding or removing sibling components caused this warning you should add a unique "key" prop to your components. https://react.dev/learn/rendering-lists#keeping-list-items-in-order-with-key\n`);
-+}
-+function stringify(object, diagnostics) {
++    try {
++        const className = formatDiagnosticValue(safeGetProp(originalProps, "className"));
++        const testID = formatDiagnosticValue(safeGetProp(originalProps, "testID"));
++        const hasStyle = safeGetProp(originalProps, "style") !== undefined;
++        console.warn(`[css-interop upgrade] ${formatDiagnosticsTag(diagnostics)} className=${className} testID=${testID} hasStyle=${hasStyle} | ${warning}`);
++    }
++    catch (error) {
++        const message = error instanceof Error ? error.message : String(error);
++        console.warn(`[css-interop upgrade] Failed to log warning safely: ${message}`);
++    }
+ }
+ function getDebugReplacer() {
      const seen = new WeakSet();
-     return JSON.stringify(object, function replace(_, value) {
-         if (!(value !== null && typeof value === "object")) {
-@@ -135,8 +190,24 @@ function stringify(object) {
-         }
-         seen.add(value);
-         const newValue = Array.isArray(value) ? [] : {};
--        for (const entry of Object.entries(value)) {
--            newValue[entry[0]] = replace(entry[0], entry[1]);
-+        let entries;
-+        try {
-+            entries = Object.entries(value);
-+        }
-+        catch (error) {
-+            const message = error instanceof Error ? error.message : String(error);
-+            console.warn(`[css-interop stringify] ${formatDiagnosticsTag(diagnostics)} failed to enumerate object entries: ${message}`);
-+            return `[Unserializable object: ${message}]`;
-+        }
-+        for (const entry of entries) {
-+            try {
-+                newValue[entry[0]] = replace(entry[0], entry[1]);
-+            }
-+            catch (error) {
-+                const message = error instanceof Error ? error.message : String(error);
-+                console.warn(`[css-interop stringify] ${formatDiagnosticsTag(diagnostics)} failed to serialize key \"${entry[0]}\": ${message}`);
-+                newValue[entry[0]] = `[Unserializable value: ${message}]`;
-+            }
-         }
-         seen.delete(value);
-         return newValue;
