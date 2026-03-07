@@ -691,9 +691,24 @@ const WalletProviderRaw = ({
    *
    * 1) Broadcast to the network.
    * 2) Probe mempool visibility for each tx (parent + child).
-   * 3) Update discovery via `addTransaction`.
+   * 3) Probe discovery via `addTransaction`.
    * 4) If `addTransaction` reports `INPUTS_ALREADY_SPENT`, synchronize
-   *    affected descriptors with `discovery.fetch`.
+   *    discovery from the explorer.
+   *
+   * Important: replacement packages (the Accelerate button) are different from
+   * brand-new packages.
+   * When a replacement child reuses the previous child inputs, `addTransaction`
+   * can fail with `INPUTS_ALREADY_SPENT` by design, because discovery still
+   * considers those inputs spent by the old child. In that case the authoritative
+   * state update comes from the follow-up `discovery.fetch(...)`, not from
+   * `addTransaction(...)` itself.
+   *
+   * After such a replacement sync, wallet-visible UTXOs can change
+   * dramatically: old change from the replaced child disappears, new change may
+   * appear and previously spent inputs may re-enter the available set. To keep
+   * tx-building safe, we immediately rebuild in-memory `utxosData` and
+   * `historyData` from the refreshed discovery state before the user can start
+   * another wallet action.
    *
    * Like `discovery.push`, mempool visibility failures only emit warnings.
    */
@@ -710,6 +725,8 @@ const WalletProviderRaw = ({
         throw new Error('gapLimit not ready for pushTxPackage');
       if (!esploraAPI)
         throw new Error('esploraAPI not ready for pushTxPackage');
+      if (!vaults || !vaultsStatuses || !accounts || tipHeight === undefined)
+        throw new Error('Wallet state not ready for pushTxPackage');
 
       const response = await fetch(`${esploraAPI}/txs/package`, {
         method: 'POST',
@@ -795,9 +812,24 @@ const WalletProviderRaw = ({
         );
 
       let syncPerformed = false;
-      const uniqueDescriptors = Array.from(descriptorsToSync);
-      if (uniqueDescriptors.length > 0) {
-        await discovery.fetch({ descriptors: uniqueDescriptors, gapLimit });
+      const uniqueDescriptorsToSync = Array.from(descriptorsToSync);
+      if (uniqueDescriptorsToSync.length > 0) {
+        //This is the case when the pushTxPackage failed because this was
+        //a package replacement (Accelerate button)
+        await discovery.fetch({
+          descriptors: uniqueDescriptorsToSync,
+          gapLimit
+        });
+        const hotDescriptors = getHotDescriptors(
+          vaults,
+          vaultsStatuses,
+          accounts,
+          tipHeight
+        );
+        await discovery.fetch({ descriptors: hotDescriptors, gapLimit });
+        // This call updates in-memory wallet state immediately. The async part of
+        // `setUtxosHistoryExport` is only the later discoveryExport disk write.
+        setUtxosHistoryExport(vaults, vaultsStatuses, accounts, tipHeight);
         syncPerformed = true;
       }
 
@@ -814,7 +846,17 @@ const WalletProviderRaw = ({
           `txId ${childTxId}: Pushed package child was not found in the mempool immediately after broadcasting.`
         );
     },
-    [discovery, gapLimit, esploraAPI, networkTimeout]
+    [
+      discovery,
+      gapLimit,
+      esploraAPI,
+      networkTimeout,
+      vaults,
+      vaultsStatuses,
+      accounts,
+      tipHeight,
+      setUtxosHistoryExport
+    ]
   );
 
   /**

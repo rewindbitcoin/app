@@ -7,6 +7,13 @@
 //  - im sending a backup too
 //TODO: send the onchain backup
 //TODO: refactor functions and use onChainBackup.ts
+//
+//TODO: when we only have acceleartable unconfirmed utxos, then the modal-screens
+//for init unfreeze / rescue show the initial informational modal but then
+//only offer a "Cancel" button and is misleading
+//
+//TODO: in demo mode, Tape should send a couple of utxos so that its
+//possible to do a quick -> create vault -> init trigger -> rescue
 
 // TODO: very imporant to only allow Vaulting funds with 1 confirmatin at least (make this a setting) - test realistic vaults (TRUC)
 //
@@ -246,6 +253,52 @@ export type UtxosData = Array<{
   output: OutputInstance;
 }>;
 
+/**
+ * Outputs created by unconfirmed fee-payer children should not be used for new
+ * unrelated sends/vaults or to fund new trigger/rescue fee-payer children.
+ * Example: child A creates change back to the wallet, user then uses that
+ * change to build vault B (or another fee-payer child), and later child A gets
+ * accelerated/replaced. Vault B can suddenly depend on an output that no longer
+ * exists. To keep wallet coin selection simple, generic spending excludes those
+ * child-created outputs until they confirm.
+ *
+ * Note that plain `moize` is enough here because the inputs are already fairly
+ * stable upstream: `utxosData` and `historyData` come from memoized helpers and
+ * `vaultsStatuses` preserves its reference when nothing meaningful changed.
+ */
+export const getSpendableUtxosData = moize(
+  (
+    utxosData: UtxosData,
+    vaultsStatuses: VaultsStatuses | undefined,
+    historyData: HistoryData | undefined
+  ): UtxosData => {
+    if (!vaultsStatuses || !historyData?.length) return utxosData;
+
+    const unconfirmedTxIds = new Set(
+      historyData.filter(item => item.blockHeight === 0).map(item => item.txId)
+    );
+    const replaceableChildTxIds = new Set<TxId>();
+
+    Object.values(vaultsStatuses).forEach(vaultStatus => {
+      [vaultStatus.triggerCpfpTxHex, vaultStatus.panicCpfpTxHex].forEach(
+        txHex => {
+          if (!txHex) return;
+          const { txId } = transactionFromHex(txHex);
+          if (unconfirmedTxIds.has(txId)) replaceableChildTxIds.add(txId);
+        }
+      );
+    });
+
+    if (replaceableChildTxIds.size === 0) return utxosData;
+    const filteredUtxosData = utxosData.filter(
+      utxoData => !replaceableChildTxIds.has(utxoData.tx.getId())
+    );
+    return filteredUtxosData.length === utxosData.length
+      ? utxosData
+      : filteredUtxosData;
+  }
+);
+
 type VaultPresignedTx = {
   txId: TxId;
   blockHeight: number;
@@ -342,6 +395,56 @@ const getUtxoDataValue = (utxoData: UtxosData[number]) => {
   return toNumber(out.value);
 };
 
+export const findMinimumReplacementEffectiveFeeRate = ({
+  parentTxHex,
+  parentFee,
+  previousChildFee,
+  mandatoryUtxosData = [],
+  optionalUtxosData = [],
+  changeOutput,
+  maxTargetEffectiveFeeRate,
+  minimumComparedEffectiveFeeRate = 0,
+  incrementalRelayFeeRate = 0.1,
+  feeRateStep = 0.01
+}: {
+  parentTxHex: TxHex;
+  parentFee: number;
+  previousChildFee: number;
+  mandatoryUtxosData?: UtxosData;
+  optionalUtxosData?: UtxosData;
+  changeOutput: OutputInstance;
+  maxTargetEffectiveFeeRate: number;
+  minimumComparedEffectiveFeeRate?: number;
+  incrementalRelayFeeRate?: number;
+  feeRateStep?: number;
+}): number | undefined => {
+  // Replacement relay checks absolute fee deltas too. We therefore scan the
+  // same 0.01 sat/vB grid used by the slider until we find the first plan whose
+  // child fee clears the old-child-fee + relay-delta threshold.
+  for (
+    let targetEffectiveFeeRate = minimumComparedEffectiveFeeRate;
+    targetEffectiveFeeRate <= maxTargetEffectiveFeeRate;
+    targetEffectiveFeeRate = Number(
+      (targetEffectiveFeeRate + feeRateStep).toFixed(2)
+    )
+  ) {
+    const plan = estimateCpfpPackage({
+      parentTxHex,
+      parentFee,
+      targetEffectiveFeeRate,
+      mandatoryUtxosData,
+      optionalUtxosData,
+      changeOutput
+    });
+    if (!plan) continue;
+    const minimumReplacementChildFee =
+      previousChildFee + Math.ceil(plan.childVSize * incrementalRelayFeeRate);
+    if (plan.childFee >= minimumReplacementChildFee)
+      return targetEffectiveFeeRate;
+  }
+  return;
+};
+
 const estimateCpfpChildVSize = (
   selectedUtxosData: UtxosData,
   changeOutput: OutputInstance
@@ -370,13 +473,15 @@ export const estimateCpfpPackage = ({
   parentTxHex,
   parentFee,
   targetEffectiveFeeRate,
-  utxosData,
+  mandatoryUtxosData = [],
+  optionalUtxosData = [],
   changeOutput
 }: {
   parentTxHex: TxHex;
   parentFee: number;
   targetEffectiveFeeRate: number;
-  utxosData: UtxosData;
+  mandatoryUtxosData?: UtxosData;
+  optionalUtxosData?: UtxosData;
   changeOutput: OutputInstance;
 }):
   | {
@@ -401,14 +506,21 @@ export const estimateCpfpPackage = ({
 
   const parentVSize = parentTx.virtualSize();
   const dust = toNumber(dustThreshold(changeOutput));
-  const sortedUtxosData = [...utxosData].sort(
+  const sortedOptionalUtxosData = [...optionalUtxosData].sort(
     (a, b) => getUtxoDataValue(b) - getUtxoDataValue(a)
   );
 
-  let selectedUtxosData: UtxosData = [];
-  let selectedUtxosValue = 0;
+  // For replacements, keep all previous non-anchor inputs mandatory and only
+  // add confirmed extras if the mandatory set alone cannot satisfy
+  // fee/dust/TRUC constraints. This avoids reusing outputs created by the tx
+  // being replaced and keeps replacement selection KISS.
+  let selectedUtxosData: UtxosData = [...mandatoryUtxosData];
+  let selectedUtxosValue = mandatoryUtxosData.reduce(
+    (sum, utxoData) => sum + getUtxoDataValue(utxoData),
+    0
+  );
 
-  for (let i = 0; i <= sortedUtxosData.length; i++) {
+  for (let i = 0; i <= sortedOptionalUtxosData.length; i++) {
     const childVSize = estimateCpfpChildVSize(selectedUtxosData, changeOutput);
     if (parentTx.version === 3 && childVSize > MAX_TRUC_CHILD_VSIZE) return; //FIXME: throw some message?
 
@@ -439,7 +551,7 @@ export const estimateCpfpPackage = ({
       };
     }
 
-    const nextUtxoData = sortedUtxosData[i];
+    const nextUtxoData = sortedOptionalUtxosData[i];
     if (!nextUtxoData) break;
     selectedUtxosData = [...selectedUtxosData, nextUtxoData];
     selectedUtxosValue += getUtxoDataValue(nextUtxoData);
@@ -455,7 +567,8 @@ export const createCpfpChildTx = async ({
   parentTxHex,
   parentFee,
   targetEffectiveFeeRate,
-  utxosData,
+  mandatoryUtxosData = [],
+  optionalUtxosData = [],
   changeOutput,
   signer,
   network
@@ -463,7 +576,8 @@ export const createCpfpChildTx = async ({
   parentTxHex: TxHex;
   parentFee: number;
   targetEffectiveFeeRate: number;
-  utxosData: UtxosData;
+  mandatoryUtxosData?: UtxosData;
+  optionalUtxosData?: UtxosData;
   changeOutput: OutputInstance;
   signer: Signer;
   network: Network;
@@ -482,7 +596,8 @@ export const createCpfpChildTx = async ({
     parentTxHex,
     parentFee,
     targetEffectiveFeeRate,
-    utxosData,
+    mandatoryUtxosData,
+    optionalUtxosData,
     changeOutput
   });
   if (!plan) return;

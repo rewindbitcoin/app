@@ -35,6 +35,7 @@ import {
   estimateSendTxFee,
   calculateTx
 } from '../lib/sendTransaction';
+import { getSpendableUtxosData } from '../lib/vaults';
 import { networkMapping } from '../lib/network';
 import { useSettings } from '../hooks/useSettings';
 import { useWallet } from '../hooks/useWallet';
@@ -65,14 +66,24 @@ export default function Send() {
     utxosData,
     networkId,
     accounts,
+    historyData,
+    vaultsStatuses,
     getNextChangeDescriptorWithIndex,
     txPushAndUpdateStates,
     signers
   } = useWallet();
 
+  const spendableUtxosData = useMemo(
+    () =>
+      utxosData
+        ? getSpendableUtxosData(utxosData, vaultsStatuses, historyData)
+        : undefined,
+    [utxosData, vaultsStatuses, historyData]
+  );
+
   //Warn the user and reset this component if wallet changes.
   const walletChanged = useArrayChangeDetector([
-    utxosData,
+    spendableUtxosData,
     networkId,
     accounts
   ]);
@@ -81,8 +92,10 @@ export default function Send() {
   const btcFiat = useFirstDefinedValue<number>(btcFiatRealTime);
   const feeEstimates = useFirstDefinedValue<FeeEstimates>(feeEstimatesRealTime);
 
-  if (!utxosData)
+  if (!spendableUtxosData)
     throw new Error('SendScreen cannot be called with unset utxos');
+  if (!utxosData)
+    throw new Error('SendScreen cannot be called with unset raw utxos');
   if (!accounts)
     throw new Error('SendScreen cannot be called with unset accounts');
   if (!networkId)
@@ -91,6 +104,9 @@ export default function Send() {
     throw new Error('SendScreen cannot be called with unset feeEstimates');
   if (!signers)
     throw new Error('SendScreen cannot be called with unset signers');
+  const rawUtxosData = utxosData;
+  const spendableUtxos = spendableUtxosData;
+  const hasReservedFunds = spendableUtxos !== rawUtxosData;
   const signer = signers[0];
   if (!signer) throw new Error('signer unavailable');
   const network = networkMapping[networkId];
@@ -144,7 +160,24 @@ export default function Send() {
     min: minAmount,
     max: maxAmount,
     maxWhen1SxB: maxAmountWhen1SxB
-  } = estimateSendRange({ utxosData, address, network, feeRate });
+  } = estimateSendRange({
+    utxosData: spendableUtxos,
+    address,
+    network,
+    feeRate
+  });
+  const { maxWhen1SxB: maxAmountWhen1SxBRaw } = estimateSendRange({
+    utxosData: rawUtxosData,
+    address,
+    network,
+    feeRate
+  });
+  // If the raw wallet can build a tx but the spendable subset cannot, then the
+  // user is not truly out of funds. Some UTXOs are just temporarily reserved
+  // because they come from unconfirmed fee-payer children that may still be
+  // replaced.
+  const blockedByReservedFunds =
+    maxAmountWhen1SxB === null && maxAmountWhen1SxBRaw !== null;
 
   const lastKnownValidAmountRef = useRef<number | null>(maxAmount);
   const isValidAmountRange = maxAmount !== null && maxAmount >= minAmount;
@@ -191,7 +224,7 @@ export default function Send() {
     try {
       const txHexAndFee = await calculateTx({
         signer,
-        utxosData,
+        utxosData: spendableUtxos,
         address,
         feeRate,
         amount,
@@ -217,7 +250,7 @@ export default function Send() {
   }, [
     changeOutput,
     toast,
-    utxosData,
+    spendableUtxos,
     network,
     signer,
     t,
@@ -279,7 +312,7 @@ export default function Send() {
         if (isMaxAmount && newFeeRate !== null) {
           // Calculate the new max amount with the updated fee rate
           const { max: newMaxAmount } = estimateSendRange({
-            utxosData,
+            utxosData: spendableUtxos,
             address,
             network,
             feeRate: newFeeRate
@@ -292,11 +325,11 @@ export default function Send() {
         }
       });
     },
-    [isMaxAmount, utxosData, address, network]
+    [isMaxAmount, spendableUtxos, address, network]
   );
 
   const fee = estimateSendTxFee({
-    utxosData,
+    utxosData: spendableUtxos,
     address: address || DUMMY_SEND_ADDRESS(network),
     feeRate,
     amount,
@@ -355,11 +388,25 @@ export default function Send() {
         </View>
       ) : maxAmountWhen1SxB === null ? (
         <View className="w-full max-w-screen-sm mx-4" style={containerStyle}>
-          <Text className="mb-8">{t('send.notEnoughFunds')}</Text>
+          <Text className="mb-8">
+            {blockedByReservedFunds
+              ? t('send.reservedFunds')
+              : t('send.notEnoughFunds')}
+          </Text>
           <Button onPress={navigation.goBack}>{t('goBack')}</Button>
         </View>
       ) : (
         <View className="w-full max-w-screen-sm mx-4" style={containerStyle}>
+          {hasReservedFunds ? (
+            <View className="mb-6 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3">
+              <Text className="text-base font-bold text-amber-900 mb-1">
+                {t('send.reservedFundsTitle')}
+              </Text>
+              <Text className="text-base text-amber-900">
+                {t('send.reservedFundsBody')}
+              </Text>
+            </View>
+          ) : null}
           <AddressInput
             type="external"
             networkId={networkId}

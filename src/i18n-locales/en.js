@@ -564,6 +564,14 @@ We want to make sure you will be able to rescue your Vault in case of an emergen
 This minimum amount is calculated based on the assumption that you may need rapid transaction confirmations and that future network fees could become high ({{feeRateCeiling}} Ksats/vB).
 
 <strong>Suggested Action:</strong> Please add {{missingFunds}} to reach the minimum amount required for vaulting.`,
+    reservedFundsNotice: `<strong>Funds Temporarily Reserved</strong>
+
+Some of your funds are temporarily reserved while Rewind protects important pending vault transactions that may still need acceleration.
+
+<strong>Suggested Action:</strong> Please wait for those transactions to confirm before creating a new vault.`,
+    reservedFundsBanner: `<strong>Some Funds Are Temporarily Reserved</strong>
+
+Some of your funds are being kept aside while Rewind protects important pending vault transactions that may still need acceleration. Not all funds will be available again until those transactions confirm.`,
     amountLabel: 'Amount to Freeze',
     securityLockTimeLabel: 'Theft-Protection Time-Lock',
     securityLockTimeDescription: 'Unlocks {{blocks}} after unfreeze',
@@ -585,6 +593,11 @@ For your security, please review these changes before proceeding.`
   send: {
     title: 'Send Bitcoin',
     notEnoughFunds: 'Insufficient funds to create the transaction',
+    reservedFunds:
+      'Some of your funds are temporarily reserved while Rewind protects important pending vault transactions that may still need acceleration. Please wait for confirmation before creating a new send.',
+    reservedFundsTitle: 'Some Funds Are Temporarily Reserved',
+    reservedFundsBody:
+      'Some of your funds are being kept aside while Rewind protects important pending vault transactions that may still need acceleration. Not all funds will be available again until those transactions confirm.',
     lowerFeeRate: `Transaction not possible with the selected fee rate and your available funds.
 
 Please lower the fee rate or add more funds.`,

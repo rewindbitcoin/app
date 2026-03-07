@@ -29,6 +29,7 @@ import {
   type VaultsStatuses,
   type Vaults as VaultsType,
   createCpfpChildTx,
+  getSpendableUtxosData,
   getVaultFrozenBalance,
   getVaultMode,
   getRemainingBlocks,
@@ -46,7 +47,9 @@ import type { BlockStatus } from '@bitcoinerlab/explorer';
 import InitUnfreeze from './InitUnfreeze';
 import Rescue from './Rescue';
 import {
-  getReplacementNonAnchorTxos,
+  getMinimumReplacementChildFee,
+  getPreviousCpfpChildData,
+  getReplacementUtxosData,
   type VaultActionTxData
 } from '../lib/vaultActionTx';
 import { useWallet } from '../hooks/useWallet';
@@ -318,6 +321,7 @@ const RawVault = ({
   const {
     accounts,
     utxosData,
+    vaultsStatuses,
     getUtxosDataFromTxos,
     historyData,
     networkId,
@@ -325,6 +329,13 @@ const RawVault = ({
     getNextChangeDescriptorWithIndex,
     pushTxPackage
   } = useWallet();
+  const spendableUtxosData = useMemo(
+    () =>
+      utxosData
+        ? getSpendableUtxosData(utxosData, vaultsStatuses, historyData)
+        : undefined,
+    [utxosData, vaultsStatuses, historyData]
+  );
 
   const [showInitUnfreeze, setShowInitUnfreeze] = useState<boolean>(false);
   const handleCloseInitUnfreeze = useCallback(
@@ -379,7 +390,7 @@ const RawVault = ({
               return;
             }
 
-            if (!accounts || !utxosData || !networkId || !signers)
+            if (!accounts || !spendableUtxosData || !networkId || !signers)
               throw new Error('Wallet not ready for Rewind2 trigger package');
             const signer = signers[0];
             if (!signer) throw new Error('signer unavailable');
@@ -391,34 +402,75 @@ const RawVault = ({
               network
             );
 
-            let candidateUtxosData = utxosData;
+            let mandatoryUtxosData = undefined;
+            let optionalUtxosData = spendableUtxosData;
+            const previousChildTxHex = vaultStatus?.triggerCpfpTxHex;
             if (isTriggerAccelerationAttempt) {
-              const previousChildTxHex = vaultStatus?.triggerCpfpTxHex;
+              if (vaultStatus?.panicPushTime || vaultStatus?.panicTxHex)
+                throw new Error(
+                  'Cannot accelerate trigger after rescue has started'
+                );
               if (!previousChildTxHex)
                 throw new Error(
                   'Missing synced trigger CPFP inputs for acceleration'
                 );
-              const replacementTxos = getReplacementNonAnchorTxos({
+              if (!historyData?.length)
+                throw new Error(
+                  'Missing synced trigger history for acceleration'
+                );
+              const replacementUtxosData = getReplacementUtxosData({
                 parentTxHex: initUnfreezeData.parentTxHex,
-                previousChildTxHex
+                previousChildTxHex,
+                utxosData: spendableUtxosData,
+                historyData,
+                getUtxosDataFromTxos
               });
-              candidateUtxosData = getUtxosDataFromTxos(replacementTxos);
-              if (candidateUtxosData.length !== replacementTxos.length)
+              if (!replacementUtxosData)
                 throw new Error(
                   'Missing exact trigger replacement inputs from discovery'
                 );
+              mandatoryUtxosData = replacementUtxosData.mandatoryUtxosData;
+              optionalUtxosData = replacementUtxosData.optionalUtxosData;
             }
             const childTxData = await createCpfpChildTx({
               parentTxHex: initUnfreezeData.parentTxHex,
               parentFee: initUnfreezeData.parentTxFee,
               targetEffectiveFeeRate: initUnfreezeData.effectiveFeeRate,
-              utxosData: candidateUtxosData,
+              ...(mandatoryUtxosData ? { mandatoryUtxosData } : {}),
+              optionalUtxosData,
               changeOutput,
               signer,
               network
             });
             if (!childTxData)
               throw new Error('Cannot build trigger fee-bump transaction');
+            if (isTriggerAccelerationAttempt) {
+              // Final local safety check before broadcast. Even if the user chose
+              // a higher-looking fee-rate, relay still rejects the replacement if
+              // the new child does not add enough absolute sats over the old one.
+              if (!historyData?.length || !previousChildTxHex)
+                throw new Error(
+                  'Missing trigger history to validate replacement fee'
+                );
+              const previousCpfpData = getPreviousCpfpChildData({
+                parentTxHex: initUnfreezeData.parentTxHex,
+                parentFee: initUnfreezeData.parentTxFee,
+                previousChildTxHex,
+                historyData
+              });
+              if (!previousCpfpData)
+                throw new Error(
+                  'Cannot reconstruct previous trigger fee-payer transaction'
+                );
+              const minimumReplacementChildFee = getMinimumReplacementChildFee({
+                previousChildFee: previousCpfpData.childFee,
+                replacementChildVSize: childTxData.childVSize
+              });
+              if (childTxData.childFee < minimumReplacementChildFee)
+                throw new Error(
+                  'Selected trigger acceleration fee is too low to replace the current fee payer'
+                );
+            }
             triggerCpfpTxHex = childTxData.childTxHex;
             await pushTxPackage({
               parentTxHex: initUnfreezeData.parentTxHex,
@@ -450,7 +502,7 @@ const RawVault = ({
       watchtowerAPI,
       settings?.NETWORK_TIMEOUT,
       accounts,
-      utxosData,
+      spendableUtxosData,
       getUtxosDataFromTxos,
       networkId,
       signers,
@@ -460,6 +512,7 @@ const RawVault = ({
       isLegacyVault,
       vault.vaultId,
       vaultStatus,
+      historyData,
       updateVaultStatus,
       netRequest,
       toast,
@@ -497,7 +550,7 @@ const RawVault = ({
               return;
             }
 
-            if (!accounts || !utxosData || !networkId || !signers)
+            if (!accounts || !spendableUtxosData || !networkId || !signers)
               throw new Error('Wallet not ready for Rewind2 rescue package');
             const signer = signers[0];
             if (!signer) throw new Error('signer unavailable');
@@ -509,34 +562,69 @@ const RawVault = ({
               network
             );
 
-            let candidateUtxosData = utxosData;
+            let mandatoryUtxosData = undefined;
+            let optionalUtxosData = spendableUtxosData;
+            const previousChildTxHex = vaultStatus?.panicCpfpTxHex;
             if (isRescueAccelerationAttempt) {
-              const previousChildTxHex = vaultStatus?.panicCpfpTxHex;
               if (!previousChildTxHex)
                 throw new Error(
                   'Missing synced rescue CPFP inputs for acceleration'
                 );
-              const replacementTxos = getReplacementNonAnchorTxos({
+              if (!historyData?.length)
+                throw new Error(
+                  'Missing synced rescue history for acceleration'
+                );
+              const replacementUtxosData = getReplacementUtxosData({
                 parentTxHex: rescueData.parentTxHex,
-                previousChildTxHex
+                previousChildTxHex,
+                utxosData: spendableUtxosData,
+                historyData,
+                getUtxosDataFromTxos
               });
-              candidateUtxosData = getUtxosDataFromTxos(replacementTxos);
-              if (candidateUtxosData.length !== replacementTxos.length)
+              if (!replacementUtxosData)
                 throw new Error(
                   'Missing exact rescue replacement inputs from discovery'
                 );
+              mandatoryUtxosData = replacementUtxosData.mandatoryUtxosData;
+              optionalUtxosData = replacementUtxosData.optionalUtxosData;
             }
             const childTxData = await createCpfpChildTx({
               parentTxHex: rescueData.parentTxHex,
               parentFee: rescueData.parentTxFee,
               targetEffectiveFeeRate: rescueData.effectiveFeeRate,
-              utxosData: candidateUtxosData,
+              ...(mandatoryUtxosData ? { mandatoryUtxosData } : {}),
+              optionalUtxosData,
               changeOutput,
               signer,
               network
             });
             if (!childTxData)
               throw new Error('Cannot build rescue fee-bump transaction');
+            if (isRescueAccelerationAttempt) {
+              // Same relay rule as above, but now for the rescue fee-payer child.
+              if (!historyData?.length || !previousChildTxHex)
+                throw new Error(
+                  'Missing rescue history to validate replacement fee'
+                );
+              const previousCpfpData = getPreviousCpfpChildData({
+                parentTxHex: rescueData.parentTxHex,
+                parentFee: rescueData.parentTxFee,
+                previousChildTxHex,
+                historyData
+              });
+              if (!previousCpfpData)
+                throw new Error(
+                  'Cannot reconstruct previous rescue fee-payer transaction'
+                );
+              const minimumReplacementChildFee = getMinimumReplacementChildFee({
+                previousChildFee: previousCpfpData.childFee,
+                replacementChildVSize: childTxData.childVSize
+              });
+              if (childTxData.childFee < minimumReplacementChildFee)
+                throw new Error(
+                  'Selected rescue acceleration fee is too low to replace the current fee payer'
+                );
+            }
             panicCpfpTxHex = childTxData.childTxHex;
             await pushTxPackage({
               parentTxHex: rescueData.parentTxHex,
@@ -566,12 +654,13 @@ const RawVault = ({
       pushTx,
       vault.vaultId,
       vaultStatus,
+      historyData,
       updateVaultStatus,
       netRequest,
       toast,
       t,
       accounts,
-      utxosData,
+      spendableUtxosData,
       getUtxosDataFromTxos,
       networkId,
       signers,
@@ -633,6 +722,10 @@ const RawVault = ({
 
   const canAccelerateTrigger = useMemo(() => {
     if (isInitUnfreezeBeingHandled) return false;
+    // Once rescue exists, the live child hanging from the trigger is the rescue
+    // path, not the old trigger fee-payer child. Offering "accelerate trigger"
+    // here is misleading and can produce invalid replacements.
+    if (isRescueTx) return false;
     if (
       !(
         (isInitUnfreezeTxPushed || isInitUnfreezeTxInMempool) &&
@@ -641,18 +734,18 @@ const RawVault = ({
     )
       return false;
     if (isLegacyVault) return true;
-    if (!historyData?.length) return false;
+    if (!historyData?.length || !spendableUtxosData) return false;
     const parentTxHex = vaultStatus?.triggerTxHex;
     const previousChildTxHex = vaultStatus?.triggerCpfpTxHex;
     if (!parentTxHex || !previousChildTxHex) return false;
     try {
-      const replacementTxos = getReplacementNonAnchorTxos({
+      return !!getReplacementUtxosData({
         parentTxHex,
-        previousChildTxHex
+        previousChildTxHex,
+        utxosData: spendableUtxosData,
+        historyData,
+        getUtxosDataFromTxos
       });
-      return (
-        getUtxosDataFromTxos(replacementTxos).length === replacementTxos.length
-      );
     } catch {
       return false;
     }
@@ -661,9 +754,11 @@ const RawVault = ({
     isInitUnfreezeTxInMempool,
     isInitUnfreezeTxConfirmed,
     isInitUnfreezeBeingHandled,
+    isRescueTx,
     isLegacyVault,
     vaultStatus?.triggerTxHex,
     vaultStatus?.triggerCpfpTxHex,
+    spendableUtxosData,
     historyData,
     getUtxosDataFromTxos
   ]);
@@ -672,18 +767,18 @@ const RawVault = ({
     if (isRescueBeingHandled) return false;
     if (!(isRescueTx && !isRescueTxConfirmed)) return false;
     if (isLegacyVault) return true;
-    if (!historyData?.length) return false;
+    if (!historyData?.length || !spendableUtxosData) return false;
     const parentTxHex = vaultStatus?.panicTxHex;
     const previousChildTxHex = vaultStatus?.panicCpfpTxHex;
     if (!parentTxHex || !previousChildTxHex) return false;
     try {
-      const replacementTxos = getReplacementNonAnchorTxos({
+      return !!getReplacementUtxosData({
         parentTxHex,
-        previousChildTxHex
+        previousChildTxHex,
+        utxosData: spendableUtxosData,
+        historyData,
+        getUtxosDataFromTxos
       });
-      return (
-        getUtxosDataFromTxos(replacementTxos).length === replacementTxos.length
-      );
     } catch {
       return false;
     }
@@ -694,6 +789,7 @@ const RawVault = ({
     isLegacyVault,
     vaultStatus?.panicTxHex,
     vaultStatus?.panicCpfpTxHex,
+    spendableUtxosData,
     historyData,
     getUtxosDataFromTxos
   ]);

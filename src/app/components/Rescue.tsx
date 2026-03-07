@@ -16,6 +16,8 @@ import {
   type Vault,
   type VaultStatus,
   estimateCpfpPackage,
+  findMinimumReplacementEffectiveFeeRate,
+  getSpendableUtxosData,
   getVaultMode
 } from '../lib/vaults';
 import { transactionFromHex } from '../lib/bitcoin';
@@ -24,10 +26,10 @@ import useFirstDefinedValue from '~/common/hooks/useFirstDefinedValue';
 import { toNumber } from '../lib/sats';
 import { DUMMY_CHANGE_OUTPUT, getMainAccount } from '../lib/vaultDescriptors';
 import { networkMapping } from '../lib/network';
-import { toHex } from 'uint8array-tools';
 import {
+  getPreviousCpfpChildData,
   findNextEqualOrLargerEffectiveFeeRate,
-  getReplacementNonAnchorTxos,
+  getReplacementUtxosData,
   type VaultActionTxData
 } from '../lib/vaultActionTx';
 
@@ -53,18 +55,53 @@ const Rescue = ({
     feeEstimates: feeEstimatesRealTime,
     btcFiat: btcFiatRealTime,
     utxosData,
+    vaultsStatuses,
     getUtxosDataFromTxos,
     accounts,
     networkId,
     historyData
   } = useWallet();
+  // Cache to avoid flickering in the sliders while background refreshes happen.
+  const btcFiat = useFirstDefinedValue<number>(btcFiatRealTime);
+  const feeEstimates = useFirstDefinedValue<FeeEstimates>(feeEstimatesRealTime);
+  const spendableUtxosData = useMemo(
+    () =>
+      utxosData
+        ? getSpendableUtxosData(utxosData, vaultsStatuses, historyData)
+        : undefined,
+    [utxosData, vaultsStatuses, historyData]
+  );
 
-  // Exact minimum fee-rate floor required for acceleration.
-  // zero if this is the first rescue attempt (not acceleration)
+  const previousCpfpData = useMemo(() => {
+    if (!isAccelerationAttempt || isLegacyVault) return null;
+    const panicTxHex = vaultStatus?.panicTxHex;
+    const panicCpfpTxHex = vaultStatus?.panicCpfpTxHex;
+    if (!panicTxHex || !panicCpfpTxHex || !historyData?.length) return null;
+    const panicTxData = vault.txMap[panicTxHex];
+    if (!panicTxData) return null;
+    return getPreviousCpfpChildData({
+      parentTxHex: panicTxHex,
+      parentFee: panicTxData.fee,
+      previousChildTxHex: panicCpfpTxHex,
+      historyData
+    });
+  }, [
+    isAccelerationAttempt,
+    isLegacyVault,
+    vaultStatus?.panicTxHex,
+    vaultStatus?.panicCpfpTxHex,
+    vault,
+    historyData
+  ]);
+
+  // Minimum fee-rate floor required for acceleration.
   //
-  // Non-legacy acceleration must use the previous effective package fee rate
-  // (parent + existing CPFP child). If we cannot derive it exactly from synced
-  // data yet, return null and hide the Accelerate CTA until sync catches up.
+  // For Rewind2 we must clear two different relay checks at once:
+  // 1) package feerate must improve, and
+  // 2) the new child must add enough absolute fee over the old child.
+  //
+  // This avoids a common confusing failure mode where the replacement looks
+  // "faster" by feerate but still gets rejected for not adding enough sats.
   const feeRateToReplace = useMemo<number | null>(() => {
     if (!isAccelerationAttempt) return 0;
     if (isLegacyVault) {
@@ -79,56 +116,55 @@ const Rescue = ({
         throw new Error('Invalid panicTxHex');
       return (
         (toNumber(triggerOutValue) - toNumber(panicOutValue)) /
-        panicTx.virtualSize()
+          panicTx.virtualSize() +
+        1
       );
     } else {
-      //compute the effectiveFeeRate
       const panicTxHex = vaultStatus?.panicTxHex;
       if (!panicTxHex) return null;
       const panicTxData = vault.txMap[panicTxHex];
       if (!panicTxData) return null;
-      const { tx } = transactionFromHex(panicTxHex);
+      if (!previousCpfpData || !spendableUtxosData || !accounts || !networkId)
+        return null;
+      const network = networkMapping[networkId];
+      const changeOutput = DUMMY_CHANGE_OUTPUT(
+        getMainAccount(accounts, network),
+        network
+      );
       const panicCpfpTxHex = vaultStatus?.panicCpfpTxHex;
       if (!panicCpfpTxHex || !historyData?.length) return null;
-      const { tx: panicCpfpTx } = transactionFromHex(panicCpfpTxHex);
-      const panicAnchorOutput = tx.outs[1];
-      if (!panicAnchorOutput) return null;
-
-      const txById = new Map(historyData.map(item => [item.txId, item.tx]));
-      const parentTxId = tx.getId();
-      let childInputValue = BigInt(0);
-
-      for (const input of panicCpfpTx.ins) {
-        const prevTxId = toHex(Uint8Array.from(input.hash).reverse());
-        if (prevTxId === parentTxId && input.index === 1) {
-          childInputValue += panicAnchorOutput.value;
-          continue;
-        }
-        const prevTx = txById.get(prevTxId);
-        const prevOut = prevTx?.outs[input.index];
-        if (!prevOut) return null;
-        childInputValue += prevOut.value;
-      }
-
-      const childOutputValue = panicCpfpTx.outs.reduce(
-        (sum, output) => sum + output.value,
-        BigInt(0)
-      );
-      if (childInputValue <= childOutputValue) return null;
-      const childFee = Number(childInputValue - childOutputValue);
-      return (
-        (panicTxData.fee + childFee) /
-        (tx.virtualSize() + panicCpfpTx.virtualSize())
-      );
+      const replacementUtxosData = getReplacementUtxosData({
+        parentTxHex: panicTxHex,
+        previousChildTxHex: panicCpfpTxHex,
+        utxosData: spendableUtxosData,
+        historyData,
+        getUtxosDataFromTxos
+      });
+      if (!replacementUtxosData || !feeEstimates) return null;
+      const replacementFloor = findMinimumReplacementEffectiveFeeRate({
+        parentTxHex: panicTxHex,
+        parentFee: panicTxData.fee,
+        previousChildFee: previousCpfpData.childFee,
+        mandatoryUtxosData: replacementUtxosData.mandatoryUtxosData,
+        optionalUtxosData: replacementUtxosData.optionalUtxosData,
+        changeOutput,
+        maxTargetEffectiveFeeRate: computeMaxAllowedFeeRate(feeEstimates),
+        minimumComparedEffectiveFeeRate: previousCpfpData.effectiveFeeRate + 1
+      });
+      return replacementFloor ?? null;
     }
   }, [
     isAccelerationAttempt,
     isLegacyVault,
-    vaultStatus?.triggerTxHex,
-    vaultStatus?.panicTxHex,
-    vaultStatus?.panicCpfpTxHex,
+    vaultStatus,
     vault,
-    historyData
+    previousCpfpData,
+    spendableUtxosData,
+    accounts,
+    networkId,
+    historyData,
+    getUtxosDataFromTxos,
+    feeEstimates
   ]);
 
   const legacyRescueSortedTxs = useMemo(() => {
@@ -156,9 +192,6 @@ const Rescue = ({
       .sort((a, b) => a.effectiveFeeRate - b.effectiveFeeRate);
   }, [vault, vaultStatus?.triggerTxHex, isVisible, isLegacyVault]);
 
-  //Cache to avoid flickering in the Sliders
-  const btcFiat = useFirstDefinedValue<number>(btcFiatRealTime);
-  const feeEstimates = useFirstDefinedValue<FeeEstimates>(feeEstimatesRealTime);
   const maxFeeRate = feeEstimates ? computeMaxAllowedFeeRate(feeEstimates) : 0;
   const { settings } = useSettings();
   if (!settings)
@@ -171,7 +204,7 @@ const Rescue = ({
   const initialFeeRate =
     feeEstimates && feeRateToReplace !== null
       ? Math.max(
-          feeRateToReplace + 1,
+          feeRateToReplace,
           pickFeeEstimate(feeEstimates, settings.INITIAL_CONFIRMATION_TIME)
             .feeEstimate
         )
@@ -180,7 +213,7 @@ const Rescue = ({
   const isAccelerationSyncPending =
     isAccelerationAttempt && feeRateToReplace === null;
   const cannotAccelerateMaxFee =
-    feeRateToReplace !== null && feeRateToReplace + 1 > maxFeeRate;
+    feeRateToReplace !== null && feeRateToReplace > maxFeeRate;
   const canOpenFeeStepBase =
     initialFeeRate !== null &&
     !isAccelerationSyncPending &&
@@ -199,7 +232,7 @@ const Rescue = ({
     else {
       if (
         !isVisible ||
-        !utxosData ||
+        !spendableUtxosData ||
         !accounts ||
         Object.keys(accounts).length === 0 ||
         !networkId
@@ -222,22 +255,28 @@ const Rescue = ({
         getMainAccount(accounts, network),
         network
       );
-      let candidateUtxosData = utxosData;
+      let mandatoryUtxosData = undefined;
+      let optionalUtxosData = spendableUtxosData;
       if (isAccelerationAttempt) {
         const previousChildTxHex = vaultStatus?.panicCpfpTxHex;
         if (!previousChildTxHex || !historyData?.length) return null;
-        const replacementTxos = getReplacementNonAnchorTxos({
+        const replacementUtxosData = getReplacementUtxosData({
           parentTxHex: rescueTxHex,
-          previousChildTxHex
+          previousChildTxHex,
+          utxosData: spendableUtxosData,
+          historyData,
+          getUtxosDataFromTxos
         });
-        candidateUtxosData = getUtxosDataFromTxos(replacementTxos);
-        if (candidateUtxosData.length !== replacementTxos.length) return null;
+        if (!replacementUtxosData) return null;
+        mandatoryUtxosData = replacementUtxosData.mandatoryUtxosData;
+        optionalUtxosData = replacementUtxosData.optionalUtxosData;
       }
       const rewind2Plan = estimateCpfpPackage({
         parentTxHex: rescueTxHex,
         parentFee: rescueTxData.fee,
         targetEffectiveFeeRate: selectedFeeRate,
-        utxosData: candidateUtxosData,
+        ...(mandatoryUtxosData ? { mandatoryUtxosData } : {}),
+        optionalUtxosData,
         changeOutput
       });
       if (!rewind2Plan) return null;
@@ -256,7 +295,7 @@ const Rescue = ({
     isLegacyVault,
     legacyRescueSortedTxs,
     isVisible,
-    utxosData,
+    spendableUtxosData,
     getUtxosDataFromTxos,
     accounts,
     networkId,
@@ -360,7 +399,7 @@ const Rescue = ({
             <View className="bg-slate-100 p-2 rounded-xl">
               {feeEstimates ? (
                 <FeeInput
-                  {...(feeRateToReplace ? { min: feeRateToReplace + 1 } : {})}
+                  {...(feeRateToReplace ? { min: feeRateToReplace } : {})}
                   btcFiat={btcFiat}
                   feeEstimates={feeEstimates}
                   initialValue={initialFeeRate!}

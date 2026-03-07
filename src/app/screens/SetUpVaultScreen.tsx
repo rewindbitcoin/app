@@ -19,6 +19,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   areVaultsSynched,
+  getSpendableUtxosData,
   selectVaultUtxosData,
   type VaultSettings
 } from '../lib/vaults';
@@ -68,20 +69,31 @@ export default function VaultSetUp({
     utxosData,
     networkId,
     accounts,
+    historyData,
     vaults,
     vaultsStatuses,
     getNextChangeDescriptorWithIndex
   } = useWallet();
 
+  const spendableUtxosData = useMemo(
+    () =>
+      utxosData
+        ? getSpendableUtxosData(utxosData, vaultsStatuses, historyData)
+        : undefined,
+    [utxosData, vaultsStatuses, historyData]
+  );
+
   //Warn the user and reset this component if wallet changes.
-  const walletChanged = useArrayChangeDetector([utxosData, accounts]);
+  const walletChanged = useArrayChangeDetector([spendableUtxosData, accounts]);
 
   //Cache to avoid flickering in the Sliders
   const btcFiat = useFirstDefinedValue<number>(btcFiatRealTime);
   const feeEstimates = useFirstDefinedValue<FeeEstimates>(feeEstimatesRealTime);
 
-  if (!utxosData)
+  if (!spendableUtxosData)
     throw new Error('SetUpVaultScreen cannot be called with unset utxos');
+  if (!utxosData)
+    throw new Error('SetUpVaultScreen cannot be called with unset raw utxos');
   if (!accounts)
     throw new Error('SetUpVaultScreen cannot be called with unset accounts');
   if (!networkId)
@@ -90,6 +102,9 @@ export default function VaultSetUp({
     throw new Error(
       'SetUpVaultScreen cannot be called with unset feeEstimates'
     );
+  const rawUtxosData = utxosData;
+  const spendableUtxos = spendableUtxosData;
+  const hasReservedFunds = spendableUtxos !== rawUtxosData;
   const network = networkMapping[networkId];
 
   const { settings } = useSettings();
@@ -205,11 +220,21 @@ export default function VaultSetUp({
     };
   } = estimateLegacyVaultSetUpRange({
     accounts,
-    utxosData,
+    utxosData: spendableUtxos,
     coldAddress: coldAddress || DUMMY_COLD_ADDRESS(network),
     maxFeeRate,
     network,
     feeRate, //If feeRate is null, then estimateLegacyVaultSetUpRange uses maxFeeRate
+    feeRateCeiling: settings.PRESIGNED_FEE_RATE_CEILING,
+    minRecoverableRatio: settings.MIN_RECOVERABLE_RATIO
+  });
+  const rawVaultRange = estimateLegacyVaultSetUpRange({
+    accounts,
+    utxosData: rawUtxosData,
+    coldAddress: coldAddress || DUMMY_COLD_ADDRESS(network),
+    maxFeeRate,
+    network,
+    feeRate,
     feeRateCeiling: settings.PRESIGNED_FEE_RATE_CEILING,
     minRecoverableRatio: settings.MIN_RECOVERABLE_RATIO
   });
@@ -226,6 +251,12 @@ export default function VaultSetUp({
     maxVaultAmountWhenMaxFee !== undefined &&
     maxVaultAmountWhenMaxFee.vaultedAmount >=
       minRecoverableVaultAmount.vaultedAmount;
+  const blockedByReservedFunds =
+    !isValidVaultRange &&
+    rawVaultRange.maxVaultAmountWhenMaxFee !== undefined &&
+    rawVaultRange.maxVaultAmount !== undefined &&
+    rawVaultRange.maxVaultAmountWhenMaxFee.vaultedAmount >=
+      rawVaultRange.minRecoverableVaultAmount.vaultedAmount;
   const missingFunds: number =
     minRecoverableVaultAmount.transactionAmount +
     minRecoverableVaultAmount.vaultTxMiningFee -
@@ -286,11 +317,11 @@ export default function VaultSetUp({
 
       accounts,
       btcFiat,
-      utxosData
+      utxosData: spendableUtxos
     });
   }, [
     feeRate,
-    utxosData,
+    spendableUtxos,
     vaultedAmount,
     serviceFee,
     lockBlocks,
@@ -339,7 +370,7 @@ export default function VaultSetUp({
           // Use the same calculation method as in the main render flow
           // This ensures consistency between the two calculations
           const newMaxEstimate = estimateLegacyMaxVaultAmount({
-            utxosData,
+            utxosData: spendableUtxos,
             vaultOutput: DUMMY_VAULT_OUTPUT(network),
             feeRate: newFeeRate
           });
@@ -351,13 +382,13 @@ export default function VaultSetUp({
         }
       });
     },
-    [isMaxVaultedAmount, utxosData, network]
+    [isMaxVaultedAmount, spendableUtxos, network]
   );
 
   let fee = null;
   if (vaultedAmount !== null && serviceFee !== null && feeRate !== null) {
     const selected = selectVaultUtxosData({
-      utxosData,
+      utxosData: spendableUtxos,
       //We never use the final vaultOutput since it is built using a random
       //key that we don't want to keep in memory
       //This means the final fee may be larger depending on signature size
@@ -405,7 +436,11 @@ export default function VaultSetUp({
           <View className="mb-8">
             <Text className="text-base">
               <Trans
-                i18nKey="vaultSetup.notEnoughFunds"
+                i18nKey={
+                  blockedByReservedFunds
+                    ? 'vaultSetup.reservedFundsNotice'
+                    : 'vaultSetup.notEnoughFunds'
+                }
                 values={{
                   missingFunds: formatBtc({
                     amount: missingFunds * 1.03, //Ask for 3% more than needed
@@ -435,6 +470,18 @@ export default function VaultSetUp({
             <Text className="text-base mb-1">{t('vaultSetup.intro')}</Text>
             <LearnMoreAboutVaults />
           </View>
+          {hasReservedFunds ? (
+            <View className="mb-6 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3">
+              <Text className="text-base text-amber-900">
+                <Trans
+                  i18nKey="vaultSetup.reservedFundsBanner"
+                  components={{
+                    strong: <Text className="font-bold text-amber-900" />
+                  }}
+                />
+              </Text>
+            </View>
+          ) : null}
           <AmountInput
             btcFiat={btcFiat}
             isMaxAmount={isMaxVaultedAmount}
