@@ -73,13 +73,8 @@ export default function Send() {
     signers
   } = useWallet();
 
-  const spendableUtxosData = useMemo(
-    () =>
-      utxosData
-        ? getSpendableUtxosData(utxosData, vaultsStatuses, historyData)
-        : undefined,
-    [utxosData, vaultsStatuses, historyData]
-  );
+  const spendableUtxosData =
+    utxosData && getSpendableUtxosData(utxosData, vaultsStatuses, historyData);
 
   //Warn the user and reset this component if wallet changes.
   const walletChanged = useArrayChangeDetector([

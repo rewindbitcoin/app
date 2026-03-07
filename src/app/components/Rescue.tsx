@@ -64,13 +64,8 @@ const Rescue = ({
   // Cache to avoid flickering in the sliders while background refreshes happen.
   const btcFiat = useFirstDefinedValue<number>(btcFiatRealTime);
   const feeEstimates = useFirstDefinedValue<FeeEstimates>(feeEstimatesRealTime);
-  const spendableUtxosData = useMemo(
-    () =>
-      utxosData
-        ? getSpendableUtxosData(utxosData, vaultsStatuses, historyData)
-        : undefined,
-    [utxosData, vaultsStatuses, historyData]
-  );
+  const spendableUtxosData =
+    utxosData && getSpendableUtxosData(utxosData, vaultsStatuses, historyData);
 
   const previousCpfpData = useMemo(() => {
     if (!isAccelerationAttempt || isLegacyVault) return null;

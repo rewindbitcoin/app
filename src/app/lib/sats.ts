@@ -22,3 +22,10 @@ export const toBigInt = (value: number): bigint => {
     throw new Error(`Expected a safe integer number, received: ${value}`);
   return BigInt(value);
 };
+
+export const maxBigInt = (firstValue: bigint, ...values: bigint[]): bigint =>
+  values.reduce(
+    (currentMaximum, value) =>
+      value > currentMaximum ? value : currentMaximum,
+    firstValue
+  );

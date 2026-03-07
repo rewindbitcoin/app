@@ -329,13 +329,8 @@ const RawVault = ({
     getNextChangeDescriptorWithIndex,
     pushTxPackage
   } = useWallet();
-  const spendableUtxosData = useMemo(
-    () =>
-      utxosData
-        ? getSpendableUtxosData(utxosData, vaultsStatuses, historyData)
-        : undefined,
-    [utxosData, vaultsStatuses, historyData]
-  );
+  const spendableUtxosData =
+    utxosData && getSpendableUtxosData(utxosData, vaultsStatuses, historyData);
 
   const [showInitUnfreeze, setShowInitUnfreeze] = useState<boolean>(false);
   const handleCloseInitUnfreeze = useCallback(

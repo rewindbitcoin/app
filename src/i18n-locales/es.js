@@ -496,9 +496,9 @@ Verifica la dirección cuidadosamente para asegurarte de que corresponde a una F
 
 Rewind requiere una cantidad de congelación mínima para asegurar que tenga sentido financieramente.
 
-Queremos asegurarnos de que podrás rescatar tu Bóveda en caso de emergencia, independientemente de las comisiones futuras de Bitcoin.
+Queremos asegurarnos de que tu nueva bóveda pueda financiar su respaldo y su ruta de emergencia desde el principio.
 
-Esta cantidad mínima se calcula asumiendo que podrías necesitar confirmaciones rápidas y que las comisiones de minería futuras podrían llegar a ser altas ({{feeRateCeiling}} Ksats/vB).
+Esta cantidad mínima se calcula a partir de la estructura real de la bóveda Rewind2, incluyendo la salida del respaldo on-chain y las transacciones de emergencia que crea.
 
 <strong>Acción Sugerida:</strong> Por favor, agrega {{missingFunds}} para alcanzar la cantidad mínima requerida para crear la bóveda.`,
     reservedFundsNotice: `<strong>Fondos Reservados Temporalmente</strong>

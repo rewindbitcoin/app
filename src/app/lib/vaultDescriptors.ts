@@ -67,6 +67,13 @@ export const DUMMY_VAULT_OUTPUT = memoize((network: Network) => {
     network
   });
 });
+export const DUMMY_BACKUP_OUTPUT = memoize((network: Network) => {
+  const { Output } = ensureDescriptorsFactoryInstance();
+  return new Output({
+    descriptor: createVaultDescriptor(DUMMY_PUBKEY_2),
+    network
+  });
+});
 export const DUMMY_CHANGE_DESCRIPTOR = (account: string) =>
   account.replace(/\/0\/\*/g, '/1/0');
 

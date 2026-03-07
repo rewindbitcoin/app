@@ -1,4 +1,4 @@
-// Copyright (C) 2025 Jose-Luis Landabaso - https://rewindbitcoin.com
+// Copyright (C) 2026 Jose-Luis Landabaso - https://rewindbitcoin.com
 // Licensed under the GNU GPL v3 or later. See the LICENSE file for details.
 
 import AddressInput from '../components/AddressInput';
@@ -20,10 +20,12 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   areVaultsSynched,
   getSpendableUtxosData,
-  selectVaultUtxosData,
+  getMinimumCreateVaultFeeRate,
+  selectCreateVaultUtxosData,
   type VaultSettings
 } from '../lib/vaults';
 import {
+  DUMMY_BACKUP_OUTPUT,
   DUMMY_VAULT_OUTPUT,
   DUMMY_CHANGE_OUTPUT,
   getMainAccount,
@@ -36,13 +38,12 @@ import useArrayChangeDetector from '../../common/hooks/useArrayChangeDetector';
 import {
   computeMaxAllowedFeeRate,
   FeeEstimates,
-  MIN_FEE_RATE,
   pickFeeEstimate
 } from '../lib/fees';
 import { formatBtc } from '../lib/btcRates';
 import {
-  estimateLegacyMaxVaultAmount,
-  estimateLegacyVaultSetUpRange
+  estimateMaxVaultAmount,
+  estimateVaultSetupRange
 } from '../lib/vaultRange';
 import { networkMapping } from '../lib/network';
 import { useSettings } from '../hooks/useSettings';
@@ -75,13 +76,8 @@ export default function VaultSetUp({
     getNextChangeDescriptorWithIndex
   } = useWallet();
 
-  const spendableUtxosData = useMemo(
-    () =>
-      utxosData
-        ? getSpendableUtxosData(utxosData, vaultsStatuses, historyData)
-        : undefined,
-    [utxosData, vaultsStatuses, historyData]
-  );
+  const spendableUtxosData =
+    utxosData && getSpendableUtxosData(utxosData, vaultsStatuses, historyData);
 
   //Warn the user and reset this component if wallet changes.
   const walletChanged = useArrayChangeDetector([spendableUtxosData, accounts]);
@@ -150,138 +146,91 @@ export default function VaultSetUp({
     getAndSetChangeOutput();
   }, [getNextChangeDescriptorWithIndex, network, accounts]);
 
-  const { feeEstimate: initialFeeRate } = pickFeeEstimate(
+  const maxFeeRate = computeMaxAllowedFeeRate(feeEstimates);
+  const minimumFeeRate = getMinimumCreateVaultFeeRate(network);
+  const vaultMode =
+    networkId === 'BITCOIN' ? 'TRUC' : settings.TESTING_VAULT_MODE;
+  const { feeEstimate: pickedInitialFeeRate } = pickFeeEstimate(
     feeEstimates,
     settings.INITIAL_CONFIRMATION_TIME
+  );
+  const initialFeeRate = Math.min(
+    maxFeeRate,
+    Math.max(pickedInitialFeeRate, minimumFeeRate)
   );
   const [userSelectedFeeRate, setUserSelectedFeeRate] = useState<number | null>(
     initialFeeRate
   );
-
-  const maxFeeRate = computeMaxAllowedFeeRate(feeEstimates);
   const feeRate =
     userSelectedFeeRate === null
       ? null
-      : userSelectedFeeRate >= MIN_FEE_RATE && userSelectedFeeRate <= maxFeeRate
+      : userSelectedFeeRate >= minimumFeeRate &&
+          userSelectedFeeRate <= maxFeeRate
         ? userSelectedFeeRate
         : null;
 
-  const {
-    //maxVaultAmount = estimateLegacyMaxVaultAmount(feeRate)
-    //This is basically calling maxFunds algo in coinselect (for feeRate) and
-    //see the target values.
-    //It decreases as the feeRate increases. The lowest value is for maxFeeRate.
-    //See maxVaultAmountWhenMaxFee below.
-    //
-    //This will be the max selectable value in the Slider. The max will change
-    //when the user moves the fee slider
-    maxVaultAmount,
-    //
-    //Particular case of maxVaultAmount (read above).
-    //Used to learn if it is possible to create a vault =>
-    //maxVaultAmountWhenMaxFee >= than minRecoverableVaultAmount
-    maxVaultAmountWhenMaxFee,
-
-    //minRecoverableVaultAmount = estimateLegacyMinRecoverableVaultAmount(maxFeeRate)
-    //The minimum vaultable amount that is still recoverable in case of panic.
-    //It is computed assuming the user chose the largest feeRate. This is to
-    //prevent too much flicker in the Slider since the max already depends on
-    //feeRate. So we use the most restrictive feeRate: maxFeeRate.
-    //Note that minRecoverableVaultAmount is always defined since the algorithm
-    //assumes a new P2PKH input will add some more funds if needed.
-    //If the user has less than minRecoverableVaultAmount then we will display a
-    //notEnoughFund notice in the Screen and won't allow to continue
-    //
-    //This will be the min selectable value in the Slider. The min is fixed
-    //and does not change when the user changes the fee.
-    minRecoverableVaultAmount
-  }: {
-    maxVaultAmount:
-      | {
-          vaultTxMiningFee: number;
-          serviceFee: number;
-          vaultedAmount: number;
-          transactionAmount: number;
-        }
-      | undefined;
-    maxVaultAmountWhenMaxFee:
-      | {
-          vaultTxMiningFee: number;
-          serviceFee: number;
-          vaultedAmount: number;
-          transactionAmount: number;
-        }
-      | undefined;
-    minRecoverableVaultAmount: {
-      vaultTxMiningFee: number;
-      serviceFee: number;
-      vaultedAmount: number;
-      transactionAmount: number;
-    };
-  } = estimateLegacyVaultSetUpRange({
-    accounts,
-    utxosData: spendableUtxos,
-    coldAddress: coldAddress || DUMMY_COLD_ADDRESS(network),
-    maxFeeRate,
-    network,
-    feeRate, //If feeRate is null, then estimateLegacyVaultSetUpRange uses maxFeeRate
-    feeRateCeiling: settings.PRESIGNED_FEE_RATE_CEILING,
-    minRecoverableRatio: settings.MIN_RECOVERABLE_RATIO
-  });
-  const rawVaultRange = estimateLegacyVaultSetUpRange({
+  const { maxVaultAmount, maxVaultAmountAtMinFee, minimumVaultAmount } =
+    estimateVaultSetupRange({
+      accounts,
+      utxosData: spendableUtxos,
+      coldAddress: coldAddress || DUMMY_COLD_ADDRESS(network),
+      minimumFeeRate,
+      feeRate,
+      lockBlocks: lockBlocks || settings.INITIAL_LOCK_BLOCKS,
+      network,
+      vaultMode
+    });
+  const rawVaultRange = estimateVaultSetupRange({
     accounts,
     utxosData: rawUtxosData,
     coldAddress: coldAddress || DUMMY_COLD_ADDRESS(network),
-    maxFeeRate,
-    network,
+    minimumFeeRate,
     feeRate,
-    feeRateCeiling: settings.PRESIGNED_FEE_RATE_CEILING,
-    minRecoverableRatio: settings.MIN_RECOVERABLE_RATIO
+    lockBlocks: lockBlocks || settings.INITIAL_LOCK_BLOCKS,
+    network,
+    vaultMode
   });
-  if (
-    maxVaultAmount &&
-    maxVaultAmountWhenMaxFee &&
-    maxVaultAmountWhenMaxFee.vaultedAmount > maxVaultAmount.vaultedAmount
-  )
-    throw new Error(
-      `maxVaultAmountWhenMaxFee (${maxVaultAmountWhenMaxFee.vaultedAmount}) should never be larger than maxVaultAmount (${maxVaultAmount.vaultedAmount}), feeRate=${feeRate}, maxFeeRate: ${maxFeeRate}`
-    );
-  const isValidVaultRange =
-    maxVaultAmount !== undefined &&
-    maxVaultAmountWhenMaxFee !== undefined &&
-    maxVaultAmountWhenMaxFee.vaultedAmount >=
-      minRecoverableVaultAmount.vaultedAmount;
+  const hasAnyVaultRange =
+    maxFeeRate >= minimumFeeRate &&
+    maxVaultAmountAtMinFee !== undefined &&
+    maxVaultAmountAtMinFee.vaultedAmount >= minimumVaultAmount.vaultedAmount;
   const blockedByReservedFunds =
-    !isValidVaultRange &&
-    rawVaultRange.maxVaultAmountWhenMaxFee !== undefined &&
-    rawVaultRange.maxVaultAmount !== undefined &&
-    rawVaultRange.maxVaultAmountWhenMaxFee.vaultedAmount >=
-      rawVaultRange.minRecoverableVaultAmount.vaultedAmount;
-  const missingFunds: number =
-    minRecoverableVaultAmount.transactionAmount +
-    minRecoverableVaultAmount.vaultTxMiningFee -
-    //minus maxVaultAmountWhenMaxFee
-    (maxVaultAmountWhenMaxFee
-      ? maxVaultAmountWhenMaxFee.transactionAmount +
-        maxVaultAmountWhenMaxFee.vaultTxMiningFee
-      : 0);
+    !hasAnyVaultRange &&
+    maxFeeRate >= minimumFeeRate &&
+    rawVaultRange.maxVaultAmountAtMinFee !== undefined &&
+    rawVaultRange.maxVaultAmountAtMinFee.vaultedAmount >=
+      rawVaultRange.minimumVaultAmount.vaultedAmount;
+  const missingFunds: number = Math.max(
+    0,
+    minimumVaultAmount.transactionAmount +
+      minimumVaultAmount.vaultTxMiningFee -
+      (maxVaultAmountAtMinFee
+        ? maxVaultAmountAtMinFee.transactionAmount +
+          maxVaultAmountAtMinFee.vaultTxMiningFee
+        : 0)
+  );
+  const currentMaxVaultedAmount =
+    maxVaultAmount &&
+    maxVaultAmount.vaultedAmount >= minimumVaultAmount.vaultedAmount
+      ? maxVaultAmount.vaultedAmount
+      : minimumVaultAmount.vaultedAmount;
 
   const [userSelectedVaultedAmount, setUserSelectedVaultedAmount] = useState<
     number | null
-  >(isValidVaultRange ? maxVaultAmount.vaultedAmount : null);
+  >(hasAnyVaultRange ? currentMaxVaultedAmount : null);
 
   const [isMaxVaultedAmount, setIsMaxVaultedAmount] = useState<boolean>(
     userSelectedVaultedAmount !== null &&
-      userSelectedVaultedAmount === maxVaultAmount?.vaultedAmount
+      userSelectedVaultedAmount === currentMaxVaultedAmount
   );
   const vaultedAmount: number | null =
     userSelectedVaultedAmount !== null &&
     maxVaultAmount &&
-    userSelectedVaultedAmount >= minRecoverableVaultAmount.vaultedAmount &&
+    maxVaultAmount.vaultedAmount >= minimumVaultAmount.vaultedAmount &&
+    userSelectedVaultedAmount >= minimumVaultAmount.vaultedAmount &&
     userSelectedVaultedAmount <= maxVaultAmount.vaultedAmount
       ? userSelectedVaultedAmount
       : null;
-  const serviceFee: number | null = vaultedAmount !== null ? 0 : null;
 
   const onUserSelectedVaultedAmountChange = useCallback(
     (userSelectedVaultedAmount: number | null, type: 'USER' | 'RESET') => {
@@ -292,17 +241,16 @@ export default function VaultSetUp({
       //the componet was intenally reset
       if (type === 'USER' && userSelectedVaultedAmount !== null)
         setIsMaxVaultedAmount(
-          userSelectedVaultedAmount === maxVaultAmount?.vaultedAmount
+          userSelectedVaultedAmount === currentMaxVaultedAmount
         );
     },
-    [maxVaultAmount?.vaultedAmount]
+    [currentMaxVaultedAmount]
   );
 
   const handleOK = useCallback(() => {
     if (
       feeRate === null ||
       vaultedAmount === null ||
-      serviceFee === null ||
       lockBlocks === null ||
       coldAddress === null
     )
@@ -310,7 +258,6 @@ export default function VaultSetUp({
 
     onVaultSetUpComplete({
       vaultedAmount,
-      serviceFee,
       coldAddress,
       feeRate,
       lockBlocks,
@@ -323,7 +270,6 @@ export default function VaultSetUp({
     feeRate,
     spendableUtxos,
     vaultedAmount,
-    serviceFee,
     lockBlocks,
     onVaultSetUpComplete,
     coldAddress,
@@ -356,7 +302,7 @@ export default function VaultSetUp({
    *
    * OPTIMIZATION:
    * - We only perform the expensive calculation when necessary (max amount selected)
-   * - We use the same calculation method as estimateLegacyVaultSetUpRange for consistency
+   * - We use the same calculation method as the main range estimation
    * - We batch updates to avoid multiple renders
    */
   const handleFeeRateChange = useCallback(
@@ -367,44 +313,50 @@ export default function VaultSetUp({
 
         // Only recalculate max amount if user has selected max and fee is valid
         if (isMaxVaultedAmount && newFeeRate !== null) {
-          // Use the same calculation method as in the main render flow
-          // This ensures consistency between the two calculations
-          const newMaxEstimate = estimateLegacyMaxVaultAmount({
+          const newMaxEstimate = estimateMaxVaultAmount({
             utxosData: spendableUtxos,
             vaultOutput: DUMMY_VAULT_OUTPUT(network),
+            backupOutput: DUMMY_BACKUP_OUTPUT(network),
+            changeOutput:
+              changeOutput ||
+              DUMMY_CHANGE_OUTPUT(getMainAccount(accounts, network), network),
             feeRate: newFeeRate
           });
 
           // Update the amount in the same render cycle to prevent flicker
-          if (newMaxEstimate) {
-            setUserSelectedVaultedAmount(newMaxEstimate.vaultedAmount);
-          }
+          setUserSelectedVaultedAmount(
+            newMaxEstimate?.vaultedAmount || minimumVaultAmount.vaultedAmount
+          );
         }
       });
     },
-    [isMaxVaultedAmount, spendableUtxos, network]
+    [
+      accounts,
+      changeOutput,
+      isMaxVaultedAmount,
+      minimumVaultAmount.vaultedAmount,
+      spendableUtxos,
+      network,
+      setUserSelectedFeeRate
+    ]
   );
 
   let fee = null;
-  if (vaultedAmount !== null && serviceFee !== null && feeRate !== null) {
-    const selected = selectVaultUtxosData({
+  if (vaultedAmount !== null && feeRate !== null) {
+    const selected = selectCreateVaultUtxosData({
       utxosData: spendableUtxos,
       //We never use the final vaultOutput since it is built using a random
-      //key that we don't want to keep in memory
-      //This means the final fee may be larger depending on signature size
+      //key that we don't want to keep in memory, but setup still needs to
+      //reserve the same backup output that real vault creation will fund.
       vaultOutput: DUMMY_VAULT_OUTPUT(network),
+      backupOutput: DUMMY_BACKUP_OUTPUT(network),
       changeOutput:
         changeOutput ||
         DUMMY_CHANGE_OUTPUT(getMainAccount(accounts, network), network),
       feeRate,
-      vaultedAmount,
-      serviceFee
+      vaultedAmount
     });
-    if (!selected)
-      throw new Error(
-        `vaultedAmount ${vaultedAmount} should be selectable since it's within range - [${minRecoverableVaultAmount?.vaultedAmount}, ${maxVaultAmount?.vaultedAmount}] - isValidVaultRange: ${isValidVaultRange} - feeRate: ${feeRate}.`
-      );
-    fee = selected.fee;
+    fee = selected ? selected.fee : null;
   }
 
   const prefilledAddressHelpIcon = useMemo<IconType>(
@@ -431,7 +383,7 @@ export default function VaultSetUp({
           </View>
           <Button onPress={navigation.goBack}>{t('goBack')}</Button>
         </View>
-      ) : !isValidVaultRange ? (
+      ) : !hasAnyVaultRange ? (
         <View className="w-full max-w-screen-sm mx-4" style={containerStyle}>
           <View className="mb-8">
             <Text className="text-base">
@@ -448,13 +400,7 @@ export default function VaultSetUp({
                     btcFiat,
                     locale,
                     currency
-                  }),
-                  minRecoverableRatioPct: parseFloat(
-                    (settings.MIN_RECOVERABLE_RATIO * 100).toFixed(2)
-                  ).toString(),
-                  feeRateCeiling: parseFloat(
-                    (settings.PRESIGNED_FEE_RATE_CEILING / 1000).toFixed(2)
-                  ).toString()
+                  })
                 }}
                 components={{
                   strong: <Text className="font-bold" />
@@ -486,9 +432,9 @@ export default function VaultSetUp({
             btcFiat={btcFiat}
             isMaxAmount={isMaxVaultedAmount}
             label={t('vaultSetup.amountLabel')}
-            initialValue={maxVaultAmount.vaultedAmount}
-            min={minRecoverableVaultAmount.vaultedAmount}
-            max={maxVaultAmount.vaultedAmount}
+            initialValue={currentMaxVaultedAmount}
+            min={minimumVaultAmount.vaultedAmount}
+            max={currentMaxVaultedAmount}
             onValueChange={onUserSelectedVaultedAmountChange}
           />
           <View className="mb-8" />
@@ -538,6 +484,7 @@ export default function VaultSetUp({
             initialValue={initialFeeRate}
             fee={fee}
             label={t('vaultSetup.confirmationSpeedLabel')}
+            min={minimumFeeRate}
             onValueChange={handleFeeRateChange}
           />
           <View className="self-center flex-row justify-center items-center mt-5 gap-5">

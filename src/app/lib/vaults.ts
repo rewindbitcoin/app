@@ -2,9 +2,6 @@
 // Licensed under the GNU GPL v3 or later. See the LICENSE file for details.
 
 //TODO: keep anchor buffer
-//TODO: compute new ranges. Note that
-//  - when using non-truc i am sending dust
-//  - im sending a backup too
 //TODO: send the onchain backup
 //TODO: refactor functions and use onChainBackup.ts
 //
@@ -14,6 +11,8 @@
 //
 //TODO: in demo mode, Tape should send a couple of utxos so that its
 //possible to do a quick -> create vault -> init trigger -> rescue
+//
+//TODO: when the tx is confirmed i still have the Accelerate button, why?
 
 // TODO: very imporant to only allow Vaulting funds with 1 confirmatin at least (make this a setting) - test realistic vaults (TRUC)
 //
@@ -56,7 +55,7 @@ import {
 import type { Explorer } from '@bitcoinerlab/explorer';
 import { coinTypeFromNetwork, type NetworkId, networkMapping } from './network';
 import { transactionFromHex } from './bitcoin';
-import { toBigInt, toNumber, toNumberOrUndefined } from './sats';
+import { maxBigInt, toBigInt, toNumber, toNumberOrUndefined } from './sats';
 
 const P2A_OUTPUT_SCRIPT = fromHex('51024e73');
 const P2A_OUTPUT_SCRIPT_HEX = toHex(P2A_OUTPUT_SCRIPT);
@@ -77,11 +76,11 @@ export type TxHex = string;
 export type TxId = string;
 
 export type VaultSettings = {
-  /** transactionAmount + minerFees = total user spendings = value extracted from user utxos
-   * vaultedAmount = transactionAmount - serviceFee
+  /**
+   * The amount that ends up frozen in the vault output after the vault tx is
+   * mined.
    */
   vaultedAmount: number;
-  serviceFee: number;
   coldAddress: string;
   feeRate: number;
   lockBlocks: number;
@@ -112,29 +111,17 @@ export type Vault = {
    * for path on the online P2P network. See fetchP2PVaultIds */
   vaultId: string;
   vaultPath: string;
-  /**
-   * The vaulting tx transaction may have up yo 3 outputs:
-   * vaultedAmount, serviceFee and change.
-   * vaultedAmount is the vaulted amount after the vaultTxHex has been mined.
-   * Note that serviceFee is not always set.
-   */
+  /** The value locked in the vault output after the vault tx is mined. */
   vaultedAmount: number;
-  /**
-   * The 2nd output, used to pay service usage (in Legacy vaults).
-   *  Note that this second output (for serviceFee) may not exist if
-   *  serviceFee= 0.
-   *  See: selectVaultUtxosData.
-   *  There and maybe there an additional output with change.
-   *  So, int the inital vaulting tx,
-   *  the user will pay vaultedAmount + serviceFee + miner fee.
-   */
-  serviceFee: number;
+  /** Legacy compatibility only. Rewind2 vault creation does not use it. */
+  serviceFee?: number;
 
   vaultAddress: string;
   triggerAddress: string;
   coldAddress: string;
 
-  feeRateCeiling: number;
+  /** Legacy compatibility only. Rewind2 vault creation does not use it. */
+  feeRateCeiling?: number;
   lockBlocks: number;
 
   vaultTxHex: string;
@@ -144,9 +131,8 @@ export type Vault = {
 
   networkId: NetworkId;
 
-  /** Assuming a scenario of extreme fees (feeRateCeiling), what will be the
-   * remaining balance after panicking */
-  minPanicAmount: number;
+  /** Legacy compatibility only. Rewind2 vault creation does not use it. */
+  minPanicAmount?: number;
 
   /**
    * the keyExpression for the unlocking using the unvaulting path
@@ -266,7 +252,7 @@ export type UtxosData = Array<{
  * stable upstream: `utxosData` and `historyData` come from memoized helpers and
  * `vaultsStatuses` preserves its reference when nothing meaningful changed.
  */
-export const getSpendableUtxosData = moize(
+export const getSpendableUtxosData = moize.shallow(
   (
     utxosData: UtxosData,
     vaultsStatuses: VaultsStatuses | undefined,
@@ -937,83 +923,6 @@ export const getOutputsWithValue = memoize((utxosData: UtxosData) =>
   })
 );
 
-/**
- * The vault coinselector
- */
-
-const selectVaultUtxosData = ({
-  utxosData,
-  vaultOutput,
-  serviceOutput,
-  changeOutput,
-  vaultedAmount,
-  feeRate,
-  serviceFee
-}: {
-  utxosData: UtxosData;
-  vaultOutput: OutputInstance;
-  serviceOutput?: OutputInstance;
-  changeOutput: OutputInstance;
-  /** vaultedAmount = transactionAmount - serviceFee
-   * The user spends transactionAmount `+ minerFees -> this vaults a total of vaultedAmount
-   * In other words, transactionAmount = vaultedAmount + serviceFee
-   */
-  vaultedAmount: number;
-  feeRate: number;
-  serviceFee: number;
-}) => {
-  const utxos = getOutputsWithValue(utxosData);
-  if (!utxos.length) return;
-  if (vaultedAmount <= toNumber(dustThreshold(vaultOutput))) return;
-  const utxosCoinselect = utxos.map(utxo => ({
-    output: utxo.output,
-    value: utxo.value
-  }));
-  const coinselected = coinselect({
-    utxos: utxosCoinselect,
-    targets: [
-      {
-        output: vaultOutput,
-        value: toBigInt(vaultedAmount)
-      },
-      ...(serviceFee && serviceOutput
-        ? [
-            {
-              output: serviceOutput,
-              value: toBigInt(serviceFee)
-            }
-          ]
-        : [])
-    ],
-    remainder: changeOutput,
-    feeRate
-  });
-  //console.log('TRACE selectVaultUtxosData', {
-  //  feeRate,
-  //  serviceFee,
-  //  coinselected
-  //});
-  if (!coinselected) return;
-  const vaultUtxosData =
-    coinselected.utxos.length === utxosData.length
-      ? utxosData
-      : coinselected.utxos.map(utxo => {
-          const utxoData = utxosData[utxosCoinselect.indexOf(utxo)];
-          if (!utxoData) throw new Error('Invalid utxoData');
-          return utxoData;
-        });
-  return {
-    vsize: coinselected.vsize,
-    fee: toNumber(coinselected.fee),
-    serviceFee,
-    targets: coinselected.targets.map(target => ({
-      output: target.output,
-      value: toNumber(target.value)
-    })),
-    vaultUtxosData
-  };
-};
-
 export const utxosDataBalance = memoize((utxosData: UtxosData): number =>
   getOutputsWithValue(utxosData).reduce(
     (a, { value }) => a + toNumber(value),
@@ -1031,19 +940,8 @@ const signPsbt = async (signer: Signer, network: Network, psbtVault: Psbt) => {
   signers.signBIP32({ psbt: psbtVault, masterNode });
 };
 
-//NEW CODE
-//NEW CODE
-//NEW CODE
-//NEW CODE
-//NEW CODE
-//NEW CODE
-//NEW CODE
-//NEW CODE
-//NEW CODE
-//NEW CODE
-
-const MIN_RELAY_FEE_RATE = 0.1;
-const NON_TRUC_P2A_ANCHOR_VALUE = BigInt(330);
+export const MIN_RELAY_FEE_RATE = 0.1;
+export const NON_TRUC_P2A_ANCHOR_VALUE = BigInt(330);
 const VAULT_OUTPUT_INDEX = 0;
 const BACKUP_OUTPUT_INDEX = 1;
 const VAULT_PURPOSE = 1073;
@@ -1099,9 +997,102 @@ export const getOnChainBackupDescriptor = async ({
   return `wpkh(${keyExpression})`;
 };
 
-const getBackupCost = (feeRate: number): bigint => {
+export const getBackupCost = (feeRate: number): bigint => {
   return BigInt(Math.ceil(Math.max(...OP_RETURN_BACKUP_TX_VBYTES) * feeRate));
 };
+
+export const getMinimumCreateVaultFeeRate = memoize((network: Network) => {
+  const { Output } = ensureDescriptorsFactoryInstance();
+  const backupOutput = new Output({
+    descriptor: createVaultDescriptor(DUMMY_PUBKEY_2),
+    network
+  });
+  const backupDust = toNumber(dustThreshold(backupOutput));
+  return Math.max(
+    1,
+    (backupDust + 1) / Math.max(...OP_RETURN_BACKUP_TX_VBYTES)
+  );
+});
+
+/**
+ * Estimates the smallest `vaultedAmount` that can produce a valid new Rewind2
+ * vault for the given emergency path.
+ *
+ * This is a structural lower bound only. It does not inspect wallet UTXOs or
+ * decide whether funding is possible. Instead it computes the minimum amount
+ * needed so all three outputs implied by a new vault remain valid:
+ * - the vault output itself must stay above dust
+ * - the trigger output must stay above dust after subtracting any required
+ *   parent fee and non-TRUC anchor
+ * - the panic output must stay above dust after subtracting everything that
+ *   must already be paid before panic can exist
+ *
+ * @returns The minimum `vaultedAmount` in sats required by the current
+ * Rewind2 vault structure. This is the largest of the vault, trigger, and
+ * panic minimums because one vaulted amount must satisfy all three.
+ */
+export const estimateMinimumRequiredVaultedAmount = moize.shallow(
+  ({
+    coldAddress,
+    lockBlocks,
+    network,
+    vaultMode
+  }: {
+    coldAddress: string;
+    lockBlocks: number;
+    network: Network;
+    vaultMode: 'TRUC' | 'NON_TRUC';
+  }) => {
+    const { Output } = ensureDescriptorsFactoryInstance();
+    const vaultOutput = new Output({
+      descriptor: createVaultDescriptor(DUMMY_PUBKEY),
+      network
+    });
+    const triggerOutput = new Output({
+      descriptor: createTriggerDescriptor({
+        unvaultKey: DUMMY_PUBKEY,
+        panicKey: DUMMY_PUBKEY_2,
+        lockBlocks
+      }),
+      network
+    });
+    const coldOutput = new Output({
+      descriptor: createColdDescriptor(coldAddress),
+      network
+    });
+    const anchorValue =
+      vaultMode === 'TRUC' ? BigInt(0) : NON_TRUC_P2A_ANCHOR_VALUE;
+    const triggerParentFee =
+      vaultMode === 'TRUC'
+        ? BigInt(0)
+        : BigInt(
+            Math.ceil(Math.max(...TRIGGER_TX_VBYTES) * MIN_RELAY_FEE_RATE)
+          );
+    const panicParentFee =
+      vaultMode === 'TRUC'
+        ? BigInt(0)
+        : BigInt(Math.ceil(Math.max(...PANIC_TX_VBYTES) * MIN_RELAY_FEE_RATE));
+
+    const minimumVaultOutputValue = dustThreshold(vaultOutput) + BigInt(1);
+    const minimumTriggerOutputValue =
+      dustThreshold(triggerOutput) + BigInt(1) + anchorValue + triggerParentFee;
+    const minimumPanicOutputValue =
+      dustThreshold(coldOutput) +
+      BigInt(1) +
+      anchorValue +
+      panicParentFee +
+      anchorValue +
+      triggerParentFee;
+
+    const minimumRequiredVaultedAmount = maxBigInt(
+      minimumVaultOutputValue,
+      minimumTriggerOutputValue,
+      minimumPanicOutputValue
+    );
+
+    return toNumber(minimumRequiredVaultedAmount);
+  }
+);
 
 const coinselectVaultUtxosData = ({
   utxosData,
@@ -1200,6 +1191,53 @@ const coinselectVaultUtxosData = ({
     utxosData: selectedUtxosData
   };
 };
+
+/**
+ * Mirrors the real vault builder during setup estimation.
+ *
+ * The setup screen must reserve the same backup output that createVault funds
+ * later. Otherwise users can choose an amount that looks valid in setup but
+ * fails with coinselection once the vault is actually built.
+ */
+export const selectCreateVaultUtxosData = moize.shallow(
+  ({
+    utxosData,
+    vaultOutput,
+    backupOutput,
+    changeOutput,
+    feeRate,
+    vaultedAmount
+  }: {
+    utxosData: UtxosData;
+    vaultOutput: OutputInstance;
+    backupOutput: OutputInstance;
+    changeOutput: OutputInstance;
+    feeRate: number;
+    vaultedAmount: number | 'MAX_FUNDS';
+  }) => {
+    const backupCost = getBackupCost(feeRate);
+    const selected = coinselectVaultUtxosData({
+      utxosData,
+      vaultOutput,
+      backupOutput,
+      backupCost,
+      changeOutput,
+      feeRate,
+      vaultedAmount:
+        vaultedAmount === 'MAX_FUNDS' ? vaultedAmount : toBigInt(vaultedAmount)
+    });
+    if (typeof selected === 'string') return;
+
+    const selectedVaultedAmount = toNumber(selected.vaultedAmount);
+    return {
+      vsize: selected.vsize,
+      fee: toNumber(selected.fee),
+      vaultedAmount: selectedVaultedAmount,
+      transactionAmount: selectedVaultedAmount + toNumber(backupCost),
+      utxosData: selected.utxosData
+    };
+  }
+);
 
 /**
  * Builds deterministic vault outputs and runs coin selection for them.
@@ -1538,17 +1576,6 @@ export const createVault = async ({
   };
 };
 
-//END NEW CODE
-//END NEW CODE
-//END NEW CODE
-//END NEW CODE
-//END NEW CODE
-//END NEW CODE
-//END NEW CODE
-//END NEW CODE
-//END NEW CODE
-//END NEW CODE
-
 export const getRandomSigner = async (networkId: NetworkId) => {
   const network = networkMapping[networkId];
   const { BIP32 } = ensureDescriptorsFactoryInstance();
@@ -1560,46 +1587,6 @@ export const getRandomSigner = async (networkId: NetworkId) => {
   const masterFingerprint = toHex(masterNode.fingerprint);
   return { masterFingerprint, type: SOFTWARE, mnemonic: randomMnemonic };
 };
-
-/**
- * For estimation purposes only, using dummy keys
- */
-export const estimateLegacyTriggerTxSize = memoize((lockBlocks: number) => {
-  const { Output } = ensureDescriptorsFactoryInstance();
-  // Assumes bitcoin network (not important for txSizes anyway)
-  return vsize(
-    [new Output({ descriptor: createVaultDescriptor(DUMMY_PUBKEY) })],
-    [
-      new Output({
-        descriptor: createTriggerDescriptor({
-          unvaultKey: DUMMY_PUBKEY,
-          panicKey: DUMMY_PUBKEY_2,
-          lockBlocks
-        })
-      })
-    ]
-  );
-});
-export const estimateLegacyPanicTxSize = moize(
-  (lockBlocks: number, coldAddress: string, network: Network) => {
-    const { Output } = ensureDescriptorsFactoryInstance();
-    return vsize(
-      [
-        new Output({
-          descriptor: createTriggerDescriptor({
-            unvaultKey: DUMMY_PUBKEY,
-            panicKey: DUMMY_PUBKEY_2,
-            lockBlocks
-          }),
-          signersPubKeys: [fromHex(DUMMY_PUBKEY_2)],
-          network
-        })
-      ],
-      [new Output({ descriptor: createColdDescriptor(coldAddress), network })]
-    );
-  },
-  { maxSize: 100 }
-);
 
 export function validateAddress(addressValue: string, network: Network) {
   try {
@@ -2140,64 +2127,6 @@ export async function fetchVaultsStatuses(
     return currVaultStatuses;
   else return newVaultsStatuses;
 }
-
-const selectVaultUtxosDataFactory = memoize((utxosData: UtxosData) =>
-  memoize((vaultOutput: OutputInstance) =>
-    memoize((serviceOutput: OutputInstance | 'no_service_output') =>
-      memoize((changeOutput: OutputInstance) =>
-        memoize(
-          ({
-            vaultedAmount,
-            feeRate,
-            serviceFee
-          }: {
-            vaultedAmount: number;
-            feeRate: number;
-            serviceFee: number;
-          }) =>
-            selectVaultUtxosData({
-              utxosData,
-              vaultOutput,
-              ...(serviceOutput === 'no_service_output'
-                ? {}
-                : { serviceOutput }),
-              changeOutput,
-              vaultedAmount,
-              feeRate,
-              serviceFee
-            }),
-          ({ vaultedAmount, feeRate, serviceFee }) =>
-            JSON.stringify({ vaultedAmount, feeRate, serviceFee })
-        )
-      )
-    )
-  )
-);
-const selectVaultUtxosDataMemo = ({
-  utxosData,
-  vaultOutput,
-  serviceOutput,
-  changeOutput,
-  vaultedAmount,
-  feeRate,
-  serviceFee
-}: {
-  utxosData: UtxosData;
-  vaultOutput: OutputInstance;
-  serviceOutput?: OutputInstance;
-  changeOutput: OutputInstance;
-  vaultedAmount: number;
-  feeRate: number;
-  serviceFee: number;
-}) =>
-  selectVaultUtxosDataFactory(utxosData)(vaultOutput)(
-    serviceOutput || 'no_service_output'
-  )(changeOutput)({
-    vaultedAmount,
-    feeRate,
-    serviceFee
-  });
-export { selectVaultUtxosDataMemo as selectVaultUtxosData };
 
 /**
  * Retrieve all the trigger descriptors which form part of the hot wallet, that

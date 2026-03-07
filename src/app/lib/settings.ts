@@ -75,11 +75,7 @@ export interface Settings {
   MIN_LOCK_BLOCKS: number;
   MAX_LOCK_BLOCKS: number;
   INITIAL_LOCK_BLOCKS: number;
-  SAMPLES: number; //FIXME: unneeded in Rewind2
-  PRESIGNED_FEE_RATE_CEILING: number; //FIXME: unneeded in Rewind2
-  MAX_PRESIGNED_FEE_RATE_CEILING: number; //FIXME: unneeded in Rewind2
   INITIAL_CONFIRMATION_TIME: number;
-  MIN_RECOVERABLE_RATIO: number;
   SUB_UNIT: SubUnit;
   FIAT_MODE: boolean;
   LOCALE: string;
@@ -150,17 +146,8 @@ export const defaultSettings: Settings = {
   MIN_LOCK_BLOCKS: 1,
   MAX_LOCK_BLOCKS: 3 * 30 * 24 * 6,
   INITIAL_LOCK_BLOCKS: 3 * 24 * 6,
-  //TODO: set it to larger values in production
-  SAMPLES: 60, //This corresponds to (PRESIGNED_FEE_RATE_CEILING ^ (1/SAMPLES) - 1) * 100 / 2 = 8% expected increase in fees wrt to ideal case, which is perfectly fine
-  //TODO: this should be 5 * 1000; I set it to 10 for testnet tests
-  //PRESIGNED_FEE_RATE_CEILING: 5 * 1000, //22-dec-2017 fee rates were 1000. TODO: Set this to 5000 which is 5x 22-dec-2017
-  //https://twitter.com/KLoaec/status/1733880025017978914
-  //PRESIGNED_FEE_RATE_CEILING: 2,
-  PRESIGNED_FEE_RATE_CEILING: 100, //This is the one used to compute minVaultAmount
-  MAX_PRESIGNED_FEE_RATE_CEILING: 10000, //TODO: should be 10000 - This is the one used to compute pressigned txs.
   // 2 hours
   INITIAL_CONFIRMATION_TIME: 2 * 60 * 60,
-  MIN_RECOVERABLE_RATIO: 2 / 3,
   SUB_UNIT: 'btc',
   FIAT_MODE: false, //whether the user prefers using fiat than SUB_UNIT
   LOCALE: 'default', //systems default

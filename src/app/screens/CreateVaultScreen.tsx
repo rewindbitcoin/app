@@ -92,13 +92,13 @@ export default function CreateVaultScreen({
   const { t } = useTranslation();
   const navigation = useNavigation<NavigationPropsByScreenId['CREATE_VAULT']>();
   const keepProgress = useRef<boolean>(true);
+  const createCancelled = useRef<boolean>(false);
   const { settings } = useSettings();
   if (!settings)
     throw new Error(
       'This component should only be started after settings has been retrieved from storage'
     );
   const networkTimeout = settings.NETWORK_TIMEOUT;
-  const feeRateCeiling = settings.PRESIGNED_FEE_RATE_CEILING;
   const vaultMode =
     networkId === 'BITCOIN' ? 'TRUC' : settings.TESTING_VAULT_MODE;
   const { locale, currency } = useLocalization();
@@ -169,12 +169,23 @@ export default function CreateVaultScreen({
     keepProgress.current = false;
   }, []);
   useEffect(() => {
-    if (!navigation.isFocused()) stopProgress();
-  }, [navigation, stopProgress]);
+    return () => {
+      createCancelled.current = true;
+      stopProgress();
+    };
+  }, [stopProgress]);
   const onProgress = useCallback((progress: number) => {
     setProgress(progress);
     return keepProgress.current;
   }, []);
+  const cancelCreate = useCallback(() => {
+    createCancelled.current = true;
+    goBack();
+  }, [goBack]);
+  const shouldContinueCreate = useCallback(
+    () => !createCancelled.current && navigation.isFocused(),
+    [navigation]
+  );
 
   const isVaultCreated = useRef<boolean>(false);
 
@@ -279,12 +290,13 @@ export default function CreateVaultScreen({
     const create = async () => {
       //Leave some time so that the progress is rendered
       await sleep(200);
-      if (!navigation.isFocused()) return; //Don't proceed if lost focus after await
+      if (!shouldContinueCreate()) return;
 
       const unvaultKey = await getUnvaultKey();
+      if (!shouldContinueCreate()) return;
       const changeDescriptorWithIndex =
         await getNextChangeDescriptorWithIndex(accounts);
-      if (!navigation.isFocused()) return; //Don't proceed if lost focus after await
+      if (!shouldContinueCreate()) return;
 
       const { result: nextVaultP2PData } = await netRequest({
         whenToastErrors: 'ON_ANY_ERROR',
@@ -299,12 +311,15 @@ export default function CreateVaultScreen({
           })
       });
 
-      if (!navigation.isFocused()) return; //Don't proceed if lost focus after await
+      if (!shouldContinueCreate()) return;
       if (!nextVaultP2PData) {
         //The toast with prev error message will have been shown.
         goBack();
         return;
       }
+
+      const randomSigner = await getRandomSigner(networkId);
+      if (!shouldContinueCreate()) return;
 
       //createVault does not throw. It returns errors as strings:
       const vaultData = await createVault({
@@ -313,7 +328,7 @@ export default function CreateVaultScreen({
         feeRate,
         utxosData,
         signer,
-        randomSigner: await getRandomSigner(networkId),
+        randomSigner,
         coldAddress,
         lockBlocks,
         changeDescriptorWithIndex,
@@ -323,24 +338,21 @@ export default function CreateVaultScreen({
         shiftFeesToBackupEnd: true,
         networkId
       });
-      if (!navigation.isFocused()) return; //Don't proceed if lost focus after await
+      if (!shouldContinueCreate()) return;
 
       if (typeof vaultData === 'object') {
         const vault = {
           vaultId: nextVaultP2PData.nextVaultId, //FIXME: this assumes p2p backups - read TAG:ifrubr43fre
           vaultPath: nextVaultP2PData.nextVaultPath, //FIXME: this assumes p2p backups - read TAG:ifrubr43fre
           vaultedAmount,
-          serviceFee: 0,
           vaultAddress: vaultData.vaultAddress,
           triggerAddress: vaultData.triggerAddress,
           coldAddress,
-          feeRateCeiling: 0,
           lockBlocks,
           vaultTxHex: vaultData.vaultTxHex,
           txMap: vaultData.txMap,
           triggerMap: vaultData.triggerMap,
           networkId,
-          minPanicAmount: 0,
           unvaultKey,
           triggerDescriptor: vaultData.triggerDescriptor,
           creationTime: vaultData.creationTime
@@ -364,7 +376,6 @@ export default function CreateVaultScreen({
     networkTimeout,
     apiReachable,
     cBVaultsReaderAPIReachable,
-    navigation,
     goBackToWalletHome,
     netRequest,
     goBack,
@@ -374,15 +385,12 @@ export default function CreateVaultScreen({
     vaultedAmount,
     coldAddress,
     feeRate,
-    feeRateCeiling,
     getNextChangeDescriptorWithIndex,
     getUnvaultKey,
     lockBlocks,
     networkId,
     vaultMode,
-    onProgress,
-    pushVaultRegisterWTAndUpdateStates,
-    cBVaultsWriterAPI,
+    shouldContinueCreate,
     cBVaultsReaderAPI,
     signer,
     vaults,
@@ -433,7 +441,7 @@ export default function CreateVaultScreen({
                 progress={progress}
               />
             </View>
-            <Button onPress={stopProgress}>{t('cancelButton')}</Button>
+            <Button onPress={cancelCreate}>{t('cancelButton')}</Button>
           </View>
         ) : (
           //After the vault has been created:
