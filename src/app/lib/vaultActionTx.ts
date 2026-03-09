@@ -4,12 +4,29 @@
 import { findLowestTrueBinarySearch } from '../../common/lib/binarySearch';
 import { toHex } from 'uint8array-tools';
 import { transactionFromHex } from './bitcoin';
-import type { HistoryData, TxHex, TxId, UtxosData } from './vaults';
+import { computeMaxAllowedFeeRate, type FeeEstimates } from './fees';
+import { DUMMY_CHANGE_OUTPUT, getMainAccount } from './vaultDescriptors';
+import { networkMapping, type NetworkId } from './network';
+import type { Accounts } from './wallets';
+import {
+  findMinimumReplacementEffectiveFeeRate,
+  type HistoryData,
+  type TxHex,
+  type TxId,
+  type UtxosData
+} from './vaults';
 
-// Default Bitcoin Core incremental relay fee is 100 sat/kvB = 0.1 sat/vB.
-// Replacements must not only beat the previous fee, they must also add at
-// least this much extra absolute fee or nodes reject them.
+// Bitcoin Core default -incrementalrelayfee is 100 sat/kvB = 0.1 sat/vB.
+// A replacement child must pay at least the previous child fee plus the
+// incremental relay delta in sats (ceil(childVSize * 0.1 sat/vB)), or nodes
+// reject it.
+// Sources:
+// - https://github.com/bitcoin/bitcoin/blob/master/src/policy/policy.h
+// - https://github.com/bitcoin/bitcoin/blob/master/doc/policy/mempool-replacements.md
 export const INCREMENTAL_RELAY_FEE_RATE = 0.1;
+//makes sense this is similar to the one in FeeInput.tsx since this is
+//the minumum  the user can change anyway
+const FEE_RATE_STEP = 0.01;
 
 export type VaultActionTxData = {
   /**
@@ -116,13 +133,13 @@ export const getReplacementUtxosData = ({
   previousChildTxHex,
   utxosData,
   historyData,
-  getUtxosDataFromTxos
+  getTxosData
 }: {
   parentTxHex: TxHex;
   previousChildTxHex: TxHex;
   utxosData: UtxosData;
   historyData: HistoryData;
-  getUtxosDataFromTxos: (txos: Array<string>) => UtxosData;
+  getTxosData: (txos: Array<string>) => UtxosData;
 }):
   | {
       mandatoryUtxosData: UtxosData;
@@ -133,7 +150,7 @@ export const getReplacementUtxosData = ({
     parentTxHex,
     previousChildTxHex
   });
-  const mandatoryUtxosData = getUtxosDataFromTxos(mandatoryTxos);
+  const mandatoryUtxosData = getTxosData(mandatoryTxos);
   if (mandatoryUtxosData.length !== mandatoryTxos.length) return;
 
   const mandatoryTxoSet = new Set(mandatoryTxos);
@@ -234,3 +251,108 @@ export const getMinimumReplacementChildFee = ({
   incrementalRelayFeeRate?: number;
 }) =>
   previousChildFee + Math.ceil(replacementChildVSize * incrementalRelayFeeRate);
+
+/**
+ * Returns the minimum effective fee rate that can actually replace the current
+ * fee payer with the wallet inputs available right now.
+ *
+ * `null` means there is no actionable acceleration option at the moment, either
+ * because sync data is still incomplete or because no valid replacement plan
+ * exists within the current fee-rate range.
+ */
+export const getAccelerationFeeRateFloor = ({
+  parentTxHex,
+  parentFee,
+  previousChildTxHex,
+  utxosData,
+  historyData,
+  getTxosData,
+  accounts,
+  networkId,
+  feeEstimates
+}: {
+  parentTxHex: TxHex;
+  parentFee: number;
+  previousChildTxHex: TxHex;
+  utxosData: UtxosData | undefined;
+  historyData: HistoryData | undefined;
+  getTxosData: (txos: Array<string>) => UtxosData;
+  accounts: Accounts | undefined;
+  networkId: NetworkId | undefined;
+  feeEstimates: FeeEstimates | undefined;
+}): number | null => {
+  if (
+    !utxosData ||
+    !historyData?.length ||
+    !accounts ||
+    !networkId ||
+    !feeEstimates
+  )
+    return null;
+
+  const previousCpfpData = getPreviousCpfpChildData({
+    parentTxHex,
+    parentFee,
+    previousChildTxHex,
+    historyData
+  });
+  if (!previousCpfpData) return null;
+
+  const replacementUtxosData = getReplacementUtxosData({
+    parentTxHex,
+    previousChildTxHex,
+    utxosData,
+    historyData,
+    getTxosData
+  });
+  if (!replacementUtxosData) return null;
+
+  const network = networkMapping[networkId];
+  const changeOutput = DUMMY_CHANGE_OUTPUT(
+    getMainAccount(accounts, network),
+    network
+  );
+  const maxFeeRate = computeMaxAllowedFeeRate(feeEstimates);
+
+  return (
+    findMinimumReplacementEffectiveFeeRate({
+      parentTxHex,
+      parentFee,
+      previousChildFee: previousCpfpData.childFee,
+      mandatoryUtxosData: replacementUtxosData.mandatoryUtxosData,
+      optionalUtxosData: replacementUtxosData.optionalUtxosData,
+      changeOutput,
+      maxTargetEffectiveFeeRate: maxFeeRate,
+      minimumComparedEffectiveFeeRate: previousCpfpData.effectiveFeeRate + 1,
+      incrementalRelayFeeRate: INCREMENTAL_RELAY_FEE_RATE,
+      feeRateStep: FEE_RATE_STEP
+    }) ?? null
+  );
+};
+
+/**
+ * Computes the initial fee rate shown in the fee selector.
+ *
+ * We prefer the wallet's current confirmation target, but if that target is no
+ * longer fundable we fall back to the minimum actionable replacement floor so
+ * the user can still continue instead of seeing an intro modal with only a
+ * Cancel button.
+ */
+export const pickActionableInitialFeeRate = ({
+  preferredFeeRate,
+  minimumActionableFeeRate,
+  canBuildAtFeeRate
+}: {
+  preferredFeeRate: number | null;
+  minimumActionableFeeRate: number | null;
+  canBuildAtFeeRate: (feeRate: number) => boolean;
+}) => {
+  if (preferredFeeRate !== null && canBuildAtFeeRate(preferredFeeRate))
+    return preferredFeeRate;
+  if (
+    minimumActionableFeeRate !== null &&
+    canBuildAtFeeRate(minimumActionableFeeRate)
+  )
+    return minimumActionableFeeRate;
+  return null;
+};

@@ -10,7 +10,7 @@ import {
   type HistoryData,
   type TxHistory,
   fetchVaultsStatuses,
-  getUtxosData,
+  getTxosDataFromVaults,
   getHotDescriptors,
   areVaultsSynched,
   getHistoryData
@@ -126,7 +126,7 @@ export type WalletContextType = {
   networkId: NetworkId | undefined;
   fetchBlockTime: (blockHeight: number) => Promise<number | undefined>;
   pushTx: (txHex: string) => Promise<void>;
-  getUtxosDataFromTxos: (txos: Array<string>) => UtxosData;
+  getTxosData: (txos: Array<string>) => UtxosData;
   pushTxPackage: ({
     parentTxHex,
     childTxHex
@@ -614,7 +614,12 @@ const WalletProviderRaw = ({
         tipHeight
       );
       const utxos = discovery.getUtxos({ descriptors });
-      const walletUtxosData = getUtxosData(utxos, vaults, network, discovery);
+      const walletUtxosData = getTxosDataFromVaults(
+        utxos,
+        vaults,
+        network,
+        discovery
+      );
       const history = discovery.getHistory(
         { descriptors },
         true
@@ -674,12 +679,12 @@ const WalletProviderRaw = ({
     [discovery, gapLimit]
   );
 
-  const getUtxosDataFromTxos = useCallback(
+  const getTxosData = useCallback(
     (txos: Array<string>): UtxosData => {
       if (!discovery || !vaults || !activeWallet?.networkId)
-        throw new Error('Wallet not ready for getUtxosDataFromTxos');
+        throw new Error('Wallet not ready for getTxosData');
       const network = networkMapping[activeWallet.networkId];
-      return getUtxosData(txos, vaults, network, discovery);
+      return getTxosDataFromVaults(txos, vaults, network, discovery);
     },
     [discovery, vaults, activeWallet?.networkId]
   );
@@ -2436,7 +2441,7 @@ const WalletProviderRaw = ({
     ),
     fetchBlockTime,
     pushTx,
-    getUtxosDataFromTxos,
+    getTxosData,
     pushTxPackage,
     syncWatchtowerRegistration,
     fetchOutputHistory,

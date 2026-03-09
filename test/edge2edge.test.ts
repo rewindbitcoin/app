@@ -29,7 +29,7 @@ const sleep = async (ms: number) =>
 import {
   createVault,
   getHotDescriptors,
-  getUtxosData,
+  getTxosData,
   type Vaults,
   type Vault,
   type VaultsStatuses
@@ -183,7 +183,7 @@ describe('E2E: Multiple Pre-Signed txs Vault', () => {
     if (!descriptors.length)
       throw new Error('descriptors should have been initialized');
     const utxos = discovery.getUtxos({ descriptors });
-    const utxosData = getUtxosData(utxos, vaults, network, discovery);
+    const utxosData = getTxosData(utxos, vaults, network, discovery);
 
     const vaultPath = VAULT_PATH.replace(
       '<network>',

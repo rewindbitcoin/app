@@ -17,7 +17,6 @@ import {
   type Vault,
   type VaultStatus,
   estimateCpfpPackage,
-  findMinimumReplacementEffectiveFeeRate,
   getSpendableUtxosData,
   getVaultMode
 } from '../lib/vaults';
@@ -29,8 +28,9 @@ import { toNumber } from '../lib/sats';
 import { DUMMY_CHANGE_OUTPUT, getMainAccount } from '../lib/vaultDescriptors';
 import { networkMapping } from '../lib/network';
 import {
-  getPreviousCpfpChildData,
   findNextEqualOrLargerEffectiveFeeRate,
+  getAccelerationFeeRateFloor,
+  pickActionableInitialFeeRate,
   getReplacementUtxosData,
   type VaultActionTxData
 } from '../lib/vaultActionTx';
@@ -61,7 +61,7 @@ const InitUnfreeze = ({
     btcFiat: btcFiatRealTime,
     utxosData,
     vaultsStatuses,
-    getUtxosDataFromTxos,
+    getTxosData,
     accounts,
     networkId,
     historyData
@@ -72,37 +72,17 @@ const InitUnfreeze = ({
   const spendableUtxosData =
     utxosData && getSpendableUtxosData(utxosData, vaultsStatuses, historyData);
 
-  const previousCpfpData = useMemo(() => {
-    if (!isAccelerationAttempt || isLegacyVault) return null;
-    const triggerTxHex = vaultStatus?.triggerTxHex;
-    const triggerCpfpTxHex = vaultStatus?.triggerCpfpTxHex;
-    if (!triggerTxHex || !triggerCpfpTxHex || !historyData?.length) return null;
-    const triggerTxData = vault.txMap[triggerTxHex];
-    if (!triggerTxData) return null;
-    return getPreviousCpfpChildData({
-      parentTxHex: triggerTxHex,
-      parentFee: triggerTxData.fee,
-      previousChildTxHex: triggerCpfpTxHex,
-      historyData
-    });
-  }, [
-    isAccelerationAttempt,
-    isLegacyVault,
-    vaultStatus?.triggerTxHex,
-    vaultStatus?.triggerCpfpTxHex,
-    vault,
-    historyData
-  ]);
-
-  // Minimum fee-rate floor required for acceleration.
+  // Minimum effective fee-rate floor required for acceleration.
   //
-  // For Rewind2 we need two things at once:
-  // 1) beat the previous effective package feerate, and
-  // 2) beat the previous child absolute fee by the incremental relay delta.
+  // For Rewind2, a replacement child must satisfy two relay checks at once:
+  // 1) the new package feerate must improve over the previous one, and
+  // 2) the new child fee must be at least:
+  //    previousChildFee + ceil(childVSize * 0.1 sat/vB)
   //
-  // Example of the problem this solves: a new child can have a better package
-  // feerate and still be rejected if it only pays 562 sats while the previous
-  // child paid 584 sats.
+  // Example: if the previous child paid 584 sats and the replacement child
+  // would be 160 vB, relay requires at least 584 + ceil(160 * 0.1) = 600 sats.
+  // A new package can therefore look "faster" by feerate and still be
+  // rejected if the child only pays, say, 590 sats.
   const feeRateToReplace = useMemo<number | null>(() => {
     if (!isAccelerationAttempt) return 0;
     if (isLegacyVault) {
@@ -117,46 +97,30 @@ const InitUnfreeze = ({
       if (!triggerTxHex) return null;
       const triggerTxData = vault.txMap[triggerTxHex];
       if (!triggerTxData) return null;
-      if (!previousCpfpData || !spendableUtxosData || !accounts || !networkId)
-        return null;
-      const network = networkMapping[networkId];
-      const changeOutput = DUMMY_CHANGE_OUTPUT(
-        getMainAccount(accounts, network),
-        network
-      );
       const triggerCpfpTxHex = vaultStatus?.triggerCpfpTxHex;
-      if (!triggerCpfpTxHex || !historyData?.length) return null;
-      const replacementUtxosData = getReplacementUtxosData({
+      if (!triggerCpfpTxHex) return null;
+      return getAccelerationFeeRateFloor({
         parentTxHex: triggerTxHex,
+        parentFee: triggerTxData.fee,
         previousChildTxHex: triggerCpfpTxHex,
         utxosData: spendableUtxosData,
         historyData,
-        getUtxosDataFromTxos
+        getTxosData,
+        accounts,
+        networkId,
+        feeEstimates
       });
-      if (!replacementUtxosData || !feeEstimates) return null;
-      const replacementFloor = findMinimumReplacementEffectiveFeeRate({
-        parentTxHex: triggerTxHex,
-        parentFee: triggerTxData.fee,
-        previousChildFee: previousCpfpData.childFee,
-        mandatoryUtxosData: replacementUtxosData.mandatoryUtxosData,
-        optionalUtxosData: replacementUtxosData.optionalUtxosData,
-        changeOutput,
-        maxTargetEffectiveFeeRate: computeMaxAllowedFeeRate(feeEstimates),
-        minimumComparedEffectiveFeeRate: previousCpfpData.effectiveFeeRate + 1
-      });
-      return replacementFloor ?? null;
     }
   }, [
     isAccelerationAttempt,
     isLegacyVault,
     vaultStatus,
     vault,
-    previousCpfpData,
     spendableUtxosData,
     accounts,
     networkId,
     historyData,
-    getUtxosDataFromTxos,
+    getTxosData,
     feeEstimates
   ]);
 
@@ -188,7 +152,7 @@ const InitUnfreeze = ({
 
   const [step, setStep] = useState<'intro' | 'fee'>('intro');
 
-  const initialFeeRate =
+  const preferredInitialFeeRate =
     feeEstimates && feeRateToReplace !== null
       ? Math.max(
           feeRateToReplace,
@@ -200,90 +164,118 @@ const InitUnfreeze = ({
   const isAccelerationSyncPending =
     isAccelerationAttempt && feeRateToReplace === null;
   const cannotAccelerateMaxFee =
-    feeRateToReplace !== null && feeRateToReplace > maxFeeRate;
-  const canOpenFeeStepBase =
-    initialFeeRate !== null &&
-    !isAccelerationSyncPending &&
-    !cannotAccelerateMaxFee;
+    isLegacyVault && feeRateToReplace !== null && feeRateToReplace > maxFeeRate;
 
   const [feeRate, setFeeRate] = useState<number | null>(null);
+
+  const buildTxDataForFeeRate = useCallback(
+    (selectedFeeRate: number): VaultActionTxData | null => {
+      if (isLegacyVault)
+        return findNextEqualOrLargerEffectiveFeeRate(
+          legacyTriggerSortedTxs,
+          selectedFeeRate
+        );
+      else {
+        if (
+          !spendableUtxosData ||
+          !accounts ||
+          Object.keys(accounts).length === 0 ||
+          !networkId
+        )
+          return null;
+        const triggerTxHex = Object.keys(vault.triggerMap)[0];
+        if (!triggerTxHex) return null;
+        const triggerTxData = vault.txMap[triggerTxHex];
+        if (!triggerTxData) throw new Error('trigger tx not mapped');
+        const { tx } = transactionFromHex(triggerTxHex);
+        const network = networkMapping[networkId];
+        const changeOutput = DUMMY_CHANGE_OUTPUT(
+          getMainAccount(accounts, network),
+          network
+        );
+        let mandatoryUtxosData = undefined;
+        let optionalUtxosData = spendableUtxosData;
+        if (isAccelerationAttempt) {
+          const previousChildTxHex = vaultStatus?.triggerCpfpTxHex;
+          if (!previousChildTxHex || !historyData?.length) return null;
+          const replacementUtxosData = getReplacementUtxosData({
+            parentTxHex: triggerTxHex,
+            previousChildTxHex,
+            utxosData: spendableUtxosData,
+            historyData,
+            getTxosData
+          });
+          if (!replacementUtxosData) return null;
+          mandatoryUtxosData = replacementUtxosData.mandatoryUtxosData;
+          optionalUtxosData = replacementUtxosData.optionalUtxosData;
+        }
+        const plan = estimateCpfpPackage({
+          parentTxHex: triggerTxHex,
+          parentFee: triggerTxData.fee,
+          targetEffectiveFeeRate: selectedFeeRate,
+          ...(mandatoryUtxosData ? { mandatoryUtxosData } : {}),
+          optionalUtxosData,
+          changeOutput
+        });
+        if (!plan) return null;
+        return {
+          parentTxHex: triggerTxHex,
+          parentTxId: triggerTxData.txId,
+          parentTxVSize: tx.virtualSize(),
+          parentTxFee: triggerTxData.fee,
+          effectiveFee: plan.totalFee,
+          effectiveFeeRate: plan.effectiveFeeRate
+        };
+      }
+    },
+    [
+      isLegacyVault,
+      legacyTriggerSortedTxs,
+      spendableUtxosData,
+      getTxosData,
+      accounts,
+      networkId,
+      vault,
+      isAccelerationAttempt,
+      vaultStatus?.triggerCpfpTxHex,
+      historyData
+    ]
+  );
+
+  const initialFeeRate = useMemo(
+    () =>
+      // If the wallet's preferred confirmation target is no longer fundable,
+      // fall back to the minimum actionable replacement floor instead of
+      // opening an acceleration modal that cannot proceed past the intro step.
+      pickActionableInitialFeeRate({
+        preferredFeeRate: cannotAccelerateMaxFee
+          ? null
+          : preferredInitialFeeRate,
+        minimumActionableFeeRate:
+          !isAccelerationAttempt || cannotAccelerateMaxFee
+            ? null
+            : feeRateToReplace,
+        canBuildAtFeeRate: feeRate => buildTxDataForFeeRate(feeRate) !== null
+      }),
+    [
+      preferredInitialFeeRate,
+      isAccelerationAttempt,
+      cannotAccelerateMaxFee,
+      feeRateToReplace,
+      buildTxDataForFeeRate
+    ]
+  );
 
   const txData = useMemo<VaultActionTxData | null>(() => {
     const selectedFeeRate = feeRate ?? initialFeeRate;
     if (selectedFeeRate === null) return null;
-    if (isLegacyVault)
-      return findNextEqualOrLargerEffectiveFeeRate(
-        legacyTriggerSortedTxs,
-        selectedFeeRate
-      );
-    else {
-      if (
-        !spendableUtxosData ||
-        !accounts ||
-        Object.keys(accounts).length === 0 ||
-        !networkId
-      )
-        return null;
-      const triggerTxHex = Object.keys(vault.triggerMap)[0];
-      if (!triggerTxHex) return null;
-      const triggerTxData = vault.txMap[triggerTxHex];
-      if (!triggerTxData) throw new Error('trigger tx not mapped');
-      const { tx } = transactionFromHex(triggerTxHex);
-      const network = networkMapping[networkId];
-      const changeOutput = DUMMY_CHANGE_OUTPUT(
-        getMainAccount(accounts, network),
-        network
-      );
-      let mandatoryUtxosData = undefined;
-      let optionalUtxosData = spendableUtxosData;
-      if (isAccelerationAttempt) {
-        const previousChildTxHex = vaultStatus?.triggerCpfpTxHex;
-        if (!previousChildTxHex || !historyData?.length) return null;
-        const replacementUtxosData = getReplacementUtxosData({
-          parentTxHex: triggerTxHex,
-          previousChildTxHex,
-          utxosData: spendableUtxosData,
-          historyData,
-          getUtxosDataFromTxos
-        });
-        if (!replacementUtxosData) return null;
-        mandatoryUtxosData = replacementUtxosData.mandatoryUtxosData;
-        optionalUtxosData = replacementUtxosData.optionalUtxosData;
-      }
-      const plan = estimateCpfpPackage({
-        parentTxHex: triggerTxHex,
-        parentFee: triggerTxData.fee,
-        targetEffectiveFeeRate: selectedFeeRate,
-        ...(mandatoryUtxosData ? { mandatoryUtxosData } : {}),
-        optionalUtxosData,
-        changeOutput
-      });
-      if (!plan) return null;
-      return {
-        parentTxHex: triggerTxHex,
-        parentTxId: triggerTxData.txId,
-        parentTxVSize: tx.virtualSize(),
-        parentTxFee: triggerTxData.fee,
-        effectiveFee: plan.totalFee,
-        effectiveFeeRate: plan.effectiveFeeRate
-      };
-    }
-  }, [
-    feeRate,
-    initialFeeRate,
-    isLegacyVault,
-    legacyTriggerSortedTxs,
-    spendableUtxosData,
-    getUtxosDataFromTxos,
-    accounts,
-    networkId,
-    vault,
-    isAccelerationAttempt,
-    vaultStatus?.triggerCpfpTxHex,
-    historyData
-  ]);
+    return buildTxDataForFeeRate(selectedFeeRate);
+  }, [feeRate, initialFeeRate, buildTxDataForFeeRate]);
 
-  const canOpenFeeStep = canOpenFeeStepBase && txData !== null;
+  const canOpenFeeStep =
+    initialFeeRate !== null &&
+    !isAccelerationSyncPending &&
+    !cannotAccelerateMaxFee;
 
   const fee = txData ? txData.effectiveFee : null;
 
@@ -334,7 +326,7 @@ const InitUnfreeze = ({
                   </Button>
                 )}
               </View>
-            ) : step === 'fee' && canOpenFeeStep ? (
+            ) : step === 'fee' ? (
               <View className="items-center gap-6 gap-y-4 flex-row flex-wrap justify-center pb-4">
                 <Button mode="secondary" onPress={onClose}>
                   {t('cancelButton')}
@@ -364,7 +356,7 @@ const InitUnfreeze = ({
                 : t('wallet.vault.triggerUnfreeze.intro', { timeLockTime })}
             </Text>
           </View>
-        ) : step === 'fee' && canOpenFeeStep ? (
+        ) : step === 'fee' ? (
           <View>
             <Text className="text-base text-slate-600 pb-4 px-2">
               {t('wallet.vault.triggerUnfreeze.feeSelectorExplanation')}

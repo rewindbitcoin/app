@@ -5,14 +5,8 @@
 //TODO: send the onchain backup
 //TODO: refactor functions and use onChainBackup.ts
 //
-//TODO: when we only have acceleartable unconfirmed utxos, then the modal-screens
-//for init unfreeze / rescue show the initial informational modal but then
-//only offer a "Cancel" button and is misleading
-//
 //TODO: in demo mode, Tape should send a couple of utxos so that its
 //possible to do a quick -> create vault -> init trigger -> rescue
-//
-//TODO: when the tx is confirmed i still have the Accelerate button, why?
 
 // TODO: very imporant to only allow Vaulting funds with 1 confirmatin at least (make this a setting) - test realistic vaults (TRUC)
 //
@@ -55,6 +49,7 @@ import {
 import type { Explorer } from '@bitcoinerlab/explorer';
 import { coinTypeFromNetwork, type NetworkId, networkMapping } from './network';
 import { transactionFromHex } from './bitcoin';
+import { MIN_FEE_RATE } from './fees';
 import { maxBigInt, toBigInt, toNumber, toNumberOrUndefined } from './sats';
 
 const P2A_OUTPUT_SCRIPT = fromHex('51024e73');
@@ -381,6 +376,24 @@ const getUtxoDataValue = (utxoData: UtxosData[number]) => {
   return toNumber(out.value);
 };
 
+/**
+ * Finds the first selectable effective fee rate that yields a valid CPFP
+ * replacement package.
+ *
+ * This is a discrete scan over the same fee-rate grid exposed by the UI. For
+ * each candidate effective fee rate, it asks `estimateCpfpPackage(...)` to
+ * build the package that would actually be used at that target. It then checks
+ * whether the resulting child fee clears Bitcoin Core's replacement relay rule:
+ * the new child must pay at least the previous child fee plus the incremental
+ * relay delta in sats (`ceil(childVSize * 0.1 sat/vB)`).
+ *
+ * A direct formula is not reliable here because the selected optional inputs,
+ * child vsize, dust feasibility, and TRUC feasibility can all change as the
+ * target fee rate changes.
+ *
+ * @returns The first actionable effective fee rate on that grid, or
+ * `undefined` if no valid replacement exists up to `maxTargetEffectiveFeeRate`.
+ */
 export const findMinimumReplacementEffectiveFeeRate = ({
   parentTxHex,
   parentFee,
@@ -389,9 +402,9 @@ export const findMinimumReplacementEffectiveFeeRate = ({
   optionalUtxosData = [],
   changeOutput,
   maxTargetEffectiveFeeRate,
-  minimumComparedEffectiveFeeRate = 0,
-  incrementalRelayFeeRate = 0.1,
-  feeRateStep = 0.01
+  minimumComparedEffectiveFeeRate,
+  incrementalRelayFeeRate,
+  feeRateStep
 }: {
   parentTxHex: TxHex;
   parentFee: number;
@@ -400,9 +413,9 @@ export const findMinimumReplacementEffectiveFeeRate = ({
   optionalUtxosData?: UtxosData;
   changeOutput: OutputInstance;
   maxTargetEffectiveFeeRate: number;
-  minimumComparedEffectiveFeeRate?: number;
-  incrementalRelayFeeRate?: number;
-  feeRateStep?: number;
+  minimumComparedEffectiveFeeRate: number;
+  incrementalRelayFeeRate: number;
+  feeRateStep: number;
 }): number | undefined => {
   // Replacement relay checks absolute fee deltas too. We therefore scan the
   // same 0.01 sat/vB grid used by the slider until we find the first plan whose
@@ -613,7 +626,7 @@ export const createCpfpChildTx = async ({
     value: toBigInt(plan.childOutputValue)
   });
 
-  await signPsbt(signer, network, psbt);
+  if (plan.selectedUtxosData.length > 0) await signPsbt(signer, network, psbt);
   psbt.finalizeInput(0, () => ({
     finalScriptSig: new Uint8Array(0),
     finalScriptWitness: Uint8Array.of(0)
@@ -661,39 +674,37 @@ export type TxHistory = Array<{
 }>;
 
 /**
- * For each utxo, get its corresponding:
+ * For each txo, get its corresponding:
  * - previous txHex and vout
  * - output descriptor
  * - index? if the descriptor retrieved in discovery was ranged
  * - signersPubKeys? if it can only be spent through a specific spending path
  *
- * Important: Returns same reference for utxosData if utxos did not change
+ * Important: Returns same reference for txosData if txos did not change.
  *
  * Important: discovery is used to retrieve info. It does not modify
  * the discoveryExport internal representation in any way, so there is no need
  * to save to disk exported discoveryExport after using this function.
  *
- * Note that it's fine using memoize and just check for changes in utxos.
- * The rest of params are just tooling to complete utxosData but won't change
+ * Note that it's fine using memoize and just check for changes in txos.
+ * The rest of params are just tooling to complete txosData but won't change
  * the result
  */
-export const getUtxosData = memoize(
+export const getTxosDataFromVaults = memoize(
   (
-    utxos: Array<string>,
+    txos: Array<string>,
     vaults: Vaults,
     network: Network,
     discovery: DiscoveryInstance
   ): UtxosData => {
     const { Output, parseKeyExpression } = ensureDescriptorsFactoryInstance();
-    return utxos.map(utxo => {
-      const [txId, strVout] = utxo.split(':');
+    return txos.map(txo => {
+      const [txId, strVout] = txo.split(':');
       const vout = Number(strVout);
       if (!txId || isNaN(vout) || !Number.isInteger(vout) || vout < 0)
-        throw new Error(`Invalid utxo ${utxo}`);
-      const descriptorAndIndex =
-        discovery.getDescriptor({ utxo }) ??
-        discovery.getDescriptor({ txo: utxo });
-      if (!descriptorAndIndex) throw new Error(`Unmatched ${utxo}`);
+        throw new Error(`Invalid txo ${txo}`);
+      const descriptorAndIndex = discovery.getDescriptor({ txo });
+      if (!descriptorAndIndex) throw new Error(`Unmatched ${txo}`);
       let signersPubKeys;
       for (const vault of Object.values(vaults)) {
         if (vault.triggerDescriptor === descriptorAndIndex.descriptor) {
@@ -739,7 +750,7 @@ export const getVaultNumber = moize((vaultId: string, vaults: Vaults) => {
  *
  * It returns txs in an Array ordered from old to new.
  *
- * Note here we use moize vs memoize in getUtxosData, since in this case, when
+ * Note here we use moize vs memoize in getTxosDataFromVaults, since in this case, when
  * vaultsStatuses change, then the history also changes, since in the history
  * we not only provide the history of the hot descriptors but also the
  * different stages of a vault (as recorded in vaultsStatuses).
@@ -940,7 +951,7 @@ const signPsbt = async (signer: Signer, network: Network, psbtVault: Psbt) => {
   signers.signBIP32({ psbt: psbtVault, masterNode });
 };
 
-export const MIN_RELAY_FEE_RATE = 0.1;
+export const MIN_RELAY_FEE_RATE = MIN_FEE_RATE;
 export const NON_TRUC_P2A_ANCHOR_VALUE = BigInt(330);
 const VAULT_OUTPUT_INDEX = 0;
 const BACKUP_OUTPUT_INDEX = 1;
@@ -1008,10 +1019,9 @@ export const getMinimumCreateVaultFeeRate = memoize((network: Network) => {
     network
   });
   const backupDust = toNumber(dustThreshold(backupOutput));
-  return Math.max(
-    1,
-    (backupDust + 1) / Math.max(...OP_RETURN_BACKUP_TX_VBYTES)
-  );
+  const minimumBackupFeeRate =
+    (backupDust + 1) / Math.max(...OP_RETURN_BACKUP_TX_VBYTES);
+  return Math.max(MIN_RELAY_FEE_RATE, minimumBackupFeeRate);
 });
 
 /**
