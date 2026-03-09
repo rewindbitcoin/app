@@ -2,7 +2,7 @@
 // Licensed under the GNU GPL v3 or later. See the LICENSE file for details.
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { View, Text, Linking } from 'react-native';
+import { View, Text, Linking, StyleSheet } from 'react-native';
 import type { HistoryData, HistoryDataItem } from '../lib/vaults';
 import { TFunction } from 'i18next';
 import { BlockStatus } from '@bitcoinerlab/explorer';
@@ -22,6 +22,19 @@ import { formatBalance } from '../lib/format';
 import { Button } from '~/common/ui';
 import { useLocalization } from '../hooks/useLocalization';
 import { toNumber } from '../lib/sats';
+
+const INITIAL_NOW_SECONDS = Math.floor(Date.now() / 1000);
+
+// Avoid NativeWind `-rotate-45` on Svg className. It can trigger css-interop
+// "variables-upgrade" remount paths and crash with a misleading navigation
+// context error during re-renders:
+// - https://github.com/nativewind/nativewind/issues/1711
+// - https://github.com/expo/expo/issues/38191
+const styles = StyleSheet.create({
+  sentIconRotation: {
+    transform: [{ rotate: '-45deg' }]
+  }
+});
 
 const RawTransaction = ({
   tipStatus,
@@ -59,19 +72,18 @@ const RawTransaction = ({
   );
   const tipHeight = tipStatus?.blockHeight;
 
-  const [scheduledNow, setScheduledNow] = useState<number>(Date.now() / 1000);
+  const [scheduledNow, setScheduledNow] = useState<number>(INITIAL_NOW_SECONDS);
   //update now every 1 minute...
   useEffect(() => {
     const interval = setInterval(
       () => {
-        setScheduledNow(Date.now() / 1000);
+        setScheduledNow(Math.floor(Date.now() / 1000));
       },
       1 * 60 * 1000
     );
     return () => clearInterval(interval);
   }, []);
-  //if rendered for whatever other reason, get the newest time
-  const now = Math.max(scheduledNow, Date.now() / 1000);
+  const now = scheduledNow;
 
   const formatDate = (time: number) => {
     const date = new Date(time * 1000);
@@ -150,7 +162,36 @@ const RawTransaction = ({
   let header;
   let detailsStr;
   let coldReceived = 0;
-  if ('vaultTxType' in item) {
+  if ('feePayerTxType' in item) {
+    const vaultNumber = item.vaultNumber;
+    const isTriggerFeePayer = item.feePayerTxType === 'TRIGGER';
+    header = (
+      <View className="flex-row items-center flex-1">
+        <View className="flex-row items-center self-start">
+          <Text className="text-base inline-block w-0"> </Text>
+          <MaterialCommunityIcons
+            name="rocket-launch-outline"
+            size={20}
+            color="#2563eb"
+          />
+        </View>
+        <Text className="text-base leading-snug font-semibold ml-2 flex-1">
+          {isTriggerFeePayer
+            ? t('transaction.header.feePayerTrigger', { vaultNumber })
+            : t('transaction.header.feePayerRescue', { vaultNumber })}
+        </Text>
+      </View>
+    );
+    if (item.blockHeight === 0) {
+      detailsStr = isTriggerFeePayer
+        ? t('transaction.details.feePayerTriggerConfirming')
+        : t('transaction.details.feePayerRescueConfirming');
+    } else {
+      detailsStr = isTriggerFeePayer
+        ? t('transaction.details.feePayerTrigger')
+        : t('transaction.details.feePayerRescue');
+    }
+  } else if ('vaultTxType' in item) {
     if (!('outValue' in item))
       throw new Error('outValue should be set for vaultTxType');
     if (!('vaultNumber' in item))
@@ -293,13 +334,23 @@ const RawTransaction = ({
       </View>
     );
   } else if (item.type === 'SENT') {
+    //console.log(
+    //  'TRACE',
+    //  'item type is SENT',
+    //  JSON.stringify(
+    //    item,
+    //    (_, v) => (typeof v === 'bigint' ? v.toString() : v),
+    //    2
+    //  )
+    //);
     header = (
       <View className="flex-row items-center flex-1">
         <View className="flex-row items-center self-start">
           {/*add an invisible space char with text-base to vertically cener the icon*/}
           <Text className="text-base inline-block w-0"> </Text>
           <Svg
-            className="stroke-red-500 stroke-2 fill-none w-5 h-5 -rotate-45 -mt-1"
+            className="stroke-red-500 stroke-2 fill-none w-5 h-5 -mt-1"
+            style={styles.sentIconRotation}
             viewBox="0 0 24 24"
           >
             <SendIcon />
@@ -316,9 +367,7 @@ const RawTransaction = ({
     );
   }
   const hotReceived =
-    'netReceived' in item
-      ? toNumber(item.netReceived)
-      : undefined;
+    'netReceived' in item ? toNumber(item.netReceived) : undefined;
 
   return (
     <View className="overflow-hidden p-4">

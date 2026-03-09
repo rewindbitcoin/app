@@ -71,22 +71,22 @@ export const SETTINGS_GLOBAL_STORAGE = 'SETTINGS_GLOBAL_STORAGE';
 export interface Settings {
   NETWORK_TIMEOUT: number;
   GAP_LIMIT: number;
-  SERVICE_FEE_RATE: number;
   MIN_FEE_RATE: number;
   MIN_LOCK_BLOCKS: number;
   MAX_LOCK_BLOCKS: number;
   INITIAL_LOCK_BLOCKS: number;
-  SAMPLES: number;
-  PRESIGNED_FEE_RATE_CEILING: number;
-  MAX_PRESIGNED_FEE_RATE_CEILING: number;
   INITIAL_CONFIRMATION_TIME: number;
-  MIN_RECOVERABLE_RATIO: number;
   SUB_UNIT: SubUnit;
   FIAT_MODE: boolean;
   LOCALE: string;
   CURRENCY: Currency;
   BTC_FIAT_REFRESH_INTERVAL_MS: number;
   BLOCKCHAIN_DATA_REFRESH_INTERVAL_MS: number;
+  /**
+   * Mode used for all testing networks (TESTNET/TAPE/REGTEST).
+   * Mainnet is always TRUC and does not use this setting.
+   */
+  TESTING_VAULT_MODE: 'TRUC' | 'NON_TRUC';
   WALLETS_DATA_VERSION: string;
 
   REGTEST_HOST_NAME: string;
@@ -142,22 +142,12 @@ const locales = getLocales();
 export const defaultSettings: Settings = {
   NETWORK_TIMEOUT: 20000,
   GAP_LIMIT: 20,
-  SERVICE_FEE_RATE: 0.004,
   MIN_FEE_RATE: 1,
   MIN_LOCK_BLOCKS: 1,
   MAX_LOCK_BLOCKS: 3 * 30 * 24 * 6,
   INITIAL_LOCK_BLOCKS: 3 * 24 * 6,
-  //TODO: set it to larger values in production
-  SAMPLES: 60, //This corresponds to (PRESIGNED_FEE_RATE_CEILING ^ (1/SAMPLES) - 1) * 100 / 2 = 8% expected increase in fees wrt to ideal case, which is perfectly fine
-  //TODO: this should be 5 * 1000; I set it to 10 for testnet tests
-  //PRESIGNED_FEE_RATE_CEILING: 5 * 1000, //22-dec-2017 fee rates were 1000. TODO: Set this to 5000 which is 5x 22-dec-2017
-  //https://twitter.com/KLoaec/status/1733880025017978914
-  //PRESIGNED_FEE_RATE_CEILING: 2,
-  PRESIGNED_FEE_RATE_CEILING: 100, //This is the one used to compute minVaultAmount
-  MAX_PRESIGNED_FEE_RATE_CEILING: 10000, //TODO: should be 10000 - This is the one used to compute pressigned txs.
   // 2 hours
   INITIAL_CONFIRMATION_TIME: 2 * 60 * 60,
-  MIN_RECOVERABLE_RATIO: 2 / 3,
   SUB_UNIT: 'btc',
   FIAT_MODE: false, //whether the user prefers using fiat than SUB_UNIT
   LOCALE: 'default', //systems default
@@ -169,6 +159,7 @@ export const defaultSettings: Settings = {
       : 'USD',
   BTC_FIAT_REFRESH_INTERVAL_MS: 60000, //1 minutes
   BLOCKCHAIN_DATA_REFRESH_INTERVAL_MS: 60000, // 1 minute
+  TESTING_VAULT_MODE: 'NON_TRUC',
   WALLETS_DATA_VERSION: '1.0.0', //This does not define the version of the App, but keeps track of the changes in the signature of the Wallet
 
   REGTEST_HOST_NAME: REGTEST_HOST_NAME,

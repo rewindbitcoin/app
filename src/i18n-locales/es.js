@@ -244,6 +244,8 @@ Rewind necesita permiso para enviarte alertas críticas de seguridad sobre tus B
 Recibirás un aviso inmediato si alguien accede a tus claves e intenta desbloquear tu Bóveda.`
       },
       cannotAccelerateMaxFee: `Ya estás usando la comisión más alta. No es posible acelerar más.`,
+      accelerateSuccess:
+        'Aceleración enviada con éxito. Esperando confirmación.',
       triggerUnfreeze: {
         intro: `Estás a punto de iniciar el proceso de desbloqueo de los fondos de tu bóveda, que, llegado el momento, estarán listos para ser gastados.
 
@@ -393,6 +395,8 @@ Instrucciones de Uso:
       vault: 'Creación de Bóveda {{vaultNumber}}',
       trigger: 'Descongelación de Bóveda {{vaultNumber}}',
       rescue: 'Rescate de Bóveda {{vaultNumber}}',
+      feePayerTrigger: 'Comisión de Descongelación de Bóveda {{vaultNumber}}',
+      feePayerRescue: 'Comisión de Rescate de Bóveda {{vaultNumber}}',
       received: 'Recibido',
       sent: 'Enviado',
       receivedAndSent: 'Recibido y Enviado',
@@ -411,6 +415,14 @@ Instrucciones de Uso:
       rescued: 'Cantidad rescatada después de comisiones: {{amount}}.',
       rescuedConfirming:
         'Rescatando tu bóveda. La cantidad final rescatada después de comisiones será {{amount}}. Esperando confirmación final...',
+      feePayerTrigger:
+        'Esta transacción CPFP pagadora de comisión ayudó a confirmar tu descongelación.',
+      feePayerTriggerConfirming:
+        'Esta transacción CPFP pagadora de comisión está ayudando a confirmar tu descongelación. Esperando confirmación...',
+      feePayerRescue:
+        'Esta transacción CPFP pagadora de comisión ayudó a confirmar tu rescate.',
+      feePayerRescueConfirming:
+        'Esta transacción CPFP pagadora de comisión está ayudando a confirmar tu rescate. Esperando confirmación...',
       openBlockExplorer: 'Ver en el Explorador de Bloques'
     }
   },
@@ -484,11 +496,19 @@ Verifica la dirección cuidadosamente para asegurarte de que corresponde a una F
 
 Rewind requiere una cantidad de congelación mínima para asegurar que tenga sentido financieramente.
 
-Queremos asegurarnos de que podrás rescatar tu Bóveda en caso de emergencia, independientemente de las comisiones futuras de Bitcoin.
+Queremos asegurarnos de que tu nueva bóveda pueda financiar su respaldo y su ruta de emergencia desde el principio.
 
-Esta cantidad mínima se calcula asumiendo que podrías necesitar confirmaciones rápidas y que las comisiones de minería futuras podrían llegar a ser altas ({{feeRateCeiling}} Ksats/vB).
+Esta cantidad mínima se calcula a partir de la estructura real de la bóveda Rewind2, incluyendo la salida del respaldo on-chain y las transacciones de emergencia que crea.
 
 <strong>Acción Sugerida:</strong> Por favor, agrega {{missingFunds}} para alcanzar la cantidad mínima requerida para crear la bóveda.`,
+    reservedFundsNotice: `<strong>Fondos Reservados Temporalmente</strong>
+
+Parte de tus fondos están reservados temporalmente mientras Rewind protege transacciones importantes de bóvedas que siguen pendientes y aún podrían necesitar aceleración.
+
+<strong>Acción Sugerida:</strong> Por favor, espera a que esas transacciones confirmen antes de crear una nueva bóveda.`,
+    reservedFundsBanner: `<strong>Parte de tus fondos están reservados temporalmente</strong>
+
+Parte de tus fondos se mantiene apartada mientras Rewind protege transacciones importantes de bóvedas que siguen pendientes y aún podrían necesitar aceleración. No todos tus fondos volverán a estar disponibles hasta que esas transacciones confirmen.`,
     amountLabel: 'Cantidad a Congelar',
     securityLockTimeLabel: 'Tiempo de Bloqueo Anti-robo',
     securityLockTimeDescription: 'Desbloqueo {{blocks}} tras descongelar',
@@ -500,6 +520,11 @@ Por tu seguridad, por favor revisa estos cambios antes de continuar.`
   send: {
     title: 'Enviar Bitcoin',
     notEnoughFunds: 'Fondos insuficientes para crear la transacción',
+    reservedFunds:
+      'Parte de tus fondos están reservados temporalmente mientras Rewind protege transacciones importantes de bóvedas que siguen pendientes y aún podrían necesitar aceleración. Por favor, espera la confirmación antes de crear un nuevo envío.',
+    reservedFundsTitle: 'Parte de tus fondos están reservados temporalmente',
+    reservedFundsBody:
+      'Parte de tus fondos se mantiene apartada mientras Rewind protege transacciones importantes de bóvedas que siguen pendientes y aún podrían necesitar aceleración. No todos tus fondos volverán a estar disponibles hasta que esas transacciones confirmen.',
     lowerFeeRate: `No es posible crear la transacción con la comisión seleccionada y tus fondos disponibles.
 
 Por favor, reduce la comisión o agrega más fondos.`,
@@ -760,6 +785,14 @@ Por favor, espera unos momentos hasta que se complete.`,
       esploraTestnet: 'Esplora Testnet',
       communityBackups: 'Community Backups',
       regtestHostName: 'Host de Regtest',
+      vaultMode: 'Modo de Bóveda',
+      vaultModeFastDemo: 'Demo Rápida',
+      vaultModeRealisticTruc: 'Modo Seguro (TRUC)',
+      vaultModeHelp: `"Demo Rápida" es mejor para pruebas rápidas porque evita algunas esperas de confirmación.
+
+"Modo Seguro (TRUC)" requiere transacciones confirmadas, por eso las demos son más lentas.
+
+TRUC resuelve los ataques de fee-pinning y es el único modo permitido en la red Bitcoin real. Actívalo cuando quieras probar lo más parecido posible al uso real.`,
       gapLimit: 'Límite de Exploración (Gap Limit)',
       currency: 'Moneda',
       language: 'Idioma',

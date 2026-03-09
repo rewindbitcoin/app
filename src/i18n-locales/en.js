@@ -247,6 +247,8 @@ If you press 'Init Unfreeze', a waiting period of {{lockTime}} will begin, after
       //frozenRemainingDateLabel: 'Funds Unlock Estimated Date',
 
       cannotAccelerateMaxFee: `You are already on the highest fee. Acceleration isn't available.`,
+      accelerateSuccess:
+        'Acceleration submitted successfully. Waiting for confirmation.',
       triggerUnfreeze: {
         intro: `You're about to start the process of unlocking your vault funds,\
  which will eventually be ready for spending.
@@ -428,6 +430,8 @@ Usage Instructions:
       vault: 'Vault {{vaultNumber}} Creation',
       trigger: 'Vault {{vaultNumber}} Unfreeze',
       rescue: 'Vault {{vaultNumber}} Rescue',
+      feePayerTrigger: 'Vault {{vaultNumber}} Unfreeze Fee',
+      feePayerRescue: 'Vault {{vaultNumber}} Rescue Fee',
       received: 'Received',
       sent: 'Sent',
       receivedAndSent: 'Received and Sent',
@@ -451,6 +455,14 @@ Usage Instructions:
       rescued: 'Rescued amount after fees: {{amount}}.',
       rescuedConfirming:
         'Rescuing your vault. The final rescued amount after fees will be {{amount}}. Awaiting final confirmation...',
+      feePayerTrigger:
+        'This CPFP fee-payer transaction helped confirm your unfreeze.',
+      feePayerTriggerConfirming:
+        'This CPFP fee-payer transaction is helping confirm your unfreeze. Waiting for confirmation...',
+      feePayerRescue:
+        'This CPFP fee-payer transaction helped confirm your rescue.',
+      feePayerRescueConfirming:
+        'This CPFP fee-payer transaction is helping confirm your rescue. Waiting for confirmation...',
       openBlockExplorer: 'View on Block Explorer'
     }
   },
@@ -532,26 +544,23 @@ You can replace the pre-filled address or click "Create" to open a wizard and ge
 
 Verify the address carefully to ensure it corresponds to an Emergency Phrase under your control:
 {{coldAddress}}.`,
-    //notEnoughFundsTitle: 'Vault Minimum Requirement',
-
-    //    notEnoughFunds: `<strong>Minimum Vault Amount Notice</strong>
-    //
-    //Rewind requires a minimum amount to be frozen to ensure it is financially worthwhile for you.
-    //
-    //Essentially, we want to make sure you will still have a significant amount of Bitcoin (more than {{minRecoverableRatioPct}}%) after unlocking or recovering your funds in the event of an emergency.
-    //
-    //This minimum amount is calculated based on the assumption that you may need rapid transaction confirmations and that future network fees could become extremely high ({{feeRateCeiling}} Ksats/vB).
-    //
-    //<strong>Suggested Action:</strong> Please add {{missingFunds}} to reach the minimum amount required for vaulting.`,
     notEnoughFunds: `<strong>Minimum Vault Amount Notice</strong>
 
 Rewind requires a minimum amount to be frozen to ensure it is financially worthwhile for you.
 
-We want to make sure you will be able to rescue your Vault in case of an emergency, regardless of future Bitcoin fees.
+We want to make sure your new vault can still fund its backup and emergency path right from the start.
 
-This minimum amount is calculated based on the assumption that you may need rapid transaction confirmations and that future network fees could become high ({{feeRateCeiling}} Ksats/vB).
+This minimum amount is calculated from the actual Rewind2 vault structure, including the on-chain backup output and the emergency transactions it creates.
 
 <strong>Suggested Action:</strong> Please add {{missingFunds}} to reach the minimum amount required for vaulting.`,
+    reservedFundsNotice: `<strong>Funds Temporarily Reserved</strong>
+
+Some of your funds are temporarily reserved while Rewind protects important pending vault transactions that may still need acceleration.
+
+<strong>Suggested Action:</strong> Please wait for those transactions to confirm before creating a new vault.`,
+    reservedFundsBanner: `<strong>Some Funds Are Temporarily Reserved</strong>
+
+Some of your funds are being kept aside while Rewind protects important pending vault transactions that may still need acceleration. Not all funds will be available again until those transactions confirm.`,
     amountLabel: 'Amount to Freeze',
     securityLockTimeLabel: 'Theft-Protection Time-Lock',
     securityLockTimeDescription: 'Unlocks {{blocks}} after unfreeze',
@@ -573,6 +582,11 @@ For your security, please review these changes before proceeding.`
   send: {
     title: 'Send Bitcoin',
     notEnoughFunds: 'Insufficient funds to create the transaction',
+    reservedFunds:
+      'Some of your funds are temporarily reserved while Rewind protects important pending vault transactions that may still need acceleration. Please wait for confirmation before creating a new send.',
+    reservedFundsTitle: 'Some Funds Are Temporarily Reserved',
+    reservedFundsBody:
+      'Some of your funds are being kept aside while Rewind protects important pending vault transactions that may still need acceleration. Not all funds will be available again until those transactions confirm.',
     lowerFeeRate: `Transaction not possible with the selected fee rate and your available funds.
 
 Please lower the fee rate or add more funds.`,
@@ -850,6 +864,14 @@ Please wait a few moments until completion.`,
       esploraTestnet: 'Esplora Testnet',
       communityBackups: 'Community Backups',
       regtestHostName: 'Regtest Host',
+      vaultMode: 'Vault Mode',
+      vaultModeFastDemo: 'Fast Demo',
+      vaultModeRealisticTruc: 'Safe Mode (TRUC)',
+      vaultModeHelp: `"Fast Demo" is better for quick testing because it avoids some confirmation waits.
+
+"Safe Mode (TRUC)" requires confirmed transactions, so demos are slower.
+
+TRUC solves fee-pinning attacks and is the only allowed mode on the real Bitcoin network. Turn it on when you want to test as close as possible to real-world usage.`,
       gapLimit: 'Gap Limit',
       currency: 'Currency',
       language: 'Language',

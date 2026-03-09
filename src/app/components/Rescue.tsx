@@ -1,10 +1,8 @@
-// Copyright (C) 2025 Jose-Luis Landabaso - https://rewindbitcoin.com
+// Copyright (C) 2026 Jose-Luis Landabaso - https://rewindbitcoin.com
 // Licensed under the GNU GPL v3 or later. See the LICENSE file for details.
 
-import moize from 'moize';
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Modal, Button, ActivityIndicator } from '../../common/ui';
-import { findLowestTrueBinarySearch } from '../../common/lib/binarySearch';
 import { useTranslation } from 'react-i18next';
 import { View, Text } from 'react-native';
 import FeeInput from './FeeInput';
@@ -14,39 +12,26 @@ import {
   pickFeeEstimate
 } from '../lib/fees';
 import { useSettings } from '../hooks/useSettings';
-import type { TxHex, TxId, Vault, VaultStatus } from '../lib/vaults';
+import {
+  type Vault,
+  type VaultStatus,
+  estimateCpfpPackage,
+  getSpendableUtxosData,
+  getVaultMode
+} from '../lib/vaults';
 import { transactionFromHex } from '../lib/bitcoin';
 import { useWallet } from '../hooks/useWallet';
 import useFirstDefinedValue from '~/common/hooks/useFirstDefinedValue';
 import { toNumber } from '../lib/sats';
-
-export type RescueData = {
-  txHex: TxHex;
-  txId: TxId;
-  fee: number;
-  feeRate: number;
-  vSize: number;
-};
-
-/**
- * Finds the component in rescueSortedTxs with the next equal or larger feeRate.
- *
- * @param rescueSortedTxs - The search space
- * @param {number} feeRate - The fee rate to search for.
- * returns {object|null} The transaction data with the next equal or larger feeRate, or null if not found.
- */
-const findNextEqualOrLargerFeeRate = moize(
-  (rescueSortedTxs: Array<RescueData>, feeRate: number) => {
-    const result = findLowestTrueBinarySearch(
-      rescueSortedTxs.length - 1,
-      index => rescueSortedTxs[index]!.feeRate >= feeRate,
-      100 //100 iterations at most
-    );
-    if (result.value !== undefined) return rescueSortedTxs[result.value]!;
-    else return null;
-  },
-  { maxSize: 200 } //Let the Slider show around 200 points
-);
+import { DUMMY_CHANGE_OUTPUT, getMainAccount } from '../lib/vaultDescriptors';
+import { networkMapping } from '../lib/network';
+import {
+  findNextEqualOrLargerEffectiveFeeRate,
+  getAccelerationFeeRateFloor,
+  pickActionableInitialFeeRate,
+  getReplacementUtxosData,
+  type VaultActionTxData
+} from '../lib/vaultActionTx';
 
 const Rescue = ({
   vault,
@@ -57,15 +42,46 @@ const Rescue = ({
 }: {
   vault: Vault;
   vaultStatus: VaultStatus | undefined;
-  onRescue: (rescueData: RescueData) => void;
+  onRescue: (rescueData: VaultActionTxData) => void;
   isVisible: boolean;
   onClose: () => void;
 }) => {
-  // zero if this is not a RBF, and => 1 if this is InitUnfreeze
-  // isVisibletrying to do a RBF of a prev one
-  const feeRateToReplace = useMemo(() => {
-    if (!vaultStatus?.triggerTxHex || !vaultStatus?.panicTxHex) return 0;
-    else {
+  const vaultMode = useMemo(() => getVaultMode(vault), [vault]);
+  const isLegacyVault = vaultMode === 'LEGACY';
+  const isAccelerationAttempt =
+    !!vaultStatus?.panicPushTime || vaultStatus?.panicTxBlockHeight === 0;
+  const { t } = useTranslation();
+  const {
+    feeEstimates: feeEstimatesRealTime,
+    btcFiat: btcFiatRealTime,
+    utxosData,
+    vaultsStatuses,
+    getTxosData,
+    accounts,
+    networkId,
+    historyData
+  } = useWallet();
+  // Cache to avoid flickering in the sliders while background refreshes happen.
+  const btcFiat = useFirstDefinedValue<number>(btcFiatRealTime);
+  const feeEstimates = useFirstDefinedValue<FeeEstimates>(feeEstimatesRealTime);
+  const spendableUtxosData =
+    utxosData && getSpendableUtxosData(utxosData, vaultsStatuses, historyData);
+
+  // Minimum effective fee-rate floor required for acceleration.
+  //
+  // For Rewind2, a replacement child must satisfy two relay checks at once:
+  // 1) the new package feerate must improve over the previous one, and
+  // 2) the new child fee must be at least:
+  //    previousChildFee + ceil(childVSize * 0.1 sat/vB)
+  //
+  // Example: if the previous child paid 584 sats and the replacement child
+  // would be 160 vB, relay requires at least 584 + ceil(160 * 0.1) = 600 sats.
+  // A new package can therefore look "faster" by feerate and still be
+  // rejected if the child only pays, say, 590 sats.
+  const feeRateToReplace = useMemo<number | null>(() => {
+    if (!isAccelerationAttempt) return 0;
+    if (isLegacyVault) {
+      if (!vaultStatus?.triggerTxHex || !vaultStatus?.panicTxHex) return null;
       const { tx: triggerTx } = transactionFromHex(vaultStatus.triggerTxHex);
       const { tx: panicTx } = transactionFromHex(vaultStatus.panicTxHex);
       const triggerOutValue = triggerTx.outs[0]?.value;
@@ -76,12 +92,43 @@ const Rescue = ({
         throw new Error('Invalid panicTxHex');
       return (
         (toNumber(triggerOutValue) - toNumber(panicOutValue)) /
-        panicTx.virtualSize()
+          panicTx.virtualSize() +
+        1
       );
+    } else {
+      const panicTxHex = vaultStatus?.panicTxHex;
+      if (!panicTxHex) return null;
+      const panicTxData = vault.txMap[panicTxHex];
+      if (!panicTxData) return null;
+      const panicCpfpTxHex = vaultStatus?.panicCpfpTxHex;
+      if (!panicCpfpTxHex) return null;
+      return getAccelerationFeeRateFloor({
+        parentTxHex: panicTxHex,
+        parentFee: panicTxData.fee,
+        previousChildTxHex: panicCpfpTxHex,
+        utxosData: spendableUtxosData,
+        historyData,
+        getTxosData,
+        accounts,
+        networkId,
+        feeEstimates
+      });
     }
-  }, [vaultStatus?.triggerTxHex, vaultStatus?.panicTxHex]);
+  }, [
+    isAccelerationAttempt,
+    isLegacyVault,
+    vaultStatus,
+    vault,
+    spendableUtxosData,
+    accounts,
+    networkId,
+    historyData,
+    getTxosData,
+    feeEstimates
+  ]);
 
-  const rescueSortedTxs = useMemo(() => {
+  const legacyRescueSortedTxs = useMemo(() => {
+    if (!isLegacyVault) return [];
     if (!isVisible) return [];
     const triggerTxHex = vaultStatus?.triggerTxHex;
     if (!triggerTxHex) throw new Error('Vault has not been triggered');
@@ -93,18 +140,18 @@ const Rescue = ({
         const txData = vault.txMap[txHex];
         if (!txData) throw new Error('rescue tx not mapped');
         const { tx } = transactionFromHex(txHex);
-        return { ...txData, vSize: tx.virtualSize(), txHex };
+        return {
+          parentTxHex: txHex,
+          parentTxId: txData.txId,
+          parentTxVSize: tx.virtualSize(),
+          parentTxFee: txData.fee,
+          effectiveFee: txData.fee,
+          effectiveFeeRate: txData.feeRate
+        };
       })
-      .sort((a, b) => a.feeRate - b.feeRate);
-  }, [vault, vaultStatus?.triggerTxHex, isVisible]);
+      .sort((a, b) => a.effectiveFeeRate - b.effectiveFeeRate);
+  }, [vault, vaultStatus?.triggerTxHex, isVisible, isLegacyVault]);
 
-  const { t } = useTranslation();
-  const { feeEstimates: feeEstimatesRealTime, btcFiat: btcFiatRealTime } =
-    useWallet();
-
-  //Cache to avoid flickering in the Sliders
-  const btcFiat = useFirstDefinedValue<number>(btcFiatRealTime);
-  const feeEstimates = useFirstDefinedValue<FeeEstimates>(feeEstimatesRealTime);
   const maxFeeRate = feeEstimates ? computeMaxAllowedFeeRate(feeEstimates) : 0;
   const { settings } = useSettings();
   if (!settings)
@@ -114,19 +161,142 @@ const Rescue = ({
 
   const [step, setStep] = useState<'intro' | 'fee'>('intro');
 
-  const initialFeeRate = feeEstimates
-    ? Math.max(
-        feeRateToReplace + 1,
-        pickFeeEstimate(feeEstimates, settings.INITIAL_CONFIRMATION_TIME)
-          .feeEstimate
-      )
-    : null;
+  const preferredInitialFeeRate =
+    feeEstimates && feeRateToReplace !== null
+      ? Math.max(
+          feeRateToReplace,
+          pickFeeEstimate(feeEstimates, settings.INITIAL_CONFIRMATION_TIME)
+            .feeEstimate
+        )
+      : null;
+
+  const isAccelerationSyncPending =
+    isAccelerationAttempt && feeRateToReplace === null;
+  const cannotAccelerateMaxFee =
+    isLegacyVault && feeRateToReplace !== null && feeRateToReplace > maxFeeRate;
 
   const [feeRate, setFeeRate] = useState<number | null>(null);
 
-  const txData =
-    feeRate && findNextEqualOrLargerFeeRate(rescueSortedTxs, feeRate);
-  const fee = feeRate === null ? null : txData && txData.fee;
+  const buildTxDataForFeeRate = useCallback(
+    (selectedFeeRate: number): VaultActionTxData | null => {
+      if (isLegacyVault)
+        return findNextEqualOrLargerEffectiveFeeRate(
+          legacyRescueSortedTxs,
+          selectedFeeRate
+        );
+      else {
+        if (
+          !isVisible ||
+          !spendableUtxosData ||
+          !accounts ||
+          Object.keys(accounts).length === 0 ||
+          !networkId
+        )
+          return null;
+
+        const triggerTxHex = vaultStatus?.triggerTxHex;
+        if (!triggerTxHex) throw new Error('Vault has not been triggered');
+        const rescueTxs = vault.triggerMap[triggerTxHex];
+        if (!rescueTxs || rescueTxs.length === 0)
+          throw new Error("Triggered vault doesn't have matching rescue txs");
+        const rescueTxHex = rescueTxs[0];
+        if (!rescueTxHex) throw new Error('Invalid rescue tx');
+        const rescueTxData = vault.txMap[rescueTxHex];
+        if (!rescueTxData) throw new Error('rescue tx not mapped');
+        const { tx } = transactionFromHex(rescueTxHex);
+
+        const network = networkMapping[networkId];
+        const changeOutput = DUMMY_CHANGE_OUTPUT(
+          getMainAccount(accounts, network),
+          network
+        );
+        let mandatoryUtxosData = undefined;
+        let optionalUtxosData = spendableUtxosData;
+        if (isAccelerationAttempt) {
+          const previousChildTxHex = vaultStatus?.panicCpfpTxHex;
+          if (!previousChildTxHex || !historyData?.length) return null;
+          const replacementUtxosData = getReplacementUtxosData({
+            parentTxHex: rescueTxHex,
+            previousChildTxHex,
+            utxosData: spendableUtxosData,
+            historyData,
+            getTxosData
+          });
+          if (!replacementUtxosData) return null;
+          mandatoryUtxosData = replacementUtxosData.mandatoryUtxosData;
+          optionalUtxosData = replacementUtxosData.optionalUtxosData;
+        }
+        const rewind2Plan = estimateCpfpPackage({
+          parentTxHex: rescueTxHex,
+          parentFee: rescueTxData.fee,
+          targetEffectiveFeeRate: selectedFeeRate,
+          ...(mandatoryUtxosData ? { mandatoryUtxosData } : {}),
+          optionalUtxosData,
+          changeOutput
+        });
+        if (!rewind2Plan) return null;
+        return {
+          parentTxHex: rescueTxHex,
+          parentTxId: rescueTxData.txId,
+          parentTxVSize: tx.virtualSize(),
+          parentTxFee: rescueTxData.fee,
+          effectiveFee: rewind2Plan.totalFee,
+          effectiveFeeRate: rewind2Plan.effectiveFeeRate
+        };
+      }
+    },
+    [
+      isLegacyVault,
+      legacyRescueSortedTxs,
+      isVisible,
+      spendableUtxosData,
+      getTxosData,
+      accounts,
+      networkId,
+      vault,
+      vaultStatus?.triggerTxHex,
+      isAccelerationAttempt,
+      vaultStatus?.panicCpfpTxHex,
+      historyData
+    ]
+  );
+
+  const initialFeeRate = useMemo(
+    () =>
+      // If the wallet's preferred confirmation target is no longer fundable,
+      // fall back to the minimum actionable replacement floor instead of
+      // opening an acceleration modal that cannot proceed past the intro step.
+      pickActionableInitialFeeRate({
+        preferredFeeRate: cannotAccelerateMaxFee
+          ? null
+          : preferredInitialFeeRate,
+        minimumActionableFeeRate:
+          !isAccelerationAttempt || cannotAccelerateMaxFee
+            ? null
+            : feeRateToReplace,
+        canBuildAtFeeRate: feeRate => buildTxDataForFeeRate(feeRate) !== null
+      }),
+    [
+      preferredInitialFeeRate,
+      isAccelerationAttempt,
+      cannotAccelerateMaxFee,
+      feeRateToReplace,
+      buildTxDataForFeeRate
+    ]
+  );
+
+  const txData = useMemo<VaultActionTxData | null>(() => {
+    const selectedFeeRate = feeRate ?? initialFeeRate;
+    if (selectedFeeRate === null) return null;
+    return buildTxDataForFeeRate(selectedFeeRate);
+  }, [feeRate, initialFeeRate, buildTxDataForFeeRate]);
+
+  const canOpenFeeStep =
+    initialFeeRate !== null &&
+    !isAccelerationSyncPending &&
+    !cannotAccelerateMaxFee;
+
+  const fee = txData ? txData.effectiveFee : null;
 
   useEffect(() => {
     if (!isVisible) {
@@ -158,49 +328,41 @@ const Rescue = ({
           name: 'alarm-light'
         }}
         onClose={onClose}
-        {
-          //loading... (no buttons)
-          ...(!initialFeeRate ||
-          //cannot RBF
-          feeRateToReplace + 1 > maxFeeRate
-            ? {}
-            : {
-                customButtons:
-                  step === 'intro' ? (
-                    <View className="items-center gap-6 gap-y-4 flex-row flex-wrap justify-center pb-4">
-                      <Button mode="secondary" onPress={onClose}>
-                        {t('cancelButton')}
-                      </Button>
-                      <Button
-                        mode="primary-alert"
-                        onPress={() => setStep('fee')}
-                      >
-                        {feeRateToReplace
-                          ? t('accelerateButton')
-                          : t('imInDangerButton')}
-                      </Button>
-                    </View>
-                  ) : step === 'fee' ? (
-                    <View className="items-center gap-6 gap-y-4 flex-row flex-wrap justify-center pb-4">
-                      <Button mode="secondary" onPress={onClose}>
-                        {t('cancelButton')}
-                      </Button>
-                      <Button
-                        mode="primary-alert"
-                        onPress={handleRescue}
-                        disabled={!txData}
-                      >
-                        {t('wallet.vault.rescueButton')}
-                      </Button>
-                    </View>
-                  ) : undefined
-              })
-        }
+        {...{
+          customButtons:
+            step === 'intro' ? (
+              <View className="items-center gap-6 gap-y-4 flex-row flex-wrap justify-center pb-4">
+                <Button mode="secondary" onPress={onClose}>
+                  {t('cancelButton')}
+                </Button>
+                {canOpenFeeStep && (
+                  <Button mode="primary-alert" onPress={() => setStep('fee')}>
+                    {isAccelerationAttempt
+                      ? t('accelerateButton')
+                      : t('imInDangerButton')}
+                  </Button>
+                )}
+              </View>
+            ) : step === 'fee' ? (
+              <View className="items-center gap-6 gap-y-4 flex-row flex-wrap justify-center pb-4">
+                <Button mode="secondary" onPress={onClose}>
+                  {t('cancelButton')}
+                </Button>
+                <Button
+                  mode="primary-alert"
+                  onPress={handleRescue}
+                  disabled={!txData}
+                >
+                  {t('wallet.vault.rescueButton')}
+                </Button>
+              </View>
+            ) : undefined
+        }}
       >
-        {!initialFeeRate ? (
+        {!feeEstimates ? (
           //loading...
           <ActivityIndicator />
-        ) : feeRateToReplace + 1 > maxFeeRate ? (
+        ) : cannotAccelerateMaxFee ? (
           //cannot RBF
           <View>
             <Text className="text-base text-slate-600 pb-2 px-2">
@@ -210,7 +372,7 @@ const Rescue = ({
         ) : step === 'intro' ? (
           <View>
             <Text className="text-base text-slate-600 pb-2 px-2">
-              {feeRateToReplace
+              {isAccelerationAttempt
                 ? t('wallet.vault.rescue.introAccelerate')
                 : t('wallet.vault.rescue.intro', {
                     panicAddress: vault.coldAddress
@@ -225,10 +387,10 @@ const Rescue = ({
             <View className="bg-slate-100 p-2 rounded-xl">
               {feeEstimates ? (
                 <FeeInput
-                  {...(feeRateToReplace ? { min: feeRateToReplace + 1 } : {})}
+                  {...(feeRateToReplace ? { min: feeRateToReplace } : {})}
                   btcFiat={btcFiat}
                   feeEstimates={feeEstimates}
-                  initialValue={initialFeeRate}
+                  initialValue={initialFeeRate!}
                   fee={fee}
                   label={t('wallet.vault.rescue.confirmationSpeedLabel')}
                   onValueChange={setFeeRate}

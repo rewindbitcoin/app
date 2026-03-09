@@ -1,6 +1,8 @@
 // Copyright (C) 2025 Jose-Luis Landabaso - https://rewindbitcoin.com
 // Licensed under the GNU GPL v3 or later. See the LICENSE file for details.
 
+//FIXME: for the moment we're still saving vaults on the p2p network
+//this may change. If done, then read TAG:ifrubr43fre
 import { Platform } from 'react-native';
 import {
   documentDirectory,
@@ -45,6 +47,7 @@ export const fetchP2PVaultIds = async ({
   cBVaultsReaderAPI: string;
   networkTimeout: number;
 }): Promise<{
+  nextVaultIndex: number;
   nextVaultId: string;
   nextVaultPath: string;
   existingVaults: Array<{ vaultId: string; vaultPath: string }>;
@@ -89,6 +92,7 @@ export const fetchP2PVaultIds = async ({
               // Resource does not exist, but the request was valid
               if ('exists' in responseBody && responseBody.exists === false) {
                 return {
+                  nextVaultIndex: index,
                   nextVaultId: vaultId,
                   nextVaultPath: vaultPath,
                   existingVaults

@@ -67,10 +67,10 @@ export const DUMMY_VAULT_OUTPUT = memoize((network: Network) => {
     network
   });
 });
-export const DUMMY_SERVICE_OUTPUT = memoize((network: Network) => {
+export const DUMMY_BACKUP_OUTPUT = memoize((network: Network) => {
   const { Output } = ensureDescriptorsFactoryInstance();
   return new Output({
-    descriptor: createServiceDescriptor(DUMMY_SERVICE_ADDRESS(network)),
+    descriptor: createVaultDescriptor(DUMMY_PUBKEY_2),
     network
   });
 });

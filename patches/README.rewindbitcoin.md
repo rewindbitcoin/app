@@ -3,6 +3,7 @@ Basically you need to set:
 var sliderStyle={zIndex:1};
 instead of var sliderStyle={zIndex:1,width:width};
 in node_modules/@react-native-community/slider/dist/Slider.js
+Also this: https://github.com/callstack/react-native-slider/pull/746
 
 Patch for react-native-reanimated corresponds to allow animations even when the device has set reducedMotion (there is no global option as per current version):
 <https://github.com/software-mansion/react-native-reanimated/issues/5253>
@@ -70,3 +71,8 @@ I decided to create a fork since patch-package was not working well with binarie
 
 #react-native-fast-encoder
 https://github.com/maksimlya/react-native-fast-encoder/issues/9#issuecomment-3333723780
+
+--
+
+#react-native-css-interop
+https://github.com/nativewind/nativewind/issues/1711#issuecomment-4006761379

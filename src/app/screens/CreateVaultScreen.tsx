@@ -13,7 +13,12 @@ import { useTranslation } from 'react-i18next';
 import { useWindowDimensions, View, Text } from 'react-native';
 import * as Progress from 'react-native-progress';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { createVault, type VaultSettings, type Vault } from '../lib/vaults';
+import {
+  createVault,
+  type VaultSettings,
+  type Vault,
+  getRandomSigner
+} from '../lib/vaults';
 import { useSettings } from '../hooks/useSettings';
 import {
   Button,
@@ -27,10 +32,9 @@ import { useNetStatus } from '../hooks/useNetStatus';
 import { NavigationPropsByScreenId, WALLET_HOME } from '../screens';
 import { batchedUpdates } from '~/common/lib/batchedUpdates';
 import { formatBlocks } from '../lib/format';
-import { createServiceOutput } from '../lib/vaultDescriptors';
-import { networkMapping } from '../lib/network';
 import { formatBtc } from '../lib/btcRates';
 import { useLocalization } from '../hooks/useLocalization';
+import { toBigInt } from '../lib/sats';
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -42,7 +46,6 @@ export default function CreateVaultScreen({
   if (!vaultSettings) throw new Error('vaultSettings not set');
   const {
     vaultedAmount,
-    serviceFee,
     coldAddress,
     feeRate,
     lockBlocks,
@@ -57,7 +60,6 @@ export default function CreateVaultScreen({
   const insets = useSafeAreaInsets();
   const mbStyle = useMemo(() => ({ marginBottom: insets.bottom }), [insets]);
   const {
-    fetchServiceAddress,
     getNextChangeDescriptorWithIndex,
     getUnvaultKey,
     signers,
@@ -90,22 +92,19 @@ export default function CreateVaultScreen({
   const { t } = useTranslation();
   const navigation = useNavigation<NavigationPropsByScreenId['CREATE_VAULT']>();
   const keepProgress = useRef<boolean>(true);
+  const createCancelled = useRef<boolean>(false);
   const { settings } = useSettings();
   if (!settings)
     throw new Error(
       'This component should only be started after settings has been retrieved from storage'
     );
   const networkTimeout = settings.NETWORK_TIMEOUT;
-  const samples = settings.SAMPLES;
-  const feeRateCeiling = settings.PRESIGNED_FEE_RATE_CEILING;
-  const maxFeeRateCeiling = settings.MAX_PRESIGNED_FEE_RATE_CEILING;
+  const vaultMode =
+    networkId === 'BITCOIN' ? 'TRUC' : settings.TESTING_VAULT_MODE;
   const { locale, currency } = useLocalization();
   // We know settings are the correct ones in this Component
   const [progress, setProgress] = useState<number>(0);
   const [confirmRequested, setConfirmRequested] = useState<boolean>(false);
-  const [serviceAddressQuiet, setServiceAddressQuiet] = useState<
-    boolean | undefined
-  >(undefined);
   const [vault, setVault] = useState<Vault>();
 
   const backBlockerUnsubscriberRef = useRef<null | (() => void)>(null);
@@ -170,12 +169,23 @@ export default function CreateVaultScreen({
     keepProgress.current = false;
   }, []);
   useEffect(() => {
-    if (!navigation.isFocused()) stopProgress();
-  }, [navigation, stopProgress]);
+    return () => {
+      createCancelled.current = true;
+      stopProgress();
+    };
+  }, [stopProgress]);
   const onProgress = useCallback((progress: number) => {
     setProgress(progress);
     return keepProgress.current;
   }, []);
+  const cancelCreate = useCallback(() => {
+    createCancelled.current = true;
+    goBack();
+  }, [goBack]);
+  const shouldContinueCreate = useCallback(
+    () => !createCancelled.current && navigation.isFocused(),
+    [navigation]
+  );
 
   const isVaultCreated = useRef<boolean>(false);
 
@@ -280,27 +290,15 @@ export default function CreateVaultScreen({
     const create = async () => {
       //Leave some time so that the progress is rendered
       await sleep(200);
-      if (!navigation.isFocused()) return; //Don't proceed if lost focus after await
+      if (!shouldContinueCreate()) return;
 
       const unvaultKey = await getUnvaultKey();
-      const { result } = await netRequest({
-        whenToastErrors: 'ON_ANY_ERROR',
-        errorMessage: message => t('createVault.fetchIssues', { message }),
-        func: fetchServiceAddress
-      });
-      if (!navigation.isFocused()) return; //Don't proceed if lost focus after await
-      if (!result) {
-        //The toast with prev error message will have been shown.
-        goBack();
-        return;
-      }
-      const { address: serviceAddress, quiet } = result;
-      setServiceAddressQuiet(quiet);
+      if (!shouldContinueCreate()) return;
       const changeDescriptorWithIndex =
         await getNextChangeDescriptorWithIndex(accounts);
-      if (!navigation.isFocused()) return; //Don't proceed if lost focus after await
+      if (!shouldContinueCreate()) return;
 
-      const { result: nextVaultData } = await netRequest({
+      const { result: nextVaultP2PData } = await netRequest({
         whenToastErrors: 'ON_ANY_ERROR',
         errorMessage: message => t('createVault.fetchIssues', { message }),
         func: () =>
@@ -312,48 +310,61 @@ export default function CreateVaultScreen({
             cBVaultsReaderAPI
           })
       });
-      if (!navigation.isFocused()) return; //Don't proceed if lost focus after await
-      if (!nextVaultData) {
+
+      if (!shouldContinueCreate()) return;
+      if (!nextVaultP2PData) {
         //The toast with prev error message will have been shown.
         goBack();
         return;
       }
 
-      const serviceOutput = createServiceOutput(
-        serviceAddress,
-        networkMapping[networkId]
-      );
-      //createVault does not throw. It returns errors as strings:
-      const vault = await createVault({
-        vaultedAmount,
-        unvaultKey,
-        samples,
-        feeRate,
-        serviceFee,
-        feeRateCeiling,
-        maxFeeRateCeiling,
-        coldAddress,
-        changeDescriptorWithIndex,
-        serviceOutput,
-        lockBlocks,
-        signer,
-        utxosData,
-        networkId,
-        nextVaultId: nextVaultData.nextVaultId,
-        nextVaultPath: nextVaultData.nextVaultPath,
-        onProgress
-      });
-      if (!navigation.isFocused()) return; //Don't proceed if lost focus after await
+      const randomSigner = await getRandomSigner(networkId);
+      if (!shouldContinueCreate()) return;
 
-      if (typeof vault === 'object') {
+      //createVault does not throw. It returns errors as strings:
+      const vaultData = await createVault({
+        vaultedAmount: toBigInt(vaultedAmount),
+        unvaultKey,
+        feeRate,
+        utxosData,
+        signer,
+        randomSigner,
+        coldAddress,
+        lockBlocks,
+        changeDescriptorWithIndex,
+        vaultIndex: nextVaultP2PData.nextVaultIndex, //FIXME: TAG:ifrubr43frev -> this is only correct as long as we keep backing up in P2P in addition to onchain, otherwiser we'll need to also retrieve the nextIndex from the onChainBackupDescriptor and find out the Max between onChainBackupDescriptorNextIndex and nextVaultP2PData.nextVaultIndex.
+        // Also assert that onChainBackupDescriptorNextIndex === 0 || onChainBackupDescriptorNextIndex > nextVaultP2PData.nextVaultIndex
+        vaultMode,
+        shiftFeesToBackupEnd: true,
+        networkId
+      });
+      if (!shouldContinueCreate()) return;
+
+      if (typeof vaultData === 'object') {
+        const vault = {
+          vaultId: nextVaultP2PData.nextVaultId, //FIXME: this assumes p2p backups - read TAG:ifrubr43fre
+          vaultPath: nextVaultP2PData.nextVaultPath, //FIXME: this assumes p2p backups - read TAG:ifrubr43fre
+          vaultedAmount,
+          vaultAddress: vaultData.vaultAddress,
+          triggerAddress: vaultData.triggerAddress,
+          coldAddress,
+          lockBlocks,
+          vaultTxHex: vaultData.vaultTxHex,
+          txMap: vaultData.txMap,
+          triggerMap: vaultData.triggerMap,
+          networkId,
+          unvaultKey,
+          triggerDescriptor: vaultData.triggerDescriptor,
+          creationTime: vaultData.creationTime
+        };
         batchedUpdates(() => {
           setVault(vault);
           setProgress(1);
         });
       } else {
-        if (vault !== 'USER_CANCEL') {
+        if (vaultData !== 'USER_CANCEL') {
           const errorMessage = t('createVault.unexpectedError', {
-            message: vault
+            message: vaultData
           });
           toast.show(errorMessage, { type: 'danger' });
         }
@@ -365,7 +376,6 @@ export default function CreateVaultScreen({
     networkTimeout,
     apiReachable,
     cBVaultsReaderAPIReachable,
-    navigation,
     goBackToWalletHome,
     netRequest,
     goBack,
@@ -373,20 +383,14 @@ export default function CreateVaultScreen({
     toast,
     netToast,
     vaultedAmount,
-    serviceFee,
     coldAddress,
     feeRate,
-    feeRateCeiling,
-    maxFeeRateCeiling,
     getNextChangeDescriptorWithIndex,
-    fetchServiceAddress,
     getUnvaultKey,
     lockBlocks,
     networkId,
-    onProgress,
-    pushVaultRegisterWTAndUpdateStates,
-    samples,
-    cBVaultsWriterAPI,
+    vaultMode,
+    shouldContinueCreate,
     cBVaultsReaderAPI,
     signer,
     vaults,
@@ -437,7 +441,7 @@ export default function CreateVaultScreen({
                 progress={progress}
               />
             </View>
-            <Button onPress={stopProgress}>{t('cancelButton')}</Button>
+            <Button onPress={cancelCreate}>{t('cancelButton')}</Button>
           </View>
         ) : (
           //After the vault has been created:
@@ -469,27 +473,14 @@ export default function CreateVaultScreen({
                   </View>
 
                   {/* Fees */}
-                  {/*don't show fees if quiet*/}
-                  {serviceAddressQuiet === false && (
-                    <>
-                      <View>
-                        <Text className="text-base font-bold mb-1">
-                          {t('createVault.miningFee')}
-                        </Text>
-                        <Text className="text-base">
-                          {formatAmount(vaultTxInfo.fee)}
-                        </Text>
-                      </View>
-                      <View>
-                        <Text className="text-base font-bold mb-1">
-                          {t('createVault.serviceFee')}
-                        </Text>
-                        <Text className="text-base">
-                          {formatAmount(vault.serviceFee)}
-                        </Text>
-                      </View>
-                    </>
-                  )}
+                  <View>
+                    <Text className="text-base font-bold mb-1">
+                      {t('createVault.miningFee')}
+                    </Text>
+                    <Text className="text-base">
+                      {formatAmount(vaultTxInfo.fee)}
+                    </Text>
+                  </View>
 
                   {/* Emergency Address */}
                   <View>

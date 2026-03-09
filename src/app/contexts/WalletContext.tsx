@@ -10,7 +10,7 @@ import {
   type HistoryData,
   type TxHistory,
   fetchVaultsStatuses,
-  getUtxosData,
+  getTxosDataFromVaults,
   getHotDescriptors,
   areVaultsSynched,
   getHistoryData
@@ -90,6 +90,7 @@ import {
 } from '@bitcoinerlab/explorer';
 import { defaultSettings } from '../lib/settings';
 import { getLocales } from 'expo-localization';
+import { transactionFromHex } from '../lib/bitcoin';
 
 export const WalletContext: Context<WalletContextType | null> =
   createContext<WalletContextType | null>(null);
@@ -125,6 +126,14 @@ export type WalletContextType = {
   networkId: NetworkId | undefined;
   fetchBlockTime: (blockHeight: number) => Promise<number | undefined>;
   pushTx: (txHex: string) => Promise<void>;
+  getTxosData: (txos: Array<string>) => UtxosData;
+  pushTxPackage: ({
+    parentTxHex,
+    childTxHex
+  }: {
+    parentTxHex: string;
+    childTxHex: string;
+  }) => Promise<void>;
   syncWatchtowerRegistration: ({
     pushToken,
     isUserTriggered
@@ -605,7 +614,12 @@ const WalletProviderRaw = ({
         tipHeight
       );
       const utxos = discovery.getUtxos({ descriptors });
-      const walletUtxosData = getUtxosData(utxos, vaults, network, discovery);
+      const walletUtxosData = getTxosDataFromVaults(
+        utxos,
+        vaults,
+        network,
+        discovery
+      );
       const history = discovery.getHistory(
         { descriptors },
         true
@@ -665,6 +679,191 @@ const WalletProviderRaw = ({
     [discovery, gapLimit]
   );
 
+  const getTxosData = useCallback(
+    (txos: Array<string>): UtxosData => {
+      if (!discovery || !vaults || !activeWallet?.networkId)
+        throw new Error('Wallet not ready for getTxosData');
+      const network = networkMapping[activeWallet.networkId];
+      return getTxosDataFromVaults(txos, vaults, network, discovery);
+    },
+    [discovery, vaults, activeWallet?.networkId]
+  );
+
+  /**
+   * Pushes a 1-parent-1-child package through Esplora `/txs/package`.
+   *
+   * This method intentionally mirrors the behavior of `discovery.push`:
+   *
+   * 1) Broadcast to the network.
+   * 2) Probe mempool visibility for each tx (parent + child).
+   * 3) Probe discovery via `addTransaction`.
+   * 4) If `addTransaction` reports `INPUTS_ALREADY_SPENT`, synchronize
+   *    discovery from the explorer.
+   *
+   * Important: replacement packages (the Accelerate button) are different from
+   * brand-new packages.
+   * When a replacement child reuses the previous child inputs, `addTransaction`
+   * can fail with `INPUTS_ALREADY_SPENT` by design, because discovery still
+   * considers those inputs spent by the old child. In that case the authoritative
+   * state update comes from the follow-up `discovery.fetch(...)`, not from
+   * `addTransaction(...)` itself.
+   *
+   * After such a replacement sync, wallet-visible UTXOs can change
+   * dramatically: old change from the replaced child disappears, new change may
+   * appear and previously spent inputs may re-enter the available set. To keep
+   * tx-building safe, we immediately rebuild in-memory `utxosData` and
+   * `historyData` from the refreshed discovery state before the user can start
+   * another wallet action.
+   *
+   * Like `discovery.push`, mempool visibility failures only emit warnings.
+   */
+  const pushTxPackage = useCallback(
+    async ({
+      parentTxHex,
+      childTxHex
+    }: {
+      parentTxHex: string;
+      childTxHex: string;
+    }) => {
+      if (!discovery) throw new Error('Discovery not ready for pushTxPackage');
+      if (gapLimit === undefined)
+        throw new Error('gapLimit not ready for pushTxPackage');
+      if (!esploraAPI)
+        throw new Error('esploraAPI not ready for pushTxPackage');
+      if (!vaults || !vaultsStatuses || !accounts || tipHeight === undefined)
+        throw new Error('Wallet state not ready for pushTxPackage');
+
+      const response = await fetch(`${esploraAPI}/txs/package`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify([parentTxHex, childTxHex]),
+        ...(networkTimeout !== undefined
+          ? { signal: AbortSignal.timeout(networkTimeout) }
+          : {})
+      });
+
+      if (response.status === 404)
+        throw new Error('Package endpoint unavailable: /txs/package');
+      if (!response.ok) {
+        const message = await response.text();
+        throw new Error(message || 'Package broadcast failed');
+      }
+
+      const packageResult = (await response.json()) as {
+        package_msg?: string;
+        'tx-results'?: Record<string, { error?: string }>;
+      };
+      const packageMsg = packageResult['package_msg'];
+      const txErrors = packageResult['tx-results']
+        ? Object.values(packageResult['tx-results'])
+            .map(result => result.error)
+            .filter((error): error is string => typeof error === 'string')
+        : [];
+      if (packageMsg !== 'success' || txErrors.length > 0)
+        throw new Error(
+          `Package broadcast rejected: ${packageMsg || 'unknown'}${txErrors.length ? ` (${txErrors.join('; ')})` : ''}`
+        );
+
+      const DETECTION_INTERVAL = 3000;
+      const DETECT_RETRY_MAX = 20;
+      const parentTxId = transactionFromHex(parentTxHex).txId;
+      const childTxId = transactionFromHex(childTxHex).txId;
+      const explorer = discovery.getExplorer();
+
+      let parentFoundInMempool = false;
+      let childFoundInMempool = false;
+      for (let i = 0; i < DETECT_RETRY_MAX; i++) {
+        if (!parentFoundInMempool)
+          try {
+            if (await explorer.fetchTx(parentTxId)) parentFoundInMempool = true;
+          } catch {
+            // keep polling until retries are exhausted
+          }
+        if (!childFoundInMempool)
+          try {
+            if (await explorer.fetchTx(childTxId)) childFoundInMempool = true;
+          } catch {
+            // keep polling until retries are exhausted
+          }
+        if (parentFoundInMempool && childFoundInMempool) break;
+        await new Promise(resolve => setTimeout(resolve, DETECTION_INTERVAL));
+      }
+
+      const parentResult = discovery.addTransaction({
+        txData: {
+          txHex: parentTxHex,
+          blockHeight: 0,
+          irreversible: false
+        },
+        gapLimit
+      });
+      const childResult = discovery.addTransaction({
+        txData: {
+          txHex: childTxHex,
+          blockHeight: 0,
+          irreversible: false
+        },
+        gapLimit
+      });
+
+      const descriptorsToSync = new Set<string>();
+      if (parentResult.success === false && parentResult.conflicts.length > 0)
+        parentResult.conflicts.forEach(conflict =>
+          descriptorsToSync.add(conflict.descriptor)
+        );
+      if (childResult.success === false && childResult.conflicts.length > 0)
+        childResult.conflicts.forEach(conflict =>
+          descriptorsToSync.add(conflict.descriptor)
+        );
+
+      let syncPerformed = false;
+      const uniqueDescriptorsToSync = Array.from(descriptorsToSync);
+      if (uniqueDescriptorsToSync.length > 0) {
+        //This is the case when the pushTxPackage failed because this was
+        //a package replacement (Accelerate button)
+        await discovery.fetch({
+          descriptors: uniqueDescriptorsToSync,
+          gapLimit
+        });
+        const hotDescriptors = getHotDescriptors(
+          vaults,
+          vaultsStatuses,
+          accounts,
+          tipHeight
+        );
+        await discovery.fetch({ descriptors: hotDescriptors, gapLimit });
+        // This call updates in-memory wallet state immediately. The async part of
+        // `setUtxosHistoryExport` is only the later discoveryExport disk write.
+        setUtxosHistoryExport(vaults, vaultsStatuses, accounts, tipHeight);
+        syncPerformed = true;
+      }
+
+      if (syncPerformed)
+        console.warn(
+          `package txids ${parentTxId}, ${childTxId}: Input conflict(s) detected; state synchronization was performed for affected descriptors. The library state reflects this outcome.`
+        );
+      if (!parentFoundInMempool)
+        console.warn(
+          `txId ${parentTxId}: Pushed package parent was not found in the mempool immediately after broadcasting.`
+        );
+      if (!childFoundInMempool)
+        console.warn(
+          `txId ${childTxId}: Pushed package child was not found in the mempool immediately after broadcasting.`
+        );
+    },
+    [
+      discovery,
+      gapLimit,
+      esploraAPI,
+      networkTimeout,
+      vaults,
+      vaultsStatuses,
+      accounts,
+      tipHeight,
+      setUtxosHistoryExport
+    ]
+  );
+
   /**
    * This is useful when the wallet is expecting funds in a specific output
    * determined by descriptor (and index if ranged).
@@ -703,7 +902,7 @@ const WalletProviderRaw = ({
         ...(index !== undefined ? { index } : {})
       };
       const initialHistory = discovery.getHistory(descriptorWithIndex);
-      await discovery.fetch(descriptorWithIndex);
+      await discovery.fetch(descriptorWithIndex); //FIXME: and the gapLimit???
       const history = discovery.getHistory(descriptorWithIndex) as TxHistory;
       if (initialHistory !== history)
         await setUtxosHistoryExport(
@@ -1392,6 +1591,7 @@ const WalletProviderRaw = ({
     walletsHistoryData
   ]);
 
+  //TODO: getNextOnChainBackupDescriptorWithIndex
   const getNextChangeDescriptorWithIndex = useCallback(
     async (accounts: Accounts) => {
       const network =
@@ -2241,6 +2441,8 @@ const WalletProviderRaw = ({
     ),
     fetchBlockTime,
     pushTx,
+    getTxosData,
+    pushTxPackage,
     syncWatchtowerRegistration,
     fetchOutputHistory,
     cBVaultsWriterAPI,
