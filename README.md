@@ -1,5 +1,13 @@
 # Rewind Bitcoin
 
+## Important Notice
+
+**Do not use the `main` branch in production.** Active development changes are currently being committed directly to `main`, so it may contain unstable or incomplete work.
+
+The latest stable production branch is **`v1`**.
+
+If you need the stable version, clone or check out `v1` instead of `main`.
+
 Rewind Bitcoin is a self-custody wallet designed to protect users from theft, coercion and physical attacks.
 It implements **Bitcoin Vaults** with a user-friendly interface, letting users safely store their savings while maintaining full control of their keys.
 
