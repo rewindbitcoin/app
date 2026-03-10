@@ -76,3 +76,32 @@ https://github.com/maksimlya/react-native-fast-encoder/issues/9#issuecomment-333
 
 #react-native-css-interop
 https://github.com/nativewind/nativewind/issues/1711#issuecomment-4006761379
+
+---
+
+## `react-native-extra-dimensions-android` Patch
+
+We still keep this package for now because `react-native-modal` explicitly
+documents it as the workaround for some Android devices where the backdrop does
+not cover the full screen when the navigation bar can hide/show:
+
+https://github.com/Sunhat/react-native-extra-dimensions-android/issues/71
+
+However, the published package is outdated for modern Android/Gradle builds.
+With AGP 8 / Gradle 8 it fails with duplicate `R.class` entries.
+
+This patch does two things:
+
+1. Applies the Gradle 8 compatibility fix discussed upstream by adding
+   `namespace "ca.jaysoo.extradimensions"` and removing the old manifest
+   `package=` declaration:
+
+   https://github.com/Sunhat/react-native-extra-dimensions-android/issues/73
+
+2. Removes the stale prebuilt `android/build/` artifacts that are mistakenly
+   shipped inside the npm package and can trigger duplicate-class build errors.
+
+If Android builds start working without this patch in a future upstream version,
+the best long-term cleanup is probably to remove this dependency entirely and
+replace the usage with built-in React Native dimensions if Android modal
+coverage remains correct on the devices we care about.
