@@ -1012,17 +1012,147 @@ export const getBackupCost = (feeRate: number): bigint => {
   return BigInt(Math.ceil(Math.max(...OP_RETURN_BACKUP_TX_VBYTES) * feeRate));
 };
 
-export const getMinimumCreateVaultFeeRate = memoize((network: Network) => {
-  const { Output } = ensureDescriptorsFactoryInstance();
-  const backupOutput = new Output({
-    descriptor: createVaultDescriptor(DUMMY_PUBKEY_2),
-    network
-  });
-  const backupDust = toNumber(dustThreshold(backupOutput));
-  const minimumBackupFeeRate =
-    (backupDust + 1) / Math.max(...OP_RETURN_BACKUP_TX_VBYTES);
-  return Math.max(MIN_RELAY_FEE_RATE, minimumBackupFeeRate);
-});
+/**
+ * Returns a conservative upper bound for the minimum fee rate that Vault Setup
+ * should expose when the fee slider is interpreted as the combined effective
+ * fee rate of the two-transaction flow:
+ *
+ *   vault tx now + backup tx later
+ *
+ * This function is intentionally conservative. It does not try to compute the
+ * exact minimum for every concrete vault creation, because the true parent
+ * vsize depends on the selected wallet inputs and on whether coin selection
+ * produces change. Instead, it assumes the smallest plausible parent tx shape
+ * and derives an upper bound from that. Any real parent tx with more inputs or
+ * with change will be larger, and a larger parent only lowers the true minimum
+ * combined fee rate.
+ *
+ * Definitions used below:
+ *
+ * - B = worst-case backup tx vsize.
+ * - V = assumed parent/vault tx vsize.
+ * - D = `dustThreshold(backupOutput) + 1`.
+ * - m = `MIN_RELAY_FEE_RATE`.
+ * - r(V) = fee-rate wrt vault tx vsize.
+ * - r(V)' = 1st derivative of fee-rate wrt vault tx vsize. It's used to
+ *           compute if rate is increasing/decreasing as V increases
+ *
+ * Under the current on-chain-backup design, the backup tx has no change output.
+ * It spends the backup output into a zero-satoshi `OP_RETURN` output, so the
+ * whole backup output value becomes the backup tx fee. That means the backup
+ * funding output created by the vault tx must be strictly above dust, which in
+ * turn imposes a minimum future backup fee budget:
+ *
+ *   backupFeeMin = dustThreshold(backupOutput) + 1
+ *
+ * In `NON_TRUC`, the parent tx also needs to remain relayable on its own:
+ *
+ *   parentFeeMin = ceil(MIN_RELAY_FEE_RATE * vaultTxVBytes)
+ *
+ * So, for a given parent size `V`, the combined effective floor is:
+ *
+ *   NON_TRUC:
+ *   r(V) = (D + ceil(m * V)) / (B + V)
+ *
+ *   TRUC:
+ *   r(V) = D / (B + V)
+ *
+ * Why using the smallest plausible parent gives an upper bound:
+ *
+ * Ignoring the `ceil(...)` for intuition, the NON_TRUC formula becomes:
+ *
+ *   r(V) = (D + mV) / (B + V)
+ *
+ * whose derivative is:
+ *
+ *   r'(V) = (mB - D) / (B + V)^2
+ *
+ * With the current constants:
+ *
+ * - `B = 634 vB`
+ * - `D = 298 sats`
+ * - `m = 0.1 sat/vB`
+ *
+ * we get:
+ *
+ *   mB = 63.4 < 298 = D
+ *
+ * therefore `r'(V) < 0`. The same monotonic decrease is even simpler in TRUC:
+ *
+ *   r(V) = D / (B + V)
+ *   r'(V) = -D / (B + V)^2 < 0
+ *
+ * So larger parent txs imply a lower minimum combined fee rate. Using the
+ * smallest plausible parent tx therefore gives a stable conservative upper
+ * bound for the UI.
+ *
+ * Current numerical examples with the present constants:
+ *
+ * - backup tx worst-case size: `634 vB`
+ * - backup output minimum: `298 sats`
+ * - smallest plausible parent shape: `1 P2WPKH input + 2 outputs`
+ *   (`vault + backup`) => `141 vB`
+ *
+ * This yields:
+ *
+ * - `NON_TRUC`: `(298 + ceil(141 * 0.1)) / (634 + 141)`
+ *   = `313 / 775 ~= 0.40387 sat/vB`
+ * - `TRUC`: `298 / (634 + 141)`
+ *   = `298 / 775 ~= 0.38452 sat/vB`
+ *
+ * For larger parents the true minimum goes down. Examples:
+ *
+ * - `1 input, 3 outputs` (`vault + backup + change`), `172 vB`
+ *   - `NON_TRUC ~= 0.39206`
+ *   - `TRUC ~= 0.36973`
+ * - `3 inputs, 3 outputs`, `308 vB`
+ *   - `NON_TRUC ~= 0.34926`
+ *   - `TRUC ~= 0.31635`
+ * - `4 inputs, 3 outputs`, `376 vB`
+ *   - `NON_TRUC ~= 0.33267`
+ *   - `TRUC ~= 0.29505`
+ *
+ * In short: this function returns a stable upper bound for the minimum fee the
+ * slider should allow. It is not the exact minimum for every final coinselect
+ * result, but real parent transactions will typically be the same size or
+ * larger, so the true minimum will usually be equal or lower than this value.
+ */
+export const getMinimumCreateVaultFeeRate = memoize(
+  (network: Network, vaultMode: 'TRUC' | 'NON_TRUC') => {
+    const { Output } = ensureDescriptorsFactoryInstance();
+    const minimumParentInput = new Output({
+      descriptor: createVaultDescriptor(DUMMY_PUBKEY),
+      network
+    });
+    const minimumVaultOutput = new Output({
+      descriptor: createVaultDescriptor(DUMMY_PUBKEY),
+      network
+    });
+    const minimumBackupOutput = new Output({
+      descriptor: createVaultDescriptor(DUMMY_PUBKEY_2),
+      network
+    });
+
+    const minimumVaultTxVBytes = vsize(
+      [minimumParentInput],
+      [minimumVaultOutput, minimumBackupOutput]
+    );
+    const maximumBackupTxVBytes = Math.max(...OP_RETURN_BACKUP_TX_VBYTES);
+    const minimumBackupFee = toNumber(dustThreshold(minimumBackupOutput)) + 1;
+    const minimumParentFee =
+      vaultMode === 'TRUC'
+        ? 0
+        : Math.ceil(minimumVaultTxVBytes * MIN_RELAY_FEE_RATE);
+
+    const upperBoundFeeRate =
+      (minimumBackupFee + minimumParentFee) /
+      (maximumBackupTxVBytes + minimumVaultTxVBytes);
+
+    return upperBoundFeeRate;
+  },
+  (network: Network, vaultMode: 'TRUC' | 'NON_TRUC') =>
+    `${network.bech32}:${vaultMode}`
+);
 
 /**
  * Estimates the smallest `vaultedAmount` that can produce a valid new Rewind2

@@ -146,10 +146,10 @@ export default function VaultSetUp({
     getAndSetChangeOutput();
   }, [getNextChangeDescriptorWithIndex, network, accounts]);
 
-  const maxFeeRate = computeMaxAllowedFeeRate(feeEstimates);
-  const minimumFeeRate = getMinimumCreateVaultFeeRate(network);
   const vaultMode =
     networkId === 'BITCOIN' ? 'TRUC' : settings.TESTING_VAULT_MODE;
+  const maxFeeRate = computeMaxAllowedFeeRate(feeEstimates);
+  const minimumFeeRate = getMinimumCreateVaultFeeRate(network, vaultMode);
   const { feeEstimate: pickedInitialFeeRate } = pickFeeEstimate(
     feeEstimates,
     settings.INITIAL_CONFIRMATION_TIME
