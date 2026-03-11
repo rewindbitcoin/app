@@ -1008,21 +1008,273 @@ export const getOnChainBackupDescriptor = async ({
   return `wpkh(${keyExpression})`;
 };
 
+/**
+ * Returns the backup-only fee budget implied by a fee rate and the worst-case
+ * backup tx size.
+ *
+ * This is not the full create-vault fee model by itself. In the current vault
+ * flow it is only used as a conservative starting guess before the parent tx
+ * size and the final combined fee budget are solved together.
+ */
 export const getBackupCost = (feeRate: number): bigint => {
   return BigInt(Math.ceil(Math.max(...OP_RETURN_BACKUP_TX_VBYTES) * feeRate));
 };
 
-export const getMinimumCreateVaultFeeRate = memoize((network: Network) => {
-  const { Output } = ensureDescriptorsFactoryInstance();
-  const backupOutput = new Output({
-    descriptor: createVaultDescriptor(DUMMY_PUBKEY_2),
-    network
-  });
-  const backupDust = toNumber(dustThreshold(backupOutput));
-  const minimumBackupFeeRate =
-    (backupDust + 1) / Math.max(...OP_RETURN_BACKUP_TX_VBYTES);
-  return Math.max(MIN_RELAY_FEE_RATE, minimumBackupFeeRate);
-});
+const getMinimumVaultParentFeeRate = (vaultMode: 'TRUC' | 'NON_TRUC') =>
+  vaultMode === 'TRUC' ? 0 : MIN_RELAY_FEE_RATE;
+
+/**
+ * Estimates the backup reserve implied by a combined effective fee rate once a
+ * concrete parent tx size is known.
+ *
+ * The returned value is the fee budget that must remain in the backup output
+ * after reserving the minimum parent fee required by the selected vault mode.
+ */
+const estimateBackupCostFromEffectiveFeeRate = ({
+  feeRate,
+  vaultTxVBytes,
+  backupOutput,
+  vaultMode
+}: {
+  feeRate: number;
+  vaultTxVBytes: number;
+  backupOutput: OutputInstance;
+  vaultMode: 'TRUC' | 'NON_TRUC';
+}) => {
+  const backupTxVBytes = Math.max(...OP_RETURN_BACKUP_TX_VBYTES);
+  const minimumParentFee = BigInt(
+    Math.ceil(vaultTxVBytes * getMinimumVaultParentFeeRate(vaultMode))
+  );
+  const totalFeeBudget = BigInt(
+    Math.ceil((vaultTxVBytes + backupTxVBytes) * feeRate)
+  );
+  return maxBigInt(
+    totalFeeBudget - minimumParentFee,
+    dustThreshold(backupOutput) + BigInt(1)
+  );
+};
+
+/**
+ * Resolves vault coinselection when the user-facing fee slider is interpreted
+ * as the combined effective fee rate of the two-transaction flow:
+ *
+ *   vault tx now + backup tx later
+ *
+ * The backup reserve depends on the parent tx vsize, while the parent tx vsize
+ * itself depends on which inputs coinselect chooses and on whether change is
+ * created. So we solve a small fixed-point problem:
+ *
+ * 1. start from a conservative backup reserve guess,
+ * 2. run vault coinselection at the exact minimum parent fee rate allowed by
+ *    the selected vault mode,
+ * 3. recompute the backup reserve needed so the total fee budget matches the
+ *    requested combined effective fee rate,
+ * 4. repeat until the reserve stabilizes.
+ *
+ * The returned `backupCost` is the backup output value before any later fee
+ * shifting. If parent fee shifting is enabled, `getVaultContext(...)` can still
+ * move any extra parent fee into the backup output without changing the total
+ * combined fee budget.
+ */
+const resolveCreateVaultCoinselection = ({
+  utxosData,
+  vaultOutput,
+  backupOutput,
+  changeOutput,
+  feeRate,
+  vaultMode,
+  vaultedAmount
+}: {
+  utxosData: UtxosData;
+  vaultOutput: OutputInstance;
+  backupOutput: OutputInstance;
+  changeOutput: OutputInstance;
+  feeRate: number;
+  vaultMode: 'TRUC' | 'NON_TRUC';
+  vaultedAmount: bigint | 'MAX_FUNDS';
+}) => {
+  const finalParentFeeRate = getMinimumVaultParentFeeRate(vaultMode);
+
+  let backupCost = maxBigInt(
+    getBackupCost(feeRate),
+    dustThreshold(backupOutput) + BigInt(1)
+  );
+
+  for (let i = 0; i < 10; i++) {
+    const selected = coinselectVaultUtxosData({
+      utxosData,
+      vaultOutput,
+      backupOutput,
+      backupCost,
+      changeOutput,
+      // The parent is planned at its exact minimum allowed fee rate. The rest
+      // of the requested combined fee budget is carried by the backup reserve.
+      feeRate: finalParentFeeRate,
+      minimumFeeRate: finalParentFeeRate,
+      vaultedAmount
+    });
+    if (typeof selected === 'string') return selected;
+
+    const nextBackupCost = estimateBackupCostFromEffectiveFeeRate({
+      feeRate,
+      vaultTxVBytes: selected.vsize,
+      backupOutput,
+      vaultMode
+    });
+    if (nextBackupCost === backupCost) return { selected, backupCost };
+
+    backupCost = nextBackupCost;
+  }
+
+  throw new Error(
+    'Could not stabilize create-vault fee targets for the selected effective fee rate'
+  );
+};
+
+/**
+ * Returns a conservative upper bound for the minimum fee rate that Vault Setup
+ * should expose when the fee slider is interpreted as the combined effective
+ * fee rate of the two-transaction flow:
+ *
+ *   vault tx now + backup tx later
+ *
+ * This function is intentionally conservative. It does not try to compute the
+ * exact minimum for every concrete vault creation, because the true parent
+ * vsize depends on the selected wallet inputs and on whether coin selection
+ * produces change. Instead, it assumes the smallest plausible parent tx shape
+ * and derives an upper bound from that. Any real parent tx with more inputs or
+ * with change will be larger, and a larger parent only lowers the true minimum
+ * combined fee rate.
+ *
+ * Definitions used below:
+ *
+ * - B = worst-case backup tx vsize.
+ * - V = assumed parent/vault tx vsize.
+ * - D = `dustThreshold(backupOutput) + 1`.
+ * - m = `MIN_RELAY_FEE_RATE`.
+ * - r(V) = fee-rate wrt vault tx vsize.
+ * - r(V)' = 1st derivative of fee-rate wrt vault tx vsize. It's used to
+ *           compute if rate is increasing/decreasing as V increases
+ *
+ * Under the current on-chain-backup design, the backup tx has no change output.
+ * It spends the backup output into a zero-satoshi `OP_RETURN` output, so the
+ * whole backup output value becomes the backup tx fee. That means the backup
+ * funding output created by the vault tx must be strictly above dust, which in
+ * turn imposes a minimum future backup fee budget:
+ *
+ *   backupFeeMin = dustThreshold(backupOutput) + 1
+ *
+ * In `NON_TRUC`, the parent tx also needs to remain relayable on its own:
+ *
+ *   parentFeeMin = ceil(MIN_RELAY_FEE_RATE * vaultTxVBytes)
+ *
+ * So, for a given parent size `V`, the combined effective floor is:
+ *
+ *   NON_TRUC:
+ *   r(V) = (D + ceil(m * V)) / (B + V)
+ *
+ *   TRUC:
+ *   r(V) = D / (B + V)
+ *
+ * Why using the smallest plausible parent gives an upper bound:
+ *
+ * Ignoring the `ceil(...)` for intuition, the NON_TRUC formula becomes:
+ *
+ *   r(V) = (D + mV) / (B + V)
+ *
+ * whose derivative is:
+ *
+ *   r'(V) = (mB - D) / (B + V)^2
+ *
+ * With the current constants:
+ *
+ * - `B = 634 vB`
+ * - `D = 298 sats`
+ * - `m = 0.1 sat/vB`
+ *
+ * we get:
+ *
+ *   mB = 63.4 < 298 = D
+ *
+ * therefore `r'(V) < 0`. In TRUC the derivative is even simpler:
+ *
+ *   r(V) = D / (B + V)
+ *   r'(V) = -D / (B + V)^2 < 0
+ *
+ * So larger parent txs imply a lower minimum combined fee rate. Using the
+ * smallest plausible parent tx therefore gives a stable conservative upper
+ * bound for the UI.
+ *
+ * Note that this is still an upper bound, not the exact minimum for every
+ * concrete parent shape. The exact builder can use larger parents and change,
+ * which only push the true minimum downward.
+ *
+ * Current numerical examples with the present constants:
+ *
+ * - backup tx worst-case size: `634 vB`
+ * - backup output minimum: `298 sats`
+ * - smallest plausible parent shape: `1 P2WPKH input + 2 outputs`
+ *   (`vault + backup`) => `141 vB`
+ *
+ * This yields:
+ *
+ * - `NON_TRUC`: `(298 + ceil(141 * 0.1)) / (634 + 141)`
+ *   = `313 / 775 ~= 0.40387 sat/vB`
+ * - `TRUC`: `298 / (634 + 141)`
+ *   = `298 / 775 ~= 0.38452 sat/vB`
+ *
+ * For larger parents the true minimum goes down. Examples:
+ *
+ * - `1 input, 3 outputs` (`vault + backup + change`), `172 vB`
+ *   - `NON_TRUC ~= 0.39206`
+ *   - `TRUC ~= 0.36973`
+ * - `3 inputs, 3 outputs`, `308 vB`
+ *   - `NON_TRUC ~= 0.34926`
+ *   - `TRUC ~= 0.31635`
+ * - `4 inputs, 3 outputs`, `376 vB`
+ *   - `NON_TRUC ~= 0.33267`
+ *   - `TRUC ~= 0.29505`
+ *
+ * In short: this function returns a stable upper bound for the minimum fee the
+ * slider should allow. It is not the exact minimum for every final coinselect
+ * result, but real parent transactions will typically be the same size or
+ * larger, so the true minimum will usually be equal or lower than this value.
+ */
+export const getMinimumCreateVaultFeeRate = memoize(
+  (network: Network, vaultMode: 'TRUC' | 'NON_TRUC') => {
+    const { Output } = ensureDescriptorsFactoryInstance();
+    const minimumParentInput = new Output({
+      descriptor: createVaultDescriptor(DUMMY_PUBKEY),
+      network
+    });
+    const minimumVaultOutput = new Output({
+      descriptor: createVaultDescriptor(DUMMY_PUBKEY),
+      network
+    });
+    const minimumBackupOutput = new Output({
+      descriptor: createVaultDescriptor(DUMMY_PUBKEY_2),
+      network
+    });
+
+    const minimumVaultTxVBytes = vsize(
+      [minimumParentInput],
+      [minimumVaultOutput, minimumBackupOutput]
+    );
+    const maximumBackupTxVBytes = Math.max(...OP_RETURN_BACKUP_TX_VBYTES);
+    const minimumBackupFee = toNumber(dustThreshold(minimumBackupOutput)) + 1;
+    const minimumParentFee = Math.ceil(
+      minimumVaultTxVBytes * getMinimumVaultParentFeeRate(vaultMode)
+    );
+
+    const upperBoundFeeRate =
+      (minimumBackupFee + minimumParentFee) /
+      (maximumBackupTxVBytes + minimumVaultTxVBytes);
+
+    return upperBoundFeeRate;
+  },
+  (network: Network, vaultMode: 'TRUC' | 'NON_TRUC') =>
+    `${network.bech32}:${vaultMode}`
+);
 
 /**
  * Estimates the smallest `vaultedAmount` that can produce a valid new Rewind2
@@ -1111,7 +1363,8 @@ const coinselectVaultUtxosData = ({
   backupOutput,
   backupCost,
   changeOutput,
-  feeRate
+  feeRate,
+  minimumFeeRate
 }: {
   utxosData: UtxosData;
   vaultOutput: OutputInstance;
@@ -1120,6 +1373,7 @@ const coinselectVaultUtxosData = ({
   backupCost?: bigint;
   changeOutput: OutputInstance;
   feeRate: number;
+  minimumFeeRate: number;
 }) => {
   const utxos = getOutputsWithValue(utxosData);
   if (!utxos.length) return 'NO_UTXOS';
@@ -1145,7 +1399,8 @@ const coinselectVaultUtxosData = ({
       utxos,
       targets,
       remainder: vaultOutput,
-      feeRate
+      feeRate,
+      minimumFeeRate
     });
     if (!coinselected) return 'MAX_FUNDS COINSELECTOR FAILED';
     const vaultTarget = coinselected.targets.find(
@@ -1179,7 +1434,8 @@ const coinselectVaultUtxosData = ({
       utxos,
       targets,
       remainder: changeOutput,
-      feeRate
+      feeRate,
+      minimumFeeRate
     });
     if (!coinselected) return 'REGULAR COINSELECTOR FAILED';
     targets = coinselected.targets;
@@ -1205,9 +1461,14 @@ const coinselectVaultUtxosData = ({
 /**
  * Mirrors the real vault builder during setup estimation.
  *
- * The setup screen must reserve the same backup output that createVault funds
- * later. Otherwise users can choose an amount that looks valid in setup but
- * fails with coinselection once the vault is actually built.
+ * The input `feeRate` is interpreted the same way as in `createVault(...)`:
+ * as the combined effective fee rate target for the vault tx plus the future
+ * backup tx. This helper therefore solves the same parent/backup fee split as
+ * the real builder, instead of treating the fee rate as a direct parent-tx
+ * feerate. Internally, the parent is planned at the exact minimum fee allowed
+ * by the current vault mode, and the remaining fee budget is pushed into the
+ * backup reserve. It is therefore the right helper for setup-time estimation
+ * when the UI slider is meant to represent that combined effective fee rate.
  */
 export const selectCreateVaultUtxosData = moize.shallow(
   ({
@@ -1216,6 +1477,7 @@ export const selectCreateVaultUtxosData = moize.shallow(
     backupOutput,
     changeOutput,
     feeRate,
+    vaultMode,
     vaultedAmount
   }: {
     utxosData: UtxosData;
@@ -1223,22 +1485,22 @@ export const selectCreateVaultUtxosData = moize.shallow(
     backupOutput: OutputInstance;
     changeOutput: OutputInstance;
     feeRate: number;
+    vaultMode: 'TRUC' | 'NON_TRUC';
     vaultedAmount: number | 'MAX_FUNDS';
   }) => {
-    const backupCost = getBackupCost(feeRate);
-    const selected = coinselectVaultUtxosData({
+    const selection = resolveCreateVaultCoinselection({
       utxosData,
       vaultOutput,
       backupOutput,
-      backupCost,
       changeOutput,
       feeRate,
+      vaultMode,
       vaultedAmount:
         vaultedAmount === 'MAX_FUNDS' ? vaultedAmount : toBigInt(vaultedAmount)
     });
-    if (typeof selected === 'string') return;
-
-    const selectedVaultedAmount = toNumber(selected.vaultedAmount);
+    if (typeof selection === 'string') return;
+    const { selected, backupCost } = selection;
+    const selectedVaultedAmount = toNumber(selected.vaultedAmount as bigint);
     return {
       vsize: selected.vsize,
       fee: toNumber(selected.fee),
@@ -1254,8 +1516,13 @@ export const selectCreateVaultUtxosData = moize.shallow(
  *
  * Uses a randomly derived vault output, a deterministic backup output derived
  * from the vault index, and a wallet change output to compute the coinselector
- * for the requested vaulted amount. The backup cost is derived from the
- * backup type and fee rate.
+ * for the requested vaulted amount.
+ *
+ * The `feeRate` parameter is interpreted as the combined effective fee rate of
+ * the vault tx plus the later backup tx. Internally the parent is first built
+ * at the minimum fee allowed by the current vault mode, and the backup reserve
+ * is solved so the total fee budget across both transactions matches that
+ * requested effective rate.
  */
 export const getVaultContext = async ({
   signer,
@@ -1301,17 +1568,19 @@ export const getVaultContext = async ({
   });
   const changeOutput = new Output({ ...changeDescriptorWithIndex, network });
 
-  const backupCost = getBackupCost(feeRate);
-  // Run the coinselector
-  const selected = coinselectVaultUtxosData({
+  const selection = resolveCreateVaultCoinselection({
     utxosData,
     vaultOutput,
-    vaultedAmount,
     backupOutput,
-    backupCost,
     changeOutput,
-    feeRate
+    feeRate,
+    vaultMode,
+    vaultedAmount
   });
+  const selected =
+    typeof selection === 'string' ? selection : selection.selected;
+  const backupCost =
+    typeof selection === 'string' ? BigInt(0) : selection.backupCost;
 
   let backupOutputValue = backupCost;
   if (shiftFeesToBackupEnd && typeof selected !== 'string') {

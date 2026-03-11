@@ -11,7 +11,7 @@ import {
   getMainAccount
 } from './vaultDescriptors';
 import type { OutputInstance } from '@bitcoinerlab/descriptors';
-import { vsize } from '@bitcoinerlab/coinselect';
+import { dustThreshold, vsize } from '@bitcoinerlab/coinselect';
 import {
   type UtxosData,
   estimateMinimumRequiredVaultedAmount,
@@ -33,12 +33,14 @@ export const estimateMaxVaultAmount = moize.shallow(
     vaultOutput,
     backupOutput,
     changeOutput,
+    vaultMode,
     feeRate
   }: {
     utxosData: UtxosData;
     vaultOutput: OutputInstance;
     backupOutput: OutputInstance;
     changeOutput: OutputInstance;
+    vaultMode: 'TRUC' | 'NON_TRUC';
     feeRate: number;
   }): VaultAmountEstimate | undefined => {
     const selected = selectCreateVaultUtxosData({
@@ -47,6 +49,7 @@ export const estimateMaxVaultAmount = moize.shallow(
       backupOutput,
       changeOutput,
       feeRate,
+      vaultMode,
       vaultedAmount: 'MAX_FUNDS'
     });
     if (!selected) return;
@@ -98,7 +101,8 @@ export const estimateMinimumVaultAmount = moize.shallow(
       vaultOutput,
       backupOutput,
       changeOutput,
-      feeRate
+      feeRate,
+      vaultMode
     });
     if (selected) {
       return {
@@ -112,9 +116,13 @@ export const estimateMinimumVaultAmount = moize.shallow(
       [...utxosData.map(utxoData => utxoData.output), DUMMY_PKH_OUTPUT()],
       [vaultOutput, backupOutput, changeOutput]
     );
+    const minimumBackupCost = Math.max(
+      toNumber(getBackupCost(feeRate)),
+      toNumber(dustThreshold(backupOutput)) + 1
+    );
     return {
       vaultedAmount,
-      transactionAmount: vaultedAmount + toNumber(getBackupCost(feeRate)),
+      transactionAmount: vaultedAmount + minimumBackupCost,
       vaultTxMiningFee: Math.ceil(feeRate * vaultTxSize)
     };
   }
@@ -163,6 +171,7 @@ export const estimateVaultSetupRange = moize.shallow(
         vaultOutput,
         backupOutput,
         changeOutput,
+        vaultMode,
         feeRate: minimumFeeRate
       }),
       maxVaultAmount: estimateMaxVaultAmount({
@@ -170,6 +179,7 @@ export const estimateVaultSetupRange = moize.shallow(
         vaultOutput,
         backupOutput,
         changeOutput,
+        vaultMode,
         feeRate: feeRate !== null ? feeRate : minimumFeeRate
       })
     };

@@ -25,7 +25,7 @@
   "dependencies": {
     "@babel/plugin-proposal-export-namespace-from": "^7.18.9",
     "@bitcoinerlab/btcmessage": "^4.0.1",
-    "@bitcoinerlab/coinselect": "^2.0.0",
+    "@bitcoinerlab/coinselect": "^2.0.1",
     "@bitcoinerlab/descriptors": "^3.0.6",
     "@bitcoinerlab/discovery": "^2.0.0",
     "@bitcoinerlab/explorer": "^1.0.0",

@@ -172,7 +172,7 @@ function FeeInput({
   );
 
   const contractedFee = useMemo(() => {
-    return fee
+    return fee !== null
       ? formatBtc({
           amount: fee,
           subUnit,

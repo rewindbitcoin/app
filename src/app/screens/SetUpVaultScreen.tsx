@@ -146,10 +146,10 @@ export default function VaultSetUp({
     getAndSetChangeOutput();
   }, [getNextChangeDescriptorWithIndex, network, accounts]);
 
-  const maxFeeRate = computeMaxAllowedFeeRate(feeEstimates);
-  const minimumFeeRate = getMinimumCreateVaultFeeRate(network);
   const vaultMode =
     networkId === 'BITCOIN' ? 'TRUC' : settings.TESTING_VAULT_MODE;
+  const maxFeeRate = computeMaxAllowedFeeRate(feeEstimates);
+  const minimumFeeRate = getMinimumCreateVaultFeeRate(network, vaultMode);
   const { feeEstimate: pickedInitialFeeRate } = pickFeeEstimate(
     feeEstimates,
     settings.INITIAL_CONFIRMATION_TIME
@@ -320,6 +320,7 @@ export default function VaultSetUp({
             changeOutput:
               changeOutput ||
               DUMMY_CHANGE_OUTPUT(getMainAccount(accounts, network), network),
+            vaultMode,
             feeRate: newFeeRate
           });
 
@@ -337,6 +338,7 @@ export default function VaultSetUp({
       minimumVaultAmount.vaultedAmount,
       spendableUtxos,
       network,
+      vaultMode,
       setUserSelectedFeeRate
     ]
   );
@@ -354,6 +356,7 @@ export default function VaultSetUp({
         changeOutput ||
         DUMMY_CHANGE_OUTPUT(getMainAccount(accounts, network), network),
       feeRate,
+      vaultMode,
       vaultedAmount
     });
     fee = selected ? selected.fee : null;
