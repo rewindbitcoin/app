@@ -77,10 +77,16 @@ export type VaultSettings = {
    */
   vaultedAmount: number;
   coldAddress: string;
-  feeRate: number;
+  /**
+   * User-facing effective fee rate for the whole vault flow:
+   * the vault tx now plus the future backup tx.
+   *
+   * This is not the final feerate of the vault tx alone.
+   */
+  effectiveFeeRate: number;
   lockBlocks: number;
   /** It's important to have the same accounts and utxosData reference as
-   * used in SetUpVaultScreen. These were used to compute the vault feeRate
+   * used in SetUpVaultScreen. These were used to compute the effective fee
    * and should be tied together. Note those could change on a refresh.
    */
   accounts: Accounts;
@@ -1016,11 +1022,13 @@ export const getOnChainBackupDescriptor = async ({
  * flow it is only used as a conservative starting guess before the parent tx
  * size and the final combined fee budget are solved together.
  */
-export const getBackupCost = (feeRate: number): bigint => {
-  return BigInt(Math.ceil(Math.max(...OP_RETURN_BACKUP_TX_VBYTES) * feeRate));
+export const getBackupCost = (backupTxFeeRate: number): bigint => {
+  return BigInt(
+    Math.ceil(Math.max(...OP_RETURN_BACKUP_TX_VBYTES) * backupTxFeeRate)
+  );
 };
 
-const getMinimumVaultParentFeeRate = (vaultMode: 'TRUC' | 'NON_TRUC') =>
+const getMinimumVaultTxFeeRate = (vaultMode: 'TRUC' | 'NON_TRUC') =>
   vaultMode === 'TRUC' ? 0 : MIN_RELAY_FEE_RATE;
 
 /**
@@ -1031,25 +1039,25 @@ const getMinimumVaultParentFeeRate = (vaultMode: 'TRUC' | 'NON_TRUC') =>
  * after reserving the minimum parent fee required by the selected vault mode.
  */
 const estimateBackupCostFromEffectiveFeeRate = ({
-  feeRate,
+  effectiveFeeRate,
   vaultTxVBytes,
   backupOutput,
   vaultMode
 }: {
-  feeRate: number;
+  effectiveFeeRate: number;
   vaultTxVBytes: number;
   backupOutput: OutputInstance;
   vaultMode: 'TRUC' | 'NON_TRUC';
 }) => {
   const backupTxVBytes = Math.max(...OP_RETURN_BACKUP_TX_VBYTES);
-  const minimumParentFee = BigInt(
-    Math.ceil(vaultTxVBytes * getMinimumVaultParentFeeRate(vaultMode))
+  const minimumVaultTxFee = BigInt(
+    Math.ceil(vaultTxVBytes * getMinimumVaultTxFeeRate(vaultMode))
   );
   const totalFeeBudget = BigInt(
-    Math.ceil((vaultTxVBytes + backupTxVBytes) * feeRate)
+    Math.ceil((vaultTxVBytes + backupTxVBytes) * effectiveFeeRate)
   );
   return maxBigInt(
-    totalFeeBudget - minimumParentFee,
+    totalFeeBudget - minimumVaultTxFee,
     dustThreshold(backupOutput) + BigInt(1)
   );
 };
@@ -1081,7 +1089,7 @@ const resolveCreateVaultCoinselection = ({
   vaultOutput,
   backupOutput,
   changeOutput,
-  feeRate,
+  effectiveFeeRate,
   vaultMode,
   vaultedAmount
 }: {
@@ -1089,14 +1097,14 @@ const resolveCreateVaultCoinselection = ({
   vaultOutput: OutputInstance;
   backupOutput: OutputInstance;
   changeOutput: OutputInstance;
-  feeRate: number;
+  effectiveFeeRate: number;
   vaultMode: 'TRUC' | 'NON_TRUC';
   vaultedAmount: bigint | 'MAX_FUNDS';
 }) => {
-  const finalParentFeeRate = getMinimumVaultParentFeeRate(vaultMode);
+  const vaultTxFeeRate = getMinimumVaultTxFeeRate(vaultMode);
 
   let backupCost = maxBigInt(
-    getBackupCost(feeRate),
+    getBackupCost(effectiveFeeRate),
     dustThreshold(backupOutput) + BigInt(1)
   );
 
@@ -1109,14 +1117,14 @@ const resolveCreateVaultCoinselection = ({
       changeOutput,
       // The parent is planned at its exact minimum allowed fee rate. The rest
       // of the requested combined fee budget is carried by the backup reserve.
-      feeRate: finalParentFeeRate,
-      minimumFeeRate: finalParentFeeRate,
+      feeRate: vaultTxFeeRate,
+      minimumFeeRate: vaultTxFeeRate,
       vaultedAmount
     });
     if (typeof selected === 'string') return selected;
 
     const nextBackupCost = estimateBackupCostFromEffectiveFeeRate({
-      feeRate,
+      effectiveFeeRate,
       vaultTxVBytes: selected.vsize,
       backupOutput,
       vaultMode
@@ -1240,7 +1248,7 @@ const resolveCreateVaultCoinselection = ({
  * result, but real parent transactions will typically be the same size or
  * larger, so the true minimum will usually be equal or lower than this value.
  */
-export const getMinimumCreateVaultFeeRate = memoize(
+export const getMinimumCreateVaultEffectiveFeeRate = memoize(
   (network: Network, vaultMode: 'TRUC' | 'NON_TRUC') => {
     const { Output } = ensureDescriptorsFactoryInstance();
     const minimumParentInput = new Output({
@@ -1261,16 +1269,16 @@ export const getMinimumCreateVaultFeeRate = memoize(
       [minimumVaultOutput, minimumBackupOutput]
     );
     const maximumBackupTxVBytes = Math.max(...OP_RETURN_BACKUP_TX_VBYTES);
-    const minimumBackupFee = toNumber(dustThreshold(minimumBackupOutput)) + 1;
-    const minimumParentFee = Math.ceil(
-      minimumVaultTxVBytes * getMinimumVaultParentFeeRate(vaultMode)
+    const minimumBackupTxFee = toNumber(dustThreshold(minimumBackupOutput)) + 1;
+    const minimumVaultTxFee = Math.ceil(
+      minimumVaultTxVBytes * getMinimumVaultTxFeeRate(vaultMode)
     );
 
-    const upperBoundFeeRate =
-      (minimumBackupFee + minimumParentFee) /
+    const upperBoundEffectiveFeeRate =
+      (minimumBackupTxFee + minimumVaultTxFee) /
       (maximumBackupTxVBytes + minimumVaultTxVBytes);
 
-    return upperBoundFeeRate;
+    return upperBoundEffectiveFeeRate;
   },
   (network: Network, vaultMode: 'TRUC' | 'NON_TRUC') =>
     `${network.bech32}:${vaultMode}`
@@ -1461,13 +1469,16 @@ const coinselectVaultUtxosData = ({
 /**
  * Mirrors the real vault builder during setup estimation.
  *
- * The input `feeRate` is interpreted the same way as in `createVault(...)`:
+ * The input `effectiveFeeRate` is interpreted the same way as in
+ * `createVault(...)`:
  * as the combined effective fee rate target for the vault tx plus the future
  * backup tx. This helper therefore solves the same parent/backup fee split as
- * the real builder, instead of treating the fee rate as a direct parent-tx
+ * the real builder, instead of treating the input as a direct vault-tx
  * feerate. Internally, the parent is planned at the exact minimum fee allowed
  * by the current vault mode, and the remaining fee budget is pushed into the
- * backup reserve. It is therefore the right helper for setup-time estimation
+ * backup reserve. The returned `vaultTxFee` is the current parent/vault-tx fee,
+ * while `effectiveFee` is the total fee budget across the vault tx plus the
+ * later backup tx. It is therefore the right helper for setup-time estimation
  * when the UI slider is meant to represent that combined effective fee rate.
  */
 export const selectCreateVaultUtxosData = moize.shallow(
@@ -1476,7 +1487,7 @@ export const selectCreateVaultUtxosData = moize.shallow(
     vaultOutput,
     backupOutput,
     changeOutput,
-    feeRate,
+    effectiveFeeRate,
     vaultMode,
     vaultedAmount
   }: {
@@ -1484,7 +1495,7 @@ export const selectCreateVaultUtxosData = moize.shallow(
     vaultOutput: OutputInstance;
     backupOutput: OutputInstance;
     changeOutput: OutputInstance;
-    feeRate: number;
+    effectiveFeeRate: number;
     vaultMode: 'TRUC' | 'NON_TRUC';
     vaultedAmount: number | 'MAX_FUNDS';
   }) => {
@@ -1493,17 +1504,18 @@ export const selectCreateVaultUtxosData = moize.shallow(
       vaultOutput,
       backupOutput,
       changeOutput,
-      feeRate,
+      effectiveFeeRate,
       vaultMode,
       vaultedAmount:
         vaultedAmount === 'MAX_FUNDS' ? vaultedAmount : toBigInt(vaultedAmount)
     });
     if (typeof selection === 'string') return;
     const { selected, backupCost } = selection;
-    const selectedVaultedAmount = toNumber(selected.vaultedAmount as bigint);
+    const selectedVaultedAmount = toNumber(selected.vaultedAmount);
     return {
       vsize: selected.vsize,
-      fee: toNumber(selected.fee),
+      vaultTxFee: toNumber(selected.fee),
+      effectiveFee: toNumber(selected.fee + backupCost),
       vaultedAmount: selectedVaultedAmount,
       transactionAmount: selectedVaultedAmount + toNumber(backupCost),
       utxosData: selected.utxosData
@@ -1518,7 +1530,7 @@ export const selectCreateVaultUtxosData = moize.shallow(
  * from the vault index, and a wallet change output to compute the coinselector
  * for the requested vaulted amount.
  *
- * The `feeRate` parameter is interpreted as the combined effective fee rate of
+ * The `effectiveFeeRate` parameter is interpreted as the combined effective fee rate of
  * the vault tx plus the later backup tx. Internally the parent is first built
  * at the minimum fee allowed by the current vault mode, and the backup reserve
  * is solved so the total fee budget across both transactions matches that
@@ -1530,7 +1542,7 @@ export const getVaultContext = async ({
   changeDescriptorWithIndex,
   vaultIndex,
   vaultMode,
-  feeRate,
+  effectiveFeeRate,
   utxosData,
   vaultedAmount,
   shiftFeesToBackupEnd = false,
@@ -1541,7 +1553,7 @@ export const getVaultContext = async ({
   changeDescriptorWithIndex: { descriptor: string; index: number };
   vaultIndex: number;
   vaultMode: 'TRUC' | 'NON_TRUC';
-  feeRate: number;
+  effectiveFeeRate: number;
   vaultedAmount: bigint | 'MAX_FUNDS';
   utxosData: UtxosData;
   shiftFeesToBackupEnd?: boolean;
@@ -1573,7 +1585,7 @@ export const getVaultContext = async ({
     vaultOutput,
     backupOutput,
     changeOutput,
-    feeRate,
+    effectiveFeeRate,
     vaultMode,
     vaultedAmount
   });
@@ -1622,7 +1634,7 @@ export const getVaultContext = async ({
 export const createVault = async ({
   vaultedAmount,
   unvaultKey,
-  feeRate,
+  effectiveFeeRate,
   utxosData,
   signer,
   randomSigner,
@@ -1637,7 +1649,8 @@ export const createVault = async ({
   vaultedAmount: bigint;
   /** The unvault key expression that must be used to create triggerDescriptor */
   unvaultKey: string;
-  feeRate: number;
+  /** Combined effective fee rate for the vault tx plus the future backup tx. */
+  effectiveFeeRate: number;
   utxosData: UtxosData;
   signer: Signer;
   randomSigner: Signer;
@@ -1664,7 +1677,7 @@ export const createVault = async ({
     changeDescriptorWithIndex,
     vaultIndex,
     vaultMode,
-    feeRate,
+    effectiveFeeRate,
     utxosData,
     vaultedAmount,
     shiftFeesToBackupEnd,

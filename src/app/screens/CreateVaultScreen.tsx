@@ -47,7 +47,7 @@ export default function CreateVaultScreen({
   const {
     vaultedAmount,
     coldAddress,
-    feeRate,
+    effectiveFeeRate: feeRate,
     lockBlocks,
 
     accounts,
@@ -325,7 +325,7 @@ export default function CreateVaultScreen({
       const vaultData = await createVault({
         vaultedAmount: toBigInt(vaultedAmount),
         unvaultKey,
-        feeRate,
+        effectiveFeeRate: feeRate,
         utxosData,
         signer,
         randomSigner,

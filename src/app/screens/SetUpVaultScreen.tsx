@@ -20,7 +20,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   areVaultsSynched,
   getSpendableUtxosData,
-  getMinimumCreateVaultFeeRate,
+  getMinimumCreateVaultEffectiveFeeRate,
   selectCreateVaultUtxosData,
   type VaultSettings
 } from '../lib/vaults';
@@ -149,24 +149,26 @@ export default function VaultSetUp({
   const vaultMode =
     networkId === 'BITCOIN' ? 'TRUC' : settings.TESTING_VAULT_MODE;
   const maxFeeRate = computeMaxAllowedFeeRate(feeEstimates);
-  const minimumFeeRate = getMinimumCreateVaultFeeRate(network, vaultMode);
+  const minimumEffectiveFeeRate = getMinimumCreateVaultEffectiveFeeRate(
+    network,
+    vaultMode
+  );
   const { feeEstimate: pickedInitialFeeRate } = pickFeeEstimate(
     feeEstimates,
     settings.INITIAL_CONFIRMATION_TIME
   );
-  const initialFeeRate = Math.min(
+  const initialEffectiveFeeRate = Math.min(
     maxFeeRate,
-    Math.max(pickedInitialFeeRate, minimumFeeRate)
+    Math.max(pickedInitialFeeRate, minimumEffectiveFeeRate)
   );
-  const [userSelectedFeeRate, setUserSelectedFeeRate] = useState<number | null>(
-    initialFeeRate
-  );
-  const feeRate =
-    userSelectedFeeRate === null
+  const [userSelectedEffectiveFeeRate, setUserSelectedEffectiveFeeRate] =
+    useState<number | null>(initialEffectiveFeeRate);
+  const effectiveFeeRate =
+    userSelectedEffectiveFeeRate === null
       ? null
-      : userSelectedFeeRate >= minimumFeeRate &&
-          userSelectedFeeRate <= maxFeeRate
-        ? userSelectedFeeRate
+      : userSelectedEffectiveFeeRate >= minimumEffectiveFeeRate &&
+          userSelectedEffectiveFeeRate <= maxFeeRate
+        ? userSelectedEffectiveFeeRate
         : null;
 
   const { maxVaultAmount, maxVaultAmountAtMinFee, minimumVaultAmount } =
@@ -174,8 +176,8 @@ export default function VaultSetUp({
       accounts,
       utxosData: spendableUtxos,
       coldAddress: coldAddress || DUMMY_COLD_ADDRESS(network),
-      minimumFeeRate,
-      feeRate,
+      minimumEffectiveFeeRate,
+      effectiveFeeRate,
       lockBlocks: lockBlocks || settings.INITIAL_LOCK_BLOCKS,
       network,
       vaultMode
@@ -184,19 +186,19 @@ export default function VaultSetUp({
     accounts,
     utxosData: rawUtxosData,
     coldAddress: coldAddress || DUMMY_COLD_ADDRESS(network),
-    minimumFeeRate,
-    feeRate,
+    minimumEffectiveFeeRate,
+    effectiveFeeRate,
     lockBlocks: lockBlocks || settings.INITIAL_LOCK_BLOCKS,
     network,
     vaultMode
   });
   const hasAnyVaultRange =
-    maxFeeRate >= minimumFeeRate &&
+    maxFeeRate >= minimumEffectiveFeeRate &&
     maxVaultAmountAtMinFee !== undefined &&
     maxVaultAmountAtMinFee.vaultedAmount >= minimumVaultAmount.vaultedAmount;
   const blockedByReservedFunds =
     !hasAnyVaultRange &&
-    maxFeeRate >= minimumFeeRate &&
+    maxFeeRate >= minimumEffectiveFeeRate &&
     rawVaultRange.maxVaultAmountAtMinFee !== undefined &&
     rawVaultRange.maxVaultAmountAtMinFee.vaultedAmount >=
       rawVaultRange.minimumVaultAmount.vaultedAmount;
@@ -249,7 +251,7 @@ export default function VaultSetUp({
 
   const handleOK = useCallback(() => {
     if (
-      feeRate === null ||
+      effectiveFeeRate === null ||
       vaultedAmount === null ||
       lockBlocks === null ||
       coldAddress === null
@@ -259,7 +261,7 @@ export default function VaultSetUp({
     onVaultSetUpComplete({
       vaultedAmount,
       coldAddress,
-      feeRate,
+      effectiveFeeRate,
       lockBlocks,
 
       accounts,
@@ -267,7 +269,7 @@ export default function VaultSetUp({
       utxosData: spendableUtxos
     });
   }, [
-    feeRate,
+    effectiveFeeRate,
     spendableUtxos,
     vaultedAmount,
     lockBlocks,
@@ -305,14 +307,14 @@ export default function VaultSetUp({
    * - We use the same calculation method as the main range estimation
    * - We batch updates to avoid multiple renders
    */
-  const handleFeeRateChange = useCallback(
-    (newFeeRate: number | null) => {
+  const handleEffectiveFeeRateChange = useCallback(
+    (newEffectiveFeeRate: number | null) => {
       batchedUpdates(() => {
         // Always update the fee rate
-        setUserSelectedFeeRate(newFeeRate);
+        setUserSelectedEffectiveFeeRate(newEffectiveFeeRate);
 
         // Only recalculate max amount if user has selected max and fee is valid
-        if (isMaxVaultedAmount && newFeeRate !== null) {
+        if (isMaxVaultedAmount && newEffectiveFeeRate !== null) {
           const newMaxEstimate = estimateMaxVaultAmount({
             utxosData: spendableUtxos,
             vaultOutput: DUMMY_VAULT_OUTPUT(network),
@@ -321,7 +323,7 @@ export default function VaultSetUp({
               changeOutput ||
               DUMMY_CHANGE_OUTPUT(getMainAccount(accounts, network), network),
             vaultMode,
-            feeRate: newFeeRate
+            effectiveFeeRate: newEffectiveFeeRate
           });
 
           // Update the amount in the same render cycle to prevent flicker
@@ -339,12 +341,12 @@ export default function VaultSetUp({
       spendableUtxos,
       network,
       vaultMode,
-      setUserSelectedFeeRate
+      setUserSelectedEffectiveFeeRate
     ]
   );
 
-  let fee = null;
-  if (vaultedAmount !== null && feeRate !== null) {
+  let effectiveFee = null;
+  if (vaultedAmount !== null && effectiveFeeRate !== null) {
     const selected = selectCreateVaultUtxosData({
       utxosData: spendableUtxos,
       //We never use the final vaultOutput since it is built using a random
@@ -355,11 +357,11 @@ export default function VaultSetUp({
       changeOutput:
         changeOutput ||
         DUMMY_CHANGE_OUTPUT(getMainAccount(accounts, network), network),
-      feeRate,
+      effectiveFeeRate,
       vaultMode,
       vaultedAmount
     });
-    fee = selected ? selected.fee : null;
+    effectiveFee = selected ? selected.effectiveFee : null;
   }
 
   const prefilledAddressHelpIcon = useMemo<IconType>(
@@ -370,7 +372,7 @@ export default function VaultSetUp({
   const allFieldsValid =
     vaultedAmount !== null &&
     lockBlocks !== null &&
-    feeRate !== null &&
+    effectiveFeeRate !== null &&
     coldAddress !== null;
 
   return (
@@ -484,11 +486,11 @@ export default function VaultSetUp({
           <FeeInput
             btcFiat={btcFiat}
             feeEstimates={feeEstimates}
-            initialValue={initialFeeRate}
-            fee={fee}
+            initialValue={initialEffectiveFeeRate}
+            fee={effectiveFee}
             label={t('vaultSetup.confirmationSpeedLabel')}
-            min={minimumFeeRate}
-            onValueChange={handleFeeRateChange}
+            min={minimumEffectiveFeeRate}
+            onValueChange={handleEffectiveFeeRateChange}
           />
           <View className="self-center flex-row justify-center items-center mt-5 gap-5">
             <Button onPress={navigation.goBack}>{t('cancelButton')}</Button>

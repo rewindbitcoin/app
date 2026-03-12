@@ -202,7 +202,7 @@ describe('E2E: Multiple Pre-Signed txs Vault', () => {
     vault = await createVault({
       vaultedAmount: VAULTED_AMOUNT,
       unvaultKey,
-      feeRate: 2,
+      effectiveFeeRate: 2,
       coldAddress,
       changeDescriptorWithIndex,
       lockBlocks: LOCK_BLOCKS,

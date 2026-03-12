@@ -34,27 +34,27 @@ export const estimateMaxVaultAmount = moize.shallow(
     backupOutput,
     changeOutput,
     vaultMode,
-    feeRate
+    effectiveFeeRate
   }: {
     utxosData: UtxosData;
     vaultOutput: OutputInstance;
     backupOutput: OutputInstance;
     changeOutput: OutputInstance;
     vaultMode: 'TRUC' | 'NON_TRUC';
-    feeRate: number;
+    effectiveFeeRate: number;
   }): VaultAmountEstimate | undefined => {
     const selected = selectCreateVaultUtxosData({
       utxosData,
       vaultOutput,
       backupOutput,
       changeOutput,
-      feeRate,
+      effectiveFeeRate,
       vaultMode,
       vaultedAmount: 'MAX_FUNDS'
     });
     if (!selected) return;
     return {
-      vaultTxMiningFee: selected.fee,
+      vaultTxMiningFee: selected.vaultTxFee,
       transactionAmount: selected.transactionAmount,
       vaultedAmount: selected.vaultedAmount
     };
@@ -76,7 +76,7 @@ export const estimateMinimumVaultAmount = moize.shallow(
     backupOutput,
     changeOutput,
     lockBlocks,
-    feeRate,
+    effectiveFeeRate,
     vaultMode
   }: {
     utxosData: UtxosData;
@@ -86,7 +86,7 @@ export const estimateMinimumVaultAmount = moize.shallow(
     backupOutput: OutputInstance;
     changeOutput: OutputInstance;
     lockBlocks: number;
-    feeRate: number;
+    effectiveFeeRate: number;
     vaultMode: 'TRUC' | 'NON_TRUC';
   }): VaultAmountEstimate => {
     const vaultedAmount = estimateMinimumRequiredVaultedAmount({
@@ -101,14 +101,14 @@ export const estimateMinimumVaultAmount = moize.shallow(
       vaultOutput,
       backupOutput,
       changeOutput,
-      feeRate,
+      effectiveFeeRate,
       vaultMode
     });
     if (selected) {
       return {
         vaultedAmount,
         transactionAmount: selected.transactionAmount,
-        vaultTxMiningFee: selected.fee
+        vaultTxMiningFee: selected.vaultTxFee
       };
     }
 
@@ -117,13 +117,13 @@ export const estimateMinimumVaultAmount = moize.shallow(
       [vaultOutput, backupOutput, changeOutput]
     );
     const minimumBackupCost = Math.max(
-      toNumber(getBackupCost(feeRate)),
+      toNumber(getBackupCost(effectiveFeeRate)),
       toNumber(dustThreshold(backupOutput)) + 1
     );
     return {
       vaultedAmount,
       transactionAmount: vaultedAmount + minimumBackupCost,
-      vaultTxMiningFee: Math.ceil(feeRate * vaultTxSize)
+      vaultTxMiningFee: Math.ceil(effectiveFeeRate * vaultTxSize)
     };
   }
 );
@@ -133,8 +133,8 @@ export const estimateVaultSetupRange = moize.shallow(
     accounts,
     utxosData,
     coldAddress,
-    minimumFeeRate,
-    feeRate = null,
+    minimumEffectiveFeeRate,
+    effectiveFeeRate = null,
     lockBlocks,
     network,
     vaultMode
@@ -142,8 +142,8 @@ export const estimateVaultSetupRange = moize.shallow(
     accounts: Accounts;
     utxosData: UtxosData;
     coldAddress: string;
-    minimumFeeRate: number;
-    feeRate?: number | null;
+    minimumEffectiveFeeRate: number;
+    effectiveFeeRate?: number | null;
     lockBlocks: number;
     network: Network;
     vaultMode: 'TRUC' | 'NON_TRUC';
@@ -163,7 +163,7 @@ export const estimateVaultSetupRange = moize.shallow(
         backupOutput,
         changeOutput,
         lockBlocks,
-        feeRate: minimumFeeRate,
+        effectiveFeeRate: minimumEffectiveFeeRate,
         vaultMode
       }),
       maxVaultAmountAtMinFee: estimateMaxVaultAmount({
@@ -172,7 +172,7 @@ export const estimateVaultSetupRange = moize.shallow(
         backupOutput,
         changeOutput,
         vaultMode,
-        feeRate: minimumFeeRate
+        effectiveFeeRate: minimumEffectiveFeeRate
       }),
       maxVaultAmount: estimateMaxVaultAmount({
         utxosData,
@@ -180,7 +180,8 @@ export const estimateVaultSetupRange = moize.shallow(
         backupOutput,
         changeOutput,
         vaultMode,
-        feeRate: feeRate !== null ? feeRate : minimumFeeRate
+        effectiveFeeRate:
+          effectiveFeeRate !== null ? effectiveFeeRate : minimumEffectiveFeeRate
       })
     };
   }
