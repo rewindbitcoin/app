@@ -1,3 +1,4 @@
+//FIXME: review this produced code
 import { dustThreshold } from '@bitcoinerlab/coinselect';
 import {
   keyExpressionBIP32,
@@ -77,6 +78,7 @@ const buildEncryptedVaultContent = async ({
   ]);
 };
 
+//FIXME: unneeded
 const getRewind2Parents = (vault: Vault) => {
   const triggerEntries = Object.entries(vault.triggerMap);
   if (triggerEntries.length !== 1)
@@ -147,6 +149,8 @@ export const createOnChainBackupTx = async ({
     }),
     network
   });
+
+  //FIXME: tjere is already a helper for this
   const backupScript = backupOutput.getScriptPubKey();
   const backupVout = vaultTx.outs.findIndex(
     out => toHex(out.script) === toHex(backupScript)

@@ -3,6 +3,9 @@
 
 //FIXME: for the moment we're still saving vaults on the p2p network
 //this may change. If done, then read TAG:ifrubr43fre
+
+//FIXME: rename this as p2pBackup maybe and put the shared stuff in
+//backup.ts?
 import { Platform } from 'react-native';
 import {
   documentDirectory,
