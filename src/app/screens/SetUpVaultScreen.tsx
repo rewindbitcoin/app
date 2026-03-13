@@ -19,9 +19,10 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   areVaultsSynched,
+  coinSelectVaultTx,
+  getTargetValue,
   getSpendableUtxosData,
   getMinimumCreateVaultEffectiveFeeRate,
-  selectCreateVaultUtxosData,
   type VaultSettings
 } from '../lib/vaults';
 import {
@@ -51,6 +52,7 @@ import { useWallet } from '../hooks/useWallet';
 import { OutputInstance } from '@bitcoinerlab/descriptors';
 import { useLocalization } from '../hooks/useLocalization';
 import { batchedUpdates } from '~/common/lib/batchedUpdates';
+import { toBigInt, toNumber } from '../lib/sats';
 
 export default function VaultSetUp({
   onVaultSetUpComplete
@@ -204,11 +206,11 @@ export default function VaultSetUp({
       rawVaultRange.minimumVaultAmount.vaultedAmount;
   const missingFunds: number = Math.max(
     0,
-    minimumVaultAmount.transactionAmount +
-      minimumVaultAmount.vaultTxMiningFee -
+    minimumVaultAmount.vaultedAmount +
+      minimumVaultAmount.effectiveFee -
       (maxVaultAmountAtMinFee
-        ? maxVaultAmountAtMinFee.transactionAmount +
-          maxVaultAmountAtMinFee.vaultTxMiningFee
+        ? maxVaultAmountAtMinFee.vaultedAmount +
+          maxVaultAmountAtMinFee.effectiveFee
         : 0)
   );
   const currentMaxVaultedAmount =
@@ -347,7 +349,7 @@ export default function VaultSetUp({
 
   let effectiveFee = null;
   if (vaultedAmount !== null && effectiveFeeRate !== null) {
-    const selected = selectCreateVaultUtxosData({
+    const selected = coinSelectVaultTx({
       utxosData: spendableUtxos,
       //We never use the final vaultOutput since it is built using a random
       //key that we don't want to keep in memory, but setup still needs to
@@ -359,9 +361,15 @@ export default function VaultSetUp({
         DUMMY_CHANGE_OUTPUT(getMainAccount(accounts, network), network),
       effectiveFeeRate,
       vaultMode,
-      vaultedAmount
+      vaultedAmount: toBigInt(vaultedAmount)
     });
-    effectiveFee = selected ? selected.effectiveFee : null;
+    if (typeof selected !== 'string') {
+      const finalBackupFeeBudget = getTargetValue(
+        selected.targets,
+        DUMMY_BACKUP_OUTPUT(network)
+      );
+      effectiveFee = toNumber(selected.fee + finalBackupFeeBudget);
+    }
   }
 
   const prefilledAddressHelpIcon = useMemo<IconType>(

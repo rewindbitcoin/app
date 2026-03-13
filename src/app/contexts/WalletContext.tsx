@@ -41,7 +41,7 @@ import {
 import { electrumParams, getAPIs } from '../lib/walletDerivedData';
 import { networkMapping, type NetworkId } from '../lib/network';
 import {
-  createUnvaultKey,
+  createUnvaultKeyExpression,
   getDefaultAccount,
   getMainAccount,
   getMasterNode
@@ -111,7 +111,7 @@ export type WalletContextType = {
     index: number;
   }>;
   fetchServiceAddress: () => Promise<{ address: string; quiet: boolean }>;
-  getUnvaultKey: () => Promise<string>;
+  getUnvaultKeyExpression: () => Promise<string>;
   updateVaultStatus: (vaultId: string, vaultStatus: VaultStatus) => void;
   btcFiat: number | undefined;
   feeEstimates: FeeEstimates | undefined;
@@ -1630,14 +1630,14 @@ const WalletProviderRaw = ({
     [activeWallet?.networkId, discovery]
   );
 
-  const getUnvaultKey = useCallback(async () => {
+  const getUnvaultKeyExpression = useCallback(async () => {
     const network =
       activeWallet?.networkId && networkMapping[activeWallet.networkId];
     if (!network) throw new Error('Network not ready');
     if (!signers) throw new Error('Signers not ready');
     const signer = signers[0];
     if (!signer) throw new Error('signer unavailable');
-    return await createUnvaultKey({ signer, network });
+    return await createUnvaultKeyExpression({ signer, network });
   }, [activeWallet?.networkId, signers]);
 
   const fetchServiceAddress = useCallback(async () => {
@@ -2417,7 +2417,7 @@ const WalletProviderRaw = ({
   const contextValue = {
     pushToken,
     setPushToken,
-    getUnvaultKey,
+    getUnvaultKeyExpression,
     getNextChangeDescriptorWithIndex,
     getNextReceiveDescriptorWithIndex,
     fetchServiceAddress,

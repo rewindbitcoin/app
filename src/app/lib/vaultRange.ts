@@ -11,20 +11,21 @@ import {
   getMainAccount
 } from './vaultDescriptors';
 import type { OutputInstance } from '@bitcoinerlab/descriptors';
-import { dustThreshold, vsize } from '@bitcoinerlab/coinselect';
+import { vsize } from '@bitcoinerlab/coinselect';
 import {
+  coinSelectVaultTx,
+  getTargetValue,
+  MIN_RELAY_FEE_RATE,
   type UtxosData,
   estimateMinimumRequiredVaultedAmount,
-  getBackupCost,
-  selectCreateVaultUtxosData
+  getMinBackupFeeBudget
 } from './vaults';
 import type { Accounts } from './wallets';
-import { toNumber } from './sats';
+import { toBigInt, toNumber } from './sats';
 
 type VaultAmountEstimate = {
-  vaultTxMiningFee: number;
+  effectiveFee: number;
   vaultedAmount: number;
-  transactionAmount: number;
 };
 
 export const estimateMaxVaultAmount = moize.shallow(
@@ -43,7 +44,7 @@ export const estimateMaxVaultAmount = moize.shallow(
     vaultMode: 'TRUC' | 'NON_TRUC';
     effectiveFeeRate: number;
   }): VaultAmountEstimate | undefined => {
-    const selected = selectCreateVaultUtxosData({
+    const selected = coinSelectVaultTx({
       utxosData,
       vaultOutput,
       backupOutput,
@@ -52,11 +53,11 @@ export const estimateMaxVaultAmount = moize.shallow(
       vaultMode,
       vaultedAmount: 'MAX_FUNDS'
     });
-    if (!selected) return;
+    if (typeof selected === 'string') return;
+    const finalBackupFeeBudget = getTargetValue(selected.targets, backupOutput);
     return {
-      vaultTxMiningFee: selected.vaultTxFee,
-      transactionAmount: selected.transactionAmount,
-      vaultedAmount: selected.vaultedAmount
+      effectiveFee: toNumber(selected.fee + finalBackupFeeBudget),
+      vaultedAmount: toNumber(getTargetValue(selected.targets, vaultOutput))
     };
   }
 );
@@ -67,7 +68,7 @@ export const estimateMaxVaultAmount = moize.shallow(
  * This is intentionally based on the current vault design only: backup output,
  * vault dust, and the trigger/panic path constraints that the new app builds.
  */
-export const estimateMinimumVaultAmount = moize.shallow(
+const estimateMinimumVaultAmount = moize.shallow(
   ({
     utxosData,
     coldAddress,
@@ -95,36 +96,43 @@ export const estimateMinimumVaultAmount = moize.shallow(
       network,
       vaultMode
     });
-    const selected = selectCreateVaultUtxosData({
+    const selected = coinSelectVaultTx({
       utxosData,
-      vaultedAmount,
       vaultOutput,
       backupOutput,
       changeOutput,
       effectiveFeeRate,
-      vaultMode
+      vaultMode,
+      vaultedAmount: toBigInt(vaultedAmount)
     });
-    if (selected) {
+    if (typeof selected !== 'string') {
+      const finalBackupFeeBudget = getTargetValue(
+        selected.targets,
+        backupOutput
+      );
       return {
         vaultedAmount,
-        transactionAmount: selected.transactionAmount,
-        vaultTxMiningFee: selected.vaultTxFee
+        effectiveFee: toNumber(selected.fee + finalBackupFeeBudget)
+      };
+    } else {
+      //This means it wa impossible to construct a solution with the current
+      //utxos. Now let's assume we had an additional utxo
+      //This is then used in VaultSetUp to compute missingFunds:
+      //"you need at least X more"...
+      const vaultTxSize = vsize(
+        [...utxosData.map(utxoData => utxoData.output), DUMMY_PKH_OUTPUT()],
+        [vaultOutput, backupOutput, changeOutput]
+      );
+      const minBackupFeeBudget = toNumber(
+        getMinBackupFeeBudget(effectiveFeeRate, backupOutput)
+      );
+      const vaultTxFeeRate = vaultMode === 'TRUC' ? 0 : MIN_RELAY_FEE_RATE;
+      return {
+        vaultedAmount,
+        effectiveFee:
+          minBackupFeeBudget + Math.ceil(vaultTxFeeRate * vaultTxSize)
       };
     }
-
-    const vaultTxSize = vsize(
-      [...utxosData.map(utxoData => utxoData.output), DUMMY_PKH_OUTPUT()],
-      [vaultOutput, backupOutput, changeOutput]
-    );
-    const minimumBackupCost = Math.max(
-      toNumber(getBackupCost(effectiveFeeRate)),
-      toNumber(dustThreshold(backupOutput)) + 1
-    );
-    return {
-      vaultedAmount,
-      transactionAmount: vaultedAmount + minimumBackupCost,
-      vaultTxMiningFee: Math.ceil(effectiveFeeRate * vaultTxSize)
-    };
   }
 );
 

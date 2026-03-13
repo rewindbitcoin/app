@@ -139,7 +139,7 @@ export type Vault = {
    * the keyExpression for the unlocking using the unvaulting path
    **/
   unvaultKey: string; //This is an input in createVault
-  triggerDescriptor: string; //This is an outout since the panicKey is randoml generated here
+  triggerDescriptor: string; //This is an output since the panic key expression is randomly generated here
 
   creationTime: number;
 };
@@ -959,9 +959,30 @@ const signPsbt = async (signer: Signer, network: Network, psbtVault: Psbt) => {
 
 export const MIN_RELAY_FEE_RATE = MIN_FEE_RATE;
 export const NON_TRUC_P2A_ANCHOR_VALUE = BigInt(330);
-const VAULT_OUTPUT_INDEX = 0;
-const BACKUP_OUTPUT_INDEX = 1;
 const VAULT_PURPOSE = 1073;
+
+type OutputTarget = {
+  output: OutputInstance;
+  value: bigint;
+};
+
+const getTargetIndex = (
+  targets: Array<OutputTarget>,
+  output: OutputInstance
+): number => {
+  const index = targets.findIndex(target => target.output === output);
+  if (index < 0) throw new Error('Target output not found');
+  return index;
+};
+
+export const getTargetValue = (
+  targets: Array<OutputTarget>,
+  output: OutputInstance
+): bigint => {
+  const target = targets[getTargetIndex(targets, output)];
+  if (!target) throw new Error('Target output not found');
+  return target.value;
+};
 
 const getVaultOriginPath = (network: Network) =>
   `/${VAULT_PURPOSE}'/${coinTypeFromNetwork(network)}'/0'`;
@@ -969,7 +990,7 @@ const getVaultOriginPath = (network: Network) =>
 /**
  * Async interface - this will make it easier to port this code to HWW
  */
-const retrieveKeyDataFromSigner = async ({
+const deriveKeyExpressionAndPubKey = async ({
   signer,
   originPath,
   keyPath,
@@ -1005,7 +1026,7 @@ export const getOnChainBackupDescriptor = async ({
   index: number | '*';
 }) => {
   const keyPath = index === '*' ? '/*' : `/${index}`;
-  const { keyExpression } = await retrieveKeyDataFromSigner({
+  const { keyExpression } = await deriveKeyExpressionAndPubKey({
     signer,
     network,
     originPath: getVaultOriginPath(network),
@@ -1015,271 +1036,120 @@ export const getOnChainBackupDescriptor = async ({
 };
 
 /**
- * Returns the backup-only fee budget implied by a fee rate and the worst-case
- * backup tx size.
+ * Returns the minimum backup fee budget implied by the user-selected fee rate.
  *
- * This is not the full create-vault fee model by itself. In the current vault
- * flow it is only used as a conservative starting guess before the parent tx
- * size and the final combined fee budget are solved together.
+ * The backup tx has no change output, so its entire fee budget must already be
+ * stored in the backup output created by the vault tx. That output must also be
+ * strictly above dust. This helper therefore returns the larger of:
+ *
+ * - the fee implied by the worst-case backup tx size at the selected fee rate
+ * - the minimum non-dust backup output value
  */
-export const getBackupCost = (backupTxFeeRate: number): bigint => {
-  return BigInt(
-    Math.ceil(Math.max(...OP_RETURN_BACKUP_TX_VBYTES) * backupTxFeeRate)
+export const getMinBackupFeeBudget = (
+  effectiveFeeRate: number,
+  backupOutput: OutputInstance
+): bigint =>
+  maxBigInt(
+    BigInt(
+      Math.ceil(Math.max(...OP_RETURN_BACKUP_TX_VBYTES) * effectiveFeeRate)
+    ),
+    dustThreshold(backupOutput) + BigInt(1)
   );
-};
 
 const getMinimumVaultTxFeeRate = (vaultMode: 'TRUC' | 'NON_TRUC') =>
   vaultMode === 'TRUC' ? 0 : MIN_RELAY_FEE_RATE;
 
 /**
- * Estimates the backup reserve implied by a combined effective fee rate once a
- * concrete parent tx size is known.
+ * Runs the initial vault coinselection using the user-selected fee rate.
  *
- * The returned value is the fee budget that must remain in the backup output
- * after reserving the minimum parent fee required by the selected vault mode.
+ * The selected fee rate is first applied directly to the vault tx so the app
+ * can choose inputs/change using a normal coinselection pass. The backup output
+ * starts at `minBackupFeeBudget`, which is only a lower bound. Later, the vault
+ * tx fee can be reduced to the minimum allowed by the selected vault mode and
+ * the excess is shifted into the backup output without changing the chosen
+ * inputs or the overall tx shape.
+ *
+ * When `shiftFeesToBackupEnd` is enabled, the returned `selected` object is
+ * already adjusted to the final post-shift state: its backup target value is
+ * the final backup fee budget and its `fee` is the final vault-tx fee.
  */
-const estimateBackupCostFromEffectiveFeeRate = ({
-  effectiveFeeRate,
-  vaultTxVBytes,
-  backupOutput,
-  vaultMode
-}: {
-  effectiveFeeRate: number;
-  vaultTxVBytes: number;
-  backupOutput: OutputInstance;
-  vaultMode: 'TRUC' | 'NON_TRUC';
-}) => {
-  const backupTxVBytes = Math.max(...OP_RETURN_BACKUP_TX_VBYTES);
-  const minimumVaultTxFee = BigInt(
-    Math.ceil(vaultTxVBytes * getMinimumVaultTxFeeRate(vaultMode))
-  );
-  const totalFeeBudget = BigInt(
-    Math.ceil((vaultTxVBytes + backupTxVBytes) * effectiveFeeRate)
-  );
-  return maxBigInt(
-    totalFeeBudget - minimumVaultTxFee,
-    dustThreshold(backupOutput) + BigInt(1)
-  );
-};
-
-/**
- * Resolves vault coinselection when the user-facing fee slider is interpreted
- * as the combined effective fee rate of the two-transaction flow:
- *
- *   vault tx now + backup tx later
- *
- * The backup reserve depends on the parent tx vsize, while the parent tx vsize
- * itself depends on which inputs coinselect chooses and on whether change is
- * created. So we solve a small fixed-point problem:
- *
- * 1. start from a conservative backup reserve guess,
- * 2. run vault coinselection at the exact minimum parent fee rate allowed by
- *    the selected vault mode,
- * 3. recompute the backup reserve needed so the total fee budget matches the
- *    requested combined effective fee rate,
- * 4. repeat until the reserve stabilizes.
- *
- * The returned `backupCost` is the backup output value before any later fee
- * shifting. If parent fee shifting is enabled, `getVaultContext(...)` can still
- * move any extra parent fee into the backup output without changing the total
- * combined fee budget.
- */
-const resolveCreateVaultCoinselection = ({
-  utxosData,
-  vaultOutput,
-  backupOutput,
-  changeOutput,
-  effectiveFeeRate,
-  vaultMode,
-  vaultedAmount
-}: {
-  utxosData: UtxosData;
-  vaultOutput: OutputInstance;
-  backupOutput: OutputInstance;
-  changeOutput: OutputInstance;
-  effectiveFeeRate: number;
-  vaultMode: 'TRUC' | 'NON_TRUC';
-  vaultedAmount: bigint | 'MAX_FUNDS';
-}) => {
-  const vaultTxFeeRate = getMinimumVaultTxFeeRate(vaultMode);
-
-  let backupCost = maxBigInt(
-    getBackupCost(effectiveFeeRate),
-    dustThreshold(backupOutput) + BigInt(1)
-  );
-
-  for (let i = 0; i < 10; i++) {
-    const selected = coinselectVaultUtxosData({
+export const coinSelectVaultTx = moize.shallow(
+  ({
+    utxosData,
+    vaultOutput,
+    backupOutput,
+    changeOutput,
+    effectiveFeeRate,
+    vaultMode,
+    vaultedAmount,
+    shiftFeesToBackupEnd = true
+  }: {
+    utxosData: UtxosData;
+    vaultOutput: OutputInstance;
+    backupOutput: OutputInstance;
+    changeOutput: OutputInstance;
+    effectiveFeeRate: number;
+    vaultMode: 'TRUC' | 'NON_TRUC';
+    vaultedAmount: bigint | 'MAX_FUNDS';
+    shiftFeesToBackupEnd?: boolean;
+  }) => {
+    const minBackupFeeBudget = getMinBackupFeeBudget(
+      effectiveFeeRate,
+      backupOutput
+    );
+    const selected = coinSelectInitialVaultTx({
       utxosData,
       vaultOutput,
       backupOutput,
-      backupCost,
+      minBackupFeeBudget,
       changeOutput,
-      // The parent is planned at its exact minimum allowed fee rate. The rest
-      // of the requested combined fee budget is carried by the backup reserve.
-      feeRate: vaultTxFeeRate,
-      minimumFeeRate: vaultTxFeeRate,
+      feeRate: effectiveFeeRate,
+      minimumFeeRate: MIN_RELAY_FEE_RATE,
       vaultedAmount
     });
     if (typeof selected === 'string') return selected;
 
-    const nextBackupCost = estimateBackupCostFromEffectiveFeeRate({
-      effectiveFeeRate,
-      vaultTxVBytes: selected.vsize,
-      backupOutput,
-      vaultMode
-    });
-    if (nextBackupCost === backupCost) return { selected, backupCost };
+    const minimumVaultTxFee = BigInt(
+      Math.ceil(selected.vsize * getMinimumVaultTxFeeRate(vaultMode))
+    );
+    if (selected.fee < minimumVaultTxFee)
+      throw new Error(
+        `Coinselected vault tx fee (${selected.fee}) below minimum vault tx fee (${minimumVaultTxFee})`
+      );
 
-    backupCost = nextBackupCost;
+    let finalBackupFeeBudget = minBackupFeeBudget;
+
+    if (shiftFeesToBackupEnd) {
+      const feeShift = selected.fee - minimumVaultTxFee;
+      finalBackupFeeBudget = minBackupFeeBudget + feeShift;
+      const backupTargetIndex = selected.targets.findIndex(
+        target => target.output === backupOutput
+      );
+      if (backupTargetIndex < 0)
+        throw new Error('Backup output target not found');
+      selected.targets = selected.targets.map((target, index) =>
+        index === backupTargetIndex
+          ? { ...target, value: finalBackupFeeBudget }
+          : target
+      );
+      selected.fee = minimumVaultTxFee;
+    }
+
+    return selected;
   }
-
-  throw new Error(
-    'Could not stabilize create-vault fee targets for the selected effective fee rate'
-  );
-};
+);
 
 /**
- * Returns a conservative upper bound for the minimum fee rate that Vault Setup
- * should expose when the fee slider is interpreted as the combined effective
- * fee rate of the two-transaction flow:
+ * Returns the public lower bound for the Vault Setup fee slider.
  *
- *   vault tx now + backup tx later
- *
- * This function is intentionally conservative. It does not try to compute the
- * exact minimum for every concrete vault creation, because the true parent
- * vsize depends on the selected wallet inputs and on whether coin selection
- * produces change. Instead, it assumes the smallest plausible parent tx shape
- * and derives an upper bound from that. Any real parent tx with more inputs or
- * with change will be larger, and a larger parent only lowers the true minimum
- * combined fee rate.
- *
- * Definitions used below:
- *
- * - B = worst-case backup tx vsize.
- * - V = assumed parent/vault tx vsize.
- * - D = `dustThreshold(backupOutput) + 1`.
- * - m = `MIN_RELAY_FEE_RATE`.
- * - r(V) = fee-rate wrt vault tx vsize.
- * - r(V)' = 1st derivative of fee-rate wrt vault tx vsize. It's used to
- *           compute if rate is increasing/decreasing as V increases
- *
- * Under the current on-chain-backup design, the backup tx has no change output.
- * It spends the backup output into a zero-satoshi `OP_RETURN` output, so the
- * whole backup output value becomes the backup tx fee. That means the backup
- * funding output created by the vault tx must be strictly above dust, which in
- * turn imposes a minimum future backup fee budget:
- *
- *   backupFeeMin = dustThreshold(backupOutput) + 1
- *
- * In `NON_TRUC`, the parent tx also needs to remain relayable on its own:
- *
- *   parentFeeMin = ceil(MIN_RELAY_FEE_RATE * vaultTxVBytes)
- *
- * So, for a given parent size `V`, the combined effective floor is:
- *
- *   NON_TRUC:
- *   r(V) = (D + ceil(m * V)) / (B + V)
- *
- *   TRUC:
- *   r(V) = D / (B + V)
- *
- * Why using the smallest plausible parent gives an upper bound:
- *
- * Ignoring the `ceil(...)` for intuition, the NON_TRUC formula becomes:
- *
- *   r(V) = (D + mV) / (B + V)
- *
- * whose derivative is:
- *
- *   r'(V) = (mB - D) / (B + V)^2
- *
- * With the current constants:
- *
- * - `B = 634 vB`
- * - `D = 298 sats`
- * - `m = 0.1 sat/vB`
- *
- * we get:
- *
- *   mB = 63.4 < 298 = D
- *
- * therefore `r'(V) < 0`. In TRUC the derivative is even simpler:
- *
- *   r(V) = D / (B + V)
- *   r'(V) = -D / (B + V)^2 < 0
- *
- * So larger parent txs imply a lower minimum combined fee rate. Using the
- * smallest plausible parent tx therefore gives a stable conservative upper
- * bound for the UI.
- *
- * Note that this is still an upper bound, not the exact minimum for every
- * concrete parent shape. The exact builder can use larger parents and change,
- * which only push the true minimum downward.
- *
- * Current numerical examples with the present constants:
- *
- * - backup tx worst-case size: `634 vB`
- * - backup output minimum: `298 sats`
- * - smallest plausible parent shape: `1 P2WPKH input + 2 outputs`
- *   (`vault + backup`) => `141 vB`
- *
- * This yields:
- *
- * - `NON_TRUC`: `(298 + ceil(141 * 0.1)) / (634 + 141)`
- *   = `313 / 775 ~= 0.40387 sat/vB`
- * - `TRUC`: `298 / (634 + 141)`
- *   = `298 / 775 ~= 0.38452 sat/vB`
- *
- * For larger parents the true minimum goes down. Examples:
- *
- * - `1 input, 3 outputs` (`vault + backup + change`), `172 vB`
- *   - `NON_TRUC ~= 0.39206`
- *   - `TRUC ~= 0.36973`
- * - `3 inputs, 3 outputs`, `308 vB`
- *   - `NON_TRUC ~= 0.34926`
- *   - `TRUC ~= 0.31635`
- * - `4 inputs, 3 outputs`, `376 vB`
- *   - `NON_TRUC ~= 0.33267`
- *   - `TRUC ~= 0.29505`
- *
- * In short: this function returns a stable upper bound for the minimum fee the
- * slider should allow. It is not the exact minimum for every final coinselect
- * result, but real parent transactions will typically be the same size or
- * larger, so the true minimum will usually be equal or lower than this value.
+ * The setup screen now shows a single fee-rate knob and keeps the internal
+ * vault/backup split behind the curtains. We allow users to start at the shared
+ * relay floor, then enforce backup dust and later shift any vault-tx fee excess
+ * into the backup output. Because of dust and rounding, the realized final fee
+ * rate can end up slightly higher than the selected one at the low end.
  */
 export const getMinimumCreateVaultEffectiveFeeRate = memoize(
-  (network: Network, vaultMode: 'TRUC' | 'NON_TRUC') => {
-    const { Output } = ensureDescriptorsFactoryInstance();
-    const minimumParentInput = new Output({
-      descriptor: createVaultDescriptor(DUMMY_PUBKEY),
-      network
-    });
-    const minimumVaultOutput = new Output({
-      descriptor: createVaultDescriptor(DUMMY_PUBKEY),
-      network
-    });
-    const minimumBackupOutput = new Output({
-      descriptor: createVaultDescriptor(DUMMY_PUBKEY_2),
-      network
-    });
-
-    const minimumVaultTxVBytes = vsize(
-      [minimumParentInput],
-      [minimumVaultOutput, minimumBackupOutput]
-    );
-    const maximumBackupTxVBytes = Math.max(...OP_RETURN_BACKUP_TX_VBYTES);
-    const minimumBackupTxFee = toNumber(dustThreshold(minimumBackupOutput)) + 1;
-    const minimumVaultTxFee = Math.ceil(
-      minimumVaultTxVBytes * getMinimumVaultTxFeeRate(vaultMode)
-    );
-
-    const upperBoundEffectiveFeeRate =
-      (minimumBackupTxFee + minimumVaultTxFee) /
-      (maximumBackupTxVBytes + minimumVaultTxVBytes);
-
-    return upperBoundEffectiveFeeRate;
-  },
+  (_network: Network, _vaultMode: 'TRUC' | 'NON_TRUC') => MIN_RELAY_FEE_RATE,
   (network: Network, vaultMode: 'TRUC' | 'NON_TRUC') =>
     `${network.bech32}:${vaultMode}`
 );
@@ -1318,12 +1188,13 @@ export const estimateMinimumRequiredVaultedAmount = moize.shallow(
       descriptor: createVaultDescriptor(DUMMY_PUBKEY),
       network
     });
-    const triggerOutput = new Output({
+    const triggerOutputPanicPath = new Output({
       descriptor: createTriggerDescriptor({
-        unvaultKey: DUMMY_PUBKEY,
-        panicKey: DUMMY_PUBKEY_2,
+        unvaultKeyExpression: DUMMY_PUBKEY,
+        panicKeyExpression: DUMMY_PUBKEY_2,
         lockBlocks
       }),
+      signersPubKeys: [fromHex(DUMMY_PUBKEY_2)],
       network
     });
     const coldOutput = new Output({
@@ -1345,7 +1216,10 @@ export const estimateMinimumRequiredVaultedAmount = moize.shallow(
 
     const minimumVaultOutputValue = dustThreshold(vaultOutput) + BigInt(1);
     const minimumTriggerOutputValue =
-      dustThreshold(triggerOutput) + BigInt(1) + anchorValue + triggerParentFee;
+      dustThreshold(triggerOutputPanicPath) +
+      BigInt(1) +
+      anchorValue +
+      triggerParentFee;
     const minimumPanicOutputValue =
       dustThreshold(coldOutput) +
       BigInt(1) +
@@ -1364,12 +1238,12 @@ export const estimateMinimumRequiredVaultedAmount = moize.shallow(
   }
 );
 
-const coinselectVaultUtxosData = ({
+const coinSelectInitialVaultTx = ({
   utxosData,
   vaultOutput,
   vaultedAmount,
   backupOutput,
-  backupCost,
+  minBackupFeeBudget,
   changeOutput,
   feeRate,
   minimumFeeRate
@@ -1378,9 +1252,10 @@ const coinselectVaultUtxosData = ({
   vaultOutput: OutputInstance;
   vaultedAmount: bigint | 'MAX_FUNDS';
   backupOutput?: OutputInstance;
-  backupCost?: bigint;
+  minBackupFeeBudget?: bigint;
   changeOutput: OutputInstance;
   feeRate: number;
+  /** this is typically 0.1 but can be 0 for TRUC */
   minimumFeeRate: number;
 }) => {
   const utxos = getOutputsWithValue(utxosData);
@@ -1390,18 +1265,20 @@ const coinselectVaultUtxosData = ({
     vaultedAmount <= dustThreshold(vaultOutput)
   )
     return `VAULT OUT BELOW DUST: ${vaultedAmount} <= ${dustThreshold(vaultOutput)}`;
-  if (backupOutput && backupCost !== undefined) {
-    if (backupCost <= dustThreshold(backupOutput))
-      return `BACKUP OUT BELOW DUST: ${backupCost} <= ${dustThreshold(backupOutput)}`;
-  } else if (backupOutput || backupCost !== undefined) {
-    throw new Error('backupOutput and backupCost must be provided together');
+  if (backupOutput && minBackupFeeBudget !== undefined) {
+    if (minBackupFeeBudget <= dustThreshold(backupOutput))
+      return `BACKUP OUT BELOW DUST: ${minBackupFeeBudget} <= ${dustThreshold(backupOutput)}`;
+  } else if (backupOutput || minBackupFeeBudget !== undefined) {
+    throw new Error(
+      'backupOutput and minBackupFeeBudget must be provided together'
+    );
   }
   let coinselected;
   let targets;
   if (vaultedAmount === 'MAX_FUNDS') {
     targets = [];
-    if (backupOutput && backupCost !== undefined)
-      targets.push({ output: backupOutput, value: backupCost });
+    if (backupOutput && minBackupFeeBudget !== undefined)
+      targets.push({ output: backupOutput, value: minBackupFeeBudget });
 
     coinselected = maxFunds({
       utxos,
@@ -1417,26 +1294,15 @@ const coinselectVaultUtxosData = ({
     if (!vaultTarget) throw new Error('Could not find vaultOutput');
     if (vaultTarget.value <= dustThreshold(vaultOutput))
       return `VAULT TARGET OUT BELOW DUST: ${vaultTarget.value} <= ${dustThreshold(vaultOutput)}`;
-    // maxFunds returns targets with the remainder (vault output) last, while createVault expects the vault output first and backup second
-    targets = [];
-    targets[VAULT_OUTPUT_INDEX] = {
-      output: vaultOutput,
-      value: vaultTarget.value
-    };
-    if (backupOutput && backupCost !== undefined)
-      targets[BACKUP_OUTPUT_INDEX] = {
-        output: backupOutput,
-        value: backupCost
-      };
-    vaultedAmount = vaultTarget.value;
+    // maxFunds returns the remainder last. Rebuild targets in canonical order:
+    // vault output first, backup output second, optional change last.
+    targets = [{ output: vaultOutput, value: vaultTarget.value }];
+    if (backupOutput && minBackupFeeBudget !== undefined)
+      targets.push({ output: backupOutput, value: minBackupFeeBudget });
   } else {
-    targets = [];
-    targets[VAULT_OUTPUT_INDEX] = { output: vaultOutput, value: vaultedAmount };
-    if (backupOutput && backupCost !== undefined)
-      targets[BACKUP_OUTPUT_INDEX] = {
-        output: backupOutput,
-        value: backupCost
-      };
+    targets = [{ output: vaultOutput, value: vaultedAmount }];
+    if (backupOutput && minBackupFeeBudget !== undefined)
+      targets.push({ output: backupOutput, value: minBackupFeeBudget });
 
     coinselected = coinselect({
       utxos,
@@ -1461,67 +1327,9 @@ const coinselectVaultUtxosData = ({
     vsize: coinselected.vsize,
     fee: coinselected.fee,
     targets,
-    vaultedAmount,
     utxosData: selectedUtxosData
   };
 };
-
-/**
- * Mirrors the real vault builder during setup estimation.
- *
- * The input `effectiveFeeRate` is interpreted the same way as in
- * `createVault(...)`:
- * as the combined effective fee rate target for the vault tx plus the future
- * backup tx. This helper therefore solves the same parent/backup fee split as
- * the real builder, instead of treating the input as a direct vault-tx
- * feerate. Internally, the parent is planned at the exact minimum fee allowed
- * by the current vault mode, and the remaining fee budget is pushed into the
- * backup reserve. The returned `vaultTxFee` is the current parent/vault-tx fee,
- * while `effectiveFee` is the total fee budget across the vault tx plus the
- * later backup tx. It is therefore the right helper for setup-time estimation
- * when the UI slider is meant to represent that combined effective fee rate.
- */
-export const selectCreateVaultUtxosData = moize.shallow(
-  ({
-    utxosData,
-    vaultOutput,
-    backupOutput,
-    changeOutput,
-    effectiveFeeRate,
-    vaultMode,
-    vaultedAmount
-  }: {
-    utxosData: UtxosData;
-    vaultOutput: OutputInstance;
-    backupOutput: OutputInstance;
-    changeOutput: OutputInstance;
-    effectiveFeeRate: number;
-    vaultMode: 'TRUC' | 'NON_TRUC';
-    vaultedAmount: number | 'MAX_FUNDS';
-  }) => {
-    const selection = resolveCreateVaultCoinselection({
-      utxosData,
-      vaultOutput,
-      backupOutput,
-      changeOutput,
-      effectiveFeeRate,
-      vaultMode,
-      vaultedAmount:
-        vaultedAmount === 'MAX_FUNDS' ? vaultedAmount : toBigInt(vaultedAmount)
-    });
-    if (typeof selection === 'string') return;
-    const { selected, backupCost } = selection;
-    const selectedVaultedAmount = toNumber(selected.vaultedAmount);
-    return {
-      vsize: selected.vsize,
-      vaultTxFee: toNumber(selected.fee),
-      effectiveFee: toNumber(selected.fee + backupCost),
-      vaultedAmount: selectedVaultedAmount,
-      transactionAmount: selectedVaultedAmount + toNumber(backupCost),
-      utxosData: selected.utxosData
-    };
-  }
-);
 
 /**
  * Builds deterministic vault outputs and runs coin selection for them.
@@ -1530,13 +1338,12 @@ export const selectCreateVaultUtxosData = moize.shallow(
  * from the vault index, and a wallet change output to compute the coinselector
  * for the requested vaulted amount.
  *
- * The `effectiveFeeRate` parameter is interpreted as the combined effective fee rate of
- * the vault tx plus the later backup tx. Internally the parent is first built
- * at the minimum fee allowed by the current vault mode, and the backup reserve
- * is solved so the total fee budget across both transactions matches that
- * requested effective rate.
+ * The `effectiveFeeRate` parameter is the user-selected fee-rate target. The
+ * vault tx is first built at that rate. If `shiftFeesToBackupEnd` is enabled,
+ * any vault-tx fee above the mode minimum is moved into the backup output while
+ * keeping the selected inputs, change, and tx shape unchanged.
  */
-export const getVaultContext = async ({
+export const buildVaultTxContext = async ({
   signer,
   randomSigner,
   changeDescriptorWithIndex,
@@ -1560,16 +1367,19 @@ export const getVaultContext = async ({
   network: Network;
 }) => {
   const { Output } = ensureDescriptorsFactoryInstance();
-  const randomOriginPath = `/84'/${coinTypeFromNetwork(network)}'/0'`;
-  const randomKeyPath = `/0/0`;
-  const { keyExpression: randomKey, pubkey: randomPubKey } =
-    await retrieveKeyDataFromSigner({
+  const randomKeyOriginPath = `/84'/${coinTypeFromNetwork(network)}'/0'`;
+  const randomKeyDerivationPath = `/0/0`;
+  const { keyExpression: randomKeyExpression, pubkey: randomPubKey } =
+    await deriveKeyExpressionAndPubKey({
       signer: randomSigner,
       network,
-      originPath: randomOriginPath,
-      keyPath: randomKeyPath
+      originPath: randomKeyOriginPath,
+      keyPath: randomKeyDerivationPath
     });
-  const vaultOutput = new Output({ descriptor: `wpkh(${randomKey})`, network });
+  const vaultOutput = new Output({
+    descriptor: `wpkh(${randomKeyExpression})`,
+    network
+  });
   const backupOutput = new Output({
     descriptor: await getOnChainBackupDescriptor({
       signer,
@@ -1580,60 +1390,29 @@ export const getVaultContext = async ({
   });
   const changeOutput = new Output({ ...changeDescriptorWithIndex, network });
 
-  const selection = resolveCreateVaultCoinselection({
+  const selected = coinSelectVaultTx({
     utxosData,
     vaultOutput,
     backupOutput,
     changeOutput,
     effectiveFeeRate,
     vaultMode,
-    vaultedAmount
+    vaultedAmount,
+    shiftFeesToBackupEnd
   });
-  const selected =
-    typeof selection === 'string' ? selection : selection.selected;
-  const backupCost =
-    typeof selection === 'string' ? BigInt(0) : selection.backupCost;
-
-  let backupOutputValue = backupCost;
-  if (shiftFeesToBackupEnd && typeof selected !== 'string') {
-    const minRelayFeeRate = vaultMode === 'TRUC' ? 0 : MIN_RELAY_FEE_RATE;
-    const minRelayFee = BigInt(Math.ceil(selected.vsize * minRelayFeeRate));
-    if (selected.fee < minRelayFee)
-      throw new Error(
-        `Coinselected fee (${selected.fee}) below min relay fee (${minRelayFee})`
-      );
-    const feeShift = selected.fee - minRelayFee;
-    if (feeShift > 0) {
-      backupOutputValue = backupCost + feeShift;
-      const backupTargetIndex = selected.targets.findIndex(
-        target => target.output === backupOutput
-      );
-      if (backupTargetIndex < 0)
-        throw new Error('Backup output target not found');
-      selected.targets = selected.targets.map((target, index) =>
-        index === backupTargetIndex
-          ? { ...target, value: backupOutputValue }
-          : target
-      );
-      selected.fee = minRelayFee;
-    }
-  }
-
   return {
-    randomKey,
+    randomKeyExpression,
     randomPubKey,
     vaultOutput,
     backupOutput,
     changeOutput,
-    backupCost,
-    backupOutputValue,
     selected
   };
 };
 
 export const createVault = async ({
   vaultedAmount,
-  unvaultKey,
+  unvaultKeyExpression,
   effectiveFeeRate,
   utxosData,
   signer,
@@ -1648,7 +1427,7 @@ export const createVault = async ({
 }: {
   vaultedAmount: bigint;
   /** The unvault key expression that must be used to create triggerDescriptor */
-  unvaultKey: string;
+  unvaultKeyExpression: string;
   /** Combined effective fee rate for the vault tx plus the future backup tx. */
   effectiveFeeRate: number;
   utxosData: UtxosData;
@@ -1664,14 +1443,12 @@ export const createVault = async ({
 }) => {
   const network = networkMapping[networkId];
   const {
-    randomKey,
+    randomKeyExpression,
     randomPubKey,
     vaultOutput,
     backupOutput,
-    selected,
-    backupCost,
-    backupOutputValue
-  } = await getVaultContext({
+    selected
+  } = await buildVaultTxContext({
     signer,
     randomSigner,
     changeDescriptorWithIndex,
@@ -1687,9 +1464,11 @@ export const createVault = async ({
   if (typeof selected === 'string') return 'COINSELECT_ERROR: ' + selected;
   const vaultUtxosData = selected.utxosData;
   const vaultTargets = selected.targets;
-  if (vaultTargets[VAULT_OUTPUT_INDEX]?.output !== vaultOutput)
+  const vaultOutputIndex = getTargetIndex(vaultTargets, vaultOutput);
+  if (vaultOutputIndex !== 0)
     throw new Error("coinselect first output should be the vault's output");
-  if (vaultTargets[BACKUP_OUTPUT_INDEX]?.output !== backupOutput)
+  const backupOutputIndex = getTargetIndex(vaultTargets, backupOutput);
+  if (backupOutputIndex !== 1)
     throw new Error('coinselect second output should be the backup output');
   if (vaultTargets.length > 3)
     throw new Error(
@@ -1717,12 +1496,6 @@ export const createVault = async ({
       value: target.value
     });
   }
-  const backupOutputIndex = vaultTargets.findIndex(
-    target => target.output === backupOutput
-  );
-  if (backupOutputIndex !== BACKUP_OUTPUT_INDEX) return 'UNKNOWN_ERROR';
-  if (backupOutputValue !== vaultTargets[backupOutputIndex]?.value)
-    return 'UNKNOWN_ERROR';
   //Sign
   signPsbt(signer, network, psbtVault);
   //Finalize
@@ -1732,10 +1505,10 @@ export const createVault = async ({
   const vaultVsize = vaultTx.virtualSize();
   if (vaultVsize > selected.vsize)
     throw new Error('vsize larger than coinselected estimated one');
-  const panicKey = randomKey;
+  const panicKeyExpression = randomKeyExpression;
   const triggerDescriptor = createTriggerDescriptor({
-    unvaultKey,
-    panicKey,
+    unvaultKeyExpression,
+    panicKeyExpression,
     lockBlocks
   });
   const triggerOutputPanicPath = new Output({
@@ -1744,7 +1517,7 @@ export const createVault = async ({
     signersPubKeys: [randomPubKey]
   });
   const { pubkey: unvaultPubKey } = parseKeyExpression({
-    keyExpression: unvaultKey,
+    keyExpression: unvaultKeyExpression,
     network
   });
   if (!unvaultPubKey) throw new Error('Could not extract unvaultPubKey');
@@ -1771,7 +1544,7 @@ export const createVault = async ({
   const triggerInputFinalizer = vaultOutput.updatePsbtAsInput({
     psbt: psbtTrigger,
     txHex: vaultTxHex,
-    vout: 0
+    vout: vaultOutputIndex
   });
   triggerOutputPanicPath.updatePsbtAsOutput({
     psbt: psbtTrigger,
@@ -1845,8 +1618,6 @@ export const createVault = async ({
     vaultAddress: vaultOutput.getAddress(),
     triggerAddress: triggerOutputPanicPath.getAddress(),
     vaultTxHex,
-    backupCost,
-    backupOutputValue,
     txMap: {
       [vaultTxHex]: {
         txId: vaultTx.getId(),
@@ -2452,7 +2223,7 @@ const getHotTriggerDescriptors = (
   const descriptorSet = new Set(descriptors);
   if (descriptorSet.size !== descriptors.length) {
     throw new Error(
-      'triggerDescriptors should be unique; panicKey should be random'
+      'triggerDescriptors should be unique; panic key expression should be random'
     );
   }
   return descriptors;

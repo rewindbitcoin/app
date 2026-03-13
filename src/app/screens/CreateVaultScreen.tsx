@@ -47,7 +47,7 @@ export default function CreateVaultScreen({
   const {
     vaultedAmount,
     coldAddress,
-    effectiveFeeRate: feeRate,
+    effectiveFeeRate,
     lockBlocks,
 
     accounts,
@@ -61,7 +61,7 @@ export default function CreateVaultScreen({
   const mbStyle = useMemo(() => ({ marginBottom: insets.bottom }), [insets]);
   const {
     getNextChangeDescriptorWithIndex,
-    getUnvaultKey,
+    getUnvaultKeyExpression,
     signers,
     pushVaultRegisterWTAndUpdateStates,
     vaults,
@@ -292,7 +292,7 @@ export default function CreateVaultScreen({
       await sleep(200);
       if (!shouldContinueCreate()) return;
 
-      const unvaultKey = await getUnvaultKey();
+      const unvaultKeyExpression = await getUnvaultKeyExpression();
       if (!shouldContinueCreate()) return;
       const changeDescriptorWithIndex =
         await getNextChangeDescriptorWithIndex(accounts);
@@ -324,8 +324,8 @@ export default function CreateVaultScreen({
       //createVault does not throw. It returns errors as strings:
       const vaultData = await createVault({
         vaultedAmount: toBigInt(vaultedAmount),
-        unvaultKey,
-        effectiveFeeRate: feeRate,
+        unvaultKeyExpression,
+        effectiveFeeRate,
         utxosData,
         signer,
         randomSigner,
@@ -353,7 +353,7 @@ export default function CreateVaultScreen({
           txMap: vaultData.txMap,
           triggerMap: vaultData.triggerMap,
           networkId,
-          unvaultKey,
+          unvaultKey: unvaultKeyExpression,
           triggerDescriptor: vaultData.triggerDescriptor,
           creationTime: vaultData.creationTime
         };
@@ -384,9 +384,9 @@ export default function CreateVaultScreen({
     netToast,
     vaultedAmount,
     coldAddress,
-    feeRate,
+    effectiveFeeRate,
     getNextChangeDescriptorWithIndex,
-    getUnvaultKey,
+    getUnvaultKeyExpression,
     lockBlocks,
     networkId,
     vaultMode,

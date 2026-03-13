@@ -203,7 +203,7 @@ const createDefaultReceiveDescriptor = async ({
 //  } else throw new Error(`Signer type ${signer.type} not supported`);
 //};
 
-export const createUnvaultKey = async ({
+export const createUnvaultKeyExpression = async ({
   signer,
   network
 }: {
@@ -213,26 +213,26 @@ export const createUnvaultKey = async ({
   if (signer.type === SOFTWARE) {
     const mnemonic = signer.mnemonic;
     if (!mnemonic) throw new Error(`mnemonic not provided for ${signer.type}`);
-    const unvaultKey = keyExpressionBIP32({
+    const unvaultKeyExpression = keyExpressionBIP32({
       masterNode: getMasterNode(mnemonic, network),
       originPath: "/0'",
       keyPath: '/0'
     });
-    return unvaultKey;
+    return unvaultKeyExpression;
   } else throw new Error(`Signer type ${signer.type} not supported`);
 };
 
 export const createTriggerDescriptor = ({
-  unvaultKey,
-  panicKey,
+  unvaultKeyExpression,
+  panicKeyExpression,
   lockBlocks
 }: {
-  unvaultKey: string;
-  panicKey: string;
+  unvaultKeyExpression: string;
+  panicKeyExpression: string;
   lockBlocks: number;
 }) => {
   const older = olderEncode({ blocks: lockBlocks });
-  const triggerDescriptor = `wsh(andor(pk(${unvaultKey}),older(${older}),pkh(${panicKey})))`;
+  const triggerDescriptor = `wsh(andor(pk(${unvaultKeyExpression}),older(${older}),pkh(${panicKeyExpression})))`;
   return triggerDescriptor;
 };
 
