@@ -7,7 +7,7 @@ import { fixtures } from './fixtutres';
 import {
   createColdAddress,
   createServiceOutput,
-  createUnvaultKey,
+  createUnvaultKeyExpression,
   DUMMY_SERVICE_ADDRESS,
   getDefaultAccount,
   getMainAccount,
@@ -32,8 +32,8 @@ describe('vaultDescriptors unit tests', () => {
   };
   const signers: Signers = { 0: signer };
 
-  test('createUnvaultKey', async () => {
-    const unvaultKey = await createUnvaultKey({ signer, network });
+  test('createUnvaultKeyExpression', async () => {
+    const unvaultKey = await createUnvaultKeyExpression({ signer, network });
     expect(unvaultKey).toBe(expected.unvaultKey);
   });
 

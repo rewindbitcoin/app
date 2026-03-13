@@ -29,13 +29,13 @@ const sleep = async (ms: number) =>
 import {
   createVault,
   getHotDescriptors,
-  getTxosData,
+  getTxosDataFromVaults,
   type Vaults,
   type Vault,
   type VaultsStatuses
 } from '../dist/src/app/lib/vaults';
 import {
-  createUnvaultKey,
+  createUnvaultKeyExpression,
   getDefaultAccount,
   getMainAccount,
   getMasterNode
@@ -103,7 +103,7 @@ describe('E2E: Multiple Pre-Signed txs Vault', () => {
     });
   });
   test('Create unvault key', async () => {
-    unvaultKey = await createUnvaultKey({ signer, network });
+    unvaultKey = await createUnvaultKeyExpression({ signer, network });
     const unvaultKeyInfo = parseKeyExpression({
       keyExpression: unvaultKey,
       network
@@ -183,7 +183,7 @@ describe('E2E: Multiple Pre-Signed txs Vault', () => {
     if (!descriptors.length)
       throw new Error('descriptors should have been initialized');
     const utxos = discovery.getUtxos({ descriptors });
-    const utxosData = getTxosData(utxos, vaults, network, discovery);
+    const utxosData = getTxosDataFromVaults(utxos, vaults, network, discovery);
 
     const vaultPath = VAULT_PATH.replace(
       '<network>',
