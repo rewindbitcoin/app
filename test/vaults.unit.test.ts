@@ -135,7 +135,7 @@ describe('vaults unit tests', () => {
       parentTxHex,
       parentFee: 120,
       targetEffectiveFeeRate: 2,
-      utxosData: [createSyntheticUtxoData(3000)],
+      optionalUtxosData: [createSyntheticUtxoData(3000)],
       changeOutput
     });
 
@@ -162,7 +162,7 @@ describe('vaults unit tests', () => {
       parentTxHex,
       parentFee: 120,
       targetEffectiveFeeRate: 2,
-      utxosData: [createSyntheticUtxoData(3000)],
+      optionalUtxosData: [createSyntheticUtxoData(3000)],
       changeOutput
     });
     expect(plan).toBeUndefined();
@@ -186,7 +186,7 @@ describe('vaults unit tests', () => {
       parentTxHex,
       parentFee: 0,
       targetEffectiveFeeRate: 120,
-      utxosData,
+      optionalUtxosData: utxosData,
       changeOutput
     });
     expect(plan).toBeUndefined();

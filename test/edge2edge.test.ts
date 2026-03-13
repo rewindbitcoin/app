@@ -29,6 +29,7 @@ const sleep = async (ms: number) =>
 import {
   createVault,
   getHotDescriptors,
+  getRandomSigner,
   getTxosDataFromVaults,
   type Vaults,
   type Vault,
@@ -173,12 +174,7 @@ describe('E2E: Multiple Pre-Signed txs Vault', () => {
     await regtestUtils.faucet(nextOutput.getAddress(), FAUCET_AMOUNT);
     await discovery.fetch({ descriptors, gapLimit: GAP_LIMIT });
   }, 20000);
-  let vault:
-    | Vault
-    | 'COINSELECT_ERROR'
-    | 'NOT_ENOUGH_FUNDS'
-    | 'USER_CANCEL'
-    | 'UNKNOWN_ERROR';
+  let vault: Vault;
   test('Create the vault', async () => {
     if (!descriptors.length)
       throw new Error('descriptors should have been initialized');
@@ -194,40 +190,48 @@ describe('E2E: Multiple Pre-Signed txs Vault', () => {
     if (!vaultNode.publicKey) throw new Error('Could not generate a vaultId');
     const vaultId = toHex(vaultNode.publicKey);
 
-    const onProgress = (progress: number) => {
-      void progress;
-      return true;
-    };
+    const randomSigner = await getRandomSigner(networkId);
 
-    vault = await createVault({
-      vaultedAmount: VAULTED_AMOUNT,
-      unvaultKey,
+    const createResult = await createVault({
+      vaultedAmount: BigInt(VAULTED_AMOUNT),
+      unvaultKeyExpression: unvaultKey,
       effectiveFeeRate: 2,
       coldAddress,
       changeDescriptorWithIndex,
       lockBlocks: LOCK_BLOCKS,
       signer,
+      randomSigner,
       networkId,
       utxosData,
-      nextVaultId: vaultId,
-      nextVaultPath: vaultPath,
-      onProgress,
+      vaultIndex: 0,
       vaultMode: 'NON_TRUC'
     });
-    expect(typeof vault).toBe('object');
-    if (typeof vault === 'object') {
-      expect(vault.vaultedAmount).toBe(VAULTED_AMOUNT);
-      expect(vault.lockBlocks).toBe(LOCK_BLOCKS);
-      expect(vault.unvaultKey).toBe(unvaultKey);
-      // Vault + trigger + panic
-      expect(Object.keys(vault.txMap)).toHaveLength(3);
-      // Rewind2 style: a single trigger with a single panic
-      expect(Object.keys(vault.triggerMap)).toHaveLength(1);
-      const [onlyPanicTxs] = Object.values(vault.triggerMap);
-      expect(onlyPanicTxs).toHaveLength(1);
-    }
+    expect(typeof createResult).toBe('object');
+    if (typeof createResult === 'string') throw new Error(createResult);
+    vault = {
+      vaultId,
+      vaultPath,
+      vaultedAmount: VAULTED_AMOUNT,
+      vaultAddress: createResult.vaultAddress,
+      triggerAddress: createResult.triggerAddress,
+      coldAddress,
+      lockBlocks: LOCK_BLOCKS,
+      vaultTxHex: createResult.vaultTxHex,
+      txMap: createResult.txMap,
+      triggerMap: createResult.triggerMap,
+      networkId,
+      unvaultKey,
+      triggerDescriptor: createResult.triggerDescriptor,
+      creationTime: createResult.creationTime
+    };
+    expect(vault.vaultedAmount).toBe(VAULTED_AMOUNT);
+    expect(vault.lockBlocks).toBe(LOCK_BLOCKS);
+    expect(vault.unvaultKey).toBe(unvaultKey);
+    expect(Object.keys(vault.txMap)).toHaveLength(3);
+    expect(Object.keys(vault.triggerMap)).toHaveLength(1);
+    const [onlyPanicTxs] = Object.values(vault.triggerMap);
+    expect(onlyPanicTxs).toHaveLength(1);
 
-    if (typeof vault !== 'object') throw new Error();
     vaults[vault.vaultId] = vault;
     vaultsStatuses[vault.vaultId] = {
       vaultPushTime: Math.floor(Date.now() / 1000),
