@@ -1,9 +1,13 @@
 // Copyright (C) 2025 Jose-Luis Landabaso - https://rewindbitcoin.com
 // Licensed under the GNU GPL v3 or later. See the LICENSE file for details.
 
+//FIXME: note that once a vault is created (f.ex. using TRUC or NON_TRUC) then
+//its very important that the flow regarding this vault (acceletations (for trigger/rescue),
+//init trigger, rescue and any other keep using the same TRUC/NON_TRUC as initiated
+//even if the user later changes the mode in Settings. One can infer the mode
+//dynamically by analyzing the triggerTx stored f.ex. Is this being done/Applied?
+//
 //TODO: keep anchor buffer
-//TODO: send the onchain backup
-//TODO: refactor functions and use onChainBackup.ts
 //
 //TODO: in demo mode, Tape should send a couple of utxos so that its
 //possible to do a quick -> create vault -> init trigger -> rescue
@@ -51,14 +55,18 @@ import { coinTypeFromNetwork, type NetworkId, networkMapping } from './network';
 import { transactionFromHex } from './bitcoin';
 import { MIN_FEE_RATE } from './fees';
 import { maxBigInt, toBigInt, toNumber, toNumberOrUndefined } from './sats';
+import {
+  getMinBackupFeeBudget,
+  getOnChainBackupDescriptor
+} from './onChainBackup';
+export {
+  getMinBackupFeeBudget,
+  getOnChainBackupDescriptor
+} from './onChainBackup';
 
 const P2A_OUTPUT_SCRIPT = fromHex('51024e73');
 const P2A_OUTPUT_SCRIPT_HEX = toHex(P2A_OUTPUT_SCRIPT);
-import {
-  OP_RETURN_BACKUP_TX_VBYTES,
-  PANIC_TX_VBYTES,
-  TRIGGER_TX_VBYTES
-} from './vaultSizes';
+import { PANIC_TX_VBYTES, TRIGGER_TX_VBYTES } from './vaultSizes';
 import { generateMnemonic, mnemonicToSeedSync } from 'bip39';
 
 // P2A input weight = base input (36 prevout + 1 scriptLen + 4 sequence) * 4
@@ -959,7 +967,6 @@ const signPsbt = async (signer: Signer, network: Network, psbtVault: Psbt) => {
 
 export const MIN_RELAY_FEE_RATE = MIN_FEE_RATE;
 export const NON_TRUC_P2A_ANCHOR_VALUE = BigInt(330);
-const VAULT_PURPOSE = 1073;
 
 type OutputTarget = {
   output: OutputInstance;
@@ -983,9 +990,6 @@ export const getTargetValue = (
   if (!target) throw new Error('Target output not found');
   return target.value;
 };
-
-const getVaultOriginPath = (network: Network) =>
-  `/${VAULT_PURPOSE}'/${coinTypeFromNetwork(network)}'/0'`;
 
 /**
  * Async interface - this will make it easier to port this code to HWW
@@ -1014,47 +1018,6 @@ const deriveKeyExpressionAndPubKey = async ({
     pubkey: masterNode.derivePath(`m${originPath}${keyPath}`).publicKey
   };
 };
-
-//FIXME: put this in vaultDescriptors?
-export const getOnChainBackupDescriptor = async ({
-  signer,
-  network,
-  index
-}: {
-  signer: Signer;
-  network: Network;
-  index: number | '*';
-}) => {
-  const keyPath = index === '*' ? '/*' : `/${index}`;
-  const { keyExpression } = await deriveKeyExpressionAndPubKey({
-    signer,
-    network,
-    originPath: getVaultOriginPath(network),
-    keyPath
-  });
-  return `wpkh(${keyExpression})`;
-};
-
-/**
- * Returns the minimum backup fee budget implied by the user-selected fee rate.
- *
- * The backup tx has no change output, so its entire fee budget must already be
- * stored in the backup output created by the vault tx. That output must also be
- * strictly above dust. This helper therefore returns the larger of:
- *
- * - the fee implied by the worst-case backup tx size at the selected fee rate
- * - the minimum non-dust backup output value
- */
-export const getMinBackupFeeBudget = (
-  effectiveFeeRate: number,
-  backupOutput: OutputInstance
-): bigint =>
-  maxBigInt(
-    BigInt(
-      Math.ceil(Math.max(...OP_RETURN_BACKUP_TX_VBYTES) * effectiveFeeRate)
-    ),
-    dustThreshold(backupOutput) + BigInt(1)
-  );
 
 const getMinimumVaultTxFeeRate = (vaultMode: 'TRUC' | 'NON_TRUC') =>
   vaultMode === 'TRUC' ? 0 : MIN_RELAY_FEE_RATE;

@@ -12,12 +12,9 @@ import {
 } from 'expo-file-system';
 import { shareAsync } from 'expo-sharing';
 const MAX_VAULT_CHECKS = 1000;
-const PURPOSE = 1073;
-const VAULT_PATH = `m/${PURPOSE}'/<network>'/0'/<index>`;
 const SIGNING_MESSAGE = 'Satoshi Nakamoto'; //Can be any, but don't change it
-const DATA_PATH = `m/${PURPOSE}'/<network>'/1'/0`;
 
-import { Network, networks } from 'bitcoinjs-lib';
+import { type Network } from 'bitcoinjs-lib';
 import { sha256 } from '@noble/hashes/sha2';
 import type { Accounts, Signer } from './wallets';
 import { getMasterNode } from './vaultDescriptors';
@@ -33,6 +30,7 @@ import { getManagedChacha } from '../../common/lib/cipher';
 import { gunzipSync } from 'fflate';
 import { TextDecoder } from '../../common/lib/textencoder';
 import { type NetworkId, networkMapping } from './network';
+import { getDataPath, getVaultPath } from './vaultPaths';
 
 export const fetchP2PVaultIds = async ({
   signer,
@@ -59,10 +57,7 @@ export const fetchP2PVaultIds = async ({
   const existingVaults = [];
 
   for (let index = 0; index < MAX_VAULT_CHECKS; index++) {
-    const vaultPath = VAULT_PATH.replace(
-      '<network>',
-      network === networks.bitcoin ? '0' : '1'
-    ).replace('<index>', index.toString());
+    const vaultPath = getVaultPath(network, index);
 
     const vaultNode = masterNode.derivePath(vaultPath);
     if (!vaultNode.publicKey) throw new Error('Could not generate a vaultId');
@@ -168,17 +163,14 @@ export const getDataCipherKey = async ({
   network: Network;
 }) => {
   return await getSeedDerivedCipherKey({
-    vaultPath: DATA_PATH.replace(
-      '<network>',
-      network === networks.bitcoin ? '0' : '1'
-    ),
+    vaultPath: getDataPath(network),
     signer,
     network
   });
 };
 
 // Important to be async so that this will also work when using Hardware Wallets
-const getSeedDerivedCipherKey = async ({
+export const getSeedDerivedCipherKey = async ({
   vaultPath,
   signer,
   network
