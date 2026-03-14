@@ -18,6 +18,10 @@
 //for the RBF to accelerate rescue/init trigger presigned txs.
 //The tx with the rocker icon shows the tx that is the child used to boost the
 //package
+//TODO: verify the the final txs are built with in vault, acceleration, CPFP are
+//done with the requested fee rate. not the absolute fee computed, since the
+//signatures sizes will change after signing. vsize assumes signatures of 72
+//bytes but they can also be 71
 const PUSH_TIMEOUT = 30 * 60; // 30 minutes
 
 import { type Network, type Transaction, Psbt } from 'bitcoinjs-lib';
@@ -482,6 +486,7 @@ const estimateCpfpChildVSize = (
  * The selected fee rate is interpreted as:
  * `(parentFee + childFee) / (parentVSize + childVSize)`.
  */
+//FIXME: this one returns too much stuff....
 export const estimateCpfpPackage = ({
   parentTxHex,
   parentFee,
@@ -576,6 +581,7 @@ export const estimateCpfpPackage = ({
  * Builds and signs the Rewind2 CPFP child tx for a selected effective fee
  * rate.
  */
+//FIXME: this function returns unneeded stuff
 export const createCpfpChildTx = async ({
   parentTxHex,
   parentFee,
@@ -1201,6 +1207,11 @@ export const estimateMinimumRequiredVaultedAmount = moize.shallow(
   }
 );
 
+/**
+ * This does the coinselection of the vaulttx as if the fee shifting
+ * is not needed. Then coinSelectVaultTx takes this calculation and
+ * recreates the targets and fee rate.
+ */
 const coinSelectInitialVaultTx = ({
   utxosData,
   vaultOutput,
