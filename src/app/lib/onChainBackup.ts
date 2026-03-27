@@ -78,21 +78,6 @@ const buildEncryptedVaultContent = async ({
   ]);
 };
 
-//FIXME: unneeded
-const getRewind2Parents = (vault: Vault) => {
-  const triggerEntries = Object.entries(vault.triggerMap);
-  if (triggerEntries.length !== 1)
-    throw new Error('On-chain backup expects exactly one trigger tx');
-  const [triggerTxHex, panicTxHexs] = triggerEntries[0] ?? [];
-  if (!triggerTxHex || !panicTxHexs?.length)
-    throw new Error('Could not determine trigger/panic txs for backup');
-  if (panicTxHexs.length !== 1)
-    throw new Error('On-chain backup expects exactly one panic tx');
-  const panicTxHex = panicTxHexs[0];
-  if (!panicTxHex) throw new Error('Could not determine panic tx for backup');
-  return { triggerTxHex, panicTxHex };
-};
-
 export const getOnChainBackupDescriptor = async ({
   signer,
   network,
@@ -137,7 +122,16 @@ export const createOnChainBackupTx = async ({
   const network = networkMapping[vault.networkId];
   const vaultIndex = parseVaultIndex(vault.vaultPath);
   const { tx: vaultTx } = transactionFromHex(vault.vaultTxHex);
-  const { triggerTxHex, panicTxHex } = getRewind2Parents(vault);
+  const triggerEntries = Object.entries(vault.triggerMap);
+  if (triggerEntries.length !== 1)
+    throw new Error('On-chain backup expects exactly one trigger tx');
+  const [triggerTxHex, panicTxHexs] = triggerEntries[0] ?? [];
+  if (!triggerTxHex || !panicTxHexs?.length)
+    throw new Error('Could not determine trigger/panic txs for backup');
+  if (panicTxHexs.length !== 1)
+    throw new Error('On-chain backup expects exactly one panic tx');
+  const panicTxHex = panicTxHexs[0];
+  if (!panicTxHex) throw new Error('Could not determine panic tx for backup');
   const { tx: triggerTx } = transactionFromHex(triggerTxHex);
   const { tx: panicTx } = transactionFromHex(panicTxHex);
 
