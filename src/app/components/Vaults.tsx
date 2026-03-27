@@ -209,17 +209,19 @@ const VaultButton = ({
   mode,
   onPress,
   loading,
+  disabled = false,
   msg,
   onInfoPress
 }: {
   mode: 'secondary' | 'secondary-alert';
   onPress: () => void;
   loading: boolean;
+  disabled?: boolean;
   msg: string;
   onInfoPress?: () => void;
 }) => (
   <View className={`flex-row items-center gap-2 mobmed:gap-4`}>
-    <Button mode={mode} onPress={onPress} loading={loading}>
+    <Button mode={mode} onPress={onPress} loading={loading} disabled={disabled}>
       {msg}
     </Button>
     {onInfoPress && <InfoButton onPress={onInfoPress} />}
@@ -715,7 +717,12 @@ const RawVault = ({
   const isRescueTx =
     isRescueTxPushed || isRescueTxInMempool || isRescueTxConfirmed;
 
-  const canInitUnfreeze = isVaultTx && !isInitUnfreezeTx;
+  const canShowInitUnfreeze = isVaultTx && !isInitUnfreezeTx;
+  // For TRUC, an unconfirmed vault tx can only have one unconfirmed child.
+  // Since the backup child already uses that slot, keep the action visible but
+  // disable Init Unfreeze until the vault tx confirms.
+  const isInitUnfreezeDisabledForTRUC =
+    vaultMode === 'TRUC' && !isVaultTxConfirmed;
   const canBeRescued = isInitUnfreezeTx && !isUnfrozen && !isRescueTx;
   const canBeDelegated = isVaultTx && !isUnfrozen && !isRescueTx;
 
@@ -1224,7 +1231,9 @@ const RawVault = ({
                     lockTime: formatBlocks(vault.lockBlocks, t, locale, true)
                   })
                 : t(
-                    'wallet.vault.notTriggeredUnconfirmed',
+                    vaultMode === 'TRUC'
+                      ? 'wallet.vault.notTriggeredUnconfirmed_TRUC'
+                      : 'wallet.vault.notTriggeredUnconfirmed',
                     {
                       lockTime: formatBlocks(vault.lockBlocks, t, locale, true)
                     }
@@ -1270,9 +1279,12 @@ const RawVault = ({
             </>
           )}
         </View>
-        {(canBeRescued || canInitUnfreeze || canBeDelegated || canBeHidden) && (
+        {(canBeRescued ||
+          canShowInitUnfreeze ||
+          canBeDelegated ||
+          canBeHidden) && (
           <View
-            className={`w-full flex-row ${[canBeRescued, canInitUnfreeze, canBeDelegated, canBeHidden].filter(Boolean).length > 1 ? 'justify-between flex-wrap' : 'justify-end'} pt-8 px-0 moblg:px-4 gap-4 moblg:gap-6`}
+            className={`w-full flex-row ${[canBeRescued, canShowInitUnfreeze, canBeDelegated, canBeHidden].filter(Boolean).length > 1 ? 'justify-between flex-wrap' : 'justify-end'} pt-8 px-0 moblg:px-4 gap-4 moblg:gap-6`}
           >
             {canBeRescued && (
               <VaultButton
@@ -1283,11 +1295,12 @@ const RawVault = ({
                 onInfoPress={handleRescueHelp}
               />
             )}
-            {canInitUnfreeze && (
+            {canShowInitUnfreeze && (
               <VaultButton
                 mode="secondary"
                 onPress={handleShowInitUnfreeze}
                 loading={isInitUnfreezePending}
+                disabled={isInitUnfreezeDisabledForTRUC}
                 msg={t('wallet.vault.triggerUnfreezeButton')}
                 onInfoPress={handleInitUnfreezeHelp}
               />
