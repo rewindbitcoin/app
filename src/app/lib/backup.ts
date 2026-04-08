@@ -33,7 +33,7 @@ import { getManagedChacha } from '../../common/lib/cipher';
 import { gunzipSync } from 'fflate';
 import { TextDecoder } from '../../common/lib/textencoder';
 import { type NetworkId, networkMapping } from './network';
-import { getDataPath, getVaultPath } from './vaultPaths';
+import { getVaultPath, getWalletDataKeyPath } from './vaultPaths';
 
 export const fetchP2PVaultIds = async ({
   signer,
@@ -166,7 +166,7 @@ export const getDataCipherKey = async ({
   network: Network;
 }) => {
   return await getSeedDerivedCipherKey({
-    vaultPath: getDataPath(network),
+    vaultPath: getWalletDataKeyPath(network),
     signer,
     network
   });
