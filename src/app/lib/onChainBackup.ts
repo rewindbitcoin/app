@@ -17,7 +17,7 @@ import { networkMapping } from './network';
 import { maxBigInt } from './sats';
 import { OP_RETURN_BACKUP_TX_VBYTES } from './vaultSizes';
 import { getMasterNode } from './vaultDescriptors';
-import { getVaultOriginPath, getVaultPath } from './vaultPaths';
+import { getVaultOriginPath, getVaultPath } from './rewindPaths';
 import type { Signer } from './wallets';
 import type { TxHex, Vault } from './vaults';
 

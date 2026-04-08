@@ -33,7 +33,7 @@ import { getManagedChacha } from '../../common/lib/cipher';
 import { gunzipSync } from 'fflate';
 import { TextDecoder } from '../../common/lib/textencoder';
 import { type NetworkId, networkMapping } from './network';
-import { getVaultPath, getWalletDataKeyPath } from './vaultPaths';
+import { getVaultPath, getWalletDataKeyPath } from './rewindPaths';
 
 export const fetchP2PVaultIds = async ({
   signer,
@@ -158,7 +158,11 @@ export async function fetchP2PVaults({
   return p2pVaults;
 }
 
-export const getDataCipherKey = async ({
+/**
+ * the cipher key used to encrypt data stored in the app
+ * (this is not backup related)
+ */
+export const getWalletDataCipherKey = async ({
   signer,
   network
 }: {

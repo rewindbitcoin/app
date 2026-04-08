@@ -64,7 +64,7 @@ import type { DiscoveryInstance, TxAttribution } from '@bitcoinerlab/discovery';
 import type { FeeEstimates } from '../lib/fees';
 import { AppState, AppStateStatus, Platform } from 'react-native';
 import { batchedUpdates } from '../../common/lib/batchedUpdates';
-import { fetchP2PVaults, getDataCipherKey } from '../lib/backup';
+import { fetchP2PVaults, getWalletDataCipherKey } from '../lib/backup';
 import { createOnChainBackupTx } from '../lib/onChainBackup';
 
 type DiscoveryExport = ReturnType<DiscoveryInstance['export']>;
@@ -1550,7 +1550,7 @@ const WalletProviderRaw = ({
       const signer = signers[0];
       if (!signer) throw new Error('signer unavailable');
       const fetchDataCipherKey = async () => {
-        const walletDataCipherKey = await getDataCipherKey({
+        const walletDataCipherKey = await getWalletDataCipherKey({
           signer,
           network
         });
