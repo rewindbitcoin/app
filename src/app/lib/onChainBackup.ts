@@ -17,20 +17,12 @@ import { networkMapping } from './network';
 import { maxBigInt } from './sats';
 import { OP_RETURN_BACKUP_TX_VBYTES } from './vaultSizes';
 import { getMasterNode } from './vaultDescriptors';
-import { getVaultOriginPath, getVaultPath } from './rewindPaths';
+import { getVaultOriginPath, getVaultPath, parseVaultIndex } from './rewindPaths';
 import type { Signer } from './wallets';
 import type { TxHex, Vault } from './vaults';
 
 const REW_MAGIC = fromUtf8('REW');
 const BACKUP_ENTRY_VERSION = 1;
-
-const parseVaultIndex = (vaultPath: string) => {
-  const pathParts = vaultPath.split('/');
-  const index = Number(pathParts[pathParts.length - 1]);
-  if (!Number.isInteger(index) || index < 0)
-    throw new Error(`Invalid vaultPath index: ${vaultPath}`);
-  return index;
-};
 
 const encodeVarIntNumber = (value: number) => {
   const bytes = new Uint8Array(encodingLength(value));

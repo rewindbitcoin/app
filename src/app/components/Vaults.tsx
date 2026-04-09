@@ -29,6 +29,7 @@ import {
   type VaultsStatuses,
   type Vaults as VaultsType,
   createCpfpChildTx,
+  getTriggerReserveBumpData,
   getSpendableUtxosData,
   getVaultFrozenBalance,
   getVaultMode,
@@ -50,6 +51,7 @@ import {
   getMinimumReplacementChildFee,
   getPreviousCpfpChildData,
   getAccelerationFeeRateFloor,
+  getTriggerAccelerationFeeRateFloor,
   getReplacementUtxosData,
   type VaultActionTxData
 } from '../lib/vaultActionTx';
@@ -391,20 +393,13 @@ const RawVault = ({
               return;
             }
 
-            if (!accounts || !spendableUtxosData || !networkId || !signers)
+            if (!networkId || !signers)
               throw new Error('Wallet not ready for Rewind2 trigger package');
             const signer = signers[0];
             if (!signer) throw new Error('signer unavailable');
             const network = networkMapping[networkId];
-            const changeDescriptorWithIndex =
-              await getNextChangeDescriptorWithIndex(accounts);
-            const changeOutput = computeChangeOutput(
-              changeDescriptorWithIndex,
-              network
-            );
-
-            let mandatoryUtxosData = undefined;
-            let optionalUtxosData = spendableUtxosData;
+            const { triggerReserveUtxoData, triggerReserveChangeOutput } =
+              getTriggerReserveBumpData({ vault, signer, network });
             const previousChildTxHex = vaultStatus?.triggerCpfpTxHex;
             if (isTriggerAccelerationAttempt) {
               if (vaultStatus?.panicPushTime || vaultStatus?.panicTxHex)
@@ -419,27 +414,14 @@ const RawVault = ({
                 throw new Error(
                   'Missing synced trigger history for acceleration'
                 );
-              const replacementUtxosData = getReplacementUtxosData({
-                parentTxHex: initUnfreezeData.parentTxHex,
-                previousChildTxHex,
-                utxosData: spendableUtxosData,
-                historyData,
-                getTxosData
-              });
-              if (!replacementUtxosData)
-                throw new Error(
-                  'Missing exact trigger replacement inputs from discovery'
-                );
-              mandatoryUtxosData = replacementUtxosData.mandatoryUtxosData;
-              optionalUtxosData = replacementUtxosData.optionalUtxosData;
             }
             const childTxData = await createCpfpChildTx({
               parentTxHex: initUnfreezeData.parentTxHex,
               parentFee: initUnfreezeData.parentTxFee,
               targetEffectiveFeeRate: initUnfreezeData.effectiveFeeRate,
-              ...(mandatoryUtxosData ? { mandatoryUtxosData } : {}),
-              optionalUtxosData,
-              changeOutput,
+              mandatoryUtxosData: [triggerReserveUtxoData],
+              optionalUtxosData: [],
+              changeOutput: triggerReserveChangeOutput,
               signer,
               network
             });
@@ -502,16 +484,14 @@ const RawVault = ({
       pushToken,
       watchtowerAPI,
       settings?.NETWORK_TIMEOUT,
-      accounts,
-      spendableUtxosData,
-      getTxosData,
       networkId,
       signers,
-      getNextChangeDescriptorWithIndex,
       pushTxPackage,
       pushTx,
       isLegacyVault,
       vault.vaultId,
+      vault.vaultPath,
+      vault.vaultTxHex,
       vaultStatus,
       historyData,
       updateVaultStatus,
@@ -744,22 +724,24 @@ const RawVault = ({
     const previousChildTxHex = vaultStatus?.triggerCpfpTxHex;
     if (!parentTxHex || !previousChildTxHex) return false;
     const parentTxData = vault.txMap[parentTxHex];
-    if (!parentTxData) return false;
+    const signer = signers?.[0];
+    if (!parentTxData || !signer || !networkId) return false;
     try {
+      const network = networkMapping[networkId];
+      const { triggerReserveUtxoData, triggerReserveChangeOutput } =
+        getTriggerReserveBumpData({ vault, signer, network });
       // Show the outer button only when a real next replacement floor exists.
       // Otherwise the modal can open with informational copy but no fee path to
       // continue, which is misleading.
       return (
-        getAccelerationFeeRateFloor({
+        getTriggerAccelerationFeeRateFloor({
           parentTxHex,
           parentFee: parentTxData.fee,
           previousChildTxHex,
-          utxosData: spendableUtxosData,
           historyData,
-          getTxosData,
-          accounts,
-          networkId,
-          feeEstimates
+          feeEstimates,
+          mandatoryUtxosData: [triggerReserveUtxoData],
+          childOutput: triggerReserveChangeOutput
         }) !== null
       );
     } catch {
@@ -775,12 +757,10 @@ const RawVault = ({
     vaultStatus?.triggerTxHex,
     vaultStatus?.triggerCpfpTxHex,
     vault,
-    spendableUtxosData,
     historyData,
-    getTxosData,
-    accounts,
     networkId,
-    feeEstimates
+    feeEstimates,
+    signers
   ]);
 
   const canAccelerateRescue = useMemo(() => {

@@ -35,8 +35,33 @@ export const getWalletDataKeyPath = (network: Network) =>
 /**
  * Returns the deterministic path for the trigger fee-bump reserve of a vault.
  *
- * This is the output reserved to fund the first CPFP child attached to the
- * trigger transaction for the specified vault index.
+ * This is the funded reserve UTXO created in the vault tx itself. Replacements
+ * keep spending this same outpoint while the fee-bump child is still only in
+ * the mempool.
  */
-export const getTriggerReservePath = (network: Network, vaultIndex: number) =>
-  `m/${VAULT_PURPOSE}'/${coinTypeFromNetwork(network)}'/2'/${vaultIndex}`;
+export const getTriggerReserveInputPath = (
+  network: Network,
+  vaultIndex: number
+) => `m/${VAULT_PURPOSE}'/${coinTypeFromNetwork(network)}'/2'/${vaultIndex}/0`;
+
+/**
+ * Returns the deterministic path for the trigger fee-bump child output of a
+ * vault.
+ *
+ * This is not a normal hot-wallet change path. It is the dedicated per-vault
+ * rollover output that receives any value left after paying the trigger CPFP
+ * child fee.
+ */
+export const getTriggerReserveChangePath = (
+  network: Network,
+  vaultIndex: number
+) => `m/${VAULT_PURPOSE}'/${coinTypeFromNetwork(network)}'/2'/${vaultIndex}/1`;
+
+/** Returns the non-hardened vault index encoded in a deterministic vault path. */
+export const parseVaultIndex = (vaultPath: string) => {
+  const pathParts = vaultPath.split('/');
+  const index = Number(pathParts[pathParts.length - 1]);
+  if (!Number.isInteger(index) || index < 0)
+    throw new Error(`Invalid vaultPath index: ${vaultPath}`);
+  return index;
+};

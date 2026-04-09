@@ -68,6 +68,8 @@ export const estimateMaxVaultAmount = moize.shallow(
       triggerReserveOutput
     );
     return {
+      //FIXME: this is not an effective fee - in fact this is then displayed
+      //in the slider as a fee!?!?!
       effectiveFee: toNumber(
         selected.fee + finalBackupFeeBudget + finalTriggerReserveValue
       ),
@@ -144,6 +146,8 @@ const estimateMinimumVaultAmount = moize.shallow(
       );
       return {
         vaultedAmount,
+        //FIXME: this is not an effective fee - in fact this is then displayed
+        //in the slider as a fee!?!?!
         effectiveFee: toNumber(
           selected.fee + finalBackupFeeBudget + finalTriggerReserveValue
         )
@@ -164,6 +168,8 @@ const estimateMinimumVaultAmount = moize.shallow(
       const vaultTxFeeRate = vaultMode === 'TRUC' ? 0 : MIN_FEE_RATE;
       return {
         vaultedAmount,
+        //FIXME: this is not an effective fee - in fact this is then displayed
+        //in the slider as a fee!?!?!
         effectiveFee:
           minBackupFeeBudget +
           triggerReserveAmount +
@@ -210,9 +216,10 @@ export const estimateVaultSetupRange = moize.shallow(
     );
     const vaultOutput = DUMMY_VAULT_OUTPUT(network);
     const triggerReserveOutput = DUMMY_TRIGGER_RESERVE_OUTPUT(network);
+    const triggerReserveChangeOutput = DUMMY_TRIGGER_RESERVE_OUTPUT(network);
     const triggerReserveValue = getRequiredTriggerReserveValue({
       triggerReserveOutput,
-      changeOutput,
+      triggerReserveChangeOutput,
       vaultMode,
       presignedTriggerFeeRate,
       maxTriggerFeeRate

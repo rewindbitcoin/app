@@ -253,6 +253,57 @@ export const getMinimumReplacementChildFee = ({
   previousChildFee + Math.ceil(replacementChildVSize * incrementalRelayFeeRate);
 
 /**
+ * Reserve-only replacement floor for trigger acceleration.
+ *
+ * Unlike rescue, trigger acceleration never falls back to generic wallet UTXOs.
+ * It always replaces the child using the vault's dedicated reserve input and
+ * the dedicated reserve-change output.
+ */
+export const getTriggerAccelerationFeeRateFloor = ({
+  parentTxHex,
+  parentFee,
+  previousChildTxHex,
+  historyData,
+  feeEstimates,
+  mandatoryUtxosData,
+  childOutput
+}: {
+  parentTxHex: TxHex;
+  parentFee: number;
+  previousChildTxHex: TxHex;
+  historyData: HistoryData | undefined;
+  feeEstimates: FeeEstimates | undefined;
+  mandatoryUtxosData: UtxosData;
+  childOutput: Parameters<typeof findMinimumReplacementEffectiveFeeRate>[0]['changeOutput'];
+}): number | null => {
+  if (!historyData?.length || !feeEstimates) return null;
+
+  const previousCpfpData = getPreviousCpfpChildData({
+    parentTxHex,
+    parentFee,
+    previousChildTxHex,
+    historyData
+  });
+  if (!previousCpfpData) return null;
+
+  const maxFeeRate = computeMaxAllowedFeeRate(feeEstimates);
+  return (
+    findMinimumReplacementEffectiveFeeRate({
+      parentTxHex,
+      parentFee,
+      previousChildFee: previousCpfpData.childFee,
+      mandatoryUtxosData,
+      optionalUtxosData: [],
+      changeOutput: childOutput,
+      maxTargetEffectiveFeeRate: maxFeeRate,
+      minimumComparedEffectiveFeeRate: previousCpfpData.effectiveFeeRate + 1,
+      incrementalRelayFeeRate: INCREMENTAL_RELAY_FEE_RATE,
+      feeRateStep: FEE_RATE_STEP
+    }) ?? null
+  );
+};
+
+/**
  * Returns the minimum effective fee rate that can actually replace the current
  * fee payer with the wallet inputs available right now.
  *
@@ -312,6 +363,7 @@ export const getAccelerationFeeRateFloor = ({
     getMainAccount(accounts, network),
     network
   );
+
   const maxFeeRate = computeMaxAllowedFeeRate(feeEstimates);
 
   return (

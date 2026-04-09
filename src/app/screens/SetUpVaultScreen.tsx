@@ -330,7 +330,8 @@ export default function VaultSetUp({
             triggerReserveOutput: DUMMY_TRIGGER_RESERVE_OUTPUT(network),
             triggerReserveValue: getRequiredTriggerReserveValue({
               triggerReserveOutput: DUMMY_TRIGGER_RESERVE_OUTPUT(network),
-              changeOutput: currentChangeOutput,
+              triggerReserveChangeOutput:
+                DUMMY_TRIGGER_RESERVE_OUTPUT(network),
               vaultMode,
               presignedTriggerFeeRate: settings.PRESIGNED_TRIGGER_FEERATE,
               maxTriggerFeeRate: settings.MAX_TRIGGER_FEERATE
@@ -372,15 +373,13 @@ export default function VaultSetUp({
       vaultOutput: DUMMY_VAULT_OUTPUT(network),
       backupOutput: DUMMY_BACKUP_OUTPUT(network),
       triggerReserveOutput: DUMMY_TRIGGER_RESERVE_OUTPUT(network),
-       triggerReserveValue: getRequiredTriggerReserveValue({
-         triggerReserveOutput: DUMMY_TRIGGER_RESERVE_OUTPUT(network),
-         changeOutput:
-           changeOutput ||
-           DUMMY_CHANGE_OUTPUT(getMainAccount(accounts, network), network),
-         vaultMode,
-         presignedTriggerFeeRate: settings.PRESIGNED_TRIGGER_FEERATE,
-         maxTriggerFeeRate: settings.MAX_TRIGGER_FEERATE
-       }),
+      triggerReserveValue: getRequiredTriggerReserveValue({
+        triggerReserveOutput: DUMMY_TRIGGER_RESERVE_OUTPUT(network),
+        triggerReserveChangeOutput: DUMMY_TRIGGER_RESERVE_OUTPUT(network),
+        vaultMode,
+        presignedTriggerFeeRate: settings.PRESIGNED_TRIGGER_FEERATE,
+        maxTriggerFeeRate: settings.MAX_TRIGGER_FEERATE
+      }),
       changeOutput:
         changeOutput ||
         DUMMY_CHANGE_OUTPUT(getMainAccount(accounts, network), network),
