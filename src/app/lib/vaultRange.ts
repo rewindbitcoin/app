@@ -7,6 +7,7 @@ import {
   DUMMY_BACKUP_OUTPUT,
   DUMMY_CHANGE_OUTPUT,
   DUMMY_PKH_OUTPUT,
+  DUMMY_TRIGGER_RESERVE_OUTPUT,
   DUMMY_VAULT_OUTPUT,
   getMainAccount
 } from './vaultDescriptors';
@@ -17,7 +18,8 @@ import {
   getTargetValue,
   type UtxosData,
   estimateMinimumRequiredVaultedAmount,
-  getMinBackupFeeBudget
+  getMinBackupFeeBudget,
+  getRequiredTriggerReserveValue
 } from './vaults';
 import type { Accounts } from './wallets';
 import { toBigInt, toNumber } from './sats';
@@ -33,6 +35,8 @@ export const estimateMaxVaultAmount = moize.shallow(
     utxosData,
     vaultOutput,
     backupOutput,
+    triggerReserveOutput,
+    triggerReserveValue,
     changeOutput,
     vaultMode,
     effectiveFeeRate
@@ -40,6 +44,8 @@ export const estimateMaxVaultAmount = moize.shallow(
     utxosData: UtxosData;
     vaultOutput: OutputInstance;
     backupOutput: OutputInstance;
+    triggerReserveOutput: OutputInstance;
+    triggerReserveValue: bigint;
     changeOutput: OutputInstance;
     vaultMode: 'TRUC' | 'NON_TRUC';
     effectiveFeeRate: number;
@@ -48,6 +54,8 @@ export const estimateMaxVaultAmount = moize.shallow(
       utxosData,
       vaultOutput,
       backupOutput,
+      triggerReserveOutput,
+      triggerReserveValue,
       changeOutput,
       effectiveFeeRate,
       vaultMode,
@@ -55,8 +63,14 @@ export const estimateMaxVaultAmount = moize.shallow(
     });
     if (typeof selected === 'string') return;
     const finalBackupFeeBudget = getTargetValue(selected.targets, backupOutput);
+    const finalTriggerReserveValue = getTargetValue(
+      selected.targets,
+      triggerReserveOutput
+    );
     return {
-      effectiveFee: toNumber(selected.fee + finalBackupFeeBudget),
+      effectiveFee: toNumber(
+        selected.fee + finalBackupFeeBudget + finalTriggerReserveValue
+      ),
       vaultedAmount: toNumber(getTargetValue(selected.targets, vaultOutput))
     };
   }
@@ -75,6 +89,8 @@ const estimateMinimumVaultAmount = moize.shallow(
     network,
     vaultOutput,
     backupOutput,
+    triggerReserveOutput,
+    triggerReserveValue,
     changeOutput,
     lockBlocks,
     effectiveFeeRate,
@@ -86,10 +102,17 @@ const estimateMinimumVaultAmount = moize.shallow(
     network: Network;
     vaultOutput: OutputInstance;
     backupOutput: OutputInstance;
+    triggerReserveOutput: OutputInstance;
+    triggerReserveValue: bigint;
     changeOutput: OutputInstance;
     lockBlocks: number;
     effectiveFeeRate: number;
+    /**
+     * Structural parent mode.
+     * TRUC means v3 + 0-sat anchor, NON_TRUC means v2 + funded anchor.
+     */
     vaultMode: 'TRUC' | 'NON_TRUC';
+    /** Fee rate baked directly into the trigger parent transaction. */
     presignedTriggerFeeRate: number;
   }): VaultAmountEstimate => {
     const vaultedAmount = estimateMinimumRequiredVaultedAmount({
@@ -103,6 +126,8 @@ const estimateMinimumVaultAmount = moize.shallow(
       utxosData,
       vaultOutput,
       backupOutput,
+      triggerReserveOutput,
+      triggerReserveValue,
       changeOutput,
       effectiveFeeRate,
       vaultMode,
@@ -113,9 +138,15 @@ const estimateMinimumVaultAmount = moize.shallow(
         selected.targets,
         backupOutput
       );
+      const finalTriggerReserveValue = getTargetValue(
+        selected.targets,
+        triggerReserveOutput
+      );
       return {
         vaultedAmount,
-        effectiveFee: toNumber(selected.fee + finalBackupFeeBudget)
+        effectiveFee: toNumber(
+          selected.fee + finalBackupFeeBudget + finalTriggerReserveValue
+        )
       };
     } else {
       //This means it wa impossible to construct a solution with the current
@@ -129,11 +160,14 @@ const estimateMinimumVaultAmount = moize.shallow(
       const minBackupFeeBudget = toNumber(
         getMinBackupFeeBudget(effectiveFeeRate, backupOutput)
       );
+      const triggerReserveAmount = toNumber(triggerReserveValue);
       const vaultTxFeeRate = vaultMode === 'TRUC' ? 0 : MIN_FEE_RATE;
       return {
         vaultedAmount,
         effectiveFee:
-          minBackupFeeBudget + Math.ceil(vaultTxFeeRate * vaultTxSize)
+          minBackupFeeBudget +
+          triggerReserveAmount +
+          Math.ceil(vaultTxFeeRate * vaultTxSize)
       };
     }
   }
@@ -149,7 +183,8 @@ export const estimateVaultSetupRange = moize.shallow(
     lockBlocks,
     network,
     vaultMode,
-    presignedTriggerFeeRate
+    presignedTriggerFeeRate,
+    maxTriggerFeeRate
   }: {
     accounts: Accounts;
     utxosData: UtxosData;
@@ -158,8 +193,15 @@ export const estimateVaultSetupRange = moize.shallow(
     effectiveFeeRate?: number | null;
     lockBlocks: number;
     network: Network;
+    /**
+     * Structural parent mode.
+     * TRUC means v3 + 0-sat anchor, NON_TRUC means v2 + funded anchor.
+     */
     vaultMode: 'TRUC' | 'NON_TRUC';
+    /** Fee rate baked directly into the trigger parent transaction. */
     presignedTriggerFeeRate: number;
+    /** Trigger package-feerate ceiling used to size the dedicated reserve. */
+    maxTriggerFeeRate: number;
   }) => {
     const backupOutput = DUMMY_BACKUP_OUTPUT(network);
     const changeOutput = DUMMY_CHANGE_OUTPUT(
@@ -167,6 +209,14 @@ export const estimateVaultSetupRange = moize.shallow(
       network
     );
     const vaultOutput = DUMMY_VAULT_OUTPUT(network);
+    const triggerReserveOutput = DUMMY_TRIGGER_RESERVE_OUTPUT(network);
+    const triggerReserveValue = getRequiredTriggerReserveValue({
+      triggerReserveOutput,
+      changeOutput,
+      vaultMode,
+      presignedTriggerFeeRate,
+      maxTriggerFeeRate
+    });
     return {
       minimumVaultAmount: estimateMinimumVaultAmount({
         utxosData,
@@ -174,6 +224,8 @@ export const estimateVaultSetupRange = moize.shallow(
         network,
         vaultOutput,
         backupOutput,
+        triggerReserveOutput,
+        triggerReserveValue,
         changeOutput,
         lockBlocks,
         effectiveFeeRate: minimumEffectiveFeeRate,
@@ -184,6 +236,8 @@ export const estimateVaultSetupRange = moize.shallow(
         utxosData,
         vaultOutput,
         backupOutput,
+        triggerReserveOutput,
+        triggerReserveValue,
         changeOutput,
         vaultMode,
         effectiveFeeRate: minimumEffectiveFeeRate
@@ -192,6 +246,8 @@ export const estimateVaultSetupRange = moize.shallow(
         utxosData,
         vaultOutput,
         backupOutput,
+        triggerReserveOutput,
+        triggerReserveValue,
         changeOutput,
         vaultMode,
         effectiveFeeRate:

@@ -36,6 +36,10 @@ export const useSettings = () => {
       throw new Error(
         `PRESIGNED_TRIGGER_FEERATE (${mergedSettings.PRESIGNED_TRIGGER_FEERATE}) must be >= MIN_FEE_RATE (${MIN_FEE_RATE})`
       );
+    if (mergedSettings.MAX_TRIGGER_FEERATE < MIN_FEE_RATE)
+      throw new Error(
+        `MAX_TRIGGER_FEERATE (${mergedSettings.MAX_TRIGGER_FEERATE}) must be >= MIN_FEE_RATE (${MIN_FEE_RATE})`
+      );
     if (mergedSettings.PRESIGNED_RESCUE_FEERATE < MIN_FEE_RATE)
       throw new Error(
         `PRESIGNED_RESCUE_FEERATE (${mergedSettings.PRESIGNED_RESCUE_FEERATE}) must be >= MIN_FEE_RATE (${MIN_FEE_RATE})`

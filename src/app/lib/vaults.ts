@@ -72,6 +72,7 @@ const P2A_OUTPUT_SCRIPT = fromHex('51024e73');
 const P2A_OUTPUT_SCRIPT_HEX = toHex(P2A_OUTPUT_SCRIPT);
 import { PANIC_TX_VBYTES, TRIGGER_TX_VBYTES } from './vaultSizes';
 import { generateMnemonic, mnemonicToSeedSync } from 'bip39';
+import { getTriggerReservePath } from './rewindPaths';
 
 // P2A input weight = base input (36 prevout + 1 scriptLen + 4 sequence) * 4
 // plus segwit marker/flag (2) and witness (1 stack item count + 1 empty push)
@@ -467,17 +468,103 @@ export const findMinimumReplacementEffectiveFeeRate = ({
 const estimateCpfpChildVSize = (
   selectedUtxosData: UtxosData,
   changeOutput: OutputInstance
+) =>
+  estimateCpfpChildVSizeFromOutputs(
+    selectedUtxosData.map(utxoData => utxoData.output),
+    changeOutput
+  );
+
+const estimateCpfpChildVSizeFromOutputs = (
+  selectedOutputs: Array<OutputInstance>,
+  changeOutput: OutputInstance
 ) => {
   const p2aInput = {
     isSegwit: () => true,
     inputWeight: () => P2A_INPUT_WEIGHT
   };
   return vsize(
-    [
-      p2aInput as unknown as OutputInstance,
-      ...selectedUtxosData.map(utxoData => utxoData.output)
-    ],
+    [p2aInput as unknown as OutputInstance, ...selectedOutputs],
     [changeOutput]
+  );
+};
+
+/**
+ * Derives the sats that must be locked in the dedicated trigger reserve output.
+ *
+ * The reserve is pre-funded so that later, if trigger needs a CPFP bump,
+ * the wallet can build:
+ * - anchor input
+ * - reserve input
+ * - one leftover wallet output (change)
+ * and still hit the target package feerate.
+ *
+ * `presignedTriggerFeeRate` controls the fee already paid by the trigger parent.
+ * `maxTriggerFeeRate` is the later package-feerate ceiling that the reserve must
+ * still be able to reach with the first CPFP child.
+ */
+export const getRequiredTriggerReserveValue = ({
+  triggerReserveOutput,
+  changeOutput: childOutput,
+  vaultMode,
+  presignedTriggerFeeRate,
+  maxTriggerFeeRate
+}: {
+  /** Output template for the dedicated trigger reserve UTXO created in the vault tx. */
+  triggerReserveOutput: OutputInstance;
+  /** Output template for the only output of the future trigger CPFP child. */
+  changeOutput: OutputInstance;
+  /**
+   * Structural parent mode.
+   * TRUC means v3 + 0-sat anchor, NON_TRUC means v2 + funded anchor.
+   */
+  vaultMode: 'TRUC' | 'NON_TRUC';
+  /** Fee rate already baked into the trigger parent itself. */
+  presignedTriggerFeeRate: number;
+  /**
+   * Maximum package feerate the dedicated reserve is expected to cover for the
+   * first trigger CPFP child.
+   */
+  maxTriggerFeeRate: number;
+}) => {
+  // Model the future trigger fee-bump child as:
+  // - inputs: trigger anchor + dedicated trigger reserve UTXO
+  // - output: one wallet output (`childOutput`)
+  //
+  // We size the reserve so that this child can still bring the full
+  // parent+child package up to `maxTriggerFeeRate`.
+  const childVSize = estimateCpfpChildVSizeFromOutputs(
+    [triggerReserveOutput],
+    childOutput
+  );
+  const parentVSize = Math.max(...TRIGGER_TX_VBYTES);
+  const totalTargetFee = Math.ceil(
+    maxTriggerFeeRate * (parentVSize + childVSize)
+  );
+  const parentFee = Number(
+    getPresignedTriggerParentFee(presignedTriggerFeeRate)
+  );
+  const childFee = Math.max(0, totalTargetFee - parentFee);
+
+  // The child gets some value for free from the trigger anchor. In NON_TRUC
+  // this is 330 sats, while TRUC anchors are 0-sat.
+  const anchorValue =
+    vaultMode === 'TRUC' ? 0 : Number(NON_TRUC_P2A_ANCHOR_VALUE);
+
+  // The child's only output must remain spendable after paying fees.
+  const childOutputMinValue = toNumber(dustThreshold(childOutput)) + 1;
+
+  // The reserve output itself also has to stay above dust when it is created in
+  // the vault tx, even if the required fee bump would be smaller.
+  const reserveMinValue = toNumber(dustThreshold(triggerReserveOutput)) + 1;
+
+  // Value conservation for the future child is:
+  //   reserveValue + anchorValue = childFee + childOutputValue
+  // and we require:
+  //   childOutputValue >= childOutputMinValue
+  // so:
+  //   reserveValue >= childFee + childOutputMinValue - anchorValue
+  return toBigInt(
+    Math.max(reserveMinValue, childFee + childOutputMinValue - anchorValue)
   );
 };
 
@@ -1051,6 +1138,8 @@ export const coinSelectVaultTx = moize.shallow(
     utxosData,
     vaultOutput,
     backupOutput,
+    triggerReserveOutput,
+    triggerReserveValue,
     changeOutput,
     effectiveFeeRate,
     vaultMode,
@@ -1060,6 +1149,8 @@ export const coinSelectVaultTx = moize.shallow(
     utxosData: UtxosData;
     vaultOutput: OutputInstance;
     backupOutput: OutputInstance;
+    triggerReserveOutput: OutputInstance;
+    triggerReserveValue: bigint;
     changeOutput: OutputInstance;
     effectiveFeeRate: number;
     vaultMode: 'TRUC' | 'NON_TRUC';
@@ -1074,13 +1165,15 @@ export const coinSelectVaultTx = moize.shallow(
       utxosData,
       vaultOutput,
       backupOutput,
+      triggerReserveOutput,
+      triggerReserveValue,
       minBackupFeeBudget,
       changeOutput,
       feeRate: effectiveFeeRate,
       minimumFeeRate: MIN_FEE_RATE,
       vaultedAmount
     });
-    if (typeof selected === 'string') return selected;
+    if (typeof selected === 'string') return selected; //Forward errors
 
     const minimumVaultTxFee = BigInt(
       Math.ceil(selected.vsize * getMinimumVaultTxFeeRate(vaultMode))
@@ -1125,6 +1218,9 @@ export const coinSelectVaultTx = moize.shallow(
  * - the panic output must stay above dust after subtracting everything that
  *   must already be paid before panic can exist
  *
+ * This lower bound does not include the separate trigger reserve output funded
+ * by the wallet at vault creation time.
+ *
  * @returns The minimum `vaultedAmount` in sats required by the current
  * Rewind2 vault structure. This is the largest of the vault, trigger, and
  * panic minimums because one vaulted amount must satisfy all three.
@@ -1140,7 +1236,12 @@ export const estimateMinimumRequiredVaultedAmount = moize.shallow(
     coldAddress: string;
     lockBlocks: number;
     network: Network;
+    /**
+     * Structural parent mode.
+     * TRUC means v3 + 0-sat anchor, NON_TRUC means v2 + funded anchor.
+     */
     vaultMode: 'TRUC' | 'NON_TRUC';
+    /** Fee rate baked directly into the trigger parent transaction. */
     presignedTriggerFeeRate: number;
   }) => {
     const { Output } = ensureDescriptorsFactoryInstance();
@@ -1205,6 +1306,8 @@ const coinSelectInitialVaultTx = ({
   vaultOutput,
   vaultedAmount,
   backupOutput,
+  triggerReserveOutput,
+  triggerReserveValue,
   minBackupFeeBudget,
   changeOutput,
   feeRate,
@@ -1214,6 +1317,8 @@ const coinSelectInitialVaultTx = ({
   vaultOutput: OutputInstance;
   vaultedAmount: bigint | 'MAX_FUNDS';
   backupOutput?: OutputInstance;
+  triggerReserveOutput?: OutputInstance;
+  triggerReserveValue?: bigint;
   minBackupFeeBudget?: bigint;
   changeOutput: OutputInstance;
   feeRate: number;
@@ -1235,12 +1340,25 @@ const coinSelectInitialVaultTx = ({
       'backupOutput and minBackupFeeBudget must be provided together'
     );
   }
+  if (triggerReserveOutput && triggerReserveValue !== undefined) {
+    if (triggerReserveValue <= dustThreshold(triggerReserveOutput))
+      return `TRIGGER RESERVE OUT BELOW DUST: ${triggerReserveValue} <= ${dustThreshold(triggerReserveOutput)}`;
+  } else if (triggerReserveOutput || triggerReserveValue !== undefined) {
+    throw new Error(
+      'triggerReserveOutput and triggerReserveValue must be provided together'
+    );
+  }
   let coinselected;
   let targets;
   if (vaultedAmount === 'MAX_FUNDS') {
     targets = [];
     if (backupOutput && minBackupFeeBudget !== undefined)
       targets.push({ output: backupOutput, value: minBackupFeeBudget });
+    if (triggerReserveOutput && triggerReserveValue !== undefined)
+      targets.push({
+        output: triggerReserveOutput,
+        value: triggerReserveValue
+      });
 
     coinselected = maxFunds({
       utxos,
@@ -1257,14 +1375,25 @@ const coinSelectInitialVaultTx = ({
     if (vaultTarget.value <= dustThreshold(vaultOutput))
       return `VAULT TARGET OUT BELOW DUST: ${vaultTarget.value} <= ${dustThreshold(vaultOutput)}`;
     // maxFunds returns the remainder last. Rebuild targets in canonical order:
-    // vault output first, backup output second, optional change last.
+    // vault output first, backup output second, reserve output third, optional
+    // change last.
     targets = [{ output: vaultOutput, value: vaultTarget.value }];
     if (backupOutput && minBackupFeeBudget !== undefined)
       targets.push({ output: backupOutput, value: minBackupFeeBudget });
+    if (triggerReserveOutput && triggerReserveValue !== undefined)
+      targets.push({
+        output: triggerReserveOutput,
+        value: triggerReserveValue
+      });
   } else {
     targets = [{ output: vaultOutput, value: vaultedAmount }];
     if (backupOutput && minBackupFeeBudget !== undefined)
       targets.push({ output: backupOutput, value: minBackupFeeBudget });
+    if (triggerReserveOutput && triggerReserveValue !== undefined)
+      targets.push({
+        output: triggerReserveOutput,
+        value: triggerReserveValue
+      });
 
     coinselected = coinselect({
       utxos,
@@ -1311,6 +1440,8 @@ export const buildVaultTxContext = async ({
   changeDescriptorWithIndex,
   vaultIndex,
   vaultMode,
+  presignedTriggerFeeRate,
+  maxTriggerFeeRate,
   effectiveFeeRate,
   utxosData,
   vaultedAmount,
@@ -1321,7 +1452,15 @@ export const buildVaultTxContext = async ({
   randomSigner: Signer;
   changeDescriptorWithIndex: { descriptor: string; index: number };
   vaultIndex: number;
+  /**
+   * Structural parent mode.
+   * TRUC means v3 + 0-sat anchor, NON_TRUC means v2 + funded anchor.
+   */
   vaultMode: 'TRUC' | 'NON_TRUC';
+  /** Fee rate baked directly into the trigger parent transaction. */
+  presignedTriggerFeeRate: number;
+  /** Trigger package-feerate ceiling used to size the dedicated reserve. */
+  maxTriggerFeeRate: number;
   effectiveFeeRate: number;
   vaultedAmount: bigint | 'MAX_FUNDS';
   utxosData: UtxosData;
@@ -1351,11 +1490,35 @@ export const buildVaultTxContext = async ({
     network
   });
   const changeOutput = new Output({ ...changeDescriptorWithIndex, network });
+  const triggerReservePath = getTriggerReservePath(network, vaultIndex);
+  const lastSlashIndex = triggerReservePath.lastIndexOf('/');
+  if (lastSlashIndex < 2)
+    throw new Error(`Invalid trigger reserve path: ${triggerReservePath}`);
+  const { keyExpression: triggerReserveKeyExpression } =
+    await deriveKeyExpressionAndPubKey({
+      signer,
+      network,
+      originPath: triggerReservePath.slice(1, lastSlashIndex),
+      keyPath: triggerReservePath.slice(lastSlashIndex)
+    });
+  const triggerReserveOutput = new Output({
+    descriptor: `wpkh(${triggerReserveKeyExpression})`,
+    network
+  });
+  const triggerReserveValue = getRequiredTriggerReserveValue({
+    triggerReserveOutput,
+    changeOutput,
+    vaultMode,
+    presignedTriggerFeeRate,
+    maxTriggerFeeRate
+  });
 
   const selected = coinSelectVaultTx({
     utxosData,
     vaultOutput,
     backupOutput,
+    triggerReserveOutput,
+    triggerReserveValue,
     changeOutput,
     effectiveFeeRate,
     vaultMode,
@@ -1367,6 +1530,7 @@ export const buildVaultTxContext = async ({
     randomPubKey,
     vaultOutput,
     backupOutput,
+    triggerReserveOutput,
     changeOutput,
     selected
   };
@@ -1377,6 +1541,7 @@ export const createVault = async ({
   unvaultKeyExpression,
   effectiveFeeRate,
   presignedTriggerFeeRate,
+  maxTriggerFeeRate,
   utxosData,
   signer,
   randomSigner,
@@ -1395,6 +1560,8 @@ export const createVault = async ({
   effectiveFeeRate: number;
   /** Fee rate baked directly into the presigned trigger parent transaction. */
   presignedTriggerFeeRate: number;
+  /** Highest trigger package feerate the dedicated reserve must support. */
+  maxTriggerFeeRate: number;
   utxosData: UtxosData;
   signer: Signer;
   randomSigner: Signer;
@@ -1402,6 +1569,10 @@ export const createVault = async ({
   changeDescriptorWithIndex: { descriptor: string; index: number };
   lockBlocks: number;
   vaultIndex: number;
+  /**
+   * Structural parent mode.
+   * TRUC means v3 + 0-sat anchor, NON_TRUC means v2 + funded anchor.
+   */
   vaultMode: 'TRUC' | 'NON_TRUC';
   shiftFeesToBackupEnd?: boolean;
   networkId: NetworkId;
@@ -1412,6 +1583,7 @@ export const createVault = async ({
     randomPubKey,
     vaultOutput,
     backupOutput,
+    triggerReserveOutput,
     selected
   } = await buildVaultTxContext({
     signer,
@@ -1419,6 +1591,8 @@ export const createVault = async ({
     changeDescriptorWithIndex,
     vaultIndex,
     vaultMode,
+    presignedTriggerFeeRate,
+    maxTriggerFeeRate,
     effectiveFeeRate,
     utxosData,
     vaultedAmount,
@@ -1435,7 +1609,13 @@ export const createVault = async ({
   const backupOutputIndex = getTargetIndex(vaultTargets, backupOutput);
   if (backupOutputIndex !== 1)
     throw new Error('coinselect second output should be the backup output');
-  if (vaultTargets.length > 3)
+  const triggerReserveOutputIndex = getTargetIndex(
+    vaultTargets,
+    triggerReserveOutput
+  );
+  if (triggerReserveOutputIndex !== 2)
+    throw new Error('coinselect third output should be the trigger reserve');
+  if (vaultTargets.length > 4)
     throw new Error(
       'coinselect outputs should be vault, backup, anchor reserve, and change at most'
     );

@@ -71,7 +71,19 @@ export const SETTINGS_GLOBAL_STORAGE = 'SETTINGS_GLOBAL_STORAGE';
 export interface Settings {
   NETWORK_TIMEOUT: number;
   GAP_LIMIT: number;
+  /**
+   * Emergency package feerate ceiling used to size the dedicated trigger
+   * reserve output funded at vault creation time.
+   */
+  MAX_TRIGGER_FEERATE: number;
+  /**
+   * Feerate baked directly into the presigned trigger parent transaction.
+   * This is the parent's own fee, not the later CPFP reserve target.
+   */
   PRESIGNED_TRIGGER_FEERATE: number;
+  /**
+   * Feerate baked directly into the presigned rescue/panic parent transaction.
+   */
   PRESIGNED_RESCUE_FEERATE: number;
   MIN_LOCK_BLOCKS: number;
   MAX_LOCK_BLOCKS: number;
@@ -143,6 +155,7 @@ const locales = getLocales();
 export const defaultSettings: Settings = {
   NETWORK_TIMEOUT: 20000,
   GAP_LIMIT: 20,
+  MAX_TRIGGER_FEERATE: 100,
   PRESIGNED_TRIGGER_FEERATE: 0.1,
   PRESIGNED_RESCUE_FEERATE: 100,
   MIN_LOCK_BLOCKS: 1,

@@ -21,11 +21,13 @@ import {
   areVaultsSynched,
   coinSelectVaultTx,
   getTargetValue,
+  getRequiredTriggerReserveValue,
   getSpendableUtxosData,
   type VaultSettings
 } from '../lib/vaults';
 import {
   DUMMY_BACKUP_OUTPUT,
+  DUMMY_TRIGGER_RESERVE_OUTPUT,
   DUMMY_VAULT_OUTPUT,
   DUMMY_CHANGE_OUTPUT,
   getMainAccount,
@@ -180,7 +182,8 @@ export default function VaultSetUp({
       lockBlocks: lockBlocks || settings.INITIAL_LOCK_BLOCKS,
       network,
       vaultMode,
-      presignedTriggerFeeRate: settings.PRESIGNED_TRIGGER_FEERATE
+      presignedTriggerFeeRate: settings.PRESIGNED_TRIGGER_FEERATE,
+      maxTriggerFeeRate: settings.MAX_TRIGGER_FEERATE
     });
   const rawVaultRange = estimateVaultSetupRange({
     accounts,
@@ -191,7 +194,8 @@ export default function VaultSetUp({
     lockBlocks: lockBlocks || settings.INITIAL_LOCK_BLOCKS,
     network,
     vaultMode,
-    presignedTriggerFeeRate: settings.PRESIGNED_TRIGGER_FEERATE
+    presignedTriggerFeeRate: settings.PRESIGNED_TRIGGER_FEERATE,
+    maxTriggerFeeRate: settings.MAX_TRIGGER_FEERATE
   });
   const hasAnyVaultRange =
     maxFeeRate >= minimumEffectiveFeeRate &&
@@ -316,13 +320,22 @@ export default function VaultSetUp({
 
         // Only recalculate max amount if user has selected max and fee is valid
         if (isMaxVaultedAmount && newEffectiveFeeRate !== null) {
+          const currentChangeOutput =
+            changeOutput ||
+            DUMMY_CHANGE_OUTPUT(getMainAccount(accounts, network), network);
           const newMaxEstimate = estimateMaxVaultAmount({
             utxosData: spendableUtxos,
             vaultOutput: DUMMY_VAULT_OUTPUT(network),
             backupOutput: DUMMY_BACKUP_OUTPUT(network),
-            changeOutput:
-              changeOutput ||
-              DUMMY_CHANGE_OUTPUT(getMainAccount(accounts, network), network),
+            triggerReserveOutput: DUMMY_TRIGGER_RESERVE_OUTPUT(network),
+            triggerReserveValue: getRequiredTriggerReserveValue({
+              triggerReserveOutput: DUMMY_TRIGGER_RESERVE_OUTPUT(network),
+              changeOutput: currentChangeOutput,
+              vaultMode,
+              presignedTriggerFeeRate: settings.PRESIGNED_TRIGGER_FEERATE,
+              maxTriggerFeeRate: settings.MAX_TRIGGER_FEERATE
+            }),
+            changeOutput: currentChangeOutput,
             vaultMode,
             effectiveFeeRate: newEffectiveFeeRate
           });
@@ -341,6 +354,8 @@ export default function VaultSetUp({
       minimumVaultAmount.vaultedAmount,
       spendableUtxos,
       network,
+      settings.PRESIGNED_TRIGGER_FEERATE,
+      settings.MAX_TRIGGER_FEERATE,
       vaultMode,
       setUserSelectedEffectiveFeeRate
     ]
@@ -352,9 +367,20 @@ export default function VaultSetUp({
       utxosData: spendableUtxos,
       //We never use the final vaultOutput since it is built using a random
       //key that we don't want to keep in memory, but setup still needs to
-      //reserve the same backup output that real vault creation will fund.
+      //reserve the same backup and trigger-reserve outputs that real vault
+      //creation will fund.
       vaultOutput: DUMMY_VAULT_OUTPUT(network),
       backupOutput: DUMMY_BACKUP_OUTPUT(network),
+      triggerReserveOutput: DUMMY_TRIGGER_RESERVE_OUTPUT(network),
+       triggerReserveValue: getRequiredTriggerReserveValue({
+         triggerReserveOutput: DUMMY_TRIGGER_RESERVE_OUTPUT(network),
+         changeOutput:
+           changeOutput ||
+           DUMMY_CHANGE_OUTPUT(getMainAccount(accounts, network), network),
+         vaultMode,
+         presignedTriggerFeeRate: settings.PRESIGNED_TRIGGER_FEERATE,
+         maxTriggerFeeRate: settings.MAX_TRIGGER_FEERATE
+       }),
       changeOutput:
         changeOutput ||
         DUMMY_CHANGE_OUTPUT(getMainAccount(accounts, network), network),
@@ -367,7 +393,13 @@ export default function VaultSetUp({
         selected.targets,
         DUMMY_BACKUP_OUTPUT(network)
       );
-      effectiveFee = toNumber(selected.fee + finalBackupFeeBudget);
+      const finalTriggerReserveValue = getTargetValue(
+        selected.targets,
+        DUMMY_TRIGGER_RESERVE_OUTPUT(network)
+      );
+      effectiveFee = toNumber(
+        selected.fee + finalBackupFeeBudget + finalTriggerReserveValue
+      );
     }
   }
 

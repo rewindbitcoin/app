@@ -327,6 +327,7 @@ export default function CreateVaultScreen({
         unvaultKeyExpression,
         effectiveFeeRate,
         presignedTriggerFeeRate: settings.PRESIGNED_TRIGGER_FEERATE,
+        maxTriggerFeeRate: settings.MAX_TRIGGER_FEERATE,
         utxosData,
         signer,
         randomSigner,
