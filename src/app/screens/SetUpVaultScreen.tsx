@@ -22,7 +22,6 @@ import {
   coinSelectVaultTx,
   getTargetValue,
   getSpendableUtxosData,
-  getMinimumCreateVaultEffectiveFeeRate,
   type VaultSettings
 } from '../lib/vaults';
 import {
@@ -39,6 +38,7 @@ import useArrayChangeDetector from '../../common/hooks/useArrayChangeDetector';
 import {
   computeMaxAllowedFeeRate,
   FeeEstimates,
+  MIN_FEE_RATE,
   pickFeeEstimate
 } from '../lib/fees';
 import { formatBtc } from '../lib/btcRates';
@@ -151,10 +151,7 @@ export default function VaultSetUp({
   const vaultMode =
     networkId === 'BITCOIN' ? 'TRUC' : settings.TESTING_VAULT_MODE;
   const maxFeeRate = computeMaxAllowedFeeRate(feeEstimates);
-  const minimumEffectiveFeeRate = getMinimumCreateVaultEffectiveFeeRate(
-    network,
-    vaultMode
-  );
+  const minimumEffectiveFeeRate = MIN_FEE_RATE;
   const { feeEstimate: pickedInitialFeeRate } = pickFeeEstimate(
     feeEstimates,
     settings.INITIAL_CONFIRMATION_TIME

@@ -15,13 +15,13 @@ import { vsize } from '@bitcoinerlab/coinselect';
 import {
   coinSelectVaultTx,
   getTargetValue,
-  MIN_RELAY_FEE_RATE,
   type UtxosData,
   estimateMinimumRequiredVaultedAmount,
   getMinBackupFeeBudget
 } from './vaults';
 import type { Accounts } from './wallets';
 import { toBigInt, toNumber } from './sats';
+import { MIN_FEE_RATE } from './fees';
 
 type VaultAmountEstimate = {
   effectiveFee: number;
@@ -129,7 +129,7 @@ const estimateMinimumVaultAmount = moize.shallow(
       const minBackupFeeBudget = toNumber(
         getMinBackupFeeBudget(effectiveFeeRate, backupOutput)
       );
-      const vaultTxFeeRate = vaultMode === 'TRUC' ? 0 : MIN_RELAY_FEE_RATE;
+      const vaultTxFeeRate = vaultMode === 'TRUC' ? 0 : MIN_FEE_RATE;
       return {
         vaultedAmount,
         effectiveFee:

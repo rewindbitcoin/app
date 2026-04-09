@@ -973,7 +973,6 @@ const signPsbt = async (signer: Signer, network: Network, psbtVault: Psbt) => {
   signers.signBIP32({ psbt: psbtVault, masterNode });
 };
 
-export const MIN_RELAY_FEE_RATE = MIN_FEE_RATE;
 export const NON_TRUC_P2A_ANCHOR_VALUE = BigInt(330);
 
 type OutputTarget = {
@@ -1028,7 +1027,7 @@ const deriveKeyExpressionAndPubKey = async ({
 };
 
 const getMinimumVaultTxFeeRate = (vaultMode: 'TRUC' | 'NON_TRUC') =>
-  vaultMode === 'TRUC' ? 0 : MIN_RELAY_FEE_RATE;
+  vaultMode === 'TRUC' ? 0 : MIN_FEE_RATE;
 
 const getPresignedTriggerParentFee = (presignedTriggerFeeRate: number) =>
   BigInt(Math.ceil(Math.max(...TRIGGER_TX_VBYTES) * presignedTriggerFeeRate));
@@ -1078,7 +1077,7 @@ export const coinSelectVaultTx = moize.shallow(
       minBackupFeeBudget,
       changeOutput,
       feeRate: effectiveFeeRate,
-      minimumFeeRate: MIN_RELAY_FEE_RATE,
+      minimumFeeRate: MIN_FEE_RATE,
       vaultedAmount
     });
     if (typeof selected === 'string') return selected;
@@ -1111,21 +1110,6 @@ export const coinSelectVaultTx = moize.shallow(
 
     return selected;
   }
-);
-
-/**
- * Returns the public lower bound for the Vault Setup fee slider.
- *
- * The setup screen now shows a single fee-rate knob and keeps the internal
- * vault/backup split behind the curtains. We allow users to start at the shared
- * relay floor, then enforce backup dust and later shift any vault-tx fee excess
- * into the backup output. Because of dust and rounding, the realized final fee
- * rate can end up slightly higher than the selected one at the low end.
- */
-export const getMinimumCreateVaultEffectiveFeeRate = memoize(
-  (_network: Network, _vaultMode: 'TRUC' | 'NON_TRUC') => MIN_RELAY_FEE_RATE,
-  (network: Network, vaultMode: 'TRUC' | 'NON_TRUC') =>
-    `${network.bech32}:${vaultMode}`
 );
 
 /**
@@ -1185,7 +1169,7 @@ export const estimateMinimumRequiredVaultedAmount = moize.shallow(
     const panicParentFee =
       vaultMode === 'TRUC'
         ? BigInt(0)
-        : BigInt(Math.ceil(Math.max(...PANIC_TX_VBYTES) * MIN_RELAY_FEE_RATE));
+        : BigInt(Math.ceil(Math.max(...PANIC_TX_VBYTES) * MIN_FEE_RATE));
 
     const minimumVaultOutputValue = dustThreshold(vaultOutput) + BigInt(1);
     const minimumTriggerOutputValue =
@@ -1509,7 +1493,7 @@ export const createVault = async ({
   const panicParentFee =
     vaultMode === 'TRUC'
       ? BigInt(0)
-      : BigInt(Math.ceil(Math.max(...PANIC_TX_VBYTES) * MIN_RELAY_FEE_RATE));
+      : BigInt(Math.ceil(Math.max(...PANIC_TX_VBYTES) * MIN_FEE_RATE));
   const triggerOutputValue =
     vaultedAmount -
     (vaultMode === 'TRUC' ? BigInt(0) : NON_TRUC_P2A_ANCHOR_VALUE) -
@@ -1578,11 +1562,9 @@ export const createVault = async ({
   const panicFee = Number(psbtPanic.getFee());
   const minTriggerFee = Math.ceil(triggerVsize * presignedTriggerFeeRate);
   if (triggerFee < minTriggerFee)
-    throw new Error(
-      `Invalid trigger fee ${triggerFee} < ${minTriggerFee}`
-    );
+    throw new Error(`Invalid trigger fee ${triggerFee} < ${minTriggerFee}`);
   if (vaultMode !== 'TRUC') {
-    const minPanicFee = Math.ceil(panicVsize * MIN_RELAY_FEE_RATE);
+    const minPanicFee = Math.ceil(panicVsize * MIN_FEE_RATE);
     if (panicFee < minPanicFee)
       throw new Error(
         `Invalid NON_TRUC panic fee ${panicFee} < ${minPanicFee}`
