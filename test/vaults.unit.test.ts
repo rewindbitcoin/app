@@ -4,6 +4,7 @@
 import { fixtures } from './fixtutres';
 import {
   estimateCpfpPackage,
+  estimateMinimumRequiredVaultedAmount,
   getHotDescriptors,
   getPanicAnchorOutputIndex,
   getTriggerAnchorOutputIndex,
@@ -166,6 +167,26 @@ describe('vaults unit tests', () => {
       changeOutput
     });
     expect(plan).toBeUndefined();
+  });
+
+  test('higher presigned trigger fee raises the minimum vaulted amount', () => {
+    const coldAddress = DUMMY_SERVICE_ADDRESS(networks.regtest);
+    const minimumAtRelayFloor = estimateMinimumRequiredVaultedAmount({
+      coldAddress,
+      lockBlocks: 144,
+      network: networks.regtest,
+      vaultMode: 'TRUC',
+      presignedTriggerFeeRate: 0.1
+    });
+    const minimumAtHighTriggerFee = estimateMinimumRequiredVaultedAmount({
+      coldAddress,
+      lockBlocks: 144,
+      network: networks.regtest,
+      vaultMode: 'TRUC',
+      presignedTriggerFeeRate: 10
+    });
+
+    expect(minimumAtHighTriggerFee).toBeGreaterThan(minimumAtRelayFloor);
   });
 
   test('estimateCpfpPackage enforces TRUC child size limit', () => {

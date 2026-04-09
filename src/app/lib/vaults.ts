@@ -1030,6 +1030,9 @@ const deriveKeyExpressionAndPubKey = async ({
 const getMinimumVaultTxFeeRate = (vaultMode: 'TRUC' | 'NON_TRUC') =>
   vaultMode === 'TRUC' ? 0 : MIN_RELAY_FEE_RATE;
 
+const getPresignedTriggerParentFee = (presignedTriggerFeeRate: number) =>
+  BigInt(Math.ceil(Math.max(...TRIGGER_TX_VBYTES) * presignedTriggerFeeRate));
+
 /**
  * Runs the initial vault coinselection using the user-selected fee rate.
  *
@@ -1147,12 +1150,14 @@ export const estimateMinimumRequiredVaultedAmount = moize.shallow(
     coldAddress,
     lockBlocks,
     network,
-    vaultMode
+    vaultMode,
+    presignedTriggerFeeRate
   }: {
     coldAddress: string;
     lockBlocks: number;
     network: Network;
     vaultMode: 'TRUC' | 'NON_TRUC';
+    presignedTriggerFeeRate: number;
   }) => {
     const { Output } = ensureDescriptorsFactoryInstance();
     const vaultOutput = new Output({
@@ -1174,12 +1179,9 @@ export const estimateMinimumRequiredVaultedAmount = moize.shallow(
     });
     const anchorValue =
       vaultMode === 'TRUC' ? BigInt(0) : NON_TRUC_P2A_ANCHOR_VALUE;
-    const triggerParentFee =
-      vaultMode === 'TRUC'
-        ? BigInt(0)
-        : BigInt(
-            Math.ceil(Math.max(...TRIGGER_TX_VBYTES) * MIN_RELAY_FEE_RATE)
-          );
+    const triggerParentFee = getPresignedTriggerParentFee(
+      presignedTriggerFeeRate
+    );
     const panicParentFee =
       vaultMode === 'TRUC'
         ? BigInt(0)
@@ -1390,6 +1392,7 @@ export const createVault = async ({
   vaultedAmount,
   unvaultKeyExpression,
   effectiveFeeRate,
+  presignedTriggerFeeRate,
   utxosData,
   signer,
   randomSigner,
@@ -1406,6 +1409,8 @@ export const createVault = async ({
   unvaultKeyExpression: string;
   /** Combined effective fee rate for the vault tx plus the future backup tx. */
   effectiveFeeRate: number;
+  /** Fee rate baked directly into the presigned trigger parent transaction. */
+  presignedTriggerFeeRate: number;
   utxosData: UtxosData;
   signer: Signer;
   randomSigner: Signer;
@@ -1498,10 +1503,9 @@ export const createVault = async ({
   });
   if (!unvaultPubKey) throw new Error('Could not extract unvaultPubKey');
 
-  const triggerParentFee =
-    vaultMode === 'TRUC'
-      ? BigInt(0)
-      : BigInt(Math.ceil(Math.max(...TRIGGER_TX_VBYTES) * MIN_RELAY_FEE_RATE));
+  const triggerParentFee = getPresignedTriggerParentFee(
+    presignedTriggerFeeRate
+  );
   const panicParentFee =
     vaultMode === 'TRUC'
       ? BigInt(0)
@@ -1572,21 +1576,19 @@ export const createVault = async ({
   const vaultFee = Number(psbtVault.getFee());
   const triggerFee = Number(psbtTrigger.getFee());
   const panicFee = Number(psbtPanic.getFee());
-  if (vaultMode === 'TRUC' && (triggerFee !== 0 || panicFee !== 0))
+  const minTriggerFee = Math.ceil(triggerVsize * presignedTriggerFeeRate);
+  if (triggerFee < minTriggerFee)
     throw new Error(
-      `Invalid TRUC parent fees trigger=${triggerFee}, panic=${panicFee}`
+      `Invalid trigger fee ${triggerFee} < ${minTriggerFee}`
     );
   if (vaultMode !== 'TRUC') {
-    const minTriggerFee = Math.ceil(triggerVsize * MIN_RELAY_FEE_RATE);
     const minPanicFee = Math.ceil(panicVsize * MIN_RELAY_FEE_RATE);
-    if (triggerFee < minTriggerFee)
-      throw new Error(
-        `Invalid NON_TRUC trigger fee ${triggerFee} < ${minTriggerFee}`
-      );
     if (panicFee < minPanicFee)
       throw new Error(
         `Invalid NON_TRUC panic fee ${panicFee} < ${minPanicFee}`
       );
+  } else if (panicFee !== 0) {
+    throw new Error(`Invalid TRUC panic fee ${panicFee}`);
   }
   return {
     triggerDescriptor,

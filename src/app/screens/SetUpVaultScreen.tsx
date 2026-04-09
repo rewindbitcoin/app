@@ -182,7 +182,8 @@ export default function VaultSetUp({
       effectiveFeeRate,
       lockBlocks: lockBlocks || settings.INITIAL_LOCK_BLOCKS,
       network,
-      vaultMode
+      vaultMode,
+      presignedTriggerFeeRate: settings.PRESIGNED_TRIGGER_FEERATE
     });
   const rawVaultRange = estimateVaultSetupRange({
     accounts,
@@ -192,7 +193,8 @@ export default function VaultSetUp({
     effectiveFeeRate,
     lockBlocks: lockBlocks || settings.INITIAL_LOCK_BLOCKS,
     network,
-    vaultMode
+    vaultMode,
+    presignedTriggerFeeRate: settings.PRESIGNED_TRIGGER_FEERATE
   });
   const hasAnyVaultRange =
     maxFeeRate >= minimumEffectiveFeeRate &&

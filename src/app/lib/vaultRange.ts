@@ -78,7 +78,8 @@ const estimateMinimumVaultAmount = moize.shallow(
     changeOutput,
     lockBlocks,
     effectiveFeeRate,
-    vaultMode
+    vaultMode,
+    presignedTriggerFeeRate
   }: {
     utxosData: UtxosData;
     coldAddress: string;
@@ -89,12 +90,14 @@ const estimateMinimumVaultAmount = moize.shallow(
     lockBlocks: number;
     effectiveFeeRate: number;
     vaultMode: 'TRUC' | 'NON_TRUC';
+    presignedTriggerFeeRate: number;
   }): VaultAmountEstimate => {
     const vaultedAmount = estimateMinimumRequiredVaultedAmount({
       coldAddress,
       lockBlocks,
       network,
-      vaultMode
+      vaultMode,
+      presignedTriggerFeeRate
     });
     const selected = coinSelectVaultTx({
       utxosData,
@@ -145,7 +148,8 @@ export const estimateVaultSetupRange = moize.shallow(
     effectiveFeeRate = null,
     lockBlocks,
     network,
-    vaultMode
+    vaultMode,
+    presignedTriggerFeeRate
   }: {
     accounts: Accounts;
     utxosData: UtxosData;
@@ -155,6 +159,7 @@ export const estimateVaultSetupRange = moize.shallow(
     lockBlocks: number;
     network: Network;
     vaultMode: 'TRUC' | 'NON_TRUC';
+    presignedTriggerFeeRate: number;
   }) => {
     const backupOutput = DUMMY_BACKUP_OUTPUT(network);
     const changeOutput = DUMMY_CHANGE_OUTPUT(
@@ -172,7 +177,8 @@ export const estimateVaultSetupRange = moize.shallow(
         changeOutput,
         lockBlocks,
         effectiveFeeRate: minimumEffectiveFeeRate,
-        vaultMode
+        vaultMode,
+        presignedTriggerFeeRate
       }),
       maxVaultAmountAtMinFee: estimateMaxVaultAmount({
         utxosData,

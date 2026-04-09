@@ -3,6 +3,7 @@
 
 import { useMemo } from 'react';
 import { useStorage } from '../../common/hooks/useStorage';
+import { MIN_FEE_RATE } from '../lib/fees';
 import {
   defaultSettings,
   SETTINGS_GLOBAL_STORAGE,
@@ -27,8 +28,20 @@ export const useSettings = () => {
     const isSettingsComplete = Object.keys(defaultSettings).every(
       key => key in settings
     );
+    const mergedSettings = isSettingsComplete
+      ? settings
+      : { ...defaultSettings, ...settings };
+    //Soem safeguards
+    if (mergedSettings.PRESIGNED_TRIGGER_FEERATE < MIN_FEE_RATE)
+      throw new Error(
+        `PRESIGNED_TRIGGER_FEERATE (${mergedSettings.PRESIGNED_TRIGGER_FEERATE}) must be >= MIN_FEE_RATE (${MIN_FEE_RATE})`
+      );
+    if (mergedSettings.PRESIGNED_RESCUE_FEERATE < MIN_FEE_RATE)
+      throw new Error(
+        `PRESIGNED_RESCUE_FEERATE (${mergedSettings.PRESIGNED_RESCUE_FEERATE}) must be >= MIN_FEE_RATE (${MIN_FEE_RATE})`
+      );
     // Return `settings` if complete, otherwise merge with `defaultSettings`
-    return isSettingsComplete ? settings : { ...defaultSettings, ...settings };
+    return mergedSettings;
   }, [settings]);
 
   return {
