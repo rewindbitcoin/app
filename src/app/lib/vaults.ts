@@ -253,6 +253,8 @@ export type UtxosData = Array<{
 }>;
 
 /**
+ * TLDR; outputs from txs that can accelerated should not be used.
+ *
  * Outputs created by unconfirmed fee-payer children should not be used for new
  * unrelated sends/vaults or to fund new trigger/rescue fee-payer children.
  * Example: child A creates change back to the wallet, user then uses that
