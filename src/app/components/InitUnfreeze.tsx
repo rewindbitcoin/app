@@ -30,7 +30,7 @@ import { DUMMY_CHANGE_OUTPUT, getMainAccount } from '../lib/vaultDescriptors';
 import { networkMapping } from '../lib/network';
 import {
   findMinimumActionableFeeRate,
-  findNextEqualOrLargerEffectiveFeeRate,
+  findNextEqualOrLargerActionFeeRate,
   getCpfpReplacementFeeRateFloor,
   pickActionableInitialFeeRate,
   type VaultActionTxData
@@ -127,11 +127,11 @@ const InitUnfreeze = ({
         return {
           parentTxHex: triggerTxHex,
           parentTxFee: txData.fee,
-          effectiveFee: txData.fee,
-          effectiveFeeRate: txData.feeRate
+          actionFee: txData.fee,
+          actionFeeRate: txData.feeRate
         };
       })
-      .sort((a, b) => a.effectiveFeeRate - b.effectiveFeeRate);
+      .sort((a, b) => a.actionFeeRate - b.actionFeeRate);
   }, [vault, isLegacyVault]);
 
   const maxFeeRate = feeEstimates ? computeMaxAllowedFeeRate(feeEstimates) : 0;
@@ -171,7 +171,7 @@ const InitUnfreeze = ({
   const buildTxDataForFeeRate = useCallback(
     (selectedFeeRate: number): VaultActionTxData | null => {
       if (isLegacyVault)
-        return findNextEqualOrLargerEffectiveFeeRate(
+        return findNextEqualOrLargerActionFeeRate(
           legacyTriggerSortedTxs,
           selectedFeeRate
         );
@@ -210,8 +210,8 @@ const InitUnfreeze = ({
         return {
           parentTxHex: triggerTxHex,
           parentTxFee: triggerTxData.fee,
-          effectiveFee: plan.totalFee,
-          effectiveFeeRate: plan.effectiveFeeRate
+          actionFee: plan.totalFee,
+          actionFeeRate: plan.effectiveFeeRate
         };
       }
     },
@@ -232,7 +232,7 @@ const InitUnfreeze = ({
     if (isLegacyVault)
       return isAccelerationAttempt
         ? replacementFeeRateFloor
-        : (legacyTriggerSortedTxs[0]?.effectiveFeeRate ?? MIN_FEE_RATE);
+        : (legacyTriggerSortedTxs[0]?.actionFeeRate ?? MIN_FEE_RATE);
     if (isAccelerationAttempt) return replacementFeeRateFloor;
     return findMinimumActionableFeeRate({
       minimumFeeRate: MIN_FEE_RATE,
@@ -281,7 +281,7 @@ const InitUnfreeze = ({
     !isAccelerationSyncPending &&
     !cannotAccelerateMaxFee;
 
-  const fee = txData ? txData.effectiveFee : null;
+  const fee = txData ? txData.actionFee : null;
 
   useEffect(() => {
     if (!isVisible) {

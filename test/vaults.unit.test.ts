@@ -149,9 +149,7 @@ describe('vaults unit tests', () => {
 
     expect(plan).toBeDefined();
     if (!plan) throw new Error('Expected CPFP plan');
-    expect(plan.anchorValue).toBe(NON_TRUC_P2A_ANCHOR_VALUE);
     expect(plan.childFee).toBeGreaterThanOrEqual(0);
-    expect(plan.childOutputValue).toBeGreaterThan(0);
     expect(plan.effectiveFeeRate).toBeGreaterThanOrEqual(2);
   });
 

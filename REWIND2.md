@@ -429,3 +429,25 @@ backup tx
 ```
 
 That is Rewind2 in one page.
+
+#TODO
+---
+
+for the RESCUE, the idea is the user launches the presigned tx first.
+  then, show the accelerate option.
+
+
+  this will open one of our popup modal that will creates a random mnemonic wallet (to be kept in memory) - see f.ex. how this is done for the emergency address wizard creation. The user must know this is in memory only wallet in texts to be used within the next minutes to bump the panic tx. Then dereive the first address (similar to the emergency wizard) and show it to the user asking to send some funds there and tell the user any remaining balance will be sent back to tne emergency address. The way to show the adderss is text + QR. Just one tx be clear in the message. the user. For all this create a new component file I guess, not to bloat exisiting components.
+  how much funds to ask for ? since the user may already be above the epress confirmation time fee rate we perhaps can ask for the bump amount to tha anchor that would allow the typical package size to be above the express confirmation time assuming that the parent fee rate was zerio. I need here some quick to compute value which is decent, perhaos yuo come up with a better idea. some that provides a good measure but doesnot bloat the code while is meanungul and does not ask for crazy amounts of money or very little.
+
+  When the inital popup is open first thing the app must cgeck the current express fee rate anf if the fee rate f the presgunted rescue tx or a previous replacement package is above the current blockchain express fee rate then prompt the user you should probably not need this since your current fee rate is already above the epress confirmation time so you just need to wait. however let them proceed if needed.
+
+--
+
+when the vault is being created i still see old texts showinf this is creating a chain
+or txs...
+
+--
+
+
+rename getP2AOutputData  to getP2AOutputIndexAndValue or similar?

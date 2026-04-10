@@ -39,24 +39,26 @@ export type VaultActionTxData = {
 
   /**
    * Miner fee of the parent tx only.
-   * - Legacy: this is also the effective fee.
-   * - Rewind2: effective fee may include CPFP child fee too.
+   * - Legacy: this is also the action fee.
+   * - Rewind2: action fee may include CPFP child fee too.
    */
   parentTxFee: number;
 
   /**
-   * Effective fee used by selection/submission.
-   * - Legacy: parent-only fee
-   * - Rewind2: either parent-only fee or parent + CPFP child package fee
+   * Fee of the thing the user is about to submit.
+   * - Legacy: parent tx fee
+   * - Rewind2 parent-only: parent tx fee
+   * - Rewind2 with CPFP: parent + child package fee
    */
-  effectiveFee: number;
+  actionFee: number;
 
   /**
-   * Effective fee rate used by selection/submission.
-   * - Legacy: parent-only feerate
-   * - Rewind2: either parent-only feerate or parent + CPFP child package feerate
+   * Fee rate of the thing the user is about to submit.
+   * - Legacy: parent tx feerate
+   * - Rewind2 parent-only: parent tx feerate
+   * - Rewind2 with CPFP: parent + child package feerate
    */
-  effectiveFeeRate: number;
+  actionFeeRate: number;
 };
 
 export type PreparedCpfpPlan = {
@@ -68,19 +70,19 @@ export type PreparedCpfpPlan = {
 };
 
 /**
- * Finds the next tx data with equal-or-larger effective fee rate.
+ * Finds the next tx data with equal-or-larger action fee rate.
  *
- * `sortedTxs` must be sorted ascending by `effectiveFeeRate`.
+ * `sortedTxs` must be sorted ascending by `actionFeeRate`.
  */
-export const findNextEqualOrLargerEffectiveFeeRate = <
-  T extends { effectiveFeeRate: number }
+export const findNextEqualOrLargerActionFeeRate = <
+  T extends { actionFeeRate: number }
 >(
   sortedTxs: Array<T>,
   feeRate: number
 ): T | null => {
   const result = findLowestTrueBinarySearch(
     sortedTxs.length - 1,
-    index => sortedTxs[index]!.effectiveFeeRate >= feeRate,
+    index => sortedTxs[index]!.actionFeeRate >= feeRate,
     100
   );
   if (result.value !== undefined) return sortedTxs[result.value]!;

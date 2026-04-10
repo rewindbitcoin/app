@@ -430,7 +430,7 @@ const RawVault = ({
             const childTxData = await createCpfpChildTx({
               parentTxHex: initUnfreezeData.parentTxHex,
               parentFee: initUnfreezeData.parentTxFee,
-              targetEffectiveFeeRate: initUnfreezeData.effectiveFeeRate,
+              targetEffectiveFeeRate: initUnfreezeData.actionFeeRate,
               utxosData: [triggerReserveUtxoData],
               changeOutput,
               signer,
@@ -549,7 +549,7 @@ const RawVault = ({
 
             const shouldBuildCpfp =
               !!emergencyBumpPlan &&
-              rescueData.effectiveFee > rescueData.parentTxFee;
+              rescueData.actionFee > rescueData.parentTxFee;
             // Rescue never falls back to normal wallet UTXOs. If the presigned
             // parent fee is not enough, the only supported bump path is an
             // explicit external emergency bump plan.
@@ -574,7 +574,7 @@ const RawVault = ({
             const childTxData = await createCpfpChildTx({
               parentTxHex: rescueData.parentTxHex,
               parentFee: rescueData.parentTxFee,
-              targetEffectiveFeeRate: rescueData.effectiveFeeRate,
+              targetEffectiveFeeRate: rescueData.actionFeeRate,
               utxosData: emergencyBumpPlan.utxosData,
               changeOutput: emergencyBumpPlan.changeOutput,
               signer: emergencyBumpPlan.signer,
