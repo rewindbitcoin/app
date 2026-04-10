@@ -30,7 +30,6 @@ import {
   type Vaults as VaultsType,
   createCpfpChildTx,
   getTriggerReserveUtxoData,
-  getSpendableUtxosData,
   getVaultFrozenBalance,
   getVaultMode,
   getRemainingBlocks,
@@ -50,9 +49,8 @@ import Rescue from './Rescue';
 import {
   getMinimumReplacementChildFee,
   getPreviousCpfpChildData,
-  getAccelerationFeeRateFloor,
-  getTriggerAccelerationFeeRateFloor,
-  getReplacementUtxosData,
+  getCpfpReplacementFeeRateFloor,
+  type PreparedCpfpPlan,
   type VaultActionTxData
 } from '../lib/vaultActionTx';
 import { useWallet } from '../hooks/useWallet';
@@ -331,9 +329,6 @@ const RawVault = ({
   const {
     accounts,
     feeEstimates: feeEstimatesRealTime,
-    utxosData,
-    vaultsStatuses,
-    getTxosData,
     historyData,
     networkId,
     signers,
@@ -341,8 +336,6 @@ const RawVault = ({
     pushTxPackage
   } = useWallet();
   const feeEstimates = useFirstDefinedValue(feeEstimatesRealTime);
-  const spendableUtxosData =
-    utxosData && getSpendableUtxosData(utxosData, vaultsStatuses, historyData);
 
   const [showInitUnfreeze, setShowInitUnfreeze] = useState<boolean>(false);
   const handleCloseInitUnfreeze = useCallback(
@@ -438,8 +431,7 @@ const RawVault = ({
               parentTxHex: initUnfreezeData.parentTxHex,
               parentFee: initUnfreezeData.parentTxFee,
               targetEffectiveFeeRate: initUnfreezeData.effectiveFeeRate,
-              mandatoryUtxosData: [triggerReserveUtxoData],
-              optionalUtxosData: [],
+              utxosData: [triggerReserveUtxoData],
               changeOutput,
               signer,
               network
@@ -534,7 +526,10 @@ const RawVault = ({
   const handleCloseRescue = useCallback(() => setShowRescue(false), []);
   const handleShowRescue = useCallback(() => setShowRescue(true), []);
   const handleRescue = useCallback(
-    async (rescueData: VaultActionTxData) => {
+    async (
+      rescueData: VaultActionTxData,
+      emergencyBumpPlan?: PreparedCpfpPlan
+    ) => {
       batchedUpdates(() => {
         setShowRescue(false);
         setIsRescueBeingHandled(true);
@@ -552,20 +547,19 @@ const RawVault = ({
               return;
             }
 
-            if (!accounts || !spendableUtxosData || !networkId || !signers)
+            const shouldBuildCpfp =
+              !!emergencyBumpPlan &&
+              rescueData.effectiveFee > rescueData.parentTxFee;
+            // Rescue never falls back to normal wallet UTXOs. If the presigned
+            // parent fee is not enough, the only supported bump path is an
+            // explicit external emergency bump plan.
+            if (!shouldBuildCpfp) {
+              await pushTx(rescueData.parentTxHex);
+              return;
+            }
+            if (!networkId)
               throw new Error('Wallet not ready for Rewind2 rescue package');
-            const signer = signers[0];
-            if (!signer) throw new Error('signer unavailable');
             const network = networkMapping[networkId];
-            const changeDescriptorWithIndex =
-              await getNextChangeDescriptorWithIndex(accounts);
-            const changeOutput = computeChangeOutput(
-              changeDescriptorWithIndex,
-              network
-            );
-
-            let mandatoryUtxosData = undefined;
-            let optionalUtxosData = spendableUtxosData;
             const previousChildTxHex = vaultStatus?.panicCpfpTxHex;
             if (isRescueAccelerationAttempt) {
               if (!previousChildTxHex)
@@ -576,28 +570,14 @@ const RawVault = ({
                 throw new Error(
                   'Missing synced rescue history for acceleration'
                 );
-              const replacementUtxosData = getReplacementUtxosData({
-                parentTxHex: rescueData.parentTxHex,
-                previousChildTxHex,
-                utxosData: spendableUtxosData,
-                historyData,
-                getTxosData
-              });
-              if (!replacementUtxosData)
-                throw new Error(
-                  'Missing exact rescue replacement inputs from discovery'
-                );
-              mandatoryUtxosData = replacementUtxosData.mandatoryUtxosData;
-              optionalUtxosData = replacementUtxosData.optionalUtxosData;
             }
             const childTxData = await createCpfpChildTx({
               parentTxHex: rescueData.parentTxHex,
               parentFee: rescueData.parentTxFee,
               targetEffectiveFeeRate: rescueData.effectiveFeeRate,
-              ...(mandatoryUtxosData ? { mandatoryUtxosData } : {}),
-              optionalUtxosData,
-              changeOutput,
-              signer,
+              utxosData: emergencyBumpPlan.utxosData,
+              changeOutput: emergencyBumpPlan.changeOutput,
+              signer: emergencyBumpPlan.signer,
               network
             });
             if (!childTxData)
@@ -661,12 +641,7 @@ const RawVault = ({
       netRequest,
       toast,
       t,
-      accounts,
-      spendableUtxosData,
-      getTxosData,
       networkId,
-      signers,
-      getNextChangeDescriptorWithIndex,
       pushTxPackage,
       isLegacyVault
     ]
@@ -759,13 +734,13 @@ const RawVault = ({
       // Otherwise the modal can open with informational copy but no fee path to
       // continue, which is misleading.
       return (
-        getTriggerAccelerationFeeRateFloor({
+        getCpfpReplacementFeeRateFloor({
           parentTxHex,
           parentFee: parentTxData.fee,
           previousChildTxHex,
           historyData,
           feeEstimates,
-          mandatoryUtxosData: [triggerReserveUtxoData],
+          utxosData: [triggerReserveUtxoData],
           childOutput: DUMMY_CHANGE_OUTPUT(getMainAccount(accounts, network), network)
         }) !== null
       );
@@ -793,42 +768,14 @@ const RawVault = ({
     if (isRescueBeingHandled) return false;
     if (!(isRescueTx && !isRescueTxConfirmed)) return false;
     if (isLegacyVault) return true;
-    const parentTxHex = vaultStatus?.panicTxHex;
-    const previousChildTxHex = vaultStatus?.panicCpfpTxHex;
-    if (!parentTxHex || !previousChildTxHex) return false;
-    const parentTxData = vault.txMap[parentTxHex];
-    if (!parentTxData) return false;
-    try {
-      return (
-        getAccelerationFeeRateFloor({
-          parentTxHex,
-          parentFee: parentTxData.fee,
-          previousChildTxHex,
-          utxosData: spendableUtxosData,
-          historyData,
-          getTxosData,
-          accounts,
-          networkId,
-          feeEstimates
-        }) !== null
-      );
-    } catch {
-      return false;
-    }
+    return false;
   }, [
     isRescueTx,
     isRescueTxConfirmed,
     isRescueBeingHandled,
     isLegacyVault,
     vaultStatus?.panicTxHex,
-    vaultStatus?.panicCpfpTxHex,
-    vault,
-    spendableUtxosData,
-    historyData,
-    getTxosData,
-    accounts,
-    networkId,
-    feeEstimates
+    vaultStatus?.panicCpfpTxHex
   ]);
 
   const canBeHidden =

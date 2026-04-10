@@ -197,6 +197,7 @@ describe('E2E: Multiple Pre-Signed txs Vault', () => {
       unvaultKeyExpression: unvaultKey,
       effectiveFeeRate: 2,
       presignedTriggerFeeRate: 0.1,
+      presignedRescueFeeRate: 100,
       maxTriggerFeeRate: 100,
       coldAddress,
       changeDescriptorWithIndex,

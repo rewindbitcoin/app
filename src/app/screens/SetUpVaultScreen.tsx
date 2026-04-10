@@ -183,6 +183,7 @@ export default function VaultSetUp({
       network,
       vaultMode,
       presignedTriggerFeeRate: settings.PRESIGNED_TRIGGER_FEERATE,
+      presignedRescueFeeRate: settings.PRESIGNED_RESCUE_FEERATE,
       maxTriggerFeeRate: settings.MAX_TRIGGER_FEERATE
     });
   const rawVaultRange = estimateVaultSetupRange({
@@ -195,6 +196,7 @@ export default function VaultSetUp({
     network,
     vaultMode,
     presignedTriggerFeeRate: settings.PRESIGNED_TRIGGER_FEERATE,
+    presignedRescueFeeRate: settings.PRESIGNED_RESCUE_FEERATE,
     maxTriggerFeeRate: settings.MAX_TRIGGER_FEERATE
   });
   const hasAnyVaultRange =

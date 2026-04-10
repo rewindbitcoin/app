@@ -3,16 +3,14 @@
 
 import { findLowestTrueBinarySearch } from '../../common/lib/binarySearch';
 import { toHex } from 'uint8array-tools';
+import type { OutputInstance } from '@bitcoinerlab/descriptors';
 import { transactionFromHex } from './bitcoin';
 import { computeMaxAllowedFeeRate, type FeeEstimates } from './fees';
-import { DUMMY_CHANGE_OUTPUT, getMainAccount } from './vaultDescriptors';
-import { networkMapping, type NetworkId } from './network';
-import type { Accounts } from './wallets';
+import type { Signer } from './wallets';
 import {
-  findMinimumReplacementEffectiveFeeRate,
+  estimateCpfpPackage,
   type HistoryData,
   type TxHex,
-  type TxId,
   type UtxosData
 } from './vaults';
 
@@ -39,12 +37,6 @@ export type VaultActionTxData = {
    */
   parentTxHex: TxHex;
 
-  /** Txid of parentTxHex (same parent tx). */
-  parentTxId: TxId;
-
-  /** Virtual size of the parent tx only. */
-  parentTxVSize: number;
-
   /**
    * Miner fee of the parent tx only.
    * - Legacy: this is also the effective fee.
@@ -55,16 +47,24 @@ export type VaultActionTxData = {
   /**
    * Effective fee used by selection/submission.
    * - Legacy: parent-only fee
-   * - Rewind2: parent + CPFP child package fee
+   * - Rewind2: either parent-only fee or parent + CPFP child package fee
    */
   effectiveFee: number;
 
   /**
    * Effective fee rate used by selection/submission.
    * - Legacy: parent-only feerate
-   * - Rewind2: parent + CPFP child package feerate
+   * - Rewind2: either parent-only feerate or parent + CPFP child package feerate
    */
   effectiveFeeRate: number;
+};
+
+export type PreparedCpfpPlan = {
+  /** Non-anchor inputs that the child must spend. */
+  utxosData: UtxosData;
+  /** Child output destination. For rescue this should normally be the emergency address. */
+  changeOutput: OutputInstance;
+  signer: Signer;
 };
 
 /**
@@ -85,90 +85,6 @@ export const findNextEqualOrLargerEffectiveFeeRate = <
   );
   if (result.value !== undefined) return sortedTxs[result.value]!;
   return null;
-};
-
-/**
- * Returns the exact non-anchor inputs used by the previous child tx in
- * outpoint format (`txid:vout`).
- *
- * During replacement, these previous non-anchor inputs are mandatory. Extra
- * wallet inputs may still be added later, but only if they are confirmed and
- * strictly needed to keep the replacement valid.
- */
-const getReplacementNonAnchorTxos = ({
-  parentTxHex,
-  previousChildTxHex,
-  anchorOutputIndex = 1
-}: {
-  parentTxHex: TxHex;
-  previousChildTxHex: TxHex;
-  anchorOutputIndex?: number;
-}): Array<string> => {
-  const { tx: parentTx } = transactionFromHex(parentTxHex);
-  const parentTxId = parentTx.getId();
-  const { tx: previousChildTx } = transactionFromHex(previousChildTxHex);
-
-  const txos = new Set<string>();
-  for (const input of previousChildTx.ins) {
-    const prevTxId = toHex(Uint8Array.from(input.hash).reverse());
-    const prevOutpoint = `${prevTxId}:${input.index}`;
-    const isAnchorInput =
-      prevTxId === parentTxId && input.index === anchorOutputIndex;
-    if (!isAnchorInput) txos.add(prevOutpoint);
-  }
-  return Array.from(txos);
-};
-
-/**
- * For replacements, keep all previous non-anchor inputs mandatory and only
- * allow additional confirmed wallet UTXOs if the mandatory set alone cannot
- * satisfy fee/dust/TRUC constraints.
- *
- * This keeps replacement selection simple and, importantly, avoids relying on
- * outputs created by the tx being replaced. Those outputs may disappear after
- * the replacement wins and should never be treated as reusable funding here.
- */
-export const getReplacementUtxosData = ({
-  parentTxHex,
-  previousChildTxHex,
-  utxosData,
-  historyData,
-  getTxosData
-}: {
-  parentTxHex: TxHex;
-  previousChildTxHex: TxHex;
-  utxosData: UtxosData;
-  historyData: HistoryData;
-  getTxosData: (txos: Array<string>) => UtxosData;
-}):
-  | {
-      mandatoryUtxosData: UtxosData;
-      optionalUtxosData: UtxosData;
-    }
-  | undefined => {
-  const mandatoryTxos = getReplacementNonAnchorTxos({
-    parentTxHex,
-    previousChildTxHex
-  });
-  const mandatoryUtxosData = getTxosData(mandatoryTxos);
-  if (mandatoryUtxosData.length !== mandatoryTxos.length) return;
-
-  const mandatoryTxoSet = new Set(mandatoryTxos);
-  const confirmedTxIds = new Set(
-    historyData.filter(item => item.blockHeight > 0).map(item => item.txId)
-  );
-  const optionalUtxosData = utxosData.filter(utxoData => {
-    const txId = utxoData.tx.getId();
-    return (
-      confirmedTxIds.has(txId) &&
-      !mandatoryTxoSet.has(`${utxoData.tx.getId()}:${utxoData.vout}`)
-    );
-  });
-
-  return {
-    mandatoryUtxosData,
-    optionalUtxosData
-  };
 };
 
 /**
@@ -253,19 +169,25 @@ export const getMinimumReplacementChildFee = ({
   previousChildFee + Math.ceil(replacementChildVSize * incrementalRelayFeeRate);
 
 /**
- * Reserve-only replacement floor for trigger acceleration.
+ * Replacement floor for CPFP flows.
  *
- * Unlike rescue, trigger acceleration never falls back to generic wallet UTXOs.
- * It always replaces the child using the vault's dedicated reserve input and
- * a normal wallet change output.
+ * A replacement child must satisfy two relay checks at once:
+ * 1) the new package feerate must improve over the previous one, and
+ * 2) the new child fee must be at least:
+ *    previousChildFee + ceil(childVSize * 0.1 sat/vB)
+ *
+ * Example: if the previous child paid 584 sats and the replacement child would
+ * be 160 vB, relay requires at least 584 + ceil(160 * 0.1) = 600 sats. A new
+ * package can therefore look "faster" by feerate and still be rejected if the
+ * child only pays, say, 590 sats.
  */
-export const getTriggerAccelerationFeeRateFloor = ({
+export const getCpfpReplacementFeeRateFloor = ({
   parentTxHex,
   parentFee,
   previousChildTxHex,
   historyData,
   feeEstimates,
-  mandatoryUtxosData,
+  utxosData,
   childOutput
 }: {
   parentTxHex: TxHex;
@@ -273,8 +195,8 @@ export const getTriggerAccelerationFeeRateFloor = ({
   previousChildTxHex: TxHex;
   historyData: HistoryData | undefined;
   feeEstimates: FeeEstimates | undefined;
-  mandatoryUtxosData: UtxosData;
-  childOutput: Parameters<typeof findMinimumReplacementEffectiveFeeRate>[0]['changeOutput'];
+  utxosData: UtxosData;
+  childOutput: OutputInstance;
 }): number | null => {
   if (!historyData?.length || !feeEstimates) return null;
 
@@ -287,99 +209,32 @@ export const getTriggerAccelerationFeeRateFloor = ({
   if (!previousCpfpData) return null;
 
   const maxFeeRate = computeMaxAllowedFeeRate(feeEstimates);
-  return (
-    findMinimumReplacementEffectiveFeeRate({
+  for (
+    let targetEffectiveFeeRate = previousCpfpData.effectiveFeeRate + 1;
+    targetEffectiveFeeRate <= maxFeeRate;
+    targetEffectiveFeeRate = Number(
+      (targetEffectiveFeeRate + FEE_RATE_STEP).toFixed(2)
+    )
+  ) {
+    const plan = estimateCpfpPackage({
       parentTxHex,
       parentFee,
-      previousChildFee: previousCpfpData.childFee,
-      mandatoryUtxosData,
-      optionalUtxosData: [],
-      changeOutput: childOutput,
-      maxTargetEffectiveFeeRate: maxFeeRate,
-      minimumComparedEffectiveFeeRate: previousCpfpData.effectiveFeeRate + 1,
-      incrementalRelayFeeRate: INCREMENTAL_RELAY_FEE_RATE,
-      feeRateStep: FEE_RATE_STEP
-    }) ?? null
-  );
-};
-
-/**
- * Returns the minimum effective fee rate that can actually replace the current
- * fee payer with the wallet inputs available right now.
- *
- * `null` means there is no actionable acceleration option at the moment, either
- * because sync data is still incomplete or because no valid replacement plan
- * exists within the current fee-rate range.
- */
-export const getAccelerationFeeRateFloor = ({
-  parentTxHex,
-  parentFee,
-  previousChildTxHex,
-  utxosData,
-  historyData,
-  getTxosData,
-  accounts,
-  networkId,
-  feeEstimates
-}: {
-  parentTxHex: TxHex;
-  parentFee: number;
-  previousChildTxHex: TxHex;
-  utxosData: UtxosData | undefined;
-  historyData: HistoryData | undefined;
-  getTxosData: (txos: Array<string>) => UtxosData;
-  accounts: Accounts | undefined;
-  networkId: NetworkId | undefined;
-  feeEstimates: FeeEstimates | undefined;
-}): number | null => {
-  if (
-    !utxosData ||
-    !historyData?.length ||
-    !accounts ||
-    !networkId ||
-    !feeEstimates
-  )
-    return null;
-
-  const previousCpfpData = getPreviousCpfpChildData({
-    parentTxHex,
-    parentFee,
-    previousChildTxHex,
-    historyData
-  });
-  if (!previousCpfpData) return null;
-
-  const replacementUtxosData = getReplacementUtxosData({
-    parentTxHex,
-    previousChildTxHex,
-    utxosData,
-    historyData,
-    getTxosData
-  });
-  if (!replacementUtxosData) return null;
-
-  const network = networkMapping[networkId];
-  const changeOutput = DUMMY_CHANGE_OUTPUT(
-    getMainAccount(accounts, network),
-    network
-  );
-
-  const maxFeeRate = computeMaxAllowedFeeRate(feeEstimates);
-
-  return (
-    findMinimumReplacementEffectiveFeeRate({
-      parentTxHex,
-      parentFee,
-      previousChildFee: previousCpfpData.childFee,
-      mandatoryUtxosData: replacementUtxosData.mandatoryUtxosData,
-      optionalUtxosData: replacementUtxosData.optionalUtxosData,
-      changeOutput,
-      maxTargetEffectiveFeeRate: maxFeeRate,
-      minimumComparedEffectiveFeeRate: previousCpfpData.effectiveFeeRate + 1,
-      incrementalRelayFeeRate: INCREMENTAL_RELAY_FEE_RATE,
-      feeRateStep: FEE_RATE_STEP
-    }) ?? null
-  );
+      targetEffectiveFeeRate,
+      utxosData,
+      changeOutput: childOutput
+    });
+    if (!plan) continue;
+    if (
+      plan.childFee >=
+      getMinimumReplacementChildFee({
+        previousChildFee: previousCpfpData.childFee,
+        replacementChildVSize: plan.childVSize,
+        incrementalRelayFeeRate: INCREMENTAL_RELAY_FEE_RATE
+      })
+    )
+      return targetEffectiveFeeRate;
+  }
+  return null;
 };
 
 /**
@@ -406,5 +261,25 @@ export const pickActionableInitialFeeRate = ({
     canBuildAtFeeRate(minimumActionableFeeRate)
   )
     return minimumActionableFeeRate;
+  return null;
+};
+
+/** Finds the first fee rate on the slider grid that can actually build a tx. */
+export const findMinimumActionableFeeRate = ({
+  minimumFeeRate,
+  maximumFeeRate,
+  canBuildAtFeeRate
+}: {
+  minimumFeeRate: number;
+  maximumFeeRate: number;
+  canBuildAtFeeRate: (feeRate: number) => boolean;
+}): number | null => {
+  for (
+    let feeRate = minimumFeeRate;
+    feeRate <= maximumFeeRate;
+    feeRate = Number((feeRate + FEE_RATE_STEP).toFixed(2))
+  ) {
+    if (canBuildAtFeeRate(feeRate)) return feeRate;
+  }
   return null;
 };

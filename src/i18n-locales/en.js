@@ -283,6 +283,9 @@ You likely only need to wait around 10 minutes and really don't need this. Use "
 This address will likely be difficult to access if you followed the recommended guidelines during Vault Setup. Ensure you can eventually access it. Once the funds are sent, this wallet will no longer have access to them.
 
 This action is designed for extreme situations, such as theft or extortion, to ensure the safety of your Bitcoin. Make sure this is a deliberate decision.`,
+        highFeeConfirmation: `This rescue transaction is already presigned with a high mining fee.
+
+In most cases, that should be enough and no extra bump funds are needed. Confirm below to broadcast the rescue transaction now.`,
         feeSelectorExplanation:
           'Confirm the mining fee for the rescue transaction to ensure prompt processing.',
         additionalExplanation: `Once the rescue request is confirmed, the funds will be moved to your Emergency Address instantly.`

@@ -14,7 +14,8 @@ Rewind2 changes the vault design in four big ways:
 3. It adds a dedicated per-vault backup output, so the wallet can publish an encrypted on-chain backup of the trigger and rescue transactions.
 4. It treats trigger and rescue fee bumping differently:
    - trigger bumping uses that vault's dedicated reserve only
-   - rescue bumping still uses normal wallet UTXOs on a best-effort basis
+   - rescue starts as a high-fee parent tx and only uses a separate emergency
+     bump input if that later becomes necessary
 
 ## Names used here
 
@@ -33,10 +34,14 @@ Each Rewind2 vault is built around one main flow:
 3. While waiting, either:
    - spend from the trigger path after the delay, or
    - broadcast the rescue transaction immediately.
-4. If fees are too low, attach a child transaction to the trigger or rescue transaction.
+4. If fees are too low:
+   - trigger can attach a child transaction using its dedicated reserve
+   - rescue is expected to work as a single high-fee parent tx, and only uses a
+     child later if an external emergency bump input is available
 
 The important design choice is that trigger bumping is deterministic and
-per-vault, while rescue bumping is still flexible and wallet-funded.
+per-vault, while rescue is designed to succeed as a high-fee parent first and
+only use a separate emergency bump input if that later becomes necessary.
 
 ## Deterministic paths
 
@@ -159,14 +164,15 @@ with a different reserve.
 
 ### 6. Rescue fee-bump child
 
-If the rescue tx needs more fee, Rewind2 also builds a child transaction.
+If the rescue tx still needs more fee after its large presigned fee, Rewind2 can
+build a child transaction.
 
 Shape:
 
 ```text
 inputs:
 - rescue P2A anchor
-- wallet UTXOs selected at that time
+- optional emergency bump UTXO
 
 output:
 - normal wallet change
@@ -174,8 +180,29 @@ output:
 
 This is intentionally different from trigger bumping.
 
-Today there is no dedicated rescue reserve. Rescue acceleration is still
-best-effort and depends on what wallet UTXOs are available at that moment.
+Today rescue does not use normal wallet UTXOs for fee bumping.
+
+The current model is:
+
+- by default, the rescue parent is already presigned with a high fee rate
+- in most cases that should be enough, so rescue can be a single tx
+- if that still is not enough, rescue can later use one optional emergency bump
+  input from a separate emergency signer / emergency UTXO flow
+
+Why Rewind2 starts rescue with a large fee by default:
+
+- if the user is pressing the panic button, we must assume the hot wallet may be
+  compromised already
+- in that situation, asking the user to first fund another tx from the same
+  wallet is a bad default
+- a high-fee presigned rescue gives the best chance that the user can simply
+  broadcast one transaction and be done
+- only in rare extreme-fee situations should the app need to ask for a separate
+  emergency bump input later
+
+That later emergency bump flow is separate from the normal wallet on purpose.
+If rescue is needed, the hot wallet may already be compromised, so its ordinary
+UTXOs are not trusted for fee bumping.
 
 ### 7. On-chain backup transaction
 
@@ -238,11 +265,10 @@ Why this matters:
 Today the parent transactions are funded like this:
 
 - trigger parent fee is based on `PRESIGNED_TRIGGER_FEERATE`
-- rescue parent fee is:
-  - `0` in `TRUC`
-  - minimum relay fee in `NON_TRUC`
+- rescue parent fee is based on `PRESIGNED_RESCUE_FEERATE`
 
-So today the trigger parent fee is more configurable than the rescue parent fee.
+So both parents are now presigned with explicit fee-rate settings, but rescue is
+expected to start much higher.
 
 ## Trigger reserve
 
@@ -282,7 +308,8 @@ That means:
 effective package feerate = (parent fee + child fee) / (parent vsize + child vsize)
 ```
 
-This matters for both trigger and rescue fee bumping.
+This matters for trigger fee bumping, and also for rescue if the optional
+emergency bump path is used.
 
 ## Replacement rules
 
@@ -363,12 +390,12 @@ Trigger gets a dedicated reserve because:
 - it is the first emergency action the wallet itself should always be able to fund
 - the reserve can be decided and funded up front, at vault creation time
 
-Rescue does not get a dedicated reserve because:
+Rescue does not use ordinary wallet UTXOs for fee bumping because:
 
-- if the hot wallet is compromised, extra hot-wallet funds are also compromised
-- rescue may need outside help anyway
-- keeping rescue as best-effort avoids pretending that a second hot-wallet-side
-  reserve would solve the real problem
+- if the hot wallet is compromised, ordinary wallet UTXOs cannot be trusted
+- an attacker can interfere with those funds or race them
+- if rescue still needs a bump, the safer model is a separate emergency bump
+  signer with a separately funded emergency UTXO
 
 ## Mental model
 
@@ -393,7 +420,7 @@ trigger bump child
   pays to: wallet change
 
 rescue bump child
-  spends: rescue anchor + wallet UTXOs
+  spends: rescue anchor + optional emergency bump UTXO
   pays to: wallet change
 
 backup tx

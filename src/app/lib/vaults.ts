@@ -397,74 +397,6 @@ const getUtxoDataValue = (utxoData: UtxosData[number]) => {
   return toNumber(out.value);
 };
 
-/**
- * Finds the first selectable effective fee rate that yields a valid CPFP
- * replacement package.
- *
- * This is a discrete scan over the same fee-rate grid exposed by the UI. For
- * each candidate effective fee rate, it asks `estimateCpfpPackage(...)` to
- * build the package that would actually be used at that target. It then checks
- * whether the resulting child fee clears Bitcoin Core's replacement relay rule:
- * the new child must pay at least the previous child fee plus the incremental
- * relay delta in sats (`ceil(childVSize * 0.1 sat/vB)`).
- *
- * A direct formula is not reliable here because the selected optional inputs,
- * child vsize, dust feasibility, and TRUC feasibility can all change as the
- * target fee rate changes.
- *
- * @returns The first actionable effective fee rate on that grid, or
- * `undefined` if no valid replacement exists up to `maxTargetEffectiveFeeRate`.
- */
-export const findMinimumReplacementEffectiveFeeRate = ({
-  parentTxHex,
-  parentFee,
-  previousChildFee,
-  mandatoryUtxosData = [],
-  optionalUtxosData = [],
-  changeOutput,
-  maxTargetEffectiveFeeRate,
-  minimumComparedEffectiveFeeRate,
-  incrementalRelayFeeRate,
-  feeRateStep
-}: {
-  parentTxHex: TxHex;
-  parentFee: number;
-  previousChildFee: number;
-  mandatoryUtxosData?: UtxosData;
-  optionalUtxosData?: UtxosData;
-  changeOutput: OutputInstance;
-  maxTargetEffectiveFeeRate: number;
-  minimumComparedEffectiveFeeRate: number;
-  incrementalRelayFeeRate: number;
-  feeRateStep: number;
-}): number | undefined => {
-  // Replacement relay checks absolute fee deltas too. We therefore scan the
-  // same 0.01 sat/vB grid used by the slider until we find the first plan whose
-  // child fee clears the old-child-fee + relay-delta threshold.
-  for (
-    let targetEffectiveFeeRate = minimumComparedEffectiveFeeRate;
-    targetEffectiveFeeRate <= maxTargetEffectiveFeeRate;
-    targetEffectiveFeeRate = Number(
-      (targetEffectiveFeeRate + feeRateStep).toFixed(2)
-    )
-  ) {
-    const plan = estimateCpfpPackage({
-      parentTxHex,
-      parentFee,
-      targetEffectiveFeeRate,
-      mandatoryUtxosData,
-      optionalUtxosData,
-      changeOutput
-    });
-    if (!plan) continue;
-    const minimumReplacementChildFee =
-      previousChildFee + Math.ceil(plan.childVSize * incrementalRelayFeeRate);
-    if (plan.childFee >= minimumReplacementChildFee)
-      return targetEffectiveFeeRate;
-  }
-  return;
-};
-
 const estimateCpfpChildVSize = (
   selectedUtxosData: UtxosData,
   changeOutput: OutputInstance
@@ -487,6 +419,9 @@ const estimateCpfpChildVSizeFromOutputs = (
     [changeOutput]
   );
 };
+
+const getMinimumCpfpChildFee = (childVSize: number) =>
+  Math.ceil(childVSize * MIN_FEE_RATE);
 
 /**
  * Derives the sats that must be locked in the dedicated trigger reserve output.
@@ -543,7 +478,10 @@ export const getRequiredTriggerReserveValue = ({
   const parentFee = Number(
     getPresignedTriggerParentFee(presignedTriggerFeeRate)
   );
-  const childFee = Math.max(0, totalTargetFee - parentFee);
+  const childFee = Math.max(
+    getMinimumCpfpChildFee(childVSize),
+    totalTargetFee - parentFee
+  );
 
   // The child gets some value for free from the trigger anchor. In NON_TRUC
   // this is 330 sats, while TRUC anchors are 0-sat.
@@ -580,26 +518,20 @@ export const estimateCpfpPackage = ({
   parentTxHex,
   parentFee,
   targetEffectiveFeeRate,
-  mandatoryUtxosData = [],
-  optionalUtxosData = [],
+  utxosData = [],
   changeOutput
 }: {
   parentTxHex: TxHex;
   parentFee: number;
   targetEffectiveFeeRate: number;
-  mandatoryUtxosData?: UtxosData;
-  optionalUtxosData?: UtxosData;
+  utxosData?: UtxosData;
   changeOutput: OutputInstance;
 }):
   | {
-      parentTxHex: TxHex;
-      parentTxId: TxId;
-      parentFee: number;
-      parentVSize: number;
       anchorOutputIndex: number;
       anchorValue: number;
-      selectedUtxosData: UtxosData;
-      selectedUtxosValue: number;
+      utxosData: UtxosData;
+      utxosValue: number;
       childVSize: number;
       childFee: number;
       childOutputValue: number;
@@ -607,63 +539,42 @@ export const estimateCpfpPackage = ({
       effectiveFeeRate: number;
     }
   | undefined => {
-  const { tx: parentTx, txId: parentTxId } = transactionFromHex(parentTxHex);
+  const { tx: parentTx } = transactionFromHex(parentTxHex);
   const anchor = getP2AOutputData(parentTx);
   if (!anchor) return;
 
   const parentVSize = parentTx.virtualSize();
   const dust = toNumber(dustThreshold(changeOutput));
-  const sortedOptionalUtxosData = [...optionalUtxosData].sort(
-    (a, b) => getUtxoDataValue(b) - getUtxoDataValue(a)
-  );
-
-  // For replacements, keep all previous non-anchor inputs mandatory and only
-  // add confirmed extras if the mandatory set alone cannot satisfy
-  // fee/dust/TRUC constraints. This avoids reusing outputs created by the tx
-  // being replaced and keeps replacement selection KISS.
-  let selectedUtxosData: UtxosData = [...mandatoryUtxosData];
-  let selectedUtxosValue = mandatoryUtxosData.reduce(
+  const utxosValue = utxosData.reduce(
     (sum, utxoData) => sum + getUtxoDataValue(utxoData),
     0
   );
+  const childVSize = estimateCpfpChildVSize(utxosData, changeOutput);
+  if (parentTx.version === 3 && childVSize > MAX_TRUC_CHILD_VSIZE) return; //FIXME: throw some message?
 
-  for (let i = 0; i <= sortedOptionalUtxosData.length; i++) {
-    const childVSize = estimateCpfpChildVSize(selectedUtxosData, changeOutput);
-    if (parentTx.version === 3 && childVSize > MAX_TRUC_CHILD_VSIZE) return; //FIXME: throw some message?
+  const totalPackageVSize = parentVSize + childVSize;
+  const totalTargetFee = Math.ceil(targetEffectiveFeeRate * totalPackageVSize);
+  // The package target alone is not enough. The child must also satisfy its own
+  // tx-level minimum relay fee or package submission is rejected by the node.
+  const childFee = Math.max(
+    getMinimumCpfpChildFee(childVSize),
+    totalTargetFee - parentFee
+  );
+  const childOutputValue = anchor.value + utxosValue - childFee;
+  if (childOutputValue <= dust) return;
 
-    const totalPackageVSize = parentVSize + childVSize;
-    const totalTargetFee = Math.ceil(
-      targetEffectiveFeeRate * totalPackageVSize
-    );
-
-    const childFee = Math.max(0, totalTargetFee - parentFee);
-    const childOutputValue = anchor.value + selectedUtxosValue - childFee;
-
-    if (childOutputValue > dust) {
-      const totalFee = parentFee + childFee;
-      return {
-        parentTxHex,
-        parentTxId,
-        parentFee,
-        parentVSize,
-        anchorOutputIndex: anchor.index,
-        anchorValue: anchor.value,
-        selectedUtxosData,
-        selectedUtxosValue,
-        childVSize,
-        childFee,
-        childOutputValue,
-        totalFee,
-        effectiveFeeRate: totalFee / totalPackageVSize
-      };
-    }
-
-    const nextUtxoData = sortedOptionalUtxosData[i];
-    if (!nextUtxoData) break;
-    selectedUtxosData = [...selectedUtxosData, nextUtxoData];
-    selectedUtxosValue += getUtxoDataValue(nextUtxoData);
-  }
-  return;
+  const totalFee = parentFee + childFee;
+  return {
+    anchorOutputIndex: anchor.index,
+    anchorValue: anchor.value,
+    utxosData,
+    utxosValue,
+    childVSize,
+    childFee,
+    childOutputValue,
+    totalFee,
+    effectiveFeeRate: totalFee / totalPackageVSize
+  };
 };
 
 /**
@@ -675,8 +586,7 @@ export const createCpfpChildTx = async ({
   parentTxHex,
   parentFee,
   targetEffectiveFeeRate,
-  mandatoryUtxosData = [],
-  optionalUtxosData = [],
+  utxosData = [],
   changeOutput,
   signer,
   network
@@ -684,8 +594,7 @@ export const createCpfpChildTx = async ({
   parentTxHex: TxHex;
   parentFee: number;
   targetEffectiveFeeRate: number;
-  mandatoryUtxosData?: UtxosData;
-  optionalUtxosData?: UtxosData;
+  utxosData?: UtxosData;
   changeOutput: OutputInstance;
   signer: Signer;
   network: Network;
@@ -704,8 +613,7 @@ export const createCpfpChildTx = async ({
     parentTxHex,
     parentFee,
     targetEffectiveFeeRate,
-    mandatoryUtxosData,
-    optionalUtxosData,
+    utxosData,
     changeOutput
   });
   if (!plan) return;
@@ -714,7 +622,7 @@ export const createCpfpChildTx = async ({
   const psbt = new Psbt({ network });
   psbt.setVersion(parentTx.version === 3 ? 3 : 2);
   psbt.addInput({
-    hash: plan.parentTxId,
+    hash: parentTx.getId(),
     index: plan.anchorOutputIndex,
     sequence: 0xfffffffd,
     witnessUtxo: {
@@ -723,7 +631,7 @@ export const createCpfpChildTx = async ({
     }
   });
 
-  const childInputFinalizers = plan.selectedUtxosData.map(utxoData =>
+  const childInputFinalizers = plan.utxosData.map(utxoData =>
     utxoData.output.updatePsbtAsInput({
       psbt,
       txHex: utxoData.txHex,
@@ -735,7 +643,7 @@ export const createCpfpChildTx = async ({
     value: toBigInt(plan.childOutputValue)
   });
 
-  if (plan.selectedUtxosData.length > 0) await signPsbt(signer, network, psbt);
+  if (plan.utxosData.length > 0) await signPsbt(signer, network, psbt);
   psbt.finalizeInput(0, () => ({
     finalScriptSig: new Uint8Array(0),
     finalScriptWitness: Uint8Array.of(0)
@@ -747,15 +655,15 @@ export const createCpfpChildTx = async ({
   if (!firstOutput) throw new Error('CPFP child output unset');
   const childVSize = tx.virtualSize();
   const childFee =
-    plan.anchorValue + plan.selectedUtxosValue - toNumber(firstOutput.value);
-  const totalFee = plan.parentFee + childFee;
+    plan.anchorValue + plan.utxosValue - toNumber(firstOutput.value);
+  const totalFee = parentFee + childFee;
   return {
     childTxHex: tx.toHex(),
     childTxId: tx.getId(),
     childFee,
     childVSize,
     totalFee,
-    effectiveFeeRate: totalFee / (plan.parentVSize + childVSize)
+    effectiveFeeRate: totalFee / (parentTx.virtualSize() + childVSize)
   };
 };
 
@@ -1190,6 +1098,9 @@ const getMinimumVaultTxFeeRate = (vaultMode: 'TRUC' | 'NON_TRUC') =>
 const getPresignedTriggerParentFee = (presignedTriggerFeeRate: number) =>
   BigInt(Math.ceil(Math.max(...TRIGGER_TX_VBYTES) * presignedTriggerFeeRate));
 
+const getPresignedRescueParentFee = (presignedRescueFeeRate: number) =>
+  BigInt(Math.ceil(Math.max(...PANIC_TX_VBYTES) * presignedRescueFeeRate));
+
 /**
  * Runs the initial vault coinselection using the user-selected fee rate.
  *
@@ -1302,7 +1213,8 @@ export const estimateMinimumRequiredVaultedAmount = moize.shallow(
     lockBlocks,
     network,
     vaultMode,
-    presignedTriggerFeeRate
+    presignedTriggerFeeRate,
+    presignedRescueFeeRate
   }: {
     coldAddress: string;
     lockBlocks: number;
@@ -1314,6 +1226,8 @@ export const estimateMinimumRequiredVaultedAmount = moize.shallow(
     vaultMode: 'TRUC' | 'NON_TRUC';
     /** Fee rate baked directly into the trigger parent transaction. */
     presignedTriggerFeeRate: number;
+    /** Fee rate baked directly into the rescue parent transaction. */
+    presignedRescueFeeRate: number;
   }) => {
     const { Output } = ensureDescriptorsFactoryInstance();
     const vaultOutput = new Output({
@@ -1338,10 +1252,7 @@ export const estimateMinimumRequiredVaultedAmount = moize.shallow(
     const triggerParentFee = getPresignedTriggerParentFee(
       presignedTriggerFeeRate
     );
-    const panicParentFee =
-      vaultMode === 'TRUC'
-        ? BigInt(0)
-        : BigInt(Math.ceil(Math.max(...PANIC_TX_VBYTES) * MIN_FEE_RATE));
+    const panicParentFee = getPresignedRescueParentFee(presignedRescueFeeRate);
 
     const minimumVaultOutputValue = dustThreshold(vaultOutput) + BigInt(1);
     const minimumTriggerOutputValue =
@@ -1602,6 +1513,7 @@ export const createVault = async ({
   unvaultKeyExpression,
   effectiveFeeRate,
   presignedTriggerFeeRate,
+  presignedRescueFeeRate,
   maxTriggerFeeRate,
   utxosData,
   signer,
@@ -1621,6 +1533,8 @@ export const createVault = async ({
   effectiveFeeRate: number;
   /** Fee rate baked directly into the presigned trigger parent transaction. */
   presignedTriggerFeeRate: number;
+  /** Fee rate baked directly into the presigned rescue parent transaction. */
+  presignedRescueFeeRate: number;
   /** Highest trigger package feerate the dedicated reserve must support. */
   maxTriggerFeeRate: number;
   utxosData: UtxosData;
@@ -1731,10 +1645,7 @@ export const createVault = async ({
   const triggerParentFee = getPresignedTriggerParentFee(
     presignedTriggerFeeRate
   );
-  const panicParentFee =
-    vaultMode === 'TRUC'
-      ? BigInt(0)
-      : BigInt(Math.ceil(Math.max(...PANIC_TX_VBYTES) * MIN_FEE_RATE));
+  const panicParentFee = getPresignedRescueParentFee(presignedRescueFeeRate);
   const triggerOutputValue =
     vaultedAmount -
     (vaultMode === 'TRUC' ? BigInt(0) : NON_TRUC_P2A_ANCHOR_VALUE) -
@@ -1802,17 +1713,11 @@ export const createVault = async ({
   const triggerFee = Number(psbtTrigger.getFee());
   const panicFee = Number(psbtPanic.getFee());
   const minTriggerFee = Math.ceil(triggerVsize * presignedTriggerFeeRate);
+  const minPanicFee = Math.ceil(panicVsize * presignedRescueFeeRate);
   if (triggerFee < minTriggerFee)
     throw new Error(`Invalid trigger fee ${triggerFee} < ${minTriggerFee}`);
-  if (vaultMode !== 'TRUC') {
-    const minPanicFee = Math.ceil(panicVsize * MIN_FEE_RATE);
-    if (panicFee < minPanicFee)
-      throw new Error(
-        `Invalid NON_TRUC panic fee ${panicFee} < ${minPanicFee}`
-      );
-  } else if (panicFee !== 0) {
-    throw new Error(`Invalid TRUC panic fee ${panicFee}`);
-  }
+  if (panicFee < minPanicFee)
+    throw new Error(`Invalid panic fee ${panicFee} < ${minPanicFee}`);
   return {
     triggerDescriptor,
     creationTime: Math.floor(Date.now() / 1000),

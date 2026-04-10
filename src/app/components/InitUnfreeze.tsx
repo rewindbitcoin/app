@@ -9,6 +9,7 @@ import FeeInput from './FeeInput';
 import {
   computeMaxAllowedFeeRate,
   FeeEstimates,
+  MIN_FEE_RATE,
   pickFeeEstimate
 } from '../lib/fees';
 import { formatBlocks } from '../lib/format';
@@ -28,8 +29,9 @@ import { toNumber } from '../lib/sats';
 import { DUMMY_CHANGE_OUTPUT, getMainAccount } from '../lib/vaultDescriptors';
 import { networkMapping } from '../lib/network';
 import {
+  findMinimumActionableFeeRate,
   findNextEqualOrLargerEffectiveFeeRate,
-  getTriggerAccelerationFeeRateFloor,
+  getCpfpReplacementFeeRateFloor,
   pickActionableInitialFeeRate,
   type VaultActionTxData
 } from '../lib/vaultActionTx';
@@ -66,19 +68,10 @@ const InitUnfreeze = ({
   // Cache to avoid flickering in the sliders while background refreshes happen.
   const btcFiat = useFirstDefinedValue<number>(btcFiatRealTime);
   const feeEstimates = useFirstDefinedValue<FeeEstimates>(feeEstimatesRealTime);
-  // Minimum effective fee-rate floor required for acceleration.
-  //
-  // For Rewind2, a replacement child must satisfy two relay checks at once:
-  // 1) the new package feerate must improve over the previous one, and
-  // 2) the new child fee must be at least:
-  //    previousChildFee + ceil(childVSize * 0.1 sat/vB)
-  //
-  // Example: if the previous child paid 584 sats and the replacement child
-  // would be 160 vB, relay requires at least 584 + ceil(160 * 0.1) = 600 sats.
-  // A new package can therefore look "faster" by feerate and still be
-  // rejected if the child only pays, say, 590 sats.
-  const feeRateToReplace = useMemo<number | null>(() => {
-    if (!isAccelerationAttempt) return 0;
+  // Minimum effective fee-rate floor required only when replacing an already
+  // existing fee-bump child. `null` means we cannot compute that floor yet.
+  const replacementFeeRateFloor = useMemo<number | null>(() => {
+    if (!isAccelerationAttempt) return null;
     if (isLegacyVault) {
       if (!vaultStatus?.triggerTxHex) return null;
       const { tx } = transactionFromHex(vaultStatus.triggerTxHex);
@@ -100,13 +93,13 @@ const InitUnfreeze = ({
         signer,
         network
       });
-      return getTriggerAccelerationFeeRateFloor({
+      return getCpfpReplacementFeeRateFloor({
         parentTxHex: triggerTxHex,
         parentFee: triggerTxData.fee,
         previousChildTxHex: triggerCpfpTxHex,
         historyData,
         feeEstimates,
-        mandatoryUtxosData: [triggerReserveUtxoData],
+        utxosData: [triggerReserveUtxoData],
         childOutput: DUMMY_CHANGE_OUTPUT(
           getMainAccount(accounts, network),
           network
@@ -131,11 +124,8 @@ const InitUnfreeze = ({
       .map(([triggerTxHex]) => {
         const txData = vault.txMap[triggerTxHex];
         if (!txData) throw new Error('trigger tx not mapped');
-        const { tx } = transactionFromHex(triggerTxHex);
         return {
           parentTxHex: triggerTxHex,
-          parentTxId: txData.txId,
-          parentTxVSize: tx.virtualSize(),
           parentTxFee: txData.fee,
           effectiveFee: txData.fee,
           effectiveFeeRate: txData.feeRate
@@ -153,19 +143,28 @@ const InitUnfreeze = ({
 
   const [step, setStep] = useState<'intro' | 'fee'>('intro');
 
-  const preferredInitialFeeRate =
-    feeEstimates && feeRateToReplace !== null
-      ? Math.max(
-          feeRateToReplace,
-          pickFeeEstimate(feeEstimates, settings.INITIAL_CONFIRMATION_TIME)
-            .feeEstimate
-        )
-      : null;
+  const preferredInitialFeeRate = useMemo(() => {
+    if (!feeEstimates) return null;
+    const preferredNetworkFeeRate = pickFeeEstimate(
+      feeEstimates,
+      settings.INITIAL_CONFIRMATION_TIME
+    ).feeEstimate;
+    if (!isAccelerationAttempt) return preferredNetworkFeeRate;
+    if (replacementFeeRateFloor === null) return null;
+    return Math.max(replacementFeeRateFloor, preferredNetworkFeeRate);
+  }, [
+    feeEstimates,
+    settings.INITIAL_CONFIRMATION_TIME,
+    isAccelerationAttempt,
+    replacementFeeRateFloor
+  ]);
 
   const isAccelerationSyncPending =
-    isAccelerationAttempt && feeRateToReplace === null;
+    isAccelerationAttempt && replacementFeeRateFloor === null;
   const cannotAccelerateMaxFee =
-    isLegacyVault && feeRateToReplace !== null && feeRateToReplace > maxFeeRate;
+    isAccelerationAttempt &&
+    replacementFeeRateFloor !== null &&
+    replacementFeeRateFloor > maxFeeRate;
 
   const [feeRate, setFeeRate] = useState<number | null>(null);
 
@@ -183,7 +182,6 @@ const InitUnfreeze = ({
         if (!triggerTxHex) return null;
         const triggerTxData = vault.txMap[triggerTxHex];
         if (!triggerTxData) throw new Error('trigger tx not mapped');
-        const { tx } = transactionFromHex(triggerTxHex);
         const network = networkMapping[networkId];
         const triggerReserveUtxoData = getTriggerReserveUtxoData({
           vault,
@@ -205,15 +203,12 @@ const InitUnfreeze = ({
           parentTxHex: triggerTxHex,
           parentFee: triggerTxData.fee,
           targetEffectiveFeeRate: selectedFeeRate,
-          mandatoryUtxosData: [triggerReserveUtxoData],
-          optionalUtxosData: [],
+          utxosData: [triggerReserveUtxoData],
           changeOutput
         });
         if (!plan) return null;
         return {
           parentTxHex: triggerTxHex,
-          parentTxId: triggerTxData.txId,
-          parentTxVSize: tx.virtualSize(),
           parentTxFee: triggerTxData.fee,
           effectiveFee: plan.totalFee,
           effectiveFeeRate: plan.effectiveFeeRate
@@ -233,6 +228,26 @@ const InitUnfreeze = ({
     ]
   );
 
+  const minimumSelectableFeeRate = useMemo(() => {
+    if (isLegacyVault)
+      return isAccelerationAttempt
+        ? replacementFeeRateFloor
+        : (legacyTriggerSortedTxs[0]?.effectiveFeeRate ?? MIN_FEE_RATE);
+    if (isAccelerationAttempt) return replacementFeeRateFloor;
+    return findMinimumActionableFeeRate({
+      minimumFeeRate: MIN_FEE_RATE,
+      maximumFeeRate: maxFeeRate,
+      canBuildAtFeeRate: feeRate => buildTxDataForFeeRate(feeRate) !== null
+    });
+  }, [
+    isLegacyVault,
+    isAccelerationAttempt,
+    replacementFeeRateFloor,
+    legacyTriggerSortedTxs,
+    maxFeeRate,
+    buildTxDataForFeeRate
+  ]);
+
   const initialFeeRate = useMemo(
     () =>
       // If the wallet's preferred confirmation target is no longer fundable,
@@ -242,17 +257,15 @@ const InitUnfreeze = ({
         preferredFeeRate: cannotAccelerateMaxFee
           ? null
           : preferredInitialFeeRate,
-        minimumActionableFeeRate:
-          !isAccelerationAttempt || cannotAccelerateMaxFee
-            ? null
-            : feeRateToReplace,
+        minimumActionableFeeRate: cannotAccelerateMaxFee
+          ? null
+          : minimumSelectableFeeRate,
         canBuildAtFeeRate: feeRate => buildTxDataForFeeRate(feeRate) !== null
       }),
     [
       preferredInitialFeeRate,
-      isAccelerationAttempt,
       cannotAccelerateMaxFee,
-      feeRateToReplace,
+      minimumSelectableFeeRate,
       buildTxDataForFeeRate
     ]
   );
@@ -276,8 +289,7 @@ const InitUnfreeze = ({
     }
   }, [isVisible]);
 
-  // Reset feeRate every time initialFeeRate changes, that is,
-  // every time feeRateToReplace changes
+  // Reset feeRate every time the selected initial fee changes.
   useEffect(() => {
     setFeeRate(prev =>
       initialFeeRate !== null && prev !== initialFeeRate ? initialFeeRate : prev
@@ -355,7 +367,9 @@ const InitUnfreeze = ({
             <View className="bg-slate-100 p-2 rounded-xl">
               {feeEstimates ? (
                 <FeeInput
-                  {...(feeRateToReplace ? { min: feeRateToReplace } : {})}
+                  {...(minimumSelectableFeeRate !== null
+                    ? { min: minimumSelectableFeeRate }
+                    : {})}
                   btcFiat={btcFiat}
                   feeEstimates={feeEstimates}
                   initialValue={initialFeeRate!}

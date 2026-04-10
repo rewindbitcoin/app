@@ -278,6 +278,9 @@ Seguramente sólo necesitas esperar unos 10 minutos y realmente no necesitas est
 Es probable que esta dirección sea difícil de acceder si seguiste las pautas recomendadas durante la Configuración de la Bóveda. Asegúrate de que, llegado el momento, puedas acceder a ella. Una vez que los fondos sean enviados, esta billetera ya no tendrá acceso a ellos.
 
 Esta acción está diseñada para situaciones extremas, como robo o extorsión, para garantizar la seguridad de tus Bitcoin. Asegúrate de que esta sea una decisión deliberada.`,
+        highFeeConfirmation: `Esta transacción de rescate ya está prefirmada con una comisión de minería alta.
+
+En la mayoría de los casos eso debería ser suficiente y no harán falta fondos extra para acelerarla. Confirma abajo para emitir ahora la transacción de rescate.`,
         feeSelectorExplanation:
           'Confirma la comisión de minería de la transacción de rescate para asegurar un procesamiento rápido.',
         additionalExplanation: `Una vez que se confirme la solicitud de rescate, los fondos serán movidos a tu Dirección de Emergencia instantáneamente.`
