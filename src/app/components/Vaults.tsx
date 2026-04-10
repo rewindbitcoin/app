@@ -415,6 +415,10 @@ const RawVault = ({
               changeDescriptorWithIndex,
               network
             );
+            // Trigger fee bumping is reserve-only by design: the dedicated
+            // trigger reserve stays outside normal wallet flow and is always
+            // the only non-anchor input. The child sends leftover value back to
+            // the wallet's regular change branch.
             const previousChildTxHex = vaultStatus?.triggerCpfpTxHex;
             if (isTriggerAccelerationAttempt) {
               if (vaultStatus?.panicPushTime || vaultStatus?.panicTxHex)

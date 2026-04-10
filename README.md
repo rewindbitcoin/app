@@ -15,6 +15,8 @@ When funds are unvaulted, a **countdown period** begins, allowing the user (or a
 
 This project is currently being open-sourced. Internal documentation, build guides and contribution instructions will be added soon.
 
+For the current Rewind2 vault design notes, see [`REWIND2.md`](./REWIND2.md).
+
 You can learn more about the project at [https://rewindbitcoin.com](https://rewindbitcoin.com).
 
 ---

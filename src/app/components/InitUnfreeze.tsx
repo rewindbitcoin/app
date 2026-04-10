@@ -194,6 +194,9 @@ const InitUnfreeze = ({
           getMainAccount(accounts, network),
           network
         );
+        // Trigger fee bumping is reserve-only by design: always reuse this
+        // vault's dedicated reserve UTXO as the only non-anchor input and send
+        // any leftover value back through normal wallet change.
         if (isAccelerationAttempt) {
           const previousChildTxHex = vaultStatus?.triggerCpfpTxHex;
           if (!previousChildTxHex || !historyData?.length) return null;

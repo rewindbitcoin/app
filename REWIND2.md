@@ -150,6 +150,8 @@ Important design choices:
 - trigger bumping is per-vault
 - it uses only that vault's dedicated trigger reserve
 - it does not coinselect from generic wallet UTXOs
+- the reserve itself stays outside normal wallet flow
+- only the child leftover comes back as normal wallet change
 
 If the child is later accelerated again, the replacement still uses the same
 reserve input. The old child is replaced in the mempool; it is not a new flow
@@ -250,6 +252,8 @@ Why it exists:
 
 - so the trigger can always be fee-bumped without depending on unrelated wallet UTXOs
 - so one vault's trigger bump does not steal funds from another vault
+- so the reserve can stay outside normal wallet spending while the bump child
+  returns leftover value to the wallet's usual change flow
 
 What it is not:
 
