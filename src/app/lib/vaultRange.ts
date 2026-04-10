@@ -216,10 +216,9 @@ export const estimateVaultSetupRange = moize.shallow(
     );
     const vaultOutput = DUMMY_VAULT_OUTPUT(network);
     const triggerReserveOutput = DUMMY_TRIGGER_RESERVE_OUTPUT(network);
-    const triggerReserveChangeOutput = DUMMY_TRIGGER_RESERVE_OUTPUT(network);
     const triggerReserveValue = getRequiredTriggerReserveValue({
       triggerReserveOutput,
-      triggerReserveChangeOutput,
+      changeOutput,
       vaultMode,
       presignedTriggerFeeRate,
       maxTriggerFeeRate

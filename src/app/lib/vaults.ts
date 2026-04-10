@@ -72,11 +72,7 @@ const P2A_OUTPUT_SCRIPT = fromHex('51024e73');
 const P2A_OUTPUT_SCRIPT_HEX = toHex(P2A_OUTPUT_SCRIPT);
 import { PANIC_TX_VBYTES, TRIGGER_TX_VBYTES } from './vaultSizes';
 import { generateMnemonic, mnemonicToSeedSync } from 'bip39';
-import {
-  parseVaultIndex,
-  getTriggerReserveChangePath,
-  getTriggerReserveInputPath
-} from './rewindPaths';
+import { parseVaultIndex, getTriggerReservePath } from './rewindPaths';
 
 // P2A input weight = base input (36 prevout + 1 scriptLen + 4 sequence) * 4
 // plus segwit marker/flag (2) and witness (1 stack item count + 1 empty push)
@@ -499,7 +495,7 @@ const estimateCpfpChildVSizeFromOutputs = (
  * the wallet can build:
  * - anchor input
  * - reserve input
- * - one dedicated reserve-change output
+ * - one normal wallet change output
  * and still hit the target package feerate.
  *
  * `presignedTriggerFeeRate` controls the fee already paid by the trigger parent.
@@ -508,15 +504,15 @@ const estimateCpfpChildVSizeFromOutputs = (
  */
 export const getRequiredTriggerReserveValue = ({
   triggerReserveOutput,
-  triggerReserveChangeOutput,
+  changeOutput,
   vaultMode,
   presignedTriggerFeeRate,
   maxTriggerFeeRate
 }: {
   /** Output template for the dedicated trigger reserve UTXO created in the vault tx. */
   triggerReserveOutput: OutputInstance;
-  /** Output template for the dedicated rollover output of the trigger fee-bump child. */
-  triggerReserveChangeOutput: OutputInstance;
+  /** Output template for the wallet change output of the future trigger CPFP child. */
+  changeOutput: OutputInstance;
   /**
    * Structural parent mode.
    * TRUC means v3 + 0-sat anchor, NON_TRUC means v2 + funded anchor.
@@ -532,13 +528,13 @@ export const getRequiredTriggerReserveValue = ({
 }) => {
   // Model the future trigger fee-bump child as:
   // - inputs: trigger anchor + dedicated trigger reserve UTXO
-  // - output: one dedicated per-vault reserve-change output
+  // - output: one normal wallet change output
   //
   // We size the reserve so that this child can still bring the full
   // parent+child package up to `maxTriggerFeeRate`.
   const childVSize = estimateCpfpChildVSizeFromOutputs(
     [triggerReserveOutput],
-    triggerReserveChangeOutput
+    changeOutput
   );
   const parentVSize = Math.max(...TRIGGER_TX_VBYTES);
   const totalTargetFee = Math.ceil(
@@ -554,10 +550,8 @@ export const getRequiredTriggerReserveValue = ({
   const anchorValue =
     vaultMode === 'TRUC' ? 0 : Number(NON_TRUC_P2A_ANCHOR_VALUE);
 
-  // The child's dedicated reserve-change output must remain spendable after
-  // paying fees.
-  const childOutputMinValue =
-    toNumber(dustThreshold(triggerReserveChangeOutput)) + 1;
+  // The child's wallet change output must remain spendable after paying fees.
+  const childOutputMinValue = toNumber(dustThreshold(changeOutput)) + 1;
 
   // The reserve output itself also has to stay above dust when it is created in
   // the vault tx, even if the required fee bump would be smaller.
@@ -1120,12 +1114,13 @@ const deriveKeyExpressionAndPubKey = async ({
 };
 
 /**
- * Returns the dedicated per-vault reserve output funded at vault creation time.
+ * Returns the dedicated per-vault trigger reserve output funded at vault
+ * creation time.
  *
  * This output is not part of normal hot-wallet discovery. It exists solely to
  * fund trigger fee-bump children for this specific vault.
  */
-const getTriggerReserveFundingOutput = ({
+const getTriggerReserveOutput = ({
   signer,
   network,
   vaultIndex
@@ -1135,12 +1130,14 @@ const getTriggerReserveFundingOutput = ({
   vaultIndex: number;
 }) => {
   const { Output } = ensureDescriptorsFactoryInstance();
-  const path = getTriggerReserveInputPath(network, vaultIndex);
+  const path = getTriggerReservePath(network, vaultIndex);
   const lastSlashIndex = path.lastIndexOf('/');
   if (lastSlashIndex < 2) throw new Error(`Invalid path: ${path}`);
   const mnemonic = signer?.mnemonic;
   if (!mnemonic)
-    throw new Error('Could not initialize the deterministic reserve derivation');
+    throw new Error(
+      'Could not initialize the deterministic reserve derivation'
+    );
   const masterNode = getMasterNode(mnemonic, network);
   const keyExpression = keyExpressionBIP32({
     masterNode,
@@ -1151,46 +1148,13 @@ const getTriggerReserveFundingOutput = ({
 };
 
 /**
- * Returns the dedicated rollover output used by trigger fee-bump children.
+ * Returns the exact per-vault trigger reserve UTXO funded in the vault tx.
  *
- * This is also outside normal hot-wallet discovery. Any value left after paying
- * the trigger child fee stays tied to this vault instead of mixing with generic
- * wallet change.
+ * This UTXO stays outside normal hot-wallet discovery. Trigger CPFP uses only
+ * this vault's dedicated reserve input and sends any leftover value back to the
+ * wallet's regular change branch.
  */
-const getTriggerReserveChangeOutput = ({
-  signer,
-  network,
-  vaultIndex
-}: {
-  signer: Signer;
-  network: Network;
-  vaultIndex: number;
-}) => {
-  const { Output } = ensureDescriptorsFactoryInstance();
-  const path = getTriggerReserveChangePath(network, vaultIndex);
-  const lastSlashIndex = path.lastIndexOf('/');
-  if (lastSlashIndex < 2) throw new Error(`Invalid path: ${path}`);
-  const mnemonic = signer?.mnemonic;
-  if (!mnemonic)
-    throw new Error('Could not initialize the deterministic reserve derivation');
-  const masterNode = getMasterNode(mnemonic, network);
-  const keyExpression = keyExpressionBIP32({
-    masterNode,
-    originPath: path.slice(1, lastSlashIndex),
-    keyPath: path.slice(lastSlashIndex)
-  });
-  return new Output({ descriptor: `wpkh(${keyExpression})`, network });
-};
-
-/**
- * Returns the exact per-vault reserve input and rollover output used by trigger
- * fee-bump children.
- *
- * These outputs stay outside normal hot-wallet discovery. Trigger CPFP uses
- * only this vault's dedicated reserve UTXO and sends any leftover value back to
- * this vault's dedicated reserve-change output.
- */
-export const getTriggerReserveBumpData = ({
+export const getTriggerReserveUtxoData = ({
   vault,
   signer,
   network
@@ -1200,32 +1164,23 @@ export const getTriggerReserveBumpData = ({
   network: Network;
 }) => {
   const vaultIndex = parseVaultIndex(vault.vaultPath);
-  const triggerReserveFundingOutput = getTriggerReserveFundingOutput({
-    signer,
-    network,
-    vaultIndex
-  });
-  const triggerReserveChangeOutput = getTriggerReserveChangeOutput({
+  const triggerReserveOutput = getTriggerReserveOutput({
     signer,
     network,
     vaultIndex
   });
   const { tx: vaultTx } = transactionFromHex(vault.vaultTxHex);
   const triggerReserveVout = vaultTx.outs.findIndex(
-    out =>
-      toHex(out.script) === toHex(triggerReserveFundingOutput.getScriptPubKey())
+    out => toHex(out.script) === toHex(triggerReserveOutput.getScriptPubKey())
   );
   if (triggerReserveVout < 0)
     throw new Error('Trigger reserve output not found in vault tx');
 
   return {
-    triggerReserveUtxoData: {
-      tx: vaultTx,
-      txHex: vault.vaultTxHex,
-      vout: triggerReserveVout,
-      output: triggerReserveFundingOutput
-    },
-    triggerReserveChangeOutput
+    tx: vaultTx,
+    txHex: vault.vaultTxHex,
+    vout: triggerReserveVout,
+    output: triggerReserveOutput
   };
 };
 
@@ -1606,19 +1561,14 @@ export const buildVaultTxContext = async ({
     network
   });
   const changeOutput = new Output({ ...changeDescriptorWithIndex, network });
-  const triggerReserveOutput = getTriggerReserveFundingOutput({
-    signer,
-    network,
-    vaultIndex
-  });
-  const triggerReserveChangeOutput = getTriggerReserveChangeOutput({
+  const triggerReserveOutput = getTriggerReserveOutput({
     signer,
     network,
     vaultIndex
   });
   const triggerReserveValue = getRequiredTriggerReserveValue({
     triggerReserveOutput,
-    triggerReserveChangeOutput,
+    changeOutput,
     vaultMode,
     presignedTriggerFeeRate,
     maxTriggerFeeRate

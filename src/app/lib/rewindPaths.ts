@@ -39,23 +39,8 @@ export const getWalletDataKeyPath = (network: Network) =>
  * keep spending this same outpoint while the fee-bump child is still only in
  * the mempool.
  */
-export const getTriggerReserveInputPath = (
-  network: Network,
-  vaultIndex: number
-) => `m/${VAULT_PURPOSE}'/${coinTypeFromNetwork(network)}'/2'/${vaultIndex}/0`;
-
-/**
- * Returns the deterministic path for the trigger fee-bump child output of a
- * vault.
- *
- * This is not a normal hot-wallet change path. It is the dedicated per-vault
- * rollover output that receives any value left after paying the trigger CPFP
- * child fee.
- */
-export const getTriggerReserveChangePath = (
-  network: Network,
-  vaultIndex: number
-) => `m/${VAULT_PURPOSE}'/${coinTypeFromNetwork(network)}'/2'/${vaultIndex}/1`;
+export const getTriggerReservePath = (network: Network, vaultIndex: number) =>
+  `m/${VAULT_PURPOSE}'/${coinTypeFromNetwork(network)}'/2'/${vaultIndex}`;
 
 /** Returns the non-hardened vault index encoded in a deterministic vault path. */
 export const parseVaultIndex = (vaultPath: string) => {

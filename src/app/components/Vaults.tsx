@@ -29,7 +29,7 @@ import {
   type VaultsStatuses,
   type Vaults as VaultsType,
   createCpfpChildTx,
-  getTriggerReserveBumpData,
+  getTriggerReserveUtxoData,
   getSpendableUtxosData,
   getVaultFrozenBalance,
   getVaultMode,
@@ -68,7 +68,11 @@ import {
 } from '../lib/watchtower';
 import SkeletonPulse from './SkeletonPulse';
 import { networkMapping } from '../lib/network';
-import { computeChangeOutput } from '../lib/vaultDescriptors';
+import {
+  computeChangeOutput,
+  DUMMY_CHANGE_OUTPUT,
+  getMainAccount
+} from '../lib/vaultDescriptors';
 import useFirstDefinedValue from '~/common/hooks/useFirstDefinedValue';
 
 const LOADING_TEXT = '     ';
@@ -397,9 +401,20 @@ const RawVault = ({
               throw new Error('Wallet not ready for Rewind2 trigger package');
             const signer = signers[0];
             if (!signer) throw new Error('signer unavailable');
+            if (!accounts)
+              throw new Error('Wallet accounts unavailable for trigger change');
             const network = networkMapping[networkId];
-            const { triggerReserveUtxoData, triggerReserveChangeOutput } =
-              getTriggerReserveBumpData({ vault, signer, network });
+            const triggerReserveUtxoData = getTriggerReserveUtxoData({
+              vault,
+              signer,
+              network
+            });
+            const changeDescriptorWithIndex =
+              await getNextChangeDescriptorWithIndex(accounts);
+            const changeOutput = computeChangeOutput(
+              changeDescriptorWithIndex,
+              network
+            );
             const previousChildTxHex = vaultStatus?.triggerCpfpTxHex;
             if (isTriggerAccelerationAttempt) {
               if (vaultStatus?.panicPushTime || vaultStatus?.panicTxHex)
@@ -421,7 +436,7 @@ const RawVault = ({
               targetEffectiveFeeRate: initUnfreezeData.effectiveFeeRate,
               mandatoryUtxosData: [triggerReserveUtxoData],
               optionalUtxosData: [],
-              changeOutput: triggerReserveChangeOutput,
+              changeOutput,
               signer,
               network
             });
@@ -484,8 +499,10 @@ const RawVault = ({
       pushToken,
       watchtowerAPI,
       settings?.NETWORK_TIMEOUT,
+      accounts,
       networkId,
       signers,
+      getNextChangeDescriptorWithIndex,
       pushTxPackage,
       pushTx,
       isLegacyVault,
@@ -728,8 +745,12 @@ const RawVault = ({
     if (!parentTxData || !signer || !networkId) return false;
     try {
       const network = networkMapping[networkId];
-      const { triggerReserveUtxoData, triggerReserveChangeOutput } =
-        getTriggerReserveBumpData({ vault, signer, network });
+      if (!accounts) return false;
+      const triggerReserveUtxoData = getTriggerReserveUtxoData({
+        vault,
+        signer,
+        network
+      });
       // Show the outer button only when a real next replacement floor exists.
       // Otherwise the modal can open with informational copy but no fee path to
       // continue, which is misleading.
@@ -741,7 +762,7 @@ const RawVault = ({
           historyData,
           feeEstimates,
           mandatoryUtxosData: [triggerReserveUtxoData],
-          childOutput: triggerReserveChangeOutput
+          childOutput: DUMMY_CHANGE_OUTPUT(getMainAccount(accounts, network), network)
         }) !== null
       );
     } catch {
@@ -758,6 +779,7 @@ const RawVault = ({
     vaultStatus?.triggerCpfpTxHex,
     vault,
     historyData,
+    accounts,
     networkId,
     feeEstimates,
     signers

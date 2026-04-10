@@ -257,7 +257,7 @@ export const getMinimumReplacementChildFee = ({
  *
  * Unlike rescue, trigger acceleration never falls back to generic wallet UTXOs.
  * It always replaces the child using the vault's dedicated reserve input and
- * the dedicated reserve-change output.
+ * a normal wallet change output.
  */
 export const getTriggerAccelerationFeeRateFloor = ({
   parentTxHex,
