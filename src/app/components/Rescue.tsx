@@ -31,7 +31,7 @@ import {
   type VaultActionTxData
 } from '../lib/vaultActionTx';
 
-const getRewind2RescueTx = (
+const getRewind2RescueInfo = (
   vault: Vault,
   triggerTxHex: string | undefined
 ): {
@@ -104,14 +104,14 @@ const Rescue = ({
         1
       );
     } else {
-      const rescueTx = getRewind2RescueTx(vault, vaultStatus?.triggerTxHex);
-      if (!rescueTx) return null;
+      const rescueInfo = getRewind2RescueInfo(vault, vaultStatus?.triggerTxHex);
+      if (!rescueInfo) return null;
       const panicCpfpTxHex = vaultStatus?.panicCpfpTxHex;
       if (!panicCpfpTxHex) return null;
       if (!emergencyBumpPlan) return null;
       return getCpfpReplacementFeeRateFloor({
-        parentTxHex: rescueTx.txHex,
-        parentFee: rescueTx.fee,
+        parentTxHex: rescueInfo.txHex,
+        parentFee: rescueInfo.fee,
         previousChildTxHex: panicCpfpTxHex,
         historyData,
         feeEstimates,
@@ -172,11 +172,11 @@ const Rescue = ({
       return Math.max(replacementFeeRateFloor, preferredNetworkFeeRate);
     }
 
-    const rescueTx = getRewind2RescueTx(vault, vaultStatus?.triggerTxHex);
-    if (!rescueTx) return null;
+    const rescueInfo = getRewind2RescueInfo(vault, vaultStatus?.triggerTxHex);
+    if (!rescueInfo) return null;
 
     if (!emergencyBumpPlan)
-      return isAccelerationAttempt ? null : rescueTx.feeRate;
+      return isAccelerationAttempt ? null : rescueInfo.feeRate;
 
     if (!feeEstimates) return null;
     const preferredNetworkFeeRate = pickFeeEstimate(
@@ -188,7 +188,7 @@ const Rescue = ({
     // package is not a replacement. The natural floor is the current parent
     // feerate, not a replacement floor.
     if (!isAccelerationAttempt || !vaultStatus?.panicCpfpTxHex)
-      return Math.max(rescueTx.feeRate, preferredNetworkFeeRate);
+      return Math.max(rescueInfo.feeRate, preferredNetworkFeeRate);
     if (replacementFeeRateFloor === null) return null;
     return Math.max(replacementFeeRateFloor, preferredNetworkFeeRate);
   }, [
@@ -224,10 +224,10 @@ const Rescue = ({
         ? replacementFeeRateFloor
         : (legacyRescueSortedTxs[0]?.actionFeeRate ?? MIN_FEE_RATE);
     if (!emergencyBumpPlan) return null;
-    const rescueTx = getRewind2RescueTx(vault, vaultStatus?.triggerTxHex);
-    if (!rescueTx) return null;
+    const rescueInfo = getRewind2RescueInfo(vault, vaultStatus?.triggerTxHex);
+    if (!rescueInfo) return null;
     if (!isAccelerationAttempt || !vaultStatus?.panicCpfpTxHex)
-      return rescueTx.feeRate;
+      return rescueInfo.feeRate;
     return replacementFeeRateFloor;
   }, [
     isLegacyVault,
@@ -248,29 +248,29 @@ const Rescue = ({
           selectedFeeRate
         );
       if (!isVisible) return null;
-      const rescueTx = getRewind2RescueTx(vault, vaultStatus?.triggerTxHex);
-      if (!rescueTx) return null;
+      const rescueInfo = getRewind2RescueInfo(vault, vaultStatus?.triggerTxHex);
+      if (!rescueInfo) return null;
       // Rescue is parent-only by default. Only switch to a package when an
       // explicit external emergency bump plan exists.
-      if (selectedFeeRate <= rescueTx.feeRate)
+      if (selectedFeeRate <= rescueInfo.feeRate)
         return {
-          parentTxHex: rescueTx.txHex,
-          parentTxFee: rescueTx.fee,
-          actionFee: rescueTx.fee,
-          actionFeeRate: rescueTx.feeRate
+          parentTxHex: rescueInfo.txHex,
+          parentTxFee: rescueInfo.fee,
+          actionFee: rescueInfo.fee,
+          actionFeeRate: rescueInfo.feeRate
         };
       if (!emergencyBumpPlan) return null;
       const rewind2Plan = estimateCpfpPackage({
-        parentTxHex: rescueTx.txHex,
-        parentFee: rescueTx.fee,
+        parentTxHex: rescueInfo.txHex,
+        parentFee: rescueInfo.fee,
         targetEffectiveFeeRate: selectedFeeRate,
         utxosData: emergencyBumpPlan.utxosData,
         changeOutput: emergencyBumpPlan.changeOutput
       });
       if (!rewind2Plan) return null;
       return {
-        parentTxHex: rescueTx.txHex,
-        parentTxFee: rescueTx.fee,
+        parentTxHex: rescueInfo.txHex,
+        parentTxFee: rescueInfo.fee,
         actionFee: rewind2Plan.totalFee,
         actionFeeRate: rewind2Plan.effectiveFeeRate
       };
