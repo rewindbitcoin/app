@@ -31,7 +31,7 @@ import {
   type VaultActionTxData
 } from '../lib/vaultActionTx';
 
-const getRewind2RescueInfo = (
+const getP2ARescueInfo = (
   vault: Vault,
   triggerTxHex: string | undefined
 ): {
@@ -70,7 +70,7 @@ const Rescue = ({
   onClose: () => void;
 }) => {
   const vaultMode = useMemo(() => getVaultMode(vault), [vault]);
-  const isLegacyVault = vaultMode === 'LEGACY';
+  const isLadderedVault = vaultMode === 'LADDERED';
   const isAccelerationAttempt =
     !!vaultStatus?.panicPushTime || vaultStatus?.panicTxBlockHeight === 0;
   const { t } = useTranslation();
@@ -88,7 +88,7 @@ const Rescue = ({
   // we cannot compute it safely with the data currently available.
   const replacementFeeRateFloor = useMemo<number | null>(() => {
     if (!isAccelerationAttempt) return null;
-    if (isLegacyVault) {
+    if (isLadderedVault) {
       if (!vaultStatus?.triggerTxHex || !vaultStatus?.panicTxHex) return null;
       const { tx: triggerTx } = transactionFromHex(vaultStatus.triggerTxHex);
       const { tx: panicTx } = transactionFromHex(vaultStatus.panicTxHex);
@@ -104,7 +104,7 @@ const Rescue = ({
         1
       );
     } else {
-      const rescueInfo = getRewind2RescueInfo(vault, vaultStatus?.triggerTxHex);
+      const rescueInfo = getP2ARescueInfo(vault, vaultStatus?.triggerTxHex);
       if (!rescueInfo) return null;
       const panicCpfpTxHex = vaultStatus?.panicCpfpTxHex;
       if (!panicCpfpTxHex) return null;
@@ -121,7 +121,7 @@ const Rescue = ({
     }
   }, [
     isAccelerationAttempt,
-    isLegacyVault,
+    isLadderedVault,
     vaultStatus,
     vault,
     historyData,
@@ -130,7 +130,7 @@ const Rescue = ({
   ]);
 
   const legacyRescueSortedTxs = useMemo(() => {
-    if (!isLegacyVault) return [];
+    if (!isLadderedVault) return [];
     if (!isVisible) return [];
     const triggerTxHex = vaultStatus?.triggerTxHex;
     if (!triggerTxHex) throw new Error('Vault has not been triggered');
@@ -149,7 +149,7 @@ const Rescue = ({
         };
       })
       .sort((a, b) => a.actionFeeRate - b.actionFeeRate);
-  }, [vault, vaultStatus?.triggerTxHex, isVisible, isLegacyVault]);
+  }, [vault, vaultStatus?.triggerTxHex, isVisible, isLadderedVault]);
 
   const maxFeeRate = feeEstimates ? computeMaxAllowedFeeRate(feeEstimates) : 0;
   const { settings } = useSettings();
@@ -161,7 +161,7 @@ const Rescue = ({
   const [step, setStep] = useState<'intro' | 'fee'>('intro');
 
   const preferredInitialFeeRate = useMemo(() => {
-    if (isLegacyVault) {
+    if (isLadderedVault) {
       if (!feeEstimates) return null;
       const preferredNetworkFeeRate = pickFeeEstimate(
         feeEstimates,
@@ -172,7 +172,7 @@ const Rescue = ({
       return Math.max(replacementFeeRateFloor, preferredNetworkFeeRate);
     }
 
-    const rescueInfo = getRewind2RescueInfo(vault, vaultStatus?.triggerTxHex);
+    const rescueInfo = getP2ARescueInfo(vault, vaultStatus?.triggerTxHex);
     if (!rescueInfo) return null;
 
     if (!emergencyBumpPlan)
@@ -194,7 +194,7 @@ const Rescue = ({
   }, [
     feeEstimates,
     settings.INITIAL_CONFIRMATION_TIME,
-    isLegacyVault,
+    isLadderedVault,
     vault,
     vaultStatus?.triggerTxHex,
     vaultStatus?.panicCpfpTxHex,
@@ -213,24 +213,24 @@ const Rescue = ({
     replacementFeeRateFloor !== null &&
     replacementFeeRateFloor > maxFeeRate;
 
-  const showsFeePicker = isLegacyVault || !!emergencyBumpPlan;
+  const showsFeePicker = isLadderedVault || !!emergencyBumpPlan;
   const needsFeeEstimates = showsFeePicker;
 
   const [feeRate, setFeeRate] = useState<number | null>(null);
 
   const minimumSelectableFeeRate = useMemo(() => {
-    if (isLegacyVault)
+    if (isLadderedVault)
       return isAccelerationAttempt
         ? replacementFeeRateFloor
         : (legacyRescueSortedTxs[0]?.actionFeeRate ?? MIN_FEE_RATE);
     if (!emergencyBumpPlan) return null;
-    const rescueInfo = getRewind2RescueInfo(vault, vaultStatus?.triggerTxHex);
+    const rescueInfo = getP2ARescueInfo(vault, vaultStatus?.triggerTxHex);
     if (!rescueInfo) return null;
     if (!isAccelerationAttempt || !vaultStatus?.panicCpfpTxHex)
       return rescueInfo.feeRate;
     return replacementFeeRateFloor;
   }, [
-    isLegacyVault,
+    isLadderedVault,
     isAccelerationAttempt,
     replacementFeeRateFloor,
     legacyRescueSortedTxs,
@@ -242,13 +242,13 @@ const Rescue = ({
 
   const buildTxDataForFeeRate = useCallback(
     (selectedFeeRate: number): VaultActionTxData | null => {
-      if (isLegacyVault)
+      if (isLadderedVault)
         return findNextEqualOrLargerActionFeeRate(
           legacyRescueSortedTxs,
           selectedFeeRate
         );
       if (!isVisible) return null;
-      const rescueInfo = getRewind2RescueInfo(vault, vaultStatus?.triggerTxHex);
+      const rescueInfo = getP2ARescueInfo(vault, vaultStatus?.triggerTxHex);
       if (!rescueInfo) return null;
       // Rescue is parent-only by default. Only switch to a package when an
       // explicit external emergency bump plan exists.
@@ -276,7 +276,7 @@ const Rescue = ({
       };
     },
     [
-      isLegacyVault,
+        isLadderedVault,
       legacyRescueSortedTxs,
       isVisible,
       vault,

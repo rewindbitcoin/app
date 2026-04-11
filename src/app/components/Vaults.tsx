@@ -322,7 +322,7 @@ const RawVault = ({
   const { t } = useTranslation();
   const toast = useToast();
   const vaultMode = useMemo(() => getVaultMode(vault), [vault]);
-  const isLegacyVault = vaultMode === 'LEGACY';
+  const isLadderedVault = vaultMode === 'LADDERED';
 
   const { settings } = useSettings();
   if (!settings) throw new Error('Settings has not been retrieved');
@@ -385,7 +385,7 @@ const RawVault = ({
                 vault.vaultId
               );
             }
-            if (isLegacyVault) {
+            if (isLadderedVault) {
               await pushTx(initUnfreezeData.parentTxHex);
               return;
             }
@@ -501,7 +501,7 @@ const RawVault = ({
       getNextChangeDescriptorWithIndex,
       pushTxPackage,
       pushTx,
-      isLegacyVault,
+      isLadderedVault,
       vault.vaultId,
       vault.vaultPath,
       vault.vaultTxHex,
@@ -542,7 +542,7 @@ const RawVault = ({
           whenToastErrors: 'ON_ANY_ERROR',
           errorMessage: (message: string) => t('app.pushError', { message }),
           func: async () => {
-            if (isLegacyVault) {
+            if (isLadderedVault) {
               await pushTx(rescueData.parentTxHex);
               return;
             }
@@ -643,7 +643,7 @@ const RawVault = ({
       t,
       networkId,
       pushTxPackage,
-      isLegacyVault
+      isLadderedVault
     ]
   );
 
@@ -694,11 +694,11 @@ const RawVault = ({
     isRescueTxPushed || isRescueTxInMempool || isRescueTxConfirmed;
 
   const canShowInitUnfreeze = isVaultTx && !isInitUnfreezeTx;
-  // For TRUC, an unconfirmed vault tx can only have one unconfirmed child.
+  // For P2A_TRUC, an unconfirmed vault tx can only have one unconfirmed child.
   // Since the backup child already uses that slot, keep the action visible but
   // disable Init Unfreeze until the vault tx confirms.
-  const isInitUnfreezeDisabledForTRUC =
-    vaultMode === 'TRUC' && !isVaultTxConfirmed;
+  const isInitUnfreezeDisabledForP2ATruc =
+    vaultMode === 'P2A_TRUC' && !isVaultTxConfirmed;
   const canBeRescued = isInitUnfreezeTx && !isUnfrozen && !isRescueTx;
   const canBeDelegated = isVaultTx && !isUnfrozen && !isRescueTx;
 
@@ -715,7 +715,7 @@ const RawVault = ({
       )
     )
       return false;
-    if (isLegacyVault) return true;
+    if (isLadderedVault) return true;
     const parentTxHex = vaultStatus?.triggerTxHex;
     const previousChildTxHex = vaultStatus?.triggerCpfpTxHex;
     if (!parentTxHex || !previousChildTxHex) return false;
@@ -753,7 +753,7 @@ const RawVault = ({
     isInitUnfreezeTxConfirmed,
     isInitUnfreezeBeingHandled,
     isRescueTx,
-    isLegacyVault,
+    isLadderedVault,
     vaultStatus?.triggerTxHex,
     vaultStatus?.triggerCpfpTxHex,
     vault,
@@ -767,13 +767,13 @@ const RawVault = ({
   const canAccelerateRescue = useMemo(() => {
     if (isRescueBeingHandled) return false;
     if (!(isRescueTx && !isRescueTxConfirmed)) return false;
-    if (isLegacyVault) return true;
+    if (isLadderedVault) return true;
     return false;
   }, [
     isRescueTx,
     isRescueTxConfirmed,
     isRescueBeingHandled,
-    isLegacyVault,
+    isLadderedVault,
     vaultStatus?.panicTxHex,
     vaultStatus?.panicCpfpTxHex
   ]);
@@ -1184,7 +1184,7 @@ const RawVault = ({
                     lockTime: formatBlocks(vault.lockBlocks, t, locale, true)
                   })
                 : t(
-                    vaultMode === 'TRUC'
+                    vaultMode === 'P2A_TRUC'
                       ? 'wallet.vault.notTriggeredUnconfirmed_TRUC'
                       : 'wallet.vault.notTriggeredUnconfirmed',
                     {
@@ -1253,7 +1253,7 @@ const RawVault = ({
                 mode="secondary"
                 onPress={handleShowInitUnfreeze}
                 loading={isInitUnfreezePending}
-                disabled={isInitUnfreezeDisabledForTRUC}
+                disabled={isInitUnfreezeDisabledForP2ATruc}
                 msg={t('wallet.vault.triggerUnfreezeButton')}
                 onInfoPress={handleInitUnfreezeHelp}
               />

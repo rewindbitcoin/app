@@ -1,9 +1,10 @@
 // Copyright (C) 2025 Jose-Luis Landabaso - https://rewindbitcoin.com
 // Licensed under the GNU GPL v3 or later. See the LICENSE file for details.
 
-//FIXME: note that once a vault is created (f.ex. using TRUC or NON_TRUC) then
-//its very important that the flow regarding this vault (acceletations (for trigger/rescue),
-//init trigger, rescue and any other keep using the same TRUC/NON_TRUC as initiated
+//FIXME: note that once a vault is created (f.ex. using P2A_TRUC or
+//P2A_NON_TRUC) then its very important that the flow regarding this vault
+//(acceletations (for trigger/rescue), init trigger, rescue and any other) keep
+//using the same P2A mode as initiated
 //even if the user later changes the mode in Settings. One can infer the mode
 //dynamically by analyzing the triggerTx stored f.ex. Is this being done/Applied?
 //
@@ -12,7 +13,7 @@
 //TODO: in demo mode, Tape should send a couple of utxos so that its
 //possible to do a quick -> create vault -> init trigger -> rescue
 
-// TODO: very imporant to only allow Vaulting funds with 1 confirmatin at least (make this a setting) - test realistic vaults (TRUC)
+// TODO: very imporant to only allow Vaulting funds with 1 confirmatin at least (make this a setting) - test realistic vaults (P2A_TRUC)
 //
 //FIXME: the Fee bump message with "Accelerate" is confussing. We use "Accelerate"
 //for the RBF to accelerate rescue/init trigger presigned txs.
@@ -78,7 +79,7 @@ import { parseVaultIndex, getTriggerReservePath } from './rewindPaths';
 // plus segwit marker/flag (2) and witness (1 stack item count + 1 empty push)
 // so weight = 41*4 + 2 + 2 = 166 wu => vsize = ceil(166/4) = 42 vB.
 const P2A_INPUT_WEIGHT = 166;
-const MAX_TRUC_CHILD_VSIZE = 1000; // TRUC v3 child size limit (vbytes)
+const MAX_P2A_TRUC_CHILD_VSIZE = 1000; // P2A_TRUC v3 child size limit (vbytes)
 
 export type TxHex = string;
 export type TxId = string;
@@ -376,19 +377,21 @@ export const getPanicAnchorOutputIndex = (
  * Infers vault mode from trigger transaction shape.
  *
  * Human rule of thumb:
- * - no P2A output => `LEGACY`
- * - version 3 + 0-sat P2A => `TRUC`
- * - P2A present with non-zero value => `NON_TRUC`
+ * - no P2A output => `LADDERED`
+ * - version 3 + 0-sat P2A => `P2A_TRUC`
+ * - P2A present with non-zero value => `P2A_NON_TRUC`
  */
-export const getVaultMode = (vault: Vault): 'TRUC' | 'NON_TRUC' | 'LEGACY' => {
+export const getVaultMode = (
+  vault: Vault
+): 'LADDERED' | 'P2A_TRUC' | 'P2A_NON_TRUC' => {
   for (const triggerTxHex of Object.keys(vault.triggerMap)) {
     const { tx } = transactionFromHex(triggerTxHex);
     const anchor = getP2AOutputData(tx);
     if (!anchor) continue;
-    if (tx.version === 3 && anchor.value === 0) return 'TRUC';
-    return 'NON_TRUC';
+    if (tx.version === 3 && anchor.value === 0) return 'P2A_TRUC';
+    return 'P2A_NON_TRUC';
   }
-  return 'LEGACY';
+  return 'LADDERED';
 };
 
 const getUtxoDataValue = (utxoData: UtxosData[number]) => {
@@ -450,9 +453,9 @@ export const getRequiredTriggerReserveValue = ({
   changeOutput: OutputInstance;
   /**
    * Structural parent mode.
-   * TRUC means v3 + 0-sat anchor, NON_TRUC means v2 + funded anchor.
+   * P2A_TRUC means v3 + 0-sat anchor, P2A_NON_TRUC means v2 + funded anchor.
    */
-  vaultMode: 'TRUC' | 'NON_TRUC';
+  vaultMode: 'P2A_TRUC' | 'P2A_NON_TRUC';
   /** Fee rate already baked into the trigger parent itself. */
   presignedTriggerFeeRate: number;
   /**
@@ -483,10 +486,10 @@ export const getRequiredTriggerReserveValue = ({
     totalTargetFee - parentFee
   );
 
-  // The child gets some value for free from the trigger anchor. In NON_TRUC
-  // this is 330 sats, while TRUC anchors are 0-sat.
+  // The child gets some value for free from the trigger anchor. In
+  // P2A_NON_TRUC this is 330 sats, while P2A_TRUC anchors are 0-sat.
   const anchorValue =
-    vaultMode === 'TRUC' ? 0 : Number(NON_TRUC_P2A_ANCHOR_VALUE);
+    vaultMode === 'P2A_TRUC' ? 0 : Number(P2A_NON_TRUC_ANCHOR_VALUE);
 
   // The child's wallet change output must remain spendable after paying fees.
   const childOutputMinValue = toNumber(dustThreshold(changeOutput)) + 1;
@@ -550,7 +553,7 @@ export const estimateCpfpPackage = ({
     0
   );
   const childVSize = estimateCpfpChildVSize(utxosData, changeOutput);
-  if (parentTx.version === 3 && childVSize > MAX_TRUC_CHILD_VSIZE) return; //FIXME: throw some message?
+  if (parentTx.version === 3 && childVSize > MAX_P2A_TRUC_CHILD_VSIZE) return; //FIXME: throw some message?
 
   const totalPackageVSize = parentVSize + childVSize;
   const totalTargetFee = Math.ceil(targetEffectiveFeeRate * totalPackageVSize);
@@ -968,7 +971,7 @@ const signPsbt = async (signer: Signer, network: Network, psbtVault: Psbt) => {
   signers.signBIP32({ psbt: psbtVault, masterNode });
 };
 
-export const NON_TRUC_P2A_ANCHOR_VALUE = BigInt(330);
+export const P2A_NON_TRUC_ANCHOR_VALUE = BigInt(330);
 
 type OutputTarget = {
   output: OutputInstance;
@@ -1092,8 +1095,8 @@ export const getTriggerReserveUtxoData = ({
   };
 };
 
-const getMinimumVaultTxFeeRate = (vaultMode: 'TRUC' | 'NON_TRUC') =>
-  vaultMode === 'TRUC' ? 0 : MIN_FEE_RATE;
+const getMinimumVaultTxFeeRate = (vaultMode: 'P2A_TRUC' | 'P2A_NON_TRUC') =>
+  vaultMode === 'P2A_TRUC' ? 0 : MIN_FEE_RATE;
 
 const getPresignedTriggerParentFee = (presignedTriggerFeeRate: number) =>
   BigInt(Math.ceil(Math.max(...TRIGGER_TX_VBYTES) * presignedTriggerFeeRate));
@@ -1135,7 +1138,7 @@ export const coinSelectVaultTx = moize.shallow(
     triggerReserveValue: bigint;
     changeOutput: OutputInstance;
     effectiveFeeRate: number;
-    vaultMode: 'TRUC' | 'NON_TRUC';
+    vaultMode: 'P2A_TRUC' | 'P2A_NON_TRUC';
     vaultedAmount: bigint | 'MAX_FUNDS';
     shiftFeesToBackupEnd?: boolean;
   }) => {
@@ -1196,7 +1199,7 @@ export const coinSelectVaultTx = moize.shallow(
  * needed so all three outputs implied by a new vault remain valid:
  * - the vault output itself must stay above dust
  * - the trigger output must stay above dust after subtracting any required
- *   parent fee and non-TRUC anchor
+ *   parent fee and P2A_NON_TRUC anchor
  * - the panic output must stay above dust after subtracting everything that
  *   must already be paid before panic can exist
  *
@@ -1221,9 +1224,9 @@ export const estimateMinimumRequiredVaultedAmount = moize.shallow(
     network: Network;
     /**
      * Structural parent mode.
-     * TRUC means v3 + 0-sat anchor, NON_TRUC means v2 + funded anchor.
+     * P2A_TRUC means v3 + 0-sat anchor, P2A_NON_TRUC means v2 + funded anchor.
      */
-    vaultMode: 'TRUC' | 'NON_TRUC';
+    vaultMode: 'P2A_TRUC' | 'P2A_NON_TRUC';
     /** Fee rate baked directly into the trigger parent transaction. */
     presignedTriggerFeeRate: number;
     /** Fee rate baked directly into the rescue parent transaction. */
@@ -1248,7 +1251,7 @@ export const estimateMinimumRequiredVaultedAmount = moize.shallow(
       network
     });
     const anchorValue =
-      vaultMode === 'TRUC' ? BigInt(0) : NON_TRUC_P2A_ANCHOR_VALUE;
+      vaultMode === 'P2A_TRUC' ? BigInt(0) : P2A_NON_TRUC_ANCHOR_VALUE;
     const triggerParentFee = getPresignedTriggerParentFee(
       presignedTriggerFeeRate
     );
@@ -1304,7 +1307,7 @@ const coinSelectInitialVaultTx = ({
   minBackupFeeBudget?: bigint;
   changeOutput: OutputInstance;
   feeRate: number;
-  /** this is typically 0.1 but can be 0 for TRUC */
+  /** this is typically 0.1 but can be 0 for P2A_TRUC */
   minimumFeeRate: number;
 }) => {
   const utxos = getOutputsWithValue(utxosData);
@@ -1436,9 +1439,9 @@ export const buildVaultTxContext = async ({
   vaultIndex: number;
   /**
    * Structural parent mode.
-   * TRUC means v3 + 0-sat anchor, NON_TRUC means v2 + funded anchor.
+   * P2A_TRUC means v3 + 0-sat anchor, P2A_NON_TRUC means v2 + funded anchor.
    */
-  vaultMode: 'TRUC' | 'NON_TRUC';
+  vaultMode: 'P2A_TRUC' | 'P2A_NON_TRUC';
   /** Fee rate baked directly into the trigger parent transaction. */
   presignedTriggerFeeRate: number;
   /** Trigger package-feerate ceiling used to size the dedicated reserve. */
@@ -1546,9 +1549,9 @@ export const createVault = async ({
   vaultIndex: number;
   /**
    * Structural parent mode.
-   * TRUC means v3 + 0-sat anchor, NON_TRUC means v2 + funded anchor.
+   * P2A_TRUC means v3 + 0-sat anchor, P2A_NON_TRUC means v2 + funded anchor.
    */
-  vaultMode: 'TRUC' | 'NON_TRUC';
+  vaultMode: 'P2A_TRUC' | 'P2A_NON_TRUC';
   shiftFeesToBackupEnd?: boolean;
   networkId: NetworkId;
 }) => {
@@ -1596,7 +1599,7 @@ export const createVault = async ({
     );
   const psbtVault = new Psbt({ network });
 
-  psbtVault.setVersion(vaultMode === 'TRUC' ? 3 : 2);
+  psbtVault.setVersion(vaultMode === 'P2A_TRUC' ? 3 : 2);
 
   //Add the inputs to psbtVault:
   const vaultFinalizers = [];
@@ -1648,14 +1651,14 @@ export const createVault = async ({
   const panicParentFee = getPresignedRescueParentFee(presignedRescueFeeRate);
   const triggerOutputValue =
     vaultedAmount -
-    (vaultMode === 'TRUC' ? BigInt(0) : NON_TRUC_P2A_ANCHOR_VALUE) -
+    (vaultMode === 'P2A_TRUC' ? BigInt(0) : P2A_NON_TRUC_ANCHOR_VALUE) -
     triggerParentFee;
   const triggerDust = dustThreshold(triggerOutputPanicPath);
   if (triggerOutputValue <= triggerDust)
     return `COINSELECT_ERROR: trigger output below dust ${triggerOutputValue} <= ${triggerDust}`;
 
   const psbtTrigger = new Psbt({ network });
-  psbtTrigger.setVersion(vaultMode === 'TRUC' ? 3 : 2);
+  psbtTrigger.setVersion(vaultMode === 'P2A_TRUC' ? 3 : 2);
   //Add the input (vaultOutput) to psbtTrigger as input:
   const triggerInputFinalizer = vaultOutput.updatePsbtAsInput({
     psbt: psbtTrigger,
@@ -1668,7 +1671,8 @@ export const createVault = async ({
   }); //vout: 0
   psbtTrigger.addOutput({
     script: P2A_OUTPUT_SCRIPT,
-    value: vaultMode === 'TRUC' ? BigInt(0) : NON_TRUC_P2A_ANCHOR_VALUE
+    value:
+      vaultMode === 'P2A_TRUC' ? BigInt(0) : P2A_NON_TRUC_ANCHOR_VALUE
   }); //vout: 1
   signPsbt(randomSigner, network, psbtTrigger);
   triggerInputFinalizer({ psbt: psbtTrigger });
@@ -1679,7 +1683,7 @@ export const createVault = async ({
     throw new Error(`Unexpected trigger vsize: ${triggerVsize}`);
 
   const psbtPanic = new Psbt({ network });
-  psbtPanic.setVersion(vaultMode === 'TRUC' ? 3 : 2);
+  psbtPanic.setVersion(vaultMode === 'P2A_TRUC' ? 3 : 2);
   const panicInputFinalizer = triggerOutputPanicPath.updatePsbtAsInput({
     psbt: psbtPanic,
     txHex: triggerTxHex,
@@ -1691,7 +1695,7 @@ export const createVault = async ({
   });
   const panicOutputValue =
     triggerOutputValue -
-    (vaultMode === 'TRUC' ? BigInt(0) : NON_TRUC_P2A_ANCHOR_VALUE) -
+    (vaultMode === 'P2A_TRUC' ? BigInt(0) : P2A_NON_TRUC_ANCHOR_VALUE) -
     panicParentFee;
   const panicDust = dustThreshold(coldOutput);
   if (panicOutputValue <= panicDust)
@@ -1699,7 +1703,8 @@ export const createVault = async ({
   coldOutput.updatePsbtAsOutput({ psbt: psbtPanic, value: panicOutputValue }); //vout: 0
   psbtPanic.addOutput({
     script: P2A_OUTPUT_SCRIPT,
-    value: vaultMode === 'TRUC' ? BigInt(0) : NON_TRUC_P2A_ANCHOR_VALUE
+    value:
+      vaultMode === 'P2A_TRUC' ? BigInt(0) : P2A_NON_TRUC_ANCHOR_VALUE
   }); //vout: 1
   signPsbt(randomSigner, network, psbtPanic);
   panicInputFinalizer({ psbt: psbtPanic });
@@ -2111,7 +2116,7 @@ async function fetchVaultStatus(
   if (triggerTxData) {
     newVaultStatus.triggerTxHex = triggerTxData.txHex;
     newVaultStatus.triggerTxBlockHeight = triggerTxData.blockHeight;
-    if (vaultMode === 'LEGACY') delete newVaultStatus.triggerCpfpTxHex;
+    if (vaultMode === 'LADDERED') delete newVaultStatus.triggerCpfpTxHex;
     else {
       const triggerCpfpTxData = await fetchSpendingTx(
         triggerTxData.txHex,
@@ -2155,7 +2160,7 @@ async function fetchVaultStatus(
       if (panicTxHex) {
         newVaultStatus.panicTxHex = unlockingTxData.txHex;
         newVaultStatus.panicTxBlockHeight = unlockingTxData.blockHeight;
-        if (vaultMode !== 'LEGACY') {
+        if (vaultMode !== 'LADDERED') {
           const panicCpfpTxData = await fetchSpendingTx(
             unlockingTxData.txHex,
             1,

@@ -100,7 +100,7 @@ export default function CreateVaultScreen({
     );
   const networkTimeout = settings.NETWORK_TIMEOUT;
   const vaultMode =
-    networkId === 'BITCOIN' ? 'TRUC' : settings.TESTING_VAULT_MODE;
+    networkId === 'BITCOIN' ? 'P2A_TRUC' : settings.TESTING_VAULT_MODE;
   const { locale, currency } = useLocalization();
   // We know settings are the correct ones in this Component
   const [progress, setProgress] = useState<number>(0);

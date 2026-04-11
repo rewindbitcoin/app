@@ -19,7 +19,7 @@ import { networks, type Network, Transaction } from 'bitcoinjs-lib';
 import { fromHex } from 'uint8array-tools';
 import { createAddressOutput } from '../dist/src/app/lib/vaultDescriptors';
 
-const NON_TRUC_P2A_ANCHOR_VALUE = 330; //FIXME: verify this is ok - better make this dynamic?
+const P2A_NON_TRUC_ANCHOR_VALUE = 330; //FIXME: verify this is ok - better make this dynamic?
 
 const DUMMY_ADDRESS = (network: Network) => {
   if (network === networks.bitcoin)
@@ -84,7 +84,7 @@ describe('vaults unit tests', () => {
     expect(descriptors).toEqual(expected.descriptors);
   });
 
-  test('getVaultMode infers TRUC from version 3 + 0-sat P2A', () => {
+  test('getVaultMode infers P2A_TRUC from version 3 + 0-sat P2A', () => {
     const triggerTxHex = createSyntheticTxHex({
       version: 3,
       mainOutputValue: 10000,
@@ -93,30 +93,30 @@ describe('vaults unit tests', () => {
     const vault = {
       triggerMap: { [triggerTxHex]: [] }
     } as unknown as Vault;
-    expect(getVaultMode(vault)).toBe('TRUC');
+    expect(getVaultMode(vault)).toBe('P2A_TRUC');
     expect(getTriggerAnchorOutputIndex(triggerTxHex)).toBe(1);
   });
 
-  test('getVaultMode infers NON_TRUC from non-zero P2A anchor', () => {
+  test('getVaultMode infers P2A_NON_TRUC from non-zero P2A anchor', () => {
     const triggerTxHex = createSyntheticTxHex({
       version: 2,
       mainOutputValue: 10000,
-      p2aValue: NON_TRUC_P2A_ANCHOR_VALUE
+      p2aValue: P2A_NON_TRUC_ANCHOR_VALUE
     });
     const panicTxHex = createSyntheticTxHex({
       version: 2,
       mainOutputValue: 9000,
-      p2aValue: NON_TRUC_P2A_ANCHOR_VALUE
+      p2aValue: P2A_NON_TRUC_ANCHOR_VALUE
     });
     const vault = {
       triggerMap: { [triggerTxHex]: [panicTxHex] }
     } as unknown as Vault;
-    expect(getVaultMode(vault)).toBe('NON_TRUC');
+    expect(getVaultMode(vault)).toBe('P2A_NON_TRUC');
     expect(getTriggerAnchorOutputIndex(triggerTxHex)).toBe(1);
     expect(getPanicAnchorOutputIndex(panicTxHex)).toBe(1);
   });
 
-  test('getVaultMode falls back to LEGACY when no P2A output exists', () => {
+  test('getVaultMode falls back to LADDERED when no P2A output exists', () => {
     const legacyTriggerTxHex = createSyntheticTxHex({
       version: 2,
       mainOutputValue: 10000
@@ -124,7 +124,7 @@ describe('vaults unit tests', () => {
     const legacyVault = {
       triggerMap: { [legacyTriggerTxHex]: [] }
     } as unknown as Vault;
-    expect(getVaultMode(legacyVault)).toBe('LEGACY');
+    expect(getVaultMode(legacyVault)).toBe('LADDERED');
     expect(getTriggerAnchorOutputIndex(legacyTriggerTxHex)).toBeUndefined();
   });
 
@@ -137,7 +137,7 @@ describe('vaults unit tests', () => {
     const parentTxHex = createSyntheticTxHex({
       version: 2,
       mainOutputValue: 12000,
-      p2aValue: NON_TRUC_P2A_ANCHOR_VALUE
+      p2aValue: P2A_NON_TRUC_ANCHOR_VALUE
     });
     const plan = estimateCpfpPackage({
       parentTxHex,
@@ -179,7 +179,7 @@ describe('vaults unit tests', () => {
       coldAddress,
       lockBlocks: 144,
       network: networks.regtest,
-      vaultMode: 'TRUC',
+      vaultMode: 'P2A_TRUC',
       presignedTriggerFeeRate: 0.1,
       presignedRescueFeeRate: 100
     });
@@ -187,7 +187,7 @@ describe('vaults unit tests', () => {
       coldAddress,
       lockBlocks: 144,
       network: networks.regtest,
-      vaultMode: 'TRUC',
+      vaultMode: 'P2A_TRUC',
       presignedTriggerFeeRate: 10,
       presignedRescueFeeRate: 100
     });
@@ -195,7 +195,7 @@ describe('vaults unit tests', () => {
     expect(minimumAtHighTriggerFee).toBeGreaterThan(minimumAtRelayFloor);
   });
 
-  test('estimateCpfpPackage enforces TRUC child size limit', () => {
+  test('estimateCpfpPackage enforces P2A_TRUC child size limit', () => {
     const network = networks.regtest;
     const changeOutput = createAddressOutput(
       DUMMY_ADDRESS(network),
@@ -228,7 +228,7 @@ describe('vaults unit tests', () => {
     const parentTxHex = createSyntheticTxHex({
       version: 2,
       mainOutputValue: 12000,
-      p2aValue: NON_TRUC_P2A_ANCHOR_VALUE
+      p2aValue: P2A_NON_TRUC_ANCHOR_VALUE
     });
     const utxosData = [createSyntheticUtxoData(1000)];
     const plan = estimateCpfpPackage({

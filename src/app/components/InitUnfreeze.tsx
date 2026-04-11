@@ -36,6 +36,26 @@ import {
   type VaultActionTxData
 } from '../lib/vaultActionTx';
 
+const getP2ATriggerInfo = (
+  vault: Vault
+):
+  | {
+      txHex: string;
+      fee: number;
+      feeRate: number;
+    }
+  | null => {
+  const triggerTxHex = Object.keys(vault.triggerMap)[0];
+  if (!triggerTxHex) return null;
+  const triggerTxData = vault.txMap[triggerTxHex];
+  if (!triggerTxData) return null;
+  return {
+    txHex: triggerTxHex,
+    fee: triggerTxData.fee,
+    feeRate: triggerTxData.feeRate
+  };
+};
+
 const InitUnfreeze = ({
   vault,
   vaultStatus,
@@ -53,7 +73,7 @@ const InitUnfreeze = ({
 }) => {
   const { locale } = useLocalization();
   const vaultMode = useMemo(() => getVaultMode(vault), [vault]);
-  const isLegacyVault = vaultMode === 'LEGACY';
+  const isLadderedVault = vaultMode === 'LADDERED';
   const isAccelerationAttempt =
     !!vaultStatus?.triggerPushTime || vaultStatus?.triggerTxBlockHeight === 0;
   const { t } = useTranslation();
@@ -72,7 +92,7 @@ const InitUnfreeze = ({
   // existing fee-bump child. `null` means we cannot compute that floor yet.
   const replacementFeeRateFloor = useMemo<number | null>(() => {
     if (!isAccelerationAttempt) return null;
-    if (isLegacyVault) {
+    if (isLadderedVault) {
       if (!vaultStatus?.triggerTxHex) return null;
       const { tx } = transactionFromHex(vaultStatus.triggerTxHex);
       const outValue = tx.outs[0]?.value;
@@ -80,10 +100,8 @@ const InitUnfreeze = ({
         throw new Error('Invalid triggerTxHex');
       return (vault.vaultedAmount - toNumber(outValue)) / tx.virtualSize() + 1;
     } else {
-      const triggerTxHex = vaultStatus?.triggerTxHex;
-      if (!triggerTxHex) return null;
-      const triggerTxData = vault.txMap[triggerTxHex];
-      if (!triggerTxData) return null;
+      const triggerInfo = getP2ATriggerInfo(vault);
+      if (!triggerInfo) return null;
       const triggerCpfpTxHex = vaultStatus?.triggerCpfpTxHex;
       const signer = signers?.[0];
       if (!triggerCpfpTxHex || !signer || !networkId || !accounts) return null;
@@ -94,8 +112,8 @@ const InitUnfreeze = ({
         network
       });
       return getCpfpReplacementFeeRateFloor({
-        parentTxHex: triggerTxHex,
-        parentFee: triggerTxData.fee,
+        parentTxHex: triggerInfo.txHex,
+        parentFee: triggerInfo.fee,
         previousChildTxHex: triggerCpfpTxHex,
         historyData,
         feeEstimates,
@@ -108,7 +126,7 @@ const InitUnfreeze = ({
     }
   }, [
     isAccelerationAttempt,
-    isLegacyVault,
+    isLadderedVault,
     vaultStatus,
     vault,
     accounts,
@@ -119,7 +137,7 @@ const InitUnfreeze = ({
   ]);
 
   const legacyTriggerSortedTxs = useMemo(() => {
-    if (!isLegacyVault) return [];
+    if (!isLadderedVault) return [];
     return Object.entries(vault.triggerMap)
       .map(([triggerTxHex]) => {
         const txData = vault.txMap[triggerTxHex];
@@ -132,7 +150,7 @@ const InitUnfreeze = ({
         };
       })
       .sort((a, b) => a.actionFeeRate - b.actionFeeRate);
-  }, [vault, isLegacyVault]);
+  }, [vault, isLadderedVault]);
 
   const maxFeeRate = feeEstimates ? computeMaxAllowedFeeRate(feeEstimates) : 0;
   const { settings } = useSettings();
@@ -170,7 +188,7 @@ const InitUnfreeze = ({
 
   const buildTxDataForFeeRate = useCallback(
     (selectedFeeRate: number): VaultActionTxData | null => {
-      if (isLegacyVault)
+      if (isLadderedVault)
         return findNextEqualOrLargerActionFeeRate(
           legacyTriggerSortedTxs,
           selectedFeeRate
@@ -178,10 +196,8 @@ const InitUnfreeze = ({
       else {
         const signer = signers?.[0];
         if (!networkId || !signer || !accounts) return null;
-        const triggerTxHex = Object.keys(vault.triggerMap)[0];
-        if (!triggerTxHex) return null;
-        const triggerTxData = vault.txMap[triggerTxHex];
-        if (!triggerTxData) throw new Error('trigger tx not mapped');
+        const triggerInfo = getP2ATriggerInfo(vault);
+        if (!triggerInfo) return null;
         const network = networkMapping[networkId];
         const triggerReserveUtxoData = getTriggerReserveUtxoData({
           vault,
@@ -200,23 +216,23 @@ const InitUnfreeze = ({
           if (!previousChildTxHex || !historyData?.length) return null;
         }
         const plan = estimateCpfpPackage({
-          parentTxHex: triggerTxHex,
-          parentFee: triggerTxData.fee,
+          parentTxHex: triggerInfo.txHex,
+          parentFee: triggerInfo.fee,
           targetEffectiveFeeRate: selectedFeeRate,
           utxosData: [triggerReserveUtxoData],
           changeOutput
         });
         if (!plan) return null;
         return {
-          parentTxHex: triggerTxHex,
-          parentTxFee: triggerTxData.fee,
+          parentTxHex: triggerInfo.txHex,
+          parentTxFee: triggerInfo.fee,
           actionFee: plan.totalFee,
           actionFeeRate: plan.effectiveFeeRate
         };
       }
     },
     [
-      isLegacyVault,
+      isLadderedVault,
       legacyTriggerSortedTxs,
       accounts,
       networkId,
@@ -229,7 +245,7 @@ const InitUnfreeze = ({
   );
 
   const minimumSelectableFeeRate = useMemo(() => {
-    if (isLegacyVault)
+    if (isLadderedVault)
       return isAccelerationAttempt
         ? replacementFeeRateFloor
         : (legacyTriggerSortedTxs[0]?.actionFeeRate ?? MIN_FEE_RATE);
@@ -240,7 +256,7 @@ const InitUnfreeze = ({
       canBuildAtFeeRate: feeRate => buildTxDataForFeeRate(feeRate) !== null
     });
   }, [
-    isLegacyVault,
+    isLadderedVault,
     isAccelerationAttempt,
     replacementFeeRateFloor,
     legacyTriggerSortedTxs,

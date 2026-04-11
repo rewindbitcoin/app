@@ -151,7 +151,7 @@ export default function VaultSetUp({
   }, [getNextChangeDescriptorWithIndex, network, accounts]);
 
   const vaultMode =
-    networkId === 'BITCOIN' ? 'TRUC' : settings.TESTING_VAULT_MODE;
+    networkId === 'BITCOIN' ? 'P2A_TRUC' : settings.TESTING_VAULT_MODE;
   const maxFeeRate = computeMaxAllowedFeeRate(feeEstimates);
   const minimumEffectiveFeeRate = MIN_FEE_RATE;
   const { feeEstimate: pickedInitialFeeRate } = pickFeeEstimate(

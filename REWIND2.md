@@ -225,13 +225,17 @@ reveal the important presigned transactions on-chain.
 
 In code there are three vault modes:
 
-- `LEGACY`
-- `TRUC`
-- `NON_TRUC`
+- `LADDERED`
+- `P2A_TRUC`
+- `P2A_NON_TRUC`
 
-Rewind2 itself uses `TRUC` or `NON_TRUC`.
+Rewind2 itself uses `P2A_TRUC` or `P2A_NON_TRUC`.
 
-`LEGACY` is only for older vaults created before Rewind2.
+`LADDERED` is only for older vaults created before Rewind2.
+
+Human shorthand in this document still says `TRUC` / `NON_TRUC`, because those
+are the underlying package styles. The code-level mode names are just more
+explicit about the fact that these are the P2A fee-bump variants.
 
 ### TRUC
 

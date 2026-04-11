@@ -97,9 +97,9 @@ export interface Settings {
   BLOCKCHAIN_DATA_REFRESH_INTERVAL_MS: number;
   /**
    * Mode used for all testing networks (TESTNET/TAPE/REGTEST).
-   * Mainnet is always TRUC and does not use this setting.
+   * Mainnet is always P2A_TRUC and does not use this setting.
    */
-  TESTING_VAULT_MODE: 'TRUC' | 'NON_TRUC';
+  TESTING_VAULT_MODE: 'P2A_TRUC' | 'P2A_NON_TRUC';
   WALLETS_DATA_VERSION: string;
 
   REGTEST_HOST_NAME: string;
@@ -174,7 +174,7 @@ export const defaultSettings: Settings = {
       : 'USD',
   BTC_FIAT_REFRESH_INTERVAL_MS: 60000, //1 minutes
   BLOCKCHAIN_DATA_REFRESH_INTERVAL_MS: 60000, // 1 minute
-  TESTING_VAULT_MODE: 'NON_TRUC',
+  TESTING_VAULT_MODE: 'P2A_NON_TRUC',
   WALLETS_DATA_VERSION: '1.0.0', //This does not define the version of the App, but keeps track of the changes in the signature of the Wallet
 
   REGTEST_HOST_NAME: REGTEST_HOST_NAME,

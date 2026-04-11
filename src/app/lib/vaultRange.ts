@@ -47,7 +47,7 @@ export const estimateMaxVaultAmount = moize.shallow(
     triggerReserveOutput: OutputInstance;
     triggerReserveValue: bigint;
     changeOutput: OutputInstance;
-    vaultMode: 'TRUC' | 'NON_TRUC';
+    vaultMode: 'P2A_TRUC' | 'P2A_NON_TRUC';
     effectiveFeeRate: number;
   }): VaultAmountEstimate | undefined => {
     const selected = coinSelectVaultTx({
@@ -112,9 +112,9 @@ const estimateMinimumVaultAmount = moize.shallow(
     effectiveFeeRate: number;
     /**
      * Structural parent mode.
-     * TRUC means v3 + 0-sat anchor, NON_TRUC means v2 + funded anchor.
+     * P2A_TRUC means v3 + 0-sat anchor, P2A_NON_TRUC means v2 + funded anchor.
      */
-    vaultMode: 'TRUC' | 'NON_TRUC';
+    vaultMode: 'P2A_TRUC' | 'P2A_NON_TRUC';
     /** Fee rate baked directly into the trigger parent transaction. */
     presignedTriggerFeeRate: number;
     /** Fee rate baked directly into the rescue parent transaction. */
@@ -169,7 +169,7 @@ const estimateMinimumVaultAmount = moize.shallow(
         getMinBackupFeeBudget(effectiveFeeRate, backupOutput)
       );
       const triggerReserveAmount = toNumber(triggerReserveValue);
-      const vaultTxFeeRate = vaultMode === 'TRUC' ? 0 : MIN_FEE_RATE;
+      const vaultTxFeeRate = vaultMode === 'P2A_TRUC' ? 0 : MIN_FEE_RATE;
       return {
         vaultedAmount,
         //FIXME: this is not an effective fee - in fact this is then displayed
@@ -206,9 +206,9 @@ export const estimateVaultSetupRange = moize.shallow(
     network: Network;
     /**
      * Structural parent mode.
-     * TRUC means v3 + 0-sat anchor, NON_TRUC means v2 + funded anchor.
+     * P2A_TRUC means v3 + 0-sat anchor, P2A_NON_TRUC means v2 + funded anchor.
      */
-    vaultMode: 'TRUC' | 'NON_TRUC';
+    vaultMode: 'P2A_TRUC' | 'P2A_NON_TRUC';
     /** Fee rate baked directly into the trigger parent transaction. */
     presignedTriggerFeeRate: number;
     /** Fee rate baked directly into the rescue parent transaction. */

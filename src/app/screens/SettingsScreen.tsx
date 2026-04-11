@@ -498,13 +498,13 @@ const SettingsScreen = () => {
     settings?.TESTING_VAULT_MODE ?? defaultSettings.TESTING_VAULT_MODE;
 
   const currentVaultModeLabel =
-    currentVaultMode === 'TRUC'
+    currentVaultMode === 'P2A_TRUC'
       ? t('settings.general.vaultModeRealisticTruc')
       : t('settings.general.vaultModeFastDemo');
 
   /** Saves vault mode for all testing networks. */
   const setTestingVaultMode = useCallback(
-    (mode: 'TRUC' | 'NON_TRUC') => {
+    (mode: 'P2A_TRUC' | 'P2A_NON_TRUC') => {
       if (!settings) return;
       setSettings({ ...settings, TESTING_VAULT_MODE: mode });
       setIsVaultModeModalVisible(false);
@@ -1052,21 +1052,21 @@ const SettingsScreen = () => {
               {t('settings.general.vaultModeHelp')}
             </Text>
             <Pressable
-              onPress={() => setTestingVaultMode('NON_TRUC')}
-              className={`py-2 px-4 rounded-lg ${currentVaultMode === 'NON_TRUC' ? 'bg-primary' : 'bg-gray-200'} my-1`}
+              onPress={() => setTestingVaultMode('P2A_NON_TRUC')}
+              className={`py-2 px-4 rounded-lg ${currentVaultMode === 'P2A_NON_TRUC' ? 'bg-primary' : 'bg-gray-200'} my-1`}
             >
               <Text
-                className={`${currentVaultMode === 'NON_TRUC' ? 'text-white' : 'text-black'} text-center`}
+                className={`${currentVaultMode === 'P2A_NON_TRUC' ? 'text-white' : 'text-black'} text-center`}
               >
                 {t('settings.general.vaultModeFastDemo')}
               </Text>
             </Pressable>
             <Pressable
-              onPress={() => setTestingVaultMode('TRUC')}
-              className={`py-2 px-4 rounded-lg ${currentVaultMode === 'TRUC' ? 'bg-primary' : 'bg-gray-200'} my-1`}
+              onPress={() => setTestingVaultMode('P2A_TRUC')}
+              className={`py-2 px-4 rounded-lg ${currentVaultMode === 'P2A_TRUC' ? 'bg-primary' : 'bg-gray-200'} my-1`}
             >
               <Text
-                className={`${currentVaultMode === 'TRUC' ? 'text-white' : 'text-black'} text-center`}
+                className={`${currentVaultMode === 'P2A_TRUC' ? 'text-white' : 'text-black'} text-center`}
               >
                 {t('settings.general.vaultModeRealisticTruc')}
               </Text>
