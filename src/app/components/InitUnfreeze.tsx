@@ -136,7 +136,7 @@ const InitUnfreeze = ({
     signers
   ]);
 
-  const legacyTriggerSortedTxs = useMemo(() => {
+  const ladderedTriggerSortedTxs = useMemo(() => {
     if (!isLadderedVault) return [];
     return Object.entries(vault.triggerMap)
       .map(([triggerTxHex]) => {
@@ -190,7 +190,7 @@ const InitUnfreeze = ({
     (selectedFeeRate: number): VaultActionTxData | null => {
       if (isLadderedVault)
         return findNextEqualOrLargerActionFeeRate(
-          legacyTriggerSortedTxs,
+          ladderedTriggerSortedTxs,
           selectedFeeRate
         );
       else {
@@ -233,7 +233,7 @@ const InitUnfreeze = ({
     },
     [
       isLadderedVault,
-      legacyTriggerSortedTxs,
+      ladderedTriggerSortedTxs,
       accounts,
       networkId,
       vault,
@@ -248,7 +248,7 @@ const InitUnfreeze = ({
     if (isLadderedVault)
       return isAccelerationAttempt
         ? replacementFeeRateFloor
-        : (legacyTriggerSortedTxs[0]?.actionFeeRate ?? MIN_FEE_RATE);
+        : (ladderedTriggerSortedTxs[0]?.actionFeeRate ?? MIN_FEE_RATE);
     if (isAccelerationAttempt) return replacementFeeRateFloor;
     return findMinimumActionableFeeRate({
       minimumFeeRate: MIN_FEE_RATE,
@@ -259,7 +259,7 @@ const InitUnfreeze = ({
     isLadderedVault,
     isAccelerationAttempt,
     replacementFeeRateFloor,
-    legacyTriggerSortedTxs,
+    ladderedTriggerSortedTxs,
     maxFeeRate,
     buildTxDataForFeeRate
   ]);

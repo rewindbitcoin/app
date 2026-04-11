@@ -128,25 +128,25 @@ export type Vault = {
   vaultPath: string;
   /** The value locked in the vault output after the vault tx is mined. */
   vaultedAmount: number;
-  /** Legacy compatibility only. Rewind2 vault creation does not use it. */
+  /** Laddered (legacy) compatibility only. New P2A vault creation does not use it. */
   serviceFee?: number;
 
   vaultAddress: string;
   triggerAddress: string;
   coldAddress: string;
 
-  /** Legacy compatibility only. Rewind2 vault creation does not use it. */
+  /** Laddered (legacy) compatibility only. New P2A vault creation does not use it. */
   feeRateCeiling?: number;
   lockBlocks: number;
 
   vaultTxHex: string;
 
   txMap: TxMap;
-  triggerMap: TriggerMap; //In Legacy maps length ~80 txs. In Rewind2 length=1
+  triggerMap: TriggerMap; // In laddered vaults length ~80 txs. In P2A vaults length=1
 
   networkId: NetworkId;
 
-  /** Legacy compatibility only. Rewind2 vault creation does not use it. */
+  /** Laddered (legacy) compatibility only. New P2A vault creation does not use it. */
   minPanicAmount?: number;
 
   /**

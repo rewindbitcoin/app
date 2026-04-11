@@ -39,14 +39,14 @@ export type VaultActionTxData = {
 
   /**
    * Miner fee of the parent tx only.
-   * - Legacy: this is also the action fee.
+   * - Laddered (legacy): this is also the action fee.
    * - Rewind2: action fee may include CPFP child fee too.
    */
   parentTxFee: number;
 
   /**
    * Fee of the thing the user is about to submit.
-   * - Legacy: parent tx fee
+   * - Laddered (legacy): parent tx fee
    * - Rewind2 parent-only: parent tx fee
    * - Rewind2 with CPFP: parent + child package fee
    */
@@ -54,7 +54,7 @@ export type VaultActionTxData = {
 
   /**
    * Fee rate of the thing the user is about to submit.
-   * - Legacy: parent tx feerate
+   * - Laddered (legacy): parent tx feerate
    * - Rewind2 parent-only: parent tx feerate
    * - Rewind2 with CPFP: parent + child package feerate
    */

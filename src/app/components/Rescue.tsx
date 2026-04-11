@@ -129,7 +129,7 @@ const Rescue = ({
     emergencyBumpPlan
   ]);
 
-  const legacyRescueSortedTxs = useMemo(() => {
+  const ladderedRescueSortedTxs = useMemo(() => {
     if (!isLadderedVault) return [];
     if (!isVisible) return [];
     const triggerTxHex = vaultStatus?.triggerTxHex;
@@ -222,7 +222,7 @@ const Rescue = ({
     if (isLadderedVault)
       return isAccelerationAttempt
         ? replacementFeeRateFloor
-        : (legacyRescueSortedTxs[0]?.actionFeeRate ?? MIN_FEE_RATE);
+        : (ladderedRescueSortedTxs[0]?.actionFeeRate ?? MIN_FEE_RATE);
     if (!emergencyBumpPlan) return null;
     const rescueInfo = getP2ARescueInfo(vault, vaultStatus?.triggerTxHex);
     if (!rescueInfo) return null;
@@ -233,7 +233,7 @@ const Rescue = ({
     isLadderedVault,
     isAccelerationAttempt,
     replacementFeeRateFloor,
-    legacyRescueSortedTxs,
+    ladderedRescueSortedTxs,
     emergencyBumpPlan,
     vault,
     vaultStatus?.triggerTxHex,
@@ -244,7 +244,7 @@ const Rescue = ({
     (selectedFeeRate: number): VaultActionTxData | null => {
       if (isLadderedVault)
         return findNextEqualOrLargerActionFeeRate(
-          legacyRescueSortedTxs,
+          ladderedRescueSortedTxs,
           selectedFeeRate
         );
       if (!isVisible) return null;
@@ -277,7 +277,7 @@ const Rescue = ({
     },
     [
         isLadderedVault,
-      legacyRescueSortedTxs,
+      ladderedRescueSortedTxs,
       isVisible,
       vault,
       vaultStatus?.triggerTxHex,

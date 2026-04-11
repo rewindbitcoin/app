@@ -117,15 +117,15 @@ describe('vaults unit tests', () => {
   });
 
   test('getVaultMode falls back to LADDERED when no P2A output exists', () => {
-    const legacyTriggerTxHex = createSyntheticTxHex({
+    const ladderedTriggerTxHex = createSyntheticTxHex({
       version: 2,
       mainOutputValue: 10000
     });
-    const legacyVault = {
-      triggerMap: { [legacyTriggerTxHex]: [] }
+    const ladderedVault = {
+      triggerMap: { [ladderedTriggerTxHex]: [] }
     } as unknown as Vault;
-    expect(getVaultMode(legacyVault)).toBe('LADDERED');
-    expect(getTriggerAnchorOutputIndex(legacyTriggerTxHex)).toBeUndefined();
+    expect(getVaultMode(ladderedVault)).toBe('LADDERED');
+    expect(getTriggerAnchorOutputIndex(ladderedTriggerTxHex)).toBeUndefined();
   });
 
   test('estimateCpfpPackage computes effective package fee data', () => {
@@ -153,7 +153,7 @@ describe('vaults unit tests', () => {
     expect(plan.effectiveFeeRate).toBeGreaterThanOrEqual(2);
   });
 
-  test('estimateCpfpPackage returns undefined for legacy parent tx', () => {
+  test('estimateCpfpPackage returns undefined for laddered parent tx', () => {
     const network = networks.regtest;
     const changeOutput = createAddressOutput(
       DUMMY_ADDRESS(network),
