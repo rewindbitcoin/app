@@ -48,7 +48,7 @@ import InitUnfreeze from './InitUnfreeze';
 import Rescue from './Rescue';
 import {
   getMinimumReplacementChildFee,
-  getPreviousCpfpChildData,
+  getCpfpChildData,
   getCpfpReplacementFeeRateFloor,
   type PreparedCpfpPlan,
   type VaultActionTxData
@@ -446,18 +446,18 @@ const RawVault = ({
                 throw new Error(
                   'Missing trigger history to validate replacement fee'
                 );
-              const previousCpfpData = getPreviousCpfpChildData({
+              const previousChildData = getCpfpChildData({
                 parentTxHex: initUnfreezeData.parentTxHex,
                 parentFee: initUnfreezeData.parentTxFee,
-                previousChildTxHex,
+                childTxHex: previousChildTxHex,
                 historyData
               });
-              if (!previousCpfpData)
+              if (!previousChildData)
                 throw new Error(
                   'Cannot reconstruct previous trigger fee-payer transaction'
                 );
               const minimumReplacementChildFee = getMinimumReplacementChildFee({
-                previousChildFee: previousCpfpData.childFee,
+                previousChildFee: previousChildData.childFee,
                 replacementChildVSize: childTxData.childVSize
               });
               if (childTxData.childFee < minimumReplacementChildFee)
@@ -588,18 +588,18 @@ const RawVault = ({
                 throw new Error(
                   'Missing rescue history to validate replacement fee'
                 );
-              const previousCpfpData = getPreviousCpfpChildData({
+              const previousChildData = getCpfpChildData({
                 parentTxHex: rescueData.parentTxHex,
                 parentFee: rescueData.parentTxFee,
-                previousChildTxHex,
+                childTxHex: previousChildTxHex,
                 historyData
               });
-              if (!previousCpfpData)
+              if (!previousChildData)
                 throw new Error(
                   'Cannot reconstruct previous rescue fee-payer transaction'
                 );
               const minimumReplacementChildFee = getMinimumReplacementChildFee({
-                previousChildFee: previousCpfpData.childFee,
+                previousChildFee: previousChildData.childFee,
                 replacementChildVSize: childTxData.childVSize
               });
               if (childTxData.childFee < minimumReplacementChildFee)

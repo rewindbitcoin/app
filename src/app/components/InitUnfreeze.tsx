@@ -36,24 +36,12 @@ import {
   type VaultActionTxData
 } from '../lib/vaultActionTx';
 
-const getP2ATriggerInfo = (
-  vault: Vault
-):
-  | {
-      txHex: string;
-      fee: number;
-      feeRate: number;
-    }
-  | null => {
-  const triggerTxHex = Object.keys(vault.triggerMap)[0];
-  if (!triggerTxHex) return null;
-  const triggerTxData = vault.txMap[triggerTxHex];
+const getP2ATriggerInfo = (vault: Vault) => {
+  const txHex = Object.keys(vault.triggerMap)[0];
+  if (!txHex) return null;
+  const triggerTxData = vault.txMap[txHex];
   if (!triggerTxData) return null;
-  return {
-    txHex: triggerTxHex,
-    fee: triggerTxData.fee,
-    feeRate: triggerTxData.feeRate
-  };
+  return { txHex, fee: triggerTxData.fee, feeRate: triggerTxData.feeRate };
 };
 
 const InitUnfreeze = ({

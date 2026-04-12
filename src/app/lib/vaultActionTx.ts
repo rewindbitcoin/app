@@ -90,34 +90,33 @@ export const findNextEqualOrLargerActionFeeRate = <
 };
 
 /**
- * Reconstructs the previous CPFP child fee from wallet history.
+ * Reconstructs CPFP child data from wallet history.
  *
- * We need the exact old child fee because replacement policy checks absolute
- * fee deltas too. A higher effective fee rate alone is not enough. Example:
- * an old child paying 584 sats can still beat a new child paying 562 sats even
- * if the new package feerate is higher.
+ * Replacement logic uses this for the old child, but the helper itself is
+ * generic: given a parent and one attached CPFP child, it reconstructs the
+ * child's fee, size, and resulting package fee rate.
  */
-export const getPreviousCpfpChildData = ({
+export const getCpfpChildData = ({
   parentTxHex,
   parentFee,
-  previousChildTxHex,
+  childTxHex,
   historyData,
   anchorOutputIndex = 1
 }: {
   parentTxHex: TxHex;
   parentFee: number;
-  previousChildTxHex: TxHex;
+  childTxHex: TxHex;
   historyData: HistoryData;
   anchorOutputIndex?: number;
 }):
   | {
       childFee: number;
       childVSize: number;
-      effectiveFeeRate: number;
+      packageFeeRate: number;
     }
   | undefined => {
   const { tx: parentTx } = transactionFromHex(parentTxHex);
-  const { tx: previousChildTx } = transactionFromHex(previousChildTxHex);
+  const { tx: childTx } = transactionFromHex(childTxHex);
   const parentTxId = parentTx.getId();
   const anchorOutput = parentTx.outs[anchorOutputIndex];
   if (!anchorOutput) return;
@@ -125,7 +124,7 @@ export const getPreviousCpfpChildData = ({
   const txById = new Map(historyData.map(item => [item.txId, item.tx]));
   let childInputValue = BigInt(0);
 
-  for (const input of previousChildTx.ins) {
+  for (const input of childTx.ins) {
     const prevTxId = toHex(Uint8Array.from(input.hash).reverse());
     if (prevTxId === parentTxId && input.index === anchorOutputIndex) {
       childInputValue += anchorOutput.value;
@@ -137,18 +136,18 @@ export const getPreviousCpfpChildData = ({
     childInputValue += prevOut.value;
   }
 
-  const childOutputValue = previousChildTx.outs.reduce(
+  const childOutputValue = childTx.outs.reduce(
     (sum, output) => sum + output.value,
     BigInt(0)
   );
   if (childInputValue <= childOutputValue) return;
 
   const childFee = Number(childInputValue - childOutputValue);
-  const childVSize = previousChildTx.virtualSize();
+  const childVSize = childTx.virtualSize();
   return {
     childFee,
     childVSize,
-    effectiveFeeRate:
+    packageFeeRate:
       (parentFee + childFee) / (parentTx.virtualSize() + childVSize)
   };
 };
@@ -202,17 +201,17 @@ export const getCpfpReplacementFeeRateFloor = ({
 }): number | null => {
   if (!historyData?.length || !feeEstimates) return null;
 
-  const previousCpfpData = getPreviousCpfpChildData({
+  const previousChildData = getCpfpChildData({
     parentTxHex,
     parentFee,
-    previousChildTxHex,
+    childTxHex: previousChildTxHex,
     historyData
   });
-  if (!previousCpfpData) return null;
+  if (!previousChildData) return null;
 
   const maxFeeRate = computeMaxAllowedFeeRate(feeEstimates);
   for (
-    let targetEffectiveFeeRate = previousCpfpData.effectiveFeeRate + 1;
+    let targetEffectiveFeeRate = previousChildData.packageFeeRate + 1;
     targetEffectiveFeeRate <= maxFeeRate;
     targetEffectiveFeeRate = Number(
       (targetEffectiveFeeRate + FEE_RATE_STEP).toFixed(2)
@@ -229,7 +228,7 @@ export const getCpfpReplacementFeeRateFloor = ({
     if (
       plan.childFee >=
       getMinimumReplacementChildFee({
-        previousChildFee: previousCpfpData.childFee,
+        previousChildFee: previousChildData.childFee,
         replacementChildVSize: plan.childVSize,
         incrementalRelayFeeRate: INCREMENTAL_RELAY_FEE_RATE
       })

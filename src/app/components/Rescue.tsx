@@ -31,24 +31,13 @@ import {
   type VaultActionTxData
 } from '../lib/vaultActionTx';
 
-const getP2ARescueInfo = (
-  vault: Vault,
-  triggerTxHex: string | undefined
-): {
-  txHex: string;
-  fee: number;
-  feeRate: number;
-} | null => {
+const getP2ARescueInfo = (vault: Vault, triggerTxHex: string | undefined) => {
   if (!triggerTxHex) return null;
-  const rescueTxHex = vault.triggerMap[triggerTxHex]?.[0];
-  if (!rescueTxHex) return null;
-  const rescueTxData = vault.txMap[rescueTxHex];
+  const txHex = vault.triggerMap[triggerTxHex]?.[0];
+  if (!txHex) return null;
+  const rescueTxData = vault.txMap[txHex];
   if (!rescueTxData) return null;
-  return {
-    txHex: rescueTxHex,
-    fee: rescueTxData.fee,
-    feeRate: rescueTxData.feeRate
-  };
+  return { txHex, fee: rescueTxData.fee, feeRate: rescueTxData.feeRate };
 };
 
 const Rescue = ({
@@ -276,7 +265,7 @@ const Rescue = ({
       };
     },
     [
-        isLadderedVault,
+      isLadderedVault,
       ladderedRescueSortedTxs,
       isVisible,
       vault,
