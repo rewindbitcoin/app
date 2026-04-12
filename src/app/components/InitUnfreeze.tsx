@@ -30,7 +30,7 @@ import { DUMMY_CHANGE_OUTPUT, getMainAccount } from '../lib/vaultDescriptors';
 import { networkMapping } from '../lib/network';
 import {
   findMinimumActionableFeeRate,
-  findNextEqualOrLargerActionFeeRate,
+  findNextEqualOrLargerFeeRate,
   getCpfpReplacementFeeRateFloor,
   pickActionableInitialFeeRate,
   type VaultActionTxData
@@ -130,14 +130,9 @@ const InitUnfreeze = ({
       .map(([triggerTxHex]) => {
         const txData = vault.txMap[triggerTxHex];
         if (!txData) throw new Error('trigger tx not mapped');
-        return {
-          parentTxHex: triggerTxHex,
-          parentTxFee: txData.fee,
-          actionFee: txData.fee,
-          actionFeeRate: txData.feeRate
-        };
+        return { txHex: triggerTxHex, fee: txData.fee, feeRate: txData.feeRate };
       })
-      .sort((a, b) => a.actionFeeRate - b.actionFeeRate);
+      .sort((a, b) => a.feeRate - b.feeRate);
   }, [vault, isLadderedVault]);
 
   const maxFeeRate = feeEstimates ? computeMaxAllowedFeeRate(feeEstimates) : 0;
@@ -176,12 +171,19 @@ const InitUnfreeze = ({
 
   const buildTxDataForFeeRate = useCallback(
     (selectedFeeRate: number): VaultActionTxData | null => {
-      if (isLadderedVault)
-        return findNextEqualOrLargerActionFeeRate(
+      if (isLadderedVault) {
+        const triggerInfo = findNextEqualOrLargerFeeRate(
           ladderedTriggerSortedTxs,
           selectedFeeRate
         );
-      else {
+        if (!triggerInfo) return null;
+        return {
+          parentTxHex: triggerInfo.txHex,
+          parentTxFee: triggerInfo.fee,
+          actionFee: triggerInfo.fee,
+          actionFeeRate: triggerInfo.feeRate
+        };
+      } else {
         const signer = signers?.[0];
         if (!networkId || !signer || !accounts) return null;
         const triggerInfo = getP2ATriggerInfo(vault);
@@ -206,7 +208,7 @@ const InitUnfreeze = ({
         const plan = estimateCpfpPackage({
           parentTxHex: triggerInfo.txHex,
           parentFee: triggerInfo.fee,
-          targetEffectiveFeeRate: selectedFeeRate,
+          targetPackageFeeRate: selectedFeeRate,
           utxosData: [triggerReserveUtxoData],
           changeOutput
         });
@@ -214,8 +216,8 @@ const InitUnfreeze = ({
         return {
           parentTxHex: triggerInfo.txHex,
           parentTxFee: triggerInfo.fee,
-          actionFee: plan.totalFee,
-          actionFeeRate: plan.effectiveFeeRate
+          actionFee: plan.packageFee,
+          actionFeeRate: plan.packageFeeRate
         };
       }
     },
@@ -236,7 +238,7 @@ const InitUnfreeze = ({
     if (isLadderedVault)
       return isAccelerationAttempt
         ? replacementFeeRateFloor
-        : (ladderedTriggerSortedTxs[0]?.actionFeeRate ?? MIN_FEE_RATE);
+        : (ladderedTriggerSortedTxs[0]?.feeRate ?? MIN_FEE_RATE);
     if (isAccelerationAttempt) return replacementFeeRateFloor;
     return findMinimumActionableFeeRate({
       minimumFeeRate: MIN_FEE_RATE,

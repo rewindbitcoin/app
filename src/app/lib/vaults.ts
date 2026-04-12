@@ -333,18 +333,23 @@ type VaultAnchorChildTx = {
 };
 
 /**
- * Finds the P2A output index/value in a transaction.
+ * Finds the unique P2A output index/value in a transaction.
  *
  * Returns `undefined` when the tx has no P2A output.
+ * Throws when the tx has more than one P2A output.
  */
-const getP2AOutputData = (
+export const getP2AOutputData = (
   tx: Transaction
 ): { index: number; value: number } | undefined => {
-  const index = tx.outs.findIndex(
-    out => toHex(out.script) === P2A_OUTPUT_SCRIPT_HEX
-  );
-  if (index < 0) return;
-  const output = tx.outs[index];
+  const matchingOutputs = tx.outs
+    .map((output, index) => ({ output, index }))
+    .filter(({ output }) => toHex(output.script) === P2A_OUTPUT_SCRIPT_HEX);
+  if (matchingOutputs.length === 0) return;
+  if (matchingOutputs.length > 1)
+    throw new Error('Expected exactly one P2A output');
+  const firstMatch = matchingOutputs[0];
+  if (!firstMatch) return;
+  const { output, index } = firstMatch;
   if (!output) return;
   return { index, value: toNumber(output.value) };
 };
@@ -510,23 +515,23 @@ export const getRequiredTriggerReserveValue = ({
 };
 
 /**
- * Estimates a feasible Rewind2 parent+child CPFP package for a target
- * effective fee rate.
+ * Estimates a feasible parent+child CPFP package for a target
+ * package fee rate.
  *
- * The selected fee rate is interpreted as:
+ * The selected package fee rate is interpreted as:
  * `(parentFee + childFee) / (parentVSize + childVSize)`.
  */
 //FIXME: this one returns too much stuff....
 export const estimateCpfpPackage = ({
   parentTxHex,
   parentFee,
-  targetEffectiveFeeRate,
+  targetPackageFeeRate,
   utxosData = [],
   changeOutput
 }: {
   parentTxHex: TxHex;
   parentFee: number;
-  targetEffectiveFeeRate: number;
+  targetPackageFeeRate: number;
   utxosData?: UtxosData;
   changeOutput: OutputInstance;
 }):
@@ -538,8 +543,8 @@ export const estimateCpfpPackage = ({
       childVSize: number;
       childFee: number;
       childOutputValue: number;
-      totalFee: number;
-      effectiveFeeRate: number;
+      packageFee: number;
+      packageFeeRate: number;
     }
   | undefined => {
   const { tx: parentTx } = transactionFromHex(parentTxHex);
@@ -556,7 +561,7 @@ export const estimateCpfpPackage = ({
   if (parentTx.version === 3 && childVSize > MAX_P2A_TRUC_CHILD_VSIZE) return; //FIXME: throw some message?
 
   const totalPackageVSize = parentVSize + childVSize;
-  const totalTargetFee = Math.ceil(targetEffectiveFeeRate * totalPackageVSize);
+  const totalTargetFee = Math.ceil(targetPackageFeeRate * totalPackageVSize);
   // The package target alone is not enough. The child must also satisfy its own
   // tx-level minimum relay fee or package submission is rejected by the node.
   const childFee = Math.max(
@@ -566,7 +571,7 @@ export const estimateCpfpPackage = ({
   const childOutputValue = anchor.value + utxosValue - childFee;
   if (childOutputValue <= dust) return;
 
-  const totalFee = parentFee + childFee;
+  const packageFee = parentFee + childFee;
   return {
     anchorOutputIndex: anchor.index,
     anchorValue: anchor.value,
@@ -575,20 +580,20 @@ export const estimateCpfpPackage = ({
     childVSize,
     childFee,
     childOutputValue,
-    totalFee,
-    effectiveFeeRate: totalFee / totalPackageVSize
+    packageFee,
+    packageFeeRate: packageFee / totalPackageVSize
   };
 };
 
 /**
- * Builds and signs the Rewind2 CPFP child tx for a selected effective fee
+ * Builds and signs the Rewind2 CPFP child tx for a selected package fee
  * rate.
  */
 //FIXME: this function returns unneeded stuff
 export const createCpfpChildTx = async ({
   parentTxHex,
   parentFee,
-  targetEffectiveFeeRate,
+  targetPackageFeeRate,
   utxosData = [],
   changeOutput,
   signer,
@@ -596,7 +601,7 @@ export const createCpfpChildTx = async ({
 }: {
   parentTxHex: TxHex;
   parentFee: number;
-  targetEffectiveFeeRate: number;
+  targetPackageFeeRate: number;
   utxosData?: UtxosData;
   changeOutput: OutputInstance;
   signer: Signer;
@@ -607,15 +612,13 @@ export const createCpfpChildTx = async ({
       childTxId: TxId;
       childFee: number;
       childVSize: number;
-      totalFee: number;
-      effectiveFeeRate: number;
     }
   | undefined
 > => {
   const plan = estimateCpfpPackage({
     parentTxHex,
     parentFee,
-    targetEffectiveFeeRate,
+    targetPackageFeeRate,
     utxosData,
     changeOutput
   });
@@ -659,14 +662,11 @@ export const createCpfpChildTx = async ({
   const childVSize = tx.virtualSize();
   const childFee =
     plan.anchorValue + plan.utxosValue - toNumber(firstOutput.value);
-  const totalFee = parentFee + childFee;
   return {
     childTxHex: tx.toHex(),
     childTxId: tx.getId(),
     childFee,
-    childVSize,
-    totalFee,
-    effectiveFeeRate: totalFee / (parentTx.virtualSize() + childVSize)
+    childVSize
   };
 };
 

@@ -48,7 +48,7 @@ import InitUnfreeze from './InitUnfreeze';
 import Rescue from './Rescue';
 import {
   getMinimumReplacementChildFee,
-  getCpfpChildData,
+  getCpfpFeeInfo,
   getCpfpReplacementFeeRateFloor,
   type PreparedCpfpPlan,
   type VaultActionTxData
@@ -430,7 +430,7 @@ const RawVault = ({
             const childTxData = await createCpfpChildTx({
               parentTxHex: initUnfreezeData.parentTxHex,
               parentFee: initUnfreezeData.parentTxFee,
-              targetEffectiveFeeRate: initUnfreezeData.actionFeeRate,
+              targetPackageFeeRate: initUnfreezeData.actionFeeRate,
               utxosData: [triggerReserveUtxoData],
               changeOutput,
               signer,
@@ -446,18 +446,18 @@ const RawVault = ({
                 throw new Error(
                   'Missing trigger history to validate replacement fee'
                 );
-              const previousChildData = getCpfpChildData({
+              const previousChildFeeInfo = getCpfpFeeInfo({
                 parentTxHex: initUnfreezeData.parentTxHex,
                 parentFee: initUnfreezeData.parentTxFee,
                 childTxHex: previousChildTxHex,
                 historyData
               });
-              if (!previousChildData)
+              if (!previousChildFeeInfo)
                 throw new Error(
                   'Cannot reconstruct previous trigger fee-payer transaction'
                 );
               const minimumReplacementChildFee = getMinimumReplacementChildFee({
-                previousChildFee: previousChildData.childFee,
+                previousChildFee: previousChildFeeInfo.childFee,
                 replacementChildVSize: childTxData.childVSize
               });
               if (childTxData.childFee < minimumReplacementChildFee)
@@ -574,7 +574,7 @@ const RawVault = ({
             const childTxData = await createCpfpChildTx({
               parentTxHex: rescueData.parentTxHex,
               parentFee: rescueData.parentTxFee,
-              targetEffectiveFeeRate: rescueData.actionFeeRate,
+              targetPackageFeeRate: rescueData.actionFeeRate,
               utxosData: emergencyBumpPlan.utxosData,
               changeOutput: emergencyBumpPlan.changeOutput,
               signer: emergencyBumpPlan.signer,
@@ -588,18 +588,18 @@ const RawVault = ({
                 throw new Error(
                   'Missing rescue history to validate replacement fee'
                 );
-              const previousChildData = getCpfpChildData({
+              const previousChildFeeInfo = getCpfpFeeInfo({
                 parentTxHex: rescueData.parentTxHex,
                 parentFee: rescueData.parentTxFee,
                 childTxHex: previousChildTxHex,
                 historyData
               });
-              if (!previousChildData)
+              if (!previousChildFeeInfo)
                 throw new Error(
                   'Cannot reconstruct previous rescue fee-payer transaction'
                 );
               const minimumReplacementChildFee = getMinimumReplacementChildFee({
-                previousChildFee: previousChildData.childFee,
+                previousChildFee: previousChildFeeInfo.childFee,
                 replacementChildVSize: childTxData.childVSize
               });
               if (childTxData.childFee < minimumReplacementChildFee)

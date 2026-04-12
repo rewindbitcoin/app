@@ -9,6 +9,7 @@ import { computeMaxAllowedFeeRate, type FeeEstimates } from './fees';
 import type { Signer } from './wallets';
 import {
   estimateCpfpPackage,
+  getP2AOutputData,
   type HistoryData,
   type TxHex,
   type UtxosData
@@ -70,64 +71,65 @@ export type PreparedCpfpPlan = {
 };
 
 /**
- * Finds the next tx data with equal-or-larger action fee rate.
+ * Finds the next item with equal-or-larger fee rate.
  *
- * `sortedTxs` must be sorted ascending by `actionFeeRate`.
+ * `sortedItems` must be sorted ascending by `feeRate`.
  */
-export const findNextEqualOrLargerActionFeeRate = <
-  T extends { actionFeeRate: number }
+export const findNextEqualOrLargerFeeRate = <
+  T extends { feeRate: number }
 >(
-  sortedTxs: Array<T>,
+  sortedItems: Array<T>,
   feeRate: number
 ): T | null => {
   const result = findLowestTrueBinarySearch(
-    sortedTxs.length - 1,
-    index => sortedTxs[index]!.actionFeeRate >= feeRate,
+    sortedItems.length - 1,
+    index => sortedItems[index]!.feeRate >= feeRate,
     100
   );
-  if (result.value !== undefined) return sortedTxs[result.value]!;
+  if (result.value !== undefined) return sortedItems[result.value]!;
   return null;
 };
 
 /**
- * Reconstructs CPFP child data from wallet history.
+ * Reconstructs CPFP fee info from wallet history.
  *
  * Replacement logic uses this for the old child, but the helper itself is
- * generic: given a parent and one attached CPFP child, it reconstructs the
- * child's fee, size, and resulting package fee rate.
+ * generic: given a P2A parent and one attached CPFP child, it reconstructs the
+ * child's fee and the resulting package fee rate.
+ *
+ * This helper is only for real P2A package parents. It throws if the parent tx
+ * does not contain exactly one P2A output.
  */
-export const getCpfpChildData = ({
+export const getCpfpFeeInfo = ({
   parentTxHex,
   parentFee,
   childTxHex,
-  historyData,
-  anchorOutputIndex = 1
+  historyData
 }: {
   parentTxHex: TxHex;
   parentFee: number;
   childTxHex: TxHex;
   historyData: HistoryData;
-  anchorOutputIndex?: number;
 }):
   | {
       childFee: number;
-      childVSize: number;
       packageFeeRate: number;
     }
   | undefined => {
   const { tx: parentTx } = transactionFromHex(parentTxHex);
   const { tx: childTx } = transactionFromHex(childTxHex);
   const parentTxId = parentTx.getId();
-  const anchorOutput = parentTx.outs[anchorOutputIndex];
-  if (!anchorOutput) return;
+  const anchorOutput = getP2AOutputData(parentTx);
+  if (!anchorOutput)
+    throw new Error('Expected exactly one P2A output in parent tx');
 
   const txById = new Map(historyData.map(item => [item.txId, item.tx]));
   let childInputValue = BigInt(0);
 
   for (const input of childTx.ins) {
     const prevTxId = toHex(Uint8Array.from(input.hash).reverse());
-    if (prevTxId === parentTxId && input.index === anchorOutputIndex) {
-      childInputValue += anchorOutput.value;
+    if (prevTxId === parentTxId && input.index === anchorOutput.index) {
+      childInputValue += BigInt(anchorOutput.value);
       continue;
     }
     const prevTx = txById.get(prevTxId);
@@ -143,12 +145,11 @@ export const getCpfpChildData = ({
   if (childInputValue <= childOutputValue) return;
 
   const childFee = Number(childInputValue - childOutputValue);
-  const childVSize = childTx.virtualSize();
   return {
     childFee,
-    childVSize,
     packageFeeRate:
-      (parentFee + childFee) / (parentTx.virtualSize() + childVSize)
+      (parentFee + childFee) /
+      (parentTx.virtualSize() + childTx.virtualSize())
   };
 };
 
@@ -201,26 +202,26 @@ export const getCpfpReplacementFeeRateFloor = ({
 }): number | null => {
   if (!historyData?.length || !feeEstimates) return null;
 
-  const previousChildData = getCpfpChildData({
+  const previousChildFeeInfo = getCpfpFeeInfo({
     parentTxHex,
     parentFee,
     childTxHex: previousChildTxHex,
     historyData
   });
-  if (!previousChildData) return null;
+  if (!previousChildFeeInfo) return null;
 
   const maxFeeRate = computeMaxAllowedFeeRate(feeEstimates);
   for (
-    let targetEffectiveFeeRate = previousChildData.packageFeeRate + 1;
-    targetEffectiveFeeRate <= maxFeeRate;
-    targetEffectiveFeeRate = Number(
-      (targetEffectiveFeeRate + FEE_RATE_STEP).toFixed(2)
+    let targetPackageFeeRate = previousChildFeeInfo.packageFeeRate + 1;
+    targetPackageFeeRate <= maxFeeRate;
+    targetPackageFeeRate = Number(
+      (targetPackageFeeRate + FEE_RATE_STEP).toFixed(2)
     )
   ) {
     const plan = estimateCpfpPackage({
       parentTxHex,
       parentFee,
-      targetEffectiveFeeRate,
+      targetPackageFeeRate,
       utxosData,
       changeOutput: childOutput
     });
@@ -228,12 +229,12 @@ export const getCpfpReplacementFeeRateFloor = ({
     if (
       plan.childFee >=
       getMinimumReplacementChildFee({
-        previousChildFee: previousChildData.childFee,
+        previousChildFee: previousChildFeeInfo.childFee,
         replacementChildVSize: plan.childVSize,
         incrementalRelayFeeRate: INCREMENTAL_RELAY_FEE_RATE
       })
     )
-      return targetEffectiveFeeRate;
+      return targetPackageFeeRate;
   }
   return null;
 };

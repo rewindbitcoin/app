@@ -24,7 +24,7 @@ import { useWallet } from '../hooks/useWallet';
 import useFirstDefinedValue from '~/common/hooks/useFirstDefinedValue';
 import { toNumber } from '../lib/sats';
 import {
-  findNextEqualOrLargerActionFeeRate,
+  findNextEqualOrLargerFeeRate,
   getCpfpReplacementFeeRateFloor,
   pickActionableInitialFeeRate,
   type PreparedCpfpPlan,
@@ -130,14 +130,9 @@ const Rescue = ({
       .map(txHex => {
         const txData = vault.txMap[txHex];
         if (!txData) throw new Error('rescue tx not mapped');
-        return {
-          parentTxHex: txHex,
-          parentTxFee: txData.fee,
-          actionFee: txData.fee,
-          actionFeeRate: txData.feeRate
-        };
+        return { txHex, fee: txData.fee, feeRate: txData.feeRate };
       })
-      .sort((a, b) => a.actionFeeRate - b.actionFeeRate);
+      .sort((a, b) => a.feeRate - b.feeRate);
   }, [vault, vaultStatus?.triggerTxHex, isVisible, isLadderedVault]);
 
   const maxFeeRate = feeEstimates ? computeMaxAllowedFeeRate(feeEstimates) : 0;
@@ -211,7 +206,7 @@ const Rescue = ({
     if (isLadderedVault)
       return isAccelerationAttempt
         ? replacementFeeRateFloor
-        : (ladderedRescueSortedTxs[0]?.actionFeeRate ?? MIN_FEE_RATE);
+        : (ladderedRescueSortedTxs[0]?.feeRate ?? MIN_FEE_RATE);
     if (!emergencyBumpPlan) return null;
     const rescueInfo = getP2ARescueInfo(vault, vaultStatus?.triggerTxHex);
     if (!rescueInfo) return null;
@@ -231,11 +226,19 @@ const Rescue = ({
 
   const buildTxDataForFeeRate = useCallback(
     (selectedFeeRate: number): VaultActionTxData | null => {
-      if (isLadderedVault)
-        return findNextEqualOrLargerActionFeeRate(
+      if (isLadderedVault) {
+        const rescueInfo = findNextEqualOrLargerFeeRate(
           ladderedRescueSortedTxs,
           selectedFeeRate
         );
+        if (!rescueInfo) return null;
+        return {
+          parentTxHex: rescueInfo.txHex,
+          parentTxFee: rescueInfo.fee,
+          actionFee: rescueInfo.fee,
+          actionFeeRate: rescueInfo.feeRate
+        };
+      }
       if (!isVisible) return null;
       const rescueInfo = getP2ARescueInfo(vault, vaultStatus?.triggerTxHex);
       if (!rescueInfo) return null;
@@ -249,19 +252,19 @@ const Rescue = ({
           actionFeeRate: rescueInfo.feeRate
         };
       if (!emergencyBumpPlan) return null;
-      const rewind2Plan = estimateCpfpPackage({
+      const plan = estimateCpfpPackage({
         parentTxHex: rescueInfo.txHex,
         parentFee: rescueInfo.fee,
-        targetEffectiveFeeRate: selectedFeeRate,
+        targetPackageFeeRate: selectedFeeRate,
         utxosData: emergencyBumpPlan.utxosData,
         changeOutput: emergencyBumpPlan.changeOutput
       });
-      if (!rewind2Plan) return null;
+      if (!plan) return null;
       return {
         parentTxHex: rescueInfo.txHex,
         parentTxFee: rescueInfo.fee,
-        actionFee: rewind2Plan.totalFee,
-        actionFeeRate: rewind2Plan.effectiveFeeRate
+        actionFee: plan.packageFee,
+        actionFeeRate: plan.packageFeeRate
       };
     },
     [

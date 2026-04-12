@@ -142,7 +142,7 @@ describe('vaults unit tests', () => {
     const plan = estimateCpfpPackage({
       parentTxHex,
       parentFee: 120,
-      targetEffectiveFeeRate: 2,
+      targetPackageFeeRate: 2,
       utxosData: [createSyntheticUtxoData(3000)],
       changeOutput
     });
@@ -150,7 +150,7 @@ describe('vaults unit tests', () => {
     expect(plan).toBeDefined();
     if (!plan) throw new Error('Expected CPFP plan');
     expect(plan.childFee).toBeGreaterThanOrEqual(0);
-    expect(plan.effectiveFeeRate).toBeGreaterThanOrEqual(2);
+    expect(plan.packageFeeRate).toBeGreaterThanOrEqual(2);
   });
 
   test('estimateCpfpPackage returns undefined for laddered parent tx', () => {
@@ -166,7 +166,7 @@ describe('vaults unit tests', () => {
     const plan = estimateCpfpPackage({
       parentTxHex,
       parentFee: 120,
-      targetEffectiveFeeRate: 2,
+      targetPackageFeeRate: 2,
       utxosData: [createSyntheticUtxoData(3000)],
       changeOutput
     });
@@ -212,7 +212,7 @@ describe('vaults unit tests', () => {
     const plan = estimateCpfpPackage({
       parentTxHex,
       parentFee: 0,
-      targetEffectiveFeeRate: 120,
+      targetPackageFeeRate: 120,
       utxosData,
       changeOutput
     });
@@ -234,7 +234,7 @@ describe('vaults unit tests', () => {
     const plan = estimateCpfpPackage({
       parentTxHex,
       parentFee: 14,
-      targetEffectiveFeeRate: 0.1,
+      targetPackageFeeRate: 0.1,
       utxosData,
       changeOutput
     });
