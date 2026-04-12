@@ -9,7 +9,7 @@ import { computeMaxAllowedFeeRate, type FeeEstimates } from './fees';
 import type { Signer } from './wallets';
 import {
   estimateCpfpPackage,
-  getP2AOutputData,
+  findP2AOutputData,
   type HistoryData,
   type TxHex,
   type UtxosData
@@ -119,7 +119,7 @@ export const getCpfpFeeInfo = ({
   const { tx: parentTx } = transactionFromHex(parentTxHex);
   const { tx: childTx } = transactionFromHex(childTxHex);
   const parentTxId = parentTx.getId();
-  const anchorOutput = getP2AOutputData(parentTx);
+  const anchorOutput = findP2AOutputData(parentTx);
   if (!anchorOutput)
     throw new Error('Expected exactly one P2A output in parent tx');
 

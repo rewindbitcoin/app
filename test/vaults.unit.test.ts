@@ -5,9 +5,8 @@ import { fixtures } from './fixtutres';
 import {
   estimateCpfpPackage,
   estimateMinimumRequiredVaultedAmount,
+  findP2AOutputData,
   getHotDescriptors,
-  getPanicAnchorOutputIndex,
-  getTriggerAnchorOutputIndex,
   getVaultMode,
   type UtxosData,
   type Vault,
@@ -94,7 +93,7 @@ describe('vaults unit tests', () => {
       triggerMap: { [triggerTxHex]: [] }
     } as unknown as Vault;
     expect(getVaultMode(vault)).toBe('P2A_TRUC');
-    expect(getTriggerAnchorOutputIndex(triggerTxHex)).toBe(1);
+    expect(findP2AOutputData(Transaction.fromHex(triggerTxHex))?.index).toBe(1);
   });
 
   test('getVaultMode infers P2A_NON_TRUC from non-zero P2A anchor', () => {
@@ -112,8 +111,8 @@ describe('vaults unit tests', () => {
       triggerMap: { [triggerTxHex]: [panicTxHex] }
     } as unknown as Vault;
     expect(getVaultMode(vault)).toBe('P2A_NON_TRUC');
-    expect(getTriggerAnchorOutputIndex(triggerTxHex)).toBe(1);
-    expect(getPanicAnchorOutputIndex(panicTxHex)).toBe(1);
+    expect(findP2AOutputData(Transaction.fromHex(triggerTxHex))?.index).toBe(1);
+    expect(findP2AOutputData(Transaction.fromHex(panicTxHex))?.index).toBe(1);
   });
 
   test('getVaultMode falls back to LADDERED when no P2A output exists', () => {
@@ -125,7 +124,7 @@ describe('vaults unit tests', () => {
       triggerMap: { [ladderedTriggerTxHex]: [] }
     } as unknown as Vault;
     expect(getVaultMode(ladderedVault)).toBe('LADDERED');
-    expect(getTriggerAnchorOutputIndex(ladderedTriggerTxHex)).toBeUndefined();
+    expect(findP2AOutputData(Transaction.fromHex(ladderedTriggerTxHex))).toBeUndefined();
   });
 
   test('estimateCpfpPackage computes effective package fee data', () => {

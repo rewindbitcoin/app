@@ -338,7 +338,7 @@ type VaultAnchorChildTx = {
  * Returns `undefined` when the tx has no P2A output.
  * Throws when the tx has more than one P2A output.
  */
-export const getP2AOutputData = (
+export const findP2AOutputData = (
   tx: Transaction
 ): { index: number; value: number } | undefined => {
   const matchingOutputs = tx.outs
@@ -355,30 +355,6 @@ export const getP2AOutputData = (
 };
 
 /**
- * Derives trigger P2A anchor output index by inspecting the trigger tx hex.
- *
- * This avoids persisting anchor indexes in vault data.
- */
-export const getTriggerAnchorOutputIndex = (
-  triggerTxHex: TxHex
-): number | undefined => {
-  const { tx } = transactionFromHex(triggerTxHex);
-  return getP2AOutputData(tx)?.index;
-};
-
-/**
- * Derives panic P2A anchor output index by inspecting the panic tx hex.
- *
- * Same idea as trigger anchor derivation: no persisted index is needed.
- */
-export const getPanicAnchorOutputIndex = (
-  panicTxHex: TxHex
-): number | undefined => {
-  const { tx } = transactionFromHex(panicTxHex);
-  return getP2AOutputData(tx)?.index;
-};
-
-/**
  * Infers vault mode from trigger transaction shape.
  *
  * Human rule of thumb:
@@ -391,7 +367,7 @@ export const getVaultMode = (
 ): 'LADDERED' | 'P2A_TRUC' | 'P2A_NON_TRUC' => {
   for (const triggerTxHex of Object.keys(vault.triggerMap)) {
     const { tx } = transactionFromHex(triggerTxHex);
-    const anchor = getP2AOutputData(tx);
+    const anchor = findP2AOutputData(tx);
     if (!anchor) continue;
     if (tx.version === 3 && anchor.value === 0) return 'P2A_TRUC';
     return 'P2A_NON_TRUC';
@@ -548,8 +524,8 @@ export const estimateCpfpPackage = ({
     }
   | undefined => {
   const { tx: parentTx } = transactionFromHex(parentTxHex);
-  const anchor = getP2AOutputData(parentTx);
-  if (!anchor) return;
+  const anchor = findP2AOutputData(parentTx);
+  if (!anchor) throw new Error('Expected exactly one P2A output in parent tx');
 
   const parentVSize = parentTx.virtualSize();
   const dust = toNumber(dustThreshold(changeOutput));
