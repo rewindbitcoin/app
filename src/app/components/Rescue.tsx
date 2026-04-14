@@ -32,11 +32,11 @@ import {
 } from '../lib/vaultActionTx';
 
 const getP2ARescueInfo = (vault: Vault, triggerTxHex: string | undefined) => {
-  if (!triggerTxHex) return null;
+  if (!triggerTxHex) throw new Error('P2A vault is missing trigger tx');
   const txHex = vault.triggerMap[triggerTxHex]?.[0];
-  if (!txHex) return null;
+  if (!txHex) throw new Error('P2A trigger tx is missing rescue tx');
   const rescueTxData = vault.txMap[txHex];
-  if (!rescueTxData) return null;
+  if (!rescueTxData) throw new Error('P2A rescue tx is not mapped');
   return { txHex, fee: rescueTxData.fee, feeRate: rescueTxData.feeRate };
 };
 
@@ -94,7 +94,6 @@ const Rescue = ({
       );
     } else {
       const rescueInfo = getP2ARescueInfo(vault, vaultStatus?.triggerTxHex);
-      if (!rescueInfo) return null;
       const panicCpfpTxHex = vaultStatus?.panicCpfpTxHex;
       if (!panicCpfpTxHex) return null;
       if (!emergencyBumpPlan) return null;
@@ -157,7 +156,6 @@ const Rescue = ({
     }
 
     const rescueInfo = getP2ARescueInfo(vault, vaultStatus?.triggerTxHex);
-    if (!rescueInfo) return null;
 
     if (!emergencyBumpPlan)
       return isAccelerationAttempt ? null : rescueInfo.feeRate;
@@ -209,7 +207,6 @@ const Rescue = ({
         : (ladderedRescueSortedTxs[0]?.feeRate ?? MIN_FEE_RATE);
     if (!emergencyBumpPlan) return null;
     const rescueInfo = getP2ARescueInfo(vault, vaultStatus?.triggerTxHex);
-    if (!rescueInfo) return null;
     if (!isAccelerationAttempt || !vaultStatus?.panicCpfpTxHex)
       return rescueInfo.feeRate;
     return replacementFeeRateFloor;
@@ -241,7 +238,6 @@ const Rescue = ({
       }
       if (!isVisible) return null;
       const rescueInfo = getP2ARescueInfo(vault, vaultStatus?.triggerTxHex);
-      if (!rescueInfo) return null;
       // Rescue is parent-only by default. Only switch to a package when an
       // explicit external emergency bump plan exists.
       if (selectedFeeRate <= rescueInfo.feeRate)
@@ -314,13 +310,14 @@ const Rescue = ({
 
   // Reset the local wizard step when the modal closes so reopening it always
   // starts from the intro screen instead of a stale fee-selection step.
-  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (!isVisible) setStep('intro');
   }, [isVisible]);
 
   // Reset feeRate every time the selected initial fee changes.
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setFeeRate(prev =>
       initialFeeRate !== null && prev !== initialFeeRate ? initialFeeRate : prev
     );

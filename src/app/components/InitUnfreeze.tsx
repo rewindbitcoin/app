@@ -38,9 +38,9 @@ import {
 
 const getP2ATriggerInfo = (vault: Vault) => {
   const txHex = Object.keys(vault.triggerMap)[0];
-  if (!txHex) return null;
+  if (!txHex) throw new Error('P2A vault is missing trigger tx');
   const triggerTxData = vault.txMap[txHex];
-  if (!triggerTxData) return null;
+  if (!triggerTxData) throw new Error('P2A trigger tx is not mapped');
   return { txHex, fee: triggerTxData.fee, feeRate: triggerTxData.feeRate };
 };
 
@@ -89,7 +89,6 @@ const InitUnfreeze = ({
       return (vault.vaultedAmount - toNumber(outValue)) / tx.virtualSize() + 1;
     } else {
       const triggerInfo = getP2ATriggerInfo(vault);
-      if (!triggerInfo) return null;
       const triggerCpfpTxHex = vaultStatus?.triggerCpfpTxHex;
       const signer = signers?.[0];
       if (!triggerCpfpTxHex || !signer || !networkId || !accounts) return null;
@@ -191,7 +190,6 @@ const InitUnfreeze = ({
         const signer = signers?.[0];
         if (!networkId || !signer || !accounts) return null;
         const triggerInfo = getP2ATriggerInfo(vault);
-        if (!triggerInfo) return null;
         const network = networkMapping[networkId];
         const triggerReserveUtxoData = getTriggerReserveUtxoData({
           vault,
@@ -295,13 +293,14 @@ const InitUnfreeze = ({
 
   // Reset the local wizard step when the modal closes so reopening it always
   // starts from the intro screen instead of a stale fee-selection step.
-  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (!isVisible) setStep('intro');
   }, [isVisible]);
 
   // Reset feeRate every time the selected initial fee changes.
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setFeeRate(prev =>
       initialFeeRate !== null && prev !== initialFeeRate ? initialFeeRate : prev
     );
