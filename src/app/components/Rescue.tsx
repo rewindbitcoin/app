@@ -312,10 +312,11 @@ const Rescue = ({
 
   const fee = txData ? txData.actionFee : null;
 
+  // Reset the local wizard step when the modal closes so reopening it always
+  // starts from the intro screen instead of a stale fee-selection step.
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => {
-    if (!isVisible) {
-      setStep('intro');
-    }
+    if (!isVisible) setStep('intro');
   }, [isVisible]);
 
   // Reset feeRate every time the selected initial fee changes.
