@@ -182,9 +182,10 @@ type RescueProps = {
   onClose: () => void;
 };
 
-const VisibleRescue = ({
+const Rescue = ({
   vault,
   vaultStatus,
+  isVisible,
   emergencyBumpPlan,
   onRescue,
   onClose
@@ -213,17 +214,20 @@ const VisibleRescue = ({
       [vault, vaultStatus, feeEstimates, historyData, emergencyBumpPlan]
     );
   const triggerTxHex = vaultStatus?.triggerTxHex;
-  // The wrapper only mounts this component while visible. Once rescue is
-  // visible, the vault must already have a trigger tx.
-  if (!triggerTxHex) throw new Error('Visible rescue is missing trigger tx');
 
   const ladderedRescueSortedTxs = useMemo(() => {
-    if (isLadderedVault) {
+    // This modal stays mounted so Modal can animate across isVisible changes.
+    // While hidden, return inert render-time values instead of rescue data.
+    if (!isVisible) {
+      return [];
+    } else if (isLadderedVault) {
+      if (!triggerTxHex)
+        throw new Error('Visible rescue is missing trigger tx');
       return getLadderedRescueSortedTxs(vault, triggerTxHex);
     } else {
       return [];
     }
-  }, [vault, triggerTxHex, isLadderedVault]);
+  }, [vault, triggerTxHex, isLadderedVault, isVisible]);
 
   const maxFeeRate = feeEstimates
     ? computeMaxAllowedFeeRate(feeEstimates)
@@ -237,7 +241,11 @@ const VisibleRescue = ({
   const [step, setStep] = useState<'intro' | 'fee'>('intro');
 
   const preferredInitialFeeRate = useMemo(() => {
-    if (isLadderedVault) {
+    // This modal stays mounted so Modal can animate across isVisible changes.
+    // While hidden, return inert render-time values instead of rescue data.
+    if (!isVisible) {
+      return null;
+    } else if (isLadderedVault) {
       if (!feeEstimates) return null;
       const preferredNetworkFeeRate = pickFeeEstimate(
         feeEstimates,
@@ -249,6 +257,8 @@ const VisibleRescue = ({
         else return Math.max(replacementFeeRateFloor, preferredNetworkFeeRate);
       }
     } else {
+      if (!triggerTxHex)
+        throw new Error('Visible rescue is missing trigger tx');
       const rescueInfo = getP2ARescueInfo(vault, triggerTxHex);
 
       if (!emergencyBumpPlan)
@@ -270,6 +280,7 @@ const VisibleRescue = ({
     settings.INITIAL_CONFIRMATION_TIME,
     isLadderedVault,
     vault,
+    isVisible,
     triggerTxHex,
     emergencyBumpPlan,
     isAccelerationAttempt,
@@ -282,11 +293,17 @@ const VisibleRescue = ({
   const [feeRate, setFeeRate] = useState<number | null>(null);
 
   const minimumSelectableFeeRate = useMemo(() => {
-    if (isLadderedVault) {
+    // This modal stays mounted so Modal can animate across isVisible changes.
+    // While hidden, return inert render-time values instead of rescue data.
+    if (!isVisible) {
+      return null;
+    } else if (isLadderedVault) {
       return isAccelerationAttempt
         ? replacementFeeRateFloor
         : (ladderedRescueSortedTxs[0]?.feeRate ?? MIN_FEE_RATE);
     } else {
+      if (!triggerTxHex)
+        throw new Error('Visible rescue is missing trigger tx');
       if (!emergencyBumpPlan) {
         return null;
       } else {
@@ -302,6 +319,7 @@ const VisibleRescue = ({
     isLadderedVault,
     isAccelerationAttempt,
     replacementFeeRateFloor,
+    isVisible,
     ladderedRescueSortedTxs,
     emergencyBumpPlan,
     vault,
@@ -310,7 +328,11 @@ const VisibleRescue = ({
 
   const buildTxDataForFeeRate = useCallback(
     (selectedFeeRate: number): VaultActionTxData | null => {
-      if (isLadderedVault) {
+      // This modal stays mounted so Modal can animate across isVisible changes.
+      // While hidden, return inert render-time values instead of rescue data.
+      if (!isVisible) {
+        return null;
+      } else if (isLadderedVault) {
         const rescueInfo = findNextEqualOrLargerFeeRate(
           ladderedRescueSortedTxs,
           selectedFeeRate
@@ -323,6 +345,8 @@ const VisibleRescue = ({
           actionFeeRate: rescueInfo.feeRate
         };
       } else {
+        if (!triggerTxHex)
+          throw new Error('Visible rescue is missing trigger tx');
         const rescueInfo = getP2ARescueInfo(vault, triggerTxHex);
         // Rescue is parent-only by default. Only switch to a package when an
         // explicit external emergency bump plan exists.
@@ -354,6 +378,7 @@ const VisibleRescue = ({
       }
     },
     [
+      isVisible,
       isLadderedVault,
       ladderedRescueSortedTxs,
       vault,
@@ -406,6 +431,13 @@ const VisibleRescue = ({
 
   const fee = txData ? txData.actionFee : null;
 
+  // This modal stays mounted so Modal can animate across isVisible changes.
+  // Reset the local wizard step when it closes so reopening starts clean.
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (!isVisible) setStep('intro');
+  }, [isVisible]);
+
   // Reset feeRate every time the selected initial fee changes.
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -425,7 +457,7 @@ const VisibleRescue = ({
   return (
     <Modal
       headerMini={true}
-      isVisible={true}
+      isVisible={isVisible}
       title={t('wallet.vault.rescueButton')}
       icon={{
         family: 'MaterialCommunityIcons',
@@ -521,11 +553,6 @@ const VisibleRescue = ({
       ) : null}
     </Modal>
   );
-};
-
-const Rescue = (props: RescueProps) => {
-  if (!props.isVisible) return null;
-  return <VisibleRescue {...props} />;
 };
 
 export default Rescue;

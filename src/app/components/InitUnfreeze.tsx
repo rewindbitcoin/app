@@ -186,9 +186,10 @@ type InitUnfreezeProps = {
   onClose: () => void;
 };
 
-const VisibleInitUnfreeze = ({
+const InitUnfreeze = ({
   vault,
   vaultStatus,
+  isVisible,
   lockBlocks,
   onInitUnfreeze,
   onClose
@@ -233,12 +234,16 @@ const VisibleInitUnfreeze = ({
     );
 
   const ladderedTriggerSortedTxs = useMemo(() => {
-    if (isLadderedVault) {
+    // This modal stays mounted so Modal can animate across isVisible changes.
+    // While hidden, return inert render-time values instead of trigger data.
+    if (!isVisible) {
+      return [];
+    } else if (isLadderedVault) {
       return getLadderedTriggerSortedTxs(vault);
     } else {
       return [];
     }
-  }, [vault, isLadderedVault]);
+  }, [vault, isLadderedVault, isVisible]);
 
   const maxFeeRate = feeEstimates ? computeMaxAllowedFeeRate(feeEstimates) : 0;
   const { settings } = useSettings();
@@ -250,17 +255,25 @@ const VisibleInitUnfreeze = ({
   const [step, setStep] = useState<'intro' | 'fee'>('intro');
 
   const preferredInitialFeeRate = useMemo(() => {
-    if (!feeEstimates) return null;
-    const preferredNetworkFeeRate = pickFeeEstimate(
-      feeEstimates,
-      settings.INITIAL_CONFIRMATION_TIME
-    ).feeEstimate;
-    if (!isAccelerationAttempt) return preferredNetworkFeeRate;
-    else {
-      if (replacementFeeRateFloor === null) return null;
-      else return Math.max(replacementFeeRateFloor, preferredNetworkFeeRate);
+    // This modal stays mounted so Modal can animate across isVisible changes.
+    // While hidden, return inert render-time values instead of trigger data.
+    if (!isVisible) {
+      return null;
+    } else if (!feeEstimates) {
+      return null;
+    } else {
+      const preferredNetworkFeeRate = pickFeeEstimate(
+        feeEstimates,
+        settings.INITIAL_CONFIRMATION_TIME
+      ).feeEstimate;
+      if (!isAccelerationAttempt) return preferredNetworkFeeRate;
+      else {
+        if (replacementFeeRateFloor === null) return null;
+        else return Math.max(replacementFeeRateFloor, preferredNetworkFeeRate);
+      }
     }
   }, [
+    isVisible,
     feeEstimates,
     settings.INITIAL_CONFIRMATION_TIME,
     isAccelerationAttempt,
@@ -271,7 +284,11 @@ const VisibleInitUnfreeze = ({
 
   const buildTxDataForFeeRate = useCallback(
     (selectedFeeRate: number): VaultActionTxData | null => {
-      if (isLadderedVault) {
+      // This modal stays mounted so Modal can animate across isVisible changes.
+      // While hidden, return inert render-time values instead of trigger data.
+      if (!isVisible) {
+        return null;
+      } else if (isLadderedVault) {
         const triggerInfo = findNextEqualOrLargerFeeRate(
           ladderedTriggerSortedTxs,
           selectedFeeRate
@@ -321,6 +338,7 @@ const VisibleInitUnfreeze = ({
       }
     },
     [
+      isVisible,
       isLadderedVault,
       ladderedTriggerSortedTxs,
       accounts,
@@ -334,7 +352,11 @@ const VisibleInitUnfreeze = ({
   );
 
   const minimumSelectableFeeRate = useMemo(() => {
-    if (isLadderedVault) {
+    // This modal stays mounted so Modal can animate across isVisible changes.
+    // While hidden, return inert render-time values instead of trigger data.
+    if (!isVisible) {
+      return null;
+    } else if (isLadderedVault) {
       return isAccelerationAttempt
         ? replacementFeeRateFloor
         : (ladderedTriggerSortedTxs[0]?.feeRate ?? MIN_FEE_RATE);
@@ -350,6 +372,7 @@ const VisibleInitUnfreeze = ({
       }
     }
   }, [
+    isVisible,
     isLadderedVault,
     isAccelerationAttempt,
     replacementFeeRateFloor,
@@ -400,6 +423,13 @@ const VisibleInitUnfreeze = ({
 
   const fee = txData ? txData.actionFee : null;
 
+  // This modal stays mounted so Modal can animate across isVisible changes.
+  // Reset the local wizard step when it closes so reopening starts clean.
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (!isVisible) setStep('intro');
+  }, [isVisible]);
+
   // Reset feeRate every time the selected initial fee changes.
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -418,7 +448,7 @@ const VisibleInitUnfreeze = ({
   return (
     <Modal
       headerMini={true}
-      isVisible={true}
+      isVisible={isVisible}
       title={t('wallet.vault.triggerUnfreezeButton')}
       icon={{
         family: 'MaterialCommunityIcons',
@@ -503,11 +533,6 @@ const VisibleInitUnfreeze = ({
       ) : null}
     </Modal>
   );
-};
-
-const InitUnfreeze = (props: InitUnfreezeProps) => {
-  if (!props.isVisible) return null;
-  return <VisibleInitUnfreeze {...props} />;
 };
 
 export default InitUnfreeze;
