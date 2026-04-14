@@ -418,11 +418,7 @@ const RawVault = ({
                 throw new Error(
                   'Cannot accelerate trigger after rescue has started'
                 );
-              if (!previousChildTxHex)
-                throw new Error(
-                  'Missing synced trigger CPFP inputs for acceleration'
-                );
-              if (!historyData?.length)
+              if (previousChildTxHex && !historyData?.length)
                 throw new Error(
                   'Missing synced trigger history for acceleration'
                 );
@@ -438,11 +434,11 @@ const RawVault = ({
             });
             if (!childTxData)
               throw new Error('Cannot build trigger fee-bump transaction');
-            if (isTriggerAccelerationAttempt) {
+            if (isTriggerAccelerationAttempt && previousChildTxHex) {
               // Final local safety check before broadcast. Even if the user chose
               // a higher-looking fee-rate, relay still rejects the replacement if
               // the new child does not add enough absolute sats over the old one.
-              if (!historyData?.length || !previousChildTxHex)
+              if (!historyData?.length)
                 throw new Error(
                   'Missing trigger history to validate replacement fee'
                 );
@@ -452,10 +448,6 @@ const RawVault = ({
                 childTxHex: previousChildTxHex,
                 historyData
               });
-              if (!previousChildFeeInfo)
-                throw new Error(
-                  'Cannot reconstruct previous trigger fee-payer transaction'
-                );
               const minimumReplacementChildFee = getMinimumReplacementChildFee({
                 previousChildFee: previousChildFeeInfo.childFee,
                 replacementChildVSize: childTxData.childVSize
@@ -562,11 +554,7 @@ const RawVault = ({
             const network = networkMapping[networkId];
             const previousChildTxHex = vaultStatus?.panicCpfpTxHex;
             if (isRescueAccelerationAttempt) {
-              if (!previousChildTxHex)
-                throw new Error(
-                  'Missing synced rescue CPFP inputs for acceleration'
-                );
-              if (!historyData?.length)
+              if (previousChildTxHex && !historyData?.length)
                 throw new Error(
                   'Missing synced rescue history for acceleration'
                 );
@@ -582,9 +570,9 @@ const RawVault = ({
             });
             if (!childTxData)
               throw new Error('Cannot build rescue fee-bump transaction');
-            if (isRescueAccelerationAttempt) {
+            if (isRescueAccelerationAttempt && previousChildTxHex) {
               // Same relay rule as above, but now for the rescue fee-payer child.
-              if (!historyData?.length || !previousChildTxHex)
+              if (!historyData?.length)
                 throw new Error(
                   'Missing rescue history to validate replacement fee'
                 );
@@ -594,10 +582,6 @@ const RawVault = ({
                 childTxHex: previousChildTxHex,
                 historyData
               });
-              if (!previousChildFeeInfo)
-                throw new Error(
-                  'Cannot reconstruct previous rescue fee-payer transaction'
-                );
               const minimumReplacementChildFee = getMinimumReplacementChildFee({
                 previousChildFee: previousChildFeeInfo.childFee,
                 replacementChildVSize: childTxData.childVSize
@@ -721,7 +705,8 @@ const RawVault = ({
     if (!parentTxHex || !previousChildTxHex) return false;
     const parentTxData = vault.txMap[parentTxHex];
     const signer = signers?.[0];
-    if (!parentTxData || !signer || !networkId) return false;
+    if (!parentTxData || !signer || !networkId || !feeEstimates) return false;
+    if (!historyData?.length) return false;
     try {
       const network = networkMapping[networkId];
       if (!accounts) return false;
@@ -737,11 +722,11 @@ const RawVault = ({
         getCpfpReplacementFeeRateFloor({
           parentTxHex,
           parentFee: parentTxData.fee,
-          previousChildTxHex,
           historyData,
           feeEstimates,
           utxosData: [triggerReserveUtxoData],
-          childOutput: DUMMY_CHANGE_OUTPUT(getMainAccount(accounts, network), network)
+          childOutput: DUMMY_CHANGE_OUTPUT(getMainAccount(accounts, network), network),
+          ...(previousChildTxHex ? { childTxHex: previousChildTxHex } : {})
         }) !== null
       );
     } catch {

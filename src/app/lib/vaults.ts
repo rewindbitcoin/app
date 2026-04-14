@@ -375,21 +375,6 @@ export const getVaultMode = (
   return 'LADDERED';
 };
 
-const getUtxoDataValue = (utxoData: UtxosData[number]) => {
-  const out = utxoData.tx.outs[utxoData.vout];
-  if (!out) throw new Error('Invalid utxoData output');
-  return toNumber(out.value);
-};
-
-const estimateCpfpChildVSize = (
-  selectedUtxosData: UtxosData,
-  changeOutput: OutputInstance
-) =>
-  estimateCpfpChildVSizeFromOutputs(
-    selectedUtxosData.map(utxoData => utxoData.output),
-    changeOutput
-  );
-
 const estimateCpfpChildVSizeFromOutputs = (
   selectedOutputs: Array<OutputInstance>,
   changeOutput: OutputInstance
@@ -502,13 +487,13 @@ export const estimateCpfpPackage = ({
   parentTxHex,
   parentFee,
   targetPackageFeeRate,
-  utxosData = [],
+  utxosData,
   changeOutput
 }: {
   parentTxHex: TxHex;
   parentFee: number;
   targetPackageFeeRate: number;
-  utxosData?: UtxosData;
+  utxosData: UtxosData;
   changeOutput: OutputInstance;
 }):
   | {
@@ -529,11 +514,15 @@ export const estimateCpfpPackage = ({
 
   const parentVSize = parentTx.virtualSize();
   const dust = toNumber(dustThreshold(changeOutput));
-  const utxosValue = utxosData.reduce(
-    (sum, utxoData) => sum + getUtxoDataValue(utxoData),
-    0
+  const utxosValue = utxosData.reduce((sum, utxoData) => {
+    const output = utxoData.tx.outs[utxoData.vout];
+    if (!output) throw new Error('Invalid utxoData output');
+    return sum + toNumber(output.value);
+  }, 0);
+  const childVSize = estimateCpfpChildVSizeFromOutputs(
+    utxosData.map(utxoData => utxoData.output),
+    changeOutput
   );
-  const childVSize = estimateCpfpChildVSize(utxosData, changeOutput);
   if (parentTx.version === 3 && childVSize > MAX_P2A_TRUC_CHILD_VSIZE) return; //FIXME: throw some message?
 
   const totalPackageVSize = parentVSize + childVSize;
@@ -570,7 +559,7 @@ export const createCpfpChildTx = async ({
   parentTxHex,
   parentFee,
   targetPackageFeeRate,
-  utxosData = [],
+  utxosData,
   changeOutput,
   signer,
   network
@@ -578,7 +567,7 @@ export const createCpfpChildTx = async ({
   parentTxHex: TxHex;
   parentFee: number;
   targetPackageFeeRate: number;
-  utxosData?: UtxosData;
+  utxosData: UtxosData;
   changeOutput: OutputInstance;
   signer: Signer;
   network: Network;
@@ -1647,8 +1636,7 @@ export const createVault = async ({
   }); //vout: 0
   psbtTrigger.addOutput({
     script: P2A_OUTPUT_SCRIPT,
-    value:
-      vaultMode === 'P2A_TRUC' ? BigInt(0) : P2A_NON_TRUC_ANCHOR_VALUE
+    value: vaultMode === 'P2A_TRUC' ? BigInt(0) : P2A_NON_TRUC_ANCHOR_VALUE
   }); //vout: 1
   signPsbt(randomSigner, network, psbtTrigger);
   triggerInputFinalizer({ psbt: psbtTrigger });
@@ -1679,8 +1667,7 @@ export const createVault = async ({
   coldOutput.updatePsbtAsOutput({ psbt: psbtPanic, value: panicOutputValue }); //vout: 0
   psbtPanic.addOutput({
     script: P2A_OUTPUT_SCRIPT,
-    value:
-      vaultMode === 'P2A_TRUC' ? BigInt(0) : P2A_NON_TRUC_ANCHOR_VALUE
+    value: vaultMode === 'P2A_TRUC' ? BigInt(0) : P2A_NON_TRUC_ANCHOR_VALUE
   }); //vout: 1
   signPsbt(randomSigner, network, psbtPanic);
   panicInputFinalizer({ psbt: psbtPanic });

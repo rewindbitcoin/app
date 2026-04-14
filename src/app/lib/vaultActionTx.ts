@@ -33,7 +33,7 @@ export type VaultActionTxData = {
    * - Init Unfreeze: trigger tx hex
    * - Rescue: panic tx hex
    *
-   * In Rewind2, the anchor is an output inside this parent tx.
+   * In P2A flows, the anchor is an output inside this parent tx.
    * This is never an anchor tx hex.
    */
   parentTxHex: TxHex;
@@ -41,32 +41,48 @@ export type VaultActionTxData = {
   /**
    * Miner fee of the parent tx only.
    * - Laddered (legacy): this is also the action fee.
-   * - Rewind2: action fee may include CPFP child fee too.
+   * - P2A flows: action fee may include CPFP child fee too.
    */
   parentTxFee: number;
 
   /**
    * Fee of the thing the user is about to submit.
    * - Laddered (legacy): parent tx fee
-   * - Rewind2 parent-only: parent tx fee
-   * - Rewind2 with CPFP: parent + child package fee
+   * - P2A parent-only: parent tx fee
+   * - P2A with CPFP: parent + child package fee
    */
   actionFee: number;
 
   /**
    * Fee rate of the thing the user is about to submit.
    * - Laddered (legacy): parent tx feerate
-   * - Rewind2 parent-only: parent tx feerate
-   * - Rewind2 with CPFP: parent + child package feerate
+   * - P2A parent-only: parent tx feerate
+   * - P2A with CPFP: parent + child package feerate
    */
   actionFeeRate: number;
 };
 
+/**
+ * Fully prepared non-anchor CPFP funding plan for P2A flows.
+ *
+ * This is a small emergency or reserve-backed plan used
+ * only to fund a child tx. The caller already knows which UTXOs the child
+ * must spend, where leftover value must go, and which signer controls those
+ * UTXOs.
+ *
+ * Think if it as a small emergency wallet plan prepared outside the
+ * main wallet after an attack. It provides fresh UTXOs and a signer that are
+ * not meant to be under the compromised wallet's normal flow.
+ *
+ * This can be created after an attack, so fresh UTXOs and signers
+ * stay outside the compromised wallet's normal flow.
+ */
 export type PreparedCpfpPlan = {
   /** Non-anchor inputs that the child must spend. */
   utxosData: UtxosData;
-  /** Child output destination. For rescue this should normally be the emergency address. */
+  /** Leftover value destination. For rescue this should normally be the emergency address. */
   changeOutput: OutputInstance;
+  /** Signer used for the non-anchor child inputs. */
   signer: Signer;
 };
 
@@ -75,9 +91,7 @@ export type PreparedCpfpPlan = {
  *
  * `sortedItems` must be sorted ascending by `feeRate`.
  */
-export const findNextEqualOrLargerFeeRate = <
-  T extends { feeRate: number }
->(
+export const findNextEqualOrLargerFeeRate = <T extends { feeRate: number }>(
   sortedItems: Array<T>,
   feeRate: number
 ): T | null => {
@@ -110,12 +124,10 @@ export const getCpfpFeeInfo = ({
   parentFee: number;
   childTxHex: TxHex;
   historyData: HistoryData;
-}):
-  | {
-      childFee: number;
-      packageFeeRate: number;
-    }
-  | undefined => {
+}): {
+  childFee: number;
+  packageFeeRate: number;
+} => {
   const { tx: parentTx } = transactionFromHex(parentTxHex);
   const { tx: childTx } = transactionFromHex(childTxHex);
   const parentTxId = parentTx.getId();
@@ -133,8 +145,13 @@ export const getCpfpFeeInfo = ({
       continue;
     }
     const prevTx = txById.get(prevTxId);
+    if (!prevTx)
+      throw new Error('Cannot reconstruct CPFP fee info: missing previous tx');
     const prevOut = prevTx?.outs[input.index];
-    if (!prevOut) return;
+    if (!prevOut)
+      throw new Error(
+        'Cannot reconstruct CPFP fee info: missing previous output'
+      );
     childInputValue += prevOut.value;
   }
 
@@ -142,14 +159,14 @@ export const getCpfpFeeInfo = ({
     (sum, output) => sum + output.value,
     BigInt(0)
   );
-  if (childInputValue <= childOutputValue) return;
+  if (childInputValue <= childOutputValue)
+    throw new Error('Cannot reconstruct CPFP fee info: child fee is invalid');
 
   const childFee = Number(childInputValue - childOutputValue);
   return {
     childFee,
     packageFeeRate:
-      (parentFee + childFee) /
-      (parentTx.virtualSize() + childTx.virtualSize())
+      (parentFee + childFee) / (parentTx.virtualSize() + childTx.virtualSize())
   };
 };
 
@@ -171,7 +188,13 @@ export const getMinimumReplacementChildFee = ({
   previousChildFee + Math.ceil(replacementChildVSize * incrementalRelayFeeRate);
 
 /**
- * Replacement floor for CPFP flows.
+ * Returns the minimum package fee rate that improves the currently live state.
+ *
+ * There are two cases:
+ * - if no CPFP child exists yet, this returns the first actionable package fee
+ *   rate above the current parent-only state
+ * - if a CPFP child already exists, this returns the first actionable package
+ *   fee rate that also satisfies replacement relay rules
  *
  * A replacement child must satisfy two relay checks at once:
  * 1) the new package feerate must improve over the previous one, and
@@ -186,7 +209,7 @@ export const getMinimumReplacementChildFee = ({
 export const getCpfpReplacementFeeRateFloor = ({
   parentTxHex,
   parentFee,
-  previousChildTxHex,
+  childTxHex,
   historyData,
   feeEstimates,
   utxosData,
@@ -194,25 +217,35 @@ export const getCpfpReplacementFeeRateFloor = ({
 }: {
   parentTxHex: TxHex;
   parentFee: number;
-  previousChildTxHex: TxHex;
-  historyData: HistoryData | undefined;
-  feeEstimates: FeeEstimates | undefined;
+  childTxHex?: TxHex;
+  historyData?: HistoryData;
+  feeEstimates: FeeEstimates;
   utxosData: UtxosData;
   childOutput: OutputInstance;
 }): number | null => {
-  if (!historyData?.length || !feeEstimates) return null;
+  const { tx: parentTx } = transactionFromHex(parentTxHex);
+  let currentChildFeeInfo;
+  let currentPackageFeeRate;
 
-  const previousChildFeeInfo = getCpfpFeeInfo({
-    parentTxHex,
-    parentFee,
-    childTxHex: previousChildTxHex,
-    historyData
-  });
-  if (!previousChildFeeInfo) return null;
+  if (childTxHex) {
+    if (!historyData?.length)
+      throw new Error(
+        'historyData must be present when computing a child replacement floor'
+      );
+    currentChildFeeInfo = getCpfpFeeInfo({
+      parentTxHex,
+      parentFee,
+      childTxHex,
+      historyData
+    });
+    currentPackageFeeRate = currentChildFeeInfo.packageFeeRate;
+  } else currentPackageFeeRate = parentFee / parentTx.virtualSize();
 
   const maxFeeRate = computeMaxAllowedFeeRate(feeEstimates);
   for (
-    let targetPackageFeeRate = previousChildFeeInfo.packageFeeRate + 1;
+    let targetPackageFeeRate = Number(
+      (currentPackageFeeRate + FEE_RATE_STEP).toFixed(2)
+    );
     targetPackageFeeRate <= maxFeeRate;
     targetPackageFeeRate = Number(
       (targetPackageFeeRate + FEE_RATE_STEP).toFixed(2)
@@ -226,15 +259,22 @@ export const getCpfpReplacementFeeRateFloor = ({
       changeOutput: childOutput
     });
     if (!plan) continue;
+
+    // if prev package had no child, mo replacement-child-fee rule applies
+    if (!childTxHex) return targetPackageFeeRate;
+
+    if (!currentChildFeeInfo)
+      throw new Error('currentChildFeeInfo should exist if childTxHex exists');
     if (
       plan.childFee >=
       getMinimumReplacementChildFee({
-        previousChildFee: previousChildFeeInfo.childFee,
+        previousChildFee: currentChildFeeInfo.childFee,
         replacementChildVSize: plan.childVSize,
         incrementalRelayFeeRate: INCREMENTAL_RELAY_FEE_RATE
       })
     )
       return targetPackageFeeRate;
+    //otherwise continue;
   }
   return null;
 };

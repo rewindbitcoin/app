@@ -76,8 +76,9 @@ const InitUnfreeze = ({
   // Cache to avoid flickering in the sliders while background refreshes happen.
   const btcFiat = useFirstDefinedValue<number>(btcFiatRealTime);
   const feeEstimates = useFirstDefinedValue<FeeEstimates>(feeEstimatesRealTime);
-  // Minimum effective fee-rate floor required only when replacing an already
-  // existing fee-bump child. `null` means we cannot compute that floor yet.
+  // Minimum fee rate that improves the currently live trigger state.
+  // If a CPFP child already exists, this is a true replacement floor. If not,
+  // it is the first actionable package fee rate above the parent-only state.
   const replacementFeeRateFloor = useMemo<number | null>(() => {
     if (!isAccelerationAttempt) return null;
     else if (!vaultStatus?.triggerTxHex) throw new Error('trigger is not set');
@@ -89,9 +90,8 @@ const InitUnfreeze = ({
       return (vault.vaultedAmount - toNumber(outValue)) / tx.virtualSize() + 1;
     } else {
       const triggerInfo = getP2ATriggerInfo(vault);
-      const triggerCpfpTxHex = vaultStatus.triggerCpfpTxHex;
       const signer = signers?.[0];
-      if (!triggerCpfpTxHex || !signer || !networkId || !accounts) return null;
+      if (!feeEstimates || !signer || !networkId || !accounts) return null;
       const network = networkMapping[networkId];
       const triggerReserveUtxoData = getTriggerReserveUtxoData({
         vault,
@@ -101,14 +101,16 @@ const InitUnfreeze = ({
       return getCpfpReplacementFeeRateFloor({
         parentTxHex: triggerInfo.txHex,
         parentFee: triggerInfo.fee,
-        previousChildTxHex: triggerCpfpTxHex,
-        historyData,
         feeEstimates,
         utxosData: [triggerReserveUtxoData],
         childOutput: DUMMY_CHANGE_OUTPUT(
           getMainAccount(accounts, network),
           network
-        )
+        ),
+        ...(historyData ? { historyData } : {}),
+        ...(vaultStatus.triggerCpfpTxHex
+          ? { childTxHex: vaultStatus.triggerCpfpTxHex }
+          : {})
       });
     }
   }, [
@@ -154,8 +156,10 @@ const InitUnfreeze = ({
       settings.INITIAL_CONFIRMATION_TIME
     ).feeEstimate;
     if (!isAccelerationAttempt) return preferredNetworkFeeRate;
-    if (replacementFeeRateFloor === null) return null;
-    return Math.max(replacementFeeRateFloor, preferredNetworkFeeRate);
+    else {
+      if (replacementFeeRateFloor === null) return null;
+      else return Math.max(replacementFeeRateFloor, preferredNetworkFeeRate);
+    }
   }, [
     feeEstimates,
     settings.INITIAL_CONFIRMATION_TIME,

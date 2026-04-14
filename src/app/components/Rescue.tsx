@@ -55,6 +55,17 @@ const Rescue = ({
     emergencyBumpPlan?: PreparedCpfpPlan
   ) => void;
   isVisible: boolean;
+  /**
+   * Optional external CPFP funding plan for P2A-vault-type rescue.
+   *
+   * This is a small emergency wallet plan prepared outside the
+   * main wallet after an attack. It provides fresh UTXOs and a signer that are
+   * not meant to be under the compromised wallet's normal flow.
+   *
+   * When present, rescue can attach a child tx that spends those fresh UTXOs to
+   * add more fee and sends leftover value to the provided output, which should
+   * normally be the emergency address. When absent, P2A rescue stays parent-only.
+   */
   emergencyBumpPlan?: PreparedCpfpPlan;
   onClose: () => void;
 }) => {
@@ -72,9 +83,9 @@ const Rescue = ({
   const btcFiat = useFirstDefinedValue<number>(btcFiatRealTime);
   const feeEstimates = useFirstDefinedValue<FeeEstimates>(feeEstimatesRealTime);
 
-  // Minimum effective fee-rate floor required only when replacing an already
-  // existing fee-bump child. `null` means there is no replacement floor yet or
-  // we cannot compute it safely with the data currently available.
+  // Minimum fee rate that improves the currently live rescue state.
+  // If a CPFP child already exists, this is a true replacement floor. If not,
+  // it is the first actionable package fee rate above the parent-only state.
   const replacementFeeRateFloor = useMemo<number | null>(() => {
     if (!isAccelerationAttempt) return null;
     else if (!vaultStatus?.triggerTxHex || !vaultStatus?.panicTxHex)
@@ -94,19 +105,22 @@ const Rescue = ({
         1
       );
     } else {
-      const rescueInfo = getP2ARescueInfo(vault, vaultStatus.triggerTxHex);
-      const panicCpfpTxHex = vaultStatus.panicCpfpTxHex;
-      if (!panicCpfpTxHex) return null;
-      if (!emergencyBumpPlan) return null;
-      return getCpfpReplacementFeeRateFloor({
-        parentTxHex: rescueInfo.txHex,
-        parentFee: rescueInfo.fee,
-        previousChildTxHex: panicCpfpTxHex,
-        historyData,
-        feeEstimates,
-        utxosData: emergencyBumpPlan.utxosData,
-        childOutput: emergencyBumpPlan.changeOutput
-      });
+      //P2A-vaults:
+      if (!feeEstimates || !emergencyBumpPlan) return null;
+      else {
+        const rescueInfo = getP2ARescueInfo(vault, vaultStatus.triggerTxHex);
+        return getCpfpReplacementFeeRateFloor({
+          parentTxHex: rescueInfo.txHex,
+          parentFee: rescueInfo.fee,
+          feeEstimates,
+          utxosData: emergencyBumpPlan.utxosData,
+          childOutput: emergencyBumpPlan.changeOutput,
+          ...(historyData ? { historyData } : {}),
+          ...(vaultStatus.panicCpfpTxHex
+            ? { childTxHex: vaultStatus.panicCpfpTxHex }
+            : {})
+        });
+      }
     }
   }, [
     isAccelerationAttempt,
@@ -120,9 +134,9 @@ const Rescue = ({
 
   const ladderedRescueSortedTxs = useMemo(() => {
     if (!isLadderedVault) return [];
-    if (!isVisible) return [];
+    // Rescue data only exists after a trigger tx has already been broadcast.
     const triggerTxHex = vaultStatus?.triggerTxHex;
-    if (!triggerTxHex) throw new Error('Vault has not been triggered');
+    if (!triggerTxHex) return [];
     const rescueTxs = vault.triggerMap[triggerTxHex];
     if (!rescueTxs)
       throw new Error("Triggered vault doesn't have matching rescue txs");
@@ -133,7 +147,7 @@ const Rescue = ({
         return { txHex, fee: txData.fee, feeRate: txData.feeRate };
       })
       .sort((a, b) => a.feeRate - b.feeRate);
-  }, [vault, vaultStatus?.triggerTxHex, isVisible, isLadderedVault]);
+  }, [vault, vaultStatus?.triggerTxHex, isLadderedVault]);
 
   const maxFeeRate = feeEstimates ? computeMaxAllowedFeeRate(feeEstimates) : 0;
   const { settings } = useSettings();
@@ -152,35 +166,33 @@ const Rescue = ({
         settings.INITIAL_CONFIRMATION_TIME
       ).feeEstimate;
       if (!isAccelerationAttempt) return preferredNetworkFeeRate;
+      else {
+        if (replacementFeeRateFloor === null) return null;
+        else return Math.max(replacementFeeRateFloor, preferredNetworkFeeRate);
+      }
+    } else {
+      const rescueInfo = getP2ARescueInfo(vault, vaultStatus?.triggerTxHex);
+
+      if (!emergencyBumpPlan)
+        return isAccelerationAttempt ? null : rescueInfo.feeRate;
+
+      if (!feeEstimates) return null;
+      const preferredNetworkFeeRate = pickFeeEstimate(
+        feeEstimates,
+        settings.INITIAL_CONFIRMATION_TIME
+      ).feeEstimate;
+
+      if (!isAccelerationAttempt)
+        return Math.max(rescueInfo.feeRate, preferredNetworkFeeRate);
       if (replacementFeeRateFloor === null) return null;
       return Math.max(replacementFeeRateFloor, preferredNetworkFeeRate);
     }
-
-    const rescueInfo = getP2ARescueInfo(vault, vaultStatus?.triggerTxHex);
-
-    if (!emergencyBumpPlan)
-      return isAccelerationAttempt ? null : rescueInfo.feeRate;
-
-    if (!feeEstimates) return null;
-    const preferredNetworkFeeRate = pickFeeEstimate(
-      feeEstimates,
-      settings.INITIAL_CONFIRMATION_TIME
-    ).feeEstimate;
-
-    // If rescue is already in flight but no child exists yet, the first CPFP
-    // package is not a replacement. The natural floor is the current parent
-    // feerate, not a replacement floor.
-    if (!isAccelerationAttempt || !vaultStatus?.panicCpfpTxHex)
-      return Math.max(rescueInfo.feeRate, preferredNetworkFeeRate);
-    if (replacementFeeRateFloor === null) return null;
-    return Math.max(replacementFeeRateFloor, preferredNetworkFeeRate);
   }, [
     feeEstimates,
     settings.INITIAL_CONFIRMATION_TIME,
     isLadderedVault,
     vault,
     vaultStatus?.triggerTxHex,
-    vaultStatus?.panicCpfpTxHex,
     emergencyBumpPlan,
     isAccelerationAttempt,
     replacementFeeRateFloor
@@ -208,8 +220,7 @@ const Rescue = ({
         : (ladderedRescueSortedTxs[0]?.feeRate ?? MIN_FEE_RATE);
     if (!emergencyBumpPlan) return null;
     const rescueInfo = getP2ARescueInfo(vault, vaultStatus?.triggerTxHex);
-    if (!isAccelerationAttempt || !vaultStatus?.panicCpfpTxHex)
-      return rescueInfo.feeRate;
+    if (!isAccelerationAttempt) return rescueInfo.feeRate;
     return replacementFeeRateFloor;
   }, [
     isLadderedVault,
@@ -237,8 +248,9 @@ const Rescue = ({
           actionFeeRate: rescueInfo.feeRate
         };
       }
-      if (!isVisible) return null;
-      const rescueInfo = getP2ARescueInfo(vault, vaultStatus?.triggerTxHex);
+      const triggerTxHex = vaultStatus?.triggerTxHex;
+      if (!triggerTxHex) return null;
+      const rescueInfo = getP2ARescueInfo(vault, triggerTxHex);
       // Rescue is parent-only by default. Only switch to a package when an
       // explicit external emergency bump plan exists.
       if (selectedFeeRate <= rescueInfo.feeRate)
@@ -267,7 +279,6 @@ const Rescue = ({
     [
       isLadderedVault,
       ladderedRescueSortedTxs,
-      isVisible,
       vault,
       vaultStatus?.triggerTxHex,
       emergencyBumpPlan
