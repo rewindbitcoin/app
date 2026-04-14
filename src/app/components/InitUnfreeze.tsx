@@ -80,8 +80,8 @@ const InitUnfreeze = ({
   // existing fee-bump child. `null` means we cannot compute that floor yet.
   const replacementFeeRateFloor = useMemo<number | null>(() => {
     if (!isAccelerationAttempt) return null;
+    else if (!vaultStatus?.triggerTxHex) throw new Error('trigger is not set');
     if (isLadderedVault) {
-      if (!vaultStatus?.triggerTxHex) return null;
       const { tx } = transactionFromHex(vaultStatus.triggerTxHex);
       const outValue = tx.outs[0]?.value;
       if (!tx || tx.outs.length !== 1 || !outValue)
@@ -89,7 +89,7 @@ const InitUnfreeze = ({
       return (vault.vaultedAmount - toNumber(outValue)) / tx.virtualSize() + 1;
     } else {
       const triggerInfo = getP2ATriggerInfo(vault);
-      const triggerCpfpTxHex = vaultStatus?.triggerCpfpTxHex;
+      const triggerCpfpTxHex = vaultStatus.triggerCpfpTxHex;
       const signer = signers?.[0];
       if (!triggerCpfpTxHex || !signer || !networkId || !accounts) return null;
       const network = networkMapping[networkId];

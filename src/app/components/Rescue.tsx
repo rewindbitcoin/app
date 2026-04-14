@@ -77,8 +77,9 @@ const Rescue = ({
   // we cannot compute it safely with the data currently available.
   const replacementFeeRateFloor = useMemo<number | null>(() => {
     if (!isAccelerationAttempt) return null;
+    else if (!vaultStatus?.triggerTxHex || !vaultStatus?.panicTxHex)
+      throw new Error('trigger or panic txs not set');
     if (isLadderedVault) {
-      if (!vaultStatus?.triggerTxHex || !vaultStatus?.panicTxHex) return null;
       const { tx: triggerTx } = transactionFromHex(vaultStatus.triggerTxHex);
       const { tx: panicTx } = transactionFromHex(vaultStatus.panicTxHex);
       const triggerOutValue = triggerTx.outs[0]?.value;
@@ -93,8 +94,8 @@ const Rescue = ({
         1
       );
     } else {
-      const rescueInfo = getP2ARescueInfo(vault, vaultStatus?.triggerTxHex);
-      const panicCpfpTxHex = vaultStatus?.panicCpfpTxHex;
+      const rescueInfo = getP2ARescueInfo(vault, vaultStatus.triggerTxHex);
+      const panicCpfpTxHex = vaultStatus.panicCpfpTxHex;
       if (!panicCpfpTxHex) return null;
       if (!emergencyBumpPlan) return null;
       return getCpfpReplacementFeeRateFloor({
