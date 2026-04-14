@@ -17,7 +17,8 @@ import {
   type Vault,
   type VaultStatus,
   estimateCpfpPackage,
-  getVaultMode
+  getVaultMode,
+  type HistoryData
 } from '../lib/vaults';
 import { transactionFromHex } from '../lib/bitcoin';
 import { useWallet } from '../hooks/useWallet';
@@ -40,14 +41,125 @@ const getP2ARescueInfo = (vault: Vault, triggerTxHex: string | undefined) => {
   return { txHex, fee: rescueTxData.fee, feeRate: rescueTxData.feeRate };
 };
 
-const Rescue = ({
+const getLadderedRescueSortedTxs = (vault: Vault, triggerTxHex: string) => {
+  const rescueTxs = vault.triggerMap[triggerTxHex];
+  if (!rescueTxs)
+    throw new Error("Triggered vault doesn't have matching rescue txs");
+  return rescueTxs
+    .map(txHex => {
+      const txData = vault.txMap[txHex];
+      if (!txData) throw new Error('rescue tx not mapped');
+      return { txHex, fee: txData.fee, feeRate: txData.feeRate };
+    })
+    .sort((a, b) => a.feeRate - b.feeRate);
+};
+
+export const getRescueAccelerationInfo = ({
   vault,
   vaultStatus,
-  isVisible,
-  emergencyBumpPlan,
-  onRescue,
-  onClose
+  feeEstimates,
+  historyData,
+  emergencyBumpPlan
 }: {
+  vault: Vault;
+  vaultStatus: VaultStatus | undefined;
+  feeEstimates: FeeEstimates | undefined;
+  historyData: HistoryData | undefined;
+  emergencyBumpPlan: PreparedCpfpPlan | undefined;
+}) => {
+  const isRescueConfirmed =
+    vaultStatus?.panicTxBlockHeight !== undefined &&
+    vaultStatus.panicTxBlockHeight > 0;
+  const isAccelerationAttempt =
+    (!!vaultStatus?.panicPushTime || vaultStatus?.panicTxBlockHeight === 0) &&
+    !isRescueConfirmed;
+  if (!isAccelerationAttempt) {
+    return {
+      isAccelerationAttempt,
+      replacementFeeRateFloor: null,
+      canAccelerate: false
+    };
+  } else if (!vaultStatus?.triggerTxHex || !vaultStatus.panicTxHex) {
+    throw new Error('trigger or panic txs not set');
+  } else if (!feeEstimates) {
+    return {
+      isAccelerationAttempt,
+      replacementFeeRateFloor: null,
+      canAccelerate: false
+    };
+  } else {
+    const maxFeeRate = computeMaxAllowedFeeRate(feeEstimates);
+
+    if (getVaultMode(vault) === 'LADDERED') {
+      const { tx: triggerTx } = transactionFromHex(vaultStatus.triggerTxHex);
+      const { tx: panicTx } = transactionFromHex(vaultStatus.panicTxHex);
+      const triggerOutValue = triggerTx.outs[0]?.value;
+      if (!triggerTx || triggerTx.outs.length !== 1 || !triggerOutValue)
+        throw new Error('Invalid triggerTxHex');
+
+      const panicOutValue = panicTx.outs[0]?.value;
+      if (!panicTx || panicTx.outs.length !== 1 || !panicOutValue)
+        throw new Error('Invalid panicTxHex');
+
+      const replacementFeeRateFloor =
+        (toNumber(triggerOutValue) - toNumber(panicOutValue)) /
+          panicTx.virtualSize() +
+        1;
+      if (replacementFeeRateFloor > maxFeeRate) {
+        return {
+          isAccelerationAttempt,
+          replacementFeeRateFloor,
+          canAccelerate: false
+        };
+      } else {
+        return {
+          isAccelerationAttempt,
+          replacementFeeRateFloor,
+          canAccelerate:
+            findNextEqualOrLargerFeeRate(
+              getLadderedRescueSortedTxs(vault, vaultStatus.triggerTxHex),
+              replacementFeeRateFloor
+            ) !== null
+        };
+      }
+    } else if (!emergencyBumpPlan) {
+      return {
+        isAccelerationAttempt,
+        replacementFeeRateFloor: null,
+        canAccelerate: false
+      };
+    } else {
+      const rescueInfo = getP2ARescueInfo(vault, vaultStatus.triggerTxHex);
+      const replacementFeeRateFloor = getCpfpReplacementFeeRateFloor({
+        parentTxHex: rescueInfo.txHex,
+        parentFee: rescueInfo.fee,
+        feeEstimates,
+        utxosData: emergencyBumpPlan.utxosData,
+        childOutput: emergencyBumpPlan.changeOutput,
+        ...(historyData ? { historyData } : {}),
+        ...(vaultStatus.panicCpfpTxHex
+          ? { childTxHex: vaultStatus.panicCpfpTxHex }
+          : {})
+      });
+
+      if (replacementFeeRateFloor === null) {
+        return {
+          isAccelerationAttempt,
+          replacementFeeRateFloor: null,
+          canAccelerate: false
+        };
+      } else {
+        return {
+          isAccelerationAttempt,
+          replacementFeeRateFloor,
+          canAccelerate: replacementFeeRateFloor <= maxFeeRate
+        };
+      }
+    }
+  }
+};
+
+type RescueProps = {
   vault: Vault;
   vaultStatus: VaultStatus | undefined;
   onRescue: (
@@ -68,11 +180,17 @@ const Rescue = ({
    */
   emergencyBumpPlan?: PreparedCpfpPlan;
   onClose: () => void;
-}) => {
+};
+
+const VisibleRescue = ({
+  vault,
+  vaultStatus,
+  emergencyBumpPlan,
+  onRescue,
+  onClose
+}: RescueProps) => {
   const vaultMode = useMemo(() => getVaultMode(vault), [vault]);
   const isLadderedVault = vaultMode === 'LADDERED';
-  const isAccelerationAttempt =
-    !!vaultStatus?.panicPushTime || vaultStatus?.panicTxBlockHeight === 0;
   const { t } = useTranslation();
   const {
     feeEstimates: feeEstimatesRealTime,
@@ -82,74 +200,34 @@ const Rescue = ({
   // Cache to avoid flickering in the sliders while background refreshes happen.
   const btcFiat = useFirstDefinedValue<number>(btcFiatRealTime);
   const feeEstimates = useFirstDefinedValue<FeeEstimates>(feeEstimatesRealTime);
-
-  // Minimum fee rate that improves the currently live rescue state.
-  // If a CPFP child already exists, this is a true replacement floor. If not,
-  // it is the first actionable package fee rate above the parent-only state.
-  const replacementFeeRateFloor = useMemo<number | null>(() => {
-    if (!isAccelerationAttempt) return null;
-    else if (!vaultStatus?.triggerTxHex || !vaultStatus?.panicTxHex)
-      throw new Error('trigger or panic txs not set');
-    if (isLadderedVault) {
-      const { tx: triggerTx } = transactionFromHex(vaultStatus.triggerTxHex);
-      const { tx: panicTx } = transactionFromHex(vaultStatus.panicTxHex);
-      const triggerOutValue = triggerTx.outs[0]?.value;
-      if (!triggerTx || triggerTx.outs.length !== 1 || !triggerOutValue)
-        throw new Error('Invalid triggerTxHex');
-      const panicOutValue = panicTx.outs[0]?.value;
-      if (!panicTx || panicTx.outs.length !== 1 || !panicOutValue)
-        throw new Error('Invalid panicTxHex');
-      return (
-        (toNumber(triggerOutValue) - toNumber(panicOutValue)) /
-          panicTx.virtualSize() +
-        1
-      );
-    } else {
-      //P2A-vaults:
-      if (!feeEstimates || !emergencyBumpPlan) return null;
-      else {
-        const rescueInfo = getP2ARescueInfo(vault, vaultStatus.triggerTxHex);
-        return getCpfpReplacementFeeRateFloor({
-          parentTxHex: rescueInfo.txHex,
-          parentFee: rescueInfo.fee,
+  const { isAccelerationAttempt, replacementFeeRateFloor, canAccelerate } =
+    useMemo(
+      () =>
+        getRescueAccelerationInfo({
+          vault,
+          vaultStatus,
           feeEstimates,
-          utxosData: emergencyBumpPlan.utxosData,
-          childOutput: emergencyBumpPlan.changeOutput,
-          ...(historyData ? { historyData } : {}),
-          ...(vaultStatus.panicCpfpTxHex
-            ? { childTxHex: vaultStatus.panicCpfpTxHex }
-            : {})
-        });
-      }
-    }
-  }, [
-    isAccelerationAttempt,
-    isLadderedVault,
-    vaultStatus,
-    vault,
-    historyData,
-    feeEstimates,
-    emergencyBumpPlan
-  ]);
+          historyData,
+          emergencyBumpPlan
+        }),
+      [vault, vaultStatus, feeEstimates, historyData, emergencyBumpPlan]
+    );
+  const triggerTxHex = vaultStatus?.triggerTxHex;
+  // The wrapper only mounts this component while visible. Once rescue is
+  // visible, the vault must already have a trigger tx.
+  if (!triggerTxHex) throw new Error('Visible rescue is missing trigger tx');
 
   const ladderedRescueSortedTxs = useMemo(() => {
-    if (!isLadderedVault) return [];
-    // Rescue data only exists after a trigger tx has already been broadcast.
-    const triggerTxHex = vaultStatus?.triggerTxHex;
-    if (!triggerTxHex) return [];
-    const rescueTxs = vault.triggerMap[triggerTxHex];
-    if (!rescueTxs)
-      throw new Error("Triggered vault doesn't have matching rescue txs");
-    return rescueTxs
-      .map(txHex => {
-        const txData = vault.txMap[txHex];
-        if (!txData) throw new Error('rescue tx not mapped');
-        return { txHex, fee: txData.fee, feeRate: txData.feeRate };
-      })
-      .sort((a, b) => a.feeRate - b.feeRate);
-  }, [vault, vaultStatus?.triggerTxHex, isLadderedVault]);
+    if (isLadderedVault) {
+      return getLadderedRescueSortedTxs(vault, triggerTxHex);
+    } else {
+      return [];
+    }
+  }, [vault, triggerTxHex, isLadderedVault]);
 
-  const maxFeeRate = feeEstimates ? computeMaxAllowedFeeRate(feeEstimates) : 0;
+  const maxFeeRate = feeEstimates
+    ? computeMaxAllowedFeeRate(feeEstimates)
+    : null;
   const { settings } = useSettings();
   if (!settings)
     throw new Error(
@@ -171,7 +249,7 @@ const Rescue = ({
         else return Math.max(replacementFeeRateFloor, preferredNetworkFeeRate);
       }
     } else {
-      const rescueInfo = getP2ARescueInfo(vault, vaultStatus?.triggerTxHex);
+      const rescueInfo = getP2ARescueInfo(vault, triggerTxHex);
 
       if (!emergencyBumpPlan)
         return isAccelerationAttempt ? null : rescueInfo.feeRate;
@@ -192,21 +270,11 @@ const Rescue = ({
     settings.INITIAL_CONFIRMATION_TIME,
     isLadderedVault,
     vault,
-    vaultStatus?.triggerTxHex,
+    triggerTxHex,
     emergencyBumpPlan,
     isAccelerationAttempt,
     replacementFeeRateFloor
   ]);
-
-  const isAccelerationSyncPending =
-    isAccelerationAttempt &&
-    !!vaultStatus?.panicCpfpTxHex &&
-    !!emergencyBumpPlan &&
-    replacementFeeRateFloor === null;
-  const cannotAccelerateMaxFee =
-    isAccelerationAttempt &&
-    replacementFeeRateFloor !== null &&
-    replacementFeeRateFloor > maxFeeRate;
 
   const showsFeePicker = isLadderedVault || !!emergencyBumpPlan;
   const needsFeeEstimates = showsFeePicker;
@@ -214,14 +282,22 @@ const Rescue = ({
   const [feeRate, setFeeRate] = useState<number | null>(null);
 
   const minimumSelectableFeeRate = useMemo(() => {
-    if (isLadderedVault)
+    if (isLadderedVault) {
       return isAccelerationAttempt
         ? replacementFeeRateFloor
         : (ladderedRescueSortedTxs[0]?.feeRate ?? MIN_FEE_RATE);
-    if (!emergencyBumpPlan) return null;
-    const rescueInfo = getP2ARescueInfo(vault, vaultStatus?.triggerTxHex);
-    if (!isAccelerationAttempt) return rescueInfo.feeRate;
-    return replacementFeeRateFloor;
+    } else {
+      if (!emergencyBumpPlan) {
+        return null;
+      } else {
+        const rescueInfo = getP2ARescueInfo(vault, triggerTxHex);
+        if (!isAccelerationAttempt) {
+          return rescueInfo.feeRate;
+        } else {
+          return replacementFeeRateFloor;
+        }
+      }
+    }
   }, [
     isLadderedVault,
     isAccelerationAttempt,
@@ -229,8 +305,7 @@ const Rescue = ({
     ladderedRescueSortedTxs,
     emergencyBumpPlan,
     vault,
-    vaultStatus?.triggerTxHex,
-    vaultStatus?.panicCpfpTxHex
+    triggerTxHex
   ]);
 
   const buildTxDataForFeeRate = useCallback(
@@ -247,40 +322,42 @@ const Rescue = ({
           actionFee: rescueInfo.fee,
           actionFeeRate: rescueInfo.feeRate
         };
+      } else {
+        const rescueInfo = getP2ARescueInfo(vault, triggerTxHex);
+        // Rescue is parent-only by default. Only switch to a package when an
+        // explicit external emergency bump plan exists.
+        if (selectedFeeRate <= rescueInfo.feeRate)
+          return {
+            parentTxHex: rescueInfo.txHex,
+            parentTxFee: rescueInfo.fee,
+            actionFee: rescueInfo.fee,
+            actionFeeRate: rescueInfo.feeRate
+          };
+        else if (!emergencyBumpPlan) return null;
+        else {
+          const plan = estimateCpfpPackage({
+            parentTxHex: rescueInfo.txHex,
+            parentFee: rescueInfo.fee,
+            targetPackageFeeRate: selectedFeeRate,
+            utxosData: emergencyBumpPlan.utxosData,
+            changeOutput: emergencyBumpPlan.changeOutput
+          });
+          if (!plan) return null;
+          else
+            return {
+              parentTxHex: rescueInfo.txHex,
+              parentTxFee: rescueInfo.fee,
+              actionFee: plan.packageFee,
+              actionFeeRate: plan.packageFeeRate
+            };
+        }
       }
-      const triggerTxHex = vaultStatus?.triggerTxHex;
-      if (!triggerTxHex) return null;
-      const rescueInfo = getP2ARescueInfo(vault, triggerTxHex);
-      // Rescue is parent-only by default. Only switch to a package when an
-      // explicit external emergency bump plan exists.
-      if (selectedFeeRate <= rescueInfo.feeRate)
-        return {
-          parentTxHex: rescueInfo.txHex,
-          parentTxFee: rescueInfo.fee,
-          actionFee: rescueInfo.fee,
-          actionFeeRate: rescueInfo.feeRate
-        };
-      if (!emergencyBumpPlan) return null;
-      const plan = estimateCpfpPackage({
-        parentTxHex: rescueInfo.txHex,
-        parentFee: rescueInfo.fee,
-        targetPackageFeeRate: selectedFeeRate,
-        utxosData: emergencyBumpPlan.utxosData,
-        changeOutput: emergencyBumpPlan.changeOutput
-      });
-      if (!plan) return null;
-      return {
-        parentTxHex: rescueInfo.txHex,
-        parentTxFee: rescueInfo.fee,
-        actionFee: plan.packageFee,
-        actionFeeRate: plan.packageFeeRate
-      };
     },
     [
       isLadderedVault,
       ladderedRescueSortedTxs,
       vault,
-      vaultStatus?.triggerTxHex,
+      triggerTxHex,
       emergencyBumpPlan
     ]
   );
@@ -291,17 +368,27 @@ const Rescue = ({
       // fall back to the minimum actionable replacement floor instead of
       // opening an acceleration modal that cannot proceed past the intro step.
       pickActionableInitialFeeRate({
-        preferredFeeRate: cannotAccelerateMaxFee
-          ? null
-          : preferredInitialFeeRate,
-        minimumActionableFeeRate: cannotAccelerateMaxFee
-          ? null
-          : minimumSelectableFeeRate,
+        preferredFeeRate:
+          isAccelerationAttempt &&
+          replacementFeeRateFloor !== null &&
+          maxFeeRate !== null &&
+          replacementFeeRateFloor > maxFeeRate
+            ? null
+            : preferredInitialFeeRate,
+        minimumActionableFeeRate:
+          isAccelerationAttempt &&
+          replacementFeeRateFloor !== null &&
+          maxFeeRate !== null &&
+          replacementFeeRateFloor > maxFeeRate
+            ? null
+            : minimumSelectableFeeRate,
         canBuildAtFeeRate: feeRate => buildTxDataForFeeRate(feeRate) !== null
       }),
     [
       preferredInitialFeeRate,
-      cannotAccelerateMaxFee,
+      isAccelerationAttempt,
+      replacementFeeRateFloor,
+      maxFeeRate,
       minimumSelectableFeeRate,
       buildTxDataForFeeRate
     ]
@@ -313,19 +400,11 @@ const Rescue = ({
     return buildTxDataForFeeRate(selectedFeeRate);
   }, [feeRate, initialFeeRate, buildTxDataForFeeRate]);
 
-  const canOpenFeeStep =
-    initialFeeRate !== null &&
-    !isAccelerationSyncPending &&
-    !cannotAccelerateMaxFee;
+  const canOpenFeeStep = isAccelerationAttempt
+    ? canAccelerate
+    : initialFeeRate !== null;
 
   const fee = txData ? txData.actionFee : null;
-
-  // Reset the local wizard step when the modal closes so reopening it always
-  // starts from the intro screen instead of a stale fee-selection step.
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (!isVisible) setStep('intro');
-  }, [isVisible]);
 
   // Reset feeRate every time the selected initial fee changes.
   useEffect(() => {
@@ -344,103 +423,109 @@ const Rescue = ({
   }, [onRescue, txData, emergencyBumpPlan]);
 
   return (
-    isVisible && (
-      <Modal
-        headerMini={true}
-        isVisible={true}
-        title={t('wallet.vault.rescueButton')}
-        icon={{
-          family: 'MaterialCommunityIcons',
-          name: 'alarm-light'
-        }}
-        onClose={onClose}
-        {...{
-          customButtons:
-            step === 'intro' ? (
-              <View className="items-center gap-6 gap-y-4 flex-row flex-wrap justify-center pb-4">
-                <Button mode="secondary" onPress={onClose}>
-                  {t('cancelButton')}
+    <Modal
+      headerMini={true}
+      isVisible={true}
+      title={t('wallet.vault.rescueButton')}
+      icon={{
+        family: 'MaterialCommunityIcons',
+        name: 'alarm-light'
+      }}
+      onClose={onClose}
+      {...{
+        customButtons:
+          step === 'intro' ? (
+            <View className="items-center gap-6 gap-y-4 flex-row flex-wrap justify-center pb-4">
+              <Button mode="secondary" onPress={onClose}>
+                {t('cancelButton')}
+              </Button>
+              {canOpenFeeStep && (
+                <Button mode="primary-alert" onPress={() => setStep('fee')}>
+                  {isAccelerationAttempt
+                    ? t('accelerateButton')
+                    : t('imInDangerButton')}
                 </Button>
-                {canOpenFeeStep && (
-                  <Button mode="primary-alert" onPress={() => setStep('fee')}>
-                    {isAccelerationAttempt
-                      ? t('accelerateButton')
-                      : t('imInDangerButton')}
-                  </Button>
-                )}
-              </View>
-            ) : step === 'fee' ? (
-              <View className="items-center gap-6 gap-y-4 flex-row flex-wrap justify-center pb-4">
-                <Button mode="secondary" onPress={onClose}>
-                  {t('cancelButton')}
-                </Button>
-                <Button
-                  mode="primary-alert"
-                  onPress={handleRescue}
-                  disabled={!txData}
-                >
-                  {t('wallet.vault.rescueButton')}
-                </Button>
-              </View>
-            ) : undefined
-        }}
-      >
-        {needsFeeEstimates && !feeEstimates ? (
-          //loading...
-          <ActivityIndicator />
-        ) : cannotAccelerateMaxFee ? (
-          //cannot RBF
-          <View>
-            <Text className="text-base text-slate-600 pb-2 px-2">
-              {t('wallet.vault.cannotAccelerateMaxFee')}
-            </Text>
-          </View>
-        ) : step === 'intro' ? (
-          <View>
-            <Text className="text-base text-slate-600 pb-2 px-2">
-              {isAccelerationAttempt
-                ? t('wallet.vault.rescue.introAccelerate')
-                : t('wallet.vault.rescue.intro', {
-                    panicAddress: vault.coldAddress
-                  })}
-            </Text>
-          </View>
-        ) : step === 'fee' ? (
-          <View>
-            {showsFeePicker ? (
-              <>
-                <Text className="text-base text-slate-600 pb-4 px-2">
-                  {t('wallet.vault.rescue.feeSelectorExplanation')}
-                </Text>
-                <View className="bg-slate-100 p-2 rounded-xl">
-                  <FeeInput
-                    {...(minimumSelectableFeeRate !== null
-                      ? { min: minimumSelectableFeeRate }
-                      : {})}
-                    btcFiat={btcFiat}
-                    feeEstimates={feeEstimates!}
-                    initialValue={initialFeeRate!}
-                    fee={fee}
-                    label={t('wallet.vault.rescue.confirmationSpeedLabel')}
-                    onValueChange={setFeeRate}
-                  />
-                </View>
-              </>
-            ) : (
+              )}
+            </View>
+          ) : step === 'fee' ? (
+            <View className="items-center gap-6 gap-y-4 flex-row flex-wrap justify-center pb-4">
+              <Button mode="secondary" onPress={onClose}>
+                {t('cancelButton')}
+              </Button>
+              <Button
+                mode="primary-alert"
+                onPress={handleRescue}
+                disabled={!txData}
+              >
+                {t('wallet.vault.rescueButton')}
+              </Button>
+            </View>
+          ) : undefined
+      }}
+    >
+      {needsFeeEstimates && !feeEstimates ? (
+        //loading...
+        <ActivityIndicator />
+      ) : isAccelerationAttempt &&
+        replacementFeeRateFloor !== null &&
+        maxFeeRate !== null &&
+        replacementFeeRateFloor > maxFeeRate ? (
+        //cannot RBF
+        <View>
+          <Text className="text-base text-slate-600 pb-2 px-2">
+            {t('wallet.vault.cannotAccelerateMaxFee')}
+          </Text>
+        </View>
+      ) : step === 'intro' ? (
+        <View>
+          <Text className="text-base text-slate-600 pb-2 px-2">
+            {isAccelerationAttempt
+              ? t('wallet.vault.rescue.introAccelerate')
+              : t('wallet.vault.rescue.intro', {
+                  panicAddress: vault.coldAddress
+                })}
+          </Text>
+        </View>
+      ) : step === 'fee' ? (
+        <View>
+          {showsFeePicker ? (
+            <>
               <Text className="text-base text-slate-600 pb-4 px-2">
-                {t('wallet.vault.rescue.highFeeConfirmation')}
+                {t('wallet.vault.rescue.feeSelectorExplanation')}
               </Text>
-            )}
-            <Text className="text-base text-slate-600 pt-4 px-2">
-              {t('wallet.vault.rescue.additionalExplanation', {
-                timeLockTime: 0
-              })}
+              <View className="bg-slate-100 p-2 rounded-xl">
+                <FeeInput
+                  {...(minimumSelectableFeeRate !== null
+                    ? { min: minimumSelectableFeeRate }
+                    : {})}
+                  btcFiat={btcFiat}
+                  feeEstimates={feeEstimates!}
+                  initialValue={initialFeeRate!}
+                  fee={fee}
+                  label={t('wallet.vault.rescue.confirmationSpeedLabel')}
+                  onValueChange={setFeeRate}
+                />
+              </View>
+            </>
+          ) : (
+            <Text className="text-base text-slate-600 pb-4 px-2">
+              {t('wallet.vault.rescue.highFeeConfirmation')}
             </Text>
-          </View>
-        ) : null}
-      </Modal>
-    )
+          )}
+          <Text className="text-base text-slate-600 pt-4 px-2">
+            {t('wallet.vault.rescue.additionalExplanation', {
+              timeLockTime: 0
+            })}
+          </Text>
+        </View>
+      ) : null}
+    </Modal>
   );
+};
+
+const Rescue = (props: RescueProps) => {
+  if (!props.isVisible) return null;
+  return <VisibleRescue {...props} />;
 };
 
 export default Rescue;

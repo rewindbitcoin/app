@@ -44,12 +44,11 @@ import { Button, IconType, InfoButton, Modal, useToast } from '../../common/ui';
 import { useSettings } from '../hooks/useSettings';
 import type { SubUnit } from '../lib/settings';
 import type { BlockStatus } from '@bitcoinerlab/explorer';
-import InitUnfreeze from './InitUnfreeze';
-import Rescue from './Rescue';
+import InitUnfreeze, { getTriggerAccelerationInfo } from './InitUnfreeze';
+import Rescue, { getRescueAccelerationInfo } from './Rescue';
 import {
   getMinimumReplacementChildFee,
   getCpfpFeeInfo,
-  getCpfpReplacementFeeRateFloor,
   type PreparedCpfpPlan,
   type VaultActionTxData
 } from '../lib/vaultActionTx';
@@ -66,11 +65,7 @@ import {
 } from '../lib/watchtower';
 import SkeletonPulse from './SkeletonPulse';
 import { networkMapping } from '../lib/network';
-import {
-  computeChangeOutput,
-  DUMMY_CHANGE_OUTPUT,
-  getMainAccount
-} from '../lib/vaultDescriptors';
+import { computeChangeOutput } from '../lib/vaultDescriptors';
 import useFirstDefinedValue from '~/common/hooks/useFirstDefinedValue';
 
 const LOADING_TEXT = '     ';
@@ -494,9 +489,7 @@ const RawVault = ({
       pushTxPackage,
       pushTx,
       isLadderedVault,
-      vault.vaultId,
-      vault.vaultPath,
-      vault.vaultTxHex,
+      vault,
       vaultStatus,
       historyData,
       updateVaultStatus,
@@ -688,80 +681,36 @@ const RawVault = ({
 
   const canAccelerateTrigger = useMemo(() => {
     if (isInitUnfreezeBeingHandled) return false;
-    // Once rescue exists, the live child hanging from the trigger is the rescue
-    // path, not the old trigger fee-payer child. Offering "accelerate trigger"
-    // here is misleading and can produce invalid replacements.
-    if (isRescueTx) return false;
-    if (
-      !(
-        (isInitUnfreezeTxPushed || isInitUnfreezeTxInMempool) &&
-        !isInitUnfreezeTxConfirmed
-      )
-    )
-      return false;
-    if (isLadderedVault) return true;
-    const parentTxHex = vaultStatus?.triggerTxHex;
-    const previousChildTxHex = vaultStatus?.triggerCpfpTxHex;
-    if (!parentTxHex || !previousChildTxHex) return false;
-    const parentTxData = vault.txMap[parentTxHex];
-    const signer = signers?.[0];
-    if (!parentTxData || !signer || !networkId || !feeEstimates) return false;
-    if (!historyData?.length) return false;
-    try {
-      const network = networkMapping[networkId];
-      if (!accounts) return false;
-      const triggerReserveUtxoData = getTriggerReserveUtxoData({
-        vault,
-        signer,
-        network
-      });
-      // Show the outer button only when a real next replacement floor exists.
-      // Otherwise the modal can open with informational copy but no fee path to
-      // continue, which is misleading.
-      return (
-        getCpfpReplacementFeeRateFloor({
-          parentTxHex,
-          parentFee: parentTxData.fee,
-          historyData,
-          feeEstimates,
-          utxosData: [triggerReserveUtxoData],
-          childOutput: DUMMY_CHANGE_OUTPUT(getMainAccount(accounts, network), network),
-          ...(previousChildTxHex ? { childTxHex: previousChildTxHex } : {})
-        }) !== null
-      );
-    } catch {
-      return false;
-    }
+    return getTriggerAccelerationInfo({
+      vault,
+      vaultStatus,
+      feeEstimates,
+      accounts,
+      networkId,
+      historyData,
+      signer: signers?.[0]
+    }).canAccelerate;
   }, [
-    isInitUnfreezeTxPushed,
-    isInitUnfreezeTxInMempool,
-    isInitUnfreezeTxConfirmed,
     isInitUnfreezeBeingHandled,
-    isRescueTx,
-    isLadderedVault,
-    vaultStatus?.triggerTxHex,
-    vaultStatus?.triggerCpfpTxHex,
     vault,
-    historyData,
+    vaultStatus,
+    feeEstimates,
     accounts,
     networkId,
-    feeEstimates,
+    historyData,
     signers
   ]);
 
   const canAccelerateRescue = useMemo(() => {
     if (isRescueBeingHandled) return false;
-    if (!(isRescueTx && !isRescueTxConfirmed)) return false;
-    if (isLadderedVault) return true;
-    return false;
-  }, [
-    isRescueTx,
-    isRescueTxConfirmed,
-    isRescueBeingHandled,
-    isLadderedVault,
-    vaultStatus?.panicTxHex,
-    vaultStatus?.panicCpfpTxHex
-  ]);
+    return getRescueAccelerationInfo({
+      vault,
+      vaultStatus,
+      feeEstimates,
+      historyData,
+      emergencyBumpPlan: undefined
+    }).canAccelerate;
+  }, [isRescueBeingHandled, vault, vaultStatus, feeEstimates, historyData]);
 
   const canBeHidden =
     !isVaultTx ||
