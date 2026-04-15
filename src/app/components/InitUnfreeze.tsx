@@ -132,47 +132,49 @@ export const getTriggerAccelerationInfo = ({
               ) !== null
           };
         }
-      } else if (!accounts || !networkId || !signer) {
-        return {
-          isAccelerationAttempt,
-          replacementFeeRateFloor: null,
-          canAccelerate: false
-        };
       } else {
-        const triggerInfo = getP2ATriggerInfo(vault);
-        const network = networkMapping[networkId];
-        const triggerReserveUtxoData = getTriggerReserveUtxoData({
-          vault,
-          signer,
-          network
-        });
-        const replacementFeeRateFloor = getCpfpReplacementFeeRateFloor({
-          parentTxHex: triggerInfo.txHex,
-          parentFee: triggerInfo.fee,
-          feeEstimates,
-          utxosData: [triggerReserveUtxoData],
-          childOutput: DUMMY_CHANGE_OUTPUT(
-            getMainAccount(accounts, network),
-            network
-          ),
-          ...(historyData ? { historyData } : {}),
-          ...(vaultStatus.triggerCpfpTxHex
-            ? { childTxHex: vaultStatus.triggerCpfpTxHex }
-            : {})
-        });
-
-        if (replacementFeeRateFloor === null) {
+        if (!accounts || !networkId || !signer) {
           return {
             isAccelerationAttempt,
             replacementFeeRateFloor: null,
             canAccelerate: false
           };
         } else {
-          return {
-            isAccelerationAttempt,
-            replacementFeeRateFloor,
-            canAccelerate: replacementFeeRateFloor <= maxFeeRate
-          };
+          const triggerInfo = getP2ATriggerInfo(vault);
+          const network = networkMapping[networkId];
+          const triggerReserveUtxoData = getTriggerReserveUtxoData({
+            vault,
+            signer,
+            network
+          });
+          const replacementFeeRateFloor = getCpfpReplacementFeeRateFloor({
+            parentTxHex: triggerInfo.txHex,
+            parentFee: triggerInfo.fee,
+            feeEstimates,
+            utxosData: [triggerReserveUtxoData],
+            childOutput: DUMMY_CHANGE_OUTPUT(
+              getMainAccount(accounts, network),
+              network
+            ),
+            ...(historyData ? { historyData } : {}),
+            ...(vaultStatus.triggerCpfpTxHex
+              ? { childTxHex: vaultStatus.triggerCpfpTxHex }
+              : {})
+          });
+
+          if (replacementFeeRateFloor === null) {
+            return {
+              isAccelerationAttempt,
+              replacementFeeRateFloor: null,
+              canAccelerate: false
+            };
+          } else {
+            return {
+              isAccelerationAttempt,
+              replacementFeeRateFloor,
+              canAccelerate: replacementFeeRateFloor <= maxFeeRate
+            };
+          }
         }
       }
     }

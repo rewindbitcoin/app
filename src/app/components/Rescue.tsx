@@ -134,38 +134,40 @@ export const getRescueAccelerationInfo = ({
               ) !== null
           };
         }
-      } else if (!emergencyBumpPlan) {
-        return {
-          isAccelerationAttempt,
-          replacementFeeRateFloor: null,
-          canAccelerate: false
-        };
       } else {
-        const rescueInfo = getP2ARescueInfo(vault, vaultStatus.triggerTxHex);
-        const replacementFeeRateFloor = getCpfpReplacementFeeRateFloor({
-          parentTxHex: rescueInfo.txHex,
-          parentFee: rescueInfo.fee,
-          feeEstimates,
-          utxosData: emergencyBumpPlan.utxosData,
-          childOutput: emergencyBumpPlan.changeOutput,
-          ...(historyData ? { historyData } : {}),
-          ...(vaultStatus.panicCpfpTxHex
-            ? { childTxHex: vaultStatus.panicCpfpTxHex }
-            : {})
-        });
-
-        if (replacementFeeRateFloor === null) {
+        if (!emergencyBumpPlan) {
           return {
             isAccelerationAttempt,
             replacementFeeRateFloor: null,
             canAccelerate: false
           };
         } else {
-          return {
-            isAccelerationAttempt,
-            replacementFeeRateFloor,
-            canAccelerate: replacementFeeRateFloor <= maxFeeRate
-          };
+          const rescueInfo = getP2ARescueInfo(vault, vaultStatus.triggerTxHex);
+          const replacementFeeRateFloor = getCpfpReplacementFeeRateFloor({
+            parentTxHex: rescueInfo.txHex,
+            parentFee: rescueInfo.fee,
+            feeEstimates,
+            utxosData: emergencyBumpPlan.utxosData,
+            childOutput: emergencyBumpPlan.changeOutput,
+            ...(historyData ? { historyData } : {}),
+            ...(vaultStatus.panicCpfpTxHex
+              ? { childTxHex: vaultStatus.panicCpfpTxHex }
+              : {})
+          });
+
+          if (replacementFeeRateFloor === null) {
+            return {
+              isAccelerationAttempt,
+              replacementFeeRateFloor: null,
+              canAccelerate: false
+            };
+          } else {
+            return {
+              isAccelerationAttempt,
+              replacementFeeRateFloor,
+              canAccelerate: replacementFeeRateFloor <= maxFeeRate
+            };
+          }
         }
       }
     }
