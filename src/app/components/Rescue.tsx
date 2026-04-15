@@ -65,6 +65,17 @@ export const getRescueAccelerationInfo = ({
   vaultStatus: VaultStatus | undefined;
   feeEstimates: FeeEstimates | undefined;
   historyData: HistoryData | undefined;
+  /**
+   * Optional external CPFP funding plan for P2A-vault-type rescue.
+   *
+   * This is a small emergency wallet plan prepared outside the
+   * main wallet after an attack. It provides fresh UTXOs and a signer that are
+   * not meant to be under the compromised wallet's normal flow.
+   *
+   * When present, rescue can attach a child tx that spends those fresh UTXOs to
+   * add more fee and sends leftover value to the provided output, which should
+   * normally be the emergency address. When absent, P2A rescue stays parent-only.
+   */
   emergencyBumpPlan: PreparedCpfpPlan | undefined;
 }) => {
   const isRescueConfirmed =
@@ -79,81 +90,83 @@ export const getRescueAccelerationInfo = ({
       replacementFeeRateFloor: null,
       canAccelerate: false
     };
-  } else if (!vaultStatus?.triggerTxHex || !vaultStatus.panicTxHex) {
-    throw new Error('trigger or panic txs not set');
-  } else if (!feeEstimates) {
-    return {
-      isAccelerationAttempt,
-      replacementFeeRateFloor: null,
-      canAccelerate: false
-    };
   } else {
-    const maxFeeRate = computeMaxAllowedFeeRate(feeEstimates);
-
-    if (getVaultMode(vault) === 'LADDERED') {
-      const { tx: triggerTx } = transactionFromHex(vaultStatus.triggerTxHex);
-      const { tx: panicTx } = transactionFromHex(vaultStatus.panicTxHex);
-      const triggerOutValue = triggerTx.outs[0]?.value;
-      if (!triggerTx || triggerTx.outs.length !== 1 || !triggerOutValue)
-        throw new Error('Invalid triggerTxHex');
-
-      const panicOutValue = panicTx.outs[0]?.value;
-      if (!panicTx || panicTx.outs.length !== 1 || !panicOutValue)
-        throw new Error('Invalid panicTxHex');
-
-      const replacementFeeRateFloor =
-        (toNumber(triggerOutValue) - toNumber(panicOutValue)) /
-          panicTx.virtualSize() +
-        1;
-      if (replacementFeeRateFloor > maxFeeRate) {
-        return {
-          isAccelerationAttempt,
-          replacementFeeRateFloor,
-          canAccelerate: false
-        };
-      } else {
-        return {
-          isAccelerationAttempt,
-          replacementFeeRateFloor,
-          canAccelerate:
-            findNextEqualOrLargerFeeRate(
-              getLadderedRescueSortedTxs(vault, vaultStatus.triggerTxHex),
-              replacementFeeRateFloor
-            ) !== null
-        };
-      }
-    } else if (!emergencyBumpPlan) {
+    if (!vaultStatus?.triggerTxHex || !vaultStatus.panicTxHex) {
+      throw new Error('trigger or panic txs not set');
+    } else if (!feeEstimates) {
       return {
         isAccelerationAttempt,
         replacementFeeRateFloor: null,
         canAccelerate: false
       };
     } else {
-      const rescueInfo = getP2ARescueInfo(vault, vaultStatus.triggerTxHex);
-      const replacementFeeRateFloor = getCpfpReplacementFeeRateFloor({
-        parentTxHex: rescueInfo.txHex,
-        parentFee: rescueInfo.fee,
-        feeEstimates,
-        utxosData: emergencyBumpPlan.utxosData,
-        childOutput: emergencyBumpPlan.changeOutput,
-        ...(historyData ? { historyData } : {}),
-        ...(vaultStatus.panicCpfpTxHex
-          ? { childTxHex: vaultStatus.panicCpfpTxHex }
-          : {})
-      });
+      const maxFeeRate = computeMaxAllowedFeeRate(feeEstimates);
 
-      if (replacementFeeRateFloor === null) {
+      if (getVaultMode(vault) === 'LADDERED') {
+        const { tx: triggerTx } = transactionFromHex(vaultStatus.triggerTxHex);
+        const { tx: panicTx } = transactionFromHex(vaultStatus.panicTxHex);
+        const triggerOutValue = triggerTx.outs[0]?.value;
+        if (!triggerTx || triggerTx.outs.length !== 1 || !triggerOutValue)
+          throw new Error('Invalid triggerTxHex');
+
+        const panicOutValue = panicTx.outs[0]?.value;
+        if (!panicTx || panicTx.outs.length !== 1 || !panicOutValue)
+          throw new Error('Invalid panicTxHex');
+
+        const replacementFeeRateFloor =
+          (toNumber(triggerOutValue) - toNumber(panicOutValue)) /
+            panicTx.virtualSize() +
+          1;
+        if (replacementFeeRateFloor > maxFeeRate) {
+          return {
+            isAccelerationAttempt,
+            replacementFeeRateFloor,
+            canAccelerate: false
+          };
+        } else {
+          return {
+            isAccelerationAttempt,
+            replacementFeeRateFloor,
+            canAccelerate:
+              findNextEqualOrLargerFeeRate(
+                getLadderedRescueSortedTxs(vault, vaultStatus.triggerTxHex),
+                replacementFeeRateFloor
+              ) !== null
+          };
+        }
+      } else if (!emergencyBumpPlan) {
         return {
           isAccelerationAttempt,
           replacementFeeRateFloor: null,
           canAccelerate: false
         };
       } else {
-        return {
-          isAccelerationAttempt,
-          replacementFeeRateFloor,
-          canAccelerate: replacementFeeRateFloor <= maxFeeRate
-        };
+        const rescueInfo = getP2ARescueInfo(vault, vaultStatus.triggerTxHex);
+        const replacementFeeRateFloor = getCpfpReplacementFeeRateFloor({
+          parentTxHex: rescueInfo.txHex,
+          parentFee: rescueInfo.fee,
+          feeEstimates,
+          utxosData: emergencyBumpPlan.utxosData,
+          childOutput: emergencyBumpPlan.changeOutput,
+          ...(historyData ? { historyData } : {}),
+          ...(vaultStatus.panicCpfpTxHex
+            ? { childTxHex: vaultStatus.panicCpfpTxHex }
+            : {})
+        });
+
+        if (replacementFeeRateFloor === null) {
+          return {
+            isAccelerationAttempt,
+            replacementFeeRateFloor: null,
+            canAccelerate: false
+          };
+        } else {
+          return {
+            isAccelerationAttempt,
+            replacementFeeRateFloor,
+            canAccelerate: replacementFeeRateFloor <= maxFeeRate
+          };
+        }
       }
     }
   }

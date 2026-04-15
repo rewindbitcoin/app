@@ -85,93 +85,95 @@ export const getTriggerAccelerationInfo = ({
       replacementFeeRateFloor: null,
       canAccelerate: false
     };
-  } else if (!vaultStatus?.triggerTxHex) {
-    throw new Error('trigger is not set');
-  } else if (!feeEstimates) {
-    return {
-      isAccelerationAttempt,
-      replacementFeeRateFloor: null,
-      canAccelerate: false
-    };
-  } else if (
-    !!vaultStatus.panicTxHex ||
-    !!vaultStatus.panicPushTime ||
-    vaultStatus.panicTxBlockHeight !== undefined
-  ) {
-    return {
-      isAccelerationAttempt,
-      replacementFeeRateFloor: null,
-      canAccelerate: false
-    };
   } else {
-    const maxFeeRate = computeMaxAllowedFeeRate(feeEstimates);
-
-    if (getVaultMode(vault) === 'LADDERED') {
-      const { tx } = transactionFromHex(vaultStatus.triggerTxHex);
-      const outValue = tx.outs[0]?.value;
-      if (!tx || tx.outs.length !== 1 || !outValue)
-        throw new Error('Invalid triggerTxHex');
-
-      const replacementFeeRateFloor =
-        (vault.vaultedAmount - toNumber(outValue)) / tx.virtualSize() + 1;
-      if (replacementFeeRateFloor > maxFeeRate) {
-        return {
-          isAccelerationAttempt,
-          replacementFeeRateFloor,
-          canAccelerate: false
-        };
-      } else {
-        return {
-          isAccelerationAttempt,
-          replacementFeeRateFloor,
-          canAccelerate:
-            findNextEqualOrLargerFeeRate(
-              getLadderedTriggerSortedTxs(vault),
-              replacementFeeRateFloor
-            ) !== null
-        };
-      }
-    } else if (!accounts || !networkId || !signer) {
+    if (!vaultStatus?.triggerTxHex) {
+      throw new Error('trigger is not set');
+    } else if (!feeEstimates) {
+      return {
+        isAccelerationAttempt,
+        replacementFeeRateFloor: null,
+        canAccelerate: false
+      };
+    } else if (
+      !!vaultStatus.panicTxHex ||
+      !!vaultStatus.panicPushTime ||
+      vaultStatus.panicTxBlockHeight !== undefined
+    ) {
       return {
         isAccelerationAttempt,
         replacementFeeRateFloor: null,
         canAccelerate: false
       };
     } else {
-      const triggerInfo = getP2ATriggerInfo(vault);
-      const network = networkMapping[networkId];
-      const triggerReserveUtxoData = getTriggerReserveUtxoData({
-        vault,
-        signer,
-        network
-      });
-      const replacementFeeRateFloor = getCpfpReplacementFeeRateFloor({
-        parentTxHex: triggerInfo.txHex,
-        parentFee: triggerInfo.fee,
-        feeEstimates,
-        utxosData: [triggerReserveUtxoData],
-        childOutput: DUMMY_CHANGE_OUTPUT(
-          getMainAccount(accounts, network),
-          network
-        ),
-        ...(historyData ? { historyData } : {}),
-        ...(vaultStatus.triggerCpfpTxHex
-          ? { childTxHex: vaultStatus.triggerCpfpTxHex }
-          : {})
-      });
+      const maxFeeRate = computeMaxAllowedFeeRate(feeEstimates);
 
-      if (replacementFeeRateFloor === null) {
+      if (getVaultMode(vault) === 'LADDERED') {
+        const { tx } = transactionFromHex(vaultStatus.triggerTxHex);
+        const outValue = tx.outs[0]?.value;
+        if (!tx || tx.outs.length !== 1 || !outValue)
+          throw new Error('Invalid triggerTxHex');
+
+        const replacementFeeRateFloor =
+          (vault.vaultedAmount - toNumber(outValue)) / tx.virtualSize() + 1;
+        if (replacementFeeRateFloor > maxFeeRate) {
+          return {
+            isAccelerationAttempt,
+            replacementFeeRateFloor,
+            canAccelerate: false
+          };
+        } else {
+          return {
+            isAccelerationAttempt,
+            replacementFeeRateFloor,
+            canAccelerate:
+              findNextEqualOrLargerFeeRate(
+                getLadderedTriggerSortedTxs(vault),
+                replacementFeeRateFloor
+              ) !== null
+          };
+        }
+      } else if (!accounts || !networkId || !signer) {
         return {
           isAccelerationAttempt,
           replacementFeeRateFloor: null,
           canAccelerate: false
         };
       } else {
-        return {
-          isAccelerationAttempt,
-          replacementFeeRateFloor,
-          canAccelerate: replacementFeeRateFloor <= maxFeeRate
-        };
+        const triggerInfo = getP2ATriggerInfo(vault);
+        const network = networkMapping[networkId];
+        const triggerReserveUtxoData = getTriggerReserveUtxoData({
+          vault,
+          signer,
+          network
+        });
+        const replacementFeeRateFloor = getCpfpReplacementFeeRateFloor({
+          parentTxHex: triggerInfo.txHex,
+          parentFee: triggerInfo.fee,
+          feeEstimates,
+          utxosData: [triggerReserveUtxoData],
+          childOutput: DUMMY_CHANGE_OUTPUT(
+            getMainAccount(accounts, network),
+            network
+          ),
+          ...(historyData ? { historyData } : {}),
+          ...(vaultStatus.triggerCpfpTxHex
+            ? { childTxHex: vaultStatus.triggerCpfpTxHex }
+            : {})
+        });
+
+        if (replacementFeeRateFloor === null) {
+          return {
+            isAccelerationAttempt,
+            replacementFeeRateFloor: null,
+            canAccelerate: false
+          };
+        } else {
+          return {
+            isAccelerationAttempt,
+            replacementFeeRateFloor,
+            canAccelerate: replacementFeeRateFloor <= maxFeeRate
+          };
+        }
       }
     }
   }
