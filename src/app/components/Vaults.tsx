@@ -29,6 +29,7 @@ import {
   type VaultsStatuses,
   type Vaults as VaultsType,
   createCpfpChildTx,
+  getP2AVaultFundingBreakdown,
   getTriggerReserveUtxoData,
   getVaultFrozenBalance,
   getVaultMode,
@@ -55,6 +56,7 @@ import {
 import { useWallet } from '../hooks/useWallet';
 import Delegate from './Delegate';
 import LearnMoreAboutVaults from './LearnMoreAboutVaults';
+import UnfreezeReserveInfoButton from './UnfreezeReserveInfoButton';
 import * as Notifications from 'expo-notifications';
 import { useLocalization } from '../hooks/useLocalization';
 import { useNetStatus } from '../hooks/useNetStatus';
@@ -630,7 +632,7 @@ const RawVault = ({
     tipHeight &&
     vaultStatus &&
     getRemainingBlocks(vault, vaultStatus, tipHeight);
-  const { locale } = useLocalization();
+  const { locale, currency } = useLocalization();
   const rescuedDate = formatVaultDate(vaultStatus?.panicTxBlockTime, locale);
   const rescuePushDate = formatVaultDate(vaultStatus?.panicPushTime, locale);
   const panicAddress = vault.coldAddress;
@@ -802,6 +804,18 @@ const RawVault = ({
     getVaultUnfrozenBalance(vault, vaultStatus, tipHeight);
   const rescuedBalance =
     tipHeight && vaultStatus && getVaultRescuedBalance(vault, vaultStatus);
+  const unfreezeReserveValue = useMemo(() => {
+    if (isLadderedVault || !frozenBalance || vaultStatus?.triggerTxHex) return;
+    const signer = signers?.[0];
+    if (!signer) return;
+    return getP2AVaultFundingBreakdown({ vault, signer }).triggerReserveValue;
+  }, [
+    isLadderedVault,
+    frozenBalance,
+    vaultStatus?.triggerTxHex,
+    signers,
+    vault
+  ]);
 
   const isMountedRef = useRef(true);
   useEffect(() => {
@@ -1003,6 +1017,22 @@ const RawVault = ({
             </Text>
           </View>
         )}
+        {unfreezeReserveValue ? (
+          <View className="w-full flex-row items-start gap-2 pt-2">
+            <Text className="shrink text-slate-500 native:text-sm web:text-xs">
+              {t('vaultSetup.unfreezeReserveLabel')}:{' '}
+              {formatBalance({
+                satsBalance: unfreezeReserveValue,
+                btcFiat,
+                currency,
+                locale,
+                mode,
+                appendSubunit: true
+              })}
+            </Text>
+            <UnfreezeReserveInfoButton />
+          </View>
+        ) : null}
         <View className={`gap-4 ${isVaultTx ? 'pt-4' : ''}`}>
           {(isInitUnfreezeTxPushed || isInitUnfreezeTxInMempool) &&
             !isInitUnfreezeTxConfirmed && (

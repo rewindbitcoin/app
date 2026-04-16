@@ -7,6 +7,7 @@ import AmountInput from '../components/AmountInput';
 import BlocksInput from '../components/BlocksInput';
 import FeeInput from '../components/FeeInput';
 import LearnMoreAboutVaults from '../components/LearnMoreAboutVaults';
+import UnfreezeReserveInfoButton from '../components/UnfreezeReserveInfoButton';
 import { Trans, useTranslation } from 'react-i18next';
 import React, { useCallback, useState, useMemo, useEffect } from 'react';
 import { useNavigation } from '@react-navigation/native';
@@ -14,7 +15,6 @@ import { Text, View } from 'react-native';
 import {
   Button,
   IconType,
-  InfoButton,
   KeyboardAwareScrollView,
   Modal
 } from '../../common/ui';
@@ -133,7 +133,6 @@ export default function VaultSetUp({
   const [changeOutput, setChangeOutput] = useState<OutputInstance | null>(null);
   const [prefilledAddressHelp, setPrefilledAddressHelp] =
     useState<boolean>(false);
-  const [reserveHelp, setReserveHelp] = useState<boolean>(false);
   const showPrefilledAddressHelp = useCallback(
     () => setPrefilledAddressHelp(true),
     []
@@ -142,8 +141,6 @@ export default function VaultSetUp({
     () => setPrefilledAddressHelp(false),
     []
   );
-  const showReserveHelp = useCallback(() => setReserveHelp(true), []);
-  const hideReserveHelp = useCallback(() => setReserveHelp(false), []);
   const { t } = useTranslation();
 
   useEffect(() => {
@@ -422,10 +419,6 @@ export default function VaultSetUp({
     () => ({ family: 'FontAwesome6', name: 'shield-halved' }),
     []
   );
-  const reserveHelpIcon = useMemo<IconType>(
-    () => ({ family: 'FontAwesome5', name: 'coins' }),
-    []
-  );
 
   const allFieldsValid =
     vaultedAmount !== null &&
@@ -505,21 +498,8 @@ export default function VaultSetUp({
               {t('vaultSetup.unfreezeReserveLabel')}:{' '}
               {formatAmount(toNumber(triggerReserveValue))}
             </Text>
-            <View className="mt-0.5">
-              <InfoButton onPress={showReserveHelp} />
-            </View>
+            <UnfreezeReserveInfoButton />
           </View>
-          <Modal
-            title={t('vaultSetup.unfreezeReserveHelpTitle')}
-            icon={reserveHelpIcon}
-            isVisible={reserveHelp}
-            onClose={hideReserveHelp}
-            closeButtonText={t('understoodButton')}
-          >
-            <Text className="pl-2 pr-2 text-base text-slate-600">
-              {t('vaultSetup.unfreezeReserveHelp')}
-            </Text>
-          </Modal>
           <View className="mb-8" />
           <BlocksInput
             label={t('vaultSetup.securityLockTimeLabel')}
