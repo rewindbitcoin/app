@@ -36,8 +36,22 @@ import { formatBlocks } from '../lib/format';
 import { formatBtc } from '../lib/btcRates';
 import { useLocalization } from '../hooks/useLocalization';
 import { toBigInt } from '../lib/sats';
+import ModalInfoButton from '../components/ModalInfoButton';
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+const SummaryTitle = ({
+  title,
+  infoButton
+}: {
+  title: string;
+  infoButton?: React.ReactNode;
+}) => (
+  <View className="flex-row items-center gap-2 mb-1">
+    <Text className="text-base font-bold">{title}</Text>
+    {infoButton}
+  </View>
+);
 
 export default function CreateVaultScreen({
   vaultSettings
@@ -471,7 +485,7 @@ export default function CreateVaultScreen({
                   {/* Amount */}
                   <View>
                     <Text className="text-base font-bold mb-1">
-                      {t('createVault.amount')}
+                      {t('vaultSetup.amountLabel')}
                     </Text>
                     <Text className="text-base">
                       {formatAmount(vault.vaultedAmount)}
@@ -481,9 +495,17 @@ export default function CreateVaultScreen({
                   {/* Trigger Reserve */}
                   {vaultFundingBreakdown ? (
                     <View>
-                      <Text className="text-base font-bold mb-1">
-                        {t('vaultSetup.unfreezeReserveLabel')}
-                      </Text>
+                      <SummaryTitle
+                        title={t('vaultSetup.unfreezeReserveLabel')}
+                        infoButton={
+                          <ModalInfoButton
+                            title={t('vaultSetup.unfreezeReserveHelpTitle')}
+                            icon={{ family: 'FontAwesome5', name: 'coins' }}
+                            text={t('vaultSetup.unfreezeReserveHelp')}
+                            buttonContainerClassName=""
+                          />
+                        }
+                      />
                       <Text className="text-base">
                         {formatAmount(
                           vaultFundingBreakdown.triggerReserveValue
@@ -494,9 +516,20 @@ export default function CreateVaultScreen({
 
                   {/* Time Lock */}
                   <View>
-                    <Text className="text-base font-bold mb-1">
-                      {t('createVault.timeLock')}
-                    </Text>
+                    <SummaryTitle
+                      title={t('createVault.timeLock')}
+                      infoButton={
+                        <ModalInfoButton
+                          title={t('blocksInput.coldAddress.helpTitle')}
+                          icon={{
+                            family: 'FontAwesome6',
+                            name: 'shield-halved'
+                          }}
+                          text={t('blocksInput.coldAddress.helpText')}
+                          buttonContainerClassName=""
+                        />
+                      }
+                    />
                     <Text className="text-base">
                       {formatBlocks(vault.lockBlocks, t, locale, true)}
                     </Text>
@@ -506,18 +539,44 @@ export default function CreateVaultScreen({
                   {vaultFundingBreakdown ? (
                     <>
                       <View>
-                        <Text className="text-base font-bold mb-1">
-                          {t('vaultSetup.vaultTransactionFeeLabel')}
-                        </Text>
+                        <SummaryTitle
+                          title={t('vaultSetup.vaultTransactionFeeLabel')}
+                          infoButton={
+                            vaultFundingBreakdown.vaultTxFee === 0 ? (
+                              <ModalInfoButton
+                                title={t('vaultSetup.vaultTransactionFeeLabel')}
+                                icon={{
+                                  family: 'MaterialCommunityIcons',
+                                  name: 'pickaxe'
+                                }}
+                                text={t(
+                                  'createVault.zeroVaultTransactionFeeHelp'
+                                )}
+                                buttonContainerClassName=""
+                              />
+                            ) : undefined
+                          }
+                        />
                         <Text className="text-base">
                           {formatAmount(vaultFundingBreakdown.vaultTxFee)}
                         </Text>
                       </View>
 
                       <View>
-                        <Text className="text-base font-bold mb-1">
-                          {t('vaultSetup.backupFundingLabel')}
-                        </Text>
+                        <SummaryTitle
+                          title={t('vaultSetup.backupFundingLabel')}
+                          infoButton={
+                            <ModalInfoButton
+                              title={t('vaultSetup.backupFundingLabel')}
+                              icon={{
+                                family: 'MaterialCommunityIcons',
+                                name: 'database-lock-outline'
+                              }}
+                              text={t('createVault.onChainBackupCostHelp')}
+                              buttonContainerClassName=""
+                            />
+                          }
+                        />
                         <Text className="text-base">
                           {formatAmount(vaultFundingBreakdown.backupTxCost)}
                         </Text>
@@ -538,9 +597,20 @@ export default function CreateVaultScreen({
 
                   {/* Emergency Address */}
                   <View>
-                    <Text className="text-base font-bold mb-1">
-                      {t('createVault.emergencyAddress')}
-                    </Text>
+                    <SummaryTitle
+                      title={t('createVault.emergencyAddress')}
+                      infoButton={
+                        <ModalInfoButton
+                          title={t('addressInput.coldAddress.helpTitle')}
+                          icon={{
+                            family: 'FontAwesome6',
+                            name: 'shield-halved'
+                          }}
+                          text={t('addressInput.coldAddress.helpText')}
+                          buttonContainerClassName=""
+                        />
+                      }
+                    />
                     <Text className="text-base break-words">
                       {vault.coldAddress}
                     </Text>

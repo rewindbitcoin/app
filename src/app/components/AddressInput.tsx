@@ -22,7 +22,6 @@ import { batchedUpdates } from '~/common/lib/batchedUpdates';
 import {
   TextInput,
   IconButton,
-  InfoButton,
   ActivityIndicator,
   Modal,
   Button
@@ -34,6 +33,7 @@ import { networkMapping, type NetworkId } from '../lib/network';
 import { useFonts } from 'expo-font';
 import { RobotoMono_400Regular } from '@expo-google-fonts/roboto-mono';
 import CreateColdAddress from './CreateColdAddress';
+import ModalInfoButton from './ModalInfoButton';
 
 function AddressInput({
   onValueChange,
@@ -57,9 +57,6 @@ function AddressInput({
   const [camTypes, setCamTypes] = useState<Array<'back' | 'front'> | null>(
     null
   );
-  const [coldAddressHelp, setColdAddressHelp] = useState<boolean>(false);
-  const showColdAddressHelp = useCallback(() => setColdAddressHelp(true), []);
-  const hideColdAddressHelp = useCallback(() => setColdAddressHelp(false), []);
 
   //https://github.com/expo/expo/issues/28069#issuecomment-2112876966
   const [camPermissionGrantedDelay, setCamPermissionGrantedDelay] =
@@ -269,7 +266,14 @@ function AddressInput({
             ? t('addressInput.coldAddress.label')
             : t('addressInput.recipientAddress.label')}
         </Text>
-        {type === 'emergency' && <InfoButton onPress={showColdAddressHelp} />}
+        {type === 'emergency' && (
+          <ModalInfoButton
+            title={t('addressInput.coldAddress.helpTitle')}
+            icon={{ family: 'FontAwesome6', name: 'shield-halved' }}
+            text={t('addressInput.coldAddress.helpText')}
+            buttonContainerClassName=""
+          />
+        )}
       </View>
       <View className="py-1 pr-2 p-2 mobmed:pl-4 bg-white rounded-md">
         <View className="flex-row items-center">
@@ -403,17 +407,6 @@ function AddressInput({
             </View>
           </View>
         )}
-      </Modal>
-      <Modal
-        title={t('addressInput.coldAddress.helpTitle')}
-        icon={{ family: 'FontAwesome6', name: 'shield-halved' }}
-        isVisible={coldAddressHelp}
-        onClose={hideColdAddressHelp}
-        closeButtonText={t('understoodButton')}
-      >
-        <Text className="text-base pl-2 pr-2 text-slate-600">
-          {t('addressInput.coldAddress.helpText')}
-        </Text>
       </Modal>
     </View>
   );

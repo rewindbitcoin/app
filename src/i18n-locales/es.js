@@ -585,10 +585,15 @@ A continuación, podrás confirmarlo todo.`,
     serviceFee: 'Comisión de Bóveda',
     allFees: 'Comisiones',
     timeLock: 'Tiempo de Bloqueo',
-    amount: 'Cantidad a congelar',
     emergencyAddress: 'Dirección de Emergencia',
     confirmBackupSendVault: `Tu bóveda está lista para ser enviada. Por favor, revisa los siguientes valores antes de proceder:`,
     explainConfirm: `Selecciona 'Enviar' para activar tu bóveda.`,
+    onChainBackupCostHelp: `Rewind guarda la información de la bóveda on-chain en un backup encriptado.
+
+Así, si alguna vez necesitas restaurarla, Rewind puede reconstruirlo todo usando solo tu Frase de Recuperación y la blockchain.`,
+    zeroVaultTransactionFeeHelp: `Esto no es un error. La transacción de la bóveda puede tener comisión cero.
+
+Rewind hace esto para asegurarse de que el backup on-chain también se mine. La comisión la paga la transacción del backup, que va enlazada a la transacción de la bóveda como hija, así que ambas se crean juntas como un solo paquete.`,
     //    encryptionBackupExplain: `También cifraremos y respaldaremos con un backup la configuración de la bóveda en la red P2P de Rewind para mayor seguridad.
     //
     //Si pierdes este dispositivo, podrás recuperar la bóveda usando tu Frase de Recuperación.

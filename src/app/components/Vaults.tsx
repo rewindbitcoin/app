@@ -40,7 +40,7 @@ import {
 import VaultIcon from './VaultIcon';
 import { useTranslation } from 'react-i18next';
 import { formatBalance, formatBlocks } from '../lib/format';
-import { Button, IconType, InfoButton, Modal, useToast } from '../../common/ui';
+import { Button, IconType, Modal, useToast } from '../../common/ui';
 
 import { useSettings } from '../hooks/useSettings';
 import type { SubUnit } from '../lib/settings';
@@ -56,7 +56,7 @@ import {
 import { useWallet } from '../hooks/useWallet';
 import Delegate from './Delegate';
 import LearnMoreAboutVaults from './LearnMoreAboutVaults';
-import UnfreezeReserveInfoButton from './UnfreezeReserveInfoButton';
+import ModalInfoButton from './ModalInfoButton';
 import * as Notifications from 'expo-notifications';
 import { useLocalization } from '../hooks/useLocalization';
 import { useNetStatus } from '../hooks/useNetStatus';
@@ -212,20 +212,20 @@ const VaultButton = ({
   loading,
   disabled = false,
   msg,
-  onInfoPress
+  infoButton
 }: {
   mode: 'secondary' | 'secondary-alert';
   onPress: () => void;
   loading: boolean;
   disabled?: boolean;
   msg: string;
-  onInfoPress?: () => void;
+  infoButton?: React.ReactNode;
 }) => (
   <View className={`flex-row items-center gap-2 mobmed:gap-4`}>
     <Button mode={mode} onPress={onPress} loading={loading} disabled={disabled}>
       {msg}
     </Button>
-    {onInfoPress && <InfoButton onPress={onInfoPress} />}
+    {infoButton}
   </View>
 );
 
@@ -281,27 +281,8 @@ const RawVault = ({
     | undefined;
   pushToken: string | undefined;
 }) => {
-  const [showDelegateHelp, setShowDelegateHelp] = useState<boolean>(false);
-  const [showRescueHelp, setShowRescueHelp] = useState<boolean>(false);
-  const [showInitUnfreezeHelp, setShowInitUnfreezeHelp] =
-    useState<boolean>(false);
   const [showWatchtowerStatusModal, setShowWatchtowerStatusModal] =
     useState<boolean>(false);
-  const handleDelegateHelp = useCallback(() => setShowDelegateHelp(true), []);
-  const handleRescueHelp = useCallback(() => setShowRescueHelp(true), []);
-  const handleInitUnfreezeHelp = useCallback(
-    () => setShowInitUnfreezeHelp(true),
-    []
-  );
-  const handleCloseDelegateHelp = useCallback(
-    () => setShowDelegateHelp(false),
-    []
-  );
-  const handleCloseRescueHelp = useCallback(() => setShowRescueHelp(false), []);
-  const handleCloseInitUnfreezeHelp = useCallback(
-    () => setShowInitUnfreezeHelp(false),
-    []
-  );
   const handleShowWatchtowerStatusModal = useCallback(async () => {
     setShowWatchtowerStatusModal(true);
   }, []);
@@ -1030,7 +1011,11 @@ const RawVault = ({
                 appendSubunit: true
               })}
             </Text>
-            <UnfreezeReserveInfoButton />
+            <ModalInfoButton
+              title={t('vaultSetup.unfreezeReserveHelpTitle')}
+              icon={{ family: 'FontAwesome5', name: 'coins' }}
+              text={t('vaultSetup.unfreezeReserveHelp')}
+            />
           </View>
         ) : null}
         <View className={`gap-4 ${isVaultTx ? 'pt-4' : ''}`}>
@@ -1209,7 +1194,17 @@ const RawVault = ({
                 onPress={handleShowRescue}
                 loading={isRescueBeingHandledNotYetPushed}
                 msg={t('wallet.vault.rescueButton')}
-                onInfoPress={handleRescueHelp}
+                infoButton={
+                  <ModalInfoButton
+                    title={t('wallet.vault.help.rescue.title')}
+                    icon={{
+                      family: 'MaterialCommunityIcons',
+                      name: 'alarm-light'
+                    }}
+                    text={t('wallet.vault.help.rescue.text')}
+                    buttonContainerClassName=""
+                  />
+                }
               />
             )}
             {canShowInitUnfreeze && (
@@ -1219,7 +1214,17 @@ const RawVault = ({
                 loading={isInitUnfreezePending}
                 disabled={isInitUnfreezeDisabledForP2ATruc}
                 msg={t('wallet.vault.triggerUnfreezeButton')}
-                onInfoPress={handleInitUnfreezeHelp}
+                infoButton={
+                  <ModalInfoButton
+                    title={t('wallet.vault.help.initUnfreeze.title')}
+                    icon={{
+                      family: 'MaterialCommunityIcons',
+                      name: 'snowflake-melt'
+                    }}
+                    text={t('wallet.vault.help.initUnfreeze.text')}
+                    buttonContainerClassName=""
+                  />
+                }
               />
             )}
             {canBeDelegated && (
@@ -1228,7 +1233,14 @@ const RawVault = ({
                 onPress={handleShowDelegate}
                 loading={false}
                 msg={t('wallet.vault.delegateButton')}
-                onInfoPress={handleDelegateHelp}
+                infoButton={
+                  <ModalInfoButton
+                    title={t('wallet.vault.help.delegate.title')}
+                    icon={{ family: 'FontAwesome5', name: 'hands-helping' }}
+                    text={t('wallet.vault.help.delegate.text')}
+                    buttonContainerClassName=""
+                  />
+                }
               />
             )}
             {canBeHidden && (
@@ -1262,45 +1274,6 @@ const RawVault = ({
         isVisible={showDelegate}
         onClose={handleCloseDelegate}
       />
-      <Modal
-        title={t('wallet.vault.help.delegate.title')}
-        icon={{ family: 'FontAwesome5', name: 'hands-helping' }}
-        isVisible={showDelegateHelp}
-        onClose={handleCloseDelegateHelp}
-        closeButtonText={t('understoodButton')}
-      >
-        <Text className="text-base pl-2 pr-2 text-slate-600">
-          {t('wallet.vault.help.delegate.text')}
-        </Text>
-      </Modal>
-      <Modal
-        title={t('wallet.vault.help.rescue.title')}
-        icon={{
-          family: 'MaterialCommunityIcons',
-          name: 'alarm-light'
-        }}
-        isVisible={showRescueHelp}
-        onClose={handleCloseRescueHelp}
-        closeButtonText={t('understoodButton')}
-      >
-        <Text className="text-base pl-2 pr-2 text-slate-600">
-          {t('wallet.vault.help.rescue.text')}
-        </Text>
-      </Modal>
-      <Modal
-        title={t('wallet.vault.help.initUnfreeze.title')}
-        icon={{
-          family: 'MaterialCommunityIcons',
-          name: 'snowflake-melt'
-        }}
-        isVisible={showInitUnfreezeHelp}
-        onClose={handleCloseInitUnfreezeHelp}
-        closeButtonText={t('understoodButton')}
-      >
-        <Text className="text-base pl-2 pr-2 text-slate-600">
-          {t('wallet.vault.help.initUnfreeze.text')}
-        </Text>
-      </Modal>
       <Modal
         title={t('wallet.vault.watchtower.statusTitle')}
         icon={{

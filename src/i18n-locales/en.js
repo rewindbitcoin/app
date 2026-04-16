@@ -648,7 +648,6 @@ Next, you'll get to confirm everything.`,
     serviceFee: 'Vaulting Fee',
     allFees: 'Fees',
     timeLock: 'Time-Lock',
-    amount: 'Amount to Vault',
     //Note to transalators: make this text below as short as possible. This is the
     //label for Emergency Address in the summary that users review before
     //final submission
@@ -656,6 +655,12 @@ Next, you'll get to confirm everything.`,
     //vaultedAmount: 'Amount to Freeze:',
     confirmBackupSendVault: `Your vault is ready for submission. Please review the following values before proceeding:`,
     explainConfirm: `Select 'Submit' to activate your vault.`,
+    onChainBackupCostHelp: `Rewind stores the vault information on-chain in an encrypted backup.
+
+That way, if you ever need to restore the vault, Rewind can rebuild everything from your mnemonic and the blockchain alone.`,
+    zeroVaultTransactionFeeHelp: `This is not an error. The vault transaction itself can have zero fee.
+
+Rewind does this to make sure the on-chain backup is mined too. The fee is paid by the backup transaction, which is linked to the vault transaction as its child, so both are created together as one package.`,
     //    encryptionBackupExplain: `We will also encrypt and back up the vault settings on Rewind's P2P network for added security.
     //
     //If you lose this device, you can recover the vault using your Recovery Phrase.

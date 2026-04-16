@@ -9,12 +9,7 @@
 const FEE_RATE_STEP = 0.01;
 
 import React, { useCallback, useRef, useMemo, useState } from 'react';
-import {
-  CardEditableSlider,
-  IconType,
-  InfoButton,
-  Modal
-} from '../../common/ui';
+import { CardEditableSlider } from '../../common/ui';
 import { snapWithinRange } from '../../common/lib/numbers';
 import { formatFeeRate } from '../lib/format';
 import {
@@ -28,6 +23,7 @@ import { useLocalization } from '../hooks/useLocalization';
 import { Text, View, Pressable, LayoutAnimation } from 'react-native';
 import AntDesign from '@expo/vector-icons/AntDesign';
 import { formatBtc } from '../lib/btcRates';
+import ModalInfoButton from './ModalInfoButton';
 
 function FeeInput({
   label,
@@ -68,10 +64,6 @@ function FeeInput({
   const { locale, currency } = useLocalization();
   const subUnit = settings.SUB_UNIT;
   const { t } = useTranslation();
-
-  const [feeHelp, setFeeHelp] = useState<boolean>(false);
-  const showFeeHelp = useCallback(() => setFeeHelp(true), []);
-  const hideFeeHelp = useCallback(() => setFeeHelp(false), []);
 
   //We need a LUT from-to presented slider values (which are snapped)
   const snappedFeeEstimates = useMemo(() => {
@@ -162,13 +154,14 @@ function FeeInput({
   );
 
   const headerIcon = useMemo(
-    () => <InfoButton onPress={showFeeHelp} />,
-    [showFeeHelp]
-  );
-
-  const helpIcon = useMemo<IconType>(
-    () => ({ family: 'MaterialCommunityIcons', name: 'pickaxe' }),
-    []
+    () => (
+      <ModalInfoButton
+        title={t('feeInput.helpTitle')}
+        icon={{ family: 'MaterialCommunityIcons', name: 'pickaxe' }}
+        text={t('feeInput.helpText')}
+      />
+    ),
+    [t]
   );
 
   const contractedFee = useMemo(() => {
@@ -199,7 +192,15 @@ function FeeInput({
                 </Text>
                 {helpIconAvailable && (
                   <View className="ml-2">
-                    <InfoButton onPress={showFeeHelp} />
+                    <ModalInfoButton
+                      title={t('feeInput.helpTitle')}
+                      icon={{
+                        family: 'MaterialCommunityIcons',
+                        name: 'pickaxe'
+                      }}
+                      text={t('feeInput.helpText')}
+                      buttonContainerClassName=""
+                    />
                   </View>
                 )}
               </View>
@@ -238,20 +239,6 @@ function FeeInput({
             <AntDesign name="close" size={16} className="!text-primary" />
           </Pressable>
         </View>
-      )}
-
-      {helpIconAvailable && (
-        <Modal
-          title={t('feeInput.helpTitle')}
-          icon={helpIcon}
-          isVisible={feeHelp}
-          onClose={hideFeeHelp}
-          closeButtonText={t('understoodButton')}
-        >
-          <Text className="text-base pl-2 pr-2 text-slate-600">
-            {t('feeInput.helpText')}
-          </Text>
-        </Modal>
       )}
     </>
   );

@@ -7,7 +7,7 @@ import AmountInput from '../components/AmountInput';
 import BlocksInput from '../components/BlocksInput';
 import FeeInput from '../components/FeeInput';
 import LearnMoreAboutVaults from '../components/LearnMoreAboutVaults';
-import UnfreezeReserveInfoButton from '../components/UnfreezeReserveInfoButton';
+import ModalInfoButton from '../components/ModalInfoButton';
 import { Trans, useTranslation } from 'react-i18next';
 import React, { useCallback, useState, useMemo, useEffect } from 'react';
 import { useNavigation } from '@react-navigation/native';
@@ -498,7 +498,11 @@ export default function VaultSetUp({
               {t('vaultSetup.unfreezeReserveLabel')}:{' '}
               {formatAmount(toNumber(triggerReserveValue))}
             </Text>
-            <UnfreezeReserveInfoButton />
+            <ModalInfoButton
+              title={t('vaultSetup.unfreezeReserveHelpTitle')}
+              icon={{ family: 'FontAwesome5', name: 'coins' }}
+              text={t('vaultSetup.unfreezeReserveHelp')}
+            />
           </View>
           <View className="mb-8" />
           <BlocksInput
