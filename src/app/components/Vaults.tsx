@@ -785,11 +785,11 @@ const RawVault = ({
     getVaultUnfrozenBalance(vault, vaultStatus, tipHeight);
   const rescuedBalance =
     tipHeight && vaultStatus && getVaultRescuedBalance(vault, vaultStatus);
-  const unfreezeReserveValue = useMemo(() => {
+  const unfreezeReserveAmount = useMemo(() => {
     if (isLadderedVault || !frozenBalance || vaultStatus?.triggerTxHex) return;
     const signer = signers?.[0];
     if (!signer) return;
-    return getP2AVaultFundingBreakdown({ vault, signer }).triggerReserveValue;
+    return getP2AVaultFundingBreakdown({ vault, signer }).triggerReserveAmount;
   }, [
     isLadderedVault,
     frozenBalance,
@@ -998,12 +998,12 @@ const RawVault = ({
             </Text>
           </View>
         )}
-        {unfreezeReserveValue ? (
+        {unfreezeReserveAmount ? (
           <View className="w-full flex-row items-start gap-2 pt-2">
             <Text className="shrink text-slate-500 native:text-sm web:text-xs">
               {t('vaultSetup.unfreezeReserveLabel')}:{' '}
               {formatBalance({
-                satsBalance: unfreezeReserveValue,
+                satsBalance: unfreezeReserveAmount,
                 btcFiat,
                 currency,
                 locale,
