@@ -1,5 +1,6 @@
 // Copyright (C) 2026 Jose-Luis Landabaso - https://rewindbitcoin.com
 // Licensed under the GNU GPL v3 or later. See the LICENSE file for details.
+//FIXME: check the UX when there is not enough funds for the reerve.
 
 import AddressInput from '../components/AddressInput';
 import AmountInput from '../components/AmountInput';
@@ -13,6 +14,7 @@ import { Text, View } from 'react-native';
 import {
   Button,
   IconType,
+  InfoButton,
   KeyboardAwareScrollView,
   Modal
 } from '../../common/ui';
@@ -131,6 +133,7 @@ export default function VaultSetUp({
   const [changeOutput, setChangeOutput] = useState<OutputInstance | null>(null);
   const [prefilledAddressHelp, setPrefilledAddressHelp] =
     useState<boolean>(false);
+  const [reserveHelp, setReserveHelp] = useState<boolean>(false);
   const showPrefilledAddressHelp = useCallback(
     () => setPrefilledAddressHelp(true),
     []
@@ -139,6 +142,8 @@ export default function VaultSetUp({
     () => setPrefilledAddressHelp(false),
     []
   );
+  const showReserveHelp = useCallback(() => setReserveHelp(true), []);
+  const hideReserveHelp = useCallback(() => setReserveHelp(false), []);
   const { t } = useTranslation();
 
   useEffect(() => {
@@ -363,6 +368,28 @@ export default function VaultSetUp({
     ]
   );
 
+  const formatAmount = (amount: number) =>
+    formatBtc({
+      amount,
+      subUnit: settings.SUB_UNIT,
+      btcFiat,
+      locale,
+      currency
+    });
+
+  const triggerReserveValue = getRequiredTriggerReserveValue({
+    triggerReserveOutput: DUMMY_TRIGGER_RESERVE_OUTPUT(network),
+    changeOutput:
+      changeOutput ||
+      DUMMY_CHANGE_OUTPUT(getMainAccount(accounts, network), network),
+    vaultMode,
+    presignedTriggerFeeRate: settings.PRESIGNED_TRIGGER_FEERATE,
+    maxTriggerFeeRate: settings.MAX_TRIGGER_FEERATE
+  });
+
+  // The slider shows the package fee for the vault tx plus the on-chain
+  // backup tx. The Unfreeze Reserve is displayed separately because it is set
+  // aside, not spent.
   let effectiveFee = null;
   if (vaultedAmount !== null && effectiveFeeRate !== null) {
     const selected = coinSelectVaultTx({
@@ -374,15 +401,7 @@ export default function VaultSetUp({
       vaultOutput: DUMMY_VAULT_OUTPUT(network),
       backupOutput: DUMMY_BACKUP_OUTPUT(network),
       triggerReserveOutput: DUMMY_TRIGGER_RESERVE_OUTPUT(network),
-      triggerReserveValue: getRequiredTriggerReserveValue({
-        triggerReserveOutput: DUMMY_TRIGGER_RESERVE_OUTPUT(network),
-        changeOutput:
-          changeOutput ||
-          DUMMY_CHANGE_OUTPUT(getMainAccount(accounts, network), network),
-        vaultMode,
-        presignedTriggerFeeRate: settings.PRESIGNED_TRIGGER_FEERATE,
-        maxTriggerFeeRate: settings.MAX_TRIGGER_FEERATE
-      }),
+      triggerReserveValue,
       changeOutput:
         changeOutput ||
         DUMMY_CHANGE_OUTPUT(getMainAccount(accounts, network), network),
@@ -395,18 +414,16 @@ export default function VaultSetUp({
         selected.targets,
         DUMMY_BACKUP_OUTPUT(network)
       );
-      const finalTriggerReserveValue = getTargetValue(
-        selected.targets,
-        DUMMY_TRIGGER_RESERVE_OUTPUT(network)
-      );
-      effectiveFee = toNumber(
-        selected.fee + finalBackupFeeBudget + finalTriggerReserveValue
-      );
+      effectiveFee = toNumber(selected.fee + finalBackupFeeBudget);
     }
   }
 
   const prefilledAddressHelpIcon = useMemo<IconType>(
     () => ({ family: 'FontAwesome6', name: 'shield-halved' }),
+    []
+  );
+  const reserveHelpIcon = useMemo<IconType>(
+    () => ({ family: 'FontAwesome5', name: 'coins' }),
     []
   );
 
@@ -483,6 +500,26 @@ export default function VaultSetUp({
             max={currentMaxVaultedAmount}
             onValueChange={onUserSelectedVaultedAmountChange}
           />
+          <View className="w-full flex-row items-start gap-2 px-2 pt-1">
+            <Text className="shrink text-sm text-slate-500">
+              {t('vaultSetup.unfreezeReserveLabel')}:{' '}
+              {formatAmount(toNumber(triggerReserveValue))}
+            </Text>
+            <View className="mt-0.5">
+              <InfoButton onPress={showReserveHelp} />
+            </View>
+          </View>
+          <Modal
+            title={t('vaultSetup.unfreezeReserveHelpTitle')}
+            icon={reserveHelpIcon}
+            isVisible={reserveHelp}
+            onClose={hideReserveHelp}
+            closeButtonText={t('understoodButton')}
+          >
+            <Text className="pl-2 pr-2 text-base text-slate-600">
+              {t('vaultSetup.unfreezeReserveHelp')}
+            </Text>
+          </Modal>
           <View className="mb-8" />
           <BlocksInput
             label={t('vaultSetup.securityLockTimeLabel')}

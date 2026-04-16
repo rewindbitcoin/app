@@ -15,6 +15,7 @@ import * as Progress from 'react-native-progress';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   createVault,
+  getP2AVaultFundingBreakdown,
   type VaultSettings,
   type Vault,
   getRandomSigner
@@ -335,7 +336,7 @@ export default function CreateVaultScreen({
         coldAddress,
         lockBlocks,
         changeDescriptorWithIndex,
-        vaultIndex: nextVaultP2PData.nextVaultIndex, //FIXME: TAG:ifrubr43frev -> this is only correct as long as we keep backing up in P2P in addition to onchain, otherwiser we'll need to also retrieve the nextIndex from the onChainBackupDescriptor and find out the Max between onChainBackupDescriptorNextIndex and nextVaultP2PData.nextVaultIndex.
+        vaultIndex: nextVaultP2PData.nextVaultIndex, //FIXME: TAG:ifrubr43fre -> this is only correct as long as we keep backing up in P2P in addition to onchain, otherwiser we'll need to also retrieve the nextIndex from the onChainBackupDescriptor and find out the Max between onChainBackupDescriptorNextIndex and nextVaultP2PData.nextVaultIndex.
         // Also assert that onChainBackupDescriptorNextIndex === 0 || onChainBackupDescriptorNextIndex > nextVaultP2PData.nextVaultIndex
         vaultMode,
         shiftFeesToBackupEnd: true,
@@ -398,28 +399,40 @@ export default function CreateVaultScreen({
     signer,
     vaults,
     utxosData,
-    accounts
+    accounts,
+    settings.PRESIGNED_TRIGGER_FEERATE,
+    settings.PRESIGNED_RESCUE_FEERATE,
+    settings.MAX_TRIGGER_FEERATE
   ]);
 
-  let vaultTxInfo;
+  let vaultTxInfo: Vault['txMap'][string] | undefined;
   if (vault) {
     vaultTxInfo = vault.txMap[vault.vaultTxHex];
     if (!vaultTxInfo)
       throw new Error(`Vault txMap entry not set for vault ${vault.vaultId}`);
   }
 
-  const formatAmount = useCallback(
-    (amount: number) => {
-      return formatBtc({
-        amount,
-        subUnit: settings.SUB_UNIT,
-        btcFiat,
-        locale,
-        currency
-      });
-    },
-    [settings.SUB_UNIT, locale, currency, btcFiat]
-  );
+  let vaultFundingBreakdown = null;
+  if (vault && vaultTxInfo) {
+    const { vaultTxFee, backupTxCost, triggerReserveValue } =
+      getP2AVaultFundingBreakdown({ vault, signer });
+    vaultFundingBreakdown = {
+      vaultTxFee,
+      backupTxCost,
+      triggerReserveValue,
+      totalTakenFromWalletNow:
+        vault.vaultedAmount + vaultTxFee + backupTxCost + triggerReserveValue
+    };
+  }
+
+  const formatAmount = (amount: number) =>
+    formatBtc({
+      amount,
+      subUnit: settings.SUB_UNIT,
+      btcFiat,
+      locale,
+      currency
+    });
 
   return (
     <KeyboardAwareScrollView
@@ -465,6 +478,20 @@ export default function CreateVaultScreen({
                     </Text>
                   </View>
 
+                  {/* Trigger Reserve */}
+                  {vaultFundingBreakdown ? (
+                    <View>
+                      <Text className="text-base font-bold mb-1">
+                        {t('vaultSetup.unfreezeReserveLabel')}
+                      </Text>
+                      <Text className="text-base">
+                        {formatAmount(
+                          vaultFundingBreakdown.triggerReserveValue
+                        )}
+                      </Text>
+                    </View>
+                  ) : null}
+
                   {/* Time Lock */}
                   <View>
                     <Text className="text-base font-bold mb-1">
@@ -475,15 +502,39 @@ export default function CreateVaultScreen({
                     </Text>
                   </View>
 
-                  {/* Fees */}
-                  <View>
-                    <Text className="text-base font-bold mb-1">
-                      {t('createVault.miningFee')}
-                    </Text>
-                    <Text className="text-base">
-                      {formatAmount(vaultTxInfo.fee)}
-                    </Text>
-                  </View>
+                  {/* Funding Breakdown */}
+                  {vaultFundingBreakdown ? (
+                    <>
+                      <View>
+                        <Text className="text-base font-bold mb-1">
+                          {t('vaultSetup.vaultTransactionFeeLabel')}
+                        </Text>
+                        <Text className="text-base">
+                          {formatAmount(vaultFundingBreakdown.vaultTxFee)}
+                        </Text>
+                      </View>
+
+                      <View>
+                        <Text className="text-base font-bold mb-1">
+                          {t('vaultSetup.backupFundingLabel')}
+                        </Text>
+                        <Text className="text-base">
+                          {formatAmount(vaultFundingBreakdown.backupTxCost)}
+                        </Text>
+                      </View>
+
+                      <View>
+                        <Text className="text-base font-bold mb-1">
+                          {t('vaultSetup.totalTakenFromWalletNowLabel')}
+                        </Text>
+                        <Text className="text-base">
+                          {formatAmount(
+                            vaultFundingBreakdown.totalTakenFromWalletNow
+                          )}
+                        </Text>
+                      </View>
+                    </>
+                  ) : null}
 
                   {/* Emergency Address */}
                   <View>

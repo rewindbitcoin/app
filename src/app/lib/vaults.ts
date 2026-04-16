@@ -73,7 +73,11 @@ const P2A_OUTPUT_SCRIPT = fromHex('51024e73');
 const P2A_OUTPUT_SCRIPT_HEX = toHex(P2A_OUTPUT_SCRIPT);
 import { PANIC_TX_VBYTES, TRIGGER_TX_VBYTES } from './vaultSizes';
 import { generateMnemonic, mnemonicToSeedSync } from 'bip39';
-import { parseVaultIndex, getTriggerReservePath } from './rewindPaths';
+import {
+  parseVaultIndex,
+  getTriggerReservePath,
+  getVaultOriginPath
+} from './rewindPaths';
 
 // P2A input weight = base input (36 prevout + 1 scriptLen + 4 sequence) * 4
 // plus segwit marker/flag (2) and witness (1 stack item count + 1 empty push)
@@ -1057,6 +1061,62 @@ export const getTriggerReserveUtxoData = ({
     txHex: vault.vaultTxHex,
     vout: triggerReserveVout,
     output: triggerReserveOutput
+  };
+};
+
+/**
+ * Reconstructs the funded P2A vault-creation outputs from the vault tx itself.
+ *
+ * This is strict P2A-only logic. Laddered vault creation is not part of the
+ * current flow, so calling this for a laddered vault is invalid and throws.
+ */
+export const getP2AVaultFundingBreakdown = ({
+  vault,
+  signer
+}: {
+  vault: Vault;
+  signer: Signer;
+}) => {
+  if (getVaultMode(vault) === 'LADDERED')
+    throw new Error('getP2AVaultFundingBreakdown only supports P2A vaults');
+
+  const network = networkMapping[vault.networkId];
+  const { Output } = ensureDescriptorsFactoryInstance();
+  const vaultIndex = parseVaultIndex(vault.vaultPath);
+  const mnemonic = signer?.mnemonic;
+  if (!mnemonic)
+    throw new Error('Could not initialize the on-chain backup descriptor');
+  const masterNode = getMasterNode(mnemonic, network);
+  const backupOutput = new Output({
+    descriptor: `wpkh(${keyExpressionBIP32({
+      masterNode,
+      originPath: getVaultOriginPath(network),
+      keyPath: `/${vaultIndex}`
+    })})`,
+    network
+  });
+  const triggerReserveUtxoData = getTriggerReserveUtxoData({
+    vault,
+    signer,
+    network
+  });
+  const { tx: vaultTx } = transactionFromHex(vault.vaultTxHex);
+  const backupVout = vaultTx.outs.findIndex(
+    out => toHex(out.script) === toHex(backupOutput.getScriptPubKey())
+  );
+  if (backupVout < 0) throw new Error('Backup output not found in vault tx');
+
+  const backupOutputValue = vaultTx.outs[backupVout]?.value;
+  const triggerReserveValue = vaultTx.outs[triggerReserveUtxoData.vout]?.value;
+  const vaultTxData = vault.txMap[vault.vaultTxHex];
+  if (backupOutputValue === undefined || triggerReserveValue === undefined)
+    throw new Error('Vault tx is missing backup or reserve outputs');
+  if (!vaultTxData) throw new Error('Vault tx is not mapped');
+
+  return {
+    vaultTxFee: vaultTxData.fee,
+    backupTxCost: toNumber(backupOutputValue),
+    triggerReserveValue: toNumber(triggerReserveValue)
   };
 };
 
