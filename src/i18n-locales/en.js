@@ -549,15 +549,23 @@ You can replace the pre-filled address or click "Create" to open a wizard and ge
 
 Verify the address carefully to ensure it corresponds to an Emergency Phrase under your control:
 {{coldAddress}}.`,
-    notEnoughFunds: `<strong>Minimum Vault Amount Notice</strong>
+    confirmedFundsWarning: `This vault can only be created with confirmed funds.
 
-Rewind requires a minimum amount to be frozen to ensure it is financially worthwhile for you.
+You can still continue, but the setup will use only your confirmed funds. That means the maximum amount you can freeze may be lower until the rest confirms.
 
-We want to make sure your new vault can still fund its backup and emergency path right from the start.
+If you recently received or moved bitcoin, the rest should usually become available after about 10 minutes.`,
+    notEnoughFunds: `<strong>Not Enough Funds to Create This Vault</strong>
 
-This minimum amount is calculated from the actual Rewind2 vault structure, including the on-chain backup output and the emergency transactions it creates.
+The smallest vault Rewind can create right now needs about {{minimumRequiredFunds}} in your wallet.
 
-<strong>Suggested Action:</strong> Please add {{missingFunds}} to reach the minimum amount required for vaulting.`,
+Of that, {{minimumVaultedAmount}} ends up frozen in the vault. The rest is needed to save a backup and keep enough set aside for unfreezing later.
+
+<strong>Suggested Action:</strong> Please add about {{missingFunds}} more and try again.`,
+    notEnoughConfirmedFunds: `<strong>Confirmed Funds Needed</strong>
+
+This vault can only be created with confirmed funds, and some of your wallet funds are still unconfirmed, so they cannot be used yet.
+
+<strong>Suggested Action:</strong> Wait around 10 minutes for confirmation and then try again. Once those funds confirm, they can be used to create the vault.`,
     reservedFundsNotice: `<strong>Funds Temporarily Reserved</strong>
 
 Some of your funds are temporarily reserved while Rewind protects important pending vault transactions that may still need acceleration.

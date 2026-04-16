@@ -97,13 +97,11 @@ export const getOnChainBackupDescriptor = async ({
 };
 
 export const getMinBackupFeeBudget = (
-  effectiveFeeRate: number,
+  packageFeeRate: number,
   backupOutput: OutputInstance
 ): bigint =>
   maxBigInt(
-    BigInt(
-      Math.ceil(Math.max(...OP_RETURN_BACKUP_TX_VBYTES) * effectiveFeeRate)
-    ),
+    BigInt(Math.ceil(Math.max(...OP_RETURN_BACKUP_TX_VBYTES) * packageFeeRate)),
     dustThreshold(backupOutput) + BigInt(1)
   );
 

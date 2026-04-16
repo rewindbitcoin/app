@@ -62,7 +62,7 @@ export default function CreateVaultScreen({
   const {
     vaultedAmount,
     coldAddress,
-    effectiveFeeRate,
+    packageFeeRate,
     lockBlocks,
 
     accounts,
@@ -340,7 +340,7 @@ export default function CreateVaultScreen({
       const vaultData = await createVault({
         vaultedAmount: toBigInt(vaultedAmount),
         unvaultKeyExpression,
-        effectiveFeeRate,
+        packageFeeRate,
         presignedTriggerFeeRate: settings.PRESIGNED_TRIGGER_FEERATE,
         presignedRescueFeeRate: settings.PRESIGNED_RESCUE_FEERATE,
         maxTriggerFeeRate: settings.MAX_TRIGGER_FEERATE,
@@ -402,7 +402,7 @@ export default function CreateVaultScreen({
     netToast,
     vaultedAmount,
     coldAddress,
-    effectiveFeeRate,
+    packageFeeRate,
     getNextChangeDescriptorWithIndex,
     getUnvaultKeyExpression,
     lockBlocks,
@@ -428,14 +428,14 @@ export default function CreateVaultScreen({
 
   let vaultFundingBreakdown = null;
   if (vault && vaultTxInfo) {
-    const { vaultTxFee, backupTxCost, triggerReserveValue } =
+    const { vaultTxFee, backupTxCost, triggerReserveAmount } =
       getP2AVaultFundingBreakdown({ vault, signer });
     vaultFundingBreakdown = {
       vaultTxFee,
       backupTxCost,
-      triggerReserveValue,
+      triggerReserveAmount,
       totalTakenFromWalletNow:
-        vault.vaultedAmount + vaultTxFee + backupTxCost + triggerReserveValue
+        vault.vaultedAmount + vaultTxFee + backupTxCost + triggerReserveAmount
     };
   }
 
@@ -508,7 +508,7 @@ export default function CreateVaultScreen({
                       />
                       <Text className="text-base">
                         {formatAmount(
-                          vaultFundingBreakdown.triggerReserveValue
+                          vaultFundingBreakdown.triggerReserveAmount
                         )}
                       </Text>
                     </View>

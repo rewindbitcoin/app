@@ -96,15 +96,14 @@ export type VaultSettings = {
   vaultedAmount: number;
   coldAddress: string;
   /**
-   * User-facing effective fee rate for the whole vault flow:
-   * the vault tx now plus the future backup tx.
+   * User-facing fee-rate target for the vault tx plus its on-chain backup tx.
    *
    * This is not the final feerate of the vault tx alone.
    */
-  effectiveFeeRate: number;
+  packageFeeRate: number;
   lockBlocks: number;
   /** It's important to have the same accounts and utxosData reference as
-   * used in SetUpVaultScreen. These were used to compute the effective fee
+   * used in SetUpVaultScreen. These were used to compute the package fee
    * and should be tied together. Note those could change on a refresh.
    */
   accounts: Accounts;
@@ -410,7 +409,7 @@ const getMinimumCpfpChildFee = (childVSize: number) =>
  * `maxTriggerFeeRate` is the later package-feerate ceiling that the reserve must
  * still be able to reach with the first CPFP child.
  */
-export const getRequiredTriggerReserveValue = ({
+export const getRequiredTriggerReserveAmount = ({
   triggerReserveOutput,
   changeOutput,
   vaultMode,
@@ -1107,16 +1106,16 @@ export const getP2AVaultFundingBreakdown = ({
   if (backupVout < 0) throw new Error('Backup output not found in vault tx');
 
   const backupOutputValue = vaultTx.outs[backupVout]?.value;
-  const triggerReserveValue = vaultTx.outs[triggerReserveUtxoData.vout]?.value;
+  const triggerReserveAmount = vaultTx.outs[triggerReserveUtxoData.vout]?.value;
   const vaultTxData = vault.txMap[vault.vaultTxHex];
-  if (backupOutputValue === undefined || triggerReserveValue === undefined)
+  if (backupOutputValue === undefined || triggerReserveAmount === undefined)
     throw new Error('Vault tx is missing backup or reserve outputs');
   if (!vaultTxData) throw new Error('Vault tx is not mapped');
 
   return {
     vaultTxFee: vaultTxData.fee,
     backupTxCost: toNumber(backupOutputValue),
-    triggerReserveValue: toNumber(triggerReserveValue)
+    triggerReserveAmount: toNumber(triggerReserveAmount)
   };
 };
 
@@ -1149,9 +1148,9 @@ export const coinSelectVaultTx = moize.shallow(
     vaultOutput,
     backupOutput,
     triggerReserveOutput,
-    triggerReserveValue,
+    triggerReserveAmount,
     changeOutput,
-    effectiveFeeRate,
+    packageFeeRate,
     vaultMode,
     vaultedAmount,
     shiftFeesToBackupEnd = true
@@ -1160,15 +1159,15 @@ export const coinSelectVaultTx = moize.shallow(
     vaultOutput: OutputInstance;
     backupOutput: OutputInstance;
     triggerReserveOutput: OutputInstance;
-    triggerReserveValue: bigint;
+    triggerReserveAmount: bigint;
     changeOutput: OutputInstance;
-    effectiveFeeRate: number;
+    packageFeeRate: number;
     vaultMode: 'P2A_TRUC' | 'P2A_NON_TRUC';
     vaultedAmount: bigint | 'MAX_FUNDS';
     shiftFeesToBackupEnd?: boolean;
   }) => {
     const minBackupFeeBudget = getMinBackupFeeBudget(
-      effectiveFeeRate,
+      packageFeeRate,
       backupOutput
     );
     const selected = coinSelectInitialVaultTx({
@@ -1176,10 +1175,10 @@ export const coinSelectVaultTx = moize.shallow(
       vaultOutput,
       backupOutput,
       triggerReserveOutput,
-      triggerReserveValue,
+      triggerReserveAmount,
       minBackupFeeBudget,
       changeOutput,
-      feeRate: effectiveFeeRate,
+      feeRate: packageFeeRate,
       minimumFeeRate: MIN_FEE_RATE,
       vaultedAmount
     });
@@ -1317,7 +1316,7 @@ const coinSelectInitialVaultTx = ({
   vaultedAmount,
   backupOutput,
   triggerReserveOutput,
-  triggerReserveValue,
+  triggerReserveAmount,
   minBackupFeeBudget,
   changeOutput,
   feeRate,
@@ -1328,7 +1327,7 @@ const coinSelectInitialVaultTx = ({
   vaultedAmount: bigint | 'MAX_FUNDS';
   backupOutput?: OutputInstance;
   triggerReserveOutput?: OutputInstance;
-  triggerReserveValue?: bigint;
+  triggerReserveAmount?: bigint;
   minBackupFeeBudget?: bigint;
   changeOutput: OutputInstance;
   feeRate: number;
@@ -1350,12 +1349,12 @@ const coinSelectInitialVaultTx = ({
       'backupOutput and minBackupFeeBudget must be provided together'
     );
   }
-  if (triggerReserveOutput && triggerReserveValue !== undefined) {
-    if (triggerReserveValue <= dustThreshold(triggerReserveOutput))
-      return `TRIGGER RESERVE OUT BELOW DUST: ${triggerReserveValue} <= ${dustThreshold(triggerReserveOutput)}`;
-  } else if (triggerReserveOutput || triggerReserveValue !== undefined) {
+  if (triggerReserveOutput && triggerReserveAmount !== undefined) {
+    if (triggerReserveAmount <= dustThreshold(triggerReserveOutput))
+      return `TRIGGER RESERVE OUT BELOW DUST: ${triggerReserveAmount} <= ${dustThreshold(triggerReserveOutput)}`;
+  } else if (triggerReserveOutput || triggerReserveAmount !== undefined) {
     throw new Error(
-      'triggerReserveOutput and triggerReserveValue must be provided together'
+      'triggerReserveOutput and triggerReserveAmount must be provided together'
     );
   }
   let coinselected;
@@ -1364,10 +1363,10 @@ const coinSelectInitialVaultTx = ({
     targets = [];
     if (backupOutput && minBackupFeeBudget !== undefined)
       targets.push({ output: backupOutput, value: minBackupFeeBudget });
-    if (triggerReserveOutput && triggerReserveValue !== undefined)
+    if (triggerReserveOutput && triggerReserveAmount !== undefined)
       targets.push({
         output: triggerReserveOutput,
-        value: triggerReserveValue
+        value: triggerReserveAmount
       });
 
     coinselected = maxFunds({
@@ -1390,19 +1389,19 @@ const coinSelectInitialVaultTx = ({
     targets = [{ output: vaultOutput, value: vaultTarget.value }];
     if (backupOutput && minBackupFeeBudget !== undefined)
       targets.push({ output: backupOutput, value: minBackupFeeBudget });
-    if (triggerReserveOutput && triggerReserveValue !== undefined)
+    if (triggerReserveOutput && triggerReserveAmount !== undefined)
       targets.push({
         output: triggerReserveOutput,
-        value: triggerReserveValue
+        value: triggerReserveAmount
       });
   } else {
     targets = [{ output: vaultOutput, value: vaultedAmount }];
     if (backupOutput && minBackupFeeBudget !== undefined)
       targets.push({ output: backupOutput, value: minBackupFeeBudget });
-    if (triggerReserveOutput && triggerReserveValue !== undefined)
+    if (triggerReserveOutput && triggerReserveAmount !== undefined)
       targets.push({
         output: triggerReserveOutput,
-        value: triggerReserveValue
+        value: triggerReserveAmount
       });
 
     coinselected = coinselect({
@@ -1439,7 +1438,7 @@ const coinSelectInitialVaultTx = ({
  * from the vault index, and a wallet change output to compute the coinselector
  * for the requested vaulted amount.
  *
- * The `effectiveFeeRate` parameter is the user-selected fee-rate target. The
+ * The `packageFeeRate` parameter is the user-selected fee-rate target. The
  * vault tx is first built at that rate. If `shiftFeesToBackupEnd` is enabled,
  * any vault-tx fee above the mode minimum is moved into the backup output while
  * keeping the selected inputs, change, and tx shape unchanged.
@@ -1452,7 +1451,7 @@ export const buildVaultTxContext = async ({
   vaultMode,
   presignedTriggerFeeRate,
   maxTriggerFeeRate,
-  effectiveFeeRate,
+  packageFeeRate,
   utxosData,
   vaultedAmount,
   shiftFeesToBackupEnd = false,
@@ -1471,7 +1470,7 @@ export const buildVaultTxContext = async ({
   presignedTriggerFeeRate: number;
   /** Trigger package-feerate ceiling used to size the dedicated reserve. */
   maxTriggerFeeRate: number;
-  effectiveFeeRate: number;
+  packageFeeRate: number;
   vaultedAmount: bigint | 'MAX_FUNDS';
   utxosData: UtxosData;
   shiftFeesToBackupEnd?: boolean;
@@ -1505,7 +1504,7 @@ export const buildVaultTxContext = async ({
     network,
     vaultIndex
   });
-  const triggerReserveValue = getRequiredTriggerReserveValue({
+  const triggerReserveAmount = getRequiredTriggerReserveAmount({
     triggerReserveOutput,
     changeOutput,
     vaultMode,
@@ -1518,9 +1517,9 @@ export const buildVaultTxContext = async ({
     vaultOutput,
     backupOutput,
     triggerReserveOutput,
-    triggerReserveValue,
+    triggerReserveAmount,
     changeOutput,
-    effectiveFeeRate,
+    packageFeeRate,
     vaultMode,
     vaultedAmount,
     shiftFeesToBackupEnd
@@ -1539,7 +1538,7 @@ export const buildVaultTxContext = async ({
 export const createVault = async ({
   vaultedAmount,
   unvaultKeyExpression,
-  effectiveFeeRate,
+  packageFeeRate,
   presignedTriggerFeeRate,
   presignedRescueFeeRate,
   maxTriggerFeeRate,
@@ -1557,8 +1556,8 @@ export const createVault = async ({
   vaultedAmount: bigint;
   /** The unvault key expression that must be used to create triggerDescriptor */
   unvaultKeyExpression: string;
-  /** Combined effective fee rate for the vault tx plus the future backup tx. */
-  effectiveFeeRate: number;
+  /** Selected fee-rate target for the vault tx plus the backup tx package. */
+  packageFeeRate: number;
   /** Fee rate baked directly into the presigned trigger parent transaction. */
   presignedTriggerFeeRate: number;
   /** Fee rate baked directly into the presigned rescue parent transaction. */
@@ -1596,7 +1595,7 @@ export const createVault = async ({
     vaultMode,
     presignedTriggerFeeRate,
     maxTriggerFeeRate,
-    effectiveFeeRate,
+    packageFeeRate,
     utxosData,
     vaultedAmount,
     shiftFeesToBackupEnd,

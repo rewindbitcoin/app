@@ -497,15 +497,23 @@ Puedes reemplazar la dirección pre-rellenada o hacer clic en "Crear" para abrir
 
 Verifica la dirección cuidadosamente para asegurarte de que corresponde a una Frase de Emergencia bajo tu control:
 {{coldAddress}}.`,
-    notEnoughFunds: `<strong>Aviso de Cantidad Mínima para una Bóveda</strong>
+    confirmedFundsWarning: `Esta bóveda solo puede crearse con fondos confirmados.
 
-Rewind requiere una cantidad de congelación mínima para asegurar que tenga sentido financieramente.
+Igualmente puedes continuar, pero la configuración usará solo tus fondos confirmados. Eso significa que la cantidad máxima que puedes congelar puede ser menor hasta que el resto confirme.
 
-Queremos asegurarnos de que tu nueva bóveda pueda financiar su respaldo y su ruta de emergencia desde el principio.
+Si recibiste o moviste bitcoin hace poco, el resto normalmente debería quedar disponible en unos 10 minutos.`,
+    notEnoughFunds: `<strong>No hay fondos suficientes para crear esta bóveda</strong>
 
-Esta cantidad mínima se calcula a partir de la estructura real de la bóveda Rewind2, incluyendo la salida del respaldo on-chain y las transacciones de emergencia que crea.
+La bóveda más pequeña que Rewind puede crear ahora mismo necesita alrededor de {{minimumRequiredFunds}} en tu billetera.
 
-<strong>Acción Sugerida:</strong> Por favor, agrega {{missingFunds}} para alcanzar la cantidad mínima requerida para crear la bóveda.`,
+De eso, {{minimumVaultedAmount}} queda congelado en la bóveda. El resto hace falta para guardar un backup y dejar suficiente apartado para descongelar más adelante.
+
+<strong>Acción Sugerida:</strong> Por favor, agrega unos {{missingFunds}} más y vuelve a intentarlo.`,
+    notEnoughConfirmedFunds: `<strong>Se necesitan fondos confirmados</strong>
+
+Esta bóveda solo puede crearse con fondos confirmados, y parte de tus fondos de la billetera siguen sin confirmar, así que todavía no pueden usarse.
+
+<strong>Acción Sugerida:</strong> Espera unos 10 minutos a que confirmen y vuelve a intentarlo. Una vez que esos fondos confirmen, podrán usarse para crear la bóveda.`,
     reservedFundsNotice: `<strong>Fondos Reservados Temporalmente</strong>
 
 Parte de tus fondos están reservados temporalmente mientras Rewind protege transacciones importantes de bóvedas que siguen pendientes y aún podrían necesitar aceleración.
