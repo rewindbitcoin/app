@@ -191,6 +191,12 @@ export default function VaultSetUp({
   const vaultSetupUtxos =
     vaultMode === 'P2A_TRUC' ? confirmedSpendableUtxos : spendableUtxos;
   const maxFeeRate = computeMaxAllowedFeeRate(feeEstimates);
+  // FIXME: 0.1 sat/vB is only the minimum target package fee rate.
+  // This is still safe because backup funding is later clamped by dust, so the
+  // realized package fee rate ends up higher, not lower. With the current
+  // backup tx shape (max 634 vB, 297-sat wpkh dust), the backup alone already
+  // bottoms out around 298 sats, or ~0.47 sat/vB. The UI should probably show
+  // users that real minimum obtainable package fee rate instead of 0.1.
   const minimumPackageFeeRate = MIN_FEE_RATE;
   const { feeEstimate: pickedInitialPackageFeeRate } = pickFeeEstimate(
     feeEstimates,
