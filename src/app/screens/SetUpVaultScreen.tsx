@@ -472,7 +472,8 @@ export default function VaultSetUp({
         DUMMY_CHANGE_OUTPUT(getMainAccount(accounts, network), network),
       packageFeeRate,
       vaultMode,
-      vaultedAmount: toBigInt(vaultedAmount)
+      vaultedAmount: toBigInt(vaultedAmount),
+      shiftFeesToBackupEnd: true
     });
     if (typeof selected !== 'string') {
       const finalBackupFeeBudget = getTargetValue(

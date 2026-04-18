@@ -60,7 +60,8 @@ export const estimateMaxVaultAmount = moize.shallow(
       changeOutput,
       packageFeeRate,
       vaultMode,
-      vaultedAmount: 'MAX_FUNDS'
+      vaultedAmount: 'MAX_FUNDS',
+      shiftFeesToBackupEnd: true
     });
     if (typeof selected === 'string') return;
     const finalBackupFeeBudget = getTargetValue(selected.targets, backupOutput);
@@ -135,7 +136,8 @@ const estimateMinimumVaultSetup = moize.shallow(
       changeOutput,
       packageFeeRate,
       vaultMode,
-      vaultedAmount: toBigInt(vaultedAmount)
+      vaultedAmount: toBigInt(vaultedAmount),
+      shiftFeesToBackupEnd: true
     });
     if (typeof selected !== 'string') {
       const finalBackupFeeBudget = getTargetValue(

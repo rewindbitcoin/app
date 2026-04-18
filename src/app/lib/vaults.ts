@@ -1153,7 +1153,7 @@ export const coinSelectVaultTx = moize.shallow(
     packageFeeRate,
     vaultMode,
     vaultedAmount,
-    shiftFeesToBackupEnd = true
+    shiftFeesToBackupEnd
   }: {
     utxosData: UtxosData;
     vaultOutput: OutputInstance;
@@ -1164,7 +1164,7 @@ export const coinSelectVaultTx = moize.shallow(
     packageFeeRate: number;
     vaultMode: 'P2A_TRUC' | 'P2A_NON_TRUC';
     vaultedAmount: bigint | 'MAX_FUNDS';
-    shiftFeesToBackupEnd?: boolean;
+    shiftFeesToBackupEnd: boolean;
   }) => {
     const minBackupFeeBudget = getMinBackupFeeBudget(
       packageFeeRate,
@@ -1454,7 +1454,7 @@ export const buildVaultTxContext = async ({
   packageFeeRate,
   utxosData,
   vaultedAmount,
-  shiftFeesToBackupEnd = false,
+  shiftFeesToBackupEnd,
   network
 }: {
   signer: Signer;
@@ -1473,7 +1473,7 @@ export const buildVaultTxContext = async ({
   packageFeeRate: number;
   vaultedAmount: bigint | 'MAX_FUNDS';
   utxosData: UtxosData;
-  shiftFeesToBackupEnd?: boolean;
+  shiftFeesToBackupEnd: boolean;
   network: Network;
 }) => {
   const { Output } = ensureDescriptorsFactoryInstance();
@@ -1550,7 +1550,7 @@ export const createVault = async ({
   changeDescriptorWithIndex,
   vaultIndex,
   vaultMode,
-  shiftFeesToBackupEnd = false,
+  shiftFeesToBackupEnd,
   networkId
 }: {
   vaultedAmount: bigint;
@@ -1576,7 +1576,7 @@ export const createVault = async ({
    * P2A_TRUC means v3 + 0-sat anchor, P2A_NON_TRUC means v2 + funded anchor.
    */
   vaultMode: 'P2A_TRUC' | 'P2A_NON_TRUC';
-  shiftFeesToBackupEnd?: boolean;
+  shiftFeesToBackupEnd: boolean;
   networkId: NetworkId;
 }) => {
   const network = networkMapping[networkId];
