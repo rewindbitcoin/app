@@ -24,12 +24,16 @@ import {
 import type { Accounts } from './wallets';
 import { toBigInt, toNumber } from './sats';
 import { MIN_FEE_RATE } from './fees';
+import { OP_RETURN_BACKUP_TX_VBYTES } from './vaultSizes';
 
 type VaultSetupEstimate = {
   packageFee: number;
+  packageFeeRate: number;
   triggerReserveAmount: number;
   vaultedAmount: number;
 };
+
+const MAX_BACKUP_TX_VSIZE = Math.max(...OP_RETURN_BACKUP_TX_VBYTES);
 
 export const estimateMaxVaultAmount = moize.shallow(
   ({
@@ -69,8 +73,12 @@ export const estimateMaxVaultAmount = moize.shallow(
       selected.targets,
       triggerReserveOutput
     );
+    const packageFee = toNumber(selected.fee + finalBackupFeeBudget);
     return {
-      packageFee: toNumber(selected.fee + finalBackupFeeBudget),
+      packageFee,
+      packageFeeRate: Number(
+        (packageFee / (selected.vsize + MAX_BACKUP_TX_VSIZE)).toFixed(2)
+      ),
       triggerReserveAmount: toNumber(finalTriggerReserveValue),
       vaultedAmount: toNumber(getTargetValue(selected.targets, vaultOutput))
     };
@@ -78,7 +86,7 @@ export const estimateMaxVaultAmount = moize.shallow(
 );
 
 /**
- * Estimates the smallest Rewind2 vault that can actually be created.
+ * Estimates the smallest P2A vault that can actually be created.
  *
  * This is intentionally based on the current vault design only: backup output,
  * vault dust, and the trigger/panic path constraints that the new app builds.
@@ -148,9 +156,13 @@ const estimateMinimumVaultSetup = moize.shallow(
         selected.targets,
         triggerReserveOutput
       );
+      const packageFee = toNumber(selected.fee + finalBackupFeeBudget);
       return {
         vaultedAmount,
-        packageFee: toNumber(selected.fee + finalBackupFeeBudget),
+        packageFee,
+        packageFeeRate: Number(
+          (packageFee / (selected.vsize + MAX_BACKUP_TX_VSIZE)).toFixed(2)
+        ),
         triggerReserveAmount: toNumber(finalTriggerReserveValue)
       };
     } else {
@@ -171,6 +183,9 @@ const estimateMinimumVaultSetup = moize.shallow(
       return {
         vaultedAmount,
         packageFee,
+        packageFeeRate: Number(
+          (packageFee / (vaultTxSize + MAX_BACKUP_TX_VSIZE)).toFixed(2)
+        ),
         triggerReserveAmount: toNumber(triggerReserveAmount)
       };
     }

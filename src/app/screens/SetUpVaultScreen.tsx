@@ -105,9 +105,7 @@ export default function VaultSetUp({
     throw new Error(
       'SetUpVaultScreen cannot be called with unset feeEstimates'
     );
-  const rawUtxosData = utxosData;
-  const spendableUtxos = spendableUtxosData;
-  const hasReservedFunds = spendableUtxos !== rawUtxosData;
+  const hasReservedFunds = spendableUtxosData !== utxosData;
   const network = networkMapping[networkId];
 
   const { settings } = useSettings();
@@ -156,12 +154,12 @@ export default function VaultSetUp({
   const vaultMode =
     networkId === 'BITCOIN' ? 'P2A_TRUC' : settings.TESTING_VAULT_MODE;
   // P2A_TRUC vault creation must avoid unconfirmed wallet inputs.
-  const { confirmedSpendableUtxos, hasExcludedUnconfirmedUtxos } =
+  const { confirmedSpendableUtxosData, hasUnconfirmedSpendableUtxo } =
     useMemo(() => {
       if (vaultMode !== 'P2A_TRUC' || !historyData?.length) {
         return {
-          confirmedSpendableUtxos: spendableUtxos,
-          hasExcludedUnconfirmedUtxos: false
+          confirmedSpendableUtxosData: spendableUtxosData,
+          hasUnconfirmedSpendableUtxo: false
         };
       }
       const unconfirmedTxIds = new Set(
@@ -171,48 +169,44 @@ export default function VaultSetUp({
       );
       if (unconfirmedTxIds.size === 0) {
         return {
-          confirmedSpendableUtxos: spendableUtxos,
-          hasExcludedUnconfirmedUtxos: false
+          confirmedSpendableUtxosData: spendableUtxosData,
+          hasUnconfirmedSpendableUtxo: false
         };
       }
-      const filteredUtxos = spendableUtxos.filter(
+      const filteredUtxos = spendableUtxosData.filter(
         utxo => !unconfirmedTxIds.has(utxo.tx.getId())
       );
-      return filteredUtxos.length === spendableUtxos.length
+      return filteredUtxos.length === spendableUtxosData.length
         ? {
-            confirmedSpendableUtxos: spendableUtxos,
-            hasExcludedUnconfirmedUtxos: false
+            confirmedSpendableUtxosData: spendableUtxosData,
+            hasUnconfirmedSpendableUtxo: false
           }
         : {
-            confirmedSpendableUtxos: filteredUtxos,
-            hasExcludedUnconfirmedUtxos: true
+            confirmedSpendableUtxosData: filteredUtxos,
+            hasUnconfirmedSpendableUtxo: true
           };
-    }, [vaultMode, historyData, spendableUtxos]);
-  const vaultSetupUtxos =
-    vaultMode === 'P2A_TRUC' ? confirmedSpendableUtxos : spendableUtxos;
+    }, [vaultMode, historyData, spendableUtxosData]);
+  const vaultUtxosData =
+    vaultMode === 'P2A_TRUC' ? confirmedSpendableUtxosData : spendableUtxosData;
   const maxFeeRate = computeMaxAllowedFeeRate(feeEstimates);
-  // FIXME: 0.1 sat/vB is only the minimum target package fee rate.
-  // This is still safe because backup funding is later clamped by dust, so the
-  // realized package fee rate ends up higher, not lower. With the current
-  // backup tx shape (max 634 vB, 297-sat wpkh dust), the backup alone already
-  // bottoms out around 298 sats, or ~0.47 sat/vB. The UI should probably show
-  // users that real minimum obtainable package fee rate instead of 0.1.
-  const minimumPackageFeeRate = MIN_FEE_RATE;
+  // Lowest target package fee rate. The UI later derives the real minimum
+  // obtainable package fee rate from this low-end build and clamps the slider to it.
+  const minimumTargetPackageFeeRate = MIN_FEE_RATE;
   const { feeEstimate: pickedInitialPackageFeeRate } = pickFeeEstimate(
     feeEstimates,
     settings.INITIAL_CONFIRMATION_TIME
   );
   const initialPackageFeeRate = Math.min(
     maxFeeRate,
-    Math.max(pickedInitialPackageFeeRate, minimumPackageFeeRate)
+    Math.max(pickedInitialPackageFeeRate, minimumTargetPackageFeeRate)
   );
   const [userSelectedPackageFeeRate, setUserSelectedPackageFeeRate] = useState<
     number | null
   >(initialPackageFeeRate);
-  const packageFeeRate =
+  const selectedTargetPackageFeeRate =
     userSelectedPackageFeeRate === null
       ? null
-      : userSelectedPackageFeeRate >= minimumPackageFeeRate &&
+      : userSelectedPackageFeeRate >= minimumTargetPackageFeeRate &&
           userSelectedPackageFeeRate <= maxFeeRate
         ? userSelectedPackageFeeRate
         : null;
@@ -223,10 +217,10 @@ export default function VaultSetUp({
     minimumVaultSetup
   } = estimateVaultSetupRange({
     accounts,
-    utxosData: vaultSetupUtxos,
+    utxosData: vaultUtxosData,
     coldAddress: coldAddress || DUMMY_COLD_ADDRESS(network),
-    minimumPackageFeeRate,
-    packageFeeRate,
+    minimumPackageFeeRate: minimumTargetPackageFeeRate,
+    packageFeeRate: selectedTargetPackageFeeRate,
     lockBlocks: lockBlocks || settings.INITIAL_LOCK_BLOCKS,
     network,
     vaultMode,
@@ -236,10 +230,10 @@ export default function VaultSetUp({
   });
   const rawVaultRange = estimateVaultSetupRange({
     accounts,
-    utxosData: rawUtxosData,
+    utxosData,
     coldAddress: coldAddress || DUMMY_COLD_ADDRESS(network),
-    minimumPackageFeeRate,
-    packageFeeRate,
+    minimumPackageFeeRate: minimumTargetPackageFeeRate,
+    packageFeeRate: selectedTargetPackageFeeRate,
     lockBlocks: lockBlocks || settings.INITIAL_LOCK_BLOCKS,
     network,
     vaultMode,
@@ -248,20 +242,20 @@ export default function VaultSetUp({
     maxTriggerFeeRate: settings.MAX_TRIGGER_FEERATE
   });
   const hasAnyVaultRange =
-    maxFeeRate >= minimumPackageFeeRate &&
+    maxFeeRate >= minimumTargetPackageFeeRate &&
     maxVaultAtMinimumPackageFeeRate !== undefined &&
     maxVaultAtMinimumPackageFeeRate.vaultedAmount >=
       minimumVaultSetup.vaultedAmount;
   // P2A_TRUC can only use confirmed funds, so unconfirmed UTXOs can block setup.
   const isBlockedByUnconfirmedFunds =
     vaultMode === 'P2A_TRUC' &&
-    hasExcludedUnconfirmedUtxos &&
+    hasUnconfirmedSpendableUtxo &&
     !hasAnyVaultRange;
   // Without temporarily reserved funds, this wallet would be able to create a vault.
   const isBlockedByReservedFunds =
     !isBlockedByUnconfirmedFunds &&
     !hasAnyVaultRange &&
-    maxFeeRate >= minimumPackageFeeRate &&
+    maxFeeRate >= minimumTargetPackageFeeRate &&
     rawVaultRange.maxVaultAtMinimumPackageFeeRate !== undefined &&
     rawVaultRange.maxVaultAtMinimumPackageFeeRate.vaultedAmount >=
       rawVaultRange.minimumVaultSetup.vaultedAmount;
@@ -282,7 +276,7 @@ export default function VaultSetUp({
     minimumRequiredFundsNow -
       (requiredFundsForMinimumVaultSetup !== null
         ? requiredFundsForMinimumVaultSetup
-        : utxosDataBalance(vaultSetupUtxos))
+        : utxosDataBalance(vaultUtxosData))
   );
   const currentMaxVaultedAmount =
     maxVaultAtSelectedPackageFeeRate &&
@@ -290,6 +284,15 @@ export default function VaultSetUp({
       minimumVaultSetup.vaultedAmount
       ? maxVaultAtSelectedPackageFeeRate.vaultedAmount
       : minimumVaultSetup.vaultedAmount;
+  const triggerReserveAmount = getRequiredTriggerReserveAmount({
+    triggerReserveOutput: DUMMY_TRIGGER_RESERVE_OUTPUT(network),
+    changeOutput:
+      changeOutput ||
+      DUMMY_CHANGE_OUTPUT(getMainAccount(accounts, network), network),
+    vaultMode,
+    presignedTriggerFeeRate: settings.PRESIGNED_TRIGGER_FEERATE,
+    maxTriggerFeeRate: settings.MAX_TRIGGER_FEERATE
+  });
 
   const [userSelectedVaultedAmount, setUserSelectedVaultedAmount] = useState<
     number | null
@@ -302,14 +305,33 @@ export default function VaultSetUp({
   const [confirmedFundsWarningAccepted, setConfirmedFundsWarningAccepted] =
     useState<boolean>(false);
   const vaultedAmount: number | null =
-    userSelectedVaultedAmount !== null &&
+    isMaxVaultedAmount &&
     maxVaultAtSelectedPackageFeeRate &&
     maxVaultAtSelectedPackageFeeRate.vaultedAmount >=
-      minimumVaultSetup.vaultedAmount &&
-    userSelectedVaultedAmount >= minimumVaultSetup.vaultedAmount &&
-    userSelectedVaultedAmount <= maxVaultAtSelectedPackageFeeRate.vaultedAmount
-      ? userSelectedVaultedAmount
-      : null;
+      minimumVaultSetup.vaultedAmount
+      ? maxVaultAtSelectedPackageFeeRate.vaultedAmount
+      : userSelectedVaultedAmount !== null &&
+          maxVaultAtSelectedPackageFeeRate &&
+          maxVaultAtSelectedPackageFeeRate.vaultedAmount >=
+            minimumVaultSetup.vaultedAmount &&
+          userSelectedVaultedAmount >= minimumVaultSetup.vaultedAmount &&
+          userSelectedVaultedAmount <=
+            maxVaultAtSelectedPackageFeeRate.vaultedAmount
+        ? userSelectedVaultedAmount
+        : null;
+  // This is the minFeeRate that goes into the Fee slider.
+  // If no vault can be built yet, there is no real minimum buildable package fee
+  // rate. Fall back to the target floor as a stable placeholder; the slider is
+  // hidden in that state anyway.
+  const minimumPackageFeeRate = hasAnyVaultRange
+    ? maxVaultAtMinimumPackageFeeRate.packageFeeRate
+    : minimumTargetPackageFeeRate;
+  // Clamp the user's selected target to the real minimum buildable package fee
+  // rate. Just in case the slider range changes due to utxos change, ...
+  const packageFeeRate =
+    selectedTargetPackageFeeRate === null
+      ? null
+      : Math.max(selectedTargetPackageFeeRate, minimumPackageFeeRate);
 
   const onUserSelectedVaultedAmountChange = useCallback(
     (userSelectedVaultedAmount: number | null, type: 'USER' | 'RESET') => {
@@ -343,11 +365,11 @@ export default function VaultSetUp({
 
       accounts,
       btcFiat,
-      utxosData: vaultSetupUtxos
+      utxosData: vaultUtxosData
     });
   }, [
     packageFeeRate,
-    vaultSetupUtxos,
+    vaultUtxosData,
     vaultedAmount,
     lockBlocks,
     onVaultSetUpComplete,
@@ -396,7 +418,7 @@ export default function VaultSetUp({
             changeOutput ||
             DUMMY_CHANGE_OUTPUT(getMainAccount(accounts, network), network);
           const newMaxEstimate = estimateMaxVaultAmount({
-            utxosData: vaultSetupUtxos,
+            utxosData: vaultUtxosData,
             vaultOutput: DUMMY_VAULT_OUTPUT(network),
             backupOutput: DUMMY_BACKUP_OUTPUT(network),
             triggerReserveOutput: DUMMY_TRIGGER_RESERVE_OUTPUT(network),
@@ -424,7 +446,7 @@ export default function VaultSetUp({
       changeOutput,
       isMaxVaultedAmount,
       minimumVaultSetup.vaultedAmount,
-      vaultSetupUtxos,
+      vaultUtxosData,
       network,
       settings.PRESIGNED_TRIGGER_FEERATE,
       settings.MAX_TRIGGER_FEERATE,
@@ -442,45 +464,39 @@ export default function VaultSetUp({
       currency
     });
 
-  const triggerReserveAmount = getRequiredTriggerReserveAmount({
-    triggerReserveOutput: DUMMY_TRIGGER_RESERVE_OUTPUT(network),
-    changeOutput:
-      changeOutput ||
-      DUMMY_CHANGE_OUTPUT(getMainAccount(accounts, network), network),
-    vaultMode,
-    presignedTriggerFeeRate: settings.PRESIGNED_TRIGGER_FEERATE,
-    maxTriggerFeeRate: settings.MAX_TRIGGER_FEERATE
-  });
-
   // The slider shows the package fee for the vault tx plus the on-chain
   // backup tx. The Unfreeze Reserve is displayed separately because it is set
   // aside, not spent.
   let packageFee = null;
   if (vaultedAmount !== null && packageFeeRate !== null) {
-    const selected = coinSelectVaultTx({
-      utxosData: vaultSetupUtxos,
-      //We never use the final vaultOutput since it is built using a random
-      //key that we don't want to keep in memory, but setup still needs to
-      //reserve the same backup and trigger-reserve outputs that real vault
-      //creation will fund.
-      vaultOutput: DUMMY_VAULT_OUTPUT(network),
-      backupOutput: DUMMY_BACKUP_OUTPUT(network),
-      triggerReserveOutput: DUMMY_TRIGGER_RESERVE_OUTPUT(network),
-      triggerReserveAmount,
-      changeOutput:
-        changeOutput ||
-        DUMMY_CHANGE_OUTPUT(getMainAccount(accounts, network), network),
-      packageFeeRate,
-      vaultMode,
-      vaultedAmount: toBigInt(vaultedAmount),
-      shiftFeesToBackupEnd: true
-    });
-    if (typeof selected !== 'string') {
-      const finalBackupFeeBudget = getTargetValue(
-        selected.targets,
-        DUMMY_BACKUP_OUTPUT(network)
-      );
-      packageFee = toNumber(selected.fee + finalBackupFeeBudget);
+    if (isMaxVaultedAmount && maxVaultAtSelectedPackageFeeRate) {
+      packageFee = maxVaultAtSelectedPackageFeeRate.packageFee;
+    } else {
+      const selected = coinSelectVaultTx({
+        utxosData: vaultUtxosData,
+        //We never use the final vaultOutput since it is built using a random
+        //key that we don't want to keep in memory, but setup still needs to
+        //reserve the same backup and trigger-reserve outputs that real vault
+        //creation will fund.
+        vaultOutput: DUMMY_VAULT_OUTPUT(network),
+        backupOutput: DUMMY_BACKUP_OUTPUT(network),
+        triggerReserveOutput: DUMMY_TRIGGER_RESERVE_OUTPUT(network),
+        triggerReserveAmount,
+        changeOutput:
+          changeOutput ||
+          DUMMY_CHANGE_OUTPUT(getMainAccount(accounts, network), network),
+        packageFeeRate,
+        vaultMode,
+        vaultedAmount: toBigInt(vaultedAmount),
+        shiftFeesToBackupEnd: true
+      });
+      if (typeof selected !== 'string') {
+        const finalBackupFeeBudget = getTargetValue(
+          selected.targets,
+          DUMMY_BACKUP_OUTPUT(network)
+        );
+        packageFee = toNumber(selected.fee + finalBackupFeeBudget);
+      }
     }
   }
 
@@ -509,7 +525,7 @@ export default function VaultSetUp({
           <Button onPress={navigation.goBack}>{t('goBack')}</Button>
         </View>
       ) : vaultMode === 'P2A_TRUC' &&
-        hasExcludedUnconfirmedUtxos &&
+        hasUnconfirmedSpendableUtxo &&
         hasAnyVaultRange &&
         !confirmedFundsWarningAccepted ? (
         <View className="w-full max-w-screen-sm mx-4" style={containerStyle}>
