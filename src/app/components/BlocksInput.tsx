@@ -3,12 +3,12 @@
 
 //This component must work both for SendBitcoin and SetUpVault
 import React, { useState, useCallback, useRef, useMemo } from 'react';
-import { Text } from 'react-native';
-import { CardEditableSlider, InfoButton, Modal } from '../../common/ui';
+import { CardEditableSlider } from '../../common/ui';
 import { useTranslation } from 'react-i18next';
 import { fromBlocks, toBlocks, getBlocksModeStep } from '../lib/timeUtils';
 import { formatBlocks } from '../lib/format';
 import { useLocalization } from '../hooks/useLocalization';
+import ModalInfoButton from './ModalInfoButton';
 
 function BlocksInput({
   initialValue,
@@ -26,9 +26,6 @@ function BlocksInput({
   const { t } = useTranslation();
   const { locale } = useLocalization();
   const [mode, setMode] = useState<'days' | 'blocks'>('days');
-  const [coldAddressHelp, setColdAddressHelp] = useState<boolean>(false);
-  const showColdAddressHelp = useCallback(() => setColdAddressHelp(true), []);
-  const hideColdAddressHelp = useCallback(() => setColdAddressHelp(false), []);
 
   const modeMin = fromBlocks(min, mode);
   const modeMax = fromBlocks(max, mode);
@@ -67,8 +64,14 @@ function BlocksInput({
   );
 
   const headerIcon = useMemo(
-    () => <InfoButton onPress={showColdAddressHelp} />,
-    [showColdAddressHelp]
+    () => (
+      <ModalInfoButton
+        title={t('blocksInput.coldAddress.helpTitle')}
+        icon={{ family: 'FontAwesome6', name: 'shield-halved' }}
+        text={t('blocksInput.coldAddress.helpText')}
+      />
+    ),
+    [t]
   );
 
   return (
@@ -89,17 +92,6 @@ function BlocksInput({
         }
         onUnitPress={onUnitPress}
       />
-      <Modal
-        title={t('blocksInput.coldAddress.helpTitle')}
-        icon={{ family: 'FontAwesome6', name: 'shield-halved' }}
-        isVisible={coldAddressHelp}
-        onClose={hideColdAddressHelp}
-        closeButtonText={t('understoodButton')}
-      >
-        <Text className="text-base pl-2 pr-2 text-slate-600">
-          {t('blocksInput.coldAddress.helpText')}
-        </Text>
-      </Modal>
     </>
   );
 }

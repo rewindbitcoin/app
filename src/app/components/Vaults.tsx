@@ -29,7 +29,8 @@ import {
   type VaultsStatuses,
   type Vaults as VaultsType,
   createCpfpChildTx,
-  getSpendableUtxosData,
+  getP2AVaultFundingBreakdown,
+  getTriggerReserveUtxoData,
   getVaultFrozenBalance,
   getVaultMode,
   getRemainingBlocks,
@@ -39,23 +40,23 @@ import {
 import VaultIcon from './VaultIcon';
 import { useTranslation } from 'react-i18next';
 import { formatBalance, formatBlocks } from '../lib/format';
-import { Button, IconType, InfoButton, Modal, useToast } from '../../common/ui';
+import { Button, IconType, Modal, useToast } from '../../common/ui';
 
 import { useSettings } from '../hooks/useSettings';
 import type { SubUnit } from '../lib/settings';
 import type { BlockStatus } from '@bitcoinerlab/explorer';
-import InitUnfreeze from './InitUnfreeze';
-import Rescue from './Rescue';
+import InitUnfreeze, { getTriggerAccelerationInfo } from './InitUnfreeze';
+import Rescue, { getRescueAccelerationInfo } from './Rescue';
 import {
   getMinimumReplacementChildFee,
-  getPreviousCpfpChildData,
-  getAccelerationFeeRateFloor,
-  getReplacementUtxosData,
+  getCpfpFeeInfo,
+  type PreparedCpfpPlan,
   type VaultActionTxData
 } from '../lib/vaultActionTx';
 import { useWallet } from '../hooks/useWallet';
 import Delegate from './Delegate';
 import LearnMoreAboutVaults from './LearnMoreAboutVaults';
+import ModalInfoButton from './ModalInfoButton';
 import * as Notifications from 'expo-notifications';
 import { useLocalization } from '../hooks/useLocalization';
 import { useNetStatus } from '../hooks/useNetStatus';
@@ -209,20 +210,22 @@ const VaultButton = ({
   mode,
   onPress,
   loading,
+  disabled = false,
   msg,
-  onInfoPress
+  infoButton
 }: {
   mode: 'secondary' | 'secondary-alert';
   onPress: () => void;
   loading: boolean;
+  disabled?: boolean;
   msg: string;
-  onInfoPress?: () => void;
+  infoButton?: React.ReactNode;
 }) => (
   <View className={`flex-row items-center gap-2 mobmed:gap-4`}>
-    <Button mode={mode} onPress={onPress} loading={loading}>
+    <Button mode={mode} onPress={onPress} loading={loading} disabled={disabled}>
       {msg}
     </Button>
-    {onInfoPress && <InfoButton onPress={onInfoPress} />}
+    {infoButton}
   </View>
 );
 
@@ -278,27 +281,8 @@ const RawVault = ({
     | undefined;
   pushToken: string | undefined;
 }) => {
-  const [showDelegateHelp, setShowDelegateHelp] = useState<boolean>(false);
-  const [showRescueHelp, setShowRescueHelp] = useState<boolean>(false);
-  const [showInitUnfreezeHelp, setShowInitUnfreezeHelp] =
-    useState<boolean>(false);
   const [showWatchtowerStatusModal, setShowWatchtowerStatusModal] =
     useState<boolean>(false);
-  const handleDelegateHelp = useCallback(() => setShowDelegateHelp(true), []);
-  const handleRescueHelp = useCallback(() => setShowRescueHelp(true), []);
-  const handleInitUnfreezeHelp = useCallback(
-    () => setShowInitUnfreezeHelp(true),
-    []
-  );
-  const handleCloseDelegateHelp = useCallback(
-    () => setShowDelegateHelp(false),
-    []
-  );
-  const handleCloseRescueHelp = useCallback(() => setShowRescueHelp(false), []);
-  const handleCloseInitUnfreezeHelp = useCallback(
-    () => setShowInitUnfreezeHelp(false),
-    []
-  );
   const handleShowWatchtowerStatusModal = useCallback(async () => {
     setShowWatchtowerStatusModal(true);
   }, []);
@@ -316,16 +300,13 @@ const RawVault = ({
   const { t } = useTranslation();
   const toast = useToast();
   const vaultMode = useMemo(() => getVaultMode(vault), [vault]);
-  const isLegacyVault = vaultMode === 'LEGACY';
+  const isLadderedVault = vaultMode === 'LADDERED';
 
   const { settings } = useSettings();
   if (!settings) throw new Error('Settings has not been retrieved');
   const {
     accounts,
     feeEstimates: feeEstimatesRealTime,
-    utxosData,
-    vaultsStatuses,
-    getTxosData,
     historyData,
     networkId,
     signers,
@@ -333,8 +314,6 @@ const RawVault = ({
     pushTxPackage
   } = useWallet();
   const feeEstimates = useFirstDefinedValue(feeEstimatesRealTime);
-  const spendableUtxosData =
-    utxosData && getSpendableUtxosData(utxosData, vaultsStatuses, historyData);
 
   const [showInitUnfreeze, setShowInitUnfreeze] = useState<boolean>(false);
   const handleCloseInitUnfreeze = useCallback(
@@ -384,85 +363,71 @@ const RawVault = ({
                 vault.vaultId
               );
             }
-            if (isLegacyVault) {
+            if (isLadderedVault) {
               await pushTx(initUnfreezeData.parentTxHex);
               return;
             }
 
-            if (!accounts || !spendableUtxosData || !networkId || !signers)
+            if (!networkId || !signers)
               throw new Error('Wallet not ready for Rewind2 trigger package');
             const signer = signers[0];
             if (!signer) throw new Error('signer unavailable');
+            if (!accounts)
+              throw new Error('Wallet accounts unavailable for trigger change');
             const network = networkMapping[networkId];
+            const triggerReserveUtxoData = getTriggerReserveUtxoData({
+              vault,
+              signer,
+              network
+            });
             const changeDescriptorWithIndex =
               await getNextChangeDescriptorWithIndex(accounts);
             const changeOutput = computeChangeOutput(
               changeDescriptorWithIndex,
               network
             );
-
-            let mandatoryUtxosData = undefined;
-            let optionalUtxosData = spendableUtxosData;
+            // Trigger fee bumping is reserve-only by design: the dedicated
+            // trigger reserve stays outside normal wallet flow and is always
+            // the only non-anchor input. The child sends leftover value back to
+            // the wallet's regular change branch.
             const previousChildTxHex = vaultStatus?.triggerCpfpTxHex;
             if (isTriggerAccelerationAttempt) {
               if (vaultStatus?.panicPushTime || vaultStatus?.panicTxHex)
                 throw new Error(
                   'Cannot accelerate trigger after rescue has started'
                 );
-              if (!previousChildTxHex)
-                throw new Error(
-                  'Missing synced trigger CPFP inputs for acceleration'
-                );
-              if (!historyData?.length)
+              if (previousChildTxHex && !historyData?.length)
                 throw new Error(
                   'Missing synced trigger history for acceleration'
                 );
-              const replacementUtxosData = getReplacementUtxosData({
-                parentTxHex: initUnfreezeData.parentTxHex,
-                previousChildTxHex,
-                utxosData: spendableUtxosData,
-                historyData,
-                getTxosData
-              });
-              if (!replacementUtxosData)
-                throw new Error(
-                  'Missing exact trigger replacement inputs from discovery'
-                );
-              mandatoryUtxosData = replacementUtxosData.mandatoryUtxosData;
-              optionalUtxosData = replacementUtxosData.optionalUtxosData;
             }
             const childTxData = await createCpfpChildTx({
               parentTxHex: initUnfreezeData.parentTxHex,
               parentFee: initUnfreezeData.parentTxFee,
-              targetEffectiveFeeRate: initUnfreezeData.effectiveFeeRate,
-              ...(mandatoryUtxosData ? { mandatoryUtxosData } : {}),
-              optionalUtxosData,
+              targetPackageFeeRate: initUnfreezeData.actionFeeRate,
+              utxosData: [triggerReserveUtxoData],
               changeOutput,
               signer,
               network
             });
             if (!childTxData)
               throw new Error('Cannot build trigger fee-bump transaction');
-            if (isTriggerAccelerationAttempt) {
+            if (isTriggerAccelerationAttempt && previousChildTxHex) {
               // Final local safety check before broadcast. Even if the user chose
               // a higher-looking fee-rate, relay still rejects the replacement if
               // the new child does not add enough absolute sats over the old one.
-              if (!historyData?.length || !previousChildTxHex)
+              if (!historyData?.length)
                 throw new Error(
                   'Missing trigger history to validate replacement fee'
                 );
-              const previousCpfpData = getPreviousCpfpChildData({
+              const previousChildFeeInfo = getCpfpFeeInfo({
                 parentTxHex: initUnfreezeData.parentTxHex,
                 parentFee: initUnfreezeData.parentTxFee,
-                previousChildTxHex,
+                childTxHex: previousChildTxHex,
                 historyData
               });
-              if (!previousCpfpData)
-                throw new Error(
-                  'Cannot reconstruct previous trigger fee-payer transaction'
-                );
               const minimumReplacementChildFee = getMinimumReplacementChildFee({
-                previousChildFee: previousCpfpData.childFee,
+                previousChildFee: previousChildFeeInfo.childFee,
                 replacementChildVSize: childTxData.childVSize
               });
               if (childTxData.childFee < minimumReplacementChildFee)
@@ -501,15 +466,13 @@ const RawVault = ({
       watchtowerAPI,
       settings?.NETWORK_TIMEOUT,
       accounts,
-      spendableUtxosData,
-      getTxosData,
       networkId,
       signers,
       getNextChangeDescriptorWithIndex,
       pushTxPackage,
       pushTx,
-      isLegacyVault,
-      vault.vaultId,
+      isLadderedVault,
+      vault,
       vaultStatus,
       historyData,
       updateVaultStatus,
@@ -531,7 +494,10 @@ const RawVault = ({
   const handleCloseRescue = useCallback(() => setShowRescue(false), []);
   const handleShowRescue = useCallback(() => setShowRescue(true), []);
   const handleRescue = useCallback(
-    async (rescueData: VaultActionTxData) => {
+    async (
+      rescueData: VaultActionTxData,
+      emergencyBumpPlan?: PreparedCpfpPlan
+    ) => {
       batchedUpdates(() => {
         setShowRescue(false);
         setIsRescueBeingHandled(true);
@@ -544,79 +510,56 @@ const RawVault = ({
           whenToastErrors: 'ON_ANY_ERROR',
           errorMessage: (message: string) => t('app.pushError', { message }),
           func: async () => {
-            if (isLegacyVault) {
+            if (isLadderedVault) {
               await pushTx(rescueData.parentTxHex);
               return;
             }
 
-            if (!accounts || !spendableUtxosData || !networkId || !signers)
+            const shouldBuildCpfp =
+              !!emergencyBumpPlan &&
+              rescueData.actionFee > rescueData.parentTxFee;
+            // Rescue never falls back to normal wallet UTXOs. If the presigned
+            // parent fee is not enough, the only supported bump path is an
+            // explicit external emergency bump plan.
+            if (!shouldBuildCpfp) {
+              await pushTx(rescueData.parentTxHex);
+              return;
+            }
+            if (!networkId)
               throw new Error('Wallet not ready for Rewind2 rescue package');
-            const signer = signers[0];
-            if (!signer) throw new Error('signer unavailable');
             const network = networkMapping[networkId];
-            const changeDescriptorWithIndex =
-              await getNextChangeDescriptorWithIndex(accounts);
-            const changeOutput = computeChangeOutput(
-              changeDescriptorWithIndex,
-              network
-            );
-
-            let mandatoryUtxosData = undefined;
-            let optionalUtxosData = spendableUtxosData;
             const previousChildTxHex = vaultStatus?.panicCpfpTxHex;
             if (isRescueAccelerationAttempt) {
-              if (!previousChildTxHex)
-                throw new Error(
-                  'Missing synced rescue CPFP inputs for acceleration'
-                );
-              if (!historyData?.length)
+              if (previousChildTxHex && !historyData?.length)
                 throw new Error(
                   'Missing synced rescue history for acceleration'
                 );
-              const replacementUtxosData = getReplacementUtxosData({
-                parentTxHex: rescueData.parentTxHex,
-                previousChildTxHex,
-                utxosData: spendableUtxosData,
-                historyData,
-                getTxosData
-              });
-              if (!replacementUtxosData)
-                throw new Error(
-                  'Missing exact rescue replacement inputs from discovery'
-                );
-              mandatoryUtxosData = replacementUtxosData.mandatoryUtxosData;
-              optionalUtxosData = replacementUtxosData.optionalUtxosData;
             }
             const childTxData = await createCpfpChildTx({
               parentTxHex: rescueData.parentTxHex,
               parentFee: rescueData.parentTxFee,
-              targetEffectiveFeeRate: rescueData.effectiveFeeRate,
-              ...(mandatoryUtxosData ? { mandatoryUtxosData } : {}),
-              optionalUtxosData,
-              changeOutput,
-              signer,
+              targetPackageFeeRate: rescueData.actionFeeRate,
+              utxosData: emergencyBumpPlan.utxosData,
+              changeOutput: emergencyBumpPlan.changeOutput,
+              signer: emergencyBumpPlan.signer,
               network
             });
             if (!childTxData)
               throw new Error('Cannot build rescue fee-bump transaction');
-            if (isRescueAccelerationAttempt) {
+            if (isRescueAccelerationAttempt && previousChildTxHex) {
               // Same relay rule as above, but now for the rescue fee-payer child.
-              if (!historyData?.length || !previousChildTxHex)
+              if (!historyData?.length)
                 throw new Error(
                   'Missing rescue history to validate replacement fee'
                 );
-              const previousCpfpData = getPreviousCpfpChildData({
+              const previousChildFeeInfo = getCpfpFeeInfo({
                 parentTxHex: rescueData.parentTxHex,
                 parentFee: rescueData.parentTxFee,
-                previousChildTxHex,
+                childTxHex: previousChildTxHex,
                 historyData
               });
-              if (!previousCpfpData)
-                throw new Error(
-                  'Cannot reconstruct previous rescue fee-payer transaction'
-                );
               const minimumReplacementChildFee = getMinimumReplacementChildFee({
-                previousChildFee: previousCpfpData.childFee,
+                previousChildFee: previousChildFeeInfo.childFee,
                 replacementChildVSize: childTxData.childVSize
               });
               if (childTxData.childFee < minimumReplacementChildFee)
@@ -658,14 +601,9 @@ const RawVault = ({
       netRequest,
       toast,
       t,
-      accounts,
-      spendableUtxosData,
-      getTxosData,
       networkId,
-      signers,
-      getNextChangeDescriptorWithIndex,
       pushTxPackage,
-      isLegacyVault
+      isLadderedVault
     ]
   );
 
@@ -675,7 +613,7 @@ const RawVault = ({
     tipHeight &&
     vaultStatus &&
     getRemainingBlocks(vault, vaultStatus, tipHeight);
-  const { locale } = useLocalization();
+  const { locale, currency } = useLocalization();
   const rescuedDate = formatVaultDate(vaultStatus?.panicTxBlockTime, locale);
   const rescuePushDate = formatVaultDate(vaultStatus?.panicPushTime, locale);
   const panicAddress = vault.coldAddress;
@@ -715,108 +653,47 @@ const RawVault = ({
   const isRescueTx =
     isRescueTxPushed || isRescueTxInMempool || isRescueTxConfirmed;
 
-  const canInitUnfreeze = isVaultTx && !isInitUnfreezeTx;
+  const canShowInitUnfreeze = isVaultTx && !isInitUnfreezeTx;
+  // For P2A_TRUC, an unconfirmed vault tx can only have one unconfirmed child.
+  // Since the backup child already uses that slot, keep the action visible but
+  // disable Init Unfreeze until the vault tx confirms.
+  const isInitUnfreezeDisabledForP2ATruc =
+    vaultMode === 'P2A_TRUC' && !isVaultTxConfirmed;
   const canBeRescued = isInitUnfreezeTx && !isUnfrozen && !isRescueTx;
   const canBeDelegated = isVaultTx && !isUnfrozen && !isRescueTx;
 
   const canAccelerateTrigger = useMemo(() => {
     if (isInitUnfreezeBeingHandled) return false;
-    // Once rescue exists, the live child hanging from the trigger is the rescue
-    // path, not the old trigger fee-payer child. Offering "accelerate trigger"
-    // here is misleading and can produce invalid replacements.
-    if (isRescueTx) return false;
-    if (
-      !(
-        (isInitUnfreezeTxPushed || isInitUnfreezeTxInMempool) &&
-        !isInitUnfreezeTxConfirmed
-      )
-    )
-      return false;
-    if (isLegacyVault) return true;
-    const parentTxHex = vaultStatus?.triggerTxHex;
-    const previousChildTxHex = vaultStatus?.triggerCpfpTxHex;
-    if (!parentTxHex || !previousChildTxHex) return false;
-    const parentTxData = vault.txMap[parentTxHex];
-    if (!parentTxData) return false;
-    try {
-      // Show the outer button only when a real next replacement floor exists.
-      // Otherwise the modal can open with informational copy but no fee path to
-      // continue, which is misleading.
-      return (
-        getAccelerationFeeRateFloor({
-          parentTxHex,
-          parentFee: parentTxData.fee,
-          previousChildTxHex,
-          utxosData: spendableUtxosData,
-          historyData,
-          getTxosData,
-          accounts,
-          networkId,
-          feeEstimates
-        }) !== null
-      );
-    } catch {
-      return false;
-    }
+    return getTriggerAccelerationInfo({
+      vault,
+      vaultStatus,
+      feeEstimates,
+      accounts,
+      networkId,
+      historyData,
+      signer: signers?.[0]
+    }).canAccelerate;
   }, [
-    isInitUnfreezeTxPushed,
-    isInitUnfreezeTxInMempool,
-    isInitUnfreezeTxConfirmed,
     isInitUnfreezeBeingHandled,
-    isRescueTx,
-    isLegacyVault,
-    vaultStatus?.triggerTxHex,
-    vaultStatus?.triggerCpfpTxHex,
     vault,
-    spendableUtxosData,
-    historyData,
-    getTxosData,
+    vaultStatus,
+    feeEstimates,
     accounts,
     networkId,
-    feeEstimates
+    historyData,
+    signers
   ]);
 
   const canAccelerateRescue = useMemo(() => {
     if (isRescueBeingHandled) return false;
-    if (!(isRescueTx && !isRescueTxConfirmed)) return false;
-    if (isLegacyVault) return true;
-    const parentTxHex = vaultStatus?.panicTxHex;
-    const previousChildTxHex = vaultStatus?.panicCpfpTxHex;
-    if (!parentTxHex || !previousChildTxHex) return false;
-    const parentTxData = vault.txMap[parentTxHex];
-    if (!parentTxData) return false;
-    try {
-      return (
-        getAccelerationFeeRateFloor({
-          parentTxHex,
-          parentFee: parentTxData.fee,
-          previousChildTxHex,
-          utxosData: spendableUtxosData,
-          historyData,
-          getTxosData,
-          accounts,
-          networkId,
-          feeEstimates
-        }) !== null
-      );
-    } catch {
-      return false;
-    }
-  }, [
-    isRescueTx,
-    isRescueTxConfirmed,
-    isRescueBeingHandled,
-    isLegacyVault,
-    vaultStatus?.panicTxHex,
-    vaultStatus?.panicCpfpTxHex,
-    vault,
-    spendableUtxosData,
-    historyData,
-    getTxosData,
-    accounts,
-    networkId,
-    feeEstimates
-  ]);
+    return getRescueAccelerationInfo({
+      vault,
+      vaultStatus,
+      feeEstimates,
+      historyData,
+      emergencyBumpPlan: undefined
+    }).canAccelerate;
+  }, [isRescueBeingHandled, vault, vaultStatus, feeEstimates, historyData]);
 
   const canBeHidden =
     !isVaultTx ||
@@ -908,6 +785,18 @@ const RawVault = ({
     getVaultUnfrozenBalance(vault, vaultStatus, tipHeight);
   const rescuedBalance =
     tipHeight && vaultStatus && getVaultRescuedBalance(vault, vaultStatus);
+  const unfreezeReserveAmount = useMemo(() => {
+    if (isLadderedVault || !frozenBalance || vaultStatus?.triggerTxHex) return;
+    const signer = signers?.[0];
+    if (!signer) return;
+    return getP2AVaultFundingBreakdown({ vault, signer }).triggerReserveAmount;
+  }, [
+    isLadderedVault,
+    frozenBalance,
+    vaultStatus?.triggerTxHex,
+    signers,
+    vault
+  ]);
 
   const isMountedRef = useRef(true);
   useEffect(() => {
@@ -1109,6 +998,26 @@ const RawVault = ({
             </Text>
           </View>
         )}
+        {unfreezeReserveAmount ? (
+          <View className="w-full flex-row items-start gap-2 pt-2">
+            <Text className="shrink text-slate-500 native:text-sm web:text-xs">
+              {t('vaultSetup.unfreezeReserveLabel')}:{' '}
+              {formatBalance({
+                satsBalance: unfreezeReserveAmount,
+                btcFiat,
+                currency,
+                locale,
+                mode,
+                appendSubunit: true
+              })}
+            </Text>
+            <ModalInfoButton
+              title={t('vaultSetup.unfreezeReserveHelpTitle')}
+              icon={{ family: 'FontAwesome5', name: 'coins' }}
+              text={t('vaultSetup.unfreezeReserveHelp')}
+            />
+          </View>
+        ) : null}
         <View className={`gap-4 ${isVaultTx ? 'pt-4' : ''}`}>
           {(isInitUnfreezeTxPushed || isInitUnfreezeTxInMempool) &&
             !isInitUnfreezeTxConfirmed && (
@@ -1224,7 +1133,9 @@ const RawVault = ({
                     lockTime: formatBlocks(vault.lockBlocks, t, locale, true)
                   })
                 : t(
-                    'wallet.vault.notTriggeredUnconfirmed',
+                    vaultMode === 'P2A_TRUC'
+                      ? 'wallet.vault.notTriggeredUnconfirmed_TRUC'
+                      : 'wallet.vault.notTriggeredUnconfirmed',
                     {
                       lockTime: formatBlocks(vault.lockBlocks, t, locale, true)
                     }
@@ -1270,9 +1181,12 @@ const RawVault = ({
             </>
           )}
         </View>
-        {(canBeRescued || canInitUnfreeze || canBeDelegated || canBeHidden) && (
+        {(canBeRescued ||
+          canShowInitUnfreeze ||
+          canBeDelegated ||
+          canBeHidden) && (
           <View
-            className={`w-full flex-row ${[canBeRescued, canInitUnfreeze, canBeDelegated, canBeHidden].filter(Boolean).length > 1 ? 'justify-between flex-wrap' : 'justify-end'} pt-8 px-0 moblg:px-4 gap-4 moblg:gap-6`}
+            className={`w-full flex-row ${[canBeRescued, canShowInitUnfreeze, canBeDelegated, canBeHidden].filter(Boolean).length > 1 ? 'justify-between flex-wrap' : 'justify-end'} pt-8 px-0 moblg:px-4 gap-4 moblg:gap-6`}
           >
             {canBeRescued && (
               <VaultButton
@@ -1280,16 +1194,37 @@ const RawVault = ({
                 onPress={handleShowRescue}
                 loading={isRescueBeingHandledNotYetPushed}
                 msg={t('wallet.vault.rescueButton')}
-                onInfoPress={handleRescueHelp}
+                infoButton={
+                  <ModalInfoButton
+                    title={t('wallet.vault.help.rescue.title')}
+                    icon={{
+                      family: 'MaterialCommunityIcons',
+                      name: 'alarm-light'
+                    }}
+                    text={t('wallet.vault.help.rescue.text')}
+                    buttonContainerClassName=""
+                  />
+                }
               />
             )}
-            {canInitUnfreeze && (
+            {canShowInitUnfreeze && (
               <VaultButton
                 mode="secondary"
                 onPress={handleShowInitUnfreeze}
                 loading={isInitUnfreezePending}
+                disabled={isInitUnfreezeDisabledForP2ATruc}
                 msg={t('wallet.vault.triggerUnfreezeButton')}
-                onInfoPress={handleInitUnfreezeHelp}
+                infoButton={
+                  <ModalInfoButton
+                    title={t('wallet.vault.help.initUnfreeze.title')}
+                    icon={{
+                      family: 'MaterialCommunityIcons',
+                      name: 'snowflake-melt'
+                    }}
+                    text={t('wallet.vault.help.initUnfreeze.text')}
+                    buttonContainerClassName=""
+                  />
+                }
               />
             )}
             {canBeDelegated && (
@@ -1298,7 +1233,14 @@ const RawVault = ({
                 onPress={handleShowDelegate}
                 loading={false}
                 msg={t('wallet.vault.delegateButton')}
-                onInfoPress={handleDelegateHelp}
+                infoButton={
+                  <ModalInfoButton
+                    title={t('wallet.vault.help.delegate.title')}
+                    icon={{ family: 'FontAwesome5', name: 'hands-helping' }}
+                    text={t('wallet.vault.help.delegate.text')}
+                    buttonContainerClassName=""
+                  />
+                }
               />
             )}
             {canBeHidden && (
@@ -1332,45 +1274,6 @@ const RawVault = ({
         isVisible={showDelegate}
         onClose={handleCloseDelegate}
       />
-      <Modal
-        title={t('wallet.vault.help.delegate.title')}
-        icon={{ family: 'FontAwesome5', name: 'hands-helping' }}
-        isVisible={showDelegateHelp}
-        onClose={handleCloseDelegateHelp}
-        closeButtonText={t('understoodButton')}
-      >
-        <Text className="text-base pl-2 pr-2 text-slate-600">
-          {t('wallet.vault.help.delegate.text')}
-        </Text>
-      </Modal>
-      <Modal
-        title={t('wallet.vault.help.rescue.title')}
-        icon={{
-          family: 'MaterialCommunityIcons',
-          name: 'alarm-light'
-        }}
-        isVisible={showRescueHelp}
-        onClose={handleCloseRescueHelp}
-        closeButtonText={t('understoodButton')}
-      >
-        <Text className="text-base pl-2 pr-2 text-slate-600">
-          {t('wallet.vault.help.rescue.text')}
-        </Text>
-      </Modal>
-      <Modal
-        title={t('wallet.vault.help.initUnfreeze.title')}
-        icon={{
-          family: 'MaterialCommunityIcons',
-          name: 'snowflake-melt'
-        }}
-        isVisible={showInitUnfreezeHelp}
-        onClose={handleCloseInitUnfreezeHelp}
-        closeButtonText={t('understoodButton')}
-      >
-        <Text className="text-base pl-2 pr-2 text-slate-600">
-          {t('wallet.vault.help.initUnfreeze.text')}
-        </Text>
-      </Modal>
       <Modal
         title={t('wallet.vault.watchtower.statusTitle')}
         icon={{

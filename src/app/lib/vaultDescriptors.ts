@@ -21,16 +21,6 @@ export const DUMMY_PUBKEY =
 export const DUMMY_PUBKEY_2 =
   '038ffea936b2df76bf31220ebd56a34b30c6b86f40d3bd92664e2f5f98488dddfa';
 
-export const DUMMY_SERVICE_ADDRESS = memoize((network: Network) => {
-  if (network === networks.bitcoin)
-    return 'bc1qp2u85wn9cekkw3khr3trpsznakhhfkekpk2mld';
-  else if (network === networks.regtest)
-    return 'bcrt1qq7m6la3syc6wk5fglznegngxe5lhy8aajevva9';
-  else if (network === networks.testnet)
-    return 'tb1qm0k9mn48uqfs2w9gssvzmus4j8srrx5eje7wpf';
-  else throw new Error('Network not supported');
-});
-
 export const DUMMY_COLD_ADDRESS = memoize((network: Network) => {
   if (network === networks.bitcoin)
     return 'bc1qp2u85wn9cekkw3khr3trpsznakhhfkekpk2mld';
@@ -68,6 +58,13 @@ export const DUMMY_VAULT_OUTPUT = memoize((network: Network) => {
   });
 });
 export const DUMMY_BACKUP_OUTPUT = memoize((network: Network) => {
+  const { Output } = ensureDescriptorsFactoryInstance();
+  return new Output({
+    descriptor: createVaultDescriptor(DUMMY_PUBKEY_2),
+    network
+  });
+});
+export const DUMMY_TRIGGER_RESERVE_OUTPUT = memoize((network: Network) => {
   const { Output } = ensureDescriptorsFactoryInstance();
   return new Output({
     descriptor: createVaultDescriptor(DUMMY_PUBKEY_2),
@@ -118,13 +115,13 @@ export const DUMMY_PKH_OUTPUT = memoize(() => {
 
 export const createVaultDescriptor = (pubKey: string) => `wpkh(${pubKey})`;
 
-export const createServiceDescriptor = (address: string) => `addr(${address})`;
+export const createAddressDescriptor = (address: string) => `addr(${address})`;
 
-export const createServiceOutput = moize(
-  (serviceAddress: string, network: Network) => {
+export const createAddressOutput = moize(
+  (address: string, network: Network) => {
     const { Output } = ensureDescriptorsFactoryInstance();
     return new Output({
-      descriptor: createServiceDescriptor(serviceAddress),
+      descriptor: createAddressDescriptor(address),
       network
     });
   }

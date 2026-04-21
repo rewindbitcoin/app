@@ -1,14 +1,13 @@
 // Copyright (C) 2025 Jose-Luis Landabaso - https://rewindbitcoin.com
 // Licensed under the GNU GPL v3 or later. See the LICENSE file for details.
 
-import { networks } from 'bitcoinjs-lib';
+import { networks, type Network } from 'bitcoinjs-lib';
 import { toHex } from 'uint8array-tools';
 import { fixtures } from './fixtutres';
 import {
   createColdAddress,
-  createServiceOutput,
+  createAddressOutput,
   createUnvaultKeyExpression,
-  DUMMY_SERVICE_ADDRESS,
   getDefaultAccount,
   getMainAccount,
   getMasterNode
@@ -20,6 +19,16 @@ import {
 } from '../dist/src/app/lib/wallets';
 
 const network = networks.regtest;
+
+const DUMMY_ADDRESS = (network: Network) => {
+  if (network === networks.bitcoin)
+    return 'bc1qp2u85wn9cekkw3khr3trpsznakhhfkekpk2mld';
+  if (network === networks.regtest)
+    return 'bcrt1qq7m6la3syc6wk5fglznegngxe5lhy8aajevva9';
+  if (network === networks.testnet)
+    return 'tb1qm0k9mn48uqfs2w9gssvzmus4j8srrx5eje7wpf';
+  throw new Error('Network not supported');
+};
 
 describe('vaultDescriptors unit tests', () => {
   const { MNEMONIC, COLD_MNEMONIC, expected } = fixtures.edge2edge;
@@ -55,11 +64,11 @@ describe('vaultDescriptors unit tests', () => {
     expect(mainAccount).toBe(expected.defaultAccount);
   });
 
-  test('createServiceOutput', () => {
-    const serviceOutput = createServiceOutput(
-      DUMMY_SERVICE_ADDRESS(network),
+  test('createAddressOutput', () => {
+    const serviceOutput = createAddressOutput(
+      DUMMY_ADDRESS(network),
       network
     );
-    expect(serviceOutput.getAddress()).toBe(DUMMY_SERVICE_ADDRESS(network));
+    expect(serviceOutput.getAddress()).toBe(DUMMY_ADDRESS(network));
   });
 });

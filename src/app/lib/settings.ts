@@ -71,7 +71,20 @@ export const SETTINGS_GLOBAL_STORAGE = 'SETTINGS_GLOBAL_STORAGE';
 export interface Settings {
   NETWORK_TIMEOUT: number;
   GAP_LIMIT: number;
-  MIN_FEE_RATE: number;
+  /**
+   * Emergency package feerate ceiling used to size the dedicated trigger
+   * reserve output funded at vault creation time.
+   */
+  MAX_TRIGGER_FEERATE: number;
+  /**
+   * Feerate baked directly into the presigned trigger parent transaction.
+   * This is the parent's own fee, not the later CPFP reserve target.
+   */
+  PRESIGNED_TRIGGER_FEERATE: number;
+  /**
+   * Feerate baked directly into the presigned rescue/panic parent transaction.
+   */
+  PRESIGNED_RESCUE_FEERATE: number;
   MIN_LOCK_BLOCKS: number;
   MAX_LOCK_BLOCKS: number;
   INITIAL_LOCK_BLOCKS: number;
@@ -84,9 +97,9 @@ export interface Settings {
   BLOCKCHAIN_DATA_REFRESH_INTERVAL_MS: number;
   /**
    * Mode used for all testing networks (TESTNET/TAPE/REGTEST).
-   * Mainnet is always TRUC and does not use this setting.
+   * Mainnet is always P2A_TRUC and does not use this setting.
    */
-  TESTING_VAULT_MODE: 'TRUC' | 'NON_TRUC';
+  TESTING_VAULT_MODE: 'P2A_TRUC' | 'P2A_NON_TRUC';
   WALLETS_DATA_VERSION: string;
 
   REGTEST_HOST_NAME: string;
@@ -142,7 +155,9 @@ const locales = getLocales();
 export const defaultSettings: Settings = {
   NETWORK_TIMEOUT: 20000,
   GAP_LIMIT: 20,
-  MIN_FEE_RATE: 1,
+  MAX_TRIGGER_FEERATE: 100,
+  PRESIGNED_TRIGGER_FEERATE: 0.1,
+  PRESIGNED_RESCUE_FEERATE: 100,
   MIN_LOCK_BLOCKS: 1,
   MAX_LOCK_BLOCKS: 3 * 30 * 24 * 6,
   INITIAL_LOCK_BLOCKS: 3 * 24 * 6,
@@ -159,7 +174,7 @@ export const defaultSettings: Settings = {
       : 'USD',
   BTC_FIAT_REFRESH_INTERVAL_MS: 60000, //1 minutes
   BLOCKCHAIN_DATA_REFRESH_INTERVAL_MS: 60000, // 1 minute
-  TESTING_VAULT_MODE: 'NON_TRUC',
+  TESTING_VAULT_MODE: 'P2A_NON_TRUC',
   WALLETS_DATA_VERSION: '1.0.0', //This does not define the version of the App, but keeps track of the changes in the signature of the Wallet
 
   REGTEST_HOST_NAME: REGTEST_HOST_NAME,

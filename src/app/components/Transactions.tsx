@@ -103,7 +103,11 @@ const RawTransaction = ({
   const formatTime = () => {
     if (item.blockHeight === 0) {
       if ('pushTime' in item) {
-        const relTime = now - item.pushTime;
+        // `pushTime` is based on local wall-clock time, so a small clock skew or
+        // render delay can briefly make the delta negative.
+        // Clamp at 0 instead of using Math.abs(), otherwise future-skewed times
+        // would incorrectly show as older transactions.
+        const relTime = Math.max(0, now - item.pushTime);
         return relTime < 60 * 60
           ? t('transaction.pushedMinsAgo', {
               count: Math.round(relTime / 60)

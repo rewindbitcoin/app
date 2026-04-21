@@ -65,3 +65,5 @@ test/**/*.d.ts
 ReleaseNotest.txt
 
 google-services.json
+
+summary.md

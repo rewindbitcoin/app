@@ -5,7 +5,7 @@ const SHOW_DATA_ENCRYPTION_SETTING = false;
 import React, { useCallback, useState } from 'react';
 
 import { Text, View, Pressable, Platform } from 'react-native';
-import { Modal, Divider, InfoButton, Switch } from '../../common/ui';
+import { Divider, Switch } from '../../common/ui';
 import type { Engine as StorageEngine } from '../../common/lib/storage';
 import Password from './Password';
 import { useTranslation } from 'react-i18next';
@@ -14,6 +14,7 @@ import AntDesign from '@expo/vector-icons/AntDesign';
 import type { NetworkId } from '../lib/network';
 import NetworksModal from './NetworksModal';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import ModalInfoButton from './ModalInfoButton';
 export type AdvancedSettings = {
   signersStorageEngine: StorageEngine;
   signersPassword?: string | undefined;
@@ -48,10 +49,6 @@ export default function WalletAdvancedSettings({
   const [passwordRequest, setPasswordRequest] = useState<boolean>(false);
   const [networkRequest, setNetworkRequest] = useState<boolean>(false);
   const [advanced, setAdvanced] = useState<boolean>(false);
-  const [biometricalHelp, showBiometricalHelp] = useState<boolean>(false);
-  const [passwordHelp, showPasswordHelp] = useState<boolean>(false);
-  const [dataEncryptionHelp, showDataEncryptionHelp] = useState<boolean>(false);
-  const [networktHelp, showNetworkHelp] = useState<boolean>(false);
 
   const onPasswordSwitch = useCallback(
     (value: boolean) => {
@@ -160,7 +157,13 @@ export default function WalletAdvancedSettings({
                     <Text className="pr-2 text-base">
                       {t('wallet.biometricEncryptionTitle')}
                     </Text>
-                    <InfoButton onPress={() => showBiometricalHelp(true)} />
+                    <ModalInfoButton
+                      title={t('wallet.biometricEncryptionTitle')}
+                      icon={{ family: 'Ionicons', name: 'finger-print' }}
+                      text={t('help.biometric')}
+                      buttonContainerClassName=""
+                      textClassName="pl-2 pr-2 text-base"
+                    />
                   </View>
                   <Switch
                     value={
@@ -186,7 +189,23 @@ export default function WalletAdvancedSettings({
                 <Text className="pr-2 text-base">
                   {t('wallet.usePasswordTitle')}
                 </Text>
-                <InfoButton onPress={() => showPasswordHelp(true)} />
+                <ModalInfoButton
+                  title={t('wallet.passwordProtectionTitle')}
+                  icon={{
+                    family: 'MaterialCommunityIcons',
+                    name: 'form-textbox-password'
+                  }}
+                  buttonContainerClassName=""
+                >
+                  <Text className="pl-2 pr-2 text-base">
+                    {t('help.password')}
+                  </Text>
+                  {canUseSecureStorage && (
+                    <Text className="pt-4 pl-2 pr-2 text-base">
+                      {t('help.passwordWithBiometric')}
+                    </Text>
+                  )}
+                </ModalInfoButton>
               </View>
               <Switch
                 value={!!advancedSettings.signersPassword || passwordRequest}
@@ -207,7 +226,13 @@ export default function WalletAdvancedSettings({
                     <Text className="pr-2 text-base">
                       {t('wallet.encryptAppDataTitle')}
                     </Text>
-                    <InfoButton onPress={() => showDataEncryptionHelp(true)} />
+                    <ModalInfoButton
+                      title={t('wallet.encryptAppDataTitle')}
+                      icon={{ family: 'Ionicons', name: 'document-lock' }}
+                      text={t('help.encryptAppData')}
+                      buttonContainerClassName=""
+                      textClassName="pl-2 pr-2 text-base"
+                    />
                   </View>
                   <Switch
                     value={advancedSettings.encryption === 'SEED_DERIVED'}
@@ -222,7 +247,13 @@ export default function WalletAdvancedSettings({
                 <Text className="pr-2 text-base">
                   {t('network.testOrRealTitle')}
                 </Text>
-                <InfoButton onPress={() => showNetworkHelp(true)} />
+                <ModalInfoButton
+                  title={t('network.testOrRealTitle')}
+                  icon={{ family: 'FontAwesome5', name: 'bitcoin' }}
+                  text={t('help.network')}
+                  buttonContainerClassName=""
+                  textClassName="pl-2 pr-2 text-base"
+                />
               </View>
               <Pressable
                 onPress={onNetworkRequest}
@@ -252,56 +283,6 @@ export default function WalletAdvancedSettings({
           </>
         )}
       </View>
-      <Modal
-        title={t('wallet.biometricEncryptionTitle')}
-        icon={{ family: 'Ionicons', name: 'finger-print' }}
-        isVisible={biometricalHelp}
-        onClose={() => showBiometricalHelp(false)}
-        closeButtonText={t('understoodButton')}
-      >
-        <Text className="pl-2 pr-2 text-base">{t('help.biometric')}</Text>
-      </Modal>
-      <Modal
-        title={t('wallet.passwordProtectionTitle')}
-        icon={{
-          family: 'MaterialCommunityIcons',
-          name: 'form-textbox-password'
-        }}
-        isVisible={passwordHelp}
-        onClose={() => showPasswordHelp(false)}
-        closeButtonText={t('understoodButton')}
-      >
-        <Text className="pl-2 pr-2 text-base">{t('help.password')}</Text>
-        {canUseSecureStorage && (
-          <Text className="pt-4 pl-2 pr-2 text-base">
-            {t('help.passwordWithBiometric')}
-          </Text>
-        )}
-      </Modal>
-      <Modal
-        title={t('wallet.encryptAppDataTitle')}
-        icon={{
-          family: 'Ionicons',
-          name: 'document-lock'
-        }}
-        isVisible={dataEncryptionHelp}
-        onClose={() => showDataEncryptionHelp(false)}
-        closeButtonText={t('understoodButton')}
-      >
-        <Text className="pl-2 pr-2 text-base">{t('help.encryptAppData')}</Text>
-      </Modal>
-      <Modal
-        title={t('network.testOrRealTitle')}
-        icon={{
-          family: 'FontAwesome5',
-          name: 'bitcoin'
-        }}
-        isVisible={networktHelp}
-        onClose={() => showNetworkHelp(false)}
-        closeButtonText={t('understoodButton')}
-      >
-        <Text className="pl-2 pr-2 text-base">{t('help.network')}</Text>
-      </Modal>
     </>
   );
 }

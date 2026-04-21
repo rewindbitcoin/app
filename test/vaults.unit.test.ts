@@ -4,9 +4,9 @@
 import { fixtures } from './fixtutres';
 import {
   estimateCpfpPackage,
+  estimateMinimumRequiredVaultedAmount,
+  findP2AOutputData,
   getHotDescriptors,
-  getPanicAnchorOutputIndex,
-  getTriggerAnchorOutputIndex,
   getVaultMode,
   type UtxosData,
   type Vault,
@@ -14,14 +14,21 @@ import {
   type VaultsStatuses
 } from '../dist/src/app/lib/vaults';
 import { type Accounts } from '../dist/src/app/lib/wallets';
-import { networks, Transaction } from 'bitcoinjs-lib';
+import { networks, type Network, Transaction } from 'bitcoinjs-lib';
 import { fromHex } from 'uint8array-tools';
-import {
-  createServiceOutput,
-  DUMMY_SERVICE_ADDRESS
-} from '../dist/src/app/lib/vaultDescriptors';
+import { createAddressOutput } from '../dist/src/app/lib/vaultDescriptors';
 
-const NON_TRUC_P2A_ANCHOR_VALUE = 330; //FIXME: verify this is ok - better make this dynamic?
+const P2A_NON_TRUC_ANCHOR_VALUE = 330; //FIXME: verify this is ok - better make this dynamic?
+
+const DUMMY_ADDRESS = (network: Network) => {
+  if (network === networks.bitcoin)
+    return 'bc1qp2u85wn9cekkw3khr3trpsznakhhfkekpk2mld';
+  if (network === networks.regtest)
+    return 'bcrt1qq7m6la3syc6wk5fglznegngxe5lhy8aajevva9';
+  if (network === networks.testnet)
+    return 'tb1qm0k9mn48uqfs2w9gssvzmus4j8srrx5eje7wpf';
+  throw new Error('Network not supported');
+};
 
 /** Builds a tiny synthetic tx for vault mode inference tests. */
 const createSyntheticTxHex = ({
@@ -44,7 +51,7 @@ const createSyntheticTxHex = ({
 
 const createSyntheticUtxoData = (value: number): UtxosData[number] => {
   const network = networks.regtest;
-  const output = createServiceOutput(DUMMY_SERVICE_ADDRESS(network), network);
+  const output = createAddressOutput(DUMMY_ADDRESS(network), network);
   const tx = new Transaction();
   tx.version = 2;
   tx.addInput(new Uint8Array(32), 0);
@@ -76,7 +83,7 @@ describe('vaults unit tests', () => {
     expect(descriptors).toEqual(expected.descriptors);
   });
 
-  test('getVaultMode infers TRUC from version 3 + 0-sat P2A', () => {
+  test('getVaultMode infers P2A_TRUC from version 3 + 0-sat P2A', () => {
     const triggerTxHex = createSyntheticTxHex({
       version: 3,
       mainOutputValue: 10000,
@@ -85,73 +92,70 @@ describe('vaults unit tests', () => {
     const vault = {
       triggerMap: { [triggerTxHex]: [] }
     } as unknown as Vault;
-    expect(getVaultMode(vault)).toBe('TRUC');
-    expect(getTriggerAnchorOutputIndex(triggerTxHex)).toBe(1);
+    expect(getVaultMode(vault)).toBe('P2A_TRUC');
+    expect(findP2AOutputData(Transaction.fromHex(triggerTxHex))?.index).toBe(1);
   });
 
-  test('getVaultMode infers NON_TRUC from non-zero P2A anchor', () => {
+  test('getVaultMode infers P2A_NON_TRUC from non-zero P2A anchor', () => {
     const triggerTxHex = createSyntheticTxHex({
       version: 2,
       mainOutputValue: 10000,
-      p2aValue: NON_TRUC_P2A_ANCHOR_VALUE
+      p2aValue: P2A_NON_TRUC_ANCHOR_VALUE
     });
     const panicTxHex = createSyntheticTxHex({
       version: 2,
       mainOutputValue: 9000,
-      p2aValue: NON_TRUC_P2A_ANCHOR_VALUE
+      p2aValue: P2A_NON_TRUC_ANCHOR_VALUE
     });
     const vault = {
       triggerMap: { [triggerTxHex]: [panicTxHex] }
     } as unknown as Vault;
-    expect(getVaultMode(vault)).toBe('NON_TRUC');
-    expect(getTriggerAnchorOutputIndex(triggerTxHex)).toBe(1);
-    expect(getPanicAnchorOutputIndex(panicTxHex)).toBe(1);
+    expect(getVaultMode(vault)).toBe('P2A_NON_TRUC');
+    expect(findP2AOutputData(Transaction.fromHex(triggerTxHex))?.index).toBe(1);
+    expect(findP2AOutputData(Transaction.fromHex(panicTxHex))?.index).toBe(1);
   });
 
-  test('getVaultMode falls back to LEGACY when no P2A output exists', () => {
-    const legacyTriggerTxHex = createSyntheticTxHex({
+  test('getVaultMode falls back to LADDERED when no P2A output exists', () => {
+    const ladderedTriggerTxHex = createSyntheticTxHex({
       version: 2,
       mainOutputValue: 10000
     });
-    const legacyVault = {
-      triggerMap: { [legacyTriggerTxHex]: [] }
+    const ladderedVault = {
+      triggerMap: { [ladderedTriggerTxHex]: [] }
     } as unknown as Vault;
-    expect(getVaultMode(legacyVault)).toBe('LEGACY');
-    expect(getTriggerAnchorOutputIndex(legacyTriggerTxHex)).toBeUndefined();
+    expect(getVaultMode(ladderedVault)).toBe('LADDERED');
+    expect(findP2AOutputData(Transaction.fromHex(ladderedTriggerTxHex))).toBeUndefined();
   });
 
   test('estimateCpfpPackage computes effective package fee data', () => {
     const network = networks.regtest;
-    const changeOutput = createServiceOutput(
-      DUMMY_SERVICE_ADDRESS(network),
+    const changeOutput = createAddressOutput(
+      DUMMY_ADDRESS(network),
       network
     );
     const parentTxHex = createSyntheticTxHex({
       version: 2,
       mainOutputValue: 12000,
-      p2aValue: NON_TRUC_P2A_ANCHOR_VALUE
+      p2aValue: P2A_NON_TRUC_ANCHOR_VALUE
     });
     const plan = estimateCpfpPackage({
       parentTxHex,
       parentFee: 120,
-      targetEffectiveFeeRate: 2,
-      optionalUtxosData: [createSyntheticUtxoData(3000)],
+      targetPackageFeeRate: 2,
+      utxosData: [createSyntheticUtxoData(3000)],
       changeOutput
     });
 
     expect(plan).toBeDefined();
     if (!plan) throw new Error('Expected CPFP plan');
-    expect(plan.parentTxHex).toBe(parentTxHex);
-    expect(plan.anchorValue).toBe(NON_TRUC_P2A_ANCHOR_VALUE);
     expect(plan.childFee).toBeGreaterThanOrEqual(0);
-    expect(plan.childOutputValue).toBeGreaterThan(0);
-    expect(plan.effectiveFeeRate).toBeGreaterThanOrEqual(2);
+    expect(plan.packageFeeRate).toBeGreaterThanOrEqual(2);
   });
 
-  test('estimateCpfpPackage returns undefined for legacy parent tx', () => {
+  test('estimateCpfpPackage returns undefined for laddered parent tx', () => {
     const network = networks.regtest;
-    const changeOutput = createServiceOutput(
-      DUMMY_SERVICE_ADDRESS(network),
+    const changeOutput = createAddressOutput(
+      DUMMY_ADDRESS(network),
       network
     );
     const parentTxHex = createSyntheticTxHex({
@@ -161,17 +165,39 @@ describe('vaults unit tests', () => {
     const plan = estimateCpfpPackage({
       parentTxHex,
       parentFee: 120,
-      targetEffectiveFeeRate: 2,
-      optionalUtxosData: [createSyntheticUtxoData(3000)],
+      targetPackageFeeRate: 2,
+      utxosData: [createSyntheticUtxoData(3000)],
       changeOutput
     });
     expect(plan).toBeUndefined();
   });
 
-  test('estimateCpfpPackage enforces TRUC child size limit', () => {
+  test('higher presigned trigger fee raises the minimum vaulted amount', () => {
+    const coldAddress = DUMMY_ADDRESS(networks.regtest);
+    const minimumAtRelayFloor = estimateMinimumRequiredVaultedAmount({
+      coldAddress,
+      lockBlocks: 144,
+      network: networks.regtest,
+      vaultMode: 'P2A_TRUC',
+      presignedTriggerFeeRate: 0.1,
+      presignedRescueFeeRate: 100
+    });
+    const minimumAtHighTriggerFee = estimateMinimumRequiredVaultedAmount({
+      coldAddress,
+      lockBlocks: 144,
+      network: networks.regtest,
+      vaultMode: 'P2A_TRUC',
+      presignedTriggerFeeRate: 10,
+      presignedRescueFeeRate: 100
+    });
+
+    expect(minimumAtHighTriggerFee).toBeGreaterThan(minimumAtRelayFloor);
+  });
+
+  test('estimateCpfpPackage enforces P2A_TRUC child size limit', () => {
     const network = networks.regtest;
-    const changeOutput = createServiceOutput(
-      DUMMY_SERVICE_ADDRESS(network),
+    const changeOutput = createAddressOutput(
+      DUMMY_ADDRESS(network),
       network
     );
     const parentTxHex = createSyntheticTxHex({
@@ -185,10 +211,37 @@ describe('vaults unit tests', () => {
     const plan = estimateCpfpPackage({
       parentTxHex,
       parentFee: 0,
-      targetEffectiveFeeRate: 120,
-      optionalUtxosData: utxosData,
+      targetPackageFeeRate: 120,
+      utxosData,
       changeOutput
     });
     expect(plan).toBeUndefined();
+  });
+
+  test('estimateCpfpPackage enforces child min relay fee', () => {
+    const network = networks.regtest;
+    const changeOutput = createAddressOutput(
+      DUMMY_ADDRESS(network),
+      network
+    );
+    const parentTxHex = createSyntheticTxHex({
+      version: 2,
+      mainOutputValue: 12000,
+      p2aValue: P2A_NON_TRUC_ANCHOR_VALUE
+    });
+    const utxosData = [createSyntheticUtxoData(1000)];
+    const plan = estimateCpfpPackage({
+      parentTxHex,
+      parentFee: 14,
+      targetPackageFeeRate: 0.1,
+      utxosData,
+      changeOutput
+    });
+
+    expect(plan).toBeDefined();
+    if (!plan) throw new Error('Expected CPFP plan');
+    expect(plan.childFee).toBeGreaterThanOrEqual(
+      Math.ceil(plan.childVSize * 0.1)
+    );
   });
 });

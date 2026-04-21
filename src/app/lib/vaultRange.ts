@@ -7,6 +7,7 @@ import {
   DUMMY_BACKUP_OUTPUT,
   DUMMY_CHANGE_OUTPUT,
   DUMMY_PKH_OUTPUT,
+  DUMMY_TRIGGER_RESERVE_OUTPUT,
   DUMMY_VAULT_OUTPUT,
   getMainAccount
 } from './vaultDescriptors';
@@ -15,104 +16,154 @@ import { vsize } from '@bitcoinerlab/coinselect';
 import {
   coinSelectVaultTx,
   getTargetValue,
-  MIN_RELAY_FEE_RATE,
   type UtxosData,
   estimateMinimumRequiredVaultedAmount,
-  getMinBackupFeeBudget
+  getMinBackupFeeBudget,
+  getRequiredTriggerReserveAmount
 } from './vaults';
 import type { Accounts } from './wallets';
 import { toBigInt, toNumber } from './sats';
+import { MIN_FEE_RATE } from './fees';
+import { OP_RETURN_BACKUP_TX_VBYTES } from './vaultSizes';
 
-type VaultAmountEstimate = {
-  effectiveFee: number;
+type VaultSetupEstimate = {
+  packageFee: number;
+  packageFeeRate: number;
+  triggerReserveAmount: number;
   vaultedAmount: number;
 };
+
+const MAX_BACKUP_TX_VSIZE = Math.max(...OP_RETURN_BACKUP_TX_VBYTES);
 
 export const estimateMaxVaultAmount = moize.shallow(
   ({
     utxosData,
     vaultOutput,
     backupOutput,
+    triggerReserveOutput,
+    triggerReserveAmount,
     changeOutput,
     vaultMode,
-    effectiveFeeRate
+    packageFeeRate
   }: {
     utxosData: UtxosData;
     vaultOutput: OutputInstance;
     backupOutput: OutputInstance;
+    triggerReserveOutput: OutputInstance;
+    triggerReserveAmount: bigint;
     changeOutput: OutputInstance;
-    vaultMode: 'TRUC' | 'NON_TRUC';
-    effectiveFeeRate: number;
-  }): VaultAmountEstimate | undefined => {
+    vaultMode: 'P2A_TRUC' | 'P2A_NON_TRUC';
+    packageFeeRate: number;
+  }): VaultSetupEstimate | undefined => {
     const selected = coinSelectVaultTx({
       utxosData,
       vaultOutput,
       backupOutput,
+      triggerReserveOutput,
+      triggerReserveAmount,
       changeOutput,
-      effectiveFeeRate,
+      packageFeeRate,
       vaultMode,
-      vaultedAmount: 'MAX_FUNDS'
+      vaultedAmount: 'MAX_FUNDS',
+      shiftFeesToBackupEnd: true
     });
     if (typeof selected === 'string') return;
     const finalBackupFeeBudget = getTargetValue(selected.targets, backupOutput);
+    const finalTriggerReserveValue = getTargetValue(
+      selected.targets,
+      triggerReserveOutput
+    );
+    const packageFee = toNumber(selected.fee + finalBackupFeeBudget);
     return {
-      effectiveFee: toNumber(selected.fee + finalBackupFeeBudget),
+      packageFee,
+      packageFeeRate: Number(
+        (packageFee / (selected.vsize + MAX_BACKUP_TX_VSIZE)).toFixed(2)
+      ),
+      triggerReserveAmount: toNumber(finalTriggerReserveValue),
       vaultedAmount: toNumber(getTargetValue(selected.targets, vaultOutput))
     };
   }
 );
 
 /**
- * Estimates the smallest Rewind2 vault that can actually be created.
+ * Estimates the smallest P2A vault that can actually be created.
  *
  * This is intentionally based on the current vault design only: backup output,
  * vault dust, and the trigger/panic path constraints that the new app builds.
  */
-const estimateMinimumVaultAmount = moize.shallow(
+const estimateMinimumVaultSetup = moize.shallow(
   ({
     utxosData,
     coldAddress,
     network,
     vaultOutput,
     backupOutput,
+    triggerReserveOutput,
+    triggerReserveAmount,
     changeOutput,
     lockBlocks,
-    effectiveFeeRate,
-    vaultMode
+    packageFeeRate,
+    vaultMode,
+    presignedTriggerFeeRate,
+    presignedRescueFeeRate
   }: {
     utxosData: UtxosData;
     coldAddress: string;
     network: Network;
     vaultOutput: OutputInstance;
     backupOutput: OutputInstance;
+    triggerReserveOutput: OutputInstance;
+    triggerReserveAmount: bigint;
     changeOutput: OutputInstance;
     lockBlocks: number;
-    effectiveFeeRate: number;
-    vaultMode: 'TRUC' | 'NON_TRUC';
-  }): VaultAmountEstimate => {
+    packageFeeRate: number;
+    /**
+     * Structural parent mode.
+     * P2A_TRUC means v3 + 0-sat anchor, P2A_NON_TRUC means v2 + funded anchor.
+     */
+    vaultMode: 'P2A_TRUC' | 'P2A_NON_TRUC';
+    /** Fee rate baked directly into the trigger parent transaction. */
+    presignedTriggerFeeRate: number;
+    /** Fee rate baked directly into the rescue parent transaction. */
+    presignedRescueFeeRate: number;
+  }): VaultSetupEstimate => {
     const vaultedAmount = estimateMinimumRequiredVaultedAmount({
       coldAddress,
       lockBlocks,
       network,
-      vaultMode
+      vaultMode,
+      presignedTriggerFeeRate,
+      presignedRescueFeeRate
     });
     const selected = coinSelectVaultTx({
       utxosData,
       vaultOutput,
       backupOutput,
+      triggerReserveOutput,
+      triggerReserveAmount,
       changeOutput,
-      effectiveFeeRate,
+      packageFeeRate,
       vaultMode,
-      vaultedAmount: toBigInt(vaultedAmount)
+      vaultedAmount: toBigInt(vaultedAmount),
+      shiftFeesToBackupEnd: true
     });
     if (typeof selected !== 'string') {
       const finalBackupFeeBudget = getTargetValue(
         selected.targets,
         backupOutput
       );
+      const finalTriggerReserveValue = getTargetValue(
+        selected.targets,
+        triggerReserveOutput
+      );
+      const packageFee = toNumber(selected.fee + finalBackupFeeBudget);
       return {
         vaultedAmount,
-        effectiveFee: toNumber(selected.fee + finalBackupFeeBudget)
+        packageFee,
+        packageFeeRate: Number(
+          (packageFee / (selected.vsize + MAX_BACKUP_TX_VSIZE)).toFixed(2)
+        ),
+        triggerReserveAmount: toNumber(finalTriggerReserveValue)
       };
     } else {
       //This means it wa impossible to construct a solution with the current
@@ -124,13 +175,18 @@ const estimateMinimumVaultAmount = moize.shallow(
         [vaultOutput, backupOutput, changeOutput]
       );
       const minBackupFeeBudget = toNumber(
-        getMinBackupFeeBudget(effectiveFeeRate, backupOutput)
+        getMinBackupFeeBudget(packageFeeRate, backupOutput)
       );
-      const vaultTxFeeRate = vaultMode === 'TRUC' ? 0 : MIN_RELAY_FEE_RATE;
+      const vaultTxFeeRate = vaultMode === 'P2A_TRUC' ? 0 : MIN_FEE_RATE;
+      const packageFee =
+        minBackupFeeBudget + Math.ceil(vaultTxFeeRate * vaultTxSize);
       return {
         vaultedAmount,
-        effectiveFee:
-          minBackupFeeBudget + Math.ceil(vaultTxFeeRate * vaultTxSize)
+        packageFee,
+        packageFeeRate: Number(
+          (packageFee / (vaultTxSize + MAX_BACKUP_TX_VSIZE)).toFixed(2)
+        ),
+        triggerReserveAmount: toNumber(triggerReserveAmount)
       };
     }
   }
@@ -141,20 +197,33 @@ export const estimateVaultSetupRange = moize.shallow(
     accounts,
     utxosData,
     coldAddress,
-    minimumEffectiveFeeRate,
-    effectiveFeeRate = null,
+    minimumPackageFeeRate,
+    packageFeeRate = null,
     lockBlocks,
     network,
-    vaultMode
+    vaultMode,
+    presignedTriggerFeeRate,
+    presignedRescueFeeRate,
+    maxTriggerFeeRate
   }: {
     accounts: Accounts;
     utxosData: UtxosData;
     coldAddress: string;
-    minimumEffectiveFeeRate: number;
-    effectiveFeeRate?: number | null;
+    minimumPackageFeeRate: number;
+    packageFeeRate?: number | null;
     lockBlocks: number;
     network: Network;
-    vaultMode: 'TRUC' | 'NON_TRUC';
+    /**
+     * Structural parent mode.
+     * P2A_TRUC means v3 + 0-sat anchor, P2A_NON_TRUC means v2 + funded anchor.
+     */
+    vaultMode: 'P2A_TRUC' | 'P2A_NON_TRUC';
+    /** Fee rate baked directly into the trigger parent transaction. */
+    presignedTriggerFeeRate: number;
+    /** Fee rate baked directly into the rescue parent transaction. */
+    presignedRescueFeeRate: number;
+    /** Trigger package-feerate ceiling used to size the dedicated reserve. */
+    maxTriggerFeeRate: number;
   }) => {
     const backupOutput = DUMMY_BACKUP_OUTPUT(network);
     const changeOutput = DUMMY_CHANGE_OUTPUT(
@@ -162,34 +231,50 @@ export const estimateVaultSetupRange = moize.shallow(
       network
     );
     const vaultOutput = DUMMY_VAULT_OUTPUT(network);
+    const triggerReserveOutput = DUMMY_TRIGGER_RESERVE_OUTPUT(network);
+    const triggerReserveAmount = getRequiredTriggerReserveAmount({
+      triggerReserveOutput,
+      changeOutput,
+      vaultMode,
+      presignedTriggerFeeRate,
+      maxTriggerFeeRate
+    });
     return {
-      minimumVaultAmount: estimateMinimumVaultAmount({
+      minimumVaultSetup: estimateMinimumVaultSetup({
         utxosData,
         coldAddress,
         network,
         vaultOutput,
         backupOutput,
+        triggerReserveOutput,
+        triggerReserveAmount,
         changeOutput,
         lockBlocks,
-        effectiveFeeRate: minimumEffectiveFeeRate,
-        vaultMode
+        packageFeeRate: minimumPackageFeeRate,
+        vaultMode,
+        presignedTriggerFeeRate,
+        presignedRescueFeeRate
       }),
-      maxVaultAmountAtMinFee: estimateMaxVaultAmount({
+      maxVaultAtMinimumPackageFeeRate: estimateMaxVaultAmount({
         utxosData,
         vaultOutput,
         backupOutput,
+        triggerReserveOutput,
+        triggerReserveAmount,
         changeOutput,
         vaultMode,
-        effectiveFeeRate: minimumEffectiveFeeRate
+        packageFeeRate: minimumPackageFeeRate
       }),
-      maxVaultAmount: estimateMaxVaultAmount({
+      maxVaultAtSelectedPackageFeeRate: estimateMaxVaultAmount({
         utxosData,
         vaultOutput,
         backupOutput,
+        triggerReserveOutput,
+        triggerReserveAmount,
         changeOutput,
         vaultMode,
-        effectiveFeeRate:
-          effectiveFeeRate !== null ? effectiveFeeRate : minimumEffectiveFeeRate
+        packageFeeRate:
+          packageFeeRate !== null ? packageFeeRate : minimumPackageFeeRate
       })
     };
   }

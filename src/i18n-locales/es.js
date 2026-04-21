@@ -195,6 +195,8 @@ Si necesitas más ayuda, por favor contacta con el equipo de Soporte de Rewind.`
         'Esta bóveda nunca fue incluida en la blockchain. Las comisiones podrían haber sido muy bajas, podría haber sido reemplazada por otra transacción, o podría haber habido un error de red durante el envío.',
       notTriggeredUnconfirmed: `Tus fondos están seguros, esperando la confirmación final de la blockchain (esto puede tomar unos minutos).
 Si presionas 'Iniciar Descongelación', comenzará un período de espera de {{lockTime}}, después del cual los fondos estarán disponibles.`,
+      notTriggeredUnconfirmed_TRUC: `Tu bóveda está guardada de forma segura, esperando la confirmación final de la blockchain (esto puede tomar unos minutos).
+Cuando se confirme, podrás pulsar 'Iniciar Descongelación' para comenzar la cuenta atrás de {{lockTime}}.`,
       notTriggered: `Los fondos están congelados de forma segura. Si presionas 'Iniciar Descongelación', comenzará un período de espera de {{lockTime}}, después del cual los fondos estarán disponibles.`,
       rescueNotConfirmed: `Rescate solicitado el {{rescuePushDate}}.`,
       rescueNotConfirmedUnknownPush: `Rescate de Bóveda recientemente transmitido.`,
@@ -276,6 +278,9 @@ Seguramente sólo necesitas esperar unos 10 minutos y realmente no necesitas est
 Es probable que esta dirección sea difícil de acceder si seguiste las pautas recomendadas durante la Configuración de la Bóveda. Asegúrate de que, llegado el momento, puedas acceder a ella. Una vez que los fondos sean enviados, esta billetera ya no tendrá acceso a ellos.
 
 Esta acción está diseñada para situaciones extremas, como robo o extorsión, para garantizar la seguridad de tus Bitcoin. Asegúrate de que esta sea una decisión deliberada.`,
+        highFeeConfirmation: `Esta transacción de rescate ya está prefirmada con una comisión de minería alta.
+
+En la mayoría de los casos eso debería ser suficiente y no harán falta fondos extra para acelerarla. Confirma abajo para emitir ahora la transacción de rescate.`,
         feeSelectorExplanation:
           'Confirma la comisión de minería de la transacción de rescate para asegurar un procesamiento rápido.',
         additionalExplanation: `Una vez que se confirme la solicitud de rescate, los fondos serán movidos a tu Dirección de Emergencia instantáneamente.`
@@ -303,7 +308,7 @@ El delegado no puede acceder ni gastar los fondos; sólo puede enviar los fondos
           title: 'Rescatar Fondos',
           text: `La acción 'Rescatar' te permite mover inmediatamente los fondos de tu bóveda a la Dirección de Emergencia que configuraste durante la Configuración de la Bóveda. Esta acción está diseñada para situaciones extremas, como robo o extorsión, para garantizar la seguridad de tus Bitcoin.
 
-Una vez que se inicia el rescate, los fondos serán enviados a la Dirección de Emergencia, y esta billetera ya no tendrá acceso a ellos. Este proceso es irreversible.`
+Una vez que se inicia el rescate, los fondos serán enviados a la Dirección de Emergencia y esta billetera ya no tendrá acceso a ellos. Este proceso es irreversible.`
         },
         initUnfreeze: {
           title: 'Iniciar Descongelación',
@@ -411,7 +416,7 @@ Instrucciones de Uso:
       triggerWaiting:
         'Esta transacción inició la cuenta regresiva de descongelación, que aún está en progreso. Los fondos, {{amount}} después de esta comisión de transacción, siguen congelados.',
       triggerHotWallet:
-        'Esta transacción inició la cuenta regresiva de descongelación. La cuenta regresiva se completó, y los fondos, después de comisiones, pasaron a formar parte de tu saldo disponible (caliente).',
+        'Esta transacción inició la cuenta regresiva de descongelación. La cuenta regresiva se completó y los fondos, después de comisiones, pasaron a formar parte de tu saldo disponible (caliente).',
       rescued: 'Cantidad rescatada después de comisiones: {{amount}}.',
       rescuedConfirming:
         'Rescatando tu bóveda. La cantidad final rescatada después de comisiones será {{amount}}. Esperando confirmación final...',
@@ -492,15 +497,23 @@ Puedes reemplazar la dirección pre-rellenada o hacer clic en "Crear" para abrir
 
 Verifica la dirección cuidadosamente para asegurarte de que corresponde a una Frase de Emergencia bajo tu control:
 {{coldAddress}}.`,
-    notEnoughFunds: `<strong>Aviso de Cantidad Mínima para una Bóveda</strong>
+    confirmedFundsWarning: `Esta bóveda solo puede crearse con fondos confirmados.
 
-Rewind requiere una cantidad de congelación mínima para asegurar que tenga sentido financieramente.
+Igualmente puedes continuar, pero la configuración usará solo tus fondos confirmados. Eso significa que la cantidad máxima que puedes congelar puede ser menor hasta que el resto confirme.
 
-Queremos asegurarnos de que tu nueva bóveda pueda financiar su respaldo y su ruta de emergencia desde el principio.
+Si recibiste o moviste bitcoin hace poco, el resto normalmente debería quedar disponible en unos 10 minutos.`,
+    notEnoughFunds: `<strong>No hay fondos suficientes para crear esta bóveda</strong>
 
-Esta cantidad mínima se calcula a partir de la estructura real de la bóveda Rewind2, incluyendo la salida del respaldo on-chain y las transacciones de emergencia que crea.
+La bóveda más pequeña que Rewind puede crear ahora mismo necesita alrededor de {{minimumRequiredFunds}} en tu billetera.
 
-<strong>Acción Sugerida:</strong> Por favor, agrega {{missingFunds}} para alcanzar la cantidad mínima requerida para crear la bóveda.`,
+De eso, {{minimumVaultedAmount}} queda congelado en la bóveda. El resto hace falta para guardar un backup y dejar suficiente apartado para descongelar más adelante.
+
+<strong>Acción Sugerida:</strong> Por favor, agrega unos {{missingFunds}} más y vuelve a intentarlo.`,
+    notEnoughConfirmedFunds: `<strong>Se necesitan fondos confirmados</strong>
+
+Esta bóveda solo puede crearse con fondos confirmados, y parte de tus fondos de la billetera siguen sin confirmar, así que todavía no pueden usarse.
+
+<strong>Acción Sugerida:</strong> Espera unos 10 minutos a que confirmen y vuelve a intentarlo. Una vez que esos fondos confirmen, podrán usarse para crear la bóveda.`,
     reservedFundsNotice: `<strong>Fondos Reservados Temporalmente</strong>
 
 Parte de tus fondos están reservados temporalmente mientras Rewind protege transacciones importantes de bóvedas que siguen pendientes y aún podrían necesitar aceleración.
@@ -510,9 +523,19 @@ Parte de tus fondos están reservados temporalmente mientras Rewind protege tran
 
 Parte de tus fondos se mantiene apartada mientras Rewind protege transacciones importantes de bóvedas que siguen pendientes y aún podrían necesitar aceleración. No todos tus fondos volverán a estar disponibles hasta que esas transacciones confirmen.`,
     amountLabel: 'Cantidad a Congelar',
+    unfreezeReserveLabel: 'Reserva para Descongelar',
+    unfreezeReserveHelpTitle: 'Reserva para Descongelar',
+    unfreezeReserveHelp: `Cuando en el futuro quieras descongelar esta bóveda, hará falta algo de bitcoin para pagar las comisiones de minería.
+
+Como hoy nadie sabe cuáles serán esas comisiones, Rewind aparta ahora esta pequeña reserva y la mantiene fuera de tu saldo gastable normal para que no la gastes por accidente.
+
+La Cantidad a Congelar no incluye esta reserva. Después de descongelar la bóveda, la parte de esta reserva que no haya sido necesaria vuelve a ti.`,
     securityLockTimeLabel: 'Tiempo de Bloqueo Anti-robo',
     securityLockTimeDescription: 'Desbloqueo {{blocks}} tras descongelar',
     confirmationSpeedLabel: 'Comisión de minería',
+    vaultTransactionFeeLabel: 'Comisión de la Transacción de la Bóveda',
+    backupFundingLabel: 'Costo del Backup on-chain',
+    totalTakenFromWalletNowLabel: 'Total retirado de tu billetera ahora',
     interrupt: `Hemos detectado cambios en tu billetera mientras configurabas una nueva bóveda.
 
 Por tu seguridad, por favor revisa estos cambios antes de continuar.`
@@ -534,7 +557,7 @@ Por favor, reduce la comisión o agrega más fondos.`,
     txCalculateError:
       'No se pudo crear la transacción. Sincroniza tu billetera e inténtalo de nuevo.',
     txPushError:
-      'Problemas de conexión. No estamos seguros si la transacción fue enviada a la blockchain. Actualiza para verificar, y si no aparece, inténtalo de nuevo.',
+      'Problemas de conexión. No estamos seguros si la transacción fue enviada a la blockchain. Actualiza para verificar y si no aparece, inténtalo de nuevo.',
     txSuccess:
       'Tu transacción ha sido creada y enviada exitosamente a la blockchain.',
     confirm: `Tu transacción está lista para ser enviada. Por favor, revisa los siguientes valores antes de proceder:`,
@@ -570,10 +593,15 @@ A continuación, podrás confirmarlo todo.`,
     serviceFee: 'Comisión de Bóveda',
     allFees: 'Comisiones',
     timeLock: 'Tiempo de Bloqueo',
-    amount: 'Cantidad a congelar',
     emergencyAddress: 'Dirección de Emergencia',
     confirmBackupSendVault: `Tu bóveda está lista para ser enviada. Por favor, revisa los siguientes valores antes de proceder:`,
     explainConfirm: `Selecciona 'Enviar' para activar tu bóveda.`,
+    onChainBackupCostHelp: `Rewind guarda la información de la bóveda on-chain en un backup encriptado.
+
+Así, si alguna vez necesitas restaurarla, Rewind puede reconstruirlo todo usando solo tu Frase de Recuperación y la blockchain.`,
+    zeroVaultTransactionFeeHelp: `Esto no es un error. La transacción de la bóveda puede tener comisión cero.
+
+Rewind hace esto para asegurarse de que el backup on-chain también se mine. La comisión la paga la transacción del backup, que va enlazada a la transacción de la bóveda como hija, así que ambas se crean juntas como un solo paquete.`,
     //    encryptionBackupExplain: `También cifraremos y respaldaremos con un backup la configuración de la bóveda en la red P2P de Rewind para mayor seguridad.
     //
     //Si pierdes este dispositivo, podrás recuperar la bóveda usando tu Frase de Recuperación.
@@ -591,7 +619,7 @@ Ahora, como paso final, estamos enviando tu bóveda a la blockchain para activar
     vaultBackupError: `Error durante el backup. La bóveda no fue creada. Por favor, verifica tu conexión e inténtalo de nuevo.
 
 {{message}}`,
-    vaultPushError: `Problemas de conexión. El backup está completo, pero no estamos seguros si la bóveda fue enviada a la blockchain. Actualiza para verificar, y si falta, inténtalo de nuevo.
+    vaultPushError: `Problemas de conexión. El backup está completo, pero no estamos seguros si la bóveda fue enviada a la blockchain. Actualiza para verificar y si falta, inténtalo de nuevo.
 
 {{message}}`,
     vaultSuccess:

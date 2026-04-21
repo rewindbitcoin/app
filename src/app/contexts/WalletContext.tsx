@@ -64,7 +64,8 @@ import type { DiscoveryInstance, TxAttribution } from '@bitcoinerlab/discovery';
 import type { FeeEstimates } from '../lib/fees';
 import { AppState, AppStateStatus, Platform } from 'react-native';
 import { batchedUpdates } from '../../common/lib/batchedUpdates';
-import { fetchP2PVaults, getDataCipherKey } from '../lib/backup';
+import { fetchP2PVaults, getWalletDataCipherKey } from '../lib/backup';
+import { createOnChainBackupTx } from '../lib/onChainBackup';
 
 type DiscoveryExport = ReturnType<DiscoveryInstance['export']>;
 
@@ -1549,7 +1550,7 @@ const WalletProviderRaw = ({
       const signer = signers[0];
       if (!signer) throw new Error('signer unavailable');
       const fetchDataCipherKey = async () => {
-        const walletDataCipherKey = await getDataCipherKey({
+        const walletDataCipherKey = await getWalletDataCipherKey({
           signer,
           network
         });
@@ -2298,9 +2299,8 @@ const WalletProviderRaw = ({
   ]);
 
   /**
-   * Pushes the vault, registers to the Watchtower (if device supports it and
-   * if access was granted) and stores all associated
-   * data locally:
+   * Pushes the vault together with its on-chain backup package and stores all
+   * associated data locally:
    * It updates utxosData, history, vaults and vaultsStatuses without
    * requiring any additional fetch.
    * It also saves on disk discoveryExport.
@@ -2323,6 +2323,9 @@ const WalletProviderRaw = ({
         throw new Error(
           'walletId undefined in pushVaultRegisterWTAndUpdateStates'
         );
+      if (!signers) throw new Error('signers unavailable');
+      const signer = signers[0];
+      if (!signer) throw new Error('signer unavailable');
 
       // Create new vault
       if (vaults[vault.vaultId])
@@ -2339,7 +2342,11 @@ const WalletProviderRaw = ({
         }
       };
 
-      await pushTx(vault.vaultTxHex);
+      const backupTxHex = await createOnChainBackupTx({ vault, signer });
+      await pushTxPackage({
+        parentTxHex: vault.vaultTxHex,
+        childTxHex: backupTxHex
+      });
 
       const stateUpdatePromises: Array<Promise<void>> = [];
       batchedUpdates(() => {
@@ -2359,7 +2366,8 @@ const WalletProviderRaw = ({
     },
     [
       activeWallet?.walletId,
-      pushTx,
+      signers,
+      pushTxPackage,
       accounts,
       tipHeight,
       setUtxosHistoryExport,

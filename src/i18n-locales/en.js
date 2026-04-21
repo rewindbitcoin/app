@@ -43,7 +43,7 @@ export default {
   },
   netStatus: {
     internetNotReachableWarning:
-      'No Internet connection detected. This prevents checking wallet status, managing vaults, and sending or receiving funds.',
+      'No Internet connection detected. This prevents checking wallet status, managing vaults and sending or receiving funds.',
     apiNotReachableWarning:
       'Unable to connect to our services. This affects Bitcoin price updates and prevents vault operations due to disrupted backups.',
     communityBackupsdNotReachableWarning:
@@ -219,6 +219,8 @@ If you need further assistance, please contact Rewind Support.`
       //Initiating unfreeze starts a {{lockTime}} countdown before funds are available.`,
       notTriggeredUnconfirmed: `Your funds are securely set aside, awaiting final blockchain confirmation (this may take a few minutes).
 If you press 'Init Unfreeze', a waiting period of {{lockTime}} will begin, after which the funds will be available.`,
+      notTriggeredUnconfirmed_TRUC: `Your vault is securely set aside, awaiting final blockchain confirmation (this may take a few minutes).
+Once it confirms, you can press 'Init Unfreeze' to start the {{lockTime}} countdown.`,
       //notTriggered:
       //  'Funds are safely frozen. Initiating unfreeze starts a {{lockTime}} countdown before funds are available.',
       notTriggered:
@@ -281,6 +283,9 @@ You likely only need to wait around 10 minutes and really don't need this. Use "
 This address will likely be difficult to access if you followed the recommended guidelines during Vault Setup. Ensure you can eventually access it. Once the funds are sent, this wallet will no longer have access to them.
 
 This action is designed for extreme situations, such as theft or extortion, to ensure the safety of your Bitcoin. Make sure this is a deliberate decision.`,
+        highFeeConfirmation: `This rescue transaction is already presigned with a high mining fee.
+
+In most cases, that should be enough and no extra bump funds are needed. Confirm below to broadcast the rescue transaction now.`,
         feeSelectorExplanation:
           'Confirm the mining fee for the rescue transaction to ensure prompt processing.',
         additionalExplanation: `Once the rescue request is confirmed, the funds will be moved to your Emergency Address instantly.`
@@ -308,7 +313,7 @@ The delegate cannot access or spend the funds; they can only send the funds to t
           title: 'Rescue Funds',
           text: `The 'Rescue' action allows you to immediately move your vault funds to the Emergency Address you set up during the Vault Setup. This action is designed for extreme situations, such as theft or extortion, to ensure the safety of your Bitcoin.
 
-Once the rescue is initiated, the funds will be sent to the Emergency Address, and this wallet will no longer have access to them. This process is irreversible.`
+Once the rescue is initiated, the funds will be sent to the Emergency Address and this wallet will no longer have access to them. This process is irreversible.`
         },
         initUnfreeze: {
           title: 'Initiate Unfreeze',
@@ -443,15 +448,15 @@ Usage Instructions:
       //triggerConfirmingPanic:
       //  'Rescuing the {{amount}} received in this transaction after fees. Confirming...',
       triggerConfirmingPanic:
-        'This transaction started the unfreeze countdown. A rescue process has been detected, and the countdown is being interrupted. The rescue is still confirming. Please hold on for final confirmation...',
+        'This transaction started the unfreeze countdown. A rescue process has been detected and the countdown is being interrupted. The rescue is still confirming. Please hold on for final confirmation...',
       //Old text is correct but too complex in the UI:
-      //triggerConfirmedPanic: 'This transaction started the unfreeze countdown, but it was interrupted, and the {{amount}} transferred in this transaction, after fees, was rescued.',
+      //triggerConfirmedPanic: 'This transaction started the unfreeze countdown, but it was interrupted and the {{amount}} transferred in this transaction, after fees, was rescued.',
       triggerConfirmedPanic:
         'This transaction started the unfreeze countdown, but it was interrupted because the funds were rescued.',
       triggerWaiting:
         'This transaction started the unfreeze countdown, which is still in progress. The funds, {{amount}} after this transaction fee, are still frozen.',
       triggerHotWallet:
-        'This transaction started the unfreeze countdown. The countdown completed, and the funds, after fees, became part of your hot wallet.',
+        'This transaction started the unfreeze countdown. The countdown completed and the funds, after fees, became part of your hot wallet.',
       rescued: 'Rescued amount after fees: {{amount}}.',
       rescuedConfirming:
         'Rescuing your vault. The final rescued amount after fees will be {{amount}}. Awaiting final confirmation...',
@@ -507,7 +512,7 @@ While leaking this data wouldn't compromise your funds, encrypting it\
     // derived from your mnemonic Recovery Phrase.
     network: `Rewind provides a choice between testing environments and the real Bitcoin network (via Advanced Options).
 
-If you're not yet experienced with Bitcoin Vaults, we advise starting with the Tape Network, Rewind's own test network. Tape mirrors Bitcoin's real functionality and lets you explore send, receive, and vaulting operations safely, with free tokens for practice.`
+If you're not yet experienced with Bitcoin Vaults, we advise starting with the Tape Network, Rewind's own test network. Tape mirrors Bitcoin's real functionality and lets you explore send, receive and vaulting operations safely, with free tokens for practice.`
   },
   learnMoreAboutVaults: {
     link: 'Learn More About Vaults',
@@ -516,7 +521,7 @@ If you're not yet experienced with Bitcoin Vaults, we advise starting with the T
     //
     //In Vaults, your funds are frozen for a few days, preventing both attackers and even yourself from making transactions. This time-lock gives you a window to rescue your Bitcoin if compromised. You can also delegate this task to a trusted person.
     //
-    //Here's how it works: during the time-lock, while regular transactions are blocked, you can still move your funds instantly to a special Bitcoin mergency Address. This address is secured by an Emergency Recovery Phrase, distinct from the regular phrase, and should be stored in a separate, ultra-secure location out of daily reach.
+    //Here's how it works: during the time-lock, while regular transactions are blocked, you can still move your funds instantly to a special Bitcoin mergency Address. This address is secured by an Emergency Recovery Phrase, distinct from the regular phrase and should be stored in a separate, ultra-secure location out of daily reach.
     //
     //You'll find help icons next to each input field during the Vault Set Up with specific explanations.`,
     body: `Your wallet is secured with a Recovery Phrase, similar to a password. If someone else gains access to this phrase through extortion, theft, or misuse, they can access your funds. To prevent this, Rewind lets you freeze your money in Vaults.
@@ -544,15 +549,23 @@ You can replace the pre-filled address or click "Create" to open a wizard and ge
 
 Verify the address carefully to ensure it corresponds to an Emergency Phrase under your control:
 {{coldAddress}}.`,
-    notEnoughFunds: `<strong>Minimum Vault Amount Notice</strong>
+    confirmedFundsWarning: `This vault can only be created with confirmed funds.
 
-Rewind requires a minimum amount to be frozen to ensure it is financially worthwhile for you.
+You can still continue, but the setup will use only your confirmed funds. That means the maximum amount you can freeze may be lower until the rest confirms.
 
-We want to make sure your new vault can still fund its backup and emergency path right from the start.
+If you recently received or moved bitcoin, the rest should usually become available after about 10 minutes.`,
+    notEnoughFunds: `<strong>Not Enough Funds to Create This Vault</strong>
 
-This minimum amount is calculated from the actual Rewind2 vault structure, including the on-chain backup output and the emergency transactions it creates.
+The smallest vault Rewind can create right now needs about {{minimumRequiredFunds}} in your wallet.
 
-<strong>Suggested Action:</strong> Please add {{missingFunds}} to reach the minimum amount required for vaulting.`,
+Of that, {{minimumVaultedAmount}} ends up frozen in the vault. The rest is needed to save a backup and keep enough set aside for unfreezing later.
+
+<strong>Suggested Action:</strong> Please add about {{missingFunds}} more and try again.`,
+    notEnoughConfirmedFunds: `<strong>Confirmed Funds Needed</strong>
+
+This vault can only be created with confirmed funds, and some of your wallet funds are still unconfirmed, so they cannot be used yet.
+
+<strong>Suggested Action:</strong> Wait around 10 minutes for confirmation and then try again. Once those funds confirm, they can be used to create the vault.`,
     reservedFundsNotice: `<strong>Funds Temporarily Reserved</strong>
 
 Some of your funds are temporarily reserved while Rewind protects important pending vault transactions that may still need acceleration.
@@ -562,9 +575,19 @@ Some of your funds are temporarily reserved while Rewind protects important pend
 
 Some of your funds are being kept aside while Rewind protects important pending vault transactions that may still need acceleration. Not all funds will be available again until those transactions confirm.`,
     amountLabel: 'Amount to Freeze',
+    unfreezeReserveLabel: 'Unfreeze Reserve',
+    unfreezeReserveHelpTitle: 'Unfreeze Reserve',
+    unfreezeReserveHelp: `When you want to unfreeze this vault in the future, some bitcoin will be needed for mining fees.
+
+Because nobody knows future fees today, Rewind sets aside this small reserve now and keeps it out of your normal wallet balance so you do not spend it by accident.
+
+The Amount to Freeze does not include this reserve. After you unfreeze the vault, any part of this reserve that was not needed comes back to you.`,
     securityLockTimeLabel: 'Theft-Protection Time-Lock',
     securityLockTimeDescription: 'Unlocks {{blocks}} after unfreeze',
     confirmationSpeedLabel: 'Mining Fee',
+    vaultTransactionFeeLabel: 'Vault Transaction Fee',
+    backupFundingLabel: 'On-chain Backup Cost',
+    totalTakenFromWalletNowLabel: 'Total Taken From Wallet Now',
     //lockTimeError: 'Pick a valid Lock Time.',
     //feeRateError: 'Pick a valid Fee Rate.',
     //amountError: 'Pick a valid amount of Btc.',
@@ -596,7 +619,7 @@ Please lower the fee rate or add more funds.`,
     txCalculateError:
       'The transaction could not be created. Sync your wallet and try again.',
     txPushError:
-      "Connection issues. We're unsure if the transaction was sent to the blockchain. Refresh to check, and if it's missing, try again.",
+      "Connection issues. We're unsure if the transaction was sent to the blockchain. Refresh to check and if it's missing, try again.",
     txSuccess:
       'Your transaction has been successfully created and sent to the blockchain.',
     confirm: `Your transaction is ready for submission. Please review the following values before proceeding:`,
@@ -633,7 +656,6 @@ Next, you'll get to confirm everything.`,
     serviceFee: 'Vaulting Fee',
     allFees: 'Fees',
     timeLock: 'Time-Lock',
-    amount: 'Amount to Vault',
     //Note to transalators: make this text below as short as possible. This is the
     //label for Emergency Address in the summary that users review before
     //final submission
@@ -641,6 +663,12 @@ Next, you'll get to confirm everything.`,
     //vaultedAmount: 'Amount to Freeze:',
     confirmBackupSendVault: `Your vault is ready for submission. Please review the following values before proceeding:`,
     explainConfirm: `Select 'Submit' to activate your vault.`,
+    onChainBackupCostHelp: `Rewind stores the vault information on-chain in an encrypted backup.
+
+That way, if you ever need to restore the vault, Rewind can rebuild everything from your mnemonic and the blockchain alone.`,
+    zeroVaultTransactionFeeHelp: `This is not an error. The vault transaction itself can have zero fee.
+
+Rewind does this to make sure the on-chain backup is mined too. The fee is paid by the backup transaction, which is linked to the vault transaction as its child, so both are created together as one package.`,
     //    encryptionBackupExplain: `We will also encrypt and back up the vault settings on Rewind's P2P network for added security.
     //
     //If you lose this device, you can recover the vault using your Recovery Phrase.
@@ -661,7 +689,7 @@ Now, as the final step, we're sending your vault to the blockchain to activate i
     vaultBackupError: `Error during backup. The vault was not created. Please check your connection and try again.
 
 {{message}}`,
-    vaultPushError: `Connection issues. Backup is complete, but we're unsure if the vault was sent to the blockchain. Refresh to check, and if it's missing, try again.
+    vaultPushError: `Connection issues. Backup is complete, but we're unsure if the vault was sent to the blockchain. Refresh to check and if it's missing, try again.
 
 {{message}}`,
     vaultSuccess:
