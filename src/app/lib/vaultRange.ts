@@ -18,7 +18,7 @@ import {
   getTargetValue,
   type UtxosData,
   estimateMinimumRequiredVaultedAmount,
-  getMinBackupFeeBudget,
+  getBackupFunding,
   getRequiredTriggerReserveAmount
 } from './vaults';
 import type { Accounts } from './wallets';
@@ -68,12 +68,13 @@ export const estimateMaxVaultAmount = moize.shallow(
       shiftFeesToBackupEnd: true
     });
     if (typeof selected === 'string') return;
-    const finalBackupFeeBudget = getTargetValue(selected.targets, backupOutput);
+    const finalBackupFunding = getTargetValue(selected.targets, backupOutput);
+    // In this model the funded backup output later becomes the backup tx fee.
     const finalTriggerReserveValue = getTargetValue(
       selected.targets,
       triggerReserveOutput
     );
-    const packageFee = toNumber(selected.fee + finalBackupFeeBudget);
+    const packageFee = toNumber(selected.fee + finalBackupFunding);
     return {
       packageFee,
       packageFeeRate: Number(
@@ -148,15 +149,13 @@ const estimateMinimumVaultSetup = moize.shallow(
       shiftFeesToBackupEnd: true
     });
     if (typeof selected !== 'string') {
-      const finalBackupFeeBudget = getTargetValue(
-        selected.targets,
-        backupOutput
-      );
+      const finalBackupFunding = getTargetValue(selected.targets, backupOutput);
+      // In this model the funded backup output later becomes the backup tx fee.
       const finalTriggerReserveValue = getTargetValue(
         selected.targets,
         triggerReserveOutput
       );
-      const packageFee = toNumber(selected.fee + finalBackupFeeBudget);
+      const packageFee = toNumber(selected.fee + finalBackupFunding);
       return {
         vaultedAmount,
         packageFee,
@@ -174,12 +173,12 @@ const estimateMinimumVaultSetup = moize.shallow(
         [...utxosData.map(utxoData => utxoData.output), DUMMY_PKH_OUTPUT()],
         [vaultOutput, backupOutput, changeOutput]
       );
-      const minBackupFeeBudget = toNumber(
-        getMinBackupFeeBudget(packageFeeRate, backupOutput)
+      const backupFunding = toNumber(
+        getBackupFunding(packageFeeRate, backupOutput)
       );
       const vaultTxFeeRate = vaultMode === 'P2A_TRUC' ? 0 : MIN_FEE_RATE;
       const packageFee =
-        minBackupFeeBudget + Math.ceil(vaultTxFeeRate * vaultTxSize);
+        backupFunding + Math.ceil(vaultTxFeeRate * vaultTxSize);
       return {
         vaultedAmount,
         packageFee,

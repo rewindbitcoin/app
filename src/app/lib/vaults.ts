@@ -60,14 +60,8 @@ import { coinTypeFromNetwork, type NetworkId, networkMapping } from './network';
 import { transactionFromHex } from './bitcoin';
 import { MIN_FEE_RATE } from './fees';
 import { maxBigInt, toBigInt, toNumber, toNumberOrUndefined } from './sats';
-import {
-  getMinBackupFeeBudget,
-  getOnChainBackupDescriptor
-} from './onChainBackup';
-export {
-  getMinBackupFeeBudget,
-  getOnChainBackupDescriptor
-} from './onChainBackup';
+import { getBackupFunding, getOnChainBackupDescriptor } from './onChainBackup';
+export { getBackupFunding, getOnChainBackupDescriptor };
 
 const P2A_OUTPUT_SCRIPT = fromHex('51024e73');
 const P2A_OUTPUT_SCRIPT_HEX = toHex(P2A_OUTPUT_SCRIPT);
@@ -1139,10 +1133,14 @@ const getPresignedRescueParentFee = (presignedRescueFeeRate: number) =>
  *
  * The selected fee rate is first applied directly to the vault tx so the app
  * can choose inputs/change using a normal coinselection pass. The backup output
- * starts at `minBackupFeeBudget`, which is only a lower bound. Later, the vault
- * tx fee can be reduced to the minimum allowed by the selected vault mode and
+ * starts at `backupFunding`, which is only a lower bound. Later, the vault
+ * tx fee can be reduced to the minimum parent fee allowed for that vault kind
+ * (`0` for P2A_TRUC, `0.1 sat/vB` for P2A_NON_TRUC`) and
  * the excess is shifted into the backup output without changing the chosen
  * inputs or the overall tx shape.
+ *
+ * In the current backup model, `backupFunding` later equals the backup tx fee
+ * itself because the backup tx only creates an OP_RETURN output.
  *
  * When `shiftFeesToBackupEnd` is enabled, the returned `selected` object is
  * already adjusted to the final post-shift state: its backup target value is
@@ -1173,7 +1171,83 @@ export const coinSelectVaultTx = moize.shallow(
     shiftFeesToBackupEnd: boolean;
   }) => {
     if (!shiftFeesToBackupEnd) {
-      const minBackupFeeBudget = getMinBackupFeeBudget(
+      const backupFunding = getBackupFunding(packageFeeRate, backupOutput);
+      const selected = coinSelectInitialVaultTx({
+        utxosData,
+        vaultOutput,
+        backupOutput,
+        triggerReserveOutput,
+        triggerReserveAmount,
+        backupFunding,
+        changeOutput,
+        feeRate: packageFeeRate,
+        minimumFeeRate: MIN_FEE_RATE,
+        vaultedAmount
+      });
+      if (typeof selected === 'string') return selected; //Forward errors
+      return selected;
+    } else {
+      const minimumVaultTxFeeRate = getMinimumVaultTxFeeRate(vaultMode); //0 || 0.1
+      if (packageFeeRate < minimumVaultTxFeeRate)
+        throw new Error('packageFeeRate below minimum vault tx fee rate');
+      const lowestBackupFunding = getBackupFunding(MIN_FEE_RATE, backupOutput); //dust or 0.1 * vault tx size
+
+      // Solve `backupFunding` by fixed-point iteration.
+      // There is no simple one-shot calculation here because:
+      // - `backupFunding` affects coinselection
+      // - coinselection affects `selected.vsize`
+      // - `selected.vsize` affects the backup funding needed for the target package fee
+      // `backupFunding` only moves upward between attempts, but the tx shape itself
+      // may still jump as coinselection picks different inputs or change.
+      // In practice the first pass usually lands close to the final self-consistent
+      // shape, and later passes only tighten the budget if needed.
+      // The attempt cap of 5 is only a safety guard in case convergence is slower
+      // than expected.
+      for (
+        let attempt = 0, backupFunding = lowestBackupFunding;
+        attempt < 5;
+        attempt++
+      ) {
+        const selected = coinSelectInitialVaultTx({
+          utxosData,
+          vaultOutput,
+          backupOutput,
+          triggerReserveOutput,
+          triggerReserveAmount,
+          backupFunding,
+          changeOutput,
+          feeRate: minimumVaultTxFeeRate, //0 or 0.1 for P2A_NON_TRUC
+          minimumFeeRate: minimumVaultTxFeeRate, //0 or 0.1 for P2A_NON_TRUC
+          vaultedAmount
+        });
+        if (typeof selected === 'string') return selected; //Forward errors
+
+        const candidatePackageFee = BigInt(
+          Math.ceil(packageFeeRate * (selected.vsize + MAX_BACKUP_TX_VSIZE))
+        );
+
+        //console.log({
+        //  attempt,
+        //  backupFunding,
+        //  candidateBackupFunding: candidatePackageFee - selected.fee
+        //});
+        if (candidatePackageFee - selected.fee > backupFunding)
+          backupFunding = candidatePackageFee - selected.fee; //keep iterating
+        else return selected; //stop iterating
+      }
+
+      // If the fixed-point search does not settle quickly, fall back to one
+      // simpler pass at the package fee rate. Then move any parent fee
+      // above the allowed minimum into the backup output. In this backup model,
+      // that backup funding amount is in fact the backup tx fee itself because the
+      // backup tx only creates an OP_RETURN output with no value. This can overpay a bit
+      // compared with the fixed-point result, but it still preserves a valid
+      // selected shape and avoids failing the setup flow.
+      console.warn(
+        'Vault package fee selection did not converge; using conservative fallback',
+        { packageFeeRate, vaultMode }
+      );
+      const backupFundingAtPackageFeeRate = getBackupFunding(
         packageFeeRate,
         backupOutput
       );
@@ -1183,134 +1257,34 @@ export const coinSelectVaultTx = moize.shallow(
         backupOutput,
         triggerReserveOutput,
         triggerReserveAmount,
-        minBackupFeeBudget,
+        backupFunding: backupFundingAtPackageFeeRate,
         changeOutput,
         feeRate: packageFeeRate,
-        minimumFeeRate: MIN_FEE_RATE,
-        vaultedAmount
-      });
-      if (typeof selected === 'string') return selected; //Forward errors
-      return selected;
-    }
-
-    const minimumVaultTxFeeRate = getMinimumVaultTxFeeRate(vaultMode); //0 || 0.1
-    const minimumBackupFeeBudget = getMinBackupFeeBudget(
-      MIN_FEE_RATE,
-      backupOutput
-    ); //dust or 0.1 * vault tx size
-
-    // Solve `backupFeeBudget` by fixed-point iteration.
-    // There is no simple one-shot calculation here because:
-    // - `backupFeeBudget` affects coinselection
-    // - coinselection affects `selected.vsize`
-    // - `selected.vsize` affects the backup budget needed for the target package fee
-    // `backupFeeBudget` only moves upward between attempts, but the tx shape itself
-    // may still jump as coinselection picks different inputs or change.
-    // In practice the first pass usually lands close to the final self-consistent
-    // shape, and later passes only tighten the budget if needed.
-    // The attempt cap of 5 is only a safety guard in case convergence is slower
-    // than expected.
-    for (
-      let attempt = 0, backupFeeBudget = minimumBackupFeeBudget;
-      attempt < 5;
-      attempt++
-    ) {
-      const selected = coinSelectInitialVaultTx({
-        utxosData,
-        vaultOutput,
-        backupOutput,
-        triggerReserveOutput,
-        triggerReserveAmount,
-        minBackupFeeBudget: backupFeeBudget,
-        changeOutput,
-        feeRate: minimumVaultTxFeeRate,
         minimumFeeRate: minimumVaultTxFeeRate,
         vaultedAmount
       });
-      if (typeof selected === 'string') return selected; //Forward errors
+      if (typeof selected === 'string') return selected;
 
       const minimumVaultTxFee = BigInt(
         Math.ceil(selected.vsize * minimumVaultTxFeeRate)
       );
-      const targetPackageFee = BigInt(
-        Math.ceil(packageFeeRate * (selected.vsize + MAX_BACKUP_TX_VSIZE))
+      // In the fallback path, any parent fee above the minimum parent fee for
+      // this vault kind (`0` for P2A_TRUC, `0.1 sat/vB` for P2A_NON_TRUC`) is
+      // shifted into the backup output. That funded amount later becomes the
+      // backup tx fee itself because the backup tx only creates an OP_RETURN
+      // output.
+      const shiftedFeeAmount = selected.fee - minimumVaultTxFee;
+      const finalBackupFunding =
+        backupFundingAtPackageFeeRate + shiftedFeeAmount;
+      const backupTargetIndex = getTargetIndex(selected.targets, backupOutput);
+      selected.targets = selected.targets.map((target, index) =>
+        index === backupTargetIndex
+          ? { ...target, value: finalBackupFunding }
+          : target
       );
-      const requiredBackupFeeBudget = maxBigInt(
-        minimumBackupFeeBudget,
-        targetPackageFee > minimumVaultTxFee
-          ? targetPackageFee - minimumVaultTxFee
-          : BigInt(0)
-      );
-
-      if (requiredBackupFeeBudget > backupFeeBudget) {
-        backupFeeBudget = requiredBackupFeeBudget;
-      } else {
-        //Stop the loop
-        if (selected.fee > minimumVaultTxFee) {
-          const feeShift = selected.fee - minimumVaultTxFee;
-          backupFeeBudget += feeShift;
-        }
-        const backupTargetIndex = selected.targets.findIndex(
-          target => target.output === backupOutput
-        );
-        if (backupTargetIndex < 0)
-          throw new Error('Backup output target not found');
-        selected.targets = selected.targets.map((target, index) =>
-          index === backupTargetIndex
-            ? { ...target, value: backupFeeBudget }
-            : target
-        );
-        selected.fee = minimumVaultTxFee;
-        return selected; //stop the loop
-      }
+      selected.fee = minimumVaultTxFee;
+      return selected;
     }
-
-    // If the fixed-point search keeps changing the tx shape, fall back to one
-    // conservative pass at the selected target fee rate and then shift any
-    // extra parent fee into the backup output. This can overpay a bit, but it
-    // still preserves a valid selected shape.
-    console.warn(
-      'Vault package fee selection did not converge; using conservative fallback',
-      { packageFeeRate, vaultMode }
-    );
-    const fallbackBackupFeeBudget = getMinBackupFeeBudget(
-      packageFeeRate,
-      backupOutput
-    );
-    const fallbackSelected = coinSelectInitialVaultTx({
-      utxosData,
-      vaultOutput,
-      backupOutput,
-      triggerReserveOutput,
-      triggerReserveAmount,
-      minBackupFeeBudget: fallbackBackupFeeBudget,
-      changeOutput,
-      feeRate: packageFeeRate,
-      minimumFeeRate: minimumVaultTxFeeRate,
-      vaultedAmount
-    });
-    if (typeof fallbackSelected === 'string') return fallbackSelected;
-
-    const minimumVaultTxFee = BigInt(
-      Math.ceil(fallbackSelected.vsize * minimumVaultTxFeeRate)
-    );
-    let finalBackupFeeBudget = fallbackBackupFeeBudget;
-    if (fallbackSelected.fee > minimumVaultTxFee) {
-      const feeShift = fallbackSelected.fee - minimumVaultTxFee;
-      finalBackupFeeBudget += feeShift;
-    }
-    const backupTargetIndex = fallbackSelected.targets.findIndex(
-      target => target.output === backupOutput
-    );
-    if (backupTargetIndex < 0)
-      throw new Error('Backup output target not found');
-    fallbackSelected.targets = fallbackSelected.targets.map((target, index) =>
-      index === backupTargetIndex
-        ? { ...target, value: finalBackupFeeBudget }
-        : target
-    );
-    fallbackSelected.fee = minimumVaultTxFee;
-    return fallbackSelected;
   }
 );
 
@@ -1417,7 +1391,7 @@ const coinSelectInitialVaultTx = ({
   backupOutput,
   triggerReserveOutput,
   triggerReserveAmount,
-  minBackupFeeBudget,
+  backupFunding,
   changeOutput,
   feeRate,
   minimumFeeRate
@@ -1428,7 +1402,7 @@ const coinSelectInitialVaultTx = ({
   backupOutput?: OutputInstance;
   triggerReserveOutput?: OutputInstance;
   triggerReserveAmount?: bigint;
-  minBackupFeeBudget?: bigint;
+  backupFunding?: bigint;
   changeOutput: OutputInstance;
   feeRate: number;
   /** this is typically 0.1 but can be 0 for P2A_TRUC */
@@ -1441,13 +1415,11 @@ const coinSelectInitialVaultTx = ({
     vaultedAmount <= dustThreshold(vaultOutput)
   )
     return `VAULT OUT BELOW DUST: ${vaultedAmount} <= ${dustThreshold(vaultOutput)}`;
-  if (backupOutput && minBackupFeeBudget !== undefined) {
-    if (minBackupFeeBudget <= dustThreshold(backupOutput))
-      return `BACKUP OUT BELOW DUST: ${minBackupFeeBudget} <= ${dustThreshold(backupOutput)}`;
-  } else if (backupOutput || minBackupFeeBudget !== undefined) {
-    throw new Error(
-      'backupOutput and minBackupFeeBudget must be provided together'
-    );
+  if (backupOutput && backupFunding !== undefined) {
+    if (backupFunding <= dustThreshold(backupOutput))
+      return `BACKUP OUT BELOW DUST: ${backupFunding} <= ${dustThreshold(backupOutput)}`;
+  } else if (backupOutput || backupFunding !== undefined) {
+    throw new Error('backupOutput and backupFunding must be provided together');
   }
   if (triggerReserveOutput && triggerReserveAmount !== undefined) {
     if (triggerReserveAmount <= dustThreshold(triggerReserveOutput))
@@ -1461,8 +1433,8 @@ const coinSelectInitialVaultTx = ({
   let targets;
   if (vaultedAmount === 'MAX_FUNDS') {
     targets = [];
-    if (backupOutput && minBackupFeeBudget !== undefined)
-      targets.push({ output: backupOutput, value: minBackupFeeBudget });
+    if (backupOutput && backupFunding !== undefined)
+      targets.push({ output: backupOutput, value: backupFunding });
     if (triggerReserveOutput && triggerReserveAmount !== undefined)
       targets.push({
         output: triggerReserveOutput,
@@ -1487,8 +1459,8 @@ const coinSelectInitialVaultTx = ({
     // vault output first, backup output second, reserve output third, optional
     // change last.
     targets = [{ output: vaultOutput, value: vaultTarget.value }];
-    if (backupOutput && minBackupFeeBudget !== undefined)
-      targets.push({ output: backupOutput, value: minBackupFeeBudget });
+    if (backupOutput && backupFunding !== undefined)
+      targets.push({ output: backupOutput, value: backupFunding });
     if (triggerReserveOutput && triggerReserveAmount !== undefined)
       targets.push({
         output: triggerReserveOutput,
@@ -1496,8 +1468,8 @@ const coinSelectInitialVaultTx = ({
       });
   } else {
     targets = [{ output: vaultOutput, value: vaultedAmount }];
-    if (backupOutput && minBackupFeeBudget !== undefined)
-      targets.push({ output: backupOutput, value: minBackupFeeBudget });
+    if (backupOutput && backupFunding !== undefined)
+      targets.push({ output: backupOutput, value: backupFunding });
     if (triggerReserveOutput && triggerReserveAmount !== undefined)
       targets.push({
         output: triggerReserveOutput,
@@ -1540,8 +1512,9 @@ const coinSelectInitialVaultTx = ({
  *
  * The `packageFeeRate` parameter is the user-selected fee-rate target. The
  * vault tx is first built at that rate. If `shiftFeesToBackupEnd` is enabled,
- * any vault-tx fee above the mode minimum is moved into the backup output while
- * keeping the selected inputs, change, and tx shape unchanged.
+ * any vault-tx fee above the minimum parent fee for that vault kind (`0` for
+ * P2A_TRUC, `0.1 sat/vB` for P2A_NON_TRUC`) is moved into the backup output
+ * while keeping the selected inputs, change, and tx shape unchanged.
  */
 export const buildVaultTxContext = async ({
   signer,

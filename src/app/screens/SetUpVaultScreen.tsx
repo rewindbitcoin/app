@@ -491,11 +491,11 @@ export default function VaultSetUp({
         shiftFeesToBackupEnd: true
       });
       if (typeof selected !== 'string') {
-        const finalBackupFeeBudget = getTargetValue(
+        const finalBackupFunding = getTargetValue(
           selected.targets,
           DUMMY_BACKUP_OUTPUT(network)
         );
-        packageFee = toNumber(selected.fee + finalBackupFeeBudget);
+        packageFee = toNumber(selected.fee + finalBackupFunding);
       }
     }
   }
