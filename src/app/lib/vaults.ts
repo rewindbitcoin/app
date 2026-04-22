@@ -1172,7 +1172,7 @@ export const coinSelectVaultTx = moize.shallow(
   }) => {
     if (!shiftFeesToBackupEnd) {
       const backupFunding = getBackupFunding(packageFeeRate, backupOutput);
-      const selected = coinSelectInitialVaultTx({
+      const selected = regularCoinSelectVaultTx({
         utxosData,
         vaultOutput,
         backupOutput,
@@ -1208,7 +1208,7 @@ export const coinSelectVaultTx = moize.shallow(
         attempt < 5;
         attempt++
       ) {
-        const selected = coinSelectInitialVaultTx({
+        const selected = regularCoinSelectVaultTx({
           utxosData,
           vaultOutput,
           backupOutput,
@@ -1251,7 +1251,7 @@ export const coinSelectVaultTx = moize.shallow(
         packageFeeRate,
         backupOutput
       );
-      const selected = coinSelectInitialVaultTx({
+      const selected = regularCoinSelectVaultTx({
         utxosData,
         vaultOutput,
         backupOutput,
@@ -1380,11 +1380,14 @@ export const estimateMinimumRequiredVaultedAmount = moize.shallow(
 );
 
 /**
- * This does the coinselection of the vaulttx as if the fee shifting
- * is not needed. Then coinSelectVaultTx takes this calculation and
- * recreates the targets and fee rate.
+ * Runs the regular vault coinselection path without any later fee shifting.
+ *
+ * This still builds the full vault-specific target set (vault, backup,
+ * reserve, and optional change), but it leaves the selected fee exactly where
+ * coinselection put it. `coinSelectVaultTx(...)` can then optionally take this
+ * regular result and shift part of the parent fee into the backup output.
  */
-const coinSelectInitialVaultTx = ({
+const regularCoinSelectVaultTx = ({
   utxosData,
   vaultOutput,
   vaultedAmount,
