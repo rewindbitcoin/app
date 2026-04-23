@@ -89,14 +89,16 @@ we do not change them deliberately.
 - `getTriggerReserveOutput(...)` derives the built-in `/0` reserve output on the
   per-vault trigger reserve branch.
 - `getTriggerReserveUtxosData(...)` now exposes a reserve UTXO set, but today it
-  still returns only the built-in reserve funded in the vault tx itself.
+  returns either:
+  - the built-in reserve funded in the vault tx itself, or
+  - an empty set if setup did not need a built-in reserve output
 - `getP2AVaultFundingBreakdown(...)` reconstructs the backup output and trigger reserve output from the vault tx.
 - `coinSelectVaultTx(...)` always funds one backup output and one trigger reserve output during setup.
-- `getRequiredTriggerReserveAmount(...)` is now a trigger-specific setup wrapper
+- `getRequiredTriggerReserveValue(...)` is now a trigger-specific setup wrapper
   around the shared runtime reserve-sizing primitive.
 
-In other words: current code now exposes a reserve UTXO set, but the only known
-member today is still the built-in `/0` reserve funded in the vault tx.
+In other words: current code now exposes a reserve UTXO set. Today that set is
+either empty or contains only the built-in `/0` reserve from the vault tx.
 
 ## Current Design Direction
 
@@ -114,8 +116,9 @@ The intended simplification is:
 
 ### Current trigger reserve
 
-- Each vault gets a deterministic per-vault reserve branch, and today setup
-  funds only the first reserve output on that branch.
+- Each vault gets a deterministic per-vault reserve branch.
+- If setup decides a built-in reserve is needed, it funds the first reserve
+  output on that branch at `/0`.
 - It lives on its own reserve path, not on the ordinary hot-wallet spending path.
 - It is funded up front so trigger can be accelerated later without relying on unrelated wallet funds.
 
@@ -150,6 +153,14 @@ The intended simplification is:
 - Later, rescue CPFP would spend:
   - the rescue anchor
   - reserve UTXO(s) controlled by that rescue reserve signer
+
+Pending later task:
+- once rescue reserve funding exists, rescue should mirror the trigger fee-bump
+  UX exactly:
+  - if a rescue is already pending and reserve funding is missing, the user
+    should still be able to open the modal
+  - the modal should explain that no rescue reserve is available yet instead of
+    failing silently behind a disabled action
 
 ## Ephemeral Rescue Reserve UX
 
@@ -196,11 +207,12 @@ These should probably stay separate even if the overall idea becomes "anchor res
 ### Setup-time sizing question
 
 Current helper:
-- `getRequiredTriggerReserveAmount(...)`
+- `getRequiredTriggerReserveValue(...)`
 
 What it answers:
 - how much reserve must be funded during vault creation so the first trigger CPFP
   child can reach the target trigger package fee ceiling
+- if it returns `0`, setup does not need to create a built-in trigger reserve output
 
 ### Runtime top-up sizing question
 
@@ -210,6 +222,7 @@ Current shared primitive:
 What it should answer:
 - given the current parent tx and current reserve availability, how much more
   reserve funding is needed now to reach the desired fee target
+- if it returns `0`, no additional reserve UTXO is needed
 
 This is still not the same question as setup-time reserve sizing. The current
 trigger setup code now uses the shared primitive through a trigger-specific
@@ -293,6 +306,10 @@ The simplest direction that still matches the current codebase is:
 - keep the current built-in deterministic trigger reserve model
 - treat rescue reserve funding as a later external reserve flow
 - reuse the same low-level CPFP funding mechanism where possible
+- likely next refactor task: make `getTriggerAccelerationInfo(...)` and
+  `getRescueAccelerationInfo(...)` share one common core helper for the P2A
+  case, while keeping thin trigger/rescue wrappers so call sites still read in
+  domain terms
 - delay large renames until we know whether reserve UTXOs will stay singular or become plural
 - keep `REWIND2.md` unchanged until these decisions are final
 
