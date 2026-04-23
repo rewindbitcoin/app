@@ -25,6 +25,7 @@ import { useWallet } from '../hooks/useWallet';
 import useFirstDefinedValue from '~/common/hooks/useFirstDefinedValue';
 import { toNumber } from '../lib/sats';
 import {
+  type AccelerationInfo,
   findNextEqualOrLargerFeeRate,
   getCpfpReplacementFeeRateFloor,
   pickActionableInitialFeeRate,
@@ -54,6 +55,17 @@ const getLadderedRescueSortedTxs = (vault: Vault, triggerTxHex: string) => {
     .sort((a, b) => a.feeRate - b.feeRate);
 };
 
+/**
+ * Returns the current acceleration state for the rescue tx.
+ *
+ * The returned fields mean:
+ * - `isUnconfirmed`: the rescue tx is already broadcast and still unconfirmed
+ * - `replacementFeeRateFloor`: the minimum package fee rate that improves the
+ *   currently live state
+ * - `canAccelerate`: a valid rescue acceleration path can be built right now
+ * - `hasFundingUtxos`: the non-anchor funding UTXOs for the rescue fee-bump
+ *   child are available
+ */
 export const getRescueAccelerationInfo = ({
   vault,
   vaultStatus,
@@ -72,32 +84,35 @@ export const getRescueAccelerationInfo = ({
    * main wallet after an attack. It provides fresh UTXOs and a signer that are
    * not meant to be under the compromised wallet's normal flow.
    *
-   * When present, rescue can attach a child tx that spends those fresh UTXOs to
-   * add more fee and sends leftover value to the provided output, which should
-   * normally be the emergency address. When absent, P2A rescue stays parent-only.
-   */
+    * When present, rescue can attach a child tx that spends those fresh UTXOs to
+    * add more fee and sends leftover value to the provided output, which should
+    * normally be the emergency address. When absent, P2A rescue stays parent-only.
+    */
   emergencyBumpPlan: PreparedCpfpPlan | undefined;
-}) => {
+}): AccelerationInfo => {
   const isRescueConfirmed =
     vaultStatus?.panicTxBlockHeight !== undefined &&
     vaultStatus.panicTxBlockHeight > 0;
-  const isAccelerationAttempt =
+  const isUnconfirmed =
     (!!vaultStatus?.panicPushTime || vaultStatus?.panicTxBlockHeight === 0) &&
     !isRescueConfirmed;
-  if (!isAccelerationAttempt) {
+  if (!isUnconfirmed) {
     return {
-      isAccelerationAttempt,
+      isUnconfirmed,
       replacementFeeRateFloor: null,
-      canAccelerate: false
+      canAccelerate: false,
+      hasFundingUtxos: false
     };
   } else {
     if (!vaultStatus?.triggerTxHex || !vaultStatus.panicTxHex) {
       throw new Error('trigger or panic txs not set');
     } else if (!feeEstimates) {
       return {
-        isAccelerationAttempt,
+        isUnconfirmed,
         replacementFeeRateFloor: null,
-        canAccelerate: false
+        canAccelerate: false,
+        hasFundingUtxos:
+          getVaultMode(vault) === 'LADDERED' || emergencyBumpPlan !== undefined
       };
     } else {
       const maxFeeRate = computeMaxAllowedFeeRate(feeEstimates);
@@ -119,27 +134,30 @@ export const getRescueAccelerationInfo = ({
           1;
         if (replacementFeeRateFloor > maxFeeRate) {
           return {
-            isAccelerationAttempt,
+            isUnconfirmed,
             replacementFeeRateFloor,
-            canAccelerate: false
+            canAccelerate: false,
+            hasFundingUtxos: true
           };
         } else {
           return {
-            isAccelerationAttempt,
+            isUnconfirmed,
             replacementFeeRateFloor,
             canAccelerate:
               findNextEqualOrLargerFeeRate(
                 getLadderedRescueSortedTxs(vault, vaultStatus.triggerTxHex),
                 replacementFeeRateFloor
-              ) !== null
+              ) !== null,
+            hasFundingUtxos: true
           };
         }
       } else {
         if (!emergencyBumpPlan) {
           return {
-            isAccelerationAttempt,
+            isUnconfirmed,
             replacementFeeRateFloor: null,
-            canAccelerate: false
+            canAccelerate: false,
+            hasFundingUtxos: false
           };
         } else {
           const rescueInfo = getP2ARescueInfo(vault, vaultStatus.triggerTxHex);
@@ -157,15 +175,17 @@ export const getRescueAccelerationInfo = ({
 
           if (replacementFeeRateFloor === null) {
             return {
-              isAccelerationAttempt,
+              isUnconfirmed,
               replacementFeeRateFloor: null,
-              canAccelerate: false
+              canAccelerate: false,
+              hasFundingUtxos: true
             };
           } else {
             return {
-              isAccelerationAttempt,
+              isUnconfirmed,
               replacementFeeRateFloor,
-              canAccelerate: replacementFeeRateFloor <= maxFeeRate
+              canAccelerate: replacementFeeRateFloor <= maxFeeRate,
+              hasFundingUtxos: true
             };
           }
         }
@@ -216,8 +236,12 @@ const Rescue = ({
   // Cache to avoid flickering in the sliders while background refreshes happen.
   const btcFiat = useFirstDefinedValue<number>(btcFiatRealTime);
   const feeEstimates = useFirstDefinedValue<FeeEstimates>(feeEstimatesRealTime);
-  const { isAccelerationAttempt, replacementFeeRateFloor, canAccelerate } =
-    useMemo(
+  const {
+    isUnconfirmed,
+    replacementFeeRateFloor,
+    canAccelerate,
+    hasFundingUtxos
+  } = useMemo(
       () =>
         getRescueAccelerationInfo({
           vault,
@@ -266,7 +290,7 @@ const Rescue = ({
         feeEstimates,
         settings.INITIAL_CONFIRMATION_TIME
       ).feeEstimate;
-      if (!isAccelerationAttempt) return preferredNetworkFeeRate;
+      if (!isUnconfirmed) return preferredNetworkFeeRate;
       else {
         if (replacementFeeRateFloor === null) return null;
         else return Math.max(replacementFeeRateFloor, preferredNetworkFeeRate);
@@ -276,8 +300,7 @@ const Rescue = ({
         throw new Error('Visible rescue is missing trigger tx');
       const rescueInfo = getP2ARescueInfo(vault, triggerTxHex);
 
-      if (!emergencyBumpPlan)
-        return isAccelerationAttempt ? null : rescueInfo.feeRate;
+      if (!hasFundingUtxos) return isUnconfirmed ? null : rescueInfo.feeRate;
 
       if (!feeEstimates) return null;
       const preferredNetworkFeeRate = pickFeeEstimate(
@@ -285,7 +308,7 @@ const Rescue = ({
         settings.INITIAL_CONFIRMATION_TIME
       ).feeEstimate;
 
-      if (!isAccelerationAttempt)
+      if (!isUnconfirmed)
         return Math.max(rescueInfo.feeRate, preferredNetworkFeeRate);
       if (replacementFeeRateFloor === null) return null;
       return Math.max(replacementFeeRateFloor, preferredNetworkFeeRate);
@@ -297,12 +320,12 @@ const Rescue = ({
     vault,
     isVisible,
     triggerTxHex,
-    emergencyBumpPlan,
-    isAccelerationAttempt,
+    hasFundingUtxos,
+    isUnconfirmed,
     replacementFeeRateFloor
   ]);
 
-  const showsFeePicker = isLadderedVault || !!emergencyBumpPlan;
+  const showsFeePicker = isLadderedVault || hasFundingUtxos;
   const needsFeeEstimates = showsFeePicker;
 
   const [feeRate, setFeeRate] = useState<number | null>(null);
@@ -313,17 +336,17 @@ const Rescue = ({
     if (!isVisible) {
       return null;
     } else if (isLadderedVault) {
-      return isAccelerationAttempt
+      return isUnconfirmed
         ? replacementFeeRateFloor
         : (ladderedRescueSortedTxs[0]?.feeRate ?? MIN_FEE_RATE);
     } else {
       if (!triggerTxHex)
         throw new Error('Visible rescue is missing trigger tx');
-      if (!emergencyBumpPlan) {
+      if (!hasFundingUtxos) {
         return null;
       } else {
         const rescueInfo = getP2ARescueInfo(vault, triggerTxHex);
-        if (!isAccelerationAttempt) {
+        if (!isUnconfirmed) {
           return rescueInfo.feeRate;
         } else {
           return replacementFeeRateFloor;
@@ -332,11 +355,11 @@ const Rescue = ({
     }
   }, [
     isLadderedVault,
-    isAccelerationAttempt,
+    isUnconfirmed,
     replacementFeeRateFloor,
     isVisible,
     ladderedRescueSortedTxs,
-    emergencyBumpPlan,
+    hasFundingUtxos,
     vault,
     triggerTxHex
   ]);
@@ -409,14 +432,14 @@ const Rescue = ({
       // opening an acceleration modal that cannot proceed past the intro step.
       pickActionableInitialFeeRate({
         preferredFeeRate:
-          isAccelerationAttempt &&
+          isUnconfirmed &&
           replacementFeeRateFloor !== null &&
           maxFeeRate !== null &&
           replacementFeeRateFloor > maxFeeRate
             ? null
             : preferredInitialFeeRate,
         minimumActionableFeeRate:
-          isAccelerationAttempt &&
+          isUnconfirmed &&
           replacementFeeRateFloor !== null &&
           maxFeeRate !== null &&
           replacementFeeRateFloor > maxFeeRate
@@ -426,7 +449,7 @@ const Rescue = ({
       }),
     [
       preferredInitialFeeRate,
-      isAccelerationAttempt,
+      isUnconfirmed,
       replacementFeeRateFloor,
       maxFeeRate,
       minimumSelectableFeeRate,
@@ -440,7 +463,7 @@ const Rescue = ({
     return buildTxDataForFeeRate(selectedFeeRate);
   }, [feeRate, initialFeeRate, buildTxDataForFeeRate]);
 
-  const canOpenFeeStep = isAccelerationAttempt
+  const canOpenFeeStep = isUnconfirmed
     ? canAccelerate
     : initialFeeRate !== null;
 
@@ -488,7 +511,7 @@ const Rescue = ({
               </Button>
               {canOpenFeeStep && (
                 <Button mode="primary-alert" onPress={() => setStep('fee')}>
-                  {isAccelerationAttempt
+                  {isUnconfirmed
                     ? t('accelerateButton')
                     : t('imInDangerButton')}
                 </Button>
@@ -513,7 +536,7 @@ const Rescue = ({
       {needsFeeEstimates && !feeEstimates ? (
         //loading...
         <ActivityIndicator />
-      ) : isAccelerationAttempt &&
+      ) : isUnconfirmed &&
         replacementFeeRateFloor !== null &&
         maxFeeRate !== null &&
         replacementFeeRateFloor > maxFeeRate ? (
@@ -526,7 +549,7 @@ const Rescue = ({
       ) : step === 'intro' ? (
         <View>
           <Text className="text-base text-slate-600 pb-2 px-2">
-            {isAccelerationAttempt
+            {isUnconfirmed
               ? t('wallet.vault.rescue.introAccelerate')
               : t('wallet.vault.rescue.intro', {
                   panicAddress: vault.coldAddress

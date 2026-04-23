@@ -23,7 +23,7 @@ import {
   areVaultsSynched,
   coinSelectVaultTx,
   getTargetValue,
-  getRequiredTriggerReserveAmount,
+  getRequiredTriggerReserveValue,
   getSpendableUtxosData,
   utxosDataBalance,
   type VaultSettings
@@ -262,11 +262,11 @@ export default function VaultSetUp({
   const minimumRequiredFundsNow =
     minimumVaultSetup.vaultedAmount +
     minimumVaultSetup.packageFee +
-    minimumVaultSetup.triggerReserveAmount;
+    minimumVaultSetup.triggerReserveValue;
   const requiredFundsForMinimumVaultSetup = maxVaultAtMinimumPackageFeeRate
     ? maxVaultAtMinimumPackageFeeRate.vaultedAmount +
       maxVaultAtMinimumPackageFeeRate.packageFee +
-      maxVaultAtMinimumPackageFeeRate.triggerReserveAmount
+      maxVaultAtMinimumPackageFeeRate.triggerReserveValue
     : null;
   // If coinselection cannot build any vault yet, `maxVaultAtMinimumPackageFeeRate`
   // is undefined even though some eligible UTXOs may still exist. In that case,
@@ -284,7 +284,7 @@ export default function VaultSetUp({
       minimumVaultSetup.vaultedAmount
       ? maxVaultAtSelectedPackageFeeRate.vaultedAmount
       : minimumVaultSetup.vaultedAmount;
-  const triggerReserveAmount = getRequiredTriggerReserveAmount({
+  const triggerReserveValue = getRequiredTriggerReserveValue({
     triggerReserveOutput: DUMMY_TRIGGER_RESERVE_OUTPUT(network),
     changeOutput:
       changeOutput ||
@@ -422,7 +422,7 @@ export default function VaultSetUp({
             vaultOutput: DUMMY_VAULT_OUTPUT(network),
             backupOutput: DUMMY_BACKUP_OUTPUT(network),
             triggerReserveOutput: DUMMY_TRIGGER_RESERVE_OUTPUT(network),
-            triggerReserveAmount: getRequiredTriggerReserveAmount({
+            triggerReserveValue: getRequiredTriggerReserveValue({
               triggerReserveOutput: DUMMY_TRIGGER_RESERVE_OUTPUT(network),
               changeOutput: currentChangeOutput,
               vaultMode,
@@ -480,15 +480,19 @@ export default function VaultSetUp({
         //creation will fund.
         vaultOutput: DUMMY_VAULT_OUTPUT(network),
         backupOutput: DUMMY_BACKUP_OUTPUT(network),
-        triggerReserveOutput: DUMMY_TRIGGER_RESERVE_OUTPUT(network),
-        triggerReserveAmount,
         changeOutput:
           changeOutput ||
           DUMMY_CHANGE_OUTPUT(getMainAccount(accounts, network), network),
         packageFeeRate,
         vaultMode,
         vaultedAmount: toBigInt(vaultedAmount),
-        shiftFeesToBackupTx: true
+        shiftFeesToBackupTx: true,
+        ...(triggerReserveValue > BigInt(0)
+          ? {
+              triggerReserveOutput: DUMMY_TRIGGER_RESERVE_OUTPUT(network),
+              triggerReserveValue
+            }
+          : {})
       });
       if (typeof selected !== 'string') {
         const finalBackupFunding = getTargetValue(
@@ -614,7 +618,7 @@ export default function VaultSetUp({
           <View className="w-full flex-row items-start gap-2 px-2 pt-1">
             <Text className="shrink text-sm text-slate-500">
               {t('vaultSetup.unfreezeReserveLabel')}:{' '}
-              {formatAmount(toNumber(triggerReserveAmount))}
+              {formatAmount(toNumber(triggerReserveValue))}
             </Text>
             <ModalInfoButton
               title={t('vaultSetup.unfreezeReserveHelpTitle')}

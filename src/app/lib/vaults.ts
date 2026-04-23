@@ -414,9 +414,11 @@ const estimateCpfpChildVSizeFromOutputs = (
  * model: the future child is assumed to spend all currently known reserve UTXOs
  * plus the next reserve UTXO being sized now.
  *
- * If the existing reserve UTXOs already cover most of the budget, this still
- * returns at least dust+1 for the new reserve output because creating a new UTXO
- * below dust would be invalid.
+ * If the existing reserve UTXOs already cover the needed budget, this returns
+ * `0`, which means no additional reserve UTXO is needed.
+ *
+ * Otherwise the result is the minimum valid value for a newly created reserve
+ * UTXO, so it is still clamped to at least dust+1.
  */
 export const getRequiredNextReserveUtxoValue = ({
   existingReserveOutputsWithValue,
@@ -485,12 +487,10 @@ export const getRequiredNextReserveUtxoValue = ({
   // so:
   //   nextReserveValue >=
   //     childFee + childOutputMinValue - anchorValue - existingReserveValue
-  return toBigInt(
-    Math.max(
-      nextReserveMinValue,
-      childFee + childOutputMinValue - anchorValue - existingReserveValue
-    )
-  );
+  const nextReserveValueNeeded =
+    childFee + childOutputMinValue - anchorValue - existingReserveValue;
+  if (nextReserveValueNeeded <= 0) return BigInt(0);
+  return toBigInt(Math.max(nextReserveMinValue, nextReserveValueNeeded));
 };
 
 /**
@@ -506,8 +506,11 @@ export const getRequiredNextReserveUtxoValue = ({
  * `presignedTriggerFeeRate` controls the fee already paid by the trigger parent.
  * `maxTriggerFeeRate` is the later package-feerate ceiling that the reserve must
  * still be able to reach with the first CPFP child.
+ *
+ * If this returns `0`, the trigger path does not need a built-in reserve output
+ * at setup time.
  */
-export const getRequiredTriggerReserveAmount = ({
+export const getRequiredTriggerReserveValue = ({
   triggerReserveOutput,
   changeOutput,
   vaultMode,
@@ -1117,8 +1120,7 @@ export const getTriggerReserveUtxosData = ({
   const triggerReserveVout = vaultTx.outs.findIndex(
     out => toHex(out.script) === toHex(triggerReserveOutput.getScriptPubKey())
   );
-  if (triggerReserveVout < 0)
-    throw new Error('Trigger reserve output not found in vault tx');
+  if (triggerReserveVout < 0) return [];
 
   return [
     {
@@ -1166,8 +1168,6 @@ export const getP2AVaultFundingBreakdown = ({
     signer,
     network
   });
-  if (!triggerReserveUtxoData)
-    throw new Error('Trigger reserve UTXO not found for vault');
   const { tx: vaultTx } = transactionFromHex(vault.vaultTxHex);
   const backupVout = vaultTx.outs.findIndex(
     out => toHex(out.script) === toHex(backupOutput.getScriptPubKey())
@@ -1175,16 +1175,21 @@ export const getP2AVaultFundingBreakdown = ({
   if (backupVout < 0) throw new Error('Backup output not found in vault tx');
 
   const backupOutputValue = vaultTx.outs[backupVout]?.value;
-  const triggerReserveAmount = vaultTx.outs[triggerReserveUtxoData.vout]?.value;
   const vaultTxData = vault.txMap[vault.vaultTxHex];
-  if (backupOutputValue === undefined || triggerReserveAmount === undefined)
-    throw new Error('Vault tx is missing backup or reserve outputs');
+  if (backupOutputValue === undefined)
+    throw new Error('Vault tx is missing backup output');
   if (!vaultTxData) throw new Error('Vault tx is not mapped');
+  const triggerReserveValue =
+    triggerReserveUtxoData !== undefined
+      ? vaultTx.outs[triggerReserveUtxoData.vout]?.value
+      : BigInt(0);
+  if (triggerReserveValue === undefined)
+    throw new Error('Vault tx is missing trigger reserve output');
 
   return {
     vaultTxFee: vaultTxData.fee,
     backupTxCost: toNumber(backupOutputValue),
-    triggerReserveAmount: toNumber(triggerReserveAmount)
+    triggerReserveValue: toNumber(triggerReserveValue)
   };
 };
 
@@ -1223,7 +1228,7 @@ export const coinSelectVaultTx = moize.shallow(
     vaultOutput,
     backupOutput,
     triggerReserveOutput,
-    triggerReserveAmount,
+    triggerReserveValue,
     changeOutput,
     packageFeeRate,
     vaultMode,
@@ -1233,26 +1238,34 @@ export const coinSelectVaultTx = moize.shallow(
     utxosData: UtxosData;
     vaultOutput: OutputInstance;
     backupOutput: OutputInstance;
-    triggerReserveOutput: OutputInstance;
-    triggerReserveAmount: bigint;
+    triggerReserveOutput?: OutputInstance;
+    triggerReserveValue?: bigint;
     changeOutput: OutputInstance;
     packageFeeRate: number;
     vaultMode: 'P2A_TRUC' | 'P2A_NON_TRUC';
     vaultedAmount: bigint | 'MAX_FUNDS';
     shiftFeesToBackupTx: boolean;
   }) => {
+    if (
+      (triggerReserveOutput === undefined) !==
+      (triggerReserveValue === undefined)
+    ) {
+      throw new Error(
+        'triggerReserveOutput and triggerReserveValue must be provided together'
+      );
+    }
     if (!shiftFeesToBackupTx) {
       return regularCoinSelectVaultTx({
         utxosData,
         vaultOutput,
         backupOutput,
-        triggerReserveOutput,
-        triggerReserveAmount,
         backupFunding: getBackupFunding(packageFeeRate, backupOutput),
         changeOutput,
         feeRate: packageFeeRate,
         minimumFeeRate: MIN_FEE_RATE,
-        vaultedAmount
+        vaultedAmount,
+        ...(triggerReserveOutput !== undefined ? { triggerReserveOutput } : {}),
+        ...(triggerReserveValue !== undefined ? { triggerReserveValue } : {})
       });
     } else {
       const minimumVaultTxFeeRate = getMinimumVaultTxFeeRate(vaultMode); //0 || 0.1
@@ -1280,13 +1293,15 @@ export const coinSelectVaultTx = moize.shallow(
           utxosData,
           vaultOutput,
           backupOutput,
-          triggerReserveOutput,
-          triggerReserveAmount,
           backupFunding,
           changeOutput,
           feeRate: minimumVaultTxFeeRate, //0 or 0.1 for P2A_NON_TRUC
           minimumFeeRate: minimumVaultTxFeeRate, //0 or 0.1 for P2A_NON_TRUC
-          vaultedAmount
+          vaultedAmount,
+          ...(triggerReserveOutput !== undefined ? { triggerReserveOutput } : {}),
+          ...(triggerReserveValue !== undefined
+            ? { triggerReserveValue }
+            : {})
         });
         if (typeof selected === 'string') return selected; //Forward errors
 
@@ -1323,13 +1338,13 @@ export const coinSelectVaultTx = moize.shallow(
         utxosData,
         vaultOutput,
         backupOutput,
-        triggerReserveOutput,
-        triggerReserveAmount,
         backupFunding: backupFundingAtPackageFeeRate,
         changeOutput,
         feeRate: packageFeeRate,
         minimumFeeRate: minimumVaultTxFeeRate,
-        vaultedAmount
+        vaultedAmount,
+        ...(triggerReserveOutput !== undefined ? { triggerReserveOutput } : {}),
+        ...(triggerReserveValue !== undefined ? { triggerReserveValue } : {})
       });
       if (typeof selected === 'string') return selected;
 
@@ -1461,7 +1476,7 @@ const regularCoinSelectVaultTx = ({
   vaultedAmount,
   backupOutput,
   triggerReserveOutput,
-  triggerReserveAmount,
+  triggerReserveValue,
   backupFunding,
   changeOutput,
   feeRate,
@@ -1472,7 +1487,7 @@ const regularCoinSelectVaultTx = ({
   vaultedAmount: bigint | 'MAX_FUNDS';
   backupOutput?: OutputInstance;
   triggerReserveOutput?: OutputInstance;
-  triggerReserveAmount?: bigint;
+  triggerReserveValue?: bigint;
   backupFunding?: bigint;
   changeOutput: OutputInstance;
   feeRate: number;
@@ -1492,12 +1507,12 @@ const regularCoinSelectVaultTx = ({
   } else if (backupOutput || backupFunding !== undefined) {
     throw new Error('backupOutput and backupFunding must be provided together');
   }
-  if (triggerReserveOutput && triggerReserveAmount !== undefined) {
-    if (triggerReserveAmount <= dustThreshold(triggerReserveOutput))
-      return `TRIGGER RESERVE OUT BELOW DUST: ${triggerReserveAmount} <= ${dustThreshold(triggerReserveOutput)}`;
-  } else if (triggerReserveOutput || triggerReserveAmount !== undefined) {
+  if (triggerReserveOutput && triggerReserveValue !== undefined) {
+    if (triggerReserveValue <= dustThreshold(triggerReserveOutput))
+      return `TRIGGER RESERVE OUT BELOW DUST: ${triggerReserveValue} <= ${dustThreshold(triggerReserveOutput)}`;
+  } else if (triggerReserveOutput || triggerReserveValue !== undefined) {
     throw new Error(
-      'triggerReserveOutput and triggerReserveAmount must be provided together'
+      'triggerReserveOutput and triggerReserveValue must be provided together'
     );
   }
   let coinselected;
@@ -1506,10 +1521,10 @@ const regularCoinSelectVaultTx = ({
     targets = [];
     if (backupOutput && backupFunding !== undefined)
       targets.push({ output: backupOutput, value: backupFunding });
-    if (triggerReserveOutput && triggerReserveAmount !== undefined)
+    if (triggerReserveOutput && triggerReserveValue !== undefined)
       targets.push({
         output: triggerReserveOutput,
-        value: triggerReserveAmount
+        value: triggerReserveValue
       });
 
     coinselected = maxFunds({
@@ -1532,19 +1547,19 @@ const regularCoinSelectVaultTx = ({
     targets = [{ output: vaultOutput, value: vaultTarget.value }];
     if (backupOutput && backupFunding !== undefined)
       targets.push({ output: backupOutput, value: backupFunding });
-    if (triggerReserveOutput && triggerReserveAmount !== undefined)
+    if (triggerReserveOutput && triggerReserveValue !== undefined)
       targets.push({
         output: triggerReserveOutput,
-        value: triggerReserveAmount
+        value: triggerReserveValue
       });
   } else {
     targets = [{ output: vaultOutput, value: vaultedAmount }];
     if (backupOutput && backupFunding !== undefined)
       targets.push({ output: backupOutput, value: backupFunding });
-    if (triggerReserveOutput && triggerReserveAmount !== undefined)
+    if (triggerReserveOutput && triggerReserveValue !== undefined)
       targets.push({
         output: triggerReserveOutput,
-        value: triggerReserveAmount
+        value: triggerReserveValue
       });
 
     coinselected = coinselect({
@@ -1648,25 +1663,27 @@ const buildVaultTxContext = async ({
     network,
     vaultIndex
   });
-  const triggerReserveAmount = getRequiredTriggerReserveAmount({
+  const triggerReserveValue = getRequiredTriggerReserveValue({
     triggerReserveOutput,
     changeOutput,
     vaultMode,
     presignedTriggerFeeRate,
     maxTriggerFeeRate
   });
+  const shouldFundTriggerReserve = triggerReserveValue > BigInt(0);
 
   const selected = coinSelectVaultTx({
     utxosData,
     vaultOutput,
     backupOutput,
-    triggerReserveOutput,
-    triggerReserveAmount,
     changeOutput,
     packageFeeRate,
     vaultMode,
     vaultedAmount,
-    shiftFeesToBackupTx
+    shiftFeesToBackupTx,
+    ...(shouldFundTriggerReserve
+      ? { triggerReserveOutput, triggerReserveValue }
+      : {})
   });
   return {
     randomKeyExpression,
@@ -1674,7 +1691,6 @@ const buildVaultTxContext = async ({
     vaultOutput,
     backupOutput,
     triggerReserveOutput,
-    changeOutput,
     selected
   };
 };
@@ -1752,18 +1768,15 @@ export const createVault = async ({
   const vaultOutputIndex = getTargetIndex(vaultTargets, vaultOutput);
   if (vaultOutputIndex !== 0)
     throw new Error("coinselect first output should be the vault's output");
-  const backupOutputIndex = getTargetIndex(vaultTargets, backupOutput);
-  if (backupOutputIndex !== 1)
-    throw new Error('coinselect second output should be the backup output');
-  const triggerReserveOutputIndex = getTargetIndex(
-    vaultTargets,
-    triggerReserveOutput
+  getTargetIndex(vaultTargets, backupOutput); // throws if backup target is missing
+  const usesTriggerReserve = vaultTargets.some(
+    target => target.output === triggerReserveOutput
   );
-  if (triggerReserveOutputIndex !== 2)
-    throw new Error('coinselect third output should be the trigger reserve');
-  if (vaultTargets.length > 4)
+  if (vaultTargets.length > (usesTriggerReserve ? 4 : 3))
     throw new Error(
-      'coinselect outputs should be vault, backup, trigger reserve, and change at most'
+      usesTriggerReserve
+        ? 'coinselect outputs should be vault, backup, trigger reserve, and change at most'
+        : 'coinselect outputs should be vault, backup, and change at most'
     );
   const psbtVault = new Psbt({ network });
 

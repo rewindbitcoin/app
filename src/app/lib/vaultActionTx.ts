@@ -87,6 +87,36 @@ export type PreparedCpfpPlan = {
 };
 
 /**
+ * Current acceleration availability state for one already-broadcast tx.
+ */
+export type AccelerationInfo = {
+  /**
+   * The tx this helper describes has already been broadcast and is still
+   * unconfirmed.
+   */
+  isUnconfirmed: boolean;
+  /**
+   * Minimum package fee rate that improves the currently live state.
+   * Returns `null` when the helper cannot compute a valid floor yet.
+   */
+  replacementFeeRateFloor: number | null;
+  /**
+   * A valid acceleration / fee-bump path can be built right now.
+   *
+   * This is broader than funding alone. It also depends on the relevant helper
+   * being able to compute the replacement floor and satisfy the current fee
+   * constraints.
+   */
+  canAccelerate: boolean;
+  /**
+   * The non-anchor funding UTXOs needed for the fee-bump path are available.
+   * For laddered flows, this is always `true` because no extra funding UTXOs are
+   * needed.
+   */
+  hasFundingUtxos: boolean;
+};
+
+/**
  * Finds the next item with equal-or-larger fee rate.
  *
  * `sortedItems` must be sorted ascending by `feeRate`.

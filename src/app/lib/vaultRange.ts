@@ -19,7 +19,7 @@ import {
   type UtxosData,
   estimateMinimumRequiredVaultedAmount,
   getBackupFunding,
-  getRequiredTriggerReserveAmount
+  getRequiredTriggerReserveValue
 } from './vaults';
 import type { Accounts } from './wallets';
 import { toBigInt, toNumber } from './sats';
@@ -29,7 +29,7 @@ import { OP_RETURN_BACKUP_TX_VBYTES } from './vaultSizes';
 type VaultSetupEstimate = {
   packageFee: number;
   packageFeeRate: number;
-  triggerReserveAmount: number;
+  triggerReserveValue: number;
   vaultedAmount: number;
 };
 
@@ -41,7 +41,7 @@ export const estimateMaxVaultAmount = moize.shallow(
     vaultOutput,
     backupOutput,
     triggerReserveOutput,
-    triggerReserveAmount,
+    triggerReserveValue,
     changeOutput,
     vaultMode,
     packageFeeRate
@@ -50,37 +50,38 @@ export const estimateMaxVaultAmount = moize.shallow(
     vaultOutput: OutputInstance;
     backupOutput: OutputInstance;
     triggerReserveOutput: OutputInstance;
-    triggerReserveAmount: bigint;
+    triggerReserveValue: bigint;
     changeOutput: OutputInstance;
     vaultMode: 'P2A_TRUC' | 'P2A_NON_TRUC';
     packageFeeRate: number;
   }): VaultSetupEstimate | undefined => {
+    const shouldFundTriggerReserve = triggerReserveValue > BigInt(0);
     const selected = coinSelectVaultTx({
       utxosData,
       vaultOutput,
       backupOutput,
-      triggerReserveOutput,
-      triggerReserveAmount,
       changeOutput,
       packageFeeRate,
       vaultMode,
       vaultedAmount: 'MAX_FUNDS',
-      shiftFeesToBackupTx: true
+      shiftFeesToBackupTx: true,
+      ...(shouldFundTriggerReserve
+        ? { triggerReserveOutput, triggerReserveValue }
+        : {})
     });
     if (typeof selected === 'string') return;
     const finalBackupFunding = getTargetValue(selected.targets, backupOutput);
     // In this model the funded backup output later becomes the backup tx fee.
-    const finalTriggerReserveValue = getTargetValue(
-      selected.targets,
-      triggerReserveOutput
-    );
+    const finalTriggerReserveValue = shouldFundTriggerReserve
+      ? getTargetValue(selected.targets, triggerReserveOutput)
+      : BigInt(0);
     const packageFee = toNumber(selected.fee + finalBackupFunding);
     return {
       packageFee,
       packageFeeRate: Number(
         (packageFee / (selected.vsize + MAX_BACKUP_TX_VSIZE)).toFixed(2)
       ),
-      triggerReserveAmount: toNumber(finalTriggerReserveValue),
+      triggerReserveValue: toNumber(finalTriggerReserveValue),
       vaultedAmount: toNumber(getTargetValue(selected.targets, vaultOutput))
     };
   }
@@ -100,7 +101,7 @@ const estimateMinimumVaultSetup = moize.shallow(
     vaultOutput,
     backupOutput,
     triggerReserveOutput,
-    triggerReserveAmount,
+    triggerReserveValue,
     changeOutput,
     lockBlocks,
     packageFeeRate,
@@ -114,7 +115,7 @@ const estimateMinimumVaultSetup = moize.shallow(
     vaultOutput: OutputInstance;
     backupOutput: OutputInstance;
     triggerReserveOutput: OutputInstance;
-    triggerReserveAmount: bigint;
+    triggerReserveValue: bigint;
     changeOutput: OutputInstance;
     lockBlocks: number;
     packageFeeRate: number;
@@ -136,25 +137,26 @@ const estimateMinimumVaultSetup = moize.shallow(
       presignedTriggerFeeRate,
       presignedRescueFeeRate
     });
+    const shouldFundTriggerReserve = triggerReserveValue > BigInt(0);
     const selected = coinSelectVaultTx({
       utxosData,
       vaultOutput,
       backupOutput,
-      triggerReserveOutput,
-      triggerReserveAmount,
       changeOutput,
       packageFeeRate,
       vaultMode,
       vaultedAmount: toBigInt(vaultedAmount),
-      shiftFeesToBackupTx: true
+      shiftFeesToBackupTx: true,
+      ...(shouldFundTriggerReserve
+        ? { triggerReserveOutput, triggerReserveValue }
+        : {})
     });
     if (typeof selected !== 'string') {
       const finalBackupFunding = getTargetValue(selected.targets, backupOutput);
       // In this model the funded backup output later becomes the backup tx fee.
-      const finalTriggerReserveValue = getTargetValue(
-        selected.targets,
-        triggerReserveOutput
-      );
+      const finalTriggerReserveValue = shouldFundTriggerReserve
+        ? getTargetValue(selected.targets, triggerReserveOutput)
+        : BigInt(0);
       const packageFee = toNumber(selected.fee + finalBackupFunding);
       return {
         vaultedAmount,
@@ -162,7 +164,7 @@ const estimateMinimumVaultSetup = moize.shallow(
         packageFeeRate: Number(
           (packageFee / (selected.vsize + MAX_BACKUP_TX_VSIZE)).toFixed(2)
         ),
-        triggerReserveAmount: toNumber(finalTriggerReserveValue)
+        triggerReserveValue: toNumber(finalTriggerReserveValue)
       };
     } else {
       //This means it wa impossible to construct a solution with the current
@@ -185,7 +187,7 @@ const estimateMinimumVaultSetup = moize.shallow(
         packageFeeRate: Number(
           (packageFee / (vaultTxSize + MAX_BACKUP_TX_VSIZE)).toFixed(2)
         ),
-        triggerReserveAmount: toNumber(triggerReserveAmount)
+        triggerReserveValue: toNumber(triggerReserveValue)
       };
     }
   }
@@ -231,7 +233,7 @@ export const estimateVaultSetupRange = moize.shallow(
     );
     const vaultOutput = DUMMY_VAULT_OUTPUT(network);
     const triggerReserveOutput = DUMMY_TRIGGER_RESERVE_OUTPUT(network);
-    const triggerReserveAmount = getRequiredTriggerReserveAmount({
+    const triggerReserveValue = getRequiredTriggerReserveValue({
       triggerReserveOutput,
       changeOutput,
       vaultMode,
@@ -246,7 +248,7 @@ export const estimateVaultSetupRange = moize.shallow(
         vaultOutput,
         backupOutput,
         triggerReserveOutput,
-        triggerReserveAmount,
+        triggerReserveValue,
         changeOutput,
         lockBlocks,
         packageFeeRate: minimumPackageFeeRate,
@@ -259,7 +261,7 @@ export const estimateVaultSetupRange = moize.shallow(
         vaultOutput,
         backupOutput,
         triggerReserveOutput,
-        triggerReserveAmount,
+        triggerReserveValue,
         changeOutput,
         vaultMode,
         packageFeeRate: minimumPackageFeeRate
@@ -269,7 +271,7 @@ export const estimateVaultSetupRange = moize.shallow(
         vaultOutput,
         backupOutput,
         triggerReserveOutput,
-        triggerReserveAmount,
+        triggerReserveValue,
         changeOutput,
         vaultMode,
         packageFeeRate:

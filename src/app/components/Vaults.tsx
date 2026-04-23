@@ -662,27 +662,30 @@ const RawVault = ({
   const canBeRescued = isInitUnfreezeTx && !isUnfrozen && !isRescueTx;
   const canBeDelegated = isVaultTx && !isUnfrozen && !isRescueTx;
 
-  const canAccelerateTrigger = useMemo(() => {
-    if (isInitUnfreezeBeingHandled) return false;
-    return getTriggerAccelerationInfo({
+  const canOpenTriggerFeeBumpModal =
+    useMemo(() => {
+      if (isInitUnfreezeBeingHandled) return false;
+      const { isUnconfirmed, canAccelerate, hasFundingUtxos } =
+        getTriggerAccelerationInfo({
+          vault,
+          vaultStatus,
+          feeEstimates,
+          accounts,
+          networkId,
+          historyData,
+          signer: signers?.[0]
+        });
+      return isUnconfirmed && (canAccelerate || !hasFundingUtxos);
+    }, [
+      isInitUnfreezeBeingHandled,
       vault,
       vaultStatus,
       feeEstimates,
       accounts,
       networkId,
       historyData,
-      signer: signers?.[0]
-    }).canAccelerate;
-  }, [
-    isInitUnfreezeBeingHandled,
-    vault,
-    vaultStatus,
-    feeEstimates,
-    accounts,
-    networkId,
-    historyData,
-    signers
-  ]);
+      signers
+    ]);
 
   const canAccelerateRescue = useMemo(() => {
     if (isRescueBeingHandled) return false;
@@ -785,11 +788,11 @@ const RawVault = ({
     getVaultUnfrozenBalance(vault, vaultStatus, tipHeight);
   const rescuedBalance =
     tipHeight && vaultStatus && getVaultRescuedBalance(vault, vaultStatus);
-  const unfreezeReserveAmount = useMemo(() => {
+  const unfreezeReserveValue = useMemo(() => {
     if (isLadderedVault || !frozenBalance || vaultStatus?.triggerTxHex) return;
     const signer = signers?.[0];
     if (!signer) return;
-    return getP2AVaultFundingBreakdown({ vault, signer }).triggerReserveAmount;
+    return getP2AVaultFundingBreakdown({ vault, signer }).triggerReserveValue;
   }, [
     isLadderedVault,
     frozenBalance,
@@ -998,12 +1001,12 @@ const RawVault = ({
             </Text>
           </View>
         )}
-        {unfreezeReserveAmount ? (
+        {unfreezeReserveValue ? (
           <View className="w-full flex-row items-start gap-2 pt-2">
             <Text className="shrink text-slate-500 native:text-sm web:text-xs">
               {t('vaultSetup.unfreezeReserveLabel')}:{' '}
               {formatBalance({
-                satsBalance: unfreezeReserveAmount,
+                satsBalance: unfreezeReserveValue,
                 btcFiat,
                 currency,
                 locale,
@@ -1027,7 +1030,7 @@ const RawVault = ({
                   family: 'MaterialCommunityIcons'
                 }}
                 accelerateLoading={isInitUnfreezeBeingHandled}
-                {...(canAccelerateTrigger
+                {...(canOpenTriggerFeeBumpModal
                   ? { onAccelerate: handleShowInitUnfreeze }
                   : {})}
               >

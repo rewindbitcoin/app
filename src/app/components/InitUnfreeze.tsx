@@ -30,6 +30,7 @@ import { toNumber } from '../lib/sats';
 import { DUMMY_CHANGE_OUTPUT, getMainAccount } from '../lib/vaultDescriptors';
 import { type NetworkId, networkMapping } from '../lib/network';
 import {
+  type AccelerationInfo,
   findMinimumActionableFeeRate,
   findNextEqualOrLargerFeeRate,
   getCpfpReplacementFeeRateFloor,
@@ -55,6 +56,17 @@ const getLadderedTriggerSortedTxs = (vault: Vault) =>
     })
     .sort((a, b) => a.feeRate - b.feeRate);
 
+/**
+ * Returns the current acceleration state for the trigger tx.
+ *
+ * The returned fields mean:
+ * - `isUnconfirmed`: the trigger tx is already broadcast and still unconfirmed
+ * - `replacementFeeRateFloor`: the minimum package fee rate that improves the
+ *   currently live state
+ * - `canAccelerate`: a valid trigger acceleration path can be built right now
+ * - `hasFundingUtxos`: the non-anchor funding UTXOs for the trigger fee-bump
+ *   child are available
+ */
 export const getTriggerAccelerationInfo = ({
   vault,
   vaultStatus,
@@ -71,43 +83,46 @@ export const getTriggerAccelerationInfo = ({
   networkId: NetworkId | undefined;
   historyData: HistoryData | undefined;
   signer: Signer | undefined;
-}) => {
+}): AccelerationInfo => {
   const isTriggerConfirmed =
     vaultStatus?.triggerTxBlockHeight !== undefined &&
     vaultStatus.triggerTxBlockHeight > 0;
-  const isAccelerationAttempt =
+  const isUnconfirmed =
     (!!vaultStatus?.triggerPushTime ||
       vaultStatus?.triggerTxBlockHeight === 0) &&
     !isTriggerConfirmed;
-  if (!isAccelerationAttempt) {
+  if (!isUnconfirmed) {
     return {
-      isAccelerationAttempt,
+      isUnconfirmed,
       replacementFeeRateFloor: null,
-      canAccelerate: false
+      canAccelerate: false,
+      hasFundingUtxos: false
     };
   } else {
     if (!vaultStatus?.triggerTxHex) {
       throw new Error('trigger is not set');
-    } else if (!feeEstimates) {
-      return {
-        isAccelerationAttempt,
-        replacementFeeRateFloor: null,
-        canAccelerate: false
-      };
     } else if (
       !!vaultStatus.panicTxHex ||
       !!vaultStatus.panicPushTime ||
       vaultStatus.panicTxBlockHeight !== undefined
     ) {
       return {
-        isAccelerationAttempt,
+        isUnconfirmed,
         replacementFeeRateFloor: null,
-        canAccelerate: false
+        canAccelerate: false,
+        hasFundingUtxos: false
       };
     } else {
-      const maxFeeRate = computeMaxAllowedFeeRate(feeEstimates);
-
       if (getVaultMode(vault) === 'LADDERED') {
+        if (!feeEstimates) {
+          return {
+            isUnconfirmed,
+            replacementFeeRateFloor: null,
+            canAccelerate: false,
+            hasFundingUtxos: true
+          };
+        }
+        const maxFeeRate = computeMaxAllowedFeeRate(feeEstimates);
         const { tx } = transactionFromHex(vaultStatus.triggerTxHex);
         const outValue = tx.outs[0]?.value;
         if (!tx || tx.outs.length !== 1 || !outValue)
@@ -117,27 +132,30 @@ export const getTriggerAccelerationInfo = ({
           (vault.vaultedAmount - toNumber(outValue)) / tx.virtualSize() + 1;
         if (replacementFeeRateFloor > maxFeeRate) {
           return {
-            isAccelerationAttempt,
+            isUnconfirmed,
             replacementFeeRateFloor,
-            canAccelerate: false
+            canAccelerate: false,
+            hasFundingUtxos: true
           };
         } else {
           return {
-            isAccelerationAttempt,
+            isUnconfirmed,
             replacementFeeRateFloor,
             canAccelerate:
               findNextEqualOrLargerFeeRate(
                 getLadderedTriggerSortedTxs(vault),
                 replacementFeeRateFloor
-              ) !== null
+              ) !== null,
+            hasFundingUtxos: true
           };
         }
       } else {
-        if (!accounts || !networkId || !signer) {
+        if (!networkId || !signer) {
           return {
-            isAccelerationAttempt,
+            isUnconfirmed,
             replacementFeeRateFloor: null,
-            canAccelerate: false
+            canAccelerate: false,
+            hasFundingUtxos: false
           };
         } else {
           const triggerInfo = getP2ATriggerInfo(vault);
@@ -147,6 +165,23 @@ export const getTriggerAccelerationInfo = ({
             signer,
             network
           });
+          if (triggerReserveUtxosData.length === 0) {
+            return {
+              isUnconfirmed,
+              replacementFeeRateFloor: null,
+              canAccelerate: false,
+              hasFundingUtxos: false
+            };
+          }
+          if (!feeEstimates || !accounts) {
+            return {
+              isUnconfirmed,
+              replacementFeeRateFloor: null,
+              canAccelerate: false,
+              hasFundingUtxos: true
+            };
+          }
+          const maxFeeRate = computeMaxAllowedFeeRate(feeEstimates);
           const replacementFeeRateFloor = getCpfpReplacementFeeRateFloor({
             parentTxHex: triggerInfo.txHex,
             parentFee: triggerInfo.fee,
@@ -164,15 +199,17 @@ export const getTriggerAccelerationInfo = ({
 
           if (replacementFeeRateFloor === null) {
             return {
-              isAccelerationAttempt,
+              isUnconfirmed,
               replacementFeeRateFloor: null,
-              canAccelerate: false
+              canAccelerate: false,
+              hasFundingUtxos: true
             };
           } else {
             return {
-              isAccelerationAttempt,
+              isUnconfirmed,
               replacementFeeRateFloor,
-              canAccelerate: replacementFeeRateFloor <= maxFeeRate
+              canAccelerate: replacementFeeRateFloor <= maxFeeRate,
+              hasFundingUtxos: true
             };
           }
         }
@@ -214,19 +251,14 @@ const InitUnfreeze = ({
   const btcFiat = useFirstDefinedValue<number>(btcFiatRealTime);
   const feeEstimates = useFirstDefinedValue<FeeEstimates>(feeEstimatesRealTime);
   const signer = signers?.[0];
-  const { isAccelerationAttempt, replacementFeeRateFloor, canAccelerate } =
-    useMemo(
-      () =>
-        getTriggerAccelerationInfo({
-          vault,
-          vaultStatus,
-          feeEstimates,
-          accounts,
-          networkId,
-          historyData,
-          signer
-        }),
-      [
+  const {
+    isUnconfirmed,
+    replacementFeeRateFloor,
+    canAccelerate,
+    hasFundingUtxos
+  } = useMemo(
+    () =>
+      getTriggerAccelerationInfo({
         vault,
         vaultStatus,
         feeEstimates,
@@ -234,8 +266,9 @@ const InitUnfreeze = ({
         networkId,
         historyData,
         signer
-      ]
-    );
+      }),
+    [vault, vaultStatus, feeEstimates, accounts, networkId, historyData, signer]
+  );
 
   const ladderedTriggerSortedTxs = useMemo(() => {
     // This modal stays mounted so Modal can animate across isVisible changes.
@@ -270,7 +303,7 @@ const InitUnfreeze = ({
         feeEstimates,
         settings.INITIAL_CONFIRMATION_TIME
       ).feeEstimate;
-      if (!isAccelerationAttempt) return preferredNetworkFeeRate;
+      if (!isUnconfirmed) return preferredNetworkFeeRate;
       else {
         if (replacementFeeRateFloor === null) return null;
         else return Math.max(replacementFeeRateFloor, preferredNetworkFeeRate);
@@ -280,7 +313,7 @@ const InitUnfreeze = ({
     isVisible,
     feeEstimates,
     settings.INITIAL_CONFIRMATION_TIME,
-    isAccelerationAttempt,
+    isUnconfirmed,
     replacementFeeRateFloor
   ]);
 
@@ -314,6 +347,7 @@ const InitUnfreeze = ({
           signer,
           network
         });
+        if (triggerReserveUtxosData.length === 0) return null;
         const changeOutput = DUMMY_CHANGE_OUTPUT(
           getMainAccount(accounts, network),
           network
@@ -321,7 +355,7 @@ const InitUnfreeze = ({
         // Trigger fee bumping is reserve-only by design: always reuse this
         // vault's dedicated reserve UTXO as the only non-anchor input and send
         // any leftover value back through normal wallet change.
-        if (isAccelerationAttempt) {
+        if (isUnconfirmed) {
           const previousChildTxHex = vaultStatus?.triggerCpfpTxHex;
           if (!previousChildTxHex || !historyData?.length) return null;
         }
@@ -348,7 +382,7 @@ const InitUnfreeze = ({
       accounts,
       networkId,
       vault,
-      isAccelerationAttempt,
+      isUnconfirmed,
       vaultStatus?.triggerCpfpTxHex,
       historyData,
       signers
@@ -361,11 +395,11 @@ const InitUnfreeze = ({
     if (!isVisible) {
       return null;
     } else if (isLadderedVault) {
-      return isAccelerationAttempt
+      return isUnconfirmed
         ? replacementFeeRateFloor
         : (ladderedTriggerSortedTxs[0]?.feeRate ?? MIN_FEE_RATE);
     } else {
-      if (isAccelerationAttempt) {
+      if (isUnconfirmed) {
         return replacementFeeRateFloor;
       } else {
         return findMinimumActionableFeeRate({
@@ -378,7 +412,7 @@ const InitUnfreeze = ({
   }, [
     isVisible,
     isLadderedVault,
-    isAccelerationAttempt,
+    isUnconfirmed,
     replacementFeeRateFloor,
     ladderedTriggerSortedTxs,
     maxFeeRate,
@@ -392,13 +426,13 @@ const InitUnfreeze = ({
       // opening an acceleration modal that cannot proceed past the intro step.
       pickActionableInitialFeeRate({
         preferredFeeRate:
-          isAccelerationAttempt &&
+          isUnconfirmed &&
           replacementFeeRateFloor !== null &&
           replacementFeeRateFloor > maxFeeRate
             ? null
             : preferredInitialFeeRate,
         minimumActionableFeeRate:
-          isAccelerationAttempt &&
+          isUnconfirmed &&
           replacementFeeRateFloor !== null &&
           replacementFeeRateFloor > maxFeeRate
             ? null
@@ -407,7 +441,7 @@ const InitUnfreeze = ({
       }),
     [
       preferredInitialFeeRate,
-      isAccelerationAttempt,
+      isUnconfirmed,
       replacementFeeRateFloor,
       maxFeeRate,
       minimumSelectableFeeRate,
@@ -421,7 +455,7 @@ const InitUnfreeze = ({
     return buildTxDataForFeeRate(selectedFeeRate);
   }, [feeRate, initialFeeRate, buildTxDataForFeeRate]);
 
-  const canOpenFeeStep = isAccelerationAttempt
+  const canOpenFeeStep = isUnconfirmed
     ? canAccelerate
     : initialFeeRate !== null;
 
@@ -468,7 +502,7 @@ const InitUnfreeze = ({
               </Button>
               {canOpenFeeStep && (
                 <Button onPress={() => setStep('fee')}>
-                  {isAccelerationAttempt
+                  {isUnconfirmed
                     ? t('accelerateButton')
                     : t('continueButton')}
                 </Button>
@@ -486,10 +520,16 @@ const InitUnfreeze = ({
           ) : undefined
       }}
     >
-      {!feeEstimates ? (
+      {isUnconfirmed && !hasFundingUtxos ? (
+        <View>
+          <Text className="text-base text-slate-600 pb-2 px-2">
+            {t('wallet.vault.triggerUnfreeze.noReserveAvailableYet')}
+          </Text>
+        </View>
+      ) : !feeEstimates ? (
         //loading...
         <ActivityIndicator />
-      ) : isAccelerationAttempt &&
+      ) : isUnconfirmed &&
         replacementFeeRateFloor !== null &&
         replacementFeeRateFloor > maxFeeRate ? (
         //cannot RBF
@@ -501,7 +541,7 @@ const InitUnfreeze = ({
       ) : step === 'intro' ? (
         <View>
           <Text className="text-base text-slate-600 pb-2 px-2">
-            {isAccelerationAttempt
+            {isUnconfirmed
               ? t('wallet.vault.triggerUnfreeze.introAccelerate')
               : t('wallet.vault.triggerUnfreeze.intro', { timeLockTime })}
           </Text>

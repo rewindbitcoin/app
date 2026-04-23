@@ -428,14 +428,14 @@ export default function CreateVaultScreen({
 
   let vaultFundingBreakdown = null;
   if (vault && vaultTxInfo) {
-    const { vaultTxFee, backupTxCost, triggerReserveAmount } =
+    const { vaultTxFee, backupTxCost, triggerReserveValue } =
       getP2AVaultFundingBreakdown({ vault, signer });
     vaultFundingBreakdown = {
       vaultTxFee,
       backupTxCost,
-      triggerReserveAmount,
+      triggerReserveValue,
       totalTakenFromWalletNow:
-        vault.vaultedAmount + vaultTxFee + backupTxCost + triggerReserveAmount
+        vault.vaultedAmount + vaultTxFee + backupTxCost + triggerReserveValue
     };
   }
 
@@ -507,9 +507,7 @@ export default function CreateVaultScreen({
                         }
                       />
                       <Text className="text-base">
-                        {formatAmount(
-                          vaultFundingBreakdown.triggerReserveAmount
-                        )}
+                        {formatAmount(vaultFundingBreakdown.triggerReserveValue)}
                       </Text>
                     </View>
                   ) : null}
