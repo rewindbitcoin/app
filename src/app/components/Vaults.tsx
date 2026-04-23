@@ -30,7 +30,7 @@ import {
   type Vaults as VaultsType,
   createCpfpChildTx,
   getP2AVaultFundingBreakdown,
-  getTriggerReserveUtxoData,
+  getTriggerReserveUtxosData,
   getVaultFrozenBalance,
   getVaultMode,
   getRemainingBlocks,
@@ -375,7 +375,7 @@ const RawVault = ({
             if (!accounts)
               throw new Error('Wallet accounts unavailable for trigger change');
             const network = networkMapping[networkId];
-            const triggerReserveUtxoData = getTriggerReserveUtxoData({
+            const triggerReserveUtxosData = getTriggerReserveUtxosData({
               vault,
               signer,
               network
@@ -405,7 +405,7 @@ const RawVault = ({
               parentTxHex: initUnfreezeData.parentTxHex,
               parentFee: initUnfreezeData.parentTxFee,
               targetPackageFeeRate: initUnfreezeData.actionFeeRate,
-              utxosData: [triggerReserveUtxoData],
+              utxosData: triggerReserveUtxosData,
               changeOutput,
               signer,
               network

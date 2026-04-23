@@ -18,7 +18,7 @@ import {
   type Vault,
   type VaultStatus,
   estimateCpfpPackage,
-  getTriggerReserveUtxoData,
+  getTriggerReserveUtxosData,
   getVaultMode,
   type HistoryData
 } from '../lib/vaults';
@@ -142,7 +142,7 @@ export const getTriggerAccelerationInfo = ({
         } else {
           const triggerInfo = getP2ATriggerInfo(vault);
           const network = networkMapping[networkId];
-          const triggerReserveUtxoData = getTriggerReserveUtxoData({
+          const triggerReserveUtxosData = getTriggerReserveUtxosData({
             vault,
             signer,
             network
@@ -151,7 +151,7 @@ export const getTriggerAccelerationInfo = ({
             parentTxHex: triggerInfo.txHex,
             parentFee: triggerInfo.fee,
             feeEstimates,
-            utxosData: [triggerReserveUtxoData],
+            utxosData: triggerReserveUtxosData,
             childOutput: DUMMY_CHANGE_OUTPUT(
               getMainAccount(accounts, network),
               network
@@ -309,7 +309,7 @@ const InitUnfreeze = ({
         if (!networkId || !signer || !accounts) return null;
         const triggerInfo = getP2ATriggerInfo(vault);
         const network = networkMapping[networkId];
-        const triggerReserveUtxoData = getTriggerReserveUtxoData({
+        const triggerReserveUtxosData = getTriggerReserveUtxosData({
           vault,
           signer,
           network
@@ -329,7 +329,7 @@ const InitUnfreeze = ({
           parentTxHex: triggerInfo.txHex,
           parentFee: triggerInfo.fee,
           targetPackageFeeRate: selectedFeeRate,
-          utxosData: [triggerReserveUtxoData],
+          utxosData: triggerReserveUtxosData,
           changeOutput
         });
         if (!plan) return null;

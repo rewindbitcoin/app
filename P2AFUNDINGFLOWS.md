@@ -117,14 +117,15 @@ The intended simplification is:
 ### Proposed trigger top-up direction
 
 - Keep the built-in deterministic trigger reserve funded at setup.
+- Treat that built-in reserve as the first UTXO on the vault's trigger reserve
+  branch, at `/0`.
 - If that reserve later proves insufficient, the app may offer the user a way to
   add more funds to the same trigger reserve system.
 - The top-up should feed the same general trigger acceleration mechanism rather
   than introducing a separate trigger-only emergency flow.
-
-Open detail:
-- whether a trigger top-up should mean "same reserve address/path" or simply
-  "same reserve branch / reserve UTXO set"
+- Current leaning after this change:
+  - trigger top-up should mean the same reserve branch / reserve UTXO set, not
+    one forever-fixed single reserve outpoint
 
 ## Rescue Funding Today And Proposed Extension
 
@@ -268,7 +269,7 @@ Likely better approach:
 ## Open Design Questions
 
 1. Is the shared concept really "same reserve address" or "same reserve funding mechanism"?
-2. For trigger top-ups, do we reuse the exact same address/path or a reserve branch with multiple UTXOs?
+2. For trigger top-ups, how should additional UTXOs be derived and discovered on the same reserve branch?
 3. For rescue, is the reserve per vault, per rescue attempt, or per temporary emergency wallet?
 4. Must reserve top-up funds be confirmed before use?
 5. Do we want to support immediate use of newly funded reserve UTXOs as part of a larger package?

@@ -996,8 +996,9 @@ const deriveKeyExpressionAndPubKey = async ({
  * Returns the dedicated per-vault trigger reserve output funded at vault
  * creation time.
  *
- * This output is not part of normal hot-wallet discovery. It exists solely to
- * fund trigger fee-bump children for this specific vault.
+ * This is the first child on the per-vault trigger reserve branch.
+ * It is not part of normal hot-wallet discovery. It exists solely to fund
+ * trigger fee-bump children for this specific vault.
  */
 const getTriggerReserveOutput = ({
   signer,
@@ -1027,13 +1028,13 @@ const getTriggerReserveOutput = ({
 };
 
 /**
- * Returns the exact per-vault trigger reserve UTXO funded in the vault tx.
+ * Returns the currently known trigger reserve UTXOs for this vault.
  *
- * This UTXO stays outside normal hot-wallet discovery. Trigger CPFP uses only
- * this vault's dedicated reserve input and sends any leftover value back to the
- * wallet's regular change branch.
+ * Today this returns only the built-in reserve funded in the vault tx itself,
+ * which lives at `/0` on the trigger reserve branch. Future top-ups can extend
+ * this list with more reserve UTXOs from the same branch.
  */
-export const getTriggerReserveUtxoData = ({
+export const getTriggerReserveUtxosData = ({
   vault,
   signer,
   network
@@ -1055,12 +1056,14 @@ export const getTriggerReserveUtxoData = ({
   if (triggerReserveVout < 0)
     throw new Error('Trigger reserve output not found in vault tx');
 
-  return {
-    tx: vaultTx,
-    txHex: vault.vaultTxHex,
-    vout: triggerReserveVout,
-    output: triggerReserveOutput
-  };
+  return [
+    {
+      tx: vaultTx,
+      txHex: vault.vaultTxHex,
+      vout: triggerReserveVout,
+      output: triggerReserveOutput
+    }
+  ];
 };
 
 /**
@@ -1094,11 +1097,13 @@ export const getP2AVaultFundingBreakdown = ({
     })})`,
     network
   });
-  const triggerReserveUtxoData = getTriggerReserveUtxoData({
+  const [triggerReserveUtxoData] = getTriggerReserveUtxosData({
     vault,
     signer,
     network
   });
+  if (!triggerReserveUtxoData)
+    throw new Error('Trigger reserve UTXO not found for vault');
   const { tx: vaultTx } = transactionFromHex(vault.vaultTxHex);
   const backupVout = vaultTx.outs.findIndex(
     out => toHex(out.script) === toHex(backupOutput.getScriptPubKey())
