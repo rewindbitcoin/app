@@ -199,13 +199,16 @@ What it answers:
 
 ### Runtime top-up sizing question
 
-Future helper not yet designed.
+Current shared primitive:
+- `getRequiredNextReserveUtxoValue(...)`
 
 What it should answer:
 - given the current parent tx and current reserve availability, how much more
   reserve funding is needed now to reach the desired fee target
 
-These are not the same question.
+This is still not the same question as setup-time reserve sizing. The current
+trigger setup code now uses the shared primitive through a trigger-specific
+wrapper.
 
 ## Confirmed vs Unconfirmed Funding Rules
 

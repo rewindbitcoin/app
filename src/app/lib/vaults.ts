@@ -392,8 +392,106 @@ const estimateCpfpChildVSizeFromOutputs = (
   );
 };
 
-const getMinimumCpfpChildFee = (childVSize: number) =>
-  Math.ceil(childVSize * MIN_FEE_RATE);
+/**
+ * Returns the sats that must be funded into the next reserve UTXO.
+ *
+ * This is the shared reserve-sizing primitive for P2A parent+child packages.
+ * The caller provides:
+ * - the reserve UTXOs that already exist and their values
+ * - the output template for the next reserve UTXO that may be added now
+ * - the change output template of the future child
+ * - the presigned parent's size and fee rate
+ * - the target package fee rate that the full parent+child package should reach
+ *
+ * The result is the smallest value that the next reserve UTXO must carry so the
+ * package can still pay:
+ * - the parent's already baked fee
+ * - the child's own minimum relay fee
+ * - the target package fee
+ * - one spendable child change output
+ *
+ * This helper does not do coinselection across reserve UTXOs. It uses a simple
+ * model: the future child is assumed to spend all currently known reserve UTXOs
+ * plus the next reserve UTXO being sized now.
+ *
+ * If the existing reserve UTXOs already cover most of the budget, this still
+ * returns at least dust+1 for the new reserve output because creating a new UTXO
+ * below dust would be invalid.
+ */
+export const getRequiredNextReserveUtxoValue = ({
+  existingReserveOutputsWithValue,
+  nextReserveOutput,
+  changeOutput,
+  vaultMode,
+  presignedParentVSize,
+  presignedParentFeeRate,
+  targetPackageFeeRate
+}: {
+  existingReserveOutputsWithValue: Array<{
+    output: OutputInstance;
+    value: bigint;
+  }>;
+  nextReserveOutput: OutputInstance;
+  changeOutput: OutputInstance;
+  /**
+   * Structural parent mode.
+   * P2A_TRUC means v3 + 0-sat anchor, P2A_NON_TRUC means v2 + funded anchor.
+   */
+  vaultMode: 'P2A_TRUC' | 'P2A_NON_TRUC';
+  /** Virtual size of the already-presigned parent transaction. */
+  presignedParentVSize: number;
+  /** Fee rate already baked directly into the parent transaction. */
+  presignedParentFeeRate: number;
+  /**
+   * Package-feerate target that the full parent+child package should reach.
+   *
+   * In practical terms this is usually:
+   * - the current express-confirmation fee target when the app is sizing a
+   *   reserve top-up or a fee-bump child under live network conditions, or
+   * - the configured trigger package ceiling (`MAX_TRIGGER_FEERATE`) when the
+   *   app is sizing the initial built-in trigger reserve during vault setup.
+   */
+  targetPackageFeeRate: number;
+}) => {
+  const childVSize = estimateCpfpChildVSizeFromOutputs(
+    [
+      ...existingReserveOutputsWithValue.map(({ output }) => output),
+      nextReserveOutput
+    ],
+    changeOutput
+  );
+  const totalTargetFee = Math.ceil(
+    targetPackageFeeRate * (presignedParentVSize + childVSize)
+  );
+  const parentFee = Math.ceil(presignedParentVSize * presignedParentFeeRate);
+  const childFee = Math.max(
+    Math.ceil(childVSize * MIN_FEE_RATE),
+    totalTargetFee - parentFee
+  );
+  const anchorValue =
+    vaultMode === 'P2A_TRUC' ? 0 : Number(P2A_NON_TRUC_ANCHOR_VALUE);
+  const childOutputMinValue = toNumber(dustThreshold(changeOutput)) + 1;
+  const nextReserveMinValue = toNumber(dustThreshold(nextReserveOutput)) + 1;
+  const existingReserveValue = existingReserveOutputsWithValue.reduce(
+    (sum, { value }) => sum + toNumber(value),
+    0
+  );
+
+  // Value conservation for the future child is:
+  //   existingReserveValue + nextReserveValue + anchorValue
+  //     = childFee + childOutputValue
+  // and we require:
+  //   childOutputValue >= childOutputMinValue
+  // so:
+  //   nextReserveValue >=
+  //     childFee + childOutputMinValue - anchorValue - existingReserveValue
+  return toBigInt(
+    Math.max(
+      nextReserveMinValue,
+      childFee + childOutputMinValue - anchorValue - existingReserveValue
+    )
+  );
+};
 
 /**
  * Derives the sats that must be locked in the dedicated trigger reserve output.
@@ -433,49 +531,15 @@ export const getRequiredTriggerReserveAmount = ({
    */
   maxTriggerFeeRate: number;
 }) => {
-  // Model the future trigger fee-bump child as:
-  // - inputs: trigger anchor + dedicated trigger reserve UTXO
-  // - output: one normal wallet change output
-  //
-  // We size the reserve so that this child can still bring the full
-  // parent+child package up to `maxTriggerFeeRate`.
-  const childVSize = estimateCpfpChildVSizeFromOutputs(
-    [triggerReserveOutput],
-    changeOutput
-  );
-  const parentVSize = Math.max(...TRIGGER_TX_VBYTES);
-  const totalTargetFee = Math.ceil(
-    maxTriggerFeeRate * (parentVSize + childVSize)
-  );
-  const parentFee = Number(
-    getPresignedTriggerParentFee(presignedTriggerFeeRate)
-  );
-  const childFee = Math.max(
-    getMinimumCpfpChildFee(childVSize),
-    totalTargetFee - parentFee
-  );
-
-  // The child gets some value for free from the trigger anchor. In
-  // P2A_NON_TRUC this is 330 sats, while P2A_TRUC anchors are 0-sat.
-  const anchorValue =
-    vaultMode === 'P2A_TRUC' ? 0 : Number(P2A_NON_TRUC_ANCHOR_VALUE);
-
-  // The child's wallet change output must remain spendable after paying fees.
-  const childOutputMinValue = toNumber(dustThreshold(changeOutput)) + 1;
-
-  // The reserve output itself also has to stay above dust when it is created in
-  // the vault tx, even if the required fee bump would be smaller.
-  const reserveMinValue = toNumber(dustThreshold(triggerReserveOutput)) + 1;
-
-  // Value conservation for the future child is:
-  //   reserveValue + anchorValue = childFee + childOutputValue
-  // and we require:
-  //   childOutputValue >= childOutputMinValue
-  // so:
-  //   reserveValue >= childFee + childOutputMinValue - anchorValue
-  return toBigInt(
-    Math.max(reserveMinValue, childFee + childOutputMinValue - anchorValue)
-  );
+  return getRequiredNextReserveUtxoValue({
+    existingReserveOutputsWithValue: [],
+    nextReserveOutput: triggerReserveOutput,
+    changeOutput,
+    vaultMode,
+    presignedParentVSize: Math.max(...TRIGGER_TX_VBYTES),
+    presignedParentFeeRate: presignedTriggerFeeRate,
+    targetPackageFeeRate: maxTriggerFeeRate
+  });
 };
 
 /**
@@ -533,7 +597,7 @@ export const estimateCpfpPackage = ({
   // The package target alone is not enough. The child must also satisfy its own
   // tx-level minimum relay fee or package submission is rejected by the node.
   const childFee = Math.max(
-    getMinimumCpfpChildFee(childVSize),
+    Math.ceil(childVSize * MIN_FEE_RATE),
     totalTargetFee - parentFee
   );
   const childOutputValue = anchor.value + utxosValue - childFee;
