@@ -385,6 +385,32 @@ encrypted copy of that vault's trigger and rescue transactions.
 
 This is the backup output added directly to the vault tx.
 
+### Why the setup screen minimum fee rate is around 0.3 / 0.4
+
+Users may notice that the setup screen does not let the fee slider go down to
+`0.1 sat/vB`, even though `0.1 sat/vB` is still the relay floor used by the
+code.
+
+The reason is simple:
+
+- the backup tx is designed without change output
+- this avoids creating tiny dusty outputs just for the backup path
+- because of that, the amount funded into the backup output later becomes the
+  backup tx fee itself
+
+That backup output must already be above dust when the vault tx is created.
+So even if the vault tx pays the minimum parent fee possible (`0` for TRUC, a
+small fee for NON_TRUC), the backup side already forces a noticeably higher real
+package fee rate than `0.1 sat/vB`.
+
+In plain language:
+
+- `0.1 sat/vB` is only the low target floor
+- the smallest package the wallet can really build is usually closer to
+  `0.3-0.4 sat/vB`
+- the setup screen therefore shows the real minimum buildable package fee rate,
+  not the abstract relay floor
+
 ## Why trigger and rescue are treated differently
 
 This is a deliberate design choice.
