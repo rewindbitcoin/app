@@ -23,6 +23,8 @@
 //done with the requested fee rate. not the absolute fee computed, since the
 //signatures sizes will change after signing. vsize assumes signatures of 72
 //bytes but they can also be 71
+//FIXME: what if the reserve cannot provide enough funds to trigger the
+//tx? does the app provide a way to add funds or use internal utxos?
 const PUSH_TIMEOUT = 30 * 60; // 30 minutes
 
 import { type Network, type Transaction, Psbt } from 'bitcoinjs-lib';
@@ -1142,7 +1144,7 @@ const getPresignedRescueParentFee = (presignedRescueFeeRate: number) =>
  * In the current backup model, `backupFunding` later equals the backup tx fee
  * itself because the backup tx only creates an OP_RETURN output.
  *
- * When `shiftFeesToBackupEnd` is enabled, the returned `selected` object is
+ * When `shiftFeesToBackupTx` is enabled, the returned `selected` object is
  * already adjusted to the final post-shift state: its backup target value is
  * the final backup fee budget and its `fee` is the final vault-tx fee.
  */
@@ -1157,7 +1159,7 @@ export const coinSelectVaultTx = moize.shallow(
     packageFeeRate,
     vaultMode,
     vaultedAmount,
-    shiftFeesToBackupEnd
+    shiftFeesToBackupTx
   }: {
     utxosData: UtxosData;
     vaultOutput: OutputInstance;
@@ -1168,9 +1170,9 @@ export const coinSelectVaultTx = moize.shallow(
     packageFeeRate: number;
     vaultMode: 'P2A_TRUC' | 'P2A_NON_TRUC';
     vaultedAmount: bigint | 'MAX_FUNDS';
-    shiftFeesToBackupEnd: boolean;
+    shiftFeesToBackupTx: boolean;
   }) => {
-    if (!shiftFeesToBackupEnd) {
+    if (!shiftFeesToBackupTx) {
       return regularCoinSelectVaultTx({
         utxosData,
         vaultOutput,
@@ -1511,12 +1513,12 @@ const regularCoinSelectVaultTx = ({
  * for the requested vaulted amount.
  *
  * The `packageFeeRate` parameter is the user-selected fee-rate target. The
- * vault tx is first built at that rate. If `shiftFeesToBackupEnd` is enabled,
+ * vault tx is first built at that rate. If `shiftFeesToBackupTx` is enabled,
  * any vault-tx fee above the minimum parent fee for that vault kind (`0` for
  * P2A_TRUC, `0.1 sat/vB` for P2A_NON_TRUC`) is moved into the backup output
  * while keeping the selected inputs, change, and tx shape unchanged.
  */
-export const buildVaultTxContext = async ({
+const buildVaultTxContext = async ({
   signer,
   randomSigner,
   changeDescriptorWithIndex,
@@ -1527,7 +1529,7 @@ export const buildVaultTxContext = async ({
   packageFeeRate,
   utxosData,
   vaultedAmount,
-  shiftFeesToBackupEnd,
+  shiftFeesToBackupTx,
   network
 }: {
   signer: Signer;
@@ -1546,7 +1548,7 @@ export const buildVaultTxContext = async ({
   packageFeeRate: number;
   vaultedAmount: bigint | 'MAX_FUNDS';
   utxosData: UtxosData;
-  shiftFeesToBackupEnd: boolean;
+  shiftFeesToBackupTx: boolean;
   network: Network;
 }) => {
   const { Output } = ensureDescriptorsFactoryInstance();
@@ -1595,7 +1597,7 @@ export const buildVaultTxContext = async ({
     packageFeeRate,
     vaultMode,
     vaultedAmount,
-    shiftFeesToBackupEnd
+    shiftFeesToBackupTx
   });
   return {
     randomKeyExpression,
@@ -1623,7 +1625,7 @@ export const createVault = async ({
   changeDescriptorWithIndex,
   vaultIndex,
   vaultMode,
-  shiftFeesToBackupEnd,
+  shiftFeesToBackupTx,
   networkId
 }: {
   vaultedAmount: bigint;
@@ -1649,7 +1651,7 @@ export const createVault = async ({
    * P2A_TRUC means v3 + 0-sat anchor, P2A_NON_TRUC means v2 + funded anchor.
    */
   vaultMode: 'P2A_TRUC' | 'P2A_NON_TRUC';
-  shiftFeesToBackupEnd: boolean;
+  shiftFeesToBackupTx: boolean;
   networkId: NetworkId;
 }) => {
   const network = networkMapping[networkId];
@@ -1671,7 +1673,7 @@ export const createVault = async ({
     packageFeeRate,
     utxosData,
     vaultedAmount,
-    shiftFeesToBackupEnd,
+    shiftFeesToBackupTx,
     network
   });
   const { Output, parseKeyExpression } = ensureDescriptorsFactoryInstance();

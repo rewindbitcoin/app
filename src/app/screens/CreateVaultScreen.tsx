@@ -353,7 +353,7 @@ export default function CreateVaultScreen({
         vaultIndex: nextVaultP2PData.nextVaultIndex, //FIXME: TAG:ifrubr43fre -> this is only correct as long as we keep backing up in P2P in addition to onchain, otherwiser we'll need to also retrieve the nextIndex from the onChainBackupDescriptor and find out the Max between onChainBackupDescriptorNextIndex and nextVaultP2PData.nextVaultIndex.
         // Also assert that onChainBackupDescriptorNextIndex === 0 || onChainBackupDescriptorNextIndex > nextVaultP2PData.nextVaultIndex
         vaultMode,
-        shiftFeesToBackupEnd: true,
+        shiftFeesToBackupTx: true,
         networkId
       });
       if (!shouldContinueCreate()) return;

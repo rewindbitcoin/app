@@ -488,7 +488,7 @@ export default function VaultSetUp({
         packageFeeRate,
         vaultMode,
         vaultedAmount: toBigInt(vaultedAmount),
-        shiftFeesToBackupEnd: true
+        shiftFeesToBackupTx: true
       });
       if (typeof selected !== 'string') {
         const finalBackupFunding = getTargetValue(
