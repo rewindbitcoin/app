@@ -1171,21 +1171,18 @@ export const coinSelectVaultTx = moize.shallow(
     shiftFeesToBackupEnd: boolean;
   }) => {
     if (!shiftFeesToBackupEnd) {
-      const backupFunding = getBackupFunding(packageFeeRate, backupOutput);
-      const selected = regularCoinSelectVaultTx({
+      return regularCoinSelectVaultTx({
         utxosData,
         vaultOutput,
         backupOutput,
         triggerReserveOutput,
         triggerReserveAmount,
-        backupFunding,
+        backupFunding: getBackupFunding(packageFeeRate, backupOutput),
         changeOutput,
         feeRate: packageFeeRate,
         minimumFeeRate: MIN_FEE_RATE,
         vaultedAmount
       });
-      if (typeof selected === 'string') return selected; //Forward errors
-      return selected;
     } else {
       const minimumVaultTxFeeRate = getMinimumVaultTxFeeRate(vaultMode); //0 || 0.1
       if (packageFeeRate < minimumVaultTxFeeRate)
