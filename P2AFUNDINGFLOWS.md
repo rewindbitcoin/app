@@ -59,7 +59,8 @@ These points are verified from the current code.
 - Trigger acceleration is reserve-only.
 - The current trigger CPFP plan uses:
   - the trigger P2A anchor
-  - that vault's dedicated trigger reserve UTXO
+  - that vault's trigger reserve UTXO set, which today contains only the
+    built-in reserve funded at setup
 - It does not coinselect generic wallet UTXOs for trigger acceleration.
 - Any leftover value from the child returns through normal wallet change.
 
@@ -85,14 +86,17 @@ These points are verified from the current code.
 These assumptions are important because future top-up flows will break them if
 we do not change them deliberately.
 
-- `getTriggerReserveOutput(...)` assumes one deterministic per-vault trigger reserve output.
-- `getTriggerReserveUtxoData(...)` assumes the reserve UTXO is the one funded in the vault tx itself.
+- `getTriggerReserveOutput(...)` derives the built-in `/0` reserve output on the
+  per-vault trigger reserve branch.
+- `getTriggerReserveUtxosData(...)` now exposes a reserve UTXO set, but today it
+  still returns only the built-in reserve funded in the vault tx itself.
 - `getP2AVaultFundingBreakdown(...)` reconstructs the backup output and trigger reserve output from the vault tx.
 - `coinSelectVaultTx(...)` always funds one backup output and one trigger reserve output during setup.
-- `getRequiredTriggerReserveAmount(...)` answers a setup-time question, not a runtime top-up question.
+- `getRequiredTriggerReserveAmount(...)` is now a trigger-specific setup wrapper
+  around the shared runtime reserve-sizing primitive.
 
-In other words: current code thinks in terms of one built-in trigger reserve UTXO,
-not a reserve UTXO set.
+In other words: current code now exposes a reserve UTXO set, but the only known
+member today is still the built-in `/0` reserve funded in the vault tx.
 
 ## Current Design Direction
 
@@ -110,7 +114,8 @@ The intended simplification is:
 
 ### Current trigger reserve
 
-- Each vault gets a deterministic per-vault reserve output at setup time.
+- Each vault gets a deterministic per-vault reserve branch, and today setup
+  funds only the first reserve output on that branch.
 - It lives on its own reserve path, not on the ordinary hot-wallet spending path.
 - It is funded up front so trigger can be accelerated later without relying on unrelated wallet funds.
 
