@@ -71,6 +71,8 @@ const InitUnfreeze = ({
   const btcFiat = useFirstDefinedValue<number>(btcFiatRealTime);
   const feeEstimates = useFirstDefinedValue<FeeEstimates>(feeEstimatesRealTime);
   const signer = signers?.[0];
+  const triggerCpfpTxHex = vaultStatus?.triggerCpfpTxHex;
+  const triggerTxHex = vaultStatus?.triggerTxHex;
   const p2aTriggerInfo = useMemo(
     () => (isLadderedVault ? undefined : getP2ATriggerInfo(vault)),
     [isLadderedVault, vault]
@@ -99,9 +101,7 @@ const InitUnfreeze = ({
         network
       ),
       signer,
-      ...(vaultStatus?.triggerCpfpTxHex
-        ? { previousChildTxHex: vaultStatus.triggerCpfpTxHex }
-        : {})
+      ...(triggerCpfpTxHex ? { previousChildTxHex: triggerCpfpTxHex } : {})
     };
   }, [
     isLadderedVault,
@@ -110,7 +110,7 @@ const InitUnfreeze = ({
     accounts,
     p2aTriggerInfo,
     vault,
-    vaultStatus?.triggerCpfpTxHex
+    triggerCpfpTxHex
   ]);
   const presignedTxs = useMemo(
     () =>
@@ -132,7 +132,7 @@ const InitUnfreeze = ({
             vaultMode,
             feeEstimates,
             historyData,
-            pushedTxHex: vaultStatus?.triggerTxHex,
+            pushedTxHex: triggerTxHex,
             presignedTxs,
             bumpPlan
           })
@@ -142,7 +142,7 @@ const InitUnfreeze = ({
       feeEstimates,
       historyData,
       isPushedButUnconfirmed,
-      vaultStatus?.triggerTxHex,
+      triggerTxHex,
       presignedTxs,
       bumpPlan
     ]
