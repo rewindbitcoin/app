@@ -100,7 +100,7 @@ const Rescue = ({
       feeEstimates,
       pushedTxHex,
       presignedTxs,
-      bumpPlan,
+      ...(bumpPlan ? { bumpPlan } : {}),
       ...(historyData ? { historyData } : {})
     });
   }, [

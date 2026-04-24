@@ -740,7 +740,7 @@ const RawVault = ({
       feeEstimates,
       pushedTxHex,
       presignedTxs: triggerPresignedTxs,
-      bumpPlan: triggerBumpPlan,
+      ...(triggerBumpPlan ? { bumpPlan: triggerBumpPlan } : {}),
       ...(historyData ? { historyData } : {})
     });
     if (isLadderedVault) return hasAccelerationPath;
@@ -771,7 +771,6 @@ const RawVault = ({
       feeEstimates,
       pushedTxHex,
       presignedTxs: rescuePresignedTxs,
-      bumpPlan: undefined,
       ...(historyData ? { historyData } : {})
     }).hasAccelerationPath;
   }, [

@@ -133,7 +133,7 @@ const InitUnfreeze = ({
       feeEstimates,
       pushedTxHex: triggerTxHex,
       presignedTxs,
-      bumpPlan,
+      ...(bumpPlan ? { bumpPlan } : {}),
       ...(historyData ? { historyData } : {})
     });
   }, [

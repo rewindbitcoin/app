@@ -184,8 +184,8 @@ export const getActionAccelerationInfo = ({
   pushedTxHex: TxHex;
   /** Pre-signed parent tx choices. P2A has one item; laddered has many. */
   presignedTxs: PresignedTxInfo[];
-  /** P2A CPFP plan. Undefined means a child cannot be built yet. */
-  bumpPlan: PreparedCpfpPlan | undefined;
+  /** P2A CPFP plan. Omitted when a child cannot be built yet. */
+  bumpPlan?: PreparedCpfpPlan;
 }): AccelerationInfo => {
   const maxFeeRate = computeMaxAllowedFeeRate(feeEstimates);
   if (vaultMode === 'LADDERED') {
