@@ -130,10 +130,10 @@ const InitUnfreeze = ({
     return getActionAccelerationInfo({
       vaultMode,
       feeEstimates,
-      historyData,
       pushedTxHex: triggerTxHex,
       presignedTxs,
-      bumpPlan
+      bumpPlan,
+      ...(historyData ? { historyData } : {})
     });
   }, [
     vaultMode,

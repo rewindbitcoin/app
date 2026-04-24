@@ -172,7 +172,8 @@ export const getActionAccelerationInfo = ({
 }: {
   vaultMode: 'LADDERED' | 'P2A_TRUC' | 'P2A_NON_TRUC';
   feeEstimates: FeeEstimates;
-  historyData: HistoryData | undefined;
+  /** Required only when replacing an existing CPFP child. */
+  historyData?: HistoryData;
   /**
    * Hex of the action tx that status currently says was pushed/live. The caller
    * only provides this while that action tx is still unconfirmed.
@@ -217,6 +218,8 @@ export const getActionAccelerationInfo = ({
       replacementFeeRateFloor: null,
       hasAccelerationPath: false
     };
+  if (bumpPlan.previousChildTxHex && !historyData?.length)
+    throw new Error('historyData must be present when replacing a CPFP child');
 
   const parentTx = presignedTxs[0];
   if (!parentTx) throw new Error('Missing P2A action tx');

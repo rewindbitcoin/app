@@ -96,10 +96,10 @@ const Rescue = ({
     return getActionAccelerationInfo({
       vaultMode,
       feeEstimates,
-      historyData,
       pushedTxHex: vaultStatus?.panicTxHex,
       presignedTxs,
-      bumpPlan
+      bumpPlan,
+      ...(historyData ? { historyData } : {})
     });
   }, [
     vaultMode,

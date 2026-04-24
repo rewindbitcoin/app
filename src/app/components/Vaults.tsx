@@ -736,10 +736,10 @@ const RawVault = ({
     const { hasAccelerationPath } = getActionAccelerationInfo({
       vaultMode,
       feeEstimates,
-      historyData,
       pushedTxHex: vaultStatus?.triggerTxHex,
       presignedTxs: triggerPresignedTxs,
-      bumpPlan: triggerBumpPlan
+      bumpPlan: triggerBumpPlan,
+      ...(historyData ? { historyData } : {})
     });
     if (isLadderedVault) return hasAccelerationPath;
     return hasAccelerationPath;
@@ -765,10 +765,10 @@ const RawVault = ({
     return getActionAccelerationInfo({
       vaultMode,
       feeEstimates,
-      historyData,
       pushedTxHex: vaultStatus?.panicTxHex,
       presignedTxs: rescuePresignedTxs,
-      bumpPlan: undefined
+      bumpPlan: undefined,
+      ...(historyData ? { historyData } : {})
     }).hasAccelerationPath;
   }, [
     isRescueBeingHandled,
