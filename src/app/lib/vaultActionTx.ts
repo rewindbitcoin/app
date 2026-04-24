@@ -91,10 +91,9 @@ export type PreparedCpfpPlan = {
  */
 export type AccelerationInfo = {
   /**
-   * The tx this helper describes has already been broadcast and is still
-   * unconfirmed.
+   * The tx this helper describes was pushed and is still unconfirmed.
    */
-  isUnconfirmed: boolean;
+  isPushedButUnconfirmed: boolean;
   /**
    * Minimum package fee rate that improves the currently live state.
    * Returns `null` when the helper cannot compute a valid floor yet.

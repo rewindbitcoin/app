@@ -67,7 +67,11 @@ import {
 } from '../lib/watchtower';
 import SkeletonPulse from './SkeletonPulse';
 import { networkMapping } from '../lib/network';
-import { computeChangeOutput } from '../lib/vaultDescriptors';
+import {
+  computeChangeOutput,
+  DUMMY_CHANGE_OUTPUT,
+  getMainAccount
+} from '../lib/vaultDescriptors';
 import useFirstDefinedValue from '~/common/hooks/useFirstDefinedValue';
 
 const LOADING_TEXT = '     ';
@@ -314,6 +318,7 @@ const RawVault = ({
     pushTxPackage
   } = useWallet();
   const feeEstimates = useFirstDefinedValue(feeEstimatesRealTime);
+  const walletSigner = signers?.[0];
 
   const [showInitUnfreeze, setShowInitUnfreeze] = useState<boolean>(false);
   const handleCloseInitUnfreeze = useCallback(
@@ -494,10 +499,7 @@ const RawVault = ({
   const handleCloseRescue = useCallback(() => setShowRescue(false), []);
   const handleShowRescue = useCallback(() => setShowRescue(true), []);
   const handleRescue = useCallback(
-    async (
-      rescueData: VaultActionTxData,
-      emergencyBumpPlan?: PreparedCpfpPlan
-    ) => {
+    async (rescueData: VaultActionTxData, bumpPlan?: PreparedCpfpPlan) => {
       batchedUpdates(() => {
         setShowRescue(false);
         setIsRescueBeingHandled(true);
@@ -516,8 +518,7 @@ const RawVault = ({
             }
 
             const shouldBuildCpfp =
-              !!emergencyBumpPlan &&
-              rescueData.actionFee > rescueData.parentTxFee;
+              !!bumpPlan && rescueData.actionFee > rescueData.parentTxFee;
             // Rescue never falls back to normal wallet UTXOs. If the presigned
             // parent fee is not enough, the only supported bump path is an
             // explicit external emergency bump plan.
@@ -539,9 +540,9 @@ const RawVault = ({
               parentTxHex: rescueData.parentTxHex,
               parentFee: rescueData.parentTxFee,
               targetPackageFeeRate: rescueData.actionFeeRate,
-              utxosData: emergencyBumpPlan.utxosData,
-              changeOutput: emergencyBumpPlan.changeOutput,
-              signer: emergencyBumpPlan.signer,
+              utxosData: bumpPlan.utxosData,
+              changeOutput: bumpPlan.changeOutput,
+              signer: bumpPlan.signer,
               network
             });
             if (!childTxData)
@@ -662,30 +663,45 @@ const RawVault = ({
   const canBeRescued = isInitUnfreezeTx && !isUnfrozen && !isRescueTx;
   const canBeDelegated = isVaultTx && !isUnfrozen && !isRescueTx;
 
-  const canOpenTriggerFeeBumpModal =
-    useMemo(() => {
-      if (isInitUnfreezeBeingHandled) return false;
-      const { isUnconfirmed, canAccelerate, hasFundingUtxos } =
-        getTriggerAccelerationInfo({
-          vault,
-          vaultStatus,
-          feeEstimates,
-          accounts,
-          networkId,
-          historyData,
-          signer: signers?.[0]
-        });
-      return isUnconfirmed && (canAccelerate || !hasFundingUtxos);
-    }, [
-      isInitUnfreezeBeingHandled,
+  // Fee-bump availability can use a dummy change output; broadcast uses fresh change.
+  const triggerBumpPlan = useMemo<PreparedCpfpPlan | undefined>(() => {
+    if (isLadderedVault || !networkId || !walletSigner || !accounts) return;
+    const network = networkMapping[networkId];
+    const utxosData = getTriggerReserveUtxosData({
       vault,
-      vaultStatus,
-      feeEstimates,
-      accounts,
-      networkId,
-      historyData,
-      signers
-    ]);
+      signer: walletSigner,
+      network
+    });
+    if (utxosData.length === 0) return;
+    return {
+      utxosData,
+      changeOutput: DUMMY_CHANGE_OUTPUT(
+        getMainAccount(accounts, network),
+        network
+      ),
+      signer: walletSigner
+    };
+  }, [isLadderedVault, networkId, walletSigner, accounts, vault]);
+
+  const canOpenTriggerFeeBumpModal = useMemo(() => {
+    if (isInitUnfreezeBeingHandled) return false;
+    const { isPushedButUnconfirmed, canAccelerate, hasFundingUtxos } =
+      getTriggerAccelerationInfo({
+        vault,
+        vaultStatus,
+        feeEstimates,
+        historyData,
+        bumpPlan: triggerBumpPlan
+      });
+    return isPushedButUnconfirmed && (canAccelerate || !hasFundingUtxos);
+  }, [
+    isInitUnfreezeBeingHandled,
+    vault,
+    vaultStatus,
+    feeEstimates,
+    historyData,
+    triggerBumpPlan
+  ]);
 
   const canAccelerateRescue = useMemo(() => {
     if (isRescueBeingHandled) return false;
@@ -694,7 +710,7 @@ const RawVault = ({
       vaultStatus,
       feeEstimates,
       historyData,
-      emergencyBumpPlan: undefined
+      bumpPlan: undefined
     }).canAccelerate;
   }, [isRescueBeingHandled, vault, vaultStatus, feeEstimates, historyData]);
 

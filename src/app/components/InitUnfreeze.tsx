@@ -28,16 +28,16 @@ import useFirstDefinedValue from '~/common/hooks/useFirstDefinedValue';
 import { useLocalization } from '../hooks/useLocalization';
 import { toNumber } from '../lib/sats';
 import { DUMMY_CHANGE_OUTPUT, getMainAccount } from '../lib/vaultDescriptors';
-import { type NetworkId, networkMapping } from '../lib/network';
+import { networkMapping } from '../lib/network';
 import {
   type AccelerationInfo,
   findMinimumActionableFeeRate,
   findNextEqualOrLargerFeeRate,
   getCpfpReplacementFeeRateFloor,
   pickActionableInitialFeeRate,
+  type PreparedCpfpPlan,
   type VaultActionTxData
 } from '../lib/vaultActionTx';
-import { type Accounts, type Signer } from '../lib/wallets';
 
 const getP2ATriggerInfo = (vault: Vault) => {
   const txHex = Object.keys(vault.triggerMap)[0];
@@ -60,7 +60,7 @@ const getLadderedTriggerSortedTxs = (vault: Vault) =>
  * Returns the current acceleration state for the trigger tx.
  *
  * The returned fields mean:
- * - `isUnconfirmed`: the trigger tx is already broadcast and still unconfirmed
+ * - `isPushedButUnconfirmed`: the trigger tx was pushed and is still unconfirmed
  * - `replacementFeeRateFloor`: the minimum package fee rate that improves the
  *   currently live state
  * - `canAccelerate`: a valid trigger acceleration path can be built right now
@@ -71,29 +71,23 @@ export const getTriggerAccelerationInfo = ({
   vault,
   vaultStatus,
   feeEstimates,
-  accounts,
-  networkId,
   historyData,
-  signer
+  bumpPlan
 }: {
   vault: Vault;
   vaultStatus: VaultStatus | undefined;
   feeEstimates: FeeEstimates | undefined;
-  accounts: Accounts | undefined;
-  networkId: NetworkId | undefined;
   historyData: HistoryData | undefined;
-  signer: Signer | undefined;
+  /** Trigger reserve CPFP plan. Undefined means the child cannot be built yet. */
+  bumpPlan: PreparedCpfpPlan | undefined;
 }): AccelerationInfo => {
-  const isTriggerConfirmed =
-    vaultStatus?.triggerTxBlockHeight !== undefined &&
-    vaultStatus.triggerTxBlockHeight > 0;
-  const isUnconfirmed =
-    (!!vaultStatus?.triggerPushTime ||
-      vaultStatus?.triggerTxBlockHeight === 0) &&
-    !isTriggerConfirmed;
-  if (!isUnconfirmed) {
+  const isPushedButUnconfirmed =
+    vaultStatus?.triggerTxBlockHeight !== undefined
+      ? vaultStatus.triggerTxBlockHeight === 0
+      : !!vaultStatus?.triggerPushTime;
+  if (!isPushedButUnconfirmed) {
     return {
-      isUnconfirmed,
+      isPushedButUnconfirmed,
       replacementFeeRateFloor: null,
       canAccelerate: false,
       hasFundingUtxos: false
@@ -107,7 +101,7 @@ export const getTriggerAccelerationInfo = ({
       vaultStatus.panicTxBlockHeight !== undefined
     ) {
       return {
-        isUnconfirmed,
+        isPushedButUnconfirmed,
         replacementFeeRateFloor: null,
         canAccelerate: false,
         hasFundingUtxos: false
@@ -116,7 +110,7 @@ export const getTriggerAccelerationInfo = ({
       if (getVaultMode(vault) === 'LADDERED') {
         if (!feeEstimates) {
           return {
-            isUnconfirmed,
+            isPushedButUnconfirmed,
             replacementFeeRateFloor: null,
             canAccelerate: false,
             hasFundingUtxos: true
@@ -132,14 +126,14 @@ export const getTriggerAccelerationInfo = ({
           (vault.vaultedAmount - toNumber(outValue)) / tx.virtualSize() + 1;
         if (replacementFeeRateFloor > maxFeeRate) {
           return {
-            isUnconfirmed,
+            isPushedButUnconfirmed,
             replacementFeeRateFloor,
             canAccelerate: false,
             hasFundingUtxos: true
           };
         } else {
           return {
-            isUnconfirmed,
+            isPushedButUnconfirmed,
             replacementFeeRateFloor,
             canAccelerate:
               findNextEqualOrLargerFeeRate(
@@ -150,32 +144,18 @@ export const getTriggerAccelerationInfo = ({
           };
         }
       } else {
-        if (!networkId || !signer) {
+        if (!bumpPlan || bumpPlan.utxosData.length === 0) {
           return {
-            isUnconfirmed,
+            isPushedButUnconfirmed,
             replacementFeeRateFloor: null,
             canAccelerate: false,
             hasFundingUtxos: false
           };
         } else {
           const triggerInfo = getP2ATriggerInfo(vault);
-          const network = networkMapping[networkId];
-          const triggerReserveUtxosData = getTriggerReserveUtxosData({
-            vault,
-            signer,
-            network
-          });
-          if (triggerReserveUtxosData.length === 0) {
+          if (!feeEstimates) {
             return {
-              isUnconfirmed,
-              replacementFeeRateFloor: null,
-              canAccelerate: false,
-              hasFundingUtxos: false
-            };
-          }
-          if (!feeEstimates || !accounts) {
-            return {
-              isUnconfirmed,
+              isPushedButUnconfirmed,
               replacementFeeRateFloor: null,
               canAccelerate: false,
               hasFundingUtxos: true
@@ -186,11 +166,8 @@ export const getTriggerAccelerationInfo = ({
             parentTxHex: triggerInfo.txHex,
             parentFee: triggerInfo.fee,
             feeEstimates,
-            utxosData: triggerReserveUtxosData,
-            childOutput: DUMMY_CHANGE_OUTPUT(
-              getMainAccount(accounts, network),
-              network
-            ),
+            utxosData: bumpPlan.utxosData,
+            childOutput: bumpPlan.changeOutput,
             ...(historyData ? { historyData } : {}),
             ...(vaultStatus.triggerCpfpTxHex
               ? { childTxHex: vaultStatus.triggerCpfpTxHex }
@@ -199,14 +176,14 @@ export const getTriggerAccelerationInfo = ({
 
           if (replacementFeeRateFloor === null) {
             return {
-              isUnconfirmed,
+              isPushedButUnconfirmed,
               replacementFeeRateFloor: null,
               canAccelerate: false,
               hasFundingUtxos: true
             };
           } else {
             return {
-              isUnconfirmed,
+              isPushedButUnconfirmed,
               replacementFeeRateFloor,
               canAccelerate: replacementFeeRateFloor <= maxFeeRate,
               hasFundingUtxos: true
@@ -251,8 +228,27 @@ const InitUnfreeze = ({
   const btcFiat = useFirstDefinedValue<number>(btcFiatRealTime);
   const feeEstimates = useFirstDefinedValue<FeeEstimates>(feeEstimatesRealTime);
   const signer = signers?.[0];
+  // Estimates can use a dummy change output; broadcast builds fresh wallet change.
+  const bumpPlan = useMemo<PreparedCpfpPlan | undefined>(() => {
+    if (isLadderedVault || !networkId || !signer || !accounts) return;
+    const network = networkMapping[networkId];
+    const utxosData = getTriggerReserveUtxosData({
+      vault,
+      signer,
+      network
+    });
+    if (utxosData.length === 0) return;
+    return {
+      utxosData,
+      changeOutput: DUMMY_CHANGE_OUTPUT(
+        getMainAccount(accounts, network),
+        network
+      ),
+      signer
+    };
+  }, [isLadderedVault, networkId, signer, accounts, vault]);
   const {
-    isUnconfirmed,
+    isPushedButUnconfirmed,
     replacementFeeRateFloor,
     canAccelerate,
     hasFundingUtxos
@@ -262,12 +258,10 @@ const InitUnfreeze = ({
         vault,
         vaultStatus,
         feeEstimates,
-        accounts,
-        networkId,
         historyData,
-        signer
+        bumpPlan
       }),
-    [vault, vaultStatus, feeEstimates, accounts, networkId, historyData, signer]
+    [vault, vaultStatus, feeEstimates, historyData, bumpPlan]
   );
 
   const ladderedTriggerSortedTxs = useMemo(() => {
@@ -303,7 +297,7 @@ const InitUnfreeze = ({
         feeEstimates,
         settings.INITIAL_CONFIRMATION_TIME
       ).feeEstimate;
-      if (!isUnconfirmed) return preferredNetworkFeeRate;
+      if (!isPushedButUnconfirmed) return preferredNetworkFeeRate;
       else {
         if (replacementFeeRateFloor === null) return null;
         else return Math.max(replacementFeeRateFloor, preferredNetworkFeeRate);
@@ -313,7 +307,7 @@ const InitUnfreeze = ({
     isVisible,
     feeEstimates,
     settings.INITIAL_CONFIRMATION_TIME,
-    isUnconfirmed,
+    isPushedButUnconfirmed,
     replacementFeeRateFloor
   ]);
 
@@ -338,24 +332,12 @@ const InitUnfreeze = ({
           actionFeeRate: triggerInfo.feeRate
         };
       } else {
-        const signer = signers?.[0];
-        if (!networkId || !signer || !accounts) return null;
+        if (!bumpPlan) return null;
         const triggerInfo = getP2ATriggerInfo(vault);
-        const network = networkMapping[networkId];
-        const triggerReserveUtxosData = getTriggerReserveUtxosData({
-          vault,
-          signer,
-          network
-        });
-        if (triggerReserveUtxosData.length === 0) return null;
-        const changeOutput = DUMMY_CHANGE_OUTPUT(
-          getMainAccount(accounts, network),
-          network
-        );
         // Trigger fee bumping is reserve-only by design: always reuse this
         // vault's dedicated reserve UTXO as the only non-anchor input and send
         // any leftover value back through normal wallet change.
-        if (isUnconfirmed) {
+        if (isPushedButUnconfirmed) {
           const previousChildTxHex = vaultStatus?.triggerCpfpTxHex;
           if (!previousChildTxHex || !historyData?.length) return null;
         }
@@ -363,8 +345,8 @@ const InitUnfreeze = ({
           parentTxHex: triggerInfo.txHex,
           parentFee: triggerInfo.fee,
           targetPackageFeeRate: selectedFeeRate,
-          utxosData: triggerReserveUtxosData,
-          changeOutput
+          utxosData: bumpPlan.utxosData,
+          changeOutput: bumpPlan.changeOutput
         });
         if (!plan) return null;
         return {
@@ -379,13 +361,11 @@ const InitUnfreeze = ({
       isVisible,
       isLadderedVault,
       ladderedTriggerSortedTxs,
-      accounts,
-      networkId,
+      bumpPlan,
       vault,
-      isUnconfirmed,
+      isPushedButUnconfirmed,
       vaultStatus?.triggerCpfpTxHex,
-      historyData,
-      signers
+      historyData
     ]
   );
 
@@ -395,11 +375,11 @@ const InitUnfreeze = ({
     if (!isVisible) {
       return null;
     } else if (isLadderedVault) {
-      return isUnconfirmed
+      return isPushedButUnconfirmed
         ? replacementFeeRateFloor
         : (ladderedTriggerSortedTxs[0]?.feeRate ?? MIN_FEE_RATE);
     } else {
-      if (isUnconfirmed) {
+      if (isPushedButUnconfirmed) {
         return replacementFeeRateFloor;
       } else {
         return findMinimumActionableFeeRate({
@@ -412,7 +392,7 @@ const InitUnfreeze = ({
   }, [
     isVisible,
     isLadderedVault,
-    isUnconfirmed,
+    isPushedButUnconfirmed,
     replacementFeeRateFloor,
     ladderedTriggerSortedTxs,
     maxFeeRate,
@@ -426,13 +406,13 @@ const InitUnfreeze = ({
       // opening an acceleration modal that cannot proceed past the intro step.
       pickActionableInitialFeeRate({
         preferredFeeRate:
-          isUnconfirmed &&
+          isPushedButUnconfirmed &&
           replacementFeeRateFloor !== null &&
           replacementFeeRateFloor > maxFeeRate
             ? null
             : preferredInitialFeeRate,
         minimumActionableFeeRate:
-          isUnconfirmed &&
+          isPushedButUnconfirmed &&
           replacementFeeRateFloor !== null &&
           replacementFeeRateFloor > maxFeeRate
             ? null
@@ -441,7 +421,7 @@ const InitUnfreeze = ({
       }),
     [
       preferredInitialFeeRate,
-      isUnconfirmed,
+      isPushedButUnconfirmed,
       replacementFeeRateFloor,
       maxFeeRate,
       minimumSelectableFeeRate,
@@ -455,7 +435,7 @@ const InitUnfreeze = ({
     return buildTxDataForFeeRate(selectedFeeRate);
   }, [feeRate, initialFeeRate, buildTxDataForFeeRate]);
 
-  const canOpenFeeStep = isUnconfirmed
+  const canOpenFeeStep = isPushedButUnconfirmed
     ? canAccelerate
     : initialFeeRate !== null;
 
@@ -502,7 +482,7 @@ const InitUnfreeze = ({
               </Button>
               {canOpenFeeStep && (
                 <Button onPress={() => setStep('fee')}>
-                  {isUnconfirmed
+                  {isPushedButUnconfirmed
                     ? t('accelerateButton')
                     : t('continueButton')}
                 </Button>
@@ -520,7 +500,7 @@ const InitUnfreeze = ({
           ) : undefined
       }}
     >
-      {isUnconfirmed && !hasFundingUtxos ? (
+      {isPushedButUnconfirmed && !hasFundingUtxos ? (
         <View>
           <Text className="text-base text-slate-600 pb-2 px-2">
             {t('wallet.vault.triggerUnfreeze.noReserveAvailableYet')}
@@ -529,7 +509,7 @@ const InitUnfreeze = ({
       ) : !feeEstimates ? (
         //loading...
         <ActivityIndicator />
-      ) : isUnconfirmed &&
+      ) : isPushedButUnconfirmed &&
         replacementFeeRateFloor !== null &&
         replacementFeeRateFloor > maxFeeRate ? (
         //cannot RBF
@@ -541,7 +521,7 @@ const InitUnfreeze = ({
       ) : step === 'intro' ? (
         <View>
           <Text className="text-base text-slate-600 pb-2 px-2">
-            {isUnconfirmed
+            {isPushedButUnconfirmed
               ? t('wallet.vault.triggerUnfreeze.introAccelerate')
               : t('wallet.vault.triggerUnfreeze.intro', { timeLockTime })}
           </Text>
