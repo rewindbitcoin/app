@@ -83,14 +83,7 @@ const InitUnfreeze = ({
   );
   // Estimates can use a dummy change output; broadcast builds fresh wallet change.
   const p2aBumpPlan = useMemo<P2ABumpPlan | null>(() => {
-    if (
-      isLadderedVault ||
-      !networkId ||
-      !signer ||
-      !accounts ||
-      !p2aTriggerInfo
-    )
-      return null;
+    if (isLadderedVault || !networkId || !signer || !accounts) return null;
     const network = networkMapping[networkId];
     const utxosData = getTriggerReserveUtxosData({ vault, signer, network });
     if (utxosData.length === 0) return null;
@@ -103,15 +96,7 @@ const InitUnfreeze = ({
       signer,
       ...(triggerCpfpTxHex ? { previousChildTxHex: triggerCpfpTxHex } : {})
     };
-  }, [
-    isLadderedVault,
-    networkId,
-    signer,
-    accounts,
-    p2aTriggerInfo,
-    vault,
-    triggerCpfpTxHex
-  ]);
+  }, [isLadderedVault, networkId, signer, accounts, vault, triggerCpfpTxHex]);
   const presignedTxInfos = useMemo<PresignedTxInfo[] | null>(
     () =>
       isLadderedVault
