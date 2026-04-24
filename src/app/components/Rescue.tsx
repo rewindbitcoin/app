@@ -28,7 +28,7 @@ import {
   getLadderedRescueSortedTxs,
   getP2ARescueInfo,
   pickActionableInitialFeeRate,
-  type PreparedCpfpPlan,
+  type P2ABumpPlan,
   type PresignedTxInfo,
   type VaultActionTxData
 } from '../lib/vaultActionTx';
@@ -36,13 +36,10 @@ import {
 type RescueProps = {
   vault: Vault;
   vaultStatus: VaultStatus | undefined;
-  onRescue: (
-    rescueData: VaultActionTxData,
-    bumpPlan?: PreparedCpfpPlan
-  ) => void;
+  onRescue: (rescueData: VaultActionTxData, p2aBumpPlan?: P2ABumpPlan) => void;
   isVisible: boolean;
   /**
-   * Optional external CPFP funding plan for P2A-vault-type rescue.
+   * Optional external P2A bump plan for rescue.
    *
    * This is a small emergency wallet plan prepared outside the
    * main wallet after an attack. It provides fresh UTXOs and a signer that are
@@ -52,7 +49,7 @@ type RescueProps = {
    * add more fee and sends leftover value to the provided output, which should
    * normally be the emergency address. When absent, P2A rescue stays parent-only.
    */
-  bumpPlan?: PreparedCpfpPlan;
+  p2aBumpPlan?: P2ABumpPlan;
   onClose: () => void;
 };
 
@@ -60,7 +57,7 @@ const Rescue = ({
   vault,
   vaultStatus,
   isVisible,
-  bumpPlan,
+  p2aBumpPlan,
   onRescue,
   onClose
 }: RescueProps) => {
@@ -104,7 +101,7 @@ const Rescue = ({
       feeEstimates,
       pushedTxHex,
       presignedTxs,
-      ...(bumpPlan ? { bumpPlan } : {}),
+      ...(p2aBumpPlan ? { p2aBumpPlan } : {}),
       ...(historyData ? { historyData } : {})
     });
   }, [
@@ -115,12 +112,12 @@ const Rescue = ({
     vaultStatus?.panicTxHex,
     triggerTxHex,
     presignedTxs,
-    bumpPlan
+    p2aBumpPlan
   ]);
   const replacementFeeRateFloor =
     accelerationInfo?.replacementFeeRateFloor ?? null;
   const hasAccelerationPath = accelerationInfo?.hasAccelerationPath ?? false;
-  const hasFundingUtxos = (bumpPlan?.utxosData.length ?? 0) > 0;
+  const hasFundingUtxos = (p2aBumpPlan?.utxosData.length ?? 0) > 0;
 
   const maxFeeRate = feeEstimates
     ? computeMaxAllowedFeeRate(feeEstimates)
@@ -250,14 +247,15 @@ const Rescue = ({
             actionFee: rescueInfo.fee,
             actionFeeRate: rescueInfo.feeRate
           };
-        else if (!bumpPlan || bumpPlan.utxosData.length === 0) return null;
+        else if (!p2aBumpPlan || p2aBumpPlan.utxosData.length === 0)
+          return null;
         else {
           const plan = estimateCpfpPackage({
             parentTxHex: rescueInfo.txHex,
             parentFee: rescueInfo.fee,
             targetPackageFeeRate: selectedFeeRate,
-            utxosData: bumpPlan.utxosData,
-            changeOutput: bumpPlan.changeOutput
+            utxosData: p2aBumpPlan.utxosData,
+            changeOutput: p2aBumpPlan.changeOutput
           });
           if (!plan) return null;
           else
@@ -270,7 +268,7 @@ const Rescue = ({
         }
       }
     },
-    [isVisible, isLadderedVault, presignedTxs, vault, triggerTxHex, bumpPlan]
+    [isVisible, isLadderedVault, presignedTxs, vault, triggerTxHex, p2aBumpPlan]
   );
 
   const initialFeeRate = useMemo<number | null>(
@@ -336,9 +334,9 @@ const Rescue = ({
     if (!txData) throw new Error('Cannot rescue non-existing selected tx');
     onRescue(
       txData,
-      txData.actionFee > txData.parentTxFee ? bumpPlan : undefined
+      txData.actionFee > txData.parentTxFee ? p2aBumpPlan : undefined
     );
-  }, [onRescue, txData, bumpPlan]);
+  }, [onRescue, txData, p2aBumpPlan]);
 
   return (
     <Modal

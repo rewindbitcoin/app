@@ -55,7 +55,7 @@ import {
   getCpfpFeeInfo,
   getP2ARescueInfo,
   getP2ATriggerInfo,
-  type PreparedCpfpPlan,
+  type P2ABumpPlan,
   type VaultActionTxData
 } from '../lib/vaultActionTx';
 import { useWallet } from '../hooks/useWallet';
@@ -504,7 +504,7 @@ const RawVault = ({
   const handleCloseRescue = useCallback(() => setShowRescue(false), []);
   const handleShowRescue = useCallback(() => setShowRescue(true), []);
   const handleRescue = useCallback(
-    async (rescueData: VaultActionTxData, bumpPlan?: PreparedCpfpPlan) => {
+    async (rescueData: VaultActionTxData, p2aBumpPlan?: P2ABumpPlan) => {
       batchedUpdates(() => {
         setShowRescue(false);
         setIsRescueBeingHandled(true);
@@ -523,8 +523,8 @@ const RawVault = ({
             }
 
             const shouldBuildCpfp =
-              !!bumpPlan &&
-              bumpPlan.utxosData.length > 0 &&
+              !!p2aBumpPlan &&
+              p2aBumpPlan.utxosData.length > 0 &&
               rescueData.actionFee > rescueData.parentTxFee;
             // Rescue never falls back to normal wallet UTXOs. If the presigned
             // parent fee is not enough, the only supported bump path is an
@@ -536,7 +536,7 @@ const RawVault = ({
             if (!networkId)
               throw new Error('Wallet not ready for Rewind2 rescue package');
             const network = networkMapping[networkId];
-            const previousChildTxHex = bumpPlan.previousChildTxHex;
+            const previousChildTxHex = p2aBumpPlan.previousChildTxHex;
             if (isRescueAccelerationAttempt) {
               if (previousChildTxHex && !historyData?.length)
                 throw new Error(
@@ -547,9 +547,9 @@ const RawVault = ({
               parentTxHex: rescueData.parentTxHex,
               parentFee: rescueData.parentTxFee,
               targetPackageFeeRate: rescueData.actionFeeRate,
-              utxosData: bumpPlan.utxosData,
-              changeOutput: bumpPlan.changeOutput,
-              signer: bumpPlan.signer,
+              utxosData: p2aBumpPlan.utxosData,
+              changeOutput: p2aBumpPlan.changeOutput,
+              signer: p2aBumpPlan.signer,
               network
             });
             if (!childTxData)
@@ -679,7 +679,7 @@ const RawVault = ({
   const canBeDelegated = isVaultTx && !isUnfrozen && !hasRescueStarted;
 
   // Fee-bump availability can use a dummy change output; broadcast uses fresh change.
-  const triggerBumpPlan = useMemo<PreparedCpfpPlan | null>(() => {
+  const triggerP2ABumpPlan = useMemo<P2ABumpPlan | null>(() => {
     if (isLadderedVault || !networkId || !walletSigner || !accounts)
       return null;
     const network = networkMapping[networkId];
@@ -730,7 +730,7 @@ const RawVault = ({
     if (hasRescueStarted) return false;
     if (!isTriggerPushedButUnconfirmed) return false;
     if (!isLadderedVault) {
-      const hasFundingUtxos = (triggerBumpPlan?.utxosData.length ?? 0) > 0;
+      const hasFundingUtxos = (triggerP2ABumpPlan?.utxosData.length ?? 0) > 0;
       if (!hasFundingUtxos) return true;
     }
     if (!feeEstimates) return false;
@@ -741,7 +741,7 @@ const RawVault = ({
       feeEstimates,
       pushedTxHex,
       presignedTxs: triggerPresignedTxs,
-      ...(triggerBumpPlan ? { bumpPlan: triggerBumpPlan } : {}),
+      ...(triggerP2ABumpPlan ? { p2aBumpPlan: triggerP2ABumpPlan } : {}),
       ...(historyData ? { historyData } : {})
     });
     if (isLadderedVault) return hasAccelerationPath;
@@ -756,7 +756,7 @@ const RawVault = ({
     isTriggerPushedButUnconfirmed,
     vaultStatus?.triggerTxHex,
     triggerPresignedTxs,
-    triggerBumpPlan
+    triggerP2ABumpPlan
   ]);
 
   const hasRescueAccelerationPath = useMemo(() => {

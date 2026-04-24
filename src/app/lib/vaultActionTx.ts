@@ -66,7 +66,7 @@ export type VaultActionTxData = {
 export type PresignedTxInfo = { txHex: TxHex; fee: number; feeRate: number };
 
 /**
- * Fully prepared non-anchor CPFP funding plan for P2A flows.
+ * P2A fee-bump plan used to fund/sign a CPFP child.
  *
  * This is a small emergency or reserve-backed plan used
  * only to fund a child tx. The caller already knows which UTXOs the child
@@ -80,7 +80,7 @@ export type PresignedTxInfo = { txHex: TxHex; fee: number; feeRate: number };
  * This can be created after an attack, so fresh UTXOs and signers
  * stay outside the compromised wallet's normal flow.
  */
-export type PreparedCpfpPlan = {
+export type P2ABumpPlan = {
   /** Non-anchor inputs that the child must spend. */
   utxosData: UtxosData;
   /** Leftover value destination. For rescue this should normally be the emergency address. */
@@ -168,7 +168,7 @@ export const getActionAccelerationInfo = ({
   historyData,
   pushedTxHex,
   presignedTxs,
-  bumpPlan
+  p2aBumpPlan
 }: {
   vaultMode: 'LADDERED' | 'P2A_TRUC' | 'P2A_NON_TRUC';
   feeEstimates: FeeEstimates;
@@ -184,8 +184,8 @@ export const getActionAccelerationInfo = ({
   pushedTxHex: TxHex;
   /** Pre-signed parent tx choices. P2A has one item; laddered has many. */
   presignedTxs: PresignedTxInfo[];
-  /** P2A CPFP plan. Omitted when a child cannot be built yet. */
-  bumpPlan?: PreparedCpfpPlan;
+  /** P2A bump plan. Omitted when a child cannot be built yet. */
+  p2aBumpPlan?: P2ABumpPlan;
 }): AccelerationInfo => {
   const maxFeeRate = computeMaxAllowedFeeRate(feeEstimates);
   if (vaultMode === 'LADDERED') {
@@ -212,12 +212,12 @@ export const getActionAccelerationInfo = ({
     };
   }
 
-  if (!bumpPlan || bumpPlan.utxosData.length === 0)
+  if (!p2aBumpPlan || p2aBumpPlan.utxosData.length === 0)
     return {
       replacementFeeRateFloor: null,
       hasAccelerationPath: false
     };
-  if (bumpPlan.previousChildTxHex && !historyData?.length)
+  if (p2aBumpPlan.previousChildTxHex && !historyData?.length)
     throw new Error('historyData must be present when replacing a CPFP child');
 
   const parentTx = presignedTxs[0];
@@ -226,11 +226,11 @@ export const getActionAccelerationInfo = ({
     parentTxHex: parentTx.txHex,
     parentFee: parentTx.fee,
     feeEstimates,
-    utxosData: bumpPlan.utxosData,
-    childOutput: bumpPlan.changeOutput,
+    utxosData: p2aBumpPlan.utxosData,
+    childOutput: p2aBumpPlan.changeOutput,
     ...(historyData ? { historyData } : {}),
-    ...(bumpPlan.previousChildTxHex
-      ? { childTxHex: bumpPlan.previousChildTxHex }
+    ...(p2aBumpPlan.previousChildTxHex
+      ? { childTxHex: p2aBumpPlan.previousChildTxHex }
       : {})
   });
 

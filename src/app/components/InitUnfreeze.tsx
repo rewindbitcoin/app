@@ -34,7 +34,7 @@ import {
   getLadderedTriggerSortedTxs,
   getP2ATriggerInfo,
   pickActionableInitialFeeRate,
-  type PreparedCpfpPlan,
+  type P2ABumpPlan,
   type PresignedTxInfo,
   type VaultActionTxData
 } from '../lib/vaultActionTx';
@@ -82,7 +82,7 @@ const InitUnfreeze = ({
     [isLadderedVault, vault]
   );
   // Estimates can use a dummy change output; broadcast builds fresh wallet change.
-  const bumpPlan = useMemo<PreparedCpfpPlan | null>(() => {
+  const p2aBumpPlan = useMemo<P2ABumpPlan | null>(() => {
     if (
       isLadderedVault ||
       !networkId ||
@@ -133,7 +133,7 @@ const InitUnfreeze = ({
       feeEstimates,
       pushedTxHex: triggerTxHex,
       presignedTxs,
-      ...(bumpPlan ? { bumpPlan } : {}),
+      ...(p2aBumpPlan ? { p2aBumpPlan } : {}),
       ...(historyData ? { historyData } : {})
     });
   }, [
@@ -143,12 +143,12 @@ const InitUnfreeze = ({
     isPushedButUnconfirmed,
     triggerTxHex,
     presignedTxs,
-    bumpPlan
+    p2aBumpPlan
   ]);
   const replacementFeeRateFloor =
     accelerationInfo?.replacementFeeRateFloor ?? null;
   const hasAccelerationPath = accelerationInfo?.hasAccelerationPath ?? false;
-  const hasFundingUtxos = (bumpPlan?.utxosData.length ?? 0) > 0;
+  const hasFundingUtxos = (p2aBumpPlan?.utxosData.length ?? 0) > 0;
 
   const maxFeeRate = feeEstimates ? computeMaxAllowedFeeRate(feeEstimates) : 0;
   const { settings } = useSettings();
@@ -206,20 +206,20 @@ const InitUnfreeze = ({
           actionFeeRate: triggerInfo.feeRate
         };
       } else {
-        if (!bumpPlan || !p2aTriggerInfo) return null;
+        if (!p2aBumpPlan || !p2aTriggerInfo) return null;
         // Trigger fee bumping is reserve-only by design: always reuse this
         // vault's dedicated reserve UTXO as the only non-anchor input and send
         // any leftover value back through normal wallet change.
         if (isPushedButUnconfirmed) {
-          const previousChildTxHex = bumpPlan.previousChildTxHex;
+          const previousChildTxHex = p2aBumpPlan.previousChildTxHex;
           if (!previousChildTxHex || !historyData?.length) return null;
         }
         const plan = estimateCpfpPackage({
           parentTxHex: p2aTriggerInfo.txHex,
           parentFee: p2aTriggerInfo.fee,
           targetPackageFeeRate: selectedFeeRate,
-          utxosData: bumpPlan.utxosData,
-          changeOutput: bumpPlan.changeOutput
+          utxosData: p2aBumpPlan.utxosData,
+          changeOutput: p2aBumpPlan.changeOutput
         });
         if (!plan) return null;
         return {
@@ -234,7 +234,7 @@ const InitUnfreeze = ({
       isVisible,
       isLadderedVault,
       presignedTxs,
-      bumpPlan,
+      p2aBumpPlan,
       p2aTriggerInfo,
       isPushedButUnconfirmed,
       historyData
