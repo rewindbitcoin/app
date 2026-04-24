@@ -76,13 +76,13 @@ const Rescue = ({
   const btcFiat = useFirstDefinedValue<number>(btcFiatRealTime);
   const feeEstimates = useFirstDefinedValue<FeeEstimates>(feeEstimatesRealTime);
   const triggerTxHex = vaultStatus?.triggerTxHex;
-  const presignedTxs = useMemo<PresignedTxInfo[]>(
+  const presignedTxInfos = useMemo<PresignedTxInfo[] | null>(
     () =>
-      isLadderedVault && triggerTxHex
-        ? getLadderedRescueSortedTxs(vault, triggerTxHex)
-        : triggerTxHex
-          ? [getP2ARescueInfo(vault, triggerTxHex)]
-          : [],
+      !triggerTxHex
+        ? null
+        : isLadderedVault
+          ? getLadderedRescueSortedTxs(vault, triggerTxHex)
+          : [getP2ARescueInfo(vault, triggerTxHex)],
     [isLadderedVault, vault, triggerTxHex]
   );
   const isPushedButUnconfirmed =
@@ -91,12 +91,18 @@ const Rescue = ({
       : !!vaultStatus?.panicPushTime;
   const pushedTxHex = vaultStatus?.panicTxHex;
   const accelerationInfo = useMemo<AccelerationInfo | null>(() => {
-    if (!isPushedButUnconfirmed || !pushedTxHex || !feeEstimates) return null;
+    if (
+      !isPushedButUnconfirmed ||
+      !pushedTxHex ||
+      !feeEstimates ||
+      !presignedTxInfos
+    )
+      return null;
     return getActionAccelerationInfo({
       vaultMode,
       feeEstimates,
       pushedTxHex,
-      presignedTxs,
+      presignedTxInfos,
       ...(p2aBumpPlan ? { p2aBumpPlan } : {}),
       ...(historyData ? { historyData } : {})
     });
@@ -106,7 +112,7 @@ const Rescue = ({
     historyData,
     isPushedButUnconfirmed,
     pushedTxHex,
-    presignedTxs,
+    presignedTxInfos,
     p2aBumpPlan
   ]);
   const replacementFeeRateFloor =
@@ -183,9 +189,10 @@ const Rescue = ({
     if (!isVisible) {
       return null;
     } else if (isLadderedVault) {
+      if (!presignedTxInfos) return null;
       return isPushedButUnconfirmed
         ? replacementFeeRateFloor
-        : (presignedTxs[0]?.feeRate ?? MIN_FEE_RATE);
+        : (presignedTxInfos[0]?.feeRate ?? MIN_FEE_RATE);
     } else {
       if (!triggerTxHex)
         throw new Error('Visible rescue is missing trigger tx');
@@ -205,7 +212,7 @@ const Rescue = ({
     isPushedButUnconfirmed,
     replacementFeeRateFloor,
     isVisible,
-    presignedTxs,
+    presignedTxInfos,
     hasFundingUtxos,
     vault,
     triggerTxHex
@@ -218,8 +225,9 @@ const Rescue = ({
       if (!isVisible) {
         return null;
       } else if (isLadderedVault) {
+        if (!presignedTxInfos) return null;
         const rescueInfo = findNextEqualOrLargerFeeRate(
-          presignedTxs,
+          presignedTxInfos,
           selectedFeeRate
         );
         if (!rescueInfo) return null;
@@ -263,7 +271,14 @@ const Rescue = ({
         }
       }
     },
-    [isVisible, isLadderedVault, presignedTxs, vault, triggerTxHex, p2aBumpPlan]
+    [
+      isVisible,
+      isLadderedVault,
+      presignedTxInfos,
+      vault,
+      triggerTxHex,
+      p2aBumpPlan
+    ]
   );
 
   const initialFeeRate = useMemo<number | null>(

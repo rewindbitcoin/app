@@ -56,6 +56,7 @@ import {
   getP2ARescueInfo,
   getP2ATriggerInfo,
   type P2ABumpPlan,
+  type PresignedTxInfo,
   type VaultActionTxData
 } from '../lib/vaultActionTx';
 import { useWallet } from '../hooks/useWallet';
@@ -710,20 +711,20 @@ const RawVault = ({
     vault,
     vaultStatus?.triggerCpfpTxHex
   ]);
-  const triggerPresignedTxs = useMemo(
+  const triggerPresignedTxInfos = useMemo<PresignedTxInfo[]>(
     () =>
       isLadderedVault
         ? getLadderedTriggerSortedTxs(vault)
         : [getP2ATriggerInfo(vault)],
     [isLadderedVault, vault]
   );
-  const rescuePresignedTxs = useMemo(
+  const rescuePresignedTxInfos = useMemo<PresignedTxInfo[] | null>(
     () =>
-      isLadderedVault && vaultStatus?.triggerTxHex
-        ? getLadderedRescueSortedTxs(vault, vaultStatus.triggerTxHex)
-        : vaultStatus?.triggerTxHex
-          ? [getP2ARescueInfo(vault, vaultStatus.triggerTxHex)]
-          : [],
+      !vaultStatus?.triggerTxHex
+        ? null
+        : isLadderedVault
+          ? getLadderedRescueSortedTxs(vault, vaultStatus.triggerTxHex)
+          : [getP2ARescueInfo(vault, vaultStatus.triggerTxHex)],
     [isLadderedVault, vault, vaultStatus?.triggerTxHex]
   );
 
@@ -741,7 +742,7 @@ const RawVault = ({
       vaultMode,
       feeEstimates,
       pushedTxHex: triggerPushedTxHex,
-      presignedTxs: triggerPresignedTxs,
+      presignedTxInfos: triggerPresignedTxInfos,
       ...(triggerP2ABumpPlan ? { p2aBumpPlan: triggerP2ABumpPlan } : {}),
       ...(historyData ? { historyData } : {})
     });
@@ -756,19 +757,20 @@ const RawVault = ({
     historyData,
     isTriggerPushedButUnconfirmed,
     triggerPushedTxHex,
-    triggerPresignedTxs,
+    triggerPresignedTxInfos,
     triggerP2ABumpPlan
   ]);
 
   const hasRescueAccelerationPath = useMemo(() => {
     if (isRescueBeingHandled) return false;
     if (!isRescuePushedButUnconfirmed) return false;
-    if (!rescuePushedTxHex || !feeEstimates) return false;
+    if (!rescuePushedTxHex || !feeEstimates || !rescuePresignedTxInfos)
+      return false;
     return getActionAccelerationInfo({
       vaultMode,
       feeEstimates,
       pushedTxHex: rescuePushedTxHex,
-      presignedTxs: rescuePresignedTxs,
+      presignedTxInfos: rescuePresignedTxInfos,
       ...(historyData ? { historyData } : {})
     }).hasAccelerationPath;
   }, [
@@ -778,7 +780,7 @@ const RawVault = ({
     historyData,
     isRescuePushedButUnconfirmed,
     rescuePushedTxHex,
-    rescuePresignedTxs
+    rescuePresignedTxInfos
   ]);
 
   const canBeHidden =

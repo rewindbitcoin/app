@@ -112,13 +112,13 @@ const InitUnfreeze = ({
     vault,
     triggerCpfpTxHex
   ]);
-  const presignedTxs = useMemo<PresignedTxInfo[]>(
+  const presignedTxInfos = useMemo<PresignedTxInfo[] | null>(
     () =>
       isLadderedVault
         ? getLadderedTriggerSortedTxs(vault)
         : p2aTriggerInfo
           ? [p2aTriggerInfo]
-          : [],
+          : null,
     [isLadderedVault, vault, p2aTriggerInfo]
   );
   const isPushedButUnconfirmed =
@@ -126,12 +126,18 @@ const InitUnfreeze = ({
       ? vaultStatus.triggerTxBlockHeight === 0
       : !!vaultStatus?.triggerPushTime;
   const accelerationInfo = useMemo<AccelerationInfo | null>(() => {
-    if (!isPushedButUnconfirmed || !triggerTxHex || !feeEstimates) return null;
+    if (
+      !isPushedButUnconfirmed ||
+      !triggerTxHex ||
+      !feeEstimates ||
+      !presignedTxInfos
+    )
+      return null;
     return getActionAccelerationInfo({
       vaultMode,
       feeEstimates,
       pushedTxHex: triggerTxHex,
-      presignedTxs,
+      presignedTxInfos,
       ...(p2aBumpPlan ? { p2aBumpPlan } : {}),
       ...(historyData ? { historyData } : {})
     });
@@ -141,7 +147,7 @@ const InitUnfreeze = ({
     historyData,
     isPushedButUnconfirmed,
     triggerTxHex,
-    presignedTxs,
+    presignedTxInfos,
     p2aBumpPlan
   ]);
   const replacementFeeRateFloor =
@@ -193,8 +199,9 @@ const InitUnfreeze = ({
       if (!isVisible) {
         return null;
       } else if (isLadderedVault) {
+        if (!presignedTxInfos) return null;
         const triggerInfo = findNextEqualOrLargerFeeRate(
-          presignedTxs ?? [],
+          presignedTxInfos,
           selectedFeeRate
         );
         if (!triggerInfo) return null;
@@ -232,7 +239,7 @@ const InitUnfreeze = ({
     [
       isVisible,
       isLadderedVault,
-      presignedTxs,
+      presignedTxInfos,
       p2aBumpPlan,
       p2aTriggerInfo,
       isPushedButUnconfirmed,
@@ -246,9 +253,10 @@ const InitUnfreeze = ({
     if (!isVisible) {
       return null;
     } else if (isLadderedVault) {
+      if (!presignedTxInfos) return null;
       return isPushedButUnconfirmed
         ? replacementFeeRateFloor
-        : (presignedTxs[0]?.feeRate ?? MIN_FEE_RATE);
+        : (presignedTxInfos[0]?.feeRate ?? MIN_FEE_RATE);
     } else {
       if (isPushedButUnconfirmed) {
         return replacementFeeRateFloor;
@@ -265,7 +273,7 @@ const InitUnfreeze = ({
     isLadderedVault,
     isPushedButUnconfirmed,
     replacementFeeRateFloor,
-    presignedTxs,
+    presignedTxInfos,
     maxFeeRate,
     buildTxDataForFeeRate
   ]);

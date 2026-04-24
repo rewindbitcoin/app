@@ -167,7 +167,7 @@ export const getActionAccelerationInfo = ({
   feeEstimates,
   historyData,
   pushedTxHex,
-  presignedTxs,
+  presignedTxInfos,
   p2aBumpPlan
 }: {
   vaultMode: 'LADDERED' | 'P2A_TRUC' | 'P2A_NON_TRUC';
@@ -183,14 +183,14 @@ export const getActionAccelerationInfo = ({
    */
   pushedTxHex: TxHex;
   /** Pre-signed parent tx choices. P2A has one item; laddered has many. */
-  presignedTxs: PresignedTxInfo[];
+  presignedTxInfos: PresignedTxInfo[];
   /** P2A bump plan. Omitted when a child cannot be built yet. */
   p2aBumpPlan?: P2ABumpPlan;
 }): AccelerationInfo => {
   const maxFeeRate = computeMaxAllowedFeeRate(feeEstimates);
   if (vaultMode === 'LADDERED') {
-    const pushedTxInfo = presignedTxs.find(
-      presignedTx => presignedTx.txHex === pushedTxHex
+    const pushedTxInfo = presignedTxInfos.find(
+      presignedTxInfo => presignedTxInfo.txHex === pushedTxHex
     );
     if (!pushedTxInfo) throw new Error('Pushed action tx is not presigned');
     const { tx } = transactionFromHex(pushedTxHex);
@@ -207,8 +207,10 @@ export const getActionAccelerationInfo = ({
     return {
       replacementFeeRateFloor,
       hasAccelerationPath:
-        findNextEqualOrLargerFeeRate(presignedTxs, replacementFeeRateFloor) !==
-        null
+        findNextEqualOrLargerFeeRate(
+          presignedTxInfos,
+          replacementFeeRateFloor
+        ) !== null
     };
   }
 
@@ -220,11 +222,11 @@ export const getActionAccelerationInfo = ({
   if (p2aBumpPlan.previousChildTxHex && !historyData?.length)
     throw new Error('historyData must be present when replacing a CPFP child');
 
-  const parentTx = presignedTxs[0];
-  if (!parentTx) throw new Error('Missing P2A action tx');
+  const parentTxInfo = presignedTxInfos[0];
+  if (!parentTxInfo) throw new Error('Missing P2A action tx');
   const replacementFeeRateFloor = getCpfpReplacementFeeRateFloor({
-    parentTxHex: parentTx.txHex,
-    parentFee: parentTx.fee,
+    parentTxHex: parentTxInfo.txHex,
+    parentFee: parentTxInfo.fee,
     feeEstimates,
     utxosData: p2aBumpPlan.utxosData,
     childOutput: p2aBumpPlan.changeOutput,
