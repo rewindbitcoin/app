@@ -35,6 +35,7 @@ import {
   getP2ATriggerInfo,
   pickActionableInitialFeeRate,
   type PreparedCpfpPlan,
+  type PresignedTxInfo,
   type VaultActionTxData
 } from '../lib/vaultActionTx';
 
@@ -56,7 +57,10 @@ const InitUnfreeze = ({
   onClose
 }: InitUnfreezeProps) => {
   const { locale } = useLocalization();
-  const vaultMode = useMemo(() => getVaultMode(vault), [vault]);
+  const vaultMode = useMemo<'LADDERED' | 'P2A_TRUC' | 'P2A_NON_TRUC'>(
+    () => getVaultMode(vault),
+    [vault]
+  );
   const isLadderedVault = vaultMode === 'LADDERED';
   const { t } = useTranslation();
   const {
@@ -73,7 +77,7 @@ const InitUnfreeze = ({
   const signer = signers?.[0];
   const triggerCpfpTxHex = vaultStatus?.triggerCpfpTxHex;
   const triggerTxHex = vaultStatus?.triggerTxHex;
-  const p2aTriggerInfo = useMemo(
+  const p2aTriggerInfo = useMemo<PresignedTxInfo | undefined>(
     () => (isLadderedVault ? undefined : getP2ATriggerInfo(vault)),
     [isLadderedVault, vault]
   );
@@ -88,11 +92,7 @@ const InitUnfreeze = ({
     )
       return;
     const network = networkMapping[networkId];
-    const utxosData = getTriggerReserveUtxosData({
-      vault,
-      signer,
-      network
-    });
+    const utxosData = getTriggerReserveUtxosData({ vault, signer, network });
     if (utxosData.length === 0) return;
     return {
       utxosData,
@@ -112,7 +112,7 @@ const InitUnfreeze = ({
     vault,
     triggerCpfpTxHex
   ]);
-  const presignedTxs = useMemo(
+  const presignedTxs = useMemo<PresignedTxInfo[]>(
     () =>
       isLadderedVault
         ? getLadderedTriggerSortedTxs(vault)
@@ -159,7 +159,7 @@ const InitUnfreeze = ({
 
   const [step, setStep] = useState<'intro' | 'fee'>('intro');
 
-  const preferredInitialFeeRate = useMemo(() => {
+  const preferredInitialFeeRate = useMemo<number | null>(() => {
     // This modal stays mounted so Modal can animate across isVisible changes.
     // While hidden, return inert render-time values instead of trigger data.
     if (!isVisible) {
@@ -241,7 +241,7 @@ const InitUnfreeze = ({
     ]
   );
 
-  const minimumSelectableFeeRate = useMemo(() => {
+  const minimumSelectableFeeRate = useMemo<number | null>(() => {
     // This modal stays mounted so Modal can animate across isVisible changes.
     // While hidden, return inert render-time values instead of trigger data.
     if (!isVisible) {
@@ -271,7 +271,7 @@ const InitUnfreeze = ({
     buildTxDataForFeeRate
   ]);
 
-  const initialFeeRate = useMemo(
+  const initialFeeRate = useMemo<number | null>(
     () =>
       // If the wallet's preferred confirmation target is no longer fundable,
       // fall back to the minimum actionable replacement floor instead of

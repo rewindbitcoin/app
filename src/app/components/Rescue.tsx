@@ -29,6 +29,7 @@ import {
   getP2ARescueInfo,
   pickActionableInitialFeeRate,
   type PreparedCpfpPlan,
+  type PresignedTxInfo,
   type VaultActionTxData
 } from '../lib/vaultActionTx';
 
@@ -63,7 +64,10 @@ const Rescue = ({
   onRescue,
   onClose
 }: RescueProps) => {
-  const vaultMode = useMemo(() => getVaultMode(vault), [vault]);
+  const vaultMode = useMemo<'LADDERED' | 'P2A_TRUC' | 'P2A_NON_TRUC'>(
+    () => getVaultMode(vault),
+    [vault]
+  );
   const isLadderedVault = vaultMode === 'LADDERED';
   const { t } = useTranslation();
   const {
@@ -75,7 +79,7 @@ const Rescue = ({
   const btcFiat = useFirstDefinedValue<number>(btcFiatRealTime);
   const feeEstimates = useFirstDefinedValue<FeeEstimates>(feeEstimatesRealTime);
   const triggerTxHex = vaultStatus?.triggerTxHex;
-  const presignedTxs = useMemo(
+  const presignedTxs = useMemo<PresignedTxInfo[]>(
     () =>
       isLadderedVault && triggerTxHex
         ? getLadderedRescueSortedTxs(vault, triggerTxHex)
@@ -129,7 +133,7 @@ const Rescue = ({
 
   const [step, setStep] = useState<'intro' | 'fee'>('intro');
 
-  const preferredInitialFeeRate = useMemo(() => {
+  const preferredInitialFeeRate = useMemo<number | null>(() => {
     // This modal stays mounted so Modal can animate across isVisible changes.
     // While hidden, return inert render-time values instead of rescue data.
     if (!isVisible) {
@@ -181,7 +185,7 @@ const Rescue = ({
 
   const [feeRate, setFeeRate] = useState<number | null>(null);
 
-  const minimumSelectableFeeRate = useMemo(() => {
+  const minimumSelectableFeeRate = useMemo<number | null>(() => {
     // This modal stays mounted so Modal can animate across isVisible changes.
     // While hidden, return inert render-time values instead of rescue data.
     if (!isVisible) {
@@ -269,7 +273,7 @@ const Rescue = ({
     [isVisible, isLadderedVault, presignedTxs, vault, triggerTxHex, bumpPlan]
   );
 
-  const initialFeeRate = useMemo(
+  const initialFeeRate = useMemo<number | null>(
     () =>
       // If the wallet's preferred confirmation target is no longer fundable,
       // fall back to the minimum actionable replacement floor instead of
