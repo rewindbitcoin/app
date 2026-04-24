@@ -89,13 +89,9 @@ const Rescue = ({
     vaultStatus?.panicTxBlockHeight !== undefined
       ? vaultStatus.panicTxBlockHeight === 0
       : !!vaultStatus?.panicPushTime;
+  const pushedTxHex = vaultStatus?.panicTxHex;
   const accelerationInfo = useMemo<AccelerationInfo | null>(() => {
-    if (!isPushedButUnconfirmed) return null;
-    if (!feeEstimates) return null;
-    if (!triggerTxHex)
-      throw new Error('Unconfirmed rescue is missing trigger tx');
-    const pushedTxHex = vaultStatus?.panicTxHex;
-    if (!pushedTxHex) throw new Error('Unconfirmed rescue is missing tx hex');
+    if (!isPushedButUnconfirmed || !pushedTxHex || !feeEstimates) return null;
     return getActionAccelerationInfo({
       vaultMode,
       feeEstimates,
@@ -109,8 +105,7 @@ const Rescue = ({
     feeEstimates,
     historyData,
     isPushedButUnconfirmed,
-    vaultStatus?.panicTxHex,
-    triggerTxHex,
+    pushedTxHex,
     presignedTxs,
     p2aBumpPlan
   ]);

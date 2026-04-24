@@ -126,8 +126,7 @@ const InitUnfreeze = ({
       ? vaultStatus.triggerTxBlockHeight === 0
       : !!vaultStatus?.triggerPushTime;
   const accelerationInfo = useMemo<AccelerationInfo | null>(() => {
-    if (!isPushedButUnconfirmed || !feeEstimates) return null;
-    if (!triggerTxHex) throw new Error('Unconfirmed trigger is missing tx hex');
+    if (!isPushedButUnconfirmed || !triggerTxHex || !feeEstimates) return null;
     return getActionAccelerationInfo({
       vaultMode,
       feeEstimates,

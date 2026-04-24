@@ -651,6 +651,7 @@ const RawVault = ({
     vaultStatus?.triggerTxBlockHeight !== undefined
       ? isInitUnfreezeTxInMempool
       : isInitUnfreezeTxPushed;
+  const triggerPushedTxHex = vaultStatus?.triggerTxHex;
   const hasTriggerStarted =
     isInitUnfreezeTxInMempool ||
     isInitUnfreezeTxPushed ||
@@ -666,6 +667,7 @@ const RawVault = ({
     vaultStatus?.panicTxBlockHeight !== undefined
       ? isRescueTxInMempool
       : isRescueTxPushed;
+  const rescuePushedTxHex = vaultStatus?.panicTxHex;
   const hasRescueStarted =
     isRescueTxPushed || isRescueTxInMempool || isRescueTxConfirmed;
 
@@ -734,12 +736,11 @@ const RawVault = ({
       if (!hasFundingUtxos) return true;
     }
     if (!feeEstimates) return false;
-    const pushedTxHex = vaultStatus?.triggerTxHex;
-    if (!pushedTxHex) throw new Error('Unconfirmed trigger is missing tx hex');
+    if (!triggerPushedTxHex) return false;
     const { hasAccelerationPath } = getActionAccelerationInfo({
       vaultMode,
       feeEstimates,
-      pushedTxHex,
+      pushedTxHex: triggerPushedTxHex,
       presignedTxs: triggerPresignedTxs,
       ...(triggerP2ABumpPlan ? { p2aBumpPlan: triggerP2ABumpPlan } : {}),
       ...(historyData ? { historyData } : {})
@@ -754,7 +755,7 @@ const RawVault = ({
     feeEstimates,
     historyData,
     isTriggerPushedButUnconfirmed,
-    vaultStatus?.triggerTxHex,
+    triggerPushedTxHex,
     triggerPresignedTxs,
     triggerP2ABumpPlan
   ]);
@@ -762,15 +763,11 @@ const RawVault = ({
   const hasRescueAccelerationPath = useMemo(() => {
     if (isRescueBeingHandled) return false;
     if (!isRescuePushedButUnconfirmed) return false;
-    if (!feeEstimates) return false;
-    if (!vaultStatus?.triggerTxHex)
-      throw new Error('Unconfirmed rescue is missing trigger tx');
-    const pushedTxHex = vaultStatus?.panicTxHex;
-    if (!pushedTxHex) throw new Error('Unconfirmed rescue is missing tx hex');
+    if (!rescuePushedTxHex || !feeEstimates) return false;
     return getActionAccelerationInfo({
       vaultMode,
       feeEstimates,
-      pushedTxHex,
+      pushedTxHex: rescuePushedTxHex,
       presignedTxs: rescuePresignedTxs,
       ...(historyData ? { historyData } : {})
     }).hasAccelerationPath;
@@ -780,8 +777,7 @@ const RawVault = ({
     feeEstimates,
     historyData,
     isRescuePushedButUnconfirmed,
-    vaultStatus?.triggerTxHex,
-    vaultStatus?.panicTxHex,
+    rescuePushedTxHex,
     rescuePresignedTxs
   ]);
 
