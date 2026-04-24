@@ -728,6 +728,11 @@ const RawVault = ({
     if (isInitUnfreezeBeingHandled) return false;
     if (hasRescueStarted) return false;
     if (!isTriggerPushedButUnconfirmed) return false;
+    if (!isLadderedVault) {
+      const hasFundingUtxos = (triggerBumpPlan?.utxosData.length ?? 0) > 0;
+      if (!hasFundingUtxos) return true;
+    }
+    if (!feeEstimates) return false;
     const { hasAccelerationPath } = getActionAccelerationInfo({
       vaultMode,
       feeEstimates,
@@ -737,8 +742,7 @@ const RawVault = ({
       bumpPlan: triggerBumpPlan
     });
     if (isLadderedVault) return hasAccelerationPath;
-    const hasFundingUtxos = (triggerBumpPlan?.utxosData.length ?? 0) > 0;
-    return hasAccelerationPath || !hasFundingUtxos;
+    return hasAccelerationPath;
   }, [
     isInitUnfreezeBeingHandled,
     hasRescueStarted,
@@ -755,6 +759,7 @@ const RawVault = ({
   const hasRescueAccelerationPath = useMemo(() => {
     if (isRescueBeingHandled) return false;
     if (!isRescuePushedButUnconfirmed) return false;
+    if (!feeEstimates) return false;
     if (!vaultStatus?.triggerTxHex)
       throw new Error('Unconfirmed rescue is missing trigger tx');
     return getActionAccelerationInfo({

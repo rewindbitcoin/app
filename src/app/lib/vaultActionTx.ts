@@ -171,7 +171,7 @@ export const getActionAccelerationInfo = ({
   bumpPlan
 }: {
   vaultMode: 'LADDERED' | 'P2A_TRUC' | 'P2A_NON_TRUC';
-  feeEstimates: FeeEstimates | undefined;
+  feeEstimates: FeeEstimates;
   historyData: HistoryData | undefined;
   /**
    * Hex of the action tx that status currently says was pushed/live. The caller
@@ -187,12 +187,6 @@ export const getActionAccelerationInfo = ({
   bumpPlan: PreparedCpfpPlan | undefined;
 }): AccelerationInfo => {
   if (!pushedTxHex) throw new Error('pushed action tx is not set');
-  if (!feeEstimates)
-    return {
-      replacementFeeRateFloor: null,
-      hasAccelerationPath: false
-    };
-
   const maxFeeRate = computeMaxAllowedFeeRate(feeEstimates);
   if (vaultMode === 'LADDERED') {
     const pushedTxInfo = presignedTxs.find(

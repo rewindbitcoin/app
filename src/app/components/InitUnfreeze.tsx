@@ -125,28 +125,25 @@ const InitUnfreeze = ({
     vaultStatus?.triggerTxBlockHeight !== undefined
       ? vaultStatus.triggerTxBlockHeight === 0
       : !!vaultStatus?.triggerPushTime;
-  const accelerationInfo = useMemo<AccelerationInfo | null>(
-    () =>
-      isPushedButUnconfirmed
-        ? getActionAccelerationInfo({
-            vaultMode,
-            feeEstimates,
-            historyData,
-            pushedTxHex: triggerTxHex,
-            presignedTxs,
-            bumpPlan
-          })
-        : null,
-    [
+  const accelerationInfo = useMemo<AccelerationInfo | null>(() => {
+    if (!isPushedButUnconfirmed || !feeEstimates) return null;
+    return getActionAccelerationInfo({
       vaultMode,
       feeEstimates,
       historyData,
-      isPushedButUnconfirmed,
-      triggerTxHex,
+      pushedTxHex: triggerTxHex,
       presignedTxs,
       bumpPlan
-    ]
-  );
+    });
+  }, [
+    vaultMode,
+    feeEstimates,
+    historyData,
+    isPushedButUnconfirmed,
+    triggerTxHex,
+    presignedTxs,
+    bumpPlan
+  ]);
   const replacementFeeRateFloor =
     accelerationInfo?.replacementFeeRateFloor ?? null;
   const hasAccelerationPath = accelerationInfo?.hasAccelerationPath ?? false;

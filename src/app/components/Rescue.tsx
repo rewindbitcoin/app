@@ -90,6 +90,7 @@ const Rescue = ({
       : !!vaultStatus?.panicPushTime;
   const accelerationInfo = useMemo<AccelerationInfo | null>(() => {
     if (!isPushedButUnconfirmed) return null;
+    if (!feeEstimates) return null;
     if (!triggerTxHex)
       throw new Error('Unconfirmed rescue is missing trigger tx');
     return getActionAccelerationInfo({
