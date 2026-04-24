@@ -679,15 +679,16 @@ const RawVault = ({
   const canBeDelegated = isVaultTx && !isUnfrozen && !hasRescueStarted;
 
   // Fee-bump availability can use a dummy change output; broadcast uses fresh change.
-  const triggerBumpPlan = useMemo<PreparedCpfpPlan | undefined>(() => {
-    if (isLadderedVault || !networkId || !walletSigner || !accounts) return;
+  const triggerBumpPlan = useMemo<PreparedCpfpPlan | null>(() => {
+    if (isLadderedVault || !networkId || !walletSigner || !accounts)
+      return null;
     const network = networkMapping[networkId];
     const utxosData = getTriggerReserveUtxosData({
       vault,
       signer: walletSigner,
       network
     });
-    if (utxosData.length === 0) return;
+    if (utxosData.length === 0) return null;
     return {
       utxosData,
       changeOutput: DUMMY_CHANGE_OUTPUT(
