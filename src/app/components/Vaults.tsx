@@ -733,10 +733,12 @@ const RawVault = ({
       if (!hasFundingUtxos) return true;
     }
     if (!feeEstimates) return false;
+    const pushedTxHex = vaultStatus?.triggerTxHex;
+    if (!pushedTxHex) throw new Error('Unconfirmed trigger is missing tx hex');
     const { hasAccelerationPath } = getActionAccelerationInfo({
       vaultMode,
       feeEstimates,
-      pushedTxHex: vaultStatus?.triggerTxHex,
+      pushedTxHex,
       presignedTxs: triggerPresignedTxs,
       bumpPlan: triggerBumpPlan,
       ...(historyData ? { historyData } : {})
@@ -762,10 +764,12 @@ const RawVault = ({
     if (!feeEstimates) return false;
     if (!vaultStatus?.triggerTxHex)
       throw new Error('Unconfirmed rescue is missing trigger tx');
+    const pushedTxHex = vaultStatus?.panicTxHex;
+    if (!pushedTxHex) throw new Error('Unconfirmed rescue is missing tx hex');
     return getActionAccelerationInfo({
       vaultMode,
       feeEstimates,
-      pushedTxHex: vaultStatus?.panicTxHex,
+      pushedTxHex,
       presignedTxs: rescuePresignedTxs,
       bumpPlan: undefined,
       ...(historyData ? { historyData } : {})

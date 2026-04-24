@@ -176,18 +176,17 @@ export const getActionAccelerationInfo = ({
   historyData?: HistoryData;
   /**
    * Hex of the action tx that status currently says was pushed/live. The caller
-   * only provides this while that action tx is still unconfirmed.
+   * only calls this helper while that action tx is still unconfirmed.
    *
    * In practice this is either `vaultStatus.triggerTxHex` or
    * `vaultStatus.panicTxHex`.
    */
-  pushedTxHex: TxHex | undefined;
+  pushedTxHex: TxHex;
   /** Pre-signed parent tx choices. P2A has one item; laddered has many. */
   presignedTxs: PresignedTxInfo[];
   /** P2A CPFP plan. Undefined means a child cannot be built yet. */
   bumpPlan: PreparedCpfpPlan | undefined;
 }): AccelerationInfo => {
-  if (!pushedTxHex) throw new Error('pushed action tx is not set');
   const maxFeeRate = computeMaxAllowedFeeRate(feeEstimates);
   if (vaultMode === 'LADDERED') {
     const pushedTxInfo = presignedTxs.find(

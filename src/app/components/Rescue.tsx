@@ -93,10 +93,12 @@ const Rescue = ({
     if (!feeEstimates) return null;
     if (!triggerTxHex)
       throw new Error('Unconfirmed rescue is missing trigger tx');
+    const pushedTxHex = vaultStatus?.panicTxHex;
+    if (!pushedTxHex) throw new Error('Unconfirmed rescue is missing tx hex');
     return getActionAccelerationInfo({
       vaultMode,
       feeEstimates,
-      pushedTxHex: vaultStatus?.panicTxHex,
+      pushedTxHex,
       presignedTxs,
       bumpPlan,
       ...(historyData ? { historyData } : {})
