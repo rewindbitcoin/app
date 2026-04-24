@@ -128,9 +128,8 @@ export const getLadderedTriggerSortedTxs = (vault: Vault): PresignedTxInfo[] =>
 
 export const getP2ARescueInfo = (
   vault: Vault,
-  triggerTxHex: string | undefined
+  triggerTxHex: TxHex
 ): PresignedTxInfo => {
-  if (!triggerTxHex) throw new Error('P2A vault is missing trigger tx');
   const txHex = vault.triggerMap[triggerTxHex]?.[0];
   if (!txHex) throw new Error('P2A trigger tx is missing rescue tx');
   const rescueTxData = vault.txMap[txHex];
