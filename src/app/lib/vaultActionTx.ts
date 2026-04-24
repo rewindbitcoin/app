@@ -12,6 +12,7 @@ import {
   findP2AOutputData,
   type HistoryData,
   type TxHex,
+  type Vault,
   type UtxosData
 } from './vaults';
 
@@ -62,6 +63,8 @@ export type VaultActionTxData = {
   actionFeeRate: number;
 };
 
+export type PresignedTxInfo = { txHex: TxHex; fee: number; feeRate: number };
+
 /**
  * Fully prepared non-anchor CPFP funding plan for P2A flows.
  *
@@ -84,6 +87,8 @@ export type PreparedCpfpPlan = {
   changeOutput: OutputInstance;
   /** Signer used for the non-anchor child inputs. */
   signer: Signer;
+  /** Existing CPFP child tx that a new child must replace, if any. */
+  previousChildTxHex?: TxHex;
 };
 
 /**
@@ -91,28 +96,159 @@ export type PreparedCpfpPlan = {
  */
 export type AccelerationInfo = {
   /**
-   * The tx this helper describes was pushed and is still unconfirmed.
-   */
-  isPushedButUnconfirmed: boolean;
-  /**
    * Minimum package fee rate that improves the currently live state.
    * Returns `null` when the helper cannot compute a valid floor yet.
    */
   replacementFeeRateFloor: number | null;
   /**
-   * A valid acceleration / fee-bump path can be built right now.
-   *
-   * This is broader than funding alone. It also depends on the relevant helper
-   * being able to compute the replacement floor and satisfy the current fee
-   * constraints.
+   * A valid fee-bump transaction/package can be built from the supplied inputs.
+   * This is only the transaction-building result: the UI may still hide or
+   * disable acceleration while another action is in progress, after rescue has
+   * started, or when a confirmation rule blocks the flow.
    */
-  canAccelerate: boolean;
+  hasAccelerationPath: boolean;
+};
+
+export const getP2ATriggerInfo = (vault: Vault): PresignedTxInfo => {
+  const txHex = Object.keys(vault.triggerMap)[0];
+  if (!txHex) throw new Error('P2A vault is missing trigger tx');
+  const triggerTxData = vault.txMap[txHex];
+  if (!triggerTxData) throw new Error('P2A trigger tx is not mapped');
+  return { txHex, fee: triggerTxData.fee, feeRate: triggerTxData.feeRate };
+};
+
+export const getLadderedTriggerSortedTxs = (vault: Vault): PresignedTxInfo[] =>
+  Object.entries(vault.triggerMap)
+    .map(([txHex]) => {
+      const txData = vault.txMap[txHex];
+      if (!txData) throw new Error('trigger tx not mapped');
+      return { txHex, fee: txData.fee, feeRate: txData.feeRate };
+    })
+    .sort((a, b) => a.feeRate - b.feeRate);
+
+export const getP2ARescueInfo = (
+  vault: Vault,
+  triggerTxHex: string | undefined
+): PresignedTxInfo => {
+  if (!triggerTxHex) throw new Error('P2A vault is missing trigger tx');
+  const txHex = vault.triggerMap[triggerTxHex]?.[0];
+  if (!txHex) throw new Error('P2A trigger tx is missing rescue tx');
+  const rescueTxData = vault.txMap[txHex];
+  if (!rescueTxData) throw new Error('P2A rescue tx is not mapped');
+  return { txHex, fee: rescueTxData.fee, feeRate: rescueTxData.feeRate };
+};
+
+export const getLadderedRescueSortedTxs = (
+  vault: Vault,
+  triggerTxHex: string
+): PresignedTxInfo[] => {
+  const rescueTxs = vault.triggerMap[triggerTxHex];
+  if (!rescueTxs)
+    throw new Error("Triggered vault doesn't have matching rescue txs");
+  return rescueTxs
+    .map(txHex => {
+      const txData = vault.txMap[txHex];
+      if (!txData) throw new Error('rescue tx not mapped');
+      return { txHex, fee: txData.fee, feeRate: txData.feeRate };
+    })
+    .sort((a, b) => a.feeRate - b.feeRate);
+};
+
+/**
+ * Returns the current acceleration state for an unconfirmed action tx.
+ *
+ * The returned fields mean:
+ * - `replacementFeeRateFloor`: the minimum package fee rate that improves the
+ *   currently live state
+ * - `hasAccelerationPath`: a valid fee-bump transaction/package can be built
+ *   from the supplied inputs
+ */
+export const getActionAccelerationInfo = ({
+  vaultMode,
+  feeEstimates,
+  historyData,
+  pushedTxHex,
+  presignedTxs,
+  bumpPlan
+}: {
+  vaultMode: 'LADDERED' | 'P2A_TRUC' | 'P2A_NON_TRUC';
+  feeEstimates: FeeEstimates | undefined;
+  historyData: HistoryData | undefined;
   /**
-   * The non-anchor funding UTXOs needed for the fee-bump path are available.
-   * For laddered flows, this is always `true` because no extra funding UTXOs are
-   * needed.
+   * Hex of the action tx that status currently says was pushed/live. The caller
+   * only provides this while that action tx is still unconfirmed.
+   *
+   * In practice this is either `vaultStatus.triggerTxHex` or
+   * `vaultStatus.panicTxHex`.
    */
-  hasFundingUtxos: boolean;
+  pushedTxHex: TxHex | undefined;
+  /** Pre-signed parent tx choices. P2A has one item; laddered has many. */
+  presignedTxs: PresignedTxInfo[];
+  /** P2A CPFP plan. Undefined means a child cannot be built yet. */
+  bumpPlan: PreparedCpfpPlan | undefined;
+}): AccelerationInfo => {
+  if (!pushedTxHex) throw new Error('pushed action tx is not set');
+  if (!feeEstimates)
+    return {
+      replacementFeeRateFloor: null,
+      hasAccelerationPath: false
+    };
+
+  const maxFeeRate = computeMaxAllowedFeeRate(feeEstimates);
+  if (vaultMode === 'LADDERED') {
+    const pushedTxInfo = presignedTxs.find(
+      presignedTx => presignedTx.txHex === pushedTxHex
+    );
+    if (!pushedTxInfo) throw new Error('Pushed action tx is not presigned');
+    const { tx } = transactionFromHex(pushedTxHex);
+    if (!tx || tx.outs.length !== 1) throw new Error('Invalid pushed tx hex');
+
+    // Same fee as the previous input-minus-output calculation, sourced from txMap.
+    const replacementFeeRateFloor = pushedTxInfo.fee / tx.virtualSize() + 1;
+    if (replacementFeeRateFloor > maxFeeRate)
+      return {
+        replacementFeeRateFloor,
+        hasAccelerationPath: false
+      };
+
+    return {
+      replacementFeeRateFloor,
+      hasAccelerationPath:
+        findNextEqualOrLargerFeeRate(presignedTxs, replacementFeeRateFloor) !==
+        null
+    };
+  }
+
+  if (!bumpPlan || bumpPlan.utxosData.length === 0)
+    return {
+      replacementFeeRateFloor: null,
+      hasAccelerationPath: false
+    };
+
+  const parentTx = presignedTxs[0];
+  if (!parentTx) throw new Error('Missing P2A action tx');
+  const replacementFeeRateFloor = getCpfpReplacementFeeRateFloor({
+    parentTxHex: parentTx.txHex,
+    parentFee: parentTx.fee,
+    feeEstimates,
+    utxosData: bumpPlan.utxosData,
+    childOutput: bumpPlan.changeOutput,
+    ...(historyData ? { historyData } : {}),
+    ...(bumpPlan.previousChildTxHex
+      ? { childTxHex: bumpPlan.previousChildTxHex }
+      : {})
+  });
+
+  if (replacementFeeRateFloor === null)
+    return {
+      replacementFeeRateFloor: null,
+      hasAccelerationPath: false
+    };
+
+  return {
+    replacementFeeRateFloor,
+    hasAccelerationPath: replacementFeeRateFloor <= maxFeeRate
+  };
 };
 
 /**

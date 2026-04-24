@@ -45,11 +45,16 @@ import { Button, IconType, Modal, useToast } from '../../common/ui';
 import { useSettings } from '../hooks/useSettings';
 import type { SubUnit } from '../lib/settings';
 import type { BlockStatus } from '@bitcoinerlab/explorer';
-import InitUnfreeze, { getTriggerAccelerationInfo } from './InitUnfreeze';
-import Rescue, { getRescueAccelerationInfo } from './Rescue';
+import InitUnfreeze from './InitUnfreeze';
+import Rescue from './Rescue';
 import {
+  getActionAccelerationInfo,
+  getLadderedRescueSortedTxs,
+  getLadderedTriggerSortedTxs,
   getMinimumReplacementChildFee,
   getCpfpFeeInfo,
+  getP2ARescueInfo,
+  getP2ATriggerInfo,
   type PreparedCpfpPlan,
   type VaultActionTxData
 } from '../lib/vaultActionTx';
@@ -518,7 +523,9 @@ const RawVault = ({
             }
 
             const shouldBuildCpfp =
-              !!bumpPlan && rescueData.actionFee > rescueData.parentTxFee;
+              !!bumpPlan &&
+              bumpPlan.utxosData.length > 0 &&
+              rescueData.actionFee > rescueData.parentTxFee;
             // Rescue never falls back to normal wallet UTXOs. If the presigned
             // parent fee is not enough, the only supported bump path is an
             // explicit external emergency bump plan.
@@ -529,7 +536,7 @@ const RawVault = ({
             if (!networkId)
               throw new Error('Wallet not ready for Rewind2 rescue package');
             const network = networkMapping[networkId];
-            const previousChildTxHex = vaultStatus?.panicCpfpTxHex;
+            const previousChildTxHex = bumpPlan.previousChildTxHex;
             if (isRescueAccelerationAttempt) {
               if (previousChildTxHex && !historyData?.length)
                 throw new Error(
@@ -640,7 +647,11 @@ const RawVault = ({
     !!vaultStatus?.triggerTxBlockHeight &&
     tipHeight - vaultStatus.triggerTxBlockHeight < IRREVERSIBLE_BLOCKS - 1;
   const isInitUnfreezeTxPushed = !!vaultStatus?.triggerPushTime;
-  const isInitUnfreezeTx =
+  const isTriggerPushedButUnconfirmed =
+    vaultStatus?.triggerTxBlockHeight !== undefined
+      ? isInitUnfreezeTxInMempool
+      : isInitUnfreezeTxPushed;
+  const hasTriggerStarted =
     isInitUnfreezeTxInMempool ||
     isInitUnfreezeTxPushed ||
     isInitUnfreezeTxConfirmed;
@@ -651,17 +662,21 @@ const RawVault = ({
   const isRescueTxConfirmed =
     vaultStatus?.panicTxBlockHeight !== undefined &&
     vaultStatus.panicTxBlockHeight > 0;
-  const isRescueTx =
+  const isRescuePushedButUnconfirmed =
+    vaultStatus?.panicTxBlockHeight !== undefined
+      ? isRescueTxInMempool
+      : isRescueTxPushed;
+  const hasRescueStarted =
     isRescueTxPushed || isRescueTxInMempool || isRescueTxConfirmed;
 
-  const canShowInitUnfreeze = isVaultTx && !isInitUnfreezeTx;
+  const canShowInitUnfreeze = isVaultTx && !hasTriggerStarted;
   // For P2A_TRUC, an unconfirmed vault tx can only have one unconfirmed child.
   // Since the backup child already uses that slot, keep the action visible but
   // disable Init Unfreeze until the vault tx confirms.
   const isInitUnfreezeDisabledForP2ATruc =
     vaultMode === 'P2A_TRUC' && !isVaultTxConfirmed;
-  const canBeRescued = isInitUnfreezeTx && !isUnfrozen && !isRescueTx;
-  const canBeDelegated = isVaultTx && !isUnfrozen && !isRescueTx;
+  const canBeRescued = hasTriggerStarted && !isUnfrozen && !hasRescueStarted;
+  const canBeDelegated = isVaultTx && !isUnfrozen && !hasRescueStarted;
 
   // Fee-bump availability can use a dummy change output; broadcast uses fresh change.
   const triggerBumpPlan = useMemo<PreparedCpfpPlan | undefined>(() => {
@@ -679,40 +694,87 @@ const RawVault = ({
         getMainAccount(accounts, network),
         network
       ),
-      signer: walletSigner
+      signer: walletSigner,
+      ...(vaultStatus?.triggerCpfpTxHex
+        ? { previousChildTxHex: vaultStatus.triggerCpfpTxHex }
+        : {})
     };
-  }, [isLadderedVault, networkId, walletSigner, accounts, vault]);
+  }, [
+    isLadderedVault,
+    networkId,
+    walletSigner,
+    accounts,
+    vault,
+    vaultStatus?.triggerCpfpTxHex
+  ]);
+  const triggerPresignedTxs = useMemo(
+    () =>
+      isLadderedVault
+        ? getLadderedTriggerSortedTxs(vault)
+        : [getP2ATriggerInfo(vault)],
+    [isLadderedVault, vault]
+  );
+  const rescuePresignedTxs = useMemo(
+    () =>
+      isLadderedVault && vaultStatus?.triggerTxHex
+        ? getLadderedRescueSortedTxs(vault, vaultStatus.triggerTxHex)
+        : vaultStatus?.triggerTxHex
+          ? [getP2ARescueInfo(vault, vaultStatus.triggerTxHex)]
+          : [],
+    [isLadderedVault, vault, vaultStatus?.triggerTxHex]
+  );
 
   const canOpenTriggerFeeBumpModal = useMemo(() => {
     if (isInitUnfreezeBeingHandled) return false;
-    const { isPushedButUnconfirmed, canAccelerate, hasFundingUtxos } =
-      getTriggerAccelerationInfo({
-        vault,
-        vaultStatus,
-        feeEstimates,
-        historyData,
-        bumpPlan: triggerBumpPlan
-      });
-    return isPushedButUnconfirmed && (canAccelerate || !hasFundingUtxos);
+    if (hasRescueStarted) return false;
+    if (!isTriggerPushedButUnconfirmed) return false;
+    const { hasAccelerationPath } = getActionAccelerationInfo({
+      vaultMode,
+      feeEstimates,
+      historyData,
+      pushedTxHex: vaultStatus?.triggerTxHex,
+      presignedTxs: triggerPresignedTxs,
+      bumpPlan: triggerBumpPlan
+    });
+    if (isLadderedVault) return hasAccelerationPath;
+    const hasFundingUtxos = (triggerBumpPlan?.utxosData.length ?? 0) > 0;
+    return hasAccelerationPath || !hasFundingUtxos;
   }, [
     isInitUnfreezeBeingHandled,
-    vault,
-    vaultStatus,
+    hasRescueStarted,
+    vaultMode,
+    isLadderedVault,
     feeEstimates,
     historyData,
+    isTriggerPushedButUnconfirmed,
+    vaultStatus?.triggerTxHex,
+    triggerPresignedTxs,
     triggerBumpPlan
   ]);
 
-  const canAccelerateRescue = useMemo(() => {
+  const hasRescueAccelerationPath = useMemo(() => {
     if (isRescueBeingHandled) return false;
-    return getRescueAccelerationInfo({
-      vault,
-      vaultStatus,
+    if (!isRescuePushedButUnconfirmed) return false;
+    if (!vaultStatus?.triggerTxHex)
+      throw new Error('Unconfirmed rescue is missing trigger tx');
+    return getActionAccelerationInfo({
+      vaultMode,
       feeEstimates,
       historyData,
+      pushedTxHex: vaultStatus?.panicTxHex,
+      presignedTxs: rescuePresignedTxs,
       bumpPlan: undefined
-    }).canAccelerate;
-  }, [isRescueBeingHandled, vault, vaultStatus, feeEstimates, historyData]);
+    }).hasAccelerationPath;
+  }, [
+    isRescueBeingHandled,
+    vaultMode,
+    feeEstimates,
+    historyData,
+    isRescuePushedButUnconfirmed,
+    vaultStatus?.triggerTxHex,
+    vaultStatus?.panicTxHex,
+    rescuePresignedTxs
+  ]);
 
   const canBeHidden =
     !isVaultTx ||
@@ -938,7 +1000,7 @@ const RawVault = ({
             {!!frozenBalance && (
               <Amount
                 title={
-                  isInitUnfreezeTx
+                  hasTriggerStarted
                     ? t('wallet.vault.amountBeingUnfrozen')
                     : t('wallet.vault.amountFrozen')
                 }
@@ -1070,9 +1132,9 @@ const RawVault = ({
               })}
             </VaultText>
           )}
-          {isInitUnfreezeTx &&
+          {hasTriggerStarted &&
             !isUnfrozen &&
-            !isRescueTx &&
+            !hasRescueStarted &&
             estimatedUnfreezeDate && (
               <VaultText
                 icon={{
@@ -1085,7 +1147,7 @@ const RawVault = ({
                 })}
               </VaultText>
             )}
-          {isInitUnfreezeTx && isUnfrozen && (
+          {hasTriggerStarted && isUnfrozen && (
             <VaultText
               icon={{
                 name: 'flag-checkered',
@@ -1097,7 +1159,7 @@ const RawVault = ({
                 : t('wallet.vault.unfrozenOnNextBlock')}
             </VaultText>
           )}
-          {isRescueTx && plannedUnfreezeButRescuedDate && (
+          {hasRescueStarted && plannedUnfreezeButRescuedDate && (
             <VaultText
               danger
               icon={{
@@ -1123,14 +1185,14 @@ const RawVault = ({
               })}
             </VaultText>
           )}
-          {isRescueTx && !isRescueTxConfirmed && (
+          {hasRescueStarted && !isRescueTxConfirmed && (
             <VaultText
               icon={{
                 name: 'shield-alert-outline',
                 family: 'MaterialCommunityIcons'
               }}
               accelerateLoading={isRescueBeingHandled}
-              {...(canAccelerateRescue
+              {...(hasRescueAccelerationPath
                 ? { onAccelerate: handleShowRescue }
                 : {})}
             >
@@ -1174,7 +1236,7 @@ const RawVault = ({
               {t('wallet.vault.unfrozenAndHotBalance')}
             </Text>
           )}
-          {isRescueTx && (
+          {hasRescueStarted && (
             // native:text-sm web:text-xs web:sm:text-sm
             <>
               <Text className="py-2">

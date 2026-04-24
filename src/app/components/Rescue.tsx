@@ -17,180 +17,20 @@ import {
   type Vault,
   type VaultStatus,
   estimateCpfpPackage,
-  getVaultMode,
-  type HistoryData
+  getVaultMode
 } from '../lib/vaults';
-import { transactionFromHex } from '../lib/bitcoin';
 import { useWallet } from '../hooks/useWallet';
 import useFirstDefinedValue from '~/common/hooks/useFirstDefinedValue';
-import { toNumber } from '../lib/sats';
 import {
   type AccelerationInfo,
   findNextEqualOrLargerFeeRate,
-  getCpfpReplacementFeeRateFloor,
+  getActionAccelerationInfo,
+  getLadderedRescueSortedTxs,
+  getP2ARescueInfo,
   pickActionableInitialFeeRate,
   type PreparedCpfpPlan,
   type VaultActionTxData
 } from '../lib/vaultActionTx';
-
-const getP2ARescueInfo = (vault: Vault, triggerTxHex: string | undefined) => {
-  if (!triggerTxHex) throw new Error('P2A vault is missing trigger tx');
-  const txHex = vault.triggerMap[triggerTxHex]?.[0];
-  if (!txHex) throw new Error('P2A trigger tx is missing rescue tx');
-  const rescueTxData = vault.txMap[txHex];
-  if (!rescueTxData) throw new Error('P2A rescue tx is not mapped');
-  return { txHex, fee: rescueTxData.fee, feeRate: rescueTxData.feeRate };
-};
-
-const getLadderedRescueSortedTxs = (vault: Vault, triggerTxHex: string) => {
-  const rescueTxs = vault.triggerMap[triggerTxHex];
-  if (!rescueTxs)
-    throw new Error("Triggered vault doesn't have matching rescue txs");
-  return rescueTxs
-    .map(txHex => {
-      const txData = vault.txMap[txHex];
-      if (!txData) throw new Error('rescue tx not mapped');
-      return { txHex, fee: txData.fee, feeRate: txData.feeRate };
-    })
-    .sort((a, b) => a.feeRate - b.feeRate);
-};
-
-/**
- * Returns the current acceleration state for the rescue tx.
- *
- * The returned fields mean:
- * - `isPushedButUnconfirmed`: the rescue tx was pushed and is still unconfirmed
- * - `replacementFeeRateFloor`: the minimum package fee rate that improves the
- *   currently live state
- * - `canAccelerate`: a valid rescue acceleration path can be built right now
- * - `hasFundingUtxos`: the non-anchor funding UTXOs for the rescue fee-bump
- *   child are available
- */
-export const getRescueAccelerationInfo = ({
-  vault,
-  vaultStatus,
-  feeEstimates,
-  historyData,
-  bumpPlan
-}: {
-  vault: Vault;
-  vaultStatus: VaultStatus | undefined;
-  feeEstimates: FeeEstimates | undefined;
-  historyData: HistoryData | undefined;
-  /**
-   * Optional external CPFP funding plan for P2A-vault-type rescue.
-   *
-   * This is a small emergency wallet plan prepared outside the
-   * main wallet after an attack. It provides fresh UTXOs and a signer that are
-   * not meant to be under the compromised wallet's normal flow.
-   *
-   * When present, rescue can attach a child tx that spends those fresh UTXOs to
-   * add more fee and sends leftover value to the provided output, which should
-   * normally be the emergency address. When absent, P2A rescue stays parent-only.
-   */
-  bumpPlan: PreparedCpfpPlan | undefined;
-}): AccelerationInfo => {
-  const isPushedButUnconfirmed =
-    vaultStatus?.panicTxBlockHeight !== undefined
-      ? vaultStatus.panicTxBlockHeight === 0
-      : !!vaultStatus?.panicPushTime;
-  if (!isPushedButUnconfirmed) {
-    return {
-      isPushedButUnconfirmed,
-      replacementFeeRateFloor: null,
-      canAccelerate: false,
-      hasFundingUtxos: false
-    };
-  } else {
-    if (!vaultStatus?.triggerTxHex || !vaultStatus.panicTxHex) {
-      throw new Error('trigger or panic txs not set');
-    } else if (!feeEstimates) {
-      return {
-        isPushedButUnconfirmed,
-        replacementFeeRateFloor: null,
-        canAccelerate: false,
-        hasFundingUtxos:
-          getVaultMode(vault) === 'LADDERED' || bumpPlan !== undefined
-      };
-    } else {
-      const maxFeeRate = computeMaxAllowedFeeRate(feeEstimates);
-
-      if (getVaultMode(vault) === 'LADDERED') {
-        const { tx: triggerTx } = transactionFromHex(vaultStatus.triggerTxHex);
-        const { tx: panicTx } = transactionFromHex(vaultStatus.panicTxHex);
-        const triggerOutValue = triggerTx.outs[0]?.value;
-        if (!triggerTx || triggerTx.outs.length !== 1 || !triggerOutValue)
-          throw new Error('Invalid triggerTxHex');
-
-        const panicOutValue = panicTx.outs[0]?.value;
-        if (!panicTx || panicTx.outs.length !== 1 || !panicOutValue)
-          throw new Error('Invalid panicTxHex');
-
-        const replacementFeeRateFloor =
-          (toNumber(triggerOutValue) - toNumber(panicOutValue)) /
-            panicTx.virtualSize() +
-          1;
-        if (replacementFeeRateFloor > maxFeeRate) {
-          return {
-            isPushedButUnconfirmed,
-            replacementFeeRateFloor,
-            canAccelerate: false,
-            hasFundingUtxos: true
-          };
-        } else {
-          return {
-            isPushedButUnconfirmed,
-            replacementFeeRateFloor,
-            canAccelerate:
-              findNextEqualOrLargerFeeRate(
-                getLadderedRescueSortedTxs(vault, vaultStatus.triggerTxHex),
-                replacementFeeRateFloor
-              ) !== null,
-            hasFundingUtxos: true
-          };
-        }
-      } else {
-        if (!bumpPlan) {
-          return {
-            isPushedButUnconfirmed,
-            replacementFeeRateFloor: null,
-            canAccelerate: false,
-            hasFundingUtxos: false
-          };
-        } else {
-          const rescueInfo = getP2ARescueInfo(vault, vaultStatus.triggerTxHex);
-          const replacementFeeRateFloor = getCpfpReplacementFeeRateFloor({
-            parentTxHex: rescueInfo.txHex,
-            parentFee: rescueInfo.fee,
-            feeEstimates,
-            utxosData: bumpPlan.utxosData,
-            childOutput: bumpPlan.changeOutput,
-            ...(historyData ? { historyData } : {}),
-            ...(vaultStatus.panicCpfpTxHex
-              ? { childTxHex: vaultStatus.panicCpfpTxHex }
-              : {})
-          });
-
-          if (replacementFeeRateFloor === null) {
-            return {
-              isPushedButUnconfirmed,
-              replacementFeeRateFloor: null,
-              canAccelerate: false,
-              hasFundingUtxos: true
-            };
-          } else {
-            return {
-              isPushedButUnconfirmed,
-              replacementFeeRateFloor,
-              canAccelerate: replacementFeeRateFloor <= maxFeeRate,
-              hasFundingUtxos: true
-            };
-          }
-        }
-      }
-    }
-  }
-};
 
 type RescueProps = {
   vault: Vault;
@@ -234,37 +74,46 @@ const Rescue = ({
   // Cache to avoid flickering in the sliders while background refreshes happen.
   const btcFiat = useFirstDefinedValue<number>(btcFiatRealTime);
   const feeEstimates = useFirstDefinedValue<FeeEstimates>(feeEstimatesRealTime);
-  const {
-    isPushedButUnconfirmed,
-    replacementFeeRateFloor,
-    canAccelerate,
-    hasFundingUtxos
-  } = useMemo(
-    () =>
-      getRescueAccelerationInfo({
-        vault,
-        vaultStatus,
-        feeEstimates,
-        historyData,
-        bumpPlan
-      }),
-    [vault, vaultStatus, feeEstimates, historyData, bumpPlan]
-  );
   const triggerTxHex = vaultStatus?.triggerTxHex;
-
-  const ladderedRescueSortedTxs = useMemo(() => {
-    // This modal stays mounted so Modal can animate across isVisible changes.
-    // While hidden, return inert render-time values instead of rescue data.
-    if (!isVisible) {
-      return [];
-    } else if (isLadderedVault) {
-      if (!triggerTxHex)
-        throw new Error('Visible rescue is missing trigger tx');
-      return getLadderedRescueSortedTxs(vault, triggerTxHex);
-    } else {
-      return [];
-    }
-  }, [vault, triggerTxHex, isLadderedVault, isVisible]);
+  const presignedTxs = useMemo(
+    () =>
+      isLadderedVault && triggerTxHex
+        ? getLadderedRescueSortedTxs(vault, triggerTxHex)
+        : triggerTxHex
+          ? [getP2ARescueInfo(vault, triggerTxHex)]
+          : [],
+    [isLadderedVault, vault, triggerTxHex]
+  );
+  const isPushedButUnconfirmed =
+    vaultStatus?.panicTxBlockHeight !== undefined
+      ? vaultStatus.panicTxBlockHeight === 0
+      : !!vaultStatus?.panicPushTime;
+  const accelerationInfo = useMemo<AccelerationInfo | null>(() => {
+    if (!isPushedButUnconfirmed) return null;
+    if (!triggerTxHex)
+      throw new Error('Unconfirmed rescue is missing trigger tx');
+    return getActionAccelerationInfo({
+      vaultMode,
+      feeEstimates,
+      historyData,
+      pushedTxHex: vaultStatus?.panicTxHex,
+      presignedTxs,
+      bumpPlan
+    });
+  }, [
+    vaultMode,
+    feeEstimates,
+    historyData,
+    isPushedButUnconfirmed,
+    vaultStatus?.panicTxHex,
+    triggerTxHex,
+    presignedTxs,
+    bumpPlan
+  ]);
+  const replacementFeeRateFloor =
+    accelerationInfo?.replacementFeeRateFloor ?? null;
+  const hasAccelerationPath = accelerationInfo?.hasAccelerationPath ?? false;
+  const hasFundingUtxos = (bumpPlan?.utxosData.length ?? 0) > 0;
 
   const maxFeeRate = feeEstimates
     ? computeMaxAllowedFeeRate(feeEstimates)
@@ -337,7 +186,7 @@ const Rescue = ({
     } else if (isLadderedVault) {
       return isPushedButUnconfirmed
         ? replacementFeeRateFloor
-        : (ladderedRescueSortedTxs[0]?.feeRate ?? MIN_FEE_RATE);
+        : (presignedTxs[0]?.feeRate ?? MIN_FEE_RATE);
     } else {
       if (!triggerTxHex)
         throw new Error('Visible rescue is missing trigger tx');
@@ -357,7 +206,7 @@ const Rescue = ({
     isPushedButUnconfirmed,
     replacementFeeRateFloor,
     isVisible,
-    ladderedRescueSortedTxs,
+    presignedTxs,
     hasFundingUtxos,
     vault,
     triggerTxHex
@@ -371,7 +220,7 @@ const Rescue = ({
         return null;
       } else if (isLadderedVault) {
         const rescueInfo = findNextEqualOrLargerFeeRate(
-          ladderedRescueSortedTxs,
+          presignedTxs,
           selectedFeeRate
         );
         if (!rescueInfo) return null;
@@ -394,7 +243,7 @@ const Rescue = ({
             actionFee: rescueInfo.fee,
             actionFeeRate: rescueInfo.feeRate
           };
-        else if (!bumpPlan) return null;
+        else if (!bumpPlan || bumpPlan.utxosData.length === 0) return null;
         else {
           const plan = estimateCpfpPackage({
             parentTxHex: rescueInfo.txHex,
@@ -414,14 +263,7 @@ const Rescue = ({
         }
       }
     },
-    [
-      isVisible,
-      isLadderedVault,
-      ladderedRescueSortedTxs,
-      vault,
-      triggerTxHex,
-      bumpPlan
-    ]
+    [isVisible, isLadderedVault, presignedTxs, vault, triggerTxHex, bumpPlan]
   );
 
   const initialFeeRate = useMemo(
@@ -463,7 +305,7 @@ const Rescue = ({
   }, [feeRate, initialFeeRate, buildTxDataForFeeRate]);
 
   const canOpenFeeStep = isPushedButUnconfirmed
-    ? canAccelerate
+    ? hasAccelerationPath
     : initialFeeRate !== null;
 
   const fee = txData ? txData.actionFee : null;
