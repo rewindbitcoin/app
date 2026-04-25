@@ -82,14 +82,14 @@ const Rescue = ({
           : [getP2ARescueInfo(vault, triggerTxHex)],
     [isLadderedVault, vault, triggerTxHex]
   );
-  const isPushedButUnconfirmed =
+  const isRescuePushedButUnconfirmed =
     vaultStatus?.panicTxBlockHeight !== undefined
       ? vaultStatus.panicTxBlockHeight === 0
       : !!vaultStatus?.panicPushTime;
   const pushedTxHex = vaultStatus?.panicTxHex;
   const accelerationInfo = useMemo<AccelerationInfo | null>(() => {
     if (
-      !isPushedButUnconfirmed ||
+      !isRescuePushedButUnconfirmed ||
       !pushedTxHex ||
       !feeEstimates ||
       !presignedTxInfos
@@ -105,7 +105,7 @@ const Rescue = ({
   }, [
     vaultMode,
     feeEstimates,
-    isPushedButUnconfirmed,
+    isRescuePushedButUnconfirmed,
     pushedTxHex,
     presignedTxInfos,
     p2aBumpPlan
@@ -136,7 +136,7 @@ const Rescue = ({
         feeEstimates,
         settings.INITIAL_CONFIRMATION_TIME
       ).feeEstimate;
-      if (!isPushedButUnconfirmed) return preferredNetworkFeeRate;
+      if (!isRescuePushedButUnconfirmed) return preferredNetworkFeeRate;
       if (replacementFeeRateFloor === null) return null;
       return Math.max(replacementFeeRateFloor, preferredNetworkFeeRate);
     }
@@ -144,7 +144,7 @@ const Rescue = ({
     const rescueInfo = getP2ARescueInfo(vault, triggerTxHex);
 
     if (!hasFundingUtxos)
-      return isPushedButUnconfirmed ? null : rescueInfo.feeRate;
+      return isRescuePushedButUnconfirmed ? null : rescueInfo.feeRate;
 
     if (!feeEstimates) return null;
     const preferredNetworkFeeRate = pickFeeEstimate(
@@ -152,7 +152,7 @@ const Rescue = ({
       settings.INITIAL_CONFIRMATION_TIME
     ).feeEstimate;
 
-    if (!isPushedButUnconfirmed)
+    if (!isRescuePushedButUnconfirmed)
       return Math.max(rescueInfo.feeRate, preferredNetworkFeeRate);
     if (replacementFeeRateFloor === null) return null;
     return Math.max(replacementFeeRateFloor, preferredNetworkFeeRate);
@@ -164,7 +164,7 @@ const Rescue = ({
     isVisible,
     triggerTxHex,
     hasFundingUtxos,
-    isPushedButUnconfirmed,
+    isRescuePushedButUnconfirmed,
     replacementFeeRateFloor
   ]);
 
@@ -179,19 +179,19 @@ const Rescue = ({
     if (!isVisible) return null;
     if (isLadderedVault) {
       if (!presignedTxInfos) return null;
-      return isPushedButUnconfirmed
+      return isRescuePushedButUnconfirmed
         ? replacementFeeRateFloor
         : (presignedTxInfos[0]?.feeRate ?? MIN_FEE_RATE);
     }
     if (!triggerTxHex) throw new Error('Visible rescue is missing trigger tx');
     if (!hasFundingUtxos) return null;
     const rescueInfo = getP2ARescueInfo(vault, triggerTxHex);
-    return isPushedButUnconfirmed
+    return isRescuePushedButUnconfirmed
       ? replacementFeeRateFloor
       : rescueInfo.feeRate;
   }, [
     isLadderedVault,
-    isPushedButUnconfirmed,
+    isRescuePushedButUnconfirmed,
     replacementFeeRateFloor,
     isVisible,
     presignedTxInfos,
@@ -264,14 +264,14 @@ const Rescue = ({
       // opening an acceleration modal that cannot proceed past the intro step.
       pickActionableInitialFeeRate({
         preferredFeeRate:
-          isPushedButUnconfirmed &&
+          isRescuePushedButUnconfirmed &&
           replacementFeeRateFloor !== null &&
           maxFeeRate !== null &&
           replacementFeeRateFloor > maxFeeRate
             ? null
             : preferredInitialFeeRate,
         minimumActionableFeeRate:
-          isPushedButUnconfirmed &&
+          isRescuePushedButUnconfirmed &&
           replacementFeeRateFloor !== null &&
           maxFeeRate !== null &&
           replacementFeeRateFloor > maxFeeRate
@@ -281,7 +281,7 @@ const Rescue = ({
       }),
     [
       preferredInitialFeeRate,
-      isPushedButUnconfirmed,
+      isRescuePushedButUnconfirmed,
       replacementFeeRateFloor,
       maxFeeRate,
       minimumSelectableFeeRate,
@@ -295,7 +295,7 @@ const Rescue = ({
     return buildTxDataForFeeRate(selectedFeeRate);
   }, [feeRate, initialFeeRate, buildTxDataForFeeRate]);
 
-  const canOpenFeeStep = isPushedButUnconfirmed
+  const canOpenFeeStep = isRescuePushedButUnconfirmed
     ? hasAccelerationPath
     : initialFeeRate !== null;
 
@@ -343,7 +343,7 @@ const Rescue = ({
               </Button>
               {canOpenFeeStep && (
                 <Button mode="primary-alert" onPress={() => setStep('fee')}>
-                  {isPushedButUnconfirmed
+                  {isRescuePushedButUnconfirmed
                     ? t('accelerateButton')
                     : t('imInDangerButton')}
                 </Button>
@@ -368,7 +368,7 @@ const Rescue = ({
       {needsFeeEstimates && !feeEstimates ? (
         //loading...
         <ActivityIndicator />
-      ) : isPushedButUnconfirmed &&
+      ) : isRescuePushedButUnconfirmed &&
         replacementFeeRateFloor !== null &&
         maxFeeRate !== null &&
         replacementFeeRateFloor > maxFeeRate ? (
@@ -381,7 +381,7 @@ const Rescue = ({
       ) : step === 'intro' ? (
         <View>
           <Text className="text-base text-slate-600 pb-2 px-2">
-            {isPushedButUnconfirmed
+            {isRescuePushedButUnconfirmed
               ? t('wallet.vault.rescue.introAccelerate')
               : t('wallet.vault.rescue.intro', {
                   panicAddress: vault.coldAddress

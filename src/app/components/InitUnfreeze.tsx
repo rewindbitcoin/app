@@ -105,13 +105,13 @@ const InitUnfreeze = ({
           : null,
     [isLadderedVault, vault, p2aTriggerInfo]
   );
-  const isPushedButUnconfirmed =
+  const isTriggerPushedButUnconfirmed =
     vaultStatus?.triggerTxBlockHeight !== undefined
       ? vaultStatus.triggerTxBlockHeight === 0
       : !!vaultStatus?.triggerPushTime;
   const accelerationInfo = useMemo<AccelerationInfo | null>(() => {
     if (
-      !isPushedButUnconfirmed ||
+      !isTriggerPushedButUnconfirmed ||
       !triggerTxHex ||
       !feeEstimates ||
       !presignedTxInfos
@@ -127,7 +127,7 @@ const InitUnfreeze = ({
   }, [
     vaultMode,
     feeEstimates,
-    isPushedButUnconfirmed,
+    isTriggerPushedButUnconfirmed,
     triggerTxHex,
     presignedTxInfos,
     p2aBumpPlan
@@ -154,14 +154,14 @@ const InitUnfreeze = ({
       feeEstimates,
       settings.INITIAL_CONFIRMATION_TIME
     ).feeEstimate;
-    if (!isPushedButUnconfirmed) return preferredNetworkFeeRate;
+    if (!isTriggerPushedButUnconfirmed) return preferredNetworkFeeRate;
     if (replacementFeeRateFloor === null) return null;
     return Math.max(replacementFeeRateFloor, preferredNetworkFeeRate);
   }, [
     isVisible,
     feeEstimates,
     settings.INITIAL_CONFIRMATION_TIME,
-    isPushedButUnconfirmed,
+    isTriggerPushedButUnconfirmed,
     replacementFeeRateFloor
   ]);
 
@@ -214,11 +214,11 @@ const InitUnfreeze = ({
     if (!isVisible) return null;
     if (isLadderedVault) {
       if (!presignedTxInfos) return null;
-      return isPushedButUnconfirmed
+      return isTriggerPushedButUnconfirmed
         ? replacementFeeRateFloor
         : (presignedTxInfos[0]?.feeRate ?? MIN_FEE_RATE);
     }
-    if (isPushedButUnconfirmed) return replacementFeeRateFloor;
+    if (isTriggerPushedButUnconfirmed) return replacementFeeRateFloor;
     return findMinimumActionableFeeRate({
       minimumFeeRate: MIN_FEE_RATE,
       maximumFeeRate: maxFeeRate,
@@ -227,7 +227,7 @@ const InitUnfreeze = ({
   }, [
     isVisible,
     isLadderedVault,
-    isPushedButUnconfirmed,
+    isTriggerPushedButUnconfirmed,
     replacementFeeRateFloor,
     presignedTxInfos,
     maxFeeRate,
@@ -241,13 +241,13 @@ const InitUnfreeze = ({
       // opening an acceleration modal that cannot proceed past the intro step.
       pickActionableInitialFeeRate({
         preferredFeeRate:
-          isPushedButUnconfirmed &&
+          isTriggerPushedButUnconfirmed &&
           replacementFeeRateFloor !== null &&
           replacementFeeRateFloor > maxFeeRate
             ? null
             : preferredInitialFeeRate,
         minimumActionableFeeRate:
-          isPushedButUnconfirmed &&
+          isTriggerPushedButUnconfirmed &&
           replacementFeeRateFloor !== null &&
           replacementFeeRateFloor > maxFeeRate
             ? null
@@ -256,7 +256,7 @@ const InitUnfreeze = ({
       }),
     [
       preferredInitialFeeRate,
-      isPushedButUnconfirmed,
+      isTriggerPushedButUnconfirmed,
       replacementFeeRateFloor,
       maxFeeRate,
       minimumSelectableFeeRate,
@@ -270,7 +270,7 @@ const InitUnfreeze = ({
     return buildTxDataForFeeRate(selectedFeeRate);
   }, [feeRate, initialFeeRate, buildTxDataForFeeRate]);
 
-  const canOpenFeeStep = isPushedButUnconfirmed
+  const canOpenFeeStep = isTriggerPushedButUnconfirmed
     ? hasAccelerationPath
     : initialFeeRate !== null;
 
@@ -317,7 +317,7 @@ const InitUnfreeze = ({
               </Button>
               {canOpenFeeStep && (
                 <Button onPress={() => setStep('fee')}>
-                  {isPushedButUnconfirmed
+                  {isTriggerPushedButUnconfirmed
                     ? t('accelerateButton')
                     : t('continueButton')}
                 </Button>
@@ -335,7 +335,7 @@ const InitUnfreeze = ({
           ) : undefined
       }}
     >
-      {isPushedButUnconfirmed && !isLadderedVault && !hasFundingUtxos ? (
+      {isTriggerPushedButUnconfirmed && !isLadderedVault && !hasFundingUtxos ? (
         <View>
           <Text className="text-base text-slate-600 pb-2 px-2">
             {t('wallet.vault.triggerUnfreeze.noReserveAvailableYet')}
@@ -344,7 +344,7 @@ const InitUnfreeze = ({
       ) : !feeEstimates ? (
         //loading...
         <ActivityIndicator />
-      ) : isPushedButUnconfirmed &&
+      ) : isTriggerPushedButUnconfirmed &&
         replacementFeeRateFloor !== null &&
         replacementFeeRateFloor > maxFeeRate ? (
         //cannot RBF
@@ -356,7 +356,7 @@ const InitUnfreeze = ({
       ) : step === 'intro' ? (
         <View>
           <Text className="text-base text-slate-600 pb-2 px-2">
-            {isPushedButUnconfirmed
+            {isTriggerPushedButUnconfirmed
               ? t('wallet.vault.triggerUnfreeze.introAccelerate')
               : t('wallet.vault.triggerUnfreeze.intro', { timeLockTime })}
           </Text>
