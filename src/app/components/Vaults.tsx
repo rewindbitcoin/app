@@ -317,7 +317,6 @@ const RawVault = ({
   const {
     accounts,
     feeEstimates: feeEstimatesRealTime,
-    historyData,
     networkId,
     signers,
     getNextChangeDescriptorWithIndex,
@@ -407,10 +406,6 @@ const RawVault = ({
                 throw new Error(
                   'Cannot accelerate trigger after rescue has started'
                 );
-              if (previousChildTxHex && !historyData?.length)
-                throw new Error(
-                  'Missing synced trigger history for acceleration'
-                );
             }
             const childTxData = await createCpfpChildTx({
               parentTxHex: initUnfreezeData.parentTxHex,
@@ -427,15 +422,11 @@ const RawVault = ({
               // Final local safety check before broadcast. Even if the user chose
               // a higher-looking fee-rate, relay still rejects the replacement if
               // the new child does not add enough absolute sats over the old one.
-              if (!historyData?.length)
-                throw new Error(
-                  'Missing trigger history to validate replacement fee'
-                );
               const previousChildFeeInfo = getCpfpFeeInfo({
                 parentTxHex: initUnfreezeData.parentTxHex,
                 parentFee: initUnfreezeData.parentTxFee,
                 childTxHex: previousChildTxHex,
-                historyData
+                utxosData: triggerReserveUtxosData
               });
               const minimumReplacementChildFee = getMinimumReplacementChildFee({
                 previousChildFee: previousChildFeeInfo.childFee,
@@ -485,7 +476,6 @@ const RawVault = ({
       isLadderedVault,
       vault,
       vaultStatus,
-      historyData,
       updateVaultStatus,
       netRequest,
       toast,
@@ -538,12 +528,6 @@ const RawVault = ({
               throw new Error('Wallet not ready for Rewind2 rescue package');
             const network = networkMapping[networkId];
             const previousChildTxHex = p2aBumpPlan.previousChildTxHex;
-            if (isRescueAccelerationAttempt) {
-              if (previousChildTxHex && !historyData?.length)
-                throw new Error(
-                  'Missing synced rescue history for acceleration'
-                );
-            }
             const childTxData = await createCpfpChildTx({
               parentTxHex: rescueData.parentTxHex,
               parentFee: rescueData.parentTxFee,
@@ -557,15 +541,11 @@ const RawVault = ({
               throw new Error('Cannot build rescue fee-bump transaction');
             if (isRescueAccelerationAttempt && previousChildTxHex) {
               // Same relay rule as above, but now for the rescue fee-payer child.
-              if (!historyData?.length)
-                throw new Error(
-                  'Missing rescue history to validate replacement fee'
-                );
               const previousChildFeeInfo = getCpfpFeeInfo({
                 parentTxHex: rescueData.parentTxHex,
                 parentFee: rescueData.parentTxFee,
                 childTxHex: previousChildTxHex,
-                historyData
+                utxosData: p2aBumpPlan.utxosData
               });
               const minimumReplacementChildFee = getMinimumReplacementChildFee({
                 previousChildFee: previousChildFeeInfo.childFee,
@@ -605,7 +585,6 @@ const RawVault = ({
       pushTx,
       vault.vaultId,
       vaultStatus,
-      historyData,
       updateVaultStatus,
       netRequest,
       toast,
@@ -729,32 +708,30 @@ const RawVault = ({
   );
 
   const canOpenTriggerFeeBumpModal = useMemo(() => {
-    if (isInitUnfreezeBeingHandled) return false;
-    if (hasRescueStarted) return false;
-    if (!isTriggerPushedButUnconfirmed) return false;
+    if (
+      isInitUnfreezeBeingHandled ||
+      hasRescueStarted ||
+      !isTriggerPushedButUnconfirmed
+    )
+      return false;
     if (!isLadderedVault) {
       const hasFundingUtxos = (triggerP2ABumpPlan?.utxosData.length ?? 0) > 0;
       if (!hasFundingUtxos) return true;
     }
-    if (!feeEstimates) return false;
-    if (!triggerPushedTxHex) return false;
-    const { hasAccelerationPath } = getActionAccelerationInfo({
+    if (!feeEstimates || !triggerPushedTxHex) return false;
+    return getActionAccelerationInfo({
       vaultMode,
       feeEstimates,
       pushedTxHex: triggerPushedTxHex,
       presignedTxInfos: triggerPresignedTxInfos,
-      ...(triggerP2ABumpPlan ? { p2aBumpPlan: triggerP2ABumpPlan } : {}),
-      ...(historyData ? { historyData } : {})
-    });
-    if (isLadderedVault) return hasAccelerationPath;
-    return hasAccelerationPath;
+      ...(triggerP2ABumpPlan ? { p2aBumpPlan: triggerP2ABumpPlan } : {})
+    }).hasAccelerationPath;
   }, [
     isInitUnfreezeBeingHandled,
     hasRescueStarted,
     vaultMode,
     isLadderedVault,
     feeEstimates,
-    historyData,
     isTriggerPushedButUnconfirmed,
     triggerPushedTxHex,
     triggerPresignedTxInfos,
@@ -770,14 +747,12 @@ const RawVault = ({
       vaultMode,
       feeEstimates,
       pushedTxHex: rescuePushedTxHex,
-      presignedTxInfos: rescuePresignedTxInfos,
-      ...(historyData ? { historyData } : {})
+      presignedTxInfos: rescuePresignedTxInfos
     }).hasAccelerationPath;
   }, [
     isRescueBeingHandled,
     vaultMode,
     feeEstimates,
-    historyData,
     isRescuePushedButUnconfirmed,
     rescuePushedTxHex,
     rescuePresignedTxInfos

@@ -68,7 +68,6 @@ const InitUnfreeze = ({
     btcFiat: btcFiatRealTime,
     accounts,
     networkId,
-    historyData,
     signers
   } = useWallet();
   // Cache to avoid flickering in the sliders while background refreshes happen.
@@ -81,7 +80,7 @@ const InitUnfreeze = ({
     () => (isLadderedVault ? null : getP2ATriggerInfo(vault)),
     [isLadderedVault, vault]
   );
-  // Estimates can use a dummy change output; broadcast builds fresh wallet change.
+  // p2aBumpPlan is used for fee estimations only; real changeOutput used in Vaults.tsx
   const p2aBumpPlan = useMemo<P2ABumpPlan | null>(() => {
     if (isLadderedVault || !networkId || !signer || !accounts) return null;
     const network = networkMapping[networkId];
@@ -123,13 +122,11 @@ const InitUnfreeze = ({
       feeEstimates,
       pushedTxHex: triggerTxHex,
       presignedTxInfos,
-      ...(p2aBumpPlan ? { p2aBumpPlan } : {}),
-      ...(historyData ? { historyData } : {})
+      ...(p2aBumpPlan ? { p2aBumpPlan } : {})
     });
   }, [
     vaultMode,
     feeEstimates,
-    historyData,
     isPushedButUnconfirmed,
     triggerTxHex,
     presignedTxInfos,
@@ -152,21 +149,14 @@ const InitUnfreeze = ({
   const preferredInitialFeeRate = useMemo<number | null>(() => {
     // This modal stays mounted so Modal can animate across isVisible changes.
     // While hidden, return inert render-time values instead of trigger data.
-    if (!isVisible) {
-      return null;
-    } else if (!feeEstimates) {
-      return null;
-    } else {
-      const preferredNetworkFeeRate = pickFeeEstimate(
-        feeEstimates,
-        settings.INITIAL_CONFIRMATION_TIME
-      ).feeEstimate;
-      if (!isPushedButUnconfirmed) return preferredNetworkFeeRate;
-      else {
-        if (replacementFeeRateFloor === null) return null;
-        else return Math.max(replacementFeeRateFloor, preferredNetworkFeeRate);
-      }
-    }
+    if (!isVisible || !feeEstimates) return null;
+    const preferredNetworkFeeRate = pickFeeEstimate(
+      feeEstimates,
+      settings.INITIAL_CONFIRMATION_TIME
+    ).feeEstimate;
+    if (!isPushedButUnconfirmed) return preferredNetworkFeeRate;
+    if (replacementFeeRateFloor === null) return null;
+    return Math.max(replacementFeeRateFloor, preferredNetworkFeeRate);
   }, [
     isVisible,
     feeEstimates,
@@ -181,9 +171,8 @@ const InitUnfreeze = ({
     (selectedFeeRate: number): VaultActionTxData | null => {
       // This modal stays mounted so Modal can animate across isVisible changes.
       // While hidden, return inert render-time values instead of trigger data.
-      if (!isVisible) {
-        return null;
-      } else if (isLadderedVault) {
+      if (!isVisible) return null;
+      if (isLadderedVault) {
         if (!presignedTxInfos) return null;
         const triggerInfo = findNextEqualOrLargerFeeRate(
           presignedTxInfos,
@@ -196,63 +185,45 @@ const InitUnfreeze = ({
           actionFee: triggerInfo.fee,
           actionFeeRate: triggerInfo.feeRate
         };
-      } else {
-        if (!p2aBumpPlan || !p2aTriggerInfo) return null;
-        // Trigger fee bumping is reserve-only by design: always reuse this
-        // vault's dedicated reserve UTXO as the only non-anchor input and send
-        // any leftover value back through normal wallet change.
-        if (isPushedButUnconfirmed) {
-          const previousChildTxHex = p2aBumpPlan.previousChildTxHex;
-          if (!previousChildTxHex || !historyData?.length) return null;
-        }
-        const plan = estimateCpfpPackage({
-          parentTxHex: p2aTriggerInfo.txHex,
-          parentFee: p2aTriggerInfo.fee,
-          targetPackageFeeRate: selectedFeeRate,
-          utxosData: p2aBumpPlan.utxosData,
-          changeOutput: p2aBumpPlan.changeOutput
-        });
-        if (!plan) return null;
-        return {
-          parentTxHex: p2aTriggerInfo.txHex,
-          parentTxFee: p2aTriggerInfo.fee,
-          actionFee: plan.packageFee,
-          actionFeeRate: plan.packageFeeRate
-        };
       }
+      if (!p2aBumpPlan || !p2aTriggerInfo) return null;
+      // Trigger fee bumping is reserve-only by design: always reuse this
+      // vault's dedicated reserve UTXO as the only non-anchor input and send
+      // any leftover value back through normal wallet change.
+      const plan = estimateCpfpPackage({
+        parentTxHex: p2aTriggerInfo.txHex,
+        parentFee: p2aTriggerInfo.fee,
+        targetPackageFeeRate: selectedFeeRate,
+        utxosData: p2aBumpPlan.utxosData,
+        changeOutput: p2aBumpPlan.changeOutput
+      });
+      if (!plan) return null;
+      return {
+        parentTxHex: p2aTriggerInfo.txHex,
+        parentTxFee: p2aTriggerInfo.fee,
+        actionFee: plan.packageFee,
+        actionFeeRate: plan.packageFeeRate
+      };
     },
-    [
-      isVisible,
-      isLadderedVault,
-      presignedTxInfos,
-      p2aBumpPlan,
-      p2aTriggerInfo,
-      isPushedButUnconfirmed,
-      historyData
-    ]
+    [isVisible, isLadderedVault, presignedTxInfos, p2aBumpPlan, p2aTriggerInfo]
   );
 
   const minimumSelectableFeeRate = useMemo<number | null>(() => {
     // This modal stays mounted so Modal can animate across isVisible changes.
     // While hidden, return inert render-time values instead of trigger data.
-    if (!isVisible) {
-      return null;
-    } else if (isLadderedVault) {
+    if (!isVisible) return null;
+    if (isLadderedVault) {
       if (!presignedTxInfos) return null;
       return isPushedButUnconfirmed
         ? replacementFeeRateFloor
         : (presignedTxInfos[0]?.feeRate ?? MIN_FEE_RATE);
-    } else {
-      if (isPushedButUnconfirmed) {
-        return replacementFeeRateFloor;
-      } else {
-        return findMinimumActionableFeeRate({
-          minimumFeeRate: MIN_FEE_RATE,
-          maximumFeeRate: maxFeeRate,
-          canBuildAtFeeRate: feeRate => buildTxDataForFeeRate(feeRate) !== null
-        });
-      }
     }
+    if (isPushedButUnconfirmed) return replacementFeeRateFloor;
+    return findMinimumActionableFeeRate({
+      minimumFeeRate: MIN_FEE_RATE,
+      maximumFeeRate: maxFeeRate,
+      canBuildAtFeeRate: feeRate => buildTxDataForFeeRate(feeRate) !== null
+    });
   }, [
     isVisible,
     isLadderedVault,

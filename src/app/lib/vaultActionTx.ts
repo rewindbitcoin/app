@@ -10,7 +10,6 @@ import type { Signer } from './wallets';
 import {
   estimateCpfpPackage,
   findP2AOutputData,
-  type HistoryData,
   type TxHex,
   type Vault,
   type UtxosData
@@ -96,7 +95,10 @@ export type P2ABumpPlan = {
  */
 export type AccelerationInfo = {
   /**
-   * Minimum package fee rate that improves the currently live state.
+   * Minimum fee rate that improves the currently live action state.
+   * - Laddered: presigned replacement tx fee rate.
+   * - P2A: parent+child package fee rate.
+   *
    * Returns `null` when the helper cannot compute a valid floor yet.
    */
   replacementFeeRateFloor: number | null;
@@ -157,23 +159,21 @@ export const getLadderedRescueSortedTxs = (
  * Returns the current acceleration state for an unconfirmed action tx.
  *
  * The returned fields mean:
- * - `replacementFeeRateFloor`: the minimum package fee rate that improves the
- *   currently live state
+ * - `replacementFeeRateFloor`: the minimum fee rate that improves the currently
+ *   live state. For laddered vaults this is a presigned replacement tx fee
+ *   rate; for P2A vaults this is a parent+child package fee rate.
  * - `hasAccelerationPath`: a valid fee-bump transaction/package can be built
  *   from the supplied inputs
  */
 export const getActionAccelerationInfo = ({
   vaultMode,
   feeEstimates,
-  historyData,
   pushedTxHex,
   presignedTxInfos,
   p2aBumpPlan
 }: {
   vaultMode: 'LADDERED' | 'P2A_TRUC' | 'P2A_NON_TRUC';
   feeEstimates: FeeEstimates;
-  /** Required only when replacing an existing CPFP child. */
-  historyData?: HistoryData;
   /**
    * Hex of the action tx that status currently says was pushed/live. The caller
    * only calls this helper while that action tx is still unconfirmed.
@@ -219,8 +219,6 @@ export const getActionAccelerationInfo = ({
       replacementFeeRateFloor: null,
       hasAccelerationPath: false
     };
-  if (p2aBumpPlan.previousChildTxHex && !historyData?.length)
-    throw new Error('historyData must be present when replacing a CPFP child');
 
   const parentTxInfo = presignedTxInfos[0];
   if (!parentTxInfo) throw new Error('Missing P2A action tx');
@@ -230,7 +228,6 @@ export const getActionAccelerationInfo = ({
     feeEstimates,
     utxosData: p2aBumpPlan.utxosData,
     childOutput: p2aBumpPlan.changeOutput,
-    ...(historyData ? { historyData } : {}),
     ...(p2aBumpPlan.previousChildTxHex
       ? { childTxHex: p2aBumpPlan.previousChildTxHex }
       : {})
@@ -267,7 +264,7 @@ export const findNextEqualOrLargerFeeRate = <T extends { feeRate: number }>(
 };
 
 /**
- * Reconstructs CPFP fee info from wallet history.
+ * Reconstructs CPFP fee info from the known non-anchor UTXOs.
  *
  * Replacement logic uses this for the old child, but the helper itself is
  * generic: given a P2A parent and one attached CPFP child, it reconstructs the
@@ -280,16 +277,13 @@ export const getCpfpFeeInfo = ({
   parentTxHex,
   parentFee,
   childTxHex,
-  historyData
+  utxosData
 }: {
   parentTxHex: TxHex;
   parentFee: number;
   childTxHex: TxHex;
-  historyData: HistoryData;
-}): {
-  childFee: number;
-  packageFeeRate: number;
-} => {
+  utxosData: UtxosData;
+}): { childFee: number; packageFeeRate: number } => {
   const { tx: parentTx } = transactionFromHex(parentTxHex);
   const { tx: childTx } = transactionFromHex(childTxHex);
   const parentTxId = parentTx.getId();
@@ -297,25 +291,38 @@ export const getCpfpFeeInfo = ({
   if (!anchorOutput)
     throw new Error('Expected exactly one P2A output in parent tx');
 
-  const txById = new Map(historyData.map(item => [item.txId, item.tx]));
+  const knownUtxoValueByOutpoint = new Map(
+    utxosData.map(utxoData => {
+      const output = utxoData.tx.outs[utxoData.vout];
+      if (!output)
+        throw new Error(
+          'Cannot reconstruct CPFP fee info: missing known UTXO output'
+        );
+      return [`${utxoData.tx.getId()}:${utxoData.vout}`, output.value] as const;
+    })
+  );
   let childInputValue = BigInt(0);
+  let spendsAnchor = false;
 
+  // Sum every child input value; the parent P2A anchor is not in utxosData.
   for (const input of childTx.ins) {
     const prevTxId = toHex(Uint8Array.from(input.hash).reverse());
     if (prevTxId === parentTxId && input.index === anchorOutput.index) {
+      spendsAnchor = true;
       childInputValue += BigInt(anchorOutput.value);
-      continue;
-    }
-    const prevTx = txById.get(prevTxId);
-    if (!prevTx)
-      throw new Error('Cannot reconstruct CPFP fee info: missing previous tx');
-    const prevOut = prevTx?.outs[input.index];
-    if (!prevOut)
-      throw new Error(
-        'Cannot reconstruct CPFP fee info: missing previous output'
+    } else {
+      const inputValue = knownUtxoValueByOutpoint.get(
+        `${prevTxId}:${input.index}`
       );
-    childInputValue += prevOut.value;
+      if (inputValue === undefined)
+        throw new Error(
+          'Cannot reconstruct CPFP fee info: missing known child input'
+        );
+      childInputValue += inputValue;
+    }
   }
+  if (!spendsAnchor)
+    throw new Error('CPFP child does not spend parent P2A anchor');
 
   const childOutputValue = childTx.outs.reduce(
     (sum, output) => sum + output.value,
@@ -372,36 +379,32 @@ export const getCpfpReplacementFeeRateFloor = ({
   parentTxHex,
   parentFee,
   childTxHex,
-  historyData,
   feeEstimates,
   utxosData,
   childOutput
 }: {
   parentTxHex: TxHex;
   parentFee: number;
+  /**
+   * Previously broadcast CPFP child in the live package. Omit when the user only
+   * broadcast the parent action tx and this acceleration adds the first child.
+   */
   childTxHex?: TxHex;
-  historyData?: HistoryData;
   feeEstimates: FeeEstimates;
   utxosData: UtxosData;
   childOutput: OutputInstance;
 }): number | null => {
   const { tx: parentTx } = transactionFromHex(parentTxHex);
-  let currentChildFeeInfo;
-  let currentPackageFeeRate;
-
-  if (childTxHex) {
-    if (!historyData?.length)
-      throw new Error(
-        'historyData must be present when computing a child replacement floor'
-      );
-    currentChildFeeInfo = getCpfpFeeInfo({
-      parentTxHex,
-      parentFee,
-      childTxHex,
-      historyData
-    });
-    currentPackageFeeRate = currentChildFeeInfo.packageFeeRate;
-  } else currentPackageFeeRate = parentFee / parentTx.virtualSize();
+  const currentChildFeeInfo = childTxHex
+    ? getCpfpFeeInfo({
+        parentTxHex,
+        parentFee,
+        childTxHex,
+        utxosData
+      })
+    : null;
+  const currentPackageFeeRate =
+    currentChildFeeInfo?.packageFeeRate ?? parentFee / parentTx.virtualSize();
 
   const maxFeeRate = computeMaxAllowedFeeRate(feeEstimates);
   for (
@@ -420,23 +423,17 @@ export const getCpfpReplacementFeeRateFloor = ({
       utxosData,
       changeOutput: childOutput
     });
-    if (!plan) continue;
-
-    // if prev package had no child, mo replacement-child-fee rule applies
-    if (!childTxHex) return targetPackageFeeRate;
-
-    if (!currentChildFeeInfo)
-      throw new Error('currentChildFeeInfo should exist if childTxHex exists');
-    if (
-      plan.childFee >=
-      getMinimumReplacementChildFee({
+    if (plan) {
+      // If the previous package had no child, no replacement-child-fee rule applies.
+      if (!currentChildFeeInfo) return targetPackageFeeRate;
+      const minimumReplacementChildFee = getMinimumReplacementChildFee({
         previousChildFee: currentChildFeeInfo.childFee,
         replacementChildVSize: plan.childVSize,
         incrementalRelayFeeRate: INCREMENTAL_RELAY_FEE_RATE
-      })
-    )
-      return targetPackageFeeRate;
-    //otherwise continue;
+      });
+      if (plan.childFee >= minimumReplacementChildFee)
+        return targetPackageFeeRate;
+    }
   }
   return null;
 };

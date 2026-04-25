@@ -67,11 +67,8 @@ const Rescue = ({
   );
   const isLadderedVault = vaultMode === 'LADDERED';
   const { t } = useTranslation();
-  const {
-    feeEstimates: feeEstimatesRealTime,
-    btcFiat: btcFiatRealTime,
-    historyData
-  } = useWallet();
+  const { feeEstimates: feeEstimatesRealTime, btcFiat: btcFiatRealTime } =
+    useWallet();
   // Cache to avoid flickering in the sliders while background refreshes happen.
   const btcFiat = useFirstDefinedValue<number>(btcFiatRealTime);
   const feeEstimates = useFirstDefinedValue<FeeEstimates>(feeEstimatesRealTime);
@@ -103,13 +100,11 @@ const Rescue = ({
       feeEstimates,
       pushedTxHex,
       presignedTxInfos,
-      ...(p2aBumpPlan ? { p2aBumpPlan } : {}),
-      ...(historyData ? { historyData } : {})
+      ...(p2aBumpPlan ? { p2aBumpPlan } : {})
     });
   }, [
     vaultMode,
     feeEstimates,
-    historyData,
     isPushedButUnconfirmed,
     pushedTxHex,
     presignedTxInfos,
@@ -134,38 +129,33 @@ const Rescue = ({
   const preferredInitialFeeRate = useMemo<number | null>(() => {
     // This modal stays mounted so Modal can animate across isVisible changes.
     // While hidden, return inert render-time values instead of rescue data.
-    if (!isVisible) {
-      return null;
-    } else if (isLadderedVault) {
+    if (!isVisible) return null;
+    if (isLadderedVault) {
       if (!feeEstimates) return null;
       const preferredNetworkFeeRate = pickFeeEstimate(
         feeEstimates,
         settings.INITIAL_CONFIRMATION_TIME
       ).feeEstimate;
       if (!isPushedButUnconfirmed) return preferredNetworkFeeRate;
-      else {
-        if (replacementFeeRateFloor === null) return null;
-        else return Math.max(replacementFeeRateFloor, preferredNetworkFeeRate);
-      }
-    } else {
-      if (!triggerTxHex)
-        throw new Error('Visible rescue is missing trigger tx');
-      const rescueInfo = getP2ARescueInfo(vault, triggerTxHex);
-
-      if (!hasFundingUtxos)
-        return isPushedButUnconfirmed ? null : rescueInfo.feeRate;
-
-      if (!feeEstimates) return null;
-      const preferredNetworkFeeRate = pickFeeEstimate(
-        feeEstimates,
-        settings.INITIAL_CONFIRMATION_TIME
-      ).feeEstimate;
-
-      if (!isPushedButUnconfirmed)
-        return Math.max(rescueInfo.feeRate, preferredNetworkFeeRate);
       if (replacementFeeRateFloor === null) return null;
       return Math.max(replacementFeeRateFloor, preferredNetworkFeeRate);
     }
+    if (!triggerTxHex) throw new Error('Visible rescue is missing trigger tx');
+    const rescueInfo = getP2ARescueInfo(vault, triggerTxHex);
+
+    if (!hasFundingUtxos)
+      return isPushedButUnconfirmed ? null : rescueInfo.feeRate;
+
+    if (!feeEstimates) return null;
+    const preferredNetworkFeeRate = pickFeeEstimate(
+      feeEstimates,
+      settings.INITIAL_CONFIRMATION_TIME
+    ).feeEstimate;
+
+    if (!isPushedButUnconfirmed)
+      return Math.max(rescueInfo.feeRate, preferredNetworkFeeRate);
+    if (replacementFeeRateFloor === null) return null;
+    return Math.max(replacementFeeRateFloor, preferredNetworkFeeRate);
   }, [
     feeEstimates,
     settings.INITIAL_CONFIRMATION_TIME,
@@ -186,27 +176,19 @@ const Rescue = ({
   const minimumSelectableFeeRate = useMemo<number | null>(() => {
     // This modal stays mounted so Modal can animate across isVisible changes.
     // While hidden, return inert render-time values instead of rescue data.
-    if (!isVisible) {
-      return null;
-    } else if (isLadderedVault) {
+    if (!isVisible) return null;
+    if (isLadderedVault) {
       if (!presignedTxInfos) return null;
       return isPushedButUnconfirmed
         ? replacementFeeRateFloor
         : (presignedTxInfos[0]?.feeRate ?? MIN_FEE_RATE);
-    } else {
-      if (!triggerTxHex)
-        throw new Error('Visible rescue is missing trigger tx');
-      if (!hasFundingUtxos) {
-        return null;
-      } else {
-        const rescueInfo = getP2ARescueInfo(vault, triggerTxHex);
-        if (!isPushedButUnconfirmed) {
-          return rescueInfo.feeRate;
-        } else {
-          return replacementFeeRateFloor;
-        }
-      }
     }
+    if (!triggerTxHex) throw new Error('Visible rescue is missing trigger tx');
+    if (!hasFundingUtxos) return null;
+    const rescueInfo = getP2ARescueInfo(vault, triggerTxHex);
+    return isPushedButUnconfirmed
+      ? replacementFeeRateFloor
+      : rescueInfo.feeRate;
   }, [
     isLadderedVault,
     isPushedButUnconfirmed,
@@ -222,9 +204,8 @@ const Rescue = ({
     (selectedFeeRate: number): VaultActionTxData | null => {
       // This modal stays mounted so Modal can animate across isVisible changes.
       // While hidden, return inert render-time values instead of rescue data.
-      if (!isVisible) {
-        return null;
-      } else if (isLadderedVault) {
+      if (!isVisible) return null;
+      if (isLadderedVault) {
         if (!presignedTxInfos) return null;
         const rescueInfo = findNextEqualOrLargerFeeRate(
           presignedTxInfos,
@@ -237,39 +218,34 @@ const Rescue = ({
           actionFee: rescueInfo.fee,
           actionFeeRate: rescueInfo.feeRate
         };
-      } else {
-        if (!triggerTxHex)
-          throw new Error('Visible rescue is missing trigger tx');
-        const rescueInfo = getP2ARescueInfo(vault, triggerTxHex);
-        // Rescue is parent-only by default. Only switch to a package when an
-        // explicit external emergency bump plan exists.
-        if (selectedFeeRate <= rescueInfo.feeRate)
-          return {
-            parentTxHex: rescueInfo.txHex,
-            parentTxFee: rescueInfo.fee,
-            actionFee: rescueInfo.fee,
-            actionFeeRate: rescueInfo.feeRate
-          };
-        else if (!p2aBumpPlan || p2aBumpPlan.utxosData.length === 0)
-          return null;
-        else {
-          const plan = estimateCpfpPackage({
-            parentTxHex: rescueInfo.txHex,
-            parentFee: rescueInfo.fee,
-            targetPackageFeeRate: selectedFeeRate,
-            utxosData: p2aBumpPlan.utxosData,
-            changeOutput: p2aBumpPlan.changeOutput
-          });
-          if (!plan) return null;
-          else
-            return {
-              parentTxHex: rescueInfo.txHex,
-              parentTxFee: rescueInfo.fee,
-              actionFee: plan.packageFee,
-              actionFeeRate: plan.packageFeeRate
-            };
-        }
       }
+      if (!triggerTxHex)
+        throw new Error('Visible rescue is missing trigger tx');
+      const rescueInfo = getP2ARescueInfo(vault, triggerTxHex);
+      // Rescue is parent-only by default. Only switch to a package when an
+      // explicit external emergency bump plan exists.
+      if (selectedFeeRate <= rescueInfo.feeRate)
+        return {
+          parentTxHex: rescueInfo.txHex,
+          parentTxFee: rescueInfo.fee,
+          actionFee: rescueInfo.fee,
+          actionFeeRate: rescueInfo.feeRate
+        };
+      if (!p2aBumpPlan || p2aBumpPlan.utxosData.length === 0) return null;
+      const plan = estimateCpfpPackage({
+        parentTxHex: rescueInfo.txHex,
+        parentFee: rescueInfo.fee,
+        targetPackageFeeRate: selectedFeeRate,
+        utxosData: p2aBumpPlan.utxosData,
+        changeOutput: p2aBumpPlan.changeOutput
+      });
+      if (!plan) return null;
+      return {
+        parentTxHex: rescueInfo.txHex,
+        parentTxFee: rescueInfo.fee,
+        actionFee: plan.packageFee,
+        actionFeeRate: plan.packageFeeRate
+      };
     },
     [
       isVisible,
