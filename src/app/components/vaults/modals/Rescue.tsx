@@ -2,24 +2,24 @@
 // Licensed under the GNU GPL v3 or later. See the LICENSE file for details.
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Modal, Button, ActivityIndicator } from '../../common/ui';
+import { Modal, Button, ActivityIndicator } from '../../../../common/ui';
 import { useTranslation } from 'react-i18next';
 import { View, Text } from 'react-native';
-import FeeInput from './FeeInput';
+import FeeInput from '../../FeeInput';
 import {
   computeMaxAllowedFeeRate,
   FeeEstimates,
   MIN_FEE_RATE,
   pickFeeEstimate
-} from '../lib/fees';
-import { useSettings } from '../hooks/useSettings';
+} from '../../../lib/fees';
+import { useSettings } from '../../../hooks/useSettings';
 import {
   type Vault,
   type VaultStatus,
   estimateCpfpPackage,
   getVaultMode
-} from '../lib/vaults';
-import { useWallet } from '../hooks/useWallet';
+} from '../../../lib/vaults';
+import { useWallet } from '../../../hooks/useWallet';
 import useFirstDefinedValue from '~/common/hooks/useFirstDefinedValue';
 import {
   type AccelerationInfo,
@@ -30,7 +30,7 @@ import {
   type P2ABumpPlan,
   type PresignedTxInfo,
   type VaultActionTxData
-} from '../lib/vaultActionTx';
+} from '../../../lib/vaultActionTx';
 
 type RescueProps = {
   vault: Vault;

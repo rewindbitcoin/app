@@ -2,11 +2,11 @@
 // Licensed under the GNU GPL v3 or later. See the LICENSE file for details.
 
 import React, { useCallback, useState } from 'react';
-import { Modal, Button } from '../../common/ui';
+import { Modal, Button } from '../../../../common/ui';
 import { useTranslation } from 'react-i18next';
 import { View, Text } from 'react-native';
-import type { Vault } from '../lib/vaults';
-import { delegateVault } from '../lib/backup';
+import type { Vault } from '../../../lib/vaults';
+import { delegateVault } from '../../../lib/backup';
 
 const Delegate = ({
   vault,

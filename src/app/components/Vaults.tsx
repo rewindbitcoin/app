@@ -45,8 +45,8 @@ import { Button, IconType, Modal, useToast } from '../../common/ui';
 import { useSettings } from '../hooks/useSettings';
 import type { SubUnit } from '../lib/settings';
 import type { BlockStatus } from '@bitcoinerlab/explorer';
-import InitUnfreeze from './InitUnfreeze';
-import Rescue from './Rescue';
+import InitUnfreeze from './vaults/modals/InitUnfreeze';
+import Rescue from './vaults/modals/Rescue';
 import {
   getActionAccelerationInfo,
   getLadderedRescueSortedTxs,
@@ -60,7 +60,7 @@ import {
   type VaultActionTxData
 } from '../lib/vaultActionTx';
 import { useWallet } from '../hooks/useWallet';
-import Delegate from './Delegate';
+import Delegate from './vaults/modals/Delegate';
 import LearnMoreAboutVaults from './LearnMoreAboutVaults';
 import ModalInfoButton from './ModalInfoButton';
 import * as Notifications from 'expo-notifications';
