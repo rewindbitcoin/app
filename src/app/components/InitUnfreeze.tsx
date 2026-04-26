@@ -135,7 +135,6 @@ const InitUnfreeze = ({
   const replacementFeeRateFloor =
     accelerationInfo?.replacementFeeRateFloor ?? null;
   const hasAccelerationPath = accelerationInfo?.hasAccelerationPath ?? false;
-  const hasFundingUtxos = (p2aBumpPlan?.utxosData.length ?? 0) > 0;
 
   const maxFeeRate = feeEstimates ? computeMaxAllowedFeeRate(feeEstimates) : 0;
   const { settings } = useSettings();
@@ -335,7 +334,7 @@ const InitUnfreeze = ({
           ) : undefined
       }}
     >
-      {isTriggerPushedButUnconfirmed && !isLadderedVault && !hasFundingUtxos ? (
+      {isTriggerPushedButUnconfirmed && !isLadderedVault && !p2aBumpPlan ? (
         <View>
           <Text className="text-base text-slate-600 pb-2 px-2">
             {t('wallet.vault.triggerUnfreeze.noReserveAvailableYet')}

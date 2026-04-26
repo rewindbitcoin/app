@@ -113,7 +113,6 @@ const Rescue = ({
   const replacementFeeRateFloor =
     accelerationInfo?.replacementFeeRateFloor ?? null;
   const hasAccelerationPath = accelerationInfo?.hasAccelerationPath ?? false;
-  const hasFundingUtxos = (p2aBumpPlan?.utxosData.length ?? 0) > 0;
 
   const maxFeeRate = feeEstimates
     ? computeMaxAllowedFeeRate(feeEstimates)
@@ -143,7 +142,7 @@ const Rescue = ({
     if (!triggerTxHex) throw new Error('Visible rescue is missing trigger tx');
     const rescueInfo = getP2ARescueInfo(vault, triggerTxHex);
 
-    if (!hasFundingUtxos)
+    if (!p2aBumpPlan)
       return isRescuePushedButUnconfirmed ? null : rescueInfo.feeRate;
 
     if (!feeEstimates) return null;
@@ -163,12 +162,12 @@ const Rescue = ({
     vault,
     isVisible,
     triggerTxHex,
-    hasFundingUtxos,
+    p2aBumpPlan,
     isRescuePushedButUnconfirmed,
     replacementFeeRateFloor
   ]);
 
-  const showsFeePicker = isLadderedVault || hasFundingUtxos;
+  const showsFeePicker = isLadderedVault || !!p2aBumpPlan;
   const needsFeeEstimates = showsFeePicker;
 
   const [feeRate, setFeeRate] = useState<number | null>(null);
@@ -184,7 +183,7 @@ const Rescue = ({
         : (presignedTxInfos[0]?.feeRate ?? MIN_FEE_RATE);
     }
     if (!triggerTxHex) throw new Error('Visible rescue is missing trigger tx');
-    if (!hasFundingUtxos) return null;
+    if (!p2aBumpPlan) return null;
     const rescueInfo = getP2ARescueInfo(vault, triggerTxHex);
     return isRescuePushedButUnconfirmed
       ? replacementFeeRateFloor
@@ -195,7 +194,7 @@ const Rescue = ({
     replacementFeeRateFloor,
     isVisible,
     presignedTxInfos,
-    hasFundingUtxos,
+    p2aBumpPlan,
     vault,
     triggerTxHex
   ]);
@@ -231,7 +230,7 @@ const Rescue = ({
           actionFee: rescueInfo.fee,
           actionFeeRate: rescueInfo.feeRate
         };
-      if (!p2aBumpPlan || p2aBumpPlan.utxosData.length === 0) return null;
+      if (!p2aBumpPlan) return null;
       const plan = estimateCpfpPackage({
         parentTxHex: rescueInfo.txHex,
         parentFee: rescueInfo.fee,

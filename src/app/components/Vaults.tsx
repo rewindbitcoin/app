@@ -514,9 +514,7 @@ const RawVault = ({
             }
 
             const shouldBuildCpfp =
-              !!p2aBumpPlan &&
-              p2aBumpPlan.utxosData.length > 0 &&
-              rescueData.actionFee > rescueData.parentTxFee;
+              !!p2aBumpPlan && rescueData.actionFee > rescueData.parentTxFee;
             // Rescue never falls back to normal wallet UTXOs. If the presigned
             // parent fee is not enough, the only supported bump path is an
             // explicit external emergency bump plan.
@@ -715,8 +713,7 @@ const RawVault = ({
     )
       return false;
     if (!isLadderedVault) {
-      const hasFundingUtxos = (triggerP2ABumpPlan?.utxosData.length ?? 0) > 0;
-      if (!hasFundingUtxos) return true;
+      if (!triggerP2ABumpPlan) return true;
     }
     if (!feeEstimates || !triggerPushedTxHex) return false;
     return getActionAccelerationInfo({
