@@ -35,20 +35,10 @@ import {
 type RescueProps = {
   vault: Vault;
   vaultStatus: VaultStatus | undefined;
-  onRescue: (rescueData: VaultActionTxData, p2aBumpPlan?: P2ABumpPlan) => void;
+  onRescue: (rescueData: VaultActionTxData) => void;
   isVisible: boolean;
-  /**
-   * Optional external P2A bump plan for rescue.
-   *
-   * This is a small emergency wallet plan prepared outside the
-   * main wallet after an attack. It provides fresh UTXOs and a signer that are
-   * not meant to be under the compromised wallet's normal flow.
-   *
-   * When present, rescue can attach a child tx that spends those fresh UTXOs to
-   * add more fee and sends leftover value to the provided output, which should
-   * normally be the emergency address. When absent, P2A rescue stays parent-only.
-   */
-  p2aBumpPlan?: P2ABumpPlan;
+  /** P2A acceleration plan. Null until rescue top-up funding is supported. */
+  p2aBumpPlan: P2ABumpPlan | null;
   onClose: () => void;
 };
 
@@ -320,11 +310,8 @@ const Rescue = ({
 
   const handleRescue = useCallback(() => {
     if (!txData) throw new Error('Cannot rescue non-existing selected tx');
-    onRescue(
-      txData,
-      txData.actionFee > txData.parentTxFee ? p2aBumpPlan : undefined
-    );
-  }, [onRescue, txData, p2aBumpPlan]);
+    onRescue(txData);
+  }, [onRescue, txData]);
 
   const additionalExplanation = (
     <Text className="text-base text-slate-600 pt-4 px-2">
@@ -335,13 +322,33 @@ const Rescue = ({
   );
 
   let modalContent: React.ReactNode;
-  if (needsFeePicker && !feeEstimates) {
+  if (isRescuePushedButUnconfirmed && !isLadderedVault && !p2aBumpPlan) {
+    modalContent = (
+      <View>
+        <Text className="text-base text-slate-600 pb-2 px-2">
+          {t('wallet.vault.rescue.noBumpFundsAvailableYet')}
+        </Text>
+      </View>
+    );
+  } else if (needsFeePicker && !feeEstimates) {
     modalContent = <ActivityIndicator />;
   } else if (cannotAccelerateMaxFee) {
     modalContent = (
       <View>
         <Text className="text-base text-slate-600 pb-2 px-2">
           {t('wallet.vault.cannotAccelerateMaxFee')}
+        </Text>
+      </View>
+    );
+  } else if (
+    isRescuePushedButUnconfirmed &&
+    !isLadderedVault &&
+    !hasAccelerationPath
+  ) {
+    modalContent = (
+      <View>
+        <Text className="text-base text-slate-600 pb-2 px-2">
+          {t('wallet.vault.rescue.insufficientBumpFunds')}
         </Text>
       </View>
     );

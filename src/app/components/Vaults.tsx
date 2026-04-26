@@ -494,8 +494,13 @@ const RawVault = ({
   const [showRescue, setShowRescue] = useState<boolean>(false);
   const handleCloseRescue = useCallback(() => setShowRescue(false), []);
   const handleShowRescue = useCallback(() => setShowRescue(true), []);
+  const rescueP2ABumpPlan = useMemo<P2ABumpPlan | null>(() => {
+    // TODO: build this from the shared funding wizard once P2A rescue
+    // acceleration top-ups are supported.
+    return null;
+  }, []);
   const handleRescue = useCallback(
-    async (rescueData: VaultActionTxData, p2aBumpPlan?: P2ABumpPlan) => {
+    async (rescueData: VaultActionTxData) => {
       batchedUpdates(() => {
         setShowRescue(false);
         setIsRescueBeingHandled(true);
@@ -513,26 +518,27 @@ const RawVault = ({
               return;
             }
 
-            const shouldBuildCpfp =
-              !!p2aBumpPlan && rescueData.actionFee > rescueData.parentTxFee;
             // Rescue never falls back to normal wallet UTXOs. If the presigned
             // parent fee is not enough, the only supported bump path is an
             // explicit external emergency bump plan.
-            if (!shouldBuildCpfp) {
+            if (
+              !rescueP2ABumpPlan ||
+              rescueData.actionFee <= rescueData.parentTxFee
+            ) {
               await pushTx(rescueData.parentTxHex);
               return;
             }
             if (!networkId)
               throw new Error('Wallet not ready for Rewind2 rescue package');
             const network = networkMapping[networkId];
-            const previousChildTxHex = p2aBumpPlan.previousChildTxHex;
+            const previousChildTxHex = rescueP2ABumpPlan.previousChildTxHex;
             const childTxData = await createCpfpChildTx({
               parentTxHex: rescueData.parentTxHex,
               parentFee: rescueData.parentTxFee,
               targetPackageFeeRate: rescueData.actionFeeRate,
-              utxosData: p2aBumpPlan.utxosData,
-              changeOutput: p2aBumpPlan.changeOutput,
-              signer: p2aBumpPlan.signer,
+              utxosData: rescueP2ABumpPlan.utxosData,
+              changeOutput: rescueP2ABumpPlan.changeOutput,
+              signer: rescueP2ABumpPlan.signer,
               network
             });
             if (!childTxData)
@@ -543,7 +549,7 @@ const RawVault = ({
                 parentTxHex: rescueData.parentTxHex,
                 parentFee: rescueData.parentTxFee,
                 childTxHex: previousChildTxHex,
-                utxosData: p2aBumpPlan.utxosData
+                utxosData: rescueP2ABumpPlan.utxosData
               });
               const minimumReplacementChildFee = getMinimumReplacementChildFee({
                 previousChildFee: previousChildFeeInfo.childFee,
@@ -589,7 +595,8 @@ const RawVault = ({
       t,
       networkId,
       pushTxPackage,
-      isLadderedVault
+      isLadderedVault,
+      rescueP2ABumpPlan
     ]
   );
 
@@ -715,26 +722,31 @@ const RawVault = ({
     if (
       isInitUnfreezeBeingHandled ||
       hasRescueStarted ||
-      !isTriggerPushedButUnconfirmed
+      !isTriggerPushedButUnconfirmed ||
+      !triggerPushedTxHex
     )
       return false;
 
-    // Let the user open the modal even without reserve funds so it can explain
-    // why trigger acceleration is unavailable instead of hiding the action.
-    // TODO: replace this explanation-only path with a shared funding wizard for
-    // trigger and rescue acceleration once fee-bump top-ups are supported.
-    const opensForMissingReserveExplanation =
-      !isLadderedVault && !triggerP2ABumpPlan;
-    if (opensForMissingReserveExplanation) return true;
+    if (isLadderedVault) {
+      if (!feeEstimates) return false;
+      return getActionAccelerationInfo({
+        vaultMode,
+        feeEstimates,
+        pushedTxHex: triggerPushedTxHex,
+        presignedTxInfos: triggerPresignedTxInfos
+      }).hasAccelerationPath; //FIXME: perhaps needs parent tx confirmation?
+    }
 
-    if (!feeEstimates || !triggerPushedTxHex) return false;
-    return getActionAccelerationInfo({
-      vaultMode,
-      feeEstimates,
-      pushedTxHex: triggerPushedTxHex,
-      presignedTxInfos: triggerPresignedTxInfos,
-      ...(triggerP2ABumpPlan ? { p2aBumpPlan: triggerP2ABumpPlan } : {})
-    }).hasAccelerationPath; //FIXME: perhaps needs parent tx confirmation?
+    // Let P2A open the modal even when acceleration funds are missing or
+    // insufficient, so the user gets an explanation instead of no action.
+    // TODO: replace these explanation-only paths with a shared funding wizard
+    // for trigger and rescue acceleration once top-ups are supported.
+    if (!triggerP2ABumpPlan) return true; // No fee estimate can fix absent reserve funds.
+
+    // With a plan, the modal needs fee estimates to distinguish insufficient
+    // funds, max-fee, and actionable acceleration states.
+    if (!feeEstimates) return false;
+    return true;
   }, [
     isInitUnfreezeBeingHandled,
     hasRescueStarted,
@@ -748,24 +760,39 @@ const RawVault = ({
   ]);
 
   const canOpenRescueAccelerationModal = useMemo(() => {
-    if (isRescueBeingHandled) return false;
-    if (!isRescuePushedButUnconfirmed) return false;
-    if (!rescuePushedTxHex || !feeEstimates || !rescuePresignedTxInfos)
+    if (
+      isRescueBeingHandled ||
+      !isRescuePushedButUnconfirmed ||
+      !rescuePushedTxHex ||
+      !rescuePresignedTxInfos
+    )
       return false;
 
-    // TODO: mirror trigger acceleration once fee-bump top-ups are supported:
-    // allow opening a shared funding wizard when rescue lacks bump funds.
-    return getActionAccelerationInfo({
-      vaultMode,
-      feeEstimates,
-      pushedTxHex: rescuePushedTxHex,
-      presignedTxInfos: rescuePresignedTxInfos
-    }).hasAccelerationPath; //FIXME: perhaps needs parent tx confirmation?
+    if (isLadderedVault) {
+      if (!feeEstimates) return false;
+      return getActionAccelerationInfo({
+        vaultMode,
+        feeEstimates,
+        pushedTxHex: rescuePushedTxHex,
+        presignedTxInfos: rescuePresignedTxInfos
+      }).hasAccelerationPath; //FIXME: perhaps needs parent tx confirmation?
+    }
+
+    // Let P2A rescue acceleration open the modal even when acceleration funds
+    // are missing, so the user gets an explanation instead of no action.
+    if (!rescueP2ABumpPlan) return true; // No fee estimate can fix absent rescue acceleration funds.
+
+    // With a plan, the modal needs fee estimates to distinguish insufficient
+    // funds, max-fee, and actionable acceleration states.
+    if (!feeEstimates) return false;
+    return true;
   }, [
     isRescueBeingHandled,
     vaultMode,
+    isLadderedVault,
     feeEstimates,
     isRescuePushedButUnconfirmed,
+    rescueP2ABumpPlan,
     rescuePushedTxHex,
     rescuePresignedTxInfos
   ]);
@@ -1335,6 +1362,7 @@ const RawVault = ({
       <Rescue
         vault={vault}
         vaultStatus={vaultStatus}
+        p2aBumpPlan={rescueP2ABumpPlan}
         isVisible={showRescue}
         onClose={handleCloseRescue}
         onRescue={handleRescue}

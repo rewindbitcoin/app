@@ -300,6 +300,18 @@ const InitUnfreeze = ({
         </Text>
       </View>
     );
+  } else if (
+    isTriggerPushedButUnconfirmed &&
+    !isLadderedVault &&
+    !hasAccelerationPath
+  ) {
+    modalContent = (
+      <View>
+        <Text className="text-base text-slate-600 pb-2 px-2">
+          {t('wallet.vault.triggerUnfreeze.insufficientReserveFunds')}
+        </Text>
+      </View>
+    );
   } else if (step === 'intro') {
     modalContent = (
       <View>

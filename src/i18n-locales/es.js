@@ -261,7 +261,10 @@ Nota: "Acelerar" no reduce el período de bloqueo; sólo ayuda a que el proceso 
 Seguramente sólo necesitas esperar unos 10 minutos y realmente no necesitas esto. Usa "Acelerar" sólo si esperar ese tiempo (que podría alargarse hasta un par de horas) no es aceptable.`,
         noReserveAvailableYet: `Todavía no hay reserva disponible para esta solicitud de descongelación.
 
-Rewind no puede construir el hijo para aumentar la comisión hasta que se añadan fondos a la reserva.`,
+Rewind no puede acelerarla hasta que se añadan fondos a la reserva.`,
+        insufficientReserveFunds: `Hay fondos en la reserva, pero no son suficientes para acelerar esta solicitud de descongelación.
+
+Añade más fondos a la reserva para poder acelerarla.`,
         confirmationSpeedLabel: 'Comisión',
         feeSelectorExplanation:
           'Confirma la comisión de minería para iniciar la cuenta regresiva de descongelación.',
@@ -284,6 +287,12 @@ Esta acción está diseñada para situaciones extremas, como robo o extorsión, 
         highFeeConfirmation: `Esta transacción de rescate ya está prefirmada con una comisión de minería alta.
 
 En la mayoría de los casos eso debería ser suficiente y no harán falta fondos extra para acelerarla. Confirma abajo para emitir ahora la transacción de rescate.`,
+        noBumpFundsAvailableYet: `Todavía no hay fondos de aceleración disponibles para esta solicitud de rescate.
+
+Rewind no puede acelerar este rescate hasta que se añadan fondos extra.`,
+        insufficientBumpFunds: `Hay fondos de aceleración disponibles, pero no son suficientes para acelerar esta solicitud de rescate.
+
+Añade más fondos para poder acelerarla.`,
         feeSelectorExplanation:
           'Confirma la comisión de minería de la transacción de rescate para asegurar un procesamiento rápido.',
         additionalExplanation: `Una vez que se confirme la solicitud de rescate, los fondos serán movidos a tu Dirección de Emergencia instantáneamente.`

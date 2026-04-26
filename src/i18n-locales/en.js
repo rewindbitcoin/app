@@ -266,7 +266,10 @@ Remember, "Accelerate" won't shorten the lock period. It only speeds up when you
 You likely only need to wait around 10 minutes and really don't need this. Use "Accelerate" only if waiting that time (which could stretch to a couple of hours) isn't acceptable.`,
         noReserveAvailableYet: `No reserve available yet for this unfreeze request.
 
-Rewind cannot build a fee-bump child for it until reserve funds are added.`,
+Rewind cannot accelerate it until reserve funds are added.`,
+        insufficientReserveFunds: `Reserve funds are available, but there is not enough to accelerate this unfreeze request.
+
+Add more reserve funds to accelerate it.`,
         confirmationSpeedLabel: 'Mining Fee',
         feeSelectorExplanation:
           'Confirm the mining fee to request the start of the unfreeze countdown.',
@@ -288,7 +291,13 @@ This address will likely be difficult to access if you followed the recommended 
 This action is designed for extreme situations, such as theft or extortion, to ensure the safety of your Bitcoin. Make sure this is a deliberate decision.`,
         highFeeConfirmation: `This rescue transaction is already presigned with a high mining fee.
 
-In most cases, that should be enough and no extra bump funds are needed. Confirm below to broadcast the rescue transaction now.`,
+In most cases, that should be enough and no extra acceleration funds are needed. Confirm below to broadcast the rescue transaction now.`,
+        noBumpFundsAvailableYet: `No acceleration funds available yet for this rescue request.
+
+Rewind cannot accelerate this rescue until extra funds are added.`,
+        insufficientBumpFunds: `Acceleration funds are available, but there is not enough to accelerate this rescue request.
+
+Add more funds to accelerate it.`,
         feeSelectorExplanation:
           'Confirm the mining fee for the rescue transaction to ensure prompt processing.',
         additionalExplanation: `Once the rescue request is confirmed, the funds will be moved to your Emergency Address instantly.`
