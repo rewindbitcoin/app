@@ -33,7 +33,6 @@ import {
   getActionAccelerationInfo,
   getLadderedTriggerSortedTxs,
   getP2ATriggerInfo,
-  pickActionableInitialFeeRate,
   type P2ABumpPlan,
   type PresignedTxInfo,
   type VaultActionTxData
@@ -136,7 +135,9 @@ const InitUnfreeze = ({
     accelerationInfo?.replacementFeeRateFloor ?? null;
   const hasAccelerationPath = accelerationInfo?.hasAccelerationPath ?? false;
 
-  const maxFeeRate = feeEstimates ? computeMaxAllowedFeeRate(feeEstimates) : 0;
+  const maxFeeRate = feeEstimates
+    ? computeMaxAllowedFeeRate(feeEstimates)
+    : null;
   const { settings } = useSettings();
   if (!settings)
     throw new Error(
@@ -218,6 +219,7 @@ const InitUnfreeze = ({
         : (presignedTxInfos[0]?.feeRate ?? MIN_FEE_RATE);
     }
     if (isTriggerPushedButUnconfirmed) return replacementFeeRateFloor;
+    if (maxFeeRate === null) return null;
     return findMinimumActionableFeeRate({
       minimumFeeRate: MIN_FEE_RATE,
       maximumFeeRate: maxFeeRate,
@@ -233,35 +235,36 @@ const InitUnfreeze = ({
     buildTxDataForFeeRate
   ]);
 
-  const initialFeeRate = useMemo<number | null>(
-    () =>
-      // If the wallet's preferred confirmation target is no longer fundable,
-      // fall back to the minimum actionable replacement floor instead of
-      // opening an acceleration modal that cannot proceed past the intro step.
-      pickActionableInitialFeeRate({
-        preferredFeeRate:
-          isTriggerPushedButUnconfirmed &&
-          replacementFeeRateFloor !== null &&
-          replacementFeeRateFloor > maxFeeRate
-            ? null
-            : preferredInitialFeeRate,
-        minimumActionableFeeRate:
-          isTriggerPushedButUnconfirmed &&
-          replacementFeeRateFloor !== null &&
-          replacementFeeRateFloor > maxFeeRate
-            ? null
-            : minimumSelectableFeeRate,
-        canBuildAtFeeRate: feeRate => buildTxDataForFeeRate(feeRate) !== null
-      }),
-    [
-      preferredInitialFeeRate,
-      isTriggerPushedButUnconfirmed,
-      replacementFeeRateFloor,
-      maxFeeRate,
-      minimumSelectableFeeRate,
-      buildTxDataForFeeRate
-    ]
-  );
+  const cannotAccelerateMaxFee =
+    isTriggerPushedButUnconfirmed &&
+    replacementFeeRateFloor !== null &&
+    maxFeeRate !== null &&
+    replacementFeeRateFloor > maxFeeRate;
+
+  const initialFeeRate = useMemo<number | null>(() => {
+    // No selectable fee can satisfy replacement rules above the picker max.
+    if (cannotAccelerateMaxFee) return null;
+
+    if (
+      preferredInitialFeeRate !== null &&
+      buildTxDataForFeeRate(preferredInitialFeeRate) !== null
+    )
+      return preferredInitialFeeRate;
+
+    // If the preferred target is not fundable, use the lowest buildable fee.
+    if (
+      minimumSelectableFeeRate !== null &&
+      buildTxDataForFeeRate(minimumSelectableFeeRate) !== null
+    )
+      return minimumSelectableFeeRate;
+
+    return null;
+  }, [
+    preferredInitialFeeRate,
+    cannotAccelerateMaxFee,
+    minimumSelectableFeeRate,
+    buildTxDataForFeeRate
+  ]);
 
   const txData = useMemo<VaultActionTxData | null>(() => {
     const selectedFeeRate = feeRate ?? initialFeeRate;
@@ -269,9 +272,14 @@ const InitUnfreeze = ({
     return buildTxDataForFeeRate(selectedFeeRate);
   }, [feeRate, initialFeeRate, buildTxDataForFeeRate]);
 
-  const canOpenFeeStep = isTriggerPushedButUnconfirmed
-    ? hasAccelerationPath
-    : initialFeeRate !== null;
+  let canOpenFeeStep: boolean;
+  if (!feeEstimates) {
+    canOpenFeeStep = false;
+  } else if (isTriggerPushedButUnconfirmed) {
+    canOpenFeeStep = hasAccelerationPath;
+  } else {
+    canOpenFeeStep = initialFeeRate !== null;
+  }
 
   const fee = txData ? txData.actionFee : null;
 
@@ -296,6 +304,67 @@ const InitUnfreeze = ({
   }, [onInitUnfreeze, txData]);
 
   const timeLockTime = formatBlocks(lockBlocks, t, locale, true);
+
+  let modalContent: React.ReactNode;
+  if (isTriggerPushedButUnconfirmed && !isLadderedVault && !p2aBumpPlan) {
+    modalContent = (
+      <View>
+        <Text className="text-base text-slate-600 pb-2 px-2">
+          {t('wallet.vault.triggerUnfreeze.noReserveAvailableYet')}
+        </Text>
+      </View>
+    );
+  } else if (!feeEstimates) {
+    modalContent = <ActivityIndicator />;
+  } else if (cannotAccelerateMaxFee) {
+    modalContent = (
+      <View>
+        <Text className="text-base text-slate-600 pb-2 px-2">
+          {t('wallet.vault.cannotAccelerateMaxFee')}
+        </Text>
+      </View>
+    );
+  } else if (step === 'intro') {
+    modalContent = (
+      <View>
+        <Text className="text-base text-slate-600 pb-2 px-2">
+          {isTriggerPushedButUnconfirmed
+            ? t('wallet.vault.triggerUnfreeze.introAccelerate')
+            : t('wallet.vault.triggerUnfreeze.intro', { timeLockTime })}
+        </Text>
+      </View>
+    );
+  } else if (step === 'fee') {
+    modalContent = (
+      <View>
+        <Text className="text-base text-slate-600 pb-4 px-2">
+          {t('wallet.vault.triggerUnfreeze.feeSelectorExplanation')}
+        </Text>
+        <View className="bg-slate-100 p-2 rounded-xl">
+          {initialFeeRate !== null && minimumSelectableFeeRate !== null ? (
+            <FeeInput
+              min={minimumSelectableFeeRate}
+              btcFiat={btcFiat}
+              feeEstimates={feeEstimates}
+              initialValue={initialFeeRate}
+              fee={fee}
+              label={t('wallet.vault.triggerUnfreeze.confirmationSpeedLabel')}
+              onValueChange={setFeeRate}
+            />
+          ) : (
+            <ActivityIndicator />
+          )}
+        </View>
+        <Text className="text-base text-slate-600 pt-4 px-2">
+          {t('wallet.vault.triggerUnfreeze.additionalExplanation', {
+            timeLockTime
+          })}
+        </Text>
+      </View>
+    );
+  } else {
+    modalContent = null;
+  }
 
   return (
     <Modal
@@ -334,61 +403,7 @@ const InitUnfreeze = ({
           ) : undefined
       }}
     >
-      {isTriggerPushedButUnconfirmed && !isLadderedVault && !p2aBumpPlan ? (
-        <View>
-          <Text className="text-base text-slate-600 pb-2 px-2">
-            {t('wallet.vault.triggerUnfreeze.noReserveAvailableYet')}
-          </Text>
-        </View>
-      ) : !feeEstimates ? (
-        //loading...
-        <ActivityIndicator />
-      ) : isTriggerPushedButUnconfirmed &&
-        replacementFeeRateFloor !== null &&
-        replacementFeeRateFloor > maxFeeRate ? (
-        //cannot RBF
-        <View>
-          <Text className="text-base text-slate-600 pb-2 px-2">
-            {t('wallet.vault.cannotAccelerateMaxFee')}
-          </Text>
-        </View>
-      ) : step === 'intro' ? (
-        <View>
-          <Text className="text-base text-slate-600 pb-2 px-2">
-            {isTriggerPushedButUnconfirmed
-              ? t('wallet.vault.triggerUnfreeze.introAccelerate')
-              : t('wallet.vault.triggerUnfreeze.intro', { timeLockTime })}
-          </Text>
-        </View>
-      ) : step === 'fee' ? (
-        <View>
-          <Text className="text-base text-slate-600 pb-4 px-2">
-            {t('wallet.vault.triggerUnfreeze.feeSelectorExplanation')}
-          </Text>
-          <View className="bg-slate-100 p-2 rounded-xl">
-            {feeEstimates ? (
-              <FeeInput
-                {...(minimumSelectableFeeRate !== null
-                  ? { min: minimumSelectableFeeRate }
-                  : {})}
-                btcFiat={btcFiat}
-                feeEstimates={feeEstimates}
-                initialValue={initialFeeRate!}
-                fee={fee}
-                label={t('wallet.vault.triggerUnfreeze.confirmationSpeedLabel')}
-                onValueChange={setFeeRate}
-              />
-            ) : (
-              <ActivityIndicator />
-            )}
-          </View>
-          <Text className="text-base text-slate-600 pt-4 px-2">
-            {t('wallet.vault.triggerUnfreeze.additionalExplanation', {
-              timeLockTime
-            })}
-          </Text>
-        </View>
-      ) : null}
+      {modalContent}
     </Modal>
   );
 };

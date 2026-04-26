@@ -27,7 +27,6 @@ import {
   getActionAccelerationInfo,
   getLadderedRescueSortedTxs,
   getP2ARescueInfo,
-  pickActionableInitialFeeRate,
   type P2ABumpPlan,
   type PresignedTxInfo,
   type VaultActionTxData
@@ -167,8 +166,8 @@ const Rescue = ({
     replacementFeeRateFloor
   ]);
 
-  const showsFeePicker = isLadderedVault || !!p2aBumpPlan;
-  const needsFeeEstimates = showsFeePicker;
+  // P2A rescue without an external bump plan is parent-only; all other rescue paths need a fee picker.
+  const needsFeePicker = isLadderedVault || !!p2aBumpPlan;
 
   const [feeRate, setFeeRate] = useState<number | null>(null);
 
@@ -256,37 +255,36 @@ const Rescue = ({
     ]
   );
 
-  const initialFeeRate = useMemo<number | null>(
-    () =>
-      // If the wallet's preferred confirmation target is no longer fundable,
-      // fall back to the minimum actionable replacement floor instead of
-      // opening an acceleration modal that cannot proceed past the intro step.
-      pickActionableInitialFeeRate({
-        preferredFeeRate:
-          isRescuePushedButUnconfirmed &&
-          replacementFeeRateFloor !== null &&
-          maxFeeRate !== null &&
-          replacementFeeRateFloor > maxFeeRate
-            ? null
-            : preferredInitialFeeRate,
-        minimumActionableFeeRate:
-          isRescuePushedButUnconfirmed &&
-          replacementFeeRateFloor !== null &&
-          maxFeeRate !== null &&
-          replacementFeeRateFloor > maxFeeRate
-            ? null
-            : minimumSelectableFeeRate,
-        canBuildAtFeeRate: feeRate => buildTxDataForFeeRate(feeRate) !== null
-      }),
-    [
-      preferredInitialFeeRate,
-      isRescuePushedButUnconfirmed,
-      replacementFeeRateFloor,
-      maxFeeRate,
-      minimumSelectableFeeRate,
-      buildTxDataForFeeRate
-    ]
-  );
+  const cannotAccelerateMaxFee =
+    isRescuePushedButUnconfirmed &&
+    replacementFeeRateFloor !== null &&
+    maxFeeRate !== null &&
+    replacementFeeRateFloor > maxFeeRate;
+
+  const initialFeeRate = useMemo<number | null>(() => {
+    // No selectable fee can satisfy replacement rules above the picker max.
+    if (cannotAccelerateMaxFee) return null;
+
+    if (
+      preferredInitialFeeRate !== null &&
+      buildTxDataForFeeRate(preferredInitialFeeRate) !== null
+    )
+      return preferredInitialFeeRate;
+
+    // If the preferred target is not fundable, use the lowest buildable fee.
+    if (
+      minimumSelectableFeeRate !== null &&
+      buildTxDataForFeeRate(minimumSelectableFeeRate) !== null
+    )
+      return minimumSelectableFeeRate;
+
+    return null;
+  }, [
+    preferredInitialFeeRate,
+    cannotAccelerateMaxFee,
+    minimumSelectableFeeRate,
+    buildTxDataForFeeRate
+  ]);
 
   const txData = useMemo<VaultActionTxData | null>(() => {
     const selectedFeeRate = feeRate ?? initialFeeRate;
@@ -294,9 +292,14 @@ const Rescue = ({
     return buildTxDataForFeeRate(selectedFeeRate);
   }, [feeRate, initialFeeRate, buildTxDataForFeeRate]);
 
-  const canOpenFeeStep = isRescuePushedButUnconfirmed
-    ? hasAccelerationPath
-    : initialFeeRate !== null;
+  let canOpenFeeStep: boolean;
+  if (needsFeePicker && !feeEstimates) {
+    canOpenFeeStep = false;
+  } else if (isRescuePushedButUnconfirmed) {
+    canOpenFeeStep = hasAccelerationPath;
+  } else {
+    canOpenFeeStep = initialFeeRate !== null;
+  }
 
   const fee = txData ? txData.actionFee : null;
 
@@ -322,6 +325,76 @@ const Rescue = ({
       txData.actionFee > txData.parentTxFee ? p2aBumpPlan : undefined
     );
   }, [onRescue, txData, p2aBumpPlan]);
+
+  const additionalExplanation = (
+    <Text className="text-base text-slate-600 pt-4 px-2">
+      {t('wallet.vault.rescue.additionalExplanation', {
+        timeLockTime: 0
+      })}
+    </Text>
+  );
+
+  let modalContent: React.ReactNode;
+  if (needsFeePicker && !feeEstimates) {
+    modalContent = <ActivityIndicator />;
+  } else if (cannotAccelerateMaxFee) {
+    modalContent = (
+      <View>
+        <Text className="text-base text-slate-600 pb-2 px-2">
+          {t('wallet.vault.cannotAccelerateMaxFee')}
+        </Text>
+      </View>
+    );
+  } else if (step === 'intro') {
+    modalContent = (
+      <View>
+        <Text className="text-base text-slate-600 pb-2 px-2">
+          {isRescuePushedButUnconfirmed
+            ? t('wallet.vault.rescue.introAccelerate')
+            : t('wallet.vault.rescue.intro', {
+                panicAddress: vault.coldAddress
+              })}
+        </Text>
+      </View>
+    );
+  } else if (step === 'fee' && needsFeePicker && feeEstimates) {
+    modalContent = (
+      <View>
+        {initialFeeRate !== null && minimumSelectableFeeRate !== null ? (
+          <>
+            <Text className="text-base text-slate-600 pb-4 px-2">
+              {t('wallet.vault.rescue.feeSelectorExplanation')}
+            </Text>
+            <View className="bg-slate-100 p-2 rounded-xl">
+              <FeeInput
+                min={minimumSelectableFeeRate}
+                btcFiat={btcFiat}
+                feeEstimates={feeEstimates}
+                initialValue={initialFeeRate}
+                fee={fee}
+                label={t('wallet.vault.rescue.confirmationSpeedLabel')}
+                onValueChange={setFeeRate}
+              />
+            </View>
+          </>
+        ) : (
+          <ActivityIndicator />
+        )}
+        {additionalExplanation}
+      </View>
+    );
+  } else if (step === 'fee') {
+    modalContent = (
+      <View>
+        <Text className="text-base text-slate-600 pb-4 px-2">
+          {t('wallet.vault.rescue.highFeeConfirmation')}
+        </Text>
+        {additionalExplanation}
+      </View>
+    );
+  } else {
+    modalContent = null;
+  }
 
   return (
     <Modal
@@ -364,62 +437,7 @@ const Rescue = ({
           ) : undefined
       }}
     >
-      {needsFeeEstimates && !feeEstimates ? (
-        //loading...
-        <ActivityIndicator />
-      ) : isRescuePushedButUnconfirmed &&
-        replacementFeeRateFloor !== null &&
-        maxFeeRate !== null &&
-        replacementFeeRateFloor > maxFeeRate ? (
-        //cannot RBF
-        <View>
-          <Text className="text-base text-slate-600 pb-2 px-2">
-            {t('wallet.vault.cannotAccelerateMaxFee')}
-          </Text>
-        </View>
-      ) : step === 'intro' ? (
-        <View>
-          <Text className="text-base text-slate-600 pb-2 px-2">
-            {isRescuePushedButUnconfirmed
-              ? t('wallet.vault.rescue.introAccelerate')
-              : t('wallet.vault.rescue.intro', {
-                  panicAddress: vault.coldAddress
-                })}
-          </Text>
-        </View>
-      ) : step === 'fee' ? (
-        <View>
-          {showsFeePicker ? (
-            <>
-              <Text className="text-base text-slate-600 pb-4 px-2">
-                {t('wallet.vault.rescue.feeSelectorExplanation')}
-              </Text>
-              <View className="bg-slate-100 p-2 rounded-xl">
-                <FeeInput
-                  {...(minimumSelectableFeeRate !== null
-                    ? { min: minimumSelectableFeeRate }
-                    : {})}
-                  btcFiat={btcFiat}
-                  feeEstimates={feeEstimates!}
-                  initialValue={initialFeeRate!}
-                  fee={fee}
-                  label={t('wallet.vault.rescue.confirmationSpeedLabel')}
-                  onValueChange={setFeeRate}
-                />
-              </View>
-            </>
-          ) : (
-            <Text className="text-base text-slate-600 pb-4 px-2">
-              {t('wallet.vault.rescue.highFeeConfirmation')}
-            </Text>
-          )}
-          <Text className="text-base text-slate-600 pt-4 px-2">
-            {t('wallet.vault.rescue.additionalExplanation', {
-              timeLockTime: 0
-            })}
-          </Text>
-        </View>
-      ) : null}
+      {modalContent}
     </Modal>
   );
 };

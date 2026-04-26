@@ -438,33 +438,6 @@ export const getCpfpReplacementFeeRateFloor = ({
   return null;
 };
 
-/**
- * Computes the initial fee rate shown in the fee selector.
- *
- * We prefer the wallet's current confirmation target, but if that target is no
- * longer fundable we fall back to the minimum actionable replacement floor so
- * the user can still continue instead of seeing an intro modal with only a
- * Cancel button.
- */
-export const pickActionableInitialFeeRate = ({
-  preferredFeeRate,
-  minimumActionableFeeRate,
-  canBuildAtFeeRate
-}: {
-  preferredFeeRate: number | null;
-  minimumActionableFeeRate: number | null;
-  canBuildAtFeeRate: (feeRate: number) => boolean;
-}) => {
-  if (preferredFeeRate !== null && canBuildAtFeeRate(preferredFeeRate))
-    return preferredFeeRate;
-  if (
-    minimumActionableFeeRate !== null &&
-    canBuildAtFeeRate(minimumActionableFeeRate)
-  )
-    return minimumActionableFeeRate;
-  return null;
-};
-
 /** Finds the first fee rate on the slider grid that can actually build a tx. */
 export const findMinimumActionableFeeRate = ({
   minimumFeeRate,
