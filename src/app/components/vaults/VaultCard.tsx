@@ -44,8 +44,6 @@ import {
   getActionAccelerationInfo,
   getLadderedRescueSortedTxs,
   getLadderedTriggerSortedTxs,
-  getMinimumReplacementChildFee,
-  getCpfpFeeInfo,
   getP2ARescueInfo,
   getP2ATriggerInfo,
   type P2ABumpPlan,
@@ -221,7 +219,6 @@ const RawVault = ({
             // trigger reserve stays outside normal wallet flow and is always
             // the only non-anchor input. The child sends leftover value back to
             // the wallet's regular change branch.
-            const previousChildTxHex = vaultStatus?.triggerCpfpTxHex;
             if (isTriggerPushedButUnconfirmed) {
               if (vaultStatus?.panicPushTime || vaultStatus?.panicTxHex)
                 throw new Error(
@@ -239,25 +236,6 @@ const RawVault = ({
             });
             if (!childTxData)
               throw new Error('Cannot build trigger fee-bump transaction');
-            if (isTriggerPushedButUnconfirmed && previousChildTxHex) {
-              // Final local safety check before broadcast. Even if the user chose
-              // a higher-looking fee-rate, relay still rejects the replacement if
-              // the new child does not add enough absolute sats over the old one.
-              const previousChildFeeInfo = getCpfpFeeInfo({
-                parentTxHex: initUnfreezeData.parentTxHex,
-                parentFee: initUnfreezeData.parentTxFee,
-                childTxHex: previousChildTxHex,
-                utxosData: triggerReserveUtxosData
-              });
-              const minimumReplacementChildFee = getMinimumReplacementChildFee({
-                previousChildFee: previousChildFeeInfo.childFee,
-                replacementChildVSize: childTxData.childVSize
-              });
-              if (childTxData.childFee < minimumReplacementChildFee)
-                throw new Error(
-                  'Selected trigger acceleration fee is too low to replace the current fee payer'
-                );
-            }
             triggerCpfpTxHex = childTxData.childTxHex;
             await pushTxPackage({
               parentTxHex: initUnfreezeData.parentTxHex,
@@ -354,7 +332,6 @@ const RawVault = ({
             if (!networkId)
               throw new Error('Wallet not ready for Rewind2 rescue package');
             const network = networkMapping[networkId];
-            const previousChildTxHex = rescueP2ABumpPlan.previousChildTxHex;
             const childTxData = await createCpfpChildTx({
               parentTxHex: rescueData.parentTxHex,
               parentFee: rescueData.parentTxFee,
@@ -366,23 +343,6 @@ const RawVault = ({
             });
             if (!childTxData)
               throw new Error('Cannot build rescue fee-bump transaction');
-            if (isRescuePushedButUnconfirmed && previousChildTxHex) {
-              // Same relay rule as above, but now for the rescue fee-payer child.
-              const previousChildFeeInfo = getCpfpFeeInfo({
-                parentTxHex: rescueData.parentTxHex,
-                parentFee: rescueData.parentTxFee,
-                childTxHex: previousChildTxHex,
-                utxosData: rescueP2ABumpPlan.utxosData
-              });
-              const minimumReplacementChildFee = getMinimumReplacementChildFee({
-                previousChildFee: previousChildFeeInfo.childFee,
-                replacementChildVSize: childTxData.childVSize
-              });
-              if (childTxData.childFee < minimumReplacementChildFee)
-                throw new Error(
-                  'Selected rescue acceleration fee is too low to replace the current fee payer'
-                );
-            }
             panicCpfpTxHex = childTxData.childTxHex;
             await pushTxPackage({
               parentTxHex: rescueData.parentTxHex,
