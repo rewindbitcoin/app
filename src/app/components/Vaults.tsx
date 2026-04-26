@@ -734,14 +734,14 @@ const RawVault = ({
         feeEstimates,
         pushedTxHex: triggerPushedTxHex,
         presignedTxInfos: triggerPresignedTxInfos
-      }).hasAccelerationPath; //FIXME: perhaps needs parent tx confirmation?
+      }).hasAccelerationPath;
     }
 
     // Let P2A open the modal even when acceleration funds are missing or
     // insufficient, so the user gets an explanation instead of no action.
     // TODO: replace these explanation-only paths with a shared funding wizard
     // for trigger and rescue acceleration once top-ups are supported.
-    if (!triggerP2ABumpPlan) return true; // No fee estimate can fix absent reserve funds.
+    if (!triggerP2ABumpPlan) return true;
 
     // With a plan, the modal needs fee estimates to distinguish insufficient
     // funds, max-fee, and actionable acceleration states.
@@ -775,12 +775,12 @@ const RawVault = ({
         feeEstimates,
         pushedTxHex: rescuePushedTxHex,
         presignedTxInfos: rescuePresignedTxInfos
-      }).hasAccelerationPath; //FIXME: perhaps needs parent tx confirmation?
+      }).hasAccelerationPath;
     }
 
     // Let P2A rescue acceleration open the modal even when acceleration funds
     // are missing, so the user gets an explanation instead of no action.
-    if (!rescueP2ABumpPlan) return true; // No fee estimate can fix absent rescue acceleration funds.
+    if (!rescueP2ABumpPlan) return true;
 
     // With a plan, the modal needs fee estimates to distinguish insufficient
     // funds, max-fee, and actionable acceleration states.
