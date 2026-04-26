@@ -18,14 +18,11 @@ import {
   type Vault,
   type VaultStatus,
   estimateCpfpPackage,
-  getTriggerReserveUtxosData,
   getVaultMode
 } from '../lib/vaults';
 import { useWallet } from '../hooks/useWallet';
 import useFirstDefinedValue from '~/common/hooks/useFirstDefinedValue';
 import { useLocalization } from '../hooks/useLocalization';
-import { DUMMY_CHANGE_OUTPUT, getMainAccount } from '../lib/vaultDescriptors';
-import { networkMapping } from '../lib/network';
 import {
   type AccelerationInfo,
   findMinimumActionableFeeRate,
@@ -41,6 +38,7 @@ import {
 type InitUnfreezeProps = {
   vault: Vault;
   vaultStatus: VaultStatus | undefined;
+  p2aBumpPlan: P2ABumpPlan | null;
   onInitUnfreeze: (initUnfreezeData: VaultActionTxData) => void;
   lockBlocks: number;
   isVisible: boolean;
@@ -50,6 +48,7 @@ type InitUnfreezeProps = {
 const InitUnfreeze = ({
   vault,
   vaultStatus,
+  p2aBumpPlan,
   isVisible,
   lockBlocks,
   onInitUnfreeze,
@@ -62,39 +61,16 @@ const InitUnfreeze = ({
   );
   const isLadderedVault = vaultMode === 'LADDERED';
   const { t } = useTranslation();
-  const {
-    feeEstimates: feeEstimatesRealTime,
-    btcFiat: btcFiatRealTime,
-    accounts,
-    networkId,
-    signers
-  } = useWallet();
+  const { feeEstimates: feeEstimatesRealTime, btcFiat: btcFiatRealTime } =
+    useWallet();
   // Cache to avoid flickering in the sliders while background refreshes happen.
   const btcFiat = useFirstDefinedValue<number>(btcFiatRealTime);
   const feeEstimates = useFirstDefinedValue<FeeEstimates>(feeEstimatesRealTime);
-  const signer = signers?.[0];
-  const triggerCpfpTxHex = vaultStatus?.triggerCpfpTxHex;
   const triggerTxHex = vaultStatus?.triggerTxHex;
   const p2aTriggerInfo = useMemo<PresignedTxInfo | null>(
     () => (isLadderedVault ? null : getP2ATriggerInfo(vault)),
     [isLadderedVault, vault]
   );
-  // p2aBumpPlan is used for fee estimations only; real changeOutput used in Vaults.tsx
-  const p2aBumpPlan = useMemo<P2ABumpPlan | null>(() => {
-    if (isLadderedVault || !networkId || !signer || !accounts) return null;
-    const network = networkMapping[networkId];
-    const utxosData = getTriggerReserveUtxosData({ vault, signer, network });
-    if (utxosData.length === 0) return null;
-    return {
-      utxosData,
-      changeOutput: DUMMY_CHANGE_OUTPUT(
-        getMainAccount(accounts, network),
-        network
-      ),
-      signer,
-      ...(triggerCpfpTxHex ? { previousChildTxHex: triggerCpfpTxHex } : {})
-    };
-  }, [isLadderedVault, networkId, signer, accounts, vault, triggerCpfpTxHex]);
   const presignedTxInfos = useMemo<PresignedTxInfo[] | null>(
     () =>
       isLadderedVault

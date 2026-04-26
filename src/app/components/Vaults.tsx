@@ -1317,6 +1317,7 @@ const RawVault = ({
       <InitUnfreeze
         vault={vault}
         vaultStatus={vaultStatus}
+        p2aBumpPlan={triggerP2ABumpPlan}
         isVisible={showInitUnfreeze}
         lockBlocks={vault.lockBlocks}
         onClose={handleCloseInitUnfreeze}
