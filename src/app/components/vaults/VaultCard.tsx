@@ -160,9 +160,10 @@ const RawVault = ({
         setShowInitUnfreeze(false);
         setIsInitUnfreezeBeingHandled(true);
       });
-      const isTriggerAccelerationAttempt =
-        !!vaultStatus?.triggerPushTime ||
-        vaultStatus?.triggerTxBlockHeight === 0;
+      const isTriggerPushedButUnconfirmed =
+        vaultStatus?.triggerTxBlockHeight !== undefined
+          ? vaultStatus.triggerTxBlockHeight === 0
+          : !!vaultStatus?.triggerPushTime;
       let triggerCpfpTxHex: string | undefined;
       try {
         const { status: pushStatus } = await netRequest({
@@ -221,7 +222,7 @@ const RawVault = ({
             // the only non-anchor input. The child sends leftover value back to
             // the wallet's regular change branch.
             const previousChildTxHex = vaultStatus?.triggerCpfpTxHex;
-            if (isTriggerAccelerationAttempt) {
+            if (isTriggerPushedButUnconfirmed) {
               if (vaultStatus?.panicPushTime || vaultStatus?.panicTxHex)
                 throw new Error(
                   'Cannot accelerate trigger after rescue has started'
@@ -238,7 +239,7 @@ const RawVault = ({
             });
             if (!childTxData)
               throw new Error('Cannot build trigger fee-bump transaction');
-            if (isTriggerAccelerationAttempt && previousChildTxHex) {
+            if (isTriggerPushedButUnconfirmed && previousChildTxHex) {
               // Final local safety check before broadcast. Even if the user chose
               // a higher-looking fee-rate, relay still rejects the replacement if
               // the new child does not add enough absolute sats over the old one.
@@ -266,7 +267,7 @@ const RawVault = ({
         });
 
         if (pushStatus !== 'SUCCESS') return;
-        if (isTriggerAccelerationAttempt)
+        if (isTriggerPushedButUnconfirmed)
           toast.show(t('wallet.vault.accelerateSuccess'), { type: 'success' });
         if (!vaultStatus)
           throw new Error('vault status should exist for existing vault');
@@ -325,8 +326,10 @@ const RawVault = ({
         setShowRescue(false);
         setIsRescueBeingHandled(true);
       });
-      const isRescueAccelerationAttempt =
-        !!vaultStatus?.panicPushTime || vaultStatus?.panicTxBlockHeight === 0;
+      const isRescuePushedButUnconfirmed =
+        vaultStatus?.panicTxBlockHeight !== undefined
+          ? vaultStatus.panicTxBlockHeight === 0
+          : !!vaultStatus?.panicPushTime;
       let panicCpfpTxHex: string | undefined;
       try {
         const { status: pushStatus } = await netRequest({
@@ -363,7 +366,7 @@ const RawVault = ({
             });
             if (!childTxData)
               throw new Error('Cannot build rescue fee-bump transaction');
-            if (isRescueAccelerationAttempt && previousChildTxHex) {
+            if (isRescuePushedButUnconfirmed && previousChildTxHex) {
               // Same relay rule as above, but now for the rescue fee-payer child.
               const previousChildFeeInfo = getCpfpFeeInfo({
                 parentTxHex: rescueData.parentTxHex,
@@ -389,7 +392,7 @@ const RawVault = ({
         });
 
         if (pushStatus !== 'SUCCESS') return;
-        if (isRescueAccelerationAttempt)
+        if (isRescuePushedButUnconfirmed)
           toast.show(t('wallet.vault.accelerateSuccess'), { type: 'success' });
         if (!vaultStatus)
           throw new Error('vault status should exist for existing vault');
