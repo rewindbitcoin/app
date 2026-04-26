@@ -152,6 +152,11 @@ const RawVault = ({
     () => setShowInitUnfreeze(true),
     []
   );
+  // Broadcasts the selected init-unfreeze action. First it acknowledges the
+  // watchtower for this local action; the UI has already enforced the
+  // vault/package rules, including TRUC parent confirmation and acceleration fee
+  // floors, so this pushes laddered txs directly or builds the P2A
+  // parent+reserve-child package.
   const handleInitUnfreeze = useCallback(
     async (initUnfreezeData: VaultActionTxData) => {
       batchedUpdates(() => {
@@ -219,12 +224,6 @@ const RawVault = ({
             // trigger reserve stays outside normal wallet flow and is always
             // the only non-anchor input. The child sends leftover value back to
             // the wallet's regular change branch.
-            if (isTriggerPushedButUnconfirmed) {
-              if (vaultStatus?.panicPushTime || vaultStatus?.panicTxHex)
-                throw new Error(
-                  'Cannot accelerate trigger after rescue has started'
-                );
-            }
             const childTxData = await createCpfpChildTx({
               parentTxHex: initUnfreezeData.parentTxHex,
               parentFee: initUnfreezeData.parentTxFee,
@@ -298,6 +297,9 @@ const RawVault = ({
     // acceleration top-ups are supported.
     return null;
   }, []);
+  // Broadcasts the selected rescue action. The modal has already selected a
+  // valid parent or package; laddered and P2A parent-only rescue push the parent
+  // directly, while P2A acceleration builds the external-bump child package.
   const handleRescue = useCallback(
     async (rescueData: VaultActionTxData) => {
       batchedUpdates(() => {
