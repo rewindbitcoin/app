@@ -393,47 +393,61 @@ const estimateCpfpChildVSizeFromOutputs = (
 };
 
 /**
- * Returns the sats that must be funded into the next reserve UTXO.
+ * Returns the sats that must be funded into the next P2A bump reserve UTXO.
  *
- * This is the shared reserve-sizing primitive for P2A parent+child packages.
+ * This is the shared P2A bump reserve-sizing primitive for parent+child
+ * packages. It is not trigger-specific: trigger setup uses it through
+ * `getRequiredTriggerReserveValue(...)`, and future rescue acceleration can use
+ * the same primitive once the rescue reserve signer/output model exists.
+ *
  * The caller provides:
- * - the reserve UTXOs that already exist and their values
- * - the output template for the next reserve UTXO that may be added now
- * - the change output template of the future child
- * - the presigned parent's size and fee rate
- * - the target package fee rate that the full parent+child package should reach
+ * - bump reserve outputs that already exist and their values
+ * - the output template for the next bump reserve UTXO that may be added now
+ * - the change output template
+ * - the presigned parent transaction's size and fee rate
+ * - the package fee rate the full parent+child package should reach
  *
- * The result is the smallest value that the next reserve UTXO must carry so the
- * package can still pay:
+ * Example: trigger setup uses this for the first reserve UTXO. It calls this
+ * with no existing reserve outputs, the built-in trigger reserve output as the
+ * next bump reserve output, the wallet change output, the trigger parent
+ * size/fee rate and `MAX_TRIGGER_FEERATE` as the package target.
+ *
+ * Future top-up flows can call the same helper with existing reserve UTXOs
+ * already populated, then size only the next reserve UTXO that must be added.
+ * Those top-up flows are not implemented yet, but this helper is shaped for
+ * that model.
+ *
+ * The result is the smallest value that the next bump reserve UTXO must carry so
+ * the package can still pay:
  * - the parent's already baked fee
  * - the child's own minimum relay fee
  * - the target package fee
  * - one spendable child change output
  *
- * This helper does not do coinselection across reserve UTXOs. It uses a simple
- * model: the future child is assumed to spend all currently known reserve UTXOs
- * plus the next reserve UTXO being sized now.
+ * This helper does not do coinselection across reserve UTXOs. The future child
+ * is assumed to spend all currently known bump reserve UTXOs plus the next bump
+ * reserve UTXO being sized now.
  *
- * If the existing reserve UTXOs already cover the needed budget, this returns
- * `0`, which means no additional reserve UTXO is needed.
+ * If existing bump reserve UTXOs already cover the needed budget, this returns
+ * `0`, which means no additional bump reserve UTXO is needed.
  *
- * Otherwise the result is the minimum valid value for a newly created reserve
- * UTXO, so it is still clamped to at least dust+1.
+ * Otherwise the result is the minimum valid value for a newly created bump
+ * reserve UTXO, so it is still clamped to at least dust+1.
  */
-export const getRequiredNextReserveUtxoValue = ({
-  existingReserveOutputsWithValue,
-  nextReserveOutput,
+export const getRequiredNextP2ABumpReserveUtxoValue = ({
+  existingBumpReserveOutputsWithValue,
+  nextBumpReserveOutput,
   changeOutput,
   vaultMode,
   presignedParentVSize,
   presignedParentFeeRate,
   targetPackageFeeRate
 }: {
-  existingReserveOutputsWithValue: Array<{
+  existingBumpReserveOutputsWithValue: Array<{
     output: OutputInstance;
     value: bigint;
   }>;
-  nextReserveOutput: OutputInstance;
+  nextBumpReserveOutput: OutputInstance;
   changeOutput: OutputInstance;
   /**
    * Structural parent mode.
@@ -457,8 +471,8 @@ export const getRequiredNextReserveUtxoValue = ({
 }) => {
   const childVSize = estimateCpfpChildVSizeFromOutputs(
     [
-      ...existingReserveOutputsWithValue.map(({ output }) => output),
-      nextReserveOutput
+      ...existingBumpReserveOutputsWithValue.map(({ output }) => output),
+      nextBumpReserveOutput
     ],
     changeOutput
   );
@@ -473,24 +487,27 @@ export const getRequiredNextReserveUtxoValue = ({
   const anchorValue =
     vaultMode === 'P2A_TRUC' ? 0 : Number(P2A_NON_TRUC_ANCHOR_VALUE);
   const childOutputMinValue = toNumber(dustThreshold(changeOutput)) + 1;
-  const nextReserveMinValue = toNumber(dustThreshold(nextReserveOutput)) + 1;
-  const existingReserveValue = existingReserveOutputsWithValue.reduce(
+  const nextBumpReserveMinValue =
+    toNumber(dustThreshold(nextBumpReserveOutput)) + 1;
+  const existingBumpReserveValue = existingBumpReserveOutputsWithValue.reduce(
     (sum, { value }) => sum + toNumber(value),
     0
   );
 
   // Value conservation for the future child is:
-  //   existingReserveValue + nextReserveValue + anchorValue
+  //   existingBumpReserveValue + nextBumpReserveValue + anchorValue
   //     = childFee + childOutputValue
   // and we require:
   //   childOutputValue >= childOutputMinValue
   // so:
-  //   nextReserveValue >=
-  //     childFee + childOutputMinValue - anchorValue - existingReserveValue
-  const nextReserveValueNeeded =
-    childFee + childOutputMinValue - anchorValue - existingReserveValue;
-  if (nextReserveValueNeeded <= 0) return BigInt(0);
-  return toBigInt(Math.max(nextReserveMinValue, nextReserveValueNeeded));
+  //   nextBumpReserveValue >=
+  //     childFee + childOutputMinValue - anchorValue - existingBumpReserveValue
+  const nextBumpReserveValueNeeded =
+    childFee + childOutputMinValue - anchorValue - existingBumpReserveValue;
+  if (nextBumpReserveValueNeeded <= 0) return BigInt(0);
+  return toBigInt(
+    Math.max(nextBumpReserveMinValue, nextBumpReserveValueNeeded)
+  );
 };
 
 /**
@@ -534,9 +551,9 @@ export const getRequiredTriggerReserveValue = ({
    */
   maxTriggerFeeRate: number;
 }) => {
-  return getRequiredNextReserveUtxoValue({
-    existingReserveOutputsWithValue: [],
-    nextReserveOutput: triggerReserveOutput,
+  return getRequiredNextP2ABumpReserveUtxoValue({
+    existingBumpReserveOutputsWithValue: [],
+    nextBumpReserveOutput: triggerReserveOutput,
     changeOutput,
     vaultMode,
     presignedParentVSize: Math.max(...TRIGGER_TX_VBYTES),
