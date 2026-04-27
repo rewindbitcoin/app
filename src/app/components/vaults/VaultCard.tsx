@@ -514,6 +514,10 @@ const RawVault = ({
     [isLadderedVault, vault, vaultStatus?.triggerTxHex]
   );
 
+  // Controls whether the trigger status line shows a clickable acceleration
+  // action. Opening the modal does not mean acceleration is guaranteed: for
+  // P2A, the modal may only explain that acceleration funds are missing or
+  // insufficient.
   const canOpenTriggerAccelerationModal = useMemo(() => {
     if (
       isInitUnfreezeBeingHandled ||
@@ -556,6 +560,10 @@ const RawVault = ({
     triggerP2ABumpPlan
   ]);
 
+  // Controls whether the rescue status line shows a clickable acceleration
+  // action. Opening the modal does not mean acceleration is guaranteed: for
+  // P2A, the modal may only explain that acceleration funds are missing or
+  // insufficient.
   const canOpenRescueAccelerationModal = useMemo(() => {
     if (
       isRescueBeingHandled ||
@@ -658,7 +666,7 @@ const RawVault = ({
     updateVaultStatus(vault.vaultId, newVaultStatus);
   }, [updateVaultStatus, vaultStatus, vault.vaultId]);
 
-  const mode =
+  const amountMode =
     settings.FIAT_MODE && typeof btcFiat === 'number'
       ? 'Fiat'
       : settings.SUB_UNIT;
@@ -724,7 +732,7 @@ const RawVault = ({
                 }
                 satsBalance={frozenBalance}
                 btcFiat={btcFiat}
-                mode={mode}
+                mode={amountMode}
               />
             )}
             {!!unfrozenBalance && (
@@ -733,7 +741,7 @@ const RawVault = ({
                 isConfirming={false}
                 satsBalance={unfrozenBalance}
                 btcFiat={btcFiat}
-                mode={mode}
+                mode={amountMode}
               />
             )}
             {!!rescuedBalance && (
@@ -745,7 +753,7 @@ const RawVault = ({
                 }
                 satsBalance={rescuedBalance}
                 btcFiat={btcFiat}
-                mode={mode}
+                mode={amountMode}
               />
             )}
           </View>
@@ -801,7 +809,7 @@ const RawVault = ({
                 btcFiat,
                 currency,
                 locale,
-                mode,
+                mode: amountMode,
                 appendSubunit: true
               })}
             </Text>
