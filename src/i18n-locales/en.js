@@ -659,11 +659,9 @@ For your security, please review these changes before proceeding.`,
       'Coins are provided for practice on the {{networkName}} test network. These test tokens have no real value.'
   },
   createVault: {
-    intro: `We're setting up your vault, generating multiple combinations to minimize future unfreezing fees.
+    intro: `Preparing your vault summary...
 
-This may take around 30 seconds, slightly longer on older devices.
-
-Next, you'll get to confirm everything.`,
+Next, you'll review everything before activating it.`,
     miningFee: 'Mining Fee',
     serviceFee: 'Vaulting Fee',
     allFees: 'Fees',
@@ -689,10 +687,9 @@ Rewind does this to make sure the on-chain backup is mined too. The fee is paid 
     //Each peer helps store these backups, but the vault details remain fully encrypted, so no one can access them. Only you can with your Recovery Phrase.
     //Anyone can easily run a peer to support the network. Learn more at rewindbitcoin.com.
     // The backup will be stored on one peer and retrieved from another to verify its integrity.
-    backupInProgress: 'Backing up your vault and verifying the backup...',
-    pushingVault: `Your vault has been successfully backed up and is securely stored.
+    submittingVault: `Rewind is backing up your vault, verifying the backup, and sending the vault transaction to the blockchain.
 
-Now, as the final step, we're sending your vault to the blockchain to activate it...`,
+Please keep the app open.`,
     fetchIssues: `Connection issues detected. The vault was not created. Please check your internet connection and try again.
 
 {{message}}`,

@@ -72,7 +72,7 @@ import {
   PANIC_TX_VBYTES,
   TRIGGER_TX_VBYTES
 } from './vaultSizes';
-import { generateMnemonic, mnemonicToSeedSync } from 'bip39';
+import { generateMnemonic } from 'bip39';
 import {
   parseVaultIndex,
   getTriggerReservePath,
@@ -1933,12 +1933,8 @@ export const createVault = async ({
 
 export const getRandomSigner = async (networkId: NetworkId) => {
   const network = networkMapping[networkId];
-  const { BIP32 } = ensureDescriptorsFactoryInstance();
   const randomMnemonic = generateMnemonic();
-  const masterNode = BIP32.fromSeed(
-    mnemonicToSeedSync(randomMnemonic),
-    network
-  );
+  const masterNode = getMasterNode(randomMnemonic, network);
   const masterFingerprint = toHex(masterNode.fingerprint);
   return { masterFingerprint, type: SOFTWARE, mnemonic: randomMnemonic };
 };

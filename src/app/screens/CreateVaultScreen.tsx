@@ -10,8 +10,7 @@ import React, {
 } from 'react';
 import { useWallet } from '../hooks/useWallet';
 import { useTranslation } from 'react-i18next';
-import { useWindowDimensions, View, Text } from 'react-native';
-import * as Progress from 'react-native-progress';
+import { View, Text } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   createVault,
@@ -31,14 +30,11 @@ import { p2pBackupVault, fetchP2PVaultIds } from '../lib/backup';
 import { useNavigation } from '@react-navigation/native';
 import { useNetStatus } from '../hooks/useNetStatus';
 import { NavigationPropsByScreenId, WALLET_HOME } from '../screens';
-import { batchedUpdates } from '~/common/lib/batchedUpdates';
 import { formatBlocks } from '../lib/format';
 import { formatBtc } from '../lib/btcRates';
 import { useLocalization } from '../hooks/useLocalization';
 import { toBigInt } from '../lib/sats';
 import ModalInfoButton from '../components/ModalInfoButton';
-
-const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 const SummaryTitle = ({
   title,
@@ -69,8 +65,6 @@ export default function CreateVaultScreen({
     btcFiat,
     utxosData
   } = vaultSettings;
-
-  const height = useWindowDimensions().height;
 
   const insets = useSafeAreaInsets();
   const mbStyle = useMemo(() => ({ marginBottom: insets.bottom }), [insets]);
@@ -106,7 +100,6 @@ export default function CreateVaultScreen({
   const toast = useToast();
   const { t } = useTranslation();
   const navigation = useNavigation<NavigationPropsByScreenId['CREATE_VAULT']>();
-  const keepProgress = useRef<boolean>(true);
   const createCancelled = useRef<boolean>(false);
   const { settings } = useSettings();
   if (!settings)
@@ -117,18 +110,15 @@ export default function CreateVaultScreen({
   const vaultMode =
     networkId === 'BITCOIN' ? 'P2A_TRUC' : settings.TESTING_VAULT_MODE;
   const { locale, currency } = useLocalization();
-  // We know settings are the correct ones in this Component
-  const [progress, setProgress] = useState<number>(0);
   const [confirmRequested, setConfirmRequested] = useState<boolean>(false);
   const [vault, setVault] = useState<Vault>();
 
   const backBlockerUnsubscriberRef = useRef<null | (() => void)>(null);
 
   useEffect(() => {
-    const preventGoBack = confirmRequested && progress === 1;
     //prevents going back with any other action
     //https://reactnavigation.org/docs/preventing-going-back/
-    if (preventGoBack) {
+    if (confirmRequested) {
       navigation.setOptions({
         gestureEnabled: false,
         headerBackVisible: false
@@ -149,7 +139,7 @@ export default function CreateVaultScreen({
         backBlockerUnsubscriberRef.current = null;
       }
     };
-  }, [confirmRequested, navigation, progress]);
+  }, [confirmRequested, navigation]);
 
   const goBack = useCallback(() => {
     //programatical goBack will re-enable back behaviour
@@ -180,18 +170,10 @@ export default function CreateVaultScreen({
     else navigation.navigate(WALLET_HOME, { walletId });
   }, [navigation, walletId]);
 
-  const stopProgress = useCallback(() => {
-    keepProgress.current = false;
-  }, []);
   useEffect(() => {
     return () => {
       createCancelled.current = true;
-      stopProgress();
     };
-  }, [stopProgress]);
-  const onProgress = useCallback((progress: number) => {
-    setProgress(progress);
-    return keepProgress.current;
   }, []);
   const cancelCreate = useCallback(() => {
     createCancelled.current = true;
@@ -217,12 +199,9 @@ export default function CreateVaultScreen({
     }
     if (!vault) throw new Error('Unset vault cannot be confirmed');
 
-    batchedUpdates(() => {
-      setProgress(0);
-      setConfirmRequested(true);
-    });
+    setConfirmRequested(true);
 
-    const { result: backedUp, status: backupStatus } = await netRequest({
+    const { status: backupStatus } = await netRequest({
       whenToastErrors: 'ON_ANY_ERROR',
       errorMessage: message => t('createVault.vaultBackupError', { message }),
       func: () =>
@@ -232,7 +211,6 @@ export default function CreateVaultScreen({
           signer,
           cBVaultsWriterAPI,
           cBVaultsReaderAPI,
-          onProgress,
           networkId
         })
     });
@@ -240,17 +218,10 @@ export default function CreateVaultScreen({
       goBack();
       return;
     }
-    if (backedUp === false) {
-      //This means the user cancelled the backup process by stopping the
-      //compression using onProgress
-      goBack();
-      return;
-    }
     //This means the screen is not focussed anymore!?!?!
     //Don't proceed.
     if (!navigation.isFocused()) return;
 
-    setProgress(1);
     //Pushes the vault and then updates:
     //  - Vaults and VaultsStatuses, discoveryExport local storage and
     //  - also derived data: utxosData and historyData
@@ -283,7 +254,6 @@ export default function CreateVaultScreen({
     vault,
     cBVaultsWriterAPI,
     cBVaultsReaderAPI,
-    onProgress,
     networkId,
     t,
     navigation,
@@ -303,8 +273,6 @@ export default function CreateVaultScreen({
     }
 
     const create = async () => {
-      //Leave some time so that the progress is rendered
-      await sleep(200);
       if (!shouldContinueCreate()) return;
 
       const unvaultKeyExpression = await getUnvaultKeyExpression();
@@ -376,10 +344,7 @@ export default function CreateVaultScreen({
           triggerDescriptor: vaultData.triggerDescriptor,
           creationTime: vaultData.creationTime
         };
-        batchedUpdates(() => {
-          setVault(vault);
-          setProgress(1);
-        });
+        setVault(vault);
       } else {
         if (vaultData !== 'USER_CANCEL') {
           const errorMessage = t('createVault.unexpectedError', {
@@ -461,16 +426,14 @@ export default function CreateVaultScreen({
       >
         {!vault || !vaultTxInfo ? (
           //Initial view:
-          <View className="flex-1 justify-between gap-8">
-            <Text className="text-base self-start">
-              {t('createVault.intro')}
-            </Text>
-            <View className="flex-grow justify-center items-center">
-              <Progress.Circle
-                size={height <= 667 /*iPhone SE*/ ? 200 : 300}
-                showsText={true}
-                progress={progress}
-              />
+          <View className="flex-1 justify-between">
+            <View>
+              <Text className="text-base self-start">
+                {t('createVault.intro')}
+              </Text>
+              <View className="items-center pt-10">
+                <ActivityIndicator size="large" />
+              </View>
             </View>
             <Button onPress={cancelCreate}>{t('cancelButton')}</Button>
           </View>
@@ -632,33 +595,14 @@ export default function CreateVaultScreen({
                 </View>
               </>
             ) : (
-              <>
-                {progress !== 1 ? (
-                  //when progress is 1 this means the backups has been done
-                  //and now it's pushing the vault. Don't let the user
-                  //cancel at this stage!!!
-                  <>
-                    <Text className="text-base">
-                      {t('createVault.backupInProgress')}
-                    </Text>
-                    <View className="flex-grow justify-center items-center">
-                      <Progress.Circle
-                        size={height < 667 /*iPhone SE*/ ? 200 : 300}
-                        showsText={true}
-                        progress={progress}
-                      />
-                    </View>
-                    <Button onPress={stopProgress}>{t('cancelButton')}</Button>
-                  </>
-                ) : (
-                  <>
-                    <Text className="text-base mb-12">
-                      {t('createVault.pushingVault')}
-                    </Text>
-                    <ActivityIndicator size="large" />
-                  </>
-                )}
-              </>
+              <View className="flex-1">
+                <Text className="text-base">
+                  {t('createVault.submittingVault')}
+                </Text>
+                <View className="items-center pt-10">
+                  <ActivityIndicator size="large" />
+                </View>
+              </View>
             )}
           </>
         )}

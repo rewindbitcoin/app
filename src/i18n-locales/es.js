@@ -596,11 +596,9 @@ Por tu seguridad, por favor revisa estos cambios antes de continuar.`,
       'Las monedas se proporcionan para practicar en la red de prueba {{networkName}}. Estos tokens de prueba no tienen valor real.'
   },
   createVault: {
-    intro: `Estamos configurando tu bóveda, generando múltiples combinaciones para minimizar las comisiones futuras de descongelación.
+    intro: `Preparando el resumen de tu bóveda...
 
-Esto puede tomar unos 30 segundos, un poco más en dispositivos antiguos.
-
-A continuación, podrás confirmarlo todo.`,
+A continuación, podrás revisarlo todo antes de activarla.`,
     miningFee: 'Comisión de minería',
     serviceFee: 'Comisión de Bóveda',
     allFees: 'Comisiones',
@@ -619,10 +617,9 @@ Rewind hace esto para asegurarse de que el backup on-chain también se mine. La 
     //Si pierdes este dispositivo, podrás recuperar la bóveda usando tu Frase de Recuperación.
     //
     //Selecciona 'Enviar' para activar tu bóveda.`,
-    backupInProgress: 'Respaldando tu bóveda y verificando el backup...',
-    pushingVault: `Tu bóveda ha sido respaldada en un backup exitosamente y está almacenada de forma segura.
+    submittingVault: `Rewind está respaldando tu bóveda, verificando el backup y enviando la transacción de la bóveda a la blockchain.
 
-Ahora, como paso final, estamos enviando tu bóveda a la blockchain para activarla...`,
+Por favor, mantén la app abierta.`,
     fetchIssues: `Se detectaron problemas de conexión. La bóveda no fue creada. Por favor, verifica tu conexión a Internet e inténtalo de nuevo.
 
 {{message}}`,
