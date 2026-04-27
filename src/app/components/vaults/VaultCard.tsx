@@ -298,8 +298,9 @@ const RawVault = ({
     return null;
   }, []);
   // Broadcasts the selected rescue action. The modal has already selected a
-  // valid parent or package; laddered and P2A parent-only rescue push the parent
-  // directly, while P2A acceleration builds the external-bump child package.
+  // valid parent or package; for P2A acceleration it has also verified that the
+  // external bump UTXOs can build the child. Laddered and P2A parent-only rescue
+  // push the parent directly, while P2A acceleration builds the child package.
   const handleRescue = useCallback(
     async (rescueData: VaultActionTxData) => {
       batchedUpdates(() => {
