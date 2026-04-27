@@ -407,7 +407,8 @@ const RawVault = ({
     vaultStatus.vaultTxBlockHeight > 0;
   const isVaultTxInMempool = vaultStatus?.vaultTxBlockHeight === 0;
   const isVaultTxPushed = !!vaultStatus?.vaultPushTime;
-  const isVaultTx = isVaultTxPushed || isVaultTxInMempool || isVaultTxConfirmed;
+  const vaultNotFound =
+    !isVaultTxPushed && !isVaultTxInMempool && !isVaultTxConfirmed;
 
   const isInitUnfreezeTxConfirmed =
     vaultStatus?.triggerTxBlockHeight !== undefined &&
@@ -442,12 +443,12 @@ const RawVault = ({
   const hasRescueStarted =
     isRescueTxPushed || isRescueTxInMempool || isRescueTxConfirmed;
 
-  const showInitUnfreezeButton = isVaultTx && !hasTriggerStarted;
+  const showInitUnfreezeButton = !vaultNotFound && !hasTriggerStarted;
   const showRescueButton =
     hasTriggerStarted && !isUnfrozen && !hasRescueStarted;
-  const showDelegateButton = isVaultTx && !isUnfrozen && !hasRescueStarted;
+  const showDelegateButton = !vaultNotFound && !isUnfrozen && !hasRescueStarted;
   const showHideButton =
-    !isVaultTx ||
+    vaultNotFound ||
     //can be hidden if irreversible after specified blocks
     //since either a rescue tx or after having reached a hot status
     (tipHeight &&
@@ -801,7 +802,7 @@ const RawVault = ({
             />
           </View>
         ) : null}
-        <View className={`gap-4 ${isVaultTx ? 'pt-4' : ''}`}>
+        <View className={`gap-4 ${!vaultNotFound ? 'pt-4' : ''}`}>
           {(isInitUnfreezeTxPushed || isInitUnfreezeTxInMempool) &&
             !isInitUnfreezeTxConfirmed && (
               <VaultStatusLine
@@ -906,7 +907,7 @@ const RawVault = ({
                 : t('wallet.vault.rescueNotConfirmedUnknownPush')}
             </VaultStatusLine>
           )}
-          {!isVaultTx && (
+          {vaultNotFound && (
             <Text className="pt-2">{t('wallet.vault.vaultNotFound')}</Text>
           )}
           {remainingBlocks === 'TRIGGER_NOT_FOUND' && (
