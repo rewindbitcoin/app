@@ -418,6 +418,7 @@ const RawVault = ({
     !!tipHeight &&
     !!vaultStatus?.triggerTxBlockHeight &&
     tipHeight - vaultStatus.triggerTxBlockHeight < IRREVERSIBLE_BLOCKS - 1;
+  const isInitUnfreezeTxNotFound = remainingBlocks === 'TRIGGER_NOT_FOUND';
   const isInitUnfreezeTxPushed = !!vaultStatus?.triggerPushTime;
   const isTriggerPushedButUnconfirmed =
     vaultStatus?.triggerTxBlockHeight !== undefined
@@ -740,7 +741,7 @@ const RawVault = ({
             )}
           </View>
           {canReceiveNotifications &&
-            (remainingBlocks === 'TRIGGER_NOT_FOUND' ||
+            (isInitUnfreezeTxNotFound ||
               isInitUnfreezeTxInMempool ||
               isInitUnfreezeTxConfirmedButReversible) && (
               <VaultWatchtowerIndicator
@@ -768,7 +769,7 @@ const RawVault = ({
             </Text>
           </View>
         )}
-        {remainingBlocks === 'TRIGGER_NOT_FOUND' && (
+        {isInitUnfreezeTxNotFound && (
           <View className="flex-row items-center mt-2.5">
             {/*<MaterialCommunityIcons
               name="lock-clock"
@@ -910,7 +911,7 @@ const RawVault = ({
           {vaultNotFound && (
             <Text className="pt-2">{t('wallet.vault.vaultNotFound')}</Text>
           )}
-          {remainingBlocks === 'TRIGGER_NOT_FOUND' && (
+          {isInitUnfreezeTxNotFound && (
             <Text className="pt-2">
               {isVaultTxConfirmed
                 ? t('wallet.vault.notTriggered', {
