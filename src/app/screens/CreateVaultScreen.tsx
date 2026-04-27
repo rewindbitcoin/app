@@ -338,7 +338,8 @@ export default function CreateVaultScreen({
 
       //createVault does not throw. It returns errors as strings:
       const vaultData = await createVault({
-        vaultedAmount: toBigInt(vaultedAmount),
+        vaultedAmount:
+          vaultedAmount === 'MAX_FUNDS' ? 'MAX_FUNDS' : toBigInt(vaultedAmount),
         unvaultKeyExpression,
         packageFeeRate,
         presignedTriggerFeeRate: settings.PRESIGNED_TRIGGER_FEERATE,
@@ -362,7 +363,7 @@ export default function CreateVaultScreen({
         const vault = {
           vaultId: nextVaultP2PData.nextVaultId, //FIXME: this assumes p2p backups - read TAG:ifrubr43fre
           vaultPath: nextVaultP2PData.nextVaultPath, //FIXME: this assumes p2p backups - read TAG:ifrubr43fre
-          vaultedAmount,
+          vaultedAmount: vaultData.selectedVaultedAmount,
           vaultAddress: vaultData.vaultAddress,
           triggerAddress: vaultData.triggerAddress,
           coldAddress,
@@ -507,7 +508,9 @@ export default function CreateVaultScreen({
                         }
                       />
                       <Text className="text-base">
-                        {formatAmount(vaultFundingBreakdown.triggerReserveValue)}
+                        {formatAmount(
+                          vaultFundingBreakdown.triggerReserveValue
+                        )}
                       </Text>
                     </View>
                   ) : null}

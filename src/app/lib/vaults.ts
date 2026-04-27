@@ -90,10 +90,10 @@ export type TxId = string;
 
 export type VaultSettings = {
   /**
-   * The amount that ends up frozen in the vault output after the vault tx is
-   * mined.
+   * Requested vault amount. `MAX_FUNDS` preserves max intent so creation can
+   * rerun coinselection with the real vault outputs.
    */
-  vaultedAmount: number;
+  vaultedAmount: number | 'MAX_FUNDS';
   coldAddress: string;
   /**
    * User-facing fee-rate target for the vault tx plus its on-chain backup tx.
@@ -1298,10 +1298,10 @@ export const coinSelectVaultTx = moize.shallow(
           feeRate: minimumVaultTxFeeRate, //0 or 0.1 for P2A_NON_TRUC
           minimumFeeRate: minimumVaultTxFeeRate, //0 or 0.1 for P2A_NON_TRUC
           vaultedAmount,
-          ...(triggerReserveOutput !== undefined ? { triggerReserveOutput } : {}),
-          ...(triggerReserveValue !== undefined
-            ? { triggerReserveValue }
-            : {})
+          ...(triggerReserveOutput !== undefined
+            ? { triggerReserveOutput }
+            : {}),
+          ...(triggerReserveValue !== undefined ? { triggerReserveValue } : {})
         });
         if (typeof selected === 'string') return selected; //Forward errors
 
@@ -1713,7 +1713,7 @@ export const createVault = async ({
   shiftFeesToBackupTx,
   networkId
 }: {
-  vaultedAmount: bigint;
+  vaultedAmount: bigint | 'MAX_FUNDS';
   /** The unvault key expression that must be used to create triggerDescriptor */
   unvaultKeyExpression: string;
   /** Selected fee-rate target for the vault tx plus the backup tx package. */
@@ -1779,6 +1779,7 @@ export const createVault = async ({
         : 'coinselect outputs should be vault, backup, and change at most'
     );
   const psbtVault = new Psbt({ network });
+  const selectedVaultedAmount = getTargetValue(vaultTargets, vaultOutput);
 
   psbtVault.setVersion(vaultMode === 'P2A_TRUC' ? 3 : 2);
 
@@ -1831,7 +1832,7 @@ export const createVault = async ({
   );
   const panicParentFee = getPresignedRescueParentFee(presignedRescueFeeRate);
   const triggerOutputValue =
-    vaultedAmount -
+    selectedVaultedAmount -
     (vaultMode === 'P2A_TRUC' ? BigInt(0) : P2A_NON_TRUC_ANCHOR_VALUE) -
     triggerParentFee;
   const triggerDust = dustThreshold(triggerOutputPanicPath);
@@ -1904,6 +1905,7 @@ export const createVault = async ({
     throw new Error(`Invalid panic fee ${panicFee} < ${minPanicFee}`);
   return {
     triggerDescriptor,
+    selectedVaultedAmount: toNumber(selectedVaultedAmount),
     creationTime: Math.floor(Date.now() / 1000),
     vaultAddress: vaultOutput.getAddress(),
     triggerAddress: triggerOutputPanicPath.getAddress(),

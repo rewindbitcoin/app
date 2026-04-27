@@ -358,7 +358,7 @@ export default function VaultSetUp({
       throw new Error('Cannot process Vault');
 
     onVaultSetUpComplete({
-      vaultedAmount,
+      vaultedAmount: isMaxVaultedAmount ? 'MAX_FUNDS' : vaultedAmount,
       coldAddress,
       packageFeeRate,
       lockBlocks,
@@ -371,6 +371,7 @@ export default function VaultSetUp({
     packageFeeRate,
     vaultUtxosData,
     vaultedAmount,
+    isMaxVaultedAmount,
     lockBlocks,
     onVaultSetUpComplete,
     coldAddress,
