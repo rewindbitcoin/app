@@ -62,11 +62,7 @@ import {
 } from '../../lib/watchtower';
 import SkeletonPulse from '../SkeletonPulse';
 import { networkMapping } from '../../lib/network';
-import {
-  computeChangeOutput,
-  DUMMY_CHANGE_OUTPUT,
-  getMainAccount
-} from '../../lib/vaultDescriptors';
+import { computeChangeOutput } from '../../lib/vaultDescriptors';
 import useFirstDefinedValue from '~/common/hooks/useFirstDefinedValue';
 
 const LOADING_TEXT = '     ';
@@ -142,6 +138,67 @@ const RawVault = ({
   } = useWallet();
   const feeEstimates = useFirstDefinedValue(feeEstimatesRealTime);
   const walletSigner = signers?.[0];
+  // undefined: real change-output-backed plan is still being prepared.
+  // null: preparation finished and no usable trigger reserve plan exists.
+  const [triggerP2ABumpPlan, setTriggerP2ABumpPlan] = useState<
+    P2ABumpPlan | null | undefined
+  >(undefined);
+
+  // Prepare and set the triggerP2ABumpPlan in state. triggerP2ABumpPlan needs a
+  // wallet change output and the next change descriptor is fetched
+  // asynchronously. The InitUnfreeze modal receives, validates and submits this
+  // plan.
+  useEffect(() => {
+    let cancelled = false;
+    setTriggerP2ABumpPlan(undefined);
+
+    const prepareTriggerP2ABumpPlan = async () => {
+      if (isLadderedVault) {
+        if (!cancelled) setTriggerP2ABumpPlan(null);
+        return;
+      }
+      if (!networkId || !walletSigner || !accounts) return;
+      const network = networkMapping[networkId];
+      const utxosData = getTriggerReserveUtxosData({
+        vault,
+        signer: walletSigner,
+        network
+      });
+      if (utxosData.length === 0) {
+        if (!cancelled) setTriggerP2ABumpPlan(null);
+        return;
+      }
+      try {
+        const changeDescriptorWithIndex =
+          await getNextChangeDescriptorWithIndex(accounts);
+        if (cancelled) return;
+        setTriggerP2ABumpPlan({
+          utxosData,
+          changeOutput: computeChangeOutput(changeDescriptorWithIndex, network),
+          signer: walletSigner,
+          ...(vaultStatus?.triggerCpfpTxHex
+            ? { previousChildTxHex: vaultStatus.triggerCpfpTxHex }
+            : {})
+        });
+      } catch (err) {
+        console.warn('Could not prepare trigger fee-bump plan', err);
+      }
+    };
+
+    prepareTriggerP2ABumpPlan();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    isLadderedVault,
+    networkId,
+    walletSigner,
+    accounts,
+    vault,
+    vaultStatus?.triggerCpfpTxHex,
+    getNextChangeDescriptorWithIndex
+  ]);
 
   const [showInitUnfreeze, setShowInitUnfreeze] = useState<boolean>(false);
   const handleCloseInitUnfreeze = useCallback(
@@ -152,11 +209,9 @@ const RawVault = ({
     () => setShowInitUnfreeze(true),
     []
   );
-  // Broadcasts the selected init-unfreeze action. First it acknowledges the
-  // watchtower for this local action; the UI has already enforced the
-  // vault/package rules, including TRUC parent confirmation and acceleration fee
-  // floors, so this pushes laddered txs directly or builds the P2A
-  // parent+reserve-child package.
+  // Broadcasts the selected init-unfreeze action. It acknowledges the
+  // watchtower for this local action, then pushes laddered txs directly or
+  // builds the P2A parent+reserve-child package.
   const handleInitUnfreeze = useCallback(
     async (initUnfreezeData: VaultActionTxData) => {
       batchedUpdates(() => {
@@ -202,25 +257,10 @@ const RawVault = ({
               return;
             }
 
-            if (!networkId || !signers)
+            if (!networkId || !triggerP2ABumpPlan)
               throw new Error('Wallet not ready for Rewind2 trigger package');
-            const signer = signers[0];
-            if (!signer) throw new Error('signer unavailable');
-            if (!accounts)
-              throw new Error('Wallet accounts unavailable for trigger change');
             const network = networkMapping[networkId];
-            const triggerReserveUtxosData = getTriggerReserveUtxosData({
-              vault,
-              signer,
-              network
-            });
-            const changeDescriptorWithIndex =
-              await getNextChangeDescriptorWithIndex(accounts);
-            const changeOutput = computeChangeOutput(
-              changeDescriptorWithIndex,
-              network
-            );
-            // Trigger fee bumping is reserve-only by design: the dedicated
+            // Trigger acceleration is reserve-only by design: the dedicated
             // trigger reserve stays outside normal wallet flow and is always
             // the only non-anchor input. The child sends leftover value back to
             // the wallet's regular change branch.
@@ -228,9 +268,9 @@ const RawVault = ({
               parentTxHex: initUnfreezeData.parentTxHex,
               parentFee: initUnfreezeData.parentTxFee,
               targetPackageFeeRate: initUnfreezeData.actionFeeRate,
-              utxosData: triggerReserveUtxosData,
-              changeOutput,
-              signer,
+              utxosData: triggerP2ABumpPlan.utxosData,
+              changeOutput: triggerP2ABumpPlan.changeOutput,
+              signer: triggerP2ABumpPlan.signer,
               network
             });
             if (!childTxData)
@@ -265,13 +305,11 @@ const RawVault = ({
       pushToken,
       watchtowerAPI,
       settings?.NETWORK_TIMEOUT,
-      accounts,
       networkId,
-      signers,
-      getNextChangeDescriptorWithIndex,
       pushTxPackage,
       pushTx,
       isLadderedVault,
+      triggerP2ABumpPlan,
       vault,
       vaultStatus,
       updateVaultStatus,
@@ -459,36 +497,6 @@ const RawVault = ({
         (vaultStatus?.hotBlockHeight &&
           tipHeight - vaultStatus.hotBlockHeight >= IRREVERSIBLE_BLOCKS - 1)));
 
-  // Fee-bump availability can use a dummy change output; broadcast uses fresh change.
-  const triggerP2ABumpPlan = useMemo<P2ABumpPlan | null>(() => {
-    if (isLadderedVault || !networkId || !walletSigner || !accounts)
-      return null;
-    const network = networkMapping[networkId];
-    const utxosData = getTriggerReserveUtxosData({
-      vault,
-      signer: walletSigner,
-      network
-    });
-    if (utxosData.length === 0) return null;
-    return {
-      utxosData,
-      changeOutput: DUMMY_CHANGE_OUTPUT(
-        getMainAccount(accounts, network),
-        network
-      ),
-      signer: walletSigner,
-      ...(vaultStatus?.triggerCpfpTxHex
-        ? { previousChildTxHex: vaultStatus.triggerCpfpTxHex }
-        : {})
-    };
-  }, [
-    isLadderedVault,
-    networkId,
-    walletSigner,
-    accounts,
-    vault,
-    vaultStatus?.triggerCpfpTxHex
-  ]);
   const triggerPresignedTxInfos = useMemo<PresignedTxInfo[]>(
     () =>
       isLadderedVault
@@ -529,7 +537,8 @@ const RawVault = ({
     // insufficient, so the user gets an explanation instead of no action.
     // TODO: replace these explanation-only paths with a shared funding wizard
     // for trigger and rescue acceleration once top-ups are supported.
-    if (!triggerP2ABumpPlan) return true;
+    if (triggerP2ABumpPlan === undefined) return false;
+    if (triggerP2ABumpPlan === null) return true;
 
     // With a plan, the modal needs fee estimates to distinguish insufficient
     // funds, max-fee, and actionable acceleration states.

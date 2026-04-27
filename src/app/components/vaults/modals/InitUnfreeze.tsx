@@ -38,7 +38,13 @@ import {
 type InitUnfreezeProps = {
   vault: Vault;
   vaultStatus: VaultStatus | undefined;
-  p2aBumpPlan: P2ABumpPlan | null;
+  /**
+   * P2A trigger acceleration plan.
+   * - `undefined`: the real change-output-backed plan is still being prepared.
+   * - `null`: preparation finished and no usable trigger reserve plan exists.
+   * - `P2ABumpPlan`: acceleration can use these reserve UTXOs/change/signer.
+   */
+  p2aBumpPlan: P2ABumpPlan | null | undefined;
   onInitUnfreeze: (initUnfreezeData: VaultActionTxData) => void;
   lockBlocks: number;
   isVisible: boolean;
@@ -110,6 +116,7 @@ const InitUnfreeze = ({
   const replacementFeeRateFloor =
     accelerationInfo?.replacementFeeRateFloor ?? null;
   const hasAccelerationPath = accelerationInfo?.hasAccelerationPath ?? false;
+  const isP2ABumpPlanLoading = !isLadderedVault && p2aBumpPlan === undefined;
 
   const maxFeeRate = feeEstimates
     ? computeMaxAllowedFeeRate(feeEstimates)
@@ -249,7 +256,9 @@ const InitUnfreeze = ({
   }, [feeRate, initialFeeRate, buildTxDataForFeeRate]);
 
   let canOpenFeeStep: boolean;
-  if (!feeEstimates) {
+  if (isP2ABumpPlanLoading) {
+    canOpenFeeStep = false;
+  } else if (!feeEstimates) {
     canOpenFeeStep = false;
   } else if (isTriggerPushedButUnconfirmed) {
     canOpenFeeStep = hasAccelerationPath;
@@ -282,7 +291,13 @@ const InitUnfreeze = ({
   const timeLockTime = formatBlocks(lockBlocks, t, locale, true);
 
   let modalContent: React.ReactNode;
-  if (isTriggerPushedButUnconfirmed && !isLadderedVault && !p2aBumpPlan) {
+  if (isP2ABumpPlanLoading) {
+    modalContent = <ActivityIndicator />;
+  } else if (
+    isTriggerPushedButUnconfirmed &&
+    !isLadderedVault &&
+    p2aBumpPlan === null
+  ) {
     modalContent = (
       <View>
         <Text className="text-base text-slate-600 pb-2 px-2">
