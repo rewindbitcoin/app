@@ -32,6 +32,7 @@ import { useNetStatus } from '../hooks/useNetStatus';
 import { NavigationPropsByScreenId, WALLET_HOME } from '../screens';
 import { formatBlocks } from '../lib/format';
 import { formatBtc } from '../lib/btcRates';
+import { getPresignedTriggerFeeRate } from '../lib/settings';
 import { useLocalization } from '../hooks/useLocalization';
 import { toBigInt } from '../lib/sats';
 import ModalInfoButton from '../components/ModalInfoButton';
@@ -109,6 +110,10 @@ export default function CreateVaultScreen({
   const networkTimeout = settings.NETWORK_TIMEOUT;
   const vaultMode =
     networkId === 'BITCOIN' ? 'P2A_TRUC' : settings.TESTING_VAULT_MODE;
+  const presignedTriggerFeeRate = getPresignedTriggerFeeRate(
+    settings,
+    vaultMode
+  );
   const { locale, currency } = useLocalization();
   const [confirmRequested, setConfirmRequested] = useState<boolean>(false);
   const [vault, setVault] = useState<Vault>();
@@ -310,7 +315,7 @@ export default function CreateVaultScreen({
           vaultedAmount === 'MAX_FUNDS' ? 'MAX_FUNDS' : toBigInt(vaultedAmount),
         unvaultKeyExpression,
         packageFeeRate,
-        presignedTriggerFeeRate: settings.PRESIGNED_TRIGGER_FEERATE,
+        presignedTriggerFeeRate,
         presignedRescueFeeRate: settings.PRESIGNED_RESCUE_FEERATE,
         maxTriggerFeeRate: settings.MAX_TRIGGER_FEERATE,
         utxosData,
@@ -380,7 +385,7 @@ export default function CreateVaultScreen({
     vaults,
     utxosData,
     accounts,
-    settings.PRESIGNED_TRIGGER_FEERATE,
+    presignedTriggerFeeRate,
     settings.PRESIGNED_RESCUE_FEERATE,
     settings.MAX_TRIGGER_FEERATE
   ]);

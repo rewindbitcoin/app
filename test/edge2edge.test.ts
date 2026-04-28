@@ -195,7 +195,7 @@ describe('E2E: Multiple Pre-Signed txs Vault', () => {
     const createResult = await createVault({
       vaultedAmount: BigInt(VAULTED_AMOUNT),
       unvaultKeyExpression: unvaultKey,
-      effectiveFeeRate: 2,
+      packageFeeRate: 2,
       presignedTriggerFeeRate: 0.1,
       presignedRescueFeeRate: 100,
       maxTriggerFeeRate: 100,
@@ -207,7 +207,8 @@ describe('E2E: Multiple Pre-Signed txs Vault', () => {
       networkId,
       utxosData,
       vaultIndex: 0,
-      vaultMode: 'P2A_NON_TRUC'
+      vaultMode: 'P2A_NON_TRUC',
+      shiftFeesToBackupTx: true
     });
     expect(typeof createResult).toBe('object');
     if (typeof createResult === 'string') throw new Error(createResult);

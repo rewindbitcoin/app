@@ -47,6 +47,7 @@ import {
   pickFeeEstimate
 } from '../lib/fees';
 import { formatBtc } from '../lib/btcRates';
+import { getPresignedTriggerFeeRate } from '../lib/settings';
 import {
   estimateMaxVaultAmount,
   estimateVaultSetupRange
@@ -153,6 +154,10 @@ export default function VaultSetUp({
 
   const vaultMode =
     networkId === 'BITCOIN' ? 'P2A_TRUC' : settings.TESTING_VAULT_MODE;
+  const presignedTriggerFeeRate = getPresignedTriggerFeeRate(
+    settings,
+    vaultMode
+  );
   // P2A_TRUC vault creation must avoid unconfirmed wallet inputs.
   const { confirmedSpendableUtxosData, hasUnconfirmedSpendableUtxo } =
     useMemo(() => {
@@ -224,7 +229,7 @@ export default function VaultSetUp({
     lockBlocks: lockBlocks || settings.INITIAL_LOCK_BLOCKS,
     network,
     vaultMode,
-    presignedTriggerFeeRate: settings.PRESIGNED_TRIGGER_FEERATE,
+    presignedTriggerFeeRate,
     presignedRescueFeeRate: settings.PRESIGNED_RESCUE_FEERATE,
     maxTriggerFeeRate: settings.MAX_TRIGGER_FEERATE
   });
@@ -237,7 +242,7 @@ export default function VaultSetUp({
     lockBlocks: lockBlocks || settings.INITIAL_LOCK_BLOCKS,
     network,
     vaultMode,
-    presignedTriggerFeeRate: settings.PRESIGNED_TRIGGER_FEERATE,
+    presignedTriggerFeeRate,
     presignedRescueFeeRate: settings.PRESIGNED_RESCUE_FEERATE,
     maxTriggerFeeRate: settings.MAX_TRIGGER_FEERATE
   });
@@ -290,7 +295,7 @@ export default function VaultSetUp({
       changeOutput ||
       DUMMY_CHANGE_OUTPUT(getMainAccount(accounts, network), network),
     vaultMode,
-    presignedTriggerFeeRate: settings.PRESIGNED_TRIGGER_FEERATE,
+    presignedTriggerFeeRate,
     maxTriggerFeeRate: settings.MAX_TRIGGER_FEERATE
   });
 
@@ -427,7 +432,7 @@ export default function VaultSetUp({
               triggerReserveOutput: DUMMY_TRIGGER_RESERVE_OUTPUT(network),
               changeOutput: currentChangeOutput,
               vaultMode,
-              presignedTriggerFeeRate: settings.PRESIGNED_TRIGGER_FEERATE,
+              presignedTriggerFeeRate,
               maxTriggerFeeRate: settings.MAX_TRIGGER_FEERATE
             }),
             changeOutput: currentChangeOutput,
@@ -449,7 +454,7 @@ export default function VaultSetUp({
       minimumVaultSetup.vaultedAmount,
       vaultUtxosData,
       network,
-      settings.PRESIGNED_TRIGGER_FEERATE,
+      presignedTriggerFeeRate,
       settings.MAX_TRIGGER_FEERATE,
       vaultMode,
       setUserSelectedPackageFeeRate

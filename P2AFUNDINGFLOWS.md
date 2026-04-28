@@ -53,11 +53,23 @@ new P2A vault without trigger acceleration funds.
 `P2A_TRUC` setup uses confirmed wallet UTXOs only. This keeps the new vault setup
 compatible with the stricter relay assumptions of the TRUC path.
 
+Policy invariant: a transaction with a dust output must be zero-fee. In this
+design that mainly means a 0-sat P2A anchor is only valid on a zero-fee parent;
+if a parent pays its own fee, its P2A anchor must be non-dust.
+
 ## Trigger Funding
 
 The trigger transaction spends the vault output and starts unfreezing. In P2A it
 has a parent transaction with an anchor, and acceleration is done by attaching a
 child.
+
+Current: in `P2A_TRUC`, trigger uses the ephemeral-dust shape: the trigger parent
+is version 3, its P2A anchor is 0 sats and its direct parent fee is 0. The CPFP
+child pays the package fee from the trigger reserve.
+
+Current: trigger parent fee settings are mode-specific. `P2A_TRUC` uses
+`P2A_TRUC_PRESIGNED_TRIGGER_FEERATE = 0`; `P2A_NON_TRUC` uses
+`P2A_NON_TRUC_PRESIGNED_TRIGGER_FEERATE` because its funded anchor is non-dust.
 
 Trigger acceleration is deterministic and reserve-only:
 
@@ -82,6 +94,11 @@ TBD: if the user later adds more trigger reserve funds, those funds should use
 later child indexes on the same per-vault branch. Discovery then needs to return
 all usable reserve UTXOs for that vault.
 
+TBD: for `P2A_TRUC`, newly added trigger reserve funds must confirm before the
+app uses them in a trigger CPFP child. If the trigger reserve top-up tx is still
+unconfirmed, it becomes an additional unconfirmed parent of the CPFP child and
+breaks the one-unconfirmed-parent TRUC package shape.
+
 The setup-funded reserve should normally cover trigger acceleration up to the
 configured ceiling. A trigger top-up wizard is only the fallback for missing,
 insufficient or unusually exhausted reserve funds.
@@ -103,6 +120,11 @@ The rescue transaction is the emergency path from the trigger output to the
 emergency address. The default design is that rescue starts as a high-fee parent
 transaction. In most cases the user should be able to broadcast the rescue parent
 and be done.
+
+Current: because rescue intentionally pays a high direct parent fee, its P2A
+anchor must be non-dust. This applies even when the rescue transaction is version
+3 under the `P2A_TRUC` vault mode. A 0-sat rescue anchor would only be valid if
+the rescue parent fee were also 0 and a rescue CPFP child paid the package fee.
 
 Rescue does not use ordinary hot-wallet UTXOs for fee bumping. If the user is in
 the rescue path, the hot wallet may already be compromised, so ordinary wallet
@@ -219,6 +241,13 @@ Current trigger setup is safe under that assumption. For `P2A_TRUC`, Init
 Unfreeze is disabled until the vault tx confirms. Once the vault tx is confirmed,
 the built-in trigger reserve output funded by that vault tx is confirmed too.
 
+Rescue acceleration has one more predecessor to watch: the rescue parent spends
+the trigger output. For `P2A_TRUC`, a rescue CPFP child can only be used once the
+trigger tx that created that output is confirmed. Otherwise the child would have
+too many unconfirmed ancestors: trigger tx -> rescue parent -> rescue CPFP child.
+The only unconfirmed ancestor of a TRUC rescue CPFP child should be the rescue
+parent itself.
+
 TBD: future reserve top-ups do not get that guarantee automatically. If the user
 adds more funds to the trigger reserve, or funds a future rescue acceleration
 reserve, the new funding tx may still be unconfirmed. For `P2A_TRUC`, the future
@@ -228,6 +257,7 @@ it does not fit the current TRUC one-parent child shape.
 
 P2A acceleration must also respect policy details:
 
+- a dust-anchor parent must be zero-fee; the child pays the package fee
 - the child itself must satisfy minimum relay fee
 - TRUC children must stay within the TRUC child-size limit
 - replacing an existing child must improve package feerate

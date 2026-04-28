@@ -242,7 +242,8 @@ explicit about the fact that these are the P2A fee-bump variants.
 Human rule of thumb:
 
 - trigger/rescue parents use version `3`
-- the P2A anchor value is `0 sats`
+- the trigger P2A anchor value is `0 sats`
+- the rescue P2A anchor is funded/non-dust when rescue pays a direct parent fee
 
 Why this matters:
 
@@ -257,7 +258,7 @@ TRUC size limit. If the child becomes too large, the plan is rejected.
 Human rule of thumb:
 
 - trigger/rescue parents use version `2`
-- the P2A anchor value is `330 sats`
+- the P2A anchor value is `241 sats`
 
 Why this matters:
 
@@ -268,11 +269,12 @@ Why this matters:
 
 Today the parent transactions are funded like this:
 
-- trigger parent fee is based on `PRESIGNED_TRIGGER_FEERATE`
+- `P2A_TRUC` trigger parent fee is based on `P2A_TRUC_PRESIGNED_TRIGGER_FEERATE`, which must be `0` because its 0-sat P2A anchor is dust
+- `P2A_NON_TRUC` trigger parent fee is based on `P2A_NON_TRUC_PRESIGNED_TRIGGER_FEERATE`
 - rescue parent fee is based on `PRESIGNED_RESCUE_FEERATE`
 
-So both parents are now presigned with explicit fee-rate settings, but rescue is
-expected to start much higher.
+So rescue is still presigned with an explicit high fee-rate setting, while a
+`P2A_TRUC` trigger relies on its CPFP child for package fee.
 
 ## Trigger reserve
 

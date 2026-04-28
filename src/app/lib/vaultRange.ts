@@ -120,8 +120,8 @@ const estimateMinimumVaultSetup = moize.shallow(
     lockBlocks: number;
     packageFeeRate: number;
     /**
-     * Structural parent mode.
-     * P2A_TRUC means v3 + 0-sat anchor, P2A_NON_TRUC means v2 + funded anchor.
+     * Structural vault mode. P2A_TRUC uses version-3 parents; anchor value is
+     * action-specific. P2A_NON_TRUC uses version-2 parents with funded anchors.
      */
     vaultMode: 'P2A_TRUC' | 'P2A_NON_TRUC';
     /** Fee rate baked directly into the trigger parent transaction. */
@@ -215,8 +215,8 @@ export const estimateVaultSetupRange = moize.shallow(
     lockBlocks: number;
     network: Network;
     /**
-     * Structural parent mode.
-     * P2A_TRUC means v3 + 0-sat anchor, P2A_NON_TRUC means v2 + funded anchor.
+     * Structural vault mode. P2A_TRUC uses version-3 parents; anchor value is
+     * action-specific. P2A_NON_TRUC uses version-2 parents with funded anchors.
      */
     vaultMode: 'P2A_TRUC' | 'P2A_NON_TRUC';
     /** Fee rate baked directly into the trigger parent transaction. */

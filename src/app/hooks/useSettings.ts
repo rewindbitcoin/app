@@ -32,9 +32,13 @@ export const useSettings = () => {
       ? settings
       : { ...defaultSettings, ...settings };
     //Soem safeguards
-    if (mergedSettings.PRESIGNED_TRIGGER_FEERATE < MIN_FEE_RATE)
+    if (mergedSettings.P2A_TRUC_PRESIGNED_TRIGGER_FEERATE !== 0)
       throw new Error(
-        `PRESIGNED_TRIGGER_FEERATE (${mergedSettings.PRESIGNED_TRIGGER_FEERATE}) must be >= MIN_FEE_RATE (${MIN_FEE_RATE})`
+        `P2A_TRUC_PRESIGNED_TRIGGER_FEERATE (${mergedSettings.P2A_TRUC_PRESIGNED_TRIGGER_FEERATE}) must be 0 because TRUC trigger uses a dust P2A anchor`
+      );
+    if (mergedSettings.P2A_NON_TRUC_PRESIGNED_TRIGGER_FEERATE < MIN_FEE_RATE)
+      throw new Error(
+        `P2A_NON_TRUC_PRESIGNED_TRIGGER_FEERATE (${mergedSettings.P2A_NON_TRUC_PRESIGNED_TRIGGER_FEERATE}) must be >= MIN_FEE_RATE (${MIN_FEE_RATE})`
       );
     if (mergedSettings.MAX_TRIGGER_FEERATE < MIN_FEE_RATE)
       throw new Error(
