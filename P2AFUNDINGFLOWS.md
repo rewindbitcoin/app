@@ -86,6 +86,10 @@ The setup-funded reserve should normally cover trigger acceleration up to the
 configured ceiling. A trigger top-up wizard is only the fallback for missing,
 insufficient or unusually exhausted reserve funds.
 
+Current: if P2A trigger reserve funds are missing or insufficient, the Trigger
+modal opens in explanation-only mode. That applies both to initial trigger start
+and to acceleration of an already-pushed trigger. It does not yet fund a top-up.
+
 Current: if a trigger acceleration package was already submitted but is still not
 being mined, the next acceleration replaces the previous CPFP child with a
 higher-fee child. Replacement must be checked against the child that is currently
@@ -104,7 +108,9 @@ Rescue does not use ordinary hot-wallet UTXOs for fee bumping. If the user is in
 the rescue path, the hot wallet may already be compromised, so ordinary wallet
 funds are not a good emergency funding source.
 
-Current: rescue does not have an acceleration funding wizard yet.
+Current: rescue does not have an acceleration funding wizard yet. If a P2A rescue
+is already pending but no rescue acceleration reserve exists, the Rescue modal
+opens in explanation-only mode instead of funding acceleration.
 
 TBD: if the high-fee rescue parent is still not enough, the intended model is a
 separate emergency acceleration reserve:
