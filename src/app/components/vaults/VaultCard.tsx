@@ -33,7 +33,7 @@ import { Button, useToast } from '../../../common/ui';
 
 import { useSettings } from '../../hooks/useSettings';
 import type { BlockStatus } from '@bitcoinerlab/explorer';
-import InitUnfreeze from './modals/InitUnfreeze';
+import Trigger from './modals/Trigger';
 import Rescue from './modals/Rescue';
 import VaultActionButton from './card/VaultActionButton';
 import VaultBalance from './card/VaultBalance';
@@ -116,10 +116,8 @@ const RawVault = ({
   pushToken: string | undefined;
 }) => {
   const { netRequest } = useNetStatus();
-  const [isInitUnfreezeBeingHandled, setIsInitUnfreezeBeingHandled] =
+  const [isTriggerBeingHandled, setIsTriggerBeingHandled] =
     useState<boolean>(false);
-  const isInitUnfreezePending =
-    !vaultStatus?.triggerTxHex && isInitUnfreezeBeingHandled;
 
   const { t } = useTranslation();
   const toast = useToast();
@@ -146,7 +144,7 @@ const RawVault = ({
 
   // Prepare and set the triggerP2ABumpPlan in state. triggerP2ABumpPlan needs a
   // wallet change output and the next change descriptor is fetched
-  // asynchronously. The InitUnfreeze modal receives, validates and submits this
+  // asynchronously. The trigger modal receives, validates and submits this
   // plan.
   useEffect(() => {
     let cancelled = false;
@@ -200,25 +198,26 @@ const RawVault = ({
     getNextChangeDescriptorWithIndex
   ]);
 
-  const [showInitUnfreeze, setShowInitUnfreeze] = useState<boolean>(false);
-  const handleCloseInitUnfreeze = useCallback(
-    () => setShowInitUnfreeze(false),
+  const [isTriggerModalVisible, setIsTriggerModalVisible] =
+    useState<boolean>(false);
+  const closeTriggerModal = useCallback(
+    () => setIsTriggerModalVisible(false),
     []
   );
-  const handleShowInitUnfreeze = useCallback(
-    () => setShowInitUnfreeze(true),
+  const openTriggerModal = useCallback(
+    () => setIsTriggerModalVisible(true),
     []
   );
-  // Broadcasts the selected init-unfreeze action. It acknowledges the
+  // Broadcasts the selected trigger action. It acknowledges the
   // watchtower for this local action, then pushes laddered txs directly or
   // builds the P2A parent+reserve-child package.
-  const handleInitUnfreeze = useCallback(
-    async (initUnfreezeData: VaultActionTxData) => {
+  const handleTrigger = useCallback(
+    async (triggerData: VaultActionTxData) => {
       batchedUpdates(() => {
-        setShowInitUnfreeze(false);
-        setIsInitUnfreezeBeingHandled(true);
+        setIsTriggerModalVisible(false);
+        setIsTriggerBeingHandled(true);
       });
-      const isTriggerPushedButUnconfirmed =
+      const wasTriggerTxPendingConfirmation =
         vaultStatus?.triggerTxBlockHeight !== undefined
           ? vaultStatus.triggerTxBlockHeight === 0
           : !!vaultStatus?.triggerPushTime;
@@ -253,7 +252,7 @@ const RawVault = ({
               );
             }
             if (isLadderedVault) {
-              await pushTx(initUnfreezeData.parentTxHex);
+              await pushTx(triggerData.parentTxHex);
               return;
             }
 
@@ -265,9 +264,9 @@ const RawVault = ({
             // the only non-anchor input. The child sends leftover value back to
             // the wallet's regular change branch.
             const childTxData = await createCpfpChildTx({
-              parentTxHex: initUnfreezeData.parentTxHex,
-              parentFee: initUnfreezeData.parentTxFee,
-              targetPackageFeeRate: initUnfreezeData.actionFeeRate,
+              parentTxHex: triggerData.parentTxHex,
+              parentFee: triggerData.parentTxFee,
+              targetPackageFeeRate: triggerData.actionFeeRate,
               utxosData: triggerP2ABumpPlan.utxosData,
               changeOutput: triggerP2ABumpPlan.changeOutput,
               signer: triggerP2ABumpPlan.signer,
@@ -277,27 +276,27 @@ const RawVault = ({
               throw new Error('Cannot build trigger fee-bump transaction');
             triggerCpfpTxHex = childTxData.childTxHex;
             await pushTxPackage({
-              parentTxHex: initUnfreezeData.parentTxHex,
+              parentTxHex: triggerData.parentTxHex,
               childTxHex: childTxData.childTxHex
             });
           }
         });
 
         if (pushStatus !== 'SUCCESS') return;
-        if (isTriggerPushedButUnconfirmed)
+        if (wasTriggerTxPendingConfirmation)
           toast.show(t('wallet.vault.accelerateSuccess'), { type: 'success' });
         if (!vaultStatus)
           throw new Error('vault status should exist for existing vault');
         const newVaultStatus = {
           ...vaultStatus,
-          triggerTxHex: initUnfreezeData.parentTxHex,
+          triggerTxHex: triggerData.parentTxHex,
           triggerTxBlockHeight: 0,
           triggerPushTime: Math.floor(Date.now() / 1000),
           ...(triggerCpfpTxHex !== undefined && { triggerCpfpTxHex })
         };
         updateVaultStatus(vault.vaultId, newVaultStatus);
       } finally {
-        setIsInitUnfreezeBeingHandled(false);
+        setIsTriggerBeingHandled(false);
       }
     },
     [
@@ -325,11 +324,13 @@ const RawVault = ({
 
   const [isRescueBeingHandled, setIsRescueBeingHandled] =
     useState<boolean>(false);
-  const isRescueBeingHandledNotYetPushed =
-    !vaultStatus?.panicTxHex && isRescueBeingHandled;
-  const [showRescue, setShowRescue] = useState<boolean>(false);
-  const handleCloseRescue = useCallback(() => setShowRescue(false), []);
-  const handleShowRescue = useCallback(() => setShowRescue(true), []);
+  const [isRescueModalVisible, setIsRescueModalVisible] =
+    useState<boolean>(false);
+  const closeRescueModal = useCallback(
+    () => setIsRescueModalVisible(false),
+    []
+  );
+  const openRescueModal = useCallback(() => setIsRescueModalVisible(true), []);
   const rescueP2ABumpPlan = useMemo<P2ABumpPlan | null>(() => {
     // TODO: build this from the shared funding wizard once P2A rescue
     // acceleration top-ups are supported.
@@ -342,10 +343,10 @@ const RawVault = ({
   const handleRescue = useCallback(
     async (rescueData: VaultActionTxData) => {
       batchedUpdates(() => {
-        setShowRescue(false);
+        setIsRescueModalVisible(false);
         setIsRescueBeingHandled(true);
       });
-      const isRescuePushedButUnconfirmed =
+      const wasRescueTxPendingConfirmation =
         vaultStatus?.panicTxBlockHeight !== undefined
           ? vaultStatus.panicTxBlockHeight === 0
           : !!vaultStatus?.panicPushTime;
@@ -393,7 +394,7 @@ const RawVault = ({
         });
 
         if (pushStatus !== 'SUCCESS') return;
-        if (isRescuePushedButUnconfirmed)
+        if (wasRescueTxPendingConfirmation)
           toast.show(t('wallet.vault.accelerateSuccess'), { type: 'success' });
         if (!vaultStatus)
           throw new Error('vault status should exist for existing vault');
@@ -448,25 +449,23 @@ const RawVault = ({
   const vaultNotFound =
     !isVaultTxPushed && !isVaultTxInMempool && !isVaultTxConfirmed;
 
-  const isInitUnfreezeTxConfirmed =
+  const isTriggerTxConfirmed =
     vaultStatus?.triggerTxBlockHeight !== undefined &&
     vaultStatus.triggerTxBlockHeight > 0;
-  const isInitUnfreezeTxInMempool = vaultStatus?.triggerTxBlockHeight === 0;
-  const isInitUnfreezeTxConfirmedButReversible =
+  const isTriggerTxInMempool = vaultStatus?.triggerTxBlockHeight === 0;
+  const isTriggerTxConfirmedButReversible =
     !!tipHeight &&
     !!vaultStatus?.triggerTxBlockHeight &&
     tipHeight - vaultStatus.triggerTxBlockHeight < IRREVERSIBLE_BLOCKS - 1;
-  const isInitUnfreezeTxNotFound = remainingBlocks === 'TRIGGER_NOT_FOUND';
-  const isInitUnfreezeTxPushed = !!vaultStatus?.triggerPushTime;
+  const isTriggerTxNotFound = remainingBlocks === 'TRIGGER_NOT_FOUND';
+  const isTriggerTxPushed = !!vaultStatus?.triggerPushTime;
   const isTriggerPushedButUnconfirmed =
     vaultStatus?.triggerTxBlockHeight !== undefined
-      ? isInitUnfreezeTxInMempool
-      : isInitUnfreezeTxPushed;
+      ? isTriggerTxInMempool
+      : isTriggerTxPushed;
   const triggerPushedTxHex = vaultStatus?.triggerTxHex;
   const hasTriggerStarted =
-    isInitUnfreezeTxInMempool ||
-    isInitUnfreezeTxPushed ||
-    isInitUnfreezeTxConfirmed;
+    isTriggerPushedButUnconfirmed || isTriggerTxConfirmed;
   const isUnfrozen =
     remainingBlocks === 0 || remainingBlocks === 'FOUND_AS_HOT';
   const isRescueTxPushed = !!vaultStatus?.panicPushTime;
@@ -479,12 +478,13 @@ const RawVault = ({
       ? isRescueTxInMempool
       : isRescueTxPushed;
   const rescuePushedTxHex = vaultStatus?.panicTxHex;
-  const hasRescueStarted =
-    isRescueTxPushed || isRescueTxInMempool || isRescueTxConfirmed;
+  const hasRescueStarted = isRescuePushedButUnconfirmed || isRescueTxConfirmed;
 
-  const showInitUnfreezeButton = !vaultNotFound && !hasTriggerStarted;
-  const showRescueButton =
-    hasTriggerStarted && !isUnfrozen && !hasRescueStarted;
+  // For P2A_TRUC, an unconfirmed vault tx can only have one unconfirmed child.
+  // Since the backup child already uses that slot, keep the action visible but
+  // disable Init Unfreeze until the vault tx confirms.
+  const isTriggerModalBlockedByUnconfirmedVault =
+    vaultMode === 'P2A_TRUC' && !isVaultTxConfirmed;
   const showDelegateButton = !vaultNotFound && !isUnfrozen && !hasRescueStarted;
   const showHideButton =
     vaultNotFound ||
@@ -514,92 +514,143 @@ const RawVault = ({
     [isLadderedVault, vault, vaultStatus?.triggerTxHex]
   );
 
-  // Controls whether the trigger status line shows a clickable acceleration
-  // action. Opening the modal does not mean acceleration is guaranteed: for
-  // P2A, the modal may only explain that acceleration funds are missing or
-  // insufficient.
-  const canOpenTriggerAccelerationModal = useMemo(() => {
-    if (
-      isInitUnfreezeBeingHandled ||
-      hasRescueStarted ||
-      !isTriggerPushedButUnconfirmed ||
-      !triggerPushedTxHex
-    )
-      return false;
+  const trigger = useMemo(() => {
+    const startButtonVisible = !vaultNotFound && !hasTriggerStarted;
+    const bumpPlanLoading =
+      !isLadderedVault && triggerP2ABumpPlan === undefined;
+    const missingBumpPlanExplainedByModal =
+      !isLadderedVault && triggerP2ABumpPlan === null;
+    // P2A trigger without a bump plan only opens the modal to explain that no
+    // reserve funds are available, so fee estimates are not needed.
+    const modalNeedsFeeEstimates = isLadderedVault || !!triggerP2ABumpPlan;
+    const hasTriggerPlanPrerequisites =
+      // Missing P2A reserve is a useful modal state: the modal will explain it
+      // without fee estimates. Otherwise, a selectable tx/package needs fee
+      // estimates so the modal can select and show the mining fee.
+      missingBumpPlanExplainedByModal ||
+      (modalNeedsFeeEstimates && !!feeEstimates);
 
-    if (isLadderedVault) {
-      if (!feeEstimates) return false;
-      return getActionAccelerationInfo({
-        vaultMode,
-        feeEstimates,
-        pushedTxHex: triggerPushedTxHex,
-        presignedTxInfos: triggerPresignedTxInfos
-      }).hasAccelerationPath;
+    const hasModalPrerequisites =
+      !isTriggerBeingHandled &&
+      !isTriggerModalBlockedByUnconfirmedVault &&
+      !bumpPlanLoading &&
+      hasTriggerPlanPrerequisites;
+
+    let accelerationButtonEnabled = false;
+    if (
+      hasModalPrerequisites &&
+      // Once rescue starts, acceleration belongs to the rescue action. For
+      // laddered vaults, replacing the trigger after rescue was pushed could
+      // invalidate the rescue tx that spends the prior trigger.
+      !hasRescueStarted &&
+      isTriggerPushedButUnconfirmed &&
+      triggerPushedTxHex
+    ) {
+      if (isLadderedVault) {
+        if (feeEstimates)
+          accelerationButtonEnabled = getActionAccelerationInfo({
+            vaultMode,
+            feeEstimates,
+            pushedTxHex: triggerPushedTxHex,
+            presignedTxInfos: triggerPresignedTxInfos
+          }).hasAccelerationPath;
+      } else {
+        // P2A keeps acceleration clickable even if no usable path exists yet:
+        // the modal will explain the missing/insufficient reserve funds and ask
+        // the user to add more.
+        accelerationButtonEnabled = true;
+      }
     }
 
-    // Let P2A open the modal even when acceleration funds are missing or
-    // insufficient, so the user gets an explanation instead of no action.
-    // TODO: replace these explanation-only paths with a shared funding wizard
-    // for trigger and rescue acceleration once top-ups are supported.
-    if (triggerP2ABumpPlan === undefined) return false;
-    if (triggerP2ABumpPlan === null) return true;
-
-    // With a plan, the modal needs fee estimates to distinguish insufficient
-    // funds, max-fee, and actionable acceleration states.
-    if (!feeEstimates) return false;
-    return true;
+    return {
+      accelerationStatusVisible: isTriggerPushedButUnconfirmed,
+      startButtonVisible,
+      startDisabled: !hasModalPrerequisites,
+      startLoading:
+        (!vaultStatus?.triggerTxHex && isTriggerBeingHandled) ||
+        (startButtonVisible &&
+          !isTriggerModalBlockedByUnconfirmedVault &&
+          !hasModalPrerequisites &&
+          (bumpPlanLoading || !feeEstimates)),
+      accelerationButtonEnabled,
+      accelerationLoading: isTriggerBeingHandled
+    };
   }, [
-    isInitUnfreezeBeingHandled,
-    hasRescueStarted,
-    vaultMode,
+    vaultNotFound,
+    hasTriggerStarted,
     isLadderedVault,
+    triggerP2ABumpPlan,
+    isTriggerBeingHandled,
+    isTriggerModalBlockedByUnconfirmedVault,
     feeEstimates,
+    hasRescueStarted,
     isTriggerPushedButUnconfirmed,
     triggerPushedTxHex,
+    vaultMode,
     triggerPresignedTxInfos,
-    triggerP2ABumpPlan
+    vaultStatus?.triggerTxHex
   ]);
 
-  // Controls whether the rescue status line shows a clickable acceleration
-  // action. Opening the modal does not mean acceleration is guaranteed: for
-  // P2A, the modal may only explain that acceleration funds are missing or
-  // insufficient.
-  const canOpenRescueAccelerationModal = useMemo(() => {
-    if (
-      isRescueBeingHandled ||
-      !isRescuePushedButUnconfirmed ||
-      !rescuePushedTxHex ||
-      !rescuePresignedTxInfos
-    )
-      return false;
+  const rescue = useMemo(() => {
+    const startButtonVisible =
+      hasTriggerStarted && !isUnfrozen && !hasRescueStarted;
+    // P2A rescue without a bump plan only opens the modal to explain that no
+    // acceleration funds are available, so fee estimates are not needed.
+    const modalNeedsFeeEstimates = isLadderedVault || !!rescueP2ABumpPlan;
+    const hasModalPrerequisites =
+      !isRescueBeingHandled &&
+      !!rescuePresignedTxInfos &&
+      (!modalNeedsFeeEstimates || !!feeEstimates);
 
-    if (isLadderedVault) {
-      if (!feeEstimates) return false;
-      return getActionAccelerationInfo({
-        vaultMode,
-        feeEstimates,
-        pushedTxHex: rescuePushedTxHex,
-        presignedTxInfos: rescuePresignedTxInfos
-      }).hasAccelerationPath;
+    let accelerationButtonEnabled = false;
+    if (
+      hasModalPrerequisites &&
+      isRescuePushedButUnconfirmed &&
+      rescuePushedTxHex &&
+      rescuePresignedTxInfos
+    ) {
+      if (isLadderedVault) {
+        if (feeEstimates)
+          accelerationButtonEnabled = getActionAccelerationInfo({
+            vaultMode,
+            feeEstimates,
+            pushedTxHex: rescuePushedTxHex,
+            presignedTxInfos: rescuePresignedTxInfos
+          }).hasAccelerationPath;
+      } else {
+        // P2A keeps acceleration clickable even if no usable path exists yet:
+        // the modal will explain the missing/insufficient reserve funds and ask
+        // the user to add more.
+        accelerationButtonEnabled = true;
+      }
     }
 
-    // Let P2A rescue acceleration open the modal even when acceleration funds
-    // are missing, so the user gets an explanation instead of no action.
-    if (!rescueP2ABumpPlan) return true;
-
-    // With a plan, the modal needs fee estimates to distinguish insufficient
-    // funds, max-fee, and actionable acceleration states.
-    if (!feeEstimates) return false;
-    return true;
+    return {
+      accelerationStatusVisible: isRescuePushedButUnconfirmed,
+      startButtonVisible,
+      startDisabled: !hasModalPrerequisites,
+      startLoading:
+        (!vaultStatus?.panicTxHex && isRescueBeingHandled) ||
+        (startButtonVisible &&
+          !hasModalPrerequisites &&
+          modalNeedsFeeEstimates &&
+          !feeEstimates),
+      accelerationButtonEnabled,
+      accelerationLoading: isRescueBeingHandled
+    };
   }, [
-    isRescueBeingHandled,
-    vaultMode,
+    hasTriggerStarted,
+    isUnfrozen,
+    hasRescueStarted,
     isLadderedVault,
+    rescueP2ABumpPlan,
+    isRescueBeingHandled,
+    rescuePresignedTxInfos,
     feeEstimates,
     isRescuePushedButUnconfirmed,
-    rescueP2ABumpPlan,
     rescuePushedTxHex,
-    rescuePresignedTxInfos
+    vaultMode,
+    vaultStatus?.panicTxHex
   ]);
 
   const [scheduledNow, setScheduledNow] = useState<number>(INITIAL_NOW_SECONDS);
@@ -617,7 +668,7 @@ const RawVault = ({
 
   const triggerBlockTimeBestGuess = vaultStatus?.triggerTxBlockTime
     ? vaultStatus.triggerTxBlockTime
-    : isInitUnfreezeTxPushed || isInitUnfreezeTxInMempool
+    : isTriggerTxPushed || isTriggerTxInMempool
       ? now + 10 * 60 //expected is always 10' from now
       : undefined;
 
@@ -758,9 +809,9 @@ const RawVault = ({
             )}
           </View>
           {canReceiveNotifications &&
-            (isInitUnfreezeTxNotFound ||
-              isInitUnfreezeTxInMempool ||
-              isInitUnfreezeTxConfirmedButReversible) && (
+            (isTriggerTxNotFound ||
+              isTriggerTxInMempool ||
+              isTriggerTxConfirmedButReversible) && (
               <VaultWatchtowerIndicator
                 vaultStatus={vaultStatus}
                 watchtowerAPI={watchtowerAPI}
@@ -786,7 +837,7 @@ const RawVault = ({
             </Text>
           </View>
         )}
-        {isInitUnfreezeTxNotFound && (
+        {isTriggerTxNotFound && (
           <View className="flex-row items-center mt-2.5">
             {/*<MaterialCommunityIcons
               name="lock-clock"
@@ -821,25 +872,24 @@ const RawVault = ({
           </View>
         ) : null}
         <View className={`gap-4 ${!vaultNotFound ? 'pt-4' : ''}`}>
-          {(isInitUnfreezeTxPushed || isInitUnfreezeTxInMempool) &&
-            !isInitUnfreezeTxConfirmed && (
-              <VaultStatusLine
-                icon={{
-                  name: 'clock-fast',
-                  family: 'MaterialCommunityIcons'
-                }}
-                accelerateLoading={isInitUnfreezeBeingHandled}
-                {...(canOpenTriggerAccelerationModal
-                  ? { onAccelerate: handleShowInitUnfreeze }
-                  : {})}
-              >
-                {triggerPushDate
-                  ? t('wallet.vault.pushedTriggerNotConfirmed', {
-                      triggerPushDate
-                    })
-                  : t('wallet.vault.pushedTriggerNotConfirmedUnknownDate')}
-              </VaultStatusLine>
-            )}
+          {trigger.accelerationStatusVisible && (
+            <VaultStatusLine
+              icon={{
+                name: 'clock-fast',
+                family: 'MaterialCommunityIcons'
+              }}
+              accelerateLoading={trigger.accelerationLoading}
+              {...(trigger.accelerationButtonEnabled
+                ? { onAccelerate: openTriggerModal }
+                : {})}
+            >
+              {triggerPushDate
+                ? t('wallet.vault.pushedTriggerNotConfirmed', {
+                    triggerPushDate
+                  })
+                : t('wallet.vault.pushedTriggerNotConfirmedUnknownDate')}
+            </VaultStatusLine>
+          )}
           {triggerConfirmedDate && (
             <VaultStatusLine
               icon={{
@@ -906,15 +956,15 @@ const RawVault = ({
               })}
             </VaultStatusLine>
           )}
-          {hasRescueStarted && !isRescueTxConfirmed && (
+          {rescue.accelerationStatusVisible && (
             <VaultStatusLine
               icon={{
                 name: 'shield-alert-outline',
                 family: 'MaterialCommunityIcons'
               }}
-              accelerateLoading={isRescueBeingHandled}
-              {...(canOpenRescueAccelerationModal
-                ? { onAccelerate: handleShowRescue }
+              accelerateLoading={rescue.accelerationLoading}
+              {...(rescue.accelerationButtonEnabled
+                ? { onAccelerate: openRescueModal }
                 : {})}
             >
               {rescuePushDate
@@ -928,7 +978,7 @@ const RawVault = ({
           {vaultNotFound && (
             <Text className="pt-2">{t('wallet.vault.vaultNotFound')}</Text>
           )}
-          {isInitUnfreezeTxNotFound && (
+          {isTriggerTxNotFound && (
             <Text className="pt-2">
               {isVaultTxConfirmed
                 ? t('wallet.vault.notTriggered', {
@@ -983,18 +1033,19 @@ const RawVault = ({
             </>
           )}
         </View>
-        {(showRescueButton ||
-          showInitUnfreezeButton ||
+        {(rescue.startButtonVisible ||
+          trigger.startButtonVisible ||
           showDelegateButton ||
           showHideButton) && (
           <View
-            className={`w-full flex-row ${[showRescueButton, showInitUnfreezeButton, showDelegateButton, showHideButton].filter(Boolean).length > 1 ? 'justify-between flex-wrap' : 'justify-end'} pt-8 px-0 moblg:px-4 gap-4 moblg:gap-6`}
+            className={`w-full flex-row ${[rescue.startButtonVisible, trigger.startButtonVisible, showDelegateButton, showHideButton].filter(Boolean).length > 1 ? 'justify-between flex-wrap' : 'justify-end'} pt-8 px-0 moblg:px-4 gap-4 moblg:gap-6`}
           >
-            {showRescueButton && (
+            {rescue.startButtonVisible && (
               <VaultActionButton
                 mode="secondary-alert"
-                onPress={handleShowRescue}
-                loading={isRescueBeingHandledNotYetPushed}
+                onPress={openRescueModal}
+                loading={rescue.startLoading}
+                disabled={rescue.startDisabled}
                 msg={t('wallet.vault.rescueButton')}
                 infoButton={
                   <ModalInfoButton
@@ -1009,17 +1060,12 @@ const RawVault = ({
                 }
               />
             )}
-            {showInitUnfreezeButton && (
+            {trigger.startButtonVisible && (
               <VaultActionButton
                 mode="secondary"
-                onPress={handleShowInitUnfreeze}
-                loading={isInitUnfreezePending}
-                disabled={
-                  // For P2A_TRUC, an unconfirmed vault tx can only have one unconfirmed child.
-                  // Since the backup child already uses that slot, keep the action visible but
-                  // disable Init Unfreeze until the vault tx confirms.
-                  vaultMode === 'P2A_TRUC' && !isVaultTxConfirmed
-                }
+                onPress={openTriggerModal}
+                loading={trigger.startLoading}
+                disabled={trigger.startDisabled}
                 msg={t('wallet.vault.triggerUnfreezeButton')}
                 infoButton={
                   <ModalInfoButton
@@ -1061,21 +1107,21 @@ const RawVault = ({
           </View>
         )}
       </View>
-      <InitUnfreeze
+      <Trigger
         vault={vault}
         vaultStatus={vaultStatus}
         p2aBumpPlan={triggerP2ABumpPlan}
-        isVisible={showInitUnfreeze}
+        isVisible={isTriggerModalVisible}
         lockBlocks={vault.lockBlocks}
-        onClose={handleCloseInitUnfreeze}
-        onInitUnfreeze={handleInitUnfreeze}
+        onClose={closeTriggerModal}
+        onTrigger={handleTrigger}
       />
       <Rescue
         vault={vault}
         vaultStatus={vaultStatus}
         p2aBumpPlan={rescueP2ABumpPlan}
-        isVisible={showRescue}
-        onClose={handleCloseRescue}
+        isVisible={isRescueModalVisible}
+        onClose={closeRescueModal}
         onRescue={handleRescue}
       />
       <Delegate

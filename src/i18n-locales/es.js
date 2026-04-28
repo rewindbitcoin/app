@@ -259,12 +259,12 @@ Esto iniciará la cuenta regresiva de descongelación. Los fondos se desbloquear
 Nota: "Acelerar" no reduce el período de bloqueo; sólo ayuda a que el proceso comience antes si una comisión baja lo retrasó.
 
 Seguramente sólo necesitas esperar unos 10 minutos y realmente no necesitas esto. Usa "Acelerar" sólo si esperar ese tiempo (que podría alargarse hasta un par de horas) no es aceptable.`,
-        noReserveAvailableYet: `Todavía no hay reserva disponible para esta solicitud de descongelación.
+        noReserveAvailableYet: `No hay fondos de reserva disponibles para esta solicitud de descongelación.
 
-Rewind no puede acelerarla hasta que se añadan fondos a la reserva.`,
-        insufficientReserveFunds: `Hay fondos en la reserva, pero no son suficientes para acelerar esta solicitud de descongelación.
+Rewind no puede iniciarla ni acelerarla hasta que se añadan fondos a la reserva.`,
+        insufficientReserveFunds: `Hay fondos en la reserva, pero no son suficientes para iniciar o acelerar esta solicitud de descongelación.
 
-Añade más fondos a la reserva para poder acelerarla.`,
+Añade más fondos a la reserva para continuar.`,
         confirmationSpeedLabel: 'Comisión',
         feeSelectorExplanation:
           'Confirma la comisión de minería para iniciar la cuenta regresiva de descongelación.',

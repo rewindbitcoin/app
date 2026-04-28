@@ -35,7 +35,7 @@ import {
   type VaultActionTxData
 } from '../../../lib/vaultActionTx';
 
-type InitUnfreezeProps = {
+type TriggerProps = {
   vault: Vault;
   vaultStatus: VaultStatus | undefined;
   /**
@@ -45,21 +45,21 @@ type InitUnfreezeProps = {
    * - `P2ABumpPlan`: acceleration can use these reserve UTXOs/change/signer.
    */
   p2aBumpPlan: P2ABumpPlan | null | undefined;
-  onInitUnfreeze: (initUnfreezeData: VaultActionTxData) => void;
+  onTrigger: (triggerData: VaultActionTxData) => void;
   lockBlocks: number;
   isVisible: boolean;
   onClose: () => void;
 };
 
-const InitUnfreeze = ({
+const Trigger = ({
   vault,
   vaultStatus,
   p2aBumpPlan,
   isVisible,
   lockBlocks,
-  onInitUnfreeze,
+  onTrigger,
   onClose
-}: InitUnfreezeProps) => {
+}: TriggerProps) => {
   const { locale } = useLocalization();
   const vaultMode = useMemo<'LADDERED' | 'P2A_TRUC' | 'P2A_NON_TRUC'>(
     () => getVaultMode(vault),
@@ -283,21 +283,31 @@ const InitUnfreeze = ({
     );
   }, [initialFeeRate]);
 
-  const handleInitUnfreeze = useCallback(() => {
+  const handleTrigger = useCallback(() => {
     if (!txData) throw new Error('Cannot unfreeze non-existing selected tx');
-    onInitUnfreeze(txData);
-  }, [onInitUnfreeze, txData]);
+    onTrigger(txData);
+  }, [onTrigger, txData]);
 
   const timeLockTime = formatBlocks(lockBlocks, t, locale, true);
+
+  // Modal opened from the acceleration status line: replace the already pushed
+  // trigger package, if a valid replacement path exists.
+  const noP2AAccelerationPath =
+    !isLadderedVault && isTriggerPushedButUnconfirmed && !hasAccelerationPath;
+  // Modal opened from the Init Unfreeze button: build the initial trigger
+  // package, if any selectable fee rate can fund it.
+  const noP2AStartPath =
+    !isLadderedVault &&
+    !isTriggerPushedButUnconfirmed &&
+    // At this point fee estimates exist; null means no selectable fee rate can
+    // build the initial P2A trigger package.
+    initialFeeRate === null;
+  const showInsufficientReserveFunds = noP2AAccelerationPath || noP2AStartPath;
 
   let modalContent: React.ReactNode;
   if (isP2ABumpPlanLoading) {
     modalContent = <ActivityIndicator />;
-  } else if (
-    isTriggerPushedButUnconfirmed &&
-    !isLadderedVault &&
-    p2aBumpPlan === null
-  ) {
+  } else if (!isLadderedVault && p2aBumpPlan === null) {
     modalContent = (
       <View>
         <Text className="text-base text-slate-600 pb-2 px-2">
@@ -315,11 +325,7 @@ const InitUnfreeze = ({
         </Text>
       </View>
     );
-  } else if (
-    isTriggerPushedButUnconfirmed &&
-    !isLadderedVault &&
-    !hasAccelerationPath
-  ) {
+  } else if (showInsufficientReserveFunds) {
     modalContent = (
       <View>
         <Text className="text-base text-slate-600 pb-2 px-2">
@@ -399,7 +405,7 @@ const InitUnfreeze = ({
               <Button mode="secondary" onPress={onClose}>
                 {t('cancelButton')}
               </Button>
-              <Button onPress={handleInitUnfreeze} disabled={!txData}>
+              <Button onPress={handleTrigger} disabled={!txData}>
                 {t('wallet.vault.triggerUnfreezeButton')}
               </Button>
             </View>
@@ -411,4 +417,4 @@ const InitUnfreeze = ({
   );
 };
 
-export default InitUnfreeze;
+export default Trigger;

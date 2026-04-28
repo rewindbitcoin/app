@@ -264,12 +264,12 @@ This will start the unfreeze countdown. The funds will become unlocked and avail
 Remember, "Accelerate" won't shorten the lock period. It only speeds up when your unfreeze process actually begins if low fees had held it up.
 
 You likely only need to wait around 10 minutes and really don't need this. Use "Accelerate" only if waiting that time (which could stretch to a couple of hours) isn't acceptable.`,
-        noReserveAvailableYet: `No reserve available yet for this unfreeze request.
+        noReserveAvailableYet: `No reserve funds are available for this unfreeze request.
 
-Rewind cannot accelerate it until reserve funds are added.`,
-        insufficientReserveFunds: `Reserve funds are available, but there is not enough to accelerate this unfreeze request.
+Rewind cannot start or accelerate it until reserve funds are added.`,
+        insufficientReserveFunds: `Reserve funds are available, but there is not enough to start or accelerate this unfreeze request.
 
-Add more reserve funds to accelerate it.`,
+Add more reserve funds to continue.`,
         confirmationSpeedLabel: 'Mining Fee',
         feeSelectorExplanation:
           'Confirm the mining fee to request the start of the unfreeze countdown.',
