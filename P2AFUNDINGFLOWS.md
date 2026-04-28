@@ -237,6 +237,11 @@ bumped. Therefore the reserve inputs spent by the CPFP child must already be
 confirmed. If a reserve funding tx is still unconfirmed, it would become a second
 unconfirmed parent of the child and violate the TRUC shape this flow relies on.
 
+For `P2A_NON_TRUC`, setup can use unconfirmed wallet UTXOs only when they do not
+come from version-3 parents. Bitcoin Core rejects a non-version-3 transaction
+that spends an unconfirmed version-3 parent. If a wallet UTXO comes from an
+unconfirmed v3 tx, NON_TRUC setup must skip it until it confirms.
+
 Current trigger setup is safe under that assumption. For `P2A_TRUC`, Init
 Unfreeze is disabled until the vault tx confirms. Once the vault tx is confirmed,
 the built-in trigger reserve output funded by that vault tx is confirmed too.

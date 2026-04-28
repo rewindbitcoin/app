@@ -158,13 +158,17 @@ export default function VaultSetUp({
     settings,
     vaultMode
   );
-  // P2A_TRUC vault creation must avoid unconfirmed wallet inputs.
-  const { confirmedSpendableUtxosData, hasUnconfirmedSpendableUtxo } =
+  // TRUC setup must avoid all unconfirmed wallet inputs. NON_TRUC setup may use
+  // unconfirmed inputs, but not from version-3 parents because v2 descendants of
+  // v3 mempool parents violate TRUC inheritance policy. This is mostly an edge
+  // case: a user can hit it after creating/pushing TRUC and NON_TRUC vaults from
+  // the same wallet, then trying to spend an unconfirmed output from a v3 tx.
+  const { vaultCompatibleUtxosData, hasVaultIncompatibleUtxos } =
     useMemo(() => {
-      if (vaultMode !== 'P2A_TRUC' || !historyData?.length) {
+      if (!historyData?.length) {
         return {
-          confirmedSpendableUtxosData: spendableUtxosData,
-          hasUnconfirmedSpendableUtxo: false
+          vaultCompatibleUtxosData: spendableUtxosData,
+          hasVaultIncompatibleUtxos: false
         };
       }
       const unconfirmedTxIds = new Set(
@@ -174,25 +178,27 @@ export default function VaultSetUp({
       );
       if (unconfirmedTxIds.size === 0) {
         return {
-          confirmedSpendableUtxosData: spendableUtxosData,
-          hasUnconfirmedSpendableUtxo: false
+          vaultCompatibleUtxosData: spendableUtxosData,
+          hasVaultIncompatibleUtxos: false
         };
       }
-      const filteredUtxos = spendableUtxosData.filter(
-        utxo => !unconfirmedTxIds.has(utxo.tx.getId())
-      );
+      const filteredUtxos = spendableUtxosData.filter(utxo => {
+        const isUnconfirmed = unconfirmedTxIds.has(utxo.tx.getId());
+        if (!isUnconfirmed) return true;
+        if (vaultMode === 'P2A_TRUC') return false;
+        return utxo.tx.version !== 3;
+      });
       return filteredUtxos.length === spendableUtxosData.length
         ? {
-            confirmedSpendableUtxosData: spendableUtxosData,
-            hasUnconfirmedSpendableUtxo: false
+            vaultCompatibleUtxosData: spendableUtxosData,
+            hasVaultIncompatibleUtxos: false
           }
         : {
-            confirmedSpendableUtxosData: filteredUtxos,
-            hasUnconfirmedSpendableUtxo: true
+            vaultCompatibleUtxosData: filteredUtxos,
+            hasVaultIncompatibleUtxos: true
           };
     }, [vaultMode, historyData, spendableUtxosData]);
-  const vaultUtxosData =
-    vaultMode === 'P2A_TRUC' ? confirmedSpendableUtxosData : spendableUtxosData;
+  const vaultUtxosData = vaultCompatibleUtxosData;
   const maxFeeRate = computeMaxAllowedFeeRate(feeEstimates);
   // Lowest target package fee rate. The UI later derives the real minimum
   // obtainable package fee rate from this low-end build and clamps the slider to it.
@@ -251,11 +257,10 @@ export default function VaultSetUp({
     maxVaultAtMinimumPackageFeeRate !== undefined &&
     maxVaultAtMinimumPackageFeeRate.vaultedAmount >=
       minimumVaultSetup.vaultedAmount;
-  // P2A_TRUC can only use confirmed funds, so unconfirmed UTXOs can block setup.
+  // Relay-policy-incompatible unconfirmed UTXOs can block setup if the remaining
+  // compatible UTXOs cannot build even the minimum vault.
   const isBlockedByUnconfirmedFunds =
-    vaultMode === 'P2A_TRUC' &&
-    hasUnconfirmedSpendableUtxo &&
-    !hasAnyVaultRange;
+    hasVaultIncompatibleUtxos && !hasAnyVaultRange;
   // Without temporarily reserved funds, this wallet would be able to create a vault.
   const isBlockedByReservedFunds =
     !isBlockedByUnconfirmedFunds &&
@@ -534,8 +539,7 @@ export default function VaultSetUp({
           </View>
           <Button onPress={navigation.goBack}>{t('goBack')}</Button>
         </View>
-      ) : vaultMode === 'P2A_TRUC' &&
-        hasUnconfirmedSpendableUtxo &&
+      ) : hasVaultIncompatibleUtxos &&
         hasAnyVaultRange &&
         !confirmedFundsWarningAccepted ? (
         <View className="w-full max-w-screen-sm mx-4" style={containerStyle}>

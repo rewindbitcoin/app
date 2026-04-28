@@ -509,9 +509,9 @@ Puedes reemplazar la dirección pre-rellenada o hacer clic en "Crear" para abrir
 
 Verifica la dirección cuidadosamente para asegurarte de que corresponde a una Frase de Emergencia bajo tu control:
 {{coldAddress}}.`,
-    confirmedFundsWarning: `Esta bóveda solo puede crearse con fondos confirmados.
+    confirmedFundsWarning: `Algunos fondos sin confirmar todavía no pueden usarse para esta bóveda por la política de retransmisión.
 
-Igualmente puedes continuar, pero la configuración usará solo tus fondos confirmados. Eso significa que la cantidad máxima que puedes congelar puede ser menor hasta que el resto confirme.
+Igualmente puedes continuar, pero la configuración omitirá esos fondos. Eso significa que la cantidad máxima que puedes congelar puede ser menor hasta que el resto confirme.
 
 Si recibiste o moviste bitcoin hace poco, el resto normalmente debería quedar disponible en unos 10 minutos.`,
     notEnoughFunds: `<strong>No hay fondos suficientes para crear esta bóveda</strong>
@@ -521,9 +521,9 @@ La bóveda más pequeña que Rewind puede crear ahora mismo necesita alrededor d
 De eso, {{minimumVaultedAmount}} queda congelado en la bóveda. El resto hace falta para guardar un backup y dejar suficiente apartado para descongelar más adelante.
 
 <strong>Acción Sugerida:</strong> Por favor, agrega unos {{missingFunds}} más y vuelve a intentarlo.`,
-    notEnoughConfirmedFunds: `<strong>Se necesitan fondos confirmados</strong>
+    notEnoughConfirmedFunds: `<strong>Se necesitan más fondos confirmados</strong>
 
-Esta bóveda solo puede crearse con fondos confirmados, y parte de tus fondos de la billetera siguen sin confirmar, así que todavía no pueden usarse.
+Parte de tus fondos de la billetera siguen sin confirmar y todavía no pueden usarse para esta bóveda por la política de retransmisión.
 
 <strong>Acción Sugerida:</strong> Espera unos 10 minutos a que confirmen y vuelve a intentarlo. Una vez que esos fondos confirmen, podrán usarse para crear la bóveda.`,
     reservedFundsNotice: `<strong>Fondos Reservados Temporalmente</strong>
