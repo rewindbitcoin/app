@@ -1,330 +1,254 @@
 # P2A Funding Flows
 
-Temporary brainstorming document.
-
-This file exists to settle the P2A / Rewind2 funding-flow design before we
-update `REWIND2.md`.
-
-It intentionally mixes:
-- verified current behavior from the codebase
-- current design direction
-- still-open design questions
-
-If this file disagrees with `REWIND2.md`, treat this file as the temporary
-brainstorming note and `REWIND2.md` as the still-published design summary.
-
-## Purpose
-
-Clarify how setup funding, trigger acceleration funding, and rescue acceleration
-funding should work, while keeping the code simple and the user-facing meaning
-clear.
-
-Main goals:
-- keep setup UX honest: fee is not reserve
-- keep trigger acceleration deterministic
-- prepare a future shared reserve-based acceleration model for both trigger and rescue
-- avoid introducing generic abstractions before the design is settled
+This is a working design note for the Rewind2 P2A funding model.
 
-## Current Verified Behavior
-
-These points are verified from the current code.
-
-### Setup funding today
-
-- A new P2A vault setup funds four things in the vault transaction:
-  - the vault output
-  - the backup output
-  - the trigger reserve output
-  - optional wallet change
-- The setup screen shows:
-  - `Amount to Freeze` for the vault output only
-  - `Unfreeze Reserve` separately
-  - `Mining Fee` as the package fee for the vault tx plus the on-chain backup tx
-- The confirmation screen shows:
-  - vault amount
-  - unfreeze reserve
-  - vault transaction fee
-  - on-chain backup cost
-  - total taken from wallet now
-
-### TRUC setup today
-
-- `P2A_TRUC` setup only uses confirmed wallet funds.
-- Unconfirmed spendable wallet UTXOs are filtered out during setup.
-- The setup screen warns the user before continuing when some funds are still
-  unconfirmed.
-
-### Trigger acceleration today
-
-- Trigger acceleration is reserve-only.
-- The current trigger CPFP plan uses:
-  - the trigger P2A anchor
-  - that vault's trigger reserve UTXO set, which today contains only the
-    built-in reserve funded at setup
-- It does not coinselect generic wallet UTXOs for trigger acceleration.
-- Any leftover value from the child returns through normal wallet change.
-
-### Rescue acceleration today
-
-- Rescue starts as a high-fee parent transaction by default.
-- Rescue does not currently rely on ordinary wallet UTXOs for fee bumping.
-- Rescue already has an optional later CPFP path based on an externally prepared
-  funding plan (`PreparedCpfpPlan`).
-
-### Shared CPFP mechanics already in the code
-
-- The low-level package math is already mostly shared:
-  - `estimateCpfpPackage(...)`
-  - `createCpfpChildTx(...)`
-- The current shared shape is:
-  - parent anchor output
-  - one or more non-anchor funding inputs
-  - one child change output
-
-## Current Code Assumptions That Matter
-
-These assumptions are important because future top-up flows will break them if
-we do not change them deliberately.
-
-- `getTriggerReserveOutput(...)` derives the built-in `/0` reserve output on the
-  per-vault trigger reserve branch.
-- `getTriggerReserveUtxosData(...)` now exposes a reserve UTXO set, but today it
-  returns either:
-  - the built-in reserve funded in the vault tx itself, or
-  - an empty set if setup did not need a built-in reserve output
-- `getP2AVaultFundingBreakdown(...)` reconstructs the backup output and trigger reserve output from the vault tx.
-- `coinSelectVaultTx(...)` always funds one backup output and one trigger reserve output during setup.
-- `getRequiredTriggerReserveValue(...)` is now a trigger-specific setup wrapper
-  around the shared runtime reserve-sizing primitive.
-
-In other words: current code now exposes a reserve UTXO set. Today that set is
-either empty or contains only the built-in `/0` reserve from the vault tx.
-
-## Current Design Direction
-
-Working idea: move toward a shared "anchor reserve" concept for both trigger and
-rescue, while keeping their signers and funding origins different.
+The goal is to quickly recover the shape of the system: what is funded at setup,
+what is reserved for later acceleration, what trigger and rescue are allowed to
+spend and which assumptions are still open.
 
-This is not final yet.
+## Core Model
 
-The intended simplification is:
-- both trigger and rescue fee bumping should look like "parent anchor + reserve inputs + change"
-- both should use the same CPFP mechanism once the reserve inputs are defined
-- the difference should mainly be where those reserve inputs come from and who signs them
+Rewind2 separates concepts that older flows could blur together:
 
-## Trigger Reserve Today And Proposed Extension
+- `vault amount`: the funds being frozen
+- `backup output`: value set aside so the on-chain backup tx can later be mined
+- `trigger reserve`: deterministic per-vault funds reserved for trigger acceleration
+- `P2A anchor`: the parent output that lets a CPFP child attach
+- `CPFP child`: the later child transaction that pays extra package fee
 
-### Current trigger reserve
+The important UX rule is: a fee is not a reserve. Setup should show the frozen
+amount, the unfreeze reserve and the mining fee as different things.
 
-- Each vault gets a deterministic per-vault reserve branch.
-- If setup decides a built-in reserve is needed, it funds the first reserve
-  output on that branch at `/0`.
-- It lives on its own reserve path, not on the ordinary hot-wallet spending path.
-- It is funded up front so trigger can be accelerated later without relying on unrelated wallet funds.
+TBD: when existing acceleration funds are missing or not enough, the user-facing
+solution should be an acceleration funding wizard. "Wizard" means a guided flow
+that explains why more funds are needed, shows where to send them and waits until
+those funds are usable.
 
-### Proposed trigger top-up direction
+That wizard should cover both cases:
 
-- Keep the built-in deterministic trigger reserve funded at setup.
-- Treat that built-in reserve as the first UTXO on the vault's trigger reserve
-  branch, at `/0`.
-- If that reserve later proves insufficient, the app may offer the user a way to
-  add more funds to the same trigger reserve system.
-- The top-up should feed the same general trigger acceleration mechanism rather
-  than introducing a separate trigger-only emergency flow.
-- Current leaning after this change:
-  - trigger top-up should mean the same reserve branch / reserve UTXO set, not
-    one forever-fixed single reserve outpoint
+- trigger top-ups, even though the setup-funded trigger reserve should normally
+  be enough
+- rescue acceleration funding, even though the rescue parent starts with a high
+  fee rate
 
-## Rescue Funding Today And Proposed Extension
+## Vault Setup
 
-### Current rescue funding
+A normal successful P2A vault creation funds these outputs in the vault tx:
 
-- Rescue is designed to work as a single high-fee parent transaction first.
-- Only if that is not enough does the app consider an extra bump input later.
+- the vault output
+- the backup output
+- the built-in trigger reserve output
+- optional wallet change
 
-### Proposed rescue reserve direction
+The backup output is not normal savings and not normal change. It funds the later
+on-chain backup transaction. Since that backup tx stores data in `OP_RETURN` and
+does not create a normal change output, the backup output value effectively
+becomes the backup tx cost.
 
-- Rescue would use a separate reserve signer, not the wallet signer.
-- The current brainstorming direction is an ephemeral software signer created
-  specifically for rescue acceleration funding.
-- That reserve starts empty.
-- If rescue acceleration is needed, the app would show the user a funding
-  address derived from that rescue reserve signer.
-- Later, rescue CPFP would spend:
-  - the rescue anchor
-  - reserve UTXO(s) controlled by that rescue reserve signer
+The trigger reserve is also funded during setup. There is no separate "create the
+reserve later" step in normal vault creation. If the wallet cannot fund the
+built-in trigger reserve, vault creation should fail instead of creating a normal
+new P2A vault without trigger acceleration funds.
 
-Pending later task:
-- once rescue reserve funding exists, rescue should mirror the trigger fee-bump
-  UX exactly:
-  - if a rescue is already pending and reserve funding is missing, the user
-    should still be able to open the modal
-  - the modal should explain that no rescue reserve is available yet instead of
-    failing silently behind a disabled action
+`P2A_TRUC` setup uses confirmed wallet UTXOs only. This keeps the new vault setup
+compatible with the stricter relay assumptions of the TRUC path.
 
-## Ephemeral Rescue Reserve UX
+## Trigger Funding
 
-Current brainstorming decision:
+The trigger transaction spends the vault output and starts unfreezing. In P2A it
+has a parent transaction with an anchor, and acceleration is done by attaching a
+child.
 
-- if we use an ephemeral rescue reserve wallet, the UX must show the seed first
-- the user must confirm that seed before the app shows the funding address
-- this should behave similarly to the emergency-address creation wizard
+Trigger acceleration is deterministic and reserve-only:
 
-Why:
-- an in-memory-only rescue wallet is too risky if the user never records the seed
-- the user must have a recovery path before real funds are sent there
+- it spends the trigger P2A anchor
+- it spends that vault's trigger reserve UTXO set
+- it does not use generic hot-wallet UTXOs
+- it does not coinselect among reserve UTXOs
+- it spends all discovered trigger reserve UTXOs
+- it sends excess value back to normal wallet change
 
-Still open:
-- whether the rescue reserve remains truly ephemeral after that
-- whether the seed must also be exported again later from the rescue flow
-- whether the reserve wallet should ever be persisted locally
+Current: the built-in trigger reserve is the first child on the per-vault
+trigger-reserve branch:
 
-## Shared CPFP Mechanism We Seem To Want
+```text
+m/1073'/coin_type'/2'/<vaultIndex>/0
+```
 
-The likely shared model is:
+Current: the app discovers the setup-funded `/0` reserve. That is the only
+trigger reserve UTXO normal vault creation creates today.
 
-1. Identify the P2A parent transaction.
-2. Select reserve funding UTXO(s) for that action.
-3. Build a child that spends:
-   - the parent anchor
-   - reserve funding input(s)
-4. Send leftover value to the configured change output.
+TBD: if the user later adds more trigger reserve funds, those funds should use
+later child indexes on the same per-vault branch. Discovery then needs to return
+all usable reserve UTXOs for that vault.
 
-This model fits:
-- trigger with deterministic reserve funding
-- rescue with externally funded reserve UTXOs
+The setup-funded reserve should normally cover trigger acceleration up to the
+configured ceiling. A trigger top-up wizard is only the fallback for missing,
+insufficient or unusually exhausted reserve funds.
 
-This does not mean trigger and rescue become identical overall. They still differ in:
-- signer trust model
-- funding timing
-- persistence and recovery story
-- UX urgency
+Current: if a trigger acceleration package was already submitted but is still not
+being mined, the next acceleration replaces the previous CPFP child with a
+higher-fee child. Replacement must be checked against the child that is currently
+live, not against a generic fee target in isolation.
 
-## Sizing: Two Different Questions
+## Rescue Funding
 
-These should probably stay separate even if the overall idea becomes "anchor reserve".
+Rescue is intentionally different from trigger.
 
-### Setup-time sizing question
+The rescue transaction is the emergency path from the trigger output to the
+emergency address. The default design is that rescue starts as a high-fee parent
+transaction. In most cases the user should be able to broadcast the rescue parent
+and be done.
 
-Current helper:
-- `getRequiredTriggerReserveValue(...)`
+Rescue does not use ordinary hot-wallet UTXOs for fee bumping. If the user is in
+the rescue path, the hot wallet may already be compromised, so ordinary wallet
+funds are not a good emergency funding source.
 
-What it answers:
-- how much reserve must be funded during vault creation so the first trigger CPFP
-  child can reach the target trigger package fee ceiling
-- if it returns `0`, setup does not need to create a built-in trigger reserve output
+Current: rescue does not have an acceleration funding wizard yet.
 
-### Runtime top-up sizing question
+TBD: if the high-fee rescue parent is still not enough, the intended model is a
+separate emergency acceleration reserve:
 
-Current shared primitive:
-- `getRequiredNextReserveUtxoValue(...)`
+- a separate signer controls the rescue acceleration funds
+- the signer is not the normal wallet signer
+- the user funds an address from that reserve system
+- a rescue CPFP child spends the rescue anchor plus those reserve UTXOs
+- leftover value should go to a recovery-safe destination, probably the emergency
+  address
 
-What it should answer:
-- given the current parent tx and current reserve availability, how much more
-  reserve funding is needed now to reach the desired fee target
-- if it returns `0`, no additional reserve UTXO is needed
+TBD: the current direction is an ephemeral software signer for rescue
+acceleration, but that only works if the UX first shows the seed and the user
+confirms it before any real funds are sent there. Otherwise the user could fund
+an in-memory wallet with no recovery path.
 
-This is still not the same question as setup-time reserve sizing. The current
-trigger setup code now uses the shared primitive through a trigger-specific
-wrapper.
+## Shared P2A Bump Shape
 
-## Confirmed vs Unconfirmed Funding Rules
+Current: trigger uses this low-level package shape today:
 
-Already decided:
-- `P2A_TRUC` vault setup must use confirmed wallet UTXOs only
+```text
+parent anchor + reserve inputs -> child change output
+```
 
-Still open for reserve top-ups:
-- must trigger reserve top-up UTXOs be confirmed before they are usable?
-- must rescue reserve top-up UTXOs be confirmed before they are usable?
-- or do we want to support a larger multi-parent package where a fresh funding tx
-  and the CPFP child are all part of one chained relay story?
+TBD: rescue should use the same shape once rescue reserve inputs exist.
 
-Important current limitation:
-- the present CPFP helpers model `parent + child`
-- they do not model a new upstream funding parent transaction created just before
-  the child
+The differences are not in the package math. They are in the funding source,
+signer, timing and recovery story.
 
-So "send funds to the reserve address and use them immediately" is not free. It
-would require a broader package model than the one currently implemented.
+Current: `P2ABumpPlan` describes the inputs needed to build a CPFP child:
 
-## Recovery And Persistence Risks
+- non-anchor reserve UTXOs
+- destination for leftover value
+- signer for the reserve UTXOs
+- optional previous child tx when replacing an unmined package
 
-These are the biggest unresolved risks.
+`getRequiredNextP2ABumpReserveUtxoValue(...)` is the generic sizing primitive for
+the next reserve UTXO. It is not trigger-specific.
 
-### Trigger top-up risk
+Current: for trigger setup, it is used for the first reserve UTXO with no
+existing reserve UTXOs yet.
 
-- once trigger reserve top-ups exist, the app can no longer assume there is only
-  one reserve UTXO inside the vault tx
-- discovery and state tracking must support reserve UTXOs in plural
+TBD: for future trigger top-ups or rescue acceleration funding, it can take
+existing reserve UTXOs into account and size only the next reserve UTXO that must
+be added.
 
-### Rescue reserve risk
+For current and future uses, the helper assumes the child spends all known
+reserve UTXOs plus the next reserve UTXO being sized. It does not do
+coinselection among reserve UTXOs.
 
-- if rescue reserve funds are sent to an ephemeral wallet and the app closes,
-  crashes, or the user loses context, those funds may become hard to recover
-- showing and confirming the seed helps, but does not fully define the recovery
-  story
+## Package And Replacement Assumptions
 
-### Backup scope risk
+The current CPFP model is a two-transaction package:
 
-- on-chain backup today stores the trigger and rescue transactions
-- it does not store rescue reserve signer state or reserve top-up state
-- if reserve top-ups become part of the normal rescue path, recoverability needs
-  a clear story
+```text
+parent + child
+```
 
-## Naming Notes
+Here `parent` means the transaction being accelerated: trigger or rescue. It does
+not mean the vault tx. For Init Unfreeze on `P2A_TRUC`, the vault tx is already
+confirmed before the trigger package is submitted.
 
-Working term:
-- "anchor reserve"
+For the current trigger path, the reserve input is already confirmed:
 
-But naming is not settled yet.
+```text
+Already confirmed before this package:
+  vault tx
+    |-- vault output
+    |-- trigger reserve output
 
-Important caution:
-- simply renaming everything from "trigger reserve" to "anchor reserve" would be
-  misleading today because the code is still structurally trigger-specific in
-  several places
+Package submitted now:
+  trigger tx / P2A parent (unconfirmed)
+    input:  confirmed vault output
+    output: P2A anchor
 
-Likely better approach:
-- keep trigger-specific names where the logic is truly trigger-specific
-- introduce shared names only for the truly shared CPFP funding layer
+  CPFP child
+    input:  P2A anchor from trigger tx   (unconfirmed parent = trigger tx)
+    input:  trigger reserve output       (confirmed)
+    output: wallet change
 
-## Open Design Questions
+Package being submitted:
+  unconfirmed trigger parent + CPFP child
 
-1. Is the shared concept really "same reserve address" or "same reserve funding mechanism"?
-2. For trigger top-ups, how should additional UTXOs be derived and discovered on the same reserve branch?
-3. For rescue, is the reserve per vault, per rescue attempt, or per temporary emergency wallet?
-4. Must reserve top-up funds be confirmed before use?
-5. Do we want to support immediate use of newly funded reserve UTXOs as part of a larger package?
-6. What exact recovery promise do we make for rescue reserve funds?
-7. Does any rescue reserve state need to be persisted locally, backed up, or both?
-8. Should setup-time reserve sizing and runtime reserve top-up sizing use separate helpers?
-9. Which names should stay trigger-specific, and which should move to shared CPFP-funding terminology?
+The CPFP child has one unconfirmed parent: the trigger tx. The vault tx and the
+trigger reserve input are already confirmed.
+```
 
-## Current Leaning
+If a future top-up is not confirmed yet, the shape changes:
 
-The simplest direction that still matches the current codebase is:
+```text
+unconfirmed trigger parent (P2A anchor) ----\
+                                            -> CPFP child
+unconfirmed reserve top-up tx --------------/
 
-- keep the current built-in deterministic trigger reserve model
-- treat rescue reserve funding as a later external reserve flow
-- reuse the same low-level CPFP funding mechanism where possible
-- likely next refactor task: make `getTriggerAccelerationInfo(...)` and
-  `getRescueAccelerationInfo(...)` share one common core helper for the P2A
-  case, while keeping thin trigger/rescue wrappers so call sites still read in
-  domain terms
-- delay large renames until we know whether reserve UTXOs will stay singular or become plural
-- keep `REWIND2.md` unchanged until these decisions are final
+The child now has two unconfirmed parents.
+That does not fit the current P2A_TRUC one-parent child shape.
+```
 
-## Before Coding
+For `P2A_TRUC`, a version-3 child may have only one unconfirmed parent. In our
+acceleration package, that parent is the trigger or rescue P2A transaction being
+bumped. Therefore the reserve inputs spent by the CPFP child must already be
+confirmed. If a reserve funding tx is still unconfirmed, it would become a second
+unconfirmed parent of the child and violate the TRUC shape this flow relies on.
 
-The most important decisions to settle first are:
+Current trigger setup is safe under that assumption. For `P2A_TRUC`, Init
+Unfreeze is disabled until the vault tx confirms. Once the vault tx is confirmed,
+the built-in trigger reserve output funded by that vault tx is confirmed too.
 
-1. Whether reserve top-up UTXOs must be confirmed before use.
-2. How rescue reserve seed persistence and recovery should work.
-3. Whether future reserve handling is based on one reserve UTXO or a reserve UTXO set.
+TBD: future reserve top-ups do not get that guarantee automatically. If the user
+adds more funds to the trigger reserve, or funds a future rescue acceleration
+reserve, the new funding tx may still be unconfirmed. For `P2A_TRUC`, the future
+wizard must wait for that reserve UTXO to confirm before using it, unless relay
+policy changes. A larger multi-parent package may matter for non-TRUC flows, but
+it does not fit the current TRUC one-parent child shape.
 
-## Out Of Scope For This Temporary Doc
+P2A acceleration must also respect policy details:
 
-- updating `REWIND2.md`
-- code changes
-- translation updates
-- final naming cleanup
-- final UX copy
+- the child itself must satisfy minimum relay fee
+- TRUC children must stay within the TRUC child-size limit
+- replacing an existing child must improve package feerate
+- replacing an existing child must also pay enough extra absolute child fee
+
+The last point is easy to miss: a replacement can look better by package feerate
+and still fail policy if the child does not add enough absolute fee.
+
+## Backup And Recovery Scope
+
+Current: the on-chain backup stores the trigger and rescue transactions for the
+vault. It does not define a recovery story for reserve top-ups or rescue reserve
+signer state.
+
+TBD: if reserve top-ups or rescue reserve funding become normal parts of the
+flow, we need to decide what belongs in local storage, what belongs in the
+on-chain backup and what is intentionally ephemeral.
+
+## Open Work
+
+- Implement a shared acceleration funding wizard for trigger top-ups and rescue
+  reserve funding.
+- Discover trigger reserve UTXOs beyond the built-in `/0` child.
+- Decide whether top-up UTXOs must confirm before use.
+- Decide whether to support multi-parent packages for immediate reserve use.
+- Decide whether rescue reserve signing is per vault, per attempt or ephemeral.
+- Show and confirm the rescue reserve seed before showing a funding address.
+- Decide where rescue CPFP leftover value should go.
+- Define backup and recovery scope for reserve top-ups and rescue reserve state.
+- Sync `REWIND2.md` once this model settles.
