@@ -160,9 +160,10 @@ export default function VaultSetUp({
   );
   // TRUC setup must avoid all unconfirmed wallet inputs. NON_TRUC setup may use
   // unconfirmed inputs, but not from version-3 parents because v2 descendants of
-  // v3 mempool parents violate TRUC inheritance policy. This is mostly an edge
-  // case: a user can hit it after creating/pushing TRUC and NON_TRUC vaults from
-  // the same wallet, then trying to spend an unconfirmed output from a v3 tx.
+  // v3 mempool parents violate TRUC inheritance policy. The NON_TRUC restriction
+  // is mostly an edge case: a user can hit it after creating/pushing TRUC and
+  // NON_TRUC vaults from the same wallet, then trying to spend an unconfirmed
+  // output from a v3 tx.
   const { vaultCompatibleUtxosData, hasVaultIncompatibleUtxos } =
     useMemo(() => {
       if (!historyData?.length) {
@@ -184,8 +185,13 @@ export default function VaultSetUp({
       }
       const filteredUtxos = spendableUtxosData.filter(utxo => {
         const isUnconfirmed = unconfirmedTxIds.has(utxo.tx.getId());
+        // Confirmed inputs do not add mempool ancestors, so both modes can use them.
         if (!isUnconfirmed) return true;
+        // TRUC setup publishes the vault tx together with its backup child. Using
+        // any unconfirmed input would add another ancestor and break that shape.
         if (vaultMode === 'P2A_TRUC') return false;
+        // NON_TRUC uses a version-2 vault tx. Bitcoin Core does not allow a
+        // non-v3 mempool tx to spend an unconfirmed v3 parent.
         return utxo.tx.version !== 3;
       });
       return filteredUtxos.length === spendableUtxosData.length
