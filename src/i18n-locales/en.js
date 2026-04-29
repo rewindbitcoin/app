@@ -578,12 +578,12 @@ Of that, {{minimumVaultedAmount}} ends up frozen in the vault. The rest is neede
 Some wallet funds are still unconfirmed and cannot be used for this vault yet because of relay policy.
 
 <strong>Suggested Action:</strong> Wait around 10 minutes for confirmation and then try again. Once those funds confirm, they can be used to create the vault.`,
-    reservedFundsNotice: `<strong>Funds Temporarily Reserved</strong>
+    unstableUtxosNotice: `<strong>Funds Temporarily Reserved</strong>
 
 Some of your funds are temporarily reserved while Rewind protects important pending vault transactions that may still need acceleration.
 
 <strong>Suggested Action:</strong> Please wait for those transactions to confirm before creating a new vault.`,
-    reservedFundsBanner: `<strong>Some Funds Are Temporarily Reserved</strong>
+    unstableUtxosBanner: `<strong>Some Funds Are Temporarily Reserved</strong>
 
 Some of your funds are being kept aside while Rewind protects important pending vault transactions that may still need acceleration. Not all funds will be available again until those transactions confirm.`,
     amountLabel: 'Amount to Freeze',
@@ -617,11 +617,11 @@ For your security, please review these changes before proceeding.`
   send: {
     title: 'Send Bitcoin',
     notEnoughFunds: 'Insufficient funds to create the transaction',
-    reservedFunds:
-      'Some of your funds are temporarily reserved while Rewind protects important pending vault transactions that may still need acceleration. Please wait for confirmation before creating a new send.',
-    reservedFundsTitle: 'Some Funds Are Temporarily Reserved',
-    reservedFundsBody:
-      'Some of your funds are being kept aside while Rewind protects important pending vault transactions that may still need acceleration. Not all funds will be available again until those transactions confirm.',
+    blockedByPendingUtxos:
+      'Some funds need confirmation before this send can be created. Please wait for confirmation and try again.',
+    somePendingUtxosTitle: 'Some Funds Need Confirmation',
+    somePendingUtxosBody:
+      'You can continue with your available funds, but some pending funds are not included. They will be available after confirmation.',
     lowerFeeRate: `Transaction not possible with the selected fee rate and your available funds.
 
 Please lower the fee rate or add more funds.`,

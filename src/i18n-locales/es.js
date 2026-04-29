@@ -526,12 +526,12 @@ De eso, {{minimumVaultedAmount}} queda congelado en la bóveda. El resto hace fa
 Parte de tus fondos de la billetera siguen sin confirmar y todavía no pueden usarse para esta bóveda por la política de retransmisión.
 
 <strong>Acción Sugerida:</strong> Espera unos 10 minutos a que confirmen y vuelve a intentarlo. Una vez que esos fondos confirmen, podrán usarse para crear la bóveda.`,
-    reservedFundsNotice: `<strong>Fondos Reservados Temporalmente</strong>
+    unstableUtxosNotice: `<strong>Fondos Reservados Temporalmente</strong>
 
 Parte de tus fondos están reservados temporalmente mientras Rewind protege transacciones importantes de bóvedas que siguen pendientes y aún podrían necesitar aceleración.
 
 <strong>Acción Sugerida:</strong> Por favor, espera a que esas transacciones confirmen antes de crear una nueva bóveda.`,
-    reservedFundsBanner: `<strong>Parte de tus fondos están reservados temporalmente</strong>
+    unstableUtxosBanner: `<strong>Parte de tus fondos están reservados temporalmente</strong>
 
 Parte de tus fondos se mantiene apartada mientras Rewind protege transacciones importantes de bóvedas que siguen pendientes y aún podrían necesitar aceleración. No todos tus fondos volverán a estar disponibles hasta que esas transacciones confirmen.`,
     amountLabel: 'Cantidad a Congelar',
@@ -555,11 +555,11 @@ Por tu seguridad, por favor revisa estos cambios antes de continuar.`
   send: {
     title: 'Enviar Bitcoin',
     notEnoughFunds: 'Fondos insuficientes para crear la transacción',
-    reservedFunds:
-      'Parte de tus fondos están reservados temporalmente mientras Rewind protege transacciones importantes de bóvedas que siguen pendientes y aún podrían necesitar aceleración. Por favor, espera la confirmación antes de crear un nuevo envío.',
-    reservedFundsTitle: 'Parte de tus fondos están reservados temporalmente',
-    reservedFundsBody:
-      'Parte de tus fondos se mantiene apartada mientras Rewind protege transacciones importantes de bóvedas que siguen pendientes y aún podrían necesitar aceleración. No todos tus fondos volverán a estar disponibles hasta que esas transacciones confirmen.',
+    blockedByPendingUtxos:
+      'Parte de tus fondos necesitan confirmación antes de poder crear este envío. Por favor, espera a que confirmen y vuelve a intentarlo.',
+    somePendingUtxosTitle: 'Parte de tus fondos necesitan confirmación',
+    somePendingUtxosBody:
+      'Puedes continuar con los fondos disponibles, pero algunos fondos pendientes no están incluidos. Estarán disponibles después de confirmarse.',
     lowerFeeRate: `No es posible crear la transacción con la comisión seleccionada y tus fondos disponibles.
 
 Por favor, reduce la comisión o agrega más fondos.`,

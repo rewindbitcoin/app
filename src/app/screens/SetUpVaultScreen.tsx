@@ -570,7 +570,7 @@ export default function VaultSetUp({
                   isBlockedByUnconfirmedFunds
                     ? 'vaultSetup.notEnoughConfirmedFunds'
                     : isBlockedByReservedFunds
-                      ? 'vaultSetup.reservedFundsNotice'
+                      ? 'vaultSetup.unstableUtxosNotice'
                       : 'vaultSetup.notEnoughFunds'
                 }
                 values={{
@@ -614,7 +614,7 @@ export default function VaultSetUp({
             <View className="mb-6 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3">
               <Text className="text-base text-amber-900">
                 <Trans
-                  i18nKey="vaultSetup.reservedFundsBanner"
+                  i18nKey="vaultSetup.unstableUtxosBanner"
                   components={{
                     strong: <Text className="font-bold text-amber-900" />
                   }}

@@ -48,7 +48,6 @@ being spent; `child` means the transaction spending it.
 | Rewind package shape    | Stay with 1-parent/1-child packages for P2A acceleration.                                                                                                                                                                                                                                     |
 | Rewind CPFP replacement | Applies to both P2A modes. The parent is unchanged and already in mempool, so the absolute-fee replacement rule is about the child: `new child fee >= old child fee + ceil(new child vsize * 0.1)`. Code also requires the new parent+child package feerate to be higher.                     |
 | Blocked UTXOs           | Rewind temporarily hides some UTXOs from new vault setup and normal send flows. Specifically, it hides UTXOs created by replaceable acceleration packages. If the package is replaced, those UTXOs disappear, so spending them could make the new send/vault depend on a non-existent output. |
-| Current code gap        | `SendScreen.tsx` still needs the v2 skip-unconfirmed-v3 filter.                                                                                                                                                                                                                               |
 
 ## Version Inheritance Notes
 
@@ -126,11 +125,11 @@ restriction, though regular mempool limits still apply.
 
 ## Current UTXO Code Notes
 
-| Code path                    | Current state                                                                                         |
-| ---------------------------- | ----------------------------------------------------------------------------------------------------- |
-| `SetUpVaultScreen.tsx`       | Has `vaultCompatibleUtxosData` for TRUC confirmed-only and NON_TRUC skip-unconfirmed-v3.              |
-| `SendScreen.tsx`             | Uses `getSpendableUtxosData(...)` but still needs the v2 skip-unconfirmed-v3 filter for normal sends. |
-| `getSpendableUtxosData(...)` | Filters outputs from unconfirmed replaceable CPFP children, not arbitrary unconfirmed v3 parents.     |
+| Code path                   | Current state                                                                             |
+| --------------------------- | ----------------------------------------------------------------------------------------- |
+| `src/app/lib/utxoPolicy.ts` | Owns stable, sendable and vaultable UTXO filters.                                         |
+| `SetUpVaultScreen.tsx`      | Still has inline vault setup filtering; should move to `getVaultableUtxosData(...)`.      |
+| `SendScreen.tsx`            | Uses `getSendableUtxosData(...)` to skip unconfirmed v3 UTXOs for normal version-2 sends. |
 
 ## Dust And Anchor Recipes
 
@@ -246,8 +245,9 @@ tiny UTXOs in a TRUC child.
 | ---------------------------------------------- | ------------------------------------------------------------------------------------------- |
 | `src/app/lib/vaults.ts`                        | P2A constants, anchor values, dust checks, CPFP package estimates, parent policy assertion. |
 | `src/app/lib/vaultActionTx.ts`                 | Acceleration/replacement fee floors, incremental relay rule, CPFP fee reconstruction.       |
+| `src/app/lib/utxoPolicy.ts`                    | Stable, sendable and vaultable UTXO filters.                                                |
 | `src/app/screens/SetUpVaultScreen.tsx`         | Vault-compatible UTXO filtering and setup blocked-funds guards.                             |
-| `src/app/screens/SendScreen.tsx`               | Normal send UTXO selection; should follow v2 unconfirmed-v3 filter.                         |
+| `src/app/screens/SendScreen.tsx`               | Normal send UTXO selection using the v2 unconfirmed-v3 filter.                              |
 | `src/app/lib/sendTransaction.ts`               | Normal send tx construction; `new Psbt({ network })` defaults to v2.                        |
 | `src/app/components/vaults/VaultCard.tsx`      | Trigger/rescue action gating and P2A package submission.                                    |
 | `src/app/components/vaults/modals/Trigger.tsx` | Trigger start/acceleration UI and package fee selection.                                    |
@@ -259,7 +259,6 @@ tiny UTXOs in a TRUC child.
 
 | TODO                                                                                                             | Reason                                                                                                     |
 | ---------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
-| Add the v2 skip-unconfirmed-v3 filter to `SendScreen.tsx`.                                                       | Normal sends are v2 by default and can otherwise hit TRUC inheritance rejection.                           |
 | Re-check TRUC rescue start gating.                                                                               | If trigger is still unconfirmed with its CPFP child, rescue parent is a second descendant of the trigger.  |
 | Keep reserve top-up UTXOs confirmed before TRUC use.                                                             | Unconfirmed top-ups become extra parents of the CPFP child.                                                |
 | Future trigger top-up wizard must size for replacement rules, not only package feerate.                          | Replacement also needs extra absolute child fee.                                                           |
