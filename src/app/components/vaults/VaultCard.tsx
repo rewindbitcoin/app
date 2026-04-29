@@ -480,9 +480,10 @@ const RawVault = ({
   const rescuePushedTxHex = vaultStatus?.panicTxHex;
   const hasRescueStarted = isRescuePushedButUnconfirmed || isRescueTxConfirmed;
 
-  // For P2A_TRUC, an unconfirmed vault tx can only have one unconfirmed child.
-  // Since the backup child already uses that slot, keep the action visible but
-  // disable Init Unfreeze until the vault tx confirms.
+  // For P2A_TRUC, the trigger package needs the vault output and trigger
+  // reserve to be confirmed. Otherwise the trigger parent/child package would
+  // have extra unconfirmed ancestors; the setup backup child is also already
+  // attached to the unconfirmed vault tx.
   const isTriggerModalBlockedByUnconfirmedVault =
     vaultMode === 'P2A_TRUC' && !isVaultTxConfirmed;
   const showDelegateButton = !vaultNotFound && !isUnfrozen && !hasRescueStarted;
