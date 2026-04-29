@@ -447,8 +447,8 @@ Usage Instructions:
       vault: 'Vault {{vaultNumber}} Creation',
       trigger: 'Vault {{vaultNumber}} Unfreeze',
       rescue: 'Vault {{vaultNumber}} Rescue',
-      feePayerTrigger: 'Vault {{vaultNumber}} Unfreeze Fee',
-      feePayerRescue: 'Vault {{vaultNumber}} Rescue Fee',
+      feePayerTrigger: 'Vault {{vaultNumber}} Unfreeze Fee-Payer',
+      feePayerRescue: 'Vault {{vaultNumber}} Rescue Fee-Payer',
       received: 'Received',
       sent: 'Sent',
       receivedAndSent: 'Received and Sent',
@@ -473,9 +473,9 @@ Usage Instructions:
       rescuedConfirming:
         'Rescuing your vault. The final rescued amount after fees will be {{amount}}. Awaiting final confirmation...',
       feePayerTrigger:
-        'This CPFP fee-payer transaction helped confirm your unfreeze.',
+        'This CPFP fee-payer transaction helped confirm your unfreeze. Any unused reserve went back to your wallet.',
       feePayerTriggerConfirming:
-        'This CPFP fee-payer transaction is helping confirm your unfreeze. Waiting for confirmation...',
+        'This CPFP fee-payer transaction is helping confirm your unfreeze. Waiting for confirmation... Any unused reserve will go back to your wallet after confirmation.',
       feePayerRescue:
         'This CPFP fee-payer transaction helped confirm your rescue.',
       feePayerRescueConfirming:

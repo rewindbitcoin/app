@@ -412,8 +412,10 @@ Instrucciones de Uso:
       vault: 'Creación de Bóveda {{vaultNumber}}',
       trigger: 'Descongelación de Bóveda {{vaultNumber}}',
       rescue: 'Rescate de Bóveda {{vaultNumber}}',
-      feePayerTrigger: 'Comisión de Descongelación de Bóveda {{vaultNumber}}',
-      feePayerRescue: 'Comisión de Rescate de Bóveda {{vaultNumber}}',
+      feePayerTrigger:
+        'Pagadora de Comisión de Descongelación de Bóveda {{vaultNumber}}',
+      feePayerRescue:
+        'Pagadora de Comisión de Rescate de Bóveda {{vaultNumber}}',
       received: 'Recibido',
       sent: 'Enviado',
       receivedAndSent: 'Recibido y Enviado',
@@ -433,9 +435,9 @@ Instrucciones de Uso:
       rescuedConfirming:
         'Rescatando tu bóveda. La cantidad final rescatada después de comisiones será {{amount}}. Esperando confirmación final...',
       feePayerTrigger:
-        'Esta transacción CPFP pagadora de comisión ayudó a confirmar tu descongelación.',
+        'Esta transacción CPFP pagadora de comisión ayudó a confirmar tu descongelación. La reserva no utilizada volvió a tu billetera.',
       feePayerTriggerConfirming:
-        'Esta transacción CPFP pagadora de comisión está ayudando a confirmar tu descongelación. Esperando confirmación...',
+        'Esta transacción CPFP pagadora de comisión está ayudando a confirmar tu descongelación. Esperando confirmación... La reserva no utilizada volverá a tu billetera después de confirmarse.',
       feePayerRescue:
         'Esta transacción CPFP pagadora de comisión ayudó a confirmar tu rescate.',
       feePayerRescueConfirming:
