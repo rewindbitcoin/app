@@ -1,6 +1,5 @@
 // Copyright (C) 2026 Jose-Luis Landabaso - https://rewindbitcoin.com
 // Licensed under the GNU GPL v3 or later. See the LICENSE file for details.
-//FIXME: check the UX when there is not enough funds for the reerve.
 
 import AddressInput from '../components/AddressInput';
 import AmountInput from '../components/AmountInput';

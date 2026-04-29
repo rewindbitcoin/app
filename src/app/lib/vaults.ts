@@ -316,54 +316,6 @@ export type UtxosData = Array<{
   output: OutputInstance;
 }>;
 
-/**
- * TLDR; outputs from txs that can accelerated should not be used.
- *
- * Outputs created by unconfirmed fee-payer children should not be used for new
- * unrelated sends/vaults or to fund new trigger/rescue fee-payer children.
- * Example: child A creates change back to the wallet, user then uses that
- * change to build vault B (or another fee-payer child), and later child A gets
- * accelerated/replaced. Vault B can suddenly depend on an output that no longer
- * exists. To keep wallet coin selection simple, generic spending excludes those
- * child-created outputs until they confirm.
- *
- * Note that plain `moize` is enough here because the inputs are already fairly
- * stable upstream: `utxosData` and `historyData` come from memoized helpers and
- * `vaultsStatuses` preserves its reference when nothing meaningful changed.
- */
-export const getSpendableUtxosData = moize.shallow(
-  (
-    utxosData: UtxosData,
-    vaultsStatuses: VaultsStatuses | undefined,
-    historyData: HistoryData | undefined
-  ): UtxosData => {
-    if (!vaultsStatuses || !historyData?.length) return utxosData;
-
-    const unconfirmedTxIds = new Set(
-      historyData.filter(item => item.blockHeight === 0).map(item => item.txId)
-    );
-    const replaceableChildTxIds = new Set<TxId>();
-
-    Object.values(vaultsStatuses).forEach(vaultStatus => {
-      [vaultStatus.triggerCpfpTxHex, vaultStatus.panicCpfpTxHex].forEach(
-        txHex => {
-          if (!txHex) return;
-          const { txId } = transactionFromHex(txHex);
-          if (unconfirmedTxIds.has(txId)) replaceableChildTxIds.add(txId);
-        }
-      );
-    });
-
-    if (replaceableChildTxIds.size === 0) return utxosData;
-    const filteredUtxosData = utxosData.filter(
-      utxoData => !replaceableChildTxIds.has(utxoData.tx.getId())
-    );
-    return filteredUtxosData.length === utxosData.length
-      ? utxosData
-      : filteredUtxosData;
-  }
-);
-
 type VaultPresignedTx = {
   txId: TxId;
   blockHeight: number;
