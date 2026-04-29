@@ -509,7 +509,7 @@ Puedes reemplazar la dirección pre-rellenada o hacer clic en "Crear" para abrir
 
 Verifica la dirección cuidadosamente para asegurarte de que corresponde a una Frase de Emergencia bajo tu control:
 {{coldAddress}}.`,
-    confirmedFundsWarning: `Algunos fondos sin confirmar todavía no pueden usarse para esta bóveda por la política de retransmisión.
+    somePendingUtxosWarning: `Algunos fondos necesitan confirmación antes de poder usarse para esta bóveda.
 
 Igualmente puedes continuar, pero la configuración omitirá esos fondos. Eso significa que la cantidad máxima que puedes congelar puede ser menor hasta que el resto confirme.
 
@@ -521,19 +521,14 @@ La bóveda más pequeña que Rewind puede crear ahora mismo necesita alrededor d
 De eso, {{minimumVaultedAmount}} queda congelado en la bóveda. El resto hace falta para guardar un backup y dejar suficiente apartado para descongelar más adelante.
 
 <strong>Acción Sugerida:</strong> Por favor, agrega unos {{missingFunds}} más y vuelve a intentarlo.`,
-    notEnoughConfirmedFunds: `<strong>Se necesitan más fondos confirmados</strong>
+    blockedByPendingUtxosNotice: `<strong>Se necesitan más fondos confirmados</strong>
 
-Parte de tus fondos de la billetera siguen sin confirmar y todavía no pueden usarse para esta bóveda por la política de retransmisión.
+Parte de tus fondos necesitan confirmación antes de poder crear esta bóveda.
 
 <strong>Acción Sugerida:</strong> Espera unos 10 minutos a que confirmen y vuelve a intentarlo. Una vez que esos fondos confirmen, podrán usarse para crear la bóveda.`,
-    unstableUtxosNotice: `<strong>Fondos Reservados Temporalmente</strong>
+    somePendingUtxosBanner: `<strong>Parte de tus fondos necesitan confirmación</strong>
 
-Parte de tus fondos están reservados temporalmente mientras Rewind protege transacciones importantes de bóvedas que siguen pendientes y aún podrían necesitar aceleración.
-
-<strong>Acción Sugerida:</strong> Por favor, espera a que esas transacciones confirmen antes de crear una nueva bóveda.`,
-    unstableUtxosBanner: `<strong>Parte de tus fondos están reservados temporalmente</strong>
-
-Parte de tus fondos se mantiene apartada mientras Rewind protege transacciones importantes de bóvedas que siguen pendientes y aún podrían necesitar aceleración. No todos tus fondos volverán a estar disponibles hasta que esas transacciones confirmen.`,
+Puedes continuar con los fondos disponibles, pero algunos fondos pendientes no están incluidos. Estarán disponibles después de confirmarse.`,
     amountLabel: 'Cantidad a Congelar',
     unfreezeReserveLabel: 'Reserva para Descongelar',
     unfreezeReserveHelpTitle: 'Reserva para Descongelar',

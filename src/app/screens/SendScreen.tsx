@@ -100,7 +100,10 @@ export default function Send() {
   if (!signers)
     throw new Error('SendScreen cannot be called with unset signers');
   const rawUtxosData = utxosData;
-  const hasPendingUtxos = sendableUtxosData !== rawUtxosData;
+  // Pending UTXOs are filtered out either because they come from an unconfirmed
+  // acceleration tx the user may re-bump, making those outputs disappear, or
+  // because relay policy blocks them, like unconfirmed v3 funds in a v2 send.
+  const hasPendingUtxos = sendableUtxosData.length !== rawUtxosData.length;
   const signer = signers[0];
   if (!signer) throw new Error('signer unavailable');
   const network = networkMapping[networkId];

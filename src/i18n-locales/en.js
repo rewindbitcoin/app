@@ -561,7 +561,7 @@ You can replace the pre-filled address or click "Create" to open a wizard and ge
 
 Verify the address carefully to ensure it corresponds to an Emergency Phrase under your control:
 {{coldAddress}}.`,
-    confirmedFundsWarning: `Some unconfirmed funds cannot be used for this vault yet because of relay policy.
+    somePendingUtxosWarning: `Some funds need confirmation before they can be used for this vault.
 
 You can still continue, but the setup will skip those funds. That means the maximum amount you can freeze may be lower until the rest confirms.
 
@@ -573,19 +573,14 @@ The smallest vault Rewind can create right now needs about {{minimumRequiredFund
 Of that, {{minimumVaultedAmount}} ends up frozen in the vault. The rest is needed to save a backup and keep enough set aside for unfreezing later.
 
 <strong>Suggested Action:</strong> Please add about {{missingFunds}} more and try again.`,
-    notEnoughConfirmedFunds: `<strong>More Confirmed Funds Needed</strong>
+    blockedByPendingUtxosNotice: `<strong>More Confirmed Funds Needed</strong>
 
-Some wallet funds are still unconfirmed and cannot be used for this vault yet because of relay policy.
+Some funds need confirmation before this vault can be created.
 
 <strong>Suggested Action:</strong> Wait around 10 minutes for confirmation and then try again. Once those funds confirm, they can be used to create the vault.`,
-    unstableUtxosNotice: `<strong>Funds Temporarily Reserved</strong>
+    somePendingUtxosBanner: `<strong>Some Funds Need Confirmation</strong>
 
-Some of your funds are temporarily reserved while Rewind protects important pending vault transactions that may still need acceleration.
-
-<strong>Suggested Action:</strong> Please wait for those transactions to confirm before creating a new vault.`,
-    unstableUtxosBanner: `<strong>Some Funds Are Temporarily Reserved</strong>
-
-Some of your funds are being kept aside while Rewind protects important pending vault transactions that may still need acceleration. Not all funds will be available again until those transactions confirm.`,
+You can continue with your available funds, but some pending funds are not included. They will be available after confirmation.`,
     amountLabel: 'Amount to Freeze',
     unfreezeReserveLabel: 'Unfreeze Reserve',
     unfreezeReserveHelpTitle: 'Unfreeze Reserve',

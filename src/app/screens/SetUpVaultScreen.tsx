@@ -24,10 +24,10 @@ import {
   coinSelectVaultTx,
   getTargetValue,
   getRequiredTriggerReserveValue,
-  getSpendableUtxosData,
   utxosDataBalance,
   type VaultSettings
 } from '../lib/vaults';
+import { getVaultableUtxosData } from '../lib/utxoPolicy';
 import {
   DUMMY_BACKUP_OUTPUT,
   DUMMY_TRIGGER_RESERVE_OUTPUT,
@@ -84,18 +84,10 @@ export default function VaultSetUp({
     getNextChangeDescriptorWithIndex
   } = useWallet();
 
-  const spendableUtxosData =
-    utxosData && getSpendableUtxosData(utxosData, vaultsStatuses, historyData);
-
-  //Warn the user and reset this component if wallet changes.
-  const walletChanged = useArrayChangeDetector([spendableUtxosData, accounts]);
-
   //Cache to avoid flickering in the Sliders
   const btcFiat = useFirstDefinedValue<number>(btcFiatRealTime);
   const feeEstimates = useFirstDefinedValue<FeeEstimates>(feeEstimatesRealTime);
 
-  if (!spendableUtxosData)
-    throw new Error('SetUpVaultScreen cannot be called with unset utxos');
   if (!utxosData)
     throw new Error('SetUpVaultScreen cannot be called with unset raw utxos');
   if (!accounts)
@@ -106,7 +98,7 @@ export default function VaultSetUp({
     throw new Error(
       'SetUpVaultScreen cannot be called with unset feeEstimates'
     );
-  const hasReservedFunds = spendableUtxosData !== utxosData;
+  const rawUtxosData = utxosData;
   const network = networkMapping[networkId];
 
   const { settings } = useSettings();
@@ -115,6 +107,22 @@ export default function VaultSetUp({
       'This component should only be started after settings has been retrieved from storage'
     );
   const { locale, currency } = useLocalization();
+
+  const vaultMode =
+    networkId === 'BITCOIN' ? 'P2A_TRUC' : settings.TESTING_VAULT_MODE;
+  const vaultableUtxosData = getVaultableUtxosData(
+    rawUtxosData,
+    vaultsStatuses,
+    historyData,
+    vaultMode
+  );
+  // Pending UTXOs are filtered out either because they come from an unconfirmed
+  // acceleration tx the user may re-bump, making those outputs disappear, or
+  // because relay policy blocks them, like unconfirmed v3 funds in a v2 vault.
+  const hasPendingUtxos = vaultableUtxosData.length !== rawUtxosData.length;
+
+  //Warn the user and reset this component if wallet changes.
+  const walletChanged = useArrayChangeDetector([vaultableUtxosData, accounts]);
 
   const [lockBlocks, setLockBlocks] = useState<number | null>(
     settings.INITIAL_LOCK_BLOCKS
@@ -152,59 +160,10 @@ export default function VaultSetUp({
     getAndSetChangeOutput();
   }, [getNextChangeDescriptorWithIndex, network, accounts]);
 
-  const vaultMode =
-    networkId === 'BITCOIN' ? 'P2A_TRUC' : settings.TESTING_VAULT_MODE;
   const presignedTriggerFeeRate = getPresignedTriggerFeeRate(
     settings,
     vaultMode
   );
-  // TRUC setup must avoid all unconfirmed wallet inputs because the vault tx is
-  // published together with a backup child, and extra mempool ancestors would
-  // break that package shape. NON_TRUC setup builds a v2 vault tx, so it may use
-  // unconfirmed inputs only when their parent is not v3: Bitcoin Core rejects any
-  // non-v3 mempool tx that spends an unconfirmed v3 parent. Once a v3 parent is
-  // confirmed, its outputs can be spent by a normal v2 tx.
-  const { vaultCompatibleUtxosData, hasVaultIncompatibleUtxos } =
-    useMemo(() => {
-      if (!historyData?.length) {
-        return {
-          vaultCompatibleUtxosData: spendableUtxosData,
-          hasVaultIncompatibleUtxos: false
-        };
-      }
-      const unconfirmedTxIds = new Set(
-        historyData
-          .filter(item => item.blockHeight === 0)
-          .map(item => item.txId)
-      );
-      if (unconfirmedTxIds.size === 0) {
-        return {
-          vaultCompatibleUtxosData: spendableUtxosData,
-          hasVaultIncompatibleUtxos: false
-        };
-      }
-      const filteredUtxos = spendableUtxosData.filter(utxo => {
-        const isUnconfirmed = unconfirmedTxIds.has(utxo.tx.getId());
-        // Confirmed inputs do not add mempool ancestors, so both modes can use them.
-        if (!isUnconfirmed) return true;
-        // TRUC setup publishes the vault tx together with its backup child. Using
-        // any unconfirmed input would add another ancestor and break that shape.
-        if (vaultMode === 'P2A_TRUC') return false;
-        // NON_TRUC uses a version-2 vault tx. Bitcoin Core does not allow a
-        // non-v3 mempool tx to spend an unconfirmed v3 parent.
-        return utxo.tx.version !== 3;
-      });
-      return filteredUtxos.length === spendableUtxosData.length
-        ? {
-            vaultCompatibleUtxosData: spendableUtxosData,
-            hasVaultIncompatibleUtxos: false
-          }
-        : {
-            vaultCompatibleUtxosData: filteredUtxos,
-            hasVaultIncompatibleUtxos: true
-          };
-    }, [vaultMode, historyData, spendableUtxosData]);
-  const vaultUtxosData = vaultCompatibleUtxosData;
   const maxFeeRate = computeMaxAllowedFeeRate(feeEstimates);
   // Lowest target package fee rate. The UI later derives the real minimum
   // obtainable package fee rate from this low-end build and clamps the slider to it.
@@ -234,7 +193,7 @@ export default function VaultSetUp({
     minimumVaultSetup
   } = estimateVaultSetupRange({
     accounts,
-    utxosData: vaultUtxosData,
+    utxosData: vaultableUtxosData,
     coldAddress: coldAddress || DUMMY_COLD_ADDRESS(network),
     minimumPackageFeeRate: minimumTargetPackageFeeRate,
     packageFeeRate: selectedTargetPackageFeeRate,
@@ -247,7 +206,7 @@ export default function VaultSetUp({
   });
   const rawVaultRange = estimateVaultSetupRange({
     accounts,
-    utxosData,
+    utxosData: rawUtxosData,
     coldAddress: coldAddress || DUMMY_COLD_ADDRESS(network),
     minimumPackageFeeRate: minimumTargetPackageFeeRate,
     packageFeeRate: selectedTargetPackageFeeRate,
@@ -258,23 +217,20 @@ export default function VaultSetUp({
     presignedRescueFeeRate: settings.PRESIGNED_RESCUE_FEERATE,
     maxTriggerFeeRate: settings.MAX_TRIGGER_FEERATE
   });
-  const hasAnyVaultRange =
+  const isVaultPossible =
     maxFeeRate >= minimumTargetPackageFeeRate &&
     maxVaultAtMinimumPackageFeeRate !== undefined &&
     maxVaultAtMinimumPackageFeeRate.vaultedAmount >=
       minimumVaultSetup.vaultedAmount;
-  // Relay-policy-incompatible unconfirmed UTXOs can block setup if the remaining
-  // compatible UTXOs cannot build even the minimum vault.
-  const isBlockedByUnconfirmedFunds =
-    hasVaultIncompatibleUtxos && !hasAnyVaultRange;
-  // Without temporarily reserved funds, this wallet would be able to create a vault.
-  const isBlockedByReservedFunds =
-    !isBlockedByUnconfirmedFunds &&
-    !hasAnyVaultRange &&
+  const isRawVaultPossible =
     maxFeeRate >= minimumTargetPackageFeeRate &&
     rawVaultRange.maxVaultAtMinimumPackageFeeRate !== undefined &&
     rawVaultRange.maxVaultAtMinimumPackageFeeRate.vaultedAmount >=
       rawVaultRange.minimumVaultSetup.vaultedAmount;
+  // Raw funds would build a vault, but setup policy blocks some pending UTXOs
+  // until they confirm.
+  const isBlockedByPendingUtxos =
+    !isVaultPossible && hasPendingUtxos && isRawVaultPossible;
   const minimumRequiredFundsNow =
     minimumVaultSetup.vaultedAmount +
     minimumVaultSetup.packageFee +
@@ -292,7 +248,7 @@ export default function VaultSetUp({
     minimumRequiredFundsNow -
       (requiredFundsForMinimumVaultSetup !== null
         ? requiredFundsForMinimumVaultSetup
-        : utxosDataBalance(vaultUtxosData))
+        : utxosDataBalance(vaultableUtxosData))
   );
   const currentMaxVaultedAmount =
     maxVaultAtSelectedPackageFeeRate &&
@@ -312,13 +268,13 @@ export default function VaultSetUp({
 
   const [userSelectedVaultedAmount, setUserSelectedVaultedAmount] = useState<
     number | null
-  >(hasAnyVaultRange ? currentMaxVaultedAmount : null);
+  >(isVaultPossible ? currentMaxVaultedAmount : null);
 
   const [isMaxVaultedAmount, setIsMaxVaultedAmount] = useState<boolean>(
     userSelectedVaultedAmount !== null &&
       userSelectedVaultedAmount === currentMaxVaultedAmount
   );
-  const [confirmedFundsWarningAccepted, setConfirmedFundsWarningAccepted] =
+  const [pendingUtxosWarningAccepted, setPendingUtxosWarningAccepted] =
     useState<boolean>(false);
   const vaultedAmount: number | null =
     isMaxVaultedAmount &&
@@ -339,7 +295,7 @@ export default function VaultSetUp({
   // If no vault can be built yet, there is no real minimum buildable package fee
   // rate. Fall back to the target floor as a stable placeholder; the slider is
   // hidden in that state anyway.
-  const minimumPackageFeeRate = hasAnyVaultRange
+  const minimumPackageFeeRate = isVaultPossible
     ? maxVaultAtMinimumPackageFeeRate.packageFeeRate
     : minimumTargetPackageFeeRate;
   // Clamp the user's selected target to the real minimum buildable package fee
@@ -381,11 +337,11 @@ export default function VaultSetUp({
 
       accounts,
       btcFiat,
-      utxosData: vaultUtxosData
+      utxosData: vaultableUtxosData
     });
   }, [
     packageFeeRate,
-    vaultUtxosData,
+    vaultableUtxosData,
     vaultedAmount,
     isMaxVaultedAmount,
     lockBlocks,
@@ -435,7 +391,7 @@ export default function VaultSetUp({
             changeOutput ||
             DUMMY_CHANGE_OUTPUT(getMainAccount(accounts, network), network);
           const newMaxEstimate = estimateMaxVaultAmount({
-            utxosData: vaultUtxosData,
+            utxosData: vaultableUtxosData,
             vaultOutput: DUMMY_VAULT_OUTPUT(network),
             backupOutput: DUMMY_BACKUP_OUTPUT(network),
             triggerReserveOutput: DUMMY_TRIGGER_RESERVE_OUTPUT(network),
@@ -463,7 +419,7 @@ export default function VaultSetUp({
       changeOutput,
       isMaxVaultedAmount,
       minimumVaultSetup.vaultedAmount,
-      vaultUtxosData,
+      vaultableUtxosData,
       network,
       presignedTriggerFeeRate,
       settings.MAX_TRIGGER_FEERATE,
@@ -490,7 +446,7 @@ export default function VaultSetUp({
       packageFee = maxVaultAtSelectedPackageFeeRate.packageFee;
     } else {
       const selected = coinSelectVaultTx({
-        utxosData: vaultUtxosData,
+        utxosData: vaultableUtxosData,
         //We never use the final vaultOutput since it is built using a random
         //key that we don't want to keep in memory, but setup still needs to
         //reserve the same backup and trigger-reserve outputs that real vault
@@ -545,33 +501,29 @@ export default function VaultSetUp({
           </View>
           <Button onPress={navigation.goBack}>{t('goBack')}</Button>
         </View>
-      ) : hasVaultIncompatibleUtxos &&
-        hasAnyVaultRange &&
-        !confirmedFundsWarningAccepted ? (
+      ) : hasPendingUtxos && isVaultPossible && !pendingUtxosWarningAccepted ? (
         <View className="w-full max-w-screen-sm mx-4" style={containerStyle}>
           <View className="mb-8">
             <Text className="text-base">
-              {t('vaultSetup.confirmedFundsWarning')}
+              {t('vaultSetup.somePendingUtxosWarning')}
             </Text>
           </View>
           <View className="self-center flex-row justify-center items-center gap-5">
             <Button onPress={navigation.goBack}>{t('goBack')}</Button>
-            <Button onPress={() => setConfirmedFundsWarningAccepted(true)}>
+            <Button onPress={() => setPendingUtxosWarningAccepted(true)}>
               {t('continueButton')}
             </Button>
           </View>
         </View>
-      ) : !hasAnyVaultRange ? (
+      ) : !isVaultPossible ? (
         <View className="w-full max-w-screen-sm mx-4" style={containerStyle}>
           <View className="mb-8">
             <Text className="text-base">
               <Trans
                 i18nKey={
-                  isBlockedByUnconfirmedFunds
-                    ? 'vaultSetup.notEnoughConfirmedFunds'
-                    : isBlockedByReservedFunds
-                      ? 'vaultSetup.unstableUtxosNotice'
-                      : 'vaultSetup.notEnoughFunds'
+                  isBlockedByPendingUtxos
+                    ? 'vaultSetup.blockedByPendingUtxosNotice'
+                    : 'vaultSetup.notEnoughFunds'
                 }
                 values={{
                   missingFunds: formatBtc({
@@ -610,11 +562,11 @@ export default function VaultSetUp({
             <Text className="text-base mb-1">{t('vaultSetup.intro')}</Text>
             <LearnMoreAboutVaults />
           </View>
-          {hasReservedFunds ? (
+          {hasPendingUtxos ? (
             <View className="mb-6 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3">
               <Text className="text-base text-amber-900">
                 <Trans
-                  i18nKey="vaultSetup.unstableUtxosBanner"
+                  i18nKey="vaultSetup.somePendingUtxosBanner"
                   components={{
                     strong: <Text className="font-bold text-amber-900" />
                   }}
