@@ -2030,7 +2030,9 @@ const WalletProviderRaw = ({
             fetchVaultsStatuses(
               updatedVaults,
               vaultsStatuses,
-              discovery.getExplorer()
+              discovery.getExplorer(),
+              signer,
+              network
             )
         });
         if (activeWallet.walletId !== walletIdRef.current) {

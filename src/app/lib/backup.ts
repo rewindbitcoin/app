@@ -6,6 +6,9 @@
 
 //FIXME: rename this as p2pBackup maybe and put the shared stuff in
 //backup.ts?
+//
+//FIXME: for legacy wallets, we'll need to mix the vaultId number taken from
+//the p2p wallet with the new one from the onchain backup
 import { Platform } from 'react-native';
 import {
   documentDirectory,

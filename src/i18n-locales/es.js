@@ -259,6 +259,12 @@ Esto iniciará la cuenta regresiva de descongelación. Los fondos se desbloquear
 Nota: "Acelerar" no reduce el período de bloqueo; sólo ayuda a que el proceso comience antes si una comisión baja lo retrasó.
 
 Seguramente sólo necesitas esperar unos 10 minutos y realmente no necesitas esto. Usa "Acelerar" sólo si esperar ese tiempo (que podría alargarse hasta un par de horas) no es aceptable.`,
+        noReserveAvailableYet: `No hay fondos de reserva disponibles para esta solicitud de descongelación.
+
+Rewind no puede iniciarla ni acelerarla hasta que se añadan fondos a la reserva.`,
+        insufficientReserveFunds: `Hay fondos en la reserva, pero no son suficientes para iniciar o acelerar esta solicitud de descongelación.
+
+Añade más fondos a la reserva para continuar.`,
         confirmationSpeedLabel: 'Comisión',
         feeSelectorExplanation:
           'Confirma la comisión de minería para iniciar la cuenta regresiva de descongelación.',
@@ -281,6 +287,12 @@ Esta acción está diseñada para situaciones extremas, como robo o extorsión, 
         highFeeConfirmation: `Esta transacción de rescate ya está prefirmada con una comisión de minería alta.
 
 En la mayoría de los casos eso debería ser suficiente y no harán falta fondos extra para acelerarla. Confirma abajo para emitir ahora la transacción de rescate.`,
+        noBumpFundsAvailableYet: `Todavía no hay fondos de aceleración disponibles para esta solicitud de rescate.
+
+Rewind no puede acelerar este rescate hasta que se añadan fondos extra.`,
+        insufficientBumpFunds: `Hay fondos de aceleración disponibles, pero no son suficientes para acelerar esta solicitud de rescate.
+
+Añade más fondos para poder acelerarla.`,
         feeSelectorExplanation:
           'Confirma la comisión de minería de la transacción de rescate para asegurar un procesamiento rápido.',
         additionalExplanation: `Una vez que se confirme la solicitud de rescate, los fondos serán movidos a tu Dirección de Emergencia instantáneamente.`
@@ -400,8 +412,10 @@ Instrucciones de Uso:
       vault: 'Creación de Bóveda {{vaultNumber}}',
       trigger: 'Descongelación de Bóveda {{vaultNumber}}',
       rescue: 'Rescate de Bóveda {{vaultNumber}}',
-      feePayerTrigger: 'Comisión de Descongelación de Bóveda {{vaultNumber}}',
-      feePayerRescue: 'Comisión de Rescate de Bóveda {{vaultNumber}}',
+      feePayerTrigger:
+        'Pagadora de Comisión de Descongelación de Bóveda {{vaultNumber}}',
+      feePayerRescue:
+        'Pagadora de Comisión de Rescate de Bóveda {{vaultNumber}}',
       received: 'Recibido',
       sent: 'Enviado',
       receivedAndSent: 'Recibido y Enviado',
@@ -421,13 +435,13 @@ Instrucciones de Uso:
       rescuedConfirming:
         'Rescatando tu bóveda. La cantidad final rescatada después de comisiones será {{amount}}. Esperando confirmación final...',
       feePayerTrigger:
-        'Esta transacción CPFP pagadora de comisión ayudó a confirmar tu descongelación.',
+        'Esta transacción CPFP pagadora de comisión usó fondos de reserva para ayudar a confirmar tu descongelación. El cambio volvió a tu billetera.',
       feePayerTriggerConfirming:
-        'Esta transacción CPFP pagadora de comisión está ayudando a confirmar tu descongelación. Esperando confirmación...',
+        'Esta transacción CPFP pagadora de comisión está usando fondos de reserva para ayudar a confirmar tu descongelación. Esperando confirmación... El cambio volverá a tu billetera.',
       feePayerRescue:
-        'Esta transacción CPFP pagadora de comisión ayudó a confirmar tu rescate.',
+        'Esta transacción CPFP pagadora de comisión usó fondos de reserva para ayudar a confirmar tu rescate. El cambio volvió a tu billetera de reserva de rescate.',
       feePayerRescueConfirming:
-        'Esta transacción CPFP pagadora de comisión está ayudando a confirmar tu rescate. Esperando confirmación...',
+        'Esta transacción CPFP pagadora de comisión está usando fondos de reserva para ayudar a confirmar tu rescate. Esperando confirmación... El cambio volverá a tu billetera de reserva de rescate.',
       openBlockExplorer: 'Ver en el Explorador de Bloques'
     }
   },
@@ -497,9 +511,9 @@ Puedes reemplazar la dirección pre-rellenada o hacer clic en "Crear" para abrir
 
 Verifica la dirección cuidadosamente para asegurarte de que corresponde a una Frase de Emergencia bajo tu control:
 {{coldAddress}}.`,
-    confirmedFundsWarning: `Esta bóveda solo puede crearse con fondos confirmados.
+    somePendingUtxosWarning: `Algunos fondos necesitan confirmación antes de poder usarse para esta bóveda.
 
-Igualmente puedes continuar, pero la configuración usará solo tus fondos confirmados. Eso significa que la cantidad máxima que puedes congelar puede ser menor hasta que el resto confirme.
+Igualmente puedes continuar, pero la configuración omitirá esos fondos. Eso significa que la cantidad máxima que puedes congelar puede ser menor hasta que el resto confirme.
 
 Si recibiste o moviste bitcoin hace poco, el resto normalmente debería quedar disponible en unos 10 minutos.`,
     notEnoughFunds: `<strong>No hay fondos suficientes para crear esta bóveda</strong>
@@ -509,19 +523,14 @@ La bóveda más pequeña que Rewind puede crear ahora mismo necesita alrededor d
 De eso, {{minimumVaultedAmount}} queda congelado en la bóveda. El resto hace falta para guardar un backup y dejar suficiente apartado para descongelar más adelante.
 
 <strong>Acción Sugerida:</strong> Por favor, agrega unos {{missingFunds}} más y vuelve a intentarlo.`,
-    notEnoughConfirmedFunds: `<strong>Se necesitan fondos confirmados</strong>
+    blockedByPendingUtxosNotice: `<strong>Se necesitan más fondos confirmados</strong>
 
-Esta bóveda solo puede crearse con fondos confirmados, y parte de tus fondos de la billetera siguen sin confirmar, así que todavía no pueden usarse.
+Parte de tus fondos necesitan confirmación antes de poder crear esta bóveda.
 
 <strong>Acción Sugerida:</strong> Espera unos 10 minutos a que confirmen y vuelve a intentarlo. Una vez que esos fondos confirmen, podrán usarse para crear la bóveda.`,
-    reservedFundsNotice: `<strong>Fondos Reservados Temporalmente</strong>
+    somePendingUtxosBanner: `<strong>Parte de tus fondos necesitan confirmación</strong>
 
-Parte de tus fondos están reservados temporalmente mientras Rewind protege transacciones importantes de bóvedas que siguen pendientes y aún podrían necesitar aceleración.
-
-<strong>Acción Sugerida:</strong> Por favor, espera a que esas transacciones confirmen antes de crear una nueva bóveda.`,
-    reservedFundsBanner: `<strong>Parte de tus fondos están reservados temporalmente</strong>
-
-Parte de tus fondos se mantiene apartada mientras Rewind protege transacciones importantes de bóvedas que siguen pendientes y aún podrían necesitar aceleración. No todos tus fondos volverán a estar disponibles hasta que esas transacciones confirmen.`,
+Puedes continuar con los fondos disponibles, pero algunos fondos pendientes no están incluidos. Estarán disponibles después de confirmarse.`,
     amountLabel: 'Cantidad a Congelar',
     unfreezeReserveLabel: 'Reserva para Descongelar',
     unfreezeReserveHelpTitle: 'Reserva para Descongelar',
@@ -543,11 +552,11 @@ Por tu seguridad, por favor revisa estos cambios antes de continuar.`
   send: {
     title: 'Enviar Bitcoin',
     notEnoughFunds: 'Fondos insuficientes para crear la transacción',
-    reservedFunds:
-      'Parte de tus fondos están reservados temporalmente mientras Rewind protege transacciones importantes de bóvedas que siguen pendientes y aún podrían necesitar aceleración. Por favor, espera la confirmación antes de crear un nuevo envío.',
-    reservedFundsTitle: 'Parte de tus fondos están reservados temporalmente',
-    reservedFundsBody:
-      'Parte de tus fondos se mantiene apartada mientras Rewind protege transacciones importantes de bóvedas que siguen pendientes y aún podrían necesitar aceleración. No todos tus fondos volverán a estar disponibles hasta que esas transacciones confirmen.',
+    blockedByPendingUtxos:
+      'Parte de tus fondos necesitan confirmación antes de poder crear este envío. Por favor, espera a que confirmen y vuelve a intentarlo.',
+    somePendingUtxosTitle: 'Parte de tus fondos necesitan confirmación',
+    somePendingUtxosBody:
+      'Puedes continuar con los fondos disponibles, pero algunos fondos pendientes no están incluidos. Estarán disponibles después de confirmarse.',
     lowerFeeRate: `No es posible crear la transacción con la comisión seleccionada y tus fondos disponibles.
 
 Por favor, reduce la comisión o agrega más fondos.`,
@@ -584,11 +593,9 @@ Por tu seguridad, por favor revisa estos cambios antes de continuar.`,
       'Las monedas se proporcionan para practicar en la red de prueba {{networkName}}. Estos tokens de prueba no tienen valor real.'
   },
   createVault: {
-    intro: `Estamos configurando tu bóveda, generando múltiples combinaciones para minimizar las comisiones futuras de descongelación.
+    intro: `Preparando el resumen de tu bóveda...
 
-Esto puede tomar unos 30 segundos, un poco más en dispositivos antiguos.
-
-A continuación, podrás confirmarlo todo.`,
+A continuación, podrás revisarlo todo antes de activarla.`,
     miningFee: 'Comisión de minería',
     serviceFee: 'Comisión de Bóveda',
     allFees: 'Comisiones',
@@ -607,10 +614,9 @@ Rewind hace esto para asegurarse de que el backup on-chain también se mine. La 
     //Si pierdes este dispositivo, podrás recuperar la bóveda usando tu Frase de Recuperación.
     //
     //Selecciona 'Enviar' para activar tu bóveda.`,
-    backupInProgress: 'Respaldando tu bóveda y verificando el backup...',
-    pushingVault: `Tu bóveda ha sido respaldada en un backup exitosamente y está almacenada de forma segura.
+    submittingVault: `Rewind está respaldando tu bóveda, verificando el backup y enviando la transacción de la bóveda a la blockchain.
 
-Ahora, como paso final, estamos enviando tu bóveda a la blockchain para activarla...`,
+Por favor, mantén la app abierta.`,
     fetchIssues: `Se detectaron problemas de conexión. La bóveda no fue creada. Por favor, verifica tu conexión a Internet e inténtalo de nuevo.
 
 {{message}}`,

@@ -3,10 +3,12 @@
 
 import { fixtures } from './fixtutres';
 import {
+  assertP2AParentPolicy,
   estimateCpfpPackage,
   estimateMinimumRequiredVaultedAmount,
   findP2AOutputData,
   getHotDescriptors,
+  P2A_NON_TRUC_ANCHOR_VALUE,
   getVaultMode,
   type UtxosData,
   type Vault,
@@ -18,7 +20,7 @@ import { networks, type Network, Transaction } from 'bitcoinjs-lib';
 import { fromHex } from 'uint8array-tools';
 import { createAddressOutput } from '../dist/src/app/lib/vaultDescriptors';
 
-const P2A_NON_TRUC_ANCHOR_VALUE = 330; //FIXME: verify this is ok - better make this dynamic?
+const P2A_NON_TRUC_ANCHOR_SATS = Number(P2A_NON_TRUC_ANCHOR_VALUE);
 
 const DUMMY_ADDRESS = (network: Network) => {
   if (network === networks.bitcoin)
@@ -67,6 +69,10 @@ const createSyntheticUtxoData = (value: number): UtxosData[number] => {
 describe('vaults unit tests', () => {
   const { expected } = fixtures.edge2edge;
 
+  test('P2A_NON_TRUC anchor is just above P2A dust threshold', () => {
+    expect(P2A_NON_TRUC_ANCHOR_SATS).toBe(241);
+  });
+
   test('getHotDescriptors with no vaults', () => {
     const vaults: Vaults = {};
     const vaultsStatuses: VaultsStatuses = {};
@@ -100,12 +106,12 @@ describe('vaults unit tests', () => {
     const triggerTxHex = createSyntheticTxHex({
       version: 2,
       mainOutputValue: 10000,
-      p2aValue: P2A_NON_TRUC_ANCHOR_VALUE
+      p2aValue: P2A_NON_TRUC_ANCHOR_SATS
     });
     const panicTxHex = createSyntheticTxHex({
       version: 2,
       mainOutputValue: 9000,
-      p2aValue: P2A_NON_TRUC_ANCHOR_VALUE
+      p2aValue: P2A_NON_TRUC_ANCHOR_SATS
     });
     const vault = {
       triggerMap: { [triggerTxHex]: [panicTxHex] }
@@ -124,19 +130,18 @@ describe('vaults unit tests', () => {
       triggerMap: { [ladderedTriggerTxHex]: [] }
     } as unknown as Vault;
     expect(getVaultMode(ladderedVault)).toBe('LADDERED');
-    expect(findP2AOutputData(Transaction.fromHex(ladderedTriggerTxHex))).toBeUndefined();
+    expect(
+      findP2AOutputData(Transaction.fromHex(ladderedTriggerTxHex))
+    ).toBeUndefined();
   });
 
   test('estimateCpfpPackage computes effective package fee data', () => {
     const network = networks.regtest;
-    const changeOutput = createAddressOutput(
-      DUMMY_ADDRESS(network),
-      network
-    );
+    const changeOutput = createAddressOutput(DUMMY_ADDRESS(network), network);
     const parentTxHex = createSyntheticTxHex({
       version: 2,
       mainOutputValue: 12000,
-      p2aValue: P2A_NON_TRUC_ANCHOR_VALUE
+      p2aValue: P2A_NON_TRUC_ANCHOR_SATS
     });
     const plan = estimateCpfpPackage({
       parentTxHex,
@@ -154,10 +159,7 @@ describe('vaults unit tests', () => {
 
   test('estimateCpfpPackage returns undefined for laddered parent tx', () => {
     const network = networks.regtest;
-    const changeOutput = createAddressOutput(
-      DUMMY_ADDRESS(network),
-      network
-    );
+    const changeOutput = createAddressOutput(DUMMY_ADDRESS(network), network);
     const parentTxHex = createSyntheticTxHex({
       version: 2,
       mainOutputValue: 12000
@@ -172,13 +174,13 @@ describe('vaults unit tests', () => {
     expect(plan).toBeUndefined();
   });
 
-  test('higher presigned trigger fee raises the minimum vaulted amount', () => {
+  test('higher presigned trigger fee raises the P2A_NON_TRUC minimum', () => {
     const coldAddress = DUMMY_ADDRESS(networks.regtest);
     const minimumAtRelayFloor = estimateMinimumRequiredVaultedAmount({
       coldAddress,
       lockBlocks: 144,
       network: networks.regtest,
-      vaultMode: 'P2A_TRUC',
+      vaultMode: 'P2A_NON_TRUC',
       presignedTriggerFeeRate: 0.1,
       presignedRescueFeeRate: 100
     });
@@ -186,7 +188,7 @@ describe('vaults unit tests', () => {
       coldAddress,
       lockBlocks: 144,
       network: networks.regtest,
-      vaultMode: 'P2A_TRUC',
+      vaultMode: 'P2A_NON_TRUC',
       presignedTriggerFeeRate: 10,
       presignedRescueFeeRate: 100
     });
@@ -194,12 +196,73 @@ describe('vaults unit tests', () => {
     expect(minimumAtHighTriggerFee).toBeGreaterThan(minimumAtRelayFloor);
   });
 
+  test('assertP2AParentPolicy rejects non-zero-fee dust anchors', () => {
+    const parentTxHex = createSyntheticTxHex({
+      version: 3,
+      mainOutputValue: 12000,
+      p2aValue: 0
+    });
+    expect(() =>
+      assertP2AParentPolicy({
+        tx: Transaction.fromHex(parentTxHex),
+        fee: 1,
+        txName: 'test tx',
+        vaultMode: 'P2A_TRUC'
+      })
+    ).toThrow('tx with dust output must be 0-fee');
+  });
+
+  test('assertP2AParentPolicy accepts zero-fee dust anchors', () => {
+    const parentTxHex = createSyntheticTxHex({
+      version: 3,
+      mainOutputValue: 12000,
+      p2aValue: 0
+    });
+    expect(() =>
+      assertP2AParentPolicy({
+        tx: Transaction.fromHex(parentTxHex),
+        fee: 0,
+        txName: 'test tx',
+        vaultMode: 'P2A_TRUC'
+      })
+    ).not.toThrow();
+  });
+
+  test('assertP2AParentPolicy accepts non-zero-fee funded anchors', () => {
+    const parentTxHex = createSyntheticTxHex({
+      version: 3,
+      mainOutputValue: 12000,
+      p2aValue: P2A_NON_TRUC_ANCHOR_SATS
+    });
+    expect(() =>
+      assertP2AParentPolicy({
+        tx: Transaction.fromHex(parentTxHex),
+        fee: 1,
+        txName: 'test tx',
+        vaultMode: 'P2A_TRUC'
+      })
+    ).not.toThrow();
+  });
+
+  test('assertP2AParentPolicy rejects dust anchors for P2A_NON_TRUC', () => {
+    const parentTxHex = createSyntheticTxHex({
+      version: 2,
+      mainOutputValue: 12000,
+      p2aValue: 0
+    });
+    expect(() =>
+      assertP2AParentPolicy({
+        tx: Transaction.fromHex(parentTxHex),
+        fee: 0,
+        txName: 'test tx',
+        vaultMode: 'P2A_NON_TRUC'
+      })
+    ).toThrow('P2A_NON_TRUC anchor must be non-dust');
+  });
+
   test('estimateCpfpPackage enforces P2A_TRUC child size limit', () => {
     const network = networks.regtest;
-    const changeOutput = createAddressOutput(
-      DUMMY_ADDRESS(network),
-      network
-    );
+    const changeOutput = createAddressOutput(DUMMY_ADDRESS(network), network);
     const parentTxHex = createSyntheticTxHex({
       version: 3,
       mainOutputValue: 12000,
@@ -220,14 +283,11 @@ describe('vaults unit tests', () => {
 
   test('estimateCpfpPackage enforces child min relay fee', () => {
     const network = networks.regtest;
-    const changeOutput = createAddressOutput(
-      DUMMY_ADDRESS(network),
-      network
-    );
+    const changeOutput = createAddressOutput(DUMMY_ADDRESS(network), network);
     const parentTxHex = createSyntheticTxHex({
       version: 2,
       mainOutputValue: 12000,
-      p2aValue: P2A_NON_TRUC_ANCHOR_VALUE
+      p2aValue: P2A_NON_TRUC_ANCHOR_SATS
     });
     const utxosData = [createSyntheticUtxoData(1000)];
     const plan = estimateCpfpPackage({

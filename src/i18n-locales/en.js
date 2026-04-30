@@ -264,6 +264,12 @@ This will start the unfreeze countdown. The funds will become unlocked and avail
 Remember, "Accelerate" won't shorten the lock period. It only speeds up when your unfreeze process actually begins if low fees had held it up.
 
 You likely only need to wait around 10 minutes and really don't need this. Use "Accelerate" only if waiting that time (which could stretch to a couple of hours) isn't acceptable.`,
+        noReserveAvailableYet: `No reserve funds are available for this unfreeze request.
+
+Rewind cannot start or accelerate it until reserve funds are added.`,
+        insufficientReserveFunds: `Reserve funds are available, but there is not enough to start or accelerate this unfreeze request.
+
+Add more reserve funds to continue.`,
         confirmationSpeedLabel: 'Mining Fee',
         feeSelectorExplanation:
           'Confirm the mining fee to request the start of the unfreeze countdown.',
@@ -285,7 +291,13 @@ This address will likely be difficult to access if you followed the recommended 
 This action is designed for extreme situations, such as theft or extortion, to ensure the safety of your Bitcoin. Make sure this is a deliberate decision.`,
         highFeeConfirmation: `This rescue transaction is already presigned with a high mining fee.
 
-In most cases, that should be enough and no extra bump funds are needed. Confirm below to broadcast the rescue transaction now.`,
+In most cases, that should be enough and no extra acceleration funds are needed. Confirm below to broadcast the rescue transaction now.`,
+        noBumpFundsAvailableYet: `No acceleration funds available yet for this rescue request.
+
+Rewind cannot accelerate this rescue until extra funds are added.`,
+        insufficientBumpFunds: `Acceleration funds are available, but there is not enough to accelerate this rescue request.
+
+Add more funds to accelerate it.`,
         feeSelectorExplanation:
           'Confirm the mining fee for the rescue transaction to ensure prompt processing.',
         additionalExplanation: `Once the rescue request is confirmed, the funds will be moved to your Emergency Address instantly.`
@@ -435,8 +447,8 @@ Usage Instructions:
       vault: 'Vault {{vaultNumber}} Creation',
       trigger: 'Vault {{vaultNumber}} Unfreeze',
       rescue: 'Vault {{vaultNumber}} Rescue',
-      feePayerTrigger: 'Vault {{vaultNumber}} Unfreeze Fee',
-      feePayerRescue: 'Vault {{vaultNumber}} Rescue Fee',
+      feePayerTrigger: 'Vault {{vaultNumber}} Unfreeze Fee-Payer',
+      feePayerRescue: 'Vault {{vaultNumber}} Rescue Fee-Payer',
       received: 'Received',
       sent: 'Sent',
       receivedAndSent: 'Received and Sent',
@@ -461,13 +473,13 @@ Usage Instructions:
       rescuedConfirming:
         'Rescuing your vault. The final rescued amount after fees will be {{amount}}. Awaiting final confirmation...',
       feePayerTrigger:
-        'This CPFP fee-payer transaction helped confirm your unfreeze.',
+        'This CPFP fee-payer transaction used reserve funds to help confirm your unfreeze. The change went back to your wallet.',
       feePayerTriggerConfirming:
-        'This CPFP fee-payer transaction is helping confirm your unfreeze. Waiting for confirmation...',
+        'This CPFP fee-payer transaction is using reserve funds to help confirm your unfreeze. Waiting for confirmation... The change will go back to your wallet.',
       feePayerRescue:
-        'This CPFP fee-payer transaction helped confirm your rescue.',
+        'This CPFP fee-payer transaction used reserve funds to help confirm your rescue. The change went back to your rescue reserve wallet.',
       feePayerRescueConfirming:
-        'This CPFP fee-payer transaction is helping confirm your rescue. Waiting for confirmation...',
+        'This CPFP fee-payer transaction is using reserve funds to help confirm your rescue. Waiting for confirmation... The change will go back to your rescue reserve wallet.',
       openBlockExplorer: 'View on Block Explorer'
     }
   },
@@ -549,9 +561,9 @@ You can replace the pre-filled address or click "Create" to open a wizard and ge
 
 Verify the address carefully to ensure it corresponds to an Emergency Phrase under your control:
 {{coldAddress}}.`,
-    confirmedFundsWarning: `This vault can only be created with confirmed funds.
+    somePendingUtxosWarning: `Some funds need confirmation before they can be used for this vault.
 
-You can still continue, but the setup will use only your confirmed funds. That means the maximum amount you can freeze may be lower until the rest confirms.
+You can still continue, but the setup will skip those funds. That means the maximum amount you can freeze may be lower until the rest confirms.
 
 If you recently received or moved bitcoin, the rest should usually become available after about 10 minutes.`,
     notEnoughFunds: `<strong>Not Enough Funds to Create This Vault</strong>
@@ -561,19 +573,14 @@ The smallest vault Rewind can create right now needs about {{minimumRequiredFund
 Of that, {{minimumVaultedAmount}} ends up frozen in the vault. The rest is needed to save a backup and keep enough set aside for unfreezing later.
 
 <strong>Suggested Action:</strong> Please add about {{missingFunds}} more and try again.`,
-    notEnoughConfirmedFunds: `<strong>Confirmed Funds Needed</strong>
+    blockedByPendingUtxosNotice: `<strong>More Confirmed Funds Needed</strong>
 
-This vault can only be created with confirmed funds, and some of your wallet funds are still unconfirmed, so they cannot be used yet.
+Some funds need confirmation before this vault can be created.
 
 <strong>Suggested Action:</strong> Wait around 10 minutes for confirmation and then try again. Once those funds confirm, they can be used to create the vault.`,
-    reservedFundsNotice: `<strong>Funds Temporarily Reserved</strong>
+    somePendingUtxosBanner: `<strong>Some Funds Need Confirmation</strong>
 
-Some of your funds are temporarily reserved while Rewind protects important pending vault transactions that may still need acceleration.
-
-<strong>Suggested Action:</strong> Please wait for those transactions to confirm before creating a new vault.`,
-    reservedFundsBanner: `<strong>Some Funds Are Temporarily Reserved</strong>
-
-Some of your funds are being kept aside while Rewind protects important pending vault transactions that may still need acceleration. Not all funds will be available again until those transactions confirm.`,
+You can continue with your available funds, but some pending funds are not included. They will be available after confirmation.`,
     amountLabel: 'Amount to Freeze',
     unfreezeReserveLabel: 'Unfreeze Reserve',
     unfreezeReserveHelpTitle: 'Unfreeze Reserve',
@@ -605,11 +612,11 @@ For your security, please review these changes before proceeding.`
   send: {
     title: 'Send Bitcoin',
     notEnoughFunds: 'Insufficient funds to create the transaction',
-    reservedFunds:
-      'Some of your funds are temporarily reserved while Rewind protects important pending vault transactions that may still need acceleration. Please wait for confirmation before creating a new send.',
-    reservedFundsTitle: 'Some Funds Are Temporarily Reserved',
-    reservedFundsBody:
-      'Some of your funds are being kept aside while Rewind protects important pending vault transactions that may still need acceleration. Not all funds will be available again until those transactions confirm.',
+    blockedByPendingUtxos:
+      'Some funds need confirmation before this send can be created. Please wait for confirmation and try again.',
+    somePendingUtxosTitle: 'Some Funds Need Confirmation',
+    somePendingUtxosBody:
+      'You can continue with your available funds, but some pending funds are not included. They will be available after confirmation.',
     lowerFeeRate: `Transaction not possible with the selected fee rate and your available funds.
 
 Please lower the fee rate or add more funds.`,
@@ -647,11 +654,9 @@ For your security, please review these changes before proceeding.`,
       'Coins are provided for practice on the {{networkName}} test network. These test tokens have no real value.'
   },
   createVault: {
-    intro: `We're setting up your vault, generating multiple combinations to minimize future unfreezing fees.
+    intro: `Preparing your vault summary...
 
-This may take around 30 seconds, slightly longer on older devices.
-
-Next, you'll get to confirm everything.`,
+Next, you'll review everything before activating it.`,
     miningFee: 'Mining Fee',
     serviceFee: 'Vaulting Fee',
     allFees: 'Fees',
@@ -677,10 +682,9 @@ Rewind does this to make sure the on-chain backup is mined too. The fee is paid 
     //Each peer helps store these backups, but the vault details remain fully encrypted, so no one can access them. Only you can with your Recovery Phrase.
     //Anyone can easily run a peer to support the network. Learn more at rewindbitcoin.com.
     // The backup will be stored on one peer and retrieved from another to verify its integrity.
-    backupInProgress: 'Backing up your vault and verifying the backup...',
-    pushingVault: `Your vault has been successfully backed up and is securely stored.
+    submittingVault: `Rewind is backing up your vault, verifying the backup, and sending the vault transaction to the blockchain.
 
-Now, as the final step, we're sending your vault to the blockchain to activate it...`,
+Please keep the app open.`,
     fetchIssues: `Connection issues detected. The vault was not created. Please check your internet connection and try again.
 
 {{message}}`,

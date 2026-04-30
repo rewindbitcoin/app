@@ -96,12 +96,23 @@ export const getOnChainBackupDescriptor = async ({
   return `wpkh(${keyExpression})`;
 };
 
-export const getMinBackupFeeBudget = (
-  packageFeeRate: number,
+/**
+ * Returns the smallest amount that can be funded into the vault tx's backup
+ * output while still keeping that output above dust and able to pay for the
+ * later backup tx at the selected backup tx fee rate.
+ *
+ * In the current backup model this funded amount later equals the backup tx
+ * fee itself, because the backup tx only creates an OP_RETURN output and does
+ * not send spendable value anywhere else.
+ */
+export const getBackupFunding = (
+  backupTxFeeRate: number,
   backupOutput: OutputInstance
 ): bigint =>
   maxBigInt(
-    BigInt(Math.ceil(Math.max(...OP_RETURN_BACKUP_TX_VBYTES) * packageFeeRate)),
+    BigInt(
+      Math.ceil(Math.max(...OP_RETURN_BACKUP_TX_VBYTES) * backupTxFeeRate)
+    ),
     dustThreshold(backupOutput) + BigInt(1)
   );
 

@@ -144,10 +144,16 @@ export const createColdAddress = async (mnemonic: string, network: Network) => {
   return new Output({ descriptor, network }).getAddress();
 };
 
-export const getMasterNode = moize((mnemonic: string, network: Network) => {
-  const { BIP32 } = ensureDescriptorsFactoryInstance();
-  return BIP32.fromSeed(mnemonicToSeedSync(mnemonic), network);
-});
+// BIP39 seed derivation is expensive on mobile. Vault creation alternates
+// between the wallet signer and the ephemeral vault signer, so keep both hot
+// and leave space for a few other recent signers.
+export const getMasterNode = moize(
+  (mnemonic: string, network: Network) => {
+    const { BIP32 } = ensureDescriptorsFactoryInstance();
+    return BIP32.fromSeed(mnemonicToSeedSync(mnemonic), network);
+  },
+  { maxSize: 10 }
+);
 
 /** Async because some signers will be async */
 const createDefaultReceiveDescriptor = async ({
