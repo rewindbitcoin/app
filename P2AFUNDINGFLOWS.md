@@ -141,29 +141,38 @@ is already pending but no rescue acceleration reserve exists, the Rescue modal
 opens in explanation-only mode instead of funding acceleration.
 
 Current direction: if the high-fee rescue parent is still not enough, rescue
-acceleration should use a fresh temporary software `P2WPKH` wallet dedicated to
-that rescue reserve:
+acceleration should create a fresh temporary software `P2WPKH` wallet in memory
+only, inside the rescue acceleration prompt:
 
 - it is not the normal wallet signer, so a compromised main wallet seed does not
   also control the rescue reserve
-- it has ordinary external and internal/change addresses
-- the user is shown the seed and keeps it
-- the funding flow sends only the small amount needed for possible rescue fee
-  bumping
+- the wallet exists only for the current app session; the app does not persist
+  it locally
+- the user is shown the seed first and must confirm they recorded it
+- the UI must warn the user not to leave this wallet until the rescue
+  acceleration flow is complete, because that temporary wallet only lives in
+  the current wallet session and there is no in-app import path for it
+- after seed confirmation, the app shows one funding address and the exact amount
+  currently needed for the rescue bump
+- that amount should be computed from the shared reserve-sizing primitive used
+  by trigger top-ups, but targeted at the current high-priority rescue package
+  goal
 - a rescue CPFP child spends the rescue anchor plus those reserve UTXOs
-- leftover value should go back to that wallet's internal/change branch
+- if funding overshoots, leftover value should go back to that temporary
+  wallet's internal/change branch
 
-TBD: the rescue-reserve funding wizard is still not implemented. It needs to
-show the seed first, wait for the user to record it, show the funding address,
-and then wait until those funds are actually usable for rescue acceleration.
+For `P2A_TRUC`, if the rescue reserve funding tx is still unconfirmed, the app
+must wait until it confirms before building the rescue child. The rescue parent
+should remain the only unconfirmed ancestor of that child.
 
-TBD: rescue fee-payer rediscovery should follow the same general idea as trigger,
-but using the rescue reserve wallet's own UTXOs instead. Any device that knows
-that rescue reserve seed should be able to rediscover the fee-payer child by
-finding the spender of the rescue reserve UTXO(s) and then validating that the
-same transaction also spends the rescue parent's P2A anchor. The app should not
-try to rediscover rescue fee-payer children by scanning the shared P2A anchor
-script.
+If the currently live rescue parent or rescue package is already at or above the
+current high-priority target, the rescue modal should warn that acceleration is
+probably unnecessary, but still let the user continue.
+
+TBD: if Rewind later adds rescue reserve recovery/import tooling, rescue
+fee-payer rediscovery should follow the same general idea as trigger, but using
+the rescue reserve wallet's own UTXOs instead. The app should not try to
+rediscover rescue fee-payer children by scanning the shared P2A anchor script.
 
 ## Shared P2A Bump Shape
 
@@ -173,7 +182,8 @@ Current: trigger uses this low-level package shape today:
 parent anchor + reserve inputs -> child change output
 ```
 
-TBD: rescue should use the same shape once rescue reserve inputs exist.
+TBD: rescue should use the same shape once same-session rescue reserve inputs
+exist.
 
 The differences are not in the package math. They are in the funding source,
 signer, timing and recovery story.
@@ -290,24 +300,28 @@ and still fail policy if the child does not add enough absolute fee.
 ## Backup And Recovery Scope
 
 Current: the on-chain backup stores the trigger and rescue transactions for the
-vault. It does not define a recovery story for reserve top-ups or rescue reserve
-signer state.
+vault. It does not store trigger top-up state or rescue reserve signer state.
 
-TBD: if reserve top-ups or rescue reserve funding become normal parts of the
-flow, we need to decide what belongs in local storage, what belongs in the
-on-chain backup and what is intentionally ephemeral.
+Current direction: the rescue reserve wallet is intentionally ephemeral:
+
+- the signer stays in memory only for the current session
+- the app shows the seed but does not store it locally
+- the app does not plan an in-app import flow for that rescue reserve wallet
+- if the user later needs that wallet outside the running session, recovery is
+  from the shown seed outside this flow
 
 ## Open Work
 
-- Implement a shared acceleration funding wizard for trigger top-ups and rescue
-  reserve funding.
+- Implement a shared acceleration funding wizard for trigger top-ups and
+  same-session rescue reserve funding.
 - Discover trigger reserve UTXOs beyond the built-in `/0` child.
-- Decide whether top-up UTXOs must confirm before use.
+- Keep top-up UTXOs and rescue reserve funding UTXOs confirmed before TRUC use.
 - Decide whether to support multi-parent packages for immediate reserve use.
-- Implement the rescue reserve wallet wizard around a fresh temporary software
-  `P2WPKH` wallet.
-- Show and confirm the rescue reserve seed before showing a funding address.
-- Rediscover rescue CPFP children from rescue reserve UTXOs rather than from the
-  shared P2A anchor script.
-- Define backup and recovery scope for reserve top-ups and rescue reserve state.
-- Sync `REWIND2.md` once this model settles.
+- Implement the rescue reserve wallet wizard around a fresh temporary in-memory
+  software `P2WPKH` wallet.
+- Show and confirm the rescue reserve seed, warn the user not to leave this
+  wallet and keep the rescue reserve wallet out of local storage.
+- Size the requested rescue reserve funding amount from the current package goal
+  using the shared reserve-sizing primitive.
+- If later recovery/import tooling exists, rediscover rescue CPFP children from
+  rescue reserve UTXOs rather than from the shared P2A anchor script.

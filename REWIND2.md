@@ -14,8 +14,8 @@ Rewind2 changes the vault design in four big ways:
 3. It adds a dedicated per-vault backup output, so the wallet can publish an encrypted on-chain backup of the trigger and rescue transactions.
 4. It treats trigger and rescue fee bumping differently:
    - trigger bumping uses that vault's dedicated reserve only
-   - rescue starts as a high-fee parent tx and only uses a separate emergency
-     bump input if that later becomes necessary
+   - rescue starts as a high-fee parent tx and only uses a separate temporary
+     in-memory bump wallet if that later becomes necessary
 
 ## Names used here
 
@@ -37,7 +37,7 @@ Each Rewind2 vault is built around one main flow:
 4. If fees are too low:
    - trigger can attach a child transaction using its dedicated reserve
    - rescue is expected to work as a single high-fee parent tx, and only uses a
-     child later if an external emergency bump input is available
+     child later if a temporary in-memory rescue reserve wallet is funded
 
 The important design choice is that trigger bumping is deterministic and
 per-vault, while rescue is designed to succeed as a high-fee parent first and
@@ -172,10 +172,10 @@ Shape:
 ```text
 inputs:
 - rescue P2A anchor
-- optional emergency bump UTXO
+- temporary rescue reserve UTXO
 
 output:
-- normal wallet change
+- rescue reserve change
 ```
 
 This is intentionally different from trigger bumping.
@@ -186,8 +186,14 @@ The current model is:
 
 - by default, the rescue parent is already presigned with a high fee rate
 - in most cases that should be enough, so rescue can be a single tx
-- if that still is not enough, rescue can later use one optional emergency bump
-  input from a separate emergency signer / emergency UTXO flow
+- if that still is not enough, the app can create a fresh temporary software
+  `P2WPKH` wallet in memory and ask the user to fund it for one rescue bump
+- the app shows the seed first, makes the user confirm it was written down, and
+  warns the user not to leave this wallet because the temporary rescue reserve
+  wallet is not persisted
+- the app then shows one funding address and the exact currently needed amount
+- if the vault mode is `P2A_TRUC`, the reserve funding tx must confirm before
+  the rescue bump child can use it
 
 Why Rewind2 starts rescue with a large fee by default:
 
@@ -200,9 +206,10 @@ Why Rewind2 starts rescue with a large fee by default:
 - only in rare extreme-fee situations should the app need to ask for a separate
   emergency bump input later
 
-That later emergency bump flow is separate from the normal wallet on purpose.
-If rescue is needed, the hot wallet may already be compromised, so its ordinary
-UTXOs are not trusted for fee bumping.
+That later bump flow is separate from the normal wallet on purpose. If rescue is
+needed, the hot wallet may already be compromised, so its ordinary UTXOs are not
+trusted for fee bumping, and the temporary rescue reserve wallet should not be
+stored as normal app state.
 
 ### 7. On-chain backup transaction
 
@@ -452,8 +459,8 @@ trigger bump child
   pays to: wallet change
 
 rescue bump child
-  spends: rescue anchor + optional emergency bump UTXO
-  pays to: wallet change
+  spends: rescue anchor + temporary rescue reserve UTXO
+  pays to: rescue reserve change
 
 backup tx
   spends: backup output
@@ -462,17 +469,29 @@ backup tx
 
 That is Rewind2 in one page.
 
-#TODO
----
+## Rescue Acceleration Draft
 
-for the RESCUE, the idea is the user launches the presigned tx first.
-  then, show the accelerate option.
+The current intended flow is:
 
+1. Broadcast the presigned rescue parent first.
+2. Only if that rescue still needs more fee, open an acceleration modal.
+3. In that modal, create a random mnemonic `P2WPKH` wallet in memory only.
+4. Show the seed first, make the user confirm it was written down and warn the
+   user not to leave this wallet.
+5. Show one funding address plus the exact currently needed amount.
+6. Once those funds are usable, build the rescue CPFP child from the rescue
+   anchor plus that temporary reserve wallet.
 
-  this will open one of our popup modal that will creates a random mnemonic wallet (to be kept in memory) - see f.ex. how this is done for the emergency address wizard creation. The user must know this is in memory only wallet in texts to be used within the next minutes to bump the panic tx. Then dereive the first address (similar to the emergency wizard) and show it to the user asking to send some funds there and tell the user any remaining balance will be sent back to tne emergency address. The way to show the adderss is text + QR. Just one tx be clear in the message. the user. For all this create a new component file I guess, not to bloat exisiting components.
-  how much funds to ask for ? since the user may already be above the epress confirmation time fee rate we perhaps can ask for the bump amount to tha anchor that would allow the typical package size to be above the express confirmation time assuming that the parent fee rate was zerio. I need here some quick to compute value which is decent, perhaos yuo come up with a better idea. some that provides a good measure but doesnot bloat the code while is meanungul and does not ask for crazy amounts of money or very little.
+The amount requested from the user should be computed from the current package
+target, using the same reserve-sizing primitive used for trigger reserve top-up
+flows.
 
-  When the inital popup is open first thing the app must cgeck the current express fee rate anf if the fee rate f the presgunted rescue tx or a previous replacement package is above the current blockchain express fee rate then prompt the user you should probably not need this since your current fee rate is already above the epress confirmation time so you just need to wait. however let them proceed if needed.
+If the currently live rescue parent or rescue package is already at or above the
+current high-priority target, the modal should warn that acceleration is
+probably unnecessary, but still allow the user to continue.
+
+The app does not plan to persist that temporary rescue reserve wallet or offer an
+in-app import flow for it.
 
 --
 
@@ -481,5 +500,4 @@ or txs...
 
 --
 
-
-rename getP2AOutputData  to getP2AOutputIndexAndValue or similar?
+rename getP2AOutputData to getP2AOutputIndexAndValue or similar?
