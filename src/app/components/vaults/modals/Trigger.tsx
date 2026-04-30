@@ -41,10 +41,10 @@ type TriggerProps = {
   /**
    * P2A trigger acceleration plan.
    * - `undefined`: the real change-output-backed plan is still being prepared.
-   * - `null`: preparation finished and no usable trigger reserve plan exists.
-   * - `P2ABumpPlan`: acceleration can use these reserve UTXOs/change/signer.
+   * - empty `utxosData`: preparation finished with no reserve UTXOs.
+   * - non-empty `utxosData`: acceleration can use these reserve UTXOs.
    */
-  p2aBumpPlan: P2ABumpPlan | null | undefined;
+  p2aBumpPlan: P2ABumpPlan | undefined;
   onTrigger: (triggerData: VaultActionTxData) => void;
   lockBlocks: number;
   isVisible: boolean;
@@ -174,7 +174,8 @@ const Trigger = ({
           actionFeeRate: triggerInfo.feeRate
         };
       }
-      if (!p2aBumpPlan || !p2aTriggerInfo) return null;
+      if (!p2aBumpPlan || p2aBumpPlan.utxosData.length === 0 || !p2aTriggerInfo)
+        return null;
       // Trigger fee bumping is reserve-only by design: always reuse this
       // vault's dedicated reserve UTXO as the only non-anchor input and send
       // any leftover value back through normal wallet change.
@@ -295,6 +296,11 @@ const Trigger = ({
 
   const timeLockTime = formatBlocks(lockBlocks, t, locale, true);
 
+  // Modal opened with a prepared P2A plan, but no reserve UTXOs were found.
+  const noP2AReserveUtxos =
+    !isLadderedVault &&
+    p2aBumpPlan !== undefined &&
+    p2aBumpPlan.utxosData.length === 0;
   // Modal opened from the acceleration status line: replace the already pushed
   // trigger package, if a valid replacement path exists.
   const noP2AAccelerationPath =
@@ -312,7 +318,7 @@ const Trigger = ({
   let modalContent: React.ReactNode;
   if (isP2ABumpPlanLoading) {
     modalContent = <ActivityIndicator />;
-  } else if (!isLadderedVault && p2aBumpPlan === null) {
+  } else if (noP2AReserveUtxos) {
     modalContent = (
       <View>
         <Text className="text-base text-slate-600 pb-2 px-2">

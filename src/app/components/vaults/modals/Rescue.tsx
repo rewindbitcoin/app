@@ -37,8 +37,8 @@ type RescueProps = {
   vaultStatus: VaultStatus | undefined;
   onRescue: (rescueData: VaultActionTxData) => void;
   isVisible: boolean;
-  /** P2A acceleration plan. Null until rescue top-up funding is supported. */
-  p2aBumpPlan: P2ABumpPlan | null;
+  /** P2A acceleration plan. Undefined until rescue top-up funding is supported. */
+  p2aBumpPlan: P2ABumpPlan | undefined;
   onClose: () => void;
 };
 
@@ -81,6 +81,7 @@ const Rescue = ({
     vaultStatus?.panicTxBlockHeight !== undefined
       ? vaultStatus.panicTxBlockHeight === 0
       : !!vaultStatus?.panicPushTime;
+  const hasP2ABumpUtxos = !!p2aBumpPlan && p2aBumpPlan.utxosData.length > 0;
   const pushedTxHex = vaultStatus?.panicTxHex;
   const accelerationInfo = useMemo<AccelerationInfo | null>(() => {
     if (
@@ -95,7 +96,9 @@ const Rescue = ({
       feeEstimates,
       pushedTxHex,
       presignedTxInfos,
-      ...(p2aBumpPlan ? { p2aBumpPlan } : {})
+      ...(p2aBumpPlan && p2aBumpPlan.utxosData.length > 0
+        ? { p2aBumpPlan }
+        : {})
     });
   }, [
     vaultMode,
@@ -136,7 +139,7 @@ const Rescue = ({
     if (!triggerTxHex) throw new Error('Visible rescue is missing trigger tx');
     const rescueInfo = getP2ARescueInfo(vault, triggerTxHex);
 
-    if (!p2aBumpPlan)
+    if (!hasP2ABumpUtxos)
       return isRescuePushedButUnconfirmed ? null : rescueInfo.feeRate;
 
     if (!feeEstimates) return null;
@@ -156,13 +159,13 @@ const Rescue = ({
     vault,
     isVisible,
     triggerTxHex,
-    p2aBumpPlan,
+    hasP2ABumpUtxos,
     isRescuePushedButUnconfirmed,
     replacementFeeRateFloor
   ]);
 
   // P2A rescue without an external bump plan is parent-only; all other rescue paths need a fee picker.
-  const needsFeePicker = isLadderedVault || !!p2aBumpPlan;
+  const needsFeePicker = isLadderedVault || hasP2ABumpUtxos;
 
   const [feeRate, setFeeRate] = useState<number | null>(null);
 
@@ -177,7 +180,7 @@ const Rescue = ({
         : (presignedTxInfos[0]?.feeRate ?? MIN_FEE_RATE);
     }
     if (!triggerTxHex) throw new Error('Visible rescue is missing trigger tx');
-    if (!p2aBumpPlan) return null;
+    if (!hasP2ABumpUtxos) return null;
     const rescueInfo = getP2ARescueInfo(vault, triggerTxHex);
     return isRescuePushedButUnconfirmed
       ? replacementFeeRateFloor
@@ -188,7 +191,7 @@ const Rescue = ({
     replacementFeeRateFloor,
     isVisible,
     presignedTxInfos,
-    p2aBumpPlan,
+    hasP2ABumpUtxos,
     vault,
     triggerTxHex
   ]);
@@ -224,7 +227,7 @@ const Rescue = ({
           actionFee: rescueInfo.fee,
           actionFeeRate: rescueInfo.feeRate
         };
-      if (!p2aBumpPlan) return null;
+      if (!p2aBumpPlan || p2aBumpPlan.utxosData.length === 0) return null;
       const plan = estimateCpfpPackage({
         parentTxHex: rescueInfo.txHex,
         parentFee: rescueInfo.fee,
@@ -327,7 +330,7 @@ const Rescue = ({
   );
 
   let modalContent: React.ReactNode;
-  if (isRescuePushedButUnconfirmed && !isLadderedVault && !p2aBumpPlan) {
+  if (isRescuePushedButUnconfirmed && !isLadderedVault && !hasP2ABumpUtxos) {
     modalContent = (
       <View>
         <Text className="text-base text-slate-600 pb-2 px-2">

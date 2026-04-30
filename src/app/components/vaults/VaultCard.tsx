@@ -137,9 +137,9 @@ const RawVault = ({
   const feeEstimates = useFirstDefinedValue(feeEstimatesRealTime);
   const walletSigner = signers?.[0];
   // undefined: real change-output-backed plan is still being prepared.
-  // null: preparation finished and no usable trigger reserve plan exists.
+  // A plan with empty utxosData means preparation finished with no reserve UTXOs.
   const [triggerP2ABumpPlan, setTriggerP2ABumpPlan] = useState<
-    P2ABumpPlan | null | undefined
+    P2ABumpPlan | undefined
   >(undefined);
 
   // Prepare and set the triggerP2ABumpPlan in state. triggerP2ABumpPlan needs a
@@ -152,7 +152,6 @@ const RawVault = ({
 
     const prepareTriggerP2ABumpPlan = async () => {
       if (isLadderedVault) {
-        if (!cancelled) setTriggerP2ABumpPlan(null);
         return;
       }
       if (!networkId || !walletSigner || !accounts) return;
@@ -162,10 +161,6 @@ const RawVault = ({
         signer: walletSigner,
         network
       });
-      if (utxosData.length === 0) {
-        if (!cancelled) setTriggerP2ABumpPlan(null);
-        return;
-      }
       try {
         const changeDescriptorWithIndex =
           await getNextChangeDescriptorWithIndex(accounts);
@@ -256,7 +251,11 @@ const RawVault = ({
               return;
             }
 
-            if (!networkId || !triggerP2ABumpPlan)
+            if (
+              !networkId ||
+              !triggerP2ABumpPlan ||
+              triggerP2ABumpPlan.utxosData.length === 0
+            )
               throw new Error('Wallet not ready for Rewind2 trigger package');
             const network = networkMapping[networkId];
             // Trigger acceleration is reserve-only by design: the dedicated
@@ -331,10 +330,10 @@ const RawVault = ({
     []
   );
   const openRescueModal = useCallback(() => setIsRescueModalVisible(true), []);
-  const rescueP2ABumpPlan = useMemo<P2ABumpPlan | null>(() => {
+  const rescueP2ABumpPlan = useMemo<P2ABumpPlan | undefined>(() => {
     // TODO: build this from the shared funding wizard once P2A rescue
     // acceleration top-ups are supported.
-    return null;
+    return undefined;
   }, []);
   // Broadcasts the selected rescue action. The modal has already selected a
   // valid parent or package; for P2A acceleration it has also verified that the
@@ -519,11 +518,17 @@ const RawVault = ({
     const startButtonVisible = !vaultNotFound && !hasTriggerStarted;
     const bumpPlanLoading =
       !isLadderedVault && triggerP2ABumpPlan === undefined;
+    const hasTriggerReserveUtxos =
+      !isLadderedVault &&
+      !!triggerP2ABumpPlan &&
+      triggerP2ABumpPlan.utxosData.length > 0;
     const missingBumpPlanExplainedByModal =
-      !isLadderedVault && triggerP2ABumpPlan === null;
-    // P2A trigger without a bump plan only opens the modal to explain that no
+      !isLadderedVault &&
+      !!triggerP2ABumpPlan &&
+      triggerP2ABumpPlan.utxosData.length === 0;
+    // P2A trigger without reserve UTXOs only opens the modal to explain that no
     // reserve funds are available, so fee estimates are not needed.
-    const modalNeedsFeeEstimates = isLadderedVault || !!triggerP2ABumpPlan;
+    const modalNeedsFeeEstimates = isLadderedVault || hasTriggerReserveUtxos;
     const hasTriggerPlanPrerequisites =
       // Missing P2A reserve is a useful modal state: the modal will explain it
       // without fee estimates. Otherwise, a selectable tx/package needs fee
