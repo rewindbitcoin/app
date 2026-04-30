@@ -435,13 +435,13 @@ Instrucciones de Uso:
       rescuedConfirming:
         'Rescatando tu bóveda. La cantidad final rescatada después de comisiones será {{amount}}. Esperando confirmación final...',
       feePayerTrigger:
-        'Esta transacción CPFP pagadora de comisión ayudó a confirmar tu descongelación. La reserva no utilizada volvió a tu billetera.',
+        'Esta transacción CPFP pagadora de comisión usó fondos de reserva para ayudar a confirmar tu descongelación. El cambio volvió a tu billetera.',
       feePayerTriggerConfirming:
-        'Esta transacción CPFP pagadora de comisión está ayudando a confirmar tu descongelación. Esperando confirmación... La reserva no utilizada volverá a tu billetera después de confirmarse.',
+        'Esta transacción CPFP pagadora de comisión está usando fondos de reserva para ayudar a confirmar tu descongelación. Esperando confirmación... El cambio volverá a tu billetera.',
       feePayerRescue:
-        'Esta transacción CPFP pagadora de comisión ayudó a confirmar tu rescate.',
+        'Esta transacción CPFP pagadora de comisión usó fondos de reserva para ayudar a confirmar tu rescate. El cambio volvió a tu billetera de reserva de rescate.',
       feePayerRescueConfirming:
-        'Esta transacción CPFP pagadora de comisión está ayudando a confirmar tu rescate. Esperando confirmación...',
+        'Esta transacción CPFP pagadora de comisión está usando fondos de reserva para ayudar a confirmar tu rescate. Esperando confirmación... El cambio volverá a tu billetera de reserva de rescate.',
       openBlockExplorer: 'Ver en el Explorador de Bloques'
     }
   },

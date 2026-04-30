@@ -473,13 +473,13 @@ Usage Instructions:
       rescuedConfirming:
         'Rescuing your vault. The final rescued amount after fees will be {{amount}}. Awaiting final confirmation...',
       feePayerTrigger:
-        'This CPFP fee-payer transaction helped confirm your unfreeze. Any unused reserve went back to your wallet.',
+        'This CPFP fee-payer transaction used reserve funds to help confirm your unfreeze. The change went back to your wallet.',
       feePayerTriggerConfirming:
-        'This CPFP fee-payer transaction is helping confirm your unfreeze. Waiting for confirmation... Any unused reserve will go back to your wallet after confirmation.',
+        'This CPFP fee-payer transaction is using reserve funds to help confirm your unfreeze. Waiting for confirmation... The change will go back to your wallet.',
       feePayerRescue:
-        'This CPFP fee-payer transaction helped confirm your rescue.',
+        'This CPFP fee-payer transaction used reserve funds to help confirm your rescue. The change went back to your rescue reserve wallet.',
       feePayerRescueConfirming:
-        'This CPFP fee-payer transaction is helping confirm your rescue. Waiting for confirmation...',
+        'This CPFP fee-payer transaction is using reserve funds to help confirm your rescue. Waiting for confirmation... The change will go back to your rescue reserve wallet.',
       openBlockExplorer: 'View on Block Explorer'
     }
   },
