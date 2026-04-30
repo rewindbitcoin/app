@@ -58,9 +58,15 @@ const Rescue = ({
   const { t } = useTranslation();
   const { feeEstimates: feeEstimatesRealTime, btcFiat: btcFiatRealTime } =
     useWallet();
+  const { settings } = useSettings();
   // Cache to avoid flickering in the sliders while background refreshes happen.
   const btcFiat = useFirstDefinedValue<number>(btcFiatRealTime);
-  const feeEstimates = useFirstDefinedValue<FeeEstimates>(feeEstimatesRealTime);
+  // Reset when the user changes the Tape fee simulation setting, otherwise this
+  // hidden modal would keep showing the previously latched fee ranges.
+  const feeEstimates = useFirstDefinedValue<FeeEstimates>(
+    feeEstimatesRealTime,
+    settings?.TAPE_FEE_ESTIMATE_OVERRIDE
+  );
   const triggerTxHex = vaultStatus?.triggerTxHex;
   const presignedTxInfos = useMemo<PresignedTxInfo[] | null>(
     () =>
@@ -106,7 +112,6 @@ const Rescue = ({
   const maxFeeRate = feeEstimates
     ? computeMaxAllowedFeeRate(feeEstimates)
     : null;
-  const { settings } = useSettings();
   if (!settings)
     throw new Error(
       'This component should only be started after settings has been retrieved from storage'
