@@ -31,6 +31,7 @@ export default function useFirstDefinedValue<T>(
 ): T | undefined {
   const ref = useRef<T | undefined>(undefined);
   const resetKeyRef = useRef<unknown>(resetKey);
+  // eslint-disable-next-line react-hooks/refs
   if (!Object.is(resetKeyRef.current, resetKey)) {
     // Safe: explicit reset requested by the caller's cache key.
     // eslint-disable-next-line react-hooks/refs
