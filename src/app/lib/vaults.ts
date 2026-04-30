@@ -2154,7 +2154,35 @@ export const getVaultsFrozenBalance = moize(
   }
 );
 
-const spendingTxCache = new Map();
+type SpendingTxData = {
+  txHex: string;
+  irreversible: boolean;
+  blockHeight: number;
+};
+
+const spendingTxCache = new Map<string, SpendingTxData>();
+
+/**
+ * Returns whether `spendingTxHex` spends the exact `prevTxId:prevVout`
+ * outpoint.
+ *
+ * This is the shared predicate used after a candidate spending transaction is
+ * found by some discoverable script. For P2A fee-payer discovery, the candidate
+ * comes from the vault's unique trigger reserve output, then this validates that
+ * it also spends the trigger parent's P2A anchor.
+ */
+const txSpendsOutpoint = (
+  spendingTxHex: string,
+  prevTxId: TxId,
+  prevVout: number
+) => {
+  const { tx } = transactionFromHex(spendingTxHex);
+  return tx.ins.some(input => {
+    const inputPrevtxId = toHex(Uint8Array.from(input.hash).reverse());
+    return inputPrevtxId === prevTxId && input.index === prevVout;
+  });
+};
+
 /**
  * Returns the tx that spent a Tx Output (or it's in the mempool about to spend it).
  * If it's in the mempool this is marked by setting blockHeight to zero.
@@ -2163,9 +2191,7 @@ async function fetchSpendingTx(
   txHex: string,
   vout: number,
   explorer: Explorer
-): Promise<
-  { txHex: string; irreversible: boolean; blockHeight: number } | undefined
-> {
+): Promise<SpendingTxData | undefined> {
   const cacheKey = `${txHex}:${vout}`;
   const cachedResult = spendingTxCache.get(cacheKey);
 
@@ -2178,6 +2204,10 @@ async function fetchSpendingTx(
 
   const output = tx.outs[vout];
   if (!output) throw new Error('Invalid out');
+  if (toHex(output.script) === P2A_OUTPUT_SCRIPT_HEX)
+    throw new Error(
+      `fetchSpendingTx must not scan P2A output ${txId}:${vout}; P2A uses a shared global script, so this will scan unrelated P2A history and will require checking thousands of transactions.`
+    );
   const scriptHashBytes = Uint8Array.from(sha256(output.script)).reverse();
   const scriptHash = toHex(scriptHashBytes);
 
@@ -2208,13 +2238,7 @@ async function fetchSpendingTx(
         );
         break;
       }
-      const { tx: txHistory } = transactionFromHex(historyTxHex);
-      //For all the inputs in the tx see if one of them was spending from vout and txId
-      const found = txHistory.ins.some(input => {
-        const inputPrevtxId = toHex(Uint8Array.from(input.hash).reverse());
-        const inputPrevOutput = input.index;
-        return inputPrevtxId === txId && inputPrevOutput === vout;
-      });
+      const found = txSpendsOutpoint(historyTxHex, txId, vout);
       if (found) {
         const spendingTx = {
           txHex: historyTxHex,
@@ -2233,6 +2257,59 @@ async function fetchSpendingTx(
   throw new Error(
     `Failed to resolve spending tx for outpoint ${txId}:${vout} after ${MAX_HISTORY_SCAN_ATTEMPTS} attempts due to repeated fetchTx errors.`
   );
+}
+
+/**
+ * Finds the trigger CPFP child through the vault's deterministic trigger reserve.
+ *
+ * The tempting lookup is to ask which transaction spent the trigger parent's P2A
+ * anchor. That must not be done through `fetchSpendingTx(...)`: all P2A anchors
+ * share the same script, so script-history lookup scans unrelated P2A activity
+ * and can make refresh unusably slow as network P2A usage grows.
+ *
+ * Rewind trigger fee-payer children also spend the per-vault trigger reserve
+ * output funded in the vault transaction. That reserve output is deterministic,
+ * unique to the vault, and derivable on every device from the wallet seed and
+ * vault index. We therefore discover the candidate child by checking the reserve
+ * output's spender, then validate that the candidate also spends the trigger
+ * parent's P2A anchor. This keeps cross-device discovery while avoiding the
+ * global P2A script-history scan.
+ */
+async function fetchTriggerCpfpTxFromReserve({
+  vault,
+  triggerTxHex,
+  signer,
+  network,
+  explorer
+}: {
+  vault: Vault;
+  triggerTxHex: string;
+  signer: Signer;
+  network: Network;
+  explorer: Explorer;
+}): Promise<SpendingTxData | undefined> {
+  const { tx: triggerTx, txId: triggerTxId } = transactionFromHex(triggerTxHex);
+  const anchor = findP2AOutputData(triggerTx);
+  if (!anchor) return;
+
+  const triggerReserveUtxosData = getTriggerReserveUtxosData({
+    vault,
+    signer,
+    network
+  });
+  for (const triggerReserveUtxoData of triggerReserveUtxosData) {
+    const candidateTxData = await fetchSpendingTx(
+      triggerReserveUtxoData.txHex,
+      triggerReserveUtxoData.vout,
+      explorer
+    );
+    if (
+      candidateTxData &&
+      txSpendsOutpoint(candidateTxData.txHex, triggerTxId, anchor.index)
+    )
+      return candidateTxData;
+  }
+  return;
 }
 
 const vaultTxCache = new Map();
@@ -2264,7 +2341,9 @@ async function fetchVaultTx(
 async function fetchVaultStatus(
   vault: Vault,
   currVaultStatus: VaultStatus | undefined,
-  explorer: Explorer
+  explorer: Explorer,
+  signer: Signer,
+  network: Network
 ) {
   const newVaultStatus: VaultStatus = currVaultStatus
     ? {
@@ -2330,11 +2409,20 @@ async function fetchVaultStatus(
     newVaultStatus.triggerTxBlockHeight = triggerTxData.blockHeight;
     if (vaultMode === 'LADDERED') delete newVaultStatus.triggerCpfpTxHex;
     else {
-      const triggerCpfpTxData = await fetchSpendingTx(
-        triggerTxData.txHex,
-        1,
+      // Never discover the CPFP child by scanning the shared P2A anchor script:
+      // P2A is global, so this scans unrelated P2A txs and can stall refreshes.
+      // const triggerCpfpTxData = await fetchSpendingTx(
+      //   triggerTxData.txHex,
+      //   1,
+      //   explorer
+      // );
+      const triggerCpfpTxData = await fetchTriggerCpfpTxFromReserve({
+        vault,
+        triggerTxHex: triggerTxData.txHex,
+        signer,
+        network,
         explorer
-      );
+      });
       if (triggerCpfpTxData)
         newVaultStatus.triggerCpfpTxHex = triggerCpfpTxData.txHex;
       else delete newVaultStatus.triggerCpfpTxHex;
@@ -2373,13 +2461,15 @@ async function fetchVaultStatus(
         newVaultStatus.panicTxHex = unlockingTxData.txHex;
         newVaultStatus.panicTxBlockHeight = unlockingTxData.blockHeight;
         if (vaultMode !== 'LADDERED') {
-          const panicCpfpTxData = await fetchSpendingTx(
-            unlockingTxData.txHex,
-            1,
-            explorer
-          );
-          if (panicCpfpTxData)
-            newVaultStatus.panicCpfpTxHex = panicCpfpTxData.txHex;
+          // Never discover rescue CPFP by scanning the shared P2A anchor script.
+          // Rescue fee-payer discovery needs a future unique reserve/hint path.
+          // const panicCpfpTxData = await fetchSpendingTx(
+          //   unlockingTxData.txHex,
+          //   1,
+          //   explorer
+          // );
+          if (currVaultStatus?.panicCpfpTxHex !== undefined)
+            newVaultStatus.panicCpfpTxHex = currVaultStatus.panicCpfpTxHex;
           else delete newVaultStatus.panicCpfpTxHex;
         } else delete newVaultStatus.panicCpfpTxHex;
         if (newVaultStatus.panicTxBlockHeight !== 0) {
@@ -2488,13 +2578,17 @@ async function fetchVaultStatus(
 export async function fetchVaultsStatuses(
   vaults: Vaults,
   currVaultStatuses: VaultsStatuses,
-  explorer: Explorer
+  explorer: Explorer,
+  signer: Signer,
+  network: Network
 ): Promise<VaultsStatuses> {
   const fetchPromises = Object.entries(vaults).map(async ([vaultId, vault]) => {
     const status = await fetchVaultStatus(
       vault,
       currVaultStatuses[vaultId],
-      explorer
+      explorer,
+      signer,
+      network
     );
     return { [vaultId]: status };
   });
