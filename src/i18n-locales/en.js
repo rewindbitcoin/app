@@ -875,6 +875,8 @@ Please wait a few moments until completion.`,
         'Invalid Esplora URL or server is down. Please check the URL and try again.',
       communityBackupsError:
         'Invalid Community Backups API Base. Please check the URL and try again.',
+      tapeFeeEstimateOverrideError:
+        'Tape fee simulation must be 0 or a number greater than or equal to 0.1 sat/vB.',
       regtestHostNameFormatError:
         'Invalid format. Please enter only a hostname or IP address without protocol (http://, ssl://, etc.), port (:8080), or path (/api).',
       regtestHttpError:
@@ -894,6 +896,13 @@ Please wait a few moments until completion.`,
       esploraBitcoin: 'Esplora Bitcoin',
       esploraTape: 'Esplora Tape',
       esploraTestnet: 'Esplora Testnet',
+      tapeFees: 'Tape Fees',
+      defaultMainnet: 'Default (Mainnet)',
+      tapeFeeEstimateOverrideHelp: `Tape normally uses real mainnet fee estimates.
+
+Use this to simulate higher fees and extreme mempool conditions on Tape.
+
+This only affects Tape fee estimates and is for testing only.`,
       communityBackups: 'Community Backups',
       regtestHostName: 'Regtest Host',
       vaultMode: 'Vault Mode',

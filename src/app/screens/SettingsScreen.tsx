@@ -306,6 +306,10 @@ const SettingsScreen = () => {
     useState<boolean>(false);
   const [isVaultModeModalVisible, setIsVaultModeModalVisible] =
     useState<boolean>(false);
+  const [
+    isTapeFeeEstimateOverrideModalVisible,
+    setIsTapeFeeEstimateOverrideModalVisible
+  ] = useState<boolean>(false);
   const [isResetModalVisible, setIsResetModalVisible] =
     useState<boolean>(false);
 
@@ -493,6 +497,7 @@ const SettingsScreen = () => {
     wallet?.networkId === 'TESTNET' ||
     wallet?.networkId === 'TAPE' ||
     wallet?.networkId === 'REGTEST';
+  const shouldShowTapeFeeEstimateOverrideSetting = wallet?.networkId === 'TAPE';
 
   const currentVaultMode =
     settings?.TESTING_VAULT_MODE ?? defaultSettings.TESTING_VAULT_MODE;
@@ -501,6 +506,10 @@ const SettingsScreen = () => {
     currentVaultMode === 'P2A_TRUC'
       ? t('settings.general.vaultModeRealisticTruc')
       : t('settings.general.vaultModeFastDemo');
+  const currentTapeFeeEstimateOverrideLabel =
+    settings?.TAPE_FEE_ESTIMATE_OVERRIDE === 0
+      ? t('settings.general.defaultMainnet')
+      : `${settings?.TAPE_FEE_ESTIMATE_OVERRIDE} sat/vB`;
 
   /** Saves vault mode for all testing networks. */
   const setTestingVaultMode = useCallback(
@@ -510,6 +519,20 @@ const SettingsScreen = () => {
       setIsVaultModeModalVisible(false);
     },
     [setSettings, settings]
+  );
+  const openTapeFeeEstimateOverrideModal = useCallback(() => {
+    setIsTapeFeeEstimateOverrideModalVisible(true);
+  }, []);
+  const setTapeFeeEstimateOverride = useCallback(
+    (feeRate: number) => {
+      if (!settings) return;
+      setSettings({
+        ...settings,
+        TAPE_FEE_ESTIMATE_OVERRIDE: feeRate
+      });
+      setIsTapeFeeEstimateOverrideModalVisible(false);
+    },
+    [settings, setSettings]
   );
 
   const mnemonic = signers && signers[0]?.mnemonic;
@@ -796,7 +819,10 @@ const SettingsScreen = () => {
               </>
             )}
             <SettingsItem
-              showSeparator={shouldShowVaultModeSetting}
+              showSeparator={
+                shouldShowVaultModeSetting ||
+                shouldShowTapeFeeEstimateOverrideSetting
+              }
               icon={{
                 family: 'Ionicons',
                 name: 'flask'
@@ -817,7 +843,7 @@ const SettingsScreen = () => {
             />
             {shouldShowVaultModeSetting && (
               <SettingsItem
-                showSeparator={false}
+                showSeparator={shouldShowTapeFeeEstimateOverrideSetting}
                 icon={{
                   family: 'MaterialCommunityIcons',
                   name: 'package-variant-closed'
@@ -825,6 +851,18 @@ const SettingsScreen = () => {
                 label={t('settings.general.vaultMode')}
                 onPress={() => setIsVaultModeModalVisible(true)}
                 initialValue={currentVaultModeLabel}
+              />
+            )}
+            {shouldShowTapeFeeEstimateOverrideSetting && (
+              <SettingsItem
+                showSeparator={false}
+                icon={{
+                  family: 'MaterialCommunityIcons',
+                  name: 'speedometer'
+                }}
+                label={t('settings.general.tapeFees')}
+                onPress={openTapeFeeEstimateOverrideModal}
+                initialValue={currentTapeFeeEstimateOverrideLabel}
               />
             )}
           </View>
@@ -1069,6 +1107,52 @@ const SettingsScreen = () => {
                 className={`${currentVaultMode === 'P2A_TRUC' ? 'text-white' : 'text-black'} text-center`}
               >
                 {t('settings.general.vaultModeRealisticTruc')}
+              </Text>
+            </Pressable>
+          </View>
+        </Modal>
+        <Modal
+          icon={{
+            family: 'MaterialCommunityIcons',
+            name: 'speedometer'
+          }}
+          title={t('settings.general.tapeFees')}
+          isVisible={isTapeFeeEstimateOverrideModalVisible}
+          closeButtonText={t('closeButton')}
+          onClose={() => setIsTapeFeeEstimateOverrideModalVisible(false)}
+        >
+          <View className="p-4 gap-3">
+            <Text className="text-base text-slate-600">
+              {t('settings.general.tapeFeeEstimateOverrideHelp')}
+            </Text>
+            <Pressable
+              onPress={() => setTapeFeeEstimateOverride(0)}
+              className={`py-2 px-4 rounded-lg ${settings.TAPE_FEE_ESTIMATE_OVERRIDE === 0 ? 'bg-primary' : 'bg-gray-200'} my-1`}
+            >
+              <Text
+                className={`${settings.TAPE_FEE_ESTIMATE_OVERRIDE === 0 ? 'text-white' : 'text-black'} text-center`}
+              >
+                {t('settings.general.defaultMainnet')}
+              </Text>
+            </Pressable>
+            <Pressable
+              onPress={() => setTapeFeeEstimateOverride(100)}
+              className={`py-2 px-4 rounded-lg ${settings.TAPE_FEE_ESTIMATE_OVERRIDE === 100 ? 'bg-primary' : 'bg-gray-200'} my-1`}
+            >
+              <Text
+                className={`${settings.TAPE_FEE_ESTIMATE_OVERRIDE === 100 ? 'text-white' : 'text-black'} text-center`}
+              >
+                100 sat/vB
+              </Text>
+            </Pressable>
+            <Pressable
+              onPress={() => setTapeFeeEstimateOverride(1000)}
+              className={`py-2 px-4 rounded-lg ${settings.TAPE_FEE_ESTIMATE_OVERRIDE === 1000 ? 'bg-primary' : 'bg-gray-200'} my-1`}
+            >
+              <Text
+                className={`${settings.TAPE_FEE_ESTIMATE_OVERRIDE === 1000 ? 'text-white' : 'text-black'} text-center`}
+              >
+                1000 sat/vB
               </Text>
             </Pressable>
           </View>

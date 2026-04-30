@@ -798,6 +798,8 @@ Por favor, espera unos momentos hasta que se complete.`,
         'URL de Esplora inválida o el servidor está caído. Por favor, verifica la URL e inténtalo de nuevo.',
       communityBackupsError:
         'Base de la API de Community Backups no válida. Verifica la URL e inténtalo de nuevo.',
+      tapeFeeEstimateOverrideError:
+        'La simulación de comisiones de Tape debe ser 0 o un número mayor o igual a 0.1 sat/vB.',
       regtestHostNameFormatError:
         'Formato no válido. Por favor, ingrese sólo un nombre de host o dirección IP sin protocolo (http://, ssl://, etc.), puerto (:8080) o ruta (/api).',
       regtestHttpError:
@@ -817,6 +819,13 @@ Por favor, espera unos momentos hasta que se complete.`,
       esploraBitcoin: 'Esplora Bitcoin',
       esploraTape: 'Esplora Tape',
       esploraTestnet: 'Esplora Testnet',
+      tapeFees: 'Comisiones Tape',
+      defaultMainnet: 'Predeterminado (Mainnet)',
+      tapeFeeEstimateOverrideHelp: `Tape normalmente usa las comisiones reales de mainnet.
+
+Usa esto para simular comisiones más altas y condiciones extremas de mempool en Tape.
+
+Esto sólo afecta a las comisiones de Tape y es sólo para pruebas.`,
       communityBackups: 'Community Backups',
       regtestHostName: 'Host de Regtest',
       vaultMode: 'Modo de Bóveda',

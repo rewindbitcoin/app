@@ -48,6 +48,14 @@ export const useSettings = () => {
       throw new Error(
         `PRESIGNED_RESCUE_FEERATE (${mergedSettings.PRESIGNED_RESCUE_FEERATE}) must be >= MIN_FEE_RATE (${MIN_FEE_RATE})`
       );
+    if (
+      mergedSettings.TAPE_FEE_ESTIMATE_OVERRIDE < 0 ||
+      (mergedSettings.TAPE_FEE_ESTIMATE_OVERRIDE > 0 &&
+        mergedSettings.TAPE_FEE_ESTIMATE_OVERRIDE < MIN_FEE_RATE)
+    )
+      throw new Error(
+        `TAPE_FEE_ESTIMATE_OVERRIDE (${mergedSettings.TAPE_FEE_ESTIMATE_OVERRIDE}) must be 0 or >= MIN_FEE_RATE (${MIN_FEE_RATE})`
+      );
     // Return `settings` if complete, otherwise merge with `defaultSettings`
     return mergedSettings;
   }, [settings]);

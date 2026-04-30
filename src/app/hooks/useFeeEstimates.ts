@@ -27,6 +27,7 @@ export function useFeeEstimates(): {
 } {
   const { settings } = useSettings();
   const intervalTime = settings?.BLOCKCHAIN_DATA_REFRESH_INTERVAL_MS;
+  const tapeFeeEstimateOverride = settings?.TAPE_FEE_ESTIMATE_OVERRIDE ?? 0;
   const { t } = useTranslation();
 
   const {
@@ -77,7 +78,17 @@ export function useFeeEstimates(): {
           if (storageStatus.errorCode) throw new Error(storageStatus.errorCode);
           if (feesExplorer) {
             try {
-              newFeeEstimates = await feesExplorer.fetchFeeEstimates();
+              const fetchedFeeEstimates =
+                await feesExplorer.fetchFeeEstimates();
+              newFeeEstimates =
+                networkId === 'TAPE' && tapeFeeEstimateOverride > 0
+                  ? Object.fromEntries(
+                      Object.keys(fetchedFeeEstimates).map(block => [
+                        block,
+                        tapeFeeEstimateOverride
+                      ])
+                    )
+                  : fetchedFeeEstimates;
               //console.log(
               //  `[${new Date().toISOString()}] [FeeEstimates]: ${JSON.stringify(newFeeEstimates)} | network: ${networkId}`
               //);
@@ -113,7 +124,8 @@ export function useFeeEstimates(): {
       storageStatus.errorCode,
       netRequest,
       feesExplorer,
-      t
+      t,
+      tapeFeeEstimateOverride
     ]
   );
 
