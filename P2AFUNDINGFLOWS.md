@@ -112,6 +112,12 @@ being mined, the next acceleration replaces the previous CPFP child with a
 higher-fee child. Replacement must be checked against the child that is currently
 live, not against a generic fee target in isolation.
 
+Current: cross-device trigger fee-payer discovery must not scan the shared P2A
+anchor script. The trigger CPFP child should instead be rediscovered by finding
+the spender of that vault's deterministic trigger reserve UTXO and then
+validating that the same transaction also spends the trigger parent's P2A
+anchor.
+
 ## Rescue Funding
 
 Rescue is intentionally different from trigger.
@@ -134,20 +140,30 @@ Current: rescue does not have an acceleration funding wizard yet. If a P2A rescu
 is already pending but no rescue acceleration reserve exists, the Rescue modal
 opens in explanation-only mode instead of funding acceleration.
 
-TBD: if the high-fee rescue parent is still not enough, the intended model is a
-separate emergency acceleration reserve:
+Current direction: if the high-fee rescue parent is still not enough, rescue
+acceleration should use a fresh temporary software `P2WPKH` wallet dedicated to
+that rescue reserve:
 
-- a separate signer controls the rescue acceleration funds
-- the signer is not the normal wallet signer
-- the user funds an address from that reserve system
+- it is not the normal wallet signer, so a compromised main wallet seed does not
+  also control the rescue reserve
+- it has ordinary external and internal/change addresses
+- the user is shown the seed and keeps it
+- the funding flow sends only the small amount needed for possible rescue fee
+  bumping
 - a rescue CPFP child spends the rescue anchor plus those reserve UTXOs
-- leftover value should go to a recovery-safe destination, probably the emergency
-  address
+- leftover value should go back to that wallet's internal/change branch
 
-TBD: the current direction is an ephemeral software signer for rescue
-acceleration, but that only works if the UX first shows the seed and the user
-confirms it before any real funds are sent there. Otherwise the user could fund
-an in-memory wallet with no recovery path.
+TBD: the rescue-reserve funding wizard is still not implemented. It needs to
+show the seed first, wait for the user to record it, show the funding address,
+and then wait until those funds are actually usable for rescue acceleration.
+
+TBD: rescue fee-payer rediscovery should follow the same general idea as trigger,
+but using the rescue reserve wallet's own UTXOs instead. Any device that knows
+that rescue reserve seed should be able to rediscover the fee-payer child by
+finding the spender of the rescue reserve UTXO(s) and then validating that the
+same transaction also spends the rescue parent's P2A anchor. The app should not
+try to rediscover rescue fee-payer children by scanning the shared P2A anchor
+script.
 
 ## Shared P2A Bump Shape
 
@@ -288,8 +304,10 @@ on-chain backup and what is intentionally ephemeral.
 - Discover trigger reserve UTXOs beyond the built-in `/0` child.
 - Decide whether top-up UTXOs must confirm before use.
 - Decide whether to support multi-parent packages for immediate reserve use.
-- Decide whether rescue reserve signing is per vault, per attempt or ephemeral.
+- Implement the rescue reserve wallet wizard around a fresh temporary software
+  `P2WPKH` wallet.
 - Show and confirm the rescue reserve seed before showing a funding address.
-- Decide where rescue CPFP leftover value should go.
+- Rediscover rescue CPFP children from rescue reserve UTXOs rather than from the
+  shared P2A anchor script.
 - Define backup and recovery scope for reserve top-ups and rescue reserve state.
 - Sync `REWIND2.md` once this model settles.
