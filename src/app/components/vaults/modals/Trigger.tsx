@@ -322,7 +322,12 @@ const Trigger = ({
     modalContent = (
       <View>
         <Text className="text-base text-slate-600 pb-2 px-2">
-          {t('wallet.vault.triggerUnfreeze.noReserveAvailableYet')}
+          {
+            //FIXME:wizard
+            //  - no trigger reserve UTXO was found for this vault
+            //  - Rewind cannot start or accelerate the P2A trigger package
+            t('wallet.vault.triggerUnfreeze.noReserveAvailableYet')
+          }
         </Text>
       </View>
     );
@@ -340,7 +345,13 @@ const Trigger = ({
     modalContent = (
       <View>
         <Text className="text-base text-slate-600 pb-2 px-2">
-          {t('wallet.vault.triggerUnfreeze.insufficientReserveFunds')}
+          {
+            //FIXME:wizard
+            //  - reserve UTXOs exist
+            //  - but no selectable fee rate can start the trigger package, or
+            //    getActionAccelerationInfo(...) cannot find a valid acceleration path
+            t('wallet.vault.triggerUnfreeze.insufficientReserveFunds')
+          }
         </Text>
       </View>
     );
