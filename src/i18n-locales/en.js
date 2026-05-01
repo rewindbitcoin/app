@@ -197,8 +197,8 @@ If you need further assistance, please contact Rewind Support.`
       //confirmed: 'Confirmed',
 
       //pushedTrigger: 'An unfreeze request was made on {{triggerPushDate}}.',
-      pushedTriggerNotConfirmed: 'Unfreeze requested on {{triggerPushDate}}.',
-      pushedTriggerNotConfirmedUnknownDate: 'Unfreeze recently requested.',
+      pushedTriggerUnconfirmed: 'Unfreeze requested on {{triggerPushDate}}.',
+      pushedTriggerUnconfirmedWithUnknownDate: 'Unfreeze recently requested.',
       //confirmedTrigger: 'Unfreeze countdown began on {{triggerConfirmedDate}}.',
       confirmedTrigger:
         '{{lockTime}} countdown started on {{triggerConfirmedDate}}.',
@@ -215,26 +215,26 @@ If you need further assistance, please contact Rewind Support.`
       untriggeredLockTime: 'Lock Time: {{timeRemaining}}',
       vaultNotFound:
         'This vault was never included in the blockchain. The fees might have been too low, it could have been replaced by another transaction, or there might have been a network error during submission.',
-      //      notTriggeredUnconfirmed: `Funds freeze successfully requested.
+      //      canBeTriggeredEvenIfVaultUnconfirmed: `Funds freeze successfully requested.
       //Initiating unfreeze starts a {{lockTime}} countdown before funds are available.`,
-      notTriggeredUnconfirmed: `Your funds are securely set aside, awaiting final blockchain confirmation (this may take a few minutes).
+      canBeTriggeredEvenIfVaultUnconfirmed: `Your funds are securely set aside, awaiting final blockchain confirmation (this may take a few minutes).
 If you press 'Init Unfreeze', a waiting period of {{lockTime}} will begin, after which the funds will be available.`,
-      notTriggeredUnconfirmed_TRUC: `Your vault is securely set aside, awaiting final blockchain confirmation (this may take a few minutes).
+      cannotBeTriggeredBecauseVaultUnconfirmed_TRUC: `Your vault is securely set aside, awaiting final blockchain confirmation (this may take a few minutes).
 Once it confirms, you can press 'Init Unfreeze' to start the {{lockTime}} countdown.`,
-      triggerReserveUnconfirmed_TRUC: `Your vault is ready, but the fee-bumping reserve for this unfreeze is awaiting final blockchain confirmation (this may take a few minutes).
+      cannotBeTriggeredBecauseReserveUnconfirmed_TRUC: `Your vault is ready, but the fee-bumping reserve for this unfreeze is awaiting final blockchain confirmation (this may take a few minutes).
 Once it confirms, you can press 'Init Unfreeze' to start the {{lockTime}} countdown.`,
-      rescueReserveUnconfirmed_TRUC: `The fee-bumping reserve for this rescue is awaiting final blockchain confirmation (this may take a few minutes).
+      cannotBeRescuedBecauseReserveUnconfirmed_TRUC: `The fee-bumping reserve for this rescue is awaiting final blockchain confirmation (this may take a few minutes).
 Once it confirms, you can press 'Rescue'.`,
-      //notTriggered:
+      //canBeTriggered:
       //  'Funds are safely frozen. Initiating unfreeze starts a {{lockTime}} countdown before funds are available.',
-      notTriggered:
+      canBeTriggered:
         "Funds are safely frozen. If you press 'Init Unfreeze', a waiting period of {{lockTime}} will begin, after which the funds will be available.",
-      rescueNotConfirmed: `Rescue requested on {{rescuePushDate}}.`,
-      rescueNotConfirmedUnknownPush: `Vault Rescue recently submitted.`,
+      rescueUnconfirmed: `Rescue requested on {{rescuePushDate}}.`,
+      rescueUnconfirmedWithUnknownDate: `Rescue requested recently.`,
       confirmedRescue: `Rescued on {{rescuedDate}}.`,
-      rescueNotConfirmedAddress:
+      rescueUnconfirmedEmergencyAddressIntro:
         'Rescue successfully requested (awaiting for confirmation). Funds are being moved to your safe address right now:',
-      confirmedRescueAddress:
+      rescueConfirmedEmergencyAddressIntro:
         'The vault was successfully rescued and funds were moved to your secure address:',
       unfrozenAndSpent:
         'The vault was successfully unfrozen. The unfrozen funds were spent on {{spentAsHotDate}} and are no longer available.',

@@ -907,10 +907,10 @@ const RawVault = ({
                 : {})}
             >
               {triggerPushDate
-                ? t('wallet.vault.pushedTriggerNotConfirmed', {
+                ? t('wallet.vault.pushedTriggerUnconfirmed', {
                     triggerPushDate
                   })
-                : t('wallet.vault.pushedTriggerNotConfirmedUnknownDate')}
+                : t('wallet.vault.pushedTriggerUnconfirmedWithUnknownDate')}
             </VaultStatusLine>
           )}
           {triggerConfirmedDate && (
@@ -991,17 +991,19 @@ const RawVault = ({
                 : {})}
             >
               {rescuePushDate
-                ? t('wallet.vault.rescueNotConfirmed', {
+                ? t('wallet.vault.rescueUnconfirmed', {
                     rescuePushDate,
                     panicAddress
                   })
-                : t('wallet.vault.rescueNotConfirmedUnknownPush')}
+                : t('wallet.vault.rescueUnconfirmedWithUnknownDate')}
             </VaultStatusLine>
           )}
           {rescue.startButtonVisible &&
             isRescueModalBlockedByUnconfirmedReserve && (
               <Text className="pt-2">
-                {t('wallet.vault.rescueReserveUnconfirmed_TRUC')}
+                {t(
+                  'wallet.vault.cannotBeRescuedBecauseReserveUnconfirmed_TRUC'
+                )}
               </Text>
             )}
           {vaultNotFound && (
@@ -1011,16 +1013,24 @@ const RawVault = ({
             <Text className="pt-2">
               {isVaultTxConfirmed
                 ? isTriggerModalBlockedByUnconfirmedReserve
-                  ? t('wallet.vault.triggerReserveUnconfirmed_TRUC', {
-                      lockTime: formatBlocks(vault.lockBlocks, t, locale, true)
-                    })
-                  : t('wallet.vault.notTriggered', {
+                  ? t(
+                      'wallet.vault.cannotBeTriggeredBecauseReserveUnconfirmed_TRUC',
+                      {
+                        lockTime: formatBlocks(
+                          vault.lockBlocks,
+                          t,
+                          locale,
+                          true
+                        )
+                      }
+                    )
+                  : t('wallet.vault.canBeTriggered', {
                       lockTime: formatBlocks(vault.lockBlocks, t, locale, true)
                     })
                 : t(
                     vaultMode === 'P2A_TRUC'
-                      ? 'wallet.vault.notTriggeredUnconfirmed_TRUC'
-                      : 'wallet.vault.notTriggeredUnconfirmed',
+                      ? 'wallet.vault.cannotBeTriggeredBecauseVaultUnconfirmed_TRUC'
+                      : 'wallet.vault.canBeTriggeredEvenIfVaultUnconfirmed',
                     {
                       lockTime: formatBlocks(vault.lockBlocks, t, locale, true)
                     }
@@ -1045,8 +1055,8 @@ const RawVault = ({
             <>
               <Text className="py-2">
                 {isRescueTxConfirmed
-                  ? t('wallet.vault.confirmedRescueAddress')
-                  : t('wallet.vault.rescueNotConfirmedAddress')}
+                  ? t('wallet.vault.rescueConfirmedEmergencyAddressIntro')
+                  : t('wallet.vault.rescueUnconfirmedEmergencyAddressIntro')}
               </Text>
               {/*text-ellipsis, whitespace-nowrap & break-words is web only; overflow-hidden on a Text element breaks words
                flex-1 explanation: https://www.bam.tech/article/why-my-text-is-going-off-screen */}

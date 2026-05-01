@@ -176,9 +176,9 @@ Si necesitas más ayuda, por favor contacta con el equipo de Soporte de Rewind.`
       unfrozenAmount: 'Cantidad Descongelada',
       rescuedAmount: 'Cantidad Rescatada',
       confirming: 'Confirmando',
-      pushedTriggerNotConfirmed:
+      pushedTriggerUnconfirmed:
         'Descongelación solicitada el {{triggerPushDate}}.',
-      pushedTriggerNotConfirmedUnknownDate:
+      pushedTriggerUnconfirmedWithUnknownDate:
         'Descongelación solicitada recientemente.',
       confirmedTrigger:
         'Cuenta regresiva de {{lockTime}} iniciada el {{triggerConfirmedDate}}.',
@@ -193,21 +193,21 @@ Si necesitas más ayuda, por favor contacta con el equipo de Soporte de Rewind.`
       untriggeredLockTime: 'Tiempo de Bloqueo: {{timeRemaining}}',
       vaultNotFound:
         'Esta bóveda nunca fue incluida en la blockchain. Las comisiones podrían haber sido muy bajas, podría haber sido reemplazada por otra transacción, o podría haber habido un error de red durante el envío.',
-      notTriggeredUnconfirmed: `Tus fondos están seguros, esperando la confirmación final de la blockchain (esto puede tomar unos minutos).
+      canBeTriggeredEvenIfVaultUnconfirmed: `Tus fondos están seguros, esperando la confirmación final de la blockchain (esto puede tomar unos minutos).
 Si presionas 'Iniciar Descongelación', comenzará un período de espera de {{lockTime}}, después del cual los fondos estarán disponibles.`,
-      notTriggeredUnconfirmed_TRUC: `Tu bóveda está guardada de forma segura, esperando la confirmación final de la blockchain (esto puede tomar unos minutos).
+      cannotBeTriggeredBecauseVaultUnconfirmed_TRUC: `Tu bóveda está guardada de forma segura, esperando la confirmación final de la blockchain (esto puede tomar unos minutos).
 Cuando se confirme, podrás pulsar 'Iniciar Descongelación' para comenzar la cuenta atrás de {{lockTime}}.`,
-      triggerReserveUnconfirmed_TRUC: `Tu bóveda está lista, pero la reserva para aumentar la comisión de esta descongelación aún está esperando la confirmación final de la blockchain (esto puede tomar unos minutos).
+      cannotBeTriggeredBecauseReserveUnconfirmed_TRUC: `Tu bóveda está lista, pero la reserva para aumentar la comisión de esta descongelación aún está esperando la confirmación final de la blockchain (esto puede tomar unos minutos).
 Cuando se confirme, podrás pulsar 'Iniciar Descongelación' para comenzar la cuenta atrás de {{lockTime}}.`,
-      rescueReserveUnconfirmed_TRUC: `La reserva para aumentar la comisión de este rescate aún está esperando la confirmación final de la blockchain (esto puede tomar unos minutos).
+      cannotBeRescuedBecauseReserveUnconfirmed_TRUC: `La reserva para aumentar la comisión de este rescate aún está esperando la confirmación final de la blockchain (esto puede tomar unos minutos).
 Cuando se confirme, podrás pulsar 'Rescatar'.`,
-      notTriggered: `Los fondos están congelados de forma segura. Si presionas 'Iniciar Descongelación', comenzará un período de espera de {{lockTime}}, después del cual los fondos estarán disponibles.`,
-      rescueNotConfirmed: `Rescate solicitado el {{rescuePushDate}}.`,
-      rescueNotConfirmedUnknownPush: `Rescate de Bóveda recientemente transmitido.`,
+      canBeTriggered: `Los fondos están congelados de forma segura. Si presionas 'Iniciar Descongelación', comenzará un período de espera de {{lockTime}}, después del cual los fondos estarán disponibles.`,
+      rescueUnconfirmed: `Rescate solicitado el {{rescuePushDate}}.`,
+      rescueUnconfirmedWithUnknownDate: `Rescate solicitado recientemente.`,
       confirmedRescue: `Rescatada el {{rescuedDate}}.`,
-      rescueNotConfirmedAddress:
+      rescueUnconfirmedEmergencyAddressIntro:
         'Rescate solicitado exitosamente (esperando confirmación). Los fondos están siendo movidos a tu dirección segura ahora mismo:',
-      confirmedRescueAddress:
+      rescueConfirmedEmergencyAddressIntro:
         'La bóveda fue rescatada exitosamente y los fondos fueron movidos a tu dirección segura:',
       unfrozenAndSpent:
         'La bóveda fue descongelada exitosamente. Los fondos descongelados fueron gastados el {{spentAsHotDate}} y ya no están disponibles.',
