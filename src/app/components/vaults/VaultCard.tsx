@@ -165,8 +165,15 @@ const RawVault = ({
         const changeDescriptorWithIndex =
           await getNextChangeDescriptorWithIndex(accounts);
         if (cancelled) return;
+        // The built-in trigger reserve UTXO is created by this vault tx itself.
+        // Until the vault tx confirms, that reserve input is unconfirmed too.
+        const isTriggerReserveConfirmed =
+          vaultStatus?.vaultTxBlockHeight !== undefined &&
+          vaultStatus.vaultTxBlockHeight > 0;
         setTriggerP2ABumpPlan({
           utxosData,
+          hasUnconfirmedUtxos:
+            utxosData.length > 0 && !isTriggerReserveConfirmed,
           changeOutput: computeChangeOutput(changeDescriptorWithIndex, network),
           signer: walletSigner,
           ...(vaultStatus?.triggerCpfpTxHex
@@ -189,6 +196,7 @@ const RawVault = ({
     walletSigner,
     accounts,
     vault,
+    vaultStatus?.vaultTxBlockHeight,
     vaultStatus?.triggerCpfpTxHex,
     getNextChangeDescriptorWithIndex
   ]);
@@ -479,12 +487,15 @@ const RawVault = ({
   const rescuePushedTxHex = vaultStatus?.panicTxHex;
   const hasRescueStarted = isRescuePushedButUnconfirmed || isRescueTxConfirmed;
 
-  // For P2A_TRUC, the trigger package needs the vault output and trigger
-  // reserve to be confirmed. Otherwise the trigger parent/child package would
-  // have extra unconfirmed ancestors; the setup backup child is also already
-  // attached to the unconfirmed vault tx.
+  // P2A_TRUC start packages must not spend unconfirmed non-anchor inputs.
+  // Rescue reserves may come from a separate in-memory wallet, so their
+  // confirmation state must travel with the bump plan instead of wallet history.
   const isTriggerModalBlockedByUnconfirmedVault =
     vaultMode === 'P2A_TRUC' && !isVaultTxConfirmed;
+  const isTriggerModalBlockedByUnconfirmedReserve =
+    vaultMode === 'P2A_TRUC' && !!triggerP2ABumpPlan?.hasUnconfirmedUtxos;
+  const isRescueModalBlockedByUnconfirmedReserve =
+    vaultMode === 'P2A_TRUC' && !!rescueP2ABumpPlan?.hasUnconfirmedUtxos;
   const showDelegateButton = !vaultNotFound && !isUnfrozen && !hasRescueStarted;
   const showHideButton =
     vaultNotFound ||
@@ -539,6 +550,7 @@ const RawVault = ({
     const hasModalPrerequisites =
       !isTriggerBeingHandled &&
       !isTriggerModalBlockedByUnconfirmedVault &&
+      !isTriggerModalBlockedByUnconfirmedReserve &&
       !bumpPlanLoading &&
       hasTriggerPlanPrerequisites;
 
@@ -576,6 +588,7 @@ const RawVault = ({
         (!vaultStatus?.triggerTxHex && isTriggerBeingHandled) ||
         (startButtonVisible &&
           !isTriggerModalBlockedByUnconfirmedVault &&
+          !isTriggerModalBlockedByUnconfirmedReserve &&
           !hasModalPrerequisites &&
           (bumpPlanLoading || !feeEstimates)),
       accelerationButtonEnabled,
@@ -588,6 +601,7 @@ const RawVault = ({
     triggerP2ABumpPlan,
     isTriggerBeingHandled,
     isTriggerModalBlockedByUnconfirmedVault,
+    isTriggerModalBlockedByUnconfirmedReserve,
     feeEstimates,
     hasRescueStarted,
     isTriggerPushedButUnconfirmed,
@@ -606,6 +620,7 @@ const RawVault = ({
     const hasModalPrerequisites =
       !isRescueBeingHandled &&
       !!rescuePresignedTxInfos &&
+      !isRescueModalBlockedByUnconfirmedReserve &&
       (!modalNeedsFeeEstimates || !!feeEstimates);
 
     let accelerationButtonEnabled = false;
@@ -638,6 +653,7 @@ const RawVault = ({
       startLoading:
         (!vaultStatus?.panicTxHex && isRescueBeingHandled) ||
         (startButtonVisible &&
+          !isRescueModalBlockedByUnconfirmedReserve &&
           !hasModalPrerequisites &&
           modalNeedsFeeEstimates &&
           !feeEstimates),
@@ -651,6 +667,7 @@ const RawVault = ({
     isLadderedVault,
     rescueP2ABumpPlan,
     isRescueBeingHandled,
+    isRescueModalBlockedByUnconfirmedReserve,
     rescuePresignedTxInfos,
     feeEstimates,
     isRescuePushedButUnconfirmed,
@@ -981,15 +998,25 @@ const RawVault = ({
                 : t('wallet.vault.rescueNotConfirmedUnknownPush')}
             </VaultStatusLine>
           )}
+          {rescue.startButtonVisible &&
+            isRescueModalBlockedByUnconfirmedReserve && (
+              <Text className="pt-2">
+                {t('wallet.vault.rescueReserveUnconfirmed_TRUC')}
+              </Text>
+            )}
           {vaultNotFound && (
             <Text className="pt-2">{t('wallet.vault.vaultNotFound')}</Text>
           )}
           {isTriggerTxNotFound && (
             <Text className="pt-2">
               {isVaultTxConfirmed
-                ? t('wallet.vault.notTriggered', {
-                    lockTime: formatBlocks(vault.lockBlocks, t, locale, true)
-                  })
+                ? isTriggerModalBlockedByUnconfirmedReserve
+                  ? t('wallet.vault.triggerReserveUnconfirmed_TRUC', {
+                      lockTime: formatBlocks(vault.lockBlocks, t, locale, true)
+                    })
+                  : t('wallet.vault.notTriggered', {
+                      lockTime: formatBlocks(vault.lockBlocks, t, locale, true)
+                    })
                 : t(
                     vaultMode === 'P2A_TRUC'
                       ? 'wallet.vault.notTriggeredUnconfirmed_TRUC'

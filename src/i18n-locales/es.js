@@ -197,6 +197,10 @@ Si necesitas más ayuda, por favor contacta con el equipo de Soporte de Rewind.`
 Si presionas 'Iniciar Descongelación', comenzará un período de espera de {{lockTime}}, después del cual los fondos estarán disponibles.`,
       notTriggeredUnconfirmed_TRUC: `Tu bóveda está guardada de forma segura, esperando la confirmación final de la blockchain (esto puede tomar unos minutos).
 Cuando se confirme, podrás pulsar 'Iniciar Descongelación' para comenzar la cuenta atrás de {{lockTime}}.`,
+      triggerReserveUnconfirmed_TRUC: `Tu bóveda está lista, pero la reserva para aumentar la comisión de esta descongelación aún está esperando la confirmación final de la blockchain (esto puede tomar unos minutos).
+Cuando se confirme, podrás pulsar 'Iniciar Descongelación' para comenzar la cuenta atrás de {{lockTime}}.`,
+      rescueReserveUnconfirmed_TRUC: `La reserva para aumentar la comisión de este rescate aún está esperando la confirmación final de la blockchain (esto puede tomar unos minutos).
+Cuando se confirme, podrás pulsar 'Rescatar'.`,
       notTriggered: `Los fondos están congelados de forma segura. Si presionas 'Iniciar Descongelación', comenzará un período de espera de {{lockTime}}, después del cual los fondos estarán disponibles.`,
       rescueNotConfirmed: `Rescate solicitado el {{rescuePushDate}}.`,
       rescueNotConfirmedUnknownPush: `Rescate de Bóveda recientemente transmitido.`,

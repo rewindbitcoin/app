@@ -82,6 +82,8 @@ export type PresignedTxInfo = { txHex: TxHex; fee: number; feeRate: number };
 export type P2ABumpPlan = {
   /** Non-anchor inputs that the child must spend. */
   utxosData: UtxosData;
+  /** Whether any non-anchor child inputs are still awaiting confirmation. */
+  hasUnconfirmedUtxos: boolean;
   /** Leftover value destination. For rescue this should normally be the emergency address. */
   changeOutput: OutputInstance;
   /** Signer used for the non-anchor child inputs. */

@@ -221,6 +221,10 @@ If you need further assistance, please contact Rewind Support.`
 If you press 'Init Unfreeze', a waiting period of {{lockTime}} will begin, after which the funds will be available.`,
       notTriggeredUnconfirmed_TRUC: `Your vault is securely set aside, awaiting final blockchain confirmation (this may take a few minutes).
 Once it confirms, you can press 'Init Unfreeze' to start the {{lockTime}} countdown.`,
+      triggerReserveUnconfirmed_TRUC: `Your vault is ready, but the fee-bumping reserve for this unfreeze is awaiting final blockchain confirmation (this may take a few minutes).
+Once it confirms, you can press 'Init Unfreeze' to start the {{lockTime}} countdown.`,
+      rescueReserveUnconfirmed_TRUC: `The fee-bumping reserve for this rescue is awaiting final blockchain confirmation (this may take a few minutes).
+Once it confirms, you can press 'Rescue'.`,
       //notTriggered:
       //  'Funds are safely frozen. Initiating unfreeze starts a {{lockTime}} countdown before funds are available.',
       notTriggered:
