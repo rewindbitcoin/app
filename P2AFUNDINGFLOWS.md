@@ -19,6 +19,20 @@ Rewind2 separates concepts that older flows could blur together:
 The important UX rule is: a fee is not a reserve. Setup should show the frozen
 amount, the unfreeze reserve and the mining fee as different things.
 
+Reserve-spend invariant: if Rewind discovers or prepares reserve UTXOs for a
+P2A action, that action must spend all of those reserve UTXOs. The app must not
+submit a parent-only action while leaving known reserve UTXOs behind. If those
+reserve UTXOs cannot be used yet, the app should wait or ask the user to wait
+instead of bypassing them.
+
+This matters because reserve funds are not ordinary wallet change. Trigger
+reserves live on special per-vault BIP32 paths, and rescue reserves may live in a
+temporary same-session wallet. Leaving those UTXOs behind can strand funds,
+especially when the signer/path is unusual or intentionally ephemeral.
+
+Parent-only P2A action submission is only a fallback for the case where no
+reserve UTXOs exist for that action and the presigned parent fee is policy-valid.
+
 TBD: when existing acceleration funds are missing or not enough, the user-facing
 solution should be an acceleration funding wizard. "Wizard" means a guided flow
 that explains why more funds are needed, shows where to send them and waits until
@@ -49,6 +63,10 @@ The trigger reserve is also funded during setup. There is no separate "create th
 reserve later" step in normal vault creation. If the wallet cannot fund the
 built-in trigger reserve, vault creation should fail instead of creating a normal
 new P2A vault without trigger acceleration funds.
+
+The runtime trigger code still handles a missing trigger reserve defensively. This
+keeps older, imported, recovered or partially discovered vault states from being
+hard-crashes, but it is not the expected result of normal vault creation.
 
 `P2A_TRUC` setup uses confirmed wallet UTXOs only. This keeps the new vault setup
 compatible with the stricter relay assumptions of the TRUC path.
@@ -103,9 +121,13 @@ The setup-funded reserve should normally cover trigger acceleration up to the
 configured ceiling. A trigger top-up wizard is only the fallback for missing,
 insufficient or unusually exhausted reserve funds.
 
-Current: if P2A trigger reserve funds are missing or insufficient, the Trigger
-modal opens in explanation-only mode. That applies both to initial trigger start
-and to acceleration of an already-pushed trigger. It does not yet fund a top-up.
+Current: if no P2A trigger reserve UTXOs are found, a trigger may still start
+parent-only only when its presigned parent fee is already policy-valid. If any
+trigger reserve UTXOs are found, they must be spent by the trigger CPFP child; if
+they are not confirmed yet under `P2A_TRUC`, the app waits instead of bypassing
+them. If reserve funds are insufficient, or an already-pushed trigger cannot be
+accelerated, the Trigger modal opens in explanation-only mode. It does not yet
+fund a top-up.
 
 Current: if a trigger acceleration package was already submitted but is still not
 being mined, the next acceleration replaces the previous CPFP child with a
@@ -193,7 +215,10 @@ Current: `P2ABumpPlan` describes the inputs needed to build a CPFP child:
 - non-anchor reserve UTXOs
 - destination for leftover value
 - signer for the reserve UTXOs
-- optional previous child tx when replacing an unmined package
+
+The plan intentionally contains all known reserve UTXOs for that action. It is
+not a coinselection hint; callers pass the full reserve set so the child spends
+everything and sends leftover value back to the appropriate change destination.
 
 `getRequiredNextP2ABumpReserveUtxoValue(...)` is the generic sizing primitive for
 the next reserve UTXO. It is not trigger-specific.

@@ -266,27 +266,19 @@ Seguramente sólo necesitas esperar unos 10 minutos y realmente no necesitas est
         noReserveAvailableYet: `No hay fondos de reserva disponibles para esta solicitud de descongelación.
 
 Rewind no puede iniciarla ni acelerarla hasta que se añadan fondos a la reserva.`,
-        reserveUnconfirmed: `Hay fondos de reserva disponibles para esta solicitud de descongelación, pero aún están esperando la confirmación final de la blockchain.
+        reserveUnconfirmed: `La reserva de esta descongelación está casi lista.
 
-Vuelve a intentarlo cuando se confirme la reserva.`,
+Espera un poco más y vuelve a intentarlo.`,
         insufficientReserveFunds: `Hay fondos en la reserva, pero no son suficientes para iniciar o acelerar esta solicitud de descongelación.
 
 Añade más fondos a la reserva para continuar.`,
-        parentOnlyConfirmation: `No hay fondos de reserva disponibles, pero esta transacción de descongelación ya es válida para emitirse con su comisión prefirmada.
-
-Si queda sin confirmar, añade fondos de reserva antes de intentar acelerarla.`,
+        parentOnlyConfirmation: `Rewind está listo para iniciar la descongelación ahora.`,
         confirmationSpeedLabel: 'Comisión',
         feeSelectorExplanation:
           'Confirma la comisión de minería para iniciar la cuenta regresiva de descongelación.',
         additionalExplanation: `La cuenta regresiva de {{timeLockTime}} comenzará en cuanto se inicie la descongelación.`
       },
       rescue: {
-        confirmationSpeedLabel: 'Comisión',
-        introAccelerate: `LEE CON ATENCIÓN:
-
-"Acelerar" dará prioridad a tu solicitud de rescate aumentando la comisión de los mineros. Tu solicitud original ya está en curso, pero esto puede adelantarla en la cola de confirmación.
-
-Seguramente sólo necesitas esperar unos 10 minutos y realmente no necesitas esto. Usa "Acelerar" sólo si esperar ese tiempo (que podría alargarse hasta un par de horas) no es aceptable.`,
         intro: `Estás a punto de iniciar el rescate de los fondos de tu bóveda. Esto moverá los fondos inmediatamente a tu Dirección de Emergencia preconfigurada:
 
 {{panicAddress}}
@@ -294,15 +286,22 @@ Seguramente sólo necesitas esperar unos 10 minutos y realmente no necesitas est
 Es probable que esta dirección sea difícil de acceder si seguiste las pautas recomendadas durante la Configuración de la Bóveda. Asegúrate de que, llegado el momento, puedas acceder a ella. Una vez que los fondos sean enviados, esta billetera ya no tendrá acceso a ellos.
 
 Esta acción está diseñada para situaciones extremas, como robo o extorsión, para garantizar la seguridad de tus Bitcoin. Asegúrate de que esta sea una decisión deliberada.`,
-        highFeeConfirmation: `Esta transacción de rescate ya está prefirmada con una comisión de minería alta.
+        introAccelerate: `LEE CON ATENCIÓN:
 
-En la mayoría de los casos eso debería ser suficiente y no harán falta fondos extra para acelerarla. Confirma abajo para emitir ahora la transacción de rescate.`,
-        noBumpFundsAvailableYet: `Todavía no hay fondos de aceleración disponibles para esta solicitud de rescate.
+"Acelerar" dará prioridad a tu solicitud de rescate aumentando la comisión de los mineros. Tu solicitud original ya está en curso, pero esto puede adelantarla en la cola de confirmación.
+
+Seguramente sólo necesitas esperar unos 10 minutos y realmente no necesitas esto. Usa "Acelerar" sólo si esperar ese tiempo (que podría alargarse hasta un par de horas) no es aceptable.`,
+        noReserveAvailableYet: `Todavía no hay fondos de aceleración disponibles para esta solicitud de rescate.
 
 Rewind no puede acelerar este rescate hasta que se añadan fondos extra.`,
-        insufficientBumpFunds: `Hay fondos de aceleración disponibles, pero no son suficientes para acelerar esta solicitud de rescate.
+        reserveUnconfirmed: `Los fondos para acelerar este rescate están casi listos.
+
+Espera un poco más y vuelve a intentarlo.`,
+        insufficientReserveFunds: `Hay fondos de aceleración disponibles, pero no son suficientes para acelerar esta solicitud de rescate.
 
 Añade más fondos para poder acelerarla.`,
+        parentOnlyConfirmation: `Rewind está listo para enviar el rescate ahora.`,
+        confirmationSpeedLabel: 'Comisión',
         feeSelectorExplanation:
           'Confirma la comisión de minería de la transacción de rescate para asegurar un procesamiento rápido.',
         additionalExplanation: `Una vez que se confirme la solicitud de rescate, los fondos serán movidos a tu Dirección de Emergencia instantáneamente.`

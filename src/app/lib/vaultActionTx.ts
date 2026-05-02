@@ -97,7 +97,7 @@ export type P2ABumpPlan = {
 /**
  * Current acceleration availability state for one already-broadcast tx.
  */
-export type AccelerationInfo = {
+type AccelerationInfo = {
   /**
    * Minimum fee rate that improves the currently live action state.
    * - Laddered: presigned replacement tx fee rate.
@@ -169,7 +169,7 @@ export const getLadderedRescueSortedTxs = (
  * - `hasAccelerationPath`: a valid fee-bump transaction/package can be built
  *   from the supplied inputs
  */
-export const getActionAccelerationInfo = ({
+const getActionAccelerationInfo = ({
   vaultMode,
   feeEstimates,
   pushedTxHex,
@@ -276,6 +276,8 @@ export const getActionAccelerationInfo = ({
  * acceleration/replacement check. Omitting it means this is the first push.
  * If P2A reserve UTXOs exist, the action must use them so the reserve is spent
  * and returned as change instead of leaving stale reserve UTXOs behind.
+ * Fixed-fee no-reserve first pushes can be evaluated without fee estimates;
+ * replacement checks and package fee selection still require them.
  */
 export const getActionAvailability = ({
   vaultMode,
@@ -286,7 +288,7 @@ export const getActionAvailability = ({
   p2aBumpPlan
 }: {
   vaultMode: 'LADDERED' | 'P2A_TRUC' | 'P2A_NON_TRUC';
-  feeEstimates: FeeEstimates;
+  feeEstimates?: FeeEstimates;
   pushedTxHex?: TxHex;
   pushedChildTxHex?: TxHex;
   presignedTxInfos: PresignedTxInfo[];
@@ -339,6 +341,8 @@ export const getActionAvailability = ({
       throw new Error('Laddered actions cannot have a P2A bump plan');
 
     if (isReplacement) {
+      if (!feeEstimates)
+        throw new Error('Fee estimates are required for replacement actions');
       const accelerationInfo = getActionAccelerationInfo({
         vaultMode,
         feeEstimates,
@@ -388,6 +392,8 @@ export const getActionAvailability = ({
           minimumSelectableFeeRate: null,
           result: 'p2aReserveUnconfirmed'
         };
+      if (!feeEstimates)
+        throw new Error('Fee estimates are required for replacement actions');
       const accelerationInfo = getActionAccelerationInfo({
         vaultMode,
         feeEstimates,
@@ -411,14 +417,24 @@ export const getActionAvailability = ({
     } else {
       const canSubmitParentOnly =
         !hasP2AReserveUtxos && parentTxInfo.feeRate >= MIN_FEE_RATE;
-      const maximumFeeRate = computeMaxAllowedFeeRate(feeEstimates);
       if (p2aReserveUnconfirmed)
         return {
           minimumSelectableFeeRate: null,
           result: 'p2aReserveUnconfirmed'
         };
+      if (
+        spendableP2ABumpPlan &&
+        spendableP2ABumpPlan.utxosData.length > 0 &&
+        !feeEstimates
+      )
+        throw new Error('Fee estimates are required for package actions');
+      const maximumFeeRate = feeEstimates
+        ? computeMaxAllowedFeeRate(feeEstimates)
+        : null;
       const packageMinimumFeeRate =
-        spendableP2ABumpPlan && spendableP2ABumpPlan.utxosData.length > 0
+        spendableP2ABumpPlan &&
+        spendableP2ABumpPlan.utxosData.length > 0 &&
+        maximumFeeRate !== null
           ? findMinimumActionableFeeRate({
               minimumFeeRate: MIN_FEE_RATE,
               maximumFeeRate,
@@ -454,14 +470,14 @@ export const getActionAvailability = ({
  * shown, after the user selected a fee rate.
  *
  * Examples:
- * - Init Unfreeze first push: pass the trigger presigned tx. If a P2A trigger
- *   reserve exists, this returns parent+child package data; otherwise it can
- *   return parent-only data when the presigned trigger fee is policy-valid.
+ * - Init Unfreeze first push: pass the trigger presigned tx. If P2A trigger
+ *   reserve UTXOs exist, this returns parent+child package data; otherwise it
+ *   can return parent-only data when the presigned trigger fee is policy-valid.
  * - Trigger acceleration: pass `pushedTxHex` to mark that the trigger is already
  *   in the mempool. P2A acceleration needs a reserve-backed child package.
- * - Rescue first push: pass the rescue presigned tx. If a P2A rescue reserve
- *   exists, it is always consumed; otherwise parent-only rescue is allowed when
- *   the presigned rescue fee is policy-valid.
+ * - Rescue first push: pass the rescue presigned tx. If P2A rescue reserve
+ *   UTXOs exist, they are always consumed; otherwise parent-only rescue is
+ *   allowed when the presigned rescue fee is policy-valid.
  * - Rescue acceleration: pass `pushedTxHex` for the unconfirmed rescue tx and a
  *   P2A bump plan when using P2A.
  */

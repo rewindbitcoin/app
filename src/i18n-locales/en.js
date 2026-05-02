@@ -271,27 +271,19 @@ You likely only need to wait around 10 minutes and really don't need this. Use "
         noReserveAvailableYet: `No reserve funds are available for this unfreeze request.
 
 Rewind cannot start or accelerate it until reserve funds are added.`,
-        reserveUnconfirmed: `Reserve funds are available for this unfreeze request, but they are still awaiting final blockchain confirmation.
+        reserveUnconfirmed: `Your unfreeze reserve is almost ready.
 
-Try again after the reserve confirms.`,
+Wait a little longer, then try again.`,
         insufficientReserveFunds: `Reserve funds are available, but there is not enough to start or accelerate this unfreeze request.
 
 Add more reserve funds to continue.`,
-        parentOnlyConfirmation: `No reserve funds are available, but this unfreeze transaction is already valid to broadcast with its presigned mining fee.
-
-If it stays unconfirmed, add reserve funds before trying to accelerate it.`,
+        parentOnlyConfirmation: `Rewind is ready to start the unfreeze now.`,
         confirmationSpeedLabel: 'Mining Fee',
         feeSelectorExplanation:
           'Confirm the mining fee to request the start of the unfreeze countdown.',
         additionalExplanation: `The {{timeLockTime}} countdown will start as soon as the unfreeze is requested.`
       },
       rescue: {
-        confirmationSpeedLabel: 'Mining Fee',
-        introAccelerate: `READ CAREFULLY:
-
-"Accelerate" will boost your rescue request by offering miners a higher fee. Your original request is already pending, but this can move it up in the confirmation queue.
-
-You likely only need to wait around 10 minutes and really don't need this. Use "Accelerate" only if waiting that time (which could stretch to a couple of hours) isn't acceptable.`,
         intro: `You're about to initiate the rescue of your vault funds. This will move the funds to your pre-configured Emergency Address immediately:
 
 {{panicAddress}}
@@ -299,15 +291,22 @@ You likely only need to wait around 10 minutes and really don't need this. Use "
 This address will likely be difficult to access if you followed the recommended guidelines during Vault Setup. Ensure you can eventually access it. Once the funds are sent, this wallet will no longer have access to them.
 
 This action is designed for extreme situations, such as theft or extortion, to ensure the safety of your Bitcoin. Make sure this is a deliberate decision.`,
-        highFeeConfirmation: `This rescue transaction is already presigned with a high mining fee.
+        introAccelerate: `READ CAREFULLY:
 
-In most cases, that should be enough and no extra acceleration funds are needed. Confirm below to broadcast the rescue transaction now.`,
-        noBumpFundsAvailableYet: `No acceleration funds available yet for this rescue request.
+"Accelerate" will boost your rescue request by offering miners a higher fee. Your original request is already pending, but this can move it up in the confirmation queue.
+
+You likely only need to wait around 10 minutes and really don't need this. Use "Accelerate" only if waiting that time (which could stretch to a couple of hours) isn't acceptable.`,
+        noReserveAvailableYet: `No acceleration funds available yet for this rescue request.
 
 Rewind cannot accelerate this rescue until extra funds are added.`,
-        insufficientBumpFunds: `Acceleration funds are available, but there is not enough to accelerate this rescue request.
+        reserveUnconfirmed: `Your rescue acceleration funds are almost ready.
+
+Wait a little longer, then try again.`,
+        insufficientReserveFunds: `Acceleration funds are available, but there is not enough to accelerate this rescue request.
 
 Add more funds to accelerate it.`,
+        parentOnlyConfirmation: `Rewind is ready to send the rescue now.`,
+        confirmationSpeedLabel: 'Mining Fee',
         feeSelectorExplanation:
           'Confirm the mining fee for the rescue transaction to ensure prompt processing.',
         additionalExplanation: `Once the rescue request is confirmed, the funds will be moved to your Emergency Address instantly.`

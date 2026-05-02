@@ -6,25 +6,18 @@ import { Modal, Button, ActivityIndicator } from '../../../../common/ui';
 import { useTranslation } from 'react-i18next';
 import { View, Text } from 'react-native';
 import FeeInput from '../../FeeInput';
-import {
-  computeMaxAllowedFeeRate,
-  FeeEstimates,
-  MIN_FEE_RATE,
-  pickFeeEstimate
-} from '../../../lib/fees';
+import { FeeEstimates, pickFeeEstimate } from '../../../lib/fees';
 import { useSettings } from '../../../hooks/useSettings';
 import {
   type Vault,
   type VaultStatus,
-  estimateCpfpPackage,
   getVaultMode
 } from '../../../lib/vaults';
 import { useWallet } from '../../../hooks/useWallet';
 import useFirstDefinedValue from '~/common/hooks/useFirstDefinedValue';
 import {
-  type AccelerationInfo,
-  findNextEqualOrLargerFeeRate,
-  getActionAccelerationInfo,
+  buildTxDataForFeeRate,
+  getActionAvailability,
   getLadderedRescueSortedTxs,
   getP2ARescueInfo,
   type P2ABumpPlan,
@@ -81,44 +74,48 @@ const Rescue = ({
     vaultStatus?.panicTxBlockHeight !== undefined
       ? vaultStatus.panicTxBlockHeight === 0
       : !!vaultStatus?.panicPushTime;
-  const hasP2ABumpUtxos = !!p2aBumpPlan && p2aBumpPlan.utxosData.length > 0;
-  const pushedTxHex = vaultStatus?.panicTxHex;
-  const accelerationInfo = useMemo<AccelerationInfo | null>(() => {
-    if (
-      !isRescuePushedButUnconfirmed ||
-      !pushedTxHex ||
-      !feeEstimates ||
-      !presignedTxInfos
-    )
-      return null;
-    return getActionAccelerationInfo({
+  const panicCpfpTxHex = vaultStatus?.panicCpfpTxHex;
+  const pushedTxHex =
+    isRescuePushedButUnconfirmed && vaultStatus?.panicTxHex
+      ? vaultStatus.panicTxHex
+      : undefined;
+  const p2aBumpPlanHasSpendableUtxos =
+    !isLadderedVault &&
+    !!p2aBumpPlan &&
+    p2aBumpPlan.utxosData.length > 0 &&
+    !(vaultMode === 'P2A_TRUC' && p2aBumpPlan.hasUnconfirmedUtxos);
+  const needsFeeEstimatesForAvailability =
+    isLadderedVault || p2aBumpPlanHasSpendableUtxos;
+  const actionAvailability = useMemo(() => {
+    if (!isVisible || !presignedTxInfos) return null;
+    if (needsFeeEstimatesForAvailability && !feeEstimates) return null;
+    if (isRescuePushedButUnconfirmed && !pushedTxHex) return null;
+    return getActionAvailability({
       vaultMode,
-      feeEstimates,
-      pushedTxHex,
-      ...(vaultStatus?.panicCpfpTxHex
-        ? { pushedChildTxHex: vaultStatus.panicCpfpTxHex }
+      ...(feeEstimates ? { feeEstimates } : {}),
+      ...(pushedTxHex ? { pushedTxHex } : {}),
+      ...(pushedTxHex && panicCpfpTxHex
+        ? { pushedChildTxHex: panicCpfpTxHex }
         : {}),
       presignedTxInfos,
-      ...(p2aBumpPlan && p2aBumpPlan.utxosData.length > 0
-        ? { p2aBumpPlan }
-        : {})
+      ...(p2aBumpPlan ? { p2aBumpPlan } : {})
     });
   }, [
-    vaultMode,
+    isVisible,
+    presignedTxInfos,
+    needsFeeEstimatesForAvailability,
     feeEstimates,
     isRescuePushedButUnconfirmed,
     pushedTxHex,
-    vaultStatus?.panicCpfpTxHex,
-    presignedTxInfos,
+    vaultMode,
+    panicCpfpTxHex,
     p2aBumpPlan
   ]);
-  const replacementFeeRateFloor =
-    accelerationInfo?.replacementFeeRateFloor ?? null;
-  const hasAccelerationPath = accelerationInfo?.hasAccelerationPath ?? false;
+  const availabilityResult = actionAvailability?.result;
+  const minimumSelectableFeeRate =
+    actionAvailability?.minimumSelectableFeeRate ?? null;
+  const needsFeePicker = minimumSelectableFeeRate !== null;
 
-  const maxFeeRate = feeEstimates
-    ? computeMaxAllowedFeeRate(feeEstimates)
-    : null;
   if (!settings)
     throw new Error(
       'This component should only be started after settings has been retrieved from storage'
@@ -129,179 +126,82 @@ const Rescue = ({
   const preferredInitialFeeRate = useMemo<number | null>(() => {
     // This modal stays mounted so Modal can animate across isVisible changes.
     // While hidden, return inert render-time values instead of rescue data.
-    if (!isVisible) return null;
-    if (isLadderedVault) {
-      if (!feeEstimates) return null;
-      const preferredNetworkFeeRate = pickFeeEstimate(
-        feeEstimates,
-        settings.INITIAL_CONFIRMATION_TIME
-      ).feeEstimate;
-      if (!isRescuePushedButUnconfirmed) return preferredNetworkFeeRate;
-      if (replacementFeeRateFloor === null) return null;
-      return Math.max(replacementFeeRateFloor, preferredNetworkFeeRate);
-    }
-    if (!triggerTxHex) throw new Error('Visible rescue is missing trigger tx');
-    const rescueInfo = getP2ARescueInfo(vault, triggerTxHex);
-
-    if (!hasP2ABumpUtxos)
-      return isRescuePushedButUnconfirmed ? null : rescueInfo.feeRate;
-
+    if (!isVisible || !actionAvailability) return null;
+    if (actionAvailability.result !== null) return null;
+    if (actionAvailability.minimumSelectableFeeRate === null)
+      return presignedTxInfos?.[0]?.feeRate ?? null;
     if (!feeEstimates) return null;
+
     const preferredNetworkFeeRate = pickFeeEstimate(
       feeEstimates,
       settings.INITIAL_CONFIRMATION_TIME
     ).feeEstimate;
-
-    if (!isRescuePushedButUnconfirmed)
-      return Math.max(rescueInfo.feeRate, preferredNetworkFeeRate);
-    if (replacementFeeRateFloor === null) return null;
-    return Math.max(replacementFeeRateFloor, preferredNetworkFeeRate);
+    return Math.max(
+      actionAvailability.minimumSelectableFeeRate,
+      preferredNetworkFeeRate
+    );
   }, [
-    feeEstimates,
-    settings.INITIAL_CONFIRMATION_TIME,
-    isLadderedVault,
-    vault,
     isVisible,
-    triggerTxHex,
-    hasP2ABumpUtxos,
-    isRescuePushedButUnconfirmed,
-    replacementFeeRateFloor
+    actionAvailability,
+    presignedTxInfos,
+    feeEstimates,
+    settings.INITIAL_CONFIRMATION_TIME
   ]);
-
-  // P2A rescue without an external bump plan is parent-only; all other rescue paths need a fee picker.
-  const needsFeePicker = isLadderedVault || hasP2ABumpUtxos;
 
   const [feeRate, setFeeRate] = useState<number | null>(null);
 
-  const minimumSelectableFeeRate = useMemo<number | null>(() => {
-    // This modal stays mounted so Modal can animate across isVisible changes.
-    // While hidden, return inert render-time values instead of rescue data.
-    if (!isVisible) return null;
-    if (isLadderedVault) {
-      if (!presignedTxInfos) return null;
-      return isRescuePushedButUnconfirmed
-        ? replacementFeeRateFloor
-        : (presignedTxInfos[0]?.feeRate ?? MIN_FEE_RATE);
-    }
-    if (!triggerTxHex) throw new Error('Visible rescue is missing trigger tx');
-    if (!hasP2ABumpUtxos) return null;
-    const rescueInfo = getP2ARescueInfo(vault, triggerTxHex);
-    return isRescuePushedButUnconfirmed
-      ? replacementFeeRateFloor
-      : rescueInfo.feeRate;
-  }, [
-    isLadderedVault,
-    isRescuePushedButUnconfirmed,
-    replacementFeeRateFloor,
-    isVisible,
-    presignedTxInfos,
-    hasP2ABumpUtxos,
-    vault,
-    triggerTxHex
-  ]);
-
-  const buildTxDataForFeeRate = useCallback(
+  const getTxDataForFeeRate = useCallback(
     (selectedFeeRate: number): VaultActionTxData | null => {
       // This modal stays mounted so Modal can animate across isVisible changes.
-      // While hidden, return inert render-time values instead of rescue data.
-      if (!isVisible) return null;
-      if (isLadderedVault) {
-        if (!presignedTxInfos) return null;
-        const rescueInfo = findNextEqualOrLargerFeeRate(
-          presignedTxInfos,
-          selectedFeeRate
-        );
-        if (!rescueInfo) return null;
-        return {
-          parentTxHex: rescueInfo.txHex,
-          parentTxFee: rescueInfo.fee,
-          actionFee: rescueInfo.fee,
-          actionFeeRate: rescueInfo.feeRate
-        };
-      }
-      if (!triggerTxHex)
-        throw new Error('Visible rescue is missing trigger tx');
-      const rescueInfo = getP2ARescueInfo(vault, triggerTxHex);
-      // Rescue is parent-only by default. Only switch to a package when an
-      // explicit external emergency bump plan exists.
-      if (selectedFeeRate <= rescueInfo.feeRate)
-        return {
-          parentTxHex: rescueInfo.txHex,
-          parentTxFee: rescueInfo.fee,
-          actionFee: rescueInfo.fee,
-          actionFeeRate: rescueInfo.feeRate
-        };
-      if (!p2aBumpPlan || p2aBumpPlan.utxosData.length === 0) return null;
-      const plan = estimateCpfpPackage({
-        parentTxHex: rescueInfo.txHex,
-        parentFee: rescueInfo.fee,
-        targetPackageFeeRate: selectedFeeRate,
-        utxosData: p2aBumpPlan.utxosData,
-        changeOutput: p2aBumpPlan.changeOutput
+      // While hidden or unavailable, return inert render-time values instead of rescue data.
+      if (!isVisible || !presignedTxInfos || !actionAvailability) return null;
+      if (actionAvailability.result !== null) return null;
+      return buildTxDataForFeeRate({
+        vaultMode,
+        selectedFeeRate,
+        ...(pushedTxHex ? { pushedTxHex } : {}),
+        presignedTxInfos,
+        ...(p2aBumpPlan ? { p2aBumpPlan } : {})
       });
-      if (!plan) return null;
-      return {
-        parentTxHex: rescueInfo.txHex,
-        parentTxFee: rescueInfo.fee,
-        actionFee: plan.packageFee,
-        actionFeeRate: plan.packageFeeRate
-      };
     },
     [
       isVisible,
-      isLadderedVault,
       presignedTxInfos,
-      vault,
-      triggerTxHex,
+      actionAvailability,
+      vaultMode,
+      pushedTxHex,
       p2aBumpPlan
     ]
   );
 
   const cannotAccelerateMaxFee =
-    isRescuePushedButUnconfirmed &&
-    replacementFeeRateFloor !== null &&
-    maxFeeRate !== null &&
-    replacementFeeRateFloor > maxFeeRate;
+    availabilityResult === 'replacementFeeAboveMaximum';
 
   const initialFeeRate = useMemo<number | null>(() => {
-    // No selectable fee can satisfy replacement rules above the picker max.
-    if (cannotAccelerateMaxFee) return null;
-
     if (
       preferredInitialFeeRate !== null &&
-      buildTxDataForFeeRate(preferredInitialFeeRate) !== null
+      getTxDataForFeeRate(preferredInitialFeeRate) !== null
     )
       return preferredInitialFeeRate;
 
     // If the preferred target is not fundable, use the lowest buildable fee.
     if (
       minimumSelectableFeeRate !== null &&
-      buildTxDataForFeeRate(minimumSelectableFeeRate) !== null
+      getTxDataForFeeRate(minimumSelectableFeeRate) !== null
     )
       return minimumSelectableFeeRate;
 
     return null;
-  }, [
-    preferredInitialFeeRate,
-    cannotAccelerateMaxFee,
-    minimumSelectableFeeRate,
-    buildTxDataForFeeRate
-  ]);
+  }, [preferredInitialFeeRate, minimumSelectableFeeRate, getTxDataForFeeRate]);
 
   const txData = useMemo<VaultActionTxData | null>(() => {
     const selectedFeeRate = feeRate ?? initialFeeRate;
     if (selectedFeeRate === null) return null;
-    return buildTxDataForFeeRate(selectedFeeRate);
-  }, [feeRate, initialFeeRate, buildTxDataForFeeRate]);
+    return getTxDataForFeeRate(selectedFeeRate);
+  }, [feeRate, initialFeeRate, getTxDataForFeeRate]);
 
-  let canOpenConfirmStep: boolean;
-  if (needsFeePicker && !feeEstimates) {
-    canOpenConfirmStep = false;
-  } else if (isRescuePushedButUnconfirmed) {
-    canOpenConfirmStep = hasAccelerationPath;
-  } else {
-    canOpenConfirmStep = initialFeeRate !== null;
-  }
+  const canOpenConfirmStep =
+    actionAvailability?.result === null && initialFeeRate !== null;
 
   const fee = txData ? txData.actionFee : null;
 
@@ -332,18 +232,29 @@ const Rescue = ({
       })}
     </Text>
   );
+  const showInsufficientReserveFunds =
+    availabilityResult === 'insufficientP2AReserve' ||
+    (!isLadderedVault && availabilityResult === 'noReplacementPath');
 
   let modalContent: React.ReactNode;
-  if (isRescuePushedButUnconfirmed && !isLadderedVault && !hasP2ABumpUtxos) {
+  if (!actionAvailability || (needsFeePicker && !feeEstimates)) {
+    modalContent = <ActivityIndicator />;
+  } else if (availabilityResult === 'noP2AReserve') {
     modalContent = (
       <View>
         <Text className="text-base text-slate-600 pb-2 px-2">
-          {t('wallet.vault.rescue.noBumpFundsAvailableYet')}
+          {t('wallet.vault.rescue.noReserveAvailableYet')}
         </Text>
       </View>
     );
-  } else if (needsFeePicker && !feeEstimates) {
-    modalContent = <ActivityIndicator />;
+  } else if (availabilityResult === 'p2aReserveUnconfirmed') {
+    modalContent = (
+      <View>
+        <Text className="text-base text-slate-600 pb-2 px-2">
+          {t('wallet.vault.rescue.reserveUnconfirmed')}
+        </Text>
+      </View>
+    );
   } else if (cannotAccelerateMaxFee) {
     modalContent = (
       <View>
@@ -352,15 +263,11 @@ const Rescue = ({
         </Text>
       </View>
     );
-  } else if (
-    isRescuePushedButUnconfirmed &&
-    !isLadderedVault &&
-    !hasAccelerationPath
-  ) {
+  } else if (showInsufficientReserveFunds) {
     modalContent = (
       <View>
         <Text className="text-base text-slate-600 pb-2 px-2">
-          {t('wallet.vault.rescue.insufficientBumpFunds')}
+          {t('wallet.vault.rescue.insufficientReserveFunds')}
         </Text>
       </View>
     );
@@ -406,7 +313,7 @@ const Rescue = ({
     modalContent = (
       <View>
         <Text className="text-base text-slate-600 pb-4 px-2">
-          {t('wallet.vault.rescue.highFeeConfirmation')}
+          {t('wallet.vault.rescue.parentOnlyConfirmation')}
         </Text>
         {additionalExplanation}
       </View>
@@ -425,36 +332,35 @@ const Rescue = ({
         name: 'alarm-light'
       }}
       onClose={onClose}
-      {...{
-        customButtons:
-          step === 'intro' ? (
-            <View className="items-center gap-6 gap-y-4 flex-row flex-wrap justify-center pb-4">
-              <Button mode="secondary" onPress={onClose}>
-                {t('cancelButton')}
+      customButtons={
+        step === 'intro' ? (
+          <View className="items-center gap-6 gap-y-4 flex-row flex-wrap justify-center pb-4">
+            <Button mode="secondary" onPress={onClose}>
+              {t('cancelButton')}
+            </Button>
+            {canOpenConfirmStep && (
+              <Button mode="primary-alert" onPress={() => setStep('confirm')}>
+                {isRescuePushedButUnconfirmed
+                  ? t('accelerateButton')
+                  : t('imInDangerButton')}
               </Button>
-              {canOpenConfirmStep && (
-                <Button mode="primary-alert" onPress={() => setStep('confirm')}>
-                  {isRescuePushedButUnconfirmed
-                    ? t('accelerateButton')
-                    : t('imInDangerButton')}
-                </Button>
-              )}
-            </View>
-          ) : step === 'confirm' ? (
-            <View className="items-center gap-6 gap-y-4 flex-row flex-wrap justify-center pb-4">
-              <Button mode="secondary" onPress={onClose}>
-                {t('cancelButton')}
-              </Button>
-              <Button
-                mode="primary-alert"
-                onPress={handleRescue}
-                disabled={!txData}
-              >
-                {t('wallet.vault.rescueButton')}
-              </Button>
-            </View>
-          ) : undefined
-      }}
+            )}
+          </View>
+        ) : step === 'confirm' ? (
+          <View className="items-center gap-6 gap-y-4 flex-row flex-wrap justify-center pb-4">
+            <Button mode="secondary" onPress={onClose}>
+              {t('cancelButton')}
+            </Button>
+            <Button
+              mode="primary-alert"
+              onPress={handleRescue}
+              disabled={!txData}
+            >
+              {t('wallet.vault.rescueButton')}
+            </Button>
+          </View>
+        ) : undefined
+      }
     >
       {modalContent}
     </Modal>

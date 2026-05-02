@@ -41,7 +41,6 @@ import VaultStatusLine from './card/VaultStatusLine';
 import VaultWatchtowerIndicator from './card/VaultWatchtowerIndicator';
 import { formatVaultDate, getVaultInitDate } from './vaultDates';
 import {
-  getActionAccelerationInfo,
   getActionAvailability,
   getLadderedRescueSortedTxs,
   getLadderedTriggerSortedTxs,
@@ -345,9 +344,8 @@ const RawVault = ({
     return undefined;
   }, []);
   // Broadcasts the selected rescue action. The modal has already selected a
-  // valid parent or package; for P2A acceleration it has also verified that the
-  // external bump UTXOs can build the child. Laddered and P2A parent-only rescue
-  // push the parent directly, while P2A acceleration builds the child package.
+  // valid parent or package. Parent-only rescue pushes the parent directly;
+  // reserve-backed rescue builds the child package.
   const handleRescue = useCallback(
     async (rescueData: VaultActionTxData) => {
       batchedUpdates(() => {
@@ -369,12 +367,9 @@ const RawVault = ({
               return;
             }
 
-            // Rescue never falls back to normal wallet UTXOs. If the presigned
-            // parent fee is not enough, the only supported bump path is an
-            // explicit external emergency bump plan.
             if (
               !rescueP2ABumpPlan ||
-              rescueData.actionFee <= rescueData.parentTxFee
+              rescueP2ABumpPlan.utxosData.length === 0
             ) {
               await pushTx(rescueData.parentTxHex);
               return;
@@ -472,6 +467,7 @@ const RawVault = ({
       ? isTriggerTxInMempool
       : isTriggerTxPushed;
   const triggerPushedTxHex = vaultStatus?.triggerTxHex;
+  const triggerCpfpTxHex = vaultStatus?.triggerCpfpTxHex;
   const hasTriggerStarted =
     isTriggerPushedButUnconfirmed || isTriggerTxConfirmed;
   const isUnfrozen =
@@ -486,6 +482,7 @@ const RawVault = ({
       ? isRescueTxInMempool
       : isRescueTxPushed;
   const rescuePushedTxHex = vaultStatus?.panicTxHex;
+  const panicCpfpTxHex = vaultStatus?.panicCpfpTxHex;
   const hasRescueStarted = isRescuePushedButUnconfirmed || isRescueTxConfirmed;
 
   // P2A_TRUC start packages must not spend unconfirmed non-anchor inputs.
@@ -552,8 +549,8 @@ const RawVault = ({
         vaultMode,
         feeEstimates,
         pushedTxHex: triggerPushedTxHex,
-        ...(!isLadderedVault && vaultStatus?.triggerCpfpTxHex
-          ? { pushedChildTxHex: vaultStatus.triggerCpfpTxHex }
+        ...(!isLadderedVault && triggerCpfpTxHex
+          ? { pushedChildTxHex: triggerCpfpTxHex }
           : {}),
         presignedTxInfos: triggerPresignedTxInfos,
         ...(triggerP2ABumpPlan ? { p2aBumpPlan: triggerP2ABumpPlan } : {})
@@ -568,7 +565,7 @@ const RawVault = ({
       startButtonVisible,
       startDisabled: !hasModalPrerequisites,
       startLoading:
-        (!vaultStatus?.triggerTxHex && isTriggerBeingHandled) ||
+        (!triggerPushedTxHex && isTriggerBeingHandled) ||
         (startButtonVisible &&
           !isTriggerModalBlockedByUnconfirmedVault &&
           !isTriggerModalBlockedByUnconfirmedReserve &&
@@ -589,18 +586,20 @@ const RawVault = ({
     hasRescueStarted,
     isTriggerPushedButUnconfirmed,
     triggerPushedTxHex,
+    triggerCpfpTxHex,
     vaultMode,
-    triggerPresignedTxInfos,
-    vaultStatus?.triggerCpfpTxHex,
-    vaultStatus?.triggerTxHex
+    triggerPresignedTxInfos
   ]);
 
   const rescue = useMemo(() => {
     const startButtonVisible =
       hasTriggerStarted && !isUnfrozen && !hasRescueStarted;
-    // P2A rescue without a bump plan only opens the modal to explain that no
-    // acceleration funds are available, so fee estimates are not needed.
-    const modalNeedsFeeEstimates = isLadderedVault || !!rescueP2ABumpPlan;
+    const rescueBumpPlanNeedsFeeEstimates =
+      !isLadderedVault &&
+      !!rescueP2ABumpPlan &&
+      rescueP2ABumpPlan.utxosData.length > 0;
+    const modalNeedsFeeEstimates =
+      isLadderedVault || rescueBumpPlanNeedsFeeEstimates;
     const hasModalPrerequisites =
       !isRescueBeingHandled &&
       !!rescuePresignedTxInfos &&
@@ -614,20 +613,19 @@ const RawVault = ({
       rescuePushedTxHex &&
       rescuePresignedTxInfos
     ) {
-      if (isLadderedVault) {
-        if (feeEstimates)
-          accelerationButtonEnabled = getActionAccelerationInfo({
-            vaultMode,
-            feeEstimates,
-            pushedTxHex: rescuePushedTxHex,
-            presignedTxInfos: rescuePresignedTxInfos
-          }).hasAccelerationPath;
-      } else {
-        // P2A keeps acceleration clickable even if no usable path exists yet:
-        // the modal will explain the missing/insufficient reserve funds and ask
-        // the user to add more.
-        accelerationButtonEnabled = true;
-      }
+      const accelerationAvailability = getActionAvailability({
+        vaultMode,
+        ...(feeEstimates ? { feeEstimates } : {}),
+        pushedTxHex: rescuePushedTxHex,
+        ...(!isLadderedVault && panicCpfpTxHex
+          ? { pushedChildTxHex: panicCpfpTxHex }
+          : {}),
+        presignedTxInfos: rescuePresignedTxInfos,
+        ...(rescueP2ABumpPlan ? { p2aBumpPlan: rescueP2ABumpPlan } : {})
+      });
+      accelerationButtonEnabled = isLadderedVault
+        ? accelerationAvailability.result === null
+        : true;
     }
 
     return {
@@ -635,7 +633,7 @@ const RawVault = ({
       startButtonVisible,
       startDisabled: !hasModalPrerequisites,
       startLoading:
-        (!vaultStatus?.panicTxHex && isRescueBeingHandled) ||
+        (!rescuePushedTxHex && isRescueBeingHandled) ||
         (startButtonVisible &&
           !isRescueModalBlockedByUnconfirmedReserve &&
           !hasModalPrerequisites &&
@@ -656,8 +654,8 @@ const RawVault = ({
     feeEstimates,
     isRescuePushedButUnconfirmed,
     rescuePushedTxHex,
-    vaultMode,
-    vaultStatus?.panicTxHex
+    panicCpfpTxHex,
+    vaultMode
   ]);
 
   const [scheduledNow, setScheduledNow] = useState<number>(INITIAL_NOW_SECONDS);
