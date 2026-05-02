@@ -29,7 +29,22 @@ import {
   type VaultActionTxData
 } from '../../../lib/vaultActionTx';
 
-type CommonVaultActionProps = {
+export type VaultActionProps = (
+  | {
+      /** The `role` controls copy, icon, button styling, presigned transaction source,
+       * and which pushed status fields are treated as acceleration candidates.
+       *
+       * Trigger/unfreeze flow; shows lock-time copy and a neutral CTA. */
+      role: 'TRIGGER';
+      /** Vault timelock shown in trigger intro and confirmation copy. */
+      lockBlocks: number;
+    }
+  | {
+      /** Rescue flow; shows emergency copy and alert-styled CTAs. */
+      role: 'RESCUE';
+      lockBlocks?: never;
+    }
+) & {
   /** Vault whose presigned action transactions will be presented. */
   vault: Vault;
   /** Latest vault status used to choose first-push versus acceleration UX. */
@@ -57,27 +72,6 @@ type CommonVaultActionProps = {
   /** Closes the modal and resets local wizard state. */
   onClose: () => void;
 };
-
-/**
- * Props for the shared vault action modal.
- *
- * The `role` controls copy, icon, button styling, presigned transaction source,
- * and which pushed status fields are treated as acceleration candidates.
- */
-export type VaultActionProps = CommonVaultActionProps &
-  (
-    | {
-        /** Trigger/unfreeze flow; shows lock-time copy and a neutral CTA. */
-        role: 'TRIGGER';
-        /** Vault timelock shown in trigger intro and confirmation copy. */
-        lockBlocks: number;
-      }
-    | {
-        /** Rescue flow; shows emergency copy and alert-styled CTAs. */
-        role: 'RESCUE';
-        lockBlocks?: never;
-      }
-  );
 
 /**
  * Shared modal for starting or accelerating a vault action.
