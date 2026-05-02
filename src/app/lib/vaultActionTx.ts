@@ -88,8 +88,6 @@ export type P2ABumpPlan = {
   changeOutput: OutputInstance;
   /** Signer used for the non-anchor child inputs. */
   signer: Signer;
-  /** Existing CPFP child tx that a new child must replace, if any. */
-  previousChildTxHex?: TxHex;
 };
 
 /**
@@ -171,6 +169,7 @@ export const getActionAccelerationInfo = ({
   vaultMode,
   feeEstimates,
   pushedTxHex,
+  pushedChildTxHex,
   presignedTxInfos,
   p2aBumpPlan
 }: {
@@ -184,6 +183,8 @@ export const getActionAccelerationInfo = ({
    * `vaultStatus.panicTxHex`.
    */
   pushedTxHex: TxHex;
+  /** Existing CPFP child tx that a new P2A child must replace, if any. */
+  pushedChildTxHex?: TxHex;
   /** Pre-signed parent tx choices. P2A has one item; laddered has many. */
   presignedTxInfos: PresignedTxInfo[];
   /** P2A bump plan. Omitted when a child cannot be built yet. */
@@ -191,6 +192,10 @@ export const getActionAccelerationInfo = ({
 }): AccelerationInfo => {
   const maxFeeRate = computeMaxAllowedFeeRate(feeEstimates);
   if (vaultMode === 'LADDERED') {
+    if (pushedChildTxHex)
+      throw new Error('Laddered acceleration cannot have a CPFP child tx');
+    if (p2aBumpPlan)
+      throw new Error('Laddered acceleration cannot have a P2A bump plan');
     const pushedTxInfo = presignedTxInfos.find(
       presignedTxInfo => presignedTxInfo.txHex === pushedTxHex
     );
@@ -216,6 +221,10 @@ export const getActionAccelerationInfo = ({
     };
   }
 
+  // A pushed child is not enough to evaluate a P2A replacement: we also need
+  // the reserve inputs to reconstruct its fee and build a new child. Treat a
+  // missing/empty plan as unavailable instead of throwing because the plan can
+  // be legitimately loading or unavailable after app restart.
   if (!p2aBumpPlan || p2aBumpPlan.utxosData.length === 0)
     return {
       replacementFeeRateFloor: null,
@@ -230,9 +239,7 @@ export const getActionAccelerationInfo = ({
     feeEstimates,
     utxosData: p2aBumpPlan.utxosData,
     childOutput: p2aBumpPlan.changeOutput,
-    ...(p2aBumpPlan.previousChildTxHex
-      ? { childTxHex: p2aBumpPlan.previousChildTxHex }
-      : {})
+    ...(pushedChildTxHex ? { childTxHex: pushedChildTxHex } : {})
   });
 
   if (replacementFeeRateFloor === null)

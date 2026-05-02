@@ -175,10 +175,7 @@ const RawVault = ({
           hasUnconfirmedUtxos:
             utxosData.length > 0 && !isTriggerReserveConfirmed,
           changeOutput: computeChangeOutput(changeDescriptorWithIndex, network),
-          signer: walletSigner,
-          ...(vaultStatus?.triggerCpfpTxHex
-            ? { previousChildTxHex: vaultStatus.triggerCpfpTxHex }
-            : {})
+          signer: walletSigner
         });
       } catch (err) {
         console.warn('Could not prepare trigger fee-bump plan', err);
@@ -197,7 +194,6 @@ const RawVault = ({
     accounts,
     vault,
     vaultStatus?.vaultTxBlockHeight,
-    vaultStatus?.triggerCpfpTxHex,
     getNextChangeDescriptorWithIndex
   ]);
 

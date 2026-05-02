@@ -108,6 +108,9 @@ const Trigger = ({
       vaultMode,
       feeEstimates,
       pushedTxHex: triggerTxHex,
+      ...(vaultStatus?.triggerCpfpTxHex
+        ? { pushedChildTxHex: vaultStatus.triggerCpfpTxHex }
+        : {}),
       presignedTxInfos,
       ...(p2aBumpPlan ? { p2aBumpPlan } : {})
     });
@@ -116,6 +119,7 @@ const Trigger = ({
     feeEstimates,
     isTriggerPushedButUnconfirmed,
     triggerTxHex,
+    vaultStatus?.triggerCpfpTxHex,
     presignedTxInfos,
     p2aBumpPlan
   ]);

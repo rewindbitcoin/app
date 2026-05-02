@@ -95,6 +95,9 @@ const Rescue = ({
       vaultMode,
       feeEstimates,
       pushedTxHex,
+      ...(vaultStatus?.panicCpfpTxHex
+        ? { pushedChildTxHex: vaultStatus.panicCpfpTxHex }
+        : {}),
       presignedTxInfos,
       ...(p2aBumpPlan && p2aBumpPlan.utxosData.length > 0
         ? { p2aBumpPlan }
@@ -105,6 +108,7 @@ const Rescue = ({
     feeEstimates,
     isRescuePushedButUnconfirmed,
     pushedTxHex,
+    vaultStatus?.panicCpfpTxHex,
     presignedTxInfos,
     p2aBumpPlan
   ]);
