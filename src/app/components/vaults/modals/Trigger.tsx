@@ -136,7 +136,7 @@ const Trigger = ({
       'This component should only be started after settings has been retrieved from storage'
     );
 
-  const [step, setStep] = useState<'intro' | 'fee'>('intro');
+  const [step, setStep] = useState<'intro' | 'confirm'>('intro');
 
   const preferredInitialFeeRate = useMemo<number | null>(() => {
     // This modal stays mounted so Modal can animate across isVisible changes.
@@ -265,15 +265,15 @@ const Trigger = ({
     return buildTxDataForFeeRate(selectedFeeRate);
   }, [feeRate, initialFeeRate, buildTxDataForFeeRate]);
 
-  let canOpenFeeStep: boolean;
+  let canOpenConfirmStep: boolean;
   if (isP2ABumpPlanLoading) {
-    canOpenFeeStep = false;
+    canOpenConfirmStep = false;
   } else if (!feeEstimates) {
-    canOpenFeeStep = false;
+    canOpenConfirmStep = false;
   } else if (isTriggerPushedButUnconfirmed) {
-    canOpenFeeStep = hasAccelerationPath;
+    canOpenConfirmStep = hasAccelerationPath;
   } else {
-    canOpenFeeStep = initialFeeRate !== null;
+    canOpenConfirmStep = initialFeeRate !== null;
   }
 
   const fee = txData ? txData.actionFee : null;
@@ -369,7 +369,7 @@ const Trigger = ({
         </Text>
       </View>
     );
-  } else if (step === 'fee') {
+  } else if (step === 'confirm') {
     modalContent = (
       <View>
         <Text className="text-base text-slate-600 pb-4 px-2">
@@ -418,15 +418,15 @@ const Trigger = ({
               <Button mode="secondary" onPress={onClose}>
                 {t('cancelButton')}
               </Button>
-              {canOpenFeeStep && (
-                <Button onPress={() => setStep('fee')}>
+              {canOpenConfirmStep && (
+                <Button onPress={() => setStep('confirm')}>
                   {isTriggerPushedButUnconfirmed
                     ? t('accelerateButton')
                     : t('continueButton')}
                 </Button>
               )}
             </View>
-          ) : step === 'fee' ? (
+          ) : step === 'confirm' ? (
             <View className="items-center gap-6 gap-y-4 flex-row flex-wrap justify-center pb-4">
               <Button mode="secondary" onPress={onClose}>
                 {t('cancelButton')}

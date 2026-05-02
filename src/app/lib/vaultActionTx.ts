@@ -264,7 +264,7 @@ export const getActionAccelerationInfo = ({
 /**
  * Experimental pure availability calculator for trigger/rescue action modals.
  *
- * Use this before opening the fee step for either:
+ * Use this before opening the action confirmation step for either:
  * - Init Unfreeze: pass trigger presigned txs and omit `pushedTxHex` for the
  *   first push, or pass the unconfirmed trigger tx as `pushedTxHex` to check
  *   acceleration.
@@ -449,9 +449,9 @@ export const getActionAvailability = ({
 /**
  * Builds display/submission data for the selected trigger/rescue fee rate.
  *
- * Use this after `getActionAvailability(...)` has established that the action
- * can be submitted and, when a fee picker is shown, after the user selected a
- * fee rate.
+ * Use this in the action confirmation step after `getActionAvailability(...)`
+ * has established that the action can be submitted and, when a fee picker is
+ * shown, after the user selected a fee rate.
  *
  * Examples:
  * - Init Unfreeze first push: pass the trigger presigned tx. If a P2A trigger

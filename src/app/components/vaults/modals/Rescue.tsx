@@ -124,7 +124,7 @@ const Rescue = ({
       'This component should only be started after settings has been retrieved from storage'
     );
 
-  const [step, setStep] = useState<'intro' | 'fee'>('intro');
+  const [step, setStep] = useState<'intro' | 'confirm'>('intro');
 
   const preferredInitialFeeRate = useMemo<number | null>(() => {
     // This modal stays mounted so Modal can animate across isVisible changes.
@@ -294,13 +294,13 @@ const Rescue = ({
     return buildTxDataForFeeRate(selectedFeeRate);
   }, [feeRate, initialFeeRate, buildTxDataForFeeRate]);
 
-  let canOpenFeeStep: boolean;
+  let canOpenConfirmStep: boolean;
   if (needsFeePicker && !feeEstimates) {
-    canOpenFeeStep = false;
+    canOpenConfirmStep = false;
   } else if (isRescuePushedButUnconfirmed) {
-    canOpenFeeStep = hasAccelerationPath;
+    canOpenConfirmStep = hasAccelerationPath;
   } else {
-    canOpenFeeStep = initialFeeRate !== null;
+    canOpenConfirmStep = initialFeeRate !== null;
   }
 
   const fee = txData ? txData.actionFee : null;
@@ -376,7 +376,7 @@ const Rescue = ({
         </Text>
       </View>
     );
-  } else if (step === 'fee' && needsFeePicker && feeEstimates) {
+  } else if (step === 'confirm' && needsFeePicker && feeEstimates) {
     modalContent = (
       <View>
         {initialFeeRate !== null && minimumSelectableFeeRate !== null ? (
@@ -402,7 +402,7 @@ const Rescue = ({
         {additionalExplanation}
       </View>
     );
-  } else if (step === 'fee') {
+  } else if (step === 'confirm') {
     modalContent = (
       <View>
         <Text className="text-base text-slate-600 pb-4 px-2">
@@ -432,15 +432,15 @@ const Rescue = ({
               <Button mode="secondary" onPress={onClose}>
                 {t('cancelButton')}
               </Button>
-              {canOpenFeeStep && (
-                <Button mode="primary-alert" onPress={() => setStep('fee')}>
+              {canOpenConfirmStep && (
+                <Button mode="primary-alert" onPress={() => setStep('confirm')}>
                   {isRescuePushedButUnconfirmed
                     ? t('accelerateButton')
                     : t('imInDangerButton')}
                 </Button>
               )}
             </View>
-          ) : step === 'fee' ? (
+          ) : step === 'confirm' ? (
             <View className="items-center gap-6 gap-y-4 flex-row flex-wrap justify-center pb-4">
               <Button mode="secondary" onPress={onClose}>
                 {t('cancelButton')}
