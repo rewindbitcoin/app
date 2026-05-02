@@ -5,7 +5,11 @@ import { findLowestTrueBinarySearch } from '../../common/lib/binarySearch';
 import { toHex } from 'uint8array-tools';
 import type { OutputInstance } from '@bitcoinerlab/descriptors';
 import { transactionFromHex } from './bitcoin';
-import { computeMaxAllowedFeeRate, type FeeEstimates } from './fees';
+import {
+  computeMaxAllowedFeeRate,
+  MIN_FEE_RATE,
+  type FeeEstimates
+} from './fees';
 import type { Signer } from './wallets';
 import {
   estimateCpfpPackage,
@@ -183,7 +187,10 @@ export const getActionAccelerationInfo = ({
    * `vaultStatus.panicTxHex`.
    */
   pushedTxHex: TxHex;
-  /** Existing CPFP child tx that a new P2A child must replace, if any. */
+  /**
+   * Existing CPFP child tx that a new P2A child must replace, if any.
+   * Only used in P2A vault modes, and not always present.
+   */
   pushedChildTxHex?: TxHex;
   /** Pre-signed parent tx choices. P2A has one item; laddered has many. */
   presignedTxInfos: PresignedTxInfo[];
@@ -252,6 +259,279 @@ export const getActionAccelerationInfo = ({
     replacementFeeRateFloor,
     hasAccelerationPath: replacementFeeRateFloor <= maxFeeRate
   };
+};
+
+/**
+ * Experimental pure availability calculator for trigger/rescue action modals.
+ *
+ * Use this before opening the fee step for either:
+ * - Init Unfreeze: pass trigger presigned txs and omit `pushedTxHex` for the
+ *   first push, or pass the unconfirmed trigger tx as `pushedTxHex` to check
+ *   acceleration.
+ * - Rescue: pass rescue presigned txs and omit `pushedTxHex` for the first
+ *   rescue, or pass the unconfirmed rescue tx as `pushedTxHex` to check
+ *   acceleration.
+ *
+ * Passing `pushedTxHex` means the action was already broadcast and this is an
+ * acceleration/replacement check. Omitting it means this is the first push.
+ * If P2A reserve UTXOs exist, the action must use them so the reserve is spent
+ * and returned as change instead of leaving stale reserve UTXOs behind.
+ */
+export const getActionAvailability = ({
+  vaultMode,
+  feeEstimates,
+  pushedTxHex,
+  pushedChildTxHex,
+  presignedTxInfos,
+  p2aBumpPlan
+}: {
+  vaultMode: 'LADDERED' | 'P2A_TRUC' | 'P2A_NON_TRUC';
+  feeEstimates: FeeEstimates;
+  pushedTxHex?: TxHex;
+  pushedChildTxHex?: TxHex;
+  presignedTxInfos: PresignedTxInfo[];
+  p2aBumpPlan?: P2ABumpPlan;
+}): {
+  /**
+   * `null` means the user can submit the action somehow: first push,
+   * replacement, parent-only tx, or parent+child package depending on the
+   * current state.
+   *
+   * Failure values describe why the user cannot submit the action now:
+   * - `noP2AReserve`: no reserve UTXO is available, and the action cannot fall
+   *   back to a valid parent-only push. Example: P2A_TRUC trigger with no
+   *   reserve.
+   * - `p2aReserveUnconfirmed`: a P2A_TRUC reserve UTXO exists but is still
+   *   unconfirmed, so package relay cannot use it yet.
+   * - `insufficientP2AReserve`: reserve UTXOs exist, but none can build a valid
+   *   first-push package within the allowed fee range.
+   * - `noReplacementPath`: an already-pushed action cannot be accelerated with
+   *   the supplied presigned txs/reserve inputs under current relay rules.
+   * - `replacementFeeAboveMaximum`: replacement is theoretically possible, but
+   *   only above the app's overpayment guard. This protects the user from
+   *   wasting funds on a fee far above current express estimates. Today that
+   *   guard is `computeMaxAllowedFeeRate(feeEstimates)`, which is 2x the
+   *   highest fee estimate.
+   */
+  result:
+    | null
+    | 'noP2AReserve'
+    | 'p2aReserveUnconfirmed'
+    | 'insufficientP2AReserve'
+    | 'noReplacementPath'
+    | 'replacementFeeAboveMaximum';
+  /**
+   * Lowest fee rate the user can select in a fee picker. `null` means no fee
+   * picker should be shown; the action may still be submittable at a fixed
+   * presigned fee when `result` is `null`.
+   */
+  minimumSelectableFeeRate: number | null;
+} => {
+  const isReplacement = pushedTxHex !== undefined;
+
+  if (pushedChildTxHex && !isReplacement)
+    throw new Error('A pushed child tx requires a pushed parent tx');
+
+  if (vaultMode === 'LADDERED') {
+    if (pushedChildTxHex)
+      throw new Error('Laddered actions cannot have a CPFP child tx');
+    if (p2aBumpPlan)
+      throw new Error('Laddered actions cannot have a P2A bump plan');
+
+    if (isReplacement) {
+      const accelerationInfo = getActionAccelerationInfo({
+        vaultMode,
+        feeEstimates,
+        pushedTxHex,
+        presignedTxInfos
+      });
+      return {
+        result: accelerationInfo.hasAccelerationPath
+          ? null
+          : accelerationInfo.replacementFeeRateFloor !== null &&
+              accelerationInfo.replacementFeeRateFloor >
+                computeMaxAllowedFeeRate(feeEstimates)
+            ? 'replacementFeeAboveMaximum'
+            : 'noReplacementPath',
+        minimumSelectableFeeRate: accelerationInfo.hasAccelerationPath
+          ? accelerationInfo.replacementFeeRateFloor
+          : null
+      };
+    } else {
+      const minimumSelectableFeeRate = presignedTxInfos[0]?.feeRate;
+      if (minimumSelectableFeeRate === undefined)
+        throw new Error('Missing presigned action tx');
+      return {
+        result: null,
+        minimumSelectableFeeRate
+      };
+    }
+  } else {
+    const parentTxInfo = presignedTxInfos[0];
+    if (!parentTxInfo) throw new Error('Missing presigned P2A action tx');
+    const hasP2AReserveUtxos =
+      !!p2aBumpPlan && p2aBumpPlan.utxosData.length > 0;
+    const p2aReserveUnconfirmed =
+      vaultMode === 'P2A_TRUC' && !!p2aBumpPlan?.hasUnconfirmedUtxos;
+    const spendableP2ABumpPlan = p2aReserveUnconfirmed
+      ? undefined
+      : p2aBumpPlan;
+
+    if (isReplacement) {
+      if (!hasP2AReserveUtxos)
+        return {
+          minimumSelectableFeeRate: null,
+          result: 'noP2AReserve'
+        };
+      if (p2aReserveUnconfirmed)
+        return {
+          minimumSelectableFeeRate: null,
+          result: 'p2aReserveUnconfirmed'
+        };
+      const accelerationInfo = getActionAccelerationInfo({
+        vaultMode,
+        feeEstimates,
+        pushedTxHex,
+        ...(pushedChildTxHex ? { pushedChildTxHex } : {}),
+        presignedTxInfos,
+        ...(spendableP2ABumpPlan ? { p2aBumpPlan: spendableP2ABumpPlan } : {})
+      });
+      return {
+        result: accelerationInfo.hasAccelerationPath
+          ? null
+          : accelerationInfo.replacementFeeRateFloor !== null &&
+              accelerationInfo.replacementFeeRateFloor >
+                computeMaxAllowedFeeRate(feeEstimates)
+            ? 'replacementFeeAboveMaximum'
+            : 'noReplacementPath',
+        minimumSelectableFeeRate: accelerationInfo.hasAccelerationPath
+          ? accelerationInfo.replacementFeeRateFloor
+          : null
+      };
+    } else {
+      const canSubmitParentOnly =
+        !hasP2AReserveUtxos && parentTxInfo.feeRate >= MIN_FEE_RATE;
+      const maximumFeeRate = computeMaxAllowedFeeRate(feeEstimates);
+      if (p2aReserveUnconfirmed)
+        return {
+          minimumSelectableFeeRate: null,
+          result: 'p2aReserveUnconfirmed'
+        };
+      const packageMinimumFeeRate =
+        spendableP2ABumpPlan && spendableP2ABumpPlan.utxosData.length > 0
+          ? findMinimumActionableFeeRate({
+              minimumFeeRate: MIN_FEE_RATE,
+              maximumFeeRate,
+              canBuildAtFeeRate: feeRate =>
+                estimateCpfpPackage({
+                  parentTxHex: parentTxInfo.txHex,
+                  parentFee: parentTxInfo.fee,
+                  targetPackageFeeRate: feeRate,
+                  utxosData: spendableP2ABumpPlan.utxosData,
+                  changeOutput: spendableP2ABumpPlan.changeOutput
+                }) !== null
+            })
+          : null;
+
+      return {
+        minimumSelectableFeeRate: packageMinimumFeeRate,
+        result:
+          canSubmitParentOnly || packageMinimumFeeRate !== null
+            ? null
+            : hasP2AReserveUtxos
+              ? 'insufficientP2AReserve'
+              : 'noP2AReserve'
+      };
+    }
+  }
+};
+
+/**
+ * Builds display/submission data for the selected trigger/rescue fee rate.
+ *
+ * Use this after `getActionAvailability(...)` has established that the action
+ * can be submitted and, when a fee picker is shown, after the user selected a
+ * fee rate.
+ *
+ * Examples:
+ * - Init Unfreeze first push: pass the trigger presigned tx. If a P2A trigger
+ *   reserve exists, this returns parent+child package data; otherwise it can
+ *   return parent-only data when the presigned trigger fee is policy-valid.
+ * - Trigger acceleration: pass `pushedTxHex` to mark that the trigger is already
+ *   in the mempool. P2A acceleration needs a reserve-backed child package.
+ * - Rescue first push: pass the rescue presigned tx. If a P2A rescue reserve
+ *   exists, it is always consumed; otherwise parent-only rescue is allowed when
+ *   the presigned rescue fee is policy-valid.
+ * - Rescue acceleration: pass `pushedTxHex` for the unconfirmed rescue tx and a
+ *   P2A bump plan when using P2A.
+ */
+export const buildTxDataForFeeRate = ({
+  vaultMode,
+  selectedFeeRate,
+  pushedTxHex,
+  presignedTxInfos,
+  p2aBumpPlan
+}: {
+  vaultMode: 'LADDERED' | 'P2A_TRUC' | 'P2A_NON_TRUC';
+  selectedFeeRate: number;
+  pushedTxHex?: TxHex;
+  presignedTxInfos: PresignedTxInfo[];
+  p2aBumpPlan?: P2ABumpPlan;
+}): VaultActionTxData | null => {
+  const isReplacement = pushedTxHex !== undefined;
+
+  if (vaultMode === 'LADDERED') {
+    if (p2aBumpPlan)
+      throw new Error('Laddered actions cannot have a P2A bump plan');
+    const actionInfo = findNextEqualOrLargerFeeRate(
+      presignedTxInfos,
+      selectedFeeRate
+    );
+    if (!actionInfo) return null;
+    return {
+      parentTxHex: actionInfo.txHex,
+      parentTxFee: actionInfo.fee,
+      actionFee: actionInfo.fee,
+      actionFeeRate: actionInfo.feeRate
+    };
+  } else {
+    const parentTxInfo = presignedTxInfos[0];
+    if (!parentTxInfo) throw new Error('Missing presigned P2A action tx');
+    if (isReplacement && pushedTxHex !== parentTxInfo.txHex)
+      throw new Error('Pushed P2A action tx is not the presigned action tx');
+
+    if (p2aBumpPlan?.utxosData.length) {
+      if (vaultMode === 'P2A_TRUC' && p2aBumpPlan.hasUnconfirmedUtxos)
+        return null;
+      const plan = estimateCpfpPackage({
+        parentTxHex: parentTxInfo.txHex,
+        parentFee: parentTxInfo.fee,
+        targetPackageFeeRate: selectedFeeRate,
+        utxosData: p2aBumpPlan.utxosData,
+        changeOutput: p2aBumpPlan.changeOutput
+      });
+      if (!plan) return null;
+      return {
+        parentTxHex: parentTxInfo.txHex,
+        parentTxFee: parentTxInfo.fee,
+        actionFee: plan.packageFee,
+        actionFeeRate: plan.packageFeeRate
+      };
+    } else {
+      if (isReplacement) return null;
+      if (
+        parentTxInfo.feeRate < MIN_FEE_RATE ||
+        selectedFeeRate > parentTxInfo.feeRate
+      )
+        return null;
+      return {
+        parentTxHex: parentTxInfo.txHex,
+        parentTxFee: parentTxInfo.fee,
+        actionFee: parentTxInfo.fee,
+        actionFeeRate: parentTxInfo.feeRate
+      };
+    }
+  }
 };
 
 /**
