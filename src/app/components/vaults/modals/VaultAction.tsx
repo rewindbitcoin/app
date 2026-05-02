@@ -398,6 +398,7 @@ const VaultAction = ({
     modalContent = (
       <View>
         <Text className="text-base text-slate-600 pb-2 px-2">
+          {/* TODO: Replace this explanation-only state with the reserve funding/top-up wizard. */}
           {noReserveAvailableYetText}
         </Text>
       </View>
@@ -422,6 +423,7 @@ const VaultAction = ({
     modalContent = (
       <View>
         <Text className="text-base text-slate-600 pb-2 px-2">
+          {/* TODO: Replace this explanation-only state with the reserve funding/top-up wizard. */}
           {insufficientReserveFundsText}
         </Text>
       </View>
