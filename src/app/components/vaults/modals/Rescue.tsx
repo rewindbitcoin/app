@@ -1,6 +1,11 @@
 // Copyright (C) 2026 Jose-Luis Landabaso - https://rewindbitcoin.com
 // Licensed under the GNU GPL v3 or later. See the LICENSE file for details.
 
+/**
+ * @deprecated Kept temporarily for comparison with VaultAction.tsx.
+ * TODO: Remove this file after the shared VaultAction modal is fully validated.
+ */
+
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Modal, Button, ActivityIndicator } from '../../../../common/ui';
 import { useTranslation } from 'react-i18next';
@@ -339,6 +344,8 @@ const Rescue = ({
               {t('cancelButton')}
             </Button>
             {canOpenConfirmStep && (
+              // Rescue is the emergency path, so this CTA keeps the red alert
+              // treatment instead of looking like a normal wallet action.
               <Button mode="primary-alert" onPress={() => setStep('confirm')}>
                 {isRescuePushedButUnconfirmed
                   ? t('accelerateButton')
@@ -351,6 +358,7 @@ const Rescue = ({
             <Button mode="secondary" onPress={onClose}>
               {t('cancelButton')}
             </Button>
+            {/* Rescue confirmation stays alert-styled because it broadcasts the emergency path. */}
             <Button
               mode="primary-alert"
               onPress={handleRescue}

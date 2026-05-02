@@ -262,7 +262,11 @@ const RawVault = ({
               return;
             }
 
-            if (!networkId || !triggerP2ABumpPlan)
+            if (
+              !networkId ||
+              !triggerP2ABumpPlan?.changeOutput ||
+              !triggerP2ABumpPlan.signer
+            )
               throw new Error('Wallet not ready for Rewind2 trigger package');
             const network = networkMapping[networkId];
             // P2A trigger fee bumping is reserve-backed by design: the dedicated
@@ -338,10 +342,15 @@ const RawVault = ({
   );
   const openRescueModal = useCallback(() => setIsRescueModalVisible(true), []);
   const rescueP2ABumpPlan = useMemo<P2ABumpPlan | undefined>(() => {
+    if (isLadderedVault) return undefined;
     // TODO: build this from the shared funding wizard once P2A rescue
-    // acceleration top-ups are supported.
-    return undefined;
-  }, []);
+    // acceleration top-ups are supported. For now this explicit empty plan means
+    // rescue reserve discovery/preparation is complete and no reserve UTXOs are
+    // available. Future reserve-backed plans should use the temporary rescue
+    // wallet's internal/change branch as change output, not the emergency
+    // destination address.
+    return { utxosData: [], hasUnconfirmedUtxos: false };
+  }, [isLadderedVault]);
   // Broadcasts the selected rescue action. The modal has already selected a
   // valid parent or package. Parent-only rescue pushes the parent directly;
   // reserve-backed rescue builds the child package.
@@ -373,7 +382,11 @@ const RawVault = ({
               await pushTx(rescueData.parentTxHex);
               return;
             }
-            if (!networkId)
+            if (
+              !networkId ||
+              !rescueP2ABumpPlan?.changeOutput ||
+              !rescueP2ABumpPlan.signer
+            )
               throw new Error('Wallet not ready for Rewind2 rescue package');
             const network = networkMapping[networkId];
             const childTxData = await createCpfpChildTx({
@@ -526,13 +539,19 @@ const RawVault = ({
     const startButtonVisible = !vaultNotFound && !hasTriggerStarted;
     const bumpPlanLoading =
       !isLadderedVault && triggerP2ABumpPlan === undefined;
+    const triggerBumpPlanNeedsFeeEstimates =
+      !isLadderedVault &&
+      !!triggerP2ABumpPlan &&
+      triggerP2ABumpPlan.utxosData.length > 0;
+    const modalNeedsFeeEstimates =
+      isLadderedVault || triggerBumpPlanNeedsFeeEstimates;
 
     const hasModalPrerequisites =
       !isTriggerBeingHandled &&
       !isTriggerModalBlockedByUnconfirmedVault &&
       !isTriggerModalBlockedByUnconfirmedReserve &&
       !bumpPlanLoading &&
-      !!feeEstimates;
+      (!modalNeedsFeeEstimates || !!feeEstimates);
 
     let accelerationButtonEnabled = false;
     if (
@@ -546,7 +565,7 @@ const RawVault = ({
     ) {
       const accelerationAvailability = getActionAvailability({
         vaultMode,
-        feeEstimates,
+        ...(feeEstimates ? { feeEstimates } : {}),
         pushedTxHex: triggerPushedTxHex,
         ...(!isLadderedVault && triggerCpfpTxHex
           ? { pushedChildTxHex: triggerCpfpTxHex }
@@ -569,7 +588,7 @@ const RawVault = ({
           !isTriggerModalBlockedByUnconfirmedVault &&
           !isTriggerModalBlockedByUnconfirmedReserve &&
           !hasModalPrerequisites &&
-          (bumpPlanLoading || !feeEstimates)),
+          (bumpPlanLoading || (modalNeedsFeeEstimates && !feeEstimates))),
       accelerationButtonEnabled,
       accelerationLoading: isTriggerBeingHandled
     };

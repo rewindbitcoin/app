@@ -201,14 +201,18 @@ rediscover rescue fee-payer children by scanning the shared P2A anchor script.
 Current: trigger uses this low-level package shape today:
 
 ```text
-parent anchor + reserve inputs -> child change output
+parent anchor + reserve inputs -> action-specific child change output
 ```
 
 TBD: rescue should use the same shape once same-session rescue reserve inputs
 exist.
 
 The differences are not in the package math. They are in the funding source,
-signer, timing and recovery story.
+signer, timing, change destination and recovery story.
+
+For trigger, child leftover value returns to normal wallet change. For future
+rescue acceleration, child leftover value must return to the temporary rescue
+wallet's internal/change branch, not to the emergency address.
 
 Current: `P2ABumpPlan` describes the inputs needed to build a CPFP child:
 

@@ -37,18 +37,17 @@ type CommonVaultActionProps = {
   /**
    * P2A reserve-spend plan used when the selected action needs a CPFP child.
    *
-   * Trigger role:
-   * - `undefined`: the wallet change-output-backed plan is still being prepared.
+   * For both trigger and rescue:
+   * - `undefined`: the reserve plan is not known yet, so the modal waits.
    * - empty `utxosData`: preparation finished with no reserve UTXOs, so the
    *   modal can offer a parent-only fallback if relay policy allows it.
    * - non-empty `utxosData`: those reserve UTXOs must be spent by the package
    *   child; they must not be bypassed with parent-only submission.
    * - `hasUnconfirmedUtxos`: blocks TRUC packages until the reserve confirms.
    *
-   * Rescue role:
-   * - currently `undefined` because rescue top-up funding is not implemented.
-   * - future rescue reserve plans should follow the same reserve-spend invariant
-   *   and fee-picker/package UX as trigger reserve plans.
+   * Future rescue reserve plans should follow the same reserve-spend invariant
+   * and fee-picker/package UX as trigger reserve plans. Their `changeOutput`
+   * should point to the temporary rescue wallet's internal/change branch.
    */
   p2aBumpPlan: P2ABumpPlan | undefined;
   /** Called with the selected parent-only or parent-plus-child package data. */
@@ -153,15 +152,14 @@ const VaultAction = ({
       : vaultStatus?.panicCpfpTxHex;
   const pushedTxHex =
     isPushedButUnconfirmed && actionTxHex ? actionTxHex : undefined;
-  const isP2ABumpPlanLoading =
-    role === 'TRIGGER' && !isLadderedVault && p2aBumpPlan === undefined;
+  const isP2ABumpPlanLoading = !isLadderedVault && p2aBumpPlan === undefined;
   const p2aBumpPlanHasSpendableUtxos =
     !isLadderedVault &&
     !!p2aBumpPlan &&
     p2aBumpPlan.utxosData.length > 0 &&
     !(vaultMode === 'P2A_TRUC' && p2aBumpPlan.hasUnconfirmedUtxos);
   const needsFeeEstimatesForAvailability =
-    role === 'TRIGGER' || isLadderedVault || p2aBumpPlanHasSpendableUtxos;
+    isLadderedVault || p2aBumpPlanHasSpendableUtxos;
   const actionAvailability = useMemo(() => {
     if (!isVisible || !presignedTxInfos) return null;
     if (isP2ABumpPlanLoading) return null;
@@ -324,6 +322,8 @@ const VaultAction = ({
     role === 'TRIGGER'
       ? ({ family: 'MaterialCommunityIcons', name: 'snowflake-melt' } as const)
       : ({ family: 'MaterialCommunityIcons', name: 'alarm-light' } as const);
+  // Rescue is the emergency path, so its primary action keeps the red alert
+  // treatment used by the old Rescue modal instead of looking like normal flow.
   const actionButtonModeProps =
     role === 'RESCUE' ? ({ mode: 'primary-alert' } as const) : {};
 
@@ -386,35 +386,24 @@ const VaultAction = ({
       </View>
     );
   } else if (step === 'confirm' && needsFeePicker && feeEstimates) {
-    const feeInput =
-      initialFeeRate !== null && minimumSelectableFeeRate !== null ? (
-        <FeeInput
-          min={minimumSelectableFeeRate}
-          btcFiat={btcFiat}
-          feeEstimates={feeEstimates}
-          initialValue={initialFeeRate}
-          fee={fee}
-          label={t(`${i18nBase}.confirmationSpeedLabel`)}
-          onValueChange={setFeeRate}
-        />
-      ) : (
-        <ActivityIndicator />
-      );
     modalContent = (
       <View>
-        {role === 'TRIGGER' ? (
+        {initialFeeRate !== null && minimumSelectableFeeRate !== null ? (
           <>
             <Text className="text-base text-slate-600 pb-4 px-2">
               {t(`${i18nBase}.feeSelectorExplanation`)}
             </Text>
-            <View className="bg-slate-100 p-2 rounded-xl">{feeInput}</View>
-          </>
-        ) : initialFeeRate !== null && minimumSelectableFeeRate !== null ? (
-          <>
-            <Text className="text-base text-slate-600 pb-4 px-2">
-              {t(`${i18nBase}.feeSelectorExplanation`)}
-            </Text>
-            <View className="bg-slate-100 p-2 rounded-xl">{feeInput}</View>
+            <View className="bg-slate-100 p-2 rounded-xl">
+              <FeeInput
+                min={minimumSelectableFeeRate}
+                btcFiat={btcFiat}
+                feeEstimates={feeEstimates}
+                initialValue={initialFeeRate}
+                fee={fee}
+                label={t(`${i18nBase}.confirmationSpeedLabel`)}
+                onValueChange={setFeeRate}
+              />
+            </View>
           </>
         ) : (
           <ActivityIndicator />

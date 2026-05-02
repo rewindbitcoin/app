@@ -1,6 +1,11 @@
 // Copyright (C) 2026 Jose-Luis Landabaso - https://rewindbitcoin.com
 // Licensed under the GNU GPL v3 or later. See the LICENSE file for details.
 
+/**
+ * @deprecated Kept temporarily for comparison with VaultAction.tsx.
+ * TODO: Remove this file after the shared VaultAction modal is fully validated.
+ */
+
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Modal, Button, ActivityIndicator } from '../../../../common/ui';
 import { useTranslation } from 'react-i18next';

@@ -72,27 +72,26 @@ export type PresignedTxInfo = { txHex: TxHex; fee: number; feeRate: number };
 /**
  * P2A fee-bump plan used to fund/sign a CPFP child.
  *
- * This is a small emergency or reserve-backed plan used
- * only to fund a child tx. The caller already knows which UTXOs the child
- * must spend, where leftover value must go, and which signer controls those
- * UTXOs.
+ * This is a reserve-backed plan used only to fund a child tx. The caller
+ * already knows which UTXOs the child must spend, where leftover value must go,
+ * and which signer controls those UTXOs.
  *
- * Think if it as a small emergency wallet plan prepared outside the
- * main wallet after an attack. It provides fresh UTXOs and a signer that are
- * not meant to be under the compromised wallet's normal flow.
- *
- * This can be created after an attack, so fresh UTXOs and signers
- * stay outside the compromised wallet's normal flow.
+ * Trigger plans usually spend deterministic per-vault reserve UTXOs and send
+ * leftover value back to normal wallet change. Future rescue plans should spend
+ * temporary rescue-wallet UTXOs and send leftover value back to that temporary
+ * wallet's internal/change branch, not to the emergency destination address.
+ * Empty no-reserve plans may omit `changeOutput` and `signer`; non-empty plans
+ * must include both because the child cannot be built without them.
  */
 export type P2ABumpPlan = {
   /** Non-anchor inputs that the child must spend. */
   utxosData: UtxosData;
   /** Whether any non-anchor child inputs are still awaiting confirmation. */
   hasUnconfirmedUtxos: boolean;
-  /** Leftover value destination. For rescue this should normally be the emergency address. */
-  changeOutput: OutputInstance;
+  /** Action-specific leftover value destination for the CPFP child. */
+  changeOutput?: OutputInstance;
   /** Signer used for the non-anchor child inputs. */
-  signer: Signer;
+  signer?: Signer;
 };
 
 /**
@@ -264,6 +263,8 @@ const getActionAccelerationInfo = ({
       replacementFeeRateFloor: null,
       hasAccelerationPath: false
     };
+  if (!p2aBumpPlan.changeOutput)
+    throw new Error('P2A bump plan with reserve UTXOs requires change output');
 
   const parentTxInfo = presignedTxInfos[0];
   if (!parentTxInfo) throw new Error('Missing P2A action tx');
@@ -404,9 +405,8 @@ export const getActionAvailability = ({
       !!p2aBumpPlan && p2aBumpPlan.utxosData.length > 0;
     const p2aReserveUnconfirmed =
       vaultMode === 'P2A_TRUC' && !!p2aBumpPlan?.hasUnconfirmedUtxos;
-    const spendableP2ABumpPlan = p2aReserveUnconfirmed
-      ? undefined
-      : p2aBumpPlan;
+    const spendableP2ABumpPlan =
+      p2aReserveUnconfirmed || !hasP2AReserveUtxos ? undefined : p2aBumpPlan;
 
     if (isReplacement) {
       if (!hasP2AReserveUtxos)
@@ -467,6 +467,7 @@ export const getActionAvailability = ({
               minimumFeeRate: MIN_FEE_RATE,
               maximumFeeRate,
               canBuildAtFeeRate: feeRate =>
+                spendableP2ABumpPlan.changeOutput !== undefined &&
                 estimateCpfpPackage({
                   parentTxHex: parentTxInfo.txHex,
                   parentFee: parentTxInfo.fee,
@@ -544,9 +545,13 @@ export const buildTxDataForFeeRate = ({
     if (isReplacement && pushedTxHex !== parentTxInfo.txHex)
       throw new Error('Pushed P2A action tx is not the presigned action tx');
 
-    if (p2aBumpPlan?.utxosData.length) {
+    if (p2aBumpPlan && p2aBumpPlan.utxosData.length > 0) {
       if (vaultMode === 'P2A_TRUC' && p2aBumpPlan.hasUnconfirmedUtxos)
         return null;
+      if (!p2aBumpPlan.changeOutput)
+        throw new Error(
+          'P2A bump plan with reserve UTXOs requires change output'
+        );
       const plan = estimateCpfpPackage({
         parentTxHex: parentTxInfo.txHex,
         parentFee: parentTxInfo.fee,
