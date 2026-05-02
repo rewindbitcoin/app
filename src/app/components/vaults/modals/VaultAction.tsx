@@ -105,7 +105,7 @@ const VaultAction = ({
   isVisible,
   onAction,
   onClose,
-  ...roleProps
+  lockBlocks
 }: VaultActionProps) => {
   const { locale } = useLocalization();
   const vaultMode = useMemo<'LADDERED' | 'P2A_TRUC' | 'P2A_NON_TRUC'>(
@@ -304,35 +304,86 @@ const VaultAction = ({
     onAction(txData);
   }, [role, onAction, txData]);
 
-  const timeLockTime =
-    role === 'TRIGGER'
-      ? formatBlocks(roleProps.lockBlocks!, t, locale, true)
-      : undefined;
-  const i18nBase =
-    role === 'TRIGGER' ? 'wallet.vault.triggerUnfreeze' : 'wallet.vault.rescue';
-  const introParams =
-    role === 'TRIGGER' ? { timeLockTime } : { panicAddress: vault.coldAddress };
-  const additionalExplanationParams =
-    role === 'TRIGGER' ? { timeLockTime } : { timeLockTime: 0 };
-  const modalTitleKey =
-    role === 'TRIGGER'
-      ? 'wallet.vault.triggerUnfreezeButton'
-      : 'wallet.vault.rescueButton';
-  const modalIcon =
-    role === 'TRIGGER'
-      ? ({ family: 'MaterialCommunityIcons', name: 'snowflake-melt' } as const)
-      : ({ family: 'MaterialCommunityIcons', name: 'alarm-light' } as const);
+  let modalTitle: string;
+  let noReserveAvailableYetText: string;
+  let reserveUnconfirmedText: string;
+  let insufficientReserveFundsText: string;
+  let introText: string;
+  let additionalExplanationText: string;
+  let feeSelectorExplanationText: string;
+  let confirmationSpeedLabel: string;
+  let parentOnlyConfirmationText: string;
+  let startActionButtonText: string;
+
+  if (role === 'TRIGGER') {
+    const timeLockTime = formatBlocks(lockBlocks, t, locale, true);
+    modalTitle = t('wallet.vault.triggerUnfreezeButton');
+    noReserveAvailableYetText = t(
+      'wallet.vault.triggerUnfreeze.noReserveAvailableYet'
+    );
+    reserveUnconfirmedText = t(
+      'wallet.vault.triggerUnfreeze.reserveUnconfirmed'
+    );
+    insufficientReserveFundsText = t(
+      'wallet.vault.triggerUnfreeze.insufficientReserveFunds'
+    );
+    introText = isPushedButUnconfirmed
+      ? t('wallet.vault.triggerUnfreeze.introAccelerate')
+      : t('wallet.vault.triggerUnfreeze.intro', { timeLockTime });
+    additionalExplanationText = t(
+      'wallet.vault.triggerUnfreeze.additionalExplanation',
+      { timeLockTime }
+    );
+    feeSelectorExplanationText = t(
+      'wallet.vault.triggerUnfreeze.feeSelectorExplanation'
+    );
+    confirmationSpeedLabel = t(
+      'wallet.vault.triggerUnfreeze.confirmationSpeedLabel'
+    );
+    parentOnlyConfirmationText = t(
+      'wallet.vault.triggerUnfreeze.parentOnlyConfirmation'
+    );
+    startActionButtonText = t('continueButton');
+  } else {
+    modalTitle = t('wallet.vault.rescueButton');
+    noReserveAvailableYetText = t('wallet.vault.rescue.noReserveAvailableYet');
+    reserveUnconfirmedText = t('wallet.vault.rescue.reserveUnconfirmed');
+    insufficientReserveFundsText = t(
+      'wallet.vault.rescue.insufficientReserveFunds'
+    );
+    introText = isPushedButUnconfirmed
+      ? t('wallet.vault.rescue.introAccelerate')
+      : t('wallet.vault.rescue.intro', { panicAddress: vault.coldAddress });
+    additionalExplanationText = t('wallet.vault.rescue.additionalExplanation', {
+      timeLockTime: 0
+    });
+    feeSelectorExplanationText = t(
+      'wallet.vault.rescue.feeSelectorExplanation'
+    );
+    confirmationSpeedLabel = t('wallet.vault.rescue.confirmationSpeedLabel');
+    parentOnlyConfirmationText = t(
+      'wallet.vault.rescue.parentOnlyConfirmation'
+    );
+    startActionButtonText = t('imInDangerButton');
+  }
+  const introActionButtonText = isPushedButUnconfirmed
+    ? t('accelerateButton')
+    : startActionButtonText;
   // Rescue is the emergency path, so its primary action keeps the red alert
   // treatment used by the old Rescue modal instead of looking like normal flow.
   const actionButtonModeProps =
     role === 'RESCUE' ? ({ mode: 'primary-alert' } as const) : {};
+  const modalIcon =
+    role === 'TRIGGER'
+      ? ({ family: 'MaterialCommunityIcons', name: 'snowflake-melt' } as const)
+      : ({ family: 'MaterialCommunityIcons', name: 'alarm-light' } as const);
 
   const showInsufficientReserveFunds =
     availabilityResult === 'insufficientP2AReserve' ||
     (!isLadderedVault && availabilityResult === 'noReplacementPath');
   const additionalExplanation = (
     <Text className="text-base text-slate-600 pt-4 px-2">
-      {t(`${i18nBase}.additionalExplanation`, additionalExplanationParams)}
+      {additionalExplanationText}
     </Text>
   );
 
@@ -347,7 +398,7 @@ const VaultAction = ({
     modalContent = (
       <View>
         <Text className="text-base text-slate-600 pb-2 px-2">
-          {t(`${i18nBase}.noReserveAvailableYet`)}
+          {noReserveAvailableYetText}
         </Text>
       </View>
     );
@@ -355,7 +406,7 @@ const VaultAction = ({
     modalContent = (
       <View>
         <Text className="text-base text-slate-600 pb-2 px-2">
-          {t(`${i18nBase}.reserveUnconfirmed`)}
+          {reserveUnconfirmedText}
         </Text>
       </View>
     );
@@ -371,18 +422,14 @@ const VaultAction = ({
     modalContent = (
       <View>
         <Text className="text-base text-slate-600 pb-2 px-2">
-          {t(`${i18nBase}.insufficientReserveFunds`)}
+          {insufficientReserveFundsText}
         </Text>
       </View>
     );
   } else if (step === 'intro') {
     modalContent = (
       <View>
-        <Text className="text-base text-slate-600 pb-2 px-2">
-          {isPushedButUnconfirmed
-            ? t(`${i18nBase}.introAccelerate`)
-            : t(`${i18nBase}.intro`, introParams)}
-        </Text>
+        <Text className="text-base text-slate-600 pb-2 px-2">{introText}</Text>
       </View>
     );
   } else if (step === 'confirm' && needsFeePicker && feeEstimates) {
@@ -391,7 +438,7 @@ const VaultAction = ({
         {initialFeeRate !== null && minimumSelectableFeeRate !== null ? (
           <>
             <Text className="text-base text-slate-600 pb-4 px-2">
-              {t(`${i18nBase}.feeSelectorExplanation`)}
+              {feeSelectorExplanationText}
             </Text>
             <View className="bg-slate-100 p-2 rounded-xl">
               <FeeInput
@@ -400,7 +447,7 @@ const VaultAction = ({
                 feeEstimates={feeEstimates}
                 initialValue={initialFeeRate}
                 fee={fee}
-                label={t(`${i18nBase}.confirmationSpeedLabel`)}
+                label={confirmationSpeedLabel}
                 onValueChange={setFeeRate}
               />
             </View>
@@ -415,7 +462,7 @@ const VaultAction = ({
     modalContent = (
       <View>
         <Text className="text-base text-slate-600 pb-4 px-2">
-          {t(`${i18nBase}.parentOnlyConfirmation`)}
+          {parentOnlyConfirmationText}
         </Text>
         {additionalExplanation}
       </View>
@@ -428,7 +475,7 @@ const VaultAction = ({
     <Modal
       headerMini={true}
       isVisible={isVisible}
-      title={t(modalTitleKey)}
+      title={modalTitle}
       icon={modalIcon}
       onClose={onClose}
       customButtons={
@@ -442,11 +489,7 @@ const VaultAction = ({
                 {...actionButtonModeProps}
                 onPress={() => setStep('confirm')}
               >
-                {isPushedButUnconfirmed
-                  ? t('accelerateButton')
-                  : role === 'TRIGGER'
-                    ? t('continueButton')
-                    : t('imInDangerButton')}
+                {introActionButtonText}
               </Button>
             )}
           </View>
@@ -460,7 +503,7 @@ const VaultAction = ({
               onPress={handleAction}
               disabled={!txData}
             >
-              {t(modalTitleKey)}
+              {modalTitle}
             </Button>
           </View>
         ) : undefined
