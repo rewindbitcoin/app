@@ -12,6 +12,7 @@ import {
 } from './fees';
 import type { Signer } from './wallets';
 import {
+  assertP2AParentPolicy,
   estimateCpfpPackage,
   findP2AOutputData,
   type TxHex,
@@ -158,6 +159,32 @@ export const getLadderedRescueSortedTxs = (
     })
     .sort((a, b) => a.feeRate - b.feeRate);
 };
+
+const getP2AParentOnlyFeeRate = ({
+  vaultMode,
+  parentTxInfo
+}: {
+  vaultMode: 'P2A_TRUC' | 'P2A_NON_TRUC';
+  parentTxInfo: PresignedTxInfo;
+}): number => {
+  const { tx } = transactionFromHex(parentTxInfo.txHex);
+  assertP2AParentPolicy({
+    tx,
+    fee: parentTxInfo.fee,
+    txName: 'P2A parent-only action tx',
+    vaultMode
+  });
+  return parentTxInfo.fee / tx.virtualSize();
+};
+
+const canSubmitP2AParentOnly = ({
+  vaultMode,
+  parentTxInfo
+}: {
+  vaultMode: 'P2A_TRUC' | 'P2A_NON_TRUC';
+  parentTxInfo: PresignedTxInfo;
+}): boolean =>
+  getP2AParentOnlyFeeRate({ vaultMode, parentTxInfo }) >= MIN_FEE_RATE;
 
 /**
  * Returns the current acceleration state for an unconfirmed action tx.
@@ -416,7 +443,8 @@ export const getActionAvailability = ({
       };
     } else {
       const canSubmitParentOnly =
-        !hasP2AReserveUtxos && parentTxInfo.feeRate >= MIN_FEE_RATE;
+        !hasP2AReserveUtxos &&
+        canSubmitP2AParentOnly({ vaultMode, parentTxInfo });
       if (p2aReserveUnconfirmed)
         return {
           minimumSelectableFeeRate: null,
@@ -535,16 +563,20 @@ export const buildTxDataForFeeRate = ({
       };
     } else {
       if (isReplacement) return null;
+      const parentOnlyFeeRate = getP2AParentOnlyFeeRate({
+        vaultMode,
+        parentTxInfo
+      });
       if (
-        parentTxInfo.feeRate < MIN_FEE_RATE ||
-        selectedFeeRate > parentTxInfo.feeRate
+        parentOnlyFeeRate < MIN_FEE_RATE ||
+        selectedFeeRate > parentOnlyFeeRate
       )
         return null;
       return {
         parentTxHex: parentTxInfo.txHex,
         parentTxFee: parentTxInfo.fee,
         actionFee: parentTxInfo.fee,
-        actionFeeRate: parentTxInfo.feeRate
+        actionFeeRate: parentOnlyFeeRate
       };
     }
   }

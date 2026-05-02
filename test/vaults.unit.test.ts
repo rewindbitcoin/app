@@ -16,6 +16,8 @@ import {
   type VaultsStatuses
 } from '../dist/src/app/lib/vaults';
 import { type Accounts } from '../dist/src/app/lib/wallets';
+import { MIN_FEE_RATE } from '../dist/src/app/lib/fees';
+import { getActionAvailability } from '../dist/src/app/lib/vaultActionTx';
 import { networks, type Network, Transaction } from 'bitcoinjs-lib';
 import { fromHex } from 'uint8array-tools';
 import { createAddressOutput } from '../dist/src/app/lib/vaultDescriptors';
@@ -64,6 +66,24 @@ const createSyntheticUtxoData = (value: number): UtxosData[number] => {
     vout: 0,
     output
   };
+};
+
+const createPresignedP2ATxInfo = ({
+  version,
+  p2aValue,
+  fee
+}: {
+  version: number;
+  p2aValue: number;
+  fee: number;
+}) => {
+  const txHex = createSyntheticTxHex({
+    version,
+    mainOutputValue: 12000,
+    p2aValue
+  });
+  const tx = Transaction.fromHex(txHex);
+  return { txHex, fee, feeRate: fee / tx.virtualSize() };
 };
 
 describe('vaults unit tests', () => {
@@ -258,6 +278,79 @@ describe('vaults unit tests', () => {
         vaultMode: 'P2A_NON_TRUC'
       })
     ).toThrow('P2A_NON_TRUC anchor must be non-dust');
+  });
+
+  test('getActionAvailability blocks parent-only P2A_TRUC trigger without package fee', () => {
+    const parentTxInfo = createPresignedP2ATxInfo({
+      version: 3,
+      p2aValue: 0,
+      fee: 0
+    });
+
+    expect(
+      getActionAvailability({
+        vaultMode: 'P2A_TRUC',
+        presignedTxInfos: [parentTxInfo]
+      })
+    ).toEqual({
+      result: 'noP2AReserve',
+      minimumSelectableFeeRate: null
+    });
+  });
+
+  test('getActionAvailability rejects parent-only dust anchors with non-zero fee', () => {
+    const parentTxInfo = createPresignedP2ATxInfo({
+      version: 3,
+      p2aValue: 0,
+      fee: 100
+    });
+
+    expect(() =>
+      getActionAvailability({
+        vaultMode: 'P2A_TRUC',
+        presignedTxInfos: [parentTxInfo]
+      })
+    ).toThrow('tx with dust output must be 0-fee');
+  });
+
+  test('getActionAvailability allows parent-only P2A_NON_TRUC at relay floor', () => {
+    const txHex = createSyntheticTxHex({
+      version: 2,
+      mainOutputValue: 12000,
+      p2aValue: P2A_NON_TRUC_ANCHOR_SATS
+    });
+    const tx = Transaction.fromHex(txHex);
+    const fee = Math.ceil(tx.virtualSize() * MIN_FEE_RATE);
+
+    expect(
+      getActionAvailability({
+        vaultMode: 'P2A_NON_TRUC',
+        presignedTxInfos: [{ txHex, fee, feeRate: fee / tx.virtualSize() }]
+      })
+    ).toEqual({
+      result: null,
+      minimumSelectableFeeRate: null
+    });
+  });
+
+  test('getActionAvailability blocks parent-only P2A_NON_TRUC below relay floor', () => {
+    const txHex = createSyntheticTxHex({
+      version: 2,
+      mainOutputValue: 12000,
+      p2aValue: P2A_NON_TRUC_ANCHOR_SATS
+    });
+    const tx = Transaction.fromHex(txHex);
+    const fee = Math.ceil(tx.virtualSize() * MIN_FEE_RATE) - 1;
+
+    expect(
+      getActionAvailability({
+        vaultMode: 'P2A_NON_TRUC',
+        presignedTxInfos: [{ txHex, fee, feeRate: fee / tx.virtualSize() }]
+      })
+    ).toEqual({
+      result: 'noP2AReserve',
+      minimumSelectableFeeRate: null
+    });
   });
 
   test('estimateCpfpPackage enforces P2A_TRUC child size limit', () => {
