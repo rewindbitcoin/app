@@ -271,9 +271,15 @@ You likely only need to wait around 10 minutes and really don't need this. Use "
         noReserveAvailableYet: `No reserve funds are available for this unfreeze request.
 
 Rewind cannot start or accelerate it until reserve funds are added.`,
+        reserveUnconfirmed: `Reserve funds are available for this unfreeze request, but they are still awaiting final blockchain confirmation.
+
+Try again after the reserve confirms.`,
         insufficientReserveFunds: `Reserve funds are available, but there is not enough to start or accelerate this unfreeze request.
 
 Add more reserve funds to continue.`,
+        parentOnlyConfirmation: `No reserve funds are available, but this unfreeze transaction is already valid to broadcast with its presigned mining fee.
+
+If it stays unconfirmed, add reserve funds before trying to accelerate it.`,
         confirmationSpeedLabel: 'Mining Fee',
         feeSelectorExplanation:
           'Confirm the mining fee to request the start of the unfreeze countdown.',

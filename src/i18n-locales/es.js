@@ -266,9 +266,15 @@ Seguramente sólo necesitas esperar unos 10 minutos y realmente no necesitas est
         noReserveAvailableYet: `No hay fondos de reserva disponibles para esta solicitud de descongelación.
 
 Rewind no puede iniciarla ni acelerarla hasta que se añadan fondos a la reserva.`,
+        reserveUnconfirmed: `Hay fondos de reserva disponibles para esta solicitud de descongelación, pero aún están esperando la confirmación final de la blockchain.
+
+Vuelve a intentarlo cuando se confirme la reserva.`,
         insufficientReserveFunds: `Hay fondos en la reserva, pero no son suficientes para iniciar o acelerar esta solicitud de descongelación.
 
 Añade más fondos a la reserva para continuar.`,
+        parentOnlyConfirmation: `No hay fondos de reserva disponibles, pero esta transacción de descongelación ya es válida para emitirse con su comisión prefirmada.
+
+Si queda sin confirmar, añade fondos de reserva antes de intentar acelerarla.`,
         confirmationSpeedLabel: 'Comisión',
         feeSelectorExplanation:
           'Confirma la comisión de minería para iniciar la cuenta regresiva de descongelación.',

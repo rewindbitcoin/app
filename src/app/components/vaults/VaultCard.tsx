@@ -42,6 +42,7 @@ import VaultWatchtowerIndicator from './card/VaultWatchtowerIndicator';
 import { formatVaultDate, getVaultInitDate } from './vaultDates';
 import {
   getActionAccelerationInfo,
+  getActionAvailability,
   getLadderedRescueSortedTxs,
   getLadderedTriggerSortedTxs,
   getP2ARescueInfo,
@@ -207,9 +208,9 @@ const RawVault = ({
     () => setIsTriggerModalVisible(true),
     []
   );
-  // Broadcasts the selected trigger action. It acknowledges the
-  // watchtower for this local action, then pushes laddered txs directly or
-  // builds the P2A parent+reserve-child package.
+  // Broadcasts the selected trigger action. It acknowledges the watchtower for
+  // this local action, then pushes parent-only txs directly or builds the P2A
+  // parent+reserve-child package when reserve UTXOs exist.
   const handleTrigger = useCallback(
     async (triggerData: VaultActionTxData) => {
       batchedUpdates(() => {
@@ -256,13 +257,17 @@ const RawVault = ({
             }
 
             if (
-              !networkId ||
-              !triggerP2ABumpPlan ||
+              triggerP2ABumpPlan &&
               triggerP2ABumpPlan.utxosData.length === 0
-            )
+            ) {
+              await pushTx(triggerData.parentTxHex);
+              return;
+            }
+
+            if (!networkId || !triggerP2ABumpPlan)
               throw new Error('Wallet not ready for Rewind2 trigger package');
             const network = networkMapping[networkId];
-            // Trigger acceleration is reserve-only by design: the dedicated
+            // P2A trigger fee bumping is reserve-backed by design: the dedicated
             // trigger reserve stays outside normal wallet flow and is always
             // the only non-anchor input. The child sends leftover value back to
             // the wallet's regular change branch.
@@ -525,30 +530,13 @@ const RawVault = ({
     const startButtonVisible = !vaultNotFound && !hasTriggerStarted;
     const bumpPlanLoading =
       !isLadderedVault && triggerP2ABumpPlan === undefined;
-    const hasTriggerReserveUtxos =
-      !isLadderedVault &&
-      !!triggerP2ABumpPlan &&
-      triggerP2ABumpPlan.utxosData.length > 0;
-    const missingBumpPlanExplainedByModal =
-      !isLadderedVault &&
-      !!triggerP2ABumpPlan &&
-      triggerP2ABumpPlan.utxosData.length === 0;
-    // P2A trigger without reserve UTXOs only opens the modal to explain that no
-    // reserve funds are available, so fee estimates are not needed.
-    const modalNeedsFeeEstimates = isLadderedVault || hasTriggerReserveUtxos;
-    const hasTriggerPlanPrerequisites =
-      // Missing P2A reserve is a useful modal state: the modal will explain it
-      // without fee estimates. Otherwise, a selectable tx/package needs fee
-      // estimates so the modal can select and show the mining fee.
-      missingBumpPlanExplainedByModal ||
-      (modalNeedsFeeEstimates && !!feeEstimates);
 
     const hasModalPrerequisites =
       !isTriggerBeingHandled &&
       !isTriggerModalBlockedByUnconfirmedVault &&
       !isTriggerModalBlockedByUnconfirmedReserve &&
       !bumpPlanLoading &&
-      hasTriggerPlanPrerequisites;
+      !!feeEstimates;
 
     let accelerationButtonEnabled = false;
     if (
@@ -560,20 +548,19 @@ const RawVault = ({
       isTriggerPushedButUnconfirmed &&
       triggerPushedTxHex
     ) {
-      if (isLadderedVault) {
-        if (feeEstimates)
-          accelerationButtonEnabled = getActionAccelerationInfo({
-            vaultMode,
-            feeEstimates,
-            pushedTxHex: triggerPushedTxHex,
-            presignedTxInfos: triggerPresignedTxInfos
-          }).hasAccelerationPath;
-      } else {
-        // P2A keeps acceleration clickable even if no usable path exists yet:
-        // the modal will explain the missing/insufficient reserve funds and ask
-        // the user to add more.
-        accelerationButtonEnabled = true;
-      }
+      const accelerationAvailability = getActionAvailability({
+        vaultMode,
+        feeEstimates,
+        pushedTxHex: triggerPushedTxHex,
+        ...(!isLadderedVault && vaultStatus?.triggerCpfpTxHex
+          ? { pushedChildTxHex: vaultStatus.triggerCpfpTxHex }
+          : {}),
+        presignedTxInfos: triggerPresignedTxInfos,
+        ...(triggerP2ABumpPlan ? { p2aBumpPlan: triggerP2ABumpPlan } : {})
+      });
+      accelerationButtonEnabled = isLadderedVault
+        ? accelerationAvailability.result === null
+        : true;
     }
 
     return {
@@ -604,6 +591,7 @@ const RawVault = ({
     triggerPushedTxHex,
     vaultMode,
     triggerPresignedTxInfos,
+    vaultStatus?.triggerCpfpTxHex,
     vaultStatus?.triggerTxHex
   ]);
 
