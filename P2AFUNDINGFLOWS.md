@@ -71,6 +71,12 @@ hard-crashes, but it is not the expected result of normal vault creation.
 `P2A_TRUC` setup uses confirmed wallet UTXOs only. This keeps the new vault setup
 compatible with the stricter relay assumptions of the TRUC path.
 
+Vault tx fee management is separate from trigger/rescue action acceleration. If
+the vault tx itself is still unconfirmed, bumping that vault tx would be a normal
+wallet RBF/CPFP problem tied to the setup coinselection path. It is not handled by
+the P2A action reserve flow. The action reserve flow only starts from a
+trigger/rescue parent and spends the action's known reserve UTXOs in a CPFP child.
+
 Policy invariant: a transaction with a dust output must be zero-fee. In this
 design that mainly means a 0-sat P2A anchor is only valid on a zero-fee parent;
 if a parent pays its own fee, its P2A anchor must be non-dust.
@@ -180,6 +186,8 @@ only, inside the rescue acceleration prompt:
   by trigger top-ups, but targeted at the current high-priority rescue package
   goal
 - a rescue CPFP child spends the rescue anchor plus those reserve UTXOs
+- it does not coinselect among rescue reserve UTXOs; it spends the reserve set
+  prepared for that rescue action
 - if funding overshoots, leftover value should go back to that temporary
   wallet's internal/change branch
 
@@ -221,8 +229,9 @@ Current: `P2ABumpPlan` describes the inputs needed to build a CPFP child:
 - signer for the reserve UTXOs
 
 The plan intentionally contains all known reserve UTXOs for that action. It is
-not a coinselection hint; callers pass the full reserve set so the child spends
-everything and sends leftover value back to the appropriate change destination.
+not a coinselection hint. For both current trigger acceleration and future rescue
+acceleration, callers pass the full reserve set so the child spends everything and
+sends leftover value back to the appropriate change destination.
 
 `getRequiredNextP2ABumpReserveUtxoValue(...)` is the generic sizing primitive for
 the next reserve UTXO. It is not trigger-specific.

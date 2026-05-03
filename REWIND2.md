@@ -144,7 +144,7 @@ Shape:
 ```text
 inputs:
 - trigger P2A anchor
-- this vault's trigger reserve UTXO
+- all discovered trigger reserve UTXOs for this vault
 
 output:
 - normal wallet change
@@ -155,12 +155,14 @@ Important design choices:
 - trigger bumping is per-vault
 - it uses only that vault's dedicated trigger reserve
 - it does not coinselect from generic wallet UTXOs
+- it does not coinselect among reserve UTXOs
+- it spends every known trigger reserve UTXO for that action
 - the reserve itself stays outside normal wallet flow
 - only the child leftover comes back as normal wallet change
 
 If the child is later accelerated again, the replacement still uses the same
-reserve input. The old child is replaced in the mempool; it is not a new flow
-with a different reserve.
+reserve set. The old child is replaced in the mempool; it is not a new flow with
+a different coinselected reserve subset.
 
 ### 6. Rescue fee-bump child
 
@@ -172,10 +174,10 @@ Shape:
 ```text
 inputs:
 - rescue P2A anchor
-- temporary rescue reserve UTXO
+- all temporary rescue reserve UTXOs prepared for this bump
 
 output:
-- rescue reserve change
+- temporary rescue wallet internal/change
 ```
 
 This is intentionally different from trigger bumping.
@@ -194,6 +196,8 @@ The current model is:
 - the app then shows one funding address and the exact currently needed amount
 - if the vault mode is `P2A_TRUC`, the reserve funding tx must confirm before
   the rescue bump child can use it
+- the rescue child spends the full temporary reserve set prepared for that bump,
+  not a coinselected subset
 
 Why Rewind2 starts rescue with a large fee by default:
 
@@ -353,22 +357,24 @@ simply because the child did not add enough absolute sats.
 
 ## What happens to the child change output
 
-Trigger and rescue fee-bump children send leftover value to normal wallet
-change.
+Trigger fee-bump children send leftover value to normal wallet change. Rescue
+fee-bump children send leftover value to the temporary rescue wallet's
+internal/change branch.
 
 But there is one safety rule:
 
 - if a fee-bump child is still unconfirmed and replaceable, outputs created by
-  that child are hidden from normal spending
+  that child must not be reused for unrelated spending
 
 Why:
 
 - because that child can still be replaced
 - if the child is replaced, its outputs disappear
-- so the wallet must not reuse those outputs for unrelated sends, new vaults,
-  or other fee-bump children
+- so the app must not reuse those outputs for unrelated sends, new vaults, or
+  other fee-bump children
 
-This is why `spendableUtxosData` can be smaller than the raw wallet UTXO set.
+For normal wallet-owned child change, this is why `spendableUtxosData` can be
+smaller than the raw wallet UTXO set.
 
 ## Backups in Rewind2
 
@@ -455,12 +461,12 @@ rescue tx
   -> anchor
 
 trigger bump child
-  spends: trigger anchor + trigger reserve
+  spends: trigger anchor + all known trigger reserve UTXOs
   pays to: wallet change
 
 rescue bump child
-  spends: rescue anchor + temporary rescue reserve UTXO
-  pays to: rescue reserve change
+  spends: rescue anchor + all temporary rescue reserve UTXOs
+  pays to: temporary rescue wallet internal/change
 
 backup tx
   spends: backup output
@@ -480,11 +486,15 @@ The current intended flow is:
    user not to leave this wallet.
 5. Show one funding address plus the exact currently needed amount.
 6. Once those funds are usable, build the rescue CPFP child from the rescue
-   anchor plus that temporary reserve wallet.
+   anchor plus every usable UTXO in that temporary reserve wallet.
 
 The amount requested from the user should be computed from the current package
 target, using the same reserve-sizing primitive used for trigger reserve top-up
 flows.
+
+The rescue acceleration flow should not coinselect among temporary reserve UTXOs.
+It should prepare the reserve set for that action, spend all of it in the child
+and return any leftover value to the temporary wallet's internal/change branch.
 
 If the currently live rescue parent or rescue package is already at or above the
 current high-priority target, the modal should warn that acceleration is

@@ -1034,7 +1034,6 @@ const RawVault = ({
                     {
                       lockTime: formatBlocks(vault.lockBlocks, t, locale, true)
                     }
-                    //TODO: accelerate? But this needs a real RBF implementation in coinselect
                   )}
             </Text>
           )}
