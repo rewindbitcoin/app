@@ -34,6 +34,9 @@ import { Button, useToast } from '../../../common/ui';
 import { useSettings } from '../../hooks/useSettings';
 import type { BlockStatus } from '@bitcoinerlab/explorer';
 import PresignedVaultAction from './modals/PresignedVaultAction';
+import RescueReserveWalletWizard, {
+  type RescueReserveWalletData
+} from './modals/RescueReserveWalletWizard';
 import VaultActionButton from './card/VaultActionButton';
 import VaultBalance from './card/VaultBalance';
 import VaultStatusLine from './card/VaultStatusLine';
@@ -122,6 +125,7 @@ const RawVault = ({
   const toast = useToast();
   const vaultMode = useMemo(() => getVaultMode(vault), [vault]);
   const isLadderedVault = vaultMode === 'LADDERED';
+  const p2aVaultMode = isLadderedVault ? null : vaultMode;
 
   const { settings } = useSettings();
   if (!settings) throw new Error('Settings has not been retrieved');
@@ -341,6 +345,49 @@ const RawVault = ({
     []
   );
   const openRescueModal = useCallback(() => setIsRescueModalVisible(true), []);
+  // Same-session rescue reserve wallet: funding address plus signer. It is not
+  // persisted; future funding/discovery code will use it to build the rescue plan.
+  const [rescueReserveData, setRescueReserveData] =
+    useState<RescueReserveWalletData>();
+  // There are two separate modals in this handoff: the Rescue modal
+  // (PresignedVaultAction), where fees/action submission are selected, and this
+  // rescue reserve wizard, which creates/imports the ephemeral reserve wallet.
+  // When the user opens the wizard from Rescue, wait until the Rescue modal has
+  // fully closed before showing the wizard to avoid react-native-modal glitches.
+  const [isRescueReserveWizardVisible, setIsRescueReserveWizardVisible] =
+    useState<boolean>(false);
+  const [isPendingRescueReserveWizard, setIsPendingRescueReserveWizard] =
+    useState<boolean>(false);
+  const closeRescueReserveWalletWizard = useCallback(
+    () => setIsRescueReserveWizardVisible(false),
+    []
+  );
+  //called when the user needs to create or add more funds to a bump reserve
+  const openRescueReserveFunds = useCallback(() => {
+    if (rescueReserveData) {
+      // Once the temporary signer exists, the next step is funding/top-up for that
+      // same wallet. The shared trigger/rescue funding modal will handle that path.
+      console.warn('Rescue reserve funding modal is not implemented yet');
+    } else {
+      // First close the presigned action modal. The wizard opens from
+      // handleRescueModalHide after the close animation completes.
+      setIsPendingRescueReserveWizard(true);
+      setIsRescueModalVisible(false);
+    }
+  }, [rescueReserveData]);
+  const handleRescueModalHide = useCallback(() => {
+    if (isPendingRescueReserveWizard) {
+      setIsPendingRescueReserveWizard(false);
+      setIsRescueReserveWizardVisible(true);
+    }
+  }, [isPendingRescueReserveWizard]);
+  const handleRescueReserveWallet = useCallback(
+    (walletData: RescueReserveWalletData) => {
+      setRescueReserveData(walletData);
+      setIsRescueReserveWizardVisible(false);
+    },
+    []
+  );
   const rescueP2ABumpPlan = useMemo<P2ABumpPlan | undefined>(() => {
     if (isLadderedVault) return undefined;
     // TODO: build this from the shared funding wizard once P2A rescue
@@ -1166,8 +1213,22 @@ const RawVault = ({
         p2aBumpPlan={rescueP2ABumpPlan}
         isVisible={isRescueModalVisible}
         onClose={closeRescueModal}
+        onModalHide={handleRescueModalHide}
+        {...(networkId && p2aVaultMode && !rescueReserveData
+          ? { onReserveFundsMissing: openRescueReserveFunds }
+          : {})}
         onAction={handleRescue}
       />
+      {/* Creates/imports an ephemeral wallet for bumping presigned rescue parents if fees get extremely high. */}
+      {networkId && p2aVaultMode && (
+        <RescueReserveWalletWizard
+          networkId={networkId}
+          vaultMode={p2aVaultMode}
+          isVisible={isRescueReserveWizardVisible}
+          onWallet={handleRescueReserveWallet}
+          onClose={closeRescueReserveWalletWizard}
+        />
+      )}
       <Delegate
         vault={vault}
         isVisible={showDelegate}

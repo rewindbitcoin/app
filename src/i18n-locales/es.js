@@ -250,6 +250,7 @@ Rewind necesita permiso para enviarte alertas críticas de seguridad sobre tus B
 Recibirás un aviso inmediato si alguien accede a tus claves e intenta desbloquear tu Bóveda.`
       },
       cannotAccelerateMaxFee: `Ya estás usando la comisión más alta. No es posible acelerar más.`,
+      addReserveFundsButton: 'Añadir fondos de reserva',
       accelerateSuccess:
         'Aceleración enviada con éxito. Esperando confirmación.',
       triggerUnfreeze: {
@@ -272,11 +273,14 @@ Espera un poco más y vuelve a intentarlo.`,
         insufficientReserveFunds: `Hay fondos en la reserva, pero no son suficientes para iniciar o acelerar esta solicitud de descongelación.
 
 Añade más fondos a la reserva para continuar.`,
+        reserveCannotPaySelectedFee: `La reserva no puede pagar la comisión seleccionada. Añade fondos de reserva o elige una comisión más baja.`,
+        reserveBelowRecommendedFee: `La reserva no puede alcanzar la comisión recomendada actualmente. Esta solicitud de descongelación usará una comisión más baja salvo que añadas fondos de reserva.`,
+        parentFeeBelowRecommendedFee: `Esta solicitud de descongelación puede enviarse ahora, pero las comisiones actuales son más altas que su comisión prefirmada. Añade fondos de reserva si quieres acelerarla antes de continuar.`,
         parentOnlyConfirmation: `Rewind está listo para iniciar la descongelación ahora.`,
         confirmationSpeedLabel: 'Comisión',
         feeSelectorExplanation:
           'Confirma la comisión de minería para iniciar la cuenta regresiva de descongelación.',
-        additionalExplanation: `La cuenta regresiva de {{timeLockTime}} comenzará en cuanto se inicie la descongelación.`
+        postActionExplanation: `La cuenta regresiva de {{timeLockTime}} comenzará en cuanto se inicie la descongelación.`
       },
       rescue: {
         intro: `Estás a punto de iniciar el rescate de los fondos de tu bóveda. Esto moverá los fondos inmediatamente a tu Dirección de Emergencia preconfigurada:
@@ -300,11 +304,14 @@ Espera un poco más y vuelve a intentarlo.`,
         insufficientReserveFunds: `Hay fondos de aceleración disponibles, pero no son suficientes para acelerar esta solicitud de rescate.
 
 Añade más fondos para poder acelerarla.`,
+        reserveCannotPaySelectedFee: `Los fondos de aceleración de rescate no pueden pagar la comisión seleccionada. Añade fondos temporales de reserva o elige una comisión más baja.`,
+        reserveBelowRecommendedFee: `Los fondos de aceleración de rescate no pueden alcanzar la comisión recomendada actualmente. Este rescate usará una comisión más baja salvo que añadas fondos temporales de reserva.`,
+        parentFeeBelowRecommendedFee: `Este rescate puede enviarse ahora, pero las comisiones actuales son más altas que su comisión prefirmada. Añade fondos temporales de reserva si quieres acelerarlo antes de continuar.`,
         parentOnlyConfirmation: `Rewind está listo para enviar el rescate ahora.`,
         confirmationSpeedLabel: 'Comisión',
         feeSelectorExplanation:
           'Confirma la comisión de minería de la transacción de rescate para asegurar un procesamiento rápido.',
-        additionalExplanation: `Una vez que se confirme la solicitud de rescate, los fondos serán movidos a tu Dirección de Emergencia instantáneamente.`
+        postActionExplanation: `Una vez que se confirme la solicitud de rescate, los fondos serán movidos a tu Dirección de Emergencia instantáneamente.`
       },
       rescueReserveWallet: {
         modalTitle: 'Billetera Temporal de Reserva de Rescate',
@@ -319,7 +326,7 @@ Como esta bóveda usa política TRUC, mantén Rewind abierto hasta que los fondo
 
 Mantén Rewind abierto hasta que termine el flujo de aceleración de rescate. Si cierras la billetera, Rewind perderá el firmante necesario para usar esos fondos en la transacción hija de rescate.`,
         createButton: 'Crear nueva',
-        importButton: 'Importar existente',
+        importButton: 'Importar',
         importText: `Introduce la Frase de Recuperación de una billetera temporal de reserva de rescate que ya creaste para este flujo de rescate. Rewind derivará la misma dirección de financiación de reserva y mantendrá el firmante sólo en memoria.
 
 No importes aquí tu billetera normal. Este flujo es sólo para fondos temporales de aceleración de rescate.`,

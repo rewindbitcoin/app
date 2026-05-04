@@ -63,7 +63,6 @@ const RescueReserveWalletWizard = ({
       importSuccessMessage={t('wallet.vault.rescueReserveWallet.imported')}
       addressChange={0}
       addressIndex={0}
-      allowSkipBip39Confirmation={false}
     />
   );
 };

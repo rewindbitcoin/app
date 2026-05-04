@@ -67,10 +67,14 @@ export type PresignedVaultActionProps = (
   p2aBumpPlan: P2ABumpPlan | undefined;
   /** Called with the selected parent-only or parent-plus-child package data. */
   onAction: (actionData: VaultActionTxData) => void;
+  /** Optional funding flow opener for missing or underfunded P2A reserves. */
+  onReserveFundsMissing?: () => void;
   /** Controls modal visibility while keeping the component mounted for animation. */
   isVisible: boolean;
   /** Closes the modal and resets local wizard state. */
   onClose: () => void;
+  /** Called after the modal has fully hidden. Used to sequence follow-up modals. */
+  onModalHide?: () => void;
 };
 
 /**
@@ -98,7 +102,9 @@ const PresignedVaultAction = ({
   p2aBumpPlan,
   isVisible,
   onAction,
+  onReserveFundsMissing,
   onClose,
+  onModalHide,
   lockBlocks
 }: PresignedVaultActionProps) => {
   const { locale } = useLocalization();
@@ -191,6 +197,12 @@ const PresignedVaultAction = ({
 
   const [step, setStep] = useState<'intro' | 'confirm'>('intro');
 
+  const preferredNetworkFeeRate = useMemo<number | null>(() => {
+    if (!isVisible || !feeEstimates) return null;
+    return pickFeeEstimate(feeEstimates, settings.INITIAL_CONFIRMATION_TIME)
+      .feeEstimate;
+  }, [isVisible, feeEstimates, settings.INITIAL_CONFIRMATION_TIME]);
+
   const preferredInitialFeeRate = useMemo<number | null>(() => {
     // This modal stays mounted so Modal can animate across isVisible changes.
     // While hidden, return inert render-time values instead of action data.
@@ -198,12 +210,7 @@ const PresignedVaultAction = ({
     if (actionAvailability.result !== null) return null;
     if (actionAvailability.minimumSelectableFeeRate === null)
       return presignedTxInfos?.[0]?.feeRate ?? null;
-    if (!feeEstimates) return null;
-
-    const preferredNetworkFeeRate = pickFeeEstimate(
-      feeEstimates,
-      settings.INITIAL_CONFIRMATION_TIME
-    ).feeEstimate;
+    if (preferredNetworkFeeRate === null) return null;
     return Math.max(
       actionAvailability.minimumSelectableFeeRate,
       preferredNetworkFeeRate
@@ -212,8 +219,7 @@ const PresignedVaultAction = ({
     isVisible,
     actionAvailability,
     presignedTxInfos,
-    feeEstimates,
-    settings.INITIAL_CONFIRMATION_TIME
+    preferredNetworkFeeRate
   ]);
 
   const [feeRate, setFeeRate] = useState<number | null>(null);
@@ -262,11 +268,11 @@ const PresignedVaultAction = ({
     return null;
   }, [preferredInitialFeeRate, minimumSelectableFeeRate, getTxDataForFeeRate]);
 
+  const selectedFeeRate = feeRate ?? initialFeeRate;
   const txData = useMemo<VaultActionTxData | null>(() => {
-    const selectedFeeRate = feeRate ?? initialFeeRate;
     if (selectedFeeRate === null) return null;
     return getTxDataForFeeRate(selectedFeeRate);
-  }, [feeRate, initialFeeRate, getTxDataForFeeRate]);
+  }, [selectedFeeRate, getTxDataForFeeRate]);
 
   const canOpenConfirmStep =
     actionAvailability?.result === null && initialFeeRate !== null;
@@ -301,9 +307,9 @@ const PresignedVaultAction = ({
   let actionText: string;
   let noReserveAvailableYetText: string;
   let reserveUnconfirmedText: string;
-  let insufficientReserveFundsText: string;
+  let reserveCannotBuildPackageText: string;
   let introText: string;
-  let additionalExplanationText: string;
+  let postActionExplanationText: string;
   let feeSelectorExplanationText: string;
   let confirmationSpeedLabel: string;
   let parentOnlyConfirmationText: string;
@@ -318,14 +324,14 @@ const PresignedVaultAction = ({
     reserveUnconfirmedText = t(
       'wallet.vault.triggerUnfreeze.reserveUnconfirmed'
     );
-    insufficientReserveFundsText = t(
+    reserveCannotBuildPackageText = t(
       'wallet.vault.triggerUnfreeze.insufficientReserveFunds'
     );
     introText = isPushedButUnconfirmed
       ? t('wallet.vault.triggerUnfreeze.introAccelerate')
       : t('wallet.vault.triggerUnfreeze.intro', { timeLockTime });
-    additionalExplanationText = t(
-      'wallet.vault.triggerUnfreeze.additionalExplanation',
+    postActionExplanationText = t(
+      'wallet.vault.triggerUnfreeze.postActionExplanation',
       { timeLockTime }
     );
     feeSelectorExplanationText = t(
@@ -342,13 +348,13 @@ const PresignedVaultAction = ({
     actionText = t('wallet.vault.rescueButton');
     noReserveAvailableYetText = t('wallet.vault.rescue.noReserveAvailableYet');
     reserveUnconfirmedText = t('wallet.vault.rescue.reserveUnconfirmed');
-    insufficientReserveFundsText = t(
+    reserveCannotBuildPackageText = t(
       'wallet.vault.rescue.insufficientReserveFunds'
     );
     introText = isPushedButUnconfirmed
       ? t('wallet.vault.rescue.introAccelerate')
       : t('wallet.vault.rescue.intro', { panicAddress: vault.coldAddress });
-    additionalExplanationText = t('wallet.vault.rescue.additionalExplanation', {
+    postActionExplanationText = t('wallet.vault.rescue.postActionExplanation', {
       timeLockTime: 0
     });
     feeSelectorExplanationText = t(
@@ -378,11 +384,64 @@ const PresignedVaultAction = ({
   const showReserveCannotBuildAnyPackage =
     availabilityResult === 'p2aReserveCannotFundMinimumPackage' ||
     (!isLadderedVault && availabilityResult === 'noReplacementPath');
-  const additionalExplanation = (
+  const selectedFeeNeedsMoreReserveFunds =
+    !isLadderedVault &&
+    needsFeePicker &&
+    selectedFeeRate !== null &&
+    txData === null;
+  const preferredFeeNeedsMoreReserveFunds =
+    !isLadderedVault &&
+    needsFeePicker &&
+    preferredInitialFeeRate !== null &&
+    initialFeeRate !== null &&
+    preferredInitialFeeRate > initialFeeRate &&
+    getTxDataForFeeRate(preferredInitialFeeRate) === null;
+  const p2aParentOnlyFeeBelowRecommended =
+    !isLadderedVault &&
+    !isPushedButUnconfirmed &&
+    actionAvailability?.result === null &&
+    !needsFeePicker &&
+    p2aBumpPlan?.utxosData.length === 0 &&
+    preferredNetworkFeeRate !== null &&
+    (presignedTxInfos?.[0]?.feeRate ?? Infinity) < preferredNetworkFeeRate;
+  let reserveFundsMissingPromptText: string | null = null;
+  if (selectedFeeNeedsMoreReserveFunds)
+    reserveFundsMissingPromptText =
+      role === 'TRIGGER'
+        ? t('wallet.vault.triggerUnfreeze.reserveCannotPaySelectedFee')
+        : t('wallet.vault.rescue.reserveCannotPaySelectedFee');
+  else if (preferredFeeNeedsMoreReserveFunds)
+    reserveFundsMissingPromptText =
+      role === 'TRIGGER'
+        ? t('wallet.vault.triggerUnfreeze.reserveBelowRecommendedFee')
+        : t('wallet.vault.rescue.reserveBelowRecommendedFee');
+  else if (p2aParentOnlyFeeBelowRecommended)
+    reserveFundsMissingPromptText =
+      role === 'TRIGGER'
+        ? t('wallet.vault.triggerUnfreeze.parentFeeBelowRecommendedFee')
+        : t('wallet.vault.rescue.parentFeeBelowRecommendedFee');
+  const reserveFundsMissingButton = onReserveFundsMissing ? (
+    <View className="items-center pt-4">
+      <Button mode="secondary-alert" onPress={onReserveFundsMissing}>
+        {t('wallet.vault.addReserveFundsButton')}
+      </Button>
+    </View>
+  ) : null;
+  const reserveFundsMissingPrompt = reserveFundsMissingPromptText ? (
+    <View className="pt-4 px-2">
+      <Text className="text-base text-notification">
+        {reserveFundsMissingPromptText}
+      </Text>
+      {reserveFundsMissingButton}
+    </View>
+  ) : null;
+  const postActionExplanation = (
     <Text className="text-base text-slate-600 pt-4 px-2">
-      {additionalExplanationText}
+      {postActionExplanationText}
     </Text>
   );
+  const confirmationExplanation =
+    reserveFundsMissingPrompt ?? postActionExplanation;
 
   let modalContent: React.ReactNode;
   if (
@@ -398,6 +457,7 @@ const PresignedVaultAction = ({
           {/* TODO: Replace this explanation-only state with the reserve funding/top-up wizard. */}
           {noReserveAvailableYetText}
         </Text>
+        {reserveFundsMissingButton}
       </View>
     );
   } else if (availabilityResult === 'p2aReserveUnconfirmed') {
@@ -421,8 +481,9 @@ const PresignedVaultAction = ({
       <View>
         <Text className="text-base text-slate-600 pb-2 px-2">
           {/* TODO: Replace this explanation-only state with the reserve funding/top-up wizard. */}
-          {insufficientReserveFundsText}
+          {reserveCannotBuildPackageText}
         </Text>
+        {reserveFundsMissingButton}
       </View>
     );
   } else if (step === 'intro') {
@@ -454,7 +515,7 @@ const PresignedVaultAction = ({
         ) : (
           <ActivityIndicator />
         )}
-        {additionalExplanation}
+        {confirmationExplanation}
       </View>
     );
   } else if (step === 'confirm') {
@@ -463,7 +524,7 @@ const PresignedVaultAction = ({
         <Text className="text-base text-slate-600 pb-4 px-2">
           {parentOnlyConfirmationText}
         </Text>
-        {additionalExplanation}
+        {confirmationExplanation}
       </View>
     );
   } else {
@@ -477,6 +538,7 @@ const PresignedVaultAction = ({
       title={actionText}
       icon={modalIcon}
       onClose={onClose}
+      {...(onModalHide ? { onModalHide } : {})}
       customButtons={
         step === 'intro' ? (
           <View className="items-center gap-6 gap-y-4 flex-row flex-wrap justify-center pb-4">

@@ -253,6 +253,7 @@ Once it confirms, you can press 'Rescue'.`,
       //frozenRemainingDateLabel: 'Funds Unlock Estimated Date',
 
       cannotAccelerateMaxFee: `You are already on the highest fee. Acceleration isn't available.`,
+      addReserveFundsButton: 'Add reserve funds',
       accelerateSuccess:
         'Acceleration submitted successfully. Waiting for confirmation.',
       triggerUnfreeze: {
@@ -277,11 +278,14 @@ Wait a little longer, then try again.`,
         insufficientReserveFunds: `Reserve funds are available, but there is not enough to start or accelerate this unfreeze request.
 
 Add more reserve funds to continue.`,
+        reserveCannotPaySelectedFee: `Reserve funds cannot pay the selected fee. Add reserve funds or choose a lower fee.`,
+        reserveBelowRecommendedFee: `Reserve funds cannot reach the current recommended fee. This unfreeze request will use a lower fee unless you add reserve funds.`,
+        parentFeeBelowRecommendedFee: `This unfreeze request can be sent now, but current fees are higher than its presigned fee. Add reserve funds if you want to accelerate it before continuing.`,
         parentOnlyConfirmation: `Rewind is ready to start the unfreeze now.`,
         confirmationSpeedLabel: 'Mining Fee',
         feeSelectorExplanation:
           'Confirm the mining fee to request the start of the unfreeze countdown.',
-        additionalExplanation: `The {{timeLockTime}} countdown will start as soon as the unfreeze is requested.`
+        postActionExplanation: `The {{timeLockTime}} countdown will start as soon as the unfreeze is requested.`
       },
       rescue: {
         intro: `You're about to initiate the rescue of your vault funds. This will move the funds to your pre-configured Emergency Address immediately:
@@ -305,11 +309,14 @@ Wait a little longer, then try again.`,
         insufficientReserveFunds: `Acceleration funds are available, but there is not enough to accelerate this rescue request.
 
 Add more funds to accelerate it.`,
+        reserveCannotPaySelectedFee: `Rescue acceleration funds cannot pay the selected fee. Add temporary reserve funds or choose a lower fee.`,
+        reserveBelowRecommendedFee: `Rescue acceleration funds cannot reach the current recommended fee. This rescue will use a lower fee unless you add temporary reserve funds.`,
+        parentFeeBelowRecommendedFee: `This rescue can be sent now, but current fees are higher than its presigned fee. Add temporary reserve funds if you want to accelerate it before continuing.`,
         parentOnlyConfirmation: `Rewind is ready to send the rescue now.`,
         confirmationSpeedLabel: 'Mining Fee',
         feeSelectorExplanation:
           'Confirm the mining fee for the rescue transaction to ensure prompt processing.',
-        additionalExplanation: `Once the rescue request is confirmed, the funds will be moved to your Emergency Address instantly.`
+        postActionExplanation: `Once the rescue request is confirmed, the funds will be moved to your Emergency Address instantly.`
       },
       rescueReserveWallet: {
         modalTitle: 'Temporary Rescue Reserve Wallet',
@@ -324,7 +331,7 @@ Use it only if your rescue transaction needs more fee. This wallet is not stored
 
 Keep Rewind open until the rescue acceleration flow finishes. If you close the wallet, Rewind will lose the signer needed to use those funds for the rescue child transaction.`,
         createButton: 'Create new',
-        importButton: 'Import existing',
+        importButton: 'Import',
         importText: `Enter the Recovery Phrase for a temporary rescue reserve wallet you already created for this rescue flow. Rewind will derive the same reserve funding address and keep the signer only in memory.
 
 Do not import your regular wallet here. This flow is only for temporary rescue acceleration funds.`,
