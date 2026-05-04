@@ -298,7 +298,7 @@ const PresignedVaultAction = ({
     onAction(txData);
   }, [role, onAction, txData]);
 
-  let modalTitle: string;
+  let actionText: string;
   let noReserveAvailableYetText: string;
   let reserveUnconfirmedText: string;
   let insufficientReserveFundsText: string;
@@ -311,7 +311,7 @@ const PresignedVaultAction = ({
 
   if (role === 'TRIGGER') {
     const timeLockTime = formatBlocks(lockBlocks, t, locale, true);
-    modalTitle = t('wallet.vault.triggerUnfreezeButton');
+    actionText = t('wallet.vault.triggerUnfreezeButton');
     noReserveAvailableYetText = t(
       'wallet.vault.triggerUnfreeze.noReserveAvailableYet'
     );
@@ -339,7 +339,7 @@ const PresignedVaultAction = ({
     );
     startActionButtonText = t('continueButton');
   } else {
-    modalTitle = t('wallet.vault.rescueButton');
+    actionText = t('wallet.vault.rescueButton');
     noReserveAvailableYetText = t('wallet.vault.rescue.noReserveAvailableYet');
     reserveUnconfirmedText = t('wallet.vault.rescue.reserveUnconfirmed');
     insufficientReserveFundsText = t(
@@ -474,7 +474,7 @@ const PresignedVaultAction = ({
     <Modal
       headerMini={true}
       isVisible={isVisible}
-      title={modalTitle}
+      title={actionText}
       icon={modalIcon}
       onClose={onClose}
       customButtons={
@@ -502,7 +502,7 @@ const PresignedVaultAction = ({
               onPress={handleAction}
               disabled={!txData}
             >
-              {modalTitle}
+              {actionText}
             </Button>
           </View>
         ) : undefined
