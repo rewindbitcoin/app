@@ -333,8 +333,10 @@ export const getActionAvailability = ({
    *   reserve.
    * - `p2aReserveUnconfirmed`: a P2A_TRUC reserve UTXO exists but is still
    *   unconfirmed, so package relay cannot use it yet.
-   * - `insufficientP2AReserve`: reserve UTXOs exist, but none can build a valid
-   *   first-push package within the allowed fee range.
+   * - `p2aReserveCannotFundMinimumPackage`: reserve UTXOs exist for a first push,
+   *   but they cannot fund even the cheapest valid package. In practice
+   *   this usually means reserve + anchor value cannot pay the child minimum
+   *   relay fee while still leaving a dust-safe child change output.
    * - `noReplacementPath`: an already-pushed action cannot be accelerated with
    *   the supplied presigned txs/reserve inputs under current relay rules.
    * - `replacementFeeAboveMaximum`: replacement is theoretically possible, but
@@ -347,7 +349,7 @@ export const getActionAvailability = ({
     | null
     | 'noP2AReserve'
     | 'p2aReserveUnconfirmed'
-    | 'insufficientP2AReserve'
+    | 'p2aReserveCannotFundMinimumPackage'
     | 'noReplacementPath'
     | 'replacementFeeAboveMaximum';
   /**
@@ -459,6 +461,11 @@ export const getActionAvailability = ({
       const maximumFeeRate = feeEstimates
         ? computeMaxAllowedFeeRate(feeEstimates)
         : null;
+      // For first pushes with reserve UTXOs, this asks whether the reserve can
+      // fund any valid child package at all. It intentionally starts at
+      // MIN_FEE_RATE, not at the current network estimate. If the minimum cannot
+      // be built, higher targets cannot be built either because they only
+      // increase child fee and shrink the dust-constrained change output.
       const packageMinimumFeeRate =
         spendableP2ABumpPlan &&
         spendableP2ABumpPlan.utxosData.length > 0 &&
@@ -484,7 +491,7 @@ export const getActionAvailability = ({
           canSubmitParentOnly || packageMinimumFeeRate !== null
             ? null
             : hasP2AReserveUtxos
-              ? 'insufficientP2AReserve'
+              ? 'p2aReserveCannotFundMinimumPackage'
               : 'noP2AReserve'
       };
     }

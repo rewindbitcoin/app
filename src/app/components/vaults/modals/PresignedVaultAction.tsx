@@ -372,8 +372,11 @@ const PresignedVaultAction = ({
       ? ({ family: 'MaterialCommunityIcons', name: 'snowflake-melt' } as const)
       : ({ family: 'MaterialCommunityIcons', name: 'alarm-light' } as const);
 
-  const showInsufficientReserveFunds =
-    availabilityResult === 'insufficientP2AReserve' ||
+  // Hard reserve failure states. For a first push this means the reserve cannot
+  // fund even the minimum dust-safe CPFP child. For acceleration this means no
+  // valid replacement path exists with the current reserve/current child state.
+  const showReserveCannotBuildAnyPackage =
+    availabilityResult === 'p2aReserveCannotFundMinimumPackage' ||
     (!isLadderedVault && availabilityResult === 'noReplacementPath');
   const additionalExplanation = (
     <Text className="text-base text-slate-600 pt-4 px-2">
@@ -413,7 +416,7 @@ const PresignedVaultAction = ({
         </Text>
       </View>
     );
-  } else if (showInsufficientReserveFunds) {
+  } else if (showReserveCannotBuildAnyPackage) {
     modalContent = (
       <View>
         <Text className="text-base text-slate-600 pb-2 px-2">
