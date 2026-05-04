@@ -5,6 +5,7 @@ import memoize from 'lodash.memoize';
 //import type { BIP32Interface } from 'bip32';
 import moize from 'moize';
 import { mnemonicToSeedSync } from 'bip39';
+import { toHex } from 'uint8array-tools';
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { encode: olderEncode } = require('bip68');
 import { networks, type Network } from 'bitcoinjs-lib';
@@ -129,20 +130,46 @@ export const createAddressOutput = moize(
 
 export const createColdDescriptor = (address: string) => `addr(${address})`;
 
+export const createSoftwareSignerFromMnemonic = (
+  mnemonic: string,
+  network: Network
+): Signer => {
+  const masterNode = getMasterNode(mnemonic, network);
+  return {
+    masterFingerprint: toHex(masterNode.fingerprint),
+    type: SOFTWARE,
+    mnemonic
+  };
+};
+
 /** Async because in the future i may have some signing server that will
  * guarantee randomness...*/
-export const createColdAddress = async (mnemonic: string, network: Network) => {
+export const createP2WPKHAddress = async ({
+  mnemonic,
+  network,
+  change,
+  index
+}: {
+  mnemonic: string;
+  network: Network;
+  change: 0 | 1;
+  index: number;
+}) => {
   const { Output } = ensureDescriptorsFactoryInstance();
-  const masterNode = getMasterNode(mnemonic, network);
   const descriptor = scriptExpressions.wpkhBIP32({
-    masterNode,
+    masterNode: getMasterNode(mnemonic, network),
     network,
     account: 0,
-    index: 0,
-    change: 1
+    index,
+    change
   });
   return new Output({ descriptor, network }).getAddress();
 };
+
+/** Async because in the future i may have some signing server that will
+ * guarantee randomness...*/
+export const createColdAddress = async (mnemonic: string, network: Network) =>
+  createP2WPKHAddress({ mnemonic, network, change: 1, index: 0 });
 
 // BIP39 seed derivation is expensive on mobile. Vault creation alternates
 // between the wallet signer and the ephemeral vault signer, so keep both hot

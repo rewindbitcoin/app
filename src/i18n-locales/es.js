@@ -306,6 +306,24 @@ Añade más fondos para poder acelerarla.`,
           'Confirma la comisión de minería de la transacción de rescate para asegurar un procesamiento rápido.',
         additionalExplanation: `Una vez que se confirme la solicitud de rescate, los fondos serán movidos a tu Dirección de Emergencia instantáneamente.`
       },
+      rescueReserveWallet: {
+        createNewModalTitle: 'Billetera Temporal de Reserva de Rescate',
+        intro_TRUC: `Este asistente crea una billetera temporal, sólo en memoria, para fondos de aceleración de rescate. Es independiente de tu billetera normal porque, durante un rescate, esa billetera puede estar comprometida.
+
+Úsala sólo si tu transacción de rescate necesita más comisión. Rewind no guarda esta billetera y desaparecerá si cierras esta billetera, vuelves a la pantalla principal o sales de este flujo.
+
+Como esta bóveda usa política TRUC, mantén Rewind abierto hasta que los fondos enviados a esta billetera temporal estén confirmados. Si cierras la billetera antes de la confirmación, Rewind perderá el firmante necesario para usar esos fondos en la transacción hija de rescate.`,
+        intro_NON_TRUC: `Este asistente crea una billetera temporal, sólo en memoria, para fondos de aceleración de rescate. Es independiente de tu billetera normal porque, durante un rescate, esa billetera puede estar comprometida.
+
+Úsala sólo si tu transacción de rescate necesita más comisión. Rewind no guarda esta billetera y desaparecerá si cierras esta billetera, vuelves a la pantalla principal o sales de este flujo.
+
+Mantén Rewind abierto hasta que termine el flujo de aceleración de rescate. Si cierras la billetera, Rewind perderá el firmante necesario para usar esos fondos en la transacción hija de rescate.`,
+        bip39Proposal: `Abajo tienes la Frase de Recuperación de esta billetera temporal de reserva de rescate. Anótala antes de continuar.`,
+        bip39ProposalPart2_TRUC: `Esta frase es la única copia de seguridad de la billetera temporal. Rewind no la guarda. Mantén esta pantalla y la billetera abiertas hasta que la transacción de financiación de la reserva confirme y termine el flujo de aceleración de rescate.`,
+        bip39ProposalPart2_NON_TRUC: `Esta frase es la única copia de seguridad de la billetera temporal. Rewind no la guarda. Mantén esta pantalla y la billetera abiertas hasta que termine el flujo de aceleración de rescate.`,
+        confirmBip39ProposalButton: 'La he anotado',
+        created: 'Billetera temporal de reserva de rescate creada.'
+      },
       delegate: {
         title: 'Archivo de Delegación',
         text: `Estás a punto de generar un archivo de delegación. Este archivo puede ser compartido con una persona de confianza que te pueda ayudar a proteger tus Bitcoin.

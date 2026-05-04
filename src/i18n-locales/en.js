@@ -311,6 +311,24 @@ Add more funds to accelerate it.`,
           'Confirm the mining fee for the rescue transaction to ensure prompt processing.',
         additionalExplanation: `Once the rescue request is confirmed, the funds will be moved to your Emergency Address instantly.`
       },
+      rescueReserveWallet: {
+        createNewModalTitle: 'Temporary Rescue Reserve Wallet',
+        intro_TRUC: `This wizard creates a temporary, memory-only wallet for rescue acceleration funds. It is separate from your regular wallet because, during rescue, that wallet may already be compromised.
+
+Use it only if your rescue transaction needs more fee. This wallet is not stored by Rewind and disappears if you close this wallet, return to the main screen or leave this flow.
+
+Because this vault uses TRUC policy, keep Rewind open until the funds sent to this temporary wallet are confirmed. If you close the wallet before confirmation, Rewind will lose the signer needed to use those funds for the rescue child transaction.`,
+        intro_NON_TRUC: `This wizard creates a temporary, memory-only wallet for rescue acceleration funds. It is separate from your regular wallet because, during rescue, that wallet may already be compromised.
+
+Use it only if your rescue transaction needs more fee. This wallet is not stored by Rewind and disappears if you close this wallet, return to the main screen or leave this flow.
+
+Keep Rewind open until the rescue acceleration flow finishes. If you close the wallet, Rewind will lose the signer needed to use those funds for the rescue child transaction.`,
+        bip39Proposal: `Below is the Recovery Phrase for this temporary rescue reserve wallet. Write it down before continuing.`,
+        bip39ProposalPart2_TRUC: `This phrase is the only backup for the temporary wallet. Rewind does not store it. Keep this screen and wallet open until the reserve funding transaction confirms and the rescue acceleration flow completes.`,
+        bip39ProposalPart2_NON_TRUC: `This phrase is the only backup for the temporary wallet. Rewind does not store it. Keep this screen and wallet open until the rescue acceleration flow completes.`,
+        confirmBip39ProposalButton: 'I have written it down',
+        created: 'Temporary rescue reserve wallet created.'
+      },
       delegate: {
         title: 'Delegation File',
         text: `You're about to generate a delegation file. This file can be shared with a trusted person who can help protect your Bitcoin.
