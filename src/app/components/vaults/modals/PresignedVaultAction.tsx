@@ -29,7 +29,7 @@ import {
   type VaultActionTxData
 } from '../../../lib/vaultActionTx';
 
-export type VaultActionProps = (
+export type PresignedVaultActionProps = (
   | {
       /** The `role` controls copy, icon, button styling, presigned transaction source,
        * and which pushed status fields are treated as acceleration candidates.
@@ -74,7 +74,7 @@ export type VaultActionProps = (
 };
 
 /**
- * Shared modal for starting or accelerating a vault action.
+ * Shared UI for starting or accelerating a presigned vault action.
  *
  * UX behavior:
  * - Trigger first-push explains the unfreeze timelock, then asks for a final
@@ -91,7 +91,7 @@ export type VaultActionProps = (
  *   parent-only confirmation when no reserve is available and relay policy
  *   accepts the parent.
  */
-const VaultAction = ({
+const PresignedVaultAction = ({
   role,
   vault,
   vaultStatus,
@@ -100,7 +100,7 @@ const VaultAction = ({
   onAction,
   onClose,
   lockBlocks
-}: VaultActionProps) => {
+}: PresignedVaultActionProps) => {
   const { locale } = useLocalization();
   const vaultMode = useMemo<'LADDERED' | 'P2A_TRUC' | 'P2A_NON_TRUC'>(
     () => getVaultMode(vault),
@@ -510,4 +510,4 @@ const VaultAction = ({
   );
 };
 
-export default VaultAction;
+export default PresignedVaultAction;

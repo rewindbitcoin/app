@@ -2,8 +2,8 @@
 // Licensed under the GNU GPL v3 or later. See the LICENSE file for details.
 
 /**
- * @deprecated Kept temporarily for comparison with VaultAction.tsx.
- * TODO: Remove this file after the shared VaultAction modal is fully validated.
+ * @deprecated Kept temporarily for comparison with PresignedVaultAction.tsx.
+ * TODO: Remove this file after the shared PresignedVaultAction flow is fully validated.
  */
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';

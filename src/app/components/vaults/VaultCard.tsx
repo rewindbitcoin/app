@@ -33,7 +33,7 @@ import { Button, useToast } from '../../../common/ui';
 
 import { useSettings } from '../../hooks/useSettings';
 import type { BlockStatus } from '@bitcoinerlab/explorer';
-import VaultAction from './modals/VaultAction';
+import PresignedVaultAction from './modals/PresignedVaultAction';
 import VaultActionButton from './card/VaultActionButton';
 import VaultBalance from './card/VaultBalance';
 import VaultStatusLine from './card/VaultStatusLine';
@@ -1149,7 +1149,7 @@ const RawVault = ({
           </View>
         )}
       </View>
-      <VaultAction
+      <PresignedVaultAction
         role="TRIGGER"
         vault={vault}
         vaultStatus={vaultStatus}
@@ -1159,7 +1159,7 @@ const RawVault = ({
         onClose={closeTriggerModal}
         onAction={handleTrigger}
       />
-      <VaultAction
+      <PresignedVaultAction
         role="RESCUE"
         vault={vault}
         vaultStatus={vaultStatus}
