@@ -312,22 +312,29 @@ Add more funds to accelerate it.`,
         additionalExplanation: `Once the rescue request is confirmed, the funds will be moved to your Emergency Address instantly.`
       },
       rescueReserveWallet: {
-        createNewModalTitle: 'Temporary Rescue Reserve Wallet',
-        intro_TRUC: `This wizard creates a temporary, memory-only wallet for rescue acceleration funds. It is separate from your regular wallet because, during rescue, that wallet may already be compromised.
+        modalTitle: 'Temporary Rescue Reserve Wallet',
+        intro_TRUC: `This wizard creates or imports a temporary, memory-only wallet for rescue acceleration funds. It is separate from your regular wallet because, during rescue, that wallet may already be compromised.
 
-Use it only if your rescue transaction needs more fee. This wallet is not stored by Rewind and disappears if you close this wallet, return to the main screen or leave this flow.
+Use it only if your rescue transaction needs more fee. This wallet is not stored by Rewind and disappears if you close this wallet, return to the main screen or leave this flow. If you already wrote down a temporary rescue reserve phrase, import it to restore the same in-memory reserve wallet for this flow.
 
 Because this vault uses TRUC policy, keep Rewind open until the funds sent to this temporary wallet are confirmed. If you close the wallet before confirmation, Rewind will lose the signer needed to use those funds for the rescue child transaction.`,
-        intro_NON_TRUC: `This wizard creates a temporary, memory-only wallet for rescue acceleration funds. It is separate from your regular wallet because, during rescue, that wallet may already be compromised.
+        intro_NON_TRUC: `This wizard creates or imports a temporary, memory-only wallet for rescue acceleration funds. It is separate from your regular wallet because, during rescue, that wallet may already be compromised.
 
-Use it only if your rescue transaction needs more fee. This wallet is not stored by Rewind and disappears if you close this wallet, return to the main screen or leave this flow.
+Use it only if your rescue transaction needs more fee. This wallet is not stored by Rewind and disappears if you close this wallet, return to the main screen or leave this flow. If you already wrote down a temporary rescue reserve phrase, import it to restore the same in-memory reserve wallet for this flow.
 
 Keep Rewind open until the rescue acceleration flow finishes. If you close the wallet, Rewind will lose the signer needed to use those funds for the rescue child transaction.`,
+        createButton: 'Create new',
+        importButton: 'Import existing',
+        importText: `Enter the Recovery Phrase for a temporary rescue reserve wallet you already created for this rescue flow. Rewind will derive the same reserve funding address and keep the signer only in memory.
+
+Do not import your regular wallet here. This flow is only for temporary rescue acceleration funds.`,
+        importConfirmButton: 'Import reserve wallet',
         bip39Proposal: `Below is the Recovery Phrase for this temporary rescue reserve wallet. Write it down before continuing.`,
         bip39ProposalPart2_TRUC: `This phrase is the only backup for the temporary wallet. Rewind does not store it. Keep this screen and wallet open until the reserve funding transaction confirms and the rescue acceleration flow completes.`,
         bip39ProposalPart2_NON_TRUC: `This phrase is the only backup for the temporary wallet. Rewind does not store it. Keep this screen and wallet open until the rescue acceleration flow completes.`,
         confirmBip39ProposalButton: 'I have written it down',
-        created: 'Temporary rescue reserve wallet created.'
+        created: 'Temporary rescue reserve wallet created.',
+        imported: 'Temporary rescue reserve wallet imported.'
       },
       delegate: {
         title: 'Delegation File',

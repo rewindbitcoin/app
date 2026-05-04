@@ -164,22 +164,28 @@ Rescue does not use ordinary hot-wallet UTXOs for fee bumping. If the user is in
 the rescue path, the hot wallet may already be compromised, so ordinary wallet
 funds are not a good emergency funding source.
 
-Current: rescue does not have an acceleration funding wizard yet. If a P2A rescue
-is already pending but no rescue acceleration reserve exists, the Rescue modal
-opens in explanation-only mode instead of funding acceleration.
+Current: rescue does not have an acceleration funding wizard wired into the
+action modal yet. If a P2A rescue is already pending but no rescue acceleration
+reserve exists, the Rescue modal opens in explanation-only mode instead of
+funding acceleration. The temporary rescue reserve wallet wizard can create a new
+reserve wallet or import one from a previously written phrase, but that wizard is
+not connected to action submission yet.
 
 Current direction: if the high-fee rescue parent is still not enough, rescue
-acceleration should create a fresh temporary software `P2WPKH` wallet in memory
-only, inside the rescue acceleration prompt:
+acceleration should create or import a temporary software `P2WPKH` wallet in
+memory only, inside the rescue acceleration prompt:
 
 - it is not the normal wallet signer, so a compromised main wallet seed does not
   also control the rescue reserve
 - the wallet exists only for the current app session; the app does not persist
   it locally
-- the user is shown the seed first and must confirm they recorded it
+- when creating a new temporary reserve wallet, the user is shown the seed first
+  and must confirm they recorded it
+- when importing, the user enters a previously written temporary rescue reserve
+  phrase so Rewind can re-derive the same in-memory signer and funding address
 - the UI must warn the user not to leave this wallet until the rescue
-  acceleration flow is complete, because that temporary wallet only lives in
-  the current wallet session and there is no in-app import path for it
+  acceleration flow is complete, because that temporary wallet only lives in the
+  current wallet session unless the user imports its phrase again
 - after seed confirmation, the app shows one funding address and the exact amount
   currently needed for the rescue bump
 - that amount should be computed from the shared reserve-sizing primitive used
@@ -221,6 +227,19 @@ signer, timing, change destination and recovery story.
 For trigger, child leftover value returns to normal wallet change. For future
 rescue acceleration, child leftover value must return to the temporary rescue
 wallet's internal/change branch, not to the emergency address.
+
+A P2A reserve source is a `P2WPKH` signer/output set dedicated to paying the
+CPFP child for one action type. It is not normal spendable wallet balance. When a
+P2A child uses reserve funds, it spends every known usable UTXO from that reserve
+set; the reserve set is not coinselected.
+
+Trigger reserve funds are controlled by the main hot wallet signer on the
+per-vault trigger reserve branch. Trigger child change goes back to an internal
+address of the main hot wallet.
+
+Rescue reserve funds are controlled by the temporary rescue reserve wallet, which
+is a same-session in-memory software wallet. Rescue child change goes back to an
+internal/change address of that same temporary rescue reserve wallet.
 
 Current: `P2ABumpPlan` describes the inputs needed to build a CPFP child:
 

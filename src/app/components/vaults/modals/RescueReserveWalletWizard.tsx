@@ -11,7 +11,7 @@ import type { NetworkId } from '../../../lib/network';
 
 export type RescueReserveWalletData = EphemeralWalletData;
 
-const CreateRescueReserveWallet = ({
+const RescueReserveWalletWizard = ({
   networkId,
   vaultMode,
   isVisible,
@@ -44,15 +44,23 @@ const CreateRescueReserveWallet = ({
       isVisible={isVisible}
       onWallet={onWallet}
       onClose={onClose}
-      title={t('wallet.vault.rescueReserveWallet.createNewModalTitle')}
+      title={t('wallet.vault.rescueReserveWallet.modalTitle')}
       icon={icon}
       introText={introText}
+      allowImport
+      createButtonText={t('wallet.vault.rescueReserveWallet.createButton')}
+      importButtonText={t('wallet.vault.rescueReserveWallet.importButton')}
+      importText={t('wallet.vault.rescueReserveWallet.importText')}
+      importConfirmButtonText={t(
+        'wallet.vault.rescueReserveWallet.importConfirmButton'
+      )}
       bip39ProposalText={t('wallet.vault.rescueReserveWallet.bip39Proposal')}
       bip39ProposalPart2Text={bip39ProposalPart2Text}
       confirmBip39ProposalButtonText={t(
         'wallet.vault.rescueReserveWallet.confirmBip39ProposalButton'
       )}
       successMessage={t('wallet.vault.rescueReserveWallet.created')}
+      importSuccessMessage={t('wallet.vault.rescueReserveWallet.imported')}
       addressChange={0}
       addressIndex={0}
       allowSkipBip39Confirmation={false}
@@ -60,4 +68,4 @@ const CreateRescueReserveWallet = ({
   );
 };
 
-export default CreateRescueReserveWallet;
+export default RescueReserveWalletWizard;

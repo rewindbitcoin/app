@@ -307,22 +307,29 @@ Añade más fondos para poder acelerarla.`,
         additionalExplanation: `Una vez que se confirme la solicitud de rescate, los fondos serán movidos a tu Dirección de Emergencia instantáneamente.`
       },
       rescueReserveWallet: {
-        createNewModalTitle: 'Billetera Temporal de Reserva de Rescate',
-        intro_TRUC: `Este asistente crea una billetera temporal, sólo en memoria, para fondos de aceleración de rescate. Es independiente de tu billetera normal porque, durante un rescate, esa billetera puede estar comprometida.
+        modalTitle: 'Billetera Temporal de Reserva de Rescate',
+        intro_TRUC: `Este asistente crea o importa una billetera temporal, sólo en memoria, para fondos de aceleración de rescate. Es independiente de tu billetera normal porque, durante un rescate, esa billetera puede estar comprometida.
 
-Úsala sólo si tu transacción de rescate necesita más comisión. Rewind no guarda esta billetera y desaparecerá si cierras esta billetera, vuelves a la pantalla principal o sales de este flujo.
+Úsala sólo si tu transacción de rescate necesita más comisión. Rewind no guarda esta billetera y desaparecerá si cierras esta billetera, vuelves a la pantalla principal o sales de este flujo. Si ya anotaste una frase temporal de reserva de rescate, impórtala para restaurar la misma billetera de reserva en memoria para este flujo.
 
 Como esta bóveda usa política TRUC, mantén Rewind abierto hasta que los fondos enviados a esta billetera temporal estén confirmados. Si cierras la billetera antes de la confirmación, Rewind perderá el firmante necesario para usar esos fondos en la transacción hija de rescate.`,
-        intro_NON_TRUC: `Este asistente crea una billetera temporal, sólo en memoria, para fondos de aceleración de rescate. Es independiente de tu billetera normal porque, durante un rescate, esa billetera puede estar comprometida.
+        intro_NON_TRUC: `Este asistente crea o importa una billetera temporal, sólo en memoria, para fondos de aceleración de rescate. Es independiente de tu billetera normal porque, durante un rescate, esa billetera puede estar comprometida.
 
-Úsala sólo si tu transacción de rescate necesita más comisión. Rewind no guarda esta billetera y desaparecerá si cierras esta billetera, vuelves a la pantalla principal o sales de este flujo.
+Úsala sólo si tu transacción de rescate necesita más comisión. Rewind no guarda esta billetera y desaparecerá si cierras esta billetera, vuelves a la pantalla principal o sales de este flujo. Si ya anotaste una frase temporal de reserva de rescate, impórtala para restaurar la misma billetera de reserva en memoria para este flujo.
 
 Mantén Rewind abierto hasta que termine el flujo de aceleración de rescate. Si cierras la billetera, Rewind perderá el firmante necesario para usar esos fondos en la transacción hija de rescate.`,
+        createButton: 'Crear nueva',
+        importButton: 'Importar existente',
+        importText: `Introduce la Frase de Recuperación de una billetera temporal de reserva de rescate que ya creaste para este flujo de rescate. Rewind derivará la misma dirección de financiación de reserva y mantendrá el firmante sólo en memoria.
+
+No importes aquí tu billetera normal. Este flujo es sólo para fondos temporales de aceleración de rescate.`,
+        importConfirmButton: 'Importar billetera de reserva',
         bip39Proposal: `Abajo tienes la Frase de Recuperación de esta billetera temporal de reserva de rescate. Anótala antes de continuar.`,
         bip39ProposalPart2_TRUC: `Esta frase es la única copia de seguridad de la billetera temporal. Rewind no la guarda. Mantén esta pantalla y la billetera abiertas hasta que la transacción de financiación de la reserva confirme y termine el flujo de aceleración de rescate.`,
         bip39ProposalPart2_NON_TRUC: `Esta frase es la única copia de seguridad de la billetera temporal. Rewind no la guarda. Mantén esta pantalla y la billetera abiertas hasta que termine el flujo de aceleración de rescate.`,
         confirmBip39ProposalButton: 'La he anotado',
-        created: 'Billetera temporal de reserva de rescate creada.'
+        created: 'Billetera temporal de reserva de rescate creada.',
+        imported: 'Billetera temporal de reserva de rescate importada.'
       },
       delegate: {
         title: 'Archivo de Delegación',

@@ -189,15 +189,31 @@ The current model is:
 - by default, the rescue parent is already presigned with a high fee rate
 - in most cases that should be enough, so rescue can be a single tx
 - if that still is not enough, the app can create a fresh temporary software
-  `P2WPKH` wallet in memory and ask the user to fund it for one rescue bump
-- the app shows the seed first, makes the user confirm it was written down, and
-  warns the user not to leave this wallet because the temporary rescue reserve
-  wallet is not persisted
+  `P2WPKH` wallet in memory, or import a previously written temporary rescue
+  reserve phrase, and ask the user to fund it for one rescue bump
+- when creating a new temporary rescue reserve wallet, the app shows the seed
+  first, makes the user confirm it was written down, and warns the user not to
+  leave this wallet because the temporary rescue reserve wallet is not persisted
+- when importing, the app re-derives the same in-memory reserve signer and
+  funding address from the temporary rescue reserve phrase
 - the app then shows one funding address and the exact currently needed amount
 - if the vault mode is `P2A_TRUC`, the reserve funding tx must confirm before
   the rescue bump child can use it
 - the rescue child spends the full temporary reserve set prepared for that bump,
   not a coinselected subset
+
+A reserve source is a `P2WPKH` signer/output set dedicated to fee-bumping one
+action type. Reserve funds are not normal spendable wallet balance. When Rewind
+uses reserve funds in a P2A child, it spends every known usable reserve UTXO for
+that action; it does not coinselect within the reserve set.
+
+For trigger, the reserve source is controlled by the main hot wallet signer on
+the per-vault trigger reserve branch, and child change goes to an internal
+address of the main hot wallet.
+
+For rescue, the reserve source is the temporary in-memory rescue reserve wallet,
+and child change goes to an internal/change address of that same temporary
+wallet.
 
 Why Rewind2 starts rescue with a large fee by default:
 
