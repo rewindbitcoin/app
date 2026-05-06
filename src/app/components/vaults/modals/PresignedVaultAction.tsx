@@ -53,7 +53,8 @@ export type PresignedVaultActionProps = (
    * P2A reserve-spend plan used when the selected action needs a CPFP child.
    *
    * For both trigger and rescue:
-   * - `undefined`: the reserve plan is not known yet, so the modal waits.
+   * - `'loading'`: reserve discovery is in progress.
+   * - `'error'`: reserve discovery failed; actions stay blocked until retry.
    * - empty `utxosData`: preparation finished with no reserve UTXOs, so the
    *   modal can offer a parent-only fallback if relay policy allows it.
    * - non-empty `utxosData`: those reserve UTXOs must be spent by the package
@@ -64,9 +65,11 @@ export type PresignedVaultActionProps = (
    * and fee-picker/package UX as trigger reserve plans. Their `changeOutput`
    * should point to the temporary rescue wallet's internal/change branch.
    */
-  p2aBumpPlan: P2ABumpPlan | undefined;
+  p2aBumpPlan: P2ABumpPlan | 'loading' | 'error';
   /** Called with the selected parent-only or parent-plus-child package data. */
   onAction: (actionData: VaultActionTxData) => void;
+  /** Retries reserve discovery after a role-specific reserve scan failure. */
+  onReserveRetry?: () => void;
   /** Optional funding flow opener for missing or underfunded P2A reserves. */
   onReserveFundsMissing?: () => void;
   /** Controls modal visibility while keeping the component mounted for animation. */
@@ -102,6 +105,7 @@ const PresignedVaultAction = ({
   p2aBumpPlan,
   isVisible,
   onAction,
+  onReserveRetry,
   onReserveFundsMissing,
   onClose,
   onModalHide,
@@ -152,17 +156,18 @@ const PresignedVaultAction = ({
       : vaultStatus?.panicCpfpTxHex;
   const pushedTxHex =
     isPushedButUnconfirmed && actionTxHex ? actionTxHex : undefined;
-  const isP2ABumpPlanLoading = !isLadderedVault && p2aBumpPlan === undefined;
+  const isP2ABumpPlanLoading = !isLadderedVault && p2aBumpPlan === 'loading';
+  const isP2ABumpPlanError = !isLadderedVault && p2aBumpPlan === 'error';
   const p2aBumpPlanHasSpendableUtxos =
     !isLadderedVault &&
-    !!p2aBumpPlan &&
+    typeof p2aBumpPlan === 'object' &&
     p2aBumpPlan.utxosData.length > 0 &&
     !(vaultMode === 'P2A_TRUC' && p2aBumpPlan.hasUnconfirmedUtxos);
   const needsFeeEstimatesForAvailability =
     isLadderedVault || p2aBumpPlanHasSpendableUtxos;
   const actionAvailability = useMemo(() => {
     if (!isVisible || !presignedTxInfos) return null;
-    if (isP2ABumpPlanLoading) return null;
+    if (isP2ABumpPlanLoading || isP2ABumpPlanError) return null;
     if (needsFeeEstimatesForAvailability && !feeEstimates) return null;
     if (isPushedButUnconfirmed && !pushedTxHex) return null;
     return getActionAvailability({
@@ -171,12 +176,13 @@ const PresignedVaultAction = ({
       ...(pushedTxHex ? { pushedTxHex } : {}),
       ...(pushedTxHex && childTxHex ? { pushedChildTxHex: childTxHex } : {}),
       presignedTxInfos,
-      ...(p2aBumpPlan ? { p2aBumpPlan } : {})
+      ...(typeof p2aBumpPlan === 'object' ? { p2aBumpPlan } : {})
     });
   }, [
     isVisible,
     presignedTxInfos,
     isP2ABumpPlanLoading,
+    isP2ABumpPlanError,
     needsFeeEstimatesForAvailability,
     feeEstimates,
     isPushedButUnconfirmed,
@@ -235,7 +241,7 @@ const PresignedVaultAction = ({
         selectedFeeRate,
         ...(pushedTxHex ? { pushedTxHex } : {}),
         presignedTxInfos,
-        ...(p2aBumpPlan ? { p2aBumpPlan } : {})
+        ...(typeof p2aBumpPlan === 'object' ? { p2aBumpPlan } : {})
       });
     },
     [
@@ -308,6 +314,7 @@ const PresignedVaultAction = ({
   let noReserveAvailableYetText: string;
   let reserveUnconfirmedText: string;
   let reserveCannotBuildPackageText: string;
+  let reserveScanErrorText: string;
   let introText: string;
   let postActionExplanationText: string;
   let feeSelectorExplanationText: string;
@@ -327,6 +334,7 @@ const PresignedVaultAction = ({
     reserveCannotBuildPackageText = t(
       'wallet.vault.triggerUnfreeze.insufficientReserveFunds'
     );
+    reserveScanErrorText = t('wallet.vault.triggerUnfreeze.reserveScanError');
     introText = isPushedButUnconfirmed
       ? t('wallet.vault.triggerUnfreeze.introAccelerate')
       : t('wallet.vault.triggerUnfreeze.intro', { timeLockTime });
@@ -351,6 +359,7 @@ const PresignedVaultAction = ({
     reserveCannotBuildPackageText = t(
       'wallet.vault.rescue.insufficientReserveFunds'
     );
+    reserveScanErrorText = t('wallet.vault.rescue.reserveScanError');
     introText = isPushedButUnconfirmed
       ? t('wallet.vault.rescue.introAccelerate')
       : t('wallet.vault.rescue.intro', { panicAddress: vault.coldAddress });
@@ -401,7 +410,8 @@ const PresignedVaultAction = ({
     !isPushedButUnconfirmed &&
     actionAvailability?.result === null &&
     !needsFeePicker &&
-    p2aBumpPlan?.utxosData.length === 0 &&
+    typeof p2aBumpPlan === 'object' &&
+    p2aBumpPlan.utxosData.length === 0 &&
     preferredNetworkFeeRate !== null &&
     (presignedTxInfos?.[0]?.feeRate ?? Infinity) < preferredNetworkFeeRate;
   let reserveFundsMissingPromptText: string | null = null;
@@ -444,7 +454,22 @@ const PresignedVaultAction = ({
     reserveFundsMissingPrompt ?? postActionExplanation;
 
   let modalContent: React.ReactNode;
-  if (
+  if (isP2ABumpPlanError) {
+    modalContent = (
+      <View>
+        <Text className="text-base text-slate-600 pb-2 px-2">
+          {reserveScanErrorText}
+        </Text>
+        {onReserveRetry ? (
+          <View className="items-center pt-4">
+            <Button mode="secondary-alert" onPress={onReserveRetry}>
+              {t('tryAgain')}
+            </Button>
+          </View>
+        ) : null}
+      </View>
+    );
+  } else if (
     isP2ABumpPlanLoading ||
     !actionAvailability ||
     (needsFeePicker && !feeEstimates)
@@ -454,7 +479,6 @@ const PresignedVaultAction = ({
     modalContent = (
       <View>
         <Text className="text-base text-slate-600 pb-2 px-2">
-          {/* TODO: Replace this explanation-only state with the reserve funding/top-up wizard. */}
           {noReserveAvailableYetText}
         </Text>
         {reserveFundsMissingButton}
@@ -480,7 +504,6 @@ const PresignedVaultAction = ({
     modalContent = (
       <View>
         <Text className="text-base text-slate-600 pb-2 px-2">
-          {/* TODO: Replace this explanation-only state with the reserve funding/top-up wizard. */}
           {reserveCannotBuildPackageText}
         </Text>
         {reserveFundsMissingButton}

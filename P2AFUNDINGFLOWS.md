@@ -111,17 +111,24 @@ trigger-reserve branch:
 m/1073'/coin_type'/2'/<vaultIndex>/0
 ```
 
-Current: the app discovers the setup-funded `/0` reserve. That is the only
-trigger reserve UTXO normal vault creation creates today.
+Current: the app discovers the setup-funded `/0` reserve plus later used child
+indexes on the same per-vault branch. Normal vault creation creates only `/0`;
+manual top-ups use the next unused index.
 
-TBD: if the user later adds more trigger reserve funds, those funds should use
-later child indexes on the same per-vault branch. Discovery then needs to return
-all usable reserve UTXOs for that vault.
+Trigger reserve discovery returns all usable reserve UTXOs for that vault. The
+child spends the full discovered set; it does not choose a subset.
 
-TBD: for `P2A_TRUC`, newly added trigger reserve funds must confirm before the
-app uses them in a trigger CPFP child. If the trigger reserve top-up tx is still
-unconfirmed, it becomes an additional unconfirmed parent of the CPFP child and
-breaks the one-unconfirmed-parent TRUC package shape.
+The refresh itself is descriptor-only once the descriptor is known. In the
+current software-wallet implementation Rewind derives the trigger reserve
+descriptor from the signer at runtime; a future HWW implementation should avoid
+touching the device during refresh by storing or otherwise caching watch-only
+reserve descriptors. Action construction later attaches the signer and change
+output only when a package is actually being prepared/signed.
+
+Current: for `P2A_TRUC`, newly added trigger reserve funds must confirm before
+the app uses them in a trigger CPFP child. If the trigger reserve top-up tx is
+still unconfirmed, it becomes an additional unconfirmed parent of the CPFP child
+and breaks the one-unconfirmed-parent TRUC package shape.
 
 The setup-funded reserve should normally cover trigger acceleration up to the
 configured ceiling. A trigger top-up wizard is only the fallback for missing,
@@ -132,8 +139,8 @@ parent-only only when its presigned parent fee is already policy-valid. If any
 trigger reserve UTXOs are found, they must be spent by the trigger CPFP child; if
 they are not confirmed yet under `P2A_TRUC`, the app waits instead of bypassing
 them. If reserve funds are insufficient, or an already-pushed trigger cannot be
-accelerated, the Trigger modal opens in explanation-only mode. It does not yet
-fund a top-up.
+accelerated, the Trigger modal can open the shared AddReserve flow to fund the
+next reserve child index.
 
 Current: if a trigger acceleration package was already submitted but is still not
 being mined, the next acceleration replaces the previous CPFP child with a
@@ -205,28 +212,27 @@ If the currently live rescue parent or rescue package is already at or above the
 current high-priority target, the rescue modal should warn that acceleration is
 probably unnecessary, but still let the user continue.
 
-TBD: if Rewind later adds rescue reserve recovery/import tooling, rescue
-fee-payer rediscovery should follow the same general idea as trigger, but using
-the rescue reserve wallet's own UTXOs instead. The app should not try to
-rediscover rescue fee-payer children by scanning the shared P2A anchor script.
+Current: while the same-session rescue reserve signer exists, Rewind refreshes
+that reserve wallet's descriptor and uses its UTXOs for rescue acceleration. If
+future recovery tooling needs to rediscover rescue fee-payer children after the
+session is gone, it should use rescue reserve UTXOs rather than scanning the
+shared P2A anchor script.
 
 ## Shared P2A Bump Shape
 
-Current: trigger uses this low-level package shape today:
+Current: trigger and same-session rescue reserve acceleration use this low-level
+package shape:
 
 ```text
 parent anchor + reserve inputs -> action-specific child change output
 ```
 
-TBD: rescue should use the same shape once same-session rescue reserve inputs
-exist.
-
 The differences are not in the package math. They are in the funding source,
 signer, timing, change destination and recovery story.
 
-For trigger, child leftover value returns to normal wallet change. For future
-rescue acceleration, child leftover value must return to the temporary rescue
-wallet's internal/change branch, not to the emergency address.
+For trigger, child leftover value returns to normal wallet change. For rescue
+acceleration, child leftover value returns to the temporary rescue wallet's
+internal/change branch, not to the emergency address.
 
 A P2A reserve source is a `P2WPKH` signer/output set dedicated to paying the
 CPFP child for one action type. It is not normal spendable wallet balance. When a
@@ -258,9 +264,9 @@ the next reserve UTXO. It is not trigger-specific.
 Current: for trigger setup, it is used for the first reserve UTXO with no
 existing reserve UTXOs yet.
 
-TBD: for future trigger top-ups or rescue acceleration funding, it can take
-existing reserve UTXOs into account and size only the next reserve UTXO that must
-be added.
+TBD: trigger top-ups and rescue acceleration funding still need amount sizing.
+The current AddReserve flow displays the next reserve address but does not yet
+calculate the exact amount to send.
 
 For current and future uses, the helper assumes the child spends all known
 reserve UTXOs plus the next reserve UTXO being sized. It does not do
@@ -336,12 +342,12 @@ too many unconfirmed ancestors: trigger tx -> rescue parent -> rescue CPFP child
 The only unconfirmed ancestor of a TRUC rescue CPFP child should be the rescue
 parent itself.
 
-TBD: future reserve top-ups do not get that guarantee automatically. If the user
-adds more funds to the trigger reserve, or funds a future rescue acceleration
-reserve, the new funding tx may still be unconfirmed. For `P2A_TRUC`, the future
-wizard must wait for that reserve UTXO to confirm before using it, unless relay
-policy changes. A larger multi-parent package may matter for non-TRUC flows, but
-it does not fit the current TRUC one-parent child shape.
+Current: reserve top-ups do not get that guarantee automatically. If the user
+adds more funds to the trigger reserve, or funds a rescue acceleration reserve,
+the new funding tx may still be unconfirmed. For `P2A_TRUC`, Rewind waits for
+that reserve UTXO to confirm before using it, unless relay policy changes. A
+larger multi-parent package may matter for non-TRUC flows, but it does not fit
+the current TRUC one-parent child shape.
 
 P2A acceleration must also respect policy details:
 
@@ -363,22 +369,17 @@ Current direction: the rescue reserve wallet is intentionally ephemeral:
 
 - the signer stays in memory only for the current session
 - the app shows the seed but does not store it locally
-- the app does not plan an in-app import flow for that rescue reserve wallet
-- if the user later needs that wallet outside the running session, recovery is
-  from the shown seed outside this flow
+- the app can import that seed during the current flow to restore the same
+  in-memory reserve wallet
+- if the user later needs that wallet outside the running session, recovery still
+  depends on the shown seed
 
 ## Open Work
 
-- Implement a shared acceleration funding wizard for trigger top-ups and
-  same-session rescue reserve funding.
-- Discover trigger reserve UTXOs beyond the built-in `/0` child.
-- Keep top-up UTXOs and rescue reserve funding UTXOs confirmed before TRUC use.
+- Add amount sizing to the shared acceleration funding flow for trigger top-ups
+  and same-session rescue reserve funding.
+- Persist or otherwise recover rescue reserve state if rescue acceleration must
+  survive app/session loss.
 - Decide whether to support multi-parent packages for immediate reserve use.
-- Implement the rescue reserve wallet wizard around a fresh temporary in-memory
-  software `P2WPKH` wallet.
-- Show and confirm the rescue reserve seed, warn the user not to leave this
-  wallet and keep the rescue reserve wallet out of local storage.
-- Size the requested rescue reserve funding amount from the current package goal
-  using the shared reserve-sizing primitive.
-- If later recovery/import tooling exists, rediscover rescue CPFP children from
-  rescue reserve UTXOs rather than from the shared P2A anchor script.
+- Rediscover rescue CPFP children from rescue reserve UTXOs rather than from the
+  shared P2A anchor script if rescue reserve recovery becomes persistent.

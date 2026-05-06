@@ -196,7 +196,8 @@ The current model is:
   leave this wallet because the temporary rescue reserve wallet is not persisted
 - when importing, the app re-derives the same in-memory reserve signer and
   funding address from the temporary rescue reserve phrase
-- the app then shows one funding address and the exact currently needed amount
+- the app then shows the next reserve funding address; exact amount sizing is
+  still open work
 - if the vault mode is `P2A_TRUC`, the reserve funding tx must confirm before
   the rescue bump child can use it
 - the rescue child spends the full temporary reserve set prepared for that bump,
@@ -208,8 +209,15 @@ uses reserve funds in a P2A child, it spends every known usable reserve UTXO for
 that action; it does not coinselect within the reserve set.
 
 For trigger, the reserve source is controlled by the main hot wallet signer on
-the per-vault trigger reserve branch, and child change goes to an internal
-address of the main hot wallet.
+the per-vault trigger reserve branch. The vault tx funds `/0`; manual top-ups use
+later child indexes. Trigger child change goes to an internal address of the main
+hot wallet.
+
+Today Rewind derives the trigger reserve descriptor from the software signer at
+runtime. A future HWW implementation should avoid touching the device during
+reserve refresh by storing or otherwise caching watch-only reserve descriptors;
+the signer should only be needed later if the app actually builds/signs a
+reserve-backed child.
 
 For rescue, the reserve source is the temporary in-memory rescue reserve wallet,
 and child change goes to an internal/change address of that same temporary
@@ -500,7 +508,7 @@ The current intended flow is:
 3. In that modal, create a random mnemonic `P2WPKH` wallet in memory only.
 4. Show the seed first, make the user confirm it was written down and warn the
    user not to leave this wallet.
-5. Show one funding address plus the exact currently needed amount.
+5. Show the next reserve funding address. Exact amount sizing is still open work.
 6. Once those funds are usable, build the rescue CPFP child from the rescue
    anchor plus every usable UTXO in that temporary reserve wallet.
 
@@ -516,8 +524,9 @@ If the currently live rescue parent or rescue package is already at or above the
 current high-priority target, the modal should warn that acceleration is
 probably unnecessary, but still allow the user to continue.
 
-The app does not plan to persist that temporary rescue reserve wallet or offer an
-in-app import flow for it.
+The app does not plan to persist that temporary rescue reserve wallet. It can
+import the seed during the current flow to restore the same in-memory reserve
+wallet.
 
 --
 

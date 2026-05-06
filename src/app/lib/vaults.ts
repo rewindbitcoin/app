@@ -1084,15 +1084,7 @@ const deriveKeyExpressionAndPubKey = async ({
   };
 };
 
-/**
- * Returns the dedicated per-vault trigger reserve output funded at vault
- * creation time.
- *
- * This is the first child on the per-vault trigger reserve branch.
- * It is not part of normal hot-wallet discovery. It exists solely to fund
- * trigger fee-bump children for this specific vault.
- */
-const getTriggerReserveOutput = ({
+const getTriggerReserveDescriptorForVaultIndex = ({
   signer,
   network,
   vaultIndex
@@ -1101,32 +1093,23 @@ const getTriggerReserveOutput = ({
   network: Network;
   vaultIndex: number;
 }) => {
-  const { Output } = ensureDescriptorsFactoryInstance();
-  const path = getTriggerReservePath(network, vaultIndex);
-  const lastSlashIndex = path.lastIndexOf('/');
-  if (lastSlashIndex < 2) throw new Error(`Invalid path: ${path}`);
   const mnemonic = signer?.mnemonic;
   if (!mnemonic)
     throw new Error(
       'Could not initialize the deterministic reserve derivation'
     );
   const masterNode = getMasterNode(mnemonic, network);
-  const keyExpression = keyExpressionBIP32({
+  const path = getTriggerReservePath(network, vaultIndex, '*');
+  const lastSlashIndex = path.lastIndexOf('/');
+  if (lastSlashIndex < 2) throw new Error(`Invalid path: ${path}`);
+  return `wpkh(${keyExpressionBIP32({
     masterNode,
     originPath: path.slice(1, lastSlashIndex),
     keyPath: path.slice(lastSlashIndex)
-  });
-  return new Output({ descriptor: `wpkh(${keyExpression})`, network });
+  })})`;
 };
 
-/**
- * Returns the currently known trigger reserve UTXOs for this vault.
- *
- * Today this returns only the built-in reserve funded in the vault tx itself,
- * which lives at `/0` on the trigger reserve branch. Future top-ups can extend
- * this list with more reserve UTXOs from the same branch.
- */
-export const getTriggerReserveUtxosData = ({
+export const getTriggerReserveDescriptor = ({
   vault,
   signer,
   network
@@ -1134,27 +1117,34 @@ export const getTriggerReserveUtxosData = ({
   vault: Vault;
   signer: Signer;
   network: Network;
-}) => {
-  const vaultIndex = parseVaultIndex(vault.vaultPath);
-  const triggerReserveOutput = getTriggerReserveOutput({
+}) =>
+  getTriggerReserveDescriptorForVaultIndex({
     signer,
     network,
-    vaultIndex
+    vaultIndex: parseVaultIndex(vault.vaultPath)
   });
-  const { tx: vaultTx } = transactionFromHex(vault.vaultTxHex);
-  const triggerReserveVout = vaultTx.outs.findIndex(
-    out => toHex(out.script) === toHex(triggerReserveOutput.getScriptPubKey())
-  );
-  if (triggerReserveVout < 0) return [];
 
-  return [
-    {
-      tx: vaultTx,
-      txHex: vault.vaultTxHex,
-      vout: triggerReserveVout,
-      output: triggerReserveOutput
-    }
-  ];
+/**
+ * Returns a dedicated per-vault trigger reserve output.
+ *
+ * The vault tx funds the first child at `/0`. Later top-ups use subsequent
+ * children on the same per-vault branch and are discovered as one reserve set.
+ */
+const getTriggerReserveOutput = ({
+  descriptor,
+  network,
+  addressIndex
+}: {
+  descriptor: string;
+  network: Network;
+  addressIndex: number;
+}) => {
+  const { Output } = ensureDescriptorsFactoryInstance();
+  return new Output({
+    descriptor,
+    index: addressIndex,
+    network
+  });
 };
 
 /**
@@ -1188,12 +1178,20 @@ export const getP2AVaultFundingBreakdown = ({
     })})`,
     network
   });
-  const [triggerReserveUtxoData] = getTriggerReserveUtxosData({
-    vault,
-    signer,
-    network
-  });
   const { tx: vaultTx } = transactionFromHex(vault.vaultTxHex);
+  const triggerReserveDescriptor = getTriggerReserveDescriptorForVaultIndex({
+    signer,
+    network,
+    vaultIndex
+  });
+  const triggerReserveOutput = getTriggerReserveOutput({
+    descriptor: triggerReserveDescriptor,
+    network,
+    addressIndex: 0
+  });
+  const triggerReserveVout = vaultTx.outs.findIndex(
+    out => toHex(out.script) === toHex(triggerReserveOutput.getScriptPubKey())
+  );
   const backupVout = vaultTx.outs.findIndex(
     out => toHex(out.script) === toHex(backupOutput.getScriptPubKey())
   );
@@ -1205,8 +1203,8 @@ export const getP2AVaultFundingBreakdown = ({
     throw new Error('Vault tx is missing backup output');
   if (!vaultTxData) throw new Error('Vault tx is not mapped');
   const triggerReserveValue =
-    triggerReserveUtxoData !== undefined
-      ? vaultTx.outs[triggerReserveUtxoData.vout]?.value
+    triggerReserveVout >= 0
+      ? vaultTx.outs[triggerReserveVout]?.value
       : BigInt(0);
   if (triggerReserveValue === undefined)
     throw new Error('Vault tx is missing trigger reserve output');
@@ -1683,10 +1681,15 @@ const buildVaultTxContext = async ({
     network
   });
   const changeOutput = new Output({ ...changeDescriptorWithIndex, network });
-  const triggerReserveOutput = getTriggerReserveOutput({
+  const triggerReserveDescriptor = getTriggerReserveDescriptorForVaultIndex({
     signer,
     network,
     vaultIndex
+  });
+  const triggerReserveOutput = getTriggerReserveOutput({
+    descriptor: triggerReserveDescriptor,
+    network,
+    addressIndex: 0
   });
   const triggerReserveValue = getRequiredTriggerReserveValue({
     triggerReserveOutput,
@@ -2268,12 +2271,12 @@ async function fetchSpendingTx(
  * and can make refresh unusably slow as network P2A usage grows.
  *
  * Rewind trigger fee-payer children also spend the per-vault trigger reserve
- * output funded in the vault transaction. That reserve output is deterministic,
- * unique to the vault, and derivable on every device from the wallet seed and
- * vault index. We therefore discover the candidate child by checking the reserve
- * output's spender, then validate that the candidate also spends the trigger
- * parent's P2A anchor. This keeps cross-device discovery while avoiding the
- * global P2A script-history scan.
+ * output funded in the vault transaction. That reserve output is unique to the
+ * vault and described by the stored trigger reserve descriptor. We therefore
+ * discover the candidate child by checking the setup-funded reserve output's
+ * spender, then validate that the candidate also spends the trigger parent's P2A
+ * anchor. This keeps cross-device discovery while avoiding the global P2A
+ * script-history scan.
  */
 async function fetchTriggerCpfpTxFromReserve({
   vault,
@@ -2292,23 +2295,32 @@ async function fetchTriggerCpfpTxFromReserve({
   const anchor = findP2AOutputData(triggerTx);
   if (!anchor) return;
 
-  const triggerReserveUtxosData = getTriggerReserveUtxosData({
-    vault,
+  const triggerReserveDescriptor = getTriggerReserveDescriptorForVaultIndex({
     signer,
-    network
+    network,
+    vaultIndex: parseVaultIndex(vault.vaultPath)
   });
-  for (const triggerReserveUtxoData of triggerReserveUtxosData) {
-    const candidateTxData = await fetchSpendingTx(
-      triggerReserveUtxoData.txHex,
-      triggerReserveUtxoData.vout,
-      explorer
-    );
-    if (
-      candidateTxData &&
-      txSpendsOutpoint(candidateTxData.txHex, triggerTxId, anchor.index)
-    )
-      return candidateTxData;
-  }
+  const triggerReserveOutput = getTriggerReserveOutput({
+    descriptor: triggerReserveDescriptor,
+    network,
+    addressIndex: 0
+  });
+  const { tx: vaultTx } = transactionFromHex(vault.vaultTxHex);
+  const triggerReserveVout = vaultTx.outs.findIndex(
+    out => toHex(out.script) === toHex(triggerReserveOutput.getScriptPubKey())
+  );
+  if (triggerReserveVout < 0) return;
+
+  const candidateTxData = await fetchSpendingTx(
+    vault.vaultTxHex,
+    triggerReserveVout,
+    explorer
+  );
+  if (
+    candidateTxData &&
+    txSpendsOutpoint(candidateTxData.txHex, triggerTxId, anchor.index)
+  )
+    return candidateTxData;
   return;
 }
 

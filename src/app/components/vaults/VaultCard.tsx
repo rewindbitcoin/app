@@ -18,13 +18,13 @@ import {
   type Vault,
   type VaultStatus,
   createCpfpChildTx,
-  getP2AVaultFundingBreakdown,
-  getTriggerReserveUtxosData,
+  getTriggerReserveDescriptor,
   getVaultFrozenBalance,
   getVaultMode,
   getRemainingBlocks,
   getVaultUnfrozenBalance,
-  getVaultRescuedBalance
+  getVaultRescuedBalance,
+  utxosDataBalance
 } from '../../lib/vaults';
 import VaultIcon from '../VaultIcon';
 import { useTranslation } from 'react-i18next';
@@ -33,6 +33,7 @@ import { Button, useToast } from '../../../common/ui';
 
 import { useSettings } from '../../hooks/useSettings';
 import type { BlockStatus } from '@bitcoinerlab/explorer';
+import AddReserve from './modals/AddReserve';
 import PresignedVaultAction from './modals/PresignedVaultAction';
 import RescueReserveWalletWizard, {
   type RescueReserveWalletData
@@ -64,7 +65,10 @@ import {
 } from '../../lib/watchtower';
 import SkeletonPulse from '../SkeletonPulse';
 import { networkMapping } from '../../lib/network';
-import { computeChangeOutput } from '../../lib/vaultDescriptors';
+import {
+  computeChangeOutput,
+  getDescriptorAddress
+} from '../../lib/vaultDescriptors';
 import useFirstDefinedValue from '~/common/hooks/useFirstDefinedValue';
 
 const LOADING_TEXT = '     ';
@@ -135,53 +139,117 @@ const RawVault = ({
     networkId,
     signers,
     getNextChangeDescriptorWithIndex,
+    fetchReserveDescriptorData,
     pushTxPackage
   } = useWallet();
   const feeEstimates = useFirstDefinedValue(feeEstimatesRealTime);
   const walletSigner = signers?.[0];
-  // undefined: real change-output-backed plan is still being prepared.
-  // A plan with empty utxosData means preparation finished with no reserve UTXOs.
-  const [triggerP2ABumpPlan, setTriggerP2ABumpPlan] = useState<
-    P2ABumpPlan | undefined
-  >(undefined);
+  const [triggerBumpPlan, setTriggerBumpPlan] = useState<
+    P2ABumpPlan | 'loading' | 'error'
+  >('loading');
+  const [triggerReserveAddress, setTriggerReserveAddress] = useState<
+    string | undefined
+  >();
+  const [triggerReserveValue, setTriggerReserveValue] = useState<
+    number | undefined
+  >();
+  const [isTriggerModalVisible, setIsTriggerModalVisible] =
+    useState<boolean>(false);
+  // Increment these to rerun the effects that scan reserve UTXOs and rebuild the
+  // trigger/rescue bump plans after a manual retry or wallet sync.
+  const [triggerReserveRefreshCount, setTriggerReserveRefreshCount] =
+    useState(0);
+  const [reserveSyncRefreshCount, setReserveSyncRefreshCount] = useState(0);
+  const wasSyncingBlockchain = useRef(syncingBlockchain);
+  useEffect(() => {
+    if (wasSyncingBlockchain.current && !syncingBlockchain)
+      setReserveSyncRefreshCount(refresh => refresh + 1);
+    wasSyncingBlockchain.current = syncingBlockchain;
+  }, [syncingBlockchain]);
+  const closeTriggerModal = useCallback(
+    () => setIsTriggerModalVisible(false),
+    []
+  );
+  const retryTriggerReserve = useCallback(() => {
+    if (isLadderedVault) return;
+    setTriggerBumpPlan('loading');
+    setTriggerReserveAddress(undefined);
+    setTriggerReserveValue(undefined);
+    setTriggerReserveRefreshCount(refresh => refresh + 1);
+  }, [isLadderedVault]);
+  const openTriggerModal = useCallback(() => {
+    if (triggerBumpPlan !== 'error') retryTriggerReserve();
+    setIsTriggerModalVisible(true);
+  }, [retryTriggerReserve, triggerBumpPlan]);
+  const [isAddTriggerReserveVisible, setIsAddTriggerReserveVisible] =
+    useState<boolean>(false);
+  const [isPendingAddTriggerReserve, setIsPendingAddTriggerReserve] =
+    useState<boolean>(false);
+  const closeAddTriggerReserve = useCallback(
+    () => setIsAddTriggerReserveVisible(false),
+    []
+  );
+  const openTriggerReserveFunds = useCallback(() => {
+    setIsPendingAddTriggerReserve(true);
+    setIsTriggerModalVisible(false);
+  }, []);
+  const handleTriggerModalHide = useCallback(() => {
+    if (isPendingAddTriggerReserve) {
+      setIsPendingAddTriggerReserve(false);
+      setIsAddTriggerReserveVisible(true);
+    }
+  }, [isPendingAddTriggerReserve]);
 
-  // Prepare and set the triggerP2ABumpPlan in state. triggerP2ABumpPlan needs a
-  // wallet change output and the next change descriptor is fetched
-  // asynchronously. The trigger modal receives, validates and submits this
-  // plan.
+  // Prepare the trigger reserve plan. Discovery scans the per-vault reserve
+  // branch so top-up UTXOs are included in the all-reserve-spent child.
   useEffect(() => {
     let cancelled = false;
-    setTriggerP2ABumpPlan(undefined);
+    if (isLadderedVault) {
+      setTriggerBumpPlan('loading');
+      return;
+    }
+    setTriggerBumpPlan('loading');
+    setTriggerReserveAddress(undefined);
+    setTriggerReserveValue(undefined);
 
     const prepareTriggerP2ABumpPlan = async () => {
-      if (isLadderedVault) {
-        return;
-      }
       if (!networkId || !walletSigner || !accounts) return;
       const network = networkMapping[networkId];
-      const utxosData = getTriggerReserveUtxosData({
-        vault,
-        signer: walletSigner,
-        network
-      });
       try {
+        const triggerReserveDescriptor = getTriggerReserveDescriptor({
+          vault,
+          signer: walletSigner,
+          network
+        });
+        const reserveData = await fetchReserveDescriptorData({
+          descriptor: triggerReserveDescriptor
+        });
+        if (cancelled) return;
+        if (!reserveData) {
+          setTriggerBumpPlan('error');
+          return;
+        }
+        const { utxosData, hasUnconfirmedUtxos, nextIndex } = reserveData;
         const changeDescriptorWithIndex =
           await getNextChangeDescriptorWithIndex(accounts);
         if (cancelled) return;
-        // The built-in trigger reserve UTXO is created by this vault tx itself.
-        // Until the vault tx confirms, that reserve input is unconfirmed too.
-        const isTriggerReserveConfirmed =
-          vaultStatus?.vaultTxBlockHeight !== undefined &&
-          vaultStatus.vaultTxBlockHeight > 0;
-        setTriggerP2ABumpPlan({
+        setTriggerReserveValue(utxosDataBalance(utxosData));
+        setTriggerReserveAddress(
+          getDescriptorAddress({
+            descriptor: triggerReserveDescriptor,
+            network,
+            index: nextIndex
+          })
+        );
+        setTriggerBumpPlan({
           utxosData,
-          hasUnconfirmedUtxos:
-            utxosData.length > 0 && !isTriggerReserveConfirmed,
+          hasUnconfirmedUtxos,
           changeOutput: computeChangeOutput(changeDescriptorWithIndex, network),
           signer: walletSigner
         });
       } catch (err) {
         console.warn('Could not prepare trigger fee-bump plan', err);
+        if (!cancelled) setTriggerBumpPlan('error');
       }
     };
 
@@ -196,20 +264,12 @@ const RawVault = ({
     walletSigner,
     accounts,
     vault,
-    vaultStatus?.vaultTxBlockHeight,
+    triggerReserveRefreshCount,
+    reserveSyncRefreshCount,
+    fetchReserveDescriptorData,
     getNextChangeDescriptorWithIndex
   ]);
 
-  const [isTriggerModalVisible, setIsTriggerModalVisible] =
-    useState<boolean>(false);
-  const closeTriggerModal = useCallback(
-    () => setIsTriggerModalVisible(false),
-    []
-  );
-  const openTriggerModal = useCallback(
-    () => setIsTriggerModalVisible(true),
-    []
-  );
   // Broadcasts the selected trigger action. It acknowledges the watchtower for
   // this local action, then pushes parent-only txs directly or builds the P2A
   // parent+reserve-child package when reserve UTXOs exist.
@@ -258,18 +318,18 @@ const RawVault = ({
               return;
             }
 
-            if (
-              triggerP2ABumpPlan &&
-              triggerP2ABumpPlan.utxosData.length === 0
-            ) {
+            if (typeof triggerBumpPlan !== 'object')
+              throw new Error('Trigger reserve plan is not ready');
+
+            if (triggerBumpPlan.utxosData.length === 0) {
               await pushTx(triggerData.parentTxHex);
               return;
             }
 
             if (
               !networkId ||
-              !triggerP2ABumpPlan?.changeOutput ||
-              !triggerP2ABumpPlan.signer
+              !triggerBumpPlan.changeOutput ||
+              !triggerBumpPlan.signer
             )
               throw new Error('Wallet not ready for Rewind2 trigger package');
             const network = networkMapping[networkId];
@@ -281,9 +341,9 @@ const RawVault = ({
               parentTxHex: triggerData.parentTxHex,
               parentFee: triggerData.parentTxFee,
               targetPackageFeeRate: triggerData.actionFeeRate,
-              utxosData: triggerP2ABumpPlan.utxosData,
-              changeOutput: triggerP2ABumpPlan.changeOutput,
-              signer: triggerP2ABumpPlan.signer,
+              utxosData: triggerBumpPlan.utxosData,
+              changeOutput: triggerBumpPlan.changeOutput,
+              signer: triggerBumpPlan.signer,
               network
             });
             if (!childTxData)
@@ -322,7 +382,7 @@ const RawVault = ({
       pushTxPackage,
       pushTx,
       isLadderedVault,
-      triggerP2ABumpPlan,
+      triggerBumpPlan,
       vault,
       vaultStatus,
       updateVaultStatus,
@@ -344,60 +404,139 @@ const RawVault = ({
     () => setIsRescueModalVisible(false),
     []
   );
-  const openRescueModal = useCallback(() => setIsRescueModalVisible(true), []);
   // Same-session rescue reserve wallet: funding address plus signer. It is not
   // persisted; future funding/discovery code will use it to build the rescue plan.
   const [rescueReserveData, setRescueReserveData] =
     useState<RescueReserveWalletData>();
-  // There are two separate modals in this handoff: the Rescue modal
-  // (PresignedVaultAction), where fees/action submission are selected, and this
-  // rescue reserve wizard, which creates/imports the ephemeral reserve wallet.
-  // When the user opens the wizard from Rescue, wait until the Rescue modal has
-  // fully closed before showing the wizard to avoid react-native-modal glitches.
+  const [rescueBumpPlan, setRescueBumpPlan] = useState<
+    P2ABumpPlan | 'loading' | 'error'
+  >(
+    isLadderedVault ? 'loading' : { utxosData: [], hasUnconfirmedUtxos: false }
+  );
+  const [rescueReserveAddress, setRescueReserveAddress] = useState<
+    string | undefined
+  >();
+  // Counter only; incrementing wakes the rescue reserve-preparation effect.
+  const [rescueReserveRefreshCount, setRescueReserveRefreshCount] = useState(0);
+  const retryRescueReserve = useCallback(() => {
+    if (!rescueReserveData) return;
+    setRescueBumpPlan('loading');
+    setRescueReserveAddress(undefined);
+    setRescueReserveRefreshCount(refresh => refresh + 1);
+  }, [rescueReserveData]);
+  const openRescueModal = useCallback(() => {
+    if (rescueReserveData && rescueBumpPlan !== 'error') retryRescueReserve();
+    setIsRescueModalVisible(true);
+  }, [rescueBumpPlan, rescueReserveData, retryRescueReserve]);
+  // Rescue reserve funding can open another modal from PresignedVaultAction:
+  // either the wallet wizard first, or the AddReserve address modal once a
+  // temporary reserve signer exists. Wait until Rescue has fully closed before
+  // showing the next modal to avoid react-native-modal glitches.
   const [isRescueReserveWizardVisible, setIsRescueReserveWizardVisible] =
     useState<boolean>(false);
-  const [isPendingRescueReserveWizard, setIsPendingRescueReserveWizard] =
+  const [isAddRescueReserveVisible, setIsAddRescueReserveVisible] =
     useState<boolean>(false);
+  const [pendingRescueReserveModal, setPendingRescueReserveModal] = useState<
+    'walletWizard' | 'addReserve' | null
+  >(null);
   const closeRescueReserveWalletWizard = useCallback(
     () => setIsRescueReserveWizardVisible(false),
     []
   );
-  //called when the user needs to create or add more funds to a bump reserve
+  const closeAddRescueReserve = useCallback(
+    () => setIsAddRescueReserveVisible(false),
+    []
+  );
+  // Called when the user needs to create or add more funds to a bump reserve.
   const openRescueReserveFunds = useCallback(() => {
-    if (rescueReserveData) {
-      // Once the temporary signer exists, the next step is funding/top-up for that
-      // same wallet. The shared trigger/rescue funding modal will handle that path.
-      console.warn('Rescue reserve funding modal is not implemented yet');
-    } else {
-      // First close the presigned action modal. The wizard opens from
-      // handleRescueModalHide after the close animation completes.
-      setIsPendingRescueReserveWizard(true);
-      setIsRescueModalVisible(false);
-    }
+    // First close the presigned action modal. The next modal opens from
+    // handleRescueModalHide after the close animation completes.
+    setPendingRescueReserveModal(
+      rescueReserveData ? 'addReserve' : 'walletWizard'
+    );
+    setIsRescueModalVisible(false);
   }, [rescueReserveData]);
   const handleRescueModalHide = useCallback(() => {
-    if (isPendingRescueReserveWizard) {
-      setIsPendingRescueReserveWizard(false);
+    if (pendingRescueReserveModal === 'walletWizard') {
+      setPendingRescueReserveModal(null);
       setIsRescueReserveWizardVisible(true);
+    } else if (pendingRescueReserveModal === 'addReserve') {
+      setPendingRescueReserveModal(null);
+      setIsAddRescueReserveVisible(true);
     }
-  }, [isPendingRescueReserveWizard]);
+  }, [pendingRescueReserveModal]);
   const handleRescueReserveWallet = useCallback(
     (walletData: RescueReserveWalletData) => {
       setRescueReserveData(walletData);
+      setRescueReserveAddress(walletData.address);
       setIsRescueReserveWizardVisible(false);
     },
     []
   );
-  const rescueP2ABumpPlan = useMemo<P2ABumpPlan | undefined>(() => {
-    if (isLadderedVault) return undefined;
-    // TODO: build this from the shared funding wizard once P2A rescue
-    // acceleration top-ups are supported. For now this explicit empty plan means
-    // rescue reserve discovery/preparation is complete and no reserve UTXOs are
-    // available. Future reserve-backed plans should use the temporary rescue
-    // wallet's internal/change branch as change output, not the emergency
-    // destination address.
-    return { utxosData: [], hasUnconfirmedUtxos: false };
-  }, [isLadderedVault]);
+  useEffect(() => {
+    let cancelled = false;
+    if (isLadderedVault) {
+      setRescueBumpPlan('loading');
+      return;
+    }
+    if (!rescueReserveData) {
+      setRescueBumpPlan({ utxosData: [], hasUnconfirmedUtxos: false });
+      setRescueReserveAddress(undefined);
+      return;
+    }
+    if (!networkId) {
+      setRescueBumpPlan('loading');
+      return;
+    }
+    const network = networkMapping[networkId];
+    setRescueBumpPlan('loading');
+    setRescueReserveAddress(undefined);
+
+    const prepareRescueP2ABumpPlan = async () => {
+      try {
+        const reserveData = await fetchReserveDescriptorData({
+          descriptor: rescueReserveData.addressDescriptor
+        });
+        if (cancelled) return;
+        if (!reserveData) {
+          setRescueBumpPlan('error');
+          return;
+        }
+        const { utxosData, hasUnconfirmedUtxos, nextIndex } = reserveData;
+        setRescueReserveAddress(
+          getDescriptorAddress({
+            descriptor: rescueReserveData.addressDescriptor,
+            network,
+            index: nextIndex
+          })
+        );
+        setRescueBumpPlan({
+          utxosData,
+          hasUnconfirmedUtxos,
+          changeOutput: computeChangeOutput(
+            { descriptor: rescueReserveData.changeDescriptor, index: 0 },
+            network
+          ),
+          signer: rescueReserveData.signer
+        });
+      } catch (err) {
+        console.warn('Could not prepare rescue fee-bump plan', err);
+        if (!cancelled) setRescueBumpPlan('error');
+      }
+    };
+
+    prepareRescueP2ABumpPlan();
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    isLadderedVault,
+    networkId,
+    rescueReserveData,
+    rescueReserveRefreshCount,
+    reserveSyncRefreshCount,
+    fetchReserveDescriptorData
+  ]);
   // Broadcasts the selected rescue action. The modal has already selected a
   // valid parent or package. Parent-only rescue pushes the parent directly;
   // reserve-backed rescue builds the child package.
@@ -422,17 +561,17 @@ const RawVault = ({
               return;
             }
 
-            if (
-              !rescueP2ABumpPlan ||
-              rescueP2ABumpPlan.utxosData.length === 0
-            ) {
+            if (typeof rescueBumpPlan !== 'object')
+              throw new Error('Rescue reserve plan is not ready');
+
+            if (rescueBumpPlan.utxosData.length === 0) {
               await pushTx(rescueData.parentTxHex);
               return;
             }
             if (
               !networkId ||
-              !rescueP2ABumpPlan?.changeOutput ||
-              !rescueP2ABumpPlan.signer
+              !rescueBumpPlan.changeOutput ||
+              !rescueBumpPlan.signer
             )
               throw new Error('Wallet not ready for Rewind2 rescue package');
             const network = networkMapping[networkId];
@@ -440,9 +579,9 @@ const RawVault = ({
               parentTxHex: rescueData.parentTxHex,
               parentFee: rescueData.parentTxFee,
               targetPackageFeeRate: rescueData.actionFeeRate,
-              utxosData: rescueP2ABumpPlan.utxosData,
-              changeOutput: rescueP2ABumpPlan.changeOutput,
-              signer: rescueP2ABumpPlan.signer,
+              utxosData: rescueBumpPlan.utxosData,
+              changeOutput: rescueBumpPlan.changeOutput,
+              signer: rescueBumpPlan.signer,
               network
             });
             if (!childTxData)
@@ -483,7 +622,7 @@ const RawVault = ({
       networkId,
       pushTxPackage,
       isLadderedVault,
-      rescueP2ABumpPlan
+      rescueBumpPlan
     ]
   );
 
@@ -550,9 +689,13 @@ const RawVault = ({
   const isTriggerModalBlockedByUnconfirmedVault =
     vaultMode === 'P2A_TRUC' && !isVaultTxConfirmed;
   const isTriggerModalBlockedByUnconfirmedReserve =
-    vaultMode === 'P2A_TRUC' && !!triggerP2ABumpPlan?.hasUnconfirmedUtxos;
+    vaultMode === 'P2A_TRUC' &&
+    typeof triggerBumpPlan === 'object' &&
+    triggerBumpPlan.hasUnconfirmedUtxos;
   const isRescueModalBlockedByUnconfirmedReserve =
-    vaultMode === 'P2A_TRUC' && !!rescueP2ABumpPlan?.hasUnconfirmedUtxos;
+    vaultMode === 'P2A_TRUC' &&
+    typeof rescueBumpPlan === 'object' &&
+    rescueBumpPlan.hasUnconfirmedUtxos;
   const showDelegateButton = !vaultNotFound && !isUnfrozen && !hasRescueStarted;
   const showHideButton =
     vaultNotFound ||
@@ -584,12 +727,12 @@ const RawVault = ({
 
   const trigger = useMemo(() => {
     const startButtonVisible = !vaultNotFound && !hasTriggerStarted;
-    const bumpPlanLoading =
-      !isLadderedVault && triggerP2ABumpPlan === undefined;
+    const bumpPlanLoading = !isLadderedVault && triggerBumpPlan === 'loading';
+    const bumpPlanError = !isLadderedVault && triggerBumpPlan === 'error';
     const triggerBumpPlanNeedsFeeEstimates =
       !isLadderedVault &&
-      !!triggerP2ABumpPlan &&
-      triggerP2ABumpPlan.utxosData.length > 0;
+      typeof triggerBumpPlan === 'object' &&
+      triggerBumpPlan.utxosData.length > 0;
     const modalNeedsFeeEstimates =
       isLadderedVault || triggerBumpPlanNeedsFeeEstimates;
 
@@ -598,11 +741,14 @@ const RawVault = ({
       !isTriggerModalBlockedByUnconfirmedVault &&
       !isTriggerModalBlockedByUnconfirmedReserve &&
       !bumpPlanLoading &&
-      (!modalNeedsFeeEstimates || !!feeEstimates);
+      (bumpPlanError || !modalNeedsFeeEstimates || !!feeEstimates);
 
     let accelerationButtonEnabled = false;
-    if (
+    if (bumpPlanError && !hasRescueStarted && isTriggerPushedButUnconfirmed) {
+      accelerationButtonEnabled = true;
+    } else if (
       hasModalPrerequisites &&
+      !bumpPlanError &&
       // Once rescue starts, acceleration belongs to the rescue action. For
       // laddered vaults, replacing the trigger after rescue was pushed could
       // invalidate the rescue tx that spends the prior trigger.
@@ -618,7 +764,9 @@ const RawVault = ({
           ? { pushedChildTxHex: triggerCpfpTxHex }
           : {}),
         presignedTxInfos: triggerPresignedTxInfos,
-        ...(triggerP2ABumpPlan ? { p2aBumpPlan: triggerP2ABumpPlan } : {})
+        ...(typeof triggerBumpPlan === 'object'
+          ? { p2aBumpPlan: triggerBumpPlan }
+          : {})
       });
       accelerationButtonEnabled = isLadderedVault
         ? accelerationAvailability.result === null
@@ -635,7 +783,8 @@ const RawVault = ({
           !isTriggerModalBlockedByUnconfirmedVault &&
           !isTriggerModalBlockedByUnconfirmedReserve &&
           !hasModalPrerequisites &&
-          (bumpPlanLoading || (modalNeedsFeeEstimates && !feeEstimates))),
+          (bumpPlanLoading ||
+            (!bumpPlanError && modalNeedsFeeEstimates && !feeEstimates))),
       accelerationButtonEnabled,
       accelerationLoading: isTriggerBeingHandled
     };
@@ -643,7 +792,7 @@ const RawVault = ({
     vaultNotFound,
     hasTriggerStarted,
     isLadderedVault,
-    triggerP2ABumpPlan,
+    triggerBumpPlan,
     isTriggerBeingHandled,
     isTriggerModalBlockedByUnconfirmedVault,
     isTriggerModalBlockedByUnconfirmedReserve,
@@ -661,19 +810,29 @@ const RawVault = ({
       hasTriggerStarted && !isUnfrozen && !hasRescueStarted;
     const rescueBumpPlanNeedsFeeEstimates =
       !isLadderedVault &&
-      !!rescueP2ABumpPlan &&
-      rescueP2ABumpPlan.utxosData.length > 0;
+      typeof rescueBumpPlan === 'object' &&
+      rescueBumpPlan.utxosData.length > 0;
+    const bumpPlanLoading = !isLadderedVault && rescueBumpPlan === 'loading';
+    const bumpPlanError = !isLadderedVault && rescueBumpPlan === 'error';
     const modalNeedsFeeEstimates =
       isLadderedVault || rescueBumpPlanNeedsFeeEstimates;
     const hasModalPrerequisites =
       !isRescueBeingHandled &&
       !!rescuePresignedTxInfos &&
       !isRescueModalBlockedByUnconfirmedReserve &&
-      (!modalNeedsFeeEstimates || !!feeEstimates);
+      !bumpPlanLoading &&
+      (bumpPlanError || !modalNeedsFeeEstimates || !!feeEstimates);
 
     let accelerationButtonEnabled = false;
     if (
+      bumpPlanError &&
+      isRescuePushedButUnconfirmed &&
+      rescuePresignedTxInfos
+    ) {
+      accelerationButtonEnabled = true;
+    } else if (
       hasModalPrerequisites &&
+      !bumpPlanError &&
       isRescuePushedButUnconfirmed &&
       rescuePushedTxHex &&
       rescuePresignedTxInfos
@@ -686,7 +845,9 @@ const RawVault = ({
           ? { pushedChildTxHex: panicCpfpTxHex }
           : {}),
         presignedTxInfos: rescuePresignedTxInfos,
-        ...(rescueP2ABumpPlan ? { p2aBumpPlan: rescueP2ABumpPlan } : {})
+        ...(typeof rescueBumpPlan === 'object'
+          ? { p2aBumpPlan: rescueBumpPlan }
+          : {})
       });
       accelerationButtonEnabled = isLadderedVault
         ? accelerationAvailability.result === null
@@ -702,8 +863,8 @@ const RawVault = ({
         (startButtonVisible &&
           !isRescueModalBlockedByUnconfirmedReserve &&
           !hasModalPrerequisites &&
-          modalNeedsFeeEstimates &&
-          !feeEstimates),
+          (bumpPlanLoading ||
+            (!bumpPlanError && modalNeedsFeeEstimates && !feeEstimates))),
       accelerationButtonEnabled,
       accelerationLoading: isRescueBeingHandled
     };
@@ -712,7 +873,7 @@ const RawVault = ({
     isUnfrozen,
     hasRescueStarted,
     isLadderedVault,
-    rescueP2ABumpPlan,
+    rescueBumpPlan,
     isRescueBeingHandled,
     isRescueModalBlockedByUnconfirmedReserve,
     rescuePresignedTxInfos,
@@ -802,18 +963,10 @@ const RawVault = ({
     getVaultUnfrozenBalance(vault, vaultStatus, tipHeight);
   const rescuedBalance =
     tipHeight && vaultStatus && getVaultRescuedBalance(vault, vaultStatus);
-  const unfreezeReserveValue = useMemo(() => {
-    if (isLadderedVault || !frozenBalance || vaultStatus?.triggerTxHex) return;
-    const signer = signers?.[0];
-    if (!signer) return;
-    return getP2AVaultFundingBreakdown({ vault, signer }).triggerReserveValue;
-  }, [
-    isLadderedVault,
-    frozenBalance,
-    vaultStatus?.triggerTxHex,
-    signers,
-    vault
-  ]);
+  const unfreezeReserveValue =
+    !isLadderedVault && frozenBalance && !vaultStatus?.triggerTxHex
+      ? triggerReserveValue
+      : undefined;
 
   return (
     <View
@@ -1200,21 +1353,36 @@ const RawVault = ({
         role="TRIGGER"
         vault={vault}
         vaultStatus={vaultStatus}
-        p2aBumpPlan={triggerP2ABumpPlan}
+        p2aBumpPlan={triggerBumpPlan}
         isVisible={isTriggerModalVisible}
         lockBlocks={vault.lockBlocks}
         onClose={closeTriggerModal}
+        onModalHide={handleTriggerModalHide}
+        onReserveRetry={retryTriggerReserve}
+        {...(networkId && p2aVaultMode && triggerReserveAddress
+          ? { onReserveFundsMissing: openTriggerReserveFunds }
+          : {})}
         onAction={handleTrigger}
       />
+      {p2aVaultMode && triggerReserveAddress && (
+        <AddReserve
+          role="TRIGGER"
+          vaultMode={p2aVaultMode}
+          address={triggerReserveAddress}
+          isVisible={isAddTriggerReserveVisible}
+          onClose={closeAddTriggerReserve}
+        />
+      )}
       <PresignedVaultAction
         role="RESCUE"
         vault={vault}
         vaultStatus={vaultStatus}
-        p2aBumpPlan={rescueP2ABumpPlan}
+        p2aBumpPlan={rescueBumpPlan}
         isVisible={isRescueModalVisible}
         onClose={closeRescueModal}
         onModalHide={handleRescueModalHide}
-        {...(networkId && p2aVaultMode && !rescueReserveData
+        onReserveRetry={retryRescueReserve}
+        {...(networkId && p2aVaultMode
           ? { onReserveFundsMissing: openRescueReserveFunds }
           : {})}
         onAction={handleRescue}
@@ -1227,6 +1395,15 @@ const RawVault = ({
           isVisible={isRescueReserveWizardVisible}
           onWallet={handleRescueReserveWallet}
           onClose={closeRescueReserveWalletWizard}
+        />
+      )}
+      {p2aVaultMode && rescueReserveAddress && (
+        <AddReserve
+          role="RESCUE"
+          vaultMode={p2aVaultMode}
+          address={rescueReserveAddress}
+          isVisible={isAddRescueReserveVisible}
+          onClose={closeAddRescueReserve}
         />
       )}
       <Delegate

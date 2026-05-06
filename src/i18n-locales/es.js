@@ -273,6 +273,9 @@ Espera un poco más y vuelve a intentarlo.`,
         insufficientReserveFunds: `Hay fondos en la reserva, pero no son suficientes para iniciar o acelerar esta solicitud de descongelación.
 
 Añade más fondos a la reserva para continuar.`,
+        reserveScanError: `Rewind no pudo comprobar los fondos de reserva para esta solicitud de descongelación.
+
+Comprueba tu conexión e inténtalo de nuevo.`,
         reserveCannotPaySelectedFee: `La reserva no puede pagar la comisión seleccionada. Añade fondos de reserva o elige una comisión más baja.`,
         reserveBelowRecommendedFee: `La reserva no puede alcanzar la comisión recomendada actualmente. Esta solicitud de descongelación usará una comisión más baja salvo que añadas fondos de reserva.`,
         parentFeeBelowRecommendedFee: `Esta solicitud de descongelación puede enviarse ahora, pero las comisiones actuales son más altas que su comisión prefirmada. Añade fondos de reserva si quieres acelerarla antes de continuar.`,
@@ -304,6 +307,9 @@ Espera un poco más y vuelve a intentarlo.`,
         insufficientReserveFunds: `Hay fondos de aceleración disponibles, pero no son suficientes para acelerar esta solicitud de rescate.
 
 Añade más fondos para poder acelerarla.`,
+        reserveScanError: `Rewind no pudo comprobar los fondos de aceleración para esta solicitud de rescate.
+
+Comprueba tu conexión e inténtalo de nuevo.`,
         reserveCannotPaySelectedFee: `Los fondos de aceleración de rescate no pueden pagar la comisión seleccionada. Añade fondos temporales de reserva o elige una comisión más baja.`,
         reserveBelowRecommendedFee: `Los fondos de aceleración de rescate no pueden alcanzar la comisión recomendada actualmente. Este rescate usará una comisión más baja salvo que añadas fondos temporales de reserva.`,
         parentFeeBelowRecommendedFee: `Este rescate puede enviarse ahora, pero las comisiones actuales son más altas que su comisión prefirmada. Añade fondos temporales de reserva si quieres acelerarlo antes de continuar.`,
@@ -312,6 +318,14 @@ Añade más fondos para poder acelerarla.`,
         feeSelectorExplanation:
           'Confirma la comisión de minería de la transacción de rescate para asegurar un procesamiento rápido.',
         postActionExplanation: `Una vez que se confirme la solicitud de rescate, los fondos serán movidos a tu Dirección de Emergencia instantáneamente.`
+      },
+      addReserve: {
+        triggerTitle: 'Añadir Reserva de Descongelación',
+        rescueTitle: 'Añadir Reserva de Rescate',
+        triggerIntro: `Envía fondos a esta dirección de reserva para añadir fondos de aceleración para esta solicitud de descongelación.`,
+        rescueIntro: `Envía fondos a esta dirección temporal de reserva para añadir fondos de aceleración para esta solicitud de rescate.`,
+        trucConfirmationNote: `Como esta bóveda usa política TRUC, los fondos enviados aquí deben confirmarse antes de que Rewind pueda usarlos en la transacción hija de aceleración.`,
+        addressLabel: 'Dirección de Reserva'
       },
       rescueReserveWallet: {
         modalTitle: 'Billetera Temporal de Reserva de Rescate',

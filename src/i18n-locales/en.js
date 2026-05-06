@@ -278,6 +278,9 @@ Wait a little longer, then try again.`,
         insufficientReserveFunds: `Reserve funds are available, but there is not enough to start or accelerate this unfreeze request.
 
 Add more reserve funds to continue.`,
+        reserveScanError: `Rewind could not check the reserve funds for this unfreeze request.
+
+Check your connection and try again.`,
         reserveCannotPaySelectedFee: `Reserve funds cannot pay the selected fee. Add reserve funds or choose a lower fee.`,
         reserveBelowRecommendedFee: `Reserve funds cannot reach the current recommended fee. This unfreeze request will use a lower fee unless you add reserve funds.`,
         parentFeeBelowRecommendedFee: `This unfreeze request can be sent now, but current fees are higher than its presigned fee. Add reserve funds if you want to accelerate it before continuing.`,
@@ -309,6 +312,9 @@ Wait a little longer, then try again.`,
         insufficientReserveFunds: `Acceleration funds are available, but there is not enough to accelerate this rescue request.
 
 Add more funds to accelerate it.`,
+        reserveScanError: `Rewind could not check the acceleration funds for this rescue request.
+
+Check your connection and try again.`,
         reserveCannotPaySelectedFee: `Rescue acceleration funds cannot pay the selected fee. Add temporary reserve funds or choose a lower fee.`,
         reserveBelowRecommendedFee: `Rescue acceleration funds cannot reach the current recommended fee. This rescue will use a lower fee unless you add temporary reserve funds.`,
         parentFeeBelowRecommendedFee: `This rescue can be sent now, but current fees are higher than its presigned fee. Add temporary reserve funds if you want to accelerate it before continuing.`,
@@ -317,6 +323,14 @@ Add more funds to accelerate it.`,
         feeSelectorExplanation:
           'Confirm the mining fee for the rescue transaction to ensure prompt processing.',
         postActionExplanation: `Once the rescue request is confirmed, the funds will be moved to your Emergency Address instantly.`
+      },
+      addReserve: {
+        triggerTitle: 'Add Unfreeze Reserve',
+        rescueTitle: 'Add Rescue Reserve',
+        triggerIntro: `Send funds to this reserve address to top up fee-bumping funds for this unfreeze request.`,
+        rescueIntro: `Send funds to this temporary reserve address to top up fee-bumping funds for this rescue request.`,
+        trucConfirmationNote: `Because this vault uses TRUC policy, funds sent here must confirm before Rewind can use them for the fee-bump child transaction.`,
+        addressLabel: 'Reserve Address'
       },
       rescueReserveWallet: {
         modalTitle: 'Temporary Rescue Reserve Wallet',

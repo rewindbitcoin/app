@@ -60,7 +60,11 @@ import type { Wallet } from '../lib/wallets';
 import { SERIALIZABLE, STRING, deleteAsync } from '../../common/lib/storage';
 import { useTranslation } from 'react-i18next';
 
-import type { DiscoveryInstance, TxAttribution } from '@bitcoinerlab/discovery';
+import {
+  TxStatus,
+  type DiscoveryInstance,
+  type TxAttribution
+} from '@bitcoinerlab/discovery';
 import type { FeeEstimates } from '../lib/fees';
 import { AppState, AppStateStatus, Platform } from 'react-native';
 import { batchedUpdates } from '../../common/lib/batchedUpdates';
@@ -128,6 +132,14 @@ export type WalletContextType = {
   fetchBlockTime: (blockHeight: number) => Promise<number | undefined>;
   pushTx: (txHex: string) => Promise<void>;
   getTxosData: (txos: Array<string>) => UtxosData;
+  fetchReserveDescriptorData: (params: { descriptor: string }) => Promise<
+    | {
+        utxosData: UtxosData;
+        hasUnconfirmedUtxos: boolean;
+        nextIndex: number;
+      }
+    | undefined
+  >;
   pushTxPackage: ({
     parentTxHex,
     childTxHex
@@ -688,6 +700,52 @@ const WalletProviderRaw = ({
       return getTxosDataFromVaults(txos, vaults, network, discovery);
     },
     [discovery, vaults, activeWallet?.networkId]
+  );
+
+  /** Fetches reserve descriptor data without adding it to normal wallet funds. */
+  const fetchReserveDescriptorData = useCallback(
+    async ({ descriptor }: { descriptor: string }) => {
+      if (!discovery || !vaults || !activeWallet?.networkId)
+        throw new Error('Wallet not ready for fetchReserveDescriptorData');
+      if (gapLimit === undefined)
+        throw new Error('gapLimit not ready for fetchReserveDescriptorData');
+      if (!descriptor.includes('*'))
+        throw new Error('Reserve descriptor must be ranged');
+
+      try {
+        const network = networkMapping[activeWallet.networkId];
+        // Do not use netRequest here: reserve scans run in the background and
+        // failures should surface only in the role-specific Trigger/Rescue UI.
+        await discovery.fetch({ descriptor, gapLimit });
+        const { utxos } = discovery.getUtxosAndBalance({
+          descriptor,
+          txStatus: TxStatus.ALL
+        });
+        const { utxos: confirmedUtxos } = discovery.getUtxosAndBalance({
+          descriptor,
+          txStatus: TxStatus.CONFIRMED
+        });
+        const confirmedUtxosSet = new Set(confirmedUtxos);
+        const utxosData = getTxosDataFromVaults(
+          utxos,
+          vaults,
+          network,
+          discovery
+        );
+        const nextIndex = discovery.getNextIndex({ descriptor });
+        await setDiscoveryExport(discovery.export());
+
+        return {
+          utxosData,
+          hasUnconfirmedUtxos: utxos.some(utxo => !confirmedUtxosSet.has(utxo)),
+          nextIndex
+        };
+      } catch (err) {
+        console.warn('Could not fetch reserve descriptor data', err);
+        return undefined;
+      }
+    },
+    [activeWallet?.networkId, discovery, gapLimit, setDiscoveryExport, vaults]
   );
 
   /**
@@ -2452,6 +2510,7 @@ const WalletProviderRaw = ({
     fetchBlockTime,
     pushTx,
     getTxosData,
+    fetchReserveDescriptorData,
     pushTxPackage,
     syncWatchtowerRegistration,
     fetchOutputHistory,

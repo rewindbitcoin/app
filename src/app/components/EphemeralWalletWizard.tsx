@@ -12,12 +12,15 @@ import { networkMapping, type NetworkId } from '../lib/network';
 import type { Signer } from '../lib/wallets';
 import {
   createP2WPKHAddress,
+  createP2WPKHDescriptor,
   createSoftwareSignerFromMnemonic
 } from '../lib/vaultDescriptors';
 
 export type EphemeralWalletData = {
   signer: Signer;
   address: string;
+  addressDescriptor: string;
+  changeDescriptor: string;
 };
 
 type EphemeralWalletWizardProps = {
@@ -131,7 +134,20 @@ const EphemeralWalletWizard = ({
         change: addressChange,
         index: addressIndex
       });
-      await onWallet({ signer, address });
+      await onWallet({
+        signer,
+        address,
+        addressDescriptor: createP2WPKHDescriptor({
+          mnemonic,
+          network,
+          change: addressChange
+        }),
+        changeDescriptor: createP2WPKHDescriptor({
+          mnemonic,
+          network,
+          change: 1
+        })
+      });
       if (message) toast.show(message, { type: 'success', duration: 2000 });
     },
     [addressChange, addressIndex, network, onWallet, toast]

@@ -155,15 +155,38 @@ export const createP2WPKHAddress = async ({
   change: 0 | 1;
   index: number;
 }) => {
-  const { Output } = ensureDescriptorsFactoryInstance();
-  const descriptor = scriptExpressions.wpkhBIP32({
+  const descriptor = createP2WPKHDescriptor({ mnemonic, network, change });
+  return getDescriptorAddress({ descriptor, network, index });
+};
+
+export const createP2WPKHDescriptor = ({
+  mnemonic,
+  network,
+  change
+}: {
+  mnemonic: string;
+  network: Network;
+  change: 0 | 1;
+}) =>
+  scriptExpressions.wpkhBIP32({
     masterNode: getMasterNode(mnemonic, network),
     network,
     account: 0,
-    index,
+    index: '*',
     change
   });
-  return new Output({ descriptor, network }).getAddress();
+
+export const getDescriptorAddress = ({
+  descriptor,
+  network,
+  index
+}: {
+  descriptor: string;
+  network: Network;
+  index: number;
+}) => {
+  const { Output } = ensureDescriptorsFactoryInstance();
+  return new Output({ descriptor, index, network }).getAddress();
 };
 
 /** Async because in the future i may have some signing server that will
