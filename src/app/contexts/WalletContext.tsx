@@ -1008,6 +1008,111 @@ const WalletProviderRaw = ({
     isAccountsSynchd: accountsStorageStatus.isSynchd
   });
 
+  // diagnostic logging for storage errors. The ref prevents spamming the
+  // console while preserving enough detail to debug transient
+  // corruption/read-write states reported by users.
+  const lastWalletStorageWarningKeyRef = useRef<string | null>(null);
+  useEffect(() => {
+    const hasWalletStorageError =
+      isCorrupted || storageAccessStatus.readWriteError;
+    if (!hasWalletStorageError) {
+      lastWalletStorageWarningKeyRef.current = null;
+      return;
+    }
+
+    const missingWallet = !activeWallet;
+    const missingSignersAfterDiskSync =
+      !signers &&
+      signersStorageStatus.isDiskSynchd &&
+      signersStorageStatus.errorCode !== 'DecryptError';
+    const missingVaultsAfterSync = !vaults && vaultsStorageStatus.isSynchd;
+    const missingVaultsStatusesAfterSync =
+      !vaultsStatuses && vaultsStatusesStorageStatus.isSynchd;
+    const missingAccountsAfterSync =
+      !accounts && accountsStorageStatus.isSynchd;
+
+    const warningKey = [
+      activeWallet?.walletId ?? 'no-wallet',
+      isCorrupted,
+      storageAccessStatus.readWriteError,
+      settingsStorageStatus.errorCode,
+      walletsStorageStatus.errorCode,
+      signersStorageStatus.errorCode,
+      discoveryExportStorageStatus.errorCode,
+      vaultsStorageStatus.errorCode,
+      vaultsStatusesStorageStatus.errorCode,
+      accountsStorageStatus.errorCode,
+      missingWallet,
+      missingSignersAfterDiskSync,
+      missingVaultsAfterSync,
+      missingVaultsStatusesAfterSync,
+      missingAccountsAfterSync,
+      !!wallets,
+      !!signers,
+      discoveryExport !== undefined,
+      !!vaults,
+      !!vaultsStatuses,
+      !!accounts
+    ].join(':');
+    if (lastWalletStorageWarningKeyRef.current === warningKey) return;
+    lastWalletStorageWarningKeyRef.current = warningKey;
+
+    console.warn('Wallet storage error state', {
+      walletId: activeWallet?.walletId,
+      walletIdRef: walletIdRef.current,
+      hasActiveWallet: !!activeWallet,
+      isCorrupted,
+      storageCorruptionReasons: {
+        missingWallet,
+        missingSignersAfterDiskSync,
+        missingVaultsAfterSync,
+        missingVaultsStatusesAfterSync,
+        missingAccountsAfterSync
+      },
+      storageAccessStatus,
+      signersStorageEngineMismatch,
+      canInitSigners,
+      canInitCipheredDataStorage,
+      statuses: {
+        settings: settingsStorageStatus,
+        wallets: walletsStorageStatus,
+        signers: signersStorageStatus,
+        discoveryExport: discoveryExportStorageStatus,
+        vaults: vaultsStorageStatus,
+        vaultsStatuses: vaultsStatusesStorageStatus,
+        accounts: accountsStorageStatus
+      },
+      dataPresence: {
+        wallets: !!wallets,
+        signers: !!signers,
+        discoveryExport: discoveryExport !== undefined,
+        vaults: !!vaults,
+        vaultsStatuses: !!vaultsStatuses,
+        accounts: !!accounts
+      }
+    });
+  }, [
+    activeWallet,
+    isCorrupted,
+    storageAccessStatus,
+    signersStorageEngineMismatch,
+    canInitSigners,
+    canInitCipheredDataStorage,
+    settingsStorageStatus,
+    walletsStorageStatus,
+    signersStorageStatus,
+    discoveryExportStorageStatus,
+    vaultsStorageStatus,
+    vaultsStatusesStorageStatus,
+    accountsStorageStatus,
+    wallets,
+    signers,
+    discoveryExport,
+    vaults,
+    vaultsStatuses,
+    accounts
+  ]);
+
   /** When all wallet related data is synchronized and without any errors.
    * Use this variable to add the wallet into the wallets storage
    */
