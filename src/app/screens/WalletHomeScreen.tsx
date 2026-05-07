@@ -192,7 +192,7 @@ const WalletHomeScreen = () => {
           <Pressable
             hitSlop={10}
             className={`hover:opacity-90 active:scale-95 active:opacity-90`}
-            onPress={() => navigation.navigate(SETTINGS)}
+            onPress={() => navigation.navigate(SETTINGS, { walletId })}
           >
             <Ionicons
               name="settings-outline"

@@ -29,8 +29,16 @@ import AntDesign from '@expo/vector-icons/AntDesign';
 import { useSettings } from '../hooks/useSettings';
 import { defaultSettings, currencyCodes, Settings } from '../lib/settings';
 import { walletTitle } from '../lib/wallets';
-import { useNavigation } from '@react-navigation/native';
-import { NavigationPropsByScreenId, WALLETS } from '../screens';
+import {
+  type RouteProp,
+  useNavigation,
+  useRoute
+} from '@react-navigation/native';
+import {
+  NavigationPropsByScreenId,
+  type RootStackParamList,
+  WALLETS
+} from '../screens';
 import { exportWallet } from '../lib/backup';
 import { electrumParams, getAPIs } from '../lib/walletDerivedData';
 import { ElectrumExplorer, EsploraExplorer } from '@bitcoinerlab/explorer';
@@ -264,6 +272,11 @@ const SettingsItem = ({
 
 const SettingsScreen = () => {
   const navigation = useNavigation<NavigationPropsByScreenId['SETTINGS']>();
+  const route = useRoute<RouteProp<RootStackParamList, 'SETTINGS'>>();
+  const routeWalletId = route.params?.walletId;
+  const lastMissingRouteWalletWarningRef = useRef<number | undefined>(
+    undefined
+  );
   const goBackToWallets = useCallback(() => {
     //In react navigation v6 navigation.navigate behaves as if doing a
     //navigation.pop(2). So it unmounts this screen.
@@ -288,6 +301,22 @@ const SettingsScreen = () => {
     syncingBlockchain,
     deleteWallet
   } = useWallet();
+  useEffect(() => {
+    // Dev Fast Refresh can reset WalletContext while preserving this route.
+    // Warn once if Settings was opened from a wallet but the in-memory active
+    // wallet disappeared; wallet-specific settings will hide until the wallet is
+    // opened again through the normal flow.
+    if (
+      !wallet &&
+      routeWalletId !== undefined &&
+      lastMissingRouteWalletWarningRef.current !== routeWalletId
+    ) {
+      lastMissingRouteWalletWarningRef.current = routeWalletId;
+      console.warn(
+        `Settings route still has walletId ${routeWalletId}, but WalletContext lost its active wallet. This is likely a dev Fast Refresh/navigation-state reset; wallet-specific settings are hidden until the wallet is opened again.`
+      );
+    } else if (wallet) lastMissingRouteWalletWarningRef.current = undefined;
+  }, [wallet, routeWalletId]);
   const toast = useToast();
   const { settings, setSettings } = useSettings();
   const {
@@ -326,6 +355,7 @@ const SettingsScreen = () => {
           await deleteWallet(wallet.walletId);
           goBackToWallets();
         } catch (err) {
+          void err;
           setIsDeleteModalVisible(false); //toasts are not compatible with Modals in android (toasts appear behind the modal opacity effect
           toast.show(t('settings.wallet.deleteError'), { type: 'warning' });
         }
@@ -510,6 +540,31 @@ const SettingsScreen = () => {
     settings?.TAPE_FEE_ESTIMATE_OVERRIDE === 0
       ? t('settings.general.defaultMainnet')
       : `${settings?.TAPE_FEE_ESTIMATE_OVERRIDE} sat/vB`;
+
+  // Close modals whose prerequisites disappeared. This can happen in dev if
+  // Fast Refresh resets the in-memory active wallet while keeping Settings open,
+  // or in normal flow when a network-specific option is no longer applicable.
+  useEffect(() => {
+    if (!wallet) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setIsBip39ModalVisible(false);
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setIsDeleteModalVisible(false);
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setDeleteRequested(false);
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setDeleteInputValue('');
+    }
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (!shouldShowVaultModeSetting) setIsVaultModeModalVisible(false);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (!shouldShowTapeFeeEstimateOverrideSetting)
+      setIsTapeFeeEstimateOverrideModalVisible(false);
+  }, [
+    wallet,
+    shouldShowVaultModeSetting,
+    shouldShowTapeFeeEstimateOverrideSetting
+  ]);
 
   /** Saves vault mode for all testing networks. */
   const setTestingVaultMode = useCallback(
