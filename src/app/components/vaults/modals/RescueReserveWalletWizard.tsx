@@ -9,8 +9,6 @@ import EphemeralWalletWizard, {
 } from '../../EphemeralWalletWizard';
 import type { NetworkId } from '../../../lib/network';
 
-export type RescueReserveWalletData = EphemeralWalletData;
-
 const RescueReserveWalletWizard = ({
   networkId,
   vaultMode,
@@ -21,7 +19,7 @@ const RescueReserveWalletWizard = ({
   networkId: NetworkId;
   vaultMode: 'P2A_TRUC' | 'P2A_NON_TRUC';
   isVisible: boolean;
-  onWallet: (walletData: RescueReserveWalletData) => void | Promise<void>;
+  onWallet: (walletData: EphemeralWalletData) => void | Promise<void>;
   onClose: () => void;
 }) => {
   const { t } = useTranslation();
