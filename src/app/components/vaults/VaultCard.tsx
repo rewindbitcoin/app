@@ -18,7 +18,6 @@ import {
   type Vault,
   type VaultStatus,
   createCpfpChildTx,
-  getTriggerReserveDescriptor,
   getVaultFrozenBalance,
   getVaultMode,
   getRemainingBlocks,
@@ -26,6 +25,7 @@ import {
   getVaultRescuedBalance,
   utxosDataBalance
 } from '../../lib/vaults';
+import { getTriggerReserveDescriptor } from '../../lib/p2aReserve';
 import VaultIcon from '../VaultIcon';
 import { useTranslation } from 'react-i18next';
 import { formatBalance, formatBlocks } from '../../lib/format';

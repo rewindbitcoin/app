@@ -11,10 +11,9 @@ import {
   type FeeEstimates
 } from './fees';
 import type { Signer } from './wallets';
+import { assertP2AParentPolicy, findP2AOutputData } from './p2aPolicy';
 import {
-  assertP2AParentPolicy,
   estimateCpfpPackage,
-  findP2AOutputData,
   type TxHex,
   type Vault,
   type UtxosData

@@ -22,10 +22,10 @@ import {
   areVaultsSynched,
   coinSelectVaultTx,
   getTargetValue,
-  getRequiredTriggerReserveValue,
   utxosDataBalance,
   type VaultSettings
 } from '../lib/vaults';
+import { getRequiredTriggerReserveValue } from '../lib/p2aReserve';
 import { getVaultableUtxosData } from '../lib/utxoPolicy';
 import {
   DUMMY_BACKUP_OUTPUT,

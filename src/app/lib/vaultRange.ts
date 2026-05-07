@@ -18,9 +18,9 @@ import {
   getTargetValue,
   type UtxosData,
   estimateMinimumRequiredVaultedAmount,
-  getBackupFunding,
-  getRequiredTriggerReserveValue
+  getBackupFunding
 } from './vaults';
+import { getRequiredTriggerReserveValue } from './p2aReserve';
 import type { Accounts } from './wallets';
 import { toBigInt, toNumber } from './sats';
 import { MIN_FEE_RATE } from './fees';
