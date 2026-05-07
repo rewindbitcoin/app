@@ -1183,6 +1183,7 @@ const RawVault = ({
           </View>
         )}
       </View>
+      {/* Shows the trigger/unfreeze flow: reserve scan status, fee choice, and final broadcast confirmation. */}
       <PresignedVaultAction
         role="TRIGGER"
         vault={vault}
@@ -1198,6 +1199,7 @@ const RawVault = ({
           : {})}
         onAction={handleTrigger}
       />
+      {/* Shows the deterministic trigger reserve address when the trigger package needs more funds. */}
       {p2aVaultMode && triggerReserveAddress && (
         <AddReserve
           role="TRIGGER"
@@ -1207,6 +1209,7 @@ const RawVault = ({
           onClose={closeAddTriggerReserve}
         />
       )}
+      {/* Shows the rescue flow: emergency copy, reserve scan status, fee choice, and final broadcast confirmation. */}
       <PresignedVaultAction
         role="RESCUE"
         vault={vault}
@@ -1231,6 +1234,7 @@ const RawVault = ({
           onClose={closeRescueReserveWalletWizard}
         />
       )}
+      {/* Shows the ephemeral rescue reserve address after the user creates/imports that reserve wallet. */}
       {p2aVaultMode && rescueReserveAddress && (
         <AddReserve
           role="RESCUE"
