@@ -1013,14 +1013,17 @@ const WalletProviderRaw = ({
   // corruption/read-write states reported by users.
   const lastWalletStorageWarningKeyRef = useRef<string | null>(null);
   useEffect(() => {
+    const missingWallet = !activeWallet;
+    const shouldWarnMissingWallet =
+      missingWallet && walletIdRef.current !== undefined;
     const hasWalletStorageError =
-      isCorrupted || storageAccessStatus.readWriteError;
+      storageAccessStatus.readWriteError ||
+      (isCorrupted && (!missingWallet || shouldWarnMissingWallet));
     if (!hasWalletStorageError) {
       lastWalletStorageWarningKeyRef.current = null;
       return;
     }
 
-    const missingWallet = !activeWallet;
     const missingSignersAfterDiskSync =
       !signers &&
       signersStorageStatus.isDiskSynchd &&
