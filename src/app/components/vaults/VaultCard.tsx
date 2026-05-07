@@ -1183,7 +1183,7 @@ const RawVault = ({
           </View>
         )}
       </View>
-      {/* Shows the trigger/unfreeze flow: reserve scan status, fee choice, and final broadcast confirmation. */}
+      {/* Modal that lets the user start or accelerate unfreezing, choose a fee when needed, and confirm broadcasting the trigger transaction/package. */}
       <PresignedVaultAction
         role="TRIGGER"
         vault={vault}
@@ -1199,7 +1199,7 @@ const RawVault = ({
           : {})}
         onAction={handleTrigger}
       />
-      {/* Shows the deterministic trigger reserve address when the trigger package needs more funds. */}
+      {/* Follow-up modal opened after the trigger modal closes; tells the user to send funds to this vault's trigger reserve address so future trigger packages can pay higher fees. */}
       {p2aVaultMode && triggerReserveAddress && (
         <AddReserve
           role="TRIGGER"
@@ -1209,7 +1209,7 @@ const RawVault = ({
           onClose={closeAddTriggerReserve}
         />
       )}
-      {/* Shows the rescue flow: emergency copy, reserve scan status, fee choice, and final broadcast confirmation. */}
+      {/* Modal that lets the user start or accelerate an emergency rescue, choose a fee when needed, and confirm broadcasting the rescue transaction/package. */}
       <PresignedVaultAction
         role="RESCUE"
         vault={vault}
@@ -1224,7 +1224,7 @@ const RawVault = ({
           : {})}
         onAction={handleRescue}
       />
-      {/* Creates/imports an ephemeral wallet for bumping presigned rescue parents if fees get extremely high. */}
+      {/* Follow-up modal opened after the rescue modal closes; asks the user to create or import a temporary wallet used only to fund high-fee rescue packages. */}
       {networkId && p2aVaultMode && (
         <RescueReserveWalletWizard
           networkId={networkId}
@@ -1234,7 +1234,7 @@ const RawVault = ({
           onClose={closeRescueReserveWalletWizard}
         />
       )}
-      {/* Shows the ephemeral rescue reserve address after the user creates/imports that reserve wallet. */}
+      {/* Follow-up modal opened after the rescue modal closes; tells the user to send funds to the temporary rescue reserve address so rescue packages can pay higher fees. */}
       {p2aVaultMode && rescueReserveAddress && (
         <AddReserve
           role="RESCUE"
