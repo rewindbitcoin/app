@@ -1057,40 +1057,82 @@ const WalletProviderRaw = ({
     if (lastWalletStorageWarningKeyRef.current === warningKey) return;
     lastWalletStorageWarningKeyRef.current = warningKey;
 
-    console.warn('Wallet storage error state', {
-      walletId: activeWallet?.walletId,
-      walletIdRef: walletIdRef.current,
-      hasActiveWallet: !!activeWallet,
-      isCorrupted,
-      storageCorruptionReasons: {
-        missingWallet,
-        missingSignersAfterDiskSync,
-        missingVaultsAfterSync,
-        missingVaultsStatusesAfterSync,
-        missingAccountsAfterSync
-      },
-      storageAccessStatus,
-      signersStorageEngineMismatch,
-      canInitSigners,
-      canInitCipheredDataStorage,
-      statuses: {
-        settings: settingsStorageStatus,
-        wallets: walletsStorageStatus,
-        signers: signersStorageStatus,
-        discoveryExport: discoveryExportStorageStatus,
-        vaults: vaultsStorageStatus,
-        vaultsStatuses: vaultsStatusesStorageStatus,
-        accounts: accountsStorageStatus
-      },
-      dataPresence: {
-        wallets: !!wallets,
-        signers: !!signers,
-        discoveryExport: discoveryExport !== undefined,
-        vaults: !!vaults,
-        vaultsStatuses: !!vaultsStatuses,
-        accounts: !!accounts
-      }
-    });
+    console.warn(
+      'Wallet storage error state',
+      JSON.stringify(
+        {
+          walletId: activeWallet?.walletId,
+          walletIdRef: walletIdRef.current,
+          hasActiveWallet: !!activeWallet,
+          isCorrupted,
+          storageCorruptionReasons: {
+            missingWallet,
+            missingSignersAfterDiskSync,
+            missingVaultsAfterSync,
+            missingVaultsStatusesAfterSync,
+            missingAccountsAfterSync
+          },
+          storageAccessStatus: {
+            biometricsKeyInvalidated:
+              storageAccessStatus.biometricsKeyInvalidated,
+            biometricAuthCancelled: storageAccessStatus.biometricAuthCancelled,
+            biometricsReadWriteError:
+              storageAccessStatus.biometricsReadWriteError,
+            readWriteError: storageAccessStatus.readWriteError
+          },
+          signersStorageEngineMismatch,
+          canInitSigners,
+          canInitCipheredDataStorage,
+          statuses: {
+            settings: {
+              errorCode: settingsStorageStatus.errorCode,
+              isSynchd: settingsStorageStatus.isSynchd,
+              isDiskSynchd: settingsStorageStatus.isDiskSynchd
+            },
+            wallets: {
+              errorCode: walletsStorageStatus.errorCode,
+              isSynchd: walletsStorageStatus.isSynchd,
+              isDiskSynchd: walletsStorageStatus.isDiskSynchd
+            },
+            signers: {
+              errorCode: signersStorageStatus.errorCode,
+              isSynchd: signersStorageStatus.isSynchd,
+              isDiskSynchd: signersStorageStatus.isDiskSynchd
+            },
+            discoveryExport: {
+              errorCode: discoveryExportStorageStatus.errorCode,
+              isSynchd: discoveryExportStorageStatus.isSynchd,
+              isDiskSynchd: discoveryExportStorageStatus.isDiskSynchd
+            },
+            vaults: {
+              errorCode: vaultsStorageStatus.errorCode,
+              isSynchd: vaultsStorageStatus.isSynchd,
+              isDiskSynchd: vaultsStorageStatus.isDiskSynchd
+            },
+            vaultsStatuses: {
+              errorCode: vaultsStatusesStorageStatus.errorCode,
+              isSynchd: vaultsStatusesStorageStatus.isSynchd,
+              isDiskSynchd: vaultsStatusesStorageStatus.isDiskSynchd
+            },
+            accounts: {
+              errorCode: accountsStorageStatus.errorCode,
+              isSynchd: accountsStorageStatus.isSynchd,
+              isDiskSynchd: accountsStorageStatus.isDiskSynchd
+            }
+          },
+          dataPresence: {
+            wallets: !!wallets,
+            signers: !!signers,
+            discoveryExport: discoveryExport !== undefined,
+            vaults: !!vaults,
+            vaultsStatuses: !!vaultsStatuses,
+            accounts: !!accounts
+          }
+        },
+        null,
+        2
+      )
+    );
   }, [
     activeWallet,
     isCorrupted,
