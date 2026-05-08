@@ -30,6 +30,7 @@ export const useTriggerReserveBumpPlan = ({
     accounts,
     signers,
     getNextChangeDescriptorWithIndex,
+    canFetchReserveDescriptorData,
     fetchReserveDescriptorData
   } = useWallet();
   const walletSigner = signers?.[0];
@@ -50,6 +51,7 @@ export const useTriggerReserveBumpPlan = ({
       setValue(undefined);
       return;
     }
+    if (!canFetchReserveDescriptorData) return;
 
     const network = networkMapping[networkId];
 
@@ -98,6 +100,7 @@ export const useTriggerReserveBumpPlan = ({
     networkId,
     walletSigner,
     accounts,
+    canFetchReserveDescriptorData,
     vault,
     fetchReserveDescriptorData,
     getNextChangeDescriptorWithIndex
@@ -136,7 +139,8 @@ export const useRescueReserveBumpPlan = ({
   networkId: NetworkId | undefined;
   syncingBlockchain: boolean;
 }) => {
-  const { fetchReserveDescriptorData } = useWallet();
+  const { canFetchReserveDescriptorData, fetchReserveDescriptorData } =
+    useWallet();
   const [plan, setPlan] = useState<ReserveBumpPlan>(
     !enabled || reserveData
       ? 'loading'
@@ -161,6 +165,11 @@ export const useRescueReserveBumpPlan = ({
       return;
     }
     if (!networkId) {
+      setPlan('loading');
+      setAddress(undefined);
+      return;
+    }
+    if (!canFetchReserveDescriptorData) {
       setPlan('loading');
       setAddress(undefined);
       return;
@@ -205,7 +214,13 @@ export const useRescueReserveBumpPlan = ({
     };
 
     void prepareRescueP2ABumpPlan();
-  }, [enabled, networkId, reserveData, fetchReserveDescriptorData]);
+  }, [
+    enabled,
+    networkId,
+    reserveData,
+    canFetchReserveDescriptorData,
+    fetchReserveDescriptorData
+  ]);
   const cancelPendingRefresh = useCallback(() => {
     refreshIdRef.current += 1;
   }, []);

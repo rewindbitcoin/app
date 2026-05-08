@@ -132,6 +132,7 @@ export type WalletContextType = {
   fetchBlockTime: (blockHeight: number) => Promise<number | undefined>;
   pushTx: (txHex: string) => Promise<void>;
   getTxosData: (txos: Array<string>) => UtxosData;
+  canFetchReserveDescriptorData: boolean;
   fetchReserveDescriptorData: (params: { descriptor: string }) => Promise<
     | {
         utxosData: UtxosData;
@@ -2632,6 +2633,14 @@ const WalletProviderRaw = ({
     ]
   );
 
+  const canFetchReserveDescriptorData = !!(
+    discovery &&
+    vaults &&
+    activeWallet?.networkId &&
+    gapLimit !== undefined &&
+    explorerReachable === true
+  );
+
   const contextValue = {
     pushToken,
     setPushToken,
@@ -2660,6 +2669,7 @@ const WalletProviderRaw = ({
     fetchBlockTime,
     pushTx,
     getTxosData,
+    canFetchReserveDescriptorData,
     fetchReserveDescriptorData,
     pushTxPackage,
     syncWatchtowerRegistration,
