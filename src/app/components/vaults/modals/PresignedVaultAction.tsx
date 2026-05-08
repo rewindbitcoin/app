@@ -452,7 +452,7 @@ const PresignedVaultAction = ({
   );
   const confirmationExplanation =
     reserveFundsMissingPrompt ?? postActionExplanation;
-  const modalIsLoading =
+  const isActionReadinessLoading =
     isP2ABumpPlanLoading ||
     !actionAvailability ||
     (needsFeePicker && !feeEstimates);
@@ -473,7 +473,7 @@ const PresignedVaultAction = ({
         ) : null}
       </View>
     );
-  } else if (modalIsLoading) {
+  } else if (isActionReadinessLoading) {
     modalContent =
       step === 'intro' ? (
         <View>
@@ -577,11 +577,11 @@ const PresignedVaultAction = ({
             <Button mode="secondary" onPress={onClose}>
               {t('cancelButton')}
             </Button>
-            {(modalIsLoading || canOpenConfirmStep) && (
+            {(isActionReadinessLoading || canOpenConfirmStep) && (
               <Button
                 {...actionButtonModeProps}
                 onPress={() => setStep('confirm')}
-                loading={modalIsLoading}
+                loading={isActionReadinessLoading}
               >
                 {introActionButtonText}
               </Button>
