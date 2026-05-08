@@ -452,6 +452,10 @@ const PresignedVaultAction = ({
   );
   const confirmationExplanation =
     reserveFundsMissingPrompt ?? postActionExplanation;
+  const modalIsLoading =
+    isP2ABumpPlanLoading ||
+    !actionAvailability ||
+    (needsFeePicker && !feeEstimates);
 
   let modalContent: React.ReactNode;
   if (isP2ABumpPlanError) {
@@ -469,12 +473,17 @@ const PresignedVaultAction = ({
         ) : null}
       </View>
     );
-  } else if (
-    isP2ABumpPlanLoading ||
-    !actionAvailability ||
-    (needsFeePicker && !feeEstimates)
-  ) {
-    modalContent = <ActivityIndicator />;
+  } else if (modalIsLoading) {
+    modalContent =
+      step === 'intro' ? (
+        <View>
+          <Text className="text-base text-slate-600 pb-2 px-2">
+            {introText}
+          </Text>
+        </View>
+      ) : (
+        <ActivityIndicator />
+      );
   } else if (availabilityResult === 'noP2AReserve') {
     modalContent = (
       <View>
@@ -568,10 +577,11 @@ const PresignedVaultAction = ({
             <Button mode="secondary" onPress={onClose}>
               {t('cancelButton')}
             </Button>
-            {canOpenConfirmStep && (
+            {(modalIsLoading || canOpenConfirmStep) && (
               <Button
                 {...actionButtonModeProps}
                 onPress={() => setStep('confirm')}
+                loading={modalIsLoading}
               >
                 {introActionButtonText}
               </Button>
