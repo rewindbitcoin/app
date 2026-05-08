@@ -8,6 +8,7 @@ import {
   KeyboardAvoidingView,
   Dimensions,
   LayoutChangeEvent,
+  Pressable,
   Text
 } from 'react-native';
 import RNModal from 'react-native-modal';
@@ -28,6 +29,7 @@ import {
 } from 'react-native-gesture-handler';
 import Animated, {
   withSpring,
+  withTiming,
   runOnJS,
   useAnimatedGestureHandler,
   useAnimatedStyle,
@@ -72,7 +74,14 @@ const RawModal: React.FC<ModalProps> = ({
     Ubuntu500Medium: Ubuntu_500Medium
   });
   const theme = useTheme();
-  const translateY = useSharedValue(0);
+  const isNativeModal = Platform.OS !== 'web';
+  const hiddenTranslateY =
+    Platform.OS === 'android'
+      ? getRealWindowHeight()
+      : Platform.OS === 'ios'
+        ? Dimensions.get('window').height
+        : 0;
+  const translateY = useSharedValue(hiddenTranslateY);
   const scrollViewPaddingVertical = 20;
   const [buttonHeight, setButtonHeight] = useState<number>(0);
   const [headerTitleHasManyLines, setHeaderTitleHasManyLines] = useState(false);
@@ -128,18 +137,42 @@ const RawModal: React.FC<ModalProps> = ({
   useEffect(() => {
     isMountedRef.current = true;
     if (isVisible) {
+      // Reanimated shared values are intentionally mutable; this is not React state.
+      // eslint-disable-next-line react-hooks/immutability
       onCloseTriggered.value = false;
-      translateY.value = 0;
+      // Reanimated shared values are intentionally mutable; this is not React state.
+      // eslint-disable-next-line react-hooks/immutability
+      translateY.value = isNativeModal
+        ? withTiming(0, { duration: ANIMATION_TIME })
+        : 0;
     } else {
-      setTimeout(() => {
-        //Make sure it's set to zero.
-        if (isMountedRef.current && !isVisible) translateY.value = 0;
-      }, 1.5 * ANIMATION_TIME);
+      if (isNativeModal) {
+        // Reanimated shared values are intentionally mutable; this is not React state.
+        // eslint-disable-next-line react-hooks/immutability
+        translateY.value = withTiming(hiddenTranslateY, {
+          duration: ANIMATION_TIME
+        });
+      } else {
+        setTimeout(() => {
+          //Make sure it's set to zero.
+          if (isMountedRef.current && !isVisible) {
+            // Reanimated shared values are intentionally mutable; this is not React state.
+            // eslint-disable-next-line react-hooks/immutability
+            translateY.value = 0;
+          }
+        }, 1.5 * ANIMATION_TIME);
+      }
     }
     return () => {
       isMountedRef.current = false;
     };
-  }, [isVisible, translateY, onCloseTriggered]);
+  }, [
+    hiddenTranslateY,
+    isNativeModal,
+    isVisible,
+    translateY,
+    onCloseTriggered
+  ]);
 
   const onParentLayout = useCallback(
     (event: LayoutChangeEvent) => {
@@ -197,7 +230,13 @@ const RawModal: React.FC<ModalProps> = ({
   return (
     <RNModal
       {...(Platform.OS === 'android'
-        ? { deviceHeight: getRealWindowHeight() }
+        ? {
+            deviceHeight: getRealWindowHeight(),
+            // The Android native Modal lives in its own window. Keeping that
+            // window hardware-accelerated prevents brief transparent frames
+            // during visible content/layout changes inside the modal.
+            hardwareAccelerated: true
+          }
         : {})}
       statusBarTranslucent
       isVisible={isVisible}
@@ -212,23 +251,46 @@ const RawModal: React.FC<ModalProps> = ({
       }
       backdropOpacity={OPACITY}
       hideModalContentWhileAnimating
-      useNativeDriver={
-        Platform.select({ web: false, default: true })
-        // Either native driver or swipe
-        //https://github.com/react-native-modal/react-native-modal/issues/692
-        // swipeDirection="down"
-        // onSwipeComplete={() => showHelp(undefined)}
-      }
+      // react-native-modal only fades the content in/out now. Native sheet
+      // movement is handled by the Reanimated translateY wrapper below; before
+      // this, react-native-modal's slideInUp/slideOutDown owned that movement.
+      // Keep react-native-modal's own content animation JS-driven: native-driver
+      // fade can delay/blank the first frames on Android, and the native-driver
+      // slide path caused full-modal flicker. Reanimated owns the translateY
+      // movement, so the visible sheet motion still runs on the UI thread.
+      useNativeDriver={false}
       onBackdropPress={handleClose}
       useNativeDriverForBackdrop={Platform.select({
         web: false,
         default: true
       })}
-      animationIn={Platform.select({ web: 'fadeIn', default: 'slideInUp' })}
-      animationOut={Platform.select({
-        web: 'fadeOut',
-        default: 'slideOutDown'
-      })}
+      customBackdrop={
+        <Pressable
+          // Android's system touch feedback can play a loud click when the
+          // backdrop dismisses the modal; on some devices/emulators this has
+          // sounded like repeated machine-gun clicks during modal transitions.
+          // TODO: Test this custom backdrop on iOS before treating it as final.
+          android_disableSound
+          onPress={handleClose}
+          style={{
+            position: 'absolute',
+            top: 0,
+            bottom: 0,
+            left: 0,
+            right: 0,
+            backgroundColor: 'black'
+          }}
+        />
+      }
+      /* Previous react-native-modal movement config:
+       * animationIn={Platform.select({ web: 'fadeIn', default: 'slideInUp' })}
+       * animationOut={Platform.select({
+       *   web: 'fadeOut',
+       *   default: 'slideOutDown'
+       * })}
+       */
+      animationIn="fadeIn"
+      animationOut="fadeOut"
       onModalHide={onModalHide}
       style={{
         ...(Platform.OS !== 'web' ? { justifyContent: 'flex-end' } : {}),
@@ -438,3 +500,40 @@ const RawModal: React.FC<ModalProps> = ({
 const Modal = React.memo(RawModal);
 
 export { Modal };
+
+/*
+ * NOTE: Modal animation ownership, May 2026
+ *
+ * Pre-change reference:
+ * git show a063e427b426b1e69872e9805ec389873521d56e:src/common/components/Modal.tsx
+ *
+ * Before this change:
+ * - `translateY` was initialized to 0 on every platform.
+ * - Reanimated `translateY` was used for drag-to-dismiss movement and reset only.
+ * - Opening/closing sheet movement was owned by react-native-modal:
+ *   animationIn={Platform.select({ web: 'fadeIn', default: 'slideInUp' })}
+ *   animationOut={Platform.select({ web: 'fadeOut', default: 'slideOutDown' })}
+ * - react-native-modal content animation used native driver on iOS/Android:
+ *   useNativeDriver={Platform.select({ web: false, default: true })}
+ * - Backdrop animation also used the native driver on iOS/Android.
+ *
+ * Android findings:
+ * - With react-native-modal native-driver slideInUp/slideOutDown, visible child
+ *   layout/render changes could briefly blank the whole modal window.
+ * - Disabling react-native-modal's content native driver removed the flicker,
+ *   but JS-driven slide movement was less smooth.
+ * - Keeping react-native-modal native-driven for fade-only also behaved poorly:
+ *   the modal could appear late and only show the last frames of the animation.
+ *
+ * Current model:
+ * - react-native-modal owns mounting, backdrop, and content fade only.
+ * - react-native-modal content animation is JS-driven: useNativeDriver={false}.
+ * - Reanimated owns native sheet translateY movement on iOS/Android via
+ *   withTiming, so the visible sheet movement still runs on the UI thread.
+ * - Web remains fade-only; Reanimated translateY is initialized to 0 there.
+ *
+ * TODO: Test this unified native animation model on iOS devices before treating
+ * it as final. If iOS regresses, consider either restoring the old iOS-only
+ * react-native-modal slide path or adjusting the Reanimated hidden offset,
+ * timing, keyboard behavior, and modal chaining semantics.
+ */
