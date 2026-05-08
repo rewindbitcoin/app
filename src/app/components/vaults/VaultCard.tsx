@@ -797,10 +797,11 @@ const RawVault = ({
     getVaultUnfrozenBalance(vault, vaultStatus, tipHeight);
   const rescuedBalance =
     tipHeight && vaultStatus && getVaultRescuedBalance(vault, vaultStatus);
-  const unfreezeReserveValue =
-    !isLadderedVault && frozenBalance && !vaultStatus?.triggerTxHex
-      ? triggerReserveValue
-      : undefined;
+  const showUnfreezeReserveValue =
+    !isLadderedVault && !!frozenBalance && !vaultStatus?.triggerTxHex;
+  const unfreezeReserveValue = showUnfreezeReserveValue
+    ? triggerReserveValue
+    : undefined;
 
   return (
     <View
@@ -908,19 +909,27 @@ const RawVault = ({
             </Text>
           </View>
         )}
-        {unfreezeReserveValue ? (
+        {showUnfreezeReserveValue ? (
           <View className="w-full flex-row items-start gap-2 pt-2">
-            <Text className="shrink text-slate-500 native:text-sm web:text-xs">
-              {t('vaultSetup.unfreezeReserveLabel')}:{' '}
-              {formatBalance({
-                satsBalance: unfreezeReserveValue,
-                btcFiat,
-                currency,
-                locale,
-                mode: amountMode,
-                appendSubunit: true
-              })}
-            </Text>
+            <View className="shrink flex-row flex-wrap items-center">
+              <Text className="text-slate-500 native:text-sm web:text-xs">
+                {t('vaultSetup.unfreezeReserveLabel')}:{' '}
+              </Text>
+              <SkeletonPulse active={unfreezeReserveValue === undefined}>
+                <Text className="text-slate-500 native:text-sm web:text-xs">
+                  {unfreezeReserveValue === undefined
+                    ? LOADING_TEXT + LOADING_TEXT //this needs a few more spaces than LOADING_TEXT...
+                    : formatBalance({
+                        satsBalance: unfreezeReserveValue,
+                        btcFiat,
+                        currency,
+                        locale,
+                        mode: amountMode,
+                        appendSubunit: true
+                      })}
+                </Text>
+              </SkeletonPulse>
+            </View>
             <ModalInfoButton
               title={t('vaultSetup.unfreezeReserveHelpTitle')}
               icon={{ family: 'FontAwesome5', name: 'coins' }}
