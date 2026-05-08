@@ -45,9 +45,11 @@ export const useTriggerReserveBumpPlan = ({
 
     setPlan('loading');
     setAddress(undefined);
-    setValue(undefined);
 
-    if (!enabled || !networkId || !walletSigner || !accounts) return;
+    if (!enabled || !networkId || !walletSigner || !accounts) {
+      setValue(undefined);
+      return;
+    }
 
     const network = networkMapping[networkId];
 
