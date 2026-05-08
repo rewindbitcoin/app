@@ -53,7 +53,7 @@ export interface ModalProps {
 
 const DELTA = 100;
 const ANIMATION_TIME = 200;
-const OPACITY = 0.3;
+const OPACITY = 0.25;
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 const RawModal: React.FC<ModalProps> = ({
