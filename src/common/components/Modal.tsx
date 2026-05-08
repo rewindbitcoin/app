@@ -52,8 +52,9 @@ export interface ModalProps {
 }
 
 const DELTA = 100;
-const ANIMATION_TIME = 300;
+const ANIMATION_TIME = 200;
 const OPACITY = 0.3;
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 const RawModal: React.FC<ModalProps> = ({
   isVisible,
@@ -129,6 +130,10 @@ const RawModal: React.FC<ModalProps> = ({
       ]
     };
   });
+  const backdropOpacity = useSharedValue(0);
+  const backdropStyle = useAnimatedStyle(() => ({
+    opacity: backdropOpacity.value
+  }));
   const handleClose = () => {
     onCloseTriggered.value = true;
     if (onClose) onClose();
@@ -145,6 +150,9 @@ const RawModal: React.FC<ModalProps> = ({
       translateY.value = isNativeModal
         ? withTiming(0, { duration: ANIMATION_TIME })
         : 0;
+      // Reanimated shared values are intentionally mutable; this is not React state.
+      // eslint-disable-next-line react-hooks/immutability
+      backdropOpacity.value = withTiming(OPACITY, { duration: ANIMATION_TIME });
     } else {
       if (isNativeModal) {
         // Reanimated shared values are intentionally mutable; this is not React state.
@@ -162,6 +170,9 @@ const RawModal: React.FC<ModalProps> = ({
           }
         }, 1.5 * ANIMATION_TIME);
       }
+      // Reanimated shared values are intentionally mutable; this is not React state.
+      // eslint-disable-next-line react-hooks/immutability
+      backdropOpacity.value = withTiming(0, { duration: ANIMATION_TIME });
     }
     return () => {
       isMountedRef.current = false;
@@ -171,6 +182,7 @@ const RawModal: React.FC<ModalProps> = ({
     isNativeModal,
     isVisible,
     translateY,
+    backdropOpacity,
     onCloseTriggered
   ]);
 
@@ -240,48 +252,19 @@ const RawModal: React.FC<ModalProps> = ({
         : {})}
       statusBarTranslucent
       isVisible={isVisible}
+      // These timings only apply to react-native-modal's content fade below.
+      // Sheet movement and backdrop opacity are driven separately by Reanimated.
       animationInTiming={ANIMATION_TIME}
       animationOutTiming={ANIMATION_TIME}
-      backdropTransitionInTiming={ANIMATION_TIME}
-      backdropTransitionOutTiming={
-        //Set it to 1 if flickering appears: https://github.com/react-native-modal/react-native-modal/issues/268#issuecomment-2798406717
-        //Note that the flicker may still show on on debug mode in real devices.
-        //It's barely seen on release (or preview) mode on real devies
-        1
-      }
-      backdropOpacity={OPACITY}
-      hideModalContentWhileAnimating
-      // react-native-modal only fades the content in/out now. Native sheet
-      // movement is handled by the Reanimated translateY wrapper below; before
-      // this, react-native-modal's slideInUp/slideOutDown owned that movement.
-      // Keep react-native-modal's own content animation JS-driven: native-driver
-      // fade can delay/blank the first frames on Android, and the native-driver
-      // slide path caused full-modal flicker. Reanimated owns the translateY
-      // movement, so the visible sheet motion still runs on the UI thread.
+      // We render and animate our own backdrop with Reanimated to avoid
+      // react-native-modal's separate backdrop transition/unmount flicker.
+      hasBackdrop={false}
+      // react-native-modal only fades the content wrapper now. Backdrop opacity
+      // and sheet movement are handled by Reanimated below; before this,
+      // react-native-modal owned backdrop transitions and slideInUp/slideOutDown
+      // movement. Keep this fade JS-driven: native-driver fade delayed/blanked
+      // first frames on Android, and native-driver slide caused modal flicker.
       useNativeDriver={false}
-      onBackdropPress={handleClose}
-      useNativeDriverForBackdrop={Platform.select({
-        web: false,
-        default: true
-      })}
-      customBackdrop={
-        <Pressable
-          // Android's system touch feedback can play a loud click when the
-          // backdrop dismisses the modal; on some devices/emulators this has
-          // sounded like repeated machine-gun clicks during modal transitions.
-          // TODO: Test this custom backdrop on iOS before treating it as final.
-          android_disableSound
-          onPress={handleClose}
-          style={{
-            position: 'absolute',
-            top: 0,
-            bottom: 0,
-            left: 0,
-            right: 0,
-            backgroundColor: 'black'
-          }}
-        />
-      }
       /* Previous react-native-modal movement config:
        * animationIn={Platform.select({ web: 'fadeIn', default: 'slideInUp' })}
        * animationOut={Platform.select({
@@ -289,6 +272,8 @@ const RawModal: React.FC<ModalProps> = ({
        *   default: 'slideOutDown'
        * })}
        */
+      // Fade only: do not let react-native-modal animate spatial movement.
+      // The sheet's translateY movement is fully controlled by Reanimated.
       animationIn="fadeIn"
       animationOut="fadeOut"
       onModalHide={onModalHide}
@@ -301,6 +286,27 @@ const RawModal: React.FC<ModalProps> = ({
         //backgroundColor: 'red'
       }}
     >
+      <AnimatedPressable
+        // Own the backdrop instead of using react-native-modal's separate
+        // backdrop state machine; that path can briefly flash clear-dark-clear
+        // during close, especially after drag-dismiss or on short modals.
+        // Android's system touch feedback can also play a loud/repeated click.
+        // TODO: Test this custom backdrop on iOS before treating it as final.
+        android_disableSound
+        pointerEvents={isVisible ? 'auto' : 'none'}
+        onPress={handleClose}
+        style={[
+          {
+            position: 'absolute',
+            top: 0,
+            bottom: 0,
+            left: 0,
+            right: 0,
+            backgroundColor: 'black'
+          },
+          backdropStyle
+        ]}
+      />
       <KeyboardAvoidingView behavior="padding">
         {/*
          * behavior="padding" on June 13, 2024
@@ -524,12 +530,14 @@ export { Modal };
  *   but JS-driven slide movement was less smooth.
  * - Keeping react-native-modal native-driven for fade-only also behaved poorly:
  *   the modal could appear late and only show the last frames of the animation.
+ * - react-native-modal's separate backdrop transition could flash clear/dark/clear
+ *   during close, especially for short modals and drag-dismiss.
  *
  * Current model:
- * - react-native-modal owns mounting, backdrop, and content fade only.
+ * - react-native-modal owns mounting and content fade only.
  * - react-native-modal content animation is JS-driven: useNativeDriver={false}.
- * - Reanimated owns native sheet translateY movement on iOS/Android via
- *   withTiming, so the visible sheet movement still runs on the UI thread.
+ * - Reanimated owns backdrop opacity and native sheet translateY movement via
+ *   withTiming, so the visible motion still runs on the UI thread.
  * - Web remains fade-only; Reanimated translateY is initialized to 0 there.
  *
  * TODO: Test this unified native animation model on iOS devices before treating
