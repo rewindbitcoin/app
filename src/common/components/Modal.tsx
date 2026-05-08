@@ -290,13 +290,6 @@ const RawModal: React.FC<ModalProps> = ({
       // movement. Keep this fade JS-driven: native-driver fade delayed/blanked
       // first frames on Android, and native-driver slide caused modal flicker.
       useNativeDriver={false}
-      /* Previous react-native-modal movement config:
-       * animationIn={Platform.select({ web: 'fadeIn', default: 'slideInUp' })}
-       * animationOut={Platform.select({
-       *   web: 'fadeOut',
-       *   default: 'slideOutDown'
-       * })}
-       */
       // Fade only: do not let react-native-modal animate spatial movement.
       // The sheet's translateY movement is fully controlled by Reanimated.
       animationIn="fadeIn"
@@ -496,37 +489,3 @@ const RawModal: React.FC<ModalProps> = ({
 const Modal = React.memo(RawModal);
 
 export { Modal };
-
-/*
- * NOTE: Modal animation ownership, May 2026
- *
- * Pre-change reference:
- * git show a063e427b426b1e69872e9805ec389873521d56e:src/common/components/Modal.tsx
- *
- * Before this change:
- * - `translateY` was initialized to 0 on every platform.
- * - Reanimated `translateY` was used for drag-to-dismiss movement and reset only.
- * - Opening/closing sheet movement was owned by react-native-modal:
- *   animationIn={Platform.select({ web: 'fadeIn', default: 'slideInUp' })}
- *   animationOut={Platform.select({ web: 'fadeOut', default: 'slideOutDown' })}
- * - react-native-modal content animation used native driver on iOS/Android:
- *   useNativeDriver={Platform.select({ web: false, default: true })}
- * - Backdrop animation also used the native driver on iOS/Android.
- *
- * Android findings:
- * - With react-native-modal native-driver slideInUp/slideOutDown, visible child
- *   layout/render changes could briefly blank the whole modal window.
- * - Disabling react-native-modal's content native driver removed the flicker,
- *   but JS-driven slide movement was less smooth.
- * - Keeping react-native-modal native-driven for fade-only also behaved poorly:
- *   the modal could appear late and only show the last frames of the animation.
- * - react-native-modal's separate backdrop transition could flash clear/dark/clear
- *   during close, especially for short modals and drag-dismiss.
- *
- * Current model:
- * - react-native-modal owns mounting and content fade only.
- * - react-native-modal content animation is JS-driven: useNativeDriver={false}.
- * - Reanimated owns backdrop opacity and native sheet translateY movement via
- *   withTiming, so the visible motion still runs on the UI thread.
- * - Web remains fade-only; Reanimated translateY is initialized to 0 there.
- */
