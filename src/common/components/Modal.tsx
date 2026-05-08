@@ -1,7 +1,13 @@
 // Copyright (C) 2025 Jose-Luis Landabaso - https://rewindbitcoin.com
 // Licensed under the GNU GPL v3 or later. See the LICENSE file for details.
 
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState
+} from 'react';
 import {
   View,
   Platform,
@@ -22,8 +28,9 @@ import { rgba } from 'polished';
 import { useFonts } from 'expo-font';
 
 import {
+  Gesture,
+  GestureDetector,
   GestureHandlerRootView,
-  PanGestureHandler,
   //Important to use this one or android won't be able to Scroll content:
   ScrollView
 } from 'react-native-gesture-handler';
@@ -31,7 +38,6 @@ import Animated, {
   withSpring,
   withTiming,
   runOnJS,
-  useAnimatedGestureHandler,
   useAnimatedStyle,
   useSharedValue
 } from 'react-native-reanimated';
@@ -91,35 +97,54 @@ const RawModal: React.FC<ModalProps> = ({
   const headerHeight = headerMini ? 60 : 150;
 
   const onCloseTriggered = useSharedValue<boolean>(false);
+  const dragStartY = useSharedValue(0);
 
   const Icon =
     icon && icon.family && Icons[icon.family] ? Icons[icon.family] : null;
 
-  const gestureHandler = Platform.select({
-    web: () => {}, //nop
-    default: useAnimatedGestureHandler({
-      onStart: (_, ctx: { startY: number }) => {
-        ctx.startY = translateY.value;
-      },
-      onActive: (event, ctx) => {
-        const translation = ctx.startY + event.translationY;
-        if (translation >= 0) translateY.value = translation;
-        else translateY.value = translation / 3;
-      },
-      onEnd: _ => {
-        if (translateY.value > DELTA && onClose) {
-          runOnJS(onClose)();
-          onCloseTriggered.value = true;
-          //translateY.value = withSpring(-200, { duration: ANIMATION_TIME });
-        } else {
-          translateY.value = withSpring(0);
-        }
-      },
-      onCancel: _ => {
-        if (!onCloseTriggered.value) translateY.value = withSpring(0);
-      }
-    })
-  });
+  const panGesture = useMemo(
+    () =>
+      Gesture.Pan()
+        .enabled(Platform.OS !== 'web')
+        /*
+         * TAG-android-does-not-propagate-slider-events
+         *
+         * This keeps Slider (see EditableSlider.tsx) usable within the modal.
+         * On Android, a parent pan gesture can capture events before the Slider
+         * receives them. Increasing the minimum distance delays modal drag
+         * recognition enough for slider drags to become the responder first.
+         *
+         * This replaces minDist={20} from the previous handler API.
+         * The Slider also applies an Android-only onResponderGrant workaround;
+         * using both has proven smoother on Android.
+         *
+         * References:
+         * https://github.com/callstack/react-native-slider/issues/296#issuecomment-1001085596
+         * https://github.com/callstack/react-native-slider/issues/296#issuecomment-1138417122
+         */
+        .minDistance(20)
+        .onStart(() => {
+          dragStartY.value = translateY.value;
+        })
+        .onUpdate(event => {
+          const translation = dragStartY.value + event.translationY;
+          if (translation >= 0) translateY.value = translation;
+          else translateY.value = translation / 3;
+        })
+        .onEnd((_, success) => {
+          if (success && translateY.value > DELTA && onClose) {
+            onCloseTriggered.value = true;
+            runOnJS(onClose)();
+          } else {
+            translateY.value = withSpring(0);
+          }
+        })
+        .onFinalize((_, success) => {
+          if (!success && !onCloseTriggered.value)
+            translateY.value = withSpring(0);
+        }),
+    [dragStartY, onClose, onCloseTriggered, translateY]
+  );
 
   const animatedStyle = useAnimatedStyle(() => {
     return {
@@ -291,7 +316,6 @@ const RawModal: React.FC<ModalProps> = ({
         // backdrop state machine; that path can briefly flash clear-dark-clear
         // during close, especially after drag-dismiss or on short modals.
         // Android's system touch feedback can also play a loud/repeated click.
-        // TODO: Test this custom backdrop on iOS before treating it as final.
         android_disableSound
         pointerEvents={isVisible ? 'auto' : 'none'}
         onPress={handleClose}
@@ -327,41 +351,7 @@ const RawModal: React.FC<ModalProps> = ({
             backgroundColor: 'transparent'
           }}
         >
-          <PanGestureHandler
-            onGestureEvent={gestureHandler}
-            minDist={
-              /*
-               * TAG-android-does-not-propagate-slider-events
-               *
-               * This is so that Slider (see EditableSlider.tsx) works within the
-               * src/common/lib/Modal.tsx
-               *
-               * Note that this model uses a PanGestureHandler and in Android it captures
-               * events and does not let it propagate to the Slider.
-               * This affects the component InitTrigger, which renders de Slider for the
-               * fees within the Modal. See solution:
-               * https://github.com/callstack/react-native-slider/issues/296#issuecomment-1001085596
-               * Basically, you are ensuring that the Slider component becomes the responder
-               * immediately when a touch event begins. This prevents other gesture handlers
-               * (such as the Modal's PanGestureHandler) from interfering with the Slider's
-               * touch events.
-               *
-               * The above appears to work fine. Alternatively, it is possible to set
-               * minDist={20} as prop to the PanGestureHandler in the Modal and this also
-               * has proved to work well. See alternative solution:
-               * https://github.com/callstack/react-native-slider/issues/296#issuecomment-1138417122
-               *
-               * The minDist property sets the minimum distance a touch must move before the
-               * gesture is recognized as a pan. By increasing the minDist value to 20, you
-               * are increasing the threshold for the PanGestureHandler to start recognizing
-               * the gesture as a pan.
-               *
-               * Applying both solutions is even smoother (on android)
-               *
-               */
-              20
-            }
-          >
+          <GestureDetector gesture={panGesture}>
             <Animated.View style={animatedStyle}>
               <View
                 style={{
@@ -496,7 +486,7 @@ const RawModal: React.FC<ModalProps> = ({
                 )}
               </View>
             </Animated.View>
-          </PanGestureHandler>
+          </GestureDetector>
         </GestureHandlerRootView>
       </KeyboardAvoidingView>
     </RNModal>
@@ -539,9 +529,4 @@ export { Modal };
  * - Reanimated owns backdrop opacity and native sheet translateY movement via
  *   withTiming, so the visible motion still runs on the UI thread.
  * - Web remains fade-only; Reanimated translateY is initialized to 0 there.
- *
- * TODO: Test this unified native animation model on iOS devices before treating
- * it as final. If iOS regresses, consider either restoring the old iOS-only
- * react-native-modal slide path or adjusting the Reanimated hidden offset,
- * timing, keyboard behavior, and modal chaining semantics.
  */
