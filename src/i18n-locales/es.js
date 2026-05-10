@@ -193,14 +193,20 @@ Si necesitas más ayuda, por favor contacta con el equipo de Soporte de Rewind.`
       untriggeredLockTime: 'Tiempo de Bloqueo: {{timeRemaining}}',
       vaultNotFound:
         'Esta bóveda nunca fue incluida en la blockchain. Las comisiones podrían haber sido muy bajas, podría haber sido reemplazada por otra transacción, o podría haber habido un error de red durante el envío.',
-      canBeTriggeredEvenIfVaultUnconfirmed: `Tus fondos están seguros, esperando la confirmación final de la blockchain (esto puede tomar unos minutos).
-Si presionas 'Iniciar Descongelación', comenzará un período de espera de {{lockTime}}, después del cual los fondos estarán disponibles.`,
-      cannotBeTriggeredBecauseVaultUnconfirmed_TRUC: `Tu bóveda está guardada de forma segura, esperando la confirmación final de la blockchain (esto puede tomar unos minutos).
+      canBeTriggeredEvenIfVaultUnconfirmed: `La bóveda está pendiente de confirmación final en la blockchain (esto puede tomar unos minutos).
+Si pulsas 'Iniciar Descongelación', comenzará un período de espera de {{lockTime}}, después del cual los fondos estarán disponibles.`,
+      cannotBeTriggeredBecauseVaultUnconfirmed_TRUC: `La bóveda está pendiente de confirmación final en la blockchain (esto puede tomar unos minutos).
 Cuando se confirme, podrás pulsar 'Iniciar Descongelación' para comenzar la cuenta atrás de {{lockTime}}.`,
-      cannotBeTriggeredBecauseReserveUnconfirmed_TRUC: `Tu bóveda está lista, pero la reserva para aumentar la comisión de esta descongelación aún está esperando la confirmación final de la blockchain (esto puede tomar unos minutos).
-Cuando se confirme, podrás pulsar 'Iniciar Descongelación' para comenzar la cuenta atrás de {{lockTime}}.`,
-      cannotBeRescuedBecauseReserveUnconfirmed_TRUC: `La reserva para aumentar la comisión de este rescate aún está esperando la confirmación final de la blockchain (esto puede tomar unos minutos).
-Cuando se confirme, podrás pulsar 'Rescatar'.`,
+      // Reserve-copy rules for future edits:
+      // - Use "fondos reservados para pagar comisiones de red" in reserve-state messages.
+      // - In the temporary fee-wallet intro, "fondos para pagar comisiones de red" is enough.
+      // - Use "comisiones de red" in reserve-flow copy; avoid "comisiones de minería" here.
+      // - Keep the CTA short: "Añadir fondos". Explain why in the body text.
+      // - For parent-only fallback, say "comisión de red que ya lleva incluida" instead of technical jargon.
+      cannotBeTriggeredBecauseReserveUnconfirmed_TRUC: `La descongelación todavía no está disponible porque los fondos reservados para pagar comisiones de red siguen esperando confirmación en la blockchain (esto puede tomar unos minutos).
+Cuando se confirmen, podrás pulsar 'Iniciar Descongelación' para comenzar la cuenta atrás de {{lockTime}}.`,
+      cannotBeRescuedBecauseReserveUnconfirmed_TRUC: `El rescate todavía no está disponible porque los fondos reservados para pagar comisiones de red siguen esperando confirmación en la blockchain (esto puede tomar unos minutos).
+Cuando se confirmen, podrás pulsar 'Rescatar'.`,
       canBeTriggered: `Los fondos están congelados de forma segura. Si presionas 'Iniciar Descongelación', comenzará un período de espera de {{lockTime}}, después del cual los fondos estarán disponibles.`,
       rescueUnconfirmed: `Rescate solicitado el {{rescuePushDate}}.`,
       rescueUnconfirmedWithUnknownDate: `Rescate solicitado recientemente.`,
@@ -250,7 +256,7 @@ Rewind necesita permiso para enviarte alertas críticas de seguridad sobre tus B
 Recibirás un aviso inmediato si alguien accede a tus claves e intenta desbloquear tu Bóveda.`
       },
       cannotAccelerateMaxFee: `Ya estás usando la comisión más alta. No es posible acelerar más.`,
-      addReserveFundsButton: 'Añadir fondos de reserva',
+      addReserveFundsButton: 'Añadir fondos',
       accelerateSuccess:
         'Aceleración enviada con éxito. Esperando confirmación.',
       triggerUnfreeze: {
@@ -264,21 +270,21 @@ Esto iniciará la cuenta regresiva de descongelación. Los fondos se desbloquear
 Nota: "Acelerar" no reduce el período de bloqueo; sólo ayuda a que el proceso comience antes si una comisión baja lo retrasó.
 
 Seguramente sólo necesitas esperar unos 10 minutos y realmente no necesitas esto. Usa "Acelerar" sólo si esperar ese tiempo (que podría alargarse hasta un par de horas) no es aceptable.`,
-        noReserveAvailableYet: `No hay fondos de reserva disponibles para esta solicitud de descongelación.
+        noReserveAvailableYet: `Esta descongelación necesita una reserva de fondos para pagar comisiones de red antes de que Rewind pueda iniciarla.
 
-Rewind no puede iniciarla ni acelerarla hasta que se añadan fondos a la reserva.`,
-        reserveUnconfirmed: `La reserva de esta descongelación está casi lista.
+Añade fondos a esta reserva y vuelve a intentarlo.`,
+        reserveUnconfirmed: `Los fondos reservados para pagar las comisiones de red de esta descongelación siguen esperando la confirmación final en la blockchain.
 
 Espera un poco más y vuelve a intentarlo.`,
-        insufficientReserveFunds: `Hay fondos en la reserva, pero no son suficientes para iniciar o acelerar esta solicitud de descongelación.
+        insufficientReserveFunds: `Esta descongelación necesita una reserva de fondos mayor para pagar comisiones de red.
 
-Añade más fondos a la reserva para continuar.`,
-        reserveScanError: `Rewind no pudo comprobar los fondos de reserva para esta solicitud de descongelación.
+Añade fondos a esta reserva y vuelve a intentarlo.`,
+        reserveScanError: `Rewind no pudo comprobar los fondos reservados para pagar las comisiones de red de esta descongelación.
 
 Comprueba tu conexión e inténtalo de nuevo.`,
-        reserveCannotPaySelectedFee: `La reserva no puede pagar la comisión seleccionada. Añade fondos de reserva o elige una comisión más baja.`,
-        reserveBelowRecommendedFee: `La reserva no puede alcanzar la comisión recomendada actualmente. Esta solicitud de descongelación usará una comisión más baja salvo que añadas fondos de reserva.`,
-        parentFeeBelowRecommendedFee: `Esta solicitud de descongelación puede enviarse ahora, pero las comisiones actuales son más altas que su comisión prefirmada. Añade fondos de reserva si quieres acelerarla antes de continuar.`,
+        reserveCannotPaySelectedFee: `Los fondos reservados para pagar la comisión de red de esta descongelación no alcanzan. Añade fondos a esta reserva o selecciona una opción más barata.`,
+        reserveBelowRecommendedFee: `Los fondos reservados para pagar las comisiones de red de esta descongelación pueden ser insuficientes para una confirmación rápida ahora mismo. Añade fondos a esta reserva para mejorar sus posibilidades.`,
+        parentFeeBelowRecommendedFee: `Esta descongelación puede enviarse ahora, pero la comisión de red que ya lleva incluida puede ser baja para las condiciones actuales de la red. Añade fondos a esta reserva para mejorar sus posibilidades.`,
         parentOnlyConfirmation: `Rewind está listo para iniciar la descongelación ahora.`,
         confirmationSpeedLabel: 'Comisión',
         feeSelectorExplanation:
@@ -298,21 +304,21 @@ Esta acción está diseñada para situaciones extremas, como robo o extorsión, 
 "Acelerar" dará prioridad a tu solicitud de rescate aumentando la comisión de los mineros. Tu solicitud original ya está en curso, pero esto puede adelantarla en la cola de confirmación.
 
 Seguramente sólo necesitas esperar unos 10 minutos y realmente no necesitas esto. Usa "Acelerar" sólo si esperar ese tiempo (que podría alargarse hasta un par de horas) no es aceptable.`,
-        noReserveAvailableYet: `Todavía no hay fondos de aceleración disponibles para esta solicitud de rescate.
+        noReserveAvailableYet: `Este rescate necesita una reserva de fondos para pagar comisiones de red antes de que Rewind pueda enviarlo.
 
-Rewind no puede acelerar este rescate hasta que se añadan fondos extra.`,
-        reserveUnconfirmed: `Los fondos para acelerar este rescate están casi listos.
+Añade fondos a esta reserva y vuelve a intentarlo.`,
+        reserveUnconfirmed: `Los fondos reservados para pagar las comisiones de red de este rescate siguen esperando la confirmación final en la blockchain.
 
 Espera un poco más y vuelve a intentarlo.`,
-        insufficientReserveFunds: `Hay fondos de aceleración disponibles, pero no son suficientes para acelerar esta solicitud de rescate.
+        insufficientReserveFunds: `Este rescate necesita una reserva de fondos mayor para pagar comisiones de red.
 
-Añade más fondos para poder acelerarla.`,
-        reserveScanError: `Rewind no pudo comprobar los fondos de aceleración para esta solicitud de rescate.
+Añade fondos a esta reserva y vuelve a intentarlo.`,
+        reserveScanError: `Rewind no pudo comprobar los fondos reservados para pagar las comisiones de red de este rescate.
 
 Comprueba tu conexión e inténtalo de nuevo.`,
-        reserveCannotPaySelectedFee: `Los fondos de aceleración de rescate no pueden pagar la comisión seleccionada. Añade fondos temporales de reserva o elige una comisión más baja.`,
-        reserveBelowRecommendedFee: `Los fondos de aceleración de rescate no pueden alcanzar la comisión recomendada actualmente. Este rescate usará una comisión más baja salvo que añadas fondos temporales de reserva.`,
-        parentFeeBelowRecommendedFee: `Este rescate puede enviarse ahora, pero las comisiones actuales son más altas que su comisión prefirmada. Añade fondos temporales de reserva si quieres acelerarlo antes de continuar.`,
+        reserveCannotPaySelectedFee: `Los fondos reservados para pagar la comisión de red de este rescate no alcanzan. Añade fondos a esta reserva o selecciona una opción más barata.`,
+        reserveBelowRecommendedFee: `Los fondos reservados para pagar las comisiones de red de este rescate pueden ser insuficientes para una confirmación rápida ahora mismo. Añade fondos a esta reserva para mejorar sus posibilidades.`,
+        parentFeeBelowRecommendedFee: `Este rescate puede enviarse ahora, pero la comisión de red que ya lleva incluida puede ser baja para las condiciones actuales de la red. Añade fondos a esta reserva para mejorar sus posibilidades.`,
         parentOnlyConfirmation: `Rewind está listo para enviar el rescate ahora.`,
         confirmationSpeedLabel: 'Comisión',
         feeSelectorExplanation:
@@ -320,37 +326,37 @@ Comprueba tu conexión e inténtalo de nuevo.`,
         postActionExplanation: `Una vez que se confirme la solicitud de rescate, los fondos serán movidos a tu Dirección de Emergencia instantáneamente.`
       },
       addReserve: {
-        triggerTitle: 'Añadir Reserva de Descongelación',
-        rescueTitle: 'Añadir Reserva de Rescate',
-        triggerIntro: `Envía fondos a esta dirección de reserva para añadir fondos de aceleración para esta solicitud de descongelación.`,
-        rescueIntro: `Envía fondos a esta dirección temporal de reserva para añadir fondos de aceleración para esta solicitud de rescate.`,
-        trucConfirmationNote: `Como esta bóveda usa política TRUC, los fondos enviados aquí deben confirmarse antes de que Rewind pueda usarlos en la transacción hija de aceleración.`,
-        addressLabel: 'Dirección de Reserva'
+        triggerTitle: 'Añadir Fondos para la Descongelación',
+        rescueTitle: 'Añadir Fondos para el Rescate',
+        triggerIntro: `Envía una pequeña cantidad a esta dirección. Rewind la reservará para pagar las comisiones de red de esta descongelación. Cualquier cantidad que no se use volverá a ti.`,
+        rescueIntro: `Envía una pequeña cantidad a esta dirección temporal. Rewind la reservará para pagar las comisiones de red de este rescate.`,
+        trucConfirmationNote: `Después de enviar fondos aquí, deberás esperar su confirmación. Normalmente tarda unos 10 minutos.`,
+        addressLabel: 'Dirección para enviar fondos'
       },
       rescueReserveWallet: {
-        modalTitle: 'Billetera Temporal de Reserva de Rescate',
-        intro_TRUC: `Este asistente crea o importa una billetera temporal, sólo en memoria, para fondos de aceleración de rescate. Es independiente de tu billetera normal porque, durante un rescate, esa billetera puede estar comprometida.
+        modalTitle: 'Billetera Temporal para Comisiones',
+        intro_TRUC: `Durante un rescate, Rewind usa una billetera temporal para tener fondos para pagar comisiones de red. Esto se debe a que tu billetera normal debe tratarse como comprometida durante un rescate.
 
-Úsala sólo si tu transacción de rescate necesita más comisión. Rewind no guarda esta billetera y desaparecerá si cierras esta billetera, vuelves a la pantalla principal o sales de este flujo. Si ya anotaste una frase temporal de reserva de rescate, impórtala para restaurar la misma billetera de reserva en memoria para este flujo.
+Rewind no guarda esta billetera temporal. Mantén Rewind abierto hasta que termine el rescate; de lo contrario, necesitarás su Frase de Recuperación para restaurarla.
 
-Como esta bóveda usa política TRUC, mantén Rewind abierto hasta que los fondos enviados a esta billetera temporal estén confirmados. Si cierras la billetera antes de la confirmación, Rewind perderá el firmante necesario para usar esos fondos en la transacción hija de rescate.`,
-        intro_NON_TRUC: `Este asistente crea o importa una billetera temporal, sólo en memoria, para fondos de aceleración de rescate. Es independiente de tu billetera normal porque, durante un rescate, esa billetera puede estar comprometida.
+Después de enviar fondos a esta billetera temporal, espera a que se confirmen. Luego vuelve a intentar el rescate.`,
+        intro_NON_TRUC: `Durante un rescate, Rewind usa una billetera temporal para tener fondos para pagar comisiones de red. Esto se debe a que tu billetera normal debe tratarse como comprometida durante un rescate.
 
-Úsala sólo si tu transacción de rescate necesita más comisión. Rewind no guarda esta billetera y desaparecerá si cierras esta billetera, vuelves a la pantalla principal o sales de este flujo. Si ya anotaste una frase temporal de reserva de rescate, impórtala para restaurar la misma billetera de reserva en memoria para este flujo.
+Rewind no guarda esta billetera temporal. Mantén Rewind abierto hasta que termine el rescate; de lo contrario, necesitarás su Frase de Recuperación para restaurarla.
 
-Mantén Rewind abierto hasta que termine el flujo de aceleración de rescate. Si cierras la billetera, Rewind perderá el firmante necesario para usar esos fondos en la transacción hija de rescate.`,
+Después de enviar fondos a esta billetera temporal, vuelve a intentar el rescate.`,
         createButton: 'Crear nueva',
         importButton: 'Importar',
-        importText: `Introduce la Frase de Recuperación de una billetera temporal de reserva de rescate que ya creaste para este flujo de rescate. Rewind derivará la misma dirección de financiación de reserva y mantendrá el firmante sólo en memoria.
+        importText: `Introduce la Frase de Recuperación solo si ya creaste una billetera temporal para pagar comisiones en este mismo rescate.
 
-No importes aquí tu billetera normal. Este flujo es sólo para fondos temporales de aceleración de rescate.`,
-        importConfirmButton: 'Importar billetera de reserva',
-        bip39Proposal: `Abajo tienes la Frase de Recuperación de esta billetera temporal de reserva de rescate. Anótala antes de continuar.`,
-        bip39ProposalPart2_TRUC: `Esta frase es la única copia de seguridad de la billetera temporal. Rewind no la guarda. Mantén esta pantalla y la billetera abiertas hasta que la transacción de financiación de la reserva confirme y termine el flujo de aceleración de rescate.`,
-        bip39ProposalPart2_NON_TRUC: `Esta frase es la única copia de seguridad de la billetera temporal. Rewind no la guarda. Mantén esta pantalla y la billetera abiertas hasta que termine el flujo de aceleración de rescate.`,
+No importes aquí tu billetera normal. Esto es solo para los fondos reservados para pagar comisiones de red durante este rescate.`,
+        importConfirmButton: 'Importar billetera para comisiones',
+        bip39Proposal: `Esta es la Frase de Recuperación de tu billetera temporal para comisiones. Anótala antes de continuar.`,
+        bip39ProposalPart2_TRUC: `Esta frase es tu única copia de seguridad. Rewind no la guarda. Mantén Rewind abierto hasta que se confirmen los fondos para pagar comisiones de red y termine el rescate.`,
+        bip39ProposalPart2_NON_TRUC: `Esta frase es tu única copia de seguridad. Rewind no la guarda. Mantén Rewind abierto hasta que termine el rescate.`,
         confirmBip39ProposalButton: 'La he anotado',
-        created: 'Billetera temporal de reserva de rescate creada.',
-        imported: 'Billetera temporal de reserva de rescate importada.'
+        created: 'Billetera temporal para comisiones creada.',
+        imported: 'Billetera temporal para comisiones importada.'
       },
       delegate: {
         title: 'Archivo de Delegación',
@@ -490,13 +496,13 @@ Instrucciones de Uso:
       rescuedConfirming:
         'Rescatando tu bóveda. La cantidad final rescatada después de comisiones será {{amount}}. Esperando confirmación final...',
       feePayerTrigger:
-        'Esta transacción CPFP pagadora de comisión usó fondos de reserva para ayudar a confirmar tu descongelación. El cambio volvió a tu billetera.',
+        'Esta transacción usó fondos reservados para pagar comisiones de red y ayudar a confirmar tu descongelación. La cantidad no utilizada volvió a tu billetera.',
       feePayerTriggerConfirming:
-        'Esta transacción CPFP pagadora de comisión está usando fondos de reserva para ayudar a confirmar tu descongelación. Esperando confirmación... El cambio volverá a tu billetera.',
+        'Esta transacción está usando fondos reservados para pagar comisiones de red y ayudar a confirmar tu descongelación. Esperando confirmación... La cantidad no utilizada volverá a tu billetera.',
       feePayerRescue:
-        'Esta transacción CPFP pagadora de comisión usó fondos de reserva para ayudar a confirmar tu rescate. El cambio volvió a tu billetera de reserva de rescate.',
+        'Esta transacción usó fondos reservados para pagar comisiones de red y ayudar a confirmar tu rescate. La cantidad no utilizada volvió a la billetera temporal para comisiones.',
       feePayerRescueConfirming:
-        'Esta transacción CPFP pagadora de comisión está usando fondos de reserva para ayudar a confirmar tu rescate. Esperando confirmación... El cambio volverá a tu billetera de reserva de rescate.',
+        'Esta transacción está usando fondos reservados para pagar comisiones de red y ayudar a confirmar tu rescate. Esperando confirmación... La cantidad no utilizada volverá a la billetera temporal para comisiones.',
       openBlockExplorer: 'Ver en el Explorador de Bloques'
     }
   },
@@ -575,7 +581,7 @@ Si recibiste o moviste bitcoin hace poco, el resto normalmente debería quedar d
 
 La bóveda más pequeña que Rewind puede crear ahora mismo necesita alrededor de {{minimumRequiredFunds}} en tu billetera.
 
-De eso, {{minimumVaultedAmount}} queda congelado en la bóveda. El resto hace falta para guardar un backup y dejar suficiente apartado para descongelar más adelante.
+De eso, {{minimumVaultedAmount}} quedarían congelados en la bóveda. El resto hace falta para guardar un backup y dejar una reserva suficiente para descongelar más adelante.
 
 <strong>Acción Sugerida:</strong> Por favor, agrega unos {{missingFunds}} más y vuelve a intentarlo.`,
     blockedByPendingUtxosNotice: `<strong>Se necesitan más fondos confirmados</strong>
@@ -589,7 +595,7 @@ Puedes continuar con los fondos disponibles, pero algunos fondos pendientes no e
     amountLabel: 'Cantidad a Congelar',
     unfreezeReserveLabel: 'Reserva para Descongelar',
     unfreezeReserveHelpTitle: 'Reserva para Descongelar',
-    unfreezeReserveHelp: `Cuando en el futuro quieras descongelar esta bóveda, hará falta algo de bitcoin para pagar las comisiones de minería.
+    unfreezeReserveHelp: `Cuando en el futuro quieras descongelar esta bóveda, hará falta algo de bitcoin para pagar comisiones de red.
 
 Como hoy nadie sabe cuáles serán esas comisiones, Rewind aparta ahora esta pequeña reserva y la mantiene fuera de tu saldo gastable normal para que no la gastes por accidente.
 
