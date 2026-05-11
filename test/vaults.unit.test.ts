@@ -1,6 +1,14 @@
 // Copyright (C) 2025 Jose-Luis Landabaso - https://rewindbitcoin.com
 // Licensed under the GNU GPL v3 or later. See the LICENSE file for details.
 
+jest.mock('../dist/src/common/lib/cipher', () => ({
+  getManagedChacha: jest.fn(),
+  getPasswordDerivedCipherKey: jest.fn()
+}));
+jest.mock('../dist/src/app/lib/backup', () => ({
+  getSeedDerivedCipherKey: jest.fn()
+}));
+
 import { fixtures } from './fixtutres';
 import {
   assertP2AParentPolicy,
@@ -17,6 +25,7 @@ import {
 } from '../dist/src/app/lib/vaults';
 import { type Accounts } from '../dist/src/app/lib/wallets';
 import { MIN_FEE_RATE } from '../dist/src/app/lib/fees';
+import { getRequiredNextP2ABumpReserveUtxoValueForParent } from '../dist/src/app/lib/p2aReserve';
 import { getActionAvailability } from '../dist/src/app/lib/vaultActionTx';
 import { networks, type Network, Transaction } from 'bitcoinjs-lib';
 import { fromHex } from 'uint8array-tools';
@@ -175,6 +184,53 @@ describe('vaults unit tests', () => {
     if (!plan) throw new Error('Expected CPFP plan');
     expect(plan.childFee).toBeGreaterThanOrEqual(0);
     expect(plan.packageFeeRate).toBeGreaterThanOrEqual(2);
+  });
+
+  test('getRequiredNextP2ABumpReserveUtxoValueForParent funds one new reserve UTXO', () => {
+    const network = networks.regtest;
+    const changeOutput = createAddressOutput(DUMMY_ADDRESS(network), network);
+    const nextReserveOutput = createAddressOutput(
+      DUMMY_ADDRESS(network),
+      network
+    );
+    const parentTxHex = createSyntheticTxHex({
+      version: 2,
+      mainOutputValue: 12000,
+      p2aValue: P2A_NON_TRUC_ANCHOR_SATS
+    });
+    const parentFee = 120;
+    const targetPackageFeeRate = 20;
+
+    const requiredValue = Number(
+      getRequiredNextP2ABumpReserveUtxoValueForParent({
+        parentTxHex,
+        parentFee,
+        targetPackageFeeRate,
+        existingBumpReserveOutputsWithValue: [],
+        nextBumpReserveOutput: nextReserveOutput,
+        changeOutput
+      })
+    );
+
+    expect(requiredValue).toBeGreaterThan(0);
+    const plan = estimateCpfpPackage({
+      parentTxHex,
+      parentFee,
+      targetPackageFeeRate,
+      utxosData: [createSyntheticUtxoData(requiredValue)],
+      changeOutput
+    });
+    expect(plan).toBeDefined();
+    expect(plan?.packageFeeRate).toBeGreaterThanOrEqual(targetPackageFeeRate);
+
+    const underfundedPlan = estimateCpfpPackage({
+      parentTxHex,
+      parentFee,
+      targetPackageFeeRate,
+      utxosData: [createSyntheticUtxoData(requiredValue - 1)],
+      changeOutput
+    });
+    expect(underfundedPlan).toBeUndefined();
   });
 
   test('estimateCpfpPackage returns undefined for laddered parent tx', () => {
