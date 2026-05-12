@@ -64,7 +64,6 @@ import {
 } from '../../lib/watchtower';
 import SkeletonPulse from '../SkeletonPulse';
 import { networkMapping } from '../../lib/network';
-import useFirstDefinedValue from '~/common/hooks/useFirstDefinedValue';
 import {
   useRescueReserveBumpPlan,
   useTriggerReserveBumpPlan
@@ -188,12 +187,9 @@ const RawVault = ({
 
   const { settings } = useSettings();
   if (!settings) throw new Error('Settings has not been retrieved');
-  const {
-    feeEstimates: feeEstimatesRealTime,
-    networkId,
-    pushTxPackage
-  } = useWallet();
-  const feeEstimates = useFirstDefinedValue(feeEstimatesRealTime);
+  const { feeEstimates, networkId, pushTxPackage } = useWallet();
+  //don't do this since VaultCard is not a short-lived screen.
+  //feeEstimates = useFirstDefinedValue(feeEstimates);
   const {
     plan: triggerBumpPlan,
     address: triggerReserveAddress,
