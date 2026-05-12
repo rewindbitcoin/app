@@ -6,6 +6,7 @@ import { View, Text } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import { useTranslation } from 'react-i18next';
 import { Button, Modal, useToast } from '../../../../common/ui';
+import QRCode from 'react-native-qrcode-svg';
 
 const AddReserve = ({
   role,
@@ -58,22 +59,21 @@ const AddReserve = ({
             {t('wallet.vault.addReserve.trucConfirmationNote')}
           </Text>
         )}
-        <Text className="native:text-sm web:text-xs uppercase text-slate-500 pb-2 px-2 font-semibold">
+        <Text className="native:text-sm web:text-xs uppercase text-slate-500 pb-4 px-2 font-semibold">
           {t('wallet.vault.addReserve.addressLabel')}
         </Text>
+        <View className="items-center pb-4">
+          <QRCode value={`bitcoin:${address}`} size={200} />
+        </View>
         <Button
           mode="text"
-          textClassName="break-words break-all"
+          containerClassName="w-full justify-center px-2"
+          textClassName="text-base break-words"
           iconRight={{ family: 'FontAwesome6', name: 'copy' }}
           onPress={onClipboard}
         >
           {address}
         </Button>
-        <View className="items-center pt-4">
-          <Button mode="secondary" onPress={onClipboard}>
-            {t('receive.copyAddress')}
-          </Button>
-        </View>
       </View>
     </Modal>
   );
