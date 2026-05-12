@@ -25,7 +25,7 @@ import {
 } from '../dist/src/app/lib/vaults';
 import { type Accounts } from '../dist/src/app/lib/wallets';
 import { MIN_FEE_RATE } from '../dist/src/app/lib/fees';
-import { getRequiredNextP2ABumpReserveUtxoValueForParent } from '../dist/src/app/lib/p2aReserve';
+import { getRequiredNextP2ABumpReserveUtxoValue } from '../dist/src/app/lib/p2aReserve';
 import { getActionAvailability } from '../dist/src/app/lib/vaultActionTx';
 import { networks, type Network, Transaction } from 'bitcoinjs-lib';
 import { fromHex } from 'uint8array-tools';
@@ -186,7 +186,7 @@ describe('vaults unit tests', () => {
     expect(plan.packageFeeRate).toBeGreaterThanOrEqual(2);
   });
 
-  test('getRequiredNextP2ABumpReserveUtxoValueForParent funds one new reserve UTXO', () => {
+  test('getRequiredNextP2ABumpReserveUtxoValue funds one new reserve UTXO', () => {
     const network = networks.regtest;
     const changeOutput = createAddressOutput(DUMMY_ADDRESS(network), network);
     const nextReserveOutput = createAddressOutput(
@@ -198,13 +198,17 @@ describe('vaults unit tests', () => {
       mainOutputValue: 12000,
       p2aValue: P2A_NON_TRUC_ANCHOR_SATS
     });
+    const parentTx = Transaction.fromHex(parentTxHex);
+    const parentAnchor = findP2AOutputData(parentTx);
+    if (!parentAnchor) throw new Error('Expected parent anchor');
     const parentFee = 120;
     const targetPackageFeeRate = 20;
 
     const requiredValue = Number(
-      getRequiredNextP2ABumpReserveUtxoValueForParent({
-        parentTxHex,
-        parentFee,
+      getRequiredNextP2ABumpReserveUtxoValue({
+        parentAnchorValue: parentAnchor.value,
+        presignedParentVSize: parentTx.virtualSize(),
+        presignedParentFeeRate: parentFee / parentTx.virtualSize(),
         targetPackageFeeRate,
         existingBumpReserveOutputsWithValue: [],
         nextBumpReserveOutput: nextReserveOutput,
