@@ -331,8 +331,8 @@ Check your connection and try again.`,
       addReserve: {
         triggerTitle: 'Add Funds for Unfreeze',
         rescueTitle: 'Add Funds for Rescue',
-        triggerIntro: `Send a small amount to this address. Rewind will reserve it to pay network fees for this unfreeze. Any unused amount comes back to you.`,
-        rescueIntro: `Send a small amount to this temporary address. Rewind will reserve it to pay network fees for this rescue.`,
+        triggerIntro: `Send {{amount}} to this address. Rewind will reserve it to pay network fees for this unfreeze. Any unused amount goes back to your wallet.`,
+        rescueIntro: `Send {{amount}} to this temporary address. Rewind will reserve it to pay network fees for this rescue. Any unused amount goes back to the temporary wallet for fees.`,
         trucConfirmationNote: `After sending funds here, you'll need to wait for confirmation. This usually takes around 10 minutes.`,
         addressLabel: 'Funding Address'
       },

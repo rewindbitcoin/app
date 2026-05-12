@@ -18,11 +18,13 @@ import {
   type Vault,
   type VaultStatus,
   createCpfpChildTx,
+  findP2AOutputData,
   getVaultFrozenBalance,
   getVaultMode,
   getRemainingBlocks,
   getVaultUnfrozenBalance,
-  getVaultRescuedBalance
+  getVaultRescuedBalance,
+  type UtxosData
 } from '../../lib/vaults';
 import VaultIcon from '../VaultIcon';
 import { useTranslation } from 'react-i18next';
@@ -46,6 +48,7 @@ import {
   getLadderedTriggerSortedTxs,
   getP2ARescueInfo,
   getP2ATriggerInfo,
+  type P2ABumpPlan,
   type PresignedTxInfo,
   type VaultActionTxData
 } from '../../lib/vaultActionTx';
@@ -66,9 +69,65 @@ import {
   useRescueReserveBumpPlan,
   useTriggerReserveBumpPlan
 } from './useReserveBumpPlans';
+import { pickFeeEstimate } from '../../lib/fees';
+import { transactionFromHex } from '../../lib/bitcoin';
+import { getRequiredNextP2ABumpReserveUtxoValue } from '../../lib/p2aReserve';
+import type { OutputInstance } from '@bitcoinerlab/descriptors';
 
 const LOADING_TEXT = '     ';
 const INITIAL_NOW_SECONDS = Math.floor(Date.now() / 1000);
+
+const getReserveOutputsWithValue = (utxosData: UtxosData) => {
+  const outputsWithValue = [];
+  for (const utxoData of utxosData) {
+    const output = utxoData.tx.outs[utxoData.vout];
+    if (!output) return;
+    outputsWithValue.push({ output: utxoData.output, value: output.value });
+  }
+  return outputsWithValue;
+};
+
+const getRecommendedReserveFundingSats = ({
+  plan,
+  nextReserveOutput,
+  parentTxInfo,
+  targetPackageFeeRate
+}: {
+  plan: P2ABumpPlan | 'loading' | 'error';
+  nextReserveOutput: OutputInstance | undefined;
+  parentTxInfo: PresignedTxInfo | undefined;
+  targetPackageFeeRate: number | undefined;
+}) => {
+  if (
+    typeof plan !== 'object' ||
+    !plan.changeOutput ||
+    !nextReserveOutput ||
+    !parentTxInfo ||
+    targetPackageFeeRate === undefined
+  )
+    return;
+
+  const { tx: parentTx } = transactionFromHex(parentTxInfo.txHex);
+  const parentAnchor = findP2AOutputData(parentTx);
+  if (!parentAnchor) return;
+  const existingBumpReserveOutputsWithValue = getReserveOutputsWithValue(
+    plan.utxosData
+  );
+  if (!existingBumpReserveOutputsWithValue) return;
+
+  const recommendedValue = Number(
+    getRequiredNextP2ABumpReserveUtxoValue({
+      existingBumpReserveOutputsWithValue,
+      nextBumpReserveOutput: nextReserveOutput,
+      changeOutput: plan.changeOutput,
+      parentAnchorValue: parentAnchor.value,
+      presignedParentVSize: parentTx.virtualSize(),
+      presignedParentFeeRate: parentTxInfo.fee / parentTx.virtualSize(),
+      targetPackageFeeRate
+    })
+  );
+  return recommendedValue > 0 ? recommendedValue : undefined;
+};
 
 const RawVault = ({
   setVaultNotificationAcknowledged,
@@ -138,6 +197,7 @@ const RawVault = ({
   const {
     plan: triggerBumpPlan,
     address: triggerReserveAddress,
+    output: nextTriggerReserveOutput,
     value: triggerReserveValue,
     refresh: retryTriggerReserve
   } = useTriggerReserveBumpPlan({
@@ -316,6 +376,7 @@ const RawVault = ({
   const {
     plan: rescueBumpPlan,
     address: rescueReserveAddress,
+    output: nextRescueReserveOutput,
     refresh: retryRescueReserve
   } = useRescueReserveBumpPlan({
     enabled: !isLadderedVault,
@@ -786,6 +847,54 @@ const RawVault = ({
     settings.FIAT_MODE && typeof btcFiat === 'number'
       ? 'Fiat'
       : settings.SUB_UNIT;
+  const reserveTargetPackageFeeRate = feeEstimates
+    ? pickFeeEstimate(feeEstimates, 0).feeEstimate
+    : undefined;
+  const triggerReserveFundingSats = getRecommendedReserveFundingSats({
+    plan: triggerBumpPlan,
+    nextReserveOutput: nextTriggerReserveOutput,
+    parentTxInfo: triggerPresignedTxInfos[0],
+    targetPackageFeeRate: reserveTargetPackageFeeRate
+  });
+  const rescueReserveFundingSats = getRecommendedReserveFundingSats({
+    plan: rescueBumpPlan,
+    nextReserveOutput: nextRescueReserveOutput,
+    parentTxInfo: rescuePresignedTxInfos?.[0],
+    targetPackageFeeRate: reserveTargetPackageFeeRate
+  });
+  const triggerReserveFundingAmount =
+    triggerReserveFundingSats === undefined
+      ? undefined
+      : formatBalance({
+          satsBalance: triggerReserveFundingSats,
+          btcFiat,
+          currency,
+          locale,
+          mode: amountMode,
+          appendSubunit: true
+        });
+  const rescueReserveFundingAmount =
+    rescueReserveFundingSats === undefined
+      ? undefined
+      : formatBalance({
+          satsBalance: rescueReserveFundingSats,
+          btcFiat,
+          currency,
+          locale,
+          mode: amountMode,
+          appendSubunit: true
+        });
+  const canOpenTriggerReserveFunds =
+    !!networkId &&
+    !!p2aVaultMode &&
+    triggerReserveAddress !== undefined &&
+    triggerReserveFundingAmount !== undefined;
+  const canOpenRescueReserveFunds =
+    !!networkId &&
+    !!p2aVaultMode &&
+    (!rescueReserveData ||
+      (rescueReserveAddress !== undefined &&
+        rescueReserveFundingAmount !== undefined));
 
   const frozenBalance =
     tipHeight &&
@@ -1203,21 +1312,24 @@ const RawVault = ({
         onClose={closeTriggerModal}
         onModalHide={handleTriggerModalHide}
         onReserveRetry={retryTriggerReserve}
-        {...(networkId && p2aVaultMode && triggerReserveAddress
+        {...(canOpenTriggerReserveFunds
           ? { onReserveFundsMissing: openTriggerReserveFunds }
           : {})}
         onAction={handleTrigger}
       />
       {/* Follow-up modal opened after the trigger modal closes; tells the user to send funds to this vault's trigger reserve address so future trigger packages can pay higher fees. */}
-      {p2aVaultMode && triggerReserveAddress && (
+      {p2aVaultMode &&
+      triggerReserveAddress &&
+      triggerReserveFundingAmount !== undefined ? (
         <AddReserve
           role="TRIGGER"
           vaultMode={p2aVaultMode}
           address={triggerReserveAddress}
+          recommendedAmount={triggerReserveFundingAmount}
           isVisible={isAddTriggerReserveVisible}
           onClose={closeAddTriggerReserve}
         />
-      )}
+      ) : null}
       {/* Modal that lets the user start or accelerate an emergency rescue, choose a fee when needed, and confirm broadcasting the rescue transaction/package. */}
       <PresignedVaultAction
         role="RESCUE"
@@ -1228,7 +1340,7 @@ const RawVault = ({
         onClose={closeRescueModal}
         onModalHide={handleRescueModalHide}
         onReserveRetry={retryRescueReserve}
-        {...(networkId && p2aVaultMode
+        {...(canOpenRescueReserveFunds
           ? { onReserveFundsMissing: openRescueReserveFunds }
           : {})}
         onAction={handleRescue}
@@ -1244,15 +1356,18 @@ const RawVault = ({
         />
       )}
       {/* Follow-up modal opened after the rescue modal closes; tells the user to send funds to the temporary rescue reserve address so rescue packages can pay higher fees. */}
-      {p2aVaultMode && rescueReserveAddress && (
+      {p2aVaultMode &&
+      rescueReserveAddress &&
+      rescueReserveFundingAmount !== undefined ? (
         <AddReserve
           role="RESCUE"
           vaultMode={p2aVaultMode}
           address={rescueReserveAddress}
+          recommendedAmount={rescueReserveFundingAmount}
           isVisible={isAddRescueReserveVisible}
           onClose={closeAddRescueReserve}
         />
-      )}
+      ) : null}
       <Delegate
         vault={vault}
         isVisible={showDelegate}

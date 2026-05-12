@@ -25,7 +25,7 @@ import {
   utxosDataBalance,
   type VaultSettings
 } from '../lib/vaults';
-import { getRequiredTriggerReserveValue } from '../lib/p2aReserve';
+import { getRequiredNextP2ABumpReserveUtxoValue } from '../lib/p2aReserve';
 import { getVaultableUtxosData } from '../lib/utxoPolicy';
 import {
   DUMMY_BACKUP_OUTPUT,
@@ -58,6 +58,8 @@ import { OutputInstance } from '@bitcoinerlab/descriptors';
 import { useLocalization } from '../hooks/useLocalization';
 import { batchedUpdates } from '~/common/lib/batchedUpdates';
 import { toBigInt, toNumber } from '../lib/sats';
+import { getTriggerAnchorValue } from '../lib/p2aPolicy';
+import { TRIGGER_TX_VBYTES } from '../lib/vaultSizes';
 
 export default function VaultSetUp({
   onVaultSetUpComplete
@@ -255,14 +257,16 @@ export default function VaultSetUp({
       minimumVaultSetup.vaultedAmount
       ? maxVaultAtSelectedPackageFeeRate.vaultedAmount
       : minimumVaultSetup.vaultedAmount;
-  const triggerReserveValue = getRequiredTriggerReserveValue({
-    triggerReserveOutput: DUMMY_TRIGGER_RESERVE_OUTPUT(network),
+  const triggerReserveValue = getRequiredNextP2ABumpReserveUtxoValue({
+    existingBumpReserveOutputsWithValue: [],
+    nextBumpReserveOutput: DUMMY_TRIGGER_RESERVE_OUTPUT(network),
     changeOutput:
       changeOutput ||
       DUMMY_CHANGE_OUTPUT(getMainAccount(accounts, network), network),
-    vaultMode,
-    presignedTriggerFeeRate,
-    maxTriggerFeeRate: settings.MAX_TRIGGER_FEERATE
+    parentAnchorValue: toNumber(getTriggerAnchorValue(vaultMode)),
+    presignedParentVSize: Math.max(...TRIGGER_TX_VBYTES),
+    presignedParentFeeRate: presignedTriggerFeeRate,
+    targetPackageFeeRate: settings.MAX_TRIGGER_FEERATE
   });
 
   const [userSelectedVaultedAmount, setUserSelectedVaultedAmount] = useState<
@@ -394,12 +398,14 @@ export default function VaultSetUp({
             vaultOutput: DUMMY_VAULT_OUTPUT(network),
             backupOutput: DUMMY_BACKUP_OUTPUT(network),
             triggerReserveOutput: DUMMY_TRIGGER_RESERVE_OUTPUT(network),
-            triggerReserveValue: getRequiredTriggerReserveValue({
-              triggerReserveOutput: DUMMY_TRIGGER_RESERVE_OUTPUT(network),
+            triggerReserveValue: getRequiredNextP2ABumpReserveUtxoValue({
+              existingBumpReserveOutputsWithValue: [],
+              nextBumpReserveOutput: DUMMY_TRIGGER_RESERVE_OUTPUT(network),
               changeOutput: currentChangeOutput,
-              vaultMode,
-              presignedTriggerFeeRate,
-              maxTriggerFeeRate: settings.MAX_TRIGGER_FEERATE
+              parentAnchorValue: toNumber(getTriggerAnchorValue(vaultMode)),
+              presignedParentVSize: Math.max(...TRIGGER_TX_VBYTES),
+              presignedParentFeeRate: presignedTriggerFeeRate,
+              targetPackageFeeRate: settings.MAX_TRIGGER_FEERATE
             }),
             changeOutput: currentChangeOutput,
             vaultMode,

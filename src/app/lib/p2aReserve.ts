@@ -13,10 +13,8 @@ import { MIN_FEE_RATE } from './fees';
 import { getTriggerReservePath, parseVaultIndex } from './rewindPaths';
 import { toBigInt, toNumber } from './sats';
 import { transactionFromHex } from './bitcoin';
-import { TRIGGER_TX_VBYTES } from './vaultSizes';
 import { getMasterNode } from './vaultDescriptors';
 import type { Signer } from './wallets';
-import { getTriggerAnchorValue } from './p2aPolicy';
 
 // P2A input weight = base input (36 prevout + 1 scriptLen + 4 sequence) * 4
 // plus segwit marker/flag (2) and witness (1 stack item count + 1 empty push)
@@ -41,9 +39,7 @@ export const estimateCpfpChildVSizeFromOutputs = (
  * Returns the sats that must be funded into the next P2A bump reserve UTXO.
  *
  * This is the shared P2A bump reserve-sizing primitive for parent+child
- * packages. It is not trigger-specific: trigger setup uses it through
- * `getRequiredTriggerReserveValue(...)`, and future rescue acceleration can use
- * the same primitive once the rescue reserve signer/output model exists.
+ * packages. It is not trigger-specific; callers provide the parent/action data.
  */
 export const getRequiredNextP2ABumpReserveUtxoValue = ({
   existingBumpReserveOutputsWithValue,
@@ -101,36 +97,6 @@ export const getRequiredNextP2ABumpReserveUtxoValue = ({
   return toBigInt(
     Math.max(nextBumpReserveMinValue, nextBumpReserveValueNeeded)
   );
-};
-
-/** Derives the sats that must be locked in the dedicated trigger reserve output. */
-export const getRequiredTriggerReserveValue = ({
-  triggerReserveOutput,
-  changeOutput,
-  vaultMode,
-  presignedTriggerFeeRate,
-  maxTriggerFeeRate
-}: {
-  /** Output template for the dedicated trigger reserve UTXO created in the vault tx. */
-  triggerReserveOutput: OutputInstance;
-  /** Output template for the wallet change output of the future trigger CPFP child. */
-  changeOutput: OutputInstance;
-  /** Structural vault mode. */
-  vaultMode: 'P2A_TRUC' | 'P2A_NON_TRUC';
-  /** Mode-specific fee rate baked into the trigger parent itself. */
-  presignedTriggerFeeRate: number;
-  /** Maximum package feerate covered by the first trigger CPFP child. */
-  maxTriggerFeeRate: number;
-}) => {
-  return getRequiredNextP2ABumpReserveUtxoValue({
-    existingBumpReserveOutputsWithValue: [],
-    nextBumpReserveOutput: triggerReserveOutput,
-    changeOutput,
-    parentAnchorValue: toNumber(getTriggerAnchorValue(vaultMode)),
-    presignedParentVSize: Math.max(...TRIGGER_TX_VBYTES),
-    presignedParentFeeRate: presignedTriggerFeeRate,
-    targetPackageFeeRate: maxTriggerFeeRate
-  });
 };
 
 export const getTriggerReserveDescriptorForVaultIndex = ({

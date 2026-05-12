@@ -11,12 +11,14 @@ const AddReserve = ({
   role,
   vaultMode,
   address,
+  recommendedAmount,
   isVisible,
   onClose
 }: {
   role: 'TRIGGER' | 'RESCUE';
   vaultMode: 'P2A_TRUC' | 'P2A_NON_TRUC';
   address: string;
+  recommendedAmount: string;
   isVisible: boolean;
   onClose: () => void;
 }) => {
@@ -33,8 +35,12 @@ const AddReserve = ({
       : t('wallet.vault.addReserve.rescueTitle');
   const intro =
     role === 'TRIGGER'
-      ? t('wallet.vault.addReserve.triggerIntro')
-      : t('wallet.vault.addReserve.rescueIntro');
+      ? t('wallet.vault.addReserve.triggerIntro', {
+          amount: recommendedAmount
+        })
+      : t('wallet.vault.addReserve.rescueIntro', {
+          amount: recommendedAmount
+        });
 
   return (
     <Modal

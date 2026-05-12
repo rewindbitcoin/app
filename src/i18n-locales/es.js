@@ -328,8 +328,8 @@ Comprueba tu conexión e inténtalo de nuevo.`,
       addReserve: {
         triggerTitle: 'Añadir Fondos para la Descongelación',
         rescueTitle: 'Añadir Fondos para el Rescate',
-        triggerIntro: `Envía una pequeña cantidad a esta dirección. Rewind la reservará para pagar las comisiones de red de esta descongelación. Cualquier cantidad que no se use volverá a ti.`,
-        rescueIntro: `Envía una pequeña cantidad a esta dirección temporal. Rewind la reservará para pagar las comisiones de red de este rescate.`,
+        triggerIntro: `Envía {{amount}} a esta dirección. Rewind la reservará para pagar las comisiones de red de esta descongelación. Lo que no se use volverá a tu billetera.`,
+        rescueIntro: `Envía {{amount}} a esta dirección temporal. Rewind la reservará para pagar las comisiones de red de este rescate. Lo que no se use volverá a la billetera temporal para comisiones.`,
         trucConfirmationNote: `Después de enviar fondos aquí, deberás esperar su confirmación. Normalmente tarda unos 10 minutos.`,
         addressLabel: 'Dirección para enviar fondos'
       },

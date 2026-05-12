@@ -7,7 +7,7 @@ import { networkMapping, type NetworkId } from '../../lib/network';
 import { getTriggerReserveDescriptor } from '../../lib/p2aReserve';
 import {
   computeChangeOutput,
-  getDescriptorAddress
+  computeReceiveOutput
 } from '../../lib/vaultDescriptors';
 import { type Vault, utxosDataBalance } from '../../lib/vaults';
 import type { P2ABumpPlan } from '../../lib/vaultActionTx';
@@ -36,6 +36,9 @@ export const useTriggerReserveBumpPlan = ({
   const walletSigner = signers?.[0];
   const [plan, setPlan] = useState<ReserveBumpPlan>('loading');
   const [address, setAddress] = useState<string | undefined>();
+  const [output, setOutput] = useState<
+    ReturnType<typeof computeReceiveOutput> | undefined
+  >();
   const [value, setValue] = useState<number | undefined>();
   const refreshIdRef = useRef(0);
   const wasSyncingBlockchain = useRef(syncingBlockchain);
@@ -46,6 +49,7 @@ export const useTriggerReserveBumpPlan = ({
 
     setPlan('loading');
     setAddress(undefined);
+    setOutput(undefined);
 
     if (!enabled || !networkId || !walletSigner || !accounts) {
       setValue(undefined);
@@ -74,14 +78,13 @@ export const useTriggerReserveBumpPlan = ({
         const changeDescriptorWithIndex =
           await getNextChangeDescriptorWithIndex(accounts);
         if (refreshIdRef.current !== refreshId) return;
-        setValue(utxosDataBalance(utxosData));
-        setAddress(
-          getDescriptorAddress({
-            descriptor: triggerReserveDescriptor,
-            network,
-            index: nextIndex
-          })
+        const nextOutput = computeReceiveOutput(
+          { descriptor: triggerReserveDescriptor, index: nextIndex },
+          network
         );
+        setValue(utxosDataBalance(utxosData));
+        setAddress(nextOutput.getAddress());
+        setOutput(nextOutput);
         setPlan({
           utxosData,
           hasUnconfirmedUtxos,
@@ -125,7 +128,7 @@ export const useTriggerReserveBumpPlan = ({
     refresh();
   }, [refresh, syncingBlockchain]);
 
-  return { plan, address, value, refresh };
+  return { plan, address, output, value, refresh };
 };
 
 export const useRescueReserveBumpPlan = ({
@@ -147,6 +150,9 @@ export const useRescueReserveBumpPlan = ({
       : { utxosData: [], hasUnconfirmedUtxos: false }
   );
   const [address, setAddress] = useState<string | undefined>();
+  const [output, setOutput] = useState<
+    ReturnType<typeof computeReceiveOutput> | undefined
+  >();
   const refreshIdRef = useRef(0);
   const wasSyncingBlockchain = useRef(syncingBlockchain);
 
@@ -157,27 +163,32 @@ export const useRescueReserveBumpPlan = ({
     if (!enabled) {
       setPlan('loading');
       setAddress(undefined);
+      setOutput(undefined);
       return;
     }
     if (!reserveData) {
       setPlan({ utxosData: [], hasUnconfirmedUtxos: false });
       setAddress(undefined);
+      setOutput(undefined);
       return;
     }
     if (!networkId) {
       setPlan('loading');
       setAddress(undefined);
+      setOutput(undefined);
       return;
     }
     if (!canFetchReserveDescriptorData) {
       setPlan('loading');
       setAddress(undefined);
+      setOutput(undefined);
       return;
     }
 
     const network = networkMapping[networkId];
     setPlan('loading');
     setAddress(undefined);
+    setOutput(undefined);
 
     const prepareRescueP2ABumpPlan = async () => {
       try {
@@ -191,13 +202,12 @@ export const useRescueReserveBumpPlan = ({
         }
         const { utxosData, hasUnconfirmedUtxos, nextIndex } =
           fetchedReserveData;
-        setAddress(
-          getDescriptorAddress({
-            descriptor: reserveData.addressDescriptor,
-            network,
-            index: nextIndex
-          })
+        const nextOutput = computeReceiveOutput(
+          { descriptor: reserveData.addressDescriptor, index: nextIndex },
+          network
         );
+        setAddress(nextOutput.getAddress());
+        setOutput(nextOutput);
         setPlan({
           utxosData,
           hasUnconfirmedUtxos,
@@ -241,5 +251,5 @@ export const useRescueReserveBumpPlan = ({
     refresh();
   }, [refresh, syncingBlockchain]);
 
-  return { plan, address, refresh };
+  return { plan, address, output, refresh };
 };
