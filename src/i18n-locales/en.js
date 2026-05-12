@@ -645,9 +645,9 @@ You can continue with your available funds, but some pending funds are not inclu
     unfreezeReserveHelpTitle: 'Unfreeze Reserve',
     unfreezeReserveHelp: `When you want to unfreeze this vault in the future, some bitcoin will be needed for network fees.
 
-Because nobody knows future network fees today, Rewind sets aside this small reserve now and keeps it out of your normal wallet balance so you do not spend it by accident.
+Because nobody knows future network fees today, Rewind sets aside this small reserve and keeps it out of your normal wallet balance so you do not spend it by accident.
 
-The Amount to Freeze does not include this reserve. After you unfreeze the vault, any part of this reserve that was not needed comes back to you.`,
+After you unfreeze the vault, any part of this reserve that was not needed comes back to you.`,
     securityLockTimeLabel: 'Theft-Protection Time-Lock',
     securityLockTimeDescription: 'Unlocks {{blocks}} after unfreeze',
     confirmationSpeedLabel: 'Mining Fee',

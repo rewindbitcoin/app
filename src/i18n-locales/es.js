@@ -597,9 +597,9 @@ Puedes continuar con los fondos disponibles, pero algunos fondos pendientes no e
     unfreezeReserveHelpTitle: 'Reserva para Descongelar',
     unfreezeReserveHelp: `Cuando en el futuro quieras descongelar esta bóveda, hará falta algo de bitcoin para pagar comisiones de red.
 
-Como hoy nadie sabe cuáles serán esas comisiones, Rewind aparta ahora esta pequeña reserva y la mantiene fuera de tu saldo gastable normal para que no la gastes por accidente.
+Como hoy nadie sabe cuáles serán esas comisiones, Rewind aparta esta pequeña reserva y la mantiene fuera de tu saldo gastable normal para que no la gastes por accidente.
 
-La Cantidad a Congelar no incluye esta reserva. Después de descongelar la bóveda, la parte de esta reserva que no haya sido necesaria vuelve a ti.`,
+Después de descongelar la bóveda, la parte de esta reserva que no haya sido necesaria vuelve a ti.`,
     securityLockTimeLabel: 'Tiempo de Bloqueo Anti-robo',
     securityLockTimeDescription: 'Desbloqueo {{blocks}} tras descongelar',
     confirmationSpeedLabel: 'Comisión de minería',
