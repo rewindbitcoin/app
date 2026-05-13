@@ -165,8 +165,19 @@ const PresignedVaultAction = ({
     !(vaultMode === 'P2A_TRUC' && p2aBumpPlan.hasUnconfirmedUtxos);
   const needsFeeEstimatesForAvailability =
     isLadderedVault || p2aBumpPlanHasSpendableUtxos;
+
+  const [step, setStep] = useState<'intro' | 'confirm'>('intro');
+  const [isModalVisibleOrHiding, setIsModalVisibleOrHiding] =
+    useState(isVisible);
+
+  useEffect(() => {
+    // Keep action data stable while react-native-modal finishes closing.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (isVisible) setIsModalVisibleOrHiding(true);
+  }, [isVisible]);
+
   const actionAvailability = useMemo(() => {
-    if (!isVisible || !presignedTxInfos) return null;
+    if (!isModalVisibleOrHiding || !presignedTxInfos) return null;
     if (isP2ABumpPlanLoading || isP2ABumpPlanError) return null;
     if (needsFeeEstimatesForAvailability && !feeEstimates) return null;
     if (isPushedButUnconfirmed && !pushedTxHex) return null;
@@ -179,7 +190,7 @@ const PresignedVaultAction = ({
       ...(typeof p2aBumpPlan === 'object' ? { p2aBumpPlan } : {})
     });
   }, [
-    isVisible,
+    isModalVisibleOrHiding,
     presignedTxInfos,
     isP2ABumpPlanLoading,
     isP2ABumpPlanError,
@@ -201,18 +212,20 @@ const PresignedVaultAction = ({
       'This component should only be started after settings has been retrieved from storage'
     );
 
-  const [step, setStep] = useState<'intro' | 'confirm'>('intro');
-
   const preferredNetworkFeeRate = useMemo<number | null>(() => {
-    if (!isVisible || !feeEstimates) return null;
+    if (!isModalVisibleOrHiding || !feeEstimates) return null;
     return pickFeeEstimate(feeEstimates, settings.INITIAL_CONFIRMATION_TIME)
       .feeEstimate;
-  }, [isVisible, feeEstimates, settings.INITIAL_CONFIRMATION_TIME]);
+  }, [
+    isModalVisibleOrHiding,
+    feeEstimates,
+    settings.INITIAL_CONFIRMATION_TIME
+  ]);
 
   const preferredInitialFeeRate = useMemo<number | null>(() => {
     // This modal stays mounted so Modal can animate across isVisible changes.
-    // While hidden, return inert render-time values instead of action data.
-    if (!isVisible || !actionAvailability) return null;
+    // While fully hidden, return inert render-time values instead of action data.
+    if (!isModalVisibleOrHiding || !actionAvailability) return null;
     if (actionAvailability.result !== null) return null;
     if (actionAvailability.minimumSelectableFeeRate === null)
       return presignedTxInfos?.[0]?.feeRate ?? null;
@@ -222,7 +235,7 @@ const PresignedVaultAction = ({
       preferredNetworkFeeRate
     );
   }, [
-    isVisible,
+    isModalVisibleOrHiding,
     actionAvailability,
     presignedTxInfos,
     preferredNetworkFeeRate
@@ -233,8 +246,9 @@ const PresignedVaultAction = ({
   const getTxDataForFeeRate = useCallback(
     (selectedFeeRate: number): VaultActionTxData | null => {
       // This modal stays mounted so Modal can animate across isVisible changes.
-      // While hidden or unavailable, return inert render-time values instead of action data.
-      if (!isVisible || !presignedTxInfos || !actionAvailability) return null;
+      // While fully hidden or unavailable, return inert render-time values instead of action data.
+      if (!isModalVisibleOrHiding || !presignedTxInfos || !actionAvailability)
+        return null;
       if (actionAvailability.result !== null) return null;
       return buildTxDataForFeeRate({
         vaultMode,
@@ -245,7 +259,7 @@ const PresignedVaultAction = ({
       });
     },
     [
-      isVisible,
+      isModalVisibleOrHiding,
       presignedTxInfos,
       actionAvailability,
       vaultMode,
@@ -285,12 +299,11 @@ const PresignedVaultAction = ({
 
   const fee = txData ? txData.actionFee : null;
 
-  // This modal stays mounted so Modal can animate across isVisible changes.
-  // Reset the local wizard step when it closes so reopening starts clean.
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (!isVisible) setStep('intro');
-  }, [isVisible]);
+  const handleModalHide = useCallback(() => {
+    setIsModalVisibleOrHiding(false);
+    setStep('intro');
+    onModalHide?.();
+  }, [onModalHide]);
 
   // Reset feeRate every time the selected initial fee changes.
   useEffect(() => {
@@ -453,12 +466,26 @@ const PresignedVaultAction = ({
   const confirmationExplanation =
     reserveFundsMissingPrompt ?? postActionExplanation;
   const isActionReadinessLoading =
-    isP2ABumpPlanLoading ||
-    !actionAvailability ||
-    (needsFeePicker && !feeEstimates);
+    !isP2ABumpPlanError &&
+    (isP2ABumpPlanLoading ||
+      !actionAvailability ||
+      (needsFeePicker && !feeEstimates));
+  const hasBlockingActionState =
+    availabilityResult !== undefined && availabilityResult !== null;
+  // The intro button can advance once readiness is known. The next screen may
+  // be a real confirmation, or a blocking reserve/error state with no action.
+  const canLeaveIntro =
+    isP2ABumpPlanError || hasBlockingActionState || canOpenConfirmStep;
+  const canShowActionButton = actionAvailability?.result === null;
 
   let modalContent: React.ReactNode;
-  if (isP2ABumpPlanError) {
+  if (step === 'intro') {
+    modalContent = (
+      <View>
+        <Text className="text-base text-slate-600 pb-2 px-2">{introText}</Text>
+      </View>
+    );
+  } else if (isP2ABumpPlanError) {
     modalContent = (
       <View>
         <Text className="text-base text-slate-600 pb-2 px-2">
@@ -474,16 +501,7 @@ const PresignedVaultAction = ({
       </View>
     );
   } else if (isActionReadinessLoading) {
-    modalContent =
-      step === 'intro' ? (
-        <View>
-          <Text className="text-base text-slate-600 pb-2 px-2">
-            {introText}
-          </Text>
-        </View>
-      ) : (
-        <ActivityIndicator />
-      );
+    modalContent = <ActivityIndicator />;
   } else if (availabilityResult === 'noP2AReserve') {
     modalContent = (
       <View>
@@ -516,12 +534,6 @@ const PresignedVaultAction = ({
           {reserveCannotBuildPackageText}
         </Text>
         {reserveFundsMissingButton}
-      </View>
-    );
-  } else if (step === 'intro') {
-    modalContent = (
-      <View>
-        <Text className="text-base text-slate-600 pb-2 px-2">{introText}</Text>
       </View>
     );
   } else if (step === 'confirm' && needsFeePicker && feeEstimates) {
@@ -570,17 +582,19 @@ const PresignedVaultAction = ({
       title={actionText}
       icon={modalIcon}
       onClose={onClose}
-      {...(onModalHide ? { onModalHide } : {})}
+      onModalHide={handleModalHide}
       customButtons={
         step === 'intro' ? (
           <View className="items-center gap-6 gap-y-4 flex-row flex-wrap justify-center pb-4">
             <Button mode="secondary" onPress={onClose}>
               {t('cancelButton')}
             </Button>
-            {(isActionReadinessLoading || canOpenConfirmStep) && (
+            {(isActionReadinessLoading || canLeaveIntro) && (
               <Button
                 {...actionButtonModeProps}
-                onPress={() => setStep('confirm')}
+                onPress={() => {
+                  if (!isActionReadinessLoading) setStep('confirm');
+                }}
                 loading={isActionReadinessLoading}
               >
                 {introActionButtonText}
@@ -592,13 +606,15 @@ const PresignedVaultAction = ({
             <Button mode="secondary" onPress={onClose}>
               {t('cancelButton')}
             </Button>
-            <Button
-              {...actionButtonModeProps}
-              onPress={handleAction}
-              disabled={!txData}
-            >
-              {actionText}
-            </Button>
+            {canShowActionButton ? (
+              <Button
+                {...actionButtonModeProps}
+                onPress={handleAction}
+                disabled={!txData}
+              >
+                {actionText}
+              </Button>
+            ) : null}
           </View>
         ) : undefined
       }
