@@ -135,7 +135,7 @@ export type WalletContextType = {
   canFetchReserveDescriptorData: boolean;
   fetchReserveDescriptorData: (params: { descriptor: string }) => Promise<
     | {
-        utxosData: UtxosData;
+        txosData: UtxosData;
         hasUnconfirmedUtxos: boolean;
         nextIndex: number;
       }
@@ -718,7 +718,7 @@ const WalletProviderRaw = ({
         // Do not use netRequest here: reserve scans run in the background and
         // failures should surface only in the role-specific Trigger/Rescue UI.
         await discovery.fetch({ descriptor, gapLimit });
-        const { utxos } = discovery.getUtxosAndBalance({
+        const { utxos, stxos } = discovery.getUtxosAndBalance({
           descriptor,
           txStatus: TxStatus.ALL
         });
@@ -727,8 +727,12 @@ const WalletProviderRaw = ({
           txStatus: TxStatus.CONFIRMED
         });
         const confirmedUtxosSet = new Set(confirmedUtxos);
-        const utxosData = getTxosDataFromVaults(
-          utxos,
+        // Reserve actions consume the whole descriptor state. Current UTXOs fund
+        // first children; STXOs are outputs locked by an unconfirmed child and
+        // are therefore the inputs for a replacement child while accelerating.
+        const txos = [...utxos, ...stxos];
+        const txosData = getTxosDataFromVaults(
+          txos,
           vaults,
           network,
           discovery
@@ -737,7 +741,7 @@ const WalletProviderRaw = ({
         await setDiscoveryExport(discovery.export());
 
         return {
-          utxosData,
+          txosData,
           hasUnconfirmedUtxos: utxos.some(utxo => !confirmedUtxosSet.has(utxo)),
           nextIndex
         };

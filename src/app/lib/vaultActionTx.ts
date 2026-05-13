@@ -64,6 +64,9 @@ export type VaultActionTxData = {
    * - P2A with CPFP: parent + child package feerate
    */
   actionFeeRate: number;
+
+  /** Exact reserve plan used to build a P2A child for this action. */
+  p2aBumpPlan?: P2ABumpPlan;
 };
 
 export type PresignedTxInfo = { txHex: TxHex; fee: number; feeRate: number };
@@ -83,8 +86,8 @@ export type PresignedTxInfo = { txHex: TxHex; fee: number; feeRate: number };
  * must include both because the child cannot be built without them.
  */
 export type P2ABumpPlan = {
-  /** Non-anchor inputs that the child must spend. */
-  utxosData: UtxosData;
+  /** Non-anchor reserve outputs that the child must spend. */
+  txosData: UtxosData;
   /** Whether any non-anchor child inputs are still awaiting confirmation. */
   hasUnconfirmedUtxos: boolean;
   /** Action-specific leftover value destination for the CPFP child. */
@@ -257,7 +260,7 @@ const getActionAccelerationInfo = ({
   // the reserve inputs to reconstruct its fee and build a new child. Treat a
   // missing/empty plan as unavailable instead of throwing because the plan can
   // be legitimately loading or unavailable after app restart.
-  if (!p2aBumpPlan || p2aBumpPlan.utxosData.length === 0)
+  if (!p2aBumpPlan || p2aBumpPlan.txosData.length === 0)
     return {
       replacementFeeRateFloor: null,
       hasAccelerationPath: false
@@ -271,7 +274,7 @@ const getActionAccelerationInfo = ({
     parentTxHex: parentTxInfo.txHex,
     parentFee: parentTxInfo.fee,
     feeEstimates,
-    utxosData: p2aBumpPlan.utxosData,
+    utxosData: p2aBumpPlan.txosData,
     childOutput: p2aBumpPlan.changeOutput,
     ...(pushedChildTxHex ? { childTxHex: pushedChildTxHex } : {})
   });
@@ -402,8 +405,7 @@ export const getActionAvailability = ({
   } else {
     const parentTxInfo = presignedTxInfos[0];
     if (!parentTxInfo) throw new Error('Missing presigned P2A action tx');
-    const hasP2AReserveUtxos =
-      !!p2aBumpPlan && p2aBumpPlan.utxosData.length > 0;
+    const hasP2AReserveUtxos = !!p2aBumpPlan && p2aBumpPlan.txosData.length > 0;
     const p2aReserveUnconfirmed =
       vaultMode === 'P2A_TRUC' && !!p2aBumpPlan?.hasUnconfirmedUtxos;
     const spendableP2ABumpPlan =
@@ -453,7 +455,7 @@ export const getActionAvailability = ({
         };
       if (
         spendableP2ABumpPlan &&
-        spendableP2ABumpPlan.utxosData.length > 0 &&
+        spendableP2ABumpPlan.txosData.length > 0 &&
         !feeEstimates
       )
         throw new Error('Fee estimates are required for package actions');
@@ -467,7 +469,7 @@ export const getActionAvailability = ({
       // increase child fee and shrink the dust-constrained change output.
       const packageMinimumFeeRate =
         spendableP2ABumpPlan &&
-        spendableP2ABumpPlan.utxosData.length > 0 &&
+        spendableP2ABumpPlan.txosData.length > 0 &&
         maximumFeeRate !== null
           ? findMinimumActionableFeeRate({
               minimumFeeRate: MIN_FEE_RATE,
@@ -478,7 +480,7 @@ export const getActionAvailability = ({
                   parentTxHex: parentTxInfo.txHex,
                   parentFee: parentTxInfo.fee,
                   targetPackageFeeRate: feeRate,
-                  utxosData: spendableP2ABumpPlan.utxosData,
+                  utxosData: spendableP2ABumpPlan.txosData,
                   changeOutput: spendableP2ABumpPlan.changeOutput
                 }) !== null
             })
@@ -551,7 +553,7 @@ export const buildTxDataForFeeRate = ({
     if (isReplacement && pushedTxHex !== parentTxInfo.txHex)
       throw new Error('Pushed P2A action tx is not the presigned action tx');
 
-    if (p2aBumpPlan && p2aBumpPlan.utxosData.length > 0) {
+    if (p2aBumpPlan && p2aBumpPlan.txosData.length > 0) {
       if (vaultMode === 'P2A_TRUC' && p2aBumpPlan.hasUnconfirmedUtxos)
         return null;
       if (!p2aBumpPlan.changeOutput)
@@ -562,7 +564,7 @@ export const buildTxDataForFeeRate = ({
         parentTxHex: parentTxInfo.txHex,
         parentFee: parentTxInfo.fee,
         targetPackageFeeRate: selectedFeeRate,
-        utxosData: p2aBumpPlan.utxosData,
+        utxosData: p2aBumpPlan.txosData,
         changeOutput: p2aBumpPlan.changeOutput
       });
       if (!plan) return null;
@@ -570,7 +572,8 @@ export const buildTxDataForFeeRate = ({
         parentTxHex: parentTxInfo.txHex,
         parentTxFee: parentTxInfo.fee,
         actionFee: plan.packageFee,
-        actionFeeRate: plan.packageFeeRate
+        actionFeeRate: plan.packageFeeRate,
+        p2aBumpPlan
       };
     } else {
       if (isReplacement) return null;

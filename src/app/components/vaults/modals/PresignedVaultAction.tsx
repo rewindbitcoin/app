@@ -55,9 +55,9 @@ export type PresignedVaultActionProps = (
    * For both trigger and rescue:
    * - `'loading'`: reserve discovery is in progress.
    * - `'error'`: reserve discovery failed; actions stay blocked until retry.
-   * - empty `utxosData`: preparation finished with no reserve UTXOs, so the
+   * - empty `txosData`: preparation finished with no reserve TXOs, so the
    *   modal can offer a parent-only fallback if relay policy allows it.
-   * - non-empty `utxosData`: those reserve UTXOs must be spent by the package
+   * - non-empty `txosData`: those reserve TXOs must be spent by the package
    *   child; they must not be bypassed with parent-only submission.
    * - `hasUnconfirmedUtxos`: blocks TRUC packages until the reserve confirms.
    *
@@ -161,7 +161,7 @@ const PresignedVaultAction = ({
   const p2aBumpPlanHasSpendableUtxos =
     !isLadderedVault &&
     typeof p2aBumpPlan === 'object' &&
-    p2aBumpPlan.utxosData.length > 0 &&
+    p2aBumpPlan.txosData.length > 0 &&
     !(vaultMode === 'P2A_TRUC' && p2aBumpPlan.hasUnconfirmedUtxos);
   const needsFeeEstimatesForAvailability =
     isLadderedVault || p2aBumpPlanHasSpendableUtxos;
@@ -411,7 +411,7 @@ const PresignedVaultAction = ({
     actionAvailability?.result === null &&
     !needsFeePicker &&
     typeof p2aBumpPlan === 'object' &&
-    p2aBumpPlan.utxosData.length === 0 &&
+    p2aBumpPlan.txosData.length === 0 &&
     preferredNetworkFeeRate !== null &&
     (presignedTxInfos?.[0]?.feeRate ?? Infinity) < preferredNetworkFeeRate;
   let reserveFundsMissingPromptText: string | null = null;

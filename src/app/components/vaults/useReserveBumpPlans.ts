@@ -74,7 +74,7 @@ export const useTriggerReserveBumpPlan = ({
           setPlan('error');
           return;
         }
-        const { utxosData, hasUnconfirmedUtxos, nextIndex } = reserveData;
+        const { txosData, hasUnconfirmedUtxos, nextIndex } = reserveData;
         const changeDescriptorWithIndex =
           await getNextChangeDescriptorWithIndex(accounts);
         if (refreshIdRef.current !== refreshId) return;
@@ -82,11 +82,11 @@ export const useTriggerReserveBumpPlan = ({
           { descriptor: triggerReserveDescriptor, index: nextIndex },
           network
         );
-        setValue(utxosDataBalance(utxosData));
+        setValue(utxosDataBalance(txosData));
         setAddress(nextOutput.getAddress());
         setOutput(nextOutput);
         setPlan({
-          utxosData,
+          txosData,
           hasUnconfirmedUtxos,
           changeOutput: computeChangeOutput(changeDescriptorWithIndex, network),
           signer: walletSigner
@@ -147,7 +147,7 @@ export const useRescueReserveBumpPlan = ({
   const [plan, setPlan] = useState<ReserveBumpPlan>(
     !enabled || reserveData
       ? 'loading'
-      : { utxosData: [], hasUnconfirmedUtxos: false }
+      : { txosData: [], hasUnconfirmedUtxos: false }
   );
   const [address, setAddress] = useState<string | undefined>();
   const [output, setOutput] = useState<
@@ -167,7 +167,7 @@ export const useRescueReserveBumpPlan = ({
       return;
     }
     if (!reserveData) {
-      setPlan({ utxosData: [], hasUnconfirmedUtxos: false });
+      setPlan({ txosData: [], hasUnconfirmedUtxos: false });
       setAddress(undefined);
       setOutput(undefined);
       return;
@@ -200,8 +200,7 @@ export const useRescueReserveBumpPlan = ({
           setPlan('error');
           return;
         }
-        const { utxosData, hasUnconfirmedUtxos, nextIndex } =
-          fetchedReserveData;
+        const { txosData, hasUnconfirmedUtxos, nextIndex } = fetchedReserveData;
         const nextOutput = computeReceiveOutput(
           { descriptor: reserveData.addressDescriptor, index: nextIndex },
           network
@@ -209,7 +208,7 @@ export const useRescueReserveBumpPlan = ({
         setAddress(nextOutput.getAddress());
         setOutput(nextOutput);
         setPlan({
-          utxosData,
+          txosData,
           hasUnconfirmedUtxos,
           changeOutput: computeChangeOutput(
             { descriptor: reserveData.changeDescriptor, index: 0 },

@@ -26,7 +26,10 @@ import {
 import { type Accounts } from '../dist/src/app/lib/wallets';
 import { MIN_FEE_RATE } from '../dist/src/app/lib/fees';
 import { getRequiredNextP2ABumpReserveUtxoValue } from '../dist/src/app/lib/p2aReserve';
-import { getActionAvailability } from '../dist/src/app/lib/vaultActionTx';
+import {
+  buildTxDataForFeeRate,
+  getActionAvailability
+} from '../dist/src/app/lib/vaultActionTx';
 import { networks, type Network, Transaction } from 'bitcoinjs-lib';
 import { fromHex } from 'uint8array-tools';
 import { createAddressOutput } from '../dist/src/app/lib/vaultDescriptors';
@@ -75,6 +78,36 @@ const createSyntheticUtxoData = (value: number): UtxosData[number] => {
     vout: 0,
     output
   };
+};
+
+const createSyntheticCpfpChildTxHex = ({
+  parentTxHex,
+  reserveUtxosData,
+  childFee
+}: {
+  parentTxHex: string;
+  reserveUtxosData: UtxosData;
+  childFee: number;
+}) => {
+  const parentTx = Transaction.fromHex(parentTxHex);
+  const parentAnchor = findP2AOutputData(parentTx);
+  if (!parentAnchor) throw new Error('Expected parent anchor');
+  const reserveValue = reserveUtxosData.reduce((sum, utxoData) => {
+    const output = utxoData.tx.outs[utxoData.vout];
+    if (!output) throw new Error('Expected reserve output');
+    return sum + Number(output.value);
+  }, 0);
+  const childOutputValue = BigInt(parentAnchor.value + reserveValue - childFee);
+  if (childOutputValue <= BigInt(0)) throw new Error('Invalid child fee');
+
+  const childTx = new Transaction();
+  childTx.version = parentTx.version === 3 ? 3 : 2;
+  childTx.addInput(parentTx.getHash(), parentAnchor.index, 0xfffffffd);
+  reserveUtxosData.forEach(utxoData => {
+    childTx.addInput(utxoData.tx.getHash(), utxoData.vout, 0xfffffffd);
+  });
+  childTx.addOutput(fromHex(`0014${'11'.repeat(20)}`), childOutputValue);
+  return childTx.toHex();
 };
 
 const createPresignedP2ATxInfo = ({
@@ -235,6 +268,61 @@ describe('vaults unit tests', () => {
       changeOutput
     });
     expect(underfundedPlan).toBeUndefined();
+  });
+
+  test('P2A replacement uses reserve inputs spent by the previous child', () => {
+    const network = networks.regtest;
+    const changeOutput = createAddressOutput(DUMMY_ADDRESS(network), network);
+    const parentTxHex = createSyntheticTxHex({
+      version: 2,
+      mainOutputValue: 12000,
+      p2aValue: P2A_NON_TRUC_ANCHOR_SATS
+    });
+    const parentTx = Transaction.fromHex(parentTxHex);
+    const parentFee = 120;
+    const priorReserveUtxo = createSyntheticUtxoData(3000);
+    const pushedChildTxHex = createSyntheticCpfpChildTxHex({
+      parentTxHex,
+      reserveUtxosData: [priorReserveUtxo],
+      childFee: 200
+    });
+    const p2aBumpPlan = {
+      txosData: [priorReserveUtxo],
+      hasUnconfirmedUtxos: false,
+      changeOutput
+    };
+    const presignedTxInfos = [
+      {
+        txHex: parentTxHex,
+        fee: parentFee,
+        feeRate: parentFee / parentTx.virtualSize()
+      }
+    ];
+    const availability = getActionAvailability({
+      vaultMode: 'P2A_NON_TRUC',
+      feeEstimates: { '1': 10 },
+      pushedTxHex: parentTxHex,
+      pushedChildTxHex,
+      presignedTxInfos,
+      p2aBumpPlan
+    });
+
+    expect(availability.result).toBeNull();
+    expect(availability.minimumSelectableFeeRate).not.toBeNull();
+    if (availability.minimumSelectableFeeRate === null)
+      throw new Error('Expected minimum selectable fee rate');
+    const txData = buildTxDataForFeeRate({
+      vaultMode: 'P2A_NON_TRUC',
+      selectedFeeRate: availability.minimumSelectableFeeRate,
+      pushedTxHex: parentTxHex,
+      presignedTxInfos,
+      p2aBumpPlan
+    });
+
+    expect(txData?.p2aBumpPlan?.txosData).toHaveLength(1);
+    expect(txData?.p2aBumpPlan?.txosData[0]?.tx.getId()).toBe(
+      priorReserveUtxo.tx.getId()
+    );
   });
 
   test('estimateCpfpPackage returns undefined for laddered parent tx', () => {

@@ -110,7 +110,7 @@ const getRecommendedReserveFundingSats = ({
   const parentAnchor = findP2AOutputData(parentTx);
   if (!parentAnchor) return;
   const existingBumpReserveOutputsWithValue = getReserveOutputsWithValue(
-    plan.utxosData
+    plan.txosData
   );
   if (!existingBumpReserveOutputsWithValue) return;
 
@@ -279,32 +279,29 @@ const RawVault = ({
               return;
             }
 
-            if (typeof triggerBumpPlan !== 'object')
-              throw new Error('Trigger reserve plan is not ready');
-
-            if (triggerBumpPlan.utxosData.length === 0) {
+            const actionBumpPlan = triggerData.p2aBumpPlan;
+            if (!actionBumpPlan || actionBumpPlan.txosData.length === 0) {
               await pushTx(triggerData.parentTxHex);
               return;
             }
 
             if (
               !networkId ||
-              !triggerBumpPlan.changeOutput ||
-              !triggerBumpPlan.signer
+              !actionBumpPlan.changeOutput ||
+              !actionBumpPlan.signer
             )
               throw new Error('Wallet not ready for Rewind2 trigger package');
             const network = networkMapping[networkId];
-            // P2A trigger fee bumping is reserve-backed by design: the dedicated
-            // trigger reserve stays outside normal wallet flow and is always
-            // the only non-anchor input. The child sends leftover value back to
-            // the wallet's regular change branch.
+            // P2A trigger fee bumping is reserve-backed by design: dedicated
+            // reserve inputs stay outside normal wallet flow and return leftover
+            // value to the wallet's regular change branch.
             const childTxData = await createCpfpChildTx({
               parentTxHex: triggerData.parentTxHex,
               parentFee: triggerData.parentTxFee,
               targetPackageFeeRate: triggerData.actionFeeRate,
-              utxosData: triggerBumpPlan.utxosData,
-              changeOutput: triggerBumpPlan.changeOutput,
-              signer: triggerBumpPlan.signer,
+              utxosData: actionBumpPlan.txosData,
+              changeOutput: actionBumpPlan.changeOutput,
+              signer: actionBumpPlan.signer,
               network
             });
             if (!childTxData)
@@ -343,7 +340,6 @@ const RawVault = ({
       pushTxPackage,
       pushTx,
       isLadderedVault,
-      triggerBumpPlan,
       vault,
       vaultStatus,
       updateVaultStatus,
@@ -452,17 +448,15 @@ const RawVault = ({
               return;
             }
 
-            if (typeof rescueBumpPlan !== 'object')
-              throw new Error('Rescue reserve plan is not ready');
-
-            if (rescueBumpPlan.utxosData.length === 0) {
+            const actionBumpPlan = rescueData.p2aBumpPlan;
+            if (!actionBumpPlan || actionBumpPlan.txosData.length === 0) {
               await pushTx(rescueData.parentTxHex);
               return;
             }
             if (
               !networkId ||
-              !rescueBumpPlan.changeOutput ||
-              !rescueBumpPlan.signer
+              !actionBumpPlan.changeOutput ||
+              !actionBumpPlan.signer
             )
               throw new Error('Wallet not ready for Rewind2 rescue package');
             const network = networkMapping[networkId];
@@ -470,9 +464,9 @@ const RawVault = ({
               parentTxHex: rescueData.parentTxHex,
               parentFee: rescueData.parentTxFee,
               targetPackageFeeRate: rescueData.actionFeeRate,
-              utxosData: rescueBumpPlan.utxosData,
-              changeOutput: rescueBumpPlan.changeOutput,
-              signer: rescueBumpPlan.signer,
+              utxosData: actionBumpPlan.txosData,
+              changeOutput: actionBumpPlan.changeOutput,
+              signer: actionBumpPlan.signer,
               network
             });
             if (!childTxData)
@@ -512,8 +506,7 @@ const RawVault = ({
       t,
       networkId,
       pushTxPackage,
-      isLadderedVault,
-      rescueBumpPlan
+      isLadderedVault
     ]
   );
 
@@ -623,7 +616,7 @@ const RawVault = ({
     const triggerBumpPlanNeedsFeeEstimates =
       !isLadderedVault &&
       typeof triggerBumpPlan === 'object' &&
-      triggerBumpPlan.utxosData.length > 0;
+      triggerBumpPlan.txosData.length > 0;
     const modalNeedsFeeEstimates =
       isLadderedVault || triggerBumpPlanNeedsFeeEstimates;
 
@@ -702,7 +695,7 @@ const RawVault = ({
     const rescueBumpPlanNeedsFeeEstimates =
       !isLadderedVault &&
       typeof rescueBumpPlan === 'object' &&
-      rescueBumpPlan.utxosData.length > 0;
+      rescueBumpPlan.txosData.length > 0;
     const bumpPlanLoading = !isLadderedVault && rescueBumpPlan === 'loading';
     const bumpPlanError = !isLadderedVault && rescueBumpPlan === 'error';
     const modalNeedsFeeEstimates =
