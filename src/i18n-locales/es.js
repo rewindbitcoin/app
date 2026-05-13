@@ -181,7 +181,7 @@ Si necesitas más ayuda, por favor contacta con el equipo de Soporte de Rewind.`
       pushedTriggerUnconfirmedWithUnknownDate:
         'Descongelación solicitada recientemente.',
       confirmedTrigger:
-        'Cuenta regresiva de {{lockTime}} iniciada el {{triggerConfirmedDate}}.',
+        'Cuenta atrás de {{lockTime}} iniciada el {{triggerConfirmedDate}}.',
       triggerWithEstimatedDate:
         'Descongelación estimada para el {{estimatedUnfreezeDate}}.',
       triggerWithEstimatedDateButRescued:
