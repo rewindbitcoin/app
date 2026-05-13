@@ -758,10 +758,14 @@ export const getCpfpReplacementFeeRateFloor = ({
     currentChildFeeInfo?.packageFeeRate ?? parentFee / parentTx.virtualSize();
 
   const maxFeeRate = computeMaxAllowedFeeRate(feeEstimates);
+  const minimumReplacementPackageFeeRate = Number(
+    (currentPackageFeeRate + FEE_RATE_STEP).toFixed(2)
+  );
+  if (minimumReplacementPackageFeeRate > maxFeeRate)
+    return minimumReplacementPackageFeeRate;
+
   for (
-    let targetPackageFeeRate = Number(
-      (currentPackageFeeRate + FEE_RATE_STEP).toFixed(2)
-    );
+    let targetPackageFeeRate = minimumReplacementPackageFeeRate;
     targetPackageFeeRate <= maxFeeRate;
     targetPackageFeeRate = Number(
       (targetPackageFeeRate + FEE_RATE_STEP).toFixed(2)

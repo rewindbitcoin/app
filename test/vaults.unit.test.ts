@@ -325,6 +325,48 @@ describe('vaults unit tests', () => {
     );
   });
 
+  test('P2A replacement above maximum reports max-fee guard', () => {
+    const network = networks.regtest;
+    const changeOutput = createAddressOutput(DUMMY_ADDRESS(network), network);
+    const parentTxHex = createSyntheticTxHex({
+      version: 2,
+      mainOutputValue: 12000,
+      p2aValue: P2A_NON_TRUC_ANCHOR_SATS
+    });
+    const parentTx = Transaction.fromHex(parentTxHex);
+    const parentFee = 120;
+    const priorReserveUtxo = createSyntheticUtxoData(10000);
+    const pushedChildTxHex = createSyntheticCpfpChildTxHex({
+      parentTxHex,
+      reserveUtxosData: [priorReserveUtxo],
+      childFee: 5000
+    });
+
+    expect(
+      getActionAvailability({
+        vaultMode: 'P2A_NON_TRUC',
+        feeEstimates: { '1': 1 },
+        pushedTxHex: parentTxHex,
+        pushedChildTxHex,
+        presignedTxInfos: [
+          {
+            txHex: parentTxHex,
+            fee: parentFee,
+            feeRate: parentFee / parentTx.virtualSize()
+          }
+        ],
+        p2aBumpPlan: {
+          txosData: [priorReserveUtxo],
+          hasUnconfirmedUtxos: false,
+          changeOutput
+        }
+      })
+    ).toEqual({
+      result: 'replacementFeeAboveMaximum',
+      minimumSelectableFeeRate: null
+    });
+  });
+
   test('estimateCpfpPackage returns undefined for laddered parent tx', () => {
     const network = networks.regtest;
     const changeOutput = createAddressOutput(DUMMY_ADDRESS(network), network);
