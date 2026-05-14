@@ -31,6 +31,8 @@ type EphemeralWalletWizardProps = {
   onWallet: (walletData: EphemeralWalletData) => void | Promise<void>;
   /** Closes the wizard without creating/importing a wallet. */
   onClose: () => void;
+  /** Called after the currently visible wizard modal has fully hidden. */
+  onModalHide?: () => void;
   /** Modal title. */
   title: string;
   /** Modal icon. */
@@ -73,6 +75,7 @@ const EphemeralWalletWizard = ({
   isVisible,
   onWallet,
   onClose,
+  onModalHide,
   title,
   icon,
   introText,
@@ -102,10 +105,13 @@ const EphemeralWalletWizard = ({
   // time, which react-native-modal does not support reliably.
   const [isPreviewModalHidden, setIsPreviewModalHidden] =
     useState<boolean>(true);
-  const onPreviewModalHide = useCallback(
-    () => setIsPreviewModalHidden(true),
-    []
-  );
+  const onPreviewModalHide = useCallback(() => {
+    setIsPreviewModalHidden(true);
+    if (!isVisible) onModalHide?.();
+  }, [isVisible, onModalHide]);
+  const onConfirmationModalHide = useCallback(() => {
+    if (!isVisible) onModalHide?.();
+  }, [isVisible, onModalHide]);
 
   useEffect(() => {
     if (!isVisible) {
@@ -249,6 +255,7 @@ const EphemeralWalletWizard = ({
         words={words}
         onConfirmedOrSkipped={onBip39Confirmed}
         onCancel={onClose}
+        onModalHide={onConfirmationModalHide}
       />
     </>
   );

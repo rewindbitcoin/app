@@ -391,6 +391,7 @@ const RawVault = ({
   const [pendingRescueReserveModal, setPendingRescueReserveModal] = useState<
     'walletWizard' | 'addReserve' | null
   >(null);
+  const openAddRescueReserveAfterWizardHideRef = useRef(false);
   const closeRescueReserveWalletWizard = useCallback(
     () => setIsRescueReserveWizardVisible(false),
     []
@@ -420,10 +421,16 @@ const RawVault = ({
   const handleRescueReserveWallet = useCallback(
     (walletData: EphemeralWalletData) => {
       setRescueReserveData(walletData);
+      openAddRescueReserveAfterWizardHideRef.current = true;
       setIsRescueReserveWizardVisible(false);
     },
     []
   );
+  const handleRescueReserveWizardHide = useCallback(() => {
+    if (!openAddRescueReserveAfterWizardHideRef.current) return;
+    openAddRescueReserveAfterWizardHideRef.current = false;
+    setIsAddRescueReserveVisible(true);
+  }, []);
   // Broadcasts the selected rescue action. The modal has already selected a
   // valid parent or package. Parent-only rescue pushes the parent directly;
   // reserve-backed rescue builds the child package.
@@ -1342,6 +1349,7 @@ const RawVault = ({
           isVisible={isRescueReserveWizardVisible}
           onWallet={handleRescueReserveWallet}
           onClose={closeRescueReserveWalletWizard}
+          onModalHide={handleRescueReserveWizardHide}
         />
       )}
       {/* Follow-up modal opened after the rescue modal closes; tells the user to send funds to the temporary rescue reserve address so rescue packages can pay higher fees. */}

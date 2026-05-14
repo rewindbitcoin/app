@@ -14,13 +14,15 @@ const RescueReserveWalletWizard = ({
   vaultMode,
   isVisible,
   onWallet,
-  onClose
+  onClose,
+  onModalHide
 }: {
   networkId: NetworkId;
   vaultMode: 'P2A_TRUC' | 'P2A_NON_TRUC';
   isVisible: boolean;
   onWallet: (walletData: EphemeralWalletData) => void | Promise<void>;
   onClose: () => void;
+  onModalHide?: () => void;
 }) => {
   const { t } = useTranslation();
   const icon = useMemo<IconType>(
@@ -42,6 +44,7 @@ const RescueReserveWalletWizard = ({
       isVisible={isVisible}
       onWallet={onWallet}
       onClose={onClose}
+      {...(onModalHide ? { onModalHide } : {})}
       title={t('wallet.vault.rescueReserveWallet.modalTitle')}
       icon={icon}
       introText={introText}
