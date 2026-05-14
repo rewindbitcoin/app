@@ -131,7 +131,6 @@ export type WalletContextType = {
   networkId: NetworkId | undefined;
   fetchBlockTime: (blockHeight: number) => Promise<number | undefined>;
   pushTx: (txHex: string) => Promise<void>;
-  getTxosData: (txos: Array<string>) => UtxosData;
   canFetchReserveDescriptorData: boolean;
   fetchReserveDescriptorData: (params: { descriptor: string }) => Promise<
     | {
@@ -627,12 +626,15 @@ const WalletProviderRaw = ({
         accounts,
         tipHeight
       );
-      const utxos = discovery.getUtxos({ descriptors });
+      const { utxos, txoMap } = discovery.getUtxosAndBalance({
+        descriptors
+      });
       const walletUtxosData = getTxosDataFromVaults(
         utxos,
         vaults,
         network,
-        discovery
+        discovery,
+        txoMap
       );
       const history = discovery.getHistory(
         { descriptors },
@@ -693,16 +695,6 @@ const WalletProviderRaw = ({
     [discovery, gapLimit]
   );
 
-  const getTxosData = useCallback(
-    (txos: Array<string>): UtxosData => {
-      if (!discovery || !vaults || !activeWallet?.networkId)
-        throw new Error('Wallet not ready for getTxosData');
-      const network = networkMapping[activeWallet.networkId];
-      return getTxosDataFromVaults(txos, vaults, network, discovery);
-    },
-    [discovery, vaults, activeWallet?.networkId]
-  );
-
   /** Fetches reserve descriptor data without adding it to normal wallet funds. */
   const fetchReserveDescriptorData = useCallback(
     async ({ descriptor }: { descriptor: string }) => {
@@ -718,7 +710,7 @@ const WalletProviderRaw = ({
         // Do not use netRequest here: reserve scans run in the background and
         // failures should surface only in the role-specific Trigger/Rescue UI.
         await discovery.fetch({ descriptor, gapLimit });
-        const { utxos, stxos } = discovery.getUtxosAndBalance({
+        const { utxos, stxos, txoMap } = discovery.getUtxosAndBalance({
           descriptor,
           txStatus: TxStatus.ALL
         });
@@ -735,7 +727,8 @@ const WalletProviderRaw = ({
           txos,
           vaults,
           network,
-          discovery
+          discovery,
+          txoMap
         );
         const nextIndex = discovery.getNextIndex({ descriptor });
         await setDiscoveryExport(discovery.export());
@@ -2672,7 +2665,7 @@ const WalletProviderRaw = ({
     ),
     fetchBlockTime,
     pushTx,
-    getTxosData,
+    //getTxosData,
     canFetchReserveDescriptorData,
     fetchReserveDescriptorData,
     pushTxPackage,

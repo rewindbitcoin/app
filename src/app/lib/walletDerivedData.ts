@@ -2,10 +2,8 @@
 // Licensed under the GNU GPL v3 or later. See the LICENSE file for details.
 
 import moize from 'moize';
-import { NetworkId, networkMapping } from './network';
-import { Vaults, getTxosDataFromVaults } from '../lib/vaults';
+import type { NetworkId } from './network';
 import type { Settings } from './settings';
-import type { DiscoveryInstance } from '@bitcoinerlab/discovery';
 
 export const getAPIs = moize(
   (networkId: NetworkId | undefined, settings: Settings | undefined) => {
@@ -102,26 +100,6 @@ export const getAPIs = moize(
       generate204WatchtowerAPI,
       blockExplorerURL
     };
-  }
-);
-
-//TODO: Fix and pass descriptors instead.
-//in fact descriptors should be state, not utxos data
-//TODO: here the prov is discovery may contain new info, then the memoized
-//function will not update the utxosData. In fact therefore getTxosData
-//is not really derived data
-//This should retunr a function that can be called?!?!?
-export const getUtxosData = moize(
-  (
-    discovery: DiscoveryInstance | undefined,
-    descriptors: Array<string> | undefined,
-    vaults: Vaults | undefined,
-    networkId: NetworkId
-  ) => {
-    if (!discovery || !descriptors || !vaults) return undefined;
-    const network = networkId && networkMapping[networkId];
-    const { utxos } = discovery.getUtxosAndBalance({ descriptors });
-    return getTxosDataFromVaults(utxos, vaults, network, discovery);
   }
 );
 

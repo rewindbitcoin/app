@@ -178,8 +178,14 @@ describe('E2E: Multiple Pre-Signed txs Vault', () => {
   test('Create the vault', async () => {
     if (!descriptors.length)
       throw new Error('descriptors should have been initialized');
-    const utxos = discovery.getUtxos({ descriptors });
-    const utxosData = getTxosDataFromVaults(utxos, vaults, network, discovery);
+    const { utxos, txoMap } = discovery.getUtxosAndBalance({ descriptors });
+    const utxosData = getTxosDataFromVaults(
+      utxos,
+      vaults,
+      network,
+      discovery,
+      txoMap
+    );
 
     const vaultPath = VAULT_PATH.replace(
       '<network>',

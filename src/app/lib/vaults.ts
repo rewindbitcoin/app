@@ -50,7 +50,11 @@ import {
 } from './vaultDescriptors';
 import { shallowEqualArrays, shallowEqualObjects } from 'shallow-equal';
 
-import type { DiscoveryInstance, TxAttribution } from '@bitcoinerlab/discovery';
+import type {
+  DiscoveryInstance,
+  TxAttribution,
+  TxoMap
+} from '@bitcoinerlab/discovery';
 import { coinselect, maxFunds, dustThreshold } from '@bitcoinerlab/coinselect';
 import type { Explorer } from '@bitcoinerlab/explorer';
 import { coinTypeFromNetwork, type NetworkId, networkMapping } from './network';
@@ -261,6 +265,24 @@ export type UtxosData = Array<{
   vout: number;
   output: OutputInstance;
 }>;
+
+const getDescriptorAndIndexFromTxoMap = (txo: string, txoMap: TxoMap) => {
+  const [txId, strVout] = txo.split(':');
+  const indexedDescriptor = txoMap[`${txId}:${strVout}`];
+  if (!indexedDescriptor) return;
+
+  const separatorIndex = indexedDescriptor.lastIndexOf('~');
+  if (separatorIndex === -1)
+    throw new Error(`Invalid indexed descriptor for ${txo}`);
+  const descriptor = indexedDescriptor.slice(0, separatorIndex);
+  const rawIndex = indexedDescriptor.slice(separatorIndex + 1);
+  if (rawIndex === 'non-ranged') return { descriptor };
+
+  const index = Number(rawIndex);
+  if (!Number.isInteger(index) || index < 0)
+    throw new Error(`Invalid descriptor index ${rawIndex} for ${txo}`);
+  return { descriptor, index };
+};
 
 type VaultPresignedTx = {
   txId: TxId;
@@ -509,16 +531,17 @@ export type TxHistory = Array<{
  * the discoveryExport internal representation in any way, so there is no need
  * to save to disk exported discoveryExport after using this function.
  *
- * Note that it's fine using memoize and just check for changes in txos.
- * The rest of params are just tooling to complete txosData but won't change
- * the result
+ * Note that it's fine using shallow memoization and checking for changes in
+ * txos. The rest of params are just tooling to complete txosData but won't
+ * change the result.
  */
-export const getTxosDataFromVaults = memoize(
+export const getTxosDataFromVaults = moize.shallow(
   (
     txos: Array<string>,
     vaults: Vaults,
     network: Network,
-    discovery: DiscoveryInstance
+    discovery: DiscoveryInstance,
+    txoMap: TxoMap
   ): UtxosData => {
     const { Output, parseKeyExpression } = ensureDescriptorsFactoryInstance();
     return txos.map(txo => {
@@ -526,7 +549,7 @@ export const getTxosDataFromVaults = memoize(
       const vout = Number(strVout);
       if (!txId || isNaN(vout) || !Number.isInteger(vout) || vout < 0)
         throw new Error(`Invalid txo ${txo}`);
-      const descriptorAndIndex = discovery.getDescriptor({ txo });
+      const descriptorAndIndex = getDescriptorAndIndexFromTxoMap(txo, txoMap);
       if (!descriptorAndIndex) throw new Error(`Unmatched ${txo}`);
       let signersPubKeys;
       for (const vault of Object.values(vaults)) {
@@ -554,7 +577,8 @@ export const getTxosDataFromVaults = memoize(
         vout
       };
     });
-  }
+  },
+  { maxSize: 10 }
 );
 
 export const getVaultNumber = moize((vaultId: string, vaults: Vaults) => {
