@@ -2119,14 +2119,13 @@ async function fetchVaultStatus(
     newVaultStatus.triggerTxHex = triggerTxData.txHex;
     newVaultStatus.triggerTxBlockHeight = triggerTxData.blockHeight;
     if (vaultMode === 'LADDERED') delete newVaultStatus.triggerCpfpTxHex;
-    else {
-      // Never discover the CPFP child by scanning the shared P2A anchor script:
-      // P2A is global, so this scans unrelated P2A txs and can stall refreshes.
-      // const triggerCpfpTxData = await fetchSpendingTx(
-      //   triggerTxData.txHex,
-      //   1,
-      //   explorer
-      // );
+    else if (
+      triggerTxData.blockHeight === 0 ||
+      newVaultStatus.triggerCpfpTxHex === undefined
+    ) {
+      // Fetch while unconfirmed for acceleration/replacement state. Also fetch
+      // once when missing so confirmed trigger fee-payer children can still be
+      // recovered for history labeling.
       const triggerCpfpTxData = await fetchTriggerCpfpTxFromReserve({
         vault,
         triggerTxHex: triggerTxData.txHex,
