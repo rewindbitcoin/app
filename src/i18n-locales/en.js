@@ -959,9 +959,7 @@ Please wait a few moments until completion.`,
       defaultMainnet: 'Default (Mainnet)',
       tapeFeeEstimateOverrideHelp: `Tape normally uses real mainnet fee estimates.
 
-Use this to simulate higher fees and extreme mempool conditions on Tape.
-
-This only affects Tape fee estimates and is for testing only.`,
+Use this to simulate higher fees and extreme mempool conditions on Tape.`,
       communityBackups: 'Community Backups',
       regtestHostName: 'Regtest Host',
       vaultMode: 'Vault Mode',
@@ -969,9 +967,7 @@ This only affects Tape fee estimates and is for testing only.`,
       vaultModeRealisticTruc: 'Safe Mode (TRUC)',
       vaultModeHelp: `"Fast Demo" is better for quick testing because it avoids some confirmation waits.
 
-"Safe Mode (TRUC)" requires confirmed transactions, so demos are slower.
-
-TRUC solves fee-pinning attacks and is the only allowed mode on the real Bitcoin network. Turn it on when you want to test as close as possible to real-world usage.`,
+"Safe Mode (TRUC)" protects against fee-pinning attacks but requires confirmed transactions. It is the only allowed mode on the real Bitcoin network. Turn it on when you want to simulate real-world usage as closely as possible.`,
       gapLimit: 'Gap Limit',
       currency: 'Currency',
       language: 'Language',

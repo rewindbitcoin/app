@@ -884,9 +884,7 @@ Por favor, espera unos momentos hasta que se complete.`,
       defaultMainnet: 'Predeterminado (Mainnet)',
       tapeFeeEstimateOverrideHelp: `Tape normalmente usa las comisiones reales de mainnet.
 
-Usa esto para simular comisiones más altas y condiciones extremas de mempool en Tape.
-
-Esto sólo afecta a las comisiones de Tape y es sólo para pruebas.`,
+Usa esto para simular comisiones más altas y condiciones extremas de mempool en Tape.`,
       communityBackups: 'Community Backups',
       regtestHostName: 'Host de Regtest',
       vaultMode: 'Modo de Bóveda',
@@ -894,9 +892,7 @@ Esto sólo afecta a las comisiones de Tape y es sólo para pruebas.`,
       vaultModeRealisticTruc: 'Modo Seguro (TRUC)',
       vaultModeHelp: `"Demo Rápida" es mejor para pruebas rápidas porque evita algunas esperas de confirmación.
 
-"Modo Seguro (TRUC)" requiere transacciones confirmadas, por eso las demos son más lentas.
-
-TRUC resuelve los ataques de fee-pinning y es el único modo permitido en la red Bitcoin real. Actívalo cuando quieras probar lo más parecido posible al uso real.`,
+"Modo Seguro (TRUC)" protege contra ataques de fee-pinning pero requiere transacciones confirmadas. Es el único modo permitido en la red Bitcoin real. Actívalo cuando quieras simular condiciones lo más parecidas posible al uso real.`,
       gapLimit: 'Límite de Exploración (Gap Limit)',
       currency: 'Moneda',
       language: 'Idioma',
