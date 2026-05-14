@@ -1141,7 +1141,7 @@ const SettingsScreen = () => {
           onClose={() => setIsVaultModeModalVisible(false)}
         >
           <View className="p-4 gap-3">
-            <Text className="text-base text-slate-600">
+            <Text className="text-base text-slate-600 mb-4">
               {t('settings.general.vaultModeHelp')}
             </Text>
             <Pressable
@@ -1177,7 +1177,7 @@ const SettingsScreen = () => {
           onClose={() => setIsTapeFeeEstimateOverrideModalVisible(false)}
         >
           <View className="p-4 gap-3">
-            <Text className="text-base text-slate-600">
+            <Text className="text-base text-slate-600 mb-4">
               {t('settings.general.tapeFeeEstimateOverrideHelp')}
             </Text>
             <Pressable
