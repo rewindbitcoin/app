@@ -35,10 +35,6 @@ export const useTriggerReserveBumpPlan = ({
   } = useWallet();
   const walletSigner = signers?.[0];
   const [plan, setPlan] = useState<ReserveBumpPlan>('loading');
-  const [address, setAddress] = useState<string | undefined>();
-  const [output, setOutput] = useState<
-    ReturnType<typeof computeReceiveOutput> | undefined
-  >();
   const [value, setValue] = useState<number | undefined>();
   const refreshIdRef = useRef(0);
   const wasSyncingBlockchain = useRef(syncingBlockchain);
@@ -48,8 +44,6 @@ export const useTriggerReserveBumpPlan = ({
     refreshIdRef.current = refreshId;
 
     setPlan('loading');
-    setAddress(undefined);
-    setOutput(undefined);
 
     if (!enabled || !networkId || !walletSigner || !accounts) {
       setValue(undefined);
@@ -74,17 +68,11 @@ export const useTriggerReserveBumpPlan = ({
           setPlan('error');
           return;
         }
-        const { txosData, hasUnconfirmedUtxos, nextIndex } = reserveData;
+        const { txosData, hasUnconfirmedUtxos } = reserveData;
         const changeDescriptorWithIndex =
           await getNextChangeDescriptorWithIndex(accounts);
         if (refreshIdRef.current !== refreshId) return;
-        const nextOutput = computeReceiveOutput(
-          { descriptor: triggerReserveDescriptor, index: nextIndex },
-          network
-        );
         setValue(utxosDataBalance(txosData));
-        setAddress(nextOutput.getAddress());
-        setOutput(nextOutput);
         setPlan({
           txosData,
           hasUnconfirmedUtxos,
@@ -128,7 +116,7 @@ export const useTriggerReserveBumpPlan = ({
     refresh();
   }, [refresh, syncingBlockchain]);
 
-  return { plan, address, output, value, refresh };
+  return { plan, value, refresh };
 };
 
 export const useRescueReserveBumpPlan = ({
