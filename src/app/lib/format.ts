@@ -127,17 +127,19 @@ const formatFeeRateFactory = memoize((t: TFunction) =>
       currency: Currency;
       feeEstimates: FeeEstimates | undefined;
     }) => {
-      let strBtcFiat =
-        fee === undefined ? undefined : t('loading', { currency });
+      const strBtcFiat =
+        fee === undefined
+          ? undefined
+          : t('feeRate.fee', {
+              amount: formatBtc({
+                amount: fee,
+                subUnit,
+                btcFiat,
+                locale,
+                currency
+              })
+            });
       let strTime = t('feeRate.waitingForEstimates');
-
-      if (btcFiat !== undefined && fee !== undefined) {
-        //const amount = (feeRate * txSize * btcFiat) / 1e8;
-        const amount = fee;
-        strBtcFiat = t('feeRate.fee', {
-          amount: formatBtc({ amount, subUnit, btcFiat, locale, currency })
-        });
-      }
 
       //Find the lowest target time which feeRate <= input feeRate
       if (feeEstimates && Object.keys(feeEstimates).length) {
