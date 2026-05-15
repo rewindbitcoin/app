@@ -645,6 +645,11 @@ export default function VaultSetUp({
             feeEstimates={feeEstimates}
             initialValue={initialPackageFeeRate}
             fee={packageFee}
+            isOptimal={
+              packageFee !== null &&
+              selectedTargetPackageFeeRate === pickedInitialPackageFeeRate &&
+              packageFeeRate === pickedInitialPackageFeeRate
+            }
             label={t('vaultSetup.confirmationSpeedLabel')}
             min={minimumPackageFeeRate}
             onValueChange={handlePackageFeeRateChange}
