@@ -86,21 +86,21 @@ const getReserveOutputsWithValue = (utxosData: UtxosData) => {
   return outputsWithValue;
 };
 
-const getRecommendedReserveFundingSats = ({
+const getRecommendedBumpFundingSats = ({
   plan,
-  nextReserveOutput,
+  nextFundingOutput,
   parentTxInfo,
   targetPackageFeeRate
 }: {
   plan: P2ABumpPlan | 'loading' | 'error';
-  nextReserveOutput: OutputInstance | undefined;
+  nextFundingOutput: OutputInstance | undefined;
   parentTxInfo: PresignedTxInfo | undefined;
   targetPackageFeeRate: number | undefined;
 }) => {
   if (
     typeof plan !== 'object' ||
     !plan.changeOutput ||
-    !nextReserveOutput ||
+    !nextFundingOutput ||
     !parentTxInfo ||
     targetPackageFeeRate === undefined
   )
@@ -117,7 +117,7 @@ const getRecommendedReserveFundingSats = ({
   const recommendedValue = Number(
     getRequiredNextP2ABumpReserveUtxoValue({
       existingBumpReserveOutputsWithValue,
-      nextBumpReserveOutput: nextReserveOutput,
+      nextBumpReserveOutput: nextFundingOutput,
       changeOutput: plan.changeOutput,
       parentAnchorValue: parentAnchor.value,
       presignedParentVSize: parentTx.virtualSize(),
@@ -192,8 +192,6 @@ const RawVault = ({
   //feeEstimates = useFirstDefinedValue(feeEstimates);
   const {
     plan: triggerBumpPlan,
-    address: triggerReserveAddress,
-    output: nextTriggerReserveOutput,
     value: triggerReserveValue,
     refresh: retryTriggerReserve
   } = useTriggerReserveBumpPlan({
@@ -212,25 +210,6 @@ const RawVault = ({
     if (triggerBumpPlan !== 'error') retryTriggerReserve();
     setIsTriggerModalVisible(true);
   }, [retryTriggerReserve, triggerBumpPlan]);
-  const [isAddTriggerReserveVisible, setIsAddTriggerReserveVisible] =
-    useState<boolean>(false);
-  const [isPendingAddTriggerReserve, setIsPendingAddTriggerReserve] =
-    useState<boolean>(false);
-  const closeAddTriggerReserve = useCallback(
-    () => setIsAddTriggerReserveVisible(false),
-    []
-  );
-  const openTriggerReserveFunds = useCallback(() => {
-    setIsPendingAddTriggerReserve(true);
-    setIsTriggerModalVisible(false);
-  }, []);
-  const handleTriggerModalHide = useCallback(() => {
-    if (isPendingAddTriggerReserve) {
-      setIsPendingAddTriggerReserve(false);
-      setIsAddTriggerReserveVisible(true);
-    }
-  }, [isPendingAddTriggerReserve]);
-
   // Broadcasts the selected trigger action. It acknowledges the watchtower for
   // this local action, then pushes parent-only txs directly or builds the P2A
   // parent+reserve-child package when reserve UTXOs exist.
@@ -292,9 +271,9 @@ const RawVault = ({
             )
               throw new Error('Wallet not ready for Rewind2 trigger package');
             const network = networkMapping[networkId];
-            // P2A trigger fee bumping is reserve-backed by design: dedicated
-            // reserve inputs stay outside normal wallet flow and return leftover
-            // value to the wallet's regular change branch.
+            // Trigger fee bumping always spends the full reserve set first; any
+            // normal wallet inputs here were explicitly selected by the user as
+            // a supplement and return leftover value to wallet change.
             const childTxData = await createCpfpChildTx({
               parentTxHex: triggerData.parentTxHex,
               parentFee: triggerData.parentTxFee,
@@ -846,29 +825,12 @@ const RawVault = ({
   const reserveTargetPackageFeeRate = feeEstimates
     ? pickFeeEstimate(feeEstimates, 0).feeEstimate
     : undefined;
-  const triggerReserveFundingSats = getRecommendedReserveFundingSats({
-    plan: triggerBumpPlan,
-    nextReserveOutput: nextTriggerReserveOutput,
-    parentTxInfo: triggerPresignedTxInfos[0],
-    targetPackageFeeRate: reserveTargetPackageFeeRate
-  });
-  const rescueReserveFundingSats = getRecommendedReserveFundingSats({
+  const rescueReserveFundingSats = getRecommendedBumpFundingSats({
     plan: rescueBumpPlan,
-    nextReserveOutput: nextRescueReserveOutput,
+    nextFundingOutput: nextRescueReserveOutput,
     parentTxInfo: rescuePresignedTxInfos?.[0],
     targetPackageFeeRate: reserveTargetPackageFeeRate
   });
-  const triggerReserveFundingAmount =
-    triggerReserveFundingSats === undefined
-      ? undefined
-      : formatBalance({
-          satsBalance: triggerReserveFundingSats,
-          btcFiat,
-          currency,
-          locale,
-          mode: amountMode,
-          appendSubunit: true
-        });
   const rescueReserveFundingAmount =
     rescueReserveFundingSats === undefined
       ? undefined
@@ -880,11 +842,6 @@ const RawVault = ({
           mode: amountMode,
           appendSubunit: true
         });
-  const canOpenTriggerReserveFunds =
-    !!networkId &&
-    !!p2aVaultMode &&
-    triggerReserveAddress !== undefined &&
-    triggerReserveFundingAmount !== undefined;
   const canOpenRescueReserveFunds =
     !!networkId &&
     !!p2aVaultMode &&
@@ -1306,26 +1263,9 @@ const RawVault = ({
         isVisible={isTriggerModalVisible}
         lockBlocks={vault.lockBlocks}
         onClose={closeTriggerModal}
-        onModalHide={handleTriggerModalHide}
         onReserveRetry={retryTriggerReserve}
-        {...(canOpenTriggerReserveFunds
-          ? { onReserveFundsMissing: openTriggerReserveFunds }
-          : {})}
         onAction={handleTrigger}
       />
-      {/* Follow-up modal opened after the trigger modal closes; tells the user to send funds to this vault's trigger reserve address so future trigger packages can pay higher fees. */}
-      {p2aVaultMode &&
-      triggerReserveAddress &&
-      triggerReserveFundingAmount !== undefined ? (
-        <AddReserve
-          role="TRIGGER"
-          vaultMode={p2aVaultMode}
-          address={triggerReserveAddress}
-          recommendedAmount={triggerReserveFundingAmount}
-          isVisible={isAddTriggerReserveVisible}
-          onClose={closeAddTriggerReserve}
-        />
-      ) : null}
       {/* Modal that lets the user start or accelerate an emergency rescue, choose a fee when needed, and confirm broadcasting the rescue transaction/package. */}
       <PresignedVaultAction
         role="RESCUE"
