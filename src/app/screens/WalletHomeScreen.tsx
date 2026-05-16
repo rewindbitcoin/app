@@ -527,12 +527,20 @@ const WalletHomeScreen = () => {
                 : undefined
             }
             handleSend={
-              feeEstimates && explorerReachable && utxosData?.length
+              feeEstimates &&
+              explorerReachable &&
+              utxosData?.length &&
+              historyData &&
+              vaultsStatuses
                 ? handleSend
                 : undefined
             }
             handleFreeze={
-              feeEstimates && explorerReachable && utxosData?.length
+              feeEstimates &&
+              explorerReachable &&
+              utxosData?.length &&
+              historyData &&
+              vaultsStatuses
                 ? handleFreeze
                 : undefined
             }

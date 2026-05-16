@@ -91,6 +91,14 @@ export default function VaultSetUp({
 
   if (!utxosData)
     throw new Error('SetUpVaultScreen cannot be called with unset raw utxos');
+  if (!vaultsStatuses)
+    throw new Error(
+      'SetUpVaultScreen cannot be called with unset vault statuses'
+    );
+  if (!historyData)
+    throw new Error(
+      'SetUpVaultScreen cannot be called with unset history data'
+    );
   if (!accounts)
     throw new Error('SetUpVaultScreen cannot be called with unset accounts');
   if (!networkId)

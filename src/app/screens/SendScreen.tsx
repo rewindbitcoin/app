@@ -74,7 +74,10 @@ export default function Send() {
   } = useWallet();
 
   const sendableUtxosData =
-    utxosData && getSendableUtxosData(utxosData, vaultsStatuses, historyData);
+    utxosData &&
+    vaultsStatuses &&
+    historyData &&
+    getSendableUtxosData(utxosData, vaultsStatuses, historyData);
 
   //Warn the user and reset this component if wallet changes.
   const walletChanged = useArrayChangeDetector([
@@ -91,6 +94,10 @@ export default function Send() {
     throw new Error('SendScreen cannot be called with unset utxos');
   if (!utxosData)
     throw new Error('SendScreen cannot be called with unset raw utxos');
+  if (!vaultsStatuses)
+    throw new Error('SendScreen cannot be called with unset vault statuses');
+  if (!historyData)
+    throw new Error('SendScreen cannot be called with unset history data');
   if (!accounts)
     throw new Error('SendScreen cannot be called with unset accounts');
   if (!networkId)
