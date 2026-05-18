@@ -341,8 +341,11 @@ export const getVaultMode = (
  *
  * The selected package fee rate is interpreted as:
  * `(parentFee + childFee) / (parentVSize + childVSize)`.
+ *
+ * @returns Package fee/size data when the package can be built; `undefined`
+ * when the child would violate the TRUC size limit or cannot leave a dust-safe
+ * change output at the requested fee rate.
  */
-//FIXME: this one returns too much stuff....
 export const estimateCpfpPackage = ({
   parentTxHex,
   parentFee,
@@ -359,8 +362,6 @@ export const estimateCpfpPackage = ({
   | {
       anchorOutputIndex: number;
       anchorValue: number;
-      utxosData: UtxosData;
-      utxosValue: number;
       childVSize: number;
       childFee: number;
       childOutputValue: number;
@@ -383,7 +384,7 @@ export const estimateCpfpPackage = ({
     utxosData.map(utxoData => utxoData.output),
     changeOutput
   );
-  if (parentTx.version === 3 && childVSize > MAX_P2A_TRUC_CHILD_VSIZE) return; //FIXME: throw some message?
+  if (parentTx.version === 3 && childVSize > MAX_P2A_TRUC_CHILD_VSIZE) return;
 
   const totalPackageVSize = parentVSize + childVSize;
   const totalTargetFee = Math.ceil(targetPackageFeeRate * totalPackageVSize);
@@ -400,8 +401,6 @@ export const estimateCpfpPackage = ({
   return {
     anchorOutputIndex: anchor.index,
     anchorValue: anchor.value,
-    utxosData,
-    utxosValue,
     childVSize,
     childFee,
     childOutputValue,
@@ -413,9 +412,11 @@ export const estimateCpfpPackage = ({
 /**
  * Builds and signs the Rewind2 CPFP child tx for a selected package fee
  * rate.
+ *
+ * @returns Signed child transaction hex, or `undefined` when the requested
+ * package cannot be built under the same constraints as `estimateCpfpPackage`.
  */
-//FIXME: this function returns unneeded stuff
-export const createCpfpChildTx = async ({
+export const createCpfpChildTxHex = async ({
   parentTxHex,
   parentFee,
   targetPackageFeeRate,
@@ -431,38 +432,30 @@ export const createCpfpChildTx = async ({
   changeOutput: OutputInstance;
   signer: Signer;
   network: Network;
-}): Promise<
-  | {
-      childTxHex: TxHex;
-      childTxId: TxId;
-      childFee: number;
-      childVSize: number;
-    }
-  | undefined
-> => {
-  const plan = estimateCpfpPackage({
+}): Promise<TxHex | undefined> => {
+  const packageEstimate = estimateCpfpPackage({
     parentTxHex,
     parentFee,
     targetPackageFeeRate,
     utxosData,
     changeOutput
   });
-  if (!plan) return;
+  if (!packageEstimate) return;
 
   const { tx: parentTx } = transactionFromHex(parentTxHex);
   const psbt = new Psbt({ network });
   psbt.setVersion(parentTx.version === 3 ? 3 : 2);
   psbt.addInput({
     hash: parentTx.getId(),
-    index: plan.anchorOutputIndex,
+    index: packageEstimate.anchorOutputIndex,
     sequence: 0xfffffffd,
     witnessUtxo: {
       script: P2A_OUTPUT_SCRIPT,
-      value: toBigInt(plan.anchorValue)
+      value: toBigInt(packageEstimate.anchorValue)
     }
   });
 
-  const childInputFinalizers = plan.utxosData.map(utxoData =>
+  const childInputFinalizers = utxosData.map(utxoData =>
     utxoData.output.updatePsbtAsInput({
       psbt,
       txHex: utxoData.txHex,
@@ -471,10 +464,10 @@ export const createCpfpChildTx = async ({
   );
   changeOutput.updatePsbtAsOutput({
     psbt,
-    value: toBigInt(plan.childOutputValue)
+    value: toBigInt(packageEstimate.childOutputValue)
   });
 
-  if (plan.utxosData.length > 0) await signPsbt(signer, network, psbt);
+  if (utxosData.length > 0) await signPsbt(signer, network, psbt);
   psbt.finalizeInput(0, () => ({
     finalScriptSig: new Uint8Array(0),
     finalScriptWitness: Uint8Array.of(0)
@@ -482,17 +475,7 @@ export const createCpfpChildTx = async ({
   childInputFinalizers.forEach(finalizer => finalizer({ psbt }));
 
   const tx = psbt.extractTransaction(true);
-  const firstOutput = tx.outs[0];
-  if (!firstOutput) throw new Error('CPFP child output unset');
-  const childVSize = tx.virtualSize();
-  const childFee =
-    plan.anchorValue + plan.utxosValue - toNumber(firstOutput.value);
-  return {
-    childTxHex: tx.toHex(),
-    childTxId: tx.getId(),
-    childFee,
-    childVSize
-  };
+  return tx.toHex();
 };
 
 export type HistoryDataItem =
