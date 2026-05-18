@@ -223,7 +223,9 @@ const RawVault = ({
               targetPackageFeeRate: triggerData.actionFeeRate,
               utxosData: [
                 ...actionBumpPlan.txosData,
-                ...(triggerData.walletSupplementUtxosData ?? [])
+                ...(Array.isArray(triggerData.walletSupplementUtxosData)
+                  ? triggerData.walletSupplementUtxosData
+                  : [])
               ],
               changeOutput: actionBumpPlan.changeOutput,
               signer: actionBumpPlan.signer,
@@ -380,7 +382,7 @@ const RawVault = ({
               return;
             }
 
-            if (rescueData.walletSupplementUtxosData?.length)
+            if (Array.isArray(rescueData.walletSupplementUtxosData))
               throw new Error('Rescue cannot use wallet supplement inputs');
             if (
               !rescueData.p2aBumpPlan ||
