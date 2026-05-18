@@ -17,7 +17,7 @@ import { batchedUpdates } from '~/common/lib/batchedUpdates';
 import {
   type Vault,
   type VaultStatus,
-  createCpfpChildTx,
+  createCpfpChildTxHex,
   getVaultFrozenBalance,
   getVaultMode,
   getRemainingBlocks,
@@ -48,7 +48,7 @@ import {
   getP2ATriggerInfo,
   getAdditionalOutputValue,
   type PresignedTxInfo,
-  type VaultActionTxData
+  type VaultActionData
 } from '../../lib/vaultActionTx';
 import { useWallet } from '../../hooks/useWallet';
 import Delegate from './modals/Delegate';
@@ -157,7 +157,7 @@ const RawVault = ({
   // this local action, then pushes parent-only txs directly or builds the P2A
   // parent+reserve-child package when reserve UTXOs exist.
   const handleTrigger = useCallback(
-    async (triggerData: VaultActionTxData) => {
+    async (triggerData: VaultActionData) => {
       batchedUpdates(() => {
         setIsTriggerModalVisible(false);
         setIsTriggerBeingHandled(true);
@@ -217,9 +217,9 @@ const RawVault = ({
             // Trigger fee bumping always spends the full reserve set first; any
             // normal wallet inputs here were explicitly selected by the user as
             // a supplement and return leftover value to wallet change.
-            const childTxData = await createCpfpChildTx({
+            const childTxHex = await createCpfpChildTxHex({
               parentTxHex: triggerData.parentTxHex,
-              parentFee: triggerData.parentTxFee,
+              parentFee: triggerData.parentFee,
               targetPackageFeeRate: triggerData.actionFeeRate,
               utxosData: [
                 ...actionBumpPlan.txosData,
@@ -229,12 +229,12 @@ const RawVault = ({
               signer: actionBumpPlan.signer,
               network
             });
-            if (!childTxData)
+            if (!childTxHex)
               throw new Error('Cannot build trigger fee-bump transaction');
-            triggerCpfpTxHex = childTxData.childTxHex;
+            triggerCpfpTxHex = childTxHex;
             await pushTxPackage({
               parentTxHex: triggerData.parentTxHex,
-              childTxHex: childTxData.childTxHex
+              childTxHex
             });
           }
         });
@@ -360,7 +360,7 @@ const RawVault = ({
   // valid parent or package. Parent-only rescue pushes the parent directly;
   // reserve-backed rescue builds the child package.
   const handleRescue = useCallback(
-    async (rescueData: VaultActionTxData) => {
+    async (rescueData: VaultActionData) => {
       batchedUpdates(() => {
         setIsRescueModalVisible(false);
         setIsRescueBeingHandled(true);
@@ -396,21 +396,21 @@ const RawVault = ({
             )
               throw new Error('Wallet not ready for Rewind2 rescue package');
             const network = networkMapping[networkId];
-            const childTxData = await createCpfpChildTx({
+            const childTxHex = await createCpfpChildTxHex({
               parentTxHex: rescueData.parentTxHex,
-              parentFee: rescueData.parentTxFee,
+              parentFee: rescueData.parentFee,
               targetPackageFeeRate: rescueData.actionFeeRate,
               utxosData: rescueData.p2aBumpPlan.txosData,
               changeOutput: rescueData.p2aBumpPlan.changeOutput,
               signer: rescueData.p2aBumpPlan.signer,
               network
             });
-            if (!childTxData)
+            if (!childTxHex)
               throw new Error('Cannot build rescue fee-bump transaction');
-            panicCpfpTxHex = childTxData.childTxHex;
+            panicCpfpTxHex = childTxHex;
             await pushTxPackage({
               parentTxHex: rescueData.parentTxHex,
-              childTxHex: childTxData.childTxHex
+              childTxHex
             });
           }
         });
