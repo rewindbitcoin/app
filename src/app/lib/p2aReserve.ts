@@ -36,25 +36,30 @@ export const estimateCpfpChildVSizeFromOutputs = (
 };
 
 /**
- * Returns the sats that must be funded into the next P2A bump reserve UTXO.
+ * Returns the sats that must be funded into one additional P2A child input
+ * output so the parent+child package can reach the target fee rate.
  *
- * This is the shared P2A bump reserve-sizing primitive for parent+child
- * packages. It is not trigger-specific; callers provide the parent/action data.
+ * This is the shared P2A output-sizing primitive. The already available inputs
+ * may be reserve UTXOs, vaultable wallet supplement UTXOs, or any other outputs
+ * the caller has already decided can be spent by the CPFP child.
  */
-export const getRequiredNextP2ABumpReserveUtxoValue = ({
-  existingBumpReserveOutputsWithValue,
-  nextBumpReserveOutput,
+export const getAdditionalP2AOutputValue = ({
+  outputsWithValue,
+  additionalOutput,
   changeOutput,
   parentAnchorValue,
   presignedParentVSize,
   presignedParentFeeRate,
   targetPackageFeeRate
 }: {
-  existingBumpReserveOutputsWithValue: Array<{
+  /** Outputs already available to spend as non-anchor CPFP child inputs. */
+  outputsWithValue: Array<{
     output: OutputInstance;
     value: bigint;
   }>;
-  nextBumpReserveOutput: OutputInstance;
+  /** Output script/type of the additional child input being sized. */
+  additionalOutput: OutputInstance;
+  /** Output that receives leftover child value after fees. */
   changeOutput: OutputInstance;
   /** Value of the P2A anchor output created by the parent being bumped. */
   parentAnchorValue: number;
@@ -66,10 +71,7 @@ export const getRequiredNextP2ABumpReserveUtxoValue = ({
   targetPackageFeeRate: number;
 }) => {
   const childVSize = estimateCpfpChildVSizeFromOutputs(
-    [
-      ...existingBumpReserveOutputsWithValue.map(({ output }) => output),
-      nextBumpReserveOutput
-    ],
+    [...outputsWithValue.map(({ output }) => output), additionalOutput],
     changeOutput
   );
   const totalTargetFee = Math.ceil(
@@ -81,21 +83,17 @@ export const getRequiredNextP2ABumpReserveUtxoValue = ({
     totalTargetFee - parentFee
   );
   const childOutputMinValue = toNumber(dustThreshold(changeOutput)) + 1;
-  const nextBumpReserveMinValue =
-    toNumber(dustThreshold(nextBumpReserveOutput)) + 1;
-  const existingBumpReserveValue = existingBumpReserveOutputsWithValue.reduce(
+  const additionalOutputMinValue = toNumber(dustThreshold(additionalOutput)) + 1;
+  const outputsValue = outputsWithValue.reduce(
     (sum, { value }) => sum + toNumber(value),
     0
   );
 
-  const nextBumpReserveValueNeeded =
-    childFee +
-    childOutputMinValue -
-    parentAnchorValue -
-    existingBumpReserveValue;
-  if (nextBumpReserveValueNeeded <= 0) return BigInt(0);
+  const additionalOutputValueNeeded =
+    childFee + childOutputMinValue - parentAnchorValue - outputsValue;
+  if (additionalOutputValueNeeded <= 0) return BigInt(0);
   return toBigInt(
-    Math.max(nextBumpReserveMinValue, nextBumpReserveValueNeeded)
+    Math.max(additionalOutputMinValue, additionalOutputValueNeeded)
   );
 };
 

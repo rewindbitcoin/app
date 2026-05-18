@@ -25,7 +25,7 @@ import {
   utxosDataBalance,
   type VaultSettings
 } from '../lib/vaults';
-import { getRequiredNextP2ABumpReserveUtxoValue } from '../lib/p2aReserve';
+import { getAdditionalP2AOutputValue } from '../lib/p2aReserve';
 import { getVaultableUtxosData } from '../lib/utxoPolicy';
 import {
   DUMMY_BACKUP_OUTPUT,
@@ -265,9 +265,9 @@ export default function VaultSetUp({
       minimumVaultSetup.vaultedAmount
       ? maxVaultAtSelectedPackageFeeRate.vaultedAmount
       : minimumVaultSetup.vaultedAmount;
-  const triggerReserveValue = getRequiredNextP2ABumpReserveUtxoValue({
-    existingBumpReserveOutputsWithValue: [],
-    nextBumpReserveOutput: DUMMY_TRIGGER_RESERVE_OUTPUT(network),
+  const triggerReserveValue = getAdditionalP2AOutputValue({
+    outputsWithValue: [],
+    additionalOutput: DUMMY_TRIGGER_RESERVE_OUTPUT(network),
     changeOutput:
       changeOutput ||
       DUMMY_CHANGE_OUTPUT(getMainAccount(accounts, network), network),
@@ -406,9 +406,9 @@ export default function VaultSetUp({
             vaultOutput: DUMMY_VAULT_OUTPUT(network),
             backupOutput: DUMMY_BACKUP_OUTPUT(network),
             triggerReserveOutput: DUMMY_TRIGGER_RESERVE_OUTPUT(network),
-            triggerReserveValue: getRequiredNextP2ABumpReserveUtxoValue({
-              existingBumpReserveOutputsWithValue: [],
-              nextBumpReserveOutput: DUMMY_TRIGGER_RESERVE_OUTPUT(network),
+            triggerReserveValue: getAdditionalP2AOutputValue({
+              outputsWithValue: [],
+              additionalOutput: DUMMY_TRIGGER_RESERVE_OUTPUT(network),
               changeOutput: currentChangeOutput,
               parentAnchorValue: toNumber(getTriggerAnchorValue(vaultMode)),
               presignedParentVSize: Math.max(...TRIGGER_TX_VBYTES),

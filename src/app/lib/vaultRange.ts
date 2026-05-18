@@ -20,7 +20,7 @@ import {
   estimateMinimumRequiredVaultedAmount,
   getBackupFunding
 } from './vaults';
-import { getRequiredNextP2ABumpReserveUtxoValue } from './p2aReserve';
+import { getAdditionalP2AOutputValue } from './p2aReserve';
 import { getTriggerAnchorValue } from './p2aPolicy';
 import type { Accounts } from './wallets';
 import { toBigInt, toNumber } from './sats';
@@ -234,9 +234,9 @@ export const estimateVaultSetupRange = moize.shallow(
     );
     const vaultOutput = DUMMY_VAULT_OUTPUT(network);
     const triggerReserveOutput = DUMMY_TRIGGER_RESERVE_OUTPUT(network);
-    const triggerReserveValue = getRequiredNextP2ABumpReserveUtxoValue({
-      existingBumpReserveOutputsWithValue: [],
-      nextBumpReserveOutput: triggerReserveOutput,
+    const triggerReserveValue = getAdditionalP2AOutputValue({
+      outputsWithValue: [],
+      additionalOutput: triggerReserveOutput,
       changeOutput,
       parentAnchorValue: toNumber(getTriggerAnchorValue(vaultMode)),
       presignedParentVSize: Math.max(...TRIGGER_TX_VBYTES),

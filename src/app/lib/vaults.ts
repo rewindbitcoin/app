@@ -72,7 +72,7 @@ export {
 import {
   estimateCpfpChildVSizeFromOutputs,
   findTriggerReserveVout,
-  getRequiredNextP2ABumpReserveUtxoValue,
+  getAdditionalP2AOutputValue,
   getTriggerReserveDescriptorForVaultIndex,
   getTriggerReserveOutput
 } from './p2aReserve';
@@ -1391,9 +1391,9 @@ const buildVaultTxContext = async ({
     network,
     addressIndex: 0
   });
-  const triggerReserveValue = getRequiredNextP2ABumpReserveUtxoValue({
-    existingBumpReserveOutputsWithValue: [],
-    nextBumpReserveOutput: triggerReserveOutput,
+  const triggerReserveValue = getAdditionalP2AOutputValue({
+    outputsWithValue: [],
+    additionalOutput: triggerReserveOutput,
     changeOutput,
     parentAnchorValue: toNumber(getTriggerAnchorValue(vaultMode)),
     presignedParentVSize: Math.max(...TRIGGER_TX_VBYTES),
