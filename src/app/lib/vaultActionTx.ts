@@ -12,12 +12,15 @@ import {
 } from './fees';
 import type { Signer } from './wallets';
 import { assertP2AParentPolicy, findP2AOutputData } from './p2aPolicy';
+import { getAdditionalP2AOutputValue } from './p2aReserve';
 import {
   estimateCpfpPackage,
+  type HistoryData,
   type TxHex,
   type Vault,
   type UtxosData
 } from './vaults';
+import { toNumber } from './sats';
 
 // Bitcoin Core default -incrementalrelayfee is 100 sat/kvB = 0.1 sat/vB.
 // A replacement child must pay at least the previous child fee plus the
@@ -31,7 +34,7 @@ export const INCREMENTAL_RELAY_FEE_RATE = 0.1;
 //the minumum  the user can change anyway
 const FEE_RATE_STEP = 0.01;
 
-export type VaultActionTxData = {
+export type VaultActionData = {
   /**
    * Hex of the selected parent tx for the action:
    * - Init Unfreeze: trigger tx hex
@@ -47,7 +50,7 @@ export type VaultActionTxData = {
    * - Laddered (legacy): this is also the action fee.
    * - P2A flows: action fee may include CPFP child fee too.
    */
-  parentTxFee: number;
+  parentFee: number;
 
   /**
    * Fee of the thing the user is about to submit.
@@ -65,18 +68,29 @@ export type VaultActionTxData = {
    */
   actionFeeRate: number;
 
-  /** Exact reserve plan used to build a P2A child for this action. */
+  /**
+   * Reserve input/change/signing plan used to build a P2A child for this action.
+   * Omitted for laddered actions and P2A parent-only actions.
+   */
   p2aBumpPlan?: P2ABumpPlan;
+
+  /**
+   * Hot-wallet UTXOs selected as a supplement to the P2A reserve inputs.
+   * `walletSupplementUnneeded` means the action does not need hot-wallet inputs,
+   * including laddered, parent-only, and reserve-only actions.
+   */
+  walletSupplementUtxosData: UtxosData | 'walletSupplementUnneeded';
 };
 
 export type PresignedTxInfo = { txHex: TxHex; fee: number; feeRate: number };
 
 /**
- * P2A fee-bump plan used to fund/sign a CPFP child.
+ * P2A reserve fee-bump plan used to fund/sign a CPFP child.
  *
- * This is a reserve-backed plan used only to fund a child tx. The caller
- * already knows which UTXOs the child must spend, where leftover value must go,
- * and which signer controls those UTXOs.
+ * This plan contains the reserve UTXOs, change output, and signer known before
+ * fee-rate-specific wallet supplement selection. It does not include normal
+ * wallet supplement UTXOs; those stay separate as
+ * `VaultActionData.walletSupplementUtxosData`.
  *
  * Trigger plans usually spend deterministic per-vault reserve UTXOs and send
  * leftover value back to normal wallet change. Future rescue plans should spend
@@ -94,6 +108,148 @@ export type P2ABumpPlan = {
   changeOutput?: OutputInstance;
   /** Signer used for the non-anchor child inputs. */
   signer?: Signer;
+};
+
+const getTxosOutputsWithValue = (utxosData: UtxosData) =>
+  utxosData.map(utxoData => {
+    const output = utxoData.tx.outs[utxoData.vout];
+    if (!output) throw new Error('Invalid utxoData output');
+    return { output: utxoData.output, value: output.value };
+  });
+
+/**
+ * Computes the recommended value, in sats, for one additional output that will
+ * later be spent as a P2A CPFP child input.
+ *
+ * This is the shared sizing helper for both rescue reserve top-ups and trigger
+ * hot-wallet supplement hints. It always returns a concrete value, including 0
+ * when no additional value is needed. Callers must wait until all required data
+ * is loaded before calling it; invalid internal assumptions throw.
+ */
+export const getAdditionalOutputValue = ({
+  p2aBumpPlan,
+  additionalOutput,
+  parentTxInfo,
+  targetPackageFeeRate,
+  vaultableWalletUtxosData
+}: {
+  /** Loaded P2A bump plan whose current reserve inputs and change output are used. */
+  p2aBumpPlan: P2ABumpPlan | 'loading' | 'error';
+  /** Output script/type of the next UTXO that will be added to the child inputs. */
+  additionalOutput: OutputInstance;
+  /** Presigned P2A parent/action tx being bumped by the child package. */
+  parentTxInfo: PresignedTxInfo;
+  /** Target parent+child package feerate the additional output should fund. */
+  targetPackageFeeRate: number;
+  /**
+   * Normal wallet UTXOs that are already policy-filtered for this vault mode.
+   * Omit this only when wallet UTXOs must not be considered, such as rescue
+   * reserve funding. Pass an empty array when wallet UTXOs are intentionally in
+   * scope but none are currently available; do not call this helper while they
+   * are still loading.
+   */
+  vaultableWalletUtxosData?: UtxosData;
+}): number => {
+  if (typeof p2aBumpPlan !== 'object')
+    throw new Error('P2A bump plan must be loaded');
+  if (!p2aBumpPlan.changeOutput)
+    throw new Error('P2A bump plan requires change output');
+
+  const { tx: parentTx } = transactionFromHex(parentTxInfo.txHex);
+  const parentAnchor = findP2AOutputData(parentTx);
+  if (!parentAnchor)
+    throw new Error('Expected exactly one P2A output in parent tx');
+  const existingOutputsWithValue = getTxosOutputsWithValue([
+    ...p2aBumpPlan.txosData,
+    ...(vaultableWalletUtxosData ?? [])
+  ]);
+
+  return Number(
+    getAdditionalP2AOutputValue({
+      outputsWithValue: existingOutputsWithValue,
+      additionalOutput,
+      changeOutput: p2aBumpPlan.changeOutput,
+      parentAnchorValue: parentAnchor.value,
+      presignedParentVSize: parentTx.virtualSize(),
+      presignedParentFeeRate: parentTxInfo.fee / parentTx.virtualSize(),
+      targetPackageFeeRate
+    })
+  );
+};
+
+/**
+ * Selects wallet supplement inputs for a P2A CPFP child while preserving the
+ * reserve-first invariant.
+ *
+ * The full reserve set is always tried first; if it can build the target
+ * package this returns `walletSupplementUnneeded`. Only when reserve-only cannot
+ * build does this select user-approved normal-wallet supplement UTXOs, largest
+ * first, until the package becomes buildable. It never selects a subset of
+ * reserve UTXOs.
+ */
+const coinSelectWalletSupplementUtxosData = ({
+  parentTxHex,
+  parentFee,
+  targetPackageFeeRate,
+  reserveUtxosData,
+  changeOutput,
+  vaultableWalletUtxosData
+}: {
+  /** P2A parent transaction whose anchor output will be spent by the child. */
+  parentTxHex: TxHex;
+  /** Miner fee already paid directly by the parent transaction. */
+  parentFee: number;
+  /** Target package feerate for parent plus CPFP child. */
+  targetPackageFeeRate: number;
+  /** Full reserve set; the helper never selects a subset of these inputs. */
+  reserveUtxosData: UtxosData;
+  /** Output that receives leftover child value. */
+  changeOutput: OutputInstance;
+  /**
+   * Normal wallet UTXOs that are already policy-filtered for this vault mode.
+   * For P2A_TRUC they must be confirmed; for P2A_NON_TRUC they may include only
+   * stable unconfirmed inputs allowed by wallet/vault policy. These are appended
+   * only after reserve-only selection fails, so they do not weaken reserve-first
+   * behavior.
+   */
+  vaultableWalletUtxosData?: UtxosData;
+}): UtxosData | 'walletSupplementUnneeded' | 'cannotBuildPackage' => {
+  if (
+    reserveUtxosData.length > 0 &&
+    estimateCpfpPackage({
+      parentTxHex,
+      parentFee,
+      targetPackageFeeRate,
+      utxosData: reserveUtxosData,
+      changeOutput
+    })
+  )
+    return 'walletSupplementUnneeded';
+
+  if (!vaultableWalletUtxosData?.length) return 'cannotBuildPackage';
+
+  const selectedWalletUtxosData: UtxosData = [];
+  const sortedWalletUtxosData = [...vaultableWalletUtxosData].sort((a, b) => {
+    const outputA = a.tx.outs[a.vout];
+    const outputB = b.tx.outs[b.vout];
+    if (!outputA || !outputB) throw new Error('Invalid utxoData output');
+    return toNumber(outputB.value) - toNumber(outputA.value);
+  });
+  for (const utxoData of sortedWalletUtxosData) {
+    selectedWalletUtxosData.push(utxoData);
+    const childUtxosData = [...reserveUtxosData, ...selectedWalletUtxosData];
+    if (
+      estimateCpfpPackage({
+        parentTxHex,
+        parentFee,
+        targetPackageFeeRate,
+        utxosData: childUtxosData,
+        changeOutput
+      })
+    )
+      return selectedWalletUtxosData;
+  }
+  return 'cannotBuildPackage';
 };
 
 /**
@@ -203,7 +359,9 @@ const getActionAccelerationInfo = ({
   pushedTxHex,
   pushedChildTxHex,
   presignedTxInfos,
-  p2aBumpPlan
+  p2aBumpPlan,
+  vaultableWalletUtxosData,
+  historyData
 }: {
   vaultMode: 'LADDERED' | 'P2A_TRUC' | 'P2A_NON_TRUC';
   feeEstimates: FeeEstimates;
@@ -224,6 +382,19 @@ const getActionAccelerationInfo = ({
   presignedTxInfos: PresignedTxInfo[];
   /** P2A bump plan. Omitted when a child cannot be built yet. */
   p2aBumpPlan?: P2ABumpPlan;
+  /**
+   * Normal wallet UTXOs that are already policy-filtered for this vault mode.
+   * For P2A_TRUC they must be confirmed; for P2A_NON_TRUC they may include only
+   * stable unconfirmed inputs allowed by wallet/vault policy. These are appended
+   * only after reserve-only selection fails, so they do not weaken reserve-first
+   * behavior.
+   */
+  vaultableWalletUtxosData?: UtxosData;
+  /**
+   * Needed for P2A replacements when the previous child used inputs that do not
+   * belong to the reserve, such as normal-wallet supplement inputs in the trigger.
+   */
+  historyData: HistoryData;
 }): AccelerationInfo => {
   const maxFeeRate = computeMaxAllowedFeeRate(feeEstimates);
   if (vaultMode === 'LADDERED') {
@@ -257,25 +428,29 @@ const getActionAccelerationInfo = ({
   }
 
   // A pushed child is not enough to evaluate a P2A replacement: we also need
-  // the reserve inputs to reconstruct its fee and build a new child. Treat a
+  // known child inputs to reconstruct its fee and build a new child. Treat a
   // missing/empty plan as unavailable instead of throwing because the plan can
   // be legitimately loading or unavailable after app restart.
-  if (!p2aBumpPlan || p2aBumpPlan.txosData.length === 0)
+  const canAttemptP2AChild =
+    !!p2aBumpPlan &&
+    (p2aBumpPlan.txosData.length > 0 || !!vaultableWalletUtxosData?.length);
+  if (!p2aBumpPlan || !canAttemptP2AChild)
     return {
       replacementFeeRateFloor: null,
       hasAccelerationPath: false
     };
   if (!p2aBumpPlan.changeOutput)
-    throw new Error('P2A bump plan with reserve UTXOs requires change output');
-
+    throw new Error('P2A bump plan with child inputs requires change output');
   const parentTxInfo = presignedTxInfos[0];
   if (!parentTxInfo) throw new Error('Missing P2A action tx');
   const replacementFeeRateFloor = getCpfpReplacementFeeRateFloor({
     parentTxHex: parentTxInfo.txHex,
     parentFee: parentTxInfo.fee,
     feeEstimates,
-    utxosData: p2aBumpPlan.txosData,
+    reserveUtxosData: p2aBumpPlan.txosData,
+    ...(vaultableWalletUtxosData?.length ? { vaultableWalletUtxosData } : {}),
     childOutput: p2aBumpPlan.changeOutput,
+    historyData,
     ...(pushedChildTxHex ? { childTxHex: pushedChildTxHex } : {})
   });
 
@@ -315,7 +490,9 @@ export const getActionAvailability = ({
   pushedTxHex,
   pushedChildTxHex,
   presignedTxInfos,
-  p2aBumpPlan
+  p2aBumpPlan,
+  vaultableWalletUtxosData,
+  historyData
 }: {
   vaultMode: 'LADDERED' | 'P2A_TRUC' | 'P2A_NON_TRUC';
   feeEstimates?: FeeEstimates;
@@ -323,6 +500,19 @@ export const getActionAvailability = ({
   pushedChildTxHex?: TxHex;
   presignedTxInfos: PresignedTxInfo[];
   p2aBumpPlan?: P2ABumpPlan;
+  /**
+   * Normal wallet UTXOs that are already policy-filtered for this vault mode.
+   * For P2A_TRUC they must be confirmed; for P2A_NON_TRUC they may include only
+   * stable unconfirmed inputs allowed by wallet/vault policy. These are appended
+   * only after reserve-only selection fails, so they do not weaken reserve-first
+   * behavior.
+   */
+  vaultableWalletUtxosData?: UtxosData;
+  /**
+   * Needed for P2A replacements when the previous child used inputs that do not
+   * belong to the reserve, such as normal-wallet supplement inputs in the trigger.
+   */
+  historyData: HistoryData;
 }): {
   /**
    * `null` means the user can submit the action somehow: first push,
@@ -379,7 +569,8 @@ export const getActionAvailability = ({
         vaultMode,
         feeEstimates,
         pushedTxHex,
-        presignedTxInfos
+        presignedTxInfos,
+        historyData
       });
       return {
         result: accelerationInfo.hasAccelerationPath
@@ -406,18 +597,20 @@ export const getActionAvailability = ({
     const parentTxInfo = presignedTxInfos[0];
     if (!parentTxInfo) throw new Error('Missing presigned P2A action tx');
     const hasP2AReserveUtxos = !!p2aBumpPlan && p2aBumpPlan.txosData.length > 0;
-    const p2aReserveUnconfirmed =
+    const hasVaultableWalletUtxos = !!vaultableWalletUtxosData?.length;
+    const hasP2AChildInputs = hasP2AReserveUtxos || hasVaultableWalletUtxos;
+    const hasUnconfirmedP2ATrucReserve =
       vaultMode === 'P2A_TRUC' && !!p2aBumpPlan?.hasUnconfirmedUtxos;
-    const spendableP2ABumpPlan =
-      p2aReserveUnconfirmed || !hasP2AReserveUtxos ? undefined : p2aBumpPlan;
+    const canComputeMinimumP2APackageFeeRate =
+      !!p2aBumpPlan && hasP2AChildInputs && !hasUnconfirmedP2ATrucReserve;
 
     if (isReplacement) {
-      if (!hasP2AReserveUtxos)
+      if (!hasP2AChildInputs)
         return {
           minimumSelectableFeeRate: null,
           result: 'noP2AReserve'
         };
-      if (p2aReserveUnconfirmed)
+      if (hasUnconfirmedP2ATrucReserve)
         return {
           minimumSelectableFeeRate: null,
           result: 'p2aReserveUnconfirmed'
@@ -430,7 +623,11 @@ export const getActionAvailability = ({
         pushedTxHex,
         ...(pushedChildTxHex ? { pushedChildTxHex } : {}),
         presignedTxInfos,
-        ...(spendableP2ABumpPlan ? { p2aBumpPlan: spendableP2ABumpPlan } : {})
+        ...(p2aBumpPlan ? { p2aBumpPlan } : {}),
+        ...(vaultableWalletUtxosData?.length
+          ? { vaultableWalletUtxosData }
+          : {}),
+        historyData
       });
       return {
         result: accelerationInfo.hasAccelerationPath
@@ -448,41 +645,42 @@ export const getActionAvailability = ({
       const canSubmitParentOnly =
         !hasP2AReserveUtxos &&
         canSubmitP2AParentOnly({ vaultMode, parentTxInfo });
-      if (p2aReserveUnconfirmed)
+      if (hasUnconfirmedP2ATrucReserve)
         return {
           minimumSelectableFeeRate: null,
           result: 'p2aReserveUnconfirmed'
         };
-      if (
-        spendableP2ABumpPlan &&
-        spendableP2ABumpPlan.txosData.length > 0 &&
-        !feeEstimates
-      )
-        throw new Error('Fee estimates are required for package actions');
       const maximumFeeRate = feeEstimates
         ? computeMaxAllowedFeeRate(feeEstimates)
         : null;
+      if (canComputeMinimumP2APackageFeeRate && !feeEstimates)
+        throw new Error('Fee estimates are required for package actions');
       // For first pushes with reserve UTXOs, this asks whether the reserve can
       // fund any valid child package at all. It intentionally starts at
       // MIN_FEE_RATE, not at the current network estimate. If the minimum cannot
       // be built, higher targets cannot be built either because they only
       // increase child fee and shrink the dust-constrained change output.
       const packageMinimumFeeRate =
-        spendableP2ABumpPlan &&
-        spendableP2ABumpPlan.txosData.length > 0 &&
-        maximumFeeRate !== null
+        canComputeMinimumP2APackageFeeRate && maximumFeeRate !== null
           ? findMinimumActionableFeeRate({
               minimumFeeRate: MIN_FEE_RATE,
               maximumFeeRate,
-              canBuildAtFeeRate: feeRate =>
-                spendableP2ABumpPlan.changeOutput !== undefined &&
-                estimateCpfpPackage({
-                  parentTxHex: parentTxInfo.txHex,
-                  parentFee: parentTxInfo.fee,
-                  targetPackageFeeRate: feeRate,
-                  utxosData: spendableP2ABumpPlan.txosData,
-                  changeOutput: spendableP2ABumpPlan.changeOutput
-                }) !== null
+              canBuildAtFeeRate: feeRate => {
+                const changeOutput = p2aBumpPlan.changeOutput;
+                return (
+                  !!changeOutput &&
+                  coinSelectWalletSupplementUtxosData({
+                    parentTxHex: parentTxInfo.txHex,
+                    parentFee: parentTxInfo.fee,
+                    targetPackageFeeRate: feeRate,
+                    reserveUtxosData: p2aBumpPlan.txosData,
+                    ...(vaultableWalletUtxosData?.length
+                      ? { vaultableWalletUtxosData }
+                      : {}),
+                    changeOutput
+                  }) !== 'cannotBuildPackage'
+                );
+              }
             })
           : null;
 
@@ -491,7 +689,7 @@ export const getActionAvailability = ({
         result:
           canSubmitParentOnly || packageMinimumFeeRate !== null
             ? null
-            : hasP2AReserveUtxos
+            : hasP2AChildInputs
               ? 'p2aReserveCannotFundMinimumPackage'
               : 'noP2AReserve'
       };
@@ -518,19 +716,28 @@ export const getActionAvailability = ({
  * - Rescue acceleration: pass `pushedTxHex` for the unconfirmed rescue tx and a
  *   P2A bump plan when using P2A.
  */
-export const buildTxDataForFeeRate = ({
+export const buildVaultActionDataForFeeRate = ({
   vaultMode,
   selectedFeeRate,
   pushedTxHex,
   presignedTxInfos,
-  p2aBumpPlan
+  p2aBumpPlan,
+  vaultableWalletUtxosData
 }: {
   vaultMode: 'LADDERED' | 'P2A_TRUC' | 'P2A_NON_TRUC';
   selectedFeeRate: number;
   pushedTxHex?: TxHex;
   presignedTxInfos: PresignedTxInfo[];
   p2aBumpPlan?: P2ABumpPlan;
-}): VaultActionTxData | null => {
+  /**
+   * Normal wallet UTXOs that are already policy-filtered for this vault mode.
+   * For P2A_TRUC they must be confirmed; for P2A_NON_TRUC they may include only
+   * stable unconfirmed inputs allowed by wallet/vault policy. These are appended
+   * only after reserve-only selection fails, so they do not weaken reserve-first
+   * behavior.
+   */
+  vaultableWalletUtxosData?: UtxosData;
+}): VaultActionData | null => {
   const isReplacement = pushedTxHex !== undefined;
 
   if (vaultMode === 'LADDERED') {
@@ -543,39 +750,81 @@ export const buildTxDataForFeeRate = ({
     if (!actionInfo) return null;
     return {
       parentTxHex: actionInfo.txHex,
-      parentTxFee: actionInfo.fee,
+      parentFee: actionInfo.fee,
       actionFee: actionInfo.fee,
-      actionFeeRate: actionInfo.feeRate
+      actionFeeRate: actionInfo.feeRate,
+      walletSupplementUtxosData: 'walletSupplementUnneeded'
     };
   } else {
     const parentTxInfo = presignedTxInfos[0];
     if (!parentTxInfo) throw new Error('Missing presigned P2A action tx');
     if (isReplacement && pushedTxHex !== parentTxInfo.txHex)
       throw new Error('Pushed P2A action tx is not the presigned action tx');
+    if (vaultMode === 'P2A_TRUC' && p2aBumpPlan?.hasUnconfirmedUtxos)
+      return null;
 
-    if (p2aBumpPlan && p2aBumpPlan.txosData.length > 0) {
-      if (vaultMode === 'P2A_TRUC' && p2aBumpPlan.hasUnconfirmedUtxos)
-        return null;
-      if (!p2aBumpPlan.changeOutput)
-        throw new Error(
-          'P2A bump plan with reserve UTXOs requires change output'
-        );
-      const plan = estimateCpfpPackage({
+    // Only run coin selection when a child package has candidate inputs.
+    // Selected wallet UTXOs are added to the full bump-plan input set.
+    const canAttemptCoinSelect =
+      !!p2aBumpPlan &&
+      (p2aBumpPlan.txosData.length > 0 || !!vaultableWalletUtxosData?.length);
+    const changeOutput = p2aBumpPlan?.changeOutput;
+    if (canAttemptCoinSelect && !changeOutput)
+      throw new Error('P2A bump plan with child inputs requires change output');
+    // `walletSupplementUnneeded` means the reserve alone can build the package,
+    // an array means those wallet UTXOs are needed, and `cannotBuildPackage`
+    // means the target package cannot be built from reserve plus the supplied
+    // wallet candidates.
+    const walletSupplementUtxosData =
+      canAttemptCoinSelect && changeOutput
+        ? coinSelectWalletSupplementUtxosData({
+            parentTxHex: parentTxInfo.txHex,
+            parentFee: parentTxInfo.fee,
+            targetPackageFeeRate: selectedFeeRate,
+            reserveUtxosData: p2aBumpPlan.txosData,
+            ...(vaultableWalletUtxosData?.length
+              ? { vaultableWalletUtxosData }
+              : {}),
+            changeOutput
+          })
+        : 'cannotBuildPackage';
+
+    if (walletSupplementUtxosData !== 'cannotBuildPackage') {
+      //walletSupplementUtxosData is either 'walletSupplementUnneeded' or an
+      //array (UtxosData)
+      if (!p2aBumpPlan || !changeOutput)
+        throw new Error('P2A package data missing after coin selection');
+
+      const packageEstimate = estimateCpfpPackage({
         parentTxHex: parentTxInfo.txHex,
         parentFee: parentTxInfo.fee,
         targetPackageFeeRate: selectedFeeRate,
-        utxosData: p2aBumpPlan.txosData,
-        changeOutput: p2aBumpPlan.changeOutput
+        utxosData: [
+          ...p2aBumpPlan.txosData,
+          ...(Array.isArray(walletSupplementUtxosData)
+            ? walletSupplementUtxosData
+            : []) /* walletSupplementUtxosData === 'walletSupplementUnneeded'*/
+        ],
+        changeOutput
       });
-      if (!plan) return null;
-      return {
-        parentTxHex: parentTxInfo.txHex,
-        parentTxFee: parentTxInfo.fee,
-        actionFee: plan.packageFee,
-        actionFeeRate: plan.packageFeeRate,
-        p2aBumpPlan
-      };
+      if (packageEstimate)
+        return {
+          parentTxHex: parentTxInfo.txHex,
+          parentFee: parentTxInfo.fee,
+          actionFee: packageEstimate.packageFee,
+          actionFeeRate: packageEstimate.packageFeeRate,
+          p2aBumpPlan,
+          walletSupplementUtxosData
+        };
+      else return null;
     } else {
+      //walletSupplementUtxosData === 'cannotBuildPackage'
+
+      // If reserve UTXOs exist but cannot fund the selected package, do not
+      // fall back to parent-only: spending the reserve is part of the invariant.
+      if (p2aBumpPlan?.txosData.length) return null;
+
+      // Without reserve UTXOs, parent-only submission may still be valid.
       if (isReplacement) return null;
       const parentOnlyFeeRate = getP2AParentOnlyFeeRate({
         vaultMode,
@@ -588,9 +837,10 @@ export const buildTxDataForFeeRate = ({
         return null;
       return {
         parentTxHex: parentTxInfo.txHex,
-        parentTxFee: parentTxInfo.fee,
+        parentFee: parentTxInfo.fee,
         actionFee: parentTxInfo.fee,
-        actionFeeRate: parentOnlyFeeRate
+        actionFeeRate: parentOnlyFeeRate,
+        walletSupplementUtxosData: 'walletSupplementUnneeded'
       };
     }
   }
@@ -628,12 +878,21 @@ export const getCpfpFeeInfo = ({
   parentTxHex,
   parentFee,
   childTxHex,
-  utxosData
+  reserveUtxosData,
+  historyData
 }: {
   parentTxHex: TxHex;
   parentFee: number;
   childTxHex: TxHex;
-  utxosData: UtxosData;
+  /** Reserve UTXOs known locally when reconstructing the child input values. */
+  reserveUtxosData: UtxosData;
+  /**
+   * Needed for P2A replacements when the previous child used inputs that do not
+   * belong to the reserve, such as normal-wallet supplement inputs in the trigger.
+   * If a non-anchor child input cannot be found in either `reserveUtxosData` or
+   * `historyData`, this helper throws because the child fee cannot be reconstructed.
+   */
+  historyData: HistoryData;
 }): { childFee: number; packageFeeRate: number } => {
   const { tx: parentTx } = transactionFromHex(parentTxHex);
   const { tx: childTx } = transactionFromHex(childTxHex);
@@ -643,28 +902,36 @@ export const getCpfpFeeInfo = ({
     throw new Error('Expected exactly one P2A output in parent tx');
 
   const knownUtxoValueByOutpoint = new Map(
-    utxosData.map(utxoData => {
+    reserveUtxosData.map(utxoData => {
       const output = utxoData.tx.outs[utxoData.vout];
       if (!output)
         throw new Error(
           'Cannot reconstruct CPFP fee info: missing known UTXO output'
         );
-      return [`${utxoData.tx.getId()}:${utxoData.vout}`, output.value] as const;
+      return [`${utxoData.tx.getId()}:${utxoData.vout}`, output.value];
     })
+  );
+  const knownTxById = new Map(
+    historyData.map(item => [item.tx.getId(), item.tx])
   );
   let childInputValue = BigInt(0);
   let spendsAnchor = false;
 
-  // Sum every child input value; the parent P2A anchor is not in utxosData.
+  // Sum every child input value; the parent P2A anchor is not in reserveUtxosData.
   for (const input of childTx.ins) {
     const prevTxId = toHex(Uint8Array.from(input.hash).reverse());
     if (prevTxId === parentTxId && input.index === anchorOutput.index) {
       spendsAnchor = true;
       childInputValue += BigInt(anchorOutput.value);
     } else {
-      const inputValue = knownUtxoValueByOutpoint.get(
+      let inputValue = knownUtxoValueByOutpoint.get(
         `${prevTxId}:${input.index}`
       );
+      if (inputValue === undefined) {
+        const prevTx = knownTxById.get(prevTxId);
+        const prevOutput = prevTx?.outs[input.index];
+        if (prevOutput) inputValue = prevOutput.value;
+      }
       if (inputValue === undefined)
         throw new Error(
           'Cannot reconstruct CPFP fee info: missing known child input'
@@ -731,8 +998,10 @@ export const getCpfpReplacementFeeRateFloor = ({
   parentFee,
   childTxHex,
   feeEstimates,
-  utxosData,
-  childOutput
+  reserveUtxosData,
+  vaultableWalletUtxosData,
+  childOutput,
+  historyData
 }: {
   parentTxHex: TxHex;
   parentFee: number;
@@ -742,8 +1011,22 @@ export const getCpfpReplacementFeeRateFloor = ({
    */
   childTxHex?: TxHex;
   feeEstimates: FeeEstimates;
-  utxosData: UtxosData;
+  /** Reserve UTXOs available for building the replacement child. */
+  reserveUtxosData: UtxosData;
+  /**
+   * Normal wallet UTXOs that are already policy-filtered for this vault mode.
+   * For P2A_TRUC they must be confirmed; for P2A_NON_TRUC they may include only
+   * stable unconfirmed inputs allowed by wallet/vault policy. These are appended
+   * only after reserve-only selection fails, so they do not weaken reserve-first
+   * behavior.
+   */
+  vaultableWalletUtxosData?: UtxosData;
   childOutput: OutputInstance;
+  /**
+   * Needed for P2A replacements when the previous child used inputs that do not
+   * belong to the reserve, such as normal-wallet supplement inputs in the trigger.
+   */
+  historyData: HistoryData;
 }): number | null => {
   const { tx: parentTx } = transactionFromHex(parentTxHex);
   const currentChildFeeInfo = childTxHex
@@ -751,7 +1034,8 @@ export const getCpfpReplacementFeeRateFloor = ({
         parentTxHex,
         parentFee,
         childTxHex,
-        utxosData
+        reserveUtxosData,
+        historyData
       })
     : null;
   const currentPackageFeeRate =
@@ -771,22 +1055,36 @@ export const getCpfpReplacementFeeRateFloor = ({
       (targetPackageFeeRate + FEE_RATE_STEP).toFixed(2)
     )
   ) {
-    const plan = estimateCpfpPackage({
+    const walletSupplementUtxosData = coinSelectWalletSupplementUtxosData({
       parentTxHex,
       parentFee,
       targetPackageFeeRate,
-      utxosData,
+      reserveUtxosData,
+      ...(vaultableWalletUtxosData?.length ? { vaultableWalletUtxosData } : {}),
       changeOutput: childOutput
     });
-    if (plan) {
+    if (walletSupplementUtxosData === 'cannotBuildPackage') continue;
+    const packageEstimate = estimateCpfpPackage({
+      parentTxHex,
+      parentFee,
+      targetPackageFeeRate,
+      utxosData: [
+        ...reserveUtxosData,
+        ...(Array.isArray(walletSupplementUtxosData)
+          ? walletSupplementUtxosData
+          : [])
+      ],
+      changeOutput: childOutput
+    });
+    if (packageEstimate) {
       // If the previous package had no child, no replacement-child-fee rule applies.
       if (!currentChildFeeInfo) return targetPackageFeeRate;
       const minimumReplacementChildFee = getMinimumReplacementChildFee({
         previousChildFee: currentChildFeeInfo.childFee,
-        replacementChildVSize: plan.childVSize,
+        replacementChildVSize: packageEstimate.childVSize,
         incrementalRelayFeeRate: INCREMENTAL_RELAY_FEE_RATE
       });
-      if (plan.childFee >= minimumReplacementChildFee)
+      if (packageEstimate.childFee >= minimumReplacementChildFee)
         return targetPackageFeeRate;
     }
   }
