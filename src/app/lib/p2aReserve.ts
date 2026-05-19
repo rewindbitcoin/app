@@ -83,7 +83,8 @@ export const getAdditionalP2AOutputValue = ({
     totalTargetFee - parentFee
   );
   const childOutputMinValue = toNumber(dustThreshold(changeOutput)) + 1;
-  const additionalOutputMinValue = toNumber(dustThreshold(additionalOutput)) + 1;
+  const additionalOutputMinValue =
+    toNumber(dustThreshold(additionalOutput)) + 1;
   const outputsValue = outputsWithValue.reduce(
     (sum, { value }) => sum + toNumber(value),
     0
