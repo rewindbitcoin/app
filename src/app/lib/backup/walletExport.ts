@@ -97,6 +97,7 @@ function text2JsonFriendly(str: string, length: number) {
   });
 }
 
+//FIXME: its important to export also the descriptors of the trigger reserves!
 export const exportWallet = async ({
   name,
   exportInstuctions,
