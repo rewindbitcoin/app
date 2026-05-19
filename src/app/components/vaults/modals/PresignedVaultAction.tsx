@@ -540,11 +540,12 @@ const PresignedVaultAction = ({
     selectedFeeRate !== null &&
     vaultActionDataWithoutWalletSupplement === null;
   // Broader wallet-supplement UX trigger: show the checkbox/hints when the
-  // selected fee needs supplement, when reserve funding is generally missing,
-  // or when the selected action already uses supplement inputs.
+  // selected fee needs supplement, when no reserve-backed action can be built,
+  // or when the selected action already uses supplement inputs. A below-
+  // recommended but buildable fee is only a warning, not a supplement prompt.
   const walletSupplementNeeded =
     selectedFeeNeedsWalletSupplement ||
-    reserveFundsMissingPromptText !== null ||
+    selectedFeeNeedsMoreReserveFunds ||
     showReserveCannotBuildAnyPackage ||
     confirmationBlocker === 'noP2AReserve' ||
     txUsesWalletSupplement;
@@ -596,31 +597,15 @@ const PresignedVaultAction = ({
     role === 'TRIGGER' &&
     (!showWalletSupplementCheckbox || includeWalletSupplement) &&
     (selectedFeeNeedsMoreReserveFunds ||
-      preferredPackageFeeNeedsMoreFunds ||
-      noReserveAndParentFeeBelowReasonable ||
       showReserveCannotBuildAnyPackage ||
-      confirmationBlocker === 'noP2AReserve');
+      confirmationBlocker === 'noP2AReserve' ||
+      txUsesWalletSupplement);
 
-  //At what package fee rate should we calculate the
-  //suggested extra hot-wallet supplement funding?
-  //
-  //- If the user selected a fee and it cannot be funded, use selectedFeeRate.
-  //- Else if the preferred/recommended package fee (preferredInitialFeeRate)
-  //  cannot be funded, use preferredInitialFeeRate.
-  //- Else if there is no reserve and the parent-only fee is below
-  //  recommendation, use feeRateForReasonableConfirmationTime.
-  //- Else fall back to the selected fee, then recommended fee, then MIN_FEE_RATE.
+  // Size the suggested extra hot-wallet funding for the fee the user is
+  // currently trying to pick. Recommended-fee warnings are advisory; the amount
+  // here should explain the selected action, not a different target.
   const walletSupplementTargetFeeRate =
-    selectedFeeNeedsMoreReserveFunds && selectedFeeRate !== null
-      ? selectedFeeRate
-      : preferredPackageFeeNeedsMoreFunds && preferredInitialFeeRate !== null
-        ? preferredInitialFeeRate
-        : noReserveAndParentFeeBelowReasonable &&
-            feeRateForReasonableConfirmationTime !== null
-          ? feeRateForReasonableConfirmationTime
-          : (selectedFeeRate ??
-            feeRateForReasonableConfirmationTime ??
-            MIN_FEE_RATE);
+    selectedFeeRate ?? feeRateForReasonableConfirmationTime ?? MIN_FEE_RATE;
   const walletSupplementParentTxInfo = presignedTxInfos?.[0];
   const walletSupplement =
     shouldShowAdditionalWalletSupplementHint &&
@@ -638,7 +623,7 @@ const PresignedVaultAction = ({
         })
       : undefined;
   const formattedWalletSupplement =
-    walletSupplement === undefined
+    walletSupplement === undefined || walletSupplement <= 0
       ? undefined
       : formatBalance({
           satsBalance: walletSupplement,

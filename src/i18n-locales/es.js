@@ -278,8 +278,8 @@ Espera un poco más y vuelve a intentarlo.`,
         reserveScanError: `Rewind no pudo comprobar los fondos reservados para pagar las comisiones de red de esta descongelación.
 
 Comprueba tu conexión e inténtalo de nuevo.`,
-        reserveCannotPaySelectedFee: `Los fondos disponibles para esta descongelación no alcanzan para pagar la comisión seleccionada. Selecciona una opción más barata.`,
-        packageBelowRecommendedFee: `Los fondos disponibles para esta descongelación pueden ser insuficientes para una confirmación rápida. Puedes continuar con la comisión disponible.`,
+        reserveCannotPaySelectedFee: `Los fondos disponibles para esta descongelación no alcanzan para pagar la comisión seleccionada. Selecciona una comisión menor o añade fondos.`,
+        packageBelowRecommendedFee: `Los fondos disponibles para esta descongelación pueden ser insuficientes para una confirmación rápida.`,
         noReserveParentFeeBelowRecommendedFee: `Esta descongelación puede enviarse ahora, pero la comisión de red que ya lleva incluida puede ser baja para las condiciones actuales de la red.`,
         walletSupplementCheckbox: 'Usar fondos de mi billetera.',
         walletFundingHint: 'Tu billetera necesita al menos {{amount}} más.',

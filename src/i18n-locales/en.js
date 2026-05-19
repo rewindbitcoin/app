@@ -281,8 +281,8 @@ Wait a little longer, then try again.`,
         reserveScanError: `Rewind could not check the funds reserved to pay network fees for this unfreeze.
 
 Check your connection and try again.`,
-        reserveCannotPaySelectedFee: `Available funds for this unfreeze cannot pay the selected network fee. Choose a cheaper option.`,
-        packageBelowRecommendedFee: `Available funds for this unfreeze may be too low for fast confirmation. You can continue with the currently available fee.`,
+        reserveCannotPaySelectedFee: `Available funds for this unfreeze cannot pay the selected network fee. Choose a cheaper option or add funds.`,
+        packageBelowRecommendedFee: `Available funds for this unfreeze may be too low for fast confirmation.`,
         noReserveParentFeeBelowRecommendedFee: `This unfreeze can be sent now, but its built-in network fee may be low for current network conditions.`,
         walletSupplementCheckbox: 'Use wallet funds.',
         walletFundingHint: 'Your wallet needs at least {{amount}} more.',
