@@ -68,8 +68,9 @@ import {
 import type { FeeEstimates } from '../lib/fees';
 import { AppState, AppStateStatus, Platform } from 'react-native';
 import { batchedUpdates } from '../../common/lib/batchedUpdates';
-import { fetchP2PVaults, getWalletDataCipherKey } from '../lib/backup';
-import { createOnChainBackupTx } from '../lib/onChainBackup';
+import { fetchP2PVaults } from '../lib/backup/p2p';
+import { getWalletDataCipherKey } from '../lib/backup/shared';
+import { createOnChainBackupTx } from '../lib/backup/onchain';
 
 type DiscoveryExport = ReturnType<DiscoveryInstance['export']>;
 

@@ -1,42 +1,23 @@
 // Copyright (C) 2025 Jose-Luis Landabaso - https://rewindbitcoin.com
 // Licensed under the GNU GPL v3 or later. See the LICENSE file for details.
 
-//FIXME: for the moment we're still saving vaults on the p2p network
-//this may change. If done, then read TAG:ifrubr43fre
-
-//FIXME: rename this as p2pBackup maybe and put the shared stuff in
-//backup.ts?
-//
 //FIXME: for legacy wallets, we'll need to mix the vaultId number taken from
 //the p2p wallet with the new one from the onchain backup
-import { Platform } from 'react-native';
-import {
-  documentDirectory,
-  writeAsStringAsync,
-  deleteAsync,
-  EncodingType
-} from 'expo-file-system';
-import { shareAsync } from 'expo-sharing';
-const MAX_VAULT_CHECKS = 1000;
-const SIGNING_MESSAGE = 'Satoshi Nakamoto'; //Can be any, but don't change it
+import type { Signer } from '../wallets';
+import { getMasterNode } from '../vaultDescriptors';
+import { toHex } from 'uint8array-tools';
 
-import { type Network } from 'bitcoinjs-lib';
-import { sha256 } from '@noble/hashes/sha2';
-import type { Accounts, Signer } from './wallets';
-import { getMasterNode } from './vaultDescriptors';
-import { MessageFactory } from '@bitcoinerlab/btcmessage';
-import * as secp256k1 from '@bitcoinerlab/secp256k1';
-import { toBase64, toHex } from 'uint8array-tools';
-const MessageAPI = MessageFactory(secp256k1);
-
-import { compressData } from '../../common/lib/compress';
-import type { Vault, Vaults, TxHex, Rescue, RescueTxMap } from './vaults';
-import { getManagedChacha } from '../../common/lib/cipher';
+import { compressData } from '../../../common/lib/compress';
+import type { Vault, Vaults } from '../vaults';
+import { getManagedChacha } from '../../../common/lib/cipher';
 
 import { gunzipSync } from 'fflate';
-import { TextDecoder } from '../../common/lib/textencoder';
-import { type NetworkId, networkMapping } from './network';
-import { getVaultPath, getWalletDataKeyPath } from './rewindPaths';
+import { TextDecoder } from '../../../common/lib/textencoder';
+import { type NetworkId, networkMapping } from '../network';
+import { getVaultPath } from '../rewindPaths';
+import { getSeedDerivedCipherKey } from './shared';
+
+const MAX_VAULT_CHECKS = 1000;
 
 export const fetchP2PVaultIds = async ({
   signer,
@@ -160,50 +141,6 @@ export async function fetchP2PVaults({
 
   return p2pVaults;
 }
-
-/**
- * the cipher key used to encrypt data stored in the app
- * (this is not backup related)
- */
-export const getWalletDataCipherKey = async ({
-  signer,
-  network
-}: {
-  signer: Signer;
-  network: Network;
-}) => {
-  return await getSeedDerivedCipherKey({
-    vaultPath: getWalletDataKeyPath(network),
-    signer,
-    network
-  });
-};
-
-// Important to be async so that this will also work when using Hardware Wallets
-export const getSeedDerivedCipherKey = async ({
-  vaultPath,
-  signer,
-  network
-}: {
-  vaultPath: string;
-  signer: Signer;
-  network: Network;
-}) => {
-  const mnemonic = signer.mnemonic;
-  if (!mnemonic) throw new Error('Could not initialize the signer');
-  const masterNode = getMasterNode(mnemonic, network);
-  const childNode = masterNode.derivePath(vaultPath);
-  if (!childNode.privateKey) throw new Error('Could not generate a privateKey');
-
-  const signature = MessageAPI.sign(
-    SIGNING_MESSAGE,
-    childNode.privateKey,
-    true // assumes compressed
-  );
-  const cipherKey = sha256(signature);
-
-  return cipherKey;
-};
 
 const fetchP2PVault = async ({
   vaultId,
@@ -344,146 +281,4 @@ export const p2pBackupVault = async ({
   });
   if (strP2PVault === strVault) return true;
   else throw new Error('Inconsistencies detected while verifying backup');
-};
-
-export const delegateVault = async ({
-  readmeText,
-  vault,
-  onProgress
-}: {
-  readmeText: string;
-  vault: Vault;
-  onProgress?: (progress: number) => boolean;
-}): Promise<boolean> => {
-  const readme = text2JsonFriendly(readmeText, 80);
-  const rescueTxMap: RescueTxMap = {};
-  Object.entries(vault.triggerMap).forEach(([triggerTxHex, rescueTxHexs]) => {
-    const triggerTxId = vault.txMap[triggerTxHex]?.txId;
-    if (!triggerTxId)
-      throw new Error(`Trigger transaction ${triggerTxId} not found in txMap.`);
-    rescueTxMap[triggerTxId] = rescueTxHexs.map((rescueTxHex: TxHex) => {
-      const rescueTxData = vault.txMap[rescueTxHex];
-      if (!rescueTxData)
-        throw new Error(`rescueTxData not found for ${rescueTxHex}`);
-      return {
-        txHex: rescueTxHex,
-        fee: rescueTxData.fee,
-        feeRate: rescueTxData.feeRate
-      };
-    });
-  });
-  const rescue: Rescue = {
-    version: 'rewbtc_rescue_v0',
-    readme,
-    networkId: vault.networkId,
-    rescueTxMap
-  };
-
-  const strRescue = JSON.stringify(rescue, null, 2);
-
-  const compressedRescue = await compressData({
-    data: strRescue,
-    chunkSize: 256 * 1024, //chunks of 256 KB
-    ...(onProgress ? { onProgress } : {})
-  });
-  if (!compressedRescue) {
-    //TODO: This means it was user cancelled.
-    //TODO: but i need to try catch compressData for errors and toast somehow.
-    return false;
-  }
-
-  const fileName = `visit-RewindBitcoin_com.json.gz`;
-  if (Platform.OS === 'web') {
-    const blob = new Blob([compressedRescue as Uint8Array<ArrayBuffer>], {
-      type: 'application/octet-stream'
-    });
-    const url = URL.createObjectURL(blob);
-    const downloadLink = document.createElement('a');
-    downloadLink.href = url;
-    downloadLink.download = fileName;
-    document.body.appendChild(downloadLink);
-    downloadLink.click();
-    document.body.removeChild(downloadLink);
-    URL.revokeObjectURL(url);
-  } else {
-    const filePath = `${documentDirectory}${fileName}`;
-    await writeAsStringAsync(filePath, toBase64(compressedRescue), {
-      encoding: EncodingType.Base64
-    });
-    await shareAsync(filePath);
-    await deleteAsync(filePath);
-  }
-  return true;
-};
-
-// Function to pad each line to 80 characters
-function text2JsonFriendly(str: string, length: number) {
-  return str.split('\n').map((line: string) => {
-    const lineLength = line.length;
-    if (lineLength < length) {
-      // Pad the line with spaces to reach the desired length
-      return line + ' '.repeat(length - lineLength);
-    }
-    return line;
-  });
-}
-
-export const exportWallet = async ({
-  name,
-  exportInstuctions,
-  accounts,
-  vaults,
-  onProgress
-}: {
-  name: string;
-  exportInstuctions: string;
-  accounts: Accounts;
-  vaults: Vaults;
-  onProgress?: (progress: number) => boolean;
-}): Promise<boolean> => {
-  const descriptors = Object.entries(vaults).map(
-    ([, vault]) => vault.triggerDescriptor
-  );
-  for (const account of Object.keys(accounts))
-    descriptors.push(account, account.replace(/\/0\/\*/g, '/1/*'));
-
-  const strExport = JSON.stringify(
-    { README: text2JsonFriendly(exportInstuctions, 70), descriptors, vaults },
-    null,
-    2
-  );
-
-  const compressedExport = await compressData({
-    data: strExport,
-    chunkSize: 256 * 1024, //chunks of 256 KB
-    ...(onProgress ? { onProgress } : {})
-  });
-  if (!compressedExport) {
-    //TODO: This means it was user cancelled.
-    //TODO: but i need to try catch compressData for errors and toast somehow.
-    return false;
-  }
-
-  const fileName = `${name}_export.json.gz`;
-  if (Platform.OS === 'web') {
-    const blob = new Blob([compressedExport as Uint8Array<ArrayBuffer>], {
-      type: 'application/octet-stream'
-    });
-    const url = URL.createObjectURL(blob);
-    const downloadLink = document.createElement('a');
-    downloadLink.href = url;
-    downloadLink.download = fileName;
-    document.body.appendChild(downloadLink);
-    downloadLink.click();
-    document.body.removeChild(downloadLink);
-    URL.revokeObjectURL(url);
-  } else {
-    const filePath = `${documentDirectory}${fileName}`;
-    await writeAsStringAsync(filePath, toBase64(compressedExport), {
-      encoding: EncodingType.Base64
-    });
-    await shareAsync(filePath);
-    await deleteAsync(filePath);
-  }
-  return true;
 };

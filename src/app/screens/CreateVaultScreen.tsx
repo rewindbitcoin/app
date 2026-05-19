@@ -26,7 +26,7 @@ import {
   useToast,
   ActivityIndicator
 } from '../../common/ui';
-import { p2pBackupVault, fetchP2PVaultIds } from '../lib/backup';
+import { p2pBackupVault, fetchP2PVaultIds } from '../lib/backup/p2p';
 import { useNavigation } from '@react-navigation/native';
 import { useNetStatus } from '../hooks/useNetStatus';
 import { NavigationPropsByScreenId, WALLET_HOME } from '../screens';

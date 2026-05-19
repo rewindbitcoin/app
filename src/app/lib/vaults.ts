@@ -61,7 +61,7 @@ import { coinTypeFromNetwork, type NetworkId, networkMapping } from './network';
 import { transactionFromHex } from './bitcoin';
 import { MIN_FEE_RATE } from './fees';
 import { maxBigInt, toBigInt, toNumber, toNumberOrUndefined } from './sats';
-import { getBackupFunding, getOnChainBackupDescriptor } from './onChainBackup';
+import { getBackupFunding, getOnChainBackupDescriptor } from './backup/onchain';
 export { getBackupFunding, getOnChainBackupDescriptor };
 export {
   assertP2AParentPolicy,

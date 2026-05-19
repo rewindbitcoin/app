@@ -5,7 +5,7 @@ jest.mock('../dist/src/common/lib/cipher', () => ({
   getManagedChacha: jest.fn(),
   getPasswordDerivedCipherKey: jest.fn()
 }));
-jest.mock('../dist/src/app/lib/backup', () => ({
+jest.mock('../dist/src/app/lib/backup/shared', () => ({
   getSeedDerivedCipherKey: jest.fn()
 }));
 

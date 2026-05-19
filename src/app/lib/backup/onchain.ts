@@ -9,21 +9,21 @@ import { payments, Psbt, type Network } from 'bitcoinjs-lib';
 import { concat, fromUtf8, toHex } from 'uint8array-tools';
 import { encode as encodeVarInt, encodingLength } from 'varuint-bitcoin';
 
-import { getManagedChacha } from '../../common/lib/cipher';
-import { transactionFromHex } from './bitcoin';
-import { getSeedDerivedCipherKey } from './backup';
-import { ensureDescriptorsFactoryInstance } from './descriptorsFactory';
-import { networkMapping } from './network';
-import { maxBigInt } from './sats';
-import { OP_RETURN_BACKUP_TX_VBYTES } from './vaultSizes';
-import { getMasterNode } from './vaultDescriptors';
+import { getManagedChacha } from '../../../common/lib/cipher';
+import { transactionFromHex } from '../bitcoin';
+import { getSeedDerivedCipherKey } from './shared';
+import { ensureDescriptorsFactoryInstance } from '../descriptorsFactory';
+import { networkMapping } from '../network';
+import { maxBigInt } from '../sats';
+import { OP_RETURN_BACKUP_TX_VBYTES } from '../vaultSizes';
+import { getMasterNode } from '../vaultDescriptors';
 import {
   getVaultOriginPath,
   getVaultPath,
   parseVaultIndex
-} from './rewindPaths';
-import type { Signer } from './wallets';
-import type { TxHex, Vault } from './vaults';
+} from '../rewindPaths';
+import type { Signer } from '../wallets';
+import type { TxHex, Vault } from '../vaults';
 
 const REW_MAGIC = fromUtf8('REW');
 const BACKUP_ENTRY_VERSION = 1;
