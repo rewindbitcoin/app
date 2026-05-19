@@ -380,6 +380,7 @@ const PresignedVaultAction = ({
   const handleModalHide = useCallback(() => {
     setIsModalVisibleOrHiding(false);
     setStep('intro');
+    setFeeRate(null);
     setIncludeWalletSupplement(false);
     onModalHide?.();
   }, [onModalHide]);
