@@ -138,7 +138,11 @@ export type Vault = {
    * for path on the online P2P network. See fetchP2PVaultIds */
   vaultId: string;
   vaultPath: string;
-  /** Where this vault's remote backup was saved or recovered from. */
+  /**
+   * Where this vault's remote backup was saved or recovered from.
+   * Unset means legacy/pre-backupType and should be treated as P2P unless
+   * on-chain recovery later proves otherwise.
+   */
   backupType?: 'p2p' | 'onchain';
   /** The value locked in the vault output after the vault tx is mined. */
   vaultedAmount: number;
