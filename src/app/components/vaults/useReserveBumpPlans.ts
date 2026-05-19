@@ -34,8 +34,8 @@ export const useTriggerReserveBumpPlan = ({
     fetchReserveDescriptorData
   } = useWallet();
   const walletSigner = signers?.[0];
-  const [plan, setPlan] = useState<ReserveBumpPlan>('loading');
-  const [value, setValue] = useState<number | undefined>();
+  const [p2aBumpPlan, setP2ABumpPlan] = useState<ReserveBumpPlan>('loading');
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const refreshIdRef = useRef(0);
   const wasSyncingBlockchain = useRef(syncingBlockchain);
 
@@ -43,13 +43,22 @@ export const useTriggerReserveBumpPlan = ({
     const refreshId = refreshIdRef.current + 1;
     refreshIdRef.current = refreshId;
 
-    setPlan('loading');
+    // Keep a loaded plan visible during background refreshes; the modal can
+    // disable only its final submit button while this flag is true.
+    setP2ABumpPlan(currentPlan =>
+      typeof currentPlan === 'object' ? currentPlan : 'loading'
+    );
+    setIsRefreshing(true);
 
     if (!enabled || !networkId || !walletSigner || !accounts) {
-      setValue(undefined);
+      setP2ABumpPlan('loading');
+      setIsRefreshing(false);
       return;
     }
-    if (!canFetchReserveDescriptorData) return;
+    if (!canFetchReserveDescriptorData) {
+      setIsRefreshing(false);
+      return;
+    }
 
     const network = networkMapping[networkId];
 
@@ -65,23 +74,27 @@ export const useTriggerReserveBumpPlan = ({
         });
         if (refreshIdRef.current !== refreshId) return;
         if (!reserveData) {
-          setPlan('error');
+          setP2ABumpPlan('error');
+          setIsRefreshing(false);
           return;
         }
         const { txosData, hasUnconfirmedUtxos } = reserveData;
         const changeDescriptorWithIndex =
           await getNextChangeDescriptorWithIndex(accounts);
         if (refreshIdRef.current !== refreshId) return;
-        setValue(utxosDataBalance(txosData));
-        setPlan({
+        setP2ABumpPlan({
           txosData,
           hasUnconfirmedUtxos,
           changeOutput: computeChangeOutput(changeDescriptorWithIndex, network),
           signer: walletSigner
         });
+        setIsRefreshing(false);
       } catch (err) {
         console.warn('Could not prepare trigger fee-bump plan', err);
-        if (refreshIdRef.current === refreshId) setPlan('error');
+        if (refreshIdRef.current === refreshId) {
+          setP2ABumpPlan('error');
+          setIsRefreshing(false);
+        }
       }
     };
 
@@ -116,7 +129,12 @@ export const useTriggerReserveBumpPlan = ({
     refresh();
   }, [refresh, syncingBlockchain]);
 
-  return { plan, value, refresh };
+  const value =
+    typeof p2aBumpPlan === 'object'
+      ? utxosDataBalance(p2aBumpPlan.txosData)
+      : undefined;
+
+  return { p2aBumpPlan, value, isRefreshing, refresh };
 };
 
 export const useRescueReserveBumpPlan = ({
@@ -132,15 +150,17 @@ export const useRescueReserveBumpPlan = ({
 }) => {
   const { canFetchReserveDescriptorData, fetchReserveDescriptorData } =
     useWallet();
-  const [plan, setPlan] = useState<ReserveBumpPlan>(
+  const [state, setState] = useState<{
+    p2aBumpPlan: ReserveBumpPlan;
+    nextOutput?: ReturnType<typeof computeReceiveOutput>;
+  }>(() =>
     !enabled || reserveData
-      ? 'loading'
-      : { txosData: [], hasUnconfirmedUtxos: false }
+      ? { p2aBumpPlan: 'loading' }
+      : {
+          p2aBumpPlan: { txosData: [], hasUnconfirmedUtxos: false }
+        }
   );
-  const [address, setAddress] = useState<string | undefined>();
-  const [output, setOutput] = useState<
-    ReturnType<typeof computeReceiveOutput> | undefined
-  >();
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const refreshIdRef = useRef(0);
   const wasSyncingBlockchain = useRef(syncingBlockchain);
 
@@ -149,34 +169,41 @@ export const useRescueReserveBumpPlan = ({
     refreshIdRef.current = refreshId;
 
     if (!enabled) {
-      setPlan('loading');
-      setAddress(undefined);
-      setOutput(undefined);
+      setState({ p2aBumpPlan: 'loading' });
+      setIsRefreshing(false);
       return;
     }
     if (!reserveData) {
-      setPlan({ txosData: [], hasUnconfirmedUtxos: false });
-      setAddress(undefined);
-      setOutput(undefined);
+      setState({
+        p2aBumpPlan: { txosData: [], hasUnconfirmedUtxos: false }
+      });
+      setIsRefreshing(false);
       return;
     }
     if (!networkId) {
-      setPlan('loading');
-      setAddress(undefined);
-      setOutput(undefined);
+      setState({ p2aBumpPlan: 'loading' });
+      setIsRefreshing(false);
       return;
     }
     if (!canFetchReserveDescriptorData) {
-      setPlan('loading');
-      setAddress(undefined);
-      setOutput(undefined);
+      setState(currentState =>
+        typeof currentState.p2aBumpPlan === 'object'
+          ? currentState
+          : { p2aBumpPlan: 'loading' }
+      );
+      setIsRefreshing(false);
       return;
     }
 
     const network = networkMapping[networkId];
-    setPlan('loading');
-    setAddress(undefined);
-    setOutput(undefined);
+    // Keep a loaded plan visible during background refreshes; the modal can
+    // disable only its final submit button while this flag is true.
+    setState(currentState =>
+      typeof currentState.p2aBumpPlan === 'object'
+        ? currentState
+        : { p2aBumpPlan: 'loading' }
+    );
+    setIsRefreshing(true);
 
     const prepareRescueP2ABumpPlan = async () => {
       try {
@@ -185,7 +212,8 @@ export const useRescueReserveBumpPlan = ({
         });
         if (refreshIdRef.current !== refreshId) return;
         if (!fetchedReserveData) {
-          setPlan('error');
+          setState({ p2aBumpPlan: 'error' });
+          setIsRefreshing(false);
           return;
         }
         const { txosData, hasUnconfirmedUtxos, nextIndex } = fetchedReserveData;
@@ -193,20 +221,25 @@ export const useRescueReserveBumpPlan = ({
           { descriptor: reserveData.addressDescriptor, index: nextIndex },
           network
         );
-        setAddress(nextOutput.getAddress());
-        setOutput(nextOutput);
-        setPlan({
-          txosData,
-          hasUnconfirmedUtxos,
-          changeOutput: computeChangeOutput(
-            { descriptor: reserveData.changeDescriptor, index: 0 },
-            network
-          ),
-          signer: reserveData.signer
+        setState({
+          nextOutput,
+          p2aBumpPlan: {
+            txosData,
+            hasUnconfirmedUtxos,
+            changeOutput: computeChangeOutput(
+              { descriptor: reserveData.changeDescriptor, index: 0 },
+              network
+            ),
+            signer: reserveData.signer
+          }
         });
+        setIsRefreshing(false);
       } catch (err) {
         console.warn('Could not prepare rescue fee-bump plan', err);
-        if (refreshIdRef.current === refreshId) setPlan('error');
+        if (refreshIdRef.current === refreshId) {
+          setState({ p2aBumpPlan: 'error' });
+          setIsRefreshing(false);
+        }
       }
     };
 
@@ -238,5 +271,9 @@ export const useRescueReserveBumpPlan = ({
     refresh();
   }, [refresh, syncingBlockchain]);
 
-  return { plan, address, output, refresh };
+  const { p2aBumpPlan } = state;
+  const nextOutput =
+    typeof p2aBumpPlan === 'object' ? state.nextOutput : undefined;
+
+  return { p2aBumpPlan, nextOutput, isRefreshing, refresh };
 };

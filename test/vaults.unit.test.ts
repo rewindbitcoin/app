@@ -327,9 +327,7 @@ describe('vaults unit tests', () => {
     expect(txData?.p2aBumpPlan?.txosData[0]?.tx.getId()).toBe(
       priorReserveUtxo.tx.getId()
     );
-    expect(txData?.walletSupplementUtxosData).toBe(
-      'walletSupplementUnneeded'
-    );
+    expect(txData?.walletSupplementUtxosData).toBe('walletSupplementUnneeded');
   });
 
   test('P2A trigger uses wallet supplement only after opt-in', () => {
@@ -387,9 +385,7 @@ describe('vaults unit tests', () => {
     )
       throw new Error('Expected wallet supplement UTXOs');
     expect(supplementedTxData.walletSupplementUtxosData).toHaveLength(1);
-    expect(
-      supplementedTxData.walletSupplementUtxosData[0]?.tx.getId()
-    ).toBe(
+    expect(supplementedTxData.walletSupplementUtxosData[0]?.tx.getId()).toBe(
       walletUtxo.tx.getId()
     );
   });
@@ -488,9 +484,7 @@ describe('vaults unit tests', () => {
     expect(txData?.p2aBumpPlan?.txosData[0]?.tx.getId()).toBe(
       reserveUtxo.tx.getId()
     );
-    expect(txData?.walletSupplementUtxosData).toBe(
-      'walletSupplementUnneeded'
-    );
+    expect(txData?.walletSupplementUtxosData).toBe('walletSupplementUnneeded');
   });
 
   test('getCpfpFeeInfo derives old wallet supplement input values from known txs', () => {

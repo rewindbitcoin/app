@@ -134,7 +134,8 @@ const RawVault = ({
   //don't do this since VaultCard is not a short-lived screen.
   //feeEstimates = useFirstDefinedValue(feeEstimates);
   const {
-    plan: triggerBumpPlan,
+    p2aBumpPlan: triggerBumpPlan,
+    isRefreshing: isTriggerBumpPlanRefreshing,
     value: triggerReserveValue,
     refresh: retryTriggerReserve
   } = useTriggerReserveBumpPlan({
@@ -293,9 +294,9 @@ const RawVault = ({
   const [rescueReserveData, setRescueReserveData] =
     useState<EphemeralWalletData>();
   const {
-    plan: rescueBumpPlan,
-    address: rescueReserveAddress,
-    output: nextRescueReserveOutput,
+    p2aBumpPlan: rescueBumpPlan,
+    isRefreshing: isRescueBumpPlanRefreshing,
+    nextOutput: nextRescueReserveOutput,
     refresh: retryRescueReserve
   } = useRescueReserveBumpPlan({
     enabled: !isLadderedVault,
@@ -795,6 +796,7 @@ const RawVault = ({
           targetPackageFeeRate: reserveTargetPackageFeeRate
         })
       : undefined;
+  const rescueReserveAddress = nextRescueReserveOutput?.getAddress();
   const formattedRescueReserveTopUp =
     rescueReserveTopUpValue === undefined
       ? undefined
@@ -1226,6 +1228,7 @@ const RawVault = ({
             vault={vault}
             vaultStatus={vaultStatus}
             p2aBumpPlan={triggerBumpPlan}
+            p2aBumpPlanRefreshing={isTriggerBumpPlanRefreshing}
             isVisible={isTriggerModalVisible}
             lockBlocks={vault.lockBlocks}
             onClose={closeTriggerModal}
@@ -1238,6 +1241,7 @@ const RawVault = ({
             vault={vault}
             vaultStatus={vaultStatus}
             p2aBumpPlan={rescueBumpPlan}
+            p2aBumpPlanRefreshing={isRescueBumpPlanRefreshing}
             isVisible={isRescueModalVisible}
             onClose={closeRescueModal}
             onModalHide={handleRescueModalHide}

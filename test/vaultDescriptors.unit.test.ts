@@ -65,10 +65,7 @@ describe('vaultDescriptors unit tests', () => {
   });
 
   test('createAddressOutput', () => {
-    const serviceOutput = createAddressOutput(
-      DUMMY_ADDRESS(network),
-      network
-    );
+    const serviceOutput = createAddressOutput(DUMMY_ADDRESS(network), network);
     expect(serviceOutput.getAddress()).toBe(DUMMY_ADDRESS(network));
   });
 });

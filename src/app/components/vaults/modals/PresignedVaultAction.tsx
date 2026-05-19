@@ -69,6 +69,8 @@ export type PresignedVaultActionProps = (
    * should point to the temporary rescue wallet's internal/change branch.
    */
   p2aBumpPlan: P2ABumpPlan | 'loading' | 'error';
+  /** True while refreshing reserve data behind an already loaded bump plan. */
+  p2aBumpPlanRefreshing: boolean;
   /** Called with the selected parent-only or parent-plus-child package data. */
   onAction: (actionData: VaultActionData) => void;
   /** Retries reserve discovery after a role-specific reserve scan failure. */
@@ -106,6 +108,7 @@ const PresignedVaultAction = ({
   vault,
   vaultStatus,
   p2aBumpPlan,
+  p2aBumpPlanRefreshing,
   isVisible,
   onAction,
   onReserveRetry,
@@ -831,6 +834,7 @@ const PresignedVaultAction = ({
                 {...actionButtonModeProps}
                 onPress={handleAction}
                 disabled={!vaultActionData}
+                loading={p2aBumpPlanRefreshing}
               >
                 {actionText}
               </Button>
