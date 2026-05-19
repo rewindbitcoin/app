@@ -13,7 +13,9 @@ Rewind2 changes the vault design in four big ways:
 2. It adds a dedicated per-vault trigger reserve, funded when the vault is created.
 3. It adds a dedicated per-vault backup output, so the wallet can publish an encrypted on-chain backup of the trigger and rescue transactions.
 4. It treats trigger and rescue fee bumping differently:
-   - trigger bumping uses that vault's dedicated reserve only
+   - trigger bumping always spends that vault's dedicated reserve first, and can
+     add normal hot-wallet UTXOs only if the user opts in because the reserve is
+     not enough
    - rescue starts as a high-fee parent tx and only uses a separate temporary
      in-memory bump wallet if that later becomes necessary
 
@@ -35,7 +37,8 @@ Each Rewind2 vault is built around one main flow:
    - spend from the trigger path after the delay, or
    - broadcast the rescue transaction immediately.
 4. If fees are too low:
-   - trigger can attach a child transaction using its dedicated reserve
+   - trigger can attach a child transaction using its dedicated reserve, with
+     optional normal hot-wallet inputs when the reserve is not enough
    - rescue is expected to work as a single high-fee parent tx, and only uses a
      child later if a temporary in-memory rescue reserve wallet is funded
 
@@ -145,6 +148,8 @@ Shape:
 inputs:
 - trigger P2A anchor
 - all discovered trigger reserve UTXOs for this vault
+- optional normal hot-wallet UTXOs, only after user approval and only if the
+  reserve is not enough
 
 output:
 - normal wallet change
@@ -153,12 +158,15 @@ output:
 Important design choices:
 
 - trigger bumping is per-vault
-- it uses only that vault's dedicated trigger reserve
-- it does not coinselect from generic wallet UTXOs
+- it always uses that vault's full dedicated trigger reserve set first
+- it does not use generic wallet UTXOs unless the reserve cannot fund the
+  requested package and the user opts in
 - it does not coinselect among reserve UTXOs
 - it spends every known trigger reserve UTXO for that action
 - the reserve itself stays outside normal wallet flow
-- only the child leftover comes back as normal wallet change
+- optional hot-wallet supplement inputs are normal wallet inputs and are
+  selected only after the reserve is insufficient
+- the child leftover comes back as normal wallet change
 
 If the child is later accelerated again, the replacement still uses the same
 reserve set. The old child is replaced in the mempool; it is not a new flow with
@@ -209,9 +217,11 @@ uses reserve funds in a P2A child, it spends every known usable reserve UTXO for
 that action; it does not coinselect within the reserve set.
 
 For trigger, the reserve source is controlled by the main hot wallet signer on
-the per-vault trigger reserve branch. The vault tx funds `/0`; manual top-ups use
-later child indexes. Trigger child change goes to an internal address of the main
-hot wallet.
+the per-vault trigger reserve branch. The vault tx funds `/0`; the trigger child
+spends all known reserve UTXOs for that vault. If that is not enough, Rewind can
+ask the user to allow normal hot-wallet UTXOs in the same child instead of asking
+for a separate reserve top-up. Trigger child change goes to an internal address
+of the main hot wallet.
 
 Today Rewind derives the trigger reserve descriptor from the software signer at
 runtime. A future HWW implementation should avoid touching the device during
@@ -486,6 +496,7 @@ rescue tx
 
 trigger bump child
   spends: trigger anchor + all known trigger reserve UTXOs
+          + optional normal hot-wallet UTXOs if the user opted in
   pays to: wallet change
 
 rescue bump child
@@ -508,13 +519,12 @@ The current intended flow is:
 3. In that modal, create a random mnemonic `P2WPKH` wallet in memory only.
 4. Show the seed first, make the user confirm it was written down and warn the
    user not to leave this wallet.
-5. Show the next reserve funding address. Exact amount sizing is still open work.
+5. Show the next reserve funding address and the amount currently needed.
 6. Once those funds are usable, build the rescue CPFP child from the rescue
    anchor plus every usable UTXO in that temporary reserve wallet.
 
 The amount requested from the user should be computed from the current package
-target, using the same reserve-sizing primitive used for trigger reserve top-up
-flows.
+target, using the same sizing primitive used for trigger wallet-funding hints.
 
 The rescue acceleration flow should not coinselect among temporary reserve UTXOs.
 It should prepare the reserve set for that action, spend all of it in the child
