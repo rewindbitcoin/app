@@ -34,18 +34,15 @@ especially when the signer/path is unusual or intentionally ephemeral.
 Parent-only P2A action submission is only a fallback for the case where no
 reserve UTXOs exist for that action and the presigned parent fee is policy-valid.
 
-TBD: when existing acceleration funds are missing or not enough, the user-facing
-solution should be an acceleration funding wizard. "Wizard" means a guided flow
-that explains why more funds are needed, shows where to send them and waits until
-those funds are usable.
+Current funding UX differs by role:
 
-That wizard should cover both cases:
-
-- trigger top-ups, even though the setup-funded trigger reserve should normally
-  be enough; current trigger UX prefers normal-wallet supplement funding instead
-  of more reserve-path funding
-- rescue acceleration funding, even though the rescue parent starts with a high
-  fee rate
+- trigger top-ups are not a separate reserve-path wizard; if the setup-funded
+  trigger reserve is missing or insufficient, the current Trigger modal prefers
+  explicit normal-wallet supplement funding
+- rescue acceleration funding is a same-session reserve wallet flow: the Rescue
+  modal can close, create or import a temporary reserve wallet, show the next
+  funding address and amount, and later use those funds for action submission
+  once they are usable
 
 ## Vault Setup
 
@@ -180,16 +177,9 @@ Rescue does not use ordinary hot-wallet UTXOs for fee bumping. If the user is in
 the rescue path, the hot wallet may already be compromised, so ordinary wallet
 funds are not a good emergency funding source.
 
-Current: rescue does not have an acceleration funding wizard wired into the
-action modal yet. If a P2A rescue is already pending but no rescue acceleration
-reserve exists, the Rescue modal opens in explanation-only mode instead of
-funding acceleration. The temporary rescue reserve wallet wizard can create a new
-reserve wallet or import one from a previously written phrase, but that wizard is
-not connected to action submission yet.
-
-Current direction: if the high-fee rescue parent is still not enough, rescue
-acceleration should create or import a temporary software `P2WPKH` wallet in
-memory only, inside the rescue acceleration prompt:
+Current: if the high-fee rescue parent is still not enough, rescue acceleration
+can create or import a temporary software `P2WPKH` wallet in memory only, from
+inside the rescue acceleration prompt:
 
 - it is not the normal wallet signer, so a compromised main wallet seed does not
   also control the rescue reserve
@@ -204,9 +194,9 @@ memory only, inside the rescue acceleration prompt:
   current wallet session unless the user imports its phrase again
 - after seed confirmation, the app shows one funding address and the exact amount
   currently needed for the rescue bump
-- that amount should be computed from the shared sizing primitive used by
-  trigger wallet funding hints, but targeted at the current high-priority rescue
-  package goal
+- that amount is computed from the shared sizing primitive used by trigger
+  wallet funding hints, but targeted at the current high-priority rescue package
+  goal
 - a rescue CPFP child spends the rescue anchor plus those reserve UTXOs
 - it does not coinselect among rescue reserve UTXOs; it spends the reserve set
   prepared for that rescue action
@@ -267,16 +257,15 @@ child:
 - signer for the child inputs
 
 The plan intentionally contains all known reserve UTXOs for that action. It is
-not a coinselection hint for the reserve set. For both current trigger
-acceleration and future rescue acceleration, callers pass the full reserve set so
-the child spends everything and sends leftover value back to the appropriate
-change destination. Trigger wallet supplement UTXOs are selected only after the
-reserve set is insufficient and the user opts in.
+not a coinselection hint for the reserve set. For both trigger acceleration and
+same-session rescue acceleration, callers pass the full reserve set so the child
+spends everything and sends leftover value back to the appropriate change
+destination. Trigger wallet supplement UTXOs are selected only after the reserve
+set is insufficient and the user opts in.
 
-`getRequiredNextP2ABumpReserveUtxoValue(...)` is the generic sizing primitive for
-the next UTXO that will be added to a child funding set. It is not
-trigger-specific and can size either a reserve top-up or a normal wallet funding
-UTXO.
+`getAdditionalOutputValue(...)` is the generic sizing primitive for the next UTXO
+that will be added to a child funding set. It is not trigger-specific and can
+size either a reserve top-up or a normal wallet funding UTXO.
 
 Current: for trigger setup, it is used for the first reserve UTXO with no
 existing reserve UTXOs yet.

@@ -1,5 +1,11 @@
 # Rewind2 + P2A Refactor Plan v2 (From `main`, Risk-First)
 
+Status: historical planning document. It is not the current Rewind2/P2A design.
+The current implementation uses a dedicated setup-funded trigger reserve,
+optional trigger wallet supplement inputs, and a same-session temporary rescue
+reserve wallet. See `REWIND2.md`, `P2AFUNDINGFLOWS.md`, and
+`RELAY_RECIPES.md` for the current reserve model.
+
 Last updated: 2026-03-03
 Starting point: `main`
 Execution model: stage-by-stage with mandatory stop/review gates

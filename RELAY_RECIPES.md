@@ -250,10 +250,12 @@ tiny UTXOs in a TRUC child.
 | `src/app/screens/SetUpVaultScreen.tsx`         | Vault setup coin selection using `getVaultableUtxosData(...)` and pending-funds guards.     |
 | `src/app/screens/SendScreen.tsx`               | Normal send UTXO selection using the v2 unconfirmed-v3 filter.                              |
 | `src/app/lib/sendTransaction.ts`               | Normal send tx construction; `new Psbt({ network })` defaults to v2.                        |
-| `src/app/components/vaults/VaultCard.tsx`      | Trigger/rescue action gating and P2A package submission.                                    |
-| `src/app/components/vaults/modals/Trigger.tsx` | Trigger start/acceleration UI and package fee selection.                                    |
-| `src/app/components/vaults/modals/Rescue.tsx`  | Rescue parent-only and future rescue acceleration UI.                                       |
-| `P2AFUNDINGFLOWS.md`                           | Rewind2 P2A funding design and open wizard work.                                            |
+| `src/app/components/vaults/VaultCard.tsx`      | Trigger/rescue action gating, rescue reserve modal sequencing and P2A package submission.   |
+| `src/app/components/vaults/useReserveBumpPlans.ts` | Trigger/rescue reserve descriptor refresh and stale-while-refresh bump plans.           |
+| `src/app/components/vaults/modals/PresignedVaultAction.tsx` | Shared trigger/rescue start and acceleration UI.                                  |
+| `src/app/components/vaults/modals/RescueReserveWalletWizard.tsx` | Same-session temporary rescue reserve wallet creation/import.             |
+| `src/app/components/vaults/modals/AddReserve.tsx` | Reserve funding address and recommended amount UI.                                      |
+| `P2AFUNDINGFLOWS.md`                           | Rewind2 P2A funding design and current reserve UX.                                         |
 | `REWIND2.md`                                   | Higher-level Rewind2 mental model.                                                          |
 
 ## Open Checks And TODOs
@@ -263,7 +265,7 @@ tiny UTXOs in a TRUC child.
 | Re-check TRUC rescue start gating.                                                                                                                        | If trigger is still unconfirmed with its CPFP child, rescue parent is a second descendant of the trigger.  |
 | Keep reserve top-up UTXOs confirmed before TRUC use.                                                                                                      | Unconfirmed top-ups become extra parents of the CPFP child.                                                |
 | Future trigger top-up wizard must size for replacement rules, not only package feerate.                                                                   | Replacement also needs extra absolute child fee.                                                           |
-| Future rescue acceleration wizard must stay same-session and in-memory, ask only for the current needed amount and wait for confirmation before TRUC use. | Rescue should not rely on compromised hot-wallet UTXOs or on persisted local rescue reserve state.         |
+| Keep rescue acceleration same-session and in-memory, ask only for the current needed amount and wait for confirmation before TRUC use.                  | Rescue should not rely on compromised hot-wallet UTXOs or on persisted local rescue reserve state.         |
 | Future top-up discovery must avoid too many tiny inputs in TRUC child.                                                                                    | Child must stay at or below 1000 vB.                                                                       |
 | Keep parent policy assertions after final extraction.                                                                                                     | Signature sizes can change actual vsize/fee.                                                               |
 | Decide how much upstream policy variation to tolerate.                                                                                                    | Nodes can configure mempool policy; Rewind should assume common Bitcoin Core defaults but fail gracefully. |

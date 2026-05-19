@@ -204,8 +204,8 @@ The current model is:
   leave this wallet because the temporary rescue reserve wallet is not persisted
 - when importing, the app re-derives the same in-memory reserve signer and
   funding address from the temporary rescue reserve phrase
-- the app then shows the next reserve funding address; exact amount sizing is
-  still open work
+- the app then shows the next reserve funding address and a recommended amount
+  sized from the current rescue package target
 - if the vault mode is `P2A_TRUC`, the reserve funding tx must confirm before
   the rescue bump child can use it
 - the rescue child spends the full temporary reserve set prepared for that bump,
@@ -510,21 +510,27 @@ backup tx
 
 That is Rewind2 in one page.
 
-## Rescue Acceleration Draft
+## Rescue Acceleration Flow
 
-The current intended flow is:
+The current flow is:
 
 1. Broadcast the presigned rescue parent first.
 2. Only if that rescue still needs more fee, open an acceleration modal.
-3. In that modal, create a random mnemonic `P2WPKH` wallet in memory only.
-4. Show the seed first, make the user confirm it was written down and warn the
-   user not to leave this wallet.
-5. Show the next reserve funding address and the amount currently needed.
-6. Once those funds are usable, build the rescue CPFP child from the rescue
+3. If no same-session rescue reserve wallet exists, create a random mnemonic
+   `P2WPKH` wallet in memory only, or import a previously written temporary
+   rescue reserve phrase.
+4. Show the seed first for newly created wallets, make the user confirm it was
+   written down and warn the user not to leave this wallet.
+5. Show the next reserve funding address and the amount currently needed, using
+   the same sizing primitive used for trigger wallet-funding hints.
+6. Refresh the temporary reserve descriptor in the background. If a loaded plan
+   already exists, keep it visible and disable only final submission while the
+   refresh is in flight.
+7. Once those funds are usable, build the rescue CPFP child from the rescue
    anchor plus every usable UTXO in that temporary reserve wallet.
 
-The amount requested from the user should be computed from the current package
-target, using the same sizing primitive used for trigger wallet-funding hints.
+The amount requested from the user is computed from the current package target,
+using the same sizing primitive used for trigger wallet-funding hints.
 
 The rescue acceleration flow should not coinselect among temporary reserve UTXOs.
 It should prepare the reserve set for that action, spend all of it in the child
