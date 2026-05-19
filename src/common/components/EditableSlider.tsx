@@ -282,7 +282,7 @@ const EditableSlider = ({
   /* Read TAG-android-does-not-propagate-slider-events
    * in src/common/lib/Modal.tsx for a solution if the Slider does not propagate
    * drag events in Android. F.ex. Modal.tsx solves the problem for a a
-   * PanGestureHandler that captures events in Android and does not propagate them.
+   * parent pan gesture that captures events in Android and does not propagate them.
    * Basically, it is possible to fix the isse by setting some props in
    * the Children or in the parent. It has been solved by setting some props
    * in the parent. The 2 lines below could be used to fix the issue in the

@@ -197,8 +197,8 @@ If you need further assistance, please contact Rewind Support.`
       //confirmed: 'Confirmed',
 
       //pushedTrigger: 'An unfreeze request was made on {{triggerPushDate}}.',
-      pushedTriggerNotConfirmed: 'Unfreeze requested on {{triggerPushDate}}.',
-      pushedTriggerNotConfirmedUnknownDate: 'Unfreeze recently requested.',
+      pushedTriggerUnconfirmed: 'Unfreeze requested on {{triggerPushDate}}.',
+      pushedTriggerUnconfirmedWithUnknownDate: 'Unfreeze recently requested.',
       //confirmedTrigger: 'Unfreeze countdown began on {{triggerConfirmedDate}}.',
       confirmedTrigger:
         '{{lockTime}} countdown started on {{triggerConfirmedDate}}.',
@@ -215,22 +215,30 @@ If you need further assistance, please contact Rewind Support.`
       untriggeredLockTime: 'Lock Time: {{timeRemaining}}',
       vaultNotFound:
         'This vault was never included in the blockchain. The fees might have been too low, it could have been replaced by another transaction, or there might have been a network error during submission.',
-      //      notTriggeredUnconfirmed: `Funds freeze successfully requested.
-      //Initiating unfreeze starts a {{lockTime}} countdown before funds are available.`,
-      notTriggeredUnconfirmed: `Your funds are securely set aside, awaiting final blockchain confirmation (this may take a few minutes).
+      canBeTriggeredEvenIfVaultUnconfirmed: `Your vault is waiting for final blockchain confirmation (this may take a few minutes).
 If you press 'Init Unfreeze', a waiting period of {{lockTime}} will begin, after which the funds will be available.`,
-      notTriggeredUnconfirmed_TRUC: `Your vault is securely set aside, awaiting final blockchain confirmation (this may take a few minutes).
+      cannotBeTriggeredBecauseVaultUnconfirmed_TRUC: `Your vault is waiting for final blockchain confirmation (this may take a few minutes).
 Once it confirms, you can press 'Init Unfreeze' to start the {{lockTime}} countdown.`,
-      //notTriggered:
+      // Reserve-copy rules for future edits:
+      // - Use "funds reserved to pay network fees" in reserve-state messages.
+      // - In the temporary fee-wallet intro, "funds to pay network fees" is enough.
+      // - Use "network fees" in reserve-flow copy; avoid "mining fees" here.
+      // - Keep the CTA short: "Add funds". Explain why in the body text.
+      // - For parent-only fallback, say "built-in network fee" instead of presigned-fee jargon.
+      cannotBeTriggeredBecauseReserveUnconfirmed_TRUC: `Unfreeze is not available yet because the funds reserved to pay network fees are still waiting for blockchain confirmation (this may take a few minutes).
+Once they confirm, you can press 'Init Unfreeze' to start the {{lockTime}} countdown.`,
+      cannotBeRescuedBecauseReserveUnconfirmed_TRUC: `Rescue is not available yet because the funds reserved to pay network fees are still waiting for blockchain confirmation (this may take a few minutes).
+Once they confirm, you can press 'Rescue'.`,
+      //canBeTriggered:
       //  'Funds are safely frozen. Initiating unfreeze starts a {{lockTime}} countdown before funds are available.',
-      notTriggered:
+      canBeTriggered:
         "Funds are safely frozen. If you press 'Init Unfreeze', a waiting period of {{lockTime}} will begin, after which the funds will be available.",
-      rescueNotConfirmed: `Rescue requested on {{rescuePushDate}}.`,
-      rescueNotConfirmedUnknownPush: `Vault Rescue recently submitted.`,
+      rescueUnconfirmed: `Rescue requested on {{rescuePushDate}}.`,
+      rescueUnconfirmedWithUnknownDate: `Rescue requested recently.`,
       confirmedRescue: `Rescued on {{rescuedDate}}.`,
-      rescueNotConfirmedAddress:
+      rescueUnconfirmedEmergencyAddressIntro:
         'Rescue successfully requested (awaiting for confirmation). Funds are being moved to your safe address right now:',
-      confirmedRescueAddress:
+      rescueConfirmedEmergencyAddressIntro:
         'The vault was successfully rescued and funds were moved to your secure address:',
       unfrozenAndSpent:
         'The vault was successfully unfrozen. The unfrozen funds were spent on {{spentAsHotDate}} and are no longer available.',
@@ -249,6 +257,7 @@ Once it confirms, you can press 'Init Unfreeze' to start the {{lockTime}} countd
       //frozenRemainingDateLabel: 'Funds Unlock Estimated Date',
 
       cannotAccelerateMaxFee: `You are already on the highest fee. Acceleration isn't available.`,
+      addReserveFundsButton: 'Add funds',
       accelerateSuccess:
         'Acceleration submitted successfully. Waiting for confirmation.',
       triggerUnfreeze: {
@@ -264,24 +273,26 @@ This will start the unfreeze countdown. The funds will become unlocked and avail
 Remember, "Accelerate" won't shorten the lock period. It only speeds up when your unfreeze process actually begins if low fees had held it up.
 
 You likely only need to wait around 10 minutes and really don't need this. Use "Accelerate" only if waiting that time (which could stretch to a couple of hours) isn't acceptable.`,
-        noReserveAvailableYet: `No reserve funds are available for this unfreeze request.
+        noReserveAvailableYet: `This unfreeze needs funds to pay network fees before Rewind can start it.`,
+        reserveUnconfirmed: `The funds reserved to pay network fees for this unfreeze are still waiting for final blockchain confirmation.
 
-Rewind cannot start or accelerate it until reserve funds are added.`,
-        insufficientReserveFunds: `Reserve funds are available, but there is not enough to start or accelerate this unfreeze request.
+Wait a little longer, then try again.`,
+        insufficientReserveFunds: `This unfreeze needs more funds to pay network fees.`,
+        reserveScanError: `Rewind could not check the funds reserved to pay network fees for this unfreeze.
 
-Add more reserve funds to continue.`,
+Check your connection and try again.`,
+        reserveCannotPaySelectedFee: `Available funds for this unfreeze cannot pay the selected network fee. Choose a cheaper option or add funds.`,
+        packageBelowRecommendedFee: `Available funds for this unfreeze may be too low for fast confirmation.`,
+        noReserveParentFeeBelowRecommendedFee: `This unfreeze can be sent now, but its built-in network fee may be low for current network conditions.`,
+        walletSupplementCheckbox: 'Use wallet funds.',
+        walletFundingHint: 'Your wallet needs at least {{amount}} more.',
+        parentOnlyConfirmation: `Rewind is ready to start the unfreeze now.`,
         confirmationSpeedLabel: 'Mining Fee',
         feeSelectorExplanation:
           'Confirm the mining fee to request the start of the unfreeze countdown.',
-        additionalExplanation: `The {{timeLockTime}} countdown will start as soon as the unfreeze is requested.`
+        postActionExplanation: `The {{timeLockTime}} countdown will start as soon as the unfreeze is requested.`
       },
       rescue: {
-        confirmationSpeedLabel: 'Mining Fee',
-        introAccelerate: `READ CAREFULLY:
-
-"Accelerate" will boost your rescue request by offering miners a higher fee. Your original request is already pending, but this can move it up in the confirmation queue.
-
-You likely only need to wait around 10 minutes and really don't need this. Use "Accelerate" only if waiting that time (which could stretch to a couple of hours) isn't acceptable.`,
         intro: `You're about to initiate the rescue of your vault funds. This will move the funds to your pre-configured Emergency Address immediately:
 
 {{panicAddress}}
@@ -289,18 +300,64 @@ You likely only need to wait around 10 minutes and really don't need this. Use "
 This address will likely be difficult to access if you followed the recommended guidelines during Vault Setup. Ensure you can eventually access it. Once the funds are sent, this wallet will no longer have access to them.
 
 This action is designed for extreme situations, such as theft or extortion, to ensure the safety of your Bitcoin. Make sure this is a deliberate decision.`,
-        highFeeConfirmation: `This rescue transaction is already presigned with a high mining fee.
+        introAccelerate: `READ CAREFULLY:
 
-In most cases, that should be enough and no extra acceleration funds are needed. Confirm below to broadcast the rescue transaction now.`,
-        noBumpFundsAvailableYet: `No acceleration funds available yet for this rescue request.
+"Accelerate" will boost your rescue request by offering miners a higher fee. Your original request is already pending, but this can move it up in the confirmation queue.
 
-Rewind cannot accelerate this rescue until extra funds are added.`,
-        insufficientBumpFunds: `Acceleration funds are available, but there is not enough to accelerate this rescue request.
+You likely only need to wait around 10 minutes and really don't need this. Use "Accelerate" only if waiting that time (which could stretch to a couple of hours) isn't acceptable.`,
+        noReserveAvailableYet: `This rescue needs funds reserved to pay network fees before Rewind can send it.
 
-Add more funds to accelerate it.`,
+Add funds to this reserve, then try again.`,
+        reserveUnconfirmed: `The funds reserved to pay network fees for this rescue are still waiting for final blockchain confirmation.
+
+Wait a little longer, then try again.`,
+        insufficientReserveFunds: `This rescue needs more funds reserved to pay network fees.
+
+Add funds to this reserve, then try again.`,
+        reserveScanError: `Rewind could not check the funds reserved to pay network fees for this rescue.
+
+Check your connection and try again.`,
+        reserveCannotPaySelectedFee: `The funds reserved to pay this rescue's network fee are not enough. Add funds to this reserve, or choose a cheaper option.`,
+        reserveBelowRecommendedFee: `The funds reserved to pay network fees for this rescue may be too low for a fast confirmation right now. Add funds to this reserve to improve its chances.`,
+        parentFeeBelowRecommendedFee: `This rescue can be sent now, but its built-in network fee may be low for current network conditions. Add funds to this reserve to improve its chances.`,
+        parentOnlyConfirmation: `Rewind is ready to send the rescue now.`,
+        confirmationSpeedLabel: 'Mining Fee',
         feeSelectorExplanation:
           'Confirm the mining fee for the rescue transaction to ensure prompt processing.',
-        additionalExplanation: `Once the rescue request is confirmed, the funds will be moved to your Emergency Address instantly.`
+        postActionExplanation: `Once the rescue request is confirmed, the funds will be moved to your Emergency Address instantly.`
+      },
+      addReserve: {
+        triggerTitle: 'Add Funds for Unfreeze',
+        rescueTitle: 'Add Funds for Rescue',
+        triggerIntro: `Send {{amount}} to this address. Rewind will reserve it to pay network fees for this unfreeze. Any unused amount goes back to your wallet.`,
+        rescueIntro: `Send {{amount}} to this temporary address. Rewind will reserve it to pay network fees for this rescue. Any unused amount goes back to the temporary wallet for fees.`,
+        trucConfirmationNote: `After sending funds here, you'll need to wait for confirmation. This usually takes around 10 minutes.`,
+        addressLabel: 'Funding Address'
+      },
+      rescueReserveWallet: {
+        modalTitle: 'Temporary Wallet for Fees',
+        intro_TRUC: `During a rescue, Rewind uses a temporary wallet to hold funds to pay network fees. This is because your regular wallet should be treated as compromised during a rescue.
+
+Rewind does not save this temporary wallet. Keep Rewind open until the rescue finishes; otherwise you will need its Recovery Phrase to restore it.
+
+After sending funds to this temporary wallet, wait until they are confirmed. Then try Rescue again.`,
+        intro_NON_TRUC: `During a rescue, Rewind uses a temporary wallet to hold funds to pay network fees. This is because your regular wallet should be treated as compromised during a rescue.
+
+Rewind does not save this temporary wallet. Keep Rewind open until the rescue finishes; otherwise you will need its Recovery Phrase to restore it.
+
+After sending funds to this temporary wallet, try Rescue again.`,
+        createButton: 'Create new',
+        importButton: 'Import',
+        importText: `Enter the Recovery Phrase only if you already created a temporary wallet to pay fees for this same rescue.
+
+Do not import your regular wallet here. This is only for funds reserved to pay network fees during this rescue.`,
+        importConfirmButton: 'Import temporary wallet',
+        bip39Proposal: `This is the Recovery Phrase for this temporary wallet. Write it down before continuing.`,
+        bip39ProposalPart2_TRUC: `This phrase is your only backup. Rewind does not save it. Keep Rewind open until the funds to pay network fees confirm and the rescue finishes.`,
+        bip39ProposalPart2_NON_TRUC: `This phrase is your only backup. Rewind does not save it. Keep Rewind open until the rescue finishes.`,
+        confirmBip39ProposalButton: 'I have written it down',
+        created: 'Temporary wallet for fees created.',
+        imported: 'Temporary wallet for fees imported.'
       },
       delegate: {
         title: 'Delegation File',
@@ -473,13 +530,13 @@ Usage Instructions:
       rescuedConfirming:
         'Rescuing your vault. The final rescued amount after fees will be {{amount}}. Awaiting final confirmation...',
       feePayerTrigger:
-        'This CPFP fee-payer transaction used reserve funds to help confirm your unfreeze. The change went back to your wallet.',
+        'This transaction used funds reserved to pay network fees to help confirm your unfreeze. Any unused amount went back to your wallet.',
       feePayerTriggerConfirming:
-        'This CPFP fee-payer transaction is using reserve funds to help confirm your unfreeze. Waiting for confirmation... The change will go back to your wallet.',
+        'This transaction is using funds reserved to pay network fees to help confirm your unfreeze. Waiting for confirmation... Any unused amount will go back to your wallet.',
       feePayerRescue:
-        'This CPFP fee-payer transaction used reserve funds to help confirm your rescue. The change went back to your rescue reserve wallet.',
+        'This transaction used funds reserved to pay network fees to help confirm your rescue. Any unused amount went back to the temporary wallet for fees.',
       feePayerRescueConfirming:
-        'This CPFP fee-payer transaction is using reserve funds to help confirm your rescue. Waiting for confirmation... The change will go back to your rescue reserve wallet.',
+        'This transaction is using funds reserved to pay network fees to help confirm your rescue. Waiting for confirmation... Any unused amount will go back to the temporary wallet for fees.',
       openBlockExplorer: 'View on Block Explorer'
     }
   },
@@ -570,7 +627,7 @@ If you recently received or moved bitcoin, the rest should usually become availa
 
 The smallest vault Rewind can create right now needs about {{minimumRequiredFunds}} in your wallet.
 
-Of that, {{minimumVaultedAmount}} ends up frozen in the vault. The rest is needed to save a backup and keep enough set aside for unfreezing later.
+Of that, {{minimumVaultedAmount}} ends up frozen in the vault. The rest is needed to save a backup and keep a reserve for unfreezing later.
 
 <strong>Suggested Action:</strong> Please add about {{missingFunds}} more and try again.`,
     blockedByPendingUtxosNotice: `<strong>More Confirmed Funds Needed</strong>
@@ -584,11 +641,11 @@ You can continue with your available funds, but some pending funds are not inclu
     amountLabel: 'Amount to Freeze',
     unfreezeReserveLabel: 'Unfreeze Reserve',
     unfreezeReserveHelpTitle: 'Unfreeze Reserve',
-    unfreezeReserveHelp: `When you want to unfreeze this vault in the future, some bitcoin will be needed for mining fees.
+    unfreezeReserveHelp: `When you want to unfreeze this vault in the future, some bitcoin will be needed for network fees.
 
-Because nobody knows future fees today, Rewind sets aside this small reserve now and keeps it out of your normal wallet balance so you do not spend it by accident.
+Because nobody knows future network fees today, Rewind sets aside this small reserve and keeps it out of your normal wallet balance so you do not spend it by accident.
 
-The Amount to Freeze does not include this reserve. After you unfreeze the vault, any part of this reserve that was not needed comes back to you.`,
+After you unfreeze the vault, any part of this reserve that was not needed comes back to you.`,
     securityLockTimeLabel: 'Theft-Protection Time-Lock',
     securityLockTimeDescription: 'Unlocks {{blocks}} after unfreeze',
     confirmationSpeedLabel: 'Mining Fee',
@@ -756,6 +813,7 @@ Please keep the app open.`,
   },
   feeInput: {
     autoOptimal: 'Optimal Fee',
+    unavailable: 'Not available',
     helpTitle: 'Confirmation Speed',
     helpText: `You are creating a new Bitcoin transaction that will need to be processed by miners.
 
@@ -875,6 +933,8 @@ Please wait a few moments until completion.`,
         'Invalid Esplora URL or server is down. Please check the URL and try again.',
       communityBackupsError:
         'Invalid Community Backups API Base. Please check the URL and try again.',
+      tapeFeeEstimateOverrideError:
+        'Tape fee simulation must be 0 or a number greater than or equal to 0.1 sat/vB.',
       regtestHostNameFormatError:
         'Invalid format. Please enter only a hostname or IP address without protocol (http://, ssl://, etc.), port (:8080), or path (/api).',
       regtestHttpError:
@@ -894,6 +954,11 @@ Please wait a few moments until completion.`,
       esploraBitcoin: 'Esplora Bitcoin',
       esploraTape: 'Esplora Tape',
       esploraTestnet: 'Esplora Testnet',
+      tapeFees: 'Tape Fees',
+      defaultMainnet: 'Default (Mainnet)',
+      tapeFeeEstimateOverrideHelp: `Tape normally uses real mainnet fee estimates.
+
+Use this to simulate higher fees and extreme mempool conditions on Tape.`,
       communityBackups: 'Community Backups',
       regtestHostName: 'Regtest Host',
       vaultMode: 'Vault Mode',
@@ -901,9 +966,7 @@ Please wait a few moments until completion.`,
       vaultModeRealisticTruc: 'Safe Mode (TRUC)',
       vaultModeHelp: `"Fast Demo" is better for quick testing because it avoids some confirmation waits.
 
-"Safe Mode (TRUC)" requires confirmed transactions, so demos are slower.
-
-TRUC solves fee-pinning attacks and is the only allowed mode on the real Bitcoin network. Turn it on when you want to test as close as possible to real-world usage.`,
+"Safe Mode (TRUC)" protects against fee-pinning attacks but requires confirmed transactions. It is the only allowed mode on the real Bitcoin network. Turn it on when you want to simulate real-world usage as closely as possible.`,
       gapLimit: 'Gap Limit',
       currency: 'Currency',
       language: 'Language',
@@ -934,7 +997,6 @@ TRUC solves fee-pinning attacks and is the only allowed mode on the real Bitcoin
   //factoryResetButton: 'Factory Reset',
   tryAgain: 'Try Again',
   learnMore: 'Learn More.',
-  loading: 'Loading...',
   helpButton: 'Help',
   globalError: {
     general: `An unexpected error has occurred. Below you will find additional details that may help identify the issue. Some of this information is technical and intended for developers. There is no need for immediate concern.

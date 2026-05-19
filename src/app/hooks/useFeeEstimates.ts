@@ -3,7 +3,7 @@
 
 //useFeeEstimates and useTipStatus are very similar. A fix in one file should
 //probably imply a fix in the other
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { useSettings } from './useSettings';
 import { shallowEqualObjects } from 'shallow-equal';
 import { useTranslation } from 'react-i18next';
@@ -16,6 +16,19 @@ import { SERIALIZABLE } from '../../common/lib/storage';
 //Only report an error if fee estimates cannot be obtained after 10 minutes
 const ERROR_REPORT_MAX_TIME = 10 * 60 * 1000;
 
+/**
+ * Applies the testing-only Tape Fees setting by replacing every confirmation
+ * target with the user-selected sat/vB value.
+ *
+ * This lets the user simulate extreme mempool fee conditions on Tape while the
+ * app still fetches and stores the raw mainnet estimates as the source data.
+ */
+const simulateTapeFeeEstimates = (
+  feeEstimates: FeeEstimates,
+  feeRate: number
+): FeeEstimates =>
+  Object.fromEntries(Object.keys(feeEstimates).map(block => [block, feeRate]));
+
 export function useFeeEstimates(): {
   feeEstimates: FeeEstimates | undefined;
   updateFeeEstimates: ({
@@ -27,6 +40,7 @@ export function useFeeEstimates(): {
 } {
   const { settings } = useSettings();
   const intervalTime = settings?.BLOCKCHAIN_DATA_REFRESH_INTERVAL_MS;
+  const tapeFeeEstimateOverride = settings?.TAPE_FEE_ESTIMATE_OVERRIDE ?? 0;
   const { t } = useTranslation();
 
   const {
@@ -40,19 +54,27 @@ export function useFeeEstimates(): {
 
   const feesExplorer = networkId === 'TAPE' ? explorerMainnet : explorer;
 
-  const [feeEstimates, setFeeEstimates, , , storageStatus] =
+  // For TAPE, feesExplorer points to mainnet. Keep fetched values raw in the
+  // network cache; only finalFeeEstimates applies the testing simulation.
+  const [rawFeeEstimates, setRawFeeEstimates, , , storageStatus] =
     useStorage<FeeEstimates>(networkId && `FEES_${networkId}`, SERIALIZABLE);
+  const finalFeeEstimates = useMemo(() => {
+    if (!rawFeeEstimates) return undefined;
+    return networkId === 'TAPE' && tapeFeeEstimateOverride > 0
+      ? simulateTapeFeeEstimates(rawFeeEstimates, tapeFeeEstimateOverride)
+      : rawFeeEstimates;
+  }, [rawFeeEstimates, networkId, tapeFeeEstimateOverride]);
 
   //feeEstimatesRef keeps track of as feeEstimates. It will be used
   //to compare in shallowEqualObjects. shallowEqualObjects won't use feeEstimates
   //to avoid re-renders (infinite loop)
   //Also used to detect if this comes from storage or from network (storage == undefined)
-  const feeEstimatesRef = useRef<FeeEstimates | undefined>(feeEstimates);
+  const feeEstimatesRef = useRef<FeeEstimates | undefined>(rawFeeEstimates);
   const lastFeeEstimatesRef = useRef<number | undefined>(undefined);
   useEffect(() => {
     feeEstimatesRef.current = undefined;
     lastFeeEstimatesRef.current = undefined;
-  }, [feesExplorer]);
+  }, [feesExplorer, networkId]);
 
   const feesExplorerReachable =
     networkId === 'TAPE' ? explorerMainnetReachable : explorerReachable;
@@ -85,7 +107,7 @@ export function useFeeEstimates(): {
               if (
                 !shallowEqualObjects(newFeeEstimates, feeEstimatesRef.current)
               ) {
-                setFeeEstimates(newFeeEstimates);
+                setRawFeeEstimates(newFeeEstimates);
                 feeEstimatesRef.current = newFeeEstimates;
               }
             } catch (error) {
@@ -109,7 +131,7 @@ export function useFeeEstimates(): {
     },
     [
       networkId,
-      setFeeEstimates,
+      setRawFeeEstimates,
       storageStatus.errorCode,
       netRequest,
       feesExplorer,
@@ -131,7 +153,7 @@ export function useFeeEstimates(): {
 
   return {
     updateFeeEstimates,
-    feeEstimates,
+    feeEstimates: finalFeeEstimates,
     // Safe: this ref is the canonical cache of the latest known estimates;
     // reading it here preserves old sync semantics without extra refreshes.
     // eslint-disable-next-line react-hooks/refs

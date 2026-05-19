@@ -1,13 +1,20 @@
 // Copyright (C) 2025 Jose-Luis Landabaso - https://rewindbitcoin.com
 // Licensed under the GNU GPL v3 or later. See the LICENSE file for details.
 
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState
+} from 'react';
 import {
   View,
   Platform,
   KeyboardAvoidingView,
   Dimensions,
   LayoutChangeEvent,
+  Pressable,
   Text
 } from 'react-native';
 import RNModal from 'react-native-modal';
@@ -21,15 +28,16 @@ import { rgba } from 'polished';
 import { useFonts } from 'expo-font';
 
 import {
+  Gesture,
+  GestureDetector,
   GestureHandlerRootView,
-  PanGestureHandler,
   //Important to use this one or android won't be able to Scroll content:
   ScrollView
 } from 'react-native-gesture-handler';
 import Animated, {
   withSpring,
+  withTiming,
   runOnJS,
-  useAnimatedGestureHandler,
   useAnimatedStyle,
   useSharedValue
 } from 'react-native-reanimated';
@@ -50,8 +58,9 @@ export interface ModalProps {
 }
 
 const DELTA = 100;
-const ANIMATION_TIME = 300;
-const OPACITY = 0.3;
+const ANIMATION_TIME = 200;
+const OPACITY = 0.25;
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 const RawModal: React.FC<ModalProps> = ({
   isVisible,
@@ -72,7 +81,14 @@ const RawModal: React.FC<ModalProps> = ({
     Ubuntu500Medium: Ubuntu_500Medium
   });
   const theme = useTheme();
-  const translateY = useSharedValue(0);
+  const isNativeModal = Platform.OS !== 'web';
+  const hiddenTranslateY =
+    Platform.OS === 'android'
+      ? getRealWindowHeight()
+      : Platform.OS === 'ios'
+        ? Dimensions.get('window').height
+        : 0;
+  const translateY = useSharedValue(hiddenTranslateY);
   const scrollViewPaddingVertical = 20;
   const [buttonHeight, setButtonHeight] = useState<number>(0);
   const [headerTitleHasManyLines, setHeaderTitleHasManyLines] = useState(false);
@@ -81,35 +97,54 @@ const RawModal: React.FC<ModalProps> = ({
   const headerHeight = headerMini ? 60 : 150;
 
   const onCloseTriggered = useSharedValue<boolean>(false);
+  const dragStartY = useSharedValue(0);
 
   const Icon =
     icon && icon.family && Icons[icon.family] ? Icons[icon.family] : null;
 
-  const gestureHandler = Platform.select({
-    web: () => {}, //nop
-    default: useAnimatedGestureHandler({
-      onStart: (_, ctx: { startY: number }) => {
-        ctx.startY = translateY.value;
-      },
-      onActive: (event, ctx) => {
-        const translation = ctx.startY + event.translationY;
-        if (translation >= 0) translateY.value = translation;
-        else translateY.value = translation / 3;
-      },
-      onEnd: _ => {
-        if (translateY.value > DELTA && onClose) {
-          runOnJS(onClose)();
-          onCloseTriggered.value = true;
-          //translateY.value = withSpring(-200, { duration: ANIMATION_TIME });
-        } else {
-          translateY.value = withSpring(0);
-        }
-      },
-      onCancel: _ => {
-        if (!onCloseTriggered.value) translateY.value = withSpring(0);
-      }
-    })
-  });
+  const panGesture = useMemo(
+    () =>
+      Gesture.Pan()
+        .enabled(Platform.OS !== 'web')
+        /*
+         * TAG-android-does-not-propagate-slider-events
+         *
+         * This keeps Slider (see EditableSlider.tsx) usable within the modal.
+         * On Android, a parent pan gesture can capture events before the Slider
+         * receives them. Increasing the minimum distance delays modal drag
+         * recognition enough for slider drags to become the responder first.
+         *
+         * This replaces minDist={20} from the previous handler API.
+         * The Slider also applies an Android-only onResponderGrant workaround;
+         * using both has proven smoother on Android.
+         *
+         * References:
+         * https://github.com/callstack/react-native-slider/issues/296#issuecomment-1001085596
+         * https://github.com/callstack/react-native-slider/issues/296#issuecomment-1138417122
+         */
+        .minDistance(20)
+        .onStart(() => {
+          dragStartY.value = translateY.value;
+        })
+        .onUpdate(event => {
+          const translation = dragStartY.value + event.translationY;
+          if (translation >= 0) translateY.value = translation;
+          else translateY.value = translation / 3;
+        })
+        .onEnd((_, success) => {
+          if (success && translateY.value > DELTA && onClose) {
+            onCloseTriggered.value = true;
+            runOnJS(onClose)();
+          } else {
+            translateY.value = withSpring(0);
+          }
+        })
+        .onFinalize((_, success) => {
+          if (!success && !onCloseTriggered.value)
+            translateY.value = withSpring(0);
+        }),
+    [dragStartY, onClose, onCloseTriggered, translateY]
+  );
 
   const animatedStyle = useAnimatedStyle(() => {
     return {
@@ -120,6 +155,10 @@ const RawModal: React.FC<ModalProps> = ({
       ]
     };
   });
+  const backdropOpacity = useSharedValue(0);
+  const backdropStyle = useAnimatedStyle(() => ({
+    opacity: backdropOpacity.value
+  }));
   const handleClose = () => {
     onCloseTriggered.value = true;
     if (onClose) onClose();
@@ -128,18 +167,49 @@ const RawModal: React.FC<ModalProps> = ({
   useEffect(() => {
     isMountedRef.current = true;
     if (isVisible) {
+      // Reanimated shared values are intentionally mutable; this is not React state.
+      // eslint-disable-next-line react-hooks/immutability
       onCloseTriggered.value = false;
-      translateY.value = 0;
+      // Reanimated shared values are intentionally mutable; this is not React state.
+      // eslint-disable-next-line react-hooks/immutability
+      translateY.value = isNativeModal
+        ? withTiming(0, { duration: ANIMATION_TIME })
+        : 0;
+      // Reanimated shared values are intentionally mutable; this is not React state.
+      // eslint-disable-next-line react-hooks/immutability
+      backdropOpacity.value = withTiming(OPACITY, { duration: ANIMATION_TIME });
     } else {
-      setTimeout(() => {
-        //Make sure it's set to zero.
-        if (isMountedRef.current && !isVisible) translateY.value = 0;
-      }, 1.5 * ANIMATION_TIME);
+      if (isNativeModal) {
+        // Reanimated shared values are intentionally mutable; this is not React state.
+        // eslint-disable-next-line react-hooks/immutability
+        translateY.value = withTiming(hiddenTranslateY, {
+          duration: ANIMATION_TIME
+        });
+      } else {
+        setTimeout(() => {
+          //Make sure it's set to zero.
+          if (isMountedRef.current && !isVisible) {
+            // Reanimated shared values are intentionally mutable; this is not React state.
+            // eslint-disable-next-line react-hooks/immutability
+            translateY.value = 0;
+          }
+        }, 1.5 * ANIMATION_TIME);
+      }
+      // Reanimated shared values are intentionally mutable; this is not React state.
+      // eslint-disable-next-line react-hooks/immutability
+      backdropOpacity.value = withTiming(0, { duration: ANIMATION_TIME });
     }
     return () => {
       isMountedRef.current = false;
     };
-  }, [isVisible, translateY, onCloseTriggered]);
+  }, [
+    hiddenTranslateY,
+    isNativeModal,
+    isVisible,
+    translateY,
+    backdropOpacity,
+    onCloseTriggered
+  ]);
 
   const onParentLayout = useCallback(
     (event: LayoutChangeEvent) => {
@@ -197,38 +267,33 @@ const RawModal: React.FC<ModalProps> = ({
   return (
     <RNModal
       {...(Platform.OS === 'android'
-        ? { deviceHeight: getRealWindowHeight() }
+        ? {
+            deviceHeight: getRealWindowHeight(),
+            // The Android native Modal lives in its own window. Keeping that
+            // window hardware-accelerated prevents brief transparent frames
+            // during visible content/layout changes inside the modal.
+            hardwareAccelerated: true
+          }
         : {})}
       statusBarTranslucent
       isVisible={isVisible}
+      // These timings only apply to react-native-modal's content fade below.
+      // Sheet movement and backdrop opacity are driven separately by Reanimated.
       animationInTiming={ANIMATION_TIME}
       animationOutTiming={ANIMATION_TIME}
-      backdropTransitionInTiming={ANIMATION_TIME}
-      backdropTransitionOutTiming={
-        //Set it to 1 if flickering appears: https://github.com/react-native-modal/react-native-modal/issues/268#issuecomment-2798406717
-        //Note that the flicker may still show on on debug mode in real devices.
-        //It's barely seen on release (or preview) mode on real devies
-        1
-      }
-      backdropOpacity={OPACITY}
-      hideModalContentWhileAnimating
-      useNativeDriver={
-        Platform.select({ web: false, default: true })
-        // Either native driver or swipe
-        //https://github.com/react-native-modal/react-native-modal/issues/692
-        // swipeDirection="down"
-        // onSwipeComplete={() => showHelp(undefined)}
-      }
-      onBackdropPress={handleClose}
-      useNativeDriverForBackdrop={Platform.select({
-        web: false,
-        default: true
-      })}
-      animationIn={Platform.select({ web: 'fadeIn', default: 'slideInUp' })}
-      animationOut={Platform.select({
-        web: 'fadeOut',
-        default: 'slideOutDown'
-      })}
+      // We render and animate our own backdrop with Reanimated to avoid
+      // react-native-modal's separate backdrop transition/unmount flicker.
+      hasBackdrop={false}
+      // react-native-modal only fades the content wrapper now. Backdrop opacity
+      // and sheet movement are handled by Reanimated below; before this,
+      // react-native-modal owned backdrop transitions and slideInUp/slideOutDown
+      // movement. Keep this fade JS-driven: native-driver fade delayed/blanked
+      // first frames on Android, and native-driver slide caused modal flicker.
+      useNativeDriver={false}
+      // Fade only: do not let react-native-modal animate spatial movement.
+      // The sheet's translateY movement is fully controlled by Reanimated.
+      animationIn="fadeIn"
+      animationOut="fadeOut"
       onModalHide={onModalHide}
       style={{
         ...(Platform.OS !== 'web' ? { justifyContent: 'flex-end' } : {}),
@@ -239,6 +304,26 @@ const RawModal: React.FC<ModalProps> = ({
         //backgroundColor: 'red'
       }}
     >
+      <AnimatedPressable
+        // Own the backdrop instead of using react-native-modal's separate
+        // backdrop state machine; that path can briefly flash clear-dark-clear
+        // during close, especially after drag-dismiss or on short modals.
+        // Android's system touch feedback can also play a loud/repeated click.
+        android_disableSound
+        pointerEvents={isVisible ? 'auto' : 'none'}
+        onPress={handleClose}
+        style={[
+          {
+            position: 'absolute',
+            top: 0,
+            bottom: 0,
+            left: 0,
+            right: 0,
+            backgroundColor: 'black'
+          },
+          backdropStyle
+        ]}
+      />
       <KeyboardAvoidingView behavior="padding">
         {/*
          * behavior="padding" on June 13, 2024
@@ -259,41 +344,7 @@ const RawModal: React.FC<ModalProps> = ({
             backgroundColor: 'transparent'
           }}
         >
-          <PanGestureHandler
-            onGestureEvent={gestureHandler}
-            minDist={
-              /*
-               * TAG-android-does-not-propagate-slider-events
-               *
-               * This is so that Slider (see EditableSlider.tsx) works within the
-               * src/common/lib/Modal.tsx
-               *
-               * Note that this model uses a PanGestureHandler and in Android it captures
-               * events and does not let it propagate to the Slider.
-               * This affects the component InitTrigger, which renders de Slider for the
-               * fees within the Modal. See solution:
-               * https://github.com/callstack/react-native-slider/issues/296#issuecomment-1001085596
-               * Basically, you are ensuring that the Slider component becomes the responder
-               * immediately when a touch event begins. This prevents other gesture handlers
-               * (such as the Modal's PanGestureHandler) from interfering with the Slider's
-               * touch events.
-               *
-               * The above appears to work fine. Alternatively, it is possible to set
-               * minDist={20} as prop to the PanGestureHandler in the Modal and this also
-               * has proved to work well. See alternative solution:
-               * https://github.com/callstack/react-native-slider/issues/296#issuecomment-1138417122
-               *
-               * The minDist property sets the minimum distance a touch must move before the
-               * gesture is recognized as a pan. By increasing the minDist value to 20, you
-               * are increasing the threshold for the PanGestureHandler to start recognizing
-               * the gesture as a pan.
-               *
-               * Applying both solutions is even smoother (on android)
-               *
-               */
-              20
-            }
-          >
+          <GestureDetector gesture={panGesture}>
             <Animated.View style={animatedStyle}>
               <View
                 style={{
@@ -428,7 +479,7 @@ const RawModal: React.FC<ModalProps> = ({
                 )}
               </View>
             </Animated.View>
-          </PanGestureHandler>
+          </GestureDetector>
         </GestureHandlerRootView>
       </KeyboardAvoidingView>
     </RNModal>

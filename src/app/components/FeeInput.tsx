@@ -8,7 +8,13 @@
 
 const FEE_RATE_STEP = 0.01;
 
-import React, { useCallback, useRef, useMemo, useState } from 'react';
+import React, {
+  useCallback,
+  useRef,
+  useMemo,
+  useState,
+  useEffect
+} from 'react';
 import { CardEditableSlider } from '../../common/ui';
 import { snapWithinRange } from '../../common/lib/numbers';
 import { formatFeeRate } from '../lib/format';
@@ -29,6 +35,7 @@ function FeeInput({
   label,
   initialValue,
   fee,
+  isOptimal,
   feeEstimates,
   btcFiat,
   onValueChange,
@@ -38,15 +45,17 @@ function FeeInput({
   label: string;
   initialValue: number;
   fee: number | null;
+  isOptimal: boolean;
   feeEstimates: FeeEstimates;
   btcFiat: number | undefined;
   onValueChange: (value: number | null, type: 'USER' | 'RESET') => void;
   helpIconAvailable?: boolean;
   min?: number;
 }) {
-  const [expanded, setExpanded] = useState<boolean>(false);
+  const [expanded, setExpanded] = useState<boolean>(() => !isOptimal);
   const [userModifiedFee, setUserModifiedFee] = useState<boolean>(false);
-  const toggleExpanded = useCallback(() => {
+  const expand = useCallback(() => {
+    if (expanded) return;
     LayoutAnimation.configureNext({
       duration: 150,
       update: {
@@ -54,8 +63,11 @@ function FeeInput({
         property: LayoutAnimation.Properties.opacity
       }
     });
-    setExpanded(!expanded);
+    setExpanded(true);
   }, [expanded]);
+  useEffect(() => {
+    if (!isOptimal) setExpanded(true);
+  }, [isOptimal]);
   const { settings } = useSettings();
   if (!settings)
     throw new Error(
@@ -144,6 +156,7 @@ function FeeInput({
         nextInitialValueRef.current = newValue;
         // Mark as user modified if it's a user action and the value is different from initial
         if (type === 'USER' && Math.abs(newValue - initialValue) > 0.001) {
+          setExpanded(true);
           setUserModifiedFee(true);
         }
       }
@@ -173,7 +186,7 @@ function FeeInput({
           locale,
           currency
         })
-      : t('loading');
+      : t('feeInput.unavailable');
   }, [fee, subUnit, btcFiat, locale, currency, t]);
 
   return (
@@ -181,8 +194,8 @@ function FeeInput({
       {!expanded ? (
         <Pressable
           hitSlop={10}
-          onPress={toggleExpanded}
-          className={`overflow-hidden rounded-xl bg-white mb-2`}
+          onPress={expand}
+          className={`overflow-hidden rounded-xl bg-white`}
         >
           <View className="p-4">
             <View className="flex-row items-center justify-between mb-1">
@@ -231,13 +244,6 @@ function FeeInput({
             formatValue={formatValue}
             unit={'sats/vB'}
           />
-          <Pressable
-            hitSlop={10}
-            onPress={toggleExpanded}
-            className="absolute top-1 right-0"
-          >
-            <AntDesign name="close" size={16} className="!text-primary" />
-          </Pressable>
         </View>
       )}
     </>

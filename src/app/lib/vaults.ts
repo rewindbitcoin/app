@@ -50,13 +50,12 @@ import {
 } from './vaultDescriptors';
 import { shallowEqualArrays, shallowEqualObjects } from 'shallow-equal';
 
-import type { DiscoveryInstance, TxAttribution } from '@bitcoinerlab/discovery';
-import {
-  coinselect,
-  vsize,
-  maxFunds,
-  dustThreshold
-} from '@bitcoinerlab/coinselect';
+import type {
+  DiscoveryInstance,
+  TxAttribution,
+  TxoMap
+} from '@bitcoinerlab/discovery';
+import { coinselect, maxFunds, dustThreshold } from '@bitcoinerlab/coinselect';
 import type { Explorer } from '@bitcoinerlab/explorer';
 import { coinTypeFromNetwork, type NetworkId, networkMapping } from './network';
 import { transactionFromHex } from './bitcoin';
@@ -64,85 +63,36 @@ import { MIN_FEE_RATE } from './fees';
 import { maxBigInt, toBigInt, toNumber, toNumberOrUndefined } from './sats';
 import { getBackupFunding, getOnChainBackupDescriptor } from './onChainBackup';
 export { getBackupFunding, getOnChainBackupDescriptor };
+export {
+  assertP2AParentPolicy,
+  findP2AOutputData,
+  P2A_NON_TRUC_ANCHOR_VALUE
+} from './p2aPolicy';
 
-const P2A_OUTPUT_SCRIPT = fromHex('51024e73');
-const P2A_OUTPUT_SCRIPT_HEX = toHex(P2A_OUTPUT_SCRIPT);
+import {
+  estimateCpfpChildVSizeFromOutputs,
+  findTriggerReserveVout,
+  getAdditionalP2AOutputValue,
+  getTriggerReserveDescriptorForVaultIndex,
+  getTriggerReserveOutput
+} from './p2aReserve';
+import {
+  assertP2AParentPolicy,
+  findP2AOutputData,
+  getRescueAnchorValue,
+  getTriggerAnchorValue,
+  MAX_P2A_TRUC_CHILD_VSIZE,
+  P2A_OUTPUT_SCRIPT,
+  P2A_OUTPUT_SCRIPT_HEX
+} from './p2aPolicy';
+
 import {
   OP_RETURN_BACKUP_TX_VBYTES,
   PANIC_TX_VBYTES,
   TRIGGER_TX_VBYTES
 } from './vaultSizes';
 import { generateMnemonic } from 'bip39';
-import {
-  parseVaultIndex,
-  getTriggerReservePath,
-  getVaultOriginPath
-} from './rewindPaths';
-
-// P2A input weight = base input (36 prevout + 1 scriptLen + 4 sequence) * 4
-// plus segwit marker/flag (2) and witness (1 stack item count + 1 empty push)
-// so weight = 41*4 + 2 + 2 = 166 wu => vsize = ceil(166/4) = 42 vB.
-const P2A_INPUT_WEIGHT = 166;
-const MAX_P2A_TRUC_CHILD_VSIZE = 1000; // P2A_TRUC v3 child size limit (vbytes)
-const P2A_DUST_THRESHOLD = BigInt(240); // Core default dust relay: (13 + 67) * 3 sat/vB.
-// Core treats value == dust threshold as non-dust, but the app normally funds
-// spendable outputs at dust+1, so use the same convention for NON_TRUC anchors.
-export const P2A_NON_TRUC_ANCHOR_VALUE = P2A_DUST_THRESHOLD + BigInt(1);
-
-// TRUC trigger parents are zero-fee and use the 0-sat ephemeral-dust anchor;
-// NON_TRUC trigger parents pay a direct relay fee, so their anchor is non-dust.
-const getTriggerAnchorValue = (vaultMode: 'P2A_TRUC' | 'P2A_NON_TRUC') =>
-  vaultMode === 'P2A_TRUC' ? BigInt(0) : P2A_NON_TRUC_ANCHOR_VALUE;
-
-// Rescue parents pay a non-zero presigned fee, so their P2A anchors must be
-// non-dust even when the rescue transaction itself uses version 3/TRUC.
-const getRescueAnchorValue = () => P2A_NON_TRUC_ANCHOR_VALUE;
-
-/**
- * Verifies the standard-relay policy constraints that depend on the final P2A
- * parent transaction shape.
- *
- * Bitcoin Core allows an ephemeral dust output, such as a 0-sat P2A anchor,
- * only when the transaction that creates it is zero-fee. The incentive must
- * come from the child that spends that dust output in the same package.
- *
- * Rewind also uses the vault mode as a structural contract:
- * - `P2A_TRUC` parents are version 3.
- * - `P2A_NON_TRUC` parents are version 2 and must use a non-dust anchor.
- *
- * This check is intentionally run after signing/extraction, using the actual tx
- * and actual fee that would be broadcast, so it applies equally to trigger and
- * rescue parents.
- */
-export const assertP2AParentPolicy = ({
-  tx,
-  fee,
-  txName,
-  vaultMode
-}: {
-  tx: Transaction;
-  fee: number;
-  txName: string;
-  vaultMode: 'P2A_TRUC' | 'P2A_NON_TRUC';
-}) => {
-  const expectedVersion = vaultMode === 'P2A_TRUC' ? 3 : 2;
-  if (tx.version !== expectedVersion)
-    throw new Error(
-      `${txName} version ${tx.version} does not match ${vaultMode} expected version ${expectedVersion}`
-    );
-
-  const anchor = findP2AOutputData(tx);
-  if (!anchor) throw new Error(`${txName} must include exactly one P2A anchor`);
-
-  const hasDustAnchor = BigInt(anchor.value) < P2A_DUST_THRESHOLD;
-  if (vaultMode === 'P2A_NON_TRUC' && hasDustAnchor)
-    throw new Error(`${txName} P2A_NON_TRUC anchor must be non-dust`);
-
-  if (fee !== 0 && hasDustAnchor)
-    throw new Error(
-      `${txName} has a dust P2A output and non-zero fee; tx with dust output must be 0-fee`
-    );
-};
+import { parseVaultIndex, getVaultOriginPath } from './rewindPaths';
 
 export type TxHex = string;
 export type TxId = string;
@@ -316,6 +266,24 @@ export type UtxosData = Array<{
   output: OutputInstance;
 }>;
 
+const getDescriptorAndIndexFromTxoMap = (txo: string, txoMap: TxoMap) => {
+  const [txId, strVout] = txo.split(':');
+  const indexedDescriptor = txoMap[`${txId}:${strVout}`];
+  if (!indexedDescriptor) return;
+
+  const separatorIndex = indexedDescriptor.lastIndexOf('~');
+  if (separatorIndex === -1)
+    throw new Error(`Invalid indexed descriptor for ${txo}`);
+  const descriptor = indexedDescriptor.slice(0, separatorIndex);
+  const rawIndex = indexedDescriptor.slice(separatorIndex + 1);
+  if (rawIndex === 'non-ranged') return { descriptor };
+
+  const index = Number(rawIndex);
+  if (!Number.isInteger(index) || index < 0)
+    throw new Error(`Invalid descriptor index ${rawIndex} for ${txo}`);
+  return { descriptor, index };
+};
+
 type VaultPresignedTx = {
   txId: TxId;
   blockHeight: number;
@@ -347,28 +315,6 @@ type VaultAnchorChildTx = {
 };
 
 /**
- * Finds the unique P2A output index/value in a transaction.
- *
- * Returns `undefined` when the tx has no P2A output.
- * Throws when the tx has more than one P2A output.
- */
-export const findP2AOutputData = (
-  tx: Transaction
-): { index: number; value: number } | undefined => {
-  const matchingOutputs = tx.outs
-    .map((output, index) => ({ output, index }))
-    .filter(({ output }) => toHex(output.script) === P2A_OUTPUT_SCRIPT_HEX);
-  if (matchingOutputs.length === 0) return;
-  if (matchingOutputs.length > 1)
-    throw new Error('Expected exactly one P2A output');
-  const firstMatch = matchingOutputs[0];
-  if (!firstMatch) return;
-  const { output, index } = firstMatch;
-  if (!output) return;
-  return { index, value: toNumber(output.value) };
-};
-
-/**
  * Infers vault mode from trigger transaction shape.
  *
  * Trigger-shape rule of thumb:
@@ -389,197 +335,17 @@ export const getVaultMode = (
   return 'LADDERED';
 };
 
-const estimateCpfpChildVSizeFromOutputs = (
-  selectedOutputs: Array<OutputInstance>,
-  changeOutput: OutputInstance
-) => {
-  const p2aInput = {
-    isSegwit: () => true,
-    inputWeight: () => P2A_INPUT_WEIGHT
-  };
-  return vsize(
-    [p2aInput as unknown as OutputInstance, ...selectedOutputs],
-    [changeOutput]
-  );
-};
-
-/**
- * Returns the sats that must be funded into the next P2A bump reserve UTXO.
- *
- * This is the shared P2A bump reserve-sizing primitive for parent+child
- * packages. It is not trigger-specific: trigger setup uses it through
- * `getRequiredTriggerReserveValue(...)`, and future rescue acceleration can use
- * the same primitive once the rescue reserve signer/output model exists.
- *
- * The caller provides:
- * - bump reserve outputs that already exist and their values
- * - the output template for the next bump reserve UTXO that may be added now
- * - the change output template
- * - the value of the parent P2A anchor spent by the future child
- * - the presigned parent transaction's size and fee rate
- * - the package fee rate the full parent+child package should reach
- *
- * Example: trigger setup uses this for the first reserve UTXO. It calls this
- * with no existing reserve outputs, the built-in trigger reserve output as the
- * next bump reserve output, the wallet change output, the trigger anchor value,
- * trigger parent size/fee rate and `MAX_TRIGGER_FEERATE` as the package target.
- *
- * Future top-up flows can call the same helper with existing reserve UTXOs
- * already populated, then size only the next reserve UTXO that must be added.
- * Those top-up flows are not implemented yet, but this helper is shaped for
- * that model.
- *
- * The result is the smallest value that the next bump reserve UTXO must carry so
- * the package can still pay:
- * - the parent's already baked fee
- * - the child's own minimum relay fee
- * - the target package fee
- * - one spendable child change output
- *
- * This helper does not do coinselection across reserve UTXOs. The future child
- * is assumed to spend all currently known bump reserve UTXOs plus the next bump
- * reserve UTXO being sized now.
- *
- * If existing bump reserve UTXOs already cover the needed budget, this returns
- * `0`, which means no additional bump reserve UTXO is needed.
- *
- * Otherwise the result is the minimum valid value for a newly created bump
- * reserve UTXO, so it is still clamped to at least dust+1.
- */
-export const getRequiredNextP2ABumpReserveUtxoValue = ({
-  existingBumpReserveOutputsWithValue,
-  nextBumpReserveOutput,
-  changeOutput,
-  parentAnchorValue,
-  presignedParentVSize,
-  presignedParentFeeRate,
-  targetPackageFeeRate
-}: {
-  existingBumpReserveOutputsWithValue: Array<{
-    output: OutputInstance;
-    value: bigint;
-  }>;
-  nextBumpReserveOutput: OutputInstance;
-  changeOutput: OutputInstance;
-  /** Value of the P2A anchor output created by the parent being bumped. */
-  parentAnchorValue: number;
-  /** Virtual size of the already-presigned parent transaction. */
-  presignedParentVSize: number;
-  /** Fee rate already baked directly into the parent transaction. */
-  presignedParentFeeRate: number;
-  /**
-   * Package-feerate target that the full parent+child package should reach.
-   *
-   * In practical terms this is usually:
-   * - the current express-confirmation fee target when the app is sizing a
-   *   reserve top-up or a fee-bump child under live network conditions, or
-   * - the configured trigger package ceiling (`MAX_TRIGGER_FEERATE`) when the
-   *   app is sizing the initial built-in trigger reserve during vault setup.
-   */
-  targetPackageFeeRate: number;
-}) => {
-  const childVSize = estimateCpfpChildVSizeFromOutputs(
-    [
-      ...existingBumpReserveOutputsWithValue.map(({ output }) => output),
-      nextBumpReserveOutput
-    ],
-    changeOutput
-  );
-  const totalTargetFee = Math.ceil(
-    targetPackageFeeRate * (presignedParentVSize + childVSize)
-  );
-  const parentFee = Math.ceil(presignedParentVSize * presignedParentFeeRate);
-  const childFee = Math.max(
-    Math.ceil(childVSize * MIN_FEE_RATE),
-    totalTargetFee - parentFee
-  );
-  const childOutputMinValue = toNumber(dustThreshold(changeOutput)) + 1;
-  const nextBumpReserveMinValue =
-    toNumber(dustThreshold(nextBumpReserveOutput)) + 1;
-  const existingBumpReserveValue = existingBumpReserveOutputsWithValue.reduce(
-    (sum, { value }) => sum + toNumber(value),
-    0
-  );
-
-  // Value conservation for the future child is:
-  //   existingBumpReserveValue + nextBumpReserveValue + parentAnchorValue
-  //     = childFee + childOutputValue
-  // and we require:
-  //   childOutputValue >= childOutputMinValue
-  // so:
-  //   nextBumpReserveValue >=
-  //     childFee + childOutputMinValue - parentAnchorValue - existingBumpReserveValue
-  const nextBumpReserveValueNeeded =
-    childFee +
-    childOutputMinValue -
-    parentAnchorValue -
-    existingBumpReserveValue;
-  if (nextBumpReserveValueNeeded <= 0) return BigInt(0);
-  return toBigInt(
-    Math.max(nextBumpReserveMinValue, nextBumpReserveValueNeeded)
-  );
-};
-
-/**
- * Derives the sats that must be locked in the dedicated trigger reserve output.
- *
- * The reserve is pre-funded so that later, if trigger needs a CPFP bump,
- * the wallet can build:
- * - anchor input
- * - reserve input
- * - one normal wallet change output
- * and still hit the target package feerate.
- *
- * `presignedTriggerFeeRate` controls the fee already paid by the trigger parent.
- * `maxTriggerFeeRate` is the later package-feerate ceiling that the reserve must
- * still be able to reach with the first CPFP child.
- *
- * If this returns `0`, the trigger path does not need a built-in reserve output
- * at setup time.
- */
-export const getRequiredTriggerReserveValue = ({
-  triggerReserveOutput,
-  changeOutput,
-  vaultMode,
-  presignedTriggerFeeRate,
-  maxTriggerFeeRate
-}: {
-  /** Output template for the dedicated trigger reserve UTXO created in the vault tx. */
-  triggerReserveOutput: OutputInstance;
-  /** Output template for the wallet change output of the future trigger CPFP child. */
-  changeOutput: OutputInstance;
-  /**
-   * Structural vault mode. P2A_TRUC uses version-3 parents; anchor value is
-   * action-specific. P2A_NON_TRUC uses version-2 parents with funded anchors.
-   */
-  vaultMode: 'P2A_TRUC' | 'P2A_NON_TRUC';
-  /** Mode-specific fee rate baked into the trigger parent itself. */
-  presignedTriggerFeeRate: number;
-  /**
-   * Maximum package feerate the dedicated reserve is expected to cover for the
-   * first trigger CPFP child.
-   */
-  maxTriggerFeeRate: number;
-}) => {
-  return getRequiredNextP2ABumpReserveUtxoValue({
-    existingBumpReserveOutputsWithValue: [],
-    nextBumpReserveOutput: triggerReserveOutput,
-    changeOutput,
-    parentAnchorValue: toNumber(getTriggerAnchorValue(vaultMode)),
-    presignedParentVSize: Math.max(...TRIGGER_TX_VBYTES),
-    presignedParentFeeRate: presignedTriggerFeeRate,
-    targetPackageFeeRate: maxTriggerFeeRate
-  });
-};
-
 /**
  * Estimates a feasible parent+child CPFP package for a target
  * package fee rate.
  *
  * The selected package fee rate is interpreted as:
  * `(parentFee + childFee) / (parentVSize + childVSize)`.
+ *
+ * @returns Package fee/size data when the package can be built; `undefined`
+ * when the child would violate the TRUC size limit or cannot leave a dust-safe
+ * change output at the requested fee rate.
  */
-//FIXME: this one returns too much stuff....
 export const estimateCpfpPackage = ({
   parentTxHex,
   parentFee,
@@ -596,8 +362,6 @@ export const estimateCpfpPackage = ({
   | {
       anchorOutputIndex: number;
       anchorValue: number;
-      utxosData: UtxosData;
-      utxosValue: number;
       childVSize: number;
       childFee: number;
       childOutputValue: number;
@@ -620,7 +384,7 @@ export const estimateCpfpPackage = ({
     utxosData.map(utxoData => utxoData.output),
     changeOutput
   );
-  if (parentTx.version === 3 && childVSize > MAX_P2A_TRUC_CHILD_VSIZE) return; //FIXME: throw some message?
+  if (parentTx.version === 3 && childVSize > MAX_P2A_TRUC_CHILD_VSIZE) return;
 
   const totalPackageVSize = parentVSize + childVSize;
   const totalTargetFee = Math.ceil(targetPackageFeeRate * totalPackageVSize);
@@ -637,8 +401,6 @@ export const estimateCpfpPackage = ({
   return {
     anchorOutputIndex: anchor.index,
     anchorValue: anchor.value,
-    utxosData,
-    utxosValue,
     childVSize,
     childFee,
     childOutputValue,
@@ -650,9 +412,11 @@ export const estimateCpfpPackage = ({
 /**
  * Builds and signs the Rewind2 CPFP child tx for a selected package fee
  * rate.
+ *
+ * @returns Signed child transaction hex, or `undefined` when the requested
+ * package cannot be built under the same constraints as `estimateCpfpPackage`.
  */
-//FIXME: this function returns unneeded stuff
-export const createCpfpChildTx = async ({
+export const createCpfpChildTxHex = async ({
   parentTxHex,
   parentFee,
   targetPackageFeeRate,
@@ -668,38 +432,30 @@ export const createCpfpChildTx = async ({
   changeOutput: OutputInstance;
   signer: Signer;
   network: Network;
-}): Promise<
-  | {
-      childTxHex: TxHex;
-      childTxId: TxId;
-      childFee: number;
-      childVSize: number;
-    }
-  | undefined
-> => {
-  const plan = estimateCpfpPackage({
+}): Promise<TxHex | undefined> => {
+  const packageEstimate = estimateCpfpPackage({
     parentTxHex,
     parentFee,
     targetPackageFeeRate,
     utxosData,
     changeOutput
   });
-  if (!plan) return;
+  if (!packageEstimate) return;
 
   const { tx: parentTx } = transactionFromHex(parentTxHex);
   const psbt = new Psbt({ network });
   psbt.setVersion(parentTx.version === 3 ? 3 : 2);
   psbt.addInput({
     hash: parentTx.getId(),
-    index: plan.anchorOutputIndex,
+    index: packageEstimate.anchorOutputIndex,
     sequence: 0xfffffffd,
     witnessUtxo: {
       script: P2A_OUTPUT_SCRIPT,
-      value: toBigInt(plan.anchorValue)
+      value: toBigInt(packageEstimate.anchorValue)
     }
   });
 
-  const childInputFinalizers = plan.utxosData.map(utxoData =>
+  const childInputFinalizers = utxosData.map(utxoData =>
     utxoData.output.updatePsbtAsInput({
       psbt,
       txHex: utxoData.txHex,
@@ -708,10 +464,10 @@ export const createCpfpChildTx = async ({
   );
   changeOutput.updatePsbtAsOutput({
     psbt,
-    value: toBigInt(plan.childOutputValue)
+    value: toBigInt(packageEstimate.childOutputValue)
   });
 
-  if (plan.utxosData.length > 0) await signPsbt(signer, network, psbt);
+  if (utxosData.length > 0) await signPsbt(signer, network, psbt);
   psbt.finalizeInput(0, () => ({
     finalScriptSig: new Uint8Array(0),
     finalScriptWitness: Uint8Array.of(0)
@@ -719,17 +475,7 @@ export const createCpfpChildTx = async ({
   childInputFinalizers.forEach(finalizer => finalizer({ psbt }));
 
   const tx = psbt.extractTransaction(true);
-  const firstOutput = tx.outs[0];
-  if (!firstOutput) throw new Error('CPFP child output unset');
-  const childVSize = tx.virtualSize();
-  const childFee =
-    plan.anchorValue + plan.utxosValue - toNumber(firstOutput.value);
-  return {
-    childTxHex: tx.toHex(),
-    childTxId: tx.getId(),
-    childFee,
-    childVSize
-  };
+  return tx.toHex();
 };
 
 export type HistoryDataItem =
@@ -768,16 +514,17 @@ export type TxHistory = Array<{
  * the discoveryExport internal representation in any way, so there is no need
  * to save to disk exported discoveryExport after using this function.
  *
- * Note that it's fine using memoize and just check for changes in txos.
- * The rest of params are just tooling to complete txosData but won't change
- * the result
+ * Note that it's fine using shallow memoization and checking for changes in
+ * txos. The rest of params are just tooling to complete txosData but won't
+ * change the result.
  */
-export const getTxosDataFromVaults = memoize(
+export const getTxosDataFromVaults = moize.shallow(
   (
     txos: Array<string>,
     vaults: Vaults,
     network: Network,
-    discovery: DiscoveryInstance
+    discovery: DiscoveryInstance,
+    txoMap: TxoMap
   ): UtxosData => {
     const { Output, parseKeyExpression } = ensureDescriptorsFactoryInstance();
     return txos.map(txo => {
@@ -785,7 +532,7 @@ export const getTxosDataFromVaults = memoize(
       const vout = Number(strVout);
       if (!txId || isNaN(vout) || !Number.isInteger(vout) || vout < 0)
         throw new Error(`Invalid txo ${txo}`);
-      const descriptorAndIndex = discovery.getDescriptor({ txo });
+      const descriptorAndIndex = getDescriptorAndIndexFromTxoMap(txo, txoMap);
       if (!descriptorAndIndex) throw new Error(`Unmatched ${txo}`);
       let signersPubKeys;
       for (const vault of Object.values(vaults)) {
@@ -813,7 +560,8 @@ export const getTxosDataFromVaults = memoize(
         vout
       };
     });
-  }
+  },
+  { maxSize: 10 }
 );
 
 export const getVaultNumber = moize((vaultId: string, vaults: Vaults) => {
@@ -1085,79 +833,6 @@ const deriveKeyExpressionAndPubKey = async ({
 };
 
 /**
- * Returns the dedicated per-vault trigger reserve output funded at vault
- * creation time.
- *
- * This is the first child on the per-vault trigger reserve branch.
- * It is not part of normal hot-wallet discovery. It exists solely to fund
- * trigger fee-bump children for this specific vault.
- */
-const getTriggerReserveOutput = ({
-  signer,
-  network,
-  vaultIndex
-}: {
-  signer: Signer;
-  network: Network;
-  vaultIndex: number;
-}) => {
-  const { Output } = ensureDescriptorsFactoryInstance();
-  const path = getTriggerReservePath(network, vaultIndex);
-  const lastSlashIndex = path.lastIndexOf('/');
-  if (lastSlashIndex < 2) throw new Error(`Invalid path: ${path}`);
-  const mnemonic = signer?.mnemonic;
-  if (!mnemonic)
-    throw new Error(
-      'Could not initialize the deterministic reserve derivation'
-    );
-  const masterNode = getMasterNode(mnemonic, network);
-  const keyExpression = keyExpressionBIP32({
-    masterNode,
-    originPath: path.slice(1, lastSlashIndex),
-    keyPath: path.slice(lastSlashIndex)
-  });
-  return new Output({ descriptor: `wpkh(${keyExpression})`, network });
-};
-
-/**
- * Returns the currently known trigger reserve UTXOs for this vault.
- *
- * Today this returns only the built-in reserve funded in the vault tx itself,
- * which lives at `/0` on the trigger reserve branch. Future top-ups can extend
- * this list with more reserve UTXOs from the same branch.
- */
-export const getTriggerReserveUtxosData = ({
-  vault,
-  signer,
-  network
-}: {
-  vault: Vault;
-  signer: Signer;
-  network: Network;
-}) => {
-  const vaultIndex = parseVaultIndex(vault.vaultPath);
-  const triggerReserveOutput = getTriggerReserveOutput({
-    signer,
-    network,
-    vaultIndex
-  });
-  const { tx: vaultTx } = transactionFromHex(vault.vaultTxHex);
-  const triggerReserveVout = vaultTx.outs.findIndex(
-    out => toHex(out.script) === toHex(triggerReserveOutput.getScriptPubKey())
-  );
-  if (triggerReserveVout < 0) return [];
-
-  return [
-    {
-      tx: vaultTx,
-      txHex: vault.vaultTxHex,
-      vout: triggerReserveVout,
-      output: triggerReserveOutput
-    }
-  ];
-};
-
-/**
  * Reconstructs the funded P2A vault-creation outputs from the vault tx itself.
  *
  * This is strict P2A-only logic. Laddered vault creation is not part of the
@@ -1188,12 +863,18 @@ export const getP2AVaultFundingBreakdown = ({
     })})`,
     network
   });
-  const [triggerReserveUtxoData] = getTriggerReserveUtxosData({
-    vault,
-    signer,
-    network
-  });
   const { tx: vaultTx } = transactionFromHex(vault.vaultTxHex);
+  const triggerReserveDescriptor = getTriggerReserveDescriptorForVaultIndex({
+    signer,
+    network,
+    vaultIndex
+  });
+  const triggerReserveVout = findTriggerReserveVout({
+    vaultTxHex: vault.vaultTxHex,
+    descriptor: triggerReserveDescriptor,
+    network,
+    addressIndex: 0
+  });
   const backupVout = vaultTx.outs.findIndex(
     out => toHex(out.script) === toHex(backupOutput.getScriptPubKey())
   );
@@ -1205,8 +886,8 @@ export const getP2AVaultFundingBreakdown = ({
     throw new Error('Vault tx is missing backup output');
   if (!vaultTxData) throw new Error('Vault tx is not mapped');
   const triggerReserveValue =
-    triggerReserveUtxoData !== undefined
-      ? vaultTx.outs[triggerReserveUtxoData.vout]?.value
+    triggerReserveVout >= 0
+      ? vaultTx.outs[triggerReserveVout]?.value
       : BigInt(0);
   if (triggerReserveValue === undefined)
     throw new Error('Vault tx is missing trigger reserve output');
@@ -1683,17 +1364,24 @@ const buildVaultTxContext = async ({
     network
   });
   const changeOutput = new Output({ ...changeDescriptorWithIndex, network });
-  const triggerReserveOutput = getTriggerReserveOutput({
+  const triggerReserveDescriptor = getTriggerReserveDescriptorForVaultIndex({
     signer,
     network,
     vaultIndex
   });
-  const triggerReserveValue = getRequiredTriggerReserveValue({
-    triggerReserveOutput,
+  const triggerReserveOutput = getTriggerReserveOutput({
+    descriptor: triggerReserveDescriptor,
+    network,
+    addressIndex: 0
+  });
+  const triggerReserveValue = getAdditionalP2AOutputValue({
+    outputsWithValue: [],
+    additionalOutput: triggerReserveOutput,
     changeOutput,
-    vaultMode,
-    presignedTriggerFeeRate,
-    maxTriggerFeeRate
+    parentAnchorValue: toNumber(getTriggerAnchorValue(vaultMode)),
+    presignedParentVSize: Math.max(...TRIGGER_TX_VBYTES),
+    presignedParentFeeRate: presignedTriggerFeeRate,
+    targetPackageFeeRate: maxTriggerFeeRate
   });
   const shouldFundTriggerReserve = triggerReserveValue > BigInt(0);
 
@@ -2268,12 +1956,12 @@ async function fetchSpendingTx(
  * and can make refresh unusably slow as network P2A usage grows.
  *
  * Rewind trigger fee-payer children also spend the per-vault trigger reserve
- * output funded in the vault transaction. That reserve output is deterministic,
- * unique to the vault, and derivable on every device from the wallet seed and
- * vault index. We therefore discover the candidate child by checking the reserve
- * output's spender, then validate that the candidate also spends the trigger
- * parent's P2A anchor. This keeps cross-device discovery while avoiding the
- * global P2A script-history scan.
+ * output funded in the vault transaction. That reserve output is unique to the
+ * vault and described by the stored trigger reserve descriptor. We therefore
+ * discover the candidate child by checking the setup-funded reserve output's
+ * spender, then validate that the candidate also spends the trigger parent's P2A
+ * anchor. This keeps cross-device discovery while avoiding the global P2A
+ * script-history scan.
  */
 async function fetchTriggerCpfpTxFromReserve({
   vault,
@@ -2292,23 +1980,29 @@ async function fetchTriggerCpfpTxFromReserve({
   const anchor = findP2AOutputData(triggerTx);
   if (!anchor) return;
 
-  const triggerReserveUtxosData = getTriggerReserveUtxosData({
-    vault,
+  const triggerReserveDescriptor = getTriggerReserveDescriptorForVaultIndex({
     signer,
-    network
+    network,
+    vaultIndex: parseVaultIndex(vault.vaultPath)
   });
-  for (const triggerReserveUtxoData of triggerReserveUtxosData) {
-    const candidateTxData = await fetchSpendingTx(
-      triggerReserveUtxoData.txHex,
-      triggerReserveUtxoData.vout,
-      explorer
-    );
-    if (
-      candidateTxData &&
-      txSpendsOutpoint(candidateTxData.txHex, triggerTxId, anchor.index)
-    )
-      return candidateTxData;
-  }
+  const triggerReserveVout = findTriggerReserveVout({
+    vaultTxHex: vault.vaultTxHex,
+    descriptor: triggerReserveDescriptor,
+    network,
+    addressIndex: 0
+  });
+  if (triggerReserveVout < 0) return;
+
+  const candidateTxData = await fetchSpendingTx(
+    vault.vaultTxHex,
+    triggerReserveVout,
+    explorer
+  );
+  if (
+    candidateTxData &&
+    txSpendsOutpoint(candidateTxData.txHex, triggerTxId, anchor.index)
+  )
+    return candidateTxData;
   return;
 }
 
@@ -2408,14 +2102,13 @@ async function fetchVaultStatus(
     newVaultStatus.triggerTxHex = triggerTxData.txHex;
     newVaultStatus.triggerTxBlockHeight = triggerTxData.blockHeight;
     if (vaultMode === 'LADDERED') delete newVaultStatus.triggerCpfpTxHex;
-    else {
-      // Never discover the CPFP child by scanning the shared P2A anchor script:
-      // P2A is global, so this scans unrelated P2A txs and can stall refreshes.
-      // const triggerCpfpTxData = await fetchSpendingTx(
-      //   triggerTxData.txHex,
-      //   1,
-      //   explorer
-      // );
+    else if (
+      triggerTxData.blockHeight === 0 ||
+      newVaultStatus.triggerCpfpTxHex === undefined
+    ) {
+      // Fetch while unconfirmed for acceleration/replacement state. Also fetch
+      // once when missing so confirmed trigger fee-payer children can still be
+      // recovered for history labeling.
       const triggerCpfpTxData = await fetchTriggerCpfpTxFromReserve({
         vault,
         triggerTxHex: triggerTxData.txHex,

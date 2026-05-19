@@ -26,7 +26,7 @@ export const CREATE_VAULT = 'CREATE_VAULT' as const;
 export const NEW_WALLET = 'NEW_WALLET' as const;
 // https://reactnavigation.org/docs/typescript/
 export type RootStackParamList = {
-  SETTINGS: undefined;
+  SETTINGS: { walletId?: number } | undefined;
   WALLET_HOME: { walletId: number };
   WALLETS: undefined;
   SETUP_VAULT: undefined;

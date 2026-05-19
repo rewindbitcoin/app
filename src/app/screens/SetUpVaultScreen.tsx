@@ -22,10 +22,10 @@ import {
   areVaultsSynched,
   coinSelectVaultTx,
   getTargetValue,
-  getRequiredTriggerReserveValue,
   utxosDataBalance,
   type VaultSettings
 } from '../lib/vaults';
+import { getAdditionalP2AOutputValue } from '../lib/p2aReserve';
 import { getVaultableUtxosData } from '../lib/utxoPolicy';
 import {
   DUMMY_BACKUP_OUTPUT,
@@ -58,6 +58,8 @@ import { OutputInstance } from '@bitcoinerlab/descriptors';
 import { useLocalization } from '../hooks/useLocalization';
 import { batchedUpdates } from '~/common/lib/batchedUpdates';
 import { toBigInt, toNumber } from '../lib/sats';
+import { getTriggerAnchorValue } from '../lib/p2aPolicy';
+import { TRIGGER_TX_VBYTES } from '../lib/vaultSizes';
 
 export default function VaultSetUp({
   onVaultSetUpComplete
@@ -89,6 +91,14 @@ export default function VaultSetUp({
 
   if (!utxosData)
     throw new Error('SetUpVaultScreen cannot be called with unset raw utxos');
+  if (!vaultsStatuses)
+    throw new Error(
+      'SetUpVaultScreen cannot be called with unset vault statuses'
+    );
+  if (!historyData)
+    throw new Error(
+      'SetUpVaultScreen cannot be called with unset history data'
+    );
   if (!accounts)
     throw new Error('SetUpVaultScreen cannot be called with unset accounts');
   if (!networkId)
@@ -255,14 +265,16 @@ export default function VaultSetUp({
       minimumVaultSetup.vaultedAmount
       ? maxVaultAtSelectedPackageFeeRate.vaultedAmount
       : minimumVaultSetup.vaultedAmount;
-  const triggerReserveValue = getRequiredTriggerReserveValue({
-    triggerReserveOutput: DUMMY_TRIGGER_RESERVE_OUTPUT(network),
+  const triggerReserveValue = getAdditionalP2AOutputValue({
+    outputsWithValue: [],
+    additionalOutput: DUMMY_TRIGGER_RESERVE_OUTPUT(network),
     changeOutput:
       changeOutput ||
       DUMMY_CHANGE_OUTPUT(getMainAccount(accounts, network), network),
-    vaultMode,
-    presignedTriggerFeeRate,
-    maxTriggerFeeRate: settings.MAX_TRIGGER_FEERATE
+    parentAnchorValue: toNumber(getTriggerAnchorValue(vaultMode)),
+    presignedParentVSize: Math.max(...TRIGGER_TX_VBYTES),
+    presignedParentFeeRate: presignedTriggerFeeRate,
+    targetPackageFeeRate: settings.MAX_TRIGGER_FEERATE
   });
 
   const [userSelectedVaultedAmount, setUserSelectedVaultedAmount] = useState<
@@ -394,12 +406,14 @@ export default function VaultSetUp({
             vaultOutput: DUMMY_VAULT_OUTPUT(network),
             backupOutput: DUMMY_BACKUP_OUTPUT(network),
             triggerReserveOutput: DUMMY_TRIGGER_RESERVE_OUTPUT(network),
-            triggerReserveValue: getRequiredTriggerReserveValue({
-              triggerReserveOutput: DUMMY_TRIGGER_RESERVE_OUTPUT(network),
+            triggerReserveValue: getAdditionalP2AOutputValue({
+              outputsWithValue: [],
+              additionalOutput: DUMMY_TRIGGER_RESERVE_OUTPUT(network),
               changeOutput: currentChangeOutput,
-              vaultMode,
-              presignedTriggerFeeRate,
-              maxTriggerFeeRate: settings.MAX_TRIGGER_FEERATE
+              parentAnchorValue: toNumber(getTriggerAnchorValue(vaultMode)),
+              presignedParentVSize: Math.max(...TRIGGER_TX_VBYTES),
+              presignedParentFeeRate: presignedTriggerFeeRate,
+              targetPackageFeeRate: settings.MAX_TRIGGER_FEERATE
             }),
             changeOutput: currentChangeOutput,
             vaultMode,
@@ -639,6 +653,11 @@ export default function VaultSetUp({
             feeEstimates={feeEstimates}
             initialValue={initialPackageFeeRate}
             fee={packageFee}
+            isOptimal={
+              packageFee !== null &&
+              selectedTargetPackageFeeRate === pickedInitialPackageFeeRate &&
+              packageFeeRate === pickedInitialPackageFeeRate
+            }
             label={t('vaultSetup.confirmationSpeedLabel')}
             min={minimumPackageFeeRate}
             onValueChange={handlePackageFeeRateChange}

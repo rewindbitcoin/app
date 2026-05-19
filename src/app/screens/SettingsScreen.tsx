@@ -29,8 +29,16 @@ import AntDesign from '@expo/vector-icons/AntDesign';
 import { useSettings } from '../hooks/useSettings';
 import { defaultSettings, currencyCodes, Settings } from '../lib/settings';
 import { walletTitle } from '../lib/wallets';
-import { useNavigation } from '@react-navigation/native';
-import { NavigationPropsByScreenId, WALLETS } from '../screens';
+import {
+  type RouteProp,
+  useNavigation,
+  useRoute
+} from '@react-navigation/native';
+import {
+  NavigationPropsByScreenId,
+  type RootStackParamList,
+  WALLETS
+} from '../screens';
 import { exportWallet } from '../lib/backup';
 import { electrumParams, getAPIs } from '../lib/walletDerivedData';
 import { ElectrumExplorer, EsploraExplorer } from '@bitcoinerlab/explorer';
@@ -264,6 +272,11 @@ const SettingsItem = ({
 
 const SettingsScreen = () => {
   const navigation = useNavigation<NavigationPropsByScreenId['SETTINGS']>();
+  const route = useRoute<RouteProp<RootStackParamList, 'SETTINGS'>>();
+  const routeWalletId = route.params?.walletId;
+  const lastMissingRouteWalletWarningRef = useRef<number | undefined>(
+    undefined
+  );
   const goBackToWallets = useCallback(() => {
     //In react navigation v6 navigation.navigate behaves as if doing a
     //navigation.pop(2). So it unmounts this screen.
@@ -288,6 +301,22 @@ const SettingsScreen = () => {
     syncingBlockchain,
     deleteWallet
   } = useWallet();
+  useEffect(() => {
+    // Dev Fast Refresh can reset WalletContext while preserving this route.
+    // Warn once if Settings was opened from a wallet but the in-memory active
+    // wallet disappeared; wallet-specific settings will hide until the wallet is
+    // opened again through the normal flow.
+    if (
+      !wallet &&
+      routeWalletId !== undefined &&
+      lastMissingRouteWalletWarningRef.current !== routeWalletId
+    ) {
+      lastMissingRouteWalletWarningRef.current = routeWalletId;
+      console.warn(
+        `Settings route still has walletId ${routeWalletId}, but WalletContext lost its active wallet. This is likely a dev Fast Refresh/navigation-state reset; wallet-specific settings are hidden until the wallet is opened again.`
+      );
+    } else if (wallet) lastMissingRouteWalletWarningRef.current = undefined;
+  }, [wallet, routeWalletId]);
   const toast = useToast();
   const { settings, setSettings } = useSettings();
   const {
@@ -306,6 +335,10 @@ const SettingsScreen = () => {
     useState<boolean>(false);
   const [isVaultModeModalVisible, setIsVaultModeModalVisible] =
     useState<boolean>(false);
+  const [
+    isTapeFeeEstimateOverrideModalVisible,
+    setIsTapeFeeEstimateOverrideModalVisible
+  ] = useState<boolean>(false);
   const [isResetModalVisible, setIsResetModalVisible] =
     useState<boolean>(false);
 
@@ -322,6 +355,7 @@ const SettingsScreen = () => {
           await deleteWallet(wallet.walletId);
           goBackToWallets();
         } catch (err) {
+          void err;
           setIsDeleteModalVisible(false); //toasts are not compatible with Modals in android (toasts appear behind the modal opacity effect
           toast.show(t('settings.wallet.deleteError'), { type: 'warning' });
         }
@@ -493,6 +527,7 @@ const SettingsScreen = () => {
     wallet?.networkId === 'TESTNET' ||
     wallet?.networkId === 'TAPE' ||
     wallet?.networkId === 'REGTEST';
+  const shouldShowTapeFeeEstimateOverrideSetting = wallet?.networkId === 'TAPE';
 
   const currentVaultMode =
     settings?.TESTING_VAULT_MODE ?? defaultSettings.TESTING_VAULT_MODE;
@@ -501,6 +536,35 @@ const SettingsScreen = () => {
     currentVaultMode === 'P2A_TRUC'
       ? t('settings.general.vaultModeRealisticTruc')
       : t('settings.general.vaultModeFastDemo');
+  const currentTapeFeeEstimateOverrideLabel =
+    settings?.TAPE_FEE_ESTIMATE_OVERRIDE === 0
+      ? t('settings.general.defaultMainnet')
+      : `${settings?.TAPE_FEE_ESTIMATE_OVERRIDE} sat/vB`;
+
+  // Close modals whose prerequisites disappeared. This can happen in dev if
+  // Fast Refresh resets the in-memory active wallet while keeping Settings open,
+  // or in normal flow when a network-specific option is no longer applicable.
+  useEffect(() => {
+    if (!wallet) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setIsBip39ModalVisible(false);
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setIsDeleteModalVisible(false);
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setDeleteRequested(false);
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setDeleteInputValue('');
+    }
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (!shouldShowVaultModeSetting) setIsVaultModeModalVisible(false);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (!shouldShowTapeFeeEstimateOverrideSetting)
+      setIsTapeFeeEstimateOverrideModalVisible(false);
+  }, [
+    wallet,
+    shouldShowVaultModeSetting,
+    shouldShowTapeFeeEstimateOverrideSetting
+  ]);
 
   /** Saves vault mode for all testing networks. */
   const setTestingVaultMode = useCallback(
@@ -510,6 +574,20 @@ const SettingsScreen = () => {
       setIsVaultModeModalVisible(false);
     },
     [setSettings, settings]
+  );
+  const openTapeFeeEstimateOverrideModal = useCallback(() => {
+    setIsTapeFeeEstimateOverrideModalVisible(true);
+  }, []);
+  const setTapeFeeEstimateOverride = useCallback(
+    (feeRate: number) => {
+      if (!settings) return;
+      setSettings({
+        ...settings,
+        TAPE_FEE_ESTIMATE_OVERRIDE: feeRate
+      });
+      setIsTapeFeeEstimateOverrideModalVisible(false);
+    },
+    [settings, setSettings]
   );
 
   const mnemonic = signers && signers[0]?.mnemonic;
@@ -796,7 +874,10 @@ const SettingsScreen = () => {
               </>
             )}
             <SettingsItem
-              showSeparator={shouldShowVaultModeSetting}
+              showSeparator={
+                shouldShowVaultModeSetting ||
+                shouldShowTapeFeeEstimateOverrideSetting
+              }
               icon={{
                 family: 'Ionicons',
                 name: 'flask'
@@ -817,7 +898,7 @@ const SettingsScreen = () => {
             />
             {shouldShowVaultModeSetting && (
               <SettingsItem
-                showSeparator={false}
+                showSeparator={shouldShowTapeFeeEstimateOverrideSetting}
                 icon={{
                   family: 'MaterialCommunityIcons',
                   name: 'package-variant-closed'
@@ -825,6 +906,18 @@ const SettingsScreen = () => {
                 label={t('settings.general.vaultMode')}
                 onPress={() => setIsVaultModeModalVisible(true)}
                 initialValue={currentVaultModeLabel}
+              />
+            )}
+            {shouldShowTapeFeeEstimateOverrideSetting && (
+              <SettingsItem
+                showSeparator={false}
+                icon={{
+                  family: 'MaterialCommunityIcons',
+                  name: 'speedometer'
+                }}
+                label={t('settings.general.tapeFees')}
+                onPress={openTapeFeeEstimateOverrideModal}
+                initialValue={currentTapeFeeEstimateOverrideLabel}
               />
             )}
           </View>
@@ -1048,7 +1141,7 @@ const SettingsScreen = () => {
           onClose={() => setIsVaultModeModalVisible(false)}
         >
           <View className="p-4 gap-3">
-            <Text className="text-base text-slate-600">
+            <Text className="text-base text-slate-600 mb-4">
               {t('settings.general.vaultModeHelp')}
             </Text>
             <Pressable
@@ -1069,6 +1162,52 @@ const SettingsScreen = () => {
                 className={`${currentVaultMode === 'P2A_TRUC' ? 'text-white' : 'text-black'} text-center`}
               >
                 {t('settings.general.vaultModeRealisticTruc')}
+              </Text>
+            </Pressable>
+          </View>
+        </Modal>
+        <Modal
+          icon={{
+            family: 'MaterialCommunityIcons',
+            name: 'speedometer'
+          }}
+          title={t('settings.general.tapeFees')}
+          isVisible={isTapeFeeEstimateOverrideModalVisible}
+          closeButtonText={t('closeButton')}
+          onClose={() => setIsTapeFeeEstimateOverrideModalVisible(false)}
+        >
+          <View className="p-4 gap-3">
+            <Text className="text-base text-slate-600 mb-4">
+              {t('settings.general.tapeFeeEstimateOverrideHelp')}
+            </Text>
+            <Pressable
+              onPress={() => setTapeFeeEstimateOverride(0)}
+              className={`py-2 px-4 rounded-lg ${settings.TAPE_FEE_ESTIMATE_OVERRIDE === 0 ? 'bg-primary' : 'bg-gray-200'} my-1`}
+            >
+              <Text
+                className={`${settings.TAPE_FEE_ESTIMATE_OVERRIDE === 0 ? 'text-white' : 'text-black'} text-center`}
+              >
+                {t('settings.general.defaultMainnet')}
+              </Text>
+            </Pressable>
+            <Pressable
+              onPress={() => setTapeFeeEstimateOverride(100)}
+              className={`py-2 px-4 rounded-lg ${settings.TAPE_FEE_ESTIMATE_OVERRIDE === 100 ? 'bg-primary' : 'bg-gray-200'} my-1`}
+            >
+              <Text
+                className={`${settings.TAPE_FEE_ESTIMATE_OVERRIDE === 100 ? 'text-white' : 'text-black'} text-center`}
+              >
+                100 sat/vB
+              </Text>
+            </Pressable>
+            <Pressable
+              onPress={() => setTapeFeeEstimateOverride(1000)}
+              className={`py-2 px-4 rounded-lg ${settings.TAPE_FEE_ESTIMATE_OVERRIDE === 1000 ? 'bg-primary' : 'bg-gray-200'} my-1`}
+            >
+              <Text
+                className={`${settings.TAPE_FEE_ESTIMATE_OVERRIDE === 1000 ? 'text-white' : 'text-black'} text-center`}
+              >
+                1000 sat/vB
               </Text>
             </Pressable>
           </View>

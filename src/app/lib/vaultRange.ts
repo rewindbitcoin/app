@@ -18,13 +18,14 @@ import {
   getTargetValue,
   type UtxosData,
   estimateMinimumRequiredVaultedAmount,
-  getBackupFunding,
-  getRequiredTriggerReserveValue
+  getBackupFunding
 } from './vaults';
+import { getAdditionalP2AOutputValue } from './p2aReserve';
+import { getTriggerAnchorValue } from './p2aPolicy';
 import type { Accounts } from './wallets';
 import { toBigInt, toNumber } from './sats';
 import { MIN_FEE_RATE } from './fees';
-import { OP_RETURN_BACKUP_TX_VBYTES } from './vaultSizes';
+import { OP_RETURN_BACKUP_TX_VBYTES, TRIGGER_TX_VBYTES } from './vaultSizes';
 
 type VaultSetupEstimate = {
   packageFee: number;
@@ -233,12 +234,14 @@ export const estimateVaultSetupRange = moize.shallow(
     );
     const vaultOutput = DUMMY_VAULT_OUTPUT(network);
     const triggerReserveOutput = DUMMY_TRIGGER_RESERVE_OUTPUT(network);
-    const triggerReserveValue = getRequiredTriggerReserveValue({
-      triggerReserveOutput,
+    const triggerReserveValue = getAdditionalP2AOutputValue({
+      outputsWithValue: [],
+      additionalOutput: triggerReserveOutput,
       changeOutput,
-      vaultMode,
-      presignedTriggerFeeRate,
-      maxTriggerFeeRate
+      parentAnchorValue: toNumber(getTriggerAnchorValue(vaultMode)),
+      presignedParentVSize: Math.max(...TRIGGER_TX_VBYTES),
+      presignedParentFeeRate: presignedTriggerFeeRate,
+      targetPackageFeeRate: maxTriggerFeeRate
     });
     return {
       minimumVaultSetup: estimateMinimumVaultSetup({

@@ -11,11 +11,12 @@ import { useRef } from 'react';
  *
  * It initializes with `undefined` and updates its stored value only once, when
  * the input value transitions from `undefined` to a defined state. Subsequent
- * changes to the input do not affect the stored value, ensuring consistency
- * throughout the component's lifecycle.
+ * changes to the input do not affect the stored value unless `resetKey`
+ * changes, ensuring consistency throughout each cache-key lifecycle.
  *
  * @param {T | undefined} value - The input value to monitor and cache if it is
  * the first non-undefined value.
+ * @param resetKey - Optional key that clears the cached value when it changes.
  * @returns {T | undefined} - The first defined value encountered, or undefined
  * if no defined value has been observed.
  *
@@ -25,9 +26,19 @@ import { useRef } from 'react';
  * feeEstimatesRealTime);
  */
 export default function useFirstDefinedValue<T>(
-  value: T | undefined
+  value: T | undefined,
+  resetKey?: unknown
 ): T | undefined {
   const ref = useRef<T | undefined>(undefined);
+  const resetKeyRef = useRef<unknown>(resetKey);
+  // eslint-disable-next-line react-hooks/refs
+  if (!Object.is(resetKeyRef.current, resetKey)) {
+    // Safe: explicit reset requested by the caller's cache key.
+    // eslint-disable-next-line react-hooks/refs
+    ref.current = undefined;
+    // eslint-disable-next-line react-hooks/refs
+    resetKeyRef.current = resetKey;
+  }
   // Safe: this hook intentionally latches the first defined value once and
   // keeps it stable to avoid UI flicker and state-triggered retriggers.
   // eslint-disable-next-line react-hooks/refs

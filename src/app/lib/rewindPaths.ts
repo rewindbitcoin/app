@@ -32,14 +32,13 @@ export const getVaultPath = (network: Network, index: number) =>
 export const getWalletDataKeyPath = (network: Network) =>
   `m/${VAULT_PURPOSE}'/${coinTypeFromNetwork(network)}'/1'/0`;
 
-/**
- * Returns the deterministic path for the first trigger reserve UTXO of a vault.
- *
- * Rewind reserves the `/2'/<vaultIndex>` branch for trigger-acceleration
- * funding. Today the vault tx funds only the first child at `/0`.
- */
-export const getTriggerReservePath = (network: Network, vaultIndex: number) =>
-  `m/${VAULT_PURPOSE}'/${coinTypeFromNetwork(network)}'/2'/${vaultIndex}/0`;
+/** Returns the deterministic path for a trigger reserve output of a vault. */
+export const getTriggerReservePath = (
+  network: Network,
+  vaultIndex: number,
+  addressIndex: number | '*'
+) =>
+  `m/${VAULT_PURPOSE}'/${coinTypeFromNetwork(network)}'/2'/${vaultIndex}/${addressIndex}`;
 
 /** Returns the non-hardened vault index encoded in a deterministic vault path. */
 export const parseVaultIndex = (vaultPath: string) => {

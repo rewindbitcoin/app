@@ -7,9 +7,9 @@ import type { HistoryData, TxId, UtxosData, VaultsStatuses } from './vaults';
 
 type VaultableMode = 'P2A_TRUC' | 'P2A_NON_TRUC';
 
-const getUnconfirmedTxIds = (historyData: HistoryData | undefined) =>
+const getUnconfirmedTxIds = (historyData: HistoryData) =>
   new Set(
-    historyData?.filter(item => item.blockHeight === 0).map(item => item.txId)
+    historyData.filter(item => item.blockHeight === 0).map(item => item.txId)
   );
 
 const keepOriginalReferenceIfUnchanged = (
@@ -35,10 +35,10 @@ const keepOriginalReferenceIfUnchanged = (
 export const getStableUtxosData = moize.shallow(
   (
     utxosData: UtxosData,
-    vaultsStatuses: VaultsStatuses | undefined,
-    historyData: HistoryData | undefined
+    vaultsStatuses: VaultsStatuses,
+    historyData: HistoryData
   ): UtxosData => {
-    if (!vaultsStatuses || !historyData?.length) return utxosData;
+    if (!historyData.length) return utxosData;
 
     const unconfirmedTxIds = getUnconfirmedTxIds(historyData);
     const replaceableChildTxIds = new Set<TxId>();
@@ -70,8 +70,8 @@ export const getStableUtxosData = moize.shallow(
 export const getSendableUtxosData = moize.shallow(
   (
     utxosData: UtxosData,
-    vaultsStatuses: VaultsStatuses | undefined,
-    historyData: HistoryData | undefined
+    vaultsStatuses: VaultsStatuses,
+    historyData: HistoryData
   ): UtxosData => {
     const stableUtxosData = getStableUtxosData(
       utxosData,
@@ -99,8 +99,8 @@ export const getSendableUtxosData = moize.shallow(
 export const getVaultableUtxosData = moize.shallow(
   (
     utxosData: UtxosData,
-    vaultsStatuses: VaultsStatuses | undefined,
-    historyData: HistoryData | undefined,
+    vaultsStatuses: VaultsStatuses,
+    historyData: HistoryData,
     vaultMode: VaultableMode
   ): UtxosData => {
     const stableUtxosData = getStableUtxosData(

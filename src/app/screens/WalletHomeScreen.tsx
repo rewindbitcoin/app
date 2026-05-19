@@ -192,7 +192,7 @@ const WalletHomeScreen = () => {
           <Pressable
             hitSlop={10}
             className={`hover:opacity-90 active:scale-95 active:opacity-90`}
-            onPress={() => navigation.navigate(SETTINGS)}
+            onPress={() => navigation.navigate(SETTINGS, { walletId })}
           >
             <Ionicons
               name="settings-outline"
@@ -527,12 +527,20 @@ const WalletHomeScreen = () => {
                 : undefined
             }
             handleSend={
-              feeEstimates && explorerReachable && utxosData?.length
+              feeEstimates &&
+              explorerReachable &&
+              utxosData?.length &&
+              historyData &&
+              vaultsStatuses
                 ? handleSend
                 : undefined
             }
             handleFreeze={
-              feeEstimates && explorerReachable && utxosData?.length
+              feeEstimates &&
+              explorerReachable &&
+              utxosData?.length &&
+              historyData &&
+              vaultsStatuses
                 ? handleFreeze
                 : undefined
             }

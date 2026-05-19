@@ -112,6 +112,14 @@ export interface Settings {
   BTC_FIAT_REFRESH_INTERVAL_MS: number;
   BLOCKCHAIN_DATA_REFRESH_INTERVAL_MS: number;
   /**
+   * Testing-only TAPE fee simulation in sat/vB. `0` disables it.
+   *
+   * When enabled, fetched TAPE mainnet fee estimates are replaced with this
+   * value for every confirmation target so we can simulate extreme mempool
+   * conditions on Tape.
+   */
+  TAPE_FEE_ESTIMATE_OVERRIDE: number;
+  /**
    * Mode used for all testing networks (TESTNET/TAPE/REGTEST).
    * Mainnet is always P2A_TRUC and does not use this setting.
    */
@@ -191,6 +199,7 @@ export const defaultSettings: Settings = {
       : 'USD',
   BTC_FIAT_REFRESH_INTERVAL_MS: 60000, //1 minutes
   BLOCKCHAIN_DATA_REFRESH_INTERVAL_MS: 60000, // 1 minute
+  TAPE_FEE_ESTIMATE_OVERRIDE: 0,
   TESTING_VAULT_MODE: 'P2A_NON_TRUC',
   WALLETS_DATA_VERSION: '1.0.0', //This does not define the version of the App, but keeps track of the changes in the signature of the Wallet
 

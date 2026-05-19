@@ -74,7 +74,10 @@ export default function Send() {
   } = useWallet();
 
   const sendableUtxosData =
-    utxosData && getSendableUtxosData(utxosData, vaultsStatuses, historyData);
+    utxosData &&
+    vaultsStatuses &&
+    historyData &&
+    getSendableUtxosData(utxosData, vaultsStatuses, historyData);
 
   //Warn the user and reset this component if wallet changes.
   const walletChanged = useArrayChangeDetector([
@@ -91,6 +94,10 @@ export default function Send() {
     throw new Error('SendScreen cannot be called with unset utxos');
   if (!utxosData)
     throw new Error('SendScreen cannot be called with unset raw utxos');
+  if (!vaultsStatuses)
+    throw new Error('SendScreen cannot be called with unset vault statuses');
+  if (!historyData)
+    throw new Error('SendScreen cannot be called with unset history data');
   if (!accounts)
     throw new Error('SendScreen cannot be called with unset accounts');
   if (!networkId)
@@ -301,6 +308,9 @@ export default function Send() {
    * 2. We batch both state updates (fee and amount) to happen in the same
    * render cycle
    * 3. This ensures the UI always shows a consistent state without flicker
+   *
+   * This also handles the case where the previous fee rate had no valid amount
+   * range, but the new lower fee rate makes max amount available again.
    */
   const handleFeeRateChange = useCallback(
     (newFeeRate: number | null) => {
@@ -309,9 +319,9 @@ export default function Send() {
         setUserSelectedFeeRate(newFeeRate);
 
         // Only recalculate max amount if user has selected max and fee is valid
-        if (isMaxAmount && newFeeRate !== null) {
+        if ((isMaxAmount || !isValidAmountRange) && newFeeRate !== null) {
           // Calculate the new max amount with the updated fee rate
-          const { max: newMaxAmount } = estimateSendRange({
+          const { min: newMinAmount, max: newMaxAmount } = estimateSendRange({
             utxosData: sendableUtxosData,
             address,
             network,
@@ -319,13 +329,17 @@ export default function Send() {
           });
 
           // Update the amount in the same render cycle to prevent flicker
-          if (newMaxAmount !== null) {
+          if (newMaxAmount !== null && newMaxAmount >= newMinAmount) {
             setUserSelectedAmount(newMaxAmount);
+            //set max amount to true to cover the !isValidAmountRange case
+            //That is, we were in a non valid range situation, but the new
+            //newFeeRate now allows again a valid range. Then setIsMaxAmount(true)
+            setIsMaxAmount(true);
           }
         }
       });
     },
-    [isMaxAmount, sendableUtxosData, address, network]
+    [isMaxAmount, isValidAmountRange, sendableUtxosData, address, network]
   );
 
   const fee = estimateSendTxFee({
@@ -408,16 +422,16 @@ export default function Send() {
             onValueChange={setAddress}
           />
           <View className="mb-8" />
-          {maxAmount !== null && lastKnownValidAmountRef.current !== null ? (
+          {isValidAmountRange && maxAmount !== null ? (
             //AmountInput will be constantly re-rendered, so keep track
-            //of the last value that was set for initing it to it, even it
-            //out of range
+            //of the last value that was set for initing it to it. If no
+            //valid amount was ever set, initialize it to maxAmount.
             <View onLayout={onAmountInputLayout}>
               <AmountInput
                 btcFiat={btcFiat}
                 isMaxAmount={isMaxAmount}
                 label={t('send.amountLabel')}
-                initialValue={lastKnownValidAmountRef.current}
+                initialValue={lastKnownValidAmountRef.current ?? maxAmount}
                 min={minAmount}
                 max={maxAmount}
                 onValueChange={onUserSelectedAmountChange}
@@ -438,6 +452,7 @@ export default function Send() {
             feeEstimates={feeEstimates}
             initialValue={initialFeeRate}
             fee={fee}
+            isOptimal={fee !== null && feeRate === initialFeeRate}
             label={t('send.confirmationSpeedLabel')}
             onValueChange={handleFeeRateChange}
           />

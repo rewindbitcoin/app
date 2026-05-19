@@ -1,5 +1,5 @@
 diff --git a/node_modules/react-native-toast-notifications/src/hook/provider.tsx b/node_modules/react-native-toast-notifications/src/hook/provider.tsx
-index c342fdb..43a5ce4 100644
+index c342fdb..d2f8cea 100644
 --- a/node_modules/react-native-toast-notifications/src/hook/provider.tsx
 +++ b/node_modules/react-native-toast-notifications/src/hook/provider.tsx
 @@ -1,26 +1,46 @@
@@ -56,26 +56,89 @@ index c342fdb..43a5ce4 100644
    );
  };
 diff --git a/node_modules/react-native-toast-notifications/src/toast.tsx b/node_modules/react-native-toast-notifications/src/toast.tsx
-index bbabca6..4c63c00 100644
+index bbabca6..6a8065f 100644
 --- a/node_modules/react-native-toast-notifications/src/toast.tsx
 +++ b/node_modules/react-native-toast-notifications/src/toast.tsx
-@@ -1,3 +1,6 @@
+@@ -1 +1,6 @@
+-import React, { FC, useRef, useEffect, useState } from "react";
 +// patched by RewindBitcoin
 +// 1) shorten the trigger pixels to close the Toast from 50 to 25
 +// 2) Add onPanResponderTerminate (read reasoning in the comments)
- import React, { FC, useRef, useEffect, useState } from "react";
- import {
-   View,
-@@ -225,9 +228,35 @@ const Toast: FC<ToastProps> = (props) => {
-         });
-       },
-       onPanResponderRelease: (_, gestureState) => {
++// 3) Allow top toasts to be dismissed by swiping up
++// 4) Defer toast removal until after Animated cleanup finishes
++import React, { FC, useRef, useEffect, useState } from "react";
+@@ -186,7 +191,11 @@
+-  const handleClose = () => {
+-    Animated.timing(animation, {
+-      toValue: 0,
+-      useNativeDriver: Platform.OS !== "web",
+-      duration: animationDuration,
+-    }).start(() => onDestroy());
+-  };
++  const destroyAfterAnimation = () => {
++    requestAnimationFrame(onDestroy);
++  };
++
++  const handleClose = () => {
++    Animated.timing(animation, {
++      toValue: 0,
++      useNativeDriver: Platform.OS !== "web",
++      duration: animationDuration,
++    }).start(destroyAfterAnimation);
++  };
+@@ -195,6 +204,6 @@
+-    Animated.timing(getPanResponderAnim(), {
+-      toValue: { x: (-dims.width / 10) * 9, y: gestureState.dy },
+-      useNativeDriver: Platform.OS !== "web",
+-      duration: 250,
+-    }).start(() => onDestroy());
+-  };
++    Animated.timing(getPanResponderAnim(), {
++      toValue: { x: (-dims.width / 10) * 9, y: gestureState.dy },
++      useNativeDriver: Platform.OS !== "web",
++      duration: 250,
++    }).start(destroyAfterAnimation);
++  };
+@@ -202,7 +211,18 @@
+-  const panReleaseToRight = (gestureState: PanResponderGestureState) => {
+-    Animated.timing(getPanResponderAnim(), {
+-      toValue: { x: (dims.width / 10) * 9, y: gestureState.dy },
+-      useNativeDriver: Platform.OS !== "web",
+-      duration: 250,
+-    }).start(() => onDestroy());
+-  };
++  const panReleaseToRight = (gestureState: PanResponderGestureState) => {
++    Animated.timing(getPanResponderAnim(), {
++      toValue: { x: (dims.width / 10) * 9, y: gestureState.dy },
++      useNativeDriver: Platform.OS !== "web",
++      duration: 250,
++    }).start(destroyAfterAnimation);
++  };
++
++  const panReleaseToTop = (gestureState: PanResponderGestureState) => {
++    Animated.timing(getPanResponderAnim(), {
++      toValue: { x: gestureState.dx, y: (-dims.height / 10) * 9 },
++      useNativeDriver: Platform.OS !== "web",
++      duration: 250,
++    }).start(destroyAfterAnimation);
++  };
++
++  const shouldReleaseToTop = (gestureState: PanResponderGestureState) =>
++    placement === "top" && gestureState.dy < -25;
+@@ -228,7 +248,37 @@
 -        if (gestureState.dx > 50) {
-+        if (gestureState.dx > 25) {
-           panReleaseToRight(gestureState);
+-          panReleaseToRight(gestureState);
 -        } else if (gestureState.dx < -50) {
+-          panReleaseToLeft(gestureState);
+-        } else {
+-          Animated.spring(getPanResponderAnim(), {
+-            toValue: { x: 0, y: 0 },
++        if (gestureState.dx > 25) {
++          panReleaseToRight(gestureState);
 +        } else if (gestureState.dx < -25) {
 +          panReleaseToLeft(gestureState);
++        } else if (shouldReleaseToTop(gestureState)) {
++          panReleaseToTop(gestureState);
 +        } else {
 +          Animated.spring(getPanResponderAnim(), {
 +            toValue: { x: 0, y: 0 },
@@ -101,15 +164,22 @@ index bbabca6..4c63c00 100644
 +        if (gestureState.dx > 25) {
 +          panReleaseToRight(gestureState);
 +        } else if (gestureState.dx < -25) {
-           panReleaseToLeft(gestureState);
-         } else {
-           Animated.spring(getPanResponderAnim(), {
-@@ -299,7 +328,7 @@ const Toast: FC<ToastProps> = (props) => {
- 
-   if (swipeEnabled) {
-     animationStyle.transform?.push(
++          panReleaseToLeft(gestureState);
++        } else if (shouldReleaseToTop(gestureState)) {
++          panReleaseToTop(gestureState);
++        } else {
++          Animated.spring(getPanResponderAnim(), {
++            toValue: { x: 0, y: 0 },
+@@ -300,5 +350,7 @@
+-  if (swipeEnabled) {
+-    animationStyle.transform?.push(
 -      getPanResponderAnim().getTranslateTransform()[0]
-+      getPanResponderAnim().getTranslateTransform()[0],
-     );
-   }
- 
+-    );
+-  }
++  if (swipeEnabled) {
++    const panTransforms = getPanResponderAnim().getTranslateTransform();
++    animationStyle.transform?.push(
++      panTransforms[0],
++      ...(placement === "top" ? [panTransforms[1]] : []),
++    );
++  }

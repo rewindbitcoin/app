@@ -1,6 +1,14 @@
 // Copyright (C) 2025 Jose-Luis Landabaso - https://rewindbitcoin.com
 // Licensed under the GNU GPL v3 or later. See the LICENSE file for details.
 
+jest.mock('../dist/src/common/lib/cipher', () => ({
+  getManagedChacha: jest.fn(),
+  getPasswordDerivedCipherKey: jest.fn()
+}));
+jest.mock('../dist/src/app/lib/backup', () => ({
+  getSeedDerivedCipherKey: jest.fn()
+}));
+
 import { fixtures } from './fixtutres';
 import {
   assertP2AParentPolicy,
@@ -10,12 +18,21 @@ import {
   getHotDescriptors,
   P2A_NON_TRUC_ANCHOR_VALUE,
   getVaultMode,
+  type HistoryData,
   type UtxosData,
   type Vault,
   type Vaults,
   type VaultsStatuses
 } from '../dist/src/app/lib/vaults';
 import { type Accounts } from '../dist/src/app/lib/wallets';
+import { MIN_FEE_RATE } from '../dist/src/app/lib/fees';
+import { getAdditionalP2AOutputValue } from '../dist/src/app/lib/p2aReserve';
+import { getVaultableUtxosData } from '../dist/src/app/lib/utxoPolicy';
+import {
+  buildVaultActionDataForFeeRate,
+  canProceedToActionConfirmation,
+  getCpfpFeeInfo
+} from '../dist/src/app/lib/vaultActionTx';
 import { networks, type Network, Transaction } from 'bitcoinjs-lib';
 import { fromHex } from 'uint8array-tools';
 import { createAddressOutput } from '../dist/src/app/lib/vaultDescriptors';
@@ -64,6 +81,54 @@ const createSyntheticUtxoData = (value: number): UtxosData[number] => {
     vout: 0,
     output
   };
+};
+
+const createSyntheticCpfpChildTxHex = ({
+  parentTxHex,
+  reserveUtxosData,
+  childFee
+}: {
+  parentTxHex: string;
+  reserveUtxosData: UtxosData;
+  childFee: number;
+}) => {
+  const parentTx = Transaction.fromHex(parentTxHex);
+  const parentAnchor = findP2AOutputData(parentTx);
+  if (!parentAnchor) throw new Error('Expected parent anchor');
+  const reserveValue = reserveUtxosData.reduce((sum, utxoData) => {
+    const output = utxoData.tx.outs[utxoData.vout];
+    if (!output) throw new Error('Expected reserve output');
+    return sum + Number(output.value);
+  }, 0);
+  const childOutputValue = BigInt(parentAnchor.value + reserveValue - childFee);
+  if (childOutputValue <= BigInt(0)) throw new Error('Invalid child fee');
+
+  const childTx = new Transaction();
+  childTx.version = parentTx.version === 3 ? 3 : 2;
+  childTx.addInput(parentTx.getHash(), parentAnchor.index, 0xfffffffd);
+  reserveUtxosData.forEach(utxoData => {
+    childTx.addInput(utxoData.tx.getHash(), utxoData.vout, 0xfffffffd);
+  });
+  childTx.addOutput(fromHex(`0014${'11'.repeat(20)}`), childOutputValue);
+  return childTx.toHex();
+};
+
+const createPresignedP2ATxInfo = ({
+  version,
+  p2aValue,
+  fee
+}: {
+  version: number;
+  p2aValue: number;
+  fee: number;
+}) => {
+  const txHex = createSyntheticTxHex({
+    version,
+    mainOutputValue: 12000,
+    p2aValue
+  });
+  const tx = Transaction.fromHex(txHex);
+  return { txHex, fee, feeRate: fee / tx.virtualSize() };
 };
 
 describe('vaults unit tests', () => {
@@ -157,6 +222,339 @@ describe('vaults unit tests', () => {
     expect(plan.packageFeeRate).toBeGreaterThanOrEqual(2);
   });
 
+  test('getAdditionalP2AOutputValue funds one new child input', () => {
+    const network = networks.regtest;
+    const changeOutput = createAddressOutput(DUMMY_ADDRESS(network), network);
+    const nextReserveOutput = createAddressOutput(
+      DUMMY_ADDRESS(network),
+      network
+    );
+    const parentTxHex = createSyntheticTxHex({
+      version: 2,
+      mainOutputValue: 12000,
+      p2aValue: P2A_NON_TRUC_ANCHOR_SATS
+    });
+    const parentTx = Transaction.fromHex(parentTxHex);
+    const parentAnchor = findP2AOutputData(parentTx);
+    if (!parentAnchor) throw new Error('Expected parent anchor');
+    const parentFee = 120;
+    const targetPackageFeeRate = 20;
+
+    const requiredValue = Number(
+      getAdditionalP2AOutputValue({
+        parentAnchorValue: parentAnchor.value,
+        presignedParentVSize: parentTx.virtualSize(),
+        presignedParentFeeRate: parentFee / parentTx.virtualSize(),
+        targetPackageFeeRate,
+        outputsWithValue: [],
+        additionalOutput: nextReserveOutput,
+        changeOutput
+      })
+    );
+
+    expect(requiredValue).toBeGreaterThan(0);
+    const plan = estimateCpfpPackage({
+      parentTxHex,
+      parentFee,
+      targetPackageFeeRate,
+      utxosData: [createSyntheticUtxoData(requiredValue)],
+      changeOutput
+    });
+    expect(plan).toBeDefined();
+    expect(plan?.packageFeeRate).toBeGreaterThanOrEqual(targetPackageFeeRate);
+
+    const underfundedPlan = estimateCpfpPackage({
+      parentTxHex,
+      parentFee,
+      targetPackageFeeRate,
+      utxosData: [createSyntheticUtxoData(requiredValue - 1)],
+      changeOutput
+    });
+    expect(underfundedPlan).toBeUndefined();
+  });
+
+  test('P2A replacement uses reserve inputs spent by the previous child', () => {
+    const network = networks.regtest;
+    const changeOutput = createAddressOutput(DUMMY_ADDRESS(network), network);
+    const parentTxHex = createSyntheticTxHex({
+      version: 2,
+      mainOutputValue: 12000,
+      p2aValue: P2A_NON_TRUC_ANCHOR_SATS
+    });
+    const parentTx = Transaction.fromHex(parentTxHex);
+    const parentFee = 120;
+    const priorReserveUtxo = createSyntheticUtxoData(3000);
+    const pushedChildTxHex = createSyntheticCpfpChildTxHex({
+      parentTxHex,
+      reserveUtxosData: [priorReserveUtxo],
+      childFee: 200
+    });
+    const p2aBumpPlan = {
+      txosData: [priorReserveUtxo],
+      hasUnconfirmedUtxos: false,
+      changeOutput
+    };
+    const presignedTxInfos = [
+      {
+        txHex: parentTxHex,
+        fee: parentFee,
+        feeRate: parentFee / parentTx.virtualSize()
+      }
+    ];
+    const availability = canProceedToActionConfirmation({
+      vaultMode: 'P2A_NON_TRUC',
+      feeEstimates: { '1': 10 },
+      pushedTxHex: parentTxHex,
+      pushedChildTxHex,
+      presignedTxInfos,
+      p2aBumpPlan,
+      historyData: []
+    });
+
+    expect(availability.blocker).toBeNull();
+    expect(availability.minimumSelectableFeeRate).not.toBeNull();
+    if (availability.minimumSelectableFeeRate === null)
+      throw new Error('Expected minimum selectable fee rate');
+    const txData = buildVaultActionDataForFeeRate({
+      vaultMode: 'P2A_NON_TRUC',
+      selectedFeeRate: availability.minimumSelectableFeeRate,
+      pushedTxHex: parentTxHex,
+      presignedTxInfos,
+      p2aBumpPlan
+    });
+
+    expect(txData?.p2aBumpPlan?.txosData).toHaveLength(1);
+    expect(txData?.p2aBumpPlan?.txosData[0]?.tx.getId()).toBe(
+      priorReserveUtxo.tx.getId()
+    );
+    expect(txData?.walletSupplementUtxosData).toBe('walletSupplementUnneeded');
+  });
+
+  test('P2A trigger uses wallet supplement only after opt-in', () => {
+    const network = networks.regtest;
+    const changeOutput = createAddressOutput(DUMMY_ADDRESS(network), network);
+    const parentTxHex = createSyntheticTxHex({
+      version: 2,
+      mainOutputValue: 12000,
+      p2aValue: P2A_NON_TRUC_ANCHOR_SATS
+    });
+    const parentTx = Transaction.fromHex(parentTxHex);
+    const parentFee = 120;
+    const reserveUtxo = createSyntheticUtxoData(100);
+    const walletUtxo = createSyntheticUtxoData(10000);
+    const presignedTxInfos = [
+      {
+        txHex: parentTxHex,
+        fee: parentFee,
+        feeRate: parentFee / parentTx.virtualSize()
+      }
+    ];
+    const reserveOnlyPlan = {
+      txosData: [reserveUtxo],
+      hasUnconfirmedUtxos: false,
+      changeOutput
+    };
+
+    expect(
+      buildVaultActionDataForFeeRate({
+        vaultMode: 'P2A_NON_TRUC',
+        selectedFeeRate: 20,
+        presignedTxInfos,
+        p2aBumpPlan: reserveOnlyPlan
+      })
+    ).toBeNull();
+
+    const supplementedTxData = buildVaultActionDataForFeeRate({
+      vaultMode: 'P2A_NON_TRUC',
+      selectedFeeRate: 20,
+      presignedTxInfos,
+      p2aBumpPlan: reserveOnlyPlan,
+      vaultableWalletUtxosData: [walletUtxo]
+    });
+
+    expect(supplementedTxData?.p2aBumpPlan?.txosData).toHaveLength(1);
+    expect(supplementedTxData?.p2aBumpPlan?.txosData[0]?.tx.getId()).toBe(
+      reserveUtxo.tx.getId()
+    );
+    expect(Array.isArray(supplementedTxData?.walletSupplementUtxosData)).toBe(
+      true
+    );
+    if (
+      !supplementedTxData ||
+      !Array.isArray(supplementedTxData.walletSupplementUtxosData)
+    )
+      throw new Error('Expected wallet supplement UTXOs');
+    expect(supplementedTxData.walletSupplementUtxosData).toHaveLength(1);
+    expect(supplementedTxData.walletSupplementUtxosData[0]?.tx.getId()).toBe(
+      walletUtxo.tx.getId()
+    );
+  });
+
+  test('P2A trigger supplement allows unconfirmed wallet UTXOs only for non-TRUC', () => {
+    const walletUtxo = createSyntheticUtxoData(10000);
+    const historyData = [
+      {
+        tx: walletUtxo.tx,
+        txId: walletUtxo.tx.getId(),
+        blockHeight: 0
+      }
+    ] as unknown as HistoryData;
+    const vaultsStatuses = {} as VaultsStatuses;
+
+    expect(
+      getVaultableUtxosData(
+        [walletUtxo],
+        vaultsStatuses,
+        historyData,
+        'P2A_TRUC'
+      )
+    ).toHaveLength(0);
+    expect(
+      getVaultableUtxosData(
+        [walletUtxo],
+        vaultsStatuses,
+        historyData,
+        'P2A_NON_TRUC'
+      )
+    ).toHaveLength(1);
+  });
+
+  test('P2A trigger does not fall back to parent-only when reserve cannot fund selected fee', () => {
+    const network = networks.regtest;
+    const changeOutput = createAddressOutput(DUMMY_ADDRESS(network), network);
+    const parentTxHex = createSyntheticTxHex({
+      version: 2,
+      mainOutputValue: 12000,
+      p2aValue: P2A_NON_TRUC_ANCHOR_SATS
+    });
+    const parentTx = Transaction.fromHex(parentTxHex);
+    const parentFee = Math.ceil(parentTx.virtualSize() * 2);
+
+    expect(
+      buildVaultActionDataForFeeRate({
+        vaultMode: 'P2A_NON_TRUC',
+        selectedFeeRate: MIN_FEE_RATE,
+        presignedTxInfos: [
+          {
+            txHex: parentTxHex,
+            fee: parentFee,
+            feeRate: parentFee / parentTx.virtualSize()
+          }
+        ],
+        p2aBumpPlan: {
+          txosData: [createSyntheticUtxoData(1)],
+          hasUnconfirmedUtxos: false,
+          changeOutput
+        }
+      })
+    ).toBeNull();
+  });
+
+  test('P2A trigger keeps wallet supplement unused when reserve is enough', () => {
+    const network = networks.regtest;
+    const changeOutput = createAddressOutput(DUMMY_ADDRESS(network), network);
+    const parentTxHex = createSyntheticTxHex({
+      version: 2,
+      mainOutputValue: 12000,
+      p2aValue: P2A_NON_TRUC_ANCHOR_SATS
+    });
+    const parentTx = Transaction.fromHex(parentTxHex);
+    const parentFee = 120;
+    const reserveUtxo = createSyntheticUtxoData(10000);
+    const walletUtxo = createSyntheticUtxoData(10000);
+    const txData = buildVaultActionDataForFeeRate({
+      vaultMode: 'P2A_NON_TRUC',
+      selectedFeeRate: 2,
+      presignedTxInfos: [
+        {
+          txHex: parentTxHex,
+          fee: parentFee,
+          feeRate: parentFee / parentTx.virtualSize()
+        }
+      ],
+      p2aBumpPlan: {
+        txosData: [reserveUtxo],
+        hasUnconfirmedUtxos: false,
+        changeOutput
+      },
+      vaultableWalletUtxosData: [walletUtxo]
+    });
+
+    expect(txData?.p2aBumpPlan?.txosData).toHaveLength(1);
+    expect(txData?.p2aBumpPlan?.txosData[0]?.tx.getId()).toBe(
+      reserveUtxo.tx.getId()
+    );
+    expect(txData?.walletSupplementUtxosData).toBe('walletSupplementUnneeded');
+  });
+
+  test('getCpfpFeeInfo derives old wallet supplement input values from known txs', () => {
+    const parentTxHex = createSyntheticTxHex({
+      version: 2,
+      mainOutputValue: 12000,
+      p2aValue: P2A_NON_TRUC_ANCHOR_SATS
+    });
+    const reserveUtxo = createSyntheticUtxoData(1000);
+    const walletUtxo = createSyntheticUtxoData(3000);
+    const childTxHex = createSyntheticCpfpChildTxHex({
+      parentTxHex,
+      reserveUtxosData: [reserveUtxo, walletUtxo],
+      childFee: 200
+    });
+
+    const feeInfo = getCpfpFeeInfo({
+      parentTxHex,
+      parentFee: 120,
+      childTxHex,
+      reserveUtxosData: [reserveUtxo],
+      historyData: [{ tx: walletUtxo.tx } as HistoryData[number]]
+    });
+
+    expect(feeInfo.childFee).toBe(200);
+  });
+
+  test('P2A replacement above maximum reports max-fee guard', () => {
+    const network = networks.regtest;
+    const changeOutput = createAddressOutput(DUMMY_ADDRESS(network), network);
+    const parentTxHex = createSyntheticTxHex({
+      version: 2,
+      mainOutputValue: 12000,
+      p2aValue: P2A_NON_TRUC_ANCHOR_SATS
+    });
+    const parentTx = Transaction.fromHex(parentTxHex);
+    const parentFee = 120;
+    const priorReserveUtxo = createSyntheticUtxoData(10000);
+    const pushedChildTxHex = createSyntheticCpfpChildTxHex({
+      parentTxHex,
+      reserveUtxosData: [priorReserveUtxo],
+      childFee: 5000
+    });
+
+    expect(
+      canProceedToActionConfirmation({
+        vaultMode: 'P2A_NON_TRUC',
+        feeEstimates: { '1': 1 },
+        pushedTxHex: parentTxHex,
+        pushedChildTxHex,
+        presignedTxInfos: [
+          {
+            txHex: parentTxHex,
+            fee: parentFee,
+            feeRate: parentFee / parentTx.virtualSize()
+          }
+        ],
+        p2aBumpPlan: {
+          txosData: [priorReserveUtxo],
+          hasUnconfirmedUtxos: false,
+          changeOutput
+        },
+        historyData: []
+      })
+    ).toEqual({
+      blocker: 'replacementFeeAboveMaximum',
+      minimumSelectableFeeRate: null
+    });
+  });
+
   test('estimateCpfpPackage returns undefined for laddered parent tx', () => {
     const network = networks.regtest;
     const changeOutput = createAddressOutput(DUMMY_ADDRESS(network), network);
@@ -164,14 +562,15 @@ describe('vaults unit tests', () => {
       version: 2,
       mainOutputValue: 12000
     });
-    const plan = estimateCpfpPackage({
-      parentTxHex,
-      parentFee: 120,
-      targetPackageFeeRate: 2,
-      utxosData: [createSyntheticUtxoData(3000)],
-      changeOutput
-    });
-    expect(plan).toBeUndefined();
+    expect(() =>
+      estimateCpfpPackage({
+        parentTxHex,
+        parentFee: 120,
+        targetPackageFeeRate: 2,
+        utxosData: [createSyntheticUtxoData(3000)],
+        changeOutput
+      })
+    ).toThrow('Expected exactly one P2A output in parent tx');
   });
 
   test('higher presigned trigger fee raises the P2A_NON_TRUC minimum', () => {
@@ -258,6 +657,83 @@ describe('vaults unit tests', () => {
         vaultMode: 'P2A_NON_TRUC'
       })
     ).toThrow('P2A_NON_TRUC anchor must be non-dust');
+  });
+
+  test('canProceedToActionConfirmation blocks parent-only P2A_TRUC trigger without package fee', () => {
+    const parentTxInfo = createPresignedP2ATxInfo({
+      version: 3,
+      p2aValue: 0,
+      fee: 0
+    });
+
+    expect(
+      canProceedToActionConfirmation({
+        vaultMode: 'P2A_TRUC',
+        presignedTxInfos: [parentTxInfo],
+        historyData: []
+      })
+    ).toEqual({
+      blocker: 'noP2AReserve',
+      minimumSelectableFeeRate: null
+    });
+  });
+
+  test('canProceedToActionConfirmation rejects parent-only dust anchors with non-zero fee', () => {
+    const parentTxInfo = createPresignedP2ATxInfo({
+      version: 3,
+      p2aValue: 0,
+      fee: 100
+    });
+
+    expect(() =>
+      canProceedToActionConfirmation({
+        vaultMode: 'P2A_TRUC',
+        presignedTxInfos: [parentTxInfo],
+        historyData: []
+      })
+    ).toThrow('tx with dust output must be 0-fee');
+  });
+
+  test('canProceedToActionConfirmation allows parent-only P2A_NON_TRUC at relay floor', () => {
+    const txHex = createSyntheticTxHex({
+      version: 2,
+      mainOutputValue: 12000,
+      p2aValue: P2A_NON_TRUC_ANCHOR_SATS
+    });
+    const tx = Transaction.fromHex(txHex);
+    const fee = Math.ceil(tx.virtualSize() * MIN_FEE_RATE);
+
+    expect(
+      canProceedToActionConfirmation({
+        vaultMode: 'P2A_NON_TRUC',
+        presignedTxInfos: [{ txHex, fee, feeRate: fee / tx.virtualSize() }],
+        historyData: []
+      })
+    ).toEqual({
+      blocker: null,
+      minimumSelectableFeeRate: null
+    });
+  });
+
+  test('canProceedToActionConfirmation blocks parent-only P2A_NON_TRUC below relay floor', () => {
+    const txHex = createSyntheticTxHex({
+      version: 2,
+      mainOutputValue: 12000,
+      p2aValue: P2A_NON_TRUC_ANCHOR_SATS
+    });
+    const tx = Transaction.fromHex(txHex);
+    const fee = Math.ceil(tx.virtualSize() * MIN_FEE_RATE) - 1;
+
+    expect(
+      canProceedToActionConfirmation({
+        vaultMode: 'P2A_NON_TRUC',
+        presignedTxInfos: [{ txHex, fee, feeRate: fee / tx.virtualSize() }],
+        historyData: []
+      })
+    ).toEqual({
+      blocker: 'noP2AReserve',
+      minimumSelectableFeeRate: null
+    });
   });
 
   test('estimateCpfpPackage enforces P2A_TRUC child size limit', () => {

@@ -60,7 +60,11 @@ import type { Wallet } from '../lib/wallets';
 import { SERIALIZABLE, STRING, deleteAsync } from '../../common/lib/storage';
 import { useTranslation } from 'react-i18next';
 
-import type { DiscoveryInstance, TxAttribution } from '@bitcoinerlab/discovery';
+import {
+  TxStatus,
+  type DiscoveryInstance,
+  type TxAttribution
+} from '@bitcoinerlab/discovery';
 import type { FeeEstimates } from '../lib/fees';
 import { AppState, AppStateStatus, Platform } from 'react-native';
 import { batchedUpdates } from '../../common/lib/batchedUpdates';
@@ -127,7 +131,15 @@ export type WalletContextType = {
   networkId: NetworkId | undefined;
   fetchBlockTime: (blockHeight: number) => Promise<number | undefined>;
   pushTx: (txHex: string) => Promise<void>;
-  getTxosData: (txos: Array<string>) => UtxosData;
+  canFetchReserveDescriptorData: boolean;
+  fetchReserveDescriptorData: (params: { descriptor: string }) => Promise<
+    | {
+        txosData: UtxosData;
+        hasUnconfirmedUtxos: boolean;
+        nextIndex: number;
+      }
+    | undefined
+  >;
   pushTxPackage: ({
     parentTxHex,
     childTxHex
@@ -614,12 +626,15 @@ const WalletProviderRaw = ({
         accounts,
         tipHeight
       );
-      const utxos = discovery.getUtxos({ descriptors });
+      const { utxos, txoMap } = discovery.getUtxosAndBalance({
+        descriptors
+      });
       const walletUtxosData = getTxosDataFromVaults(
         utxos,
         vaults,
         network,
-        discovery
+        discovery,
+        txoMap
       );
       const history = discovery.getHistory(
         { descriptors },
@@ -680,14 +695,55 @@ const WalletProviderRaw = ({
     [discovery, gapLimit]
   );
 
-  const getTxosData = useCallback(
-    (txos: Array<string>): UtxosData => {
+  /** Fetches reserve descriptor data without adding it to normal wallet funds. */
+  const fetchReserveDescriptorData = useCallback(
+    async ({ descriptor }: { descriptor: string }) => {
       if (!discovery || !vaults || !activeWallet?.networkId)
-        throw new Error('Wallet not ready for getTxosData');
-      const network = networkMapping[activeWallet.networkId];
-      return getTxosDataFromVaults(txos, vaults, network, discovery);
+        throw new Error('Wallet not ready for fetchReserveDescriptorData');
+      if (gapLimit === undefined)
+        throw new Error('gapLimit not ready for fetchReserveDescriptorData');
+      if (!descriptor.includes('*'))
+        throw new Error('Reserve descriptor must be ranged');
+
+      try {
+        const network = networkMapping[activeWallet.networkId];
+        // Do not use netRequest here: reserve scans run in the background and
+        // failures should surface only in the role-specific Trigger/Rescue UI.
+        await discovery.fetch({ descriptor, gapLimit });
+        const { utxos, stxos, txoMap } = discovery.getUtxosAndBalance({
+          descriptor,
+          txStatus: TxStatus.ALL
+        });
+        const { utxos: confirmedUtxos } = discovery.getUtxosAndBalance({
+          descriptor,
+          txStatus: TxStatus.CONFIRMED
+        });
+        const confirmedUtxosSet = new Set(confirmedUtxos);
+        // Reserve actions consume the whole descriptor state. Current UTXOs fund
+        // first children; STXOs are outputs locked by an unconfirmed child and
+        // are therefore the inputs for a replacement child while accelerating.
+        const txos = [...utxos, ...stxos];
+        const txosData = getTxosDataFromVaults(
+          txos,
+          vaults,
+          network,
+          discovery,
+          txoMap
+        );
+        const nextIndex = discovery.getNextIndex({ descriptor });
+        await setDiscoveryExport(discovery.export());
+
+        return {
+          txosData,
+          hasUnconfirmedUtxos: utxos.some(utxo => !confirmedUtxosSet.has(utxo)),
+          nextIndex
+        };
+      } catch (err) {
+        console.warn('Could not fetch reserve descriptor data', err);
+        return undefined;
+      }
     },
-    [discovery, vaults, activeWallet?.networkId]
+    [activeWallet?.networkId, discovery, gapLimit, setDiscoveryExport, vaults]
   );
 
   /**
@@ -949,6 +1005,156 @@ const WalletProviderRaw = ({
     accounts,
     isAccountsSynchd: accountsStorageStatus.isSynchd
   });
+
+  // diagnostic logging for storage errors. The ref prevents spamming the
+  // console while preserving enough detail to debug transient
+  // corruption/read-write states reported by users.
+  const lastWalletStorageWarningKeyRef = useRef<string | null>(null);
+  useEffect(() => {
+    const missingWallet = !activeWallet;
+    const shouldWarnMissingWallet =
+      missingWallet && walletIdRef.current !== undefined;
+    const hasWalletStorageError =
+      storageAccessStatus.readWriteError ||
+      (isCorrupted && (!missingWallet || shouldWarnMissingWallet));
+    if (!hasWalletStorageError) {
+      lastWalletStorageWarningKeyRef.current = null;
+      return;
+    }
+
+    const missingSignersAfterDiskSync =
+      !signers &&
+      signersStorageStatus.isDiskSynchd &&
+      signersStorageStatus.errorCode !== 'DecryptError';
+    const missingVaultsAfterSync = !vaults && vaultsStorageStatus.isSynchd;
+    const missingVaultsStatusesAfterSync =
+      !vaultsStatuses && vaultsStatusesStorageStatus.isSynchd;
+    const missingAccountsAfterSync =
+      !accounts && accountsStorageStatus.isSynchd;
+
+    const warningKey = [
+      activeWallet?.walletId ?? 'no-wallet',
+      isCorrupted,
+      storageAccessStatus.readWriteError,
+      settingsStorageStatus.errorCode,
+      walletsStorageStatus.errorCode,
+      signersStorageStatus.errorCode,
+      discoveryExportStorageStatus.errorCode,
+      vaultsStorageStatus.errorCode,
+      vaultsStatusesStorageStatus.errorCode,
+      accountsStorageStatus.errorCode,
+      missingWallet,
+      missingSignersAfterDiskSync,
+      missingVaultsAfterSync,
+      missingVaultsStatusesAfterSync,
+      missingAccountsAfterSync,
+      !!wallets,
+      !!signers,
+      discoveryExport !== undefined,
+      !!vaults,
+      !!vaultsStatuses,
+      !!accounts
+    ].join(':');
+    if (lastWalletStorageWarningKeyRef.current === warningKey) return;
+    lastWalletStorageWarningKeyRef.current = warningKey;
+
+    console.warn(
+      'Wallet storage error state',
+      JSON.stringify(
+        {
+          walletId: activeWallet?.walletId,
+          walletIdRef: walletIdRef.current,
+          hasActiveWallet: !!activeWallet,
+          isCorrupted,
+          storageCorruptionReasons: {
+            missingWallet,
+            missingSignersAfterDiskSync,
+            missingVaultsAfterSync,
+            missingVaultsStatusesAfterSync,
+            missingAccountsAfterSync
+          },
+          storageAccessStatus: {
+            biometricsKeyInvalidated:
+              storageAccessStatus.biometricsKeyInvalidated,
+            biometricAuthCancelled: storageAccessStatus.biometricAuthCancelled,
+            biometricsReadWriteError:
+              storageAccessStatus.biometricsReadWriteError,
+            readWriteError: storageAccessStatus.readWriteError
+          },
+          signersStorageEngineMismatch,
+          canInitSigners,
+          canInitCipheredDataStorage,
+          statuses: {
+            settings: {
+              errorCode: settingsStorageStatus.errorCode,
+              isSynchd: settingsStorageStatus.isSynchd,
+              isDiskSynchd: settingsStorageStatus.isDiskSynchd
+            },
+            wallets: {
+              errorCode: walletsStorageStatus.errorCode,
+              isSynchd: walletsStorageStatus.isSynchd,
+              isDiskSynchd: walletsStorageStatus.isDiskSynchd
+            },
+            signers: {
+              errorCode: signersStorageStatus.errorCode,
+              isSynchd: signersStorageStatus.isSynchd,
+              isDiskSynchd: signersStorageStatus.isDiskSynchd
+            },
+            discoveryExport: {
+              errorCode: discoveryExportStorageStatus.errorCode,
+              isSynchd: discoveryExportStorageStatus.isSynchd,
+              isDiskSynchd: discoveryExportStorageStatus.isDiskSynchd
+            },
+            vaults: {
+              errorCode: vaultsStorageStatus.errorCode,
+              isSynchd: vaultsStorageStatus.isSynchd,
+              isDiskSynchd: vaultsStorageStatus.isDiskSynchd
+            },
+            vaultsStatuses: {
+              errorCode: vaultsStatusesStorageStatus.errorCode,
+              isSynchd: vaultsStatusesStorageStatus.isSynchd,
+              isDiskSynchd: vaultsStatusesStorageStatus.isDiskSynchd
+            },
+            accounts: {
+              errorCode: accountsStorageStatus.errorCode,
+              isSynchd: accountsStorageStatus.isSynchd,
+              isDiskSynchd: accountsStorageStatus.isDiskSynchd
+            }
+          },
+          dataPresence: {
+            wallets: !!wallets,
+            signers: !!signers,
+            discoveryExport: discoveryExport !== undefined,
+            vaults: !!vaults,
+            vaultsStatuses: !!vaultsStatuses,
+            accounts: !!accounts
+          }
+        },
+        null,
+        2
+      )
+    );
+  }, [
+    activeWallet,
+    isCorrupted,
+    storageAccessStatus,
+    signersStorageEngineMismatch,
+    canInitSigners,
+    canInitCipheredDataStorage,
+    settingsStorageStatus,
+    walletsStorageStatus,
+    signersStorageStatus,
+    discoveryExportStorageStatus,
+    vaultsStorageStatus,
+    vaultsStatusesStorageStatus,
+    accountsStorageStatus,
+    wallets,
+    signers,
+    discoveryExport,
+    vaults,
+    vaultsStatuses,
+    accounts
+  ]);
 
   /** When all wallet related data is synchronized and without any errors.
    * Use this variable to add the wallet into the wallets storage
@@ -2424,6 +2630,14 @@ const WalletProviderRaw = ({
     ]
   );
 
+  const canFetchReserveDescriptorData = !!(
+    discovery &&
+    vaults &&
+    activeWallet?.networkId &&
+    gapLimit !== undefined &&
+    explorerReachable === true
+  );
+
   const contextValue = {
     pushToken,
     setPushToken,
@@ -2451,7 +2665,9 @@ const WalletProviderRaw = ({
     ),
     fetchBlockTime,
     pushTx,
-    getTxosData,
+    //getTxosData,
+    canFetchReserveDescriptorData,
+    fetchReserveDescriptorData,
     pushTxPackage,
     syncWatchtowerRegistration,
     fetchOutputHistory,

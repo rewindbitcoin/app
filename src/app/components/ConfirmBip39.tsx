@@ -15,6 +15,11 @@ interface ConfirmBip39Props {
   onConfirmedOrSkipped: () => Promise<void>; // Callback when the mnemonic is correctly verified
   onCancel: () => void; // Callback when the user cancels verification
   onModalHide?: () => void;
+  /**
+   * Whether seed confirmation may be skipped on test wallets. Mainnet never
+   * shows the skip button; this only enables the existing testnet/regtest skip.
+   */
+  allowSkip?: boolean;
 }
 
 const ConfirmBip39: React.FC<ConfirmBip39Props> = ({
@@ -23,7 +28,8 @@ const ConfirmBip39: React.FC<ConfirmBip39Props> = ({
   words: correctWords,
   onConfirmedOrSkipped,
   onCancel,
-  onModalHide
+  onModalHide,
+  allowSkip = true
 }) => {
   const { t } = useTranslation();
   const [validWordsThatDontMatch, setValidWordsThatDontMatch] = useState(false);
@@ -36,6 +42,7 @@ const ConfirmBip39: React.FC<ConfirmBip39Props> = ({
   useEffect(() => {
     if (!isVisible) {
       //reset it
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setValidWordsThatDontMatch(false);
       setUserWords(Array(correctWords.length).fill(''));
       setIsSkipping(false);
@@ -72,7 +79,9 @@ const ConfirmBip39: React.FC<ConfirmBip39Props> = ({
   );
 
   const canSkip =
-    network && (network === networks.testnet || network === networks.regtest);
+    allowSkip &&
+    network &&
+    (network === networks.testnet || network === networks.regtest);
 
   return (
     <Modal
