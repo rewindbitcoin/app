@@ -484,7 +484,7 @@ const getActionAccelerationInfo = ({
  * Fixed-fee no-reserve first pushes can be evaluated without fee estimates;
  * replacement checks and package fee selection still require them.
  */
-export const getActionAvailability = ({
+export const canProceedToActionConfirmation = ({
   vaultMode,
   feeEstimates,
   pushedTxHex,
@@ -515,11 +515,10 @@ export const getActionAvailability = ({
   historyData: HistoryData;
 }): {
   /**
-   * `null` means the user can submit the action somehow: first push,
-   * replacement, parent-only tx, or parent+child package depending on the
-   * current state.
+   * `blocker: null` means the Trigger/Rescue modal can proceed to confirmation:
+   * the confirmation button is enabled and the modal can build action data.
    *
-   * Failure values describe why the user cannot submit the action now:
+   * Non-null blocker values describe why the user cannot submit the action now:
    * - `noP2AReserve`: no reserve UTXO is available, and the action cannot fall
    *   back to a valid parent-only push. Example: P2A_TRUC trigger with no
    *   reserve.
@@ -537,7 +536,7 @@ export const getActionAvailability = ({
    *   guard is `computeMaxAllowedFeeRate(feeEstimates)`, which is 2x the
    *   highest fee estimate.
    */
-  result:
+  blocker:
     | null
     | 'noP2AReserve'
     | 'p2aReserveUnconfirmed'
@@ -547,7 +546,7 @@ export const getActionAvailability = ({
   /**
    * Lowest fee rate the user can select in a fee picker. `null` means no fee
    * picker should be shown; the action may still be submittable at a fixed
-   * presigned fee when `result` is `null`.
+   * presigned fee when `blocker` is `null`.
    */
   minimumSelectableFeeRate: number | null;
 } => {
@@ -573,7 +572,7 @@ export const getActionAvailability = ({
         historyData
       });
       return {
-        result: accelerationInfo.hasAccelerationPath
+        blocker: accelerationInfo.hasAccelerationPath
           ? null
           : accelerationInfo.replacementFeeRateFloor !== null &&
               accelerationInfo.replacementFeeRateFloor >
@@ -589,7 +588,7 @@ export const getActionAvailability = ({
       if (minimumSelectableFeeRate === undefined)
         throw new Error('Missing presigned action tx');
       return {
-        result: null,
+        blocker: null,
         minimumSelectableFeeRate
       };
     }
@@ -608,12 +607,12 @@ export const getActionAvailability = ({
       if (!hasP2AChildInputs)
         return {
           minimumSelectableFeeRate: null,
-          result: 'noP2AReserve'
+          blocker: 'noP2AReserve'
         };
       if (hasUnconfirmedP2ATrucReserve)
         return {
           minimumSelectableFeeRate: null,
-          result: 'p2aReserveUnconfirmed'
+          blocker: 'p2aReserveUnconfirmed'
         };
       if (!feeEstimates)
         throw new Error('Fee estimates are required for replacement actions');
@@ -630,7 +629,7 @@ export const getActionAvailability = ({
         historyData
       });
       return {
-        result: accelerationInfo.hasAccelerationPath
+        blocker: accelerationInfo.hasAccelerationPath
           ? null
           : accelerationInfo.replacementFeeRateFloor !== null &&
               accelerationInfo.replacementFeeRateFloor >
@@ -648,7 +647,7 @@ export const getActionAvailability = ({
       if (hasUnconfirmedP2ATrucReserve)
         return {
           minimumSelectableFeeRate: null,
-          result: 'p2aReserveUnconfirmed'
+          blocker: 'p2aReserveUnconfirmed'
         };
       const maximumFeeRate = feeEstimates
         ? computeMaxAllowedFeeRate(feeEstimates)
@@ -686,7 +685,7 @@ export const getActionAvailability = ({
 
       return {
         minimumSelectableFeeRate: packageMinimumFeeRate,
-        result:
+        blocker:
           canSubmitParentOnly || packageMinimumFeeRate !== null
             ? null
             : hasP2AChildInputs
@@ -700,7 +699,7 @@ export const getActionAvailability = ({
 /**
  * Builds display/submission data for the selected trigger/rescue fee rate.
  *
- * Use this in the action confirmation step after `getActionAvailability(...)`
+ * Use this in the action confirmation step after `canProceedToActionConfirmation(...)`
  * has established that the action can be submitted and, when a fee picker is
  * shown, after the user selected a fee rate.
  *
