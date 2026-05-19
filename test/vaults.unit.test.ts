@@ -18,6 +18,7 @@ import {
   getHotDescriptors,
   P2A_NON_TRUC_ANCHOR_VALUE,
   getVaultMode,
+  type HistoryData,
   type UtxosData,
   type Vault,
   type Vaults,
@@ -25,10 +26,12 @@ import {
 } from '../dist/src/app/lib/vaults';
 import { type Accounts } from '../dist/src/app/lib/wallets';
 import { MIN_FEE_RATE } from '../dist/src/app/lib/fees';
-import { getRequiredNextP2ABumpReserveUtxoValue } from '../dist/src/app/lib/p2aReserve';
+import { getAdditionalP2AOutputValue } from '../dist/src/app/lib/p2aReserve';
+import { getVaultableUtxosData } from '../dist/src/app/lib/utxoPolicy';
 import {
-  buildTxDataForFeeRate,
-  getActionAvailability
+  buildVaultActionDataForFeeRate,
+  canProceedToActionConfirmation,
+  getCpfpFeeInfo
 } from '../dist/src/app/lib/vaultActionTx';
 import { networks, type Network, Transaction } from 'bitcoinjs-lib';
 import { fromHex } from 'uint8array-tools';
@@ -219,7 +222,7 @@ describe('vaults unit tests', () => {
     expect(plan.packageFeeRate).toBeGreaterThanOrEqual(2);
   });
 
-  test('getRequiredNextP2ABumpReserveUtxoValue funds one new reserve UTXO', () => {
+  test('getAdditionalP2AOutputValue funds one new child input', () => {
     const network = networks.regtest;
     const changeOutput = createAddressOutput(DUMMY_ADDRESS(network), network);
     const nextReserveOutput = createAddressOutput(
@@ -238,13 +241,13 @@ describe('vaults unit tests', () => {
     const targetPackageFeeRate = 20;
 
     const requiredValue = Number(
-      getRequiredNextP2ABumpReserveUtxoValue({
+      getAdditionalP2AOutputValue({
         parentAnchorValue: parentAnchor.value,
         presignedParentVSize: parentTx.virtualSize(),
         presignedParentFeeRate: parentFee / parentTx.virtualSize(),
         targetPackageFeeRate,
-        existingBumpReserveOutputsWithValue: [],
-        nextBumpReserveOutput: nextReserveOutput,
+        outputsWithValue: [],
+        additionalOutput: nextReserveOutput,
         changeOutput
       })
     );
@@ -298,20 +301,21 @@ describe('vaults unit tests', () => {
         feeRate: parentFee / parentTx.virtualSize()
       }
     ];
-    const availability = getActionAvailability({
+    const availability = canProceedToActionConfirmation({
       vaultMode: 'P2A_NON_TRUC',
       feeEstimates: { '1': 10 },
       pushedTxHex: parentTxHex,
       pushedChildTxHex,
       presignedTxInfos,
-      p2aBumpPlan
+      p2aBumpPlan,
+      historyData: []
     });
 
-    expect(availability.result).toBeNull();
+    expect(availability.blocker).toBeNull();
     expect(availability.minimumSelectableFeeRate).not.toBeNull();
     if (availability.minimumSelectableFeeRate === null)
       throw new Error('Expected minimum selectable fee rate');
-    const txData = buildTxDataForFeeRate({
+    const txData = buildVaultActionDataForFeeRate({
       vaultMode: 'P2A_NON_TRUC',
       selectedFeeRate: availability.minimumSelectableFeeRate,
       pushedTxHex: parentTxHex,
@@ -323,6 +327,195 @@ describe('vaults unit tests', () => {
     expect(txData?.p2aBumpPlan?.txosData[0]?.tx.getId()).toBe(
       priorReserveUtxo.tx.getId()
     );
+    expect(txData?.walletSupplementUtxosData).toBe(
+      'walletSupplementUnneeded'
+    );
+  });
+
+  test('P2A trigger uses wallet supplement only after opt-in', () => {
+    const network = networks.regtest;
+    const changeOutput = createAddressOutput(DUMMY_ADDRESS(network), network);
+    const parentTxHex = createSyntheticTxHex({
+      version: 2,
+      mainOutputValue: 12000,
+      p2aValue: P2A_NON_TRUC_ANCHOR_SATS
+    });
+    const parentTx = Transaction.fromHex(parentTxHex);
+    const parentFee = 120;
+    const reserveUtxo = createSyntheticUtxoData(100);
+    const walletUtxo = createSyntheticUtxoData(10000);
+    const presignedTxInfos = [
+      {
+        txHex: parentTxHex,
+        fee: parentFee,
+        feeRate: parentFee / parentTx.virtualSize()
+      }
+    ];
+    const reserveOnlyPlan = {
+      txosData: [reserveUtxo],
+      hasUnconfirmedUtxos: false,
+      changeOutput
+    };
+
+    expect(
+      buildVaultActionDataForFeeRate({
+        vaultMode: 'P2A_NON_TRUC',
+        selectedFeeRate: 20,
+        presignedTxInfos,
+        p2aBumpPlan: reserveOnlyPlan
+      })
+    ).toBeNull();
+
+    const supplementedTxData = buildVaultActionDataForFeeRate({
+      vaultMode: 'P2A_NON_TRUC',
+      selectedFeeRate: 20,
+      presignedTxInfos,
+      p2aBumpPlan: reserveOnlyPlan,
+      vaultableWalletUtxosData: [walletUtxo]
+    });
+
+    expect(supplementedTxData?.p2aBumpPlan?.txosData).toHaveLength(1);
+    expect(supplementedTxData?.p2aBumpPlan?.txosData[0]?.tx.getId()).toBe(
+      reserveUtxo.tx.getId()
+    );
+    expect(Array.isArray(supplementedTxData?.walletSupplementUtxosData)).toBe(
+      true
+    );
+    if (
+      !supplementedTxData ||
+      !Array.isArray(supplementedTxData.walletSupplementUtxosData)
+    )
+      throw new Error('Expected wallet supplement UTXOs');
+    expect(supplementedTxData.walletSupplementUtxosData).toHaveLength(1);
+    expect(
+      supplementedTxData.walletSupplementUtxosData[0]?.tx.getId()
+    ).toBe(
+      walletUtxo.tx.getId()
+    );
+  });
+
+  test('P2A trigger supplement allows unconfirmed wallet UTXOs only for non-TRUC', () => {
+    const walletUtxo = createSyntheticUtxoData(10000);
+    const historyData = [
+      {
+        tx: walletUtxo.tx,
+        txId: walletUtxo.tx.getId(),
+        blockHeight: 0
+      }
+    ] as unknown as HistoryData;
+    const vaultsStatuses = {} as VaultsStatuses;
+
+    expect(
+      getVaultableUtxosData(
+        [walletUtxo],
+        vaultsStatuses,
+        historyData,
+        'P2A_TRUC'
+      )
+    ).toHaveLength(0);
+    expect(
+      getVaultableUtxosData(
+        [walletUtxo],
+        vaultsStatuses,
+        historyData,
+        'P2A_NON_TRUC'
+      )
+    ).toHaveLength(1);
+  });
+
+  test('P2A trigger does not fall back to parent-only when reserve cannot fund selected fee', () => {
+    const network = networks.regtest;
+    const changeOutput = createAddressOutput(DUMMY_ADDRESS(network), network);
+    const parentTxHex = createSyntheticTxHex({
+      version: 2,
+      mainOutputValue: 12000,
+      p2aValue: P2A_NON_TRUC_ANCHOR_SATS
+    });
+    const parentTx = Transaction.fromHex(parentTxHex);
+    const parentFee = Math.ceil(parentTx.virtualSize() * 2);
+
+    expect(
+      buildVaultActionDataForFeeRate({
+        vaultMode: 'P2A_NON_TRUC',
+        selectedFeeRate: MIN_FEE_RATE,
+        presignedTxInfos: [
+          {
+            txHex: parentTxHex,
+            fee: parentFee,
+            feeRate: parentFee / parentTx.virtualSize()
+          }
+        ],
+        p2aBumpPlan: {
+          txosData: [createSyntheticUtxoData(1)],
+          hasUnconfirmedUtxos: false,
+          changeOutput
+        }
+      })
+    ).toBeNull();
+  });
+
+  test('P2A trigger keeps wallet supplement unused when reserve is enough', () => {
+    const network = networks.regtest;
+    const changeOutput = createAddressOutput(DUMMY_ADDRESS(network), network);
+    const parentTxHex = createSyntheticTxHex({
+      version: 2,
+      mainOutputValue: 12000,
+      p2aValue: P2A_NON_TRUC_ANCHOR_SATS
+    });
+    const parentTx = Transaction.fromHex(parentTxHex);
+    const parentFee = 120;
+    const reserveUtxo = createSyntheticUtxoData(10000);
+    const walletUtxo = createSyntheticUtxoData(10000);
+    const txData = buildVaultActionDataForFeeRate({
+      vaultMode: 'P2A_NON_TRUC',
+      selectedFeeRate: 2,
+      presignedTxInfos: [
+        {
+          txHex: parentTxHex,
+          fee: parentFee,
+          feeRate: parentFee / parentTx.virtualSize()
+        }
+      ],
+      p2aBumpPlan: {
+        txosData: [reserveUtxo],
+        hasUnconfirmedUtxos: false,
+        changeOutput
+      },
+      vaultableWalletUtxosData: [walletUtxo]
+    });
+
+    expect(txData?.p2aBumpPlan?.txosData).toHaveLength(1);
+    expect(txData?.p2aBumpPlan?.txosData[0]?.tx.getId()).toBe(
+      reserveUtxo.tx.getId()
+    );
+    expect(txData?.walletSupplementUtxosData).toBe(
+      'walletSupplementUnneeded'
+    );
+  });
+
+  test('getCpfpFeeInfo derives old wallet supplement input values from known txs', () => {
+    const parentTxHex = createSyntheticTxHex({
+      version: 2,
+      mainOutputValue: 12000,
+      p2aValue: P2A_NON_TRUC_ANCHOR_SATS
+    });
+    const reserveUtxo = createSyntheticUtxoData(1000);
+    const walletUtxo = createSyntheticUtxoData(3000);
+    const childTxHex = createSyntheticCpfpChildTxHex({
+      parentTxHex,
+      reserveUtxosData: [reserveUtxo, walletUtxo],
+      childFee: 200
+    });
+
+    const feeInfo = getCpfpFeeInfo({
+      parentTxHex,
+      parentFee: 120,
+      childTxHex,
+      reserveUtxosData: [reserveUtxo],
+      historyData: [{ tx: walletUtxo.tx } as HistoryData[number]]
+    });
+
+    expect(feeInfo.childFee).toBe(200);
   });
 
   test('P2A replacement above maximum reports max-fee guard', () => {
@@ -343,7 +536,7 @@ describe('vaults unit tests', () => {
     });
 
     expect(
-      getActionAvailability({
+      canProceedToActionConfirmation({
         vaultMode: 'P2A_NON_TRUC',
         feeEstimates: { '1': 1 },
         pushedTxHex: parentTxHex,
@@ -359,10 +552,11 @@ describe('vaults unit tests', () => {
           txosData: [priorReserveUtxo],
           hasUnconfirmedUtxos: false,
           changeOutput
-        }
+        },
+        historyData: []
       })
     ).toEqual({
-      result: 'replacementFeeAboveMaximum',
+      blocker: 'replacementFeeAboveMaximum',
       minimumSelectableFeeRate: null
     });
   });
@@ -374,14 +568,15 @@ describe('vaults unit tests', () => {
       version: 2,
       mainOutputValue: 12000
     });
-    const plan = estimateCpfpPackage({
-      parentTxHex,
-      parentFee: 120,
-      targetPackageFeeRate: 2,
-      utxosData: [createSyntheticUtxoData(3000)],
-      changeOutput
-    });
-    expect(plan).toBeUndefined();
+    expect(() =>
+      estimateCpfpPackage({
+        parentTxHex,
+        parentFee: 120,
+        targetPackageFeeRate: 2,
+        utxosData: [createSyntheticUtxoData(3000)],
+        changeOutput
+      })
+    ).toThrow('Expected exactly one P2A output in parent tx');
   });
 
   test('higher presigned trigger fee raises the P2A_NON_TRUC minimum', () => {
@@ -470,7 +665,7 @@ describe('vaults unit tests', () => {
     ).toThrow('P2A_NON_TRUC anchor must be non-dust');
   });
 
-  test('getActionAvailability blocks parent-only P2A_TRUC trigger without package fee', () => {
+  test('canProceedToActionConfirmation blocks parent-only P2A_TRUC trigger without package fee', () => {
     const parentTxInfo = createPresignedP2ATxInfo({
       version: 3,
       p2aValue: 0,
@@ -478,17 +673,18 @@ describe('vaults unit tests', () => {
     });
 
     expect(
-      getActionAvailability({
+      canProceedToActionConfirmation({
         vaultMode: 'P2A_TRUC',
-        presignedTxInfos: [parentTxInfo]
+        presignedTxInfos: [parentTxInfo],
+        historyData: []
       })
     ).toEqual({
-      result: 'noP2AReserve',
+      blocker: 'noP2AReserve',
       minimumSelectableFeeRate: null
     });
   });
 
-  test('getActionAvailability rejects parent-only dust anchors with non-zero fee', () => {
+  test('canProceedToActionConfirmation rejects parent-only dust anchors with non-zero fee', () => {
     const parentTxInfo = createPresignedP2ATxInfo({
       version: 3,
       p2aValue: 0,
@@ -496,14 +692,15 @@ describe('vaults unit tests', () => {
     });
 
     expect(() =>
-      getActionAvailability({
+      canProceedToActionConfirmation({
         vaultMode: 'P2A_TRUC',
-        presignedTxInfos: [parentTxInfo]
+        presignedTxInfos: [parentTxInfo],
+        historyData: []
       })
     ).toThrow('tx with dust output must be 0-fee');
   });
 
-  test('getActionAvailability allows parent-only P2A_NON_TRUC at relay floor', () => {
+  test('canProceedToActionConfirmation allows parent-only P2A_NON_TRUC at relay floor', () => {
     const txHex = createSyntheticTxHex({
       version: 2,
       mainOutputValue: 12000,
@@ -513,17 +710,18 @@ describe('vaults unit tests', () => {
     const fee = Math.ceil(tx.virtualSize() * MIN_FEE_RATE);
 
     expect(
-      getActionAvailability({
+      canProceedToActionConfirmation({
         vaultMode: 'P2A_NON_TRUC',
-        presignedTxInfos: [{ txHex, fee, feeRate: fee / tx.virtualSize() }]
+        presignedTxInfos: [{ txHex, fee, feeRate: fee / tx.virtualSize() }],
+        historyData: []
       })
     ).toEqual({
-      result: null,
+      blocker: null,
       minimumSelectableFeeRate: null
     });
   });
 
-  test('getActionAvailability blocks parent-only P2A_NON_TRUC below relay floor', () => {
+  test('canProceedToActionConfirmation blocks parent-only P2A_NON_TRUC below relay floor', () => {
     const txHex = createSyntheticTxHex({
       version: 2,
       mainOutputValue: 12000,
@@ -533,12 +731,13 @@ describe('vaults unit tests', () => {
     const fee = Math.ceil(tx.virtualSize() * MIN_FEE_RATE) - 1;
 
     expect(
-      getActionAvailability({
+      canProceedToActionConfirmation({
         vaultMode: 'P2A_NON_TRUC',
-        presignedTxInfos: [{ txHex, fee, feeRate: fee / tx.virtualSize() }]
+        presignedTxInfos: [{ txHex, fee, feeRate: fee / tx.virtualSize() }],
+        historyData: []
       })
     ).toEqual({
-      result: 'noP2AReserve',
+      blocker: 'noP2AReserve',
       minimumSelectableFeeRate: null
     });
   });
