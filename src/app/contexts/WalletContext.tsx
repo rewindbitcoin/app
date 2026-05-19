@@ -70,7 +70,10 @@ import { AppState, AppStateStatus, Platform } from 'react-native';
 import { batchedUpdates } from '../../common/lib/batchedUpdates';
 import { fetchP2PVaults } from '../lib/backup/p2p';
 import { getWalletDataCipherKey } from '../lib/backup/shared';
-import { createOnChainBackupTx } from '../lib/backup/onchain';
+import {
+  createOnChainBackupTx,
+  getOnChainBackupDescriptor
+} from '../lib/backup/onchain';
 
 type DiscoveryExport = ReturnType<DiscoveryInstance['export']>;
 
@@ -112,6 +115,7 @@ export type WalletContextType = {
     descriptor: string;
     index: number;
   }>;
+  getNextOnChainBackupIndex: () => Promise<number>;
   getNextReceiveDescriptorWithIndex: (accounts: Accounts) => Promise<{
     descriptor: string;
     index: number;
@@ -1799,7 +1803,26 @@ const WalletProviderRaw = ({
     walletsHistoryData
   ]);
 
-  //TODO: getNextOnChainBackupDescriptorWithIndex
+  const getNextOnChainBackupIndex = useCallback(async () => {
+    const network =
+      activeWallet?.networkId && networkMapping[activeWallet.networkId];
+    if (!network) throw new Error('Network not ready');
+    if (!discovery) throw new Error('Discovery not ready');
+    if (!signers) throw new Error('Signers not ready');
+    if (gapLimit === undefined)
+      throw new Error('gapLimit not ready for getNextOnChainBackupIndex');
+    const signer = signers[0];
+    if (!signer) throw new Error('signer unavailable');
+    const descriptor = await getOnChainBackupDescriptor({
+      signer,
+      network,
+      index: '*'
+    });
+    await discovery.fetch({ descriptor, gapLimit });
+    await setDiscoveryExport(discovery.export());
+    return discovery.getNextIndex({ descriptor });
+  }, [activeWallet?.networkId, discovery, gapLimit, setDiscoveryExport, signers]);
+
   const getNextChangeDescriptorWithIndex = useCallback(
     async (accounts: Accounts) => {
       const network =
@@ -2644,6 +2667,7 @@ const WalletProviderRaw = ({
     setPushToken,
     getUnvaultKeyExpression,
     getNextChangeDescriptorWithIndex,
+    getNextOnChainBackupIndex,
     getNextReceiveDescriptorWithIndex,
     fetchServiceAddress,
     updateVaultStatus,

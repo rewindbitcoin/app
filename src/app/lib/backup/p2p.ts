@@ -4,8 +4,6 @@
 //FIXME: for legacy wallets, we'll need to mix the vaultId number taken from
 //the p2p wallet with the new one from the onchain backup
 import type { Signer } from '../wallets';
-import { getMasterNode } from '../vaultDescriptors';
-import { toHex } from 'uint8array-tools';
 
 import { compressData } from '../../../common/lib/compress';
 import type { Vault, Vaults } from '../vaults';
@@ -14,8 +12,8 @@ import { getManagedChacha } from '../../../common/lib/cipher';
 import { gunzipSync } from 'fflate';
 import { TextDecoder } from '../../../common/lib/textencoder';
 import { type NetworkId, networkMapping } from '../network';
-import { getVaultPath } from '../rewindPaths';
 import { getSeedDerivedCipherKey } from './shared';
+import { getVaultIdentity } from './vaultIdentity';
 
 const MAX_VAULT_CHECKS = 1000;
 
@@ -37,18 +35,14 @@ export const fetchP2PVaultIds = async ({
   nextVaultPath: string;
   existingVaults: Array<{ vaultId: string; vaultPath: string }>;
 }> => {
-  const mnemonic = signer.mnemonic;
-  if (!mnemonic) throw new Error('This type of signer is not supported');
-  const network = networkMapping[networkId];
-  const masterNode = getMasterNode(mnemonic, network);
   const existingVaults = [];
 
   for (let index = 0; index < MAX_VAULT_CHECKS; index++) {
-    const vaultPath = getVaultPath(network, index);
-
-    const vaultNode = masterNode.derivePath(vaultPath);
-    if (!vaultNode.publicKey) throw new Error('Could not generate a vaultId');
-    const vaultId = toHex(vaultNode.publicKey);
+    const { vaultId, vaultPath } = getVaultIdentity({
+      signer,
+      networkId,
+      index
+    });
     const vault = vaults?.[vaultId];
     if (vault) {
       existingVaults.push({ vaultId, vaultPath });
@@ -133,7 +127,7 @@ export async function fetchP2PVaults({
         cBVaultsReaderAPI,
         networkId
       });
-      p2pVaults[vaultId] = { ...fetchedVault.vault, backupType: 'p2p' };
+      p2pVaults[vaultId] = fetchedVault.vault;
     } else {
       p2pVaults[vaultId] = vault;
     }

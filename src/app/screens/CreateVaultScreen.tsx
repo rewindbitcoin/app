@@ -27,6 +27,7 @@ import {
   ActivityIndicator
 } from '../../common/ui';
 import { p2pBackupVault, fetchP2PVaultIds } from '../lib/backup/p2p';
+import { getVaultIdentity } from '../lib/backup/vaultIdentity';
 import { useNavigation } from '@react-navigation/native';
 import { useNetStatus } from '../hooks/useNetStatus';
 import { NavigationPropsByScreenId, WALLET_HOME } from '../screens';
@@ -71,6 +72,7 @@ export default function CreateVaultScreen({
   const mbStyle = useMemo(() => ({ marginBottom: insets.bottom }), [insets]);
   const {
     getNextChangeDescriptorWithIndex,
+    getNextOnChainBackupIndex,
     getUnvaultKeyExpression,
     signers,
     pushVaultRegisterWTAndUpdateStates,
@@ -286,6 +288,18 @@ export default function CreateVaultScreen({
         await getNextChangeDescriptorWithIndex(accounts);
       if (!shouldContinueCreate()) return;
 
+      const { result: nextOnChainBackupIndex } = await netRequest({
+        whenToastErrors: 'ON_ANY_ERROR',
+        errorMessage: message => t('createVault.fetchIssues', { message }),
+        func: getNextOnChainBackupIndex
+      });
+      if (!shouldContinueCreate()) return;
+      if (nextOnChainBackupIndex === undefined) {
+        //The toast with prev error message will have been shown.
+        goBack();
+        return;
+      }
+
       const { result: nextVaultP2PData } = await netRequest({
         whenToastErrors: 'ON_ANY_ERROR',
         errorMessage: message => t('createVault.fetchIssues', { message }),
@@ -308,6 +322,15 @@ export default function CreateVaultScreen({
 
       const randomSigner = await getRandomSigner(networkId);
       if (!shouldContinueCreate()) return;
+      const nextVaultIndex = Math.max(
+        nextVaultP2PData.nextVaultIndex,
+        nextOnChainBackupIndex
+      );
+      const nextVaultIdentity = getVaultIdentity({
+        signer,
+        networkId,
+        index: nextVaultIndex
+      });
 
       //createVault does not throw. It returns errors as strings:
       const vaultData = await createVault({
@@ -324,8 +347,7 @@ export default function CreateVaultScreen({
         coldAddress,
         lockBlocks,
         changeDescriptorWithIndex,
-        vaultIndex: nextVaultP2PData.nextVaultIndex, //FIXME: TAG:ifrubr43fre -> this is only correct as long as we keep backing up in P2P in addition to onchain, otherwiser we'll need to also retrieve the nextIndex from the onChainBackupDescriptor and find out the Max between onChainBackupDescriptorNextIndex and nextVaultP2PData.nextVaultIndex.
-        // Also assert that onChainBackupDescriptorNextIndex === 0 || onChainBackupDescriptorNextIndex > nextVaultP2PData.nextVaultIndex
+        vaultIndex: nextVaultIndex,
         vaultMode,
         shiftFeesToBackupTx: true,
         networkId
@@ -334,9 +356,8 @@ export default function CreateVaultScreen({
 
       if (typeof vaultData === 'object') {
         const vault: Vault = {
-          vaultId: nextVaultP2PData.nextVaultId, //FIXME: this assumes p2p backups - read TAG:ifrubr43fre
-          vaultPath: nextVaultP2PData.nextVaultPath, //FIXME: this assumes p2p backups - read TAG:ifrubr43fre
-          backupType: 'onchain',
+          vaultId: nextVaultIdentity.vaultId,
+          vaultPath: nextVaultIdentity.vaultPath,
           vaultedAmount: vaultData.selectedVaultedAmount,
           vaultAddress: vaultData.vaultAddress,
           triggerAddress: vaultData.triggerAddress,
@@ -376,6 +397,7 @@ export default function CreateVaultScreen({
     coldAddress,
     packageFeeRate,
     getNextChangeDescriptorWithIndex,
+    getNextOnChainBackupIndex,
     getUnvaultKeyExpression,
     lockBlocks,
     networkId,
