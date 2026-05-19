@@ -273,21 +273,19 @@ This will start the unfreeze countdown. The funds will become unlocked and avail
 Remember, "Accelerate" won't shorten the lock period. It only speeds up when your unfreeze process actually begins if low fees had held it up.
 
 You likely only need to wait around 10 minutes and really don't need this. Use "Accelerate" only if waiting that time (which could stretch to a couple of hours) isn't acceptable.`,
-        noReserveAvailableYet: `This unfreeze needs funds reserved to pay network fees before Rewind can start it.
-
-Add funds to this reserve, then try again.`,
+        noReserveAvailableYet: `This unfreeze needs funds to pay network fees before Rewind can start it.`,
         reserveUnconfirmed: `The funds reserved to pay network fees for this unfreeze are still waiting for final blockchain confirmation.
 
 Wait a little longer, then try again.`,
-        insufficientReserveFunds: `This unfreeze needs more funds reserved to pay network fees.
-
-Add funds to this reserve, then try again.`,
+        insufficientReserveFunds: `This unfreeze needs more funds to pay network fees.`,
         reserveScanError: `Rewind could not check the funds reserved to pay network fees for this unfreeze.
 
 Check your connection and try again.`,
-        reserveCannotPaySelectedFee: `The funds reserved to pay this unfreeze's network fee are not enough. Add funds to this reserve, or choose a cheaper option.`,
-        reserveBelowRecommendedFee: `The funds reserved to pay network fees for this unfreeze may be too low for a fast confirmation right now. Add funds to this reserve to improve its chances.`,
-        parentFeeBelowRecommendedFee: `This unfreeze can be sent now, but its built-in network fee may be low for current network conditions. Add funds to this reserve to improve its chances.`,
+        reserveCannotPaySelectedFee: `Available funds for this unfreeze cannot pay the selected network fee. Choose a cheaper option.`,
+        packageBelowRecommendedFee: `Available funds for this unfreeze may be too low for fast confirmation. You can continue with the currently available fee.`,
+        noReserveParentFeeBelowRecommendedFee: `This unfreeze can be sent now, but its built-in network fee may be low for current network conditions.`,
+        walletSupplementCheckbox: 'Use wallet funds.',
+        walletFundingHint: 'Your wallet needs at least {{amount}} more.',
         parentOnlyConfirmation: `Rewind is ready to start the unfreeze now.`,
         confirmationSpeedLabel: 'Mining Fee',
         feeSelectorExplanation:
@@ -815,6 +813,7 @@ Please keep the app open.`,
   },
   feeInput: {
     autoOptimal: 'Optimal Fee',
+    unavailable: 'Not available',
     helpTitle: 'Confirmation Speed',
     helpText: `You are creating a new Bitcoin transaction that will need to be processed by miners.
 
@@ -998,7 +997,6 @@ Use this to simulate higher fees and extreme mempool conditions on Tape.`,
   //factoryResetButton: 'Factory Reset',
   tryAgain: 'Try Again',
   learnMore: 'Learn More.',
-  loading: 'Loading...',
   helpButton: 'Help',
   globalError: {
     general: `An unexpected error has occurred. Below you will find additional details that may help identify the issue. Some of this information is technical and intended for developers. There is no need for immediate concern.

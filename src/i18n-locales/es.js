@@ -270,21 +270,19 @@ Esto iniciará la cuenta regresiva de descongelación. Los fondos se desbloquear
 Nota: "Acelerar" no reduce el período de bloqueo; sólo ayuda a que el proceso comience antes si una comisión baja lo retrasó.
 
 Seguramente sólo necesitas esperar unos 10 minutos y realmente no necesitas esto. Usa "Acelerar" sólo si esperar ese tiempo (que podría alargarse hasta un par de horas) no es aceptable.`,
-        noReserveAvailableYet: `Esta descongelación necesita una reserva de fondos para pagar comisiones de red antes de que Rewind pueda iniciarla.
-
-Añade fondos a esta reserva y vuelve a intentarlo.`,
+        noReserveAvailableYet: `Esta descongelación necesita fondos para pagar comisiones de red antes de que Rewind pueda iniciarla.`,
         reserveUnconfirmed: `Los fondos reservados para pagar las comisiones de red de esta descongelación siguen esperando la confirmación final en la blockchain.
 
 Espera un poco más y vuelve a intentarlo.`,
-        insufficientReserveFunds: `Esta descongelación necesita una reserva de fondos mayor para pagar comisiones de red.
-
-Añade fondos a esta reserva y vuelve a intentarlo.`,
+        insufficientReserveFunds: `Esta descongelación necesita más fondos para pagar comisiones de red.`,
         reserveScanError: `Rewind no pudo comprobar los fondos reservados para pagar las comisiones de red de esta descongelación.
 
 Comprueba tu conexión e inténtalo de nuevo.`,
-        reserveCannotPaySelectedFee: `Los fondos reservados para pagar la comisión de red de esta descongelación no alcanzan. Añade fondos a esta reserva o selecciona una opción más barata.`,
-        reserveBelowRecommendedFee: `Los fondos reservados para pagar las comisiones de red de esta descongelación pueden ser insuficientes para una confirmación rápida ahora mismo. Añade fondos a esta reserva para mejorar sus posibilidades.`,
-        parentFeeBelowRecommendedFee: `Esta descongelación puede enviarse ahora, pero la comisión de red que ya lleva incluida puede ser baja para las condiciones actuales de la red. Añade fondos a esta reserva para mejorar sus posibilidades.`,
+        reserveCannotPaySelectedFee: `Los fondos disponibles para esta descongelación no alcanzan para pagar la comisión seleccionada. Selecciona una opción más barata.`,
+        packageBelowRecommendedFee: `Los fondos disponibles para esta descongelación pueden ser insuficientes para una confirmación rápida. Puedes continuar con la comisión disponible.`,
+        noReserveParentFeeBelowRecommendedFee: `Esta descongelación puede enviarse ahora, pero la comisión de red que ya lleva incluida puede ser baja para las condiciones actuales de la red.`,
+        walletSupplementCheckbox: 'Usar fondos de mi billetera.',
+        walletFundingHint: 'Tu billetera necesita al menos {{amount}} más.',
         parentOnlyConfirmation: `Rewind está listo para iniciar la descongelación ahora.`,
         confirmationSpeedLabel: 'Comisión',
         feeSelectorExplanation:
@@ -741,6 +739,7 @@ Por favor, mantén la app abierta.`,
   },
   feeInput: {
     autoOptimal: 'Tarifa óptima',
+    unavailable: 'No disponible',
     helpTitle: 'Velocidad de Confirmación',
     helpText: `Estás creando una nueva transacción de Bitcoin que necesitará ser procesada por mineros.
 
@@ -920,7 +919,6 @@ Usa esto para simular comisiones más altas y condiciones extremas de mempool en
   understoodButton: 'Entendido',
   tryAgain: 'Intentar de Nuevo',
   learnMore: 'Saber Más.',
-  loading: 'Cargando...',
   helpButton: 'Ayuda',
   globalError: {
     general: `Ha ocurrido un error inesperado. A continuación encontrarás detalles adicionales que pueden ayudar a identificar el problema. Parte de esta información es técnica y está destinada a desarrolladores. No hay motivo de preocupación inmediata.
