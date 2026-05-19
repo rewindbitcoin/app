@@ -41,7 +41,7 @@ import VaultStatusLine from './card/VaultStatusLine';
 import VaultWatchtowerIndicator from './card/VaultWatchtowerIndicator';
 import { formatVaultDate, getVaultInitDate } from './vaultDates';
 import {
-  getActionAvailability,
+  canProceedToActionConfirmation,
   getLadderedRescueSortedTxs,
   getLadderedTriggerSortedTxs,
   getP2ARescueInfo,
@@ -579,7 +579,7 @@ const RawVault = ({
       triggerPushedTxHex &&
       historyData
     ) {
-      const accelerationAvailability = getActionAvailability({
+      const accelerationConfirmationAvailability = canProceedToActionConfirmation({
         vaultMode,
         ...(feeEstimates ? { feeEstimates } : {}),
         pushedTxHex: triggerPushedTxHex,
@@ -593,7 +593,7 @@ const RawVault = ({
         historyData
       });
       accelerationButtonEnabled = isLadderedVault
-        ? accelerationAvailability.result === null
+        ? accelerationConfirmationAvailability.blocker === null
         : true;
     }
 
@@ -663,7 +663,7 @@ const RawVault = ({
       rescuePresignedTxInfos &&
       historyData
     ) {
-      const accelerationAvailability = getActionAvailability({
+      const accelerationConfirmationAvailability = canProceedToActionConfirmation({
         vaultMode,
         ...(feeEstimates ? { feeEstimates } : {}),
         pushedTxHex: rescuePushedTxHex,
@@ -677,7 +677,7 @@ const RawVault = ({
         historyData
       });
       accelerationButtonEnabled = isLadderedVault
-        ? accelerationAvailability.result === null
+        ? accelerationConfirmationAvailability.blocker === null
         : true;
     }
 
