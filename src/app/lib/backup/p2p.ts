@@ -133,7 +133,7 @@ export async function fetchP2PVaults({
         cBVaultsReaderAPI,
         networkId
       });
-      p2pVaults[vaultId] = fetchedVault.vault;
+      p2pVaults[vaultId] = { ...fetchedVault.vault, backupType: 'p2p' };
     } else {
       p2pVaults[vaultId] = vault;
     }

@@ -138,6 +138,8 @@ export type Vault = {
    * for path on the online P2P network. See fetchP2PVaultIds */
   vaultId: string;
   vaultPath: string;
+  /** Where this vault's remote backup was saved or recovered from. */
+  backupType?: 'p2p' | 'onchain';
   /** The value locked in the vault output after the vault tx is mined. */
   vaultedAmount: number;
   /** Laddered (legacy) compatibility only. New P2A vault creation does not use it. */

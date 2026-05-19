@@ -333,9 +333,10 @@ export default function CreateVaultScreen({
       if (!shouldContinueCreate()) return;
 
       if (typeof vaultData === 'object') {
-        const vault = {
+        const vault: Vault = {
           vaultId: nextVaultP2PData.nextVaultId, //FIXME: this assumes p2p backups - read TAG:ifrubr43fre
           vaultPath: nextVaultP2PData.nextVaultPath, //FIXME: this assumes p2p backups - read TAG:ifrubr43fre
+          backupType: 'onchain',
           vaultedAmount: vaultData.selectedVaultedAmount,
           vaultAddress: vaultData.vaultAddress,
           triggerAddress: vaultData.triggerAddress,
