@@ -26,7 +26,6 @@ import {
   useToast,
   ActivityIndicator
 } from '../../common/ui';
-import { p2pBackupVault, fetchP2PVaultIds } from '../lib/backup/p2p';
 import { getVaultIdentity } from '../lib/backup/vaultIdentity';
 import { useNavigation } from '@react-navigation/native';
 import { useNetStatus } from '../hooks/useNetStatus';
@@ -76,28 +75,18 @@ export default function CreateVaultScreen({
     getUnvaultKeyExpression,
     signers,
     pushVaultRegisterWTAndUpdateStates,
-    vaults,
-    cBVaultsWriterAPI,
-    cBVaultsReaderAPI,
     wallet,
     networkId
   } = useWallet();
 
-  if (
-    !wallet ||
-    !networkId ||
-    !signers ||
-    !pushVaultRegisterWTAndUpdateStates ||
-    !cBVaultsWriterAPI ||
-    !cBVaultsReaderAPI
-  )
+  if (!wallet || !networkId || !signers || !pushVaultRegisterWTAndUpdateStates)
     throw new Error('Missing data from context');
+  const lastP2PBackupVaultIndex = wallet.lastP2PBackupVaultIndex;
   const walletId = wallet.walletId;
   const {
     netRequest,
     netToast,
     apiReachable,
-    cBVaultsReaderAPIReachable,
     permanentErrorMessage: nsErrorMessage
   } = useNetStatus();
   const toast = useToast();
@@ -109,7 +98,6 @@ export default function CreateVaultScreen({
     throw new Error(
       'This component should only be started after settings has been retrieved from storage'
     );
-  const networkTimeout = settings.NETWORK_TIMEOUT;
   const vaultMode =
     networkId === 'BITCOIN' ? 'P2A_TRUC' : settings.TESTING_VAULT_MODE;
   const presignedTriggerFeeRate = getPresignedTriggerFeeRate(
@@ -199,7 +187,7 @@ export default function CreateVaultScreen({
   const confirm = useCallback(async () => {
     //While the vault was being created, maybe the internet went down.
     //So recheck before confirm.
-    if (nsErrorMessage && (!apiReachable || !cBVaultsReaderAPIReachable)) {
+    if (nsErrorMessage && !apiReachable) {
       netToast(false, t('createVault.connectivityIssues'));
       goBack();
       return;
@@ -208,23 +196,6 @@ export default function CreateVaultScreen({
 
     setConfirmRequested(true);
 
-    const { status: backupStatus } = await netRequest({
-      whenToastErrors: 'ON_ANY_ERROR',
-      errorMessage: message => t('createVault.vaultBackupError', { message }),
-      func: () =>
-        p2pBackupVault({
-          networkTimeout,
-          vault,
-          signer,
-          cBVaultsWriterAPI,
-          cBVaultsReaderAPI,
-          networkId
-        })
-    });
-    if (backupStatus !== 'SUCCESS') {
-      goBack();
-      return;
-    }
     //This means the screen is not focussed anymore!?!?!
     //Don't proceed.
     if (!navigation.isFocused()) return;
@@ -249,19 +220,13 @@ export default function CreateVaultScreen({
       goBackToWalletHome();
     }
   }, [
-    networkTimeout,
     apiReachable,
-    cBVaultsReaderAPIReachable,
     nsErrorMessage,
     goBackToWalletHome,
     toast,
     netToast,
-    signer,
     netRequest,
     vault,
-    cBVaultsWriterAPI,
-    cBVaultsReaderAPI,
-    networkId,
     t,
     navigation,
     goBack,
@@ -273,8 +238,13 @@ export default function CreateVaultScreen({
     if (isVaultCreated.current === true) return;
     else isVaultCreated.current = true;
 
-    if (!apiReachable || !cBVaultsReaderAPIReachable) {
+    if (!apiReachable) {
       netToast(false, t('createVault.connectivityIssues'));
+      goBackToWalletHome();
+      return;
+    }
+    if (lastP2PBackupVaultIndex === undefined) {
+      netToast(false, t('createVault.backupScanPending'));
       goBackToWalletHome();
       return;
     }
@@ -288,10 +258,11 @@ export default function CreateVaultScreen({
         await getNextChangeDescriptorWithIndex(accounts);
       if (!shouldContinueCreate()) return;
 
+      const nextP2PBackupIndex = lastP2PBackupVaultIndex + 1;
       const { result: nextOnChainBackupIndex } = await netRequest({
         whenToastErrors: 'ON_ANY_ERROR',
         errorMessage: message => t('createVault.fetchIssues', { message }),
-        func: getNextOnChainBackupIndex
+        func: () => getNextOnChainBackupIndex(nextP2PBackupIndex)
       });
       if (!shouldContinueCreate()) return;
       if (nextOnChainBackupIndex === undefined) {
@@ -300,30 +271,10 @@ export default function CreateVaultScreen({
         return;
       }
 
-      const { result: nextVaultP2PData } = await netRequest({
-        whenToastErrors: 'ON_ANY_ERROR',
-        errorMessage: message => t('createVault.fetchIssues', { message }),
-        func: () =>
-          fetchP2PVaultIds({
-            networkTimeout,
-            signer,
-            networkId,
-            vaults,
-            cBVaultsReaderAPI
-          })
-      });
-
-      if (!shouldContinueCreate()) return;
-      if (!nextVaultP2PData) {
-        //The toast with prev error message will have been shown.
-        goBack();
-        return;
-      }
-
       const randomSigner = await getRandomSigner(networkId);
       if (!shouldContinueCreate()) return;
       const nextVaultIndex = Math.max(
-        nextVaultP2PData.nextVaultIndex,
+        nextP2PBackupIndex,
         nextOnChainBackupIndex
       );
       const nextVaultIdentity = getVaultIdentity({
@@ -384,9 +335,7 @@ export default function CreateVaultScreen({
     };
     create();
   }, [
-    networkTimeout,
     apiReachable,
-    cBVaultsReaderAPIReachable,
     goBackToWalletHome,
     netRequest,
     goBack,
@@ -403,9 +352,8 @@ export default function CreateVaultScreen({
     networkId,
     vaultMode,
     shouldContinueCreate,
-    cBVaultsReaderAPI,
+    lastP2PBackupVaultIndex,
     signer,
-    vaults,
     utxosData,
     accounts,
     presignedTriggerFeeRate,

@@ -111,6 +111,22 @@ export type Wallet = {
   //you can create a wallet express without requiring user to validate the
   //mnemonic. This only applies to new walletes (not imported ones)
   seedBackupDone?: boolean;
+  /**
+   * Highest contiguous vault index that was observed during a successful P2P
+   * backup scan for this wallet.
+   *
+   * `undefined` means the P2P backup network has not been successfully checked
+   * for this wallet yet. Imported wallets must keep this unset until a scan
+   * succeeds because they may have legacy P2P-only vaults.
+   *
+   * `-1` means the P2P backup network was checked and no legacy P2P vaults were
+   * found. Newly generated Rewind2 wallets can start at `-1` because they cannot
+   * already have old P2P backups.
+   *
+   * `>= 0` means P2P was checked and this is the highest known legacy P2P vault
+   * index. New on-chain vault creation must choose an index above this value.
+   */
+  lastP2PBackupVaultIndex?: number;
   networkId: NetworkId;
   /**
    * Signers are small string text which may contain the mnemonic (when using

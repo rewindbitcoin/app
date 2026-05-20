@@ -739,12 +739,14 @@ Rewind does this to make sure the on-chain backup is mined too. The fee is paid 
     //Each peer helps store these backups, but the vault details remain fully encrypted, so no one can access them. Only you can with your Recovery Phrase.
     //Anyone can easily run a peer to support the network. Learn more at rewindbitcoin.com.
     // The backup will be stored on one peer and retrieved from another to verify its integrity.
-    submittingVault: `Rewind is backing up your vault, verifying the backup, and sending the vault transaction to the blockchain.
+    submittingVault: `Rewind is sending your vault and encrypted on-chain backup to the blockchain.
 
 Please keep the app open.`,
     fetchIssues: `Connection issues detected. The vault was not created. Please check your internet connection and try again.
 
 {{message}}`,
+    backupScanPending:
+      'Cannot create a vault until your wallet has been fully synchronized. Refresh your wallet and try again.',
     connectivityIssues:
       'Connection issues detected. The vault was not created. Please check your internet connection and try again.',
     vaultBackupError: `Error during backup. The vault was not created. Please check your connection and try again.

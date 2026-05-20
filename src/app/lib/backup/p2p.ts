@@ -248,6 +248,11 @@ export const p2pBackupVault = async ({
 
   const vaultPushUrl = `${cBVaultsWriterAPI}/${vaultId}`;
   try {
+    // TODO: Once Rewind2 ships, disable the P2P writer service server-side and
+    // keep only the reader for legacy recovery. Old clients may show only a
+    // generic backup error because current clients do not surface writer response
+    // bodies, but writer shutdown prevents stale P2P vaults from being created
+    // after on-chain backups become authoritative.
     const response = await fetch(vaultPushUrl, {
       method: 'PUT',
       body: cipheredCompressedVault,
