@@ -35,6 +35,14 @@ To generate the random well-known key for thunder den, we used:
 //`SIGNERS_${walletId}`
 export const SOFTWARE = 'SOFTWARE' as const;
 export const LEDGER = 'LEDGER' as const;
+
+// TODO(HWW): Make Signer useful even when the hardware wallet is disconnected.
+// Some descriptors, such as the trigger reserve descriptor, are just derived
+// from the signer using well-known Rewind paths like
+// m/1073'/coin_type'/2'/vault_index/*. They should not be stored as source of
+// truth on Vault. For hardware wallets, store enough non-secret public data here
+// (for example the relevant xpubs/descriptors) so read-only screens and wallet
+// export can still derive those descriptors without asking for the device.
 export type Signer = {
   masterFingerprint: string; // Needs to be set because for HWW we dont have the mnemonic
   signerName?: string;

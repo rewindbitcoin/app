@@ -12,7 +12,9 @@ import { shareAsync } from 'expo-sharing';
 import { toBase64 } from 'uint8array-tools';
 
 import { compressData } from '../../../common/lib/compress';
-import type { Accounts } from '../wallets';
+import { networkMapping } from '../network';
+import { getTriggerReserveDescriptor } from '../p2aReserve';
+import type { Accounts, Signer } from '../wallets';
 import type { Vault, Vaults, TxHex, Rescue, RescueTxMap } from '../vaults';
 
 export const delegateVault = async ({
@@ -97,23 +99,37 @@ function text2JsonFriendly(str: string, length: number) {
   });
 }
 
-//FIXME: its important to export also the descriptors of the trigger reserves!
 export const exportWallet = async ({
   name,
   exportInstuctions,
   accounts,
   vaults,
+  signer,
   onProgress
 }: {
   name: string;
   exportInstuctions: string;
   accounts: Accounts;
   vaults: Vaults;
+  signer?: Signer;
   onProgress?: (progress: number) => boolean;
 }): Promise<boolean> => {
-  const descriptors = Object.entries(vaults).map(
-    ([, vault]) => vault.triggerDescriptor
-  );
+  const descriptors: Array<string> = [];
+
+  for (const [, vault] of Object.entries(vaults)) {
+    descriptors.push(vault.triggerDescriptor);
+    if (!signer)
+      throw new Error(
+        'Signer unavailable for trigger reserve descriptor export'
+      );
+    const triggerReserveDescriptor = getTriggerReserveDescriptor({
+      vault,
+      signer,
+      network: networkMapping[vault.networkId]
+    });
+    descriptors.push(triggerReserveDescriptor);
+  }
+
   for (const account of Object.keys(accounts))
     descriptors.push(account, account.replace(/\/0\/\*/g, '/1/*'));
 

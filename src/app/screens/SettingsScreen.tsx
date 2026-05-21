@@ -590,7 +590,8 @@ const SettingsScreen = () => {
     [settings, setSettings]
   );
 
-  const mnemonic = signers && signers[0]?.mnemonic;
+  const signer = signers?.[0];
+  const mnemonic = signer?.mnemonic;
 
   // NativeWind's `text-base` sets a lineHeight, which causes a subtle jump/flicker
   // on each keystroke in TextInput. This is a known React Native quirk.
@@ -651,6 +652,7 @@ const SettingsScreen = () => {
                       ),
                       accounts: accounts || {},
                       vaults: vaults || {},
+                      ...(signer ? { signer } : {}),
                       onProgress: (progress: number) => {
                         if (progress !== 1)
                           setExportProgress(
