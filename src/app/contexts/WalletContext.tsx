@@ -73,6 +73,7 @@ import { getWalletDataCipherKey } from '../lib/backup/shared';
 import { parseVaultIndex } from '../lib/rewindPaths';
 import {
   createOnChainBackupTx,
+  fetchOnChainVaults,
   getOnChainBackupDescriptor
 } from '../lib/backup/onchain';
 
@@ -1824,7 +1825,7 @@ const WalletProviderRaw = ({
       if (!signers) throw new Error('Signers not ready');
       const signer = signers[0];
       if (!signer) throw new Error('signer unavailable');
-      const descriptor = await getOnChainBackupDescriptor({
+      const descriptor = getOnChainBackupDescriptor({
         signer,
         network,
         index: '*'
@@ -1942,6 +1943,7 @@ const WalletProviderRaw = ({
   //Did the user initiated the sync (true)? ir was it a scheduled one (false)?
   const isUserTriggeredSync = useRef<boolean>(false);
   const prevAccountsSyncRef = useRef<Accounts | undefined>(undefined);
+  const wasSyncingBlockchainRef = useRef<boolean>(false);
 
   const walletTitle =
     activeWallet && wallets && walletTitleFn(activeWallet, wallets, t);
@@ -2141,12 +2143,15 @@ const WalletProviderRaw = ({
     // Track `prevAccounts` to detect changes and manage state between syncs.
     const prevAccounts = prevAccountsSyncRef.current;
     prevAccountsSyncRef.current = accounts;
+    let shouldRollbackEarlyAccounts = false;
+    const rollbackEarlyAccounts = () => {
+      if (shouldRollbackEarlyAccounts && accounts !== undefined)
+        setAccounts(accounts);
+    };
 
     const isUserTriggered = isUserTriggeredSync.current;
     isUserTriggeredSync.current = false;
-    const whenToastErrors = isUserTriggeredSync
-      ? 'ON_ANY_ERROR'
-      : 'ON_NEW_ERROR';
+    const whenToastErrors = isUserTriggered ? 'ON_ANY_ERROR' : 'ON_NEW_ERROR';
 
     const signer = signers?.[0];
     const network =
@@ -2273,6 +2278,14 @@ const WalletProviderRaw = ({
           return;
         }
 
+        const lastP2PBackupVaultIndex = p2pVaults
+          ? Object.values(p2pVaults).reduce(
+              (lastIndex, p2pVault) =>
+                Math.max(lastIndex, parseVaultIndex(p2pVault.vaultPath)),
+              -1
+            )
+          : undefined;
+
         let updatedVaults = vaults; //initially they are the same
         if (p2pVaults)
           Object.entries(p2pVaults).forEach(([key, p2pVault]) => {
@@ -2283,6 +2296,48 @@ const WalletProviderRaw = ({
               // Mutate updatedVaults because a new one has been detected
               updatedVaults = { ...updatedVaults };
               updatedVaults[key] = p2pVault;
+            }
+          });
+
+        const p2pBackupFloor =
+          lastP2PBackupVaultIndex ?? activeWallet.lastP2PBackupVaultIndex;
+        const highestKnownVaultIndex = Object.values(updatedVaults).reduce(
+          (highestIndex, vault) =>
+            Math.max(highestIndex, parseVaultIndex(vault.vaultPath)),
+          -1
+        );
+        const firstOnChainBackupIndexToCheck = Math.max(
+          p2pBackupFloor !== undefined ? p2pBackupFloor + 1 : 0,
+          highestKnownVaultIndex + 1
+        );
+        const { result: onChainVaults } = await netRequestRef.current({
+          id: 'onChainVaults',
+          errorMessage: (message: string) =>
+            t('app.syncOnChainVaultsError', { message }),
+          whenToastErrors,
+          requirements: { explorerReachable: true },
+          func: () =>
+            fetchOnChainVaults({
+              discovery,
+              signer,
+              networkId: activeWallet.networkId,
+              firstIndexToCheck: firstOnChainBackupIndexToCheck
+            })
+        });
+        if (activeWallet.walletId !== walletIdRef.current) {
+          //do this after each await
+          setSyncingBlockchain(activeWallet.walletId, false);
+          return;
+        }
+        if (onChainVaults)
+          Object.entries(onChainVaults).forEach(([key, onChainVault]) => {
+            const currentVault = updatedVaults[key];
+            //A vault cannot mutate. It either exists or not, but once created
+            //it will never change:
+            if (onChainVault && !currentVault) {
+              // Mutate updatedVaults because a new one has been detected
+              updatedVaults = { ...updatedVaults };
+              updatedVaults[key] = onChainVault;
             }
           });
 
@@ -2410,7 +2465,9 @@ const WalletProviderRaw = ({
           //the wallet, there'll be a mismatch and discovery will complain
           //when trying to compute balances of unfetched utxos.
           setAccounts(updatedAccounts);
+          shouldRollbackEarlyAccounts = true;
         }
+
         const descriptors = getHotDescriptors(
           updatedVaults,
           updatedVaultsStatuses,
@@ -2445,7 +2502,7 @@ const WalletProviderRaw = ({
           //do this after each await
           batchedUpdates(() => {
             setSyncingBlockchain(activeWallet.walletId, false);
-            setAccounts(accounts); //Read TAGsijufnviudsgndsf
+            rollbackEarlyAccounts(); //Read TAGsijufnviudsgndsf
           });
           return;
         }
@@ -2453,7 +2510,7 @@ const WalletProviderRaw = ({
           //also don't continue if discovery fails
           batchedUpdates(() => {
             setSyncingBlockchain(activeWallet.walletId, false);
-            setAccounts(accounts); //Read TAGsijufnviudsgndsf
+            rollbackEarlyAccounts(); //Read TAGsijufnviudsgndsf
           });
           return;
         }
@@ -2463,13 +2520,6 @@ const WalletProviderRaw = ({
           //Already upated Read TAGsijufnviudsgndsf
           //if (accounts !== updatedAccounts) setAccounts(updatedAccounts);
 
-          const lastP2PBackupVaultIndex = p2pVaults
-            ? Object.values(p2pVaults).reduce(
-                (lastIndex, p2pVault) =>
-                  Math.max(lastIndex, parseVaultIndex(p2pVault.vaultPath)),
-                -1
-              )
-            : undefined;
           if (lastP2PBackupVaultIndex !== undefined)
             setActiveWallet(currentWallet =>
               currentWallet?.walletId === activeWallet.walletId &&
@@ -2497,7 +2547,10 @@ const WalletProviderRaw = ({
         //We don't care about errors of other wallets (probably trying to
         //do a network op on an expired wallet with closed explorer)
         if (activeWallet.walletId !== walletIdRef.current) {
-          setSyncingBlockchain(activeWallet.walletId, false);
+          batchedUpdates(() => {
+            setSyncingBlockchain(activeWallet.walletId, false);
+            rollbackEarlyAccounts(); //Read TAGsijufnviudsgndsf
+          });
           return;
         }
 
@@ -2508,6 +2561,7 @@ const WalletProviderRaw = ({
               error instanceof Error ? error.message : t('app.unknownError')
           })
         );
+        rollbackEarlyAccounts();
       }
     }
 
@@ -2544,16 +2598,23 @@ const WalletProviderRaw = ({
     networkTimeout
   ]);
 
-  //When syncingBlockchain is set then trigger sync() which does all the
-  //syncing task, sync() will set back syncingBlockchain[walletId] back to false
-  //syncingBlockchain is set to true either by the user calling to
-  //syncingBlockchain or automatically in a useEffect when walletId changes
+  // Trigger sync only when syncingBlockchain rises to true. This avoids
+  // re-entering sync if early state updates (for example setAccounts below)
+  // recreate the sync callback while the flag is already true.
+  // sync() sets syncingBlockchain[walletId] back to false when it completes.
+  // syncingBlockchain is set to true either by the user or automatically below
+  // when wallet/network/tip readiness changes.
   useEffect(() => {
-    if (
-      activeWallet?.walletId !== undefined &&
-      walletsSyncingBlockchain[activeWallet.walletId]
-    )
-      sync();
+    if (activeWallet?.walletId === undefined) {
+      wasSyncingBlockchainRef.current = false;
+      return;
+    }
+
+    const isSyncing = walletsSyncingBlockchain[activeWallet.walletId] === true;
+    const wasSyncing = wasSyncingBlockchainRef.current;
+    wasSyncingBlockchainRef.current = isSyncing;
+
+    if (isSyncing && !wasSyncing) sync();
   }, [walletsSyncingBlockchain, activeWallet?.walletId, sync]);
   //This function is passed in the context so that users can sync
   const syncBlockchain = useCallback(() => {
