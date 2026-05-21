@@ -2,7 +2,6 @@
 // Licensed under the GNU GPL v3 or later. See the LICENSE file for details.
 
 import { type Network } from 'bitcoinjs-lib';
-import { toHex } from 'uint8array-tools';
 import {
   keyExpressionBIP32,
   type OutputInstance
@@ -12,7 +11,7 @@ import { ensureDescriptorsFactoryInstance } from './descriptorsFactory';
 import { MIN_FEE_RATE } from './fees';
 import { getTriggerReservePath, parseVaultIndex } from './rewindPaths';
 import { toBigInt, toNumber } from './sats';
-import { transactionFromHex } from './bitcoin';
+import { findVoutByScript, transactionFromHex } from './bitcoin';
 import { getMasterNode } from './vaultDescriptors';
 import type { Signer } from './wallets';
 
@@ -178,7 +177,5 @@ export const findTriggerReserveVout = ({
     addressIndex
   });
   const { tx: vaultTx } = transactionFromHex(vaultTxHex);
-  return vaultTx.outs.findIndex(
-    out => toHex(out.script) === toHex(triggerReserveOutput.getScriptPubKey())
-  );
+  return findVoutByScript(vaultTx, triggerReserveOutput.getScriptPubKey());
 };

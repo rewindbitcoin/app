@@ -2,11 +2,12 @@
 // Licensed under the GNU GPL v3 or later. See the LICENSE file for details.
 
 import { type Transaction } from 'bitcoinjs-lib';
-import { fromHex, toHex } from 'uint8array-tools';
+import { compare, fromHex } from 'uint8array-tools';
 import { toNumber } from './sats';
 
 export const P2A_OUTPUT_SCRIPT = fromHex('51024e73');
-export const P2A_OUTPUT_SCRIPT_HEX = toHex(P2A_OUTPUT_SCRIPT);
+export const isP2AOutputScript = (scriptPubKey: Uint8Array) =>
+  compare(scriptPubKey, P2A_OUTPUT_SCRIPT) === 0;
 export const MAX_P2A_TRUC_CHILD_VSIZE = 1000; // P2A_TRUC v3 child size limit (vbytes)
 export const P2A_DUST_THRESHOLD = BigInt(240); // Core default dust relay: (13 + 67) * 3 sat/vB.
 // Core treats value == dust threshold as non-dust, but the app normally funds
@@ -34,7 +35,7 @@ export const findP2AOutputData = (
 ): { index: number; value: number } | undefined => {
   const matchingOutputs = tx.outs
     .map((output, index) => ({ output, index }))
-    .filter(({ output }) => toHex(output.script) === P2A_OUTPUT_SCRIPT_HEX);
+    .filter(({ output }) => isP2AOutputScript(output.script));
   if (matchingOutputs.length === 0) return;
   if (matchingOutputs.length > 1)
     throw new Error('Expected exactly one P2A output');

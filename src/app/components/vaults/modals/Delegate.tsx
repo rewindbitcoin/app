@@ -6,7 +6,7 @@ import { Modal, Button } from '../../../../common/ui';
 import { useTranslation } from 'react-i18next';
 import { View, Text } from 'react-native';
 import type { Vault } from '../../../lib/vaults';
-import { delegateVault } from '../../../lib/backup';
+import { delegateVault } from '../../../lib/backup/walletExport';
 
 const Delegate = ({
   vault,

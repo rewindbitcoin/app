@@ -9,6 +9,9 @@ export default {
     syncP2PVaultsError: `No se pudo conectar a la red de backups P2P. Este problema impide sincronizar las bóvedas creadas en otros dispositivos.
 
 {{message}}`,
+    syncOnChainVaultsError: `No se pudieron restaurar las bóvedas desde los backups on-chain. Este problema impide sincronizar las bóvedas creadas en otros dispositivos.
+
+{{message}}`,
     watchtowerError: `No se pudo conectar con la Torre de Vigilancia (Watchtower). Esto impide detectar accesos a tus Bóvedas y enviar alertas de seguridad.
 
 {{message}}`,
@@ -673,12 +676,14 @@ Rewind hace esto para asegurarse de que el backup on-chain también se mine. La 
     //Si pierdes este dispositivo, podrás recuperar la bóveda usando tu Frase de Recuperación.
     //
     //Selecciona 'Enviar' para activar tu bóveda.`,
-    submittingVault: `Rewind está respaldando tu bóveda, verificando el backup y enviando la transacción de la bóveda a la blockchain.
+    submittingVault: `Rewind está enviando tu bóveda y el backup on-chain encriptado a la blockchain.
 
 Por favor, mantén la app abierta.`,
     fetchIssues: `Se detectaron problemas de conexión. La bóveda no fue creada. Por favor, verifica tu conexión a Internet e inténtalo de nuevo.
 
 {{message}}`,
+    backupScanPending:
+      'No se puede crear una bóveda hasta que tu billetera se haya sincronizado completamente. Actualiza la billetera e inténtalo de nuevo.',
     connectivityIssues:
       'Se detectaron problemas de conexión. La bóveda no fue creada. Por favor, verifica tu conexión a Internet e inténtalo de nuevo.',
     vaultBackupError: `Error durante el backup. La bóveda no fue creada. Por favor, verifica tu conexión e inténtalo de nuevo.

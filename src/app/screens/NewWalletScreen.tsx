@@ -233,6 +233,7 @@ export default function NewWalletScreen() {
         walletUUID: uuid(),
         version: defaultSettings.WALLETS_DATA_VERSION,
         networkId,
+        ...(!isImport ? { lastP2PBackupVaultIndex: -1 } : {}),
         signersEncryption: signersPassword ? 'PASSWORD' : 'NONE',
         signersStorageEngine,
         encryption

@@ -28,7 +28,6 @@
 const PUSH_TIMEOUT = 30 * 60; // 30 minutes
 
 import { type Network, type Transaction, Psbt } from 'bitcoinjs-lib';
-import { sha256 } from '@noble/hashes/sha2';
 import { fromHex, toHex } from 'uint8array-tools';
 import memoize from 'lodash.memoize';
 import { SOFTWARE, type Accounts, type Signer } from './wallets';
@@ -58,10 +57,16 @@ import type {
 import { coinselect, maxFunds, dustThreshold } from '@bitcoinerlab/coinselect';
 import type { Explorer } from '@bitcoinerlab/explorer';
 import { coinTypeFromNetwork, type NetworkId, networkMapping } from './network';
-import { transactionFromHex } from './bitcoin';
+import {
+  fetchSpendingTx,
+  findVoutByScript,
+  type SpendingTxData,
+  transactionFromHex,
+  txSpendsOutpoint
+} from './bitcoin';
 import { MIN_FEE_RATE } from './fees';
 import { maxBigInt, toBigInt, toNumber, toNumberOrUndefined } from './sats';
-import { getBackupFunding, getOnChainBackupDescriptor } from './onChainBackup';
+import { getBackupFunding, getOnChainBackupDescriptor } from './backup/onchain';
 export { getBackupFunding, getOnChainBackupDescriptor };
 export {
   assertP2AParentPolicy,
@@ -82,8 +87,7 @@ import {
   getRescueAnchorValue,
   getTriggerAnchorValue,
   MAX_P2A_TRUC_CHILD_VSIZE,
-  P2A_OUTPUT_SCRIPT,
-  P2A_OUTPUT_SCRIPT_HEX
+  P2A_OUTPUT_SCRIPT
 } from './p2aPolicy';
 
 import {
@@ -92,7 +96,7 @@ import {
   TRIGGER_TX_VBYTES
 } from './vaultSizes';
 import { generateMnemonic } from 'bip39';
-import { parseVaultIndex, getVaultOriginPath } from './rewindPaths';
+import { parseVaultIndex } from './rewindPaths';
 
 export type TxHex = string;
 export type TxId = string;
@@ -851,16 +855,12 @@ export const getP2AVaultFundingBreakdown = ({
   const network = networkMapping[vault.networkId];
   const { Output } = ensureDescriptorsFactoryInstance();
   const vaultIndex = parseVaultIndex(vault.vaultPath);
-  const mnemonic = signer?.mnemonic;
-  if (!mnemonic)
-    throw new Error('Could not initialize the on-chain backup descriptor');
-  const masterNode = getMasterNode(mnemonic, network);
   const backupOutput = new Output({
-    descriptor: `wpkh(${keyExpressionBIP32({
-      masterNode,
-      originPath: getVaultOriginPath(network),
-      keyPath: `/${vaultIndex}`
-    })})`,
+    descriptor: getOnChainBackupDescriptor({
+      signer,
+      network,
+      index: vaultIndex
+    }),
     network
   });
   const { tx: vaultTx } = transactionFromHex(vault.vaultTxHex);
@@ -875,9 +875,7 @@ export const getP2AVaultFundingBreakdown = ({
     network,
     addressIndex: 0
   });
-  const backupVout = vaultTx.outs.findIndex(
-    out => toHex(out.script) === toHex(backupOutput.getScriptPubKey())
-  );
+  const backupVout = findVoutByScript(vaultTx, backupOutput.getScriptPubKey());
   if (backupVout < 0) throw new Error('Backup output not found in vault tx');
 
   const backupOutputValue = vaultTx.outs[backupVout]?.value;
@@ -1356,7 +1354,7 @@ const buildVaultTxContext = async ({
     network
   });
   const backupOutput = new Output({
-    descriptor: await getOnChainBackupDescriptor({
+    descriptor: getOnChainBackupDescriptor({
       signer,
       network,
       index: vaultIndex
@@ -1841,111 +1839,6 @@ export const getVaultsFrozenBalance = moize(
     return totalVaulted;
   }
 );
-
-type SpendingTxData = {
-  txHex: string;
-  irreversible: boolean;
-  blockHeight: number;
-};
-
-const spendingTxCache = new Map<string, SpendingTxData>();
-
-/**
- * Returns whether `spendingTxHex` spends the exact `prevTxId:prevVout`
- * outpoint.
- *
- * This is the shared predicate used after a candidate spending transaction is
- * found by some discoverable script. For P2A fee-payer discovery, the candidate
- * comes from the vault's unique trigger reserve output, then this validates that
- * it also spends the trigger parent's P2A anchor.
- */
-const txSpendsOutpoint = (
-  spendingTxHex: string,
-  prevTxId: TxId,
-  prevVout: number
-) => {
-  const { tx } = transactionFromHex(spendingTxHex);
-  return tx.ins.some(input => {
-    const inputPrevtxId = toHex(Uint8Array.from(input.hash).reverse());
-    return inputPrevtxId === prevTxId && input.index === prevVout;
-  });
-};
-
-/**
- * Returns the tx that spent a Tx Output (or it's in the mempool about to spend it).
- * If it's in the mempool this is marked by setting blockHeight to zero.
- * This function will return early if last result was irreversible */
-async function fetchSpendingTx(
-  txHex: string,
-  vout: number,
-  explorer: Explorer
-): Promise<SpendingTxData | undefined> {
-  const cacheKey = `${txHex}:${vout}`;
-  const cachedResult = spendingTxCache.get(cacheKey);
-
-  // Check if cached result exists and is irreversible, then return it
-  if (cachedResult && cachedResult.irreversible) {
-    return cachedResult;
-  }
-
-  const { tx, txId } = transactionFromHex(txHex);
-
-  const output = tx.outs[vout];
-  if (!output) throw new Error('Invalid out');
-  if (toHex(output.script) === P2A_OUTPUT_SCRIPT_HEX)
-    throw new Error(
-      `fetchSpendingTx must not scan P2A output ${txId}:${vout}; P2A uses a shared global script, so this will scan unrelated P2A history and will require checking thousands of transactions.`
-    );
-  const scriptHashBytes = Uint8Array.from(sha256(output.script)).reverse();
-  const scriptHash = toHex(scriptHashBytes);
-
-  // During mempool replacements (accelerate), fetchTxHistory and fetchTx can
-  // briefly become inconsistent: history can include txids that were just evicted.
-  // Retry a few full scans to distinguish transient races from persistent
-  // explorer errors.
-  const MAX_HISTORY_SCAN_ATTEMPTS = 3;
-  const RETRY_DELAY_MS = 250;
-  for (let attempt = 0; attempt < MAX_HISTORY_SCAN_ATTEMPTS; attempt++) {
-    let hadFetchTxError = false;
-    //retrieve all txs that sent / received from this scriptHash
-    //fetchTxHistory also includes mempool
-    const history = await explorer.fetchTxHistory({ scriptHash });
-
-    for (let i = 0; i < history.length; i++) {
-      const txData = history[i];
-      if (!txData) throw new Error('Invalid history');
-      //Check if this specific tx was spending my output:
-      let historyTxHex: string;
-      try {
-        historyTxHex = await explorer.fetchTx(txData.txId);
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        hadFetchTxError = true;
-        console.warn(
-          `[fetchSpendingTx] Attempt ${attempt + 1}/${MAX_HISTORY_SCAN_ATTEMPTS}: fetchTx failed for history txid ${txData.txId} on outpoint ${txId}:${vout}; refetching history: ${message}`
-        );
-        break;
-      }
-      const found = txSpendsOutpoint(historyTxHex, txId, vout);
-      if (found) {
-        const spendingTx = {
-          txHex: historyTxHex,
-          irreversible: txData.irreversible,
-          blockHeight: txData.blockHeight
-        };
-        spendingTxCache.set(cacheKey, spendingTx);
-        return spendingTx;
-      }
-    }
-
-    if (!hadFetchTxError) return;
-    else if (attempt < MAX_HISTORY_SCAN_ATTEMPTS - 1)
-      await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS));
-  }
-  throw new Error(
-    `Failed to resolve spending tx for outpoint ${txId}:${vout} after ${MAX_HISTORY_SCAN_ATTEMPTS} attempts due to repeated fetchTx errors.`
-  );
-}
 
 /**
  * Finds the trigger CPFP child through the vault's deterministic trigger reserve.

@@ -39,7 +39,7 @@ import {
   type RootStackParamList,
   WALLETS
 } from '../screens';
-import { exportWallet } from '../lib/backup';
+import { exportWallet } from '../lib/backup/walletExport';
 import { electrumParams, getAPIs } from '../lib/walletDerivedData';
 import { ElectrumExplorer, EsploraExplorer } from '@bitcoinerlab/explorer';
 import { NetworkId, networkMapping } from '../lib/network';
