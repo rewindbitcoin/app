@@ -9,6 +9,9 @@ export default {
     syncP2PVaultsError: `No se pudo conectar a la red de backups P2P. Este problema impide sincronizar las bóvedas creadas en otros dispositivos.
 
 {{message}}`,
+    syncOnChainVaultsError: `No se pudieron restaurar las bóvedas desde los backups on-chain. Este problema impide sincronizar las bóvedas creadas en otros dispositivos.
+
+{{message}}`,
     watchtowerError: `No se pudo conectar con la Torre de Vigilancia (Watchtower). Esto impide detectar accesos a tus Bóvedas y enviar alertas de seguridad.
 
 {{message}}`,

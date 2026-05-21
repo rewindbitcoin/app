@@ -10,6 +10,9 @@ export default {
     syncP2PVaultsError: `Unable to connect to the P2P backup network. This issue prevents syncing vaults created on other devices.
 
 {{message}}`,
+    syncOnChainVaultsError: `Unable to restore vaults from on-chain backups. This issue prevents syncing vaults created on other devices.
+
+{{message}}`,
     watchtowerError: `Failed to connect to the Watchtower. This prevents detecting access to your vaults and sending alerts when they are accessed.
 
 {{message}}`,
