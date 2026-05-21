@@ -54,7 +54,7 @@ import type {
   TxAttribution,
   TxoMap
 } from '@bitcoinerlab/discovery';
-import { coinselect, maxFunds, dustThreshold } from '@bitcoinerlab/coinselect';
+import { coinselect, maxFunds, dustThreshold } from './coinselect';
 import type { Explorer } from '@bitcoinerlab/explorer';
 import { coinTypeFromNetwork, type NetworkId, networkMapping } from './network';
 import {
@@ -1236,7 +1236,8 @@ const regularCoinSelectVaultTx = ({
       targets,
       remainder: vaultOutput,
       feeRate,
-      minimumFeeRate
+      minimumFeeRate,
+      coinControl: false
     });
     if (!coinselected) return 'MAX_FUNDS COINSELECTOR FAILED';
     const vaultTarget = coinselected.targets.find(
@@ -1271,7 +1272,8 @@ const regularCoinSelectVaultTx = ({
       targets,
       remainder: changeOutput,
       feeRate,
-      minimumFeeRate
+      minimumFeeRate,
+      coinControl: false
     });
     if (!coinselected) return 'REGULAR COINSELECTOR FAILED';
     targets = coinselected.targets;

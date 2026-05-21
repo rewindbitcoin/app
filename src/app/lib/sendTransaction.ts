@@ -7,7 +7,7 @@ import { getOutputsWithValue, UtxosData } from './vaults';
 import { OutputInstance, signers } from '@bitcoinerlab/descriptors';
 import { ensureDescriptorsFactoryInstance } from './descriptorsFactory';
 import { Network, Psbt } from 'bitcoinjs-lib';
-import { coinselect, dustThreshold, maxFunds } from '@bitcoinerlab/coinselect';
+import { coinselect, dustThreshold, maxFunds } from './coinselect';
 import { DUMMY_PKH_OUTPUT, getMasterNode } from './vaultDescriptors';
 import type { Signer } from './wallets';
 import { toBigInt, toNumber } from './sats';
@@ -61,7 +61,8 @@ export const estimateSendRange = moize.shallow(
         utxos: utxosCoinselect,
         targets: [],
         remainder: output,
-        feeRate
+        feeRate,
+        coinControl: false
       });
       if (coinselected)
         max = coinselected.targets.reduce(
@@ -76,7 +77,8 @@ export const estimateSendRange = moize.shallow(
         utxos: utxosCoinselect,
         targets: [],
         remainder: output,
-        feeRate: 1
+        feeRate: 1,
+        coinControl: false
       });
       if (coinselected1SxB)
         maxWhen1SxB = coinselected1SxB.targets.reduce(
@@ -122,7 +124,8 @@ const sendCoinselect = moize.shallow(
       utxos: utxosCoinselect,
       targets: [{ output, value: toBigInt(amount) }],
       remainder: changeOutput,
-      feeRate
+      feeRate,
+      coinControl: false
     });
     if (!coinselected) return null;
     return {
