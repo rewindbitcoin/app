@@ -1193,13 +1193,13 @@ const SettingsScreen = () => {
               </Text>
             </Pressable>
             <Pressable
-              onPress={() => setTapeFeeEstimateOverride(100)}
-              className={`py-2 px-4 rounded-lg ${settings.TAPE_FEE_ESTIMATE_OVERRIDE === 100 ? 'bg-primary' : 'bg-gray-200'} my-1`}
+              onPress={() => setTapeFeeEstimateOverride(75)}
+              className={`py-2 px-4 rounded-lg ${settings.TAPE_FEE_ESTIMATE_OVERRIDE === 75 ? 'bg-primary' : 'bg-gray-200'} my-1`}
             >
               <Text
-                className={`${settings.TAPE_FEE_ESTIMATE_OVERRIDE === 100 ? 'text-white' : 'text-black'} text-center`}
+                className={`${settings.TAPE_FEE_ESTIMATE_OVERRIDE === 75 ? 'text-white' : 'text-black'} text-center`}
               >
-                100 sat/vB
+                75 sat/vB
               </Text>
             </Pressable>
             <Pressable
