@@ -27,7 +27,7 @@ import {
   type VaultSettings
 } from '../lib/vaults';
 import { getAdditionalP2AOutputValue } from '../lib/p2aReserve';
-import { getVaultableUtxosData } from '../lib/utxoPolicy';
+import { getVaultableUtxos } from '../lib/utxoPolicy';
 import {
   DUMMY_BACKUP_OUTPUT,
   DUMMY_TRIGGER_RESERVE_OUTPUT,
@@ -120,7 +120,10 @@ export default function VaultSetUp({
 
   const vaultMode =
     networkId === 'BITCOIN' ? 'P2A_TRUC' : settings.TESTING_VAULT_MODE;
-  const vaultableUtxosData = getVaultableUtxosData(
+  const {
+    utxosData: vaultableUtxosData,
+    utxosAvailability: vaultUtxosAvailability
+  } = getVaultableUtxos(
     rawUtxosData,
     vaultsStatuses,
     historyData,
@@ -695,6 +698,8 @@ export default function VaultSetUp({
           )}
           <CoinControlModal
             isVisible={isCoinControlVisible}
+            utxosAvailability={vaultUtxosAvailability}
+            btcFiat={btcFiat}
             onClose={handleCloseCoinControl}
           />
         </View>

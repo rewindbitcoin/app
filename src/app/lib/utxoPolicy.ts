@@ -7,10 +7,44 @@ import type { HistoryData, TxId, UtxosData, VaultsStatuses } from './vaults';
 
 type VaultableMode = 'P2A_TRUC' | 'P2A_NON_TRUC';
 
+type UtxoData = UtxosData[number];
+
+export type UtxoUnavailableReason =
+  | 'unconfirmedAcceleratableOutput'
+  | 'unconfirmedV3Output'
+  | 'trucRequiresConfirmedInput';
+
+export type UtxoAvailability =
+  | { status: 'selectable'; utxoData: UtxoData }
+  | {
+      status: 'temporarilyUnavailable';
+      utxoData: UtxoData;
+      reason: UtxoUnavailableReason;
+    };
+
 const getUnconfirmedTxIds = (historyData: HistoryData) =>
   new Set(
     historyData.filter(item => item.blockHeight === 0).map(item => item.txId)
   );
+
+const getUnconfirmedAccelerationChildTxIds = (
+  vaultsStatuses: VaultsStatuses,
+  unconfirmedTxIds: Set<TxId>
+) => {
+  const accelerationChildTxIds = new Set<TxId>();
+
+  Object.values(vaultsStatuses).forEach(vaultStatus => {
+    [vaultStatus.triggerCpfpTxHex, vaultStatus.panicCpfpTxHex].forEach(
+      txHex => {
+        if (!txHex) return;
+        const { txId } = transactionFromHex(txHex);
+        if (unconfirmedTxIds.has(txId)) accelerationChildTxIds.add(txId);
+      }
+    );
+  });
+
+  return accelerationChildTxIds;
+};
 
 const keepOriginalReferenceIfUnchanged = (
   originalUtxosData: UtxosData,
@@ -21,71 +55,50 @@ const keepOriginalReferenceIfUnchanged = (
     : filteredUtxosData;
 
 /**
- * Returns UTXOs that are stable enough for generic wallet coin selection.
- *
- * Rewind hides outputs created by unconfirmed acceleration children because
- * those children may be replaced. If that happens, their outputs disappear, and
- * any later tx spending them would depend on an output that no longer exists.
- *
- * This is only a narrow subset of replaceability. In practice, any mempool tx
- * can be replaced by a conflicting tx if policy allows it. We may remove this
- * policy later and instead warn when replacing an acceleration tx whose outputs
- * have already been spent by another mempool tx.
- */
-export const getStableUtxosData = moize.shallow(
-  (
-    utxosData: UtxosData,
-    vaultsStatuses: VaultsStatuses,
-    historyData: HistoryData
-  ): UtxosData => {
-    if (!historyData.length) return utxosData;
-
-    const unconfirmedTxIds = getUnconfirmedTxIds(historyData);
-    const replaceableChildTxIds = new Set<TxId>();
-
-    Object.values(vaultsStatuses).forEach(vaultStatus => {
-      [vaultStatus.triggerCpfpTxHex, vaultStatus.panicCpfpTxHex].forEach(
-        txHex => {
-          if (!txHex) return;
-          const { txId } = transactionFromHex(txHex);
-          if (unconfirmedTxIds.has(txId)) replaceableChildTxIds.add(txId);
-        }
-      );
-    });
-
-    if (replaceableChildTxIds.size === 0) return utxosData;
-    const stableUtxosData = utxosData.filter(
-      utxoData => !replaceableChildTxIds.has(utxoData.tx.getId())
-    );
-    return keepOriginalReferenceIfUnchanged(utxosData, stableUtxosData);
-  }
-);
-
-/**
  * Returns UTXOs that can fund a normal send transaction.
  *
  * Normal sends are v2 today, so they cannot spend outputs from unconfirmed v3
  * transactions. Confirmed v3 outputs are fine.
  */
-export const getSendableUtxosData = moize.shallow(
+export const getSendableUtxos = moize.shallow(
   (
     utxosData: UtxosData,
     vaultsStatuses: VaultsStatuses,
     historyData: HistoryData
-  ): UtxosData => {
-    const stableUtxosData = getStableUtxosData(
-      utxosData,
-      vaultsStatuses,
-      historyData
-    );
+  ): {
+    utxosData: UtxosData;
+    utxosAvailability: UtxoAvailability[];
+  } => {
     const unconfirmedTxIds = getUnconfirmedTxIds(historyData);
-    if (unconfirmedTxIds.size === 0) return stableUtxosData;
+    const unconfirmedAccelerationChildTxIds =
+      getUnconfirmedAccelerationChildTxIds(vaultsStatuses, unconfirmedTxIds);
 
-    const sendableUtxosData = stableUtxosData.filter(utxoData => {
-      const isUnconfirmed = unconfirmedTxIds.has(utxoData.tx.getId());
-      return !isUnconfirmed || utxoData.tx.version !== 3;
+    const selectableUtxosData: UtxosData = [];
+    const utxosAvailability: UtxoAvailability[] = utxosData.map(utxoData => {
+      const txId = utxoData.tx.getId();
+      const isUnconfirmed = unconfirmedTxIds.has(txId);
+      if (unconfirmedAccelerationChildTxIds.has(txId))
+        return {
+          status: 'temporarilyUnavailable',
+          utxoData,
+          reason: 'unconfirmedAcceleratableOutput'
+        };
+      if (isUnconfirmed && utxoData.tx.version === 3)
+        return {
+          status: 'temporarilyUnavailable',
+          utxoData,
+          reason: 'unconfirmedV3Output'
+        };
+      selectableUtxosData.push(utxoData);
+      return { status: 'selectable', utxoData };
     });
-    return keepOriginalReferenceIfUnchanged(stableUtxosData, sendableUtxosData);
+    return {
+      utxosData: keepOriginalReferenceIfUnchanged(
+        utxosData,
+        selectableUtxosData
+      ),
+      utxosAvailability
+    };
   }
 );
 
@@ -96,30 +109,51 @@ export const getSendableUtxosData = moize.shallow(
  * confirmed wallet inputs. P2A_NON_TRUC setup builds a v2 vault tx, so it can
  * use unconfirmed inputs except outputs from unconfirmed v3 transactions.
  */
-export const getVaultableUtxosData = moize.shallow(
+export const getVaultableUtxos = moize.shallow(
   (
     utxosData: UtxosData,
     vaultsStatuses: VaultsStatuses,
     historyData: HistoryData,
     vaultMode: VaultableMode
-  ): UtxosData => {
-    const stableUtxosData = getStableUtxosData(
-      utxosData,
-      vaultsStatuses,
-      historyData
-    );
+  ): {
+    utxosData: UtxosData;
+    utxosAvailability: UtxoAvailability[];
+  } => {
     const unconfirmedTxIds = getUnconfirmedTxIds(historyData);
-    if (unconfirmedTxIds.size === 0) return stableUtxosData;
+    const unconfirmedAccelerationChildTxIds =
+      getUnconfirmedAccelerationChildTxIds(vaultsStatuses, unconfirmedTxIds);
 
-    const vaultableUtxosData = stableUtxosData.filter(utxoData => {
-      const isUnconfirmed = unconfirmedTxIds.has(utxoData.tx.getId());
-      if (!isUnconfirmed) return true;
-      if (vaultMode === 'P2A_TRUC') return false;
-      return utxoData.tx.version !== 3;
+    const selectableUtxosData: UtxosData = [];
+    const utxosAvailability: UtxoAvailability[] = utxosData.map(utxoData => {
+      const txId = utxoData.tx.getId();
+      const isUnconfirmed = unconfirmedTxIds.has(txId);
+      if (unconfirmedAccelerationChildTxIds.has(txId))
+        return {
+          status: 'temporarilyUnavailable',
+          utxoData,
+          reason: 'unconfirmedAcceleratableOutput'
+        };
+      if (isUnconfirmed && utxoData.tx.version === 3)
+        return {
+          status: 'temporarilyUnavailable',
+          utxoData,
+          reason: 'unconfirmedV3Output'
+        };
+      if (isUnconfirmed && vaultMode === 'P2A_TRUC')
+        return {
+          status: 'temporarilyUnavailable',
+          utxoData,
+          reason: 'trucRequiresConfirmedInput'
+        };
+      selectableUtxosData.push(utxoData);
+      return { status: 'selectable', utxoData };
     });
-    return keepOriginalReferenceIfUnchanged(
-      stableUtxosData,
-      vaultableUtxosData
-    );
+    return {
+      utxosData: keepOriginalReferenceIfUnchanged(
+        utxosData,
+        selectableUtxosData
+      ),
+      utxosAvailability
+    };
   }
 );

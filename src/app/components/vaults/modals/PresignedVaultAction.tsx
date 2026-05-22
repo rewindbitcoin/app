@@ -30,7 +30,7 @@ import {
   type PresignedTxInfo,
   type VaultActionData
 } from '../../../lib/vaultActionTx';
-import { getVaultableUtxosData } from '../../../lib/utxoPolicy';
+import { getVaultableUtxos } from '../../../lib/utxoPolicy';
 
 export type PresignedVaultActionProps = (
   | {
@@ -185,12 +185,12 @@ const PresignedVaultAction = ({
 
     // Trigger supplement inputs use the same policy as vault setup: TRUC needs
     // confirmed inputs, while non-TRUC can use stable unconfirmed non-v3 inputs.
-    return getVaultableUtxosData(
+    return getVaultableUtxos(
       utxosData,
       vaultsStatuses,
       historyData,
       vaultMode
-    );
+    ).utxosData;
   }, [
     historyData,
     isLadderedVault,

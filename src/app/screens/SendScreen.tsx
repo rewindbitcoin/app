@@ -36,7 +36,7 @@ import {
   estimateSendTxFee,
   calculateTx
 } from '../lib/sendTransaction';
-import { getSendableUtxosData } from '../lib/utxoPolicy';
+import { getSendableUtxos } from '../lib/utxoPolicy';
 import { networkMapping } from '../lib/network';
 import { useSettings } from '../hooks/useSettings';
 import { useWallet } from '../hooks/useWallet';
@@ -74,15 +74,15 @@ export default function Send() {
     signers
   } = useWallet();
 
-  const sendableUtxosData =
+  const sendableUtxosResult =
     utxosData &&
     vaultsStatuses &&
     historyData &&
-    getSendableUtxosData(utxosData, vaultsStatuses, historyData);
+    getSendableUtxos(utxosData, vaultsStatuses, historyData);
 
   //Warn the user and reset this component if wallet changes.
   const walletChanged = useArrayChangeDetector([
-    sendableUtxosData,
+    sendableUtxosResult?.utxosData,
     networkId,
     accounts
   ]);
@@ -91,7 +91,7 @@ export default function Send() {
   const btcFiat = useFirstDefinedValue<number>(btcFiatRealTime);
   const feeEstimates = useFirstDefinedValue<FeeEstimates>(feeEstimatesRealTime);
 
-  if (!sendableUtxosData)
+  if (!sendableUtxosResult)
     throw new Error('SendScreen cannot be called with unset utxos');
   if (!utxosData)
     throw new Error('SendScreen cannot be called with unset raw utxos');
@@ -107,6 +107,10 @@ export default function Send() {
     throw new Error('SendScreen cannot be called with unset feeEstimates');
   if (!signers)
     throw new Error('SendScreen cannot be called with unset signers');
+  const {
+    utxosData: sendableUtxosData,
+    utxosAvailability: sendUtxosAvailability
+  } = sendableUtxosResult;
   const rawUtxosData = utxosData;
   // Pending UTXOs are filtered out either because they come from an unconfirmed
   // acceleration tx the user may re-bump, making those outputs disappear, or
@@ -540,6 +544,8 @@ export default function Send() {
           </Modal>
           <CoinControlModal
             isVisible={isCoinControlVisible}
+            utxosAvailability={sendUtxosAvailability}
+            btcFiat={btcFiat}
             onClose={handleCloseCoinControl}
           />
         </View>

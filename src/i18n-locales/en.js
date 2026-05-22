@@ -989,7 +989,23 @@ Use this to simulate higher fees and extreme mempool conditions on Tape.`,
     intro: `Rewind automatically chooses which specific funds in your wallet to use. In Bitcoin, those funds are organized as unspent outputs from earlier transactions, also called UTXOs.
 
 If you have experience and want to control exactly which UTXOs are spent, you can select them manually.`,
-    coinselectPlaceholder: 'Manual UTXO selection will appear here.'
+    noUtxos: 'No UTXOs are available for manual selection.',
+    disabledReasons: {
+      unconfirmedAcceleratableOutput:
+        'Comes from an unconfirmed transaction that can still be accelerated. If accelerated, this output may disappear. Wait for one confirmation.',
+      unconfirmedV3Output:
+        'Comes from an unconfirmed v3 transaction. Wait for one confirmation before selecting it.',
+      trucRequiresConfirmedInput:
+        'This vault mode can only use confirmed wallet funds. Wait for one confirmation before selecting it.'
+    },
+    groups: {
+      nativeSegwit: 'Native SegWit',
+      wrappedSegwit: 'Wrapped SegWit',
+      legacy: 'Legacy',
+      vault: 'Vault Funds',
+      wallet: 'Wallet Funds',
+      account: 'Account {{account}}'
+    }
   },
   continueButton: 'Continue',
   imInDangerButton: "I'm in danger",

@@ -27,7 +27,10 @@ import {
 import { type Accounts } from '../dist/src/app/lib/wallets';
 import { MIN_FEE_RATE } from '../dist/src/app/lib/fees';
 import { getAdditionalP2AOutputValue } from '../dist/src/app/lib/p2aReserve';
-import { getVaultableUtxosData } from '../dist/src/app/lib/utxoPolicy';
+import {
+  getSendableUtxos,
+  getVaultableUtxos
+} from '../dist/src/app/lib/utxoPolicy';
 import {
   buildVaultActionDataForFeeRate,
   canProceedToActionConfirmation,
@@ -68,11 +71,14 @@ const createSyntheticTxHex = ({
   return tx.toHex();
 };
 
-const createSyntheticUtxoData = (value: number): UtxosData[number] => {
+const createSyntheticUtxoData = (
+  value: number,
+  version = 2
+): UtxosData[number] => {
   const network = networks.regtest;
   const output = createAddressOutput(DUMMY_ADDRESS(network), network);
   const tx = new Transaction();
-  tx.version = 2;
+  tx.version = version;
   tx.addInput(new Uint8Array(32), 0);
   tx.addOutput(fromHex(`0014${'00'.repeat(20)}`), BigInt(value));
   return {
@@ -406,21 +412,84 @@ describe('vaults unit tests', () => {
     const vaultsStatuses = {} as VaultsStatuses;
 
     expect(
-      getVaultableUtxosData(
-        [walletUtxo],
-        vaultsStatuses,
-        historyData,
-        'P2A_TRUC'
-      )
+      getVaultableUtxos([walletUtxo], vaultsStatuses, historyData, 'P2A_TRUC')
+        .utxosData
     ).toHaveLength(0);
     expect(
-      getVaultableUtxosData(
+      getVaultableUtxos(
         [walletUtxo],
         vaultsStatuses,
         historyData,
         'P2A_NON_TRUC'
-      )
+      ).utxosData
     ).toHaveLength(1);
+  });
+
+  test('UTXO availability reports confirmation-gated wallet inputs', () => {
+    const unconfirmedV2Utxo = createSyntheticUtxoData(10000, 2);
+    const unconfirmedV3Utxo = createSyntheticUtxoData(11000, 3);
+    const historyData = [
+      {
+        tx: unconfirmedV2Utxo.tx,
+        txId: unconfirmedV2Utxo.tx.getId(),
+        blockHeight: 0
+      },
+      {
+        tx: unconfirmedV3Utxo.tx,
+        txId: unconfirmedV3Utxo.tx.getId(),
+        blockHeight: 0
+      }
+    ] as unknown as HistoryData;
+    const vaultsStatuses = {} as VaultsStatuses;
+
+    expect(
+      getVaultableUtxos(
+        [unconfirmedV2Utxo],
+        vaultsStatuses,
+        historyData,
+        'P2A_TRUC'
+      ).utxosAvailability[0]
+    ).toMatchObject({
+      status: 'temporarilyUnavailable',
+      reason: 'trucRequiresConfirmedInput'
+    });
+    expect(
+      getVaultableUtxos(
+        [unconfirmedV2Utxo],
+        vaultsStatuses,
+        historyData,
+        'P2A_NON_TRUC'
+      ).utxosAvailability[0]
+    ).toMatchObject({ status: 'selectable' });
+    expect(
+      getSendableUtxos([unconfirmedV3Utxo], vaultsStatuses, historyData)
+        .utxosAvailability[0]
+    ).toMatchObject({
+      status: 'temporarilyUnavailable',
+      reason: 'unconfirmedV3Output'
+    });
+  });
+
+  test('UTXO availability reports unconfirmed acceleration outputs as confirmation-gated', () => {
+    const accelerationUtxo = createSyntheticUtxoData(12000);
+    const historyData = [
+      {
+        tx: accelerationUtxo.tx,
+        txId: accelerationUtxo.tx.getId(),
+        blockHeight: 0
+      }
+    ] as unknown as HistoryData;
+    const vaultsStatuses = {
+      vault: { triggerCpfpTxHex: accelerationUtxo.txHex }
+    } as unknown as VaultsStatuses;
+
+    expect(
+      getSendableUtxos([accelerationUtxo], vaultsStatuses, historyData)
+        .utxosAvailability[0]
+    ).toMatchObject({
+      status: 'temporarilyUnavailable',
+      reason: 'unconfirmedAcceleratableOutput'
+    });
   });
 
   test('P2A trigger does not fall back to parent-only when reserve cannot fund selected fee', () => {
