@@ -285,6 +285,8 @@ Comprueba tu conexión e inténtalo de nuevo.`,
         packageBelowRecommendedFee: `Los fondos disponibles para esta descongelación pueden ser insuficientes para una confirmación rápida.`,
         noReserveParentFeeBelowRecommendedFee: `Esta descongelación puede enviarse ahora, pero la comisión de red que ya lleva incluida puede ser baja para las condiciones actuales de la red.`,
         walletSupplementCheckbox: 'Usar fondos de mi billetera.',
+        // Mantener corto: aparece en una fila estrecha bajo "Usar fondos de mi billetera".
+        manualWalletSupplementCheckbox: 'Elegir monedas manualmente.',
         walletFundingHint: 'Tu billetera necesita al menos {{amount}} más.',
         parentOnlyConfirmation: `Rewind está listo para iniciar la descongelación ahora.`,
         confirmationSpeedLabel: 'Comisión',

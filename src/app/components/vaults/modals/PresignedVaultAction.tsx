@@ -173,6 +173,7 @@ const PresignedVaultAction = ({
   // User opt-in from the checkbox: when true, eligible hot-wallet UTXOs are
   // allowed into package building as a supplement to the reserve inputs.
   const [includeWalletSupplement, setIncludeWalletSupplement] = useState(false);
+  const [manualWalletSupplement, setManualWalletSupplement] = useState(false);
   const vaultableWalletUtxosData = useMemo(() => {
     if (role !== 'TRIGGER' || !isModalVisibleOrHiding || isLadderedVault)
       return [];
@@ -385,6 +386,7 @@ const PresignedVaultAction = ({
     setStep('intro');
     setFeeRate(null);
     setIncludeWalletSupplement(false);
+    setManualWalletSupplement(false);
     onModalHide?.();
   }, [onModalHide]);
 
@@ -566,8 +568,17 @@ const PresignedVaultAction = ({
       setIncludeWalletSupplement(false);
   }, [includeWalletSupplement, canTryWalletSupplement, walletSupplementNeeded]);
 
+  useEffect(() => {
+    if (!includeWalletSupplement && manualWalletSupplement)
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setManualWalletSupplement(false);
+  }, [includeWalletSupplement, manualWalletSupplement]);
+
   const toggleWalletSupplement = useCallback(() => {
     setIncludeWalletSupplement(value => !value);
+  }, []);
+  const toggleManualWalletSupplement = useCallback(() => {
+    setManualWalletSupplement(value => !value);
   }, []);
 
   const walletSupplementCheckbox = showWalletSupplementCheckbox ? (
@@ -589,6 +600,27 @@ const PresignedVaultAction = ({
       </Text>
     </Pressable>
   ) : null;
+  const manualWalletSupplementCheckbox =
+    showWalletSupplementCheckbox && includeWalletSupplement ? (
+      // TODO: wire this checkbox to the coin-control picker for wallet supplement inputs.
+      <Pressable
+        onPress={toggleManualWalletSupplement}
+        className="flex-row items-center pt-4"
+      >
+        <MaterialCommunityIcons
+          name={
+            manualWalletSupplement
+              ? 'checkbox-marked-outline'
+              : 'checkbox-blank-outline'
+          }
+          size={24}
+          className="text-primary mr-3"
+        />
+        <Text className="flex-1 text-sm text-slate-700">
+          {t('wallet.vault.triggerUnfreeze.manualWalletSupplementCheckbox')}
+        </Text>
+      </Pressable>
+    ) : null;
   const reserveFundsMissingButton = onReserveFundsMissing ? (
     <View className="items-center pt-4">
       <Button mode="secondary-alert" onPress={onReserveFundsMissing}>
@@ -648,6 +680,7 @@ const PresignedVaultAction = ({
     role === 'TRIGGER' ? (
       <>
         {walletSupplementCheckbox}
+        {manualWalletSupplementCheckbox}
         {walletSupplementHint}
       </>
     ) : (
@@ -667,7 +700,10 @@ const PresignedVaultAction = ({
         {postActionExplanationText}
       </Text>
       {walletSupplementCheckbox ? (
-        <View className="px-2">{walletSupplementCheckbox}</View>
+        <View className="px-2">
+          {walletSupplementCheckbox}
+          {manualWalletSupplementCheckbox}
+        </View>
       ) : null}
     </View>
   );

@@ -288,6 +288,8 @@ Check your connection and try again.`,
         packageBelowRecommendedFee: `Available funds for this unfreeze may be too low for fast confirmation.`,
         noReserveParentFeeBelowRecommendedFee: `This unfreeze can be sent now, but its built-in network fee may be low for current network conditions.`,
         walletSupplementCheckbox: 'Use wallet funds.',
+        // Keep short: this appears in a narrow checkbox row under "Use wallet funds".
+        manualWalletSupplementCheckbox: 'Choose coins manually.',
         walletFundingHint: 'Your wallet needs at least {{amount}} more.',
         parentOnlyConfirmation: `Rewind is ready to start the unfreeze now.`,
         confirmationSpeedLabel: 'Mining Fee',
