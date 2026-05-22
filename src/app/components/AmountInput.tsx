@@ -27,8 +27,9 @@ function AmountInput({
   isMaxAmount,
   label,
   allowCoinControl = false,
+  coinControl = false,
   btcFiat,
-  onCoinControlRequest,
+  onCoinControlChange,
   onValueChange
 }: {
   initialValue: number;
@@ -40,7 +41,8 @@ function AmountInput({
   btcFiat: number | undefined;
   label: string;
   allowCoinControl?: boolean;
-  onCoinControlRequest?: () => void;
+  coinControl?: boolean;
+  onCoinControlChange?: (coinControl: boolean) => void;
   onValueChange: (value: number | null, type: 'USER' | 'RESET') => void;
 }) {
   const { t } = useTranslation();
@@ -50,6 +52,8 @@ function AmountInput({
     throw new Error(
       'This component should only be started after settings has been retrieved from storage'
     );
+  if (!allowCoinControl && coinControl)
+    throw new Error('coinControl requires allowCoinControl');
   const mode =
     settings.FIAT_MODE && typeof btcFiat === 'number'
       ? 'Fiat'
@@ -76,9 +80,9 @@ function AmountInput({
   }, []);
   const handleAutoCoinSelectionChange = useCallback(
     (auto: boolean) => {
-      if (!auto) onCoinControlRequest?.();
+      onCoinControlChange?.(!auto);
     },
-    [onCoinControlRequest]
+    [onCoinControlChange]
   );
 
   const onModeSelect = useCallback(
@@ -126,7 +130,7 @@ function AmountInput({
                 {t('coinControl.auto')}
               </Text>
               <Switch
-                value={true}
+                value={!coinControl}
                 onValueChange={handleAutoCoinSelectionChange}
                 accessibilityLabel={t('coinControl.auto')}
                 style={{ transform: [{ scale: 0.66 }] }}

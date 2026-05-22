@@ -2,7 +2,7 @@
 // Licensed under the GNU GPL v3 or later. See the LICENSE file for details.
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { Button, IconType, Modal } from '../../common/ui';
 import { formatBtc } from '../lib/btcRates';
@@ -10,12 +10,19 @@ import { toNumber } from '../lib/sats';
 import type { UtxoAvailability } from '../lib/utxoPolicy';
 import { useLocalization } from '../hooks/useLocalization';
 import { useSettings } from '../hooks/useSettings';
+import type { UtxosData } from '../lib/vaults';
 
 type CoinControlModalProps = {
   isVisible: boolean;
   utxosAvailability: UtxoAvailability[];
+  /**
+   * UTXOs manually picked by the user before opening the modal.
+   * These are preselected in the picker; auto coin-selection candidates are not passed here.
+   */
+  pickedUtxosData: UtxosData;
   btcFiat: number | undefined;
   onClose: () => void;
+  onConfirm: (pickedUtxosData: UtxosData) => void;
   onModalHide?: () => void;
 };
 
@@ -32,6 +39,9 @@ const getUtxoValue = (utxoData: UtxoAvailability['utxoData']) => {
 const getShortOutpoint = (utxoData: UtxoAvailability['utxoData']) =>
   `${utxoData.tx.getId().slice(0, 8)}:${utxoData.vout}`;
 
+const getOutpoint = (utxoData: UtxoAvailability['utxoData']) =>
+  `${utxoData.tx.getId()}:${utxoData.vout}`;
+
 const getDescriptor = (utxoData: UtxoAvailability['utxoData']) =>
   (utxoData as UtxoDataWithDescriptor).descriptor;
 
@@ -41,14 +51,19 @@ const getAccountNumber = (descriptor: string) =>
 const CoinControlModal = ({
   isVisible,
   utxosAvailability,
+  pickedUtxosData,
   btcFiat,
   onClose,
+  onConfirm,
   onModalHide
 }: CoinControlModalProps) => {
   const { t } = useTranslation();
   const { settings } = useSettings();
   const { locale, currency } = useLocalization();
   const [step, setStep] = useState<'intro' | 'coinselect'>('intro');
+  const [pickedOutpoints, setPickedOutpoints] = useState<Set<string>>(
+    () => new Set()
+  );
 
   if (!settings)
     throw new Error(
@@ -56,8 +71,12 @@ const CoinControlModal = ({
     );
 
   useEffect(() => {
-    if (!isVisible) setStep('intro');
-  }, [isVisible]);
+    if (isVisible)
+      setPickedOutpoints(
+        new Set(pickedUtxosData.map(utxoData => getOutpoint(utxoData)))
+      );
+    else setStep('intro');
+  }, [isVisible, pickedUtxosData]);
 
   const icon = useMemo<IconType>(
     () => ({ family: 'FontAwesome5', name: 'coins' }),
@@ -128,6 +147,29 @@ const CoinControlModal = ({
     [btcFiat, currency, locale, settings.SUB_UNIT]
   );
 
+  const pickedModalUtxosData = useMemo(
+    () =>
+      utxosAvailability
+        .filter(
+          availability =>
+            availability.status === 'selectable' &&
+            pickedOutpoints.has(getOutpoint(availability.utxoData))
+        )
+        .map(availability => availability.utxoData),
+    [pickedOutpoints, utxosAvailability]
+  );
+  const handleToggleUtxo = useCallback((outpoint: string) => {
+    setPickedOutpoints(pickedOutpoints => {
+      const nextPickedOutpoints = new Set(pickedOutpoints);
+      if (nextPickedOutpoints.has(outpoint)) nextPickedOutpoints.delete(outpoint);
+      else nextPickedOutpoints.add(outpoint);
+      return nextPickedOutpoints;
+    });
+  }, []);
+  const handleConfirm = useCallback(() => {
+    onConfirm(pickedModalUtxosData);
+  }, [onConfirm, pickedModalUtxosData]);
+
   return (
     <Modal
       headerMini={true}
@@ -149,6 +191,12 @@ const CoinControlModal = ({
             <Button mode="secondary" onPress={onClose}>
               {t('cancelButton')}
             </Button>
+            <Button
+              onPress={handleConfirm}
+              disabled={pickedModalUtxosData.length === 0}
+            >
+              {t('continueButton')}
+            </Button>
           </View>
         )
       }
@@ -166,17 +214,30 @@ const CoinControlModal = ({
               </Text>
               {group.items.map(availability => {
                 const disabled = availability.status !== 'selectable';
-                const txId = availability.utxoData.tx.getId();
-                const outpoint = `${txId}:${availability.utxoData.vout}`;
+                const outpoint = getOutpoint(availability.utxoData);
+                const picked = pickedOutpoints.has(outpoint);
+                const Row = disabled ? View : Pressable;
                 return (
-                  <View
+                  <Row
                     key={outpoint}
-                    className={`rounded-xl border border-slate-200 bg-white p-3 ${disabled ? 'opacity-50' : ''}`}
+                    {...(!disabled
+                      ? { onPress: () => handleToggleUtxo(outpoint) }
+                      : {})}
+                    className={`rounded-xl border bg-white p-3 ${picked ? 'border-primary' : 'border-slate-200'} ${disabled ? 'opacity-50' : ''}`}
                   >
                     <View className="flex-row items-start justify-between gap-3">
-                      <Text className="shrink text-base font-medium text-slate-900">
-                        {formatAmount(getUtxoValue(availability.utxoData))}
-                      </Text>
+                      <View className="shrink flex-row items-start gap-3">
+                        <View
+                          className={`mt-1 h-4 w-4 items-center justify-center rounded-full border ${picked ? 'border-primary' : 'border-slate-300'}`}
+                        >
+                          {picked ? (
+                            <View className="h-2 w-2 rounded-full bg-primary" />
+                          ) : null}
+                        </View>
+                        <Text className="shrink text-base font-medium text-slate-900">
+                          {formatAmount(getUtxoValue(availability.utxoData))}
+                        </Text>
+                      </View>
                       <Text className="text-xs text-slate-500">
                         {getShortOutpoint(availability.utxoData)}
                       </Text>
@@ -188,7 +249,7 @@ const CoinControlModal = ({
                         )}
                       </Text>
                     ) : null}
-                  </View>
+                  </Row>
                 );
               })}
             </View>

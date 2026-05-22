@@ -24,6 +24,7 @@ import {
   coinSelectVaultTx,
   getTargetValue,
   utxosDataBalance,
+  type UtxosData,
   type VaultSettings
 } from '../lib/vaults';
 import { getAdditionalP2AOutputValue } from '../lib/p2aReserve';
@@ -154,6 +155,10 @@ export default function VaultSetUp({
   const [changeOutput, setChangeOutput] = useState<OutputInstance | null>(null);
   const [isCoinControlVisible, setIsCoinControlVisible] =
     useState<boolean>(false);
+  // If set, these are the vaultable UTXOs manually picked by the user.
+  const [pickedVaultableUtxosData, setPickedVaultableUtxosData] =
+    useState<UtxosData | null>(null);
+  const coinControl = pickedVaultableUtxosData !== null;
   const [prefilledAddressHelp, setPrefilledAddressHelp] =
     useState<boolean>(false);
   const showPrefilledAddressHelp = useCallback(
@@ -164,14 +169,18 @@ export default function VaultSetUp({
     () => setPrefilledAddressHelp(false),
     []
   );
-  const handleOpenCoinControl = useCallback(
-    () => setIsCoinControlVisible(true),
-    []
-  );
+  const handleCoinControlChange = useCallback((coinControl: boolean) => {
+    if (coinControl) setIsCoinControlVisible(true);
+    else setPickedVaultableUtxosData(null);
+  }, []);
   const handleCloseCoinControl = useCallback(
     () => setIsCoinControlVisible(false),
     []
   );
+  const handleConfirmCoinControl = useCallback((utxosData: UtxosData) => {
+    setPickedVaultableUtxosData(utxosData);
+    setIsCoinControlVisible(false);
+  }, []);
   const { t } = useTranslation();
 
   useEffect(() => {
@@ -216,8 +225,8 @@ export default function VaultSetUp({
     minimumVaultSetup
   } = estimateVaultSetupRange({
     accounts,
-    utxosData: vaultableUtxosData,
-    coinControl: false,
+    utxosData: pickedVaultableUtxosData ?? vaultableUtxosData,
+    coinControl,
     coldAddress: coldAddress || DUMMY_COLD_ADDRESS(network),
     minimumPackageFeeRate: minimumTargetPackageFeeRate,
     packageFeeRate: selectedTargetPackageFeeRate,
@@ -228,6 +237,26 @@ export default function VaultSetUp({
     presignedRescueFeeRate: settings.PRESIGNED_RESCUE_FEERATE,
     maxTriggerFeeRate: settings.MAX_TRIGGER_FEERATE
   });
+  const vaultSetupRangeAssumingAutoCoinSelection = coinControl
+    ? estimateVaultSetupRange({
+        accounts,
+        utxosData: vaultableUtxosData,
+        coinControl: false,
+        coldAddress: coldAddress || DUMMY_COLD_ADDRESS(network),
+        minimumPackageFeeRate: minimumTargetPackageFeeRate,
+        packageFeeRate: selectedTargetPackageFeeRate,
+        lockBlocks: lockBlocks || settings.INITIAL_LOCK_BLOCKS,
+        network,
+        vaultMode,
+        presignedTriggerFeeRate,
+        presignedRescueFeeRate: settings.PRESIGNED_RESCUE_FEERATE,
+        maxTriggerFeeRate: settings.MAX_TRIGGER_FEERATE
+      })
+    : {
+        maxVaultAtSelectedPackageFeeRate,
+        maxVaultAtMinimumPackageFeeRate,
+        minimumVaultSetup
+      };
   const rawVaultRange = estimateVaultSetupRange({
     accounts,
     utxosData: rawUtxosData,
@@ -247,27 +276,44 @@ export default function VaultSetUp({
     maxVaultAtMinimumPackageFeeRate !== undefined &&
     maxVaultAtMinimumPackageFeeRate.vaultedAmount >=
       minimumVaultSetup.vaultedAmount;
+  const canBuildAtMinimumFeeAssumingAutoCoinSelection =
+    maxFeeRate >= minimumTargetPackageFeeRate &&
+    vaultSetupRangeAssumingAutoCoinSelection.maxVaultAtMinimumPackageFeeRate !==
+      undefined &&
+    vaultSetupRangeAssumingAutoCoinSelection.maxVaultAtMinimumPackageFeeRate
+      .vaultedAmount >=
+      vaultSetupRangeAssumingAutoCoinSelection.minimumVaultSetup.vaultedAmount;
   const isRawVaultPossible =
     maxFeeRate >= minimumTargetPackageFeeRate &&
     rawVaultRange.maxVaultAtMinimumPackageFeeRate !== undefined &&
     rawVaultRange.maxVaultAtMinimumPackageFeeRate.vaultedAmount >=
       rawVaultRange.minimumVaultSetup.vaultedAmount;
-  // Raw funds would build a vault, but setup policy blocks some pending UTXOs
-  // until they confirm.
+  // This is a pre-form hard stop: if automatic coinselection cannot build using
+  // all eligible vaultable UTXOs, the AmountInput/coin control picker is not
+  // shown. The coin control picker is not even presented because it cannot get
+  // more funds than automatic coinselection anyway.
+  // Use this only as a flag to explain why a hard stop occurred when there are
+  // pending UTXOs.
   const isBlockedByPendingUtxos =
-    !isVaultPossible && hasPendingUtxos && isRawVaultPossible;
+    !canBuildAtMinimumFeeAssumingAutoCoinSelection &&
+    hasPendingUtxos &&
+    isRawVaultPossible;
   const minimumRequiredFundsNow =
-    minimumVaultSetup.vaultedAmount +
-    minimumVaultSetup.packageFee +
-    minimumVaultSetup.triggerReserveValue;
-  const requiredFundsForMinimumVaultSetup = maxVaultAtMinimumPackageFeeRate
-    ? maxVaultAtMinimumPackageFeeRate.vaultedAmount +
-      maxVaultAtMinimumPackageFeeRate.packageFee +
-      maxVaultAtMinimumPackageFeeRate.triggerReserveValue
-    : null;
-  // If coinselection cannot build any vault yet, `maxVaultAtMinimumPackageFeeRate`
-  // is undefined even though some eligible UTXOs may still exist. In that case,
-  // fall back to the raw eligible balance so the warnig message can show an approximation
+    vaultSetupRangeAssumingAutoCoinSelection.minimumVaultSetup.vaultedAmount +
+    vaultSetupRangeAssumingAutoCoinSelection.minimumVaultSetup.packageFee +
+    vaultSetupRangeAssumingAutoCoinSelection.minimumVaultSetup
+      .triggerReserveValue;
+  const requiredFundsForMinimumVaultSetup =
+    vaultSetupRangeAssumingAutoCoinSelection.maxVaultAtMinimumPackageFeeRate
+      ? vaultSetupRangeAssumingAutoCoinSelection
+          .maxVaultAtMinimumPackageFeeRate.vaultedAmount +
+        vaultSetupRangeAssumingAutoCoinSelection
+          .maxVaultAtMinimumPackageFeeRate.packageFee +
+        vaultSetupRangeAssumingAutoCoinSelection
+          .maxVaultAtMinimumPackageFeeRate.triggerReserveValue
+      : null;
+  // If automatic coinselection cannot build any vault yet, fall back to the
+  // raw eligible balance so the warning message can show an approximation.
   const missingFundsNow: number = Math.max(
     0,
     minimumRequiredFundsNow -
@@ -363,13 +409,15 @@ export default function VaultSetUp({
       lockBlocks,
 
       accounts,
-      utxosData: vaultableUtxosData,
-      coinControl: false,
+      utxosData: pickedVaultableUtxosData ?? vaultableUtxosData,
+      coinControl,
       btcFiat
     });
   }, [
     packageFeeRate,
+    pickedVaultableUtxosData,
     vaultableUtxosData,
+    coinControl,
     vaultedAmount,
     isMaxVaultedAmount,
     lockBlocks,
@@ -419,8 +467,8 @@ export default function VaultSetUp({
             changeOutput ||
             DUMMY_CHANGE_OUTPUT(getMainAccount(accounts, network), network);
           const newMaxEstimate = estimateMaxVaultAmount({
-            utxosData: vaultableUtxosData,
-            coinControl: false,
+            utxosData: pickedVaultableUtxosData ?? vaultableUtxosData,
+            coinControl,
             vaultOutput: DUMMY_VAULT_OUTPUT(network),
             backupOutput: DUMMY_BACKUP_OUTPUT(network),
             triggerReserveOutput: DUMMY_TRIGGER_RESERVE_OUTPUT(network),
@@ -450,7 +498,9 @@ export default function VaultSetUp({
       changeOutput,
       isMaxVaultedAmount,
       minimumVaultSetup.vaultedAmount,
+      pickedVaultableUtxosData,
       vaultableUtxosData,
+      coinControl,
       network,
       presignedTriggerFeeRate,
       settings.MAX_TRIGGER_FEERATE,
@@ -477,8 +527,8 @@ export default function VaultSetUp({
       packageFee = maxVaultAtSelectedPackageFeeRate.packageFee;
     } else {
       const selected = coinSelectVaultTx({
-        utxosData: vaultableUtxosData,
-        coinControl: false,
+        utxosData: pickedVaultableUtxosData ?? vaultableUtxosData,
+        coinControl,
         //We never use the final vaultOutput since it is built using a random
         //key that we don't want to keep in memory, but setup still needs to
         //reserve the same backup and trigger-reserve outputs that real vault
@@ -533,7 +583,9 @@ export default function VaultSetUp({
           </View>
           <Button onPress={navigation.goBack}>{t('goBack')}</Button>
         </View>
-      ) : hasPendingUtxos && isVaultPossible && !pendingUtxosWarningAccepted ? (
+      ) : hasPendingUtxos &&
+        canBuildAtMinimumFeeAssumingAutoCoinSelection &&
+        !pendingUtxosWarningAccepted ? (
         <View className="w-full max-w-screen-sm mx-4" style={containerStyle}>
           <View className="mb-8">
             <Text className="text-base">
@@ -547,7 +599,7 @@ export default function VaultSetUp({
             </Button>
           </View>
         </View>
-      ) : !isVaultPossible ? (
+      ) : !canBuildAtMinimumFeeAssumingAutoCoinSelection ? (
         <View className="w-full max-w-screen-sm mx-4" style={containerStyle}>
           <View className="mb-8">
             <Text className="text-base">
@@ -566,7 +618,9 @@ export default function VaultSetUp({
                     currency
                   }),
                   minimumVaultedAmount: formatBtc({
-                    amount: minimumVaultSetup.vaultedAmount,
+                    amount:
+                      vaultSetupRangeAssumingAutoCoinSelection.minimumVaultSetup
+                        .vaultedAmount,
                     subUnit: settings.SUB_UNIT,
                     btcFiat,
                     locale,
@@ -611,7 +665,8 @@ export default function VaultSetUp({
             isMaxAmount={isMaxVaultedAmount}
             label={t('vaultSetup.amountLabel')}
             allowCoinControl
-            onCoinControlRequest={handleOpenCoinControl}
+            coinControl={coinControl}
+            onCoinControlChange={handleCoinControlChange}
             initialValue={currentMaxVaultedAmount}
             min={minimumVaultSetup.vaultedAmount}
             max={currentMaxVaultedAmount}
@@ -699,8 +754,10 @@ export default function VaultSetUp({
           <CoinControlModal
             isVisible={isCoinControlVisible}
             utxosAvailability={vaultUtxosAvailability}
+            pickedUtxosData={pickedVaultableUtxosData ?? []}
             btcFiat={btcFiat}
             onClose={handleCloseCoinControl}
+            onConfirm={handleConfirmCoinControl}
           />
         </View>
       )}
