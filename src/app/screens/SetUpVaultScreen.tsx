@@ -4,6 +4,7 @@
 import AddressInput from '../components/AddressInput';
 import AmountInput from '../components/AmountInput';
 import BlocksInput from '../components/BlocksInput';
+import CoinControlModal from '../components/CoinControlModal';
 import FeeInput from '../components/FeeInput';
 import LearnMoreAboutVaults from '../components/LearnMoreAboutVaults';
 import ModalInfoButton from '../components/ModalInfoButton';
@@ -148,6 +149,8 @@ export default function VaultSetUp({
     lastUnusedColdAddress
   );
   const [changeOutput, setChangeOutput] = useState<OutputInstance | null>(null);
+  const [isCoinControlVisible, setIsCoinControlVisible] =
+    useState<boolean>(false);
   const [prefilledAddressHelp, setPrefilledAddressHelp] =
     useState<boolean>(false);
   const showPrefilledAddressHelp = useCallback(
@@ -156,6 +159,14 @@ export default function VaultSetUp({
   );
   const hidePrefilledAddressHelp = useCallback(
     () => setPrefilledAddressHelp(false),
+    []
+  );
+  const handleOpenCoinControl = useCallback(
+    () => setIsCoinControlVisible(true),
+    []
+  );
+  const handleCloseCoinControl = useCallback(
+    () => setIsCoinControlVisible(false),
     []
   );
   const { t } = useTranslation();
@@ -597,6 +608,7 @@ export default function VaultSetUp({
             isMaxAmount={isMaxVaultedAmount}
             label={t('vaultSetup.amountLabel')}
             allowCoinControl
+            onCoinControlRequest={handleOpenCoinControl}
             initialValue={currentMaxVaultedAmount}
             min={minimumVaultSetup.vaultedAmount}
             max={currentMaxVaultedAmount}
@@ -681,6 +693,10 @@ export default function VaultSetUp({
                 : t('vaultSetup.coldAddressMissing')}
             </Text>
           )}
+          <CoinControlModal
+            isVisible={isCoinControlVisible}
+            onClose={handleCloseCoinControl}
+          />
         </View>
       )}
     </KeyboardAwareScrollView>

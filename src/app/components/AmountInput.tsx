@@ -28,6 +28,7 @@ function AmountInput({
   label,
   allowCoinControl = false,
   btcFiat,
+  onCoinControlRequest,
   onValueChange
 }: {
   initialValue: number;
@@ -39,6 +40,7 @@ function AmountInput({
   btcFiat: number | undefined;
   label: string;
   allowCoinControl?: boolean;
+  onCoinControlRequest?: () => void;
   onValueChange: (value: number | null, type: 'USER' | 'RESET') => void;
 }) {
   const { t } = useTranslation();
@@ -72,7 +74,12 @@ function AmountInput({
   const onUnitPress = useCallback(() => {
     setShowUnitsModal(true);
   }, []);
-  const handleAutoCoinSelectionChange = useCallback(() => {}, []);
+  const handleAutoCoinSelectionChange = useCallback(
+    (auto: boolean) => {
+      if (!auto) onCoinControlRequest?.();
+    },
+    [onCoinControlRequest]
+  );
 
   const onModeSelect = useCallback(
     (mode: SubUnit | 'Fiat') => {

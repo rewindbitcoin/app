@@ -984,7 +984,12 @@ Use this to simulate higher fees and extreme mempool conditions on Tape.`,
     }
   },
   coinControl: {
-    auto: 'Auto'
+    auto: 'Auto',
+    title: 'Manual Coin Selection',
+    intro: `Rewind automatically chooses which specific funds in your wallet to use. In Bitcoin, those funds are organized as unspent outputs from earlier transactions, also called UTXOs.
+
+If you have experience and want to control exactly which UTXOs are spent, you can select them manually.`,
+    coinselectPlaceholder: 'Manual UTXO selection will appear here.'
   },
   continueButton: 'Continue',
   imInDangerButton: "I'm in danger",

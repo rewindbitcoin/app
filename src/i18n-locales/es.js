@@ -908,7 +908,12 @@ Usa esto para simular comisiones más altas y condiciones extremas de mempool en
     }
   },
   coinControl: {
-    auto: 'Auto'
+    auto: 'Auto',
+    title: 'Selección Manual de Monedas',
+    intro: `Rewind elige automáticamente qué fondos concretos de tu billetera usar. En Bitcoin, esos fondos se organizan como salidas no gastadas de transacciones anteriores, también llamadas UTXOs.
+
+Si tienes experiencia y quieres controlar exactamente qué UTXOs se gastan, puedes seleccionarlos manualmente.`,
+    coinselectPlaceholder: 'La selección manual de UTXOs aparecerá aquí.'
   },
   continueButton: 'Continuar',
   imInDangerButton: 'Estoy en Peligro',

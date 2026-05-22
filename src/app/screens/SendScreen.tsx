@@ -3,6 +3,7 @@
 
 import AddressInput from '../components/AddressInput';
 import AmountInput from '../components/AmountInput';
+import CoinControlModal from '../components/CoinControlModal';
 import FeeInput from '../components/FeeInput';
 import { useTranslation } from 'react-i18next';
 import React, {
@@ -130,6 +131,8 @@ export default function Send() {
 
   const [address, setAddress] = useState<string | null>(null);
   const [isConfirm, setIsConfirm] = useState<boolean>(false);
+  const [isCoinControlVisible, setIsCoinControlVisible] =
+    useState<boolean>(false);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const { t } = useTranslation();
   const toast = useToast();
@@ -221,6 +224,14 @@ export default function Send() {
 
   const txHexRef = useRef<string>(undefined);
   const feeRef = useRef<number>(undefined);
+  const handleOpenCoinControl = useCallback(
+    () => setIsCoinControlVisible(true),
+    []
+  );
+  const handleCloseCoinControl = useCallback(
+    () => setIsCoinControlVisible(false),
+    []
+  );
   const handleCloseContinue = useCallback(() => setIsConfirm(false), []);
   const handleContinue = useCallback(async () => {
     if (
@@ -437,6 +448,7 @@ export default function Send() {
                 isMaxAmount={isMaxAmount}
                 label={t('send.amountLabel')}
                 allowCoinControl
+                onCoinControlRequest={handleOpenCoinControl}
                 initialValue={lastKnownValidAmountRef.current ?? maxAmount}
                 min={minAmount}
                 max={maxAmount}
@@ -526,6 +538,10 @@ export default function Send() {
               </View>
             </View>
           </Modal>
+          <CoinControlModal
+            isVisible={isCoinControlVisible}
+            onClose={handleCloseCoinControl}
+          />
         </View>
       )}
     </KeyboardAwareScrollView>
