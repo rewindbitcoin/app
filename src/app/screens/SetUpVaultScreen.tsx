@@ -596,6 +596,7 @@ export default function VaultSetUp({
             btcFiat={btcFiat}
             isMaxAmount={isMaxVaultedAmount}
             label={t('vaultSetup.amountLabel')}
+            allowCoinControl
             initialValue={currentMaxVaultedAmount}
             min={minimumVaultSetup.vaultedAmount}
             max={currentMaxVaultedAmount}

@@ -436,6 +436,7 @@ export default function Send() {
                 btcFiat={btcFiat}
                 isMaxAmount={isMaxAmount}
                 label={t('send.amountLabel')}
+                allowCoinControl
                 initialValue={lastKnownValidAmountRef.current ?? maxAmount}
                 min={minAmount}
                 max={maxAmount}

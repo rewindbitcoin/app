@@ -983,6 +983,9 @@ Use this to simulate higher fees and extreme mempool conditions on Tape.`,
       }
     }
   },
+  coinControl: {
+    auto: 'Auto'
+  },
   continueButton: 'Continue',
   imInDangerButton: "I'm in danger",
   accelerateButton: 'Accelerate',

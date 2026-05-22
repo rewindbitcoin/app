@@ -907,6 +907,9 @@ Usa esto para simular comisiones más altas y condiciones extremas de mempool en
       }
     }
   },
+  coinControl: {
+    auto: 'Auto'
+  },
   continueButton: 'Continuar',
   imInDangerButton: 'Estoy en Peligro',
   accelerateButton: 'Acelerar',
