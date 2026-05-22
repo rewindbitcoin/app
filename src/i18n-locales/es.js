@@ -604,6 +604,13 @@ Después de descongelar la bóveda, la parte de esta reserva que no haya sido ne
     securityLockTimeLabel: 'Tiempo de Bloqueo Anti-robo',
     securityLockTimeDescription: 'Desbloqueo {{blocks}} tras descongelar',
     confirmationSpeedLabel: 'Comisión de minería',
+    lowerFeeRate: `Tus fondos disponibles no pueden crear la bóveda mínima con esta comisión.
+
+Por favor, reduce la comisión o agrega más fondos.`,
+    invalidFeeRate: `Por favor, selecciona una comisión válida.`,
+    pickedUtxosInsufficient: `Las monedas que seleccionaste no alcanzan para crear esta bóveda con la comisión elegida.
+
+Selecciona más monedas o reduce la comisión.`,
     vaultTransactionFeeLabel: 'Comisión de la Transacción de la Bóveda',
     backupFundingLabel: 'Costo del Backup on-chain',
     totalTakenFromWalletNowLabel: 'Total retirado de tu billetera ahora',
@@ -623,6 +630,9 @@ Por tu seguridad, por favor revisa estos cambios antes de continuar.`
 
 Por favor, reduce la comisión o agrega más fondos.`,
     invalidFeeRate: `Por favor, selecciona una comisión válida.`,
+    pickedUtxosInsufficient: `Las monedas que seleccionaste no alcanzan para crear esta transacción con la comisión elegida.
+
+Selecciona más monedas o reduce la comisión.`,
     amountLabel: 'Cantidad a Enviar',
     confirmationSpeedLabel: 'Comisión de minería',
     txCalculateError:

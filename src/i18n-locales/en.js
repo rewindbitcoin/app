@@ -652,6 +652,13 @@ After you unfreeze the vault, any part of this reserve that was not needed comes
     securityLockTimeLabel: 'Theft-Protection Time-Lock',
     securityLockTimeDescription: 'Unlocks {{blocks}} after unfreeze',
     confirmationSpeedLabel: 'Mining Fee',
+    lowerFeeRate: `Your available funds cannot create the minimum vault at this fee.
+
+Please lower the fee rate or add more funds.`,
+    invalidFeeRate: `Please select a valid fee rate.`,
+    pickedUtxosInsufficient: `The coins you selected cannot create this vault at the selected fee.
+
+Select more coins or lower the fee.`,
     vaultTransactionFeeLabel: 'Vault Transaction Fee',
     backupFundingLabel: 'On-chain Backup Cost',
     totalTakenFromWalletNowLabel: 'Total Taken From Wallet Now',
@@ -681,6 +688,9 @@ For your security, please review these changes before proceeding.`
 
 Please lower the fee rate or add more funds.`,
     invalidFeeRate: `Please select a valid fee rate.`,
+    pickedUtxosInsufficient: `The coins you selected cannot create this transaction at the selected fee.
+
+Select more coins or lower the fee.`,
     amountLabel: 'Amount to Send',
     confirmationSpeedLabel: 'Mining Fee',
     txCalculateError:

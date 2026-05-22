@@ -15,7 +15,7 @@ import React, {
 } from 'react';
 import { batchedUpdates } from '~/common/lib/batchedUpdates';
 import { useNavigation } from '@react-navigation/native';
-import { View, Text, LayoutChangeEvent } from 'react-native';
+import { View, Text } from 'react-native';
 import {
   Button,
   IconType,
@@ -417,13 +417,6 @@ export default function Send() {
       DUMMY_CHANGE_OUTPUT(getMainAccount(accounts, network), network)
   });
 
-  //Keep track of the AmountInput height to avoid flickering
-  const amountAltStyle = useRef<{ height?: number }>({});
-  const onAmountInputLayout = useCallback((event: LayoutChangeEvent) => {
-    const { height } = event.nativeEvent.layout;
-    if (height) amountAltStyle.current = { height };
-  }, []);
-
   const allFieldsValid =
     amount !== null &&
     feeRate !== null &&
@@ -486,30 +479,30 @@ export default function Send() {
             onValueChange={setAddress}
           />
           <View className="mb-8" />
-          {isValidAmountRange && maxAmount !== null ? (
+          {isValidAmountRange ? (
             //AmountInput will be constantly re-rendered, so keep track
             //of the last value that was set for initing it to it. If no
             //valid amount was ever set, initialize it to maxAmount.
-            <View onLayout={onAmountInputLayout}>
-              <AmountInput
-                btcFiat={btcFiat}
-                isMaxAmount={isMaxAmount}
-                label={t('send.amountLabel')}
-                allowCoinControl
-                coinControl={coinControl}
-                onCoinControlChange={handleCoinControlChange}
-                initialValue={lastKnownValidAmountRef.current ?? maxAmount}
-                min={minAmount}
-                max={maxAmount}
-                onValueChange={onUserSelectedAmountChange}
-              />
-            </View>
+            <AmountInput
+              btcFiat={btcFiat}
+              isMaxAmount={isMaxAmount}
+              label={t('send.amountLabel')}
+              allowCoinControl
+              coinControl={coinControl}
+              onCoinControlChange={handleCoinControlChange}
+              initialValue={lastKnownValidAmountRef.current ?? maxAmount}
+              min={minAmount}
+              max={maxAmount}
+              onValueChange={onUserSelectedAmountChange}
+            />
           ) : (
-            <View style={amountAltStyle.current}>
+            <View>
               <Text className="text-base m-auto self-center text-red-500">
                 {feeRate === null
                   ? t('send.invalidFeeRate')
-                  : t('send.lowerFeeRate')}
+                  : coinControl
+                    ? t('send.pickedUtxosInsufficient')
+                    : t('send.lowerFeeRate')}
               </Text>
               {coinControl && canBuildAtSelectedFeeAssumingAutoCoinSelection ? (
                 <View className="mt-4 flex-row flex-wrap justify-center gap-3">

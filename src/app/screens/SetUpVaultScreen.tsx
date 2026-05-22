@@ -276,11 +276,24 @@ export default function VaultSetUp({
     maxVaultAtMinimumPackageFeeRate !== undefined &&
     maxVaultAtMinimumPackageFeeRate.vaultedAmount >=
       minimumVaultSetup.vaultedAmount;
+  const maxVaultedAmount =
+    maxVaultAtSelectedPackageFeeRate?.vaultedAmount ?? null;
+  const isValidVaultAmountRange =
+    selectedTargetPackageFeeRate !== null &&
+    maxVaultedAmount !== null &&
+    maxVaultedAmount >= minimumVaultSetup.vaultedAmount;
   const canBuildAtMinimumFeeAssumingAutoCoinSelection =
     maxFeeRate >= minimumTargetPackageFeeRate &&
     vaultSetupRangeAssumingAutoCoinSelection.maxVaultAtMinimumPackageFeeRate !==
       undefined &&
     vaultSetupRangeAssumingAutoCoinSelection.maxVaultAtMinimumPackageFeeRate
+      .vaultedAmount >=
+      vaultSetupRangeAssumingAutoCoinSelection.minimumVaultSetup.vaultedAmount;
+  const canBuildAtSelectedFeeAssumingAutoCoinSelection =
+    selectedTargetPackageFeeRate !== null &&
+    vaultSetupRangeAssumingAutoCoinSelection.maxVaultAtSelectedPackageFeeRate !==
+      undefined &&
+    vaultSetupRangeAssumingAutoCoinSelection.maxVaultAtSelectedPackageFeeRate
       .vaultedAmount >=
       vaultSetupRangeAssumingAutoCoinSelection.minimumVaultSetup.vaultedAmount;
   const isRawVaultPossible =
@@ -321,12 +334,6 @@ export default function VaultSetUp({
         ? requiredFundsForMinimumVaultSetup
         : utxosDataBalance(vaultableUtxosData))
   );
-  const currentMaxVaultedAmount =
-    maxVaultAtSelectedPackageFeeRate &&
-    maxVaultAtSelectedPackageFeeRate.vaultedAmount >=
-      minimumVaultSetup.vaultedAmount
-      ? maxVaultAtSelectedPackageFeeRate.vaultedAmount
-      : minimumVaultSetup.vaultedAmount;
   const triggerReserveValue = getAdditionalP2AOutputValue({
     outputsWithValue: [],
     additionalOutput: DUMMY_TRIGGER_RESERVE_OUTPUT(network),
@@ -341,11 +348,11 @@ export default function VaultSetUp({
 
   const [userSelectedVaultedAmount, setUserSelectedVaultedAmount] = useState<
     number | null
-  >(isVaultPossible ? currentMaxVaultedAmount : null);
+  >(isValidVaultAmountRange ? maxVaultedAmount : null);
 
   const [isMaxVaultedAmount, setIsMaxVaultedAmount] = useState<boolean>(
     userSelectedVaultedAmount !== null &&
-      userSelectedVaultedAmount === currentMaxVaultedAmount
+      userSelectedVaultedAmount === maxVaultedAmount
   );
   const [pendingUtxosWarningAccepted, setPendingUtxosWarningAccepted] =
     useState<boolean>(false);
@@ -387,10 +394,10 @@ export default function VaultSetUp({
       //the componet was intenally reset
       if (type === 'USER' && userSelectedVaultedAmount !== null)
         setIsMaxVaultedAmount(
-          userSelectedVaultedAmount === currentMaxVaultedAmount
+          userSelectedVaultedAmount === maxVaultedAmount
         );
     },
-    [currentMaxVaultedAmount]
+    [maxVaultedAmount]
   );
 
   const handleOK = useCallback(() => {
@@ -451,7 +458,8 @@ export default function VaultSetUp({
    * 3. This ensures the UI always shows a consistent state without flicker
    *
    * OPTIMIZATION:
-   * - We only perform the expensive calculation when necessary (max amount selected)
+   * - We only perform the expensive calculation when necessary (max amount
+   *   selected or current amount range invalid)
    * - We use the same calculation method as the main range estimation
    * - We batch updates to avoid multiple renders
    */
@@ -461,8 +469,12 @@ export default function VaultSetUp({
         // Always update the fee rate
         setUserSelectedPackageFeeRate(newPackageFeeRate);
 
-        // Only recalculate max amount if user has selected max and fee is valid
-        if (isMaxVaultedAmount && newPackageFeeRate !== null) {
+        // Recalculate immediately for MAX or when the current range is invalid
+        // and a lower fee may make it valid again.
+        if (
+          (isMaxVaultedAmount || !isValidVaultAmountRange) &&
+          newPackageFeeRate !== null
+        ) {
           const currentChangeOutput =
             changeOutput ||
             DUMMY_CHANGE_OUTPUT(getMainAccount(accounts, network), network);
@@ -487,9 +499,15 @@ export default function VaultSetUp({
           });
 
           // Update the amount in the same render cycle to prevent flicker
-          setUserSelectedVaultedAmount(
-            newMaxEstimate?.vaultedAmount || minimumVaultSetup.vaultedAmount
-          );
+          if (
+            newMaxEstimate &&
+            newMaxEstimate.vaultedAmount >= minimumVaultSetup.vaultedAmount
+          ) {
+            setUserSelectedVaultedAmount(newMaxEstimate.vaultedAmount);
+            setIsMaxVaultedAmount(true);
+          } else {
+            setUserSelectedVaultedAmount(null);
+          }
         }
       });
     },
@@ -497,6 +515,7 @@ export default function VaultSetUp({
       accounts,
       changeOutput,
       isMaxVaultedAmount,
+      isValidVaultAmountRange,
       minimumVaultSetup.vaultedAmount,
       pickedVaultableUtxosData,
       vaultableUtxosData,
@@ -569,6 +588,11 @@ export default function VaultSetUp({
     lockBlocks !== null &&
     packageFeeRate !== null &&
     coldAddress !== null;
+
+  const handleOpenCoinControl = useCallback(
+    () => setIsCoinControlVisible(true),
+    []
+  );
 
   return (
     <KeyboardAwareScrollView
@@ -660,29 +684,56 @@ export default function VaultSetUp({
               </Text>
             </View>
           ) : null}
-          <AmountInput
-            btcFiat={btcFiat}
-            isMaxAmount={isMaxVaultedAmount}
-            label={t('vaultSetup.amountLabel')}
-            allowCoinControl
-            coinControl={coinControl}
-            onCoinControlChange={handleCoinControlChange}
-            initialValue={currentMaxVaultedAmount}
-            min={minimumVaultSetup.vaultedAmount}
-            max={currentMaxVaultedAmount}
-            onValueChange={onUserSelectedVaultedAmountChange}
-          />
-          <View className="w-full flex-row items-start gap-2 px-2 pt-1">
-            <Text className="shrink text-sm text-slate-500">
-              {t('vaultSetup.unfreezeReserveLabel')}:{' '}
-              {formatAmount(toNumber(triggerReserveValue))}
-            </Text>
-            <ModalInfoButton
-              title={t('vaultSetup.unfreezeReserveHelpTitle')}
-              icon={{ family: 'FontAwesome5', name: 'coins' }}
-              text={t('vaultSetup.unfreezeReserveHelp')}
-            />
-          </View>
+          {isValidVaultAmountRange ? (
+            <>
+              <AmountInput
+                btcFiat={btcFiat}
+                isMaxAmount={isMaxVaultedAmount}
+                label={t('vaultSetup.amountLabel')}
+                allowCoinControl
+                coinControl={coinControl}
+                onCoinControlChange={handleCoinControlChange}
+                initialValue={maxVaultedAmount}
+                min={minimumVaultSetup.vaultedAmount}
+                max={maxVaultedAmount}
+                onValueChange={onUserSelectedVaultedAmountChange}
+              />
+              <View className="w-full flex-row items-start gap-2 px-2 pt-1">
+                <Text className="shrink text-sm text-slate-500">
+                  {t('vaultSetup.unfreezeReserveLabel')}:{' '}
+                  {formatAmount(toNumber(triggerReserveValue))}
+                </Text>
+                <ModalInfoButton
+                  title={t('vaultSetup.unfreezeReserveHelpTitle')}
+                  icon={{ family: 'FontAwesome5', name: 'coins' }}
+                  text={t('vaultSetup.unfreezeReserveHelp')}
+                />
+              </View>
+            </>
+          ) : (
+            <View>
+              <Text className="text-base m-auto self-center text-red-500">
+                {selectedTargetPackageFeeRate === null
+                  ? t('vaultSetup.invalidFeeRate')
+                  : coinControl
+                    ? t('vaultSetup.pickedUtxosInsufficient')
+                    : t('vaultSetup.lowerFeeRate')}
+              </Text>
+              {coinControl && canBuildAtSelectedFeeAssumingAutoCoinSelection ? (
+                <View className="mt-4 flex-row flex-wrap justify-center gap-3">
+                  <Button mode="secondary" onPress={handleOpenCoinControl}>
+                    {t('coinControl.title')}
+                  </Button>
+                  <Button
+                    mode="secondary"
+                    onPress={() => handleCoinControlChange(false)}
+                  >
+                    {t('coinControl.auto')}
+                  </Button>
+                </View>
+              ) : null}
+            </View>
+          )}
           <View className="mb-8" />
           <BlocksInput
             label={t('vaultSetup.securityLockTimeLabel')}
