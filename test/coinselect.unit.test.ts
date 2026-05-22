@@ -18,19 +18,25 @@ describe('coinselect wrapper', () => {
       feeRate: 1
     };
 
-    expect(coinselect({ ...params, coinControl: false })).toEqual(
-      baseCoinselect(params)
-    );
+    expect(
+      coinselect({
+        utxos: params.utxos,
+        coinControl: false,
+        targets: params.targets,
+        remainder: params.remainder,
+        feeRate: params.feeRate
+      })
+    ).toEqual(baseCoinselect(params));
   });
 
   test('spends every provided utxo when coin control is enabled', () => {
     const utxos = [utxo(3000), utxo(4000)];
     const result = coinselect({
       utxos,
+      coinControl: true,
       targets: [target(1000)],
       remainder: output,
-      feeRate: 1,
-      coinControl: true
+      feeRate: 1
     });
 
     expect(result?.utxos).toBe(utxos);
@@ -40,10 +46,10 @@ describe('coinselect wrapper', () => {
   test('returns undefined when exact utxos cannot fund the targets', () => {
     const result = coinselect({
       utxos: [utxo(1000)],
+      coinControl: true,
       targets: [target(1000)],
       remainder: output,
-      feeRate: 1,
-      coinControl: true
+      feeRate: 1
     });
 
     expect(result).toBeUndefined();
@@ -52,10 +58,10 @@ describe('coinselect wrapper', () => {
   test('omits dusty change and leaves it as fee', () => {
     const result = coinselect({
       utxos: [utxo(1220)],
+      coinControl: true,
       targets: [target(1000)],
       remainder: output,
-      feeRate: 1,
-      coinControl: true
+      feeRate: 1
     });
 
     expect(result?.targets).toEqual([target(1000)]);
@@ -66,10 +72,10 @@ describe('coinselect wrapper', () => {
     const utxos = [utxo(3000), utxo(4000)];
     const result = maxFunds({
       utxos,
+      coinControl: true,
       targets: [],
       remainder: output,
-      feeRate: 1,
-      coinControl: true
+      feeRate: 1
     });
 
     expect(result?.utxos).toBe(utxos);

@@ -62,9 +62,10 @@ export default function CreateVaultScreen({
     packageFeeRate,
     lockBlocks,
 
+    utxosData,
+    coinControl,
     accounts,
-    btcFiat,
-    utxosData
+    btcFiat
   } = vaultSettings;
 
   const insets = useSafeAreaInsets();
@@ -293,6 +294,7 @@ export default function CreateVaultScreen({
         presignedRescueFeeRate: settings.PRESIGNED_RESCUE_FEERATE,
         maxTriggerFeeRate: settings.MAX_TRIGGER_FEERATE,
         utxosData,
+        coinControl,
         signer,
         randomSigner,
         coldAddress,
@@ -355,6 +357,7 @@ export default function CreateVaultScreen({
     lastP2PBackupVaultIndex,
     signer,
     utxosData,
+    coinControl,
     accounts,
     presignedTriggerFeeRate,
     settings.PRESIGNED_RESCUE_FEERATE,

@@ -19,6 +19,11 @@ export type { OutputWithValue };
 type CoinselectParams = {
   /** Candidate inputs. If `coinControl` is true, every input here is mandatory. */
   utxos: Array<OutputWithValue>;
+  /**
+   * When true, `utxos` is the exact manual UTXO selection from the user.
+   * Coin selection must spend every provided UTXO and no others.
+   */
+  coinControl: boolean;
   /** Fixed outputs that must be funded before optional change/remainder. */
   targets: Array<OutputWithValue>;
   /** Change output for `coinselect`; recipient output for `maxFunds`. */
@@ -29,11 +34,6 @@ type CoinselectParams = {
   minimumFeeRate?: number;
   /** Dust relay fee rate used for fixed target and change dust checks. */
   dustRelayFeeRate?: number;
-  /**
-   * When true, `utxos` is the exact manual UTXO selection from the user.
-   * Coin selection must spend every provided UTXO and no others.
-   */
-  coinControl: boolean;
 };
 
 const sumValues = (items: Array<OutputWithValue>) =>

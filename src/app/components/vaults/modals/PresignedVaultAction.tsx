@@ -225,6 +225,7 @@ const PresignedVaultAction = ({
       presignedTxInfos,
       ...(typeof p2aBumpPlan === 'object' ? { p2aBumpPlan } : {}),
       ...(includeWalletSupplement ? { vaultableWalletUtxosData } : {}),
+      coinControl: false,
       historyData
     });
   }, [
@@ -304,7 +305,8 @@ const PresignedVaultAction = ({
         ...(pushedTxHex ? { pushedTxHex } : {}),
         presignedTxInfos,
         ...(typeof p2aBumpPlan === 'object' ? { p2aBumpPlan } : {}),
-        ...(includeWalletSupplement ? { vaultableWalletUtxosData } : {})
+        ...(includeWalletSupplement ? { vaultableWalletUtxosData } : {}),
+        coinControl: false
       });
     },
     [
@@ -361,7 +363,8 @@ const PresignedVaultAction = ({
         selectedFeeRate,
         ...(pushedTxHex ? { pushedTxHex } : {}),
         presignedTxInfos,
-        ...(typeof p2aBumpPlan === 'object' ? { p2aBumpPlan } : {})
+        ...(typeof p2aBumpPlan === 'object' ? { p2aBumpPlan } : {}),
+        coinControl: false
       });
     }, [
       selectedFeeRate,

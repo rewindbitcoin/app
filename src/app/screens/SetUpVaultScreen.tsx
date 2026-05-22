@@ -203,6 +203,7 @@ export default function VaultSetUp({
   } = estimateVaultSetupRange({
     accounts,
     utxosData: vaultableUtxosData,
+    coinControl: false,
     coldAddress: coldAddress || DUMMY_COLD_ADDRESS(network),
     minimumPackageFeeRate: minimumTargetPackageFeeRate,
     packageFeeRate: selectedTargetPackageFeeRate,
@@ -216,6 +217,7 @@ export default function VaultSetUp({
   const rawVaultRange = estimateVaultSetupRange({
     accounts,
     utxosData: rawUtxosData,
+    coinControl: false,
     coldAddress: coldAddress || DUMMY_COLD_ADDRESS(network),
     minimumPackageFeeRate: minimumTargetPackageFeeRate,
     packageFeeRate: selectedTargetPackageFeeRate,
@@ -347,8 +349,9 @@ export default function VaultSetUp({
       lockBlocks,
 
       accounts,
-      btcFiat,
-      utxosData: vaultableUtxosData
+      utxosData: vaultableUtxosData,
+      coinControl: false,
+      btcFiat
     });
   }, [
     packageFeeRate,
@@ -403,6 +406,7 @@ export default function VaultSetUp({
             DUMMY_CHANGE_OUTPUT(getMainAccount(accounts, network), network);
           const newMaxEstimate = estimateMaxVaultAmount({
             utxosData: vaultableUtxosData,
+            coinControl: false,
             vaultOutput: DUMMY_VAULT_OUTPUT(network),
             backupOutput: DUMMY_BACKUP_OUTPUT(network),
             triggerReserveOutput: DUMMY_TRIGGER_RESERVE_OUTPUT(network),
@@ -460,6 +464,7 @@ export default function VaultSetUp({
     } else {
       const selected = coinSelectVaultTx({
         utxosData: vaultableUtxosData,
+        coinControl: false,
         //We never use the final vaultOutput since it is built using a random
         //key that we don't want to keep in memory, but setup still needs to
         //reserve the same backup and trigger-reserve outputs that real vault

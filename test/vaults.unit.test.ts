@@ -308,6 +308,7 @@ describe('vaults unit tests', () => {
       pushedChildTxHex,
       presignedTxInfos,
       p2aBumpPlan,
+      coinControl: false,
       historyData: []
     });
 
@@ -320,7 +321,8 @@ describe('vaults unit tests', () => {
       selectedFeeRate: availability.minimumSelectableFeeRate,
       pushedTxHex: parentTxHex,
       presignedTxInfos,
-      p2aBumpPlan
+      p2aBumpPlan,
+      coinControl: false
     });
 
     expect(txData?.p2aBumpPlan?.txosData).toHaveLength(1);
@@ -360,7 +362,8 @@ describe('vaults unit tests', () => {
         vaultMode: 'P2A_NON_TRUC',
         selectedFeeRate: 20,
         presignedTxInfos,
-        p2aBumpPlan: reserveOnlyPlan
+        p2aBumpPlan: reserveOnlyPlan,
+        coinControl: false
       })
     ).toBeNull();
 
@@ -369,7 +372,8 @@ describe('vaults unit tests', () => {
       selectedFeeRate: 20,
       presignedTxInfos,
       p2aBumpPlan: reserveOnlyPlan,
-      vaultableWalletUtxosData: [walletUtxo]
+      vaultableWalletUtxosData: [walletUtxo],
+      coinControl: false
     });
 
     expect(supplementedTxData?.p2aBumpPlan?.txosData).toHaveLength(1);
@@ -445,7 +449,8 @@ describe('vaults unit tests', () => {
           txosData: [createSyntheticUtxoData(1)],
           hasUnconfirmedUtxos: false,
           changeOutput
-        }
+        },
+        coinControl: false
       })
     ).toBeNull();
   });
@@ -477,7 +482,8 @@ describe('vaults unit tests', () => {
         hasUnconfirmedUtxos: false,
         changeOutput
       },
-      vaultableWalletUtxosData: [walletUtxo]
+      vaultableWalletUtxosData: [walletUtxo],
+      coinControl: false
     });
 
     expect(txData?.p2aBumpPlan?.txosData).toHaveLength(1);
@@ -485,6 +491,51 @@ describe('vaults unit tests', () => {
       reserveUtxo.tx.getId()
     );
     expect(txData?.walletSupplementUtxosData).toBe('walletSupplementUnneeded');
+  });
+
+  test('P2A trigger manual supplement spends every selected wallet UTXO when reserve is short', () => {
+    const network = networks.regtest;
+    const changeOutput = createAddressOutput(DUMMY_ADDRESS(network), network);
+    const parentTxHex = createSyntheticTxHex({
+      version: 2,
+      mainOutputValue: 12000,
+      p2aValue: P2A_NON_TRUC_ANCHOR_SATS
+    });
+    const parentTx = Transaction.fromHex(parentTxHex);
+    const parentFee = 120;
+    const reserveUtxo = createSyntheticUtxoData(100);
+    const walletUtxoA = createSyntheticUtxoData(10000);
+    const walletUtxoB = createSyntheticUtxoData(3000);
+    const txData = buildVaultActionDataForFeeRate({
+      vaultMode: 'P2A_NON_TRUC',
+      selectedFeeRate: 20,
+      presignedTxInfos: [
+        {
+          txHex: parentTxHex,
+          fee: parentFee,
+          feeRate: parentFee / parentTx.virtualSize()
+        }
+      ],
+      p2aBumpPlan: {
+        txosData: [reserveUtxo],
+        hasUnconfirmedUtxos: false,
+        changeOutput
+      },
+      vaultableWalletUtxosData: [walletUtxoA, walletUtxoB],
+      coinControl: true
+    });
+
+    expect(txData?.p2aBumpPlan?.txosData).toHaveLength(1);
+    expect(txData?.p2aBumpPlan?.txosData[0]?.tx.getId()).toBe(
+      reserveUtxo.tx.getId()
+    );
+    expect(Array.isArray(txData?.walletSupplementUtxosData)).toBe(true);
+    if (!txData || !Array.isArray(txData.walletSupplementUtxosData))
+      throw new Error('Expected manual wallet supplement UTXOs');
+    expect(txData.walletSupplementUtxosData).toHaveLength(2);
+    expect(
+      txData.walletSupplementUtxosData.map(utxo => utxo.tx.getId())
+    ).toEqual([walletUtxoA.tx.getId(), walletUtxoB.tx.getId()]);
   });
 
   test('getCpfpFeeInfo derives old wallet supplement input values from known txs', () => {
@@ -547,6 +598,7 @@ describe('vaults unit tests', () => {
           hasUnconfirmedUtxos: false,
           changeOutput
         },
+        coinControl: false,
         historyData: []
       })
     ).toEqual({
@@ -670,6 +722,7 @@ describe('vaults unit tests', () => {
       canProceedToActionConfirmation({
         vaultMode: 'P2A_TRUC',
         presignedTxInfos: [parentTxInfo],
+        coinControl: false,
         historyData: []
       })
     ).toEqual({
@@ -689,6 +742,7 @@ describe('vaults unit tests', () => {
       canProceedToActionConfirmation({
         vaultMode: 'P2A_TRUC',
         presignedTxInfos: [parentTxInfo],
+        coinControl: false,
         historyData: []
       })
     ).toThrow('tx with dust output must be 0-fee');
@@ -707,6 +761,7 @@ describe('vaults unit tests', () => {
       canProceedToActionConfirmation({
         vaultMode: 'P2A_NON_TRUC',
         presignedTxInfos: [{ txHex, fee, feeRate: fee / tx.virtualSize() }],
+        coinControl: false,
         historyData: []
       })
     ).toEqual({
@@ -728,6 +783,7 @@ describe('vaults unit tests', () => {
       canProceedToActionConfirmation({
         vaultMode: 'P2A_NON_TRUC',
         presignedTxInfos: [{ txHex, fee, feeRate: fee / tx.virtualSize() }],
+        coinControl: false,
         historyData: []
       })
     ).toEqual({

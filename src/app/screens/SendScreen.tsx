@@ -166,12 +166,14 @@ export default function Send() {
     maxWhen1SxB: maxAmountWhen1SxB
   } = estimateSendRange({
     utxosData: sendableUtxosData,
+    coinControl: false,
     address,
     network,
     feeRate
   });
   const { maxWhen1SxB: maxAmountWhen1SxBRaw } = estimateSendRange({
     utxosData: rawUtxosData,
+    coinControl: false,
     address,
     network,
     feeRate
@@ -232,6 +234,7 @@ export default function Send() {
       const txHexAndFee = await calculateTx({
         signer,
         utxosData: sendableUtxosData,
+        coinControl: false,
         address,
         feeRate,
         amount,
@@ -323,6 +326,7 @@ export default function Send() {
           // Calculate the new max amount with the updated fee rate
           const { min: newMinAmount, max: newMaxAmount } = estimateSendRange({
             utxosData: sendableUtxosData,
+            coinControl: false,
             address,
             network,
             feeRate: newFeeRate
@@ -344,6 +348,7 @@ export default function Send() {
 
   const fee = estimateSendTxFee({
     utxosData: sendableUtxosData,
+    coinControl: false,
     address: address || DUMMY_SEND_ADDRESS(network),
     feeRate,
     amount,

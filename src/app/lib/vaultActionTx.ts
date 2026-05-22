@@ -192,8 +192,9 @@ const coinSelectWalletSupplementUtxosData = ({
   parentFee,
   targetPackageFeeRate,
   reserveUtxosData,
-  changeOutput,
-  vaultableWalletUtxosData
+  vaultableWalletUtxosData,
+  coinControl,
+  changeOutput
 }: {
   /** P2A parent transaction whose anchor output will be spent by the child. */
   parentTxHex: TxHex;
@@ -203,8 +204,6 @@ const coinSelectWalletSupplementUtxosData = ({
   targetPackageFeeRate: number;
   /** Full reserve set; the helper never selects a subset of these inputs. */
   reserveUtxosData: UtxosData;
-  /** Output that receives leftover child value. */
-  changeOutput: OutputInstance;
   /**
    * Normal wallet UTXOs that are already policy-filtered for this vault mode.
    * For P2A_TRUC they must be confirmed; for P2A_NON_TRUC they may include only
@@ -213,20 +212,41 @@ const coinSelectWalletSupplementUtxosData = ({
    * behavior.
    */
   vaultableWalletUtxosData?: UtxosData;
+  /**
+   * When true, `vaultableWalletUtxosData` is the exact manual normal-wallet
+   * supplement selection. The full reserve set remains an all-or-none policy
+   * input; only wallet supplement inputs are user-selected.
+   */
+  coinControl: boolean;
+  /** Output that receives leftover child value. */
+  changeOutput: OutputInstance;
 }): UtxosData | 'walletSupplementUnneeded' | 'cannotBuildPackage' => {
-  if (
+  const reserveOnlyCanBuild =
     reserveUtxosData.length > 0 &&
-    estimateCpfpPackage({
+    !!estimateCpfpPackage({
       parentTxHex,
       parentFee,
       targetPackageFeeRate,
       utxosData: reserveUtxosData,
       changeOutput
-    })
-  )
-    return 'walletSupplementUnneeded';
+    });
+
+  if (reserveOnlyCanBuild) return 'walletSupplementUnneeded';
 
   if (!vaultableWalletUtxosData?.length) return 'cannotBuildPackage';
+
+  if (coinControl) {
+    const childUtxosData = [...reserveUtxosData, ...vaultableWalletUtxosData];
+    return estimateCpfpPackage({
+      parentTxHex,
+      parentFee,
+      targetPackageFeeRate,
+      utxosData: childUtxosData,
+      changeOutput
+    })
+      ? vaultableWalletUtxosData
+      : 'cannotBuildPackage';
+  }
 
   const selectedWalletUtxosData: UtxosData = [];
   const sortedWalletUtxosData = [...vaultableWalletUtxosData].sort((a, b) => {
@@ -361,6 +381,7 @@ const getActionAccelerationInfo = ({
   presignedTxInfos,
   p2aBumpPlan,
   vaultableWalletUtxosData,
+  coinControl,
   historyData
 }: {
   vaultMode: 'LADDERED' | 'P2A_TRUC' | 'P2A_NON_TRUC';
@@ -390,6 +411,11 @@ const getActionAccelerationInfo = ({
    * behavior.
    */
   vaultableWalletUtxosData?: UtxosData;
+  /**
+   * When true, `vaultableWalletUtxosData` is the exact manual normal-wallet
+   * supplement selection for P2A child construction.
+   */
+  coinControl: boolean;
   /**
    * Needed for P2A replacements when the previous child used inputs that do not
    * belong to the reserve, such as normal-wallet supplement inputs in the trigger.
@@ -449,6 +475,7 @@ const getActionAccelerationInfo = ({
     feeEstimates,
     reserveUtxosData: p2aBumpPlan.txosData,
     ...(vaultableWalletUtxosData?.length ? { vaultableWalletUtxosData } : {}),
+    coinControl,
     childOutput: p2aBumpPlan.changeOutput,
     historyData,
     ...(pushedChildTxHex ? { childTxHex: pushedChildTxHex } : {})
@@ -492,6 +519,7 @@ export const canProceedToActionConfirmation = ({
   presignedTxInfos,
   p2aBumpPlan,
   vaultableWalletUtxosData,
+  coinControl,
   historyData
 }: {
   vaultMode: 'LADDERED' | 'P2A_TRUC' | 'P2A_NON_TRUC';
@@ -508,6 +536,11 @@ export const canProceedToActionConfirmation = ({
    * behavior.
    */
   vaultableWalletUtxosData?: UtxosData;
+  /**
+   * When true, `vaultableWalletUtxosData` is the exact manual normal-wallet
+   * supplement selection for P2A child construction.
+   */
+  coinControl: boolean;
   /**
    * Needed for P2A replacements when the previous child used inputs that do not
    * belong to the reserve, such as normal-wallet supplement inputs in the trigger.
@@ -569,6 +602,7 @@ export const canProceedToActionConfirmation = ({
         feeEstimates,
         pushedTxHex,
         presignedTxInfos,
+        coinControl,
         historyData
       });
       return {
@@ -626,6 +660,7 @@ export const canProceedToActionConfirmation = ({
         ...(vaultableWalletUtxosData?.length
           ? { vaultableWalletUtxosData }
           : {}),
+        coinControl,
         historyData
       });
       return {
@@ -676,6 +711,7 @@ export const canProceedToActionConfirmation = ({
                     ...(vaultableWalletUtxosData?.length
                       ? { vaultableWalletUtxosData }
                       : {}),
+                    coinControl,
                     changeOutput
                   }) !== 'cannotBuildPackage'
                 );
@@ -721,7 +757,8 @@ export const buildVaultActionDataForFeeRate = ({
   pushedTxHex,
   presignedTxInfos,
   p2aBumpPlan,
-  vaultableWalletUtxosData
+  vaultableWalletUtxosData,
+  coinControl
 }: {
   vaultMode: 'LADDERED' | 'P2A_TRUC' | 'P2A_NON_TRUC';
   selectedFeeRate: number;
@@ -736,6 +773,11 @@ export const buildVaultActionDataForFeeRate = ({
    * behavior.
    */
   vaultableWalletUtxosData?: UtxosData;
+  /**
+   * When true, `vaultableWalletUtxosData` is the exact manual normal-wallet
+   * supplement selection for P2A child construction.
+   */
+  coinControl: boolean;
 }): VaultActionData | null => {
   const isReplacement = pushedTxHex !== undefined;
 
@@ -784,6 +826,7 @@ export const buildVaultActionDataForFeeRate = ({
             ...(vaultableWalletUtxosData?.length
               ? { vaultableWalletUtxosData }
               : {}),
+            coinControl,
             changeOutput
           })
         : 'cannotBuildPackage';
@@ -999,6 +1042,7 @@ export const getCpfpReplacementFeeRateFloor = ({
   feeEstimates,
   reserveUtxosData,
   vaultableWalletUtxosData,
+  coinControl,
   childOutput,
   historyData
 }: {
@@ -1020,6 +1064,11 @@ export const getCpfpReplacementFeeRateFloor = ({
    * behavior.
    */
   vaultableWalletUtxosData?: UtxosData;
+  /**
+   * When true, `vaultableWalletUtxosData` is the exact manual normal-wallet
+   * supplement selection for P2A child construction.
+   */
+  coinControl: boolean;
   childOutput: OutputInstance;
   /**
    * Needed for P2A replacements when the previous child used inputs that do not
@@ -1060,6 +1109,7 @@ export const getCpfpReplacementFeeRateFloor = ({
       targetPackageFeeRate,
       reserveUtxosData,
       ...(vaultableWalletUtxosData?.length ? { vaultableWalletUtxosData } : {}),
+      coinControl,
       changeOutput: childOutput
     });
     if (walletSupplementUtxosData === 'cannotBuildPackage') continue;
