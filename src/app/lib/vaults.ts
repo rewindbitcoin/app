@@ -54,7 +54,7 @@ import type {
   TxAttribution,
   TxoMap
 } from '@bitcoinerlab/discovery';
-import { coinselect, maxFunds, dustThreshold } from '@bitcoinerlab/coinselect';
+import { coinselect, maxFunds, dustThreshold } from './coinselect';
 import type { Explorer } from '@bitcoinerlab/explorer';
 import { coinTypeFromNetwork, type NetworkId, networkMapping } from './network';
 import {
@@ -121,6 +121,11 @@ export type VaultSettings = {
    */
   accounts: Accounts;
   utxosData: UtxosData;
+  /**
+   * When true, `utxosData` is the exact manual UTXO selection from the user.
+   * Coin selection must spend every provided UTXO and no others.
+   */
+  coinControl: boolean;
   /** when we present the confirmation text in CreateVaultScreen we want to
    * display the same fiat values
    */
@@ -929,6 +934,7 @@ const getPresignedRescueParentFee = (presignedRescueFeeRate: number) =>
 export const coinSelectVaultTx = moize.shallow(
   ({
     utxosData,
+    coinControl,
     vaultOutput,
     backupOutput,
     triggerReserveOutput,
@@ -940,6 +946,11 @@ export const coinSelectVaultTx = moize.shallow(
     shiftFeesToBackupTx
   }: {
     utxosData: UtxosData;
+    /**
+     * When true, `utxosData` is the exact manual UTXO selection from the user.
+     * Coin selection must spend every provided UTXO and no others.
+     */
+    coinControl: boolean;
     vaultOutput: OutputInstance;
     backupOutput: OutputInstance;
     triggerReserveOutput?: OutputInstance;
@@ -961,6 +972,7 @@ export const coinSelectVaultTx = moize.shallow(
     if (!shiftFeesToBackupTx) {
       return regularCoinSelectVaultTx({
         utxosData,
+        coinControl,
         vaultOutput,
         backupOutput,
         backupFunding: getBackupFunding(packageFeeRate, backupOutput),
@@ -995,6 +1007,7 @@ export const coinSelectVaultTx = moize.shallow(
       ) {
         const selected = regularCoinSelectVaultTx({
           utxosData,
+          coinControl,
           vaultOutput,
           backupOutput,
           backupFunding,
@@ -1040,6 +1053,7 @@ export const coinSelectVaultTx = moize.shallow(
       );
       const selected = regularCoinSelectVaultTx({
         utxosData,
+        coinControl,
         vaultOutput,
         backupOutput,
         backupFunding: backupFundingAtPackageFeeRate,
@@ -1176,6 +1190,7 @@ export const estimateMinimumRequiredVaultedAmount = moize.shallow(
  */
 const regularCoinSelectVaultTx = ({
   utxosData,
+  coinControl,
   vaultOutput,
   vaultedAmount,
   backupOutput,
@@ -1187,6 +1202,11 @@ const regularCoinSelectVaultTx = ({
   minimumFeeRate
 }: {
   utxosData: UtxosData;
+  /**
+   * When true, `utxosData` is the exact manual UTXO selection from the user.
+   * Coin selection must spend every provided UTXO and no others.
+   */
+  coinControl: boolean;
   vaultOutput: OutputInstance;
   vaultedAmount: bigint | 'MAX_FUNDS';
   backupOutput?: OutputInstance;
@@ -1233,6 +1253,7 @@ const regularCoinSelectVaultTx = ({
 
     coinselected = maxFunds({
       utxos,
+      coinControl,
       targets,
       remainder: vaultOutput,
       feeRate,
@@ -1268,6 +1289,7 @@ const regularCoinSelectVaultTx = ({
 
     coinselected = coinselect({
       utxos,
+      coinControl,
       targets,
       remainder: changeOutput,
       feeRate,
@@ -1316,6 +1338,7 @@ const buildVaultTxContext = async ({
   maxTriggerFeeRate,
   packageFeeRate,
   utxosData,
+  coinControl,
   vaultedAmount,
   shiftFeesToBackupTx,
   network
@@ -1336,6 +1359,11 @@ const buildVaultTxContext = async ({
   packageFeeRate: number;
   vaultedAmount: bigint | 'MAX_FUNDS';
   utxosData: UtxosData;
+  /**
+   * When true, `utxosData` is the exact manual UTXO selection from the user.
+   * Coin selection must spend every provided UTXO and no others.
+   */
+  coinControl: boolean;
   shiftFeesToBackupTx: boolean;
   network: Network;
 }) => {
@@ -1385,6 +1413,7 @@ const buildVaultTxContext = async ({
 
   const selected = coinSelectVaultTx({
     utxosData,
+    coinControl,
     vaultOutput,
     backupOutput,
     changeOutput,
@@ -1414,6 +1443,7 @@ export const createVault = async ({
   presignedRescueFeeRate,
   maxTriggerFeeRate,
   utxosData,
+  coinControl,
   signer,
   randomSigner,
   coldAddress,
@@ -1436,6 +1466,11 @@ export const createVault = async ({
   /** Highest trigger package feerate the dedicated reserve must support. */
   maxTriggerFeeRate: number;
   utxosData: UtxosData;
+  /**
+   * When true, `utxosData` is the exact manual UTXO selection from the user.
+   * Coin selection must spend every provided UTXO and no others.
+   */
+  coinControl: boolean;
   signer: Signer;
   randomSigner: Signer;
   coldAddress: string;
@@ -1468,6 +1503,7 @@ export const createVault = async ({
     maxTriggerFeeRate,
     packageFeeRate,
     utxosData,
+    coinControl,
     vaultedAmount,
     shiftFeesToBackupTx,
     network

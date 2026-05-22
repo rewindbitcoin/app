@@ -591,6 +591,7 @@ const RawVault = ({
         ...(typeof triggerBumpPlan === 'object'
           ? { p2aBumpPlan: triggerBumpPlan }
           : {}),
+        coinControl: false,
         historyData
       });
       accelerationButtonEnabled = isLadderedVault
@@ -675,6 +676,7 @@ const RawVault = ({
         ...(typeof rescueBumpPlan === 'object'
           ? { p2aBumpPlan: rescueBumpPlan }
           : {}),
+        coinControl: false,
         historyData
       });
       accelerationButtonEnabled = isLadderedVault

@@ -6,7 +6,8 @@
 //That means the parent component must reset the last value set by onValueChange
 //to initialValue
 import React, { useState, useCallback, useRef, useMemo } from 'react';
-import { CardEditableSlider } from '../../common/ui';
+import { Text, View } from 'react-native';
+import { CardEditableSlider, Switch } from '../../common/ui';
 import { useTranslation } from 'react-i18next';
 import type { SubUnit } from '../lib/settings';
 import {
@@ -25,7 +26,10 @@ function AmountInput({
   max,
   isMaxAmount,
   label,
+  allowCoinControl = false,
+  coinControl = false,
   btcFiat,
+  onCoinControlChange,
   onValueChange
 }: {
   initialValue: number;
@@ -36,6 +40,9 @@ function AmountInput({
   isMaxAmount: boolean;
   btcFiat: number | undefined;
   label: string;
+  allowCoinControl?: boolean;
+  coinControl?: boolean;
+  onCoinControlChange?: (coinControl: boolean) => void;
   onValueChange: (value: number | null, type: 'USER' | 'RESET') => void;
 }) {
   const { t } = useTranslation();
@@ -45,6 +52,8 @@ function AmountInput({
     throw new Error(
       'This component should only be started after settings has been retrieved from storage'
     );
+  if (!allowCoinControl && coinControl)
+    throw new Error('coinControl requires allowCoinControl');
   const mode =
     settings.FIAT_MODE && typeof btcFiat === 'number'
       ? 'Fiat'
@@ -69,6 +78,12 @@ function AmountInput({
   const onUnitPress = useCallback(() => {
     setShowUnitsModal(true);
   }, []);
+  const handleAutoCoinSelectionChange = useCallback(
+    (auto: boolean) => {
+      onCoinControlChange?.(!auto);
+    },
+    [onCoinControlChange]
+  );
 
   const onModeSelect = useCallback(
     (mode: SubUnit | 'Fiat') => {
@@ -108,6 +123,21 @@ function AmountInput({
       <CardEditableSlider
         locale={locale}
         label={label}
+        headerRight={
+          allowCoinControl ? (
+            <View className="flex-row items-center">
+              <Text className="mr-1 text-sm font-normal text-card-secondary">
+                {t('coinControl.auto')}
+              </Text>
+              <Switch
+                value={!coinControl}
+                onValueChange={handleAutoCoinSelectionChange}
+                accessibilityLabel={t('coinControl.auto')}
+                style={{ transform: [{ scale: 0.66 }] }}
+              />
+            </View>
+          ) : undefined
+        }
         key={`${mode}-${min}-${max}`}
         maxLabel={t('amount.maxLabel').toUpperCase()}
         minimumValue={modeMin}

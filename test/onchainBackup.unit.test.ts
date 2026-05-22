@@ -98,6 +98,7 @@ describe('on-chain backup unit tests', () => {
       presignedRescueFeeRate: 100,
       maxTriggerFeeRate: 100,
       utxosData,
+      coinControl: false,
       signer,
       randomSigner: await getRandomSigner(networkId),
       coldAddress: await createColdAddress(COLD_MNEMONIC, network),

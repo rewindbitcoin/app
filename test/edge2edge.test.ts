@@ -212,6 +212,7 @@ describe('E2E: Multiple Pre-Signed txs Vault', () => {
       randomSigner,
       networkId,
       utxosData,
+      coinControl: false,
       vaultIndex: 0,
       vaultMode: 'P2A_NON_TRUC',
       shiftFeesToBackupTx: true

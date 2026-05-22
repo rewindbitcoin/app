@@ -604,6 +604,13 @@ Después de descongelar la bóveda, la parte de esta reserva que no haya sido ne
     securityLockTimeLabel: 'Tiempo de Bloqueo Anti-robo',
     securityLockTimeDescription: 'Desbloqueo {{blocks}} tras descongelar',
     confirmationSpeedLabel: 'Comisión de minería',
+    lowerFeeRate: `Tus fondos disponibles no pueden crear la bóveda mínima con esta comisión.
+
+Por favor, reduce la comisión o agrega más fondos.`,
+    invalidFeeRate: `Por favor, selecciona una comisión válida.`,
+    pickedUtxosInsufficient: `Las monedas que seleccionaste no alcanzan para crear esta bóveda con la comisión elegida.
+
+Selecciona más monedas o reduce la comisión.`,
     vaultTransactionFeeLabel: 'Comisión de la Transacción de la Bóveda',
     backupFundingLabel: 'Costo del Backup on-chain',
     totalTakenFromWalletNowLabel: 'Total retirado de tu billetera ahora',
@@ -623,6 +630,9 @@ Por tu seguridad, por favor revisa estos cambios antes de continuar.`
 
 Por favor, reduce la comisión o agrega más fondos.`,
     invalidFeeRate: `Por favor, selecciona una comisión válida.`,
+    pickedUtxosInsufficient: `Las monedas que seleccionaste no alcanzan para crear esta transacción con la comisión elegida.
+
+Selecciona más monedas o reduce la comisión.`,
     amountLabel: 'Cantidad a Enviar',
     confirmationSpeedLabel: 'Comisión de minería',
     txCalculateError:
@@ -905,6 +915,30 @@ Usa esto para simular comisiones más altas y condiciones extremas de mempool en
         en: 'English',
         es: 'Español'
       }
+    }
+  },
+  coinControl: {
+    auto: 'Auto',
+    title: 'Selección Manual de Monedas',
+    intro: `Rewind elige automáticamente qué fondos concretos de tu billetera usar. En Bitcoin, esos fondos se organizan como salidas no gastadas de transacciones anteriores, también llamadas UTXOs.
+
+Si tienes experiencia y quieres controlar exactamente qué UTXOs se gastan, puedes seleccionarlos manualmente.`,
+    noUtxos: 'No hay UTXOs disponibles para la selección manual.',
+    disabledReasons: {
+      unconfirmedAcceleratableOutput:
+        'Viene de una transacción sin confirmar que todavía puede acelerarse. Si se acelera, esta salida podría desaparecer. Espera una confirmación.',
+      unconfirmedV3Output:
+        'Viene de una transacción v3 sin confirmar. Espera una confirmación antes de seleccionarlo.',
+      trucRequiresConfirmedInput:
+        'Este modo de bóveda solo puede usar fondos confirmados de la billetera. Espera una confirmación antes de seleccionarlo.'
+    },
+    groups: {
+      nativeSegwit: 'SegWit Nativo',
+      wrappedSegwit: 'SegWit Envuelto',
+      legacy: 'Legacy',
+      vault: 'Fondos de Bóveda',
+      wallet: 'Fondos de Billetera',
+      account: 'Cuenta {{account}}'
     }
   },
   continueButton: 'Continuar',

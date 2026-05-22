@@ -3,6 +3,7 @@
 
 import AddressInput from '../components/AddressInput';
 import AmountInput from '../components/AmountInput';
+import CoinControlModal from '../components/CoinControlModal';
 import FeeInput from '../components/FeeInput';
 import { useTranslation } from 'react-i18next';
 import React, {
@@ -14,7 +15,7 @@ import React, {
 } from 'react';
 import { batchedUpdates } from '~/common/lib/batchedUpdates';
 import { useNavigation } from '@react-navigation/native';
-import { View, Text, LayoutChangeEvent } from 'react-native';
+import { View, Text } from 'react-native';
 import {
   Button,
   IconType,
@@ -35,7 +36,7 @@ import {
   estimateSendTxFee,
   calculateTx
 } from '../lib/sendTransaction';
-import { getSendableUtxosData } from '../lib/utxoPolicy';
+import { getSendableUtxos } from '../lib/utxoPolicy';
 import { networkMapping } from '../lib/network';
 import { useSettings } from '../hooks/useSettings';
 import { useWallet } from '../hooks/useWallet';
@@ -50,6 +51,7 @@ import { OutputInstance } from '@bitcoinerlab/descriptors';
 import useFirstDefinedValue from '~/common/hooks/useFirstDefinedValue';
 import useArrayChangeDetector from '~/common/hooks/useArrayChangeDetector';
 import { useLocalization } from '../hooks/useLocalization';
+import type { UtxosData } from '../lib/vaults';
 
 export default function Send() {
   const insets = useSafeAreaInsets();
@@ -73,15 +75,15 @@ export default function Send() {
     signers
   } = useWallet();
 
-  const sendableUtxosData =
+  const sendableUtxosResult =
     utxosData &&
     vaultsStatuses &&
     historyData &&
-    getSendableUtxosData(utxosData, vaultsStatuses, historyData);
+    getSendableUtxos(utxosData, vaultsStatuses, historyData);
 
   //Warn the user and reset this component if wallet changes.
   const walletChanged = useArrayChangeDetector([
-    sendableUtxosData,
+    sendableUtxosResult?.utxosData,
     networkId,
     accounts
   ]);
@@ -90,7 +92,7 @@ export default function Send() {
   const btcFiat = useFirstDefinedValue<number>(btcFiatRealTime);
   const feeEstimates = useFirstDefinedValue<FeeEstimates>(feeEstimatesRealTime);
 
-  if (!sendableUtxosData)
+  if (!sendableUtxosResult)
     throw new Error('SendScreen cannot be called with unset utxos');
   if (!utxosData)
     throw new Error('SendScreen cannot be called with unset raw utxos');
@@ -106,6 +108,10 @@ export default function Send() {
     throw new Error('SendScreen cannot be called with unset feeEstimates');
   if (!signers)
     throw new Error('SendScreen cannot be called with unset signers');
+  const {
+    utxosData: sendableUtxosData,
+    utxosAvailability: sendUtxosAvailability
+  } = sendableUtxosResult;
   const rawUtxosData = utxosData;
   // Pending UTXOs are filtered out either because they come from an unconfirmed
   // acceleration tx the user may re-bump, making those outputs disappear, or
@@ -130,6 +136,12 @@ export default function Send() {
 
   const [address, setAddress] = useState<string | null>(null);
   const [isConfirm, setIsConfirm] = useState<boolean>(false);
+  const [isCoinControlVisible, setIsCoinControlVisible] =
+    useState<boolean>(false);
+  // If set, these are the sendable UTXOs manually picked by the user.
+  const [pickedSendableUtxosData, setPickedSendableUtxosData] =
+    useState<UtxosData | null>(null);
+  const coinControl = pickedSendableUtxosData !== null;
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const { t } = useTranslation();
   const toast = useToast();
@@ -165,21 +177,44 @@ export default function Send() {
     max: maxAmount,
     maxWhen1SxB: maxAmountWhen1SxB
   } = estimateSendRange({
-    utxosData: sendableUtxosData,
+    utxosData: pickedSendableUtxosData ?? sendableUtxosData,
+    coinControl,
     address,
     network,
     feeRate
   });
+  const sendRangeAssumingAutoCoinSelection = coinControl
+    ? estimateSendRange({
+        utxosData: sendableUtxosData,
+        coinControl: false,
+        address,
+        network,
+        feeRate
+      })
+    : { min: minAmount, max: maxAmount, maxWhen1SxB: maxAmountWhen1SxB };
   const { maxWhen1SxB: maxAmountWhen1SxBRaw } = estimateSendRange({
     utxosData: rawUtxosData,
+    coinControl: false,
     address,
     network,
     feeRate
   });
-  // Raw funds would build a tx, but current send policy blocks some pending
-  // UTXOs until they confirm.
+  const canBuildAtSelectedFeeAssumingAutoCoinSelection =
+    feeRate !== null &&
+    sendRangeAssumingAutoCoinSelection.max !== null &&
+    sendRangeAssumingAutoCoinSelection.max >=
+      sendRangeAssumingAutoCoinSelection.min;
+  const canBuildAtMinimumFeeAssumingAutoCoinSelection =
+    maxFeeRate >= MIN_FEE_RATE &&
+    sendRangeAssumingAutoCoinSelection.maxWhen1SxB !== null;
+  // This is a pre-form hard stop: if automatic coinselection cannot build using
+  // all eligible sendable UTXOs, the AmountInput/coin control picker is not
+  // shown. The coin control picker is not even presented because it cannot get
+  // more funds than automatic coinselection anyway.
+  // Use this only as a flag to explain why a hard stop occurred when there are
+  // pending UTXOs.
   const isBlockedByPendingUtxos =
-    maxAmountWhen1SxB === null &&
+    !canBuildAtMinimumFeeAssumingAutoCoinSelection &&
     hasPendingUtxos &&
     maxAmountWhen1SxBRaw !== null;
   const unavailableFundsMessage = isBlockedByPendingUtxos
@@ -219,6 +254,22 @@ export default function Send() {
 
   const txHexRef = useRef<string>(undefined);
   const feeRef = useRef<number>(undefined);
+  const handleCoinControlChange = useCallback((coinControl: boolean) => {
+    if (coinControl) setIsCoinControlVisible(true);
+    else setPickedSendableUtxosData(null);
+  }, []);
+  const handleOpenCoinControl = useCallback(
+    () => setIsCoinControlVisible(true),
+    []
+  );
+  const handleCloseCoinControl = useCallback(
+    () => setIsCoinControlVisible(false),
+    []
+  );
+  const handleConfirmCoinControl = useCallback((utxosData: UtxosData) => {
+    setPickedSendableUtxosData(utxosData);
+    setIsCoinControlVisible(false);
+  }, []);
   const handleCloseContinue = useCallback(() => setIsConfirm(false), []);
   const handleContinue = useCallback(async () => {
     if (
@@ -231,7 +282,8 @@ export default function Send() {
     try {
       const txHexAndFee = await calculateTx({
         signer,
-        utxosData: sendableUtxosData,
+        utxosData: pickedSendableUtxosData ?? sendableUtxosData,
+        coinControl,
         address,
         feeRate,
         amount,
@@ -257,7 +309,9 @@ export default function Send() {
   }, [
     changeOutput,
     toast,
+    pickedSendableUtxosData,
     sendableUtxosData,
+    coinControl,
     network,
     signer,
     t,
@@ -322,7 +376,8 @@ export default function Send() {
         if ((isMaxAmount || !isValidAmountRange) && newFeeRate !== null) {
           // Calculate the new max amount with the updated fee rate
           const { min: newMinAmount, max: newMaxAmount } = estimateSendRange({
-            utxosData: sendableUtxosData,
+            utxosData: pickedSendableUtxosData ?? sendableUtxosData,
+            coinControl,
             address,
             network,
             feeRate: newFeeRate
@@ -339,11 +394,20 @@ export default function Send() {
         }
       });
     },
-    [isMaxAmount, isValidAmountRange, sendableUtxosData, address, network]
+    [
+      isMaxAmount,
+      isValidAmountRange,
+      pickedSendableUtxosData,
+      sendableUtxosData,
+      coinControl,
+      address,
+      network
+    ]
   );
 
   const fee = estimateSendTxFee({
-    utxosData: sendableUtxosData,
+    utxosData: pickedSendableUtxosData ?? sendableUtxosData,
+    coinControl,
     address: address || DUMMY_SEND_ADDRESS(network),
     feeRate,
     amount,
@@ -352,13 +416,6 @@ export default function Send() {
       changeOutput ||
       DUMMY_CHANGE_OUTPUT(getMainAccount(accounts, network), network)
   });
-
-  //Keep track of the AmountInput height to avoid flickering
-  const amountAltStyle = useRef<{ height?: number }>({});
-  const onAmountInputLayout = useCallback((event: LayoutChangeEvent) => {
-    const { height } = event.nativeEvent.layout;
-    if (height) amountAltStyle.current = { height };
-  }, []);
 
   const allFieldsValid =
     amount !== null &&
@@ -399,7 +456,7 @@ export default function Send() {
           </View>
           <Button onPress={navigation.goBack}>{t('goBack')}</Button>
         </View>
-      ) : maxAmountWhen1SxB === null ? (
+      ) : !canBuildAtMinimumFeeAssumingAutoCoinSelection ? (
         <View className="w-full max-w-screen-sm mx-4" style={containerStyle}>
           <Text className="mb-8">{unavailableFundsMessage}</Text>
           <Button onPress={navigation.goBack}>{t('goBack')}</Button>
@@ -422,28 +479,44 @@ export default function Send() {
             onValueChange={setAddress}
           />
           <View className="mb-8" />
-          {isValidAmountRange && maxAmount !== null ? (
+          {isValidAmountRange ? (
             //AmountInput will be constantly re-rendered, so keep track
             //of the last value that was set for initing it to it. If no
             //valid amount was ever set, initialize it to maxAmount.
-            <View onLayout={onAmountInputLayout}>
-              <AmountInput
-                btcFiat={btcFiat}
-                isMaxAmount={isMaxAmount}
-                label={t('send.amountLabel')}
-                initialValue={lastKnownValidAmountRef.current ?? maxAmount}
-                min={minAmount}
-                max={maxAmount}
-                onValueChange={onUserSelectedAmountChange}
-              />
-            </View>
+            <AmountInput
+              btcFiat={btcFiat}
+              isMaxAmount={isMaxAmount}
+              label={t('send.amountLabel')}
+              allowCoinControl
+              coinControl={coinControl}
+              onCoinControlChange={handleCoinControlChange}
+              initialValue={lastKnownValidAmountRef.current ?? maxAmount}
+              min={minAmount}
+              max={maxAmount}
+              onValueChange={onUserSelectedAmountChange}
+            />
           ) : (
-            <View style={amountAltStyle.current}>
+            <View>
               <Text className="text-base m-auto self-center text-red-500">
                 {feeRate === null
                   ? t('send.invalidFeeRate')
-                  : t('send.lowerFeeRate')}
+                  : coinControl
+                    ? t('send.pickedUtxosInsufficient')
+                    : t('send.lowerFeeRate')}
               </Text>
+              {coinControl && canBuildAtSelectedFeeAssumingAutoCoinSelection ? (
+                <View className="mt-4 flex-row flex-wrap justify-center gap-3">
+                  <Button mode="secondary" onPress={handleOpenCoinControl}>
+                    {t('coinControl.title')}
+                  </Button>
+                  <Button
+                    mode="secondary"
+                    onPress={() => handleCoinControlChange(false)}
+                  >
+                    {t('coinControl.auto')}
+                  </Button>
+                </View>
+              ) : null}
             </View>
           )}
           <View className="mb-8" />
@@ -520,6 +593,14 @@ export default function Send() {
               </View>
             </View>
           </Modal>
+          <CoinControlModal
+            isVisible={isCoinControlVisible}
+            utxosAvailability={sendUtxosAvailability}
+            pickedUtxosData={pickedSendableUtxosData}
+            btcFiat={btcFiat}
+            onClose={handleCloseCoinControl}
+            onConfirm={handleConfirmCoinControl}
+          />
         </View>
       )}
     </KeyboardAwareScrollView>

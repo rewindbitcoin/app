@@ -7,7 +7,7 @@ import { getOutputsWithValue, UtxosData } from './vaults';
 import { OutputInstance, signers } from '@bitcoinerlab/descriptors';
 import { ensureDescriptorsFactoryInstance } from './descriptorsFactory';
 import { Network, Psbt } from 'bitcoinjs-lib';
-import { coinselect, dustThreshold, maxFunds } from '@bitcoinerlab/coinselect';
+import { coinselect, dustThreshold, maxFunds } from './coinselect';
 import { DUMMY_PKH_OUTPUT, getMasterNode } from './vaultDescriptors';
 import type { Signer } from './wallets';
 import { toBigInt, toNumber } from './sats';
@@ -36,11 +36,17 @@ const computeOutput = moize((address: string, network: Network) => {
 export const estimateSendRange = moize.shallow(
   ({
     utxosData,
+    coinControl,
     address = null,
     network,
     feeRate = null
   }: {
     utxosData: UtxosData;
+    /**
+     * When true, `utxosData` is the exact manual UTXO selection from the user.
+     * Coin selection must spend every provided UTXO and no others.
+     */
+    coinControl: boolean;
     network: Network;
     address: string | null;
     feeRate: number | null;
@@ -59,6 +65,7 @@ export const estimateSendRange = moize.shallow(
     if (feeRate !== null && feeRate > 0 && utxosCoinselect.length) {
       const coinselected = maxFunds({
         utxos: utxosCoinselect,
+        coinControl,
         targets: [],
         remainder: output,
         feeRate
@@ -74,6 +81,7 @@ export const estimateSendRange = moize.shallow(
     if (utxosCoinselect.length) {
       const coinselected1SxB = maxFunds({
         utxos: utxosCoinselect,
+        coinControl,
         targets: [],
         remainder: output,
         feeRate: 1
@@ -96,6 +104,7 @@ export const estimateSendRange = moize.shallow(
 const sendCoinselect = moize.shallow(
   ({
     utxosData,
+    coinControl,
     address,
     feeRate,
     amount,
@@ -103,6 +112,11 @@ const sendCoinselect = moize.shallow(
     changeOutput
   }: {
     utxosData: UtxosData;
+    /**
+     * When true, `utxosData` is the exact manual UTXO selection from the user.
+     * Coin selection must spend every provided UTXO and no others.
+     */
+    coinControl: boolean;
     address: string | null;
     feeRate: number | null;
     amount: number | null;
@@ -120,6 +134,7 @@ const sendCoinselect = moize.shallow(
       : DUMMY_PKH_OUTPUT();
     const coinselected = coinselect({
       utxos: utxosCoinselect,
+      coinControl,
       targets: [{ output, value: toBigInt(amount) }],
       remainder: changeOutput,
       feeRate
@@ -140,6 +155,7 @@ const sendCoinselect = moize.shallow(
 
 export const estimateSendTxFee = ({
   utxosData,
+  coinControl,
   address,
   feeRate,
   amount,
@@ -147,6 +163,11 @@ export const estimateSendTxFee = ({
   changeOutput
 }: {
   utxosData: UtxosData;
+  /**
+   * When true, `utxosData` is the exact manual UTXO selection from the user.
+   * Coin selection must spend every provided UTXO and no others.
+   */
+  coinControl: boolean;
   address: string | null;
   feeRate: number | null;
   amount: number | null;
@@ -155,6 +176,7 @@ export const estimateSendTxFee = ({
 }) => {
   const coinselected = sendCoinselect({
     utxosData,
+    coinControl,
     address,
     feeRate,
     amount,
@@ -174,6 +196,7 @@ const signPsbt = async (signer: Signer, network: Network, psbtVault: Psbt) => {
 
 export const calculateTx = async ({
   utxosData,
+  coinControl,
   address,
   feeRate,
   amount,
@@ -182,6 +205,11 @@ export const calculateTx = async ({
   signer
 }: {
   utxosData: UtxosData;
+  /**
+   * When true, `utxosData` is the exact manual UTXO selection from the user.
+   * Coin selection must spend every provided UTXO and no others.
+   */
+  coinControl: boolean;
   address: string | null;
   feeRate: number | null;
   amount: number | null;
@@ -191,6 +219,7 @@ export const calculateTx = async ({
 }) => {
   const coinselected = sendCoinselect({
     utxosData,
+    coinControl,
     address,
     feeRate,
     amount,

@@ -39,6 +39,7 @@ const MAX_BACKUP_TX_VSIZE = Math.max(...OP_RETURN_BACKUP_TX_VBYTES);
 export const estimateMaxVaultAmount = moize.shallow(
   ({
     utxosData,
+    coinControl,
     vaultOutput,
     backupOutput,
     triggerReserveOutput,
@@ -48,6 +49,11 @@ export const estimateMaxVaultAmount = moize.shallow(
     packageFeeRate
   }: {
     utxosData: UtxosData;
+    /**
+     * When true, `utxosData` is the exact manual UTXO selection from the user.
+     * Coin selection must spend every provided UTXO and no others.
+     */
+    coinControl: boolean;
     vaultOutput: OutputInstance;
     backupOutput: OutputInstance;
     triggerReserveOutput: OutputInstance;
@@ -59,6 +65,7 @@ export const estimateMaxVaultAmount = moize.shallow(
     const shouldFundTriggerReserve = triggerReserveValue > BigInt(0);
     const selected = coinSelectVaultTx({
       utxosData,
+      coinControl,
       vaultOutput,
       backupOutput,
       changeOutput,
@@ -97,6 +104,7 @@ export const estimateMaxVaultAmount = moize.shallow(
 const estimateMinimumVaultSetup = moize.shallow(
   ({
     utxosData,
+    coinControl,
     coldAddress,
     network,
     vaultOutput,
@@ -111,6 +119,11 @@ const estimateMinimumVaultSetup = moize.shallow(
     presignedRescueFeeRate
   }: {
     utxosData: UtxosData;
+    /**
+     * When true, `utxosData` is the exact manual UTXO selection from the user.
+     * Coin selection must spend every provided UTXO and no others.
+     */
+    coinControl: boolean;
     coldAddress: string;
     network: Network;
     vaultOutput: OutputInstance;
@@ -141,6 +154,7 @@ const estimateMinimumVaultSetup = moize.shallow(
     const shouldFundTriggerReserve = triggerReserveValue > BigInt(0);
     const selected = coinSelectVaultTx({
       utxosData,
+      coinControl,
       vaultOutput,
       backupOutput,
       changeOutput,
@@ -198,6 +212,7 @@ export const estimateVaultSetupRange = moize.shallow(
   ({
     accounts,
     utxosData,
+    coinControl,
     coldAddress,
     minimumPackageFeeRate,
     packageFeeRate = null,
@@ -210,6 +225,11 @@ export const estimateVaultSetupRange = moize.shallow(
   }: {
     accounts: Accounts;
     utxosData: UtxosData;
+    /**
+     * When true, `utxosData` is the exact manual UTXO selection from the user.
+     * Coin selection must spend every provided UTXO and no others.
+     */
+    coinControl: boolean;
     coldAddress: string;
     minimumPackageFeeRate: number;
     packageFeeRate?: number | null;
@@ -246,6 +266,7 @@ export const estimateVaultSetupRange = moize.shallow(
     return {
       minimumVaultSetup: estimateMinimumVaultSetup({
         utxosData,
+        coinControl,
         coldAddress,
         network,
         vaultOutput,
@@ -261,6 +282,7 @@ export const estimateVaultSetupRange = moize.shallow(
       }),
       maxVaultAtMinimumPackageFeeRate: estimateMaxVaultAmount({
         utxosData,
+        coinControl,
         vaultOutput,
         backupOutput,
         triggerReserveOutput,
@@ -271,6 +293,7 @@ export const estimateVaultSetupRange = moize.shallow(
       }),
       maxVaultAtSelectedPackageFeeRate: estimateMaxVaultAmount({
         utxosData,
+        coinControl,
         vaultOutput,
         backupOutput,
         triggerReserveOutput,

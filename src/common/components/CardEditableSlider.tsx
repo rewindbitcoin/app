@@ -14,6 +14,7 @@ function CardEditableSlider({
   maximumValue,
   label,
   headerIcon,
+  headerRight,
   unit,
   onUnitPress,
   maxLabel,
@@ -28,6 +29,7 @@ function CardEditableSlider({
   maximumValue: number;
   label: string;
   headerIcon?: React.ReactNode;
+  headerRight?: React.ReactNode;
   unit: string;
   onUnitPress?: () => void;
   maxLabel?: string;
@@ -58,11 +60,17 @@ function CardEditableSlider({
   );
   return (
     <>
-      <View className="pb-2 flex-row items-center">
-        <Text className="px-2 text-left font-medium text-card-secondary text-sm uppercase">
-          {label}
-        </Text>
-        {headerIcon}
+      <View className="pb-2 flex-row items-center justify-between gap-3">
+        <View className="min-w-0 flex-1 flex-row items-center">
+          <Text
+            className="shrink px-2 text-left font-medium text-card-secondary text-sm uppercase"
+            numberOfLines={1}
+          >
+            {label}
+          </Text>
+          {headerIcon}
+        </View>
+        {headerRight}
       </View>
       <View style={styles.card}>
         <EditableSlider
