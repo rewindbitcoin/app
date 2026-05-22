@@ -18,8 +18,9 @@ type CoinControlModalProps = {
   /**
    * UTXOs manually picked by the user before opening the modal.
    * These are preselected in the picker; auto coin-selection candidates are not passed here.
+   * Null means the user has not confirmed any manual picks yet.
    */
-  pickedUtxosData: UtxosData;
+  pickedUtxosData: UtxosData | null;
   btcFiat: number | undefined;
   onClose: () => void;
   onConfirm: (pickedUtxosData: UtxosData) => void;
@@ -73,7 +74,7 @@ const CoinControlModal = ({
   useEffect(() => {
     if (isVisible)
       setPickedOutpoints(
-        new Set(pickedUtxosData.map(utxoData => getOutpoint(utxoData)))
+        new Set(pickedUtxosData?.map(utxoData => getOutpoint(utxoData)) ?? [])
       );
     else setStep('intro');
   }, [isVisible, pickedUtxosData]);

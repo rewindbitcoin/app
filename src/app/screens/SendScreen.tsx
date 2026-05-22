@@ -596,7 +596,7 @@ export default function Send() {
           <CoinControlModal
             isVisible={isCoinControlVisible}
             utxosAvailability={sendUtxosAvailability}
-            pickedUtxosData={pickedSendableUtxosData ?? []}
+            pickedUtxosData={pickedSendableUtxosData}
             btcFiat={btcFiat}
             onClose={handleCloseCoinControl}
             onConfirm={handleConfirmCoinControl}

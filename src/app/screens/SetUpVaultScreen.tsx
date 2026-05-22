@@ -805,7 +805,7 @@ export default function VaultSetUp({
           <CoinControlModal
             isVisible={isCoinControlVisible}
             utxosAvailability={vaultUtxosAvailability}
-            pickedUtxosData={pickedVaultableUtxosData ?? []}
+            pickedUtxosData={pickedVaultableUtxosData}
             btcFiat={btcFiat}
             onClose={handleCloseCoinControl}
             onConfirm={handleConfirmCoinControl}
