@@ -3,7 +3,10 @@
 
 import AddressInput from '../components/AddressInput';
 import AmountInput from '../components/AmountInput';
-import CoinControlModal from '../components/CoinControlModal';
+import {
+  CoinControlModal,
+  CoinControlRecoveryPanel
+} from '../components/CoinControl';
 import FeeInput from '../components/FeeInput';
 import { useTranslation } from 'react-i18next';
 import React, {
@@ -262,6 +265,9 @@ export default function Send() {
     () => setIsCoinControlVisible(true),
     []
   );
+  const handleUseAutoCoinSelect = useCallback(() => {
+    handleCoinControlChange(false);
+  }, [handleCoinControlChange]);
   const handleCloseCoinControl = useCallback(
     () => setIsCoinControlVisible(false),
     []
@@ -497,26 +503,21 @@ export default function Send() {
             />
           ) : (
             <View>
-              <Text className="text-base m-auto self-center text-red-500">
-                {feeRate === null
-                  ? t('send.invalidFeeRate')
-                  : coinControl
-                    ? t('send.pickedUtxosInsufficient')
-                    : t('send.lowerFeeRate')}
-              </Text>
               {coinControl && canBuildAtSelectedFeeAssumingAutoCoinSelection ? (
-                <View className="mt-4 flex-row flex-wrap justify-center gap-3">
-                  <Button mode="secondary" onPress={handleOpenCoinControl}>
-                    {t('coinControl.title')}
-                  </Button>
-                  <Button
-                    mode="secondary"
-                    onPress={() => handleCoinControlChange(false)}
-                  >
-                    {t('coinControl.auto')}
-                  </Button>
-                </View>
-              ) : null}
+                <CoinControlRecoveryPanel
+                  message={t('send.pickedUtxosInsufficient')}
+                  onOpenCoinControl={handleOpenCoinControl}
+                  onUseAuto={handleUseAutoCoinSelect}
+                />
+              ) : (
+                <Text className="text-base m-auto self-center text-red-500">
+                  {feeRate === null
+                    ? t('send.invalidFeeRate')
+                    : coinControl
+                      ? t('send.pickedUtxosInsufficient')
+                      : t('send.lowerFeeRate')}
+                </Text>
+              )}
             </View>
           )}
           <View className="mb-8" />
