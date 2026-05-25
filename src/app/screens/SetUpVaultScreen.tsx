@@ -4,7 +4,10 @@
 import AddressInput from '../components/AddressInput';
 import AmountInput from '../components/AmountInput';
 import BlocksInput from '../components/BlocksInput';
-import CoinControlModal from '../components/CoinControlModal';
+import {
+  CoinControlModal,
+  CoinControlRecoveryPanel
+} from '../components/CoinControl';
 import FeeInput from '../components/FeeInput';
 import LearnMoreAboutVaults from '../components/LearnMoreAboutVaults';
 import ModalInfoButton from '../components/ModalInfoButton';
@@ -173,6 +176,9 @@ export default function VaultSetUp({
     if (coinControl) setIsCoinControlVisible(true);
     else setPickedVaultableUtxosData(null);
   }, []);
+  const handleUseAutoCoinSelect = useCallback(() => {
+    handleCoinControlChange(false);
+  }, [handleCoinControlChange]);
   const handleCloseCoinControl = useCallback(
     () => setIsCoinControlVisible(false),
     []
@@ -712,26 +718,21 @@ export default function VaultSetUp({
             </>
           ) : (
             <View>
-              <Text className="text-base m-auto self-center text-red-500">
-                {selectedTargetPackageFeeRate === null
-                  ? t('vaultSetup.invalidFeeRate')
-                  : coinControl
-                    ? t('vaultSetup.pickedUtxosInsufficient')
-                    : t('vaultSetup.lowerFeeRate')}
-              </Text>
               {coinControl && canBuildAtSelectedFeeAssumingAutoCoinSelection ? (
-                <View className="mt-4 flex-row flex-wrap justify-center gap-3">
-                  <Button mode="secondary" onPress={handleOpenCoinControl}>
-                    {t('coinControl.title')}
-                  </Button>
-                  <Button
-                    mode="secondary"
-                    onPress={() => handleCoinControlChange(false)}
-                  >
-                    {t('coinControl.auto')}
-                  </Button>
-                </View>
-              ) : null}
+                <CoinControlRecoveryPanel
+                  message={t('vaultSetup.pickedUtxosInsufficient')}
+                  onOpenCoinControl={handleOpenCoinControl}
+                  onUseAuto={handleUseAutoCoinSelect}
+                />
+              ) : (
+                <Text className="text-base m-auto self-center text-red-500">
+                  {selectedTargetPackageFeeRate === null
+                    ? t('vaultSetup.invalidFeeRate')
+                    : coinControl
+                      ? t('vaultSetup.pickedUtxosInsufficient')
+                      : t('vaultSetup.lowerFeeRate')}
+                </Text>
+              )}
             </View>
           )}
           <View className="mb-8" />

@@ -494,9 +494,18 @@ const getActionAccelerationInfo = ({
 };
 
 /**
- * Experimental pure availability calculator for trigger/rescue action modals.
+ * Checks what would block a trigger/rescue vault action.
  *
- * Use this before opening the action confirmation step for either:
+ * This studies whether an initial trigger/rescue or an acceleration can move
+ * past the intro step by testing conditions that would prevent building it,
+ * then returns the user-visible reason if one is found. If no reason blocks the
+ * action, it may also return the minimum fee rate that can build. That is
+ * useful for accelerations because it computes the next package fee rate that
+ * meets replacement policy. Callers still need
+ * `buildVaultActionDataForFeeRate(...)` to build submit-ready action data for a
+ * concrete fee rate.
+ *
+ * Use this before leaving the action intro step for either:
  * - Init Unfreeze: pass trigger presigned txs and omit `pushedTxHex` for the
  *   first push, or pass the unconfirmed trigger tx as `pushedTxHex` to check
  *   acceleration.
@@ -511,7 +520,7 @@ const getActionAccelerationInfo = ({
  * Fixed-fee no-reserve first pushes can be evaluated without fee estimates;
  * replacement checks and package fee selection still require them.
  */
-export const canProceedToActionConfirmation = ({
+export const getVaultActionBlocker = ({
   vaultMode,
   feeEstimates,
   pushedTxHex,
@@ -548,10 +557,12 @@ export const canProceedToActionConfirmation = ({
   historyData: HistoryData;
 }): {
   /**
-   * `blocker: null` means the Trigger/Rescue modal can proceed to confirmation:
-   * the confirmation button is enabled and the modal can build action data.
+   * `reason: null` means no blocking reason was found, so the action can move
+   * past the intro step. The caller must still build concrete action data for
+   * the chosen fee rate before enabling final submission.
    *
-   * Non-null blocker values describe why the user cannot submit the action now:
+   * Non-null reason values describe why the user cannot start or accelerate the
+   * action now:
    * - `noP2AReserve`: no reserve UTXO is available, and the action cannot fall
    *   back to a valid parent-only push. Example: P2A_TRUC trigger with no
    *   reserve.
@@ -569,7 +580,7 @@ export const canProceedToActionConfirmation = ({
    *   guard is `computeMaxAllowedFeeRate(feeEstimates)`, which is 2x the
    *   highest fee estimate.
    */
-  blocker:
+  reason:
     | null
     | 'noP2AReserve'
     | 'p2aReserveUnconfirmed'
@@ -579,7 +590,7 @@ export const canProceedToActionConfirmation = ({
   /**
    * Lowest fee rate the user can select in a fee picker. `null` means no fee
    * picker should be shown; the action may still be submittable at a fixed
-   * presigned fee when `blocker` is `null`.
+   * presigned fee when `reason` is `null`.
    */
   minimumSelectableFeeRate: number | null;
 } => {
@@ -606,7 +617,7 @@ export const canProceedToActionConfirmation = ({
         historyData
       });
       return {
-        blocker: accelerationInfo.hasAccelerationPath
+        reason: accelerationInfo.hasAccelerationPath
           ? null
           : accelerationInfo.replacementFeeRateFloor !== null &&
               accelerationInfo.replacementFeeRateFloor >
@@ -622,7 +633,7 @@ export const canProceedToActionConfirmation = ({
       if (minimumSelectableFeeRate === undefined)
         throw new Error('Missing presigned action tx');
       return {
-        blocker: null,
+        reason: null,
         minimumSelectableFeeRate
       };
     }
@@ -641,12 +652,12 @@ export const canProceedToActionConfirmation = ({
       if (!hasP2AChildInputs)
         return {
           minimumSelectableFeeRate: null,
-          blocker: 'noP2AReserve'
+          reason: 'noP2AReserve'
         };
       if (hasUnconfirmedP2ATrucReserve)
         return {
           minimumSelectableFeeRate: null,
-          blocker: 'p2aReserveUnconfirmed'
+          reason: 'p2aReserveUnconfirmed'
         };
       if (!feeEstimates)
         throw new Error('Fee estimates are required for replacement actions');
@@ -664,7 +675,7 @@ export const canProceedToActionConfirmation = ({
         historyData
       });
       return {
-        blocker: accelerationInfo.hasAccelerationPath
+        reason: accelerationInfo.hasAccelerationPath
           ? null
           : accelerationInfo.replacementFeeRateFloor !== null &&
               accelerationInfo.replacementFeeRateFloor >
@@ -682,7 +693,7 @@ export const canProceedToActionConfirmation = ({
       if (hasUnconfirmedP2ATrucReserve)
         return {
           minimumSelectableFeeRate: null,
-          blocker: 'p2aReserveUnconfirmed'
+          reason: 'p2aReserveUnconfirmed'
         };
       const maximumFeeRate = feeEstimates
         ? computeMaxAllowedFeeRate(feeEstimates)
@@ -721,7 +732,7 @@ export const canProceedToActionConfirmation = ({
 
       return {
         minimumSelectableFeeRate: packageMinimumFeeRate,
-        blocker:
+        reason:
           canSubmitParentOnly || packageMinimumFeeRate !== null
             ? null
             : hasP2AChildInputs
@@ -735,9 +746,9 @@ export const canProceedToActionConfirmation = ({
 /**
  * Builds display/submission data for the selected trigger/rescue fee rate.
  *
- * Use this in the action confirmation step after `canProceedToActionConfirmation(...)`
- * has established that the action can be submitted and, when a fee picker is
- * shown, after the user selected a fee rate.
+ * Use this in the action confirmation step after `getVaultActionBlocker(...)`
+ * returns `reason: null` and, when a fee picker is shown, after the user
+ * selected a fee rate.
  *
  * Examples:
  * - Init Unfreeze first push: pass the trigger presigned tx. If P2A trigger
