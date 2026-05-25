@@ -290,6 +290,9 @@ Check your connection and try again.`,
         walletSupplementCheckbox: 'Use wallet funds.',
         // Keep short: this appears in a narrow checkbox row under "Use wallet funds".
         manualWalletSupplementCheckbox: 'Choose coins manually.',
+        pickedWalletSupplementUtxosInsufficient: `The coins you selected cannot pay this unfreeze fee.
+
+Select more coins or switch back to automatic selection.`,
         walletFundingHint: 'Your wallet needs at least {{amount}} more.',
         parentOnlyConfirmation: `Rewind is ready to start the unfreeze now.`,
         confirmationSpeedLabel: 'Mining Fee',

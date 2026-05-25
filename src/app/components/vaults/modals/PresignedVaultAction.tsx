@@ -6,11 +6,17 @@ import { Modal, Button, ActivityIndicator } from '../../../../common/ui';
 import { useTranslation } from 'react-i18next';
 import { View, Text, Pressable } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import {
+  CoinControlPanel,
+  CoinControlRecoveryPanel,
+  coinControlIcon
+} from '../../CoinControl';
 import FeeInput from '../../FeeInput';
 import { FeeEstimates, MIN_FEE_RATE, pickFeeEstimate } from '../../../lib/fees';
 import { formatBalance, formatBlocks } from '../../../lib/format';
 import { useSettings } from '../../../hooks/useSettings';
 import {
+  type UtxosData,
   type Vault,
   type VaultStatus,
   getVaultMode
@@ -20,7 +26,7 @@ import useFirstDefinedValue from '~/common/hooks/useFirstDefinedValue';
 import { useLocalization } from '../../../hooks/useLocalization';
 import {
   buildVaultActionDataForFeeRate,
-  canProceedToActionConfirmation,
+  getVaultActionBlocker,
   getLadderedRescueSortedTxs,
   getLadderedTriggerSortedTxs,
   getAdditionalOutputValue,
@@ -31,6 +37,10 @@ import {
   type VaultActionData
 } from '../../../lib/vaultActionTx';
 import { getVaultableUtxos } from '../../../lib/utxoPolicy';
+
+type VaultActionBlockerReason =
+  | ReturnType<typeof getVaultActionBlocker>['reason']
+  | undefined;
 
 export type PresignedVaultActionProps = (
   | {
@@ -167,31 +177,29 @@ const PresignedVaultAction = ({
       : vaultStatus.panicCpfpTxHex;
   const pushedTxHex =
     isPushedButUnconfirmed && actionTxHex ? actionTxHex : undefined;
-  const [step, setStep] = useState<'intro' | 'confirm'>('intro');
+  const [step, setStep] = useState<'intro' | 'confirm' | 'coincontrol'>(
+    'intro'
+  );
   const [isModalVisibleOrHiding, setIsModalVisibleOrHiding] =
     useState(isVisible);
   // User opt-in from the checkbox: when true, eligible hot-wallet UTXOs are
   // allowed into package building as a supplement to the reserve inputs.
-  const [includeWalletSupplement, setIncludeWalletSupplement] = useState(false);
-  const [manualWalletSupplement, setManualWalletSupplement] = useState(false);
-  const vaultableWalletUtxosData = useMemo(() => {
+  const [walletSupplementRequested, setWalletSupplementRequested] =
+    useState(false);
+  // If set, these are the vaultable wallet supplement UTXOs manually picked by
+  // the user.
+  const [pickedVaultableWalletUtxosData, setPickedVaultableWalletUtxosData] =
+    useState<UtxosData | null>(null);
+  const walletSupplementCoinControl = pickedVaultableWalletUtxosData !== null;
+  const vaultableWalletUtxosResult = useMemo(() => {
     if (role !== 'TRIGGER' || !isModalVisibleOrHiding || isLadderedVault)
-      return [];
-    if (!utxosData)
-      throw new Error('Trigger wallet supplement requires wallet UTXO data');
-    if (!vaultsStatuses)
-      throw new Error('Trigger wallet supplement requires vault statuses');
-    if (!historyData)
-      throw new Error('Trigger wallet supplement requires history data');
+      return { utxosData: [], utxosAvailability: [] };
+    if (!utxosData || !vaultsStatuses || !historyData)
+      return { utxosData: [], utxosAvailability: [] };
 
     // Trigger supplement inputs use the same policy as vault setup: TRUC needs
     // confirmed inputs, while non-TRUC can use stable unconfirmed non-v3 inputs.
-    return getVaultableUtxos(
-      utxosData,
-      vaultsStatuses,
-      historyData,
-      vaultMode
-    ).utxosData;
+    return getVaultableUtxos(utxosData, vaultsStatuses, historyData, vaultMode);
   }, [
     historyData,
     isLadderedVault,
@@ -201,7 +209,10 @@ const PresignedVaultAction = ({
     vaultMode,
     vaultsStatuses
   ]);
-  if (includeWalletSupplement && role !== 'TRIGGER')
+  const vaultableWalletUtxosData = vaultableWalletUtxosResult.utxosData;
+  const vaultableWalletUtxosAvailability =
+    vaultableWalletUtxosResult.utxosAvailability;
+  if (walletSupplementRequested && role !== 'TRIGGER')
     throw new Error('Wallet supplement is only allowed for trigger actions');
   const isP2ABumpPlanLoading = !isLadderedVault && p2aBumpPlan === 'loading';
   const isP2ABumpPlanError = !isLadderedVault && p2aBumpPlan === 'error';
@@ -212,43 +223,6 @@ const PresignedVaultAction = ({
     if (isVisible) setIsModalVisibleOrHiding(true);
   }, [isVisible]);
 
-  const confirmationAvailability = useMemo(() => {
-    if (!isModalVisibleOrHiding || !presignedTxInfos) return null;
-    if (isP2ABumpPlanLoading || isP2ABumpPlanError) return null;
-    if (!feeEstimates) return null;
-    if (isPushedButUnconfirmed && !pushedTxHex) return null;
-    if (!historyData) return null;
-    return canProceedToActionConfirmation({
-      vaultMode,
-      feeEstimates,
-      ...(pushedTxHex ? { pushedTxHex } : {}),
-      ...(pushedTxHex && childTxHex ? { pushedChildTxHex: childTxHex } : {}),
-      presignedTxInfos,
-      ...(typeof p2aBumpPlan === 'object' ? { p2aBumpPlan } : {}),
-      ...(includeWalletSupplement ? { vaultableWalletUtxosData } : {}),
-      coinControl: false,
-      historyData
-    });
-  }, [
-    isModalVisibleOrHiding,
-    presignedTxInfos,
-    isP2ABumpPlanLoading,
-    isP2ABumpPlanError,
-    feeEstimates,
-    isPushedButUnconfirmed,
-    pushedTxHex,
-    vaultMode,
-    childTxHex,
-    p2aBumpPlan,
-    includeWalletSupplement,
-    vaultableWalletUtxosData,
-    historyData
-  ]);
-  const confirmationBlocker = confirmationAvailability?.blocker;
-  const minimumSelectableFeeRate =
-    confirmationAvailability?.minimumSelectableFeeRate ?? null;
-  const needsFeePicker = minimumSelectableFeeRate !== null;
-
   if (!settings)
     throw new Error(
       'This component should only be started after settings has been retrieved from storage'
@@ -258,6 +232,8 @@ const PresignedVaultAction = ({
       ? 'Fiat'
       : settings.SUB_UNIT;
 
+  // The fee rate for the 2 hour confirmation target (INITIAL_CONFIRMATION_TIME).
+  // We call this the "reasonable" confirmation time.
   const feeRateForReasonableConfirmationTime = useMemo<number | null>(() => {
     if (!isModalVisibleOrHiding || !feeEstimates) return null;
     return pickFeeEstimate(feeEstimates, settings.INITIAL_CONFIRMATION_TIME)
@@ -268,116 +244,227 @@ const PresignedVaultAction = ({
     settings.INITIAL_CONFIRMATION_TIME
   ]);
 
-  const preferredInitialFeeRate = useMemo<number | null>(() => {
-    // This modal stays mounted so Modal can animate across isVisible changes.
-    // While fully hidden, return inert render-time values instead of action data.
-    if (!isModalVisibleOrHiding || !confirmationAvailability) return null;
-    if (confirmationAvailability.blocker !== null) return null;
-    if (confirmationAvailability.minimumSelectableFeeRate === null)
-      return presignedTxInfos?.[0]?.feeRate ?? null;
-    if (feeRateForReasonableConfirmationTime === null) return null;
-    return Math.max(
-      confirmationAvailability.minimumSelectableFeeRate,
-      feeRateForReasonableConfirmationTime
-    );
-  }, [
-    isModalVisibleOrHiding,
-    confirmationAvailability,
-    presignedTxInfos,
-    feeRateForReasonableConfirmationTime
-  ]);
-
   const [feeRate, setFeeRate] = useState<number | null>(null);
 
-  const getVaultActionDataForFeeRate = useCallback(
-    (selectedFeeRate: number): VaultActionData | null => {
-      // This modal stays mounted so Modal can animate across isVisible changes.
-      // While fully hidden or unavailable, return inert render-time values instead of action data.
-      if (
-        !isModalVisibleOrHiding ||
-        !presignedTxInfos ||
-        !confirmationAvailability
-      )
-        return null;
-      if (confirmationAvailability.blocker !== null) return null;
-      return buildVaultActionDataForFeeRate({
+  /**
+   * Current trigger/rescue readiness and concrete action data for the user's
+   * current wallet-supplement choice.
+   *
+   * `getVaultActionBlocker(...)` explains whether the flow is blocked
+   * and which fee range can be offered. `buildVaultActionDataForFeeRate(...)`
+   * then proves a concrete fee can build the tx/package the user would submit.
+   * Keeping both results in one plan makes that coupling explicit for the UI.
+   */
+  const {
+    blockerReason,
+    blockerReasonAssumingAutoWalletSupplement,
+    minimumSelectableFeeRate,
+    needsFeeInput,
+    preferredInitialFeeRate,
+    initialFeeRate,
+    selectedFeeRate,
+    vaultActionData,
+    vaultActionDataAssumingAutoWalletSupplement,
+    vaultActionDataWithoutWalletSupplement
+  } = useMemo(() => {
+    // UX: unlocks intro-to-confirm or shows why trigger/rescue is unavailable; undefined means the block check has not run and null means unblocked.
+    let blockerReason: VaultActionBlockerReason = undefined;
+    // UX: unlocks manual-pick utxo recovery via auto selection; same as above, but assuming wallet supplement is opted in and auto coin selection is used.
+    let blockerReasonAssumingAutoWalletSupplement: VaultActionBlockerReason =
+      undefined;
+    // UX: sets the minimum fee the picker will allow; null means no picker is needed or availability is unknown.
+    let minimumSelectableFeeRate: number | null = null;
+    // UX: decides whether the confirm step shows FeeInput; false means fixed-fee/no-input or unknown.
+    let needsFeeInput = false;
+    // UX: selects the first recommended fee shown to the user; null means no default can be chosen yet.
+    let preferredInitialFeeRate: number | null = null;
+    // UX: checks whether the recommended default fee can be offered; null means it is absent or unbuildable.
+    let vaultActionDataAtPreferredInitialFeeRate: VaultActionData | null = null;
+    // UX: unlocks the confirm step with a concrete buildable fee; null keeps confirmation unavailable/loading.
+    let initialFeeRate: number | null = null;
+    // UX: tracks the fee currently driving the preview/action button; null means there is no usable fee yet.
+    let selectedFeeRate: number | null = null;
+    // UX: enables the final action button for the current supplement choice; null means it cannot build now.
+    let vaultActionData: VaultActionData | null = null;
+    // UX: same as above, but assuming wallet supplement is opted in and auto coin selection is used for supplement UTXOs.
+    let vaultActionDataAssumingAutoWalletSupplement: VaultActionData | null =
+      null;
+    // UX: decides whether to prompt for wallet supplement funds; null means no-supplement did not build or was not probed.
+    let vaultActionDataWithoutWalletSupplement: VaultActionData | null = null;
+
+    if (
+      isModalVisibleOrHiding &&
+      presignedTxInfos &&
+      !isP2ABumpPlanLoading &&
+      !isP2ABumpPlanError &&
+      feeEstimates &&
+      !(isPushedButUnconfirmed && !pushedTxHex) &&
+      historyData
+    ) {
+      const sharedBlockerArgs = {
         vaultMode,
-        selectedFeeRate,
+        feeEstimates,
         ...(pushedTxHex ? { pushedTxHex } : {}),
+        ...(pushedTxHex && childTxHex ? { pushedChildTxHex: childTxHex } : {}),
         presignedTxInfos,
         ...(typeof p2aBumpPlan === 'object' ? { p2aBumpPlan } : {}),
-        ...(includeWalletSupplement ? { vaultableWalletUtxosData } : {}),
-        coinControl: false
-      });
-    },
-    [
-      isModalVisibleOrHiding,
-      presignedTxInfos,
-      confirmationAvailability,
-      vaultMode,
-      pushedTxHex,
-      p2aBumpPlan,
-      includeWalletSupplement,
-      vaultableWalletUtxosData
-    ]
-  );
-  const cannotAccelerateMaxFee =
-    confirmationBlocker === 'replacementFeeAboveMaximum';
+        historyData
+      };
+      ({ reason: blockerReason, minimumSelectableFeeRate } =
+        getVaultActionBlocker({
+          ...sharedBlockerArgs,
+          ...(walletSupplementRequested
+            ? {
+                vaultableWalletUtxosData:
+                  pickedVaultableWalletUtxosData ?? vaultableWalletUtxosData
+              }
+            : {}),
+          coinControl: walletSupplementCoinControl
+        }));
+      if (walletSupplementCoinControl) {
+        ({ reason: blockerReasonAssumingAutoWalletSupplement } =
+          getVaultActionBlocker({
+            ...sharedBlockerArgs,
+            ...(walletSupplementRequested ? { vaultableWalletUtxosData } : {}),
+            coinControl: false
+          }));
+      } else blockerReasonAssumingAutoWalletSupplement = blockerReason;
+    }
 
-  const initialFeeRate = useMemo<number | null>(() => {
+    needsFeeInput = minimumSelectableFeeRate !== null;
+
+    // Initial fee rate is the max of the reasonable one and the minimum
+    // fee rate that can lead to an enabled confirmation button.
+    if (blockerReason === null) {
+      if (minimumSelectableFeeRate === null)
+        preferredInitialFeeRate = presignedTxInfos?.[0]?.feeRate ?? null;
+      else if (feeRateForReasonableConfirmationTime !== null)
+        preferredInitialFeeRate = Math.max(
+          minimumSelectableFeeRate,
+          feeRateForReasonableConfirmationTime
+        );
+    }
+
+    const sharedActionBuildArgs =
+      isModalVisibleOrHiding && presignedTxInfos
+        ? {
+            vaultMode,
+            ...(pushedTxHex ? { pushedTxHex } : {}),
+            presignedTxInfos,
+            ...(typeof p2aBumpPlan === 'object' ? { p2aBumpPlan } : {})
+          }
+        : null;
+    const currentWalletSupplementArgs = walletSupplementRequested
+      ? {
+          vaultableWalletUtxosData:
+            pickedVaultableWalletUtxosData ?? vaultableWalletUtxosData
+        }
+      : {};
     if (
       preferredInitialFeeRate !== null &&
-      getVaultActionDataForFeeRate(preferredInitialFeeRate) !== null
-    )
-      return preferredInitialFeeRate;
+      sharedActionBuildArgs !== null &&
+      blockerReason === null
+    ) {
+      vaultActionDataAtPreferredInitialFeeRate = buildVaultActionDataForFeeRate(
+        {
+          ...sharedActionBuildArgs,
+          selectedFeeRate: preferredInitialFeeRate,
+          ...currentWalletSupplementArgs,
+          coinControl: walletSupplementCoinControl
+        }
+      );
+    }
 
-    // If the preferred target is not fundable, use the lowest buildable fee.
-    if (
+    if (vaultActionDataAtPreferredInitialFeeRate !== null)
+      initialFeeRate = preferredInitialFeeRate;
+    else if (
       minimumSelectableFeeRate !== null &&
-      getVaultActionDataForFeeRate(minimumSelectableFeeRate) !== null
-    )
-      return minimumSelectableFeeRate;
+      sharedActionBuildArgs !== null &&
+      blockerReason === null
+    ) {
+      // If the preferred target is not fundable, use the lowest buildable fee.
+      const vaultActionDataAtMinimumSelectableFeeRate =
+        buildVaultActionDataForFeeRate({
+          ...sharedActionBuildArgs,
+          selectedFeeRate: minimumSelectableFeeRate,
+          ...currentWalletSupplementArgs,
+          coinControl: walletSupplementCoinControl
+        });
+      if (vaultActionDataAtMinimumSelectableFeeRate !== null)
+        initialFeeRate = minimumSelectableFeeRate;
+    }
 
-    return null;
-  }, [
-    preferredInitialFeeRate,
-    minimumSelectableFeeRate,
-    getVaultActionDataForFeeRate
-  ]);
-
-  const selectedFeeRate = feeRate ?? initialFeeRate;
-
-  const vaultActionData = useMemo<VaultActionData | null>(() => {
-    if (selectedFeeRate === null) return null;
-    return getVaultActionDataForFeeRate(selectedFeeRate);
-  }, [selectedFeeRate, getVaultActionDataForFeeRate]);
-
-  // Build the same action as above without passing vaultableWalletUtxosData.
-  // If this is null while vaultActionData is buildable, the selected fee needs
-  // wallet supplement inputs.
-  const vaultActionDataWithoutWalletSupplement =
-    useMemo<VaultActionData | null>(() => {
-      if (selectedFeeRate === null) return null;
-      if (!isModalVisibleOrHiding || !presignedTxInfos) return null;
-      return buildVaultActionDataForFeeRate({
-        vaultMode,
+    selectedFeeRate = feeRate ?? initialFeeRate;
+    if (
+      selectedFeeRate !== null &&
+      sharedActionBuildArgs !== null &&
+      blockerReason === null
+    ) {
+      vaultActionData = buildVaultActionDataForFeeRate({
+        ...sharedActionBuildArgs,
         selectedFeeRate,
-        ...(pushedTxHex ? { pushedTxHex } : {}),
-        presignedTxInfos,
-        ...(typeof p2aBumpPlan === 'object' ? { p2aBumpPlan } : {}),
+        ...currentWalletSupplementArgs,
+        coinControl: walletSupplementCoinControl
+      });
+
+      // Probe the same action without wallet supplement inputs. If this is null
+      // while vaultActionData is buildable, the selected fee needs supplement.
+      vaultActionDataWithoutWalletSupplement = buildVaultActionDataForFeeRate({
+        ...sharedActionBuildArgs,
+        selectedFeeRate,
         coinControl: false
       });
-    }, [
-      selectedFeeRate,
-      isModalVisibleOrHiding,
-      presignedTxInfos,
-      vaultMode,
-      pushedTxHex,
-      p2aBumpPlan
-    ]);
+    }
 
-  const canOpenConfirmStep =
-    confirmationAvailability?.blocker === null && initialFeeRate !== null;
+    if (!walletSupplementCoinControl) {
+      vaultActionDataAssumingAutoWalletSupplement = vaultActionData;
+    } else if (
+      selectedFeeRate !== null &&
+      sharedActionBuildArgs !== null &&
+      blockerReasonAssumingAutoWalletSupplement === null
+    ) {
+      vaultActionDataAssumingAutoWalletSupplement =
+        buildVaultActionDataForFeeRate({
+          ...sharedActionBuildArgs,
+          selectedFeeRate,
+          ...(walletSupplementRequested ? { vaultableWalletUtxosData } : {}),
+          coinControl: false
+        });
+    }
+
+    return {
+      blockerReason,
+      blockerReasonAssumingAutoWalletSupplement,
+      minimumSelectableFeeRate,
+      needsFeeInput,
+      preferredInitialFeeRate,
+      initialFeeRate,
+      selectedFeeRate,
+      vaultActionData,
+      vaultActionDataAssumingAutoWalletSupplement,
+      vaultActionDataWithoutWalletSupplement
+    };
+  }, [
+    pickedVaultableWalletUtxosData,
+    vaultableWalletUtxosData,
+    walletSupplementCoinControl,
+    isModalVisibleOrHiding,
+    presignedTxInfos,
+    isP2ABumpPlanLoading,
+    isP2ABumpPlanError,
+    feeEstimates,
+    isPushedButUnconfirmed,
+    historyData,
+    feeRateForReasonableConfirmationTime,
+    feeRate,
+    vaultMode,
+    childTxHex,
+    walletSupplementRequested,
+    pushedTxHex,
+    p2aBumpPlan
+  ]);
+
+  const cannotAccelerateMaxFee = blockerReason === 'replacementFeeAboveMaximum';
 
   const fee = vaultActionData ? vaultActionData.actionFee : null;
 
@@ -385,8 +472,8 @@ const PresignedVaultAction = ({
     setIsModalVisibleOrHiding(false);
     setStep('intro');
     setFeeRate(null);
-    setIncludeWalletSupplement(false);
-    setManualWalletSupplement(false);
+    setWalletSupplementRequested(false);
+    setPickedVaultableWalletUtxosData(null);
     onModalHide?.();
   }, [onModalHide]);
 
@@ -476,110 +563,131 @@ const PresignedVaultAction = ({
     role === 'TRIGGER'
       ? ({ family: 'MaterialCommunityIcons', name: 'snowflake-melt' } as const)
       : ({ family: 'MaterialCommunityIcons', name: 'alarm-light' } as const);
+  const modalTitle =
+    step === 'coincontrol' ? t('coinControl.title') : actionText;
+  const activeModalIcon = step === 'coincontrol' ? coinControlIcon : modalIcon;
 
   // Hard reserve failure states. For a first push this means the reserve cannot
   // fund even the minimum dust-safe CPFP child. For acceleration this means no
   // valid replacement path exists with the current reserve/current child state.
   const showReserveCannotBuildAnyPackage =
-    confirmationBlocker === 'p2aReserveCannotFundMinimumPackage' ||
-    (!isLadderedVault && confirmationBlocker === 'noReplacementPath');
-  // Enables the trigger wallet-supplement UX: checkbox, add-wallet-funds hint,
-  // and transaction building with selected wallet inputs when reserve-only is
-  // not enough. Rescue never reaches this path.
-  const canTryWalletSupplement =
+    blockerReason === 'p2aReserveCannotFundMinimumPackage' ||
+    (!isLadderedVault && blockerReason === 'noReplacementPath');
+  // Capability gate: wallet supplement can only be offered when this trigger
+  // flow has eligible hot-wallet UTXOs that can legally supplement the reserve.
+  const canOfferWalletSupplement =
     role === 'TRIGGER' &&
     !isLadderedVault &&
     typeof p2aBumpPlan === 'object' &&
     vaultableWalletUtxosData.length > 0 &&
     !(vaultMode === 'P2A_TRUC' && p2aBumpPlan.hasUnconfirmedUtxos);
-  const selectedFeeNeedsMoreReserveFunds =
-    !isLadderedVault &&
-    needsFeePicker &&
-    selectedFeeRate !== null &&
-    vaultActionData === null;
+  // The selected fee has no buildable action data for the user's current
+  // choices.
+  const selectedFeeCannotBuildAction =
+    !isLadderedVault && selectedFeeRate !== null && vaultActionData === null;
   const preferredPackageFeeNeedsMoreFunds =
     !isLadderedVault &&
-    needsFeePicker &&
     preferredInitialFeeRate !== null &&
     initialFeeRate !== null &&
-    preferredInitialFeeRate > initialFeeRate &&
-    getVaultActionDataForFeeRate(preferredInitialFeeRate) === null;
-  // There is no reserve, and the parent-only fee is below the recommended
-  // (reasonable ~ 2 hours) fee.
-  const noReserveAndParentFeeBelowReasonable =
-    !isLadderedVault &&
-    !isPushedButUnconfirmed &&
-    confirmationAvailability?.blocker === null &&
-    !needsFeePicker &&
-    typeof p2aBumpPlan === 'object' &&
-    p2aBumpPlan.txosData.length === 0 &&
-    feeRateForReasonableConfirmationTime !== null &&
-    (presignedTxInfos?.[0]?.feeRate ?? Infinity) <
-      feeRateForReasonableConfirmationTime;
+    preferredInitialFeeRate > initialFeeRate;
   let reserveFundsMissingPromptText: string | null = null;
-  if (selectedFeeNeedsMoreReserveFunds)
-    reserveFundsMissingPromptText =
-      role === 'TRIGGER'
-        ? t('wallet.vault.triggerUnfreeze.reserveCannotPaySelectedFee')
-        : t('wallet.vault.rescue.reserveCannotPaySelectedFee');
-  else if (preferredPackageFeeNeedsMoreFunds)
-    reserveFundsMissingPromptText =
-      role === 'TRIGGER'
-        ? t('wallet.vault.triggerUnfreeze.packageBelowRecommendedFee')
-        : t('wallet.vault.rescue.reserveBelowRecommendedFee');
-  else if (noReserveAndParentFeeBelowReasonable)
-    reserveFundsMissingPromptText =
-      role === 'TRIGGER'
-        ? t(
-            'wallet.vault.triggerUnfreeze.noReserveParentFeeBelowRecommendedFee'
-          )
-        : t('wallet.vault.rescue.parentFeeBelowRecommendedFee');
+  if (!isLadderedVault) {
+    if (selectedFeeCannotBuildAction)
+      reserveFundsMissingPromptText =
+        role === 'TRIGGER'
+          ? t('wallet.vault.triggerUnfreeze.reserveCannotPaySelectedFee')
+          : t('wallet.vault.rescue.reserveCannotPaySelectedFee');
+    else if (preferredPackageFeeNeedsMoreFunds)
+      reserveFundsMissingPromptText =
+        role === 'TRIGGER'
+          ? t('wallet.vault.triggerUnfreeze.packageBelowRecommendedFee')
+          : t('wallet.vault.rescue.reserveBelowRecommendedFee');
+    // UX: fixed-fee parent-only fallback can proceed, but show a warning that it
+    // may confirm slower than the recommended (reasonable ~ 2 hours) target.
+    else if (
+      blockerReason === null &&
+      !needsFeeInput &&
+      feeRateForReasonableConfirmationTime !== null &&
+      (presignedTxInfos?.[0]?.feeRate ?? Infinity) <
+        feeRateForReasonableConfirmationTime
+    )
+      reserveFundsMissingPromptText =
+        role === 'TRIGGER'
+          ? t(
+              'wallet.vault.triggerUnfreeze.noReserveParentFeeBelowRecommendedFee'
+            )
+          : t('wallet.vault.rescue.parentFeeBelowRecommendedFee');
+  }
   const txUsesWalletSupplement =
-    includeWalletSupplement &&
     vaultActionData !== null &&
     Array.isArray(vaultActionData.walletSupplementUtxosData);
-  // The currently selected fee cannot be built without hot-wallet supplement
-  // inputs, but there are eligible wallet UTXOs worth trying.
-  const selectedFeeNeedsWalletSupplement =
-    canTryWalletSupplement &&
+  if (txUsesWalletSupplement && !walletSupplementRequested)
+    throw new Error('Wallet supplement used without user request');
+  // Reserve-only cannot build at the selected fee. The current path may still
+  // build if wallet supplement is used.
+  const selectedFeeCannotBuildActionWithoutWalletSupplement =
+    canOfferWalletSupplement &&
     selectedFeeRate !== null &&
     vaultActionDataWithoutWalletSupplement === null;
-  // Broader wallet-supplement UX trigger: show the checkbox/hints when the
-  // selected fee needs supplement, when no reserve-backed action can be built,
-  // or when the selected action already uses supplement inputs. A below-
-  // recommended but buildable fee is only a warning, not a supplement prompt.
-  const walletSupplementNeeded =
-    selectedFeeNeedsWalletSupplement ||
-    selectedFeeNeedsMoreReserveFunds ||
+  // UX reason for offering wallet supplement: it may help the current action
+  // build, or the current action already uses it. A below-recommended but
+  // buildable fee is only a warning, not a supplement prompt.
+  const walletSupplementOfferReason =
+    selectedFeeCannotBuildActionWithoutWalletSupplement ||
+    selectedFeeCannotBuildAction ||
     showReserveCannotBuildAnyPackage ||
-    confirmationBlocker === 'noP2AReserve' ||
-    txUsesWalletSupplement;
+    blockerReason === 'noP2AReserve'
+      ? 'canHelpCurrentAction'
+      : txUsesWalletSupplement
+        ? 'txUsesWalletSupplement'
+        : null;
   const showWalletSupplementCheckbox =
-    canTryWalletSupplement &&
-    (walletSupplementNeeded || includeWalletSupplement);
+    canOfferWalletSupplement &&
+    (walletSupplementOfferReason !== null || walletSupplementRequested);
 
-  //controls the checkbox auto turn-off
+  // Controls checkbox auto turn-off.
   useEffect(() => {
-    if (!includeWalletSupplement) return;
+    if (!walletSupplementRequested) return;
     // The checkbox is an explicit opt-in. Clear it when wallet supplement stops
-    // being available or useful so it cannot silently re-enable later.
-    if (!canTryWalletSupplement || !walletSupplementNeeded)
+    // being offerable or no longer has a reason to affect this action.
+    if (!canOfferWalletSupplement || walletSupplementOfferReason === null) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
-      setIncludeWalletSupplement(false);
-  }, [includeWalletSupplement, canTryWalletSupplement, walletSupplementNeeded]);
-
-  useEffect(() => {
-    if (!includeWalletSupplement && manualWalletSupplement)
+      setWalletSupplementRequested(false);
       // eslint-disable-next-line react-hooks/set-state-in-effect
-      setManualWalletSupplement(false);
-  }, [includeWalletSupplement, manualWalletSupplement]);
+      setPickedVaultableWalletUtxosData(null);
+    }
+  }, [
+    walletSupplementRequested,
+    canOfferWalletSupplement,
+    walletSupplementOfferReason
+  ]);
 
   const toggleWalletSupplement = useCallback(() => {
-    setIncludeWalletSupplement(value => !value);
+    if (walletSupplementRequested) {
+      setWalletSupplementRequested(false);
+      setPickedVaultableWalletUtxosData(null);
+    } else setWalletSupplementRequested(true);
+  }, [walletSupplementRequested]);
+  const handleOpenWalletSupplementCoinControl = useCallback(() => {
+    setStep('coincontrol');
   }, []);
-  const toggleManualWalletSupplement = useCallback(() => {
-    setManualWalletSupplement(value => !value);
+  const handleToggleManualWalletSupplement = useCallback(() => {
+    if (walletSupplementCoinControl) setPickedVaultableWalletUtxosData(null);
+    else setStep('coincontrol');
+  }, [walletSupplementCoinControl]);
+  const handleCloseWalletSupplementCoinControl = useCallback(() => {
+    setStep('confirm');
   }, []);
+  const handleUseAutoWalletSupplement = useCallback(() => {
+    setPickedVaultableWalletUtxosData(null);
+  }, []);
+  const handleConfirmWalletSupplementCoinControl = useCallback(
+    (pickedUtxosData: UtxosData) => {
+      setPickedVaultableWalletUtxosData(pickedUtxosData);
+      setStep('confirm');
+    },
+    []
+  );
 
   const walletSupplementCheckbox = showWalletSupplementCheckbox ? (
     <Pressable
@@ -588,7 +696,7 @@ const PresignedVaultAction = ({
     >
       <MaterialCommunityIcons
         name={
-          includeWalletSupplement
+          walletSupplementRequested
             ? 'checkbox-marked-outline'
             : 'checkbox-blank-outline'
         }
@@ -601,15 +709,14 @@ const PresignedVaultAction = ({
     </Pressable>
   ) : null;
   const manualWalletSupplementCheckbox =
-    showWalletSupplementCheckbox && includeWalletSupplement ? (
-      // TODO: wire this checkbox to the coin-control picker for wallet supplement inputs.
+    showWalletSupplementCheckbox && walletSupplementRequested ? (
       <Pressable
-        onPress={toggleManualWalletSupplement}
+        onPress={handleToggleManualWalletSupplement}
         className="flex-row items-center pt-4"
       >
         <MaterialCommunityIcons
           name={
-            manualWalletSupplement
+            walletSupplementCoinControl
               ? 'checkbox-marked-outline'
               : 'checkbox-blank-outline'
           }
@@ -621,6 +728,28 @@ const PresignedVaultAction = ({
         </Text>
       </Pressable>
     ) : null;
+  const autoWalletSupplementCanProceed =
+    blockerReasonAssumingAutoWalletSupplement === null;
+  const manualWalletSupplementNeedsRecovery =
+    walletSupplementRequested &&
+    walletSupplementCoinControl &&
+    autoWalletSupplementCanProceed &&
+    ((blockerReason !== undefined && blockerReason !== null) ||
+      (selectedFeeRate !== null &&
+        vaultActionData === null &&
+        vaultActionDataAssumingAutoWalletSupplement !== null));
+  const manualWalletSupplementRecoveryPrompt =
+    manualWalletSupplementNeedsRecovery ? (
+      <CoinControlRecoveryPanel
+        message={t(
+          'wallet.vault.triggerUnfreeze.pickedWalletSupplementUtxosInsufficient'
+        )}
+        className="pt-4 px-2"
+        textClassName="text-base text-notification"
+        onOpenCoinControl={handleOpenWalletSupplementCoinControl}
+        onUseAuto={handleUseAutoWalletSupplement}
+      />
+    ) : null;
   const reserveFundsMissingButton = onReserveFundsMissing ? (
     <View className="items-center pt-4">
       <Button mode="secondary-alert" onPress={onReserveFundsMissing}>
@@ -630,10 +759,10 @@ const PresignedVaultAction = ({
   ) : null;
   const shouldShowAdditionalWalletSupplementHint =
     role === 'TRIGGER' &&
-    (!showWalletSupplementCheckbox || includeWalletSupplement) &&
-    (selectedFeeNeedsMoreReserveFunds ||
+    (!showWalletSupplementCheckbox || walletSupplementRequested) &&
+    (selectedFeeCannotBuildAction ||
       showReserveCannotBuildAnyPackage ||
-      confirmationBlocker === 'noP2AReserve' ||
+      blockerReason === 'noP2AReserve' ||
       txUsesWalletSupplement);
 
   // Size the suggested extra hot-wallet funding for the fee the user is
@@ -686,14 +815,16 @@ const PresignedVaultAction = ({
     ) : (
       reserveFundsMissingButton
     );
-  const reserveFundsMissingPrompt = reserveFundsMissingPromptText ? (
-    <View className="pt-4 px-2">
-      <Text className="text-base text-notification">
-        {reserveFundsMissingPromptText}
-      </Text>
-      {reserveFundsMissingAction}
-    </View>
-  ) : null;
+  const reserveFundsMissingPrompt = reserveFundsMissingPromptText
+    ? (manualWalletSupplementRecoveryPrompt ?? (
+        <View className="pt-4 px-2">
+          <Text className="text-base text-notification">
+            {reserveFundsMissingPromptText}
+          </Text>
+          {reserveFundsMissingAction}
+        </View>
+      ))
+    : manualWalletSupplementRecoveryPrompt;
   const postActionExplanation = (
     <View>
       <Text className="text-base text-slate-600 pt-4 px-2">
@@ -712,18 +843,33 @@ const PresignedVaultAction = ({
   const isConfirmationReadinessLoading =
     !isP2ABumpPlanError &&
     (isP2ABumpPlanLoading ||
-      !confirmationAvailability ||
-      (needsFeePicker && !feeEstimates));
+      blockerReason === undefined ||
+      (needsFeeInput && !feeEstimates));
+
   const hasBlockingState =
-    confirmationBlocker !== undefined && confirmationBlocker !== null;
+    blockerReason !== undefined && blockerReason !== null;
+
   // The intro button can advance once readiness is known. The next screen may
   // be a real confirmation, or a blocking reserve/error state with no action.
+  // initialFeeRate !== null means we have a concrete buildable fee for the
+  // confirmation step.
   const canLeaveIntro =
-    isP2ABumpPlanError || hasBlockingState || canOpenConfirmStep;
-  const canShowActionButton = confirmationAvailability?.blocker === null;
+    isP2ABumpPlanError || hasBlockingState || initialFeeRate !== null;
+
+  const canShowActionButton = blockerReason === null;
 
   let modalContent: React.ReactNode;
-  if (step === 'intro') {
+  if (step === 'coincontrol') {
+    modalContent = (
+      <CoinControlPanel
+        utxosAvailability={vaultableWalletUtxosAvailability}
+        pickedUtxosData={pickedVaultableWalletUtxosData}
+        btcFiat={btcFiat}
+        onClose={handleCloseWalletSupplementCoinControl}
+        onConfirm={handleConfirmWalletSupplementCoinControl}
+      />
+    );
+  } else if (step === 'intro') {
     modalContent = (
       <View>
         <Text className="text-base text-slate-600 pb-2 px-2">{introText}</Text>
@@ -746,16 +892,20 @@ const PresignedVaultAction = ({
     );
   } else if (isConfirmationReadinessLoading) {
     modalContent = <ActivityIndicator />;
-  } else if (confirmationBlocker === 'noP2AReserve') {
+  } else if (blockerReason === 'noP2AReserve') {
     modalContent = (
       <View>
-        <Text className="text-base text-slate-600 pb-2 px-2">
-          {noReserveAvailableYetText}
-        </Text>
-        <View className="px-2">{reserveFundsMissingAction}</View>
+        {manualWalletSupplementRecoveryPrompt ?? (
+          <>
+            <Text className="text-base text-slate-600 pb-2 px-2">
+              {noReserveAvailableYetText}
+            </Text>
+            <View className="px-2">{reserveFundsMissingAction}</View>
+          </>
+        )}
       </View>
     );
-  } else if (confirmationBlocker === 'p2aReserveUnconfirmed') {
+  } else if (blockerReason === 'p2aReserveUnconfirmed') {
     modalContent = (
       <View>
         <Text className="text-base text-slate-600 pb-2 px-2">
@@ -766,21 +916,27 @@ const PresignedVaultAction = ({
   } else if (cannotAccelerateMaxFee) {
     modalContent = (
       <View>
-        <Text className="text-base text-slate-600 pb-2 px-2">
-          {t('wallet.vault.cannotAccelerateMaxFee')}
-        </Text>
+        {manualWalletSupplementRecoveryPrompt ?? (
+          <Text className="text-base text-slate-600 pb-2 px-2">
+            {t('wallet.vault.cannotAccelerateMaxFee')}
+          </Text>
+        )}
       </View>
     );
   } else if (showReserveCannotBuildAnyPackage) {
     modalContent = (
       <View>
-        <Text className="text-base text-slate-600 pb-2 px-2">
-          {reserveCannotBuildPackageText}
-        </Text>
-        <View className="px-2">{reserveFundsMissingAction}</View>
+        {manualWalletSupplementRecoveryPrompt ?? (
+          <>
+            <Text className="text-base text-slate-600 pb-2 px-2">
+              {reserveCannotBuildPackageText}
+            </Text>
+            <View className="px-2">{reserveFundsMissingAction}</View>
+          </>
+        )}
       </View>
     );
-  } else if (step === 'confirm' && needsFeePicker && feeEstimates) {
+  } else if (step === 'confirm' && needsFeeInput && feeEstimates) {
     modalContent = (
       <View>
         {initialFeeRate !== null && minimumSelectableFeeRate !== null ? (
@@ -827,12 +983,18 @@ const PresignedVaultAction = ({
     <Modal
       headerMini={true}
       isVisible={isVisible}
-      title={actionText}
-      icon={modalIcon}
-      onClose={onClose}
+      title={modalTitle}
+      icon={activeModalIcon}
+      onClose={
+        step === 'coincontrol'
+          ? handleCloseWalletSupplementCoinControl
+          : onClose
+      }
       onModalHide={handleModalHide}
       customButtons={
-        step === 'intro' ? (
+        step === 'coincontrol' ? (
+          <View />
+        ) : step === 'intro' ? (
           <View className="items-center gap-6 gap-y-4 flex-row flex-wrap justify-center pb-4">
             <Button mode="secondary" onPress={onClose}>
               {t('cancelButton')}

@@ -287,6 +287,9 @@ Comprueba tu conexión e inténtalo de nuevo.`,
         walletSupplementCheckbox: 'Usar fondos de mi billetera.',
         // Mantener corto: aparece en una fila estrecha bajo "Usar fondos de mi billetera".
         manualWalletSupplementCheckbox: 'Elegir monedas manualmente.',
+        pickedWalletSupplementUtxosInsufficient: `Las monedas que seleccionaste no alcanzan para pagar esta descongelación.
+
+Selecciona más monedas o vuelve a la selección automática.`,
         walletFundingHint: 'Tu billetera necesita al menos {{amount}} más.',
         parentOnlyConfirmation: `Rewind está listo para iniciar la descongelación ahora.`,
         confirmationSpeedLabel: 'Comisión',
