@@ -265,7 +265,8 @@ const PresignedVaultAction = ({
     selectedFeeRate,
     vaultActionData,
     vaultActionDataAssumingAutoWalletSupplement,
-    vaultActionDataWithoutWalletSupplement
+    vaultActionDataWithoutWalletSupplement,
+    reserveOnlyBuildsBelowRecommendedFee
   } = useMemo(() => {
     // UX: unlocks intro-to-confirm or shows why trigger/rescue is unavailable; undefined means the block check has not run and null means unblocked.
     let blockerReason: VaultActionBlockerReason = undefined;
@@ -277,6 +278,10 @@ const PresignedVaultAction = ({
     // UX: decides whether the confirm step shows FeeInput; false means fixed-fee/no-input or unknown.
     let needsFeeInput = false;
     // UX: selects the first recommended fee shown to the user; null means no default can be chosen yet.
+    // "Preferred" is normally the reasonable confirmation target above (about 2
+    // hours by default). The extra Math.max floor below protects acceleration
+    // and package cases where the action must use a higher minimum fee to
+    // improve the existing mempool state or build a valid package.
     let preferredInitialFeeRate: number | null = null;
     // UX: checks whether the recommended default fee can be offered; null means it is absent or unbuildable.
     let vaultActionDataAtPreferredInitialFeeRate: VaultActionData | null = null;
@@ -291,6 +296,11 @@ const PresignedVaultAction = ({
       null;
     // UX: decides whether to prompt for wallet supplement funds; null means no-supplement did not build or was not probed.
     let vaultActionDataWithoutWalletSupplement: VaultActionData | null = null;
+    // UX: keeps the wallet-supplement checkbox available for the same situation
+    // that shows `packageBelowRecommendedFee`: reserve-only can build a lower
+    // fee package, but cannot build the recommended/reasonable fee package.
+    // This is independent of the currently selected fee.
+    let reserveOnlyBuildsBelowRecommendedFee = false;
 
     if (
       isModalVisibleOrHiding &&
@@ -333,8 +343,8 @@ const PresignedVaultAction = ({
 
     needsFeeInput = minimumSelectableFeeRate !== null;
 
-    // Initial fee rate is the max of the reasonable one and the minimum
-    // fee rate that can lead to an enabled confirmation button.
+    // Initial fee rate is the max of the reasonable confirmation target and the
+    // minimum fee rate that can lead to an enabled confirmation button.
     if (blockerReason === null) {
       if (minimumSelectableFeeRate === null)
         preferredInitialFeeRate = presignedTxInfos?.[0]?.feeRate ?? null;
@@ -373,6 +383,15 @@ const PresignedVaultAction = ({
           coinControl: walletSupplementCoinControl
         }
       );
+    }
+
+    if (preferredInitialFeeRate !== null && sharedActionBuildArgs !== null) {
+      reserveOnlyBuildsBelowRecommendedFee =
+        buildVaultActionDataForFeeRate({
+          ...sharedActionBuildArgs,
+          selectedFeeRate: preferredInitialFeeRate,
+          coinControl: false
+        }) === null;
     }
 
     if (vaultActionDataAtPreferredInitialFeeRate !== null)
@@ -442,7 +461,8 @@ const PresignedVaultAction = ({
       selectedFeeRate,
       vaultActionData,
       vaultActionDataAssumingAutoWalletSupplement,
-      vaultActionDataWithoutWalletSupplement
+      vaultActionDataWithoutWalletSupplement,
+      reserveOnlyBuildsBelowRecommendedFee
     };
   }, [
     pickedVaultableWalletUtxosData,
@@ -630,17 +650,19 @@ const PresignedVaultAction = ({
     selectedFeeRate !== null &&
     vaultActionDataWithoutWalletSupplement === null;
   // UX reason for offering wallet supplement: it may help the current action
-  // build, or the current action already uses it. A below-recommended but
-  // buildable fee is only a warning, not a supplement prompt.
+  // build, it can lift a buildable-but-below-recommended package to the
+  // recommended fee, or the current action already uses it.
   const walletSupplementOfferReason =
     selectedFeeCannotBuildActionWithoutWalletSupplement ||
     selectedFeeCannotBuildAction ||
     showReserveCannotBuildAnyPackage ||
     blockerReason === 'noP2AReserve'
       ? 'canHelpCurrentAction'
-      : txUsesWalletSupplement
-        ? 'txUsesWalletSupplement'
-        : null;
+      : reserveOnlyBuildsBelowRecommendedFee
+        ? 'canImproveRecommendedFee'
+        : txUsesWalletSupplement
+          ? 'txUsesWalletSupplement'
+          : null;
   const showWalletSupplementCheckbox =
     canOfferWalletSupplement &&
     (walletSupplementOfferReason !== null || walletSupplementRequested);
