@@ -145,6 +145,7 @@ export default function Send() {
   const [pickedSendableUtxosData, setPickedSendableUtxosData] =
     useState<UtxosData | null>(null);
   const coinControl = pickedSendableUtxosData !== null;
+  const coinControlSwitchOn = coinControl || isCoinControlVisible;
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const { t } = useTranslation();
   const toast = useToast();
@@ -494,7 +495,7 @@ export default function Send() {
               isMaxAmount={isMaxAmount}
               label={t('send.amountLabel')}
               allowCoinControl
-              coinControl={coinControl}
+              coinControl={coinControlSwitchOn}
               onCoinControlChange={handleCoinControlChange}
               initialValue={lastKnownValidAmountRef.current ?? maxAmount}
               min={minAmount}

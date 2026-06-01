@@ -162,6 +162,7 @@ export default function VaultSetUp({
   const [pickedVaultableUtxosData, setPickedVaultableUtxosData] =
     useState<UtxosData | null>(null);
   const coinControl = pickedVaultableUtxosData !== null;
+  const coinControlSwitchOn = coinControl || isCoinControlVisible;
   const [prefilledAddressHelp, setPrefilledAddressHelp] =
     useState<boolean>(false);
   const showPrefilledAddressHelp = useCallback(
@@ -697,7 +698,7 @@ export default function VaultSetUp({
                 isMaxAmount={isMaxVaultedAmount}
                 label={t('vaultSetup.amountLabel')}
                 allowCoinControl
-                coinControl={coinControl}
+                coinControl={coinControlSwitchOn}
                 onCoinControlChange={handleCoinControlChange}
                 initialValue={maxVaultedAmount}
                 min={minimumVaultSetup.vaultedAmount}
