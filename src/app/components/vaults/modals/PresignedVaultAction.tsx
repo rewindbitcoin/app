@@ -1007,11 +1007,7 @@ const PresignedVaultAction = ({
       isVisible={isVisible}
       title={modalTitle}
       icon={activeModalIcon}
-      onClose={
-        step === 'coincontrol'
-          ? handleCloseWalletSupplementCoinControl
-          : onClose
-      }
+      onClose={onClose}
       onModalHide={handleModalHide}
       customButtons={
         step === 'coincontrol' ? (
