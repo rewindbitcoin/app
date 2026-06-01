@@ -48,6 +48,26 @@ export const formatBalance = ({
   }
 };
 
+export const formatDate = (time: number, locale: string) => {
+  const date = new Date(time * 1000);
+  const options: Intl.DateTimeFormatOptions = {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  };
+
+  if (date.getFullYear() === new Date().getFullYear()) delete options.year;
+  return date.toLocaleString(locale, options);
+};
+
+export const getShortTxId = (txId: string) =>
+  `${txId.slice(0, 8)}...${txId.slice(-8)}`;
+
+export const getShortOutpoint = (txId: string, vout: number) =>
+  `${getShortTxId(txId)}:${vout}`;
+
 /**
  * Formats block time estimates into human-readable strings.
  *
