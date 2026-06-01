@@ -3,6 +3,7 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { View, Text, Linking, StyleSheet } from 'react-native';
+import * as Clipboard from 'expo-clipboard';
 import type { HistoryData, HistoryDataItem } from '../lib/vaults';
 import { TFunction } from 'i18next';
 import { BlockStatus } from '@bitcoinerlab/explorer';
@@ -18,10 +19,13 @@ import ReceiveIcon from './ReceiveIcon';
 import HotIcon from './HotIcon';
 import SendIcon from './SendIcon';
 import { Currency, SubUnit } from '../lib/settings';
-import { formatBalance } from '../lib/format';
-import { Button } from '~/common/ui';
+import { formatBalance, formatDate, getShortTxId } from '../lib/format';
+import { Button, useToast } from '~/common/ui';
 import { useLocalization } from '../hooks/useLocalization';
 import { toNumber } from '../lib/sats';
+import { useWallet } from '../hooks/useWallet';
+import { getWalletLabelText } from '../lib/labels';
+import LabelEditor from './LabelEditor';
 
 const INITIAL_NOW_SECONDS = Math.floor(Date.now() / 1000);
 
@@ -47,7 +51,10 @@ const RawTransaction = ({
   mode,
   blockExplorerURL,
   vaultOutValue,
-  explorerReachable
+  explorerReachable,
+  txLabel,
+  labelsReady,
+  onSaveTxLabel
   //triggerOutValue
 }: {
   tipStatus: BlockStatus | undefined;
@@ -60,6 +67,9 @@ const RawTransaction = ({
   mode: 'Fiat' | SubUnit;
   blockExplorerURL: string | undefined;
   explorerReachable: boolean | undefined;
+  txLabel: string;
+  labelsReady: boolean;
+  onSaveTxLabel: (label: string) => Promise<void> | void;
   /** if this tx is associated with a vaultId, then pass the output value
    * of the inital vault tx and also the output value of the trigger tx
    * (if they exist)
@@ -67,6 +77,7 @@ const RawTransaction = ({
   vaultOutValue: number | undefined;
   //triggerOutValue: number | undefined;
 }) => {
+  const toast = useToast();
   const [blockTime, setBlockTime] = useState<number | undefined>(
     'blockTime' in item ? item.blockTime : undefined
   );
@@ -85,21 +96,6 @@ const RawTransaction = ({
   }, []);
   const now = scheduledNow;
 
-  const formatDate = (time: number) => {
-    const date = new Date(time * 1000);
-
-    const options: Intl.DateTimeFormatOptions = {
-      year: 'numeric',
-      month: 'short', // Abbreviated month in letters
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    };
-
-    // If the date is in the current year, delete the year to the options
-    if (date.getFullYear() === new Date().getFullYear()) delete options.year;
-    return date.toLocaleString(locale, options);
-  };
   const formatTime = () => {
     if (item.blockHeight === 0) {
       if ('pushTime' in item) {
@@ -112,7 +108,9 @@ const RawTransaction = ({
           ? t('transaction.pushedMinsAgo', {
               count: Math.round(relTime / 60)
             })
-          : t('transaction.pushedOnDate', { date: formatDate(item.pushTime) });
+          : t('transaction.pushedOnDate', {
+              date: formatDate(item.pushTime, locale)
+            });
       } else return t('transaction.recentlyPushed');
     } else {
       if (!tipHeight && !blockTime)
@@ -132,7 +130,7 @@ const RawTransaction = ({
               count: Math.round(relTime / 60)
             })
           : t('transaction.confirmedOnDate', {
-              date: formatDate(now - relTime)
+              date: formatDate(now - relTime, locale)
             });
       }
     }
@@ -154,6 +152,14 @@ const RawTransaction = ({
       fetchTime();
     }
   }, [explorerReachable, blockTime, item.blockHeight, fetchBlockTime]);
+
+  const handleCopyTxId = useCallback(() => {
+    Clipboard.setStringAsync(item.txId);
+    toast.show(t('transaction.copyTxIdSuccess'), {
+      type: 'success',
+      duration: 2000
+    });
+  }, [item.txId, t, toast]);
 
   /**
    * types:
@@ -422,17 +428,39 @@ const RawTransaction = ({
       </View>
       <View className="gap-2 mt-3">
         {detailsStr && <Text>{detailsStr}</Text>}
-        {blockExplorerURL && (
-          <Button
-            textClassName="!text-sm"
-            iconRight={{ family: 'FontAwesome5', name: 'external-link-alt' }}
-            mode="text"
-            containerClassName="self-start"
-            onPress={() => Linking.openURL(`${blockExplorerURL}/${item.txId}`)}
-          >
-            {t('transaction.details.openBlockExplorer')}
-          </Button>
-        )}
+        <LabelEditor
+          label={txLabel}
+          placeholder={t('transaction.labelPlaceholder')}
+          disabled={!labelsReady}
+          onSave={onSaveTxLabel}
+        />
+        <View className="flex-row flex-wrap items-center justify-between gap-x-3 gap-y-1">
+          <Text className="text-xs text-slate-500">
+            {t('transaction.txId', { txid: getShortTxId(item.txId) })}
+          </Text>
+          <View className="flex-row flex-wrap items-center justify-end gap-x-4 gap-y-1">
+            {blockExplorerURL ? (
+              <Button
+                textClassName="!text-xs"
+                iconRight={{ family: 'FontAwesome5', name: 'external-link-alt' }}
+                mode="text"
+                containerClassName="!min-w-0"
+                onPress={() => Linking.openURL(`${blockExplorerURL}/${item.txId}`)}
+              >
+                {t('viewButton')}
+              </Button>
+            ) : null}
+            <Button
+              textClassName="!text-xs"
+              iconRight={{ family: 'FontAwesome6', name: 'copy' }}
+              mode="text"
+              containerClassName="!min-w-0"
+              onPress={handleCopyTxId}
+            >
+              {t('copyButton')}
+            </Button>
+          </View>
+        </View>
         <Text className="text-slate-600 text-right ">{formatTime()}</Text>
       </View>
     </View>
@@ -465,6 +493,7 @@ const Transactions = ({
       : settings.SUB_UNIT;
   const { locale, currency } = useLocalization();
   const { t } = useTranslation();
+  const { labels, setWalletLabelText } = useWallet();
 
   const reversedHistoryData = useMemo<HistoryData | undefined>(
     () => historyData && [...historyData].reverse(),
@@ -518,6 +547,11 @@ const Transactions = ({
               locale={locale}
               t={t}
               item={item}
+              txLabel={getWalletLabelText(labels, 'tx', item.txId)}
+              labelsReady={!!labels}
+              onSaveTxLabel={label =>
+                setWalletLabelText({ type: 'tx', ref: item.txId, label })
+              }
               mode={mode}
               btcFiat={btcFiat}
               vaultOutValue={vaultOutValue}
