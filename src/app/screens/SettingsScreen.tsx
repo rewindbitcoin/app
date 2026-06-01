@@ -50,6 +50,8 @@ import {
   nativeApplicationVersion,
   nativeBuildVersion
 } from 'expo-application';
+import * as DocumentPicker from 'expo-document-picker';
+import { EncodingType, readAsStringAsync } from 'expo-file-system';
 import { locales } from '~/i18n-locales/init';
 import { batchedUpdates } from '~/common/lib/batchedUpdates';
 import { LayoutChangeEvent } from 'react-native';
@@ -65,6 +67,11 @@ function sanitizeFilename(name: string) {
       .replace(/^(\.\.\/)+/, '') // Removes directory traversal attempts
       .replace(/\s+/g, '_')
   ); // Replaces spaces with underscores
+}
+
+async function readLabelFile(asset: DocumentPicker.DocumentPickerAsset) {
+  if (Platform.OS === 'web' && asset.file) return asset.file.text();
+  return readAsStringAsync(asset.uri, { encoding: EncodingType.UTF8 });
 }
 
 const SettingsItem = ({
@@ -335,8 +342,9 @@ const SettingsScreen = () => {
     useState<boolean>(false);
   const [isLabelsImportModalVisible, setIsLabelsImportModalVisible] =
     useState<boolean>(false);
-  const [labelsImportText, setLabelsImportText] = useState<string>('');
   const [labelsImportReport, setLabelsImportReport] = useState<string>('');
+  const [isImportingLabelsFile, setIsImportingLabelsFile] =
+    useState<boolean>(false);
 
   const [isLanguageModalVisible, setIsLanguageModalVisible] =
     useState<boolean>(false);
@@ -569,9 +577,9 @@ const SettingsScreen = () => {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setIsLabelsImportModalVisible(false);
       // eslint-disable-next-line react-hooks/set-state-in-effect
-      setLabelsImportText('');
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setLabelsImportReport('');
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setIsImportingLabelsFile(false);
     }
     // eslint-disable-next-line react-hooks/set-state-in-effect
     if (!shouldShowVaultModeSetting) setIsVaultModeModalVisible(false);
@@ -613,7 +621,6 @@ const SettingsScreen = () => {
 
   const openLabelsImportModal = useCallback(() => {
     batchedUpdates(() => {
-      setLabelsImportText('');
       setLabelsImportReport('');
       setIsLabelsImportModalVisible(true);
     });
@@ -622,8 +629,8 @@ const SettingsScreen = () => {
   const closeLabelsImportModal = useCallback(() => {
     batchedUpdates(() => {
       setIsLabelsImportModalVisible(false);
-      setLabelsImportText('');
       setLabelsImportReport('');
+      setIsImportingLabelsFile(false);
     });
   }, []);
 
@@ -642,11 +649,26 @@ const SettingsScreen = () => {
   }, [exportBip329Labels, t, title, toast]);
 
   const handleImportLabels = useCallback(async () => {
+    if (isImportingLabelsFile) return;
+    setIsImportingLabelsFile(true);
+    setLabelsImportReport('');
     try {
-      const result = await importBip329Labels(labelsImportText);
+      const document = await DocumentPicker.getDocumentAsync({
+        type: '*/*',
+        copyToCacheDirectory: true,
+        multiple: false,
+        base64: false
+      });
+      if (document.canceled) return;
+
+      const asset = document.assets[0];
+      if (!asset) throw new Error('No label file selected');
+
+      const result = await importBip329Labels(await readLabelFile(asset));
       const summary = t('settings.labels.importSummary', {
         imported: result.importedCount,
         skipped: result.skippedUnsupportedCount,
+        conflicts: result.conflictingRecordCount,
         errors: result.errors.length
       });
       const firstErrors = result.errors
@@ -658,19 +680,20 @@ const SettingsScreen = () => {
           })
         )
         .join('\n');
+      const firstConflicts = result.warnings
+        .filter(warning => warning.code === 'conflicting-record')
+        .slice(0, 3)
+        .map(warning =>
+          t('settings.labels.importConflictLine', { line: warning.line })
+        )
+        .join('\n');
 
-      if (result.errors.length) {
+      if (result.errors.length || result.conflictingRecordCount > 0) {
+        const details = [firstErrors, firstConflicts].filter(Boolean).join('\n');
         setLabelsImportReport(
-          firstErrors ? `${summary}\n${firstErrors}` : summary
+          details ? `${summary}\n${details}` : summary
         );
-        toast.show(
-          t(
-            result.importedCount > 0
-              ? 'settings.labels.importPartial'
-              : 'settings.labels.importError'
-          ),
-          { type: 'warning' }
-        );
+        toast.show(t('settings.labels.importPartial'), { type: 'warning' });
       } else {
         closeLabelsImportModal();
         toast.show(summary, { type: 'success' });
@@ -678,8 +701,16 @@ const SettingsScreen = () => {
     } catch (error) {
       console.warn('Failed to import labels', error);
       toast.show(t('settings.labels.importError'), { type: 'warning' });
+    } finally {
+      setIsImportingLabelsFile(false);
     }
-  }, [closeLabelsImportModal, importBip329Labels, labelsImportText, t, toast]);
+  }, [
+    closeLabelsImportModal,
+    importBip329Labels,
+    isImportingLabelsFile,
+    t,
+    toast
+  ]);
 
   // NativeWind's `text-base` sets a lineHeight, which causes a subtle jump/flicker
   // on each keystroke in TextInput. This is a known React Native quirk.
@@ -1141,7 +1172,7 @@ const SettingsScreen = () => {
               </Button>
               <Button
                 mode="primary"
-                disabled={!labels || !labelsImportText.trim()}
+                disabled={!labels || isImportingLabelsFile}
                 onPress={handleImportLabels}
               >
                 {t('settings.labels.importButton')}
@@ -1153,21 +1184,6 @@ const SettingsScreen = () => {
             <Text className="text-base text-slate-700">
               {t('settings.labels.importWarning')}
             </Text>
-            <TextInput
-              className="min-h-40 rounded-lg border border-slate-300 bg-white px-3 py-2 text-base text-slate-900"
-              style={fixTextFlicker}
-              multiline={true}
-              textAlignVertical="top"
-              value={labelsImportText}
-              placeholder={t('settings.labels.importPlaceholder')}
-              placeholderTextColor="#94a3b8"
-              autoCapitalize="none"
-              autoCorrect={false}
-              onChangeText={text => {
-                setLabelsImportText(text);
-                setLabelsImportReport('');
-              }}
-            />
             {labelsImportReport ? (
               <Text className="text-sm text-orange-600">
                 {labelsImportReport}
