@@ -102,6 +102,14 @@ import {
 import { defaultSettings } from '../lib/settings';
 import { getLocales } from 'expo-localization';
 import { transactionFromHex } from '../lib/bitcoin';
+import {
+  type Bip329SupportedType,
+  type Bip329ImportResult,
+  parseBip329Labels,
+  serializeBip329Labels,
+  type WalletLabels,
+  updateWalletLabelText as updateWalletLabelTextData
+} from '../lib/labels';
 
 export const WalletContext: Context<WalletContextType | null> =
   createContext<WalletContextType | null>(null);
@@ -140,6 +148,18 @@ export type WalletContextType = {
   signersStorageEngineMismatch: boolean;
   signers: Signers | undefined;
   accounts: Accounts | undefined;
+  labels: WalletLabels | undefined;
+  setWalletLabelText: ({
+    type,
+    ref,
+    label
+  }: {
+    type: Bip329SupportedType;
+    ref: string;
+    label: string;
+  }) => Promise<void>;
+  importBip329Labels: (jsonLines: string) => Promise<Bip329ImportResult>;
+  exportBip329Labels: () => string;
   vaults: Vaults | undefined;
   vaultsStatuses: VaultsStatuses | undefined;
   networkId: NetworkId | undefined;
@@ -214,6 +234,7 @@ const UI_YIELD_ITERATION_TIME_MS = 0;
 const DEFAULT_VAULTS_STATUSES: VaultsStatuses = {};
 const DEFAULT_ACCOUNTS: Accounts = {};
 const DEFAULT_VAULTS: Vaults = {};
+const DEFAULT_LABELS: WalletLabels = {};
 const WalletProviderRaw = ({
   children
 }: {
@@ -612,6 +633,55 @@ const WalletProviderRaw = ({
       activeWallet && walletsDataCipherKey[activeWallet.walletId]
     );
 
+  const [labels, setLabels, , clearLabelsCache, labelsStorageStatus] =
+    useStorage<WalletLabels>(
+      canInitCipheredDataStorage
+        ? `LABELS_${activeWallet.walletId}`
+        : undefined,
+      SERIALIZABLE,
+      DEFAULT_LABELS,
+      undefined,
+      activeWallet && walletsDataCipherKey[activeWallet.walletId]
+    );
+
+  const setWalletLabelText = useCallback(
+    async ({
+      type,
+      ref,
+      label
+    }: {
+      type: Bip329SupportedType;
+      ref: string;
+      label: string;
+    }) => {
+      if (!labels) throw new Error('Labels not ready');
+      const updatedLabels = updateWalletLabelTextData({
+        labels,
+        type,
+        ref,
+        label
+      });
+      if (updatedLabels === labels) return;
+      await setLabels(updatedLabels);
+    },
+    [labels, setLabels]
+  );
+
+  const importBip329Labels = useCallback(
+    async (jsonLines: string) => {
+      if (!labels) throw new Error('Labels not ready');
+      const result = parseBip329Labels(jsonLines, labels);
+      if (result.importedCount > 0) await setLabels(result.labels);
+      return result;
+    },
+    [labels, setLabels]
+  );
+
+  const exportBip329Labels = useCallback(() => {
+    if (!labels) throw new Error('Labels not ready');
+    return serializeBip329Labels(labels);
+  }, [labels]);
+
   /**
    * Call this when the wallet is updated somehow: changes in vaults in
    * fetched data and so on.
@@ -1009,7 +1079,8 @@ const WalletProviderRaw = ({
     discoveryExportErrorCode: discoveryExportStorageStatus.errorCode,
     vaultsErrorCode: vaultsStorageStatus.errorCode,
     vaultsStatusesErrorCode: vaultsStatusesStorageStatus.errorCode,
-    accountsErrorCode: accountsStorageStatus.errorCode
+    accountsErrorCode: accountsStorageStatus.errorCode,
+    labelsErrorCode: labelsStorageStatus.errorCode
   });
   const isCorrupted = getIsCorrupted({
     wallet: activeWallet,
@@ -1061,6 +1132,7 @@ const WalletProviderRaw = ({
       vaultsStorageStatus.errorCode,
       vaultsStatusesStorageStatus.errorCode,
       accountsStorageStatus.errorCode,
+      labelsStorageStatus.errorCode,
       missingWallet,
       missingSignersAfterDiskSync,
       missingVaultsAfterSync,
@@ -1071,7 +1143,8 @@ const WalletProviderRaw = ({
       discoveryExport !== undefined,
       !!vaults,
       !!vaultsStatuses,
-      !!accounts
+      !!accounts,
+      !!labels
     ].join(':');
     if (lastWalletStorageWarningKeyRef.current === warningKey) return;
     lastWalletStorageWarningKeyRef.current = warningKey;
@@ -1137,6 +1210,11 @@ const WalletProviderRaw = ({
               errorCode: accountsStorageStatus.errorCode,
               isSynchd: accountsStorageStatus.isSynchd,
               isDiskSynchd: accountsStorageStatus.isDiskSynchd
+            },
+            labels: {
+              errorCode: labelsStorageStatus.errorCode,
+              isSynchd: labelsStorageStatus.isSynchd,
+              isDiskSynchd: labelsStorageStatus.isDiskSynchd
             }
           },
           dataPresence: {
@@ -1145,7 +1223,8 @@ const WalletProviderRaw = ({
             discoveryExport: discoveryExport !== undefined,
             vaults: !!vaults,
             vaultsStatuses: !!vaultsStatuses,
-            accounts: !!accounts
+            accounts: !!accounts,
+            labels: !!labels
           }
         },
         null,
@@ -1166,12 +1245,14 @@ const WalletProviderRaw = ({
     vaultsStorageStatus,
     vaultsStatusesStorageStatus,
     accountsStorageStatus,
+    labelsStorageStatus,
     wallets,
     signers,
     discoveryExport,
     vaults,
     vaultsStatuses,
-    accounts
+    accounts,
+    labels
   ]);
 
   /** When all wallet related data is synchronized and without any errors.
@@ -1185,12 +1266,14 @@ const WalletProviderRaw = ({
     vaultsStorageStatus.isDiskSynchd &&
     vaultsStatusesStorageStatus.isDiskSynchd &&
     accountsStorageStatus.isDiskSynchd &&
+    labelsStorageStatus.isDiskSynchd &&
     walletsStorageStatus.errorCode === false &&
     discoveryExportStorageStatus.errorCode === false &&
     signersStorageStatus.errorCode === false &&
     vaultsStorageStatus.errorCode === false &&
     vaultsStatusesStorageStatus.errorCode === false &&
     accountsStorageStatus.errorCode === false &&
+    labelsStorageStatus.errorCode === false &&
     !isCorrupted;
 
   useEffect(() => {
@@ -1598,6 +1681,7 @@ const WalletProviderRaw = ({
         clearVaultsStatusesCache();
         clearDiscoveryExportCache();
         clearAccountsCache();
+        clearLabelsCache();
         //Clear other state:
         clearDiscovery(activeWallet.walletId);
         clearUtxosData(activeWallet.walletId);
@@ -1624,6 +1708,7 @@ const WalletProviderRaw = ({
     clearVaultsStatusesCache,
     clearDiscoveryExportCache,
     clearAccountsCache,
+    clearLabelsCache,
     clearDiscovery,
     clearUtxosData,
     clearHistoryData,
@@ -1649,7 +1734,8 @@ const WalletProviderRaw = ({
         deleteAsync(`DISCOVERY_${idToDelete}`),
         deleteAsync(`VAULTS_${idToDelete}`),
         deleteAsync(`VAULTS_STATUSES_${idToDelete}`),
-        deleteAsync(`ACCOUNTS_${idToDelete}`)
+        deleteAsync(`ACCOUNTS_${idToDelete}`),
+        deleteAsync(`LABELS_${idToDelete}`)
       ]);
       const { [idToDelete]: walletToDelete, ...remainingWallets } = wallets;
       void walletToDelete;
@@ -1730,7 +1816,8 @@ const WalletProviderRaw = ({
           deleteAsync(`DISCOVERY_${walletDst.walletId}`),
           deleteAsync(`VAULTS_${walletDst.walletId}`),
           deleteAsync(`VAULTS_STATUSES_${walletDst.walletId}`),
-          deleteAsync(`ACCOUNTS_${walletDst.walletId}`)
+          deleteAsync(`ACCOUNTS_${walletDst.walletId}`),
+          deleteAsync(`LABELS_${walletDst.walletId}`)
         ]);
         if (walletIdRef.current !== walletDst.walletId) {
           logOut();
@@ -2789,6 +2876,10 @@ const WalletProviderRaw = ({
     signersStorageEngineMismatch,
     signers,
     accounts,
+    labels,
+    setWalletLabelText,
+    importBip329Labels,
+    exportBip329Labels,
     vaults,
     vaultsStatuses,
     networkId: activeWallet?.networkId,
