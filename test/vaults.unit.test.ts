@@ -33,7 +33,7 @@ import {
 } from '../dist/src/app/lib/utxoPolicy';
 import {
   buildVaultActionDataForFeeRate,
-  canProceedToActionConfirmation,
+  getVaultActionBlocker,
   getCpfpFeeInfo
 } from '../dist/src/app/lib/vaultActionTx';
 import { networks, type Network, Transaction } from 'bitcoinjs-lib';
@@ -307,7 +307,7 @@ describe('vaults unit tests', () => {
         feeRate: parentFee / parentTx.virtualSize()
       }
     ];
-    const availability = canProceedToActionConfirmation({
+    const availability = getVaultActionBlocker({
       vaultMode: 'P2A_NON_TRUC',
       feeEstimates: { '1': 10 },
       pushedTxHex: parentTxHex,
@@ -318,7 +318,7 @@ describe('vaults unit tests', () => {
       historyData: []
     });
 
-    expect(availability.blocker).toBeNull();
+    expect(availability.reason).toBeNull();
     expect(availability.minimumSelectableFeeRate).not.toBeNull();
     if (availability.minimumSelectableFeeRate === null)
       throw new Error('Expected minimum selectable fee rate');
@@ -650,7 +650,7 @@ describe('vaults unit tests', () => {
     });
 
     expect(
-      canProceedToActionConfirmation({
+      getVaultActionBlocker({
         vaultMode: 'P2A_NON_TRUC',
         feeEstimates: { '1': 1 },
         pushedTxHex: parentTxHex,
@@ -671,7 +671,7 @@ describe('vaults unit tests', () => {
         historyData: []
       })
     ).toEqual({
-      blocker: 'replacementFeeAboveMaximum',
+      reason: 'replacementFeeAboveMaximum',
       minimumSelectableFeeRate: null
     });
   });
@@ -780,7 +780,7 @@ describe('vaults unit tests', () => {
     ).toThrow('P2A_NON_TRUC anchor must be non-dust');
   });
 
-  test('canProceedToActionConfirmation blocks parent-only P2A_TRUC trigger without package fee', () => {
+  test('getVaultActionBlocker blocks parent-only P2A_TRUC trigger without package fee', () => {
     const parentTxInfo = createPresignedP2ATxInfo({
       version: 3,
       p2aValue: 0,
@@ -788,19 +788,19 @@ describe('vaults unit tests', () => {
     });
 
     expect(
-      canProceedToActionConfirmation({
+      getVaultActionBlocker({
         vaultMode: 'P2A_TRUC',
         presignedTxInfos: [parentTxInfo],
         coinControl: false,
         historyData: []
       })
     ).toEqual({
-      blocker: 'noP2AReserve',
+      reason: 'noP2AReserve',
       minimumSelectableFeeRate: null
     });
   });
 
-  test('canProceedToActionConfirmation rejects parent-only dust anchors with non-zero fee', () => {
+  test('getVaultActionBlocker rejects parent-only dust anchors with non-zero fee', () => {
     const parentTxInfo = createPresignedP2ATxInfo({
       version: 3,
       p2aValue: 0,
@@ -808,7 +808,7 @@ describe('vaults unit tests', () => {
     });
 
     expect(() =>
-      canProceedToActionConfirmation({
+      getVaultActionBlocker({
         vaultMode: 'P2A_TRUC',
         presignedTxInfos: [parentTxInfo],
         coinControl: false,
@@ -817,7 +817,7 @@ describe('vaults unit tests', () => {
     ).toThrow('tx with dust output must be 0-fee');
   });
 
-  test('canProceedToActionConfirmation allows parent-only P2A_NON_TRUC at relay floor', () => {
+  test('getVaultActionBlocker allows parent-only P2A_NON_TRUC at relay floor', () => {
     const txHex = createSyntheticTxHex({
       version: 2,
       mainOutputValue: 12000,
@@ -827,19 +827,19 @@ describe('vaults unit tests', () => {
     const fee = Math.ceil(tx.virtualSize() * MIN_FEE_RATE);
 
     expect(
-      canProceedToActionConfirmation({
+      getVaultActionBlocker({
         vaultMode: 'P2A_NON_TRUC',
         presignedTxInfos: [{ txHex, fee, feeRate: fee / tx.virtualSize() }],
         coinControl: false,
         historyData: []
       })
     ).toEqual({
-      blocker: null,
+      reason: null,
       minimumSelectableFeeRate: null
     });
   });
 
-  test('canProceedToActionConfirmation blocks parent-only P2A_NON_TRUC below relay floor', () => {
+  test('getVaultActionBlocker blocks parent-only P2A_NON_TRUC below relay floor', () => {
     const txHex = createSyntheticTxHex({
       version: 2,
       mainOutputValue: 12000,
@@ -849,14 +849,14 @@ describe('vaults unit tests', () => {
     const fee = Math.ceil(tx.virtualSize() * MIN_FEE_RATE) - 1;
 
     expect(
-      canProceedToActionConfirmation({
+      getVaultActionBlocker({
         vaultMode: 'P2A_NON_TRUC',
         presignedTxInfos: [{ txHex, fee, feeRate: fee / tx.virtualSize() }],
         coinControl: false,
         historyData: []
       })
     ).toEqual({
-      blocker: 'noP2AReserve',
+      reason: 'noP2AReserve',
       minimumSelectableFeeRate: null
     });
   });
