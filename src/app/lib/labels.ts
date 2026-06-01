@@ -1,113 +1,391 @@
 // Copyright (C) 2026 Jose-Luis Landabaso - https://rewindbitcoin.com
 // Licensed under the GNU GPL v3 or later. See the LICENSE file for details.
 
-/**
- * Wallet labels design notes
- *
- * This file intentionally starts as a design stub. The goal is to keep the next
- * labels/BIP-329 branch focused before adding storage, UI, import, or export
- * code. Coin Control should stay intentionally sparse until labels and UTXO row
- * metadata are designed together instead of accreting one-off display fields.
- *
- * Terminology
- *
- * - A UTXO is identified by its outpoint: `txid:vout`.
- * - A label is user metadata. It is not blockchain data. Examples: "Salary",
- *   "Exchange withdrawal", "Do not spend", "KYC", "Gift from Alice".
- * - Labels can apply to different references: transactions, outputs/UTXOs,
- *   addresses, xpubs, public keys, inputs, etc.
- * - In Coin Control, the first useful label target is the output/UTXO, because
- *   users choose coins by context, not only by amount.
- *
- * BIP-329 direction
- *
- * - BIP-329 is the relevant Bitcoin wallet label interoperability format.
- * - It should be the import/export compatibility target.
- * - It should not blindly dictate every internal storage decision. It is an
- *   interchange format; the app still needs convenient typed lookups and
- *   possibly Rewind-specific metadata.
- * - The likely internal model should be a small typed superset of BIP-329:
- *   BIP-329-compatible core fields plus optional app-only fields.
- * - Export should strip app-only fields and produce valid BIP-329 records.
- * - Import should parse BIP-329 records, keep supported fields, and mark their
- *   provenance if useful.
- *
- * Internal model sketch, not an implementation commitment:
- *
- * ```ts
- * type LabelRef =
- *   | { type: 'tx'; txId: string }
- *   | { type: 'output'; txId: string; vout: number }
- *   | { type: 'address'; address: string }
- *   | { type: 'xpub'; xpub: string };
- *
- * type WalletLabel = {
- *   ref: LabelRef;
- *   label: string;
- *   origin?: string; // BIP-329 origin, when available
- *   source?: 'manual' | 'bip329-import';
- * };
- * ```
- *
- * Keep the first real model minimal. Do not add color, archived, createdAt,
- * updatedAt, tombstones, multiple-label semantics, or conflict metadata until a
- * concrete UX/storage need exists. Those can be added later as app-only fields
- * if the product actually needs them.
- *
- * Storage and privacy
- *
- * - Labels are privacy-sensitive. They can reveal identities, exchanges,
- *   spending intent, custody practices, or KYC status.
- * - Labels must follow the wallet's existing encrypted storage expectations.
- * - Import/export should be explicit user action. Do not silently leak labels
- *   to logs, network requests, analytics, or support payloads.
- * - If labels are exported, the UI should make clear that the export contains
- *   sensitive personal wallet metadata.
- *
- * Coin Control UX direction
- *
- * Keep the current Coin Control modal simple until this label model exists.
- * The modal currently has only data that is already safe and local to UTXOs:
- * amount, outpoint, descriptor-derived group, selectable/unavailable state, and
- * disabled reason. Richer rows should be added as one coherent UX pass.
- *
- * Useful future Coin Control row fields, in rough priority order:
- *
- * - amount
- * - user label for the UTXO/output
- * - short outpoint, with a way to inspect/copy full `txid:vout`
- * - confirmation state and either confirmations, block height, or date
- * - explorer link for the funding transaction
- * - source/group, such as receive/change/vault/native segwit/account
- * - disabled reason when the output cannot currently be selected
- *
- * Data that is not currently in CoinControlModal but will be needed for some of
- * the above:
- *
- * - `historyData` or a transaction metadata map for block height/time
- * - current tip height for confirmation count
- * - `blockExplorerURL` for explorer links
- * - label storage/indexes for output/address/tx labels
- * - reliable receive/change/source attribution if we choose to show it
- *
- * Address display caveat
- *
- * Showing the address for a UTXO can be useful, but can also confuse users.
- * For normal wallet UTXOs it may be a receive address or a change address. For
- * vault-related outputs, an address may be less meaningful than a semantic label
- * such as "Vault", "Unfreeze reserve", or "Change". Do not add address display
- * without deciding how source/type should be explained.
- *
- * Suggested implementation order
- *
- * 1. Define the minimal typed internal label model and BIP-329 parser/encoder.
- * 2. Add storage under the wallet's encrypted metadata path.
- * 3. Add derived lookup helpers, especially label-by-outpoint for Coin Control.
- * 4. Add unit tests for BIP-329 round-trips and invalid records.
- * 5. Add simple output labels to Coin Control rows.
- * 6. Add import/export UI once the storage and row display are stable.
- * 7. Consider richer Coin Control metadata: date, confirmations, explorer link,
- *    source/change annotations.
- */
+const BIP329_SUPPORTED_TYPES = [
+  'tx',
+  'addr',
+  'pubkey',
+  'input',
+  'output',
+  'xpub'
+] as const;
 
-export {};
+export type Bip329SupportedType = (typeof BIP329_SUPPORTED_TYPES)[number];
+//Bip329SupportedType = | 'tx' | 'addr' | 'pubkey' | 'input' | 'output' | 'xpub';
+
+type WalletLabel = {
+  type: Bip329SupportedType;
+  ref: string;
+  label?: string;
+  origin?: string;
+  // TODO: We currently preserve BIP-329 `spendable` for import/export only.
+  // Wire output `spendable: false` into the existing UTXO spendability policy,
+  // keeping the UX wording distinct from Rewind vault freeze/unfreeze.
+  spendable?: boolean;
+};
+
+type WalletLabelKey = `${Bip329SupportedType}:${string}`;
+export type WalletLabels = Record<string, WalletLabel>;
+
+type Bip329ImportWarning = {
+  line: number;
+  code: 'unsupported-type' | 'noop-record' | 'conflicting-record';
+  message: string;
+};
+
+type Bip329ImportError = {
+  line: number;
+  message: string;
+};
+
+export type Bip329ImportResult = {
+  labels: WalletLabels;
+  importedCount: number;
+  skippedUnsupportedCount: number;
+  conflictingRecordCount: number;
+  warnings: Bip329ImportWarning[];
+  errors: Bip329ImportError[];
+};
+
+const TXID_RE = /^[0-9a-fA-F]{64}$/;
+const TXO_RE = /^([0-9a-fA-F]{64}):([0-9]+)$/;
+const PUBKEY_RE = /^(?:[0-9a-fA-F]{64}|[0-9a-fA-F]{66}|[0-9a-fA-F]{130})$/;
+const NON_WHITESPACE_RE = /^\S+$/;
+
+const isObjectRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value);
+
+const isSupportedType = (type: string): type is Bip329SupportedType =>
+  (BIP329_SUPPORTED_TYPES as readonly string[]).includes(type);
+
+const hasStoredLabelData = (label: WalletLabel) =>
+  label.label !== undefined ||
+  label.origin !== undefined ||
+  label.spendable !== undefined;
+
+const areLabelsEqual = (first: WalletLabel | undefined, second: WalletLabel) =>
+  first !== undefined &&
+  first.type === second.type &&
+  first.ref === second.ref &&
+  first.label === second.label &&
+  first.origin === second.origin &&
+  first.spendable === second.spendable;
+
+const hasImportedFieldConflict = (
+  existing: WalletLabel,
+  imported: WalletLabel
+) =>
+  (existing.label !== undefined &&
+    imported.label !== undefined &&
+    existing.label !== imported.label) ||
+  (existing.origin !== undefined &&
+    imported.origin !== undefined &&
+    existing.origin !== imported.origin) ||
+  (existing.spendable !== undefined &&
+    imported.spendable !== undefined &&
+    existing.spendable !== imported.spendable);
+
+/**
+ * Checks that a BIP-329 `ref` is valid for its `type`, then returns the stable
+ * form we use as part of the internal label key.
+ *
+ * Hex values are lowercased, and outpoint indexes are normalized so `txid:01`
+ * and `txid:1` point to the same label. Addresses and xpubs are kept as typed,
+ * except they must be non-empty and contain no whitespace.
+ *
+ * @throws If the reference is malformed for the supplied BIP-329 type.
+ */
+const normalizeLabelRef = (type: Bip329SupportedType, ref: string): string => {
+  if (type === 'tx') {
+    if (!TXID_RE.test(ref)) throw new Error('Invalid transaction id');
+    return ref.toLowerCase();
+  }
+
+  if (type === 'input' || type === 'output') {
+    const match = ref.match(TXO_RE);
+    if (!match) throw new Error(`Invalid ${type} outpoint`);
+    const txid = match[1];
+    const indexText = match[2];
+    if (!txid || !indexText) throw new Error(`Invalid ${type} outpoint`);
+    const index = Number(indexText);
+    if (!Number.isSafeInteger(index)) throw new Error('Invalid outpoint index');
+    return `${txid.toLowerCase()}:${index}`;
+  }
+
+  if (type === 'pubkey') {
+    if (!PUBKEY_RE.test(ref)) throw new Error('Invalid public key');
+    return ref.toLowerCase();
+  }
+
+  if (type === 'addr') {
+    if (!ref || !NON_WHITESPACE_RE.test(ref))
+      throw new Error('Invalid address');
+    return ref;
+  }
+
+  if (type === 'xpub') {
+    if (!ref || !NON_WHITESPACE_RE.test(ref)) throw new Error('Invalid xpub');
+    return ref;
+  }
+
+  throw new Error(`Unsupported label type ${type}`);
+};
+
+const getWalletLabelKey = (
+  type: Bip329SupportedType,
+  ref: string
+): WalletLabelKey => `${type}:${normalizeLabelRef(type, ref)}`;
+
+const getWalletLabel = (
+  labels: WalletLabels | undefined,
+  type: Bip329SupportedType,
+  ref: string
+): WalletLabel | undefined => labels?.[getWalletLabelKey(type, ref)];
+
+export const getWalletLabelText = (
+  labels: WalletLabels | undefined,
+  type: Bip329SupportedType,
+  ref: string
+): string => getWalletLabel(labels, type, ref)?.label ?? '';
+
+export const updateWalletLabelText = ({
+  labels,
+  type,
+  ref,
+  label
+}: {
+  labels: WalletLabels;
+  type: Bip329SupportedType;
+  ref: string;
+  label: string;
+}): WalletLabels => {
+  const normalizedRef = normalizeLabelRef(type, ref);
+  const key = getWalletLabelKey(type, normalizedRef);
+  const existing = labels[key];
+  const normalizedLabel = label.trim();
+
+  if (!normalizedLabel) {
+    if (!existing || existing.label === undefined) return labels;
+    const { label: omittedLabel, ...labelWithoutText } = existing;
+    void omittedLabel;
+    const nextLabels = { ...labels };
+    if (hasStoredLabelData(labelWithoutText))
+      nextLabels[key] = labelWithoutText;
+    else delete nextLabels[key];
+    return nextLabels;
+  }
+
+  if (existing?.label === normalizedLabel) return labels;
+  return {
+    ...labels,
+    [key]: {
+      ...existing,
+      type,
+      ref: normalizedRef,
+      label: normalizedLabel
+    }
+  };
+};
+
+/**
+ * Combines an imported BIP-329 record with an existing stored label.
+ *
+ * In BIP-329, an omitted field means "do not change it". If the imported record
+ * disagrees with any existing field we preserve, the record is left untouched
+ * and reported as a conflict. Missing fields can still be filled by import.
+ */
+const mergeImportedLabel = (
+  existing: WalletLabel | undefined,
+  imported: WalletLabel
+): { label: WalletLabel; hasConflict: boolean; hasChange: boolean } => {
+  if (existing && hasImportedFieldConflict(existing, imported))
+    return { label: existing, hasConflict: true, hasChange: false };
+
+  const next: WalletLabel = {
+    type: imported.type,
+    ref: imported.ref
+  };
+
+  if (existing?.label !== undefined) next.label = existing.label;
+  if (existing?.origin !== undefined) next.origin = existing.origin;
+  if (existing?.spendable !== undefined) next.spendable = existing.spendable;
+
+  if (imported.label !== undefined) next.label = imported.label;
+  if (imported.origin !== undefined) next.origin = imported.origin;
+  if (imported.spendable !== undefined) next.spendable = imported.spendable;
+
+  return {
+    label: next,
+    hasConflict: false,
+    hasChange: !areLabelsEqual(existing, next)
+  };
+};
+
+/**
+ * Converts one parsed JSON object from a BIP-329 import into an internal label.
+ *
+ * Return statuses:
+ * - `record`: the object is valid and contains data we store.
+ * - `unsupported`: the BIP-329 type is known but not supported here yet
+ *   (`spscan`), or it is an unknown future/custom type. The import skips it
+ *   instead of failing the whole file.
+ * - `noop`: the object is valid BIP-329, but there is nothing for us to save.
+ *   For example, `{ "type": "tx", "ref": "..." }` points to a transaction but
+ *   does not provide a label, origin, or spendable value.
+ *
+ * @throws If a supported record is malformed, such as an invalid txid or a
+ * non-boolean `spendable` value.
+ */
+const parseObjectRecord = (
+  record: Record<string, unknown>
+):
+  | { status: 'record'; record: WalletLabel }
+  | { status: 'unsupported'; type: string }
+  | { status: 'noop' } => {
+  const rawType = record['type'];
+  if (typeof rawType !== 'string') throw new Error('Missing label type');
+  if (rawType === 'spscan') return { status: 'unsupported', type: rawType };
+  if (!isSupportedType(rawType))
+    return { status: 'unsupported', type: rawType };
+
+  const rawRef = record['ref'];
+  if (typeof rawRef !== 'string') throw new Error('Missing label ref');
+  const normalizedRef = normalizeLabelRef(rawType, rawRef);
+
+  const label: WalletLabel = {
+    type: rawType,
+    ref: normalizedRef
+  };
+
+  if ('label' in record) {
+    const rawLabel = record['label'];
+    if (typeof rawLabel !== 'string') throw new Error('Invalid label value');
+    label.label = rawLabel;
+  }
+
+  if ('origin' in record) {
+    const rawOrigin = record['origin'];
+    if (typeof rawOrigin !== 'string') throw new Error('Invalid origin value');
+    label.origin = rawOrigin;
+  }
+
+  if ('spendable' in record) {
+    const rawSpendable = record['spendable'];
+    if (rawType !== 'output')
+      throw new Error('spendable is only valid on output labels');
+    if (typeof rawSpendable !== 'boolean')
+      throw new Error('Invalid spendable value');
+    label.spendable = rawSpendable;
+  }
+
+  if (!hasStoredLabelData(label)) return { status: 'noop' };
+  return { status: 'record', record: label };
+};
+
+/**
+ * Parses pasted/imported BIP-329 labels and merges them into existing labels.
+ *
+ * This is the import entrypoint. It reads one JSON object per line, validates
+ * supported records, skips unsupported types such as `spscan`, and collects
+ * malformed lines as line-numbered errors instead of failing the whole import.
+ */
+export const parseBip329Labels = (
+  jsonLines: string,
+  existingLabels: WalletLabels = {}
+): Bip329ImportResult => {
+  const labels: WalletLabels = { ...existingLabels };
+  let importedCount = 0;
+  const warnings: Bip329ImportWarning[] = [];
+  const errors: Bip329ImportError[] = [];
+  let skippedUnsupportedCount = 0;
+  let conflictingRecordCount = 0;
+
+  jsonLines.split(/\n/).forEach((line, index) => {
+    const lineNumber = index + 1;
+    if (!line.trim()) return;
+
+    try {
+      const parsed: unknown = JSON.parse(line);
+      if (!isObjectRecord(parsed)) throw new Error('Line is not a JSON object');
+      const result = parseObjectRecord(parsed);
+
+      if (result.status === 'unsupported') {
+        skippedUnsupportedCount += 1;
+        warnings.push({
+          line: lineNumber,
+          code: 'unsupported-type',
+          message: `Unsupported BIP-329 label type: ${result.type}`
+        });
+        return;
+      }
+
+      if (result.status === 'noop') {
+        warnings.push({
+          line: lineNumber,
+          code: 'noop-record',
+          message:
+            'BIP-329 record did not set a label, origin, or spendable value'
+        });
+        return;
+      }
+
+      const key = getWalletLabelKey(result.record.type, result.record.ref);
+      const merged = mergeImportedLabel(labels[key], result.record);
+
+      if (merged.hasConflict) {
+        conflictingRecordCount += 1;
+        warnings.push({
+          line: lineNumber,
+          code: 'conflicting-record',
+          message: 'BIP-329 record conflicts with existing label data'
+        });
+        return;
+      }
+
+      if (!merged.hasChange) return;
+
+      labels[key] = merged.label;
+      importedCount += 1;
+    } catch (error) {
+      errors.push({
+        line: lineNumber,
+        message:
+          error instanceof Error ? error.message : 'Invalid BIP-329 record'
+      });
+    }
+  });
+
+  return {
+    labels,
+    importedCount,
+    skippedUnsupportedCount,
+    conflictingRecordCount,
+    warnings,
+    errors
+  };
+};
+
+export const serializeBip329Labels = (labels: WalletLabels): string => {
+  const lines = Object.keys(labels)
+    .sort()
+    .map(key => {
+      const label = labels[key];
+      if (!label) throw new Error(`Missing label for key ${key}`);
+      const record: {
+        type: Bip329SupportedType;
+        ref: string;
+        label?: string;
+        origin?: string;
+        spendable?: boolean;
+      } = {
+        type: label.type,
+        ref: label.ref
+      };
+      if (label.label !== undefined) record.label = label.label;
+      if (label.origin !== undefined) record.origin = label.origin;
+      if (label.spendable !== undefined) record.spendable = label.spendable;
+      return JSON.stringify(record);
+    });
+
+  return lines.length ? `${lines.join('\n')}\n` : '';
+};

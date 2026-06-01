@@ -544,9 +544,11 @@ Usage Instructions:
       feePayerRescue:
         'This transaction used funds reserved to pay network fees to help confirm your rescue. Any unused amount went back to the temporary wallet for fees.',
       feePayerRescueConfirming:
-        'This transaction is using funds reserved to pay network fees to help confirm your rescue. Waiting for confirmation... Any unused amount will go back to the temporary wallet for fees.',
-      openBlockExplorer: 'View on Block Explorer'
-    }
+        'This transaction is using funds reserved to pay network fees to help confirm your rescue. Waiting for confirmation... Any unused amount will go back to the temporary wallet for fees.'
+    },
+    labelPlaceholder: 'Label this transaction',
+    txId: 'Tx {{txid}}',
+    copyTxIdSuccess: 'Transaction ID copied.'
   },
   network: {
     testOn: 'Test on {{networkId}}',
@@ -964,6 +966,27 @@ Please wait a few moments until completion.`,
       watchtowerError:
         'Invalid Watchtower API Base. Please check the URL and try again.'
     },
+    labels: {
+      export: 'Export Labels',
+      import: 'Import Labels',
+      count_one: '{{count}} label',
+      count_other: '{{count}} labels',
+      exportFile: 'Export File',
+      importButton: 'Choose BIP-329 File',
+      exportSuccess: 'Labels exported.',
+      exportError: 'Could not export labels.',
+      importError: 'Could not import labels.',
+      importPartial:
+        'Some label records were skipped or could not be imported.',
+      importSummary:
+        'Imported {{imported}} label records. Skipped {{skipped}} unsupported records. Conflicts: {{conflicts}}. Errors: {{errors}}.',
+      importErrorLine: 'Line {{line}}: {{message}}',
+      importConflictLine: 'Line {{line}}: conflicting record skipped.',
+      exportWarning:
+        'Labels can reveal private wallet context such as people, exchanges, addresses, and spending intent. Only export them if you know where you will store or send them.',
+      importWarning:
+        'Importing labels will add or update private wallet metadata on this device. Choose only a BIP-329 labels file from a source you trust.'
+    },
     general: {
       title: 'General',
       electrumBitcoin: 'Electrum Bitcoin',
@@ -998,6 +1021,11 @@ Use this to simulate higher fees and extreme mempool conditions on Tape.`,
       }
     }
   },
+  labels: {
+    add: 'Add label',
+    edit: 'Edit label',
+    saveError: 'Could not save label.'
+  },
   coinControl: {
     auto: 'Auto',
     title: 'Manual Coin Selection',
@@ -1005,6 +1033,14 @@ Use this to simulate higher fees and extreme mempool conditions on Tape.`,
 
 If you have experience and want to control exactly which UTXOs are spent, you can select them manually.`,
     noUtxos: 'No UTXOs are available for manual selection.',
+    labelPlaceholder: 'Label this UTXO',
+    parentTxLabel: 'From tx: {{label}}',
+    outpointId: 'Coin {{outpoint}}',
+    copyOutpointSuccess: 'Coin ID copied.',
+    originConfirming: 'Confirming',
+    originSubmittedOn: 'Submitted {{date}}',
+    originConfirmedOn: 'Confirmed {{date}}',
+    originConfirmedBlock: 'Confirmed in block {{block}}',
     disabledReasons: {
       unconfirmedAcceleratableOutput:
         'Comes from an unconfirmed transaction that can still be accelerated. If accelerated, this output may disappear. Wait for one confirmation.',
@@ -1027,6 +1063,8 @@ If you have experience and want to control exactly which UTXOs are spent, you ca
   accelerateButton: 'Accelerate',
   //okButton: 'OK',
   loadMoreButton: 'Load More',
+  viewButton: 'View',
+  copyButton: 'Copy',
   dismissButton: 'Dismiss',
   goBack: 'Go Back',
   verifyButton: 'Verify',

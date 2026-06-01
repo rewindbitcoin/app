@@ -508,9 +508,11 @@ Instrucciones de Uso:
       feePayerRescue:
         'Esta transacción usó fondos reservados para pagar comisiones de red y ayudar a confirmar tu rescate. La cantidad no utilizada volvió a la billetera temporal para comisiones.',
       feePayerRescueConfirming:
-        'Esta transacción está usando fondos reservados para pagar comisiones de red y ayudar a confirmar tu rescate. Esperando confirmación... La cantidad no utilizada volverá a la billetera temporal para comisiones.',
-      openBlockExplorer: 'Ver en el Explorador de Bloques'
-    }
+        'Esta transacción está usando fondos reservados para pagar comisiones de red y ayudar a confirmar tu rescate. Esperando confirmación... La cantidad no utilizada volverá a la billetera temporal para comisiones.'
+    },
+    labelPlaceholder: 'Etiqueta esta transacción',
+    txId: 'Tx {{txid}}',
+    copyTxIdSuccess: 'ID de transacción copiado.'
   },
   network: {
     testOn: 'Probar en {{networkId}}',
@@ -889,6 +891,27 @@ Por favor, espera unos momentos hasta que se complete.`,
       watchtowerError:
         'La URL base de la API de la Torre de Vigilancia (Watchtower) no es válida. Verifica la dirección e inténtalo de nuevo.'
     },
+    labels: {
+      export: 'Exportar Etiquetas',
+      import: 'Importar Etiquetas',
+      count_one: '{{count}} etiqueta',
+      count_other: '{{count}} etiquetas',
+      exportFile: 'Exportar Archivo',
+      importButton: 'Elegir Archivo BIP-329',
+      exportSuccess: 'Etiquetas exportadas.',
+      exportError: 'No se pudieron exportar las etiquetas.',
+      importError: 'No se pudieron importar las etiquetas.',
+      importPartial:
+        'Algunos registros de etiquetas se omitieron o no se pudieron importar.',
+      importSummary:
+        'Registros de etiquetas importados: {{imported}}. Registros no soportados omitidos: {{skipped}}. Conflictos: {{conflicts}}. Errores: {{errors}}.',
+      importErrorLine: 'Línea {{line}}: {{message}}',
+      importConflictLine: 'Línea {{line}}: registro en conflicto omitido.',
+      exportWarning:
+        'Las etiquetas pueden revelar contexto privado de tu billetera, como personas, exchanges, direcciones e intención de gasto. Expórtalas solo si sabes dónde las guardarás o enviarás.',
+      importWarning:
+        'Importar etiquetas añadirá o actualizará metadatos privados de esta billetera en este dispositivo. Elige solo un archivo de etiquetas BIP-329 de una fuente de confianza.'
+    },
     general: {
       title: 'General',
       electrumBitcoin: 'Electrum Bitcoin',
@@ -922,6 +945,11 @@ Usa esto para simular comisiones más altas y condiciones extremas de mempool en
       }
     }
   },
+  labels: {
+    add: 'Añadir etiqueta',
+    edit: 'Editar etiqueta',
+    saveError: 'No se pudo guardar la etiqueta.'
+  },
   coinControl: {
     auto: 'Auto',
     title: 'Selección Manual de Monedas',
@@ -929,6 +957,14 @@ Usa esto para simular comisiones más altas y condiciones extremas de mempool en
 
 Si tienes experiencia y quieres controlar exactamente qué UTXOs se gastan, puedes seleccionarlos manualmente.`,
     noUtxos: 'No hay UTXOs disponibles para la selección manual.',
+    labelPlaceholder: 'Etiqueta este UTXO',
+    parentTxLabel: 'Transacción: {{label}}',
+    outpointId: 'Moneda {{outpoint}}',
+    copyOutpointSuccess: 'ID de moneda copiado.',
+    originConfirming: 'Confirmando',
+    originSubmittedOn: 'Enviada el {{date}}',
+    originConfirmedOn: 'Confirmada el {{date}}',
+    originConfirmedBlock: 'Confirmada en el bloque {{block}}',
     disabledReasons: {
       unconfirmedAcceleratableOutput:
         'Viene de una transacción sin confirmar que todavía puede acelerarse. Si se acelera, esta salida podría desaparecer. Espera una confirmación.',
@@ -950,6 +986,8 @@ Si tienes experiencia y quieres controlar exactamente qué UTXOs se gastan, pued
   imInDangerButton: 'Estoy en Peligro',
   accelerateButton: 'Acelerar',
   loadMoreButton: 'Cargar Más',
+  viewButton: 'Ver',
+  copyButton: 'Copiar',
   dismissButton: 'Descartar',
   goBack: 'Volver',
   verifyButton: 'Verificar',
