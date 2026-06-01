@@ -2,15 +2,20 @@
 // Licensed under the GNU GPL v3 or later. See the LICENSE file for details.
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { Linking, Pressable, Text, View } from 'react-native';
+import * as Clipboard from 'expo-clipboard';
 import { useTranslation } from 'react-i18next';
-import { Button, IconType, Modal } from '../../common/ui';
+import { Button, IconType, Modal, useToast } from '../../common/ui';
 import { formatBtc } from '../lib/btcRates';
+import { formatDate, getShortOutpoint } from '../lib/format';
 import { toNumber } from '../lib/sats';
 import type { UtxoAvailability } from '../lib/utxoPolicy';
 import { useLocalization } from '../hooks/useLocalization';
 import { useSettings } from '../hooks/useSettings';
-import type { UtxosData } from '../lib/vaults';
+import type { HistoryDataItem, UtxosData } from '../lib/vaults';
+import { useWallet } from '../hooks/useWallet';
+import { getWalletLabelText } from '../lib/labels';
+import LabelEditor from './LabelEditor';
 
 /**
  * Props for one coin-control picking session.
@@ -57,9 +62,6 @@ const getUtxoValue = (utxoData: UtxoAvailability['utxoData']) => {
   if (!output) throw new Error('Invalid UTXO output');
   return toNumber(output.value);
 };
-
-const getShortOutpoint = (utxoData: UtxoAvailability['utxoData']) =>
-  `${utxoData.tx.getId().slice(0, 8)}:${utxoData.vout}`;
 
 const getOutpoint = (utxoData: UtxoAvailability['utxoData']) =>
   `${utxoData.tx.getId()}:${utxoData.vout}`;
@@ -122,7 +124,10 @@ const RawCoinControlPanel = ({
   onConfirm
 }: CoinControlPanelProps) => {
   const { t } = useTranslation();
+  const toast = useToast();
   const { settings } = useSettings();
+  const { labels, setWalletLabelText, blockExplorerURL, historyData } =
+    useWallet();
   const { locale, currency } = useLocalization();
   const [step, setStep] = useState<'intro' | 'coinselect'>('intro');
   const [pickedOutpoints, setPickedOutpoints] = useState<Set<string>>(
@@ -187,6 +192,11 @@ const RawCoinControlPanel = ({
     return groups;
   }, [getGroupLabel, utxosAvailability]);
 
+  const historyByTxId = useMemo(
+    () => new Map(historyData?.map(item => [item.txId, item])),
+    [historyData]
+  );
+
   const formatAmount = useCallback(
     (amount: number) =>
       formatBtc({
@@ -197,6 +207,28 @@ const RawCoinControlPanel = ({
         currency
       }),
     [btcFiat, currency, locale, settings.SUB_UNIT]
+  );
+
+  const formatOriginTime = useCallback(
+    (historyItem: HistoryDataItem | undefined) => {
+      if (!historyItem) return;
+      if (historyItem.blockHeight === 0)
+        return 'pushTime' in historyItem && historyItem.pushTime
+          ? t('coinControl.originSubmittedOn', {
+              date: formatDate(historyItem.pushTime, locale)
+            })
+          : t('coinControl.originConfirming');
+      const blockTime =
+        'blockTime' in historyItem ? historyItem.blockTime : undefined;
+      return blockTime
+        ? t('coinControl.originConfirmedOn', {
+            date: formatDate(blockTime, locale)
+          })
+        : t('coinControl.originConfirmedBlock', {
+            block: historyItem.blockHeight
+          });
+    },
+    [locale, t]
   );
 
   const pickedPanelUtxosData = useMemo(
@@ -213,7 +245,8 @@ const RawCoinControlPanel = ({
   const handleToggleUtxo = useCallback((outpoint: string) => {
     setPickedOutpoints(pickedOutpoints => {
       const nextPickedOutpoints = new Set(pickedOutpoints);
-      if (nextPickedOutpoints.has(outpoint)) nextPickedOutpoints.delete(outpoint);
+      if (nextPickedOutpoints.has(outpoint))
+        nextPickedOutpoints.delete(outpoint);
       else nextPickedOutpoints.add(outpoint);
       return nextPickedOutpoints;
     });
@@ -221,6 +254,16 @@ const RawCoinControlPanel = ({
   const handleConfirm = useCallback(() => {
     onConfirm(pickedPanelUtxosData);
   }, [onConfirm, pickedPanelUtxosData]);
+  const handleCopyOutpoint = useCallback(
+    (outpoint: string) => {
+      Clipboard.setStringAsync(outpoint);
+      toast.show(t('coinControl.copyOutpointSuccess'), {
+        type: 'success',
+        duration: 2000
+      });
+    },
+    [t, toast]
+  );
 
   return (
     <View>
@@ -238,33 +281,45 @@ const RawCoinControlPanel = ({
               {group.items.map(availability => {
                 const disabled = availability.status !== 'selectable';
                 const outpoint = getOutpoint(availability.utxoData);
+                const txId = availability.utxoData.tx.getId();
+                const label = getWalletLabelText(labels, 'output', outpoint);
+                const txLabel = getWalletLabelText(labels, 'tx', txId);
+                const originTime = formatOriginTime(historyByTxId.get(txId));
+                const originSummary = originTime ?? group.label;
                 const picked = pickedOutpoints.has(outpoint);
-                const Row = disabled ? View : Pressable;
                 return (
-                  <Row
+                  <View
                     key={outpoint}
-                    {...(!disabled
-                      ? { onPress: () => handleToggleUtxo(outpoint) }
-                      : {})}
                     className={`rounded-xl border bg-white p-3 ${picked ? 'border-primary' : 'border-slate-200'} ${disabled ? 'opacity-50' : ''}`}
                   >
-                    <View className="flex-row items-start justify-between gap-3">
-                      <View className="shrink flex-row items-start gap-3">
+                    <Pressable
+                      disabled={disabled}
+                      onPress={() => handleToggleUtxo(outpoint)}
+                      className="flex-row items-start gap-3"
+                    >
+                      <View className="pt-1">
                         <View
-                          className={`mt-1 h-4 w-4 items-center justify-center rounded-full border ${picked ? 'border-primary' : 'border-slate-300'}`}
+                          className={`h-4 w-4 items-center justify-center rounded-full border ${picked ? 'border-primary' : 'border-slate-300'}`}
                         >
                           {picked ? (
                             <View className="h-2 w-2 rounded-full bg-primary" />
                           ) : null}
                         </View>
-                        <Text className="shrink text-base font-medium text-slate-900">
+                      </View>
+                      <View className="flex-1 gap-1">
+                        <Text className="text-base font-medium text-slate-900">
                           {formatAmount(getUtxoValue(availability.utxoData))}
                         </Text>
+                        <Text className="text-xs text-slate-500">
+                          {originSummary}
+                        </Text>
+                        {txLabel ? (
+                          <Text className="text-xs text-slate-500">
+                            {t('coinControl.parentTxLabel', { label: txLabel })}
+                          </Text>
+                        ) : null}
                       </View>
-                      <Text className="text-xs text-slate-500">
-                        {getShortOutpoint(availability.utxoData)}
-                      </Text>
-                    </View>
+                    </Pressable>
                     {availability.status === 'temporarilyUnavailable' ? (
                       <Text className="pt-1 text-xs text-slate-500">
                         {t(
@@ -272,7 +327,57 @@ const RawCoinControlPanel = ({
                         )}
                       </Text>
                     ) : null}
-                  </Row>
+                    <LabelEditor
+                      className="pt-3"
+                      label={label}
+                      placeholder={t('coinControl.labelPlaceholder')}
+                      disabled={!labels}
+                      onSave={label =>
+                        setWalletLabelText({
+                          type: 'output',
+                          ref: outpoint,
+                          label
+                        })
+                      }
+                    />
+                    <View className="mt-2 flex-row flex-wrap items-center justify-between gap-x-3 gap-y-1">
+                      <Text className="shrink text-xs text-slate-500">
+                        {t('coinControl.outpointId', {
+                          outpoint: getShortOutpoint(
+                            txId,
+                            availability.utxoData.vout
+                          )
+                        })}
+                      </Text>
+                      <View className="flex-row flex-wrap items-center justify-end gap-x-4 gap-y-1">
+                        {blockExplorerURL ? (
+                          <Button
+                            mode="text"
+                            containerClassName="!min-w-0"
+                            textClassName="!text-xs"
+                            iconRight={{
+                              family: 'FontAwesome5',
+                              name: 'external-link-alt'
+                            }}
+                            onPress={() =>
+                              Linking.openURL(`${blockExplorerURL}/${txId}`)
+                            }
+                          >
+                            {t('viewButton')}
+                          </Button>
+                        ) : null}
+                        <Button
+                          mode="text"
+                          containerClassName="!min-w-0"
+                          textClassName="!text-xs"
+                          iconRight={{ family: 'FontAwesome6', name: 'copy' }}
+                          onPress={() => handleCopyOutpoint(outpoint)}
+                        >
+                          {t('copyButton')}
+                        </Button>
+                      </View>
+                    </View>
+                  </View>
                 );
               })}
             </View>
@@ -351,8 +456,6 @@ const RawCoinControlModal = ({
 
 export const CoinControlPanel = React.memo(RawCoinControlPanel);
 export const CoinControlModal = React.memo(RawCoinControlModal);
-export const CoinControlRecoveryPanel = React.memo(
-  RawCoinControlRecoveryPanel
-);
+export const CoinControlRecoveryPanel = React.memo(RawCoinControlRecoveryPanel);
 export default CoinControlModal;
 export { coinControlIcon };
