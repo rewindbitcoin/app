@@ -61,7 +61,8 @@ export const getStorageAccessStatus = ({
   discoveryExportErrorCode,
   vaultsErrorCode,
   vaultsStatusesErrorCode,
-  accountsErrorCode
+  accountsErrorCode,
+  labelsErrorCode
 }: {
   signers: Signers | undefined;
   signersStorageEngine: 'MMKV' | 'IDB' | 'SECURESTORE' | undefined;
@@ -73,6 +74,7 @@ export const getStorageAccessStatus = ({
   vaultsErrorCode: StorageErrorCode;
   vaultsStatusesErrorCode: StorageErrorCode;
   accountsErrorCode: StorageErrorCode;
+  labelsErrorCode: StorageErrorCode;
 }): StorageAccessStatus => {
   let biometricsKeyInvalidated = false;
   let biometricAuthCancelled = false;
@@ -114,7 +116,8 @@ export const getStorageAccessStatus = ({
     (!biometricAuthCancelled && signersErrorCode) ||
     vaultsErrorCode ||
     vaultsStatusesErrorCode ||
-    accountsErrorCode
+    accountsErrorCode ||
+    labelsErrorCode
   ) {
     readWriteError = true;
   }
