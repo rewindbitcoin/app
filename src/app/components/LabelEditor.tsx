@@ -40,6 +40,10 @@ const RawLabelEditor = ({
     setIsEditing(false);
   }, [label]);
 
+  const handleBlur = useCallback(() => {
+    if (draft === label) setIsEditing(false);
+  }, [draft, label]);
+
   const handleSave = useCallback(async () => {
     if (isSaving) return;
     setIsSaving(true);
@@ -92,6 +96,7 @@ const RawLabelEditor = ({
           returnKeyType="done"
           style={fixTextAlignment}
           onChangeText={setDraft}
+          onBlur={handleBlur}
           onSubmitEditing={handleSave}
         />
         {actions}
