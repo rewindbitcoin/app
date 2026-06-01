@@ -36,6 +36,7 @@ import { getPresignedTriggerFeeRate } from '../lib/settings';
 import { useLocalization } from '../hooks/useLocalization';
 import { toBigInt } from '../lib/sats';
 import ModalInfoButton from '../components/ModalInfoButton';
+import AddressActionRow from '../components/AddressActionRow';
 
 const SummaryTitle = ({
   title,
@@ -77,7 +78,8 @@ export default function CreateVaultScreen({
     signers,
     pushVaultRegisterWTAndUpdateStates,
     wallet,
-    networkId
+    networkId,
+    blockExplorerURL
   } = useWallet();
 
   if (!wallet || !networkId || !signers || !pushVaultRegisterWTAndUpdateStates)
@@ -554,9 +556,10 @@ export default function CreateVaultScreen({
                         />
                       }
                     />
-                    <Text className="text-base break-words">
-                      {vault.coldAddress}
-                    </Text>
+                    <AddressActionRow
+                      address={vault.coldAddress}
+                      blockExplorerURL={blockExplorerURL}
+                    />
                   </View>
                 </View>
                 <Text className="text-base mb-8">

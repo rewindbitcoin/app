@@ -11,7 +11,7 @@ import React, {
 
 const IRREVERSIBLE_BLOCKS = 4; // Number of blocks after which a transaction is considered irreversible
 //const IRREVERSIBLE_BLOCKS = 0; // For Screenshots
-import { View, Text, Linking } from 'react-native';
+import { View, Text } from 'react-native';
 import { batchedUpdates } from '~/common/lib/batchedUpdates';
 
 import {
@@ -27,7 +27,7 @@ import {
 import VaultIcon from '../VaultIcon';
 import { useTranslation } from 'react-i18next';
 import { formatBalance, formatBlocks } from '../../lib/format';
-import { Button, useToast } from '../../../common/ui';
+import { useToast } from '../../../common/ui';
 
 import { useSettings } from '../../hooks/useSettings';
 import type { BlockStatus } from '@bitcoinerlab/explorer';
@@ -67,6 +67,7 @@ import {
   useTriggerReserveBumpPlan
 } from './useReserveBumpPlans';
 import { pickFeeEstimate } from '../../lib/fees';
+import AddressActionRow from '../AddressActionRow';
 
 const LOADING_TEXT = '     ';
 const INITIAL_NOW_SECONDS = Math.floor(Date.now() / 1000);
@@ -1125,26 +1126,15 @@ const RawVault = ({
           {hasRescueStarted && (
             // native:text-sm web:text-xs web:sm:text-sm
             <>
-              <Text className="py-2">
+              <Text className="pt-2 pb-0">
                 {isRescueTxConfirmed
                   ? t('wallet.vault.rescueConfirmedEmergencyAddressIntro')
                   : t('wallet.vault.rescueUnconfirmedEmergencyAddressIntro')}
               </Text>
-              {/*text-ellipsis, whitespace-nowrap & break-words is web only; overflow-hidden on a Text element breaks words
-               flex-1 explanation: https://www.bam.tech/article/why-my-text-is-going-off-screen */}
-              <Button
-                iconRight={{
-                  family: 'FontAwesome5',
-                  name: 'external-link-alt'
-                }}
-                mode="text"
-                textClassName="overflow-hidden flex-1"
-                onPress={() =>
-                  Linking.openURL(`${blockExplorerURL}/${panicAddress}`)
-                }
-              >
-                {panicAddress}
-              </Button>
+              <AddressActionRow
+                address={panicAddress}
+                blockExplorerURL={blockExplorerURL}
+              />
             </>
           )}
         </View>

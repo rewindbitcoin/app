@@ -68,6 +68,12 @@ export const getShortTxId = (txId: string) =>
 export const getShortOutpoint = (txId: string, vout: number) =>
   `${getShortTxId(txId)}:${vout}`;
 
+export const getShortAddress = (address: string) => {
+  const visibleChars = 10;
+  if (address.length <= visibleChars * 2 + 3) return address;
+  return `${address.slice(0, visibleChars)}...${address.slice(-visibleChars)}`;
+};
+
 /**
  * Formats block time estimates into human-readable strings.
  *
