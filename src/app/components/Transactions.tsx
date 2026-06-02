@@ -25,6 +25,7 @@ import { useLocalization } from '../hooks/useLocalization';
 import { toNumber } from '../lib/sats';
 import { useWallet } from '../hooks/useWallet';
 import { getWalletLabelText } from '../lib/labels';
+import { getVaultName } from '../lib/vaultLabels';
 import LabelEditor from './LabelEditor';
 
 const INITIAL_NOW_SECONDS = Math.floor(Date.now() / 1000);
@@ -53,6 +54,7 @@ const RawTransaction = ({
   vaultOutValue,
   explorerReachable,
   txLabel,
+  vaultName,
   labelsReady,
   onSaveTxLabel
   //triggerOutValue
@@ -68,6 +70,7 @@ const RawTransaction = ({
   blockExplorerURL: string | undefined;
   explorerReachable: boolean | undefined;
   txLabel: string;
+  vaultName: string | undefined;
   labelsReady: boolean;
   onSaveTxLabel: (label: string) => Promise<void> | void;
   /** if this tx is associated with a vaultId, then pass the output value
@@ -173,7 +176,7 @@ const RawTransaction = ({
   let detailsStr;
   let coldReceived = 0;
   if ('feePayerTxType' in item) {
-    const vaultNumber = item.vaultNumber;
+    const itemVaultName = vaultName ?? String(item.vaultNumber);
     const isTriggerFeePayer = item.feePayerTxType === 'TRIGGER';
     header = (
       <View className="flex-row items-center flex-1">
@@ -187,8 +190,12 @@ const RawTransaction = ({
         </View>
         <Text className="text-base leading-snug font-semibold ml-2 flex-1">
           {isTriggerFeePayer
-            ? t('transaction.header.feePayerTrigger', { vaultNumber })
-            : t('transaction.header.feePayerRescue', { vaultNumber })}
+            ? t('transaction.header.feePayerTrigger', {
+                vaultName: itemVaultName
+              })
+            : t('transaction.header.feePayerRescue', {
+                vaultName: itemVaultName
+              })}
         </Text>
       </View>
     );
@@ -206,7 +213,7 @@ const RawTransaction = ({
       throw new Error('outValue should be set for vaultTxType');
     if (!('vaultNumber' in item))
       throw new Error('vaultNumber should be set for vaultTxType');
-    const vaultNumber = item.vaultNumber;
+    const itemVaultName = vaultName ?? String(item.vaultNumber);
     const outValueStr = formatBalance({
       satsBalance: item.outValue,
       btcFiat,
@@ -227,7 +234,7 @@ const RawTransaction = ({
             </Svg>
           </View>
           <Text className="text-base leading-snug font-semibold ml-2 flex-1">
-            {t('transaction.header.vault', { vaultNumber })}
+            {t('transaction.header.vault', { vaultName: itemVaultName })}
           </Text>
         </View>
       );
@@ -247,7 +254,7 @@ const RawTransaction = ({
             </Svg>
           </View>
           <Text className="text-base leading-snug font-semibold ml-2 flex-1">
-            {t('transaction.header.trigger', { vaultNumber })}
+            {t('transaction.header.trigger', { vaultName: itemVaultName })}
           </Text>
         </View>
       );
@@ -288,7 +295,7 @@ const RawTransaction = ({
             <MaterialCommunityIcons name="alarm-light" size={20} color="red" />
           </View>
           <Text className="text-base leading-snug font-semibold ml-2 flex-1">
-            {t('transaction.header.rescue', { vaultNumber })}
+            {t('transaction.header.rescue', { vaultName: itemVaultName })}
           </Text>
         </View>
       );
@@ -493,7 +500,7 @@ const Transactions = ({
       : settings.SUB_UNIT;
   const { locale, currency } = useLocalization();
   const { t } = useTranslation();
-  const { labels, setWalletLabelText } = useWallet();
+  const { labels, setWalletLabelText, vaults } = useWallet();
 
   const reversedHistoryData = useMemo<HistoryData | undefined>(
     () => historyData && [...historyData].reverse(),
@@ -540,6 +547,17 @@ const Transactions = ({
         );
         if (vaultHistoryDataItem && 'outValue' in vaultHistoryDataItem)
           vaultOutValue = vaultHistoryDataItem.outValue;
+        let vaultName: string | undefined;
+        if ('vaultId' in item && 'vaultNumber' in item) {
+          const vault = vaults?.[item.vaultId];
+          vaultName = vault
+            ? getVaultName({
+                vault,
+                labels,
+                defaultName: String(item.vaultNumber)
+              })
+            : String(item.vaultNumber);
+        }
         return (
           <React.Fragment key={item.txId}>
             <Transaction
@@ -548,6 +566,7 @@ const Transactions = ({
               t={t}
               item={item}
               txLabel={getWalletLabelText(labels, 'tx', item.txId)}
+              vaultName={vaultName}
               labelsReady={!!labels}
               onSaveTxLabel={label =>
                 setWalletLabelText({ type: 'tx', ref: item.txId, label })
