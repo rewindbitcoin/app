@@ -37,6 +37,7 @@ import RescueReserveWalletWizard from './modals/RescueReserveWalletWizard';
 import type { EphemeralWalletData } from '../EphemeralWalletWizard';
 import VaultActionButton from './card/VaultActionButton';
 import VaultBalance from './card/VaultBalance';
+import VaultNameEditor from './card/VaultNameEditor';
 import VaultStatusLine from './card/VaultStatusLine';
 import VaultWatchtowerIndicator from './card/VaultWatchtowerIndicator';
 import { formatVaultDate, getVaultInitDate } from './vaultDates';
@@ -68,6 +69,8 @@ import {
 } from './useReserveBumpPlans';
 import { pickFeeEstimate } from '../../lib/fees';
 import AddressActionRow from '../AddressActionRow';
+import { getVaultName, getVaultOutputRef } from '../../lib/vaultLabels';
+import { transactionFromHex } from '../../lib/bitcoin';
 
 const LOADING_TEXT = '     ';
 const INITIAL_NOW_SECONDS = Math.floor(Date.now() / 1000);
@@ -131,7 +134,60 @@ const RawVault = ({
 
   const { settings } = useSettings();
   if (!settings) throw new Error('Settings has not been retrieved');
-  const { feeEstimates, historyData, networkId, pushTxPackage } = useWallet();
+  const {
+    feeEstimates,
+    historyData,
+    labels,
+    networkId,
+    pushTxPackage,
+    setWalletLabelText,
+    setWalletLabelTextsIfEmpty
+  } = useWallet();
+  const vaultName = getVaultName({
+    vault,
+    labels,
+    defaultName: String(vaultNumber)
+  });
+  const attemptedAutoLabelTxIdsRef = useRef<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (!labels || !vaultStatus) return;
+    const labelEntries: Array<{ type: 'tx'; ref: string; label: string }> = [];
+    const attemptedTxIds: string[] = [];
+    const addTxLabel = (txHex: string | undefined, label: string) => {
+      if (!txHex) return;
+      const txId = transactionFromHex(txHex).txId;
+      if (attemptedAutoLabelTxIdsRef.current.has(txId)) return;
+      attemptedAutoLabelTxIdsRef.current.add(txId);
+      attemptedTxIds.push(txId);
+      labelEntries.push({ type: 'tx', ref: txId, label });
+    };
+
+    addTxLabel(
+      vaultStatus.triggerTxHex,
+      t('wallet.vault.actionLabels.initUnfreeze', { vaultName })
+    );
+    addTxLabel(
+      vaultStatus.triggerCpfpTxHex,
+      t('wallet.vault.actionLabels.unfreezeFeeBump', { vaultName })
+    );
+    addTxLabel(
+      vaultStatus.panicTxHex,
+      t('wallet.vault.actionLabels.rescue', { vaultName })
+    );
+    addTxLabel(
+      vaultStatus.panicCpfpTxHex,
+      t('wallet.vault.actionLabels.rescueFeeBump', { vaultName })
+    );
+
+    if (labelEntries.length === 0) return;
+    setWalletLabelTextsIfEmpty(labelEntries).catch(error => {
+      attemptedTxIds.forEach(txId =>
+        attemptedAutoLabelTxIdsRef.current.delete(txId)
+      );
+      console.warn('Failed to backfill vault action labels', error);
+    });
+  }, [labels, vaultStatus, setWalletLabelTextsIfEmpty, t, vaultName]);
   //don't do this since VaultCard is not a short-lived screen.
   //feeEstimates = useFirstDefinedValue(feeEstimates);
   const {
@@ -244,6 +300,26 @@ const RawVault = ({
         });
 
         if (pushStatus !== 'SUCCESS') return;
+        try {
+          const labelEntries = [
+            {
+              type: 'tx' as const,
+              ref: transactionFromHex(triggerData.parentTxHex).txId,
+              label: t('wallet.vault.actionLabels.initUnfreeze', { vaultName })
+            }
+          ];
+          if (triggerCpfpTxHex !== undefined)
+            labelEntries.push({
+              type: 'tx' as const,
+              ref: transactionFromHex(triggerCpfpTxHex).txId,
+              label: t('wallet.vault.actionLabels.unfreezeFeeBump', {
+                vaultName
+              })
+            });
+          await setWalletLabelTextsIfEmpty(labelEntries);
+        } catch (error) {
+          console.warn('Failed to save trigger labels', error);
+        }
         if (wasTriggerTxPendingConfirmation)
           toast.show(t('wallet.vault.accelerateSuccess'), { type: 'success' });
         if (!vaultStatus)
@@ -274,7 +350,9 @@ const RawVault = ({
       updateVaultStatus,
       netRequest,
       toast,
-      t
+      t,
+      vaultName,
+      setWalletLabelTextsIfEmpty
     ]
   );
 
@@ -420,6 +498,26 @@ const RawVault = ({
         });
 
         if (pushStatus !== 'SUCCESS') return;
+        try {
+          const labelEntries = [
+            {
+              type: 'tx' as const,
+              ref: transactionFromHex(rescueData.parentTxHex).txId,
+              label: t('wallet.vault.actionLabels.rescue', { vaultName })
+            }
+          ];
+          if (panicCpfpTxHex !== undefined)
+            labelEntries.push({
+              type: 'tx' as const,
+              ref: transactionFromHex(panicCpfpTxHex).txId,
+              label: t('wallet.vault.actionLabels.rescueFeeBump', {
+                vaultName
+              })
+            });
+          await setWalletLabelTextsIfEmpty(labelEntries);
+        } catch (error) {
+          console.warn('Failed to save rescue labels', error);
+        }
         if (wasRescueTxPendingConfirmation)
           toast.show(t('wallet.vault.accelerateSuccess'), { type: 'success' });
         if (!vaultStatus)
@@ -446,7 +544,9 @@ const RawVault = ({
       t,
       networkId,
       pushTxPackage,
-      isLadderedVault
+      isLadderedVault,
+      vaultName,
+      setWalletLabelTextsIfEmpty
     ]
   );
 
@@ -833,18 +933,31 @@ const RawVault = ({
   const unfreezeReserveValue = showUnfreezeReserveValue
     ? triggerReserveValue
     : undefined;
+  const handleSaveVaultName = useCallback(
+    (name: string) =>
+      setWalletLabelText({
+        type: 'output',
+        ref: getVaultOutputRef(vault),
+        label: name
+      }),
+    [setWalletLabelText, vault]
+  );
 
   return (
     <View
       key={vault.vaultId}
       className="rounded-3xl bg-white overflow-hidden p-4"
     >
-      {/* Header: Icon + Vault number + Creation Date  */}
-      <View className="flex-row items-center justify-start mb-4">
+      {/* Header: Icon + Vault name + Creation Date  */}
+      <View className="flex-row items-start justify-start mb-4">
         <VaultIcon remainingBlocks={remainingBlocks} />
-        <Text className="font-semibold text-slate-800 web:text-base native:text-lg pl-2 flex-shrink-0">
-          {t('wallet.vault.vaultTitle', { vaultNumber })}
-        </Text>
+        <View className="flex-1 pl-2">
+          <VaultNameEditor
+            vaultName={vaultName}
+            disabled={!labels}
+            onSave={handleSaveVaultName}
+          />
+        </View>
         <SkeletonPulse active={!vaultInitDate}>
           <Text
             className={`text-slate-500 flex-1 text-right pl-4 native:text-sm web:text-xs`}
