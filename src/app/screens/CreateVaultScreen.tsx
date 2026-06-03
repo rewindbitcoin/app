@@ -532,6 +532,7 @@ export default function CreateVaultScreen({
                   label={vaultNameDraft}
                   placeholder=""
                   disabled={!labels}
+                  editActionText={t('createVault.editName')}
                   onSave={label =>
                     setVaultNameDraft(
                       normalizeVaultNameText(label) || defaultVaultName

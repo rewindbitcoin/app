@@ -757,6 +757,7 @@ Next, you'll review everything before activating it.`,
     allFees: 'Fees',
     timeLock: 'Time-Lock',
     label: 'Vault Name',
+    editName: 'Edit name',
     txLabel: 'Transaction Label',
     //Note to transalators: make this text below as short as possible. This is the
     //label for Emergency Address in the summary that users review before
