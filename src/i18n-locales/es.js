@@ -178,6 +178,7 @@ Si necesitas más ayuda, por favor contacta con el equipo de Soporte de Rewind.`
       nameSaveError: 'No se pudo guardar el nombre de la bóveda.',
       vaultDate: 'Creada el {{date}}',
       actionLabels: {
+        createVault: 'Creación de bóveda: Bóveda {{vaultName}}',
         initUnfreeze: 'Descongelación: Bóveda {{vaultName}}',
         rescue: 'Rescate: Bóveda {{vaultName}}',
         unfreezeOutput: 'Salida de descongelación: Bóveda {{vaultName}}',

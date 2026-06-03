@@ -195,6 +195,7 @@ If you need further assistance, please contact Rewind Support.`
       nameSaveError: 'Could not save vault name.',
       vaultDate: 'Created on {{date}}',
       actionLabels: {
+        createVault: 'Create vault: Vault {{vaultName}}',
         initUnfreeze: 'Unfreeze: Vault {{vaultName}}',
         rescue: 'Rescue: Vault {{vaultName}}',
         unfreezeOutput: 'Unfreeze output: Vault {{vaultName}}',

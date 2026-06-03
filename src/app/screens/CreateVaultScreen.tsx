@@ -44,6 +44,7 @@ import {
   getVaultTriggerReserveOutputRef,
   normalizeVaultNameText
 } from '../lib/vaultLabels';
+import { transactionFromHex } from '../lib/bitcoin';
 
 const SummaryTitle = ({
   title,
@@ -242,7 +243,17 @@ export default function CreateVaultScreen({
           ref: getVaultOutputRef(vault),
           label: vaultName
         });
-        const autoLabelEntries = [];
+        const autoLabelEntries: Array<{
+          type: 'tx' | 'output';
+          ref: string;
+          label: string;
+        }> = [
+          {
+            type: 'tx',
+            ref: transactionFromHex(vault.vaultTxHex).txId,
+            label: t('wallet.vault.actionLabels.createVault', { vaultName })
+          }
+        ];
         const triggerReserveRef = getVaultTriggerReserveOutputRef({
           vault,
           signer
