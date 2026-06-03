@@ -197,6 +197,7 @@ If you need further assistance, please contact Rewind Support.`
       actionLabels: {
         initUnfreeze: 'Unfreeze: Vault {{vaultName}}',
         rescue: 'Rescue: Vault {{vaultName}}',
+        unfreezeOutput: 'Unfreeze output: Vault {{vaultName}}',
         unfreezeFeeReserve: 'Unfreeze fee reserve: Vault {{vaultName}}',
         unfreezeFeeReserveChange:
           'Unfreeze fee reserve change: Vault {{vaultName}}',

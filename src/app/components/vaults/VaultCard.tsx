@@ -71,6 +71,7 @@ import { pickFeeEstimate } from '../../lib/fees';
 import AddressActionRow from '../AddressActionRow';
 import {
   getCpfpChangeOutputRef,
+  getTriggerOutputRef,
   getVaultName,
   getVaultOutputRef
 } from '../../lib/vaultLabels';
@@ -326,6 +327,18 @@ const RawVault = ({
               label: t('wallet.vault.actionLabels.initUnfreeze', { vaultName })
             }
           ];
+          const triggerOutputRef = getTriggerOutputRef({
+            vault,
+            txHex: triggerData.parentTxHex
+          });
+          if (triggerOutputRef !== undefined)
+            labelEntries.push({
+              type: 'output' as const,
+              ref: triggerOutputRef,
+              label: t('wallet.vault.actionLabels.unfreezeOutput', {
+                vaultName
+              })
+            });
           if (triggerCpfpTxHex !== undefined)
             labelEntries.push({
               type: 'tx' as const,

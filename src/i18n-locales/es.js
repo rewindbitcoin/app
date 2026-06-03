@@ -180,6 +180,7 @@ Si necesitas más ayuda, por favor contacta con el equipo de Soporte de Rewind.`
       actionLabels: {
         initUnfreeze: 'Descongelación: Bóveda {{vaultName}}',
         rescue: 'Rescate: Bóveda {{vaultName}}',
+        unfreezeOutput: 'Salida de descongelación: Bóveda {{vaultName}}',
         unfreezeFeeReserve:
           'Reserva para comisión de descongelación: Bóveda {{vaultName}}',
         unfreezeFeeReserveChange:

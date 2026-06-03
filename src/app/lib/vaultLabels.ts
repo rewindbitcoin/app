@@ -122,6 +122,25 @@ export const getVaultCreationChangeOutputRef = ({
   return `${txId}:${changeVouts[0]}`;
 };
 
+export const getTriggerOutputRef = ({
+  vault,
+  txHex
+}: {
+  vault: Vault;
+  txHex: string;
+}): string | undefined => {
+  const { Output } = ensureDescriptorsFactoryInstance();
+  const network = networkMapping[vault.networkId];
+  const output = new Output({
+    descriptor: vault.triggerDescriptor,
+    network
+  });
+  const { tx, txId } = transactionFromHex(txHex);
+  const vout = findVoutByScript(tx, output.getScriptPubKey());
+  if (vout < 0) return;
+  return `${txId}:${vout}`;
+};
+
 export const getCpfpChangeOutputRef = ({
   txHex,
   changeOutput
