@@ -7,7 +7,9 @@ import { networkMapping, type NetworkId } from '../../lib/network';
 import { getTriggerReserveDescriptor } from '../../lib/p2aReserve';
 import {
   computeChangeOutput,
-  computeReceiveOutput
+  DUMMY_CHANGE_OUTPUT,
+  computeReceiveOutput,
+  getMainAccount
 } from '../../lib/vaultDescriptors';
 import { type Vault, utxosDataBalance } from '../../lib/vaults';
 import type { P2ABumpPlan } from '../../lib/vaultActionTx';
@@ -29,21 +31,20 @@ export const useTriggerReserveBumpPlan = ({
   const {
     accounts,
     signers,
-    getNextChangeDescriptorWithIndex,
     canFetchReserveDescriptorData,
     fetchReserveDescriptorData
   } = useWallet();
   const walletSigner = signers?.[0];
   const [p2aBumpPlan, setP2ABumpPlan] = useState<ReserveBumpPlan>('loading');
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const refreshIdRef = useRef(0);
+  const syncIdRef = useRef(0);
   const wasSyncingBlockchain = useRef(syncingBlockchain);
 
-  const refresh = useCallback(() => {
-    const refreshId = refreshIdRef.current + 1;
-    refreshIdRef.current = refreshId;
+  const syncBumpPlan = useCallback(() => {
+    const syncId = syncIdRef.current + 1;
+    syncIdRef.current = syncId;
 
-    // Keep a loaded plan visible during background refreshes; the modal can
+    // Keep a loaded plan visible during background syncs; the modal can
     // disable only its final submit button while this flag is true.
     setP2ABumpPlan(currentPlan =>
       typeof currentPlan === 'object' ? currentPlan : 'loading'
@@ -72,26 +73,26 @@ export const useTriggerReserveBumpPlan = ({
         const reserveData = await fetchReserveDescriptorData({
           descriptor: triggerReserveDescriptor
         });
-        if (refreshIdRef.current !== refreshId) return;
+        if (syncIdRef.current !== syncId) return;
         if (!reserveData) {
           setP2ABumpPlan('error');
           setIsRefreshing(false);
           return;
         }
         const { txosData, hasUnconfirmedUtxos } = reserveData;
-        const changeDescriptorWithIndex =
-          await getNextChangeDescriptorWithIndex(accounts);
-        if (refreshIdRef.current !== refreshId) return;
         setP2ABumpPlan({
           txosData,
           hasUnconfirmedUtxos,
-          changeOutput: computeChangeOutput(changeDescriptorWithIndex, network),
+          changeOutput: DUMMY_CHANGE_OUTPUT(
+            getMainAccount(accounts, network),
+            network
+          ),
           signer: walletSigner
         });
         setIsRefreshing(false);
       } catch (err) {
         console.warn('Could not prepare trigger fee-bump plan', err);
-        if (refreshIdRef.current === refreshId) {
+        if (syncIdRef.current === syncId) {
           setP2ABumpPlan('error');
           setIsRefreshing(false);
         }
@@ -106,35 +107,34 @@ export const useTriggerReserveBumpPlan = ({
     accounts,
     canFetchReserveDescriptorData,
     vault,
-    fetchReserveDescriptorData,
-    getNextChangeDescriptorWithIndex
+    fetchReserveDescriptorData
   ]);
-  const cancelPendingRefresh = useCallback(() => {
-    refreshIdRef.current += 1;
+  const cancelPendingSync = useCallback(() => {
+    syncIdRef.current += 1;
   }, []);
 
   useEffect(() => {
     // Reserve discovery is an async external scan. Start it when the real
-    // inputs change; `refresh` owns loading/error state and stale result guards.
+    // inputs change; `syncBumpPlan` owns loading/error state and stale result guards.
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    refresh();
-    return cancelPendingRefresh;
-  }, [cancelPendingRefresh, refresh]);
+    syncBumpPlan();
+    return cancelPendingSync;
+  }, [cancelPendingSync, syncBumpPlan]);
 
   useEffect(() => {
     const syncFinished = wasSyncingBlockchain.current && !syncingBlockchain;
     wasSyncingBlockchain.current = syncingBlockchain;
     if (!syncFinished) return;
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    refresh();
-  }, [refresh, syncingBlockchain]);
+    syncBumpPlan();
+  }, [syncBumpPlan, syncingBlockchain]);
 
   const value =
     typeof p2aBumpPlan === 'object'
       ? utxosDataBalance(p2aBumpPlan.txosData)
       : undefined;
 
-  return { p2aBumpPlan, value, isRefreshing, refresh };
+  return { p2aBumpPlan, value, isRefreshing, syncBumpPlan };
 };
 
 export const useRescueReserveBumpPlan = ({
@@ -161,12 +161,12 @@ export const useRescueReserveBumpPlan = ({
         }
   );
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const refreshIdRef = useRef(0);
+  const syncIdRef = useRef(0);
   const wasSyncingBlockchain = useRef(syncingBlockchain);
 
-  const refresh = useCallback(() => {
-    const refreshId = refreshIdRef.current + 1;
-    refreshIdRef.current = refreshId;
+  const syncBumpPlan = useCallback(() => {
+    const syncId = syncIdRef.current + 1;
+    syncIdRef.current = syncId;
 
     if (!enabled) {
       setState({ p2aBumpPlan: 'loading' });
@@ -196,7 +196,7 @@ export const useRescueReserveBumpPlan = ({
     }
 
     const network = networkMapping[networkId];
-    // Keep a loaded plan visible during background refreshes; the modal can
+    // Keep a loaded plan visible during background syncs; the modal can
     // disable only its final submit button while this flag is true.
     setState(currentState =>
       typeof currentState.p2aBumpPlan === 'object'
@@ -210,7 +210,7 @@ export const useRescueReserveBumpPlan = ({
         const fetchedReserveData = await fetchReserveDescriptorData({
           descriptor: reserveData.addressDescriptor
         });
-        if (refreshIdRef.current !== refreshId) return;
+        if (syncIdRef.current !== syncId) return;
         if (!fetchedReserveData) {
           setState({ p2aBumpPlan: 'error' });
           setIsRefreshing(false);
@@ -236,7 +236,7 @@ export const useRescueReserveBumpPlan = ({
         setIsRefreshing(false);
       } catch (err) {
         console.warn('Could not prepare rescue fee-bump plan', err);
-        if (refreshIdRef.current === refreshId) {
+        if (syncIdRef.current === syncId) {
           setState({ p2aBumpPlan: 'error' });
           setIsRefreshing(false);
         }
@@ -251,29 +251,29 @@ export const useRescueReserveBumpPlan = ({
     canFetchReserveDescriptorData,
     fetchReserveDescriptorData
   ]);
-  const cancelPendingRefresh = useCallback(() => {
-    refreshIdRef.current += 1;
+  const cancelPendingSync = useCallback(() => {
+    syncIdRef.current += 1;
   }, []);
 
   useEffect(() => {
     // Reserve discovery is an async external scan. Start it when the real
-    // inputs change; `refresh` owns loading/error state and stale result guards.
+    // inputs change; `syncBumpPlan` owns loading/error state and stale result guards.
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    refresh();
-    return cancelPendingRefresh;
-  }, [cancelPendingRefresh, refresh]);
+    syncBumpPlan();
+    return cancelPendingSync;
+  }, [cancelPendingSync, syncBumpPlan]);
 
   useEffect(() => {
     const syncFinished = wasSyncingBlockchain.current && !syncingBlockchain;
     wasSyncingBlockchain.current = syncingBlockchain;
     if (!syncFinished) return;
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    refresh();
-  }, [refresh, syncingBlockchain]);
+    syncBumpPlan();
+  }, [syncBumpPlan, syncingBlockchain]);
 
   const { p2aBumpPlan } = state;
   const nextOutput =
     typeof p2aBumpPlan === 'object' ? state.nextOutput : undefined;
 
-  return { p2aBumpPlan, nextOutput, isRefreshing, refresh };
+  return { p2aBumpPlan, nextOutput, isRefreshing, syncBumpPlan };
 };
