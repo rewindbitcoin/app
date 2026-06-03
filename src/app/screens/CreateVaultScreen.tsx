@@ -37,6 +37,13 @@ import { useLocalization } from '../hooks/useLocalization';
 import { toBigInt } from '../lib/sats';
 import ModalInfoButton from '../components/ModalInfoButton';
 import AddressActionRow from '../components/AddressActionRow';
+import LabelEditor from '../components/LabelEditor';
+import {
+  getVaultCreationChangeOutputRef,
+  getVaultOutputRef,
+  getVaultTriggerReserveOutputRef,
+  normalizeVaultNameText
+} from '../lib/vaultLabels';
 
 const SummaryTitle = ({
   title,
@@ -78,11 +85,21 @@ export default function CreateVaultScreen({
     signers,
     pushVaultRegisterWTAndUpdateStates,
     wallet,
+    vaults,
+    labels,
+    setWalletLabelText,
+    setWalletLabelTextsIfEmpty,
     networkId,
     blockExplorerURL
   } = useWallet();
 
-  if (!wallet || !networkId || !signers || !pushVaultRegisterWTAndUpdateStates)
+  if (
+    !wallet ||
+    !vaults ||
+    !networkId ||
+    !signers ||
+    !pushVaultRegisterWTAndUpdateStates
+  )
     throw new Error('Missing data from context');
   const lastP2PBackupVaultIndex = wallet.lastP2PBackupVaultIndex;
   const walletId = wallet.walletId;
@@ -94,6 +111,8 @@ export default function CreateVaultScreen({
   } = useNetStatus();
   const toast = useToast();
   const { t } = useTranslation();
+  const defaultVaultName = String(Object.keys(vaults).length + 1);
+  const [vaultNameDraft, setVaultNameDraft] = useState<string>(defaultVaultName);
   const navigation = useNavigation<NavigationPropsByScreenId['CREATE_VAULT']>();
   const createCancelled = useRef<boolean>(false);
   const { settings } = useSettings();
@@ -216,6 +235,40 @@ export default function CreateVaultScreen({
       //The toast with prev error message will have been shown.
       goBack();
     } else {
+      const vaultName = normalizeVaultNameText(vaultNameDraft) || defaultVaultName;
+      try {
+        await setWalletLabelText({
+          type: 'output',
+          ref: getVaultOutputRef(vault),
+          label: vaultName
+        });
+        const autoLabelEntries = [];
+        const triggerReserveRef = getVaultTriggerReserveOutputRef({
+          vault,
+          signer
+        });
+        if (triggerReserveRef)
+          autoLabelEntries.push({
+            type: 'output' as const,
+            ref: triggerReserveRef,
+            label: t('wallet.vault.actionLabels.unfreezeFeeReserve', {
+              vaultName
+            })
+          });
+        const changeRef = getVaultCreationChangeOutputRef({ vault, signer });
+        if (changeRef)
+          autoLabelEntries.push({
+            type: 'output' as const,
+            ref: changeRef,
+            label: t('wallet.vault.actionLabels.vaultCreationChange', {
+              vaultName
+            })
+          });
+        if (autoLabelEntries.length)
+          await setWalletLabelTextsIfEmpty(autoLabelEntries);
+      } catch (error) {
+        console.warn('Failed to save vault labels', error);
+      }
       toast.show(t('createVault.vaultSuccess'), {
         type: 'success',
         duration: 4000
@@ -233,7 +286,12 @@ export default function CreateVaultScreen({
     t,
     navigation,
     goBack,
-    pushVaultRegisterWTAndUpdateStates
+    pushVaultRegisterWTAndUpdateStates,
+    setWalletLabelText,
+    setWalletLabelTextsIfEmpty,
+    vaultNameDraft,
+    defaultVaultName,
+    signer
   ]);
 
   useEffect(() => {
@@ -435,6 +493,23 @@ export default function CreateVaultScreen({
                     <Text className="text-base">
                       {formatAmount(vault.vaultedAmount)}
                     </Text>
+                  </View>
+
+                  {/* Vault Label */}
+                  <View>
+                    <Text className="text-base font-bold mb-1">
+                      {t('createVault.label')}
+                    </Text>
+                    <LabelEditor
+                      label={vaultNameDraft}
+                      placeholder=""
+                      disabled={!labels}
+                      onSave={label =>
+                        setVaultNameDraft(
+                          normalizeVaultNameText(label) || defaultVaultName
+                        )
+                      }
+                    />
                   </View>
 
                   {/* Trigger Reserve */}

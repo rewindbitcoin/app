@@ -19,6 +19,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { networkMapping } from '../lib/network';
 import { useWallet } from '../hooks/useWallet';
 import { computeReceiveOutput } from '../lib/vaultDescriptors';
+import LabelEditor from '../components/LabelEditor';
+import { getWalletLabelText } from '../lib/labels';
 
 import QRCode from 'react-native-qrcode-svg';
 import * as Clipboard from 'expo-clipboard';
@@ -44,8 +46,10 @@ export default function Receive() {
     networkId,
     faucetURL,
     accounts,
+    labels,
     getNextReceiveDescriptorWithIndex,
-    fetchOutputHistory
+    fetchOutputHistory,
+    setWalletLabelText
   } = useWallet();
   if (!networkId)
     throw new Error('ReceiveScreen cannot be called with unset networkId');
@@ -114,6 +118,17 @@ export default function Receive() {
       duration: 2000
     });
   }, [toast, t, receiveAddress]);
+
+  const receiveLabel = receiveAddress
+    ? getWalletLabelText(labels, 'addr', receiveAddress)
+    : '';
+  const handleSaveReceiveLabel = useCallback(
+    (label: string) => {
+      if (!receiveAddress) throw new Error('receiveAddress does not exist');
+      return setWalletLabelText({ type: 'addr', ref: receiveAddress, label });
+    },
+    [receiveAddress, setWalletLabelText]
+  );
 
   const requestTokensURL =
     faucetURL && receiveAddress ? `${faucetURL}/?addr=${receiveAddress}` : null;
@@ -184,6 +199,13 @@ export default function Receive() {
               {receiveAddress}
             </Button>
           )}
+          <LabelEditor
+            className="justify-center pt-2"
+            label={receiveLabel}
+            placeholder={t('receive.labelPlaceholder')}
+            disabled={!labels}
+            onSave={handleSaveReceiveLabel}
+          />
         </View>
         <Button onPress={goBack}>{t('receive.doneButton')}</Button>
         {requestTokensURL && networkName && (

@@ -8,14 +8,9 @@ import {
   CoinControlRecoveryPanel
 } from '../components/CoinControl';
 import FeeInput from '../components/FeeInput';
+import LabelEditor from '../components/LabelEditor';
 import { useTranslation } from 'react-i18next';
-import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState
-} from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { batchedUpdates } from '~/common/lib/batchedUpdates';
 import { useNavigation } from '@react-navigation/native';
 import { View, Text } from 'react-native';
@@ -39,7 +34,10 @@ import {
   estimateSendTxFee,
   calculateTx
 } from '../lib/sendTransaction';
-import { getSendableUtxos } from '../lib/utxoPolicy';
+import {
+  getSendableUtxos,
+  withFrozenVaultUtxosForCoinControl
+} from '../lib/utxoPolicy';
 import { networkMapping } from '../lib/network';
 import { useSettings } from '../hooks/useSettings';
 import { useWallet } from '../hooks/useWallet';
@@ -50,11 +48,15 @@ import {
   getMainAccount
 } from '../lib/vaultDescriptors';
 import { formatBtc } from '../lib/btcRates';
-import { OutputInstance } from '@bitcoinerlab/descriptors';
 import useFirstDefinedValue from '~/common/hooks/useFirstDefinedValue';
 import useArrayChangeDetector from '~/common/hooks/useArrayChangeDetector';
 import { useLocalization } from '../hooks/useLocalization';
 import type { UtxosData } from '../lib/vaults';
+import { transactionFromHex } from '../lib/bitcoin';
+import {
+  accountsFingerprint,
+  utxoFingerprint
+} from '../lib/walletFingerprints';
 
 export default function Send() {
   const insets = useSafeAreaInsets();
@@ -72,9 +74,13 @@ export default function Send() {
     networkId,
     accounts,
     historyData,
+    vaults,
     vaultsStatuses,
+    tipStatus,
+    labels,
     getNextChangeDescriptorWithIndex,
     txPushAndUpdateStates,
+    setWalletLabelText,
     signers
   } = useWallet();
 
@@ -83,19 +89,23 @@ export default function Send() {
     vaultsStatuses &&
     historyData &&
     getSendableUtxos(utxosData, vaultsStatuses, historyData);
+  const sendableUtxosData = sendableUtxosResult?.utxosData;
+  const sendUtxosAvailability = sendableUtxosResult?.utxosAvailability;
 
   //Warn the user and reset this component if wallet changes.
   const walletChanged = useArrayChangeDetector([
-    sendableUtxosResult?.utxosData,
-    networkId,
-    accounts
+    // Even if utxosData ref is stable, sendUtxosData is not.
+    utxoFingerprint(sendableUtxosData),
+    // Ignore account names, but catch account availability changes.
+    accountsFingerprint(accounts),
+    networkId
   ]);
 
   //Cache to avoid flickering in the Sliders
   const btcFiat = useFirstDefinedValue<number>(btcFiatRealTime);
   const feeEstimates = useFirstDefinedValue<FeeEstimates>(feeEstimatesRealTime);
 
-  if (!sendableUtxosResult)
+  if (!sendableUtxosData || !sendUtxosAvailability)
     throw new Error('SendScreen cannot be called with unset utxos');
   if (!utxosData)
     throw new Error('SendScreen cannot be called with unset raw utxos');
@@ -111,10 +121,6 @@ export default function Send() {
     throw new Error('SendScreen cannot be called with unset feeEstimates');
   if (!signers)
     throw new Error('SendScreen cannot be called with unset signers');
-  const {
-    utxosData: sendableUtxosData,
-    utxosAvailability: sendUtxosAvailability
-  } = sendableUtxosResult;
   const rawUtxosData = utxosData;
   // Pending UTXOs are filtered out either because they come from an unconfirmed
   // acceleration tx the user may re-bump, making those outputs disappear, or
@@ -123,6 +129,16 @@ export default function Send() {
   const signer = signers[0];
   if (!signer) throw new Error('signer unavailable');
   const network = networkMapping[networkId];
+  const sendCoinControlUtxosAvailability =
+    vaults && tipStatus?.blockHeight !== undefined
+      ? withFrozenVaultUtxosForCoinControl(
+          sendUtxosAvailability,
+          vaults,
+          vaultsStatuses,
+          tipStatus.blockHeight,
+          networkId
+        )
+      : sendUtxosAvailability;
 
   const goBack = useCallback(() => {
     //goBack will unmount this screen as per react-navigation docs.
@@ -147,19 +163,13 @@ export default function Send() {
   const coinControl = pickedSendableUtxosData !== null;
   const coinControlSwitchOn = coinControl || isCoinControlVisible;
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const [sendLabelDraft, setSendLabelDraft] = useState<string>('');
   const { t } = useTranslation();
   const toast = useToast();
-
-  const [changeOutput, setChangeOutput] = useState<OutputInstance | null>(null);
-
-  useEffect(() => {
-    const getAndSetChangeOutput = async () => {
-      const changeDescriptorWithIndex =
-        await getNextChangeDescriptorWithIndex(accounts);
-      setChangeOutput(computeChangeOutput(changeDescriptorWithIndex, network));
-    };
-    getAndSetChangeOutput();
-  }, [getNextChangeDescriptorWithIndex, network, accounts]);
+  const dummyChangeOutput = DUMMY_CHANGE_OUTPUT(
+    getMainAccount(accounts, network),
+    network
+  );
 
   const { feeEstimate: initialFeeRate } = pickFeeEstimate(
     feeEstimates,
@@ -279,14 +289,15 @@ export default function Send() {
   }, []);
   const handleCloseContinue = useCallback(() => setIsConfirm(false), []);
   const handleContinue = useCallback(async () => {
-    if (
-      feeRate === null ||
-      amount === null ||
-      address === null ||
-      changeOutput === null
-    )
+    if (feeRate === null || amount === null || address === null)
       throw new Error('Cannot process Transaction');
     try {
+      const changeDescriptorWithIndex =
+        await getNextChangeDescriptorWithIndex(accounts);
+      const changeOutput = computeChangeOutput(
+        changeDescriptorWithIndex,
+        network
+      );
       const txHexAndFee = await calculateTx({
         signer,
         utxosData: pickedSendableUtxosData ?? sendableUtxosData,
@@ -314,8 +325,9 @@ export default function Send() {
       toast.show(t('send.txCalculateError'), { type: 'warning' });
     }
   }, [
-    changeOutput,
     toast,
+    getNextChangeDescriptorWithIndex,
+    accounts,
     pickedSendableUtxosData,
     sendableUtxosData,
     coinControl,
@@ -334,7 +346,19 @@ export default function Send() {
       // Set loading state to true
       setIsSubmitting(true);
 
+      const { txId } = transactionFromHex(txHexRef.current);
       await txPushAndUpdateStates(txHexRef.current);
+      if (sendLabelDraft.trim()) {
+        try {
+          await setWalletLabelText({
+            type: 'tx',
+            ref: txId,
+            label: sendLabelDraft
+          });
+        } catch (error) {
+          console.warn('Failed to save sent transaction label', error);
+        }
+      }
       toast.show(t('send.txSuccess'), { type: 'success' });
     } catch (err) {
       console.warn(err);
@@ -346,7 +370,14 @@ export default function Send() {
       feeRef.current = undefined;
       goBack();
     }
-  }, [toast, goBack, txPushAndUpdateStates, t]);
+  }, [
+    toast,
+    goBack,
+    txPushAndUpdateStates,
+    t,
+    sendLabelDraft,
+    setWalletLabelText
+  ]);
 
   /**
    * Handles fee rate changes with special consideration for max amount
@@ -419,16 +450,11 @@ export default function Send() {
     feeRate,
     amount,
     network,
-    changeOutput:
-      changeOutput ||
-      DUMMY_CHANGE_OUTPUT(getMainAccount(accounts, network), network)
+    changeOutput: dummyChangeOutput
   });
 
   const allFieldsValid =
-    amount !== null &&
-    feeRate !== null &&
-    address !== null &&
-    changeOutput !== null;
+    amount !== null && feeRate !== null && address !== null;
 
   const formatAmount = useCallback(
     (amount: number) => {
@@ -592,12 +618,25 @@ export default function Send() {
                       formatAmount(feeRef.current)}
                   </Text>
                 </View>
+
+                {/* Label */}
+                <View>
+                  <Text className="text-base font-bold mb-1">
+                    {t('send.confirmLabels.label')}
+                  </Text>
+                  <LabelEditor
+                    label={sendLabelDraft}
+                    placeholder={t('transaction.labelPlaceholder')}
+                    disabled={!labels}
+                    onSave={setSendLabelDraft}
+                  />
+                </View>
               </View>
             </View>
           </Modal>
           <CoinControlModal
             isVisible={isCoinControlVisible}
-            utxosAvailability={sendUtxosAvailability}
+            utxosAvailability={sendCoinControlUtxosAvailability}
             pickedUtxosData={pickedSendableUtxosData}
             btcFiat={btcFiat}
             onClose={handleCloseCoinControl}

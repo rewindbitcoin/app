@@ -69,8 +69,13 @@ import {
 } from './useReserveBumpPlans';
 import { pickFeeEstimate } from '../../lib/fees';
 import AddressActionRow from '../AddressActionRow';
-import { getVaultName, getVaultOutputRef } from '../../lib/vaultLabels';
+import {
+  getCpfpChangeOutputRef,
+  getVaultName,
+  getVaultOutputRef
+} from '../../lib/vaultLabels';
 import { transactionFromHex } from '../../lib/bitcoin';
+import { computeChangeOutput } from '../../lib/vaultDescriptors';
 
 const LOADING_TEXT = '     ';
 const INITIAL_NOW_SECONDS = Math.floor(Date.now() / 1000);
@@ -139,6 +144,8 @@ const RawVault = ({
     historyData,
     labels,
     networkId,
+    accounts,
+    getNextChangeDescriptorWithIndex,
     pushTxPackage,
     setWalletLabelText,
     setWalletLabelTextsIfEmpty
@@ -194,7 +201,7 @@ const RawVault = ({
     p2aBumpPlan: triggerBumpPlan,
     isRefreshing: isTriggerBumpPlanRefreshing,
     value: triggerReserveValue,
-    refresh: retryTriggerReserve
+    syncBumpPlan: syncTriggerReserveBumpPlan
   } = useTriggerReserveBumpPlan({
     enabled: !isLadderedVault,
     vault,
@@ -208,9 +215,9 @@ const RawVault = ({
     []
   );
   const openTriggerModal = useCallback(() => {
-    if (triggerBumpPlan !== 'error') retryTriggerReserve();
+    if (triggerBumpPlan !== 'error') syncTriggerReserveBumpPlan();
     setIsTriggerModalVisible(true);
-  }, [retryTriggerReserve, triggerBumpPlan]);
+  }, [syncTriggerReserveBumpPlan, triggerBumpPlan]);
   // Broadcasts the selected trigger action. It acknowledges the watchtower for
   // this local action, then pushes parent-only txs directly or builds the P2A
   // parent+reserve-child package when reserve UTXOs exist.
@@ -225,6 +232,7 @@ const RawVault = ({
           ? vaultStatus.triggerTxBlockHeight === 0
           : !!vaultStatus?.triggerPushTime;
       let triggerCpfpTxHex: string | undefined;
+      let triggerCpfpChangeOutputRef: string | undefined;
       try {
         const { status: pushStatus } = await netRequest({
           whenToastErrors: 'ON_ANY_ERROR',
@@ -265,13 +273,15 @@ const RawVault = ({
               return;
             }
 
-            if (
-              !networkId ||
-              !actionBumpPlan.changeOutput ||
-              !actionBumpPlan.signer
-            )
+            if (!networkId || !accounts || !actionBumpPlan.signer)
               throw new Error('Wallet not ready for Rewind2 trigger package');
             const network = networkMapping[networkId];
+            const changeDescriptorWithIndex =
+              await getNextChangeDescriptorWithIndex(accounts);
+            const changeOutput = computeChangeOutput(
+              changeDescriptorWithIndex,
+              network
+            );
             // Trigger fee bumping always spends the full reserve set first; any
             // normal wallet inputs here were explicitly selected by the user as
             // a supplement and return leftover value to wallet change.
@@ -285,13 +295,17 @@ const RawVault = ({
                   ? triggerData.walletSupplementUtxosData
                   : [])
               ],
-              changeOutput: actionBumpPlan.changeOutput,
+              changeOutput,
               signer: actionBumpPlan.signer,
               network
             });
             if (!childTxHex)
               throw new Error('Cannot build trigger fee-bump transaction');
             triggerCpfpTxHex = childTxHex;
+            triggerCpfpChangeOutputRef = getCpfpChangeOutputRef({
+              txHex: childTxHex,
+              changeOutput
+            });
             await pushTxPackage({
               parentTxHex: triggerData.parentTxHex,
               childTxHex
@@ -301,7 +315,11 @@ const RawVault = ({
 
         if (pushStatus !== 'SUCCESS') return;
         try {
-          const labelEntries = [
+          const labelEntries: Array<{
+            type: 'tx' | 'output';
+            ref: string;
+            label: string;
+          }> = [
             {
               type: 'tx' as const,
               ref: transactionFromHex(triggerData.parentTxHex).txId,
@@ -313,6 +331,14 @@ const RawVault = ({
               type: 'tx' as const,
               ref: transactionFromHex(triggerCpfpTxHex).txId,
               label: t('wallet.vault.actionLabels.unfreezeFeeBump', {
+                vaultName
+              })
+            });
+          if (triggerCpfpChangeOutputRef !== undefined)
+            labelEntries.push({
+              type: 'output' as const,
+              ref: triggerCpfpChangeOutputRef,
+              label: t('wallet.vault.actionLabels.unfreezeFeeReserveChange', {
                 vaultName
               })
             });
@@ -342,6 +368,8 @@ const RawVault = ({
       watchtowerAPI,
       settings?.NETWORK_TIMEOUT,
       networkId,
+      accounts,
+      getNextChangeDescriptorWithIndex,
       pushTxPackage,
       pushTx,
       isLadderedVault,
@@ -376,7 +404,7 @@ const RawVault = ({
     p2aBumpPlan: rescueBumpPlan,
     isRefreshing: isRescueBumpPlanRefreshing,
     nextOutput: nextRescueReserveOutput,
-    refresh: retryRescueReserve
+    syncBumpPlan: syncRescueReserveBumpPlan
   } = useRescueReserveBumpPlan({
     enabled: !isLadderedVault,
     reserveData: rescueReserveData,
@@ -384,9 +412,10 @@ const RawVault = ({
     syncingBlockchain
   });
   const openRescueModal = useCallback(() => {
-    if (rescueReserveData && rescueBumpPlan !== 'error') retryRescueReserve();
+    if (rescueReserveData && rescueBumpPlan !== 'error')
+      syncRescueReserveBumpPlan();
     setIsRescueModalVisible(true);
-  }, [rescueBumpPlan, rescueReserveData, retryRescueReserve]);
+  }, [rescueBumpPlan, rescueReserveData, syncRescueReserveBumpPlan]);
   // Rescue reserve funding can open another modal from PresignedVaultAction:
   // either the wallet wizard first, or the AddReserve address modal once a
   // temporary reserve signer exists. Wait until Rescue has fully closed before
@@ -1337,7 +1366,7 @@ const RawVault = ({
             isVisible={isTriggerModalVisible}
             lockBlocks={vault.lockBlocks}
             onClose={closeTriggerModal}
-            onReserveRetry={retryTriggerReserve}
+            onReserveSync={syncTriggerReserveBumpPlan}
             onAction={handleTrigger}
           />
           {/* Modal that lets the user start or accelerate an emergency rescue, choose a fee when needed, and confirm broadcasting the rescue transaction/package. */}
@@ -1350,7 +1379,7 @@ const RawVault = ({
             isVisible={isRescueModalVisible}
             onClose={closeRescueModal}
             onModalHide={handleRescueModalHide}
-            onReserveRetry={retryRescueReserve}
+            onReserveSync={syncRescueReserveBumpPlan}
             {...(canOpenRescueReserveFunds
               ? { onReserveFundsMissing: openRescueReserveFunds }
               : {})}

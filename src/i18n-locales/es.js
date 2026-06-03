@@ -172,8 +172,24 @@ Si necesitas más ayuda, por favor contacta con el equipo de Soporte de Rewind.`
       rescueButton: 'Rescatar',
       delegateButton: 'Delegar',
       triggerUnfreezeButton: 'Iniciar Descongelación',
-      vaultTitle: 'Bóveda {{vaultNumber}}',
+      vaultTitle: 'Bóveda {{vaultName}}',
+      vaultNamePrefix: 'Bóveda',
+      editName: 'Editar nombre',
+      nameSaveError: 'No se pudo guardar el nombre de la bóveda.',
       vaultDate: 'Creada el {{date}}',
+      actionLabels: {
+        initUnfreeze: 'Descongelación: Bóveda {{vaultName}}',
+        rescue: 'Rescate: Bóveda {{vaultName}}',
+        unfreezeFeeReserve:
+          'Reserva para comisión de descongelación: Bóveda {{vaultName}}',
+        unfreezeFeeReserveChange:
+          'Cambio de reserva para comisión de descongelación: Bóveda {{vaultName}}',
+        unfreezeFeeBump:
+          'Aumento de comisión de descongelación: Bóveda {{vaultName}}',
+        rescueFeeBump: 'Aumento de comisión de rescate: Bóveda {{vaultName}}',
+        vaultCreationChange:
+          'Cambio de creación de bóveda: Bóveda {{vaultName}}'
+      },
       amountFrozen: 'Cantidad Congelada',
       amountBeingUnfrozen: 'Cantidad en Descongelación',
       unfrozenAmount: 'Cantidad Descongelada',
@@ -476,13 +492,13 @@ Instrucciones de Uso:
     confirmedOnBlock: 'Confirmada en el bloque {{block}}',
 
     header: {
-      vault: 'Creación de Bóveda {{vaultNumber}}',
-      trigger: 'Descongelación de Bóveda {{vaultNumber}}',
-      rescue: 'Rescate de Bóveda {{vaultNumber}}',
+      vault: 'Creación de Bóveda {{vaultName}}',
+      trigger: 'Descongelación de Bóveda {{vaultName}}',
+      rescue: 'Rescate de Bóveda {{vaultName}}',
       feePayerTrigger:
-        'Pagadora de Comisión de Descongelación de Bóveda {{vaultNumber}}',
+        'Pagadora de Comisión de Descongelación de Bóveda {{vaultName}}',
       feePayerRescue:
-        'Pagadora de Comisión de Rescate de Bóveda {{vaultNumber}}',
+        'Pagadora de Comisión de Rescate de Bóveda {{vaultName}}',
       received: 'Recibido',
       sent: 'Enviado',
       receivedAndSent: 'Recibido y Enviado',
@@ -656,7 +672,8 @@ Por tu seguridad, por favor revisa estos cambios antes de continuar.`,
     confirmLabels: {
       miningFee: 'Comisión de minería',
       amountLabel: 'Cantidad',
-      recipientAddress: 'Dirección'
+      recipientAddress: 'Dirección',
+      label: 'Etiqueta'
     }
   },
   receive: {
@@ -666,6 +683,7 @@ Por tu seguridad, por favor revisa estos cambios antes de continuar.`,
     shareAddress: 'Compartir Dirección',
     copyAddress: 'Copiar al Portapapeles',
     intro: 'Comparte esta dirección para recibir Bitcoin',
+    labelPlaceholder: 'Etiqueta esta dirección de recepción',
     faucetIntro: '¿Necesitas monedas de prueba?',
     requestTokens: '¡Solicítalas aquí!',
     faucetNote:
@@ -679,6 +697,7 @@ A continuación, podrás revisarlo todo antes de activarla.`,
     serviceFee: 'Comisión de Bóveda',
     allFees: 'Comisiones',
     timeLock: 'Tiempo de Bloqueo',
+    label: 'Nombre de Bóveda',
     emergencyAddress: 'Dirección de Emergencia',
     confirmBackupSendVault: `Tu bóveda está lista para ser enviada. Por favor, revisa los siguientes valores antes de proceder:`,
     explainConfirm: `Selecciona 'Enviar' para activar tu bóveda.`,
@@ -971,7 +990,9 @@ Si tienes experiencia y quieres controlar exactamente qué UTXOs se gastan, pued
       unconfirmedV3Output:
         'Viene de una transacción v3 sin confirmar. Espera una confirmación antes de seleccionarlo.',
       trucRequiresConfirmedInput:
-        'Este modo de bóveda solo puede usar fondos confirmados de la billetera. Espera una confirmación antes de seleccionarlo.'
+        'Este modo de bóveda solo puede usar fondos confirmados de la billetera. Espera una confirmación antes de seleccionarlo.',
+      frozenVaultOutput:
+        'Esta salida de bóveda sigue congelada. Estará disponible en aproximadamente {{timeRemaining}}.'
     },
     groups: {
       nativeSegwit: 'SegWit Nativo',

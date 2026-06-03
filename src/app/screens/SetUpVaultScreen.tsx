@@ -12,7 +12,7 @@ import FeeInput from '../components/FeeInput';
 import LearnMoreAboutVaults from '../components/LearnMoreAboutVaults';
 import ModalInfoButton from '../components/ModalInfoButton';
 import { Trans, useTranslation } from 'react-i18next';
-import React, { useCallback, useState, useMemo, useEffect } from 'react';
+import React, { useCallback, useState, useMemo } from 'react';
 import { useNavigation } from '@react-navigation/native';
 import { Text, View } from 'react-native';
 import {
@@ -31,15 +31,17 @@ import {
   type VaultSettings
 } from '../lib/vaults';
 import { getAdditionalP2AOutputValue } from '../lib/p2aReserve';
-import { getVaultableUtxos } from '../lib/utxoPolicy';
+import {
+  getVaultableUtxos,
+  withFrozenVaultUtxosForCoinControl
+} from '../lib/utxoPolicy';
 import {
   DUMMY_BACKUP_OUTPUT,
   DUMMY_TRIGGER_RESERVE_OUTPUT,
   DUMMY_VAULT_OUTPUT,
   DUMMY_CHANGE_OUTPUT,
   getMainAccount,
-  DUMMY_COLD_ADDRESS,
-  computeChangeOutput
+  DUMMY_COLD_ADDRESS
 } from '../lib/vaultDescriptors';
 import useFirstDefinedValue from '../../common/hooks/useFirstDefinedValue';
 import useArrayChangeDetector from '../../common/hooks/useArrayChangeDetector';
@@ -59,12 +61,15 @@ import {
 import { networkMapping } from '../lib/network';
 import { useSettings } from '../hooks/useSettings';
 import { useWallet } from '../hooks/useWallet';
-import { OutputInstance } from '@bitcoinerlab/descriptors';
 import { useLocalization } from '../hooks/useLocalization';
 import { batchedUpdates } from '~/common/lib/batchedUpdates';
 import { toBigInt, toNumber } from '../lib/sats';
 import { getTriggerAnchorValue } from '../lib/p2aPolicy';
 import { TRIGGER_TX_VBYTES } from '../lib/vaultSizes';
+import {
+  accountsFingerprint,
+  utxoFingerprint
+} from '../lib/walletFingerprints';
 
 export default function VaultSetUp({
   onVaultSetUpComplete
@@ -87,7 +92,7 @@ export default function VaultSetUp({
     historyData,
     vaults,
     vaultsStatuses,
-    getNextChangeDescriptorWithIndex
+    tipStatus
   } = useWallet();
 
   //Cache to avoid flickering in the Sliders
@@ -127,19 +132,30 @@ export default function VaultSetUp({
   const {
     utxosData: vaultableUtxosData,
     utxosAvailability: vaultUtxosAvailability
-  } = getVaultableUtxos(
-    rawUtxosData,
-    vaultsStatuses,
-    historyData,
-    vaultMode
-  );
+  } = getVaultableUtxos(rawUtxosData, vaultsStatuses, historyData, vaultMode);
+  const vaultCoinControlUtxosAvailability =
+    vaults && tipStatus?.blockHeight !== undefined
+      ? withFrozenVaultUtxosForCoinControl(
+          vaultUtxosAvailability,
+          vaults,
+          vaultsStatuses,
+          tipStatus.blockHeight,
+          networkId
+        )
+      : vaultUtxosAvailability;
   // Pending UTXOs are filtered out either because they come from an unconfirmed
   // acceleration tx the user may re-bump, making those outputs disappear, or
   // because relay policy blocks them, like unconfirmed v3 funds in a v2 vault.
   const hasPendingUtxos = vaultableUtxosData.length !== rawUtxosData.length;
 
   //Warn the user and reset this component if wallet changes.
-  const walletChanged = useArrayChangeDetector([vaultableUtxosData, accounts]);
+  const walletChanged = useArrayChangeDetector([
+    // Even if utxosData ref is stable, vaultableUtxosData is not.
+    utxoFingerprint(vaultableUtxosData),
+    // Ignore account names, but catch account availability changes.
+    accountsFingerprint(accounts),
+    networkId
+  ]);
 
   const [lockBlocks, setLockBlocks] = useState<number | null>(
     settings.INITIAL_LOCK_BLOCKS
@@ -155,7 +171,6 @@ export default function VaultSetUp({
   const [coldAddress, setColdAddress] = useState<string | null>(
     lastUnusedColdAddress
   );
-  const [changeOutput, setChangeOutput] = useState<OutputInstance | null>(null);
   const [isCoinControlVisible, setIsCoinControlVisible] =
     useState<boolean>(false);
   // If set, these are the vaultable UTXOs manually picked by the user.
@@ -189,15 +204,10 @@ export default function VaultSetUp({
     setIsCoinControlVisible(false);
   }, []);
   const { t } = useTranslation();
-
-  useEffect(() => {
-    const getAndSetChangeOutput = async () => {
-      const changeDescriptorWithIndex =
-        await getNextChangeDescriptorWithIndex(accounts);
-      setChangeOutput(computeChangeOutput(changeDescriptorWithIndex, network));
-    };
-    getAndSetChangeOutput();
-  }, [getNextChangeDescriptorWithIndex, network, accounts]);
+  const dummyChangeOutput = DUMMY_CHANGE_OUTPUT(
+    getMainAccount(accounts, network),
+    network
+  );
 
   const presignedTriggerFeeRate = getPresignedTriggerFeeRate(
     settings,
@@ -325,12 +335,12 @@ export default function VaultSetUp({
       .triggerReserveValue;
   const requiredFundsForMinimumVaultSetup =
     vaultSetupRangeAssumingAutoCoinSelection.maxVaultAtMinimumPackageFeeRate
-      ? vaultSetupRangeAssumingAutoCoinSelection
-          .maxVaultAtMinimumPackageFeeRate.vaultedAmount +
-        vaultSetupRangeAssumingAutoCoinSelection
-          .maxVaultAtMinimumPackageFeeRate.packageFee +
-        vaultSetupRangeAssumingAutoCoinSelection
-          .maxVaultAtMinimumPackageFeeRate.triggerReserveValue
+      ? vaultSetupRangeAssumingAutoCoinSelection.maxVaultAtMinimumPackageFeeRate
+          .vaultedAmount +
+        vaultSetupRangeAssumingAutoCoinSelection.maxVaultAtMinimumPackageFeeRate
+          .packageFee +
+        vaultSetupRangeAssumingAutoCoinSelection.maxVaultAtMinimumPackageFeeRate
+          .triggerReserveValue
       : null;
   // If automatic coinselection cannot build any vault yet, fall back to the
   // raw eligible balance so the warning message can show an approximation.
@@ -344,9 +354,7 @@ export default function VaultSetUp({
   const triggerReserveValue = getAdditionalP2AOutputValue({
     outputsWithValue: [],
     additionalOutput: DUMMY_TRIGGER_RESERVE_OUTPUT(network),
-    changeOutput:
-      changeOutput ||
-      DUMMY_CHANGE_OUTPUT(getMainAccount(accounts, network), network),
+    changeOutput: dummyChangeOutput,
     parentAnchorValue: toNumber(getTriggerAnchorValue(vaultMode)),
     presignedParentVSize: Math.max(...TRIGGER_TX_VBYTES),
     presignedParentFeeRate: presignedTriggerFeeRate,
@@ -400,9 +408,7 @@ export default function VaultSetUp({
       //slider or input box, not when the onValueChange is triggered because
       //the componet was intenally reset
       if (type === 'USER' && userSelectedVaultedAmount !== null)
-        setIsMaxVaultedAmount(
-          userSelectedVaultedAmount === maxVaultedAmount
-        );
+        setIsMaxVaultedAmount(userSelectedVaultedAmount === maxVaultedAmount);
     },
     [maxVaultedAmount]
   );
@@ -482,9 +488,6 @@ export default function VaultSetUp({
           (isMaxVaultedAmount || !isValidVaultAmountRange) &&
           newPackageFeeRate !== null
         ) {
-          const currentChangeOutput =
-            changeOutput ||
-            DUMMY_CHANGE_OUTPUT(getMainAccount(accounts, network), network);
           const newMaxEstimate = estimateMaxVaultAmount({
             utxosData: pickedVaultableUtxosData ?? vaultableUtxosData,
             coinControl,
@@ -494,13 +497,13 @@ export default function VaultSetUp({
             triggerReserveValue: getAdditionalP2AOutputValue({
               outputsWithValue: [],
               additionalOutput: DUMMY_TRIGGER_RESERVE_OUTPUT(network),
-              changeOutput: currentChangeOutput,
+              changeOutput: dummyChangeOutput,
               parentAnchorValue: toNumber(getTriggerAnchorValue(vaultMode)),
               presignedParentVSize: Math.max(...TRIGGER_TX_VBYTES),
               presignedParentFeeRate: presignedTriggerFeeRate,
               targetPackageFeeRate: settings.MAX_TRIGGER_FEERATE
             }),
-            changeOutput: currentChangeOutput,
+            changeOutput: dummyChangeOutput,
             vaultMode,
             packageFeeRate: newPackageFeeRate
           });
@@ -520,7 +523,7 @@ export default function VaultSetUp({
     },
     [
       accounts,
-      changeOutput,
+      dummyChangeOutput,
       isMaxVaultedAmount,
       isValidVaultAmountRange,
       minimumVaultSetup.vaultedAmount,
@@ -561,9 +564,7 @@ export default function VaultSetUp({
         //creation will fund.
         vaultOutput: DUMMY_VAULT_OUTPUT(network),
         backupOutput: DUMMY_BACKUP_OUTPUT(network),
-        changeOutput:
-          changeOutput ||
-          DUMMY_CHANGE_OUTPUT(getMainAccount(accounts, network), network),
+        changeOutput: dummyChangeOutput,
         packageFeeRate,
         vaultMode,
         vaultedAmount: toBigInt(vaultedAmount),
@@ -806,7 +807,7 @@ export default function VaultSetUp({
           )}
           <CoinControlModal
             isVisible={isCoinControlVisible}
-            utxosAvailability={vaultUtxosAvailability}
+            utxosAvailability={vaultCoinControlUtxosAvailability}
             pickedUtxosData={pickedVaultableUtxosData}
             btcFiat={btcFiat}
             onClose={handleCloseCoinControl}

@@ -7,7 +7,7 @@ import * as Clipboard from 'expo-clipboard';
 import { useTranslation } from 'react-i18next';
 import { Button, IconType, Modal, useToast } from '../../common/ui';
 import { formatBtc } from '../lib/btcRates';
-import { formatDate, getShortOutpoint } from '../lib/format';
+import { formatBlocks, formatDate, getShortOutpoint } from '../lib/format';
 import { toNumber } from '../lib/sats';
 import type { UtxoAvailability } from '../lib/utxoPolicy';
 import { useLocalization } from '../hooks/useLocalization';
@@ -287,6 +287,20 @@ const RawCoinControlPanel = ({
                 const originTime = formatOriginTime(historyByTxId.get(txId));
                 const originSummary = originTime ?? group.label;
                 const picked = pickedOutpoints.has(outpoint);
+                const disabledReason =
+                  availability.status === 'temporarilyUnavailable'
+                    ? t(`coinControl.disabledReasons.${availability.reason}`, {
+                        timeRemaining:
+                          availability.reason === 'frozenVaultOutput'
+                            ? formatBlocks(
+                                availability.remainingBlocks,
+                                t,
+                                locale,
+                                true
+                              )
+                            : undefined
+                      })
+                    : null;
                 return (
                   <View
                     key={outpoint}
@@ -320,11 +334,9 @@ const RawCoinControlPanel = ({
                         ) : null}
                       </View>
                     </Pressable>
-                    {availability.status === 'temporarilyUnavailable' ? (
+                    {disabledReason ? (
                       <Text className="pt-1 text-xs text-slate-500">
-                        {t(
-                          `coinControl.disabledReasons.${availability.reason}`
-                        )}
+                        {disabledReason}
                       </Text>
                     ) : null}
                     <LabelEditor

@@ -189,8 +189,21 @@ If you need further assistance, please contact Rewind Support.`
       rescueButton: 'Rescue',
       delegateButton: 'Delegate',
       triggerUnfreezeButton: 'Init Unfreeze',
-      vaultTitle: 'Vault {{vaultNumber}}',
+      vaultTitle: 'Vault {{vaultName}}',
+      vaultNamePrefix: 'Vault',
+      editName: 'Edit name',
+      nameSaveError: 'Could not save vault name.',
       vaultDate: 'Created on {{date}}',
+      actionLabels: {
+        initUnfreeze: 'Unfreeze: Vault {{vaultName}}',
+        rescue: 'Rescue: Vault {{vaultName}}',
+        unfreezeFeeReserve: 'Unfreeze fee reserve: Vault {{vaultName}}',
+        unfreezeFeeReserveChange:
+          'Unfreeze fee reserve change: Vault {{vaultName}}',
+        unfreezeFeeBump: 'Unfreeze fee bump: Vault {{vaultName}}',
+        rescueFeeBump: 'Rescue fee bump: Vault {{vaultName}}',
+        vaultCreationChange: 'Change from vault creation: Vault {{vaultName}}'
+      },
       amountFrozen: 'Amount Frozen',
       amountBeingUnfrozen: 'Amount Being Unfrozen',
       unfrozenAmount: 'Unfrozen Amount',
@@ -509,11 +522,11 @@ Usage Instructions:
     confirmedOnBlock: 'Confirmed on block {{block}}',
 
     header: {
-      vault: 'Vault {{vaultNumber}} Creation',
-      trigger: 'Vault {{vaultNumber}} Unfreeze',
-      rescue: 'Vault {{vaultNumber}} Rescue',
-      feePayerTrigger: 'Vault {{vaultNumber}} Unfreeze Fee-Payer',
-      feePayerRescue: 'Vault {{vaultNumber}} Rescue Fee-Payer',
+      vault: 'Vault {{vaultName}} Creation',
+      trigger: 'Vault {{vaultName}} Unfreeze',
+      rescue: 'Vault {{vaultName}} Rescue',
+      feePayerTrigger: 'Vault {{vaultName}} Unfreeze Fee-Payer',
+      feePayerRescue: 'Vault {{vaultName}} Rescue Fee-Payer',
       received: 'Received',
       sent: 'Sent',
       receivedAndSent: 'Received and Sent',
@@ -715,7 +728,8 @@ For your security, please review these changes before proceeding.`,
     confirmLabels: {
       miningFee: 'Mining Fee',
       amountLabel: 'Amount',
-      recipientAddress: 'Address'
+      recipientAddress: 'Address',
+      label: 'Label'
     }
   },
   receive: {
@@ -725,6 +739,7 @@ For your security, please review these changes before proceeding.`,
     shareAddress: 'Share Address',
     copyAddress: 'Copy to Clipboard',
     intro: 'Share this address to receive Bitcoin',
+    labelPlaceholder: 'Label this receive address',
     faucetIntro: 'Need test coins?',
     requestTokens: 'Request them here!',
     faucetNote:
@@ -738,6 +753,7 @@ Next, you'll review everything before activating it.`,
     serviceFee: 'Vaulting Fee',
     allFees: 'Fees',
     timeLock: 'Time-Lock',
+    label: 'Vault Name',
     //Note to transalators: make this text below as short as possible. This is the
     //label for Emergency Address in the summary that users review before
     //final submission
@@ -1047,7 +1063,9 @@ If you have experience and want to control exactly which UTXOs are spent, you ca
       unconfirmedV3Output:
         'Comes from an unconfirmed v3 transaction. Wait for one confirmation before selecting it.',
       trucRequiresConfirmedInput:
-        'This vault mode can only use confirmed wallet funds. Wait for one confirmation before selecting it.'
+        'This vault mode can only use confirmed wallet funds. Wait for one confirmation before selecting it.',
+      frozenVaultOutput:
+        'This vault output is still frozen. It will be available in about {{timeRemaining}}.'
     },
     groups: {
       nativeSegwit: 'Native SegWit',
