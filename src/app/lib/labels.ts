@@ -148,6 +148,12 @@ export const getWalletLabelText = (
   ref: string
 ): string => getWalletLabel(labels, type, ref)?.label ?? '';
 
+/**
+ * Sets or clears the text for one wallet label.
+ *
+ * Returns the same labels object when the text did not change. This lets callers
+ * skip storage writes for no-op saves.
+ */
 export const updateWalletLabelText = ({
   labels,
   type,

@@ -659,6 +659,20 @@ const WalletProviderRaw = ({
       undefined,
       activeWallet && walletsDataCipherKey[activeWallet.walletId]
     );
+  const labelsRef = useRef<WalletLabels | undefined>(labels);
+  labelsRef.current = labels;
+
+  // Two label saves can happen before React renders again. Read labels from
+  // this ref so the second save includes the first save too. In label setters,
+  // use `const currentLabels = labelsRef.current` instead of reading `labels`
+  // from state.
+  const persistLabels = useCallback(
+    async (updatedLabels: WalletLabels) => {
+      labelsRef.current = updatedLabels;
+      await setLabels(updatedLabels);
+    },
+    [setLabels]
+  );
 
   const setWalletLabelText = useCallback(
     async ({
@@ -670,17 +684,18 @@ const WalletProviderRaw = ({
       ref: string;
       label: string;
     }) => {
-      if (!labels) throw new Error('Labels not ready');
+      const currentLabels = labelsRef.current;
+      if (!currentLabels) throw new Error('Labels not ready');
       const updatedLabels = updateWalletLabelTextData({
-        labels,
+        labels: currentLabels,
         type,
         ref,
         label
       });
-      if (updatedLabels === labels) return;
-      await setLabels(updatedLabels);
+      if (updatedLabels === currentLabels) return;
+      await persistLabels(updatedLabels);
     },
-    [labels, setLabels]
+    [persistLabels]
   );
 
   const setWalletLabelTextsIfEmpty = useCallback(
@@ -698,8 +713,9 @@ const WalletProviderRaw = ({
         label: string;
       }>
     ) => {
-      if (!labels) throw new Error('Labels not ready');
-      let updatedLabels = labels;
+      const currentLabels = labelsRef.current;
+      if (!currentLabels) throw new Error('Labels not ready');
+      let updatedLabels = currentLabels;
       labelEntries.forEach(labelEntry => {
         if (getWalletLabelText(updatedLabels, labelEntry.type, labelEntry.ref))
           return;
@@ -710,26 +726,28 @@ const WalletProviderRaw = ({
           label: labelEntry.label
         });
       });
-      if (updatedLabels === labels) return;
-      await setLabels(updatedLabels);
+      if (updatedLabels === currentLabels) return;
+      await persistLabels(updatedLabels);
     },
-    [labels, setLabels]
+    [persistLabels]
   );
 
   const importBip329Labels = useCallback(
     async (jsonLines: string) => {
-      if (!labels) throw new Error('Labels not ready');
-      const result = parseBip329Labels(jsonLines, labels);
-      if (result.importedCount > 0) await setLabels(result.labels);
+      const currentLabels = labelsRef.current;
+      if (!currentLabels) throw new Error('Labels not ready');
+      const result = parseBip329Labels(jsonLines, currentLabels);
+      if (result.importedCount > 0) await persistLabels(result.labels);
       return result;
     },
-    [labels, setLabels]
+    [persistLabels]
   );
 
   const exportBip329Labels = useCallback(() => {
-    if (!labels) throw new Error('Labels not ready');
-    return serializeBip329Labels(labels);
-  }, [labels]);
+    const currentLabels = labelsRef.current;
+    if (!currentLabels) throw new Error('Labels not ready');
+    return serializeBip329Labels(currentLabels);
+  }, []);
 
   /**
    * Call this when the wallet is updated somehow: changes in vaults in

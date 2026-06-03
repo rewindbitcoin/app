@@ -88,7 +88,6 @@ export default function CreateVaultScreen({
     wallet,
     vaults,
     labels,
-    setWalletLabelText,
     setWalletLabelTextsIfEmpty,
     networkId,
     blockExplorerURL
@@ -113,7 +112,8 @@ export default function CreateVaultScreen({
   const toast = useToast();
   const { t } = useTranslation();
   const defaultVaultName = String(Object.keys(vaults).length + 1);
-  const [vaultNameDraft, setVaultNameDraft] = useState<string>(defaultVaultName);
+  const [vaultNameDraft, setVaultNameDraft] =
+    useState<string>(defaultVaultName);
   const navigation = useNavigation<NavigationPropsByScreenId['CREATE_VAULT']>();
   const createCancelled = useRef<boolean>(false);
   const { settings } = useSettings();
@@ -236,18 +236,19 @@ export default function CreateVaultScreen({
       //The toast with prev error message will have been shown.
       goBack();
     } else {
-      const vaultName = normalizeVaultNameText(vaultNameDraft) || defaultVaultName;
+      const vaultName =
+        normalizeVaultNameText(vaultNameDraft) || defaultVaultName;
       try {
-        await setWalletLabelText({
-          type: 'output',
-          ref: getVaultOutputRef(vault),
-          label: vaultName
-        });
         const autoLabelEntries: Array<{
           type: 'tx' | 'output';
           ref: string;
           label: string;
         }> = [
+          {
+            type: 'output',
+            ref: getVaultOutputRef(vault),
+            label: vaultName
+          },
           {
             type: 'tx',
             ref: transactionFromHex(vault.vaultTxHex).txId,
@@ -298,7 +299,6 @@ export default function CreateVaultScreen({
     navigation,
     goBack,
     pushVaultRegisterWTAndUpdateStates,
-    setWalletLabelText,
     setWalletLabelTextsIfEmpty,
     vaultNameDraft,
     defaultVaultName,
