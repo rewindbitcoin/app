@@ -195,16 +195,17 @@ If you need further assistance, please contact Rewind Support.`
       nameSaveError: 'Could not save vault name.',
       vaultDate: 'Created on {{date}}',
       actionLabels: {
-        createVault: 'Create vault: Vault {{vaultName}}',
-        initUnfreeze: 'Unfreeze: Vault {{vaultName}}',
-        rescue: 'Rescue: Vault {{vaultName}}',
-        unfreezeOutput: 'Unfreeze output: Vault {{vaultName}}',
-        unfreezeFeeReserve: 'Unfreeze fee reserve: Vault {{vaultName}}',
+        createVault: 'Created: Vault {{vaultName}}',
+        onChainBackup: 'On-chain backup: {{vaultName}}',
+        initUnfreeze: 'Unfreeze: {{vaultName}}',
+        rescue: 'Rescue: {{vaultName}}',
+        unfreezeOutput: 'Unfreeze output: {{vaultName}}',
+        unfreezeFeeReserve: 'Unfreeze fee reserve: {{vaultName}}',
         unfreezeFeeReserveChange:
-          'Unfreeze fee reserve change: Vault {{vaultName}}',
-        unfreezeFeeBump: 'Unfreeze fee bump: Vault {{vaultName}}',
-        rescueFeeBump: 'Rescue fee bump: Vault {{vaultName}}',
-        vaultCreationChange: 'Change from vault creation: Vault {{vaultName}}'
+          'Unfreeze fee-payer change: {{vaultName}}',
+        unfreezeFeeBump: 'Unfreeze fee-payer: {{vaultName}}',
+        rescueFeeBump: 'Rescue fee-payer: {{vaultName}}',
+        vaultCreationChange: 'Vault change: {{vaultName}}'
       },
       amountFrozen: 'Amount Frozen',
       amountBeingUnfrozen: 'Amount Being Unfrozen',
@@ -756,6 +757,7 @@ Next, you'll review everything before activating it.`,
     allFees: 'Fees',
     timeLock: 'Time-Lock',
     label: 'Vault Name',
+    txLabel: 'Transaction Label',
     //Note to transalators: make this text below as short as possible. This is the
     //label for Emergency Address in the summary that users review before
     //final submission

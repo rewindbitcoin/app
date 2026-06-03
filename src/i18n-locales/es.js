@@ -178,19 +178,19 @@ Si necesitas más ayuda, por favor contacta con el equipo de Soporte de Rewind.`
       nameSaveError: 'No se pudo guardar el nombre de la bóveda.',
       vaultDate: 'Creada el {{date}}',
       actionLabels: {
-        createVault: 'Creación de bóveda: Bóveda {{vaultName}}',
-        initUnfreeze: 'Descongelación: Bóveda {{vaultName}}',
-        rescue: 'Rescate: Bóveda {{vaultName}}',
-        unfreezeOutput: 'Salida de descongelación: Bóveda {{vaultName}}',
+        createVault: 'Creada: Bóveda {{vaultName}}',
+        onChainBackup: 'Copia on-chain: {{vaultName}}',
+        initUnfreeze: 'Descongelación: {{vaultName}}',
+        rescue: 'Rescate: {{vaultName}}',
+        unfreezeOutput: 'Salida de descongelación: {{vaultName}}',
         unfreezeFeeReserve:
-          'Reserva para comisión de descongelación: Bóveda {{vaultName}}',
+          'Reserva para comisión de descongelación: {{vaultName}}',
         unfreezeFeeReserveChange:
-          'Cambio de reserva para comisión de descongelación: Bóveda {{vaultName}}',
+          'Cambio de pagadora de comisión de descongelación: {{vaultName}}',
         unfreezeFeeBump:
-          'Aumento de comisión de descongelación: Bóveda {{vaultName}}',
-        rescueFeeBump: 'Aumento de comisión de rescate: Bóveda {{vaultName}}',
-        vaultCreationChange:
-          'Cambio de creación de bóveda: Bóveda {{vaultName}}'
+          'Pagadora de comisión de descongelación: {{vaultName}}',
+        rescueFeeBump: 'Pagadora de comisión de rescate: {{vaultName}}',
+        vaultCreationChange: 'Cambio de bóveda: {{vaultName}}'
       },
       amountFrozen: 'Cantidad Congelada',
       amountBeingUnfrozen: 'Cantidad en Descongelación',
@@ -700,6 +700,7 @@ A continuación, podrás revisarlo todo antes de activarla.`,
     allFees: 'Comisiones',
     timeLock: 'Tiempo de Bloqueo',
     label: 'Nombre de Bóveda',
+    txLabel: 'Etiqueta de transacción',
     emergencyAddress: 'Dirección de Emergencia',
     confirmBackupSendVault: `Tu bóveda está lista para ser enviada. Por favor, revisa los siguientes valores antes de proceder:`,
     explainConfirm: `Selecciona 'Enviar' para activar tu bóveda.`,

@@ -211,7 +211,9 @@ export type WalletContextType = {
     descriptor: string;
     index?: number;
   }) => Promise<TxHistory | undefined>;
-  pushVaultRegisterWTAndUpdateStates: (vault: Vault) => Promise<void>;
+  pushVaultRegisterWTAndUpdateStates: (
+    vault: Vault
+  ) => Promise<{ backupTxHex: string }>;
   txPushAndUpdateStates: (txHex: string) => Promise<void>;
   syncBlockchain: () => void;
   syncingBlockchain: boolean;
@@ -2812,7 +2814,7 @@ const WalletProviderRaw = ({
    * If the push or saving state fail for any reason, then it throws.
    */
   const pushVaultRegisterWTAndUpdateStates = useCallback(
-    async (vault: Vault): Promise<void> => {
+    async (vault: Vault): Promise<{ backupTxHex: string }> => {
       if (!vaults || !vaultsStatuses)
         throw new Error('vaults and vaultsStatuses should be defined');
       if (!accounts || tipHeight === undefined)
@@ -2863,6 +2865,7 @@ const WalletProviderRaw = ({
       });
       // Wait for all state updates to complete
       await Promise.all(stateUpdatePromises);
+      return { backupTxHex };
     },
     [
       activeWallet?.walletId,
