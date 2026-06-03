@@ -1,23 +1,138 @@
 // Copyright (C) 2026 Jose-Luis Landabaso - https://rewindbitcoin.com
 // Licensed under the GNU GPL v3 or later. See the LICENSE file for details.
 
-import { transactionFromHex } from './bitcoin';
+import { getOnChainBackupDescriptor } from './backup/onchain';
+import { findVoutByScript, transactionFromHex } from './bitcoin';
+import { ensureDescriptorsFactoryInstance } from './descriptorsFactory';
 import { getWalletLabelText, type WalletLabels } from './labels';
+import { networkMapping } from './network';
+import {
+  findTriggerReserveVout,
+  getTriggerReserveDescriptor
+} from './p2aReserve';
+import { parseVaultIndex } from './rewindPaths';
 import type { Vault } from './vaults';
+import type { Signer } from './wallets';
+import type { OutputInstance } from '@bitcoinerlab/descriptors';
+import { toHex } from 'uint8array-tools';
 
 const VAULT_NOUN_PREFIX_RE = /^(?:vault|boveda|b\u00f3veda)\s+/i;
+
+const getVaultOutputVout = (vault: Vault): number => {
+  const { tx: vaultTx, txId: vaultTxId } = transactionFromHex(vault.vaultTxHex);
+  for (const triggerTxHex of Object.keys(vault.triggerMap)) {
+    const { tx: triggerTx } = transactionFromHex(triggerTxHex);
+    const vaultInput = triggerTx.ins.find(
+      input => toHex(Uint8Array.from(input.hash).reverse()) === vaultTxId
+    );
+    if (!vaultInput) continue;
+    if (!vaultTx.outs[vaultInput.index])
+      throw new Error('Vault trigger input points to a missing vault output');
+    return vaultInput.index;
+  }
+  throw new Error('Vault trigger transaction does not spend vault transaction');
+};
 
 /**
  * Returns the BIP-329 `output` reference used as this vault's name anchor.
  *
  * BIP-329 has no dedicated `vault` label type, so Rewind names a vault by
- * labeling the locked vault output itself. Vault creation keeps that locked
- * output at `vout 0`, making `<vault txid>:0` the stable label target.
+ * labeling the locked vault output itself. The output is found through the
+ * presigned trigger tx input, so this does not depend on vault tx output order.
  */
 export const getVaultOutputRef = (vault: Vault): string => {
   const { txId } = transactionFromHex(vault.vaultTxHex);
-  // Vault creation enforces the locked vault output as vout 0.
-  return `${txId}:0`;
+  return `${txId}:${getVaultOutputVout(vault)}`;
+};
+
+const getVaultTriggerReserveVout = ({
+  vault,
+  signer
+}: {
+  vault: Vault;
+  signer: Signer;
+}): number => {
+  const network = networkMapping[vault.networkId];
+  return findTriggerReserveVout({
+    vaultTxHex: vault.vaultTxHex,
+    descriptor: getTriggerReserveDescriptor({ vault, signer, network }),
+    network,
+    addressIndex: 0
+  });
+};
+
+/**
+ * Returns the BIP-329 `output` reference for the vault-created fee reserve.
+ *
+ * This is the dedicated UTXO Rewind funds during vault creation so a later
+ * unfreeze can pay network fees. It should be labeled because other wallets
+ * would otherwise show it as a normal receive/change output after export.
+ */
+export const getVaultTriggerReserveOutputRef = ({
+  vault,
+  signer
+}: {
+  vault: Vault;
+  signer: Signer;
+}): string | undefined => {
+  const { txId } = transactionFromHex(vault.vaultTxHex);
+  const triggerReserveVout = getVaultTriggerReserveVout({ vault, signer });
+  if (triggerReserveVout < 0) return;
+  return `${txId}:${triggerReserveVout}`;
+};
+
+/**
+ * Returns the BIP-329 `output` reference for normal vault-creation change.
+ *
+ * The vault transaction can return leftover wallet funds to normal wallet
+ * change. That output is not part of the vault security state, but labeling it
+ * preserves useful source context. To avoid noisy or wrong labels, this returns
+ * a ref only when exactly one non-vault/non-backup/non-reserve output remains.
+ */
+export const getVaultCreationChangeOutputRef = ({
+  vault,
+  signer
+}: {
+  vault: Vault;
+  signer: Signer;
+}): string | undefined => {
+  const { Output } = ensureDescriptorsFactoryInstance();
+  const network = networkMapping[vault.networkId];
+  const { tx, txId } = transactionFromHex(vault.vaultTxHex);
+  const excludedVouts = new Set<number>([getVaultOutputVout(vault)]);
+  const backupOutput = new Output({
+    descriptor: getOnChainBackupDescriptor({
+      signer,
+      network,
+      index: parseVaultIndex(vault.vaultPath)
+    }),
+    network
+  });
+  const backupVout = findVoutByScript(tx, backupOutput.getScriptPubKey());
+  if (backupVout < 0) return;
+  excludedVouts.add(backupVout);
+
+  const triggerReserveVout = getVaultTriggerReserveVout({ vault, signer });
+  if (triggerReserveVout >= 0) excludedVouts.add(triggerReserveVout);
+
+  const changeVouts = tx.outs
+    .map((_, vout) => vout)
+    .filter(vout => !excludedVouts.has(vout));
+  if (changeVouts.length !== 1) return;
+  return `${txId}:${changeVouts[0]}`;
+};
+
+export const getCpfpChangeOutputRef = ({
+  txHex,
+  changeOutput
+}: {
+  txHex: string;
+  changeOutput: OutputInstance;
+}): string | undefined => {
+  const { tx, txId } = transactionFromHex(txHex);
+  const changeVout = findVoutByScript(tx, changeOutput.getScriptPubKey());
+  if (changeVout < 0) return;
+  return `${txId}:${changeVout}`;
 };
 
 /**
