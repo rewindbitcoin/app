@@ -36,7 +36,10 @@ import {
   type PresignedTxInfo,
   type VaultActionData
 } from '../../../lib/vaultActionTx';
-import { getVaultableUtxos } from '../../../lib/utxoPolicy';
+import {
+  getVaultableUtxos,
+  withFrozenVaultUtxosForCoinControl
+} from '../../../lib/utxoPolicy';
 
 type VaultActionBlockerReason =
   | ReturnType<typeof getVaultActionBlocker>['reason']
@@ -83,8 +86,8 @@ export type PresignedVaultActionProps = (
   p2aBumpPlanRefreshing: boolean;
   /** Called with the selected parent-only or parent-plus-child package data. */
   onAction: (actionData: VaultActionData) => void;
-  /** Retries reserve discovery after a role-specific reserve scan failure. */
-  onReserveRetry?: () => void;
+  /** Syncs reserve discovery after a role-specific reserve scan failure. */
+  onReserveSync?: () => void;
   /** Optional funding flow opener for missing or underfunded P2A reserves. */
   onReserveFundsMissing?: () => void;
   /** Controls modal visibility while keeping the component mounted for animation. */
@@ -121,7 +124,7 @@ const PresignedVaultAction = ({
   p2aBumpPlanRefreshing,
   isVisible,
   onAction,
-  onReserveRetry,
+  onReserveSync,
   onReserveFundsMissing,
   onClose,
   onModalHide,
@@ -139,6 +142,8 @@ const PresignedVaultAction = ({
     btcFiat: btcFiatRealTime,
     utxosData,
     historyData,
+    vaults,
+    tipStatus,
     vaultsStatuses
   } = useWallet();
   const { settings } = useSettings();
@@ -211,7 +216,18 @@ const PresignedVaultAction = ({
   ]);
   const vaultableWalletUtxosData = vaultableWalletUtxosResult.utxosData;
   const vaultableWalletUtxosAvailability =
-    vaultableWalletUtxosResult.utxosAvailability;
+    role === 'TRIGGER' &&
+    vaults &&
+    vaultsStatuses &&
+    tipStatus?.blockHeight !== undefined
+      ? withFrozenVaultUtxosForCoinControl(
+          vaultableWalletUtxosResult.utxosAvailability,
+          vaults,
+          vaultsStatuses,
+          tipStatus.blockHeight,
+          vault.networkId
+        )
+      : vaultableWalletUtxosResult.utxosAvailability;
   if (walletSupplementRequested && role !== 'TRIGGER')
     throw new Error('Wallet supplement is only allowed for trigger actions');
   const isP2ABumpPlanLoading = !isLadderedVault && p2aBumpPlan === 'loading';
@@ -903,9 +919,9 @@ const PresignedVaultAction = ({
         <Text className="text-base text-slate-600 pb-2 px-2">
           {reserveScanErrorText}
         </Text>
-        {onReserveRetry ? (
+        {onReserveSync ? (
           <View className="items-center pt-4">
-            <Button mode="secondary-alert" onPress={onReserveRetry}>
+            <Button mode="secondary-alert" onPress={onReserveSync}>
               {t('tryAgain')}
             </Button>
           </View>
