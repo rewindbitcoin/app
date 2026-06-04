@@ -13,6 +13,7 @@ const RawLabelEditor = ({
   placeholder,
   disabled = false,
   className = '',
+  addActionText,
   editActionText,
   onSave
 }: {
@@ -20,6 +21,7 @@ const RawLabelEditor = ({
   placeholder: string;
   disabled?: boolean;
   className?: string;
+  addActionText?: string;
   editActionText?: string;
   onSave: (label: string) => Promise<void> | void;
 }) => {
@@ -120,7 +122,9 @@ const RawLabelEditor = ({
         onPress={() => setIsEditing(true)}
       >
         <Text className="text-xs font-medium text-primary">
-          {label ? editActionText ?? t('labels.edit') : t('labels.add')}
+          {label
+            ? (editActionText ?? t('labels.edit'))
+            : (addActionText ?? t('labels.add'))}
         </Text>
       </Pressable>
     </View>
