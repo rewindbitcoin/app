@@ -15,6 +15,7 @@ const RawLabelEditor = ({
   className = '',
   addActionText,
   editActionText,
+  trailingAction,
   onSave
 }: {
   label: string;
@@ -23,6 +24,7 @@ const RawLabelEditor = ({
   className?: string;
   addActionText?: string;
   editActionText?: string;
+  trailingAction?: React.ReactNode;
   onSave: (label: string) => Promise<void> | void;
 }) => {
   const { t } = useTranslation();
@@ -108,25 +110,44 @@ const RawLabelEditor = ({
     );
   }
 
+  const labelNode = label ? (
+    <Text className="rounded-full bg-primary-light px-2 py-1 text-xs font-medium text-primary-dark">
+      {label}
+    </Text>
+  ) : null;
+  const editButton = (
+    <Pressable
+      hitSlop={8}
+      disabled={disabled}
+      className={disabled ? 'opacity-50' : 'active:opacity-70'}
+      onPress={() => setIsEditing(true)}
+    >
+      <Text className="text-xs font-medium text-primary">
+        {label
+          ? (editActionText ?? t('labels.edit'))
+          : (addActionText ?? t('labels.add'))}
+      </Text>
+    </Pressable>
+  );
+
+  if (trailingAction) {
+    return (
+      <View
+        className={`flex-row flex-wrap items-center justify-between gap-2 ${className}`}
+      >
+        <View className="flex-row flex-wrap items-center gap-2">
+          {labelNode}
+          {editButton}
+        </View>
+        {trailingAction}
+      </View>
+    );
+  }
+
   return (
     <View className={`flex-row flex-wrap items-center gap-2 ${className}`}>
-      {label ? (
-        <Text className="rounded-full bg-primary-light px-2 py-1 text-xs font-medium text-primary-dark">
-          {label}
-        </Text>
-      ) : null}
-      <Pressable
-        hitSlop={8}
-        disabled={disabled}
-        className={disabled ? 'opacity-50' : 'active:opacity-70'}
-        onPress={() => setIsEditing(true)}
-      >
-        <Text className="text-xs font-medium text-primary">
-          {label
-            ? (editActionText ?? t('labels.edit'))
-            : (addActionText ?? t('labels.add'))}
-        </Text>
-      </Pressable>
+      {labelNode}
+      {editButton}
     </View>
   );
 };
