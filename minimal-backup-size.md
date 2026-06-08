@@ -9,7 +9,7 @@ The current implementation stores the full presigned trigger and rescue transact
 Assuming deterministic transaction templates and fixed fee rules, the backup payload only needs:
 
 - A backup format/version byte.
-- The CSV timelock as an unsigned varint block count.
+- The CSV timelock as a fixed 2-byte unsigned block count.
 - The ephemeral compressed public key, 33 bytes.
 - The emergency P2WPKH public key hash, 20 bytes.
 - The trigger transaction ECDSA signature as raw `r || s`, 64 bytes.
@@ -54,18 +54,18 @@ For a P2WPKH emergency output:
 
 ```text
 1 byte       format/version
-1-2 bytes    CSV timelock, unsigned varint block count
+2 bytes      CSV timelock, uint16 block count
 33 bytes    ephemeral compressed public key
 20 bytes    emergency P2WPKH public key hash
 64 bytes    trigger ECDSA signature, raw r || s
 64 bytes    rescue ECDSA signature, raw r || s
 ```
 
-That is `183-184 bytes` before any optional magic prefix.
+That is `184 bytes` before any optional magic prefix.
 
 With no auth tag and a deterministic nonce, encryption adds no payload bytes. If a `REW` magic prefix is still kept, add 3 bytes.
 
-The current code uses block-based BIP68 CSV with `olderEncode({ blocks: lockBlocks })`. It does not use seconds. The current maximum lock time is far below the BIP68 block limit of 65,535 blocks. The most compact simple encoding is an unsigned varint of the block count: 1 byte for lock times up to 127 blocks, and 2 bytes for the current normal range. A fixed 2-byte unsigned integer is simpler and only costs 1 extra byte for very small lock times.
+The current code uses block-based BIP68 CSV with `olderEncode({ blocks: lockBlocks })`. It does not use seconds. The current maximum lock time is far below the BIP68 block limit of 65,535 blocks, so a fixed 2-byte unsigned integer is simple and clear. DER encoding is only needed when turning the raw ECDSA signatures back into Bitcoin witness signatures; the CSV value is just read as a number and passed back into the script builder.
 
 The magic prefix means the literal bytes `REW`. A compact binary header could be `REW` followed by one binary version byte, for example `0x00` for the first compact format. That is different from the ASCII character `"0"`, which is byte `0x30`. Either can work if the format defines it, but a binary version byte is cleaner.
 
@@ -88,12 +88,12 @@ This can reduce the compact payload by about 33 bytes:
 
 ```text
 1 byte       format/version
-1-2 bytes    CSV timelock, unsigned varint block count
+2 bytes      CSV timelock, uint16 block count
 20 bytes    emergency P2WPKH public key hash
 64 bytes    trigger ECDSA signature, raw r || s
 64 bytes    rescue ECDSA signature, raw r || s
 ```
 
-That is `150-151 bytes` before any optional magic prefix.
+That is `151 bytes` before any optional magic prefix.
 
 That only holds if the Taproot output key is the key the restore logic needs, or if any tweak is fixed and deterministic. If the design uses Taproot script paths, control blocks, or non-trivial tweaks, the backup format must store or deterministically derive the extra Taproot data needed for reconstruction.
