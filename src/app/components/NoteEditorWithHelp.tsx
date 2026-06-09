@@ -34,6 +34,7 @@ const NoteEditorWithHelp = ({
 }) => {
   const [showHelp, setShowHelp] = useState(false);
   const toggleHelp = useCallback(() => setShowHelp(value => !value), []);
+  const hideHelp = useCallback(() => setShowHelp(false), []);
 
   useEffect(() => {
     setShowHelp(false);
@@ -60,6 +61,7 @@ const NoteEditorWithHelp = ({
             </Text>
           </Pressable>
         }
+        onStartEditing={hideHelp}
         onSave={onSave}
       />
       {showHelp ? (

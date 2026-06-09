@@ -26,6 +26,8 @@ import { toNumber } from '../lib/sats';
 import { useWallet } from '../hooks/useWallet';
 import { getWalletLabelText } from '../lib/labels';
 import { getVaultName } from '../lib/vaultLabels';
+import { getOwnedOutputAddressNoteText } from '../lib/addressNoteLabels';
+import { networkMapping } from '../lib/network';
 import LabelEditor from './LabelEditor';
 
 const INITIAL_NOW_SECONDS = Math.floor(Date.now() / 1000);
@@ -54,6 +56,7 @@ const RawTransaction = ({
   vaultOutValue,
   explorerReachable,
   txLabel,
+  addressNoteLabel,
   vaultName,
   labelsReady,
   onSaveTxLabel
@@ -70,6 +73,7 @@ const RawTransaction = ({
   blockExplorerURL: string | undefined;
   explorerReachable: boolean | undefined;
   txLabel: string;
+  addressNoteLabel: string;
   vaultName: string | undefined;
   labelsReady: boolean;
   onSaveTxLabel: (label: string) => Promise<void> | void;
@@ -435,6 +439,11 @@ const RawTransaction = ({
       </View>
       <View className="gap-2 mt-3">
         {detailsStr && <Text>{detailsStr}</Text>}
+        {!txLabel && addressNoteLabel ? (
+          <Text className="text-sm text-slate-600">
+            {t('transaction.addressNoteContext', { label: addressNoteLabel })}
+          </Text>
+        ) : null}
         <LabelEditor
           label={txLabel}
           placeholder={t('transaction.labelPlaceholder')}
@@ -449,10 +458,15 @@ const RawTransaction = ({
             {blockExplorerURL ? (
               <Button
                 textClassName="!text-xs"
-                iconRight={{ family: 'FontAwesome5', name: 'external-link-alt' }}
+                iconRight={{
+                  family: 'FontAwesome5',
+                  name: 'external-link-alt'
+                }}
                 mode="text"
                 containerClassName="!min-w-0"
-                onPress={() => Linking.openURL(`${blockExplorerURL}/${item.txId}`)}
+                onPress={() =>
+                  Linking.openURL(`${blockExplorerURL}/${item.txId}`)
+                }
               >
                 {t('viewButton')}
               </Button>
@@ -500,7 +514,7 @@ const Transactions = ({
       : settings.SUB_UNIT;
   const { locale, currency } = useLocalization();
   const { t } = useTranslation();
-  const { labels, setWalletLabelText, vaults } = useWallet();
+  const { labels, setWalletLabelText, vaults, networkId } = useWallet();
 
   const reversedHistoryData = useMemo<HistoryData | undefined>(
     () => historyData && [...historyData].reverse(),
@@ -558,6 +572,17 @@ const Transactions = ({
               })
             : String(item.vaultNumber);
         }
+        const network = networkId ? networkMapping[networkId] : undefined;
+        const txLabel = getWalletLabelText(labels, 'tx', item.txId);
+        const addressNoteLabel =
+          network && 'outs' in item
+            ? getOwnedOutputAddressNoteText({
+                labels,
+                tx: item.tx,
+                outs: item.outs,
+                network
+              })
+            : '';
         return (
           <React.Fragment key={item.txId}>
             <Transaction
@@ -565,7 +590,8 @@ const Transactions = ({
               locale={locale}
               t={t}
               item={item}
-              txLabel={getWalletLabelText(labels, 'tx', item.txId)}
+              txLabel={txLabel}
+              addressNoteLabel={addressNoteLabel}
               vaultName={vaultName}
               labelsReady={!!labels}
               onSaveTxLabel={label =>

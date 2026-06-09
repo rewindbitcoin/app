@@ -195,16 +195,17 @@ If you need further assistance, please contact Rewind Support.`
       nameSaveError: 'Could not save vault name.',
       vaultDate: 'Created on {{date}}',
       actionLabels: {
-        createVault: 'Created: Vault {{vaultName}}',
+        createVault: 'Vault activation: {{vaultName}}',
         onChainBackup: 'On-chain backup: {{vaultName}}',
         initUnfreeze: 'Unfreeze: {{vaultName}}',
         rescue: 'Rescue: {{vaultName}}',
         unfreezeOutput: 'Unfreeze output: {{vaultName}}',
         unfreezeFeeReserve: 'Unfreeze fee reserve: {{vaultName}}',
         unfreezeFeeReserveChange:
-          'Unfreeze fee-payer change: {{vaultName}}',
-        unfreezeFeeBump: 'Unfreeze fee-payer: {{vaultName}}',
-        rescueFeeBump: 'Rescue fee-payer: {{vaultName}}',
+          'Unfreeze fee boost change: {{vaultName}}',
+        unfreezeFeeBump: 'Unfreeze fee boost: {{vaultName}}',
+        rescueFeeBump: 'Rescue fee boost: {{vaultName}}',
+        emergencyAddress: 'Emergency address: {{vaultName}}',
         vaultCreationChange: 'Vault change: {{vaultName}}'
       },
       amountFrozen: 'Amount Frozen',
@@ -462,6 +463,7 @@ You'll be instantly notified if someone gains access to your keys and attempts t
       "Hang tight! We're sending you some coins to get started. This takes just a few seconds.",
     faucetDetectedMsg:
       'Hooray! Your test coins have arrived. Why not try freezing them to see how it works?',
+    faucetAddressLabel: 'Test coins',
     faucetErrorMsg:
       "Oops! There was a glitch sending your coins. Tap 'Receive' to try getting your test coins again.",
     header: {
@@ -562,8 +564,17 @@ Usage Instructions:
       feePayerRescueConfirming:
         'This transaction is using funds reserved to pay network fees to help confirm your rescue. Waiting for confirmation... Any unused amount will go back to the temporary wallet for fees.'
     },
-    labelPlaceholder: 'Label this transaction',
+    labelPlaceholder: 'Private note for this transaction',
+    addPrivateNote: 'Add private note',
+    noteHelpToggle: 'What are notes?',
+    noteHelpHide: 'Hide help',
+    noteHelp: `Rewind uses the BIP-329 standard to save private notes for things in your wallet, like transactions, receiving addresses, and coins.
+
+Notes are never sent to the blockchain and can be imported or exported for compatible wallets.
+
+Use this note to recognize this transaction when reviewing your wallet history.`,
     txId: 'Tx {{txid}}',
+    addressNoteContext: 'Address note: {{label}}',
     copyTxIdSuccess: 'Transaction ID copied.'
   },
   network: {
@@ -732,17 +743,26 @@ For your security, please review these changes before proceeding.`,
       miningFee: 'Mining Fee',
       amountLabel: 'Amount',
       recipientAddress: 'Address',
-      label: 'Label'
+      label: 'Note'
     }
   },
   receive: {
     title: 'Receive Bitcoin',
     clipboard: 'Address copied to clipboard!',
     doneButton: 'Done',
-    shareAddress: 'Share Address',
-    copyAddress: 'Copy to Clipboard',
+    shareAddress: 'Share',
+    copyAddress: 'Copy',
     intro: 'Share this address to receive Bitcoin',
-    labelPlaceholder: 'Label this receive address',
+    addressNoteTitle: 'Private address note',
+    addressNoteIntro: 'Add a note to remember what this address is for.',
+    addAddressNote: 'Add note',
+    editAddressNote: 'Edit note',
+    labelPlaceholder: 'Private note for this address',
+    addressNoteHelp: `Rewind uses the BIP-329 standard to save private notes for things in your wallet, like transactions, receiving addresses, and coins.
+
+Address notes help you remember what this receiving address is for or who you shared it with.
+
+Notes are never sent to the blockchain and can be imported or exported for compatible wallets.`,
     faucetIntro: 'Need test coins?',
     requestTokens: 'Request them here!',
     faucetNote:
@@ -758,7 +778,7 @@ Next, you'll review everything before activating it.`,
     timeLock: 'Time-Lock',
     label: 'Vault Name',
     editName: 'Edit name',
-    txLabel: 'Transaction Label',
+    txLabel: 'Transaction Note',
     //Note to transalators: make this text below as short as possible. This is the
     //label for Emergency Address in the summary that users review before
     //final submission
@@ -1043,9 +1063,9 @@ Use this to simulate higher fees and extreme mempool conditions on Tape.`,
     }
   },
   labels: {
-    add: 'Add label',
-    edit: 'Edit label',
-    saveError: 'Could not save label.'
+    add: 'Add note',
+    edit: 'Edit note',
+    saveError: 'Could not save note.'
   },
   coinControl: {
     auto: 'Auto',
@@ -1054,8 +1074,9 @@ Use this to simulate higher fees and extreme mempool conditions on Tape.`,
 
 If you have experience and want to control exactly which UTXOs are spent, you can select them manually.`,
     noUtxos: 'No UTXOs are available for manual selection.',
-    labelPlaceholder: 'Label this UTXO',
+    labelPlaceholder: 'Private note for this coin',
     parentTxLabel: 'From tx: {{label}}',
+    addressNoteContext: 'Address note: {{label}}',
     outpointId: 'Coin {{outpoint}}',
     copyOutpointSuccess: 'Coin ID copied.',
     originConfirming: 'Confirming',

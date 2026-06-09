@@ -15,6 +15,8 @@ import { useSettings } from '../hooks/useSettings';
 import type { HistoryDataItem, UtxosData } from '../lib/vaults';
 import { useWallet } from '../hooks/useWallet';
 import { getWalletLabelText } from '../lib/labels';
+import { getOutputAddressNoteText } from '../lib/addressNoteLabels';
+import { networkMapping } from '../lib/network';
 import LabelEditor from './LabelEditor';
 
 /**
@@ -126,8 +128,13 @@ const RawCoinControlPanel = ({
   const { t } = useTranslation();
   const toast = useToast();
   const { settings } = useSettings();
-  const { labels, setWalletLabelText, blockExplorerURL, historyData } =
-    useWallet();
+  const {
+    labels,
+    setWalletLabelText,
+    blockExplorerURL,
+    historyData,
+    networkId
+  } = useWallet();
   const { locale, currency } = useLocalization();
   const [step, setStep] = useState<'intro' | 'coinselect'>('intro');
   const [pickedOutpoints, setPickedOutpoints] = useState<Set<string>>(
@@ -284,6 +291,17 @@ const RawCoinControlPanel = ({
                 const txId = availability.utxoData.tx.getId();
                 const label = getWalletLabelText(labels, 'output', outpoint);
                 const txLabel = getWalletLabelText(labels, 'tx', txId);
+                const network = networkId
+                  ? networkMapping[networkId]
+                  : undefined;
+                const addressNoteLabel = network
+                  ? getOutputAddressNoteText({
+                      labels,
+                      tx: availability.utxoData.tx,
+                      vout: availability.utxoData.vout,
+                      network
+                    })
+                  : '';
                 const originTime = formatOriginTime(historyByTxId.get(txId));
                 const originSummary = originTime ?? group.label;
                 const picked = pickedOutpoints.has(outpoint);
@@ -330,6 +348,13 @@ const RawCoinControlPanel = ({
                         {txLabel ? (
                           <Text className="text-xs text-slate-500">
                             {t('coinControl.parentTxLabel', { label: txLabel })}
+                          </Text>
+                        ) : null}
+                        {!label && addressNoteLabel ? (
+                          <Text className="text-xs text-slate-500">
+                            {t('coinControl.addressNoteContext', {
+                              label: addressNoteLabel
+                            })}
                           </Text>
                         ) : null}
                       </View>

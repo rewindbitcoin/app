@@ -16,6 +16,7 @@ const RawLabelEditor = ({
   addActionText,
   editActionText,
   trailingAction,
+  onStartEditing,
   onSave
 }: {
   label: string;
@@ -25,6 +26,7 @@ const RawLabelEditor = ({
   addActionText?: string;
   editActionText?: string;
   trailingAction?: React.ReactNode;
+  onStartEditing?: () => void;
   onSave: (label: string) => Promise<void> | void;
 }) => {
   const { t } = useTranslation();
@@ -49,6 +51,11 @@ const RawLabelEditor = ({
   const handleBlur = useCallback(() => {
     if (draft === label) setIsEditing(false);
   }, [draft, label]);
+
+  const handleStartEditing = useCallback(() => {
+    onStartEditing?.();
+    setIsEditing(true);
+  }, [onStartEditing]);
 
   const handleSave = useCallback(async () => {
     if (isSaving) return;
@@ -120,7 +127,7 @@ const RawLabelEditor = ({
       hitSlop={8}
       disabled={disabled}
       className={disabled ? 'opacity-50' : 'active:opacity-70'}
-      onPress={() => setIsEditing(true)}
+      onPress={handleStartEditing}
     >
       <Text className="text-xs font-medium text-primary">
         {label

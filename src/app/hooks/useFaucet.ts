@@ -21,7 +21,8 @@ export function useFaucet() {
     fetchOutputHistory,
     isFirstLogin,
     isGenerated,
-    faucetAPI
+    faucetAPI,
+    setWalletLabelTextsIfEmpty
   } = useWallet();
   const { settings } = useSettings();
   const { t } = useTranslation();
@@ -102,8 +103,9 @@ export function useFaucet() {
         (async () => {
           let descriptor: string | undefined;
           let index: number | undefined;
+          let address: string | undefined;
           try {
-            ({ descriptor, index } = await faucetFirstReceive(
+            ({ descriptor, index, address } = await faucetFirstReceive(
               accounts,
               network,
               faucetAPI,
@@ -150,6 +152,20 @@ export function useFaucet() {
               if (wallet?.walletId !== walletIdRef.current) return; //do after each await
             } else {
               faucetDetectedRef.current = true;
+              if (address) {
+                try {
+                  await setWalletLabelTextsIfEmpty([
+                    {
+                      type: 'addr',
+                      ref: address,
+                      label: t('walletHome.faucetAddressLabel')
+                    }
+                  ]);
+                  if (wallet?.walletId !== walletIdRef.current) return; //do after each await
+                } catch (error) {
+                  console.warn('Failed to label faucet address', error);
+                }
+              }
               break;
             }
           }
@@ -174,6 +190,7 @@ export function useFaucet() {
     isGenerated,
     accounts,
     fetchOutputHistory,
+    setWalletLabelTextsIfEmpty,
     t,
     historyData?.length
   ]);

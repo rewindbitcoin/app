@@ -8,7 +8,7 @@ import {
   CoinControlRecoveryPanel
 } from '../components/CoinControl';
 import FeeInput from '../components/FeeInput';
-import LabelEditor from '../components/LabelEditor';
+import NoteEditorWithHelp from '../components/NoteEditorWithHelp';
 import { useTranslation } from 'react-i18next';
 import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { batchedUpdates } from '~/common/lib/batchedUpdates';
@@ -287,7 +287,9 @@ export default function Send() {
     setPickedSendableUtxosData(utxosData);
     setIsCoinControlVisible(false);
   }, []);
-  const handleCloseContinue = useCallback(() => setIsConfirm(false), []);
+  const handleCloseContinue = useCallback(() => {
+    setIsConfirm(false);
+  }, []);
   const handleContinue = useCallback(async () => {
     if (feeRate === null || amount === null || address === null)
       throw new Error('Cannot process Transaction');
@@ -619,15 +621,18 @@ export default function Send() {
                   </Text>
                 </View>
 
-                {/* Label */}
-                <View>
-                  <Text className="text-base font-bold mb-1">
-                    {t('send.confirmLabels.label')}
-                  </Text>
-                  <LabelEditor
+                {/* Optional note */}
+                <View className="border-t border-slate-200 pt-4 gap-2">
+                  <NoteEditorWithHelp
+                    className="w-full"
                     label={sendLabelDraft}
                     placeholder={t('transaction.labelPlaceholder')}
                     disabled={!labels}
+                    addActionText={t('transaction.addPrivateNote')}
+                    helpToggleText={t('transaction.noteHelpToggle')}
+                    hideHelpText={t('transaction.noteHelpHide')}
+                    helpText={t('transaction.noteHelp')}
+                    resetKey={isConfirm}
                     onSave={setSendLabelDraft}
                   />
                 </View>

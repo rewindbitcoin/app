@@ -178,18 +178,18 @@ Si necesitas más ayuda, por favor contacta con el equipo de Soporte de Rewind.`
       nameSaveError: 'No se pudo guardar el nombre de la bóveda.',
       vaultDate: 'Creada el {{date}}',
       actionLabels: {
-        createVault: 'Creada: Bóveda {{vaultName}}',
-        onChainBackup: 'Copia on-chain: {{vaultName}}',
+        createVault: 'Activación de bóveda: {{vaultName}}',
+        onChainBackup: 'Backup on-chain: {{vaultName}}',
         initUnfreeze: 'Descongelación: {{vaultName}}',
         rescue: 'Rescate: {{vaultName}}',
         unfreezeOutput: 'Salida de descongelación: {{vaultName}}',
         unfreezeFeeReserve:
           'Reserva para comisión de descongelación: {{vaultName}}',
         unfreezeFeeReserveChange:
-          'Cambio de pagadora de comisión de descongelación: {{vaultName}}',
-        unfreezeFeeBump:
-          'Pagadora de comisión de descongelación: {{vaultName}}',
-        rescueFeeBump: 'Pagadora de comisión de rescate: {{vaultName}}',
+          'Cambio tras pago de comisión para descongelar: {{vaultName}}',
+        unfreezeFeeBump: 'Pago de comisión para descongelar: {{vaultName}}',
+        rescueFeeBump: 'Pago de comisión para rescatar: {{vaultName}}',
+        emergencyAddress: 'Dirección de emergencia: {{vaultName}}',
         vaultCreationChange: 'Cambio de bóveda: {{vaultName}}'
       },
       amountFrozen: 'Cantidad Congelada',
@@ -427,6 +427,7 @@ Una vez que termine la cuenta regresiva, tus fondos serán desbloqueados y acces
       '¡Espera un momento! Estamos enviándote algunas monedas para empezar. Esto sólo tomará unos segundos.',
     faucetDetectedMsg:
       '¡Genial! Tus monedas de prueba han llegado. ¿Por qué no intentas congelarlas para ver cómo funciona?',
+    faucetAddressLabel: 'Monedas de prueba',
     faucetErrorMsg:
       'Ups! Hubo un problema al enviar tus monedas. Pulsa "Recibir" para intentar obtener tus monedas de prueba nuevamente.',
     header: {
@@ -528,8 +529,17 @@ Instrucciones de Uso:
       feePayerRescueConfirming:
         'Esta transacción está usando fondos reservados para pagar comisiones de red y ayudar a confirmar tu rescate. Esperando confirmación... La cantidad no utilizada volverá a la billetera temporal para comisiones.'
     },
-    labelPlaceholder: 'Etiqueta esta transacción',
+    labelPlaceholder: 'Nota privada para esta transacción',
+    addPrivateNote: 'Añadir nota privada',
+    noteHelpToggle: '¿Qué son las notas?',
+    noteHelpHide: 'Ocultar ayuda',
+    noteHelp: `Rewind usa el estándar BIP-329 para guardar notas privadas sobre partes de tu billetera, como transacciones, direcciones de recepción y monedas.
+
+Las notas nunca se envían a la blockchain y puedes importarlas o exportarlas para billeteras compatibles.
+
+Usa esta nota para reconocer esta transacción al revisar tu historial.`,
     txId: 'Tx {{txid}}',
+    addressNoteContext: 'Nota de dirección: {{label}}',
     copyTxIdSuccess: 'ID de transacción copiado.'
   },
   network: {
@@ -675,17 +685,26 @@ Por tu seguridad, por favor revisa estos cambios antes de continuar.`,
       miningFee: 'Comisión de minería',
       amountLabel: 'Cantidad',
       recipientAddress: 'Dirección',
-      label: 'Etiqueta'
+      label: 'Nota'
     }
   },
   receive: {
     title: 'Recibir Bitcoin',
     clipboard: '¡Dirección copiada al portapapeles!',
     doneButton: '¡Listo!',
-    shareAddress: 'Compartir Dirección',
-    copyAddress: 'Copiar al Portapapeles',
+    shareAddress: 'Compartir',
+    copyAddress: 'Copiar',
     intro: 'Comparte esta dirección para recibir Bitcoin',
-    labelPlaceholder: 'Etiqueta esta dirección de recepción',
+    addressNoteTitle: 'Nota privada para la dirección',
+    addressNoteIntro: 'Añade una nota para recordar para qué es esta dirección.',
+    addAddressNote: 'Añadir nota',
+    editAddressNote: 'Editar nota',
+    labelPlaceholder: 'Nota privada para esta dirección',
+    addressNoteHelp: `Rewind usa el estándar BIP-329 para guardar notas privadas sobre partes de tu billetera, como transacciones, direcciones de recepción y monedas.
+
+Las notas para direcciones te ayudan a recordar para qué es esta dirección de recepción o con quién la compartiste.
+
+Las notas nunca se envían a la blockchain y puedes importarlas o exportarlas para billeteras compatibles.`,
     faucetIntro: '¿Necesitas monedas de prueba?',
     requestTokens: '¡Solicítalas aquí!',
     faucetNote:
@@ -701,7 +720,7 @@ A continuación, podrás revisarlo todo antes de activarla.`,
     timeLock: 'Tiempo de Bloqueo',
     label: 'Nombre de Bóveda',
     editName: 'Editar nombre',
-    txLabel: 'Etiqueta de transacción',
+    txLabel: 'Nota para la transacción',
     emergencyAddress: 'Dirección de Emergencia',
     confirmBackupSendVault: `Tu bóveda está lista para ser enviada. Por favor, revisa los siguientes valores antes de proceder:`,
     explainConfirm: `Selecciona 'Enviar' para activar tu bóveda.`,
@@ -969,9 +988,9 @@ Usa esto para simular comisiones más altas y condiciones extremas de mempool en
     }
   },
   labels: {
-    add: 'Añadir etiqueta',
-    edit: 'Editar etiqueta',
-    saveError: 'No se pudo guardar la etiqueta.'
+    add: 'Añadir nota',
+    edit: 'Editar nota',
+    saveError: 'No se pudo guardar la nota.'
   },
   coinControl: {
     auto: 'Auto',
@@ -980,8 +999,9 @@ Usa esto para simular comisiones más altas y condiciones extremas de mempool en
 
 Si tienes experiencia y quieres controlar exactamente qué UTXOs se gastan, puedes seleccionarlos manualmente.`,
     noUtxos: 'No hay UTXOs disponibles para la selección manual.',
-    labelPlaceholder: 'Etiqueta este UTXO',
+    labelPlaceholder: 'Nota privada para esta moneda',
     parentTxLabel: 'Transacción: {{label}}',
+    addressNoteContext: 'Nota de dirección: {{label}}',
     outpointId: 'Moneda {{outpoint}}',
     copyOutpointSuccess: 'ID de moneda copiado.',
     originConfirming: 'Confirmando',

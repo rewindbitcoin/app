@@ -38,6 +38,7 @@ import { toBigInt } from '../lib/sats';
 import ModalInfoButton from '../components/ModalInfoButton';
 import AddressActionRow from '../components/AddressActionRow';
 import LabelEditor from '../components/LabelEditor';
+import NoteEditorWithHelp from '../components/NoteEditorWithHelp';
 import {
   getVaultCreationChangeOutputRef,
   getVaultOutputRef,
@@ -250,7 +251,7 @@ export default function CreateVaultScreen({
         throw new Error('Vault push succeeded without backup transaction data');
       try {
         const autoLabelEntries: Array<{
-          type: 'tx' | 'output';
+          type: 'tx' | 'addr' | 'output';
           ref: string;
           label: string;
         }> = [
@@ -258,6 +259,13 @@ export default function CreateVaultScreen({
             type: 'output',
             ref: getVaultOutputRef(vault),
             label: vaultName
+          },
+          {
+            type: 'addr',
+            ref: vault.coldAddress,
+            label: t('wallet.vault.actionLabels.emergencyAddress', {
+              vaultName
+            })
           },
           {
             type: 'tx',
@@ -650,19 +658,6 @@ export default function CreateVaultScreen({
                 </>
               ) : null}
 
-              {/* Transaction Label */}
-              <View>
-                <Text className="text-base font-bold mb-1">
-                  {t('createVault.txLabel')}
-                </Text>
-                <LabelEditor
-                  label={createVaultTxLabel}
-                  placeholder={t('transaction.labelPlaceholder')}
-                  disabled={!labels}
-                  onSave={setCreateVaultTxLabelDraft}
-                />
-              </View>
-
               {/* Emergency Address */}
               <View>
                 <SummaryTitle
@@ -682,6 +677,20 @@ export default function CreateVaultScreen({
                 <AddressActionRow
                   address={vault.coldAddress}
                   blockExplorerURL={blockExplorerURL}
+                />
+              </View>
+
+              {/* Transaction Note */}
+              <View>
+                <SummaryTitle title={t('createVault.txLabel')} />
+                <NoteEditorWithHelp
+                  label={createVaultTxLabel}
+                  placeholder=""
+                  disabled={!labels}
+                  helpToggleText={t('transaction.noteHelpToggle')}
+                  hideHelpText={t('transaction.noteHelpHide')}
+                  helpText={t('transaction.noteHelp')}
+                  onSave={setCreateVaultTxLabelDraft}
                 />
               </View>
             </View>
