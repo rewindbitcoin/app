@@ -306,7 +306,7 @@ Check your connection and try again.`,
         noReserveParentFeeBelowRecommendedFee: `This unfreeze can be sent now, but its built-in network fee may be low for current network conditions.`,
         walletSupplementCheckbox: 'Use wallet funds.',
         // Keep short: this appears in a narrow checkbox row under "Use wallet funds".
-        manualWalletSupplementCheckbox: 'Choose coins manually.',
+        manualWalletSupplementCheckbox: 'Advanced: choose coins manually.',
         pickedWalletSupplementUtxosInsufficient: `The coins you selected cannot pay this unfreeze fee.
 
 Select more coins or switch back to automatic selection.`,
@@ -1068,11 +1068,13 @@ Use this to simulate higher fees and extreme mempool conditions on Tape.`,
     saveError: 'Could not save note.'
   },
   coinControl: {
+    chooseCoins: 'Choose coins',
+    useSelected: 'Use selected',
     auto: 'Auto',
-    title: 'Manual Coin Selection',
-    intro: `Rewind automatically chooses which specific funds in your wallet to use. In Bitcoin, those funds are organized as unspent outputs from earlier transactions, also called UTXOs.
+    title: 'Choose Coins',
+    intro: `Rewind automatically selects coins from your wallet to pay the amount and fee you choose. Automatic selection is already optimized and recommended for most users.
 
-If you have experience and want to control exactly which UTXOs are spent, you can select them manually.`,
+You usually do not need to choose coins. This option is for experienced users who want to pick specific coins themselves.`,
     noUtxos: 'No UTXOs are available for manual selection.',
     labelPlaceholder: 'Private note for this coin',
     parentTxLabel: 'From tx: {{label}}',

@@ -99,7 +99,7 @@ const RawCoinControlRecoveryPanel = ({
       <Text className={textClassName}>{message}</Text>
       <View className="mt-4 flex-row flex-wrap justify-center gap-3">
         <Button mode="secondary" onPress={onOpenCoinControl}>
-          {t('coinControl.title')}
+          {t('coinControl.chooseCoins')}
         </Button>
         <Button mode="secondary" onPress={onUseAuto}>
           {t('coinControl.auto')}
@@ -430,13 +430,13 @@ const RawCoinControlPanel = ({
           {t('cancelButton')}
         </Button>
         {step === 'intro' ? (
-          <Button onPress={handleContinue}>{t('continueButton')}</Button>
+          <Button onPress={handleContinue}>{t('coinControl.chooseCoins')}</Button>
         ) : (
           <Button
             onPress={handleConfirm}
             disabled={pickedPanelUtxosData.length === 0}
           >
-            {t('continueButton')}
+            {t('coinControl.useSelected')}
           </Button>
         )}
       </View>

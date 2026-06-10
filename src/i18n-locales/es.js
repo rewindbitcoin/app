@@ -304,7 +304,7 @@ Comprueba tu conexión e inténtalo de nuevo.`,
         noReserveParentFeeBelowRecommendedFee: `Esta descongelación puede enviarse ahora, pero la comisión de red que ya lleva incluida puede ser baja para las condiciones actuales de la red.`,
         walletSupplementCheckbox: 'Usar fondos de mi billetera.',
         // Mantener corto: aparece en una fila estrecha bajo "Usar fondos de mi billetera".
-        manualWalletSupplementCheckbox: 'Elegir monedas manualmente.',
+        manualWalletSupplementCheckbox: 'Avanzado: elegir monedas manualmente.',
         pickedWalletSupplementUtxosInsufficient: `Las monedas que seleccionaste no alcanzan para pagar esta descongelación.
 
 Selecciona más monedas o vuelve a la selección automática.`,
@@ -993,11 +993,13 @@ Usa esto para simular comisiones más altas y condiciones extremas de mempool en
     saveError: 'No se pudo guardar la nota.'
   },
   coinControl: {
+    chooseCoins: 'Elegir monedas',
+    useSelected: 'Usar selección',
     auto: 'Auto',
-    title: 'Selección Manual de Monedas',
-    intro: `Rewind elige automáticamente qué fondos concretos de tu billetera usar. En Bitcoin, esos fondos se organizan como salidas no gastadas de transacciones anteriores, también llamadas UTXOs.
+    title: 'Elegir monedas',
+    intro: `Rewind selecciona automáticamente las monedas de tu billetera para pagar la cantidad y comisión que indiques. La selección automática ya está optimizada y es la recomendada para la mayoría de usuarios.
 
-Si tienes experiencia y quieres controlar exactamente qué UTXOs se gastan, puedes seleccionarlos manualmente.`,
+Normalmente no hace falta elegir monedas. Esta opción está pensada para usuarios con experiencia que quieren escoger monedas concretas manualmente.`,
     noUtxos: 'No hay UTXOs disponibles para la selección manual.',
     labelPlaceholder: 'Nota privada para esta moneda',
     parentTxLabel: 'Transacción: {{label}}',
