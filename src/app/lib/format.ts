@@ -11,6 +11,59 @@ import type { TFunction } from 'i18next';
 import memoize from 'lodash.memoize';
 import moize from 'moize';
 import type { FeeEstimates } from './fees';
+
+const MEMPOOL_PURGE_TARGET_BLOCKS = 2 * 7 * 24 * 6;
+
+const getFeeRateTargetBlocks = ({
+  feeRate,
+  feeEstimates
+}: {
+  feeRate: number;
+  feeEstimates: FeeEstimates;
+}) => {
+  let optimalRate: number | null = null;
+  let lowestTargetTime: string | null = null;
+
+  // First, find the largest rate that is <= feeRate
+  for (const rate of Object.values(feeEstimates)) {
+    if (rate <= feeRate && (optimalRate === null || rate > optimalRate)) {
+      optimalRate = rate;
+    }
+  }
+
+  if (optimalRate === null) return null;
+
+  // Then, find the lowest target time for this rate
+  for (const [targetTime, rate] of Object.entries(feeEstimates)) {
+    if (rate === optimalRate) {
+      if (
+        lowestTargetTime === null ||
+        parseInt(targetTime) < parseInt(lowestTargetTime)
+      ) {
+        lowestTargetTime = targetTime;
+      }
+    }
+  }
+
+  if (lowestTargetTime === null)
+    throw new Error('lowestTargetTime cannot be null');
+  return Number(lowestTargetTime);
+};
+
+export const isFeeRateMayNotConfirm = ({
+  feeRate,
+  feeEstimates
+}: {
+  feeRate: number;
+  feeEstimates: FeeEstimates;
+}) => {
+  const target = getFeeRateTargetBlocks({ feeRate, feeEstimates });
+  return (
+    target === null ||
+    (target !== undefined && target >= MEMPOOL_PURGE_TARGET_BLOCKS)
+  );
+};
+
 /**
  * this one will format fiat and also btc amounts
  * When formatting btc amounts (sats, bits or whatever) it won't add zeros
@@ -167,42 +220,15 @@ const formatFeeRateFactory = memoize((t: TFunction) =>
             });
       let strTime = t('feeRate.waitingForEstimates');
 
-      //Find the lowest target time which feeRate <= input feeRate
       if (feeEstimates && Object.keys(feeEstimates).length) {
-        let optimalRate: number | null = null;
-        let lowestTargetTime: string | null = null;
-
-        // First, find the largest rate that is <= feeRate
-        for (const rate of Object.values(feeEstimates)) {
-          if (rate <= feeRate && (optimalRate === null || rate > optimalRate)) {
-            optimalRate = rate;
-          }
-        }
-
-        // Then, find the lowest target time for this rate
-        if (optimalRate !== null) {
-          for (const [targetTime, rate] of Object.entries(feeEstimates)) {
-            if (rate === optimalRate) {
-              if (
-                lowestTargetTime === null ||
-                parseInt(targetTime) < parseInt(lowestTargetTime)
-              ) {
-                lowestTargetTime = targetTime;
-              }
-            }
-          }
-        }
-
-        if (optimalRate === null) {
+        const target = getFeeRateTargetBlocks({ feeRate, feeEstimates });
+        if (target === null) {
           strTime = t('feeRate.mayNotConfirm');
         } else {
-          if (lowestTargetTime === null)
-            throw new Error('lowestTargetTime cannot be null');
-          const target = Number(lowestTargetTime);
           if (target === 1) strTime = t('feeRate.expressConfirmation');
           //Txs over 2 week in the mempool may be purged:
           //https://bitcoin.stackexchange.com/a/46162/89665
-          else if (target >= 2 * 7 * 24 * 6)
+          else if (target >= MEMPOOL_PURGE_TARGET_BLOCKS)
             strTime = t('feeRate.mayNotConfirm');
           else
             strTime = t('feeRate.confirmationTime', {
