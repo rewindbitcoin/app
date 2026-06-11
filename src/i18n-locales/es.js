@@ -539,7 +539,7 @@ Las notas nunca se envían a la blockchain y puedes importarlas o exportarlas pa
 
 Usa esta nota para reconocer esta transacción al revisar tu historial.`,
     txId: 'Tx {{txid}}',
-    addressNoteContext: 'Nota de dirección: {{label}}',
+    receivingAddressNoteContext: 'Dirección de recepción: {{label}}',
     copyTxIdSuccess: 'ID de transacción copiado.'
   },
   network: {
@@ -1003,7 +1003,7 @@ Normalmente no hace falta elegir monedas. Esta opción está pensada para usuari
     noUtxos: 'No hay UTXOs disponibles para la selección manual.',
     labelPlaceholder: 'Nota privada para esta moneda',
     parentTxLabel: 'Transacción: {{label}}',
-    addressNoteContext: 'Nota de dirección: {{label}}',
+    addressNoteContext: 'Dirección: {{label}}',
     outpointId: 'Moneda {{outpoint}}',
     copyOutpointSuccess: 'ID de moneda copiado.',
     originConfirming: 'Confirmando',

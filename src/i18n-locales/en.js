@@ -574,7 +574,7 @@ Notes are never sent to the blockchain and can be imported or exported for compa
 
 Use this note to recognize this transaction when reviewing your wallet history.`,
     txId: 'Tx {{txid}}',
-    addressNoteContext: 'Address note: {{label}}',
+    receivingAddressNoteContext: 'Receiving address: {{label}}',
     copyTxIdSuccess: 'Transaction ID copied.'
   },
   network: {
@@ -1078,7 +1078,7 @@ You usually do not need to choose coins. This option is for experienced users wh
     noUtxos: 'No UTXOs are available for manual selection.',
     labelPlaceholder: 'Private note for this coin',
     parentTxLabel: 'From tx: {{label}}',
-    addressNoteContext: 'Address note: {{label}}',
+    addressNoteContext: 'Address: {{label}}',
     outpointId: 'Coin {{outpoint}}',
     copyOutpointSuccess: 'Coin ID copied.',
     originConfirming: 'Confirming',

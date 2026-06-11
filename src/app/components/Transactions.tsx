@@ -56,7 +56,7 @@ const RawTransaction = ({
   vaultOutValue,
   explorerReachable,
   txLabel,
-  addressNoteLabel,
+  receiveAddressNoteLabel,
   vaultName,
   labelsReady,
   onSaveTxLabel
@@ -73,7 +73,7 @@ const RawTransaction = ({
   blockExplorerURL: string | undefined;
   explorerReachable: boolean | undefined;
   txLabel: string;
-  addressNoteLabel: string;
+  receiveAddressNoteLabel: string;
   vaultName: string | undefined;
   labelsReady: boolean;
   onSaveTxLabel: (label: string) => Promise<void> | void;
@@ -439,9 +439,11 @@ const RawTransaction = ({
       </View>
       <View className="gap-2 mt-3">
         {detailsStr && <Text>{detailsStr}</Text>}
-        {!txLabel && addressNoteLabel ? (
+        {!txLabel && receiveAddressNoteLabel ? (
           <Text className="text-sm text-slate-600">
-            {t('transaction.addressNoteContext', { label: addressNoteLabel })}
+            {t('transaction.receivingAddressNoteContext', {
+              label: receiveAddressNoteLabel
+            })}
           </Text>
         ) : null}
         <LabelEditor
@@ -574,8 +576,8 @@ const Transactions = ({
         }
         const network = networkId ? networkMapping[networkId] : undefined;
         const txLabel = getWalletLabelText(labels, 'tx', item.txId);
-        const addressNoteLabel =
-          network && 'outs' in item
+        const receiveAddressNoteLabel =
+          network && 'outs' in item && 'type' in item && item.type === 'RECEIVED'
             ? getOwnedOutputAddressNoteText({
                 labels,
                 tx: item.tx,
@@ -591,7 +593,7 @@ const Transactions = ({
               t={t}
               item={item}
               txLabel={txLabel}
-              addressNoteLabel={addressNoteLabel}
+              receiveAddressNoteLabel={receiveAddressNoteLabel}
               vaultName={vaultName}
               labelsReady={!!labels}
               onSaveTxLabel={label =>
