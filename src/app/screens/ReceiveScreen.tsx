@@ -19,6 +19,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { networkMapping } from '../lib/network';
 import { useWallet } from '../hooks/useWallet';
 import { computeReceiveOutput } from '../lib/vaultDescriptors';
+import NoteEditorWithHelp from '../components/NoteEditorWithHelp';
+import { getWalletLabelText } from '../lib/labels';
 
 import QRCode from 'react-native-qrcode-svg';
 import * as Clipboard from 'expo-clipboard';
@@ -44,8 +46,10 @@ export default function Receive() {
     networkId,
     faucetURL,
     accounts,
+    labels,
     getNextReceiveDescriptorWithIndex,
-    fetchOutputHistory
+    fetchOutputHistory,
+    setWalletLabelText
   } = useWallet();
   if (!networkId)
     throw new Error('ReceiveScreen cannot be called with unset networkId');
@@ -115,6 +119,17 @@ export default function Receive() {
     });
   }, [toast, t, receiveAddress]);
 
+  const receiveLabel = receiveAddress
+    ? getWalletLabelText(labels, 'addr', receiveAddress)
+    : '';
+  const handleSaveReceiveLabel = useCallback(
+    (label: string) => {
+      if (!receiveAddress) throw new Error('receiveAddress does not exist');
+      return setWalletLabelText({ type: 'addr', ref: receiveAddress, label });
+    },
+    [receiveAddress, setWalletLabelText]
+  );
+
   const requestTokensURL =
     faucetURL && receiveAddress ? `${faucetURL}/?addr=${receiveAddress}` : null;
   const networkName =
@@ -148,59 +163,83 @@ export default function Receive() {
       contentContainerClassName="items-center pt-5 px-5"
     >
       <View
-        className="w-full max-w-screen-sm mx-4 gap-8"
+        className="w-full max-w-screen-sm mx-4 gap-4"
         style={containerStyle}
       >
-        <Text className="text-base">{t('receive.intro')}</Text>
-        <View className="items-center">
-          <QRCode value={`bitcoin:${receiveAddress}`} size={200} />
-        </View>
-        <View className="items-center">
+        <Text className="text-base text-center text-slate-700">
+          {t('receive.intro')}
+        </Text>
+        <View className="rounded-3xl bg-white px-4 py-5 android:elevation ios:shadow web:shadow gap-5">
+          <View className="items-center pt-4">
+            <QRCode value={`bitcoin:${receiveAddress}`} size={200} />
+          </View>
+          <Text
+            className="rounded-2xl bg-slate-100 px-3 py-3 text-center text-xs leading-5 text-slate-700"
+            onPress={onClipboard}
+          >
+            {receiveAddress}
+          </Text>
           {canShare ? (
-            <View className="gap-2">
-              <Text className="self-center" onPress={onClipboard}>
-                {receiveAddress}
-              </Text>
-              <View className="mt-4 gap-x-6 gap-y-4 8 flex-row flex-wrap justify-center self-center">
-                <Button
-                  mode="text"
-                  onPress={onClipboard}
-                  iconRight={clipboardIcon}
-                >
-                  {t('receive.copyAddress')}
-                </Button>
-                <Button mode="text" onPress={onShare} iconRight={shareIcon}>
-                  {t('receive.shareAddress')}
-                </Button>
-              </View>
+            <View className="gap-x-4 gap-y-3 flex-row flex-wrap justify-center self-center">
+              <Button
+                mode="text"
+                onPress={onClipboard}
+                iconRight={clipboardIcon}
+              >
+                {t('receive.copyAddress')}
+              </Button>
+              <Button mode="text" onPress={onShare} iconRight={shareIcon}>
+                {t('receive.shareAddress')}
+              </Button>
             </View>
           ) : (
-            <Button
-              mode="text"
-              textClassName="break-words break-all"
-              iconRight={clipboardIcon}
-              onPress={onClipboard}
-            >
-              {receiveAddress}
+            <Button mode="text" iconRight={clipboardIcon} onPress={onClipboard}>
+              {t('receive.copyAddress')}
             </Button>
           )}
         </View>
-        <Button onPress={goBack}>{t('receive.doneButton')}</Button>
+
+        <View className="rounded-2xl bg-gray-50 p-4 android:elevation ios:shadow web:shadow gap-2">
+          <View>
+            <Text className="text-base font-bold text-slate-900">
+              {t('receive.addressNoteTitle')}
+            </Text>
+            <Text className="mt-1 text-sm text-slate-600">
+              {t('receive.addressNoteIntro')}
+            </Text>
+          </View>
+          <View>
+            <NoteEditorWithHelp
+              label={receiveLabel}
+              placeholder={t('receive.labelPlaceholder')}
+              disabled={!labels}
+              addActionText={t('receive.addAddressNote')}
+              editActionText={t('receive.editAddressNote')}
+              helpToggleText={t('transaction.noteHelpToggle')}
+              hideHelpText={t('transaction.noteHelpHide')}
+              helpText={t('receive.addressNoteHelp')}
+              onSave={handleSaveReceiveLabel}
+            />
+          </View>
+        </View>
+
         {requestTokensURL && networkName && (
-          <View className="mt-4 p-4 bg-gray-50 android:elevation ios:shadow web:shadow rounded-lg items-center">
-            <View className="flex-row flex-wrap items-center mb-2 gap-2">
-              <Text className="text-base text-center">
+          <View className="rounded-2xl bg-blue-50 p-4 android:elevation ios:shadow web:shadow gap-3">
+            <View className="flex-row flex-wrap items-center justify-between gap-x-4 gap-y-2">
+              <Text className="text-base font-bold text-slate-900">
                 {t('receive.faucetIntro')}
               </Text>
               <Button mode="text" onPress={onFaucet}>
                 {t('receive.requestTokens')}
               </Button>
             </View>
-            <Text className="text-sm text-slate-600 mt-2">
+            <Text className="text-sm text-slate-600">
               {t('receive.faucetNote', { networkName })}
             </Text>
           </View>
         )}
+
+        <Button onPress={goBack}>{t('receive.doneButton')}</Button>
       </View>
     </KeyboardAwareScrollView>
   ) : (

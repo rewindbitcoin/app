@@ -39,7 +39,7 @@ import {
   type RootStackParamList,
   WALLETS
 } from '../screens';
-import { exportWallet } from '../lib/backup/walletExport';
+import { exportLabels, exportWallet } from '../lib/backup/walletExport';
 import { electrumParams, getAPIs } from '../lib/walletDerivedData';
 import { ElectrumExplorer, EsploraExplorer } from '@bitcoinerlab/explorer';
 import { NetworkId, networkMapping } from '../lib/network';
@@ -50,6 +50,8 @@ import {
   nativeApplicationVersion,
   nativeBuildVersion
 } from 'expo-application';
+import * as DocumentPicker from 'expo-document-picker';
+import { EncodingType, readAsStringAsync } from 'expo-file-system';
 import { locales } from '~/i18n-locales/init';
 import { batchedUpdates } from '~/common/lib/batchedUpdates';
 import { LayoutChangeEvent } from 'react-native';
@@ -65,6 +67,11 @@ function sanitizeFilename(name: string) {
       .replace(/^(\.\.\/)+/, '') // Removes directory traversal attempts
       .replace(/\s+/g, '_')
   ); // Replaces spaces with underscores
+}
+
+async function readLabelFile(asset: DocumentPicker.DocumentPickerAsset) {
+  if (Platform.OS === 'web' && asset.file) return asset.file.text();
+  return readAsStringAsync(asset.uri, { encoding: EncodingType.UTF8 });
 }
 
 const SettingsItem = ({
@@ -297,6 +304,9 @@ const SettingsScreen = () => {
     onWallet,
     accounts,
     vaults,
+    labels,
+    importBip329Labels,
+    exportBip329Labels,
     signers,
     syncingBlockchain,
     deleteWallet
@@ -328,6 +338,13 @@ const SettingsScreen = () => {
   const [isBip39ModalVisible, setIsBip39ModalVisible] =
     useState<boolean>(false);
   const [exportProgress, setExportProgress] = useState<string>('');
+  const [isLabelsExportModalVisible, setIsLabelsExportModalVisible] =
+    useState<boolean>(false);
+  const [isLabelsImportModalVisible, setIsLabelsImportModalVisible] =
+    useState<boolean>(false);
+  const [labelsImportReport, setLabelsImportReport] = useState<string>('');
+  const [isImportingLabelsFile, setIsImportingLabelsFile] =
+    useState<boolean>(false);
 
   const [isLanguageModalVisible, setIsLanguageModalVisible] =
     useState<boolean>(false);
@@ -522,6 +539,7 @@ const SettingsScreen = () => {
   );
 
   const title = wallet && wallets ? walletTitle(wallet, wallets, t) : '';
+  const labelCount = labels ? Object.keys(labels).length : 0;
 
   const shouldShowVaultModeSetting =
     wallet?.networkId === 'TESTNET' ||
@@ -554,6 +572,14 @@ const SettingsScreen = () => {
       setDeleteRequested(false);
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setDeleteInputValue('');
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setIsLabelsExportModalVisible(false);
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setIsLabelsImportModalVisible(false);
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setLabelsImportReport('');
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setIsImportingLabelsFile(false);
     }
     // eslint-disable-next-line react-hooks/set-state-in-effect
     if (!shouldShowVaultModeSetting) setIsVaultModeModalVisible(false);
@@ -592,6 +618,99 @@ const SettingsScreen = () => {
 
   const signer = signers?.[0];
   const mnemonic = signer?.mnemonic;
+
+  const openLabelsImportModal = useCallback(() => {
+    batchedUpdates(() => {
+      setLabelsImportReport('');
+      setIsLabelsImportModalVisible(true);
+    });
+  }, []);
+
+  const closeLabelsImportModal = useCallback(() => {
+    batchedUpdates(() => {
+      setIsLabelsImportModalVisible(false);
+      setLabelsImportReport('');
+      setIsImportingLabelsFile(false);
+    });
+  }, []);
+
+  const handleExportLabels = useCallback(async () => {
+    try {
+      await exportLabels({
+        name: sanitizeFilename(title),
+        labels: exportBip329Labels()
+      });
+      setIsLabelsExportModalVisible(false);
+      toast.show(t('settings.labels.exportSuccess'), { type: 'success' });
+    } catch (error) {
+      console.warn('Failed to export labels', error);
+      toast.show(t('settings.labels.exportError'), { type: 'warning' });
+    }
+  }, [exportBip329Labels, t, title, toast]);
+
+  const handleImportLabels = useCallback(async () => {
+    if (isImportingLabelsFile) return;
+    setIsImportingLabelsFile(true);
+    setLabelsImportReport('');
+    try {
+      const document = await DocumentPicker.getDocumentAsync({
+        type: '*/*',
+        copyToCacheDirectory: true,
+        multiple: false,
+        base64: false
+      });
+      if (document.canceled) return;
+
+      const asset = document.assets[0];
+      if (!asset) throw new Error('No label file selected');
+
+      const result = await importBip329Labels(await readLabelFile(asset));
+      const summary = t('settings.labels.importSummary', {
+        imported: result.importedCount,
+        skipped: result.skippedUnsupportedCount,
+        conflicts: result.conflictingRecordCount,
+        errors: result.errors.length
+      });
+      const firstErrors = result.errors
+        .slice(0, 3)
+        .map(error =>
+          t('settings.labels.importErrorLine', {
+            line: error.line,
+            message: error.message
+          })
+        )
+        .join('\n');
+      const firstConflicts = result.warnings
+        .filter(warning => warning.code === 'conflicting-record')
+        .slice(0, 3)
+        .map(warning =>
+          t('settings.labels.importConflictLine', { line: warning.line })
+        )
+        .join('\n');
+
+      if (result.errors.length || result.conflictingRecordCount > 0) {
+        const details = [firstErrors, firstConflicts].filter(Boolean).join('\n');
+        setLabelsImportReport(
+          details ? `${summary}\n${details}` : summary
+        );
+        toast.show(t('settings.labels.importPartial'), { type: 'warning' });
+      } else {
+        closeLabelsImportModal();
+        toast.show(summary, { type: 'success' });
+      }
+    } catch (error) {
+      console.warn('Failed to import labels', error);
+      toast.show(t('settings.labels.importError'), { type: 'warning' });
+    } finally {
+      setIsImportingLabelsFile(false);
+    }
+  }, [
+    closeLabelsImportModal,
+    importBip329Labels,
+    isImportingLabelsFile,
+    t,
+    toast
+  ]);
 
   // NativeWind's `text-base` sets a lineHeight, which causes a subtle jump/flicker
   // on each keystroke in TextInput. This is a known React Native quirk.
@@ -665,6 +784,23 @@ const SettingsScreen = () => {
                       }
                     });
                 }}
+              />
+              <SettingsItem
+                icon={{
+                  family: 'MaterialIcons',
+                  name: 'label-outline'
+                }}
+                label={t('settings.labels.export')}
+                initialValue={t('settings.labels.count', { count: labelCount })}
+                onPress={() => setIsLabelsExportModalVisible(true)}
+              />
+              <SettingsItem
+                icon={{
+                  family: 'MaterialIcons',
+                  name: 'label'
+                }}
+                label={t('settings.labels.import')}
+                onPress={openLabelsImportModal}
               />
               {mnemonic && (
                 <SettingsItem
@@ -982,6 +1118,78 @@ const SettingsScreen = () => {
           onClose={() => setIsBip39ModalVisible(false)}
         >
           {mnemonic && <Bip39 readonly words={mnemonic.split(' ')} />}
+        </Modal>
+        <Modal
+          icon={{
+            family: 'MaterialIcons',
+            name: 'label-outline'
+          }}
+          title={t('settings.labels.export')}
+          isVisible={isLabelsExportModalVisible}
+          onClose={() => setIsLabelsExportModalVisible(false)}
+          customButtons={
+            <View className="items-center gap-6 gap-y-4 flex-row flex-wrap justify-center pb-4">
+              <Button
+                mode="secondary"
+                onPress={() => setIsLabelsExportModalVisible(false)}
+              >
+                {t('cancelButton')}
+              </Button>
+              <Button
+                mode="primary"
+                disabled={!labels || labelCount === 0}
+                onPress={handleExportLabels}
+              >
+                {t('settings.labels.exportFile')}
+              </Button>
+            </View>
+          }
+        >
+          <View className="p-2 gap-4">
+            <Text className="text-base text-slate-700">
+              {t('settings.labels.exportWarning')}
+            </Text>
+            <Text className="text-sm text-slate-500">
+              {t('settings.labels.count', { count: labelCount })}
+            </Text>
+          </View>
+        </Modal>
+        <Modal
+          icon={{
+            family: 'MaterialIcons',
+            name: 'label'
+          }}
+          title={t('settings.labels.import')}
+          isVisible={isLabelsImportModalVisible}
+          onClose={closeLabelsImportModal}
+          customButtons={
+            <View className="items-center gap-6 gap-y-4 flex-row flex-wrap justify-center pb-4">
+              <Button
+                mode="secondary"
+                onPress={closeLabelsImportModal}
+              >
+                {t('cancelButton')}
+              </Button>
+              <Button
+                mode="primary"
+                disabled={!labels || isImportingLabelsFile}
+                onPress={handleImportLabels}
+              >
+                {t('settings.labels.importButton')}
+              </Button>
+            </View>
+          }
+        >
+          <View className="p-2 gap-4">
+            <Text className="text-base text-slate-700">
+              {t('settings.labels.importWarning')}
+            </Text>
+            {labelsImportReport ? (
+              <Text className="text-sm text-orange-600">
+                {labelsImportReport}
+              </Text>
+            ) : null}
+          </View>
         </Modal>
         <Modal
           icon={{

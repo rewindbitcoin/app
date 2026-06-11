@@ -36,6 +36,16 @@ import { getPresignedTriggerFeeRate } from '../lib/settings';
 import { useLocalization } from '../hooks/useLocalization';
 import { toBigInt } from '../lib/sats';
 import ModalInfoButton from '../components/ModalInfoButton';
+import AddressActionRow from '../components/AddressActionRow';
+import LabelEditor from '../components/LabelEditor';
+import NoteEditorWithHelp from '../components/NoteEditorWithHelp';
+import {
+  getVaultCreationChangeOutputRef,
+  getVaultOutputRef,
+  getVaultTriggerReserveOutputRef,
+  normalizeVaultNameText
+} from '../lib/vaultLabels';
+import { transactionFromHex } from '../lib/bitcoin';
 
 const SummaryTitle = ({
   title,
@@ -77,10 +87,20 @@ export default function CreateVaultScreen({
     signers,
     pushVaultRegisterWTAndUpdateStates,
     wallet,
-    networkId
+    vaults,
+    labels,
+    setWalletLabelTextsIfEmpty,
+    networkId,
+    blockExplorerURL
   } = useWallet();
 
-  if (!wallet || !networkId || !signers || !pushVaultRegisterWTAndUpdateStates)
+  if (
+    !wallet ||
+    !vaults ||
+    !networkId ||
+    !signers ||
+    !pushVaultRegisterWTAndUpdateStates
+  )
     throw new Error('Missing data from context');
   const lastP2PBackupVaultIndex = wallet.lastP2PBackupVaultIndex;
   const walletId = wallet.walletId;
@@ -92,6 +112,18 @@ export default function CreateVaultScreen({
   } = useNetStatus();
   const toast = useToast();
   const { t } = useTranslation();
+  const defaultVaultName = String(Object.keys(vaults).length + 1);
+  const [vaultNameDraft, setVaultNameDraft] =
+    useState<string>(defaultVaultName);
+  const vaultName = normalizeVaultNameText(vaultNameDraft) || defaultVaultName;
+  const defaultCreateVaultTxLabel = t('wallet.vault.actionLabels.createVault', {
+    vaultName
+  });
+  const [createVaultTxLabelDraft, setCreateVaultTxLabelDraft] = useState<
+    string | undefined
+  >();
+  const createVaultTxLabel =
+    createVaultTxLabelDraft ?? defaultCreateVaultTxLabel;
   const navigation = useNavigation<NavigationPropsByScreenId['CREATE_VAULT']>();
   const createCancelled = useRef<boolean>(false);
   const { settings } = useSettings();
@@ -204,16 +236,74 @@ export default function CreateVaultScreen({
     //Pushes the vault and then updates:
     //  - Vaults and VaultsStatuses, discoveryExport local storage and
     //  - also derived data: utxosData and historyData
-    const { status: pushAndUpdateStatus } = await netRequest({
-      whenToastErrors: 'ON_ANY_ERROR',
-      errorMessage: message => t('createVault.vaultPushError', { message }),
-      func: () => pushVaultRegisterWTAndUpdateStates(vault)
-    });
+    const { status: pushAndUpdateStatus, result: pushAndUpdateResult } =
+      await netRequest({
+        whenToastErrors: 'ON_ANY_ERROR',
+        errorMessage: message => t('createVault.vaultPushError', { message }),
+        func: () => pushVaultRegisterWTAndUpdateStates(vault)
+      });
 
     if (pushAndUpdateStatus !== 'SUCCESS') {
       //The toast with prev error message will have been shown.
       goBack();
     } else {
+      if (!pushAndUpdateResult)
+        throw new Error('Vault push succeeded without backup transaction data');
+      try {
+        const autoLabelEntries: Array<{
+          type: 'tx' | 'addr' | 'output';
+          ref: string;
+          label: string;
+        }> = [
+          {
+            type: 'output',
+            ref: getVaultOutputRef(vault),
+            label: vaultName
+          },
+          {
+            type: 'addr',
+            ref: vault.coldAddress,
+            label: t('wallet.vault.actionLabels.emergencyAddress', {
+              vaultName
+            })
+          },
+          {
+            type: 'tx',
+            ref: transactionFromHex(vault.vaultTxHex).txId,
+            label: createVaultTxLabel
+          },
+          {
+            type: 'tx',
+            ref: transactionFromHex(pushAndUpdateResult.backupTxHex).txId,
+            label: t('wallet.vault.actionLabels.onChainBackup', { vaultName })
+          }
+        ];
+        const triggerReserveRef = getVaultTriggerReserveOutputRef({
+          vault,
+          signer
+        });
+        if (triggerReserveRef)
+          autoLabelEntries.push({
+            type: 'output' as const,
+            ref: triggerReserveRef,
+            label: t('wallet.vault.actionLabels.unfreezeFeeReserve', {
+              vaultName
+            })
+          });
+        const changeRef = getVaultCreationChangeOutputRef({ vault, signer });
+        if (changeRef)
+          autoLabelEntries.push({
+            type: 'output' as const,
+            ref: changeRef,
+            label: t('wallet.vault.actionLabels.vaultCreationChange', {
+              vaultName
+            })
+          });
+        if (autoLabelEntries.length)
+          await setWalletLabelTextsIfEmpty(autoLabelEntries);
+      } catch (error) {
+        console.warn('Failed to save vault labels', error);
+      }
       toast.show(t('createVault.vaultSuccess'), {
         type: 'success',
         duration: 4000
@@ -231,7 +321,11 @@ export default function CreateVaultScreen({
     t,
     navigation,
     goBack,
-    pushVaultRegisterWTAndUpdateStates
+    pushVaultRegisterWTAndUpdateStates,
+    setWalletLabelTextsIfEmpty,
+    vaultName,
+    createVaultTxLabel,
+    signer
   ]);
 
   useEffect(() => {
@@ -393,6 +487,20 @@ export default function CreateVaultScreen({
       currency
     });
 
+  if (confirmRequested) {
+    return (
+      <View
+        className="flex-1 self-center max-w-screen-sm w-full px-4 py-4 mobmed:py-8"
+        style={mbStyle}
+      >
+        <Text className="text-base">{t('createVault.submittingVault')}</Text>
+        <View className="items-center pt-10">
+          <ActivityIndicator size="large" />
+        </View>
+      </View>
+    );
+  }
+
   return (
     <KeyboardAwareScrollView
       contentInsetAdjustmentBehavior="automatic"
@@ -419,170 +527,186 @@ export default function CreateVaultScreen({
         ) : (
           //After the vault has been created:
           <>
-            {!confirmRequested ? (
-              <>
-                <Text className="text-base mb-4">
-                  {t('createVault.confirmBackupSendVault')}
+            <Text className="text-base mb-4">
+              {t('createVault.confirmBackupSendVault')}
+            </Text>
+            <View className="bg-gray-50 p-4 rounded-lg mb-4 android:elevation ios:shadow web:shadow gap-5">
+              {/* Vault Label */}
+              <View>
+                <Text className="text-base font-bold mb-1">
+                  {t('createVault.label')}
                 </Text>
-                <View className="bg-gray-50 p-4 rounded-lg mb-4 android:elevation ios:shadow web:shadow gap-5">
-                  {/* Amount */}
-                  <View>
-                    <Text className="text-base font-bold mb-1">
-                      {t('vaultSetup.amountLabel')}
-                    </Text>
-                    <Text className="text-base">
-                      {formatAmount(vault.vaultedAmount)}
-                    </Text>
-                  </View>
+                <LabelEditor
+                  label={vaultNameDraft}
+                  placeholder=""
+                  disabled={!labels}
+                  editActionText={t('createVault.editName')}
+                  onSave={label =>
+                    setVaultNameDraft(
+                      normalizeVaultNameText(label) || defaultVaultName
+                    )
+                  }
+                />
+              </View>
 
-                  {/* Trigger Reserve */}
-                  {vaultFundingBreakdown ? (
-                    <View>
-                      <SummaryTitle
-                        title={t('vaultSetup.unfreezeReserveLabel')}
-                        infoButton={
+              {/* Amount */}
+              <View>
+                <Text className="text-base font-bold mb-1">
+                  {t('vaultSetup.amountLabel')}
+                </Text>
+                <Text className="text-base">
+                  {formatAmount(vault.vaultedAmount)}
+                </Text>
+              </View>
+
+              {/* Trigger Reserve */}
+              {vaultFundingBreakdown ? (
+                <View>
+                  <SummaryTitle
+                    title={t('vaultSetup.unfreezeReserveLabel')}
+                    infoButton={
+                      <ModalInfoButton
+                        title={t('vaultSetup.unfreezeReserveHelpTitle')}
+                        icon={{ family: 'FontAwesome5', name: 'coins' }}
+                        text={t('vaultSetup.unfreezeReserveHelp')}
+                        buttonContainerClassName=""
+                      />
+                    }
+                  />
+                  <Text className="text-base">
+                    {formatAmount(vaultFundingBreakdown.triggerReserveValue)}
+                  </Text>
+                </View>
+              ) : null}
+
+              {/* Time Lock */}
+              <View>
+                <SummaryTitle
+                  title={t('createVault.timeLock')}
+                  infoButton={
+                    <ModalInfoButton
+                      title={t('blocksInput.coldAddress.helpTitle')}
+                      icon={{
+                        family: 'FontAwesome6',
+                        name: 'shield-halved'
+                      }}
+                      text={t('blocksInput.coldAddress.helpText')}
+                      buttonContainerClassName=""
+                    />
+                  }
+                />
+                <Text className="text-base">
+                  {formatBlocks(vault.lockBlocks, t, locale, true)}
+                </Text>
+              </View>
+
+              {/* Funding Breakdown */}
+              {vaultFundingBreakdown ? (
+                <>
+                  <View>
+                    <SummaryTitle
+                      title={t('vaultSetup.vaultTransactionFeeLabel')}
+                      infoButton={
+                        vaultFundingBreakdown.vaultTxFee === 0 ? (
                           <ModalInfoButton
-                            title={t('vaultSetup.unfreezeReserveHelpTitle')}
-                            icon={{ family: 'FontAwesome5', name: 'coins' }}
-                            text={t('vaultSetup.unfreezeReserveHelp')}
+                            title={t('vaultSetup.vaultTransactionFeeLabel')}
+                            icon={{
+                              family: 'MaterialCommunityIcons',
+                              name: 'pickaxe'
+                            }}
+                            text={t('createVault.zeroVaultTransactionFeeHelp')}
                             buttonContainerClassName=""
                           />
-                        }
-                      />
-                      <Text className="text-base">
-                        {formatAmount(
-                          vaultFundingBreakdown.triggerReserveValue
-                        )}
-                      </Text>
-                    </View>
-                  ) : null}
+                        ) : undefined
+                      }
+                    />
+                    <Text className="text-base">
+                      {formatAmount(vaultFundingBreakdown.vaultTxFee)}
+                    </Text>
+                  </View>
 
-                  {/* Time Lock */}
                   <View>
                     <SummaryTitle
-                      title={t('createVault.timeLock')}
+                      title={t('vaultSetup.backupFundingLabel')}
                       infoButton={
                         <ModalInfoButton
-                          title={t('blocksInput.coldAddress.helpTitle')}
+                          title={t('vaultSetup.backupFundingLabel')}
                           icon={{
-                            family: 'FontAwesome6',
-                            name: 'shield-halved'
+                            family: 'MaterialCommunityIcons',
+                            name: 'database-lock-outline'
                           }}
-                          text={t('blocksInput.coldAddress.helpText')}
+                          text={t('createVault.onChainBackupCostHelp')}
                           buttonContainerClassName=""
                         />
                       }
                     />
                     <Text className="text-base">
-                      {formatBlocks(vault.lockBlocks, t, locale, true)}
+                      {formatAmount(vaultFundingBreakdown.backupTxCost)}
                     </Text>
                   </View>
 
-                  {/* Funding Breakdown */}
-                  {vaultFundingBreakdown ? (
-                    <>
-                      <View>
-                        <SummaryTitle
-                          title={t('vaultSetup.vaultTransactionFeeLabel')}
-                          infoButton={
-                            vaultFundingBreakdown.vaultTxFee === 0 ? (
-                              <ModalInfoButton
-                                title={t('vaultSetup.vaultTransactionFeeLabel')}
-                                icon={{
-                                  family: 'MaterialCommunityIcons',
-                                  name: 'pickaxe'
-                                }}
-                                text={t(
-                                  'createVault.zeroVaultTransactionFeeHelp'
-                                )}
-                                buttonContainerClassName=""
-                              />
-                            ) : undefined
-                          }
-                        />
-                        <Text className="text-base">
-                          {formatAmount(vaultFundingBreakdown.vaultTxFee)}
-                        </Text>
-                      </View>
-
-                      <View>
-                        <SummaryTitle
-                          title={t('vaultSetup.backupFundingLabel')}
-                          infoButton={
-                            <ModalInfoButton
-                              title={t('vaultSetup.backupFundingLabel')}
-                              icon={{
-                                family: 'MaterialCommunityIcons',
-                                name: 'database-lock-outline'
-                              }}
-                              text={t('createVault.onChainBackupCostHelp')}
-                              buttonContainerClassName=""
-                            />
-                          }
-                        />
-                        <Text className="text-base">
-                          {formatAmount(vaultFundingBreakdown.backupTxCost)}
-                        </Text>
-                      </View>
-
-                      <View>
-                        <Text className="text-base font-bold mb-1">
-                          {t('vaultSetup.totalTakenFromWalletNowLabel')}
-                        </Text>
-                        <Text className="text-base">
-                          {formatAmount(
-                            vaultFundingBreakdown.totalTakenFromWalletNow
-                          )}
-                        </Text>
-                      </View>
-                    </>
-                  ) : null}
-
-                  {/* Emergency Address */}
                   <View>
-                    <SummaryTitle
-                      title={t('createVault.emergencyAddress')}
-                      infoButton={
-                        <ModalInfoButton
-                          title={t('addressInput.coldAddress.helpTitle')}
-                          icon={{
-                            family: 'FontAwesome6',
-                            name: 'shield-halved'
-                          }}
-                          text={t('addressInput.coldAddress.helpText')}
-                          buttonContainerClassName=""
-                        />
-                      }
-                    />
-                    <Text className="text-base break-words">
-                      {vault.coldAddress}
+                    <Text className="text-base font-bold mb-1">
+                      {t('vaultSetup.totalTakenFromWalletNowLabel')}
+                    </Text>
+                    <Text className="text-base">
+                      {formatAmount(
+                        vaultFundingBreakdown.totalTakenFromWalletNow
+                      )}
                     </Text>
                   </View>
-                </View>
-                <Text className="text-base mb-8">
-                  {
-                    //t('createVault.encryptionBackupExplain')
-                    t('createVault.explainConfirm')
-                  }
-                </Text>
+                </>
+              ) : null}
 
-                <View className="items-center gap-6 gap-y-4 flex-row flex-wrap justify-center">
-                  <Button mode="secondary" onPress={goBack}>
-                    {t('cancelButton')}
-                  </Button>
-                  <Button onPress={confirm}>{t('submitButton')}</Button>
-                </View>
-              </>
-            ) : (
-              <View className="flex-1">
-                <Text className="text-base">
-                  {t('createVault.submittingVault')}
-                </Text>
-                <View className="items-center pt-10">
-                  <ActivityIndicator size="large" />
-                </View>
+              {/* Emergency Address */}
+              <View>
+                <SummaryTitle
+                  title={t('createVault.emergencyAddress')}
+                  infoButton={
+                    <ModalInfoButton
+                      title={t('addressInput.coldAddress.helpTitle')}
+                      icon={{
+                        family: 'FontAwesome6',
+                        name: 'shield-halved'
+                      }}
+                      text={t('addressInput.coldAddress.helpText')}
+                      buttonContainerClassName=""
+                    />
+                  }
+                />
+                <AddressActionRow
+                  address={vault.coldAddress}
+                  blockExplorerURL={blockExplorerURL}
+                />
               </View>
-            )}
+
+              {/* Transaction Note */}
+              <View>
+                <SummaryTitle title={t('createVault.txLabel')} />
+                <NoteEditorWithHelp
+                  label={createVaultTxLabel}
+                  placeholder=""
+                  disabled={!labels}
+                  helpToggleText={t('transaction.noteHelpToggle')}
+                  hideHelpText={t('transaction.noteHelpHide')}
+                  helpText={t('transaction.noteHelp')}
+                  onSave={setCreateVaultTxLabelDraft}
+                />
+              </View>
+            </View>
+            <Text className="text-base mb-8">
+              {
+                //t('createVault.encryptionBackupExplain')
+                t('createVault.explainConfirm')
+              }
+            </Text>
+
+            <View className="items-center gap-6 gap-y-4 flex-row flex-wrap justify-center">
+              <Button mode="secondary" onPress={goBack}>
+                {t('cancelButton')}
+              </Button>
+              <Button onPress={confirm}>{t('submitButton')}</Button>
+            </View>
           </>
         )}
       </View>

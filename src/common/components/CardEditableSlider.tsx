@@ -20,6 +20,7 @@ function CardEditableSlider({
   maxLabel,
   step,
   formatError,
+  isStatusWarning,
   onValueChange,
   formatValue = value => `${value}`,
   locale
@@ -35,6 +36,7 @@ function CardEditableSlider({
   maxLabel?: string;
   step: number;
   formatError?: (invalidValue: number) => string | undefined;
+  isStatusWarning?: (value: number) => boolean;
   onValueChange: (value: number | null, type: 'USER' | 'RESET') => void;
   formatValue: (value: number) => string;
   locale: string;
@@ -78,6 +80,7 @@ function CardEditableSlider({
           {...(maxLabel ? { maxLabel: maxLabel.toUpperCase() } : {})}
           locale={locale}
           {...(formatError ? { formatError } : {})}
+          {...(isStatusWarning ? { isStatusWarning } : {})}
           minimumValue={minimumValue}
           maximumValue={maximumValue}
           initialValue={initialValue}

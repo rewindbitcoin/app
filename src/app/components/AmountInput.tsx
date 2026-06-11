@@ -79,8 +79,8 @@ function AmountInput({
     setShowUnitsModal(true);
   }, []);
   const handleAutoCoinSelectionChange = useCallback(
-    (auto: boolean) => {
-      onCoinControlChange?.(!auto);
+    (manual: boolean) => {
+      onCoinControlChange?.(manual);
     },
     [onCoinControlChange]
   );
@@ -127,12 +127,12 @@ function AmountInput({
           allowCoinControl ? (
             <View className="flex-row items-center">
               <Text className="mr-1 text-sm font-normal text-card-secondary">
-                {t('coinControl.auto')}
+                {t('coinControl.chooseCoins')}
               </Text>
               <Switch
-                value={!coinControl}
+                value={coinControl}
                 onValueChange={handleAutoCoinSelectionChange}
-                accessibilityLabel={t('coinControl.auto')}
+                accessibilityLabel={t('coinControl.chooseCoins')}
                 style={{ transform: [{ scale: 0.66 }] }}
               />
             </View>

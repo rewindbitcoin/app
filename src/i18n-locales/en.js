@@ -189,8 +189,25 @@ If you need further assistance, please contact Rewind Support.`
       rescueButton: 'Rescue',
       delegateButton: 'Delegate',
       triggerUnfreezeButton: 'Init Unfreeze',
-      vaultTitle: 'Vault {{vaultNumber}}',
+      vaultTitle: 'Vault {{vaultName}}',
+      vaultNamePrefix: 'Vault',
+      editName: 'Edit name',
+      nameSaveError: 'Could not save vault name.',
       vaultDate: 'Created on {{date}}',
+      actionLabels: {
+        createVault: 'Vault activation: {{vaultName}}',
+        onChainBackup: 'On-chain backup: {{vaultName}}',
+        initUnfreeze: 'Unfreeze: {{vaultName}}',
+        rescue: 'Rescue: {{vaultName}}',
+        unfreezeOutput: 'Unfreeze output: {{vaultName}}',
+        unfreezeFeeReserve: 'Unfreeze fee reserve: {{vaultName}}',
+        unfreezeFeeReserveChange:
+          'Unfreeze fee boost change: {{vaultName}}',
+        unfreezeFeeBump: 'Unfreeze fee boost: {{vaultName}}',
+        rescueFeeBump: 'Rescue fee boost: {{vaultName}}',
+        emergencyAddress: 'Emergency address: {{vaultName}}',
+        vaultCreationChange: 'Vault change: {{vaultName}}'
+      },
       amountFrozen: 'Amount Frozen',
       amountBeingUnfrozen: 'Amount Being Unfrozen',
       unfrozenAmount: 'Unfrozen Amount',
@@ -289,7 +306,7 @@ Check your connection and try again.`,
         noReserveParentFeeBelowRecommendedFee: `This unfreeze can be sent now, but its built-in network fee may be low for current network conditions.`,
         walletSupplementCheckbox: 'Use wallet funds.',
         // Keep short: this appears in a narrow checkbox row under "Use wallet funds".
-        manualWalletSupplementCheckbox: 'Choose coins manually.',
+        manualWalletSupplementCheckbox: 'Advanced: choose coins manually.',
         pickedWalletSupplementUtxosInsufficient: `The coins you selected cannot pay this unfreeze fee.
 
 Select more coins or switch back to automatic selection.`,
@@ -446,6 +463,7 @@ You'll be instantly notified if someone gains access to your keys and attempts t
       "Hang tight! We're sending you some coins to get started. This takes just a few seconds.",
     faucetDetectedMsg:
       'Hooray! Your test coins have arrived. Why not try freezing them to see how it works?',
+    faucetAddressLabel: 'Test coins',
     faucetErrorMsg:
       "Oops! There was a glitch sending your coins. Tap 'Receive' to try getting your test coins again.",
     header: {
@@ -509,11 +527,11 @@ Usage Instructions:
     confirmedOnBlock: 'Confirmed on block {{block}}',
 
     header: {
-      vault: 'Vault {{vaultNumber}} Creation',
-      trigger: 'Vault {{vaultNumber}} Unfreeze',
-      rescue: 'Vault {{vaultNumber}} Rescue',
-      feePayerTrigger: 'Vault {{vaultNumber}} Unfreeze Fee-Payer',
-      feePayerRescue: 'Vault {{vaultNumber}} Rescue Fee-Payer',
+      vault: 'Vault {{vaultName}} Creation',
+      trigger: 'Vault {{vaultName}} Unfreeze',
+      rescue: 'Vault {{vaultName}} Rescue',
+      feePayerTrigger: 'Vault {{vaultName}} Unfreeze Fee-Payer',
+      feePayerRescue: 'Vault {{vaultName}} Rescue Fee-Payer',
       received: 'Received',
       sent: 'Sent',
       receivedAndSent: 'Received and Sent',
@@ -544,9 +562,20 @@ Usage Instructions:
       feePayerRescue:
         'This transaction used funds reserved to pay network fees to help confirm your rescue. Any unused amount went back to the temporary wallet for fees.',
       feePayerRescueConfirming:
-        'This transaction is using funds reserved to pay network fees to help confirm your rescue. Waiting for confirmation... Any unused amount will go back to the temporary wallet for fees.',
-      openBlockExplorer: 'View on Block Explorer'
-    }
+        'This transaction is using funds reserved to pay network fees to help confirm your rescue. Waiting for confirmation... Any unused amount will go back to the temporary wallet for fees.'
+    },
+    labelPlaceholder: 'Private note for this transaction',
+    addPrivateNote: 'Add private note',
+    noteHelpToggle: 'What are notes?',
+    noteHelpHide: 'Hide help',
+    noteHelp: `Rewind uses the BIP-329 standard to save private notes for things in your wallet, like transactions, receiving addresses, and coins.
+
+Notes are never sent to the blockchain and can be imported or exported for compatible wallets.
+
+Use this note to recognize this transaction when reviewing your wallet history.`,
+    txId: 'Tx {{txid}}',
+    receivingAddressNoteContext: 'Receiving address: {{label}}',
+    copyTxIdSuccess: 'Transaction ID copied.'
   },
   network: {
     testOn: 'Test on {{networkId}}',
@@ -713,16 +742,27 @@ For your security, please review these changes before proceeding.`,
     confirmLabels: {
       miningFee: 'Mining Fee',
       amountLabel: 'Amount',
-      recipientAddress: 'Address'
+      recipientAddress: 'Address',
+      label: 'Note'
     }
   },
   receive: {
     title: 'Receive Bitcoin',
     clipboard: 'Address copied to clipboard!',
     doneButton: 'Done',
-    shareAddress: 'Share Address',
-    copyAddress: 'Copy to Clipboard',
+    shareAddress: 'Share',
+    copyAddress: 'Copy',
     intro: 'Share this address to receive Bitcoin',
+    addressNoteTitle: 'Private address note',
+    addressNoteIntro: 'Add a note to remember what this address is for.',
+    addAddressNote: 'Add note',
+    editAddressNote: 'Edit note',
+    labelPlaceholder: 'Private note for this address',
+    addressNoteHelp: `Rewind uses the BIP-329 standard to save private notes for things in your wallet, like transactions, receiving addresses, and coins.
+
+Address notes help you remember what this receiving address is for or who you shared it with.
+
+Notes are never sent to the blockchain and can be imported or exported for compatible wallets.`,
     faucetIntro: 'Need test coins?',
     requestTokens: 'Request them here!',
     faucetNote:
@@ -736,6 +776,9 @@ Next, you'll review everything before activating it.`,
     serviceFee: 'Vaulting Fee',
     allFees: 'Fees',
     timeLock: 'Time-Lock',
+    label: 'Vault Name',
+    editName: 'Edit name',
+    txLabel: 'Transaction Note',
     //Note to transalators: make this text below as short as possible. This is the
     //label for Emergency Address in the summary that users review before
     //final submission
@@ -964,6 +1007,27 @@ Please wait a few moments until completion.`,
       watchtowerError:
         'Invalid Watchtower API Base. Please check the URL and try again.'
     },
+    labels: {
+      export: 'Export Labels',
+      import: 'Import Labels',
+      count_one: '{{count}} label',
+      count_other: '{{count}} labels',
+      exportFile: 'Export File',
+      importButton: 'Choose BIP-329 File',
+      exportSuccess: 'Labels exported.',
+      exportError: 'Could not export labels.',
+      importError: 'Could not import labels.',
+      importPartial:
+        'Some label records were skipped or could not be imported.',
+      importSummary:
+        'Imported {{imported}} label records. Skipped {{skipped}} unsupported records. Conflicts: {{conflicts}}. Errors: {{errors}}.',
+      importErrorLine: 'Line {{line}}: {{message}}',
+      importConflictLine: 'Line {{line}}: conflicting record skipped.',
+      exportWarning:
+        'Labels can reveal private wallet context such as people, exchanges, addresses, and spending intent. Only export them if you know where you will store or send them.',
+      importWarning:
+        'Importing labels will add or update private wallet metadata on this device. Choose only a BIP-329 labels file from a source you trust.'
+    },
     general: {
       title: 'General',
       electrumBitcoin: 'Electrum Bitcoin',
@@ -998,20 +1062,38 @@ Use this to simulate higher fees and extreme mempool conditions on Tape.`,
       }
     }
   },
+  labels: {
+    add: 'Add note',
+    edit: 'Edit note',
+    saveError: 'Could not save note.'
+  },
   coinControl: {
+    chooseCoins: 'Choose coins',
+    useSelected: 'Use selected',
     auto: 'Auto',
-    title: 'Manual Coin Selection',
-    intro: `Rewind automatically chooses which specific funds in your wallet to use. In Bitcoin, those funds are organized as unspent outputs from earlier transactions, also called UTXOs.
+    title: 'Choose Coins',
+    intro: `Rewind automatically selects coins from your wallet to pay the amount and fee you choose. Automatic selection is already optimized and recommended for most users.
 
-If you have experience and want to control exactly which UTXOs are spent, you can select them manually.`,
+You usually do not need to choose coins. This option is for experienced users who want to pick specific coins themselves.`,
     noUtxos: 'No UTXOs are available for manual selection.',
+    labelPlaceholder: 'Private note for this coin',
+    parentTxLabel: 'From tx: {{label}}',
+    addressNoteContext: 'Address: {{label}}',
+    outpointId: 'Coin {{outpoint}}',
+    copyOutpointSuccess: 'Coin ID copied.',
+    originConfirming: 'Confirming',
+    originSubmittedOn: 'Submitted {{date}}',
+    originConfirmedOn: 'Confirmed {{date}}',
+    originConfirmedBlock: 'Confirmed in block {{block}}',
     disabledReasons: {
       unconfirmedAcceleratableOutput:
         'Comes from an unconfirmed transaction that can still be accelerated. If accelerated, this output may disappear. Wait for one confirmation.',
       unconfirmedV3Output:
         'Comes from an unconfirmed v3 transaction. Wait for one confirmation before selecting it.',
       trucRequiresConfirmedInput:
-        'This vault mode can only use confirmed wallet funds. Wait for one confirmation before selecting it.'
+        'This vault mode can only use confirmed wallet funds. Wait for one confirmation before selecting it.',
+      frozenVaultOutput:
+        'This vault output is still frozen. It will be available in about {{timeRemaining}}.'
     },
     groups: {
       nativeSegwit: 'Native SegWit',
@@ -1027,6 +1109,8 @@ If you have experience and want to control exactly which UTXOs are spent, you ca
   accelerateButton: 'Accelerate',
   //okButton: 'OK',
   loadMoreButton: 'Load More',
+  viewButton: 'View',
+  copyButton: 'Copy',
   dismissButton: 'Dismiss',
   goBack: 'Go Back',
   verifyButton: 'Verify',

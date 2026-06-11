@@ -17,7 +17,7 @@ import React, {
 } from 'react';
 import { CardEditableSlider } from '../../common/ui';
 import { snapWithinRange } from '../../common/lib/numbers';
-import { formatFeeRate } from '../lib/format';
+import { formatFeeRate, isFeeRateMayNotConfirm } from '../lib/format';
 import {
   computeMaxAllowedFeeRate,
   FeeEstimates,
@@ -112,6 +112,16 @@ function FeeInput({
         t
       ),
     [fee, btcFiat, currency, locale, snappedFeeEstimates, t, subUnit]
+  );
+
+  const isStatusWarning = useCallback(
+    (feeRate: number) =>
+      Object.keys(snappedFeeEstimates).length > 0 &&
+      isFeeRateMayNotConfirm({
+        feeRate,
+        feeEstimates: snappedFeeEstimates
+      }),
+    [snappedFeeEstimates]
   );
 
   //We will change the key in CardEditableSlider creating new components
@@ -242,6 +252,7 @@ function FeeInput({
             onValueChange={onSnappedValueChange}
             step={FEE_RATE_STEP}
             formatValue={formatValue}
+            isStatusWarning={isStatusWarning}
             unit={'sats/vB'}
           />
         </View>

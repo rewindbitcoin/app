@@ -172,8 +172,26 @@ Si necesitas más ayuda, por favor contacta con el equipo de Soporte de Rewind.`
       rescueButton: 'Rescatar',
       delegateButton: 'Delegar',
       triggerUnfreezeButton: 'Iniciar Descongelación',
-      vaultTitle: 'Bóveda {{vaultNumber}}',
+      vaultTitle: 'Bóveda {{vaultName}}',
+      vaultNamePrefix: 'Bóveda',
+      editName: 'Editar nombre',
+      nameSaveError: 'No se pudo guardar el nombre de la bóveda.',
       vaultDate: 'Creada el {{date}}',
+      actionLabels: {
+        createVault: 'Activación de bóveda: {{vaultName}}',
+        onChainBackup: 'Backup on-chain: {{vaultName}}',
+        initUnfreeze: 'Descongelación: {{vaultName}}',
+        rescue: 'Rescate: {{vaultName}}',
+        unfreezeOutput: 'Salida de descongelación: {{vaultName}}',
+        unfreezeFeeReserve:
+          'Reserva para comisión de descongelación: {{vaultName}}',
+        unfreezeFeeReserveChange:
+          'Cambio tras pago de comisión para descongelar: {{vaultName}}',
+        unfreezeFeeBump: 'Pago de comisión para descongelar: {{vaultName}}',
+        rescueFeeBump: 'Pago de comisión para rescatar: {{vaultName}}',
+        emergencyAddress: 'Dirección de emergencia: {{vaultName}}',
+        vaultCreationChange: 'Cambio de bóveda: {{vaultName}}'
+      },
       amountFrozen: 'Cantidad Congelada',
       amountBeingUnfrozen: 'Cantidad en Descongelación',
       unfrozenAmount: 'Cantidad Descongelada',
@@ -286,7 +304,7 @@ Comprueba tu conexión e inténtalo de nuevo.`,
         noReserveParentFeeBelowRecommendedFee: `Esta descongelación puede enviarse ahora, pero la comisión de red que ya lleva incluida puede ser baja para las condiciones actuales de la red.`,
         walletSupplementCheckbox: 'Usar fondos de mi billetera.',
         // Mantener corto: aparece en una fila estrecha bajo "Usar fondos de mi billetera".
-        manualWalletSupplementCheckbox: 'Elegir monedas manualmente.',
+        manualWalletSupplementCheckbox: 'Avanzado: elegir monedas manualmente.',
         pickedWalletSupplementUtxosInsufficient: `Las monedas que seleccionaste no alcanzan para pagar esta descongelación.
 
 Selecciona más monedas o vuelve a la selección automática.`,
@@ -409,6 +427,7 @@ Una vez que termine la cuenta regresiva, tus fondos serán desbloqueados y acces
       '¡Espera un momento! Estamos enviándote algunas monedas para empezar. Esto sólo tomará unos segundos.',
     faucetDetectedMsg:
       '¡Genial! Tus monedas de prueba han llegado. ¿Por qué no intentas congelarlas para ver cómo funciona?',
+    faucetAddressLabel: 'Monedas de prueba',
     faucetErrorMsg:
       'Ups! Hubo un problema al enviar tus monedas. Pulsa "Recibir" para intentar obtener tus monedas de prueba nuevamente.',
     header: {
@@ -476,13 +495,13 @@ Instrucciones de Uso:
     confirmedOnBlock: 'Confirmada en el bloque {{block}}',
 
     header: {
-      vault: 'Creación de Bóveda {{vaultNumber}}',
-      trigger: 'Descongelación de Bóveda {{vaultNumber}}',
-      rescue: 'Rescate de Bóveda {{vaultNumber}}',
+      vault: 'Creación de Bóveda {{vaultName}}',
+      trigger: 'Descongelación de Bóveda {{vaultName}}',
+      rescue: 'Rescate de Bóveda {{vaultName}}',
       feePayerTrigger:
-        'Pagadora de Comisión de Descongelación de Bóveda {{vaultNumber}}',
+        'Pagadora de Comisión de Descongelación de Bóveda {{vaultName}}',
       feePayerRescue:
-        'Pagadora de Comisión de Rescate de Bóveda {{vaultNumber}}',
+        'Pagadora de Comisión de Rescate de Bóveda {{vaultName}}',
       received: 'Recibido',
       sent: 'Enviado',
       receivedAndSent: 'Recibido y Enviado',
@@ -508,9 +527,20 @@ Instrucciones de Uso:
       feePayerRescue:
         'Esta transacción usó fondos reservados para pagar comisiones de red y ayudar a confirmar tu rescate. La cantidad no utilizada volvió a la billetera temporal para comisiones.',
       feePayerRescueConfirming:
-        'Esta transacción está usando fondos reservados para pagar comisiones de red y ayudar a confirmar tu rescate. Esperando confirmación... La cantidad no utilizada volverá a la billetera temporal para comisiones.',
-      openBlockExplorer: 'Ver en el Explorador de Bloques'
-    }
+        'Esta transacción está usando fondos reservados para pagar comisiones de red y ayudar a confirmar tu rescate. Esperando confirmación... La cantidad no utilizada volverá a la billetera temporal para comisiones.'
+    },
+    labelPlaceholder: 'Nota privada para esta transacción',
+    addPrivateNote: 'Añadir nota privada',
+    noteHelpToggle: '¿Qué son las notas?',
+    noteHelpHide: 'Ocultar ayuda',
+    noteHelp: `Rewind usa el estándar BIP-329 para guardar notas privadas sobre partes de tu billetera, como transacciones, direcciones de recepción y monedas.
+
+Las notas nunca se envían a la blockchain y puedes importarlas o exportarlas para billeteras compatibles.
+
+Usa esta nota para reconocer esta transacción al revisar tu historial.`,
+    txId: 'Tx {{txid}}',
+    receivingAddressNoteContext: 'Dirección de recepción: {{label}}',
+    copyTxIdSuccess: 'ID de transacción copiado.'
   },
   network: {
     testOn: 'Probar en {{networkId}}',
@@ -654,16 +684,27 @@ Por tu seguridad, por favor revisa estos cambios antes de continuar.`,
     confirmLabels: {
       miningFee: 'Comisión de minería',
       amountLabel: 'Cantidad',
-      recipientAddress: 'Dirección'
+      recipientAddress: 'Dirección',
+      label: 'Nota'
     }
   },
   receive: {
     title: 'Recibir Bitcoin',
     clipboard: '¡Dirección copiada al portapapeles!',
     doneButton: '¡Listo!',
-    shareAddress: 'Compartir Dirección',
-    copyAddress: 'Copiar al Portapapeles',
+    shareAddress: 'Compartir',
+    copyAddress: 'Copiar',
     intro: 'Comparte esta dirección para recibir Bitcoin',
+    addressNoteTitle: 'Nota privada para la dirección',
+    addressNoteIntro: 'Añade una nota para recordar para qué es esta dirección.',
+    addAddressNote: 'Añadir nota',
+    editAddressNote: 'Editar nota',
+    labelPlaceholder: 'Nota privada para esta dirección',
+    addressNoteHelp: `Rewind usa el estándar BIP-329 para guardar notas privadas sobre partes de tu billetera, como transacciones, direcciones de recepción y monedas.
+
+Las notas para direcciones te ayudan a recordar para qué es esta dirección de recepción o con quién la compartiste.
+
+Las notas nunca se envían a la blockchain y puedes importarlas o exportarlas para billeteras compatibles.`,
     faucetIntro: '¿Necesitas monedas de prueba?',
     requestTokens: '¡Solicítalas aquí!',
     faucetNote:
@@ -677,6 +718,9 @@ A continuación, podrás revisarlo todo antes de activarla.`,
     serviceFee: 'Comisión de Bóveda',
     allFees: 'Comisiones',
     timeLock: 'Tiempo de Bloqueo',
+    label: 'Nombre de Bóveda',
+    editName: 'Editar nombre',
+    txLabel: 'Nota para la transacción',
     emergencyAddress: 'Dirección de Emergencia',
     confirmBackupSendVault: `Tu bóveda está lista para ser enviada. Por favor, revisa los siguientes valores antes de proceder:`,
     explainConfirm: `Selecciona 'Enviar' para activar tu bóveda.`,
@@ -889,6 +933,27 @@ Por favor, espera unos momentos hasta que se complete.`,
       watchtowerError:
         'La URL base de la API de la Torre de Vigilancia (Watchtower) no es válida. Verifica la dirección e inténtalo de nuevo.'
     },
+    labels: {
+      export: 'Exportar Etiquetas',
+      import: 'Importar Etiquetas',
+      count_one: '{{count}} etiqueta',
+      count_other: '{{count}} etiquetas',
+      exportFile: 'Exportar Archivo',
+      importButton: 'Elegir Archivo BIP-329',
+      exportSuccess: 'Etiquetas exportadas.',
+      exportError: 'No se pudieron exportar las etiquetas.',
+      importError: 'No se pudieron importar las etiquetas.',
+      importPartial:
+        'Algunos registros de etiquetas se omitieron o no se pudieron importar.',
+      importSummary:
+        'Registros de etiquetas importados: {{imported}}. Registros no soportados omitidos: {{skipped}}. Conflictos: {{conflicts}}. Errores: {{errors}}.',
+      importErrorLine: 'Línea {{line}}: {{message}}',
+      importConflictLine: 'Línea {{line}}: registro en conflicto omitido.',
+      exportWarning:
+        'Las etiquetas pueden revelar contexto privado de tu billetera, como personas, exchanges, direcciones e intención de gasto. Expórtalas solo si sabes dónde las guardarás o enviarás.',
+      importWarning:
+        'Importar etiquetas añadirá o actualizará metadatos privados de esta billetera en este dispositivo. Elige solo un archivo de etiquetas BIP-329 de una fuente de confianza.'
+    },
     general: {
       title: 'General',
       electrumBitcoin: 'Electrum Bitcoin',
@@ -922,20 +987,38 @@ Usa esto para simular comisiones más altas y condiciones extremas de mempool en
       }
     }
   },
+  labels: {
+    add: 'Añadir nota',
+    edit: 'Editar nota',
+    saveError: 'No se pudo guardar la nota.'
+  },
   coinControl: {
+    chooseCoins: 'Elegir monedas',
+    useSelected: 'Usar selección',
     auto: 'Auto',
-    title: 'Selección Manual de Monedas',
-    intro: `Rewind elige automáticamente qué fondos concretos de tu billetera usar. En Bitcoin, esos fondos se organizan como salidas no gastadas de transacciones anteriores, también llamadas UTXOs.
+    title: 'Elegir monedas',
+    intro: `Rewind selecciona automáticamente las monedas de tu billetera para pagar la cantidad y comisión que indiques. La selección automática ya está optimizada y es la recomendada para la mayoría de usuarios.
 
-Si tienes experiencia y quieres controlar exactamente qué UTXOs se gastan, puedes seleccionarlos manualmente.`,
+Normalmente no hace falta elegir monedas. Esta opción está pensada para usuarios con experiencia que quieren escoger monedas concretas manualmente.`,
     noUtxos: 'No hay UTXOs disponibles para la selección manual.',
+    labelPlaceholder: 'Nota privada para esta moneda',
+    parentTxLabel: 'Transacción: {{label}}',
+    addressNoteContext: 'Dirección: {{label}}',
+    outpointId: 'Moneda {{outpoint}}',
+    copyOutpointSuccess: 'ID de moneda copiado.',
+    originConfirming: 'Confirmando',
+    originSubmittedOn: 'Enviada el {{date}}',
+    originConfirmedOn: 'Confirmada el {{date}}',
+    originConfirmedBlock: 'Confirmada en el bloque {{block}}',
     disabledReasons: {
       unconfirmedAcceleratableOutput:
         'Viene de una transacción sin confirmar que todavía puede acelerarse. Si se acelera, esta salida podría desaparecer. Espera una confirmación.',
       unconfirmedV3Output:
         'Viene de una transacción v3 sin confirmar. Espera una confirmación antes de seleccionarlo.',
       trucRequiresConfirmedInput:
-        'Este modo de bóveda solo puede usar fondos confirmados de la billetera. Espera una confirmación antes de seleccionarlo.'
+        'Este modo de bóveda solo puede usar fondos confirmados de la billetera. Espera una confirmación antes de seleccionarlo.',
+      frozenVaultOutput:
+        'Esta salida de bóveda sigue congelada. Estará disponible en aproximadamente {{timeRemaining}}.'
     },
     groups: {
       nativeSegwit: 'SegWit Nativo',
@@ -950,6 +1033,8 @@ Si tienes experiencia y quieres controlar exactamente qué UTXOs se gastan, pued
   imInDangerButton: 'Estoy en Peligro',
   accelerateButton: 'Acelerar',
   loadMoreButton: 'Cargar Más',
+  viewButton: 'Ver',
+  copyButton: 'Copiar',
   dismissButton: 'Descartar',
   goBack: 'Volver',
   verifyButton: 'Verificar',

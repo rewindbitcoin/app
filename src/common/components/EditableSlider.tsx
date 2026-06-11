@@ -107,6 +107,7 @@ const EditableSlider = ({
   step = DEFAULT_STEP,
   locale,
   formatError,
+  isStatusWarning,
   onValueChange,
   formatValue = value => `${value}`
 }: {
@@ -119,6 +120,7 @@ const EditableSlider = ({
   maximumValue: number;
   step?: number;
   formatError?: (invalidValue: number) => string | undefined;
+  isStatusWarning?: (value: number) => boolean;
   onValueChange: (value: number | null, type: 'USER' | 'RESET') => void;
   formatValue: (value: number) => string;
 }) => {
@@ -226,6 +228,7 @@ const EditableSlider = ({
   const value = localizedStrToNumber(numericInputControlledValue, locale);
   const isValidValue =
     !Number.isNaN(value) && value >= minimumValue && value <= maximumValue;
+  const statusIsWarning = isValidValue && isStatusWarning?.(value) === true;
 
   let statusText;
   if (isValidValue) {
@@ -261,10 +264,10 @@ const EditableSlider = ({
     return [
       fontsLoaded ? { fontFamily: 'RobotoMono_400Regular' } : {},
       styles.status,
-      isValidValue ? {} : { color: theme.colors.red },
+      isValidValue && !statusIsWarning ? {} : { color: theme.colors.red },
       { letterSpacing: -0.5 }
     ];
-  }, [fontsLoaded, isValidValue, styles.status, theme.colors.red]);
+  }, [fontsLoaded, isValidValue, statusIsWarning, styles.status, theme.colors.red]);
 
   const firstNotificationDone = useRef<boolean>(false);
   useEffect(() => {

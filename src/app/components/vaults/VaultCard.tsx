@@ -11,7 +11,7 @@ import React, {
 
 const IRREVERSIBLE_BLOCKS = 4; // Number of blocks after which a transaction is considered irreversible
 //const IRREVERSIBLE_BLOCKS = 0; // For Screenshots
-import { View, Text, Linking } from 'react-native';
+import { View, Text } from 'react-native';
 import { batchedUpdates } from '~/common/lib/batchedUpdates';
 
 import {
@@ -27,7 +27,7 @@ import {
 import VaultIcon from '../VaultIcon';
 import { useTranslation } from 'react-i18next';
 import { formatBalance, formatBlocks } from '../../lib/format';
-import { Button, useToast } from '../../../common/ui';
+import { useToast } from '../../../common/ui';
 
 import { useSettings } from '../../hooks/useSettings';
 import type { BlockStatus } from '@bitcoinerlab/explorer';
@@ -37,6 +37,7 @@ import RescueReserveWalletWizard from './modals/RescueReserveWalletWizard';
 import type { EphemeralWalletData } from '../EphemeralWalletWizard';
 import VaultActionButton from './card/VaultActionButton';
 import VaultBalance from './card/VaultBalance';
+import VaultNameEditor from './card/VaultNameEditor';
 import VaultStatusLine from './card/VaultStatusLine';
 import VaultWatchtowerIndicator from './card/VaultWatchtowerIndicator';
 import { formatVaultDate, getVaultInitDate } from './vaultDates';
@@ -67,6 +68,15 @@ import {
   useTriggerReserveBumpPlan
 } from './useReserveBumpPlans';
 import { pickFeeEstimate } from '../../lib/fees';
+import AddressActionRow from '../AddressActionRow';
+import {
+  getCpfpChangeOutputRef,
+  getTriggerOutputRef,
+  getVaultName,
+  getVaultOutputRef
+} from '../../lib/vaultLabels';
+import { transactionFromHex } from '../../lib/bitcoin';
+import { computeChangeOutput } from '../../lib/vaultDescriptors';
 
 const LOADING_TEXT = '     ';
 const INITIAL_NOW_SECONDS = Math.floor(Date.now() / 1000);
@@ -130,14 +140,69 @@ const RawVault = ({
 
   const { settings } = useSettings();
   if (!settings) throw new Error('Settings has not been retrieved');
-  const { feeEstimates, historyData, networkId, pushTxPackage } = useWallet();
+  const {
+    feeEstimates,
+    historyData,
+    labels,
+    networkId,
+    accounts,
+    getNextChangeDescriptorWithIndex,
+    pushTxPackage,
+    setWalletLabelText,
+    setWalletLabelTextsIfEmpty
+  } = useWallet();
+  const vaultName = getVaultName({
+    vault,
+    labels,
+    defaultName: String(vaultNumber)
+  });
+  const attemptedAutoLabelTxIdsRef = useRef<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (!labels || !vaultStatus) return;
+    const labelEntries: Array<{ type: 'tx'; ref: string; label: string }> = [];
+    const attemptedTxIds: string[] = [];
+    const addTxLabel = (txHex: string | undefined, label: string) => {
+      if (!txHex) return;
+      const txId = transactionFromHex(txHex).txId;
+      if (attemptedAutoLabelTxIdsRef.current.has(txId)) return;
+      attemptedAutoLabelTxIdsRef.current.add(txId);
+      attemptedTxIds.push(txId);
+      labelEntries.push({ type: 'tx', ref: txId, label });
+    };
+
+    addTxLabel(
+      vaultStatus.triggerTxHex,
+      t('wallet.vault.actionLabels.initUnfreeze', { vaultName })
+    );
+    addTxLabel(
+      vaultStatus.triggerCpfpTxHex,
+      t('wallet.vault.actionLabels.unfreezeFeeBump', { vaultName })
+    );
+    addTxLabel(
+      vaultStatus.panicTxHex,
+      t('wallet.vault.actionLabels.rescue', { vaultName })
+    );
+    addTxLabel(
+      vaultStatus.panicCpfpTxHex,
+      t('wallet.vault.actionLabels.rescueFeeBump', { vaultName })
+    );
+
+    if (labelEntries.length === 0) return;
+    setWalletLabelTextsIfEmpty(labelEntries).catch(error => {
+      attemptedTxIds.forEach(txId =>
+        attemptedAutoLabelTxIdsRef.current.delete(txId)
+      );
+      console.warn('Failed to backfill vault action labels', error);
+    });
+  }, [labels, vaultStatus, setWalletLabelTextsIfEmpty, t, vaultName]);
   //don't do this since VaultCard is not a short-lived screen.
   //feeEstimates = useFirstDefinedValue(feeEstimates);
   const {
     p2aBumpPlan: triggerBumpPlan,
     isRefreshing: isTriggerBumpPlanRefreshing,
     value: triggerReserveValue,
-    refresh: retryTriggerReserve
+    syncBumpPlan: syncTriggerReserveBumpPlan
   } = useTriggerReserveBumpPlan({
     enabled: !isLadderedVault,
     vault,
@@ -151,9 +216,9 @@ const RawVault = ({
     []
   );
   const openTriggerModal = useCallback(() => {
-    if (triggerBumpPlan !== 'error') retryTriggerReserve();
+    if (triggerBumpPlan !== 'error') syncTriggerReserveBumpPlan();
     setIsTriggerModalVisible(true);
-  }, [retryTriggerReserve, triggerBumpPlan]);
+  }, [syncTriggerReserveBumpPlan, triggerBumpPlan]);
   // Broadcasts the selected trigger action. It acknowledges the watchtower for
   // this local action, then pushes parent-only txs directly or builds the P2A
   // parent+reserve-child package when reserve UTXOs exist.
@@ -168,6 +233,7 @@ const RawVault = ({
           ? vaultStatus.triggerTxBlockHeight === 0
           : !!vaultStatus?.triggerPushTime;
       let triggerCpfpTxHex: string | undefined;
+      let triggerCpfpChangeOutputRef: string | undefined;
       try {
         const { status: pushStatus } = await netRequest({
           whenToastErrors: 'ON_ANY_ERROR',
@@ -208,13 +274,15 @@ const RawVault = ({
               return;
             }
 
-            if (
-              !networkId ||
-              !actionBumpPlan.changeOutput ||
-              !actionBumpPlan.signer
-            )
+            if (!networkId || !accounts || !actionBumpPlan.signer)
               throw new Error('Wallet not ready for Rewind2 trigger package');
             const network = networkMapping[networkId];
+            const changeDescriptorWithIndex =
+              await getNextChangeDescriptorWithIndex(accounts);
+            const changeOutput = computeChangeOutput(
+              changeDescriptorWithIndex,
+              network
+            );
             // Trigger fee bumping always spends the full reserve set first; any
             // normal wallet inputs here were explicitly selected by the user as
             // a supplement and return leftover value to wallet change.
@@ -228,13 +296,17 @@ const RawVault = ({
                   ? triggerData.walletSupplementUtxosData
                   : [])
               ],
-              changeOutput: actionBumpPlan.changeOutput,
+              changeOutput,
               signer: actionBumpPlan.signer,
               network
             });
             if (!childTxHex)
               throw new Error('Cannot build trigger fee-bump transaction');
             triggerCpfpTxHex = childTxHex;
+            triggerCpfpChangeOutputRef = getCpfpChangeOutputRef({
+              txHex: childTxHex,
+              changeOutput
+            });
             await pushTxPackage({
               parentTxHex: triggerData.parentTxHex,
               childTxHex
@@ -243,6 +315,50 @@ const RawVault = ({
         });
 
         if (pushStatus !== 'SUCCESS') return;
+        try {
+          const labelEntries: Array<{
+            type: 'tx' | 'output';
+            ref: string;
+            label: string;
+          }> = [
+            {
+              type: 'tx' as const,
+              ref: transactionFromHex(triggerData.parentTxHex).txId,
+              label: t('wallet.vault.actionLabels.initUnfreeze', { vaultName })
+            }
+          ];
+          const triggerOutputRef = getTriggerOutputRef({
+            vault,
+            txHex: triggerData.parentTxHex
+          });
+          if (triggerOutputRef !== undefined)
+            labelEntries.push({
+              type: 'output' as const,
+              ref: triggerOutputRef,
+              label: t('wallet.vault.actionLabels.unfreezeOutput', {
+                vaultName
+              })
+            });
+          if (triggerCpfpTxHex !== undefined)
+            labelEntries.push({
+              type: 'tx' as const,
+              ref: transactionFromHex(triggerCpfpTxHex).txId,
+              label: t('wallet.vault.actionLabels.unfreezeFeeBump', {
+                vaultName
+              })
+            });
+          if (triggerCpfpChangeOutputRef !== undefined)
+            labelEntries.push({
+              type: 'output' as const,
+              ref: triggerCpfpChangeOutputRef,
+              label: t('wallet.vault.actionLabels.unfreezeFeeReserveChange', {
+                vaultName
+              })
+            });
+          await setWalletLabelTextsIfEmpty(labelEntries);
+        } catch (error) {
+          console.warn('Failed to save trigger labels', error);
+        }
         if (wasTriggerTxPendingConfirmation)
           toast.show(t('wallet.vault.accelerateSuccess'), { type: 'success' });
         if (!vaultStatus)
@@ -265,6 +381,8 @@ const RawVault = ({
       watchtowerAPI,
       settings?.NETWORK_TIMEOUT,
       networkId,
+      accounts,
+      getNextChangeDescriptorWithIndex,
       pushTxPackage,
       pushTx,
       isLadderedVault,
@@ -273,7 +391,9 @@ const RawVault = ({
       updateVaultStatus,
       netRequest,
       toast,
-      t
+      t,
+      vaultName,
+      setWalletLabelTextsIfEmpty
     ]
   );
 
@@ -297,7 +417,7 @@ const RawVault = ({
     p2aBumpPlan: rescueBumpPlan,
     isRefreshing: isRescueBumpPlanRefreshing,
     nextOutput: nextRescueReserveOutput,
-    refresh: retryRescueReserve
+    syncBumpPlan: syncRescueReserveBumpPlan
   } = useRescueReserveBumpPlan({
     enabled: !isLadderedVault,
     reserveData: rescueReserveData,
@@ -305,9 +425,10 @@ const RawVault = ({
     syncingBlockchain
   });
   const openRescueModal = useCallback(() => {
-    if (rescueReserveData && rescueBumpPlan !== 'error') retryRescueReserve();
+    if (rescueReserveData && rescueBumpPlan !== 'error')
+      syncRescueReserveBumpPlan();
     setIsRescueModalVisible(true);
-  }, [rescueBumpPlan, rescueReserveData, retryRescueReserve]);
+  }, [rescueBumpPlan, rescueReserveData, syncRescueReserveBumpPlan]);
   // Rescue reserve funding can open another modal from PresignedVaultAction:
   // either the wallet wizard first, or the AddReserve address modal once a
   // temporary reserve signer exists. Wait until Rescue has fully closed before
@@ -419,6 +540,26 @@ const RawVault = ({
         });
 
         if (pushStatus !== 'SUCCESS') return;
+        try {
+          const labelEntries = [
+            {
+              type: 'tx' as const,
+              ref: transactionFromHex(rescueData.parentTxHex).txId,
+              label: t('wallet.vault.actionLabels.rescue', { vaultName })
+            }
+          ];
+          if (panicCpfpTxHex !== undefined)
+            labelEntries.push({
+              type: 'tx' as const,
+              ref: transactionFromHex(panicCpfpTxHex).txId,
+              label: t('wallet.vault.actionLabels.rescueFeeBump', {
+                vaultName
+              })
+            });
+          await setWalletLabelTextsIfEmpty(labelEntries);
+        } catch (error) {
+          console.warn('Failed to save rescue labels', error);
+        }
         if (wasRescueTxPendingConfirmation)
           toast.show(t('wallet.vault.accelerateSuccess'), { type: 'success' });
         if (!vaultStatus)
@@ -445,7 +586,9 @@ const RawVault = ({
       t,
       networkId,
       pushTxPackage,
-      isLadderedVault
+      isLadderedVault,
+      vaultName,
+      setWalletLabelTextsIfEmpty
     ]
   );
 
@@ -832,18 +975,31 @@ const RawVault = ({
   const unfreezeReserveValue = showUnfreezeReserveValue
     ? triggerReserveValue
     : undefined;
+  const handleSaveVaultName = useCallback(
+    (name: string) =>
+      setWalletLabelText({
+        type: 'output',
+        ref: getVaultOutputRef(vault),
+        label: name
+      }),
+    [setWalletLabelText, vault]
+  );
 
   return (
     <View
       key={vault.vaultId}
       className="rounded-3xl bg-white overflow-hidden p-4"
     >
-      {/* Header: Icon + Vault number + Creation Date  */}
-      <View className="flex-row items-center justify-start mb-4">
+      {/* Header: Icon + Vault name + Creation Date  */}
+      <View className="flex-row items-start justify-start mb-4">
         <VaultIcon remainingBlocks={remainingBlocks} />
-        <Text className="font-semibold text-slate-800 web:text-base native:text-lg pl-2 flex-shrink-0">
-          {t('wallet.vault.vaultTitle', { vaultNumber })}
-        </Text>
+        <View className="flex-1 pl-2">
+          <VaultNameEditor
+            vaultName={vaultName}
+            disabled={!labels}
+            onSave={handleSaveVaultName}
+          />
+        </View>
         <SkeletonPulse active={!vaultInitDate}>
           <Text
             className={`text-slate-500 flex-1 text-right pl-4 native:text-sm web:text-xs`}
@@ -1125,26 +1281,15 @@ const RawVault = ({
           {hasRescueStarted && (
             // native:text-sm web:text-xs web:sm:text-sm
             <>
-              <Text className="py-2">
+              <Text className="pt-2 pb-0">
                 {isRescueTxConfirmed
                   ? t('wallet.vault.rescueConfirmedEmergencyAddressIntro')
                   : t('wallet.vault.rescueUnconfirmedEmergencyAddressIntro')}
               </Text>
-              {/*text-ellipsis, whitespace-nowrap & break-words is web only; overflow-hidden on a Text element breaks words
-               flex-1 explanation: https://www.bam.tech/article/why-my-text-is-going-off-screen */}
-              <Button
-                iconRight={{
-                  family: 'FontAwesome5',
-                  name: 'external-link-alt'
-                }}
-                mode="text"
-                textClassName="overflow-hidden flex-1"
-                onPress={() =>
-                  Linking.openURL(`${blockExplorerURL}/${panicAddress}`)
-                }
-              >
-                {panicAddress}
-              </Button>
+              <AddressActionRow
+                address={panicAddress}
+                blockExplorerURL={blockExplorerURL}
+              />
             </>
           )}
         </View>
@@ -1234,7 +1379,7 @@ const RawVault = ({
             isVisible={isTriggerModalVisible}
             lockBlocks={vault.lockBlocks}
             onClose={closeTriggerModal}
-            onReserveRetry={retryTriggerReserve}
+            onReserveSync={syncTriggerReserveBumpPlan}
             onAction={handleTrigger}
           />
           {/* Modal that lets the user start or accelerate an emergency rescue, choose a fee when needed, and confirm broadcasting the rescue transaction/package. */}
@@ -1247,7 +1392,7 @@ const RawVault = ({
             isVisible={isRescueModalVisible}
             onClose={closeRescueModal}
             onModalHide={handleRescueModalHide}
-            onReserveRetry={retryRescueReserve}
+            onReserveSync={syncRescueReserveBumpPlan}
             {...(canOpenRescueReserveFunds
               ? { onReserveFundsMissing: openRescueReserveFunds }
               : {})}

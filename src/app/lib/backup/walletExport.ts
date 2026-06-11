@@ -173,3 +173,34 @@ export const exportWallet = async ({
   }
   return true;
 };
+
+export const exportLabels = async ({
+  name,
+  labels
+}: {
+  name: string;
+  labels: string;
+}): Promise<boolean> => {
+  const fileName = `${name}_labels.bip329.jsonl`;
+  if (Platform.OS === 'web') {
+    const blob = new Blob([labels], {
+      type: 'application/jsonl;charset=utf-8'
+    });
+    const url = URL.createObjectURL(blob);
+    const downloadLink = document.createElement('a');
+    downloadLink.href = url;
+    downloadLink.download = fileName;
+    document.body.appendChild(downloadLink);
+    downloadLink.click();
+    document.body.removeChild(downloadLink);
+    URL.revokeObjectURL(url);
+  } else {
+    const filePath = `${documentDirectory}${fileName}`;
+    await writeAsStringAsync(filePath, labels, {
+      encoding: EncodingType.UTF8
+    });
+    await shareAsync(filePath);
+    await deleteAsync(filePath);
+  }
+  return true;
+};
