@@ -2,6 +2,7 @@
 // Licensed under the GNU GPL v3 or later. See the LICENSE file for details.
 
 import { networks, type Network } from 'bitcoinjs-lib';
+import { scriptExpressions } from '@bitcoinerlab/descriptors';
 import { toHex } from 'uint8array-tools';
 import { fixtures } from './fixtutres';
 import {
@@ -62,6 +63,22 @@ describe('vaultDescriptors unit tests', () => {
     };
     const mainAccount = getMainAccount(accounts, network);
     expect(mainAccount).toBe(expected.defaultAccount);
+  });
+
+  test('getMainAccount prefers Taproot when discovered', () => {
+    const taprootAccount = scriptExpressions.trBIP32({
+      masterNode,
+      network,
+      account: 0,
+      index: '*',
+      change: 0
+    });
+    const accounts: Accounts = {
+      [expected.defaultAccount]: { discard: false },
+      [taprootAccount]: { discard: false }
+    };
+    const mainAccount = getMainAccount(accounts, network);
+    expect(mainAccount).toBe(taprootAccount);
   });
 
   test('createAddressOutput', () => {

@@ -325,7 +325,7 @@ export const getDefaultAccount = async (signers: Signers, network: Network) => {
  *
  * This function evaluates the descriptors to find the main account based on the
  * purpose and the largest account number, prioritizing:
- * - 'wpkh(@0)' (BIP84) > 'sh(wpkh(@0))' (BIP49) > 'pkh(@0)' (BIP44).
+ * - 'tr(@0)' (BIP86) > 'wpkh(@0)' (BIP84) > 'sh(wpkh(@0))' (BIP49) > 'pkh(@0)' (BIP44).
  * - Largest account number within the same purpose category.
  */
 
@@ -357,12 +357,12 @@ export const getMainAccount = moize(
           keyPath === '/0/*' &&
           accountNumberH === `${accountNumber}'` &&
           purposeH === `${purpose}'` &&
-          //FIXME: should I add here TR?
-          [44, 49, 84].includes(purpose) &&
+          [44, 49, 84, 86].includes(purpose) &&
           coinTypeH === (network === networks.bitcoin ? "0'" : "1'") &&
           ((purpose === 44 && expandedExpression === 'pkh(@0)') ||
             (purpose === 49 && expandedExpression === 'sh(wpkh(@0))') ||
-            (purpose === 84 && expandedExpression === 'wpkh(@0)'))
+            (purpose === 84 && expandedExpression === 'wpkh(@0)') ||
+            (purpose === 86 && expandedExpression === 'tr(@0)'))
         ) {
           mainCandidates.push({ descriptor, purpose, accountNumber });
         }
@@ -372,11 +372,15 @@ export const getMainAccount = moize(
     if (mainCandidates.length === 0)
       throw new Error('Could not get the main account');
 
-    //FIXME: should I add here TR?
-    const purposeOrder: { [key: number]: number } = { 84: 0, 49: 1, 44: 2 };
+    const purposeOrder: { [key: number]: number } = {
+      86: 0,
+      84: 1,
+      49: 2,
+      44: 3
+    };
     // Sort by purpose preference and then by account number
     mainCandidates.sort((a, b) => {
-      // wpkh > sh(wpkh) > pkh
+      // tr > wpkh > sh(wpkh) > pkh
       const purposeAOrder = purposeOrder[a.purpose];
       const purposeBOrder = purposeOrder[b.purpose];
       if (purposeAOrder === undefined || purposeBOrder === undefined)
