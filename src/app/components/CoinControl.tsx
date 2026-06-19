@@ -1,11 +1,11 @@
 // Copyright (C) 2026 Jose-Luis Landabaso - https://rewindbitcoin.com
 // Licensed under the GNU GPL v3 or later. See the LICENSE file for details.
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { Linking, Pressable, Text, View } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import { useTranslation } from 'react-i18next';
-import { Button, IconType, Modal, useToast } from '../../common/ui';
+import { Button, IconType, useToast } from '../../common/ui';
 import { formatBtc } from '../lib/btcRates';
 import { formatBlocks, formatDate, getShortOutpoint } from '../lib/format';
 import { toNumber } from '../lib/sats';
@@ -22,10 +22,9 @@ import LabelEditor from './LabelEditor';
 /**
  * Props for one coin-control picking session.
  *
- * The panel intentionally owns transient draft state: intro-vs-picker step and
- * currently toggled rows. Mount it when the user enters coin control, and
- * unmount it when the user leaves. That keeps the panel API simpler than
- * pushing a parent visibility flag into the picker.
+ * The panel intentionally owns transient draft state for currently toggled rows.
+ * Mount it when the user enters coin control, and unmount it when the user
+ * leaves so each picking session initializes from the last confirmed selection.
  */
 type CoinControlPanelProps = {
   utxosAvailability: UtxoAvailability[];
@@ -40,11 +39,6 @@ type CoinControlPanelProps = {
   onConfirm: (pickedUtxosData: UtxosData) => void;
 };
 
-type CoinControlModalProps = CoinControlPanelProps & {
-  isVisible: boolean;
-  onModalHide?: () => void;
-};
-
 type CoinControlRecoveryPanelProps = {
   message: string;
   onOpenCoinControl: () => void;
@@ -57,7 +51,7 @@ type UtxoDataWithDescriptor = UtxoAvailability['utxoData'] & {
   descriptor?: string;
 };
 
-const coinControlIcon: IconType = { family: 'FontAwesome5', name: 'coins' };
+const coinControlIcon: IconType = { family: 'FontAwesome5', name: 'sliders-h' };
 
 const getUtxoValue = (utxoData: UtxoAvailability['utxoData']) => {
   const output = utxoData.tx.outs[utxoData.vout];
@@ -110,13 +104,8 @@ const RawCoinControlRecoveryPanel = ({
 };
 
 /**
- * Shell-free coin-control picker used by both standalone screens and flows that
- * are already inside a native modal.
- *
- * iOS cannot present a second React Native modal while another one is already
- * being presented. Keeping the picker content in this panel lets normal screens
- * use `CoinControlModal`, while modal-based flows such as vault actions can
- * show the same picker as another step inside their existing modal.
+ * Shell-free coin-control picker used inside advanced transaction options and
+ * flows that are already inside a native modal.
  */
 const RawCoinControlPanel = ({
   utxosAvailability,
@@ -136,7 +125,6 @@ const RawCoinControlPanel = ({
     networkId
   } = useWallet();
   const { locale, currency } = useLocalization();
-  const [step, setStep] = useState<'intro' | 'coinselect'>('intro');
   const [pickedOutpoints, setPickedOutpoints] = useState<Set<string>>(
     () => new Set(pickedUtxosData?.map(utxoData => getOutpoint(utxoData)) ?? [])
   );
@@ -145,8 +133,6 @@ const RawCoinControlPanel = ({
     throw new Error(
       'This component should only be started after settings has been retrieved from storage'
     );
-
-  const handleContinue = useCallback(() => setStep('coinselect'), []);
 
   const onlyDefaultAccount = useMemo(() => {
     const accountNumbers = new Set(
@@ -168,15 +154,17 @@ const RawCoinControlPanel = ({
       const descriptor = getDescriptor(utxoData);
       const baseLabel = !descriptor
         ? t('coinControl.groups.wallet')
-        : descriptor.startsWith('wpkh(')
-          ? t('coinControl.groups.nativeSegwit')
-          : descriptor.startsWith('sh(wpkh(')
-            ? t('coinControl.groups.wrappedSegwit')
-            : descriptor.startsWith('pkh(')
-              ? t('coinControl.groups.legacy')
-              : descriptor.startsWith('wsh(andor(')
-                ? t('coinControl.groups.vault')
-                : t('coinControl.groups.wallet');
+        : descriptor.startsWith('tr(')
+          ? t('coinControl.groups.taproot')
+          : descriptor.startsWith('wpkh(')
+            ? t('coinControl.groups.nativeSegwit')
+            : descriptor.startsWith('sh(wpkh(')
+              ? t('coinControl.groups.wrappedSegwit')
+              : descriptor.startsWith('pkh(')
+                ? t('coinControl.groups.legacy')
+                : descriptor.startsWith('wsh(andor(')
+                  ? t('coinControl.groups.vault')
+                  : t('coinControl.groups.wallet');
       const accountNumber = descriptor
         ? getAccountNumber(descriptor)
         : undefined;
@@ -274,11 +262,7 @@ const RawCoinControlPanel = ({
 
   return (
     <View>
-      {step === 'intro' ? (
-        <Text className="text-base text-slate-600 px-2 pb-4">
-          {t('coinControl.intro')}
-        </Text>
-      ) : utxoGroups.length ? (
+      {utxoGroups.length ? (
         <View className="gap-4 px-2 pb-4">
           {utxoGroups.map(group => (
             <View key={group.label} className="gap-2">
@@ -427,72 +411,19 @@ const RawCoinControlPanel = ({
       )}
       <View className="items-center gap-6 gap-y-4 flex-row flex-wrap justify-center pb-4">
         <Button mode="secondary" onPress={onClose}>
-          {t('cancelButton')}
+          {t('coinControl.back')}
         </Button>
-        {step === 'intro' ? (
-          <Button onPress={handleContinue}>{t('coinControl.chooseCoins')}</Button>
-        ) : (
-          <Button
-            onPress={handleConfirm}
-            disabled={pickedPanelUtxosData.length === 0}
-          >
-            {t('coinControl.useSelected')}
-          </Button>
-        )}
+        <Button
+          onPress={handleConfirm}
+          disabled={pickedPanelUtxosData.length === 0}
+        >
+          {t('coinControl.useSelected')}
+        </Button>
       </View>
     </View>
   );
 };
 
-const RawCoinControlModal = ({
-  isVisible,
-  utxosAvailability,
-  pickedUtxosData,
-  btcFiat,
-  onClose,
-  onConfirm,
-  onModalHide
-}: CoinControlModalProps) => {
-  const { t } = useTranslation();
-  // Keep the picker mounted while the modal animates out, then unmount it so
-  // the next open starts a fresh session initialized from pickedUtxosData.
-  const [isModalVisibleOrHiding, setIsModalVisibleOrHiding] =
-    useState(isVisible);
-
-  useEffect(() => {
-    if (isVisible) setIsModalVisibleOrHiding(true);
-  }, [isVisible]);
-
-  const handleModalHide = useCallback(() => {
-    setIsModalVisibleOrHiding(false);
-    onModalHide?.();
-  }, [onModalHide]);
-
-  return (
-    <Modal
-      headerMini={true}
-      isVisible={isVisible}
-      title={t('coinControl.title')}
-      icon={coinControlIcon}
-      onClose={onClose}
-      onModalHide={handleModalHide}
-      customButtons={<View />}
-    >
-      {isModalVisibleOrHiding ? (
-        <CoinControlPanel
-          utxosAvailability={utxosAvailability}
-          pickedUtxosData={pickedUtxosData}
-          btcFiat={btcFiat}
-          onClose={onClose}
-          onConfirm={onConfirm}
-        />
-      ) : null}
-    </Modal>
-  );
-};
-
 export const CoinControlPanel = React.memo(RawCoinControlPanel);
-export const CoinControlModal = React.memo(RawCoinControlModal);
 export const CoinControlRecoveryPanel = React.memo(RawCoinControlRecoveryPanel);
-export default CoinControlModal;
 export { coinControlIcon };

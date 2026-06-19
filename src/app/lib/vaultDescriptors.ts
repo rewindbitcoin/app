@@ -85,25 +85,13 @@ export const DUMMY_CHANGE_OUTPUT = memoize(
     });
   }
 );
-export const computeChangeOutput = memoize(
+export const computeOutput = memoize(
   (
-    changeDescriptorWithIndex: { descriptor: string; index: number },
+    descriptorWithIndex: { descriptor: string; index: number },
     network: Network
   ) => {
     const { Output } = ensureDescriptorsFactoryInstance();
-    return new Output({
-      ...changeDescriptorWithIndex,
-      network
-    });
-  }
-);
-export const computeReceiveOutput = memoize(
-  (
-    receiveDescriptorWithIndex: { descriptor: string; index: number },
-    network: Network
-  ) => {
-    const { Output } = ensureDescriptorsFactoryInstance();
-    return new Output({ ...receiveDescriptorWithIndex, network });
+    return new Output({ ...descriptorWithIndex, network });
   }
 );
 
@@ -175,6 +163,74 @@ export const createP2WPKHDescriptor = ({
     index: '*',
     change
   });
+
+export const STANDARD_ACCOUNT_SCRIPT_TYPES = [
+  'tr',
+  'wpkh',
+  'shWpkh',
+  'pkh'
+] as const;
+
+export type StandardAccountScriptType =
+  (typeof STANDARD_ACCOUNT_SCRIPT_TYPES)[number];
+
+export const createStandardAccountDescriptor = ({
+  signer,
+  network,
+  scriptType,
+  account
+}: {
+  signer: Signer;
+  network: Network;
+  scriptType: StandardAccountScriptType;
+  account: number;
+}) => {
+  if (signer.type !== SOFTWARE)
+    throw new Error(`Signer type ${signer.type} not supported`);
+  const mnemonic = signer.mnemonic;
+  if (!mnemonic) throw new Error(`mnemonic not provided for ${signer.type}`);
+
+  const params = {
+    masterNode: getMasterNode(mnemonic, network),
+    network,
+    account,
+    index: '*' as const,
+    change: 0 as const
+  };
+
+  switch (scriptType) {
+    case 'tr':
+      return scriptExpressions.trBIP32(params) as Account;
+    case 'wpkh':
+      return scriptExpressions.wpkhBIP32(params) as Account;
+    case 'shWpkh':
+      return scriptExpressions.shWpkhBIP32(params) as Account;
+    case 'pkh':
+      return scriptExpressions.pkhBIP32(params) as Account;
+  }
+};
+
+export const getStandardAccountDescriptorMetadata = (
+  account: Account
+): {
+  accountNumber: number | undefined;
+  scriptType: StandardAccountScriptType | undefined;
+} => {
+  const accountNumberMatch = account.match(/\/(\d+)'\]/);
+  const accountNumber = accountNumberMatch?.[1]
+    ? Number(accountNumberMatch[1])
+    : undefined;
+  const scriptType = account.startsWith('tr(')
+    ? 'tr'
+    : account.startsWith('wpkh(')
+      ? 'wpkh'
+      : account.startsWith('sh(wpkh(')
+        ? 'shWpkh'
+        : account.startsWith('pkh(')
+          ? 'pkh'
+          : undefined;
+  return { accountNumber, scriptType };
+};
 
 export const getDescriptorAddress = ({
   descriptor,
