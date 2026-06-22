@@ -212,13 +212,6 @@ const RawAdvancedTransactionOptionsPanel = ({
                 <Text selectable className="text-xs leading-5 text-slate-600">
                   {changeAddressSelection.address}
                 </Text>
-                {changeAddressSelection.isBeyondGapLimit ? (
-                  <Text className="text-xs text-red-600">
-                    {t('addressPicker.gapWarning', {
-                      gapLimit: settings.GAP_LIMIT
-                    })}
-                  </Text>
-                ) : null}
               </View>
             ) : null}
             <View className="flex-row flex-wrap justify-end gap-3">
@@ -269,10 +262,12 @@ const RawAdvancedTransactionOptionsModal = ({
   // Keep the panel rendered until the hide animation is fully done.
   const [renderPanelUntilHidden, setRenderPanelUntilHidden] =
     useState(isVisible);
+  const [panelOpenSession, setPanelOpenSession] = useState(0);
   const shouldRenderPanel = isVisible || renderPanelUntilHidden;
 
   const handleModalWillShow = useCallback(() => {
     setRenderPanelUntilHidden(true);
+    setPanelOpenSession(panelOpenSession => panelOpenSession + 1);
   }, []);
 
   const handleModalHide = useCallback(() => {
@@ -292,7 +287,10 @@ const RawAdvancedTransactionOptionsModal = ({
       customButtons={<View />}
     >
       {shouldRenderPanel ? (
-        <AdvancedTransactionOptionsPanel {...panelProps} />
+        <AdvancedTransactionOptionsPanel
+          key={panelOpenSession}
+          {...panelProps}
+        />
       ) : null}
     </Modal>
   );

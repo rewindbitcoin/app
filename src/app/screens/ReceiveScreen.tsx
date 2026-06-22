@@ -7,6 +7,7 @@ import { useTranslation } from 'react-i18next';
 import React, { useCallback, useState, useMemo, useEffect } from 'react';
 import { useNavigation } from '@react-navigation/native';
 import { View, Text, Linking, Share, Platform } from 'react-native';
+import type { Account } from '@bitcoinerlab/discovery';
 import {
   ActivityIndicator,
   Button,
@@ -18,8 +19,12 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { networkMapping } from '../lib/network';
 import { useWallet } from '../hooks/useWallet';
-import { computeReceiveOutput } from '../lib/vaultDescriptors';
+import { computeOutput } from '../lib/vaultDescriptors';
 import NoteEditorWithHelp from '../components/NoteEditorWithHelp';
+import {
+  AddressScriptPickerModal,
+  type AddressScriptSelection
+} from '../components/AddressScriptPicker';
 import { getWalletLabelText } from '../lib/labels';
 
 import QRCode from 'react-native-qrcode-svg';
@@ -41,15 +46,19 @@ export default function Receive() {
     descriptor: string;
     index: number;
   }>();
+  const [hasCustomReceiveAddress, setHasCustomReceiveAddress] = useState(false);
+  const [isAddressPickerVisible, setIsAddressPickerVisible] = useState(false);
 
   const {
     networkId,
     faucetURL,
     accounts,
     labels,
-    getNextReceiveDescriptorWithIndex,
+    getReceiveDescriptorWithNextIndex,
+    getPreferredAccount,
     fetchOutputHistory,
-    setWalletLabelText
+    setWalletLabelText,
+    trackAccountAndFetchDescriptorWithIndex
   } = useWallet();
   if (!networkId)
     throw new Error('ReceiveScreen cannot be called with unset networkId');
@@ -69,7 +78,7 @@ export default function Receive() {
             await new Promise(resolve =>
               setTimeout(resolve, DETECTION_INTERVAL)
             );
-          } catch (error) {}
+          } catch {}
         }
       };
 
@@ -84,18 +93,24 @@ export default function Receive() {
   }, [navigation, receiveDescriptorWithIndex, fetchOutputHistory]);
 
   useEffect(() => {
+    if (hasCustomReceiveAddress) return;
     const f = async () => {
       const receiveDescriptorWithIndex =
-        await getNextReceiveDescriptorWithIndex(accounts);
+        await getReceiveDescriptorWithNextIndex(accounts);
       setReceiveDescriptorWithIndex(receiveDescriptorWithIndex);
     };
     f();
-  }, [getNextReceiveDescriptorWithIndex, network, accounts]);
+  }, [
+    getReceiveDescriptorWithNextIndex,
+    network,
+    accounts,
+    hasCustomReceiveAddress
+  ]);
 
   const receiveAddress = useMemo(
     () =>
       receiveDescriptorWithIndex &&
-      computeReceiveOutput(receiveDescriptorWithIndex, network).getAddress(),
+      computeOutput(receiveDescriptorWithIndex, network).getAddress(),
     [receiveDescriptorWithIndex, network]
   );
 
@@ -109,6 +124,30 @@ export default function Receive() {
 
   const { t } = useTranslation();
   const toast = useToast();
+
+  const handleConfirmAddressPicker = useCallback(
+    (selection: AddressScriptSelection) => {
+      setHasCustomReceiveAddress(true);
+      setReceiveDescriptorWithIndex({
+        descriptor: selection.descriptor,
+        index: selection.index
+      });
+      setIsAddressPickerVisible(false);
+      const account = selection.descriptor.replace(
+        /\/[01]\/\*/g,
+        '/0/*'
+      ) as Account;
+      trackAccountAndFetchDescriptorWithIndex({
+        account,
+        descriptor: selection.descriptor,
+        index: selection.index
+      }).catch(error => {
+        console.warn('Failed to track selected receive account', error);
+        toast.show(t('addressPicker.trackError'), { type: 'warning' });
+      });
+    },
+    [t, toast, trackAccountAndFetchDescriptorWithIndex]
+  );
 
   const onClipboard = useCallback(() => {
     if (!receiveAddress) throw new Error('receiveAddress does not exist');
@@ -155,6 +194,15 @@ export default function Receive() {
   );
 
   const canShare = Platform.OS === 'ios' || Platform.OS === 'android';
+  const pickerAccount = (receiveDescriptorWithIndex?.descriptor.replace(
+    /\/1\/\*/g,
+    '/0/*'
+  ) ?? getPreferredAccount(accounts)) as Account;
+  const pickerChange: 0 | 1 = receiveDescriptorWithIndex?.descriptor.includes(
+    '/1/*'
+  )
+    ? 1
+    : 0;
 
   return receiveAddress ? (
     <KeyboardAwareScrollView
@@ -197,7 +245,27 @@ export default function Receive() {
               {t('receive.copyAddress')}
             </Button>
           )}
+          <Button
+            mode="text"
+            containerClassName="self-center !min-w-0"
+            textClassName="!text-xs"
+            onPress={() => setIsAddressPickerVisible(true)}
+          >
+            {t('receive.advancedAddressOptions')}
+          </Button>
         </View>
+
+        <AddressScriptPickerModal
+          isVisible={isAddressPickerVisible}
+          initialAccount={pickerAccount}
+          initialChange={pickerChange}
+          initialIndex={receiveDescriptorWithIndex?.index ?? 0}
+          allowChangeSelection={true}
+          confirmText={t('addressPicker.useReceiveAddress')}
+          introText={t('addressPicker.receiveIntro')}
+          onCancel={() => setIsAddressPickerVisible(false)}
+          onConfirm={handleConfirmAddressPicker}
+        />
 
         <View className="rounded-2xl bg-gray-50 p-4 android:elevation ios:shadow web:shadow gap-2">
           <View>

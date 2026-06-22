@@ -43,8 +43,8 @@ import { networkMapping, type NetworkId } from '../lib/network';
 import {
   createUnvaultKeyExpression,
   getDefaultAccount,
-  getMainAccount,
-  getMasterNode
+  getMasterNode,
+  selectPreferredAccount
 } from '../lib/vaultDescriptors';
 import React, {
   createContext,
@@ -183,6 +183,12 @@ export type WalletContextType = {
   signersStorageEngineMismatch: boolean;
   signers: Signers | undefined;
   accounts: Accounts | undefined;
+  /**
+   * Selects the account for automatic receive/change defaults. Used accounts win,
+   * ordered by the standard-account policy. If none is used, falls back to the
+   * configured default standard account.
+   */
+  getPreferredAccount: (accounts: Accounts) => Account;
   labels: WalletLabels | undefined;
   setWalletLabelText: ({
     type,
@@ -2085,21 +2091,37 @@ const WalletProviderRaw = ({
     [activeWallet?.networkId, discovery, signers]
   );
 
-  const getChangeDescriptorWithNextIndex = useCallback(
-    async (accounts: Accounts) => {
+  const getPreferredAccount = useCallback(
+    (accounts: Accounts) => {
       const network =
         activeWallet?.networkId && networkMapping[activeWallet.networkId];
       if (!network) throw new Error('Network not ready');
+      return selectPreferredAccount({
+        accounts,
+        network,
+        ...(discovery
+          ? {
+              getExternalNextIndex: descriptor =>
+                discovery.getNextIndex({ descriptor })
+            }
+          : {})
+      });
+    },
+    [activeWallet?.networkId, discovery]
+  );
+
+  const getChangeDescriptorWithNextIndex = useCallback(
+    async (accounts: Accounts) => {
       if (!Object.keys(accounts).length) throw new Error('Accounts not set');
       if (!discovery) throw new Error('Discovery not ready');
-      const account = getMainAccount(accounts, network);
+      const account = getPreferredAccount(accounts);
       const changeDescriptor = account.replace(/\/0\/\*/g, '/1/*');
       return {
         descriptor: changeDescriptor,
         index: discovery.getNextIndex({ descriptor: changeDescriptor })
       };
     },
-    [activeWallet?.networkId, discovery]
+    [discovery, getPreferredAccount]
   );
 
   const getRangedDescriptorWithNextIndex = useCallback(
@@ -2138,8 +2160,8 @@ const WalletProviderRaw = ({
   );
 
   /**
-   * Fetch exact descriptor/index addresses. This can reach past the gap limit.
-   * Caller owns netRequest/toast handling.
+   * Fetches the exact descriptor/index the user picked before refreshing wallet
+   * data. Callers must only pass addresses that are safe to track.
    */
   const fetchDescriptorWithIndex = useCallback(
     async (descriptorWithIndex: DescriptorWithIndex) => {
@@ -2168,11 +2190,8 @@ const WalletProviderRaw = ({
   );
 
   /**
-   * Add an account, scan its normal receive/change ranges, fetch one exact
-   * address, and refresh wallet UTXO/history data.
-   *
-   * The exact address fetch is needed when the user picked an address outside
-   * the normal gap-limit scan.
+   * Add an account, scan its normal receive/change ranges, fetch the exact
+   * picked address, and refresh wallet UTXO/history data.
    * Caller owns netRequest/toast handling.
    */
   const trackAccountAndFetchDescriptorWithIndex = useCallback(
@@ -2212,12 +2231,9 @@ const WalletProviderRaw = ({
 
   const getReceiveDescriptorWithNextIndex = useCallback(
     async (accounts: Accounts) => {
-      const network =
-        activeWallet?.networkId && networkMapping[activeWallet.networkId];
-      if (!network) throw new Error('Network not ready');
       if (!Object.keys(accounts).length) throw new Error('Accounts not set');
       if (!discovery) throw new Error('Discovery not ready');
-      const account = getMainAccount(accounts, network);
+      const account = getPreferredAccount(accounts);
       const receiveDescriptor = account;
       return {
         descriptor: receiveDescriptor,
@@ -2226,7 +2242,7 @@ const WalletProviderRaw = ({
         })
       };
     },
-    [activeWallet?.networkId, discovery]
+    [discovery, getPreferredAccount]
   );
 
   const getUnvaultKeyExpression = useCallback(async () => {
@@ -3192,6 +3208,7 @@ const WalletProviderRaw = ({
     signersStorageEngineMismatch,
     signers,
     accounts,
+    getPreferredAccount,
     labels,
     setWalletLabelText,
     setWalletLabelTextsIfEmpty,

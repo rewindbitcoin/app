@@ -1021,16 +1021,21 @@ Usa esto para simular comisiones más altas y condiciones extremas de mempool en
     unused: 'Sin usar',
     unknown: 'Desconocido',
     invalid: 'Introduce cuenta e índice entre 0 y {{max}}.',
-    gapWarning:
-      'Este índice queda fuera de la ventana normal de recuperación de {{gapLimit}} direcciones. Otras billeteras podrían no encontrar fondos aquí salvo que escanees esta cuenta manualmente.',
+    gapBlocked:
+      'Elige un índice hasta {{max}}. Los índices más altos podrían no encontrarse al restaurar la wallet.',
+    accountGapBlocked:
+      'La cuenta {{account}} está demasiado adelantada. Usa primero la cuenta {{previousAccount}} para que las wallets restauradas puedan encontrar esta cuenta después.',
+    changeAccountBlocked:
+      'La cuenta {{account}} todavía no tiene historial de recepción. Elige una cuenta que ya haya recibido bitcoin para el cambio.',
     newAccountWarning:
-      'Cuenta nueva. Otras billeteras podrían no encontrarla automáticamente.',
+      'Esta cuenta de recepción todavía no tiene historial. Otras wallets podrían no mostrarla hasta que reciba bitcoin.',
     usedWarning: 'Esta dirección ya se ha usado antes.',
     unsupportedSigner:
       'La selección avanzada de dirección aún no está disponible para este firmante.',
     useAddress: 'Usar dirección',
     useReceiveAddress: 'Usar dirección de recepción',
-    trackError: 'No se pudo guardar esta cuenta para futuras sincronizaciones.',
+    trackError:
+      'La dirección se muestra, pero la wallet no pudo guardarla para futuras actualizaciones del saldo. Abre Opciones avanzadas de dirección y vuelve a elegirla antes de recibir bitcoin.',
     scripts: {
       taproot: 'Taproot',
       nativeSegwit: 'SegWit',

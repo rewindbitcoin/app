@@ -21,8 +21,11 @@ import { networkMapping } from '../lib/network';
 import {
   computeOutput,
   createStandardAccountDescriptor,
+  DEFAULT_STANDARD_ACCOUNT,
+  getStandardAccountScriptDefinition,
   getStandardAccountDescriptorMetadata,
-  STANDARD_ACCOUNT_SCRIPT_TYPES,
+  isDefaultStandardAccount,
+  ORDERED_STANDARD_ACCOUNT_SCRIPT_DEFINITIONS,
   type StandardAccountScriptType
 } from '../lib/vaultDescriptors';
 import { SOFTWARE, type Signer } from '../lib/wallets';
@@ -31,8 +34,15 @@ export type AddressScriptSelection = {
   address: string;
   descriptor: string;
   index: number;
-  isBeyondGapLimit: boolean;
 };
+
+type AccountSafetyBlocker =
+  | {
+      type: 'previousAccountUnused';
+      account: number;
+      previousAccount: number;
+    }
+  | { type: 'changeAccountUnused'; account: number };
 
 type AddressScriptPickerPanelProps = {
   initialAccount: Account;
@@ -49,20 +59,6 @@ type AddressScriptPickerPanelProps = {
 type AddressScriptPickerModalProps = AddressScriptPickerPanelProps & {
   isVisible: boolean;
   onModalHide?: () => void;
-};
-
-const scriptLabels: Record<StandardAccountScriptType, string> = {
-  tr: 'addressPicker.scripts.taproot',
-  wpkh: 'addressPicker.scripts.nativeSegwit',
-  shWpkh: 'addressPicker.scripts.wrappedSegwit',
-  pkh: 'addressPicker.scripts.legacy'
-};
-
-const scriptPurposes: Record<StandardAccountScriptType, number> = {
-  tr: 86,
-  wpkh: 84,
-  shWpkh: 49,
-  pkh: 44
 };
 
 const changeValues: Array<0 | 1> = [0, 1];
@@ -106,7 +102,8 @@ const RawAddressScriptPickerPanel = ({
     () => getStandardAccountDescriptorMetadata(initialAccount),
     [initialAccount]
   );
-  const initialScriptType = initialMetadata.scriptType ?? 'wpkh';
+  const initialScriptType =
+    initialMetadata.scriptType ?? DEFAULT_STANDARD_ACCOUNT.scriptType;
   const initialAccountNumber = initialMetadata.accountNumber ?? 0;
   const [scriptType, setScriptType] =
     useState<StandardAccountScriptType>(initialScriptType);
@@ -281,6 +278,7 @@ const RawAddressScriptPickerPanel = ({
   );
   const changeLabel =
     change === 0 ? t('addressPicker.external') : t('addressPicker.change');
+  const scriptDefinition = getStandardAccountScriptDefinition(scriptType);
   const coinTypeLabel =
     networkId === 'BITCOIN'
       ? t('addressPicker.coinTypes.bitcoin')
@@ -288,8 +286,8 @@ const RawAddressScriptPickerPanel = ({
   const selectionSummary =
     accountNumber !== null && pickedIndex !== null
       ? t('addressPicker.pathSummary', {
-          script: t(scriptLabels[scriptType]),
-          purpose: scriptPurposes[scriptType],
+          script: scriptDefinition.getAddressPickerLabel(t),
+          purpose: scriptDefinition.purpose,
           coinType: coinTypeLabel,
           account: accountNumber,
           changeType: changeLabel,
@@ -332,30 +330,122 @@ const RawAddressScriptPickerPanel = ({
     };
   }, [descriptor, fetchOutputHistory, pickedIndex]);
 
-  const isBeyondGapLimit =
-    settings !== undefined &&
-    nextIndex !== undefined &&
+  const lastSafeIndex =
+    settings !== undefined && nextIndex !== undefined
+      ? nextIndex + settings.GAP_LIMIT - 1
+      : undefined;
+  const isOutsideGapLimit =
+    lastSafeIndex !== undefined &&
     pickedIndex !== null &&
-    pickedIndex >= nextIndex + settings.GAP_LIMIT;
-  const isNewUntrackedAccount =
-    account !== undefined &&
+    pickedIndex > lastSafeIndex;
+  /*
+   * Safety policy for manually picked wallet addresses:
+   * - Address indexes must stay inside the current gap-limit window.
+   * - Account numbers are checked separately for each script type.
+   * - Receive addresses may use the first unused account, but not skip accounts.
+   * - Change addresses may only use accounts that already have receive history.
+   * - Unused receive accounts warn unless they are the configured default account.
+   * - Reused addresses are still recoverable, so warn but let the user continue.
+   */
+  const accountSafety = useMemo<{
+    blocker?: AccountSafetyBlocker;
+    hasCurrentExternalHistory?: boolean;
+  }>(() => {
+    if (!accounts || !signer || !network || accountNumber === null) return {};
+
+    const hasExternalHistory = (candidateAccountNumber: number) => {
+      if (
+        candidateAccountNumber === accountNumber &&
+        change === 0 &&
+        nextIndex !== undefined
+      )
+        return nextIndex > 0;
+
+      try {
+        const candidateAccount = createStandardAccountDescriptor({
+          signer,
+          network,
+          scriptType,
+          account: candidateAccountNumber
+        });
+        return (
+          getRangedDescriptorWithNextIndex({
+            account: candidateAccount,
+            change: 0
+          }).nextIndex > 0
+        );
+      } catch {
+        return false;
+      }
+    };
+
+    for (
+      let candidateAccount = 0;
+      candidateAccount < accountNumber;
+      candidateAccount++
+    ) {
+      if (!hasExternalHistory(candidateAccount))
+        return {
+          blocker: {
+            type: 'previousAccountUnused',
+            account: accountNumber,
+            previousAccount: candidateAccount
+          }
+        };
+    }
+
+    const hasCurrentExternalHistory = hasExternalHistory(accountNumber);
+    if (change === 1 && !hasCurrentExternalHistory)
+      return {
+        blocker: { type: 'changeAccountUnused', account: accountNumber },
+        hasCurrentExternalHistory
+      };
+
+    return { hasCurrentExternalHistory };
+  }, [
+    accountNumber,
+    accounts,
+    change,
+    getRangedDescriptorWithNextIndex,
+    network,
+    nextIndex,
+    scriptType,
+    signer
+  ]);
+  const accountSafetyBlocker = accountSafety.blocker;
+  const showUnusedReceiveAccountWarning =
+    change === 0 &&
     accountNumber !== null &&
-    accountNumber !== 0 &&
-    accounts !== undefined &&
-    !accounts[account];
+    accountSafety.hasCurrentExternalHistory === false &&
+    !accountSafetyBlocker &&
+    !isDefaultStandardAccount({ scriptType, accountNumber });
+  const hasSafetyBlocker =
+    isOutsideGapLimit || accountSafetyBlocker !== undefined;
+  const safetyBlockerText = isOutsideGapLimit
+    ? t('addressPicker.gapBlocked', { max: lastSafeIndex })
+    : accountSafetyBlocker?.type === 'previousAccountUnused'
+      ? t('addressPicker.accountGapBlocked', {
+          account: accountSafetyBlocker.account,
+          previousAccount: accountSafetyBlocker.previousAccount
+        })
+      : accountSafetyBlocker?.type === 'changeAccountUnused'
+        ? t('addressPicker.changeAccountBlocked', {
+            account: accountSafetyBlocker.account
+          })
+        : undefined;
   const selection = useMemo(
     () =>
       account &&
       descriptor &&
       address &&
+      !hasSafetyBlocker &&
       accountNumber !== null &&
       pickedIndex !== null &&
       nextIndex !== undefined
         ? {
             address,
             descriptor,
-            index: pickedIndex,
-            isBeyondGapLimit
+            index: pickedIndex
           }
         : undefined,
     [
@@ -363,7 +453,7 @@ const RawAddressScriptPickerPanel = ({
       accountNumber,
       address,
       descriptor,
-      isBeyondGapLimit,
+      hasSafetyBlocker,
       nextIndex,
       pickedIndex
     ]
@@ -410,15 +500,17 @@ const RawAddressScriptPickerPanel = ({
           {t('addressPicker.script')}
         </Text>
         <View className="flex-row flex-wrap gap-2">
-          {STANDARD_ACCOUNT_SCRIPT_TYPES.map(type => (
+          {ORDERED_STANDARD_ACCOUNT_SCRIPT_DEFINITIONS.map(definition => (
             <Button
-              key={type}
-              mode={type === scriptType ? 'primary' : 'secondary'}
+              key={definition.scriptType}
+              mode={
+                definition.scriptType === scriptType ? 'primary' : 'secondary'
+              }
               containerClassName="!min-w-0"
               textClassName="!text-xs"
-              onPress={() => handleScriptTypeChange(type)}
+              onPress={() => handleScriptTypeChange(definition.scriptType)}
             >
-              {t(scriptLabels[type])}
+              {definition.getAddressPickerLabel(t)}
             </Button>
           ))}
         </View>
@@ -518,14 +610,10 @@ const RawAddressScriptPickerPanel = ({
         ) : null}
       </View>
 
-      {isBeyondGapLimit ? (
-        <Text className="text-sm text-red-600">
-          {t('addressPicker.gapWarning', {
-            gapLimit: settings.GAP_LIMIT
-          })}
-        </Text>
+      {safetyBlockerText ? (
+        <Text className="text-sm text-red-600">{safetyBlockerText}</Text>
       ) : null}
-      {isNewUntrackedAccount ? (
+      {showUnusedReceiveAccountWarning ? (
         <Text className="text-sm text-orange-600">
           {t('addressPicker.newAccountWarning')}
         </Text>

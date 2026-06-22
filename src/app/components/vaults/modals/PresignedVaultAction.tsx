@@ -40,7 +40,7 @@ import {
   withFrozenVaultUtxosForCoinControl
 } from '../../../lib/utxoPolicy';
 import { networkMapping } from '../../../lib/network';
-import { computeOutput, getMainAccount } from '../../../lib/vaultDescriptors';
+import { computeOutput } from '../../../lib/vaultDescriptors';
 
 type VaultActionBlockerReason =
   | ReturnType<typeof getVaultActionBlocker>['reason']
@@ -151,7 +151,8 @@ const PresignedVaultAction = ({
     vaults,
     tipStatus,
     vaultsStatuses,
-    accounts
+    accounts,
+    getPreferredAccount
   } = useWallet();
   const { settings } = useSettings();
   // Cache to avoid flickering in the sliders while background refreshes happen.
@@ -691,7 +692,7 @@ const PresignedVaultAction = ({
     vaultableWalletUtxosData.length > 0 &&
     !(vaultMode === 'P2A_TRUC' && p2aBumpPlan.hasUnconfirmedUtxos);
   const initialTriggerChangeAccount = accounts
-    ? getMainAccount(accounts, network)
+    ? getPreferredAccount(accounts)
     : undefined;
   const canChooseCustomTriggerChangeAddress =
     role === 'TRIGGER' &&

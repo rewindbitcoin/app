@@ -75,13 +75,14 @@ export default function CreateVaultScreen({
     utxosData,
     coinControl,
     accounts,
+    customChangeDescriptorWithIndex,
     btcFiat
   } = vaultSettings;
 
   const insets = useSafeAreaInsets();
   const mbStyle = useMemo(() => ({ marginBottom: insets.bottom }), [insets]);
   const {
-    getNextChangeDescriptorWithIndex,
+    getChangeDescriptorWithNextIndex,
     getNextOnChainBackupIndex,
     getUnvaultKeyExpression,
     signers,
@@ -240,7 +241,11 @@ export default function CreateVaultScreen({
       await netRequest({
         whenToastErrors: 'ON_ANY_ERROR',
         errorMessage: message => t('createVault.vaultPushError', { message }),
-        func: () => pushVaultRegisterWTAndUpdateStates(vault)
+        func: () =>
+          pushVaultRegisterWTAndUpdateStates(
+            vault,
+            customChangeDescriptorWithIndex
+          )
       });
 
     if (pushAndUpdateStatus !== 'SUCCESS') {
@@ -322,6 +327,7 @@ export default function CreateVaultScreen({
     navigation,
     goBack,
     pushVaultRegisterWTAndUpdateStates,
+    customChangeDescriptorWithIndex,
     setWalletLabelTextsIfEmpty,
     vaultName,
     createVaultTxLabel,
@@ -350,7 +356,8 @@ export default function CreateVaultScreen({
       const unvaultKeyExpression = await getUnvaultKeyExpression();
       if (!shouldContinueCreate()) return;
       const changeDescriptorWithIndex =
-        await getNextChangeDescriptorWithIndex(accounts);
+        customChangeDescriptorWithIndex ??
+        (await getChangeDescriptorWithNextIndex(accounts));
       if (!shouldContinueCreate()) return;
 
       const nextP2PBackupIndex = lastP2PBackupVaultIndex + 1;
@@ -441,7 +448,8 @@ export default function CreateVaultScreen({
     vaultedAmount,
     coldAddress,
     packageFeeRate,
-    getNextChangeDescriptorWithIndex,
+    getChangeDescriptorWithNextIndex,
+    customChangeDescriptorWithIndex,
     getNextOnChainBackupIndex,
     getUnvaultKeyExpression,
     lockBlocks,

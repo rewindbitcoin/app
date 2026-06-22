@@ -3,7 +3,7 @@
 
 import type { Accounts } from './wallets';
 import { Network, networks } from 'bitcoinjs-lib';
-import { getMainAccount } from './vaultDescriptors';
+import { selectPreferredAccount } from './vaultDescriptors';
 import { ensureDescriptorsFactoryInstance } from './descriptorsFactory';
 export const faucetFirstReceive = async (
   accounts: Accounts,
@@ -13,7 +13,7 @@ export const faucetFirstReceive = async (
 ) => {
   if (network !== networks.regtest)
     throw new Error('Cannot faucet non-regtest networks');
-  const descriptor = getMainAccount(accounts, network); //account is external
+  const descriptor = selectPreferredAccount({ accounts, network }); //account is external
   const index = 0;
   const { Output } = ensureDescriptorsFactoryInstance();
   const firstReceiveAddr = new Output({

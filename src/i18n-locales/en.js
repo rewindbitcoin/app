@@ -1096,16 +1096,21 @@ Use this to simulate higher fees and extreme mempool conditions on Tape.`,
     unused: 'Unused',
     unknown: 'Unknown',
     invalid: 'Enter account and index from 0 to {{max}}.',
-    gapWarning:
-      'This index is outside the normal {{gapLimit}} address recovery window. Other wallets may not find funds here unless you scan this account manually.',
+    gapBlocked:
+      'Choose an index up to {{max}}. Higher indexes may not be found when restoring the wallet.',
+    accountGapBlocked:
+      'Account {{account}} is too far ahead. Use account {{previousAccount}} first so restored wallets can find this account later.',
+    changeAccountBlocked:
+      'Account {{account}} has no receive history yet. Choose an account that has already received bitcoin for change.',
     newAccountWarning:
-      'New account. Other wallets may not find it automatically.',
+      'This receive account has no history yet. Other wallets may not show it until it receives bitcoin.',
     usedWarning: 'This address has been used before.',
     unsupportedSigner:
       'Advanced address selection is not available for this wallet signer yet.',
     useAddress: 'Use address',
     useReceiveAddress: 'Use receive address',
-    trackError: 'Could not save this account for future syncs.',
+    trackError:
+      'This address is shown, but the wallet could not save it for future balance updates. Open Advanced address options and choose it again before receiving bitcoin.',
     scripts: {
       taproot: 'Taproot',
       nativeSegwit: 'SegWit',

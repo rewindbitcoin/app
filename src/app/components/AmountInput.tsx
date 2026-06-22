@@ -6,8 +6,8 @@
 //That means the parent component must reset the last value set by onValueChange
 //to initialValue
 import React, { useState, useCallback, useRef, useMemo } from 'react';
-import { Text, View } from 'react-native';
-import { CardEditableSlider, Switch } from '../../common/ui';
+import { View } from 'react-native';
+import { Button, CardEditableSlider } from '../../common/ui';
 import { useTranslation } from 'react-i18next';
 import type { SubUnit } from '../lib/settings';
 import {
@@ -26,10 +26,10 @@ function AmountInput({
   max,
   isMaxAmount,
   label,
-  allowCoinControl = false,
-  coinControl = false,
+  allowAdvancedOptions = false,
+  advancedOptionsActive = false,
   btcFiat,
-  onCoinControlChange,
+  onAdvancedOptionsPress,
   onValueChange
 }: {
   initialValue: number;
@@ -40,9 +40,9 @@ function AmountInput({
   isMaxAmount: boolean;
   btcFiat: number | undefined;
   label: string;
-  allowCoinControl?: boolean;
-  coinControl?: boolean;
-  onCoinControlChange?: (coinControl: boolean) => void;
+  allowAdvancedOptions?: boolean;
+  advancedOptionsActive?: boolean;
+  onAdvancedOptionsPress?: () => void;
   onValueChange: (value: number | null, type: 'USER' | 'RESET') => void;
 }) {
   const { t } = useTranslation();
@@ -52,8 +52,8 @@ function AmountInput({
     throw new Error(
       'This component should only be started after settings has been retrieved from storage'
     );
-  if (!allowCoinControl && coinControl)
-    throw new Error('coinControl requires allowCoinControl');
+  if (!allowAdvancedOptions && advancedOptionsActive)
+    throw new Error('advancedOptionsActive requires allowAdvancedOptions');
   const mode =
     settings.FIAT_MODE && typeof btcFiat === 'number'
       ? 'Fiat'
@@ -73,17 +73,20 @@ function AmountInput({
   const nextInitialValueRef = useRef<number>(isMaxAmount ? max : initialValue);
   const modeInitialValue = isMaxAmount
     ? modeMax
-    : fromSats(nextInitialValueRef.current, mode, btcFiat);
+    : fromSats(
+        // Used only to initialize the remounted slider from the last valid amount.
+        // eslint-disable-next-line react-hooks/refs
+        nextInitialValueRef.current,
+        mode,
+        btcFiat
+      );
 
   const onUnitPress = useCallback(() => {
     setShowUnitsModal(true);
   }, []);
-  const handleAutoCoinSelectionChange = useCallback(
-    (manual: boolean) => {
-      onCoinControlChange?.(manual);
-    },
-    [onCoinControlChange]
-  );
+  const handleAdvancedOptionsPress = useCallback(() => {
+    onAdvancedOptionsPress?.();
+  }, [onAdvancedOptionsPress]);
 
   const onModeSelect = useCallback(
     (mode: SubUnit | 'Fiat') => {
@@ -124,17 +127,23 @@ function AmountInput({
         locale={locale}
         label={label}
         headerRight={
-          allowCoinControl ? (
+          allowAdvancedOptions ? (
             <View className="flex-row items-center">
-              <Text className="mr-1 text-sm font-normal text-card-secondary">
-                {t('coinControl.chooseCoins')}
-              </Text>
-              <Switch
-                value={coinControl}
-                onValueChange={handleAutoCoinSelectionChange}
-                accessibilityLabel={t('coinControl.chooseCoins')}
-                style={{ transform: [{ scale: 0.66 }] }}
-              />
+              {advancedOptionsActive ? (
+                <View className="mr-1 h-2 w-2 rounded-full bg-primary" />
+              ) : null}
+              <Button
+                mode="text"
+                containerClassName="!min-w-0"
+                textClassName="!text-xs"
+                accessibilityLabel={t('coinControl.advanced')}
+                iconRight={{ family: 'FontAwesome5', name: 'sliders-h' }}
+                onPress={handleAdvancedOptionsPress}
+              >
+                {advancedOptionsActive
+                  ? t('coinControl.advancedActive')
+                  : t('coinControl.advanced')}
+              </Button>
             </View>
           ) : undefined
         }

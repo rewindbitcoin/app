@@ -17,6 +17,10 @@ import { useWallet } from '../hooks/useWallet';
 import { getWalletLabelText } from '../lib/labels';
 import { getOutputAddressNoteText } from '../lib/addressNoteLabels';
 import { networkMapping } from '../lib/network';
+import {
+  getStandardAccountScriptDefinition,
+  getStandardAccountScriptType
+} from '../lib/vaultDescriptors';
 import LabelEditor from './LabelEditor';
 
 /**
@@ -52,6 +56,10 @@ type UtxoDataWithDescriptor = UtxoAvailability['utxoData'] & {
 };
 
 const coinControlIcon: IconType = { family: 'FontAwesome5', name: 'sliders-h' };
+
+const assertNever = (value: never): never => {
+  throw new Error(`Unhandled coin control value: ${value}`);
+};
 
 const getUtxoValue = (utxoData: UtxoAvailability['utxoData']) => {
   const output = utxoData.tx.outs[utxoData.vout];
@@ -152,19 +160,18 @@ const RawCoinControlPanel = ({
   const getGroupLabel = useCallback(
     (utxoData: UtxoAvailability['utxoData']) => {
       const descriptor = getDescriptor(utxoData);
+      const scriptType = descriptor
+        ? getStandardAccountScriptType(descriptor)
+        : undefined;
       const baseLabel = !descriptor
         ? t('coinControl.groups.wallet')
-        : descriptor.startsWith('tr(')
-          ? t('coinControl.groups.taproot')
-          : descriptor.startsWith('wpkh(')
-            ? t('coinControl.groups.nativeSegwit')
-            : descriptor.startsWith('sh(wpkh(')
-              ? t('coinControl.groups.wrappedSegwit')
-              : descriptor.startsWith('pkh(')
-                ? t('coinControl.groups.legacy')
-                : descriptor.startsWith('wsh(andor(')
-                  ? t('coinControl.groups.vault')
-                  : t('coinControl.groups.wallet');
+        : scriptType
+          ? getStandardAccountScriptDefinition(
+              scriptType
+            ).getCoinControlGroupLabel(t)
+          : descriptor.startsWith('wsh(andor(')
+            ? t('coinControl.groups.vault')
+            : t('coinControl.groups.wallet');
       const accountNumber = descriptor
         ? getAccountNumber(descriptor)
         : undefined;
@@ -222,6 +229,37 @@ const RawCoinControlPanel = ({
         : t('coinControl.originConfirmedBlock', {
             block: historyItem.blockHeight
           });
+    },
+    [locale, t]
+  );
+  const getDisabledReasonLabel = useCallback(
+    (
+      availability: Extract<
+        UtxoAvailability,
+        { status: 'temporarilyUnavailable' }
+      >
+    ) => {
+      switch (availability.reason) {
+        case 'unconfirmedAcceleratableOutput':
+          return t(
+            'coinControl.disabledReasons.unconfirmedAcceleratableOutput'
+          );
+        case 'unconfirmedV3Output':
+          return t('coinControl.disabledReasons.unconfirmedV3Output');
+        case 'trucRequiresConfirmedInput':
+          return t('coinControl.disabledReasons.trucRequiresConfirmedInput');
+        case 'frozenVaultOutput':
+          return t('coinControl.disabledReasons.frozenVaultOutput', {
+            timeRemaining: formatBlocks(
+              availability.remainingBlocks,
+              t,
+              locale,
+              true
+            )
+          });
+        default:
+          return assertNever(availability);
+      }
     },
     [locale, t]
   );
@@ -291,17 +329,7 @@ const RawCoinControlPanel = ({
                 const picked = pickedOutpoints.has(outpoint);
                 const disabledReason =
                   availability.status === 'temporarilyUnavailable'
-                    ? t(`coinControl.disabledReasons.${availability.reason}`, {
-                        timeRemaining:
-                          availability.reason === 'frozenVaultOutput'
-                            ? formatBlocks(
-                                availability.remainingBlocks,
-                                t,
-                                locale,
-                                true
-                              )
-                            : undefined
-                      })
+                    ? getDisabledReasonLabel(availability)
                     : null;
                 return (
                   <View
