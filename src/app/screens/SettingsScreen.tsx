@@ -335,6 +335,19 @@ const SettingsScreen = () => {
     locale: currentLocale,
     setLocale
   } = useLocalization();
+  const getLanguageName = useCallback(
+    (locale: string) => {
+      switch (locale) {
+        case 'en':
+          return t('settings.general.languageNames.en');
+        case 'es':
+          return t('settings.general.languageNames.es');
+        default:
+          throw new Error(`Unhandled locale: ${locale}`);
+      }
+    },
+    [t]
+  );
   const [isBip39ModalVisible, setIsBip39ModalVisible] =
     useState<boolean>(false);
   const [exportProgress, setExportProgress] = useState<string>('');
@@ -689,10 +702,10 @@ const SettingsScreen = () => {
         .join('\n');
 
       if (result.errors.length || result.conflictingRecordCount > 0) {
-        const details = [firstErrors, firstConflicts].filter(Boolean).join('\n');
-        setLabelsImportReport(
-          details ? `${summary}\n${details}` : summary
-        );
+        const details = [firstErrors, firstConflicts]
+          .filter(Boolean)
+          .join('\n');
+        setLabelsImportReport(details ? `${summary}\n${details}` : summary);
         toast.show(t('settings.labels.importPartial'), { type: 'warning' });
       } else {
         closeLabelsImportModal();
@@ -843,7 +856,7 @@ const SettingsScreen = () => {
               initialValue={
                 currentLocale === 'default'
                   ? t('settings.general.systemDefault')
-                  : t(`settings.general.languageNames.${currentLocale}`)
+                  : getLanguageName(currentLocale)
               }
             />
             <SettingsItem
@@ -1164,10 +1177,7 @@ const SettingsScreen = () => {
           onClose={closeLabelsImportModal}
           customButtons={
             <View className="items-center gap-6 gap-y-4 flex-row flex-wrap justify-center pb-4">
-              <Button
-                mode="secondary"
-                onPress={closeLabelsImportModal}
-              >
+              <Button mode="secondary" onPress={closeLabelsImportModal}>
                 {t('cancelButton')}
               </Button>
               <Button
@@ -1305,7 +1315,7 @@ const SettingsScreen = () => {
                     locale === currentLocale ? 'text-white' : 'text-black'
                   } text-center`}
                 >
-                  {t(`settings.general.languageNames.${locale}`)}
+                  {getLanguageName(locale)}
                 </Text>
               </Pressable>
             ))}
