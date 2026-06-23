@@ -58,7 +58,7 @@ export default function Receive() {
     getPreferredAccount,
     fetchOutputHistory,
     setWalletLabelText,
-    trackAccountAndFetchDescriptorWithIndex
+    trackAccount
   } = useWallet();
   if (!networkId)
     throw new Error('ReceiveScreen cannot be called with unset networkId');
@@ -137,16 +137,12 @@ export default function Receive() {
         /\/[01]\/\*/g,
         '/0/*'
       ) as Account;
-      trackAccountAndFetchDescriptorWithIndex({
-        account,
-        descriptor: selection.descriptor,
-        index: selection.index
-      }).catch(error => {
+      trackAccount(account).catch(error => {
         console.warn('Failed to track selected receive account', error);
         toast.show(t('addressPicker.trackError'), { type: 'warning' });
       });
     },
-    [t, toast, trackAccountAndFetchDescriptorWithIndex]
+    [t, toast, trackAccount]
   );
 
   const onClipboard = useCallback(() => {

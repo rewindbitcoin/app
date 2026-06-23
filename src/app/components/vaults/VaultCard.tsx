@@ -150,7 +150,7 @@ const RawVault = ({
     pushTxPackage,
     setWalletLabelText,
     setWalletLabelTextsIfEmpty,
-    trackAccountAndFetchDescriptorWithIndex
+    trackAccount
   } = useWallet();
   const vaultName = getVaultName({
     vault,
@@ -320,11 +320,7 @@ const RawVault = ({
               network
             );
             if (finalChildChange.walletAccountToTrack) {
-              await trackAccountAndFetchDescriptorWithIndex({
-                account: finalChildChange.walletAccountToTrack,
-                descriptor: finalChildChange.descriptor,
-                index: finalChildChange.index
-              });
+              await trackAccount(finalChildChange.walletAccountToTrack);
             }
             // Trigger fee bumping always spends the full reserve set first; any
             // normal wallet inputs here were explicitly selected by the user as
@@ -423,7 +419,7 @@ const RawVault = ({
       settings?.NETWORK_TIMEOUT,
       networkId,
       accounts,
-      trackAccountAndFetchDescriptorWithIndex,
+      trackAccount,
       pushTxPackage,
       pushTx,
       isLadderedVault,

@@ -117,6 +117,13 @@ import {
 export const WalletContext: Context<WalletContextType | null> =
   createContext<WalletContextType | null>(null);
 
+type RangedDescriptorStatus = {
+  descriptor: string;
+  nextIndex?: number;
+  fetching?: boolean;
+  timeFetched?: number;
+};
+
 export type WalletContextType = {
   orphanedWatchtowerWalletUUIDs: Set<string>;
   clearOrphanedWatchtowerWalletUUIDs: () => Promise<void>;
@@ -138,28 +145,23 @@ export type WalletContextType = {
     descriptor: string;
     nextIndex: number;
   };
-  fetchRangedDescriptorWithNextIndex: ({
+  getRangedDescriptorStatus: ({
     account,
     change
   }: {
     account: Account;
     change: 0 | 1;
-  }) => Promise<
-    | {
-        descriptor: string;
-        nextIndex: number;
-      }
-    | undefined
-  >;
-  trackAccountAndFetchDescriptorWithIndex: ({
+  }) => RangedDescriptorStatus;
+  fetchRangedDescriptor: ({
     account,
-    descriptor,
-    index
+    change,
+    freshForSeconds
   }: {
     account: Account;
-    descriptor: string;
-    index: number;
-  }) => Promise<Accounts>;
+    change: 0 | 1;
+    freshForSeconds?: number;
+  }) => Promise<RangedDescriptorStatus>;
+  trackAccount: (account: Account) => Promise<Accounts>;
   /**
    * Finds the first unused on-chain backup index for the active wallet.
    *
@@ -251,13 +253,20 @@ export type WalletContextType = {
     descriptor: string;
     index?: number;
   }) => Promise<TxHistory | undefined>;
+  getOutputHistory: ({
+    descriptor,
+    index
+  }: {
+    descriptor: string;
+    index?: number;
+  }) => TxHistory | undefined;
   pushVaultRegisterWTAndUpdateStates: (
     vault: Vault,
-    descriptorWithIndexToTrack?: DescriptorWithIndex
+    customWalletChangeToTrack?: DescriptorWithIndex
   ) => Promise<{ backupTxHex: string }>;
   txPushAndUpdateStates: (
     txHex: string,
-    descriptorWithIndexToTrack?: DescriptorWithIndex
+    customWalletChangeToTrack?: DescriptorWithIndex
   ) => Promise<void>;
   syncBlockchain: () => void;
   syncingBlockchain: boolean;
@@ -1218,6 +1227,32 @@ const WalletProviderRaw = ({
     [discovery, setUtxosHistoryExport, vaults, vaultsStatuses, tipHeight]
   );
 
+  const getOutputHistory = useCallback(
+    ({
+      descriptor,
+      index
+    }: {
+      descriptor: string;
+      index?: number;
+    }): TxHistory | undefined => {
+      if (index === undefined && descriptor.includes('*'))
+        throw new Error('Use getOutputHistory only for a single output');
+      if (!discovery) return undefined;
+      const descriptorWithIndex = {
+        descriptor,
+        ...(index !== undefined ? { index } : {})
+      };
+      const fetched = discovery.whenFetched(descriptorWithIndex);
+      if (!fetched || fetched.fetching) return undefined;
+      try {
+        return discovery.getHistory(descriptorWithIndex) as TxHistory;
+      } catch {
+        return undefined;
+      }
+    },
+    [discovery]
+  );
+
   const storageAccessStatus = getStorageAccessStatus({
     signers,
     signersStorageEngine: activeWallet?.signersStorageEngine,
@@ -2136,39 +2171,80 @@ const WalletProviderRaw = ({
     [discovery]
   );
 
-  // Fetches the selected external/change range before returning descriptor/nextIndex.
-  const fetchRangedDescriptorWithNextIndex = useCallback(
-    async ({ account, change }: { account: Account; change: 0 | 1 }) => {
+  /**
+   * Returns cache-only status for one account range.
+   *
+   * `account` is always the receive descriptor (`/0/*`). `change` selects the
+   * receive range (`0`) or change range (`1`). This function does not fetch.
+   *
+   * `nextIndex` is returned after the range has been fetched at least once.
+   * It can still be returned while a refresh is in progress; `fetching` only
+   * tells callers that a newer network update is currently running.
+   */
+  const getRangedDescriptorStatus = useCallback(
+    ({ account, change }: { account: Account; change: 0 | 1 }) => {
       if (!discovery) throw new Error('Discovery not ready');
-      if (gapLimit === undefined)
-        throw new Error('gapLimit not ready for address picker');
       const descriptor = account.replace(/\/0\/\*/g, `/${change}/*`);
-      const { status, result } = await netRequest({
-        id: 'fetchAddressDescriptor',
-        errorMessage: (message: string) =>
-          t('app.syncNetworkError', { message }),
-        whenToastErrors: 'ON_NEW_ERROR',
-        requirements: { explorerReachable: true },
-        func: async () => {
-          await discovery.fetch({ descriptor, gapLimit });
-          return getRangedDescriptorWithNextIndex({ account, change });
-        }
-      });
-      return status === 'SUCCESS' ? result : undefined;
+      const fetched = discovery.whenFetched({ descriptor });
+      const hasCompletedRangeFetch =
+        fetched !== undefined && fetched.timeFetched > 0;
+      const nextIndex = hasCompletedRangeFetch
+        ? discovery.getNextIndex({ descriptor })
+        : undefined;
+      return {
+        descriptor,
+        ...(nextIndex !== undefined ? { nextIndex } : {}),
+        ...(fetched?.fetching !== undefined
+          ? { fetching: fetched.fetching }
+          : {}),
+        ...(fetched?.timeFetched !== undefined
+          ? { timeFetched: fetched.timeFetched }
+          : {})
+      };
     },
-    [discovery, gapLimit, getRangedDescriptorWithNextIndex, netRequest, t]
+    [discovery]
   );
 
   /**
-   * Fetches the exact descriptor/index the user picked before refreshing wallet
-   * data. Callers must only pass addresses that are safe to track.
+   * Fetches one account range and returns its updated cache status.
+   *
+   * This fetches the receive range (`change: 0`) or change range (`change: 1`)
+   * with the wallet gap limit. It never fetches one exact address index.
+   *
+   * If `freshForSeconds` is provided, a recently fetched range is reused until it
+   * becomes older than that value. If omitted, the range is fetched unless it is
+   * already fetching. This parameter is cache freshness, not UI debounce; callers
+   * that react to typing should debounce before calling this function.
    */
-  const fetchDescriptorWithIndex = useCallback(
-    async (descriptorWithIndex: DescriptorWithIndex) => {
+  const fetchRangedDescriptor = useCallback(
+    async ({
+      account,
+      change,
+      freshForSeconds
+    }: {
+      account: Account;
+      change: 0 | 1;
+      freshForSeconds?: number;
+    }) => {
       if (!discovery) throw new Error('Discovery not ready');
-      await discovery.fetch(descriptorWithIndex);
+      if (gapLimit === undefined)
+        throw new Error('gapLimit not ready to fetch ranged descriptor');
+
+      const status = getRangedDescriptorStatus({ account, change });
+      const now = Math.floor(Date.now() / 1000);
+      if (
+        status.fetching ||
+        (freshForSeconds !== undefined &&
+          status.timeFetched !== undefined &&
+          status.timeFetched > 0 &&
+          now - status.timeFetched < freshForSeconds)
+      )
+        return status;
+
+      await discovery.fetch({ descriptor: status.descriptor, gapLimit });
+      return getRangedDescriptorStatus({ account, change });
     },
-    [discovery]
+    [discovery, gapLimit, getRangedDescriptorStatus]
   );
 
   /**
@@ -2190,25 +2266,19 @@ const WalletProviderRaw = ({
   );
 
   /**
-   * Add an account, scan its normal receive/change ranges, fetch the exact
-   * picked address, and refresh wallet UTXO/history data.
+   * Add an account if missing, scan its normal receive/change ranges, and
+   * refresh wallet UTXO/history data. Existing tracked accounts are refreshed by
+   * the main wallet sync path.
    * Caller owns netRequest/toast handling.
    */
-  const trackAccountAndFetchDescriptorWithIndex = useCallback(
-    async ({
-      account,
-      descriptor,
-      index
-    }: {
-      account: Account;
-      descriptor: string;
-      index: number;
-    }) => {
-      if (!accountsRef.current) throw new Error('Accounts not ready');
+  const trackAccount = useCallback(
+    async (account: Account) => {
+      const currentAccounts = accountsRef.current;
+      if (!currentAccounts) throw new Error('Accounts not ready');
+      if (currentAccounts[account]) return currentAccounts;
       if (!vaults || !vaultsStatuses || tipHeight === undefined)
-        throw new Error('Wallet state not ready to track address');
+        throw new Error('Wallet state not ready to track account');
       await fetchAccount(account);
-      await fetchDescriptorWithIndex({ descriptor, index });
       const updatedAccounts = await ensureAccountTracked(account);
       await setUtxosHistoryExport(
         vaults,
@@ -2220,7 +2290,6 @@ const WalletProviderRaw = ({
     },
     [
       fetchAccount,
-      fetchDescriptorWithIndex,
       setUtxosHistoryExport,
       ensureAccountTracked,
       tipHeight,
@@ -3005,11 +3074,10 @@ const WalletProviderRaw = ({
    *
    * This function won't request user permissions for push notifications.
    *
-   * Pass `descriptorWithIndexToTrack` only when the vault uses a custom wallet
+   * Pass `customWalletChangeToTrack` only when the vault uses a custom wallet
    * change address. Normal wallet change already belongs to tracked accounts, so
-   * leave it unset in the default case. When set, this function fetches that
-   * exact descriptor/index, tracks its wallet account, and rebuilds wallet data
-   * so the change output appears in UTXO/history.
+   * leave it unset in the default case. When set, this function scans and tracks
+   * the wallet account range so the change output appears in UTXO/history.
    *
    * This function may throw. try-catch it from outer blocks.
    *
@@ -3018,7 +3086,7 @@ const WalletProviderRaw = ({
   const pushVaultRegisterWTAndUpdateStates = useCallback(
     async (
       vault: Vault,
-      descriptorWithIndexToTrack?: DescriptorWithIndex
+      customWalletChangeToTrack?: DescriptorWithIndex
     ): Promise<{ backupTxHex: string }> => {
       if (!vaults || !vaultsStatuses)
         throw new Error('vaults and vaultsStatuses should be defined');
@@ -3048,13 +3116,11 @@ const WalletProviderRaw = ({
           vaultTxBlockHeight: 0
         }
       };
-      const accountToTrack = descriptorWithIndexToTrack?.descriptor.replace(
+      const accountToTrack = customWalletChangeToTrack?.descriptor.replace(
         /\/[01]\/\*/g,
         '/0/*'
       );
       if (accountToTrack) await fetchAccount(accountToTrack);
-      if (descriptorWithIndexToTrack)
-        await fetchDescriptorWithIndex(descriptorWithIndexToTrack);
 
       const backupTxHex = await createOnChainBackupTx({ vault, signer });
       await pushTxPackage({
@@ -3086,7 +3152,6 @@ const WalletProviderRaw = ({
     [
       activeWallet?.walletId,
       fetchAccount,
-      fetchDescriptorWithIndex,
       ensureAccountTracked,
       signers,
       pushTxPackage,
@@ -3102,18 +3167,18 @@ const WalletProviderRaw = ({
   /**
    * Similar as vaultPushAndUpdateStates but for regular txs
    *
-   * Pass `descriptorWithIndexToTrack` only when the transaction uses a custom
+   * Pass `customWalletChangeToTrack` only when the transaction uses a custom
    * wallet change address. Normal wallet change already belongs to tracked
    * accounts, so leave it unset in the default case. When set, this function
-   * fetches that exact descriptor/index, tracks its wallet account, and rebuilds
-   * wallet data so the change output appears in UTXO/history.
+   * scans and tracks the wallet account range so the change output appears in
+   * UTXO/history.
    *
    * This function may throw. try-catch it from outer blocks.
    */
   const txPushAndUpdateStates = useCallback(
     async (
       txHex: string,
-      descriptorWithIndexToTrack?: DescriptorWithIndex
+      customWalletChangeToTrack?: DescriptorWithIndex
     ): Promise<void> => {
       if (!vaults || !vaultsStatuses)
         throw new Error('vaults and vaultsStatuses should be defined');
@@ -3121,13 +3186,11 @@ const WalletProviderRaw = ({
         throw new Error(
           `Cannot txPushAndUpdateStates without accounts: ${!!accounts} or tipHeight: ${!!tipHeight}`
         );
-      const accountToTrack = descriptorWithIndexToTrack?.descriptor.replace(
+      const accountToTrack = customWalletChangeToTrack?.descriptor.replace(
         /\/[01]\/\*/g,
         '/0/*'
       );
       if (accountToTrack) await fetchAccount(accountToTrack);
-      if (descriptorWithIndexToTrack)
-        await fetchDescriptorWithIndex(descriptorWithIndexToTrack);
       await pushTx(txHex);
       const updatedAccounts = accountToTrack
         ? await ensureAccountTracked(accountToTrack)
@@ -3144,7 +3207,6 @@ const WalletProviderRaw = ({
       pushTx,
       accounts,
       fetchAccount,
-      fetchDescriptorWithIndex,
       ensureAccountTracked,
       tipHeight,
       setUtxosHistoryExport,
@@ -3198,8 +3260,10 @@ const WalletProviderRaw = ({
     getUnvaultKeyExpression,
     getChangeDescriptorWithNextIndex,
     getRangedDescriptorWithNextIndex,
-    fetchRangedDescriptorWithNextIndex,
-    trackAccountAndFetchDescriptorWithIndex,
+    getRangedDescriptorStatus,
+    fetchRangedDescriptor,
+    getOutputHistory,
+    trackAccount,
     getNextOnChainBackupIndex,
     getReceiveDescriptorWithNextIndex,
     fetchServiceAddress,

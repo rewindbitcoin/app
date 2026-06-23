@@ -316,17 +316,21 @@ export const createStandardAccountDescriptor = ({
   ) as Account;
 };
 
-export const getStandardAccountDescriptorMetadata = (
+export const parseStandardAccount = (
   account: Account
 ): {
-  accountNumber: number | undefined;
-  scriptType: StandardAccountScriptType | undefined;
+  accountNumber: number;
+  scriptType: StandardAccountScriptType;
 } => {
   const accountNumberMatch = account.match(/\/(\d+)'\]/);
-  const accountNumber = accountNumberMatch?.[1]
-    ? Number(accountNumberMatch[1])
-    : undefined;
+  if (!accountNumberMatch?.[1])
+    throw new Error(`Cannot read account number from descriptor: ${account}`);
+  const accountNumber = Number(accountNumberMatch[1]);
+  if (!Number.isSafeInteger(accountNumber) || accountNumber < 0)
+    throw new Error(`Invalid account number in descriptor: ${account}`);
   const scriptType = getStandardAccountScriptType(account);
+  if (!scriptType)
+    throw new Error(`Unknown standard account script type: ${account}`);
   return { accountNumber, scriptType };
 };
 
