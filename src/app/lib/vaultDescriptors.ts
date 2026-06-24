@@ -18,6 +18,9 @@ import { Accounts, Signer, Signers, SOFTWARE } from './wallets';
 import type { Account } from '@bitcoinerlab/discovery';
 import { ensureDescriptorsFactoryInstance } from './descriptorsFactory';
 
+const getNetworkCacheKey = (network: Network) =>
+  `${network.bech32}:${network.pubKeyHash}:${network.scriptHash}:${network.wif}:${network.bip32.public}:${network.bip32.private}`;
+
 export const DUMMY_PUBKEY =
   '0330d54fd0dd420a6e5f8d3624f5f3482cae350f79d5f0753bf5beef9c2d91af3c';
 export const DUMMY_PUBKEY_2 =
@@ -86,13 +89,27 @@ export const DUMMY_CHANGE_OUTPUT = memoize(
     });
   }
 );
-export const computeOutput = memoize(
+export const computeOutput = moize(
   (
     descriptorWithIndex: { descriptor: string; index: number },
     network: Network
   ) => {
     const { Output } = ensureDescriptorsFactoryInstance();
     return new Output({ ...descriptorWithIndex, network });
+  },
+  {
+    maxSize: 256,
+    transformArgs: args => {
+      const [descriptorWithIndex, network] = args as [
+        { descriptor: string; index: number },
+        Network
+      ];
+      return [
+        descriptorWithIndex.descriptor,
+        descriptorWithIndex.index,
+        getNetworkCacheKey(network)
+      ];
+    }
   }
 );
 
@@ -287,34 +304,55 @@ const defaultPurposeOrder = getPurposeOrder(
   getScriptDefinitionsForAccountsWithoutHistory()
 );
 
-export const createStandardAccountDescriptor = ({
-  signer,
-  network,
-  scriptType,
-  account
-}: {
-  signer: Signer;
-  network: Network;
-  scriptType: StandardAccountScriptType;
-  account: number;
-}) => {
-  if (signer.type !== SOFTWARE)
-    throw new Error(`Signer type ${signer.type} not supported`);
-  const mnemonic = signer.mnemonic;
-  if (!mnemonic) throw new Error(`mnemonic not provided for ${signer.type}`);
-
-  const params = {
-    masterNode: getMasterNode(mnemonic, network),
+export const createStandardAccountDescriptor = moize(
+  ({
+    signer,
     network,
-    account,
-    index: '*' as const,
-    change: 0 as const
-  };
+    scriptType,
+    account
+  }: {
+    signer: Signer;
+    network: Network;
+    scriptType: StandardAccountScriptType;
+    account: number;
+  }) => {
+    if (signer.type !== SOFTWARE)
+      throw new Error(`Signer type ${signer.type} not supported`);
+    const mnemonic = signer.mnemonic;
+    if (!mnemonic) throw new Error(`mnemonic not provided for ${signer.type}`);
 
-  return getStandardAccountScriptDefinition(scriptType).createDescriptor(
-    params
-  ) as Account;
-};
+    const params = {
+      masterNode: getMasterNode(mnemonic, network),
+      network,
+      account,
+      index: '*' as const,
+      change: 0 as const
+    };
+
+    return getStandardAccountScriptDefinition(scriptType).createDescriptor(
+      params
+    ) as Account;
+  },
+  {
+    maxSize: 64,
+    transformArgs: args => {
+      const [{ signer, network, scriptType, account }] = args as [
+        {
+          signer: Signer;
+          network: Network;
+          scriptType: StandardAccountScriptType;
+          account: number;
+        }
+      ];
+      return [
+        signer.mnemonic,
+        getNetworkCacheKey(network),
+        scriptType,
+        account
+      ];
+    }
+  }
+);
 
 export const parseStandardAccount = (
   account: Account

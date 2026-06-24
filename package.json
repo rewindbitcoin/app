@@ -27,7 +27,7 @@
     "@bitcoinerlab/btcmessage": "^4.0.1",
     "@bitcoinerlab/coinselect": "^2.0.1",
     "@bitcoinerlab/descriptors": "^3.0.6",
-    "@bitcoinerlab/discovery": "^2.0.0",
+    "@bitcoinerlab/discovery": "^2.0.1",
     "@bitcoinerlab/explorer": "^1.0.0",
     "@bitcoinerlab/secp256k1": "^1.2.0",
     "@expo-google-fonts/roboto-mono": "^0.2.3",
