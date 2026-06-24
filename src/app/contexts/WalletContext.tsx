@@ -44,6 +44,7 @@ import {
   createUnvaultKeyExpression,
   getDefaultAccount,
   getMasterNode,
+  parseStandardAccount,
   selectPreferredAccount
 } from '../lib/vaultDescriptors';
 import React, {
@@ -122,6 +123,47 @@ type RangedDescriptorStatus = {
   nextIndex?: number;
   fetching?: boolean;
   timeFetched?: number;
+};
+
+const getRangedAccountFetchLogDetails = (descriptor: string) => {
+  try {
+    const { accountNumber, scriptType } = parseStandardAccount(
+      descriptor as Account
+    );
+    return `script=${scriptType}, account=${accountNumber}, range=${descriptor.includes('/1/*') ? 'change' : 'receive'}`;
+  } catch {
+    return undefined;
+  }
+};
+
+const logRangedAccountFetch = ({
+  descriptor,
+  gapLimit,
+  source
+}: {
+  descriptor: string;
+  gapLimit: number;
+  source: string;
+}) => {
+  const details = getRangedAccountFetchLogDetails(descriptor);
+  if (!details) return;
+  console.log(
+    `[${new Date().toISOString()}] [Wallet] Fetch ranged account (${source}): ${details}, gapLimit=${gapLimit}`
+  );
+};
+
+const logRangedAccountFetches = ({
+  descriptors,
+  gapLimit,
+  source
+}: {
+  descriptors: string[];
+  gapLimit: number;
+  source: string;
+}) => {
+  descriptors.forEach(descriptor =>
+    logRangedAccountFetch({ descriptor, gapLimit, source })
+  );
 };
 
 export type WalletContextType = {
@@ -1119,6 +1161,11 @@ const WalletProviderRaw = ({
       if (uniqueDescriptorsToSync.length > 0) {
         //This is the case when the pushTxPackage failed because this was
         //a package replacement (Accelerate button)
+        logRangedAccountFetches({
+          descriptors: uniqueDescriptorsToSync,
+          gapLimit,
+          source: 'package-conflicts'
+        });
         await discovery.fetch({
           descriptors: uniqueDescriptorsToSync,
           gapLimit
@@ -1129,6 +1176,11 @@ const WalletProviderRaw = ({
           accounts,
           tipHeight
         );
+        logRangedAccountFetches({
+          descriptors: hotDescriptors,
+          gapLimit,
+          source: 'package-hot-descriptors'
+        });
         await discovery.fetch({ descriptors: hotDescriptors, gapLimit });
         // This call updates in-memory wallet state immediately. The async part of
         // `setUtxosHistoryExport` is only the later discoveryExport disk write.
@@ -2241,6 +2293,11 @@ const WalletProviderRaw = ({
       )
         return status;
 
+      logRangedAccountFetch({
+        descriptor: status.descriptor,
+        gapLimit,
+        source: 'fetchRangedDescriptor'
+      });
       await discovery.fetch({ descriptor: status.descriptor, gapLimit });
       return getRangedDescriptorStatus({ account, change });
     },
@@ -2260,6 +2317,11 @@ const WalletProviderRaw = ({
         accountToFetch.replace(/\/0\/\*/g, '/0/*'),
         accountToFetch.replace(/\/0\/\*/g, '/1/*')
       ];
+      logRangedAccountFetches({
+        descriptors,
+        gapLimit,
+        source: 'fetchAccount'
+      });
       await discovery.fetch({ descriptors, gapLimit });
     },
     [discovery, gapLimit]
@@ -2828,6 +2890,16 @@ const WalletProviderRaw = ({
                   discovery.fetchStandardAccounts({
                     masterNode,
                     gapLimit,
+                    async onAccountChecking(account) {
+                      logRangedAccountFetches({
+                        descriptors: [
+                          account,
+                          account.replace(/\/0\/\*/g, '/1/*')
+                        ],
+                        gapLimit,
+                        source: 'fetchStandardAccounts'
+                      });
+                    },
                     async onAccountProgress() {
                       fetchStandardAccountsProgressCounter++;
                       if (activeWallet.walletId !== walletIdRef.current)
@@ -2902,8 +2974,13 @@ const WalletProviderRaw = ({
             t('app.syncNetworkError', { message }),
           whenToastErrors,
           requirements: { explorerReachable: true },
-          func: () =>
-            discovery.fetch({
+          func: () => {
+            logRangedAccountFetches({
+              descriptors,
+              gapLimit,
+              source: 'syncFetch'
+            });
+            return discovery.fetch({
               descriptors,
               gapLimit,
               async onProgress() {
@@ -2917,7 +2994,8 @@ const WalletProviderRaw = ({
                 }
                 return;
               }
-            })
+            });
+          }
         });
         if (activeWallet.walletId !== walletIdRef.current) {
           //do this after each await
