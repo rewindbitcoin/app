@@ -293,24 +293,26 @@ This will start the unfreeze countdown. The funds will become unlocked and avail
 Remember, "Accelerate" won't shorten the lock period. It only speeds up when your unfreeze process actually begins if low fees had held it up.
 
 You likely only need to wait around 10 minutes and really don't need this. Use "Accelerate" only if waiting that time (which could stretch to a couple of hours) isn't acceptable.`,
-        noReserveAvailableYet: `This unfreeze needs funds to pay network fees before Rewind can start it.`,
+        noReserveAvailableYet: `The fee reserve for this unfreeze has no funds yet. You can use your wallet balance if you have any available.`,
         reserveUnconfirmed: `The funds reserved to pay network fees for this unfreeze are still waiting for final blockchain confirmation.
 
 Wait a little longer, then try again.`,
-        insufficientReserveFunds: `This unfreeze needs more funds to pay network fees.`,
+        insufficientReserveFunds: `The fee reserve for this unfreeze is not enough to pay the network fee. You can use your wallet balance to cover the rest.`,
         reserveScanError: `Rewind could not check the funds reserved to pay network fees for this unfreeze.
 
 Check your connection and try again.`,
-        reserveCannotPaySelectedFee: `Available funds for this unfreeze cannot pay the selected network fee. Choose a cheaper option or add funds.`,
-        packageBelowRecommendedFee: `Available funds for this unfreeze may be too low for fast confirmation.`,
-        noReserveParentFeeBelowRecommendedFee: `This unfreeze can be sent now, but its built-in network fee may be low for current network conditions.`,
-        walletSupplementCheckbox: 'Use wallet funds.',
-        // Keep short: this appears in a narrow checkbox row under "Use wallet funds".
+        reserveCannotPaySelectedFee: `The fee reserve for this unfreeze is not enough to pay the selected network fee. Lower the fee or use your wallet balance to cover the rest.`,
+        packageBelowRecommendedFee: `The fee reserve may be too low for a quick confirmation. You can use your wallet balance to improve the fee.`,
+        noReserveParentFeeBelowRecommendedFee: `This unfreeze can be sent now, but its fee may be low for current network conditions. You can use your wallet balance to improve it.`,
+        walletSupplementCheckbox:
+          'Use available balance from your wallet to help pay this unfreeze fee. Rewind will only use what is needed.',
+        // Keep short: this appears in a narrow checkbox row.
         manualWalletSupplementCheckbox: 'Advanced: choose coins manually.',
         pickedWalletSupplementUtxosInsufficient: `The coins you selected cannot pay this unfreeze fee.
 
 Select more coins or switch back to automatic selection.`,
-        walletFundingHint: 'Your wallet needs at least {{amount}} more.',
+        walletFundingHint:
+          'Your wallet balance is still short by at least {{amount}}.',
         parentOnlyConfirmation: `Rewind is ready to start the unfreeze now.`,
         confirmationSpeedLabel: 'Mining Fee',
         feeSelectorExplanation:
@@ -753,6 +755,7 @@ For your security, please review these changes before proceeding.`,
     shareAddress: 'Share',
     copyAddress: 'Copy',
     intro: 'Share this address to receive Bitcoin',
+    advancedAddressOptions: 'Advanced address options',
     addressNoteTitle: 'Private address note',
     addressNoteIntro: 'Add a note to remember what this address is for.',
     addAddressNote: 'Add note',
@@ -1067,14 +1070,87 @@ Use this to simulate higher fees and extreme mempool conditions on Tape.`,
     edit: 'Edit note',
     saveError: 'Could not save note.'
   },
+  addressPicker: {
+    title: 'Advanced Address Options',
+    intro:
+      'For advanced users. The default address is recommended unless you know why you need another script, account or index.',
+    receiveIntro:
+      'Choose the exact receiving address to show. The default address is recommended for most users.',
+    changeIntro:
+      'Choose the exact change address for this transaction. The default change address is recommended for most users.',
+    script: 'Script',
+    addressType: 'Address type',
+    external: 'Receive',
+    change: 'Change',
+    account: 'Account',
+    index: 'Index',
+    pathSummary:
+      "/ {{script}}: {{purpose}}' / {{coinType}} / Account: {{account}}' / {{changeType}}: {{change}} / #{{index}}",
+    coinTypes: {
+      bitcoin: "Bitcoin: 0'",
+      test: "Test: 1'"
+    },
+    nextIndex: 'Next unused: {{index}}',
+    checking: 'Checking...',
+    used: 'Used before',
+    unused: 'Unused',
+    unknown: 'Unknown',
+    invalid: 'Enter account and index from 0 to {{max}}.',
+    gapBlocked:
+      'Choose an index up to {{max}}. Higher indexes may not be found when restoring the wallet.',
+    accountGapBlocked:
+      'Account {{account}} is too far ahead. Use account {{previousAccount}} first so restored wallets can find this account later.',
+    previousAccountChecking:
+      'Checking account history for account {{previousAccount}} before allowing account {{account}}.',
+    newAccountWarning: 'This account has no history yet.',
+    usedWarning: 'This address has been used before.',
+    unsupportedSigner:
+      'Advanced address selection is not available for this wallet signer yet.',
+    useAddress: 'Use address',
+    useReceiveAddress: 'Use receive address',
+    trackError:
+      'This address is shown, but the wallet could not save it for future balance updates. Open Advanced address options and choose it again before receiving bitcoin.',
+    scripts: {
+      taproot: 'Taproot',
+      nativeSegwit: 'SegWit',
+      wrappedSegwit: 'Wrapped SegWit',
+      legacy: 'Legacy'
+    }
+  },
   coinControl: {
+    advanced: 'Advanced',
+    advancedActive: 'Advanced on',
+    walletFunds: 'Use wallet balance',
+    walletFundsEnabled: 'On',
+    walletFundsOff: 'Off',
+    coinsAutomaticStatus: 'Coins: auto',
+    coinsManualStatus: 'Coins: custom',
+    changeAutomaticStatus: 'Change: auto',
+    changeCustomStatus: 'Change: custom',
     chooseCoins: 'Choose coins',
+    chooseCoinsIntro:
+      'Manually choose which coins to spend. Automatic selection is recommended for most users.',
+    automaticCoins: 'Automatic coins',
+    useAutomaticCoins: 'Use automatic coins',
+    selectedCoins_one: '{{count}} coin selected',
+    selectedCoins_other: '{{count}} coins selected',
+    changeAddress: 'Change address',
+    chooseChangeAddress: 'Choose change address',
+    editChangeAddress: 'Change',
+    changeAddressIntro:
+      'Choose where change goes for this transaction. Automatic change is recommended.',
+    useChangeAddress: 'Use change address',
+    customChangeAddress: 'Custom change address',
+    defaultChangeAddress: 'Automatic change',
+    clearChangeAddress: 'Use automatic change',
+    useDefaults: 'Use defaults',
+    done: 'Done',
+    back: 'Back',
     useSelected: 'Use selected',
     auto: 'Auto',
-    title: 'Choose Coins',
-    intro: `Rewind automatically selects coins from your wallet to pay the amount and fee you choose. Automatic selection is already optimized and recommended for most users.
-
-You usually do not need to choose coins. This option is for experienced users who want to pick specific coins themselves.`,
+    title: 'Advanced Options',
+    intro:
+      'Optional controls for advanced users. The defaults are recommended.',
     noUtxos: 'No UTXOs are available for manual selection.',
     labelPlaceholder: 'Private note for this coin',
     parentTxLabel: 'From tx: {{label}}',
@@ -1096,6 +1172,7 @@ You usually do not need to choose coins. This option is for experienced users wh
         'This vault output is still frozen. It will be available in about {{timeRemaining}}.'
     },
     groups: {
+      taproot: 'Taproot',
       nativeSegwit: 'Native SegWit',
       wrappedSegwit: 'Wrapped SegWit',
       legacy: 'Legacy',

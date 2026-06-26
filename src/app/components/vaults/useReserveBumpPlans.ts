@@ -5,12 +5,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useWallet } from '../../hooks/useWallet';
 import { networkMapping, type NetworkId } from '../../lib/network';
 import { getTriggerReserveDescriptor } from '../../lib/p2aReserve';
-import {
-  computeChangeOutput,
-  DUMMY_CHANGE_OUTPUT,
-  computeReceiveOutput,
-  getMainAccount
-} from '../../lib/vaultDescriptors';
+import { computeOutput } from '../../lib/vaultDescriptors';
 import { type Vault, utxosDataBalance } from '../../lib/vaults';
 import type { P2ABumpPlan } from '../../lib/vaultActionTx';
 import type { EphemeralWalletData } from '../EphemeralWalletWizard';
@@ -28,12 +23,8 @@ export const useTriggerReserveBumpPlan = ({
   networkId: NetworkId | undefined;
   syncingBlockchain: boolean;
 }) => {
-  const {
-    accounts,
-    signers,
-    canFetchReserveDescriptorData,
-    fetchReserveDescriptorData
-  } = useWallet();
+  const { signers, canFetchReserveDescriptorData, fetchReserveDescriptorData } =
+    useWallet();
   const walletSigner = signers?.[0];
   const [p2aBumpPlan, setP2ABumpPlan] = useState<ReserveBumpPlan>('loading');
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -51,7 +42,7 @@ export const useTriggerReserveBumpPlan = ({
     );
     setIsRefreshing(true);
 
-    if (!enabled || !networkId || !walletSigner || !accounts) {
+    if (!enabled || !networkId || !walletSigner) {
       setP2ABumpPlan('loading');
       setIsRefreshing(false);
       return;
@@ -83,10 +74,6 @@ export const useTriggerReserveBumpPlan = ({
         setP2ABumpPlan({
           txosData,
           hasUnconfirmedUtxos,
-          changeOutput: DUMMY_CHANGE_OUTPUT(
-            getMainAccount(accounts, network),
-            network
-          ),
           signer: walletSigner
         });
         setIsRefreshing(false);
@@ -104,7 +91,6 @@ export const useTriggerReserveBumpPlan = ({
     enabled,
     networkId,
     walletSigner,
-    accounts,
     canFetchReserveDescriptorData,
     vault,
     fetchReserveDescriptorData
@@ -152,7 +138,7 @@ export const useRescueReserveBumpPlan = ({
     useWallet();
   const [state, setState] = useState<{
     p2aBumpPlan: ReserveBumpPlan;
-    nextOutput?: ReturnType<typeof computeReceiveOutput>;
+    nextOutput?: ReturnType<typeof computeOutput>;
   }>(() =>
     !enabled || reserveData
       ? { p2aBumpPlan: 'loading' }
@@ -217,7 +203,7 @@ export const useRescueReserveBumpPlan = ({
           return;
         }
         const { txosData, hasUnconfirmedUtxos, nextIndex } = fetchedReserveData;
-        const nextOutput = computeReceiveOutput(
+        const nextOutput = computeOutput(
           { descriptor: reserveData.addressDescriptor, index: nextIndex },
           network
         );
@@ -226,10 +212,6 @@ export const useRescueReserveBumpPlan = ({
           p2aBumpPlan: {
             txosData,
             hasUnconfirmedUtxos,
-            changeOutput: computeChangeOutput(
-              { descriptor: reserveData.changeDescriptor, index: 0 },
-              network
-            ),
             signer: reserveData.signer
           }
         });
@@ -275,5 +257,10 @@ export const useRescueReserveBumpPlan = ({
   const nextOutput =
     typeof p2aBumpPlan === 'object' ? state.nextOutput : undefined;
 
-  return { p2aBumpPlan, nextOutput, isRefreshing, syncBumpPlan };
+  return {
+    p2aBumpPlan,
+    nextOutput,
+    isRefreshing,
+    syncBumpPlan
+  };
 };

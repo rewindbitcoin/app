@@ -2,7 +2,13 @@
 // Licensed under the GNU GPL v3 or later. See the LICENSE file for details.
 
 const INPUT_MAX_LENGTH = 18;
-import React, { useState, useCallback, useRef, useMemo } from 'react';
+import React, {
+  useState,
+  useCallback,
+  useRef,
+  useMemo,
+  useImperativeHandle
+} from 'react';
 import AntDesign from '@expo/vector-icons/AntDesign';
 import {
   Text,
@@ -76,14 +82,18 @@ interface NumericInputProps {
 //a new component.
 let lastMaxLengthWidthGlobal: null | number = null;
 
-const NumericInput = ({
-  maxLength = INPUT_MAX_LENGTH,
-  strValue,
-  numberFormatting = true,
-  locale,
-  style,
-  onChangeValue
-}: NumericInputProps) => {
+const NumericInput = React.forwardRef<TextInput, NumericInputProps>(
+  (
+    {
+      maxLength = INPUT_MAX_LENGTH,
+      strValue,
+      numberFormatting = true,
+      locale,
+      style,
+      onChangeValue
+    }: NumericInputProps,
+    ref
+  ) => {
   if (maxLength > INPUT_MAX_LENGTH)
     throw new Error(`This component admits ${INPUT_MAX_LENGTH} length at most`);
 
@@ -94,6 +104,8 @@ const NumericInput = ({
     start: number;
     end: number;
   }>({ start: strValue.length, end: strValue.length });
+  const inputRef = useRef<TextInput>(null);
+  useImperativeHandle(ref, () => inputRef.current as TextInput);
 
   //https://lefkowitz.me/visual-guide-to-react-native-textinput-keyboardtype-options/
   const keyboardType = 'numeric';
@@ -255,6 +267,7 @@ const NumericInput = ({
         {'0'.repeat(INPUT_MAX_LENGTH)}
       </Text>
       <TextInput
+        ref={inputRef}
         maxLength={INPUT_MAX_LENGTH}
         {...(selection ? { selection } : {})}
         keyboardType={keyboardType}
@@ -273,7 +286,9 @@ const NumericInput = ({
       />
     </View>
   );
-};
+  }
+);
+NumericInput.displayName = 'NumericInput';
 
 export default React.memo(NumericInput);
 

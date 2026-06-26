@@ -291,24 +291,26 @@ Esto iniciará la cuenta regresiva de descongelación. Los fondos se desbloquear
 Nota: "Acelerar" no reduce el período de bloqueo; sólo ayuda a que el proceso comience antes si una comisión baja lo retrasó.
 
 Seguramente sólo necesitas esperar unos 10 minutos y realmente no necesitas esto. Usa "Acelerar" sólo si esperar ese tiempo (que podría alargarse hasta un par de horas) no es aceptable.`,
-        noReserveAvailableYet: `Esta descongelación necesita fondos para pagar comisiones de red antes de que Rewind pueda iniciarla.`,
+        noReserveAvailableYet: `La reserva para comisiones de esta descongelación todavía no tiene fondos. Puedes usar saldo de tu billetera si tienes disponible.`,
         reserveUnconfirmed: `Los fondos reservados para pagar las comisiones de red de esta descongelación siguen esperando la confirmación final en la blockchain.
 
 Espera un poco más y vuelve a intentarlo.`,
-        insufficientReserveFunds: `Esta descongelación necesita más fondos para pagar comisiones de red.`,
+        insufficientReserveFunds: `La reserva para comisiones de esta descongelación no alcanza para pagar la comisión de red. Puedes usar saldo de tu billetera para cubrir lo que falta.`,
         reserveScanError: `Rewind no pudo comprobar los fondos reservados para pagar las comisiones de red de esta descongelación.
 
 Comprueba tu conexión e inténtalo de nuevo.`,
-        reserveCannotPaySelectedFee: `Los fondos disponibles para esta descongelación no alcanzan para pagar la comisión seleccionada. Selecciona una comisión menor o añade fondos.`,
-        packageBelowRecommendedFee: `Los fondos disponibles para esta descongelación pueden ser insuficientes para una confirmación rápida.`,
-        noReserveParentFeeBelowRecommendedFee: `Esta descongelación puede enviarse ahora, pero la comisión de red que ya lleva incluida puede ser baja para las condiciones actuales de la red.`,
-        walletSupplementCheckbox: 'Usar fondos de mi billetera.',
-        // Mantener corto: aparece en una fila estrecha bajo "Usar fondos de mi billetera".
+        reserveCannotPaySelectedFee: `La reserva para comisiones de esta descongelación no alcanza para pagar la comisión seleccionada. Baja la comisión o usa saldo de tu billetera para cubrir lo que falta.`,
+        packageBelowRecommendedFee: `La reserva para comisiones puede ser baja para una confirmación rápida. Puedes usar saldo de tu billetera para mejorar la comisión.`,
+        noReserveParentFeeBelowRecommendedFee: `Esta descongelación puede enviarse ahora, pero su comisión puede ser baja para las condiciones actuales de la red. Puedes usar saldo de tu billetera para mejorarla.`,
+        walletSupplementCheckbox:
+          'Usa saldo disponible de tu billetera para ayudar a pagar la comisión de esta descongelación. Rewind solo usará lo necesario.',
+        // Mantener corto: aparece en una fila estrecha.
         manualWalletSupplementCheckbox: 'Avanzado: elegir monedas manualmente.',
         pickedWalletSupplementUtxosInsufficient: `Las monedas que seleccionaste no alcanzan para pagar esta descongelación.
 
 Selecciona más monedas o vuelve a la selección automática.`,
-        walletFundingHint: 'Tu billetera necesita al menos {{amount}} más.',
+        walletFundingHint:
+          'A tu billetera todavía le faltan al menos {{amount}} de saldo disponible.',
         parentOnlyConfirmation: `Rewind está listo para iniciar la descongelación ahora.`,
         confirmationSpeedLabel: 'Comisión',
         feeSelectorExplanation:
@@ -695,6 +697,7 @@ Por tu seguridad, por favor revisa estos cambios antes de continuar.`,
     shareAddress: 'Compartir',
     copyAddress: 'Copiar',
     intro: 'Comparte esta dirección para recibir Bitcoin',
+    advancedAddressOptions: 'Opciones avanzadas de dirección',
     addressNoteTitle: 'Nota privada para la dirección',
     addressNoteIntro: 'Añade una nota para recordar para qué es esta dirección.',
     addAddressNote: 'Añadir nota',
@@ -992,14 +995,87 @@ Usa esto para simular comisiones más altas y condiciones extremas de mempool en
     edit: 'Editar nota',
     saveError: 'No se pudo guardar la nota.'
   },
+  addressPicker: {
+    title: 'Opciones avanzadas de dirección',
+    intro:
+      'Para usuarios avanzados. La dirección por defecto es la recomendada salvo que sepas por qué necesitas otro script, cuenta o índice.',
+    receiveIntro:
+      'Elige la dirección exacta que quieres mostrar para recibir. La dirección por defecto es la recomendada para la mayoría de usuarios.',
+    changeIntro:
+      'Elige la dirección de cambio exacta para esta transacción. La dirección de cambio por defecto es la recomendada para la mayoría de usuarios.',
+    script: 'Script',
+    addressType: 'Tipo de dirección',
+    external: 'Recibir',
+    change: 'Cambio',
+    account: 'Cuenta',
+    index: 'Índice',
+    pathSummary:
+      "/ {{script}}: {{purpose}}' / {{coinType}} / Cuenta: {{account}}' / {{changeType}}: {{change}} / #{{index}}",
+    coinTypes: {
+      bitcoin: "Bitcoin: 0'",
+      test: "Test: 1'"
+    },
+    nextIndex: 'Siguiente sin usar: {{index}}',
+    checking: 'Comprobando...',
+    used: 'Usada antes',
+    unused: 'Sin usar',
+    unknown: 'Desconocido',
+    invalid: 'Introduce cuenta e índice entre 0 y {{max}}.',
+    gapBlocked:
+      'Elige un índice hasta {{max}}. Los índices más altos podrían no encontrarse al restaurar la wallet.',
+    accountGapBlocked:
+      'La cuenta {{account}} está demasiado adelantada. Usa primero la cuenta {{previousAccount}} para que las wallets restauradas puedan encontrar esta cuenta después.',
+    previousAccountChecking:
+      'Comprobando el historial de la cuenta {{previousAccount}} antes de permitir la cuenta {{account}}.',
+    newAccountWarning: 'Esta cuenta todavía no tiene historial.',
+    usedWarning: 'Esta dirección ya se ha usado antes.',
+    unsupportedSigner:
+      'La selección avanzada de dirección aún no está disponible para este firmante.',
+    useAddress: 'Usar dirección',
+    useReceiveAddress: 'Usar dirección de recepción',
+    trackError:
+      'La dirección se muestra, pero la wallet no pudo guardarla para futuras actualizaciones del saldo. Abre Opciones avanzadas de dirección y vuelve a elegirla antes de recibir bitcoin.',
+    scripts: {
+      taproot: 'Taproot',
+      nativeSegwit: 'SegWit',
+      wrappedSegwit: 'SegWit anidado',
+      legacy: 'Legacy'
+    }
+  },
   coinControl: {
+    advanced: 'Avanzado',
+    advancedActive: 'Avanzado activo',
+    walletFunds: 'Usar saldo de tu billetera',
+    walletFundsEnabled: 'Activado',
+    walletFundsOff: 'Desactivado',
+    coinsAutomaticStatus: 'Monedas: auto',
+    coinsManualStatus: 'Monedas: personalizado',
+    changeAutomaticStatus: 'Cambio: auto',
+    changeCustomStatus: 'Cambio: personalizado',
     chooseCoins: 'Elegir monedas',
+    chooseCoinsIntro:
+      'Elige manualmente qué monedas gastar. La selección automática es recomendable para la mayoría.',
+    automaticCoins: 'Monedas automáticas',
+    useAutomaticCoins: 'Usar monedas automáticas',
+    selectedCoins_one: '{{count}} moneda seleccionada',
+    selectedCoins_other: '{{count}} monedas seleccionadas',
+    changeAddress: 'Dirección de cambio',
+    chooseChangeAddress: 'Elegir dirección de cambio',
+    editChangeAddress: 'Cambiar',
+    changeAddressIntro:
+      'Elige a dónde irá el cambio de esta transacción. El cambio automático es lo recomendado.',
+    useChangeAddress: 'Usar dirección de cambio',
+    customChangeAddress: 'Dirección de cambio personalizada',
+    defaultChangeAddress: 'Cambio automático',
+    clearChangeAddress: 'Usar cambio automático',
+    useDefaults: 'Usar valores por defecto',
+    done: 'Listo',
+    back: 'Atrás',
     useSelected: 'Usar selección',
     auto: 'Auto',
-    title: 'Elegir monedas',
-    intro: `Rewind selecciona automáticamente las monedas de tu billetera para pagar la cantidad y comisión que indiques. La selección automática ya está optimizada y es la recomendada para la mayoría de usuarios.
-
-Normalmente no hace falta elegir monedas. Esta opción está pensada para usuarios con experiencia que quieren escoger monedas concretas manualmente.`,
+    title: 'Opciones avanzadas',
+    intro:
+      'Controles opcionales para usuarios avanzados. Lo recomendado es usar los valores por defecto.',
     noUtxos: 'No hay UTXOs disponibles para la selección manual.',
     labelPlaceholder: 'Nota privada para esta moneda',
     parentTxLabel: 'Transacción: {{label}}',
@@ -1021,8 +1097,9 @@ Normalmente no hace falta elegir monedas. Esta opción está pensada para usuari
         'Esta salida de bóveda sigue congelada. Estará disponible en aproximadamente {{timeRemaining}}.'
     },
     groups: {
+      taproot: 'Taproot',
       nativeSegwit: 'SegWit Nativo',
-      wrappedSegwit: 'SegWit Envuelto',
+      wrappedSegwit: 'SegWit Anidado',
       legacy: 'Legacy',
       vault: 'Fondos de Bóveda',
       wallet: 'Fondos de Billetera',

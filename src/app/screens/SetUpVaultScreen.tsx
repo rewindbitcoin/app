@@ -2,12 +2,11 @@
 // Licensed under the GNU GPL v3 or later. See the LICENSE file for details.
 
 import AddressInput from '../components/AddressInput';
+import { AdvancedTransactionOptionsModal } from '../components/AdvancedTransactionOptions';
 import AmountInput from '../components/AmountInput';
 import BlocksInput from '../components/BlocksInput';
-import {
-  CoinControlModal,
-  CoinControlRecoveryPanel
-} from '../components/CoinControl';
+import { CoinControlRecoveryPanel } from '../components/CoinControl';
+import type { AddressScriptSelection } from '../components/AddressScriptPicker';
 import FeeInput from '../components/FeeInput';
 import LearnMoreAboutVaults from '../components/LearnMoreAboutVaults';
 import ModalInfoButton from '../components/ModalInfoButton';
@@ -40,7 +39,7 @@ import {
   DUMMY_TRIGGER_RESERVE_OUTPUT,
   DUMMY_VAULT_OUTPUT,
   DUMMY_CHANGE_OUTPUT,
-  getMainAccount,
+  computeOutput,
   DUMMY_COLD_ADDRESS
 } from '../lib/vaultDescriptors';
 import useFirstDefinedValue from '../../common/hooks/useFirstDefinedValue';
@@ -92,7 +91,8 @@ export default function VaultSetUp({
     historyData,
     vaults,
     vaultsStatuses,
-    tipStatus
+    tipStatus,
+    getPreferredAccount
   } = useWallet();
 
   //Cache to avoid flickering in the Sliders
@@ -171,13 +171,21 @@ export default function VaultSetUp({
   const [coldAddress, setColdAddress] = useState<string | null>(
     lastUnusedColdAddress
   );
-  const [isCoinControlVisible, setIsCoinControlVisible] =
+  const [isAdvancedOptionsVisible, setIsAdvancedOptionsVisible] =
     useState<boolean>(false);
+  const [advancedOptionsEntryScreen, setAdvancedOptionsEntryScreen] = useState<
+    'overview' | 'coinSelection'
+  >('overview');
   // If set, these are the vaultable UTXOs manually picked by the user.
   const [pickedVaultableUtxosData, setPickedVaultableUtxosData] =
     useState<UtxosData | null>(null);
+  const [customChangeAddressSelection, setCustomChangeAddressSelection] =
+    useState<AddressScriptSelection | null>(null);
   const coinControl = pickedVaultableUtxosData !== null;
-  const coinControlSwitchOn = coinControl || isCoinControlVisible;
+  const advancedOptionsActive =
+    coinControl ||
+    isAdvancedOptionsVisible ||
+    customChangeAddressSelection !== null;
   const [prefilledAddressHelp, setPrefilledAddressHelp] =
     useState<boolean>(false);
   const showPrefilledAddressHelp = useCallback(
@@ -188,25 +196,60 @@ export default function VaultSetUp({
     () => setPrefilledAddressHelp(false),
     []
   );
-  const handleCoinControlChange = useCallback((coinControl: boolean) => {
-    if (coinControl) setIsCoinControlVisible(true);
-    else setPickedVaultableUtxosData(null);
+  const handleOpenAdvancedOptions = useCallback(() => {
+    setAdvancedOptionsEntryScreen('overview');
+    setIsAdvancedOptionsVisible(true);
   }, []);
-  const handleUseAutoCoinSelect = useCallback(() => {
-    handleCoinControlChange(false);
-  }, [handleCoinControlChange]);
-  const handleCloseCoinControl = useCallback(
-    () => setIsCoinControlVisible(false),
+  const handleOpenCoinSelection = useCallback(() => {
+    setAdvancedOptionsEntryScreen('coinSelection');
+    setIsAdvancedOptionsVisible(true);
+  }, []);
+  const handleUseAutomaticCoinSelection = useCallback(() => {
+    setPickedVaultableUtxosData(null);
+  }, []);
+  const handleCloseAdvancedOptions = useCallback(
+    () => setIsAdvancedOptionsVisible(false),
     []
   );
-  const handleConfirmCoinControl = useCallback((utxosData: UtxosData) => {
+  const handleConfirmCoinSelection = useCallback((utxosData: UtxosData) => {
     setPickedVaultableUtxosData(utxosData);
-    setIsCoinControlVisible(false);
+    setIsAdvancedOptionsVisible(false);
   }, []);
+  const handleClearCoinSelection = useCallback(
+    () => setPickedVaultableUtxosData(null),
+    []
+  );
+  const handleConfirmChangeAddress = useCallback(
+    (selection: AddressScriptSelection) => {
+      setCustomChangeAddressSelection(selection);
+      setIsAdvancedOptionsVisible(false);
+    },
+    []
+  );
+  const handleClearChangeAddress = useCallback(
+    () => setCustomChangeAddressSelection(null),
+    []
+  );
   const { t } = useTranslation();
-  const dummyChangeOutput = DUMMY_CHANGE_OUTPUT(
-    getMainAccount(accounts, network),
-    network
+  const customChangeDescriptorWithIndex = useMemo(
+    () =>
+      customChangeAddressSelection
+        ? {
+            descriptor: customChangeAddressSelection.descriptor,
+            index: customChangeAddressSelection.index
+          }
+        : undefined,
+    [customChangeAddressSelection]
+  );
+  // Only use this output for estimates. Custom change uses the exact picked
+  // descriptor/index. Automatic change uses a dummy output because the real
+  // next change descriptor/index is chosen later, when the vault is created.
+  const changeOutputForEstimates = useMemo(
+    () =>
+      customChangeDescriptorWithIndex
+        ? computeOutput(customChangeDescriptorWithIndex, network)
+        : DUMMY_CHANGE_OUTPUT(getPreferredAccount(), network),
+    [customChangeDescriptorWithIndex, getPreferredAccount, network]
   );
 
   const presignedTriggerFeeRate = getPresignedTriggerFeeRate(
@@ -241,7 +284,6 @@ export default function VaultSetUp({
     maxVaultAtMinimumPackageFeeRate,
     minimumVaultSetup
   } = estimateVaultSetupRange({
-    accounts,
     utxosData: pickedVaultableUtxosData ?? vaultableUtxosData,
     coinControl,
     coldAddress: coldAddress || DUMMY_COLD_ADDRESS(network),
@@ -249,6 +291,7 @@ export default function VaultSetUp({
     packageFeeRate: selectedTargetPackageFeeRate,
     lockBlocks: lockBlocks || settings.INITIAL_LOCK_BLOCKS,
     network,
+    changeOutput: changeOutputForEstimates,
     vaultMode,
     presignedTriggerFeeRate,
     presignedRescueFeeRate: settings.PRESIGNED_RESCUE_FEERATE,
@@ -256,7 +299,6 @@ export default function VaultSetUp({
   });
   const vaultSetupRangeAssumingAutoCoinSelection = coinControl
     ? estimateVaultSetupRange({
-        accounts,
         utxosData: vaultableUtxosData,
         coinControl: false,
         coldAddress: coldAddress || DUMMY_COLD_ADDRESS(network),
@@ -264,6 +306,7 @@ export default function VaultSetUp({
         packageFeeRate: selectedTargetPackageFeeRate,
         lockBlocks: lockBlocks || settings.INITIAL_LOCK_BLOCKS,
         network,
+        changeOutput: changeOutputForEstimates,
         vaultMode,
         presignedTriggerFeeRate,
         presignedRescueFeeRate: settings.PRESIGNED_RESCUE_FEERATE,
@@ -275,7 +318,6 @@ export default function VaultSetUp({
         minimumVaultSetup
       };
   const rawVaultRange = estimateVaultSetupRange({
-    accounts,
     utxosData: rawUtxosData,
     coinControl: false,
     coldAddress: coldAddress || DUMMY_COLD_ADDRESS(network),
@@ -283,6 +325,7 @@ export default function VaultSetUp({
     packageFeeRate: selectedTargetPackageFeeRate,
     lockBlocks: lockBlocks || settings.INITIAL_LOCK_BLOCKS,
     network,
+    changeOutput: changeOutputForEstimates,
     vaultMode,
     presignedTriggerFeeRate,
     presignedRescueFeeRate: settings.PRESIGNED_RESCUE_FEERATE,
@@ -354,7 +397,7 @@ export default function VaultSetUp({
   const triggerReserveValue = getAdditionalP2AOutputValue({
     outputsWithValue: [],
     additionalOutput: DUMMY_TRIGGER_RESERVE_OUTPUT(network),
-    changeOutput: dummyChangeOutput,
+    changeOutput: changeOutputForEstimates,
     parentAnchorValue: toNumber(getTriggerAnchorValue(vaultMode)),
     presignedParentVSize: Math.max(...TRIGGER_TX_VBYTES),
     presignedParentFeeRate: presignedTriggerFeeRate,
@@ -429,6 +472,9 @@ export default function VaultSetUp({
       lockBlocks,
 
       accounts,
+      ...(customChangeDescriptorWithIndex
+        ? { customChangeDescriptorWithIndex }
+        : {}),
       utxosData: pickedVaultableUtxosData ?? vaultableUtxosData,
       coinControl,
       btcFiat
@@ -444,7 +490,8 @@ export default function VaultSetUp({
     onVaultSetUpComplete,
     coldAddress,
     accounts,
-    btcFiat
+    btcFiat,
+    customChangeDescriptorWithIndex
   ]);
 
   /**
@@ -497,13 +544,13 @@ export default function VaultSetUp({
             triggerReserveValue: getAdditionalP2AOutputValue({
               outputsWithValue: [],
               additionalOutput: DUMMY_TRIGGER_RESERVE_OUTPUT(network),
-              changeOutput: dummyChangeOutput,
+              changeOutput: changeOutputForEstimates,
               parentAnchorValue: toNumber(getTriggerAnchorValue(vaultMode)),
               presignedParentVSize: Math.max(...TRIGGER_TX_VBYTES),
               presignedParentFeeRate: presignedTriggerFeeRate,
               targetPackageFeeRate: settings.MAX_TRIGGER_FEERATE
             }),
-            changeOutput: dummyChangeOutput,
+            changeOutput: changeOutputForEstimates,
             vaultMode,
             packageFeeRate: newPackageFeeRate
           });
@@ -522,8 +569,6 @@ export default function VaultSetUp({
       });
     },
     [
-      accounts,
-      dummyChangeOutput,
       isMaxVaultedAmount,
       isValidVaultAmountRange,
       minimumVaultSetup.vaultedAmount,
@@ -532,6 +577,7 @@ export default function VaultSetUp({
       coinControl,
       network,
       presignedTriggerFeeRate,
+      changeOutputForEstimates,
       settings.MAX_TRIGGER_FEERATE,
       vaultMode,
       setUserSelectedPackageFeeRate
@@ -564,7 +610,7 @@ export default function VaultSetUp({
         //creation will fund.
         vaultOutput: DUMMY_VAULT_OUTPUT(network),
         backupOutput: DUMMY_BACKUP_OUTPUT(network),
-        changeOutput: dummyChangeOutput,
+        changeOutput: changeOutputForEstimates,
         packageFeeRate,
         vaultMode,
         vaultedAmount: toBigInt(vaultedAmount),
@@ -596,11 +642,6 @@ export default function VaultSetUp({
     lockBlocks !== null &&
     packageFeeRate !== null &&
     coldAddress !== null;
-
-  const handleOpenCoinControl = useCallback(
-    () => setIsCoinControlVisible(true),
-    []
-  );
 
   return (
     <KeyboardAwareScrollView
@@ -698,9 +739,9 @@ export default function VaultSetUp({
                 btcFiat={btcFiat}
                 isMaxAmount={isMaxVaultedAmount}
                 label={t('vaultSetup.amountLabel')}
-                allowCoinControl
-                coinControl={coinControlSwitchOn}
-                onCoinControlChange={handleCoinControlChange}
+                allowAdvancedOptions
+                advancedOptionsActive={advancedOptionsActive}
+                onAdvancedOptionsPress={handleOpenAdvancedOptions}
                 initialValue={maxVaultedAmount}
                 min={minimumVaultSetup.vaultedAmount}
                 max={maxVaultedAmount}
@@ -723,8 +764,8 @@ export default function VaultSetUp({
               {coinControl && canBuildAtSelectedFeeAssumingAutoCoinSelection ? (
                 <CoinControlRecoveryPanel
                   message={t('vaultSetup.pickedUtxosInsufficient')}
-                  onOpenCoinControl={handleOpenCoinControl}
-                  onUseAuto={handleUseAutoCoinSelect}
+                  onOpenCoinControl={handleOpenCoinSelection}
+                  onUseAuto={handleUseAutomaticCoinSelection}
                 />
               ) : (
                 <Text className="text-base m-auto self-center text-red-500">
@@ -805,13 +846,19 @@ export default function VaultSetUp({
                 : t('vaultSetup.coldAddressMissing')}
             </Text>
           )}
-          <CoinControlModal
-            isVisible={isCoinControlVisible}
+          <AdvancedTransactionOptionsModal
+            isVisible={isAdvancedOptionsVisible}
+            entryScreen={advancedOptionsEntryScreen}
             utxosAvailability={vaultCoinControlUtxosAvailability}
             pickedUtxosData={pickedVaultableUtxosData}
             btcFiat={btcFiat}
-            onClose={handleCloseCoinControl}
-            onConfirm={handleConfirmCoinControl}
+            changeAddressSelection={customChangeAddressSelection}
+            initialChangeAccount={getPreferredAccount()}
+            onClose={handleCloseAdvancedOptions}
+            onClearCoinSelection={handleClearCoinSelection}
+            onClearChangeAddress={handleClearChangeAddress}
+            onConfirmChangeAddress={handleConfirmChangeAddress}
+            onConfirmCoinSelection={handleConfirmCoinSelection}
           />
         </View>
       )}

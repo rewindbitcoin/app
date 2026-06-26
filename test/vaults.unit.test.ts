@@ -41,6 +41,7 @@ import { fromHex } from 'uint8array-tools';
 import { createAddressOutput } from '../dist/src/app/lib/vaultDescriptors';
 
 const P2A_NON_TRUC_ANCHOR_SATS = Number(P2A_NON_TRUC_ANCHOR_VALUE);
+const DUMMY_FINAL_CHILD_CHANGE = { descriptor: 'wpkh(dummy/*)', index: 0 };
 
 const DUMMY_ADDRESS = (network: Network) => {
   if (network === networks.bitcoin)
@@ -297,8 +298,7 @@ describe('vaults unit tests', () => {
     });
     const p2aBumpPlan = {
       txosData: [priorReserveUtxo],
-      hasUnconfirmedUtxos: false,
-      changeOutput
+      hasUnconfirmedUtxos: false
     };
     const presignedTxInfos = [
       {
@@ -314,6 +314,7 @@ describe('vaults unit tests', () => {
       pushedChildTxHex,
       presignedTxInfos,
       p2aBumpPlan,
+      childChangeOutput: changeOutput,
       coinControl: false,
       historyData: []
     });
@@ -328,10 +329,15 @@ describe('vaults unit tests', () => {
       pushedTxHex: parentTxHex,
       presignedTxInfos,
       p2aBumpPlan,
+      childChangePlan: {
+        output: changeOutput,
+        finalChildChange: DUMMY_FINAL_CHILD_CHANGE
+      },
       coinControl: false
     });
 
     expect(txData?.p2aBumpPlan?.txosData).toHaveLength(1);
+    expect(txData?.finalChildChange).toEqual(DUMMY_FINAL_CHILD_CHANGE);
     expect(txData?.p2aBumpPlan?.txosData[0]?.tx.getId()).toBe(
       priorReserveUtxo.tx.getId()
     );
@@ -359,8 +365,7 @@ describe('vaults unit tests', () => {
     ];
     const reserveOnlyPlan = {
       txosData: [reserveUtxo],
-      hasUnconfirmedUtxos: false,
-      changeOutput
+      hasUnconfirmedUtxos: false
     };
 
     expect(
@@ -369,6 +374,10 @@ describe('vaults unit tests', () => {
         selectedFeeRate: 20,
         presignedTxInfos,
         p2aBumpPlan: reserveOnlyPlan,
+        childChangePlan: {
+          output: changeOutput,
+          finalChildChange: DUMMY_FINAL_CHILD_CHANGE
+        },
         coinControl: false
       })
     ).toBeNull();
@@ -378,11 +387,18 @@ describe('vaults unit tests', () => {
       selectedFeeRate: 20,
       presignedTxInfos,
       p2aBumpPlan: reserveOnlyPlan,
+      childChangePlan: {
+        output: changeOutput,
+        finalChildChange: DUMMY_FINAL_CHILD_CHANGE
+      },
       vaultableWalletUtxosData: [walletUtxo],
       coinControl: false
     });
 
     expect(supplementedTxData?.p2aBumpPlan?.txosData).toHaveLength(1);
+    expect(supplementedTxData?.finalChildChange).toEqual(
+      DUMMY_FINAL_CHILD_CHANGE
+    );
     expect(supplementedTxData?.p2aBumpPlan?.txosData[0]?.tx.getId()).toBe(
       reserveUtxo.tx.getId()
     );
@@ -398,6 +414,39 @@ describe('vaults unit tests', () => {
     expect(supplementedTxData.walletSupplementUtxosData[0]?.tx.getId()).toBe(
       walletUtxo.tx.getId()
     );
+  });
+
+  test('P2A blocker waits when child change is not ready', () => {
+    const parentTxHex = createSyntheticTxHex({
+      version: 2,
+      mainOutputValue: 12000,
+      p2aValue: P2A_NON_TRUC_ANCHOR_SATS
+    });
+    const parentTx = Transaction.fromHex(parentTxHex);
+    const parentFee = 120;
+
+    expect(
+      getVaultActionBlocker({
+        vaultMode: 'P2A_NON_TRUC',
+        feeEstimates: { '1': 10 },
+        presignedTxInfos: [
+          {
+            txHex: parentTxHex,
+            fee: parentFee,
+            feeRate: parentFee / parentTx.virtualSize()
+          }
+        ],
+        p2aBumpPlan: {
+          txosData: [createSyntheticUtxoData(10000)],
+          hasUnconfirmedUtxos: false
+        },
+        coinControl: false,
+        historyData: []
+      })
+    ).toEqual({
+      reason: 'childChangeUnavailable',
+      minimumSelectableFeeRate: null
+    });
   });
 
   test('P2A trigger supplement allows unconfirmed wallet UTXOs only for non-TRUC', () => {
@@ -516,8 +565,11 @@ describe('vaults unit tests', () => {
         ],
         p2aBumpPlan: {
           txosData: [createSyntheticUtxoData(1)],
-          hasUnconfirmedUtxos: false,
-          changeOutput
+          hasUnconfirmedUtxos: false
+        },
+        childChangePlan: {
+          output: changeOutput,
+          finalChildChange: DUMMY_FINAL_CHILD_CHANGE
         },
         coinControl: false
       })
@@ -548,8 +600,11 @@ describe('vaults unit tests', () => {
       ],
       p2aBumpPlan: {
         txosData: [reserveUtxo],
-        hasUnconfirmedUtxos: false,
-        changeOutput
+        hasUnconfirmedUtxos: false
+      },
+      childChangePlan: {
+        output: changeOutput,
+        finalChildChange: DUMMY_FINAL_CHILD_CHANGE
       },
       vaultableWalletUtxosData: [walletUtxo],
       coinControl: false
@@ -587,8 +642,11 @@ describe('vaults unit tests', () => {
       ],
       p2aBumpPlan: {
         txosData: [reserveUtxo],
-        hasUnconfirmedUtxos: false,
-        changeOutput
+        hasUnconfirmedUtxos: false
+      },
+      childChangePlan: {
+        output: changeOutput,
+        finalChildChange: DUMMY_FINAL_CHILD_CHANGE
       },
       vaultableWalletUtxosData: [walletUtxoA, walletUtxoB],
       coinControl: true
@@ -664,9 +722,9 @@ describe('vaults unit tests', () => {
         ],
         p2aBumpPlan: {
           txosData: [priorReserveUtxo],
-          hasUnconfirmedUtxos: false,
-          changeOutput
+          hasUnconfirmedUtxos: false
         },
+        childChangeOutput: changeOutput,
         coinControl: false,
         historyData: []
       })

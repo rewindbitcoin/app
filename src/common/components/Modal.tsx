@@ -53,6 +53,7 @@ export interface ModalProps {
   closeButtonText?: string;
   headerMini?: boolean;
   onClose?: () => void;
+  onModalWillShow?: () => void;
   onModalHide?: () => void;
   children: React.ReactNode;
 }
@@ -68,6 +69,7 @@ const RawModal: React.FC<ModalProps> = ({
   headerMini = false,
   closeButtonText,
   onClose,
+  onModalWillShow,
   onModalHide,
   customButtons = null,
   title,
@@ -294,6 +296,7 @@ const RawModal: React.FC<ModalProps> = ({
       // The sheet's translateY movement is fully controlled by Reanimated.
       animationIn="fadeIn"
       animationOut="fadeOut"
+      onModalWillShow={onModalWillShow}
       onModalHide={onModalHide}
       style={{
         ...(Platform.OS !== 'web' ? { justifyContent: 'flex-end' } : {}),

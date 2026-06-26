@@ -120,6 +120,13 @@ export type VaultSettings = {
    * and should be tied together. Note those could change on a refresh.
    */
   accounts: Accounts;
+  /**
+   * Set only when the user chose a custom wallet change address during vault
+   * setup. Vault creation uses this exact descriptor/index for change and asks
+   * the wallet to track it after broadcast. Leave unset for automatic wallet
+   * change.
+   */
+  customChangeDescriptorWithIndex?: { descriptor: string; index: number };
   utxosData: UtxosData;
   /**
    * When true, `utxosData` is the exact manual UTXO selection from the user.

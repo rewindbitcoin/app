@@ -5,11 +5,9 @@ import moize from 'moize';
 import type { Network } from 'bitcoinjs-lib';
 import {
   DUMMY_BACKUP_OUTPUT,
-  DUMMY_CHANGE_OUTPUT,
   DUMMY_PKH_OUTPUT,
   DUMMY_TRIGGER_RESERVE_OUTPUT,
-  DUMMY_VAULT_OUTPUT,
-  getMainAccount
+  DUMMY_VAULT_OUTPUT
 } from './vaultDescriptors';
 import type { OutputInstance } from '@bitcoinerlab/descriptors';
 import { vsize } from '@bitcoinerlab/coinselect';
@@ -22,7 +20,6 @@ import {
 } from './vaults';
 import { getAdditionalP2AOutputValue } from './p2aReserve';
 import { getTriggerAnchorValue } from './p2aPolicy';
-import type { Accounts } from './wallets';
 import { toBigInt, toNumber } from './sats';
 import { MIN_FEE_RATE } from './fees';
 import { OP_RETURN_BACKUP_TX_VBYTES, TRIGGER_TX_VBYTES } from './vaultSizes';
@@ -210,7 +207,6 @@ const estimateMinimumVaultSetup = moize.shallow(
 
 export const estimateVaultSetupRange = moize.shallow(
   ({
-    accounts,
     utxosData,
     coinControl,
     coldAddress,
@@ -221,9 +217,9 @@ export const estimateVaultSetupRange = moize.shallow(
     vaultMode,
     presignedTriggerFeeRate,
     presignedRescueFeeRate,
-    maxTriggerFeeRate
+    maxTriggerFeeRate,
+    changeOutput
   }: {
-    accounts: Accounts;
     utxosData: UtxosData;
     /**
      * When true, `utxosData` is the exact manual UTXO selection from the user.
@@ -246,12 +242,9 @@ export const estimateVaultSetupRange = moize.shallow(
     presignedRescueFeeRate: number;
     /** Trigger package-feerate ceiling used to size the dedicated reserve. */
     maxTriggerFeeRate: number;
+    changeOutput: OutputInstance;
   }) => {
     const backupOutput = DUMMY_BACKUP_OUTPUT(network);
-    const changeOutput = DUMMY_CHANGE_OUTPUT(
-      getMainAccount(accounts, network),
-      network
-    );
     const vaultOutput = DUMMY_VAULT_OUTPUT(network);
     const triggerReserveOutput = DUMMY_TRIGGER_RESERVE_OUTPUT(network);
     const triggerReserveValue = getAdditionalP2AOutputValue({

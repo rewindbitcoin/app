@@ -2,13 +2,12 @@
 // Licensed under the GNU GPL v3 or later. See the LICENSE file for details.
 
 import AddressInput from '../components/AddressInput';
+import { AdvancedTransactionOptionsModal } from '../components/AdvancedTransactionOptions';
 import AmountInput from '../components/AmountInput';
-import {
-  CoinControlModal,
-  CoinControlRecoveryPanel
-} from '../components/CoinControl';
+import { CoinControlRecoveryPanel } from '../components/CoinControl';
 import FeeInput from '../components/FeeInput';
 import NoteEditorWithHelp from '../components/NoteEditorWithHelp';
+import type { AddressScriptSelection } from '../components/AddressScriptPicker';
 import { useTranslation } from 'react-i18next';
 import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { batchedUpdates } from '~/common/lib/batchedUpdates';
@@ -42,10 +41,9 @@ import { networkMapping } from '../lib/network';
 import { useSettings } from '../hooks/useSettings';
 import { useWallet } from '../hooks/useWallet';
 import {
-  computeChangeOutput,
+  computeOutput,
   DUMMY_CHANGE_OUTPUT,
-  DUMMY_SEND_ADDRESS,
-  getMainAccount
+  DUMMY_SEND_ADDRESS
 } from '../lib/vaultDescriptors';
 import { formatBtc } from '../lib/btcRates';
 import useFirstDefinedValue from '~/common/hooks/useFirstDefinedValue';
@@ -78,7 +76,8 @@ export default function Send() {
     vaultsStatuses,
     tipStatus,
     labels,
-    getNextChangeDescriptorWithIndex,
+    getChangeDescriptorWithNextIndex,
+    getPreferredAccount,
     txPushAndUpdateStates,
     setWalletLabelText,
     signers
@@ -155,20 +154,34 @@ export default function Send() {
 
   const [address, setAddress] = useState<string | null>(null);
   const [isConfirm, setIsConfirm] = useState<boolean>(false);
-  const [isCoinControlVisible, setIsCoinControlVisible] =
+  const [isAdvancedOptionsVisible, setIsAdvancedOptionsVisible] =
     useState<boolean>(false);
+  const [advancedOptionsEntryScreen, setAdvancedOptionsEntryScreen] = useState<
+    'overview' | 'coinSelection'
+  >('overview');
   // If set, these are the sendable UTXOs manually picked by the user.
   const [pickedSendableUtxosData, setPickedSendableUtxosData] =
     useState<UtxosData | null>(null);
+  const [customChangeAddressSelection, setCustomChangeAddressSelection] =
+    useState<AddressScriptSelection | null>(null);
   const coinControl = pickedSendableUtxosData !== null;
-  const coinControlSwitchOn = coinControl || isCoinControlVisible;
+  const advancedOptionsActive =
+    coinControl ||
+    isAdvancedOptionsVisible ||
+    customChangeAddressSelection !== null;
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [sendLabelDraft, setSendLabelDraft] = useState<string>('');
   const { t } = useTranslation();
   const toast = useToast();
-  const dummyChangeOutput = DUMMY_CHANGE_OUTPUT(
-    getMainAccount(accounts, network),
-    network
+  const customChangeDescriptorWithIndex = useMemo(
+    () =>
+      customChangeAddressSelection
+        ? {
+            descriptor: customChangeAddressSelection.descriptor,
+            index: customChangeAddressSelection.index
+          }
+        : undefined,
+    [customChangeAddressSelection]
   );
 
   const { feeEstimate: initialFeeRate } = pickFeeEstimate(
@@ -268,25 +281,40 @@ export default function Send() {
 
   const txHexRef = useRef<string>(undefined);
   const feeRef = useRef<number>(undefined);
-  const handleCoinControlChange = useCallback((coinControl: boolean) => {
-    if (coinControl) setIsCoinControlVisible(true);
-    else setPickedSendableUtxosData(null);
+  const handleOpenAdvancedOptions = useCallback(() => {
+    setAdvancedOptionsEntryScreen('overview');
+    setIsAdvancedOptionsVisible(true);
   }, []);
-  const handleOpenCoinControl = useCallback(
-    () => setIsCoinControlVisible(true),
+  const handleOpenCoinSelection = useCallback(() => {
+    setAdvancedOptionsEntryScreen('coinSelection');
+    setIsAdvancedOptionsVisible(true);
+  }, []);
+  const handleUseAutomaticCoinSelection = useCallback(() => {
+    setPickedSendableUtxosData(null);
+  }, []);
+  const handleCloseAdvancedOptions = useCallback(
+    () => setIsAdvancedOptionsVisible(false),
     []
   );
-  const handleUseAutoCoinSelect = useCallback(() => {
-    handleCoinControlChange(false);
-  }, [handleCoinControlChange]);
-  const handleCloseCoinControl = useCallback(
-    () => setIsCoinControlVisible(false),
-    []
-  );
-  const handleConfirmCoinControl = useCallback((utxosData: UtxosData) => {
+  const handleConfirmCoinSelection = useCallback((utxosData: UtxosData) => {
     setPickedSendableUtxosData(utxosData);
-    setIsCoinControlVisible(false);
+    setIsAdvancedOptionsVisible(false);
   }, []);
+  const handleClearCoinSelection = useCallback(
+    () => setPickedSendableUtxosData(null),
+    []
+  );
+  const handleConfirmChangeAddress = useCallback(
+    (selection: AddressScriptSelection) => {
+      setCustomChangeAddressSelection(selection);
+      setIsAdvancedOptionsVisible(false);
+    },
+    []
+  );
+  const handleClearChangeAddress = useCallback(
+    () => setCustomChangeAddressSelection(null),
+    []
+  );
   const handleCloseContinue = useCallback(() => {
     setIsConfirm(false);
   }, []);
@@ -295,11 +323,9 @@ export default function Send() {
       throw new Error('Cannot process Transaction');
     try {
       const changeDescriptorWithIndex =
-        await getNextChangeDescriptorWithIndex(accounts);
-      const changeOutput = computeChangeOutput(
-        changeDescriptorWithIndex,
-        network
-      );
+        customChangeDescriptorWithIndex ??
+        (await getChangeDescriptorWithNextIndex());
+      const changeOutput = computeOutput(changeDescriptorWithIndex, network);
       const txHexAndFee = await calculateTx({
         signer,
         utxosData: pickedSendableUtxosData ?? sendableUtxosData,
@@ -328,8 +354,8 @@ export default function Send() {
     }
   }, [
     toast,
-    getNextChangeDescriptorWithIndex,
-    accounts,
+    getChangeDescriptorWithNextIndex,
+    customChangeDescriptorWithIndex,
     pickedSendableUtxosData,
     sendableUtxosData,
     coinControl,
@@ -349,7 +375,10 @@ export default function Send() {
       setIsSubmitting(true);
 
       const { txId } = transactionFromHex(txHexRef.current);
-      await txPushAndUpdateStates(txHexRef.current);
+      await txPushAndUpdateStates(
+        txHexRef.current,
+        customChangeDescriptorWithIndex
+      );
       if (sendLabelDraft.trim()) {
         try {
           await setWalletLabelText({
@@ -378,7 +407,8 @@ export default function Send() {
     txPushAndUpdateStates,
     t,
     sendLabelDraft,
-    setWalletLabelText
+    setWalletLabelText,
+    customChangeDescriptorWithIndex
   ]);
 
   /**
@@ -445,6 +475,17 @@ export default function Send() {
     ]
   );
 
+  // Only use this output for estimates. Custom change uses the exact picked
+  // descriptor/index. Automatic change uses a dummy output because the real
+  // next change descriptor/index is chosen later, when the transaction is built.
+  const changeOutputForEstimates = useMemo(
+    () =>
+      customChangeDescriptorWithIndex
+        ? computeOutput(customChangeDescriptorWithIndex, network)
+        : DUMMY_CHANGE_OUTPUT(getPreferredAccount(), network),
+    [customChangeDescriptorWithIndex, getPreferredAccount, network]
+  );
+
   const fee = estimateSendTxFee({
     utxosData: pickedSendableUtxosData ?? sendableUtxosData,
     coinControl,
@@ -452,7 +493,7 @@ export default function Send() {
     feeRate,
     amount,
     network,
-    changeOutput: dummyChangeOutput
+    changeOutput: changeOutputForEstimates
   });
 
   const allFieldsValid =
@@ -522,9 +563,9 @@ export default function Send() {
               btcFiat={btcFiat}
               isMaxAmount={isMaxAmount}
               label={t('send.amountLabel')}
-              allowCoinControl
-              coinControl={coinControlSwitchOn}
-              onCoinControlChange={handleCoinControlChange}
+              allowAdvancedOptions
+              advancedOptionsActive={advancedOptionsActive}
+              onAdvancedOptionsPress={handleOpenAdvancedOptions}
               initialValue={lastKnownValidAmountRef.current ?? maxAmount}
               min={minAmount}
               max={maxAmount}
@@ -535,8 +576,8 @@ export default function Send() {
               {coinControl && canBuildAtSelectedFeeAssumingAutoCoinSelection ? (
                 <CoinControlRecoveryPanel
                   message={t('send.pickedUtxosInsufficient')}
-                  onOpenCoinControl={handleOpenCoinControl}
-                  onUseAuto={handleUseAutoCoinSelect}
+                  onOpenCoinControl={handleOpenCoinSelection}
+                  onUseAuto={handleUseAutomaticCoinSelection}
                 />
               ) : (
                 <Text className="text-base m-auto self-center text-red-500">
@@ -639,13 +680,19 @@ export default function Send() {
               </View>
             </View>
           </Modal>
-          <CoinControlModal
-            isVisible={isCoinControlVisible}
+          <AdvancedTransactionOptionsModal
+            isVisible={isAdvancedOptionsVisible}
+            entryScreen={advancedOptionsEntryScreen}
             utxosAvailability={sendCoinControlUtxosAvailability}
             pickedUtxosData={pickedSendableUtxosData}
             btcFiat={btcFiat}
-            onClose={handleCloseCoinControl}
-            onConfirm={handleConfirmCoinControl}
+            changeAddressSelection={customChangeAddressSelection}
+            initialChangeAccount={getPreferredAccount()}
+            onClose={handleCloseAdvancedOptions}
+            onClearCoinSelection={handleClearCoinSelection}
+            onClearChangeAddress={handleClearChangeAddress}
+            onConfirmChangeAddress={handleConfirmChangeAddress}
+            onConfirmCoinSelection={handleConfirmCoinSelection}
           />
         </View>
       )}

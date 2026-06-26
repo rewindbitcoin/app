@@ -5,12 +5,11 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Modal, Button, ActivityIndicator } from '../../../../common/ui';
 import { useTranslation } from 'react-i18next';
 import { View, Text, Pressable } from 'react-native';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
-import {
-  CoinControlPanel,
-  CoinControlRecoveryPanel,
-  coinControlIcon
-} from '../../CoinControl';
+import type { Account } from '@bitcoinerlab/discovery';
+import { FontAwesome5, MaterialCommunityIcons } from '@expo/vector-icons';
+import { AdvancedTransactionOptionsModal } from '../../AdvancedTransactionOptions';
+import type { AddressScriptSelection } from '../../AddressScriptPicker';
+import { CoinControlRecoveryPanel } from '../../CoinControl';
 import FeeInput from '../../FeeInput';
 import { FeeEstimates, MIN_FEE_RATE, pickFeeEstimate } from '../../../lib/fees';
 import { formatBalance, formatBlocks } from '../../../lib/format';
@@ -40,6 +39,8 @@ import {
   getVaultableUtxos,
   withFrozenVaultUtxosForCoinControl
 } from '../../../lib/utxoPolicy';
+import { networkMapping } from '../../../lib/network';
+import { computeOutput } from '../../../lib/vaultDescriptors';
 
 type VaultActionBlockerReason =
   | ReturnType<typeof getVaultActionBlocker>['reason']
@@ -76,12 +77,15 @@ export type PresignedVaultActionProps = (
    * - non-empty `txosData`: those reserve TXOs must be spent by the package
    *   child; they must not be bypassed with parent-only submission.
    * - `hasUnconfirmedUtxos`: blocks TRUC packages until the reserve confirms.
-   *
-   * Future rescue reserve plans should follow the same reserve-spend invariant
-   * and fee-picker/package UX as trigger reserve plans. Their `changeOutput`
-   * should point to the temporary rescue wallet's internal/change branch.
    */
   p2aBumpPlan: P2ABumpPlan | 'loading' | 'error';
+  /**
+   * Child change selected before the user opens advanced options.
+   *
+   * It is used for fee sizing. It also becomes the final child change unless
+   * the trigger user manually picks a custom change address.
+   */
+  initialChildChange?: { descriptor: string; index: number };
   /** True while refreshing reserve data behind an already loaded bump plan. */
   p2aBumpPlanRefreshing: boolean;
   /** Called with the selected parent-only or parent-plus-child package data. */
@@ -121,6 +125,7 @@ const PresignedVaultAction = ({
   vault,
   vaultStatus,
   p2aBumpPlan,
+  initialChildChange,
   p2aBumpPlanRefreshing,
   isVisible,
   onAction,
@@ -135,6 +140,7 @@ const PresignedVaultAction = ({
     () => getVaultMode(vault),
     [vault]
   );
+  const network = networkMapping[vault.networkId];
   const isLadderedVault = vaultMode === 'LADDERED';
   const { t } = useTranslation();
   const {
@@ -144,7 +150,10 @@ const PresignedVaultAction = ({
     historyData,
     vaults,
     tipStatus,
-    vaultsStatuses
+    vaultsStatuses,
+    accounts,
+    discoveryReady,
+    getPreferredAccount
   } = useWallet();
   const { settings } = useSettings();
   // Cache to avoid flickering in the sliders while background refreshes happen.
@@ -182,11 +191,20 @@ const PresignedVaultAction = ({
       : vaultStatus.panicCpfpTxHex;
   const pushedTxHex =
     isPushedButUnconfirmed && actionTxHex ? actionTxHex : undefined;
-  const [step, setStep] = useState<'intro' | 'confirm' | 'coincontrol'>(
-    'intro'
-  );
-  const [isModalVisibleOrHiding, setIsModalVisibleOrHiding] =
-    useState(isVisible);
+  const [step, setStep] = useState<'intro' | 'confirm'>('intro');
+  const [advancedOptionsEntryScreen, setAdvancedOptionsEntryScreen] = useState<
+    'overview' | 'coinSelection'
+  >('overview');
+  const [isAdvancedOptionsVisible, setIsAdvancedOptionsVisible] =
+    useState(false);
+  // react-native-modal keeps animating after isVisible becomes false.
+  // Keep action data alive until the hide animation is fully done.
+  const [
+    keepContentRenderedUntilModalHidden,
+    setKeepContentRenderedUntilModalHidden
+  ] = useState(isVisible);
+  const isModalVisibleOrHiding =
+    isVisible || keepContentRenderedUntilModalHidden;
   // User opt-in from the checkbox: when true, eligible hot-wallet UTXOs are
   // allowed into package building as a supplement to the reserve inputs.
   const [walletSupplementRequested, setWalletSupplementRequested] =
@@ -195,7 +213,62 @@ const PresignedVaultAction = ({
   // the user.
   const [pickedVaultableWalletUtxosData, setPickedVaultableWalletUtxosData] =
     useState<UtxosData | null>(null);
+  // If set, the user chose where the CPFP child transaction should send change.
+  const [
+    customTriggerChangeAddressSelection,
+    setCustomTriggerChangeAddressSelection
+  ] = useState<AddressScriptSelection | null>(null);
   const walletSupplementCoinControl = pickedVaultableWalletUtxosData !== null;
+  const initialChildChangeOutput = useMemo(
+    () =>
+      initialChildChange
+        ? computeOutput(
+            {
+              descriptor: initialChildChange.descriptor,
+              index: initialChildChange.index
+            },
+            network
+          )
+        : undefined,
+    [initialChildChange, network]
+  );
+  // Describes where child transaction change should go for sizing and broadcast.
+  // finalChildChange usually equals initialChildChange. It differs only when the
+  // trigger user manually picks a custom change address.
+  const childChangePlan = useMemo(() => {
+    if (customTriggerChangeAddressSelection) {
+      const finalChildChange = {
+        descriptor: customTriggerChangeAddressSelection.descriptor,
+        index: customTriggerChangeAddressSelection.index,
+        walletAccountToTrack:
+          customTriggerChangeAddressSelection.descriptor.replace(
+            /\/[01]\/\*/g,
+            '/0/*'
+          ) as Account
+      };
+      return {
+        output: computeOutput(
+          {
+            descriptor: finalChildChange.descriptor,
+            index: finalChildChange.index
+          },
+          network
+        ),
+        finalChildChange
+      };
+    }
+    if (!initialChildChange || !initialChildChangeOutput) return undefined;
+    return {
+      output: initialChildChangeOutput,
+      finalChildChange: initialChildChange
+    };
+  }, [
+    customTriggerChangeAddressSelection,
+    initialChildChange,
+    initialChildChangeOutput,
+    network
+  ]);
+  const childChangeOutput = childChangePlan?.output;
   const vaultableWalletUtxosResult = useMemo(() => {
     if (role !== 'TRIGGER' || !isModalVisibleOrHiding || isLadderedVault)
       return { utxosData: [], utxosAvailability: [] };
@@ -233,11 +306,9 @@ const PresignedVaultAction = ({
   const isP2ABumpPlanLoading = !isLadderedVault && p2aBumpPlan === 'loading';
   const isP2ABumpPlanError = !isLadderedVault && p2aBumpPlan === 'error';
 
-  useEffect(() => {
-    // Keep action data stable while react-native-modal finishes closing.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (isVisible) setIsModalVisibleOrHiding(true);
-  }, [isVisible]);
+  const handleModalWillShow = useCallback(() => {
+    setKeepContentRenderedUntilModalHidden(true);
+  }, []);
 
   if (!settings)
     throw new Error(
@@ -269,7 +340,7 @@ const PresignedVaultAction = ({
    * `getVaultActionBlocker(...)` explains whether the flow is blocked
    * and which fee range can be offered. `buildVaultActionDataForFeeRate(...)`
    * then proves a concrete fee can build the tx/package the user would submit.
-   * Keeping both results in one plan makes that coupling explicit for the UI.
+   * Keeping both results together makes that coupling explicit for the UI.
    */
   const {
     blockerReason,
@@ -334,6 +405,7 @@ const PresignedVaultAction = ({
         ...(pushedTxHex && childTxHex ? { pushedChildTxHex: childTxHex } : {}),
         presignedTxInfos,
         ...(typeof p2aBumpPlan === 'object' ? { p2aBumpPlan } : {}),
+        ...(childChangeOutput ? { childChangeOutput } : {}),
         historyData
       };
       ({ reason: blockerReason, minimumSelectableFeeRate } =
@@ -377,7 +449,8 @@ const PresignedVaultAction = ({
             vaultMode,
             ...(pushedTxHex ? { pushedTxHex } : {}),
             presignedTxInfos,
-            ...(typeof p2aBumpPlan === 'object' ? { p2aBumpPlan } : {})
+            ...(typeof p2aBumpPlan === 'object' ? { p2aBumpPlan } : {}),
+            ...(childChangePlan ? { childChangePlan } : {})
           }
         : null;
     const currentWalletSupplementArgs = walletSupplementRequested
@@ -497,7 +570,9 @@ const PresignedVaultAction = ({
     childTxHex,
     walletSupplementRequested,
     pushedTxHex,
-    p2aBumpPlan
+    p2aBumpPlan,
+    childChangeOutput,
+    childChangePlan
   ]);
 
   const cannotAccelerateMaxFee = blockerReason === 'replacementFeeAboveMaximum';
@@ -505,11 +580,14 @@ const PresignedVaultAction = ({
   const fee = vaultActionData ? vaultActionData.actionFee : null;
 
   const handleModalHide = useCallback(() => {
-    setIsModalVisibleOrHiding(false);
+    setKeepContentRenderedUntilModalHidden(false);
     setStep('intro');
+    setAdvancedOptionsEntryScreen('overview');
+    setIsAdvancedOptionsVisible(false);
     setFeeRate(null);
     setWalletSupplementRequested(false);
     setPickedVaultableWalletUtxosData(null);
+    setCustomTriggerChangeAddressSelection(null);
     onModalHide?.();
   }, [onModalHide]);
 
@@ -599,9 +677,6 @@ const PresignedVaultAction = ({
     role === 'TRIGGER'
       ? ({ family: 'MaterialCommunityIcons', name: 'snowflake-melt' } as const)
       : ({ family: 'MaterialCommunityIcons', name: 'alarm-light' } as const);
-  const modalTitle =
-    step === 'coincontrol' ? t('coinControl.title') : actionText;
-  const activeModalIcon = step === 'coincontrol' ? coinControlIcon : modalIcon;
 
   // Hard reserve failure states. For a first push this means the reserve cannot
   // fund even the minimum dust-safe CPFP child. For acceleration this means no
@@ -617,6 +692,25 @@ const PresignedVaultAction = ({
     typeof p2aBumpPlan === 'object' &&
     vaultableWalletUtxosData.length > 0 &&
     !(vaultMode === 'P2A_TRUC' && p2aBumpPlan.hasUnconfirmedUtxos);
+  const initialTriggerChangeAccount =
+    role === 'TRIGGER' &&
+    !isLadderedVault &&
+    isModalVisibleOrHiding &&
+    discoveryReady &&
+    accounts
+      ? getPreferredAccount()
+      : undefined;
+  const canChooseCustomTriggerChangeAddress =
+    role === 'TRIGGER' &&
+    !isLadderedVault &&
+    initialTriggerChangeAccount !== undefined &&
+    typeof p2aBumpPlan === 'object' &&
+    (p2aBumpPlan.txosData.length > 0 || walletSupplementRequested) &&
+    childChangeOutput !== undefined;
+  const showTriggerChangeAddressOption =
+    initialTriggerChangeAccount !== undefined &&
+    (canChooseCustomTriggerChangeAddress ||
+      customTriggerChangeAddressSelection !== null);
   // The selected fee has no buildable action data for the user's current
   // choices.
   const selectedFeeCannotBuildAction =
@@ -679,15 +773,15 @@ const PresignedVaultAction = ({
         : txUsesWalletSupplement
           ? 'txUsesWalletSupplement'
           : null;
-  const showWalletSupplementCheckbox =
+  const showWalletSupplementOption =
     canOfferWalletSupplement &&
     (walletSupplementOfferReason !== null || walletSupplementRequested);
 
-  // Controls checkbox auto turn-off.
+  // Controls wallet-funds auto turn-off.
   useEffect(() => {
     if (!walletSupplementRequested) return;
-    // The checkbox is an explicit opt-in. Clear it when wallet supplement stops
-    // being offerable or no longer has a reason to affect this action.
+    // Wallet funds are an explicit opt-in. Clear them when they stop being
+    // offerable or no longer have a reason to affect this action.
     if (!canOfferWalletSupplement || walletSupplementOfferReason === null) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setWalletSupplementRequested(false);
@@ -700,21 +794,26 @@ const PresignedVaultAction = ({
     walletSupplementOfferReason
   ]);
 
-  const toggleWalletSupplement = useCallback(() => {
-    if (walletSupplementRequested) {
-      setWalletSupplementRequested(false);
-      setPickedVaultableWalletUtxosData(null);
-    } else setWalletSupplementRequested(true);
-  }, [walletSupplementRequested]);
-  const handleOpenWalletSupplementCoinControl = useCallback(() => {
-    setStep('coincontrol');
+  const handleWalletSupplementEnabledChange = useCallback(
+    (enabled: boolean) => {
+      if (enabled) setWalletSupplementRequested(true);
+      else {
+        setWalletSupplementRequested(false);
+        setPickedVaultableWalletUtxosData(null);
+      }
+    },
+    []
+  );
+  const handleOpenAdvancedOptions = useCallback(() => {
+    setAdvancedOptionsEntryScreen('overview');
+    setIsAdvancedOptionsVisible(true);
   }, []);
-  const handleToggleManualWalletSupplement = useCallback(() => {
-    if (walletSupplementCoinControl) setPickedVaultableWalletUtxosData(null);
-    else setStep('coincontrol');
-  }, [walletSupplementCoinControl]);
-  const handleCloseWalletSupplementCoinControl = useCallback(() => {
-    setStep('confirm');
+  const handleOpenWalletSupplementCoinControl = useCallback(() => {
+    setAdvancedOptionsEntryScreen('coinSelection');
+    setIsAdvancedOptionsVisible(true);
+  }, []);
+  const handleCloseAdvancedOptions = useCallback(() => {
+    setIsAdvancedOptionsVisible(false);
   }, []);
   const handleUseAutoWalletSupplement = useCallback(() => {
     setPickedVaultableWalletUtxosData(null);
@@ -722,50 +821,128 @@ const PresignedVaultAction = ({
   const handleConfirmWalletSupplementCoinControl = useCallback(
     (pickedUtxosData: UtxosData) => {
       setPickedVaultableWalletUtxosData(pickedUtxosData);
-      setStep('confirm');
+      setIsAdvancedOptionsVisible(false);
     },
     []
   );
+  const handleConfirmTriggerChangeAddress = useCallback(
+    (selection: AddressScriptSelection) => {
+      setCustomTriggerChangeAddressSelection(selection);
+      setIsAdvancedOptionsVisible(false);
+    },
+    []
+  );
+  const handleClearTriggerChangeAddress = useCallback(() => {
+    setCustomTriggerChangeAddressSelection(null);
+  }, []);
 
-  const walletSupplementCheckbox = showWalletSupplementCheckbox ? (
+  const canChooseWalletSupplementCoins =
+    walletSupplementRequested && vaultableWalletUtxosAvailability.length > 0;
+  const hasAdvancedTransactionOptions =
+    customTriggerChangeAddressSelection !== null || walletSupplementCoinControl;
+  const showAdvancedOptionsCard =
+    showTriggerChangeAddressOption ||
+    walletSupplementRequested ||
+    hasAdvancedTransactionOptions;
+  const advancedOptionStatusItems = [
+    ...(showTriggerChangeAddressOption
+      ? [
+          {
+            key: 'change',
+            label: customTriggerChangeAddressSelection
+              ? t('coinControl.changeCustomStatus')
+              : t('coinControl.changeAutomaticStatus'),
+            active: customTriggerChangeAddressSelection !== null
+          }
+        ]
+      : []),
+    ...(walletSupplementRequested
+      ? [
+          {
+            key: 'coins',
+            label: walletSupplementCoinControl
+              ? t('coinControl.coinsManualStatus')
+              : t('coinControl.coinsAutomaticStatus'),
+            active: walletSupplementCoinControl
+          }
+        ]
+      : [])
+  ];
+  const advancedOptionsCard = showAdvancedOptionsCard ? (
     <Pressable
-      onPress={toggleWalletSupplement}
-      className="flex-row items-center pt-4"
+      onPress={handleOpenAdvancedOptions}
+      className={`mx-2 mt-4 rounded-xl border px-3 py-2.5 ${hasAdvancedTransactionOptions ? 'border-primary bg-primary-light' : 'border-slate-200 bg-white'}`}
     >
-      <MaterialCommunityIcons
-        name={
-          walletSupplementRequested
-            ? 'checkbox-marked-outline'
-            : 'checkbox-blank-outline'
-        }
-        size={24}
-        className="text-primary mr-3"
-      />
-      <Text className="flex-1 text-sm text-slate-700">
-        {t('wallet.vault.triggerUnfreeze.walletSupplementCheckbox')}
-      </Text>
+      <View className="flex-row items-center gap-2">
+        <FontAwesome5
+          name="sliders-h"
+          size={13}
+          className={
+            hasAdvancedTransactionOptions ? 'text-primary' : 'text-slate-500'
+          }
+        />
+        <Text className="text-sm font-semibold text-slate-900">
+          {t('coinControl.advanced')}
+        </Text>
+        <View className="flex-1 flex-row flex-wrap justify-end gap-1.5">
+          {advancedOptionStatusItems.map(item => (
+            <View
+              key={item.key}
+              className={`rounded-full border px-2 py-0.5 ${item.active ? 'border-primary bg-white' : 'border-slate-200 bg-slate-50'}`}
+            >
+              <Text
+                className={`text-xs ${item.active ? 'font-medium text-primary-dark' : 'text-slate-600'}`}
+              >
+                {item.label}
+              </Text>
+            </View>
+          ))}
+        </View>
+        <MaterialCommunityIcons
+          name="chevron-right"
+          size={20}
+          className="text-slate-400"
+        />
+      </View>
     </Pressable>
   ) : null;
-  const manualWalletSupplementCheckbox =
-    showWalletSupplementCheckbox && walletSupplementRequested ? (
-      <Pressable
-        onPress={handleToggleManualWalletSupplement}
-        className="flex-row items-center pt-4"
-      >
+  // Lets the user cover a short fee reserve with normal wallet funds instead
+  // of stopping the unfreeze until more reserve funds arrive.
+  const walletSupplementControl = showWalletSupplementOption ? (
+    <Pressable
+      onPress={() =>
+        handleWalletSupplementEnabledChange(!walletSupplementRequested)
+      }
+      className={`mx-2 mt-5 rounded-2xl border p-4 ${walletSupplementRequested ? 'border-primary bg-primary-light' : 'border-slate-200 bg-white'}`}
+    >
+      <View className="flex-row items-start gap-3">
         <MaterialCommunityIcons
           name={
-            walletSupplementCoinControl
+            walletSupplementRequested
               ? 'checkbox-marked-outline'
               : 'checkbox-blank-outline'
           }
           size={24}
-          className="text-primary mr-3"
+          className="text-primary mt-0.5"
         />
-        <Text className="flex-1 text-sm text-slate-700">
-          {t('wallet.vault.triggerUnfreeze.manualWalletSupplementCheckbox')}
-        </Text>
-      </Pressable>
-    ) : null;
+        <View className="flex-1 gap-1">
+          <View className="flex-row flex-wrap items-center justify-between gap-2">
+            <Text className="text-base font-medium text-slate-900">
+              {t('coinControl.walletFunds')}
+            </Text>
+            <Text className="text-xs font-medium text-slate-500">
+              {walletSupplementRequested
+                ? t('coinControl.walletFundsEnabled')
+                : t('coinControl.walletFundsOff')}
+            </Text>
+          </View>
+          <Text className="text-sm leading-5 text-slate-600">
+            {t('wallet.vault.triggerUnfreeze.walletSupplementCheckbox')}
+          </Text>
+        </View>
+      </View>
+    </Pressable>
+  ) : null;
   const autoWalletSupplementCanProceed =
     blockerReasonAssumingAutoWalletSupplement === null;
   const manualWalletSupplementNeedsRecovery =
@@ -797,7 +974,7 @@ const PresignedVaultAction = ({
   ) : null;
   const shouldShowAdditionalWalletSupplementHint =
     role === 'TRIGGER' &&
-    (!showWalletSupplementCheckbox || walletSupplementRequested) &&
+    (!showWalletSupplementOption || walletSupplementRequested) &&
     (selectedFeeCannotBuildAction ||
       showReserveCannotBuildAnyPackage ||
       blockerReason === 'noP2AReserve' ||
@@ -812,13 +989,15 @@ const PresignedVaultAction = ({
   const walletSupplement =
     shouldShowAdditionalWalletSupplementHint &&
     typeof p2aBumpPlan === 'object' &&
-    p2aBumpPlan.changeOutput &&
+    initialChildChangeOutput &&
+    childChangeOutput &&
     walletSupplementParentTxInfo
       ? getAdditionalOutputValue({
           p2aBumpPlan,
           // The additional wallet input will have the same output type as wallet
-          // change, so use changeOutput as the sizing proxy here.
-          additionalOutput: p2aBumpPlan.changeOutput,
+          // change, even when the child change itself is custom.
+          additionalOutput: initialChildChangeOutput,
+          childChangeOutput,
           parentTxInfo: walletSupplementParentTxInfo,
           targetPackageFeeRate: walletSupplementTargetFeeRate,
           vaultableWalletUtxosData
@@ -846,9 +1025,9 @@ const PresignedVaultAction = ({
   const reserveFundsMissingAction =
     role === 'TRIGGER' ? (
       <>
-        {walletSupplementCheckbox}
-        {manualWalletSupplementCheckbox}
+        {walletSupplementControl}
         {walletSupplementHint}
+        {advancedOptionsCard}
       </>
     ) : (
       reserveFundsMissingButton
@@ -868,12 +1047,8 @@ const PresignedVaultAction = ({
       <Text className="text-base text-slate-600 pt-4 px-2">
         {postActionExplanationText}
       </Text>
-      {walletSupplementCheckbox ? (
-        <View className="px-2">
-          {walletSupplementCheckbox}
-          {manualWalletSupplementCheckbox}
-        </View>
-      ) : null}
+      {walletSupplementControl}
+      {advancedOptionsCard}
     </View>
   );
   const confirmationExplanation =
@@ -882,6 +1057,7 @@ const PresignedVaultAction = ({
     !isP2ABumpPlanError &&
     (isP2ABumpPlanLoading ||
       blockerReason === undefined ||
+      blockerReason === 'childChangeUnavailable' ||
       (needsFeeInput && !feeEstimates));
 
   const hasBlockingState =
@@ -897,17 +1073,7 @@ const PresignedVaultAction = ({
   const canShowActionButton = blockerReason === null;
 
   let modalContent: React.ReactNode;
-  if (step === 'coincontrol') {
-    modalContent = (
-      <CoinControlPanel
-        utxosAvailability={vaultableWalletUtxosAvailability}
-        pickedUtxosData={pickedVaultableWalletUtxosData}
-        btcFiat={btcFiat}
-        onClose={handleCloseWalletSupplementCoinControl}
-        onConfirm={handleConfirmWalletSupplementCoinControl}
-      />
-    );
-  } else if (step === 'intro') {
+  if (step === 'intro') {
     modalContent = (
       <View>
         <Text className="text-base text-slate-600 pb-2 px-2">{introText}</Text>
@@ -1021,14 +1187,13 @@ const PresignedVaultAction = ({
     <Modal
       headerMini={true}
       isVisible={isVisible}
-      title={modalTitle}
-      icon={activeModalIcon}
+      title={actionText}
+      icon={modalIcon}
       onClose={onClose}
+      onModalWillShow={handleModalWillShow}
       onModalHide={handleModalHide}
       customButtons={
-        step === 'coincontrol' ? (
-          <View />
-        ) : step === 'intro' ? (
+        step === 'intro' ? (
           <View className="items-center gap-6 gap-y-4 flex-row flex-wrap justify-center pb-4">
             <Button mode="secondary" onPress={onClose}>
               {t('cancelButton')}
@@ -1065,6 +1230,28 @@ const PresignedVaultAction = ({
       }
     >
       {modalContent}
+      <AdvancedTransactionOptionsModal
+        isVisible={isVisible && isAdvancedOptionsVisible}
+        entryScreen={advancedOptionsEntryScreen}
+        btcFiat={btcFiat}
+        onClose={handleCloseAdvancedOptions}
+        {...(canChooseWalletSupplementCoins
+          ? {
+              utxosAvailability: vaultableWalletUtxosAvailability,
+              pickedUtxosData: pickedVaultableWalletUtxosData,
+              onClearCoinSelection: handleUseAutoWalletSupplement,
+              onConfirmCoinSelection: handleConfirmWalletSupplementCoinControl
+            }
+          : {})}
+        {...(showTriggerChangeAddressOption && initialTriggerChangeAccount
+          ? {
+              changeAddressSelection: customTriggerChangeAddressSelection,
+              initialChangeAccount: initialTriggerChangeAccount,
+              onClearChangeAddress: handleClearTriggerChangeAddress,
+              onConfirmChangeAddress: handleConfirmTriggerChangeAddress
+            }
+          : {})}
+      />
     </Modal>
   );
 };

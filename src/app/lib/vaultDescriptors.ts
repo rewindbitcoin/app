@@ -9,6 +9,7 @@ import { toHex } from 'uint8array-tools';
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { encode: olderEncode } = require('bip68');
 import { networks, type Network } from 'bitcoinjs-lib';
+import type { TFunction } from 'i18next';
 import {
   scriptExpressions,
   keyExpressionBIP32
@@ -16,6 +17,9 @@ import {
 import { Accounts, Signer, Signers, SOFTWARE } from './wallets';
 import type { Account } from '@bitcoinerlab/discovery';
 import { ensureDescriptorsFactoryInstance } from './descriptorsFactory';
+
+const getNetworkCacheKey = (network: Network) =>
+  `${network.bech32}:${network.pubKeyHash}:${network.scriptHash}:${network.wif}:${network.bip32.public}:${network.bip32.private}`;
 
 export const DUMMY_PUBKEY =
   '0330d54fd0dd420a6e5f8d3624f5f3482cae350f79d5f0753bf5beef9c2d91af3c';
@@ -85,25 +89,27 @@ export const DUMMY_CHANGE_OUTPUT = memoize(
     });
   }
 );
-export const computeChangeOutput = memoize(
+export const computeOutput = moize(
   (
-    changeDescriptorWithIndex: { descriptor: string; index: number },
+    descriptorWithIndex: { descriptor: string; index: number },
     network: Network
   ) => {
     const { Output } = ensureDescriptorsFactoryInstance();
-    return new Output({
-      ...changeDescriptorWithIndex,
-      network
-    });
-  }
-);
-export const computeReceiveOutput = memoize(
-  (
-    receiveDescriptorWithIndex: { descriptor: string; index: number },
-    network: Network
-  ) => {
-    const { Output } = ensureDescriptorsFactoryInstance();
-    return new Output({ ...receiveDescriptorWithIndex, network });
+    return new Output({ ...descriptorWithIndex, network });
+  },
+  {
+    maxSize: 256,
+    transformArgs: args => {
+      const [descriptorWithIndex, network] = args as [
+        { descriptor: string; index: number },
+        Network
+      ];
+      return [
+        descriptorWithIndex.descriptor,
+        descriptorWithIndex.index,
+        getNetworkCacheKey(network)
+      ];
+    }
   }
 );
 
@@ -176,6 +182,196 @@ export const createP2WPKHDescriptor = ({
     change
   });
 
+type StandardAccountDescriptorParams = Parameters<
+  typeof scriptExpressions.wpkhBIP32
+>[0];
+
+// Standard wallet account types, ordered by preference when the wallet already
+// has account history. This order does not choose the first account for a new
+// wallet; DEFAULT_STANDARD_ACCOUNT is the explicit default for that case.
+export const ORDERED_STANDARD_ACCOUNT_SCRIPT_DEFINITIONS = [
+  {
+    scriptType: 'tr',
+    purpose: 86,
+    expandedExpression: 'tr(@0)',
+    descriptorPrefix: 'tr(',
+    getAddressPickerLabel: (t: TFunction) => t('addressPicker.scripts.taproot'),
+    getCoinControlGroupLabel: (t: TFunction) => t('coinControl.groups.taproot'),
+    createDescriptor: (params: StandardAccountDescriptorParams) =>
+      scriptExpressions.trBIP32(params)
+  },
+  {
+    scriptType: 'wpkh',
+    purpose: 84,
+    expandedExpression: 'wpkh(@0)',
+    descriptorPrefix: 'wpkh(',
+    getAddressPickerLabel: (t: TFunction) =>
+      t('addressPicker.scripts.nativeSegwit'),
+    getCoinControlGroupLabel: (t: TFunction) =>
+      t('coinControl.groups.nativeSegwit'),
+    createDescriptor: (params: StandardAccountDescriptorParams) =>
+      scriptExpressions.wpkhBIP32(params)
+  },
+  {
+    scriptType: 'shWpkh',
+    purpose: 49,
+    expandedExpression: 'sh(wpkh(@0))',
+    descriptorPrefix: 'sh(wpkh(',
+    getAddressPickerLabel: (t: TFunction) =>
+      t('addressPicker.scripts.wrappedSegwit'),
+    getCoinControlGroupLabel: (t: TFunction) =>
+      t('coinControl.groups.wrappedSegwit'),
+    createDescriptor: (params: StandardAccountDescriptorParams) =>
+      scriptExpressions.shWpkhBIP32(params)
+  },
+  {
+    scriptType: 'pkh',
+    purpose: 44,
+    expandedExpression: 'pkh(@0)',
+    descriptorPrefix: 'pkh(',
+    getAddressPickerLabel: (t: TFunction) => t('addressPicker.scripts.legacy'),
+    getCoinControlGroupLabel: (t: TFunction) => t('coinControl.groups.legacy'),
+    createDescriptor: (params: StandardAccountDescriptorParams) =>
+      scriptExpressions.pkhBIP32(params)
+  }
+] as const;
+
+export type StandardAccountScriptType =
+  (typeof ORDERED_STANDARD_ACCOUNT_SCRIPT_DEFINITIONS)[number]['scriptType'];
+type StandardAccountScriptDefinition =
+  (typeof ORDERED_STANDARD_ACCOUNT_SCRIPT_DEFINITIONS)[number];
+
+export const DEFAULT_STANDARD_ACCOUNT = {
+  scriptType: 'wpkh',
+  accountNumber: 0
+} as const satisfies {
+  scriptType: StandardAccountScriptType;
+  accountNumber: number;
+};
+
+export const getStandardAccountScriptDefinition = (
+  scriptType: StandardAccountScriptType
+) => {
+  const definition = ORDERED_STANDARD_ACCOUNT_SCRIPT_DEFINITIONS.find(
+    definition => definition.scriptType === scriptType
+  );
+  if (!definition)
+    throw new Error(`Unknown standard account script type: ${scriptType}`);
+  return definition;
+};
+
+export const getStandardAccountScriptType = (descriptor: string) =>
+  ORDERED_STANDARD_ACCOUNT_SCRIPT_DEFINITIONS.find(definition =>
+    descriptor.startsWith(definition.descriptorPrefix)
+  )?.scriptType;
+
+const getScriptDefinitionsForAccountsWithoutHistory = () => {
+  const defaultDefinition = getStandardAccountScriptDefinition(
+    DEFAULT_STANDARD_ACCOUNT.scriptType
+  );
+  const nonDefaultDefinitions =
+    ORDERED_STANDARD_ACCOUNT_SCRIPT_DEFINITIONS.filter(
+      definition =>
+        definition.scriptType !== DEFAULT_STANDARD_ACCOUNT.scriptType
+    );
+  return [defaultDefinition, ...nonDefaultDefinitions];
+};
+
+export const isDefaultStandardAccount = ({
+  scriptType,
+  accountNumber
+}: {
+  scriptType: StandardAccountScriptType;
+  accountNumber: number;
+}) =>
+  scriptType === DEFAULT_STANDARD_ACCOUNT.scriptType &&
+  accountNumber === DEFAULT_STANDARD_ACCOUNT.accountNumber;
+
+const getPurposeOrder = (
+  definitions: readonly StandardAccountScriptDefinition[]
+) => {
+  const purposeOrder: { [key: number]: number } = {};
+  definitions.forEach((definition, index) => {
+    purposeOrder[definition.purpose] = index;
+  });
+  return purposeOrder;
+};
+
+const usedPurposeOrder = getPurposeOrder(
+  ORDERED_STANDARD_ACCOUNT_SCRIPT_DEFINITIONS
+);
+const defaultPurposeOrder = getPurposeOrder(
+  getScriptDefinitionsForAccountsWithoutHistory()
+);
+
+export const createStandardAccountDescriptor = moize(
+  ({
+    signer,
+    network,
+    scriptType,
+    account
+  }: {
+    signer: Signer;
+    network: Network;
+    scriptType: StandardAccountScriptType;
+    account: number;
+  }) => {
+    if (signer.type !== SOFTWARE)
+      throw new Error(`Signer type ${signer.type} not supported`);
+    const mnemonic = signer.mnemonic;
+    if (!mnemonic) throw new Error(`mnemonic not provided for ${signer.type}`);
+
+    const params = {
+      masterNode: getMasterNode(mnemonic, network),
+      network,
+      account,
+      index: '*' as const,
+      change: 0 as const
+    };
+
+    return getStandardAccountScriptDefinition(scriptType).createDescriptor(
+      params
+    ) as Account;
+  },
+  {
+    maxSize: 64,
+    transformArgs: args => {
+      const [{ signer, network, scriptType, account }] = args as [
+        {
+          signer: Signer;
+          network: Network;
+          scriptType: StandardAccountScriptType;
+          account: number;
+        }
+      ];
+      return [
+        signer.mnemonic,
+        getNetworkCacheKey(network),
+        scriptType,
+        account
+      ];
+    }
+  }
+);
+
+export const parseStandardAccount = (
+  account: Account
+): {
+  accountNumber: number;
+  scriptType: StandardAccountScriptType;
+} => {
+  const accountNumberMatch = account.match(/\/(\d+)'\]/);
+  if (!accountNumberMatch?.[1])
+    throw new Error(`Cannot read account number from descriptor: ${account}`);
+  const accountNumber = Number(accountNumberMatch[1]);
+  if (!Number.isSafeInteger(accountNumber) || accountNumber < 0)
+    throw new Error(`Invalid account number in descriptor: ${account}`);
+  const scriptType = getStandardAccountScriptType(account);
+  if (!scriptType)
+    throw new Error(`Unknown standard account script type: ${account}`);
+  return { accountNumber, scriptType };
+};
+
 export const getDescriptorAddress = ({
   descriptor,
   network,
@@ -213,17 +409,12 @@ const createDefaultReceiveDescriptor = async ({
   signer: Signer;
   network: Network;
 }) => {
-  if (signer.type === SOFTWARE) {
-    const mnemonic = signer.mnemonic;
-    if (!mnemonic) throw new Error(`mnemonic not provided for ${signer.type}`);
-    return scriptExpressions.wpkhBIP32({
-      masterNode: getMasterNode(mnemonic, network),
-      network,
-      account: 0,
-      index: '*',
-      change: 0
-    });
-  } else throw new Error(`Signer type ${signer.type} not supported`);
+  return createStandardAccountDescriptor({
+    signer,
+    network,
+    scriptType: DEFAULT_STANDARD_ACCOUNT.scriptType,
+    account: DEFAULT_STANDARD_ACCOUNT.accountNumber
+  });
 };
 
 //const createDefaultChangeDescriptorFromMasterNode = (
@@ -316,77 +507,90 @@ export const getDefaultAccount = async (signers: Signers, network: Network) => {
 };
 
 /**
- * Retrieves the main Bitcoin account from a list of account descriptors.
+ * Selects the wallet account to use for automatic receive/change defaults.
  *
- * @param accounts - The list of Bitcoin account descriptors.
- * @param network - The network configuration (mainnet or testnet).
- * @returns The descriptor of the main account.
- * @throws Will throw an error if no main account is found.
+ * `getAccountHasHistory` decides whether an account is used. For normal wallet
+ * accounts, used means the receive range or the change range has history.
  *
- * This function evaluates the descriptors to find the main account based on the
- * purpose and the largest account number, prioritizing:
- * - 'wpkh(@0)' (BIP84) > 'sh(wpkh(@0))' (BIP49) > 'pkh(@0)' (BIP44).
- * - Largest account number within the same purpose category.
+ * Used accounts win over unused accounts. Used accounts are ordered by
+ * ORDERED_STANDARD_ACCOUNT_SCRIPT_DEFINITIONS; if more than one used account has
+ * the same script, the highest account number wins. If no account is used, the
+ * configured default standard account wins.
  */
+export const selectPreferredAccount = ({
+  accounts,
+  network,
+  getAccountHasHistory
+}: {
+  accounts: Accounts;
+  network: Network;
+  getAccountHasHistory: (account: Account) => boolean;
+}): Account => {
+  const mainCandidates: {
+    descriptor: string;
+    purpose: number;
+    accountNumber: number;
+    isUsed: boolean;
+  }[] = [];
 
-export const getMainAccount = moize(
-  (accounts: Accounts, network: Network): string => {
-    const mainCandidates: {
-      descriptor: string;
-      purpose: number;
-      accountNumber: number;
-    }[] = [];
+  const { expand } = ensureDescriptorsFactoryInstance();
+  Object.keys(accounts).forEach(descriptor => {
+    const expansion = expand({ descriptor, network });
+    const expandedExpression = expansion.expandedExpression;
+    const expansionMapValues = Object.values(expansion.expansionMap || {})[0];
 
-    const { expand } = ensureDescriptorsFactoryInstance();
-    Object.keys(accounts).forEach(descriptor => {
-      const expansion = expand({ descriptor, network });
-      const expandedExpression = expansion.expandedExpression;
-      const expansionMapValues = Object.values(expansion.expansionMap || {})[0];
+    if (expansionMapValues) {
+      const { keyPath, originPath } = expansionMapValues;
+      const originPathElements = originPath?.split('/');
+      const [, purposeH, coinTypeH, accountNumberH] = originPathElements || [];
+      const purpose = purposeH === undefined ? -1 : parseInt(purposeH);
+      const accountNumber =
+        accountNumberH === undefined ? -1 : parseInt(accountNumberH);
 
-      if (expansionMapValues) {
-        const { keyPath, originPath } = expansionMapValues;
-        const originPathElements = originPath?.split('/');
-        const [, purposeH, coinTypeH, accountNumberH] =
-          originPathElements || [];
-        const purpose = purposeH === undefined ? -1 : parseInt(purposeH);
-        const accountNumber =
-          accountNumberH === undefined ? -1 : parseInt(accountNumberH);
+      const definition = ORDERED_STANDARD_ACCOUNT_SCRIPT_DEFINITIONS.find(
+        definition =>
+          definition.purpose === purpose &&
+          definition.expandedExpression === expandedExpression
+      );
 
-        if (
-          originPathElements?.length === 4 && // 4 is right, 1st el is empty
-          keyPath === '/0/*' &&
-          accountNumberH === `${accountNumber}'` &&
-          purposeH === `${purpose}'` &&
-          //FIXME: should I add here TR?
-          [44, 49, 84].includes(purpose) &&
-          coinTypeH === (network === networks.bitcoin ? "0'" : "1'") &&
-          ((purpose === 44 && expandedExpression === 'pkh(@0)') ||
-            (purpose === 49 && expandedExpression === 'sh(wpkh(@0))') ||
-            (purpose === 84 && expandedExpression === 'wpkh(@0)'))
-        ) {
-          mainCandidates.push({ descriptor, purpose, accountNumber });
-        }
+      if (
+        originPathElements?.length === 4 && // 4 is right, 1st el is empty
+        keyPath === '/0/*' &&
+        accountNumberH === `${accountNumber}'` &&
+        purposeH === `${purpose}'` &&
+        definition &&
+        coinTypeH === (network === networks.bitcoin ? "0'" : "1'")
+      ) {
+        mainCandidates.push({
+          descriptor,
+          purpose,
+          accountNumber,
+          isUsed: getAccountHasHistory(descriptor as Account)
+        });
       }
-    });
+    }
+  });
 
-    if (mainCandidates.length === 0)
-      throw new Error('Could not get the main account');
+  if (mainCandidates.length === 0)
+    throw new Error('Could not get the main account');
 
-    //FIXME: should I add here TR?
-    const purposeOrder: { [key: number]: number } = { 84: 0, 49: 1, 44: 2 };
-    // Sort by purpose preference and then by account number
-    mainCandidates.sort((a, b) => {
-      // wpkh > sh(wpkh) > pkh
-      const purposeAOrder = purposeOrder[a.purpose];
-      const purposeBOrder = purposeOrder[b.purpose];
-      if (purposeAOrder === undefined || purposeBOrder === undefined)
-        throw new Error('purposeOrder did not take all possible cases');
-      const purposeComparison = purposeAOrder - purposeBOrder;
-      if (purposeComparison !== 0) return purposeComparison;
-      //Second ordering criteria is accountNumber: larger account number is preferred
-      return b.accountNumber - a.accountNumber;
-    });
+  const hasUsedAccount = mainCandidates.some(candidate => candidate.isUsed);
+  mainCandidates.sort((a, b) => {
+    if (hasUsedAccount && a.isUsed !== b.isUsed) return a.isUsed ? -1 : 1;
+    const purposeOrder =
+      hasUsedAccount && a.isUsed && b.isUsed
+        ? usedPurposeOrder
+        : defaultPurposeOrder;
+    const purposeAOrder = purposeOrder[a.purpose];
+    const purposeBOrder = purposeOrder[b.purpose];
+    if (purposeAOrder === undefined || purposeBOrder === undefined)
+      throw new Error('purposeOrder did not take all possible cases');
+    const purposeComparison = purposeAOrder - purposeBOrder;
+    if (purposeComparison !== 0) return purposeComparison;
+    return hasUsedAccount && a.isUsed && b.isUsed
+      ? b.accountNumber - a.accountNumber
+      : a.accountNumber - b.accountNumber;
+  });
 
-    return mainCandidates[0]!.descriptor;
-  }
-);
+  return mainCandidates[0]!.descriptor as Account;
+};
