@@ -1026,13 +1026,8 @@ Usa esto para simular comisiones más altas y condiciones extremas de mempool en
     accountGapBlocked:
       'La cuenta {{account}} está demasiado adelantada. Usa primero la cuenta {{previousAccount}} para que las wallets restauradas puedan encontrar esta cuenta después.',
     previousAccountChecking:
-      'Comprobando el historial de recepción de la cuenta {{previousAccount}} antes de permitir la cuenta {{account}}.',
-    changeAccountBlocked:
-      'La cuenta {{account}} todavía no tiene historial de recepción. Elige una cuenta que ya haya recibido bitcoin para el cambio.',
-    changeAccountChecking:
-      'Comprobando el historial de recepción de la cuenta {{account}} antes de permitir cambio.',
-    newAccountWarning:
-      'Esta cuenta de recepción todavía no tiene historial. Otras wallets podrían no mostrarla hasta que reciba bitcoin.',
+      'Comprobando el historial de la cuenta {{previousAccount}} antes de permitir la cuenta {{account}}.',
+    newAccountWarning: 'Esta cuenta todavía no tiene historial.',
     usedWarning: 'Esta dirección ya se ha usado antes.',
     unsupportedSigner:
       'La selección avanzada de dirección aún no está disponible para este firmante.',

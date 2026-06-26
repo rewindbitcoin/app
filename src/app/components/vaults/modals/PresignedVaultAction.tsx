@@ -152,6 +152,7 @@ const PresignedVaultAction = ({
     tipStatus,
     vaultsStatuses,
     accounts,
+    discoveryReady,
     getPreferredAccount
   } = useWallet();
   const { settings } = useSettings();
@@ -691,9 +692,14 @@ const PresignedVaultAction = ({
     typeof p2aBumpPlan === 'object' &&
     vaultableWalletUtxosData.length > 0 &&
     !(vaultMode === 'P2A_TRUC' && p2aBumpPlan.hasUnconfirmedUtxos);
-  const initialTriggerChangeAccount = accounts
-    ? getPreferredAccount(accounts)
-    : undefined;
+  const initialTriggerChangeAccount =
+    role === 'TRIGGER' &&
+    !isLadderedVault &&
+    isModalVisibleOrHiding &&
+    discoveryReady &&
+    accounts
+      ? getPreferredAccount()
+      : undefined;
   const canChooseCustomTriggerChangeAddress =
     role === 'TRIGGER' &&
     !isLadderedVault &&

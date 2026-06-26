@@ -248,8 +248,8 @@ export default function VaultSetUp({
     () =>
       customChangeDescriptorWithIndex
         ? computeOutput(customChangeDescriptorWithIndex, network)
-        : DUMMY_CHANGE_OUTPUT(getPreferredAccount(accounts), network),
-    [accounts, customChangeDescriptorWithIndex, getPreferredAccount, network]
+        : DUMMY_CHANGE_OUTPUT(getPreferredAccount(), network),
+    [customChangeDescriptorWithIndex, getPreferredAccount, network]
   );
 
   const presignedTriggerFeeRate = getPresignedTriggerFeeRate(
@@ -853,7 +853,7 @@ export default function VaultSetUp({
             pickedUtxosData={pickedVaultableUtxosData}
             btcFiat={btcFiat}
             changeAddressSelection={customChangeAddressSelection}
-            initialChangeAccount={getPreferredAccount(accounts)}
+            initialChangeAccount={getPreferredAccount()}
             onClose={handleCloseAdvancedOptions}
             onClearCoinSelection={handleClearCoinSelection}
             onClearChangeAddress={handleClearChangeAddress}

@@ -96,7 +96,7 @@ export default function Receive() {
     if (hasCustomReceiveAddress) return;
     const f = async () => {
       const receiveDescriptorWithIndex =
-        await getReceiveDescriptorWithNextIndex(accounts);
+        await getReceiveDescriptorWithNextIndex();
       setReceiveDescriptorWithIndex(receiveDescriptorWithIndex);
     };
     f();
@@ -193,7 +193,7 @@ export default function Receive() {
   const pickerAccount = (receiveDescriptorWithIndex?.descriptor.replace(
     /\/1\/\*/g,
     '/0/*'
-  ) ?? getPreferredAccount(accounts)) as Account;
+  ) ?? getPreferredAccount()) as Account;
   const pickerChange: 0 | 1 = receiveDescriptorWithIndex?.descriptor.includes(
     '/1/*'
   )

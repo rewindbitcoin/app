@@ -146,6 +146,7 @@ const RawVault = ({
     labels,
     networkId,
     accounts,
+    discoveryReady,
     getChangeDescriptorWithNextIndex,
     pushTxPackage,
     setWalletLabelText,
@@ -221,14 +222,13 @@ const RawVault = ({
     []
   );
   const openTriggerModal = useCallback(async () => {
+    if (!discoveryReady) return;
     if (triggerBumpPlan !== 'error') syncTriggerReserveBumpPlan();
     if (!isLadderedVault && accounts) {
       try {
         // Pick the default child change when the modal opens and keep it stable.
         // This flow is short-lived and the wallet is effectively locked while it is open.
-        setInitialTriggerChildChange(
-          await getChangeDescriptorWithNextIndex(accounts)
-        );
+        setInitialTriggerChildChange(await getChangeDescriptorWithNextIndex());
       } catch (error) {
         console.warn('Could not prepare trigger child change', error);
         setInitialTriggerChildChange(undefined);
@@ -237,6 +237,7 @@ const RawVault = ({
     setIsTriggerModalVisible(true);
   }, [
     accounts,
+    discoveryReady,
     getChangeDescriptorWithNextIndex,
     isLadderedVault,
     syncTriggerReserveBumpPlan,
@@ -476,10 +477,16 @@ const RawVault = ({
     );
   }, [networkId, initialRescueChildChange]);
   const openRescueModal = useCallback(() => {
+    if (!discoveryReady) return;
     if (rescueReserveData && rescueBumpPlan !== 'error')
       syncRescueReserveBumpPlan();
     setIsRescueModalVisible(true);
-  }, [rescueBumpPlan, rescueReserveData, syncRescueReserveBumpPlan]);
+  }, [
+    discoveryReady,
+    rescueBumpPlan,
+    rescueReserveData,
+    syncRescueReserveBumpPlan
+  ]);
   // Rescue reserve funding can open another modal from PresignedVaultAction:
   // either the wallet wizard first, or the AddReserve address modal once a
   // temporary reserve signer exists. Wait until Rescue has fully closed before
@@ -759,13 +766,19 @@ const RawVault = ({
 
     const hasModalPrerequisites =
       !isTriggerBeingHandled &&
+      discoveryReady &&
       !isTriggerModalBlockedByUnconfirmedVault &&
       !isTriggerModalBlockedByUnconfirmedReserve &&
       !bumpPlanLoading &&
       (bumpPlanError || !modalNeedsFeeEstimates || !!feeEstimates);
 
     let accelerationButtonEnabled = false;
-    if (bumpPlanError && !hasRescueStarted && isTriggerPushedButUnconfirmed) {
+    if (
+      discoveryReady &&
+      bumpPlanError &&
+      !hasRescueStarted &&
+      isTriggerPushedButUnconfirmed
+    ) {
       accelerationButtonEnabled = true;
     } else if (
       hasModalPrerequisites &&
@@ -798,6 +811,7 @@ const RawVault = ({
       startLoading:
         (!triggerPushedTxHex && isTriggerBeingHandled) ||
         (startButtonVisible &&
+          discoveryReady &&
           !isTriggerModalBlockedByUnconfirmedVault &&
           !isTriggerModalBlockedByUnconfirmedReserve &&
           !hasModalPrerequisites &&
@@ -812,6 +826,7 @@ const RawVault = ({
     isLadderedVault,
     triggerBumpPlan,
     isTriggerBeingHandled,
+    discoveryReady,
     isTriggerModalBlockedByUnconfirmedVault,
     isTriggerModalBlockedByUnconfirmedReserve,
     feeEstimates,
@@ -836,6 +851,7 @@ const RawVault = ({
       isLadderedVault || rescueBumpPlanNeedsFeeEstimates;
     const hasModalPrerequisites =
       !isRescueBeingHandled &&
+      discoveryReady &&
       !!rescuePresignedTxInfos &&
       !isRescueModalBlockedByUnconfirmedReserve &&
       !bumpPlanLoading &&
@@ -844,6 +860,7 @@ const RawVault = ({
     let accelerationButtonEnabled = false;
     if (
       bumpPlanError &&
+      discoveryReady &&
       isRescuePushedButUnconfirmed &&
       rescuePresignedTxInfos
     ) {
@@ -876,6 +893,7 @@ const RawVault = ({
       startLoading:
         (!rescuePushedTxHex && isRescueBeingHandled) ||
         (startButtonVisible &&
+          discoveryReady &&
           !isRescueModalBlockedByUnconfirmedReserve &&
           !hasModalPrerequisites &&
           (bumpPlanLoading ||
@@ -890,6 +908,7 @@ const RawVault = ({
     isLadderedVault,
     rescueBumpPlan,
     isRescueBeingHandled,
+    discoveryReady,
     isRescueModalBlockedByUnconfirmedReserve,
     rescuePresignedTxInfos,
     feeEstimates,

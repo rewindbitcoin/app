@@ -324,7 +324,7 @@ export default function Send() {
     try {
       const changeDescriptorWithIndex =
         customChangeDescriptorWithIndex ??
-        (await getChangeDescriptorWithNextIndex(accounts));
+        (await getChangeDescriptorWithNextIndex());
       const changeOutput = computeOutput(changeDescriptorWithIndex, network);
       const txHexAndFee = await calculateTx({
         signer,
@@ -355,7 +355,6 @@ export default function Send() {
   }, [
     toast,
     getChangeDescriptorWithNextIndex,
-    accounts,
     customChangeDescriptorWithIndex,
     pickedSendableUtxosData,
     sendableUtxosData,
@@ -483,8 +482,8 @@ export default function Send() {
     () =>
       customChangeDescriptorWithIndex
         ? computeOutput(customChangeDescriptorWithIndex, network)
-        : DUMMY_CHANGE_OUTPUT(getPreferredAccount(accounts), network),
-    [accounts, customChangeDescriptorWithIndex, getPreferredAccount, network]
+        : DUMMY_CHANGE_OUTPUT(getPreferredAccount(), network),
+    [customChangeDescriptorWithIndex, getPreferredAccount, network]
   );
 
   const fee = estimateSendTxFee({
@@ -688,7 +687,7 @@ export default function Send() {
             pickedUtxosData={pickedSendableUtxosData}
             btcFiat={btcFiat}
             changeAddressSelection={customChangeAddressSelection}
-            initialChangeAccount={getPreferredAccount(accounts)}
+            initialChangeAccount={getPreferredAccount()}
             onClose={handleCloseAdvancedOptions}
             onClearCoinSelection={handleClearCoinSelection}
             onClearChangeAddress={handleClearChangeAddress}

@@ -12,25 +12,25 @@
  * The component is deliberately conservative because manual address selection can
  * make funds hard to find later. It blocks invalid BIP32 numbers, indexes outside
  * the current gap-limit window, skipped accounts, and change addresses for
- * accounts with no receive history. A skipped account means choosing account N
- * while an earlier account for the same script type has no receive history; for
+ * accounts with no wallet history. A skipped account means choosing account N
+ * while an earlier account for the same script type has no account history; for
  * example, account 2 is blocked if account 1 was never used. The picker only
  * warns for choices that are still recoverable: reused addresses and unused
  * non-default receive accounts.
  *
  * Safety checks are account-local and script-local. Receive addresses may use the
  * first unused account for their script type, but they may not skip an earlier
- * unused account. Change addresses are stricter: the same account must already
- * have receive history before its change range can be used.
+ * unused account. An account counts as used when either its receive (/0/*) or
+ * change (/1/*) range has history.
  *
  * Network work is kept separate from typing. The picker never fetches one exact
  * address index. Tracked accounts are accounts already saved in the wallet's
  * account list; the main WalletContext sync fetches both receive (/0/*) and
  * change (/1/*) ranges for them. Untracked accounts are temporary candidates the
  * user has typed or reached with the modal controls before confirming the modal.
- * For those temporary accounts, this component may fetch a whole range after a
- * short pause, but only when cache is unknown or stale and the fetch can resolve
- * a safety decision or load the default next index.
+ * If a needed range is unknown or stale, this component may fetch that whole
+ * range after a short pause. It does this only when the fetch can resolve a
+ * safety decision or load the default next index.
  */
 
 import React, {
@@ -78,16 +78,22 @@ type AccountSafetyBlocker =
       type: 'previousAccountUnknown';
       account: number;
       previousAccount: number;
-    }
-  | { type: 'changeAccountUnknown'; account: number }
-  | { type: 'changeAccountUnused'; account: number };
+      change: 0 | 1;
+    };
 
-type ExternalHistoryState = 'used' | 'unused' | 'unknown';
+/**
+ * Account history is checked one range at a time. When status is `unknown`,
+ * `change` is the next range (`0` receive or `1` change) the picker should
+ * fetch before deciding whether the account has history.
+ */
+type AccountHistoryState =
+  | { status: 'used' | 'unused' }
+  | { status: 'unknown'; change: 0 | 1 };
 
 type PendingRangeFetchPurpose =
   | 'loadCurrentRangeDefaultIndex'
-  | 'checkPreviousAccountReceiveHistory'
-  | 'checkChangeAccountReceiveHistory';
+  | 'checkPreviousAccountHistory'
+  | 'checkCurrentAccountHistory';
 
 type PendingRangeFetch = {
   account: Account;
@@ -116,12 +122,18 @@ type AddressScriptPickerModalProps = AddressScriptPickerPanelProps & {
 const changeValues: Array<0 | 1> = [0, 1];
 const MAX_BIP32_INDEX = 0x7fffffff;
 const RANGE_FETCH_DEBOUNCE_MS = 700;
-const RANGE_FRESH_SECONDS = 10 * 60;
+const RANGE_FRESH_SECONDS = 60; //60 seconds cache...
 
-const isRangeStatusFresh = (status: { timeFetched?: number }) =>
-  status.timeFetched !== undefined &&
-  status.timeFetched > 0 &&
-  Math.floor(Date.now() / 1000) - status.timeFetched < RANGE_FRESH_SECONDS;
+const isRangeStatusFresh = (status: {
+  whenFetched?: { timeFetched: number };
+}) =>
+  status.whenFetched !== undefined &&
+  status.whenFetched.timeFetched > 0 &&
+  Math.floor(Date.now() / 1000) - status.whenFetched.timeFetched <
+    RANGE_FRESH_SECONDS;
+
+const getAccountRangeDescriptor = (account: Account, change: 0 | 1) =>
+  account.replace(/\/0\/\*/g, `/${change}/*`);
 
 const getIntegerInputValue = (value: string, locale: string) => {
   const number = localizedStrToNumber(value, locale);
@@ -228,12 +240,12 @@ const RawAddressScriptPickerPanel = ({
   );
   const handleScriptTypeChange = (type: StandardAccountScriptType) => {
     if (type === scriptType) return;
-    const defaultAccountNumber = DEFAULT_STANDARD_ACCOUNT.accountNumber;
-    const defaultAccount = getAccountForInput(type, defaultAccountNumber);
+    const defaultAccountNumber = DEFAULT_STANDARD_ACCOUNT.accountNumber; //0
+    const defaultAccount = getAccountForInput(type, defaultAccountNumber); //wpkh(0/*)....
     setScriptType(type);
     setAccountInput(String(defaultAccountNumber));
-    indexInputEditedRef.current = false;
-    setIndexInput(getDefaultIndexText(defaultAccount, change));
+    indexInputEditedRef.current = false; //index was set automatically (not by the user)
+    setIndexInput(getDefaultIndexText(defaultAccount, change)); //0
   };
   const handleAccountInputChange = useCallback(
     (value: string) => {
@@ -262,7 +274,9 @@ const RawAddressScriptPickerPanel = ({
   const descriptorStatus = account
     ? getRangedDescriptorStatus({ account, change })
     : undefined;
-  const descriptor = descriptorStatus?.descriptor;
+  const descriptor = account
+    ? getAccountRangeDescriptor(account, change)
+    : undefined;
   // Cache-only: undefined means this range has not been fetched yet.
   const selectedRangeNextIndex = descriptorStatus?.nextIndex;
   const selectedRangeIsFresh =
@@ -307,31 +321,40 @@ const RawAddressScriptPickerPanel = ({
     pickedIndex !== null &&
     pickedIndex > lastSafeIndex;
   /*
-   * Account safety uses external (/0/*) history. It treats unknown or stale
-   * untracked history as a temporary blocker and lets the refresh effect below
-   * resolve it.
+   * Account safety uses both receive (/0/*) and change (/1/*) history. Unknown
+   * or stale untracked history blocks temporarily until the refresh effect below
+   * checks one range at a time.
    */
   const accountSafety: {
     blocker?: AccountSafetyBlocker;
-    hasCurrentExternalHistory?: boolean;
+    hasCurrentAccountHistory?: boolean;
+    currentAccountUnknownChange?: 0 | 1;
   } = (() => {
     if (!accounts || accountNumber === null) return {};
 
-    // An account counts as used only if its receive range (/0/*) has history.
-    // Change-only history is not enough to make later accounts safe.
-    const getExternalHistoryState = (
-      candidateAccountNumber: number
-    ): ExternalHistoryState => {
-      if (
-        candidateAccountNumber === accountNumber &&
-        change === 0 &&
-        selectedRangeNextIndex !== undefined
-      ) {
-        if (account && !accounts[account] && !selectedRangeIsFresh)
-          return 'unknown';
-        return selectedRangeNextIndex > 0 ? 'used' : 'unused';
-      }
+    const getRangeHistoryState = (
+      candidateAccount: Account,
+      rangeChange: 0 | 1
+    ): AccountHistoryState => {
+      const status =
+        candidateAccount === account && rangeChange === change
+          ? descriptorStatus
+          : getRangedDescriptorStatus({
+              account: candidateAccount,
+              change: rangeChange
+            });
+      if (!status) return { status: 'unknown', change: rangeChange };
+      const nextIndex = status?.nextIndex;
+      if (nextIndex === undefined)
+        return { status: 'unknown', change: rangeChange };
+      if (!accounts[candidateAccount] && !isRangeStatusFresh(status))
+        return { status: 'unknown', change: rangeChange };
+      return nextIndex > 0 ? { status: 'used' } : { status: 'unused' };
+    };
 
+    const getAccountHistoryState = (
+      candidateAccountNumber: number
+    ): AccountHistoryState => {
       try {
         const candidateAccount = createStandardAccountDescriptor({
           signer,
@@ -339,68 +362,61 @@ const RawAddressScriptPickerPanel = ({
           scriptType,
           account: candidateAccountNumber
         });
-        const status = getRangedDescriptorStatus({
-          account: candidateAccount,
-          change: 0
-        });
-        const nextIndex = status.nextIndex;
-        return nextIndex === undefined
-          ? 'unknown'
-          : !accounts[candidateAccount] && !isRangeStatusFresh(status)
-            ? 'unknown'
-            : nextIndex > 0
-              ? 'used'
-              : 'unused';
+
+        const receiveHistoryState = getRangeHistoryState(candidateAccount, 0);
+        const changeHistoryState = getRangeHistoryState(candidateAccount, 1);
+        if (
+          receiveHistoryState.status === 'used' ||
+          changeHistoryState.status === 'used'
+        )
+          return { status: 'used' };
+        if (receiveHistoryState.status === 'unknown')
+          return receiveHistoryState;
+        if (changeHistoryState.status === 'unknown') return changeHistoryState;
+        return { status: 'unused' };
       } catch {
-        return 'unknown';
+        return { status: 'unknown', change: 0 };
       }
     };
 
-    // BIP44-style account discovery stops at the first unused account. Do not
-    // allow account N until every earlier account for this script has receive
-    // history.
+    // Do not allow account N until every earlier account for this script has
+    // history in either receive or change.
     for (
       let candidateAccount = 0;
       candidateAccount < accountNumber;
       candidateAccount++
     ) {
-      const historyState = getExternalHistoryState(candidateAccount);
-      if (historyState !== 'used')
+      const historyState = getAccountHistoryState(candidateAccount);
+      if (historyState.status === 'unknown')
         return {
           blocker: {
-            type:
-              historyState === 'unknown'
-                ? 'previousAccountUnknown'
-                : 'previousAccountUnused',
+            type: 'previousAccountUnknown',
+            account: accountNumber,
+            previousAccount: candidateAccount,
+            change: historyState.change
+          }
+        };
+      if (historyState.status === 'unused')
+        return {
+          blocker: {
+            type: 'previousAccountUnused',
             account: accountNumber,
             previousAccount: candidateAccount
           }
         };
     }
 
-    const currentExternalHistoryState = getExternalHistoryState(accountNumber);
-    if (change === 1 && currentExternalHistoryState !== 'used') {
-      const blocker = {
-        type:
-          currentExternalHistoryState === 'unknown'
-            ? 'changeAccountUnknown'
-            : 'changeAccountUnused',
-        account: accountNumber
-      } as const;
-      return currentExternalHistoryState === 'unknown'
-        ? { blocker }
-        : { blocker, hasCurrentExternalHistory: false };
-    }
-
-    return currentExternalHistoryState === 'unknown'
-      ? {}
-      : { hasCurrentExternalHistory: currentExternalHistoryState === 'used' };
+    const currentAccountHistoryState = getAccountHistoryState(accountNumber);
+    return currentAccountHistoryState.status === 'unknown'
+      ? { currentAccountUnknownChange: currentAccountHistoryState.change }
+      : {
+          hasCurrentAccountHistory: currentAccountHistoryState.status === 'used'
+        };
   })();
   const accountSafetyBlocker = accountSafety.blocker;
-  const showUnusedReceiveAccountWarning =
-    change === 0 &&
+  const showUnusedAccountWarning =
     accountNumber !== null &&
-    accountSafety.hasCurrentExternalHistory === false &&
+    accountSafety.hasCurrentAccountHistory === false &&
     !accountSafetyBlocker &&
     !isDefaultStandardAccount({ scriptType, accountNumber });
   const hasSafetyBlocker =
@@ -413,20 +429,22 @@ const RawAddressScriptPickerPanel = ({
         scriptType,
         accountSafetyBlocker.previousAccount
       );
-      if (!previousAccount || accounts[previousAccount]) return;
+      if (!previousAccount) return;
       const status = getRangedDescriptorStatus({
         account: previousAccount,
-        change: 0
+        change: accountSafetyBlocker.change
       });
-      if (status.fetching || isRangeStatusFresh(status)) return;
+      if (isRangeStatusFresh(status)) return;
       return {
         account: previousAccount,
-        change: 0 as const,
-        descriptor: status.descriptor,
-        purpose: 'checkPreviousAccountReceiveHistory'
+        change: accountSafetyBlocker.change,
+        descriptor: getAccountRangeDescriptor(
+          previousAccount,
+          accountSafetyBlocker.change
+        ),
+        purpose: 'checkPreviousAccountHistory'
       };
     }
-    if (accounts[account]) return;
     if (
       isOutsideGapLimit &&
       selectedRangeNextIndex !== undefined &&
@@ -434,33 +452,37 @@ const RawAddressScriptPickerPanel = ({
     )
       return;
 
-    if (change === 1 && accountSafetyBlocker?.type === 'changeAccountUnknown') {
-      const status = getRangedDescriptorStatus({ account, change: 0 });
-      if (status.fetching || isRangeStatusFresh(status)) return;
-      return {
-        account,
-        change: 0 as const,
-        descriptor: status.descriptor,
-        purpose: 'checkChangeAccountReceiveHistory'
-      };
-    }
     if (accountSafetyBlocker) return;
 
-    if (
-      !descriptor ||
-      !descriptorStatus ||
-      descriptorStatus.fetching ||
-      selectedRangeIsFresh
-    )
-      return;
-    return {
-      account,
-      change,
-      descriptor,
-      purpose: 'loadCurrentRangeDefaultIndex'
-    };
-  })();
+    if (!descriptor || !descriptorStatus) return;
+    if (!selectedRangeIsFresh)
+      return {
+        account,
+        change,
+        descriptor,
+        purpose: 'loadCurrentRangeDefaultIndex'
+      };
 
+    const currentAccountUnknownChange =
+      accountSafety.currentAccountUnknownChange;
+    if (currentAccountUnknownChange !== undefined) {
+      const status = getRangedDescriptorStatus({
+        account,
+        change: currentAccountUnknownChange
+      });
+      if (!isRangeStatusFresh(status))
+        return {
+          account,
+          change: currentAccountUnknownChange,
+          descriptor: getAccountRangeDescriptor(
+            account,
+            currentAccountUnknownChange
+          ),
+          purpose: 'checkCurrentAccountHistory'
+        };
+    }
+    return;
+  })();
   useEffect(() => {
     if (
       !pendingRangeFetch?.account ||
@@ -529,15 +551,9 @@ const RawAddressScriptPickerPanel = ({
             account: accountSafetyBlocker.account,
             previousAccount: accountSafetyBlocker.previousAccount
           })
-        : accountSafetyBlocker?.type === 'changeAccountUnused'
-          ? t('addressPicker.changeAccountBlocked', {
-              account: accountSafetyBlocker.account
-            })
-          : accountSafetyBlocker?.type === 'changeAccountUnknown'
-            ? t('addressPicker.changeAccountChecking', {
-                account: accountSafetyBlocker.account
-              })
-            : undefined;
+        : undefined;
+  const safetyBlockerIsChecking =
+    accountSafetyBlocker?.type === 'previousAccountUnknown';
   const selection =
     account &&
     descriptor &&
@@ -702,9 +718,13 @@ const RawAddressScriptPickerPanel = ({
       </View>
 
       {safetyBlockerText ? (
-        <Text className="text-sm text-red-600">{safetyBlockerText}</Text>
+        <Text
+          className={`text-sm ${safetyBlockerIsChecking ? 'text-slate-600' : 'text-red-600'}`}
+        >
+          {safetyBlockerText}
+        </Text>
       ) : null}
-      {showUnusedReceiveAccountWarning ? (
+      {showUnusedAccountWarning ? (
         <Text className="text-sm text-orange-600">
           {t('addressPicker.newAccountWarning')}
         </Text>

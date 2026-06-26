@@ -1101,13 +1101,8 @@ Use this to simulate higher fees and extreme mempool conditions on Tape.`,
     accountGapBlocked:
       'Account {{account}} is too far ahead. Use account {{previousAccount}} first so restored wallets can find this account later.',
     previousAccountChecking:
-      'Checking receive history for account {{previousAccount}} before allowing account {{account}}.',
-    changeAccountBlocked:
-      'Account {{account}} has no receive history yet. Choose an account that has already received bitcoin for change.',
-    changeAccountChecking:
-      'Checking receive history for account {{account}} before allowing change.',
-    newAccountWarning:
-      'This receive account has no history yet. Other wallets may not show it until it receives bitcoin.',
+      'Checking account history for account {{previousAccount}} before allowing account {{account}}.',
+    newAccountWarning: 'This account has no history yet.',
     usedWarning: 'This address has been used before.',
     unsupportedSigner:
       'Advanced address selection is not available for this wallet signer yet.',

@@ -119,10 +119,8 @@ export const WalletContext: Context<WalletContextType | null> =
   createContext<WalletContextType | null>(null);
 
 type RangedDescriptorStatus = {
-  descriptor: string;
   nextIndex?: number;
-  fetching?: boolean;
-  timeFetched?: number;
+  whenFetched?: { fetching: boolean; timeFetched: number };
 };
 
 const getRangedAccountFetchLogDetails = (descriptor: string) => {
@@ -173,7 +171,7 @@ export type WalletContextType = {
   //null when read from storage but the vaule had never been set yet.
   pushToken: string | undefined;
   setPushToken: (token: string) => Promise<void>;
-  getChangeDescriptorWithNextIndex: (accounts: Accounts) => Promise<{
+  getChangeDescriptorWithNextIndex: () => Promise<{
     descriptor: string;
     index: number;
   }>;
@@ -212,7 +210,7 @@ export type WalletContextType = {
    * @returns The first vault index with no on-chain backup history.
    */
   getNextOnChainBackupIndex: (minimumIndex?: number) => Promise<number>;
-  getReceiveDescriptorWithNextIndex: (accounts: Accounts) => Promise<{
+  getReceiveDescriptorWithNextIndex: () => Promise<{
     descriptor: string;
     index: number;
   }>;
@@ -227,12 +225,8 @@ export type WalletContextType = {
   signersStorageEngineMismatch: boolean;
   signers: Signers | undefined;
   accounts: Accounts | undefined;
-  /**
-   * Selects the account for automatic receive/change defaults. Used accounts win,
-   * ordered by the standard-account policy. If none is used, falls back to the
-   * configured default standard account.
-   */
-  getPreferredAccount: (accounts: Accounts) => Account;
+  discoveryReady: boolean;
+  getPreferredAccount: () => Account;
   labels: WalletLabels | undefined;
   setWalletLabelText: ({
     type,
@@ -538,6 +532,11 @@ const WalletProviderRaw = ({
   const initialDiscoveryExport = initialDiscoveryExportRef.current;
 
   const discovery = activeWallet && walletsDiscovery[activeWallet.walletId];
+  const rangedDescriptorFetchesRef = useRef(new Map<string, Promise<void>>());
+
+  useEffect(() => {
+    rangedDescriptorFetchesRef.current.clear();
+  }, [discovery]);
 
   //init discovery:
   //discoveryExport may be changing continuously (this is the data that
@@ -2178,38 +2177,46 @@ const WalletProviderRaw = ({
     [activeWallet?.networkId, discovery, signers]
   );
 
-  const getPreferredAccount = useCallback(
-    (accounts: Accounts) => {
-      const network =
-        activeWallet?.networkId && networkMapping[activeWallet.networkId];
-      if (!network) throw new Error('Network not ready');
-      return selectPreferredAccount({
-        accounts,
-        network,
-        ...(discovery
-          ? {
-              getExternalNextIndex: descriptor =>
-                discovery.getNextIndex({ descriptor })
-            }
-          : {})
-      });
-    },
-    [activeWallet?.networkId, discovery]
-  );
+  /**
+   * Selects the account for automatic receive/change defaults. Used accounts win,
+   * ordered by the standard-account policy. If no account has known history, it
+   * falls back to the configured default standard account. Requires discovery
+   * because unknown history must not be treated as empty history.
+   */
+  const getPreferredAccount = useCallback(() => {
+    const network =
+      activeWallet?.networkId && networkMapping[activeWallet.networkId];
+    if (!network) throw new Error('Network not ready');
+    if (!discovery) throw new Error('Discovery not ready');
+    if (!accounts) throw new Error('Accounts not ready');
+    if (!Object.keys(accounts).length) throw new Error('Accounts not set');
+    return selectPreferredAccount({
+      accounts,
+      network,
+      // Mark an account as used if either its receive range or its change range
+      // has history. selectPreferredAccount then picks used accounts before
+      // unused accounts. Among used accounts it picks by script order first, for
+      // example taproot before native SegWit. If two used accounts have the same
+      // script, it picks the highest account number, for example wpkh account 2
+      // before wpkh account 1. If no account is used, it falls back to the
+      // configured default standard account (wpkh account 0).
+      getAccountHasHistory: account =>
+        discovery.getNextIndex({ descriptor: account }) > 0 ||
+        discovery.getNextIndex({
+          descriptor: account.replace(/\/0\/\*/g, '/1/*')
+        }) > 0
+    });
+  }, [accounts, activeWallet?.networkId, discovery]);
 
-  const getChangeDescriptorWithNextIndex = useCallback(
-    async (accounts: Accounts) => {
-      if (!Object.keys(accounts).length) throw new Error('Accounts not set');
-      if (!discovery) throw new Error('Discovery not ready');
-      const account = getPreferredAccount(accounts);
-      const changeDescriptor = account.replace(/\/0\/\*/g, '/1/*');
-      return {
-        descriptor: changeDescriptor,
-        index: discovery.getNextIndex({ descriptor: changeDescriptor })
-      };
-    },
-    [discovery, getPreferredAccount]
-  );
+  const getChangeDescriptorWithNextIndex = useCallback(async () => {
+    if (!discovery) throw new Error('Discovery not ready');
+    const account = getPreferredAccount();
+    const changeDescriptor = account.replace(/\/0\/\*/g, '/1/*');
+    return {
+      descriptor: changeDescriptor,
+      index: discovery.getNextIndex({ descriptor: changeDescriptor })
+    };
+  }, [discovery, getPreferredAccount]);
 
   const getRangedDescriptorWithNextIndex = useCallback(
     ({ account, change }: { account: Account; change: 0 | 1 }) => {
@@ -2229,9 +2236,8 @@ const WalletProviderRaw = ({
    * `account` is always the receive descriptor (`/0/*`). `change` selects the
    * receive range (`0`) or change range (`1`). This function does not fetch.
    *
-   * `nextIndex` is returned after the range has been fetched at least once.
-   * It can still be returned while a refresh is in progress; `fetching` only
-   * tells callers that a newer network update is currently running.
+   * `whenFetched` is the discovery cache status for the range. `nextIndex` is
+   * returned after the range has completed at least one fetch.
    */
   const getRangedDescriptorStatus = useCallback(
     ({ account, change }: { account: Account; change: 0 | 1 }) => {
@@ -2244,14 +2250,8 @@ const WalletProviderRaw = ({
         ? discovery.getNextIndex({ descriptor })
         : undefined;
       return {
-        descriptor,
         ...(nextIndex !== undefined ? { nextIndex } : {}),
-        ...(fetched?.fetching !== undefined
-          ? { fetching: fetched.fetching }
-          : {}),
-        ...(fetched?.timeFetched !== undefined
-          ? { timeFetched: fetched.timeFetched }
-          : {})
+        ...(fetched ? { whenFetched: fetched } : {})
       };
     },
     [discovery]
@@ -2264,9 +2264,10 @@ const WalletProviderRaw = ({
    * with the wallet gap limit. It never fetches one exact address index.
    *
    * If `freshForSeconds` is provided, a recently fetched range is reused until it
-   * becomes older than that value. If omitted, the range is fetched unless it is
-   * already fetching. This parameter is cache freshness, not UI debounce; callers
-   * that react to typing should debounce before calling this function.
+   * becomes older than that value. If another call is already fetching the same
+   * range, this waits for that fetch and returns the updated cache status. This
+   * parameter is cache freshness, not UI debounce; callers that react to typing
+   * should debounce before calling this function.
    */
   const fetchRangedDescriptor = useCallback(
     async ({
@@ -2283,22 +2284,37 @@ const WalletProviderRaw = ({
         throw new Error('gapLimit not ready to fetch ranged descriptor');
 
       const status = getRangedDescriptorStatus({ account, change });
+      const descriptor = account.replace(/\/0\/\*/g, `/${change}/*`);
+      const pendingFetch = rangedDescriptorFetchesRef.current.get(descriptor);
+      if (pendingFetch) {
+        await pendingFetch;
+        return getRangedDescriptorStatus({ account, change });
+      }
+
       const now = Math.floor(Date.now() / 1000);
       if (
-        status.fetching ||
-        (freshForSeconds !== undefined &&
-          status.timeFetched !== undefined &&
-          status.timeFetched > 0 &&
-          now - status.timeFetched < freshForSeconds)
+        freshForSeconds !== undefined &&
+        status.whenFetched?.timeFetched !== undefined &&
+        status.whenFetched.timeFetched > 0 &&
+        now - status.whenFetched.timeFetched < freshForSeconds
       )
         return status;
 
       logRangedAccountFetch({
-        descriptor: status.descriptor,
+        descriptor,
         gapLimit,
         source: 'fetchRangedDescriptor'
       });
-      await discovery.fetch({ descriptor: status.descriptor, gapLimit });
+      const fetchPromise = discovery
+        .fetch({ descriptor, gapLimit })
+        .then(() => undefined);
+      rangedDescriptorFetchesRef.current.set(descriptor, fetchPromise);
+      try {
+        await fetchPromise;
+      } finally {
+        if (rangedDescriptorFetchesRef.current.get(descriptor) === fetchPromise)
+          rangedDescriptorFetchesRef.current.delete(descriptor);
+      }
       return getRangedDescriptorStatus({ account, change });
     },
     [discovery, gapLimit, getRangedDescriptorStatus]
@@ -2360,21 +2376,17 @@ const WalletProviderRaw = ({
     ]
   );
 
-  const getReceiveDescriptorWithNextIndex = useCallback(
-    async (accounts: Accounts) => {
-      if (!Object.keys(accounts).length) throw new Error('Accounts not set');
-      if (!discovery) throw new Error('Discovery not ready');
-      const account = getPreferredAccount(accounts);
-      const receiveDescriptor = account;
-      return {
-        descriptor: receiveDescriptor,
-        index: discovery.getNextIndex({
-          descriptor: receiveDescriptor
-        })
-      };
-    },
-    [discovery, getPreferredAccount]
-  );
+  const getReceiveDescriptorWithNextIndex = useCallback(async () => {
+    if (!discovery) throw new Error('Discovery not ready');
+    const account = getPreferredAccount();
+    const receiveDescriptor = account;
+    return {
+      descriptor: receiveDescriptor,
+      index: discovery.getNextIndex({
+        descriptor: receiveDescriptor
+      })
+    };
+  }, [discovery, getPreferredAccount]);
 
   const getUnvaultKeyExpression = useCallback(async () => {
     const network =
@@ -3350,6 +3362,7 @@ const WalletProviderRaw = ({
     signersStorageEngineMismatch,
     signers,
     accounts,
+    discoveryReady: !!discovery,
     getPreferredAccount,
     labels,
     setWalletLabelText,

@@ -187,7 +187,7 @@ type StandardAccountDescriptorParams = Parameters<
 >[0];
 
 // Standard wallet account types, ordered by preference when the wallet already
-// has receive history. This order does not choose the first account for a new
+// has account history. This order does not choose the first account for a new
 // wallet; DEFAULT_STANDARD_ACCOUNT is the explicit default for that case.
 export const ORDERED_STANDARD_ACCOUNT_SCRIPT_DEFINITIONS = [
   {
@@ -508,17 +508,23 @@ export const getDefaultAccount = async (signers: Signers, network: Network) => {
 
 /**
  * Selects the wallet account to use for automatic receive/change defaults.
- * Used accounts win first, ordered by ORDERED_STANDARD_ACCOUNT_SCRIPT_DEFINITIONS.
- * If no account has known external history, fall back to DEFAULT_STANDARD_ACCOUNT.
+ *
+ * `getAccountHasHistory` decides whether an account is used. For normal wallet
+ * accounts, used means the receive range or the change range has history.
+ *
+ * Used accounts win over unused accounts. Used accounts are ordered by
+ * ORDERED_STANDARD_ACCOUNT_SCRIPT_DEFINITIONS; if more than one used account has
+ * the same script, the highest account number wins. If no account is used, the
+ * configured default standard account wins.
  */
 export const selectPreferredAccount = ({
   accounts,
   network,
-  getExternalNextIndex
+  getAccountHasHistory
 }: {
   accounts: Accounts;
   network: Network;
-  getExternalNextIndex?: (descriptor: string) => number | undefined;
+  getAccountHasHistory: (account: Account) => boolean;
 }): Account => {
   const mainCandidates: {
     descriptor: string;
@@ -555,17 +561,11 @@ export const selectPreferredAccount = ({
         definition &&
         coinTypeH === (network === networks.bitcoin ? "0'" : "1'")
       ) {
-        let nextIndex: number | undefined;
-        try {
-          nextIndex = getExternalNextIndex?.(descriptor);
-        } catch {
-          nextIndex = undefined;
-        }
         mainCandidates.push({
           descriptor,
           purpose,
           accountNumber,
-          isUsed: nextIndex !== undefined && nextIndex > 0
+          isUsed: getAccountHasHistory(descriptor as Account)
         });
       }
     }

@@ -110,6 +110,7 @@ const WalletHomeScreen = () => {
     vaults,
     vaultsStatuses,
     accounts,
+    discoveryReady,
     utxosData,
     historyData,
     updateVaultStatus,
@@ -210,7 +211,8 @@ const WalletHomeScreen = () => {
       syncBlockchain,
       userTriggeredRefresh,
       syncingOrFaucetPendingOrExplorerConnecting,
-      navigation
+      navigation,
+      walletId
     ]
   );
   useEffect(() => navigation.setOptions(navOptions), [navigation, navOptions]);
@@ -260,6 +262,8 @@ const WalletHomeScreen = () => {
 
   const [isMounted, setIsMounted] = useState<boolean>(false);
   useEffect(() => {
+    // isMounted intentionally flips after the first render to avoid an iOS layout glitch.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setIsMounted(true);
   }, []);
 
@@ -270,7 +274,11 @@ const WalletHomeScreen = () => {
     syncBlockchain();
   }, [syncBlockchain]);
   useEffect(() => {
-    if (!syncingBlockchain) setUserTriggeredRefresh(false);
+    if (!syncingBlockchain) {
+      // Reset the manual refresh flag when wallet sync completes.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setUserTriggeredRefresh(false);
+    }
   }, [syncingBlockchain]);
 
   /*
@@ -345,21 +353,6 @@ const WalletHomeScreen = () => {
     theme.colors.primary
   ]);
 
-  // Prevent this problem:
-  // https://github.com/facebook/react-native/issues/32613
-  // https://www.reddit.com/r/reactnative/comments/x7ygwg/flatlist_refresh_indicator_freeze/
-  useEffect(() => {
-    const unsubBlur = navigation.addListener('blur', () => {
-      if (syncingOrFaucetPendingOrExplorerConnecting && userTriggeredRefresh)
-        scrollToTop();
-    });
-    return () => unsubBlur();
-  }, [
-    navigation,
-    userTriggeredRefresh,
-    syncingOrFaucetPendingOrExplorerConnecting
-  ]);
-
   const [walletButtonsHeight, setWalletButtonsHeight] = useState(0);
 
   const stickyHeaderIndices = useMemo(() => [1], []);
@@ -376,18 +369,37 @@ const WalletHomeScreen = () => {
     headerHeightRef.current = height;
   };
 
-  const scrollToTop = () => {
+  const scrollToTop = useCallback(() => {
     if (scrollViewRef.current)
       scrollViewRef.current.scrollTo({
         y: Math.min(lastScrollPosition.current, headerHeightRef.current),
         animated: false
       });
-  };
-
-  const onActiveTab = useCallback((index: number) => {
-    scrollToTop();
-    setActiveTabIndex(index);
   }, []);
+
+  // Prevent this problem:
+  // https://github.com/facebook/react-native/issues/32613
+  // https://www.reddit.com/r/reactnative/comments/x7ygwg/flatlist_refresh_indicator_freeze/
+  useEffect(() => {
+    const unsubBlur = navigation.addListener('blur', () => {
+      if (syncingOrFaucetPendingOrExplorerConnecting && userTriggeredRefresh)
+        scrollToTop();
+    });
+    return () => unsubBlur();
+  }, [
+    navigation,
+    userTriggeredRefresh,
+    syncingOrFaucetPendingOrExplorerConnecting,
+    scrollToTop
+  ]);
+
+  const onActiveTab = useCallback(
+    (index: number) => {
+      scrollToTop();
+      setActiveTabIndex(index);
+    },
+    [scrollToTop]
+  );
 
   const dismissTestWalletWarning = useCallback(() => {
     if (!wallet) throw new Error('Wallet not set in dismissTestWalletWarning');
@@ -522,11 +534,12 @@ const WalletHomeScreen = () => {
         isMounted && (
           <WalletButtons
             handleReceive={
-              accounts && Object.keys(accounts).length
+              discoveryReady && accounts && Object.keys(accounts).length
                 ? handleReceive
                 : undefined
             }
             handleSend={
+              discoveryReady &&
               feeEstimates &&
               explorerReachable &&
               utxosData?.length &&
@@ -536,6 +549,7 @@ const WalletHomeScreen = () => {
                 : undefined
             }
             handleFreeze={
+              discoveryReady &&
               feeEstimates &&
               explorerReachable &&
               utxosData?.length &&

@@ -357,7 +357,7 @@ export default function CreateVaultScreen({
       if (!shouldContinueCreate()) return;
       const changeDescriptorWithIndex =
         customChangeDescriptorWithIndex ??
-        (await getChangeDescriptorWithNextIndex(accounts));
+        (await getChangeDescriptorWithNextIndex());
       if (!shouldContinueCreate()) return;
 
       const nextP2PBackupIndex = lastP2PBackupVaultIndex + 1;
