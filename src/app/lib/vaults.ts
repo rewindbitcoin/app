@@ -60,12 +60,17 @@ import { coinTypeFromNetwork, type NetworkId, networkMapping } from './network';
 import {
   fetchSpendingTx,
   findVoutByScript,
+  RBF_SEQUENCE,
   type SpendingTxData,
   transactionFromHex,
   txSpendsOutpoint
 } from './bitcoin';
 import { MIN_FEE_RATE } from './fees';
 import { maxBigInt, toBigInt, toNumber, toNumberOrUndefined } from './sats';
+import {
+  getPresignedRescueParentFee,
+  getPresignedTriggerParentFee
+} from './vaultFees';
 import { getBackupFunding, getOnChainBackupDescriptor } from './backup/onchain';
 export { getBackupFunding, getOnChainBackupDescriptor };
 export {
@@ -92,7 +97,7 @@ import {
 
 import {
   OP_RETURN_BACKUP_TX_VBYTES,
-  PANIC_TX_VBYTES,
+  RESCUE_TX_VBYTES,
   TRIGGER_TX_VBYTES
 } from './vaultSizes';
 import { generateMnemonic } from 'bip39';
@@ -464,7 +469,7 @@ export const createCpfpChildTxHex = async ({
   psbt.addInput({
     hash: parentTx.getId(),
     index: packageEstimate.anchorOutputIndex,
-    sequence: 0xfffffffd,
+    sequence: RBF_SEQUENCE,
     witnessUtxo: {
       script: P2A_OUTPUT_SCRIPT,
       value: toBigInt(packageEstimate.anchorValue)
@@ -913,12 +918,6 @@ const getMinimumVaultTxFeeRate = (vaultMode: 'P2A_TRUC' | 'P2A_NON_TRUC') =>
   vaultMode === 'P2A_TRUC' ? 0 : MIN_FEE_RATE;
 
 const MAX_BACKUP_TX_VSIZE = Math.max(...OP_RETURN_BACKUP_TX_VBYTES);
-
-const getPresignedTriggerParentFee = (presignedTriggerFeeRate: number) =>
-  BigInt(Math.ceil(Math.max(...TRIGGER_TX_VBYTES) * presignedTriggerFeeRate));
-
-const getPresignedRescueParentFee = (presignedRescueFeeRate: number) =>
-  BigInt(Math.ceil(Math.max(...PANIC_TX_VBYTES) * presignedRescueFeeRate));
 
 /**
  * Runs the initial vault coinselection using the user-selected fee rate.
@@ -1643,7 +1642,7 @@ export const createVault = async ({
   const panicTx = psbtPanic.extractTransaction();
   const panicTxHex = panicTx.toHex();
   const panicVsize = panicTx.virtualSize();
-  if (!PANIC_TX_VBYTES.includes(panicVsize))
+  if (!RESCUE_TX_VBYTES.includes(panicVsize))
     throw new Error(`Unexpected panic vsize: ${panicVsize}`);
 
   const vaultFee = Number(psbtVault.getFee());
@@ -1702,17 +1701,6 @@ export const getRandomSigner = async (networkId: NetworkId) => {
   const masterFingerprint = toHex(masterNode.fingerprint);
   return { masterFingerprint, type: SOFTWARE, mnemonic: randomMnemonic };
 };
-
-export function validateAddress(addressValue: string, network: Network) {
-  try {
-    const { Output } = ensureDescriptorsFactoryInstance();
-    new Output({ descriptor: `addr(${addressValue})`, network });
-    return true;
-  } catch (e) {
-    void e;
-    return false;
-  }
-}
 
 /**
  * How many blocks must be waited for spending from a triggerUnvault tx?

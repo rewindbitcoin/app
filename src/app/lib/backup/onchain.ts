@@ -1,4 +1,3 @@
-//FIXME: review this produced code
 import { dustThreshold } from '@bitcoinerlab/coinselect';
 import {
   keyExpressionBIP32,
@@ -12,31 +11,61 @@ import {
   payments,
   Psbt,
   script,
+  Transaction,
   type Network,
-  type Transaction
+  type Transaction as BitcoinTransaction
 } from 'bitcoinjs-lib';
-import { compare, concat, fromUtf8, toHex } from 'uint8array-tools';
+import { xchacha20 } from '@noble/ciphers/chacha';
 import {
-  decode as decodeVarInt,
-  encode as encodeVarInt,
-  encodingLength
-} from 'varuint-bitcoin';
+  compare,
+  concat,
+  readUInt16,
+  toHex,
+  writeUInt16,
+  writeUInt32
+} from 'uint8array-tools';
 import type { DiscoveryInstance } from '@bitcoinerlab/discovery';
 import type { Explorer } from '@bitcoinerlab/explorer';
+import * as secp256k1 from '@bitcoinerlab/secp256k1';
 
-import { getManagedChacha } from '../../../common/lib/cipher';
 import {
   findVoutByScript,
   fetchTxFee,
+  RBF_SEQUENCE,
   transactionFromHex,
   txSpendsOutpoint
 } from '../bitcoin';
 import { getSeedDerivedCipherKey } from './shared';
+import {
+  COMPRESSED_PUBLIC_KEY_BYTES,
+  getOnChainBackupEntryBytes,
+  getOnChainBackupPayloadBytes,
+  LOCK_BLOCKS_BYTES,
+  ONCHAIN_BACKUP_ENTRY_VERSION_BYTES,
+  ONCHAIN_BACKUP_ENTRY_VERSION,
+  ONCHAIN_BACKUP_MAGIC,
+  ONCHAIN_BACKUP_NONCE_BYTES,
+  ONCHAIN_BACKUP_SIGNATURE_BYTES,
+  PUBLIC_KEY_HASH_BYTES
+} from './onchainFormat';
 import { ensureDescriptorsFactoryInstance } from '../descriptorsFactory';
 import { networkMapping, type NetworkId } from '../network';
-import { isP2AOutputScript } from '../p2aPolicy';
+import {
+  findP2AOutputData,
+  getRescueAnchorValue,
+  getTriggerAnchorValue,
+  isP2AOutputScript,
+  P2A_OUTPUT_SCRIPT
+} from '../p2aPolicy';
 import { maxBigInt } from '../sats';
 import { OP_RETURN_BACKUP_TX_VBYTES } from '../vaultSizes';
+import {
+  getPresignedRescueParentFee,
+  getPresignedTriggerParentFee,
+  P2A_NON_TRUC_PRESIGNED_TRIGGER_FEERATE,
+  P2A_TRUC_PRESIGNED_TRIGGER_FEERATE,
+  PRESIGNED_RESCUE_FEERATE
+} from '../vaultFees';
 import {
   createTriggerDescriptor,
   createUnvaultKeyExpression,
@@ -47,12 +76,243 @@ import {
   getVaultPath,
   parseVaultIndex
 } from '../rewindPaths';
+import {
+  createEmergencyOutputScript,
+  EMERGENCY_OUTPUT_TYPE_BYTES,
+  getEmergencyOutputDataBytes,
+  getEmergencyOutputDataFromScript,
+  getEmergencyOutputTypeFromId,
+  getEmergencyOutputTypeId,
+  type EmergencyOutputData
+} from '../emergencyOutputs';
 import type { Signer } from '../wallets';
 import type { TxHex, Vault, Vaults } from '../vaults';
 import { getVaultIdentity } from './vaultIdentity';
 
-const REW_MAGIC = fromUtf8('REW');
-const BACKUP_ENTRY_VERSION = 1;
+// Constants and types.
+
+const BACKUP_SIGHASH_TYPE = Transaction.SIGHASH_ALL;
+export const ONCHAIN_BACKUP_PRE_BROADCAST_ERROR_PREFIX =
+  'ONCHAIN_BACKUP_PRE_BROADCAST_ERROR:';
+
+type OnChainBackupEntry = {
+  lockBlocks: number;
+  ephemeralPubKey: Uint8Array;
+  emergencyOutput: EmergencyOutputData;
+  triggerSignature: Uint8Array;
+  rescueSignature: Uint8Array;
+};
+
+type OnChainBackupVaultMode = 'P2A_TRUC' | 'P2A_NON_TRUC';
+
+// Backup entry codec.
+
+const readFixedBytes = ({
+  serialized,
+  offset,
+  length,
+  label
+}: {
+  serialized: Uint8Array;
+  offset: number;
+  length: number;
+  label: string;
+}) => {
+  const bytes = serialized.subarray(offset, offset + length);
+  if (bytes.length !== length) throw new Error(`Truncated ${label}`);
+  return bytes;
+};
+
+/**
+ * Turns a backup entry into the bytes that will be encrypted and stored in the
+ * backup transaction's OP_RETURN output.
+ */
+const serializeOnChainBackupEntry = ({
+  lockBlocks,
+  ephemeralPubKey,
+  emergencyOutput,
+  triggerSignature,
+  rescueSignature
+}: OnChainBackupEntry) => {
+  if (!script.isCanonicalPubKey(ephemeralPubKey))
+    throw new Error('Invalid ephemeral public key');
+  const emergencyOutputDataBytes = getEmergencyOutputDataBytes(
+    emergencyOutput.type
+  );
+  if (emergencyOutput.data.length !== emergencyOutputDataBytes)
+    throw new Error('Invalid emergency output data');
+  if (triggerSignature.length !== ONCHAIN_BACKUP_SIGNATURE_BYTES)
+    throw new Error('Invalid trigger signature');
+  if (rescueSignature.length !== ONCHAIN_BACKUP_SIGNATURE_BYTES)
+    throw new Error('Invalid rescue signature');
+  if (!Number.isInteger(lockBlocks) || lockBlocks < 0 || lockBlocks > 0xffff)
+    throw new Error(`Invalid lockBlocks value ${lockBlocks}`);
+
+  const entryBytes = getOnChainBackupEntryBytes(emergencyOutput.type);
+  const serialized = new Uint8Array(entryBytes);
+  let offset = 0;
+  serialized[offset] = ONCHAIN_BACKUP_ENTRY_VERSION;
+  offset += ONCHAIN_BACKUP_ENTRY_VERSION_BYTES;
+  serialized[offset] = getEmergencyOutputTypeId(emergencyOutput.type);
+  offset += EMERGENCY_OUTPUT_TYPE_BYTES;
+  writeUInt16(serialized, offset, lockBlocks, 'BE');
+  offset += LOCK_BLOCKS_BYTES;
+  serialized.set(ephemeralPubKey, offset);
+  offset += COMPRESSED_PUBLIC_KEY_BYTES;
+  serialized.set(emergencyOutput.data, offset);
+  offset += emergencyOutputDataBytes;
+  serialized.set(triggerSignature, offset);
+  offset += ONCHAIN_BACKUP_SIGNATURE_BYTES;
+  serialized.set(rescueSignature, offset);
+  offset += ONCHAIN_BACKUP_SIGNATURE_BYTES;
+  if (offset !== entryBytes)
+    throw new Error('Invalid on-chain backup entry size');
+  return serialized;
+};
+
+/**
+ * Reads decrypted backup entry bytes and returns the fields needed to rebuild
+ * the trigger and rescue transactions.
+ */
+const decodeOnChainBackupEntry = (
+  serialized: Uint8Array
+): OnChainBackupEntry => {
+  let offset = 0;
+  const version = serialized[offset];
+  if (version !== ONCHAIN_BACKUP_ENTRY_VERSION)
+    throw new Error('Unsupported on-chain backup entry version');
+  offset += ONCHAIN_BACKUP_ENTRY_VERSION_BYTES;
+
+  const emergencyOutputTypeId = serialized[offset];
+  if (emergencyOutputTypeId === undefined)
+    throw new Error('Truncated emergency output type');
+  const emergencyOutputType = getEmergencyOutputTypeFromId(
+    emergencyOutputTypeId
+  );
+  offset += EMERGENCY_OUTPUT_TYPE_BYTES;
+  const entryBytes = getOnChainBackupEntryBytes(emergencyOutputType);
+  if (serialized.length !== entryBytes)
+    throw new Error('Invalid on-chain backup entry length');
+
+  const lockBlocks = readUInt16(serialized, offset, 'BE');
+  offset += LOCK_BLOCKS_BYTES;
+  const ephemeralPubKey = readFixedBytes({
+    serialized,
+    offset,
+    length: COMPRESSED_PUBLIC_KEY_BYTES,
+    label: 'ephemeral public key'
+  });
+  offset += COMPRESSED_PUBLIC_KEY_BYTES;
+  const emergencyOutputDataBytes =
+    getEmergencyOutputDataBytes(emergencyOutputType);
+  const emergencyOutputData = readFixedBytes({
+    serialized,
+    offset,
+    length: emergencyOutputDataBytes,
+    label: 'emergency output data'
+  });
+  offset += emergencyOutputDataBytes;
+  const triggerSignature = readFixedBytes({
+    serialized,
+    offset,
+    length: ONCHAIN_BACKUP_SIGNATURE_BYTES,
+    label: 'trigger signature'
+  });
+  offset += ONCHAIN_BACKUP_SIGNATURE_BYTES;
+  const rescueSignature = readFixedBytes({
+    serialized,
+    offset,
+    length: ONCHAIN_BACKUP_SIGNATURE_BYTES,
+    label: 'rescue signature'
+  });
+  offset += ONCHAIN_BACKUP_SIGNATURE_BYTES;
+  if (offset !== serialized.length)
+    throw new Error('Invalid on-chain backup entry length');
+  if (!script.isCanonicalPubKey(ephemeralPubKey))
+    throw new Error('Invalid ephemeral public key');
+
+  return {
+    lockBlocks,
+    ephemeralPubKey,
+    emergencyOutput: {
+      type: emergencyOutputType,
+      data: emergencyOutputData
+    },
+    triggerSignature,
+    rescueSignature
+  };
+};
+
+// Backup payload encryption.
+
+/**
+ * Finds the REW OP_RETURN payload inside a backup transaction.
+ */
+const extractOpReturnPayload = (backupTxHex: TxHex) => {
+  const { tx } = transactionFromHex(backupTxHex);
+  let rewPayload: Uint8Array | undefined;
+  for (const output of tx.outs) {
+    let payload: Uint8Array | undefined;
+    try {
+      payload = payments.embed({ output: output.script }).data?.[0];
+    } catch {}
+    if (
+      payload &&
+      compare(
+        payload.subarray(0, ONCHAIN_BACKUP_MAGIC.length),
+        ONCHAIN_BACKUP_MAGIC
+      ) === 0
+    ) {
+      if (rewPayload) throw new Error('Found multiple REW backup payloads');
+      rewPayload = payload;
+    }
+  }
+  return rewPayload;
+};
+
+/**
+ * Builds the deterministic encryption nonce for one vault index.
+ */
+const getBackupCipherNonce = (vaultIndex: number) => {
+  const nonce = new Uint8Array(ONCHAIN_BACKUP_NONCE_BYTES);
+  writeUInt32(nonce, ONCHAIN_BACKUP_NONCE_BYTES - 4, vaultIndex, 'BE');
+  return nonce;
+};
+
+/**
+ * Checks the REW header, derives the vault backup key, and decrypts one backup
+ * entry for the given vault index.
+ */
+const decryptOnChainBackupEntry = async ({
+  payload,
+  signer,
+  network,
+  vaultIndex
+}: {
+  payload: Uint8Array;
+  signer: Signer;
+  network: Network;
+  vaultIndex: number;
+}) => {
+  if (
+    compare(
+      payload.subarray(0, ONCHAIN_BACKUP_MAGIC.length),
+      ONCHAIN_BACKUP_MAGIC
+    ) !== 0
+  )
+    throw new Error('Backup payload missing REW header');
+  const cipherKey = await getSeedDerivedCipherKey({
+    vaultPath: getVaultPath(network, vaultIndex),
+    signer,
+    network
+  });
+  const nonce = getBackupCipherNonce(vaultIndex);
+  return decodeOnChainBackupEntry(
+    xchacha20(cipherKey, nonce, payload.subarray(ONCHAIN_BACKUP_MAGIC.length))
+  );
+};
+
+// Transaction helpers.
 
 const decodeScriptNumber = (chunk: number | Uint8Array) => {
   let value: number;
@@ -66,83 +326,23 @@ const decodeScriptNumber = (chunk: number | Uint8Array) => {
   return value;
 };
 
-const decodeVaultEntry = (serialized: Uint8Array) => {
-  let offset = 0;
-  const version = serialized[offset];
-  if (version !== BACKUP_ENTRY_VERSION)
-    throw new Error('Unsupported on-chain backup entry version');
-  offset += 1;
+const encodeWitnessSignature = (signature: Uint8Array) =>
+  script.signature.encode(signature, BACKUP_SIGHASH_TYPE);
 
-  const triggerTxLenInfo = decodeVarInt(serialized, offset);
-  const triggerTxLength = triggerTxLenInfo.numberValue;
-  if (triggerTxLength === null) throw new Error('Invalid trigger tx length');
-  offset += triggerTxLenInfo.bytes;
-  const triggerTx = serialized.subarray(offset, offset + triggerTxLength);
-  if (triggerTx.length !== triggerTxLength)
-    throw new Error('Truncated trigger tx');
-  offset += triggerTxLength;
-
-  const panicTxLenInfo = decodeVarInt(serialized, offset);
-  const panicTxLength = panicTxLenInfo.numberValue;
-  if (panicTxLength === null) throw new Error('Invalid panic tx length');
-  offset += panicTxLenInfo.bytes;
-  const panicTx = serialized.subarray(offset, offset + panicTxLength);
-  if (panicTx.length !== panicTxLength) throw new Error('Truncated panic tx');
-  offset += panicTxLength;
-
-  if (offset !== serialized.length)
-    throw new Error('Invalid backup entry length');
-  return {
-    triggerTxHex: toHex(triggerTx),
-    panicTxHex: toHex(panicTx)
-  };
-};
-
-const extractOpReturnPayload = (backupTxHex: TxHex) => {
-  const { tx } = transactionFromHex(backupTxHex);
-  for (const output of tx.outs) {
-    try {
-      const payload = payments.embed({ output: output.script }).data?.[0];
-      if (
-        payload &&
-        compare(payload.subarray(0, REW_MAGIC.length), REW_MAGIC) === 0
-      )
-        return payload;
-    } catch {}
-  }
-  return undefined;
-};
-
-const decryptVaultEntry = async ({
-  payload,
-  signer,
-  network,
-  vaultIndex
-}: {
-  payload: Uint8Array;
-  signer: Signer;
-  network: Network;
-  vaultIndex: number;
-}) => {
-  if (compare(payload.subarray(0, REW_MAGIC.length), REW_MAGIC) !== 0)
-    throw new Error('Backup payload missing REW header');
-  const cipherKey = await getSeedDerivedCipherKey({
-    vaultPath: getVaultPath(network, vaultIndex),
-    signer,
-    network
-  });
-  const cipher = await getManagedChacha(cipherKey);
-  return decodeVaultEntry(cipher.decrypt(payload.subarray(REW_MAGIC.length)));
+const decodeWitnessSignature = (signatureWithHashType: Uint8Array) => {
+  const { signature, hashType } = script.signature.decode(
+    signatureWithHashType
+  );
+  if (hashType !== BACKUP_SIGHASH_TYPE)
+    throw new Error('Unexpected backup signature hash type');
+  if (signature.length !== ONCHAIN_BACKUP_SIGNATURE_BYTES)
+    throw new Error('Unexpected backup signature length');
+  return signature;
 };
 
 /**
- * Extracts the data needed to rebuild the trigger descriptor from the witness
- * script revealed by the panic transaction.
- *
- * The script is produced by `createTriggerDescriptor(...)` as a miniscript
- * `wsh(andor(pk(unvault),older(lockBlocks),pkh(panic)))`. We only extract the
- * CSV timelock and panic pubkey hash here; the caller later rebuilds the full
- * descriptor and verifies its script pubkey matches the trigger tx output.
+ * Reads the trigger witness script and pulls out the CSV lock and rescue key
+ * hash needed to rebuild the trigger descriptor.
  */
 const parseTriggerWitnessScript = (witnessScript: Uint8Array) => {
   const chunks = script.decompile(witnessScript);
@@ -161,7 +361,7 @@ const parseTriggerWitnessScript = (witnessScript: Uint8Array) => {
   if (csvIndex < 1 || lockBlocksChunk === undefined)
     throw new Error('Could not find trigger timelock');
 
-  let panicPubKeyHash: Uint8Array | undefined;
+  let rescuePubKeyHash: Uint8Array | undefined;
   for (let index = 0; index < chunks.length; index++) {
     const chunk = chunks[index];
     if (
@@ -170,38 +370,16 @@ const parseTriggerWitnessScript = (witnessScript: Uint8Array) => {
       chunks[index - 1] === opcodes.OP_HASH160 &&
       chunks[index + 1] === opcodes.OP_EQUALVERIFY
     ) {
-      if (panicPubKeyHash)
-        throw new Error('Found multiple panic pubkey hashes');
-      panicPubKeyHash = chunk;
+      if (rescuePubKeyHash)
+        throw new Error('Found multiple rescue pubkey hashes');
+      rescuePubKeyHash = chunk;
     }
   }
-  if (!panicPubKeyHash) throw new Error('Could not find panic pubkey hash');
+  if (!rescuePubKeyHash) throw new Error('Could not find rescue pubkey hash');
   return {
     lockBlocks: decodeScriptNumber(lockBlocksChunk),
-    panicPubKeyHash
+    rescuePubKeyHash
   };
-};
-
-const getPanicPubKeyExpression = ({
-  panicWitness,
-  panicPubKeyHash
-}: {
-  panicWitness: Array<Uint8Array>;
-  panicPubKeyHash: Uint8Array;
-}) => {
-  const panicPubKey = panicWitness.find(
-    witnessItem =>
-      script.isCanonicalPubKey(witnessItem) &&
-      compare(bitcoinCrypto.hash160(witnessItem), panicPubKeyHash) === 0
-  );
-  if (!panicPubKey) throw new Error('Could not find panic pubkey');
-  return toHex(panicPubKey);
-};
-
-const getTriggerWitnessScript = (panicWitness: Array<Uint8Array>) => {
-  const witnessScript = panicWitness?.[panicWitness.length - 1];
-  if (!witnessScript) throw new Error('Trigger witness script not found');
-  return witnessScript;
 };
 
 const getSingleInputSpendingTx = ({
@@ -209,7 +387,7 @@ const getSingleInputSpendingTx = ({
   prevTxId,
   txName
 }: {
-  tx: Transaction;
+  tx: BitcoinTransaction;
   prevTxId: string;
   txName: string;
 }) => {
@@ -227,52 +405,318 @@ const getSingleInputSpendingTx = ({
   return { vin: match.vin, vout: match.input.index };
 };
 
-const encodeVarIntNumber = (value: number) => {
-  const bytes = new Uint8Array(encodingLength(value));
-  encodeVarInt(value, bytes);
-  return bytes;
+const getOnlyNonP2AOutput = (tx: BitcoinTransaction, txName: string) => {
+  const outputCandidates = tx.outs.filter(
+    output => !isP2AOutputScript(output.script)
+  );
+  if (outputCandidates.length !== 1)
+    throw new Error(`Could not determine ${txName} non-anchor output`);
+  const output = outputCandidates[0];
+  if (!output) throw new Error(`${txName} non-anchor output not found`);
+  return output;
 };
 
-const serializeVaultEntry = ({
-  triggerTx,
-  panicTx
+const assertValidSignature = ({
+  signature,
+  pubkey,
+  hash,
+  label
 }: {
-  triggerTx: Uint8Array;
-  panicTx: Uint8Array;
-}) =>
-  concat([
-    Uint8Array.of(BACKUP_ENTRY_VERSION),
-    encodeVarIntNumber(triggerTx.length),
-    triggerTx,
-    encodeVarIntNumber(panicTx.length),
-    panicTx
-  ]);
-
-const buildEncryptedVaultContent = async ({
-  signer,
-  network,
-  vaultIndex,
-  triggerTx,
-  panicTx
-}: {
-  signer: Signer;
-  network: Network;
-  vaultIndex: number;
-  triggerTx: Uint8Array;
-  panicTx: Uint8Array;
+  signature: Uint8Array;
+  pubkey: Uint8Array;
+  hash: Uint8Array;
+  label: string;
 }) => {
-  const cipherKey = await getSeedDerivedCipherKey({
-    vaultPath: getVaultPath(network, vaultIndex),
+  if (!secp256k1.verify(hash, pubkey, signature, true))
+    throw new Error(`${label} signature does not verify`);
+};
+
+// Transaction reconstruction.
+
+/**
+ * Rebuilds the trigger and rescue transactions from a backup entry and vault
+ * transaction, then verifies the stored signatures against those transactions.
+ */
+const reconstructPresignedTxsFromOnChainBackup = async ({
+  entry,
+  signer,
+  networkId,
+  vaultMode,
+  vaultTxHex
+}: {
+  entry: OnChainBackupEntry;
+  signer: Signer;
+  networkId: NetworkId;
+  vaultMode: OnChainBackupVaultMode;
+  vaultTxHex: TxHex;
+}) => {
+  const { Output } = ensureDescriptorsFactoryInstance();
+  const network = networkMapping[networkId];
+  const { tx: vaultTx, txId: vaultTxId } = transactionFromHex(vaultTxHex);
+  const vaultOutputScript = payments.p2wpkh({
+    pubkey: entry.ephemeralPubKey,
+    network
+  }).output;
+  if (!vaultOutputScript) throw new Error('Could not build vault output');
+  const vaultVout = findVoutByScript(vaultTx, vaultOutputScript);
+  if (vaultVout < 0) throw new Error('Vault output not found');
+  const vaultOutput = vaultTx.outs[vaultVout];
+  if (!vaultOutput) throw new Error('Vault output not found');
+
+  const unvaultKeyExpression = await createUnvaultKeyExpression({
     signer,
     network
   });
-  const cipher = await getManagedChacha(cipherKey);
-  return concat([
-    REW_MAGIC,
-    cipher.encrypt(serializeVaultEntry({ triggerTx, panicTx }))
+  const triggerDescriptor = createTriggerDescriptor({
+    unvaultKeyExpression,
+    panicKeyExpression: toHex(entry.ephemeralPubKey),
+    lockBlocks: entry.lockBlocks
+  });
+  const triggerDescriptorOutput = new Output({
+    descriptor: triggerDescriptor,
+    network,
+    signersPubKeys: [entry.ephemeralPubKey]
+  });
+  const triggerOutputScript = triggerDescriptorOutput.getScriptPubKey();
+  const witnessScript = triggerDescriptorOutput.getWitnessScript();
+  if (!witnessScript) throw new Error('Trigger witness script not found');
+
+  const emergencyOutputScript = createEmergencyOutputScript(
+    entry.emergencyOutput
+  );
+  const triggerSigningScript = payments.p2pkh({
+    hash: bitcoinCrypto.hash160(entry.ephemeralPubKey),
+    network
+  }).output;
+  if (!triggerSigningScript)
+    throw new Error('Could not build trigger signing script');
+  const rescueAnchorValue = getRescueAnchorValue();
+  const rescueFee = getPresignedRescueParentFee(PRESIGNED_RESCUE_FEERATE);
+  const rescueSequence = RBF_SEQUENCE;
+
+  const triggerAnchorValue = getTriggerAnchorValue(vaultMode);
+  // These fee constants are part of on-chain backup entry version 0. If vault
+  // fee policy changes, add a new backup version instead of changing this path.
+  const triggerFee = getPresignedTriggerParentFee(
+    vaultMode === 'P2A_TRUC'
+      ? P2A_TRUC_PRESIGNED_TRIGGER_FEERATE
+      : P2A_NON_TRUC_PRESIGNED_TRIGGER_FEERATE
+  );
+  const triggerOutputValue =
+    vaultOutput.value - triggerAnchorValue - triggerFee;
+  if (triggerOutputValue <= BigInt(0))
+    throw new Error('Invalid trigger output value');
+
+  const triggerTx = new Transaction();
+  triggerTx.version = vaultMode === 'P2A_TRUC' ? 3 : 2;
+  triggerTx.addInput(vaultTx.getHash(), vaultVout, RBF_SEQUENCE);
+  triggerTx.addOutput(triggerOutputScript, triggerOutputValue);
+  triggerTx.addOutput(P2A_OUTPUT_SCRIPT, triggerAnchorValue);
+  assertValidSignature({
+    signature: entry.triggerSignature,
+    pubkey: entry.ephemeralPubKey,
+    hash: triggerTx.hashForWitnessV0(
+      0,
+      triggerSigningScript,
+      vaultOutput.value,
+      BACKUP_SIGHASH_TYPE
+    ),
+    label: 'Trigger'
+  });
+  triggerTx.setWitness(0, [
+    encodeWitnessSignature(entry.triggerSignature),
+    entry.ephemeralPubKey
   ]);
+
+  const rescueOutputValue = triggerOutputValue - rescueAnchorValue - rescueFee;
+  if (rescueOutputValue <= BigInt(0))
+    throw new Error('Invalid rescue output value');
+
+  const rescueTx = new Transaction();
+  rescueTx.version = vaultMode === 'P2A_TRUC' ? 3 : 2;
+  rescueTx.addInput(triggerTx.getHash(), 0, rescueSequence);
+  rescueTx.addOutput(emergencyOutputScript, rescueOutputValue);
+  rescueTx.addOutput(P2A_OUTPUT_SCRIPT, rescueAnchorValue);
+  const rescueSignatureWithHashType = encodeWitnessSignature(
+    entry.rescueSignature
+  );
+  assertValidSignature({
+    signature: entry.rescueSignature,
+    pubkey: entry.ephemeralPubKey,
+    hash: rescueTx.hashForWitnessV0(
+      0,
+      witnessScript,
+      triggerOutputValue,
+      BACKUP_SIGHASH_TYPE
+    ),
+    label: 'Rescue'
+  });
+  const { scriptSatisfaction, nSequence } =
+    triggerDescriptorOutput.getScriptSatisfaction([
+      {
+        pubkey: entry.ephemeralPubKey,
+        signature: rescueSignatureWithHashType
+      }
+    ]);
+  if (nSequence !== undefined && nSequence !== rescueSequence)
+    throw new Error('Unexpected rescue sequence');
+  rescueTx.setWitness(0, [
+    ...script.toStack(scriptSatisfaction),
+    witnessScript
+  ]);
+
+  return {
+    vaultOutput,
+    triggerTx,
+    rescueTx,
+    triggerDescriptor,
+    triggerDescriptorOutput,
+    unvaultKeyExpression,
+    triggerFee: Number(triggerFee),
+    rescueFee: Number(rescueFee),
+    vaultTxId
+  };
 };
 
+// Backup creation.
+
+const getOnChainBackupVaultModeFromTriggerTx = (
+  triggerTx: BitcoinTransaction
+): OnChainBackupVaultMode => {
+  const anchor = findP2AOutputData(triggerTx);
+  if (!anchor) throw new Error('On-chain backup expects a P2A trigger tx');
+  if (triggerTx.version === 3 && anchor.value === 0) return 'P2A_TRUC';
+  return 'P2A_NON_TRUC';
+};
+
+const getVaultPresignedTxDataForBackup = (vault: Vault) => {
+  const triggerEntries = Object.entries(vault.triggerMap);
+  if (triggerEntries.length !== 1)
+    throw new Error('On-chain backup expects exactly one trigger tx');
+  const [triggerTxHex, rescueTxHexs] = triggerEntries[0] ?? [];
+  if (!triggerTxHex || !rescueTxHexs?.length)
+    throw new Error('Could not determine trigger/rescue txs for backup');
+  if (rescueTxHexs.length !== 1)
+    throw new Error('On-chain backup expects exactly one rescue tx');
+  const rescueTxHex = rescueTxHexs[0];
+  if (!rescueTxHex) throw new Error('Could not determine rescue tx for backup');
+  const { tx: triggerTx, txId: triggerTxId } = transactionFromHex(triggerTxHex);
+  const { tx: rescueTx } = transactionFromHex(rescueTxHex);
+  return {
+    triggerTxHex,
+    triggerTx,
+    triggerTxId,
+    rescueTxHex,
+    rescueTx,
+    vaultMode: getOnChainBackupVaultModeFromTriggerTx(triggerTx)
+  };
+};
+
+/**
+ * Extracts the small set of fields needed for the on-chain backup from the
+ * already-created presigned trigger and rescue transactions.
+ */
+const extractOnChainBackupEntryFromPresignedTxs = async ({
+  vault,
+  signer
+}: {
+  vault: Vault;
+  signer: Signer;
+}): Promise<OnChainBackupEntry> => {
+  const network = networkMapping[vault.networkId];
+  const { tx: vaultTx, txId: vaultTxId } = transactionFromHex(vault.vaultTxHex);
+  const {
+    triggerTxHex,
+    triggerTx,
+    triggerTxId,
+    rescueTxHex,
+    rescueTx,
+    vaultMode
+  } = getVaultPresignedTxDataForBackup(vault);
+  const triggerInput = getSingleInputSpendingTx({
+    tx: triggerTx,
+    prevTxId: vaultTxId,
+    txName: 'Trigger tx'
+  });
+  const rescueInput = getSingleInputSpendingTx({
+    tx: rescueTx,
+    prevTxId: triggerTxId,
+    txName: 'Rescue tx'
+  });
+
+  const vaultOutput = vaultTx.outs[triggerInput.vout];
+  if (!vaultOutput) throw new Error('Vault output not found');
+  if (!triggerTx.outs[rescueInput.vout])
+    throw new Error('Trigger output not found');
+  const rescueRecipientOutput = getOnlyNonP2AOutput(rescueTx, 'rescue tx');
+  const triggerWitness = triggerTx.ins[triggerInput.vin]?.witness;
+  if (triggerWitness?.length !== 2)
+    throw new Error('Trigger tx witness should have signature and pubkey');
+  const triggerSignatureWithHashType = triggerWitness[0];
+  const ephemeralPubKey = triggerWitness[1];
+  if (!triggerSignatureWithHashType || !ephemeralPubKey)
+    throw new Error('Trigger tx witness is incomplete');
+  if (!script.isCanonicalPubKey(ephemeralPubKey))
+    throw new Error('Invalid trigger public key');
+  const vaultP2WPKH = payments.p2wpkh({
+    output: vaultOutput.script,
+    network
+  });
+  if (!vaultP2WPKH.hash || vaultP2WPKH.hash.length !== PUBLIC_KEY_HASH_BYTES)
+    throw new Error('Vault must be P2WPKH');
+  const vaultPubKeyHash = vaultP2WPKH.hash;
+  if (compare(bitcoinCrypto.hash160(ephemeralPubKey), vaultPubKeyHash) !== 0)
+    throw new Error('Trigger public key does not match vault output');
+
+  const rescueWitness = rescueTx.ins[rescueInput.vin]?.witness;
+  if (!rescueWitness?.length) throw new Error('Rescue tx witness not found');
+  const witnessScript = rescueWitness[rescueWitness.length - 1];
+  if (!witnessScript) throw new Error('Trigger witness script not found');
+  const { lockBlocks, rescuePubKeyHash } =
+    parseTriggerWitnessScript(witnessScript);
+  if (lockBlocks !== vault.lockBlocks)
+    throw new Error('Backup lockBlocks do not match vault');
+  const rescuePubKey = rescueWitness.find(
+    witnessItem =>
+      script.isCanonicalPubKey(witnessItem) &&
+      compare(bitcoinCrypto.hash160(witnessItem), rescuePubKeyHash) === 0
+  );
+  if (!rescuePubKey) throw new Error('Could not find rescue pubkey');
+  if (compare(rescuePubKey, ephemeralPubKey) !== 0)
+    throw new Error('Rescue public key does not match trigger public key');
+  const emergencyOutput = getEmergencyOutputDataFromScript(
+    rescueRecipientOutput.script
+  );
+  const rescueSignatureWithHashType = rescueWitness.find(witnessItem =>
+    script.isCanonicalScriptSignature(witnessItem)
+  );
+  if (!rescueSignatureWithHashType)
+    throw new Error('Rescue signature not found');
+  const entry = {
+    lockBlocks,
+    ephemeralPubKey,
+    emergencyOutput,
+    triggerSignature: decodeWitnessSignature(triggerSignatureWithHashType),
+    rescueSignature: decodeWitnessSignature(rescueSignatureWithHashType)
+  };
+  const reconstructed = await reconstructPresignedTxsFromOnChainBackup({
+    entry,
+    signer,
+    networkId: vault.networkId,
+    vaultMode,
+    vaultTxHex: vault.vaultTxHex
+  });
+  if (reconstructed.triggerTx.toHex() !== triggerTxHex)
+    throw new Error('On-chain backup cannot reproduce trigger tx');
+  if (reconstructed.rescueTx.toHex() !== rescueTxHex)
+    throw new Error('On-chain backup cannot reproduce rescue tx');
+  return entry;
+};
+
+/**
+ * Builds the deterministic wallet descriptor used for backup outputs. A fixed
+ * index is used for one vault; `*` is used when scanning during restore.
+ */
 export const getOnChainBackupDescriptor = ({
   signer,
   network,
@@ -315,6 +759,52 @@ export const getBackupFunding = (
     dustThreshold(backupOutput) + BigInt(1)
   );
 
+/**
+ * Verifies that a backup transaction can recreate the exact trigger and rescue
+ * transactions stored in the vault before anything is broadcast.
+ */
+const assertOnChainBackupReconstructsPresignedTxs = async ({
+  vault,
+  signer,
+  backupTxHex
+}: {
+  vault: Vault;
+  signer: Signer;
+  backupTxHex: TxHex;
+}) => {
+  const vaultIndex = parseVaultIndex(vault.vaultPath);
+  const network = networkMapping[vault.networkId];
+  const payload = extractOpReturnPayload(backupTxHex);
+  if (!payload) throw new Error('On-chain backup content not found');
+
+  // This is the last cheap safety check before broadcast. If the encrypted
+  // OP_RETURN cannot rebuild the exact presigned transactions now, it will not
+  // save the user after the vault is already on-chain.
+  const entry = await decryptOnChainBackupEntry({
+    payload,
+    signer,
+    network,
+    vaultIndex
+  });
+  const { triggerTxHex, rescueTxHex, vaultMode } =
+    getVaultPresignedTxDataForBackup(vault);
+  const reconstructed = await reconstructPresignedTxsFromOnChainBackup({
+    entry,
+    signer,
+    networkId: vault.networkId,
+    vaultMode,
+    vaultTxHex: vault.vaultTxHex
+  });
+  if (reconstructed.triggerTx.toHex() !== triggerTxHex)
+    throw new Error('On-chain backup sanity check failed for trigger tx');
+  if (reconstructed.rescueTx.toHex() !== rescueTxHex)
+    throw new Error('On-chain backup sanity check failed for rescue tx');
+};
+
+/**
+ * Creates the signed backup transaction that spends the vault's backup output
+ * and stores the encrypted REW backup payload in OP_RETURN.
+ */
 export const createOnChainBackupTx = async ({
   vault,
   signer
@@ -326,18 +816,10 @@ export const createOnChainBackupTx = async ({
   const network = networkMapping[vault.networkId];
   const vaultIndex = parseVaultIndex(vault.vaultPath);
   const { tx: vaultTx } = transactionFromHex(vault.vaultTxHex);
-  const triggerEntries = Object.entries(vault.triggerMap);
-  if (triggerEntries.length !== 1)
-    throw new Error('On-chain backup expects exactly one trigger tx');
-  const [triggerTxHex, panicTxHexs] = triggerEntries[0] ?? [];
-  if (!triggerTxHex || !panicTxHexs?.length)
-    throw new Error('Could not determine trigger/panic txs for backup');
-  if (panicTxHexs.length !== 1)
-    throw new Error('On-chain backup expects exactly one panic tx');
-  const panicTxHex = panicTxHexs[0];
-  if (!panicTxHex) throw new Error('Could not determine panic tx for backup');
-  const { tx: triggerTx } = transactionFromHex(triggerTxHex);
-  const { tx: panicTx } = transactionFromHex(panicTxHex);
+  const entry = await extractOnChainBackupEntryFromPresignedTxs({
+    vault,
+    signer
+  });
 
   const backupOutput = new Output({
     descriptor: getOnChainBackupDescriptor({
@@ -362,13 +844,23 @@ export const createOnChainBackupTx = async ({
     vout: backupVout
   });
 
-  const content = await buildEncryptedVaultContent({
+  const cipherKey = await getSeedDerivedCipherKey({
+    vaultPath: getVaultPath(network, vaultIndex),
     signer,
-    network,
-    vaultIndex,
-    triggerTx: triggerTx.toBuffer(),
-    panicTx: panicTx.toBuffer()
+    network
   });
+  const content = concat([
+    ONCHAIN_BACKUP_MAGIC,
+    xchacha20(
+      cipherKey,
+      getBackupCipherNonce(vaultIndex),
+      serializeOnChainBackupEntry(entry)
+    )
+  ]);
+  if (
+    content.length !== getOnChainBackupPayloadBytes(entry.emergencyOutput.type)
+  )
+    throw new Error('Invalid on-chain backup payload size');
   const embed = payments.embed({ data: [content] });
   if (!embed.output) throw new Error('Could not create backup OP_RETURN');
   psbtBackup.addOutput({ script: embed.output, value: BigInt(0) });
@@ -385,9 +877,21 @@ export const createOnChainBackupTx = async ({
   if (!OP_RETURN_BACKUP_TX_VBYTES.includes(backupTx.virtualSize()))
     throw new Error(`Unexpected backup vsize: ${backupTx.virtualSize()}`);
 
-  return backupTx.toHex();
+  const backupTxHex = backupTx.toHex();
+  await assertOnChainBackupReconstructsPresignedTxs({
+    vault,
+    signer,
+    backupTxHex
+  });
+
+  return backupTxHex;
 };
 
+// Restore scanning.
+
+/**
+ * Restores one vault from its vault transaction and matching backup transaction.
+ */
 const restoreVaultFromOnChainBackupTx = async ({
   signer,
   networkId,
@@ -405,86 +909,52 @@ const restoreVaultFromOnChainBackupTx = async ({
   explorer: Explorer;
   vaultTxBlockHeight?: number | undefined;
 }): Promise<Vault> => {
-  const { Output, parseKeyExpression } = ensureDescriptorsFactoryInstance();
   const network = networkMapping[networkId];
   const { vaultId, vaultPath } = getVaultIdentity({
     signer,
     networkId,
     index: vaultIndex
   });
-  const { tx: vaultTx, txId: vaultTxId } = transactionFromHex(vaultTxHex);
+  const { tx: vaultTx } = transactionFromHex(vaultTxHex);
+  let vaultMode: OnChainBackupVaultMode;
+  // Restore has the vault tx and backup tx, but not the trigger tx yet. In the
+  // current no-extra-byte format, vault tx version is the mode contract.
+  if (vaultTx.version === 3) vaultMode = 'P2A_TRUC';
+  else if (vaultTx.version === 2) vaultMode = 'P2A_NON_TRUC';
+  else throw new Error(`Unexpected vault tx version ${vaultTx.version}`);
   const payload = extractOpReturnPayload(backupTxHex);
   if (!payload) throw new Error('On-chain backup content not found');
 
-  const { triggerTxHex, panicTxHex } = await decryptVaultEntry({
+  const entry = await decryptOnChainBackupEntry({
     payload,
     signer,
     network,
     vaultIndex
   });
-  const { tx: triggerTx, txId: triggerTxId } = transactionFromHex(triggerTxHex);
-  const { tx: panicTx, txId: panicTxId } = transactionFromHex(panicTxHex);
-  const triggerInput = getSingleInputSpendingTx({
-    tx: triggerTx,
-    prevTxId: vaultTxId,
-    txName: 'Trigger tx'
-  });
-  const panicInput = getSingleInputSpendingTx({
-    tx: panicTx,
-    prevTxId: triggerTxId,
-    txName: 'Panic tx'
-  });
-
-  const vaultOutput = vaultTx.outs[triggerInput.vout];
-  if (!vaultOutput) throw new Error('Vault output not found');
-  const triggerOutput = triggerTx.outs[panicInput.vout];
-  if (!triggerOutput) throw new Error('Trigger output not found');
-  const coldOutputCandidates = panicTx.outs.filter(
-    output => !isP2AOutputScript(output.script)
-  );
-  if (coldOutputCandidates.length !== 1)
-    throw new Error('Could not determine cold output');
-  const coldOutput = coldOutputCandidates[0];
-  if (!coldOutput) throw new Error('Cold output not found');
-  const panicWitness = panicTx.ins[panicInput.vin]?.witness;
-  if (!panicWitness?.length) throw new Error('Panic tx witness not found');
-
-  const unvaultKeyExpression = await createUnvaultKeyExpression({
-    signer,
-    network
-  });
-  const { pubkey: unvaultPubKey } = parseKeyExpression({
-    keyExpression: unvaultKeyExpression,
-    network
-  });
-  if (!unvaultPubKey) throw new Error('Could not extract unvault pubkey');
-
-  const witnessScript = getTriggerWitnessScript(panicWitness);
-  const { lockBlocks, panicPubKeyHash } =
-    parseTriggerWitnessScript(witnessScript);
-  const panicKeyExpression = getPanicPubKeyExpression({
-    panicWitness,
-    panicPubKeyHash
-  });
-  const triggerDescriptor = createTriggerDescriptor({
+  const {
+    vaultOutput,
+    triggerTx,
+    rescueTx,
+    triggerDescriptor,
+    triggerDescriptorOutput,
     unvaultKeyExpression,
-    panicKeyExpression,
-    lockBlocks
+    triggerFee,
+    rescueFee,
+    vaultTxId
+  } = await reconstructPresignedTxsFromOnChainBackup({
+    entry,
+    signer,
+    networkId,
+    vaultMode,
+    vaultTxHex
   });
-  const triggerDescriptorOutput = new Output({
-    descriptor: triggerDescriptor,
-    network,
-    signersPubKeys: [unvaultPubKey]
-  });
-  if (
-    compare(triggerDescriptorOutput.getScriptPubKey(), triggerOutput.script) !==
-    0
-  )
-    throw new Error('Restored trigger descriptor does not match trigger tx');
+  const triggerTxHex = triggerTx.toHex();
+  const rescueTxHex = rescueTx.toHex();
+  const triggerTxId = triggerTx.getId();
+  const rescueTxId = rescueTx.getId();
+  const rescueRecipientOutput = getOnlyNonP2AOutput(rescueTx, 'rescue tx');
 
   const vaultFee = await fetchTxFee({ txHex: vaultTxHex, explorer });
-  const triggerFee = await fetchTxFee({ txHex: triggerTxHex, explorer });
-  const panicFee = await fetchTxFee({ txHex: panicTxHex, explorer });
   const creationTime =
     vaultTxBlockHeight && vaultTxBlockHeight > 0
       ? (await explorer.fetchBlockStatus(vaultTxBlockHeight))?.blockTime ||
@@ -497,8 +967,11 @@ const restoreVaultFromOnChainBackupTx = async ({
     vaultedAmount: Number(vaultOutput.value),
     vaultAddress: address.fromOutputScript(vaultOutput.script, network),
     triggerAddress: triggerDescriptorOutput.getAddress(),
-    coldAddress: address.fromOutputScript(coldOutput.script, network),
-    lockBlocks,
+    coldAddress: address.fromOutputScript(
+      rescueRecipientOutput.script,
+      network
+    ),
+    lockBlocks: entry.lockBlocks,
     vaultTxHex,
     txMap: {
       [vaultTxHex]: {
@@ -511,13 +984,13 @@ const restoreVaultFromOnChainBackupTx = async ({
         fee: triggerFee,
         feeRate: triggerFee / triggerTx.virtualSize()
       },
-      [panicTxHex]: {
-        txId: panicTxId,
-        fee: panicFee,
-        feeRate: panicFee / panicTx.virtualSize()
+      [rescueTxHex]: {
+        txId: rescueTxId,
+        fee: rescueFee,
+        feeRate: rescueFee / rescueTx.virtualSize()
       }
     },
-    triggerMap: { [triggerTxHex]: [panicTxHex] },
+    triggerMap: { [triggerTxHex]: [rescueTxHex] },
     networkId,
     unvaultKey: unvaultKeyExpression,
     triggerDescriptor,
@@ -604,6 +1077,10 @@ const fetchOnChainVault = async ({
   return { isIndexUsed: true };
 };
 
+/**
+ * Scans deterministic backup indexes and returns every vault that can be
+ * restored from on-chain backup transactions.
+ */
 export const fetchOnChainVaults = async ({
   discovery,
   signer,

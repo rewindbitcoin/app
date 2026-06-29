@@ -71,36 +71,6 @@ export const SETTINGS_GLOBAL_STORAGE = 'SETTINGS_GLOBAL_STORAGE';
 export interface Settings {
   NETWORK_TIMEOUT: number;
   GAP_LIMIT: number;
-  /**
-   * Emergency package feerate ceiling used to size the dedicated trigger
-   * reserve output funded at vault creation time.
-   */
-  MAX_TRIGGER_FEERATE: number;
-  /**
-   * Feerate baked directly into a P2A_TRUC trigger parent.
-   *
-   * This must stay 0: TRUC trigger uses a version-3 parent with a zero-value
-   * P2A anchor. Bitcoin Core only relays that kind of parent as zero-fee; more
-   * generally, any parent output below the dust limit requires a zero-fee
-   * parent. The package fee is paid by the CPFP child from the confirmed trigger
-   * reserve.
-   */
-  P2A_TRUC_PRESIGNED_TRIGGER_FEERATE: 0;
-  /**
-   * Feerate baked directly into a P2A_NON_TRUC trigger parent.
-   *
-   * NON_TRUC uses a funded, non-dust P2A anchor, so the parent may pay its own
-   * relay fee. It does not rely on the ephemeral-dust zero-fee rule.
-   */
-  P2A_NON_TRUC_PRESIGNED_TRIGGER_FEERATE: number;
-  /**
-   * Feerate baked directly into the presigned rescue/panic parent transaction.
-   *
-   * Since this is non-zero, rescue parents cannot use a zero-value P2A anchor.
-   * Their P2A anchor must be non-dust, because Bitcoin Core only relays parents
-   * with outputs below the dust limit when the parent itself is zero-fee.
-   */
-  PRESIGNED_RESCUE_FEERATE: number;
   MIN_LOCK_BLOCKS: number;
   MAX_LOCK_BLOCKS: number;
   INITIAL_LOCK_BLOCKS: number;
@@ -179,10 +149,6 @@ const locales = getLocales();
 export const defaultSettings: Settings = {
   NETWORK_TIMEOUT: 20000,
   GAP_LIMIT: 20,
-  MAX_TRIGGER_FEERATE: 100,
-  P2A_TRUC_PRESIGNED_TRIGGER_FEERATE: 0,
-  P2A_NON_TRUC_PRESIGNED_TRIGGER_FEERATE: 0.1,
-  PRESIGNED_RESCUE_FEERATE: 100,
   MIN_LOCK_BLOCKS: 1,
   MAX_LOCK_BLOCKS: 3 * 30 * 24 * 6,
   INITIAL_LOCK_BLOCKS: 3 * 24 * 6,
@@ -260,16 +226,3 @@ export const defaultSettings: Settings = {
   TAPE_WEB_SERVER: `${PUBLIC_PROTOCOL}://${PUBLIC_TAPE_SERVER_NAME}${PUBLIC_TAPE_WEB_LOCATION}`,
   REGTEST_WEB_SERVER_SUFFIX: `:${LOCAL_REGTEST_WEB_PORT}`
 };
-
-export const getPresignedTriggerFeeRate = (
-  settings: Settings,
-  vaultMode: 'P2A_TRUC' | 'P2A_NON_TRUC'
-) =>
-  // Keep the mode split explicit at every vault-creation caller. For TRUC, the
-  // trigger parent must be zero-fee and later submitted with a CPFP child; that
-  // child only has one unconfirmed parent because setup waits for the vault tx
-  // and built-in trigger reserve to confirm. NON_TRUC uses a funded anchor and
-  // can pay a normal direct parent relay fee.
-  vaultMode === 'P2A_TRUC'
-    ? settings.P2A_TRUC_PRESIGNED_TRIGGER_FEERATE
-    : settings.P2A_NON_TRUC_PRESIGNED_TRIGGER_FEERATE;

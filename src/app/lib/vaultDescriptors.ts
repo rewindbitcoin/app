@@ -594,3 +594,10 @@ export const selectPreferredAccount = ({
 
   return mainCandidates[0]!.descriptor as Account;
 };
+
+export const getMainAccount = (accounts: Accounts, network: Network): Account =>
+  selectPreferredAccount({
+    accounts,
+    network,
+    getAccountHasHistory: () => true
+  });

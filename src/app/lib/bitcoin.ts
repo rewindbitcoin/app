@@ -4,9 +4,12 @@
 import moize from 'moize';
 import { sha256 } from '@noble/hashes/sha2';
 import type { Explorer } from '@bitcoinerlab/explorer';
-import { Transaction } from 'bitcoinjs-lib';
+import { Transaction, type Network } from 'bitcoinjs-lib';
 import { compare, toHex } from 'uint8array-tools';
+import { ensureDescriptorsFactoryInstance } from './descriptorsFactory';
 import { isP2AOutputScript } from './p2aPolicy';
+
+export const RBF_SEQUENCE = 0xfffffffd;
 
 export const transactionFromHex = moize(
   (txHex: string) => {
@@ -49,6 +52,17 @@ export const txSpendsOutpoint = (
 
 export const findVoutByScript = (tx: Transaction, scriptPubKey: Uint8Array) =>
   tx.outs.findIndex(output => compare(output.script, scriptPubKey) === 0);
+
+export function validateAddress(addressValue: string, network: Network) {
+  try {
+    const { Output } = ensureDescriptorsFactoryInstance();
+    new Output({ descriptor: `addr(${addressValue})`, network });
+    return true;
+  } catch (e) {
+    void e;
+    return false;
+  }
+}
 
 const txHexCache = new Map<string, string>();
 

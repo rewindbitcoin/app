@@ -28,7 +28,11 @@ import {
 } from '../../common/ui';
 import { useTranslation } from 'react-i18next';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { validateAddress } from '../lib/vaults';
+import { validateAddress } from '../lib/bitcoin';
+import {
+  SUPPORTED_EMERGENCY_ADDRESS_TYPES,
+  validateEmergencyAddress
+} from '../lib/emergencyOutputs';
 import { networkMapping, type NetworkId } from '../lib/network';
 import { useFonts } from 'expo-font';
 import { RobotoMono_400Regular } from '@expo-google-fonts/roboto-mono';
@@ -136,6 +140,13 @@ function AddressInput({
   const { t } = useTranslation();
   const [showCreateColdAddress, setShowCreateColdAddress] =
     useState<boolean>(false);
+  const isValidInputAddress = useCallback(
+    (addressValue: string) =>
+      type === 'emergency'
+        ? validateEmergencyAddress(addressValue, network)
+        : validateAddress(addressValue, network),
+    [network, type]
+  );
   const handleNewAddress = useCallback(
     () => setShowCreateColdAddress(true),
     //for demo videos
@@ -192,12 +203,12 @@ function AddressInput({
       setAddress(address);
 
       // Validate the extracted address and update the state accordingly
-      onValueChange(validateAddress(address, network) ? address : null);
+      onValueChange(isValidInputAddress(address) ? address : null);
 
       // Hide QR scanner or any related UI component
       setShowCreateColdAddress(false);
     },
-    [setAddress, onValueChange, network, setShowCreateColdAddress]
+    [setAddress, onValueChange, isValidInputAddress, setShowCreateColdAddress]
   );
 
   const onBarcodeScanned = useCallback(
@@ -319,14 +330,19 @@ function AddressInput({
             </View>
           )}
         </View>
-        {address !== '' && !validateAddress(address, network) && (
+        {address !== '' && !isValidInputAddress(address) && (
           <Text
             className={`${robotoLoaded ? "font-['RobotoMono400Regular']" : ''}`}
             style={{ fontSize: 14, color: 'red' }}
           >
-            {t('addressInput.invalidAddress', {
-              network: capitalizedNetworkId
-            })}
+            {type === 'emergency'
+              ? t('addressInput.invalidEmergencyAddress', {
+                  network: capitalizedNetworkId,
+                  types: SUPPORTED_EMERGENCY_ADDRESS_TYPES
+                })
+              : t('addressInput.invalidAddress', {
+                  network: capitalizedNetworkId
+                })}
           </Text>
         )}
       </View>
