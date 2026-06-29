@@ -11,7 +11,7 @@ Rewind2 changes the vault design in four big ways:
 
 1. It uses a P2A anchor on the trigger and rescue transactions, so they can be fee-bumped with a child transaction.
 2. It adds a dedicated per-vault trigger reserve, funded when the vault is created.
-3. It adds a dedicated per-vault backup output, so the wallet can publish an encrypted on-chain backup of the trigger and rescue transactions.
+3. It adds a dedicated per-vault backup output, so the wallet can publish an encrypted on-chain backup that reconstructs the trigger and rescue transactions.
 4. It treats trigger and rescue fee bumping differently:
    - trigger bumping always spends that vault's dedicated reserve first, and can
      add normal hot-wallet UTXOs only if the user opts in because the reserve is
@@ -254,17 +254,18 @@ stored as normal app state.
 The backup output from the vault tx can later be spent into a transaction with
 an `OP_RETURN` output that stores encrypted backup data.
 
-That backup data contains the trigger and rescue transactions for that vault.
+That backup data contains the encrypted fields needed to reconstruct the trigger
+and rescue transactions for that vault. It does not store full transaction hex.
 
 Shape:
 
 ```text
 backup output
-  -> OP_RETURN(encrypted trigger tx + encrypted rescue tx)
+  -> OP_RETURN(REW + encrypted on-chain backup entry)
 ```
 
 The goal is simple: if local wallet state is lost, the vault still has a way to
-reveal the important presigned transactions on-chain.
+recreate the important presigned transactions from on-chain data.
 
 ## Vault modes
 
@@ -312,13 +313,15 @@ Why this matters:
 
 ## Parent fee policy
 
-Today the parent transactions are funded like this:
+Today the parent transactions are funded by fixed internal Rewind2 policy:
 
-- `P2A_TRUC` trigger parent fee is based on `P2A_TRUC_PRESIGNED_TRIGGER_FEERATE`, which must be `0` because its 0-sat P2A anchor is dust
-- `P2A_NON_TRUC` trigger parent fee is based on `P2A_NON_TRUC_PRESIGNED_TRIGGER_FEERATE`
-- rescue parent fee is based on `PRESIGNED_RESCUE_FEERATE`
+- `P2A_TRUC_PRESIGNED_TRIGGER_FEERATE = 0 sat/vB` (`vaultFees.ts`) because its 0-sat P2A anchor is dust
+- `P2A_NON_TRUC_PRESIGNED_TRIGGER_FEERATE = MIN_FEE_RATE = 0.1 sat/vB` (`vaultFees.ts`) because its P2A anchor is non-dust
+- `PRESIGNED_RESCUE_FEERATE = 100 sat/vB` (`vaultFees.ts`) because rescue is expected to work as a high-fee parent first
 
-So rescue is still presigned with an explicit high fee-rate setting, while a
+These values are not persisted settings. They live in the internal vault fee
+policy code so vault creation and on-chain backup restore use the same source of
+truth. Rescue is still presigned with an explicit high fee-rate policy, while a
 `P2A_TRUC` trigger relies on its CPFP child for package fee.
 
 ## Trigger reserve
@@ -343,7 +346,7 @@ The reserve amount is not chosen by hand. It is derived from:
 - the size of the trigger parent
 - the expected size of the fee-bump child
 - the presigned trigger parent fee
-- the target maximum trigger package feerate (`MAX_TRIGGER_FEERATE`)
+- `MAX_TRIGGER_FEERATE = 100 sat/vB` (`vaultFees.ts`)
 - the dust floor of the child change output
 
 In plain language: the reserve is sized so the wallet can attach one trigger
@@ -407,12 +410,12 @@ Why:
 - so the app must not reuse those outputs for unrelated sends, new vaults, or
   other fee-bump children
 
-For normal wallet-owned child change, this is why `spendableUtxosData` can be
-smaller than the raw wallet UTXO set.
+For normal wallet-owned child change, this is why the selectable `utxosData`
+returned by the UTXO policy filters can be smaller than the raw wallet UTXO set.
 
 ## Backups in Rewind2
 
-Rewind2 has two backup ideas:
+Rewind2 has two backup layers:
 
 ### 1. Normal wallet storage
 
@@ -429,8 +432,30 @@ This is about app storage, not about one specific vault.
 
 Every vault also funds a dedicated backup output.
 
-That output can later be spent into an `OP_RETURN` transaction that stores an
-encrypted copy of that vault's trigger and rescue transactions.
+That output can later be spent into an `OP_RETURN` transaction that stores a
+`ONCHAIN_BACKUP_MAGIC = "REW"` magic prefix plus an encrypted on-chain backup
+entry (`onchainFormat.ts`). The entry is `185` bytes for 20-byte emergency
+output data or `197` bytes for 32-byte emergency output data, so the OP_RETURN
+payload is `188` or `200` bytes total.
+
+The backup entry stores:
+
+- `ONCHAIN_BACKUP_ENTRY_VERSION = 0`, with `ONCHAIN_BACKUP_ENTRY_VERSION_BYTES = 1` (`onchainFormat.ts`)
+- `EMERGENCY_OUTPUT_TYPE_BYTES = 1`, emergency output type (`emergencyOutputs.ts`)
+- `LOCK_BLOCKS_BYTES = 2`, CSV lock in blocks, big-endian (`onchainFormat.ts`)
+- `COMPRESSED_PUBLIC_KEY_BYTES = 33`, ephemeral compressed public key (`onchainFormat.ts`)
+- `EMERGENCY_OUTPUT_DATA_BYTES = 20 | 32`, type-specific emergency output data (`emergencyOutputs.ts`)
+- `ONCHAIN_BACKUP_SIGNATURE_BYTES = 64`, trigger signature (`onchainFormat.ts`)
+- `ONCHAIN_BACKUP_SIGNATURE_BYTES = 64`, rescue signature (`onchainFormat.ts`)
+
+Supported emergency output types are `P2WPKH`, `P2PKH`, `P2SH`, `P2TR` and
+`P2WSH`. The type byte is required because multiple supported scripts share the
+same data length.
+
+Restore rebuilds the trigger and rescue transactions from this entry, the vault
+transaction and fixed Rewind2 policy constants, then verifies the signatures.
+The entry does not store vault mode; restore infers `P2A_TRUC` from vault tx
+version `3` and `P2A_NON_TRUC` from vault tx version `2`.
 
 This is the backup output added directly to the vault tx.
 
@@ -505,7 +530,7 @@ rescue bump child
 
 backup tx
   spends: backup output
-  pays to: OP_RETURN(encrypted trigger + rescue)
+  pays to: OP_RETURN(REW + encrypted on-chain backup entry)
 ```
 
 That is Rewind2 in one page.
