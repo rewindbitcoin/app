@@ -819,6 +819,9 @@ Please keep the app open.`,
     vaultPushError: `Connection issues. Backup is complete, but we're unsure if the vault was sent to the blockchain. Refresh to check and if it's missing, try again.
 
 {{message}}`,
+    onChainBackupVerificationError: `Rewind stopped before sending the vault. The on-chain backup could not be verified, so no vault was created. Please try again.
+
+{{message}}`,
     vaultSuccess:
       'Your vault has been successfully created and sent to the blockchain.',
     unexpectedError:
@@ -901,6 +904,8 @@ For example, if you set a time-lock of 7 days, your funds will remain locked for
   },
   addressInput: {
     invalidAddress: 'Invalid {{network}} address',
+    invalidEmergencyAddress:
+      'Invalid {{network}} emergency address. Supported types: {{types}}.',
     //textInputPlaceholder: 'Enter an Address',
     createNewButton: 'Create',
     coldAddress: {

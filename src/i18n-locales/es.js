@@ -754,6 +754,9 @@ Por favor, mantén la app abierta.`,
     vaultPushError: `Problemas de conexión. El backup está completo, pero no estamos seguros si la bóveda fue enviada a la blockchain. Actualiza para verificar y si falta, inténtalo de nuevo.
 
 {{message}}`,
+    onChainBackupVerificationError: `Rewind se detuvo antes de enviar la bóveda. El backup on-chain no pudo verificarse, así que no se creó ninguna bóveda. Por favor, inténtalo de nuevo.
+
+{{message}}`,
     vaultSuccess:
       'Tu bóveda ha sido creada y enviada exitosamente a la blockchain.',
     unexpectedError:
@@ -828,6 +831,8 @@ Por ejemplo, si estableces un tiempo de bloqueo de 7 días, tus fondos permanece
   },
   addressInput: {
     invalidAddress: 'Dirección {{network}} inválida',
+    invalidEmergencyAddress:
+      'Dirección de emergencia {{network}} inválida. Tipos compatibles: {{types}}.',
     createNewButton: 'Crear',
     coldAddress: {
       label: 'Dirección de Emergencia',
