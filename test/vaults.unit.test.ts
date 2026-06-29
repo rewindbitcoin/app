@@ -26,11 +26,16 @@ import {
 } from '../dist/src/app/lib/vaults';
 import { type Accounts } from '../dist/src/app/lib/wallets';
 import { MIN_FEE_RATE } from '../dist/src/app/lib/fees';
+import {
+  getPresignedTriggerFeeRate,
+  PRESIGNED_RESCUE_FEERATE
+} from '../dist/src/app/lib/vaultFees';
 import { getAdditionalP2AOutputValue } from '../dist/src/app/lib/p2aReserve';
 import {
   getSendableUtxos,
   getVaultableUtxos
 } from '../dist/src/app/lib/utxoPolicy';
+import { RBF_SEQUENCE } from '../dist/src/app/lib/bitcoin';
 import {
   buildVaultActionDataForFeeRate,
   getVaultActionBlocker,
@@ -112,9 +117,9 @@ const createSyntheticCpfpChildTxHex = ({
 
   const childTx = new Transaction();
   childTx.version = parentTx.version === 3 ? 3 : 2;
-  childTx.addInput(parentTx.getHash(), parentAnchor.index, 0xfffffffd);
+  childTx.addInput(parentTx.getHash(), parentAnchor.index, RBF_SEQUENCE);
   reserveUtxosData.forEach(utxoData => {
-    childTx.addInput(utxoData.tx.getHash(), utxoData.vout, 0xfffffffd);
+    childTx.addInput(utxoData.tx.getHash(), utxoData.vout, RBF_SEQUENCE);
   });
   childTx.addOutput(fromHex(`0014${'11'.repeat(20)}`), childOutputValue);
   return childTx.toHex();
@@ -759,8 +764,8 @@ describe('vaults unit tests', () => {
       lockBlocks: 144,
       network: networks.regtest,
       vaultMode: 'P2A_NON_TRUC',
-      presignedTriggerFeeRate: 0.1,
-      presignedRescueFeeRate: 100
+      presignedTriggerFeeRate: getPresignedTriggerFeeRate('P2A_NON_TRUC'),
+      presignedRescueFeeRate: PRESIGNED_RESCUE_FEERATE
     });
     const minimumAtHighTriggerFee = estimateMinimumRequiredVaultedAmount({
       coldAddress,
@@ -768,7 +773,7 @@ describe('vaults unit tests', () => {
       network: networks.regtest,
       vaultMode: 'P2A_NON_TRUC',
       presignedTriggerFeeRate: 10,
-      presignedRescueFeeRate: 100
+      presignedRescueFeeRate: PRESIGNED_RESCUE_FEERATE
     });
 
     expect(minimumAtHighTriggerFee).toBeGreaterThan(minimumAtRelayFloor);

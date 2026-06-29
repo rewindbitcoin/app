@@ -48,6 +48,11 @@ import {
 } from '../dist/src/app/lib/wallets';
 import { createColdAddress } from '../dist/src/app/lib/vaultDescriptors';
 import { transactionFromHex } from '../dist/src/app/lib/bitcoin';
+import {
+  getPresignedTriggerFeeRate,
+  MAX_TRIGGER_FEERATE,
+  PRESIGNED_RESCUE_FEERATE
+} from '../dist/src/app/lib/vaultFees';
 
 type InitUnfreezeData = {
   txHex: string;
@@ -197,14 +202,15 @@ describe('E2E: Multiple Pre-Signed txs Vault', () => {
     const vaultId = toHex(vaultNode.publicKey);
 
     const randomSigner = await getRandomSigner(networkId);
+    const vaultMode = 'P2A_NON_TRUC';
 
     const createResult = await createVault({
       vaultedAmount: BigInt(VAULTED_AMOUNT),
       unvaultKeyExpression: unvaultKey,
       packageFeeRate: 2,
-      presignedTriggerFeeRate: 0.1,
-      presignedRescueFeeRate: 100,
-      maxTriggerFeeRate: 100,
+      presignedTriggerFeeRate: getPresignedTriggerFeeRate(vaultMode),
+      presignedRescueFeeRate: PRESIGNED_RESCUE_FEERATE,
+      maxTriggerFeeRate: MAX_TRIGGER_FEERATE,
       coldAddress,
       changeDescriptorWithIndex,
       lockBlocks: LOCK_BLOCKS,
@@ -214,7 +220,7 @@ describe('E2E: Multiple Pre-Signed txs Vault', () => {
       utxosData,
       coinControl: false,
       vaultIndex: 0,
-      vaultMode: 'P2A_NON_TRUC',
+      vaultMode,
       shiftFeesToBackupTx: true
     });
     expect(typeof createResult).toBe('object');
