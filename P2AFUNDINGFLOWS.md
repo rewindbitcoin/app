@@ -106,17 +106,16 @@ Trigger acceleration is deterministic first, with an optional wallet supplement:
   opt in to add confirmed normal hot-wallet UTXOs to the same child
 - it sends excess value back to normal wallet change
 
-Current: the built-in trigger reserve is the first child on the per-vault
-trigger-reserve branch:
+Current: the built-in trigger reserve is one exact address in a standard BIP84
+P2WPKH reserve account:
 
 ```text
-m/1073'/coin_type'/2'/<vaultIndex>/0
+m/84'/coin_type'/1073'/0/<vaultIndex>
 ```
 
-Current: the app discovers the setup-funded `/0` reserve plus any later used
-child indexes on the same per-vault branch. Normal vault creation creates only
-`/0`; current trigger UX prefers normal-wallet supplement funding over manual
-reserve-path top-ups.
+Current: the app discovers the exact setup-funded reserve address for the vault.
+Normal vault creation creates one trigger reserve output; current trigger UX
+prefers normal-wallet supplement funding over manual reserve-path top-ups.
 
 Trigger reserve discovery returns all usable reserve UTXOs for that vault. The
 child spends the full discovered set; it does not choose a subset.
@@ -242,10 +241,11 @@ CPFP child for one action type. It is not normal spendable wallet balance. When 
 P2A child uses reserve funds, it spends every known usable UTXO from that reserve
 set; the reserve set is not coinselected.
 
-Trigger reserve funds are controlled by the main hot wallet signer on the
-per-vault trigger reserve branch. Optional trigger supplement inputs are normal
-wallet UTXOs controlled by the same signer. Trigger child change goes back to an
-internal address of the main hot wallet.
+Trigger reserve funds are controlled by the main hot wallet signer on the BIP84
+reserve account at `m/84'/coin_type'/1073'`. Each vault uses the exact address
+`/0/<vaultIndex>`. Optional trigger supplement inputs are normal wallet UTXOs
+controlled by the same signer. Trigger child change goes back to an internal
+address of the main hot wallet.
 
 Rescue reserve funds are controlled by the temporary rescue reserve wallet, which
 is a same-session in-memory software wallet. Rescue child change goes back to an

@@ -30,7 +30,12 @@ import {
   getPresignedTriggerFeeRate,
   PRESIGNED_RESCUE_FEERATE
 } from '../dist/src/app/lib/vaultFees';
-import { getAdditionalP2AOutputValue } from '../dist/src/app/lib/p2aReserve';
+import {
+  getAdditionalP2AOutputValue,
+  getTriggerReserveDescriptorForVaultIndex,
+  getTriggerReserveOutput
+} from '../dist/src/app/lib/p2aReserve';
+import { getTriggerReservePath } from '../dist/src/app/lib/rewindPaths';
 import {
   getSendableUtxos,
   getVaultableUtxos
@@ -42,8 +47,11 @@ import {
   getCpfpFeeInfo
 } from '../dist/src/app/lib/vaultActionTx';
 import { networks, type Network, Transaction } from 'bitcoinjs-lib';
-import { fromHex } from 'uint8array-tools';
-import { createAddressOutput } from '../dist/src/app/lib/vaultDescriptors';
+import { fromHex, toHex } from 'uint8array-tools';
+import {
+  createAddressOutput,
+  createSoftwareSignerFromMnemonic
+} from '../dist/src/app/lib/vaultDescriptors';
 
 const P2A_NON_TRUC_ANCHOR_SATS = Number(P2A_NON_TRUC_ANCHOR_VALUE);
 const DUMMY_FINAL_CHILD_CHANGE = { descriptor: 'wpkh(dummy/*)', index: 0 };
@@ -148,6 +156,30 @@ describe('vaults unit tests', () => {
 
   test('P2A_NON_TRUC anchor is just above P2A dust threshold', () => {
     expect(P2A_NON_TRUC_ANCHOR_SATS).toBe(241);
+  });
+
+  test('trigger reserve uses an exact BIP84 account address', () => {
+    const network = networks.regtest;
+    const vaultIndex = 7;
+    const signer = createSoftwareSignerFromMnemonic(
+      fixtures.edge2edge.MNEMONIC,
+      network
+    );
+    const descriptor = getTriggerReserveDescriptorForVaultIndex({
+      signer,
+      network,
+      vaultIndex
+    });
+    const output = getTriggerReserveOutput({ descriptor, network });
+
+    expect(getTriggerReservePath(network, vaultIndex)).toBe(
+      "m/84'/1'/1073'/0/7"
+    );
+    expect(descriptor).toContain("/84'/1'/1073'");
+    expect(descriptor).toContain('/0/7)');
+    expect(descriptor).not.toContain('*');
+    expect(toHex(output.getScriptPubKey()).startsWith('0014')).toBe(true);
+    expect(output.getScriptPubKey()).toHaveLength(22);
   });
 
   test('getHotDescriptors with no vaults', () => {

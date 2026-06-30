@@ -56,11 +56,14 @@ Rewind2 uses a few internal derivation paths:
 - `m/1073'/coin_type'/1'/0`
   Used for the wallet-level encryption key that protects app storage.
 
-- `m/1073'/coin_type'/2'/<vaultIndex>`
-  Used for that vault's dedicated trigger reserve output.
+- `m/84'/coin_type'/1073'/0/<vaultIndex>`
+  Used for that vault's dedicated trigger reserve output. This is a standard
+  BIP84 P2WPKH account path at account `1073'`, with one exact address per
+  vault.
 
-The important point is that the trigger reserve is one path per vault. It is
-not shared across vaults.
+The important point is that the trigger reserve is one standard P2WPKH address
+per vault. It is not shared across vaults and it is not part of normal wallet
+account discovery.
 
 ## Transactions in Rewind2
 
@@ -216,12 +219,12 @@ action type. Reserve funds are not normal spendable wallet balance. When Rewind
 uses reserve funds in a P2A child, it spends every known usable reserve UTXO for
 that action; it does not coinselect within the reserve set.
 
-For trigger, the reserve source is controlled by the main hot wallet signer on
-the per-vault trigger reserve branch. The vault tx funds `/0`; the trigger child
-spends all known reserve UTXOs for that vault. If that is not enough, Rewind can
-ask the user to allow normal hot-wallet UTXOs in the same child instead of asking
-for a separate reserve top-up. Trigger child change goes to an internal address
-of the main hot wallet.
+For trigger, the reserve source is controlled by the main hot wallet signer at
+`m/84'/coin_type'/1073'/0/<vaultIndex>`. The vault tx funds that exact reserve
+address and the trigger child spends the reserve UTXOs for that vault. If that
+is not enough, Rewind can ask the user to allow normal hot-wallet UTXOs in the
+same child instead of asking for a separate reserve top-up. Trigger child change
+goes to an internal address of the main hot wallet.
 
 Today Rewind derives the trigger reserve descriptor from the software signer at
 runtime. A future HWW implementation should avoid touching the device during

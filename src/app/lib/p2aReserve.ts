@@ -9,7 +9,11 @@ import {
 import { dustThreshold, vsize } from '@bitcoinerlab/coinselect';
 import { ensureDescriptorsFactoryInstance } from './descriptorsFactory';
 import { MIN_FEE_RATE } from './fees';
-import { getTriggerReservePath, parseVaultIndex } from './rewindPaths';
+import {
+  getTriggerReserveAccountPath,
+  getTriggerReservePath,
+  parseVaultIndex
+} from './rewindPaths';
 import { toBigInt, toNumber } from './sats';
 import { findVoutByScript, transactionFromHex } from './bitcoin';
 import { getMasterNode } from './vaultDescriptors';
@@ -112,13 +116,13 @@ export const getTriggerReserveDescriptorForVaultIndex = ({
       'Could not initialize the deterministic reserve derivation'
     );
   const masterNode = getMasterNode(mnemonic, network);
-  const path = getTriggerReservePath(network, vaultIndex, '*');
-  const lastSlashIndex = path.lastIndexOf('/');
-  if (lastSlashIndex < 2) throw new Error(`Invalid path: ${path}`);
+  const path = getTriggerReservePath(network, vaultIndex);
+  if (!path.endsWith(`/0/${vaultIndex}`))
+    throw new Error(`Invalid path: ${path}`);
   return `wpkh(${keyExpressionBIP32({
     masterNode,
-    originPath: path.slice(1, lastSlashIndex),
-    keyPath: path.slice(lastSlashIndex)
+    originPath: getTriggerReserveAccountPath(network),
+    keyPath: `/0/${vaultIndex}`
   })})`;
 };
 
@@ -140,22 +144,18 @@ export const getTriggerReserveDescriptor = ({
 /**
  * Returns a dedicated per-vault trigger reserve output.
  *
- * The vault tx funds the first child at `/0`. Later top-ups use subsequent
- * children on the same per-vault branch and are discovered as one reserve set.
+ * The vault tx funds the exact BIP84 reserve address for this vault index.
  */
 export const getTriggerReserveOutput = ({
   descriptor,
-  network,
-  addressIndex
+  network
 }: {
   descriptor: string;
   network: Network;
-  addressIndex: number;
 }) => {
   const { Output } = ensureDescriptorsFactoryInstance();
   return new Output({
     descriptor,
-    index: addressIndex,
     network
   });
 };
@@ -163,18 +163,15 @@ export const getTriggerReserveOutput = ({
 export const findTriggerReserveVout = ({
   vaultTxHex,
   descriptor,
-  network,
-  addressIndex
+  network
 }: {
   vaultTxHex: string;
   descriptor: string;
   network: Network;
-  addressIndex: number;
 }) => {
   const triggerReserveOutput = getTriggerReserveOutput({
     descriptor,
-    network,
-    addressIndex
+    network
   });
   const { tx: vaultTx } = transactionFromHex(vaultTxHex);
   return findVoutByScript(vaultTx, triggerReserveOutput.getScriptPubKey());
