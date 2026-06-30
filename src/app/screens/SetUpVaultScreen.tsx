@@ -52,7 +52,11 @@ import {
   pickFeeEstimate
 } from '../lib/fees';
 import { formatBtc } from '../lib/btcRates';
-import { getPresignedTriggerFeeRate } from '../lib/settings';
+import {
+  getPresignedTriggerFeeRate,
+  MAX_TRIGGER_FEERATE,
+  PRESIGNED_RESCUE_FEERATE
+} from '../lib/vaultFees';
 import {
   estimateMaxVaultAmount,
   estimateVaultSetupRange
@@ -252,10 +256,7 @@ export default function VaultSetUp({
     [customChangeDescriptorWithIndex, getPreferredAccount, network]
   );
 
-  const presignedTriggerFeeRate = getPresignedTriggerFeeRate(
-    settings,
-    vaultMode
-  );
+  const presignedTriggerFeeRate = getPresignedTriggerFeeRate(vaultMode);
   const maxFeeRate = computeMaxAllowedFeeRate(feeEstimates);
   // Lowest target package fee rate. The UI later derives the real minimum
   // obtainable package fee rate from this low-end build and clamps the slider to it.
@@ -294,8 +295,8 @@ export default function VaultSetUp({
     changeOutput: changeOutputForEstimates,
     vaultMode,
     presignedTriggerFeeRate,
-    presignedRescueFeeRate: settings.PRESIGNED_RESCUE_FEERATE,
-    maxTriggerFeeRate: settings.MAX_TRIGGER_FEERATE
+    presignedRescueFeeRate: PRESIGNED_RESCUE_FEERATE,
+    maxTriggerFeeRate: MAX_TRIGGER_FEERATE
   });
   const vaultSetupRangeAssumingAutoCoinSelection = coinControl
     ? estimateVaultSetupRange({
@@ -309,8 +310,8 @@ export default function VaultSetUp({
         changeOutput: changeOutputForEstimates,
         vaultMode,
         presignedTriggerFeeRate,
-        presignedRescueFeeRate: settings.PRESIGNED_RESCUE_FEERATE,
-        maxTriggerFeeRate: settings.MAX_TRIGGER_FEERATE
+        presignedRescueFeeRate: PRESIGNED_RESCUE_FEERATE,
+        maxTriggerFeeRate: MAX_TRIGGER_FEERATE
       })
     : {
         maxVaultAtSelectedPackageFeeRate,
@@ -328,8 +329,8 @@ export default function VaultSetUp({
     changeOutput: changeOutputForEstimates,
     vaultMode,
     presignedTriggerFeeRate,
-    presignedRescueFeeRate: settings.PRESIGNED_RESCUE_FEERATE,
-    maxTriggerFeeRate: settings.MAX_TRIGGER_FEERATE
+    presignedRescueFeeRate: PRESIGNED_RESCUE_FEERATE,
+    maxTriggerFeeRate: MAX_TRIGGER_FEERATE
   });
   const isVaultPossible =
     maxFeeRate >= minimumTargetPackageFeeRate &&
@@ -401,7 +402,7 @@ export default function VaultSetUp({
     parentAnchorValue: toNumber(getTriggerAnchorValue(vaultMode)),
     presignedParentVSize: Math.max(...TRIGGER_TX_VBYTES),
     presignedParentFeeRate: presignedTriggerFeeRate,
-    targetPackageFeeRate: settings.MAX_TRIGGER_FEERATE
+    targetPackageFeeRate: MAX_TRIGGER_FEERATE
   });
 
   const [userSelectedVaultedAmount, setUserSelectedVaultedAmount] = useState<
@@ -548,7 +549,7 @@ export default function VaultSetUp({
               parentAnchorValue: toNumber(getTriggerAnchorValue(vaultMode)),
               presignedParentVSize: Math.max(...TRIGGER_TX_VBYTES),
               presignedParentFeeRate: presignedTriggerFeeRate,
-              targetPackageFeeRate: settings.MAX_TRIGGER_FEERATE
+              targetPackageFeeRate: MAX_TRIGGER_FEERATE
             }),
             changeOutput: changeOutputForEstimates,
             vaultMode,
@@ -578,7 +579,7 @@ export default function VaultSetUp({
       network,
       presignedTriggerFeeRate,
       changeOutputForEstimates,
-      settings.MAX_TRIGGER_FEERATE,
+      MAX_TRIGGER_FEERATE,
       vaultMode,
       setUserSelectedPackageFeeRate
     ]

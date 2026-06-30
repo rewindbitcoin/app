@@ -129,8 +129,8 @@ restriction, though regular mempool limits still apply.
 | Code path                   | Current state                                                                             |
 | --------------------------- | ----------------------------------------------------------------------------------------- |
 | `src/app/lib/utxoPolicy.ts` | Owns stable, sendable and vaultable UTXO filters.                                         |
-| `SetUpVaultScreen.tsx`      | Uses `getVaultableUtxosData(...)` for vault setup coin selection.                         |
-| `SendScreen.tsx`            | Uses `getSendableUtxosData(...)` to skip unconfirmed v3 UTXOs for normal version-2 sends. |
+| `SetUpVaultScreen.tsx`      | Uses `getVaultableUtxos(...)` for vault setup coin selection.                             |
+| `SendScreen.tsx`            | Uses `getSendableUtxos(...)` to skip unconfirmed v3 UTXOs for normal version-2 sends.     |
 
 ## Dust And Anchor Recipes
 
@@ -155,7 +155,7 @@ Rewind-specific anchor policy:
 | NON_TRUC rescue  | 241 sats | Same direct-fee rule.                                                                |
 
 `assertP2AParentPolicy(...)` checks the final extracted parent tx, not just the
-intended settings. That catches signing/vsize/fee drift before broadcast.
+intended policy constants. That catches signing/vsize/fee drift before broadcast.
 
 ## Package Math
 
@@ -212,21 +212,28 @@ replaceable acceleration packages until they confirm.
 
 ## Fee-Rate Recipes
 
-| Concept                            | Recipe                                                                              |
-| ---------------------------------- | ----------------------------------------------------------------------------------- |
-| Static minimum relay in app        | `MIN_FEE_RATE = 0.1 sat/vB`.                                                        |
-| Incremental relay fee              | `INCREMENTAL_RELAY_FEE_RATE = 0.1 sat/vB` by Bitcoin Core default.                  |
-| TRUC trigger parent direct fee     | Must be 0 because the anchor is dust.                                               |
-| NON_TRUC trigger parent direct fee | Must be at least app relay floor because anchor is non-dust.                        |
-| Rescue parent direct fee           | High presigned fee; anchor must be non-dust.                                        |
-| CPFP child fee                     | Must satisfy child min relay and package target.                                    |
-| Vault setup fee estimate           | Includes vault tx and on-chain backup package fees; excludes trigger reserve value. |
+| Concept                            | Recipe                                                                                                                                       |
+| ---------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| Static minimum relay in app        | `MIN_FEE_RATE = 0.1 sat/vB` (`fees.ts`).                                                                                                      |
+| Incremental relay fee              | `INCREMENTAL_RELAY_FEE_RATE = 0.1 sat/vB` (`vaultActionTx.ts`) by Bitcoin Core default.                                                       |
+| TRUC trigger parent direct fee     | `P2A_TRUC_PRESIGNED_TRIGGER_FEERATE = 0 sat/vB` (`vaultFees.ts`) because the anchor is dust.                                                  |
+| NON_TRUC trigger parent direct fee | `P2A_NON_TRUC_PRESIGNED_TRIGGER_FEERATE = MIN_FEE_RATE = 0.1 sat/vB` (`vaultFees.ts`) because the anchor is non-dust.                         |
+| Rescue parent direct fee           | `PRESIGNED_RESCUE_FEERATE = 100 sat/vB` (`vaultFees.ts`), sized against the worst supported emergency output; anchor must be non-dust.         |
+| Maximum trigger package target     | `MAX_TRIGGER_FEERATE = 100 sat/vB` (`vaultFees.ts`) sizes the setup-funded trigger reserve.                                                   |
+| CPFP child fee                     | Must satisfy child min relay and package target.                                                                                              |
+| Vault setup fee estimate           | Includes vault tx and on-chain backup package fees; excludes trigger reserve value.                                                           |
 
 ## Size Notes
 
 The 1000 vB TRUC child limit is why reserve fee-bump children must avoid too many
 extra inputs. Future top-up discovery should not blindly spend a large pile of
 tiny UTXOs in a TRUC child.
+
+Rescue parent sizing supports `P2WPKH`, `P2PKH`, `P2SH`, `P2TR` and `P2WSH`
+emergency outputs. Fee policy uses the worst-case rescue parent vsize, currently
+`152 vB`, so smaller emergency outputs intentionally overpay the high-priority
+rescue parent. On-chain backup OP_RETURN payloads are `188` or `200` bytes,
+depending on whether the emergency output data is 20 or 32 bytes.
 
 ## Common Failure Messages
 
@@ -244,10 +251,12 @@ tiny UTXOs in a TRUC child.
 
 | File                                           | Relay-policy role                                                                           |
 | ---------------------------------------------- | ------------------------------------------------------------------------------------------- |
-| `src/app/lib/vaults.ts`                        | P2A constants, anchor values, dust checks, CPFP package estimates, parent policy assertion. |
+| `src/app/lib/vaultFees.ts`                     | Fixed presigned parent fee rates and parent fee helpers.                                    |
+| `src/app/lib/p2aPolicy.ts`                     | P2A anchor script, anchor values, dust checks and parent policy assertion.                  |
+| `src/app/lib/vaults.ts`                        | Vault creation, presigned parent construction and CPFP package estimates.                  |
 | `src/app/lib/vaultActionTx.ts`                 | Acceleration/replacement fee floors, incremental relay rule, CPFP fee reconstruction.       |
 | `src/app/lib/utxoPolicy.ts`                    | Stable, sendable and vaultable UTXO filters.                                                |
-| `src/app/screens/SetUpVaultScreen.tsx`         | Vault setup coin selection using `getVaultableUtxosData(...)` and pending-funds guards.     |
+| `src/app/screens/SetUpVaultScreen.tsx`         | Vault setup coin selection using `getVaultableUtxos(...)` and pending-funds guards.         |
 | `src/app/screens/SendScreen.tsx`               | Normal send UTXO selection using the v2 unconfirmed-v3 filter.                              |
 | `src/app/lib/sendTransaction.ts`               | Normal send tx construction; `new Psbt({ network })` defaults to v2.                        |
 | `src/app/components/vaults/VaultCard.tsx`      | Trigger/rescue action gating, rescue reserve modal sequencing and P2A package submission.   |
@@ -277,5 +286,7 @@ tiny UTXOs in a TRUC child.
 | [BIP 431: Topology Restrictions for Pinning](https://github.com/bitcoin/bips/blob/master/bip-0431.mediawiki)                 | TRUC/v3 inheritance, ancestor/descendant count, v3 size limits, replaceability. |
 | [Bitcoin Core package policy](https://github.com/bitcoin/bitcoin/blob/master/doc/policy/packages.md)                         | Package shape, package limits, package feerate and package replacement.         |
 | [Bitcoin Core mempool replacement policy](https://github.com/bitcoin/bitcoin/blob/master/doc/policy/mempool-replacements.md) | Replacement absolute fee, incremental relay fee and miner-ordering rules.       |
-| `src/app/lib/vaults.ts`                                                                                                      | Rewind's current executable P2A policy assumptions.                             |
+| `src/app/lib/p2aPolicy.ts`                                                                                                   | Rewind's executable P2A anchor and parent-policy assertions.                    |
+| `src/app/lib/vaultFees.ts`                                                                                                   | Rewind's fixed presigned parent fee policy constants.                           |
+| `src/app/lib/vaults.ts`                                                                                                      | Rewind's current vault creation and CPFP package construction assumptions.      |
 | `src/app/lib/vaultActionTx.ts`                                                                                               | Rewind's current replacement fee-floor implementation.                          |

@@ -48,6 +48,11 @@ import {
 } from '../dist/src/app/lib/wallets';
 import { createColdAddress } from '../dist/src/app/lib/vaultDescriptors';
 import { transactionFromHex } from '../dist/src/app/lib/bitcoin';
+import {
+  getPresignedTriggerFeeRate,
+  MAX_TRIGGER_FEERATE,
+  PRESIGNED_RESCUE_FEERATE
+} from '../dist/src/app/lib/vaultFees';
 
 type InitUnfreezeData = {
   txHex: string;
@@ -197,14 +202,15 @@ describe('E2E: Multiple Pre-Signed txs Vault', () => {
     const vaultId = toHex(vaultNode.publicKey);
 
     const randomSigner = await getRandomSigner(networkId);
+    const vaultMode = 'P2A_NON_TRUC';
 
     const createResult = await createVault({
       vaultedAmount: BigInt(VAULTED_AMOUNT),
       unvaultKeyExpression: unvaultKey,
       packageFeeRate: 2,
-      presignedTriggerFeeRate: 0.1,
-      presignedRescueFeeRate: 100,
-      maxTriggerFeeRate: 100,
+      presignedTriggerFeeRate: getPresignedTriggerFeeRate(vaultMode),
+      presignedRescueFeeRate: PRESIGNED_RESCUE_FEERATE,
+      maxTriggerFeeRate: MAX_TRIGGER_FEERATE,
       coldAddress,
       changeDescriptorWithIndex,
       lockBlocks: LOCK_BLOCKS,
@@ -214,7 +220,7 @@ describe('E2E: Multiple Pre-Signed txs Vault', () => {
       utxosData,
       coinControl: false,
       vaultIndex: 0,
-      vaultMode: 'P2A_NON_TRUC',
+      vaultMode,
       shiftFeesToBackupTx: true
     });
     expect(typeof createResult).toBe('object');
@@ -240,8 +246,8 @@ describe('E2E: Multiple Pre-Signed txs Vault', () => {
     expect(vault.unvaultKey).toBe(unvaultKey);
     expect(Object.keys(vault.txMap)).toHaveLength(3);
     expect(Object.keys(vault.triggerMap)).toHaveLength(1);
-    const [onlyPanicTxs] = Object.values(vault.triggerMap);
-    expect(onlyPanicTxs).toHaveLength(1);
+    const [onlyRescueTxs] = Object.values(vault.triggerMap);
+    expect(onlyRescueTxs).toHaveLength(1);
 
     vaults[vault.vaultId] = vault;
     vaultsStatuses[vault.vaultId] = {
@@ -319,16 +325,16 @@ describe('E2E: Multiple Pre-Signed txs Vault', () => {
       })
     ).rejects.toThrow(/non-BIP68-final/);
   });
-  test('Send it to the panic address', async () => {
+  test('Send it to the emergency address', async () => {
     if (typeof vault !== 'object') throw new Error();
     if (triggerTxData === null) throw new Error();
-    const panicTxs = vault.triggerMap[triggerTxData.txHex];
-    if (!panicTxs) throw new Error('Invalid triggerMap');
-    //Push the panic tx with largest fee
+    const rescueTxs = vault.triggerMap[triggerTxData.txHex];
+    if (!rescueTxs) throw new Error('Invalid triggerMap');
+    //Push the rescue tx with largest fee
     //expect above not to throw
     await expect(
       discovery.push({
-        txHex: panicTxs[panicTxs.length - 1]!,
+        txHex: rescueTxs[rescueTxs.length - 1]!,
         gapLimit: GAP_LIMIT
       })
     ).resolves.not.toThrow();

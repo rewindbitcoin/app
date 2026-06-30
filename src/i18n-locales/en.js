@@ -322,7 +322,7 @@ Select more coins or switch back to automatic selection.`,
       rescue: {
         intro: `You're about to initiate the rescue of your vault funds. This will move the funds to your pre-configured Emergency Address immediately:
 
-{{panicAddress}}
+{{rescueAddress}}
 
 This address will likely be difficult to access if you followed the recommended guidelines during Vault Setup. Ensure you can eventually access it. Once the funds are sent, this wallet will no longer have access to them.
 
@@ -542,13 +542,13 @@ Usage Instructions:
     details: {
       vault: 'Frozen amount after fees: {{amount}}.',
       //Old text is correct but too complex in the UI:
-      //triggerConfirmingPanic:
+      //triggerConfirmingRescue:
       //  'Rescuing the {{amount}} received in this transaction after fees. Confirming...',
-      triggerConfirmingPanic:
+      triggerConfirmingRescue:
         'This transaction started the unfreeze countdown. A rescue process has been detected and the countdown is being interrupted. The rescue is still confirming. Please hold on for final confirmation...',
       //Old text is correct but too complex in the UI:
-      //triggerConfirmedPanic: 'This transaction started the unfreeze countdown, but it was interrupted and the {{amount}} transferred in this transaction, after fees, was rescued.',
-      triggerConfirmedPanic:
+      //triggerConfirmedRescue: 'This transaction started the unfreeze countdown, but it was interrupted and the {{amount}} transferred in this transaction, after fees, was rescued.',
+      triggerConfirmedRescue:
         'This transaction started the unfreeze countdown, but it was interrupted because the funds were rescued.',
       triggerWaiting:
         'This transaction started the unfreeze countdown, which is still in progress. The funds, {{amount}} after this transaction fee, are still frozen.',
@@ -819,6 +819,9 @@ Please keep the app open.`,
     vaultPushError: `Connection issues. Backup is complete, but we're unsure if the vault was sent to the blockchain. Refresh to check and if it's missing, try again.
 
 {{message}}`,
+    onChainBackupVerificationError: `Rewind stopped before sending the vault. The on-chain backup could not be verified, so no vault was created. Please try again.
+
+{{message}}`,
     vaultSuccess:
       'Your vault has been successfully created and sent to the blockchain.',
     unexpectedError:
@@ -901,6 +904,8 @@ For example, if you set a time-lock of 7 days, your funds will remain locked for
   },
   addressInput: {
     invalidAddress: 'Invalid {{network}} address',
+    invalidEmergencyAddress:
+      'Invalid {{network}} emergency address. Supported types: {{types}}.',
     //textInputPlaceholder: 'Enter an Address',
     createNewButton: 'Create',
     coldAddress: {

@@ -76,7 +76,8 @@ import { parseVaultIndex } from '../lib/rewindPaths';
 import {
   createOnChainBackupTx,
   fetchOnChainVaults,
-  getOnChainBackupDescriptor
+  getOnChainBackupDescriptor,
+  ONCHAIN_BACKUP_PRE_BROADCAST_ERROR_PREFIX
 } from '../lib/backup/onchain';
 
 type DiscoveryExport = ReturnType<DiscoveryInstance['export']>;
@@ -132,6 +133,63 @@ const getRangedAccountFetchLogDetails = (descriptor: string) => {
   } catch {
     return undefined;
   }
+};
+
+/**
+ * Adds vaults found from backups without mutating the current vault map.
+ * Throws if a backup returns a vault that conflicts with an existing one.
+ */
+const mergeRestoredVaults = ({
+  currentVaults,
+  restoredVaults,
+  source
+}: {
+  currentVaults: Vaults;
+  restoredVaults: Vaults | undefined;
+  source: 'p2p' | 'on-chain';
+}) => {
+  if (!restoredVaults) return currentVaults;
+
+  let mergedVaults = currentVaults;
+  Object.entries(restoredVaults).forEach(([vaultId, restoredVault]) => {
+    if (!restoredVault) return;
+    if (vaultId !== restoredVault.vaultId)
+      throw new Error(
+        `${source} backup returned vault ${restoredVault.vaultId} under key ${vaultId}`
+      );
+
+    const currentVault = mergedVaults[vaultId];
+    if (currentVault) {
+      if (
+        currentVault.vaultPath !== restoredVault.vaultPath ||
+        currentVault.vaultTxHex !== restoredVault.vaultTxHex
+      )
+        throw new Error(
+          `${source} backup conflicts with existing vault ${vaultId}`
+        );
+      return;
+    }
+
+    const pathConflict = Object.values(mergedVaults).find(
+      vault => vault.vaultPath === restoredVault.vaultPath
+    );
+    if (pathConflict)
+      throw new Error(
+        `${source} backup vault ${vaultId} reuses path ${restoredVault.vaultPath} from vault ${pathConflict.vaultId}`
+      );
+
+    const txConflict = Object.values(mergedVaults).find(
+      vault => vault.vaultTxHex === restoredVault.vaultTxHex
+    );
+    if (txConflict)
+      throw new Error(
+        `${source} backup vault ${vaultId} reuses vault tx from vault ${txConflict.vaultId}`
+      );
+
+    mergedVaults = { ...mergedVaults, [vaultId]: restoredVault };
+  });
+
+  return mergedVaults;
 };
 
 const logRangedAccountFetch = ({
@@ -2781,22 +2839,15 @@ const WalletProviderRaw = ({
             )
           : undefined;
 
-        let updatedVaults = vaults; //initially they are the same
-        if (p2pVaults)
-          Object.entries(p2pVaults).forEach(([key, p2pVault]) => {
-            const currentVault = vaults[key];
-            //A vault cannot mutate. It either exists or not, but once created
-            //it will never change:
-            if (p2pVault && !currentVault) {
-              // Mutate updatedVaults because a new one has been detected
-              updatedVaults = { ...updatedVaults };
-              updatedVaults[key] = p2pVault;
-            }
-          });
+        const updatedVaultsAfterP2P = mergeRestoredVaults({
+          currentVaults: vaults,
+          restoredVaults: p2pVaults,
+          source: 'p2p'
+        });
 
         const p2pBackupFloor =
           lastP2PBackupVaultIndex ?? activeWallet.lastP2PBackupVaultIndex;
-        const highestKnownVaultIndex = Object.values(updatedVaults).reduce(
+        const highestKnownVaultIndex = Object.values(updatedVaultsAfterP2P).reduce(
           (highestIndex, vault) =>
             Math.max(highestIndex, parseVaultIndex(vault.vaultPath)),
           -1
@@ -2824,17 +2875,11 @@ const WalletProviderRaw = ({
           setSyncingBlockchain(activeWallet.walletId, false);
           return;
         }
-        if (onChainVaults)
-          Object.entries(onChainVaults).forEach(([key, onChainVault]) => {
-            const currentVault = updatedVaults[key];
-            //A vault cannot mutate. It either exists or not, but once created
-            //it will never change:
-            if (onChainVault && !currentVault) {
-              // Mutate updatedVaults because a new one has been detected
-              updatedVaults = { ...updatedVaults };
-              updatedVaults[key] = onChainVault;
-            }
-          });
+        const updatedVaults = mergeRestoredVaults({
+          currentVaults: updatedVaultsAfterP2P,
+          restoredVaults: onChainVaults,
+          source: 'on-chain'
+        });
 
         const { result: freshVaultsStatuses } = await netRequestRef.current({
           id: 'fetchVaultsStatuses',
@@ -3210,13 +3255,26 @@ const WalletProviderRaw = ({
         /\/[01]\/\*/g,
         '/0/*'
       );
-      if (accountToTrack) await fetchAccount(accountToTrack);
 
-      const backupTxHex = await createOnChainBackupTx({ vault, signer });
+      // createOnChainBackupTx decrypts its own OP_RETURN and reconstructs the
+      // presigned trigger/rescue txs. If that fails, stop before broadcasting
+      // the vault package so we never create an unrecoverable on-chain vault.
+      let backupTxHex: string;
+      try {
+        backupTxHex = await createOnChainBackupTx({ vault, signer });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        // The create screen uses this prefix to show a precise pre-broadcast
+        // message instead of the generic "maybe sent" package-push warning.
+        throw new Error(
+          `${ONCHAIN_BACKUP_PRE_BROADCAST_ERROR_PREFIX} ${message}`
+        );
+      }
       await pushTxPackage({
         parentTxHex: vault.vaultTxHex,
         childTxHex: backupTxHex
       });
+      if (accountToTrack) await fetchAccount(accountToTrack);
       const updatedAccounts = accountToTrack
         ? await ensureAccountTracked(accountToTrack)
         : accountsRef.current;

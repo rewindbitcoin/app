@@ -263,14 +263,14 @@ const RawTransaction = ({
         </View>
       );
       if (item.vaultTxType === 'TRIGGER_EXTERNAL') {
-        if (item.spentAsPanic) {
-          //Either awaiting or panicked
-          if (item.spentAsPanic === 'CONFIRMING')
-            detailsStr = t('transaction.details.triggerConfirmingPanic', {
+        if (item.spentAsRescue) {
+          //Either awaiting or rescued
+          if (item.spentAsRescue === 'CONFIRMING')
+            detailsStr = t('transaction.details.triggerConfirmingRescue', {
               amount: outValueStr
             });
           else
-            detailsStr = t('transaction.details.triggerConfirmedPanic', {
+            detailsStr = t('transaction.details.triggerConfirmedRescue', {
               amount: outValueStr
             });
           if (vaultOutValue !== undefined)
@@ -550,7 +550,7 @@ const Transactions = ({
     <View className="rounded-3xl bg-white gap-y-2">
       {[...displayedHistoryData].map((item, index) => {
         // Compute vaultOutValue, that is, if this tx
-        // is associated to a vaultId (for example its a vault, trigger, or a panic...),
+        // is associated to a vaultId (for example its a vault, trigger, or a rescue...),
         // then for this vaultId, compute which was the output value when vaulting
         let vaultOutValue; //if known
         const vaultHistoryDataItem = historyData.find(

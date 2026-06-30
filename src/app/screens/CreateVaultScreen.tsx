@@ -32,7 +32,11 @@ import { useNetStatus } from '../hooks/useNetStatus';
 import { NavigationPropsByScreenId, WALLET_HOME } from '../screens';
 import { formatBlocks } from '../lib/format';
 import { formatBtc } from '../lib/btcRates';
-import { getPresignedTriggerFeeRate } from '../lib/settings';
+import {
+  getPresignedTriggerFeeRate,
+  MAX_TRIGGER_FEERATE,
+  PRESIGNED_RESCUE_FEERATE
+} from '../lib/vaultFees';
 import { useLocalization } from '../hooks/useLocalization';
 import { toBigInt } from '../lib/sats';
 import ModalInfoButton from '../components/ModalInfoButton';
@@ -46,6 +50,7 @@ import {
   normalizeVaultNameText
 } from '../lib/vaultLabels';
 import { transactionFromHex } from '../lib/bitcoin';
+import { ONCHAIN_BACKUP_PRE_BROADCAST_ERROR_PREFIX } from '../lib/backup/onchain';
 
 const SummaryTitle = ({
   title,
@@ -134,10 +139,7 @@ export default function CreateVaultScreen({
     );
   const vaultMode =
     networkId === 'BITCOIN' ? 'P2A_TRUC' : settings.TESTING_VAULT_MODE;
-  const presignedTriggerFeeRate = getPresignedTriggerFeeRate(
-    settings,
-    vaultMode
-  );
+  const presignedTriggerFeeRate = getPresignedTriggerFeeRate(vaultMode);
   const { locale, currency } = useLocalization();
   const [confirmRequested, setConfirmRequested] = useState<boolean>(false);
   const [vault, setVault] = useState<Vault>();
@@ -240,7 +242,17 @@ export default function CreateVaultScreen({
     const { status: pushAndUpdateStatus, result: pushAndUpdateResult } =
       await netRequest({
         whenToastErrors: 'ON_ANY_ERROR',
-        errorMessage: message => t('createVault.vaultPushError', { message }),
+        errorMessage: message => {
+          // WalletContext adds this prefix only before package broadcast, when
+          // backup verification fails and no vault transaction has been sent.
+          if (message.startsWith(ONCHAIN_BACKUP_PRE_BROADCAST_ERROR_PREFIX))
+            return t('createVault.onChainBackupVerificationError', {
+              message: message
+                .slice(ONCHAIN_BACKUP_PRE_BROADCAST_ERROR_PREFIX.length)
+                .trim()
+            });
+          return t('createVault.vaultPushError', { message });
+        },
         func: () =>
           pushVaultRegisterWTAndUpdateStates(
             vault,
@@ -392,8 +404,8 @@ export default function CreateVaultScreen({
         unvaultKeyExpression,
         packageFeeRate,
         presignedTriggerFeeRate,
-        presignedRescueFeeRate: settings.PRESIGNED_RESCUE_FEERATE,
-        maxTriggerFeeRate: settings.MAX_TRIGGER_FEERATE,
+        presignedRescueFeeRate: PRESIGNED_RESCUE_FEERATE,
+        maxTriggerFeeRate: MAX_TRIGGER_FEERATE,
         utxosData,
         coinControl,
         signer,
@@ -462,8 +474,8 @@ export default function CreateVaultScreen({
     coinControl,
     accounts,
     presignedTriggerFeeRate,
-    settings.PRESIGNED_RESCUE_FEERATE,
-    settings.MAX_TRIGGER_FEERATE
+    PRESIGNED_RESCUE_FEERATE,
+    MAX_TRIGGER_FEERATE
   ]);
 
   let vaultTxInfo: Vault['txMap'][string] | undefined;

@@ -90,9 +90,11 @@ Current: in `P2A_TRUC`, trigger uses the ephemeral-dust shape: the trigger paren
 is version 3, its P2A anchor is 0 sats and its direct parent fee is 0. The CPFP
 child pays the package fee from the trigger reserve.
 
-Current: trigger parent fee settings are mode-specific. `P2A_TRUC` uses
-`P2A_TRUC_PRESIGNED_TRIGGER_FEERATE = 0`; `P2A_NON_TRUC` uses
-`P2A_NON_TRUC_PRESIGNED_TRIGGER_FEERATE` because its funded anchor is non-dust.
+Current: trigger parent fee policy is mode-specific and fixed internally.
+`P2A_TRUC` uses `P2A_TRUC_PRESIGNED_TRIGGER_FEERATE = 0 sat/vB`
+(`vaultFees.ts`) because its P2A anchor is dust. `P2A_NON_TRUC` uses
+`P2A_NON_TRUC_PRESIGNED_TRIGGER_FEERATE = MIN_FEE_RATE = 0.1 sat/vB`
+(`vaultFees.ts`) because its funded anchor is non-dust.
 
 Trigger acceleration is deterministic first, with an optional wallet supplement:
 
@@ -368,9 +370,17 @@ and still fail policy if the child does not add enough absolute fee.
 
 ## Backup And Recovery Scope
 
-Current: the on-chain backup stores the trigger and rescue transactions for the
-vault. It does not store trigger wallet-supplement state or rescue reserve signer
-state.
+Current: the on-chain backup stores an encrypted entry for the vault, not full
+trigger/rescue transaction hex. The entry contains the CSV lock, ephemeral
+compressed public key, emergency output type, type-specific emergency output data
+and trigger/rescue signatures. The entry is `185` bytes for `P2WPKH`, `P2PKH`
+and `P2SH`, or `197` bytes for `P2TR` and `P2WSH`, plus
+`ONCHAIN_BACKUP_MAGIC = "REW"`, for `188` or `200` bytes on-chain
+(`onchainFormat.ts`). Restore rebuilds the trigger and rescue transactions from
+the vault transaction plus fixed Rewind2 policy constants, then verifies the
+signatures. The entry does not store vault mode; restore infers `P2A_TRUC` from
+vault tx version `3` and `P2A_NON_TRUC` from vault tx version `2`. It does not
+store trigger wallet-supplement state or rescue reserve signer state.
 
 Current direction: the rescue reserve wallet is intentionally ephemeral:
 
