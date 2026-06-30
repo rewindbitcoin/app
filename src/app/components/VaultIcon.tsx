@@ -32,7 +32,7 @@ const VaultIcon = ({
         <FreezeIcon />
       </Svg>
     </View>
-  ) : remainingBlocks === 'FOUND_AS_PANIC' ? (
+  ) : remainingBlocks === 'FOUND_AS_RESCUE' ? (
     <MaterialCommunityIcons name="alarm-light" size={24} color="red" />
   ) : remainingBlocks === 'FOUND_AS_HOT' || remainingBlocks === 0 ? (
     <Svg className="fill-yellow-400 w-8 h-8" viewBox="0 0 24 24">

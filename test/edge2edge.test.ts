@@ -246,8 +246,8 @@ describe('E2E: Multiple Pre-Signed txs Vault', () => {
     expect(vault.unvaultKey).toBe(unvaultKey);
     expect(Object.keys(vault.txMap)).toHaveLength(3);
     expect(Object.keys(vault.triggerMap)).toHaveLength(1);
-    const [onlyPanicTxs] = Object.values(vault.triggerMap);
-    expect(onlyPanicTxs).toHaveLength(1);
+    const [onlyRescueTxs] = Object.values(vault.triggerMap);
+    expect(onlyRescueTxs).toHaveLength(1);
 
     vaults[vault.vaultId] = vault;
     vaultsStatuses[vault.vaultId] = {
@@ -325,16 +325,16 @@ describe('E2E: Multiple Pre-Signed txs Vault', () => {
       })
     ).rejects.toThrow(/non-BIP68-final/);
   });
-  test('Send it to the panic address', async () => {
+  test('Send it to the emergency address', async () => {
     if (typeof vault !== 'object') throw new Error();
     if (triggerTxData === null) throw new Error();
-    const panicTxs = vault.triggerMap[triggerTxData.txHex];
-    if (!panicTxs) throw new Error('Invalid triggerMap');
-    //Push the panic tx with largest fee
+    const rescueTxs = vault.triggerMap[triggerTxData.txHex];
+    if (!rescueTxs) throw new Error('Invalid triggerMap');
+    //Push the rescue tx with largest fee
     //expect above not to throw
     await expect(
       discovery.push({
-        txHex: panicTxs[panicTxs.length - 1]!,
+        txHex: rescueTxs[rescueTxs.length - 1]!,
         gapLimit: GAP_LIMIT
       })
     ).resolves.not.toThrow();

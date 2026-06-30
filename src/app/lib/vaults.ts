@@ -92,6 +92,7 @@ import {
   getRescueAnchorValue,
   getTriggerAnchorValue,
   MAX_P2A_TRUC_CHILD_VSIZE,
+  P2A_DUST_THRESHOLD,
   P2A_OUTPUT_SCRIPT
 } from './p2aPolicy';
 
@@ -277,7 +278,7 @@ export type VaultsStatuses = Record<string, VaultStatus>;
 
 export type Vaults = Record<string, Vault>;
 type TxMap = Record<TxHex, { txId: TxId; fee: number; feeRate: number }>;
-/** maps a triggerTx with its corresponding Array of panicTxs */
+/** maps a triggerTx with its corresponding Array of rescue txs */
 type TriggerMap = Record<TxHex, Array<TxHex>>;
 
 export type UtxosData = Array<{
@@ -325,7 +326,7 @@ type VaultPresignedTx = {
   vaultId: string;
   vaultNumber: number;
   pushTime?: number; //when pushed using this wallet
-  spentAsPanic?: 'CONFIRMING' | 'CONFIRMED'; //set only if this vault was spent as panic
+  spentAsRescue?: 'CONFIRMING' | 'CONFIRMED';
 };
 
 type VaultAnchorChildTx = {
@@ -341,7 +342,8 @@ type VaultAnchorChildTx = {
  * Trigger-shape rule of thumb:
  * - no P2A output => `LADDERED`
  * - version 3 + 0-sat trigger anchor => `P2A_TRUC`
- * - trigger anchor present with non-zero value => `P2A_NON_TRUC`
+ * - version 2 + non-dust trigger anchor => `P2A_NON_TRUC`
+ * - other P2A trigger shapes are invalid for the current vault format
  */
 export const getVaultMode = (
   vault: Vault
@@ -351,7 +353,11 @@ export const getVaultMode = (
     const anchor = findP2AOutputData(tx);
     if (!anchor) continue;
     if (tx.version === 3 && anchor.value === 0) return 'P2A_TRUC';
-    return 'P2A_NON_TRUC';
+    if (tx.version === 2 && BigInt(anchor.value) >= P2A_DUST_THRESHOLD)
+      return 'P2A_NON_TRUC';
+    throw new Error(
+      `Unknown P2A vault mode from trigger tx version ${tx.version} and anchor value ${anchor.value}`
+    );
   }
   return 'LADDERED';
 };
@@ -624,7 +630,7 @@ export const getHistoryData = moize(
     const vaultTxs: Map<TxId, VaultPresignedTx> = new Map();
     const triggerExternalTxs: Map<TxId, VaultPresignedTx> = new Map();
     const triggerHotWalletTxs: Map<TxId, VaultPresignedTx> = new Map();
-    const panicTxs: Map<TxId, VaultPresignedTx> = new Map();
+    const rescueTxs: Map<TxId, VaultPresignedTx> = new Map();
     const anchorChildTxs: Map<TxId, VaultAnchorChildTx> = new Map();
 
     Object.entries(vaultsStatuses).forEach(([vaultId, vaultStatus]) => {
@@ -632,9 +638,9 @@ export const getHistoryData = moize(
       if (!vault) throw new Error('Vault unsynchd');
       const vaultTxHex = vault.vaultTxHex;
       const triggerTxHex = vaultStatus.triggerTxHex;
-      const panicTxHex = vaultStatus.panicTxHex;
+      const rescueTxHex = vaultStatus.panicTxHex;
       const triggerCpfpTxHex = vaultStatus.triggerCpfpTxHex;
-      const panicCpfpTxHex = vaultStatus.panicCpfpTxHex;
+      const rescueCpfpTxHex = vaultStatus.panicCpfpTxHex;
       const vaultNumber = getVaultNumber(vaultId, vaults);
       if (vaultStatus.vaultTxBlockHeight !== undefined) {
         // vaultTxBlockHeight may be undefined if VAULT_NOT_FOUND
@@ -677,7 +683,7 @@ export const getHistoryData = moize(
           blockHeight,
           ...(vaultStatus.panicTxBlockHeight !== undefined
             ? {
-                spentAsPanic:
+                spentAsRescue:
                   vaultStatus.panicTxBlockHeight === 0
                     ? 'CONFIRMING'
                     : 'CONFIRMED'
@@ -692,16 +698,16 @@ export const getHistoryData = moize(
           ...(pushTime !== undefined ? { pushTime } : {})
         });
       }
-      if (panicTxHex) {
-        const { txId, tx } = transactionFromHex(panicTxHex);
+      if (rescueTxHex) {
+        const { txId, tx } = transactionFromHex(rescueTxHex);
         const outValue = toNumberOrUndefined(tx.outs[0]?.value);
         if (outValue === undefined) throw new Error('Unset output');
         const pushTime = vaultStatus.panicPushTime;
         const blockTime = vaultStatus.panicTxBlockTime;
         const blockHeight = vaultStatus.panicTxBlockHeight;
         if (blockHeight === undefined)
-          throw new Error('Unset panic blockHeight');
-        panicTxs.set(txId, {
+          throw new Error('Unset rescue blockHeight');
+        rescueTxs.set(txId, {
           txId,
           blockHeight,
           ...(blockTime !== undefined ? { blockTime } : {}),
@@ -722,8 +728,8 @@ export const getHistoryData = moize(
           vaultNumber
         });
       }
-      if (panicCpfpTxHex) {
-        const { txId, tx } = transactionFromHex(panicCpfpTxHex);
+      if (rescueCpfpTxHex) {
+        const { txId, tx } = transactionFromHex(rescueCpfpTxHex);
         anchorChildTxs.set(txId, {
           tx,
           feePayerTxType: 'RESCUE',
@@ -754,7 +760,7 @@ export const getHistoryData = moize(
     triggerExternalTxs.forEach(triggerExternalTx =>
       historyData.push(triggerExternalTx)
     );
-    panicTxs.forEach(panicTx => historyData.push(panicTx));
+    rescueTxs.forEach(rescueTx => historyData.push(rescueTx));
 
     return (
       historyData
@@ -1105,15 +1111,15 @@ export const coinSelectVaultTx = moize.shallow(
  * - the vault output itself must stay above dust
  * - the trigger output must stay above dust after subtracting any required
  *   parent fee and P2A_NON_TRUC anchor
- * - the panic output must stay above dust after subtracting everything that
- *   must already be paid before panic can exist
+ * - the rescue output must stay above dust after subtracting everything that
+ *   must already be paid before rescue can exist
  *
  * This lower bound does not include the separate trigger reserve output funded
  * by the wallet at vault creation time.
  *
  * @returns The minimum `vaultedAmount` in sats required by the current
  * Rewind2 vault structure. This is the largest of the vault, trigger, and
- * panic minimums because one vaulted amount must satisfy all three.
+ * rescue minimums because one vaulted amount must satisfy all three.
  */
 export const estimateMinimumRequiredVaultedAmount = moize.shallow(
   ({
@@ -1142,10 +1148,10 @@ export const estimateMinimumRequiredVaultedAmount = moize.shallow(
       descriptor: createVaultDescriptor(DUMMY_PUBKEY),
       network
     });
-    const triggerOutputPanicPath = new Output({
+    const triggerOutputRescuePath = new Output({
       descriptor: createTriggerDescriptor({
         unvaultKeyExpression: DUMMY_PUBKEY,
-        panicKeyExpression: DUMMY_PUBKEY_2,
+        rescueKeyExpression: DUMMY_PUBKEY_2,
         lockBlocks
       }),
       signersPubKeys: [fromHex(DUMMY_PUBKEY_2)],
@@ -1156,30 +1162,30 @@ export const estimateMinimumRequiredVaultedAmount = moize.shallow(
       network
     });
     const triggerAnchorValue = getTriggerAnchorValue(vaultMode);
-    const panicAnchorValue = getRescueAnchorValue();
+    const rescueAnchorValue = getRescueAnchorValue();
     const triggerParentFee = getPresignedTriggerParentFee(
       presignedTriggerFeeRate
     );
-    const panicParentFee = getPresignedRescueParentFee(presignedRescueFeeRate);
+    const rescueParentFee = getPresignedRescueParentFee(presignedRescueFeeRate);
 
     const minimumVaultOutputValue = dustThreshold(vaultOutput) + BigInt(1);
     const minimumTriggerOutputValue =
-      dustThreshold(triggerOutputPanicPath) +
+      dustThreshold(triggerOutputRescuePath) +
       BigInt(1) +
       triggerAnchorValue +
       triggerParentFee;
-    const minimumPanicOutputValue =
+    const minimumRescueOutputValue =
       dustThreshold(coldOutput) +
       BigInt(1) +
-      panicAnchorValue +
-      panicParentFee +
+      rescueAnchorValue +
+      rescueParentFee +
       triggerAnchorValue +
       triggerParentFee;
 
     const minimumRequiredVaultedAmount = maxBigInt(
       minimumVaultOutputValue,
       minimumTriggerOutputValue,
-      minimumPanicOutputValue
+      minimumRescueOutputValue
     );
 
     return toNumber(minimumRequiredVaultedAmount);
@@ -1555,7 +1561,7 @@ export const createVault = async ({
     });
   }
   //Sign
-  signPsbt(signer, network, psbtVault);
+  await signPsbt(signer, network, psbtVault);
   //Finalize
   vaultFinalizers.forEach(finalizer => finalizer({ psbt: psbtVault }));
   const vaultTx = psbtVault.extractTransaction();
@@ -1563,13 +1569,13 @@ export const createVault = async ({
   const vaultVsize = vaultTx.virtualSize();
   if (vaultVsize > selected.vsize)
     throw new Error('vsize larger than coinselected estimated one');
-  const panicKeyExpression = randomKeyExpression;
+  const rescueKeyExpression = randomKeyExpression;
   const triggerDescriptor = createTriggerDescriptor({
     unvaultKeyExpression,
-    panicKeyExpression,
+    rescueKeyExpression,
     lockBlocks
   });
-  const triggerOutputPanicPath = new Output({
+  const triggerOutputRescuePath = new Output({
     descriptor: triggerDescriptor,
     network,
     signersPubKeys: [randomPubKey]
@@ -1581,14 +1587,14 @@ export const createVault = async ({
   if (!unvaultPubKey) throw new Error('Could not extract unvaultPubKey');
 
   const triggerAnchorValue = getTriggerAnchorValue(vaultMode);
-  const panicAnchorValue = getRescueAnchorValue();
+  const rescueAnchorValue = getRescueAnchorValue();
   const triggerParentFee = getPresignedTriggerParentFee(
     presignedTriggerFeeRate
   );
-  const panicParentFee = getPresignedRescueParentFee(presignedRescueFeeRate);
+  const rescueParentFee = getPresignedRescueParentFee(presignedRescueFeeRate);
   const triggerOutputValue =
     selectedVaultedAmount - triggerAnchorValue - triggerParentFee;
-  const triggerDust = dustThreshold(triggerOutputPanicPath);
+  const triggerDust = dustThreshold(triggerOutputRescuePath);
   if (triggerOutputValue <= triggerDust)
     return `COINSELECT_ERROR: trigger output below dust ${triggerOutputValue} <= ${triggerDust}`;
 
@@ -1600,7 +1606,7 @@ export const createVault = async ({
     txHex: vaultTxHex,
     vout: vaultOutputIndex
   });
-  triggerOutputPanicPath.updatePsbtAsOutput({
+  triggerOutputRescuePath.updatePsbtAsOutput({
     psbt: psbtTrigger,
     value: triggerOutputValue
   }); //vout: 0
@@ -1608,7 +1614,7 @@ export const createVault = async ({
     script: P2A_OUTPUT_SCRIPT,
     value: triggerAnchorValue
   }); //vout: 1
-  signPsbt(randomSigner, network, psbtTrigger);
+  await signPsbt(randomSigner, network, psbtTrigger);
   triggerInputFinalizer({ psbt: psbtTrigger });
   const triggerTx = psbtTrigger.extractTransaction();
   const triggerTxHex = triggerTx.toHex();
@@ -1616,10 +1622,10 @@ export const createVault = async ({
   if (!TRIGGER_TX_VBYTES.includes(triggerVsize))
     throw new Error(`Unexpected trigger vsize: ${triggerVsize}`);
 
-  const psbtPanic = new Psbt({ network });
-  psbtPanic.setVersion(vaultMode === 'P2A_TRUC' ? 3 : 2);
-  const panicInputFinalizer = triggerOutputPanicPath.updatePsbtAsInput({
-    psbt: psbtPanic,
+  const psbtRescue = new Psbt({ network });
+  psbtRescue.setVersion(vaultMode === 'P2A_TRUC' ? 3 : 2);
+  const rescueInputFinalizer = triggerOutputRescuePath.updatePsbtAsInput({
+    psbt: psbtRescue,
     txHex: triggerTxHex,
     vout: 0
   });
@@ -1627,33 +1633,33 @@ export const createVault = async ({
     descriptor: `addr(${coldAddress})`,
     network
   });
-  const panicOutputValue =
-    triggerOutputValue - panicAnchorValue - panicParentFee;
-  const panicDust = dustThreshold(coldOutput);
-  if (panicOutputValue <= panicDust)
-    return `COINSELECT_ERROR: panic output below dust ${panicOutputValue} <= ${panicDust}`;
-  coldOutput.updatePsbtAsOutput({ psbt: psbtPanic, value: panicOutputValue }); //vout: 0
-  psbtPanic.addOutput({
+  const rescueOutputValue =
+    triggerOutputValue - rescueAnchorValue - rescueParentFee;
+  const rescueDust = dustThreshold(coldOutput);
+  if (rescueOutputValue <= rescueDust)
+    return `COINSELECT_ERROR: rescue output below dust ${rescueOutputValue} <= ${rescueDust}`;
+  coldOutput.updatePsbtAsOutput({ psbt: psbtRescue, value: rescueOutputValue }); //vout: 0
+  psbtRescue.addOutput({
     script: P2A_OUTPUT_SCRIPT,
-    value: panicAnchorValue
+    value: rescueAnchorValue
   }); //vout: 1
-  signPsbt(randomSigner, network, psbtPanic);
-  panicInputFinalizer({ psbt: psbtPanic });
-  const panicTx = psbtPanic.extractTransaction();
-  const panicTxHex = panicTx.toHex();
-  const panicVsize = panicTx.virtualSize();
-  if (!RESCUE_TX_VBYTES.includes(panicVsize))
-    throw new Error(`Unexpected panic vsize: ${panicVsize}`);
+  await signPsbt(randomSigner, network, psbtRescue);
+  rescueInputFinalizer({ psbt: psbtRescue });
+  const rescueTx = psbtRescue.extractTransaction();
+  const rescueTxHex = rescueTx.toHex();
+  const rescueVsize = rescueTx.virtualSize();
+  if (!RESCUE_TX_VBYTES.includes(rescueVsize))
+    throw new Error(`Unexpected rescue vsize: ${rescueVsize}`);
 
   const vaultFee = Number(psbtVault.getFee());
   const triggerFee = Number(psbtTrigger.getFee());
-  const panicFee = Number(psbtPanic.getFee());
+  const rescueFee = Number(psbtRescue.getFee());
   const minTriggerFee = Math.ceil(triggerVsize * presignedTriggerFeeRate);
-  const minPanicFee = Math.ceil(panicVsize * presignedRescueFeeRate);
+  const minRescueFee = Math.ceil(rescueVsize * presignedRescueFeeRate);
   if (triggerFee < minTriggerFee)
     throw new Error(`Invalid trigger fee ${triggerFee} < ${minTriggerFee}`);
-  if (panicFee < minPanicFee)
-    throw new Error(`Invalid panic fee ${panicFee} < ${minPanicFee}`);
+  if (rescueFee < minRescueFee)
+    throw new Error(`Invalid rescue fee ${rescueFee} < ${minRescueFee}`);
   assertP2AParentPolicy({
     tx: triggerTx,
     fee: triggerFee,
@@ -1661,9 +1667,9 @@ export const createVault = async ({
     vaultMode
   });
   assertP2AParentPolicy({
-    tx: panicTx,
-    fee: panicFee,
-    txName: 'panic tx',
+    tx: rescueTx,
+    fee: rescueFee,
+    txName: 'rescue tx',
     vaultMode
   });
   return {
@@ -1671,7 +1677,7 @@ export const createVault = async ({
     selectedVaultedAmount: toNumber(selectedVaultedAmount),
     creationTime: Math.floor(Date.now() / 1000),
     vaultAddress: vaultOutput.getAddress(),
-    triggerAddress: triggerOutputPanicPath.getAddress(),
+    triggerAddress: triggerOutputRescuePath.getAddress(),
     vaultTxHex,
     txMap: {
       [vaultTxHex]: {
@@ -1684,13 +1690,13 @@ export const createVault = async ({
         fee: triggerFee,
         feeRate: triggerFee / triggerTx.virtualSize()
       },
-      [panicTxHex]: {
-        txId: panicTx.getId(),
-        fee: panicFee,
-        feeRate: panicFee / panicTx.virtualSize()
+      [rescueTxHex]: {
+        txId: rescueTx.getId(),
+        fee: rescueFee,
+        feeRate: rescueFee / rescueTx.virtualSize()
       }
     },
-    triggerMap: { [triggerTxHex]: [panicTxHex] }
+    triggerMap: { [triggerTxHex]: [rescueTxHex] }
   };
 };
 
@@ -1708,7 +1714,7 @@ export const getRandomSigner = async (networkId: NetworkId) => {
  * returns 'VAULT_NOT_FOUND' if vaultTxBlockHeight is not set; when not set
  * it's because the vault was never pushed or because it expired or was RBFd
  * returns 'TRIGGER_NOT_FOUND' if the trigger tx is not in the mempool/blockchain
- * returns 'FOUND_AS_HOT'/'FOUND_AS_PANIC' if the trigger tx has already been
+ * returns 'FOUND_AS_HOT'/'FOUND_AS_RESCUE' if the trigger tx has already been
  * spent by a tx confirmed or is found in the mempool.
  *
  * returns an integer lockBlocks >= remainingBlocks >= 0 with the number of
@@ -1723,13 +1729,13 @@ export function getRemainingBlocks(
 ):
   | 'VAULT_NOT_FOUND'
   | 'TRIGGER_NOT_FOUND'
-  | 'FOUND_AS_PANIC'
+  | 'FOUND_AS_RESCUE'
   | 'FOUND_AS_HOT'
   | number {
   if (vaultStatus.vaultTxBlockHeight === undefined) return 'VAULT_NOT_FOUND';
   if (vaultStatus.triggerTxBlockHeight === undefined)
     return 'TRIGGER_NOT_FOUND';
-  if (vaultStatus.panicTxHex) return 'FOUND_AS_PANIC'; //will be set if in mempool or confirmed
+  if (vaultStatus.panicTxHex) return 'FOUND_AS_RESCUE'; //will be set if in mempool or confirmed
   if (vaultStatus.spendAsHotTxHex) return 'FOUND_AS_HOT'; //will be set if in mempool or confirmed
   let remainingBlocks: number;
   const isTriggerInMempool = vaultStatus.triggerTxBlockHeight === 0;
@@ -1818,17 +1824,17 @@ export const getVaultRescuedBalance = (
   if (!vaultStatus.panicTxHex) return 0;
 
   if (!vaultStatus.triggerTxHex)
-    throw new Error('triggerTxHex unset for a panicTxHex');
+    throw new Error('triggerTxHex unset for a rescue tx');
   //Unvaulting triggered:
   const triggerFee = vault.txMap[vaultStatus.triggerTxHex]?.fee;
   if (triggerFee === undefined)
     throw new Error('Trigger tx fee should have been set');
 
-  const panicFee = vault.txMap[vaultStatus.panicTxHex]?.fee;
-  if (panicFee === undefined)
-    throw new Error('Panic tx fee should have been set');
+  const rescueFee = vault.txMap[vaultStatus.panicTxHex]?.fee;
+  if (rescueFee === undefined)
+    throw new Error('Rescue tx fee should have been set');
 
-  return vault.vaultedAmount - triggerFee - panicFee;
+  return vault.vaultedAmount - triggerFee - rescueFee;
 };
 
 /**
@@ -1952,7 +1958,7 @@ async function fetchVaultTx(
 
 /**
  * Note that vaultsStatuses fetched are only partial since
- * vaultPushTime, triggerPushTime and panicPushTime cannot be
+ * vaultPushTime, triggerPushTime and the legacy panicPushTime field cannot be
  * retrieved from the network.
  * Immutable.
  */
@@ -2067,20 +2073,20 @@ async function fetchVaultStatus(
       explorer
     );
     if (unlockingTxData) {
-      // Now let's see if this was a panic or spending as hot:
-      const panicTxs = vault.triggerMap[triggerTxData.txHex];
-      if (!panicTxs) throw new Error('Invalid triggerMap');
-      const panicTxHex = panicTxs.find(
+      // Now let's see if this was a rescue or spending as hot:
+      const rescueTxs = vault.triggerMap[triggerTxData.txHex];
+      if (!rescueTxs) throw new Error('Invalid triggerMap');
+      const rescueTxHex = rescueTxs.find(
         txHex => txHex === unlockingTxData.txHex
       );
 
-      if (panicTxHex) {
+      if (rescueTxHex) {
         newVaultStatus.panicTxHex = unlockingTxData.txHex;
         newVaultStatus.panicTxBlockHeight = unlockingTxData.blockHeight;
         if (vaultMode !== 'LADDERED') {
           // Never discover rescue CPFP by scanning the shared P2A anchor script.
           // Rescue fee-payer discovery needs a future unique reserve/hint path.
-          // const panicCpfpTxData = await fetchSpendingTx(
+          // const rescueCpfpTxData = await fetchSpendingTx(
           //   unlockingTxData.txHex,
           //   1,
           //   explorer
@@ -2090,17 +2096,17 @@ async function fetchVaultStatus(
           else delete newVaultStatus.panicCpfpTxHex;
         } else delete newVaultStatus.panicCpfpTxHex;
         if (newVaultStatus.panicTxBlockHeight !== 0) {
-          const panicBlockStatus = await explorer.fetchBlockStatus(
+          const rescueBlockStatus = await explorer.fetchBlockStatus(
             newVaultStatus.panicTxBlockHeight
           );
-          if (!panicBlockStatus)
+          if (!rescueBlockStatus)
             throw new Error(
               `Block status should exist for existing block height: ${newVaultStatus.panicTxBlockHeight}`
             );
-          newVaultStatus.panicTxBlockTime = panicBlockStatus.blockTime;
+          newVaultStatus.panicTxBlockTime = rescueBlockStatus.blockTime;
         }
       } else {
-        // Panic Tx NOT Found - panic push time should be reset since this
+        // Rescue tx not found - reset rescue push state since this
         // was finally spent as hot
         delete newVaultStatus.panicPushTime;
         delete newVaultStatus.panicCpfpTxHex;
@@ -2120,7 +2126,7 @@ async function fetchVaultStatus(
         }
       }
     }
-    // Panic Tx NOT Found - Check if push time should be reset
+    // Rescue tx not found - check if push time should be reset
     else if (
       newVaultStatus.panicPushTime &&
       Math.floor(Date.now() / 1000) - newVaultStatus.panicPushTime >
@@ -2187,7 +2193,7 @@ async function fetchVaultStatus(
 /**
  * performs a fetchVaultStatus for all vaults in parallel
  * Note that vaultsStatuses fetched are only partial since
- * vaultPushTime, triggerPushTime and panicPushTime cannot be
+ * vaultPushTime, triggerPushTime and the legacy panicPushTime field cannot be
  * retrieved from the network. We add them back using currVaultStatus if they
  * exist.
  * Immutable.
@@ -2257,7 +2263,7 @@ const getHotTriggerDescriptors = (
   const descriptorSet = new Set(descriptors);
   if (descriptorSet.size !== descriptors.length) {
     throw new Error(
-      'triggerDescriptors should be unique; panic key expression should be random'
+      'triggerDescriptors should be unique; rescue key expression should be random'
     );
   }
   return descriptors;

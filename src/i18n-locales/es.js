@@ -320,7 +320,7 @@ Selecciona más monedas o vuelve a la selección automática.`,
       rescue: {
         intro: `Estás a punto de iniciar el rescate de los fondos de tu bóveda. Esto moverá los fondos inmediatamente a tu Dirección de Emergencia preconfigurada:
 
-{{panicAddress}}
+{{rescueAddress}}
 
 Es probable que esta dirección sea difícil de acceder si seguiste las pautas recomendadas durante la Configuración de la Bóveda. Asegúrate de que, llegado el momento, puedas acceder a ella. Una vez que los fondos sean enviados, esta billetera ya no tendrá acceso a ellos.
 
@@ -511,9 +511,9 @@ Instrucciones de Uso:
     },
     details: {
       vault: 'Cantidad congelada después de comisiones: {{amount}}.',
-      triggerConfirmingPanic:
+      triggerConfirmingRescue:
         'Esta transacción inició la cuenta regresiva de descongelación. Se ha detectado un proceso de rescate y la cuenta regresiva está siendo interrumpida. El rescate aún se está confirmando. Por favor, espera la confirmación final...',
-      triggerConfirmedPanic:
+      triggerConfirmedRescue:
         'Esta transacción inició la cuenta regresiva de descongelación, pero fue interrumpida porque los fondos fueron rescatados.',
       triggerWaiting:
         'Esta transacción inició la cuenta regresiva de descongelación, que aún está en progreso. Los fondos, {{amount}} después de esta comisión de transacción, siguen congelados.',

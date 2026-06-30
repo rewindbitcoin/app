@@ -469,7 +469,7 @@ const reconstructPresignedTxsFromOnChainBackup = async ({
   });
   const triggerDescriptor = createTriggerDescriptor({
     unvaultKeyExpression,
-    panicKeyExpression: toHex(entry.ephemeralPubKey),
+    rescueKeyExpression: toHex(entry.ephemeralPubKey),
     lockBlocks: entry.lockBlocks
   });
   const triggerDescriptorOutput = new Output({

@@ -110,7 +110,7 @@ export type PresignedVaultActionProps = (
  *   confirmation. If the trigger is already pushed but unconfirmed, the modal
  *   switches to acceleration copy and fee selection when a higher-fee path is
  *   available.
- * - Rescue first-push explains that funds move to the cold/panic address and
+ * - Rescue first-push explains that funds move to the emergency address and
  *   uses alert-styled buttons. If the rescue is already pushed but unconfirmed,
  *   the modal switches to acceleration copy for the rescue transaction.
  * - Laddered vaults choose among presigned transactions and show a fee picker
@@ -653,7 +653,7 @@ const PresignedVaultAction = ({
     reserveScanErrorText = t('wallet.vault.rescue.reserveScanError');
     introText = isPushedButUnconfirmed
       ? t('wallet.vault.rescue.introAccelerate')
-      : t('wallet.vault.rescue.intro', { panicAddress: vault.coldAddress });
+      : t('wallet.vault.rescue.intro', { rescueAddress: vault.coldAddress });
     postActionExplanationText = t('wallet.vault.rescue.postActionExplanation', {
       timeLockTime: 0
     });

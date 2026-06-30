@@ -36,7 +36,7 @@ describe('Basic Vault', () => {
   test('Create and fund a vault', async () => {
     await ready;
     const POLICY = (older: number) =>
-      `or(pk(@panicKey),99@and(pk(@unvaultKey),older(${older})))`;
+      `or(pk(@rescueKey),99@and(pk(@unvaultKey),older(${older})))`;
     const older = olderEncode({ blocks: lockBlocks });
     const { miniscript, issane } = compilePolicy(POLICY(older));
     if (!issane) throw new Error('Policy not sane');
@@ -57,12 +57,12 @@ describe('Basic Vault', () => {
       keyPath: '/0'
     });
 
-    const panicPair = ECPair.makeRandom();
-    const panicPubKey = panicPair.publicKey;
+    const rescuePair = ECPair.makeRandom();
+    const rescuePubKey = rescuePair.publicKey;
 
     vaultDescriptor = `wsh(${miniscript
       .replace('@unvaultKey', unvaultKey)
-      .replace('@panicKey', toHex(panicPubKey))})`;
+      .replace('@rescueKey', toHex(rescuePubKey))})`;
 
     const vaultOutput = new Output({ descriptor: vaultDescriptor, network });
     vaultAddress = vaultOutput.getAddress();

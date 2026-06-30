@@ -185,17 +185,30 @@ describe('vaults unit tests', () => {
       mainOutputValue: 10000,
       p2aValue: P2A_NON_TRUC_ANCHOR_SATS
     });
-    const panicTxHex = createSyntheticTxHex({
+    const rescueTxHex = createSyntheticTxHex({
       version: 2,
       mainOutputValue: 9000,
       p2aValue: P2A_NON_TRUC_ANCHOR_SATS
     });
     const vault = {
-      triggerMap: { [triggerTxHex]: [panicTxHex] }
+      triggerMap: { [triggerTxHex]: [rescueTxHex] }
     } as unknown as Vault;
     expect(getVaultMode(vault)).toBe('P2A_NON_TRUC');
     expect(findP2AOutputData(Transaction.fromHex(triggerTxHex))?.index).toBe(1);
-    expect(findP2AOutputData(Transaction.fromHex(panicTxHex))?.index).toBe(1);
+    expect(findP2AOutputData(Transaction.fromHex(rescueTxHex))?.index).toBe(1);
+  });
+
+  test('getVaultMode rejects unknown P2A trigger shapes', () => {
+    const triggerTxHex = createSyntheticTxHex({
+      version: 3,
+      mainOutputValue: 10000,
+      p2aValue: P2A_NON_TRUC_ANCHOR_SATS
+    });
+    const vault = {
+      triggerMap: { [triggerTxHex]: [] }
+    } as unknown as Vault;
+
+    expect(() => getVaultMode(vault)).toThrow('Unknown P2A vault mode');
   });
 
   test('getVaultMode falls back to LADDERED when no P2A output exists', () => {

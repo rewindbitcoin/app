@@ -468,15 +468,15 @@ export const createUnvaultKeyExpression = async ({
 
 export const createTriggerDescriptor = ({
   unvaultKeyExpression,
-  panicKeyExpression,
+  rescueKeyExpression,
   lockBlocks
 }: {
   unvaultKeyExpression: string;
-  panicKeyExpression: string;
+  rescueKeyExpression: string;
   lockBlocks: number;
 }) => {
   const older = olderEncode({ blocks: lockBlocks });
-  const triggerDescriptor = `wsh(andor(pk(${unvaultKeyExpression}),older(${older}),pkh(${panicKeyExpression})))`;
+  const triggerDescriptor = `wsh(andor(pk(${unvaultKeyExpression}),older(${older}),pkh(${rescueKeyExpression})))`;
   return triggerDescriptor;
 };
 

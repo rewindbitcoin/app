@@ -551,7 +551,7 @@ const RawVault = ({
         vaultStatus?.panicTxBlockHeight !== undefined
           ? vaultStatus.panicTxBlockHeight === 0
           : !!vaultStatus?.panicPushTime;
-      let panicCpfpTxHex: string | undefined;
+      let rescueCpfpTxHex: string | undefined;
       try {
         const { status: pushStatus } = await netRequest({
           whenToastErrors: 'ON_ANY_ERROR',
@@ -596,7 +596,7 @@ const RawVault = ({
             });
             if (!childTxHex)
               throw new Error('Cannot build rescue fee-bump transaction');
-            panicCpfpTxHex = childTxHex;
+            rescueCpfpTxHex = childTxHex;
             await pushTxPackage({
               parentTxHex: rescueData.parentTxHex,
               childTxHex
@@ -613,10 +613,10 @@ const RawVault = ({
               label: t('wallet.vault.actionLabels.rescue', { vaultName })
             }
           ];
-          if (panicCpfpTxHex !== undefined)
+          if (rescueCpfpTxHex !== undefined)
             labelEntries.push({
               type: 'tx' as const,
-              ref: transactionFromHex(panicCpfpTxHex).txId,
+              ref: transactionFromHex(rescueCpfpTxHex).txId,
               label: t('wallet.vault.actionLabels.rescueFeeBump', {
                 vaultName
               })
@@ -634,7 +634,9 @@ const RawVault = ({
           panicTxHex: rescueData.parentTxHex,
           panicTxBlockHeight: 0,
           panicPushTime: Math.floor(Date.now() / 1000),
-          ...(panicCpfpTxHex !== undefined && { panicCpfpTxHex })
+          ...(rescueCpfpTxHex !== undefined && {
+            panicCpfpTxHex: rescueCpfpTxHex
+          })
         };
         updateVaultStatus(vault.vaultId, newVaultStatus);
       } finally {
@@ -666,7 +668,7 @@ const RawVault = ({
   const { locale, currency } = useLocalization();
   const rescuedDate = formatVaultDate(vaultStatus?.panicTxBlockTime, locale);
   const rescuePushDate = formatVaultDate(vaultStatus?.panicPushTime, locale);
-  const panicAddress = vault.coldAddress;
+  const rescueAddress = vault.coldAddress;
   const spentAsHotDate = formatVaultDate(
     vaultStatus?.spendAsHotTxBlockTime,
     locale
@@ -1266,7 +1268,7 @@ const RawVault = ({
             >
               {t('wallet.vault.confirmedRescue', {
                 rescuedDate,
-                panicAddress
+                rescueAddress
               })}
             </VaultStatusLine>
           )}
@@ -1284,7 +1286,7 @@ const RawVault = ({
               {rescuePushDate
                 ? t('wallet.vault.rescueUnconfirmed', {
                     rescuePushDate,
-                    panicAddress
+                    rescueAddress
                   })
                 : t('wallet.vault.rescueUnconfirmedWithUnknownDate')}
             </VaultStatusLine>
@@ -1349,7 +1351,7 @@ const RawVault = ({
                   : t('wallet.vault.rescueUnconfirmedEmergencyAddressIntro')}
               </Text>
               <AddressActionRow
-                address={panicAddress}
+                address={rescueAddress}
                 blockExplorerURL={blockExplorerURL}
               />
             </>

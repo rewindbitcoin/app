@@ -322,7 +322,7 @@ Select more coins or switch back to automatic selection.`,
       rescue: {
         intro: `You're about to initiate the rescue of your vault funds. This will move the funds to your pre-configured Emergency Address immediately:
 
-{{panicAddress}}
+{{rescueAddress}}
 
 This address will likely be difficult to access if you followed the recommended guidelines during Vault Setup. Ensure you can eventually access it. Once the funds are sent, this wallet will no longer have access to them.
 
@@ -542,13 +542,13 @@ Usage Instructions:
     details: {
       vault: 'Frozen amount after fees: {{amount}}.',
       //Old text is correct but too complex in the UI:
-      //triggerConfirmingPanic:
+      //triggerConfirmingRescue:
       //  'Rescuing the {{amount}} received in this transaction after fees. Confirming...',
-      triggerConfirmingPanic:
+      triggerConfirmingRescue:
         'This transaction started the unfreeze countdown. A rescue process has been detected and the countdown is being interrupted. The rescue is still confirming. Please hold on for final confirmation...',
       //Old text is correct but too complex in the UI:
-      //triggerConfirmedPanic: 'This transaction started the unfreeze countdown, but it was interrupted and the {{amount}} transferred in this transaction, after fees, was rescued.',
-      triggerConfirmedPanic:
+      //triggerConfirmedRescue: 'This transaction started the unfreeze countdown, but it was interrupted and the {{amount}} transferred in this transaction, after fees, was rescued.',
+      triggerConfirmedRescue:
         'This transaction started the unfreeze countdown, but it was interrupted because the funds were rescued.',
       triggerWaiting:
         'This transaction started the unfreeze countdown, which is still in progress. The funds, {{amount}} after this transaction fee, are still frozen.',
