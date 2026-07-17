@@ -1,7 +1,7 @@
 // Copyright (C) 2026 Jose-Luis Landabaso - https://rewindbitcoin.com
 // Licensed under the GNU GPL v3 or later. See the LICENSE file for details.
 
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Text, View } from 'react-native';
 import type { Account } from '@bitcoinerlab/discovery';
 import { useTranslation } from 'react-i18next';
@@ -17,6 +17,10 @@ import { CoinControlPanel, coinControlIcon } from './CoinControl';
 
 type AdvancedTransactionOptionsPanelProps = {
   entryScreen?: 'overview' | 'coinSelection' | 'changeAddressSelection';
+  screen?: 'overview' | 'coinSelection' | 'changeAddressSelection';
+  onScreenChange?: (
+    screen: 'overview' | 'coinSelection' | 'changeAddressSelection'
+  ) => void;
   utxosAvailability?: UtxoAvailability[];
   pickedUtxosData?: UtxosData | null;
   btcFiat: number | undefined;
@@ -37,12 +41,30 @@ type AdvancedTransactionOptionsModalProps =
 
 const advancedTransactionOptionsIcon: IconType = coinControlIcon;
 
+const AdvancedSubpanelBack = ({ onPress }: { onPress: () => void }) => {
+  const { t } = useTranslation();
+  return (
+    <View className="px-2 pb-3">
+      <Button
+        mode="text"
+        containerClassName="!min-w-0 self-start"
+        iconLeft={{ family: 'MaterialIcons', name: 'arrow-back' }}
+        onPress={onPress}
+      >
+        {t('coinControl.backToAdvancedOptions')}
+      </Button>
+    </View>
+  );
+};
+
 // Panel shown inside the advanced options modal. The user sees an overview of
 // optional transaction controls, then can open coin selection or custom change
 // selection. Confirming a sub-screen returns the picked coins or address to the
 // parent screen.
 const RawAdvancedTransactionOptionsPanel = ({
   entryScreen = 'overview',
+  screen: controlledScreen,
+  onScreenChange,
   utxosAvailability,
   pickedUtxosData,
   btcFiat,
@@ -63,12 +85,14 @@ const RawAdvancedTransactionOptionsPanel = ({
     screen: 'overview' | 'coinSelection' | 'changeAddressSelection';
   }>(() => ({ entryScreen, screen: entryScreen }));
   const screen =
-    screenState.entryScreen === entryScreen ? screenState.screen : entryScreen;
+    controlledScreen ??
+    (screenState.entryScreen === entryScreen ? screenState.screen : entryScreen);
   const setPanelScreen = useCallback(
     (screen: 'overview' | 'coinSelection' | 'changeAddressSelection') => {
-      setScreenState({ entryScreen, screen });
+      if (onScreenChange) onScreenChange(screen);
+      else setScreenState({ entryScreen, screen });
     },
-    [entryScreen]
+    [entryScreen, onScreenChange]
   );
 
   const canChooseCoins =
@@ -118,13 +142,16 @@ const RawAdvancedTransactionOptionsPanel = ({
     onConfirmCoinSelection !== undefined
   ) {
     return (
-      <CoinControlPanel
-        utxosAvailability={utxosAvailability}
-        pickedUtxosData={pickedUtxosData ?? null}
-        btcFiat={btcFiat}
-        onClose={() => setPanelScreen('overview')}
-        onConfirm={handleConfirmCoinSelection}
-      />
+      <View>
+        <AdvancedSubpanelBack onPress={() => setPanelScreen('overview')} />
+        <CoinControlPanel
+          utxosAvailability={utxosAvailability}
+          pickedUtxosData={pickedUtxosData ?? null}
+          btcFiat={btcFiat}
+          onClose={() => setPanelScreen('overview')}
+          onConfirm={handleConfirmCoinSelection}
+        />
+      </View>
     );
   }
 
@@ -134,18 +161,21 @@ const RawAdvancedTransactionOptionsPanel = ({
     onConfirmChangeAddress !== undefined
   ) {
     return (
-      <AddressScriptPickerPanel
-        initialAccount={selectedChangeAccount ?? initialChangeAccount}
-        initialChange={1}
-        {...(changeAddressSelection
-          ? { initialIndex: changeAddressSelection.index }
-          : {})}
-        cancelText={t('coinControl.back')}
-        confirmText={t('coinControl.useChangeAddress')}
-        introText={t('addressPicker.changeIntro')}
-        onCancel={() => setPanelScreen('overview')}
-        onConfirm={handleConfirmChangeAddress}
-      />
+      <View>
+        <AdvancedSubpanelBack onPress={() => setPanelScreen('overview')} />
+        <AddressScriptPickerPanel
+          initialAccount={selectedChangeAccount ?? initialChangeAccount}
+          initialChange={1}
+          {...(changeAddressSelection
+            ? { initialIndex: changeAddressSelection.index }
+            : {})}
+          cancelText={t('coinControl.back')}
+          confirmText={t('coinControl.useChangeAddress')}
+          introText={t('addressPicker.changeIntro')}
+          onCancel={() => setPanelScreen('overview')}
+          onConfirm={handleConfirmChangeAddress}
+        />
+      </View>
     );
   }
 
@@ -263,12 +293,20 @@ const RawAdvancedTransactionOptionsModal = ({
   const [renderPanelUntilHidden, setRenderPanelUntilHidden] =
     useState(isVisible);
   const [panelOpenSession, setPanelOpenSession] = useState(0);
+  const [screen, setScreen] = useState<
+    'overview' | 'coinSelection' | 'changeAddressSelection'
+  >(panelProps.entryScreen ?? 'overview');
   const shouldRenderPanel = isVisible || renderPanelUntilHidden;
+
+  useEffect(() => {
+    if (isVisible) setScreen(panelProps.entryScreen ?? 'overview');
+  }, [isVisible, panelProps.entryScreen]);
 
   const handleModalWillShow = useCallback(() => {
     setRenderPanelUntilHidden(true);
     setPanelOpenSession(panelOpenSession => panelOpenSession + 1);
-  }, []);
+    setScreen(panelProps.entryScreen ?? 'overview');
+  }, [panelProps.entryScreen]);
 
   const handleModalHide = useCallback(() => {
     setRenderPanelUntilHidden(false);
@@ -279,7 +317,13 @@ const RawAdvancedTransactionOptionsModal = ({
     <Modal
       headerMini={true}
       isVisible={isVisible}
-      title={t('coinControl.title')}
+      title={
+        screen === 'coinSelection'
+          ? t('coinControl.chooseCoins')
+          : screen === 'changeAddressSelection'
+            ? t('coinControl.changeAddress')
+            : t('coinControl.title')
+      }
       icon={advancedTransactionOptionsIcon}
       onClose={panelProps.onClose}
       onModalWillShow={handleModalWillShow}
@@ -290,6 +334,8 @@ const RawAdvancedTransactionOptionsModal = ({
         <AdvancedTransactionOptionsPanel
           key={panelOpenSession}
           {...panelProps}
+          screen={screen}
+          onScreenChange={setScreen}
         />
       ) : null}
     </Modal>

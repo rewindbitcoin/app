@@ -1076,6 +1076,7 @@ Usa esto para simular comisiones más altas y condiciones extremas de mempool en
     useDefaults: 'Usar valores por defecto',
     done: 'Listo',
     back: 'Atrás',
+    backToAdvancedOptions: 'Volver a opciones avanzadas',
     useSelected: 'Usar selección',
     auto: 'Auto',
     title: 'Opciones avanzadas',

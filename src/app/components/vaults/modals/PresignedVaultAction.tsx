@@ -305,6 +305,14 @@ const PresignedVaultAction = ({
     throw new Error('Wallet supplement is only allowed for trigger actions');
   const isP2ABumpPlanLoading = !isLadderedVault && p2aBumpPlan === 'loading';
   const isP2ABumpPlanError = !isLadderedVault && p2aBumpPlan === 'error';
+  const canPickP2APackageFee =
+    !isLadderedVault &&
+    !isPushedButUnconfirmed &&
+    typeof p2aBumpPlan === 'object' &&
+    childChangePlan !== undefined &&
+    (p2aBumpPlan.txosData.length > 0 ||
+      (walletSupplementRequested && vaultableWalletUtxosData.length > 0)) &&
+    !(vaultMode === 'P2A_TRUC' && p2aBumpPlan.hasUnconfirmedUtxos);
 
   const handleModalWillShow = useCallback(() => {
     setKeepContentRenderedUntilModalHidden(true);
@@ -502,7 +510,12 @@ const PresignedVaultAction = ({
         initialFeeRate = minimumSelectableFeeRate;
     }
 
-    selectedFeeRate = feeRate ?? initialFeeRate;
+    selectedFeeRate =
+      feeRate ??
+      initialFeeRate ??
+      (canPickP2APackageFee
+        ? (feeRateForReasonableConfirmationTime ?? MIN_FEE_RATE)
+        : null);
     if (
       selectedFeeRate !== null &&
       sharedActionBuildArgs !== null &&
@@ -572,7 +585,8 @@ const PresignedVaultAction = ({
     pushedTxHex,
     p2aBumpPlan,
     childChangeOutput,
-    childChangePlan
+    childChangePlan,
+    canPickP2APackageFee
   ]);
 
   const cannotAccelerateMaxFee = blockerReason === 'replacementFeeAboveMaximum';
@@ -720,6 +734,13 @@ const PresignedVaultAction = ({
     preferredInitialFeeRate !== null &&
     initialFeeRate !== null &&
     preferredInitialFeeRate > initialFeeRate;
+  const parentOnlyFeeBelowRecommended =
+    !isLadderedVault &&
+    blockerReason === null &&
+    !needsFeeInput &&
+    feeRateForReasonableConfirmationTime !== null &&
+    (presignedTxInfos?.[0]?.feeRate ?? Infinity) <
+      feeRateForReasonableConfirmationTime;
   let reserveFundsMissingPromptText: string | null = null;
   if (!isLadderedVault) {
     if (selectedFeeCannotBuildAction)
@@ -734,13 +755,7 @@ const PresignedVaultAction = ({
           : t('wallet.vault.rescue.reserveBelowRecommendedFee');
     // UX: fixed-fee parent-only fallback can proceed, but show a warning that it
     // may confirm slower than the recommended (reasonable ~ 2 hours) target.
-    else if (
-      blockerReason === null &&
-      !needsFeeInput &&
-      feeRateForReasonableConfirmationTime !== null &&
-      (presignedTxInfos?.[0]?.feeRate ?? Infinity) <
-        feeRateForReasonableConfirmationTime
-    )
+    else if (parentOnlyFeeBelowRecommended)
       reserveFundsMissingPromptText =
         role === 'TRIGGER'
           ? t(
@@ -768,7 +783,7 @@ const PresignedVaultAction = ({
     showReserveCannotBuildAnyPackage ||
     blockerReason === 'noP2AReserve'
       ? 'canHelpCurrentAction'
-      : reserveOnlyBuildsBelowRecommendedFee
+      : reserveOnlyBuildsBelowRecommendedFee || parentOnlyFeeBelowRecommended
         ? 'canImproveRecommendedFee'
         : txUsesWalletSupplement
           ? 'txUsesWalletSupplement'
@@ -1071,6 +1086,16 @@ const PresignedVaultAction = ({
     isP2ABumpPlanError || hasBlockingState || initialFeeRate !== null;
 
   const canShowActionButton = blockerReason === null;
+  const showFeeInput =
+    needsFeeInput || (canPickP2APackageFee && selectedFeeRate !== null);
+  const feeInputMin = minimumSelectableFeeRate ?? MIN_FEE_RATE;
+  const feeInputInitialValue = Math.max(
+    feeInputMin,
+    selectedFeeRate ??
+      initialFeeRate ??
+      feeRateForReasonableConfirmationTime ??
+      feeInputMin
+  );
 
   let modalContent: React.ReactNode;
   if (step === 'intro') {
@@ -1127,6 +1152,30 @@ const PresignedVaultAction = ({
         )}
       </View>
     );
+  } else if (step === 'confirm' && showFeeInput && feeEstimates) {
+    modalContent = (
+      <View>
+        <Text className="text-base text-slate-600 pb-4 px-2">
+          {feeSelectorExplanationText}
+        </Text>
+        <View className="bg-slate-100 p-2 rounded-xl">
+          <FeeInput
+            min={feeInputMin}
+            btcFiat={btcFiat}
+            feeEstimates={feeEstimates}
+            initialValue={feeInputInitialValue}
+            fee={fee}
+            isOptimal={
+              fee !== null &&
+              selectedFeeRate === feeRateForReasonableConfirmationTime
+            }
+            label={confirmationSpeedLabel}
+            onValueChange={setFeeRate}
+          />
+        </View>
+        {confirmationExplanation}
+      </View>
+    );
   } else if (showReserveCannotBuildAnyPackage) {
     modalContent = (
       <View>
@@ -1138,36 +1187,6 @@ const PresignedVaultAction = ({
             <View className="px-2">{reserveFundsMissingAction}</View>
           </>
         )}
-      </View>
-    );
-  } else if (step === 'confirm' && needsFeeInput && feeEstimates) {
-    modalContent = (
-      <View>
-        {initialFeeRate !== null && minimumSelectableFeeRate !== null ? (
-          <>
-            <Text className="text-base text-slate-600 pb-4 px-2">
-              {feeSelectorExplanationText}
-            </Text>
-            <View className="bg-slate-100 p-2 rounded-xl">
-              <FeeInput
-                min={minimumSelectableFeeRate}
-                btcFiat={btcFiat}
-                feeEstimates={feeEstimates}
-                initialValue={selectedFeeRate ?? initialFeeRate}
-                fee={fee}
-                isOptimal={
-                  fee !== null &&
-                  selectedFeeRate === feeRateForReasonableConfirmationTime
-                }
-                label={confirmationSpeedLabel}
-                onValueChange={setFeeRate}
-              />
-            </View>
-          </>
-        ) : (
-          <ActivityIndicator />
-        )}
-        {confirmationExplanation}
       </View>
     );
   } else if (step === 'confirm') {
