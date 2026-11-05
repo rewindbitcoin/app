@@ -152,7 +152,7 @@ export const getTriggerReserveOutput = ({
 }: {
   descriptor: string;
   network: Network;
-}) => {
+}): OutputInstance => {
   const { Output } = ensureDescriptorsFactoryInstance();
   return new Output({
     descriptor,

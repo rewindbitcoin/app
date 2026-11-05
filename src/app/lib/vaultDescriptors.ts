@@ -12,7 +12,8 @@ import { networks, type Network } from 'bitcoinjs-lib';
 import type { TFunction } from 'i18next';
 import {
   scriptExpressions,
-  keyExpressionBIP32
+  keyExpressionBIP32,
+  type OutputInstance
 } from '@bitcoinerlab/descriptors';
 import { Accounts, Signer, Signers, SOFTWARE } from './wallets';
 import type { Account } from '@bitcoinerlab/discovery';
@@ -55,32 +56,38 @@ export const DUMMY_PKH_ADDRESS = memoize((network: Network) => {
   else throw new Error('Network not supported');
 });
 
-export const DUMMY_VAULT_OUTPUT = memoize((network: Network) => {
-  const { Output } = ensureDescriptorsFactoryInstance();
-  return new Output({
-    descriptor: createVaultDescriptor(DUMMY_PUBKEY),
-    network
-  });
-});
-export const DUMMY_BACKUP_OUTPUT = memoize((network: Network) => {
-  const { Output } = ensureDescriptorsFactoryInstance();
-  return new Output({
-    descriptor: createVaultDescriptor(DUMMY_PUBKEY_2),
-    network
-  });
-});
-export const DUMMY_TRIGGER_RESERVE_OUTPUT = memoize((network: Network) => {
-  const { Output } = ensureDescriptorsFactoryInstance();
-  return new Output({
-    descriptor: createVaultDescriptor(DUMMY_PUBKEY_2),
-    network
-  });
-});
+export const DUMMY_VAULT_OUTPUT = memoize(
+  (network: Network): OutputInstance => {
+    const { Output } = ensureDescriptorsFactoryInstance();
+    return new Output({
+      descriptor: createVaultDescriptor(DUMMY_PUBKEY),
+      network
+    });
+  }
+);
+export const DUMMY_BACKUP_OUTPUT = memoize(
+  (network: Network): OutputInstance => {
+    const { Output } = ensureDescriptorsFactoryInstance();
+    return new Output({
+      descriptor: createVaultDescriptor(DUMMY_PUBKEY_2),
+      network
+    });
+  }
+);
+export const DUMMY_TRIGGER_RESERVE_OUTPUT = memoize(
+  (network: Network): OutputInstance => {
+    const { Output } = ensureDescriptorsFactoryInstance();
+    return new Output({
+      descriptor: createVaultDescriptor(DUMMY_PUBKEY_2),
+      network
+    });
+  }
+);
 export const DUMMY_CHANGE_DESCRIPTOR = (account: string) =>
   account.replace(/\/0\/\*/g, '/1/0');
 
 export const DUMMY_CHANGE_OUTPUT = memoize(
-  (account: string, network: Network) => {
+  (account: string, network: Network): OutputInstance => {
     const { Output } = ensureDescriptorsFactoryInstance();
     return new Output({
       descriptor: account.replace(/\/0\/\*/g, '/1/*'),
@@ -93,7 +100,7 @@ export const computeOutput = moize(
   (
     descriptorWithIndex: { descriptor: string; index: number },
     network: Network
-  ) => {
+  ): OutputInstance => {
     const { Output } = ensureDescriptorsFactoryInstance();
     return new Output({ ...descriptorWithIndex, network });
   },
@@ -113,7 +120,7 @@ export const computeOutput = moize(
   }
 );
 
-export const DUMMY_PKH_OUTPUT = memoize(() => {
+export const DUMMY_PKH_OUTPUT = memoize((): OutputInstance => {
   const { Output } = ensureDescriptorsFactoryInstance();
   return new Output({
     descriptor: `pkh(${DUMMY_PUBKEY})`
@@ -125,7 +132,7 @@ export const createVaultDescriptor = (pubKey: string) => `wpkh(${pubKey})`;
 export const createAddressDescriptor = (address: string) => `addr(${address})`;
 
 export const createAddressOutput = moize(
-  (address: string, network: Network) => {
+  (address: string, network: Network): OutputInstance => {
     const { Output } = ensureDescriptorsFactoryInstance();
     return new Output({
       descriptor: createAddressDescriptor(address),
@@ -394,7 +401,12 @@ export const createColdAddress = async (mnemonic: string, network: Network) =>
 // between the wallet signer and the ephemeral vault signer, so keep both hot
 // and leave space for a few other recent signers.
 export const getMasterNode = moize(
-  (mnemonic: string, network: Network) => {
+  (
+    mnemonic: string,
+    network: Network
+  ): ReturnType<
+    ReturnType<typeof ensureDescriptorsFactoryInstance>['BIP32']['fromSeed']
+  > => {
     const { BIP32 } = ensureDescriptorsFactoryInstance();
     return BIP32.fromSeed(mnemonicToSeedSync(mnemonic), network);
   },
