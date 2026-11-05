@@ -30,7 +30,7 @@ type DescriptorsFactoryInstance = ReturnType<typeof DescriptorsFactory>;
 let _instance: DescriptorsFactoryInstance | null = null;
 
 /** Synchronous, lazy, shared singleton of the DescriptorsFactory result */
-export function ensureDescriptorsFactoryInstance() {
+export function ensureDescriptorsFactoryInstance(): DescriptorsFactoryInstance {
   if (_instance) return _instance;
 
   //const t0 = Date.now();

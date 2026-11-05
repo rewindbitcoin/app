@@ -780,15 +780,16 @@ export const getHistoryData = moize(
   }
 );
 
-export const getOutputsWithValue = memoize((utxosData: UtxosData) =>
-  utxosData.map(utxo => {
-    const out = utxo.tx.outs[utxo.vout];
-    if (!out) throw new Error('Invalid utxo');
-    return {
-      output: utxo.output,
-      value: out.value
-    };
-  })
+export const getOutputsWithValue = memoize(
+  (utxosData: UtxosData): OutputTarget[] =>
+    utxosData.map(utxo => {
+      const out = utxo.tx.outs[utxo.vout];
+      if (!out) throw new Error('Invalid utxo');
+      return {
+        output: utxo.output,
+        value: out.value
+      };
+    })
 );
 
 export const utxosDataBalance = memoize((utxosData: UtxosData): number =>

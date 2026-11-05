@@ -133,7 +133,12 @@ export const useRescueReserveBumpPlan = ({
   reserveData: EphemeralWalletData | undefined;
   networkId: NetworkId | undefined;
   syncingBlockchain: boolean;
-}) => {
+}): {
+  p2aBumpPlan: ReserveBumpPlan;
+  nextOutput: ReturnType<typeof computeOutput> | undefined;
+  isRefreshing: boolean;
+  syncBumpPlan: () => void;
+} => {
   const { canFetchReserveDescriptorData, fetchReserveDescriptorData } =
     useWallet();
   const [state, setState] = useState<{
