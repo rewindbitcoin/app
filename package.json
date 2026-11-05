@@ -69,7 +69,7 @@
     "expo-splash-screen": "~0.30.10",
     "expo-status-bar": "~2.2.3",
     "expo-system-ui": "~5.0.11",
-    "fflate": "^0.8.2",
+    "fflate": "^0.8.3",
     "i18next": "^25.6.1",
     "idb-keyval": "^6.2.1",
     "intl-pluralrules": "^2.0.1",
@@ -105,10 +105,10 @@
     "stream": "^0.0.2",
     "tailwindcss": "^3.4.1",
     "uint8array-tools": "^0.0.10",
-    "uuid": "^11.1.0"
+    "uuid": "^11.1.1"
   },
   "devDependencies": {
-    "@babel/core": "^7.24.0",
+    "@babel/core": "^7.29.13",
     "@bitcoinerlab/configs": "^2.0.0",
     "@bitcoinerlab/miniscript": "^2.0.1",
     "@bitcoinerlab/miniscript-policies": "^1.1.1",
