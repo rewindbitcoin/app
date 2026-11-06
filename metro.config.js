@@ -18,6 +18,25 @@ config.resolver = {
   extraNodeModules: {
     net: require.resolve('react-native-tcp-socket'),
     tls: require.resolve('react-native-tcp-socket')
+  },
+  resolveRequest: (context, moduleName, platform) => {
+    if (platform === 'web') {
+      // The Git fork has source files but no compiled lib/module entrypoint.
+      if (moduleName === 'react-native-libsodium') {
+        return {
+          type: 'sourceFile',
+          filePath: require.resolve('react-native-libsodium/src/index.ts')
+        };
+      }
+      // The 0.7.x ESM wrappers import missing sibling .mjs files; CJS works.
+      if (
+        moduleName === 'libsodium-wrappers' ||
+        moduleName === 'libsodium-wrappers-sumo'
+      ) {
+        return { type: 'sourceFile', filePath: require.resolve(moduleName) };
+      }
+    }
+    return context.resolveRequest(context, moduleName, platform);
   }
 };
 

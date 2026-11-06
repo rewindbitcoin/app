@@ -68,10 +68,9 @@ console.log(`Running in ${__DEV__ ? 'dev' : 'prod'} mode`);
 //const str = new rnfe().decode(uint, { stream: false });
 //console.log({ str, uint });
 
-//I made some tests, and this does not get included in production, so
-//it's safe to include it. This is needed for web Fast-Refresh when editting
-//code (see immediate changes on the web)
-if (__DEV__) require('@expo/metro-runtime');
+// Web also needs the runtime in production to load dynamically split bundles.
+// Native production builds do not need it; development uses it for Fast Refresh.
+if (__DEV__ || Platform.OS === 'web') require('@expo/metro-runtime');
 // As of dec 2023, i18next assumes a fully-complient Intl implementation,
 // which is not 100% ready in react-native
 // So use this polyfill to avoid this error:

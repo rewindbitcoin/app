@@ -18,6 +18,8 @@ export const getManagedChacha = async (key: Uint8Array) => {
   //const sodium = await import('react-native-libsodium');
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const sodium = require('react-native-libsodium');
+  // Web initializes asynchronously; native exposes an already-resolved promise.
+  await sodium.ready;
 
   return {
     encrypt: (message: string | Uint8Array) => {
