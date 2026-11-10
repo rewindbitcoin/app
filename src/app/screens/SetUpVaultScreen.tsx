@@ -63,6 +63,7 @@ import {
 } from '../lib/vaultRange';
 import { networkMapping } from '../lib/network';
 import { useSettings } from '../hooks/useSettings';
+import { useNetStatus } from '../hooks/useNetStatus';
 import { useWallet } from '../hooks/useWallet';
 import { useLocalization } from '../hooks/useLocalization';
 import { batchedUpdates } from '~/common/lib/batchedUpdates';
@@ -85,8 +86,10 @@ export default function VaultSetUp({
     [insets.bottom]
   );
   const navigation = useNavigation();
+  const { netToast } = useNetStatus();
 
   const {
+    wallet,
     feeEstimates: feeEstimatesRealTime,
     btcFiat: btcFiatRealTime,
     utxosData,
@@ -466,6 +469,12 @@ export default function VaultSetUp({
     )
       throw new Error('Cannot process Vault');
 
+    // Avoid opening CREATE_VAULT only to pop it during its push transition.
+    if (wallet?.lastP2PBackupVaultIndex === undefined) {
+      netToast(false, t('createVault.backupScanPending'));
+      return;
+    }
+
     onVaultSetUpComplete({
       vaultedAmount: isMaxVaultedAmount ? 'MAX_FUNDS' : vaultedAmount,
       coldAddress,
@@ -481,6 +490,9 @@ export default function VaultSetUp({
       btcFiat
     });
   }, [
+    wallet?.lastP2PBackupVaultIndex,
+    netToast,
+    t,
     packageFeeRate,
     pickedVaultableUtxosData,
     vaultableUtxosData,
