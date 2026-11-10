@@ -149,7 +149,7 @@ const Main = () => {
 
   const headerRightContainerStyle = { marginRight: 16 };
 
-  const LazySetUpVaultScreenWithOnComplete = () => {
+  const LazySetUpVaultScreenWithOnComplete = useCallback(() => {
     return (
       <Suspense
         fallback={
@@ -166,7 +166,7 @@ const Main = () => {
         />
       </Suspense>
     );
-  };
+  }, [navigation]);
 
   //TODO: These screens below re-render too oftern, i'm passing new objects {{}}
   //to all of them, the useCallback does notthing if also passing {{}}
@@ -260,7 +260,7 @@ const Main = () => {
             //  backgroundColor: PlatformColor('systemGroupedBackgroundColor') // Color of your background
             //}
           }}
-          component={React.memo(LazySetUpVaultScreenWithOnComplete)}
+          component={LazySetUpVaultScreenWithOnComplete}
         />
 
         <RootStack.Screen
