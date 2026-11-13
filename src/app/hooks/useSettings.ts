@@ -1,7 +1,7 @@
 // Copyright (C) 2025 Jose-Luis Landabaso - https://rewindbitcoin.com
 // Licensed under the GNU GPL v3 or later. See the LICENSE file for details.
 
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useStorage } from '../../common/hooks/useStorage';
 import { MIN_FEE_RATE } from '../lib/fees';
 import {
@@ -9,6 +9,9 @@ import {
   SETTINGS_GLOBAL_STORAGE,
   type Settings
 } from '../lib/settings';
+
+const LEGACY_MAINNET_ELECTRUM_API = 'ssl://blockstream.info:700';
+
 export const useSettings = () => {
   const [settings, setSettings, , , settingsStorageStatus] =
     useStorage<Settings>(
@@ -40,9 +43,26 @@ export const useSettings = () => {
       throw new Error(
         `TAPE_FEE_ESTIMATE_OVERRIDE (${mergedSettings.TAPE_FEE_ESTIMATE_OVERRIDE}) must be 0 or >= MIN_FEE_RATE (${MIN_FEE_RATE})`
       );
-    // Return `settings` if complete, otherwise merge with `defaultSettings`
-    return mergedSettings;
+    // Replace only the unreachable legacy default, not custom servers.
+    return mergedSettings.MAINNET_ELECTRUM_API === LEGACY_MAINNET_ELECTRUM_API
+      ? {
+          ...mergedSettings,
+          MAINNET_ELECTRUM_API: defaultSettings.MAINNET_ELECTRUM_API
+        }
+      : mergedSettings;
   }, [settings]);
+
+  useEffect(() => {
+    if (
+      settings?.MAINNET_ELECTRUM_API === LEGACY_MAINNET_ELECTRUM_API &&
+      derivedSettings &&
+      !settingsStorageStatus.errorCode
+    ) {
+      setSettings(derivedSettings).catch(error =>
+        console.warn('Failed to migrate the mainnet Electrum endpoint', error)
+      );
+    }
+  }, [settings, derivedSettings, setSettings, settingsStorageStatus.errorCode]);
 
   return {
     settings: derivedSettings,

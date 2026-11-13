@@ -205,8 +205,8 @@ export const defaultSettings: Settings = {
   TAPE_ESPLORA_API: `${PUBLIC_PROTOCOL}://${PUBLIC_TAPE_SERVER_NAME}${PUBLIC_TAPE_ESPLORA_API_LOCATION}`,
   REGTEST_ESPLORA_API_SUFFIX: `:${LOCAL_REGTEST_ESPLORA_API_PORT}`,
 
-  //MAINNET_ELECTRUM_API: 'ssl://electrum.blockstream.info:50002',
-  MAINNET_ELECTRUM_API: 'ssl://blockstream.info:700', //https://blog.blockstream.com/en-esplora-and-other-alternatives-to-electrumx/
+  // https://github.com/Blockstream/gdk/blob/master/src/network_parameters.cpp
+  MAINNET_ELECTRUM_API: 'ssl://bitcoin-mainnet.blockstream.info:50002',
   TESTNET_ELECTRUM_API: 'ssl://electrum.blockstream.info:60002',
   TAPE_ELECTRUM_API: `${ELECTRUM_PUBLIC_PROTOCOL}://${PUBLIC_TAPE_SERVER_NAME}:${PUBLIC_TAPE_ELECTRUM_PORT}`,
   //Here we default to ELECTRUM_LOCAL_PROTOCOL and REGTEST_HOST_NAME (we dont use _SUFFIX)
