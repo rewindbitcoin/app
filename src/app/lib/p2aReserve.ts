@@ -53,7 +53,8 @@ export const getAdditionalP2AOutputValue = ({
   parentAnchorValue,
   presignedParentVSize,
   presignedParentFeeRate,
-  targetPackageFeeRate
+  targetPackageFeeRate,
+  minimumChildFee = 0
 }: {
   /** Outputs already available to spend as non-anchor CPFP child inputs. */
   outputsWithValue: Array<{
@@ -72,6 +73,8 @@ export const getAdditionalP2AOutputValue = ({
   presignedParentFeeRate: number;
   /** Package-feerate target that the full parent+child package should reach. */
   targetPackageFeeRate: number;
+  /** Absolute fee floor when this new input funds a replacement child. */
+  minimumChildFee?: number;
 }) => {
   const childVSize = estimateCpfpChildVSizeFromOutputs(
     [...outputsWithValue.map(({ output }) => output), additionalOutput],
@@ -82,6 +85,7 @@ export const getAdditionalP2AOutputValue = ({
   );
   const parentFee = Math.ceil(presignedParentVSize * presignedParentFeeRate);
   const childFee = Math.max(
+    minimumChildFee,
     Math.ceil(childVSize * MIN_FEE_RATE),
     totalTargetFee - parentFee
   );

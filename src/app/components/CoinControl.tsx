@@ -43,14 +43,6 @@ type CoinControlPanelProps = {
   onConfirm: (pickedUtxosData: UtxosData) => void;
 };
 
-type CoinControlRecoveryPanelProps = {
-  message: string;
-  onOpenCoinControl: () => void;
-  onUseAuto: () => void;
-  className?: string;
-  textClassName?: string;
-};
-
 type UtxoDataWithDescriptor = UtxoAvailability['utxoData'] & {
   descriptor?: string;
 };
@@ -75,41 +67,6 @@ const getDescriptor = (utxoData: UtxoAvailability['utxoData']) =>
 
 const getAccountNumber = (descriptor: string) =>
   descriptor.match(/\/(\d+)'\]/)?.[1];
-
-/**
- * Two-button recovery panel for manual coin-control picks that cannot meet the
- * current send, vault setup, or unfreeze requirements.
- *
- * The user has already picked UTXOs manually, but that exact selection cannot
- * build at the chosen amount/fee. This panel offers the same recovery choices
- * across Send, Vault Setup, and Unfreeze flows: go back to Coin Control to
- * re-pick UTXOs, or switch back to automatic coin selection.
- *
- * Callers still own the flow-specific buildability checks and message copy.
- * This component only owns the shared recovery layout and actions.
- */
-const RawCoinControlRecoveryPanel = ({
-  message,
-  onOpenCoinControl,
-  onUseAuto,
-  className,
-  textClassName = 'text-base m-auto self-center text-red-500'
-}: CoinControlRecoveryPanelProps) => {
-  const { t } = useTranslation();
-  return (
-    <View {...(className ? { className } : {})}>
-      <Text className={textClassName}>{message}</Text>
-      <View className="mt-4 flex-row flex-wrap justify-center gap-3">
-        <Button mode="secondary" onPress={onOpenCoinControl}>
-          {t('coinControl.chooseCoins')}
-        </Button>
-        <Button mode="secondary" onPress={onUseAuto}>
-          {t('coinControl.auto')}
-        </Button>
-      </View>
-    </View>
-  );
-};
 
 /**
  * Shell-free coin-control picker used inside advanced transaction options and
@@ -453,5 +410,4 @@ const RawCoinControlPanel = ({
 };
 
 export const CoinControlPanel = React.memo(RawCoinControlPanel);
-export const CoinControlRecoveryPanel = React.memo(RawCoinControlRecoveryPanel);
 export { coinControlIcon };

@@ -201,8 +201,7 @@ If you need further assistance, please contact Rewind Support.`
         rescue: 'Rescue: {{vaultName}}',
         unfreezeOutput: 'Unfreeze output: {{vaultName}}',
         unfreezeFeeReserve: 'Unfreeze fee reserve: {{vaultName}}',
-        unfreezeFeeReserveChange:
-          'Unfreeze fee boost change: {{vaultName}}',
+        unfreezeFeeReserveChange: 'Unfreeze fee boost change: {{vaultName}}',
         unfreezeFeeBump: 'Unfreeze fee boost: {{vaultName}}',
         rescueFeeBump: 'Rescue fee boost: {{vaultName}}',
         emergencyAddress: 'Emergency address: {{vaultName}}',
@@ -280,6 +279,22 @@ Once they confirm, you can press 'Rescue'.`,
       addReserveFundsButton: 'Add funds',
       accelerateSuccess:
         'Acceleration submitted successfully. Waiting for confirmation.',
+      funding: {
+        addButton: 'Add',
+        belowRecommended:
+          'You can send the request with this fee, but confirmation may take longer.',
+        insufficient: 'The available funds cannot pay the selected fee.',
+        wallet: 'Enable "{{walletFundsLabel}}" to help pay {{feeRate}} sat/vB.',
+        receive:
+          'To use a fee of {{feeRate}} sat/vB, add funds to this wallet. You can also lower the fee.',
+        reserve:
+          'Use a separate temporary wallet to fund a rescue fee of {{feeRate}} sat/vB.',
+        wait: 'Some wallet funds are not usable until their transactions confirm. Wait for confirmation before adding more funds.',
+        changeUnavailable:
+          'Could not prepare the change address. Check your connection and try again.',
+        triggerUnconfirmed:
+          'To send the rescue using additional funds for fees, the unfreeze request must confirm first. Try again after confirmation.'
+      },
       triggerUnfreeze: {
         intro: `You're about to start the process of unlocking your vault funds,\
  which will eventually be ready for spending.
@@ -293,24 +308,21 @@ This will start the unfreeze countdown. The funds will become unlocked and avail
 Remember, "Accelerate" won't shorten the lock period. It only speeds up when your unfreeze process actually begins if low fees had held it up.
 
 You likely only need to wait around 10 minutes and really don't need this. Use "Accelerate" only if waiting that time (which could stretch to a couple of hours) isn't acceptable.`,
-        noReserveAvailableYet: `The fee reserve for this unfreeze has no funds yet. You can use your wallet balance if you have any available.`,
         reserveUnconfirmed: `The funds reserved to pay network fees for this unfreeze are still waiting for final blockchain confirmation.
 
 Wait a little longer, then try again.`,
-        insufficientReserveFunds: `The fee reserve for this unfreeze is not enough to pay the network fee. You can use your wallet balance to cover the rest.`,
         reserveScanError: `Rewind could not check the funds reserved to pay network fees for this unfreeze.
 
 Check your connection and try again.`,
-        reserveCannotPaySelectedFee: `The fee reserve for this unfreeze is not enough to pay the selected network fee. Lower the fee or use your wallet balance to cover the rest.`,
-        packageBelowRecommendedFee: `The fee reserve may be too low for a quick confirmation. You can use your wallet balance to improve the fee.`,
-        noReserveParentFeeBelowRecommendedFee: `This unfreeze can be sent now, but its fee may be low for current network conditions. You can use your wallet balance to improve it.`,
         walletSupplementCheckbox:
-          'Use available balance from your wallet to help pay this unfreeze fee. Rewind will only use what is needed.',
+          'The fee reserve is used first. Wallet funds are only added if needed for your chosen fee.',
         // Keep short: this appears in a narrow checkbox row.
         manualWalletSupplementCheckbox: 'Advanced: choose coins manually.',
+        pickedWalletSupplementBelowRecommended:
+          'Your selected coins cover this fee, but not the recommended fee. You can continue now, or use "{{advancedLabel}}" to select more coins or switch to automatic selection.',
         pickedWalletSupplementUtxosInsufficient: `The coins you selected cannot pay this unfreeze fee.
 
-Select more coins or switch back to automatic selection.`,
+In "{{advancedLabel}}", select more coins or switch to automatic selection.`,
         walletFundingHint:
           'Your wallet balance is still short by at least {{amount}}.',
         parentOnlyConfirmation: `Rewind is ready to start the unfreeze now.`,
@@ -332,21 +344,12 @@ This action is designed for extreme situations, such as theft or extortion, to e
 "Accelerate" will boost your rescue request by offering miners a higher fee. Your original request is already pending, but this can move it up in the confirmation queue.
 
 You likely only need to wait around 10 minutes and really don't need this. Use "Accelerate" only if waiting that time (which could stretch to a couple of hours) isn't acceptable.`,
-        noReserveAvailableYet: `This rescue needs funds reserved to pay network fees before Rewind can send it.
-
-Add funds to this reserve, then try again.`,
         reserveUnconfirmed: `The funds reserved to pay network fees for this rescue are still waiting for final blockchain confirmation.
 
 Wait a little longer, then try again.`,
-        insufficientReserveFunds: `This rescue needs more funds reserved to pay network fees.
-
-Add funds to this reserve, then try again.`,
         reserveScanError: `Rewind could not check the funds reserved to pay network fees for this rescue.
 
 Check your connection and try again.`,
-        reserveCannotPaySelectedFee: `The funds reserved to pay this rescue's network fee are not enough. Add funds to this reserve, or choose a cheaper option.`,
-        reserveBelowRecommendedFee: `The funds reserved to pay network fees for this rescue may be too low for a fast confirmation right now. Add funds to this reserve to improve its chances.`,
-        parentFeeBelowRecommendedFee: `This rescue can be sent now, but its built-in network fee may be low for current network conditions. Add funds to this reserve to improve its chances.`,
         parentOnlyConfirmation: `Rewind is ready to send the rescue now.`,
         confirmationSpeedLabel: 'Mining Fee',
         feeSelectorExplanation:
@@ -354,6 +357,11 @@ Check your connection and try again.`,
         postActionExplanation: `Once the rescue request is confirmed, the funds will be moved to your Emergency Address instantly.`
       },
       addReserve: {
+        backToRescue: 'Back to Rescue',
+        target: 'Funding target: {{feeRate}} sat/vB',
+        funded:
+          'The funds cover this fee target. Return to Rescue to review and confirm. Required blockchain confirmations still apply.',
+        checkFunds: 'Check funds',
         triggerTitle: 'Add Funds for Unfreeze',
         rescueTitle: 'Add Funds for Rescue',
         triggerIntro: `Send {{amount}} to this address. Rewind will reserve it to pay network fees for this unfreeze. Any unused amount goes back to your wallet.`,
@@ -362,15 +370,19 @@ Check your connection and try again.`,
         addressLabel: 'Funding Address'
       },
       rescueReserveWallet: {
+        leaveTitle: 'Leave temporary rescue wallet?',
+        leaveButton: 'Leave wallet',
+        leaveWarning:
+          'Leaving this wallet discards its temporary rescue wallet from memory, even if Rewind stays open. Keep its Recovery Phrase to import it again and recover any remaining funds. Do not leave while you still need it for this rescue.',
         modalTitle: 'Temporary Wallet for Fees',
         intro_TRUC: `During a rescue, Rewind uses a temporary wallet to hold funds to pay network fees. This is because your regular wallet should be treated as compromised during a rescue.
 
-Rewind does not save this temporary wallet. Keep Rewind open until the rescue finishes; otherwise you will need its Recovery Phrase to restore it.
+Rewind does not save this temporary wallet. Keep Rewind open and stay in this wallet until the rescue finishes; otherwise you will need its Recovery Phrase to restore it.
 
 After sending funds to this temporary wallet, wait until they are confirmed. Then try Rescue again.`,
         intro_NON_TRUC: `During a rescue, Rewind uses a temporary wallet to hold funds to pay network fees. This is because your regular wallet should be treated as compromised during a rescue.
 
-Rewind does not save this temporary wallet. Keep Rewind open until the rescue finishes; otherwise you will need its Recovery Phrase to restore it.
+Rewind does not save this temporary wallet. Keep Rewind open and stay in this wallet until the rescue finishes; otherwise you will need its Recovery Phrase to restore it.
 
 After sending funds to this temporary wallet, try Rescue again.`,
         createButton: 'Create new',
@@ -380,8 +392,8 @@ After sending funds to this temporary wallet, try Rescue again.`,
 Do not import your regular wallet here. This is only for funds reserved to pay network fees during this rescue.`,
         importConfirmButton: 'Import temporary wallet',
         bip39Proposal: `This is the Recovery Phrase for this temporary wallet. Write it down before continuing.`,
-        bip39ProposalPart2_TRUC: `This phrase is your only backup. Rewind does not save it. Keep Rewind open until the funds to pay network fees confirm and the rescue finishes.`,
-        bip39ProposalPart2_NON_TRUC: `This phrase is your only backup. Rewind does not save it. Keep Rewind open until the rescue finishes.`,
+        bip39ProposalPart2_TRUC: `This phrase is your only backup. Rewind does not save it. Keep Rewind open and stay in this wallet until the funds to pay network fees confirm and the rescue finishes.`,
+        bip39ProposalPart2_NON_TRUC: `This phrase is your only backup. Rewind does not save it. Keep Rewind open and stay in this wallet until the rescue finishes.`,
         confirmBip39ProposalButton: 'I have written it down',
         created: 'Temporary wallet for fees created.',
         imported: 'Temporary wallet for fees imported.'
@@ -694,7 +706,7 @@ Please lower the fee rate or add more funds.`,
     invalidFeeRate: `Please select a valid fee rate.`,
     pickedUtxosInsufficient: `The coins you selected cannot create this vault at the selected fee.
 
-Select more coins or lower the fee.`,
+In "{{advancedLabel}}", select more coins or switch to automatic selection. You can also lower the fee.`,
     vaultTransactionFeeLabel: 'Vault Transaction Fee',
     backupFundingLabel: 'On-chain Backup Cost',
     totalTakenFromWalletNowLabel: 'Total Taken From Wallet Now',
@@ -714,7 +726,8 @@ For your security, please review these changes before proceeding.`
   },
   send: {
     title: 'Send Bitcoin',
-    notEnoughFunds: 'Insufficient funds to create the transaction',
+    notEnoughFunds:
+      'Your available funds cannot cover this transaction. Add funds to your wallet and try again.',
     blockedByPendingUtxos:
       'Some funds need confirmation before this send can be created. Please wait for confirmation and try again.',
     somePendingUtxosTitle: 'Some Funds Need Confirmation',
@@ -726,7 +739,7 @@ Please lower the fee rate or add more funds.`,
     invalidFeeRate: `Please select a valid fee rate.`,
     pickedUtxosInsufficient: `The coins you selected cannot create this transaction at the selected fee.
 
-Select more coins or lower the fee.`,
+In "{{advancedLabel}}", select more coins or switch to automatic selection. You can also lower the fee.`,
     amountLabel: 'Amount to Send',
     confirmationSpeedLabel: 'Mining Fee',
     txCalculateError:
@@ -1125,7 +1138,7 @@ Use this to simulate higher fees and extreme mempool conditions on Tape.`,
   coinControl: {
     advanced: 'Advanced',
     advancedActive: 'Advanced on',
-    walletFunds: 'Use wallet balance',
+    walletFunds: 'Use wallet balance if needed',
     walletFundsEnabled: 'On',
     walletFundsOff: 'Off',
     coinsAutomaticStatus: 'Coins: auto',
@@ -1153,7 +1166,6 @@ Use this to simulate higher fees and extreme mempool conditions on Tape.`,
     back: 'Back',
     backToAdvancedOptions: 'Back to Advanced Options',
     useSelected: 'Use selected',
-    auto: 'Auto',
     title: 'Advanced Options',
     intro:
       'Optional controls for advanced users. The defaults are recommended.',

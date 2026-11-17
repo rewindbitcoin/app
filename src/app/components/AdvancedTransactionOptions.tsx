@@ -29,6 +29,7 @@ type AdvancedTransactionOptionsPanelProps = {
   onClose: () => void;
   onClearCoinSelection?: () => void;
   onClearChangeAddress?: () => void;
+  onUseDefaults?: () => void;
   onConfirmChangeAddress?: (selection: AddressScriptSelection) => void;
   onConfirmCoinSelection?: (pickedUtxosData: UtxosData) => void;
 };
@@ -40,6 +41,33 @@ type AdvancedTransactionOptionsModalProps =
   };
 
 const advancedTransactionOptionsIcon: IconType = coinControlIcon;
+
+export const AdvancedTransactionOptionsButton = ({
+  active,
+  onPress
+}: {
+  active: boolean;
+  onPress: () => void;
+}) => {
+  const { t } = useTranslation();
+  return (
+    <View className="flex-row items-center">
+      {active ? (
+        <View className="mr-1 h-2 w-2 rounded-full bg-primary" />
+      ) : null}
+      <Button
+        mode="text"
+        containerClassName="!min-w-0"
+        textClassName="!text-xs"
+        accessibilityLabel={t('coinControl.advanced')}
+        iconRight={advancedTransactionOptionsIcon}
+        onPress={onPress}
+      >
+        {active ? t('coinControl.advancedActive') : t('coinControl.advanced')}
+      </Button>
+    </View>
+  );
+};
 
 const AdvancedSubpanelBack = ({ onPress }: { onPress: () => void }) => {
   const { t } = useTranslation();
@@ -73,6 +101,7 @@ const RawAdvancedTransactionOptionsPanel = ({
   onClose,
   onClearCoinSelection,
   onClearChangeAddress,
+  onUseDefaults,
   onConfirmChangeAddress,
   onConfirmCoinSelection
 }: AdvancedTransactionOptionsPanelProps) => {
@@ -126,10 +155,13 @@ const RawAdvancedTransactionOptionsPanel = ({
     [onClose, onConfirmChangeAddress]
   );
   const handleUseDefaults = useCallback(() => {
-    onClearCoinSelection?.();
-    onClearChangeAddress?.();
+    if (onUseDefaults) onUseDefaults();
+    else {
+      onClearCoinSelection?.();
+      onClearChangeAddress?.();
+    }
     onClose();
-  }, [onClearChangeAddress, onClearCoinSelection, onClose]);
+  }, [onClearChangeAddress, onClearCoinSelection, onClose, onUseDefaults]);
 
   if (!settings)
     throw new Error(

@@ -22,3 +22,13 @@ index 14b2b79..ef6861f 100644
  - (instancetype)initWithFrame:(CGRect)frame
  {
      if (self = [super initWithFrame:frame]) {
+diff --git a/node_modules/@react-native-community/slider/android/src/newarch/java/com/reactnativecommunity/slider/ReactSliderManager.java b/node_modules/@react-native-community/slider/android/src/newarch/java/com/reactnativecommunity/slider/ReactSliderManager.java
+--- a/node_modules/@react-native-community/slider/android/src/newarch/java/com/reactnativecommunity/slider/ReactSliderManager.java
++++ b/node_modules/@react-native-community/slider/android/src/newarch/java/com/reactnativecommunity/slider/ReactSliderManager.java
+@@ -54,3 +54,6 @@ public class ReactSliderManager extends SimpleViewManager<ReactSlider> implements
++              // Match the old architecture: JS prop updates are not user input.
++              if (!fromUser) return;
++
+               ReactContext reactContext = (ReactContext) seekbar.getContext();
+               int reactTag = seekbar.getId();
+               UIManagerHelper.getEventDispatcherForReactTag(reactContext, reactTag)

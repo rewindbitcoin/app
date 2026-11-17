@@ -64,7 +64,7 @@ const formatBtcFactory = memoize(
               : `${amount.toLocaleString(locale)}\u00A0sats`;
           break;
         case 'mbit':
-          formattedValue = `${(amount / 100000).toLocaleString(locale)}\u00A0mBTC`;
+          formattedValue = `${(amount / 100000).toLocaleString(locale, { maximumFractionDigits: 5 })}\u00A0mBTC`;
           break;
         case 'bit': {
           const bits = amount / 100;
