@@ -8,6 +8,10 @@ This is not a formal Bitcoin Core policy spec. It is a working checklist for
 Rewind code review and debugging. When in doubt, re-check the upstream policy
 docs linked at the bottom.
 
+The matching current funding and UI reference is
+[P2AFUNDINGFLOWS.md](./P2AFUNDINGFLOWS.md); this checklist describes policy, not a
+guarantee that every action offered by the UI will be accepted by every node.
+
 ## General Rules Of Thumb
 
 In this file, `TRUC` means Bitcoin Core's version-3 mempool policy. It is not
@@ -42,10 +46,10 @@ being spent; `child` means the transaction spending it.
 | NON_TRUC trigger parent     | v2, 241-sat non-dust P2A anchor, parent pays direct relay fee.                                                                                                                                                                                                            |
 | Rescue parent               | Uses a 241-sat non-dust P2A anchor. Even in TRUC/v3, a parent with a zero-value/dust P2A anchor must be zero-fee; rescue pays a direct high parent fee by design, so its anchor must be non-dust.                                                                         |
 | Dust anchor                 | In Rewind, only the TRUC trigger uses a 0-sat/zero-value dust anchor, and only with a zero-fee parent.                                                                                                                                                                    |
-| Rescue acceleration funding | Use a temporary in-memory reserve wallet, not ordinary hot-wallet UTXOs. If `P2A_TRUC`, wait for that funding tx to confirm before building the rescue child.                                                                                                             |
+| Rescue acceleration funding | Use a temporary in-memory reserve wallet, not ordinary hot-wallet UTXOs. Preserve the reviewed package target through funding; sizing includes any old child's absolute replacement floor. TRUC funding inputs must confirm before use. |
 | TRUC child other inputs     | The unconfirmed trigger/rescue parent creates the P2A anchor. The fee-paying child spends that anchor plus other outputs (reserved funds we set up in advance). Since TRUC allows the child only one unconfirmed parent, those other outputs must already be confirmed.   |
 | Start TRUC trigger          | Wait for the vault tx to confirm. In the trigger package, the presigned trigger parent is the only intended unconfirmed parent, so all other inputs must spend confirmed outputs, including the vault output and trigger-reserve output created by the vault tx.          |
-| Start TRUC rescue           | Rescue spends the trigger output. In our TRUC flow, an unconfirmed trigger already has its CPFP child spending the P2A anchor, so rescue would be a second child of the same trigger tx. Wait for trigger confirmation first.                                             |
+| TRUC rescue child           | Wait for trigger confirmation before building/submitting a rescue child. A no-reserve parent-only fallback is retained separately, but does not bypass the trigger's live ancestor/descendant constraints. |
 | Rewind package shape        | Stay with 1-parent/1-child packages for P2A acceleration.                                                                                                                                                                                                                 |
 | Rewind CPFP replacement     | Applies to both P2A modes. The parent is unchanged and already in mempool, so the absolute-fee replacement rule is about the child: `new child fee >= old child fee + ceil(new child vsize * 0.1)`. Code also requires the new parent+child package feerate to be higher. |
 | Pending UTXOs               | Send and setup hide some UTXOs until confirmation. This includes outputs from unconfirmed acceleration txs that may disappear if the user re-bumps them, and relay-policy-blocked outputs such as unconfirmed v3 funds in a v2 send/vault.                                |
@@ -119,10 +123,26 @@ unconfirmed trigger parent
   -> rescue parent
 ```
 
-The trigger parent now has two unconfirmed descendants. For `P2A_TRUC`, rescue
-should wait until the trigger confirms before broadcasting the rescue parent or a
-rescue acceleration package. `P2A_NON_TRUC` does not have this TRUC one-child
-restriction, though regular mempool limits still apply.
+The trigger parent now has two unconfirmed descendants; this is not a valid
+TRUC shape. The UI's parent-only rescue fallback is not permission to add that
+second descendant. With a live trigger CPFP child, confirmation (or a separately
+policy-valid replacement, not implied by that fallback) is needed.
+
+There is a second invalid shape even without a sibling:
+
+```text
+unconfirmed trigger parent
+  -> rescue parent
+       -> rescue CPFP child
+```
+
+The rescue child now has two unconfirmed ancestors. Current code prevents this
+with `hasUnconfirmedAncestor` in readiness/building and a trigger-confirmation
+recheck in `VaultCard` before rescue package submission. The guard specifically
+blocks rescue children, not every parent-only rescue attempt. Parent-only relay
+still depends on Bitcoin Core's live topology/dust/replacement policy.
+`P2A_NON_TRUC` does not have this TRUC one-child restriction, though ordinary
+mempool limits still apply.
 
 ## Current UTXO Code Notes
 
@@ -173,17 +193,25 @@ package feerate = package fee / package vsize
 Child value conservation:
 
 ```text
-anchor value + reserve inputs = child fee + child change output
+anchor value + reserve inputs + optional trigger wallet inputs
+  = child fee + child change output
 ```
 
 Reserve sizing uses the same idea, but solves for the next reserve UTXO value:
 
 ```text
 next reserve value >= child fee
-                    + minimum child change value
-                    - parent anchor value
-                    - existing reserve value
+                     + minimum child change value
+                     - parent anchor value
+                     - existing reserve value
+                     - eligible existing trigger wallet value (trigger hints only)
 ```
+
+The next funding output must itself be non-dust, and its later input adds to
+child vsize. `getAdditionalP2AOutputValue(...)` is the low-level sizing primitive;
+`getAdditionalOutputValue(...)` wraps the loaded action plan, existing funds and
+any previous child's replacement fee floor. The wrapper returns zero if no new
+funding is needed. Rescue callers never include ordinary wallet funds.
 
 ## Replacement Recipes
 
@@ -206,9 +234,20 @@ new child fee >= old child fee + ceil(new child vsize * 0.1 sat/vB)
 new parent+child package feerate > old parent+child package feerate
 ```
 
-Code searches package feerates in `0.01 sat/vB` steps. Rewind protects the
-"old child has no descendants" assumption by blocking UTXOs created by
-replaceable acceleration packages until they confirm.
+Code retains a `0.01 sat/vB` candidate grid, but no longer scans every tick.
+`getCpfpReplacementFeeRateFloor(...)` jumps to the next absolute-fee threshold
+or the next dust-driven input-selection transition, then rebuilds/reselects.
+Integer `ceil(rate * vsize)` rounding matters: do not skip a valid earlier tick,
+including one exactly at the maximum allowed rate. A larger input set can change
+the earliest valid replacement rate too.
+
+First-package readiness is simpler: test `MIN_FEE_RATE` feasibility once. Raising
+the rate cannot make an unaffordable first package affordable. Neither this
+check nor the replacement minimum means the UI should silently lower its
+preferred initial confirmation target to fit the balance.
+
+Rewind protects the "old child has no descendants" assumption by blocking UTXOs
+created by replaceable acceleration packages until they confirm.
 
 ## Fee-Rate Recipes
 
@@ -226,8 +265,9 @@ replaceable acceleration packages until they confirm.
 ## Size Notes
 
 The 1000 vB TRUC child limit is why reserve fee-bump children must avoid too many
-extra inputs. Future top-up discovery should not blindly spend a large pile of
-tiny UTXOs in a TRUC child.
+extra inputs. All known reserve inputs remain mandatory; if a large pile of tiny
+UTXOs makes the child too large, reject/wait rather than silently coinselecting a
+reserve subset or falling back to parent-only while leaving reserve funds behind.
 
 Rescue parent sizing supports `P2WPKH`, `P2PKH`, `P2SH`, `P2TR` and `P2WSH`
 emergency outputs. Fee policy uses the worst-case rescue parent vsize, currently
@@ -243,7 +283,7 @@ depending on whether the emergency output data is 20 or 32 bytes.
 | Dust or non-standard output rejection                                 | Parent has 0-sat P2A anchor but non-zero fee, or child output is dust.                               | Use zero-fee parent with package child, or fund a non-dust anchor/change output. |
 | Package rejected despite good package feerate                         | Child fee itself is below minimum relay or package topology is invalid.                              | Check child min relay, child output dust and unconfirmed parent count.           |
 | Replacement rejected despite higher feerate                           | New child did not pay enough extra absolute fee.                                                     | Apply previous child fee plus incremental relay delta.                           |
-| TRUC child rejected for too many ancestors                            | Child also spends unconfirmed reserve/top-up input.                                                  | Wait for reserve/top-up confirmation.                                            |
+| TRUC child rejected for too many ancestors                            | Child also spends unconfirmed reserve/top-up input, or a rescue child has an unconfirmed trigger ancestor. | Wait for funding and/or trigger confirmation. |
 | TRUC parent rejected for too many descendants                         | Another child is already attached to the same unconfirmed parent.                                    | Wait for parent confirmation or replace the existing child where policy allows.  |
 | Rescue rejected after trigger is still pending                        | Rescue would spend the trigger output while the unconfirmed TRUC trigger already has its CPFP child. | Wait for trigger confirmation before rescue in TRUC mode.                        |
 
@@ -255,6 +295,8 @@ depending on whether the emergency output data is 20 or 32 bytes.
 | `src/app/lib/p2aPolicy.ts`                     | P2A anchor script, anchor values, dust checks and parent policy assertion.                  |
 | `src/app/lib/vaults.ts`                        | Vault creation, presigned parent construction and CPFP package estimates.                  |
 | `src/app/lib/vaultActionTx.ts`                 | Acceleration/replacement fee floors, incremental relay rule, CPFP fee reconstruction.       |
+| `src/app/lib/p2aReserve.ts`                    | Low-level additional-output sizing, including an optional absolute child-fee floor. |
+| `src/app/lib/vaultActionFunding.ts`            | Selected-fee funding decision: notice, recovery action and matching target. |
 | `src/app/lib/utxoPolicy.ts`                    | Stable, sendable and vaultable UTXO filters.                                                |
 | `src/app/screens/SetUpVaultScreen.tsx`         | Vault setup coin selection using `getVaultableUtxos(...)` and pending-funds guards.         |
 | `src/app/screens/SendScreen.tsx`               | Normal send UTXO selection using the v2 unconfirmed-v3 filter.                              |
@@ -263,19 +305,21 @@ depending on whether the emergency output data is 20 or 32 bytes.
 | `src/app/components/vaults/useReserveBumpPlans.ts` | Trigger/rescue reserve descriptor refresh and stale-while-refresh bump plans.           |
 | `src/app/components/vaults/modals/PresignedVaultAction.tsx` | Shared trigger/rescue start and acceleration UI.                                  |
 | `src/app/components/vaults/modals/RescueReserveWalletWizard.tsx` | Same-session temporary rescue reserve wallet creation/import.             |
-| `src/app/components/vaults/modals/AddReserve.tsx` | Reserve funding address and recommended amount UI.                                      |
+| `src/app/components/vaults/modals/AddReserve.tsx` | Preserved-target funding address/amount and loading/error/pending/funded states. |
+| `src/app/components/AdvancedTransactionOptions.tsx` | Applied-vs-draft coin selection, fixed footer and guarded dismissal; independent custom change. |
+| `test/vaults.unit.test.ts`                     | Replacement rounding/input transitions, replacement-aware funding and TRUC rescue-child regressions. |
 | `P2AFUNDINGFLOWS.md`                           | Rewind2 P2A funding design and current reserve UX.                                         |
 | `REWIND2.md`                                   | Higher-level Rewind2 mental model.                                                          |
 
-## Open Checks And TODOs
+## Ongoing Checks And Open Work
 
-| TODO                                                                                                                                                      | Reason                                                                                                     |
+| Check / open work                                                                                                                                         | Reason                                                                                                     |
 | --------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
-| Re-check TRUC rescue start gating.                                                                                                                        | If trigger is still unconfirmed with its CPFP child, rescue parent is a second descendant of the trigger.  |
+| Review parent-only TRUC rescue attempts against the actual live trigger topology. | Rescue-child ancestor guards are implemented; they do not guarantee parent-only acceptance while a trigger CPFP child exists. |
 | Keep reserve top-up UTXOs confirmed before TRUC use.                                                                                                      | Unconfirmed top-ups become extra parents of the CPFP child.                                                |
-| Future trigger top-up wizard must size for replacement rules, not only package feerate.                                                                   | Replacement also needs extra absolute child fee.                                                           |
+| Preserve replacement-aware sizing in trigger wallet hints and rescue funding. | Implemented: the previous child's absolute fee plus incremental delta is included, not just the package target. |
 | Keep rescue acceleration same-session and in-memory, ask only for the current needed amount and wait for confirmation before TRUC use.                  | Rescue should not rely on compromised hot-wallet UTXOs or on persisted local rescue reserve state.         |
-| Future top-up discovery must avoid too many tiny inputs in TRUC child.                                                                                    | Child must stay at or below 1000 vB.                                                                       |
+| Check reserve input count against the TRUC child-size limit. | All discovered reserve inputs are mandatory; the child must stay at or below 1000 vB. |
 | Keep parent policy assertions after final extraction.                                                                                                     | Signature sizes can change actual vsize/fee.                                                               |
 | Decide how much upstream policy variation to tolerate.                                                                                                    | Nodes can configure mempool policy; Rewind should assume common Bitcoin Core defaults but fail gracefully. |
 

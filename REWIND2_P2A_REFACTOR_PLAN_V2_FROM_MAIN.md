@@ -3,8 +3,15 @@
 Status: historical planning document. It is not the current Rewind2/P2A design.
 The current implementation uses a dedicated setup-funded trigger reserve,
 optional trigger wallet supplement inputs, and a same-session temporary rescue
-reserve wallet. See `REWIND2.md`, `P2AFUNDINGFLOWS.md`, and
-`RELAY_RECIPES.md` for the current reserve model.
+reserve wallet. See [REWIND2.md](./REWIND2.md),
+[P2AFUNDINGFLOWS.md](./P2AFUNDINGFLOWS.md), and
+[RELAY_RECIPES.md](./RELAY_RECIPES.md) for the current model.
+
+In particular, this plan's normal-wallet rescue funding and clamp-to-feasible
+fee requirements are superseded: rescue uses its separate in-memory wallet, and
+editable actions retain the preferred/selected target while explaining funding
+shortfalls. The plan below is preserved as historical intent, not current
+acceptance criteria.
 
 Last updated: 2026-03-03
 Starting point: `main`
