@@ -1093,7 +1093,10 @@ Usa esto para simular comisiones más altas y condiciones extremas de mempool en
     done: 'Listo',
     back: 'Atrás',
     backToAdvancedOptions: 'Volver a opciones avanzadas',
-    useSelected: 'Usar selección',
+    useSelectedCount: 'Usar selección ({{selectedCount}})',
+    discardSelectionChanges: '¿Descartar los cambios de selección de monedas?',
+    discardChanges: 'Descartar cambios',
+    keepEditing: 'Seguir editando',
     title: 'Opciones avanzadas',
     intro:
       'Controles opcionales para usuarios avanzados. Lo recomendado es usar los valores por defecto.',

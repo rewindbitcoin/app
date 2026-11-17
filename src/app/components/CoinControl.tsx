@@ -1,7 +1,7 @@
 // Copyright (C) 2026 Jose-Luis Landabaso - https://rewindbitcoin.com
 // Licensed under the GNU GPL v3 or later. See the LICENSE file for details.
 
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import { Linking, Pressable, Text, View } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import { useTranslation } from 'react-i18next';
@@ -26,21 +26,17 @@ import LabelEditor from './LabelEditor';
 /**
  * Props for one coin-control picking session.
  *
- * The panel intentionally owns transient draft state for currently toggled rows.
- * Mount it when the user enters coin control, and unmount it when the user
- * leaves so each picking session initializes from the last confirmed selection.
+ * The enclosing modal owns the transient selection so its fixed footer and
+ * dismissal guard always reflect the same draft as these rows.
  */
 type CoinControlPanelProps = {
   utxosAvailability: UtxoAvailability[];
   /**
-   * UTXOs manually picked by the user before opening this panel.
-   * These are preselected in the picker; auto coin-selection candidates are not passed here.
-   * Null means the user has not confirmed any manual picks yet.
+   * Current draft, not the committed transaction selection.
    */
-  pickedUtxosData: UtxosData | null;
+  pickedUtxosData: UtxosData;
   btcFiat: number | undefined;
-  onClose: () => void;
-  onConfirm: (pickedUtxosData: UtxosData) => void;
+  onChange: (pickedUtxosData: UtxosData) => void;
 };
 
 type UtxoDataWithDescriptor = UtxoAvailability['utxoData'] & {
@@ -76,8 +72,7 @@ const RawCoinControlPanel = ({
   utxosAvailability,
   pickedUtxosData,
   btcFiat,
-  onClose,
-  onConfirm
+  onChange
 }: CoinControlPanelProps) => {
   const { t } = useTranslation();
   const toast = useToast();
@@ -90,8 +85,9 @@ const RawCoinControlPanel = ({
     networkId
   } = useWallet();
   const { locale, currency } = useLocalization();
-  const [pickedOutpoints, setPickedOutpoints] = useState<Set<string>>(
-    () => new Set(pickedUtxosData?.map(utxoData => getOutpoint(utxoData)) ?? [])
+  const pickedOutpoints = useMemo(
+    () => new Set(pickedUtxosData.map(getOutpoint)),
+    [pickedUtxosData]
   );
 
   if (!settings)
@@ -221,29 +217,24 @@ const RawCoinControlPanel = ({
     [locale, t]
   );
 
-  const pickedPanelUtxosData = useMemo(
-    () =>
-      utxosAvailability
-        .filter(
-          availability =>
-            availability.status === 'selectable' &&
-            pickedOutpoints.has(getOutpoint(availability.utxoData))
-        )
-        .map(availability => availability.utxoData),
-    [pickedOutpoints, utxosAvailability]
-  );
-  const handleToggleUtxo = useCallback((outpoint: string) => {
-    setPickedOutpoints(pickedOutpoints => {
+  const handleToggleUtxo = useCallback(
+    (outpoint: string) => {
       const nextPickedOutpoints = new Set(pickedOutpoints);
       if (nextPickedOutpoints.has(outpoint))
         nextPickedOutpoints.delete(outpoint);
       else nextPickedOutpoints.add(outpoint);
-      return nextPickedOutpoints;
-    });
-  }, []);
-  const handleConfirm = useCallback(() => {
-    onConfirm(pickedPanelUtxosData);
-  }, [onConfirm, pickedPanelUtxosData]);
+      onChange(
+        utxosAvailability
+          .filter(
+            availability =>
+              availability.status === 'selectable' &&
+              nextPickedOutpoints.has(getOutpoint(availability.utxoData))
+          )
+          .map(availability => availability.utxoData)
+      );
+    },
+    [onChange, pickedOutpoints, utxosAvailability]
+  );
   const handleCopyOutpoint = useCallback(
     (outpoint: string) => {
       Clipboard.setStringAsync(outpoint);
@@ -394,17 +385,6 @@ const RawCoinControlPanel = ({
           {t('coinControl.noUtxos')}
         </Text>
       )}
-      <View className="items-center gap-6 gap-y-4 flex-row flex-wrap justify-center pb-4">
-        <Button mode="secondary" onPress={onClose}>
-          {t('coinControl.back')}
-        </Button>
-        <Button
-          onPress={handleConfirm}
-          disabled={pickedPanelUtxosData.length === 0}
-        >
-          {t('coinControl.useSelected')}
-        </Button>
-      </View>
     </View>
   );
 };

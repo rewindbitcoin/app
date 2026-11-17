@@ -1,26 +1,26 @@
 // Copyright (C) 2026 Jose-Luis Landabaso - https://rewindbitcoin.com
 // Licensed under the GNU GPL v3 or later. See the LICENSE file for details.
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { Text, View } from 'react-native';
 import type { Account } from '@bitcoinerlab/discovery';
 import { useTranslation } from 'react-i18next';
 import { Button, IconType, Modal } from '../../common/ui';
 import type { UtxoAvailability } from '../lib/utxoPolicy';
-import type { UtxosData } from '../lib/vaults';
+import { utxosDataBalance, type UtxosData } from '../lib/vaults';
 import { useSettings } from '../hooks/useSettings';
+import { useLocalization } from '../hooks/useLocalization';
+import { formatBtc } from '../lib/btcRates';
+import { utxoFingerprint } from '../lib/walletFingerprints';
 import {
   AddressScriptPickerPanel,
   type AddressScriptSelection
 } from './AddressScriptPicker';
 import { CoinControlPanel, coinControlIcon } from './CoinControl';
 
-type AdvancedTransactionOptionsPanelProps = {
-  entryScreen?: 'overview' | 'coinSelection' | 'changeAddressSelection';
-  screen?: 'overview' | 'coinSelection' | 'changeAddressSelection';
-  onScreenChange?: (
-    screen: 'overview' | 'coinSelection' | 'changeAddressSelection'
-  ) => void;
+type AdvancedScreen = 'overview' | 'coinSelection' | 'changeAddressSelection';
+
+type AdvancedTransactionOptionsProps = {
   utxosAvailability?: UtxoAvailability[];
   pickedUtxosData?: UtxosData | null;
   btcFiat: number | undefined;
@@ -34,11 +34,16 @@ type AdvancedTransactionOptionsPanelProps = {
   onConfirmCoinSelection?: (pickedUtxosData: UtxosData) => void;
 };
 
-type AdvancedTransactionOptionsModalProps =
-  AdvancedTransactionOptionsPanelProps & {
-    isVisible: boolean;
-    onModalHide?: () => void;
-  };
+type AdvancedTransactionOptionsPanelProps = AdvancedTransactionOptionsProps & {
+  screen: 'overview' | 'changeAddressSelection';
+  onScreenChange: (screen: AdvancedScreen) => void;
+};
+
+type AdvancedTransactionOptionsModalProps = AdvancedTransactionOptionsProps & {
+  entryScreen?: AdvancedScreen;
+  isVisible: boolean;
+  onModalHide?: () => void;
+};
 
 const advancedTransactionOptionsIcon: IconType = coinControlIcon;
 
@@ -90,12 +95,10 @@ const AdvancedSubpanelBack = ({ onPress }: { onPress: () => void }) => {
 // selection. Confirming a sub-screen returns the picked coins or address to the
 // parent screen.
 const RawAdvancedTransactionOptionsPanel = ({
-  entryScreen = 'overview',
-  screen: controlledScreen,
+  screen,
   onScreenChange,
   utxosAvailability,
   pickedUtxosData,
-  btcFiat,
   changeAddressSelection,
   initialChangeAccount,
   onClose,
@@ -107,22 +110,6 @@ const RawAdvancedTransactionOptionsPanel = ({
 }: AdvancedTransactionOptionsPanelProps) => {
   const { t } = useTranslation();
   const { settings } = useSettings();
-  // The parent can open the modal directly on a sub-screen. If that entry
-  // changes while this panel is still mounted, ignore the stale local screen.
-  const [screenState, setScreenState] = useState<{
-    entryScreen: 'overview' | 'coinSelection' | 'changeAddressSelection';
-    screen: 'overview' | 'coinSelection' | 'changeAddressSelection';
-  }>(() => ({ entryScreen, screen: entryScreen }));
-  const screen =
-    controlledScreen ??
-    (screenState.entryScreen === entryScreen ? screenState.screen : entryScreen);
-  const setPanelScreen = useCallback(
-    (screen: 'overview' | 'coinSelection' | 'changeAddressSelection') => {
-      if (onScreenChange) onScreenChange(screen);
-      else setScreenState({ entryScreen, screen });
-    },
-    [entryScreen, onScreenChange]
-  );
 
   const canChooseCoins =
     utxosAvailability !== undefined && onConfirmCoinSelection !== undefined;
@@ -140,13 +127,6 @@ const RawAdvancedTransactionOptionsPanel = ({
     : undefined;
   const hasAdvancedSelection = hasPickedCoins || hasCustomChangeAddress;
 
-  const handleConfirmCoinSelection = useCallback(
-    (selection: UtxosData) => {
-      onConfirmCoinSelection?.(selection);
-      onClose();
-    },
-    [onClose, onConfirmCoinSelection]
-  );
   const handleConfirmChangeAddress = useCallback(
     (selection: AddressScriptSelection) => {
       onConfirmChangeAddress?.(selection);
@@ -169,32 +149,13 @@ const RawAdvancedTransactionOptionsPanel = ({
     );
 
   if (
-    screen === 'coinSelection' &&
-    utxosAvailability !== undefined &&
-    onConfirmCoinSelection !== undefined
-  ) {
-    return (
-      <View>
-        <AdvancedSubpanelBack onPress={() => setPanelScreen('overview')} />
-        <CoinControlPanel
-          utxosAvailability={utxosAvailability}
-          pickedUtxosData={pickedUtxosData ?? null}
-          btcFiat={btcFiat}
-          onClose={() => setPanelScreen('overview')}
-          onConfirm={handleConfirmCoinSelection}
-        />
-      </View>
-    );
-  }
-
-  if (
     screen === 'changeAddressSelection' &&
     initialChangeAccount !== undefined &&
     onConfirmChangeAddress !== undefined
   ) {
     return (
       <View>
-        <AdvancedSubpanelBack onPress={() => setPanelScreen('overview')} />
+        <AdvancedSubpanelBack onPress={() => onScreenChange('overview')} />
         <AddressScriptPickerPanel
           initialAccount={selectedChangeAccount ?? initialChangeAccount}
           initialChange={1}
@@ -204,7 +165,7 @@ const RawAdvancedTransactionOptionsPanel = ({
           cancelText={t('coinControl.back')}
           confirmText={t('coinControl.useChangeAddress')}
           introText={t('addressPicker.changeIntro')}
-          onCancel={() => setPanelScreen('overview')}
+          onCancel={() => onScreenChange('overview')}
           onConfirm={handleConfirmChangeAddress}
         />
       </View>
@@ -247,7 +208,7 @@ const RawAdvancedTransactionOptionsPanel = ({
               ) : null}
               <Button
                 mode="secondary"
-                onPress={() => setPanelScreen('coinSelection')}
+                onPress={() => onScreenChange('coinSelection')}
               >
                 {t('coinControl.chooseCoins')}
               </Button>
@@ -289,7 +250,7 @@ const RawAdvancedTransactionOptionsPanel = ({
               ) : null}
               <Button
                 mode="secondary"
-                onPress={() => setPanelScreen('changeAddressSelection')}
+                onPress={() => onScreenChange('changeAddressSelection')}
               >
                 {changeAddressSelection
                   ? t('coinControl.editChangeAddress')
@@ -317,33 +278,129 @@ const RawAdvancedTransactionOptionsPanel = ({
 const RawAdvancedTransactionOptionsModal = ({
   isVisible,
   onModalHide,
+  entryScreen = 'overview',
   ...panelProps
 }: AdvancedTransactionOptionsModalProps) => {
   const { t } = useTranslation();
+  const { onClose } = panelProps;
+  const { settings } = useSettings();
+  const { locale, currency } = useLocalization();
   // react-native-modal keeps animating after isVisible becomes false.
   // Keep the panel rendered until the hide animation is fully done.
   const [renderPanelUntilHidden, setRenderPanelUntilHidden] =
     useState(isVisible);
   const [panelOpenSession, setPanelOpenSession] = useState(0);
-  const [screen, setScreen] = useState<
-    'overview' | 'coinSelection' | 'changeAddressSelection'
-  >(panelProps.entryScreen ?? 'overview');
+  const [screen, setScreen] = useState<AdvancedScreen>(entryScreen);
+  const [draftCoins, setDraftCoins] = useState<UtxosData>(
+    panelProps.pickedUtxosData ?? []
+  );
+  const [showDiscardConfirmation, setShowDiscardConfirmation] = useState(false);
   const shouldRenderPanel = isVisible || renderPanelUntilHidden;
-
-  useEffect(() => {
-    if (isVisible) setScreen(panelProps.entryScreen ?? 'overview');
-  }, [isVisible, panelProps.entryScreen]);
+  const isChoosingCoins =
+    screen === 'coinSelection' &&
+    panelProps.utxosAvailability !== undefined &&
+    panelProps.onConfirmCoinSelection !== undefined;
+  const selectedCoins = useMemo(() => {
+    const picked = new Set(
+      draftCoins.map(utxo => `${utxo.tx.getId()}:${utxo.vout}`)
+    );
+    return (panelProps.utxosAvailability ?? [])
+      .filter(
+        availability =>
+          availability.status === 'selectable' &&
+          picked.has(
+            `${availability.utxoData.tx.getId()}:${availability.utxoData.vout}`
+          )
+      )
+      .map(availability => availability.utxoData);
+  }, [draftCoins, panelProps.utxosAvailability]);
+  const hasDraftChanges =
+    utxoFingerprint(draftCoins) !==
+    utxoFingerprint(panelProps.pickedUtxosData ?? []);
+  const handleScreenChange = useCallback(
+    (next: AdvancedScreen) => {
+      setDraftCoins(panelProps.pickedUtxosData ?? []);
+      setShowDiscardConfirmation(false);
+      setScreen(next);
+    },
+    [panelProps.pickedUtxosData]
+  );
+  const handleRequestClose = useCallback(() => {
+    if (isChoosingCoins && hasDraftChanges) {
+      setShowDiscardConfirmation(visible => !visible);
+      return false;
+    }
+    onClose();
+    return true;
+  }, [hasDraftChanges, isChoosingCoins, onClose]);
 
   const handleModalWillShow = useCallback(() => {
     setRenderPanelUntilHidden(true);
     setPanelOpenSession(panelOpenSession => panelOpenSession + 1);
-    setScreen(panelProps.entryScreen ?? 'overview');
-  }, [panelProps.entryScreen]);
+    handleScreenChange(entryScreen);
+  }, [entryScreen, handleScreenChange]);
 
   const handleModalHide = useCallback(() => {
     setRenderPanelUntilHidden(false);
     onModalHide?.();
   }, [onModalHide]);
+
+  if (!settings) throw new Error('Advanced options require loaded settings');
+  const coinSelectionFooter = (
+    <View className="self-stretch border-t border-slate-200 px-4 pt-3 pb-4 gap-3">
+      {showDiscardConfirmation ? (
+        <>
+          <Text
+            className="text-center text-base font-medium"
+            accessibilityRole="alert"
+          >
+            {t('coinControl.discardSelectionChanges')}
+          </Text>
+          <View className="flex-row flex-wrap items-center justify-center gap-4">
+            <Button mode="secondary-alert" onPress={onClose}>
+              {t('coinControl.discardChanges')}
+            </Button>
+            <Button onPress={() => setShowDiscardConfirmation(false)}>
+              {t('coinControl.keepEditing')}
+            </Button>
+          </View>
+        </>
+      ) : (
+        <>
+          <Text className="text-center text-sm text-slate-600">
+            {t('coinControl.selectedCoins', { count: selectedCoins.length })}
+            {' · '}
+            {formatBtc({
+              amount: utxosDataBalance(selectedCoins),
+              subUnit: settings.SUB_UNIT,
+              btcFiat: panelProps.btcFiat,
+              locale,
+              currency
+            })}
+          </Text>
+          <View className="flex-row flex-wrap items-center justify-center gap-4">
+            <Button
+              mode="secondary"
+              onPress={() => handleScreenChange('overview')}
+            >
+              {t('cancelButton')}
+            </Button>
+            <Button
+              disabled={selectedCoins.length === 0}
+              onPress={() => {
+                panelProps.onConfirmCoinSelection?.(selectedCoins);
+                onClose();
+              }}
+            >
+              {t('coinControl.useSelectedCount', {
+                selectedCount: selectedCoins.length
+              })}
+            </Button>
+          </View>
+        </>
+      )}
+    </View>
+  );
 
   return (
     <Modal
@@ -357,18 +414,37 @@ const RawAdvancedTransactionOptionsModal = ({
             : t('coinControl.title')
       }
       icon={advancedTransactionOptionsIcon}
-      onClose={panelProps.onClose}
+      onClose={handleRequestClose}
+      closeOnBackButton
       onModalWillShow={handleModalWillShow}
       onModalHide={handleModalHide}
-      customButtons={<View />}
+      customButtons={isChoosingCoins ? coinSelectionFooter : <View />}
     >
       {shouldRenderPanel ? (
-        <AdvancedTransactionOptionsPanel
-          key={panelOpenSession}
-          {...panelProps}
-          screen={screen}
-          onScreenChange={setScreen}
-        />
+        isChoosingCoins ? (
+          <View
+            pointerEvents={showDiscardConfirmation ? 'none' : 'auto'}
+            accessibilityElementsHidden={showDiscardConfirmation}
+            importantForAccessibility={
+              showDiscardConfirmation ? 'no-hide-descendants' : 'auto'
+            }
+          >
+            <CoinControlPanel
+              key={panelOpenSession}
+              utxosAvailability={panelProps.utxosAvailability ?? []}
+              pickedUtxosData={draftCoins}
+              btcFiat={panelProps.btcFiat}
+              onChange={setDraftCoins}
+            />
+          </View>
+        ) : (
+          <AdvancedTransactionOptionsPanel
+            key={panelOpenSession}
+            {...panelProps}
+            screen={screen === 'changeAddressSelection' ? screen : 'overview'}
+            onScreenChange={handleScreenChange}
+          />
+        )
       ) : null}
     </Modal>
   );
