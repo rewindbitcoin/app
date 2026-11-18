@@ -2,9 +2,11 @@
 // Licensed under the GNU GPL v3 or later. See the LICENSE file for details.
 
 import AddressInput from '../components/AddressInput';
-import { AdvancedTransactionOptionsModal } from '../components/AdvancedTransactionOptions';
+import {
+  AdvancedTransactionOptionsButton,
+  AdvancedTransactionOptionsModal
+} from '../components/AdvancedTransactionOptions';
 import AmountInput from '../components/AmountInput';
-import { CoinControlRecoveryPanel } from '../components/CoinControl';
 import FeeInput from '../components/FeeInput';
 import NoteEditorWithHelp from '../components/NoteEditorWithHelp';
 import type { AddressScriptSelection } from '../components/AddressScriptPicker';
@@ -38,6 +40,7 @@ import {
   withFrozenVaultUtxosForCoinControl
 } from '../lib/utxoPolicy';
 import { networkMapping } from '../lib/network';
+import { RECEIVE } from '../screens';
 import { useSettings } from '../hooks/useSettings';
 import { useWallet } from '../hooks/useWallet';
 import {
@@ -156,9 +159,6 @@ export default function Send() {
   const [isConfirm, setIsConfirm] = useState<boolean>(false);
   const [isAdvancedOptionsVisible, setIsAdvancedOptionsVisible] =
     useState<boolean>(false);
-  const [advancedOptionsEntryScreen, setAdvancedOptionsEntryScreen] = useState<
-    'overview' | 'coinSelection'
-  >('overview');
   // If set, these are the sendable UTXOs manually picked by the user.
   const [pickedSendableUtxosData, setPickedSendableUtxosData] =
     useState<UtxosData | null>(null);
@@ -219,7 +219,7 @@ export default function Send() {
         feeRate
       })
     : { min: minAmount, max: maxAmount, maxWhen1SxB: maxAmountWhen1SxB };
-  const { maxWhen1SxB: maxAmountWhen1SxBRaw } = estimateSendRange({
+  const rawSendRange = estimateSendRange({
     utxosData: rawUtxosData,
     coinControl: false,
     address,
@@ -231,6 +231,12 @@ export default function Send() {
     sendRangeAssumingAutoCoinSelection.max !== null &&
     sendRangeAssumingAutoCoinSelection.max >=
       sendRangeAssumingAutoCoinSelection.min;
+  const selectedFeeNeedsConfirmation =
+    feeRate !== null &&
+    !canBuildAtSelectedFeeAssumingAutoCoinSelection &&
+    hasPendingUtxos &&
+    rawSendRange.max !== null &&
+    rawSendRange.max >= rawSendRange.min;
   const canBuildAtMinimumFeeAssumingAutoCoinSelection =
     maxFeeRate >= MIN_FEE_RATE &&
     sendRangeAssumingAutoCoinSelection.maxWhen1SxB !== null;
@@ -243,7 +249,7 @@ export default function Send() {
   const isBlockedByPendingUtxos =
     !canBuildAtMinimumFeeAssumingAutoCoinSelection &&
     hasPendingUtxos &&
-    maxAmountWhen1SxBRaw !== null;
+    rawSendRange.maxWhen1SxB !== null;
   const unavailableFundsMessage = isBlockedByPendingUtxos
     ? t('send.blockedByPendingUtxos')
     : t('send.notEnoughFunds');
@@ -282,16 +288,12 @@ export default function Send() {
   const txHexRef = useRef<string>(undefined);
   const feeRef = useRef<number>(undefined);
   const handleOpenAdvancedOptions = useCallback(() => {
-    setAdvancedOptionsEntryScreen('overview');
     setIsAdvancedOptionsVisible(true);
   }, []);
-  const handleOpenCoinSelection = useCallback(() => {
-    setAdvancedOptionsEntryScreen('coinSelection');
-    setIsAdvancedOptionsVisible(true);
-  }, []);
-  const handleUseAutomaticCoinSelection = useCallback(() => {
-    setPickedSendableUtxosData(null);
-  }, []);
+  const handleAddFunds = useCallback(
+    () => navigation.navigate(RECEIVE),
+    [navigation]
+  );
   const handleCloseAdvancedOptions = useCallback(
     () => setIsAdvancedOptionsVisible(false),
     []
@@ -535,7 +537,14 @@ export default function Send() {
       ) : !canBuildAtMinimumFeeAssumingAutoCoinSelection ? (
         <View className="w-full max-w-screen-sm mx-4" style={containerStyle}>
           <Text className="mb-8">{unavailableFundsMessage}</Text>
-          <Button onPress={navigation.goBack}>{t('goBack')}</Button>
+          <View className="self-center flex-row items-center gap-4">
+            <Button onPress={navigation.goBack}>{t('goBack')}</Button>
+            {!isBlockedByPendingUtxos ? (
+              <Button mode="secondary" onPress={handleAddFunds}>
+                {t('wallet.vault.funding.addButton')}
+              </Button>
+            ) : null}
+          </View>
         </View>
       ) : (
         <View className="w-full max-w-screen-sm mx-4" style={containerStyle}>
@@ -573,21 +582,39 @@ export default function Send() {
             />
           ) : (
             <View>
-              {coinControl && canBuildAtSelectedFeeAssumingAutoCoinSelection ? (
-                <CoinControlRecoveryPanel
-                  message={t('send.pickedUtxosInsufficient')}
-                  onOpenCoinControl={handleOpenCoinSelection}
-                  onUseAuto={handleUseAutomaticCoinSelection}
-                />
-              ) : (
-                <Text className="text-base m-auto self-center text-red-500">
-                  {feeRate === null
-                    ? t('send.invalidFeeRate')
-                    : coinControl
-                      ? t('send.pickedUtxosInsufficient')
-                      : t('send.lowerFeeRate')}
+              <View className="pb-2 flex-row items-center justify-between gap-3">
+                <Text
+                  className="flex-1 px-2 font-medium text-card-secondary text-sm uppercase"
+                  numberOfLines={1}
+                >
+                  {t('send.amountLabel')}
                 </Text>
-              )}
+                <AdvancedTransactionOptionsButton
+                  active={advancedOptionsActive}
+                  onPress={handleOpenAdvancedOptions}
+                />
+              </View>
+              <Text className="text-base m-auto self-center text-red-500">
+                {feeRate === null
+                  ? t('send.invalidFeeRate')
+                  : selectedFeeNeedsConfirmation
+                    ? t('wallet.vault.funding.wait')
+                    : coinControl &&
+                        canBuildAtSelectedFeeAssumingAutoCoinSelection
+                      ? t('send.pickedUtxosInsufficient', {
+                          advancedLabel: t('coinControl.advanced')
+                        })
+                      : t('send.lowerFeeRate')}
+              </Text>
+              {feeRate !== null &&
+              !canBuildAtSelectedFeeAssumingAutoCoinSelection &&
+              !selectedFeeNeedsConfirmation ? (
+                <View className="items-center mt-4">
+                  <Button mode="secondary" onPress={handleAddFunds}>
+                    {t('wallet.vault.funding.addButton')}
+                  </Button>
+                </View>
+              ) : null}
             </View>
           )}
           <View className="mb-8" />
@@ -682,7 +709,6 @@ export default function Send() {
           </Modal>
           <AdvancedTransactionOptionsModal
             isVisible={isAdvancedOptionsVisible}
-            entryScreen={advancedOptionsEntryScreen}
             utxosAvailability={sendCoinControlUtxosAvailability}
             pickedUtxosData={pickedSendableUtxosData}
             btcFiat={btcFiat}

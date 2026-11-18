@@ -43,7 +43,8 @@ const Vaults = ({
   syncingBlockchain,
   watchtowerAPI,
   pushToken,
-  setPushToken
+  setPushToken,
+  onTemporaryRescueWalletChange
 }: {
   setVaultNotificationAcknowledged: (vaultId: string) => void;
   updateVaultStatus: (vaultId: string, vaultStatus: VaultStatus) => void;
@@ -64,6 +65,7 @@ const Vaults = ({
   watchtowerAPI: string | undefined;
   pushToken: string | undefined;
   setPushToken: (token: string) => void;
+  onTemporaryRescueWalletChange: (vaultId: string, active: boolean) => void;
 }) => {
   const { t } = useTranslation();
   // This needs to be in state for rendering purposes:
@@ -308,6 +310,7 @@ const Vaults = ({
           return (
             !vaultStatus?.isHidden && (
               <VaultCard
+                onTemporaryRescueWalletChange={onTemporaryRescueWalletChange}
                 setVaultNotificationAcknowledged={
                   setVaultNotificationAcknowledged
                 }

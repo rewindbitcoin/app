@@ -5,6 +5,10 @@ This file explains the current Rewind2 design in simple language.
 It is not meant to be a formal spec. It is a human guide to how the app thinks
 about Rewind2 today.
 
+For the detailed current funding/fee/Advanced UX, see
+[P2AFUNDINGFLOWS.md](./P2AFUNDINGFLOWS.md). For transaction-policy constraints,
+see [RELAY_RECIPES.md](./RELAY_RECIPES.md).
+
 ## Short version
 
 Rewind2 changes the vault design in four big ways:
@@ -56,11 +60,14 @@ Rewind2 uses a few internal derivation paths:
 - `m/1073'/coin_type'/1'/0`
   Used for the wallet-level encryption key that protects app storage.
 
-- `m/1073'/coin_type'/2'/<vaultIndex>`
-  Used for that vault's dedicated trigger reserve output.
+- `m/84'/coin_type'/1073'/0/<vaultIndex>`
+  Used for that vault's dedicated trigger reserve output. This is a standard
+  BIP84 P2WPKH account path at account `1073'`, with one exact address per
+  vault.
 
-The important point is that the trigger reserve is one path per vault. It is
-not shared across vaults.
+The important point is that the trigger reserve is one standard P2WPKH address
+per vault. It is not shared across vaults and it is not part of normal wallet
+account discovery.
 
 ## Transactions in Rewind2
 
@@ -166,7 +173,8 @@ Important design choices:
 - the reserve itself stays outside normal wallet flow
 - optional hot-wallet supplement inputs are normal wallet inputs and are
   selected only after the reserve is insufficient
-- the child leftover comes back as normal wallet change
+- the child leftover comes back as normal wallet change unless the user has
+  explicitly selected a custom trigger child change destination
 
 If the child is later accelerated again, the replacement still uses the same
 reserve set. The old child is replaced in the mempool; it is not a new flow with
@@ -204,10 +212,11 @@ The current model is:
   leave this wallet because the temporary rescue reserve wallet is not persisted
 - when importing, the app re-derives the same in-memory reserve signer and
   funding address from the temporary rescue reserve phrase
-- the app then shows the next reserve funding address and a recommended amount
-  sized from the current rescue package target
+- the app then shows the next reserve funding address and the additional amount
+  needed at the exact target passed from Rescue, including replacement fee rules
 - if the vault mode is `P2A_TRUC`, the reserve funding tx must confirm before
-  the rescue bump child can use it
+  the rescue bump child can use it; the trigger must also be confirmed so that
+  the rescue parent is the child's only unconfirmed ancestor
 - the rescue child spends the full temporary reserve set prepared for that bump,
   not a coinselected subset
 
@@ -216,12 +225,12 @@ action type. Reserve funds are not normal spendable wallet balance. When Rewind
 uses reserve funds in a P2A child, it spends every known usable reserve UTXO for
 that action; it does not coinselect within the reserve set.
 
-For trigger, the reserve source is controlled by the main hot wallet signer on
-the per-vault trigger reserve branch. The vault tx funds `/0`; the trigger child
-spends all known reserve UTXOs for that vault. If that is not enough, Rewind can
-ask the user to allow normal hot-wallet UTXOs in the same child instead of asking
-for a separate reserve top-up. Trigger child change goes to an internal address
-of the main hot wallet.
+For trigger, the reserve source is controlled by the main hot wallet signer at
+`m/84'/coin_type'/1073'/0/<vaultIndex>`. The vault tx funds that exact reserve
+address and the trigger child spends the reserve UTXOs for that vault. If that
+is not enough, Rewind can ask the user to allow normal hot-wallet UTXOs in the
+same child instead of asking for a separate reserve top-up. Trigger child change
+defaults to an internal address of the main hot wallet; Advanced can override it.
 
 Today Rewind derives the trigger reserve descriptor from the software signer at
 runtime. A future HWW implementation should avoid touching the device during
@@ -365,6 +374,36 @@ effective package feerate = (parent fee + child fee) / (parent vsize + child vsi
 This matters for trigger fee bumping, and also for rescue if the optional
 emergency bump path is used.
 
+### Fee selection and funding guidance
+
+Editable actions start at the preferred confirmation estimate (normally about
+two hours), respecting action/replacement minimums. If that is unaffordable, keep
+the target and explain the shortage; do not silently select `0.10 sat/vB`.
+A buildable lower fee remains a valid choice with an advisory when appropriate.
+Invalid input or an unfunded choice cannot enable confirmation.
+
+Trigger always tries its full reserve first. Wallet permission only allows a
+supplement if needed; it does not force wallet spending. Permission and manual
+picks survive fee changes. Explicit opt-out clears picks; defaults or a definitive
+action close reset the relevant local choices.
+
+Suggest Auto for inadequate manual picks only when Auto can fund the selected
+action. Otherwise suggest lowering fees/adding funds, or waiting when pending
+normal-wallet outputs would actually resolve the shortage. Frozen-vault rows in
+the picker are display-only, never hypothetical funding inputs.
+
+Advanced remains reachable in editable funding-error states. Automatic coins do
+not clear a custom change destination. The coin picker keeps changes as a draft
+until "Use selected (N)": count, total and Cancel/Apply stay in a fixed footer.
+Cancel returns to Advanced without applying; other dismissal attempts with dirty
+picks ask to discard or continue editing in that same footer. Continuing retains
+the draft, and unavailable coins cannot be applied.
+
+Contextual "Add" / "Añadir" opens Receive for normal-wallet funding without
+renaming Receive navigation. Funding amounts use the preferred Bitcoin unit and
+optional approximate fiat, while fee rates stay in sat/vB and rescue funding QR
+amounts stay exact BTC.
+
 ## Replacement rules
 
 Replacing an existing fee-bump child is stricter than just "pay more fee rate".
@@ -392,11 +431,17 @@ Example:
 So a replacement can still be rejected even if it looks "faster" by feerate,
 simply because the child did not add enough absolute sats.
 
+Funding hints include this absolute replacement floor, not just the target
+package rate. The replacement search preserves the `0.01 sat/vB` grid while
+jumping between meaningful fee/input thresholds, including integer rounding and
+input-set transitions, rather than scanning every tick.
+
 ## What happens to the child change output
 
-Trigger fee-bump children send leftover value to normal wallet change. Rescue
-fee-bump children send leftover value to the temporary rescue wallet's
-internal/change branch.
+Trigger fee-bump children send leftover value to normal wallet change by default,
+or to the custom destination explicitly chosen in Advanced. Rescue fee-bump
+children send leftover value to the temporary rescue wallet's internal/change
+branch.
 
 But there is one safety rule:
 
@@ -539,35 +584,47 @@ That is Rewind2 in one page.
 
 The current flow is:
 
-1. Broadcast the presigned rescue parent first.
-2. Only if that rescue still needs more fee, open an acceleration modal.
+1. Open Rescue to review the high-fee presigned parent or accelerate an
+   already-pushed rescue. With no reserve inputs, a policy-valid parent-only
+   submission remains the normal emergency fallback; prior broadcast is not a
+   prerequisite for preparing additional funding.
+2. If more funding is needed for the reviewed target, open the separate reserve
+   flow at that exact target, not a fresh high-priority estimate.
 3. If no same-session rescue reserve wallet exists, create a random mnemonic
    `P2WPKH` wallet in memory only, or import a previously written temporary
    rescue reserve phrase.
 4. Show the seed first for newly created wallets, make the user confirm it was
    written down and warn the user not to leave this wallet.
 5. Show the next reserve funding address and the amount currently needed, using
-   the same sizing primitive used for trigger wallet-funding hints.
+   the shared action-funding helper used for trigger wallet hints. It accounts for
+   existing reserve funds and any live child's absolute replacement-fee floor.
 6. Refresh the temporary reserve descriptor in the background. If a loaded plan
    already exists, keep it visible and disable only final submission while the
-   refresh is in flight.
+   refresh is in flight. Funding UI distinguishes loading, scan failure,
+   confirmation requirements and already-funded states; it never asks for a
+   zero-value deposit.
 7. Once those funds are usable, build the rescue CPFP child from the rescue
-   anchor plus every usable UTXO in that temporary reserve wallet.
+   anchor plus every usable UTXO in that temporary reserve wallet. In TRUC, both
+   the funding inputs and trigger must already be confirmed.
 
-The amount requested from the user is computed from the current package target,
-using the same sizing primitive used for trigger wallet-funding hints.
+Each modal waits for the previous one to finish hiding. Returning from funding,
+including canceling the wallet wizard, preserves the exact fee target and Rescue
+confirmation step. Funding does not submit a transaction automatically.
 
 The rescue acceleration flow should not coinselect among temporary reserve UTXOs.
 It should prepare the reserve set for that action, spend all of it in the child
 and return any leftover value to the temporary wallet's internal/change branch.
 
-If the currently live rescue parent or rescue package is already at or above the
-current high-priority target, the modal should warn that acceleration is
-probably unnecessary, but still allow the user to continue.
+The TRUC rescue-child guard is checked in readiness, building and before package
+submission. The separate parent-only branch is not a policy bypass: an
+unconfirmed trigger with an existing CPFP child cannot simply gain rescue as
+another descendant. Node relay acceptance still depends on that live topology.
 
-The app does not plan to persist that temporary rescue reserve wallet. It can
-import the seed during the current flow to restore the same in-memory reserve
-wallet.
+The app does not persist that temporary rescue reserve wallet. Leaving the main
+wallet can discard it even while Rewind stays open, so navigation asks for
+confirmation; canceling keeps the session alive. Importing the recorded phrase
+can restore the in-memory signer later. The on-chain vault backup does not store
+that phrase or signer.
 
 --
 

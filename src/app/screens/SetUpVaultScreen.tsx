@@ -2,10 +2,12 @@
 // Licensed under the GNU GPL v3 or later. See the LICENSE file for details.
 
 import AddressInput from '../components/AddressInput';
-import { AdvancedTransactionOptionsModal } from '../components/AdvancedTransactionOptions';
+import {
+  AdvancedTransactionOptionsButton,
+  AdvancedTransactionOptionsModal
+} from '../components/AdvancedTransactionOptions';
 import AmountInput from '../components/AmountInput';
 import BlocksInput from '../components/BlocksInput';
-import { CoinControlRecoveryPanel } from '../components/CoinControl';
 import type { AddressScriptSelection } from '../components/AddressScriptPicker';
 import FeeInput from '../components/FeeInput';
 import LearnMoreAboutVaults from '../components/LearnMoreAboutVaults';
@@ -62,6 +64,7 @@ import {
   estimateVaultSetupRange
 } from '../lib/vaultRange';
 import { networkMapping } from '../lib/network';
+import { RECEIVE } from '../screens';
 import { useSettings } from '../hooks/useSettings';
 import { useNetStatus } from '../hooks/useNetStatus';
 import { useWallet } from '../hooks/useWallet';
@@ -180,9 +183,6 @@ export default function VaultSetUp({
   );
   const [isAdvancedOptionsVisible, setIsAdvancedOptionsVisible] =
     useState<boolean>(false);
-  const [advancedOptionsEntryScreen, setAdvancedOptionsEntryScreen] = useState<
-    'overview' | 'coinSelection'
-  >('overview');
   // If set, these are the vaultable UTXOs manually picked by the user.
   const [pickedVaultableUtxosData, setPickedVaultableUtxosData] =
     useState<UtxosData | null>(null);
@@ -204,16 +204,12 @@ export default function VaultSetUp({
     []
   );
   const handleOpenAdvancedOptions = useCallback(() => {
-    setAdvancedOptionsEntryScreen('overview');
     setIsAdvancedOptionsVisible(true);
   }, []);
-  const handleOpenCoinSelection = useCallback(() => {
-    setAdvancedOptionsEntryScreen('coinSelection');
-    setIsAdvancedOptionsVisible(true);
-  }, []);
-  const handleUseAutomaticCoinSelection = useCallback(() => {
-    setPickedVaultableUtxosData(null);
-  }, []);
+  const handleAddFunds = useCallback(
+    () => navigation.navigate(RECEIVE),
+    [navigation]
+  );
   const handleCloseAdvancedOptions = useCallback(
     () => setIsAdvancedOptionsVisible(false),
     []
@@ -360,6 +356,13 @@ export default function VaultSetUp({
     vaultSetupRangeAssumingAutoCoinSelection.maxVaultAtSelectedPackageFeeRate
       .vaultedAmount >=
       vaultSetupRangeAssumingAutoCoinSelection.minimumVaultSetup.vaultedAmount;
+  const selectedFeeNeedsConfirmation =
+    selectedTargetPackageFeeRate !== null &&
+    !canBuildAtSelectedFeeAssumingAutoCoinSelection &&
+    hasPendingUtxos &&
+    rawVaultRange.maxVaultAtSelectedPackageFeeRate !== undefined &&
+    rawVaultRange.maxVaultAtSelectedPackageFeeRate.vaultedAmount >=
+      rawVaultRange.minimumVaultSetup.vaultedAmount;
   const isRawVaultPossible =
     maxFeeRate >= minimumTargetPackageFeeRate &&
     rawVaultRange.maxVaultAtMinimumPackageFeeRate !== undefined &&
@@ -726,7 +729,14 @@ export default function VaultSetUp({
               />
             </Text>
           </View>
-          <Button onPress={navigation.goBack}>{t('goBack')}</Button>
+          <View className="self-center flex-row items-center gap-4">
+            <Button onPress={navigation.goBack}>{t('goBack')}</Button>
+            {!isBlockedByPendingUtxos ? (
+              <Button mode="secondary" onPress={handleAddFunds}>
+                {t('wallet.vault.funding.addButton')}
+              </Button>
+            ) : null}
+          </View>
         </View>
       ) : (
         <View className="w-full max-w-screen-sm mx-4" style={containerStyle}>
@@ -774,21 +784,39 @@ export default function VaultSetUp({
             </>
           ) : (
             <View>
-              {coinControl && canBuildAtSelectedFeeAssumingAutoCoinSelection ? (
-                <CoinControlRecoveryPanel
-                  message={t('vaultSetup.pickedUtxosInsufficient')}
-                  onOpenCoinControl={handleOpenCoinSelection}
-                  onUseAuto={handleUseAutomaticCoinSelection}
-                />
-              ) : (
-                <Text className="text-base m-auto self-center text-red-500">
-                  {selectedTargetPackageFeeRate === null
-                    ? t('vaultSetup.invalidFeeRate')
-                    : coinControl
-                      ? t('vaultSetup.pickedUtxosInsufficient')
-                      : t('vaultSetup.lowerFeeRate')}
+              <View className="pb-2 flex-row items-center justify-between gap-3">
+                <Text
+                  className="flex-1 px-2 font-medium text-card-secondary text-sm uppercase"
+                  numberOfLines={1}
+                >
+                  {t('vaultSetup.amountLabel')}
                 </Text>
-              )}
+                <AdvancedTransactionOptionsButton
+                  active={advancedOptionsActive}
+                  onPress={handleOpenAdvancedOptions}
+                />
+              </View>
+              <Text className="text-base m-auto self-center text-red-500">
+                {selectedTargetPackageFeeRate === null
+                  ? t('vaultSetup.invalidFeeRate')
+                  : selectedFeeNeedsConfirmation
+                    ? t('wallet.vault.funding.wait')
+                    : coinControl &&
+                        canBuildAtSelectedFeeAssumingAutoCoinSelection
+                      ? t('vaultSetup.pickedUtxosInsufficient', {
+                          advancedLabel: t('coinControl.advanced')
+                        })
+                      : t('vaultSetup.lowerFeeRate')}
+              </Text>
+              {selectedTargetPackageFeeRate !== null &&
+              !canBuildAtSelectedFeeAssumingAutoCoinSelection &&
+              !selectedFeeNeedsConfirmation ? (
+                <View className="items-center mt-4">
+                  <Button mode="secondary" onPress={handleAddFunds}>
+                    {t('wallet.vault.funding.addButton')}
+                  </Button>
+                </View>
+              ) : null}
             </View>
           )}
           <View className="mb-8" />
@@ -861,7 +889,6 @@ export default function VaultSetUp({
           )}
           <AdvancedTransactionOptionsModal
             isVisible={isAdvancedOptionsVisible}
-            entryScreen={advancedOptionsEntryScreen}
             utxosAvailability={vaultCoinControlUtxosAvailability}
             pickedUtxosData={pickedVaultableUtxosData}
             btcFiat={btcFiat}

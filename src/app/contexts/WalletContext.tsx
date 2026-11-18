@@ -1043,9 +1043,6 @@ const WalletProviderRaw = ({
         throw new Error('Wallet not ready for fetchReserveDescriptorData');
       if (gapLimit === undefined)
         throw new Error('gapLimit not ready for fetchReserveDescriptorData');
-      if (!descriptor.includes('*'))
-        throw new Error('Reserve descriptor must be ranged');
-
       try {
         const network = networkMapping[activeWallet.networkId];
         // Do not use netRequest here: reserve scans run in the background and
@@ -1071,7 +1068,9 @@ const WalletProviderRaw = ({
           discovery,
           txoMap
         );
-        const nextIndex = discovery.getNextIndex({ descriptor });
+        const nextIndex = descriptor.includes('*')
+          ? discovery.getNextIndex({ descriptor })
+          : 0;
 
         return {
           txosData,

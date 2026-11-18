@@ -5,6 +5,13 @@ instead of var sliderStyle={zIndex:1,width:width};
 in node_modules/@react-native-community/slider/dist/Slider.js
 Also this: https://github.com/callstack/react-native-slider/pull/746
 
+Android new architecture also needs the same `fromUser` filter that the old
+architecture already has in `ReactSliderManager.onProgressChanged`. Otherwise,
+setting JS props emits `onValueChange` with a value rounded to the native slider's
+128-step grid (for example, a typed fee of 1000 becomes 995.18). The patch ignores
+only non-user changes, preserving native touch, keyboard, and accessibility input.
+Remove this part when upstream restores the filter in the new architecture.
+
 Patch for react-native-reanimated corresponds to allow animations even when the device has set reducedMotion (there is no global option as per current version):
 <https://github.com/software-mansion/react-native-reanimated/issues/5253>
 I needed to update the patch for newer versions of reanimated.

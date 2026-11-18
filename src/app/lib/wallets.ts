@@ -39,7 +39,7 @@ export const LEDGER = 'LEDGER' as const;
 // TODO(HWW): Make Signer useful even when the hardware wallet is disconnected.
 // Some descriptors, such as the trigger reserve descriptor, are just derived
 // from the signer using well-known Rewind paths like
-// m/1073'/coin_type'/2'/vault_index/*. They should not be stored as source of
+// m/84'/coin_type'/1073'/0/vault_index. They should not be stored as source of
 // truth on Vault. For hardware wallets, store enough non-secret public data here
 // (for example the relevant xpubs/descriptors) so read-only screens and wallet
 // export can still derive those descriptors without asking for the device.

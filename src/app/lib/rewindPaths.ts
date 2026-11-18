@@ -3,6 +3,7 @@ import type { Network } from 'bitcoinjs-lib';
 import { coinTypeFromNetwork } from './network';
 
 export const VAULT_PURPOSE = 1073;
+export const TRIGGER_RESERVE_ACCOUNT = 1073;
 
 /**
  * Returns the hardened origin path used for deterministic Rewind vault ids.
@@ -32,13 +33,12 @@ export const getVaultPath = (network: Network, index: number) =>
 export const getWalletDataKeyPath = (network: Network) =>
   `m/${VAULT_PURPOSE}'/${coinTypeFromNetwork(network)}'/1'/0`;
 
-/** Returns the deterministic path for a trigger reserve output of a vault. */
-export const getTriggerReservePath = (
-  network: Network,
-  vaultIndex: number,
-  addressIndex: number | '*'
-) =>
-  `m/${VAULT_PURPOSE}'/${coinTypeFromNetwork(network)}'/2'/${vaultIndex}/${addressIndex}`;
+/** Returns the BIP84-shaped deterministic trigger reserve path for a vault. */
+export const getTriggerReserveAccountPath = (network: Network) =>
+  `/84'/${coinTypeFromNetwork(network)}'/${TRIGGER_RESERVE_ACCOUNT}'`;
+
+export const getTriggerReservePath = (network: Network, vaultIndex: number) =>
+  `m${getTriggerReserveAccountPath(network)}/0/${vaultIndex}`;
 
 /** Returns the non-hardened vault index encoded in a deterministic vault path. */
 export const parseVaultIndex = (vaultPath: string) => {

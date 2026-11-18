@@ -52,7 +52,9 @@ export interface ModalProps {
   customButtons?: React.ReactNode;
   closeButtonText?: string;
   headerMini?: boolean;
-  onClose?: () => void;
+  /** Returning false cancels dismissal and restores a dragged sheet. */
+  onClose?: () => void | boolean;
+  closeOnBackButton?: boolean;
   onModalWillShow?: () => void;
   onModalHide?: () => void;
   children: React.ReactNode;
@@ -69,6 +71,7 @@ const RawModal: React.FC<ModalProps> = ({
   headerMini = false,
   closeButtonText,
   onClose,
+  closeOnBackButton = false,
   onModalWillShow,
   onModalHide,
   customButtons = null,
@@ -100,6 +103,12 @@ const RawModal: React.FC<ModalProps> = ({
 
   const onCloseTriggered = useSharedValue<boolean>(false);
   const dragStartY = useSharedValue(0);
+  const handleClose = useCallback(() => {
+    if (onClose?.() === false) {
+      onCloseTriggered.value = false;
+      translateY.value = withSpring(0);
+    } else onCloseTriggered.value = true;
+  }, [onClose, onCloseTriggered, translateY]);
 
   const Icon =
     icon && icon.family && Icons[icon.family] ? Icons[icon.family] : null;
@@ -136,7 +145,7 @@ const RawModal: React.FC<ModalProps> = ({
         .onEnd((_, success) => {
           if (success && translateY.value > DELTA && onClose) {
             onCloseTriggered.value = true;
-            runOnJS(onClose)();
+            runOnJS(handleClose)();
           } else {
             translateY.value = withSpring(0);
           }
@@ -145,7 +154,7 @@ const RawModal: React.FC<ModalProps> = ({
           if (!success && !onCloseTriggered.value)
             translateY.value = withSpring(0);
         }),
-    [dragStartY, onClose, onCloseTriggered, translateY]
+    [dragStartY, handleClose, onClose, onCloseTriggered, translateY]
   );
 
   const animatedStyle = useAnimatedStyle(() => {
@@ -161,10 +170,6 @@ const RawModal: React.FC<ModalProps> = ({
   const backdropStyle = useAnimatedStyle(() => ({
     opacity: backdropOpacity.value
   }));
-  const handleClose = () => {
-    onCloseTriggered.value = true;
-    if (onClose) onClose();
-  };
   const isMountedRef = useRef<boolean>(false);
   useEffect(() => {
     isMountedRef.current = true;
@@ -279,6 +284,7 @@ const RawModal: React.FC<ModalProps> = ({
         : {})}
       statusBarTranslucent
       isVisible={isVisible}
+      onBackButtonPress={closeOnBackButton ? handleClose : undefined}
       // These timings only apply to react-native-modal's content fade below.
       // Sheet movement and backdrop opacity are driven separately by Reanimated.
       animationInTiming={ANIMATION_TIME}

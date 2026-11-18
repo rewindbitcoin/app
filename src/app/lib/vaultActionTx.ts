@@ -5,6 +5,7 @@ import { findLowestTrueBinarySearch } from '../../common/lib/binarySearch';
 import { toHex } from 'uint8array-tools';
 import type { Account } from '@bitcoinerlab/discovery';
 import type { OutputInstance } from '@bitcoinerlab/descriptors';
+import { dustThreshold } from '@bitcoinerlab/coinselect';
 import { transactionFromHex } from './bitcoin';
 import {
   computeMaxAllowedFeeRate,
@@ -13,7 +14,10 @@ import {
 } from './fees';
 import type { Signer } from './wallets';
 import { assertP2AParentPolicy, findP2AOutputData } from './p2aPolicy';
-import { getAdditionalP2AOutputValue } from './p2aReserve';
+import {
+  getAdditionalP2AOutputValue,
+  estimateCpfpChildVSizeFromOutputs
+} from './p2aReserve';
 import {
   estimateCpfpPackage,
   type HistoryData,
@@ -149,7 +153,9 @@ export const getAdditionalOutputValue = ({
   childChangeOutput,
   parentTxInfo,
   targetPackageFeeRate,
-  vaultableWalletUtxosData
+  vaultableWalletUtxosData,
+  pushedChildTxHex,
+  historyData = []
 }: {
   /** Loaded P2A bump plan whose current reserve inputs are used. */
   p2aBumpPlan: P2ABumpPlan | 'loading' | 'error';
@@ -169,6 +175,8 @@ export const getAdditionalOutputValue = ({
    * are still loading.
    */
   vaultableWalletUtxosData?: UtxosData;
+  pushedChildTxHex?: TxHex;
+  historyData?: HistoryData;
 }): number => {
   if (typeof p2aBumpPlan !== 'object')
     throw new Error('P2A bump plan must be loaded');
@@ -181,6 +189,45 @@ export const getAdditionalOutputValue = ({
     ...p2aBumpPlan.txosData,
     ...(vaultableWalletUtxosData ?? [])
   ]);
+  const previousChildFee = pushedChildTxHex
+    ? getCpfpFeeInfo({
+        parentTxHex: parentTxInfo.txHex,
+        parentFee: parentTxInfo.fee,
+        childTxHex: pushedChildTxHex,
+        reserveUtxosData: p2aBumpPlan.txosData,
+        historyData
+      }).childFee
+    : undefined;
+  const existingPackage = estimateCpfpPackage({
+    parentTxHex: parentTxInfo.txHex,
+    parentFee: parentTxInfo.fee,
+    targetPackageFeeRate,
+    utxosData: [...p2aBumpPlan.txosData, ...(vaultableWalletUtxosData ?? [])],
+    changeOutput: childChangeOutput
+  });
+  if (
+    existingPackage &&
+    (previousChildFee === undefined ||
+      existingPackage.childFee >=
+        getMinimumReplacementChildFee({
+          previousChildFee,
+          replacementChildVSize: existingPackage.childVSize
+        }))
+  )
+    return 0;
+  const minimumChildFee =
+    previousChildFee === undefined
+      ? 0
+      : getMinimumReplacementChildFee({
+          previousChildFee,
+          replacementChildVSize: estimateCpfpChildVSizeFromOutputs(
+            [
+              ...existingOutputsWithValue.map(({ output }) => output),
+              additionalOutput
+            ],
+            childChangeOutput
+          )
+        });
 
   return Number(
     getAdditionalP2AOutputValue({
@@ -190,7 +237,8 @@ export const getAdditionalOutputValue = ({
       parentAnchorValue: parentAnchor.value,
       presignedParentVSize: parentTx.virtualSize(),
       presignedParentFeeRate: parentTxInfo.fee / parentTx.virtualSize(),
-      targetPackageFeeRate
+      targetPackageFeeRate,
+      minimumChildFee
     })
   );
 };
@@ -549,6 +597,7 @@ export const getVaultActionBlocker = ({
   presignedTxInfos,
   p2aBumpPlan,
   childChangeOutput,
+  hasUnconfirmedAncestor = false,
   vaultableWalletUtxosData,
   coinControl,
   historyData
@@ -561,6 +610,8 @@ export const getVaultActionBlocker = ({
   p2aBumpPlan?: P2ABumpPlan;
   /** Output that receives leftover child value after fees. */
   childChangeOutput?: OutputInstance;
+  /** A rescue parent may itself spend a still-unconfirmed trigger. */
+  hasUnconfirmedAncestor?: boolean;
   /**
    * Normal wallet UTXOs that are already policy-filtered for this vault mode.
    * For P2A_TRUC they must be confirmed; for P2A_NON_TRUC they may include only
@@ -610,6 +661,7 @@ export const getVaultActionBlocker = ({
     | null
     | 'noP2AReserve'
     | 'p2aReserveUnconfirmed'
+    | 'p2aAncestorUnconfirmed'
     | 'p2aReserveCannotFundMinimumPackage'
     | 'childChangeUnavailable'
     | 'noReplacementPath'
@@ -690,6 +742,11 @@ export const getVaultActionBlocker = ({
         minimumSelectableFeeRate: null,
         reason: 'p2aReserveUnconfirmed'
       };
+    if (vaultMode === 'P2A_TRUC' && hasP2AChildInputs && hasUnconfirmedAncestor)
+      return {
+        minimumSelectableFeeRate: null,
+        reason: 'p2aAncestorUnconfirmed'
+      };
     if (isChildChangeUnavailable)
       return {
         minimumSelectableFeeRate: null,
@@ -741,25 +798,20 @@ export const getVaultActionBlocker = ({
       // increase child fee and shrink the dust-constrained change output.
       const packageMinimumFeeRate =
         canComputeMinimumP2APackageFeeRate && maximumFeeRate !== null
-          ? findMinimumActionableFeeRate({
-              minimumFeeRate: MIN_FEE_RATE,
-              maximumFeeRate,
-              canBuildAtFeeRate: feeRate => {
-                return (
-                  coinSelectWalletSupplementUtxosData({
-                    parentTxHex: parentTxInfo.txHex,
-                    parentFee: parentTxInfo.fee,
-                    targetPackageFeeRate: feeRate,
-                    reserveUtxosData: p2aBumpPlan.txosData,
-                    ...(vaultableWalletUtxosData?.length
-                      ? { vaultableWalletUtxosData }
-                      : {}),
-                    coinControl,
-                    changeOutput: childChangeOutput
-                  }) !== 'cannotBuildPackage'
-                );
-              }
-            })
+          ? maximumFeeRate >= MIN_FEE_RATE &&
+            coinSelectWalletSupplementUtxosData({
+              parentTxHex: parentTxInfo.txHex,
+              parentFee: parentTxInfo.fee,
+              targetPackageFeeRate: MIN_FEE_RATE,
+              reserveUtxosData: p2aBumpPlan.txosData,
+              ...(vaultableWalletUtxosData?.length
+                ? { vaultableWalletUtxosData }
+                : {}),
+              coinControl,
+              changeOutput: childChangeOutput
+            }) !== 'cannotBuildPackage'
+            ? MIN_FEE_RATE
+            : null
           : null;
 
       return {
@@ -801,6 +853,7 @@ export const buildVaultActionDataForFeeRate = ({
   presignedTxInfos,
   p2aBumpPlan,
   childChangePlan,
+  hasUnconfirmedAncestor = false,
   vaultableWalletUtxosData,
   coinControl
 }: {
@@ -814,6 +867,7 @@ export const buildVaultActionDataForFeeRate = ({
     output: OutputInstance;
     finalChildChange: NonNullable<VaultActionData['finalChildChange']>;
   };
+  hasUnconfirmedAncestor?: boolean;
   /**
    * Normal wallet UTXOs that are already policy-filtered for this vault mode.
    * For P2A_TRUC they must be confirmed; for P2A_NON_TRUC they may include only
@@ -858,6 +912,12 @@ export const buildVaultActionDataForFeeRate = ({
     const canAttemptCoinSelect =
       !!p2aBumpPlan &&
       (p2aBumpPlan.txosData.length > 0 || !!vaultableWalletUtxosData?.length);
+    if (
+      vaultMode === 'P2A_TRUC' &&
+      canAttemptCoinSelect &&
+      hasUnconfirmedAncestor
+    )
+      return null;
     if (canAttemptCoinSelect && !childChangePlan)
       throw new Error('P2A bump plan with child inputs requires change output');
     // `walletSupplementUnneeded` means the reserve alone can build the package,
@@ -1145,13 +1205,8 @@ export const getCpfpReplacementFeeRateFloor = ({
   if (minimumReplacementPackageFeeRate > maxFeeRate)
     return minimumReplacementPackageFeeRate;
 
-  for (
-    let targetPackageFeeRate = minimumReplacementPackageFeeRate;
-    targetPackageFeeRate <= maxFeeRate;
-    targetPackageFeeRate = Number(
-      (targetPackageFeeRate + FEE_RATE_STEP).toFixed(2)
-    )
-  ) {
+  let targetPackageFeeRate = minimumReplacementPackageFeeRate;
+  while (targetPackageFeeRate <= maxFeeRate) {
     const walletSupplementUtxosData = coinSelectWalletSupplementUtxosData({
       parentTxHex,
       parentFee,
@@ -1161,7 +1216,8 @@ export const getCpfpReplacementFeeRateFloor = ({
       coinControl,
       changeOutput: childOutput
     });
-    if (walletSupplementUtxosData === 'cannotBuildPackage') continue;
+    // A higher fee cannot make an unaffordable package affordable.
+    if (walletSupplementUtxosData === 'cannotBuildPackage') return null;
     const packageEstimate = estimateCpfpPackage({
       parentTxHex,
       parentFee,
@@ -1184,27 +1240,43 @@ export const getCpfpReplacementFeeRateFloor = ({
       });
       if (packageEstimate.childFee >= minimumReplacementChildFee)
         return targetPackageFeeRate;
+      const packageVSize = parentTx.virtualSize() + packageEstimate.childVSize;
+      // ceil(rate * size) already pays the required integer fee as soon as the
+      // product exceeds fee - 1. Do not round that first valid slider tick up.
+      const replacementFeeTarget =
+        (Math.floor(
+          ((parentFee + minimumReplacementChildFee - 1) / packageVSize) * 100
+        ) +
+          1) /
+        100;
+      const hasMoreWalletInputs =
+        (vaultableWalletUtxosData?.length ?? 0) >
+        (Array.isArray(walletSupplementUtxosData)
+          ? walletSupplementUtxosData.length
+          : 0);
+      // A larger input set may satisfy replacement policy at a lower rate.
+      // Visit the first tick that makes the current selection dust-constrained
+      // before jumping to its replacement floor, then re-run coin selection.
+      const nextInputTarget = hasMoreWalletInputs
+        ? (Math.floor(
+            ((parentFee +
+              packageEstimate.childFee +
+              packageEstimate.childOutputValue -
+              toNumber(dustThreshold(childOutput)) -
+              1) /
+              packageVSize) *
+              100
+          ) +
+            1) /
+          100
+        : Infinity;
+      targetPackageFeeRate = Math.max(
+        Number((targetPackageFeeRate + FEE_RATE_STEP).toFixed(2)),
+        Math.min(replacementFeeTarget, nextInputTarget)
+      );
+    } else {
+      return null;
     }
-  }
-  return null;
-};
-
-/** Finds the first fee rate on the slider grid that can actually build a tx. */
-export const findMinimumActionableFeeRate = ({
-  minimumFeeRate,
-  maximumFeeRate,
-  canBuildAtFeeRate
-}: {
-  minimumFeeRate: number;
-  maximumFeeRate: number;
-  canBuildAtFeeRate: (feeRate: number) => boolean;
-}): number | null => {
-  for (
-    let feeRate = minimumFeeRate;
-    feeRate <= maximumFeeRate;
-    feeRate = Number((feeRate + FEE_RATE_STEP).toFixed(2))
-  ) {
-    if (canBuildAtFeeRate(feeRate)) return feeRate;
   }
   return null;
 };

@@ -15,7 +15,12 @@ When funds are unvaulted, a **countdown period** begins, allowing the user (or a
 
 This project is currently being open-sourced. Internal documentation, build guides and contribution instructions will be added soon.
 
-For the current Rewind2 vault design notes, see [`REWIND2.md`](./REWIND2.md).
+Current Rewind2 references:
+
+- [`REWIND2.md`](./REWIND2.md): vault design and transaction roles.
+- [`P2AFUNDINGFLOWS.md`](./P2AFUNDINGFLOWS.md): funding, selected fees, Rescue and Advanced/coin-picker behavior.
+- [`RELAY_RECIPES.md`](./RELAY_RECIPES.md): P2A/TRUC relay and replacement constraints.
+- [`test/README.md`](./test/README.md): focused unit checks versus Docker/regtest suites.
 
 You can learn more about the project at [https://rewindbitcoin.com](https://rewindbitcoin.com).
 

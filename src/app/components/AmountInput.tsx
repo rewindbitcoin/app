@@ -6,8 +6,8 @@
 //That means the parent component must reset the last value set by onValueChange
 //to initialValue
 import React, { useState, useCallback, useRef, useMemo } from 'react';
-import { View } from 'react-native';
-import { Button, CardEditableSlider } from '../../common/ui';
+import { CardEditableSlider } from '../../common/ui';
+import { AdvancedTransactionOptionsButton } from './AdvancedTransactionOptions';
 import { useTranslation } from 'react-i18next';
 import type { SubUnit } from '../lib/settings';
 import {
@@ -128,23 +128,10 @@ function AmountInput({
         label={label}
         headerRight={
           allowAdvancedOptions ? (
-            <View className="flex-row items-center">
-              {advancedOptionsActive ? (
-                <View className="mr-1 h-2 w-2 rounded-full bg-primary" />
-              ) : null}
-              <Button
-                mode="text"
-                containerClassName="!min-w-0"
-                textClassName="!text-xs"
-                accessibilityLabel={t('coinControl.advanced')}
-                iconRight={{ family: 'FontAwesome5', name: 'sliders-h' }}
-                onPress={handleAdvancedOptionsPress}
-              >
-                {advancedOptionsActive
-                  ? t('coinControl.advancedActive')
-                  : t('coinControl.advanced')}
-              </Button>
-            </View>
+            <AdvancedTransactionOptionsButton
+              active={advancedOptionsActive}
+              onPress={handleAdvancedOptionsPress}
+            />
           ) : undefined
         }
         key={`${mode}-${min}-${max}`}

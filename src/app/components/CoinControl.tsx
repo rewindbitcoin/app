@@ -1,7 +1,7 @@
 // Copyright (C) 2026 Jose-Luis Landabaso - https://rewindbitcoin.com
 // Licensed under the GNU GPL v3 or later. See the LICENSE file for details.
 
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import { Linking, Pressable, Text, View } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import { useTranslation } from 'react-i18next';
@@ -26,29 +26,17 @@ import LabelEditor from './LabelEditor';
 /**
  * Props for one coin-control picking session.
  *
- * The panel intentionally owns transient draft state for currently toggled rows.
- * Mount it when the user enters coin control, and unmount it when the user
- * leaves so each picking session initializes from the last confirmed selection.
+ * The enclosing modal owns the transient selection so its fixed footer and
+ * dismissal guard always reflect the same draft as these rows.
  */
 type CoinControlPanelProps = {
   utxosAvailability: UtxoAvailability[];
   /**
-   * UTXOs manually picked by the user before opening this panel.
-   * These are preselected in the picker; auto coin-selection candidates are not passed here.
-   * Null means the user has not confirmed any manual picks yet.
+   * Current draft, not the committed transaction selection.
    */
-  pickedUtxosData: UtxosData | null;
+  pickedUtxosData: UtxosData;
   btcFiat: number | undefined;
-  onClose: () => void;
-  onConfirm: (pickedUtxosData: UtxosData) => void;
-};
-
-type CoinControlRecoveryPanelProps = {
-  message: string;
-  onOpenCoinControl: () => void;
-  onUseAuto: () => void;
-  className?: string;
-  textClassName?: string;
+  onChange: (pickedUtxosData: UtxosData) => void;
 };
 
 type UtxoDataWithDescriptor = UtxoAvailability['utxoData'] & {
@@ -77,41 +65,6 @@ const getAccountNumber = (descriptor: string) =>
   descriptor.match(/\/(\d+)'\]/)?.[1];
 
 /**
- * Two-button recovery panel for manual coin-control picks that cannot meet the
- * current send, vault setup, or unfreeze requirements.
- *
- * The user has already picked UTXOs manually, but that exact selection cannot
- * build at the chosen amount/fee. This panel offers the same recovery choices
- * across Send, Vault Setup, and Unfreeze flows: go back to Coin Control to
- * re-pick UTXOs, or switch back to automatic coin selection.
- *
- * Callers still own the flow-specific buildability checks and message copy.
- * This component only owns the shared recovery layout and actions.
- */
-const RawCoinControlRecoveryPanel = ({
-  message,
-  onOpenCoinControl,
-  onUseAuto,
-  className,
-  textClassName = 'text-base m-auto self-center text-red-500'
-}: CoinControlRecoveryPanelProps) => {
-  const { t } = useTranslation();
-  return (
-    <View {...(className ? { className } : {})}>
-      <Text className={textClassName}>{message}</Text>
-      <View className="mt-4 flex-row flex-wrap justify-center gap-3">
-        <Button mode="secondary" onPress={onOpenCoinControl}>
-          {t('coinControl.chooseCoins')}
-        </Button>
-        <Button mode="secondary" onPress={onUseAuto}>
-          {t('coinControl.auto')}
-        </Button>
-      </View>
-    </View>
-  );
-};
-
-/**
  * Shell-free coin-control picker used inside advanced transaction options and
  * flows that are already inside a native modal.
  */
@@ -119,8 +72,7 @@ const RawCoinControlPanel = ({
   utxosAvailability,
   pickedUtxosData,
   btcFiat,
-  onClose,
-  onConfirm
+  onChange
 }: CoinControlPanelProps) => {
   const { t } = useTranslation();
   const toast = useToast();
@@ -133,8 +85,9 @@ const RawCoinControlPanel = ({
     networkId
   } = useWallet();
   const { locale, currency } = useLocalization();
-  const [pickedOutpoints, setPickedOutpoints] = useState<Set<string>>(
-    () => new Set(pickedUtxosData?.map(utxoData => getOutpoint(utxoData)) ?? [])
+  const pickedOutpoints = useMemo(
+    () => new Set(pickedUtxosData.map(getOutpoint)),
+    [pickedUtxosData]
   );
 
   if (!settings)
@@ -264,29 +217,24 @@ const RawCoinControlPanel = ({
     [locale, t]
   );
 
-  const pickedPanelUtxosData = useMemo(
-    () =>
-      utxosAvailability
-        .filter(
-          availability =>
-            availability.status === 'selectable' &&
-            pickedOutpoints.has(getOutpoint(availability.utxoData))
-        )
-        .map(availability => availability.utxoData),
-    [pickedOutpoints, utxosAvailability]
-  );
-  const handleToggleUtxo = useCallback((outpoint: string) => {
-    setPickedOutpoints(pickedOutpoints => {
+  const handleToggleUtxo = useCallback(
+    (outpoint: string) => {
       const nextPickedOutpoints = new Set(pickedOutpoints);
       if (nextPickedOutpoints.has(outpoint))
         nextPickedOutpoints.delete(outpoint);
       else nextPickedOutpoints.add(outpoint);
-      return nextPickedOutpoints;
-    });
-  }, []);
-  const handleConfirm = useCallback(() => {
-    onConfirm(pickedPanelUtxosData);
-  }, [onConfirm, pickedPanelUtxosData]);
+      onChange(
+        utxosAvailability
+          .filter(
+            availability =>
+              availability.status === 'selectable' &&
+              nextPickedOutpoints.has(getOutpoint(availability.utxoData))
+          )
+          .map(availability => availability.utxoData)
+      );
+    },
+    [onChange, pickedOutpoints, utxosAvailability]
+  );
   const handleCopyOutpoint = useCallback(
     (outpoint: string) => {
       Clipboard.setStringAsync(outpoint);
@@ -437,21 +385,9 @@ const RawCoinControlPanel = ({
           {t('coinControl.noUtxos')}
         </Text>
       )}
-      <View className="items-center gap-6 gap-y-4 flex-row flex-wrap justify-center pb-4">
-        <Button mode="secondary" onPress={onClose}>
-          {t('coinControl.back')}
-        </Button>
-        <Button
-          onPress={handleConfirm}
-          disabled={pickedPanelUtxosData.length === 0}
-        >
-          {t('coinControl.useSelected')}
-        </Button>
-      </View>
     </View>
   );
 };
 
 export const CoinControlPanel = React.memo(RawCoinControlPanel);
-export const CoinControlRecoveryPanel = React.memo(RawCoinControlRecoveryPanel);
 export { coinControlIcon };

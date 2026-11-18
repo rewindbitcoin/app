@@ -30,7 +30,12 @@ import {
   getPresignedTriggerFeeRate,
   PRESIGNED_RESCUE_FEERATE
 } from '../dist/src/app/lib/vaultFees';
-import { getAdditionalP2AOutputValue } from '../dist/src/app/lib/p2aReserve';
+import {
+  getAdditionalP2AOutputValue,
+  getTriggerReserveDescriptorForVaultIndex,
+  getTriggerReserveOutput
+} from '../dist/src/app/lib/p2aReserve';
+import { getTriggerReservePath } from '../dist/src/app/lib/rewindPaths';
 import {
   getSendableUtxos,
   getVaultableUtxos
@@ -39,11 +44,15 @@ import { RBF_SEQUENCE } from '../dist/src/app/lib/bitcoin';
 import {
   buildVaultActionDataForFeeRate,
   getVaultActionBlocker,
-  getCpfpFeeInfo
+  getCpfpFeeInfo,
+  getAdditionalOutputValue
 } from '../dist/src/app/lib/vaultActionTx';
 import { networks, type Network, Transaction } from 'bitcoinjs-lib';
-import { fromHex } from 'uint8array-tools';
-import { createAddressOutput } from '../dist/src/app/lib/vaultDescriptors';
+import { fromHex, toHex } from 'uint8array-tools';
+import {
+  createAddressOutput,
+  createSoftwareSignerFromMnemonic
+} from '../dist/src/app/lib/vaultDescriptors';
 
 const P2A_NON_TRUC_ANCHOR_SATS = Number(P2A_NON_TRUC_ANCHOR_VALUE);
 const DUMMY_FINAL_CHILD_CHANGE = { descriptor: 'wpkh(dummy/*)', index: 0 };
@@ -148,6 +157,30 @@ describe('vaults unit tests', () => {
 
   test('P2A_NON_TRUC anchor is just above P2A dust threshold', () => {
     expect(P2A_NON_TRUC_ANCHOR_SATS).toBe(241);
+  });
+
+  test('trigger reserve uses an exact BIP84 account address', () => {
+    const network = networks.regtest;
+    const vaultIndex = 7;
+    const signer = createSoftwareSignerFromMnemonic(
+      fixtures.edge2edge.MNEMONIC,
+      network
+    );
+    const descriptor = getTriggerReserveDescriptorForVaultIndex({
+      signer,
+      network,
+      vaultIndex
+    });
+    const output = getTriggerReserveOutput({ descriptor, network });
+
+    expect(getTriggerReservePath(network, vaultIndex)).toBe(
+      "m/84'/1'/1073'/0/7"
+    );
+    expect(descriptor).toContain("/84'/1'/1073'");
+    expect(descriptor).toContain('/0/7)');
+    expect(descriptor).not.toContain('*');
+    expect(toHex(output.getScriptPubKey()).startsWith('0014')).toBe(true);
+    expect(output.getScriptPubKey()).toHaveLength(22);
   });
 
   test('getHotDescriptors with no vaults', () => {
@@ -287,6 +320,22 @@ describe('vaults unit tests', () => {
     });
     expect(plan).toBeDefined();
     expect(plan?.packageFeeRate).toBeGreaterThanOrEqual(targetPackageFeeRate);
+    expect(
+      getAdditionalOutputValue({
+        p2aBumpPlan: {
+          txosData: [createSyntheticUtxoData(requiredValue)],
+          hasUnconfirmedUtxos: false
+        },
+        additionalOutput: nextReserveOutput,
+        childChangeOutput: changeOutput,
+        parentTxInfo: {
+          txHex: parentTxHex,
+          fee: parentFee,
+          feeRate: parentFee / parentTx.virtualSize()
+        },
+        targetPackageFeeRate
+      })
+    ).toBe(0);
 
     const underfundedPlan = estimateCpfpPackage({
       parentTxHex,
@@ -360,6 +409,73 @@ describe('vaults unit tests', () => {
       priorReserveUtxo.tx.getId()
     );
     expect(txData?.walletSupplementUtxosData).toBe('walletSupplementUnneeded');
+    // The optimized search must not skip the first valid slider tick, including
+    // the point where a dust-constrained reserve needs another wallet input.
+    for (const { reserveValue, childFee, expectedFloor } of [
+      { reserveValue: 400, childFee: 150, expectedFloor: 1.16 },
+      { reserveValue: 365, childFee: 300, expectedFloor: 1.74 }
+    ]) {
+      const reserve = createSyntheticUtxoData(reserveValue);
+      const child = Transaction.fromHex(
+        createSyntheticCpfpChildTxHex({
+          parentTxHex,
+          reserveUtxosData: [reserve],
+          childFee
+        })
+      );
+      child.setWitness(0, [new Uint8Array(0)]);
+      child.setWitness(1, [new Uint8Array(72), new Uint8Array(33)]);
+      const readiness = getVaultActionBlocker({
+        vaultMode: 'P2A_NON_TRUC',
+        feeEstimates: { '1': expectedFloor / 2 },
+        pushedTxHex: parentTxHex,
+        pushedChildTxHex: child.toHex(),
+        presignedTxInfos,
+        p2aBumpPlan: { txosData: [reserve], hasUnconfirmedUtxos: false },
+        childChangeOutput: changeOutput,
+        vaultableWalletUtxosData: [createSyntheticUtxoData(5000)],
+        coinControl: false,
+        historyData: []
+      });
+      expect(readiness).toEqual({
+        reason: null,
+        minimumSelectableFeeRate: expectedFloor
+      });
+    }
+  });
+
+  test('funding a replacement includes its absolute child-fee floor', () => {
+    const changeOutput = createAddressOutput(
+      DUMMY_ADDRESS(networks.regtest),
+      networks.regtest
+    );
+    const parentTxHex = createSyntheticTxHex({
+      version: 2,
+      mainOutputValue: 12000,
+      p2aValue: P2A_NON_TRUC_ANCHOR_SATS
+    });
+    const reserve = createSyntheticUtxoData(2000);
+    const child = createSyntheticCpfpChildTxHex({
+      parentTxHex,
+      reserveUtxosData: [reserve],
+      childFee: 1946
+    });
+    const args = {
+      p2aBumpPlan: { txosData: [reserve], hasUnconfirmedUtxos: false },
+      additionalOutput: changeOutput,
+      childChangeOutput: changeOutput,
+      parentTxInfo: {
+        txHex: parentTxHex,
+        fee: 120,
+        feeRate: 120 / Transaction.fromHex(parentTxHex).virtualSize()
+      },
+      targetPackageFeeRate: 1,
+      historyData: []
+    };
+    expect(getAdditionalOutputValue(args)).toBe(0);
+    expect(
+      getAdditionalOutputValue({ ...args, pushedChildTxHex: child })
+    ).toBeGreaterThan(0);
   });
 
   test('P2A trigger uses wallet supplement only after opt-in', () => {
@@ -432,6 +548,95 @@ describe('vaults unit tests', () => {
     expect(supplementedTxData.walletSupplementUtxosData[0]?.tx.getId()).toBe(
       walletUtxo.tx.getId()
     );
+  });
+
+  test('TRUC rescue child waits for its trigger ancestor, but parent-only rescue stays available', () => {
+    const changeOutput = createAddressOutput(
+      DUMMY_ADDRESS(networks.regtest),
+      networks.regtest
+    );
+    const parentTxHex = createSyntheticTxHex({
+      version: 3,
+      mainOutputValue: 12000,
+      p2aValue: P2A_NON_TRUC_ANCHOR_SATS
+    });
+    const parentTx = Transaction.fromHex(parentTxHex);
+    const parent = {
+      txHex: parentTxHex,
+      fee: 1000,
+      feeRate: 1000 / parentTx.virtualSize()
+    };
+    const args = {
+      vaultMode: 'P2A_TRUC' as const,
+      feeEstimates: { '1': 10 },
+      presignedTxInfos: [parent],
+      p2aBumpPlan: {
+        txosData: [createSyntheticUtxoData(3000)],
+        hasUnconfirmedUtxos: false
+      },
+      childChangeOutput: changeOutput,
+      hasUnconfirmedAncestor: true,
+      coinControl: false,
+      historyData: []
+    };
+    expect(getVaultActionBlocker(args).reason).toBe('p2aAncestorUnconfirmed');
+    expect(
+      buildVaultActionDataForFeeRate({
+        ...args,
+        selectedFeeRate: 2,
+        childChangePlan: {
+          output: changeOutput,
+          finalChildChange: DUMMY_FINAL_CHILD_CHANGE
+        }
+      })
+    ).toBeNull();
+    const emptyPlan = { txosData: [], hasUnconfirmedUtxos: false };
+    expect(
+      getVaultActionBlocker({ ...args, p2aBumpPlan: emptyPlan }).reason
+    ).toBeNull();
+    expect(
+      buildVaultActionDataForFeeRate({
+        ...args,
+        p2aBumpPlan: emptyPlan,
+        selectedFeeRate: parent.feeRate
+      })
+    ).not.toBeNull();
+    expect(
+      getVaultActionBlocker({ ...args, hasUnconfirmedAncestor: false }).reason
+    ).toBeNull();
+  });
+
+  test('an unaffordable first package does not scan hundreds of thousands of fee steps', () => {
+    const estimate = jest.spyOn(
+      jest.requireActual('../dist/src/app/lib/vaults'),
+      'estimateCpfpPackage'
+    );
+    try {
+      const parentTxHex = createSyntheticTxHex({
+        version: 3,
+        mainOutputValue: 12000,
+        p2aValue: 0
+      });
+      const result = getVaultActionBlocker({
+        vaultMode: 'P2A_TRUC',
+        feeEstimates: { '1': 1000 },
+        presignedTxInfos: [{ txHex: parentTxHex, fee: 0, feeRate: 0 }],
+        p2aBumpPlan: {
+          txosData: [createSyntheticUtxoData(1)],
+          hasUnconfirmedUtxos: false
+        },
+        childChangeOutput: createAddressOutput(
+          DUMMY_ADDRESS(networks.regtest),
+          networks.regtest
+        ),
+        coinControl: false,
+        historyData: []
+      });
+      expect(result.reason).toBe('p2aReserveCannotFundMinimumPackage');
+      expect(estimate.mock.calls.length).toBeLessThanOrEqual(2);
+    } finally {
+      estimate.mockRestore();
+    }
   });
 
   test('P2A blocker waits when child change is not ready', () => {

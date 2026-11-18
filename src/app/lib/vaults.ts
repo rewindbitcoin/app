@@ -896,8 +896,7 @@ export const getP2AVaultFundingBreakdown = ({
   const triggerReserveVout = findTriggerReserveVout({
     vaultTxHex: vault.vaultTxHex,
     descriptor: triggerReserveDescriptor,
-    network,
-    addressIndex: 0
+    network
   });
   const backupVout = findVoutByScript(vaultTx, backupOutput.getScriptPubKey());
   if (backupVout < 0) throw new Error('Backup output not found in vault tx');
@@ -1410,8 +1409,7 @@ const buildVaultTxContext = async ({
   });
   const triggerReserveOutput = getTriggerReserveOutput({
     descriptor: triggerReserveDescriptor,
-    network,
-    addressIndex: 0
+    network
   });
   const triggerReserveValue = getAdditionalP2AOutputValue({
     outputsWithValue: [],
@@ -1919,8 +1917,7 @@ async function fetchTriggerCpfpTxFromReserve({
   const triggerReserveVout = findTriggerReserveVout({
     vaultTxHex: vault.vaultTxHex,
     descriptor: triggerReserveDescriptor,
-    network,
-    addressIndex: 0
+    network
   });
   if (triggerReserveVout < 0) return;
 

@@ -32,7 +32,8 @@ import {
   useTheme,
   TabBar,
   Button,
-  ActivityIndicator
+  ActivityIndicator,
+  Modal
 } from '../../common/ui';
 import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
@@ -40,7 +41,9 @@ import {
   useNavigation,
   type RouteProp,
   useRoute,
-  useIsFocused
+  useIsFocused,
+  UNSTABLE_usePreventRemove as usePreventRemove,
+  type NavigationAction
 } from '@react-navigation/native';
 import { getPasswordDerivedCipherKey } from '../../common/lib/cipher';
 
@@ -134,6 +137,27 @@ const WalletHomeScreen = () => {
     pushToken,
     setPushToken
   } = useWallet();
+  const [temporaryRescueVaults, setTemporaryRescueVaults] = useState<
+    Set<string>
+  >(() => new Set());
+  const [pendingLeaveAction, setPendingLeaveAction] =
+    useState<NavigationAction>();
+  const confirmedLeaveAction = useRef<NavigationAction | undefined>(undefined);
+  const onTemporaryRescueWalletChange = useCallback(
+    (vaultId: string, active: boolean) => {
+      setTemporaryRescueVaults(current => {
+        if (current.has(vaultId) === active) return current;
+        const next = new Set(current);
+        if (active) next.add(vaultId);
+        else next.delete(vaultId);
+        return next;
+      });
+    },
+    []
+  );
+  usePreventRemove(temporaryRescueVaults.size > 0, ({ data }) =>
+    setPendingLeaveAction(data.action)
+  );
   if (wallet && walletId !== wallet.walletId)
     throw new Error(
       `Navigated to walletId ${walletId} which does not correspond to the one in the context ${wallet?.walletId}`
@@ -145,8 +169,8 @@ const WalletHomeScreen = () => {
   //const { canUseSecureStorage } = secureStorageInfo;
 
   useEffect(() =>
-    navigation.addListener('beforeRemove', () => {
-      logOut();
+    navigation.addListener('beforeRemove', event => {
+      if (!event.defaultPrevented) logOut();
     })
   );
 
@@ -203,7 +227,8 @@ const WalletHomeScreen = () => {
           </Pressable>
         </View>
       ),
-      headerRightContainerStyle: { marginRight: 16 }
+      headerRightContainerStyle: { marginRight: 16 },
+      headerBackButtonMenuEnabled: temporaryRescueVaults.size === 0
     }),
     [
       theme.colors.primary,
@@ -212,7 +237,8 @@ const WalletHomeScreen = () => {
       userTriggeredRefresh,
       syncingOrFaucetPendingOrExplorerConnecting,
       navigation,
-      walletId
+      walletId,
+      temporaryRescueVaults.size
     ]
   );
   useEffect(() => navigation.setOptions(navOptions), [navigation, navOptions]);
@@ -631,6 +657,7 @@ const WalletHomeScreen = () => {
           >
             {vaults && vaultsStatuses ? (
               <Vaults
+                onTemporaryRescueWalletChange={onTemporaryRescueWalletChange}
                 syncWatchtowerRegistration={syncWatchtowerRegistration}
                 watchtowerAPI={watchtowerAPI}
                 setVaultNotificationAcknowledged={
@@ -691,6 +718,41 @@ const WalletHomeScreen = () => {
           )
         }
       </KeyboardAwareScrollView>
+      <Modal
+        headerMini
+        title={t('wallet.vault.rescueReserveWallet.leaveTitle')}
+        isVisible={pendingLeaveAction !== undefined}
+        onClose={() => setPendingLeaveAction(undefined)}
+        onModalHide={() => {
+          const action = confirmedLeaveAction.current;
+          if (!action) return;
+          confirmedLeaveAction.current = undefined;
+          logOut();
+          navigation.dispatch(action);
+        }}
+        customButtons={
+          <View className="flex-row justify-center gap-4 pb-4">
+            <Button
+              mode="secondary"
+              onPress={() => setPendingLeaveAction(undefined)}
+            >
+              {t('cancelButton')}
+            </Button>
+            <Button
+              onPress={() => {
+                confirmedLeaveAction.current = pendingLeaveAction;
+                setPendingLeaveAction(undefined);
+              }}
+            >
+              {t('wallet.vault.rescueReserveWallet.leaveButton')}
+            </Button>
+          </View>
+        }
+      >
+        <Text className="text-base px-2">
+          {t('wallet.vault.rescueReserveWallet.leaveWarning')}
+        </Text>
+      </Modal>
     </>
   );
 };

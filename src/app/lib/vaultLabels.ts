@@ -56,8 +56,7 @@ const getVaultTriggerReserveVout = ({
   return findTriggerReserveVout({
     vaultTxHex: vault.vaultTxHex,
     descriptor: getTriggerReserveDescriptor({ vault, signer, network }),
-    network,
-    addressIndex: 0
+    network
   });
 };
 
